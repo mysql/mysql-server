@@ -20,6 +20,7 @@
 
 #ifndef EXTRACT_DEFINITIONS
 #include "maria_def.h"
+#include "ma_checkpoint.h"
 #endif
 
 /*
@@ -77,8 +78,9 @@ one should increment the control file version number.
 #define CF_LSN_SIZE LSN_STORE_SIZE
 #define CF_FILENO_OFFSET (CF_LSN_OFFSET + CF_LSN_SIZE)
 #define CF_FILENO_SIZE 4
-
-#define CF_CHANGEABLE_TOTAL_SIZE (CF_FILENO_OFFSET + CF_FILENO_SIZE)
+#define CF_MAX_TRID_OFFSET (CF_FILENO_OFFSET + CF_FILENO_SIZE)
+#define CF_MAX_TRID_SIZE TRANSID_SIZE
+#define CF_CHANGEABLE_TOTAL_SIZE (CF_MAX_TRID_OFFSET + CF_MAX_TRID_SIZE)
 
 /*
   The following values should not be changed, except when changing version
@@ -100,6 +102,11 @@ one should increment the control file version number.
 */
 LSN    last_checkpoint_lsn= LSN_IMPOSSIBLE;
 uint32 last_logno=          FILENO_IMPOSSIBLE;
+/**
+   The maximum transaction id given to a transaction. It is only updated at
+   clean shutdown (in case of crash, logs have better information).
+*/
+TrID   max_trid_in_control_file= 0;
 
 /**
    @brief If log's lock should be asserted when writing to control file.
@@ -111,7 +118,7 @@ my_bool maria_multi_threaded= FALSE;
 /** @brief if currently doing a recovery */
 my_bool maria_in_recovery= FALSE;
 
-/*
+/**
   Control file is less then  512 bytes (a disk sector),
   to be as atomic as possible
 */
@@ -131,9 +138,6 @@ static CONTROL_FILE_ERROR create_control_file(const char *name,
   uchar buffer[CF_CREATE_TIME_TOTAL_SIZE];
   DBUG_ENTER("maria_create_control_file");
 
-  /* in a recovery, we expect to find a control file */
-  if (maria_in_recovery)
-    DBUG_RETURN(CONTROL_FILE_MISSING);
   if ((control_file_fd= my_create(name, 0,
                                   open_flags,
                                   MYF(MY_SYNC_DIR | MY_WME))) < 0)
@@ -164,7 +168,7 @@ static CONTROL_FILE_ERROR create_control_file(const char *name,
 
   if (my_pwrite(control_file_fd, buffer, cf_create_time_size,
                 0, MYF(MY_FNABP |  MY_WME)))
-    DBUG_RETURN(1);
+    DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
 
   /*
     To be safer we should make sure that there are no logs or data/index
@@ -184,9 +188,49 @@ static CONTROL_FILE_ERROR create_control_file(const char *name,
 
   /* init the file with these "undefined" values */
   DBUG_RETURN(ma_control_file_write_and_force(LSN_IMPOSSIBLE,
-                                              FILENO_IMPOSSIBLE,
-                                              CONTROL_FILE_UPDATE_ALL));
+                                              FILENO_IMPOSSIBLE, 0));
 }
+
+
+/**
+  Locks control file exclusively. This is kept for the duration of the engine
+  process, to prevent another Maria instance to write to our logs or control
+  file.
+*/
+
+static int lock_control_file(const char *name)
+{
+  uint retry= 0;
+  /*
+    On Windows, my_lock() uses locking() which is mandatory locking and so
+    prevents maria-recovery.test from copying the control file. And in case of
+    crash, it may take a while for Windows to unlock file, causing downtime.
+  */
+  /**
+    @todo BUG We should explore my_sopen(_SH_DENYWRD) to open or create the
+    file under Windows.
+  */
+#ifndef __WIN__
+  /*
+    We can't here use the automatic wait in my_lock() as the alarm thread
+    may not yet exists.
+  */
+  while (my_lock(control_file_fd, F_WRLCK, 0L, F_TO_EOF,
+                 MYF(MY_SEEK_NOT_DONE | MY_FORCE_LOCK | MY_NO_WAIT)))
+  {
+    if (retry == 0)
+      my_printf_error(HA_ERR_INITIALIZATION,
+                      "Can't lock maria control file '%s' for exclusive use, "
+                      "error: %d. Will retry for %d seconds", 0,
+                      name, my_errno, MARIA_MAX_CONTROL_FILE_LOCK_RETRY);
+    if (retry++ > MARIA_MAX_CONTROL_FILE_LOCK_RETRY)
+      return 1;
+    sleep(1);
+  }
+#endif
+  return 0;
+}
+
 
 /*
   @brief Initialize control file subsystem
@@ -200,24 +244,24 @@ static CONTROL_FILE_ERROR create_control_file(const char *name,
     The format of the control file is defined in the comments and defines
     at the start of this file.
 
-  @note If in recovery, file is not created
+  @param create_if_missing create file if not found
 
   @return Operation status
     @retval 0      OK
     @retval 1      Error (in which case the file is left closed)
 */
 
-CONTROL_FILE_ERROR ma_control_file_create_or_open()
+CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing)
 {
   uchar buffer[CF_MAX_SIZE];
   char name[FN_REFLEN], errmsg_buff[256];
-  const char *errmsg;
+  const char *errmsg, *lock_failed_errmsg= "Could not get an exclusive lock;"
+    " file is probably in use by another process";
   uint new_cf_create_time_size, new_cf_changeable_size, new_block_size;
-  uint retry;
   my_off_t file_size;
   int open_flags= O_BINARY | /*O_DIRECT |*/ O_RDWR;
   int error= CONTROL_FILE_UNKNOWN_ERROR;
-  DBUG_ENTER("ma_control_file_create_or_open");
+  DBUG_ENTER("ma_control_file_open");
 
   /*
     If you change sizes in the #defines, you at least have to change the
@@ -236,12 +280,25 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
 
   if (my_access(name,F_OK))
   {
-    if (create_control_file(name, open_flags))
+    CONTROL_FILE_ERROR create_error;
+    if (!create_if_missing)
     {
+      error= CONTROL_FILE_MISSING;
+      errmsg= "Can't find file";
+      goto err;
+    }
+    if ((create_error= create_control_file(name, open_flags)))
+    {
+      error= create_error;
       errmsg= "Can't create file";
       goto err;
     }
-    goto lock_file;
+    if (lock_control_file(name))
+    {
+      errmsg= lock_failed_errmsg;
+      goto err;
+    }
+    goto ok;
   }
 
   /* Otherwise, file exists */
@@ -249,6 +306,12 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
   if ((control_file_fd= my_open(name, open_flags, MYF(MY_WME))) < 0)
   {
     errmsg= "Can't open file";
+    goto err;
+  }
+
+  if (lock_control_file(name)) /* lock it before reading content */
+  {
+    errmsg= lock_failed_errmsg;
     goto err;
   }
 
@@ -343,7 +406,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
       uint4korr(buffer + new_cf_create_time_size))
   {
     error= CONTROL_FILE_BAD_CHECKSUM;
-    errmsg= "Changeable part (end of control file) checksum missmatch";
+    errmsg= "Changeable part (end of control file) checksum mismatch";
     goto err;
   }
 
@@ -353,57 +416,29 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
   last_checkpoint_lsn= lsn_korr(buffer + new_cf_create_time_size +
                                 CF_LSN_OFFSET);
   last_logno= uint4korr(buffer + new_cf_create_time_size + CF_FILENO_OFFSET);
+  if (new_cf_changeable_size >= (CF_MAX_TRID_OFFSET + CF_MAX_TRID_SIZE))
+    max_trid_in_control_file=
+      transid_korr(buffer + new_cf_create_time_size + CF_MAX_TRID_OFFSET);
 
-lock_file:
-  retry= 0;
-
-  /*
-    On Windows, my_lock() uses locking() which is mandatory locking and so
-    prevents maria-recovery.test from copying the control file. And in case of
-    crash, it may take a while for Windows to unlock file, causing downtime.
-  */
-  /**
-    @todo BUG We should explore my_sopen(_SH_DENYWRD) to open or create the
-    file under Windows.
-  */
-#ifndef __WIN__
-  /*
-    We can't here use the automatic wait in my_lock() as the alarm thread
-    may not yet exists.
-  */
-  while (my_lock(control_file_fd, F_WRLCK, 0L, F_TO_EOF,
-                 MYF(MY_SEEK_NOT_DONE | MY_FORCE_LOCK | MY_NO_WAIT)))
-  {
-    if (retry == 0)
-      my_printf_error(HA_ERR_INITIALIZATION,
-                      "Can't lock maria control file '%s' for exclusive use, "
-                      "error: %d. Will retry for %d seconds", 0,
-                      name, my_errno, MARIA_MAX_CONTROL_FILE_LOCK_RETRY);
-    if (retry++ > MARIA_MAX_CONTROL_FILE_LOCK_RETRY)
-    {
-      errmsg= "Could not get an exclusive lock; file is probably in use by another process";
-      goto err;
-    }
-    sleep(1);
-  }
-#endif
-
+ok:
   DBUG_RETURN(0);
 
 err:
   my_printf_error(HA_ERR_INITIALIZATION,
                   "Error when trying to use maria control file '%s': %s", 0,
                   name, errmsg);
-  ma_control_file_end();
+  ma_control_file_end(); /* will unlock file if needed */
   DBUG_RETURN(error);
 }
 
 
 /*
   Write information durably to the control file; stores this information into
-  the last_checkpoint_lsn and last_logno global variables.
-  Called when we have created a new log (after syncing this log's creation)
-  and when we have written a checkpoint (after syncing this log record).
+  the last_checkpoint_lsn, last_logno, max_trid_in_control_file global
+  variables.
+  Called when we have created a new log (after syncing this log's creation),
+  when we have written a checkpoint (after syncing this log record), and at
+  shutdown (for storing trid in case logs are soon removed by user).
   Variables last_checkpoint_lsn and last_logno must be protected by caller
   using log's lock, unless this function is called at startup.
 
@@ -411,13 +446,7 @@ err:
     ma_control_file_write_and_force()
     checkpoint_lsn       LSN of last checkpoint
     logno                last log file number
-    objs_to_write        which of the arguments should be used as new values
-                         (for example, CF_UPDATE_ONLY_LSN will not
-                         write the logno argument to the control file and will
-                         not update the last_logno global variable); can be:
-                         CF_UPDATE_ALL
-                         CF_UPDATE_ONLY_LSN
-                         CF_UPDATE_ONLY_LOGNO.
+    trid                 maximum transaction longid.
 
   NOTE
     We always want to do one single my_pwrite() here to be as atomic as
@@ -428,63 +457,69 @@ err:
     1 - Error
 */
 
-int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
-                                    uint objs_to_write)
+int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno,
+                                    TrID trid)
 {
-  char buffer[CF_MAX_SIZE];
-  my_bool update_checkpoint_lsn= FALSE, update_logno= FALSE;
+  uchar buffer[CF_MAX_SIZE];
   uint32 sum;
   DBUG_ENTER("ma_control_file_write_and_force");
 
-  DBUG_ASSERT(control_file_fd >= 0); /* must be open */
+  if ((last_checkpoint_lsn == checkpoint_lsn) &&
+      (last_logno == logno) &&
+      (max_trid_in_control_file == trid))
+    DBUG_RETURN(0); /* no need to write */
+
+  if (control_file_fd < 0)
+    DBUG_RETURN(1);
+
 #ifndef DBUG_OFF
   if (maria_multi_threaded)
     translog_lock_handler_assert_owner();
 #endif
 
-  if (objs_to_write == CONTROL_FILE_UPDATE_ONLY_LSN)
-    update_checkpoint_lsn= TRUE;
-  else if (objs_to_write == CONTROL_FILE_UPDATE_ONLY_LOGNO)
-    update_logno= TRUE;
-  else if (objs_to_write == CONTROL_FILE_UPDATE_ALL)
-    update_checkpoint_lsn= update_logno= TRUE;
-  else /* incorrect value of objs_to_write */
-    DBUG_ASSERT(0);
+  lsn_store(buffer + CF_LSN_OFFSET, checkpoint_lsn);
+  int4store(buffer + CF_FILENO_OFFSET, logno);
+  transid_store(buffer + CF_MAX_TRID_OFFSET, trid);
 
-  if (update_checkpoint_lsn)
-    lsn_store(buffer + CF_LSN_OFFSET, checkpoint_lsn);
-  else /* store old value == change nothing */
-    lsn_store(buffer + CF_LSN_OFFSET, last_checkpoint_lsn);
-
-  if (update_logno)
-    int4store(buffer + CF_FILENO_OFFSET, logno);
+  if (cf_changeable_size > CF_CHANGEABLE_TOTAL_SIZE)
+  {
+    /*
+      More room than needed for us. Must be a newer version. Clear part which
+      we cannot maintain, so that any future version notices we didn't
+      maintain its extra data.
+    */
+    uint zeroed= cf_changeable_size - CF_CHANGEABLE_TOTAL_SIZE;
+    char msg[150];
+    bzero(buffer + CF_CHANGEABLE_TOTAL_SIZE, zeroed);
+    my_snprintf(msg, sizeof(msg),
+                "Control file must be from a newer version; zero-ing out %u"
+                " unknown bytes in control file at offset %u", zeroed,
+                cf_changeable_size + cf_create_time_size);
+    ma_message_no_user(ME_JUST_WARNING, msg);
+  }
   else
-    int4store(buffer + CF_FILENO_OFFSET, last_logno);
-
-  /*
-    Clear unknown part of changeable part.
-    Other option would be to remember the original values in the file
-    and copy them here, but this should be safer.
-   */
-  bzero(buffer + CF_CHANGEABLE_TOTAL_SIZE,
-        cf_changeable_size - CF_CHANGEABLE_TOTAL_SIZE);
+  {
+    /* not enough room for what we need to store: enlarge */
+    cf_changeable_size= CF_CHANGEABLE_TOTAL_SIZE;
+  }
+  /* Note that the create-time portion is not touched */
 
   /* Checksum is stored first */
   compile_time_assert(CF_CHECKSUM_OFFSET == 0);
-  sum= my_checksum(0, (const uchar *) buffer + CF_CHECKSUM_SIZE,
+  sum= my_checksum(0, buffer + CF_CHECKSUM_SIZE,
                    cf_changeable_size - CF_CHECKSUM_SIZE);
   int4store(buffer, sum);
 
-  if (my_pwrite(control_file_fd, (uchar *) buffer, cf_changeable_size,
+  if (my_pwrite(control_file_fd, buffer, cf_changeable_size,
                 cf_create_time_size, MYF(MY_FNABP |  MY_WME)) ||
       my_sync(control_file_fd, MYF(MY_WME)))
     DBUG_RETURN(1);
 
-  if (update_checkpoint_lsn)
-    last_checkpoint_lsn= checkpoint_lsn;
-  if (update_logno)
-    last_logno= logno;
+  last_checkpoint_lsn= checkpoint_lsn;
+  last_logno= logno;
+  max_trid_in_control_file= trid;
 
+  cf_changeable_size= CF_CHANGEABLE_TOTAL_SIZE; /* no more warning */
   DBUG_RETURN(0);
 }
 
@@ -496,7 +531,7 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
     ma_control_file_end()
 */
 
-int ma_control_file_end()
+int ma_control_file_end(void)
 {
   int close_error;
   DBUG_ENTER("ma_control_file_end");
@@ -521,8 +556,19 @@ int ma_control_file_end()
   */
   last_checkpoint_lsn= LSN_IMPOSSIBLE;
   last_logno= FILENO_IMPOSSIBLE;
+  max_trid_in_control_file= 0;
 
   DBUG_RETURN(close_error);
+}
+
+
+/**
+  Tells if control file is initialized.
+*/
+
+my_bool ma_control_file_inited(void)
+{
+  return (control_file_fd >= 0);
 }
 
 #endif /* EXTRACT_DEFINITIONS */

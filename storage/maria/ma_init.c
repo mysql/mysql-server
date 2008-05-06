@@ -52,9 +52,20 @@ void maria_end(void)
 {
   if (maria_inited)
   {
+    TrID trid;
     maria_inited= maria_multi_threaded= FALSE;
     ft_free_stopwords();
     ma_checkpoint_end();
+    if ((trid= trnman_get_max_trid()) > max_trid_in_control_file)
+    {
+      /*
+        Store max transaction id into control file, in case logs are removed
+        by user, or maria_chk wants to check tables (it cannot access max trid
+        from the log, as it cannot process REDOs).
+      */
+      (void)ma_control_file_write_and_force(last_checkpoint_lsn, last_logno,
+                                            trid);
+    }
     trnman_destroy();
     if (translog_status == TRANSLOG_OK)
       translog_destroy();

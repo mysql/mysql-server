@@ -2195,13 +2195,6 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
 drop table t1;
-create table t1 (s varchar(25), fulltext(s)) TRANSACTIONAL= 1;
-ERROR HY000: Maria can't yet handle SPATIAL or FULLTEXT keys in transactional mode. For now use TRANSACTIONAL=0
-drop table if exists t1;
-create table t1 ( fid int not null auto_increment primary key,
-g geometry not null, spatial key(g));
-ERROR HY000: Maria can't yet handle SPATIAL or FULLTEXT keys in transactional mode. For now use TRANSACTIONAL=0
-drop table if exists t1;
 set global maria_log_file_size=4294967296;
 Warnings:
 Warning	1292	Truncated incorrect log_file_size value: '4294967296'

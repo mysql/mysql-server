@@ -4,7 +4,7 @@ CREATE TABLE t1 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 g GEOMETRY NOT NULL,
 SPATIAL KEY(g)
-) transactional=0 row_format=page;
+) row_format=dynamic;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -12,7 +12,7 @@ t1	CREATE TABLE `t1` (
   `g` geometry NOT NULL,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
-) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 ROW_FORMAT=PAGE TRANSACTIONAL=0
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 ROW_FORMAT=DYNAMIC
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(150 150, 150 150)'));
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(149 149, 151 151)'));
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(148 148, 152 152)'));
@@ -186,7 +186,7 @@ DROP TABLE t1;
 CREATE TABLE t2 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 g GEOMETRY NOT NULL
-) transactional=0 row_format=page;
+) row_format=dynamic;
 INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10))));
 INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10))));
 INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 8 * 10 - 9), Point(10 * 10, 8 * 10))));
@@ -295,7 +295,7 @@ t2	CREATE TABLE `t2` (
   `g` geometry NOT NULL,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
-) ENGINE=MARIA AUTO_INCREMENT=101 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 ROW_FORMAT=PAGE TRANSACTIONAL=0
+) ENGINE=MARIA AUTO_INCREMENT=101 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 ROW_FORMAT=DYNAMIC
 SELECT count(*) FROM t2;
 count(*)
 100
@@ -714,7 +714,7 @@ DROP TABLE t2;
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
-CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a)) transactional=0 row_format=page;
+CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a)) row_format=dynamic;
 INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
@@ -755,7 +755,7 @@ CREATE TABLE t1 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 g GEOMETRY NOT NULL,
 SPATIAL KEY(g)
-) transactional=0 row_format=page;
+) row_format=dynamic;
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(1 2, 2 3)')),(GeomFromText('LineString(1 2, 2 4)'));
 drop table t1;
 CREATE TABLE t1 (
@@ -763,7 +763,7 @@ line LINESTRING NOT NULL,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
 name VARCHAR(32),
 SPATIAL KEY (line)
-) transactional=0 row_format=page;
+) row_format=dynamic;
 ALTER TABLE t1 DISABLE KEYS;
 INSERT INTO t1 (name, kind, line) VALUES 
 ("Aadaouane", "pp", GeomFromText("POINT(32.816667 35.983333)")),
@@ -800,11 +800,11 @@ INSERT INTO t1 (name, kind, line) VALUES ("austria", "pp", GeomFromText('LINESTR
 drop table t1;
 CREATE TABLE t1 (st varchar(100));
 INSERT INTO t1 VALUES ("Fake string");
-CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom)) transactional=0 row_format=page;
+CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom)) row_format=dynamic;
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1, t2;
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) transactional=0 row_format=page DEFAULT CHARSET=latin1;
+CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) row_format=dynamic DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB/TEXT column 'geometry' can't have a default value
 INSERT INTO t1 (geometry) VALUES
@@ -822,7 +822,7 @@ drop table t1;
 CREATE TABLE t1 (
 c1 geometry NOT NULL default '',
 SPATIAL KEY i1 (c1)
-) transactional=0 row_format=page DEFAULT CHARSET=latin1;
+) row_format=dynamic DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB/TEXT column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
@@ -838,7 +838,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c1 geometry NOT NULL default '',
 SPATIAL KEY i1 (c1)
-) transactional=0 row_format=page DEFAULT CHARSET=latin1;
+) row_format=dynamic DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB/TEXT column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
@@ -863,7 +863,7 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
-CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) ) transactional=0 row_format=page;
+CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) ) row_format=dynamic;
 INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,1)));
 INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,0)));
 INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(0,1)));
@@ -881,7 +881,7 @@ c3 varchar(10) collate utf8_bin default NULL,
 spatial_point point NOT NULL,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
-)transactional=0 row_format=page DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+)row_format=dynamic DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
 ('y', 's', 'j', GeomFromText('POINT(167 74)')),
 ('r', 'n', 'd', GeomFromText('POINT(215 118)')),
@@ -1426,7 +1426,7 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
-create table t1 (a geometry not null, spatial index(a)) transactional=0 row_format=page;
+create table t1 (a geometry not null, spatial index(a)) row_format=dynamic;
 insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 131072)));
 insert into t1 values (PointFromWKB(POINT(9.1248812352444e+192, 2.9740338169556e+284)));
 insert into t1 values (PointFromWKB(POINT(4.7783097267365e-299, -0)));
@@ -1457,7 +1457,7 @@ insert into t1 values (PointFromWKB(POINT(1.8033161362863e-130, 9.1248812352444e
 insert into t1 values (PointFromWKB(POINT(4.7783097267365e-299, 2.2761049594727e-159)));
 insert into t1 values (PointFromWKB(POINT(1.94906280228e+289, 1.2338789709327e-178)));
 drop table t1;
-CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) ) transactional=0 row_format=page;
+CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) ) row_format=dynamic;
 INSERT INTO t1(foo) VALUES (NULL);
 ERROR 23000: Column 'foo' cannot be null
 INSERT INTO t1() VALUES ();
@@ -1465,7 +1465,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 INSERT INTO t1(foo) VALUES ('');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 DROP TABLE t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL, KEY (a), SPATIAL KEY (b)) transactional=0 row_format=page;
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL, KEY (a), SPATIAL KEY (b)) row_format=dynamic;
 INSERT INTO t1 (b) VALUES (GeomFromText('POINT(1 2)'));
 INSERT INTO t1 (b) SELECT b FROM t1;
 INSERT INTO t1 (b) SELECT b FROM t1;
@@ -1476,7 +1476,7 @@ OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 DROP TABLE t1;
-CREATE TABLE t1 (a INT, b GEOMETRY NOT NULL, SPATIAL KEY b(b)) transactional=0 row_format=page;
+CREATE TABLE t1 (a INT, b GEOMETRY NOT NULL, SPATIAL KEY b(b)) row_format=dynamic;
 INSERT INTO t1 VALUES (1, GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
 INSERT INTO t1 VALUES (2, GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
 SELECT COUNT(*) FROM t1 WHERE

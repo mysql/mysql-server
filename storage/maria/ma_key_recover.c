@@ -19,6 +19,7 @@
 #include "ma_blockrec.h"
 #include "trnman.h"
 #include "ma_key_recover.h"
+#include "ma_rt_index.h"
 
 /****************************************************************************
   Some helper functions used both by key page loggin and block page loggin
@@ -202,6 +203,15 @@ my_bool write_hook_for_undo_key(enum translog_record_type type,
     (struct st_msg_to_write_hook_for_undo_key *) hook_arg;
 
   *msg->root= msg->value;
+  /**
+    @todo BUG
+    so we have log mutex and then intern_lock.
+    While in checkpoint we have intern_lock and then log mutex, like when we
+    flush bitmap (flushing bitmap pages can call hook which takes log mutex).
+    So we can deadlock.
+    Another one is that in translog_assign_id_to_share() we have intern_lock
+    and then log mutex.
+  */
   _ma_fast_unlock_key_del(tbl_info);
   return write_hook_for_undo(type, trn, tbl_info, lsn, 0);
 }
@@ -611,20 +621,20 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
   header+= PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE + 1;
   length-= PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE + 1;
 
-  /* free_page is 0 if we shouldn't set key_del */
-  if (free_page)
-  {
-    if (free_page != IMPOSSIBLE_PAGE_NO)
-      share->state.key_del= (my_off_t) free_page * share->block_size;
-    else
-      share->state.key_del= HA_OFFSET_ERROR;
-  }
   file_size= (my_off_t) (root_page + 1) * share->block_size;
-
-  /* If root page */
-  if (page_type_flag &&
-      cmp_translog_addr(lsn, share->state.is_of_horizon) >= 0)
-    share->state.key_root[key_nr]= file_size - share->block_size;
+  if (cmp_translog_addr(lsn, share->state.is_of_horizon) >= 0)
+  {
+    /* free_page is 0 if we shouldn't set key_del */
+    if (free_page)
+    {
+      if (free_page != IMPOSSIBLE_PAGE_NO)
+        share->state.key_del= (my_off_t) free_page * share->block_size;
+      else
+        share->state.key_del= HA_OFFSET_ERROR;
+    }
+    if (page_type_flag)     /* root page */
+      share->state.key_root[key_nr]= file_size - share->block_size;
+  }
 
   if (file_size > info->state->key_file_length)
   {
@@ -723,7 +733,9 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
                           STATE_NOT_SORTED_PAGES | STATE_NOT_ZEROFILLED |
                           STATE_NOT_MOVABLE);
 
-  share->state.key_del= (my_off_t) page * share->block_size;
+  if (cmp_translog_addr(lsn, share->state.is_of_horizon) >= 0)
+    share->state.key_del= (my_off_t) page * share->block_size;
+
   old_link=  ((free_page != IMPOSSIBLE_PAGE_NO) ?
               (my_off_t) free_page * share->block_size :
               HA_OFFSET_ERROR);
@@ -929,10 +941,47 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       crc=               uint4korr(header+2);
       _ma_store_page_used(share, buff, page_length);
       DBUG_ASSERT(check_page_length == page_length);
-      DBUG_ASSERT(crc == (uint32) my_checksum(0, buff + LSN_STORE_SIZE,
-                                              page_length- LSN_STORE_SIZE));
+      if (crc != (uint32) my_checksum(0, buff + LSN_STORE_SIZE,
+                                      page_length - LSN_STORE_SIZE))
+      {
+        DBUG_PRINT("info",("page_length %u",page_length));
+        DBUG_DUMP("KEY_OP_CHECK bad page", buff, share->block_size);
+        DBUG_ASSERT("crc" == "failure in REDO_INDEX");
+      }
 #endif
       header+= 6;
+      break;
+    }
+    case KEY_OP_MULTI_COPY:                     /* 9 */
+    {
+      /*
+        List of fixed-len memcpy() operations with their source located inside
+        the page. The log record's piece looks like:
+        first the length 'full_length' to be used by memcpy()
+        then the number of bytes used by the list of (to,from) pairs
+        then the (to,from) pairs, so we do:
+        for (t,f) in [list of (to,from) pairs]:
+            memcpy(t, f, full_length).
+      */
+      uint full_length, log_memcpy_length;
+      const uchar *log_memcpy_end;
+      full_length= uint2korr(header);
+      header+= 2;
+      log_memcpy_length= uint2korr(header);
+      header+= 2;
+      log_memcpy_end= header + log_memcpy_length;
+      DBUG_ASSERT(full_length < share->block_size);
+      while (header < log_memcpy_end)
+      {
+        uint to, from;
+        to= uint2korr(header);
+        header+= 2;
+        from= uint2korr(header);
+        header+= 2;
+        /* "from" is a place in the existing page */
+        DBUG_ASSERT(max(from, to) < share->block_size);
+        memcpy(buff + to, buff + from, full_length);
+      }
       break;
     }
     case KEY_OP_NONE:
@@ -1002,8 +1051,11 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
   DBUG_DUMP("key", key, length);
 
   new_root= share->state.key_root[keynr];
-  res= _ma_ck_real_delete(info, share->keyinfo+keynr, key,
-                          length - share->rec_reflength, &new_root);
+  res= (share->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE) ?
+    maria_rtree_real_delete(info, keynr, key, length - share->rec_reflength,
+                            &new_root) :
+    _ma_ck_real_delete(info, share->keyinfo+keynr, key,
+                       length - share->rec_reflength, &new_root);
   if (res)
     _ma_mark_file_crashed(share);
   msg.root= &share->state.key_root[keynr];
@@ -1053,10 +1105,12 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
   DBUG_DUMP("key", key, length);
 
   new_root= share->state.key_root[keynr];
-  res= _ma_ck_real_write_btree(info, share->keyinfo+keynr, key,
-                               length - share->rec_reflength,
-                               &new_root,
-                               share->keyinfo[keynr].write_comp_flag);
+  res= (share->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE) ?
+    maria_rtree_insert_level(info, keynr, key, length - share->rec_reflength,
+                             -1, &new_root) :
+    _ma_ck_real_write_btree(info, share->keyinfo+keynr, key,
+                            length - share->rec_reflength, &new_root,
+                            share->keyinfo[keynr].write_comp_flag);
   if (res)
     _ma_mark_file_crashed(share);
 
@@ -1087,7 +1141,7 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
   @param  info            Maria handler
   @param  insert_at_end   Set to 1 if we are doing an insert
 
-  @notes
+  @note
     To allow higher concurrency in the common case where we do inserts
     and we don't have any linked blocks we do the following:
     - Mark in info->used_key_del that we are not using key_del
@@ -1104,6 +1158,32 @@ my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end)
 {
   MARIA_SHARE *share= info->s;
 
+  /*
+    info->used_key_del is 0 initially.
+    If the caller needs a block (_ma_new()), we look at the free list:
+    - looks empty? then caller will create a new block at end of file and
+    remember (through info->used_key_del==2) that it will not change
+    state.key_del and does not need to wake up waiters as nobody will wait for
+    it.
+    - non-empty? then we wait for other users of the state.key_del list to
+    have finished, then we lock this list (through share->used_key_del==1)
+    because we need to prevent some other thread to also read state.key_del
+    and use the same page as ours. We remember through info->used_key_del==1
+    that we will have to set state.key_del at unlock time and wake up
+    waiters.
+    If the caller wants to free a block (_ma_dispose()), "empty" and
+    "non-empty" are treated as "non-empty" is treated above.
+    When we are ready to unlock, we copy share->current_key_del into
+    state.key_del. Unlocking happens when writing the UNDO log record, that
+    can make a long lock time.
+    Why we wrote "*looks* empty": because we are looking at state.key_del
+    which may be slightly old (share->current_key_del may be more recent and
+    exact): when we want a new page, we tolerate to treat "there was no free
+    page 1 millisecond ago"  as "there is no free page". It's ok to non-pop
+    (_ma_new(), page will be found later anyway) but it's not ok to non-push
+    (_ma_dispose(), page would be lost).
+    When we leave this function, info->used_key_del is always 1 or 2.
+  */
   if (info->used_key_del != 1)
   {
     pthread_mutex_lock(&share->intern_lock);
@@ -1138,7 +1218,7 @@ void _ma_unlock_key_del(MARIA_HA *info)
     MARIA_SHARE *share= info->s;
     pthread_mutex_lock(&share->intern_lock);
     share->used_key_del= 0;
-    share->state.key_del= info->s->current_key_del;
+    share->state.key_del= share->current_key_del;
     pthread_mutex_unlock(&share->intern_lock);
     pthread_cond_signal(&share->intern_cond);
   }

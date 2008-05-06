@@ -67,7 +67,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   }
 #endif
 
-  if (ma_control_file_create_or_open(TRUE))
+  if (ma_control_file_open(TRUE))
   {
     fprintf(stderr, "Can't init control file (%d)\n", errno);
     exit(1);
@@ -140,7 +140,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     }
   }
 
-  if (ma_control_file_create_or_open(TRUE))
+  if (ma_control_file_open(TRUE))
   {
     fprintf(stderr, "Can't init control file (%d)\n", errno);
     exit(1);

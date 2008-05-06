@@ -261,6 +261,7 @@ double maria_rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
 
 /*
   Creates an MBR as an array of doubles.
+  Fills *res.
 */
 
 int maria_rtree_d_mbr(const HA_KEYSEG *keyseg, const uchar *a,
@@ -528,6 +529,7 @@ double maria_rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 
 /*
   Calculates MBR_AREA(a+b) - MBR_AREA(a)
+  Fills *ab_area.
   Note: when 'a' and 'b' objects are far from each other,
   the area increase can be really big, so this function
   can return 'inf' as a result.
@@ -739,6 +741,7 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 
 /*
   Calculates key page total MBR= MBR(key1) + MBR(key2) + ...
+  Stores into *c.
 */
 int maria_rtree_page_mbr(const MARIA_HA *info, const HA_KEYSEG *keyseg,
                          const uchar *page_buf,

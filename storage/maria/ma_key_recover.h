@@ -46,6 +46,13 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
                       enum translog_record_type undo_type,
                       my_bool store_checksum, ha_checksum checksum,
                       LSN *res_lsn, void *extra_msg);
+int _ma_write_undo_key_insert(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
+                              const uchar *key, uint key_length,
+                              my_off_t *root, my_off_t new_root,
+                              LSN *res_lsn);
+int _ma_write_undo_key_delete(MARIA_HA *info, uint keynr,
+                              const uchar *key, uint key_length,
+                              my_off_t new_root, LSN *res_lsn);
 my_bool write_hook_for_clr_end(enum translog_record_type type,
                                TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                void *hook_arg);
@@ -70,6 +77,13 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
                     uint buff_length, uchar *key_pos,
                     uint changed_length, int move_length,
                     my_bool handle_overflow);
+my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, const uchar *buff,
+                       const uchar *key_pos, uint changed_length,
+                       uint move_length);
+my_bool _ma_log_change(MARIA_HA *info, my_off_t page, const uchar *buff,
+                       const uchar *key_pos, uint length);
+my_bool _ma_log_new(MARIA_HA *info, my_off_t page, const uchar *buff,
+                    uint page_length, uint key_nr, my_bool root_page);
 
 uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
                                    const uchar *header, uint length);

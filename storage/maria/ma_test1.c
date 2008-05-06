@@ -70,14 +70,13 @@ extern int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
 int main(int argc,char *argv[])
 {
   MY_INIT(argv[0]);
-  my_init();
   get_options(argc,argv);
   maria_data_root= (char *)".";
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
       (init_pagecache(maria_pagecache, maria_block_size * 16, 0, 0,
                       maria_block_size, MY_WME) == 0) ||
-      ma_control_file_create_or_open() ||
+      ma_control_file_open(TRUE) ||
       (init_pagecache(maria_log_pagecache,
                       TRANSLOG_PAGECACHE_SIZE, 0, 0,
                       TRANSLOG_PAGE_SIZE, MY_WME) == 0) ||

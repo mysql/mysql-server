@@ -8,7 +8,7 @@ else
   COMMITTER=$USER
 fi
 FROM=$COMMITTER@mysql.com
-COMMITS=commits@lists.mysql.com
+COMMITS=maria@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
 VERSION="maria"
@@ -73,11 +73,11 @@ else
 fi
 
 #++
-# commits@ or dev-private@ mail
+# maria@ or dev-private@ mail
 #--
 
 LIST="commits"
-TO="commits@lists.mysql.com"
+TO="maria@lists.mysql.com"
 if [ -f .tree-is-private ]
 then
   LIST="dev-private"

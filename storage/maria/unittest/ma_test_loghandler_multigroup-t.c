@@ -18,6 +18,8 @@
 #include <errno.h>
 #include <tap.h>
 #include "../trnman.h"
+#include "sequence_storage.h"
+#include <my_getopt.h>
 
 extern my_bool maria_log_remove();
 extern void translog_example_table_init();
@@ -126,12 +128,96 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
   DBUG_RETURN(res);
 }
 
+static const char *load_default_groups[]= {"ma_unit_loghandler", 0};
+#if defined(__WIN__)
+static const char *default_dbug_option= "d:t:i:O,\\ma_test_loghandler.trace";
+#else
+static const char *default_dbug_option= "d:t:i:o,/tmp/ma_test_loghandler.trace";
+#endif
+static const char *opt_wfile= NULL;
+static const char *opt_rfile= NULL;
+static struct my_option my_long_options[] =
+{
+#ifndef DBUG_OFF
+  {"debug", '#', "Output debug log. Often the argument is 'd:t:o,filename'.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+  {"write-seq", 'w', "Path to file in which \"random\" sequence  used in the test will be written",
+    (uchar**) &opt_wfile, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"read-seq", 'r', "Path to file from which \"random\" sequence  used in the test will be read",
+    (uchar**) &opt_rfile, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static SEQ_STORAGE seq;
 
 static uint32 get_len()
 {
-  return (uint32)
-   ((ulonglong)rand()*(LONG_BUFFER_SIZE - MIN_REC_LENGTH - 1)/RAND_MAX)+ MIN_REC_LENGTH;
+  uint32 res;
+  DBUG_ENTER("get_len");
+  if (opt_rfile)
+    res= seq_storage_next(&seq);
+  else
+  {
+    res= (uint32)
+      ((ulonglong) rand() *
+       (LONG_BUFFER_SIZE - MIN_REC_LENGTH - 1) / RAND_MAX) + MIN_REC_LENGTH;
+    if (opt_wfile &&
+        seq_storage_write(opt_wfile, res))
+      exit(1);
+  }
+  DBUG_PRINT("info", ("length value : %lu", (ulong) res));
+  DBUG_RETURN(res);
 }
+
+static void usage(void)
+{
+  puts("Copyright (C) 2008 MySQL AB");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
+  puts("and you are welcome to modify and redistribute it under the GPL license\n");
+
+  puts("Unit test of maria engine");
+  VOID(printf("\nUsage: %s [OPTIONS]\n", my_progname_short));
+  my_print_help(my_long_options);
+  print_defaults("my", load_default_groups);
+  my_print_variables(my_long_options);
+}
+
+
+static my_bool
+get_one_option(int optid __attribute__((unused)),
+               const struct my_option *opt __attribute__((unused)),
+               char *argument __attribute__((unused)))
+{
+  switch (optid) {
+  case '?':
+    usage();
+    exit(0);
+#ifndef DBUG_OFF
+  case '#':
+    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
+    break;
+#endif
+  }
+  return 0;
+}
+
+
+static void get_options(int *argc,char ***argv)
+{
+  int ho_error;
+
+  if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
+  if (opt_rfile && opt_wfile)
+  {
+    usage();
+    exit(1);
+  }
+}
+
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
@@ -146,6 +232,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55
   };
   uchar *long_buffer= malloc(LONG_BUFFER_SIZE + LSN_STORE_SIZE * 2 + 2);
+  char **default_argv;
   PAGECACHE pagecache;
   LSN lsn, lsn_base, first_lsn;
   TRANSLOG_HEADER_BUFFER rec;
@@ -157,6 +244,10 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   bzero(&pagecache, sizeof(pagecache));
   maria_data_root= (char *)".";
+  load_defaults("my", load_default_groups, &argc, &argv);
+  default_argv= argv;
+  get_options(&argc, &argv);
+
   if (maria_log_remove())
     exit(1);
 
@@ -171,20 +262,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   }
 
   bzero(long_tr_id, 6);
-#ifndef DBUG_OFF
-#if defined(__WIN__)
-  default_dbug_option= "d:t:i:O,\\ma_test_loghandler.trace";
-#else
-  default_dbug_option= "d:t:i:o,/tmp/ma_test_loghandler.trace";
-#endif
-  if (argc > 1)
-  {
-    DBUG_SET(default_dbug_option);
-    DBUG_SET_INITIAL(default_dbug_option);
-  }
-#endif
 
-  if (ma_control_file_create_or_open(TRUE))
+  if (ma_control_file_open(TRUE))
   {
     fprintf(stderr, "Can't init control file (%d)\n", errno);
     exit(1);
@@ -206,6 +285,9 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   plan(((ITERATIONS - 1) * 4 + 1) * 2);
 
+  if (opt_rfile &&
+      seq_storage_reader_init(&seq, opt_rfile))
+    exit(1);
   srand(122334817L);
 
   long_tr_id[5]= 0xff;
@@ -348,7 +430,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
 
-  if (ma_control_file_create_or_open(TRUE))
+  if (ma_control_file_open(TRUE))
   {
     fprintf(stderr, "pass2: Can't init control file (%d)\n", errno);
     exit(1);
@@ -366,6 +448,11 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
 
+
+  /* If we were writing sequence we need it only once */
+  opt_wfile= NULL;
+  if (opt_rfile)
+    seq_storage_rewind(&seq);
   srand(122334817L);
 
   rc= 1;
@@ -477,6 +564,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                   (uint) rec.header[22],
                   LSN_IN_PARTS(rec.lsn));
           translog_free_record_header(&rec);
+          DBUG_ASSERT(0);
           goto err;
         }
       }
@@ -653,6 +741,8 @@ err:
   translog_destroy();
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
+  free_defaults(default_argv);
+  seq_storage_destroy(&seq);
   if (maria_log_remove())
     exit(1);
 

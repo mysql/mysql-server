@@ -244,8 +244,8 @@ static int really_execute_checkpoint(void)
       such hook would be called before translog_flush (and we must be sure
       that log was flushed before we write to the control file).
     */
-    if (unlikely(ma_control_file_write_and_force(lsn, FILENO_IMPOSSIBLE,
-                                                 CONTROL_FILE_UPDATE_ONLY_LSN)))
+    if (unlikely(ma_control_file_write_and_force(lsn, last_logno,
+                                                 max_trid_in_control_file)))
     {
       translog_unlock();
       goto err;

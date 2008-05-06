@@ -30,6 +30,13 @@ int maria_rtree_insert(MARIA_HA *info, uint keynr, uchar *key,
                        uint key_length);
 int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key,
                        uint key_length);
+int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
+                             const uchar *key,
+                             uint key_length, int ins_level,
+                             my_off_t *root);
+int maria_rtree_real_delete(MARIA_HA *info, uint keynr,
+                            const uchar *key, uint key_length,
+                            my_off_t *root);
 
 int maria_rtree_find_first(MARIA_HA *info, uint keynr, uchar *key,
                            uint key_length, uint search_flag);
@@ -42,9 +49,21 @@ ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
                              uint key_length, uint flag);
 
 int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
-                           uchar *page,
+                           my_off_t page_offs, uchar *page,
                            const uchar *key, uint key_length,
                            my_off_t *new_page_offs);
+/**
+  When you obtain a MARIA_PINNED_PAGE* link (by calling
+  _ma_fetch_keypage()/_ma_new()/etc), it is valid only until the next call to
+  those functions on this MARIA_HA*, because that next call may cause a
+  realloc of the pinned_pages DYNAMIC_ARRAY, causing the first link to become
+  wrong. The _index_ in the array is however invariant, so in these situations
+  you should save the index immediately and use it to later obtain an
+  up-to-date link.
+*/
+#define page_link_to_idx(INFO) ((INFO)->pinned_pages.elements - 1)
+#define page_link_from_idx(INFO, IDX) \
+  dynamic_element(&(INFO)->pinned_pages, (IDX), MARIA_PINNED_PAGE *)
 
 #endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_index_h */

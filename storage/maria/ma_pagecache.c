@@ -4455,7 +4455,7 @@ int flush_pagecache_blocks_with_filter(PAGECACHE *pagecache,
                                        void *filter_arg)
 {
   int res;
-  DBUG_ENTER("flush_pagecache_blocks");
+  DBUG_ENTER("flush_pagecache_blocks_with_filter");
   DBUG_PRINT("enter", ("pagecache: 0x%lx", (long) pagecache));
 
   if (pagecache->disk_blocks <= 0)

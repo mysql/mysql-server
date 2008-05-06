@@ -67,6 +67,9 @@ void wqueue_add_to_queue(WQUEUE *wqueue, struct st_my_thread_var *thread)
     thread->next= last->next;
     last->next= thread;
   }
+#ifndef DBUG_OFF
+  thread->prev= NULL; /* force segfault if used */
+#endif
   wqueue->last_thread= thread;
 }
 
@@ -140,26 +143,27 @@ void wqueue_release_queue(WQUEUE *wqueue)
   @brief Removes all threads waiting for read or first one waiting for write.
 
   @param wqueue          pointer to the queue structure
-  @apram thread          pointer to the thread to be added to the queue
+  @param thread          pointer to the thread to be added to the queue
+
+  @note This function is applicable only to single linked lists.
 */
 
 void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
 {
   struct st_my_thread_var *last= wqueue->last_thread;
   struct st_my_thread_var *next= last->next;
-  struct st_my_thread_var **prev= &last->next;
   struct st_my_thread_var *thread;
-  struct st_my_thread_var *new_last= NULL;
+  struct st_my_thread_var *new_list= NULL;
   uint first_type= next->lock_type;
   if (first_type == MY_PTHREAD_LOCK_WRITE)
   {
     /* release first waiting for write lock */
-    thread= next;
-    pthread_cond_signal(&thread->suspend);
-    if (thread == last)
+    pthread_cond_signal(&next->suspend);
+    if (next == last)
       wqueue->last_thread= NULL;
-    *prev= thread->next;
-    thread->next= NULL;
+    else
+      last->next= next->next;
+    next->next= NULL;
     return;
   }
   do
@@ -169,26 +173,22 @@ void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
     if (thread->lock_type == MY_PTHREAD_LOCK_WRITE)
     {
       /* skip waiting for write lock */
-      *prev= thread;
-      prev= &thread->next;
-      new_last= NULL;
+      if (new_list)
+      {
+        thread->next= new_list->next;
+        new_list= new_list->next= thread;
+      }
+      else
+        new_list= thread->next= thread;
     }
     else
     {
       /* release waiting for read lock */
       pthread_cond_signal(&thread->suspend);
-      new_last= thread->next;
       thread->next= NULL;
     }
   } while (thread != last);
-  if (new_last)
-  {
-    /* last was deleted */
-    if (new_last == last)
-      wqueue->last_thread= NULL; /* empty list */
-    else
-      wqueue->last_thread= new_last;
-  }
+  wqueue->last_thread= new_list;
 }
 
 

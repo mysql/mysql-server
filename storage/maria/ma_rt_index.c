@@ -128,9 +128,10 @@ static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
         if (after_key < last)
         {
-          info->int_keypos= info->buff;
-          info->int_maxpos= info->buff + (last - after_key);
-          memcpy(info->buff, after_key, last - after_key);
+          uchar *keyread_buff= info->keyread_buff;
+          info->int_keypos= keyread_buff;
+          info->int_maxpos= keyread_buff + (last - after_key);
+          memcpy(keyread_buff, after_key, last - after_key);
           info->keyread_buff_used= 0;
         }
         else
@@ -346,9 +347,10 @@ static int maria_rtree_get_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
       if (after_key < last)
       {
+        uchar *keyread_buff= info->keyread_buff;
         info->int_keypos= (uchar*) saved_key;
-        memcpy(info->buff, page_buf, keyinfo->block_length);
-        info->int_maxpos= rt_PAGE_END(share, info->buff);
+        memcpy(keyread_buff, page_buf, keyinfo->block_length);
+        info->int_maxpos= rt_PAGE_END(share, keyread_buff);
         info->keyread_buff_used= 0;
       }
       else
@@ -415,12 +417,13 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
 {
   my_off_t root;
   MARIA_KEYDEF *keyinfo= info->s->keyinfo + keynr;
+  uchar *keyread_buff= info->keyread_buff;
 
   if (!info->keyread_buff_used)
   {
     uint k_len= keyinfo->keylength - info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(info->int_keypos) */
-    uchar *key= info->buff + *(int*)info->int_keypos + k_len +
+    uchar *key= keyread_buff + *(int*)info->int_keypos + k_len +
                  info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(key) */
     uchar *after_key= key + k_len + info->s->base.rec_reflength;
@@ -429,7 +432,7 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
     info->lastkey_length= k_len + info->s->base.rec_reflength;
     memcpy(info->lastkey, key, k_len + info->s->base.rec_reflength);
 
-    *(int*)info->int_keypos= key - info->buff;
+    *(int*)info->int_keypos= key - keyread_buff;
     if (after_key >= info->int_maxpos)
     {
       info->keyread_buff_used= 1;
@@ -452,8 +455,9 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
 
 /*
   Choose non-leaf better key for insertion
-*/
 
+  Returns a pointer inside the page_buf buffer.
+*/
 #ifdef PICK_BY_PERIMETER
 static const uchar *maria_rtree_pick_key(const MARIA_HA *info,
                                          const MARIA_KEYDEF *keyinfo,
@@ -545,10 +549,11 @@ static int maria_rtree_insert_req(MARIA_HA *info,
                                   my_off_t *new_page,
                                   int ins_level, int level)
 {
-  uint nod_flag;
+  uint nod_flag, page_link_idx;
   int res;
   uchar *page_buf, *k;
   MARIA_PINNED_PAGE *page_link;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_rtree_insert_req");
 
   if (!(page_buf= (uchar*) my_alloca((uint)keyinfo->block_length +
@@ -560,7 +565,8 @@ static int maria_rtree_insert_req(MARIA_HA *info,
   if (!_ma_fetch_keypage(info, keyinfo, page, PAGECACHE_LOCK_WRITE,
                          DFLT_INIT_HITS, page_buf, 0, &page_link))
     goto err1;
-  nod_flag= _ma_test_if_nod(info->s, page_buf);
+  page_link_idx= page_link_to_idx(info);
+  nod_flag= _ma_test_if_nod(share, page_buf);
   DBUG_PRINT("rtree", ("page: %lu  level: %d  ins_level: %d  nod_flag: %u",
                        (ulong) page, level, ins_level, nod_flag));
 
@@ -575,10 +581,13 @@ static int maria_rtree_insert_req(MARIA_HA *info,
                                           _ma_kpos(nod_flag, k), new_page,
                                           ins_level, level + 1)))
     {
-      case 0: /* child was not split */
+      case 0: /* child was not split, most common case */
       {
         maria_rtree_combine_rect(keyinfo->seg, k, key, k, key_length);
-        page_link->changed= 1;
+        if (share->now_transactional &&
+            _ma_log_change(info, page, page_buf, k, key_length))
+          goto err1;
+        page_link_from_idx(info, page_link_idx)->changed= 1;
         if (_ma_write_keypage(info, keyinfo, page,
                               PAGECACHE_LOCK_LEFT_WRITELOCKED,
                               DFLT_INIT_HITS, page_buf))
@@ -592,14 +601,17 @@ static int maria_rtree_insert_req(MARIA_HA *info,
         if (maria_rtree_set_key_mbr(info, keyinfo, k, key_length,
                                     _ma_kpos(nod_flag, k)))
           goto err1;
+        if (share->now_transactional &&
+            _ma_log_change(info, page, page_buf, k, key_length))
+          goto err1;
         /* add new key for new page */
         _ma_kpointer(info, new_key - nod_flag, *new_page);
         if (maria_rtree_set_key_mbr(info, keyinfo, new_key, key_length,
                                     *new_page))
           goto err1;
         res= maria_rtree_add_key(info, keyinfo, new_key, key_length,
-                                 page_buf, new_page);
-        page_link->changed= 1;
+                                 page_buf, page, new_page);
+        page_link_from_idx(info, page_link_idx)->changed= 1;
         if (_ma_write_keypage(info, keyinfo, page,
                               PAGECACHE_LOCK_LEFT_WRITELOCKED,
                               DFLT_INIT_HITS, page_buf))
@@ -616,8 +628,8 @@ static int maria_rtree_insert_req(MARIA_HA *info,
   else
   {
     res= maria_rtree_add_key(info, keyinfo, key, key_length, page_buf,
-                              new_page);
-    page_link->changed= 1;
+                             page, new_page);
+    page_link_from_idx(info, page_link_idx)->changed= 1;
     if (_ma_write_keypage(info, keyinfo, page, PAGECACHE_LOCK_LEFT_WRITELOCKED,
                           DFLT_INIT_HITS, page_buf))
       goto err1;
@@ -633,18 +645,24 @@ err1:
 }
 
 
-/*
+/**
   Insert key into the tree
 
-  RETURN
-    -1	Error
-    0	Root was not split
-    1	Root was split
+  @param  info             table
+  @param  keynr            key's number
+  @param  key              key to insert
+  @param  key_length       key's length
+  @param  ins_level        at which level key insertion should start
+  @param  root             put new key_root there
+
+  @return Operation result
+    @retval  -1 Error
+    @retval   0 Root was not split
+    @retval   1 Root was split
 */
 
-int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
-                             const uchar *key,
-                             uint key_length, int ins_level)
+int maria_rtree_insert_level(MARIA_HA *info, uint keynr, const uchar *key,
+                             uint key_length, int ins_level, my_off_t *root)
 {
   my_off_t old_root;
   MARIA_SHARE *share= info->s;
@@ -652,6 +670,7 @@ int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
   int res;
   my_off_t new_page;
   MARIA_PINNED_PAGE *page_link;
+  enum pagecache_page_lock write_lock;
   DBUG_ENTER("maria_rtree_insert_level");
 
   if ((old_root= share->state.key_root[keynr]) == HA_OFFSET_ERROR)
@@ -661,18 +680,23 @@ int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
     if ((old_root= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
         HA_OFFSET_ERROR)
       DBUG_RETURN(-1);
+    write_lock= page_link->write_lock;
     info->keyread_buff_used= 1;
     bzero(info->buff, share->block_size);
     _ma_store_keynr(share, info->buff, keynr);
     _ma_store_page_used(share, info->buff, share->keypage_header);
 
+    if (share->now_transactional &&
+        _ma_log_new(info, old_root, info->buff, share->keypage_header,
+                    keyinfo->key_nr, 1))
+      DBUG_RETURN(1);
+
     res= maria_rtree_add_key(info, keyinfo, key, key_length, info->buff,
-                              NULL);
-    if (_ma_write_keypage(info, keyinfo, old_root,
-                          page_link->write_lock,
+                             old_root, NULL);
+    if (_ma_write_keypage(info, keyinfo, old_root, write_lock,
                           DFLT_INIT_HITS, info->buff))
       DBUG_RETURN(1);
-    share->state.key_root[keynr]= old_root;
+    *root= old_root;
     DBUG_RETURN(res);
   }
 
@@ -683,7 +707,7 @@ int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
     {
       break;
     }
-    case 1: /* root was split, grow a new root */
+    case 1: /* root was split, grow a new root; very rare */
     {
       uchar *new_root_buf, *new_key;
       my_off_t new_root;
@@ -707,6 +731,12 @@ int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
       if ((new_root= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
 	  HA_OFFSET_ERROR)
         goto err1;
+      write_lock= page_link->write_lock;
+
+      if (share->now_transactional &&
+          _ma_log_new(info, new_root, new_root_buf, share->keypage_header,
+                      keyinfo->key_nr, 1))
+          goto err1;
 
       new_key= new_root_buf + keyinfo->block_length + nod_flag;
 
@@ -715,7 +745,7 @@ int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
                                   old_root))
         goto err1;
       if (maria_rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf,
-                              NULL)
+                              new_root, NULL)
           == -1)
         goto err1;
       _ma_kpointer(info, new_key - nod_flag, new_page);
@@ -723,13 +753,13 @@ int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
                                   new_page))
         goto err1;
       if (maria_rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf,
-                              NULL)
+                              new_root, NULL)
           == -1)
         goto err1;
-      if (_ma_write_keypage(info, keyinfo, new_root, page_link->write_lock,
+      if (_ma_write_keypage(info, keyinfo, new_root, write_lock,
                             DFLT_INIT_HITS, new_root_buf))
         goto err1;
-      share->state.key_root[keynr]= new_root;
+      *root= new_root;
       DBUG_PRINT("rtree", ("new root page: %lu  level: %d  nod_flag: %u",
                            (ulong) new_root, 0,
                            _ma_test_if_nod(share, new_root_buf)));
@@ -743,6 +773,7 @@ err1:
     default:
     case -1: /* error */
     {
+      DBUG_ASSERT(0);
       break;
     }
   }
@@ -762,12 +793,29 @@ int maria_rtree_insert(MARIA_HA *info, uint keynr,
                        uchar *key, uint key_length)
 {
   int res;
+  MARIA_SHARE *share= info->s;
+  my_off_t *root= &share->state.key_root[keynr];
+  my_off_t new_root= *root;
+  LSN lsn= LSN_IMPOSSIBLE;
   DBUG_ENTER("maria_rtree_insert");
-  res= - (!key_length ||
-          (maria_rtree_insert_level(info, keynr, key, key_length, -1) == -1));
-  _ma_fast_unlock_key_del(info);
-  /** @todo RECOVERY use a real LSN */
-  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
+  if (key_length == 0)
+  {
+    res= -1;
+    goto err;
+  }
+  if ((res= -(maria_rtree_insert_level(info, keynr, key, key_length, -1,
+                                       &new_root) == -1)) != 0)
+    goto err;
+  if (share->now_transactional)
+    res= _ma_write_undo_key_insert(info, share->keyinfo + keynr,
+                                   key, key_length, root, new_root, &lsn);
+  else
+  {
+    *root= new_root;
+    _ma_fast_unlock_key_del(info);
+  }
+  _ma_unpin_all_pages_and_finalize_row(info, lsn);
+err:
   DBUG_RETURN(res);
 }
 
@@ -820,7 +868,7 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                                   stPageList *ReinsertList, int level)
 {
   ulong i;
-  uint nod_flag;
+  uint nod_flag, page_link_idx;
   int res;
   uchar *page_buf, *last, *k;
   MARIA_PINNED_PAGE *page_link;
@@ -835,6 +883,7 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   if (!_ma_fetch_keypage(info, keyinfo, page, PAGECACHE_LOCK_WRITE,
                          DFLT_INIT_HITS, page_buf, 0, &page_link))
     goto err1;
+  page_link_idx= page_link_to_idx(info);
   nod_flag= _ma_test_if_nod(share, page_buf);
   DBUG_PRINT("rtree", ("page: %lu  level: %d  nod_flag: %u",
                        (ulong) page, level, nod_flag));
@@ -865,7 +914,10 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
               if (maria_rtree_set_key_mbr(info, keyinfo, k, key_length,
                                   _ma_kpos(nod_flag, k)))
                 goto err1;
-              page_link->changed= 1;
+              if (share->now_transactional &&
+                  _ma_log_change(info, page, page_buf, k, key_length))
+                goto err1;
+              page_link_from_idx(info, page_link_idx)->changed= 1;
               if (_ma_write_keypage(info, keyinfo, page,
                                     PAGECACHE_LOCK_LEFT_WRITELOCKED,
                                     DFLT_INIT_HITS, page_buf))
@@ -891,8 +943,10 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                 subtree. So we need to re-insert its keys on the same
                 level later to reintegrate the subtrees.
               */
-              maria_rtree_delete_key(info, page_buf, k, key_length, nod_flag);
-              page_link->changed= 1;
+              if (maria_rtree_delete_key(info, page_buf, k, key_length,
+                                         nod_flag, page))
+                goto err1;
+              page_link_from_idx(info, page_link_idx)->changed= 1;
               if (_ma_write_keypage(info, keyinfo, page,
                                     PAGECACHE_LOCK_LEFT_WRITELOCKED,
                                     DFLT_INIT_HITS, page_buf))
@@ -908,8 +962,10 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
           }
           case 2: /* vacuous case: last key in the leaf */
           {
-            maria_rtree_delete_key(info, page_buf, k, key_length, nod_flag);
-            page_link->changed= 1;
+            if (maria_rtree_delete_key(info, page_buf, k, key_length,
+                                       nod_flag, page))
+              goto err1;
+            page_link_from_idx(info, page_link_idx)->changed= 1;
             if (_ma_write_keypage(info, keyinfo, page,
                                   PAGECACHE_LOCK_LEFT_WRITELOCKED,
                                   DFLT_INIT_HITS, page_buf))
@@ -932,9 +988,11 @@ static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       if (!maria_rtree_key_cmp(keyinfo->seg, key, k, key_length,
                                MBR_EQUAL | MBR_DATA))
       {
-        page_link->changed= 1;
+        page_link_from_idx(info, page_link_idx)->changed= 1;
 
-        maria_rtree_delete_key(info, page_buf, k, key_length, nod_flag);
+        if (maria_rtree_delete_key(info, page_buf, k, key_length, nod_flag,
+                                   page))
+          goto err1;
         *page_size= _ma_get_page_used(share, page_buf);
         if (*page_size == info->s->keypage_header)
         {
@@ -979,13 +1037,40 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr,
                        uchar *key, uint key_length)
 {
   MARIA_SHARE *share= info->s;
-  uint page_size;
+  my_off_t new_root= share->state.key_root[keynr];
+  int res;
+  LSN lsn= LSN_IMPOSSIBLE;
+  DBUG_ENTER("maria_rtree_delete");
+
+  if ((res= maria_rtree_real_delete(info, keynr, key, key_length,
+                                    &new_root)))
+    goto err;
+
+  if (share->now_transactional)
+    res= _ma_write_undo_key_delete(info, keynr, key, key_length,
+                                   new_root, &lsn);
+  else
+    share->state.key_root[keynr]= new_root;
+
+err:
+  _ma_fast_unlock_key_del(info);
+  _ma_unpin_all_pages_and_finalize_row(info, lsn);
+  DBUG_RETURN(res);
+}
+
+
+int maria_rtree_real_delete(MARIA_HA *info, uint keynr,
+                            const uchar *key, uint key_length,
+                            my_off_t *root)
+{
+  MARIA_SHARE *share= info->s;
+  uint page_size, page_link_idx;
   stPageList ReinsertList;
   my_off_t old_root;
   MARIA_KEYDEF *keyinfo= info->s->keyinfo + keynr;
   MARIA_PINNED_PAGE *page_link, *root_page_link;
   int res;
-  DBUG_ENTER("maria_rtree_delete");
+  DBUG_ENTER("maria_rtree_real_delete");
 
   if ((old_root= share->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
@@ -1003,7 +1088,7 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr,
                                  &page_size, &ReinsertList, 0)) {
   case 2: /* empty */
   {
-    share->state.key_root[keynr]= HA_OFFSET_ERROR;
+    *root= HA_OFFSET_ERROR;
     res= 0;
     goto err;
   }
@@ -1024,6 +1109,7 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr,
                              PAGECACHE_LOCK_WRITE,
                              DFLT_INIT_HITS, page_buf, 0, &page_link))
         goto err1;
+      page_link_idx= page_link_to_idx(info);
       nod_flag= _ma_test_if_nod(share, page_buf);
       DBUG_PRINT("rtree", ("reinserting keys from "
                            "page: %lu  level: %d  nod_flag: %u",
@@ -1036,7 +1122,8 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr,
       {
         if ((res=
              maria_rtree_insert_level(info, keynr, k, key_length,
-                                      ReinsertList.pages[i].level)) == -1)
+                                      ReinsertList.pages[i].level,
+                                      root)) == -1)
         {
           my_afree(page_buf);
           goto err1;
@@ -1056,7 +1143,7 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr,
       }
       res= 0;
       my_afree(page_buf);
-      page_link->changed= 1;
+      page_link_from_idx(info, page_link_idx)->changed= 1;
       if (_ma_dispose(info, ReinsertList.pages[i].offs, 0))
         goto err1;
     }
@@ -1064,7 +1151,7 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr,
       my_free((uchar*) ReinsertList.pages, MYF(0));
 
     /* check for redundant root (not leaf, 1 child) and eliminate */
-    if ((old_root= share->state.key_root[keynr]) == HA_OFFSET_ERROR)
+    if ((old_root= *root) == HA_OFFSET_ERROR)
       goto err1;
     if (!_ma_fetch_keypage(info, keyinfo, old_root,
                            PAGECACHE_LOCK_WRITE,
@@ -1075,13 +1162,11 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr,
     if (nod_flag && (page_size == share->keypage_header + key_length +
                      nod_flag))
     {
-      my_off_t new_root= _ma_kpos(nod_flag,
-                                  rt_PAGE_FIRST_KEY(share, info->buff,
-                                                    nod_flag));
+      *root= _ma_kpos(nod_flag,
+                      rt_PAGE_FIRST_KEY(share, info->buff, nod_flag));
       root_page_link->changed= 1;
       if (_ma_dispose(info, old_root, 0))
         goto err1;
-      share->state.key_root[keynr]= new_root;
     }
     info->update= HA_STATE_DELETED;
     res= 0;
@@ -1103,9 +1188,6 @@ err1:
     goto err; /* purecov: inspected */
   }
 err:
-  _ma_fast_unlock_key_del(info);
-  /** @todo RECOVERY use a real LSN */
-  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(res);
 }
 

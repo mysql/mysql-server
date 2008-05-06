@@ -659,7 +659,6 @@ static sys_var_have_plugin sys_have_csv(&vars, "have_csv", C_STRING_WITH_LEN("cs
 static sys_var_have_variable sys_have_dlopen(&vars, "have_dynamic_loading", &have_dlopen);
 static sys_var_have_variable sys_have_geometry(&vars, "have_geometry", &have_geometry);
 static sys_var_have_plugin sys_have_innodb(&vars, "have_innodb", C_STRING_WITH_LEN("innodb"), MYSQL_STORAGE_ENGINE_PLUGIN);
-static sys_var_have_plugin sys_have_maria(&vars, "have_maria", C_STRING_WITH_LEN("maria"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_plugin sys_have_ndbcluster(&vars, "have_ndbcluster", C_STRING_WITH_LEN("ndbcluster"), MYSQL_STORAGE_ENGINE_PLUGIN);
 static sys_var_have_variable sys_have_openssl(&vars, "have_openssl", &have_ssl);
 static sys_var_have_variable sys_have_ssl(&vars, "have_ssl", &have_ssl);

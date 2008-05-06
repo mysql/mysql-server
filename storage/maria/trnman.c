@@ -745,3 +745,18 @@ TRN *trnman_get_any_trn()
   TRN *trn= active_list_min.next;
   return (trn != &active_list_max) ? trn : NULL;
 }
+
+
+/**
+  Returns maximum transaction id given to a transaction so far.
+*/
+TrID trnman_get_max_trid()
+{
+  TrID id;
+  if (short_trid_to_active_trn == NULL)
+    return 0;
+  pthread_mutex_lock(&LOCK_trn_list);
+  id= global_trid_generator;
+  pthread_mutex_unlock(&LOCK_trn_list);
+  return id;
+}

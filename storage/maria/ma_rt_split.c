@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "maria_def.h"
+#include "trnman.h"
+#include "ma_key_recover.h"
 
 #ifdef HAVE_RTREE_KEYS
 
@@ -89,8 +91,11 @@ inline static void copy_coords(double *dst, const double *src, int n_dim)
   memcpy(dst, src, sizeof(double) * (n_dim * 2));
 }
 
-/*
-Select two nodes to collect group upon
+/**
+  Select two nodes to collect group upon.
+
+  Note that such function uses 'double' arithmetic so may behave differently
+  on different platforms/builds. There are others in this file.
 */
 static void pick_seeds(SplitStruct *node, int n_entries,
      SplitStruct **seed_a, SplitStruct **seed_b, int n_dim)
@@ -247,11 +252,140 @@ static int split_maria_rtree_node(SplitStruct *node, int n_entries,
   return 0;
 }
 
+
+/**
+  Logs key reorganization done in a split page (new page is logged elsewhere).
+
+  The effect of a split on the split page is three changes:
+  - some piece of the page move to different places inside this page (we are
+  not interested here in the pieces which move to the new page)
+  - the key is inserted into the page or not (could be in the new page)
+  - page is shrunk
+  All this is uniquely determined by a few parameters:
+  - the key (starting at 'key-nod_flag', for 'full_length' bytes
+  (maria_rtree_split_page() seems to depend on its parameters key&key_length
+  but in fact it reads more (to the left: nod_flag, and to the right:
+  full_length)
+  - the binary content of the page
+  - some variables in the share
+  - double arithmetic, which is unpredictable from machine to machine and
+  from build to build (see pick_seeds() above: it has a comparison between
+  double-s 'if (d > max_d)' so the comparison can go differently from machine
+  to machine or build to build, it has happened in real life).
+  If one day we use precision-math instead of double-math, in GIS, then the
+  last parameter would become constant accross machines and builds and we
+  could some cheap logging: just log the few parameters above.
+  Until then, we log the list of memcpy() operations (fortunately, we often do
+  not have to log the source bytes, as they can be found in the page before
+  applying the REDO; the only source bytes to log are the key), the key if it
+  was inserted into this page, and the shrinking.
+
+  @param  info             table
+  @param  page             page's offset in the file
+  @param  buff             content of the page (post-split)
+  @param  key_with_nod_flag pointer to key-nod_flag
+  @param  full_length      length of (key + (nod_flag (if node) or rowid (if
+                           leaf)))
+  @param  log_internal_copy encoded list of mempcy() operations done on
+                           split page, having their source in the page
+  @param  log_internal_copy_length length of above list, in bytes
+  @param  log_key_copy     operation describing the key's copy, or NULL if the
+                           inserted key was not put into the page (was put in
+                           new page, so does not have to be logged here)
+  @param  length_diff      by how much the page has shrunk during split
+*/
+
+static my_bool _ma_log_rt_split(MARIA_HA *info,
+                                my_off_t page,
+                                const uchar *buff __attribute__((unused)),
+                                const uchar *key_with_nod_flag,
+                                uint full_length,
+                                const uchar *log_internal_copy,
+                                uint log_internal_copy_length,
+                                const uchar *log_key_copy,
+                                uint length_diff)
+{
+  MARIA_SHARE *share= info->s;
+  LSN lsn;
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 1 + 2 + 1 + 2 + 2 + 7],
+    *log_pos;
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 5];
+  uint translog_parts, extra_length= 0;
+  DBUG_ENTER("_ma_log_rt_split");
+  DBUG_PRINT("enter", ("page: %lu", (ulong) page));
+
+  DBUG_ASSERT(share->now_transactional);
+  page/= share->block_size;
+  page_store(log_data + FILEID_STORE_SIZE, page);
+  log_pos= log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE;
+  log_pos[0]= KEY_OP_DEL_SUFFIX;
+  log_pos++;
+  DBUG_ASSERT((int)length_diff > 0);
+  int2store(log_pos, length_diff);
+  log_pos+= 2;
+  log_pos[0]= KEY_OP_MULTI_COPY;
+  log_pos++;
+  int2store(log_pos, full_length);
+  log_pos+= 2;
+  int2store(log_pos, log_internal_copy_length);
+  log_pos+= 2;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data) - 7;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    log_internal_copy;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].length= log_internal_copy_length;
+  translog_parts= 2;
+  if (log_key_copy != NULL) /* need to store key into record */
+  {
+    log_array[TRANSLOG_INTERNAL_PARTS + 2].str=    log_key_copy;
+    log_array[TRANSLOG_INTERNAL_PARTS + 2].length= 1 + 2 + 1 + 2;
+    log_array[TRANSLOG_INTERNAL_PARTS + 3].str=    key_with_nod_flag;
+    log_array[TRANSLOG_INTERNAL_PARTS + 3].length= full_length;
+    extra_length= 1 + 2 + 1 + 2 + full_length;
+    translog_parts+= 2;
+  }
+
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  {
+    int page_length= _ma_get_page_used(share, buff);
+    ha_checksum crc;
+    uchar *check_start= log_pos;
+    crc= my_checksum(0, buff + LSN_STORE_SIZE, page_length - LSN_STORE_SIZE);
+    log_pos[0]= KEY_OP_CHECK;
+    log_pos++;
+    int2store(log_pos, page_length);
+    log_pos+= 2;
+    int4store(log_pos, crc);
+    log_pos+= 4;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    check_start;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
+    translog_parts++;
+  }
+#endif
+
+  if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
+                            info->trn, info,
+                            (translog_size_t) ((log_pos - log_data) +
+                                               log_internal_copy_length +
+                                               extra_length),
+                            TRANSLOG_INTERNAL_PARTS + translog_parts,
+                            log_array, log_data, NULL))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+/**
+   0 ok; the created page is put into page cache; the shortened one is not (up
+   to the caller to do it)
+   1 or -1: error.
+   If new_page_offs==NULL, won't create new page (for redo phase).
+*/
+
 int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
-                           uchar *page, const uchar *key,
+                           my_off_t page_offs, uchar *page, const uchar *key,
                            uint key_length, my_off_t *new_page_offs)
 {
   MARIA_SHARE *share= info->s;
+  const my_bool transactional= share->now_transactional;
   int n1, n2; /* Number of items in groups */
   SplitStruct *task;
   SplitStruct *cur;
@@ -261,12 +395,14 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
   double *old_coord;
   int n_dim;
   uchar *source_cur, *cur1, *cur2;
-  uchar *new_page;
+  uchar *new_page, *log_internal_copy, *log_internal_copy_ptr,
+    *log_key_copy= NULL;
   int err_code= 0;
   uint nod_flag= _ma_test_if_nod(share, page);
+  uint org_length= _ma_get_page_used(share, page), new_length;
   uint full_length= key_length + (nod_flag ? nod_flag :
                                   share->base.rec_reflength);
-  int max_keys= ((_ma_get_page_used(share, page) - share->keypage_header) /
+  int max_keys= ((org_length - share->keypage_header) /
                  (full_length));
   MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
   DBUG_ENTER("maria_rtree_split_page");
@@ -312,11 +448,16 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
     goto split_err;
   }
 
-  if (!(new_page= (uchar*) my_alloca((uint)keyinfo->block_length)))
+  /* Allocate buffer for new page and piece of log record */
+  if (!(new_page= (uchar*) my_alloca((uint)keyinfo->block_length +
+                                     (transactional ?
+                                      (max_keys * (2 + 2) +
+                                       1 + 2 + 1 + 2) : 0))))
   {
     err_code= -1;
     goto split_err;
   }
+  log_internal_copy= log_internal_copy_ptr= new_page + keyinfo->block_length;
   bzero(new_page, share->block_size);
 
   stop= task + (max_keys + 1);
@@ -327,47 +468,94 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
   for (cur= task; cur < stop; cur++)
   {
     uchar *to;
+    const uchar *cur_key= cur->key;
+    my_bool log_this_change;
+    DBUG_ASSERT(log_key_copy == NULL);
     if (cur->n_node == 1)
     {
       to= cur1;
       cur1= rt_PAGE_NEXT_KEY(share, cur1, key_length, nod_flag);
       n1++;
+      log_this_change= transactional;
     }
     else
     {
       to= cur2;
       cur2= rt_PAGE_NEXT_KEY(share, cur2, key_length, nod_flag);
       n2++;
+      log_this_change= FALSE;
     }
-    if (to != cur->key)
-      memcpy(to - nod_flag, cur->key - nod_flag, full_length);
+    if (to != cur_key)
+    {
+      uchar *to_with_nod_flag= to - nod_flag;
+      const uchar *cur_key_with_nod_flag= cur_key - nod_flag;
+      memcpy(to_with_nod_flag, cur_key_with_nod_flag, full_length);
+      if (log_this_change)
+      {
+        uint to_with_nod_flag_offs= to_with_nod_flag - page;
+        if (likely(cur_key != key))
+        {
+          /* this memcpy() is internal to the page (source in the page) */
+          uint cur_key_with_nod_flag_offs= cur_key_with_nod_flag - page;
+          int2store(log_internal_copy_ptr, to_with_nod_flag_offs);
+          log_internal_copy_ptr+= 2;
+          int2store(log_internal_copy_ptr, cur_key_with_nod_flag_offs);
+          log_internal_copy_ptr+= 2;
+        }
+        else
+        {
+          /* last iteration, and this involves *key: source is external */
+          log_key_copy= log_internal_copy_ptr;
+          log_key_copy[0]= KEY_OP_OFFSET;
+          int2store(log_key_copy + 1, to_with_nod_flag_offs);
+          log_key_copy[3]= KEY_OP_CHANGE;
+          int2store(log_key_copy + 4, full_length);
+          /* _ma_log_rt_split() will store *key, right after */
+        }
+      }
+    }
+  }
+  { /* verify that above loop didn't touch header bytes */
+    uint i;
+    for (i= 0; i < share->keypage_header; i++)
+      DBUG_ASSERT(new_page[i]==0);
   }
 
   if (nod_flag)
     _ma_store_keypage_flag(share, new_page, KEYPAGE_FLAG_ISNOD);
   _ma_store_keynr(share, new_page, keyinfo->key_nr);
-  _ma_store_page_used(share, page, share->keypage_header + n1 * full_length)
   _ma_store_page_used(share, new_page, share->keypage_header +
                       n2 * full_length);
+  new_length= share->keypage_header + n1 * full_length;
+  _ma_store_page_used(share, page, new_length);
 
   if ((*new_page_offs= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
       HA_OFFSET_ERROR)
     err_code= -1;
   else
-    err_code= _ma_write_keypage(info, keyinfo, *new_page_offs,
-                                page_link->write_lock,
-                                DFLT_INIT_HITS, new_page);
+  {
+    if (transactional &&
+        ( /* log change to split page */
+         _ma_log_rt_split(info, page_offs, page, key - nod_flag,
+                          full_length, log_internal_copy,
+                          log_internal_copy_ptr - log_internal_copy,
+                          log_key_copy, org_length - new_length) ||
+         /* and to new page */
+         _ma_log_new(info, *new_page_offs, new_page,
+                     share->keypage_header + n2 * full_length,
+                     keyinfo->key_nr, 0)))
+      err_code= -1;
+    if ( _ma_write_keypage(info, keyinfo, *new_page_offs,
+                           page_link->write_lock,
+                           DFLT_INIT_HITS, new_page))
+      err_code= -1;
+  }
   DBUG_PRINT("rtree", ("split new block: %lu", (ulong) *new_page_offs));
 
-  my_afree((uchar*)new_page);
+  my_afree(new_page);
 
 split_err:
-  /**
-     @todo the cast below is useless (coord_buf is uchar*); at the moment we
-     changed all "byte" to "uchar", some casts became useless and should be
-     removed.
-  */
-  my_afree((uchar*) coord_buf);
+  my_afree(coord_buf);
   DBUG_RETURN(err_code);
 }
 

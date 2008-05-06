@@ -56,7 +56,7 @@ int main(int argc, char **argv)
     goto err;
   }
   /* we don't want to create a control file, it MUST exist */
-  if (ma_control_file_create_or_open())
+  if (ma_control_file_open(FALSE))
   {
     fprintf(stderr, "Can't open control file (%d)\n", errno);
     goto err;
@@ -267,7 +267,7 @@ static void get_options(int *argc,char ***argv)
   if (!opt_apply)
     opt_apply_undo= FALSE;
 
-  if ((opt_display_only + opt_apply) != 1)
+  if (((opt_display_only + opt_apply) != 1) || (*argc > 0))
   {
     usage();
     exit(1);

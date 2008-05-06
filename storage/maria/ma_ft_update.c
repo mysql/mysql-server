@@ -335,6 +335,10 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
   _ma_store_page_used(share, info->buff, length + share->keypage_header);
   memcpy(info->buff + share->keypage_header, key_ptr, length);
   info->keyread_buff_used= info->page_changed=1;      /* info->buff is used */
+  /**
+    @todo RECOVERY BUG this is not logged yet. Ok as this code is never
+    called, but soon it will be.
+  */
   if ((root= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR ||
       _ma_write_keypage(info, keyinfo, root, page_link->write_lock,
                         DFLT_INIT_HITS, info->buff))
