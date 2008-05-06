@@ -5597,6 +5597,8 @@ void fix_win_paths(const char *val, int len)
 void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
                   char* val, ulonglong len, my_bool is_null)
 {
+  char null[]= "NULL";
+
   if (col_idx < max_replace_column && replace_column[col_idx])
   {
     val= replace_column[col_idx];
@@ -5604,7 +5606,7 @@ void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
   }
   else if (is_null)
   {
-    val= "NULL";
+    val= null;
     len= 4;
   }
 #ifdef __WIN__
