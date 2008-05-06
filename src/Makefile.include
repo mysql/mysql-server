@@ -20,5 +20,5 @@ $(ROOT)src/%.o: CPPFLAGS += -I$(ROOT)include -I$(ROOT)newbrt -I$(ROOT)src/lock_t
 $(ROOT)lib/libtokudb.a: $(SRC_OFILES)
 	$(AR) rv $@ $^
 
-$(ROOT)lib/libtokudb.so: $(SRC_OFILES)
+$(ROOT)lib/libtokudb.$(LIBEXT): $(SRC_OFILES)
 	cc $^ $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)

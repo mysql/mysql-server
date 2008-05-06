@@ -83,13 +83,13 @@ NEWBRT_CHECKS = \
  $(NEWBRT_REGRESSION_TESTS) \
 # This line intentially kept commented so I can have a \ on the previous line
 
-CHECKS += $(patsubst %,$(NEWBRT_HERE)/%.check, $(NEWBRT_CHECKS))
+newbrt.checkdir: $(patsubst %,$(NEWBRT_HERE)/%.check, $(NEWBRT_CHECKS))
 
 $(NEWBRT_HERE)/benchmarktest_256.check: $(NEWBRT_HERE)/benchmark-test
 	cd $(NEWBRT_HERE)/; $(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
 
-foo:
-	echo $(NEWBRT_HERE)/benchmarktest_256.check
+#foo:
+#	echo $(NEWBRT_HERE)/benchmarktest_256.check
 
 $(NEWBRT_HERE)/test-assert.check: $(NEWBRT_HERE)/test-assert
 	@# no arguments, should err
