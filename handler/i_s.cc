@@ -423,7 +423,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
-	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
 	/* struct st_mysql_show_var* */
 	STRUCT_FLD(status_vars, NULL),
@@ -698,7 +698,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_locks =
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
-	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
 	/* struct st_mysql_show_var* */
 	STRUCT_FLD(status_vars, NULL),
@@ -881,7 +881,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
-	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
 	/* struct st_mysql_show_var* */
 	STRUCT_FLD(status_vars, NULL),
@@ -1213,7 +1213,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp =
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
-	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
 	/* struct st_mysql_show_var* */
 	STRUCT_FLD(status_vars, NULL),
@@ -1263,7 +1263,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
-	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
 	/* struct st_mysql_show_var* */
 	STRUCT_FLD(status_vars, NULL),
@@ -1479,7 +1479,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem =
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
-	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
 	/* struct st_mysql_show_var* */
 	STRUCT_FLD(status_vars, NULL),
@@ -1529,7 +1529,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 
 	/* plugin version (for SHOW PLUGINS) */
 	/* unsigned int */
-	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
 	/* struct st_mysql_show_var* */
 	STRUCT_FLD(status_vars, NULL),

@@ -9,6 +9,28 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef univ_i
 #define univ_i
 
+#define INNODB_VERSION_MAJOR	1
+#define INNODB_VERSION_MINOR	0
+#define INNODB_VERSION_BUGFIX	1
+
+/* The following is the InnoDB version as shown in
+SELECT plugin_version FROM information_schema.plugins;
+calculated in in make_version_string() in sql/sql_show.cc like this:
+"version >> 8" . "version & 0xff"
+because the version is shown with only one dot, we skip the last
+component, i.e. we show M.N.P as M.N */
+#define INNODB_VERSION_SHORT	\
+	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
+
+/* auxiliary macros to help creating the version as string */
+#define __INNODB_VERSION(a, b, c)	(#a "." #b "." #c)
+#define _INNODB_VERSION(a, b, c)	__INNODB_VERSION(a, b, c)
+
+#define INNODB_VERSION_STR			\
+	_INNODB_VERSION(INNODB_VERSION_MAJOR,	\
+			INNODB_VERSION_MINOR,	\
+			INNODB_VERSION_BUGFIX)
+
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* In the dynamic plugin, redefine some externally visible symbols
 in order not to conflict with the symbols of a builtin InnoDB. */
