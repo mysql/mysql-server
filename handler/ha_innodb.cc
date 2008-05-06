@@ -115,36 +115,6 @@ static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
-/* List of animal names representing file format. */
-const char* file_format_name_map[] = {
-	"Antelope",
-	"Barracuda",
-	"Cheetah",
-	"Dragon",
-	"Elk",
-	"Fox",
-	"Gazelle",
-	"Hornet",
-	"Impala",
-	"Jaguar",
-	"Kangaroo",
-	"Leopard",
-	"Moose",
-	"Nautilus",
-	"Ocelot",
-	"Porpoise",
-	"Quail",
-	"Rabbit",
-	"Shark",
-	"Tiger",
-	"Urchin",
-	"Viper",
-	"Whale",
-	"Xenops",
-	"Yak",
-	"Zebra"
-};
-
 static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_log_buffer_size,
 	innobase_additional_mem_pool_size, innobase_file_io_threads,
@@ -160,6 +130,12 @@ static char*	innobase_data_home_dir			= NULL;
 static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
+
+/* Note: This variable can be set to on/off and any of the supported
+file formats in the configuration file, but can only be set to any
+of the supported file formats during runtime. */
+static char*	innobase_file_format_check		= NULL;
+
 /* The following has a misleading name: starting from 4.0.5, this also
 affects Windows: */
 static char*	innobase_unix_file_flush_method		= NULL;
@@ -218,18 +194,38 @@ static handler *innobase_create_handler(handlerton *hton,
 Validate the file format name and return its corresponding id. */
 static
 uint
-file_format_name_lookup(
-/*====================*/
-					/* out: valid file format id*/
-	const char*	format_name);	/* in: pointer to file format name */
-
+innobase_file_format_name_lookup(
+/*=============================*/
+						/* out: valid file format id */
+	const char*	format_name);		/* in: pointer to file format
+						name */
+/****************************************************************
+Validate the file format check config parameters, as a side affect it
+sets the srv_check_file_format_at_startup variable. */
+static
+bool
+innobase_file_format_check_on_off(
+/*==============================*/
+						/* out: true if one of 
+						"on" or "off" */
+	const char*	format_check);		/* in: parameter value */
+/****************************************************************
+Validate the file format check config parameters, as a side affect it
+sets the srv_check_file_format_at_startup variable. */
+static
+bool
+innobase_file_format_check_validate(
+/*================================*/
+						/* out: true if valid
+						config value */
+	const char*	format_check);		/* in: parameter value */
 /*****************************************************************
 Check if it is a valid file format. This function is registered as
 a callback with MySQL. */
 static
 int
-innodb_file_format_check(
-/*=====================*/
+innodb_file_format_name_validate(
+/*=============================*/
 						/* out: 0 for valid file
 						format */
 	THD*				thd,	/* in: thread handle */
@@ -238,24 +234,55 @@ innodb_file_format_check(
 	void*				save,	/* out: immediate result
 						for update function */
 	struct st_mysql_value*		value);	/* in: incoming string */
-
 /********************************************************************
-Update the global variable using the "saved" value. This functions is
-registered as a callback with MySQL. */
+Update the system variable innodb_file_format using the "saved"
+value. This function is registered as a callback with MySQL. */
 static
 bool
-innodb_file_format_update(
-/*======================*/
-							/* out: should never
-							fail since it is
-							already validated */
-	THD*				thd,		/* in: thread handle */
-	struct st_mysql_sys_var*	var,		/* in: pointer to
-							system variable */
-	void*				var_ptr,	/* out: where the
-							formal string goes */
-	void*				save);		/* in: immediate result
-							from check function */
+innodb_file_format_name_update(
+/*===========================*/
+						/* out: should never
+						fail since it is
+						already validated */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to
+						system variable */
+	void*				var_ptr,/* out: where the
+						formal string goes */
+	void*				save);	/* in: immediate result
+						from check function */
+/*****************************************************************
+Check if it is a valid file format. This function is registered as
+a callback with MySQL. */
+static
+int
+innodb_file_format_check_validate(
+/*==============================*/
+						/* out: 0 for valid file
+						format */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to system
+						variable */
+	void*				save,	/* out: immediate result
+						for update function */
+	struct st_mysql_value*		value);	/* in: incoming string */
+/********************************************************************
+Update the system variable innodb_file_format_check using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+bool
+innodb_file_format_check_update(
+/*============================*/
+						/* out: should never
+						fail since it is
+						already validated */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to
+						system variable */
+	void*				var_ptr,/* out: where the
+						formal string goes */
+	void*				save);	/* in: immediate result
+						from check function */
 
 /********************************************************************
 Return alter table flags supported in an InnoDB database. */
@@ -1812,7 +1839,8 @@ innobase_init(
 	/* Validate the file format by animal name */
 	if (innobase_file_format_name != NULL) {
 
-		format_id = file_format_name_lookup(innobase_file_format_name);
+		format_id = innobase_file_format_name_lookup(
+			innobase_file_format_name);
 
 		if (format_id > DICT_TF_FORMAT_MAX) {
 
@@ -1829,8 +1857,42 @@ innobase_init(
 	}
 
 	srv_file_format = format_id;
-	innobase_file_format_name =
-		(char*) file_format_name_map[srv_file_format];
+
+	/* Given the type of innobase_file_format_name we have little
+	choice but to cast away the constness from the returned name.
+	innobase_file_format_name is used in the MySQL set variable
+	interface and so can't be const. */
+
+	innobase_file_format_name = 
+		(char*) trx_sys_file_format_id_to_name(format_id);
+
+	/* Process innobase_file_format_check variable */
+	ut_a(innobase_file_format_check != NULL);
+
+	/* As a side affect it will set srv_check_file_format_at_startup
+	on valid input. First we check for "on"/"off". */
+	if (!innobase_file_format_check_on_off(innobase_file_format_check)) {
+
+		/* Did the user specify a format name that we support ?
+		As a side affect it will update the variable
+		srv_check_file_format_at_startup*/
+		if (!innobase_file_format_check_validate(
+			innobase_file_format_check)) {
+
+			sql_print_error("InnoDB: invalid "
+					"innodb_file_format_check value: "
+					"should be either 'on' or 'off' or "
+					"any value up to %s or it's "
+					"equivalent numeric id",
+					trx_sys_file_format_id_to_name(
+						DICT_TF_FORMAT_MAX));
+
+			my_free(internal_innobase_data_file_path,
+				MYF(MY_ALLOW_ZERO_PTR));
+
+			goto error;
+		}
+	}
 
 	/* --------------------------------------------------*/
 
@@ -1920,6 +1982,9 @@ innobase_init(
 		*innobase_hton = *innodb_hton_ptr;
 	}
 #endif /* MYSQL_DYNAMIC_PLUGIN */
+
+	/* Get the current high water mark format. */
+	innobase_file_format_check = (char*) trx_sys_file_format_max_get();
 
 	DBUG_RETURN(FALSE);
 error:
@@ -2793,11 +2858,19 @@ retry:
 		}
 	}
 
-	stats.block_size = 16 * 1024;	/* Index block size in InnoDB: used by MySQL
-				in query optimization */
+	/* Index block size in InnoDB: used by MySQL in query optimization */
+	stats.block_size = 16 * 1024;
 
 	/* Init table lock structure */
 	thr_lock_data_init(&share->lock,&lock,(void*) 0);
+
+	if (prebuilt->table) {
+		/* We update the highest file format in the system table
+		space, if this table has higher file format setting. */
+
+		trx_sys_file_format_max_update(
+			prebuilt->table->flags, &innobase_file_format_check);
+	}
 
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
@@ -5827,6 +5900,11 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
+	/* We update the highest file format in the system table
+	space, if this table has a higher file format setting. */
+
+	trx_sys_file_format_max_update(flags, &innobase_file_format_check);
+
 	/* Note: We can't call update_thd() as prebuilt will not be
 	setup at this stage and so we use thd. */
 
@@ -8749,13 +8827,13 @@ ha_innobase::check_if_incompatible_data(
 Validate the file format name and return its corresponding id. */
 static
 uint
-file_format_name_lookup(
-/*====================*/
+innobase_file_format_name_lookup(
+/*=============================*/
 					/* out: valid file format id*/
 	const char*	format_name)	/* in: pointer to file format name */
 {
-	uint	format_id;
 	char*	endp;
+	uint	format_id;
 
 	ut_a(format_name != NULL);
 
@@ -8776,7 +8854,7 @@ file_format_name_lookup(
 		     format_id++) {
 			const char*	name;
 
-			name = file_format_name_map[format_id];
+			name = trx_sys_file_format_id_to_name(format_id);
 
 			if (!innobase_strcasecmp(format_name, name)) {
 
@@ -8788,13 +8866,66 @@ file_format_name_lookup(
 	return(DICT_TF_FORMAT_MAX + 1);
 }
 
+/****************************************************************
+Validate the file format check value, is it one of "on" or "off",
+as a side affect it sets the srv_check_file_format_at_startup variable. */
+static
+bool
+innobase_file_format_check_on_off(
+/*==============================*/
+					/* out: true if config value one
+					of "on" or  "off" */
+	const char*	format_check)	/* in: parameter value */
+{
+	bool		ret = true;
+
+	if (!innobase_strcasecmp(format_check, "off")) {
+
+		/* Set the value to disable checking. */
+		srv_check_file_format_at_startup = DICT_TF_FORMAT_MAX + 1;
+
+	} else if (!innobase_strcasecmp(format_check, "on")) {
+
+		/* Set the value to the lowest supported format. */
+		srv_check_file_format_at_startup = DICT_TF_FORMAT_51;
+	} else {
+		ret = FALSE;
+	}
+
+	return(ret);
+}
+
+/****************************************************************
+Validate the file format check config parameters, as a side affect it
+sets the srv_check_file_format_at_startup variable. */
+static
+bool
+innobase_file_format_check_validate(
+/*================================*/
+					/* out: true if valid config value */
+	const char*	format_check)	/* in: parameter value */
+{
+	uint		format_id;
+	bool		ret = true;
+		
+	format_id = innobase_file_format_name_lookup(format_check);
+
+	if (format_id < DICT_TF_FORMAT_MAX + 1) {
+		srv_check_file_format_at_startup = format_id;
+	} else {
+		ret = false;
+	}
+
+	return(ret);
+}
+
 /*****************************************************************
 Check if it is a valid file format. This function is registered as
 a callback with MySQL. */
 static
 int
-innodb_file_format_check(
-/*=====================*/
+innodb_file_format_name_validate(
+/*=============================*/
 						/* out: 0 for valid file
 						format */
 	THD*				thd,	/* in: thread handle */
@@ -8804,8 +8935,8 @@ innodb_file_format_check(
 						for update function */
 	struct st_mysql_value*		value)	/* in: incoming string */
 {
-	char		buff[STRING_BUFFER_USUAL_SIZE];
 	const char*	file_format_input;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
 	int		len = sizeof(buff);
 
 	ut_a(save != NULL);
@@ -8814,10 +8945,10 @@ innodb_file_format_check(
 	file_format_input = value->val_str(value, buff, &len);
 
 	if (file_format_input != NULL) {
-
 		uint	format_id;
 
-		format_id = file_format_name_lookup(file_format_input);
+		format_id = innobase_file_format_name_lookup(
+			file_format_input);
 
 		if (format_id <= DICT_TF_FORMAT_MAX) {
 
@@ -8830,12 +8961,12 @@ innodb_file_format_check(
 }
 
 /********************************************************************
-Update the global variable using the "saved" value. This functions is
-registered as a callback with MySQL. */
+Update the system variable innodb_file_format using the "saved"
+value. This function is registered as a callback with MySQL. */
 static
 bool
-innodb_file_format_update(
-/*======================*/
+innodb_file_format_name_update(
+/*===========================*/
 							/* out: should never
 							fail since it is
 							already validated */
@@ -8853,7 +8984,108 @@ innodb_file_format_update(
 
 	srv_file_format = *(uint*) save;
 
-	(*(char**) var_ptr) = (char*) file_format_name_map[srv_file_format];
+	/* Given the type of var_ptr we have little choice but to cast
+	away the constness from the returned name. */
+	(*(char**) var_ptr) = 
+		(char*) trx_sys_file_format_id_to_name(srv_file_format);
+
+	return(true);
+}
+
+/*****************************************************************
+Check if valid argument to innodb_file_format_check. This
+function is registered as a callback with MySQL. */
+static
+int
+innodb_file_format_check_validate(
+/*==============================*/
+						/* out: 0 for valid file
+						format */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to system
+						variable */
+	void*				save,	/* out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/* in: incoming string */
+{
+	const char*	file_format_input;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	file_format_input = value->val_str(value, buff, &len);
+
+	if (file_format_input != NULL) {
+
+		/* Check if user set on/off, we want to print a suitable
+		message if they did so. */
+
+		if (innobase_file_format_check_on_off(file_format_input)) {
+			sql_print_warning(
+				"InnoDB: invalid innodb_file_format_check"
+				"value; on/off can only be set at startup or "
+				"in the configuration file");
+		} else if (innobase_file_format_check_validate(
+				file_format_input)) {
+
+			uint	format_id;
+
+			format_id = innobase_file_format_name_lookup(
+				file_format_input);
+
+			ut_a(format_id <= DICT_TF_FORMAT_MAX);
+
+			*(uint*) save = format_id;
+
+			return(0);
+
+		} else {
+			sql_print_warning(
+				"InnoDB: invalid innodb_file_format_check "
+				"value; can be any format up to %s "
+				"or it's equivalent numeric id",
+				trx_sys_file_format_id_to_name(
+					DICT_TF_FORMAT_MAX));
+		}
+	}
+
+	return(1);
+}
+
+/********************************************************************
+Update the system variable innodb_file_format_check using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+bool
+innodb_file_format_check_update(
+/*============================*/
+							/* out: should never
+							fail since it is
+							already validated */
+	THD*				thd,		/* in: thread handle */
+	struct st_mysql_sys_var*	var,		/* in: pointer to
+							system variable */
+	void*				var_ptr,	/* out: where the
+							formal string goes */
+	void*				save)		/* in: immediate result
+							from check function */
+{
+	uint	format_id;
+
+	ut_a(save != NULL);
+	ut_a(var_ptr != NULL);
+
+	format_id = *(uint*) save;
+
+	/* Update the max format id in the system tablespace. */
+	if (trx_sys_file_format_max_set(format_id, (char**) var_ptr)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" [Info] InnoDB: the file format in the system "
+			"tablespace is now set to %s.\n", *(char**) var_ptr);
+	}
 
 	return(true);
 }
@@ -8912,8 +9144,15 @@ static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
 static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
   PLUGIN_VAR_RQCMDARG,
   "File format to use for new tables in .ibd files.",
-  (mysql_var_check_func) &innodb_file_format_check,
-  (mysql_var_update_func) &innodb_file_format_update, "Antelope");
+  (mysql_var_check_func) &innodb_file_format_name_validate,
+  (mysql_var_update_func) &innodb_file_format_name_update, "Antelope");
+
+static MYSQL_SYSVAR_STR(file_format_check, innobase_file_format_check,
+  PLUGIN_VAR_OPCMDARG,
+  "The highest file format in the tablespace.",
+  (mysql_var_check_func) &innodb_file_format_check_validate,
+  (mysql_var_update_func) &innodb_file_format_check_update,
+  "on");
 
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
@@ -9097,6 +9336,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(file_per_table),
   MYSQL_SYSVAR(file_format),
+  MYSQL_SYSVAR(file_format_check),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),

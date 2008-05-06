@@ -358,3 +358,36 @@ drop table t8, t9;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
 set innodb_strict_mode=0;
+set global innodb_file_per_table=on;
+set global innodb_file_format=`Barracuda`;
+set global innodb_file_format_check=`Antelope`;
+create table normal_table (
+c1 int
+) engine = innodb;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Antelope
+create table zip_table (
+c1 int
+) engine = innodb key_block_size = 8;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Barracuda
+set global innodb_file_format_check=`Antelope`;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Antelope
+show table status;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Barracuda
+set global innodb_file_format_check=`Cheetah`;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format_check=`on`;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format_check=`off`;
+ERROR HY000: Incorrect arguments to SET
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Barracuda
+drop table normal_table, zip_table;
