@@ -51,11 +51,7 @@ id	value
 LOCK TABLE t1 WRITE;
 ** Connection con1 **
 ** Asynchronous Execution **
-SET @startTime = NOW();
 SELECT * FROM t1;
-SET @endTime = NOW();
-SET @TimeDifference = TIME_TO_SEC(TIMEDIFF(@endTime, @startTime)) >= 2;
-SELECT @TimeDifference;|
 ** Connection con0 **
 Sleeping 2 Seconds before unlock
 UNLOCK TABLES;
@@ -65,8 +61,6 @@ id	value
 1	val1
 2	val2
 3	val3
-@TimeDifference
-1
 Testing for value OFF
 ** Connection con0 **
 SET SESSION query_cache_wlock_invalidate = OFF;
@@ -91,7 +85,14 @@ Qcache_queries_in_cache	1
 1 Expected
 '#----------------------------FN_DYNVARS_136_04---------------------#'
 SELECT * FROM t1;
+id	value
+1	val1
+2	val2
+3	val3
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+1 Expected
 ** Connection con1 **
 SELECT * FROM t1;
 id	value
@@ -101,25 +102,16 @@ id	value
 ** Connection con0 **
 LOCK TABLE t1 WRITE;
 ** Connection con1 **
-** Asynchronous Execution **
-SET @startTime = NOW();
+** Should not be blocked **
 SELECT * FROM t1;
-SET @endTime = NOW();
-SET @TimeDifference = TIME_TO_SEC(TIMEDIFF(@endTime, @startTime));
-SELECT @TimeDifference;|
-** Connection con0 **
-Sleeping 2 Seconds before unlock
-UNLOCK TABLES;
-** Connection con1 **
-** Asynchronous Result **
 id	value
 1	val1
 2	val2
 3	val3
-@TimeDifference
-2
-'Bug#35390 the time difference should not be 2 seconds in this case,'
-'it should be less than a second;'
+** Connection con0 **
+Sleeping 2 Seconds before unlock
+UNLOCK TABLES;
+** Connection con1 **
 '#----------------------------FN_DYNVARS_136_05------------------------#'
 SET GLOBAL query_cache_wlock_invalidate = OFF;
 ** Connecting con_int1 using root **
