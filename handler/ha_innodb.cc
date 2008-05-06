@@ -182,6 +182,8 @@ static my_bool	innobase_adaptive_hash_index		= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
+static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -9077,6 +9079,10 @@ static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   AUTOINC_OLD_STYLE_LOCKING,	/* Minimum value */
   AUTOINC_NO_LOCKING, 0);	/* Maximum value */
 
+static MYSQL_SYSVAR_STR(version, innodb_version_str,
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  "InnoDB version", NULL, NULL, INNODB_VERSION_STR);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -9120,6 +9126,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_concurrency),
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
+  MYSQL_SYSVAR(version),
   NULL
 };
 
@@ -9255,7 +9262,7 @@ mysql_declare_plugin(innobase)
   PLUGIN_LICENSE_GPL,
   innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
-  0x0100 /* 1.0 */,
+  INNODB_VERSION_SHORT,
   innodb_status_variables_export,/* status variables             */
   innobase_system_variables, /* system variables */
   NULL /* reserved */
