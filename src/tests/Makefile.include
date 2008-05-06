@@ -19,23 +19,24 @@ SRC_TESTS_TDB_LOADLIBES = -L$(ROOT)lib -ltokudb -Wl,-rpath,.. -lpthread
 SRC_TESTS_TDB_CPPFLAGS  = -I$(ROOT)include
 
 foo:
-	echo $(SRC_OFILES)
-	echo $(ROOT)lib/libtokudb.$(LIBEXT)
+	echo $(SRC_TESTS_RUN_ALL_TESTS)
 
 src/tests.checkdir: $(SRC_TESTS_RUN_ALL_TESTS)
 src/tests.builddir: $(SRC_TESTS_ALL_TESTS)
 
 $(SRC_TESTS_ALL_TESTS): $(SRC_TESTS_HERE)/test.h
 
-.PHONY: $(SRC_TESTS_RUN_ALL_TESTS)
 %.bdbrun: %.bdb
 	$(MAYBEATSIGN) $(UNSETTOKUENV) ./$< $(VERBVERBOSE)
-# %.tdbrun: %.tdb $(ROOT)lib/libtokudb.$(LIBEXT)
 %.tdbrun: %.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTERR)
 %.bdb: %.c
 	$(UNSETTOKUENV) cc  -DENVDIR=\"$<.bdbdir\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
-%.tdb: %.c
+%.tdb: %.c $(ROOT)lib/libtokudb.$(LIBEXT)
 	$(SETTOKUENV) cc  -DENVDIR=\"$<.tdbdir\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(CPPFLAGS) $(SRC_TESTS_TDB_CPPFLAGS) $(SRC_TESTS_TDB_LOADLIBES) $< -o $@
 %.tdbt: %.c
 	$(SETTOKUENV) cc  -DENVDIR=\"$<.tdbdir\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(CPPFLAGS) $(SRC_TESTS_TDB_CPPFLAGS) $(TDB_TRACELOADLIBES) $< -o $@
+
+$(SRC_TESTS_HERE)/test_logmax.tdb: CPPFLAGS += -D_BSD_SOURCE
+$(SRC_TESTS_HERE)/test_thread_insert.tdb: CPPFLAGS += -D_GNU_SOURCE
+$(SRC_TESTS_HERE)/test_thread_stack.tdb: CPPFLAGS += -D_GNU_SOURCE

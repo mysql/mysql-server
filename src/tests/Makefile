@@ -48,7 +48,6 @@ LIBNAME=libdb.$(LIBEXT)
 CFLAGS += -Wall -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 TDB_CPPFLAGS = -I../../include
 
-
 SRCS = $(sort $(wildcard *.c))
 
 TDB_TESTS = $(patsubst %.c,%.tdb,$(SRCS))

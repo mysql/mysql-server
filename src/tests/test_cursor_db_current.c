@@ -88,7 +88,7 @@ void test_cursor_current() {
     r = db->close(db, 0); assert(r == 0);
 }
 
-void db_get(DB *db, int k, int v, int expectr) {
+void db_get(DB *db, int k, int UU(v), int expectr) {
     DBT key, val;
     int r = db->get(db, 0, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
     assert(r == expectr);

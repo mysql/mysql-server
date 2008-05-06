@@ -13,7 +13,7 @@
 #include "test.h"
 
 /* verify that the dup flags are written and read from the database file correctly */ 
-void test_dup_flags(int dup_flags) {
+void test_dup_flags(u_int32_t dup_flags) {
     if (verbose) printf("test_dup_flags:%d\n", dup_flags);
 
     DB_ENV * const null_env = 0;

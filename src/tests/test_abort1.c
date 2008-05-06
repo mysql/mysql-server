@@ -11,9 +11,9 @@
 #include <string.h>
 #include <stdio.h>
 
-// ENVDIR is defined in the Makefile
+#include "test.h"
 
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+// ENVDIR is defined in the Makefile
 
 void test_db_open_aborts (void) {
     DB_ENV *env;
@@ -141,7 +141,7 @@ void test_db_put_aborts (void) {
     r=env->close(env, 0);     assert(r==0);
 }
 
-int main (int argc, char *argv[]) {
+int main (int UU(argc), char UU(*argv[])) {
     test_db_open_aborts();
     test_db_put_aborts();
     return 0;

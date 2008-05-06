@@ -9,6 +9,8 @@
 #include <db.h>
 #include <string.h>
 
+#include "test.h"
+
 // ENVDIR is defined in the Makefile
 
 DB_ENV *env;
@@ -16,7 +18,7 @@ DB *db;
 DBT key;
 DBT data;
 
-int main (int argc, char *argv[]) {
+int main (int UU(argc), char UU(*argv[])) {
     int r;
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);         assert(r==0);

@@ -5,7 +5,7 @@
 
 #include "test.h"
 
-int main(int argc, char *argv[]) {
+int main(int UU(argc), char UU(*argv[])) {
     int r;
     DB_ENV *env;
 

@@ -67,11 +67,11 @@ void insert_pending(int key, int val, DB_TXN *bookx) {
 static void put_a_random_item (DB *db, DB_TXN *tid, int i, DB_TXN *bookx) {
     char hello[30], there[30];
     DBT key,data;
-    int rand = myrandom();
-    random_keys_mentioned[n_keys_mentioned++] = rand;
-    insert_pending(rand, i, bookx);
-    //printf("Insert %u\n", rand);
-    snprintf(hello, sizeof(hello), "hello%d.%d", rand, i);
+    int randv = myrandom();
+    random_keys_mentioned[n_keys_mentioned++] = randv;
+    insert_pending(randv, i, bookx);
+    //printf("Insert %u\n", randv);
+    snprintf(hello, sizeof(hello), "hello%d.%d", randv, i);
     snprintf(there, sizeof(hello), "there%d", i);
     memset(&key, 0, sizeof(key));
     memset(&data, 0, sizeof(data));
@@ -85,23 +85,23 @@ static void put_a_random_item (DB *db, DB_TXN *tid, int i, DB_TXN *bookx) {
 static void delete_a_random_item (DB *db, DB_TXN *tid, DB_TXN *bookx) { 
     if (n_keys_mentioned==0) return;
     int ridx = myrandom()%n_keys_mentioned;
-    int rand = random_keys_mentioned[ridx];
+    int randv = random_keys_mentioned[ridx];
     DBT keyd;
     DBT vald;
-    //printf("Delete %u\n", rand);
-    dbt_init(&keyd, &rand, sizeof(rand));
-    dbt_init(&vald, &rand, sizeof(rand));
+    //printf("Delete %u\n", randv);
+    dbt_init(&keyd, &randv, sizeof(randv));
+    dbt_init(&vald, &randv, sizeof(randv));
 
     pending_i->del(pending_i, bookx, &keyd, 0);
-    delete_in_mem(rand, &peni_count, peni_data);
+    delete_in_mem(randv, &peni_count, peni_data);
 
     pending_d->put(pending_d, bookx, &keyd, &vald, 0);
-    insert_in_mem(rand, rand, &pend_count, pend_data);
+    insert_in_mem(randv, randv, &pend_count, pend_data);
 
     db->del(db, tid, &keyd, DB_DELETE_ANY);
 }
 
-static void commit_items (DB_ENV *env, int i) {
+static void commit_items (DB_ENV *env, int UU(i)) {
     //printf("commit_items %d\n", i);
     DB_TXN *txn;
     int r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
@@ -259,21 +259,21 @@ static void make_db (void) {
     r=env->txn_begin(env, 0, &bookx, 0); assert(r==0);
 
     for (i=0; i<N; i++) {
-	int rand = myrandom();
-	if (i%10000==0) printf(".");
-	if (rand%100==0) {
+	int randv = myrandom();
+	//if (i%10000==0) printf(".");
+	if (randv%100==0) {
 	    r=tid->abort(tid); assert(r==0);
 	    r=bookx->commit(bookx, 0); assert(r==0);
 	    r=env->txn_begin(env, 0, &bookx, 0); assert(r==0);
 	    abort_items(env);
 	    r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
-	} else if (rand%1000==1) {
+	} else if (randv%1000==1) {
 	    r=tid->commit(tid, 0); assert(r==0);
 	    r=bookx->commit(bookx, 0); assert(r==0);
 	    r=env->txn_begin(env, 0, &bookx, 0); assert(r==0);
 	    commit_items(env, i);
 	    r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
-	} else if (rand%3==0) {
+	} else if (randv%3==0) {
 	    delete_a_random_item(db, tid, bookx);
 	} else {
 	    put_a_random_item(db, tid, i, bookx);

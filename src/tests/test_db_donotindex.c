@@ -30,7 +30,7 @@ DB_ENV *dbenv = 0;
  * getname -- extracts a secondary key (the last name) from a primary
  * 	key/data pair
  */
-int getskey(DB *secondary, const DBT *pkey, const DBT *pdata, DBT *skey)
+int getskey(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
 {
 	/*
 	 * Since the secondary key is a simple structure member of the
