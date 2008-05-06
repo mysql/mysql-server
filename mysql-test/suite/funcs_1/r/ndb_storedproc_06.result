@@ -132,9 +132,7 @@ drop user 'user_1'@'localhost';
 DROP PROCEDURE sp3;
 DROP FUNCTION fn1;
 Warnings:
-Error	1133	Can't find any matching row in the user table
-Error	1269	Can't revoke all privileges for one or more of the requested users
-Warning	1405	Failed to revoke all privileges to dropped routine
+Warning	1403	There is no such grant defined for user 'user_1' on host 'localhost' on routine 'fn1'
 
 Testcase 3.1.6.4:
 -----------------
