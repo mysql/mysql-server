@@ -2832,13 +2832,17 @@ static int brt_cursor_current(BRT_CURSOR cursor, int op, DBT *outkey, DBT *outva
     if (brt_cursor_not_set(cursor))
         return EINVAL;
     if (op == DB_CURRENT) {
-        DBT newkey; toku_init_dbt(&newkey);
-        DBT newval; toku_init_dbt(&newval);
+        int r = ENOSYS;
+        DBT newkey; toku_init_dbt(&newkey); newkey.flags = DB_DBT_MALLOC;
+        DBT newval; toku_init_dbt(&newval); newval.flags = DB_DBT_MALLOC;
 
         brt_search_t search; brt_search_init(&search, brt_cursor_compare_set, BRT_SEARCH_LEFT, &cursor->key, &cursor->val, cursor->brt);
-        int r = toku_brt_search(cursor->brt, &search, &newkey, &newval, logger);
+        r = toku_brt_search(cursor->brt, &search, &newkey, &newval, logger);
         if (r != 0 || compare_kv_xy(cursor->brt, &cursor->key, &cursor->val, &newkey, &newval) != 0)
-            return DB_KEYEMPTY;
+            r = DB_KEYEMPTY;
+        dbt_cleanup(&newkey);
+        dbt_cleanup(&newval);
+        if (r!=0) return r;
     }
     return brt_cursor_copyout(cursor, outkey, outval);
 }
