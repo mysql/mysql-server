@@ -1408,6 +1408,8 @@ innobase_start_or_create_for_mysql(void)
 		mutex_exit(&(log_sys->mutex));
 	}
 
+	trx_sys_file_format_init();
+
 	if (create_new_db) {
 		mtr_start(&mtr);
 		fsp_header_init(0, sum_of_new_sizes, &mtr);
@@ -1444,6 +1446,16 @@ innobase_start_or_create_for_mysql(void)
 		recv_recovery_from_archive_finish();
 #endif /* UNIV_LOG_ARCHIVE */
 	} else {
+
+		/* Check if we support the max format that is stamped
+		on the system tablespace. */
+		err = trx_sys_file_format_max_check(
+			srv_check_file_format_at_startup);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
 
@@ -1872,6 +1884,8 @@ innobase_shutdown_for_mysql(void)
 		fclose(srv_misc_tmpfile);
 		srv_misc_tmpfile = 0;
 	}
+
+	trx_sys_file_format_close();
 
 	mutex_free(&srv_monitor_file_mutex);
 	mutex_free(&srv_dict_tmpfile_mutex);
