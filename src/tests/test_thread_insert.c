@@ -6,11 +6,7 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <db.h>
-#if defined(OSX)
-    #include <sys/syscall.h>
-#else
-    #include <syscall.h>
-#endif
+#include <sys/syscall.h>
 #include <pthread.h>
 #include "test.h"
 

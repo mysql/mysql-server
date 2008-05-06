@@ -36,7 +36,7 @@ static void make_db (int n_locks) {
         assert(r == EINVAL);
 #endif
         r=env->get_lk_max_locks(env, &set_locks);
-        assert(r == 0 && set_locks == n_locks);
+        assert(r == 0 && set_locks == (u_int32_t)n_locks);
     }
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);

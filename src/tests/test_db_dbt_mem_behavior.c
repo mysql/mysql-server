@@ -79,7 +79,7 @@ int main(int argc, const char *argv[]) {
             if (i) set_ulen = sizeof(DATA) / 2;
             else   set_ulen = sizeof(DATA);
 
-            int old_ulen;
+            unsigned int old_ulen;
             int was_truncated = 0;
             int ulen_changed;
             int size_full;
@@ -114,7 +114,7 @@ int main(int argc, const char *argv[]) {
             ulen_changed = data.ulen != old_ulen;
             size_full = data.size == sizeof(DATA);
             
-            int min = data.ulen < data.size ? data.ulen : data.size;
+            unsigned int min = data.ulen < data.size ? data.ulen : data.size;
             min = min < sizeof(DATA) ? min : sizeof(DATA);
             //assert(min == sizeof(DATA));
             r = memcmp((DATA*)data.data, &fake, min);

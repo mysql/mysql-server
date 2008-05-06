@@ -51,7 +51,7 @@ void my_free(void * p) {
  * getname -- extracts a secondary key (the last name) from a primary
  * 	key/data pair
  */
-int getskey(DB *secondary, const DBT *pkey, const DBT *pdata, DBT *skey)
+int getskey(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
 {
     DATA* entry;
 
@@ -122,7 +122,7 @@ DBT* dbt_init_malloc_and_copy(DBT* dbt, int something) {
     return dbt;
 }
 
-void pget_test_set_skey_pkey(DBC* dbc, u_int32_t flag, u_int32_t expect, int set_skey, int skey_set, int set_pkey, int pkey_set) {
+void pget_test_set_skey_pkey(DBC* dbc, u_int32_t flag, int expect, int set_skey, int skey_set, int set_pkey, int pkey_set) {
     int r;
     DBT skey;
     DBT pkey;

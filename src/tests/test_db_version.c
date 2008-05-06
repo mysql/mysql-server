@@ -4,7 +4,9 @@
 #include <db.h>
 #include <assert.h>
 
-int main (int argc, char *argv[]) {
+#include "test.h"
+
+int main (int UU(argc), char UU(*argv[])) {
     const char *v;
     int major, minor, patch;
     v = db_version(0, 0, 0);

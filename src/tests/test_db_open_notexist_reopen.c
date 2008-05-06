@@ -8,14 +8,14 @@
 #include <errno.h>
 #include <db.h>
 
+#include "test.h"
+
 // ENVDIR is defined in the Makefile
 
 DB_ENV *env;
 DB *db;
 
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
-
-int main (int argc, char *argv[]) {
+int main (int UU(argc), char UU(*argv[])) {
     int r;
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);                                                           assert(r==0);

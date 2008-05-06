@@ -67,7 +67,7 @@ void test_txn_abort(int n) {
 	if (r!=0) break;
 	if (verbose>2) printf("%d present\n", ntohl(*(int*)key.data));
 	assert(key.size==4);
-	assert(ntohl(*(int*)key.data)==2*i);
+	assert(ntohl(*(int*)key.data)==(unsigned int)(2*i));
     }
     assert(i==n);
     r = cursor->c_close(cursor); assert(r == 0);

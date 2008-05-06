@@ -32,7 +32,7 @@ int grep_for_in_logs(const char *str) {
     return -1;
 }
 
-int main (int argc, char *argv[]) {
+int main (int UU(argc), char UU(*argv[])) {
     int r;
     DB_ENV *env;
     DB *db;

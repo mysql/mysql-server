@@ -50,7 +50,7 @@ void test_logmax (int logmax) {
 	r=env->get_lg_max(env, &lmax);
 	assert(r==0);
 	if (logmax>0) {
-	    assert(lmax==logmax);
+	    assert(lmax==(u_int32_t)logmax);
 	} else {
 	    assert(lmax>0);
 	    

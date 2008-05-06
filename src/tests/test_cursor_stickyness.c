@@ -52,7 +52,7 @@ void expect_db_get(DB *db, int k, int v) {
     free(val.data);
 }
 
-int cursor_get(DBC *cursor, int *k, int *v, int op) {
+int cursor_get(DBC *cursor, unsigned int *k, unsigned int *v, int op) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
     if (r == 0) {
@@ -64,15 +64,15 @@ int cursor_get(DBC *cursor, int *k, int *v, int op) {
     return r;
 }
 
-void expect_cursor_get(DBC *cursor, int k, int v) {
+void expect_cursor_get(DBC *cursor, unsigned int k, unsigned int v) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT);
     assert(r == 0);
     assert(key.size == sizeof k);
-    int kk;
+    unsigned int kk;
     memcpy(&kk, key.data, key.size);
     assert(val.size == sizeof v);
-    int vv;
+    unsigned int vv;
     memcpy(&vv, val.data, val.size);
     if (kk != k || vv != v) printf("expect key %d got %d - %d %d\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
     assert(kk == k);
@@ -95,11 +95,11 @@ void expect_cursor_get_both(DBC *cursor, int k, int v) {
     assert(r == 0);
 }
 
-void expect_cursor_get_current(DBC *cursor, int k, int v) {
+void expect_cursor_get_current(DBC *cursor, unsigned int k, unsigned int v) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_CURRENT);
     assert(r == 0);
-    int kk, vv;
+    unsigned int kk, vv;
     assert(key.size == sizeof kk); memcpy(&kk, key.data, key.size); assert(kk == k);
     assert(val.size == sizeof vv); memcpy(&vv, val.data, val.size); assert(vv == v);
     free(key.data); free(val.data);
@@ -124,7 +124,7 @@ void test_cursor_sticky(int n, int dup_mode) {
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
     int i;
-    int k, v;
+    unsigned int k, v;
     for (i=0; i<n; i++) {
         db_put(db, htonl(i), htonl(i));
     } 

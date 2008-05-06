@@ -76,12 +76,12 @@ static void write_pd_to_dbt (DBT *dbt, const struct primary_data *pd) {
     write_name_to_dbt(dbt, &pd->name);
 }
 
-static void read_uchar_from_dbt (const DBT *dbt, int *off, unsigned char *uchar) {
+static void read_uchar_from_dbt (const DBT *dbt, unsigned int *off, unsigned char *uchar) {
     assert(*off < dbt->size);
     *uchar = ((unsigned char *)dbt->data)[(*off)++];
 }
 
-static void read_uint_from_dbt (const DBT *dbt, int *off, unsigned int *uint) {
+static void read_uint_from_dbt (const DBT *dbt, unsigned int *off, unsigned int *uint) {
     unsigned char a,b,c,d;
     read_uchar_from_dbt(dbt, off, &a);
     read_uchar_from_dbt(dbt, off, &b);
@@ -90,11 +90,11 @@ static void read_uint_from_dbt (const DBT *dbt, int *off, unsigned int *uint) {
     *uint = (a<<24)+(b<<16)+(c<<8)+d;
 }
 
-static void read_timestamp_from_dbt (const DBT *dbt, int *off, timestamp *ts) {
+static void read_timestamp_from_dbt (const DBT *dbt, unsigned int *off, timestamp *ts) {
     read_uint_from_dbt(dbt, off, ts);
 }
 
-static void read_name_from_dbt (const DBT *dbt, int *off, struct name_key *nk) {
+static void read_name_from_dbt (const DBT *dbt, unsigned int *off, struct name_key *nk) {
     unsigned char buf[1000];
     int i;
     for (i=0; 1; i++) {
@@ -104,16 +104,16 @@ static void read_name_from_dbt (const DBT *dbt, int *off, struct name_key *nk) {
     nk->name=(unsigned char*)(strdup((char*)buf));
 }
 
-static void read_pd_from_dbt (const DBT *dbt, int *off, struct primary_data *pd) {
+static void read_pd_from_dbt (const DBT *dbt, unsigned int *off, struct primary_data *pd) {
     read_timestamp_from_dbt(dbt, off, &pd->creationtime);
     read_timestamp_from_dbt(dbt, off, &pd->expiretime);
     read_uchar_from_dbt(dbt, off, &pd->doesexpire);
     read_name_from_dbt(dbt, off, &pd->name);
 }
 
-static int name_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
+static int name_callback (DB *secondary __attribute__((__unused__)), const DBT * UU(key), const DBT *data, DBT *result) {
     struct primary_data *pd = malloc(sizeof(*pd));
-    int off=0;
+    unsigned int off=0;
     read_pd_from_dbt(data, &off, pd);
     static int buf[1000];
 
@@ -125,7 +125,7 @@ static int name_callback (DB *secondary __attribute__((__unused__)), const DBT *
     return 0;
 }
 
-int expire_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
+int expire_callback (DB *UU(secondary), const DBT * UU(key), const DBT *data, DBT *result) {
     struct primary_data *d = data->data;
     if (d->doesexpire) {
 	result->flags=0;
@@ -307,7 +307,7 @@ static void activity (void) {
 		       
 
 static void usage (const char *argv1) {
-    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] [-v] seed\n", argv1);
+    fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] [-v|-q] seed\n", argv1);
     exit(1);
 }
 
@@ -330,7 +330,10 @@ int main (int argc, const char *argv[]) {
 	if (strcmp(argv[0], "--more")==0) {
 	    mode = MODE_MORE;
 	} else if (strcmp(argv[0], "-v")==0) {
-	    verbose = 1;
+	    verbose++;
+	} else if (strcmp(argv[0], "-q")==0) {
+	    verbose--;
+	    if (verbose<0) verbose = 0;
 	} else {
 	    usage(progname);
 	}

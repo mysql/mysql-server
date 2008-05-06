@@ -7,7 +7,9 @@
 #include <sys/types.h>
 #include <db.h>
 
-int main (int argc, char *argv[]) {
+#include "test.h"
+
+int main (int UU(argc), char UU(*argv[])) {
     DB_ENV *env;
     DB *db;
     int r;

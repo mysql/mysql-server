@@ -23,7 +23,7 @@ DB_ENV* dbenv;
 DBC*    cursors[(int)256];
 DB_TXN* null_txn = NULL;
 
-void put(char txn, int _key, int _data) {
+void put(int _key, int _data) {
     int r;
     DBT key;
     DBT data;
@@ -162,7 +162,7 @@ void test(u_int32_t dup_flags) {
         if (i & 0x2) data = -1;
         else         data = 1;
         setup_dbs(dup_flags);
-        put('a', key, data);
+        put(key, data);
         cget(DB_SET,     TRUE, 'a', key, data);
         cget(DB_CURRENT, TRUE, 'a', key, data);
         close_dbs();

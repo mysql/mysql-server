@@ -77,14 +77,14 @@ void close_secondary() {
     r = sdbp->close(sdbp, 0);                           CKERR(r);
 }
 
-void insert_bad_flags(DB* dbp, u_int32_t flags, int r_expect, int keyint, int dataint) {
+void insert_bad_flags(DB* db, u_int32_t flags, int r_expect, int keyint, int dataint) {
     DBT key;
     DBT data;
     int r;
     
     dbt_init(&key, &keyint, sizeof(keyint));
     dbt_init(&data,&dataint,sizeof(dataint));
-    r = dbp->put(dbp, null_txn, &key, &data, flags);
+    r = db->put(db, null_txn, &key, &data, flags);
     CKERR2(r, r_expect);
 }
 
@@ -99,14 +99,14 @@ void cinsert_bad_flags(DBC* dbc, u_int32_t flags, int r_expect, int keyint, int 
     CKERR2(r, r_expect);
 }
 
-void get_bad_flags(DB* dbp, u_int32_t flags, int r_expect, int keyint, int dataint) {
+void get_bad_flags(DB* db, u_int32_t flags, int r_expect, int keyint, int dataint) {
     DBT key;
     DBT data;
     int r;
     
     dbt_init(&key, &keyint, sizeof(keyint));
     dbt_init(&data,&dataint,sizeof(dataint));
-    r = dbp->get(dbp, null_txn, &key, &data, flags);
+    r = db->get(db, null_txn, &key, &data, flags);
     CKERR2(r, r_expect);
     //Verify things don't change.
     assert(*(int*)key.data == keyint);
@@ -168,17 +168,17 @@ PUT_TEST put_tests[] = {
 const int num_put = sizeof(put_tests) / sizeof(put_tests[0]);
 
 CPUT_TEST cput_tests[] = {
-    {0,                 {{TPUT, 0,            EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, }, }},
-    {DB_DUP|DB_DUPSORT, {{TPUT, 0,            EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, }, }},
+    {0,                 {{TPUT, 0,            EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, 0, 0, 0, 0}, }},
+    {DB_DUP|DB_DUPSORT, {{TPUT, 0,            EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, 0, 0, 0, 0}, }},
     {0,                 {{TPUT, DB_KEYFIRST,  0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   0,           0, 2}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}}},
     {DB_DUP|DB_DUPSORT, {{TPUT, DB_KEYFIRST,  0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   EINVAL,      0, 2}, {TGET, DB_GET_BOTH, 0,           0, 1}}},
     {0,                 {{TPUT, DB_KEYLAST,   0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   0,           0, 2}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}}},
     {DB_DUP|DB_DUPSORT, {{TPUT, DB_KEYLAST,   0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   EINVAL,      0, 2}, {TGET, DB_GET_BOTH, 0,           0, 1}}},
     {DB_DUP|DB_DUPSORT, {{TPUT, DB_KEYLAST,   0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   0,           1, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 1, 1}}},
     {DB_DUP|DB_DUPSORT, {{TPUT, DB_KEYLAST,   0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_CURRENT,   0,           1, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}}},
-    {0,                 {{TPUT, DB_CURRENT,   EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, }, }},
-    {DB_DUP|DB_DUPSORT, {{TPUT, DB_CURRENT,   EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, }, }},
-    {0,                 {{TPUT, DB_NODUPDATA, EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, }, }},
+    {0,                 {{TPUT, DB_CURRENT,   EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, 0, 0, 0, 0}, }},
+    {DB_DUP|DB_DUPSORT, {{TPUT, DB_CURRENT,   EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, 0, 0, 0, 0}, }},
+    {0,                 {{TPUT, DB_NODUPDATA, EINVAL, 0, 1}, {TGET, DB_GET_BOTH, DB_NOTFOUND, 0, 1}, {NONE, 0, 0, 0, 0}, }},
     {DB_DUP|DB_DUPSORT, {{TPUT, DB_NODUPDATA, 0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_NODUPDATA, 0,           0, 2}, {TGET, DB_GET_BOTH, 0,           0, 1}, }},
     {DB_DUP|DB_DUPSORT, {{TPUT, DB_NODUPDATA, 0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_NODUPDATA, 0,           0, 2}, {TGET, DB_GET_BOTH, 0,           0, 2}, }},
     {DB_DUP|DB_DUPSORT, {{TPUT, DB_NODUPDATA, 0,      0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, {TPUT, DB_NODUPDATA, DB_KEYEXIST, 0, 1}, {TGET, DB_GET_BOTH, 0,           0, 1}, }},
@@ -204,11 +204,11 @@ GET_TEST get_tests[] = {
 const int num_get = sizeof(get_tests) / sizeof(get_tests[0]);
 
 STEST stests[] = {
-    {0,                 0,                 {{SGET, DB_GET_BOTH, EINVAL, 0, 1}, {NONE, }, }},
+    {0,                 0,                 {{SGET, DB_GET_BOTH, EINVAL, 0, 1}, {NONE, 0, 0, 0, 0}, }},
 };
 const int num_stests = sizeof(stests) / sizeof(stests[0]);
 
-int identity_callback(DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *data, DBT *result) {
+int identity_callback(DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *UU(data), DBT *result) {
     memset(result, 0, sizeof(result));
     result->size = key->size;
     result->data = key->data;

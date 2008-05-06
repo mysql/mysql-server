@@ -324,6 +324,7 @@ void toku_recover_addchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     }
     BNC_DISKOFF(node, childnum) = child;
     BNC_SUBTREE_FINGERPRINT(node, childnum) = childfingerprint;
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum) = 0;
     //BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum) = 0; // This isn't right, but recovery is broken right now anyway, so just leaf it unininitalized.
     int r= toku_fifo_create(&BNC_BUFFER(node, childnum)); assert(r==0);
     BNC_NBYTESINBUF(node, childnum) = 0;

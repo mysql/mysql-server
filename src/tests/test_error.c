@@ -8,7 +8,7 @@
 char const* expect_errpfx;
 int n_handle_error=0;
 
-void handle_error (const DB_ENV *dbenv, const char *errpfx, const char *msg) {
+void handle_error (const DB_ENV *UU(dbenv), const char *errpfx, const char *UU(msg)) {
     assert(errpfx==expect_errpfx);
     n_handle_error++;
 }

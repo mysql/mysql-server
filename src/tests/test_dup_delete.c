@@ -90,16 +90,18 @@ void test_dup_delete(int n, int dup_mode) {
         DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
-        int vv;
+        unsigned int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(n));
         free(val.data);
     } 
 
-    DBT key; int k = htonl(n/2);
-    r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
-    assert(r == 0);
+    {
+	DBT key; int k = htonl(n/2);
+	r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
+	assert(r == 0);
+    }
 
     /* verify lookup fails */
     {
@@ -261,17 +263,19 @@ void test_dup_delete_insert(int n, int dup_mode) {
         DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
-        int vv;
+        unsigned int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));
         free(val.data);
     } 
 
-    int k = htonl(n/2);
-    DBT key;
-    r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
-    assert(r == 0);
+    {
+	int k = htonl(n/2);
+	DBT key;
+	r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
+	assert(r == 0);
+    }
 
     /* insert n duplicates */
     for (i=0; i<n; i++) {
@@ -282,7 +286,7 @@ void test_dup_delete_insert(int n, int dup_mode) {
         DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
-        int vv;
+        unsigned int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));
@@ -359,9 +363,11 @@ void test_all_dup_delete_insert(int n) {
         db_put(db, k, v);
     } 
 
-    DBT key; int k = htonl(n/2);
-    r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
-    assert(r == 0);
+    {
+	DBT key; int k = htonl(n/2);
+	r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
+	assert(r == 0);
+    }
 
     /* insert n duplicates */
     for (i=0; i<n; i++) {
@@ -434,9 +440,9 @@ void test_walk_empty(int n, int dup_mode) {
     } 
 
     {
-    DBT key; int k = htonl(n/2);
-    r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
-    assert(r == 0);
+	DBT key; int k = htonl(n/2);
+	r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
+	assert(r == 0);
     }
 
     DBC *cursor;
@@ -444,9 +450,9 @@ void test_walk_empty(int n, int dup_mode) {
     assert(r == 0);
 
     {
-    DBT key, val;
-    int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT);
-    assert(r != 0);
+	DBT key, val;
+	r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT);
+	assert(r != 0);
     }
 
     r = cursor->c_close(cursor);
@@ -488,7 +494,7 @@ void test_icdi_search(int n, int dup_mode) {
         DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
-        int vv;
+        unsigned int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));
@@ -507,10 +513,12 @@ void test_icdi_search(int n, int dup_mode) {
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
     assert(r == 0);
 
-    int k = htonl(n/2);
-    DBT key;
-    r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
-    assert(r == 0);
+    {
+	int k = htonl(n/2);
+	DBT key;
+	r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
+	assert(r == 0);
+    }
 
     /* insert n duplicates */
     for (i=0; i<n; i++) {
@@ -521,7 +529,7 @@ void test_icdi_search(int n, int dup_mode) {
         DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
-        int vv;
+        unsigned int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(n));
@@ -575,7 +583,7 @@ void test_ici_search(int n, int dup_mode) {
         DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
-        int vv;
+        unsigned int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));
@@ -603,7 +611,7 @@ void test_ici_search(int n, int dup_mode) {
         DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
         assert(r == 0);
-        int vv;
+        unsigned int vv;
         assert(val.size == sizeof vv);
         memcpy(&vv, val.data, val.size);
         assert(vv == htonl(0));

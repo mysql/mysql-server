@@ -57,7 +57,7 @@ void test_abort_close(void) {
 
 }
 
-int main(int argc, char *argv[]) {
+int main(int UU(argc), char UU(*argv[])) {
     test_abort_close();
     return 0;
 }
