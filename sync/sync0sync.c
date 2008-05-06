@@ -1055,6 +1055,7 @@ sync_thread_add_level(
 	case SYNC_THR_LOCAL:
 	case SYNC_ANY_LATCH:
 	case SYNC_TRX_SYS_HEADER:
+	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
 	case SYNC_BUF_POOL:
 	case SYNC_SEARCH_SYS:

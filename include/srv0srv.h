@@ -61,7 +61,9 @@ extern char*	srv_arch_dir;
 dictionary tables are in the system tablespace 0 */
 extern my_bool	srv_file_per_table;
 /* The file format to use on new *.ibd files. */
-extern uint	srv_file_format;
+extern ulint	srv_file_format;
+/* Whether to check file format during startup.*/
+extern ulint	srv_check_file_format_at_startup;
 /* Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;

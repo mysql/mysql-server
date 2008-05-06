@@ -298,7 +298,59 @@ UNIV_INTERN
 void
 trx_sys_print_mysql_master_log_pos(void);
 /*====================================*/
-
+/*********************************************************************
+Initializes the tablespace tag system. */
+UNIV_INTERN
+void
+trx_sys_file_format_init(void);
+/*==========================*/
+/*********************************************************************
+Closes the tablespace tag system. */
+UNIV_INTERN
+void
+trx_sys_file_format_close(void);
+/*===========================*/
+/*********************************************************************
+Get the name representation of the file format from its id. */
+UNIV_INTERN
+const char*
+trx_sys_file_format_id_to_name(
+/*===========================*/
+					/* out: pointer to the name */
+	const uint	id);		/* in: id of the file format */
+/*********************************************************************
+Set the file format tag unconditonally. */
+UNIV_INTERN
+ibool
+trx_sys_file_format_max_set(
+/*===========================*/
+					/* out: TRUE if value updated */
+	ulint		file_format,	/* in: file format id */
+	char**		name);		/* out: max format name */
+/*********************************************************************
+Get the name representation of the file format from its id. */
+UNIV_INTERN
+const char*
+trx_sys_file_format_max_get(void);
+/*=============================*/
+				/* out: pointer to the max format name */
+/*********************************************************************
+Check for the max file format tag stored on disk. */
+UNIV_INTERN
+ulint
+trx_sys_file_format_max_check(
+/*==========================*/
+					/* out: DB_SUCCESS or error code */
+	ulint		max_format_id);	/* in: the max format id to check */
+/************************************************************************
+Update the file format tag in the tablespace to the max value. */
+UNIV_INTERN
+ibool
+trx_sys_file_format_max_update(
+/*===========================*/
+					/* out: TRUE if value updated */
+	uint		flags,		/* in: flags of the table */
+	char**		name);		/* out: max format name */
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
@@ -396,6 +448,15 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 
 
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE
+
+/* The offset of the file format tag on the trx system header page */
+#define TRX_SYS_FILE_FORMAT_TAG		(UNIV_PAGE_SIZE - 16)
+
+/* We use these random constants to reduce the probability of reading
+garbage (from previous versions) that maps to an actual format id. We
+use these as bit masks at the time of  reading and writing from/to disk. */
+#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
+#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
 
 /* Doublewrite control struct */
 struct trx_doublewrite_struct{

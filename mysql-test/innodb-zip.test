@@ -270,3 +270,33 @@ drop table t8, t9;
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
 eval set innodb_strict_mode=$mode;
+#
+# Testing of tablespace tagging
+#
+-- disable_info
+set global innodb_file_per_table=on;
+set global innodb_file_format=`Barracuda`;
+set global innodb_file_format_check=`Antelope`;
+create table normal_table (
+  c1 int
+) engine = innodb;
+select @@innodb_file_format_check;
+create table zip_table (
+  c1 int
+) engine = innodb key_block_size = 8;
+select @@innodb_file_format_check;
+set global innodb_file_format_check=`Antelope`;
+select @@innodb_file_format_check;
+-- disable_result_log
+show table status;
+-- enable_result_log
+select @@innodb_file_format_check;
+-- error ER_WRONG_ARGUMENTS
+set global innodb_file_format_check=`Cheetah`;
+-- error ER_WRONG_ARGUMENTS
+set global innodb_file_format_check=`on`;
+-- error ER_WRONG_ARGUMENTS
+set global innodb_file_format_check=`off`;
+select @@innodb_file_format_check;
+drop table normal_table, zip_table;
+-- disable_result_log
