@@ -1882,7 +1882,7 @@ innobase_init(
 			sql_print_error("InnoDB: invalid "
 					"innodb_file_format_check value: "
 					"should be either 'on' or 'off' or "
-					"any value up to %s or it's "
+					"any value up to %s or its "
 					"equivalent numeric id",
 					trx_sys_file_format_id_to_name(
 						DICT_TF_FORMAT_MAX));
@@ -9045,7 +9045,7 @@ innodb_file_format_check_validate(
 			sql_print_warning(
 				"InnoDB: invalid innodb_file_format_check "
 				"value; can be any format up to %s "
-				"or it's equivalent numeric id",
+				"or its equivalent numeric id",
 				trx_sys_file_format_id_to_name(
 					DICT_TF_FORMAT_MAX));
 		}
