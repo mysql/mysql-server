@@ -1930,6 +1930,8 @@ innobase_shutdown_for_mysql(void)
 			srv_shutdown_lsn);
 	}
 
+	srv_was_started = FALSE;
+
 	return((int) DB_SUCCESS);
 }
 

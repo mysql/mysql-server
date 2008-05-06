@@ -33,15 +33,17 @@ static const char plugin_author[] = "Innobase Oy";
 		DBUG_RETURN(1);	\
 	}
 
-#define FAIL_IF_INNODB_NOT_STARTED(plugin_name)			\
-do {								\
-	if (!srv_was_started) {					\
-		sql_print_error("InnoDB: Cannot install the "	\
-				plugin_name " plugin because "	\
-				"the InnoDB storage engine is "	\
-				"not installed.");		\
-		DBUG_RETURN(1);					\
-	}							\
+#define RETURN_IF_INNODB_NOT_STARTED(plugin_name)			\
+do {									\
+	if (!srv_was_started) {						\
+		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
+				    ER_CANT_FIND_SYSTEM_REC,		\
+				    "InnoDB: SELECTing from "		\
+				    "INFORMATION_SCHEMA.%s but "	\
+				    "the InnoDB storage engine "	\
+				    "is not installed", plugin_name);	\
+		DBUG_RETURN(0);						\
+	}								\
 } while (0)
 
 #if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 && !defined __INTEL_COMPILER
@@ -372,8 +374,6 @@ innodb_trx_init(
 
 	DBUG_ENTER("innodb_trx_init");
 
-	FAIL_IF_INNODB_NOT_STARTED("INNODB_TRX");
-
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_trx_fields_info;
@@ -654,8 +654,6 @@ innodb_locks_init(
 
 	DBUG_ENTER("innodb_locks_init");
 
-	FAIL_IF_INNODB_NOT_STARTED("INNODB_LOCKS");
-
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_locks_fields_info;
@@ -839,8 +837,6 @@ innodb_lock_waits_init(
 
 	DBUG_ENTER("innodb_lock_waits_init");
 
-	FAIL_IF_INNODB_NOT_STARTED("INNODB_LOCK_WAITS");
-
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_lock_waits_fields_info;
@@ -931,6 +927,8 @@ trx_i_s_common_fill_table(
 	/* which table we have to fill? */
 	table_name = tables->schema_table_name;
 	/* or table_name = tables->schema_table->table_name; */
+
+	RETURN_IF_INNODB_NOT_STARTED(table_name);
 
 	/* update the cache */
 	trx_i_s_cache_start_write(cache);
@@ -1081,6 +1079,8 @@ i_s_cmp_fill_low(
 		DBUG_RETURN(0);
 	}
 
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
 	for (uint i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
 
@@ -1153,8 +1153,6 @@ i_s_cmp_init(
 	DBUG_ENTER("i_s_cmp_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
 
-	FAIL_IF_INNODB_NOT_STARTED("INNODB_CMP");
-
 	schema->fields_info = i_s_cmp_fields_info;
 	schema->fill_table = i_s_cmp_fill;
 
@@ -1172,8 +1170,6 @@ i_s_cmp_reset_init(
 {
 	DBUG_ENTER("i_s_cmp_reset_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
-
-	FAIL_IF_INNODB_NOT_STARTED("INNODB_CMP_RESET");
 
 	schema->fields_info = i_s_cmp_fields_info;
 	schema->fill_table = i_s_cmp_reset_fill;
@@ -1351,6 +1347,8 @@ i_s_cmpmem_fill_low(
 		DBUG_RETURN(0);
 	}
 
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
 	buf_pool_mutex_enter();
 
 	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
@@ -1421,8 +1419,6 @@ i_s_cmpmem_init(
 	DBUG_ENTER("i_s_cmpmem_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
 
-	FAIL_IF_INNODB_NOT_STARTED("INNODB_CMPMEM");
-
 	schema->fields_info = i_s_cmpmem_fields_info;
 	schema->fill_table = i_s_cmpmem_fill;
 
@@ -1440,8 +1436,6 @@ i_s_cmpmem_reset_init(
 {
 	DBUG_ENTER("i_s_cmpmem_reset_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
-
-	FAIL_IF_INNODB_NOT_STARTED("INNODB_CMPMEM_RESET");
 
 	schema->fields_info = i_s_cmpmem_fields_info;
 	schema->fill_table = i_s_cmpmem_reset_fill;
