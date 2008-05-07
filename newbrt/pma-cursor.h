@@ -150,10 +150,8 @@ static int toku_pma_cursor_get_current(PMA_CURSOR cursor, DBT *key, DBT *val, in
     if (r != 0)
         return r;
 
-    if (key) 
-        r = toku_dbt_set_value(key, cursor->key.data, cursor->key.size, cursor->sskey);
-    if (val && r == 0) 
-        r = toku_dbt_set_value(val, cursor->val.data, cursor->val.size, cursor->ssval);
+    r = toku_dbt_set_two_values(key, cursor->key.data, cursor->key.size, cursor->sskey,
+                                val, cursor->val.data, cursor->val.size, cursor->ssval);
     return r;
 }
 
