@@ -7,10 +7,6 @@
 	* row/row0sel.c:
 	Fix Bug#35226 RBR event crashes slave
 
-	* row/row0sel.c:
-	Swap the order in which mysql_thd, mysql_query_str and
-	*mysql_query_str are checked for non-NULL
-
 	* handler/ha_innodb.cc:
 	Change the fix for Bug#32440 to show bytes instead of kilobytes in
 	INFORMATION_SCHEMA.TABLES.DATA_FREE
