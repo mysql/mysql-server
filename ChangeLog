@@ -61,6 +61,10 @@
 	Fix Bug#36169 create innodb compressed table with too large row size
 	crashed
 
+	* (outside the source tree):
+	Fix Bug#36222 New InnoDB plugin 1.0 has wrong MKDIR_P defined in
+	Makefile.in
+
 2008-04-15	The InnoDB Team
 
 	InnoDB Plugin 1.0.0 released
