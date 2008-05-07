@@ -2506,13 +2506,35 @@ int show_brt_blocknumbers (BRT brt) {
 #endif
 
 
-int toku_brt_dbt_set_key(BRT brt, DBT *ybt, bytevec val, ITEMLEN vallen) {
-    int r = toku_dbt_set_value(ybt, val, vallen, &brt->skey);
+int toku_brt_dbt_set_both(BRT brt, DBT* key, DBT* key_source,
+                                   DBT* val, DBT* val_source) {
+    int r = toku_dbt_set_two_values(key, key_source->data, key_source->size, &brt->skey,
+                                    val, val_source->data, val_source->size, &brt->sval);
     return r;
 }
 
-int toku_brt_dbt_set_value(BRT brt, DBT *ybt, bytevec val, ITEMLEN vallen) {
-    int r = toku_dbt_set_value(ybt, val, vallen, &brt->sval);
+int toku_brt_dbt_set_three(BRT brt_primary, BRT brt_secondary,
+                           DBT* key,  DBT* key_source,
+                           DBT* pkey, DBT* pkey_source,
+                           DBT* val,  DBT*  val_source) {
+    int r = toku_dbt_set_three_values(key,  key_source->data,  key_source->size,  &brt_secondary->skey,
+                                      pkey, pkey_source->data, pkey_source->size, &brt_secondary->sval,
+                                      val,  val_source->data,  val_source->size,  &brt_primary->sval);
+    return r;
+}
+
+int toku_brt_dbt_set(DBT* key, DBT* key_source) {
+    int r = toku_dbt_set_value(key, key_source->data, key_source->size, NULL);
+    return r;
+}
+
+int toku_brt_dbt_set_key(BRT brt, DBT* key, DBT* key_source) {
+    int r = toku_dbt_set_value(key, key_source->data, key_source->size, &brt->skey);
+    return r;
+}
+
+int toku_brt_dbt_set_val(BRT brt, DBT* val, DBT* val_source) {
+    int r = toku_dbt_set_value(val, val_source->data, val_source->size, &brt->sval);
     return r;
 }
 
@@ -2685,11 +2707,16 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
 	}
     }
  got_a_good_value:
-    if (newkey) {
+    if (newkey && newval) {
+        r = toku_dbt_set_two_values(newkey, le_latest_key(le), le_latest_keylen(le), &brt->skey,
+                                    newval, le_latest_val(le), le_latest_vallen(le), &brt->sval);
+	if (r!=0) return r;
+    }
+    else if (newkey) {
 	r = toku_dbt_set_value(newkey, le_latest_key(le), le_latest_keylen(le), &brt->skey);
 	if (r!=0) return r;
     }
-    if (newval) {
+    else if (newval) {
 	r = toku_dbt_set_value(newval, le_latest_val(le), le_latest_vallen(le), &brt->sval);
 	if (r!=0) return r;
     }
@@ -2776,6 +2803,11 @@ static inline void brt_cursor_set_key_val(BRT_CURSOR cursor, DBT *newkey, DBT *n
     cursor->val = *newval; memset(newval, 0, sizeof *newval);
 }
 
+/* Used to restore the state of a cursor. */
+void brt_cursor_set_key_val_manually(BRT_CURSOR cursor, DBT* key, DBT* val) {
+    brt_cursor_set_key_val(cursor, key, val);
+}
+
 int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, int is_temporary_cursor) {
     BRT_CURSOR cursor = toku_malloc(sizeof *cursor);
     if (cursor == 0)
@@ -2816,11 +2848,36 @@ static inline int compare_kv_xy(BRT brt, DBT *k, DBT *v, DBT *x, DBT *y) {
 
 static inline int brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val) {
     int r = 0;
-    if (key) 
-        r = toku_dbt_set_value(key, cursor->key.data, cursor->key.size, cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey);
-    if (r == 0 && val)
-        r = toku_dbt_set_value(val, cursor->val.data, cursor->val.size, cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval);
+    void** key_staticp = cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey;
+    void** val_staticp = cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval;
+    r = toku_dbt_set_two_values(key, cursor->key.data, cursor->key.size, key_staticp,
+                                val, cursor->val.data, cursor->val.size, val_staticp);
     return r;
+}
+
+int toku_brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val) {
+    int r = brt_cursor_copyout(cursor, key, val);
+    return r;
+}
+
+/* Used to save the state of a cursor. */
+int brt_cursor_save_key_val(BRT_CURSOR cursor, DBT* key, DBT* val) {
+    if (brt_cursor_not_set(cursor)) {
+        if (key) { *key = cursor->key; }
+        if (val) { *val = cursor->val; }
+        return 0;
+    }
+    else {
+        assert(!key || key->flags == DB_DBT_MALLOC);
+        assert(!val || val->flags == DB_DBT_MALLOC);
+        int r;
+        if ((r = brt_cursor_copyout(cursor, key, val))) { return r; }
+        /* An initialized cursor cannot have NULL key->data or
+         * val->data. */
+        assert(key==NULL || key->data!=NULL);
+        assert(val==NULL || val->data!=NULL);
+        return 0;
+    }
 }
 
 static int brt_cursor_compare_set(brt_search_t *search, DBT *x, DBT *y) {
