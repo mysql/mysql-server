@@ -1,7 +1,7 @@
 # On OSX do:
 #   make OSX=OSX
 
-OPTFLAGS = -O2 -finline-functions
+OPTFLAGS = -O3 -finline-functions
 
 LIBNAME=libtokurange
 

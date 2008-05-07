@@ -8,7 +8,7 @@
 
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 # PROF_FLAGS = -pg
-OPTFLAGS = -O2
+OPTFLAGS = -O3
 
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
@@ -225,7 +225,7 @@ test_oexcl: test_oexcl.o toku_assert.o
 
 
 checko2:
-ifeq ($(OPTFLAGS),-O2)
+ifeq ($(OPTFLAGS),-O3)
 	@echo OPTFLAGS=$(OPTFLAGS) ok
 else
 	@echo OPTFLAGS=$(OPTFLAGS) bad; exit 1
