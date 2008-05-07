@@ -148,8 +148,8 @@ public:
     DBUG_RETURN(tmp);
   }
 private:
-  const NDBTAB *m_ndbtab;
   NDBDICT *m_dict;
+  const NDBTAB *m_ndbtab;
   int m_invalidate;
 };
 
