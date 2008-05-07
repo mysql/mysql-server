@@ -325,7 +325,6 @@ void toku_recover_addchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     BNC_DISKOFF(node, childnum) = child;
     BNC_SUBTREE_FINGERPRINT(node, childnum) = childfingerprint;
     BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum) = 0;
-    //BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum) = 0; // This isn't right, but recovery is broken right now anyway, so just leaf it unininitalized.
     int r= toku_fifo_create(&BNC_BUFFER(node, childnum)); assert(r==0);
     BNC_NBYTESINBUF(node, childnum) = 0;
     node->u.n.n_children++;
@@ -607,16 +606,14 @@ void toku_recover_deleteleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_
     node->log_lsn = lsn;
     {
 	OMTVALUE data;
-	LEAFENTRY oldleafentry=data;
 	r=toku_omt_fetch(node->u.l.buffer, idx, &data);
 	assert(r==0);
+	LEAFENTRY oldleafentry=data;
 	u_int32_t  len = leafentry_memsize(oldleafentry);
-	LEAFENTRY le=data;
-	assert(leafentry_memsize(le)==len);
 	assert(memcmp(oldleafentry, data, len)==0);
-	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
-	node->local_fingerprint -= node->rand4fingerprint * toku_le_crc(le);
-	toku_mempool_mfree(&node->u.l.buffer_mempool, le, len);
+	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(oldleafentry);
+	node->local_fingerprint -= node->rand4fingerprint * toku_le_crc(oldleafentry);
+	toku_mempool_mfree(&node->u.l.buffer_mempool, oldleafentry, len);
 	r = toku_omt_delete_at(node->u.l.buffer, idx);
 	assert(r==0);
     }
