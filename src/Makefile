@@ -8,7 +8,7 @@ EXPORTMAP = -Wl,--version-script=export.map
 VISIBILITY = -fvisibility=hidden
 
 # PROF_FLAGS=-pg
-OPTFLAGS = -O2 -finline-functions
+OPTFLAGS = -O3 -finline-functions
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CFLAGS = -W -Wall -Wextra -Werror -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align
