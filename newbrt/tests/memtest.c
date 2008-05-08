@@ -10,39 +10,39 @@
 void test_mempool_limits(int size) {
     void *base = malloc(size);
     struct mempool mempool;
-    mempool_init(&mempool, base, size);
+    toku_mempool_init(&mempool, base, size);
 
     int i;
     for (i=0;; i++) {
-        void *vp = mempool_malloc(&mempool, 1, 1);
+        void *vp = toku_mempool_malloc(&mempool, 1, 1);
         if (vp == 0) 
             break;
     }
     assert(i == size);
 
-    mempool_fini(&mempool);
+    toku_mempool_fini(&mempool);
     free(base);
 }
 
 void test_mempool_malloc_mfree(int size) {
     void *base = malloc(size);
     struct mempool mempool;
-    mempool_init(&mempool, base, size);
+    toku_mempool_init(&mempool, base, size);
 
     void *vp[size];
     int i;
     for (i=0;; i++) {
-        vp[i] = mempool_malloc(&mempool, 1, 1);
+        vp[i] = toku_mempool_malloc(&mempool, 1, 1);
         if (vp[i] == 0) 
             break;
     }
     assert(i == size);
 
     for (i=0; i<size; i++) 
-        mempool_mfree(&mempool, vp[i], 1);
-    assert(mempool_get_frag_size(&mempool) == size);
+        toku_mempool_mfree(&mempool, vp[i], 1);
+    assert(toku_mempool_get_frag_size(&mempool) == size);
 
-    mempool_fini(&mempool);
+    toku_mempool_fini(&mempool);
     free(base);
 }
 

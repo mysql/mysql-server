@@ -58,6 +58,7 @@ REGRESSION_TESTS = \
 	log-test4 \
 	log-test5 \
 	log-test6 \
+	memtest \
 	omt-test \
 	test-assert \
 	test-brt-delete-both \
