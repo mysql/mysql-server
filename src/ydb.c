@@ -1427,17 +1427,10 @@ static int toku_c_pget_assign_outputs(C_GET_VARS* g, DBT* key, DBT* val, DBT* da
     DBT* write_key = g->key_is_write ? key : NULL;
     DBT* write_val = g->val_is_write ? val : NULL;
     DBT* write_dat = g->dat_is_write ? dat : NULL;
+    BRT primary = g->db->i->primary->i->brt;
 
-    /* In the case of a non-associated database, we call it a
-     * 'secondary' here. */
-    DB* pdb       = g->db->i->primary;
-    BRT primary   = pdb ? pdb->i->brt : NULL;
-    BRT secondary = g->db->i->brt;
-
-    r = toku_brt_dbt_set_three(primary,   secondary,
-                               write_key, &g->tmp_key,
-                               write_val, &g->tmp_val,
-                               write_dat, &g->tmp_dat);
+    r = toku_brt_cursor_copyout_with_dat(g->c->i->c, write_key, write_val,
+                                         primary,    write_dat, &g->tmp_dat);
     if (r!=0) goto cleanup;
     r = 0;
 cleanup:
@@ -1449,9 +1442,7 @@ static int toku_c_get_assign_outputs(C_GET_VARS* g, DBT* key, DBT* val) {
     DBT* write_key = g->key_is_write ? key : NULL;
     DBT* write_val = g->val_is_write ? val : NULL;
 
-    r = toku_brt_dbt_set_both(g->db->i->brt,
-                              write_key, &g->tmp_key,
-                              write_val, &g->tmp_val);
+    r = toku_brt_cursor_copyout(g->c->i->c, write_key, write_val);
     if (r!=0) goto cleanup;
     r = 0;
 cleanup:

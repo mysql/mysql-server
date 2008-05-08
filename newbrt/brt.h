@@ -59,16 +59,10 @@ int brtenv_checkpoint (BRTENV env);
 extern int toku_brt_do_push_cmd; // control whether push occurs eagerly.
 
 
-int toku_brt_dbt_set_three(BRT brt_primary, BRT brt_secondary,
-                           DBT* key,  DBT* key_source,
-                           DBT* pkey, DBT* pkey_source,
-                           DBT* val, DBT*  val_source);
-int toku_brt_dbt_set_both(BRT brt, DBT* key, DBT* key_source,
-                                   DBT* val, DBT* val_source);
-int toku_brt_dbt_set_key(BRT brt, DBT* key, DBT* key_source);
-int toku_brt_dbt_set_val(BRT brt, DBT* val, DBT* val_source);
 int toku_brt_dbt_set(DBT* key, DBT* key_source);
 int toku_brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val);
+int toku_brt_cursor_copyout_with_dat(BRT_CURSOR cursor, DBT *key, DBT *val,
+                                     BRT pdb, DBT* dat, DBT* dat_source);
 
 int toku_brt_get_fd(BRT, int *);
 
