@@ -12,30 +12,11 @@ int verbose=0;
 #include <lth.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <memory.h>
+#include <key.h>
+
 
 BOOL want_panic = FALSE;
-
-int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
-    int comparelen = key1len<key2len ? key1len : key2len;
-    const unsigned char *k1;
-    const unsigned char *k2;
-    for (k1=key1, k2=key2;
-	 comparelen>4;
-	 k1+=4, k2+=4, comparelen-=4) {
-	{ int v1=k1[0], v2=k2[0]; if (v1!=v2) return v1-v2; }
-	{ int v1=k1[1], v2=k2[1]; if (v1!=v2) return v1-v2; }
-	{ int v1=k1[2], v2=k2[2]; if (v1!=v2) return v1-v2; }
-	{ int v1=k1[3], v2=k2[3]; if (v1!=v2) return v1-v2; }
-    }
-    for (;
-	 comparelen>0;
-	 k1++, k2++, comparelen--) {
-	if (*k1 != *k2) {
-	    return (int)*k1-(int)*k2;
-	}
-    }
-    return key1len-key2len;
-}
 
 int intcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
     int x = *(int*)a->data;
@@ -103,18 +84,6 @@ static inline uint32_t myrandom (void) {
 }
 
 
-void* toku_malloc(size_t size) {
-    return malloc(size);
-}
-
-void toku_free(void* p) {
-    free(p);
-}
-
-void* toku_realloc(void *ptr, size_t size) {
-    return realloc(ptr, size);
-}
-
 DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->data = data;
@@ -147,11 +116,4 @@ void* fail_malloc(size_t size) {
         return NULL;
     }
     return malloc(size);
-}
-
-char *toku_strdup (const char *s) {
-    size_t len = strlen(s) + 1;
-    void * r = toku_malloc(len);
-    memcpy(r, s, len);
-    return r;
 }
