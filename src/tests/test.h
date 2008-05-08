@@ -20,6 +20,13 @@ int verbose=0;
 #define CKERR2(r,r2) ({ if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, db_strerror(r), r2); assert(r==r2); })
 #define CKERR2s(r,r2,r3) ({ if (r!=r2 && r!=r3) fprintf(stderr, "%s:%d error %d %s, expected %d or %d\n", __FILE__, __LINE__, r, db_strerror(r), r2,r3); assert(r==r2||r==r3); })
 
+// If the error code depends on BDB vs TDB use this
+#ifdef USE_TDB
+#define CKERR_depending(r,tdbexpect,bdbexpect) CKERR2(r,tdbexpect)
+#else
+#define CKERR_depending(r,tdbexpect,bdbexpect) CKERR2(r,bdbexpect)
+#endif
+
 void parse_args (int argc, const char *argv[]) {
     const char *argv0=argv[0];
     while (argc>1) {
