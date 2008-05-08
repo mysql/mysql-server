@@ -6,9 +6,8 @@
 #include "toku_assert.h"
 #include "cachetable.h"
 #include "fifo.h"
-#include "yerror.h"
 #include "brt.h"
- #include "crc.h"
+#include "crc.h"
 #include "list.h"
 #include "mempool.h"
 #include "kv-pair.h"
@@ -90,7 +89,7 @@ struct brtnode {
         } n;
 	struct leaf {
 	    OMT buffer;
-	    unsigned int n_bytes_in_buffer; /* How many bytes to represent the PMA (including the per-key overheads, but not including the overheads for the node. */
+	    unsigned int n_bytes_in_buffer; /* How many bytes to represent the OMT (including the per-key overheads, but not including the overheads for the node. */
 	    struct mempool buffer_mempool;
 	} l;
     } u;

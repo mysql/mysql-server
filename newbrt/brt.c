@@ -143,7 +143,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
 //    }
     if (0) {
 	printf("%s:%d toku_brtnode_flush_callback %p thisnodename=%lld keep_me=%d height=%d", __FILE__, __LINE__, brtnode, (long long)brtnode->thisnodename, keep_me, brtnode->height);
-	if (brtnode->height==0) printf(" pma=%p mempool-base=%p", brtnode->u.l.buffer, brtnode->u.l.buffer_mempool.base);
+	if (brtnode->height==0) printf(" buf=%p mempool-base=%p", brtnode->u.l.buffer, brtnode->u.l.buffer_mempool.base);
 	printf("\n");
     }
     //if (modified_lsn.lsn > brtnode->lsn.lsn) brtnode->lsn=modified_lsn;

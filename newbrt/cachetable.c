@@ -6,7 +6,6 @@
 #include "memory.h"
 #include "primes.h"
 #include "toku_assert.h"
-#include "yerror.h"
 #include "brt-internal.h"
 #include "log_header.h"
 

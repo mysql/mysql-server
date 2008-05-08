@@ -4,7 +4,6 @@
 #include "log.h"
 #include "toku_assert.h"
 #include "list.h"
-#include "yerror.h"
 #include <stdio.h>
 #include <pthread.h>
 #include <sys/types.h>
