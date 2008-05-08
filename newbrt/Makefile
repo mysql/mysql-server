@@ -31,7 +31,7 @@ VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 
 CFLAGS = -Wall -W -Wcast-align -Wbad-function-cast -Wextra -Wmissing-noreturn -Wmissing-format-attribute $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) -Wshadow -fvisibility=hidden
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
+LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
 
 leafentry.o: CFLAGS+=-Wconversion
@@ -88,39 +88,46 @@ BINS =  $(REGRESSION_TESTS) \
         tdb_logprint \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
-OFILES = \
-  brt-serialize.o \
-  brt-verify.o \
-  brt.o \
-  cachetable.o \
-  crc.o \
-  fifo.o \
-  fingerprint.o \
-  key.o \
-  leafentry.o \
-  log.o \
-  log_code.o \
-  memory.o \
-  mempool.o \
-  omt.o \
-  primes.o \
-  recover.o \
-  roll.o \
-  toku_assert.o \
-  ybt.o \
+# Put crc first to make it work right
+BRT_SOURCES = \
+  crc \
+  brt-serialize \
+  brt-verify \
+  brt \
+  cachetable \
+  fifo \
+  fingerprint \
+  key \
+  leafentry \
+  log \
+  log_code \
+  memory \
+  mempool \
+  omt \
+  primes \
+  recover \
+  roll \
+  toku_assert \
+  ybt \
 # keep this line so I can ha vea \ on the previous line
+
+OFILES = newbrt.o
 
 TEST_OFILES = \
   $(OFILES) \
   brt-test-helpers.o \
 # keep this line
 
+HFILES = $(wildcard *.h)
 
-tdb_logprint: LDFLAGS+=-lz
+BRT_C_FILES = $(patsubst %,%.c,$(BRT_SOURCES))
+
+newbrt.o: $(BRT_C_FILES) $(HFILES)
+	$(CC) -combine $(CFLAGS) $(CPPFLAGS) $(BRT_C_FILES) -c -o $@
+
 tdb_logprint.o: log-internal.h brttypes.h log.h kv-pair.h log_header.h
 tdb_logprint: $(OFILES)
 
-tdb-recover: LDFLAGS+=-lz
 recover.o: log_header.h log-internal.h log.h brttypes.h kv-pair.h memory.h key.h cachetable.h
 tdb-recover: $(OFILES)
 
@@ -132,7 +139,7 @@ log_header.h: log_code.c
 log_code.c: logformat
 	./logformat
 
-libs: log.o
+libs: newbrt.o
 bins: $(BINS)
 # Put the benchmarktest_256 first since it takes the longest (and we want to use parallelism in the make)
 CHECKS = \
@@ -165,45 +172,24 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-log-test log-test2 log-test3 log-test4 log-test5 log-test6 benchmark-test brt-test brt-test0 brt-test1 brt-test2 brt-test3 brt-test4 brt-test5 test-brt-overflow brt-test-named-db brt-test-cursor brt-test-cursor-2 test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder cachetable-test cachetable-test2: LDFLAGS+=-lz
-
-HFILES = $(wildcard *.h)
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-search.h brttypes.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h mempool.h leafentry.h
-key.o: brttypes.h key.h
-list-test: list-test.o toku_assert.o
+list-test: list-test.o newbrt.o
 test-brt-delete-both: $(OFILES)
 test-inc-split: $(TEST_OFILES)
 brt-test-helpers.o: $(BRT_INTERNAL_H_INCLUDES) toku_assert.h
 test-del-inorder: $(TEST_OFILES)
-omt.o: $(HFILES)
-ybt.o: ybt.h brttypes.h ../include/db.h
-ybt-test: ybt-test.o ybt.o memory.o toku_assert.o
+ybt-test: ybt-test.o newbrt.o
 ybt-test.o: ybt.h ../include/db.h
-cachetable.o: brttypes.h cachetable.h hashfun.h memory.h primes.h toku_assert.h $(BRT_INTERNAL_H_INCLUDES) log_header.h
 brt-test0 brt-test1 brt-test2 brt-test3 brt-test4 brt-test5 test-brt-overflow brt-test-named-db brt-test-cursor brt-test-cursor-2 brt-test: $(OFILES)
-log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
-logformat: logformat.o toku_assert.o
-brt-test0.o brt-test1.o brt-test2.o brt-test3.o brt-test4.o brt-test5.o test-brt-overflow.h brt-test-named-db.o brt-test-cursor.o brt-test-cursor-2.o brt-test.o brt.o: brt.h brt-search.h ../include/db.h fifo.h omt.h brttypes.h cachetable.h memory.h $(BRT_INTERNAL_H_INCLUDES)
+logformat: logformat.c toku_assert.c
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
-brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
-fifo.o: fifo.h brttypes.h 
-memory.o: memory.h
-primes.o: primes.h toku_assert.h
-fifo-test: fifo.o memory.o toku_assert.o ybt.o
-brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
-brt-bigtest: memory.o ybt.o brt.o omt.o cachetable.o key.o fifo.o brt-serialize.o
-brt-bigtest.o: brt.h brt-search.h ../include/db.h
+fifo-test: newbrt.o
 log-test6 log-test5 log-test4 log-test3 log-test2 log-test: $(OFILES)
-brt-verify.o: $(BRT_INTERNAL_H_INCLUDES)
-fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
-mempool.o: toku_assert.h mempool.h
-leafentry.o: brttypes.h crc.h leafentry.h memory.h toku_assert.h
-toku_assert.o: toku_assert.h
 omt-test.o: toku_assert.h memory.h toku_assert.h ../include/db.h brttypes.h
-omt-test: omt-test.o omt.o memory.o toku_assert.o
+omt-test: omt-test.o newbrt.o
 
 brt-serialize-test: $(OFILES) brt-serialize-test.o 
-test_toku_malloc_plain_free: memory.o toku_assert.o
+test_toku_malloc_plain_free: newbrt.o
 
 
 cachetable-test.o: cachetable.h memory.h 
@@ -215,13 +201,13 @@ cachetable-test2: $(OFILES)
 benchmark-test: $(OFILES)
 benchmark-test.o: brt.h brt-search.h ../include/db.h
 
-test-primes: test-primes.o toku_assert.o primes.o toku_assert.o toku_assert.o
+test-primes: test-primes.o newbrt.o
 
-test-assert: test-assert.o toku_assert.o
+test-assert: newbrt.o
 
 brtdump: $(OFILES)
 
-test_oexcl: test_oexcl.o toku_assert.o
+test_oexcl: test_oexcl.o newbrt.o
 
 
 checko2:

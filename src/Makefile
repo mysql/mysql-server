@@ -73,7 +73,7 @@ ydbtrace.o tdbtrace.o: tdbtrace.h
 ydbtrace.o: ydb.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -DTOKUTRACE -c -o $@ $<
 
-DBBINS = ydb.o errors.o elocks.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/crc.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/leafentry.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/omt.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o ../newbrt/toku_assert.o ../newbrt/recover.o
+DBBINS = ydb.o errors.o elocks.o ../newbrt/newbrt.o
 
 TDBBINS = tdbtrace.o $(patsubst ydb.o,ydbtrace.o,$(DBBINS))
 
