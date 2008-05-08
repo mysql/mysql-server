@@ -179,6 +179,7 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
 /* Effect:
     If direction >0 then find the smallest i such that h(V_i,extra)>0.
     If direction <0 then find the largest  i such that h(V_i,extra)<0.
+    (Direction may not be equal to zero.)
     If value!=NULL then store V_i in *value
     If index!=NULL then store i in *index.
    Requires: The signum of h is monotically increasing.
@@ -188,7 +189,6 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
    On nonzero return, *value and *index are unchanged.
    Performance: time=O(\log N)
    Rationale:
-     The direction==0 is a strange case that should go away in the future.
      Here's how to use the find function to find various things
        Cases for find:
         find first value:         ( h(v)=+1, direction=+1 )

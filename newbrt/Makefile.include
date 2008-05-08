@@ -71,7 +71,7 @@ OFILES += $(NEWBRT_HERE)/newbrt.o
 
 $(NEWBRT_HERE)/newbrt.o: CPPFLAGS += -I$(NEWBRT_HERE)
 $(NEWBRT_HERE)/newbrt.o: $(patsubst %,$(NEWBRT_HERE)/%.c,$(NEWBRT_FILES))
-	$(CC) -combine $(CFLAGS) $(CPPFLAGS) $^ -c -o $@
+	cd $(NEWBRT_HERE);$(CC) -combine $(CFLAGS) $(CPPFLAGS) $(patsubst %,%.c,$(NEWBRT_FILES)) -c -o $@
 
 $(NEWBRT_RBINS): $(NEWBRT_HERE)/newbrt.o
 NEWBRT_NEED_HELPERS = test-inc-split test-del-inorder
@@ -84,20 +84,21 @@ NEWBRT_CHECKS = \
 # This line intentially kept commented so I can have a \ on the previous line
 
 newbrt.checkdir: $(patsubst %,$(NEWBRT_HERE)/%.check, $(NEWBRT_CHECKS))
+newbrt.builddir: $(OFILES) $(NEWBRT_RBINS)
 
 $(NEWBRT_HERE)/benchmarktest_256.check: $(NEWBRT_HERE)/benchmark-test
-	cd $(NEWBRT_HERE)/; $(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
+	cd $(NEWBRT_HERE); $(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
 
 #foo:
 #	echo $(NEWBRT_HERE)/benchmarktest_256.check
 
 $(NEWBRT_HERE)/test-assert.check: $(NEWBRT_HERE)/test-assert
 	@# no arguments, should err
-	$(VGRIND) $(NEWBRT_HERE)/test-assert > /dev/null 2>&1 ; test \($$?\)
+	cd $(NEWBRT_HERE); $(VGRIND) ./test-assert > /dev/null 2>&1 ; test \($$?\)
 	@# one argument, not "ok" should err
 	@echo Expect an abort message:
-	($(VGRIND) $(NEWBRT_HERE)/test-assert notok) > test-assert.out 2>&1 ; test \($$?\)
+	$(NEWBRT_HERE); ($(VGRIND) ./test-assert notok) > test-assert.out 2>&1 ; test \($$?\)
 	@fgrep failed test-assert.out > /dev/null
 	@rm test-assert.out
 	@# one argument, "ok" should not error
-	$(DVGRIND) $(NEWBRT_HERE)/test-assert ok
+	$(NEWBRT_HERE)/ $(VGRIND) ./test-assert ok
