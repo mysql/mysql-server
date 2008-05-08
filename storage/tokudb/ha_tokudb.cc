@@ -1286,12 +1286,19 @@ void ha_tokudb::unpack_key(uchar * record, DBT * key, uint index) {
     }
 }
 
-/*
-  Create a packed key from a row. This key will be written as such
-  to the index tree.
-
-  This will never fail as the key buffer is pre-allocated.
-*/
+//
+// Create a packed key from a row. This key will be written as such
+// to the index tree.  This will never fail as the key buffer is pre-allocated.
+// Parameters:
+//      [out]   key - DBT that holds the key
+//              keynr - index for which to create the key
+//      [out]   buff - buffer that will hold the data for key (unless 
+//                  we have a hidden primary key)
+//      [in]    record - row from which to create the key
+//              key_length - currently set to MAX_KEY_LENGTH, is it size of buff?
+// Returns:
+//      the parameter key
+//
 
 DBT *ha_tokudb::create_key(DBT * key, uint keynr, uchar * buff, const uchar * record, int key_length) {
     TOKUDB_DBUG_ENTER("ha_tokudb::create_key");
@@ -1333,13 +1340,18 @@ DBT *ha_tokudb::create_key(DBT * key, uint keynr, uchar * buff, const uchar * re
 }
 
 
-/*
-  Create a packed key from from a MySQL unpacked key (like the one that is
-  sent from the index_read()
-
-  This key is to be used to read a row
-*/
-
+//
+// Create a packed key from from a MySQL unpacked key (like the one that is
+// sent from the index_read() This key is to be used to read a row
+// Parameters:
+//      [out]   key - DBT that holds the key
+//              keynr - index for which to pack the key
+//      [out]   buff - buffer that will hold the data for key
+//      [in]    key_ptr - MySQL unpacked key
+//              key_length - length of key_ptr
+// Returns:
+//      the parameter key
+//
 DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length) {
     TOKUDB_DBUG_ENTER("ha_tokudb::pack_key");
     KEY *key_info = table->key_info + keynr;
@@ -1830,12 +1842,20 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     TOKUDB_DBUG_RETURN(error);
 }
 
-/*
-  Delete one key
-  This uses key_buff2, when keynr != primary key, so it's important that
-  a function that calls this doesn't use this buffer for anything else.
-*/
-
+//
+//
+// Delete one key in key_file[keynr]
+// This uses key_buff2, when keynr != primary key, so it's important that
+// a function that calls this doesn't use this buffer for anything else.
+// Parameters:
+//      [in]    trans - transaction to be used for the delete
+//              keynr - index for which a key needs to be deleted
+//      [in]    record - row in MySQL format. Must delete a key for this row
+//      [in]    prim_key - key for record in primary table
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::remove_key");
     int error;
@@ -1843,7 +1863,6 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
     DBUG_PRINT("enter", ("index: %d", keynr));
     DBUG_PRINT("primary", ("index: %d", primary_key));
     DBUG_DUMP("prim_key", (uchar *) prim_key->data, prim_key->size);
-
 
     if (keynr == active_index && cursor)
         error = cursor->c_del(cursor, 0);
@@ -1872,7 +1891,20 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
     TOKUDB_DBUG_RETURN(error);
 }
 
-/* Delete all keys for new_record */
+//
+// Delete all keys for new_record
+// Parameters:
+//      [in]    trans - transaction to be used for the delete
+//      [in]    record - row in MySQL format. Must delete all keys for this row
+//      [in]    new_record - the data field of primary table that is 
+//                  to be deleted
+//      [in]    prim_key - key for record in primary table
+//      [in]    keys - array that states if a key is set, and hence needs 
+//                  removal
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * new_record, DBT * prim_key, key_map * keys) {
     int result = 0;
     for (uint keynr = 0; keynr < table_share->keys + test(hidden_primary_key); keynr++) {
@@ -1888,7 +1920,7 @@ int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * new_recor
 }
 
 //
-// Stores a row in the table, called when handling a DELETE query
+// Deletes a row in the table, called when handling a DELETE query
 // Parameters:
 //      [in]    record - row to be deleted, in MySQL format
 // Returns:
