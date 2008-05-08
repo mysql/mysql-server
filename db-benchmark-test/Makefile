@@ -31,15 +31,15 @@ build: $(TARGETS)
 check: check-default check-xfast
 
 check-default: $(TARGET_TDB)
-	$(VALGRIND) ./$(TARGET_TDB)
+	$(VGRIND) ./$(TARGET_TDB)
 
 check-x: $(TARGET_TDB)
-	$(VALGRIND) ./$(TARGET_TDB) -x
+	$(VGRIND) ./$(TARGET_TDB) -x
 
 
 # A fast transaction test that detects #455.
 check-xfast: $(TARGET_TDB)
-	./$(TARGET_TDB) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 1
+	./$(TARGET_TDB) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 --env xfast.dir 1
 
 
 clean:

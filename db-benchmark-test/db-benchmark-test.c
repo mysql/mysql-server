@@ -38,7 +38,7 @@ int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */;
+const char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */;
 char *dbfilename = "bench.db";
 char *dbname;
 
@@ -99,6 +99,7 @@ void setup (void) {
         assert(r == 0);
     }
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, 0644);
+    if (r!=0) fprintf(stderr, "errno=%d, %s\n", errno, strerror(errno));
     assert(r == 0);
     if (do_transactions) {
 	r=tid->commit(tid, 0);    assert(r==0);
@@ -231,6 +232,7 @@ int print_usage (const char *argv0) {
     fprintf(stderr, "    --DB_INIT_TXN (1|0) turn on or turn off the DB_INIT_TXN env_open_flag\n");
     fprintf(stderr, "    --DB_INIT_LOG (1|0) turn on or turn off the DB_INIT_LOG env_open_flag\n");
     fprintf(stderr, "    --DB_INIT_LOCK (1|0) turn on or turn off the DB_INIT_LOCK env_open_flag\n");
+    fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;
@@ -247,73 +249,53 @@ int main (int argc, const char *argv[]) {
         if (strcmp(arg, "-x") == 0) {
             do_transactions = 1;
             env_open_flags += DB_INIT_TXN | DB_INIT_LOG | DB_INIT_LOCK;
-            continue;
-        }
-        if (strcmp(arg, "--DB_INIT_TXN") == 0) {
+        } else if (strcmp(arg, "--DB_INIT_TXN") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             if (atoi(argv[++i]))
                 env_open_flags |= DB_INIT_TXN;
             else
                 env_open_flags &= ~DB_INIT_TXN;
-            continue;
-        }
-        if (strcmp(arg, "--DB_INIT_LOG") == 0) {
+        } else if (strcmp(arg, "--DB_INIT_LOG") == 0) {
             if (atoi(argv[++i]))
                 env_open_flags |= DB_INIT_LOG;
             else
                 env_open_flags &= ~DB_INIT_LOG;
-            continue;
-        }
-        if (strcmp(arg, "--DB_INIT_LOCK") == 0) {
+        } else if (strcmp(arg, "--DB_INIT_LOCK") == 0) {
             if (atoi(argv[++i]))
                 env_open_flags |= DB_INIT_LOCK;
             else
                 env_open_flags &= ~DB_INIT_LOCK;
-            continue;
-        }
-	if (strcmp(arg, "--noserial") == 0) {
+        } else if (strcmp(arg, "--noserial") == 0) {
 	    noserial=1;
-	    continue;
-	}
-	if (strcmp(arg, "--norandom") == 0) {
+	} else if (strcmp(arg, "--norandom") == 0) {
 	    norandom=1;
-	    continue;
-	}
-	if (strcmp(arg, "--xcount") == 0) {
+	} else if (strcmp(arg, "--xcount") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             items_per_transaction = strtoll(argv[++i], 0, 10);
-            continue;
-        }
-	if (strcmp(arg, "--periter") == 0) {
+        } else if (strcmp(arg, "--periter") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             items_per_iteration = strtoll(argv[++i], 0, 10);
-            continue;
-        }
-	if (strcmp(arg, "--cachesize") == 0) {
+        } else if (strcmp(arg, "--cachesize") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             cachesize = strtoll(argv[++i], 0, 10);
-            continue;
-        }
-        if (strcmp(arg, "--keysize") == 0) {
+        } else if (strcmp(arg, "--keysize") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             keysize = atoi(argv[++i]);
-            continue;
-        }
-        if (strcmp(arg, "--valsize") == 0) {
+        } else if (strcmp(arg, "--valsize") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             valsize = atoi(argv[++i]);
-            continue;
-        }
-        if (strcmp(arg, "--pagesize") == 0) {
+        } else if (strcmp(arg, "--pagesize") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
            pagesize = atoi(argv[++i]);
-            continue;
-        }
-        if (strcmp(arg, "--dupsort") == 0) {
+        } else if (strcmp(arg, "--dupsort") == 0) {
             dupflags = DB_DUP + DB_DUPSORT;
             continue;
-        }
-        return print_usage(argv[0]);
+	} else if (strcmp(arg, "--env") == 0) {
+	    if (i+1 >= argc) return print_usage(argv[0]);
+	    dbdir = argv[++i];
+        } else {
+	    return print_usage(argv[0]);
+	}
     }
     if (i<argc) {
         /* if it looks like a number */
