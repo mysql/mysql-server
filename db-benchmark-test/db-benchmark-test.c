@@ -220,7 +220,7 @@ int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, " %s [-x] [--keysize KEYSIZE] [--valsize VALSIZE] [--noserial] [ n_iterations ]\n", argv0);
     fprintf(stderr, "   where\n");
-    fprintf(stderr, "    -x              do transactions (one transaction per iteration) (default: no transactions at all)\n");
+    fprintf(stderr, "    -x              do transactions (XCOUNT transactions per iteration) (default: no transactions at all)\n");
     fprintf(stderr, "    --keysize KEYSIZE sets the key size (default 8)\n");
     fprintf(stderr, "    --valsize VALSIZE sets the value size (default 8)\n");
     fprintf(stderr, "    --cachesize CACHESIZE set the database cache size\n");
