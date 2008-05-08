@@ -2525,39 +2525,6 @@ int show_brt_blocknumbers (BRT brt) {
 }
 #endif
 
-
-int toku_brt_dbt_set_both(BRT brt, DBT* key, DBT* key_source,
-                                   DBT* val, DBT* val_source) {
-    int r = toku_dbt_set_two_values(key, key_source->data, key_source->size, &brt->skey,
-                                    val, val_source->data, val_source->size, &brt->sval);
-    return r;
-}
-
-int toku_brt_dbt_set_three(BRT brt_primary, BRT brt_secondary,
-                           DBT* key,  DBT* key_source,
-                           DBT* pkey, DBT* pkey_source,
-                           DBT* val,  DBT*  val_source) {
-    int r = toku_dbt_set_three_values(key,  key_source->data,  key_source->size,  &brt_secondary->skey,
-                                      pkey, pkey_source->data, pkey_source->size, &brt_secondary->sval,
-                                      val,  val_source->data,  val_source->size,  &brt_primary->sval);
-    return r;
-}
-
-int toku_brt_dbt_set(DBT* key, DBT* key_source) {
-    int r = toku_dbt_set_value(key, key_source->data, key_source->size, NULL);
-    return r;
-}
-
-int toku_brt_dbt_set_key(BRT brt, DBT* key, DBT* key_source) {
-    int r = toku_dbt_set_value(key, key_source->data, key_source->size, &brt->skey);
-    return r;
-}
-
-int toku_brt_dbt_set_val(BRT brt, DBT* val, DBT* val_source) {
-    int r = toku_dbt_set_value(val, val_source->data, val_source->size, &brt->sval);
-    return r;
-}
-
 typedef struct brt_split {
     int did_split;
     BRTNODE nodea;
@@ -2872,8 +2839,31 @@ static inline int brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val) {
     return r;
 }
 
+static inline int brt_cursor_copyout_with_dat(BRT_CURSOR cursor, DBT *key, DBT *val,
+                                              BRT pdb, DBT* dat, DBT* dat_source) {
+    int r = 0;
+    void** key_staticp = cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey;
+    void** val_staticp = cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval;
+    void** dat_staticp = &pdb->sval;
+    r = toku_dbt_set_three_values(key, cursor->key.data, cursor->key.size, key_staticp,
+                                  val, cursor->val.data, cursor->val.size, val_staticp,
+                                  dat, dat_source->data, dat_source->size, dat_staticp);
+    return r;
+}
+
+int toku_brt_cursor_copyout_with_dat(BRT_CURSOR cursor, DBT *key, DBT *val,
+                                     BRT pdb, DBT* dat, DBT* dat_source) {
+    int r = brt_cursor_copyout_with_dat(cursor, key, val, pdb, dat, dat_source);
+    return r;
+}
+
 int toku_brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val) {
     int r = brt_cursor_copyout(cursor, key, val);
+    return r;
+}
+
+int toku_brt_dbt_set(DBT* key, DBT* key_source) {
+    int r = toku_dbt_set_value(key, key_source->data, key_source->size, NULL);
     return r;
 }
 
