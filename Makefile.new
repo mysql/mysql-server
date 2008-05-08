@@ -4,5 +4,5 @@
 ROOT =
 include Makefile.include
 
-build: $(BINS) $(LIBS)
-check: $(patsubst %,%.checkdir,$(DIRS))
+# build: $(BINS) $(LIBS)
+# check: $(patsubst %,%.checkdir,$(DIRS))
