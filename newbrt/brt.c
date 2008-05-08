@@ -1370,31 +1370,51 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
     if (r!=0) return r;
     if (newdata) assert(newdisksize == leafentry_disksize(newdata));
     
-    if (le) {
-	// It's there, note that it's gone and remove it from the mempool
-
+    if (le && newdata) {
 	if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) return r;
-
-	if ((r = toku_omt_delete_at(node->u.l.buffer, idx))) return r;
+	if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
 
 	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
 	node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
-
+	
 	toku_mempool_mfree(&node->u.l.buffer_mempool, 0, leafentry_memsize(le)); // Must pass 0, since le may be no good any more.
-
-    }
-    if (newdata) {
+	
 	LEAFENTRY new_le = mempool_malloc_from_omt(node->u.l.buffer, &node->u.l.buffer_mempool, newlen);
 	assert(new_le);
 	memcpy(new_le, newdata, newlen);
-	if ((r = toku_omt_insert_at(node->u.l.buffer, new_le, idx))) return r;
 
-    	if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
-
-	assert(newdisksize == leafentry_disksize(newdata));
 	node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
 	node->local_fingerprint += node->rand4fingerprint*toku_le_crc(newdata);
 	toku_free(newdata);
+
+	if ((r = toku_omt_set_at(node->u.l.buffer, new_le, idx))) return r;
+
+    } else {
+	if (le) {
+	    // It's there, note that it's gone and remove it from the mempool
+
+	    if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) return r;
+
+	    if ((r = toku_omt_delete_at(node->u.l.buffer, idx))) return r;
+
+	    node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+	    node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
+
+	    toku_mempool_mfree(&node->u.l.buffer_mempool, 0, leafentry_memsize(le)); // Must pass 0, since le may be no good any more.
+
+	}
+	if (newdata) {
+	    LEAFENTRY new_le = mempool_malloc_from_omt(node->u.l.buffer, &node->u.l.buffer_mempool, newlen);
+	    assert(new_le);
+	    memcpy(new_le, newdata, newlen);
+	    if ((r = toku_omt_insert_at(node->u.l.buffer, new_le, idx))) return r;
+
+	    if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
+
+	    node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
+	    node->local_fingerprint += node->rand4fingerprint*toku_le_crc(newdata);
+	    toku_free(newdata);
+	}
     }
 //	printf("%s:%d rand4=%08x local_fingerprint=%08x this=%08x\n", __FILE__, __LINE__, node->rand4fingerprint, node->local_fingerprint, toku_calccrc32_kvpair_struct(kv));
     return 0;
