@@ -3024,3 +3024,7 @@ win/vs8cache.txt
 ylwrap
 zlib/*.ds?
 zlib/*.vcproj
+mysql-test/bug36522-64.tar
+mysql-test/bug36522.tar
+mysql-test/t.log
+mysql-test/tps.log
