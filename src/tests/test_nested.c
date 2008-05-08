@@ -124,7 +124,7 @@ void test_nested (void) {
     r=txn->commit(txn, 0); CKERR(r);
 
     r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
-    insert(6, 0);
+    insert(6, txn);
     r=txn->commit(txn, 0); CKERR(r);
 
     r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
