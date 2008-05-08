@@ -813,7 +813,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
         //TODO: Release locks perhaps?
 	if (txn->i) {
 	    if (txn->i->tokutxn)
-		toku_free(txn->i->tokutxn);
+		toku_logger_abort(txn->i->tokutxn);
 	    toku_free(txn->i);
 	}
 	toku_free(txn);
