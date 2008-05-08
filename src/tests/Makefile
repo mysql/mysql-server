@@ -120,7 +120,7 @@ endif
 	$(MAYBEATSIGN) $(UNSETTOKUENV) ./$< $(VERBVERBOSE)
 %.tdbrun: %.tdb ../libtokudb.$(LIBEXT)
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTERR)
-	@ touch $@
+
 # Any test that should fail, we invert the result by using MAYBEINVERTERR
 $(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL)): MAYBEINVERTERR=;test $$? -ne 0
 
@@ -197,6 +197,27 @@ test_db_assoc3.tdbrun: test_db_assoc3.tdb
 test_db_assoc3.bdbrun: test_db_assoc3.bdb
 	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
 	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)
+
+# a bunch of little tests designed to run in parallel
+test_get_both_range.tdbrun: \
+ tgbr_256_a.tdbrun tgbr_256_b.tdbrun tgbr_256_c.tdbrun \
+ tgbr_128_a.tdbrun tgbr_128_b.tdbrun tgbr_128_c.tdbrun \
+ tgbr_64_a.tdbrun  tgbr_64_b.tdbrun  tgbr_64_c.tdbrun \
+ tgbr_32_a.tdbrun  tgbr_32_b.tdbrun  tgbr_32_c.tdbrun \
+ tgbr_16_a.tdbrun  tgbr_16_b.tdbrun  tgbr_16_c.tdbrun \
+ tgbr_8_a.tdbrun   tgbr_8_b.tdbrun   tgbr_8_c.tdbrun \
+ tgbr_4_a.tdbrun   tgbr_4_b.tdbrun   tgbr_4_c.tdbrun \
+ tgbr_2_a.tdbrun   tgbr_2_b.tdbrun   tgbr_2_c.tdbrun \
+ tgbr_1_a.tdbrun   tgbr_1_b.tdbrun   tgbr_1_c.tdbrun \
+ # intentionally blank line
+	echo Did $@
+
+tgbr_%_a.tdbrun: test_get_both_range.tdb
+	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_a.tdbrun,%,$@) -a $(MAYBEINVERTERR)
+tgbr_%_b.tdbrun: test_get_both_range.tdb
+	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_b.tdbrun,%,$@) -b $(MAYBEINVERTERR)
+tgbr_%_c.tdbrun: test_get_both_range.tdb
+	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_c.tdbrun,%,$@) -c $(MAYBEINVERTERR)
 
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
