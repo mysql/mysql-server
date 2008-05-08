@@ -23,7 +23,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0file.h"
 
 /* The file format tag structure with id and name. */
-struct file_format_struct{
+struct file_format_struct {
 	uint		id;		/* id of the file format */
 	const char*	name;		/* text representation of the
 					file format */
