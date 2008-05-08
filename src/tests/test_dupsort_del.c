@@ -66,7 +66,7 @@ static void lookup (int i, int expect, int expectj) {
     }
 }
 
-void test_abort3 (void) {
+void test_dupsort_del (void) {
     int r;
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);       assert(r==0);
@@ -99,6 +99,6 @@ void test_abort3 (void) {
 
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
-    test_abort3();
+    test_dupsort_del();
     return 0;
 }
