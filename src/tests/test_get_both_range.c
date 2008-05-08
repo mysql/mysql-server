@@ -98,13 +98,16 @@ void expect_cursor_get_current(DBC *cursor, int k, int v) {
     free(key.data); free(val.data);
 }
 
+char annotated_envdir[]= ENVDIR "           "; 
+
 void test_get_both(int n, int dup_mode, int op) {
     if (verbose) printf("test_get_both_range:%d %d %d\n", n, dup_mode, op);
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = ENVDIR "/" "test_icdi_search.brt";
+    char fname[sizeof(ENVDIR)+100];
+    snprintf(fname, sizeof(fname), "%s/test_icdi_search_brt", annotated_envdir);
     int r;
 
     unlink(fname);
@@ -169,22 +172,83 @@ void test_get_both(int n, int dup_mode, int op) {
 
 
 int main(int argc, const char *argv[]) {
+    unsigned long doi=0;
     int i;
+    char flags = 0;
     for (i=1; i<argc; i++) {
         const char *arg = argv[i];
         if (0 == strcmp(arg, "-v")) {
             verbose++;
-            continue;
-        }
+	} else if (0 == strcmp(arg, "-q")) {
+            verbose--;
+	    if (verbose<0) verbose=0;
+        } else if (0==strcmp(arg, "-i")) {
+	    i++; assert(i<argc);
+	    char *end; 
+	    doi = strtoul(argv[i], &end, 10);
+	    assert(doi!=LONG_MAX);
+	    assert(end!=argv[i]);
+	    assert(*end==0);
+	} else if (0==strcmp(arg, "-a")) {
+	    flags = 'a';
+	} else if (0==strcmp(arg, "-b")) {
+	    flags = 'b';
+	} else if (0==strcmp(arg, "-c")) {
+	    flags = 'c';
+	} else {
+	    fprintf(stderr, "Usage: %s [-v] [-a|-b|-c] [-i I]\n", argv[0]);
+	    exit(1);
+	}
     }
   
-    system("rm -rf " ENVDIR);
-    mkdir(ENVDIR, 0777);
+    {
+	char envdir_without_suffix[sizeof(ENVDIR)] = ENVDIR;
+	assert(sizeof(ENVDIR)>4);
+	//printf("envdir=%s\n(size=%ld) -5 char=%c\n", ENVDIR, sizeof(ENVDIR), envdir_without_suffix[sizeof(ENVDIR)-5]);
+	assert(envdir_without_suffix[sizeof(ENVDIR)-5]=='.');
+	assert(envdir_without_suffix[sizeof(ENVDIR)-4]=='t' || envdir_without_suffix[sizeof(ENVDIR)-4]=='b');
+	assert(envdir_without_suffix[sizeof(ENVDIR)-3]=='d');
+	assert(envdir_without_suffix[sizeof(ENVDIR)-2]=='b');
+	assert(envdir_without_suffix[sizeof(ENVDIR)-1]==0);
+	envdir_without_suffix[sizeof(ENVDIR)-5]=0;
 
-    for (i=1; i <= 256; i *= 2) {
-        test_get_both(i, 0, DB_GET_BOTH);
-        test_get_both(i, 0, DB_GET_BOTH_RANGE);
-        test_get_both(i, DB_DUP + DB_DUPSORT, DB_GET_BOTH_RANGE);
+	char doi_string[10];
+	if (doi==0) doi_string[0]=0;
+	else snprintf(doi_string, sizeof(doi_string), ".%lu", doi);
+	
+	char flags_string[10];
+	switch (flags) {
+	case 0:   flags_string[0]=0; break;
+	case 'a': case 'b': case 'c': snprintf(flags_string, sizeof(flags_string), ".%c", flags); break;
+	default: assert(0);
+	}
+	
+	#ifdef USE_TDB
+	char bdb_tdb_char='t';
+	#else
+	char bdb_tdb_char='b';
+	#endif
+
+	snprintf(annotated_envdir, sizeof(annotated_envdir), "%s%s%s.%cdb",
+		 envdir_without_suffix, doi_string, flags_string, bdb_tdb_char);
+    }
+    {
+	char rmcmd[sizeof(annotated_envdir)+10];
+	snprintf(rmcmd, sizeof(rmcmd), "rm -rf %s", annotated_envdir);
+	system(rmcmd);
+    }
+    mkdir(annotated_envdir, 0777);
+
+    if (doi==0) { 
+	for (i=1; i <= 256; i *= 2) {
+	    if (flags==0 || flags=='a')  test_get_both(i, 0, DB_GET_BOTH);
+	    if (flags==0 || flags=='b')  test_get_both(i, 0, DB_GET_BOTH_RANGE);
+	    if (flags==0 || flags=='c')  test_get_both(i, DB_DUP + DB_DUPSORT, DB_GET_BOTH_RANGE);
+	}
+    } else {
+	if (flags==0 || flags=='a')  test_get_both(doi, 0, DB_GET_BOTH);
+	if (flags==0 || flags=='b')  test_get_both(doi, 0, DB_GET_BOTH_RANGE);
+	if (flags==0 || flags=='c')  test_get_both(doi, DB_DUP + DB_DUPSORT, DB_GET_BOTH_RANGE);
     }
 
     return 0;
