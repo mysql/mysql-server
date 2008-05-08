@@ -117,14 +117,14 @@ TEST_OFILES = \
 
 
 tdb_logprint: LDFLAGS+=-lz
-tdb_logprint.o: log-internal.h brttypes.h yerror.h log.h kv-pair.h log_header.h
+tdb_logprint.o: log-internal.h brttypes.h log.h kv-pair.h log_header.h
 tdb_logprint: $(OFILES)
 
 tdb-recover: LDFLAGS+=-lz
-recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h
+recover.o: log_header.h log-internal.h log.h brttypes.h kv-pair.h memory.h key.h cachetable.h
 tdb-recover: $(OFILES)
 
-roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h omt.h
+roll.o: log_header.h log-internal.h log.h brttypes.h kv-pair.h memory.h key.h cachetable.h omt.h
 
 log_code.o: log_header.h wbuf.h log-internal.h rbuf.h
 log_header.h: log_code.c
@@ -168,7 +168,7 @@ check-fanout:
 log-test log-test2 log-test3 log-test4 log-test5 log-test6 benchmark-test brt-test brt-test0 brt-test1 brt-test2 brt-test3 brt-test4 brt-test5 test-brt-overflow brt-test-named-db brt-test-cursor brt-test-cursor-2 test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder cachetable-test cachetable-test2: LDFLAGS+=-lz
 
 HFILES = $(wildcard *.h)
-BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-search.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h mempool.h leafentry.h
+BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-search.h brttypes.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h mempool.h leafentry.h
 key.o: brttypes.h key.h
 list-test: list-test.o toku_assert.o
 test-brt-delete-both: $(OFILES)
