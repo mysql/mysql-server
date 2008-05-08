@@ -1794,7 +1794,33 @@ func_start:
 	} else {
 		direction = FSP_UP;
 		hint_page_no = page_no + 1;
-		split_rec = page_get_middle_rec(page);
+
+		if (page_get_n_recs(page) == 1) {
+			/* There is only one record in the index page
+			therefore we can't split the node in the middle
+			by default. We need to determine whether the
+			new record will be inserted to the left or right. */
+
+			/* Read the first (and only) record in the page. */
+			page_cur_set_before_first(block, page_cursor);
+			page_cur_move_to_next(page_cursor);
+			first_rec = page_cur_get_rec(page_cursor);
+
+			offsets = rec_get_offsets(
+				first_rec, cursor->index, offsets,
+				n_uniq, &heap);
+
+			/* If the new record is less than the existing record
+			the the split in the middle will copy the existing
+			record to the new node. */
+			if (cmp_dtuple_rec(tuple, first_rec, offsets) < 0) {
+				split_rec = page_get_middle_rec(page);
+			} else {
+				split_rec = NULL;
+			}
+		} else {
+			split_rec = page_get_middle_rec(page);
+		}
 	}
 
 	/* 2. Allocate a new page to the index */
