@@ -38,7 +38,7 @@ void test_cursor_delete2 () {
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);
-    r = db->del(db, txn, dbt_init(&key, "a", 2), DB_DELETE_ANY);                             CKERR(r);
+    r = db->del(db, txn, dbt_init(&key, "a", 2), DB_DELETE_ANY);                             CKERR_depending(r,0,DB_NOTFOUND);
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);
@@ -52,7 +52,7 @@ void test_cursor_delete2 () {
 
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);
     r = db->del(db, txn, dbt_init(&key, "a", 2), 0);                                         CKERR(r);
-    r = db->del(db, txn, dbt_init(&key, "a", 2), DB_DELETE_ANY);                             CKERR(r);
+    r = db->del(db, txn, dbt_init(&key, "a", 2), DB_DELETE_ANY);                             CKERR_depending(r,0,DB_NOTFOUND);
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = db->close(db, 0);                                                                    CKERR(r);
