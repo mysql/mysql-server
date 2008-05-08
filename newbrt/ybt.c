@@ -42,7 +42,7 @@ static inline void dbt_set_copy(DBT* ybt, bytevec data, ITEMLEN len, void** stat
     if (ybt) {
         if (ybt->flags==DB_DBT_REALLOC && ybt->data) toku_free(ybt->data);
         else if (ybt->flags==0) {
-            toku_free(*staticptrp);
+            if (*staticptrp) toku_free(*staticptrp);
             *staticptrp = tmp_data;
         }
         if (ybt->flags!=DB_DBT_USERMEM) {
