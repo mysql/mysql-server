@@ -1896,8 +1896,6 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
 // Parameters:
 //      [in]    trans - transaction to be used for the delete
 //      [in]    record - row in MySQL format. Must delete all keys for this row
-//      [in]    new_record - the data field of primary table that is 
-//                  to be deleted
 //      [in]    prim_key - key for record in primary table
 //      [in]    keys - array that states if a key is set, and hence needs 
 //                  removal
@@ -1905,7 +1903,7 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
 //      0 on success
 //      error otherwise
 //
-int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * new_record, DBT * prim_key, key_map * keys) {
+int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key, key_map * keys) {
     int result = 0;
     for (uint keynr = 0; keynr < table_share->keys + test(hidden_primary_key); keynr++) {
         if (keys->is_set(keynr)) {
@@ -1929,13 +1927,11 @@ int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * new_recor
 //
 int ha_tokudb::delete_row(const uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::delete_row");
-    int error;
-    DBT row, prim_key;
+    int error = ENOSYS;
+    DBT prim_key;
     key_map keys = table_share->keys_in_use;
     statistic_increment(table->in_use->status_var.ha_delete_count, &LOCK_status);
 
-    if ((error = pack_row(&row, record, 0)))
-        TOKUDB_DBUG_RETURN((error));
     create_key(&prim_key, primary_key, key_buff, record);
     if (hidden_primary_key)
         keys.set_bit(primary_key);
@@ -1944,7 +1940,7 @@ int ha_tokudb::delete_row(const uchar * record) {
        case we get a DB_LOCK_DEADLOCK error. */
     DB_TXN *sub_trans = transaction;
     for (uint retry = 0; retry < tokudb_trans_retry; retry++) {
-        error = remove_keys(sub_trans, record, &row, &prim_key, &keys);
+        error = remove_keys(sub_trans, record, &prim_key, &keys);
         if (error) {
             DBUG_PRINT("error", ("Got error %d", error));
             break;              // No retry - return error
