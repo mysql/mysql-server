@@ -47,11 +47,11 @@ show binlog events limit 1,100;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
 slave-bin.000001	#	Query	1	#	use `test`; insert into t1 values (1)
-slave-bin.000001	#	Query	1	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select a from t1
+slave-bin.000001	#	Query	1	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`
 slave-bin.000001	#	Query	1	#	use `test`; insert into v1 values (2)
 slave-bin.000001	#	Query	1	#	use `test`; update v1 set a=3 where a=1
 slave-bin.000001	#	Query	1	#	use `test`; delete from v1 where a=2
-slave-bin.000001	#	Query	1	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select a as b from t1
+slave-bin.000001	#	Query	1	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`a` AS `b` from `test`.`t1`
 slave-bin.000001	#	Query	1	#	use `test`; drop view v1
 slave-bin.000001	#	Query	1	#	use `test`; drop table t1
 
@@ -110,6 +110,20 @@ CREATE TABLE t1(a INT);
 CREATE VIEW v1 AS SELECT * FROM t1;
 CREATE VIEW v1 AS SELECT * FROM t1;
 ERROR 42S01: Table 'v1' already exists
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+# create view as output from mysqldump 10.11 (5.0.62)
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) */
+/*!50002 WITH CASCADED CHECK OPTION */;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) WITH CASCADED CHECK OPTION
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) WITH CASCADED CHECK OPTION
 DROP VIEW v1;
 DROP TABLE t1;
 End of 5.0 tests
