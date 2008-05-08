@@ -61,6 +61,6 @@ endif
 db-benchmark-test-bdb: db-benchmark-test.c
 	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS) $< -o $@ -DDIRSUF=bdb
 
-ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7: db-benchmark-test
+ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7: db-benchmark-test-tokudb
 	./db-benchmark-test-tokudb -x --env $@.dir
 parallel-test-8: ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7
