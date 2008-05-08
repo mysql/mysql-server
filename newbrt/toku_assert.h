@@ -10,7 +10,8 @@
 
 void toku_do_assert(int,const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/);
 
-#ifndef FAST_ASSERT
+// Define SLOW_ASSERT if you want to get test-coverage information that ignores the assert statements.
+#ifdef SLOW_ASSERT
 #define assert(expr) toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__)
 #else
 #define assert(expr) ({ if ((expr)==0) toku_do_assert(0, #expr, __FUNCTION__, __FILE__, __LINE__); })
