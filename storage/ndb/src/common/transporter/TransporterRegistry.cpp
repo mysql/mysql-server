@@ -845,20 +845,6 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
 }
 #endif
 
-void
-TransporterRegistry::remove_from_epoll(NodeId node_id)
-{
-#if defined(HAVE_EPOLL_CREATE)
-  DBUG_ENTER("TransporterRegistry::remove_from_epoll");
-  change_epoll((TCP_Transporter*)theTransporters[node_id], FALSE);
-  m_has_data_transporters.clear(node_id);
-  DBUG_VOID_RETURN;
-#else
-  (void)node_id;
-  return;
-#endif
-}
-
 #if defined(HAVE_EPOLL_CREATE)
 bool
 TransporterRegistry::change_epoll(TCP_Transporter *t, bool add)
@@ -894,7 +880,14 @@ TransporterRegistry::change_epoll(TCP_Transporter *t, bool add)
      * have permission problems or the socket doesn't support
      * epoll!!
      */
-    perror("Failed to add fd to epoll-set...giving up!");
+    ndbout_c("Failed to %s epollfd: %u fd %u node %u to epoll-set,"
+             " errno: %u %s",
+             add ? "ADD" : "DEL",
+             m_epoll_fd,
+             sock_fd,
+             node_id,
+             error,
+             strerror(error));
     abort();
   }
   ndbout << "We lacked memory to add the socket for node id ";
@@ -1200,7 +1193,9 @@ TransporterRegistry::report_disconnect(NodeId node_id, int errnum)
   DBUG_ENTER("TransporterRegistry::report_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTED",node_id));
   performStates[node_id] = DISCONNECTED;
-  remove_from_epoll(node_id);
+#ifdef HAVE_EPOLL_CREATE
+  m_has_data_transporters.clear(node_id);
+#endif
   reportDisconnect(callbackObj, node_id, errnum);
   DBUG_VOID_RETURN;
 }
