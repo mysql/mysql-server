@@ -3020,3 +3020,4 @@ win/vs8cache.txt
 ylwrap
 zlib/*.ds?
 zlib/*.vcproj
+storage/ndb/src/common/util/ndb_show_compat
