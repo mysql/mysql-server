@@ -1,3 +1,18 @@
+
+#
+# BUG#36123 Selecting from mysql.ndb_apply_status leads to failure
+#
+# Load the mysql.ndb_apply_status table into table def cache
+#
+
+copy_file $MYSQL_TEST_DIR/std_data/ndb_apply_status.frm $MYSQLTEST_VARDIR/master-data/mysql/ndb_apply_status.frm;
+--disable_result_log
+--disable_abort_on_error
+select * from mysql.ndb_apply_status;
+--enable_abort_on_error
+--enable_result_log
+
+
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_row.inc
 -- source include/ndb_master-slave.inc
