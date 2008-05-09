@@ -114,8 +114,6 @@ check-fanout:
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-search.h brttypes.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h mempool.h leafentry.h
 brt-test-helpers.o: $(BRT_INTERNAL_H_INCLUDES) toku_assert.h
-ybt-test: ybt-test.o newbrt.o
-ybt-test.o: ybt.h ../include/db.h
 logformat: logformat.c toku_assert.c
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
 fifo-test: newbrt.o
