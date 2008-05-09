@@ -788,7 +788,22 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
   {
     build_table_filename(buf, sizeof(buf),
                          NDB_REP_DB, NDB_APPLY_TABLE, reg_ext, 0);
-    my_delete(buf, MYF(0));
+    if (my_delete(buf, MYF(0)) == 0)
+    {
+      /*
+        The .frm file existed and was deleted from disk.
+        It's possible that someone has tried to use it and thus
+        it might have been inserted in the table definition cache.
+        It must be flushed to avoid that it exist only in the
+        table definition cache.
+      */
+      if (ndb_extra_logging)
+        sql_print_information("NDB: Flushing " NDB_REP_DB "." NDB_APPLY_TABLE);
+
+      end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_APPLY_TABLE);
+      const int no_print_error[1]= {0};
+      run_query(thd, buf, end, no_print_error, TRUE);
+    }
   }
 
   /*
@@ -846,7 +861,22 @@ static int ndbcluster_create_schema_table(THD *thd)
   {
     build_table_filename(buf, sizeof(buf),
                          NDB_REP_DB, NDB_SCHEMA_TABLE, reg_ext, 0);
-    my_delete(buf, MYF(0));
+    if (my_delete(buf, MYF(0)) == 0)
+    {
+      /*
+        The .frm file existed and was deleted from disk.
+        It's possible that someone has tried to use it and thus
+        it might have been inserted in the table definition cache.
+        It must be flushed to avoid that it exist only in the
+        table definition cache.
+      */
+      if (ndb_extra_logging)
+        sql_print_information("NDB: Flushing " NDB_REP_DB "." NDB_SCHEMA_TABLE);
+
+      end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_SCHEMA_TABLE);
+      const int no_print_error[1]= {0};
+      run_query(thd, buf, end, no_print_error, TRUE);
+    }
   }
 
   /*
