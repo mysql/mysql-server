@@ -118,13 +118,13 @@ foo:
 	echo ../locktree.h test.h $(LT_LINEAR)
 
 %.lin: %.c ../locktree.h test.h $(LT_LINEAR)
-	cc  -DDIR=\"dir.$<.lin\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)  $(NEWBRT_BINS) -lz
+	$(CC) -DDIR=\"dir.$<.lin\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)  $(NEWBRT_BINS) -lz
 %.tlin: %.c ../locktree.h test.h $(LT_TLINEAR)
-	cc  -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR) $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS -lz
+	$(CC) -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR) $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS -lz
 %.tlog: %.c ../locktree.h test.h $(LT_TLOG)
-	cc  -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)    $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS -lz
+	$(CC) -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)    $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS -lz
 %.log: %.c ../locktree.h test.h  $(LT_LOG)
-	cc  -DDIR=\"dir.$<.log\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LOG)     $(NEWBRT_BINS) -lz
+	$(CC) -DDIR=\"dir.$<.log\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LOG)     $(NEWBRT_BINS) -lz
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov
