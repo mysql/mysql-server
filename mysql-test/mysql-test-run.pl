@@ -2045,6 +2045,9 @@ sub environment_setup () {
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
   }
+  # Always use the given tmpdir for the LOAD files created
+  # by mysqlbinlog
+  $cmdline_mysqlbinlog .=" --local-load=$opt_tmpdir";
 
   if ( $opt_debug )
   {
