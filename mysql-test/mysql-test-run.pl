@@ -4322,6 +4322,7 @@ sub stop_all_servers () {
   {
     rm_ndbcluster_tables($mysqld->{'path_myddir'});
   }
+
 }
 
 
@@ -4644,22 +4645,6 @@ sub run_testcase_start_servers($) {
 	 $tinfo->{'master_num'} > 1 )
     {
       # Test needs cluster, start an extra mysqld connected to cluster
-
-      if ( $master->[0]->{'pid'} && $mysql_version_id >= 50100 )
-      {
-	# First wait for first mysql server to have created ndb system
-	# tables ok FIXME This is a workaround so that only one mysqld
-	# create the tables
-	if ( ! sleep_until_file_created(
-		  "$master->[0]->{'path_myddir'}/mysql/ndb_apply_status.ndb",
-					$master->[0]->{'start_timeout'},
-					$master->[0]->{'pid'}))
-	{
-
-	  $tinfo->{'comment'}= "Failed to create 'mysql/ndb_apply_status' table";
-	  return 1;
-	}
-      }
       mysqld_start($master->[1],$tinfo->{'master_opt'},[]);
     }
 
