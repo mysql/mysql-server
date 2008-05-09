@@ -65,10 +65,10 @@ int event_queue_element_compare_q(void *vptr, uchar* a, uchar *b)
   my_time_t lhs = left->execute_at;
   my_time_t rhs = right->execute_at;
 
-  if (left->status == Event_queue_element::DISABLED)
-    return right->status != Event_queue_element::DISABLED;
+  if (left->status == Event_parse_data::DISABLED)
+    return right->status != Event_parse_data::DISABLED;
 
-  if (right->status == Event_queue_element::DISABLED)
+  if (right->status == Event_parse_data::DISABLED)
     return 1;
 
   return (lhs < rhs ? -1 : (lhs > rhs ? 1 : 0));
@@ -198,7 +198,7 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element,
 
   /* Will do nothing if the event is disabled */
   new_element->compute_next_execution_time();
-  if (new_element->status != Event_queue_element::ENABLED)
+  if (new_element->status != Event_parse_data::ENABLED)
   {
     delete new_element;
     *created= FALSE;
@@ -236,8 +236,8 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   DBUG_ENTER("Event_queue::update_event");
   DBUG_PRINT("enter", ("thd: 0x%lx  et=[%s.%s]", (long) thd, dbname.str, name.str));
 
-  if ((new_element->status == Event_queue_element::DISABLED) ||
-      (new_element->status == Event_queue_element::SLAVESIDE_DISABLED))
+  if ((new_element->status == Event_parse_data::DISABLED) ||
+      (new_element->status == Event_parse_data::SLAVESIDE_DISABLED))
   {
     DBUG_PRINT("info", ("The event is disabled."));
     /*
@@ -452,7 +452,7 @@ Event_queue::recalculate_activation_times(THD *thd)
   for (i= queue.elements; i > 0; i--)
   {
     Event_queue_element *element = (Event_queue_element*)queue_element(&queue, i - 1);
-    if (element->status != Event_queue_element::DISABLED)
+    if (element->status != Event_parse_data::DISABLED)
       break;
     /*
       This won't cause queue re-order, because we remove
@@ -615,14 +615,14 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     DBUG_PRINT("info", ("Ready for execution"));
     top->mark_last_executed(thd);
     if (top->compute_next_execution_time())
-      top->status= Event_queue_element::DISABLED;
+      top->status= Event_parse_data::DISABLED;
     DBUG_PRINT("info", ("event %s status is %d", top->name.str, top->status));
 
     top->execution_count++;
     (*event_name)->dropped= top->dropped;
 
     top->update_timing_fields(thd);
-    if (top->status == Event_queue_element::DISABLED)
+    if (top->status == Event_parse_data::DISABLED)
     {
       DBUG_PRINT("info", ("removing from the queue"));
       sql_print_information("Event Scheduler: Last execution of %s.%s. %s",

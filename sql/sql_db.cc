@@ -922,7 +922,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       ha_drop_database(path);
       query_cache_invalidate1(db);
       (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
+#ifdef HAVE_EVENT_SCHEDULER
       Events::drop_schema_events(thd, db);
+#endif
       error = 0;
     }
   }

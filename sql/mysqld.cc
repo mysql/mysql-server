@@ -3498,7 +3498,9 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
+#ifdef HAVE_EVENT_SCHEDULER
   Events::init_mutexes();
+#endif
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -7831,8 +7833,12 @@ mysqld_get_one_option(int optid,
   }
 #endif
   case OPT_EVENT_SCHEDULER:
+#ifndef HAVE_EVENT_SCHEDULER
+    sql_perror("Event scheduler is not supported in embedded build.");
+#else
     if (Events::set_opt_event_scheduler(argument))
 	exit(1);
+#endif
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;

@@ -241,7 +241,10 @@ static sys_var_long_ptr	sys_delayed_insert_timeout(&vars, "delayed_insert_timeou
 static sys_var_long_ptr	sys_delayed_queue_size(&vars, "delayed_queue_size",
 					       &delayed_queue_size);
 
+#ifdef HAVE_EVENT_SCHEDULER
 static sys_var_event_scheduler sys_event_scheduler(&vars, "event_scheduler");
+#endif
+
 static sys_var_long_ptr	sys_expire_logs_days(&vars, "expire_logs_days",
 					     &expire_logs_days);
 static sys_var_bool_ptr	sys_flush(&vars, "flush", &myisam_flush);
@@ -4026,12 +4029,11 @@ uchar *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
   return (uchar*) thd->strdup(buf);
 }
 
-
+#ifdef HAVE_EVENT_SCHEDULER
 bool sys_var_event_scheduler::check(THD *thd, set_var *var)
 {
   return check_enum(thd, var, &Events::var_typelib);
 }
-
 
 /*
    The update method of the global variable event_scheduler.
@@ -4071,7 +4073,7 @@ uchar *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
 {
   return (uchar *) Events::get_opt_event_scheduler_str();
 }
-
+#endif
 
 /****************************************************************************
   Used templates

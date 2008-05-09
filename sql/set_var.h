@@ -1085,7 +1085,7 @@ public:
   virtual void set_default(THD *thd, enum_var_type type);
 };
 
-
+#ifdef HAVE_EVENT_SCHEDULER
 class sys_var_event_scheduler :public sys_var_long_ptr
 {
   /* We need a derived class only to have a warn_deprecated() */
@@ -1101,6 +1101,7 @@ public:
     return type != STRING_RESULT && type != INT_RESULT;
   }
 };
+#endif
 
 extern void fix_binlog_format_after_update(THD *thd, enum_var_type type);
 
