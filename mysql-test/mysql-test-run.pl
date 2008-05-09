@@ -332,6 +332,7 @@ sub setup_vardir ();
 sub check_ssl_support ($);
 sub check_running_as_root();
 sub check_ndbcluster_support ($);
+sub rm_ndbcluster_tables ($);
 sub ndbcluster_start_install ($);
 sub ndbcluster_start ($$);
 sub ndbcluster_wait_started ($$);
@@ -2834,6 +2835,16 @@ sub ndbcluster_start ($$) {
 }
 
 
+sub rm_ndbcluster_tables ($) {
+  my $dir=       shift;
+  foreach my $bin ( glob("$dir/mysql/ndb_apply_status*"),
+                    glob("$dir/mysql/ndb_schema*"))
+  {
+    unlink($bin);
+  }
+}
+
+
 ##############################################################################
 #
 #  Run the benchmark suite
@@ -4267,6 +4278,11 @@ sub stop_all_servers () {
   # Make sure that process has shutdown else try to kill them
   mtr_check_stop_servers(\@kill_pids);
 
+  foreach my $mysqld (@{$master}, @{$slave})
+  {
+    rm_ndbcluster_tables($mysqld->{'path_myddir'});
+  }
+
 }
 
 
@@ -4536,6 +4552,14 @@ sub run_testcase_stop_servers($$$) {
   # Make sure that process has shutdown else try to kill them
   mtr_check_stop_servers(\@kill_pids);
 
+  foreach my $mysqld (@{$master}, @{$slave})
+  {
+    if ( ! $mysqld->{'pid'} )
+    {
+      # Remove ndbcluster tables if server is stopped
+      rm_ndbcluster_tables($mysqld->{'path_myddir'});
+    }
+  }
 }
 
 
