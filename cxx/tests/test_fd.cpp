@@ -6,6 +6,8 @@
 
 int verbose;
 
+#define FNAME __FILE__ ".tdb"
+
 int test_fd(const char *dbfile) {
     int r;
     int fd;
@@ -38,6 +40,6 @@ int main(int argc, char *argv[]) {
             verbose += 1;
     }
 
-    return test_fd("test.db");
+    return test_fd(FNAME);
 }
 

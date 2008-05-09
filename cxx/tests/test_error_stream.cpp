@@ -6,6 +6,8 @@
 
 int verbose;
 
+#define FNAME __FILE__ ".tdb"
+
 int test_error_stream(const char *dbfile) {
     int r;
 
@@ -46,5 +48,5 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    return test_error_stream("test.db");
+    return test_error_stream(FNAME);
 }

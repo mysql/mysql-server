@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define DIR "dir_test_reverse_compare_fun"
+#define DIR __FILE__ ".dir"
 int verbose;
 
 int keycompare (const void *key1, unsigned int key1len, const void *key2, unsigned int key2len) {

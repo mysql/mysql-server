@@ -40,22 +40,9 @@ void test_db(void) {
     r = env.close(0);                           assert(r== 0);
 }
 
-void test_db_env(void) {
-    DbEnv dbenv(DB_CXX_NO_EXCEPTIONS);
-    int r;
-    
-    r = dbenv.set_data_dir(".");    assert(r == 0);
-    r = dbenv.set_data_dir("..");   assert(r == 0);
-    r = dbenv.set_data_dir(NULL);   assert(r == EINVAL);
-    dbenv.set_errpfx("Prefix");
-    dbenv.set_errfile(stdout);
-    dbenv.err(0, "Hello %s!\n", "Name");
-}
-
 int main()
 {
     test_dbt();
     test_db();
-    test_db_env();
     return 0;
 }
