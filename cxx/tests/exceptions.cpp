@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#define FNAME __FILE__ ".tdb"
+#define FNAME2 __FILE__ "2.tdb"
+
 #ifndef DB_DELETE_ANY
 #define DB_DELETE_ANY 0
 #endif
@@ -89,32 +92,32 @@ void test_db_exceptions (void) {
     assert(dbdb!=0);
     assert(dbdb==db.get_const_DB());
     assert(&db==Db::get_const_Db(dbdb));
-    unlink("foo.db");
-    TC(db.open(0, "foo.db", 0, DB_BTREE, DB_CREATE, 0777), 0);
-    TC(db.open(0, "foo.db", 0, DB_BTREE, DB_CREATE, 0777), EINVAL); // it was already open
+    unlink(FNAME);
+    TC(db.open(0, FNAME, 0, DB_BTREE, DB_CREATE, 0777), 0);
+    TC(db.open(0, FNAME, 0, DB_BTREE, DB_CREATE, 0777), EINVAL); // it was already open
     {
 	Db db2(&env, 0);
-	TC(db2.open(0, "foo2.db", 0, DB_BTREE, 0, 0777), ENOENT); // it doesn't exist
+	TC(db2.open(0, FNAME2, 0, DB_BTREE, 0, 0777), ENOENT); // it doesn't exist
     }
     {
 	Db db2(&env, 0);
-	TC(db2.open(0, "foo.db", 0, DB_BTREE, 0, 0777), 0); // it does exist
+	TC(db2.open(0, FNAME, 0, DB_BTREE, 0, 0777), 0); // it does exist
     }
     {
 	Db db2(&env, 0);
-	TC(db2.open(0, "foo.db", 0, DB_BTREE, -1, 0777), EINVAL); // bad flags
+	TC(db2.open(0, FNAME, 0, DB_BTREE, -1, 0777), EINVAL); // bad flags
     }
     {
 	Db db2(&env, 0);
-	TC(db2.open(0, "foo.db", 0, (DBTYPE)-1, 0, 0777), EINVAL); // bad type
+	TC(db2.open(0, FNAME, 0, (DBTYPE)-1, 0, 0777), EINVAL); // bad type
     }
     {
 	Db db2(&env, 0);
-	TC(db2.open(0, "foo.db", "sub.db", DB_BTREE, DB_CREATE, 0777), EINVAL); // sub DB cannot exist
+	TC(db2.open(0, FNAME, "sub.db", DB_BTREE, DB_CREATE, 0777), EINVAL); // sub DB cannot exist
     }
     {
 	Db db2(&env, 0);
-	TC(db2.open(0, "foo.db", "sub.db", DB_BTREE, 0, 0777), EINVAL); // sub DB cannot exist withou DB_CREATE
+	TC(db2.open(0, FNAME, "sub.db", DB_BTREE, 0, 0777), EINVAL); // sub DB cannot exist withou DB_CREATE
     }
     {
 	Dbc *curs;
@@ -149,8 +152,8 @@ void test_dbc_exceptions () {
     DbEnv env(0);
     TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE , 0777),    0);
     Db db(&env, 0);
-    unlink("foo.db");
-    TC(db.open(0, "foo.db", 0, DB_BTREE, DB_CREATE, 0777), 0);
+    unlink(FNAME);
+    TC(db.open(0, FNAME, 0, DB_BTREE, DB_CREATE, 0777), 0);
     for (int k = 1; k<4; k++) {
         Dbt key(&k, sizeof k);
         Dbt val(&k, sizeof k);

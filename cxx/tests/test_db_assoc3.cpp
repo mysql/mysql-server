@@ -197,7 +197,7 @@ int calc_n_items=0;        // The number of items we expect the cursor to acount
 int count_all_items=0;      // The total number of items
 Dbt nc_key,nc_data;
 
-#define DIR "dir.test.db.accoc3"
+#define DIR "dir.test.db.assoc3"
 
 void create_databases (void) {
     int r;

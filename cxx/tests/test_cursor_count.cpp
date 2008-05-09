@@ -7,6 +7,8 @@
 
 int verbose;
 
+#define FNAME __FILE__ ".tdb"
+
 #ifndef DB_YESOVERWRITE
 #define BDB 1
 #define DB_YESOVERWRITE 0
@@ -333,8 +335,8 @@ int main(int argc, char *argv[]) {
 
     Db db(0, DB_CXX_NO_EXCEPTIONS);
     r = db.set_flags(DB_DUP + DB_DUPSORT); assert(r == 0);
-    unlink("test.db");
-    r = db.open(0, "test.db", 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+    unlink(FNAME);
+    r = db.open(0, FNAME, 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
     
     load(&db, 10);
     test_cursor_count_flags(&db);

@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#define FNAME __FILE__ ".tdb"
+
 #define TC(expr, expect) ({        \
   try {                            \
     expr;                          \
@@ -22,8 +24,8 @@ void test_no_env () {
 #else
     Db db(0, 0);
 #endif
-    unlink("foo.db");
-    TC(db.open(0, "foo.db", 0, DB_BTREE, DB_CREATE, 0777), 0);
+    unlink(FNAME);
+    TC(db.open(0, FNAME, 0, DB_BTREE, DB_CREATE, 0777), 0);
 }
 
 int main(int argc, char *argv[]) {
