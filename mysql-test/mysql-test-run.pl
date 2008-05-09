@@ -1196,7 +1196,13 @@ sub set_build_thread_ports($) {
 
 sub collect_mysqld_features {
   my $found_variable_list_start= 0;
-  my $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
+  my $use_tmpdir;
+  if ( defined $opt_tmpdir and -d $opt_tmpdir){
+    # Create the tempdir in $opt_tmpdir
+    $use_tmpdir= $opt_tmpdir;
+  }
+  my $tmpdir= tempdir(CLEANUP => 0, # Directory removed by this function
+		      DIR => $use_tmpdir);
 
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
@@ -4086,7 +4092,7 @@ sub gdb_arguments {
 
   # Write $args to gdb init file
   my $str= join(" ", @$$args);
-  my $gdb_init_file= "$opt_tmpdir/gdbinit.$type";
+  my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
   unlink($gdb_init_file);
@@ -4150,7 +4156,7 @@ sub ddd_arguments {
 
   # Write $args to ddd init file
   my $str= join(" ", @$$args);
-  my $gdb_init_file= "$opt_tmpdir/gdbinit.$type";
+  my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
   unlink($gdb_init_file);
