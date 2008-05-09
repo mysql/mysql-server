@@ -30,13 +30,14 @@ SHARED=-shared $(EXPORTMAP)
 RPATHNAME=
 endif
 
-build: buildlocktrees
-	$(MAKE) $(LIBRARY) $(LIBNAME).a $(TLIBNAME).a $(TLIBRARY)
+build: buildlocktrees lib
 	cd tests;$(MAKE) build
 	if ! diff $(LIBNAME).a ../lib/$(LIBNAME).a >/dev/null 2>&1; then cp $(LIBNAME).a ../lib/; fi
 	if ! diff $(LIBRARY)  ../lib/$(LIBRARY) > /dev/null 2>&1; then cp $(LIBRARY) ../lib/; fi
 	if ! diff $(TLIBNAME).a ../lib/$(TLIBNAME).a >/dev/null 2>&1; then cp $(TLIBNAME).a ../lib/; fi
 	if ! diff $(TLIBRARY)  ../lib/$(TLIBRARY) > /dev/null 2>&1; then cp $(TLIBRARY) ../lib/; fi
+
+lib: $(LIBRARY) $(LIBNAME).a $(TLIBNAME).a $(TLIBRARY)
 
 .PHONY: buildlocktrees
 buildlocktrees:
