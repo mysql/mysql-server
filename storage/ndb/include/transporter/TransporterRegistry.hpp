@@ -277,7 +277,6 @@ public:
   Transporter* get_transporter(NodeId nodeId);
   NodeId get_localNodeId() { return localNodeId; };
 
-  void remove_from_epoll(NodeId node_id);
   struct in_addr get_connect_address(NodeId node_id) const;
 protected:
   
