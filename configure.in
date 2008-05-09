@@ -1746,7 +1746,7 @@ AC_CACHE_CHECK([whether the compiler provides atomic builtins],
    [mysql_cv_gcc_atomic_builtins=no],
    [mysql_cv_gcc_atomic_builtins=no])])
 
-if test "x$mysql_cv_gcc_atomic_builtins" = xyes; then
+if test "x$mysql_cv_gcc_atomic_builtins" = disabled_xyes; then
   AC_DEFINE(HAVE_GCC_ATOMIC_BUILTINS, 1,
             [Define to 1 if compiler provides atomic builtins.])
 fi
