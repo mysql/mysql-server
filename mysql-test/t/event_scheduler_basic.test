@@ -22,7 +22,7 @@
 #              server-options.html#option_mysqld_event-scheduler               #
 #                                                                              #
 ################################################################################
-
+--source include/not_embedded.inc
 --source include/load_sysvars.inc
 
 ###############################################################
