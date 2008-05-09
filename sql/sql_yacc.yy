@@ -42,7 +42,7 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
-#include "event_data_objects.h"
+#include "event_parse_data.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
@@ -1783,7 +1783,6 @@ event_tail:
             LEX *lex=Lex;
 
             lex->create_info.options= $2;
-
             if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
               MYSQL_YYABORT;
             lex->event_parse_data->identifier= $3;
@@ -1840,17 +1839,17 @@ opt_ev_status:
           /* empty */ { $$= 0; }
         | ENABLE_SYM
           {
-            Lex->event_parse_data->status= Event_basic::ENABLED;
+            Lex->event_parse_data->status= Event_parse_data::ENABLED;
             $$= 1;
           }
         | DISABLE_SYM ON SLAVE
           {
-            Lex->event_parse_data->status= Event_basic::SLAVESIDE_DISABLED;
+            Lex->event_parse_data->status= Event_parse_data::SLAVESIDE_DISABLED;
             $$= 1;
           }
         | DISABLE_SYM
           {
-            Lex->event_parse_data->status= Event_basic::DISABLED;
+            Lex->event_parse_data->status= Event_parse_data::DISABLED;
             $$= 1;
           }
         ;
@@ -1883,13 +1882,13 @@ ev_on_completion:
           ON COMPLETION_SYM PRESERVE_SYM
           {
             Lex->event_parse_data->on_completion=
-                                  Event_basic::ON_COMPLETION_PRESERVE;
+                                  Event_parse_data::ON_COMPLETION_PRESERVE;
             $$= 1;
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
             Lex->event_parse_data->on_completion=
-                                  Event_basic::ON_COMPLETION_DROP;
+                                  Event_parse_data::ON_COMPLETION_DROP;
             $$= 1;
           }
         ;
