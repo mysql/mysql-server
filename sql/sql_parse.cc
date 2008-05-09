@@ -1998,7 +1998,12 @@ mysql_execute_command(THD *thd)
   DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
   
   switch (lex->sql_command) {
+
   case SQLCOM_SHOW_EVENTS:
+#ifndef HAVE_EVENT_SCHEDULER
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "embedded server");
+    break;
+#endif
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
     res= execute_sqlcom_select(thd, all_tables);
@@ -3483,6 +3488,7 @@ end_with_restore_list:
   }
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
+  #ifdef HAVE_EVENT_SCHEDULER
   do
   {
     DBUG_ASSERT(lex->event_parse_data);
@@ -3536,6 +3542,10 @@ end_with_restore_list:
                                   lex->drop_if_exists)))
       my_ok(thd);
     break;
+#else
+    my_error(ER_NOT_SUPPORTED_YET,MYF(0),"embedded server");
+    break;
+#endif
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
