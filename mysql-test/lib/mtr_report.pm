@@ -52,6 +52,9 @@ sub report_option {
   #print $name, " setting $opt to ", (defined $value? $value : "undef") ,"\n";
 }
 
+sub _name {
+  return $name ? $name." " : undef;
+}
 
 sub _mtr_report_test_name ($) {
   my $tinfo= shift;
@@ -63,7 +66,7 @@ sub _mtr_report_test_name ($) {
   $tname.= " '$tinfo->{combination}'"
     if defined $tinfo->{combination};
 
-  print $name, _timestamp();
+  print _name(), _timestamp();
   printf "%-40s ", $tname;
 }
 
@@ -388,7 +391,7 @@ sub _timestamp {
 
 # Always print message to screen
 sub mtr_print (@) {
-  print $name, join(" ", @_), "\n";
+  print _name(), join(" ", @_), "\n";
 }
 
 
@@ -396,21 +399,21 @@ sub mtr_print (@) {
 sub mtr_report (@) {
   if (defined $verbose)
   {
-    print $name, join(" ", @_), "\n";
+    print _name(), join(" ", @_), "\n";
   }
 }
 
 
 # Print warning to screen
 sub mtr_warning (@) {
-  print STDERR $name, _timestamp(),
+  print STDERR _name(), _timestamp(),
     "mysql-test-run: WARNING: ", join(" ", @_), "\n";
 }
 
 
 # Print error to screen and then exit
 sub mtr_error (@) {
-  print STDERR $name, _timestamp(),
+  print STDERR _name(), _timestamp(),
     "mysql-test-run: *** ERROR: ", join(" ", @_), "\n";
   exit(1);
 }
@@ -419,7 +422,7 @@ sub mtr_error (@) {
 sub mtr_debug (@) {
   if ( $verbose > 2 )
   {
-    print STDERR $name,
+    print STDERR _name(),
       _timestamp(), "####: ", join(" ", @_), "\n";
   }
 }
@@ -428,7 +431,7 @@ sub mtr_debug (@) {
 sub mtr_verbose (@) {
   if ( $verbose )
   {
-    print STDERR $name, _timestamp(),
+    print STDERR _name(), _timestamp(),
       "> ",join(" ", @_),"\n";
   }
 }
@@ -439,7 +442,7 @@ sub mtr_verbose_restart (@) {
   my $proc= $server->{proc};
   if ( $verbose_restart )
   {
-    print STDERR $name,_timestamp(),
+    print STDERR _name(),_timestamp(),
       "> Restart $proc - ",join(" ", @args),"\n";
   }
 }
