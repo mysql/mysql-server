@@ -275,3 +275,48 @@ ndbCompatible_ndb_ndb(Uint32 ownVersion, Uint32 otherVersion)
 {
   return ndbCompatible_upgrade(ownVersion, otherVersion);
 }
+
+
+void
+ndbPrintCompatibleTable(struct NdbUpGradeCompatible table[])
+{
+  int i;
+  printf("ownVersion, matchType, otherVersion\n");
+  for (i = 0; table[i].ownVersion != 0 && table[i].otherVersion != 0; i++) {
+
+    printf("%u.%u.%u, ",
+           getMajor(table[i].ownVersion),
+           getMinor(table[i].ownVersion),
+           getBuild(table[i].ownVersion));
+    switch (table[i].matchType) {
+    case UG_Range:
+      printf("Range");
+      break;
+    case UG_Exact:
+      printf("Exact");
+      break;
+    default:
+      break;
+    }
+    printf(", %u.%u.%u\n",
+           getMajor(table[i].otherVersion),
+           getMinor(table[i].otherVersion),
+           getBuild(table[i].otherVersion));
+
+  }
+  printf("\n");
+}
+
+
+void
+ndbPrintFullyCompatibleTable(void){
+  printf("ndbCompatibleTable_full\n");
+  ndbPrintCompatibleTable(ndbCompatibleTable_full);
+}
+
+
+void
+ndbPrintUpgradeCompatibleTable(void){
+  printf("ndbCompatibleTable_upgrade\n");
+  ndbPrintCompatibleTable(ndbCompatibleTable_upgrade);
+}
