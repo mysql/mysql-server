@@ -325,17 +325,11 @@ public:
      *    Support variables for table handling
      ****************************************************/
 
-    /*     Active page which is sent to disk */
-    Uint32 activePage;
-
     /**    File pointer received from disk   */
     Uint32 filePtr[2];
 
     /**    Pointer to first attribute in table */
     DLFifoList<AttributeRecord>::Head m_attributes;
-
-    /*    Pointer to first page of table description */
-    Uint32 firstPage;
 
     Uint32 nextPool;
 
@@ -344,19 +338,10 @@ public:
       DEFINING = 2,
       DEFINED = 4,
       PREPARE_DROPPING = 5,
-      DROPPING = 6,
-      BACKUP_ONGOING = 7
+      DROPPING = 6
     };
     TabState tabState;
-
-    /*    State when returning from TC_SCHVERREQ */
-    enum TabReturnState {
-      TRS_IDLE = 0,
-      ADD_TABLE = 1,
-      SLAVE_SYSTEM_RESTART = 2,
-      MASTER_SYSTEM_RESTART = 3
-    };
-    TabReturnState tabReturnState;
+    Uint32 m_read_locked; // BACKUP_ONGOING
 
     /**    Number of words */
     Uint32 packedSize;
@@ -1045,6 +1030,12 @@ private:
    * Word 4: Currently zero
    ****************************************************************************/
   struct SchemaRecord {
+    enum
+    {
+      NEW_SCHEMA_FILE = 0, // Index in c_schemaFile
+      OLD_SCHEMA_FILE = 1
+    };
+
     /**    Schema file first page (0)   */
     Uint32 schemaPage;
 
@@ -1605,13 +1596,15 @@ private:
       TS_PARSING          = 4, // Parsing at participants
       TS_SUBOP            = 5, // Creating subop
       TS_ROLLBACK_SP      = 6, // Rolling back to SP (supported before prepare)
-      TS_PREPARING        = 7, // Preparing operations
-      TS_ABORTING_PREPARE = 8, // Aborting prepared operations
-      TS_ABORTING_PARSE   = 9, // Aborting parsed operations
-      TS_COMMITTING       = 10,// Committing
-      TS_COMMITTED        = 11,// Committed
-      TS_COMPLETING       = 12,// Completing
-      TS_ENDING           = 13
+      TS_FLUSH_PREPARE    = 7,
+      TS_PREPARING        = 8, // Preparing operations
+      TS_ABORTING_PREPARE = 9, // Aborting prepared operations
+      TS_ABORTING_PARSE   = 10,// Aborting parsed operations
+      TS_FLUSH_COMMIT     = 11,
+      TS_COMMITTING       = 12,// Committing
+      TS_FLUSH_COMPLETE   = 13,// Committed
+      TS_COMPLETING       = 14,// Completing
+      TS_ENDING           = 15
     };
 
     Uint32 m_state;
@@ -1711,6 +1704,7 @@ private:
   void trans_parse_recv_reply(Signal*, SchemaTransPtr);
 
   void trans_prepare_start(Signal*, SchemaTransPtr);
+  void trans_prepare_first(Signal*, SchemaTransPtr);
   void trans_prepare_recv_reply(Signal*, SchemaTransPtr);
   void trans_prepare_next(Signal*, SchemaTransPtr, SchemaOpPtr);
   void trans_prepare_done(Signal*, SchemaTransPtr);
@@ -1732,12 +1726,14 @@ private:
 
   void trans_commit_start(Signal*, SchemaTransPtr);
   void trans_commit_mutex_locked(Signal*, Uint32, Uint32);
+  void trans_commit_first(Signal*, SchemaTransPtr);
   void trans_commit_recv_reply(Signal*, SchemaTransPtr);
   void trans_commit_next(Signal*, SchemaTransPtr, SchemaOpPtr);
   void trans_commit_done(Signal* signal, SchemaTransPtr);
   void trans_commit_mutex_unlocked(Signal*, Uint32, Uint32);
 
   void trans_complete_start(Signal* signal, SchemaTransPtr);
+  void trans_complete_first(Signal* signal, SchemaTransPtr);
   void trans_complete_next(Signal*, SchemaTransPtr, SchemaOpPtr);
   void trans_complete_recv_reply(Signal*, SchemaTransPtr);
   void trans_complete_done(Signal*, SchemaTransPtr);
@@ -1759,8 +1755,8 @@ private:
 
   void slave_run_start(Signal*, const SchemaTransImplReq*);
   void slave_run_parse(Signal*, SchemaTransPtr, const SchemaTransImplReq*);
-  void slave_run_end(Signal*, SchemaTransPtr);
-  void slave_flush_schema(Signal*, SchemaTransPtr);
+  void slave_run_flush(Signal*, SchemaTransPtr, const SchemaTransImplReq*);
+  void slave_writeSchema_conf(Signal*, Uint32, Uint32);
 
   // reply to trans client for begin/end trans
   void sendTransClientReply(Signal*, SchemaTransPtr);

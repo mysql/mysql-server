@@ -26,14 +26,15 @@ struct SchemaTransImplReq
   {
     RT_START         = 0x0,
     RT_PARSE         = 0x1,
-    RT_PREPARE       = 0x2,
-    RT_ABORT_PARSE   = 0x3,
-    RT_ABORT_PREPARE = 0x4,
-    RT_COMMIT        = 0x5,
-
-    RT_COMPLETE      = 0x6,// Not yet used
-    RT_FLUSH_SCHEMA  = 0x7,// Not yet used
-    RT_END           = 0x8 // release... 
+    RT_FLUSH_PREPARE = 0x2,
+    RT_PREPARE       = 0x3,
+    RT_ABORT_PARSE   = 0x4,
+    RT_ABORT_PREPARE = 0x5,
+    RT_FLUSH_COMMIT  = 0x6,
+    RT_COMMIT        = 0x7,
+    RT_FLUSH_COMPLETE= 0x8,
+    RT_COMPLETE      = 0x9,
+    RT_END           = 0xa // release...
   };
 
   STATIC_CONST( SignalLength = 9 );
