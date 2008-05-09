@@ -1143,32 +1143,32 @@ static void toku_c_get_fix_flags(C_GET_VARS* g) {
     g->op = get_main_cursor_flag(g->flag);
 
     switch (g->op) {
-        case (DB_NEXT):
-        case (DB_NEXT_NODUP): {
+        case DB_NEXT:
+        case DB_NEXT_NODUP:
             if (toku_c_uninitialized(g->c)) toku_swap_flag(&g->flag, &g->op, DB_FIRST);
             else if (!g->duplicates && g->op == DB_NEXT) {
                 toku_swap_flag(&g->flag, &g->op, DB_NEXT_NODUP);
             }
             break;
-        }
-        case (DB_PREV):
-        case (DB_PREV_NODUP): {
+        case DB_PREV:
+        case DB_PREV_NODUP:
             if (toku_c_uninitialized(g->c)) toku_swap_flag(&g->flag, &g->op, DB_LAST);
             else if (!g->duplicates && g->op == DB_PREV) {    
                 toku_swap_flag(&g->flag, &g->op, DB_PREV_NODUP);
             }
             break;
-        }
-        case (DB_GET_BOTH_RANGE): {
+        case DB_GET_BOTH_RANGE:
             if (!g->duplicates) {
                 toku_swap_flag(&g->flag, &g->op, DB_GET_BOTH);
             }
             break;
-        }
-        default: {
+        default:
             break;
-        }
     }
+}
+
+static inline void toku_c_pget_fix_flags(C_GET_VARS* g) {
+    toku_c_get_fix_flags(g);
 }
 
 static int toku_c_get_pre_acquire_lock_if_possible(C_GET_VARS* g, DBT* key, DBT* data) {
@@ -1191,7 +1191,9 @@ cleanup:
 
 static int toku_c_get_describe_inputs(C_GET_VARS* g) { 
     int r = ENOSYS;
-    /* Default is FALSE. */
+    /* Default for (key|value)_is_(read|write) is FALSE.
+     * Default for cursor_is_write is TRUE. */
+    g->cursor_is_write = TRUE;
     switch (g->op) {
         case DB_SET:
             g->key_is_read  = TRUE;
@@ -1213,16 +1215,24 @@ static int toku_c_get_describe_inputs(C_GET_VARS* g) {
             g->val_is_write = TRUE;
             break;
         case DB_CURRENT:
+        case DB_CURRENT_BINDING:
+            /* Cursor does not change. */
+            g->cursor_is_write = FALSE;
+            /* Break through to next case on purpose. */
+        case DB_NEXT_DUP:
+#if defined(DB_PREV_DUP)
+        case DB_PREV_DUP:
+#endif
+            if (toku_c_uninitialized(g->c)) {
+               r = EINVAL; goto cleanup;
+            }
+            /* Break through to next case on purpose. */
         case DB_FIRST:
         case DB_LAST:
         case DB_NEXT:
         case DB_NEXT_NODUP:
-        case DB_NEXT_DUP:
         case DB_PREV:
         case DB_PREV_NODUP:
-#if defined(DB_PREV_DUP)
-        case DB_PREV_DUP:
-#endif
             g->key_is_write = TRUE;
             g->val_is_write = TRUE;
             break;
@@ -1230,7 +1240,6 @@ static int toku_c_get_describe_inputs(C_GET_VARS* g) {
             r = EINVAL;
             goto cleanup;
     }
-    if (g->op != DB_CURRENT) g->cursor_is_write = TRUE;
     r = 0;
 cleanup:
     return r;
@@ -1567,7 +1576,7 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
     g.duplicates   = (brtflags & TOKU_DB_DUPSORT) != 0;
 
     /* Standardize the op flag. */
-    toku_c_get_fix_flags(&g);
+    toku_c_pget_fix_flags(&g);
     /* Determine whether the key, val, and data, parameters are read, write,
      * or both. */
     if ((r = toku_c_pget_describe_inputs(&g))) goto cleanup;
