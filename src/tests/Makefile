@@ -139,11 +139,11 @@ libs:
 	cd ..;make
 
 %.bdb: %.c
-	$(UNSETTOKUENV) cc  -DENVDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
+	$(UNSETTOKUENV) $(CC) -DENVDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
 %.tdb: %.c
-	$(SETTOKUENV) cc  -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
+	$(SETTOKUENV) $(CC) -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 %.tdbt: %.c
-	$(SETTOKUENV) cc  -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_TRACELOADLIBES) $< -o $@
+	$(SETTOKUENV) $(CC) -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_TRACELOADLIBES) $< -o $@
 
 .PHONY: %.recover
 TLRECOVER = 2 3 4 5 6 7 8 9 10

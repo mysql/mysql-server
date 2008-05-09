@@ -93,11 +93,11 @@ LOG_BINS    = ../log.o
 HEADERS=../rangetree.h ../rangetree-internal.h test.h
 
 %.lin: %.c  $(HEADERS) $(LINEAR_BINS)
-	cc  -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)
+	$(CC) -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)
 %.tlog: %.c $(HEADERS) $(TLOG_BINS)
-	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS
+	$(CC) -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS
 %.log: %.c  $(HEADERS) $(LOG_BINS)
-	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
+	$(CC) -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov

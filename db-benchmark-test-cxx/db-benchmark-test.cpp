@@ -28,8 +28,8 @@ long long cachesize = 128*1024*1024;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
-char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */;
-char *dbfilename = "bench.db";
+char dbdir[] = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */;
+char dbfilename[] = "bench.db";
 char *dbname;
 
 DbEnv *dbenv;

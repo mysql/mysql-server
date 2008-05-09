@@ -50,10 +50,10 @@ locktree.o: $(LT_TLOG)
 	cp $< $@
 
 locktree_global_readset.o: locktree.c locktree.h
-	cc  $(CFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 locktree_no_global_readset.o: locktree.c locktree.h
-	cc  $(CFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -DTOKU_RT_NOOVERLAPS
+	$(CC)  $(CFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -DTOKU_RT_NOOVERLAPS
 
 rth.o: rth.c rth.h
 
