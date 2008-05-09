@@ -17,6 +17,14 @@ SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 ADD_DEFINITIONS(-DMYSQL_SERVER -D_WIN32 -D_LIB)
 
+# Bug 19424 - InnoDB: Possibly a memory overrun of the buffer being freed (64-bit Visual C)
+# Removing Win64 compiler optimizations for all innodb/mem/* files.
+IF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_SIZEOF_VOID_P MATCHES 8)
+  SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/storage/innobase/mem/mem0mem.c
+                              ${CMAKE_SOURCE_DIR}/storage/innobase/mem/mem0pool.c
+                              PROPERTIES COMPILE_FLAGS -Od)
+ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_SIZEOF_VOID_P MATCHES 8)
+
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/storage/innobase/include
                     ${CMAKE_SOURCE_DIR}/storage/innobase/handler
