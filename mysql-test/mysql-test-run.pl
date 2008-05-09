@@ -220,7 +220,6 @@ sub main {
   if ( not defined $opt_parallel ) {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
-    $sys_info->print_info();
 
     $opt_parallel= $sys_info->num_cpus();
     for my $limit (2000, 1500, 1000, 500){
@@ -2828,15 +2827,15 @@ sub run_testcase ($) {
   # ----------------------------------------------------------------------
   if ( $opt_start or $opt_start_dirty )
   {
-    mtr_report("\nStarted", started(all_servers()));
-    mtr_report("Waiting for server(s) to exit...");
+    mtr_print("\nStarted", started(all_servers()));
+    mtr_print("Waiting for server(s) to exit...");
     my $proc= My::SafeProcess->wait_any();
     if ( grep($proc eq $_, started(all_servers())) )
     {
-      mtr_report("Server $proc died");
+      mtr_print("Server $proc died");
       exit(1);
     }
-    mtr_report("Unknown process $proc died");
+    mtr_print("Unknown process $proc died");
     exit(1);
   }
 
@@ -3163,7 +3162,7 @@ sub check_expected_crash_and_restart {
 # Remove all files and subdirectories of a directory
 sub clean_dir {
   my ($dir)= @_;
-  mtr_print("clean_dir: $dir");
+  mtr_verbose("clean_dir: $dir");
   finddepth(
 	  { no_chdir => 1,
 	    wanted => sub {
@@ -3173,12 +3172,12 @@ sub clean_dir {
 		  # The dir to clean
 		  return;
 		} else {
-		  mtr_print("rmdir: '$_'");
+		  mtr_verbose("rmdir: '$_'");
 		  rmdir($_) or mtr_warning("rmdir($_) failed: $!");
 		}
 	      } else {
 		# Hopefully a file
-		mtr_print("unlink: '$_'");
+		mtr_verbose("unlink: '$_'");
 		unlink($_) or mtr_warning("unlink($_) failed: $!");
 	      }
 	    }
@@ -3198,7 +3197,7 @@ sub clean_datadir {
   foreach my $cluster ( clusters() )
   {
     my $cluster_dir= "$opt_vardir/".$cluster->{name};
-    mtr_print(" - removing '$cluster_dir'");
+    mtr_verbose(" - removing '$cluster_dir'");
     rmtree($cluster_dir);
 
   }
@@ -3207,7 +3206,7 @@ sub clean_datadir {
   {
     my $mysqld_dir= dirname($mysqld->value('datadir'));
     if (-d $mysqld_dir ) {
-      mtr_print(" - removing '$mysqld_dir'");
+      mtr_verbose(" - removing '$mysqld_dir'");
       rmtree($mysqld_dir);
     }
   }
@@ -3512,7 +3511,7 @@ sub mysqld_start ($$) {
 
 sub stop_all_servers () {
 
-  mtr_print("Stopping all servers...");
+  mtr_verbose("Stopping all servers...");
 
   # Kill all started servers
   My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill
