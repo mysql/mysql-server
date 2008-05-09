@@ -10,6 +10,13 @@
 // 
 void test_abort_close(void) {
 
+#ifndef USE_TDB
+#if DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==3
+    fprintf(stderr, "%s does not work for BDB %d.%d.   Not running\n", __FILE__, DB_VERSION_MAJOR, DB_VERSION_MINOR);
+    return;
+#endif
+#endif
+
     system("rm -rf " ENVDIR);
     mkdir(ENVDIR, 0777);
 
