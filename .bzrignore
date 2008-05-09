@@ -2701,6 +2701,7 @@ storage/ndb/src/common/mgmcommon/printConfig/*.d
 storage/ndb/src/common/portlib/libportlib.dsp
 storage/ndb/src/common/transporter/libtransporter.dsp
 storage/ndb/src/common/util/libgeneral.dsp
+storage/ndb/src/common/util/ndb_show_compat
 storage/ndb/src/common/util/testBitmask.cpp
 storage/ndb/src/cw/cpcd/ndb_cpcd
 storage/ndb/src/dummy.cpp
