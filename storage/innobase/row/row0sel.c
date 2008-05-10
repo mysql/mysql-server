@@ -3577,9 +3577,9 @@ shortcut_fails_too_big_rec:
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
+	    && trx->mysql_thd != NULL
 	    && trx->mysql_query_str != NULL
-	    && *trx->mysql_query_str != NULL
-	    && trx->mysql_thd != NULL) {
+	    && *trx->mysql_query_str != NULL) {
 
 		/* Scan the MySQL query string; check if SELECT is the first
 		word there */

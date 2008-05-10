@@ -2458,6 +2458,52 @@ SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 DROP TABLE t2;
 DROP TABLE t1;
 # End 34920 test
+#
+# Bug #29507 TRUNCATE shows to many rows effected
+#
+CONNECTION default;
+CREATE TABLE t1 (c1 int default NULL,
+		 c2 int default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--enable_info
+TRUNCATE TABLE t1;
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+TRUNCATE TABLE t1;
+
+--disable_info
+DROP TABLE t1;
+#
+# Bug#35537 Innodb doesn't increment handler_update and handler_delete.
+#
+-- disable_query_log
+-- disable_result_log
+
+CONNECT (c1,localhost,root,,);
+
+DROP TABLE IF EXISTS bug35537;
+CREATE TABLE bug35537 (
+  c1 int
+) ENGINE=InnoDB;
+
+INSERT INTO bug35537 VALUES (1);
+
+-- enable_result_log
+
+SHOW SESSION STATUS LIKE 'Handler_update%';
+SHOW SESSION STATUS LIKE 'Handler_delete%';
+
+UPDATE bug35537 SET c1 = 2 WHERE c1 = 1;
+DELETE FROM bug35537 WHERE c1 = 2;
+
+SHOW SESSION STATUS LIKE 'Handler_update%';
+SHOW SESSION STATUS LIKE 'Handler_delete%';
+
+DROP TABLE bug35537;
+
+DISCONNECT c1;
+CONNECTION default;
 
 #######################################################################
 #                                                                     #
