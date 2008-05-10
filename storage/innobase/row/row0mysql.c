@@ -1963,6 +1963,7 @@ row_create_index_for_mysql(
 	ulint		err;
 	ulint		i, j;
 	ulint		len;
+	char*		table_name;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -1971,6 +1972,11 @@ row_create_index_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	trx->op_info = "creating index";
+
+	/* Copy the table name because we may want to drop the
+	table later, after the index object is freed (inside
+	que_run_threads()) and thus index->table_name is not available. */
+	table_name = mem_strdup(index->table_name);
 
 	trx_start_if_not_started(trx);
 
@@ -2044,12 +2050,14 @@ error_handling:
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		row_drop_table_for_mysql(index->table_name, trx, FALSE);
+		row_drop_table_for_mysql(table_name, trx, FALSE);
 
 		trx->error_state = DB_SUCCESS;
 	}
 
 	trx->op_info = "";
+
+	mem_free(table_name);
 
 	return((int) err);
 }
