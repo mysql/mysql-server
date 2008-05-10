@@ -15,21 +15,21 @@
 
 # Process this file with automake to create Makefile.in
 
-MYSQLDATAdir =          $(localstatedir)
-MYSQLSHAREdir =         $(pkgdatadir)
-MYSQLBASEdir=           $(prefix)
-MYSQLLIBdir=            $(pkglibdir)
-pkgplugindir =		$(pkglibdir)/plugin
-INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
+MYSQLDATAdir=		$(localstatedir)
+MYSQLSHAREdir=		$(pkgdatadir)
+MYSQLBASEdir=		$(prefix)
+MYSQLLIBdir=		$(pkglibdir)
+pkgplugindir=		$(pkglibdir)/plugin
+INCLUDES=		-I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/storage/innobase/include \
 			-I$(top_srcdir)/sql \
-                        -I$(srcdir)
+			-I$(srcdir)
 
-DEFS =			@DEFS@
+DEFS=			@DEFS@
 
 
-noinst_HEADERS = include/btr0btr.h include/btr0btr.ic			\
+noinst_HEADERS=		include/btr0btr.h include/btr0btr.ic		\
 			include/btr0cur.h include/btr0cur.ic		\
 			include/btr0pcur.h include/btr0pcur.ic		\
 			include/btr0sea.h include/btr0sea.ic		\
@@ -121,9 +121,9 @@ noinst_HEADERS = include/btr0btr.h include/btr0btr.ic			\
 			include/ut0list.ic include/ut0wqueue.h		\
 			include/ha_prototypes.h handler/ha_innodb.h
 
-EXTRA_LIBRARIES =	libinnobase.a
-noinst_LIBRARIES =	@plugin_innobase_static_target@
-libinnobase_a_SOURCES =	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
+EXTRA_LIBRARIES=	libinnobase.a
+noinst_LIBRARIES=	@plugin_innobase_static_target@
+libinnobase_a_SOURCES=	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			btr/btr0sea.c buf/buf0buf.c buf/buf0flu.c	\
 			buf/buf0lru.c buf/buf0rea.c data/data0data.c	\
 			data/data0type.c dict/dict0boot.c		\
@@ -156,17 +156,17 @@ libinnobase_a_SOURCES =	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			handler/ha_innodb.cc
 
 libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
-libinnobase_a_CFLAGS  =	$(AM_CFLAGS)
+libinnobase_a_CFLAGS=	$(AM_CFLAGS)
 
-EXTRA_LTLIBRARIES =	ha_innodb.la
-pkglib_LTLIBRARIES =	@plugin_innobase_shared_target@
+EXTRA_LTLIBRARIES=	ha_innodb.la
+pkgplugin_LTLIBRARIES=	@plugin_innobase_shared_target@
 
-ha_innodb_la_LDFLAGS =	-module -rpath $(pkgplugindir)
-ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_innodb_la_CFLAGS  =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_innodb_la_SOURCES =	$(libinnobase_a_SOURCES)
+ha_innodb_la_LDFLAGS=	-module -rpath $(pkgplugindir)
+ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
+ha_innodb_la_CFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
+ha_innodb_la_SOURCES=	$(libinnobase_a_SOURCES)
 
-EXTRA_DIST =		CMakeLists.txt plug.in \
+EXTRA_DIST=		CMakeLists.txt plug.in \
 			pars/make_bison.sh pars/make_flex.sh \
 			pars/pars0grm.y pars/pars0lex.l
 
