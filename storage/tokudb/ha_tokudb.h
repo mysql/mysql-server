@@ -120,7 +120,7 @@ private:
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
     ulong max_row_length(const uchar * buf);
-    int pack_row(DBT * row, const uchar * record, bool new_row);
+    int pack_row(DBT * row, const uchar * record);
     void unpack_row(uchar * record, DBT * row);
     void unpack_key(uchar * record, DBT * key, uint index);
     DBT *create_key(DBT * key, uint keynr, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
