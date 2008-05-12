@@ -2486,6 +2486,7 @@ int toku_dump_brt (BRT brt) {
     return 0;
 }
 
+#if 0
 static int show_brtnode_blocknumbers (BRT brt, DISKOFF off) {
     BRTNODE node;
     void *node_v;
@@ -2508,7 +2509,6 @@ static int show_brtnode_blocknumbers (BRT brt, DISKOFF off) {
     return r;
 }
 
-#if 0
 int show_brt_blocknumbers (BRT brt) {
     int r;
     CACHEKEY *rootp;
