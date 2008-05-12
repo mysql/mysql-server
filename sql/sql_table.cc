@@ -2118,6 +2118,13 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
   const char **ext= table->file->bas_ext();
   MY_STAT stat_info;
 
+  if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
+  {
+    error= send_check_errmsg(thd, table_list, "repair",
+                             "Failed reparing incompatible .FRM file");
+    goto end;
+  }
+
   /*
     Check if this is a table type that stores index and data separately,
     like ISAM or MyISAM. We assume fixed order of engine file name
