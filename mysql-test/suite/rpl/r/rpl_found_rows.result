@@ -226,7 +226,7 @@ sect	test	count
 2	6	0
 2	6	183
 2	7	0
-DROP TABLE t1, logtbl;
+DROP TABLE t1, t2, logtbl;
 DROP PROCEDURE just_log;
 DROP PROCEDURE log_me;
 DROP PROCEDURE log_me_inner;
