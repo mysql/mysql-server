@@ -1,4 +1,4 @@
-SHOULD_FAIL = check_test_cursor_count
+SHOULD_FAIL = 
 $(SHOULD_FAIL): MAYBEINVERTER=;test $$? -ne 0
 
 HERE = cxx/tests
