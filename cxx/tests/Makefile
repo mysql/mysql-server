@@ -1,3 +1,14 @@
+SHOULD_FAIL = check_test_cursor_count
+$(SHOULD_FAIL): MAYBEINVERTER=;test $$? -ne 0
+
+HERE = cxx/tests
+ifeq ($(SUMMARIZE),1)
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sOK\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+else
+SUMMARIZE_CMD =
+endif
+
+
 SRCS = $(wildcard *.cpp)
 TARGETS = $(patsubst %.cpp,%,$(SRCS))
 
@@ -25,38 +36,42 @@ clean:
 	rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db
 
 check_test1: test1
-	$(VGRIND) ./$<
+	$(VGRIND) ./$< $(SUMMARIZE_CMD)
 check_test_errpfx: test_errpfx
-	$(VGRIND) ./$< > errpfxactual.out
-	(echo "Prefix: Hello Name!";echo -n ": Success") > errpfxexpect.out
-	diff errpfxactual.out errpfxexpect.out
+	$(VGRIND) ./$< > errpfxactual.out && \
+	 (echo "Prefix: Hello Name!";echo -n ": Success") > errpfxexpect.out && \
+	 diff errpfxactual.out errpfxexpect.out \
+	 $(SUMMARIZE_CMD)
 
 check_test_db_assoc3: test_db_assoc3
-	$(VGRIND) ./test_db_assoc3
-	$(VGRIND) ./test_db_assoc3 --more
+	$(VGRIND) ./test_db_assoc3 && \
+	 $(VGRIND) ./test_db_assoc3 --more \
+	 $(SUMMARIZE_CMD)
 
 check_test_cursor_count: test_cursor_count
-	$(VGRIND) ./test_cursor_count
+	$(VGRIND) ./test_cursor_count $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 check_test_error_stream: test_error_stream
-	$(VGRIND) ./test_error_stream
+	$(VGRIND) ./test_error_stream $(SUMMARIZE_CMD)
 
 check_test1e: test1e
-	$(VGRIND) ./test1e > test1eactual.out
-	(echo "Prefix: Hello Name!";echo -n ": Success") > test1expect.out
-	diff test1eactual.out test1expect.out
+	$(VGRIND) ./test1e > test1eactual.out && \
+	 (echo "Prefix: Hello Name!";echo -n ": Success") > test1expect.out && \
+	 diff test1eactual.out test1expect.out \
+	  $(SUMMARIZE_CMD)
 
 check_create_dump_diff: db_create db_dump db_dump_e
 	rm -f cdd.tdb
-	$(VGRIND) ./db_create cdd.tdb a b c d
-	$(VGRIND) ./db_dump cdd.tdb > cdd.out
-	(echo " 61";echo " 62";echo " 63";echo " 64")>cddexpect.out
-	diff cdd.out cddexpect.out
-	$(VGRIND) ./db_dump_e cdd.tdb > cdd.out
-	diff cdd.out cddexpect.out
+	$(VGRIND) ./db_create cdd.tdb a b c d && \
+	 $(VGRIND) ./db_dump cdd.tdb > cdd.out && \
+	 (echo " 61";echo " 62";echo " 63";echo " 64")>cddexpect.out && \
+	 diff cdd.out cddexpect.out && \
+	 $(VGRIND) ./db_dump_e cdd.tdb > cdd.out && \
+	 diff cdd.out cddexpect.out \
+	 $(SUMMARIZE_CMD)
 
 check_test_reverse_compare_fun: test_reverse_compare_fun
-	$(VGRIND) ./test_reverse_compare_fun
+	$(VGRIND) ./test_reverse_compare_fun $(SUMMARIZE_CMD)
 
 check: $(TARGETS) \
  check_create_dump_diff \
@@ -74,29 +89,31 @@ check: $(TARGETS) \
  check_a_bunch
 
 check_a_bunch:
-	$(VGRIND) ./exceptions
-	$(VGRIND) ./test_no_env
-	$(VGRIND) ./test_fd
-	$(VGRIND) ./test_db_delete
-	$(VGRIND) ./test_get_not_found
+	$(VGRIND) ./exceptions  $(SUMMARIZE_CMD)
+	$(VGRIND) ./test_no_env  $(SUMMARIZE_CMD)
+	$(VGRIND) ./test_fd  $(SUMMARIZE_CMD)
+	$(VGRIND) ./test_db_delete  $(SUMMARIZE_CMD)
+	$(VGRIND) ./test_get_not_found  $(SUMMARIZE_CMD)
 
 check_db_create: db_create
-	rm -f $@.tdb; $(VGRIND) ./db_create -s main $@.tdb
+	rm -f $@.tdb
+	$(VGRIND) ./db_create -s main $@.tdb  $(SUMMARIZE_CMD)
 check_db_create_DSM: db_create
 	rm -f $@.tdb
-	$(VGRIND) ./db_create -D -S -s main $@.tdb
+	$(VGRIND) ./db_create -D -S -s main $@.tdb  $(SUMMARIZE_CMD)
 
 check_db_create_1:
-	$(VGRIND) ./db_create; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
+	$(VGRIND) ./db_create; test $$? -ne 0  $(SUMMARIZE_CMD)
 check_db_create_2:
-	$(VGRIND) ./db_create -h; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
+	$(VGRIND) ./db_create -h; test $$? -ne 0 $(SUMMARIZE_CMD)
 check_db_create_3:
-	$(VGRIND) ./db_create --help; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
+	$(VGRIND) ./db_create --help; test $$? -ne 0 $(SUMMARIZE_CMD)
 check_db_create_4:
-	$(VGRIND) ./db_create -s; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
+	$(VGRIND) ./db_create -s; test $$? -ne 0 $(SUMMARIZE_CMD)
 
 check_permissions:
-	rm -f permissions.tdb
-	./db_create permissions.tdb 1 1
-	chmod -w permissions.tdb
-	./db_create permissions.tdb 2 2; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
+	rm -f permissions.tdb 
+	./db_create permissions.tdb 1 1 && \
+	 chmod -w permissions.tdb && \
+	 (./db_create permissions.tdb 2 2; test $$? -ne 0) \
+	 $(SUMMARIZE_CMD)
