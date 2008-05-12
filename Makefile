@@ -38,10 +38,11 @@ CHECKS = $(patsubst %,checkdir_%,$(SRCDIRS))
 checkdir_%:
 	cd $(patsubst checkdir_%,%,$@) ; $(MAKE) -k check
 
-check: $(CHECKS)
+summarize: SUMMARIZE=1
+summarize: VERBOSE=0
+summarize: check
 
-foo:
-	echo $(MAKEFLAGS)
+check: $(CHECKS)
 
 clean:
 	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k clean); done

@@ -87,7 +87,7 @@ void printtdiff (char *str) {
     gettimeofday(&thistime, 0);
     double tdiff = thistime.tv_sec-prevtime.tv_sec+1e-6*(thistime.tv_usec-prevtime.tv_usec);
     int fcount=get_fsync_count();
-    printf("%s: %10.6fs %d fsyncs for %s\n", progname, tdiff, fcount-prev_count, str);
+    if (verbose) printf("%s: %10.6fs %d fsyncs for %s\n", progname, tdiff, fcount-prev_count, str);
     prevtime=thistime;
     prev_count=fcount;
 }
@@ -109,13 +109,13 @@ int main (int argc, const char *argv[]) {
     int count_before_10 = get_fsync_count();
     test_groupcommit(10); printtdiff("10 threads");
     if (get_fsync_count()-count_before_10 >= 10*NITER) {
-	printf("It looks like too many fsyncs.  Group commit doesn't appear to be occuring.\n");
+	if (verbose) printf("It looks like too many fsyncs.  Group commit doesn't appear to be occuring.\n");
 	exit(1);
     }
     int count_before_20 = get_fsync_count();
     test_groupcommit(20); printtdiff("20 threads");
     if (get_fsync_count()-count_before_20 >= 20*NITER) {
-	printf("It looks like too many fsyncs.  Group commit doesn't appear to be occuring.\n");
+	if (verbose) printf("It looks like too many fsyncs.  Group commit doesn't appear to be occuring.\n");
 	exit(1);
     }
     return 0;

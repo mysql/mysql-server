@@ -55,6 +55,7 @@ BDB_DONTRUN = bug627 test_abort1
 BDB_TESTS = $(patsubst %.c,%.bdb,$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN)),$(SRCS)))
 
 TDB_TESTS_THAT_SHOULD_FAIL = test_groupcommit_count
+TDB_TESTS_THAT_SHOULD_FAIL_LIT = test_log5.recover test_log7.recover test_log10.recover
 
 ALL_TESTS = $(TDB_TESTS) $(BDB_TESTS)
 
@@ -96,33 +97,32 @@ $(ALL_TESTS):
 
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
-MAYBEATSIGN= 
 VERBQUIET=
 else
  ifeq ($(VERBOSE),1)
   VERBVERBOSE=
-  MAYBEATSIGN=
   VERBQUIET=
  else
   VERBVERBOSE=
-  MAYBEATSIGN=@
   VERBQUIET=--quiet
  endif
 endif
 
-# The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
-# Give up VGRIND of bdbrun
-# It was this:
-#%.bdbrun: %.bdb
-#	$(MAYBEATSIGN) $(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
-# Now this:
-%.bdbrun: %.bdb ../libtokudb.$(LIBEXT)
-	$(MAYBEATSIGN) $(UNSETTOKUENV) ./$< $(VERBVERBOSE)
-%.tdbrun: %.tdb ../libtokudb.$(LIBEXT)
-	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTERR)
+HERE = src/tests
+ifeq ($(SUMMARIZE),1)
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sOK\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+else
+SUMMARIZE_CMD =
+endif
 
-# Any test that should fail, we invert the result by using MAYBEINVERTERR
-$(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL)): MAYBEINVERTERR=;test $$? -ne 0
+# Use -s on the command line to make things quiet.
+%.bdbrun: %.bdb ../libtokudb.$(LIBEXT)
+	$(UNSETTOKUENV) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+%.tdbrun: %.tdb ../libtokudb.$(LIBEXT)
+	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+# Any test that should fail, we invert the result by using MAYBEINVERTER
+$(TDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL)): MAYBEINVERTER=;test $$? -ne 0
 
 # Don't include log2 log3 log4 log5 etc since they are covered by all.recover
 
@@ -131,7 +131,7 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 # Use helgrind on the group commit count test
 # helgrind is too flakey, so I'm removing it from the tests. -Bradley
 #test_groupcommit_count_helgrind.tdbrun: test_groupcommit_count_helgrind.tdb
-#	$(MAYBEATSIGN) $(SETTOKUENV) $(HGRIND) ./$< $(VERBVERBOSE)
+#	$(SETTOKUENV) $(HGRIND) ./$< $(VERBVERBOSE)
 
 
 
@@ -151,14 +151,15 @@ all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER))
 $(patsubst %,test_log%.tdbrun,$(TLRECOVER)):
 	@echo -n
 %.recover: %.tdb
-	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$<
-	$(MAYBEATSIGN) $(SETTOKUENV) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
-	$(MAYBEATSIGN) $(SETTOKUENV) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
-	$(MAYBEATSIGN) $(SETTOKUENV) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover; $(VGRIND) ../../../newbrt/tdb-recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
-	$(MAYBEATSIGN) $(SETTOKUENV) diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db
+	$(SETTOKUENV) $(VGRIND) ./$< && \
+	$(SETTOKUENV) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover && \
+	$(SETTOKUENV) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover && \
+	($(SETTOKUENV) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover; $(VGRIND) ../../../newbrt/tdb-recover ../dir.$(patsubst %.tdb,%.c.tdb,$<) ) && \
+	$(SETTOKUENV) diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 %.recoverwc: %.tdb
-	$(MAYBEATSIGN) $(SETTOKUENV) (cd dir.$(patsubst %.tdb,%.c.tdb,$<);pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
+	$(SETTOKUENV) (cd dir.$(patsubst %.tdb,%.c.tdb,$<);pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
 
 
 .PHONY: clean cleanall
@@ -184,19 +185,17 @@ test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
 	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
 	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	@ touch $@
 # serialize these two tests since they use the same directory
 test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdbrun
 
 test_db_assoc3.tdbrun: test_db_assoc3.tdb
-	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE)
-	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE)
-	@ touch $@
+	$(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE) && \
+	$(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 # Give up on VGRIND for bdbrun
 test_db_assoc3.bdbrun: test_db_assoc3.bdb
-	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
-	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)
+	$(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000        $(VERBVERBOSE) && \
+	$(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 # a bunch of little tests designed to run in parallel
 test_get_both_range.tdbrun: \
@@ -210,20 +209,20 @@ test_get_both_range.tdbrun: \
  tgbr_2_a.tdbrun   tgbr_2_b.tdbrun   tgbr_2_c.tdbrun \
  tgbr_1_a.tdbrun   tgbr_1_b.tdbrun   tgbr_1_c.tdbrun \
  # intentionally blank line
-	echo Did $@
+	# echo Did $@
 
 tgbr_%_a.tdbrun: test_get_both_range.tdb
-	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_a.tdbrun,%,$@) -a $(MAYBEINVERTERR)
+	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_a.tdbrun,%,$@) -a $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 tgbr_%_b.tdbrun: test_get_both_range.tdb
-	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_b.tdbrun,%,$@) -b $(MAYBEINVERTERR)
+	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_b.tdbrun,%,$@) -b $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 tgbr_%_c.tdbrun: test_get_both_range.tdb
-	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_c.tdbrun,%,$@) -c $(MAYBEINVERTERR)
+	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) -i $(patsubst tgbr_%_c.tdbrun,%,$@) -c $(MAYBEINVERTER)  $(SUMMARIZE_CMD)
 
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
 
 # test on small stacks
 test_thread_stack.%run: test_thread_stack.%
-	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384
-	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384 -resume
+	$(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384         && \
+	$(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 

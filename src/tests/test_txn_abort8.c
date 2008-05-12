@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -12,7 +13,7 @@ void test_abort_close(void) {
 
 #ifndef USE_TDB
 #if DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==3
-    fprintf(stderr, "%s does not work for BDB %d.%d.   Not running\n", __FILE__, DB_VERSION_MAJOR, DB_VERSION_MINOR);
+    if (verbose) fprintf(stderr, "%s does not work for BDB %d.%d.   Not running\n", __FILE__, DB_VERSION_MAJOR, DB_VERSION_MINOR);
     return;
 #endif
 #endif
