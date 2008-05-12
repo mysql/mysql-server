@@ -2738,6 +2738,8 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
       }
     }
   }
+  if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
+    return HA_ADMIN_NEEDS_ALTER;
   return check_for_upgrade(check_opt);
 }
 
