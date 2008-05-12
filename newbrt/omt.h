@@ -1,7 +1,7 @@
 #if !defined(OMT_H)
 #define OMT_H
 
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2008 Tokutek Inc.  All rights reserved."
 
 // Order Maintenance Tree (OMT)
 //
