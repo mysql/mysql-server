@@ -146,7 +146,10 @@ else
 	@echo OPTFLAGS=$(OPTFLAGS) bad; exit 1
 endif
 
-clean:
+clean: clean-local clean-tests
+clean-tests:
+	cd tests;$(MAKE) clean
+clean-local:
 	rm -rf $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
 	rm -rf test_oexcl.c.tmp *.brt
 

@@ -12,14 +12,11 @@ OPTFLAGS = -O3
 
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
-MAYBEATSIGN= 
 else
  ifeq ($(VERBOSE),1)
   VERBVERBOSE=-q
-  MAYBEATSIGN=
  else
   VERBVERBOSE=-q
-  MAYBEATSIGN=@
  endif
 endif
 
@@ -28,6 +25,14 @@ else
 FPICFLAGS = -fPIC
 # valgrind is not present on cygwin
 VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
+endif
+
+HERE=newbrt/tests
+
+ifeq ($(SUMMARIZE),1)
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sOK\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+else
+SUMMARIZE_CMD =
 endif
 
 CFLAGS = -Wall -W -Wcast-align -Wbad-function-cast -Wextra -Wmissing-noreturn -Wmissing-format-attribute $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) -Wshadow -fvisibility=hidden
@@ -78,6 +83,7 @@ BINS =  $(REGRESSION_TESTS) \
 
 CHECKS = \
  benchmarktest_256 \
+ test-assertA test-assertB \
  $(REGRESSION_TESTS) \
 # This line intentially kept commented so I can have a \ on the previous line
 
@@ -86,21 +92,31 @@ foo:
 	echo $(BINS)
 check: $(patsubst %,check_%,$(CHECKS))
 
+check_fail:
+	test 0 = 1 $(SUMMARIZE_CMD)
+check_ok:
+	test 0 = 0 $(SUMMARIZE_CMD)
+
 check_benchmarktest_256: benchmark-test
-	$(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
+	$(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
+
+check_test-assertA: test-assert
+	@# no arguments, should err
+	$(VGRIND) ./test-assert > /dev/null 2>&1 ; test $$? = 1 $(SUMMARIZE_CMD)
+check_test-assertB: test-assert
+	@# one argument, not "ok" should err
+	@rm -f test-assert.out
+	($(VGRIND) ./test-assert notok) > test-assert.out 2>&1 ; test $$? = 1 && fgrep failed test-assert.out > /dev/null $(SUMMARIZE_CMD)
+check_test-assertC: tst-assert
+
+
 
 check_test-assert: test-assert
-	@# no arguments, should err
-	$(VGRIND) ./test-assert > /dev/null 2>&1 ; test \($$?\)
-	@# one argument, not "ok" should err
-	@echo Expect an abort message:
-	($(VGRIND) ./test-assert notok) > test-assert.out 2>&1 ; test \($$?\)
-	@fgrep failed test-assert.out > /dev/null
-	@rm test-assert.out
 	@# one argument, "ok" should not error
-	$(DVGRIND) ./test-assert ok
+	$(DVGRIND) ./test-assert ok $(SUMMARIZE_CMD)
+
 check_%: %
-	$(VGRIND)  ./$< $(VERBVERBOSE) 
+	$(VGRIND)  ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 benchmark-test.o: ../brt.h ../brt-search.h ../../include/db.h
 $(BINS): ../newbrt.o
@@ -109,5 +125,4 @@ test-inc-split test-del-inorder: ../brt-test-helpers.o
 
 clean:
 	rm -rf $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
-	rm -rf test_oexcl.c.tmp *.brt
-
+	rm -rf test_oexcl.c.tmp *.brt *.dir *.tdb *.dat *.out
