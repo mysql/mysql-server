@@ -3898,7 +3898,6 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   DBUG_RETURN(0);
 }
 
-
 int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   return plugin_foreach(thd, iter_schema_engines,
@@ -5870,6 +5869,9 @@ bool get_schema_tables_result(JOIN *join,
       bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
                           lex->current_select->master_unit()->item);
 
+      /* A value of 0 indicates a dummy implementation */
+      if (table_list->schema_table->fill_table == 0)
+        continue;
 
       /* skip I_S optimizations specific to get_all_tables */
       if (thd->lex->describe &&
@@ -6548,6 +6550,9 @@ ST_SCHEMA_TABLE schema_tables[]=
 #ifdef HAVE_EVENT_SCHEDULER
   {"EVENTS", events_fields_info, create_schema_table,
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0, 0},
+#else
+  {"EVENTS", events_fields_info, create_schema_table,
+   0, make_old_format, 0, -1, -1, 0, 0},
 #endif
   {"FILES", files_fields_info, create_schema_table,
    fill_schema_files, 0, 0, -1, -1, 0, 0},
