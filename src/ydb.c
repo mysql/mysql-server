@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
-
+ 
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 const char *toku_patent_string = "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it.";
@@ -2605,6 +2605,22 @@ static int toku_db_fd(DB *db, int *fdp) {
     return toku_brt_get_fd(db->i->brt, fdp);
 }
 
+static int toku_db_keyrange64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
+    HANDLE_PANICKED_DB(db);
+
+    // note that toku_brt_keyrange does not have a txn param
+    // this will be fixed later
+    // temporarily, because the caller, locked_db_keyrange, 
+    // has the ydb lock, we are ok
+    int r = toku_brt_keyrange(db->i->brt, key, less, equal, greater);
+    if (r != 0) { goto cleanup; }
+    // temporarily set is_exact to 0 because brt_keyrange does not have this parameter
+    *is_exact = 0;
+cleanup:
+    return r;
+}
+
+
 //TODO: DB_AUTO_COMMIT.
 //TODO: Nowait only conditionally?
 //TODO: NOSYNC change to SYNC if DB_ENV has something in set_flags
@@ -2761,6 +2777,11 @@ static int locked_db_fd(DB *db, int *fdp) {
     toku_ydb_lock(); int r = toku_db_fd(db, fdp); toku_ydb_unlock(); return r;
 }
 
+
+static int locked_db_keyrange64(DB* db, DB_TXN* txn, DBT* dbt, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
+    toku_ydb_lock(); int r = toku_db_keyrange64(db, txn, dbt, less, equal, greater, is_exact); toku_ydb_unlock(); return r;
+}
+
 static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
 
@@ -2790,6 +2811,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         return ENOMEM;
     }
     memset(result, 0, sizeof *result);
+    result->key_range64 = locked_db_keyrange64;
     result->dbenv = env;
     result->associate = locked_db_associate;
     result->close = locked_db_close;
