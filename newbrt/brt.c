@@ -3182,7 +3182,7 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, DBT *key, u_
 	    }
 	    prevcomp=comp;
 	}
-	if (prevcomp<0) {
+	if (prevcomp>0) {
 	    *greater += BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
 	} else {
 	    toku_brt_keyrange_internal(brt, BNC_DISKOFF(node, i), key, less, equal, greater);
@@ -3198,6 +3198,10 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, DBT *key, u_
 	    (*equal)++;
 	    (*greater)--;
 	}
+    }
+    {
+	int rr = toku_unpin_brtnode(brt, node);
+	assert(rr == 0);
     }
 }
 

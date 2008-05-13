@@ -57,6 +57,7 @@ REGRESSION_TESTS = \
 	cachetable-test2 \
 	fifo-test \
 	list-test \
+	keyrange \
 	log-test \
 	log-test2 \
 	log-test3 \

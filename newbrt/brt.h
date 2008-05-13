@@ -73,4 +73,6 @@ enum brt_header_flags {
     TOKU_DB_DUPSORT = 2,
 };
 
+int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater);
+
 #endif
