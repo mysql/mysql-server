@@ -212,22 +212,30 @@ static inline void rebuild_subtree_from_idxs(OMT omt, node_idx *n_idxp, node_idx
     }
 }
 
-static inline void maybe_rebalance(OMT omt, node_idx *n_idxp) {
+static inline void rebalance(OMT omt, node_idx *n_idxp) {
     node_idx idx = *n_idxp;
-    if (idx==NODE_NULL) return;
-    OMT_NODE n = omt->nodes+idx;
-    // one of the 1's is for the root.
-    // the other is to take ceil(n/2)
-    if (((1+nweight(omt, n->left)) < (1+1+nweight(omt, n->right))/2)
-        ||
-        ((1+nweight(omt, n->right)) < (1+1+nweight(omt, n->left))/2)) {
-        // Must rebalance the subtree.
-        fill_array_with_subtree_idxs(omt, omt->tmparray, idx);
-        rebuild_subtree_from_idxs(omt, n_idxp, omt->tmparray, n->weight);
-    }
+    OMT_NODE n   = omt->nodes+idx;
+    fill_array_with_subtree_idxs(omt, omt->tmparray, idx);
+    rebuild_subtree_from_idxs(omt, n_idxp, omt->tmparray, n->weight);
 }
 
-static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_int32_t index) {
+static inline BOOL will_need_rebalance(OMT omt, node_idx n_idx, int leftmod, int rightmod) {
+    if (n_idx==NODE_NULL) return FALSE;
+    OMT_NODE n = omt->nodes+n_idx;
+    // one of the 1's is for the root.
+    // the other is to take ceil(n/2)
+    u_int32_t weight_left  = nweight(omt, n->left)  + leftmod;
+    u_int32_t weight_right = nweight(omt, n->right) + rightmod;
+    return ((1+weight_left < (1+1+weight_right)/2)
+            ||
+            (1+weight_right < (1+1+weight_left)/2));
+} 
+
+static inline void maybe_rebalance(OMT omt, node_idx *n_idxp) {
+    if (will_need_rebalance(omt, *n_idxp, 0, 0)) rebalance(omt, n_idxp);
+}
+
+static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_int32_t index, node_idx **rebalance_idx) {
     if (*n_idxp==NODE_NULL) {
         assert(index==0);
         node_idx newidx  = omt_node_malloc(omt);
@@ -241,13 +249,18 @@ static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_
         node_idx idx = *n_idxp;
         OMT_NODE n   = omt->nodes+idx;
         if (index <= nweight(omt, n->left)) {
-            insert_internal(omt, &n->left,  value, index);
+            if (*rebalance_idx==NULL && will_need_rebalance(omt, idx, 1, 0)) {
+                *rebalance_idx = n_idxp;
+            }
+            insert_internal(omt, &n->left,  value, index, rebalance_idx);
         } else {
+            if (*rebalance_idx==NULL && will_need_rebalance(omt, idx, 0, 1)) {
+                *rebalance_idx = n_idxp;
+            }
             u_int32_t sub_index = index-nweight(omt, n->left)-1;
-            insert_internal(omt, &n->right, value, sub_index);
+            insert_internal(omt, &n->right, value, sub_index, rebalance_idx);
         }
         n->weight++;
-        maybe_rebalance(omt, n_idxp);
     }
 }
 
@@ -255,7 +268,9 @@ int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index) {
     int r;
     if (index>nweight(omt, omt->root)) return ERANGE;
     if ((r=maybe_resize_and_rebuild(omt, 1+nweight(omt, omt->root), MAYBE_REBUILD))) return r;
-    insert_internal(omt, &omt->root, value, index);
+    node_idx* rebalance_idx = NULL;
+    insert_internal(omt, &omt->root, value, index, &rebalance_idx);
+    if (rebalance_idx) rebalance(omt, rebalance_idx);
     return 0;
 }
 
