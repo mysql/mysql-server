@@ -44,6 +44,14 @@ UTILS=            \
 BDB_UTILS=$(patsubst %,%.bdb,$(UTILS))
 STATIC_UTILS=$(patsubst %,%_static,$(UTILS))
 
+HERE=utils
+
+ifeq ($(SUMMARIZE),1)
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+else
+SUMMARIZE_CMD =
+endif
+
 .PHONY: all clean test test_gen test_gen_hex test_load test_dump
 
 build all: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS)
@@ -75,83 +83,88 @@ TEST_GEN_HEX_FLAGS=-n $(TEST_GEN_HEX_NUMKEYS) -m $(TEST_GEN_HEX_LENGTHMIN) -M $(
 
 test_gen_hex:
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
-	@echo "Generating text input > db > text"
+	@#echo "Generating text input > db > text"
 	rm -f $@.*.temp
-	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
-	$(UNSETTOKUENV) $(BDB_LOAD) $@.db.temp < $@.gen.temp
-	$(UNSETTOKUENV) $(BDB_DUMP) $@.db.temp > $@.load_dump.temp
-	./tokudb_gen -Hf > $@.gen_sorted.temp
-	export LC_ALL=C;./tokudb_gen -hf $(TEST_GEN_HEX_FLAGS) -d "\t" -s "\n" | sort -k 1,1 | tr -d "\n" | tr "\t" "\n" >> $@.gen_sorted.temp
-	./tokudb_gen -Fh  >> $@.gen_sorted.temp
-	if ! $(DIFF) -q $@.load_dump.temp $@.gen_sorted.temp; then echo "Test Failed!"; exit 1; fi
-	rm $@.*.temp
+	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.db.temp < $@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.db.temp > $@.load_dump.temp && \
+	./tokudb_gen -Hf > $@.gen_sorted.temp && \
+	export LC_ALL=C;./tokudb_gen -hf $(TEST_GEN_HEX_FLAGS) -d "\t" -s "\n" | sort -k 1,1 | tr -d "\n" | tr "\t" "\n" >> $@.gen_sorted.temp && \
+	./tokudb_gen -Fh  >> $@.gen_sorted.temp && \
+	$(DIFF) -q $@.load_dump.temp $@.gen_sorted.temp \
+	$(SUMMARIZE_CMD)
 
-test_load: test_load_hex test_load_text
+test_load: test_load_hex test_load_text test_load_text_noendline
 
 test_load_hex:
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
-	@echo "Generating text input > db > text"
+	@#echo "Generating text input > db > text"
 	rm -f $@.*.temp
-	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
-	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp < $@.gen.temp
-	$(SETTOKUENV)   ./tokudb_load $@.tokudb.temp < $@.gen.temp
-	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
-	$(SETTOKUENV)   ./tokudb_dump $@.tokudb.temp > $@.dump.tokudb.temp
-	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
+	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp < $@.gen.temp && \
+	$(SETTOKUENV)   ./tokudb_load $@.tokudb.temp < $@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp && \
+	$(SETTOKUENV)   ./tokudb_dump $@.tokudb.temp > $@.dump.tokudb.temp && \
+	$(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp \
+	$(SUMMARIZE_CMD)
 
 TEST_GEN_TEXT_FLAGS=-n $(TEST_GEN_HEX_NUMKEYS) -m $(TEST_GEN_HEX_LENGTHMIN) -M $(TEST_GEN_HEX_LENGTHLIMIT) -r 5 -TP
 
-test_load_text: test_load_text_noendline
+test_load_text:
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
-	@echo "Generating text input > db > text"
+	@#echo "Generating text input > db > text"
 	rm -f $@.*.temp
-	./tokudb_gen $(TEST_GEN_TEXT_FLAGS) > $@.gen.temp
-	$(UNSETTOKUENV) $(BDB_LOAD)   -T -t btree $@.bdb.temp < $@.gen.temp
-	$(SETTOKUENV)   ./tokudb_load -T -t btree $@.tokudb.temp < $@.gen.temp
-	$(UNSETTOKUENV) $(BDB_DUMP)   -p $@.bdb.temp > $@.dump.bdb.temp
-	$(SETTOKUENV)   ./tokudb_dump -p $@.tokudb.temp > $@.dump.tokudb.temp
-	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
+	./tokudb_gen $(TEST_GEN_TEXT_FLAGS) > $@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_LOAD)   -T -t btree $@.bdb.temp < $@.gen.temp && \
+	$(SETTOKUENV)   ./tokudb_load -T -t btree $@.tokudb.temp < $@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_DUMP)   -p $@.bdb.temp > $@.dump.bdb.temp && \
+	$(SETTOKUENV)   ./tokudb_dump -p $@.tokudb.temp > $@.dump.tokudb.temp && \
+	$(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp \
+	$(SUMMARIZE_CMD)
 
 test_load_text_noendline:
-	@echo "Testing no end of line at end of file."
+	@#echo "Testing no end of line at end of file."
 	rm -f $@.*.temp
 	echo -en "key\nvalue" > $@.gen.temp
-	./tokudb_load -T -t btree $@.tokudb.temp < $@.gen.temp
+	./tokudb_load -T -t btree $@.tokudb.temp < $@.gen.temp $(SUMMARIZE_CMD)
 
 
 test_dump:
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
-	echo "Generating text input > db > text"
+	@#echo "Generating text input > db > text"
 	rm -f $@.*.temp
-	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp
-	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp < $@.gen.temp
-	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp
-	$(UNSETTOKUENV) ./tokudb_dump.bdb $@.bdb.temp > $@.dump.tokudb.temp
-	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
+	./tokudb_gen $(TEST_GEN_HEX_FLAGS) > $@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp < $@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp > $@.dump.bdb.temp && \
+	$(UNSETTOKUENV) ./tokudb_dump.bdb $@.bdb.temp > $@.dump.tokudb.temp && \
+	$(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp \
+	$(SUMMARIZE_CMD)
 
 test_nodup:
 	rm -rf $@.*.temp
-	./tokudb_gen $(TEST_GEN_HEX_FLAGS) >$@.gen.temp
-	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp <$@.gen.temp
-	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp
-	$(SETTOKUENV)   ./tokudb_load $@.tdb.temp <$@.gen.temp
-	$(SETTOKUENV)   ./tokudb_dump $@.tdb.temp >$@.dump.tdb.temp
-	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
-	$(SETTOKUENV)   ./tokudb_load_static $@.tdb.temp <$@.gen.temp
-	$(SETTOKUENV)   ./tokudb_dump_static $@.tdb.temp >$@.dump.tdb.temp
-	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
+	./tokudb_gen $(TEST_GEN_HEX_FLAGS) >$@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp <$@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp && \
+	$(SETTOKUENV)   ./tokudb_load $@.tdb.temp <$@.gen.temp && \
+	$(SETTOKUENV)   ./tokudb_dump $@.tdb.temp >$@.dump.tdb.temp && \
+	$(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp && \
+	$(SETTOKUENV)   ./tokudb_load_static $@.tdb.temp <$@.gen.temp && \
+	$(SETTOKUENV)   ./tokudb_dump_static $@.tdb.temp >$@.dump.tdb.temp && \
+	$(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp \
+	$(SUMMARIZE_CMD)
 
 test_dupsort:
 	rm -rf $@.*.temp
-	./tokudb_gen $(TEST_GEN_HEX_FLAGS) -DS >$@.gen.temp
-	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp <$@.gen.temp
-	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp
-	$(SETTOKUENV)   ./tokudb_load $@.tdb.temp <$@.gen.temp
-	$(SETTOKUENV)   ./tokudb_dump $@.tdb.temp >$@.dump.tdb.temp
-	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
-	$(SETTOKUENV)   ./tokudb_load_static $@.tdb.temp <$@.gen.temp
-	$(SETTOKUENV)   ./tokudb_dump_static $@.tdb.temp >$@.dump.tdb.temp
-	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
+	./tokudb_gen $(TEST_GEN_HEX_FLAGS) -DS >$@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp <$@.gen.temp && \
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp && \
+	$(SETTOKUENV)   ./tokudb_load $@.tdb.temp <$@.gen.temp && \
+	$(SETTOKUENV)   ./tokudb_dump $@.tdb.temp >$@.dump.tdb.temp && \
+	$(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp && \
+	$(SETTOKUENV)   ./tokudb_load_static $@.tdb.temp <$@.gen.temp && \
+	$(SETTOKUENV)   ./tokudb_dump_static $@.tdb.temp >$@.dump.tdb.temp && \
+	$(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp \
+        $(SUMMARIZE_CMD)
 
 #if $(DIFF) -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
 clean:

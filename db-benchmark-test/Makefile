@@ -5,6 +5,15 @@
 # build with TokuDB: make BDBDIR=~/svn/tokudb
 # build with g++: make CC=g++
 
+HERE = db-benchmark-test
+ifeq ($(SUMMARIZE),1)
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+QUIET = -q
+else
+SUMMARIZE_CMD =
+QUIET =
+endif
+
 BENCHDBS = bench.bdb/ bench.tokudb
 
 OPTFLAGS = -O2
@@ -31,15 +40,15 @@ build: $(TARGETS)
 check: check-default check-xfast
 
 check-default: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB)
+	$(VGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
 
 check-x: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) -x
+	$(VGRIND) ./$(TARGET_TDB) $(QUIET) -x $(SUMMARIZE_CMD)
 
 
 # A fast transaction test that detects #455.
 check-xfast: $(TARGET_TDB)
-	./$(TARGET_TDB) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 --env xfast.dir 1
+	./$(TARGET_TDB) $(QUIET) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 --env xfast.dir 1  $(SUMMARIZE_CMD)
 
 
 clean:

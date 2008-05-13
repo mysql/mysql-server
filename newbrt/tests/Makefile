@@ -30,7 +30,7 @@ endif
 HERE=newbrt/tests
 
 ifeq ($(SUMMARIZE),1)
-SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sOK\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
 else
 SUMMARIZE_CMD =
 endif
