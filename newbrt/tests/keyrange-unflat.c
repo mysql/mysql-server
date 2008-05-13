@@ -13,7 +13,7 @@ static DB * const null_db = 0;
 
 static void test_flat (void) {
     char fname[]= __FILE__ ".brt";
-    const u_int64_t limit=20000;
+    const u_int64_t limit=10000;
     u_int64_t permute[limit];
     unlink(fname);
     CACHETABLE ct;
