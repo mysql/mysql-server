@@ -231,10 +231,6 @@ static inline BOOL will_need_rebalance(OMT omt, node_idx n_idx, int leftmod, int
             (1+weight_right < (1+1+weight_left)/2));
 } 
 
-static inline void maybe_rebalance(OMT omt, node_idx *n_idxp) {
-    if (will_need_rebalance(omt, *n_idxp, 0, 0)) rebalance(omt, n_idxp);
-}
-
 static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_int32_t index, node_idx **rebalance_idx) {
     if (*n_idxp==NODE_NULL) {
         assert(index==0);
@@ -248,6 +244,7 @@ static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_
     } else {
         node_idx idx = *n_idxp;
         OMT_NODE n   = omt->nodes+idx;
+        n->weight++;
         if (index <= nweight(omt, n->left)) {
             if (*rebalance_idx==NULL && will_need_rebalance(omt, idx, 1, 0)) {
                 *rebalance_idx = n_idxp;
@@ -260,7 +257,6 @@ static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_
             u_int32_t sub_index = index-nweight(omt, n->left)-1;
             insert_internal(omt, &n->right, value, sub_index, rebalance_idx);
         }
-        n->weight++;
     }
 }
 
@@ -292,12 +288,15 @@ int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index) {
     return 0;
 }
 
-static inline void delete_internal(OMT omt, node_idx *n_idxp, u_int32_t index, OMTVALUE *vp) {
+static inline void delete_internal(OMT omt, node_idx *n_idxp, u_int32_t index, OMTVALUE *vp, node_idx **rebalance_idx) {
     assert(*n_idxp!=NODE_NULL);
     OMT_NODE n = omt->nodes+*n_idxp;
     if (index < nweight(omt, n->left)) {
-        delete_internal(omt, &n->left, index, vp);
         n->weight--;
+        if (*rebalance_idx==NULL && will_need_rebalance(omt, *n_idxp, -1, 0)) {
+            *rebalance_idx = n_idxp;
+        }
+        delete_internal(omt, &n->left, index, vp, rebalance_idx);
     } else if (index == nweight(omt, n->left)) {
         if (n->left==NODE_NULL) {
             u_int32_t idx = *n_idxp;
@@ -312,15 +311,20 @@ static inline void delete_internal(OMT omt, node_idx *n_idxp, u_int32_t index, O
         } else {
             OMTVALUE zv;
             // delete the successor of index, get the value, and store it here.
-            delete_internal(omt, &n->right, 0, &zv);
+            if (*rebalance_idx==NULL && will_need_rebalance(omt, *n_idxp, 0, -1)) {
+                *rebalance_idx = n_idxp;
+            }
+            delete_internal(omt, &n->right, 0, &zv, rebalance_idx);
             n->value = zv;
             n->weight--;
         }
     } else {
-        delete_internal(omt, &n->right, index-nweight(omt, n->left)-1, vp);
         n->weight--;
+        if (*rebalance_idx==NULL && will_need_rebalance(omt, *n_idxp, 0, -1)) {
+            *rebalance_idx = n_idxp;
+        }
+        delete_internal(omt, &n->right, index-nweight(omt, n->left)-1, vp, rebalance_idx);
     }
-    maybe_rebalance(omt, n_idxp);
 }
 
 int toku_omt_delete_at(OMT omt, u_int32_t index) {
@@ -328,7 +332,9 @@ int toku_omt_delete_at(OMT omt, u_int32_t index) {
     int r;
     if (index>=nweight(omt, omt->root)) return ERANGE;
     if ((r=maybe_resize_and_rebuild(omt, -1+nweight(omt, omt->root), MAYBE_REBUILD))) return r;
-    delete_internal(omt, &omt->root, index, &v);
+    node_idx* rebalance_idx = NULL;
+    delete_internal(omt, &omt->root, index, &v, &rebalance_idx);
+    if (rebalance_idx) rebalance(omt, rebalance_idx);
     return 0;
 }
 
