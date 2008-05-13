@@ -2,7 +2,7 @@ default: build
 
 
 TAGS: */*.c */*.h
-	etags */*.c */*.h src/lock_tree/*.c src/lock_tree/*.h src/range_tree/*.c src/range_tree/*.h
+	etags */*.c */*.h src/lock_tree/*.c src/lock_tree/*.h src/range_tree/*.c src/range_tree/*.h newbrt/tests/*.h
 
 SRCDIRS = newbrt src cxx utils db-benchmark-test db-benchmark-test-cxx
 BUILDDIRS = $(SRCDIRS) man/texi

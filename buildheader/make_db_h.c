@@ -158,7 +158,7 @@ struct fieldinfo {
 #error
 #endif
 
-void print_struct (const char *structname, int need_internal, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N) {
+void print_struct (const char *structname, int need_internal, struct fieldinfo *fields32, struct fieldinfo *fields64, unsigned int N, const char *extra_decls[]) {
     unsigned int i;
     unsigned int current_32 = 0;
     unsigned int current_64 = 0;
@@ -183,7 +183,16 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 		    n_dummys--;
 		    did_toku_internal=1;
 		}
-		if (n_dummys>0) printf("  void* __toku_dummy%d[%d];\n", dummy_counter++, n_dummys);
+		if (n_dummys>0) {
+		    if (extra_decls && *extra_decls) {
+			printf("  %s;\n", *extra_decls);
+			extra_decls++;
+			n_dummys--;
+		    }
+		    if (n_dummys>0) {
+			printf("  void* __toku_dummy%d[%d];\n", dummy_counter++, n_dummys);
+		    }
+		}
 		diff64-=diff*2;
 		diff32-=diff;
 		
@@ -279,32 +288,33 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("/* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/\n");
     printf("#ifdef _TOKUDB_WRAP_H\n#undef txn_begin\n#endif\n");
     assert(sizeof(db_btree_stat_fields32)==sizeof(db_btree_stat_fields64));
-    print_struct("db_btree_stat", 0, db_btree_stat_fields32, db_btree_stat_fields64, sizeof(db_btree_stat_fields32)/sizeof(db_btree_stat_fields32[0]));
+    print_struct("db_btree_stat", 0, db_btree_stat_fields32, db_btree_stat_fields64, sizeof(db_btree_stat_fields32)/sizeof(db_btree_stat_fields32[0]), 0);
     assert(sizeof(db_env_fields32)==sizeof(db_env_fields64));
-    print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]));
+    print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), 0);
 
     assert(sizeof(db_key_range_fields32)==sizeof(db_key_range_fields64));
-    print_struct("db_key_range", 0, db_key_range_fields32, db_key_range_fields64, sizeof(db_key_range_fields32)/sizeof(db_key_range_fields32[0]));
+    print_struct("db_key_range", 0, db_key_range_fields32, db_key_range_fields64, sizeof(db_key_range_fields32)/sizeof(db_key_range_fields32[0]), 0);
 
     assert(sizeof(db_lsn_fields32)==sizeof(db_lsn_fields64));
-    print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]));
+    print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]), 0);
 
     assert(sizeof(db_fields32)==sizeof(db_fields64));
-    print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]));
+    const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)"};
+    print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
 
     assert(sizeof(db_txn_active_fields32)==sizeof(db_txn_active_fields64));
-    print_struct("db_txn_active", 0, db_txn_active_fields32, db_txn_active_fields64, sizeof(db_txn_active_fields32)/sizeof(db_txn_active_fields32[0]));
+    print_struct("db_txn_active", 0, db_txn_active_fields32, db_txn_active_fields64, sizeof(db_txn_active_fields32)/sizeof(db_txn_active_fields32[0]), 0);
     assert(sizeof(db_txn_fields32)==sizeof(db_txn_fields64));
-    print_struct("db_txn", 1, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]));
+    print_struct("db_txn", 1, db_txn_fields32, db_txn_fields64, sizeof(db_txn_fields32)/sizeof(db_txn_fields32[0]), 0);
 
     assert(sizeof(db_txn_stat_fields32)==sizeof(db_txn_stat_fields64));
-    print_struct("db_txn_stat", 0, db_txn_stat_fields32, db_txn_stat_fields64, sizeof(db_txn_stat_fields32)/sizeof(db_txn_stat_fields32[0]));
+    print_struct("db_txn_stat", 0, db_txn_stat_fields32, db_txn_stat_fields64, sizeof(db_txn_stat_fields32)/sizeof(db_txn_stat_fields32[0]), 0);
 
     assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
-    print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]));
+    print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), 0);
 
     assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
-    print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
+    print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]), 0);
 
     printf("#ifdef _TOKUDB_WRAP_H\n#define txn_begin txn_begin_tokudb\n#endif\n");
     printf("int db_env_create(DB_ENV **, u_int32_t) %s;\n", VISIBLE);
