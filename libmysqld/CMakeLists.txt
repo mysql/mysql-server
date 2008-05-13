@@ -147,7 +147,7 @@ ENDIF(WITH_CSV_STORAGE_ENGINE)
 
 SET(SOURCE_SUBLIBS FALSE)
                             
-SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc event_parse_data.cc
+SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc 
            ../libmysql/libmysql.c ../libmysql/errmsg.c ../client/get_password.c
            ../sql-common/client.c ../sql-common/my_time.c 
            ../sql-common/my_user.c ../sql-common/pack.c
@@ -186,6 +186,7 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc event_parse_data.cc
            ../sql/time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
            ../sql/scheduler.cc ../sql/stacktrace.c
+           ../sql/event_parse_data.cc
            ${GEN_SOURCES}
            ${LIB_SOURCES})
 
