@@ -3163,29 +3163,32 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, DBT *key, u_
 	node = node_v;
     }
     if (node->height>0) {
-	int prevcomp=-1;
+	int n_keys = node->u.n.n_children-1;
+	int compares[n_keys];
 	int i;
-	int comp;
-	for (i=0; i+1<node->u.n.n_children; i++) {
+	for (i=0; i<n_keys; i++) {
 	    struct kv_pair *pivot = node->u.n.childkeys[i];
 	    DBT dbt;
-	    comp = brt->compare_fun(brt->db, toku_fill_dbt(&dbt, kv_pair_key(pivot), kv_pair_keylen(pivot)), key);
-	    if (comp<0) {
-		*less += BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
-	    } else if (comp==0 && prevcomp==0) {
-		*equal += BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
-	    } else if (prevcomp>0) {
-		*greater += BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
+	    compares[i] = brt->compare_fun(brt->db, toku_fill_dbt(&dbt, kv_pair_key(pivot), kv_pair_keylen(pivot)), key);
+	}
+	for (i=0; i<node->u.n.n_children; i++) {
+	    int prevcomp = (i==0) ? -1 : compares[i-1];
+	    int nextcomp = (i+1 >= n_keys) ? 1 : compares[i];
+	    int subest = BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
+	    if (nextcomp < 0) {
+		// We're definitely looking too far to the left
+		*less += subest;
+	    } else if (prevcomp > 0) {
+		// We're definitely looking too far to the right
+		*greater += subest;
+	    } else if (prevcomp == 0 && nextcomp == 0) {
+		// We're looking at a subtree that contains all zeros
+		*equal   += subest;
 	    } else {
-		// prevcomp<=0 && comp>=0, but not both zero, so we have a subtree
+		// nextcomp>=0 and prevcomp<=0, so something in the subtree could match
+		// but they are not both zero, so it's not the whole subtree, so we need to recurse
 		toku_brt_keyrange_internal(brt, BNC_DISKOFF(node, i), key, less, equal, greater);
 	    }
-	    prevcomp=comp;
-	}
-	if (prevcomp>0) {
-	    *greater += BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
-	} else {
-	    toku_brt_keyrange_internal(brt, BNC_DISKOFF(node, i), key, less, equal, greater);
 	}
     } else {
 	BRT_CMD_S cmd = { BRT_INSERT, 0, .u.id={key,0}};
@@ -3193,10 +3196,23 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, DBT *key, u_
 	u_int32_t idx;
 	int r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be, 0, &idx);
 	*less += idx;
-	*greater += toku_omt_size(node->u.l.buffer)-idx;
-	if (r==0) {
-	    (*equal)++;
-	    (*greater)--;
+	if (r==0 && (brt->flags & TOKU_DB_DUP)) {
+	    // There is something, and so we now want to find the rightmost extent.
+	    u_int32_t idx2;
+	    r = toku_omt_find(node->u.l.buffer, toku_cmd_leafval_bessel, &be, +1, 0, &idx2);
+	    if (r==0) {
+		*greater += toku_omt_size(node->u.l.buffer)-idx2;
+		*equal   += idx2-idx;
+	    } else {
+		*equal   += toku_omt_size(node->u.l.buffer)-idx;
+	    }
+	    //printf("%s:%d (%llu, %llu, %llu)\n", __FILE__, __LINE__, (unsigned long long)*less, (unsigned long long)*equal, (unsigned long long)*greater);
+	} else {
+	    *greater += toku_omt_size(node->u.l.buffer)-idx;
+	    if (r==0) {
+		(*greater)--;
+		(*equal)++;
+	    }
 	}
     }
     {
@@ -3211,6 +3227,7 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u
 	assert(rr == 0);
     }
     CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt);
+
     *less = *equal = *greater = 0;
     toku_brt_keyrange_internal (brt, *rootp, key, less, equal, greater);
     {
