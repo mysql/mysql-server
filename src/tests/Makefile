@@ -75,17 +75,11 @@ foo:
 
 .PHONY: check check.bdb check.tdb
 check: check.tdb test_db_assoc3.tdbrun_wasbad check.bdb
-	@ echo ok $@
 tests: tests.bdb tests.tdb
-	@ echo ok $@
 tests.bdb: $(BDB_TESTS)
-	@ echo ok $@
 check.bdb: $(RUN_BDB_TESTS)
-	@ echo ok $@
 tests.tdb: $(TDB_TESTS)
-	@ echo ok $@
 check.tdb: $(RUN_TDB_TESTS) all.recover
-	@ echo ok $@
 
 # Need these rule so that Make knows about all the file names
 .PHONY: %.run
@@ -108,9 +102,16 @@ else
  endif
 endif
 
+
+SHOULD_FAIL = $(TDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL))
+
+# Any test that should fail, we invert the result by using MAYBEINVERTER
+$(SHOULD_FAIL): MAYBEINVERTER=;test $$? -ne 0
+
 HERE = src/tests
 ifeq ($(SUMMARIZE),1)
-SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sOK\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+$(SHOULD_FAIL): SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sXFAIL\n" $(HERE)/$@; else printf "%-60sXPASS\n" $(HERE)/$@ ; test 0 = 1; fi
 else
 SUMMARIZE_CMD =
 endif
@@ -120,9 +121,6 @@ endif
 	$(UNSETTOKUENV) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 %.tdbrun: %.tdb ../libtokudb.$(LIBEXT)
 	$(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
-# Any test that should fail, we invert the result by using MAYBEINVERTER
-$(TDB_TESTS_THAT_SHOULD_FAIL_LIT) $(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL)): MAYBEINVERTER=;test $$? -ne 0
 
 # Don't include log2 log3 log4 log5 etc since they are covered by all.recover
 

@@ -136,7 +136,7 @@ static void commit_items (DB_ENV *env, int UU(i)) {
 	int vi=*(int*)v.data;
 	assert(ki==vi);
 	//printf(" del %u\n", ki);
-	committed->del(committed, txn, dbt_init(&k, &ki, sizeof(ki)), DB_AUTO_COMMIT);
+	committed->del(committed, txn, dbt_init(&k, &ki, sizeof(ki)), 0);
 	delete_in_mem(ki, &com_count, com_data);
 	// ignore result from that del
 	r=pending_d->del(pending_d, txn, &k, 0);

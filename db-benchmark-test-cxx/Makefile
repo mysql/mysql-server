@@ -22,16 +22,25 @@ TARGET_BDB = db-benchmark-test-bdb
 TARGET_TDB = db-benchmark-test-tokudb
 TARGETS = $(TARGET_BDB) $(TARGET_TDB)
 
+HERE = db-benchmark-test-cxx
+ifeq ($(SUMMARIZE),1)
+SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else printf "%-60sFAIL\n" $(HERE)/$@ ; test 0 = 1; fi
+QUIET = -q
+else
+SUMMARIZE_CMD =
+QUIET =
+endif
+
 default: build
 build: $(TARGETS)
 
 check: check-default
 
 check-default: $(TARGET_TDB)
-	$(VALGRIND) ./$(TARGET_TDB)
+	$(VALGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
 
 check-x: $(TARGET_TDB)
-	$(VALGRIND) ./$(TARGET_TDB) -x
+	$(VALGRIND) ./$(TARGET_TDB) -x  $(QUIET) $(SUMMARIZE_CMD)
 
 clean:
 	rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov

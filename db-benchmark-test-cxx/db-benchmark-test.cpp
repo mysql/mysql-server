@@ -20,6 +20,8 @@ enum { BOUND_INCREASE_PER_ITERATION = SERIAL_SPACING*ITEMS_TO_INSERT_PER_ITERATI
 
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
+int verbose = 1;
+
 /* default test parameters */
 int keysize = sizeof (long long);
 int valsize = sizeof (long long);
@@ -185,13 +187,15 @@ void biginsert (long long n_elements, struct timeval *starttime) {
 	gettimeofday(&t1,0);
 	serial_insert_from(i);
 	gettimeofday(&t2,0);
-	printf("serial %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	if (verbose) printf("serial %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
 	fflush(stdout);
 	gettimeofday(&t1,0);
 	random_insert_below((i+ITEMS_TO_INSERT_PER_ITERATION)*SERIAL_SPACING);
 	gettimeofday(&t2,0);
-	printf("random %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
-	printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*2.0/tdiff(&t2, starttime))*(iteration+1));
+	if (verbose) {
+	    printf("random %9.6fs %8.0f/s    ", tdiff(&t2, &t1), ITEMS_TO_INSERT_PER_ITERATION/tdiff(&t2, &t1));
+	    printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (ITEMS_TO_INSERT_PER_ITERATION*2.0/tdiff(&t2, starttime))*(iteration+1));
+	}
     }
 }
 
@@ -220,6 +224,11 @@ int main (int argc, const char *argv[]) {
         const char *arg = argv[i];
         if (arg[0] != '-')
             break;
+	if (strcmp(arg, "-q") == 0) {
+	    verbose--;
+	    if (verbose<0) verbose=0;
+	    continue;
+	}
         if (strcmp(arg, "-x") == 0) {
             do_transactions = 1;
             continue;
@@ -266,15 +275,17 @@ int main (int argc, const char *argv[]) {
         }
         total_n_items = ITEMS_TO_INSERT_PER_ITERATION * (long long)n_iterations;
     }
-    printf("Serial and random insertions of %d per batch%s\n", ITEMS_TO_INSERT_PER_ITERATION, do_transactions ? " (with transactions)" : "");
+    if (verbose) printf("Serial and random insertions of %d per batch%s\n", ITEMS_TO_INSERT_PER_ITERATION, do_transactions ? " (with transactions)" : "");
     setup();
     gettimeofday(&t1,0);
     biginsert(total_n_items, &t1);
     gettimeofday(&t2,0);
     shutdown();
     gettimeofday(&t3,0);
-    printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
-    printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
+    if (verbose) {
+	printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
+	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
+    }
     return 0;
 }
 
