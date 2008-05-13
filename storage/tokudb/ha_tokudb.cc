@@ -3048,69 +3048,72 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
 #if 0 // QQQ need key_range
     DBT key;
     ha_rows ret_val = HA_TOKUDB_RANGE_COUNT;
-    DB_KEY_RANGE start_range, end_range;
     DB *kfile = key_file[keynr];
-    double start_frac, end_frac, rows;
+    u_int64_t less, equal, greater;
+    u_int64_t start_rows, end_rows, rows;
+    int is_exact;
     int error;
-    KEY *key_info = &table->key_info[keynr];
 
     //
-    // get start_frac and end_frac values so that we can estimate range
+    // get start_rows and end_rows values so that we can estimate range
     //
     if (start_key) {
-        error = kfile->key_range(
+        error = kfile->key_range64(
             kfile, 
             transaction, 
             pack_key(&key, keynr, key_buff, start_key->key, start_key->length), 
-            &start_range, 
-            0
+            &less,
+            &equal,
+            &greater,
+            &is_exact
             );
         if (error) {
             ret_val = HA_TOKUDB_RANGE_COUNT;
             goto cleanup;
         }
         if (start_key->flag == HA_READ_KEY_EXACT) {
-            start_frac = start_range.less;
+            start_rows= less;
         }
         else {
-            start_frac = start_range.less + start_range.equal;
+            start_rows = less + equal;
         }
     }
     else {
-        start_frac = 0.0
+        start_rows= 0;
     }
 
     if (end_key) {
-        error = kfile->key_range(
+        error = kfile->key_range64(
             kfile, 
             transaction, 
             pack_key(&key, keynr, key_buff, end_key->key, end_key->length), 
-            &end_range, 
-            0
+            &less,
+            &equal,
+            &greater,
+            &is_exact
             );
         if (error) {
             ret_val = HA_TOKUDB_RANGE_COUNT;
             goto cleanup;
         }
         if (end_key->flag == HA_READ_BEFORE_KEY) {
-            end_frac = end_range.less;
+            end_rows= less;
         }
         else {
-            end_frac = end_range.less + end_range.equal;
+            end_rows= less + equal;
         }
     }
     else {
-        end_frac = 1.0;
+        end_rows = stats.records;
     }
 
-    //
-    // end_frac and start_frac give fractions of values over stats.records
-    // to return estimate multiply by stats.records
-    //
-    rows = (end_frac - start_frac) * stats.records;
-    DBUG_PRINT("exit", ("rows: %g", rows));
+    rows = end_rows - start_rows;
 
-    ret_val = (ha_rows) (rows <= 1.0 ? 1 : rows);
+    //
+    // MySQL thinks a return value of 0 means there are exactly 0 rows
+    // Therefore, always return non-zero so this assumption is not made
+    //
+    ret_val = (ha_rows) (rows <= 1 ? 1 : rows);
 cleanup:
     TOKUDB_DBUG_RETURN(ret_val);
 #else
