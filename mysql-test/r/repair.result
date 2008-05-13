@@ -115,3 +115,39 @@ SET myisam_repair_threads=@@global.myisam_repair_threads;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
 End of 4.1 tests
+# Test with a saved table from 4.1
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Fixed	2	5	10	21474836479	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+SELECT * FROM t1;
+id
+1
+2
+# Run CHECK TABLE, it should indicate table need a REPAIR TABLE
+CHECK TABLE t1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" to fix it!
+# REPAIR old table USE_FRM should fail
+REPAIR TABLE t1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+t1	repair	error	Failed reparing incompatible .FRM file
+# Run REPAIR TABLE to upgrade .frm file
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	2	7	14	1970324836974591	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+SELECT * FROM t1;
+id
+1
+2
+REPAIR TABLE t1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	warning	Number of rows changed from 0 to 2
+test.t1	repair	status	OK
+SELECT * FROM t1;
+id
+1
+2
+DROP TABLE t1;
