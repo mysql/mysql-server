@@ -177,7 +177,8 @@ struct __toku_db_lsn {
 };
 struct __toku_db {
   struct __toku_db_internal *i;
-  void* __toku_dummy0[3];
+  int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact);
+  void* __toku_dummy0[2];
   void *app_private; /* 32-bit offset=16 size=4, 64=bit offset=32 size=8 */
   DB_ENV *dbenv; /* 32-bit offset=20 size=4, 64=bit offset=40 size=8 */
   void* __toku_dummy1[32];
