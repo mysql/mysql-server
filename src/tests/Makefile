@@ -51,7 +51,7 @@ TDB_CPPFLAGS = -I../../include
 SRCS = $(sort $(wildcard *.c))
 
 TDB_TESTS = $(patsubst %.c,%.tdb,$(SRCS))
-BDB_DONTRUN = bug627 test_abort1
+BDB_DONTRUN = bug627 test_abort1 keyrange keyrange-unflat keyrange-dupsort keyrange-dupsort-unflat
 BDB_TESTS = $(patsubst %.c,%.bdb,$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN)),$(SRCS)))
 
 TDB_TESTS_THAT_SHOULD_FAIL = test_groupcommit_count
