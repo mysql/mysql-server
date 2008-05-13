@@ -58,8 +58,9 @@ REGRESSION_TESTS = \
 	fifo-test \
 	list-test \
 	keyrange \
-	keyrange-dupsort \
 	keyrange-unflat \
+	keyrange-dupsort \
+	keyrange-dupsort-unflat \
 	log-test \
 	log-test2 \
 	log-test3 \
