@@ -1796,15 +1796,17 @@ func_start:
 		hint_page_no = page_no + 1;
 
 		if (page_get_n_recs(page) == 1) {
+			page_cur_t	pcur;
+
 			/* There is only one record in the index page
 			therefore we can't split the node in the middle
 			by default. We need to determine whether the
 			new record will be inserted to the left or right. */
 
 			/* Read the first (and only) record in the page. */
-			page_cur_set_before_first(block, page_cursor);
-			page_cur_move_to_next(page_cursor);
-			first_rec = page_cur_get_rec(page_cursor);
+			page_cur_set_before_first(block, &pcur);
+			page_cur_move_to_next(&pcur);
+			first_rec = page_cur_get_rec(&pcur);
 
 			offsets = rec_get_offsets(
 				first_rec, cursor->index, offsets,
