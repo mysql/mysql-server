@@ -1028,6 +1028,7 @@ public:
     if (orig_name)
       name= orig_name;
   }
+  Item_basic_constant() {}                      /* Remove gcc warning */
 };
 
 

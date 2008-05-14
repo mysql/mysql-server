@@ -3533,14 +3533,16 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
      engines to do logging of insertions (optimization). We don't do it for
      temporary tables (yet) as re-enabling causes an undesirable commit.
    */
-  if (((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0) &&
-      ha_enable_transaction(thd, FALSE))
-    DBUG_RETURN(-1);
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,
                                        &extra_lock, hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
+
+  if (((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0) &&
+      !create_info->table_existed &&
+      ha_enable_transaction(thd, FALSE))
+    DBUG_RETURN(-1);
 
   if (extra_lock)
   {
@@ -3682,7 +3684,8 @@ bool select_create::send_eof()
     abort();
   else
   {
-    if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0)
+    if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
+        !create_info->table_existed)
       ha_enable_transaction(thd, TRUE);
     /*
       Do an implicit commit at end of statement for non-temporary
@@ -3712,9 +3715,6 @@ void select_create::abort()
 {
   DBUG_ENTER("select_create::abort");
 
-  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0)
-    ha_enable_transaction(thd, TRUE);
-
   /*
     In select_insert::abort() we roll back the statement, including
     truncating the transaction cache of the binary log. To do this, we
@@ -3731,10 +3731,12 @@ void select_create::abort()
     log state.
   */
   tmp_disable_binlog(thd);
+  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
+      !create_info->table_existed)
+    ha_enable_transaction(thd, TRUE);
   select_insert::abort();
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   reenable_binlog(thd);
-
 
   if (m_plock)
   {

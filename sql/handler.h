@@ -767,6 +767,7 @@ struct THD_TRANS
   bool modified_non_trans_table;
 
   void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
+  THD_TRANS() {}                        /* Remove gcc warning */
 };
 
 

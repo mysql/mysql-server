@@ -59,7 +59,6 @@
 source include/have_log_bin.inc;
 source include/have_binlog_format_statement.inc;
 
-DROP VIEW v1;
 --echo ==== Setup tables ====
 
 CREATE TABLE t1 (a INT);

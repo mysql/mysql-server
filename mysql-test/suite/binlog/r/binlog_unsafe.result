@@ -11,7 +11,6 @@ INSERT DELAYED INTO t1 VALUES (5);
 INSERT INTO t1 VALUES (@@global.sync_binlog);
 Warnings:
 Warning	1592	Statement is not safe to log in statement format.
-DROP VIEW v1;
 INSERT INTO t1 VALUES (@@session.insert_id);
 Warnings:
 Warning	1592	Statement is not safe to log in statement format.
