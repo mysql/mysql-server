@@ -2477,7 +2477,8 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     DBT db_pos;
     statistic_increment(table->in_use->status_var.ha_read_rnd_count, &LOCK_status);
     active_index = MAX_KEY;
-    TOKUDB_DBUG_RETURN(read_row(file->get(file, transaction, get_pos(&db_pos, pos), &current_row, 0), buf, primary_key, &current_row, (DBT *) 0, 0));
+    DBT* key = get_pos(&db_pos, pos); 
+    TOKUDB_DBUG_RETURN(read_row(file->get(file, transaction, key, &current_row, 0), buf, primary_key, &current_row, key, 0));
 }
 
 /*
