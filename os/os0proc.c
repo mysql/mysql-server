@@ -86,7 +86,9 @@ os_mem_alloc_large(
 	}
 
 	/* Align block size to os_large_page_size */
-	size = ut_2pow_round(*n + os_large_page_size - 1, os_large_page_size);
+	ut_ad(ut_is_2pow(os_large_page_size));
+	size = ut_2pow_round(*n + (os_large_page_size - 1),
+			     os_large_page_size);
 
 	shmid = shmget(IPC_PRIVATE, (size_t)size, SHM_HUGETLB | SHM_R | SHM_W);
 	if (shmid < 0) {
@@ -126,7 +128,8 @@ skip:
 	GetSystemInfo(&system_info);
 
 	/* Align block size to system page size */
-	size = *n = ut_2pow_round(*n + system_info.dwPageSize - 1,
+	ut_ad(ut_is_2pow(system_info.dwPageSize));
+	size = *n = ut_2pow_round(*n + (system_info.dwPageSize - 1),
 				  system_info.dwPageSize);
 	ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
 			   PAGE_READWRITE);
@@ -147,7 +150,8 @@ skip:
 	size = UNIV_PAGE_SIZE;
 # endif
 	/* Align block size to system page size */
-	size = *n = ut_2pow_round(*n + size - 1, size);
+	ut_ad(ut_is_2pow(size));
+	size = *n = ut_2pow_round(*n + (size - 1), size);
 	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | OS_MAP_ANON, -1, 0);
 	if (UNIV_UNLIKELY(ptr == (void*) -1)) {

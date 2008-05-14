@@ -104,7 +104,7 @@ ibool
 page_zip_decompress(
 /*================*/
 				/* out: TRUE on success, FALSE on failure */
-	page_zip_des_t*	page_zip,/* in: data, size;
+	page_zip_des_t*	page_zip,/* in: data, ssize;
 				out: m_start, m_end, m_nonempty, n_blobs */
 	page_t*		page)	/* out: uncompressed page, may be trashed */
 	__attribute__((nonnull));

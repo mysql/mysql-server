@@ -2415,6 +2415,96 @@ DROP TABLE t1;
 DROP TABLE t2;
 DISCONNECT c1;
 DISCONNECT c2;
+CONNECTION default;
+
+#
+# Bug #29157 UPDATE, changed rows incorrect
+#
+create table t1 (i int, j int) engine=innodb;
+insert into t1 (i, j) values (1, 1), (2, 2);
+--enable_info
+update t1 set j = 2;
+--disable_info
+drop table t1;
+
+#
+# Bug #32440 InnoDB free space info does not appear in SHOW TABLE STATUS or
+# I_S
+#
+create table t1 (id int) comment='this is a comment' engine=innodb;
+select table_comment, data_free > 0 as data_free_is_set
+  from information_schema.tables
+  where table_schema='test' and table_name = 't1';
+drop table t1;
+
+#
+# Bug 34920 test
+#
+CONNECTION default;
+CREATE TABLE t1 (
+	c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	c2 VARCHAR(128) NOT NULL,
+	PRIMARY KEY(c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=100;
+
+CREATE TABLE t2 (
+	c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	c2 INT(10) UNSIGNED DEFAULT NULL,
+	PRIMARY KEY(c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
+
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
+ALTER TABLE t2 ADD CONSTRAINT t1_t2_1 FOREIGN KEY(c1) REFERENCES t1(c1);
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
+DROP TABLE t2;
+DROP TABLE t1;
+# End 34920 test
+#
+# Bug #29507 TRUNCATE shows to many rows effected
+#
+CONNECTION default;
+CREATE TABLE t1 (c1 int default NULL,
+		 c2 int default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--enable_info
+TRUNCATE TABLE t1;
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+TRUNCATE TABLE t1;
+
+--disable_info
+DROP TABLE t1;
+#
+# Bug#35537 Innodb doesn't increment handler_update and handler_delete.
+#
+-- disable_query_log
+-- disable_result_log
+
+CONNECT (c1,localhost,root,,);
+
+DROP TABLE IF EXISTS bug35537;
+CREATE TABLE bug35537 (
+  c1 int
+) ENGINE=InnoDB;
+
+INSERT INTO bug35537 VALUES (1);
+
+-- enable_result_log
+
+SHOW SESSION STATUS LIKE 'Handler_update%';
+SHOW SESSION STATUS LIKE 'Handler_delete%';
+
+UPDATE bug35537 SET c1 = 2 WHERE c1 = 1;
+DELETE FROM bug35537 WHERE c1 = 2;
+
+SHOW SESSION STATUS LIKE 'Handler_update%';
+SHOW SESSION STATUS LIKE 'Handler_delete%';
+
+DROP TABLE bug35537;
+
+DISCONNECT c1;
+CONNECTION default;
 
 #######################################################################
 #                                                                     #

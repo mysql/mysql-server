@@ -50,15 +50,21 @@ buf_buddy_free(
 	ulint	size)	/* in: block size, up to UNIV_PAGE_SIZE */
 	__attribute__((nonnull));
 
-/** Counts of blocks allocated from the buddy system.
+/** Statistics of buddy blocks of a given size. */
+struct buf_buddy_stat_struct {
+	/** Number of blocks allocated from the buddy system. */
+	ulint		used;
+	/** Number of blocks relocated by the buddy system. */
+	ib_uint64_t	relocated;
+	/** Total duration of block relocations, in microseconds. */
+	ib_uint64_t	relocated_usec;
+};
+
+typedef struct buf_buddy_stat_struct buf_buddy_stat_t;
+
+/** Statistics of the buddy system, indexed by block size.
 Protected by buf_pool_mutex. */
-extern ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
-/** Counts of blocks relocated by the buddy system.
-Protected by buf_pool_mutex. */
-extern ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
-/** Durations of block relocations.
-Protected by buf_pool_mutex. */
-extern ullint buf_buddy_relocated_duration[BUF_BUDDY_SIZES + 1];
+extern buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
 
 #ifndef UNIV_NONINL
 # include "buf0buddy.ic"

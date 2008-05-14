@@ -572,7 +572,7 @@ trx_undo_page_report_modify(
 	type_cmpl |= cmpl_info * TRX_UNDO_CMPL_INFO_MULT;
 	type_cmpl_ptr = ptr;
 
-	*ptr++ = type_cmpl;
+	*ptr++ = (byte) type_cmpl;
 	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
 
 	ptr += mach_dulint_write_much_compressed(ptr, table->id);
@@ -580,7 +580,7 @@ trx_undo_page_report_modify(
 	/*----------------------------------------*/
 	/* Store the state of the info bits */
 
-	*ptr++ = rec_get_info_bits(rec, dict_table_is_comp(table));
+	*ptr++ = (byte) rec_get_info_bits(rec, dict_table_is_comp(table));
 
 	/* Store the values of the system columns */
 	field = rec_get_nth_field(rec, offsets,
@@ -1552,8 +1552,7 @@ trx_undo_prev_version_build(
 		/* The page containing the clustered index record
 		corresponding to entry is latched in mtr.  Thus the
 		following call is safe. */
-		row_upd_index_replace_new_col_vals(entry, index, update,
-						   heap, heap);
+		row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
 		buf = mem_heap_alloc(heap, rec_get_converted_size(index, entry,
 								  n_ext));

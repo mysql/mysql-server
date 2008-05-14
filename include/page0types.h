@@ -27,6 +27,16 @@ typedef struct page_zip_des_struct	page_zip_des_t;
 but we cannot include page0zip.h from rem0rec.ic, because
 page0*.h includes rem0rec.h and may include rem0rec.ic. */
 
+#define PAGE_ZIP_SSIZE_BITS 3
+
+#define PAGE_ZIP_MIN_SIZE_SHIFT	10	/* log2 of smallest compressed size */
+#define PAGE_ZIP_MIN_SIZE	(1 << PAGE_ZIP_MIN_SIZE_SHIFT)
+
+#define PAGE_ZIP_NUM_SSIZE (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 2)
+#if PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)
+# error "PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)"
+#endif
+
 /* Compressed page descriptor */
 struct page_zip_des_struct
 {
@@ -41,23 +51,30 @@ struct page_zip_des_struct
 	unsigned	n_blobs:12;	/* number of externally stored
 					columns on the page; the maximum
 					is 744 on a 16 KiB page */
-	unsigned	ssize:3;	/* 0 or compressed page size;
+	unsigned	ssize:PAGE_ZIP_SSIZE_BITS;
+					/* 0 or compressed page size;
 					the size in bytes is
 					PAGE_ZIP_MIN_SIZE << (ssize - 1). */
 };
 
-#define PAGE_ZIP_MIN_SIZE	1024	/* smallest page_zip_des_struct.size */
+/** Compression statistics for a given page size */
+struct page_zip_stat_struct {
+	/** Number of page compressions */
+	ulint		compressed;
+	/** Number of successful page compressions */
+	ulint		compressed_ok;
+	/** Number of page decompressions */
+	ulint		decompressed;
+	/** Duration of page compressions in microseconds */
+	ib_uint64_t	compressed_usec;
+	/** Duration of page decompressions in microseconds */
+	ib_uint64_t	decompressed_usec;
+};
 
-/** Number of page compressions, indexed by page_zip_des_t::ssize */
-extern ulint	page_zip_compress_count[8];
-/** Number of successful page compressions, indexed by page_zip_des_t::ssize */
-extern ulint	page_zip_compress_ok[8];
-/** Number of page decompressions, indexed by page_zip_des_t::ssize */
-extern ulint	page_zip_decompress_count[8];
-/** Duration of page compressions, indexed by page_zip_des_t::ssize */
-extern ullint	page_zip_compress_duration[8];
-/** Duration of page decompressions, indexed by page_zip_des_t::ssize */
-extern ullint	page_zip_decompress_duration[8];
+typedef struct page_zip_stat_struct page_zip_stat_t;
+
+/** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
+extern page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
 
 /**************************************************************************
 Write data to the compressed page.  The data must already be written to

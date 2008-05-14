@@ -22,8 +22,6 @@ Created 10/21/1995 Heikki Tuuri
 #include <errno.h>
 #endif /* UNIV_HOTBACKUP */
 
-#undef HAVE_FDATASYNC
-
 #ifdef POSIX_ASYNC_IO
 /* We assume in this case that the OS has standard Posix aio (at least SunOS
 2.6, HP-UX 11i and AIX 4.3 have) */
@@ -682,8 +680,8 @@ next_file:
 
 		strcpy(info->name, (char *) lpFindFileData->cFileName);
 
-		info->size = (ib_longlong)(lpFindFileData->nFileSizeLow)
-			+ (((ib_longlong)(lpFindFileData->nFileSizeHigh))
+		info->size = (ib_int64_t)(lpFindFileData->nFileSizeLow)
+			+ (((ib_int64_t)(lpFindFileData->nFileSizeHigh))
 			   << 32);
 
 		if (lpFindFileData->dwFileAttributes
@@ -783,7 +781,7 @@ next_file:
 		return(-1);
 	}
 
-	info->size = (ib_longlong)statinfo.st_size;
+	info->size = (ib_int64_t)statinfo.st_size;
 
 	if (S_ISDIR(statinfo.st_mode)) {
 		info->type = OS_FILE_TYPE_DIR;
@@ -1671,9 +1669,9 @@ os_file_get_size(
 }
 
 /***************************************************************************
-Gets file size as a 64-bit integer ib_longlong. */
+Gets file size as a 64-bit integer ib_int64_t. */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 os_file_get_size_as_iblonglong(
 /*===========================*/
 				/* out: size in bytes, -1 if error */
@@ -1690,7 +1688,7 @@ os_file_get_size_as_iblonglong(
 		return(-1);
 	}
 
-	return((((ib_longlong)size_high) << 32) + (ib_longlong)size);
+	return((((ib_int64_t)size_high) << 32) + (ib_int64_t)size);
 }
 
 /***************************************************************************
@@ -1707,8 +1705,8 @@ os_file_set_size(
 				size */
 	ulint		size_high)/* in: most significant 32 bits of size */
 {
-	ib_longlong	current_size;
-	ib_longlong	desired_size;
+	ib_int64_t	current_size;
+	ib_int64_t	desired_size;
 	ibool		ret;
 	byte*		buf;
 	byte*		buf2;
@@ -1717,7 +1715,7 @@ os_file_set_size(
 	ut_a(size == (size & 0xFFFFFFFF));
 
 	current_size = 0;
-	desired_size = (ib_longlong)size + (((ib_longlong)size_high) << 32);
+	desired_size = (ib_int64_t)size + (((ib_int64_t)size_high) << 32);
 
 	/* Write up to 1 megabyte at a time. */
 	buf_size = ut_min(64, (ulint) (desired_size / UNIV_PAGE_SIZE))
@@ -1730,7 +1728,7 @@ os_file_set_size(
 	/* Write buffer full of zeros */
 	memset(buf, 0, buf_size);
 
-	if (desired_size >= (ib_longlong)(100 * 1024 * 1024)) {
+	if (desired_size >= (ib_int64_t)(100 * 1024 * 1024)) {
 
 		fprintf(stderr, "InnoDB: Progress in MB:");
 	}
@@ -1738,7 +1736,7 @@ os_file_set_size(
 	while (current_size < desired_size) {
 		ulint	n_bytes;
 
-		if (desired_size - current_size < (ib_longlong) buf_size) {
+		if (desired_size - current_size < (ib_int64_t) buf_size) {
 			n_bytes = (ulint) (desired_size - current_size);
 		} else {
 			n_bytes = buf_size;
@@ -1754,18 +1752,18 @@ os_file_set_size(
 		}
 
 		/* Print about progress for each 100 MB written */
-		if ((ib_longlong) (current_size + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
-		    != current_size / (ib_longlong)(100 * 1024 * 1024)) {
+		if ((ib_int64_t) (current_size + n_bytes) / (ib_int64_t)(100 * 1024 * 1024)
+		    != current_size / (ib_int64_t)(100 * 1024 * 1024)) {
 
 			fprintf(stderr, " %lu00",
 				(ulong) ((current_size + n_bytes)
-					 / (ib_longlong)(100 * 1024 * 1024)));
+					 / (ib_int64_t)(100 * 1024 * 1024)));
 		}
 
 		current_size += n_bytes;
 	}
 
-	if (desired_size >= (ib_longlong)(100 * 1024 * 1024)) {
+	if (desired_size >= (ib_int64_t)(100 * 1024 * 1024)) {
 
 		fprintf(stderr, "\n");
 	}
@@ -1798,6 +1796,55 @@ os_file_set_eof(
 	return(!ftruncate(fileno(file), ftell(file)));
 #endif /* __WIN__ */
 }
+
+#ifndef __WIN__
+/***************************************************************************
+Wrapper to fsync(2) that retries the call on some errors.
+Returns the value 0 if successful; otherwise the value -1 is returned and
+the global variable errno is set to indicate the error. */
+
+static
+int
+os_file_fsync(
+/*==========*/
+				/* out: 0 if success, -1 otherwise */
+	os_file_t	file)	/* in: handle to a file */
+{
+	int	ret;
+	int	failures;
+	ibool	retry;
+
+	failures = 0;
+
+	do {
+		ret = fsync(file);
+
+		os_n_fsyncs++;
+
+		if (ret == -1 && errno == ENOLCK) {
+
+			if (failures % 100 == 0) {
+
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"  InnoDB: fsync(): "
+					"No locks available; retrying\n");
+			}
+
+			os_thread_sleep(200000 /* 0.2 sec */);
+
+			failures++;
+
+			retry = TRUE;
+		} else {
+
+			retry = FALSE;
+		}
+	} while (retry);
+
+	return(ret);
+}
+#endif /* !__WIN__ */
 
 /***************************************************************************
 Flushes the write buffers of a given file to the disk. */
@@ -1856,23 +1903,19 @@ os_file_flush(
 		/* If we are not on an operating system that supports this,
 		then fall back to a plain fsync. */
 
-		ret = fsync(file);
+		ret = os_file_fsync(file);
 	} else {
 		ret = fcntl(file, F_FULLFSYNC, NULL);
 
 		if (ret) {
 			/* If we are not on a file system that supports this,
 			then fall back to a plain fsync. */
-			ret = fsync(file);
+			ret = os_file_fsync(file);
 		}
 	}
-#elif HAVE_FDATASYNC
-	ret = fdatasync(file);
 #else
-	/*	fprintf(stderr, "Flushing to file %p\n", file); */
-	ret = fsync(file);
+	ret = os_file_fsync(file);
 #endif
-	os_n_fsyncs++;
 
 	if (ret == 0) {
 		return(TRUE);

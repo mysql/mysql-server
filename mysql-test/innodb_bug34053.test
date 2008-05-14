@@ -2,6 +2,7 @@
 # Make sure http://bugs.mysql.com/34053 remains fixed.
 #
 
+-- source include/not_embedded.inc
 -- source include/have_innodb.inc
 
 SET storage_engine=InnoDB;

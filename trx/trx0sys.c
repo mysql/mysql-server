@@ -22,6 +22,17 @@ Created 3/26/1996 Heikki Tuuri
 #include "log0log.h"
 #include "os0file.h"
 
+/* The file format tag structure with id and name. */
+struct file_format_struct {
+	uint		id;		/* id of the file format */
+	const char*	name;		/* text representation of the
+					file format */
+	mutex_t		mutex;		/* covers changes to the above
+					fields */
+};
+
+typedef struct file_format_struct	file_format_t;
+
 /* The transaction system */
 UNIV_INTERN trx_sys_t*		trx_sys		= NULL;
 UNIV_INTERN trx_doublewrite_t*	trx_doublewrite = NULL;
@@ -43,7 +54,7 @@ up to this position. If .._pos is -1, it means no crash recovery was needed,
 or there was no master log position info inside InnoDB. */
 
 UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-UNIV_INTERN ib_longlong	trx_sys_mysql_master_log_pos	= -1;
+UNIV_INTERN ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
 
 /* If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
@@ -51,8 +62,46 @@ here. If .._pos is -1, it means there was no binlog position info inside
 InnoDB. */
 
 UNIV_INTERN char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-UNIV_INTERN ib_longlong	trx_sys_mysql_bin_log_pos	= -1;
+UNIV_INTERN ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
 
+/* List of animal names representing file format. */
+static const char*	file_format_name_map[] = {
+	"Antelope",
+	"Barracuda",
+	"Cheetah",
+	"Dragon",
+	"Elk",
+	"Fox",
+	"Gazelle",
+	"Hornet",
+	"Impala",
+	"Jaguar",
+	"Kangaroo",
+	"Leopard",
+	"Moose",
+	"Nautilus",
+	"Ocelot",
+	"Porpoise",
+	"Quail",
+	"Rabbit",
+	"Shark",
+	"Tiger",
+	"Urchin",
+	"Viper",
+	"Whale",
+	"Xenops",
+	"Yak",
+	"Zebra"
+};
+
+/* The number of elements in the file format name array. */
+static const ulint	FILE_FORMAT_NAME_N = 
+	sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
+
+/* This is used to track the maximum file format id known to InnoDB. It's
+updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
+or create a table. */
+static	file_format_t	file_format_max;
 
 /********************************************************************
 Determines if a page number is located inside the doublewrite buffer. */
@@ -605,7 +654,7 @@ void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
 	const char*	file_name,/* in: MySQL log file name */
-	ib_longlong	offset,	/* in: position in that log file */
+	ib_int64_t	offset,	/* in: position in that log file */
 	ulint		field,	/* in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr)	/* in: mtr */
@@ -725,8 +774,8 @@ trx_sys_print_mysql_binlog_offset(void)
 		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
 	trx_sys_mysql_bin_log_pos
-		= (((ib_longlong)trx_sys_mysql_bin_log_pos_high) << 32)
-		+ (ib_longlong)trx_sys_mysql_bin_log_pos_low;
+		= (((ib_int64_t)trx_sys_mysql_bin_log_pos_high) << 32)
+		+ (ib_int64_t)trx_sys_mysql_bin_log_pos_low;
 
 	ut_memcpy(trx_sys_mysql_bin_log_name,
 		  sys_header + TRX_SYS_MYSQL_LOG_INFO
@@ -786,10 +835,10 @@ trx_sys_print_mysql_master_log_pos(void)
 		  TRX_SYS_MYSQL_LOG_NAME_LEN);
 
 	trx_sys_mysql_master_log_pos
-		= (((ib_longlong) mach_read_from_4(
+		= (((ib_int64_t) mach_read_from_4(
 			    sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
 			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
-		+ ((ib_longlong) mach_read_from_4(
+		+ ((ib_int64_t) mach_read_from_4(
 			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
 			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
 	mtr_commit(&mtr);
@@ -912,7 +961,7 @@ trx_sys_init_at_db_start(void)
 /*==========================*/
 {
 	trx_sysf_t*	sys_header;
-	ib_longlong	rows_to_undo	= 0;
+	ib_int64_t	rows_to_undo	= 0;
 	const char*	unit		= "";
 	trx_t*		trx;
 	mtr_t		mtr;
@@ -1007,4 +1056,247 @@ trx_sys_create(void)
 	mtr_commit(&mtr);
 
 	trx_sys_init_at_db_start();
+}
+
+/*********************************************************************
+Update the file format tag. */
+static
+ibool
+trx_sys_file_format_max_write(
+/*==========================*/
+					/* out: always TRUE */
+	ulint		format_id,	/* in: file format id */
+	char**		name)		/* out: max file format name, can
+					be NULL */
+{
+	mtr_t		mtr;
+	byte*		ptr;
+	buf_block_t*	block;
+	ulint		tag_value_low;
+
+	mtr_start(&mtr);
+
+	block = buf_page_get(
+		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+
+	file_format_max.id = format_id;
+	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
+
+	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
+	tag_value_low = format_id + TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+
+	if (name) {
+		*name = (char*) file_format_max.name;
+	}
+
+	mlog_write_dulint(
+		ptr,
+		ut_dulint_create(TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH,
+				 tag_value_low),
+		&mtr);
+
+	mtr_commit(&mtr);
+
+	return(TRUE);
+}
+
+/*********************************************************************
+Read the file format tag. */
+static
+ulint
+trx_sys_file_format_max_read(void)
+/*==============================*/
+				/* out: the file format */
+{
+	mtr_t			mtr;
+	const byte*		ptr;
+	const buf_block_t*	block;
+	ulint			format_id;
+	dulint			file_format_id;
+
+	/* Since this is called during the startup phase it's safe to
+	read the value without a covering mutex. */
+	mtr_start(&mtr);
+
+	block = buf_page_get(
+		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+
+	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
+	file_format_id = mach_read_from_8(ptr);
+
+	mtr_commit(&mtr);
+
+	format_id = file_format_id.low - TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+
+	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
+	    || format_id >= FILE_FORMAT_NAME_N) {
+
+		/* Either it has never been tagged, or garbage in it.
+		Reset the tag in either case. */
+		format_id = DICT_TF_FORMAT_51;
+		trx_sys_file_format_max_write(format_id, NULL);
+	}
+
+	return(format_id);
+}
+
+/*********************************************************************
+Get the name representation of the file format from its id. */
+UNIV_INTERN
+const char*
+trx_sys_file_format_id_to_name(
+/*===========================*/
+				/* out: pointer to the name */
+	const uint	id)	/* in: id of the file format */
+{
+	ut_a(id < FILE_FORMAT_NAME_N);
+
+	return(file_format_name_map[id]);
+}
+
+/*********************************************************************
+Check for the max file format tag stored on disk. Note: If max_format_id
+is == DICT_TF_FORMAT_MAX + 1 then we only print a warning. */
+UNIV_INTERN
+ulint
+trx_sys_file_format_max_check(
+/*==========================*/
+				/* out: DB_SUCCESS or error code */
+	ulint	max_format_id)	/* in: max format id to check */
+{
+	ulint	format_id;
+
+	/* Check the file format in the tablespace. Do not try to
+	recover if the file format is not supported by the engine
+	unless forced by the user. */
+	format_id = trx_sys_file_format_max_read();
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: highest supported file format is %s.\n",
+		trx_sys_file_format_id_to_name(DICT_TF_FORMAT_MAX));
+
+	if (format_id > DICT_TF_FORMAT_MAX) {
+
+		ut_a(format_id < FILE_FORMAT_NAME_N);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: %s: the system tablespace is in a file "
+			"format that this version doesn't support - %s\n",
+			((max_format_id <= DICT_TF_FORMAT_MAX)
+				? "Error" : "Warning"),
+			trx_sys_file_format_id_to_name(format_id));
+
+		if (max_format_id <= DICT_TF_FORMAT_MAX) {
+			return(DB_ERROR);
+		}
+	}
+
+	format_id = (format_id > max_format_id) ? format_id : max_format_id;
+
+	/* We don't need a mutex here, as this function should only
+	be called once at start up. */
+	file_format_max.id = format_id;
+	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
+
+	return(DB_SUCCESS);
+}
+
+/*********************************************************************
+Set the file format id unconditionally except if it's already the
+same value. */
+UNIV_INTERN
+ibool
+trx_sys_file_format_max_set(
+/*========================*/
+					/* out: TRUE if value updated */
+	ulint		format_id,	/* in: file format id */
+	char**		name)		/* out: max file format name */
+{
+	ibool		ret = FALSE;
+
+	ut_a(name);
+	ut_a(format_id <= DICT_TF_FORMAT_MAX);
+
+	mutex_enter(&file_format_max.mutex);
+
+	/* Only update if not already same value. */
+	if (format_id != file_format_max.id) {
+
+		ret = trx_sys_file_format_max_write(format_id, name);
+	}
+
+	mutex_exit(&file_format_max.mutex);
+
+	return(ret);
+}
+
+/************************************************************************
+Update the file format tag in the tablespace only if the given format id
+is greater than the known max id. */
+UNIV_INTERN
+ibool
+trx_sys_file_format_max_update(
+/*===========================*/
+	uint		flags,		/* in: flags of the table.*/
+	char**		name)		/* out: max file format name */
+{
+	ulint		format_id;
+	ibool		ret = FALSE;
+
+	format_id = (flags & DICT_TF_FORMAT_MASK) >> DICT_TF_FORMAT_SHIFT;
+
+	ut_a(name);
+	ut_a(file_format_max.name != NULL);
+	ut_a(format_id <= DICT_TF_FORMAT_MAX);
+
+	mutex_enter(&file_format_max.mutex);
+
+	if (format_id > file_format_max.id) {
+
+		ret = trx_sys_file_format_max_write(format_id, name);
+	}
+
+	mutex_exit(&file_format_max.mutex);
+
+	return(ret);
+}
+
+/*********************************************************************
+Get the name representation of the file format from its id. */
+UNIV_INTERN
+const char*
+trx_sys_file_format_max_get(void)
+/*=============================*/
+				/* out: pointer to the max format name */
+{
+	return(file_format_max.name);
+}
+
+/*********************************************************************
+Initializes the tablespace tag system. */
+UNIV_INTERN
+void
+trx_sys_file_format_init(void)
+/*==========================*/
+{
+	mutex_create(&file_format_max.mutex, SYNC_FILE_FORMAT_TAG);
+
+	/* We don't need a mutex here, as this function should only
+	be called once at start up. */
+	file_format_max.id = DICT_TF_FORMAT_51;
+
+	file_format_max.name = trx_sys_file_format_id_to_name(
+		file_format_max.id);
+}
+
+/*********************************************************************
+Closes the tablespace tag system. */
+UNIV_INTERN
+void
+trx_sys_file_format_close(void)
+/*===========================*/
+{
+	/* Does nothing at the moment */
 }

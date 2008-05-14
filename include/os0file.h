@@ -43,7 +43,7 @@ extern ulint	os_n_pending_writes;
 
 #ifdef __WIN__
 #define os_file_t	HANDLE
-#define OS_FILE_FROM_FD(fd) _get_osfhandle(fd)
+#define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 #else
 typedef int	os_file_t;
 #define OS_FILE_FROM_FD(fd) fd
@@ -159,7 +159,7 @@ bigger than 4000 bytes */
 struct os_file_stat_struct{
 	char		name[OS_FILE_MAX_PATH];	/* path to a file */
 	os_file_type_t	type;			/* file type */
-	ib_longlong	size;			/* file size */
+	ib_int64_t	size;			/* file size */
 	time_t		ctime;			/* creation time */
 	time_t		mtime;			/* modification time */
 	time_t		atime;			/* access time */
@@ -385,9 +385,9 @@ os_file_get_size(
 				size */
 	ulint*		size_high);/* out: most significant 32 bits of size */
 /***************************************************************************
-Gets file size as a 64-bit integer ib_longlong. */
+Gets file size as a 64-bit integer ib_int64_t. */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 os_file_get_size_as_iblonglong(
 /*===========================*/
 				/* out: size in bytes, -1 if error */

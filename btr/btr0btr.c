@@ -1807,7 +1807,35 @@ func_start:
 	} else {
 		direction = FSP_UP;
 		hint_page_no = page_no + 1;
-		split_rec = page_get_middle_rec(page);
+
+		if (page_get_n_recs(page) == 1) {
+			page_cur_t	pcur;
+
+			/* There is only one record in the index page
+			therefore we can't split the node in the middle
+			by default. We need to determine whether the
+			new record will be inserted to the left or right. */
+
+			/* Read the first (and only) record in the page. */
+			page_cur_set_before_first(block, &pcur);
+			page_cur_move_to_next(&pcur);
+			first_rec = page_cur_get_rec(&pcur);
+
+			offsets = rec_get_offsets(
+				first_rec, cursor->index, offsets,
+				n_uniq, &heap);
+
+			/* If the new record is less than the existing record
+			the the split in the middle will copy the existing
+			record to the new node. */
+			if (cmp_dtuple_rec(tuple, first_rec, offsets) < 0) {
+				split_rec = page_get_middle_rec(page);
+			} else {
+				split_rec = NULL;
+			}
+		} else {
+			split_rec = page_get_middle_rec(page);
+		}
 	}
 
 	/* 2. Allocate a new page to the index */
@@ -2945,9 +2973,9 @@ static
 void
 btr_index_rec_validate_report(
 /*==========================*/
-	const page_t*	page,	/* in: index page */
-	const rec_t*	rec,	/* in: index record */
-	dict_index_t*	index)	/* in: index */
+	const page_t*		page,	/* in: index page */
+	const rec_t*		rec,	/* in: index record */
+	const dict_index_t*	index)	/* in: index */
 {
 	fputs("InnoDB: Record in ", stderr);
 	dict_index_name_print(stderr, NULL, index);
@@ -2962,17 +2990,17 @@ UNIV_INTERN
 ibool
 btr_index_rec_validate(
 /*===================*/
-					/* out: TRUE if ok */
-	rec_t*		rec,		/* in: index record */
-	dict_index_t*	index,		/* in: index */
-	ibool		dump_on_error)	/* in: TRUE if the function
-					should print hex dump of record
-					and page on error */
+						/* out: TRUE if ok */
+	const rec_t*		rec,		/* in: index record */
+	const dict_index_t*	index,		/* in: index */
+	ibool			dump_on_error)	/* in: TRUE if the function
+						should print hex dump of record
+						and page on error */
 {
 	ulint		len;
 	ulint		n;
 	ulint		i;
-	page_t*		page;
+	const page_t*	page;
 	mem_heap_t*	heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
