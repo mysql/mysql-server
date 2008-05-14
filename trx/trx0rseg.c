@@ -243,11 +243,13 @@ trx_rseg_create(
 	ulint*	id,		/* out: rseg id */
 	mtr_t*	mtr)		/* in: mtr */
 {
+	ulint		flags;
 	ulint		zip_size;
 	ulint		page_no;
 	trx_rseg_t*	rseg;
 
-	mtr_x_lock(fil_space_get_latch(space, &zip_size), mtr);
+	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
+	zip_size = dict_table_flags_to_zip_size(flags);
 	mutex_enter(&kernel_mutex);
 
 	page_no = trx_rseg_header_create(space, zip_size, max_size, id, mtr);

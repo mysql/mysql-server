@@ -87,10 +87,21 @@ UNIV_INTERN char*	srv_arch_dir	= NULL;
 
 /* store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
-UNIV_INTERN ibool	srv_file_per_table = FALSE;
+UNIV_INTERN my_bool	srv_file_per_table;
+/* The file format to use on new *.ibd files. */
+UNIV_INTERN ulint	srv_file_format = 0;
+/* Whether to check file format during startup a value of 
+DICT_TF_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
+set it to the highest format we support. */
+UNIV_INTERN ulint	srv_check_file_format_at_startup = DICT_TF_FORMAT_MAX;
+
+#if DICT_TF_FORMAT_51
+# error "DICT_TF_FORMAT_51 must be 0!"
+#endif
 /* Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 UNIV_INTERN ibool	srv_locks_unsafe_for_binlog = FALSE;
+
 UNIV_INTERN ulint	srv_n_data_files = 0;
 UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
@@ -156,7 +167,7 @@ a heavier load on the I/O sub system. */
 UNIV_INTERN ulong	srv_insert_buffer_batch_size = 20;
 
 UNIV_INTERN char*	srv_file_flush_method_str = NULL;
-UNIV_INTERN ulint	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+UNIV_INTERN ulint	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 UNIV_INTERN ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 
 UNIV_INTERN ulint	srv_max_n_open_files	  = 300;
@@ -332,7 +343,7 @@ static ulint	srv_n_rows_read_old		= 0;
 
 UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
 UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
-UNIV_INTERN ib_longlong	srv_n_lock_wait_time		= 0;
+UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
 UNIV_INTERN ulint		srv_n_lock_max_wait_time	= 0;
 
 
@@ -1361,8 +1372,8 @@ srv_suspend_mysql_thread(
 	trx_t*		trx;
 	ulint		had_dict_lock;
 	ibool		was_declared_inside_innodb	= FALSE;
-	ib_longlong	start_time			= 0;
-	ib_longlong	finish_time;
+	ib_int64_t	start_time			= 0;
+	ib_int64_t	finish_time;
 	ulint		diff_time;
 	ulint		sec;
 	ulint		ms;
@@ -1412,7 +1423,7 @@ srv_suspend_mysql_thread(
 		srv_n_lock_wait_current_count++;
 
 		ut_usectime(&sec, &ms);
-		start_time = (ib_longlong)sec * 1000000 + ms;
+		start_time = (ib_int64_t)sec * 1000000 + ms;
 	}
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
@@ -1476,7 +1487,7 @@ srv_suspend_mysql_thread(
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		ut_usectime(&sec, &ms);
-		finish_time = (ib_longlong)sec * 1000000 + ms;
+		finish_time = (ib_int64_t)sec * 1000000 + ms;
 
 		diff_time = (ulint) (finish_time - start_time);
 

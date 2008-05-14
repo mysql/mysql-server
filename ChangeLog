@@ -1,0 +1,70 @@
+2008-05-06	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, include/sync0sync.h,
+	include/trx0sys.h, mysql-test/innodb-zip.result,
+	mysql-test/innodb-zip.test, srv/srv0srv.c, srv/srv0start.c,
+	sync/sync0sync.c, trx/trx0sys.c:
+	Implement the system tablespace tagging
+
+	* handler/ha_innodb.cc, handler/i_s.cc, include/univ.i,
+	srv/srv0start.c:
+	Add InnoDB version in INFORMATION_SCHEMA.PLUGINS.PLUGIN_VERSION,
+	in the startup message and in a server variable innodb_version.
+
+	* sync/sync0sync.c:
+	Fix a bug in the sync debug code where a lock with level
+	SYNC_LEVEL_VARYING would cause an assertion failure when a thread
+	tried to release it.
+
+2008-04-30	The InnoDB Team
+
+	* Makefile.am:
+	Fix Bug#36434 ha_innodb.so is installed in the wrong directory
+
+	* handler/ha_innodb.cc:
+	Merge change from MySQL (Fix Bug#35406 5.1-opt crashes on select from
+	I_S.REFERENTIAL_CONSTRAINTS):
+	ChangeSet@1.2563, 2008-03-18 19:42:04+04:00, gluh@mysql.com +1 -0
+
+	* scripts/install_innodb_plugins.sql:
+	Added
+
+	* mysql-test/innodb.result:
+	Merge change from MySQL (this fixes the failing innodb test):
+	ChangeSet@1.1810.3601.4, 2008-02-07 02:33:21+04:00
+
+	* row/row0sel.c:
+	Fix Bug#35226 RBR event crashes slave
+
+	* handler/ha_innodb.cc:
+	Change the fix for Bug#32440 to show bytes instead of kilobytes in
+	INFORMATION_SCHEMA.TABLES.DATA_FREE
+
+	* handler/ha_innodb.cc, mysql-test/innodb.result,
+	mysql-test/innodb.test:
+	Fix Bug#29507 TRUNCATE shows to many rows effected
+
+	* handler/ha_innodb.cc, mysql-test/innodb.result,
+	mysql-test/innodb.test:
+	Fix Bug#35537 Innodb doesn't increment handler_update and
+	handler_delete
+
+2008-04-29	The InnoDB Team
+
+	* handler/i_s.cc, include/srv0start.h, srv/srv0start.c: 
+	Fix Bug#36310 InnoDB plugin crash
+
+2008-04-23	The InnoDB Team
+
+	* mysql-test/innodb_bug36169.result, mysql-test/innodb_bug36169.test,
+	row/row0mysql.c:
+	Fix Bug#36169 create innodb compressed table with too large row size
+	crashed
+
+	* (outside the source tree):
+	Fix Bug#36222 New InnoDB plugin 1.0 has wrong MKDIR_P defined in
+	Makefile.in
+
+2008-04-15	The InnoDB Team
+
+	InnoDB Plugin 1.0.0 released

@@ -98,6 +98,29 @@ upd_field_set_field_no(
 }
 
 /*************************************************************************
+Returns a field of an update vector by field_no. */
+UNIV_INLINE
+const upd_field_t*
+upd_get_field_by_field_no(
+/*======================*/
+				/* out: update vector field, or NULL */
+	const upd_t*	update,	/* in: update vector */
+	ulint		no)	/* in: field_no */
+{
+	ulint	i;
+	for (i = 0; i < upd_get_n_fields(update); i++) {
+		const upd_field_t*	uf = upd_get_nth_field(update, i);
+
+		if (uf->field_no == no) {
+
+			return(uf);
+		}
+	}
+
+	return(NULL);
+}
+
+/*************************************************************************
 Updates the trx id and roll ptr field in a clustered index record when
 a row is updated or marked deleted. */
 UNIV_INLINE

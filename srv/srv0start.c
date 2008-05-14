@@ -70,9 +70,9 @@ UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
 UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
 UNIV_INTERN ibool	srv_is_being_started = FALSE;
+UNIV_INTERN ibool	srv_was_started = FALSE;
 #ifndef UNIV_HOTBACKUP
 static ibool	srv_start_has_been_called = FALSE;
-static ibool	srv_was_started = FALSE;
 #endif /* !UNIV_HOTBACKUP */
 
 /* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
@@ -665,7 +665,7 @@ open_or_create_log_file(
 	if (k == 0 && i == 0) {
 		arch_space_id = 2 * k + 1 + SRV_LOG_SPACE_FIRST_ID;
 
-		fil_space_create("arch_log_space", arch_space_id, FIL_LOG);
+		fil_space_create("arch_log_space", arch_space_id, 0, FIL_LOG);
 	} else {
 		arch_space_id = ULINT_UNDEFINED;
 	}
@@ -979,7 +979,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		tablespace_size_in_header;
 	ulint		err;
 	ulint		i;
-	ibool		srv_file_per_table_original_value
+	my_bool		srv_file_per_table_original_value
 		= srv_file_per_table;
 	mtr_t		mtr;
 #ifdef HAVE_DARWIN_THREADS
@@ -1015,8 +1015,11 @@ innobase_start_or_create_for_mysql(void)
 			(ulong)sizeof(ulint), (ulong)sizeof(void*));
 	}
 
-	srv_file_per_table = FALSE; /* system tables are created in tablespace
-				    0 */
+	/* System tables are created in tablespace 0.  Thus, we must
+	temporarily clear srv_file_per_table.  This is ok, because the
+	server will not accept connections (which could modify
+	innodb_file_per_table) until this function has returned. */
+	srv_file_per_table = FALSE;
 #ifdef UNIV_DEBUG
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_DEBUG switched on !!!!!!!!!\n");
@@ -1088,12 +1091,12 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
 
-		srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 #ifndef __WIN__
-	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fdatasync")) {
-		srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
+		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DSYNC")) {
 		srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
@@ -1405,6 +1408,8 @@ innobase_start_or_create_for_mysql(void)
 		mutex_exit(&(log_sys->mutex));
 	}
 
+	trx_sys_file_format_init();
+
 	if (create_new_db) {
 		mtr_start(&mtr);
 		fsp_header_init(0, sum_of_new_sizes, &mtr);
@@ -1436,11 +1441,21 @@ innobase_start_or_create_for_mysql(void)
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
-		fsp_header_get_free_limit(0);
+		fsp_header_get_free_limit();
 
 		recv_recovery_from_archive_finish();
 #endif /* UNIV_LOG_ARCHIVE */
 	} else {
+
+		/* Check if we support the max format that is stamped
+		on the system tablespace. */
+		err = trx_sys_file_format_max_check(
+			srv_check_file_format_at_startup);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
 
@@ -1491,7 +1506,7 @@ innobase_start_or_create_for_mysql(void)
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
-		fsp_header_get_free_limit(0);
+		fsp_header_get_free_limit();
 
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */
@@ -1547,7 +1562,6 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which warns of long semaphore waits */
 	os_thread_create(&srv_error_monitor_thread, NULL,
 			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
-	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
 
 	if (trx_doublewrite == NULL) {
@@ -1576,7 +1590,7 @@ innobase_start_or_create_for_mysql(void)
 		sum_of_data_file_sizes += srv_data_file_sizes[i];
 	}
 
-	tablespace_size_in_header = fsp_header_get_tablespace_size(0);
+	tablespace_size_in_header = fsp_header_get_tablespace_size();
 
 	if (!srv_auto_extend_last_data_file
 	    && sum_of_data_file_sizes != tablespace_size_in_header) {
@@ -1660,8 +1674,9 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Started; log sequence number %llu\n",
-			srv_start_lsn);
+			" InnoDB Plugin %s started; "
+			"log sequence number %llu\n",
+			INNODB_VERSION_STR, srv_start_lsn);
 	}
 
 	if (srv_force_recovery > 0) {
@@ -1732,6 +1747,8 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_file_per_table = srv_file_per_table_original_value;
+
+	srv_was_started = TRUE;
 
 	return((int) DB_SUCCESS);
 }
@@ -1868,6 +1885,8 @@ innobase_shutdown_for_mysql(void)
 		srv_misc_tmpfile = 0;
 	}
 
+	trx_sys_file_format_close();
+
 	mutex_free(&srv_monitor_file_mutex);
 	mutex_free(&srv_dict_tmpfile_mutex);
 	mutex_free(&srv_misc_tmpfile_mutex);
@@ -1925,6 +1944,8 @@ innobase_shutdown_for_mysql(void)
 			" log sequence number %llu\n",
 			srv_shutdown_lsn);
 	}
+
+	srv_was_started = FALSE;
 
 	return((int) DB_SUCCESS);
 }

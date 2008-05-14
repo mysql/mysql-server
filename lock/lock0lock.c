@@ -5432,6 +5432,7 @@ lock_get_table(
 		return(lock->un_member.tab_lock.table);
 	default:
 		ut_error;
+		return(NULL);
 	}
 }
 

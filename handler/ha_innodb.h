@@ -73,7 +73,7 @@ class ha_innobase: public handler
 	void update_thd();
 	int change_active_index(uint keynr);
 	int general_fetch(uchar* buf, uint direction, uint match_mode);
-	int innobase_read_and_init_auto_inc(longlong* ret);
+	int innobase_read_and_init_auto_inc(ulonglong* ret);
 	ulong innobase_autoinc_lock();
 	ulong innobase_set_max_autoinc(ulonglong auto_inc);
 	ulong innobase_reset_autoinc(ulonglong auto_inc);
@@ -263,4 +263,5 @@ convert_error_code_to_mysql(
 /*========================*/
 				/* out: MySQL error code */
 	int		error,	/* in: InnoDB error code */
+	ulint		flags,	/* in: InnoDB table flags, or 0 */
 	MYSQL_THD	thd);	/* in: user thread handle or NULL */

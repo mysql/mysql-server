@@ -25,16 +25,8 @@ Created June 2005 by Marko Makela
 #include "zlib.h"
 #include "buf0lru.h"
 
-/** Number of page compressions, indexed by page_zip_des_t::ssize */
-UNIV_INTERN ulint	page_zip_compress_count[8];
-/** Number of successful page compressions, indexed by page_zip_des_t::ssize */
-UNIV_INTERN ulint	page_zip_compress_ok[8];
-/** Number of page decompressions, indexed by page_zip_des_t::ssize */
-UNIV_INTERN ulint	page_zip_decompress_count[8];
-/** Duration of page compressions, indexed by page_zip_des_t::ssize */
-UNIV_INTERN ullint	page_zip_compress_duration[8];
-/** Duration of page decompressions, indexed by page_zip_des_t::ssize */
-UNIV_INTERN ullint	page_zip_decompress_duration[8];
+/** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
+UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
 
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
@@ -370,10 +362,10 @@ page_zip_fixed_field_encode(
 		126 = nullable variable field with maximum length >255;
 		127 = not null variable field with maximum length >255
 		*/
-		*buf++ = val;
+		*buf++ = (byte) val;
 	} else {
-		*buf++ = 0x80 | val >> 8;
-		*buf++ = 0xff & val;
+		*buf++ = (byte) (0x80 | val >> 8);
+		*buf++ = (byte) val;
 	}
 
 	return(buf);
@@ -431,7 +423,7 @@ page_zip_fields_encode(
 				col++;
 			}
 
-			*buf++ = val;
+			*buf++ = (byte) val;
 			col++;
 		} else if (val) {
 			/* fixed-length non-nullable field */
@@ -497,10 +489,10 @@ page_zip_fields_encode(
 	}
 
 	if (i < 128) {
-		*buf++ = i;
+		*buf++ = (byte) i;
 	} else {
-		*buf++ = 0x80 | i >> 8;
-		*buf++ = 0xff & i;
+		*buf++ = (byte) (0x80 | i >> 8);
+		*buf++ = (byte) i;
 	}
 
 	ut_ad((ulint) (buf - buf_start) <= (n + 2) * 2);
@@ -1171,7 +1163,7 @@ page_zip_compress(
 		}
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
-	page_zip_compress_count[page_zip->ssize]++;
+	page_zip_stat[page_zip->ssize - 1].compressed++;
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 			  >= page_zip_get_size(page_zip))) {
@@ -1308,7 +1300,7 @@ err_exit:
 			fclose(logfile);
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
-		page_zip_compress_duration[page_zip->ssize]
+		page_zip_stat[page_zip->ssize - 1].compressed_usec
 			+= ut_time_us(NULL) - usec;
 		return(FALSE);
 	}
@@ -1353,8 +1345,6 @@ err_exit:
 		page_zip_compress_write_log(page_zip, page, index, mtr);
 	}
 
-	page_zip_compress_ok[page_zip->ssize]++;
-
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
 #ifdef PAGE_ZIP_COMPRESS_DBG
@@ -1367,8 +1357,13 @@ err_exit:
 		fclose(logfile);
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
-	page_zip_compress_duration[page_zip->ssize]
-		+= ut_time_us(NULL) - usec;
+	{
+		page_zip_stat_t*	zip_stat
+			= &page_zip_stat[page_zip->ssize - 1];
+		zip_stat->compressed_ok++;
+		zip_stat->compressed_usec += ut_time_us(NULL) - usec;
+	}
+
 	return(TRUE);
 }
 
@@ -1676,7 +1671,7 @@ page_zip_set_extra_bytes(
 
 		rec_set_next_offs_new(rec, offs);
 		rec = page + offs;
-		rec[-REC_N_NEW_EXTRA_BYTES] = info_bits;
+		rec[-REC_N_NEW_EXTRA_BYTES] = (byte) info_bits;
 		info_bits = 0;
 	}
 
@@ -1684,7 +1679,7 @@ page_zip_set_extra_bytes(
 	rec_set_next_offs_new(rec, PAGE_NEW_SUPREMUM);
 
 	/* Set n_owned of the supremum record. */
-	page[PAGE_NEW_SUPREMUM - REC_N_NEW_EXTRA_BYTES] = n_owned;
+	page[PAGE_NEW_SUPREMUM - REC_N_NEW_EXTRA_BYTES] = (byte) n_owned;
 
 	/* The dense directory excludes the infimum and supremum records. */
 	n = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
@@ -2775,7 +2770,7 @@ ibool
 page_zip_decompress(
 /*================*/
 				/* out: TRUE on success, FALSE on failure */
-	page_zip_des_t*	page_zip,/* in: data, size;
+	page_zip_des_t*	page_zip,/* in: data, ssize;
 				out: m_start, m_end, m_nonempty, n_blobs */
 	page_t*		page)	/* out: uncompressed page, may be trashed */
 {
@@ -2942,9 +2937,12 @@ err_exit:
 
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
-	page_zip_decompress_count[page_zip->ssize]++;
-	page_zip_decompress_duration[page_zip->ssize]
-		+= ut_time_us(NULL) - usec;
+	{
+		page_zip_stat_t*	zip_stat
+			= &page_zip_stat[page_zip->ssize - 1];
+		zip_stat->decompressed++;
+		zip_stat->decompressed_usec += ut_time_us(NULL) - usec;
+	}
 
 	/* Update the stat counter for LRU policy. */
 	buf_LRU_stat_inc_unzip();
@@ -3250,10 +3248,10 @@ page_zip_write_rec(
 	0 is reserved to indicate the end of the modification log. */
 
 	if (UNIV_UNLIKELY(heap_no - 1 >= 64)) {
-		*data++ = 0x80 | (heap_no - 1) >> 7;
+		*data++ = (byte) (0x80 | (heap_no - 1) >> 7);
 		ut_ad(!*data);
 	}
-	*data++ = (heap_no - 1) << 1;
+	*data++ = (byte) ((heap_no - 1) << 1);
 	ut_ad(!*data);
 
 	{
@@ -3802,10 +3800,10 @@ page_zip_clear_rec(
 		data = page_zip->data + page_zip->m_end;
 		ut_ad(!*data);
 		if (UNIV_UNLIKELY(heap_no - 1 >= 64)) {
-			*data++ = 0x80 | (heap_no - 1) >> 7;
+			*data++ = (byte) (0x80 | (heap_no - 1) >> 7);
 			ut_ad(!*data);
 		}
-		*data++ = (heap_no - 1) << 1 | 1;
+		*data++ = (byte) ((heap_no - 1) << 1 | 1);
 		ut_ad(!*data);
 		ut_ad((ulint) (data - page_zip->data)
 		      < page_zip_get_size(page_zip));

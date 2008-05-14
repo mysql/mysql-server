@@ -1,14 +1,393 @@
+set global innodb_file_per_table=off;
+set global innodb_file_format=`0`;
+create table t0(a int primary key) engine=innodb row_format=compressed;
+Warnings:
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+create table t00(a int primary key) engine=innodb
+key_block_size=4 row_format=compressed;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+create table t1(a int primary key) engine=innodb row_format=dynamic;
+Warnings:
+Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_per_table.
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+create table t2(a int primary key) engine=innodb row_format=redundant;
+create table t3(a int primary key) engine=innodb row_format=compact;
+create table t4(a int primary key) engine=innodb key_block_size=9;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=9.
+create table t5(a int primary key) engine=innodb
+key_block_size=1 row_format=redundant;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1.
+set global innodb_file_per_table=on;
+create table t6(a int primary key) engine=innodb
+key_block_size=1 row_format=redundant;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1.
+set global innodb_file_format=`1`;
+create table t7(a int primary key) engine=innodb
+key_block_size=1 row_format=redundant;
+Warnings:
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+create table t8(a int primary key) engine=innodb
+key_block_size=1 row_format=fixed;
+Warnings:
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+create table t9(a int primary key) engine=innodb
+key_block_size=1 row_format=compact;
+Warnings:
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+create table t10(a int primary key) engine=innodb
+key_block_size=1 row_format=dynamic;
+Warnings:
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+create table t11(a int primary key) engine=innodb
+key_block_size=1 row_format=compressed;
+create table t12(a int primary key) engine=innodb
+key_block_size=1;
+create table t13(a int primary key) engine=innodb
+row_format=compressed;
+create table t14(a int primary key) engine=innodb key_block_size=9;
+Warnings:
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=9.
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+test	t0	Compact
+test	t00	Compact
+test	t1	Compact
+test	t10	Dynamic
+test	t11	Compressed
+test	t12	Compressed
+test	t13	Compressed
+test	t14	Compact
+test	t2	Redundant
+test	t3	Compact
+test	t4	Compact
+test	t5	Redundant
+test	t6	Redundant
+test	t7	Redundant
+test	t8	Compact
+test	t9	Compact
+drop table t0,t00,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14;
+alter table t1 key_block_size=0;
+Warnings:
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=0.
+alter table t1 row_format=dynamic;
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+test	t1	Dynamic
+alter table t1 row_format=compact;
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+test	t1	Compact
+alter table t1 row_format=redundant;
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+test	t1	Redundant
+drop table t1;
 create table t1(a int not null, b text, index(b(10))) engine=innodb
 key_block_size=1;
-insert into t1 values (1,1);
+create table t2(b text)engine=innodb;
+insert into t2 values(concat('1abcdefghijklmnopqrstuvwxyz', repeat('A',5000)));
+insert into t1 select 1, b from t2;
 commit;
 begin;
 update t1 set b=repeat('B',100);
-select a,left(b,40),b=1 is_equal from t1;
-a	left(b,40)	is_equal
-1	1	1
+select a,left(b,40) from t1 natural join t2;
+a	left(b,40)
+1	1abcdefghijklmnopqrstuvwxyzAAAAAAAAAAAAA
 rollback;
-select a,left(b,40),b=1 is_equal from t1;
-a	left(b,40)	is_equal
-1	1	1
+select a,left(b,40) from t1 natural join t2;
+a	left(b,40)
+1	1abcdefghijklmnopqrstuvwxyzAAAAAAAAAAAAA
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+test	t1	Compressed
+test	t2	Compact
+drop table t1,t2;
+CREATE TABLE t1(
+c TEXT NOT NULL, d TEXT NOT NULL,
+PRIMARY KEY (c(767),d(767)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+INSERT INTO t1 VALUES(
+'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~(*,.02468:<>@BDFHJLNPRTVXZ\^`bdfhjlnprtvxz|~)+-/13579;=?ACEGIKMOQSUWY[]_acegikmoqsuwy{}(+.147:=@CFILORUX[^adgjmpsvy|(+.147:=@CFILORUX[^adgjmpsvy|(+.147:=@CFILORUX[^adgjmpsvy|(,048<@DHLPTX\`dhlptx|)-159=AEIMQUY]aeimquy}*.26:>BFJNRVZ^bfjnrvz~+/37;?CGKOSW[_cgkosw{(-27<AFKPUZ_dinsx}+05:?DINSX]bglqv{).38=BGLQV[`ejoty~,16;@EJOTY^chmrw|*/49>CHMRW\afkpuz(.4:@FLRX^djpv|+17=CIOU[agmsy(.4:@FLRX^djpv|+17=CIOU[agmsy(.4:@FLRX^djpv|+17=CIOU[agmsy(/6=DKRY`gnu|,3:AHOV]dkry)07>ELSZahov}-4;BIPW^elsz*18?FMT[bipw~.5<CJQX_fmt{+29@GNU\cjqx(08@HPX`hpx)19AIQYaiqy*2:BJRZbjrz+3;CKS[cks{,4<DLT\dlt|-5=EMU]emu}.6>FNV^fnv~/7?GOW_gow(1:CLU^gpy+4=FOXajs|.7@IR[dmv(1:CLU^gpy+4=FOXajs|.7@IR[dmv(1:CLU^gpy+4=',
+'FOXajs|.7@IR[dmv(2<FPZdnx+5?IS]gq{.8BLV`jt~1;EOYcmw*4>HR\fpz-7AKU_is}0:DNXblv)3=GQ[eoy,6@JT^hr|/9CMWaku(3>IT_ju)4?JU`kv*5@KValw+6ALWbmx,7BMXcny-8CNYdoz.9DOZep{/:EP[fq|0;FQ\gr}1<GR]hs~2=HS^it(4@LXdp|1=IUamy.:FR^jv+7CO[gs(4@LXdp|1=IUamy.:FR^jv+7CO[gs(4@LXdp|1=IUamy.:FR^jv+7CO[gs(5BO\iv,9FS`mz0=JWdq~4AN[hu+8ER_ly/<IVcp}3@MZgt*7DQ^kx.;HUbo|2?LYfs)6CP]jw-:GTan{1>KXer(6DR`n|3AO]ky0>LZhv-;IWes*8FTbp~5CQ_m{2@N\jx/=KYgu,:HVdr)7ESao}4BP^lz1?M[iw.<JXft+9GUcq(7FUds+:IXgv.=L[jy1@O^m|4CRap(7FUds+:IXgv.=L[jy1@O^m|4CRap(7FUds+:IXgv.=L[jy1@O^m|4CRap(8HXhx1AQaq*:JZjz3CScs,<L\l|5EUeu.>N^n~7GWgw0@P`p)9IYiy2BRbr+;K[k{4DTdt-=M]m}6FVfv/?O_o(9J[l}7HYj{5FWhy3DUfw1BSdu/@Qbs->O`q+<M^o):K\m~8IZk|6GXiz4EVgx2CTev0ARct.?Par,=N_p*;L]n(:L^p+=Oas.@Rdv1CUgy4FXj|7I[m(:L^p+=Oas.@Rdv1CUgy4FXj|7');
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
 drop table t1;
+set global innodb_file_format=`0`;
+select @@innodb_file_format;
+@@innodb_file_format
+Antelope
+set global innodb_file_format=`1`;
+select @@innodb_file_format;
+@@innodb_file_format
+Barracuda
+set global innodb_file_format=`2`;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format=`-1`;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format=`Antelope`;
+set global innodb_file_format=`Barracuda`;
+set global innodb_file_format=`Cheetah`;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format=`abc`;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format=`1a`;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format=``;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_per_table = on;
+set global innodb_file_format = `1`;
+set innodb_strict_mode = on;
+create table t1 (id int primary key) engine = innodb key_block_size = 0;
+ERROR HY000: Can't create table 'test.t1' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: invalid KEY_BLOCK_SIZE = 0. Valid values are [1, 2, 4, 8, 16]
+Error	1005	Can't create table 'test.t1' (errno: 1478)
+create table t2 (id int primary key) engine = innodb key_block_size = 9;
+ERROR HY000: Can't create table 'test.t2' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
+Error	1005	Can't create table 'test.t2' (errno: 1478)
+create table t3 (id int primary key) engine = innodb key_block_size = 1;
+create table t4 (id int primary key) engine = innodb key_block_size = 2;
+create table t5 (id int primary key) engine = innodb key_block_size = 4;
+create table t6 (id int primary key) engine = innodb key_block_size = 8;
+create table t7 (id int primary key) engine = innodb key_block_size = 16;
+create table t8 (id int primary key) engine = innodb row_format = compressed;
+create table t9 (id int primary key) engine = innodb row_format = dynamic;
+create table t10(id int primary key) engine = innodb row_format = compact;
+create table t11(id int primary key) engine = innodb row_format = redundant;
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+test	t10	Compact
+test	t11	Redundant
+test	t3	Compressed
+test	t4	Compressed
+test	t5	Compressed
+test	t6	Compressed
+test	t7	Compressed
+test	t8	Compressed
+test	t9	Dynamic
+drop table t3, t4, t5, t6, t7, t8, t9, t10, t11;
+create table t1 (id int primary key) engine = innodb
+key_block_size = 8 row_format = compressed;
+create table t2 (id int primary key) engine = innodb
+key_block_size = 8 row_format = redundant;
+ERROR HY000: Can't create table 'test.t2' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: cannot specify ROW_FORMAT = REDUNDANT with KEY_BLOCK_SIZE.
+Error	1005	Can't create table 'test.t2' (errno: 1478)
+create table t3 (id int primary key) engine = innodb
+key_block_size = 8 row_format = compact;
+ERROR HY000: Can't create table 'test.t3' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: cannot specify ROW_FORMAT = COMPACT with KEY_BLOCK_SIZE.
+Error	1005	Can't create table 'test.t3' (errno: 1478)
+create table t4 (id int primary key) engine = innodb
+key_block_size = 8 row_format = dynamic;
+ERROR HY000: Can't create table 'test.t4' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
+Error	1005	Can't create table 'test.t4' (errno: 1478)
+create table t5 (id int primary key) engine = innodb
+key_block_size = 8 row_format = default;
+ERROR HY000: Can't create table 'test.t5' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: cannot specify ROW_FORMAT = COMPACT with KEY_BLOCK_SIZE.
+Error	1005	Can't create table 'test.t5' (errno: 1478)
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+test	t1	Compressed
+drop table t1;
+create table t1 (id int primary key) engine = innodb
+key_block_size = 9 row_format = redundant;
+ERROR HY000: Can't create table 'test.t1' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
+Error	1478	InnoDB: cannot specify ROW_FORMAT = REDUNDANT with KEY_BLOCK_SIZE.
+Error	1005	Can't create table 'test.t1' (errno: 1478)
+create table t2 (id int primary key) engine = innodb
+key_block_size = 9 row_format = compact;
+ERROR HY000: Can't create table 'test.t2' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
+Error	1478	InnoDB: cannot specify ROW_FORMAT = COMPACT with KEY_BLOCK_SIZE.
+Error	1005	Can't create table 'test.t2' (errno: 1478)
+create table t2 (id int primary key) engine = innodb
+key_block_size = 9 row_format = dynamic;
+ERROR HY000: Can't create table 'test.t2' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
+Error	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
+Error	1005	Can't create table 'test.t2' (errno: 1478)
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+set global innodb_file_per_table = off;
+create table t1 (id int primary key) engine = innodb key_block_size = 1;
+ERROR HY000: Can't create table 'test.t1' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Error	1005	Can't create table 'test.t1' (errno: 1478)
+create table t2 (id int primary key) engine = innodb key_block_size = 2;
+ERROR HY000: Can't create table 'test.t2' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Error	1005	Can't create table 'test.t2' (errno: 1478)
+create table t3 (id int primary key) engine = innodb key_block_size = 4;
+ERROR HY000: Can't create table 'test.t3' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Error	1005	Can't create table 'test.t3' (errno: 1478)
+create table t4 (id int primary key) engine = innodb key_block_size = 8;
+ERROR HY000: Can't create table 'test.t4' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Error	1005	Can't create table 'test.t4' (errno: 1478)
+create table t5 (id int primary key) engine = innodb key_block_size = 16;
+ERROR HY000: Can't create table 'test.t5' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Error	1005	Can't create table 'test.t5' (errno: 1478)
+create table t6 (id int primary key) engine = innodb row_format = compressed;
+ERROR HY000: Can't create table 'test.t6' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Error	1005	Can't create table 'test.t6' (errno: 1478)
+create table t7 (id int primary key) engine = innodb row_format = dynamic;
+ERROR HY000: Can't create table 'test.t7' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_per_table.
+Error	1005	Can't create table 'test.t7' (errno: 1478)
+create table t8 (id int primary key) engine = innodb row_format = compact;
+create table t9 (id int primary key) engine = innodb row_format = redundant;
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+test	t8	Compact
+test	t9	Redundant
+drop table t8, t9;
+set global innodb_file_per_table = on;
+set global innodb_file_format = `0`;
+create table t1 (id int primary key) engine = innodb key_block_size = 1;
+ERROR HY000: Can't create table 'test.t1' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Error	1005	Can't create table 'test.t1' (errno: 1478)
+create table t2 (id int primary key) engine = innodb key_block_size = 2;
+ERROR HY000: Can't create table 'test.t2' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Error	1005	Can't create table 'test.t2' (errno: 1478)
+create table t3 (id int primary key) engine = innodb key_block_size = 4;
+ERROR HY000: Can't create table 'test.t3' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Error	1005	Can't create table 'test.t3' (errno: 1478)
+create table t4 (id int primary key) engine = innodb key_block_size = 8;
+ERROR HY000: Can't create table 'test.t4' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Error	1005	Can't create table 'test.t4' (errno: 1478)
+create table t5 (id int primary key) engine = innodb key_block_size = 16;
+ERROR HY000: Can't create table 'test.t5' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Error	1005	Can't create table 'test.t5' (errno: 1478)
+create table t6 (id int primary key) engine = innodb row_format = compressed;
+ERROR HY000: Can't create table 'test.t6' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
+Error	1005	Can't create table 'test.t6' (errno: 1478)
+create table t7 (id int primary key) engine = innodb row_format = dynamic;
+ERROR HY000: Can't create table 'test.t7' (errno: 1478)
+show errors;
+Level	Code	Message
+Error	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
+Error	1005	Can't create table 'test.t7' (errno: 1478)
+create table t8 (id int primary key) engine = innodb row_format = compact;
+create table t9 (id int primary key) engine = innodb row_format = redundant;
+SELECT table_schema, table_name, row_format
+FROM information_schema.tables WHERE engine='innodb';
+table_schema	table_name	row_format
+test	t8	Compact
+test	t9	Redundant
+drop table t8, t9;
+set global innodb_file_per_table=0;
+set global innodb_file_format=Antelope;
+set innodb_strict_mode=0;
+set global innodb_file_per_table=on;
+set global innodb_file_format=`Barracuda`;
+set global innodb_file_format_check=`Antelope`;
+create table normal_table (
+c1 int
+) engine = innodb;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Antelope
+create table zip_table (
+c1 int
+) engine = innodb key_block_size = 8;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Barracuda
+set global innodb_file_format_check=`Antelope`;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Antelope
+show table status;
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Barracuda
+set global innodb_file_format_check=`Cheetah`;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format_check=`on`;
+ERROR HY000: Incorrect arguments to SET
+set global innodb_file_format_check=`off`;
+ERROR HY000: Incorrect arguments to SET
+select @@innodb_file_format_check;
+@@innodb_file_format_check
+Barracuda
+drop table normal_table, zip_table;

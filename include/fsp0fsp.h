@@ -46,26 +46,25 @@ void
 fsp_init(void);
 /*==========*/
 /**************************************************************************
-Gets the current free limit of a tablespace. The free limit means the
-place of the first page which has never been put to the the free list
-for allocation. The space above that address is initialized to zero.
-Sets also the global variable log_fsp_current_free_limit. */
+Gets the current free limit of the system tablespace.  The free limit
+means the place of the first page which has never been put to the the
+free list for allocation.  The space above that address is initialized
+to zero.  Sets also the global variable log_fsp_current_free_limit. */
 UNIV_INTERN
 ulint
-fsp_header_get_free_limit(
-/*======================*/
-			/* out: free limit in megabytes */
-	ulint	space);	/* in: space id, must be 0 */
-/**************************************************************************
-Gets the size of the tablespace from the tablespace header. If we do not
-have an auto-extending data file, this should be equal to the size of the
-data files. If there is an auto-extending data file, this can be smaller. */
-UNIV_INTERN
-ulint
-fsp_header_get_tablespace_size(
+fsp_header_get_free_limit(void);
 /*===========================*/
+			/* out: free limit in megabytes */
+/**************************************************************************
+Gets the size of the system tablespace from the tablespace header.  If
+we do not have an auto-extending data file, this should be equal to
+the size of the data files.  If there is an auto-extending data file,
+this can be smaller. */
+UNIV_INTERN
+ulint
+fsp_header_get_tablespace_size(void);
+/*================================*/
 			/* out: size in pages */
-	ulint	space);	/* in: space id, must be 0 */
 /**************************************************************************
 Reads the file space size stored in the header page. */
 UNIV_INTERN
@@ -81,6 +80,14 @@ ulint
 fsp_header_get_space_id(
 /*====================*/
 				/* out: space id, ULINT UNDEFINED if error */
+	const page_t*	page);	/* in: first page of a tablespace */
+/**************************************************************************
+Reads the space flags from the first page of a tablespace. */
+UNIV_INTERN
+ulint
+fsp_header_get_flags(
+/*=================*/
+				/* out: flags */
 	const page_t*	page);	/* in: first page of a tablespace */
 /**************************************************************************
 Reads the compressed page size from the first page of a tablespace. */
@@ -101,8 +108,8 @@ fsp_header_init_fields(
 /*===================*/
 	page_t*	page,		/* in/out: first page in the space */
 	ulint	space_id,	/* in: space id */
-	ulint	zip_size);	/* in: compressed page size in bytes;
-				0 for uncompressed pages */
+	ulint	flags);		/* in: tablespace flags (FSP_SPACE_FLAGS):
+				0, or table->flags if newer than COMPACT */
 /**************************************************************************
 Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0. */
@@ -357,6 +364,7 @@ fseg_validate(
 				/* out: TRUE if ok */
 	fseg_header_t*	header, /* in: segment header */
 	mtr_t*		mtr2);	/* in: mtr */
+#ifdef UNIV_BTR_PRINT
 /***********************************************************************
 Writes info of a segment. */
 UNIV_INTERN
@@ -365,6 +373,7 @@ fseg_print(
 /*=======*/
 	fseg_header_t*	header, /* in: segment header */
 	mtr_t*		mtr);	/* in: mtr */
+#endif /* UNIV_BTR_PRINT */
 
 /* Flags for fsp_reserve_free_extents */
 #define FSP_NORMAL	1000000

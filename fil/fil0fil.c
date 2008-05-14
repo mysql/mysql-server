@@ -119,9 +119,9 @@ struct fil_node_struct {
 				/* count of pending flushes on this file;
 				closing of the file is not allowed if
 				this is > 0 */
-	ib_longlong	modification_counter;/* when we write to the file we
+	ib_int64_t	modification_counter;/* when we write to the file we
 				increment this by one */
-	ib_longlong	flush_counter;/* up to what modification_counter value
+	ib_int64_t	flush_counter;/* up to what modification_counter value
 				we have flushed the modifications to disk */
 	UT_LIST_NODE_T(fil_node_t) chain;
 				/* link field for the file chain */
@@ -137,7 +137,7 @@ struct fil_space_struct {
 	char*		name;	/* space name = the path to the first file in
 				it */
 	ulint		id;	/* space id */
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 				/* in DISCARD/IMPORT this timestamp is used to
 				check if we should ignore an insert buffer
 				merge request for a page because it actually
@@ -167,8 +167,8 @@ struct fil_space_struct {
 				tablespace whose size we do not know yet;
 				last incomplete megabytes in data files may be
 				ignored if space == 0 */
-	ulint		zip_size;/* compressed page size in bytes; 0
-				if the pages are not compressed */
+	ulint		flags;	/* in: compressed page size
+				and file format, or 0 */
 	ulint		n_reserved_extents;
 				/* number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -228,7 +228,7 @@ struct fil_system_struct {
 	ulint		n_open;		/* number of files currently open */
 	ulint		max_n_open;	/* n_open is not allowed to exceed
 					this */
-	ib_longlong	modification_counter;/* when we write to a file we
+	ib_int64_t	modification_counter;/* when we write to a file we
 					increment this by one */
 	ulint		max_assigned_id;/* maximum space id in the existing
 					tables, or assigned during the time
@@ -236,7 +236,7 @@ struct fil_system_struct {
 					startup we scan the data dictionary
 					and set here the maximum of the
 					space id's of the tables there */
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 					/* a counter which is incremented for
 					every space object memory creation;
 					every space mem object gets a
@@ -392,7 +392,7 @@ fil_space_get_by_name(
 /***********************************************************************
 Returns the version number of a tablespace, -1 if not found. */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 fil_space_get_version(
 /*==================*/
 			/* out: version number, -1 if the tablespace does not
@@ -401,7 +401,7 @@ fil_space_get_version(
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;
-	ib_longlong	version		= -1;
+	ib_int64_t	version		= -1;
 
 	ut_ad(system);
 
@@ -426,8 +426,7 @@ fil_space_get_latch(
 /*================*/
 			/* out: latch protecting storage allocation */
 	ulint	id,	/* in: space id */
-	ulint*	zip_size)/* out: compressed page size, or
-			0 for uncompressed tablespaces */
+	ulint*	flags)	/* out: tablespace flags */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;
@@ -440,8 +439,8 @@ fil_space_get_latch(
 
 	ut_a(space);
 
-	if (zip_size) {
-		*zip_size = space->zip_size;
+	if (flags) {
+		*flags = space->flags;
 	}
 
 	mutex_exit(&(system->mutex));
@@ -578,7 +577,7 @@ fil_node_open_file(
 	fil_system_t*	system,	/* in: tablespace memory cache */
 	fil_space_t*	space)	/* in: space */
 {
-	ib_longlong	size_bytes;
+	ib_int64_t	size_bytes;
 	ulint		size_low;
 	ulint		size_high;
 	ibool		ret;
@@ -587,7 +586,7 @@ fil_node_open_file(
 	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
-	ulint		zip_size;
+	ulint		flags;
 #endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(mutex_own(&(system->mutex)));
@@ -621,11 +620,11 @@ fil_node_open_file(
 
 		os_file_get_size(node->handle, &size_low, &size_high);
 
-		size_bytes = (((ib_longlong)size_high) << 32)
-			+ (ib_longlong)size_low;
+		size_bytes = (((ib_int64_t)size_high) << 32)
+			+ (ib_int64_t)size_low;
 #ifdef UNIV_HOTBACKUP
 		node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
-
+		/* TODO: adjust to zip_size, like below? */
 #else
 		ut_a(space->purpose != FIL_LOG);
 		ut_a(space->id != 0);
@@ -655,7 +654,7 @@ fil_node_open_file(
 		success = os_file_read(node->handle, page, 0, 0,
 				       UNIV_PAGE_SIZE);
 		space_id = fsp_header_get_space_id(page);
-		zip_size = fsp_header_get_zip_size(page);
+		flags = fsp_header_get_flags(page);
 
 		ut_free(buf2);
 
@@ -663,31 +662,32 @@ fil_node_open_file(
 
 		os_file_close(node->handle);
 
-		if (space_id == ULINT_UNDEFINED || space_id == 0) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace id %lu"
-				" in file %s is not sensible\n",
-				(ulong) space_id, node->name);
-
-			ut_a(0);
-		}
-
-		if (space_id != space->id) {
+		if (UNIV_UNLIKELY(space_id != space->id)) {
 			fprintf(stderr,
 				"InnoDB: Error: tablespace id is %lu"
 				" in the data dictionary\n"
 				"InnoDB: but in file %s it is %lu!\n",
 				space->id, node->name, space_id);
 
-			ut_a(0);
+			ut_error;
 		}
 
-		if (UNIV_UNLIKELY(zip_size != space->zip_size)) {
+		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
+				  || space_id == 0)) {
 			fprintf(stderr,
-				"InnoDB: Error: compressed page size is %lu"
+				"InnoDB: Error: tablespace id %lu"
+				" in file %s is not sensible\n",
+				(ulong) space_id, node->name);
+
+			ut_error;
+		}
+
+		if (UNIV_UNLIKELY(space->flags != flags)) {
+			fprintf(stderr,
+				"InnoDB: Error: table flags are %lx"
 				" in the data dictionary\n"
-				"InnoDB: but in file %s it is %lu!\n",
-				space->zip_size, node->name, zip_size);
+				"InnoDB: but the flags in file %s are %lx!\n",
+				space->flags, node->name, flags);
 
 			ut_error;
 		}
@@ -697,10 +697,12 @@ fil_node_open_file(
 			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
 		}
 
-		if (!zip_size) {
+		if (!(flags & DICT_TF_ZSSIZE_MASK)) {
 			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 		} else {
-			node->size = (ulint) (size_bytes / zip_size);
+			node->size = (ulint)
+				(size_bytes
+				 / dict_table_flags_to_zip_size(flags));
 		}
 #endif
 		space->size += node->size;
@@ -1042,12 +1044,19 @@ fil_space_create(
 				/* out: TRUE if success */
 	const char*	name,	/* in: space name */
 	ulint		id,	/* in: space id */
-	ulint		zip_size,/* in: compressed page size, or
-				0 for uncompressed tablespaces */
+	ulint		flags,	/* in: compressed page size
+				and file format, or 0 */
 	ulint		purpose)/* in: FIL_TABLESPACE, or FIL_LOG if log */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;
+
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal table->flags. */
+	ut_a(flags != DICT_TF_COMPACT);
+
 try_again:
 	/*printf(
 	"InnoDB: Adding tablespace %lu of name %s, purpose %lu\n", id, name,
@@ -1144,7 +1153,7 @@ try_again:
 	space->is_being_deleted = FALSE;
 	space->purpose = purpose;
 	space->size = 0;
-	space->zip_size = zip_size;
+	space->flags = flags;
 
 	space->n_reserved_extents = 0;
 
@@ -1369,20 +1378,19 @@ fil_space_get_size(
 }
 
 /***********************************************************************
-Returns the compressed page size of the space, or 0 if the space
-is not compressed. The tablespace must be cached in the memory cache. */
+Returns the flags of the space. The tablespace must be cached
+in the memory cache. */
 UNIV_INTERN
 ulint
-fil_space_get_zip_size(
-/*===================*/
-			/* out: compressed page size, ULINT_UNDEFINED
-			if space not found */
+fil_space_get_flags(
+/*================*/
+			/* out: flags, ULINT_UNDEFINED if space not found */
 	ulint	id)	/* in: space id */
 {
 	fil_system_t*	system		= fil_system;
 	fil_node_t*	node;
 	fil_space_t*	space;
-	ulint		size;
+	ulint		flags;
 
 	ut_ad(system);
 
@@ -1415,11 +1423,34 @@ fil_space_get_zip_size(
 		fil_node_complete_io(node, system, OS_FILE_READ);
 	}
 
-	size = space->zip_size;
+	flags = space->flags;
 
 	mutex_exit(&(system->mutex));
 
-	return(size);
+	return(flags);
+}
+
+/***********************************************************************
+Returns the compressed page size of the space, or 0 if the space
+is not compressed. The tablespace must be cached in the memory cache. */
+UNIV_INTERN
+ulint
+fil_space_get_zip_size(
+/*===================*/
+			/* out: compressed page size, ULINT_UNDEFINED
+			if space not found */
+	ulint	id)	/* in: space id */
+{
+	ulint	flags;
+
+	flags = fil_space_get_flags(id);
+
+	if (flags && flags != ULINT_UNDEFINED) {
+
+		return(dict_table_flags_to_zip_size(flags));
+	}
+
+	return(flags);
 }
 
 /***********************************************************************
@@ -1868,12 +1899,13 @@ void
 fil_op_write_log(
 /*=============*/
 	ulint		type,		/* in: MLOG_FILE_CREATE,
-					MLOG_ZIP_FILE_CREATE,
+					MLOG_FILE_CREATE2,
 					MLOG_FILE_DELETE, or
 					MLOG_FILE_RENAME */
 	ulint		space_id,	/* in: space id */
-	ulint		zip_size,	/* in: compressed page size
-					if type==MLOG_ZIP_FILE_CREATE */
+	ulint		flags,		/* in: compressed page size
+					and file format
+					if type==MLOG_FILE_CREATE2, or 0 */
 	const char*	name,		/* in: table name in the familiar
 					'databasename/tablename' format, or
 					the file path in the case of
@@ -1896,10 +1928,9 @@ fil_op_write_log(
 
 	log_ptr = mlog_write_initial_log_record_for_file_op(type, space_id, 0,
 							    log_ptr, mtr);
-	if (type == MLOG_ZIP_FILE_CREATE) {
-		ut_a(zip_size && !(zip_size % 1024) && zip_size <= 16384);
-		mach_write_to_1(log_ptr, zip_size >> 10);
-		log_ptr++;
+	if (type == MLOG_FILE_CREATE2) {
+		mach_write_to_4(log_ptr, flags);
+		log_ptr += 4;
 	}
 	/* Let us store the strings as null-terminated for easier readability
 	and handling */
@@ -1957,16 +1988,16 @@ fil_op_log_parse_or_replay(
 	ulint		new_name_len;
 	const char*	name;
 	const char*	new_name	= NULL;
-	ulint		zip_size	= 0;
+	ulint		flags		= 0;
 
-	if (type == MLOG_ZIP_FILE_CREATE) {
-		if (end_ptr < ptr + 1) {
+	if (type == MLOG_FILE_CREATE2) {
+		if (end_ptr < ptr + 4) {
 
 			return(NULL);
 		}
 
-		zip_size = mach_read_from_1(ptr) << 10;
-		ptr++;
+		flags = mach_read_from_4(ptr);
+		ptr += 4;
 	}
 
 	if (end_ptr < ptr + 2) {
@@ -2065,7 +2096,7 @@ fil_op_log_parse_or_replay(
 		break;
 
 	case MLOG_FILE_CREATE:
-	case MLOG_ZIP_FILE_CREATE:
+	case MLOG_FILE_CREATE2:
 		if (fil_tablespace_exists_in_mem(space_id)) {
 			/* Do nothing */
 		} else if (fil_get_space_id_for_table(name)
@@ -2077,7 +2108,7 @@ fil_op_log_parse_or_replay(
 			fil_create_directory_for_tablename(name);
 
 			if (fil_create_new_single_table_tablespace(
-				    &space_id, name, FALSE, zip_size,
+				    &space_id, name, FALSE, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_error;
 			}
@@ -2532,8 +2563,7 @@ fil_create_new_single_table_tablespace(
 					table */
 	ibool		is_temp,	/* in: TRUE if a table created with
 					CREATE TEMPORARY TABLE */
-	ulint		zip_size,	/* in: compressed page size,
-					or 0 if uncompressed tablespace */
+	ulint		flags,		/* in: tablespace flags */
 	ulint		size)		/* in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
@@ -2547,6 +2577,11 @@ fil_create_new_single_table_tablespace(
 	char*		path;
 
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal table->flags. */
+	ut_a(flags != DICT_TF_COMPACT);
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
@@ -2594,7 +2629,7 @@ fil_create_new_single_table_tablespace(
 		return(DB_ERROR);
 	}
 
-	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE + zip_size);
+	buf2 = ut_malloc(3 * UNIV_PAGE_SIZE);
 	/* Align the memory for file i/o if we might have O_DIRECT set */
 	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
@@ -2637,14 +2672,20 @@ error_exit2:
 
 	memset(page, '\0', UNIV_PAGE_SIZE);
 
-	fsp_header_init_fields(page, *space_id, zip_size);
+	fsp_header_init_fields(page, *space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, *space_id);
 
-	if (!zip_size) {
+	if (!(flags & DICT_TF_ZSSIZE_MASK)) {
 		buf_flush_init_for_writing(page, NULL, 0);
 		ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 	} else {
 		page_zip_des_t	page_zip;
+		ulint		zip_size;
+
+		zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
+			    << ((flags & DICT_TF_ZSSIZE_MASK)
+				>> DICT_TF_ZSSIZE_SHIFT));
+
 		page_zip_set_size(&page_zip, zip_size);
 		page_zip.data = page + UNIV_PAGE_SIZE;
 #ifdef UNIV_DEBUG
@@ -2681,7 +2722,7 @@ error_exit2:
 		goto error_exit2;
 	}
 
-	success = fil_space_create(path, *space_id, zip_size, FIL_TABLESPACE);
+	success = fil_space_create(path, *space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
 		goto error_exit2;
@@ -2695,10 +2736,10 @@ error_exit2:
 
 		mtr_start(&mtr);
 
-		fil_op_write_log(zip_size
-				 ? MLOG_ZIP_FILE_CREATE
+		fil_op_write_log(flags
+				 ? MLOG_FILE_CREATE2
 				 : MLOG_FILE_CREATE,
-				 *space_id, zip_size,
+				 *space_id, flags,
 				 tablename, NULL, &mtr);
 
 		mtr_commit(&mtr);
@@ -2734,8 +2775,8 @@ fil_reset_too_high_lsns(
 	byte*		buf2;
 	ib_uint64_t	flush_lsn;
 	ulint		space_id;
-	ib_longlong	file_size;
-	ib_longlong	offset;
+	ib_int64_t	file_size;
+	ib_int64_t	offset;
 	ulint		zip_size;
 	ibool		success;
 
@@ -2893,8 +2934,7 @@ fil_open_single_table_tablespace(
 					faster (the OS caches them) than
 					accessing the first page of the file */
 	ulint		id,		/* in: space id */
-	ulint		zip_size,	/* in: compressed page size,
-					or 0 if uncompressed tablespace */
+	ulint		flags,		/* in: tablespace flags */
 	const char*	name)		/* in: table name in the
 					databasename/tablename format */
 {
@@ -2904,9 +2944,16 @@ fil_open_single_table_tablespace(
 	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
+	ulint		space_flags;
 	ibool		ret		= TRUE;
 
 	filepath = fil_make_ibd_name(name, FALSE);
+
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal table->flags. */
+	ut_a(flags != DICT_TF_COMPACT);
 
 	file = os_file_create_simple_no_error_handling(
 		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
@@ -2952,19 +2999,21 @@ fil_open_single_table_tablespace(
 
 	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 
-	/* We have to read the tablespace id from the file */
+	/* We have to read the tablespace id and flags from the file. */
 
 	space_id = fsp_header_get_space_id(page);
+	space_flags = fsp_header_get_flags(page);
 
 	ut_free(buf2);
 
-	if (space_id != id) {
+	if (UNIV_UNLIKELY(space_id != id || space_flags != flags)) {
 		ut_print_timestamp(stderr);
 
-		fputs("  InnoDB: Error: tablespace id in file ", stderr);
+		fputs("  InnoDB: Error: tablespace id and flags in file ",
+		      stderr);
 		ut_print_filename(stderr, filepath);
-		fprintf(stderr, " is %lu, but in the InnoDB\n"
-			"InnoDB: data dictionary it is %lu.\n"
+		fprintf(stderr, " are %lu and %lu, but in the InnoDB\n"
+			"InnoDB: data dictionary they are %lu and %lu.\n"
 			"InnoDB: Have you moved InnoDB .ibd files"
 			" around without using the\n"
 			"InnoDB: commands DISCARD TABLESPACE and"
@@ -2973,7 +3022,8 @@ fil_open_single_table_tablespace(
 			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
 			"innodb-troubleshooting.html\n"
 			"InnoDB: for how to resolve the issue.\n",
-			(ulong) space_id, (ulong) id);
+			(ulong) space_id, (ulong) space_flags,
+			(ulong) id, (ulong) flags);
 
 		ret = FALSE;
 
@@ -2981,8 +3031,7 @@ fil_open_single_table_tablespace(
 	}
 
 skip_check:
-	success = fil_space_create(filepath, space_id, zip_size,
-				FIL_TABLESPACE);
+	success = fil_space_create(filepath, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
 		goto func_exit;
@@ -3038,10 +3087,10 @@ fil_load_single_table_tablespace(
 	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
-	ulint		zip_size;
+	ulint		flags;
 	ulint		size_low;
 	ulint		size_high;
-	ib_longlong	size;
+	ib_int64_t	size;
 #ifdef UNIV_HOTBACKUP
 	fil_space_t*	space;
 #endif
@@ -3161,7 +3210,7 @@ fil_load_single_table_tablespace(
 	/* Every .ibd file is created >= 4 pages in size. Smaller files
 	cannot be ok. */
 
-	size = (((ib_longlong)size_high) << 32) + (ib_longlong)size_low;
+	size = (((ib_int64_t)size_high) << 32) + (ib_int64_t)size_low;
 #ifndef UNIV_HOTBACKUP
 	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 		fprintf(stderr,
@@ -3189,10 +3238,10 @@ fil_load_single_table_tablespace(
 		/* We have to read the tablespace id from the file */
 
 		space_id = fsp_header_get_space_id(page);
-		zip_size = fsp_header_get_zip_size(page);
+		flags = fsp_header_get_flags(page);
 	} else {
 		space_id = ULINT_UNDEFINED;
-		zip_size = 0;
+		flags = 0;
 	}
 
 #ifndef UNIV_HOTBACKUP
@@ -3269,8 +3318,7 @@ fil_load_single_table_tablespace(
 	}
 	mutex_exit(&(fil_system->mutex));
 #endif
-	success = fil_space_create(filepath, space_id, zip_size,
-				FIL_TABLESPACE);
+	success = fil_space_create(filepath, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
 
@@ -3501,7 +3549,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 				/* out: TRUE if does not exist or is being\
 				deleted */
 	ulint		id,	/* in: space id */
-	ib_longlong	version)/* in: tablespace_version should be this; if
+	ib_int64_t	version)/* in: tablespace_version should be this; if
 				you pass -1 as the value of this, then this
 				parameter is ignored */
 {
@@ -3520,7 +3568,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 		return(TRUE);
 	}
 
-	if (version != ((ib_longlong)-1)
+	if (version != ((ib_int64_t)-1)
 	    && space->tablespace_version != version) {
 		mutex_exit(&(system->mutex));
 
@@ -3788,7 +3836,7 @@ fil_extend_space_to_desired_size(
 		return(TRUE);
 	}
 
-	page_size = space->zip_size;
+	page_size = dict_table_flags_to_zip_size(space->flags);
 	if (!page_size) {
 		page_size = UNIV_PAGE_SIZE;
 	}
@@ -4448,7 +4496,7 @@ fil_flush(
 	fil_space_t*	space;
 	fil_node_t*	node;
 	os_file_t	file;
-	ib_longlong	old_mod_counter;
+	ib_int64_t	old_mod_counter;
 
 	mutex_enter(&(system->mutex));
 

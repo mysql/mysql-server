@@ -1984,7 +1984,7 @@ any_extern:
 	corresponding to new_entry is latched in mtr.
 	Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, NULL, heap);
+						     FALSE, heap);
 	old_rec_size = rec_offs_size(offsets);
 	new_rec_size = rec_get_converted_size(index, new_entry, 0);
 
@@ -2261,7 +2261,7 @@ btr_cur_pessimistic_update(
 	purge would also have removed the clustered index record
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, *heap, *heap);
+						     FALSE, *heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
@@ -3132,7 +3132,7 @@ btr_cur_add_path_info(
 /***********************************************************************
 Estimates the number of rows in a given index range. */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 btr_estimate_n_rows_in_range(
 /*=========================*/
 				/* out: estimated number of rows */
@@ -3150,7 +3150,7 @@ btr_estimate_n_rows_in_range(
 	ibool		diverged;
 	ibool		diverged_lot;
 	ulint		divergence_level;
-	ib_longlong	n_rows;
+	ib_int64_t	n_rows;
 	ulint		i;
 	mtr_t		mtr;
 
@@ -3293,7 +3293,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		n_cols;
 	ulint		matched_fields;
 	ulint		matched_bytes;
-	ib_longlong*	n_diff;
+	ib_int64_t*	n_diff;
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
 	ulint		i;
@@ -3310,7 +3310,7 @@ btr_estimate_number_of_different_key_vals(
 
 	n_cols = dict_index_get_n_unique(index);
 
-	n_diff = mem_zalloc((n_cols + 1) * sizeof(ib_longlong));
+	n_diff = mem_zalloc((n_cols + 1) * sizeof(ib_int64_t));
 
 	/* We sample some pages in the index to get an estimate */
 
@@ -3413,7 +3413,7 @@ btr_estimate_number_of_different_key_vals(
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
-			    * (ib_longlong)index->stat_n_leaf_pages
+			    * (ib_int64_t)index->stat_n_leaf_pages
 			    + srv_stats_sample - 1
 			    + total_external_size
 			    + not_empty_flag)
