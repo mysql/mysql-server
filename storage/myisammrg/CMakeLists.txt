@@ -30,4 +30,5 @@ SET(MYISAMMRG_SOURCES  myrg_close.c myrg_create.c myrg_delete.c myrg_extra.c myr
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(myisammrg ${MYISAMMRG_SOURCES})
+  ADD_DEPENDENCIES(myisammrg GenError)
 ENDIF(NOT SOURCE_SUBLIBS)

@@ -3,6 +3,7 @@
 # Trigger Tests
 # (test case numbering refer to requirement document TP v1.1)
 #======================================================================
+# WL#4084: enable disabled parts. 2007-11-15, hhunger
 
 --disable_abort_on_error
 
@@ -157,16 +158,13 @@ let $message=Testcase 3.5.3.7a:;
 	show grants;
 	select f1 from t1 order by f1;
 
-let $message= Trigger create disabled - should fail - Bug 8884;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg4a_1 before INSERT on t1 for each row
-#		set new.f1 = 'trig 3.5.3.7-1a';
+	create trigger trg4a_1 before INSERT on t1 for each row
+		set new.f1 = 'trig 3.5.3.7-1a';
 
 	connection default;
+	--error ER_COLUMNACCESS_DENIED_ERROR
 	insert into t1 (f1) values ('insert 3.5.3.7-1a');
 	select f1 from t1 order by f1;
-	--error 0, 1360
 	drop trigger trg4a_1;
 
 	connection yes_privs_424a;
@@ -213,18 +211,14 @@ let $message= Testcase 3.5.3.7b:;
 	show grants;
 	use priv_db;
 
-let $message= Trigger create disabled - should fail - Bug 8884;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg4b_1 before UPDATE on t1 for each row
-#		set new.f1 = 'trig 3.5.3.7-1b';
+	create trigger trg4b_1 before UPDATE on t1 for each row
+		set new.f1 = 'trig 3.5.3.7-1b';
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1b');
 	select f1 from t1 order by f1;
 	update t1 set  f1 = 'update 3.5.3.7-1b' where f1 = 'insert 3.5.3.7-1b';
 	select f1 from t1 order by f1;
-	--error 0, 1360
 	drop trigger trg4b_1;
 
 	connection yes_privs_424b;
@@ -271,16 +265,12 @@ let $message= Testcase 3.5.3.7c;
 	show grants;
 	use priv_db;
 
-let $message= Trigger create disabled - should fail - Bug 8884;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg4c_1 before INSERT on t1 for each row
-#		set new.f1 = 'trig 3.5.3.7-1c';
+	create trigger trg4c_1 before INSERT on t1 for each row
+		set new.f1 = 'trig 3.5.3.7-1c';
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1c');
 	select f1 from t1 order by f1;
-	--error 0, 1360
 	drop trigger trg4c_1;
 
 	connection yes_privs_424c;
@@ -327,16 +317,12 @@ let $message= Testcase 3.5.3.7d:;
 	connection no_privs_424d;
 	show grants;
 	use priv_db;
-let $message= Trigger create disabled - should fail - Bug 8884;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg4d_1 before INSERT on t1 for each row
-#		set new.f1 = 'trig 3.5.3.7-1d';
+	create trigger trg4d_1 before INSERT on t1 for each row
+		set new.f1 = 'trig 3.5.3.7-1d';
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1d');
 	select f1 from t1 order by f1;
-	--error 0, 1360
 	drop trigger trg4d_1;
 
 	connection yes_privs_424d;
@@ -386,18 +372,14 @@ let $message= Testcase 3.5.3.8a:;
 	use priv_db;
 	show grants;
 
-let $message= Trigger create disabled - should fail - Bug 8887;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg5a_1 before INSERT on t1 for each row
-#		set @test_var = new.f1;
+	create trigger trg5a_1 before INSERT on t1 for each row
+		set @test_var = new.f1;
 
 	connection default;
         set @test_var = 'before trig 3.5.3.8-1a';
 	select @test_var;
 	insert into t1 (f1) values ('insert 3.5.3.8-1a');
 	select @test_var;
-	--error 0, 1360
 	drop trigger trg5a_1;
 
 	connection yes_privs_425a;
@@ -446,11 +428,8 @@ let $message= Testcase: 3.5.3.8b;
 	show grants;
 	use priv_db;
 
-let $message= Trigger create disabled - should fail - Bug 8887;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg5b_1 before UPDATE on t1 for each row
-#		set @test_var= new.f1;
+	create trigger trg5b_1 before UPDATE on t1 for each row
+		set @test_var= new.f1;
 
 	connection default;
         set @test_var= 'before trig 3.5.3.8-1b';
@@ -458,7 +437,6 @@ let $message= Trigger create disabled - should fail - Bug 8887;
 	select @test_var;
 	update t1 set  f1= 'update 3.5.3.8-1b' where f1 = 'insert 3.5.3.8-1b';
 	select @test_var;
-	--error 0, 1360
 	drop trigger trg5b_1;
 
 	connection yes_privs_425b;
@@ -506,17 +484,13 @@ let $message= Testcase 3.5.3.8c:;
 	show grants;
 	use priv_db;
 
-let $message= Trigger create disabled - should fail - Bug 8887;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg5c_1 before INSERT on t1 for each row
-#		set @test_var= new.f1;
+	create trigger trg5c_1 before INSERT on t1 for each row
+		set @test_var= new.f1;
 
 	connection default;
         set @test_var= 'before trig 3.5.3.8-1c';
 	insert into t1 (f1) values ('insert 3.5.3.8-1c');
 	select @test_var;
-	--error 0, 1360
 	drop trigger trg5c_1;
 
 	connection yes_privs_425c;
@@ -561,17 +535,13 @@ let $message=Testcase: 3.5.3.8d:;
 	connection no_privs_425d;
 	show grants;
 	use priv_db;
-let $message= Trigger create disabled - should fail - Bug 8887;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg5d_1 before INSERT on t1 for each row
-#		set @test_var= new.f1;
+	create trigger trg5d_1 before INSERT on t1 for each row
+		set @test_var= new.f1;
 
 	connection default;
         set @test_var='before trig 3.5.3.8-1d';
 	insert into t1 (f1) values ('insert 3.5.3.8-1d');
 	select @test_var;
-	--error 0, 1360
 	drop trigger trg5d_1;
 
 	connection yes_privs_425d;
@@ -591,8 +561,7 @@ let $message= Trigger create disabled - should fail - Bug 8887;
 	drop trigger trg5d_2;
 	--enable_warnings
 
-# --- 3.5.3.x - additional tests following the fix to bug 5861 / WL 2818
-#               to test for trigger definer privs in the case of trigger
+# --- 3.5.3.x   to test for trigger definer privs in the case of trigger
 #               actions (insert/update/delete/select) performed on other
 #               tables.
 let $message=Testcase: 3.5.3.x:;

@@ -108,6 +108,23 @@ drop table t1;
 set global binlog_cache_size=@bcs;
 set session autocommit = @ac;
 
+#
+# Bug#33798: prepared statements improperly handle large unsigned ints
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+reset master;
+create table t1 (a bigint unsigned, b bigint(20) unsigned);
+prepare stmt from "insert into t1 values (?,?)";
+set @a= 9999999999999999;
+set @b= 14632475938453979136;
+execute stmt using @a, @b;
+deallocate prepare stmt;
+drop table t1;
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
+show binlog events from 0;
+
 --echo End of 5.0 tests
 
 # Test of a too big SET INSERT_ID: see if the truncated value goes

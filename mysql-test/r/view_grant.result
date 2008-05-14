@@ -469,6 +469,7 @@ use test;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 drop database mysqltest;
 drop view if exists v1;
+drop table if exists t1;
 create table t1 as select * from mysql.user where user='';
 delete from mysql.user where user='';
 flush privileges;
@@ -514,10 +515,10 @@ drop user mysqltest_1@localhost;
 drop database mysqltest;
 create definer=some_user@`` sql security invoker view v1 as select 1;
 Warnings:
-Note	1449	There is no 'some_user'@'' registered
+Note	1449	The user specified as a definer ('some_user'@'') does not exist
 create definer=some_user@localhost sql security invoker view v2 as select 1;
 Warnings:
-Note	1449	There is no 'some_user'@'localhost' registered
+Note	1449	The user specified as a definer ('some_user'@'localhost') does not exist
 show create view v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`some_user`@`` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`	latin1	latin1_swedish_ci
@@ -600,14 +601,14 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 INSERT INTO t1 VALUES (1), (2), (3);
 CREATE DEFINER = 'no-such-user'@localhost VIEW v AS SELECT a from t1;
 Warnings:
-Note	1449	There is no 'no-such-user'@'localhost' registered
+Note	1449	The user specified as a definer ('no-such-user'@'localhost') does not exist
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
 v	CREATE ALGORITHM=UNDEFINED DEFINER=`no-such-user`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `test`.`t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM v;
-ERROR HY000: There is no 'no-such-user'@'localhost' registered
+ERROR HY000: The user specified as a definer ('no-such-user'@'localhost') does not exist
 DROP VIEW v;
 DROP TABLE t1;
 USE test;
@@ -721,7 +722,7 @@ SELECT * FROM v1;
 ERROR 42000: SELECT command denied to user 'inv_17254'@'localhost' for table 'v1'
 for a superuser
 SELECT * FROM v1;
-ERROR HY000: There is no 'def_17254'@'localhost' registered
+ERROR HY000: The user specified as a definer ('def_17254'@'localhost') does not exist
 DROP USER inv_17254@localhost;
 DROP DATABASE db17254;
 DROP DATABASE IF EXISTS mysqltest_db1;
@@ -931,7 +932,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
 ALTER DEFINER=no_such@user_1 VIEW v1 AS SELECT * FROM t1;
 Warnings:
-Note	1449	There is no 'no_such'@'user_1' registered
+Note	1449	The user specified as a definer ('no_such'@'user_1') does not exist
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
@@ -939,7 +940,7 @@ Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 ALTER ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
 Warnings:
-Note	1449	There is no 'no_such'@'user_1' registered
+Note	1449	The user specified as a definer ('no_such'@'user_1') does not exist
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=MERGE DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
@@ -947,7 +948,7 @@ Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 ALTER ALGORITHM=TEMPTABLE DEFINER=no_such@user_2 VIEW v1 AS SELECT * FROM t1;
 Warnings:
-Note	1449	There is no 'no_such'@'user_2' registered
+Note	1449	The user specified as a definer ('no_such'@'user_2') does not exist
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`no_such`@`user_2` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci

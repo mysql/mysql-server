@@ -63,6 +63,26 @@ int injector::transaction::commit()
 {
    DBUG_ENTER("injector::transaction::commit()");
    m_thd->binlog_flush_pending_rows_event(true);
+   /*
+     Cluster replication does not preserve statement or
+     transaction boundaries of the master.  Instead, a new
+     transaction on replication slave is started when a new GCI
+     (global checkpoint identifier) is issued, and is committed
+     when the last event of the check point has been received and
+     processed. This ensures consistency of each cluster in
+     cluster replication, and there is no requirement for stronger
+     consistency: MySQL replication is asynchronous with other
+     engines as well.
+
+     A practical consequence of that is that row level replication
+     stream passed through the injector thread never contains
+     COMMIT events.
+     Here we should preserve the server invariant that there is no
+     outstanding statement transaction when the normal transaction
+     is committed by committing the statement transaction
+     explicitly.
+   */
+   ha_autocommit_or_rollback(m_thd, 0);
    end_trans(m_thd, COMMIT);
    DBUG_RETURN(0);
 }

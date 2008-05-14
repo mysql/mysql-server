@@ -20,7 +20,8 @@
 void*
 Pool_context::alloc_page(Uint32 type_id, Uint32 *i)
 {
-  return m_block->m_ctx.m_mm.alloc_page(type_id, i);
+  return m_block->m_ctx.m_mm.alloc_page(type_id, i,
+                                        Ndbd_mem_manager::NDB_ZONE_LO);
 }
   
 void 

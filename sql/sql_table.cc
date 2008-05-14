@@ -42,7 +42,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
-static bool
+static int
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            bool tmp_table,
@@ -1226,8 +1226,12 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
     flags                  Flags as defined below
       WFRM_INITIAL_WRITE        If set we need to prepare table before
                                 creating the frm file
-      WFRM_CREATE_HANDLER_FILES If set we need to create the handler file as
-                                part of the creation of the frm file
+      WFRM_INSTALL_SHADOW       If set we should install the new frm
+      WFRM_KEEP_SHARE           If set we know that the share is to be
+                                retained and thus we should ensure share
+                                object is correct, if not set we don't
+                                set the new partition syntax string since
+                                we know the share object is destroyed.
       WFRM_PACK_FRM             If set we should pack the frm file and delete
                                 the frm file
 
@@ -1370,7 +1374,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       goto err;
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (part_info)
+    if (part_info && (flags & WFRM_KEEP_SHARE))
     {
       TABLE_SHARE *share= lpt->table->s;
       char *tmp_part_syntax_str;
@@ -1497,7 +1501,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (error)
     DBUG_RETURN(TRUE);
-  send_ok(thd);
+  my_ok(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -2173,7 +2177,7 @@ int prepare_create_field(Create_field *sql_field,
     TRUE     error
 */
 
-static bool
+static int
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            bool tmp_table,
@@ -3001,6 +3005,37 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	   (qsort_cmp) sort_keys);
   create_info->null_bits= null_fields;
 
+  /* Check fields. */
+  it.rewind();
+  while ((sql_field=it++))
+  {
+    Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
+
+    if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
+        !sql_field->def &&
+        sql_field->sql_type == MYSQL_TYPE_TIMESTAMP &&
+        (sql_field->flags & NOT_NULL_FLAG) &&
+        (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
+    {
+      /*
+        An error should be reported if:
+          - NO_ZERO_DATE SQL mode is active;
+          - there is no explicit DEFAULT clause (default column value);
+          - this is a TIMESTAMP column;
+          - the column is not NULL;
+          - this is not the DEFAULT CURRENT_TIMESTAMP column.
+
+        In other words, an error should be reported if
+          - NO_ZERO_DATE SQL mode is active;
+          - the column definition is equivalent to
+            'column_name TIMESTAMP DEFAULT 0'.
+      */
+
+      my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+      DBUG_RETURN(TRUE);
+    }
+  }
+
   DBUG_RETURN(FALSE);
 }
 
@@ -3292,8 +3327,9 @@ bool mysql_create_table_no_lock(THD *thd,
         }
       }
     }
-    DBUG_PRINT("info", ("db_type = %d",
-                         ha_legacy_type(part_info->default_engine_type)));
+    DBUG_PRINT("info", ("db_type = %s create_info->db_type = %s",
+             ha_resolve_storage_engine_name(part_info->default_engine_type),
+             ha_resolve_storage_engine_name(create_info->db_type)));
     if (part_info->check_partition_info(thd, &engine_type, file,
                                         create_info, TRUE))
       goto err;
@@ -3317,8 +3353,8 @@ bool mysql_create_table_no_lock(THD *thd,
         The handler assigned to the table cannot handle partitioning.
         Assign the partition handler as the handler of the table.
       */
-      DBUG_PRINT("info", ("db_type: %d",
-                          ha_legacy_type(create_info->db_type)));
+      DBUG_PRINT("info", ("db_type: %s",
+                        ha_resolve_storage_engine_name(create_info->db_type)));
       delete file;
       create_info->db_type= partition_hton;
       if (!(file= get_ha_partition(part_info)))
@@ -3488,8 +3524,36 @@ bool mysql_create_table_no_lock(THD *thd,
   thd_proc_info(thd, "creating table");
   create_info->table_existed= 0;		// Mark that table is created
 
-  if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
+#ifdef HAVE_READLINK
+  if (test_if_data_home_dir(create_info->data_file_name))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "DATA DIRECTORY");
+    goto unlock_and_end;
+  }
+  if (test_if_data_home_dir(create_info->index_file_name))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "INDEX DIRECTORY");
+    goto unlock_and_end;
+  }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (check_partition_dirs(thd->lex->part_info))
+  {
+    goto unlock_and_end;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+  if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+#endif /* HAVE_READLINK */
+  {
+    if (create_info->data_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "DATA DIRECTORY option ignored");
+    if (create_info->index_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "INDEX DIRECTORY option ignored");
     create_info->data_file_name= create_info->index_file_name= 0;
+  }
   create_info->table_options=db_options;
 
   path[path_length - reg_ext_length]= '\0'; // Remove .frm extension
@@ -3752,9 +3816,9 @@ mysql_rename_table(handlerton *base, const char *old_db,
     wait_while_table_is_used()
     thd			Thread handler
     table		Table to remove from cache
-    function		HA_EXTRA_PREPARE_FOR_DROP if table is to be deleted
-			HA_EXTRA_FORCE_REOPEN if table is not be used
-                        HA_EXTRA_PREPARE_FOR_REANME if table is to be renamed
+    function            HA_EXTRA_PREPARE_FOR_DROP if table is to be deleted
+                        HA_EXTRA_FORCE_REOPEN if table is not be used
+                        HA_EXTRA_PREPARE_FOR_RENAME if table is to be renamed
   NOTES
    When returning, the table will be unusable for other threads until
    the table is closed.
@@ -4141,6 +4205,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       switch ((*prepare_func)(thd, table, check_opt)) {
       case  1:           // error, message written to net
         ha_autocommit_or_rollback(thd, 1);
+        end_trans(thd, ROLLBACK);
         close_thread_tables(thd);
         DBUG_PRINT("admin", ("simple error, admin next table"));
         continue;
@@ -4199,6 +4264,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                           table_name);
       protocol->store(buff, length, system_charset_info);
       ha_autocommit_or_rollback(thd, 0);
+      end_trans(thd, COMMIT);
       close_thread_tables(thd);
       lex->reset_query_tables_list(FALSE);
       table->table=0;				// For query cache
@@ -4471,17 +4537,19 @@ send_result_message:
       }
     }
     ha_autocommit_or_rollback(thd, 0);
+    end_trans(thd, COMMIT);
     close_thread_tables(thd);
     table->table=0;				// For query cache
     if (protocol->write())
       goto err;
   }
 
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 
- err:
+err:
   ha_autocommit_or_rollback(thd, 1);
+  end_trans(thd, ROLLBACK);
   close_thread_tables(thd);			// Shouldn't be needed
   if (table)
     table->table=0;
@@ -5004,8 +5072,8 @@ mysql_discard_or_import_tablespace(THD *thd,
   query_cache_invalidate3(thd, table_list, 0);
 
   /* The ALTER TABLE is always in its own transaction */
-  error = ha_commit_stmt(thd);
-  if (ha_commit(thd))
+  error = ha_autocommit_or_rollback(thd, 0);
+  if (end_active_trans(thd))
     error=1;
   if (error)
     goto err;
@@ -5013,12 +5081,11 @@ mysql_discard_or_import_tablespace(THD *thd,
 
 err:
   ha_autocommit_or_rollback(thd, error);
-  close_thread_tables(thd);
   thd->tablespace_op=FALSE;
   
   if (error == 0)
   {
-    send_ok(thd);
+    my_ok(thd);
     DBUG_RETURN(0);
   }
 
@@ -5985,7 +6052,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
-      send_ok(thd);
+      my_ok(thd);
     }
 
     unlock_table_names(thd, table_list, (TABLE_LIST*) 0);
@@ -6223,7 +6290,7 @@ view_err:
     if (!error)
     {
       write_bin_log(thd, TRUE, thd->query, thd->query_length);
-      send_ok(thd);
+      my_ok(thd);
     }
     else if (error > 0)
     {
@@ -6539,8 +6606,8 @@ view_err:
     VOID(pthread_mutex_unlock(&LOCK_open));
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
-    error= ha_commit_stmt(thd);
-    if (ha_commit(thd))
+    error= ha_autocommit_or_rollback(thd, 0);
+    if (end_active_trans(thd))
       error= 1;
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -6628,7 +6695,7 @@ view_err:
 
     /* Need to commit before a table is unlocked (NDB requirement). */
     DBUG_PRINT("info", ("Committing before unlocking table"));
-    if (ha_commit_stmt(thd) || ha_commit(thd))
+    if (ha_autocommit_or_rollback(thd, 0) || end_active_trans(thd))
       goto err1;
   }
   /*end of if (! new_table) for add/drop index*/
@@ -6858,7 +6925,7 @@ end_temporary:
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
 	      (ulong) thd->cuted_fields);
-  send_ok(thd, copied + deleted, 0L, tmp_name);
+  my_ok(thd, copied + deleted, 0L, tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(FALSE);
 
@@ -7126,9 +7193,9 @@ err:
     Ensure that the new table is saved properly to disk so that we
     can do a rename
   */
-  if (ha_commit_stmt(thd))
+  if (ha_autocommit_or_rollback(thd, 0))
     error=1;
-  if (ha_commit(thd))
+  if (end_active_trans(thd))
     error=1;
 
   thd->variables.sql_mode= save_sql_mode;
@@ -7293,7 +7360,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
       goto err;
   }
 
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 
  err:

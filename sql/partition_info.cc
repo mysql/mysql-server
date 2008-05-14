@@ -419,41 +419,167 @@ char *partition_info::has_unique_names()
 
 
 /*
-  Check that all partitions use the same storage engine.
-  This is currently a limitation in this version.
+  Check that the partition/subpartition is setup to use the correct
+  storage engine
+  SYNOPSIS
+    check_engine_condition()
+    p_elem                   Partition element
+    table_engine_set         Have user specified engine on table level
+    inout::engine_type       Current engine used
+    inout::first             Is it first partition
+  RETURN VALUE
+    TRUE                     Failed check
+    FALSE                    Ok
+  DESCRIPTION
+    Specified engine for table and partitions p0 and pn
+    Must be correct both on CREATE and ALTER commands
+    table p0 pn res (0 - OK, 1 - FAIL)
+        -  -  - 0
+        -  -  x 1
+        -  x  - 1
+        -  x  x 0
+        x  -  - 0
+        x  -  x 0
+        x  x  - 0
+        x  x  x 0
+    i.e:
+    - All subpartitions must use the same engine
+      AND it must be the same as the partition.
+    - All partitions must use the same engine
+      AND it must be the same as the table.
+    - if one does NOT specify an engine on the table level
+      then one must either NOT specify any engine on any
+      partition/subpartition OR for ALL partitions/subpartitions
+    Note:
+    When ALTER a table, the engines are already set for all levels
+    (table, all partitions and subpartitions). So if one want to
+    change the storage engine, one must specify it on the table level
 
+*/
+
+static bool check_engine_condition(partition_element *p_elem,
+                                   bool table_engine_set,
+                                   handlerton **engine_type,
+                                   bool *first)
+{
+  DBUG_ENTER("check_engine_condition");
+
+  DBUG_PRINT("enter", ("p_eng %s t_eng %s t_eng_set %u first %u state %u",
+                       ha_resolve_storage_engine_name(p_elem->engine_type),
+                       ha_resolve_storage_engine_name(*engine_type),
+                       table_engine_set, *first, p_elem->part_state));
+  if (*first && !table_engine_set)
+  {
+    *engine_type= p_elem->engine_type;
+    DBUG_PRINT("info", ("setting table_engine = %s",
+                         ha_resolve_storage_engine_name(*engine_type)));
+  }
+  *first= FALSE;
+  if ((table_engine_set &&
+      (p_elem->engine_type != (*engine_type) &&
+       p_elem->engine_type)) ||
+      (!table_engine_set &&
+       p_elem->engine_type != (*engine_type)))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  else
+  {
+    DBUG_RETURN(FALSE);
+  }
+}
+
+
+/*
+  Check engine mix that it is correct
+  Current limitation is that all partitions and subpartitions
+  must use the same storage engine.
   SYNOPSIS
     check_engine_mix()
-    engine_array           An array of engine identifiers
-    no_parts               Total number of partitions
-
+    inout::engine_type       Current engine used
+    table_engine_set         Have user specified engine on table level
   RETURN VALUE
-    TRUE                   Error, mixed engines
-    FALSE                  Ok, no mixed engines
+    TRUE                     Error, mixed engines
+    FALSE                    Ok, no mixed engines
   DESCRIPTION
     Current check verifies only that all handlers are the same.
     Later this check will be more sophisticated.
+    (specified partition handler ) specified table handler
+    (NDB, NDB) NDB           OK
+    (MYISAM, MYISAM) -       OK
+    (MYISAM, -)      -       NOT OK
+    (MYISAM, -)    MYISAM    OK
+    (- , MYISAM)   -         NOT OK
+    (- , -)        MYISAM    OK
+    (-,-)          -         OK
+    (NDB, MYISAM) *          NOT OK
 */
 
-bool partition_info::check_engine_mix(handlerton **engine_array, uint no_parts)
+bool partition_info::check_engine_mix(handlerton *engine_type,
+                                      bool table_engine_set)
 {
-  uint i= 0;
+  handlerton *old_engine_type= engine_type;
+  bool first= TRUE;
+  uint no_parts= partitions.elements;
   DBUG_ENTER("partition_info::check_engine_mix");
-
-  do
+  DBUG_PRINT("info", ("in: engine_type = %s, table_engine_set = %u",
+                       ha_resolve_storage_engine_name(engine_type),
+                       table_engine_set));
+  if (no_parts)
   {
-    if (engine_array[i] != engine_array[0])
+    List_iterator<partition_element> part_it(partitions);
+    uint i= 0;
+    do
     {
-      my_error(ER_MIX_HANDLER_ERROR, MYF(0));
-      DBUG_RETURN(TRUE);
-    }
-  } while (++i < no_parts);
-  if (engine_array[0]->flags & HTON_NO_PARTITION)
+      partition_element *part_elem= part_it++;
+      DBUG_PRINT("info", ("part = %d engine = %s table_engine_set %u",
+                 i, ha_resolve_storage_engine_name(part_elem->engine_type),
+                 table_engine_set));
+      if (is_sub_partitioned() &&
+          part_elem->subpartitions.elements)
+      {
+        uint no_subparts= part_elem->subpartitions.elements;
+        uint j= 0;
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        do
+        {
+          partition_element *sub_elem= sub_it++;
+          DBUG_PRINT("info", ("sub = %d engine = %s table_engie_set %u",
+                     j, ha_resolve_storage_engine_name(sub_elem->engine_type),
+                     table_engine_set));
+          if (check_engine_condition(sub_elem, table_engine_set,
+                                     &engine_type, &first))
+            goto error;
+        } while (++j < no_subparts);
+        /* ensure that the partition also has correct engine */
+        if (check_engine_condition(part_elem, table_engine_set,
+                                   &engine_type, &first))
+          goto error;
+      }
+      else if (check_engine_condition(part_elem, table_engine_set,
+                                      &engine_type, &first))
+        goto error;
+    } while (++i < no_parts);
+  }
+  DBUG_PRINT("info", ("engine_type = %s",
+                       ha_resolve_storage_engine_name(engine_type)));
+  if (!engine_type)
+    engine_type= old_engine_type;
+  if (engine_type->flags & HTON_NO_PARTITION)
   {
     my_error(ER_PARTITION_MERGE_ERROR, MYF(0));
     DBUG_RETURN(TRUE);
   }
+  DBUG_PRINT("info", ("out: engine_type = %s",
+                       ha_resolve_storage_engine_name(engine_type)));
+  DBUG_ASSERT(engine_type != partition_hton);
   DBUG_RETURN(FALSE);
+error:
+  /*
+    Mixed engines not yet supported but when supported it will need
+    the partition handler
+  */
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -726,13 +852,15 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
                                           handler *file, HA_CREATE_INFO *info,
                                           bool check_partition_function)
 {
-  handlerton **engine_array= NULL;
-  uint part_count= 0;
+  handlerton *table_engine= default_engine_type;
   uint i, tot_partitions;
-  bool result= TRUE;
+  bool result= TRUE, table_engine_set;
   char *same_name;
   DBUG_ENTER("partition_info::check_partition_info");
+  DBUG_ASSERT(default_engine_type != partition_hton);
 
+  DBUG_PRINT("info", ("default table_engine = %s",
+                      ha_resolve_storage_engine_name(table_engine)));
   if (check_partition_function)
   {
     int err= 0;
@@ -777,44 +905,89 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
     goto end;
   }
+  /*
+    if NOT specified ENGINE = <engine>:
+      If Create, always use create_info->db_type
+      else, use previous tables db_type 
+      either ALL or NONE partition should be set to
+      default_engine_type when not table_engine_set
+      Note: after a table is created its storage engines for
+      the table and all partitions/subpartitions are set.
+      So when ALTER it is already set on table level
+  */
+  if (info && info->used_fields & HA_CREATE_USED_ENGINE)
+  {
+    table_engine_set= TRUE;
+    table_engine= info->db_type;
+    /* if partition_hton, use thd->lex->create_info */
+    if (table_engine == partition_hton)
+      table_engine= thd->lex->create_info.db_type;
+    DBUG_ASSERT(table_engine != partition_hton);
+    DBUG_PRINT("info", ("Using table_engine = %s",
+                        ha_resolve_storage_engine_name(table_engine)));
+  }
+  else
+  {
+    table_engine_set= FALSE;
+    if (thd->lex->sql_command != SQLCOM_CREATE_TABLE)
+    {
+      table_engine_set= TRUE;
+      DBUG_PRINT("info", ("No create, table_engine = %s",
+                          ha_resolve_storage_engine_name(table_engine)));
+      DBUG_ASSERT(table_engine && table_engine != partition_hton);
+    }
+  }
+
   if ((same_name= has_unique_names()))
   {
     my_error(ER_SAME_NAME_PARTITION, MYF(0), same_name);
     goto end;
   }
-  engine_array= (handlerton**)my_malloc(tot_partitions * sizeof(handlerton *), 
-                                        MYF(MY_WME));
-  if (unlikely(!engine_array))
-    goto end;
   i= 0;
   {
     List_iterator<partition_element> part_it(partitions);
+    uint no_parts_not_set= 0;
+    uint prev_no_subparts_not_set= no_subparts + 1;
     do
     {
       partition_element *part_elem= part_it++;
-      if (part_elem->engine_type == NULL)
-        part_elem->engine_type= default_engine_type;
-      if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
-        part_elem->data_file_name= part_elem->index_file_name= 0;
+#ifdef HAVE_READLINK
+      if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+#endif
+      {
+        if (part_elem->data_file_name)
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                       "DATA DIRECTORY option ignored");
+        if (part_elem->index_file_name)
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                       "INDEX DIRECTORY option ignored");
+        part_elem->data_file_name= part_elem->index_file_name= NULL;
+      }
       if (!is_sub_partitioned())
       {
+        if (part_elem->engine_type == NULL)
+        {
+          no_parts_not_set++;
+          part_elem->engine_type= default_engine_type;
+        }
         if (check_table_name(part_elem->partition_name,
                              strlen(part_elem->partition_name)))
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
           goto end;
         }
-        DBUG_PRINT("info", ("engine = %d",
-                   ha_legacy_type(part_elem->engine_type)));
-        engine_array[part_count++]= part_elem->engine_type;
+        DBUG_PRINT("info", ("part = %d engine = %s",
+                   i, ha_resolve_storage_engine_name(part_elem->engine_type)));
       }
       else
       {
         uint j= 0;
+        uint no_subparts_not_set= 0;
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        partition_element *sub_elem;
         do
         {
-          partition_element *sub_elem= sub_it++;
+          sub_elem= sub_it++;
           if (check_table_name(sub_elem->partition_name,
                                strlen(sub_elem->partition_name)))
           {
@@ -822,19 +995,65 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
             goto end;
           }
           if (sub_elem->engine_type == NULL)
-            sub_elem->engine_type= default_engine_type;
-          DBUG_PRINT("info", ("engine = %u",
-                     ha_legacy_type(sub_elem->engine_type)));
-          engine_array[part_count++]= sub_elem->engine_type;
+          {
+            if (part_elem->engine_type != NULL)
+              sub_elem->engine_type= part_elem->engine_type;
+            else
+            {
+              sub_elem->engine_type= default_engine_type;
+              no_subparts_not_set++;
+            }
+          }
+          DBUG_PRINT("info", ("part = %d sub = %d engine = %s", i, j,
+                     ha_resolve_storage_engine_name(sub_elem->engine_type)));
         } while (++j < no_subparts);
+
+        if (prev_no_subparts_not_set == (no_subparts + 1) &&
+            (no_subparts_not_set == 0 || no_subparts_not_set == no_subparts))
+          prev_no_subparts_not_set= no_subparts_not_set;
+
+        if (!table_engine_set &&
+            prev_no_subparts_not_set != no_subparts_not_set)
+        {
+          DBUG_PRINT("info", ("no_subparts_not_set = %u no_subparts = %u",
+                     no_subparts_not_set, no_subparts));
+          my_error(ER_MIX_HANDLER_ERROR, MYF(0));
+          goto end;
+        }
+
+        if (part_elem->engine_type == NULL)
+        {
+          if (no_subparts_not_set == 0)
+            part_elem->engine_type= sub_elem->engine_type;
+          else
+          {
+            no_parts_not_set++;
+            part_elem->engine_type= default_engine_type;
+          }
+        }
       }
     } while (++i < no_parts);
+    if (!table_engine_set &&
+        no_parts_not_set != 0 &&
+        no_parts_not_set != no_parts)
+    {
+      DBUG_PRINT("info", ("no_parts_not_set = %u no_parts = %u",
+                 no_parts_not_set, no_subparts));
+      my_error(ER_MIX_HANDLER_ERROR, MYF(0));
+      goto end;
+    }
   }
-  if (unlikely(partition_info::check_engine_mix(engine_array, part_count)))
+  if (unlikely(check_engine_mix(table_engine, table_engine_set)))
+  {
+    my_error(ER_MIX_HANDLER_ERROR, MYF(0));
     goto end;
+  }
 
+  DBUG_ASSERT(table_engine != partition_hton &&
+              default_engine_type == table_engine);
   if (eng_type)
-    *eng_type= (handlerton*)engine_array[0];
+    *eng_type= table_engine;
+
 
   /*
     We need to check all constant expressions that they are of the correct
@@ -850,7 +1069,6 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   }
   result= FALSE;
 end:
-  my_free((char*)engine_array,MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(result);
 }
 
@@ -1045,4 +1263,60 @@ error:
   mem_alloc_error(size);
   DBUG_RETURN(TRUE);
 }
+
+
+/*
+  Check if path does not contain mysql data home directory
+  for partition elements with data directory and index directory
+
+  SYNOPSIS
+    check_partition_dirs()
+    part_info               partition_info struct 
+
+  RETURN VALUES
+    0	ok
+    1	error  
+*/
+
+bool check_partition_dirs(partition_info *part_info)
+{
+  if (!part_info)
+    return 0;
+
+  partition_element *part_elem;
+  List_iterator<partition_element> part_it(part_info->partitions);
+  while ((part_elem= part_it++))
+  {
+    if (part_elem->subpartitions.elements)
+    {
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      partition_element *subpart_elem;
+      while ((subpart_elem= sub_it++))
+      {
+        if (test_if_data_home_dir(subpart_elem->data_file_name))
+          goto dd_err;
+        if (test_if_data_home_dir(subpart_elem->index_file_name))
+          goto id_err;
+      }
+    }
+    else
+    {
+      if (test_if_data_home_dir(part_elem->data_file_name))
+        goto dd_err;
+      if (test_if_data_home_dir(part_elem->index_file_name))
+        goto id_err;
+    }
+  }
+  return 0;
+
+dd_err:
+  my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECTORY");
+  return 1;
+
+id_err:
+  my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECTORY");
+  return 1;
+}
+
+
 #endif /* WITH_PARTITION_STORAGE_ENGINE */

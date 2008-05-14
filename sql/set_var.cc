@@ -137,7 +137,8 @@ static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static void fix_server_id(THD *thd, enum_var_type type);
 static ulonglong fix_unsigned(THD *, ulonglong, const struct my_option *);
 static bool get_unsigned(THD *thd, set_var *var);
-static void throw_bounds_warning(THD *thd, const char *name, ulonglong num);
+bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
+                          const char *name, longlong val);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static uchar *get_error_count(THD *thd);
@@ -161,10 +162,14 @@ static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 
 static sys_var_chain vars = { NULL, NULL };
 
-static sys_var_thd_ulong	sys_auto_increment_increment(&vars, "auto_increment_increment",
-                                                     &SV::auto_increment_increment);
-static sys_var_thd_ulong	sys_auto_increment_offset(&vars, "auto_increment_offset",
-                                                  &SV::auto_increment_offset);
+static sys_var_thd_ulong
+sys_auto_increment_increment(&vars, "auto_increment_increment",
+                             &SV::auto_increment_increment, NULL, NULL,
+                             sys_var::SESSION_VARIABLE_IN_BINLOG);
+static sys_var_thd_ulong
+sys_auto_increment_offset(&vars, "auto_increment_offset",
+                          &SV::auto_increment_offset, NULL, NULL,
+                          sys_var::SESSION_VARIABLE_IN_BINLOG);
 
 static sys_var_bool_ptr	sys_automatic_sp_privileges(&vars, "automatic_sp_privileges",
 					      &sp_automatic_privileges);
@@ -176,19 +181,25 @@ static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
-static sys_var_character_set_sv	sys_character_set_server(&vars, "character_set_server",
-                                        &SV::collation_server,
-                                        &default_charset_info);
+static sys_var_character_set_sv
+sys_character_set_server(&vars, "character_set_server",
+                         &SV::collation_server, &default_charset_info, 0,
+                         sys_var::SESSION_VARIABLE_IN_BINLOG);
 sys_var_const_str       sys_charset_system(&vars, "character_set_system",
                                            (char *)my_charset_utf8_general_ci.name);
-static sys_var_character_set_database	sys_character_set_database(&vars, "character_set_database");
-static sys_var_character_set_client sys_character_set_client(&vars, 
-                                        "character_set_client",
-                                        &SV::character_set_client,
-                                        &default_charset_info);
-static sys_var_character_set_sv sys_character_set_connection(&vars, "character_set_connection",
-                                        &SV::collation_connection,
-                                        &default_charset_info);
+static sys_var_character_set_database
+sys_character_set_database(&vars, "character_set_database",
+                           sys_var::SESSION_VARIABLE_IN_BINLOG);
+static sys_var_character_set_client
+sys_character_set_client(&vars, "character_set_client",
+                         &SV::character_set_client,
+                         &default_charset_info,
+                         sys_var::SESSION_VARIABLE_IN_BINLOG);
+static sys_var_character_set_sv
+sys_character_set_connection(&vars, "character_set_connection",
+                             &SV::collation_connection,
+                             &default_charset_info, 0,
+                             sys_var::SESSION_VARIABLE_IN_BINLOG);
 static sys_var_character_set_sv sys_character_set_results(&vars, "character_set_results",
                                         &SV::character_set_results,
                                         &default_charset_info, true);
@@ -199,15 +210,18 @@ static sys_var_thd_ulong	sys_completion_type(&vars, "completion_type",
 					 &SV::completion_type,
 					 check_completion_type,
 					 fix_completion_type);
-static sys_var_collation_sv sys_collation_connection(&vars, "collation_connection",
-                                        &SV::collation_connection,
-                                        &default_charset_info);
-static sys_var_collation_sv sys_collation_database(&vars, "collation_database",
-                                        &SV::collation_database,
-                                        &default_charset_info);
-static sys_var_collation_sv sys_collation_server(&vars, "collation_server",
-                                        &SV::collation_server,
-                                        &default_charset_info);
+static sys_var_collation_sv
+sys_collation_connection(&vars, "collation_connection",
+                         &SV::collation_connection, &default_charset_info,
+                         sys_var::SESSION_VARIABLE_IN_BINLOG);
+static sys_var_collation_sv
+sys_collation_database(&vars, "collation_database", &SV::collation_database,
+                       &default_charset_info,
+                       sys_var::SESSION_VARIABLE_IN_BINLOG);
+static sys_var_collation_sv
+sys_collation_server(&vars, "collation_server", &SV::collation_server,
+                     &default_charset_info,
+                     sys_var::SESSION_VARIABLE_IN_BINLOG);
 static sys_var_long_ptr	sys_concurrent_insert(&vars, "concurrent_insert",
                                               &myisam_concurrent_insert);
 static sys_var_long_ptr	sys_connect_timeout(&vars, "connect_timeout",
@@ -303,9 +317,10 @@ static sys_var_thd_ulong	sys_max_error_count(&vars, "max_error_count",
 					    &SV::max_error_count);
 static sys_var_thd_ulonglong	sys_max_heap_table_size(&vars, "max_heap_table_size",
 						&SV::max_heap_table_size);
-static sys_var_thd_ulong       sys_pseudo_thread_id(&vars, "pseudo_thread_id",
-					     &SV::pseudo_thread_id,
-                                             check_pseudo_thread_id, 0);
+static sys_var_thd_ulong sys_pseudo_thread_id(&vars, "pseudo_thread_id",
+                                              &SV::pseudo_thread_id,
+                                              check_pseudo_thread_id, 0,
+                                              sys_var::SESSION_VARIABLE_IN_BINLOG);
 static sys_var_thd_ha_rows	sys_max_join_size(&vars, "max_join_size",
 					  &SV::max_join_size,
 					  fix_max_join_size);
@@ -436,8 +451,14 @@ static sys_var_long_ptr	sys_slow_launch_time(&vars, "slow_launch_time",
 					     &slow_launch_time);
 static sys_var_thd_ulong	sys_sort_buffer(&vars, "sort_buffer_size",
 					&SV::sortbuff_size);
+/*
+  sql_mode should *not* have binlog_mode=SESSION_VARIABLE_IN_BINLOG:
+  even though it is written to the binlog, the slave ignores the
+  MODE_NO_DIR_IN_CREATE variable, so slave's value differs from
+  master's (see log_event.cc: Query_log_event::do_apply_event()).
+*/
 static sys_var_thd_sql_mode    sys_sql_mode(&vars, "sql_mode",
-                                     &SV::sql_mode);
+                                            &SV::sql_mode);
 #ifdef HAVE_OPENSSL
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key;
@@ -588,7 +609,8 @@ static sys_var_thd_bit	sys_sql_notes(&vars, "sql_notes", 0,
 					 OPTION_SQL_NOTES);
 static sys_var_thd_bit	sys_auto_is_null(&vars, "sql_auto_is_null", 0,
 					 set_option_bit,
-					 OPTION_AUTO_IS_NULL);
+                                         OPTION_AUTO_IS_NULL, 0,
+                                         sys_var::SESSION_VARIABLE_IN_BINLOG);
 static sys_var_thd_bit	sys_safe_updates(&vars, "sql_safe_updates", 0,
 					 set_option_bit,
 					 OPTION_SAFE_UPDATES);
@@ -601,11 +623,12 @@ static sys_var_thd_bit	sys_quote_show_create(&vars, "sql_quote_show_create", 0,
 static sys_var_thd_bit	sys_foreign_key_checks(&vars, "foreign_key_checks", 0,
 					       set_option_bit,
 					       OPTION_NO_FOREIGN_KEY_CHECKS,
-					       1);
+                                               1, sys_var::SESSION_VARIABLE_IN_BINLOG);
 static sys_var_thd_bit	sys_unique_checks(&vars, "unique_checks", 0,
 					  set_option_bit,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
-					  1);
+                                          1,
+                                          sys_var::SESSION_VARIABLE_IN_BINLOG);
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
 static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL, 
                                       set_option_bit,
@@ -618,13 +641,41 @@ static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_si
 
 static sys_var_thd_ha_rows	sys_select_limit(&vars, "sql_select_limit",
 						 &SV::select_limit);
-static sys_var_timestamp	sys_timestamp(&vars, "timestamp");
-static sys_var_last_insert_id	sys_last_insert_id(&vars, "last_insert_id");
-static sys_var_last_insert_id	sys_identity(&vars, "identity");
+static sys_var_timestamp sys_timestamp(&vars, "timestamp",
+                                       sys_var::SESSION_VARIABLE_IN_BINLOG);
+static sys_var_last_insert_id
+sys_last_insert_id(&vars, "last_insert_id",
+                   sys_var::SESSION_VARIABLE_IN_BINLOG);
+/*
+  identity is an alias for last_insert_id(), so that we are compatible
+  with Sybase
+*/
+static sys_var_last_insert_id
+sys_identity(&vars, "identity", sys_var::SESSION_VARIABLE_IN_BINLOG);
 
-static sys_var_thd_lc_time_names       sys_lc_time_names(&vars, "lc_time_names");
+static sys_var_thd_lc_time_names
+sys_lc_time_names(&vars, "lc_time_names", sys_var::SESSION_VARIABLE_IN_BINLOG);
 
-static sys_var_insert_id	sys_insert_id(&vars, "insert_id");
+/*
+  insert_id should *not* be marked as written to the binlog (i.e., it
+  should *not* have binlog_status==SESSION_VARIABLE_IN_BINLOG),
+  because we want any statement that refers to insert_id explicitly to
+  be unsafe.  (By "explicitly", we mean using @@session.insert_id,
+  whereas insert_id is used "implicitly" when NULL value is inserted
+  into an auto_increment column).
+
+  We want statements referring explicitly to @@session.insert_id to be
+  unsafe, because insert_id is modified internally by the slave sql
+  thread when NULL values are inserted in an AUTO_INCREMENT column.
+  This modification interfers with the value of the
+  @@session.insert_id variable if @@session.insert_id is referred
+  explicitly by an insert statement (as is seen by executing "SET
+  @@session.insert_id=0; CREATE TABLE t (a INT, b INT KEY
+  AUTO_INCREMENT); INSERT INTO t(a) VALUES (@@session.insert_id);" in
+  statement-based logging mode: t will be different on master and
+  slave).
+*/
+static sys_var_insert_id sys_insert_id(&vars, "insert_id");
 static sys_var_readonly		sys_error_count(&vars, "error_count",
 						OPT_SESSION,
 						SHOW_LONG,
@@ -634,9 +685,10 @@ static sys_var_readonly		sys_warning_count(&vars, "warning_count",
 						  SHOW_LONG,
 						  get_warning_count);
 
-/* alias for last_insert_id() to be compatible with Sybase */
-static sys_var_rand_seed1	sys_rand_seed1(&vars, "rand_seed1");
-static sys_var_rand_seed2	sys_rand_seed2(&vars, "rand_seed2");
+static sys_var_rand_seed1 sys_rand_seed1(&vars, "rand_seed1",
+                                         sys_var::SESSION_VARIABLE_IN_BINLOG);
+static sys_var_rand_seed2 sys_rand_seed2(&vars, "rand_seed2",
+                                         sys_var::SESSION_VARIABLE_IN_BINLOG);
 
 static sys_var_thd_ulong        sys_default_week_format(&vars, "default_week_format",
 					                &SV::default_week_format);
@@ -644,10 +696,26 @@ static sys_var_thd_ulong        sys_default_week_format(&vars, "default_week_for
 sys_var_thd_ulong               sys_group_concat_max_len(&vars, "group_concat_max_len",
                                                          &SV::group_concat_max_len);
 
-sys_var_thd_time_zone            sys_time_zone(&vars, "time_zone");
+sys_var_thd_time_zone sys_time_zone(&vars, "time_zone",
+                                    sys_var::SESSION_VARIABLE_IN_BINLOG);
 
 /* Global read-only variable containing hostname */
 static sys_var_const_str        sys_hostname(&vars, "hostname", glob_hostname);
+
+#ifndef EMBEDDED_LIBRARY
+static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);
+static sys_var_const_str_ptr    sys_repl_report_user(&vars, "report_user", &report_user);
+static sys_var_const_str_ptr    sys_repl_report_password(&vars, "report_password", &report_password);
+
+static uchar *slave_get_report_port(THD *thd)
+{
+  thd->sys_var_tmp.long_value= report_port;
+  return (uchar*) &thd->sys_var_tmp.long_value;
+}
+
+static sys_var_readonly    sys_repl_report_port(&vars, "report_port", OPT_GLOBAL, SHOW_INT, slave_get_report_port);
+
+#endif
 
 sys_var_thd_bool  sys_keep_files_on_create(&vars, "keep_files_on_create", 
                                            &SV::keep_files_on_create);
@@ -1021,7 +1089,7 @@ bool sys_var_set::update(THD *thd, set_var *var)
 {
   *value= var->save_result.ulong_value;
   return 0;
-};
+}
 
 uchar *sys_var_set::value_ptr(THD *thd, enum_var_type type,
                               LEX_STRING *base)
@@ -1208,13 +1276,29 @@ static void fix_server_id(THD *thd, enum_var_type type)
 }
 
 
-static void throw_bounds_warning(THD *thd, const char *name, ulonglong num)
+bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
+                          const char *name, longlong val)
 {
-  char buf[22];
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                      ER_TRUNCATED_WRONG_VALUE,
-                      ER(ER_TRUNCATED_WRONG_VALUE), name,
-                      ullstr(num, buf));
+  if (fixed)
+  {
+    char buf[22];
+
+    if (unsignd)
+      ullstr((ulonglong) val, buf);
+    else
+      llstr(val, buf);
+
+    if (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)
+    {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buf);
+      return TRUE;
+    }
+
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), name, buf);
+  }
+  return FALSE;
 }
 
 static ulonglong fix_unsigned(THD *thd, ulonglong num,
@@ -1223,8 +1307,7 @@ static ulonglong fix_unsigned(THD *thd, ulonglong num,
   my_bool fixed= FALSE;
   ulonglong out= getopt_ull_limit_value(num, option_limits, &fixed);
 
-  if (fixed)
-    throw_bounds_warning(thd, option_limits->name, num);
+  throw_bounds_warning(thd, fixed, TRUE, option_limits->name, (longlong) num);
   return out;
 }
 
@@ -1267,7 +1350,8 @@ bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
     if (tmp > ULONG_MAX)
     {
       tmp= ULONG_MAX;
-      throw_bounds_warning(thd, name, var->save_result.ulonglong_value);
+      throw_bounds_warning(thd, TRUE, TRUE, name,
+                           (longlong) var->save_result.ulonglong_value);
     }
 #endif
     *value= (ulong) tmp;
@@ -1355,7 +1439,7 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ulong) tmp > max_system_variables.*offset)
   {
-    throw_bounds_warning(thd, name, tmp);
+    throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) tmp);
     tmp= max_system_variables.*offset;
   }
 
@@ -1365,7 +1449,7 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   else if (tmp > ULONG_MAX)
   {
     tmp= ULONG_MAX;
-    throw_bounds_warning(thd, name, var->save_result.ulonglong_value);
+    throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) var->save_result.ulonglong_value);
   }
 #endif
 
@@ -3925,10 +4009,8 @@ bool sys_var_thd_dbug::update(THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
     DBUG_SET_INITIAL(var ? var->value->str_value.c_ptr() : "");
   else
-  {
-    DBUG_POP();
-    DBUG_PUSH(var ? var->value->str_value.c_ptr() : "");
-  }
+    DBUG_SET(var ? var->value->str_value.c_ptr() : "");
+
   return 0;
 }
 

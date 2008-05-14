@@ -82,6 +82,7 @@ class ha_tina: public handler
   uint32 chain_size;
   uint local_data_file_version;  /* Saved version of the data file used */
   bool records_is_known;
+  MEM_ROOT blobroot;
 
 private:
   int curr_lock_type;

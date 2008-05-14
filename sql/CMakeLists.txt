@@ -43,7 +43,7 @@ ADD_DEFINITIONS(-DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN)
 
 ADD_EXECUTABLE(mysqld
                ../sql-common/client.c derror.cc des_key_file.cc
-               discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
+               discover.cc ../libmysql/errmsg.c field.cc  stacktrace.c stacktrace.h field_conv.cc 
                filesort.cc gstream.cc
                ha_partition.cc
                handler.cc hash_filo.cc hash_filo.h 
@@ -171,5 +171,5 @@ SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
                          "lex_hash.h;message.rc;message.h;sql_yacc.h;sql_yacc.cc")
 
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
-ADD_DEPENDENCIES(udf_example strings)
+ADD_DEPENDENCIES(udf_example strings GenError)
 TARGET_LINK_LIBRARIES(udf_example strings wsock32)

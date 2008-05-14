@@ -736,7 +736,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   if (protocol->write())
     DBUG_RETURN(TRUE);
 
-  send_eof(thd);
+  my_eof(thd);
 
   DBUG_RETURN(FALSE);
 }
@@ -1184,7 +1184,12 @@ Events::load_events_from_db(THD *thd)
     {
       /*
         If not created, a stale event - drop if immediately if
-        ON COMPLETION NOT PRESERVE
+        ON COMPLETION NOT PRESERVE.
+        XXX: This won't be replicated, thus the drop won't appear in
+             in the slave. When the slave is restarted it will drop events.
+             However, as the slave will be "out of sync", it might happen that
+             an event created on the master, after master restart, won't be
+             replicated to the slave correctly, as the create will fail there.
       */
       int rc= table->file->ha_delete_row(table->record[0]);
       if (rc)

@@ -43,11 +43,14 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_sharedlib_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
+			mysql_config.pl.in \
 			mysql_fix_privilege_tables.sh \
 			mysql_fix_extensions.sh \
 			mysql_install_db.sh \
+			mysql_install_db.pl.in \
 			mysql_setpermission.sh \
 			mysql_secure_installation.sh \
+			mysql_secure_installation.pl.in \
 			mysql_zap.sh \
 			mysqlaccess.sh \
 			mysqlbug.sh \
@@ -87,8 +90,9 @@ CLEANFILES =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
-			mysql_tableinfo \
 			mysqld_multi
+
+pkgplugindir =		$(pkglibdir)/plugin
 
 # Default same as 'pkgdatadir', but we can override it
 pkgsuppdir =		$(datadir)/@PACKAGE@
@@ -137,6 +141,7 @@ SUFFIXES = .sh
 	  -e 's!@''pkglibdir''@!$(pkglibdir)!g' \
 	  -e 's!@''pkgincludedir''@!$(pkgincludedir)!g' \
 	  -e 's!@''pkgdatadir''@!$(pkgdatadir)!g' \
+	  -e 's!@''pkgplugindir''@!$(pkgplugindir)!g' \
 	  -e 's!@''pkgsuppdir''@!$(pkgsuppdir)!g' \
 	  -e 's!@''sysconfdir''@!$(sysconfdir)!g' \
 	  -e 's!@''mandir''@!$(mandir)!g' \

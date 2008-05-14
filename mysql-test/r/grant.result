@@ -1218,6 +1218,28 @@ DROP USER mysqltest_1@localhost;
 DROP DATABASE db27878;
 use test;
 DROP TABLE t1;
+drop table if exists test;
+Warnings:
+Note	1051	Unknown table 'test'
+drop function if exists test_function;
+Warnings:
+Note	1305	FUNCTION test_function does not exist
+drop view if exists v1;
+Warnings:
+Note	1051	Unknown table 'test.v1'
+create table test (col1 varchar(30));
+create function test_function() returns varchar(30)
+begin
+declare tmp varchar(30);
+select col1 from test limit 1 into tmp;
+return '1';
+end|
+create view v1 as select test.* from test where test.col1=test_function();
+grant update (col1) on v1 to 'greg'@'localhost';
+drop user 'greg'@'localhost';
+drop view v1;
+drop table test;
+drop function test_function;
 End of 5.0 tests
 set names utf8;
 grant select on test.* to юзер_юзер@localhost;
@@ -1282,5 +1304,45 @@ CALL mysqltest1.test();
 1
 DROP DATABASE mysqltest1;
 RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
+DROP USER mysqltest_1@localhost;
 FLUSH PRIVILEGES;
+CREATE DATABASE dbbug33464;
+CREATE USER 'userbug33464'@'localhost';
+GRANT CREATE ROUTINE ON dbbug33464.* TO 'userbug33464'@'localhost';
+	
+userbug33464@localhost	dbbug33464
+DROP PROCEDURE IF EXISTS sp3;
+DROP FUNCTION IF EXISTS fn1;
+CREATE PROCEDURE sp3(v1 char(20))
+BEGIN
+SELECT * from dbbug33464.t6 where t6.f2= 'xyz';
+END//
+CREATE FUNCTION fn1() returns char(50) SQL SECURITY INVOKER
+BEGIN
+return 1;
+END//
+CREATE FUNCTION fn2() returns char(50) SQL SECURITY DEFINER
+BEGIN
+return 2;
+END//
+USE dbbug33464;
+	
+root@localhost	dbbug33464
+SELECT fn1();
+fn1()
+1
+SELECT fn2();
+fn2()
+2
+DROP USER 'userbug33464'@'localhost';
+DROP FUNCTION fn1;
+Warnings:
+Warning	1403	There is no such grant defined for user 'userbug33464' on host 'localhost' on routine 'fn1'
+DROP FUNCTION fn2;
+Warnings:
+Warning	1403	There is no such grant defined for user 'userbug33464' on host 'localhost' on routine 'fn2'
+DROP PROCEDURE sp3;
+DROP USER 'userbug33464'@'localhost';
+use test;
+DROP DATABASE dbbug33464;
 End of 5.1 tests

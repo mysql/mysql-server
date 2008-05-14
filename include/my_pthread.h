@@ -163,7 +163,7 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define pthread_mutex_unlock(A)  (LeaveCriticalSection(A),0)
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
-#define pthread_kill(A,B) pthread_dummy(ESRCH)
+#define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 
 #define pthread_join(A,B) (WaitForSingleObject((A), INFINITE) != WAIT_OBJECT_0)
 
@@ -346,14 +346,14 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define pthread_create(A,B,C,D) pthread_create((A),*(B),(C),(D))
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
-#define pthread_kill(A,B) pthread_dummy(ESRCH)
+#define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
 #endif
 
 #ifdef HAVE_DARWIN5_THREADS
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
-#define pthread_kill(A,B) pthread_dummy(ESRCH)
+#define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 #define pthread_condattr_init(A) pthread_dummy(0)
 #define pthread_condattr_destroy(A) pthread_dummy(0)
 #undef	pthread_detach_this_thread
@@ -373,7 +373,7 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #ifndef pthread_sigmask
 #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
 #endif
-#define pthread_kill(A,B) pthread_dummy(ESRCH)
+#define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 #undef	pthread_detach_this_thread
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
 #elif !defined(__NETWARE__) /* HAVE_PTHREAD_ATTR_CREATE && !HAVE_SIGWAIT */

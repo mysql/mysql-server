@@ -2261,13 +2261,11 @@ int Field_decimal::store(double nr)
     return 1;
   }
   
-#ifdef HAVE_FINITE
-  if (!finite(nr)) // Handle infinity as special case
+  if (!isfinite(nr)) // Handle infinity as special case
   {
     overflow(nr < 0.0);
     return 1;
   }
-#endif
 
   reg4 uint i;
   size_t length;
@@ -6321,26 +6319,41 @@ check_string_copy_error(Field_str *field,
 }
 
 
-
 /*
-  Send a truncation warning or a truncation error
-  after storing a too long character string info a field.
+  Check if we lost any important data and send a truncation error/warning
 
   SYNOPSIS
-    report_data_too_long()
-    field                    - Field
+    Field_longstr::report_if_important_data()
+    ptr                      - Truncated rest of string
+    end                      - End of truncated string
 
-  RETURN
-    N/A
+  RETURN VALUES
+    0   - None was truncated (or we don't count cut fields)
+    2   - Some bytes was truncated
+
+  NOTE
+    Check if we lost any important data (anything in a binary string,
+    or any non-space in others). If only trailing spaces was lost,
+    send a truncation note, otherwise send a truncation error.
 */
 
-inline void
-report_data_too_long(Field_str *field)
+int
+Field_longstr::report_if_important_data(const char *ptr, const char *end)
 {
-  if (field->table->in_use->abort_on_warning)
-    field->set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
-  else
-    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+  if ((ptr < end) && table->in_use->count_cuted_fields)
+  {
+    if (test_if_important_data(field_charset, ptr, end))
+    {
+      if (table->in_use->abort_on_warning)
+        set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+      else
+        set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    }
+    else /* If we lost only spaces then produce a NOTE, not a WARNING */
+      set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
+    return 2;
+  }
+  return 0;
 }
 
 
@@ -6375,19 +6388,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length, cs))
     return 2;
 
-  /*
-    Check if we lost any important data (anything in a binary string,
-    or any non-space in others).
-  */
-  if ((from_end_pos < from + length) && table->in_use->count_cuted_fields)
-  {
-    if (test_if_important_data(field_charset, from_end_pos, from + length))
-    {
-      report_data_too_long(this);
-      return 2;
-    }
-  }
-  return 0;
+  return report_if_important_data(from_end_pos, from + length);
 }
 
 
@@ -6962,16 +6963,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length, cs))
     return 2;
 
-  // Check if we lost something other than just trailing spaces
-  if ((from_end_pos < from + length) && table->in_use->count_cuted_fields)
-  {
-    if (test_if_important_data(field_charset, from_end_pos, from + length))
-      report_data_too_long(this);
-    else /* If we lost only spaces then produce a NOTE, not a WARNING */
-      set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
-    return 2;
-  }
-  return 0;
+  return report_if_important_data(from_end_pos, from + length);
 }
 
 
@@ -7642,6 +7634,17 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
   if (value.alloc(new_length))
     goto oom_error;
 
+
+  if (f_is_hex_escape(flags))
+  {
+    copy_length= my_copy_with_hex_escaping(field_charset,
+                                           (char*) value.ptr(), new_length,
+                                            from, length);
+    Field_blob::store_length(copy_length);
+    tmp= value.ptr();
+    bmove(ptr + packlength, (uchar*) &tmp, sizeof(char*));
+    return 0;
+  }
   /*
     "length" is OK as "nchars" argument to well_formed_copy_nchars as this
     is never used to limit the length of the data. The cut of long data
@@ -7663,13 +7666,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length, cs))
     return 2;
 
-  if (from_end_pos < from + length)
-  {
-    report_data_too_long(this);
-    return 2;
-  }
-
-  return 0;
+  return report_if_important_data(from_end_pos, from + length);
 
 oom_error:
   /* Fatal OOM error */
@@ -8617,10 +8614,10 @@ int Field_set::store(longlong nr, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error= 0;
-  if ((ulonglong) nr > (ulonglong) (((longlong) 1 << typelib->count) -
-				    (longlong) 1))
+  ulonglong max_nr= set_bits(ulonglong, typelib->count);
+  if ((ulonglong) nr > max_nr)
   {
-    nr&= (longlong) (((longlong) 1 << typelib->count) - (longlong) 1);    
+    nr&= max_nr;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     error=1;
   }
@@ -8788,6 +8785,23 @@ Field_bit::Field_bit(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
   */
   if (!null_ptr_arg)
     null_bit= bit_ofs_arg;
+}
+
+
+void Field_bit::hash(ulong *nr, ulong *nr2)
+{
+  if (is_null())
+  {
+    *nr^= (*nr << 1) | 1;
+  }
+  else
+  {
+    CHARSET_INFO *cs= &my_charset_bin;
+    longlong value= Field_bit::val_int();
+    uchar tmp[8];
+    mi_int8store(tmp,value);
+    cs->coll->hash_sort(cs, tmp, 8, nr, nr2);
+  }
 }
 
 

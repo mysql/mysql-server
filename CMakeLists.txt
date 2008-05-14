@@ -111,6 +111,10 @@ SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DDBUG_OFF
 SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DDBUG_OFF")
 SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
 
+#TODO: update the code and remove the disabled warnings
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805")
+
 IF(CMAKE_GENERATOR MATCHES "Visual Studio 8")
     SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /wd4996")
     SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /wd4996")
@@ -159,6 +163,14 @@ ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR
 IF(WIN32)
   ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
 ENDIF(WIN32)
+
+# This definition is necessary to work around a bug with Intellisense described
+# here: http://tinyurl.com/2cb428.  Syntax highlighting is important for proper
+# debugger functionality.
+IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
+    MESSAGE(STATUS "Detected 64-bit platform.")
+    ADD_DEFINITIONS("-D_WIN64")
+ENDIF(CMAKE_SIZEOF_VOID_P MATCHES 8)
 
 IF(EMBED_MANIFESTS)
     # Search for the tools (mt, makecat, signtool) necessary for embedding

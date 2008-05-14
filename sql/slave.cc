@@ -415,7 +415,20 @@ terminate_slave_thread(THD *thd,
   while (*slave_running)                        // Should always be true
   {
     DBUG_PRINT("loop", ("killing slave thread"));
-    KICK_SLAVE(thd);
+
+    pthread_mutex_lock(&thd->LOCK_delete);
+#ifndef DONT_USE_THR_ALARM
+    /*
+      Error codes from pthread_kill are:
+      EINVAL: invalid signal number (can't happen)
+      ESRCH: thread already killed (can happen, should be ignored)
+    */
+    IF_DBUG(int err= ) pthread_kill(thd->real_id, thr_client_alarm);
+    DBUG_ASSERT(err != EINVAL);
+#endif
+    thd->awake(THD::NOT_KILLED);
+    pthread_mutex_unlock(&thd->LOCK_delete);
+
     /*
       There is a small chance that slave thread might miss the first
       alarm. To protect againts it, resend the signal until it reacts
@@ -747,7 +760,11 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
 {
+  char err_buff[MAX_SLAVE_ERRMSG];
   const char* errmsg= 0;
+  int err_code= 0;
+  MYSQL_RES *master_res= 0;
+  MYSQL_ROW master_row;
   DBUG_ENTER("get_master_version_and_clock");
 
   /*
@@ -758,7 +775,11 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   mi->rli.relay_log.description_event_for_queue= 0;
 
   if (!my_isdigit(&my_charset_bin,*mysql->server_version))
+  {
     errmsg = "Master reported unrecognized MySQL version";
+    err_code= ER_SLAVE_FATAL_ERROR;
+    sprintf(err_buff, ER(err_code), errmsg);
+  }
   else
   {
     /*
@@ -770,6 +791,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     case '1':
     case '2':
       errmsg = "Master reported unrecognized MySQL version";
+      err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
       break;
     case '3':
       mi->rli.relay_log.description_event_for_queue= new
@@ -802,26 +825,21 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   */
 
   if (errmsg)
-  {
-    sql_print_error(errmsg);
-    DBUG_RETURN(1);
-  }
+    goto err;
 
   /* as we are here, we tried to allocate the event */
   if (!mi->rli.relay_log.description_event_for_queue)
   {
-    mi->report(ERROR_LEVEL, ER_SLAVE_CREATE_EVENT_FAILURE,
-               ER(ER_SLAVE_CREATE_EVENT_FAILURE),
-               "default Format_description_log_event");
-    DBUG_RETURN(1);
+    errmsg= "default Format_description_log_event";
+    err_code= ER_SLAVE_CREATE_EVENT_FAILURE;
+    sprintf(err_buff, ER(err_code), errmsg);
+    goto err;
   }
 
   /*
     Compare the master and slave's clock. Do not die if master's clock is
     unavailable (very old master not supporting UNIX_TIMESTAMP()?).
   */
-  MYSQL_RES *master_res= 0;
-  MYSQL_ROW master_row;
 
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
@@ -858,11 +876,17 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     if ((master_row= mysql_fetch_row(master_res)) &&
         (::server_id == strtoul(master_row[1], 0, 10)) &&
         !mi->rli.replicate_same_server_id)
+    {
       errmsg= "The slave I/O thread stops because master and slave have equal \
 MySQL server ids; these ids must be different for replication to work (or \
 the --replicate-same-server-id option must be used on slave but this does \
 not always make sense; please check the manual before using it).";
+      err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
+    }
     mysql_free_result(master_res);
+    if (errmsg)
+      goto err;
   }
 
   /*
@@ -893,10 +917,16 @@ not always make sense; please check the manual before using it).";
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
         strcmp(master_row[0], global_system_variables.collation_server->name))
+    {
       errmsg= "The slave I/O thread stops because master and slave have \
 different values for the COLLATION_SERVER global variable. The values must \
 be equal for replication to work";
+      err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
+    }
     mysql_free_result(master_res);
+    if (errmsg)
+      goto err;
   }
 
   /*
@@ -921,16 +951,24 @@ be equal for replication to work";
     if ((master_row= mysql_fetch_row(master_res)) &&
         strcmp(master_row[0],
                global_system_variables.time_zone->get_name()->ptr()))
+    {
       errmsg= "The slave I/O thread stops because master and slave have \
 different values for the TIME_ZONE global variable. The values must \
 be equal for replication to work";
+      err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
+    }
     mysql_free_result(master_res);
+
+    if (errmsg)
+      goto err;
   }
 
 err:
   if (errmsg)
   {
-    sql_print_error(errmsg);
+    DBUG_ASSERT(err_code != 0);
+    mi->report(ERROR_LEVEL, err_code, err_buff);
     DBUG_RETURN(1);
   }
 
@@ -1451,7 +1489,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     if (my_net_write(&thd->net, (uchar*) thd->packet.ptr(), packet->length()))
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -1507,6 +1545,9 @@ void set_slave_thread_default_charset(THD* thd, Relay_log_info const *rli)
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
+#if !defined(DBUG_OFF)
+  int simulate_error= 0;
+#endif
   thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO;
   thd->security_ctx->skip_grants();
@@ -1526,10 +1567,17 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
+  DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
+                  simulate_error|= (1 << SLAVE_THD_IO););
+  DBUG_EXECUTE_IF("simulate_sql_slave_error_on_init",
+                  simulate_error|= (1 << SLAVE_THD_SQL););
+#if !defined(DBUG_OFF)
+  if (init_thr_lock() || thd->store_globals() || simulate_error & (1<< thd_type))
+#else
   if (init_thr_lock() || thd->store_globals())
+#endif
   {
     thd->cleanup();
-    delete thd;
     DBUG_RETURN(-1);
   }
   lex_start(thd);
@@ -1971,28 +2019,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
      wait for something for example inside of next_event().
    */
   pthread_mutex_lock(&rli->data_lock);
-  /*
-    This tests if the position of the end of the last previous executed event
-    hits the UNTIL barrier.
-    We would prefer to test if the position of the start (or possibly) end of
-    the to-be-read event hits the UNTIL barrier, this is different if there
-    was an event ignored by the I/O thread just before (BUG#13861 to be
-    fixed).
-  */
-  if (rli->until_condition!=Relay_log_info::UNTIL_NONE &&
-      rli->is_until_satisfied())
-  {
-    char buf[22];
-    sql_print_information("Slave SQL thread stopped because it reached its"
-                    " UNTIL position %s", llstr(rli->until_pos(), buf));
-    /*
-      Setting abort_slave flag because we do not want additional message about
-      error in query execution to be printed.
-    */
-    rli->abort_slave= 1;
-    pthread_mutex_unlock(&rli->data_lock);
-    DBUG_RETURN(1);
-  }
 
   Log_event * ev = next_event(rli);
 
@@ -2006,7 +2032,30 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   }
   if (ev)
   {
-    int exec_res= apply_event_and_update_pos(ev, thd, rli, TRUE);
+    int exec_res;
+
+    /*
+      This tests if the position of the beginning of the current event
+      hits the UNTIL barrier.
+    */
+    if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
+        rli->is_until_satisfied((rli->is_in_group() || !ev->log_pos) ?
+                                rli->group_master_log_pos :
+                                ev->log_pos - ev->data_written))
+    {
+      char buf[22];
+      sql_print_information("Slave SQL thread stopped because it reached its"
+                            " UNTIL position %s", llstr(rli->until_pos(), buf));
+      /*
+        Setting abort_slave flag because we do not want additional message about
+        error in query execution to be printed.
+      */
+      rli->abort_slave= 1;
+      pthread_mutex_unlock(&rli->data_lock);
+      delete ev;
+      DBUG_RETURN(1);
+    }
+    exec_res= apply_event_and_update_pos(ev, thd, rli, TRUE);
 
     /*
       Format_description_log_event should not be deleted because it will be
@@ -2229,6 +2278,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
   thd= new THD; // note that contructor of THD uses DBUG_ !
   THD_CHECK_SENTRY(thd);
+  mi->io_thd = thd;
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
@@ -2239,7 +2289,6 @@ pthread_handler_t handle_slave_io(void *arg)
     sql_print_error("Failed during slave I/O thread initialization");
     goto err;
   }
-  mi->io_thd = thd;
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -2530,9 +2579,11 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   thd = new THD; // note that contructor of THD uses DBUG_ !
   thd->thread_stack = (char*)&thd; // remember where our stack is
-
+  rli->sql_thd= thd;
+  
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
+  rli->slave_running = 1;
 
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_SQL))
@@ -2547,7 +2598,6 @@ pthread_handler_t handle_slave_sql(void *arg)
     goto err;
   }
   thd->init_for_queries();
-  rli->sql_thd= thd;
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
@@ -2560,7 +2610,6 @@ pthread_handler_t handle_slave_sql(void *arg)
     start receiving data so we realize we are not caught up and
     Seconds_Behind_Master grows. No big deal.
   */
-  rli->slave_running = 1;
   rli->abort_slave = 0;
   pthread_mutex_unlock(&rli->run_lock);
   pthread_cond_broadcast(&rli->start_cond);
@@ -2641,6 +2690,22 @@ Slave SQL thread aborted. Can't execute init_slave query");
       goto err;
     }
   }
+
+  /*
+    First check until condition - probably there is nothing to execute. We
+    do not want to wait for next event in this case.
+  */
+  pthread_mutex_lock(&rli->data_lock);
+  if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
+      rli->is_until_satisfied(rli->group_master_log_pos))
+  {
+    char buf[22];
+    sql_print_information("Slave SQL thread stopped because it reached its"
+                          " UNTIL position %s", llstr(rli->until_pos(), buf));
+    pthread_mutex_unlock(&rli->data_lock);
+    goto err;
+  }
+  pthread_mutex_unlock(&rli->data_lock);
 
   /* Read queries from the IO/THREAD until this thread is killed */
 
@@ -3991,9 +4056,10 @@ end:
    has a certain bug.
    @param rli Relay_log_info which tells the master's version
    @param bug_id Number of the bug as found in bugs.mysql.com
+   @param report bool report error message, default TRUE
    @return TRUE if master has the bug, FALSE if it does not.
 */
-bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
+bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id, bool report)
 {
   struct st_version_range_for_one_bug {
     uint        bug_id;
@@ -4003,7 +4069,9 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
   static struct st_version_range_for_one_bug versions_for_all_bugs[]=
   {
     {24432, { 5, 0, 24 }, { 5, 0, 38 } },
-    {24432, { 5, 1, 12 }, { 5, 1, 17 } }
+    {24432, { 5, 1, 12 }, { 5, 1, 17 } },
+    {33029, { 5, 0,  0 }, { 5, 0, 58 } },
+    {33029, { 5, 1,  0 }, { 5, 1, 12 } },
   };
   const uchar *master_ver=
     rli->relay_log.description_event_for_exec->server_version_split;
@@ -4019,6 +4087,9 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
         (memcmp(introduced_in, master_ver, 3) <= 0) &&
         (memcmp(fixed_in,      master_ver, 3) >  0))
     {
+      if (!report)
+	return TRUE;
+      
       // a short message for SHOW SLAVE STATUS (message length constraints)
       my_printf_error(ER_UNKNOWN_ERROR, "master may suffer from"
                       " http://bugs.mysql.com/bug.php?id=%u"
@@ -4046,6 +4117,26 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
                       fixed_in[0], fixed_in[1], fixed_in[2]);
       return TRUE;
     }
+  }
+  return FALSE;
+}
+
+/**
+   BUG#33029, For all 5.0 up to 5.0.58 exclusive, and 5.1 up to 5.1.12
+   exclusive, if one statement in a SP generated AUTO_INCREMENT value
+   by the top statement, all statements after it would be considered
+   generated AUTO_INCREMENT value by the top statement, and a
+   erroneous INSERT_ID value might be associated with these statement,
+   which could cause duplicate entry error and stop the slave.
+
+   Detect buggy master to work around.
+ */
+bool rpl_master_erroneous_autoinc(THD *thd)
+{
+  if (active_mi && active_mi->rli.sql_thd == thd)
+  {
+    Relay_log_info *rli= &active_mi->rli;
+    return rpl_master_has_bug(rli, 33029, FALSE);
   }
   return FALSE;
 }

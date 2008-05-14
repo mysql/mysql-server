@@ -3210,7 +3210,6 @@ Dbacc::readTablePk(Uint32 localkey1, Uint32 eh, Ptr<Operationrec> opPtr)
     {
       dump_lock_queue(opPtr);
       ndbrequire(opPtr.p->nextParallelQue == RNIL);
-      ndbrequire(opPtr.p->nextSerialQue == RNIL);
       ndbrequire(opPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED);
       ndbrequire(opPtr.p->m_op_bits & Operationrec::OP_COMMIT_DELETE_CHECK);
       ndbrequire((opPtr.p->m_op_bits & Operationrec::OP_STATE_MASK) == Operationrec::OP_STATE_RUNNING);

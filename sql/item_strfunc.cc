@@ -1594,20 +1594,20 @@ void Item_func_trim::fix_length_and_dec()
   }
 }
 
-void Item_func_trim::print(String *str)
+void Item_func_trim::print(String *str, enum_query_type query_type)
 {
   if (arg_count == 1)
   {
-    Item_func::print(str);
+    Item_func::print(str, query_type);
     return;
   }
   str->append(Item_func_trim::func_name());
   str->append('(');
   str->append(mode_name());
   str->append(' ');
-  args[1]->print(str);
+  args[1]->print(str, query_type);
   str->append(STRING_WITH_LEN(" from "));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(')');
 }
 
@@ -2116,12 +2116,12 @@ String *Item_func_format::val_str(String *str)
 }
 
 
-void Item_func_format::print(String *str)
+void Item_func_format::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("format("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(',');
-  args[1]->print(str);
+  args[1]->print(str, query_type);
   str->append(')');
 }
 
@@ -2292,14 +2292,14 @@ Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg)
 }
 
 
-void Item_func_make_set::print(String *str)
+void Item_func_make_set::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("make_set("));
-  item->print(str);
+  item->print(str, query_type);
   if (arg_count)
   {
     str->append(',');
-    print_args(str, 0);
+    print_args(str, 0, query_type);
   }
   str->append(')');
 }
@@ -2710,10 +2710,10 @@ void Item_func_conv_charset::fix_length_and_dec()
   max_length = args[0]->max_length*conv_charset->mbmaxlen;
 }
 
-void Item_func_conv_charset::print(String *str)
+void Item_func_conv_charset::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("convert("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" using "));
   str->append(conv_charset->csname);
   str->append(')');
@@ -2781,10 +2781,10 @@ bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
 }
 
 
-void Item_func_set_collation::print(String *str)
+void Item_func_set_collation::print(String *str, enum_query_type query_type)
 {
   str->append('(');
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" collate "));
   DBUG_ASSERT(args[1]->basic_const_item() &&
               args[1]->type() == Item::STRING_ITEM);
@@ -2903,10 +2903,10 @@ String *Item_func_unhex::val_str(String *str)
 }
 
 
-void Item_func_binary::print(String *str)
+void Item_func_binary::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as binary)"));
 }
 

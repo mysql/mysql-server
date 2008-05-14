@@ -3645,7 +3645,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
       DBUG_RETURN(0);
     }
   }
-  DBUG_RETURN(1);		/* Impossible */
+  DBUG_RETURN(1);                               /* Impossible */
 }
 
 

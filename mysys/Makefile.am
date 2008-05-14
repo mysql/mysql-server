@@ -20,7 +20,7 @@ INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
 			-I$(top_srcdir)/include -I$(srcdir)
 pkglib_LIBRARIES =	libmysys.a
 LDADD =			libmysys.a $(top_builddir)/strings/libmystrings.a $(top_builddir)/dbug/libdbug.a
-noinst_HEADERS =	mysys_priv.h my_static.h my_safehash.h
+noinst_HEADERS =	mysys_priv.h my_static.h my_handler_errors.h my_safehash.h
 libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_path.c mf_loadpath.c my_file.c \
 			my_open.c my_create.c my_dup.c my_seek.c my_read.c \

@@ -172,20 +172,15 @@ void vio_ssl_delete(Vio *vio)
   vio_delete(vio);
 }
 
-int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
-{
-  DBUG_ENTER("sslaccept");
-  DBUG_RETURN(sslconnect(ptr, vio, timeout));
-}
 
-
-int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
+static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
+                  int (*connect_accept_func)(SSL*))
 {
   SSL *ssl;
   my_bool unused;
   my_bool was_blocking;
 
-  DBUG_ENTER("sslconnect");
+  DBUG_ENTER("ssl_do");
   DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
                        (long) ptr, vio->sd, (long) ptr->ssl_context));
 
@@ -204,13 +199,9 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, vio->sd);
 
-  /*
-    SSL_do_handshake will select between SSL_connect
-    or SSL_accept depending on server or client side
-  */
-  if (SSL_do_handshake(ssl) < 1)
+  if (connect_accept_func(ssl) < 1)
   {
-    DBUG_PRINT("error", ("SSL_do_handshake failure"));
+    DBUG_PRINT("error", ("SSL_connect/accept failure"));
     report_errors(ssl);
     SSL_free(ssl);
     vio_blocking(vio, was_blocking, &unused);
@@ -259,6 +250,20 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
 }
 
 
+int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
+{
+  DBUG_ENTER("sslaccept");
+  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_accept));
+}
+
+
+int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
+{
+  DBUG_ENTER("sslconnect");
+  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_connect));
+}
+
+
 int vio_ssl_blocking(Vio *vio __attribute__((unused)),
 		     my_bool set_blocking_mode,
 		     my_bool *old_mode)
@@ -268,5 +273,7 @@ int vio_ssl_blocking(Vio *vio __attribute__((unused)),
   /* Return error if we try to change to non_blocking mode */
   return (set_blocking_mode ? 0 : 1);
 }
+
+
 
 #endif /* HAVE_OPENSSL */

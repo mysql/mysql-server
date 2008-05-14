@@ -283,6 +283,7 @@ static void run_query(THD *thd, char *buf, char *end,
                       thd_ndb->m_error_code,
                       (int) thd->is_error(), thd->is_slave_error);
   }
+  close_thread_tables(thd);
   /*
     XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
     can not be called from within a statement, and
@@ -683,6 +684,18 @@ static void ndbcluster_reset_slave(THD *thd)
 /*
   Initialize the binlog part of the ndb handlerton
 */
+
+/**
+  Upon the sql command flush logs, we need to ensure that all outstanding
+  ndb data to be logged has made it to the binary log to get a deterministic
+  behavior on the rotation of the log.
+ */
+static bool ndbcluster_flush_logs(handlerton *hton)
+{
+  ndbcluster_binlog_wait(current_thd);
+  return FALSE;
+}
+
 static int ndbcluster_binlog_func(handlerton *hton, THD *thd, 
                                   enum_binlog_func fn, 
                                   void *arg)
@@ -711,6 +724,7 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
 void ndbcluster_binlog_init_handlerton()
 {
   handlerton *h= ndbcluster_hton;
+  h->flush_logs=       ndbcluster_flush_logs;
   h->binlog_func=      ndbcluster_binlog_func;
   h->binlog_log_query= ndbcluster_binlog_log_query;
 }
@@ -1002,7 +1016,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
     uint blob_len= field_blob->get_length((*field)->ptr);
     uchar *blob_ptr= 0;
     field_blob->get_ptr(&blob_ptr);
-    assert(blob_len == 0 || blob_ptr != 0);
+    DBUG_ASSERT(blob_len == 0 || blob_ptr != 0);
     s->query_length= blob_len;
     s->query= sql_strmake((char*) blob_ptr, blob_len);
   }

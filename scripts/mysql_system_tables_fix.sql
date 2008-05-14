@@ -375,7 +375,9 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'ERROR_FOR_DIVISION_BY_ZERO',
                             'TRADITIONAL',
                             'NO_AUTO_CREATE_USER',
-                            'HIGH_NOT_PRECEDENCE'
+                            'HIGH_NOT_PRECEDENCE',
+                            'NO_ENGINE_SUBSTITUTION',
+                            'PAD_CHAR_TO_FULL_LENGTH'
                             ) DEFAULT '' NOT NULL,
                  DEFAULT CHARACTER SET utf8;
 
@@ -461,7 +463,9 @@ ALTER TABLE event ADD sql_mode
                             'ERROR_FOR_DIVISION_BY_ZERO',
                             'TRADITIONAL',
                             'NO_AUTO_CREATE_USER',
-                            'HIGH_NOT_PRECEDENCE'
+                            'HIGH_NOT_PRECEDENCE',
+                            'NO_ENGINE_SUBSTITUTION',
+                            'PAD_CHAR_TO_FULL_LENGTH'
                             ) DEFAULT '' NOT NULL AFTER on_completion;
 ALTER TABLE event MODIFY name char(64) CHARACTER SET utf8 NOT NULL default '';
 ALTER TABLE event ADD COLUMN originator INT(10) NOT NULL AFTER comment;

@@ -594,7 +594,6 @@ const char *ft_precompiled_stopwords[] = {
   "won't",
   "wonder",
   "would",
-  "would",
   "wouldn't",
   "yes",
   "yet",

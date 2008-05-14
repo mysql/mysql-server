@@ -113,7 +113,6 @@ public:
   }
 };
 
-
 /*************************************************************************/
 /*
   A framework to easily handle different return types for hybrid items
@@ -769,20 +768,24 @@ public:
   */
   virtual bool const_during_execution() const 
   { return (used_tables() & ~PARAM_TABLE_BIT) == 0; }
-  /*
-    This is an essential method for correct functioning of VIEWS.
-    To save a view in an .frm file we need its unequivocal
-    definition in SQL that takes into account sql_mode and
-    environmental settings.  Currently such definition is restored
-    by traversing through the parsed tree of a view and
-    print()'ing SQL syntax of every node to a String buffer. This
-    method is used to print the SQL definition of an item. The
-    second use of this method is for EXPLAIN EXTENDED, to print
-    the SQL of a query after all optimizations of the parsed tree
-    have been done.
+
+  /**
+    This method is used for to:
+      - to generate a view definition query (SELECT-statement);
+      - to generate a SQL-query for EXPLAIN EXTENDED;
+      - to generate a SQL-query to be shown in INFORMATION_SCHEMA;
+      - debug.
+
+    For more information about view definition query, INFORMATION_SCHEMA
+    query and why they should be generated from the Item-tree, @see
+    mysql_register_view().
   */
-  virtual void print(String *str_arg) { str_arg->append(full_name()); }
-  void print_item_w_name(String *);
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    str->append(full_name());
+  }
+
+  void print_item_w_name(String *, enum_query_type query_type);
   virtual void update_used_tables() {}
   virtual void split_sum_func(THD *thd, Item **ref_pointer_array,
                               List<Item> &fields) {}
@@ -1004,10 +1007,29 @@ public:
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
+  bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
 };
 
 
 class sp_head;
+
+
+class Item_basic_constant :public Item
+{
+public:
+  /* to prevent drop fixed flag (no need parent cleanup call) */
+  void cleanup()
+  {
+    /*
+      Restore the original field name as it might not have been allocated
+      in the statement memory. If the name is auto generated, it must be
+      done again between subsequent executions of a prepared statement.
+    */
+    if (orig_name)
+      name= orig_name;
+  }
+  Item_basic_constant() {}                      /* Remove gcc warning */
+};
 
 
 /*****************************************************************************
@@ -1134,7 +1156,7 @@ public:
   const Item *this_item() const;
   Item **this_item_addr(THD *thd, Item **);
 
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 
 public:
   inline const LEX_STRING *my_name() const;
@@ -1203,7 +1225,7 @@ public:
     Item_case_expr can not occur in views, so here it is only for debug
     purposes.
   */
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 
 private:
   uint m_case_expr_id;
@@ -1244,14 +1266,7 @@ class Item_name_const : public Item
   Item *name_item;
   bool valid_args;
 public:
-  Item_name_const(Item *name_arg, Item *val):
-    value_item(val), name_item(name_arg)
-  {
-    if (!(valid_args= name_item->basic_const_item() & 
-                      value_item->basic_const_item()))
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
-    Item::maybe_null= TRUE;
-  }
+  Item_name_const(Item *name_arg, Item *val);
 
   bool fix_fields(THD *, Item **);
 
@@ -1261,7 +1276,7 @@ public:
   String *val_str(String *sp);
   my_decimal *val_decimal(my_decimal *);
   bool is_null();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 
   Item_result result_type() const
   {
@@ -1292,7 +1307,7 @@ bool agg_item_charsets(DTCollation &c, const char *name,
                        Item **items, uint nitems, uint flags, int item_sep);
 
 
-class Item_num: public Item
+class Item_num: public Item_basic_constant
 {
 public:
   Item_num() {}                               /* Remove gcc warning */
@@ -1343,7 +1358,7 @@ public:
   const char *full_name() const;
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
@@ -1473,7 +1488,7 @@ public:
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   Field::geometry_type get_geometry_type() const
   {
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
@@ -1484,7 +1499,7 @@ public:
   friend class st_select_lex_unit;
 };
 
-class Item_null :public Item
+class Item_null :public Item_basic_constant
 {
 public:
   Item_null(char *name_par=0)
@@ -1506,12 +1521,15 @@ public:
   bool send(Protocol *protocol, String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
-  /* to prevent drop fixed flag (no need parent cleanup call) */
-  void cleanup() {}
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_null(name); }
   bool is_null() { return 1; }
-  void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    str->append(STRING_WITH_LEN("NULL"));
+  }
+
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
@@ -1536,8 +1554,6 @@ class Item_param :public Item
   char cnvbuf[MAX_FIELD_WIDTH];
   String cnvstr;
   Item *cnvitem;
-  bool strict_type;
-  enum Item_result required_result_type;
 
 public:
   enum enum_item_param_state
@@ -1645,7 +1661,7 @@ public:
   */
   virtual table_map used_tables() const
   { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   bool is_null()
   { DBUG_ASSERT(state != NO_VALUE); return state == NULL_VALUE; }
   bool basic_const_item() const;
@@ -1667,11 +1683,8 @@ public:
     Otherwise return FALSE.
   */
   bool eq(const Item *item, bool binary_cmp) const;
-  void set_strict_type(enum Item_result result_type_arg)
-  {
-    strict_type= TRUE;
-    required_result_type= result_type_arg;
-  }
+  /** Item is a argument to a limit clause. */
+  bool limit_clause_param;
 };
 
 
@@ -1701,9 +1714,7 @@ public:
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_int(name,value,max_length); }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   Item_num *neg() { value= -value; return this; }
   uint decimal_precision() const
   { return (uint)(max_length - test(value < 0)); }
@@ -1723,7 +1734,7 @@ public:
   String *val_str(String*);
   Item *clone_item() { return new Item_uint(name, value, max_length); }
   int save_in_field(Field *field, bool no_conversions);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
@@ -1757,9 +1768,7 @@ public:
   {
     return new Item_decimal(name, &decimal_value, decimals, max_length);
   }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   Item_num *neg()
   {
     my_decimal_neg(&decimal_value);
@@ -1813,12 +1822,10 @@ public:
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool basic_const_item() const { return 1; }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   Item *clone_item()
   { return new Item_float(name, value, decimals, max_length); }
   Item_num *neg() { value= -value; return this; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   bool eq(const Item *, bool binary_cmp) const;
 };
 
@@ -1831,17 +1838,23 @@ public:
                         uint length)
     :Item_float(NullS, val_arg, decimal_par, length), func_name(str)
   {}
-  void print(String *str) { str->append(func_name); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    str->append(func_name);
+  }
+
   Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
 
-class Item_string :public Item
+class Item_string :public Item_basic_constant
 {
 public:
   Item_string(const char *str,uint length,
               CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
+    : m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
@@ -1860,6 +1873,7 @@ public:
   }
   /* Just create an item and do not fill string representation */
   Item_string(CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+    : m_cs_specified(FALSE)
   {
     collation.set(cs, dv);
     max_length= 0;
@@ -1870,6 +1884,7 @@ public:
   Item_string(const char *name_par, const char *str, uint length,
               CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
+    : m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
@@ -1919,10 +1934,50 @@ public:
     str_value.append(str, length);
     max_length= str_value.numchars() * collation.collation->mbmaxlen;
   }
-  void print(String *str);
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
+  virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+
+  /**
+    Return TRUE if character-set-introducer was explicitly specified in the
+    original query for this item (text literal).
+
+    This operation is to be called from Item_string::print(). The idea is
+    that when a query is generated (re-constructed) from the Item-tree,
+    character-set-introducers should appear only for those literals, where
+    they were explicitly specified by the user. Otherwise, that may lead to
+    loss collation information (character set introducers implies default
+    collation for the literal).
+
+    Basically, that makes sense only for views and hopefully will be gone
+    one day when we start using original query as a view definition.
+
+    @return This operation returns the value of m_cs_specified attribute.
+      @retval TRUE if character set introducer was explicitly specified in
+      the original query.
+      @retval FALSE otherwise.
+  */
+  inline bool is_cs_specified() const
+  {
+    return m_cs_specified;
+  }
+
+  /**
+    Set the value of m_cs_specified attribute.
+
+    m_cs_specified attribute shows whether character-set-introducer was
+    explicitly specified in the original query for this text literal or
+    not. The attribute makes sense (is used) only for views.
+
+    This operation is to be called from the parser during parsing an input
+    query.
+  */
+  inline void set_cs_specified(bool cs_specified)
+  {
+    m_cs_specified= cs_specified;
+  }
+
+private:
+  bool m_cs_specified;
 };
 
 
@@ -1936,7 +1991,12 @@ public:
     :Item_string(NullS, str, length, cs, dv), func_name(name_par)
   {}
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  void print(String *str) { str->append(func_name); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    str->append(func_name);
+  }
+
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
 };
 
@@ -2005,10 +2065,10 @@ public:
 };
 
 
-class Item_hex_string: public Item
+class Item_hex_string: public Item_basic_constant
 {
 public:
-  Item_hex_string(): Item() {}
+  Item_hex_string() {}
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
@@ -2024,9 +2084,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
@@ -2147,7 +2205,7 @@ public:
   }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { return (*ref)->walk(processor, walk_subquery, arg); }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   bool result_as_longlong()
   {
     return (*ref)->result_as_longlong();
@@ -2156,6 +2214,35 @@ public:
   Item_field *filed_for_view_update()
     { return (*ref)->filed_for_view_update(); }
   virtual Ref_Type ref_type() { return REF; }
+
+  // Row emulation: forwarding of ROW-related calls to ref
+  uint cols()
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->cols() : 1;
+  }
+  Item* element_index(uint i)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->element_index(i) : this;
+  }
+  Item** addr(uint i)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->addr(i) : 0;
+  }
+  bool check_cols(uint c)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->check_cols(c) 
+                                              : Item::check_cols(c);
+  }
+  bool null_inside()
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->null_inside() : 0;
+  }
+  void bring_value()
+  { 
+    if (ref && result_type() == ROW_RESULT)
+      (*ref)->bring_value();
+  }
+
 };
 
 
@@ -2294,7 +2381,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   /*
     we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
   */
@@ -2469,7 +2556,7 @@ public:
   enum Type type() const { return DEFAULT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   int save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
 
@@ -2502,7 +2589,7 @@ public:
      arg(a) {}
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   int save_in_field(Field *field_arg, bool no_conversions)
   {
     return Item_field::save_in_field(field_arg, no_conversions);
@@ -2573,7 +2660,7 @@ public:
   enum Type type() const { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   table_map used_tables() const { return (table_map)0L; }
   Field *get_tmp_table_field() { return 0; }
   Item *copy_or_same(THD *thd) { return this; }
@@ -2617,7 +2704,7 @@ private:
 };
 
 
-class Item_cache: public Item
+class Item_cache: public Item_basic_constant
 {
 protected:
   Item *example;
@@ -2664,9 +2751,7 @@ public:
   static Item_cache* get_cache(const Item *item);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   bool eq_def(Field *field) 
   { 
     return cached_field ? cached_field->eq_def (field) : FALSE;

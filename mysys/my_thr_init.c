@@ -332,6 +332,7 @@ void my_thread_end(void)
     /* tmp->dbug is allocated inside DBUG library */
     if (tmp->dbug)
     {
+      DBUG_POP();
       free(tmp->dbug);
       tmp->dbug=0;
     }

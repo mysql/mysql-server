@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.24-maria-alpha)
+AM_INIT_AUTOMAKE(mysql, 5.1.25-maria-alpha)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -23,9 +23,19 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
-MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
-MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
-MYSQL_VERSION_ID=`echo $MYSQL_NO_DASH_VERSION | sed -e 's|[[^0-9.]].*$||;s|$|.|' | sed -e 's/[[^0-9.]]//g; s/\./  /g; s/ \([[0-9]]\) / 0\\1 /g; s/ //g'`
+# We take some made up examples
+#
+#  VERSION                  5.1.40sp1-alpha     5.0.34a
+#  MYSQL_NO_DASH_VERSION    5.1.40sp1           5.0.34a
+#  MYSQL_NUMERIC_VERSION    5.1.40              5.0.34
+#  MYSQL_BASE_VERSION       5.1                 5.0
+#  MYSQL_VERSION_ID         50140               50034
+#
+MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
+MYSQL_NUMERIC_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|[[a-z]][[a-z0-9]]*$||"`
+MYSQL_BASE_VERSION=`echo $MYSQL_NUMERIC_VERSION | sed -e "s|\.[[^.]]*$||"`
+MYSQL_VERSION_ID=`echo $MYSQL_NUMERIC_VERSION | \
+    awk -F. '{printf "%d%0.2d%0.2d", $1, $2, $3}'`
 
 # Add previous major version for debian package upgrade path
 MYSQL_PREVIOUS_BASE_VERSION=5.0
@@ -188,7 +198,7 @@ CC_VERSION=`$CC --version | sed 1q`
 esac
 if test $? -eq "0"
 then
-  AC_MSG_CHECKING("C Compiler version");
+  AC_MSG_CHECKING("C Compiler version")
   AC_MSG_RESULT("$CC $CC_VERSION")
 else
 CC_VERSION=""
@@ -813,8 +823,8 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
- sys/prctl.h \
- sys/resource.h sys/param.h port.h ieeefp.h)
+ sys/prctl.h sys/resource.h sys/param.h port.h ieeefp.h \
+ execinfo.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
 
@@ -1031,8 +1041,8 @@ case $SYSTEM_TYPE in
     ;;
   *hpux11.*)
     AC_MSG_WARN([Enabling workarounds for hpux 11])
-    CFLAGS="$CFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
-    CXXFLAGS="$CXXFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CFLAGS="$CFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CXXFLAGS="$CXXFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     if test "$with_named_thread" = "no"
     then 
       AC_MSG_WARN([Using --with-named-thread=-lpthread])
@@ -1296,7 +1306,7 @@ See the Installation chapter in the Reference Manual for more information.])
             AC_MSG_RESULT("no need to check headers")
         fi
         
-        AC_MSG_CHECKING("for pthread_create in -lpthread");
+        AC_MSG_CHECKING("for pthread_create in -lpthread")
         ac_save_LIBS="$LIBS"
         LIBS="$LIBS -lpthread"
         AC_TRY_LINK( [#include <pthread.h>],
@@ -1356,7 +1366,7 @@ then
       then
 	AC_MSG_RESULT("yes")
       else
-	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.])
       fi
       AC_MSG_RESULT("yes")
     elif test -f /usr/local/lib/libpthread.a -o -f /usr/local/lib/libpthread.so
@@ -1372,7 +1382,7 @@ then
       then
 	AC_MSG_RESULT("yes")
       else
-	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.])
       fi
       AC_MSG_RESULT("yes")
     # Hack for SCO UnixWare 7.1.x
@@ -1517,7 +1527,7 @@ else
   AC_MSG_RESULT("$with_posix_threads")
   if test "$with_posix_threads" = "no"
   then
-    AC_MSG_CHECKING("for pthread_create in -lpthread");
+    AC_MSG_CHECKING("for pthread_create in -lpthread")
     ac_save_LIBS="$LIBS"
     LIBS="$LIBS -lpthread"
     CLIENT_THREAD_LIBS="-lpthread"
@@ -1530,7 +1540,7 @@ else
     then
       LIBS=" $ac_save_LIBS -lpthreads"
       CLIENT_THREAD_LIBS="-lpthreads"
-      AC_MSG_CHECKING("for pthread_create in -lpthreads");
+      AC_MSG_CHECKING("for pthread_create in -lpthreads")
       AC_TRY_LINK(
       [#include <pthread.h>],
       [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1541,7 +1551,7 @@ else
         # This is for FreeBSD
         LIBS="$ac_save_LIBS -pthread"
         CLIENT_THREAD_LIBS="-pthread"
-        AC_MSG_CHECKING("for pthread_create in -pthread");
+        AC_MSG_CHECKING("for pthread_create in -pthread")
         AC_TRY_LINK(
         [#include <pthread.h>],
         [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1915,7 +1925,7 @@ if test "$ac_cv_conv_longlong_to_float" != "yes"
 then
   AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
-again]);
+again])
 fi
 fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
@@ -2041,7 +2051,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   sighold sigset sigthreadmask port_create sleep thr_yield \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
-  posix_fallocate)
+  posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd)
 
 #
 #
@@ -2079,7 +2089,7 @@ CFLAGS="$ORG_CFLAGS"
 AC_CHECK_FUNC(fseeko,
 [if test "$large_file_support" = no -a "$TARGET_LINUX" = "true";
 then
-  AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
+  AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!")
 fi]
 )
 
@@ -2330,6 +2340,21 @@ then
   AC_DEFINE([HAVE_BROKEN_NETINET_INCLUDES], [1], [Can netinet be included])
 fi
 AC_MSG_RESULT("$netinet_inc")
+
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
+AC_CHECK_HEADERS(cxxabi.h)
+AC_CACHE_CHECK([checking for abi::__cxa_demangle], mysql_cv_cxa_demangle,
+[AC_TRY_LINK([#include <cxxabi.h>], [
+  char *foo= 0; int bar= 0;
+  foo= abi::__cxa_demangle(foo, foo, 0, &bar);
+], [mysql_cv_cxa_demangle=yes], [mysql_cv_cxa_demangle=no])])
+AC_LANG_RESTORE
+
+if test "x$mysql_cv_cxa_demangle" = xyes; then
+  AC_DEFINE(HAVE_ABI_CXA_DEMANGLE, 1,
+            [Define to 1 if you have the `abi::__cxa_demangle' function.])
+fi
 
 #--------------------------------------------------------------------
 # Check for requested features

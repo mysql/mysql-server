@@ -1,3 +1,5 @@
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 0;
 drop table if exists t1,t3;
 drop procedure if exists bug4902|
 create procedure bug4902()
@@ -17,11 +19,11 @@ begin
 show processlist;
 end|
 call bug4902_2()|
-Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	test	Query	#	NULL	show processlist
+show warnings|
+Level	Code	Message
 call bug4902_2()|
-Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	test	Query	#	NULL	show processlist
+show warnings|
+Level	Code	Message
 drop procedure bug4902_2|
 drop table if exists t1|
 create table t1 (
@@ -231,3 +233,4 @@ rl_acquirer	old
 drop procedure p1;
 drop table t1;
 set session low_priority_updates=default;
+set @@global.concurrent_insert= @old_concurrent_insert;

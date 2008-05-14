@@ -98,12 +98,12 @@ STATIC_INLINE uint32 my_reverse_bits(uint32 key)
      _my_bits_reverse_table[(key>>24)      ];
 }
 
-#else
+#else  /* HAVE_INLINE */
 extern uint my_bit_log2(ulong value);
 extern uint32 my_round_up_to_next_power(uint32 v);
 uint32 my_clear_highest_bit(uint32 v);
 uint32 my_reverse_bits(uint32 key);
 extern uint my_count_bits(ulonglong v);
 extern uint my_count_bits_ushort(ushort v);
-#endif
+#endif /* HAVE_INLINE */
 C_MODE_END

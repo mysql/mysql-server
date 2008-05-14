@@ -35,8 +35,8 @@
 #ifndef SHAREDIR
 #define SHAREDIR	"share/"
 #endif
-#ifndef LIBDIR
-#define LIBDIR		"lib/"
+#ifndef PLUGINDIR
+#define PLUGINDIR	"lib/plugin"
 #endif
 
 #define ER(X) errmesg[(X) - ER_ERROR_FIRST]
@@ -108,7 +108,6 @@
 
 #define READ_RECORD_BUFFER	(uint) (IO_SIZE*8) /* Pointer_buffer_size */
 #define DISK_BUFFER_SIZE	(uint) (IO_SIZE*16) /* Size of diskbuffer */
-#define POSTFIX_ERROR		DBL_MAX
 
 #define ME_INFO (ME_HOLDTANG+ME_OLDWIN+ME_NOREFRESH)
 #define ME_ERROR (ME_BELL+ME_OLDWIN+ME_NOREFRESH)

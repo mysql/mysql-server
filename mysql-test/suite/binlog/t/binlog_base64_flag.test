@@ -9,6 +9,9 @@
 # BINLOG statement does not work in embedded mode.
 source include/not_embedded.inc;
 
+disable_warnings;
+DROP TABLE IF EXISTS t1;
+enable_warnings;
 
 # Test to show BUG#32407.  This reads a binlog created with the
 # mysql-5.1-telco-6.1 tree, specifically at the tag
@@ -70,7 +73,7 @@ select * from t1;
 --echo ==== Test --base64-output=never on a binlog with row events ====
 
 # mysqlbinlog should fail
---replace_regex /#[0-9][0-9][0-9][0-9][0-9][0-9] .*/#/
+--replace_regex /#[0-9][0-9][0-9][0-9][0-9][0-9] .*/<#>/   /SET \@\@session.pseudo_thread_id.*/<#>/
 error 1;
 exec $MYSQL_BINLOG --base64-output=never suite/binlog/std_data/bug32407.001;
 # the above line should output the query log event and then stop

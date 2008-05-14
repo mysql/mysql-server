@@ -249,6 +249,6 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }

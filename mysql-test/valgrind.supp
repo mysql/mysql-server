@@ -539,3 +539,16 @@
    fun:_db_enter_
    fun:kill_server
 }
+
+#
+# Warning caused by small memory leak in threaded dlopen
+#
+
+{
+   dlopen threaded memory leak
+   Memcheck:Leak
+   fun:calloc
+   obj:*/libdl-*.so
+   fun:dlopen*
+}
+

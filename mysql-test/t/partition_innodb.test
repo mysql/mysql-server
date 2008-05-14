@@ -20,6 +20,9 @@ DROP TABLE t1;
 # Bug #14673: Wrong InnoDB default row format
 #
 create table t1 (a int) engine=innodb partition by hash(a) ;
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
 show table status like 't1';
 drop table t1;
 
@@ -29,18 +32,33 @@ drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
 show table status;
 insert into t1 values (0), (1), (2), (3);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
 show table status;
 drop table t1;
 
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
 show table status;
 drop table t1;
 
@@ -86,6 +104,7 @@ engine = innodb
 partition by list (a)
 (partition p0 values in (0));
 
+-- error ER_MIX_HANDLER_ERROR
 alter table t1 engine = x;
 show create table t1;
 drop table t1;
@@ -164,8 +183,10 @@ DROP TABLE t1;
 create table t1 (int_column int, char_column char(5))
   PARTITION BY RANGE (int_column) subpartition by key (char_column) subpartitions 2
   (PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB);
-alter table t1 PARTITION BY RANGE (int_column)
+alter table t1
+ENGINE = MyISAM
+PARTITION BY RANGE (int_column)
    subpartition by key (char_column) subpartitions 2
-  (PARTITION p1 VALUES LESS THAN (5) ENGINE = myisam);
+  (PARTITION p1 VALUES LESS THAN (5));
 show create table t1;
 drop table t1;

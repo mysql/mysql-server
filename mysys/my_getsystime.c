@@ -17,6 +17,11 @@
 /* thus to get the current time we should use the system function
    with the highest possible resolution */
 
+/* 
+   TODO: in functions my_micro_time() and my_micro_time_and_time() there
+   exists some common code that should be merged into a function.
+*/
+
 #include "mysys_priv.h"
 #include "my_static.h"
 
@@ -36,7 +41,7 @@ ulonglong my_getsystime()
   {
     QueryPerformanceCounter(&t_cnt);
     return ((t_cnt.QuadPart / query_performance_frequency * 10000000) +
-            (t_cnt.QuadPart % query_performance_frequency * 10000000 /
+            ((t_cnt.QuadPart % query_performance_frequency) * 10000000 /
              query_performance_frequency) + query_performance_offset);
   }
   return 0;
@@ -103,21 +108,14 @@ time_t my_time(myf flags __attribute__((unused)))
 
 ulonglong my_micro_time()
 {
-  ulonglong newtime;
 #if defined(__WIN__)
-  if (query_performance_frequency)
-  {
-    QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
-    newtime= ((newtime / query_performance_frequency * 10000000) +
-              (newtime % query_performance_frequency * 10000000 /
-               query_performance_frequency));
-  }
-  else
-    newtime= (GetTickCount() * 1000); /* GetTickCount only returns millisec. */
-  return newtime;
+  ulonglong newtime;
+  GetSystemTimeAsFileTime((FILETIME*)&newtime);
+  return (newtime/10);
 #elif defined(HAVE_GETHRTIME)
   return gethrtime()/1000;
 #else
+  ulonglong newtime;
   struct timeval t;
   /*
     The following loop is here because gettimeofday may fail on some systems
@@ -156,19 +154,11 @@ ulonglong my_micro_time()
 
 ulonglong my_micro_time_and_time(time_t *time_arg)
 {
-  ulonglong newtime;
 #if defined(__WIN__)
-  if (query_performance_frequency)
-  {
-    QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
-    newtime= ((newtime / query_performance_frequency * 10000000) +
-              (newtime % query_performance_frequency * 10000000 /
-               query_performance_frequency));
-  }
-  else
-    newtime= (GetTickCount() * 1000); /* GetTickCount only returns millisec. */
-  (void) time(time_arg);
-  return newtime;
+  ulonglong newtime;
+  GetSystemTimeAsFileTime((FILETIME*)&newtime);
+  *time_arg= (time_t) ((newtime - OFFSET_TO_EPOCH) / 10000000);
+  return (newtime/10);
 #elif defined(HAVE_GETHRTIME)
   /*
     Solaris has a very slow time() call. We optimize this by using the very
@@ -189,6 +179,7 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
   pthread_mutex_unlock(&THR_LOCK_time);
   return cur_gethrtime/1000;
 #else
+  ulonglong newtime;
   struct timeval t;
   /*
     The following loop is here because gettimeofday may fail on some systems

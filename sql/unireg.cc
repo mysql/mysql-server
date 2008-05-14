@@ -980,9 +980,7 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
 
     type= (Field::utype) MTYP_TYPENR(field->unireg_check);
 
-    if (field->def &&
-	(regfield->real_type() != MYSQL_TYPE_YEAR ||
-	 field->def->val_int() != 0))
+    if (field->def)
     {
       int res= field->def->save_in_field(regfield, 1);
       /* If not ok or warning of level 'note' */

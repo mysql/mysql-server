@@ -18,6 +18,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 #include "mysql_priv.h"
+#include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
 #include "sp_rcontext.h"
@@ -440,9 +441,10 @@ uint Item::decimal_precision() const
 }
 
 
-void Item::print_item_w_name(String *str)
+void Item::print_item_w_name(String *str, enum_query_type query_type)
 {
-  print(str);
+  print(str, query_type);
+
   if (name)
   {
     THD *thd= current_thd;
@@ -1126,7 +1128,7 @@ Item_splocal::this_item_addr(THD *thd, Item **)
 }
 
 
-void Item_splocal::print(String *str)
+void Item_splocal::print(String *str, enum_query_type)
 {
   str->reserve(m_name.length+8);
   str->append(m_name.str, m_name.length);
@@ -1180,7 +1182,7 @@ Item_case_expr::this_item_addr(THD *thd, Item **)
 }
 
 
-void Item_case_expr::print(String *str)
+void Item_case_expr::print(String *str, enum_query_type)
 {
   if (str->reserve(MAX_INT_WIDTH + sizeof("case_expr@")))
     return;                                    /* purecov: inspected */
@@ -1234,6 +1236,22 @@ bool Item_name_const::is_null()
   return value_item->is_null();
 }
 
+
+Item_name_const::Item_name_const(Item *name_arg, Item *val):
+    value_item(val), name_item(name_arg)
+{
+  if (!(valid_args= name_item->basic_const_item() &&
+                    (value_item->basic_const_item() ||
+                     ((value_item->type() == FUNC_ITEM) &&
+                      (((Item_func *) value_item)->functype() ==
+                                                 Item_func::NEG_FUNC) &&
+                      (((Item_func *) value_item)->key_item()->type() !=
+                       FUNC_ITEM)))))
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
+  Item::maybe_null= TRUE;
+}
+
+
 Item::Type Item_name_const::type() const
 {
   /*
@@ -1245,8 +1263,17 @@ Item::Type Item_name_const::type() const
     if (item->type() == FIELD_ITEM) 
       ((Item_field *) item)->... 
     we return NULL_ITEM in the case to avoid wrong casting.
+
+    valid_args guarantees value_item->basic_const_item(); if type is
+    FUNC_ITEM, then we have a fudged item_func_neg() on our hands
+    and return the underlying type.
   */
-  return valid_args ? value_item->type() : NULL_ITEM;
+  return valid_args ?
+             (((value_item->type() == FUNC_ITEM) &&
+               (((Item_func *) value_item)->functype() == Item_func::NEG_FUNC)) ?
+             ((Item_func *) value_item)->key_item()->type() :
+             value_item->type()) :
+           NULL_ITEM;
 }
 
 
@@ -1267,6 +1294,7 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
+  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
   fixed= 1;
@@ -1274,12 +1302,12 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_name_const::print(String *str)
+void Item_name_const::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("NAME_CONST("));
-  name_item->print(str);
+  name_item->print(str, query_type);
   str->append(',');
-  value_item->print(str);
+  value_item->print(str, query_type);
   str->append(')');
 }
 
@@ -1296,12 +1324,12 @@ public:
                   const char *table_name_arg, const char *field_name_arg)
     :Item_ref(context_arg, item, table_name_arg, field_name_arg) {}
 
-  void print (String *str)
+  virtual inline void print (String *str, enum_query_type query_type)
   {
     if (ref)
-      (*ref)->print(str);
+      (*ref)->print(str, query_type);
     else
-      Item_ident::print(str);
+      Item_ident::print(str, query_type);
   }
 };
 
@@ -1453,7 +1481,9 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
         set(dt);
       }
       else
-       ; // Do nothing
+      {
+        // Do nothing
+      }
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
              left_is_superset(this, &dt))
@@ -1870,7 +1900,7 @@ const char *Item_ident::full_name() const
   return tmp;
 }
 
-void Item_ident::print(String *str)
+void Item_ident::print(String *str, enum_query_type query_type)
 {
   THD *thd= current_thd;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
@@ -2132,7 +2162,7 @@ String *Item_int::val_str(String *str)
   return str;
 }
 
-void Item_int::print(String *str)
+void Item_int::print(String *str, enum_query_type query_type)
 {
   // my_charset_bin is good enough for numbers
   str_value.set(value, &my_charset_bin);
@@ -2163,7 +2193,7 @@ String *Item_uint::val_str(String *str)
 }
 
 
-void Item_uint::print(String *str)
+void Item_uint::print(String *str, enum_query_type query_type)
 {
   // latin1 is good enough for numbers
   str_value.set((ulonglong) value, default_charset());
@@ -2255,7 +2285,7 @@ String *Item_decimal::val_str(String *result)
   return result;
 }
 
-void Item_decimal::print(String *str)
+void Item_decimal::print(String *str, enum_query_type query_type)
 {
   my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, &str_value);
   str->append(str_value);
@@ -2308,12 +2338,39 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
 }
 
 
-void Item_string::print(String *str)
+void Item_string::print(String *str, enum_query_type query_type)
 {
-  str->append('_');
-  str->append(collation.collation->csname);
+  if (query_type == QT_ORDINARY && is_cs_specified())
+  {
+    str->append('_');
+    str->append(collation.collation->csname);
+  }
+
   str->append('\'');
-  str_value.print(str);
+
+  if (query_type == QT_ORDINARY ||
+      my_charset_same(str_value.charset(), system_charset_info))
+  {
+    str_value.print(str);
+  }
+  else
+  {
+    THD *thd= current_thd;
+    LEX_STRING utf8_lex_str;
+
+    thd->convert_string(&utf8_lex_str,
+                        system_charset_info,
+                        str_value.c_ptr_safe(),
+                        str_value.length(),
+                        str_value.charset());
+
+    String utf8_str(utf8_lex_str.str,
+                    utf8_lex_str.length,
+                    system_charset_info);
+
+    utf8_str.print(str);
+  }
+
   str->append('\'');
 }
 
@@ -2436,14 +2493,14 @@ default_set_param_func(Item_param *param,
 
 
 Item_param::Item_param(uint pos_in_query_arg) :
-  strict_type(FALSE),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
   item_type(PARAM_ITEM),
   param_type(MYSQL_TYPE_VARCHAR),
   pos_in_query(pos_in_query_arg),
-  set_param_func(default_set_param_func)
+  set_param_func(default_set_param_func),
+  limit_clause_param(FALSE)
 {
   name= (char*) "?";
   /* 
@@ -2626,8 +2683,14 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   if (entry && entry->value)
   {
     item_result_type= entry->type;
-    if (strict_type && required_result_type != item_result_type)
-      DBUG_RETURN(1);
+    unsigned_flag= entry->unsigned_flag;
+    if (limit_clause_param)
+    {
+      my_bool unused;
+      set_int(entry->val_int(&unused), MY_INT64_NUM_DECIMAL_DIGITS);
+      item_type= Item::INT_ITEM;
+      DBUG_RETURN(!unsigned_flag && value.integer < 0 ? 1 : 0);
+    }
     switch (item_result_type) {
     case REAL_RESULT:
       set_double(*(double*)entry->value);
@@ -2923,7 +2986,7 @@ const String *Item_param::query_val_str(String* str) const
 {
   switch (state) {
   case INT_VALUE:
-    str->set(value.integer, &my_charset_bin);
+    str->set_int(value.integer, unsigned_flag, &my_charset_bin);
     break;
   case REAL_VALUE:
     str->set_real(value.real, NOT_FIXED_DEC, &my_charset_bin);
@@ -3079,7 +3142,7 @@ Item_param::eq(const Item *arg, bool binary_cmp) const
 
 /* End of Item_param related */
 
-void Item_param::print(String *str)
+void Item_param::print(String *str, enum_query_type query_type)
 {
   if (state == NO_VALUE)
   {
@@ -3938,12 +4001,24 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       }
       if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
         goto error;
-      else if (!ret)
-        return FALSE;
       outer_fixed= TRUE;
+      if (!ret)
+        goto mark_non_agg_field;
     }
     else if (!from_field)
       goto error;
+
+    if (!outer_fixed && cached_table && cached_table->select_lex &&
+        context->select_lex &&
+        cached_table->select_lex != context->select_lex)
+    {
+      int ret;
+      if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
+        goto error;
+      outer_fixed= 1;
+      if (!ret)
+        goto mark_non_agg_field;
+    }
 
     /*
       if it is not expression from merged VIEW we will set this field.
@@ -3959,18 +4034,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     */
     if (from_field == view_ref_found)
       return FALSE;
-
-    if (!outer_fixed && cached_table && cached_table->select_lex &&
-        context->select_lex &&
-        cached_table->select_lex != context->select_lex)
-    {
-      int ret;
-      if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
-        goto error;
-      if (!ret)
-        return FALSE;
-      outer_fixed= 1;
-    }
 
     set_field(from_field);
     if (thd->lex->in_sum_func &&
@@ -4037,6 +4100,26 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   {
     thd->lex->current_select->non_agg_fields.push_back(this);
     marker= thd->lex->current_select->cur_pos_in_select_list;
+  }
+mark_non_agg_field:
+  if (fixed && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+  {
+    /*
+      Mark selects according to presence of non aggregated fields.
+      Fields from outer selects added to the aggregate function
+      outer_fields list as its unknown at the moment whether it's
+      aggregated or not.
+    */
+    if (!thd->lex->in_sum_func)
+      cached_table->select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+    else
+    {
+      if (outer_fixed)
+        thd->lex->in_sum_func->outer_fields.push_back(this);
+      else if (thd->lex->in_sum_func->nest_level !=
+          thd->lex->current_select->nest_level)
+        cached_table->select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+    }
   }
   return FALSE;
 
@@ -4143,6 +4226,30 @@ bool Item_field::subst_argument_checker(uchar **arg)
 
 
 /**
+  Convert a numeric value to a zero-filled string
+
+  @param[in,out]  item   the item to operate on
+  @param          field  The field that this value is equated to
+
+  This function converts a numeric value to a string. In this conversion
+  the zero-fill flag of the field is taken into account.
+  This is required so the resulting string value can be used instead of
+  the field reference when propagating equalities.
+*/
+
+static void convert_zerofill_number_to_string(Item **item, Field_num *field)
+{
+  char buff[MAX_FIELD_WIDTH],*pos;
+  String tmp(buff,sizeof(buff), field->charset()), *res;
+
+  res= (*item)->val_str(&tmp);
+  field->prepend_zeros(res);
+  pos= (char *) sql_strmake (res->ptr(), res->length());
+  *item= new Item_string(pos, res->length(), field->charset());
+}
+
+
+/**
   Set a pointer to the multiple equality the field reference belongs to
   (if any).
 
@@ -4188,6 +4295,13 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
   if (!item ||
       (cmp_context != IMPOSSIBLE_RESULT && item->cmp_context != cmp_context))
     item= this;
+  else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
+  {
+    if (item && cmp_context != INT_RESULT)
+      convert_zerofill_number_to_string(&item, (Field_num *)field);
+    else
+      item= this;
+  }
   return item;
 }
 
@@ -4363,6 +4477,49 @@ String *Item::check_well_formed_result(String *str, bool send_error)
   }
   return str;
 }
+
+/*
+  Compare two items using a given collation
+  
+  SYNOPSIS
+    eq_by_collation()
+    item               item to compare with
+    binary_cmp         TRUE <-> compare as binaries
+    cs                 collation to use when comparing strings
+
+  DESCRIPTION
+    This method works exactly as Item::eq if the collation cs coincides with
+    the collation of the compared objects. Otherwise, first the collations that
+    differ from cs are replaced for cs and then the items are compared by
+    Item::eq. After the comparison the original collations of items are
+    restored.
+
+  RETURN
+    1    compared items has been detected as equal   
+    0    otherwise
+*/
+
+bool Item::eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs)
+{
+  CHARSET_INFO *save_cs= 0;
+  CHARSET_INFO *save_item_cs= 0;
+  if (collation.collation != cs)
+  {
+    save_cs= collation.collation;
+    collation.collation= cs;
+  }
+  if (item->collation.collation != cs)
+  {
+    save_item_cs= item->collation.collation;
+    item->collation.collation= cs;
+  }
+  bool res= eq(item, binary_cmp);
+  if (save_cs)
+    collation.collation= save_cs;
+  if (save_item_cs)
+    item->collation.collation= save_item_cs;
+  return res;
+}  
 
 
 /**
@@ -4792,7 +4949,7 @@ int Item_float::save_in_field(Field *field, bool no_conversions)
 }
 
 
-void Item_float::print(String *str)
+void Item_float::print(String *str, enum_query_type query_type)
 {
   if (presentation)
   {
@@ -4910,7 +5067,7 @@ warn:
 }
 
 
-void Item_hex_string::print(String *str)
+void Item_hex_string::print(String *str, enum_query_type query_type)
 {
   char *end= (char*) str_value.ptr() + str_value.length(),
        *ptr= end - min(str_value.length(), sizeof(longlong));
@@ -5172,7 +5329,7 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
 }
 
 
-void Item_field::print(String *str)
+void Item_field::print(String *str, enum_query_type query_type)
 {
   if (field && field->table->const_table)
   {
@@ -5184,7 +5341,7 @@ void Item_field::print(String *str)
     str->append('\'');
     return;
   }
-  Item_ident::print(str);
+  Item_ident::print(str, query_type);
 }
 
 
@@ -5466,13 +5623,16 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   DBUG_ASSERT(*ref);
   /*
     Check if this is an incorrect reference in a group function or forward
-    reference. Do not issue an error if this is an unnamed reference inside an
-    aggregate function.
+    reference. Do not issue an error if this is:
+      1. outer reference (will be fixed later by the fix_inner_refs function);
+      2. an unnamed reference inside an aggregate function.
   */
-  if (((*ref)->with_sum_func && name &&
-       !(current_sel->linkage != GLOBAL_OPTIONS_TYPE &&
-         current_sel->having_fix_field)) ||
-      !(*ref)->fixed)
+  if (!((*ref)->type() == REF_ITEM &&
+       ((Item_ref *)(*ref))->ref_type() == OUTER_REF) &&
+      (((*ref)->with_sum_func && name &&
+        !(current_sel->linkage != GLOBAL_OPTIONS_TYPE &&
+          current_sel->having_fix_field)) ||
+       !(*ref)->fixed))
   {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0),
              name, ((*ref)->with_sum_func?
@@ -5524,7 +5684,7 @@ void Item_ref::cleanup()
 }
 
 
-void Item_ref::print(String *str)
+void Item_ref::print(String *str, enum_query_type query_type)
 {
   if (ref)
   {
@@ -5535,10 +5695,10 @@ void Item_ref::print(String *str)
       append_identifier(thd, str, name, (uint) strlen(name));
     }
     else
-      (*ref)->print(str);
+      (*ref)->print(str, query_type);
   }
   else
-    Item_ident::print(str);
+    Item_ident::print(str, query_type);
 }
 
 
@@ -5728,11 +5888,11 @@ Item *Item_ref::get_tmp_table_item(THD *thd)
 }
 
 
-void Item_ref_null_helper::print(String *str)
+void Item_ref_null_helper::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("<ref_null_helper>("));
   if (ref)
-    (*ref)->print(str);
+    (*ref)->print(str, query_type);
   else
     str->append('?');
   str->append(')');
@@ -5924,7 +6084,7 @@ error:
 }
 
 
-void Item_default_value::print(String *str)
+void Item_default_value::print(String *str, enum_query_type query_type)
 {
   if (!arg)
   {
@@ -5932,7 +6092,7 @@ void Item_default_value::print(String *str)
     return;
   }
   str->append(STRING_WITH_LEN("default("));
-  arg->print(str);
+  arg->print(str, query_type);
   str->append(')');
 }
 
@@ -6068,10 +6228,10 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
   return FALSE;
 }
 
-void Item_insert_value::print(String *str)
+void Item_insert_value::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("values("));
-  arg->print(str);
+  arg->print(str, query_type);
   str->append(')');
 }
 
@@ -6192,7 +6352,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
 }
 
 
-void Item_trigger_field::print(String *str)
+void Item_trigger_field::print(String *str, enum_query_type query_type)
 {
   str->append((row_version == NEW_ROW) ? "NEW" : "OLD", 3);
   str->append('.');
@@ -6382,13 +6542,13 @@ Item_cache* Item_cache::get_cache(const Item *item)
 }
 
 
-void Item_cache::print(String *str)
+void Item_cache::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("<cache>("));
   if (example)
-    example->print(str);
+    example->print(str, query_type);
   else
-    Item::print(str);
+    Item::print(str, query_type);
   str->append(')');
 }
 

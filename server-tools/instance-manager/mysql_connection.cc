@@ -256,7 +256,7 @@ int Mysql_connection::do_command()
       return 1;
     if (thread_registry->is_shutdown())
       return 1;
-    net_send_error(&net, net.client_last_errno);
+    net_send_error(&net, net.last_errno);
     net.error= 0;
     return 0;
   }

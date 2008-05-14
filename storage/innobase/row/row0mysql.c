@@ -57,6 +57,12 @@ static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
 static const char S_innodb_table_monitor[] = "innodb_table_monitor";
 static const char S_innodb_mem_validate[] = "innodb_mem_validate";
 
+/* Evaluates to true if str1 equals str2_onstack, used for comparing
+the above strings. */
+#define STR_EQ(str1, str1_len, str2_onstack) \
+	((str1_len) == sizeof(str2_onstack) \
+	 && memcmp(str1, str2_onstack, sizeof(str2_onstack)) == 0)
+
 /***********************************************************************
 Determine if the given name is a name reserved for MySQL system tables. */
 static
@@ -1728,7 +1734,7 @@ row_mysql_unlock_data_dictionary(
 }
 
 /*************************************************************************
-Drops a table for MySQL. If the name of the table ends in
+Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
@@ -1809,9 +1815,7 @@ row_create_table_for_mysql(
 	table_name++;
 	table_name_len = strlen(table_name) + 1;
 
-	if (table_name_len == sizeof S_innodb_monitor
-	    && !memcmp(table_name, S_innodb_monitor,
-		       sizeof S_innodb_monitor)) {
+	if (STR_EQ(table_name, table_name_len, S_innodb_monitor)) {
 
 		/* Table equals "innodb_monitor":
 		start monitor prints */
@@ -1822,28 +1826,24 @@ row_create_table_for_mysql(
 		of InnoDB monitor prints */
 
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (table_name_len == sizeof S_innodb_lock_monitor
-		   && !memcmp(table_name, S_innodb_lock_monitor,
-			      sizeof S_innodb_lock_monitor)) {
+	} else if (STR_EQ(table_name, table_name_len,
+			  S_innodb_lock_monitor)) {
 
 		srv_print_innodb_monitor = TRUE;
 		srv_print_innodb_lock_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (table_name_len == sizeof S_innodb_tablespace_monitor
-		   && !memcmp(table_name, S_innodb_tablespace_monitor,
-			      sizeof S_innodb_tablespace_monitor)) {
+	} else if (STR_EQ(table_name, table_name_len,
+			  S_innodb_tablespace_monitor)) {
 
 		srv_print_innodb_tablespace_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (table_name_len == sizeof S_innodb_table_monitor
-		   && !memcmp(table_name, S_innodb_table_monitor,
-			      sizeof S_innodb_table_monitor)) {
+	} else if (STR_EQ(table_name, table_name_len,
+			  S_innodb_table_monitor)) {
 
 		srv_print_innodb_table_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (table_name_len == sizeof S_innodb_mem_validate
-		   && !memcmp(table_name, S_innodb_mem_validate,
-			      sizeof S_innodb_mem_validate)) {
+	} else if (STR_EQ(table_name, table_name_len,
+			  S_innodb_mem_validate)) {
 		/* We define here a debugging feature intended for
 		developers */
 
@@ -3312,6 +3312,66 @@ funct_exit:
 	return((int) err);
 }
 
+/***********************************************************************
+Drop all foreign keys in a database, see Bug#18942.
+Called at the end of row_drop_database_for_mysql(). */
+static
+ulint
+drop_all_foreign_keys_in_db(
+/*========================*/
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: database name which ends to '/' */
+	trx_t*		trx)	/* in: transaction handle */
+{
+	pars_info_t*	pinfo;
+	ulint		err;
+
+	ut_a(name[strlen(name) - 1] == '/');
+
+	pinfo = pars_info_create();
+
+	pars_info_add_str_literal(pinfo, "dbname", name);
+
+/* true if for_name is not prefixed with dbname */
+#define TABLE_NOT_IN_THIS_DB \
+"SUBSTR(for_name, 0, LENGTH(:dbname)) <> :dbname"
+
+	err = que_eval_sql(pinfo,
+			   "PROCEDURE DROP_ALL_FOREIGN_KEYS_PROC () IS\n"
+			   "foreign_id CHAR;\n"
+			   "for_name CHAR;\n"
+			   "found INT;\n"
+			   "DECLARE CURSOR cur IS\n"
+			   "SELECT ID, FOR_NAME FROM SYS_FOREIGN\n"
+			   "WHERE FOR_NAME >= :dbname\n"
+			   "LOCK IN SHARE MODE\n"
+			   "ORDER BY FOR_NAME;\n"
+			   "BEGIN\n"
+			   "found := 1;\n"
+			   "OPEN cur;\n"
+			   "WHILE found = 1 LOOP\n"
+			   "        FETCH cur INTO foreign_id, for_name;\n"
+			   "        IF (SQL % NOTFOUND) THEN\n"
+			   "                found := 0;\n"
+			   "        ELSIF (" TABLE_NOT_IN_THIS_DB ") THEN\n"
+			   "                found := 0;\n"
+			   "        ELSIF (1=1) THEN\n"
+			   "                DELETE FROM SYS_FOREIGN_COLS\n"
+			   "                WHERE ID = foreign_id;\n"
+			   "                DELETE FROM SYS_FOREIGN\n"
+			   "                WHERE ID = foreign_id;\n"
+			   "        END IF;\n"
+			   "END LOOP;\n"
+			   "CLOSE cur;\n"
+			   "COMMIT WORK;\n"
+			   "END;\n",
+			   FALSE, /* do not reserve dict mutex,
+				  we are already holding it */
+			   trx);
+
+	return(err);
+}
+
 /*************************************************************************
 Drops a database for MySQL. */
 
@@ -3379,6 +3439,19 @@ loop:
 			ut_print_name(stderr, trx, TRUE, table_name);
 			putc('\n', stderr);
 			break;
+		}
+	}
+
+	if (err == DB_SUCCESS) {
+		/* after dropping all tables try to drop all leftover
+		foreign keys in case orphaned ones exist */
+		err = (int) drop_all_foreign_keys_in_db(name, trx);
+
+		if (err != DB_SUCCESS) {
+			fputs("InnoDB: DROP DATABASE ", stderr);
+			ut_print_name(stderr, trx, TRUE, name);
+			fprintf(stderr, " failed with error %d while "
+				"dropping all foreign keys", err);
 		}
 	}
 
@@ -4056,4 +4129,34 @@ row_check_table_for_mysql(
 	prebuilt->trx->op_info = "";
 
 	return(ret);
+}
+
+/*************************************************************************
+Determines if a table is a magic monitor table. */
+
+ibool
+row_is_magic_monitor_table(
+/*=======================*/
+					/* out: TRUE if monitor table */
+	const char*	table_name)	/* in: name of the table, in the
+					form database/table_name */
+{
+	const char*	name; /* table_name without database/ */
+	ulint		len;
+
+	name = strchr(table_name, '/');
+	ut_a(name != NULL);
+	name++;
+	len = strlen(name) + 1;
+
+	if (STR_EQ(name, len, S_innodb_monitor)
+	    || STR_EQ(name, len, S_innodb_lock_monitor)
+	    || STR_EQ(name, len, S_innodb_tablespace_monitor)
+	    || STR_EQ(name, len, S_innodb_table_monitor)
+	    || STR_EQ(name, len, S_innodb_mem_validate)) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
 }

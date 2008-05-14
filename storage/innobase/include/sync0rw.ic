@@ -381,7 +381,11 @@ rw_lock_s_unlock_func(
 	mutex_exit(mutex);
 
 	if (UNIV_UNLIKELY(sg)) {
-		sync_array_signal_object(sync_primary_wait_array, lock);
+#ifdef __WIN__
+		os_event_set(lock->wait_ex_event);
+#endif
+		os_event_set(lock->event);
+		sync_array_object_signalled(sync_primary_wait_array);
 	}
 
 	ut_ad(rw_lock_validate(lock));
@@ -461,7 +465,11 @@ rw_lock_x_unlock_func(
 	mutex_exit(&(lock->mutex));
 
 	if (UNIV_UNLIKELY(sg)) {
-		sync_array_signal_object(sync_primary_wait_array, lock);
+#ifdef __WIN__
+		os_event_set(lock->wait_ex_event);
+#endif
+		os_event_set(lock->event);
+		sync_array_object_signalled(sync_primary_wait_array);
 	}
 
 	ut_ad(rw_lock_validate(lock));

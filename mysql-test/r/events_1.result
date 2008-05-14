@@ -1,0 +1,428 @@
+drop database if exists events_test;
+drop database if exists db_x;
+drop database if exists mysqltest_db2;
+drop database if exists mysqltest_no_such_database;
+create database events_test;
+use events_test;
+CREATE USER pauline@localhost;
+CREATE DATABASE db_x;
+GRANT EVENT ON db_x.* TO pauline@localhost;
+USE db_x;
+CREATE TABLE x_table(a int);
+CREATE EVENT e_x1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE db_x;
+CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
+SHOW DATABASES LIKE 'db_x';
+Database (db_x)
+db_x
+SET GLOBAL event_scheduler=1;
+SHOW DATABASES LIKE 'db_x';
+Database (db_x)
+db_x
+SHOW TABLES FROM db_x;
+Tables_in_db_x
+x_table
+SET GLOBAL event_scheduler=off;
+DROP EVENT e_x1;
+DROP EVENT e_x2;
+DROP DATABASE db_x;
+DROP USER pauline@localhost;
+USE events_test;
+SET GLOBAL event_scheduler=off;
+drop event if exists event1;
+Warnings:
+Note	1305	Event event1 does not exist
+create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
+alter event event1 rename to event2 enable;
+alter event event2 disable;
+alter event event2 enable;
+alter event event2 on completion not preserve;
+alter event event2 on schedule every 1 year on completion preserve rename to event3 comment "new comment" do begin select 1; end__
+alter event event3 rename to event2;
+drop event event2;
+create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;
+drop event event2;
+CREATE EVENT event_starts_test ON SCHEDULE EVERY 10 SECOND COMMENT "" DO SELECT 1;
+SELECT interval_field, interval_value, body FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+interval_field	interval_value	body
+SECOND	10	SELECT 1
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+1	0	1	
+ALTER EVENT event_starts_test ON SCHEDULE AT '2020-02-02 20:00:02';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+0	1	1	
+ALTER EVENT event_starts_test COMMENT "non-empty comment";
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+0	1	1	non-empty comment
+ALTER EVENT event_starts_test COMMENT "";
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+0	1	1	
+DROP EVENT event_starts_test;
+CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS '2020-02-02 20:00:02' ENDS '2022-02-02 20:00:02' DO SELECT 2;
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+1	0	0	
+ALTER EVENT event_starts_test COMMENT "non-empty comment";
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+1	0	0	non-empty comment
+ALTER EVENT event_starts_test COMMENT "";
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+1	0	0	
+DROP EVENT event_starts_test;
+create table test_nested(a int);
+create event e_43 on schedule every 1 second do set @a = 5;
+alter event e_43 do alter event e_43 do set @a = 4;
+ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
+alter event e_43 do
+begin
+alter event e_43 on schedule every 5 minute;
+insert into test_nested values(1);
+end|
+set global event_scheduler = on;
+select db, name, body, status, interval_field, interval_value from mysql.event;
+db	name	body	status	interval_field	interval_value
+events_test	e_43	begin
+alter event e_43 on schedule every 5 minute;
+insert into test_nested values(1);
+end	ENABLED	MINUTE	5
+drop event e_43;
+drop table test_nested;
+"Let's check whether we can use non-qualified names"
+create table non_qualif(a int);
+create event non_qualif_ev on schedule every 10 minute do insert into non_qualif values (800219);
+select * from non_qualif;
+a
+800219
+drop event non_qualif_ev;
+drop table non_qualif;
+alter event non_existant rename to non_existant_too;
+ERROR HY000: Unknown event 'non_existant'
+set global event_scheduler = off;
+create event existant on schedule at now() + interval 1 year do select 12;
+alter event non_existant rename to existant;
+ERROR HY000: Event 'existant' already exists
+alter event existant rename to events_test.existant;
+ERROR HY000: Same old and new event name
+drop event existant;
+create table t_event3 (a int, b float);
+drop event if exists event3;
+Warnings:
+Note	1305	Event event3 does not exist
+create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
+select count(*) from t_event3;
+count(*)
+0
+drop event event3;
+drop table t_event3;
+set names utf8;
+CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
+SHOW CREATE EVENT root6;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root6		SYSTEM	CREATE EVENT `root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND STARTS '#' ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root7 on schedule every 2 year do select 1;
+SHOW CREATE EVENT root7;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root7		SYSTEM	CREATE EVENT `root7` ON SCHEDULE EVERY 2 YEAR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root8 on schedule every '2:5' year_month do select 1;
+SHOW CREATE EVENT root8;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root8		SYSTEM	CREATE EVENT `root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root8_1 on schedule every '2:15' year_month do select 1;
+SHOW CREATE EVENT root8_1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root8_1		SYSTEM	CREATE EVENT `root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root9 on schedule every 2 week ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' do select 1;
+SHOW CREATE EVENT root9;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root9		SYSTEM	CREATE EVENT `root9` ON SCHEDULE EVERY 2 WEEK STARTS '#' ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root10 on schedule every '20:5' day_hour do select 1;
+SHOW CREATE EVENT root10;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root10		SYSTEM	CREATE EVENT `root10` ON SCHEDULE EVERY '20 5' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root11 on schedule every '20:25' day_hour do select 1;
+SHOW CREATE EVENT root11;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root11		SYSTEM	CREATE EVENT `root11` ON SCHEDULE EVERY '21 1' DAY_HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root12 on schedule every '20:25' hour_minute do select 1;
+SHOW CREATE EVENT root12;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root12		SYSTEM	CREATE EVENT `root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root13 on schedule every '25:25' hour_minute do select 1;
+SHOW CREATE EVENT root13;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root13		SYSTEM	CREATE EVENT `root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root13_1 on schedule every '11:65' hour_minute do select 1;
+SHOW CREATE EVENT root13_1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root13_1		SYSTEM	CREATE EVENT `root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root14 on schedule every '35:35' minute_second do select 1;
+SHOW CREATE EVENT root14;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root14		SYSTEM	CREATE EVENT `root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root15 on schedule every '35:66' minute_second do select 1;
+SHOW CREATE EVENT root15;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root15		SYSTEM	CREATE EVENT `root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root16 on schedule every '35:56' day_minute do select 1;
+SHOW CREATE EVENT root16;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root16		SYSTEM	CREATE EVENT `root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root17 on schedule every '35:12:45' day_minute do select 1;
+SHOW CREATE EVENT root17;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root17		SYSTEM	CREATE EVENT `root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root17_1 on schedule every '35:25:65' day_minute do select 1;
+SHOW CREATE EVENT root17_1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root17_1		SYSTEM	CREATE EVENT `root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root18 on schedule every '35:12:45' hour_second do select 1;
+SHOW CREATE EVENT root18;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root18		SYSTEM	CREATE EVENT `root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root19 on schedule every '15:59:85' hour_second do select 1;
+SHOW CREATE EVENT root19;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root19		SYSTEM	CREATE EVENT `root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+create event root20 on schedule every '50:20:12:45' day_second do select 1;
+SHOW CREATE EVENT root20;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+root20		SYSTEM	CREATE EVENT `root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+set names cp1251;
+create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1251 êîìåíòàð' do select 1;
+SHOW CREATE EVENT ðóóò21;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+ðóóò21		SYSTEM	CREATE EVENT `Ñ€ÑƒÑƒÑ‚21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'Ñ‚Ð¾Ð²Ð° Ðµ 1251 ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€' DO select 1	cp1251	cp1251_general_ci	latin1_swedish_ci
+insert into mysql.event (
+db,
+name,
+body,
+definer,
+interval_value,
+interval_field,
+originator,
+character_set_client,
+collation_connection,
+db_collation,
+body_utf8)
+values (
+database(),
+"root22",
+"select 1",
+user(),
+100,
+"SECOND_MICROSECOND",
+1,
+'utf8',
+'utf8_general_ci',
+'utf8_general_ci',
+'select 1');
+show create event root22;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+SHOW EVENTS;
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+drop event root22;
+create event root23 on schedule every -100 year do select 1;
+ERROR HY000: INTERVAL is either not positive or too big
+create event root23 on schedule every 222222222222222222222 year do select 1;
+ERROR HY000: INTERVAL is either not positive or too big
+drop event root6;
+drop event root7;
+drop event root8;
+drop event root8_1;
+drop event root9;
+drop event root10;
+drop event root11;
+drop event root12;
+drop event root13;
+drop event root13_1;
+drop event root14;
+drop event root15;
+drop event root16;
+drop event root17;
+drop event root17_1;
+drop event root18;
+drop event root19;
+drop event root20;
+drop event ðóóò21;
+set names latin1;
+Create a test event. Only event metadata is relevant, 
+the actual schedule and body are not.
+CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+Try to alter mysql.event: the server should fail to load
+event information after mysql.event was tampered with.
+
+First, let's add a column to the end and make sure everything
+works as before
+
+ALTER TABLE mysql.event ADD dummy INT;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT event_name FROM INFORMATION_SCHEMA.events;
+event_name
+intact_check
+SHOW CREATE EVENT intact_check;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+intact_check		SYSTEM	CREATE EVENT `intact_check` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO SELECT "nothing"	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP EVENT no_such_event;
+ERROR HY000: Unknown event 'no_such_event'
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+DROP EVENT intact_check_1;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_2;
+DROP EVENT intact_check;
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+Warnings:
+Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+SELECT @@event_scheduler;
+@@event_scheduler
+OFF
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=OFF;
+ALTER TABLE mysql.event DROP dummy;
+CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
+
+Now let's add a column to the first position: the server
+expects to see event schema name there
+
+ALTER TABLE mysql.event ADD dummy INT FIRST;
+SHOW EVENTS;
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+SELECT event_name FROM INFORMATION_SCHEMA.events;
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+SHOW CREATE EVENT intact_check;
+ERROR HY000: Unknown event 'intact_check'
+DROP EVENT no_such_event;
+ERROR HY000: Unknown event 'no_such_event'
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ERROR HY000: Failed to store event name. Error code 2 from storage engine.
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ERROR HY000: Unknown event 'intact_check_1'
+ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_1;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_2;
+ERROR HY000: Unknown event 'intact_check_2'
+DROP EVENT intact_check;
+ERROR HY000: Unknown event 'intact_check'
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+Warnings:
+Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+SELECT @@event_scheduler;
+@@event_scheduler
+OFF
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=OFF;
+Clean up
+ALTER TABLE mysql.event DROP dummy;
+DELETE FROM mysql.event;
+CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
+Back up the table, further changes are not reversible
+CREATE TABLE event_like LIKE mysql.event;
+INSERT INTO event_like SELECT * FROM mysql.event;
+
+Drop some columns and try more checks. 
+
+
+ALTER TABLE mysql.event DROP comment, DROP starts;
+SHOW EVENTS;
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+SHOW CREATE EVENT intact_check;
+ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+DROP EVENT no_such_event;
+ERROR HY000: Unknown event 'no_such_event'
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ERROR HY000: Column count of mysql.event is wrong. Expected 22, found 20. The table is probably corrupted
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ERROR HY000: Unknown event 'intact_check_1'
+ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_1;
+ERROR HY000: Unknown event 'intact_check_1'
+DROP EVENT intact_check_2;
+ERROR HY000: Unknown event 'intact_check_2'
+DROP EVENT intact_check;
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+Warnings:
+Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+SELECT @@event_scheduler;
+@@event_scheduler
+OFF
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=OFF;
+
+Now drop the table, and test again
+
+
+DROP TABLE mysql.event;
+SHOW EVENTS;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+SELECT event_name FROM INFORMATION_SCHEMA.events;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+SHOW CREATE EVENT intact_check;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP EVENT no_such_event;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+ALTER EVENT intact_check_1 RENAME  TO intact_check_2;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP EVENT intact_check_1;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP EVENT intact_check_2;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP EVENT intact_check;
+ERROR 42S02: Table 'mysql.event' doesn't exist
+DROP DATABASE IF EXISTS mysqltest_no_such_database;
+Warnings:
+Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
+CREATE DATABASE mysqltest_db2;
+DROP DATABASE mysqltest_db2;
+Warnings:
+Error	1146	Table 'mysql.event' doesn't exist
+OK, there is an unnecessary warning about the non-existent table 
+but it's not easy to fix and no one complained about it.
+A similar warning is printed if mysql.proc is missing.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1146	Table 'mysql.event' doesn't exist
+SELECT @@event_scheduler;
+@@event_scheduler
+OFF
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=OFF;
+Restore the original table.
+CREATE TABLE mysql.event like event_like;
+DROP TABLE event_like;
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+drop database events_test;

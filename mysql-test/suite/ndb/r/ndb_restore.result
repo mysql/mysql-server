@@ -253,21 +253,41 @@ a
 2000
 3000
 10000
-show table status like 't1_c';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-X	X	X	X	X	X	X	X	X	X	3001	X	X	X	X	X	X	X
-show table status like 't2_c';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-X	X	X	X	X	X	X	X	X	X	501	X	X	X	X	X	X	X
-show table status like 't4_c';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-X	X	X	X	X	X	X	X	X	X	290000001	X	X	X	X	X	X	X
-show table status like 't7_c';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-X	X	X	X	X	X	X	X	X	X	29	X	X	X	X	X	X	X
-show table status like 't10_c';
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-X	X	X	X	X	X	X	X	X	X	10001	X	X	X	X	X	X	X
+select max(capgoaledatta) from t1_c;
+max(capgoaledatta)
+3000
+select auto_increment from information_schema.tables
+where table_name = 't1_c';
+auto_increment
+3001
+select max(capgotod) from t2_c;
+max(capgotod)
+500
+select auto_increment from information_schema.tables
+where table_name = 't2_c';
+auto_increment
+501
+select max(capfa) from t4_c;
+max(capfa)
+290000000
+select auto_increment from information_schema.tables
+where table_name = 't4_c';
+auto_increment
+290000001
+select max(dardtestard) from t7_c;
+max(dardtestard)
+28
+select auto_increment from information_schema.tables
+where table_name = 't7_c';
+auto_increment
+29
+select max(a) from t10_c;
+max(a)
+10000
+select auto_increment from information_schema.tables
+where table_name = 't10_c';
+auto_increment
+10001
 ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;

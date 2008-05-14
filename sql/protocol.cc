@@ -112,8 +112,6 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   - message		: Stored as packed length (1-9 bytes) + message.
   Is not stored if no message.
 
-  If net->no_send_ok return without sending packet.
-
   @param thd		   Thread handler
   @param affected_rows	   Number of rows changed by statement
   @param id		   Auto_increment id for first row (if used)
@@ -128,7 +126,7 @@ net_send_ok(THD *thd,
 {
   NET *net= &thd->net;
   uchar buff[MYSQL_ERRMSG_SIZE+10],*pos;
-  DBUG_ENTER("send_ok");
+  DBUG_ENTER("my_ok");
 
   if (! net->vio)	// hack for re-parsing queries
   {
@@ -425,8 +423,8 @@ void net_end_statement(THD *thd)
 
 
 /****************************************************************************
-  Functions used by the protocol functions (like send_ok) to store strings
-  and numbers in the header result packet.
+  Functions used by the protocol functions (like net_send_ok) to store
+  strings and numbers in the header result packet.
 ****************************************************************************/
 
 /* The following will only be used for short strings < 65K */

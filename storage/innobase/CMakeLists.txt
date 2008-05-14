@@ -58,4 +58,5 @@ SET(INNOBASE_SOURCES  btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(innobase ${INNOBASE_SOURCES})
+  ADD_DEPENDENCIES(innobase GenError)
 ENDIF(NOT SOURCE_SUBLIBS)

@@ -1,0 +1,50 @@
+#
+# Make sure http://bugs.mysql.com/34053 remains fixed.
+#
+
+-- source include/not_embedded.inc
+-- source include/have_innodb.inc
+
+SET storage_engine=InnoDB;
+
+# we do not really care about what gets printed, we are only
+# interested in getting success or failure according to our
+# expectations
+-- disable_query_log
+-- disable_result_log
+
+GRANT USAGE ON *.* TO 'shane'@'localhost' IDENTIFIED BY '12345';
+FLUSH PRIVILEGES;
+
+-- connect (con1,localhost,shane,12345,)
+
+-- connection con1
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE TABLE innodb_monitor (a INT) ENGINE=INNODB;
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE TABLE innodb_mem_validate (a INT) ENGINE=INNODB;
+CREATE TABLE innodb_monitorx (a INT) ENGINE=INNODB;
+DROP TABLE innodb_monitorx;
+CREATE TABLE innodb_monito (a INT) ENGINE=INNODB;
+DROP TABLE innodb_monito;
+CREATE TABLE xinnodb_monitor (a INT) ENGINE=INNODB;
+DROP TABLE xinnodb_monitor;
+CREATE TABLE nnodb_monitor (a INT) ENGINE=INNODB;
+DROP TABLE nnodb_monitor;
+
+-- connection default
+CREATE TABLE innodb_monitor (a INT) ENGINE=INNODB;
+CREATE TABLE innodb_mem_validate (a INT) ENGINE=INNODB;
+
+-- connection con1
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP TABLE innodb_monitor;
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP TABLE innodb_mem_validate;
+
+-- connection default
+DROP TABLE innodb_monitor;
+DROP TABLE innodb_mem_validate;
+DROP USER 'shane'@'localhost';
+
+-- disconnect con1

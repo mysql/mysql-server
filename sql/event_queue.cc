@@ -60,8 +60,16 @@ extern "C" int event_queue_element_compare_q(void *, uchar *, uchar *);
 
 int event_queue_element_compare_q(void *vptr, uchar* a, uchar *b)
 {
-  my_time_t lhs = ((Event_queue_element *)a)->execute_at;
-  my_time_t rhs = ((Event_queue_element *)b)->execute_at;
+  Event_queue_element *left = (Event_queue_element *)a;
+  Event_queue_element *right = (Event_queue_element *)b;
+  my_time_t lhs = left->execute_at;
+  my_time_t rhs = right->execute_at;
+
+  if (left->status == Event_queue_element::DISABLED)
+    return right->status != Event_queue_element::DISABLED;
+
+  if (right->status == Event_queue_element::DISABLED)
+    return 1;
 
   return (lhs < rhs ? -1 : (lhs > rhs ? 1 : 0));
 }
@@ -434,7 +442,33 @@ Event_queue::recalculate_activation_times(THD *thd)
     ((Event_queue_element*)queue_element(&queue, i))->update_timing_fields(thd);
   }
   queue_fix(&queue);
+  /*
+    The disabled elements are moved to the end during the `fix`.
+    Start from the end and remove all of the elements which are
+    disabled. When we find the first non-disabled one we break, as we
+    have removed all. The queue has been ordered in a way the disabled
+    events are at the end.
+  */
+  for (i= queue.elements; i > 0; i--)
+  {
+    Event_queue_element *element = (Event_queue_element*)queue_element(&queue, i - 1);
+    if (element->status != Event_queue_element::DISABLED)
+      break;
+    /*
+      This won't cause queue re-order, because we remove
+      always the last element.
+    */
+    queue_remove(&queue, i - 1);
+    delete element;
+  }
   UNLOCK_QUEUE_DATA();
+
+  /*
+    XXX: The events are dropped only from memory and not from disk
+         even if `drop_list[j]->dropped` is TRUE. There will be still on the
+         disk till next server restart.
+         Please add code here to do it.
+  */
 
   DBUG_VOID_RETURN;
 }

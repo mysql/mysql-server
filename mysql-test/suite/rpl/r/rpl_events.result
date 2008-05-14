@@ -195,9 +195,11 @@ test	slave_terminate	SLAVESIDE_DISABLED	2
 DROP EVENT test.slave_terminate;
 "Cleanup"
 DROP TABLE t1;
+CREATE TABLE t28953 (a INT);
 CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR
 DO BEGIN
-select * from t1;
+select * from t28953;
 END;|
 ALTER EVENT event1 RENAME TO event2;
 DROP EVENT event2;
+DROP TABLE t28953;

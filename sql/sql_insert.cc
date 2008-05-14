@@ -541,6 +541,10 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
 
 /**
   INSERT statement implementation
+
+  @note Like implementations of other DDL/DML in MySQL, this function
+  relies on the caller to close the thread tables. This is done in the
+  end of dispatch_command().
 */
 
 bool mysql_insert(THD *thd,TABLE_LIST *table_list,
@@ -697,8 +701,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   error=0;
   thd_proc_info(thd, "update");
-  if (duplic != DUP_ERROR || ignore)
-    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   if (duplic == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
@@ -716,8 +718,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     values_list.elements, and - if nothing else - to initialize
     the code to make the call of end_bulk_insert() below safe.
   */
-  if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
-    table->file->ha_start_bulk_insert(values_list.elements);
+#ifndef EMBEDDED_LIBRARY
+  if (lock_type != TL_WRITE_DELAYED)
+#endif /* EMBEDDED_LIBRARY */
+  {
+    if (duplic != DUP_ERROR || ignore)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (!thd->prelocked_mode)
+      table->file->ha_start_bulk_insert(values_list.elements);
+  }
 
   thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
                                        (MODE_STRICT_TRANS_TABLES |
@@ -836,6 +845,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       table->file->print_error(my_errno,MYF(0));
       error=1;
     }
+    if (duplic != DUP_ERROR || ignore)
+      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+
     transactional_table= table->file->has_transactions();
 
     if ((changed= (info.copied || info.deleted || info.updated)))
@@ -893,12 +905,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     DBUG_ASSERT(transactional_table || !changed || 
                 thd->transaction.stmt.modified_non_trans_table);
-    if (transactional_table)
-      error=ha_autocommit_or_rollback(thd,error);
-    
+
     if (thd->lock)
     {
-      mysql_unlock_tables(thd, thd->lock);
       /*
         Invalidate the table in the query cache if something changed
         after unlocking when changes become fisible.
@@ -909,7 +918,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       {
         query_cache_invalidate3(thd, table_list, 1);
       }
-      thd->lock=0;
     }
   }
   thd_proc_info(thd, "end");
@@ -932,8 +940,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   table->next_number_field=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   table->auto_increment_field_not_null= FALSE;
-  if (duplic != DUP_ERROR || ignore)
-    table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if (duplic == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
@@ -946,7 +952,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->row_count_func= info.copied + info.deleted +
                          ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
                           info.touched : info.updated);
-    send_ok(thd, (ulong) thd->row_count_func, id);
+    my_ok(thd, (ulong) thd->row_count_func, id);
   }
   else
   {
@@ -961,7 +967,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) (info.deleted + updated), (ulong) thd->cuted_fields);
     thd->row_count_func= info.copied + info.deleted + updated;
-    ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
+    ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
@@ -1267,7 +1273,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     select_lex->fix_prepare_information(thd, &fake_conds, &fake_conds);
     select_lex->first_execution= 0;
   }
-  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+  /*
+    Only call prepare_for_posistion() if we are not performing a DELAYED
+    operation. It will instead be executed by delayed insert thread.
+  */
+  if ((duplic == DUP_UPDATE || duplic == DUP_REPLACE) &&
+      (table->reginfo.lock_type != TL_WRITE_DELAYED))
     table->prepare_for_position();
   DBUG_RETURN(FALSE);
 }
@@ -2426,6 +2437,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
       */
       di->table->file->ha_release_auto_increment();
       mysql_unlock_tables(thd, lock);
+      ha_autocommit_or_rollback(thd, 0);
       di->group_count=0;
       pthread_mutex_lock(&di->mutex);
     }
@@ -2445,7 +2457,7 @@ err:
     first call to ha_*_row() instead. Remove code that are used to
     cover for the case outlined above.
    */
-  ha_rollback_stmt(thd);
+  ha_autocommit_or_rollback(thd, 1);
 
 #ifndef __WIN__
 end:
@@ -2763,6 +2775,19 @@ bool mysql_insert_select_prepare(THD *thd)
   TABLE_LIST *first_select_leaf_table;
   DBUG_ENTER("mysql_insert_select_prepare");
 
+  /*
+    Statement-based replication of INSERT ... SELECT ... LIMIT is not safe
+    as order of rows is not defined, so in mixed mode we go to row-based.
+
+    Note that we may consider a statement as safe if ORDER BY primary_key
+    is present or we SELECT a constant. However it may confuse users to
+    see very similiar statements replicated differently.
+  */
+  if (lex->current_select->select_limit)
+  {
+    lex->set_stmt_unsafe();
+    thd->set_current_stmt_binlog_row_based_if_mixed();
+  }
   /*
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
     clause if table is VIEW
@@ -3139,18 +3164,6 @@ bool select_insert::send_eof()
                       thd->query, thd->query_length,
                       trans_table, FALSE, killed_status);
   }
-  /*
-    We will call ha_autocommit_or_rollback() also for
-    non-transactional tables under row-based replication: there might
-    be events in the binary logs transaction, and we need to write
-    them to the binary log.
-   */
-  if (trans_table || thd->current_stmt_binlog_row_based)
-  {
-    int error2= ha_autocommit_or_rollback(thd, error);
-    if (error2 && !error)
-      error= error2;
-  }
   table->file->ha_release_auto_increment();
 
   if (error)
@@ -3174,7 +3187,7 @@ bool select_insert::send_eof()
     (thd->arg_of_last_insert_id_function ?
      thd->first_successful_insert_id_in_prev_stmt :
      (info.copied ? autoinc_value_of_last_inserted_row : 0));
-  ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
+  ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
   DBUG_RETURN(0);
 }
 
@@ -3228,7 +3241,6 @@ void select_insert::abort() {
     table->file->ha_release_auto_increment();
   }
 
-  ha_rollback_stmt(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -3521,14 +3533,16 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
      engines to do logging of insertions (optimization). We don't do it for
      temporary tables (yet) as re-enabling causes an undesirable commit.
    */
-  if (((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0) &&
-      ha_enable_transaction(thd, FALSE))
-    DBUG_RETURN(-1);
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,
                                        &extra_lock, hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
+
+  if (((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0) &&
+      !create_info->table_existed &&
+      ha_enable_transaction(thd, FALSE))
+    DBUG_RETURN(-1);
 
   if (extra_lock)
   {
@@ -3670,7 +3684,8 @@ bool select_create::send_eof()
     abort();
   else
   {
-    if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0)
+    if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
+        !create_info->table_existed)
       ha_enable_transaction(thd, TRUE);
     /*
       Do an implicit commit at end of statement for non-temporary
@@ -3678,7 +3693,10 @@ bool select_create::send_eof()
       nevertheless.
     */
     if (!table->s->tmp_table)
-      ha_commit(thd);               // Can fail, but we proceed anyway
+    {
+      ha_autocommit_or_rollback(thd, 0);
+      end_active_trans(thd);
+    }
 
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
@@ -3698,20 +3716,11 @@ void select_create::abort()
   DBUG_ENTER("select_create::abort");
 
   /*
-   Disable binlog, because we "roll back" partial inserts in ::abort
-   by removing the table, even for non-transactional tables.
-  */
-  tmp_disable_binlog(thd);
-  select_insert::abort();
-  reenable_binlog(thd);
-
-  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0)
-    ha_enable_transaction(thd, TRUE);
-
-  /*
-    We roll back the statement, including truncating the transaction
-    cache of the binary log, if the statement failed.
-
+    In select_insert::abort() we roll back the statement, including
+    truncating the transaction cache of the binary log. To do this, we
+    pretend that the statement is transactional, even though it might
+    be the case that it was not.
+ 
     We roll back the statement prior to deleting the table and prior
     to releasing the lock on the table, since there might be potential
     for failure if the rollback is executed after the drop or after
@@ -3721,8 +3730,13 @@ void select_create::abort()
     of the table succeeded or not, since we need to reset the binary
     log state.
   */
-  if (thd->current_stmt_binlog_row_based)
-    ha_rollback_stmt(thd);
+  tmp_disable_binlog(thd);
+  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
+      !create_info->table_existed)
+    ha_enable_transaction(thd, TRUE);
+  select_insert::abort();
+  thd->transaction.stmt.modified_non_trans_table= FALSE;
+  reenable_binlog(thd);
 
   if (m_plock)
   {

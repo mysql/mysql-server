@@ -192,7 +192,7 @@ static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
-static my_bool grant_load(TABLE_LIST *tables);
+static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -314,7 +314,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
   int password_length;
+  ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("acl_load");
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   grant_version++; /* Privileges updated */
 
@@ -622,6 +625,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   return_val=0;
 
 end:
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
 }
 
@@ -801,7 +805,9 @@ static ulong get_sort(uint count,...)
     {
       for (; *str ; str++)
       {
-	if (*str == wild_many || *str == wild_one || *str == wild_prefix)
+        if (*str == wild_prefix && str[1])
+          str++;
+        else if (*str == wild_many || *str == wild_one)
         {
           wild_pos= (uint) (str - start) + 1;
           break;
@@ -1515,7 +1521,7 @@ bool acl_check_host(const char *host, const char *ip)
       1		ERROR  ; In this case the error is sent to the client.
 */
 
-bool check_change_password(THD *thd, const char *host, const char *user,
+int check_change_password(THD *thd, const char *host, const char *user,
                            char *new_password, uint new_password_len)
 {
   if (!initialized)
@@ -2281,7 +2287,7 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
                 	 const char *t, ulong p, ulong c)
   :GRANT_NAME(h,d,u,t,p), cols(c)
 {
-  (void) hash_init(&hash_columns,system_charset_info,
+  (void) hash_init2(&hash_columns,4,system_charset_info,
                    0,0,0, (hash_get_key) get_key_column,0,0);
 }
 
@@ -2329,7 +2335,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   cols= (ulong) form->field[7]->val_int();
   cols =  fix_rights_for_column(cols);
 
-  (void) hash_init(&hash_columns,system_charset_info,
+  (void) hash_init2(&hash_columns,4,system_charset_info,
                    0,0,0, (hash_get_key) get_key_column,0,0);
   if (cols)
   {
@@ -2779,6 +2785,10 @@ table_error:
 }
 
 
+/**
+  @retval       0  success
+  @retval      -1  error
+*/
 static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
 			      TABLE *table, const LEX_USER &combo,
 			      const char *db, const char *routine_name,
@@ -2800,14 +2810,11 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
           thd->security_ctx->host_or_ip, NullS);
 
   /*
-    The following should always succeed as new users are created before
-    this function is called!
+    New users are created before this function is called.
+
+    There may be some cases where a routine's definer is removed but the
+    routine remains.
   */
-  if (!find_acl_user(combo.host.str, combo.user.str, FALSE))
-  {
-    my_error(ER_PASSWORD_NO_MATCH,MYF(0));
-    DBUG_RETURN(-1);
-  }
 
   table->use_all_columns();
   restore_record(table, s->default_values);		// Get empty record
@@ -2916,7 +2923,7 @@ table_error:
     TRUE  error
 */
 
-bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
+int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 		      List <LEX_USER> &user_list,
 		      List <LEX_COLUMN> &columns, ulong rights,
 		      bool revoke_grant)
@@ -3041,6 +3048,12 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
 #endif
 
+  /* 
+    The lock api is depending on the thd->lex variable which needs to be
+    re-initialized.
+  */
+  Query_tables_list backup;
+  thd->lex->reset_n_backup_query_tables_list(&backup);
   if (simple_open_n_lock_tables(thd,tables))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
@@ -3170,9 +3183,10 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   rw_unlock(&LOCK_grant);
 
   if (!result) /* success */
-    send_ok(thd);
+    my_ok(thd);
 
   /* Tables are automatically closed */
+  thd->lex->restore_backup_query_tables_list(&backup);
   DBUG_RETURN(result);
 }
 
@@ -3321,7 +3335,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     if (replace_routine_table(thd, grant_name, tables[1].table, *Str,
-			   db_name, table_name, is_proc, rights, revoke_grant))
+                              db_name, table_name, is_proc, rights, 
+                              revoke_grant) != 0)
     {
       result= TRUE;
       continue;
@@ -3337,7 +3352,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   rw_unlock(&LOCK_grant);
 
   if (!result && !no_error)
-    send_ok(thd);
+    my_ok(thd);
 
   /* Tables are automatically closed */
   DBUG_RETURN(result);
@@ -3453,7 +3468,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   close_thread_tables(thd);
 
   if (!result)
-    send_ok(thd);
+    my_ok(thd);
 
   DBUG_RETURN(result);
 }
@@ -3611,7 +3626,7 @@ end_unlock:
     @retval TRUE Error
 */
 
-static my_bool grant_load(TABLE_LIST *tables)
+static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 {
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
@@ -3619,7 +3634,11 @@ static my_bool grant_load(TABLE_LIST *tables)
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
                                                            THR_MALLOC);
+  ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+
   (void) hash_init(&column_priv_hash,system_charset_info,
                    0,0,0, (hash_get_key) get_grant_table,
                    (hash_free_key) free_grant_table,0);
@@ -3671,6 +3690,7 @@ static my_bool grant_load(TABLE_LIST *tables)
   return_val=0;					// Return ok
 
 end_unlock:
+  thd->variables.sql_mode= old_sql_mode;
   t_table->file->ha_index_end();
   my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
   DBUG_RETURN(return_val);
@@ -3784,7 +3804,7 @@ my_bool grant_reload(THD *thd)
   old_mem= memex;
   init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  if ((return_val= grant_load(tables)))
+  if ((return_val= grant_load(thd, tables)))
   {						// Error. Revert to old hash
     DBUG_PRINT("error",("Reverting to old privileges"));
     grant_free();				/* purecov: deadcode */
@@ -3862,7 +3882,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, table= tables;
-       table != first_not_own_table && i < number;
+       i < number  && table != first_not_own_table;
        table= table->next_global, i++)
   {
     /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
@@ -4808,7 +4828,7 @@ end:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
 
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(error);
 }
 
@@ -5947,11 +5967,11 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	if (!strcmp(lex_user->user.str,user) &&
             !strcmp(lex_user->host.str, host))
 	{
-	  if (!replace_routine_table(thd,grant_proc,tables[4].table,*lex_user,
+	  if (replace_routine_table(thd,grant_proc,tables[4].table,*lex_user,
 				  grant_proc->db,
 				  grant_proc->tname,
                                   is_proc,
-				  ~(ulong)0, 1))
+				  ~(ulong)0, 1) == 0)
 	  {
 	    revoked= 1;
 	    continue;
@@ -5977,17 +5997,73 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 }
 
 
-/*
-  Revoke privileges for all users on a stored procedure
 
-  SYNOPSIS
-    sp_revoke_privileges()
+
+/**
+  If the defining user for a routine does not exist, then the ACL lookup
+  code should raise two errors which we should intercept.  We convert the more
+  descriptive error into a warning, and consume the other.
+
+  If any other errors are raised, then we set a flag that should indicate
+  that there was some failure we should complain at a higher level.
+*/
+class Silence_routine_definer_errors : public Internal_error_handler
+{
+public:
+  Silence_routine_definer_errors()
+    : is_grave(FALSE)
+  {}
+
+  virtual ~Silence_routine_definer_errors()
+  {}
+
+  virtual bool handle_error(uint sql_errno, const char *message,
+                            MYSQL_ERROR::enum_warning_level level,
+                            THD *thd);
+
+  bool has_errors() { return is_grave; }
+
+private:
+  bool is_grave;
+};
+
+bool
+Silence_routine_definer_errors::handle_error(uint sql_errno,
+                                       const char *message,
+                                       MYSQL_ERROR::enum_warning_level level,
+                                       THD *thd)
+{
+  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+  {
+    switch (sql_errno)
+    {
+      case ER_NONEXISTING_PROC_GRANT:
+        /* Convert the error into a warning. */
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, sql_errno, message);
+        return TRUE;
+      default:
+        is_grave= TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Revoke privileges for all users on a stored procedure.  Use an error handler
+  that converts errors about missing grants into warnings.
+
+  @param
     thd                         The current thread.
+  @param
     db				DB of the stored procedure
+  @param
     name			Name of the stored procedure
 
-  RETURN
+  @retval
     0           OK.
+  @retval
     < 0         Error. Error message not yet sent.
 */
 
@@ -5998,10 +6074,14 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   int result;
   TABLE_LIST tables[GRANT_TABLES];
   HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
+  Silence_routine_definer_errors error_handler;
   DBUG_ENTER("sp_revoke_privileges");
 
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
+
+  /* Be sure to pop this before exiting this scope! */
+  thd->push_internal_handler(&error_handler);
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -6029,14 +6109,14 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 	  grant_proc->host.hostname : (char*)"";
 	lex_user.host.length= grant_proc->host.hostname ?
 	  strlen(grant_proc->host.hostname) : 0;
-	if (!replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
-				   grant_proc->db, grant_proc->tname,
-                                   is_proc, ~(ulong)0, 1))
+
+	if (replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
+				  grant_proc->db, grant_proc->tname,
+                                  is_proc, ~(ulong)0, 1) == 0)
 	{
 	  revoked= 1;
 	  continue;
 	}
-	result= -1;	// Something went wrong
       }
       counter++;
     }
@@ -6046,10 +6126,9 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
-  if (result)
-    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+  thd->pop_internal_handler();
 
-  DBUG_RETURN(result);
+  DBUG_RETURN(error_handler.has_errors());
 }
 
 
@@ -6067,7 +6146,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
     < 0         Error. Error message not yet sent.
 */
 
-bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
+int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc)
 {
   Security_context *sctx= thd->security_ctx;

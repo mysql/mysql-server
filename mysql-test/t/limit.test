@@ -76,15 +76,22 @@ drop table t1;
 # Bug #28464: a string argument to 'limit ?' PS
 #
 
-prepare s from "select 1 limit ?"; 
-set @a='qwe'; 
---error 1210
+prepare s from "select 1 limit ?";
+set @a='qwe';
+execute s using @a;
+set @a=-1;
+--error ER_WRONG_ARGUMENTS
 execute s using @a;
 prepare s from "select 1 limit 1, ?";
---error 1210
+--error ER_WRONG_ARGUMENTS
 execute s using @a;
 prepare s from "select 1 limit ?, ?";
---error 1210
+--error ER_WRONG_ARGUMENTS
+execute s using @a, @a;
+set @a=14632475938453979136;
+execute s using @a, @a;
+set @a=-14632475938453979136;
+--error ER_WRONG_ARGUMENTS
 execute s using @a, @a;
 
 --echo End of 5.0 tests

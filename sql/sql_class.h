@@ -689,7 +689,8 @@ private:
 struct st_savepoint {
   struct st_savepoint *prev;
   char                *name;
-  uint                 length, nht;
+  uint                 length;
+  Ha_trx_info         *ha_list;
 };
 
 enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
@@ -911,6 +912,7 @@ public:
   ulonglong first_successful_insert_id_in_prev_stmt;
   ulonglong first_successful_insert_id_in_cur_stmt, insert_id_for_cur_row;
   Discrete_interval auto_inc_interval_for_cur_row;
+  Discrete_intervals_list auto_inc_intervals_forced;
   ulonglong limit_found_rows;
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
@@ -992,9 +994,9 @@ public:
   {
     /** The area is cleared at start of a statement. */
     DA_EMPTY= 0,
-    /** Set whenever one calls send_ok(). */
+    /** Set whenever one calls my_ok(). */
     DA_OK,
-    /** Set whenever one calls send_eof(). */
+    /** Set whenever one calls my_eof(). */
     DA_EOF,
     /** Set whenever one calls my_error() or my_message(). */
     DA_ERROR,
@@ -1062,7 +1064,7 @@ private:
     Copied from thd->server_status when the diagnostics area is assigned.
     We need this member as some places in the code use the following pattern:
     thd->server_status|= ...
-    send_eof(thd);
+    my_eof(thd);
     thd->server_status&= ~...
     Assigned by OK, EOF or ERROR.
   */
@@ -1092,6 +1094,33 @@ private:
     @todo: the following THD members belong here:
     - warn_list, warn_count,
   */
+};
+
+
+/**
+  Storage engine specific thread local data.
+*/
+
+struct Ha_data
+{
+  /**
+    Storage engine specific thread local data.
+    Lifetime: one user connection.
+  */
+  void *ha_ptr;
+  /**
+    0: Life time: one statement within a transaction. If @@autocommit is
+    on, also represents the entire transaction.
+    @sa trans_register_ha()
+
+    1: Life time: one transaction within a connection.
+    If the storage engine does not participate in a transaction,
+    this should not be used.
+    @sa trans_register_ha()
+  */
+  Ha_trx_info ha_info[2];
+
+  Ha_data() :ha_ptr(NULL) {}
 };
 
 
@@ -1234,7 +1263,7 @@ public:
   uint in_sub_stmt;
 
   /* container for handler's private per-connection data */
-  void *ha_data[MAX_HA];
+  Ha_data ha_data[MAX_HA];
 
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
@@ -1243,7 +1272,6 @@ public:
     Public interface to write RBR events to the binlog
   */
   void binlog_start_trans_and_stmt();
-  int binlog_flush_transaction_cache();
   void binlog_set_stmt_begin();
   int binlog_write_table_map(TABLE *table, bool is_transactional);
   int binlog_write_row(TABLE* table, bool is_transactional,
@@ -2113,7 +2141,7 @@ private:
 /** A short cut for thd->main_da.set_ok_status(). */
 
 inline void
-send_ok(THD *thd, ha_rows affected_rows= 0, ulonglong id= 0,
+my_ok(THD *thd, ha_rows affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
   thd->main_da.set_ok_status(thd, affected_rows, id, message);
@@ -2123,7 +2151,7 @@ send_ok(THD *thd, ha_rows affected_rows= 0, ulonglong id= 0,
 /** A short cut for thd->main_da.set_eof_status(). */
 
 inline void
-send_eof(THD *thd)
+my_eof(THD *thd)
 {
   thd->main_da.set_eof_status(thd);
 }
@@ -2585,7 +2613,7 @@ class user_var_entry
   bool unsigned_flag;
 
   double val_real(my_bool *null_value);
-  longlong val_int(my_bool *null_value);
+  longlong val_int(my_bool *null_value) const;
   String *val_str(my_bool *null_value, String *str, uint decimals);
   my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
   DTCollation collation;

@@ -3,6 +3,7 @@
 # Trigger Tests
 # (test case numbering refer to requirement document TP v1.1)
 #======================================================================
+# WL#4084: enable disabled parts, 2007-11-15, hhunger
 
 --disable_abort_on_error
 
@@ -271,8 +272,8 @@ let $message= Testcase y.y.y.3: Circular trigger reference;
 	create trigger tr4 after insert on t4
 		for each row insert into t1 (f1) values (new.f4+1);
 
-	# OBN See bug 11896
-	--error 1442
+        # Bug#11896 Partial locking in case of recursive trigger definittions
+	--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 	insert into t1 values (1);
 	select * from t1 order by f1;
 	select * from t2 order by f2;
@@ -294,7 +295,7 @@ let $message= Testcase y.y.y.3: Circular trigger reference;
 
 #Section y.y.y.4
 # Testcase: create recursive trigger/storedprocedures conditions
-let $message= Testcase y.y.y.4: Recursive trigger/SP references (disabled bug 11889);
+let $message= Testcase y.y.y.4: Recursive trigger/SP references;
 --source include/show_msg.inc
 
 set @sql_mode='traditional';

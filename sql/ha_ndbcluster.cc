@@ -316,6 +316,10 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 /*
   Place holder for ha_ndbcluster thread specific data
 */
+typedef struct st_thd_ndb_share {
+  const void *key;
+  struct Ndb_local_table_statistics stat;
+} THD_NDB_SHARE;
 static
 uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
                             my_bool not_used __attribute__((unused)))
@@ -370,41 +374,6 @@ Thd_ndb::init_open_tables()
   m_error= FALSE;
   m_error_code= 0;
   my_hash_reset(&open_tables);
-}
-
-THD_NDB_SHARE *
-Thd_ndb::get_open_table(THD *thd, const void *key)
-{
-  DBUG_ENTER("Thd_ndb::get_open_table");
-  HASH_SEARCH_STATE state;
-  THD_NDB_SHARE *thd_ndb_share=
-    (THD_NDB_SHARE*)hash_first(&open_tables, (uchar *)&key, sizeof(key), &state);
-  while (thd_ndb_share && thd_ndb_share->key != key)
-    thd_ndb_share= (THD_NDB_SHARE*)hash_next(&open_tables, (uchar *)&key, sizeof(key), &state);
-  if (thd_ndb_share == 0)
-  {
-    thd_ndb_share= (THD_NDB_SHARE *) alloc_root(&thd->transaction.mem_root,
-                                                sizeof(THD_NDB_SHARE));
-    if (!thd_ndb_share)
-    {
-      mem_alloc_error(sizeof(THD_NDB_SHARE));
-      DBUG_RETURN(NULL);
-    }
-    thd_ndb_share->key= key;
-    thd_ndb_share->stat.last_count= count;
-    thd_ndb_share->stat.no_uncommitted_rows_count= 0;
-    thd_ndb_share->stat.records= ~(ha_rows)0;
-    my_hash_insert(&open_tables, (uchar *)thd_ndb_share);
-  }
-  else if (thd_ndb_share->stat.last_count != count)
-  {
-    thd_ndb_share->stat.last_count= count;
-    thd_ndb_share->stat.no_uncommitted_rows_count= 0;
-    thd_ndb_share->stat.records= ~(ha_rows)0;
-  }
-  DBUG_PRINT("exit", ("thd_ndb_share: 0x%lx  key: 0x%lx",
-                      (long) thd_ndb_share, (long) key));
-  DBUG_RETURN(thd_ndb_share);
 }
 
 inline
@@ -2742,10 +2711,13 @@ ha_ndbcluster::set_auto_inc(Field *field)
              ("Trying to set next auto increment value to %s",
               llstr(next_val, buff)));
 #endif
-  Ndb_tuple_id_range_guard g(m_share);
-  if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
-      == -1)
-    ERR_RETURN(ndb->getNdbError());
+  if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, next_val))
+  {
+    Ndb_tuple_id_range_guard g(m_share);
+    if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
+        == -1)
+      ERR_RETURN(ndb->getNdbError());
+  }
   DBUG_RETURN(0);
 }
 
@@ -4554,12 +4526,48 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb)
         thd_ndb->trans_options|= TNTO_INJECTED_APPLY_STATUS;
   }
 #endif
-  // TODO remove double pointers...
-  if (!(m_thd_ndb_share= thd_ndb->get_open_table(thd, m_table)))
+
+  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
-    DBUG_RETURN(1);
+    const void *key= m_table;
+    HASH_SEARCH_STATE state;
+    THD_NDB_SHARE *thd_ndb_share=
+      (THD_NDB_SHARE*)hash_first(&thd_ndb->open_tables, (uchar *)&key, sizeof(key), &state);
+    while (thd_ndb_share && thd_ndb_share->key != key)
+      thd_ndb_share= (THD_NDB_SHARE*)hash_next(&thd_ndb->open_tables, (uchar *)&key, sizeof(key), &state);
+    if (thd_ndb_share == 0)
+    {
+      thd_ndb_share= (THD_NDB_SHARE *) alloc_root(&thd->transaction.mem_root,
+                                                  sizeof(THD_NDB_SHARE));
+      if (!thd_ndb_share)
+      {
+        mem_alloc_error(sizeof(THD_NDB_SHARE));
+        DBUG_RETURN(1);
+      }
+      thd_ndb_share->key= key;
+      thd_ndb_share->stat.last_count= thd_ndb->count;
+      thd_ndb_share->stat.no_uncommitted_rows_count= 0;
+      thd_ndb_share->stat.records= ~(ha_rows)0;
+      my_hash_insert(&thd_ndb->open_tables, (uchar *)thd_ndb_share);
+    }
+    else if (thd_ndb_share->stat.last_count != thd_ndb->count)
+    {
+      thd_ndb_share->stat.last_count= thd_ndb->count;
+      thd_ndb_share->stat.no_uncommitted_rows_count= 0;
+      thd_ndb_share->stat.records= ~(ha_rows)0;
+    }
+    DBUG_PRINT("exit", ("thd_ndb_share: 0x%lx  key: 0x%lx",
+                        (long) thd_ndb_share, (long) key));
+    m_table_info= &thd_ndb_share->stat;
   }
-  m_table_info= &m_thd_ndb_share->stat;
+  else
+  {
+    struct Ndb_local_table_statistics &stat= m_table_info_instance;
+    stat.last_count= thd_ndb->count;
+    stat.no_uncommitted_rows_count= 0;
+    stat.records= ~(ha_rows)0;
+    m_table_info= &stat;
+  }
   DBUG_RETURN(0);
 }
 
@@ -9446,7 +9454,7 @@ ha_ndbcluster::cond_push(const COND *cond)
     my_errno= HA_ERR_OUT_OF_MEM;
     DBUG_RETURN(NULL);
   }
-  DBUG_EXECUTE("where",print_where((COND *)cond, m_tabname););
+  DBUG_EXECUTE("where",print_where((COND *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
 }
 

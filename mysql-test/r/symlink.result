@@ -22,6 +22,7 @@ insert into t1 (b) select b from t2;
 insert into t2 (b) select b from t1;
 insert into t1 (b) select b from t2;
 drop table t2;
+create table t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="MYSQLTEST_VARDIR/tmp" index directory="MYSQLTEST_VARDIR/run";
 insert into t9 select * from t1;
 check table t9;
 Table	Op	Msg_type	Msg_text
@@ -54,10 +55,16 @@ t9	CREATE TABLE `t9` (
   `d` int(11) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+create table t1 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="tmp";
 Got one of the listed errors
+create database mysqltest;
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="/this-dir-does-not-exist";
 Got one of the listed errors
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="not-hard-path";
 Got one of the listed errors
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="MYSQLTEST_VARDIR/run";
 Got one of the listed errors
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="MYSQLTEST_VARDIR/tmp";
 Got one of the listed errors
 alter table t9 rename mysqltest.t9;
 select count(*) from mysqltest.t9;
@@ -74,6 +81,7 @@ t9	CREATE TABLE `t9` (
 ) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 drop database mysqltest;
 create table t1 (a int not null) engine=myisam;
+alter table t1 data directory="MYSQLTEST_VARDIR/tmp";
 Warnings:
 Warning	0	DATA DIRECTORY option ignored
 show create table t1;
@@ -82,6 +90,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 add b int;
+alter table t1 data directory="MYSQLTEST_VARDIR/log";
 Warnings:
 Warning	0	DATA DIRECTORY option ignored
 show create table t1;
@@ -90,6 +99,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 index directory="MYSQLTEST_VARDIR/log";
 Warnings:
 Warning	0	INDEX DIRECTORY option ignored
 show create table t1;
@@ -100,28 +110,22 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1(a INT)
-DATA DIRECTORY='TEST_DIR/master-data/mysql'
-INDEX DIRECTORY='TEST_DIR/master-data/mysql';
-RENAME TABLE t1 TO user;
-ERROR HY000: Can't create/write to file 'TEST_DIR/master-data/mysql/user.MYI' (Errcode: 17)
-DROP TABLE t1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
+DATA DIRECTORY='TEST_DIR/tmp'
+INDEX DIRECTORY='TEST_DIR/tmp';
+Got one of the listed errors
+CREATE TABLE t2(a INT)
+DATA DIRECTORY='TEST_DIR/tmp'
+INDEX DIRECTORY='TEST_DIR/tmp';
+RENAME TABLE t2 TO t1;
+ERROR HY000: Can't create/write to file 'TEST_DIR/tmp/t1.MYI' (Errcode: 17)
+DROP TABLE t2;
+create temporary table t1 (a int) engine=myisam data directory="MYSQLTEST_VARDIR/log" select 9 a;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
+create temporary table t1 (a int) engine=myisam data directory="MYSQLTEST_VARDIR/log" select 99 a;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
@@ -139,26 +143,33 @@ a
 42
 drop table t1;
 End of 4.1 tests
-CREATE DATABASE db1;
-CREATE DATABASE db2;
-USE db2;
-INSERT INTO db2.t1 VALUES (1);
-SELECT * FROM db2.t1;
-b
-1
-RESET QUERY CACHE;
-USE db1;
 SET SESSION keep_files_on_create = TRUE;
 CREATE TABLE t1 (a INT) ENGINE MYISAM;
 Got one of the listed errors
-CREATE TABLE t3 (a INT) Engine=MyISAM;
-INSERT INTO t3 VALUES (1),(2),(3);
-TRUNCATE TABLE t3;
-SELECT * from t3;
-a
-SET SESSION keep_files_on_create = DEFAULT;
-DROP TABLE db2.t1, db1.t3;
-DROP DATABASE db1;
-DROP DATABASE db2;
-USE test;
+SET SESSION keep_files_on_create = FALSE;
+CREATE TABLE t1 (a INT) ENGINE MYISAM;
+DROP TABLE t1;
 End of 5.0 tests
+CREATE TABLE t1(a INT)
+INDEX DIRECTORY='TEST_DIR/master-data/mysql';
+ERROR HY000: Incorrect arguments to INDEX DIRECTORY
+CREATE TABLE t1(a INT)
+DATA DIRECTORY='TEST_DIR/master-data/test';
+ERROR HY000: Incorrect arguments to DATA DIRECTORY
+CREATE TABLE t1(a INT)
+DATA DIRECTORY='TEST_DIR/master-data/';
+ERROR HY000: Incorrect arguments to DATA DIRECTORY
+CREATE TABLE t1(a INT)
+INDEX DIRECTORY='TEST_DIR/master-data';
+ERROR HY000: Incorrect arguments to INDEX DIRECTORY
+CREATE TABLE t1(a INT)
+INDEX DIRECTORY='TEST_DIR/master-data_var';
+ERROR HY000: Can't create/write to file 'TEST_DIR/master-data_var/t1.MYI' (Errcode: 2)
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='NO_DIR_IN_CREATE';
+CREATE TABLE t1(a INT) DATA DIRECTORY='MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY='MYSQLTEST_VARDIR/tmp';
+Warnings:
+Warning	0	DATA DIRECTORY option ignored
+Warning	0	INDEX DIRECTORY option ignored
+DROP TABLE t1;
+SET @@SQL_MODE=@OLD_SQL_MODE;
+End of 5.1 tests

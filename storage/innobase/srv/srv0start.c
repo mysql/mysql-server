@@ -1122,12 +1122,12 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
 
-		srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 #ifndef __WIN__
-	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fdatasync")) {
-		srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
+		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DSYNC")) {
 		srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;

@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 # mysqldumpslow - parse and summarize the MySQL slow query log
 
 # Original version by Tim Bunce, sometime in 2000.

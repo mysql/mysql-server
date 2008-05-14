@@ -56,15 +56,12 @@ DELETE FROM t1 WHERE c3 = 2;
 
 SELECT * FROM t1 ORDER BY c3;
 
-save_master_pos;
-
 # insert another row, and check that we have it on the slave
 connection server2;
 INSERT INTO t1 VALUES ("row5","E",5);
 SELECT * FROM t1 ORDER BY c3;
-#sync_slave_with_master;
+sync_slave_with_master;
 connection slave;
---sleep 2
 SELECT * FROM t1 ORDER BY c3;
 
 STOP SLAVE;

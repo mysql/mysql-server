@@ -1,0 +1,56 @@
+#-----------------------------------------------------------------------------
+# csv_alter_table.test - .test file for MySQL regression suite
+# Purpose:  To test the behavior of the CSV engine
+#           Bug#31473 resulted in strict enforcement of non-nullable
+#           columns in CSV engine.
+#           Tests code for Bug#33696 - CSV engine allows NULLable
+#           Columns via ALTER TABLE statements
+#        
+# Author pcrews
+# Last modified:  2008-01-06
+#-----------------------------------------------------------------------------
+
+--source include/have_csv.inc
+
+#############################################################################
+# Testcase csv_alter_table.1: Positive test for ALTER table 
+#                             
+#############################################################################
+-- echo # ===== csv_alter_table.1 =====
+-- disable_warnings
+DROP TABLE IF EXISTS t1;
+-- enable_warnings
+
+CREATE TABLE t1 (a int NOT NULL) ENGINE = CSV;
+ALTER TABLE t1 ADD COLUMN b CHAR(5) NOT NULL;
+DESC t1;
+ALTER TABLE t1 DROP COLUMN b;
+DESC t1;
+ALTER TABLE t1 MODIFY a BIGINT NOT NULL;
+DESC t1;
+ALTER TABLE t1 CHANGE a a INT NOT NULL;
+DESC t1;
+
+DROP TABLE t1;
+
+#############################################################################
+# Testcase csv_alter_table.2: Negative test for ALTER table
+# These queries should not succeed / should throw errors
+#############################################################################
+-- echo # ===== csv_alter_table.2 =====
+-- disable_warnings
+DROP TABLE IF EXISTS t1;
+-- enable_warnings
+
+CREATE TABLE t1 (a int NOT NULL) ENGINE = CSV;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 ADD COLUMN b CHAR(5);
+DESC t1;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 MODIFY a BIGINT;
+DESC t1;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 CHANGE a a INT;
+DESC t1;
+
+DROP TABLE t1;

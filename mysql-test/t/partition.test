@@ -14,6 +14,10 @@
 drop table if exists t1;
 --enable_warnings
 
+--error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int) partition by list ((a/3)*10 div 1)
+(partition p0 values in (0), partition p1 values in (1));
+
 #
 # Bug #30695: An apostrophe ' in the comment of the ADD PARTITION causes the Server to crash.
 #
@@ -35,7 +39,7 @@ PARTITION `p5` VALUES LESS THAN (2010)
 COMMENT 'APSTART \' APEND'
 );
 #--exec sed 's/APSTART \\/APSTART  /' var/master-data/test/t1.frm > tmpt1.frm && mv tmpt1.frm var/master-data/test/t1.frm
-#--error 1064
+#--error ER_PARSE_ERROR
 SELECT * FROM t1 LIMIT 1;
 
 DROP TABLE t1;
@@ -49,6 +53,7 @@ create table t1 (id int auto_increment, s1 int, primary key (id));
 insert into t1 values (null,1);
 insert into t1 values (null,6);
 
+-- sorted_result
 select * from t1;
 
 alter table t1 partition by range (id) (
@@ -77,24 +82,6 @@ partitions 1.5;
 create table t1 (a int)
 partition by key(a)
 partitions 1e+300;
-
-#
-# Bug 21350: Data Directory problems
-#
--- error ER_WRONG_TABLE_NAME
-create table t1 (a int)
-partition by key (a)
-(partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
-
-#
-# Insert a test that manages to create the first partition and fails with
-# the second, ensure that we clean up afterwards in a proper manner.
-#
---error ER_WRONG_TABLE_NAME
-create table t1 (a int)
-partition by key (a)
-(partition p0,
- partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
 
 #
 # Bug 19309 Partitions: Crash if double procedural alter
@@ -618,12 +605,14 @@ partition by key (a)
 (partition p0, partition p1);
 show create table t1;
 
---error ER_MIX_HANDLER_ERROR
+# Since alter, it already have ENGINE=HEAP from before on table level
+# -> OK
 alter table t1
 partition by key(a)
 (partition p0, partition p1 engine=heap);
 
---error ER_MIX_HANDLER_ERROR
+# Since alter, it already have ENGINE=HEAP from before on table level
+# -> OK
 alter table t1
 partition by key(a)
 (partition p0 engine=heap, partition p1);
@@ -1208,9 +1197,11 @@ SHOW TABLE STATUS;
 DELETE from t1 where a = 1;
 --replace_column 9 0 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
+# restore this after WL#4176 is completed
+-- error ER_CHECK_NOT_IMPLEMENTED
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
---replace_column 12 NULL 13 NULL 14 NULL
-SHOW TABLE STATUS;
+#--replace_column 12 NULL 13 NULL 14 NULL
+#SHOW TABLE STATUS;
 DROP TABLE t1;
 
 #
@@ -1224,13 +1215,15 @@ DROP TABLE t1;
 #
 # Bug 17455 Partitions: Wrong message and error when using Repair/Optimize
 #                       table on partitioned table
-#
+# (added check/analyze for gcov of Bug#20129)
 create table t1 (a int)
 engine=MEMORY
 partition by key (a);
 
 REPAIR TABLE t1;
 OPTIMIZE TABLE t1;
+CHECK TABLE t1;
+ANALYZE TABLE t1;
 
 drop table t1;
 
@@ -1399,35 +1392,6 @@ SELECT t2.id FROM t2 WHERE t2.id IN (SELECT id FROM t1 WHERE status = 'Verified'
 drop table t1, t2;
 
 #
-# Bug #24633 SQL MODE "NO_DIR_IN_CREATE" does not work with partitioned tables 
-#
-
-disable_query_log;
-eval create table t2 (i int )
-partition by range (i)
-(
-    partition p01 values less than (1000)
-    data directory="$MYSQLTEST_VARDIR/master-data/test/"
-    index directory="$MYSQLTEST_VARDIR/master-data/test/"
-);
-enable_query_log;
-
-set @org_mode=@@sql_mode;
-set @@sql_mode='NO_DIR_IN_CREATE';
-select @@sql_mode;
-create table t1 (i int )
-partition by range (i)
-(
-    partition p01 values less than (1000)
-    data directory='/not/existing'
-    index directory='/not/existing'
-);
-
-show create table t2;
-DROP TABLE t1, t2;
-set @@sql_mode=@org_mode;
-
-#
 # Bug #27123 partition + on duplicate key update + varchar = Can't find record in <table> 
 #
 create table t1 (c1 varchar(255),c2 tinyint,primary key(c1))
@@ -1562,16 +1526,24 @@ select c1 from t1 group by (select c0 from t1 limit 1);
 drop table t1;
 
 # Bug #30495: optimize table t1,t2,t3 extended errors
-#
+# (added more maintenace commands for Bug#20129
 CREATE TABLE t1(a int)
 PARTITION BY RANGE (a) (
   PARTITION p1 VALUES LESS THAN (10),
   PARTITION p2 VALUES LESS THAN (20)
 );
---error 1064
+--error ER_PARSE_ERROR
 ALTER TABLE t1 OPTIMIZE PARTITION p1 EXTENDED;
---error 1064
+--error ER_PARSE_ERROR
 ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 ANALYZE PARTITION p1;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 CHECK PARTITION p1;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 REPAIR PARTITION p1;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
 DROP TABLE t1;
 
 #

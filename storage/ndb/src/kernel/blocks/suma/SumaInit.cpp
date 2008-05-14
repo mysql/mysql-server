@@ -27,6 +27,8 @@ Suma::Suma(Block_context& ctx) :
   Restart(*this),
   c_gcp_list(c_gcp_pool)
 {
+  BLOCK_CONSTRUCTOR(Suma);
+
   // Add received signals
   addRecSignal(GSN_READ_CONFIG_REQ, &Suma::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Suma::execSTTOR);

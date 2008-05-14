@@ -425,8 +425,9 @@ public:
 		 ArrayPool<TriggerRecord> & trp) 
       : slaveState(b, validSlaveTransitions, validSlaveTransitionsCount,1)
       , tables(tp), triggers(trp), files(bp)
-      , masterData(b), backup(b)
       , ctlFilePtr(RNIL), logFilePtr(RNIL), dataFilePtr(RNIL)
+      , masterData(b), backup(b)
+
       {
       }
     
@@ -557,8 +558,8 @@ public:
   NDB_TICKS m_reset_disk_speed_time;
   static const int  DISK_SPEED_CHECK_DELAY = 100;
   
-  STATIC_CONST(NO_OF_PAGES_META_FILE =
-               (MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) /
+  STATIC_CONST(NO_OF_PAGES_META_FILE = 
+	       (2*MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) / 
 	       BACKUP_WORDS_PER_PAGE);
 
   /**

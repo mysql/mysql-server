@@ -182,10 +182,33 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   TABLE_LIST decoy;
 
   memcpy (&decoy, view, sizeof (TABLE_LIST));
-  if (!open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE) &&
-      !decoy.view)
+
+  /*
+    Let's reset decoy.view before calling open_table(): when we start
+    supporting ALTER VIEW in PS/SP that may save us from a crash.
+  */
+
+  decoy.view= NULL;
+
+  /*
+    open_table() will return NULL if 'decoy' is idenitifying a view *and*
+    there is no TABLE object for that view in the table cache. However,
+    decoy.view will be set to 1.
+
+    If there is a TABLE-instance for the oject identified by 'decoy',
+    open_table() will return that instance no matter if it is a table or
+    a view.
+
+    Thus, there is no need to check for the return value of open_table(),
+    since the return value itself does not mean anything.
+  */
+
+  open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE);
+
+  if (!decoy.view)
   {
-    /* It's a table */
+    /* It's a table. */
+    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
     return TRUE;
   }
 
@@ -204,9 +227,146 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   return FALSE;
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /**
-  Creating/altering VIEW procedure
+  @brief CREATE VIEW privileges pre-check.
+
+  @param thd thread handler
+  @param tables tables used in the view
+  @param views views to create
+  @param mode VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
+
+  @retval FALSE Operation was a success.
+  @retval TRUE An error occured.
+*/
+
+bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
+                          enum_view_create_mode mode)
+{
+  LEX *lex= thd->lex;
+  /* first table in list is target VIEW name => cut off it */
+  TABLE_LIST *tbl;
+  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *sl;
+  bool res= TRUE;
+  DBUG_ENTER("create_view_precheck");
+
+  /*
+    Privilege check for view creation:
+    - user has CREATE VIEW privilege on view table
+    - user has DROP privilege in case of ALTER VIEW or CREATE OR REPLACE
+    VIEW
+    - user has some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
+    underlying tables used on top of SELECT list (because it can be
+    (theoretically) updated, so it is enough to have UPDATE privilege on
+    them, for example)
+    - user has SELECT privilege on columns used in expressions of VIEW select
+    - for columns of underly tables used on top of SELECT list also will be
+    checked that we have not more privileges on correspondent column of view
+    table (i.e. user will not get some privileges by view creation)
+  */
+  if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
+                    0, 0, is_schema_db(view->db)) ||
+       check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
+      (mode != VIEW_CREATE_NEW &&
+       (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
+                     0, 0, is_schema_db(view->db)) ||
+        check_grant(thd, DROP_ACL, view, 0, 1, 0))))
+    goto err;
+
+  for (sl= select_lex; sl; sl= sl->next_select())
+  {
+    for (tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
+    {
+      /*
+        Ensure that we have some privileges on this table, more strict check
+        will be done on column level after preparation,
+      */
+      if (check_some_access(thd, VIEW_ANY_ACL, tbl))
+      {
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+                 "ANY", thd->security_ctx->priv_user,
+                 thd->security_ctx->priv_host, tbl->table_name);
+        goto err;
+      }
+      /*
+        Mark this table as a table which will be checked after the prepare
+        phase
+      */
+      tbl->table_in_first_from_clause= 1;
+
+      /*
+        We need to check only SELECT_ACL for all normal fields, fields for
+        which we need "any" (SELECT/UPDATE/INSERT/DELETE) privilege will be
+        checked later
+      */
+      tbl->grant.want_privilege= SELECT_ACL;
+      /*
+        Make sure that all rights are loaded to the TABLE::grant field.
+
+        tbl->table_name will be correct name of table because VIEWs are
+        not opened yet.
+      */
+      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
+                                      tbl->table_name);
+    }
+  }
+
+  if (&lex->select_lex != lex->all_selects_list)
+  {
+    /* check tables of subqueries */
+    for (tbl= tables; tbl; tbl= tbl->next_global)
+    {
+      if (!tbl->table_in_first_from_clause)
+      {
+        if (check_access(thd, SELECT_ACL, tbl->db,
+                         &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
+            check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
+          goto err;
+      }
+    }
+  }
+  /*
+    Mark fields for special privilege check ("any" privilege)
+  */
+  for (sl= select_lex; sl; sl= sl->next_select())
+  {
+    List_iterator_fast<Item> it(sl->item_list);
+    Item *item;
+    while ((item= it++))
+    {
+      Item_field *field;
+      if ((field= item->filed_for_view_update()))
+      {
+        /*
+         any_privileges may be reset later by the Item_field::set_field
+         method in case of a system temporary table.
+        */
+        field->any_privileges= 1;
+      }
+    }
+  }
+
+  res= FALSE;
+
+err:
+  DBUG_RETURN(res || thd->is_error());
+}
+
+#else
+
+bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
+                          enum_view_create_mode mode)
+{
+  return FALSE;
+}
+
+#endif
+
+
+/**
+  @brief Creating/altering VIEW procedure
 
   @param thd thread handler
   @param views views to create
@@ -218,7 +378,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   @retval TRUE An error occured.
 */
 
-bool mysql_create_view(THD *thd, TABLE_LIST *views, 
+bool mysql_create_view(THD *thd, TABLE_LIST *views,
                        enum_view_create_mode mode)
 {
   LEX *lex= thd->lex;
@@ -237,7 +397,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   /* This is ensured in the parser. */
   DBUG_ASSERT(!lex->proc_list.first && !lex->result &&
-              !lex->param_list.elements && !lex->derived_tables);
+              !lex->param_list.elements);
 
   if (mode != VIEW_CREATE_NEW)
   {
@@ -302,108 +462,10 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       }
     }
   }
-  /*
-    Privilege check for view creation:
-    - user has CREATE VIEW privilege on view table
-    - user has DROP privilege in case of ALTER VIEW or CREATE OR REPLACE
-    VIEW
-    - user has some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
-    underlying tables used on top of SELECT list (because it can be
-    (theoretically) updated, so it is enough to have UPDATE privilege on
-    them, for example)
-    - user has SELECT privilege on columns used in expressions of VIEW select
-    - for columns of underly tables used on top of SELECT list also will be
-    checked that we have not more privileges on correspondent column of view
-    table (i.e. user will not get some privileges by view creation)
-  */
-  if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
-                    0, 0, is_schema_db(view->db)) ||
-       check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
-      (mode != VIEW_CREATE_NEW &&
-       (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
-                     0, 0, is_schema_db(view->db)) ||
-        check_grant(thd, DROP_ACL, view, 0, 1, 0))))
-  {
-    res= TRUE;
-    goto err;
-  }
-  for (sl= select_lex; sl; sl= sl->next_select())
-  {
-    for (tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
-    {
-      /*
-        Ensure that we have some privileges on this table, more strict check
-        will be done on column level after preparation,
-      */
-      if (check_some_access(thd, VIEW_ANY_ACL, tbl))
-      {
-        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-                 "ANY", thd->security_ctx->priv_user,
-                 thd->security_ctx->priv_host, tbl->table_name);
-        res= TRUE;
-        goto err;
-      }
-      /*
-        Mark this table as a table which will be checked after the prepare
-        phase
-      */
-      tbl->table_in_first_from_clause= 1;
-
-      /*
-        We need to check only SELECT_ACL for all normal fields, fields for
-        which we need "any" (SELECT/UPDATE/INSERT/DELETE) privilege will be
-        checked later
-      */
-      tbl->grant.want_privilege= SELECT_ACL;
-      /*
-        Make sure that all rights are loaded to the TABLE::grant field.
-
-        tbl->table_name will be correct name of table because VIEWs are
-        not opened yet.
-      */
-      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                      tbl->table_name);
-    }
-  }
-
-  if (&lex->select_lex != lex->all_selects_list)
-  {
-    /* check tables of subqueries */
-    for (tbl= tables; tbl; tbl= tbl->next_global)
-    {
-      if (!tbl->table_in_first_from_clause)
-      {
-        if (check_access(thd, SELECT_ACL, tbl->db,
-                         &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
-            check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
-        {
-          res= TRUE;
-          goto err;
-        }
-      }
-    }
-  }
-  /*
-    Mark fields for special privilege check ("any" privilege)
-  */
-  for (sl= select_lex; sl; sl= sl->next_select())
-  {
-    List_iterator_fast<Item> it(sl->item_list);
-    Item *item;
-    while ((item= it++))
-    {
-      Item_field *field;
-      if ((field= item->filed_for_view_update()))
-      {
-        /*
-         any_privileges may be reset later by the Item_field::set_field
-         method in case of a system temporary table.
-        */
-        field->any_privileges= 1;
-      }
-    }
-  }
 #endif
+
+  if ((res= create_view_precheck(thd, tables, view, mode)))
+    goto err;
 
   if (open_and_lock_tables(thd, tables))
   {
@@ -599,7 +661,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   if (res)
     goto err;
 
-  send_ok(thd);
+  my_ok(thd);
   lex->link_first_table_back(view, link_to_local);
   DBUG_RETURN(0);
 
@@ -696,8 +758,42 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode)
 {
   LEX *lex= thd->lex;
-  char buff[4096];
-  String view_query(buff, sizeof (buff), thd->charset());
+
+  /*
+    View definition query -- a SELECT statement that fully defines view. It
+    is generated from the Item-tree built from the original (specified by
+    the user) query. The idea is that generated query should eliminates all
+    ambiguities and fix view structure at CREATE-time (once for all).
+    Item::print() virtual operation is used to generate view definition
+    query.
+
+    INFORMATION_SCHEMA query (IS query) -- a SQL statement describing a
+    view that is shown in INFORMATION_SCHEMA. Basically, it is 'view
+    definition query' with text literals converted to UTF8 and without
+    character set introducers.
+
+    For example:
+      Let's suppose we have:
+        CREATE TABLE t1(a INT, b INT);
+      User specified query:
+        CREATE VIEW v1(x, y) AS SELECT * FROM t1;
+      Generated query:
+        SELECT a AS x, b AS y FROM t1;
+      IS query:
+        SELECT a AS x, b AS y FROM t1;
+
+    View definition query is stored in the client character set.
+  */
+  char view_query_buff[4096];
+  String view_query(view_query_buff,
+                    sizeof (view_query_buff),
+                    thd->charset());
+
+  char is_query_buff[4096];
+  String is_query(is_query_buff,
+                  sizeof (is_query_buff),
+                  system_charset_info);
+
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], path_buff[FN_REFLEN];
@@ -705,12 +801,16 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   int error= 0;
   DBUG_ENTER("mysql_register_view");
 
-  /* print query */
+  /* Generate view definition and IS queries. */
   view_query.length(0);
+  is_query.length(0);
   {
     ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
-    lex->unit.print(&view_query);
+
+    lex->unit.print(&view_query, QT_ORDINARY);
+    lex->unit.print(&is_query, QT_IS);
+
     thd->variables.sql_mode|= sql_mode;
   }
   DBUG_PRINT("info", ("View: %s", view_query.ptr()));
@@ -718,11 +818,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   /* fill structure */
   view->select_stmt.str= view_query.c_ptr_safe();
   view->select_stmt.length= view_query.length();
-
-  view->source.str= (char*) thd->lex->create_view_select_start;
-  view->source.length= (thd->lex->create_view_select_end
-                        - thd->lex->create_view_select_start);
-  trim_whitespace(thd->charset(), & view->source);
+  view->source= thd->lex->create_view_select;
 
   view->file_version= 1;
   view->calc_md5(md5);
@@ -853,7 +949,8 @@ loop_out:
   lex_string_set(&view->view_connection_cl_name,
                  view->view_creation_ctx->get_connection_cl()->name);
 
-  view->view_body_utf8= lex->view_body_utf8;
+  view->view_body_utf8.str= is_query.c_ptr_safe();
+  view->view_body_utf8.length= is_query.length();
 
   /*
     Check that table of main select do not used in subqueries.
@@ -1123,8 +1220,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if (!table->prelocking_placeholder &&
         (old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
     {
-      if (check_table_access(thd, SELECT_ACL, view_tables, 1) &&
-          check_table_access(thd, SHOW_VIEW_ACL, table, 1))
+      if (check_table_access(thd, SELECT_ACL, view_tables, UINT_MAX, TRUE) &&
+          check_table_access(thd, SHOW_VIEW_ACL, table, UINT_MAX, TRUE))
       {
         my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
         goto err;
@@ -1134,7 +1231,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
              (old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
              !table->belong_to_view)
     {
-      if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
+      if (check_table_access(thd, SHOW_VIEW_ACL, table, UINT_MAX, FALSE))
         goto err;
     }
 
@@ -1552,7 +1649,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   {
     DBUG_RETURN(TRUE);
   }
-  send_ok(thd);
+  my_ok(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -1581,7 +1678,7 @@ frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
 
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
     DBUG_RETURN(FRMTYPE_ERROR);
-  error= my_read(file, (uchar*) header, sizeof(header), MYF(MY_WME | MY_NABP));
+  error= my_read(file, (uchar*) header, sizeof(header), MYF(MY_NABP));
   my_close(file, MYF(MY_WME));
 
   if (error)

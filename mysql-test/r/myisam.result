@@ -1086,6 +1086,7 @@ set @a=repeat(' ',20);
 insert into t1 values (concat('+',@a),concat('+',@a),concat('+',@a));
 Warnings:
 Note	1265	Data truncated for column 'v' at row 1
+Note	1265	Data truncated for column 'c' at row 1
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
 *+ *+*+ *
@@ -2022,6 +2023,187 @@ DELETE FROM t1 WHERE c1 >= 10;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 CHAR(130),
+c2 VARCHAR(1)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 CHAR(130),
+c2 VARCHAR(1)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 CHAR(130),
+c2 VARCHAR(1)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
+INSERT INTO t1 VALUES('b', 'b');
+INSERT INTO t1 VALUES('c', 'b');
+DELETE FROM t1 WHERE c1='b';
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 CHAR(130),
+c2 VARCHAR(1),
+KEY (c1)
+) ENGINE=MyISAM;
+# Insert 100 rows. Query log disabled.
+UPDATE t1 SET c1=REPEAT("a",128) LIMIT 90;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+100
+ALTER TABLE t1 ENGINE=MyISAM;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+100
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 CHAR(50),
+c2 VARCHAR(1)
+) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 CHAR(50),
+c2 VARCHAR(1)
+) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 CHAR(50),
+c2 VARCHAR(1)
+) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+INSERT INTO t1 VALUES('b', 'b');
+INSERT INTO t1 VALUES('c', 'b');
+DELETE FROM t1 WHERE c1='b';
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 CHAR(50),
+c2 VARCHAR(1),
+KEY (c1)
+) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+# Insert 100 rows. Query log disabled.
+UPDATE t1 SET c1=REPEAT(_utf8 x'e0ae85',43) LIMIT 90;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+100
+ALTER TABLE t1 ENGINE=MyISAM;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+100
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 VARCHAR(10) NOT NULL,
+c2 CHAR(10) DEFAULT NULL,
+c3 VARCHAR(10) NOT NULL,
+KEY (c1),
+KEY (c2)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 PACK_KEYS=0;
+
+MyISAM file:         MYSQLTEST_VARDIR/master-data/test/t1
+Record format:       Packed
+Character set:       utf8_general_ci (33)
+Data records:                    0  Deleted blocks:                 0
+Recordlength:                   94
+
+table description:
+Key Start Len Index   Type
+1   2     30  multip. varchar              
+2   33    30  multip. char NULL            
 DROP TABLE t1;
 create table t1 (n int not null, c char(1)) transactional=1;
 Warnings:

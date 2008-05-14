@@ -1152,6 +1152,30 @@ create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 drop table t1,t2;
 
+#
+# Bug #25162: Backing up DB from 5.1 adds 'USING BTREE' to KEYs on table creates
+#
+
+# Show that the old syntax for index type is supported
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1));
+DROP TABLE t1;
+
+# Show that the new syntax for index type is supported
+CREATE TABLE t1(c1 VARCHAR(33), KEY (c1) USING BTREE);
+DROP TABLE t1;
+
+# Show that in case of multiple index type definitions, the last one takes 
+# precedence
+
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1) USING HASH) ENGINE=MEMORY;
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
 
 #
@@ -1343,4 +1367,160 @@ create table t1 like information_schema.character_sets;
 show create table t1;
 drop table t1;
 
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#21380: DEFAULT definition not always transfered by CREATE
+--echo # -- TABLE/SELECT to the new table.
+--echo # --
+--echo
+
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1(
+  c1 INT DEFAULT 12 COMMENT 'column1',
+  c2 INT NULL COMMENT 'column2',
+  c3 INT NOT NULL COMMENT 'column3',
+  c4 VARCHAR(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+  c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
+  c6 VARCHAR(255))
+  COLLATE latin1_bin;
+
+--echo
+
+SHOW CREATE TABLE t1;
+
+--echo
+
+CREATE TABLE t2 AS SELECT * FROM t1;
+
+--echo
+
+SHOW CREATE TABLE t2;
+
+--echo
+
+DROP TABLE t2;
+
+--echo
+--echo # -- End of test case for Bug#21380.
+
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#18834: ALTER TABLE ADD INDEX on table with two timestamp fields
+--echo # --
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1(c1 TIMESTAMP, c2 TIMESTAMP);
+
+--echo
+
+SET sql_mode = NO_ZERO_DATE;
+
+--echo
+--error ER_INVALID_DEFAULT
+CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
+
+--echo
+--error ER_INVALID_DEFAULT
+CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP);
+
+--echo
+--echo # -- Check that NULL column still can be created.
+CREATE TABLE t2(c1 TIMESTAMP NULL);
+
+--echo
+--echo # -- Check ALTER TABLE.
+--error ER_INVALID_DEFAULT
+ALTER TABLE t1 ADD INDEX(c1);
+
+--echo
+--echo # -- Check DATETIME.
+SET sql_mode = '';
+
+--echo
+
+CREATE TABLE t3(c1 DATETIME NOT NULL);
+INSERT INTO t3 VALUES (0);
+
+--echo
+SET sql_mode = TRADITIONAL;
+
+--echo
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t3 ADD INDEX(c1);
+
+--echo
+--echo # -- Cleanup.
+
+SET sql_mode = '';
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--echo
+--echo # -- End of Bug#18834.
+
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#34274: Invalid handling of 'DEFAULT 0' for YEAR data type.
+--echo # --
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+CREATE TABLE t1(c1 YEAR DEFAULT 2008, c2 YEAR DEFAULT 0);
+
+--echo
+SHOW CREATE TABLE t1;
+
+--echo
+INSERT INTO t1 VALUES();
+
+--echo
+SELECT * FROM t1;
+
+--echo
+ALTER TABLE t1 MODIFY c1 YEAR DEFAULT 0;
+
+--echo
+SHOW CREATE TABLE t1;
+
+--echo
+INSERT INTO t1 VALUES();
+
+--echo
+SELECT * FROM t1;
+
+--echo
+DROP TABLE t1;
+
+--echo
+--echo # -- End of Bug#34274
+
+###########################################################################
+
+--echo
 --echo End of 5.1 tests

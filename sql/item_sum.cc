@@ -68,6 +68,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
   aggr_sel= NULL;
   max_arg_level= -1;
   max_sum_func_level= -1;
+  outer_fields.empty();
   return FALSE;
 }
 
@@ -176,6 +177,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
                MYF(0));
     return TRUE;
   }
+
   if (in_sum_func)
   {
     /*
@@ -196,6 +198,68 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
       set_if_bigger(in_sum_func->max_sum_func_level, aggr_level);
     set_if_bigger(in_sum_func->max_sum_func_level, max_sum_func_level);
   }
+
+  /*
+    Check that non-aggregated fields and sum functions aren't mixed in the
+    same select in the ONLY_FULL_GROUP_BY mode.
+  */
+  if (outer_fields.elements)
+  {
+    Item_field *field;
+    /*
+      Here we compare the nesting level of the select to which an outer field
+      belongs to with the aggregation level of the sum function. All fields in
+      the outer_fields list are checked.
+
+      If the nesting level is equal to the aggregation level then the field is
+        aggregated by this sum function.
+      If the nesting level is less than the aggregation level then the field
+        belongs to an outer select. In this case if there is an embedding sum
+        function add current field to functions outer_fields list. If there is
+        no embedding function then the current field treated as non aggregated
+        and the select it belongs to is marked accordingly.
+      If the nesting level is greater than the aggregation level then it means
+        that this field was added by an inner sum function.
+        Consider an example:
+
+          select avg ( <-- we are here, checking outer.f1
+            select (
+              select sum(outer.f1 + inner.f1) from inner
+            ) from outer)
+          from most_outer;
+
+        In this case we check that no aggregate functions are used in the
+        select the field belongs to. If there are some then an error is
+        raised.
+    */
+    List_iterator<Item_field> of(outer_fields);
+    while ((field= of++))
+    {
+      SELECT_LEX *sel= field->cached_table->select_lex;
+      if (sel->nest_level < aggr_level)
+      {
+        if (in_sum_func)
+        {
+          /*
+            Let upper function decide whether this field is a non
+            aggregated one.
+          */
+          in_sum_func->outer_fields.push_back(field);
+        }
+        else
+          sel->full_group_by_flag|= NON_AGG_FIELD_USED;
+      }
+      if (sel->nest_level > aggr_level &&
+          (sel->full_group_by_flag & SUM_FUNC_USED) &&
+          !sel->group_list.elements)
+      {
+        my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
+                   ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
+        return TRUE;
+      }
+    }
+  }
+  aggr_sel->full_group_by_flag|= SUM_FUNC_USED;
   update_used_tables();
   thd->lex->in_sum_func= in_sum_func;
   return FALSE;
@@ -359,14 +423,14 @@ void Item_sum::make_field(Send_field *tmp_field)
 }
 
 
-void Item_sum::print(String *str)
+void Item_sum::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (i)
       str->append(',');
-    args[i]->print(str);
+    args[i]->print(str, query_type);
   }
   str->append(')');
 }
@@ -600,6 +664,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   result_field=0;
   null_value=1;
   fix_length_and_dec();
+  item= item->real_item();
   if (item->type() == Item::FIELD_ITEM)
     hybrid_field_type= ((Item_field*) item)->field->type();
   else
@@ -1227,7 +1292,15 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val)
     null_value=1;
     return NULL;
   }
-  sum_dec= Item_sum_sum::val_decimal(&sum_buff);
+
+  /*
+    For non-DECIMAL hybrid_type the division will be done in
+    Item_sum_avg::val_real().
+  */
+  if (hybrid_type != DECIMAL_RESULT)
+    return val_decimal_from_real(val);
+
+  sum_dec= dec_buffs + curr_dec_buff;
   int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &cnt);
   my_decimal_div(E_DEC_FATAL_ERROR, val, sum_dec, &cnt, prec_increment);
   return val;
@@ -2716,7 +2789,7 @@ void Item_udf_sum::cleanup()
 }
 
 
-void Item_udf_sum::print(String *str)
+void Item_udf_sum::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
@@ -2724,7 +2797,7 @@ void Item_udf_sum::print(String *str)
   {
     if (i)
       str->append(',');
-    args[i]->print(str);
+    args[i]->print(str, query_type);
   }
   str->append(')');
 }
@@ -3460,7 +3533,7 @@ String* Item_func_group_concat::val_str(String* str)
 }
 
 
-void Item_func_group_concat::print(String *str)
+void Item_func_group_concat::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct)
@@ -3469,7 +3542,7 @@ void Item_func_group_concat::print(String *str)
   {
     if (i)
       str->append(',');
-    args[i]->print(str);
+    args[i]->print(str, query_type);
   }
   if (arg_count_order)
   {
@@ -3478,7 +3551,7 @@ void Item_func_group_concat::print(String *str)
     {
       if (i)
         str->append(',');
-      (*order[i]->item)->print(str);
+      (*order[i]->item)->print(str, query_type);
       if (order[i]->asc)
         str->append(STRING_WITH_LEN(" ASC"));
       else
@@ -3493,6 +3566,6 @@ void Item_func_group_concat::print(String *str)
 
 Item_func_group_concat::~Item_func_group_concat()
 {
-  if (unique_filter) 
+  if (!original && unique_filter)
     delete unique_filter;    
 }

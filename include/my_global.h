@@ -492,9 +492,6 @@ C_MODE_END
 #include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */
 #define HAVE_ULONG
 #endif
-#ifdef DONT_USE_FINITE		/* HPUX 11.x has is_finite() */
-#undef HAVE_FINITE
-#endif
 #if defined(HPUX10) && defined(_LARGEFILE64_SOURCE) && defined(THREAD)
 /* Fix bug in setrlimit */
 #undef setrlimit
@@ -865,9 +862,13 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define SIZE_T_MAX ~((size_t) 0)
 #endif
 
-#ifndef HAVE_FINITE
+#ifndef isfinite
+#ifdef HAVE_FINITE
+#define isfinite(x) finite(x)
+#else
 #define finite(x) (1.0 / fabs(x) > 0.0)
-#endif
+#endif /* HAVE_FINITE */
+#endif /* isfinite */
 
 #ifndef HAVE_ISNAN
 #define isnan(x) ((x) != (x))
@@ -877,7 +878,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 /* isinf() can be used in both C and C++ code */
 #define my_isinf(X) isinf(X)
 #else
-#define my_isinf(X) (!finite(X) && !isnan(X))
+#define my_isinf(X) (!isfinite(X) && !isnan(X))
 #endif
 
 /* Define missing math constants. */
@@ -1074,7 +1075,7 @@ typedef off_t os_off_t;
 typedef uint8		int7;	/* Most effective integer 0 <= x <= 127 */
 typedef short		int15;	/* Most effective integer 0 <= x <= 32767 */
 typedef int		myf;	/* Type of MyFlags in my_funcs */
-#if !defined(bool) && !defined(bool_defined) && (!defined(HAVE_BOOL) || !defined(__cplusplus))
+#if !defined(bool) && (!defined(HAVE_BOOL) || !defined(__cplusplus))
 typedef char		bool;	/* Ordinary boolean values 0 1 */
 #endif
 	/* Macros for converting *constants* to the right type */
@@ -1145,7 +1146,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 */
 
 /* Optimized store functions for Intel x86 */
-#if defined(__i386__) && !defined(_WIN64)
+#if defined(__i386__) || defined(_WIN32)
 #define sint2korr(A)	(*((const int16 *) (A)))
 #define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
 				  (((uint32) 255L << 24) | \
@@ -1157,7 +1158,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 				  ((uint32) (uchar) (A)[0])))
 #define sint4korr(A)	(*((const long *) (A)))
 #define uint2korr(A)	(*((const uint16 *) (A)))
-#ifdef HAVE_purify
+#if defined(HAVE_purify) && !defined(_WIN32)
 #define uint3korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
 				  (((uint32) ((uchar) (A)[1])) << 8) +\
 				  (((uint32) ((uchar) (A)[2])) << 16))
@@ -1169,7 +1170,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
     It means, that you have to provide enough allocated space !
 */
 #define uint3korr(A)	(long) (*((const unsigned int *) (A)) & 0xFFFFFF)
-#endif
+#endif /* HAVE_purify && !_WIN32 */
 #define uint4korr(A)	(*((const uint32 *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\
@@ -1220,9 +1221,8 @@ do { doubleget_union _tmp; \
 #define floatstore(T,V)  memcpy((uchar*)(T), (const uchar*)(&V),sizeof(float))
 #define floatget(V,M)    memcpy((uchar*) &V,(const uchar*) (M),sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
-#endif /* __i386__ */
+#else
 
-#ifndef sint2korr
 /*
   We're here if it's not a IA-32 architecture (Win32 and UNIX IA-32 defines
   were done before)
@@ -1361,7 +1361,7 @@ do { doubleget_union _tmp; \
 #define float8store(V,M) doublestore((V),(M))
 #endif /* WORDS_BIGENDIAN */
 
-#endif /* sint2korr */
+#endif /* __i386__ OR _WIN32 */
 
 /*
   Macro for reading 32-bit integer from network byte order (big-endian)

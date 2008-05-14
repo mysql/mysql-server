@@ -2309,7 +2309,7 @@ bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
-  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1) ||
+  *full_access= (!check_table_access(thd, SELECT_ACL, &tables, 1, TRUE) ||
                  (!strcmp(sp->m_definer_user.str,
                           thd->security_ctx->priv_user) &&
                   !strcmp(sp->m_definer_host.str,
@@ -2419,7 +2419,7 @@ sp_head::show_create_routine(THD *thd, int type)
   err_status= protocol->write();
 
   if (!err_status)
-    send_eof(thd);
+    my_eof(thd);
 
   DBUG_RETURN(err_status);
 }
@@ -2611,7 +2611,7 @@ sp_head::show_routine_code(THD *thd)
   }
 
   if (!res)
-    send_eof(thd);
+    my_eof(thd);
 
   DBUG_RETURN(res);
 }
@@ -2700,6 +2700,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   m_lex->unit.cleanup();
 
   thd_proc_info(thd, "closing tables");
+  /* Here we also commit or rollback the current statement. */
   close_thread_tables(thd);
   thd_proc_info(thd, 0);
 
@@ -2753,7 +2754,7 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     Check whenever we have access to tables for this statement
     and open and lock them before executing instructions core function.
   */
-  if (check_table_access(thd, SELECT_ACL, tables, 0)
+  if (check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE)
       || open_and_lock_tables(thd, tables))
     result= -1;
   else
@@ -2932,7 +2933,7 @@ sp_instr_set::print(String *str)
   }
   str->qs_append(m_offset);
   str->qs_append(' ');
-  m_value->print(str);
+  m_value->print(str, QT_ORDINARY);
 }
 
 
@@ -2960,9 +2961,9 @@ void
 sp_instr_set_trigger_field::print(String *str)
 {
   str->append(STRING_WITH_LEN("set_trigger_field "));
-  trigger_field->print(str);
+  trigger_field->print(str, QT_ORDINARY);
   str->append(STRING_WITH_LEN(":="));
-  value->print(str);
+  value->print(str, QT_ORDINARY);
 }
 
 /*
@@ -3088,7 +3089,7 @@ sp_instr_jump_if_not::print(String *str)
   str->qs_append('(');
   str->qs_append(m_cont_dest);
   str->qs_append(STRING_WITH_LEN(") "));
-  m_expr->print(str);
+  m_expr->print(str, QT_ORDINARY);
 }
 
 
@@ -3176,7 +3177,7 @@ sp_instr_freturn::print(String *str)
   str->qs_append(STRING_WITH_LEN("freturn "));
   str->qs_append((uint)m_type);
   str->qs_append(' ');
-  m_value->print(str);
+  m_value->print(str, QT_ORDINARY);
 }
 
 /*
@@ -3664,7 +3665,7 @@ sp_instr_set_case_expr::print(String *str)
   str->qs_append(STRING_WITH_LEN(") "));
   str->qs_append(m_case_expr_id);
   str->qs_append(' ');
-  m_case_expr->print(str);
+  m_case_expr->print(str, QT_ORDINARY);
 }
 
 uint

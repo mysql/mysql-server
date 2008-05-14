@@ -573,6 +573,295 @@ void ha_close_connection(THD* thd)
  ======================= TRANSACTIONS ===================================*/
 
 /**
+  Transaction handling in the server
+  ==================================
+
+  In each client connection, MySQL maintains two transactional
+  states:
+  - a statement transaction,
+  - a standard, also called normal transaction.
+
+  Historical note
+  ---------------
+  "Statement transaction" is a non-standard term that comes
+  from the times when MySQL supported BerkeleyDB storage engine.
+
+  First of all, it should be said that in BerkeleyDB auto-commit
+  mode auto-commits operations that are atomic to the storage
+  engine itself, such as a write of a record, and are too
+  high-granular to be atomic from the application perspective
+  (MySQL). One SQL statement could involve many BerkeleyDB
+  auto-committed operations and thus BerkeleyDB auto-commit was of
+  little use to MySQL.
+
+  Secondly, instead of SQL standard savepoints, BerkeleyDB
+  provided the concept of "nested transactions". In a nutshell,
+  transactions could be arbitrarily nested, but when the parent
+  transaction was committed or aborted, all its child (nested)
+  transactions were handled committed or aborted as well.
+  Commit of a nested transaction, in turn, made its changes
+  visible, but not durable: it destroyed the nested transaction,
+  all its changes would become available to the parent and
+  currently active nested transactions of this parent.
+
+  So the mechanism of nested transactions was employed to
+  provide "all or nothing" guarantee of SQL statements
+  required by the standard.
+  A nested transaction would be created at start of each SQL
+  statement, and destroyed (committed or aborted) at statement
+  end. Such nested transaction was internally referred to as
+  a "statement transaction" and gave birth to the term.
+
+  <Historical note ends>
+
+  Since then a statement transaction is started for each statement
+  that accesses transactional tables or uses the binary log.  If
+  the statement succeeds, the statement transaction is committed.
+  If the statement fails, the transaction is rolled back. Commits
+  of statement transactions are not durable -- each such
+  transaction is nested in the normal transaction, and if the
+  normal transaction is rolled back, the effects of all enclosed
+  statement transactions are undone as well.  Technically,
+  a statement transaction can be viewed as a savepoint which is
+  maintained automatically in order to make effects of one
+  statement atomic.
+
+  The normal transaction is started by the user and is ended
+  usually upon a user request as well. The normal transaction
+  encloses transactions of all statements issued between
+  its beginning and its end.
+  In autocommit mode, the normal transaction is equivalent
+  to the statement transaction.
+
+  Since MySQL supports PSEA (pluggable storage engine
+  architecture), more than one transactional engine can be
+  active at a time. Hence transactions, from the server
+  point of view, are always distributed. In particular,
+  transactional state is maintained independently for each
+  engine. In order to commit a transaction the two phase
+  commit protocol is employed.
+
+  Not all statements are executed in context of a transaction.
+  Administrative and status information statements do not modify
+  engine data, and thus do not start a statement transaction and
+  also have no effect on the normal transaction. Examples of such
+  statements are SHOW STATUS and RESET SLAVE.
+
+  Similarly DDL statements are not transactional,
+  and therefore a transaction is [almost] never started for a DDL
+  statement. The difference between a DDL statement and a purely
+  administrative statement though is that a DDL statement always
+  commits the current transaction before proceeding, if there is
+  any.
+
+  At last, SQL statements that work with non-transactional
+  engines also have no effect on the transaction state of the
+  connection. Even though they are written to the binary log,
+  and the binary log is, overall, transactional, the writes
+  are done in "write-through" mode, directly to the binlog
+  file, followed with a OS cache sync, in other words,
+  bypassing the binlog undo log (translog).
+  They do not commit the current normal transaction.
+  A failure of a statement that uses non-transactional tables
+  would cause a rollback of the statement transaction, but
+  in case there no non-transactional tables are used,
+  no statement transaction is started.
+
+  Data layout
+  -----------
+
+  The server stores its transaction-related data in
+  thd->transaction. This structure has two members of type
+  THD_TRANS. These members correspond to the statement and
+  normal transactions respectively:
+
+  - thd->transaction.stmt contains a list of engines
+  that are participating in the given statement
+  - thd->transaction.all contains a list of engines that
+  have participated in any of the statement transactions started
+  within the context of the normal transaction.
+  Each element of the list contains a pointer to the storage
+  engine, engine-specific transactional data, and engine-specific
+  transaction flags.
+
+  In autocommit mode thd->transaction.all is empty.
+  Instead, data of thd->transaction.stmt is
+  used to commit/rollback the normal transaction.
+
+  The list of registered engines has a few important properties:
+  - no engine is registered in the list twice
+  - engines are present in the list a reverse temporal order --
+  new participants are always added to the beginning of the list.
+
+  Transaction life cycle
+  ----------------------
+
+  When a new connection is established, thd->transaction
+  members are initialized to an empty state.
+  If a statement uses any tables, all affected engines
+  are registered in the statement engine list. In
+  non-autocommit mode, the same engines are registered in
+  the normal transaction list.
+  At the end of the statement, the server issues a commit
+  or a roll back for all engines in the statement list.
+  At this point transaction flags of an engine, if any, are
+  propagated from the statement list to the list of the normal
+  transaction.
+  When commit/rollback is finished, the statement list is
+  cleared. It will be filled in again by the next statement,
+  and emptied again at the next statement's end.
+
+  The normal transaction is committed in a similar way
+  (by going over all engines in thd->transaction.all list)
+  but at different times:
+  - upon COMMIT SQL statement is issued by the user
+  - implicitly, by the server, at the beginning of a DDL statement
+  or SET AUTOCOMMIT={0|1} statement.
+
+  The normal transaction can be rolled back as well:
+  - if the user has requested so, by issuing ROLLBACK SQL
+  statement
+  - if one of the storage engines requested a rollback
+  by setting thd->transaction_rollback_request. This may
+  happen in case, e.g., when the transaction in the engine was
+  chosen a victim of the internal deadlock resolution algorithm
+  and rolled back internally. When such a situation happens, there
+  is little the server can do and the only option is to rollback
+  transactions in all other participating engines.  In this case
+  the rollback is accompanied by an error sent to the user.
+
+  As follows from the use cases above, the normal transaction
+  is never committed when there is an outstanding statement
+  transaction. In most cases there is no conflict, since
+  commits of the normal transaction are issued by a stand-alone
+  administrative or DDL statement, thus no outstanding statement
+  transaction of the previous statement exists. Besides,
+  all statements that manipulate with the normal transaction
+  are prohibited in stored functions and triggers, therefore
+  no conflicting situation can occur in a sub-statement either.
+  The remaining rare cases when the server explicitly has
+  to commit the statement transaction prior to committing the normal
+  one cover error-handling scenarios (see for example
+  SQLCOM_LOCK_TABLES).
+
+  When committing a statement or a normal transaction, the server
+  either uses the two-phase commit protocol, or issues a commit
+  in each engine independently. The two-phase commit protocol
+  is used only if:
+  - all participating engines support two-phase commit (provide
+    handlerton::prepare PSEA API call) and
+  - transactions in at least two engines modify data (i.e. are
+  not read-only).
+
+  Note that the two phase commit is used for
+  statement transactions, even though they are not durable anyway.
+  This is done to ensure logical consistency of data in a multiple-
+  engine transaction.
+  For example, imagine that some day MySQL supports unique
+  constraint checks deferred till the end of statement. In such
+  case a commit in one of the engines may yield ER_DUP_KEY,
+  and MySQL should be able to gracefully abort statement
+  transactions of other participants.
+
+  After the normal transaction has been committed,
+  thd->transaction.all list is cleared.
+
+  When a connection is closed, the current normal transaction, if
+  any, is rolled back.
+
+  Roles and responsibilities
+  --------------------------
+
+  The server has no way to know that an engine participates in
+  the statement and a transaction has been started
+  in it unless the engine says so. Thus, in order to be
+  a part of a transaction, the engine must "register" itself.
+  This is done by invoking trans_register_ha() server call.
+  Normally the engine registers itself whenever handler::external_lock()
+  is called. trans_register_ha() can be invoked many times: if
+  an engine is already registered, the call does nothing.
+  In case autocommit is not set, the engine must register itself
+  twice -- both in the statement list and in the normal transaction
+  list.
+  In which list to register is a parameter of trans_register_ha().
+
+  Note, that although the registration interface in itself is
+  fairly clear, the current usage practice often leads to undesired
+  effects. E.g. since a call to trans_register_ha() in most engines
+  is embedded into implementation of handler::external_lock(), some
+  DDL statements start a transaction (at least from the server
+  point of view) even though they are not expected to. E.g.
+  CREATE TABLE does not start a transaction, since
+  handler::external_lock() is never called during CREATE TABLE. But
+  CREATE TABLE ... SELECT does, since handler::external_lock() is
+  called for the table that is being selected from. This has no
+  practical effects currently, but must be kept in mind
+  nevertheless.
+
+  Once an engine is registered, the server will do the rest
+  of the work.
+
+  During statement execution, whenever any of data-modifying
+  PSEA API methods is used, e.g. handler::write_row() or
+  handler::update_row(), the read-write flag is raised in the
+  statement transaction for the involved engine.
+  Currently All PSEA calls are "traced", and the data can not be
+  changed in a way other than issuing a PSEA call. Important:
+  unless this invariant is preserved the server will not know that
+  a transaction in a given engine is read-write and will not
+  involve the two-phase commit protocol!
+
+  At the end of a statement, server call
+  ha_autocommit_or_rollback() is invoked. This call in turn
+  invokes handlerton::prepare() for every involved engine.
+  Prepare is followed by a call to handlerton::commit_one_phase()
+  If a one-phase commit will suffice, handlerton::prepare() is not
+  invoked and the server only calls handlerton::commit_one_phase().
+  At statement commit, the statement-related read-write engine
+  flag is propagated to the corresponding flag in the normal
+  transaction.  When the commit is complete, the list of registered
+  engines is cleared.
+
+  Rollback is handled in a similar fashion.
+
+  Additional notes on DDL and the normal transaction.
+  ---------------------------------------------------
+
+  DDLs and operations with non-transactional engines
+  do not "register" in thd->transaction lists, and thus do not
+  modify the transaction state. Besides, each DDL in
+  MySQL is prefixed with an implicit normal transaction commit
+  (a call to end_active_trans()), and thus leaves nothing
+  to modify.
+  However, as it has been pointed out with CREATE TABLE .. SELECT,
+  some DDL statements can start a *new* transaction.
+
+  Behaviour of the server in this case is currently badly
+  defined.
+  DDL statements use a form of "semantic" logging
+  to maintain atomicity: if CREATE TABLE .. SELECT failed,
+  the newly created table is deleted.
+  In addition, some DDL statements issue interim transaction
+  commits: e.g. ALTER TABLE issues a commit after data is copied
+  from the original table to the internal temporary table. Other
+  statements, e.g. CREATE TABLE ... SELECT do not always commit
+  after itself.
+  And finally there is a group of DDL statements such as
+  RENAME/DROP TABLE that doesn't start a new transaction
+  and doesn't commit.
+
+  This diversity makes it hard to say what will happen if
+  by chance a stored function is invoked during a DDL --
+  whether any modifications it makes will be committed or not
+  is not clear. Fortunately, SQL grammar of few DDLs allows
+  invocation of a stored function.
+
+  A consistent behaviour is perhaps to always commit the normal
+  transaction after all DDLs, just like the statement transaction
+  is always committed at the end of all statements.
+*/
+
+/**
   Register a storage engine for a transaction.
 
   Every storage engine MUST call this function when it starts
@@ -589,7 +878,7 @@ void ha_close_connection(THD* thd)
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 {
   THD_TRANS *trans;
-  handlerton **ht;
+  Ha_trx_info *ha_info;
   DBUG_ENTER("trans_register_ha");
   DBUG_PRINT("enter",("%s", all ? "all" : "stmt"));
 
@@ -601,12 +890,13 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   else
     trans= &thd->transaction.stmt;
 
-  for (ht=trans->ht; *ht; ht++)
-    if (*ht == ht_arg)
-      DBUG_VOID_RETURN;  /* already registered, return */
+  ha_info= thd->ha_data[ht_arg->slot].ha_info + static_cast<unsigned>(all);
 
-  trans->ht[trans->nht++]=ht_arg;
-  DBUG_ASSERT(*ht == ht_arg);
+  if (ha_info->is_started())
+    DBUG_VOID_RETURN; /* already registered, return */
+
+  ha_info->register_ha(trans, ht_arg);
+
   trans->no_2pc|=(ht_arg->prepare==0);
   if (thd->transaction.xid_state.xid.is_null())
     thd->transaction.xid_state.xid.set(thd->query_id);
@@ -623,18 +913,19 @@ int ha_prepare(THD *thd)
 {
   int error=0, all=1;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  handlerton **ht=trans->ht;
+  Ha_trx_info *ha_info= trans->ha_list;
   DBUG_ENTER("ha_prepare");
 #ifdef USING_TRANSACTIONS
-  if (trans->nht)
+  if (ha_info)
   {
-    for (; *ht; ht++)
+    for (; ha_info; ha_info= ha_info->next())
     {
       int err;
+      handlerton *ht= ha_info->ht();
       status_var_increment(thd->status_var.ha_prepare_count);
-      if ((*ht)->prepare)
+      if (ht->prepare)
       {
-        if ((err= (*(*ht)->prepare)(*ht, thd, all)))
+        if ((err= ht->prepare(ht, thd, all)))
         {
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
           ha_rollback_trans(thd, all);
@@ -646,13 +937,69 @@ int ha_prepare(THD *thd)
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-                            hton_name(*ht)->str);
+                            ha_resolve_storage_engine_name(ht));
       }
     }
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
+
+/**
+  Check if we can skip the two-phase commit.
+
+  A helper function to evaluate if two-phase commit is mandatory.
+  As a side effect, propagates the read-only/read-write flags
+  of the statement transaction to its enclosing normal transaction.
+
+  @retval TRUE   we must run a two-phase commit. Returned
+                 if we have at least two engines with read-write changes.
+  @retval FALSE  Don't need two-phase commit. Even if we have two
+                 transactional engines, we can run two independent
+                 commits if changes in one of the engines are read-only.
+*/
+
+static
+bool
+ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
+                                    bool all)
+{
+  /* The number of storage engines that have actual changes. */
+  unsigned rw_ha_count= 0;
+  Ha_trx_info *ha_info;
+
+  for (ha_info= ha_list; ha_info; ha_info= ha_info->next())
+  {
+    if (ha_info->is_trx_read_write())
+      ++rw_ha_count;
+
+    if (! all)
+    {
+      Ha_trx_info *ha_info_all= &thd->ha_data[ha_info->ht()->slot].ha_info[1];
+      DBUG_ASSERT(ha_info != ha_info_all);
+      /*
+        Merge read-only/read-write information about statement
+        transaction to its enclosing normal transaction. Do this
+        only if in a real transaction -- that is, if we know
+        that ha_info_all is registered in thd->transaction.all.
+        Since otherwise we only clutter the normal transaction flags.
+      */
+      if (ha_info_all->is_started()) /* FALSE if autocommit. */
+        ha_info_all->coalesce_trx_with(ha_info);
+    }
+    else if (rw_ha_count > 1)
+    {
+      /*
+        It is a normal transaction, so we don't need to merge read/write
+        information up, and the need for two-phase commit has been
+        already established. Break the loop prematurely.
+      */
+      break;
+    }
+  }
+  return rw_ha_count > 1;
+}
+
 
 /**
   @retval
@@ -671,11 +1018,24 @@ int ha_prepare(THD *thd)
 int ha_commit_trans(THD *thd, bool all)
 {
   int error= 0, cookie= 0;
+  /*
+    'all' means that this is either an explicit commit issued by
+    user, or an implicit commit issued by a DDL.
+  */
   THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
-  bool is_real_trans= all || thd->transaction.all.nht == 0;
-  handlerton **ht= trans->ht;
+  bool is_real_trans= all || thd->transaction.all.ha_list == 0;
+  Ha_trx_info *ha_info= trans->ha_list;
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
+
+  /*
+    We must not commit the normal transaction if a statement
+    transaction is pending. Otherwise statement transaction
+    flags will not get propagated to its normal transaction's
+    counterpart.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
+              trans == &thd->transaction.stmt);
 
   if (thd->in_sub_stmt)
   {
@@ -698,8 +1058,10 @@ int ha_commit_trans(THD *thd, bool all)
     DBUG_RETURN(2);
   }
 #ifdef USING_TRANSACTIONS
-  if (trans->nht)
+  if (ha_info)
   {
+    bool must_2pc;
+
     if (is_real_trans && wait_if_global_read_lock(thd, 0, 0))
     {
       ha_rollback_trans(thd, all);
@@ -724,12 +1086,26 @@ int ha_commit_trans(THD *thd, bool all)
     if (is_real_trans)                          /* not a statement commit */
       thd->stmt_map.close_transient_cursors();
 
-    if (!trans->no_2pc && trans->nht > 1)
+    must_2pc= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
+
+    if (!trans->no_2pc && must_2pc)
     {
-      for (; *ht && !error; ht++)
+      for (; ha_info && !error; ha_info= ha_info->next())
       {
         int err;
-        if ((err= (*(*ht)->prepare)(*ht, thd, all)))
+        handlerton *ht= ha_info->ht();
+        /*
+          Do not call two-phase commit if this particular
+          transaction is read-only. This allows for simpler
+          implementation in engines that are always read-only.
+        */
+        if (! ha_info->is_trx_read_write())
+          continue;
+        /*
+          Sic: we know that prepare() is not NULL since otherwise
+          trans->no_2pc would have been set.
+        */
+        if ((err= ht->prepare(ht, thd, all)))
         {
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
           error= 1;
@@ -767,24 +1143,26 @@ int ha_commit_one_phase(THD *thd, bool all)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  bool is_real_trans=all || thd->transaction.all.nht == 0;
-  handlerton **ht=trans->ht;
+  bool is_real_trans=all || thd->transaction.all.ha_list == 0;
+  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
   DBUG_ENTER("ha_commit_one_phase");
 #ifdef USING_TRANSACTIONS
-  if (trans->nht)
+  if (ha_info)
   {
-    for (ht=trans->ht; *ht; ht++)
+    for (; ha_info; ha_info= ha_info_next)
     {
       int err;
-      if ((err= (*(*ht)->commit)(*ht, thd, all)))
+      handlerton *ht= ha_info->ht();
+      if ((err= ht->commit(ht, thd, all)))
       {
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error=1;
       }
       status_var_increment(thd->status_var.ha_commit_count);
-      *ht= 0;
+      ha_info_next= ha_info->next();
+      ha_info->reset(); /* keep it conveniently zero-filled */
     }
-    trans->nht=0;
+    trans->ha_list= 0;
     trans->no_2pc=0;
     if (is_real_trans)
       thd->transaction.xid_state.xid.null();
@@ -807,8 +1185,17 @@ int ha_rollback_trans(THD *thd, bool all)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  bool is_real_trans=all || thd->transaction.all.nht == 0;
+  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   DBUG_ENTER("ha_rollback_trans");
+
+  /*
+    We must not rollback the normal transaction if a statement
+    transaction is pending.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
+              trans == &thd->transaction.stmt);
+
   if (thd->in_sub_stmt)
   {
     /*
@@ -823,24 +1210,26 @@ int ha_rollback_trans(THD *thd, bool all)
     DBUG_RETURN(1);
   }
 #ifdef USING_TRANSACTIONS
-  if (trans->nht)
+  if (ha_info)
   {
     /* Close all cursors that can not survive ROLLBACK */
     if (is_real_trans)                          /* not a statement commit */
       thd->stmt_map.close_transient_cursors();
 
-    for (handlerton **ht=trans->ht; *ht; ht++)
+    for (; ha_info; ha_info= ha_info_next)
     {
       int err;
-      if ((err= (*(*ht)->rollback)(*ht, thd, all)))
+      handlerton *ht= ha_info->ht();
+      if ((err= ht->rollback(ht, thd, all)))
       { // cannot happen
         my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
         error=1;
       }
       status_var_increment(thd->status_var.ha_rollback_count);
-      *ht= 0;
+      ha_info_next= ha_info->next();
+      ha_info->reset(); /* keep it conveniently zero-filled */
     }
-    trans->nht=0;
+    trans->ha_list= 0;
     trans->no_2pc=0;
     if (is_real_trans)
       thd->transaction.xid_state.xid.null();
@@ -886,17 +1275,19 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
 #ifdef USING_TRANSACTIONS
-  if (thd->transaction.stmt.nht)
+  if (thd->transaction.stmt.ha_list)
   {
     if (!error)
     {
-      if (ha_commit_stmt(thd))
+      if (ha_commit_trans(thd, 0))
 	error=1;
     }
-    else if (thd->transaction_rollback_request && !thd->in_sub_stmt)
-      (void) ha_rollback(thd);
-    else
-      (void) ha_rollback_stmt(thd);
+    else 
+    {
+      (void) ha_rollback_trans(thd, 0);
+      if (thd->transaction_rollback_request && !thd->in_sub_stmt)
+        (void) ha_rollback(thd);
+    }
 
     thd->variables.tx_isolation=thd->session_tx_isolation;
   }
@@ -1196,7 +1587,7 @@ bool mysql_xa_recover(THD *thd)
   }
 
   pthread_mutex_unlock(&LOCK_xid_cache);
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(0);
 }
 
@@ -1243,43 +1634,49 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   int error=0;
   THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
                                         &thd->transaction.all);
-  handlerton **ht=trans->ht, **end_ht;
+  Ha_trx_info *ha_info, *ha_info_next;
+
   DBUG_ENTER("ha_rollback_to_savepoint");
 
-  trans->nht=sv->nht;
   trans->no_2pc=0;
-  end_ht=ht+sv->nht;
   /*
     rolling back to savepoint in all storage engines that were part of the
     transaction when the savepoint was set
   */
-  for (; ht < end_ht; ht++)
+  for (ha_info= sv->ha_list; ha_info; ha_info= ha_info->next())
   {
     int err;
-    DBUG_ASSERT((*ht)->savepoint_set != 0);
-    if ((err= (*(*ht)->savepoint_rollback)(*ht, thd, (uchar *)(sv+1)+(*ht)->savepoint_offset)))
+    handlerton *ht= ha_info->ht();
+    DBUG_ASSERT(ht);
+    DBUG_ASSERT(ht->savepoint_set != 0);
+    if ((err= ht->savepoint_rollback(ht, thd,
+                                     (uchar *)(sv+1)+ht->savepoint_offset)))
     { // cannot happen
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
     status_var_increment(thd->status_var.ha_savepoint_rollback_count);
-    trans->no_2pc|=(*ht)->prepare == 0;
+    trans->no_2pc|= ht->prepare == 0;
   }
   /*
     rolling back the transaction in all storage engines that were not part of
     the transaction when the savepoint was set
   */
-  for (; *ht ; ht++)
+  for (ha_info= trans->ha_list; ha_info != sv->ha_list;
+       ha_info= ha_info_next)
   {
     int err;
-    if ((err= (*(*ht)->rollback)(*ht, thd, !thd->in_sub_stmt)))
+    handlerton *ht= ha_info->ht();
+    if ((err= ht->rollback(ht, thd, !thd->in_sub_stmt)))
     { // cannot happen
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
     status_var_increment(thd->status_var.ha_rollback_count);
-    *ht=0; // keep it conveniently zero-filled
+    ha_info_next= ha_info->next();
+    ha_info->reset(); /* keep it conveniently zero-filled */
   }
+  trans->ha_list= sv->ha_list;
   DBUG_RETURN(error);
 }
 
@@ -1294,26 +1691,32 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
   int error=0;
   THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
                                         &thd->transaction.all);
-  handlerton **ht=trans->ht;
+  Ha_trx_info *ha_info= trans->ha_list;
   DBUG_ENTER("ha_savepoint");
 #ifdef USING_TRANSACTIONS
-  for (; *ht; ht++)
+  for (; ha_info; ha_info= ha_info->next())
   {
     int err;
-    if (! (*ht)->savepoint_set)
+    handlerton *ht= ha_info->ht();
+    DBUG_ASSERT(ht);
+    if (! ht->savepoint_set)
     {
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "SAVEPOINT");
       error=1;
       break;
     }
-    if ((err= (*(*ht)->savepoint_set)(*ht, thd, (uchar *)(sv+1)+(*ht)->savepoint_offset)))
+    if ((err= ht->savepoint_set(ht, thd, (uchar *)(sv+1)+ht->savepoint_offset)))
     { // cannot happen
       my_error(ER_GET_ERRNO, MYF(0), err);
       error=1;
     }
     status_var_increment(thd->status_var.ha_savepoint_count);
   }
-  sv->nht=trans->nht;
+  /*
+    Remember the list of registered storage engines. All new
+    engines are prepended to the beginning of the list.
+  */
+  sv->ha_list= trans->ha_list;
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
@@ -1321,20 +1724,19 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
-  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
-                                        &thd->transaction.all);
-  handlerton **ht=trans->ht, **end_ht;
+  Ha_trx_info *ha_info= sv->ha_list;
   DBUG_ENTER("ha_release_savepoint");
 
-  end_ht=ht+sv->nht;
-  for (; ht < end_ht; ht++)
+  for (; ha_info; ha_info= ha_info->next())
   {
     int err;
-    if (!(*ht)->savepoint_release)
+    handlerton *ht= ha_info->ht();
+    /* Savepoint life time is enclosed into transaction life time. */
+    DBUG_ASSERT(ht);
+    if (!ht->savepoint_release)
       continue;
-    if ((err= (*(*ht)->savepoint_release)(*ht, thd, 
-                                          (uchar *)(sv+1)+
-                                          (*ht)->savepoint_offset)))
+    if ((err= ht->savepoint_release(ht, thd,
+                                    (uchar *)(sv+1) + ht->savepoint_offset)))
     { // cannot happen
       my_error(ER_GET_ERRNO, MYF(0), err);
       error=1;
@@ -1519,6 +1921,13 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 handler *handler::clone(MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  /*
+    Allocate handler->ref here because otherwise ha_open will allocate it
+    on this->table->mem_root and we will not be able to reclaim that memory 
+    when the clone handler object is destroyed.
+  */
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
+    return NULL;
   if (new_handler && !new_handler->ha_open(table,
                                            table->s->normalized_path.str,
                                            table->db_stat,
@@ -1587,7 +1996,9 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
-    if (!(ref= (uchar*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2)))
+    /* ref is already allocated for us if we're called from handler::clone() */
+    if (!ref && !(ref= (uchar*) alloc_root(&table->mem_root, 
+                                          ALIGN_SIZE(ref_length)*2)))
     {
       close();
       error=HA_ERR_OUT_OF_MEM;
@@ -2503,6 +2914,36 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   return update_frm_version(table);
 }
 
+/**
+  A helper function to mark a transaction read-write,
+  if it is started.
+*/
+
+inline
+void
+handler::mark_trx_read_write()
+{
+  Ha_trx_info *ha_info= &ha_thd()->ha_data[ht->slot].ha_info[0];
+  /*
+    When a storage engine method is called, the transaction must
+    have been started, unless it's a DDL call, for which the
+    storage engine starts the transaction internally, and commits
+    it internally, without registering in the ha_list.
+    Unfortunately here we can't know know for sure if the engine
+    has registered the transaction or not, so we must check.
+  */
+  if (ha_info->is_started())
+  {
+    DBUG_ASSERT(has_transactions());
+    /*
+      table_share can be NULL in ha_delete_table(). See implementation
+      of standalone function ha_delete_table() in sql_base.cc.
+    */
+    if (table_share == NULL || table_share->tmp_table == NO_TMP_TABLE)
+      ha_info->set_trx_read_write();
+  }
+}
+
 
 /**
   Repair table: public interface.
@@ -2513,6 +2954,9 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
 int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int result;
+
+  mark_trx_read_write();
+
   if ((result= repair(thd, check_opt)))
     return result;
   return update_frm_version(table);
@@ -2529,6 +2973,8 @@ int
 handler::ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                             uint *dup_key_found)
 {
+  mark_trx_read_write();
+
   return bulk_update_row(old_data, new_data, dup_key_found);
 }
 
@@ -2542,6 +2988,8 @@ handler::ha_bulk_update_row(const uchar *old_data, uchar *new_data,
 int
 handler::ha_delete_all_rows()
 {
+  mark_trx_read_write();
+
   return delete_all_rows();
 }
 
@@ -2555,6 +3003,8 @@ handler::ha_delete_all_rows()
 int
 handler::ha_reset_auto_increment(ulonglong value)
 {
+  mark_trx_read_write();
+
   return reset_auto_increment(value);
 }
 
@@ -2568,6 +3018,8 @@ handler::ha_reset_auto_increment(ulonglong value)
 int
 handler::ha_backup(THD* thd, HA_CHECK_OPT* check_opt)
 {
+  mark_trx_read_write();
+
   return backup(thd, check_opt);
 }
 
@@ -2581,6 +3033,8 @@ handler::ha_backup(THD* thd, HA_CHECK_OPT* check_opt)
 int
 handler::ha_restore(THD* thd, HA_CHECK_OPT* check_opt)
 {
+  mark_trx_read_write();
+
   return restore(thd, check_opt);
 }
 
@@ -2594,6 +3048,8 @@ handler::ha_restore(THD* thd, HA_CHECK_OPT* check_opt)
 int
 handler::ha_optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
+  mark_trx_read_write();
+
   return optimize(thd, check_opt);
 }
 
@@ -2607,6 +3063,8 @@ handler::ha_optimize(THD* thd, HA_CHECK_OPT* check_opt)
 int
 handler::ha_analyze(THD* thd, HA_CHECK_OPT* check_opt)
 {
+  mark_trx_read_write();
+
   return analyze(thd, check_opt);
 }
 
@@ -2620,6 +3078,8 @@ handler::ha_analyze(THD* thd, HA_CHECK_OPT* check_opt)
 bool
 handler::ha_check_and_repair(THD *thd)
 {
+  mark_trx_read_write();
+
   return check_and_repair(thd);
 }
 
@@ -2633,6 +3093,8 @@ handler::ha_check_and_repair(THD *thd)
 int
 handler::ha_disable_indexes(uint mode)
 {
+  mark_trx_read_write();
+
   return disable_indexes(mode);
 }
 
@@ -2646,6 +3108,8 @@ handler::ha_disable_indexes(uint mode)
 int
 handler::ha_enable_indexes(uint mode)
 {
+  mark_trx_read_write();
+
   return enable_indexes(mode);
 }
 
@@ -2659,6 +3123,8 @@ handler::ha_enable_indexes(uint mode)
 int
 handler::ha_discard_or_import_tablespace(my_bool discard)
 {
+  mark_trx_read_write();
+
   return discard_or_import_tablespace(discard);
 }
 
@@ -2674,6 +3140,8 @@ handler::ha_discard_or_import_tablespace(my_bool discard)
 void
 handler::ha_prepare_for_alter()
 {
+  mark_trx_read_write();
+
   prepare_for_alter();
 }
 
@@ -2687,6 +3155,8 @@ handler::ha_prepare_for_alter()
 int
 handler::ha_rename_table(const char *from, const char *to)
 {
+  mark_trx_read_write();
+
   return rename_table(from, to);
 }
 
@@ -2700,6 +3170,8 @@ handler::ha_rename_table(const char *from, const char *to)
 int
 handler::ha_delete_table(const char *name)
 {
+  mark_trx_read_write();
+
   return delete_table(name);
 }
 
@@ -2713,6 +3185,8 @@ handler::ha_delete_table(const char *name)
 void
 handler::ha_drop_table(const char *name)
 {
+  mark_trx_read_write();
+
   return drop_table(name);
 }
 
@@ -2726,6 +3200,8 @@ handler::ha_drop_table(const char *name)
 int
 handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info)
 {
+  mark_trx_read_write();
+
   return create(name, form, info);
 }
 
@@ -2740,6 +3216,8 @@ int
 handler::ha_create_handler_files(const char *name, const char *old_name,
                         int action_flag, HA_CREATE_INFO *info)
 {
+  mark_trx_read_write();
+
   return create_handler_files(name, old_name, action_flag, info);
 }
 
@@ -2758,6 +3236,8 @@ handler::ha_change_partitions(HA_CREATE_INFO *create_info,
                      const uchar *pack_frm_data,
                      size_t pack_frm_len)
 {
+  mark_trx_read_write();
+
   return change_partitions(create_info, path, copied, deleted,
                            pack_frm_data, pack_frm_len);
 }
@@ -2772,6 +3252,8 @@ handler::ha_change_partitions(HA_CREATE_INFO *create_info,
 int
 handler::ha_drop_partitions(const char *path)
 {
+  mark_trx_read_write();
+
   return drop_partitions(path);
 }
 
@@ -2785,6 +3267,8 @@ handler::ha_drop_partitions(const char *path)
 int
 handler::ha_rename_partitions(const char *path)
 {
+  mark_trx_read_write();
+
   return rename_partitions(path);
 }
 
@@ -2798,6 +3282,8 @@ handler::ha_rename_partitions(const char *path)
 int
 handler::ha_optimize_partitions(THD *thd)
 {
+  mark_trx_read_write();
+
   return optimize_partitions(thd);
 }
 
@@ -2811,6 +3297,8 @@ handler::ha_optimize_partitions(THD *thd)
 int
 handler::ha_analyze_partitions(THD *thd)
 {
+  mark_trx_read_write();
+
   return analyze_partitions(thd);
 }
 
@@ -2824,6 +3312,8 @@ handler::ha_analyze_partitions(THD *thd)
 int
 handler::ha_check_partitions(THD *thd)
 {
+  mark_trx_read_write();
+
   return check_partitions(thd);
 }
 
@@ -2837,6 +3327,8 @@ handler::ha_check_partitions(THD *thd)
 int
 handler::ha_repair_partitions(THD *thd)
 {
+  mark_trx_read_write();
+
   return repair_partitions(thd);
 }
 
@@ -2853,7 +3345,7 @@ int ha_enable_transaction(THD *thd, bool on)
 {
   int error=0;
   DBUG_ENTER("ha_enable_transaction");
-  DBUG_PRINT("info", ("on: %d", (int) on));
+  DBUG_PRINT("enter", ("on: %d", (int) on));
 
   if ((thd->transaction.on= on))
   {
@@ -2863,7 +3355,7 @@ int ha_enable_transaction(THD *thd, bool on)
       is an optimization hint that storage engine is free to ignore.
       So, let's commit an open transaction (if any) now.
     */
-    if (!(error= ha_commit_stmt(thd)))
+    if (!(error= ha_commit_trans(thd, 0)))
       error= end_trans(thd, COMMIT);
   }
   DBUG_RETURN(error);
@@ -3155,7 +3647,6 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
   mi_change_key_cache(old_key_cache, new_key_cache);
   return 0;
 }
-
 
 
 /**
@@ -3823,7 +4314,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   }
 
   if (!result)
-    send_eof(thd);
+    my_eof(thd);
   return result;
 }
 
@@ -3840,28 +4331,24 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   - table is not mysql.event
 */
 
-/* The Sun compiler cannot instantiate the template below if this is
-   declared static, but it works by putting it into an anonymous
-   namespace. */
-namespace {
-  bool check_table_binlog_row_based(THD *thd, TABLE *table)
+static bool check_table_binlog_row_based(THD *thd, TABLE *table)
+{
+  if (table->s->cached_row_logging_check == -1)
   {
-    if (table->s->cached_row_logging_check == -1)
-    {
-      int const check(table->s->tmp_table == NO_TMP_TABLE &&
-                      binlog_filter->db_ok(table->s->db.str));
-      table->s->cached_row_logging_check= check;
-    }
-
-    DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
-                table->s->cached_row_logging_check == 1);
-
-    return (thd->current_stmt_binlog_row_based &&
-            table->s->cached_row_logging_check &&
-            (thd->options & OPTION_BIN_LOG) &&
-            mysql_bin_log.is_open());
+    int const check(table->s->tmp_table == NO_TMP_TABLE &&
+                    binlog_filter->db_ok(table->s->db.str));
+    table->s->cached_row_logging_check= check;
   }
+
+  DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
+              table->s->cached_row_logging_check == 1);
+
+  return (thd->current_stmt_binlog_row_based &&
+          table->s->cached_row_logging_check &&
+          (thd->options & OPTION_BIN_LOG) &&
+          mysql_bin_log.is_open());
 }
+
 
 /** @brief
    Write table maps for all (manually or automatically) locked tables
@@ -3876,7 +4363,7 @@ namespace {
        that are locked by the thread 'thd'.  Either manually locked
        (stored in THD::locked_tables) and automatically locked (stored
        in THD::lock) are considered.
-   
+
    RETURN VALUE
        0   All OK
        1   Failed to write all table maps
@@ -3885,114 +4372,96 @@ namespace {
        THD::lock
        THD::locked_tables
 */
-namespace
+
+static int write_locked_table_maps(THD *thd)
 {
-  int write_locked_table_maps(THD *thd)
+  DBUG_ENTER("write_locked_table_maps");
+  DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx  thd->locked_tables: 0x%lx  "
+                       "thd->extra_lock: 0x%lx",
+                       (long) thd, (long) thd->lock,
+                       (long) thd->locked_tables, (long) thd->extra_lock));
+
+  if (thd->get_binlog_table_maps() == 0)
   {
-    DBUG_ENTER("write_locked_table_maps");
-    DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx  thd->locked_tables: 0x%lx  "
-                         "thd->extra_lock: 0x%lx",
-                         (long) thd, (long) thd->lock,
-                         (long) thd->locked_tables, (long) thd->extra_lock));
-
-    if (thd->get_binlog_table_maps() == 0)
+    MYSQL_LOCK *locks[3];
+    locks[0]= thd->extra_lock;
+    locks[1]= thd->lock;
+    locks[2]= thd->locked_tables;
+    for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
     {
-      MYSQL_LOCK *locks[3];
-      locks[0]= thd->extra_lock;
-      locks[1]= thd->lock;
-      locks[2]= thd->locked_tables;
-      for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
-      {
-        MYSQL_LOCK const *const lock= locks[i];
-        if (lock == NULL)
-          continue;
+      MYSQL_LOCK const *const lock= locks[i];
+      if (lock == NULL)
+        continue;
 
-        TABLE **const end_ptr= lock->table + lock->table_count;
-        for (TABLE **table_ptr= lock->table ; 
-             table_ptr != end_ptr ;
-             ++table_ptr)
+      TABLE **const end_ptr= lock->table + lock->table_count;
+      for (TABLE **table_ptr= lock->table ; 
+           table_ptr != end_ptr ;
+           ++table_ptr)
+      {
+        TABLE *const table= *table_ptr;
+        DBUG_PRINT("info", ("Checking table %s", table->s->table_name.str));
+        if (table->current_lock == F_WRLCK &&
+            check_table_binlog_row_based(thd, table))
         {
-          TABLE *const table= *table_ptr;
-          DBUG_PRINT("info", ("Checking table %s", table->s->table_name.str));
-          if (table->current_lock == F_WRLCK &&
-              check_table_binlog_row_based(thd, table))
-          {
-            int const has_trans= table->file->has_transactions();
-            int const error= thd->binlog_write_table_map(table, has_trans);
-            /*
-              If an error occurs, it is the responsibility of the caller to
-              roll back the transaction.
-            */
-            if (unlikely(error))
-              DBUG_RETURN(1);
-          }
+          int const has_trans= table->file->has_transactions();
+          int const error= thd->binlog_write_table_map(table, has_trans);
+          /*
+            If an error occurs, it is the responsibility of the caller to
+            roll back the transaction.
+          */
+          if (unlikely(error))
+            DBUG_RETURN(1);
         }
       }
     }
-    DBUG_RETURN(0);
   }
-
-  template<class RowsEventT> int
-  binlog_log_row(TABLE* table,
-                 const uchar *before_record,
-                 const uchar *after_record)
-  {
-    if (table->no_replicate)
-      return 0;
-    bool error= 0;
-    THD *const thd= table->in_use;
-
-    if (check_table_binlog_row_based(thd, table))
-    {
-      MY_BITMAP cols;
-      /* Potential buffer on the stack for the bitmap */
-      uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
-      uint n_fields= table->s->fields;
-      my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
-
-      /*
-        If there are no table maps written to the binary log, this is
-        the first row handled in this statement. In that case, we need
-        to write table maps for all locked tables to the binary log.
-      */
-      if (likely(!(error= bitmap_init(&cols,
-                                      use_bitbuf ? bitbuf : NULL,
-                                      (n_fields + 7) & ~7UL,
-                                      FALSE))))
-      {
-        bitmap_set_all(&cols);
-        if (likely(!(error= write_locked_table_maps(thd))))
-        {
-          error=
-            RowsEventT::binlog_row_logging_function(thd, table,
-                                                    table->file->
-                                                    has_transactions(),
-                                                    &cols, table->s->fields,
-                                                    before_record,
-                                                    after_record);
-        }
-        if (!use_bitbuf)
-          bitmap_free(&cols);
-      }
-    }
-    return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
-  }
-
-  /*
-    Instantiate the versions we need for the above template function,
-    because we have -fno-implicit-template as compiling option.
-  */
-
-  template int
-  binlog_log_row<Write_rows_log_event>(TABLE *, const uchar *, const uchar *);
-
-  template int
-  binlog_log_row<Delete_rows_log_event>(TABLE *, const uchar *, const uchar *);
-
-  template int
-  binlog_log_row<Update_rows_log_event>(TABLE *, const uchar *, const uchar *);
+  DBUG_RETURN(0);
 }
 
+
+typedef bool Log_func(THD*, TABLE*, bool, MY_BITMAP*,
+                      uint, const uchar*, const uchar*);
+
+static int binlog_log_row(TABLE* table,
+                          const uchar *before_record,
+                          const uchar *after_record,
+                          Log_func *log_func)
+{
+  if (table->no_replicate)
+    return 0;
+  bool error= 0;
+  THD *const thd= table->in_use;
+
+  if (check_table_binlog_row_based(thd, table))
+  {
+    MY_BITMAP cols;
+    /* Potential buffer on the stack for the bitmap */
+    uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
+    uint n_fields= table->s->fields;
+    my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
+
+    /*
+      If there are no table maps written to the binary log, this is
+      the first row handled in this statement. In that case, we need
+      to write table maps for all locked tables to the binary log.
+    */
+    if (likely(!(error= bitmap_init(&cols,
+                                    use_bitbuf ? bitbuf : NULL,
+                                    (n_fields + 7) & ~7UL,
+                                    FALSE))))
+    {
+      bitmap_set_all(&cols);
+      if (likely(!(error= write_locked_table_maps(thd))))
+        error= (*log_func)(thd, table, table->file->has_transactions(),
+                           &cols, table->s->fields,
+                           before_record, after_record);
+
+      if (!use_bitbuf)
+        bitmap_free(&cols);
+    }
+  }
+  return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
+}
 
 int handler::ha_external_lock(THD *thd, int lock_type)
 {
@@ -4040,10 +4509,14 @@ int handler::ha_reset()
 int handler::ha_write_row(uchar *buf)
 {
   int error;
+  Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ENTER("handler::ha_write_row");
+
+  mark_trx_read_write();
+
   if (unlikely(error= write_row(buf)))
     DBUG_RETURN(error);
-  if (unlikely(error= binlog_log_row<Write_rows_log_event>(table, 0, buf)))
+  if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -4052,6 +4525,7 @@ int handler::ha_write_row(uchar *buf)
 int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 {
   int error;
+  Log_func *log_func= Update_rows_log_event::binlog_row_logging_function;
 
   /*
     Some storage engines require that the new record is in record[0]
@@ -4059,9 +4533,11 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
    */
   DBUG_ASSERT(new_data == table->record[0]);
 
+  mark_trx_read_write();
+
   if (unlikely(error= update_row(old_data, new_data)))
     return error;
-  if (unlikely(error= binlog_log_row<Update_rows_log_event>(table, old_data, new_data)))
+  if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
     return error;
   return 0;
 }
@@ -4069,9 +4545,13 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 int handler::ha_delete_row(const uchar *buf)
 {
   int error;
+  Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
+
+  mark_trx_read_write();
+
   if (unlikely(error= delete_row(buf)))
     return error;
-  if (unlikely(error= binlog_log_row<Delete_rows_log_event>(table, buf, 0)))
+  if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
     return error;
   return 0;
 }

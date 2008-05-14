@@ -435,28 +435,66 @@ drop table if exists t1;
 # BUG 12183 -  SHOW OPEN TABLES behavior doesn't match grammar
 # First we close all open tables with FLUSH tables and then we open some.
 #
-CREATE TABLE txt1(a int);
-CREATE TABLE tyt2(a int);
-CREATE TABLE urkunde(a int);
 
-# make the output deterministic:
-# the order used in SHOW OPEN TABLES
-# is too much implementation dependent
+--echo
+--echo # Bug#12183: SHOW OPEN TABLES behavior doesn't match grammar.
+--echo
+
+# NOTE: SHOW OPEN TABLES does not sort result list by database or table names.
+# Tables are listed in the order they were opened. We can not use the system
+# database (mysql) for the test here, because we have no control over the order
+# of opening tables in it. Consequently, we can not use 'SHOW OPEN TABLES'.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+--enable_warnings
+
+CREATE DATABASE mysqltest1;
+use mysqltest1;
+
+--echo
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+
+--echo
+
 --disable_ps_protocol
 FLUSH TABLES;
-SELECT 1 FROM mysql.db, mysql.proc, mysql.user, mysql.time_zone, mysql.time_zone_name, txt1, tyt2, urkunde LIMIT 0;
-SHOW OPEN TABLES;
-SHOW OPEN TABLES FROM mysql;
-SHOW OPEN TABLES FROM mysql LIKE 'u%';
-SHOW OPEN TABLES LIKE 't%';
-SHOW OPEN TABLES LIKE '%o%';
+
+--echo
+
+SELECT 1 FROM t1;
+SELECT 1 FROM t2;
+
+--echo
+
+SHOW OPEN TABLES FROM mysqltest1;
+
+--echo
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE 'z%';
+
+--echo
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE 't1%';
+
+--echo
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE '%1%';
+
+--echo
+
 FLUSH TABLES;
-SHOW OPEN TABLES;
 --enable_ps_protocol
 
-DROP TABLE txt1;
-DROP TABLE tyt2;
-DROP TABLE urkunde;
+--echo
+
+DROP DATABASE mysqltest1;
+use test;
+
+--echo
+
 #
 # BUG #12591 (SHOW TABLES FROM dbname produces wrong error message)
 #
@@ -1114,6 +1152,25 @@ DROP EVENT ev1;
 --disable_result_log
 SHOW TABLE TYPES;
 --enable_result_log
+
+#
+# Bug #32710: SHOW INNODB STATUS requires SUPER
+#
+
+
+CREATE USER test_u@localhost;
+GRANT PROCESS ON *.* TO test_u@localhost;
+
+connect (conn1, localhost, test_u,,);
+
+--disable_result_log
+SHOW ENGINE MYISAM MUTEX;
+SHOW ENGINE MYISAM STATUS;
+--enable_result_log
+
+disconnect conn1;
+connection default;
+DROP USER test_u@localhost;
 
 
 --echo End of 5.1 tests

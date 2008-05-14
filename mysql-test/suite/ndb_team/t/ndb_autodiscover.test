@@ -491,6 +491,7 @@ select * from t1;
 select * from t1;
 --exec $NDB_MGM --no-defaults -e "all start" > /dev/null
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults > /dev/null
+--source include/ndb_wait_connected.inc
 use test;
 drop database test_only_ndb_tables;
 
