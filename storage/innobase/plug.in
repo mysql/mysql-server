@@ -15,30 +15,25 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
   AC_CHECK_FUNCS(localtime_r)
   AC_C_BIGENDIAN
   case "$target_os" in
-	lin*)
-		CFLAGS="$CFLAGS -DUNIV_LINUX";;
-	hpux10*)
-		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;
-	hp*)
-		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX";;
-	aix*)
-		CFLAGS="$CFLAGS -DUNIV_AIX";;
-	irix*|osf*|sysv5uw7*|openbsd*)
-		CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
-	*solaris*|*SunOS*)
-		CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
+         lin*)
+           CFLAGS="$CFLAGS -DUNIV_LINUX";;
+         hpux10*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;
+         hp*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX";;
+         aix*)
+           CFLAGS="$CFLAGS -DUNIV_AIX";;
+         irix*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+         osf*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+	 *solaris*|*SunOS*)
+           CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
+         sysv5uw7*)
+           # Problem when linking on SCO
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+         openbsd*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
   esac
-  INNODB_DYNAMIC_CFLAGS="-DMYSQL_DYNAMIC_PLUGIN"
-  case "$target_cpu" in
-	x86_64)
-		# The AMD64 ABI forbids absolute addresses in shared libraries
-		;;
-	*86)
-		# Use absolute addresses on IA-32
-		INNODB_DYNAMIC_CFLAGS="$INNODB_DYNAMIC_CFLAGS -prefer-non-pic"
-		;;
-  esac
-  AC_SUBST(INNODB_DYNAMIC_CFLAGS)
   ])
 
-# vim: set ft=config:
