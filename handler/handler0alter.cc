@@ -720,7 +720,8 @@ err_exit:
 				break;
 			default:
 				error = convert_error_code_to_mysql(
-					trx->error_state, user_thd);
+					trx->error_state, innodb_table->flags,
+					user_thd);
 			}
 
 			row_mysql_unlock_data_dictionary(trx);
@@ -872,7 +873,9 @@ error:
 		}
 
 convert_error:
-		error = convert_error_code_to_mysql(error, user_thd);
+		error = convert_error_code_to_mysql(error,
+						    innodb_table->flags,
+						    user_thd);
 	}
 
 	mem_heap_free(heap);
@@ -1095,7 +1098,7 @@ ha_innobase::final_drop_index(
 	transaction depends on an index that is being dropped. */
 	err = convert_error_code_to_mysql(
 		row_merge_lock_table(prebuilt->trx, prebuilt->table, LOCK_X),
-		user_thd);
+		prebuilt->table->flags, user_thd);
 
 	if (UNIV_UNLIKELY(err)) {
 

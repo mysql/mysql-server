@@ -350,6 +350,57 @@ dict_table_is_comp(
 }
 
 /************************************************************************
+Determine the file format of a table. */
+UNIV_INLINE
+ulint
+dict_table_get_format(
+/*==================*/
+					/* out: file format version */
+	const dict_table_t*	table)	/* in: table */
+{
+	ut_ad(table);
+
+	return((table->flags & DICT_TF_FORMAT_MASK) >> DICT_TF_FORMAT_SHIFT);
+}
+
+/************************************************************************
+Determine the file format of a table. */
+UNIV_INLINE
+void
+dict_table_set_format(
+/*==================*/
+	dict_table_t*	table,	/* in/out: table */
+	ulint		format)	/* in: file format version */
+{
+	ut_ad(table);
+
+	table->flags = (table->flags & ~DICT_TF_FORMAT_MASK)
+		| (format << DICT_TF_FORMAT_SHIFT);
+}
+
+/************************************************************************
+Extract the compressed page size from table flags. */
+UNIV_INLINE
+ulint
+dict_table_flags_to_zip_size(
+/*=========================*/
+			/* out: compressed page size,
+			or 0 if not compressed */
+	ulint	flags)	/* in: flags */
+{
+	ulint	zip_size = flags & DICT_TF_ZSSIZE_MASK;
+
+	if (UNIV_UNLIKELY(zip_size)) {
+		zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
+			 << (zip_size >> DICT_TF_ZSSIZE_SHIFT));
+
+		ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	}
+
+	return(zip_size);
+}
+
+/************************************************************************
 Check whether the table uses the compressed compact page format. */
 UNIV_INLINE
 ulint
@@ -361,8 +412,7 @@ dict_table_zip_size(
 {
 	ut_ad(table);
 
-	return(UNIV_UNLIKELY((table->flags & DICT_TF_COMPRESSED_MASK)
-			     << (10 - DICT_TF_COMPRESSED_SHIFT)));
+	return(dict_table_flags_to_zip_size(table->flags));
 }
 
 /************************************************************************

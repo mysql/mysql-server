@@ -55,13 +55,13 @@ ut_dulint_get_low(
 			/* out: 32 bits in ulint */
 	dulint	d);	/* in: dulint */
 /***********************************************************
-Converts a dulint (a struct of 2 ulints) to ib_longlong, which is a 64-bit
+Converts a dulint (a struct of 2 ulints) to ib_int64_t, which is a 64-bit
 integer type. */
 UNIV_INLINE
-ib_longlong
+ib_int64_t
 ut_conv_dulint_to_longlong(
 /*=======================*/
-			/* out: value in ib_longlong type */
+			/* out: value in ib_int64_t type */
 	dulint	d);	/* in: dulint */
 /***********************************************************
 Tests if a dulint is zero. */
@@ -192,28 +192,6 @@ ut_dulint_sort(dulint* arr, dulint* aux_arr, ulint low, ulint high);
 /*===============================================================*/
 #endif /* notdefined */
 
-/************************************************************
-The following function calculates the value of an integer n rounded
-to the least product of align_no which is >= n. align_no has to be a
-power of 2. */
-UNIV_INLINE
-ulint
-ut_calc_align(
-/*==========*/
-				/* out: rounded value */
-	ulint	 n,		/* in: number to be rounded */
-	ulint	 align_no);	/* in: align by this number */
-/************************************************************
-The following function calculates the value of an integer n rounded
-to the biggest product of align_no which is <= n. align_no has to be a
-power of 2. */
-UNIV_INLINE
-ulint
-ut_calc_align_down(
-/*===============*/
-				/* out: rounded value */
-	ulint	 n,		/* in: number to be rounded */
-	ulint	 align_no);	/* in: align by this number */
 /*************************************************************
 The following function rounds up a pointer to the nearest aligned address. */
 UNIV_INLINE

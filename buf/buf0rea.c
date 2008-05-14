@@ -30,13 +30,13 @@ the accessed pages when deciding whether to read-ahead */
 
 /* There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */
-#define BUF_READ_AHEAD_RANDOM_THRESHOLD	(5 + BUF_READ_AHEAD_RANDOM_AREA / 8)
+#define BUF_READ_AHEAD_RANDOM_THRESHOLD	(5 + buf_read_ahead_random_area / 8)
 
 /* The linear read-ahead area size */
 #define	BUF_READ_AHEAD_LINEAR_AREA	BUF_READ_AHEAD_AREA
 
 /* The linear read-ahead threshold */
-#define BUF_READ_AHEAD_LINEAR_THRESHOLD	(3 * BUF_READ_AHEAD_LINEAR_AREA / 8)
+#define LINEAR_AREA_THRESHOLD_COEF	5 / 8
 
 /* If there are buf_pool->curr_size per the number below pending reads, then
 read-ahead is not done: this is to prevent flooding the buffer pool with
@@ -67,7 +67,7 @@ buf_read_page_low(
 	ulint	space,	/* in: space id */
 	ulint	zip_size,/* in: compressed page size, or 0 */
 	ibool	unzip,	/* in: TRUE=request uncompressed page */
-	ib_longlong tablespace_version, /* in: if the space memory object has
+	ib_int64_t tablespace_version, /* in: if the space memory object has
 			this timestamp different from what we are giving here,
 			treat the tablespace as dropped; this is a timestamp we
 			use to stop dangling page reads from a tablespace
@@ -177,7 +177,7 @@ buf_read_ahead_random(
 	ulint	offset)	/* in: page number of a page which the current thread
 			wants to access */
 {
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 	ulint		recent_blocks	= 0;
 	ulint		count;
 	ulint		LRU_recent_limit;
@@ -185,6 +185,7 @@ buf_read_ahead_random(
 	ulint		low, high;
 	ulint		err;
 	ulint		i;
+	ulint		buf_read_ahead_random_area;
 
 	if (srv_startup_is_before_trx_rollback_phase) {
 		/* No read-ahead to avoid thread deadlocks */
@@ -207,10 +208,12 @@ buf_read_ahead_random(
 
 	tablespace_version = fil_space_get_version(space);
 
-	low  = (offset / BUF_READ_AHEAD_RANDOM_AREA)
-		* BUF_READ_AHEAD_RANDOM_AREA;
-	high = (offset / BUF_READ_AHEAD_RANDOM_AREA + 1)
-		* BUF_READ_AHEAD_RANDOM_AREA;
+	buf_read_ahead_random_area = BUF_READ_AHEAD_RANDOM_AREA;
+
+	low  = (offset / buf_read_ahead_random_area)
+		* buf_read_ahead_random_area;
+	high = (offset / buf_read_ahead_random_area + 1)
+		* buf_read_ahead_random_area;
 	if (high > fil_space_get_size(space)) {
 
 		high = fil_space_get_size(space);
@@ -324,7 +327,7 @@ buf_read_page(
 	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	offset)	/* in: page number */
 {
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 	ulint		count;
 	ulint		count2;
 	ulint		err;
@@ -392,7 +395,7 @@ buf_read_ahead_linear(
 	ulint	offset)	/* in: page number of a page; NOTE: the current thread
 			must want access to this page (see NOTE 3 above) */
 {
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 	buf_page_t*	bpage;
 	buf_frame_t*	frame;
 	buf_page_t*	pred_bpage	= NULL;
@@ -406,16 +409,18 @@ buf_read_ahead_linear(
 	ulint		low, high;
 	ulint		err;
 	ulint		i;
+	const ulint	buf_read_ahead_linear_area
+		= BUF_READ_AHEAD_LINEAR_AREA;
 
 	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
 		/* No read-ahead to avoid thread deadlocks */
 		return(0);
 	}
 
-	low  = (offset / BUF_READ_AHEAD_LINEAR_AREA)
-		* BUF_READ_AHEAD_LINEAR_AREA;
-	high = (offset / BUF_READ_AHEAD_LINEAR_AREA + 1)
-		* BUF_READ_AHEAD_LINEAR_AREA;
+	low  = (offset / buf_read_ahead_linear_area)
+		* buf_read_ahead_linear_area;
+	high = (offset / buf_read_ahead_linear_area + 1)
+		* buf_read_ahead_linear_area;
 
 	if ((offset != low) && (offset != high - 1)) {
 		/* This is not a border page of the area: return */
@@ -486,8 +491,8 @@ buf_read_ahead_linear(
 		}
 	}
 
-	if (fail_count > BUF_READ_AHEAD_LINEAR_AREA
-	    - BUF_READ_AHEAD_LINEAR_THRESHOLD) {
+	if (fail_count > buf_read_ahead_linear_area
+	    * LINEAR_AREA_THRESHOLD_COEF) {
 		/* Too many failures: return */
 
 		buf_pool_mutex_exit();
@@ -544,10 +549,10 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	low  = (new_offset / BUF_READ_AHEAD_LINEAR_AREA)
-		* BUF_READ_AHEAD_LINEAR_AREA;
-	high = (new_offset / BUF_READ_AHEAD_LINEAR_AREA + 1)
-		* BUF_READ_AHEAD_LINEAR_AREA;
+	low  = (new_offset / buf_read_ahead_linear_area)
+		* buf_read_ahead_linear_area;
+	high = (new_offset / buf_read_ahead_linear_area + 1)
+		* buf_read_ahead_linear_area;
 
 	if ((new_offset != low) && (new_offset != high - 1)) {
 		/* This is not a border page of the area: return */
@@ -638,7 +643,7 @@ buf_read_ibuf_merge_pages(
 					to get read in, before this
 					function returns */
 	const ulint*	space_ids,	/* in: array of space ids */
-	const ib_longlong* space_versions,/* in: the spaces must have
+	const ib_int64_t* space_versions,/* in: the spaces must have
 					this version number
 					(timestamp), otherwise we
 					discard the read; we use this
@@ -723,7 +728,7 @@ buf_read_recv_pages(
 	ulint		n_stored)	/* in: number of page numbers
 					in the array */
 {
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 	ulint		count;
 	ulint		err;
 	ulint		i;

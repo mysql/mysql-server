@@ -531,10 +531,10 @@ row_merge_buf_write(
 
 		/* Encode extra_size + 1 */
 		if (extra_size + 1 < 0x80) {
-			*b++ = extra_size + 1;
+			*b++ = (byte) (extra_size + 1);
 		} else {
 			ut_ad((extra_size + 1) < 0x8000);
-			*b++ = 0x80 | ((extra_size + 1) >> 8);
+			*b++ = (byte) (0x80 | ((extra_size + 1) >> 8));
 			*b++ = (byte) (extra_size + 1);
 		}
 
@@ -622,7 +622,7 @@ row_merge_dict_table_get_index(
 	index = dict_table_get_index_by_max_id(
 		table, index_def->name, column_names, index_def->n_fields);
 
-	mem_free(column_names);
+	mem_free((void*) column_names);
 
 	return(index);
 }
@@ -883,9 +883,9 @@ row_merge_write_rec_low(
 #endif /* UNIV_DEBUG */
 
 	if (e < 0x80) {
-		*b++ = e;
+		*b++ = (byte) e;
 	} else {
-		*b++ = 0x80 | (e >> 8);
+		*b++ = (byte) (0x80 | (e >> 8));
 		*b++ = (byte) e;
 	}
 
@@ -1495,7 +1495,8 @@ row_merge_sort(
 		ulint	half;
 		ulint	error;
 
-		half = ut_2pow_round((file->offset + blksz - 1) / 2, blksz);
+		ut_ad(ut_is_2pow(blksz));
+		half = ut_2pow_round((file->offset + (blksz - 1)) / 2, blksz);
 		error = row_merge(index, file, half, block, tmpfd, table);
 
 		if (error != DB_SUCCESS) {

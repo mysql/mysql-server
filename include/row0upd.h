@@ -62,6 +62,16 @@ upd_field_set_field_no(
 	dict_index_t*	index,		/* in: index */
 	trx_t*		trx);		/* in: transaction */
 /*************************************************************************
+Returns a field of an update vector by field_no. */
+UNIV_INLINE
+const upd_field_t*
+upd_get_field_by_field_no(
+/*======================*/
+				/* out: update vector field, or NULL */
+	const upd_t*	update,	/* in: update vector */
+	ulint		no)	/* in: field_no */
+	__attribute__((nonnull, pure));
+/*************************************************************************
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record. */
 UNIV_INTERN
@@ -198,14 +208,9 @@ row_upd_index_replace_new_col_vals_index_pos(
 				/* in: if TRUE, limit the replacement to
 				ordering fields of index; note that this
 				does not work for non-clustered indexes. */
-	mem_heap_t*	heap,	/* in: memory heap to which we allocate and
-				copy the new values, set this as NULL if you
-				do not want allocation */
-	mem_heap_t*	ext_heap);/* in: memory heap where to allocate
-				column prefixes of externally stored
-				columns, may be NULL if the index
-				record does not contain externally
-				stored columns or column prefixes */
+	mem_heap_t*	heap)	/* in: memory heap for allocating and
+				copying the new values */
+	__attribute__((nonnull));
 /***************************************************************
 Replaces the new column values stored in the update vector to the index entry
 given. */
@@ -222,14 +227,9 @@ row_upd_index_replace_new_col_vals(
 	const upd_t*	update,	/* in: an update vector built for the
 				CLUSTERED index so that the field number in
 				an upd_field is the clustered index position */
-	mem_heap_t*	heap,	/* in: memory heap to which we allocate and
-				copy the new values, set this as NULL if you
-				do not want allocation */
-	mem_heap_t*	ext_heap);/* in: memory heap where to allocate
-				column prefixes of externally stored
-				columns, may be NULL if the index
-				record does not contain externally
-				stored columns or column prefixes */
+	mem_heap_t*	heap)	/* in: memory heap for allocating and
+				copying the new values */
+	__attribute__((nonnull));
 /***************************************************************
 Replaces the new column values stored in the update vector. */
 UNIV_INTERN

@@ -74,8 +74,6 @@ enum db_err {
 
 	DB_PRIMARY_KEY_IS_NULL,		/* a column in the PRIMARY KEY
 					was found to be NULL */
-	DB_TABLE_ZIP_NO_IBD,		/* trying to create a compressed
-					table in the system tablespace */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

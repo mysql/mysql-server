@@ -287,8 +287,8 @@ mach_write_ull(
 {
 	ut_ad(b);
 
-	mach_write_to_4(b, n >> 32);
-	mach_write_to_4(b + 4, n);
+	mach_write_to_4(b, (ulint) (n >> 32));
+	mach_write_to_4(b + 4, (ulint) n);
 }
 
 /************************************************************

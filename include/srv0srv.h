@@ -57,7 +57,15 @@ extern char*	srv_data_home;
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
-extern ibool	srv_file_per_table;
+/* store to its own file each table created by an user; data
+dictionary tables are in the system tablespace 0 */
+extern my_bool	srv_file_per_table;
+/* The file format to use on new *.ibd files. */
+extern ulint	srv_file_format;
+/* Whether to check file format during startup.*/
+extern ulint	srv_check_file_format_at_startup;
+/* Place locks to records only i.e. do not use next-key locking except
+on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 
 extern ulint	srv_n_data_files;
@@ -263,11 +271,7 @@ extern srv_sys_t*	srv_sys;
 
 /* Alternatives for the file flush option in Unix; see the InnoDB manual
 about what these mean */
-#define SRV_UNIX_FDATASYNC	1	/* This is the default; it is
-					currently mapped to a call of
-					fsync() because fdatasync() seemed
-					to corrupt files in Linux and
-					Solaris */
+#define SRV_UNIX_FSYNC		1	/* This is the default */
 #define SRV_UNIX_O_DSYNC	2
 #define SRV_UNIX_LITTLESYNC	3
 #define SRV_UNIX_NOSYNC		4
@@ -541,7 +545,7 @@ struct export_var_struct{
 	ulint innodb_pages_written;
 	ulint innodb_row_lock_waits;
 	ulint innodb_row_lock_current_waits;
-	ib_longlong innodb_row_lock_time;
+	ib_int64_t innodb_row_lock_time;
 	ulint innodb_row_lock_time_avg;
 	ulint innodb_row_lock_time_max;
 	ulint innodb_rows_read;

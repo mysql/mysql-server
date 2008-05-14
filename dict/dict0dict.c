@@ -342,7 +342,7 @@ void
 dict_table_autoinc_initialize(
 /*==========================*/
 	dict_table_t*	table,	/* in/out: table */
-	ib_longlong	value)	/* in: next value to assign to a row */
+	ib_uint64_t	value)	/* in: next value to assign to a row */
 {
 	ut_ad(mutex_own(&table->autoinc_mutex));
 
@@ -354,13 +354,13 @@ dict_table_autoinc_initialize(
 Reads the next autoinc value (== autoinc counter value), 0 if not yet
 initialized. */
 UNIV_INTERN
-ib_longlong
+ib_uint64_t
 dict_table_autoinc_read(
 /*====================*/
 					/* out: value for a new row, or 0 */
 	const dict_table_t*	table)	/* in: table */
 {
-	ib_longlong	value;
+	ib_int64_t	value;
 
 	ut_ad(mutex_own(&table->autoinc_mutex));
 
@@ -383,7 +383,7 @@ dict_table_autoinc_update(
 /*======================*/
 
 	dict_table_t*	table,	/* in/out: table */
-	ib_longlong	value)	/* in: value which was assigned to a row */
+	ib_uint64_t	value)	/* in: value which was assigned to a row */
 {
 	if (table->autoinc_inited && value > table->autoinc) {
 
@@ -1419,7 +1419,7 @@ dict_index_add_to_cache(
 		new_index->stat_n_diff_key_vals = mem_heap_alloc(
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
-			* sizeof(ib_longlong));
+			* sizeof(ib_int64_t));
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
@@ -3592,7 +3592,7 @@ loop:
 
 	ptr = dict_accept(cs, ptr, "FOREIGN", &success);
 
-	if (!success) {
+	if (!success || !my_isspace(cs, *ptr)) {
 
 		goto loop;
 	}
@@ -4087,12 +4087,13 @@ dict_table_print_low(
 
 	fprintf(stderr,
 		"--------------------------------------\n"
-		"TABLE: name %s, id %lu %lu, columns %lu, indexes %lu,"
-		" appr.rows %lu\n"
+		"TABLE: name %s, id %lu %lu, flags %lx, columns %lu,"
+		" indexes %lu, appr.rows %lu\n"
 		"  COLUMNS: ",
 		table->name,
 		(ulong) ut_dulint_get_high(table->id),
 		(ulong) ut_dulint_get_low(table->id),
+		(ulong) table->flags,
 		(ulong) table->n_cols,
 		(ulong) UT_LIST_GET_LEN(table->indexes),
 		(ulong) table->stat_n_rows);
@@ -4154,7 +4155,7 @@ dict_index_print_low(
 /*=================*/
 	dict_index_t*	index)	/* in: index */
 {
-	ib_longlong	n_vals;
+	ib_int64_t	n_vals;
 	ulint		i;
 	const char*	type_string;
 
@@ -4484,7 +4485,7 @@ dict_table_find_equivalent_index(
 		table, column_names, index->n_fields,
 		index, TRUE, FALSE);
 
-	mem_free(column_names);
+	mem_free((void*) column_names);
 
 	return(equiv_index);
 }

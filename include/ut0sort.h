@@ -80,7 +80,7 @@ two elements from the array and returns 1, if the first is bigger,
 		}\
 	}\
 \
-	memcpy((ARR) + (LOW), (AUX_ARR) + (LOW),\
+	memcpy((void*) ((ARR) + (LOW)), (AUX_ARR) + (LOW),\
 	       ((HIGH) - (LOW)) * sizeof *(ARR));\
 }\
 

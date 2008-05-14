@@ -1896,6 +1896,7 @@ ibuf_add_free_page(void)
 {
 	mtr_t	mtr;
 	page_t*	header_page;
+	ulint	flags;
 	ulint	zip_size;
 	ulint	page_no;
 	page_t*	page;
@@ -1906,7 +1907,8 @@ ibuf_add_free_page(void)
 
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
-	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, &zip_size), &mtr);
+	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, &flags), &mtr);
+	zip_size = dict_table_flags_to_zip_size(flags);
 
 	header_page = ibuf_header_page_get(&mtr);
 
@@ -1988,6 +1990,7 @@ ibuf_remove_free_page(void)
 	mtr_t	mtr;
 	mtr_t	mtr2;
 	page_t*	header_page;
+	ulint	flags;
 	ulint	zip_size;
 	ulint	page_no;
 	page_t*	page;
@@ -1998,7 +2001,8 @@ ibuf_remove_free_page(void)
 
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
-	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, &zip_size), &mtr);
+	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, &flags), &mtr);
+	zip_size = dict_table_flags_to_zip_size(flags);
 
 	header_page = ibuf_header_page_get(&mtr);
 
@@ -2169,7 +2173,7 @@ ibuf_get_merge_page_nos(
 	rec_t*		rec,	/* in: record from which we read up and down
 				in the chain of records */
 	ulint*		space_ids,/* in/out: space id's of the pages */
-	ib_longlong*	space_versions,/* in/out: tablespace version
+	ib_int64_t*	space_versions,/* in/out: tablespace version
 				timestamps; used to prevent reading in old
 				pages after DISCARD + IMPORT tablespace */
 	ulint*		page_nos,/* in/out: buffer for at least
@@ -2343,7 +2347,7 @@ ibuf_contract_ext(
 	btr_pcur_t	pcur;
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_longlong	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
 	ulint		sum_sizes;
 	mtr_t		mtr;
@@ -2930,7 +2934,7 @@ ibuf_insert_low(
 	ulint		err;
 	ibool		do_merge;
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_longlong	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
 	ulint		bits;

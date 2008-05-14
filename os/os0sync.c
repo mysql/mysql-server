@@ -259,13 +259,13 @@ that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low(). */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 os_event_reset(
 /*===========*/
 				/* out: current signal_count. */
 	os_event_t	event)	/* in: event to reset */
 {
-	ib_longlong	ret = 0;
+	ib_int64_t	ret = 0;
 
 #ifdef __WIN__
 	ut_a(event);
@@ -374,7 +374,7 @@ void
 os_event_wait_low(
 /*==============*/
 	os_event_t	event,		/* in: event to wait */
-	ib_longlong	reset_sig_count)/* in: zero or the value
+	ib_int64_t	reset_sig_count)/* in: zero or the value
 					returned by previous call of
 					os_event_reset(). */
 {
@@ -394,7 +394,7 @@ os_event_wait_low(
 		os_thread_exit(NULL);
 	}
 #else
-	ib_longlong	old_signal_count;
+	ib_int64_t	old_signal_count;
 
 	os_fast_mutex_lock(&(event->os_mutex));
 

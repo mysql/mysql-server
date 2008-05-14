@@ -230,7 +230,7 @@ row_mysql_read_blob_ref(
 	ulint		col_len)	/* in: BLOB reference length
 					(not BLOB length) */
 {
-	const byte*	data;
+	byte*	data;
 
 	*len = mach_read_from_n_little_endian(ref, col_len - 8);
 
@@ -836,7 +836,7 @@ row_update_statistics_if_needed(
 	a counter table which is very small and updated very often. */
 
 	if (counter > 2000000000
-	    || ((ib_longlong)counter > 16 + table->stat_n_rows / 16)) {
+	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
 		dict_update_statistics(table);
 	}
@@ -1909,6 +1909,7 @@ row_create_index_for_mysql(
 	ulint		err;
 	ulint		i;
 	ulint		len;
+	char*		table_name;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -1917,6 +1918,11 @@ row_create_index_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	trx->op_info = "creating index";
+
+	/* Copy the table name because we may want to drop the
+	table later, after the index object is freed (inside
+	que_run_threads()) and thus index->table_name is not available. */
+	table_name = mem_strdup(index->table_name);
 
 	trx_start_if_not_started(trx);
 
@@ -1991,12 +1997,14 @@ error_handling:
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		row_drop_table_for_mysql(index->table_name, trx, FALSE);
+		row_drop_table_for_mysql(table_name, trx, FALSE);
 
 		trx->error_state = DB_SUCCESS;
 	}
 
 	trx->op_info = "";
+
+	mem_free(table_name);
 
 	return((int) err);
 }
@@ -2558,9 +2566,10 @@ row_import_tablespace_for_mysql(
 
 	ibuf_delete_for_discarded_space(table->space);
 
-	success = fil_open_single_table_tablespace(TRUE, table->space,
-						   dict_table_zip_size(table),
-						   table->name);
+	success = fil_open_single_table_tablespace(
+		TRUE, table->space,
+		table->flags == DICT_TF_COMPACT ? 0 : table->flags,
+		table->name);
 	if (success) {
 		table->ibd_file_missing = FALSE;
 		table->tablespace_discarded = FALSE;
@@ -2742,9 +2751,9 @@ row_truncate_table_for_mysql(
 	if (table->space && !table->dir_path_of_temp_table) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
-		ulint	zip_size= fil_space_get_zip_size(space);
+		ulint	flags	= fil_space_get_flags(space);
 
-		if (zip_size != ULINT_UNDEFINED
+		if (flags != ULINT_UNDEFINED
 		    && fil_discard_tablespace(space)) {
 
 			dict_index_t*	index;
@@ -2752,7 +2761,7 @@ row_truncate_table_for_mysql(
 			space = 0;
 
 			if (fil_create_new_single_table_tablespace(
-				    &space, table->name, FALSE, zip_size,
+				    &space, table->name, FALSE, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,

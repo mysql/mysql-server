@@ -27,12 +27,6 @@ Created 11/11/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "srv0srv.h"
 
-/* When flushed, dirty blocks are searched in neighborhoods of this size, and
-flushed along with the original page. */
-
-#define BUF_FLUSH_AREA		ut_min(BUF_READ_AHEAD_AREA,\
-		buf_pool->curr_size / 16)
-
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
 Validates the flush list. */
@@ -915,15 +909,21 @@ buf_flush_try_neighbors(
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
-	low = (offset / BUF_FLUSH_AREA) * BUF_FLUSH_AREA;
-	high = (offset / BUF_FLUSH_AREA + 1) * BUF_FLUSH_AREA;
-
 	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
 		/* If there is little space, it is better not to flush any
 		block except from the end of the LRU list */
 
 		low = offset;
 		high = offset + 1;
+	} else {
+		/* When flushed, dirty blocks are searched in neighborhoods of
+		this size, and flushed along with the original page. */
+
+		ulint	buf_flush_area	= ut_min(BUF_READ_AHEAD_AREA,
+						 buf_pool->curr_size / 16);
+
+		low = (offset / buf_flush_area) * buf_flush_area;
+		high = (offset / buf_flush_area + 1) * buf_flush_area;
 	}
 
 	/* fprintf(stderr, "Flush area: low %lu high %lu\n", low, high); */

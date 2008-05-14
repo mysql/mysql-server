@@ -418,7 +418,7 @@ mutex_spin_wait(
 	ulint	   index; /* index of the reserved wait cell */
 	ulint	   i;	  /* spin round count */
 #if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
-	ib_longlong lstart_time = 0, lfinish_time; /* for timing os_wait */
+	ib_int64_t lstart_time = 0, lfinish_time; /* for timing os_wait */
 	ulint ltime_diff;
 	ulint sec;
 	ulint ms;
@@ -455,7 +455,7 @@ spin_loop:
 		mutex->count_os_yield++;
 		if (timed_mutexes == 1 && timer_started==0) {
 			ut_usectime(&sec, &ms);
-			lstart_time= (ib_longlong)sec * 1000000 + ms;
+			lstart_time= (ib_int64_t)sec * 1000000 + ms;
 			timer_started = 1;
 		}
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
@@ -561,7 +561,7 @@ spin_loop:
 
 	if (timed_mutexes == 1 && timer_started==0) {
 		ut_usectime(&sec, &ms);
-		lstart_time= (ib_longlong)sec * 1000000 + ms;
+		lstart_time= (ib_int64_t)sec * 1000000 + ms;
 		timer_started = 1;
 	}
 # endif /* UNIV_DEBUG */
@@ -574,7 +574,7 @@ finish_timing:
 #if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
 	if (timed_mutexes == 1 && timer_started==1) {
 		ut_usectime(&sec, &ms);
-		lfinish_time= (ib_longlong)sec * 1000000 + ms;
+		lfinish_time= (ib_int64_t)sec * 1000000 + ms;
 
 		ltime_diff= (ulint) (lfinish_time - lstart_time);
 		mutex->lspent_time += ltime_diff;
@@ -1055,6 +1055,7 @@ sync_thread_add_level(
 	case SYNC_THR_LOCAL:
 	case SYNC_ANY_LATCH:
 	case SYNC_TRX_SYS_HEADER:
+	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
 	case SYNC_BUF_POOL:
 	case SYNC_SEARCH_SYS:
@@ -1218,6 +1219,18 @@ sync_thread_reset_level(
 		if (slot->latch == latch) {
 			slot->latch = NULL;
 
+			mutex_exit(&sync_thread_mutex);
+
+			return(TRUE);
+		}
+	}
+
+	if (((mutex_t*) latch)->magic_n != MUTEX_MAGIC_N) {
+		rw_lock_t*	rw_lock;
+
+		rw_lock = (rw_lock_t*) latch;
+
+		if (rw_lock->level == SYNC_LEVEL_VARYING) {
 			mutex_exit(&sync_thread_mutex);
 
 			return(TRUE);

@@ -35,7 +35,7 @@ static trx_t*		trx_roll_crash_recv_trx	= NULL;
 
 /* In crash recovery we set this to the undo n:o of the current trx to be
 rolled back. Then we can print how many % the rollback has progressed. */
-static ib_longlong	trx_roll_max_undo_no;
+static ib_int64_t	trx_roll_max_undo_no;
 
 /* Auxiliary variable which tells the previous progress % we printed */
 static ulint		trx_roll_progress_printed_pct;
@@ -217,7 +217,7 @@ trx_rollback_to_savepoint_for_mysql(
 						otherwise DB_SUCCESS */
 	trx_t*		trx,			/* in: transaction handle */
 	const char*	savepoint_name,		/* in: savepoint name */
-	ib_longlong*	mysql_binlog_cache_pos)	/* out: the MySQL binlog cache
+	ib_int64_t*	mysql_binlog_cache_pos)	/* out: the MySQL binlog cache
 						position corresponding to this
 						savepoint; MySQL needs this
 						information to remove the
@@ -282,7 +282,7 @@ trx_savepoint_for_mysql(
 						/* out: always DB_SUCCESS */
 	trx_t*		trx,			/* in: transaction handle */
 	const char*	savepoint_name,		/* in: savepoint name */
-	ib_longlong	binlog_cache_pos)	/* in: MySQL binlog cache
+	ib_int64_t	binlog_cache_pos)	/* in: MySQL binlog cache
 						position corresponding to this
 						connection at the time of the
 						savepoint */
@@ -402,7 +402,7 @@ trx_rollback_active(
 	que_thr_t*	thr;
 	roll_node_t*	roll_node;
 	dict_table_t*	table;
-	ib_longlong	rows_to_undo;
+	ib_int64_t	rows_to_undo;
 	const char*	unit		= "";
 	ibool		dictionary_locked = FALSE;
 

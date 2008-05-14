@@ -24,15 +24,9 @@ Created December 2006 by Marko Makela
 Protected by buf_pool_mutex. */
 static ulint buf_buddy_n_frames;
 #endif /* UNIV_DEBUG */
-/** Counts of blocks allocated from the buddy system.
+/** Statistics of the buddy system, indexed by block size.
 Protected by buf_pool_mutex. */
-UNIV_INTERN ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
-/** Counts of blocks relocated by the buddy system.
-Protected by buf_pool_mutex. */
-UNIV_INTERN ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
-/** Durations of block relocations.
-Protected by buf_pool_mutex. */
-UNIV_INTERN ullint buf_buddy_relocated_duration[BUF_BUDDY_SIZES + 1];
+UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
 
 /**************************************************************************
 Get the offset of the buddy of a compressed page frame. */
@@ -320,7 +314,7 @@ alloc_big:
 	block = buf_buddy_alloc_from(block->frame, i, BUF_BUDDY_SIZES);
 
 func_exit:
-	buf_buddy_used[i]++;
+	buf_buddy_stat[i].used++;
 	return(block);
 }
 
@@ -463,9 +457,13 @@ buf_buddy_relocate(
 			mutex_exit(mutex);
 success:
 			UNIV_MEM_INVALID(src, size);
-			buf_buddy_relocated[i]++;
-			buf_buddy_relocated_duration[i]
-				+= ut_time_us(NULL) - usec;
+			{
+				buf_buddy_stat_t*	buddy_stat
+					= &buf_buddy_stat[i];
+				buddy_stat->relocated++;
+				buddy_stat->relocated_usec
+					+= ut_time_us(NULL) - usec;
+			}
 			return(TRUE);
 		}
 
@@ -498,9 +496,9 @@ buf_buddy_free_low(
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
 	ut_ad(i <= BUF_BUDDY_SIZES);
-	ut_ad(buf_buddy_used[i] > 0);
+	ut_ad(buf_buddy_stat[i].used > 0);
 
-	buf_buddy_used[i]--;
+	buf_buddy_stat[i].used--;
 recombine:
 	UNIV_MEM_ASSERT_AND_ALLOC(buf, BUF_BUDDY_LOW << i);
 	ut_d(((buf_page_t*) buf)->state = BUF_BLOCK_ZIP_FREE);

@@ -200,7 +200,7 @@ trx_rollback_to_savepoint_for_mysql(
 						otherwise DB_SUCCESS */
 	trx_t*		trx,			/* in: transaction handle */
 	const char*	savepoint_name,		/* in: savepoint name */
-	ib_longlong*	mysql_binlog_cache_pos);/* out: the MySQL binlog cache
+	ib_int64_t*	mysql_binlog_cache_pos);/* out: the MySQL binlog cache
 						position corresponding to this
 						savepoint; MySQL needs this
 						information to remove the
@@ -218,7 +218,7 @@ trx_savepoint_for_mysql(
 						/* out: always DB_SUCCESS */
 	trx_t*		trx,			/* in: transaction handle */
 	const char*	savepoint_name,		/* in: savepoint name */
-	ib_longlong	binlog_cache_pos);	/* in: MySQL binlog cache
+	ib_int64_t	binlog_cache_pos);	/* in: MySQL binlog cache
 						position corresponding to this
 						connection at the time of the
 						savepoint */
@@ -280,7 +280,7 @@ struct trx_named_savept_struct{
 	char*		name;		/* savepoint name */
 	trx_savept_t	savept;		/* the undo number corresponding to
 					the savepoint */
-	ib_longlong	mysql_binlog_cache_pos;
+	ib_int64_t	mysql_binlog_cache_pos;
 					/* the MySQL binlog cache position
 					corresponding to this savepoint, not
 					defined if the MySQL binlogging is not
