@@ -293,21 +293,15 @@ $CP mysql-test/t/*.def $BASE/mysql-test/t
 $CP mysql-test/include/*.inc $BASE/mysql-test/include
 $CP mysql-test/include/*.test $BASE/mysql-test/include
 $CP mysql-test/t/*.def $BASE/mysql-test/t
-$CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
-    mysql-test/std_data/*.MYD mysql-test/std_data/*.MYI \
-    mysql-test/std_data/*.pem mysql-test/std_data/Moscow_leap \
-    mysql-test/std_data/Index.xml \
-    mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
-    mysql-test/std_data/*.cnf mysql-test/std_data/*.MY* \
-    $BASE/mysql-test/std_data
 $CP mysql-test/t/*.test mysql-test/t/*.imtest \
     mysql-test/t/*.disabled mysql-test/t/*.opt \
     mysql-test/t/*.slave-mi mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
 $CP mysql-test/r/*.result mysql-test/r/*.require \
     $BASE/mysql-test/r
 
-# Copy the additional suites "as is", they are in flux
-$tar cf - mysql-test/suite | ( cd $BASE ; $tar xf - )
+# Copy the additional suites and data "as is", they are in flux
+$tar cf - mysql-test/suite    | ( cd $BASE ; $tar xf - )
+$tar cf - mysql-test/std_data | ( cd $BASE ; $tar xf - )
 # Clean up if we did this from a bk tree
 if [ -d mysql-test/SCCS ] ; then
   find $BASE/mysql-test -name SCCS -print | xargs rm -rf
