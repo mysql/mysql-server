@@ -3752,8 +3752,6 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->trx == trx);
 
-	ha_statistic_increment(&SSV::ha_update_count);
-
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
 
@@ -3842,8 +3840,6 @@ ha_innobase::delete_row(
 	DBUG_ENTER("ha_innobase::delete_row");
 
 	ut_a(prebuilt->trx == trx);
-
-	ha_statistic_increment(&SSV::ha_delete_count);
 
 	/* Only if the table has an AUTOINC column */
 	if (table->found_next_number_field && record == table->record[0]) {
@@ -5786,13 +5782,6 @@ ha_innobase::info(
 			n_rows++;
 		}
 
-		/* Fix bug#29507: TRUNCATE shows too many rows affected.
-		Do not show the estimates for TRUNCATE command. */
-		if (thd_sql_command(user_thd) == SQLCOM_TRUNCATE) {
-
-			n_rows = 0;
-		}
-
 		stats.records = (ha_rows)n_rows;
 		stats.deleted = 0;
 		stats.data_file_length = ((ulonglong)
@@ -5803,7 +5792,7 @@ ha_innobase::info(
 					* UNIV_PAGE_SIZE;
 		stats.delete_length =
 			fsp_get_available_space_in_free_extents(
-				ib_table->space) * 1024;
+				ib_table->space);
 		stats.check_time = 0;
 
 		if (stats.records == 0) {
