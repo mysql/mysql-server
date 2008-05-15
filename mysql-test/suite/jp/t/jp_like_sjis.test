@@ -1,4 +1,5 @@
 --character_set sjis
+--source include/have_innodb.inc
 --disable_warnings
 drop table if exists `ÇsÇP`;
 drop table if exists `ÇsÇQ`;
@@ -9,9 +10,6 @@ drop table if exists `ÇsÇU`;
 drop table if exists `ÇsÇV`;
 drop table if exists `ÇsÇW`;
 drop table if exists `ÇsÇX`;
-drop table if exists `ÇsÇPÇO`;
-drop table if exists `ÇsÇPÇP`;
-drop table if exists `ÇsÇPÇQ`;
 --enable_warnings
 
 #
@@ -27,12 +25,9 @@ CREATE TABLE `ÇsÇR` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engi
 CREATE TABLE `ÇsÇS` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇT` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇU` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
-CREATE TABLE `ÇsÇV` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇW` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇX` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇPÇO` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇP` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇQ` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
 
 #Load the following data in each table
 # jisx0201 hankaku-katakana data
@@ -47,9 +42,6 @@ LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `ÇsÇU`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `ÇsÇV`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `ÇsÇW`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `ÇsÇX`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `ÇsÇPÇO`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `ÇsÇPÇP`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `ÇsÇPÇQ`;
 
 #InnoDB
 SELECT * FROM `ÇsÇP` WHERE `ÇbÇP` LIKE ' %';
@@ -103,7 +95,7 @@ SELECT * FROM `ÇsÇU` WHERE `ÇbÇP` LIKE 'É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\
 SELECT * FROM `ÇsÇU` WHERE `ÇbÇP` LIKE '%É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\%';
 SELECT * FROM `ÇsÇU` WHERE `ÇbÇP` LIKE '%É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\';
 
-#Heap
+#MEMORY
 SELECT * FROM `ÇsÇV` WHERE `ÇbÇP` LIKE ' %';
 SELECT * FROM `ÇsÇV` WHERE `ÇbÇP` LIKE '% %';
 SELECT * FROM `ÇsÇV` WHERE `ÇbÇP` LIKE '% ';
@@ -128,31 +120,6 @@ SELECT * FROM `ÇsÇX` WHERE `ÇbÇP` LIKE '%û\';
 SELECT * FROM `ÇsÇX` WHERE `ÇbÇP` LIKE 'É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\%';
 SELECT * FROM `ÇsÇX` WHERE `ÇbÇP` LIKE '%É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\%';
 SELECT * FROM `ÇsÇX` WHERE `ÇbÇP` LIKE '%É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\';
-#BDB
-SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` LIKE ' %';
-SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` LIKE '% %';
-SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` LIKE '% ';
-SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` LIKE '¿%';
-SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` LIKE '%◊ÿ%';
-SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` LIKE '%ø';
-#SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` LIKE '∞±≤≥¥µ∂∑∏π∫ªºΩæø%';
-#SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` LIKE '%∞±≤≥¥µ∂∑∏π∫ªºΩæø%';
-SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` LIKE '%∞±≤≥¥µ∂∑∏π∫ªºΩæø';
-SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` LIKE 'Å@%';
-SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` LIKE '%Å@%';
-SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` LIKE '%Å@';
-SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` LIKE 'Ç∆%';
-SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` LIKE '%Ç†%';
-SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` LIKE '%ÇÌ';
-#SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` LIKE 'ÅEÇüÇ†Ç°Ç¢Ç£Ç§Ç•Ç¶ÇßÇ®Ç©Ç™Ç´Ç¨Ç≠ÇÆÇØÇ∞Ç±%';
-#SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` LIKE '%ÅEÇüÇ†Ç°Ç¢Ç£Ç§Ç•Ç¶ÇßÇ®Ç©Ç™Ç´Ç¨Ç≠ÇÆÇØÇ∞Ç±%';
-#SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` LIKE '%ÅEÇüÇ†Ç°Ç¢Ç£Ç§Ç•Ç¶ÇßÇ®Ç©Ç™Ç´Ç¨Ç≠ÇÆÇØÇ∞Ç±';
-SELECT * FROM `ÇsÇPÇQ` WHERE `ÇbÇP` LIKE 'É\%';
-SELECT * FROM `ÇsÇPÇQ` WHERE `ÇbÇP` LIKE '%ñ\%';
-SELECT * FROM `ÇsÇPÇQ` WHERE `ÇbÇP` LIKE '%û\';
-#SELECT * FROM `ÇsÇPÇQ` WHERE `ÇbÇP` LIKE 'É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\%';
-#SELECT * FROM `ÇsÇPÇQ` WHERE `ÇbÇP` LIKE '%É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\%';
-#SELECT * FROM `ÇsÇPÇQ` WHERE `ÇbÇP` LIKE '%É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\';
 
 DROP TABLE `ÇsÇP`;
 DROP TABLE `ÇsÇQ`;
@@ -163,6 +130,3 @@ DROP TABLE `ÇsÇU`;
 DROP TABLE `ÇsÇV`;
 DROP TABLE `ÇsÇW`;
 DROP TABLE `ÇsÇX`;
-DROP TABLE `ÇsÇPÇO`;
-DROP TABLE `ÇsÇPÇP`;
-DROP TABLE `ÇsÇPÇQ`;
