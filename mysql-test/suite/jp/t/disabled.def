@@ -1,0 +1,13 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+jp_convert_sjis      : Bug#36597 Testsuite "jp": Suspicious results for some tests
+jp_select_sjis       : Bug#36597 Testsuite "jp": Suspicious results for some tests
