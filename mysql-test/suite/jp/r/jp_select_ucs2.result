@@ -7,9 +7,6 @@ drop table if exists `£Ô£¶`;
 drop table if exists `£Ô£·`;
 drop table if exists `£Ô£¸`;
 drop table if exists `£Ô£¹`;
-drop table if exists `£Ô£±£°`;
-drop table if exists `£Ô£±£±`;
-drop table if exists `£Ô£±£²`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
 SET collation_connection = ucs2_general_ci;
@@ -22,9 +19,6 @@ CREATE TABLE `£Ô£¶` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ucs2 engine = myi
 CREATE TABLE `£Ô£·` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ucs2 engine = heap;
 CREATE TABLE `£Ô£¸` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ucs2 engine = heap;
 CREATE TABLE `£Ô£¹` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Ô£±£°` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Ô£±£±` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Ô£±£²` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = ucs2 engine = bdb;
 INSERT INTO `£Ô£±` VALUES
 ('PQRSTUVWXYZ[\\]^_')
 ,(' Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯')
@@ -84,28 +78,6 @@ INSERT INTO `£Ô£¸` VALUES
 ,('¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³')
 ,('¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³');
 INSERT INTO `£Ô£¹` VALUES
-('¡¦¢µ¢¶¢·¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦')
-,('°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç')
-,('°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û')
-,('°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï')
-,('¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³')
-,('í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ')
-,('íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ');
-INSERT INTO `£Ô£±£°` VALUES
-('PQRSTUVWXYZ[\\]^_')
-,(' Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯')
-,('Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿')
-,('ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ')
-,('ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß');
-INSERT INTO `£Ô£±£±` VALUES
-('¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿¡À¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç')
-,('¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û')
-,('¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³')
-,('¡¦¥¡¥¢¥£¥¤¥¥¥¦¥§¥¨¥©¥ª¥«¥¬¥­¥®¥¯¥°¥±¥²¥³')
-,('¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³')
-,('¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³')
-,('¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³');
-INSERT INTO `£Ô£±£²` VALUES
 ('¡¦¢µ¢¶¢·¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦')
 ,('°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç')
 ,('°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û')
@@ -188,31 +160,6 @@ c1
 ¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
-SELECT * FROM `£Ô£±£°`;
-c1
-PQRSTUVWXYZ[\]^_
- Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯
-Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿
-ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ
-ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß
-SELECT * FROM `£Ô£±£±`;
-c1
-¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
-¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û
-¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³
-¡¦¥¡¥¢¥£¥¤¥¥¥¦¥§¥¨¥©¥ª¥«¥¬¥­¥®¥¯¥°¥±¥²¥³
-¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³
-¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³
-¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
-SELECT * FROM `£Ô£±£²`;
-c1
-¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦
-°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç
-°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û
-°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï
-¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³
-í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
-íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
 drop table `£Ô£±`;
 drop table `£Ô£²`;
 drop table `£Ô£³`;
@@ -222,6 +169,3 @@ drop table `£Ô£¶`;
 drop table `£Ô£·`;
 drop table `£Ô£¸`;
 drop table `£Ô£¹`;
-drop table `£Ô£±£°`;
-drop table `£Ô£±£±`;
-drop table `£Ô£±£²`;

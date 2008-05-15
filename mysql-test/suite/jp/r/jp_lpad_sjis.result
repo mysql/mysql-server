@@ -7,9 +7,6 @@ drop table if exists `ÇsÇU`;
 drop table if exists `ÇsÇV`;
 drop table if exists `ÇsÇW`;
 drop table if exists `ÇsÇX`;
-drop table if exists `ÇsÇPÇO`;
-drop table if exists `ÇsÇPÇP`;
-drop table if exists `ÇsÇPÇQ`;
 SET NAMES sjis;
 SET character_set_database = sjis;
 CREATE TABLE `ÇsÇP` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
@@ -18,12 +15,9 @@ CREATE TABLE `ÇsÇR` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engin
 CREATE TABLE `ÇsÇS` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇT` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇU` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
-CREATE TABLE `ÇsÇV` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇW` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇX` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇPÇO` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇP` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇQ` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
 INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ'),('±≤≥¥'),('±≤≥'),('±≤'),('±'),('');
 INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®'),('Ç†Ç¢Ç§Ç¶'),('Ç†Ç¢Ç§'),('Ç†Ç¢'),('Ç†'),('');
 INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\'),('É\è\ï\ó\'),('É\è\ï\'),('É\è\'),('É\'),('');
@@ -33,9 +27,6 @@ INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\'),('É\è\ï\ó\'),('É\è\ï\'),('É\è\'),('É\')
 INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ'),('±≤≥¥'),('±≤≥'),('±≤'),('±'),('');
 INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®'),('Ç†Ç¢Ç§Ç¶'),('Ç†Ç¢Ç§'),('Ç†Ç¢'),('Ç†'),('');
 INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\'),('É\è\ï\ó\'),('É\è\ï\'),('É\è\'),('É\'),('');
-INSERT INTO `ÇsÇPÇO` VALUES ('±≤≥¥µ'),('±≤≥¥'),('±≤≥'),('±≤'),('±'),('');
-INSERT INTO `ÇsÇPÇP` VALUES ('Ç†Ç¢Ç§Ç¶Ç®'),('Ç†Ç¢Ç§Ç¶'),('Ç†Ç¢Ç§'),('Ç†Ç¢'),('Ç†'),('');
-INSERT INTO `ÇsÇPÇQ` VALUES ('É\è\ï\ó\ç\'),('É\è\ï\ó\'),('É\è\ï\'),('É\è\'),('É\'),('');
 SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'°') FROM `ÇsÇP`;
 ÇbÇP	LPAD(`ÇbÇP`,5,'°')
 	°°°°°
@@ -108,30 +99,6 @@ SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'ñ\' ) FROM `ÇsÇX`;
 É\è\	ñ\ñ\ñ\É\è\
 É\	ñ\ñ\ñ\ñ\É\
 	ñ\ñ\ñ\ñ\ñ\
-SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'°') FROM `ÇsÇPÇO`;
-ÇbÇP	LPAD(`ÇbÇP`,5,'°')
-±≤≥¥µ	±≤≥¥µ
-±≤≥¥	°±≤≥¥
-±≤≥	°°±≤≥
-±≤	°°°±≤
-±	°°°°±
-	°°°°°
-SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'Çw') FROM `ÇsÇPÇP`;
-ÇbÇP	LPAD(`ÇbÇP`,5,'Çw')
-Ç†Ç¢Ç§Ç¶Ç®	Ç†Ç¢Ç§Ç¶Ç®
-Ç†Ç¢Ç§Ç¶	ÇwÇ†Ç¢Ç§Ç¶
-Ç†Ç¢Ç§	ÇwÇwÇ†Ç¢Ç§
-Ç†Ç¢	ÇwÇwÇwÇ†Ç¢
-Ç†	ÇwÇwÇwÇwÇ†
-	ÇwÇwÇwÇwÇw
-SELECT `ÇbÇP`, LPAD(`ÇbÇP`,5,'ñ\' ) FROM `ÇsÇPÇQ`;
-ÇbÇP	LPAD(`ÇbÇP`,5,'ñ\' )
-É\è\ï\ó\ç\	É\è\ï\ó\ç\
-É\è\ï\ó\	ñ\É\è\ï\ó\
-É\è\ï\	ñ\ñ\É\è\ï\
-É\è\	ñ\ñ\ñ\É\è\
-É\	ñ\ñ\ñ\ñ\É\
-	ñ\ñ\ñ\ñ\ñ\
 DROP TABLE `ÇsÇP`;
 DROP TABLE `ÇsÇQ`;
 DROP TABLE `ÇsÇR`;
@@ -141,6 +108,3 @@ DROP TABLE `ÇsÇU`;
 DROP TABLE `ÇsÇV`;
 DROP TABLE `ÇsÇW`;
 DROP TABLE `ÇsÇX`;
-DROP TABLE `ÇsÇPÇO`;
-DROP TABLE `ÇsÇPÇP`;
-DROP TABLE `ÇsÇPÇQ`;
