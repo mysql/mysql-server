@@ -1,3 +1,5 @@
+--source include/have_sjis.inc
+--source include/have_innodb.inc
 --character_set sjis
 --disable_warnings
 drop table if exists `ÇsÇP`;
@@ -9,9 +11,6 @@ drop table if exists `ÇsÇU`;
 drop table if exists `ÇsÇV`;
 drop table if exists `ÇsÇW`;
 drop table if exists `ÇsÇX`;
-drop table if exists `ÇsÇPÇO`;
-drop table if exists `ÇsÇPÇP`;
-drop table if exists `ÇsÇPÇQ`;
 --enable_warnings
 
 #
@@ -27,12 +26,9 @@ CREATE TABLE `ÇsÇR` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engi
 CREATE TABLE `ÇsÇS` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇT` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇU` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
-CREATE TABLE `ÇsÇV` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇW` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇX` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇPÇO` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇP` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇQ` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(20), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
 
 #Load the following data in each table
 # jisx0201 hankaku-katakana data
@@ -48,9 +44,6 @@ LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `ÇsÇU`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `ÇsÇV`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `ÇsÇW`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `ÇsÇX`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `ÇsÇPÇO`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `ÇsÇPÇP`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `ÇsÇPÇQ`;
 
 #InnoDB
 SELECT * FROM `ÇsÇP` WHERE `ÇbÇP` = '∞±≤≥¥µ∂∑∏π∫ªºΩæø';
@@ -62,33 +55,32 @@ SELECT * FROM `ÇsÇS` WHERE `ÇbÇP` = '∞±≤≥¥µ∂∑∏π∫ªºΩæø';
 SELECT * FROM `ÇsÇT` WHERE `ÇbÇP` = 'ÅEÇüÇ†Ç°Ç¢Ç£Ç§Ç•Ç¶ÇßÇ®Ç©Ç™Ç´Ç¨Ç≠ÇÆÇØÇ∞Ç±';
 SELECT * FROM `ÇsÇU` WHERE `ÇbÇP` = 'É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\';
 
-#Heap
+#MEMORY
 SELECT * FROM `ÇsÇV` WHERE `ÇbÇP` = '∞±≤≥¥µ∂∑∏π∫ªºΩæø';
 SELECT * FROM `ÇsÇW` WHERE `ÇbÇP` = 'ÅEÇüÇ†Ç°Ç¢Ç£Ç§Ç•Ç¶ÇßÇ®Ç©Ç™Ç´Ç¨Ç≠ÇÆÇØÇ∞Ç±';
 SELECT * FROM `ÇsÇX` WHERE `ÇbÇP` = 'É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\';
 
-#BDB
-SELECT * FROM `ÇsÇPÇO` WHERE `ÇbÇP` = '∞±≤≥¥µ∂∑∏π∫ªºΩæø';
-SELECT * FROM `ÇsÇPÇP` WHERE `ÇbÇP` = 'ÅEÇüÇ†Ç°Ç¢Ç£Ç§Ç•Ç¶ÇßÇ®Ç©Ç™Ç´Ç¨Ç≠ÇÆÇØÇ∞Ç±';
-SELECT * FROM `ÇsÇPÇQ` WHERE `ÇbÇP` = 'É\è\ï\ó\ç\â\é\ê\ì\î\ñ\ò\ë\í\ô\ö\õ\ú\ù\û\';
-
 #Test to distinguish 0x9353 and 0x9373
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
 CREATE TABLE t1(c1 char(1)) default charset = sjis engine=innodb;
 CREATE TABLE t2(c1 char(1)) default charset = sjis engine=myisam;
-CREATE TABLE t3(c1 char(1)) default charset = sjis engine=heap;
-CREATE TABLE t4(c1 char(1)) default charset = sjis engine=bdb;
+CREATE TABLE t3(c1 char(1)) default charset = sjis engine=MEMORY;
 INSERT INTO t1 VALUES('ìS'),('ìs');
 INSERT INTO t2 VALUES('ìS'),('ìs');
 INSERT INTO t3 VALUES('ìS'),('ìs');
-INSERT INTO t4 VALUES('ìS'),('ìs');
 SELECT * FROM t1 WHERE c1 = 'ìS';
 SELECT * FROM t2 WHERE c1 = 'ìS';
 SELECT * FROM t3 WHERE c1 = 'ìS';
-SELECT * FROM t4 WHERE c1 = 'ìS';
 SELECT * FROM t1 WHERE c1 = 'ìs';
 SELECT * FROM t2 WHERE c1 = 'ìs';
 SELECT * FROM t3 WHERE c1 = 'ìs';
-SELECT * FROM t4 WHERE c1 = 'ìs';
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
 
 DROP TABLE `ÇsÇP`;
 DROP TABLE `ÇsÇQ`;
@@ -99,6 +91,3 @@ DROP TABLE `ÇsÇU`;
 DROP TABLE `ÇsÇV`;
 DROP TABLE `ÇsÇW`;
 DROP TABLE `ÇsÇX`;
-DROP TABLE `ÇsÇPÇO`;
-DROP TABLE `ÇsÇPÇP`;
-DROP TABLE `ÇsÇPÇQ`;
