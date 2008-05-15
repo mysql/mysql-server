@@ -24,6 +24,7 @@
 static bool
 create_string(THD *thd, String *buf,
 	      int sp_type,
+	      const char *db, ulong dblen,
 	      const char *name, ulong namelen,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
@@ -588,12 +589,13 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
    */
 
   if (!create_string(thd, &defstr,
-		     type,
-		     name->m_name.str, name->m_name.length,
-		     params, strlen(params),
-		     returns, strlen(returns),
-		     body, strlen(body),
-		     &chistics, &definer_user_name, &definer_host_name))
+                     type,
+                     NULL, 0,
+                     name->m_name.str, name->m_name.length,
+                     params, strlen(params),
+                     returns, strlen(returns),
+                     body, strlen(body),
+                     &chistics, &definer_user_name, &definer_host_name))
   {
     ret= SP_INTERNAL_ERROR;
     goto end;
@@ -922,6 +924,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 
       if (!create_string(thd, &log_query,
                          sp->m_type,
+                         (sp->m_explicit_name ? sp->m_db.str : NULL), 
+                         (sp->m_explicit_name ? sp->m_db.length : 0), 
                          sp->m_name.str, sp->m_name.length,
                          sp->m_params.str, sp->m_params.length,
                          retstr.c_ptr(), retstr.length(),
@@ -2070,17 +2074,18 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
 */
 static bool
 create_string(THD *thd, String *buf,
-	      int type,
-	      const char *name, ulong namelen,
-	      const char *params, ulong paramslen,
-	      const char *returns, ulong returnslen,
-	      const char *body, ulong bodylen,
-	      st_sp_chistics *chistics,
+              int type,
+              const char *db, ulong dblen,
+              const char *name, ulong namelen,
+              const char *params, ulong paramslen,
+              const char *returns, ulong returnslen,
+              const char *body, ulong bodylen,
+              st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host)
 {
   /* Make some room to begin with */
-  if (buf->alloc(100 + namelen + paramslen + returnslen + bodylen +
+  if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
 		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
                  USER_HOST_BUFF_SIZE))
     return FALSE;
@@ -2091,6 +2096,11 @@ create_string(THD *thd, String *buf,
     buf->append(STRING_WITH_LEN("FUNCTION "));
   else
     buf->append(STRING_WITH_LEN("PROCEDURE "));
+  if (dblen > 0)
+  {
+    append_identifier(thd, buf, db, dblen);
+    buf->append('.');
+  }
   append_identifier(thd, buf, name, namelen);
   buf->append('(');
   buf->append(params, paramslen);
