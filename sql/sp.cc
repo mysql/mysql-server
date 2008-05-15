@@ -24,7 +24,7 @@
 static bool
 create_string(THD *thd, String *buf,
 	      int sp_type,
-	      sp_name *name,
+	      const char *name, ulong namelen,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
@@ -589,7 +589,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
   if (!create_string(thd, &defstr,
 		     type,
-		     name,
+		     name->m_name.str, name->m_name.length,
 		     params, strlen(params),
 		     returns, strlen(returns),
 		     body, strlen(body),
@@ -732,6 +732,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   DBUG_ENTER("sp_create_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
                        sp->m_name.str));
+  String retstr(64);
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
@@ -819,7 +820,6 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 
     if (sp->m_type == TYPE_ENUM_FUNCTION)
     {
-      String retstr(64);
       sp_returns_type(thd, retstr, sp);
 
       store_failed= store_failed ||
@@ -919,17 +919,19 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 
       String log_query;
       log_query.set_charset(system_charset_info);
-      log_query.append(STRING_WITH_LEN("CREATE "));
-      append_definer(thd, &log_query, &thd->lex->definer->user,
-                     &thd->lex->definer->host);
 
-      LEX_STRING stmt_definition;
-      stmt_definition.str= (char*) thd->lex->stmt_definition_begin;
-      stmt_definition.length= thd->lex->stmt_definition_end
-        - thd->lex->stmt_definition_begin;
-      trim_whitespace(thd->charset(), & stmt_definition);
-
-      log_query.append(stmt_definition.str, stmt_definition.length);
+      if (!create_string(thd, &log_query,
+                         sp->m_type,
+                         sp->m_name.str, sp->m_name.length,
+                         sp->m_params.str, sp->m_params.length,
+                         retstr.c_ptr(), retstr.length(),
+                         sp->m_body.str, sp->m_body.length,
+                         sp->m_chistics, &(thd->lex->definer->user),
+                         &(thd->lex->definer->host)))
+      {
+        ret= SP_INTERNAL_ERROR;
+        goto done;
+      }
 
       /* Such a statement can always go directly to binlog, no trans cache */
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
@@ -2069,7 +2071,7 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
 static bool
 create_string(THD *thd, String *buf,
 	      int type,
-	      sp_name *name,
+	      const char *name, ulong namelen,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
@@ -2078,7 +2080,7 @@ create_string(THD *thd, String *buf,
               const LEX_STRING *definer_host)
 {
   /* Make some room to begin with */
-  if (buf->alloc(100 + name->m_qname.length + paramslen + returnslen + bodylen +
+  if (buf->alloc(100 + namelen + paramslen + returnslen + bodylen +
 		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
                  USER_HOST_BUFF_SIZE))
     return FALSE;
@@ -2089,7 +2091,7 @@ create_string(THD *thd, String *buf,
     buf->append(STRING_WITH_LEN("FUNCTION "));
   else
     buf->append(STRING_WITH_LEN("PROCEDURE "));
-  append_identifier(thd, buf, name->m_name.str, name->m_name.length);
+  append_identifier(thd, buf, name, namelen);
   buf->append('(');
   buf->append(params, paramslen);
   buf->append(')');
