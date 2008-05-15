@@ -23,7 +23,7 @@ libgeneral_la_SOURCES = \
 	    NdbSqlUtil.cpp new.cpp \
             uucode.c random.c version.c \
             strdup.c \
-            ConfigValues.cpp ndb_init.c basestring_vsnprintf.c \
+            ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp \
 	    ndb_rand.c
 
@@ -31,9 +31,18 @@ EXTRA_PROGRAMS = testBitmask
 testBitmask_SOURCES =  testBitmask.cpp
 testBitmask_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
-         $(top_builddir)/dbug/libdbug.a \
-         $(top_builddir)/mysys/libmysys.a \
-         $(top_builddir)/strings/libmystrings.a
+         $(top_builddir)/dbug/libdbuglt.la \
+         $(top_builddir)/mysys/libmysyslt.la \
+         $(top_builddir)/strings/libmystringslt.la
+
+#noinst_PROGRAMS = ndb_show_compat
+ndb_show_compat_SOURCES = ndb_show_compat.cc
+ndb_show_compat_LDADD = \
+	$(builddir)libgeneral.la \
+	$(top_builddir)/storage/ndb/src/common/portlib/libportlib.la \
+	$(top_builddir)/dbug/libdbuglt.la \
+	$(top_builddir)/mysys/libmysyslt.la \
+	$(top_builddir)/strings/libmystringslt.la
 
 testBitmask.cpp : Bitmask.cpp
 	rm -f testBitmask.cpp

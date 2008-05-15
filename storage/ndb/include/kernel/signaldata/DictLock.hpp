@@ -23,11 +23,23 @@
 class DictLockReq {
   friend class Dbdict;
   friend class Dbdih;
+  friend class Suma;
 public:
   STATIC_CONST( SignalLength = 3 );
   enum LockType {
-    NoLock = 0,
-    NodeRestartLock = 1
+    NoLock = 0
+    ,NodeRestartLock = 1 // S-lock
+    ,NodeFailureLock = 2 // S-lock
+    ,CreateTableLock = 3
+    ,AlterTableLock  = 4
+    ,DropTableLock   = 5
+    ,CreateIndexLock = 6
+    ,DropIndexLock   = 7
+    ,CreateFileLock  = 8
+    ,CreateFilegroupLock = 9
+    ,DropFileLock    = 10
+    ,DropFilegroupLock = 11
+    ,SumaStartMe = 12
   };
 private:
   Uint32 userPtr;
@@ -49,6 +61,7 @@ private:
 class DictLockRef {
   friend class Dbdict;
   friend class Dbdih;
+  friend class Suma;
 public:
   STATIC_CONST( SignalLength = 3 );
   enum ErrorCode {
@@ -67,11 +80,16 @@ private:
 class DictUnlockOrd {
   friend class Dbdict;
   friend class Dbdih;
+  friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLengthDict = 2 );
+  STATIC_CONST( SignalLengthDih  = 2 );
+  STATIC_CONST( SignalLengthSuma = 4 );
 private:
   Uint32 lockPtr;
   Uint32 lockType;
+  Uint32 senderData;
+  Uint32 senderRef;
 };
 
 #endif

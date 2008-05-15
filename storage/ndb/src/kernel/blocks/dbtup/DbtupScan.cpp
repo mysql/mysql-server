@@ -70,21 +70,24 @@ Dbtup::execACC_SCANREQ(Signal* signal)
 	break;
       }
     }
-     
+
     if (!AccScanReq::getNoDiskScanFlag(req->requestInfo)
         && tablePtr.p->m_no_of_disk_attributes)
     {
       bits |= ScanOp::SCAN_DD;
     }
-    
-    bool mm = (bits & ScanOp::SCAN_DD);
-    if (tablePtr.p->m_attributes[mm].m_no_of_varsize > 0) {
-      bits |= ScanOp::SCAN_VS;
       
+    bool mm = (bits & ScanOp::SCAN_DD);
+    if ((tablePtr.p->m_attributes[mm].m_no_of_varsize +
+         tablePtr.p->m_attributes[mm].m_no_of_dynamic) > 0) 
+    {
+      bits |= ScanOp::SCAN_VS;
+	
       // disk pages have fixed page format
       ndbrequire(! (bits & ScanOp::SCAN_DD));
     }
-    if (! AccScanReq::getReadCommittedFlag(req->requestInfo)) {
+    if (! AccScanReq::getReadCommittedFlag(req->requestInfo)) 
+    {
       if (AccScanReq::getLockMode(req->requestInfo) == 0)
         bits |= ScanOp::SCAN_LOCK_SH;
       else
@@ -698,12 +701,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       {
         if (pos.m_realpid_mm == RNIL) {
           jam();
-          if (key.m_page_no < frag.noOfPages)
-            pos.m_realpid_mm = getRealpid(fragPtr.p, key.m_page_no);
-          else
+          pos.m_realpid_mm = getRealpidCheck(fragPtr.p, key.m_page_no);
+          
+          if (pos.m_realpid_mm == RNIL)
           {
-            ndbassert(bits & ScanOp::SCAN_NR);
-            goto nopage;
+            jam();
+            if (bits & ScanOp::SCAN_NR)
+            {
+              jam();
+              goto nopage;
+            }
+            pos.m_get = ScanPos::Get_next_page_mm;
+            break; // incr loop count
           }
         }
         PagePtr pagePtr;
@@ -1052,7 +1061,8 @@ found_lcp_keep:
   ptr->m_header_bits |= Tuple_header::FREED; // RESTORE free flag
   if (headerbits & Tuple_header::FREED)
   {
-    if (tablePtr.p->m_attributes[MM].m_no_of_varsize)
+    if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
+        tablePtr.p->m_attributes[MM].m_no_of_dynamic)
     {
       jam();
       free_var_rec(fragPtr.p, tablePtr.p, &tmp, pagePtr);

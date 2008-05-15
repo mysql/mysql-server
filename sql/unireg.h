@@ -194,6 +194,9 @@
 #define MTYP_NOEMPTY_BIT 128
 
 #define FRM_VER_TRUE_VARCHAR (FRM_VER+4) /* 10 */
+#define MYSQL_VERSION_TABLESPACE_IN_FRM 50120
+#define MYSQL_VERSION_TABLESPACE_IN_FRM_STR "50120"
+
 /*
   Minimum length pattern before Turbo Boyer-Moore is used
   for SELECT "text" LIKE "%pattern%", excluding the two
@@ -211,6 +214,10 @@
 #define FLOATING_POINT_BUFFER 331
 
 #define DEFAULT_KEY_CACHE_NAME "default"
+
+#define STORAGE_TYPE_MASK 7
+#define COLUMN_FORMAT_MASK 7
+#define COLUMN_FORMAT_SHIFT 3
 
 /* Include prototypes for unireg */
 

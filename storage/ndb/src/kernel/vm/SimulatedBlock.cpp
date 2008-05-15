@@ -40,7 +40,7 @@
 #include <NdbSqlUtil.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 #define ljamEntry() jamEntryLine(30000 + __LINE__)
 #define ljam() jamLine(30000 + __LINE__)
@@ -68,39 +68,6 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   c_fragmentIdCounter = 1;
   c_fragSenderRunning = false;
   
-  Properties tmp;
-  const Properties * p = &tmp;
-  ndbrequire(p != 0);
-
-  Uint32 count = 10;
-  char buf[255];
-
-  count = 10;
-  BaseString::snprintf(buf, 255, "%s.FragmentSendPool", getBlockName(blockNumber));
-  if(!p->get(buf, &count))
-    p->get("FragmentSendPool", &count);
-  c_fragmentSendPool.setSize(count);
-
-  count = 10;
-  BaseString::snprintf(buf, 255, "%s.FragmentInfoPool", getBlockName(blockNumber));
-  if(!p->get(buf, &count))
-    p->get("FragmentInfoPool", &count);
-  c_fragmentInfoPool.setSize(count);
-
-  count = 10;
-  BaseString::snprintf(buf, 255, "%s.FragmentInfoHash", getBlockName(blockNumber));
-  if(!p->get(buf, &count))
-    p->get("FragmentInfoHash", &count);
-  c_fragmentInfoHash.setSize(count);
-
-  count = 5;
-  BaseString::snprintf(buf, 255, "%s.ActiveMutexes", getBlockName(blockNumber));
-  if(!p->get(buf, &count))
-    p->get("ActiveMutexes", &count);
-  c_mutexMgr.setSize(count);
-  
-  c_counterMgr.setSize(5);
-  
 #ifdef VM_TRACE_TIME
   clearTimes();
 #endif
@@ -117,6 +84,30 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   m_global_variables = new Ptr<void> * [1];
   m_global_variables[0] = 0;
 #endif
+}
+
+void
+SimulatedBlock::initCommon()
+{
+  Uint32 count = 10;
+  this->getParam("FragmentSendPool", &count);
+  c_fragmentSendPool.setSize(count);
+
+  count = 10;
+  this->getParam("FragmentInfoPool", &count);
+  c_fragmentInfoPool.setSize(count);
+
+  count = 10;
+  this->getParam("FragmentInfoHash", &count);
+  c_fragmentInfoHash.setSize(count);
+
+  count = 5;
+  this->getParam("ActiveMutexes", &count);
+  c_mutexMgr.setSize(count);
+  
+  count = 5;
+  this->getParam("ActiveCounters", &count);
+  c_counterMgr.setSize(count);
 }
 
 SimulatedBlock::~SimulatedBlock()
@@ -719,9 +710,9 @@ SimulatedBlock::allocRecordAligned(const char * type, size_t s, size_t n, void *
       *unaligned_buffer = p;
       p = (void *)(((UintPtr)p + over_alloc) & ~(UintPtr)(over_alloc));
 #ifdef VM_TRACE
-      g_eventLogger.info("'%s' (%u) %llu %llu, alignment correction %u bytes",
-                         type, align, (Uint64)p, (Uint64)p+n*s,
-                         (Uint32)((UintPtr)p - (UintPtr)*unaligned_buffer));
+      g_eventLogger->info("'%s' (%u) %llu %llu, alignment correction %u bytes",
+                          type, align, (Uint64)p, (Uint64)p+n*s,
+                          (Uint32)((UintPtr)p - (UintPtr)*unaligned_buffer));
 #endif
     }
   }

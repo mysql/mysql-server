@@ -22,7 +22,7 @@
 
 target =	libmysqlclient.la
 target_defs =	-DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
-LIBS =		@CLIENT_LIBS@ 
+LIBS =		@CLIENT_LIBS@
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
 		$(openssl_includes) @ZLIB_INCLUDES@
 
@@ -36,15 +36,10 @@ noinst_HEADERS = client_settings.h
 
 link_sources:
 	  set -x; \
-	  ss=`echo $(mystringsobjects) | sed "s;\.lo;.c;g"`; \
 	  ds=`echo $(dbugobjects) | sed "s;\.lo;.c;g"`; \
 	  ms=`echo $(mysysobjects) | sed "s;\.lo;.c;g"`; \
 	  vs=`echo $(vio_objects) | sed "s;\.lo;.c;g"`; \
 	  scs=`echo $(sql_cmn_objects) | sed "s;\.lo;.c;g"`; \
-	  for f in $$ss; do \
-	    rm -f $$f; \
-	    @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
-	  done; \
 	  for f in $$vs $(vioheaders); do \
 	    rm -f $$f; \
 	    @LN_CP_F@ $(top_srcdir)/vio/$$f $$f; \
@@ -52,10 +47,6 @@ link_sources:
 	  for f in $$scs; do \
 	    rm -f $$f; \
 	    @LN_CP_F@ $(top_srcdir)/sql-common/$$f $$f; \
-	  done; \
-	  for f in $(mystringsextra); do \
-	    rm -f $$f; \
-	    @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
 	  done; \
 	  for f in $$ds; do \
 	    rm -f $$f; \
@@ -87,7 +78,7 @@ nh =		my_global.h config-win32.h dbug.h errmsg.h \
 		mysys_err.h my_pthread.h thr_alarm.h violite.h hash.h \
                 sql_common.h ../libmysql/client_settings.h 
 # Get a list of the needed objects  
-lobjs = $(mysysobjects1) $(dbugobjects) $(mystringsobjects) $(sqlobjects)
+lobjs = $(mysysobjects1) $(dbugobjects) $(sqlobjects)
 
 do-lib-dist:
 	dir=libmysql-$(MYSQL_NO_DASH_VERSION); \

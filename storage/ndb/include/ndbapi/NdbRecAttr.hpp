@@ -73,6 +73,7 @@ class NdbRecAttr
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbOperation;
+  friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
   friend class NdbEventOperationImpl;
   friend class NdbReceiver;
@@ -276,6 +277,7 @@ private:
 
   int setup(const class NdbDictionary::Column* col, char* aValue);
   int setup(const class NdbColumnImpl* anAttrInfo, char* aValue);
+  int setup(Uint32 byteSize, char* aValue);
                                 /* Set up attributes and buffers        */
   bool copyoutRequired() const; /* Need to copy data to application     */
   void copyout();               /* Copy from storage to application     */
@@ -290,6 +292,9 @@ private:
   
   Int32 m_size_in_bytes;
   const NdbDictionary::Column* m_column;
+
+  // not-NULL means skip length bytes and store their value here
+  Uint16* m_getVarValue;
 
   friend struct Ndb_free_list_t<NdbRecAttr>;
 };
@@ -383,6 +388,7 @@ NdbRecAttr::init()
   theRef = 0;
   theNext = 0;
   theAttrId = 0xFFFF;
+  m_getVarValue = 0;
 }
 
 inline
