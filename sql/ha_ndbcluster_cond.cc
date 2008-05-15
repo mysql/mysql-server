@@ -152,7 +152,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
     }
     else
     {
-      Ndb_cond_stack *ndb_stack= context->stack_ptr;
+      Ndb_cond_stack *ndb_stack= context->cond_stack;
       Ndb_cond *prev_cond= context->cond_ptr;
       Ndb_cond *curr_cond= context->cond_ptr= new Ndb_cond();
       if (!ndb_stack->ndb_cond)
@@ -248,6 +248,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
       }
       else
       {
+        bool pop= TRUE;
+
         switch (item->type()) {
         case Item::FIELD_ITEM:
         {
@@ -486,16 +488,27 @@ void ndb_serialize_cond(const Item *item, void *arg)
           }
           case Item_func::LIKE_FUNC:
           {
+            Ndb_expect_stack* expect_next= new Ndb_expect_stack();
             DBUG_PRINT("info", ("LIKE_FUNC"));      
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
                                               func_item);      
-            context->expect(Item::STRING_ITEM);
+
+            /*
+              Ndb currently only supports pushing
+              <field> LIKE <string> | <func>
+              we thus push <string> | <func>
+              on the expect stack to catch that we
+              don't support <string> LIKE <field>.
+             */
             context->expect(Item::FIELD_ITEM);
             context->expect_only_field_type(MYSQL_TYPE_STRING);
             context->expect_field_type(MYSQL_TYPE_VAR_STRING);
             context->expect_field_type(MYSQL_TYPE_VARCHAR);
             context->expect_field_result(STRING_RESULT);
-            context->expect(Item::FUNC_ITEM);
+            expect_next->expect(Item::STRING_ITEM);
+            expect_next->expect(Item::FUNC_ITEM);
+            context->expect_stack.push(expect_next);
+            pop= FALSE;
             break;
           }
           case Item_func::ISNULL_FUNC:
@@ -886,6 +899,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
           context->supported= FALSE;
         }
         }
+        if (pop)
+          context->expect_stack.pop();
       }
       if (context->supported && context->rewrite_stack)
       {
