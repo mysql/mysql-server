@@ -1936,7 +1936,10 @@ static int locked_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag
 }
 
 static int locked_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
-    toku_ydb_lock(); int r = toku_c_get(c, key, data, flag); toku_ydb_unlock(); return r;
+    //{ unsigned int i; printf("cget flags=%d keylen=%d key={", flag, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", data->size); for(i=0; i<data->size; i++) printf("%d,", ((char*)data->data)[i]); printf("}\n"); }
+    toku_ydb_lock(); int r = toku_c_get(c, key, data, flag); toku_ydb_unlock();
+    //{ unsigned int i; printf("cgot r=%d keylen=%d key={", r, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", data->size); for(i=0; i<data->size; i++) printf("%d,", ((char*)data->data)[i]); printf("}\n"); }
+    return r;
 }
 
 static int locked_c_close(DBC * c) {
@@ -2730,6 +2733,7 @@ static int locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *db
 
 static inline int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data,
                                  u_int32_t flags) {
+    //{ unsigned i; printf("put %p keylen=%d key={", db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", data->size); for(i=0; i<data->size; i++) printf("%d,", ((char*)data->data)[i]); printf("}\n"); }
     BOOL changed; int r;
     r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
     if (r!=0) return r;

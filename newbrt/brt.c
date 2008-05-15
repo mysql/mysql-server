@@ -1437,6 +1437,10 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     int compare_both = should_compare_both_keys(node, cmd);
     struct cmd_leafval_bessel_extra be = {t, cmd, compare_both};
 
+    //static int counter=0;
+    //counter++;
+    //printf("counter=%d\n", counter);
+
     switch (cmd->type) {
     case BRT_INSERT:
 	
@@ -2403,6 +2407,7 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
 }
 
 int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
+    //{ unsigned i; printf("del %p keylen=%d key={", brt->db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", val->size); for(i=0; i<val->size; i++) printf("%d,", ((char*)val->data)[i]); printf("}\n"); }
     int r;
     if (txn) {
 	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
@@ -2614,8 +2619,8 @@ int pair_leafval_bessel_le_committed (u_int32_t klen, void *kval,
 			      search->k ? toku_fill_dbt(&x, kval, klen) : 0, 
 			      search->v ? toku_fill_dbt(&y, dval, dlen) : 0);
     switch (search->direction) {
-    case BRT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
-    case BRT_SEARCH_RIGHT:  return cmp==0 ? +1 : -1; // Because the comparison runs backwards for right searches.
+    case BRT_SEARCH_LEFT:   return cmp<0 ? -1 : +1;
+    case BRT_SEARCH_RIGHT:  return cmp>0 ? -1 : +1; // Because the comparison runs backwards for right searches.
     }
     assert(0);
     return 0;
