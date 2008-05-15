@@ -1,4 +1,5 @@
 --source include/have_ucs2.inc
+--source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists `£Τ£±`;
@@ -10,7 +11,6 @@ drop table if exists `£Τ£¶`;
 drop table if exists `£Τ£·`;
 drop table if exists `£Τ£Έ`;
 drop table if exists `£Τ£Ή`;
-drop table if exists `£Τ£±£°`;
 --enable_warnings
 
 #
@@ -27,12 +27,9 @@ CREATE TABLE `£Τ£³` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engin
 CREATE TABLE `£Τ£΄` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£µ` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£¶` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
-CREATE TABLE `£Τ£·` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Έ` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Ή` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£±£°` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£±` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£²` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(8), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
 
 INSERT INTO `£Τ£±` VALUES ('±²³΄µ');
 INSERT INTO `£Τ£±` VALUES ('±²³΄µ ');
@@ -106,30 +103,6 @@ INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ   ');
 INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ΅΅');
 INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ΅΅΅΅');
 INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ΅΅΅΅΅΅');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ ');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ  ');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ   ');
-# Double byte spaces are not supposed to be trimed
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ΅΅');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ΅΅΅΅');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ΅΅΅΅΅΅');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª ');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª  ');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª   ');
-# Double byte spaces are not supposed to be trimed
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª΅΅');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª΅΅΅΅');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª΅΅΅΅΅΅');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ ');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ  ');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ   ');
-# Double byte spaces are not supposed to be trimed
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ΅΅');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ΅΅΅΅');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ΅΅΅΅΅΅');
 
 #InnoDB
 SELECT RTRIM(`£Γ£±`) from `£Τ£±`;
@@ -141,15 +114,10 @@ SELECT RTRIM(`£Γ£±`) from `£Τ£΄`;
 SELECT RTRIM(`£Γ£±`) from `£Τ£µ`;
 SELECT RTRIM(`£Γ£±`) from `£Τ£¶`;
 
-#HEAP
+#MEMORY
 SELECT RTRIM(`£Γ£±`) from `£Τ£·`;
 SELECT RTRIM(`£Γ£±`) from `£Τ£Έ`;
 SELECT RTRIM(`£Γ£±`) from `£Τ£Ή`;
-
-#BDB
-SELECT RTRIM(`£Γ£±`) from `£Τ£±£°`;
-SELECT RTRIM(`£Γ£±`) from `£Τ£±£±`;
-SELECT RTRIM(`£Γ£±`) from `£Τ£±£²`;
 
 DROP TABLE `£Τ£±`;
 DROP TABLE `£Τ£²`;
@@ -160,6 +128,3 @@ DROP TABLE `£Τ£¶`;
 DROP TABLE `£Τ£·`;
 DROP TABLE `£Τ£Έ`;
 DROP TABLE `£Τ£Ή`;
-DROP TABLE `£Τ£±£°`;
-DROP TABLE `£Τ£±£±`;
-DROP TABLE `£Τ£±£²`;
