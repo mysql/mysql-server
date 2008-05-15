@@ -13,6 +13,7 @@ Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#
 Ndb_number_of_data_nodes	#
+Ndb_cluster_connection_pool	#
 SHOW GLOBAL VARIABLES LIKE 'ndb%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#

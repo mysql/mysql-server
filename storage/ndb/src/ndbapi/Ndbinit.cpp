@@ -35,7 +35,7 @@
 #include "NdbEventOperationImpl.hpp"
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
 	  const char* aDataBase , const char* aSchema)
@@ -119,6 +119,8 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     }
   }
 
+  theImpl->m_ndb_cluster_connection.link_ndb_object(this);
+
   DBUG_VOID_RETURN;
 }
 
@@ -140,7 +142,7 @@ Ndb::~Ndb()
   for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
   {
     if (op->m_state == NdbEventOperation::EO_EXECUTING && op->stop())
-      g_eventLogger.error("stopping NdbEventOperation failed in Ndb destructor");
+      g_eventLogger->error("stopping NdbEventOperation failed in Ndb destructor");
     op->m_magic_number= 0;
   }
   doDisconnect();
@@ -159,6 +161,8 @@ Ndb::~Ndb()
     delete theCommitAckSignal; 
     theCommitAckSignal = NULL;
   }
+
+  theImpl->m_ndb_cluster_connection.unlink_ndb_object(this);
 
   delete theImpl;
 
@@ -192,6 +196,8 @@ NdbWaiter::~NdbWaiter(){
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 		 Ndb& ndb)
   : m_ndb(ndb),
+    m_next_ndb_object(0),
+    m_prev_ndb_object(0),
     m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
     m_transporter_facade(ndb_cluster_connection->m_impl.m_transporter_facade),
     m_dictionary(ndb),

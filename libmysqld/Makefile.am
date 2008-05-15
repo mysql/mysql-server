@@ -47,6 +47,7 @@ noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	     ha_ndbcluster.cc ha_ndbcluster_cond.cc \
+	ha_ndbcluster_connection.cc \
 	ha_ndbcluster_binlog.cc ha_partition.cc \
 	handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
@@ -92,9 +93,9 @@ sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
 INC_LIB=	$(top_builddir)/regex/libregex.a \
-		$(top_builddir)/mysys/libmysys.a \
-		$(top_builddir)/strings/libmystrings.a \
-		$(top_builddir)/dbug/libdbug.a \
+		$(top_builddir)/mysys/.libs/libmysys.a \
+		$(top_builddir)/strings/.libs/libmystrings.a \
+		$(top_builddir)/dbug/.libs/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
                 @NDB_SCI_LIBS@ \
 		@mysql_plugin_libs@ \
@@ -113,6 +114,9 @@ ha_ndbcluster_cond.o:ha_ndbcluster_cond.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster_binlog.o: ha_ndbcluster_binlog.cc
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+ha_ndbcluster_connection.o: ha_ndbcluster_connection.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 # Until we can remove dependency on ha_ndbcluster.h

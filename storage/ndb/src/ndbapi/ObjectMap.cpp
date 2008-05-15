@@ -53,8 +53,8 @@ int NdbObjectIdMap::expand(Uint32 incSize)
   else
   {
     NdbMutex_Unlock(m_mutex);
-    g_eventLogger.error("NdbObjectIdMap::expand: realloc(%u*%u) failed",
-                        newSize, sizeof(MapEntry));
+    g_eventLogger->error("NdbObjectIdMap::expand: realloc(%u*%u) failed",
+                         newSize, sizeof(MapEntry));
     return -1;
   }
   NdbMutex_Unlock(m_mutex);

@@ -29,7 +29,8 @@ printLQH_TRANSCONF(FILE * output, const Uint32 * theData,
   fprintf(output, " lqhConnectPtr: %x\n", sig->lqhConnectPtr);
   fprintf(output, " oldTcOpRec: %x\n", sig->oldTcOpRec);
   fprintf(output, " requestInfo: %x\n", sig->requestInfo);
-  fprintf(output, " gci: %x\n", sig->gci);
+  fprintf(output, " gci_hi: %x\n", sig->gci_hi);
+  fprintf(output, " gci_lo: %x\n", sig->gci_lo);
   fprintf(output, " nextNodeId1: %x\n", sig->nextNodeId1);
   fprintf(output, " nextNodeId2: %x\n", sig->nextNodeId2);
   fprintf(output, " nextNodeId3: %x\n", sig->nextNodeId3);

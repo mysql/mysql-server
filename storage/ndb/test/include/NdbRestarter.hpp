@@ -57,6 +57,7 @@ public:
   
   int startAll();
   int startNodes(const int * _nodes, int _num_nodes);
+  int waitConnected(unsigned int _timeout = 120);
   int waitClusterStarted(unsigned int _timeout = 120);
   int waitClusterSingleUser(unsigned int _timeout = 120);
   int waitClusterStartPhase(int _startphase, unsigned int _timeout = 120);
@@ -87,7 +88,17 @@ public:
   int getRandomNotMasterNodeId(int randomNumber);
   
   NdbMgmHandle handle;  
-  
+
+  enum NodeSelector
+  {
+    NS_RANDOM     = 0, // Any node
+    NS_MASTER     = 1, // Master node
+    NS_NON_MASTER = 2
+  };
+
+  int getNode(NodeSelector);
+
+  void setReconnect(bool);
 protected:
 
   int waitClusterState(ndb_mgm_node_status _status,
@@ -110,6 +121,7 @@ protected:
   bool connected;
   BaseString addr;
   ndb_mgm_configuration * m_config;
+  bool m_reconnect;
 protected:
   ndb_mgm_configuration * getConfig();
 

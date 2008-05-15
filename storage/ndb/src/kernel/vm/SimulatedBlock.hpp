@@ -114,6 +114,7 @@ protected:
   void addRecSignalImpl(GlobalSignalNumber g, ExecFunction fun, bool f =false);
   void installSimulatedBlockFunctions();
   ExecFunction theExecArray[MAX_GSN+1];
+  void initCommon();
 public:
   /**
    * 
@@ -523,6 +524,7 @@ public:
   MutexManager c_mutexMgr;
 
   void ignoreMutexUnlockCallback(Signal* signal, Uint32 ptrI, Uint32 retVal);
+  virtual bool getParam(const char * param, Uint32 * retVal) { return false;}
 
   SafeCounterManager c_counterMgr;
 private:
@@ -809,7 +811,8 @@ public:\
 private: \
   void addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force = false)
 
-#define BLOCK_CONSTRUCTOR(BLOCK)
+#define BLOCK_CONSTRUCTOR(BLOCK) { initCommon();}
+
 
 #define BLOCK_FUNCTIONS(BLOCK) \
 void \

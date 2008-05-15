@@ -22,7 +22,7 @@
 /**
  * AlterTab
  *
- * Implemenatation of AlterTable
+ * Implemetation of AlterTable
  */
 class AlterTabReq {
   /**
@@ -33,6 +33,7 @@ class AlterTabReq {
   friend class Dbtc;
   friend class Dblqh;
   friend class Suma;
+  friend class Dbtup;
 
   /**
    * For printing
@@ -40,7 +41,7 @@ class AlterTabReq {
   friend bool printALTER_TAB_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
 public:
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 12 );
   
   enum RequestType {
     AlterTablePrepare = 0, // Prepare alter table
@@ -59,7 +60,16 @@ private:
   Uint32 gci;
   Uint32 requestType;
 
+  /* Only used when sending to TUP. */
+  Uint32 noOfNewAttr;
+  Uint32 newNoOfCharsets;
+  Uint32 newNoOfKeyAttrs;
+
   SECTION( DICT_TAB_INFO = 0 );
+  /*
+    When sent to DICT, the first section contains the new table definition.
+    When sent to TUP, the first section contains the new attributes.
+  */
 };
 
 struct AlterTabRef {
@@ -110,7 +120,7 @@ class AlterTabConf {
   friend bool printALTER_TAB_CONF(FILE *, const Uint32 *, Uint32, Uint16);
   
 public:
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
 
 private:
   Uint32 senderRef;
@@ -120,6 +130,20 @@ private:
   Uint32 tableVersion;
   Uint32 gci;
   Uint32 requestType;
+
+  /* Only used when sent from TUP. */
+  Uint32 clientData;
+};
+
+/*
+  This union can be used to safely refer to a signal data part
+  simultaneously as AlterTab{Req,Ref,Conf} without violating the
+  strict aliasing rule.
+*/
+union AlterTabAll {
+  AlterTabReq req;
+  AlterTabRef ref;
+  AlterTabConf conf;
 };
 
 #endif

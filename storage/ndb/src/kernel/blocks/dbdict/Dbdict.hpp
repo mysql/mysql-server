@@ -1161,9 +1161,11 @@ private:
 
     // For alter table
     Uint32 m_changeMask;
+    Uint32 m_new_cols;
     bool m_alterTableFailed;
     AlterTableRef m_alterTableRef;
     Uint32 m_alterTableId;
+    Uint32 m_tupAlterTabPtr;                    // Connect ptr towards TUP
 
     /* Previous table name (used for reverting failed table rename) */
     char previousTableName[MAX_TAB_NAME_SIZE];
@@ -1639,6 +1641,12 @@ private:
     Uint32 m_senderRef;
     Uint32 m_senderData;
     Uint32 m_errorCode;
+
+    Uint32 m_gsn;
+    Uint32 m_subscriptionId;
+    Uint32 m_subscriptionKey;
+    Uint32 m_subscriberRef;
+    Uint32 m_subscriberData;
     union {
       SubStartConf m_sub_start_conf;
       SubStopConf m_sub_stop_conf;
@@ -2664,6 +2672,12 @@ public:
   void drop_undofile_commit_complete(Signal* signal, SchemaOp*);
   
   int checkSingleUserMode(Uint32 senderRef);
+
+  Uint32 c_outstanding_sub_startstop;
+  NdbNodeBitmask c_sub_startstop_lock;
+
+protected:
+  virtual bool getParam(const char * param, Uint32 * retVal);
 };
 
 inline bool

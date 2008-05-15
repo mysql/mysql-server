@@ -351,14 +351,6 @@ ScanInterpretTest::scanReadVerify(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    check = pOp->interpret_exit_ok();
-    if (check == -1) {
-      ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
-      return NDBT_FAILED;
-    }
-
-    
     // Read all attributes  
     for(int a = 0; a<tab.getNoOfColumns(); a++){
       if((row.attributeStore(a) = 
