@@ -1,3 +1,5 @@
+--source include/have_sjis.inc
+--source include/have_innodb.inc
 --character_set sjis
 --disable_warnings
 drop table if exists `ÇsÇP`;
@@ -9,9 +11,6 @@ drop table if exists `ÇsÇU`;
 drop table if exists `ÇsÇV`;
 drop table if exists `ÇsÇW`;
 drop table if exists `ÇsÇX`;
-drop table if exists `ÇsÇPÇO`;
-drop table if exists `ÇsÇPÇP`;
-drop table if exists `ÇsÇPÇQ`;
 --enable_warnings
 
 #
@@ -27,12 +26,9 @@ CREATE TABLE `ÇsÇR` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engin
 CREATE TABLE `ÇsÇS` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇT` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇU` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
-CREATE TABLE `ÇsÇV` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇW` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇX` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇPÇO` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇP` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇQ` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
 
 INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ');
 INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
@@ -43,9 +39,6 @@ INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\');
 INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ');
 INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
 INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\');
-INSERT INTO `ÇsÇPÇO` VALUES ('±≤≥¥µ');
-INSERT INTO `ÇsÇPÇP` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
-INSERT INTO `ÇsÇPÇQ` VALUES ('É\è\ï\ó\ç\');
 
 UPDATE `ÇsÇP` SET `ÇbÇP` = ('∂∑∏π∫');
 UPDATE `ÇsÇQ` SET `ÇbÇP` = ('Ç©Ç´Ç≠ÇØÇ±');
@@ -56,9 +49,6 @@ UPDATE `ÇsÇU` SET `ÇbÇP` = ('â\é\ê\ì\î\');
 UPDATE `ÇsÇV` SET `ÇbÇP` = ('∂∑∏π∫');
 UPDATE `ÇsÇW` SET `ÇbÇP` = ('Ç©Ç´Ç≠ÇØÇ±');
 UPDATE `ÇsÇX` SET `ÇbÇP` = ('â\é\ê\ì\î\');
-UPDATE `ÇsÇPÇO` SET `ÇbÇP` = ('∂∑∏π∫');
-UPDATE `ÇsÇPÇP` SET `ÇbÇP` = ('Ç©Ç´Ç≠ÇØÇ±');
-UPDATE `ÇsÇPÇQ` SET `ÇbÇP` = ('â\é\ê\ì\î\');
 
 #InnoDB
 SELECT * FROM `ÇsÇP`;
@@ -70,15 +60,10 @@ SELECT * FROM `ÇsÇS`;
 SELECT * FROM `ÇsÇT`;
 SELECT * FROM `ÇsÇU`;
 
-#HEAP
+#MEMORY
 SELECT * FROM `ÇsÇV`;
 SELECT * FROM `ÇsÇW`;
 SELECT * FROM `ÇsÇX`;
-
-#BDB
-SELECT * FROM `ÇsÇPÇO`;
-SELECT * FROM `ÇsÇPÇP`;
-SELECT * FROM `ÇsÇPÇQ`;
 
 DROP TABLE `ÇsÇP`;
 DROP TABLE `ÇsÇQ`;
@@ -89,6 +74,3 @@ DROP TABLE `ÇsÇU`;
 DROP TABLE `ÇsÇV`;
 DROP TABLE `ÇsÇW`;
 DROP TABLE `ÇsÇX`;
-DROP TABLE `ÇsÇPÇO`;
-DROP TABLE `ÇsÇPÇP`;
-DROP TABLE `ÇsÇPÇQ`;
