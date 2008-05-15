@@ -1,4 +1,5 @@
 --source include/have_ucs2.inc
+--source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists `£Τ£±`;
@@ -10,9 +11,6 @@ drop table if exists `£Τ£¶`;
 drop table if exists `£Τ£·`;
 drop table if exists `£Τ£Έ`;
 drop table if exists `£Τ£Ή`;
-drop table if exists `£Τ£±£°`;
-drop table if exists `£Τ£±£±`;
-drop table if exists `£Τ£±£²`;
 --enable_warnings
 
 #
@@ -29,12 +27,9 @@ CREATE TABLE `£Τ£³` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = innodb;
 CREATE TABLE `£Τ£΄` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£µ` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£¶` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = myisam;
-CREATE TABLE `£Τ£·` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£±£°` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£±` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£²` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5)) DEFAULT CHARSET = ucs2 engine = MEMORY;
 
 INSERT INTO `£Τ£±` VALUES ('±²³΄µ');
 INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
@@ -45,9 +40,6 @@ INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ');
 INSERT INTO `£Τ£·` VALUES ('±²³΄µ');
 INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
 INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ');
 
 #InnoDB
 SELECT REPLACE(`£Γ£±`,'±','±±') FROM `£Τ£±`;
@@ -83,7 +75,7 @@ SELECT REPLACE(`£Γ£±`,'νή','νήνή') FROM `£Τ£¶`;
 SELECT REPLACE(`£Γ£±`,'νί','νίνί') FROM `£Τ£¶`;
 SELECT REPLACE(`£Γ£±`,'νΰ','νΰνΰ') FROM `£Τ£¶`;
 
-#HEAP
+#MEMORY
 SELECT REPLACE(`£Γ£±`,'±','±±') FROM `£Τ£·`;
 SELECT REPLACE(`£Γ£±`,'²','²²') FROM `£Τ£·`;
 SELECT REPLACE(`£Γ£±`,'³','³³') FROM `£Τ£·`;
@@ -100,23 +92,6 @@ SELECT REPLACE(`£Γ£±`,'νή','νήνή') FROM `£Τ£Ή`;
 SELECT REPLACE(`£Γ£±`,'νί','νίνί') FROM `£Τ£Ή`;
 SELECT REPLACE(`£Γ£±`,'νΰ','νΰνΰ') FROM `£Τ£Ή`;
 
-#BDB
-SELECT REPLACE(`£Γ£±`,'±','±±') FROM `£Τ£±£°`;
-SELECT REPLACE(`£Γ£±`,'²','²²') FROM `£Τ£±£°`;
-SELECT REPLACE(`£Γ£±`,'³','³³') FROM `£Τ£±£°`;
-SELECT REPLACE(`£Γ£±`,'΄','΄΄') FROM `£Τ£±£°`;
-SELECT REPLACE(`£Γ£±`,'µ','µµ') FROM `£Τ£±£°`;
-SELECT REPLACE(`£Γ£±`,'¤Ά','¤Ά¤Ά') FROM `£Τ£±£±`;
-SELECT REPLACE(`£Γ£±`,'¤¤','¤¤¤¤') FROM `£Τ£±£±`;
-SELECT REPLACE(`£Γ£±`,'¤¦','¤¦¤¦') FROM `£Τ£±£±`;
-SELECT REPLACE(`£Γ£±`,'¤¨','¤¨¤¨') FROM `£Τ£±£±`;
-SELECT REPLACE(`£Γ£±`,'¤ª','¤ª¤ª') FROM `£Τ£±£±`;
-SELECT REPLACE(`£Γ£±`,'νά','νάνά') FROM `£Τ£±£²`;
-SELECT REPLACE(`£Γ£±`,'νέ','νένέ') FROM `£Τ£±£²`;
-SELECT REPLACE(`£Γ£±`,'νή','νήνή') FROM `£Τ£±£²`;
-SELECT REPLACE(`£Γ£±`,'νί','νίνί') FROM `£Τ£±£²`;
-SELECT REPLACE(`£Γ£±`,'νΰ','νΰνΰ') FROM `£Τ£±£²`;
-
 DROP TABLE `£Τ£±`;
 DROP TABLE `£Τ£²`;
 DROP TABLE `£Τ£³`;
@@ -126,6 +101,3 @@ DROP TABLE `£Τ£¶`;
 DROP TABLE `£Τ£·`;
 DROP TABLE `£Τ£Έ`;
 DROP TABLE `£Τ£Ή`;
-DROP TABLE `£Τ£±£°`;
-DROP TABLE `£Τ£±£±`;
-DROP TABLE `£Τ£±£²`;
