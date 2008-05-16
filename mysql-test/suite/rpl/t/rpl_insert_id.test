@@ -1,0 +1,11 @@
+#################################
+# Wrapper for rpl_insert_id.test#
+#################################
+########################################################
+# By JBM 2005-02-15 Wrapped to allow reuse of test code#
+# Added to skip if ndb is default                      #
+########################################################
+-- source include/not_ndb_default.inc
+-- source include/have_innodb.inc
+let $engine_type=myisam;
+-- source extra/rpl_tests/rpl_insert_id.test
