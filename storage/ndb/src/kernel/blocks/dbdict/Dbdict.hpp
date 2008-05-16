@@ -41,6 +41,7 @@
 #include <signaldata/DropTable.hpp>
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/AlterTab.hpp>
+#include <signaldata/ListTables.hpp>
 #include <signaldata/CreateIndx.hpp>
 #include <signaldata/DropIndx.hpp>
 #include <signaldata/AlterIndx.hpp>
@@ -2597,6 +2598,9 @@ public:
   
   LockQueue::Pool m_dict_lock_pool;
   LockQueue m_dict_lock;
+
+  void sendOLD_LIST_TABLES_CONF(Signal *signal, ListTablesReq*);
+  void sendLIST_TABLES_CONF(Signal *signal, ListTablesReq*);
 
   Uint32 c_outstanding_sub_startstop;
   NdbNodeBitmask c_sub_startstop_lock;
