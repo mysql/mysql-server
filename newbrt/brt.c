@@ -2619,8 +2619,8 @@ int pair_leafval_bessel_le_committed (u_int32_t klen, void *kval,
 			      search->k ? toku_fill_dbt(&x, kval, klen) : 0, 
 			      search->v ? toku_fill_dbt(&y, dval, dlen) : 0);
     switch (search->direction) {
-    case BRT_SEARCH_LEFT:   return cmp<0 ? -1 : +1;
-    case BRT_SEARCH_RIGHT:  return cmp>0 ? -1 : +1; // Because the comparison runs backwards for right searches.
+    case BRT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
+    case BRT_SEARCH_RIGHT:  return cmp==0 ? +1 : -1; // Because the comparison runs backwards for right searches.
     }
     assert(0);
     return 0;
