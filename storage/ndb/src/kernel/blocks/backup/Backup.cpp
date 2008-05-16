@@ -2855,13 +2855,13 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, conf->senderData);
 
+  SectionHandle handle (this, signal);
   if (noOfTables > 0)
   {
-    ndbassert(signal->getNoOfSections() > 0);
     ListTablesData ltd;
     const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
     SegmentedSectionPtr tableDataPtr;
-    signal->getSection(tableDataPtr, ListTablesConf::TABLE_DATA);
+    handle.getSection(tableDataPtr, ListTablesConf::TABLE_DATA);
     SimplePropertiesSectionReader
       tableDataReader(tableDataPtr, getSectionSegmentPool());
 
@@ -2893,14 +2893,15 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
       if(tabPtr.i == RNIL) {
         jam();
         defineBackupRef(signal, ptr, DefineBackupRef::FailedToAllocateTables);
-        releaseSections(signal);
+        releaseSections(handle);
         return;
       }//if
       tabPtr.p->tableId = tableId;
       tabPtr.p->tableType = tableType;
     }//for
-    releaseSections(signal);
   }
+
+  releaseSections(handle);
 
   /*
     If first or not last signal

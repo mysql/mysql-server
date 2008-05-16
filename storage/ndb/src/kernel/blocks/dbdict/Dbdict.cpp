@@ -8287,10 +8287,12 @@ flush:
       }
       Uint32 * secNos = &signal->theData[sigLen];
       signal->theData[sigLen + secs] = fragId;
+      SectionHandle handle(this);
       switch (secs) {
       case(0):
         jam();
         sigLen++; // + fragId;
+        handle.m_cnt = 0;
         break;
       case(1):
       {
@@ -8307,7 +8309,8 @@ flush:
           tableNamesWriter.getPtr(segSecPtr);
           secNos[0] = ListTablesConf::TABLE_NAMES;
         }
-        signal->setSection(segSecPtr, 0);
+        handle.m_ptr[0] = segSecPtr;
+        handle.m_cnt = 1;
         break;
       }
       case(2):
@@ -8316,10 +8319,11 @@ flush:
         sigLen += 3; // 2 sections + fragid
         SegmentedSectionPtr tableDataPtr;
         tableDataWriter.getPtr(tableDataPtr);
-        signal->setSection(tableDataPtr, ListTablesConf::TABLE_DATA);
         SegmentedSectionPtr tableNamesPtr;
         tableNamesWriter.getPtr(tableNamesPtr);
-        signal->setSection(tableNamesPtr, ListTablesConf::TABLE_NAMES);
+        handle.m_ptr[0] = tableDataPtr;
+        handle.m_ptr[1] = tableNamesPtr;
+        handle.m_cnt = 2;
         secNos[0] = ListTablesConf::TABLE_DATA;
         secNos[1] = ListTablesConf::TABLE_NAMES;
         break;
@@ -8354,8 +8358,18 @@ flush:
       ListTablesConf * const conf = (ListTablesConf*)signal->getDataPtrSend();
       conf->senderData = senderData;
       conf->noOfTables = count;
-      sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
-                 sigLen, JBB);
+      if (handle.m_cnt)
+      {
+        jam();
+        sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
+                   sigLen, JBB, &handle);
+      }
+      else
+      {
+        jam();
+        sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
+                   sigLen, JBB);
+      }
 
       signal->header.m_noOfSections = 0;
       signal->header.m_fragmentInfo = 0;
