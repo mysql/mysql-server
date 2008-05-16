@@ -22,12 +22,6 @@ Created 10/21/1995 Heikki Tuuri
 #include <errno.h>
 #endif /* UNIV_HOTBACKUP */
 
-#ifdef POSIX_ASYNC_IO
-/* We assume in this case that the OS has standard Posix aio (at least SunOS
-2.6, HP-UX 11i and AIX 4.3 have) */
-
-#endif
-
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
 my_umask */
@@ -96,9 +90,6 @@ struct os_aio_slot_struct{
 					OVERLAPPED struct */
 	OVERLAPPED	control;	/* Windows control block for the
 					aio request */
-#elif defined(POSIX_ASYNC_IO)
-	struct aiocb	control;	/* Posix control block for aio
-					request */
 #endif
 };
 
@@ -331,10 +322,6 @@ os_file_get_last_error(
 
 	if (err == ENOSPC) {
 		return(OS_FILE_DISK_FULL);
-#ifdef POSIX_ASYNC_IO
-	} else if (err == EAGAIN) {
-		return(OS_FILE_AIO_RESOURCES_RESERVED);
-#endif
 	} else if (err == ENOENT) {
 		return(OS_FILE_NOT_FOUND);
 	} else if (err == EEXIST) {
@@ -2921,9 +2908,7 @@ os_aio_init(
 	ulint	n_write_segs;
 	ulint	n_per_seg;
 	ulint	i;
-#ifdef POSIX_ASYNC_IO
-	sigset_t   sigset;
-#endif
+
 	ut_ad(n % n_segments == 0);
 	ut_ad(n_segments >= 4);
 
@@ -2975,23 +2960,7 @@ os_aio_init(
 
 	os_last_printout = time(NULL);
 
-#ifdef POSIX_ASYNC_IO
-	/* Block aio signals from the current thread and its children:
-	for this to work, the current thread must be the first created
-	in the database, so that all its children will inherit its
-	signal mask */
-
-	/* TODO: to work MySQL needs the SIGALARM signal; the following
-	will not work yet! */
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGRTMIN + 1 + 0);
-	sigaddset(&sigset, SIGRTMIN + 1 + 1);
-	sigaddset(&sigset, SIGRTMIN + 1 + 2);
-	sigaddset(&sigset, SIGRTMIN + 1 + 3);
-
-	pthread_sigmask(SIG_BLOCK, &sigset, NULL); */
-#endif
-		}
+}
 
 #ifdef WIN_ASYNC_IO
 /****************************************************************************
@@ -3125,7 +3094,7 @@ os_aio_get_array_and_local_segment(
 Gets an integer value designating a specified aio array. This is used
 to give numbers to signals in Posix aio. */
 
-#if !defined(WIN_ASYNC_IO) && defined(POSIX_ASYNC_IO)
+#if !defined(WIN_ASYNC_IO)
 static
 ulint
 os_aio_get_array_no(
@@ -3179,7 +3148,7 @@ os_aio_get_array_from_no(
 		return(NULL);
 	}
 }
-#endif /* if !defined(WIN_ASYNC_IO) && defined(POSIX_ASYNC_IO) */
+#endif /* if !defined(WIN_ASYNC_IO) */
 
 /***********************************************************************
 Requests for a slot in the aio array. If no slot is available, waits until
@@ -3209,10 +3178,6 @@ os_aio_array_reserve_slot(
 	os_aio_slot_t*	slot;
 #ifdef WIN_ASYNC_IO
 	OVERLAPPED*	control;
-
-#elif defined(POSIX_ASYNC_IO)
-
-	struct aiocb*	control;
 #endif
 	ulint		i;
 loop:
@@ -3269,30 +3234,8 @@ loop:
 	control->Offset = (DWORD)offset;
 	control->OffsetHigh = (DWORD)offset_high;
 	os_event_reset(slot->event);
-
-#elif defined(POSIX_ASYNC_IO)
-
-#if (UNIV_WORD_SIZE == 8)
-	offset = offset + (offset_high << 32);
-#else
-	ut_a(offset_high == 0);
 #endif
-	control = &(slot->control);
-	control->aio_fildes = file;
-	control->aio_buf = buf;
-	control->aio_nbytes = len;
-	control->aio_offset = offset;
-	control->aio_reqprio = 0;
-	control->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
-	control->aio_sigevent.sigev_signo
-		= SIGRTMIN + 1 + os_aio_get_array_no(array);
-	/* TODO: How to choose the signal numbers? */
-	/*
-	fprintf(stderr, "AIO signal number %lu\n",
-	(ulint) control->aio_sigevent.sigev_signo);
-	*/
-	control->aio_sigevent.sigev_value.sival_ptr = slot;
-#endif
+
 	os_mutex_exit(array->mutex);
 
 	return(slot);
@@ -3540,10 +3483,6 @@ try_again:
 
 			ret = ReadFile(file, buf, (DWORD)n, &len,
 				       &(slot->control));
-#elif defined(POSIX_ASYNC_IO)
-			slot->control.aio_lio_opcode = LIO_READ;
-			err = (ulint) aio_read(&(slot->control));
-			fprintf(stderr, "Starting POSIX aio read %lu\n", err);
 #endif
 		} else {
 			if (!wake_later) {
@@ -3558,10 +3497,6 @@ try_again:
 			os_n_file_writes++;
 			ret = WriteFile(file, buf, (DWORD)n, &len,
 					&(slot->control));
-#elif defined(POSIX_ASYNC_IO)
-			slot->control.aio_lio_opcode = LIO_WRITE;
-			err = (ulint) aio_write(&(slot->control));
-			fprintf(stderr, "Starting POSIX aio write %lu\n", err);
 #endif
 		} else {
 			if (!wake_later) {
@@ -3706,12 +3641,12 @@ os_aio_windows_handle(
 	if (ret && len == slot->len) {
 		ret_val = TRUE;
 
-# ifdef UNIV_DO_FLUSH
+#ifdef UNIV_DO_FLUSH
 		if (slot->type == OS_FILE_WRITE
 		    && !os_do_not_call_flush_at_each_write) {
 			ut_a(TRUE == os_file_flush(slot->file));
 		}
-# endif /* UNIV_DO_FLUSH */
+#endif /* UNIV_DO_FLUSH */
 	} else {
 		os_file_handle_error(slot->name, "Windows aio");
 
@@ -3723,87 +3658,6 @@ os_aio_windows_handle(
 	os_aio_array_free_slot(array, slot);
 
 	return(ret_val);
-}
-#endif
-
-#ifdef POSIX_ASYNC_IO
-
-/**************************************************************************
-This function is only used in Posix asynchronous i/o. Waits for an aio
-operation to complete. */
-UNIV_INTERN
-ibool
-os_aio_posix_handle(
-/*================*/
-				/* out: TRUE if the aio operation succeeded */
-	ulint	array_no,	/* in: array number 0 - 3 */
-	fil_node_t**message1,	/* out: the messages passed with the aio
-				request; note that also in the case where
-				the aio operation failed, these output
-				parameters are valid and can be used to
-				restart the operation, for example */
-	void**	message2)
-{
-	os_aio_array_t*	array;
-	os_aio_slot_t*	slot;
-	siginfo_t	info;
-	sigset_t	sigset;
-	sigset_t	proc_sigset;
-	sigset_t	thr_sigset;
-	int		ret;
-	int		i;
-	int		sig;
-
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGRTMIN + 1 + array_no);
-
-	pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
-
-#if 0
-	sigprocmask(0, NULL, &proc_sigset);
-	pthread_sigmask(0, NULL, &thr_sigset);
-
-	for (i = 32 ; i < 40; i++) {
-		fprintf(stderr, "%lu : %lu %lu\n", (ulint)i,
-			(ulint) sigismember(&proc_sigset, i),
-			(ulint) sigismember(&thr_sigset, i));
-	}
-#endif
-
-	ret = sigwaitinfo(&sigset, &info);
-
-	if (sig != SIGRTMIN + 1 + array_no) {
-
-		ut_error;
-
-		return(FALSE);
-	}
-
-	fputs("Handling POSIX aio\n", stderr);
-
-	array = os_aio_get_array_from_no(array_no);
-
-	os_mutex_enter(array->mutex);
-
-	slot = info.si_value.sival_ptr;
-
-	ut_a(slot->reserved);
-
-	*message1 = slot->message1;
-	*message2 = slot->message2;
-
-# ifdef UNIV_DO_FLUSH
-	if (slot->type == OS_FILE_WRITE
-	    && !os_do_not_call_flush_at_each_write) {
-		ut_a(TRUE == os_file_flush(slot->file));
-	}
-# endif /* UNIV_DO_FLUSH */
-
-	os_mutex_exit(array->mutex);
-
-	os_aio_array_free_slot(array, slot);
-
-	return(TRUE);
 }
 #endif
 
