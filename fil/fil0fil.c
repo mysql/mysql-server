@@ -4442,8 +4442,6 @@ fil_aio_wait(
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, &fil_node,
 					    &message, &type);
-#elif defined(POSIX_ASYNC_IO)
-		ret = os_aio_posix_handle(segment, &fil_node, &message);
 #else
 		ret = 0; /* Eliminate compiler warning */
 		ut_error;
