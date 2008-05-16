@@ -1125,8 +1125,8 @@ static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
 				      u_int32_t dlen, void *dval,
 				      BRT_CMD cmd,
 				      u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
-    assert(cmd->u.id.key->size == klen);
-    assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
+    //assert(cmd->u.id.key->size == klen);
+    //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
     case BRT_INSERT:
 	return le_both(cmd->xid,
@@ -1169,8 +1169,8 @@ static int apply_cmd_to_le_both (TXNID xid,
 	prev_len = plen;  prev_val = pval;
     }
     // keep the committed value for rollback.
-    assert(cmd->u.id.key->size == klen);
-    assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
+    //assert(cmd->u.id.key->size == klen);
+    //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
     case BRT_INSERT:
 	return le_both(cmd->xid,
@@ -1208,8 +1208,8 @@ static int apply_cmd_to_le_provdel (TXNID xid,
 				    BRT_CMD cmd,
 				    u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
     // keep the committed value for rollback
-    assert(cmd->u.id.key->size == klen);
-    assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
+    //assert(cmd->u.id.key->size == klen);
+    //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
     case BRT_INSERT:
 	if (cmd->xid == xid) {
@@ -1260,8 +1260,8 @@ static int apply_cmd_to_le_provpair (TXNID xid,
 				     u_int32_t plen , void *pval,
 				     BRT_CMD cmd,
 				     u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
-    assert(cmd->u.id.key->size == klen);
-    assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
+    //assert(cmd->u.id.key->size == klen);
+    //assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
     case BRT_INSERT:
 	if (cmd->xid == xid) {
