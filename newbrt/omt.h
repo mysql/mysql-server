@@ -95,6 +95,23 @@ u_int32_t toku_omt_size(OMT V);
 // Requires: V != NULL
 // Performance:  time=O(1)
 
+int toku_omt_iterate_on_range(OMT omt, u_int32_t left, u_int32_t right, int (*f)(OMTVALUE, u_int32_t, void*), void*v);
+// Effect:  Iterate over the values of the omt, from left to right, calling f on each value.
+//  The second argument passed to f is the index of the value.
+//  The third argument passed to f is v.
+//  The indices run from 0 (inclusive) to toku_omt_size(omt) (exclusive).
+//  We will iterate only over [left,right)
+//
+// Requires: omt != NULL
+// left <= right
+// Requires: f != NULL
+// Returns:
+//  If f ever returns nonzero, then the iteration stops, and the value returned by f is returned by toku_omt_iterate.
+//  If f always returns zero, then toku_omt_iterate returns 0.
+// Requires:  Don't modify omt while running.  (E.g., f may not insert or delete values form omt.)
+// Performance: time=O(i+\log N) where i is the number of times f is called, and N is the number of elements in omt.
+// Rational: Although the functional iterator requires defining another function (as opposed to C++ style iterator), it is much easier to read.
+
 int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, u_int32_t, void*), void*v);
 // Effect:  Iterate over the values of the omt, from left to right, calling f on each value.
 //  The second argument passed to f is the index of the value.
@@ -260,4 +277,10 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
 // On error, nothing is modified.
 // Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
 
+void toku_omt_clear(OMT omt);
+// Effect: Set the tree to be empty.
+//  Note: Will not resize the array, since void precludes allowing a malloc.
+// Performance: time=O(1)
+
 #endif  /* #ifndef OMT_H */
+

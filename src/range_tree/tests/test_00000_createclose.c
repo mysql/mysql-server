@@ -33,7 +33,7 @@ int main(int argc, const char *argv[]) {
     if (allow_overlaps) continue;
 #endif
         int i;
-        for (i = 1; i <= 2; i++) {
+        for (i = 1; i <= 1; i++) {
             mallocced = 0;
             failon = i;
             r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps,

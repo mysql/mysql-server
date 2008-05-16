@@ -103,7 +103,7 @@ NEWBRT_BINS     = ../../../newbrt/newbrt.o
 
 RT_LINEAR_BINS  = ../../range_tree/linear.o
 RT_TLINEAR_BINS = ../../range_tree/linear.o
-RT_TLOG_BINS    = ../../range_tree/log_nooverlap.o ../../range_tree/tokuredblack.o
+RT_TLOG_BINS    = ../../range_tree/log_nooverlap.o 
 RT_LOG_BINS     = ../../range_tree/log.o
 
 LT_BINS        = ../lth.o ../rth.o ../idlth.o ../db_id.o

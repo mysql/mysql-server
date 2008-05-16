@@ -926,6 +926,24 @@ static inline void toku__lt_init_full_query(toku_lock_tree* tree, toku_interval*
     toku__init_query(query, left, right);
 }
 
+typedef struct {
+    toku_lock_tree*  lt;
+    toku_range_tree* rtdel;
+    toku_interval*   query;
+    toku_range*      store_value;
+} free_contents_info;
+
+static int free_contents_helper(toku_range* value, void* extra) {
+    free_contents_info* info = extra;
+    int r               = ENOSYS;
+
+    *info->store_value = *value;
+    if ((r=toku__lt_free_points(info->lt, info->query, 1, info->rtdel))) {
+        return toku__lt_panic(info->lt, r);
+    }
+    return 0;
+}
+
 /*
     TODO: Refactor.
     toku__lt_free_points should be replaced (or supplanted) with a 
@@ -937,20 +955,20 @@ static inline int toku__lt_free_contents(toku_lock_tree* tree, toku_range_tree* 
     if (!rt) return 0;
     
     int r;
-    int r2;
-    BOOL found = FALSE;
 
     toku_interval query;
     toku_point left;
     toku_point right;
     toku__lt_init_full_query(tree, &query, &left, &right);
-    toku_rt_start_scan(rt);
-    while ((r = toku_rt_next(rt, &tree->buf[0], &found)) == 0 && found) {
-        r = toku__lt_free_points(tree, &query, 1, rtdel);
-        if (r!=0) return toku__lt_panic(tree, r);
-    }
-    r2 = toku_rt_close(rt);
-    assert(r2 == 0);
+    free_contents_info info;
+    info.lt          = tree;
+    info.rtdel       = rtdel;
+    info.query       = &query;
+    info.store_value = &tree->buf[0];
+
+    if ((r=toku_rt_iterate(rt, free_contents_helper, &info))) return r;
+    r = toku_rt_close(rt);
+    assert(r == 0);
     return r;
 }
 
@@ -1519,8 +1537,29 @@ cleanup:
     return r;
 }
 
+typedef struct {
+    toku_lock_tree*  lt;
+    toku_range_tree* border;
+    toku_interval*   escalate_interval;
+    TXNID            txn;
+} escalate_info;
 
-//TODO: Whenever comparing TXNIDs use the comparison function INSTEAD of just '!= or =='
+static int escalate_read_locks_helper(toku_range* border_range, void* extra) {
+    escalate_info* info = extra;
+    int r               = ENOSYS;
+
+    if (!toku__lt_txn_cmp(border_range->data, info->txn)) { r = 0; goto cleanup; }
+    info->escalate_interval->right = border_range->ends.left;
+    r = toku__lt_escalate_read_locks_in_interval(info->lt,
+                                       info->escalate_interval, info->txn);
+    if (r!=0) goto cleanup;
+    info->escalate_interval->left = border_range->ends.right;
+    r = 0;
+cleanup:
+    return r;
+}
+
+ //TODO: Whenever comparing TXNIDs use the comparison function INSTEAD of just '!= or =='
 static int toku__lt_escalate_read_locks(toku_lock_tree* tree, TXNID txn) {
     int r = ENOSYS;
     assert(tree);
@@ -1534,21 +1573,34 @@ static int toku__lt_escalate_read_locks(toku_lock_tree* tree, TXNID txn) {
 
     toku_range_tree* border = tree->borderwrite;
     assert(border);
-    toku_range border_range;
-    BOOL found;
-    toku_rt_start_scan(border);
+    escalate_info info;
+    info.lt     = tree;
+    info.border = border;
+    info.escalate_interval = &query;
+    info.txn    = txn;
+    if ((r = toku_rt_iterate(border, escalate_read_locks_helper, &info))) goto cleanup;
     /* Special case for zero entries in border?  Just do the 'after'? */
-    while ((r = toku_rt_next(border, &border_range, &found)) == 0 && found) {
-        if (!toku__lt_txn_cmp(border_range.data, txn)) { continue; }
-        query.right = border_range.ends.left;
-        r = toku__lt_escalate_read_locks_in_interval(tree, &query, txn);
-        if (r!=0) { goto cleanup; }
-        query.left = border_range.ends.right;
-    }
     query.right = &infinite;
     r = toku__lt_escalate_read_locks_in_interval(tree, &query, txn);
-    if (r!=0) { goto cleanup; }
-    goto cleanup;
+    if (r!=0) goto cleanup;
+    r = 0;
+cleanup:
+    return r;
+}
+
+static int escalate_write_locks_helper(toku_range* border_range, void* extra) {
+    toku_lock_tree* tree = extra;
+    int r                = ENOSYS;
+    BOOL trivial;
+    if ((r = toku__border_escalation_trivial(tree, border_range, &trivial))) goto cleanup;
+    if (!trivial) { r = 0; goto cleanup; }
+    /*
+     * At this point, we determine that escalation is simple,
+     * Attempt escalation
+     */
+    r = toku__escalate_writes_from_border_range(tree, border_range);
+    if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
+    r = 0;
 cleanup:
     return r;
 }
@@ -1562,25 +1614,9 @@ cleanup:
 static int toku__lt_escalate_write_locks(toku_lock_tree* tree) {
     int r = ENOSYS;
     assert(tree);
-    assert(tree->lock_escalation_allowed);
-    toku_range_tree* border  = tree->borderwrite;
-    assert(border);
-    toku_range       border_range;
-    BOOL             found   = FALSE;
-    BOOL             trivial = FALSE;
+    assert(tree->borderwrite);
 
-    toku_rt_start_scan(border);
-    while ((r = toku_rt_next(border, &border_range, &found)) == 0 && found) {
-        r = toku__border_escalation_trivial(tree, &border_range, &trivial);
-        if (r!=0)     { goto cleanup; }
-        if (!trivial) { continue; }
-        /*
-         * At this point, we determine that escalation is simple,
-         * Attempt escalation
-         */
-        r = toku__escalate_writes_from_border_range(tree, &border_range);
-        if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
-    }
+    if ((r = toku_rt_iterate(tree->borderwrite, escalate_write_locks_helper, tree))) goto cleanup;
     r = 0;
 cleanup:
     return r;

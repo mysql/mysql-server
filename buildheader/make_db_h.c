@@ -30,7 +30,8 @@ void print_db_notices (void) {
 #define dodefine(name) printf("#define %s %d\n", #name, name)
 
 enum {
-	TOKUDB_OUT_OF_LOCKS = -100000,
+	TOKUDB_OUT_OF_LOCKS    = -100000,
+        TOKUDB_SUCCEEDED_EARLY = -100001
 };
 
 void print_defines (void) {
@@ -130,6 +131,7 @@ void print_defines (void) {
     /* TOKUDB specific error codes*/
     printf("/* TOKUDB specific error codes */\n");
     dodefine(TOKUDB_OUT_OF_LOCKS);
+    dodefine(TOKUDB_SUCCEEDED_EARLY);
 }
 
 //#define DECL_LIMIT 100
