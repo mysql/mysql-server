@@ -18,13 +18,6 @@ use test;
 drop table if exists t1, t2, t3;
 --enable_warnings
 
-# If concurrent inserts are on, it is not guaranteed that the rows
-# inserted by INSERT are immediately accessible by SELECT in another
-# thread. This would cause problems near the line 'connection master1'
-# below. So we turn off concurrent inserts.
-SET @old_concurrent_insert= @@global.concurrent_insert;
-SET @@global.concurrent_insert= 0;
-
 --echo #
 --echo # See if queries that use both auto_increment and LAST_INSERT_ID()
 --echo # are replicated well
@@ -34,6 +27,14 @@ SET @@global.concurrent_insert= 0;
 
 -- source include/master-slave.inc
 #should work for both SBR and RBR
+
+# If concurrent inserts are on, it is not guaranteed that the rows
+# inserted by INSERT are immediately accessible by SELECT in another
+# thread. This would cause problems near the line 'connection master1'
+# below. So we turn off concurrent inserts.
+connection master;
+SET @old_concurrent_insert= @@global.concurrent_insert;
+SET @@global.concurrent_insert= 0;
 
 connection master;
 eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
