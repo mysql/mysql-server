@@ -4367,6 +4367,11 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
     prelocking it won't do such precaching and will simply reuse table list
     which is already built.
 
+    If any table has a trigger and start->trg_event_map is non-zero
+    the final lock will end up in thd->locked_tables, otherwise, the
+    lock will be placed in thd->lock. See also comments in
+    st_lex::set_trg_event_type_for_tables().
+
   RETURN
     0  - OK
     -1 - error
@@ -4579,7 +4584,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         process its triggers since they never will be activated.
       */
       if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
-          tables->table->triggers &&
+          tables->trg_event_map && tables->table->triggers &&
           tables->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
         if (!query_tables_last_own)
