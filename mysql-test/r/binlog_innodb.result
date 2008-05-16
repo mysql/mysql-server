@@ -34,6 +34,6 @@ END|
 INSERT INTO t2 VALUES (2),(10+bug23333());
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-#	184136		
+#	184141		
 DROP FUNCTION bug23333;
 DROP TABLE t1, t2;
