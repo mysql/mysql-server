@@ -184,4 +184,27 @@ ndbd_suma_dictlock(Uint32 x)
   return x >= NDBD_SUMA_DICT_LOCK_63;
 }
 
+#define NDBD_LONG_LIST_TABLES_CONF_62 NDB_MAKE_VERSION(6,2,16)
+#define NDBD_LONG_LIST_TABLES_CONF_63 NDB_MAKE_VERSION(6,3,15)
+
+static
+inline
+int
+ndbd_LIST_TABLES_CONF_long_signal(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major >= 6)
+  {
+    if (minor == 2)
+      return x >= NDBD_LONG_LIST_TABLES_CONF_62;
+  }
+
+  return x >= NDBD_LONG_LIST_TABLES_CONF_63;
+}
+
 #endif

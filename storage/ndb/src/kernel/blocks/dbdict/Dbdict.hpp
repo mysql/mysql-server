@@ -41,6 +41,7 @@
 #include <signaldata/DropTable.hpp>
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/AlterTab.hpp>
+#include <signaldata/ListTables.hpp>
 #include <signaldata/CreateIndx.hpp>
 #include <signaldata/DropIndx.hpp>
 #include <signaldata/AlterIndx.hpp>
@@ -2672,6 +2673,9 @@ public:
   void drop_undofile_commit_complete(Signal* signal, SchemaOp*);
   
   int checkSingleUserMode(Uint32 senderRef);
+
+  void sendOLD_LIST_TABLES_CONF(Signal *signal, ListTablesReq*);
+  void sendLIST_TABLES_CONF(Signal *signal, ListTablesReq*);
 
   Uint32 c_outstanding_sub_startstop;
   NdbNodeBitmask c_sub_startstop_lock;
