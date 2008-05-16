@@ -557,6 +557,17 @@ Procedure	sql_mode	Create Procedure
 begin
 select a;
 end
+show procedure status like '%mysqltestbug36570%';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	 mysqltestbug36570_p2	PROCEDURE	root@localhost	t	t	DEFINER	
+test	mysqltestbug36570_p1	PROCEDURE	root@localhost	t	t	DEFINER	
+show create procedure ` mysqltestbug36570_p2`;
+Procedure	sql_mode	Create Procedure
+ mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`(/*!50001 a int*/)
+`label`:
+begin
+select a;
+end
 call ` mysqltestbug36570_p2`(42);
 a
 42

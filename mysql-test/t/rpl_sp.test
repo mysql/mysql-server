@@ -606,8 +606,13 @@ use test|
 
 delimiter ;|
 
+--replace_column 5 t 6 t
+show procedure status like '%mysqltestbug36570%';
+show create procedure ` mysqltestbug36570_p2`;
+
 sync_slave_with_master;
 connection slave;
+
 --replace_column 5 t 6 t
 show procedure status like '%mysqltestbug36570%';
 show create procedure ` mysqltestbug36570_p2`;
