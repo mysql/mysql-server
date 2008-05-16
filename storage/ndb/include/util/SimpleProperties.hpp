@@ -277,11 +277,12 @@ Uint32 SimplePropertiesSectionReader::getSize() const
 class SimplePropertiesSectionWriter : public SimpleProperties::Writer {
 public:
   SimplePropertiesSectionWriter(class SectionSegmentPool &);
-  virtual ~SimplePropertiesSectionWriter() {}
+  virtual ~SimplePropertiesSectionWriter();
 
   virtual bool reset();
   virtual bool putWord(Uint32 val);
   virtual bool putWords(const Uint32 * src, Uint32 len);
+  Uint32 getWordsUsed() const;
 
   /**
    * This "unlinks" the writer from the memory
@@ -289,6 +290,8 @@ public:
   void getPtr(struct SegmentedSectionPtr & dst);
   
 private:
+  void release();
+
   Int32 m_pos;
   Uint32 m_sz;
   class SectionSegmentPool & m_pool;
