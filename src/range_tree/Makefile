@@ -24,7 +24,7 @@ ifneq ($(OSX),)
 CFLAGS+=-fno-common
 endif
 
-BINS = linear.o log_nooverlap.o tokuredblack.o rangetree.o #log.o 
+BINS = linear.o log_nooverlap.o rangetree.o #log.o 
 
 build: $(BINS)
 	cd tests;$(MAKE) build
@@ -50,4 +50,3 @@ log.o: log.c                        $(HEADERS)
 
 log_nooverlap.o: log_nooverlap.c    $(HEADERS)
 
-tokuredblack.o:  tokuredblack.c     $(HEADERS) tokuredblack.h

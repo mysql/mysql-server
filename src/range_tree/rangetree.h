@@ -234,8 +234,6 @@ int toku_rt_successor(toku_range_tree* tree, toku_point* point,
  */
 int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size);
 
-void toku_rt_start_scan (toku_range_tree* range_tree);
-
-int toku_rt_next (toku_range_tree* range_tree, toku_range* out_range, BOOL* elem_found);
+int toku_rt_iterate(toku_range_tree* tree, int (*f)(toku_range*,void*), void* extra);
 
 #endif  /* #if !defined(TOKU_RANGE_TREE_H) */

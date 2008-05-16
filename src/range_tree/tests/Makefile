@@ -15,7 +15,7 @@ OPTFLAGS=-O0
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CFLAGS = -W -Wall -Wextra -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
-CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
+CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute -lz
 CPPFLAGS += -I../ -I../../../newbrt -I../../../include
 
 
@@ -87,10 +87,13 @@ endif
 %.tlogrun: %.tlog
 	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
 
-LINEAR_BINS = ../linear.o
-TLOG_BINS   = ../log_nooverlap.o ../tokuredblack.o
-LOG_BINS    = ../log.o
+LINEAR_BINS = ../linear.o        ../../../newbrt/newbrt.o
+TLOG_BINS   = ../log_nooverlap.o ../../../newbrt/newbrt.o
+LOG_BINS    = ../log.o           ../../../newbrt/newbrt.o
 HEADERS=../rangetree.h ../rangetree-internal.h test.h
+
+../../../newbrt/newbrt.o:
+	cd ../../../newbrt && make
 
 %.lin: %.c  $(HEADERS) $(LINEAR_BINS)
 	$(CC) -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)

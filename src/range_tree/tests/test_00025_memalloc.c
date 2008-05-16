@@ -64,13 +64,6 @@ void RunTest (BOOL f_overlaps_allowed) {
                        realloc);
     CKERR2(r, ENOMEM);
 
-    /* Failure when allocating the tree ranges */
-    malloc_cnt  = 0;
-    malloc_cntl = 2;
-    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, malloc_fail, free, 
-                       realloc);
-    CKERR2(r, ENOMEM);
-
 }
 
 int main(int argc, const char *argv[]) {

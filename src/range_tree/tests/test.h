@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <rangetree.h>
 #include <errno.h>
+#include "../../../newbrt/memory.h"
 int verbose=0;
 
 #define CKERR(r) ({ if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); })
@@ -59,18 +60,6 @@ int char_cmp(const TXNID a, const TXNID b) {
     int x = (char)a;
     int y = (char)b;
     return x -y;
-}
-
-void* toku_malloc(size_t size) {
-    return malloc(size);
-}
-
-void toku_free(void* p) {
-    free(p);
-}
-
-void* toku_realloc(void *ptr, size_t size) {
-    return realloc(ptr, size);
 }
 
 int mallocced = 0;

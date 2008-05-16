@@ -134,10 +134,10 @@ static inline int maybe_resize_and_rebuild(OMT omt, u_int32_t n, enum build_choi
     OMT_NODE  new_nodes    = NULL;
     OMTVALUE *tmp_values   = NULL;
     int r = ENOSYS;
-    u_int32_t new_size = 2*n;
+    u_int32_t new_size = n<=2 ? 4 : 2*n;
 
     if (omt->tmparray_size<n ||
-        (omt->tmparray_size/4 >= n && n>=2)) {
+        (omt->tmparray_size/2 >= new_size)) {
         /* Malloc and free instead of realloc (saves the memcpy). */
         MALLOC_N(new_size, new_tmparray);
         if (new_tmparray==NULL) { r = errno; goto cleanup; }
@@ -147,7 +147,7 @@ static inline int maybe_resize_and_rebuild(OMT omt, u_int32_t n, enum build_choi
      *  We are increasing the number of elements and there is no free space.
      *  The array is too large. */
     u_int32_t num_nodes = nweight(omt, omt->root);
-    if ((omt->node_capacity/4 >= n && n>=2) ||
+    if ((omt->node_capacity/2 >= new_size) ||
         (omt->free_idx>=omt->node_capacity && num_nodes<n) ||
         (omt->node_capacity<n)) {
         if (choice==MAYBE_REBUILD) {
@@ -173,6 +173,7 @@ static inline int maybe_resize_and_rebuild(OMT omt, u_int32_t n, enum build_choi
         omt->nodes         = new_nodes;
         omt->node_capacity = new_size;
         omt->free_idx      = 0; /* Allocating from mempool starts over. */
+        omt->root          = NODE_NULL;
         if (choice==MAYBE_REBUILD) {
             create_from_sorted_array_internal(omt, &omt->root, tmp_values, num_nodes);
         }
@@ -355,18 +356,25 @@ int toku_omt_fetch(OMT V, u_int32_t i, OMTVALUE *v) {
     return 0;
 }
 
-static inline int iterate_internal(OMT omt, node_idx n_idx, u_int32_t idx,
+static inline int iterate_internal(OMT omt, u_int32_t left, u_int32_t right,
+                                   node_idx n_idx, u_int32_t idx,
                                    int (*f)(OMTVALUE, u_int32_t, void*), void*v) {
     int r;
     if (n_idx==NODE_NULL) return 0;
     OMT_NODE n = omt->nodes+n_idx;
-    if ((r=iterate_internal(omt, n->left, idx, f, v))) return r;
-    if ((r=f(n->value, idx+nweight(omt, n->left), v))) return r;
-    return iterate_internal(omt, n->right, idx+nweight(omt, n->left)+1, f, v);
+    u_int32_t idx_root = idx+nweight(omt,n->left);
+    if (left< idx_root && (r=iterate_internal(omt, left, right, n->left, idx, f, v))) return r;
+    if (left<=idx_root && idx_root<right && (r=f(n->value, idx_root, v))) return r;
+    if (idx_root+1<right) return iterate_internal(omt, left, right, n->right, idx_root+1, f, v);
+    return 0;
 }
 
 int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, u_int32_t, void*), void*v) {
-    return iterate_internal(omt, omt->root, 0, f, v);
+    return iterate_internal(omt, 0, nweight(omt, omt->root), omt->root, 0, f, v);
+}
+
+int toku_omt_iterate_on_range(OMT omt, u_int32_t left, u_int32_t right, int (*f)(OMTVALUE, u_int32_t, void*), void*v) {
+    return iterate_internal(omt, left, right, omt->root, 0, f, v);
 }
 
 int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, u_int32_t *index) {
@@ -509,5 +517,10 @@ cleanup:
     }
     if (tmp_values) toku_free(tmp_values);
     return r;
+}
+
+void toku_omt_clear(OMT omt) {
+    omt->free_idx = 0;
+    omt->root     = NODE_NULL;
 }
 
