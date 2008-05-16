@@ -3225,6 +3225,18 @@ select t1.a from t1 where
 
 drop table t1, t2;
 
+
+#
+# Bug #36011: Server crash with explain extended on query with dependent
+# subqueries
+#
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
+DROP TABLE t1;
+
 --echo End of 5.0 tests.
 
 #
