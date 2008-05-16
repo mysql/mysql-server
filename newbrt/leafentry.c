@@ -392,7 +392,7 @@ static int print_le_provpair (TXNID xid, u_int32_t klen, void *kval, u_int32_t p
 }
 
 int print_leafentry (FILE *outf, LEAFENTRY v) {
-    if (!v) return 0;
+    if (!v) { printf("NULL"); return 0; }
     LESWITCHCALL(v, print, outf);
 }
 

@@ -1361,6 +1361,22 @@ int should_compare_both_keys (BRTNODE node, BRT_CMD cmd) {
     return 0;
 }
 
+static const char *unparse_type (enum brt_cmd_type typ) __attribute__((__unused__));
+static const char *unparse_type (enum brt_cmd_type typ) {
+    switch (typ) {
+    case BRT_NONE: return "NONE";
+    case BRT_INSERT: return "INSERT";
+    case BRT_DELETE_ANY: return "DELETE_ANY";
+    case BRT_DELETE_BOTH: return "DELETE_BOTH";
+    case BRT_ABORT_ANY: return "ABORT_ANY";
+    case BRT_ABORT_BOTH: return "ABORT_BOTH";
+    case BRT_COMMIT_ANY: return "COMMIT_ANY";
+    case BRT_COMMIT_BOTH: return "COMMIT_BOTH";
+    }
+    return "?";
+}
+     
+
 static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 				    u_int32_t idx, LEAFENTRY le) {
     FILENUM filenum = toku_cachefile_filenum(t->cf);
@@ -1370,6 +1386,14 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
     if (r!=0) return r;
     if (newdata) assert(newdisksize == leafentry_disksize(newdata));
     
+    //printf("Applying command: %s xid=%lld ", unparse_type(cmd->type), (long long)cmd->xid);
+    //toku_print_BYTESTRING(stdout, cmd->u.id.key->size, cmd->u.id.key->data);
+    //printf(" ");
+    //toku_print_BYTESTRING(stdout, cmd->u.id.val->size, cmd->u.id.val->data);
+    //printf(" to \n");
+    //print_leafentry(stdout, le); printf("\n");
+    //printf(" got "); print_leafentry(stdout, newdata); printf("\n");
+
     if (le && newdata) {
 	if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) return r;
 	if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
@@ -2618,6 +2642,7 @@ int pair_leafval_bessel_le_committed (u_int32_t klen, void *kval,
     int cmp = search->compare(search,
 			      search->k ? toku_fill_dbt(&x, kval, klen) : 0, 
 			      search->v ? toku_fill_dbt(&y, dval, dlen) : 0);
+    // The search->compare function returns only 0 or 1
     switch (search->direction) {
     case BRT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
     case BRT_SEARCH_RIGHT:  return cmp==0 ? +1 : -1; // Because the comparison runs backwards for right searches.
@@ -2629,10 +2654,10 @@ int pair_leafval_bessel_le_committed (u_int32_t klen, void *kval,
 
 int pair_leafval_bessel_le_both (TXNID xid __attribute__((__unused__)),
 				 u_int32_t klen, void *kval,
-				 u_int32_t clen, void *cval,
-				 u_int32_t plen __attribute__((__unused__)), void *pval __attribute__((__unused__)),
+				 u_int32_t clen __attribute__((__unused__)), void *cval __attribute__((__unused__)),
+				 u_int32_t plen, void *pval,
 				 brt_search_t *search) {
-    return pair_leafval_bessel_le_committed(klen, kval, clen, cval, search);
+    return pair_leafval_bessel_le_committed(klen, kval, plen, pval, search);
 }
 
 int pair_leafval_bessel_le_provdel (TXNID xid __attribute__((__unused__)),
