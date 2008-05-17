@@ -17418,6 +17418,7 @@ static void test_wl4166()
 
   verify_param_count(stmt, 7);
 
+  bzero(my_bind, sizeof(my_bind));
   /* tinyint */
   my_bind[0].buffer_type= MYSQL_TYPE_TINY;
   my_bind[0].buffer= (void *)&tiny_data;

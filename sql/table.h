@@ -478,10 +478,10 @@ typedef struct st_table_share
    Let's try to explain why and how this limited solution allows
    to validate prepared statements.
 
-   Firstly, spaces (in mathematical sense) of version numbers
+   Firstly, sets (in mathematical sense) of version numbers
    never intersect for different metadata types. Therefore,
    version id of a temporary table is never compared with
-   a version id of a view or a temporary table, and vice versa.
+   a version id of a view, and vice versa.
 
    Secondly, for base tables, we know that each DDL flushes the
    respective share from the TDC. This ensures that whenever
@@ -530,11 +530,11 @@ typedef struct st_table_share
    with a base table, a base table is replaced with a temporary
    table and so on.
 
-   @sa TABLE_LIST::is_metadata_version_equal()
+   @sa TABLE_LIST::is_metadata_id_equal()
   */
   ulong get_metadata_version() const
   {
-    return tmp_table == SYSTEM_TMP_TABLE || is_view ? 0 : table_map_id;
+    return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
   }
 
 } TABLE_SHARE;
@@ -1340,7 +1340,7 @@ struct TABLE_LIST
     @sa check_and_update_table_version()
   */
   inline
-  bool is_metadata_version_equal(TABLE_SHARE *s) const
+  bool is_metadata_id_equal(TABLE_SHARE *s) const
   {
     return (m_metadata_type == s->get_metadata_type() &&
             m_metadata_version == s->get_metadata_version());
@@ -1353,7 +1353,7 @@ struct TABLE_LIST
     @sa check_and_update_table_version()
   */
   inline
-  void set_metadata_version(TABLE_SHARE *s)
+  void set_metadata_id(TABLE_SHARE *s)
   {
     m_metadata_type= s->get_metadata_type();
     m_metadata_version= s->get_metadata_version();
@@ -1369,9 +1369,9 @@ private:
 
   /* Remembered MERGE child def version.  See top comment in ha_myisammrg.cc */
   ulong         child_def_version;
-  /** See comments for set_metadata_version() */
+  /** See comments for set_metadata_id() */
   enum enum_metadata_type m_metadata_type;
-  /** See comments for set_metadata_version() */
+  /** See comments for set_metadata_id() */
   ulong m_metadata_version;
 };
 
