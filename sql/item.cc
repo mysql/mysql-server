@@ -3165,14 +3165,18 @@ void Item_param::print(String *str, enum_query_type query_type)
   Preserve the original parameter types and values
   when re-preparing a prepared statement.
 
-  Copy parameter type information and conversion function
-  pointers from a parameter of the old statement to the
-  corresponding parameter of the new one.
+  @details Copy parameter type information and conversion
+  function pointers from a parameter of the old statement
+  to the corresponding parameter of the new one.
 
   Move parameter values from the old parameters to the new
   one. We simply "exchange" the values, which allows
   to save on allocation and character set conversion in
   case a parameter is a string or a blob/clob.
+
+  The old parameter gets the value of this one, which
+  ensures that all memory of this parameter is freed
+  correctly.
 
   @param[in]  src   parameter item of the original
                     prepared statement
@@ -3187,7 +3191,7 @@ Item_param::set_param_type_and_swap_value(Item_param *src)
   item_type= src->item_type;
   item_result_type= src->item_result_type;
 
-  collation.set(src->collation.collation);
+  collation.set(src->collation);
   maybe_null= src->maybe_null;
   null_value= src->null_value;
   max_length= src->max_length;
