@@ -627,6 +627,21 @@ static void find_heaviest_child (BRTNODE node, int *childnum) {
     if (0) printf("\n");
 }
 
+static const char *unparse_cmd_type (enum brt_cmd_type typ) __attribute__((__unused__));
+static const char *unparse_cmd_type (enum brt_cmd_type typ) {
+    switch (typ) {
+    case BRT_NONE: return "NONE";
+    case BRT_INSERT: return "INSERT";
+    case BRT_DELETE_ANY: return "DELETE_ANY";
+    case BRT_DELETE_BOTH: return "DELETE_BOTH";
+    case BRT_ABORT_ANY: return "ABORT_ANY";
+    case BRT_ABORT_BOTH: return "ABORT_BOTH";
+    case BRT_COMMIT_ANY: return "COMMIT_ANY";
+    case BRT_COMMIT_BOTH: return "COMMIT_BOTH";
+    }
+    return "?";
+}
+
 static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 			    DBT *split,
@@ -641,17 +656,9 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
     assert(node->height>0); /* Not a leaf. */
     DBT *k = cmd->u.id.key;
     DBT *v = cmd->u.id.val;
-    unsigned int newsize_bounded = toku_serialize_brtnode_size(child) + k->size + v->size + KEY_VALUE_OVERHEAD + LE_OVERHEAD_BOUND;
+    unsigned int oldsize = toku_serialize_brtnode_size(child);
+    unsigned int newsize_bounded = oldsize + k->size + v->size + KEY_VALUE_OVERHEAD + LE_OVERHEAD_BOUND;
     newsize_bounded += (child->height > 0) ? BRT_CMD_OVERHEAD : OMT_ITEM_OVERHEAD;
-#if 0
-    // This stuff is wrong.  And we don't have a test to differentiate this from the previous line of code.
-    unsigned int additionaloverhead = (child->height > 0) ? BRT_CMD_OVERHEAD : PMA_ITEM_OVERHEAD;
-    newsize += additionaloverhead; // PMA_ITEM_OVERHEAD; // Was this
-    printf("pbcdofiwpmeph newsize=%d\n", newsize);
-    if (newsize<=node->nodesize && newsize+additionaloverhead-PMA_ITEM_OVERHEAD>node->nodesize) {
-	printf("%s:%d\n", __FILE__, __LINE__);
-    }
-#endif
     
     int to_child = newsize_bounded <= child->nodesize;
     if (0) {
@@ -679,7 +686,14 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
     } else {
 	r=insert_to_buffer_in_nonleaf(node, childnum_of_node, k, v, cmd->type, cmd->xid);
     }
-    assert(newsize_bounded >= toku_serialize_brtnode_size(child));
+    if (newsize_bounded < toku_serialize_brtnode_size(child)) {
+	fprintf(stderr, "%s:%d size estimate is messed up. newsize_bounded=%d actual_size=%d child_height=%d to_child=%d\n",
+		__FILE__, __LINE__, newsize_bounded, toku_serialize_brtnode_size(child), child->height, to_child);
+	fprintf(stderr, "  cmd->type=%s cmd->xid=%lld\n", unparse_cmd_type(cmd->type), (unsigned long long)cmd->xid);
+	fprintf(stderr, "  oldsize=%d k->size=%d v->size=%d\n", oldsize, k->size, v->size);
+	assert(toku_serialize_brtnode_size(child)<=child->nodesize);
+	//assert(newsize_bounded >= toku_serialize_brtnode_size(child)); // Don't abort on this
+    }
     fixup_child_fingerprint(node, childnum_of_node, child, t, logger);
     return r;
 }
@@ -1361,22 +1375,6 @@ int should_compare_both_keys (BRTNODE node, BRT_CMD cmd) {
     return 0;
 }
 
-static const char *unparse_type (enum brt_cmd_type typ) __attribute__((__unused__));
-static const char *unparse_type (enum brt_cmd_type typ) {
-    switch (typ) {
-    case BRT_NONE: return "NONE";
-    case BRT_INSERT: return "INSERT";
-    case BRT_DELETE_ANY: return "DELETE_ANY";
-    case BRT_DELETE_BOTH: return "DELETE_BOTH";
-    case BRT_ABORT_ANY: return "ABORT_ANY";
-    case BRT_ABORT_BOTH: return "ABORT_BOTH";
-    case BRT_COMMIT_ANY: return "COMMIT_ANY";
-    case BRT_COMMIT_BOTH: return "COMMIT_BOTH";
-    }
-    return "?";
-}
-     
-
 static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 				    u_int32_t idx, LEAFENTRY le) {
     FILENUM filenum = toku_cachefile_filenum(t->cf);
@@ -1386,7 +1384,7 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
     if (r!=0) return r;
     if (newdata) assert(newdisksize == leafentry_disksize(newdata));
     
-    //printf("Applying command: %s xid=%lld ", unparse_type(cmd->type), (long long)cmd->xid);
+    //printf("Applying command: %s xid=%lld ", unparse_cmd_type(cmd->type), (long long)cmd->xid);
     //toku_print_BYTESTRING(stdout, cmd->u.id.key->size, cmd->u.id.key->data);
     //printf(" ");
     //toku_print_BYTESTRING(stdout, cmd->u.id.val->size, cmd->u.id.val->data);
