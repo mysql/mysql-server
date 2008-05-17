@@ -78,7 +78,7 @@ DBBINS = ydb.o errors.o elocks.o ../newbrt/newbrt.o
 
 TDBBINS = tdbtrace.o $(patsubst ydb.o,ydbtrace.o,$(DBBINS))
 
-RANGETREE_BINS = range_tree/rangetree.o range_tree/tokuredblack.o
+RANGETREE_BINS = range_tree/rangetree.o
 LOCKTREE_BINS  = lock_tree/locktree.o lock_tree/rth.o lock_tree/lth.o lock_tree/idlth.o lock_tree/db_id.o $(RANGETREE_BINS)
 
 $(LIBRARY): $(DBBINS) | buildlocktrees
