@@ -3091,66 +3091,6 @@ os_aio_get_array_and_local_segment(
 }
 
 /***********************************************************************
-Gets an integer value designating a specified aio array. This is used
-to give numbers to signals in Posix aio. */
-
-#if !defined(WIN_ASYNC_IO)
-static
-ulint
-os_aio_get_array_no(
-/*================*/
-	os_aio_array_t*	array)	/* in: aio array */
-{
-	if (array == os_aio_ibuf_array) {
-
-		return(0);
-
-	} else if (array == os_aio_log_array) {
-
-		return(1);
-
-	} else if (array == os_aio_read_array) {
-
-		return(2);
-	} else if (array == os_aio_write_array) {
-
-		return(3);
-	} else {
-		ut_error;
-
-		return(0);
-	}
-}
-
-/***********************************************************************
-Gets the aio array for its number. */
-static
-os_aio_array_t*
-os_aio_get_array_from_no(
-/*=====================*/
-			/* out: aio array */
-	ulint	n)	/* in: array number */
-{
-	if (n == 0) {
-		return(os_aio_ibuf_array);
-	} else if (n == 1) {
-
-		return(os_aio_log_array);
-	} else if (n == 2) {
-
-		return(os_aio_read_array);
-	} else if (n == 3) {
-
-		return(os_aio_write_array);
-	} else {
-		ut_error;
-
-		return(NULL);
-	}
-}
-#endif /* if !defined(WIN_ASYNC_IO) */
-
-/***********************************************************************
 Requests for a slot in the aio array. If no slot is available, waits until
 not_full-event becomes signaled. */
 static
