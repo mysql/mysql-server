@@ -2843,6 +2843,7 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       by the stored procedures code.
     */
     if (thd->spcont &&
+        ! (MyFlags & ME_NO_SP_HANDLER) &&
         thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
     {
       /*
@@ -2852,7 +2853,8 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       DBUG_RETURN(0);
     }
 
-    if (!thd->no_warnings_for_error)
+    if (!thd->no_warnings_for_error &&
+        !(MyFlags & ME_NO_WARNING_FOR_ERROR))
     {
       /*
         Suppress infinite recursion if there a memory allocation error

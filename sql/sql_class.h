@@ -57,16 +57,15 @@
 
 class Metadata_version_observer
 {
-protected:
-  virtual ~Metadata_version_observer();
 public:
+  virtual ~Metadata_version_observer();
   /**
     Check if a change of metadata is OK. In future
     the signature of this method may be extended to accept the old
     and the new versions, but since currently the check is very
     simple, we only need the THD to report an error.
   */
-  virtual bool check_metadata_change(THD *thd)= 0;
+  virtual bool report_error(THD *thd)= 0;
 };
 
 
@@ -2842,6 +2841,19 @@ public:
 #define CF_STATUS_COMMAND	4
 #define CF_SHOW_TABLE_COMMAND	8
 #define CF_WRITE_LOGS_COMMAND  16
+/**
+  Must be set for SQL statements that may contain
+  Item expressions and/or use joins and tables.
+  Indicates that the parse tree of such statement may
+  contain rule-based optimizations that depend on metadata
+  (i.e. number of columns in a table), and consequently
+  that the statement must be re-prepared whenever
+  referenced metadata changes. Must not be set for
+  statements that themselves change metadata, e.g. RENAME,
+  ALTER and other DDL, since otherwise will trigger constant
+  reprepare. Consequently, complex item expressions and
+  joins are currently prohibited in these statements.
+*/
 #define CF_REEXECUTION_FRAGILE 32
 
 /* Functions in sql_class.cc */

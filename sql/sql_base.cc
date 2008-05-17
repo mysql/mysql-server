@@ -3722,9 +3722,8 @@ void assign_new_table_id(TABLE_SHARE *share)
   Compare metadata versions of an element obtained from the table
   definition cache and its corresponding node in the parse tree.
 
-  If the new and the old values mismatch, invoke
+  @details If the new and the old values mismatch, invoke
   Metadata_version_observer.
-
   At prepared statement prepare, all TABLE_LIST version values are
   NULL and we always have a mismatch. But there is no observer set
   in THD, and therefore no error is reported. Instead, we update
@@ -3738,8 +3737,8 @@ void assign_new_table_id(TABLE_SHARE *share)
 
   @sa Execute_observer
   @sa check_prepared_statement() to see cases when an observer is installed
-  @sa TABLE_LIST::is_metadata_version_equal()
-  @sa TABLE_SHARE::get_metadata_version()
+  @sa TABLE_LIST::is_metadata_id_equal()
+  @sa TABLE_SHARE::get_metadata_id()
 
   @param[in]      thd         used to report errors
   @param[in,out]  tables      TABLE_LIST instance created by the parser
@@ -3755,27 +3754,28 @@ bool
 check_and_update_table_version(THD *thd,
                                TABLE_LIST *tables, TABLE_SHARE *table_share)
 {
-  if (! tables->is_metadata_version_equal(table_share))
+  if (! tables->is_metadata_id_equal(table_share))
   {
     if (thd->m_metadata_observer &&
-        thd->m_metadata_observer->check_metadata_change(thd))
+        thd->m_metadata_observer->report_error(thd))
     {
       /*
         Version of the table share is different from the
         previous execution of the prepared statement, and it is
         unacceptable for this SQLCOM. Error has been reported.
       */
+      DBUG_ASSERT(thd->is_error());
       return TRUE;
     }
-    /* Always maintain the latest version */
-    tables->set_metadata_version(table_share);
+    /* Always maintain the latest version and type */
+    tables->set_metadata_id(table_share);
   }
 #if 0
 #ifndef DBUG_OFF
   /* Spuriously reprepare each statement. */
   if (thd->m_metadata_observer && thd->stmt_arena->is_reprepared == FALSE)
   {
-    thd->m_metadata_observer->check_metadata_change(thd);
+    thd->m_metadata_observer->report_error(thd);
     return TRUE;
   }
 #endif
@@ -3828,6 +3828,10 @@ retry:
 
   if (share->is_view)
   {
+    /*
+      This table is a view. Validate its metadata version: in particular,
+      that it was a view when the statement was prepared.
+    */
     if (check_and_update_table_version(thd, table_list, share))
       goto err;
     if (table_list->i_s_requested_object &  OPEN_TABLE_ONLY)
@@ -4622,6 +4626,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     }
     tables->table->grant= tables->grant;
 
+    /* Check and update metadata version of a base table. */
     if (check_and_update_table_version(thd, tables, tables->table->s))
     {
       result= -1;

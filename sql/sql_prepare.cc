@@ -124,7 +124,7 @@ public:
 class Execute_observer: public Metadata_version_observer
 {
 public:
-  virtual bool check_metadata_change(THD *thd);
+  virtual bool report_error(THD *thd);
   /** Set to TRUE if metadata of some used table has changed since prepare */
   bool m_invalidated;
 };
@@ -137,14 +137,12 @@ public:
 */
 
 bool
-Execute_observer::check_metadata_change(THD *thd)
+Execute_observer::report_error(THD *thd)
 {
-  bool save_thd_no_warnings_for_error= thd->no_warnings_for_error;
-  DBUG_ENTER("Execute_observer::notify_about_metadata_change");
+  DBUG_ENTER("Execute_observer::report_error");
 
-  thd->no_warnings_for_error= TRUE;
-  my_error(ER_NEED_REPREPARE, MYF(0));
-  thd->no_warnings_for_error= save_thd_no_warnings_for_error;
+  my_error(ER_NEED_REPREPARE, MYF(ME_NO_WARNING_FOR_ERROR|ME_NO_SP_HANDLER));
+
   m_invalidated= TRUE;
   DBUG_RETURN(TRUE);
 }
@@ -984,7 +982,7 @@ static bool emb_insert_params_with_log(Prepared_statement *stmt,
 /**
   Setup data conversion routines using an array of parameter
   markers from the original prepared statement.
-  Move the parameter data of the original prepared
+  Swap the parameter data of the original prepared
   statement to the new one.
 
   Used only when we re-prepare a prepared statement.
@@ -2844,7 +2842,7 @@ Select_fetch_protocol_binary::send_data(List<Item> &fields)
 ****************************************************************************/
 
 Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
-  :Statement(0, &main_mem_root,
+  :Statement(NULL, &main_mem_root,
              INITIALIZED, ++thd_arg->statement_id_counter),
   thd(thd_arg),
   result(thd_arg),
@@ -3153,38 +3151,36 @@ Prepared_statement::set_parameters(String *expanded_query,
                                    uchar *packet, uchar *packet_end)
 {
   bool is_sql_ps= packet == NULL;
+  bool res;
 
   if (is_sql_ps)
   {
     /* SQL prepared statement */
-    if (set_params_from_vars(this, thd->lex->prepared_stmt_params,
-                                   expanded_query))
-      goto set_params_data_err;
+    res= set_params_from_vars(this, thd->lex->prepared_stmt_params,
+                              expanded_query);
   }
   else if (param_count)
   {
 #ifndef EMBEDDED_LIBRARY
     uchar *null_array= packet;
-    if (setup_conversion_functions(this, &packet, packet_end) ||
-        set_params(this, null_array, packet, packet_end,
-                   expanded_query))
-      goto set_params_data_err;
+    res= (setup_conversion_functions(this, &packet, packet_end) ||
+          set_params(this, null_array, packet, packet_end, expanded_query));
 #else
-  /*
-    In embedded library we re-install conversion routines each time
-    we set params, and also we don't need to parse packet.
-    So we do it in one function.
-  */
-    if (set_params_data(this, expanded_query))
-      goto set_params_data_err;
+    /*
+      In embedded library we re-install conversion routines each time
+      we set parameters, and also we don't need to parse packet.
+      So we do it in one function.
+    */
+    res= set_params_data(this, expanded_query);
 #endif
   }
-  return FALSE;
-set_params_data_err:
-  my_error(ER_WRONG_ARGUMENTS, MYF(0),
-           is_sql_ps ? "EXECUTE" : "mysql_stmt_execute");
-  reset_stmt_params(this);
-  return TRUE;
+  if (res)
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0),
+             is_sql_ps ? "EXECUTE" : "mysql_stmt_execute");
+    reset_stmt_params(this);
+  }
+  return res;
 }
 
 
@@ -3249,6 +3245,7 @@ reexecute:
   if (sql_command_flags[lex->sql_command] &
       CF_REEXECUTION_FRAGILE)
   {
+    DBUG_ASSERT(thd->m_metadata_observer == NULL);
     thd->m_metadata_observer= &execute_observer;
   }
 
@@ -3260,12 +3257,13 @@ reexecute:
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  thd->m_metadata_observer= 0;
+  thd->m_metadata_observer= NULL;
 
   if (error && !thd->is_fatal_error && !thd->killed &&
       execute_observer.m_invalidated &&
       reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
   {
+    DBUG_ASSERT(thd->main_da.sql_errno() == ER_NEED_REPREPARE);
     thd->clear_error();
 
     error= reprepare();
@@ -3299,44 +3297,40 @@ Prepared_statement::reprepare()
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   LEX_STRING stmt_db_name= { db, db_length };
-  Prepared_statement *copy;
   bool cur_db_changed;
-  bool error= TRUE;
+  bool error;
+
+  Prepared_statement copy(thd, &thd->protocol_text);
 
   status_var_increment(thd->status_var.com_stmt_reprepare);
 
-  copy= new Prepared_statement(thd, &thd->protocol_text);
-
-  if (! copy)
-    return TRUE;
-
   if (mysql_opt_change_db(thd, &stmt_db_name, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
-    goto end;
+    return TRUE;
 
-  error= (name.str && copy->set_name(&name) ||
-          copy->prepare(query, query_length) ||
-          validate_metadata(copy));
+  error= (name.str && copy.set_name(&name) ||
+          copy.prepare(query, query_length) ||
+          validate_metadata(&copy));
 
   if (cur_db_changed)
     mysql_change_db(thd, &saved_cur_db_name, TRUE);
 
   if (! error)
   {
-    swap_prepared_statement(copy);
-    swap_parameter_array(param_array, copy->param_array, param_count);
+    swap_prepared_statement(&copy);
+    swap_parameter_array(param_array, copy.param_array, param_count);
 #ifndef DBUG_OFF
     is_reprepared= TRUE;
 #endif
     /*
-      Clear possible warnigns during re-prepare, it has to be completely
+      Clear possible warnings during reprepare, it has to be completely
       transparent to the user. We use mysql_reset_errors() since
       there were no separate query id issued for re-prepare.
+      Sic: we can't simply silence warnings during reprepare, because if
+      it's failed, we need to return all the warnings to the user.
     */
     mysql_reset_errors(thd, TRUE);
   }
-end:
-  delete copy;
   return error;
 }
 
