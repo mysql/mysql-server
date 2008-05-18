@@ -3151,7 +3151,7 @@ Prepared_statement::set_parameters(String *expanded_query,
                                    uchar *packet, uchar *packet_end)
 {
   bool is_sql_ps= packet == NULL;
-  bool res;
+  bool res= FALSE;
 
   if (is_sql_ps)
   {
