@@ -2458,15 +2458,21 @@ int
 NdbDictionary::Dictionary::createLogfileGroup(const LogfileGroup & lg,
 					      ObjectId * obj)
 {
-  return m_impl.createLogfileGroup(NdbLogfileGroupImpl::getImpl(lg),
-				   obj ? 
-				   & NdbDictObjectImpl::getImpl(* obj) : 0);
+  int ret;
+  DO_TRANS(ret,
+           m_impl.createLogfileGroup(NdbLogfileGroupImpl::getImpl(lg),
+                                     obj ?
+                                     & NdbDictObjectImpl::getImpl(* obj) : 0));
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::dropLogfileGroup(const LogfileGroup & lg)
 {
-  return m_impl.dropLogfileGroup(NdbLogfileGroupImpl::getImpl(lg));
+  int ret;
+  DO_TRANS(ret,
+           m_impl.dropLogfileGroup(NdbLogfileGroupImpl::getImpl(lg)));
+  return ret;
 }
 
 NdbDictionary::LogfileGroup
@@ -2482,15 +2488,21 @@ int
 NdbDictionary::Dictionary::createTablespace(const Tablespace & lg,
 					    ObjectId * obj)
 {
-  return m_impl.createTablespace(NdbTablespaceImpl::getImpl(lg),
-				 obj ? 
-				 & NdbDictObjectImpl::getImpl(* obj) : 0);
+  int ret;
+  DO_TRANS(ret,
+           m_impl.createTablespace(NdbTablespaceImpl::getImpl(lg),
+                                   obj ?
+                                   & NdbDictObjectImpl::getImpl(* obj) : 0));
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::dropTablespace(const Tablespace & lg)
 {
-  return m_impl.dropTablespace(NdbTablespaceImpl::getImpl(lg));
+  int ret;
+  DO_TRANS(ret,
+           m_impl.dropTablespace(NdbTablespaceImpl::getImpl(lg)));
+  return ret;
 }
 
 NdbDictionary::Tablespace
@@ -2517,15 +2529,21 @@ NdbDictionary::Dictionary::createDatafile(const Datafile & df,
 					  bool force,
 					  ObjectId * obj)
 {
-  return m_impl.createDatafile(NdbDatafileImpl::getImpl(df), 
-			       force,
-			       obj ? & NdbDictObjectImpl::getImpl(* obj) : 0);
+  int ret;
+  DO_TRANS(ret,
+           m_impl.createDatafile(NdbDatafileImpl::getImpl(df),
+                                 force,
+                                 obj ? & NdbDictObjectImpl::getImpl(* obj): 0));
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::dropDatafile(const Datafile& df)
 {
-  return m_impl.dropDatafile(NdbDatafileImpl::getImpl(df));
+  int ret;
+  DO_TRANS(ret,
+           m_impl.dropDatafile(NdbDatafileImpl::getImpl(df)));
+  return ret;
 }
 
 NdbDictionary::Datafile
@@ -2543,15 +2561,21 @@ NdbDictionary::Dictionary::createUndofile(const Undofile & df,
 					  bool force,
 					  ObjectId * obj)
 {
-  return m_impl.createUndofile(NdbUndofileImpl::getImpl(df), 
-			       force,
-			       obj ? & NdbDictObjectImpl::getImpl(* obj) : 0);
+  int ret;
+  DO_TRANS(ret,
+           m_impl.createUndofile(NdbUndofileImpl::getImpl(df),
+                                 force,
+                                 obj ? & NdbDictObjectImpl::getImpl(* obj): 0));
+  return ret;
 }
 
 int
 NdbDictionary::Dictionary::dropUndofile(const Undofile& df)
 {
-  return m_impl.dropUndofile(NdbUndofileImpl::getImpl(df));
+  int ret;
+  DO_TRANS(ret,
+           m_impl.dropUndofile(NdbUndofileImpl::getImpl(df)));
+  return ret;
 }
 
 NdbDictionary::Undofile

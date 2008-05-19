@@ -47,19 +47,39 @@ struct SchemaFile {
   Uint32 CheckSum; // Of this page
   Uint32 NoOfTableEntries; // On this page (NDB_SF_PAGE_ENTRIES)
   
-  enum TableState {
-    INIT = 0,
-    ADD_STARTED = 1,
-    TABLE_ADD_COMMITTED = 2,
-    DROP_TABLE_STARTED = 3,
-    DROP_TABLE_COMMITTED = 4,
-    ALTER_TABLE_COMMITTED = 5,
-    TEMPORARY_TABLE_COMMITTED = 6,
-    // memory-only states for parse phase
-    CREATE_PARSED = 11,
-    DROP_PARSED = 12,
-    ALTER_PARSED = 13
-    // add more operation_phase states if we ever clean this up
+  struct Old
+  {
+    enum TableState {
+      INIT = 0,
+      ADD_STARTED = 1,
+      TABLE_ADD_COMMITTED = 2,
+      DROP_TABLE_STARTED = 3,
+      DROP_TABLE_COMMITTED = 4,
+      ALTER_TABLE_COMMITTED = 5,
+      TEMPORARY_TABLE_COMMITTED = 6
+    };
+  };
+
+  enum EntryState
+  {
+    SF_UNUSED = 0 // A free object entry
+
+    /**
+     * States valid for object(s)
+     */
+    ,SF_CREATE = 1 // An object being created
+    ,SF_ALTER  = 7 // An object being altered
+    ,SF_DROP   = 3 // An object being dropped
+    ,SF_IN_USE = 2 // An object wo/ ongoing transactions
+
+    /**
+     * States valid for transaction(s)
+     */
+    ,SF_STARTED  = 10 // A started transaction
+    ,SF_PREPARE  = 11 // Prepare has started (and maybe finished)
+    ,SF_COMMIT   = 12 // Commit has started (and maybe finished)
+    ,SF_COMPLETE = 13 // Complete has started (and maybe finished)
+    ,SF_ABORT    = 14 // Abort (prepare) has started (and maybe finished)
   };
 
   // entry size 32 bytes

@@ -64,11 +64,13 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_DUMP_STATE_ORD, &Lgman::execDUMP_STATE_ORD);
   addRecSignal(GSN_CONTINUEB, &Lgman::execCONTINUEB);
 
-  addRecSignal(GSN_CREATE_FILE_REQ, &Lgman::execCREATE_FILE_REQ);
-  addRecSignal(GSN_CREATE_FILEGROUP_REQ, &Lgman::execCREATE_FILEGROUP_REQ);
+  addRecSignal(GSN_CREATE_FILE_IMPL_REQ, &Lgman::execCREATE_FILE_IMPL_REQ);
+  addRecSignal(GSN_CREATE_FILEGROUP_IMPL_REQ,
+               &Lgman::execCREATE_FILEGROUP_IMPL_REQ);
 
-  addRecSignal(GSN_DROP_FILE_REQ, &Lgman::execDROP_FILE_REQ);
-  addRecSignal(GSN_DROP_FILEGROUP_REQ, &Lgman::execDROP_FILEGROUP_REQ);
+  addRecSignal(GSN_DROP_FILE_IMPL_REQ, &Lgman::execDROP_FILE_IMPL_REQ);
+  addRecSignal(GSN_DROP_FILEGROUP_IMPL_REQ,
+               &Lgman::execDROP_FILEGROUP_IMPL_REQ);
 
   addRecSignal(GSN_FSWRITEREQ, &Lgman::execFSWRITEREQ);
   addRecSignal(GSN_FSWRITEREF, &Lgman::execFSWRITEREF, true);
@@ -303,7 +305,7 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
 }
 
 void
-Lgman::execCREATE_FILEGROUP_REQ(Signal* signal){
+Lgman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
   jamEntry();
   CreateFilegroupImplReq* req= (CreateFilegroupImplReq*)signal->getDataPtr();
 
@@ -357,7 +359,7 @@ Lgman::execCREATE_FILEGROUP_REQ(Signal* signal){
       (CreateFilegroupImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILEGROUP_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_CONF, signal,
 	       CreateFilegroupImplConf::SignalLength, JBB);
     
     return;
@@ -367,12 +369,12 @@ Lgman::execCREATE_FILEGROUP_REQ(Signal* signal){
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->errorCode = err;
-  sendSignal(senderRef, GSN_CREATE_FILEGROUP_REF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_REF, signal,
 	     CreateFilegroupImplRef::SignalLength, JBB);
 }
 
 void
-Lgman::execDROP_FILEGROUP_REQ(Signal* signal)
+Lgman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
@@ -419,7 +421,7 @@ Lgman::execDROP_FILEGROUP_REQ(Signal* signal)
     ref->senderRef = reference();
     ref->senderData = req.senderData;
     ref->errorCode = errorCode;
-    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_REF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_IMPL_REF, signal,
 	       DropFilegroupImplRef::SignalLength, JBB);
   }
   else
@@ -428,7 +430,7 @@ Lgman::execDROP_FILEGROUP_REQ(Signal* signal)
       (DropFilegroupImplConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = req.senderData;
-    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_CONF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_IMPL_CONF, signal,
 	       DropFilegroupImplConf::SignalLength, JBB);
   }
 }
@@ -472,12 +474,12 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
   DropFilegroupImplConf *conf = (DropFilegroupImplConf*)signal->getDataPtr();  
   conf->senderData = data;
   conf->senderRef = reference();
-  sendSignal(ref, GSN_DROP_FILEGROUP_CONF, signal, 
+  sendSignal(ref, GSN_DROP_FILEGROUP_IMPL_CONF, signal,
 	     DropFilegroupImplConf::SignalLength, JBB);
 }
 
 void
-Lgman::execCREATE_FILE_REQ(Signal* signal)
+Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
 {
   jamEntry();
   CreateFileImplReq* req= (CreateFileImplReq*)signal->getDataPtr();
@@ -532,7 +534,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
         jam();
 	conf->senderData = senderData;
 	conf->senderRef = reference();
-	sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+	sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 		   CreateFileImplConf::SignalLength, JBB);
       }
       return;
@@ -563,7 +565,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
       ref->senderData = senderData;
       ref->senderRef = reference();
       ref->errorCode = CreateFileImplRef::FileSizeTooLarge;
-      sendSignal(senderRef, GSN_CREATE_FILE_REF, signal,
+      sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
                  CreateFileImplRef::SignalLength, JBB);
       return;
     }
@@ -582,7 +584,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->errorCode = err;
-  sendSignal(senderRef, GSN_CREATE_FILE_REF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
 	     CreateFileImplRef::SignalLength, JBB);
 }
 
@@ -689,7 +691,8 @@ Lgman::execFSOPENREF(Signal* signal)
     ref->errorCode = CreateFileImplRef::FileError;
     ref->fsErrCode = errCode;
     ref->osErrCode = osErrCode;
-    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_REF, signal, 
+
+    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
 	       CreateFileImplRef::SignalLength, JBB);
   }
 
@@ -720,7 +723,7 @@ Lgman::execFSOPENCONF(Signal* signal)
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);
   }
 }
@@ -813,7 +816,7 @@ Lgman::create_file_commit(Signal* signal,
   CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
   conf->senderData = senderData;
   conf->senderRef = reference();
-  sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	     CreateFileImplConf::SignalLength, JBB);
 }
 
@@ -871,13 +874,13 @@ Lgman::execFSCLOSECONF(Signal* signal)
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);
   }
 }
 
 void
-Lgman::execDROP_FILE_REQ(Signal* signal)
+Lgman::execDROP_FILE_IMPL_REQ(Signal* signal)
 {
   jamEntry();
   ndbrequire(false);

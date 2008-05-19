@@ -41,7 +41,8 @@ struct SchemaTransBeginRef {
     NotMaster = 702,
     Busy = 701,
     BusyWithNR = 711,
-    TooManySchemaTrans = 780
+    TooManySchemaTrans = 780,
+    IncompatibleVersions = 763
   };
   Uint32 senderRef;
   Uint32 transId;

@@ -31,7 +31,7 @@ struct DropFilegroupImplReq {
    */
   friend bool printDROP_FILEGROUP_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 6 );
   
   enum RequestInfo {
     Prepare = 0x1,
@@ -45,6 +45,7 @@ struct DropFilegroupImplReq {
   Uint32 requestInfo;
   Uint32 filegroup_id;
   Uint32 filegroup_version;
+  Uint32 requestType;
 };
 
 struct DropFilegroupImplRef {
@@ -106,7 +107,7 @@ struct DropFileImplReq {
    */
   friend bool printDROP_FILE_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 8 );
   
   enum RequestInfo {
     Prepare = 0x1,
@@ -119,8 +120,10 @@ struct DropFileImplReq {
   
   Uint32 requestInfo;
   Uint32 file_id;
+  Uint32 file_version;
   Uint32 filegroup_id;
   Uint32 filegroup_version;
+  Uint32 requestType;
 };
 
 struct DropFileImplRef {

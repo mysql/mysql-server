@@ -5087,7 +5087,7 @@ st_test_dup_drop_table(ST_Con& c, int arg = -1)
         if (!do_trans)
           chk1(st_drop_table(c, tab, 723) == 0);
         else
-          chk1(st_drop_table(c, tab, 283) == 0);
+          chk1(st_drop_table(c, tab, 785) == 0);
         if (do_trans) {
           if (!do_abort)
             chk1(st_end_trans(c, 0) == 0);
@@ -5168,7 +5168,7 @@ st_test_dup_drop_index(ST_Con& c, int arg = -1)
           if (!do_trans)
             chk1(st_drop_index(c, ind, 4243) == 0);
           else
-            chk1(st_drop_index(c, ind, 283) == 0);
+            chk1(st_drop_index(c, ind, 785) == 0);
           if (do_trans) {
             if (!do_abort)
               chk1(st_end_trans(c, 0) == 0);

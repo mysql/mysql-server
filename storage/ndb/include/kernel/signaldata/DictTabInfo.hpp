@@ -202,7 +202,9 @@ public:
     Tablespace = 20,        ///< Tablespace
     LogfileGroup = 21,      ///< Logfile group
     Datafile = 22,          ///< Datafile
-    Undofile = 23           ///< Undofile
+    Undofile = 23,          ///< Undofile
+
+    SchemaTransaction = 30
   };
 
   // used 1) until type BlobTable added 2) in upgrade code

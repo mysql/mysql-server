@@ -61,7 +61,6 @@
 #define ZSTART_PHASE_8 8
 #define ZSTART_PHASE_9 9
 #define ZSTART_PHASE_END 255
-#define ZSYSTAB_VERSION 1
 #endif
 
 class Ndbcntr: public SimulatedBlock {
@@ -126,6 +125,7 @@ public:
     bool tableLoggedFlag;
     // saved table id
     mutable Uint32 tableId;
+    mutable Uint32 tableVersion;
   };
   struct SysIndex {
     const char* name;

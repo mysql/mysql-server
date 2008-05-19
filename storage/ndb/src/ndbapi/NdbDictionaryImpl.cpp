@@ -6623,6 +6623,9 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
   req->requestInfo = 0;
   if (overwrite)
     req->requestInfo |= CreateFileReq::ForceCreateFile;
+  req->requestInfo |= m_tx.requestFlags();
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
   
   LinearSectionPtr ptr[3];
   ptr[0].p = (Uint32*)m_buffer.get_data();
@@ -6688,6 +6691,9 @@ NdbDictInterface::drop_file(const NdbFileImpl & file)
   req->senderData = 0;
   req->file_id = file.m_id;
   req->file_version = file.m_version;
+  req->requestInfo |= m_tx.requestFlags();
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
 
   int err[] = { DropFileRef::Busy, DropFileRef::NotMaster, 0};
   DBUG_RETURN(dictSignal(&tSignal, 0, 0,
@@ -6782,6 +6788,9 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
   req->senderRef = m_reference;
   req->senderData = 0;
   req->objType = fg.FilegroupType;
+  req->requestInfo |= m_tx.requestFlags();
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
   
   LinearSectionPtr ptr[3];
   ptr[0].p = (Uint32*)m_buffer.get_data();
@@ -6842,7 +6851,10 @@ NdbDictInterface::drop_filegroup(const NdbFilegroupImpl & group)
   req->senderData = 0;
   req->filegroup_id = group.m_id;
   req->filegroup_version = group.m_version;
-  
+  req->requestInfo |= m_tx.requestFlags();
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+
   int err[] = { DropFilegroupRef::Busy, DropFilegroupRef::NotMaster, 0};
   DBUG_RETURN(dictSignal(&tSignal, 0, 0,
                          0, // master

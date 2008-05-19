@@ -82,9 +82,6 @@
 #include <NdbSleep.h>
 #include <signaldata/ApiBroadcast.hpp>
 #include <signaldata/DictLock.hpp>
-
-#include <signaldata/DropObj.hpp>
-#include <signaldata/CreateObj.hpp>
 #include <signaldata/BackupLockTab.hpp>
 #include <SLList.hpp>
 
@@ -100,6 +97,9 @@ extern void release(SegmentedSectionPtr&);
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
 
+#define ZRESTART_OPS_PER_TRANS 25
+#define ZRESTART_NO_WRITE_AFTER_READ 1
+
 //#define EVENT_PH2_DEBUG
 //#define EVENT_PH3_DEBUG
 //#define EVENT_DEBUG
@@ -114,110 +114,18 @@ static const char EVENT_SYSTEM_TABLE_NAME[] = "sys/def/NDB$EVENTS_0";
 #include <ndb_version.h>
 
 static
-struct {
-  Uint32 m_gsn_user_req;
-  Uint32 m_gsn_req;
-  Uint32 m_gsn_ref;
-  Uint32 m_gsn_conf;
-  void (Dbdict::* m_trans_commit_start)(Signal*, Dbdict::SchemaTransaction*);
-  void (Dbdict::* m_trans_commit_complete)(Signal*,Dbdict::SchemaTransaction*);
-  void (Dbdict::* m_trans_abort_start)(Signal*, Dbdict::SchemaTransaction*);
-  void (Dbdict::* m_trans_abort_complete)(Signal*, Dbdict::SchemaTransaction*);
-
-  void (Dbdict::* m_prepare_start)(Signal*, Dbdict::SchemaOperation*);
-  void (Dbdict::* m_prepare_complete)(Signal*, Dbdict::SchemaOperation*);
-  void (Dbdict::* m_commit)(Signal*, Dbdict::SchemaOperation*);
-  void (Dbdict::* m_commit_start)(Signal*, Dbdict::SchemaOperation*);
-  void (Dbdict::* m_commit_complete)(Signal*, Dbdict::SchemaOperation*);
-  void (Dbdict::* m_abort)(Signal*, Dbdict::SchemaOperation*);
-  void (Dbdict::* m_abort_start)(Signal*, Dbdict::SchemaOperation*);
-  void (Dbdict::* m_abort_complete)(Signal*, Dbdict::SchemaOperation*);
-  
-} f_dict_op[] = {
-  /**
-   * Create filegroup
-   */
-  { 
-    GSN_CREATE_FILEGROUP_REQ,
-    GSN_CREATE_OBJ_REQ, GSN_CREATE_OBJ_REF, GSN_CREATE_OBJ_CONF,
-    0, 0, 0, 0,
-    &Dbdict::create_fg_prepare_start, &Dbdict::create_fg_prepare_complete,
-    &Dbdict::createObj_commit,
-    0, 0,
-    &Dbdict::createObj_abort,
-    &Dbdict::create_fg_abort_start, &Dbdict::create_fg_abort_complete,
-  }
-
-  /**
-   * Create file
-   */
-  ,{ 
-    GSN_CREATE_FILE_REQ,
-    GSN_CREATE_OBJ_REQ, GSN_CREATE_OBJ_REF, GSN_CREATE_OBJ_CONF,
-    0, 0, 0, 0,
-    &Dbdict::create_file_prepare_start, &Dbdict::create_file_prepare_complete,
-    &Dbdict::createObj_commit,
-    &Dbdict::create_file_commit_start, 0,
-    &Dbdict::createObj_abort,
-    &Dbdict::create_file_abort_start, &Dbdict::create_file_abort_complete,
-  }
-
-  /**
-   * Drop file
-   */
-  ,{ 
-    GSN_DROP_FILE_REQ,
-    GSN_DROP_OBJ_REQ, GSN_DROP_OBJ_REF, GSN_DROP_OBJ_CONF,
-    0, 0, 0, 0,
-    &Dbdict::drop_file_prepare_start, 0,
-    &Dbdict::dropObj_commit,
-    &Dbdict::drop_file_commit_start, &Dbdict::drop_file_commit_complete,
-    &Dbdict::dropObj_abort,
-    &Dbdict::drop_file_abort_start, 0
-  }
-
-  /**
-   * Drop filegroup
-   */
-  ,{ 
-    GSN_DROP_FILEGROUP_REQ,
-    GSN_DROP_OBJ_REQ, GSN_DROP_OBJ_REF, GSN_DROP_OBJ_CONF,
-    0, 0, 0, 0,
-    &Dbdict::drop_fg_prepare_start, 0,
-    &Dbdict::dropObj_commit,
-    &Dbdict::drop_fg_commit_start, &Dbdict::drop_fg_commit_complete,
-    &Dbdict::dropObj_abort,
-    &Dbdict::drop_fg_abort_start, 0
-  }
-
-  /**
-   * Drop undofile
-   */
-  ,{ 
-    GSN_DROP_FILE_REQ,
-    GSN_DROP_OBJ_REQ, GSN_DROP_OBJ_REF, GSN_DROP_OBJ_CONF,
-    0, 0, 0, 0,
-    &Dbdict::drop_undofile_prepare_start, 0,
-    0,
-    0, &Dbdict::drop_undofile_commit_complete,
-    0, 0, 0
-  }
-};
-
 Uint32
 alter_obj_inc_schema_version(Uint32 old)
 {
    return (old & 0x00FFFFFF) + ((old + 0x1000000) & 0xFF000000);
 }
 
-#if 0
 static
 Uint32
 alter_obj_dec_schema_version(Uint32 old)
 {
   return (old & 0x00FFFFFF) + ((old - 0x1000000) & 0xFF000000);
 }
-#endif
 
 static
 Uint32
@@ -424,6 +332,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
   case DictTabInfo::SubscriptionTrigger:
   case DictTabInfo::ReadOnlyConstraint:
   case DictTabInfo::IndexTrigger:
+  case DictTabInfo::SchemaTransaction:
     ndbrequire(false);
   }
   
@@ -1231,7 +1140,11 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
   D("updateSchemaState" << V(tableId));
   D("old:" << *tableEntry);
   D("new:" << *te);
-  
+
+#ifndef TODO
+  * tableEntry = * te;
+  computeChecksum(xsf, tableId / NDB_SF_PAGE_ENTRIES);
+#else
   SchemaFile::TableState newState = 
     (SchemaFile::TableState)te->m_tableState;
   SchemaFile::TableState oldState = 
@@ -1329,6 +1242,7 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
       execute(signal, *callback, 0);
     }
   }
+#endif
 }
 
 void Dbdict::startWriteSchemaFile(Signal* signal)
@@ -1651,8 +1565,7 @@ Dbdict::convertSchemaFileTo_5_0_6(XSchemaFile * xsf)
       if (j >= sf_old->NoOfTableEntries)
         continue;
       const SchemaFile::TableEntry_old & te_old = sf_old->TableEntries_old[j];
-      if (te_old.m_tableState == SchemaFile::INIT ||
-          te_old.m_tableState == SchemaFile::DROP_TABLE_COMMITTED ||
+      if (te_old.m_tableState == SchemaFile::SF_UNUSED ||
           te_old.m_noOfPages == 0)
         continue;
       SchemaFile * sf = &xsf->schemaPage[n];
@@ -1697,10 +1610,6 @@ Dbdict::Dbdict(Block_context& ctx):
   c_opSubEvent(c_opRecordPool),
   c_opDropEvent(c_opRecordPool),
   c_opSignalUtil(c_opRecordPool),
-  c_schemaOperation(c_opRecordPool),
-  c_Trans(c_opRecordPool),
-  c_opCreateObj(c_schemaOperation),
-  c_opDropObj(c_schemaOperation),
   c_opRecordSequence(0)
 #ifdef VM_TRACE
   ,debugOut(*new NullOutputStream())
@@ -1849,34 +1758,25 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_CREATE_FILEGROUP_REQ, &Dbdict::execCREATE_FILEGROUP_REQ);
 
   addRecSignal(GSN_DROP_FILE_REQ, &Dbdict::execDROP_FILE_REQ);
-  addRecSignal(GSN_DROP_FILE_REF, &Dbdict::execDROP_FILE_REF);
-  addRecSignal(GSN_DROP_FILE_CONF, &Dbdict::execDROP_FILE_CONF);
-
   addRecSignal(GSN_DROP_FILEGROUP_REQ, &Dbdict::execDROP_FILEGROUP_REQ);
-  addRecSignal(GSN_DROP_FILEGROUP_REF, &Dbdict::execDROP_FILEGROUP_REF);
-  addRecSignal(GSN_DROP_FILEGROUP_CONF, &Dbdict::execDROP_FILEGROUP_CONF);
-  
-  addRecSignal(GSN_CREATE_OBJ_REQ, &Dbdict::execCREATE_OBJ_REQ);
-  addRecSignal(GSN_CREATE_OBJ_REF, &Dbdict::execCREATE_OBJ_REF);
-  addRecSignal(GSN_CREATE_OBJ_CONF, &Dbdict::execCREATE_OBJ_CONF);
-  addRecSignal(GSN_DROP_OBJ_REQ, &Dbdict::execDROP_OBJ_REQ);
-  addRecSignal(GSN_DROP_OBJ_REF, &Dbdict::execDROP_OBJ_REF);
-  addRecSignal(GSN_DROP_OBJ_CONF, &Dbdict::execDROP_OBJ_CONF);
 
-  addRecSignal(GSN_CREATE_FILE_REF, &Dbdict::execCREATE_FILE_REF);
-  addRecSignal(GSN_CREATE_FILE_CONF, &Dbdict::execCREATE_FILE_CONF);
-  addRecSignal(GSN_CREATE_FILEGROUP_REF, &Dbdict::execCREATE_FILEGROUP_REF);
-  addRecSignal(GSN_CREATE_FILEGROUP_CONF, &Dbdict::execCREATE_FILEGROUP_CONF);
+  addRecSignal(GSN_DROP_FILE_IMPL_REF, &Dbdict::execDROP_FILE_IMPL_REF);
+  addRecSignal(GSN_DROP_FILE_IMPL_CONF, &Dbdict::execDROP_FILE_IMPL_CONF);
+
+  addRecSignal(GSN_DROP_FILEGROUP_IMPL_REF,
+               &Dbdict::execDROP_FILEGROUP_IMPL_REF);
+  addRecSignal(GSN_DROP_FILEGROUP_IMPL_CONF,
+               &Dbdict::execDROP_FILEGROUP_IMPL_CONF);
+
+  addRecSignal(GSN_CREATE_FILE_IMPL_REF, &Dbdict::execCREATE_FILE_IMPL_REF);
+  addRecSignal(GSN_CREATE_FILE_IMPL_CONF, &Dbdict::execCREATE_FILE_IMPL_CONF);
+  addRecSignal(GSN_CREATE_FILEGROUP_IMPL_REF,
+               &Dbdict::execCREATE_FILEGROUP_IMPL_REF);
+  addRecSignal(GSN_CREATE_FILEGROUP_IMPL_CONF,
+               &Dbdict::execCREATE_FILEGROUP_IMPL_CONF);
 
   addRecSignal(GSN_BACKUP_LOCK_TAB_REQ, &Dbdict::execBACKUP_LOCK_TAB_REQ);
 
-  addRecSignal(GSN_DICT_COMMIT_REQ, &Dbdict::execDICT_COMMIT_REQ);
-  addRecSignal(GSN_DICT_COMMIT_REF, &Dbdict::execDICT_COMMIT_REF);
-  addRecSignal(GSN_DICT_COMMIT_CONF, &Dbdict::execDICT_COMMIT_CONF);
-
-  addRecSignal(GSN_DICT_ABORT_REQ, &Dbdict::execDICT_ABORT_REQ);
-  addRecSignal(GSN_DICT_ABORT_REF, &Dbdict::execDICT_ABORT_REF);
-  addRecSignal(GSN_DICT_ABORT_CONF, &Dbdict::execDICT_ABORT_CONF);
   addRecSignal(GSN_SCHEMA_TRANS_BEGIN_REQ, &Dbdict::execSCHEMA_TRANS_BEGIN_REQ);
   addRecSignal(GSN_SCHEMA_TRANS_BEGIN_CONF, &Dbdict::execSCHEMA_TRANS_BEGIN_CONF);
   addRecSignal(GSN_SCHEMA_TRANS_BEGIN_REF, &Dbdict::execSCHEMA_TRANS_BEGIN_REF);
@@ -2013,6 +1913,7 @@ void Dbdict::initRestartRecord()
   c_restartRecord.gciToRestart = 0;
   c_restartRecord.activeTable = ZNIL;
   c_restartRecord.m_pass = 0;
+  c_restartRecord.m_op_cnt = 0;
 }//Dbdict::initRestartRecord()
 
 void Dbdict::initNodeRecords() 
@@ -2139,11 +2040,13 @@ Uint32 Dbdict::getFreeObjId(Uint32 minId)
     const SchemaFile * sf = &xsf->schemaPage[n];
     for (i = 0; i < NDB_SF_PAGE_ENTRIES; i++) {
       const SchemaFile::TableEntry& te = sf->TableEntries[i];
-      if (te.m_tableState == (Uint32)SchemaFile::INIT ||
-          te.m_tableState == (Uint32)SchemaFile::DROP_TABLE_COMMITTED) {
+      if (te.m_tableState == (Uint32)SchemaFile::SF_UNUSED)
+      {
         // minId is obsolete anyway
         if (minId <= n * NDB_SF_PAGE_ENTRIES + i)
+        {
           return n * NDB_SF_PAGE_ENTRIES + i;
+        }
       }
     }
   }
@@ -2166,6 +2069,7 @@ Uint32 Dbdict::getFreeTableRecord(Uint32 primaryTableId)
     jam();
     return RNIL;
   }
+
   TableRecordPtr tablePtr;
   c_tableRecordPool.getPtr(tablePtr, i);
   ndbrequire(tablePtr.p->tabState == TableRecord::NOT_DEFINED);
@@ -2295,6 +2199,10 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_dropIndexRecPool.setSize(32);
   c_alterIndexRecPool.setSize(32);
   c_buildIndexRecPool.setSize(32);
+  c_createFilegroupRecPool.setSize(32);
+  c_createFileRecPool.setSize(32);
+  c_dropFilegroupRecPool.setSize(32);
+  c_dropFileRecPool.setSize(32);
   
   c_opRecordPool.setSize(256);   // XXX need config params
   c_opCreateEvent.setSize(2);
@@ -2309,10 +2217,6 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_schemaFile[1].schemaPage =
     (SchemaFile*)c_schemaPageRecordArray.getPtr(1 * NDB_SF_MAX_PAGES);
   c_schemaFile[1].noOfPages = 0;
-
-  c_schemaOperation.setSize(8);
-  //c_opDropObj.setSize(8);
-  c_Trans.setSize(8);
 
   Uint32 rps = 0;
   rps += tablerecSize * (MAX_TAB_NAME_SIZE + MAX_FRM_DATA_SIZE);
@@ -2944,6 +2848,7 @@ void Dbdict::execDICTSTARTREQ(Signal* signal)
 
   c_restartRecord.m_pass = 0;
   c_restartRecord.activeTable = 0;
+  c_restartRecord.m_op_cnt = 0;
 
   /**
    * master has same new/old schema file...
@@ -2951,6 +2856,7 @@ void Dbdict::execDICTSTARTREQ(Signal* signal)
    */
   {
     XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+    checkPendingSchemaTrans(oldxsf);
     XSchemaFile * newxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
     newxsf->noOfPages = oldxsf->noOfPages;
     memcpy(&newxsf->schemaPage[0],
@@ -2958,7 +2864,22 @@ void Dbdict::execDICTSTARTREQ(Signal* signal)
            oldxsf->schemaPage[0].FileSize);
   }
 
-  checkSchemaStatus(signal);
+  TxHandlePtr tx_ptr;
+  seizeTxHandle(tx_ptr);
+  ndbrequire(!tx_ptr.isNull());
+
+  c_restartRecord.m_tx_ptr_i = tx_ptr.i;
+  tx_ptr.p->m_requestInfo = DictSignal::RF_LOCAL_TRANS;
+  tx_ptr.p->m_userData = 0;
+
+  Callback c = {
+    safe_cast(&Dbdict::restart_fromBeginTrans),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+  beginSchemaTrans(signal, tx_ptr);
+
+  infoEvent("Starting to restore schema");
 }//execDICTSTARTREQ()
 
 void
@@ -2966,6 +2887,8 @@ Dbdict::masterRestart_checkSchemaStatusComplete(Signal* signal,
 						Uint32 callbackData,
 						Uint32 returnCode)
 {
+  infoEvent("Restore of schema complete");
+
   XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
   ndbrequire(oldxsf->noOfPages != 0);
 
@@ -3069,6 +2992,7 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
   validateChecksum(xsf);
 
   XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+  checkPendingSchemaTrans(oldxsf);
   resizeSchemaFile(xsf, oldxsf->noOfPages);
 
   ndbrequire(signal->getSendersBlockRef() != reference());
@@ -3084,9 +3008,27 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
   c_schemaRecord.m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::restart_checkSchemaStatusComplete);
 
-  c_restartRecord.m_pass= 0;
+  c_restartRecord.m_pass = 0;
   c_restartRecord.activeTable = 0;
-  checkSchemaStatus(signal);
+  c_restartRecord.m_op_cnt = 0;
+
+
+  TxHandlePtr tx_ptr;
+  seizeTxHandle(tx_ptr);
+  ndbrequire(!tx_ptr.isNull());
+
+  c_restartRecord.m_tx_ptr_i = tx_ptr.i;
+  tx_ptr.p->m_requestInfo = DictSignal::RF_LOCAL_TRANS;
+  tx_ptr.p->m_userData = 0;
+
+  Callback c = {
+    safe_cast(&Dbdict::restart_fromBeginTrans),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+  beginSchemaTrans(signal, tx_ptr);
+
+  infoEvent("Starting to restore schema");
 }//execSCHEMA_INFO()
 
 void
@@ -3095,32 +3037,8 @@ Dbdict::restart_checkSchemaStatusComplete(Signal * signal,
 					  Uint32 returnCode)
 {
   jam();
-  D("restart_checkSchemaStatusComplete");
 
-  ndbrequire(c_writeSchemaRecord.inUse == false);
-  c_writeSchemaRecord.inUse = true;
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
-  c_writeSchemaRecord.newFile = true;
-  c_writeSchemaRecord.firstPage = 0;
-  c_writeSchemaRecord.noOfPages = xsf->noOfPages;
-  c_writeSchemaRecord.m_callback.m_callbackData = 0;
-  c_writeSchemaRecord.m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restart_writeSchemaConf);
-  
-  for(Uint32 i = 0; i<xsf->noOfPages; i++)
-    computeChecksum(xsf, i);  
-
-  startWriteSchemaFile(signal);
-}
-
-void
-Dbdict::restart_writeSchemaConf(Signal * signal, 
-				Uint32 callbackData,
-				Uint32 returnCode)
-{
-  jam();
-  D("restart_writeSchemaConf");
+  infoEvent("Restore of schema complete");
 
   if(c_systemRestart){
     jam();
@@ -3233,21 +3151,23 @@ void Dbdict::checkSchemaStatus(Signal* signal)
   const Uint32 noOfEntries = newxsf->noOfPages * NDB_SF_PAGE_ENTRIES;
 
   for (; c_restartRecord.activeTable < noOfEntries;
-       c_restartRecord.activeTable++) {
+       c_restartRecord.activeTable++)
+  {
     jam();
 
     Uint32 tableId = c_restartRecord.activeTable;
     SchemaFile::TableEntry *newEntry = getTableEntry(newxsf, tableId);
     SchemaFile::TableEntry *oldEntry = getTableEntry(oldxsf, tableId);
-    SchemaFile::TableState newSchemaState = 
-      (SchemaFile::TableState)newEntry->m_tableState;
-    SchemaFile::TableState oldSchemaState = 
-      (SchemaFile::TableState)oldEntry->m_tableState;
+    SchemaFile::EntryState newState =
+      (SchemaFile::EntryState)newEntry->m_tableState;
+    SchemaFile::EntryState oldState =
+      (SchemaFile::EntryState)oldEntry->m_tableState;
 
-    if (c_restartRecord.activeTable >= c_tableRecordPool.getSize()) {
+    if (c_restartRecord.activeTable >= c_tableRecordPool.getSize())
+    {
       jam();
-      ndbrequire(newSchemaState == SchemaFile::INIT);
-      ndbrequire(oldSchemaState == SchemaFile::INIT);
+      ndbrequire(newState == SchemaFile::SF_UNUSED);
+      ndbrequire(oldState == SchemaFile::SF_UNUSED);
       continue;
     }//if
 
@@ -3255,42 +3175,22 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 
 //#define PRINT_SCHEMA_RESTART
 #ifdef PRINT_SCHEMA_RESTART
-    char buf[100];
-    snprintf(buf, sizeof(buf), "checkSchemaStatus: pass: %d table: %d", 
-             c_restartRecord.m_pass, tableId);
+    printf("checkSchemaStatus: pass: %d table: %d",
+           c_restartRecord.m_pass, tableId);
+    ndbout << "old: " << *oldEntry << " new: " << *newEntry;
 #endif
-    
+
     if (c_restartRecord.m_pass <= CREATE_OLD_PASS)
     {
       if (!::checkSchemaStatus(oldEntry->m_tableType, c_restartRecord.m_pass))
         continue;
 
-      switch(oldSchemaState){
-      case SchemaFile::INIT: jam();
-      case SchemaFile::DROP_TABLE_COMMITTED: jam();
-      case SchemaFile::ADD_STARTED: jam();
-      case SchemaFile::DROP_TABLE_STARTED: jam();
-      case SchemaFile::TEMPORARY_TABLE_COMMITTED: jam();
-	continue;
-      case SchemaFile::TABLE_ADD_COMMITTED: jam();
-      case SchemaFile::ALTER_TABLE_COMMITTED: jam();
-	jam();
-#ifdef PRINT_SCHEMA_RESTART
-        ndbout_c("%s -> restartCreateTab", buf);
-        ndbout << *newEntry << " " << *oldEntry << endl;
-#endif
-	restartCreateTab(signal, tableId, oldEntry, oldEntry, true);        
-        return;
-      case SchemaFile::CREATE_PARSED:
-        jam();
-      case SchemaFile::DROP_PARSED:
-        jam();
-      case SchemaFile::ALTER_PARSED:
-        jam();
-        // these are not disk states
-        ndbrequire(false);
+
+      if (oldState == SchemaFile::SF_UNUSED)
         continue;
-      }
+
+      restartCreateObj(signal, tableId, oldEntry, true);
+      return;
     }
 
     if (c_restartRecord.m_pass <= DROP_OLD_PASS)
@@ -3298,237 +3198,270 @@ void Dbdict::checkSchemaStatus(Signal* signal)
       if (!::checkSchemaStatus(oldEntry->m_tableType, c_restartRecord.m_pass))
         continue;
 
-      switch(oldSchemaState){
-      case SchemaFile::INIT: jam();
-      case SchemaFile::DROP_TABLE_COMMITTED: jam();
-      case SchemaFile::TEMPORARY_TABLE_COMMITTED: jam();
+      if (oldState != SchemaFile::SF_IN_USE)
         continue;
-      case SchemaFile::ADD_STARTED: jam();
-      case SchemaFile::DROP_TABLE_STARTED: jam();
-#ifdef PRINT_SCHEMA_RESTART
-        ndbout_c("%s -> restartDropTab", buf);
-        ndbout << *newEntry << " " << *oldEntry << endl;
-#endif
-	restartDropTab(signal, tableId, oldEntry, newEntry);
-        return;
-      case SchemaFile::TABLE_ADD_COMMITTED: jam();
-      case SchemaFile::ALTER_TABLE_COMMITTED: jam();
-        if (! (* oldEntry == * newEntry))
-        {
-#ifdef PRINT_SCHEMA_RESTART
-          ndbout_c("%s -> restartDropTab", buf);
-          ndbout << *newEntry << " " << *oldEntry << endl;
-#endif
-          restartDropTab(signal, tableId, oldEntry, newEntry);
-          return;
-        }
+
+      if (* oldEntry == * newEntry)
         continue;
-      case SchemaFile::CREATE_PARSED:
-        jam();
-      case SchemaFile::DROP_PARSED:
-        jam();
-      case SchemaFile::ALTER_PARSED:
-        jam();
-        // these are not disk states
-        ndbrequire(false);
-        continue;
-      }
+
+      restartDropObj(signal, tableId, oldEntry);
+      return;
     }
 
     if (c_restartRecord.m_pass <= CREATE_NEW_PASS)
     {
       if (!::checkSchemaStatus(newEntry->m_tableType, c_restartRecord.m_pass))
         continue;
-      
-      switch(newSchemaState){
-      case SchemaFile::INIT: jam();
-      case SchemaFile::DROP_TABLE_COMMITTED: jam();
-      case SchemaFile::TEMPORARY_TABLE_COMMITTED: jam();
-        * oldEntry = * newEntry;
-        continue;
-      case SchemaFile::ADD_STARTED: jam();
-      case SchemaFile::DROP_TABLE_STARTED: jam();
-        ndbrequire(DictTabInfo::isTable(newEntry->m_tableType) ||
-                   DictTabInfo::isIndex(newEntry->m_tableType));
-        newEntry->m_tableState = SchemaFile::INIT;
-        continue;
-      case SchemaFile::TABLE_ADD_COMMITTED: jam();
-      case SchemaFile::ALTER_TABLE_COMMITTED: jam();
-        if (DictTabInfo::isIndex(newEntry->m_tableType) ||
-            DictTabInfo::isTable(newEntry->m_tableType))
-        {
-          bool file = * oldEntry == *newEntry &&
-            (!DictTabInfo::isIndex(newEntry->m_tableType) || c_systemRestart);
 
-#ifdef PRINT_SCHEMA_RESTART          
-          ndbout_c("%s -> restartCreateTab (file: %d)", buf, file);
-          ndbout << *newEntry << " " << *oldEntry << endl;
-#endif
-          restartCreateTab(signal, tableId, newEntry, newEntry, file);        
-          * oldEntry = * newEntry;
-          return;
-        }
-        else if (! (* oldEntry == *newEntry))
-        {
-#ifdef PRINT_SCHEMA_RESTART
-          ndbout_c("%s -> restartCreateTab", buf);
-          ndbout << *newEntry << " " << *oldEntry << endl;
-#endif
-          restartCreateTab(signal, tableId, oldEntry, newEntry, false);        
-          * oldEntry = * newEntry;
-          return;
-        }
-        * oldEntry = * newEntry;
+      if (newState != SchemaFile::SF_IN_USE)
         continue;
-      case SchemaFile::CREATE_PARSED:
-        jam();
-      case SchemaFile::DROP_PARSED:
-        jam();
-      case SchemaFile::ALTER_PARSED:
-        jam();
-        // master cannot have active transaction
-        ndbrequire(false);
-        continue;
+
+      /**
+       * handle table(index) special as DIH has already copied
+       *   table (using COPY_TABREQ)
+       */
+      if (DictTabInfo::isIndex(newEntry->m_tableType) ||
+          DictTabInfo::isTable(newEntry->m_tableType))
+      {
+        bool file = * oldEntry == *newEntry &&
+          (!DictTabInfo::isIndex(newEntry->m_tableType) || c_systemRestart);
+
+        restartCreateObj(signal, tableId, newEntry, file);
+        return;
       }
+
+      if (* oldEntry == *newEntry)
+        continue;
+
+      restartCreateObj(signal, tableId, newEntry, false);
+      return;
     }
   }
-  
-  c_restartRecord.m_pass++;
-  c_restartRecord.activeTable= 0;
-  if(c_restartRecord.m_pass <= LAST_PASS)
+
+  if (c_restartRecord.m_op_cnt == 0)
   {
-    checkSchemaStatus(signal);
+    jam();
+    restartNextPass(signal);
+    return;
   }
   else
   {
-    execute(signal, c_schemaRecord.m_callback, 0);
+    jam();
+    TxHandlePtr tx_ptr;
+    c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
+
+    Callback c = {
+      safe_cast(&Dbdict::restartEndPass_fromEndTrans),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+
+    Uint32 flags = 0;
+    endSchemaTrans(signal, tx_ptr, flags);
+    return;
   }
 }//checkSchemaStatus()
 
 void
-Dbdict::restartCreateTab(Signal* signal, Uint32 tableId, 
-			 const SchemaFile::TableEntry * old_entry, 
-			 const SchemaFile::TableEntry * new_entry, 
-			 bool file)
+Dbdict::checkPendingSchemaTrans(XSchemaFile* xsf)
 {
-  jam();
-  D("restartCreateTab");
+  for (Uint32 i = 0; i < xsf->noOfPages * NDB_SF_PAGE_ENTRIES; i++)
+  {
+    SchemaFile::TableEntry * transEntry = getTableEntry(xsf, i);
 
-  switch(new_entry->m_tableType){
-  case DictTabInfo::UndefTableType:
-  case DictTabInfo::HashIndexTrigger:
-  case DictTabInfo::SubscriptionTrigger:
-  case DictTabInfo::ReadOnlyConstraint:
-  case DictTabInfo::IndexTrigger:
-    ndbrequire(false);
-  case DictTabInfo::SystemTable:
-  case DictTabInfo::UserTable:
-  case DictTabInfo::UniqueHashIndex:
-  case DictTabInfo::HashIndex:
-  case DictTabInfo::UniqueOrderedIndex:
-  case DictTabInfo::OrderedIndex:
-    break;
-  case DictTabInfo::Tablespace:
-  case DictTabInfo::LogfileGroup:
-  case DictTabInfo::Datafile:
-  case DictTabInfo::Undofile:
-    restartCreateObj(signal, tableId, old_entry, new_entry, file);
-    return;
-  }
+    if (transEntry->m_tableType == DictTabInfo::SchemaTransaction &&
+        transEntry->m_transId != 0)
+    {
+      jam();
   
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;  
-  seizeSchemaOp(op_ptr, createTabPtr);
-  ndbrequire(!op_ptr.isNull());
-  CreateTabReq* impl_req = &createTabPtr.p->m_request;
+      bool commit = false;
+      switch(transEntry->m_tableState){
+      case SchemaFile::SF_STARTED:
+      case SchemaFile::SF_PREPARE:
+      case SchemaFile::SF_ABORT:
+        jam();
+        ndbout_c("Found pending trans (%u) - aborting", i);
+        break;
+      case SchemaFile::SF_COMMIT:
+      case SchemaFile::SF_COMPLETE:
+        jam();
+        commit = true;
+        ndbout_c("Found pending trans (%u) - committing", i);
+        break;
+      }
 
-  impl_req->senderRef = reference();
-  impl_req->senderData = op_ptr.p->op_key;
-  impl_req->requestType = 0;
-  impl_req->tableId = tableId;
-  impl_req->tableVersion = 0;
-  impl_req->gci = 0;
+      const Uint32 transId = transEntry->m_transId;
+      for (Uint32 j = 0; j<xsf->noOfPages * NDB_SF_PAGE_ENTRIES; j++)
+      {
+        SchemaFile::TableEntry * tmp = getTableEntry(xsf, j);
+        if (tmp->m_transId == transId &&
+            tmp->m_tableType != DictTabInfo::SchemaTransaction)
+        {
+          jam();
+          tmp->m_transId = 0;
+          switch(tmp->m_tableState){
+          case SchemaFile::SF_CREATE:
+            if (commit)
+            {
+              jam();
+              tmp->m_tableState = SchemaFile::SF_IN_USE;
+              ndbout_c("commit create %u", j);
+            }
+            else
+            {
+              jam();
+              tmp->m_tableState = SchemaFile::SF_UNUSED;
+              ndbout_c("abort create %u", j);
+            }
+            break;
+          case SchemaFile::SF_ALTER:
+            tmp->m_tableState = SchemaFile::SF_IN_USE;
+            if (commit)
+            {
+              jam();
+              ndbout_c("commit alter %u", j);
+            }
+            else
+            {
+              jam();
+              ndbout_c("abort alter %u", j);
+              tmp->m_tableVersion =
+                alter_obj_dec_schema_version(tmp->m_tableVersion);
+            }
+            break;
+          case SchemaFile::SF_DROP:
+            if (commit)
+            {
+              jam();
+              tmp->m_tableState = SchemaFile::SF_UNUSED;
+              ndbout_c("commit drop %u", j);
+            }
+            else
+            {
+              jam();
+              tmp->m_tableState = SchemaFile::SF_IN_USE;
+              ndbout_c("abort drop %u", j);
+            }
+            break;
+          }
+        }
+      }
 
-  if(file && !ERROR_INSERTED(6002)){
-    jam();
-    
-    c_readTableRecord.no_of_words = old_entry->m_info_words;
-    c_readTableRecord.pageId = 0;
-    c_readTableRecord.m_callback.m_callbackData = op_ptr.p->op_key;
-    c_readTableRecord.m_callback.m_callbackFunction = 
-      safe_cast(&Dbdict::restartCreateTab_readTableConf);
-    
-    startReadTableFile(signal, tableId);
-    return;
-  } else {
-    
-    ndbrequire(c_masterNodeId != getOwnNodeId());
-    
-    /**
-     * Get from master
-     */
-    GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
-    req->senderRef = reference();
-    req->senderData = op_ptr.p->op_key;
-    req->requestType = GetTabInfoReq::RequestById |
-      GetTabInfoReq::LongSignalConf;
-    req->tableId = tableId;
-    sendSignal(calcDictBlockRef(c_masterNodeId), GSN_GET_TABINFOREQ, signal,
-	       GetTabInfoReq::SignalLength, JBB);
-
-    if(ERROR_INSERTED(6002)){
-      NdbSleep_MilliSleep(10);
-      CRASH_INSERTION(6002);
+      transEntry->m_tableState = SchemaFile::SF_UNUSED;
+      transEntry->m_transId = 0;
     }
   }
 }
 
 void
-Dbdict::restartCreateTab_readTableConf(Signal* signal, 
-				       Uint32 op_key,
-				       Uint32 ret)
+Dbdict::restart_fromBeginTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 {
-  jam();
-  D("restartCreateTab_readTableConf");
+  ndbrequire(ret == 0);
   
-  PageRecordPtr pageRecPtr;
-  c_pageRecordArray.getPtr(pageRecPtr, c_readTableRecord.pageId);
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
 
-  ParseDictTabInfoRecord parseRecord;
-  parseRecord.requestType = DictTabInfo::GetTabInfoConf;
-  parseRecord.errorCode = 0;
+  checkSchemaStatus(signal);
+}
+
+void
+Dbdict::restart_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  ndbrequire(ret == 0); //wl3600_todo
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  releaseTxHandle(tx_ptr);
+
+  c_restartRecord.activeTable++;
+
+  seizeTxHandle(tx_ptr);
+  ndbrequire(!tx_ptr.isNull());
+  c_restartRecord.m_tx_ptr_i = tx_ptr.i;
+  tx_ptr.p->m_requestInfo = DictSignal::RF_LOCAL_TRANS;
+  tx_ptr.p->m_userData = 0;
+
+  Callback c = {
+    safe_cast(&Dbdict::restart_fromBeginTrans),
+    tx_ptr.p->tx_key
+  };
+  tx_ptr.p->m_callback = c;
+  beginSchemaTrans(signal, tx_ptr);
+}
+
+void
+Dbdict::restartEndPass_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
+{
+  ndbrequire(ret == 0); //wl3600_todo
   
-  Uint32 sz = c_readTableRecord.no_of_words;
-  SimplePropertiesLinearReader r(pageRecPtr.p->word+ZPAGE_HEADER_SIZE, sz);
-  handleTabInfoInit(r, &parseRecord);
-  if (parseRecord.errorCode != 0)
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, tx_key);
+  ndbrequire(!tx_ptr.isNull());
+
+  releaseTxHandle(tx_ptr);
+  c_restartRecord.m_tx_ptr_i = RNIL;
+
+  restartNextPass(signal);
+}
+
+void
+Dbdict::restartNextPass(Signal* signal)
+{
+  c_restartRecord.m_pass++;
+  c_restartRecord.activeTable= 0;
+
+  if(c_restartRecord.m_pass <= LAST_PASS)
   {
-    char buf[255];
-    BaseString::snprintf(buf, sizeof(buf), 
-                         "Failed to create table %u during restart,"
-                         " error: %u line: %u."
-			 " Most likely change of configuration",
-			 c_readTableRecord.tableId,
-			 parseRecord.errorCode,
-                         parseRecord.errorLine);
-    progError(__LINE__, 
-	      NDBD_EXIT_INVALID_CONFIG,
-	      buf);
-    ndbrequire(parseRecord.errorCode == 0);
-  }
+    TxHandlePtr tx_ptr;
+    if (c_restartRecord.m_tx_ptr_i == RNIL)
+    {
+      jam();
+      seizeTxHandle(tx_ptr);
+      ndbrequire(!tx_ptr.isNull());
+      c_restartRecord.m_tx_ptr_i  = tx_ptr.i;
+      tx_ptr.p->m_requestInfo = DictSignal::RF_LOCAL_TRANS;
+      tx_ptr.p->m_userData = 0;
 
-  /* ---------------------------------------------------------------- */
-  // We have read the table description from disk as part of system restart.
-  // We will also write it back again to ensure that both copies are ok.
-  /* ---------------------------------------------------------------- */
-  ndbrequire(c_writeTableRecord.tableWriteState == WriteTableRecord::IDLE);
-  c_writeTableRecord.no_of_words = c_readTableRecord.no_of_words;
-  c_writeTableRecord.pageId = c_readTableRecord.pageId;
-  c_writeTableRecord.tableWriteState = WriteTableRecord::TWR_CALLBACK;
-  c_writeTableRecord.m_callback.m_callbackData = op_key;
-  c_writeTableRecord.m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartCreateTab_writeTableConf);
-  startWriteTableFile(signal, c_readTableRecord.tableId);
+      Callback c = {
+        safe_cast(&Dbdict::restart_fromBeginTrans),
+        tx_ptr.p->tx_key
+      };
+      tx_ptr.p->m_callback = c;
+      beginSchemaTrans(signal, tx_ptr);
+      return;
+    }
+    else
+    {
+      jam();
+      c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
+      restart_fromBeginTrans(signal, tx_ptr.p->tx_key, 0);
+      return;
+    }
+  }
+  else
+  {
+    jam();
+
+    /**
+     * Write schema file at-end of checkSchemaStatus
+     */
+    XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+    ndbrequire(c_writeSchemaRecord.inUse == false);
+    c_writeSchemaRecord.inUse = true;
+    c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
+    c_writeSchemaRecord.newFile = false;
+    c_writeSchemaRecord.firstPage = 0;
+    c_writeSchemaRecord.noOfPages = xsf->noOfPages;
+    c_writeSchemaRecord.m_callback = c_schemaRecord.m_callback;
+
+    for(Uint32 i = 0; i<xsf->noOfPages; i++)
+      computeChecksum(xsf, i);
+
+    startWriteSchemaFile(signal);
+  }
 }
 
 void
@@ -3602,199 +3535,12 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal)
     else
     {
       jam();
-      restartCreateObj_getTabInfoConf(signal);
+      break;
     }
     return;
   }
-  
-  const Uint32 tableId = conf->tableId;
-  const Uint32 senderData = conf->senderData;
 
-  SectionHandle handle(this, signal);
-  SegmentedSectionPtr tabInfoPtr;
-  handle.getSection(tabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
-
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;  
-  findSchemaOp(op_ptr, createTabPtr, senderData);
-  ndbrequire(!op_ptr.isNull());
-  ndbrequire(createTabPtr.p->m_request.tableId == tableId);
-
-  /**
-   * Put data into table record
-   */
-  ParseDictTabInfoRecord parseRecord;
-  parseRecord.requestType = DictTabInfo::GetTabInfoConf;
-  parseRecord.errorCode = 0;
-  
-  SimplePropertiesSectionReader r(tabInfoPtr, getSectionSegmentPool());
-  handleTabInfoInit(r, &parseRecord);
-  ndbrequire(parseRecord.errorCode == 0);
-
-  // save to disk
-
-  ndbrequire(tableId < c_tableRecordPool.getSize());
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tableId);
-  tableEntry->m_info_words= tabInfoPtr.sz;
-  
-  Callback callback;
-  callback.m_callbackData = op_ptr.p->op_key;
-  callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartCreateTab_writeTableConf);
-  
-  writeTableFile(signal, tableId, tabInfoPtr, &callback);
-
-  releaseSections(handle);
-}
-
-void
-Dbdict::restartCreateTab_writeTableConf(Signal* signal, 
-					Uint32 op_key,
-					Uint32 ret)
-{
-  jam();
-  D("restartCreateTab_writeTableConf");
-
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;  
-  findSchemaOp(op_ptr, createTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-
-  Callback callback;
-  callback.m_callbackData = op_key;
-  callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartCreateTab_dihComplete);
-
-  OpSection& fragSection = op_ptr.p->m_section[CreateTabReq::FRAGMENTATION];
-  new (&fragSection) OpSection;
-  createTab_dih(signal, op_ptr, fragSection, &callback);
-}
-
-void
-Dbdict::restartCreateTab_dihComplete(Signal* signal, 
-				     Uint32 op_key,
-				     Uint32 ret)
-{
-  jam();
-  D("restartCreateTab_dihComplete");
-  
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;  
-  findSchemaOp(op_ptr, createTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-  const CreateTabReq* impl_req = &createTabPtr.p->m_request;
-
-  if (hasError(op_ptr.p->m_error))
-  {
-    char buf[100];
-    BaseString::snprintf(buf, sizeof(buf),
-                         "Failed to create table %u during restart,"
-                         " error: %u line: %u.",
-                         impl_req->tableId,
-                         op_ptr.p->m_error.errorCode,
-                         op_ptr.p->m_error.errorLine);
-    progError(__LINE__, NDBD_EXIT_RESOURCE_ALLOC_ERROR, buf);
-  }
-
-  Callback callback;
-  callback.m_callbackData = op_key;
-  callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartCreateTab_activateComplete);
-  
-  createTab_activate(signal, op_ptr, &callback);
-}
-
-void
-Dbdict::restartCreateTab_activateComplete(Signal* signal, 
-					  Uint32 op_key,
-					  Uint32 ret)
-{
-  jam();
-  D("restartCreateTab_activateComplete");
-  
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;  
-  findSchemaOp(op_ptr, createTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-  const CreateTabReq* impl_req = &createTabPtr.p->m_request;
-
-  TableRecordPtr tabPtr;
-  c_tableRecordPool.getPtr(tabPtr, impl_req->tableId);
-  tabPtr.p->tabState = TableRecord::DEFINED;
-  
-  releaseSchemaOp(op_ptr);
-
-  c_restartRecord.activeTable++;
-  checkSchemaStatus(signal);
-}
-
-void
-Dbdict::restartDropTab(Signal* signal, Uint32 tableId,
-                       const SchemaFile::TableEntry * old_entry, 
-                       const SchemaFile::TableEntry * new_entry)
-{
-  switch(old_entry->m_tableType){
-  case DictTabInfo::UndefTableType:
-  case DictTabInfo::HashIndexTrigger:
-  case DictTabInfo::SubscriptionTrigger:
-  case DictTabInfo::ReadOnlyConstraint:
-  case DictTabInfo::IndexTrigger:
-    ndbrequire(false);
-  case DictTabInfo::SystemTable:
-  case DictTabInfo::UserTable:
-  case DictTabInfo::UniqueHashIndex:
-  case DictTabInfo::HashIndex:
-  case DictTabInfo::UniqueOrderedIndex:
-  case DictTabInfo::OrderedIndex:
-    break;
-  case DictTabInfo::Tablespace:
-  case DictTabInfo::LogfileGroup:
-  case DictTabInfo::Datafile:
-  case DictTabInfo::Undofile:
-    restartDropObj(signal, tableId, old_entry);
-    return;
-  }
-
-  SchemaOpPtr op_ptr;
-  DropTableRecPtr dropTabPtr;  
-  seizeSchemaOp(op_ptr, dropTabPtr);
-  ndbrequire(!op_ptr.isNull());
-  DropTabReq* impl_req = &dropTabPtr.p->m_request;
-
-  impl_req->senderRef = reference();
-  impl_req->senderData = op_ptr.p->op_key;
-  impl_req->requestType = DropTabReq::RestartDropTab;
-  impl_req->tableId = tableId;
-  impl_req->tableVersion = 0;
-
-  dropTabPtr.p->m_block = 0;
-  dropTabPtr.p->m_callback.m_callbackData = op_ptr.p->op_key;
-  dropTabPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartDropTab_complete);
-  dropTab_nextStep(signal, op_ptr);  
-}
-
-void
-Dbdict::restartDropTab_complete(Signal* signal, 
-				Uint32 op_key,
-				Uint32 ret)
-{
-  jam();
-
-  SchemaOpPtr op_ptr;
-  DropTableRecPtr dropTabPtr;  
-  findSchemaOp(op_ptr, dropTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-  //const DropTabReq* impl_req = &dropTabPtr.p->m_request;
-
-  //@todo check error
-
-  releaseTableObject(c_restartRecord.activeTable);
-  releaseSchemaOp(op_ptr);
-
-  c_restartRecord.activeTable++;
-  checkSchemaStatus(signal);
+  restartCreateObj_getTabInfoConf(signal);
 }
 
 /**
@@ -3803,51 +3549,16 @@ Dbdict::restartDropTab_complete(Signal* signal,
 void
 Dbdict::restartCreateObj(Signal* signal, 
 			 Uint32 tableId, 
-			 const SchemaFile::TableEntry * old_entry,
 			 const SchemaFile::TableEntry * new_entry,
 			 bool file){
   jam();
   
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.seize(createObjPtr));
-  
-  const Uint32 key = ++c_opRecordSequence;
-  createObjPtr.p->key = key;
-  c_opCreateObj.add(createObjPtr);
-  createObjPtr.p->m_errorCode = 0;
-  createObjPtr.p->m_senderRef = reference();
-  createObjPtr.p->m_senderData = tableId;
-  createObjPtr.p->m_clientRef = reference();
-  createObjPtr.p->m_clientData = tableId;
-  
-  createObjPtr.p->m_obj_id = tableId;
-  createObjPtr.p->m_obj_type = new_entry->m_tableType;
-  createObjPtr.p->m_obj_version = new_entry->m_tableVersion;
-
-  createObjPtr.p->m_callback.m_callbackData = key;
-  createObjPtr.p->m_callback.m_callbackFunction= 
-    safe_cast(&Dbdict::restartCreateObj_prepare_start_done);
-  
-  createObjPtr.p->m_restart= file ? 1 : 2;
-  switch(new_entry->m_tableType){
-  case DictTabInfo::Tablespace:
-  case DictTabInfo::LogfileGroup:
-    createObjPtr.p->m_vt_index = 0;
-    break;
-  case DictTabInfo::Datafile:
-  case DictTabInfo::Undofile:
-    createObjPtr.p->m_vt_index = 1;
-    break;
-  default:
-    ndbrequire(false);
-  }
-  
-  createObjPtr.p->m_obj_info_ptr_i = RNIL;
+  c_restartRecord.m_entry = *new_entry;
   if(file)
   {
-    c_readTableRecord.no_of_words = old_entry->m_info_words;
+    c_readTableRecord.no_of_words = new_entry->m_info_words;
     c_readTableRecord.pageId = 0;
-    c_readTableRecord.m_callback.m_callbackData = key;
+    c_readTableRecord.m_callback.m_callbackData = tableId;
     c_readTableRecord.m_callback.m_callbackFunction = 
       safe_cast(&Dbdict::restartCreateObj_readConf);
     
@@ -3860,7 +3571,7 @@ Dbdict::restartCreateObj(Signal* signal,
      */
     GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
     req->senderRef = reference();
-    req->senderData = key;
+    req->senderData = tableId;
     req->requestType = GetTabInfoReq::RequestById |
       GetTabInfoReq::LongSignalConf;
     req->tableId = tableId;
@@ -3874,24 +3585,12 @@ Dbdict::restartCreateObj_getTabInfoConf(Signal* signal)
 {
   jam();
 
-  GetTabInfoConf * const conf = (GetTabInfoConf*)signal->getDataPtr();
-
-  const Uint32 objId = conf->tableId;
-  const Uint32 senderData = conf->senderData;
-
   SectionHandle handle(this, signal);
   SegmentedSectionPtr objInfoPtr;
   handle.getSection(objInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
   handle.clear();
 
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.find(createObjPtr, senderData));
-  ndbrequire(createObjPtr.p->m_obj_id == objId);
-  
-  createObjPtr.p->m_obj_info_ptr_i= objInfoPtr.i;
-  
-  (this->*f_dict_op[createObjPtr.p->m_vt_index].m_prepare_start)
-    (signal, createObjPtr.p);
+  restartCreateObj_parse(signal, objInfoPtr, false);
 }
 
 void
@@ -3901,9 +3600,6 @@ Dbdict::restartCreateObj_readConf(Signal* signal,
 {
   jam();
   ndbrequire(returnCode == 0);
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  ndbrequire(createObjPtr.p->m_errorCode == 0);
 
   PageRecordPtr pageRecPtr;
   c_pageRecordArray.getPtr(pageRecPtr, c_readTableRecord.pageId);
@@ -3912,119 +3608,85 @@ Dbdict::restartCreateObj_readConf(Signal* signal,
 
   Ptr<SectionSegment> ptr;
   ndbrequire(import(ptr, pageRecPtr.p->word+ZPAGE_HEADER_SIZE, sz));
-  createObjPtr.p->m_obj_info_ptr_i= ptr.i;  
-  
-  if (f_dict_op[createObjPtr.p->m_vt_index].m_prepare_start)
-    (this->*f_dict_op[createObjPtr.p->m_vt_index].m_prepare_start)
-      (signal, createObjPtr.p);
-  else
-    execute(signal, createObjPtr.p->m_callback, 0);
+  SegmentedSectionPtr tmp(sz, ptr.i, ptr.p);
+  restartCreateObj_parse(signal, tmp, true);
 }
 
 void
-Dbdict::restartCreateObj_prepare_start_done(Signal* signal,
-					    Uint32 callbackData, 
-					    Uint32 returnCode)
+Dbdict::restartCreateObj_parse(Signal* signal,
+                               SegmentedSectionPtr ptr,
+                               bool file)
 {
   jam();
-  ndbrequire(returnCode == 0);
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  ndbrequire(createObjPtr.p->m_errorCode == 0);
-
-  Callback callback;
-  callback.m_callbackData = callbackData;
-  callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartCreateObj_write_complete);
+  Ptr<SchemaOp> op_ptr;
   
-  SegmentedSectionPtr objInfoPtr;
-  getSection(objInfoPtr, createObjPtr.p->m_obj_info_ptr_i);
+  switch(c_restartRecord.m_entry.m_tableType){
+  case DictTabInfo::SystemTable:
+  case DictTabInfo::UserTable:
+  case DictTabInfo::UniqueHashIndex:
+  case DictTabInfo::HashIndex:
+  case DictTabInfo::UniqueOrderedIndex:
+  case DictTabInfo::OrderedIndex:
+  {
+    Ptr<CreateTableRec> opRecPtr;
+    seizeSchemaOp(op_ptr, opRecPtr);
+    break;
+  }
+  case DictTabInfo::Undofile:
+  case DictTabInfo::Datafile:
+  {
+    Ptr<CreateFileRec> opRecPtr;
+    seizeSchemaOp(op_ptr, opRecPtr);
+    break;
+  }
+  case DictTabInfo::Tablespace:
+  case DictTabInfo::LogfileGroup:
+  {
+    Ptr<CreateFilegroupRec> opRecPtr;
+    seizeSchemaOp(op_ptr, opRecPtr);
+    break;
+  }
+  }
 
-  writeTableFile(signal, createObjPtr.p->m_obj_id, objInfoPtr, &callback);
-}
+  Ptr<TxHandle> tx_ptr;
+  c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
 
-void
-Dbdict::restartCreateObj_write_complete(Signal* signal,
-					Uint32 callbackData, 
-					Uint32 returnCode)
-{
-  ndbrequire(returnCode == 0);
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  ndbrequire(createObjPtr.p->m_errorCode == 0);
+  Ptr<SchemaTrans> trans_ptr;
+  findSchemaTrans(trans_ptr, tx_ptr.p->m_transKey);
+  addSchemaOp(trans_ptr, op_ptr);
+  op_ptr.p->m_restart = file ? 1 : 2;
+  op_ptr.p->m_state = SchemaOp::OS_PARSE_MASTER;
   
-  SectionHandle handle(this, createObjPtr.p->m_obj_info_ptr_i);
+  SectionHandle handle(this, ptr.i);
+  ErrorInfo error;
+  const OpInfo& info = getOpInfo(op_ptr);
+  (this->*(info.m_parse))(signal, false, op_ptr, handle, error);
+  ndbrequire(!hasError(error));
   releaseSections(handle);
-  createObjPtr.p->m_obj_info_ptr_i = RNIL;
-  
-  createObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartCreateObj_prepare_complete_done);
-  
-  if (f_dict_op[createObjPtr.p->m_vt_index].m_prepare_complete)
-    (this->*f_dict_op[createObjPtr.p->m_vt_index].m_prepare_complete)
-      (signal, createObjPtr.p);
+  ndbrequire(!hasError(error));
+
+  c_restartRecord.m_op_cnt++;
+
+  if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
+  {
+    jam();
+    c_restartRecord.m_op_cnt = 0;
+
+    Callback c = {
+      safe_cast(&Dbdict::restart_fromEndTrans),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+
+    Uint32 flags = 0;
+    endSchemaTrans(signal, tx_ptr, flags);
+  }
   else
-    execute(signal, createObjPtr.p->m_callback, 0);
-}
-
-void
-Dbdict::restartCreateObj_prepare_complete_done(Signal* signal,
-					       Uint32 callbackData, 
-					       Uint32 returnCode)
-{
-  jam();
-  ndbrequire(returnCode == 0);
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  ndbrequire(createObjPtr.p->m_errorCode == 0);
-
-  createObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartCreateObj_commit_start_done);
-
-  if (f_dict_op[createObjPtr.p->m_vt_index].m_commit_start)
-    (this->*f_dict_op[createObjPtr.p->m_vt_index].m_commit_start)
-      (signal, createObjPtr.p);
-  else
-    execute(signal, createObjPtr.p->m_callback, 0);
-}
-
-void
-Dbdict::restartCreateObj_commit_start_done(Signal* signal,
-					   Uint32 callbackData, 
-					   Uint32 returnCode)
-{
-  jam();
-  ndbrequire(returnCode == 0);
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  ndbrequire(createObjPtr.p->m_errorCode == 0);
-
-  createObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartCreateObj_commit_complete_done);
-
-  if (f_dict_op[createObjPtr.p->m_vt_index].m_commit_complete)
-    (this->*f_dict_op[createObjPtr.p->m_vt_index].m_commit_complete)
-      (signal, createObjPtr.p);
-  else
-    execute(signal, createObjPtr.p->m_callback, 0);
-}  
-
-
-void
-Dbdict::restartCreateObj_commit_complete_done(Signal* signal,
-					      Uint32 callbackData, 
-					      Uint32 returnCode)
-{
-  jam();
-  ndbrequire(returnCode == 0);
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  ndbrequire(createObjPtr.p->m_errorCode == 0);
-  
-  c_opCreateObj.release(createObjPtr);
-
-  c_restartRecord.activeTable++;
-  checkSchemaStatus(signal);
+  {
+    jam();
+    c_restartRecord.activeTable++;
+    checkSchemaStatus(signal);
+  }
 }
 
 /**
@@ -4036,159 +3698,75 @@ Dbdict::restartDropObj(Signal* signal,
                        const SchemaFile::TableEntry * entry)
 {
   jam();
-  
-  DropObjRecordPtr dropObjPtr;  
-  ndbrequire(c_opDropObj.seize(dropObjPtr));
-  
-  const Uint32 key = ++c_opRecordSequence;
-  dropObjPtr.p->key = key;
-  c_opDropObj.add(dropObjPtr);
-  dropObjPtr.p->m_errorCode = 0;
-  dropObjPtr.p->m_senderRef = reference();
-  dropObjPtr.p->m_senderData = tableId;
-  dropObjPtr.p->m_clientRef = reference();
-  dropObjPtr.p->m_clientData = tableId;
-  
-  dropObjPtr.p->m_obj_id = tableId;
-  dropObjPtr.p->m_obj_type = entry->m_tableType;
-  dropObjPtr.p->m_obj_version = entry->m_tableVersion;
+  c_restartRecord.m_entry = *entry;
 
-  dropObjPtr.p->m_callback.m_callbackData = key;
-  dropObjPtr.p->m_callback.m_callbackFunction= 
-    safe_cast(&Dbdict::restartDropObj_prepare_start_done);
+  jam();
+  Ptr<SchemaOp> op_ptr;
 
-  ndbout_c("Dropping %d %d", tableId, entry->m_tableType);
-  switch(entry->m_tableType){
+  switch(c_restartRecord.m_entry.m_tableType){
+  case DictTabInfo::SystemTable:
+  case DictTabInfo::UserTable:
+  case DictTabInfo::UniqueHashIndex:
+  case DictTabInfo::HashIndex:
+  case DictTabInfo::UniqueOrderedIndex:
+  case DictTabInfo::OrderedIndex:
+    Ptr<DropTableRec> opRecPtr;
+    seizeSchemaOp(op_ptr, opRecPtr);
+    break;
+  case DictTabInfo::Undofile:
+  case DictTabInfo::Datafile:
+  {
+    Ptr<DropFileRec> opRecPtr;
+    seizeSchemaOp(op_ptr, opRecPtr);
+    break;
+  }
   case DictTabInfo::Tablespace:
-  case DictTabInfo::LogfileGroup:{
-    jam();
-    Ptr<Filegroup> fg_ptr;
-    ndbrequire(c_filegroup_hash.find(fg_ptr, tableId));
-    dropObjPtr.p->m_obj_ptr_i = fg_ptr.i;
-    dropObjPtr.p->m_vt_index = 3;
+  case DictTabInfo::LogfileGroup:
+  {
+    Ptr<DropFilegroupRec> opRecPtr;
+    seizeSchemaOp(op_ptr, opRecPtr);
     break;
   }
-  case DictTabInfo::Datafile:{
+  }
+  
+  Ptr<TxHandle> tx_ptr;
+  c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
+
+  Ptr<SchemaTrans> trans_ptr;
+  findSchemaTrans(trans_ptr, tx_ptr.p->m_transKey);
+  addSchemaOp(trans_ptr, op_ptr);
+  op_ptr.p->m_restart = 1; //
+  op_ptr.p->m_state = SchemaOp::OS_PARSE_MASTER;
+  
+  SectionHandle handle(this);
+  ErrorInfo error;
+  const OpInfo& info = getOpInfo(op_ptr);
+  (this->*(info.m_parse))(signal, false, op_ptr, handle, error);
+  releaseSections(handle);
+  ndbrequire(!hasError(error));
+
+  c_restartRecord.m_op_cnt++;
+
+  if (c_restartRecord.m_op_cnt >= ZRESTART_OPS_PER_TRANS)
+  {
     jam();
-    Ptr<File> file_ptr;
-    dropObjPtr.p->m_vt_index = 2;
-    ndbrequire(c_file_hash.find(file_ptr, tableId));
-    dropObjPtr.p->m_obj_ptr_i = file_ptr.i;
-    break;
+    c_restartRecord.m_op_cnt = 0;
+
+    Callback c = {
+      safe_cast(&Dbdict::restart_fromEndTrans),
+      tx_ptr.p->tx_key
+    };
+    tx_ptr.p->m_callback = c;
+
+    Uint32 flags = 0;
+    endSchemaTrans(signal, tx_ptr, flags);
   }
-  case DictTabInfo::Undofile:{
-    jam();    
-    Ptr<File> file_ptr;
-    dropObjPtr.p->m_vt_index = 4;
-    ndbrequire(c_file_hash.find(file_ptr, tableId));
-    dropObjPtr.p->m_obj_ptr_i = file_ptr.i;
-
-    /**
-     * Undofiles are only removed from logfile groups file list
-     *   as drop undofile is currently not supported...
-     *   file will be dropped by lgman when dropping filegroup
-     */
-    dropObjPtr.p->m_callback.m_callbackFunction= 
-      safe_cast(&Dbdict::restartDropObj_commit_complete_done);
-    
-    if (f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
-      (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
-        (signal, dropObjPtr.p);
-    else
-      execute(signal, dropObjPtr.p->m_callback, 0);
-    return;
+  else
+  {
+    jam();
+    c_restartRecord.activeTable++;
+    checkSchemaStatus(signal);
   }
-  default:
-    jamLine(entry->m_tableType);
-    ndbrequire(false);
-  }
-  
-  if (f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_start)
-    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_start)
-      (signal, dropObjPtr.p);
-  else
-    execute(signal, dropObjPtr.p->m_callback, 0);
-}
-
-void
-Dbdict::restartDropObj_prepare_start_done(Signal* signal,
-                                          Uint32 callbackData, 
-                                          Uint32 returnCode)
-{
-  jam();
-  ndbrequire(returnCode == 0);
-  DropObjRecordPtr dropObjPtr;  
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  ndbrequire(dropObjPtr.p->m_errorCode == 0);
-  
-  dropObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartDropObj_prepare_complete_done);
-  
-  if (f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_complete)
-    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_complete)
-      (signal, dropObjPtr.p);
-  else
-    execute(signal, dropObjPtr.p->m_callback, 0);
-}
-
-void
-Dbdict::restartDropObj_prepare_complete_done(Signal* signal,
-                                             Uint32 callbackData, 
-                                             Uint32 returnCode)
-{
-  jam();
-  ndbrequire(returnCode == 0);
-  DropObjRecordPtr dropObjPtr;  
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  ndbrequire(dropObjPtr.p->m_errorCode == 0);
-  
-  dropObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartDropObj_commit_start_done);
-  
-  if (f_dict_op[dropObjPtr.p->m_vt_index].m_commit_start)
-    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_commit_start)
-      (signal, dropObjPtr.p);
-  else
-    execute(signal, dropObjPtr.p->m_callback, 0);
-}
-
-void
-Dbdict::restartDropObj_commit_start_done(Signal* signal,
-                                         Uint32 callbackData, 
-                                         Uint32 returnCode)
-{
-  jam();
-  ndbrequire(returnCode == 0);
-  DropObjRecordPtr dropObjPtr;  
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  ndbrequire(dropObjPtr.p->m_errorCode == 0);
-  
-  dropObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::restartDropObj_commit_complete_done);
-
-  if (f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
-    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
-      (signal, dropObjPtr.p);
-  else
-    execute(signal, dropObjPtr.p->m_callback, 0);
-}  
-
-
-void
-Dbdict::restartDropObj_commit_complete_done(Signal* signal,
-                                            Uint32 callbackData, 
-                                            Uint32 returnCode)
-{
-  jam();
-  ndbrequire(returnCode == 0);
-  DropObjRecordPtr dropObjPtr;  
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  ndbrequire(dropObjPtr.p->m_errorCode == 0);
-  
-  c_opDropObj.release(dropObjPtr);
-
-  c_restartRecord.activeTable++;
-  checkSchemaStatus(signal);
 }
 
 /* **************************************************************** */
@@ -5035,12 +4613,6 @@ Dbdict::createTable_parse(Signal* signal, bool master,
   getOpRec(op_ptr, createTabPtr);
   CreateTabReq* impl_req = &createTabPtr.p->m_request;
 
-  if (checkSingleUserMode(trans_ptr.p->m_clientRef)) {
-    jam();
-    setError(error, CreateTableRef::SingleUser, __LINE__);
-    return;
-  }
-
   /*
    * Master parses client DictTabInfo (sec 0) into new table record.
    * DIH is called to create fragmentation.  The table record is
@@ -5083,6 +4655,11 @@ Dbdict::createTable_parse(Signal* signal, bool master,
       Uint32 obj_ptr_i = tabPtr.p->m_obj_ptr_i;
       bool ok = findDictObject(op_ptr, obj_ptr, obj_ptr_i);
       ndbrequire(ok);
+    }
+
+    {
+      Uint32 version = getTableEntry(tabPtr.i)->m_tableVersion;
+      tabPtr.p->tableVersion = create_obj_inc_schema_version(version);
     }
 
     // fill in table id and version
@@ -5150,16 +4727,6 @@ Dbdict::createTable_parse(Signal* signal, bool master,
       tabPtr.p->fragmentCount = frag_data[1];
     }
 
-    // update table version
-    {
-      XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-      SchemaFile::TableEntry * tabEntry = getTableEntry(xsf, tabPtr.i);
-
-      impl_req->tableVersion =
-        tabPtr.p->tableVersion =
-        create_obj_inc_schema_version(tabEntry->m_tableVersion);
-    }
-
     // dump table record back into DictTabInfo
     {
       SimplePropertiesSectionWriter w(getSectionSegmentPool());
@@ -5187,6 +4754,13 @@ Dbdict::createTable_parse(Signal* signal, bool master,
       createTabPtr.p->m_tabInfoPtrI = RNIL;
       createTabPtr.p->m_fragmentsPtrI = RNIL;
     }
+  }
+  else if (op_ptr.p->m_restart)
+  {
+    jam();
+    impl_req->tableId = c_restartRecord.activeTable;
+    impl_req->tableVersion = c_restartRecord.m_entry.m_tableVersion;
+    impl_req->gci = c_restartRecord.m_entry.m_gcp;
   }
 
   const Uint32 gci = impl_req->gci;
@@ -5234,7 +4808,11 @@ Dbdict::createTable_parse(Signal* signal, bool master,
 
   // save sections to DICT memory
   saveOpSection(op_ptr, handle, CreateTabReq::DICT_TAB_INFO);
-  saveOpSection(op_ptr, handle, CreateTabReq::FRAGMENTATION);
+  if (op_ptr.p->m_restart == 0)
+  {
+    jam();
+    saveOpSection(op_ptr, handle, CreateTabReq::FRAGMENTATION);
+  }
 
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, tableId);
@@ -5250,28 +4828,21 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     return;
   }
 
-  // save original schema file entry
+  SchemaFile::TableEntry te; te.init();
+  te.m_tableState = SchemaFile::SF_CREATE;
+  te.m_tableVersion = tableVersion;
+  te.m_tableType = tabPtr.p->tableType;
+  te.m_info_words = tabInfoPtr.sz;
+  te.m_gcp = gci;
+  te.m_transId = trans_ptr.p->m_transId;
+
+  Uint32 err = trans_log_schema_op(op_ptr, tableId, &te);
+  if (err)
   {
-    XSchemaFile* xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-    SchemaFile::TableEntry* tableEntry = getTableEntry(xsf, tableId);
-    createTabPtr.p->m_orig_entry = *tableEntry;
+    jam();
+    setError(error, err, __LINE__);
+    return;
   }
-
-  // update schema file entry in memory
-  {
-    SchemaFile::TableEntry& te = createTabPtr.p->m_curr_entry;
-    te.init();
-    te.m_tableState = SchemaFile::CREATE_PARSED;
-    te.m_tableVersion = tableVersion;
-    te.m_tableType = tabPtr.p->tableType;
-    te.m_info_words = tabInfoPtr.sz;
-    te.m_gcp = gci;
-    te.m_transId = trans_ptr.p->m_transId;
-
-    bool savetodisk = false;
-    updateSchemaState(signal, tableId, &te, (Callback*)0, savetodisk, 1);
-  }
-
   D("createTable_parse: "
     << copyRope<MAX_TAB_NAME_SIZE>(tabPtr.p->tableName)
     << V(tabPtr.p->tableVersion));
@@ -5339,51 +4910,33 @@ Dbdict::createTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, tableId);
 
-  D("createTable_prepare" << *op_ptr.p);
+  Callback cb;
+  cb.m_callbackData = op_ptr.p->op_key;
+  cb.m_callbackFunction = safe_cast(&Dbdict::createTab_writeTableConf);
 
-  // update schema file entry on disk
-  SchemaFile::TableEntry& te = createTabPtr.p->m_curr_entry;
-  te.m_tableState = SchemaFile::ADD_STARTED;
+  if (ZRESTART_NO_WRITE_AFTER_READ && op_ptr.p->m_restart == 1)
+  {
+    jam();
+    /**
+     * We read obj from disk, no need to rewrite it
+     */
+    execute(signal, cb, 0);
+    return;
+  }
 
-  Callback callback;
-  callback.m_callbackData = op_ptr.p->op_key;
-  callback.m_callbackFunction =
-    safe_cast(&Dbdict::createTab_writeSchemaConf1);
-
-  bool savetodisk = !(tabPtr.p->m_bits & TableRecord::TR_Temporary);
-  updateSchemaState(signal, tableId, &te, &callback, savetodisk, 1);
-}
-
-void
-Dbdict::createTab_writeSchemaConf1(Signal* signal,
-                                   Uint32 op_key,
-                                   Uint32 ret)
-{
-  jam();
-
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;
-  findSchemaOp(op_ptr, createTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-
-  Callback callback;
-  callback.m_callbackData = op_ptr.p->op_key;
-  callback.m_callbackFunction =
-    safe_cast(&Dbdict::createTab_writeTableConf);
-
-  TableRecordPtr tabPtr;
-  c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
   bool savetodisk = !(tabPtr.p->m_bits & TableRecord::TR_Temporary);
   if (savetodisk)
   {
+    jam();
     const OpSection& tabInfoSec =
       getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
     writeTableFile(signal, createTabPtr.p->m_request.tableId,
-                   tabInfoSec, &callback);
+                   tabInfoSec, &cb);
   }
   else
   {
-    execute(signal, callback, 0);
+    jam();
+    execute(signal, cb, 0);
   }
 }
 
@@ -5398,9 +4951,19 @@ Dbdict::createTab_writeTableConf(Signal* signal,
   CreateTableRecPtr createTabPtr;
   findSchemaOp(op_ptr, createTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  const OpSection& fragSec =
-    getOpSection(op_ptr, CreateTabReq::FRAGMENTATION);
-  ndbrequire(fragSec.getSize() > 0);
+
+  OpSection& fragSec = op_ptr.p->m_section[CreateTabReq::FRAGMENTATION];
+  if (op_ptr.p->m_restart)
+  {
+    jam();
+    new (&fragSec) OpSection();
+  }
+  else
+  {
+    const OpSection& fragSec =
+      getOpSection(op_ptr, CreateTabReq::FRAGMENTATION);
+    ndbrequire(fragSec.getSize() > 0);
+  }
 
   Callback callback;
   callback.m_callbackData = op_ptr.p->op_key;
@@ -5913,35 +5476,6 @@ Dbdict::createTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 
   D("createTable_commit" << *op_ptr.p);
 
-  bool savetodisk = !(tabPtr.p->m_bits & TableRecord::TR_Temporary);
-
-  SchemaFile::TableEntry& te = createTabPtr.p->m_curr_entry;
-  if (savetodisk)
-    te.m_tableState = SchemaFile::TABLE_ADD_COMMITTED;
-  else
-    te.m_tableState = SchemaFile::TEMPORARY_TABLE_COMMITTED;
-  te.m_transId = 0;
-
-  Callback callback;
-  callback.m_callbackData = op_ptr.p->op_key;
-  callback.m_callbackFunction =
-    safe_cast(&Dbdict::createTab_writeSchemaConf2);
-
-  updateSchemaState(signal, tabPtr.i, &te, &callback, savetodisk, 1);
-}
-
-void
-Dbdict::createTab_writeSchemaConf2(Signal* signal,
-				   Uint32 op_key,
-				   Uint32 ret)
-{
-  jam();
-
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;
-  findSchemaOp(op_ptr, createTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-
   Callback c;
   c.m_callbackData = op_ptr.p->op_key;
   c.m_callbackFunction = safe_cast(&Dbdict::createTab_alterComplete);
@@ -6063,14 +5597,6 @@ Dbdict::createTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
       unlinkDictObject(op_ptr);
       releaseTableObject(tableId, true);
     }
-
-    if (createTabPtr.p->m_curr_entry.m_tableState != SchemaFile::INIT)
-    {
-      // parse was completed so schema entry must be restored
-      SchemaFile::TableEntry& te = createTabPtr.p->m_orig_entry;
-      bool savetodisk = false;
-      updateSchemaState(signal, tableId, &te, (Callback*)0, savetodisk, 1);
-    }
   } while (0);
 
   sendTransConf(signal, op_ptr);
@@ -6147,56 +5673,8 @@ Dbdict::createTable_abortLocalConf(Signal* signal,
   const CreateTabReq* impl_req = &createTabPtr.p->m_request;
   Uint32 tableId = impl_req->tableId;
 
-  // write schema file  wl3600_todo why not use updateSchemaState
-
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tableId);
-  tableEntry->m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
-  tableEntry->m_transId = 0;
-  computeChecksum(xsf, tableId / NDB_SF_PAGE_ENTRIES);
-
   TableRecordPtr tablePtr;
   c_tableRecordPool.getPtr(tablePtr, tableId);
-  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
-
-  Callback callback = {
-    safe_cast(&Dbdict::createTable_abortWriteSchemaConf),
-    oplnk_ptr.p->op_key
-  };
-
-  // wl3600_todo too much repeated code
-  if (savetodisk) {
-    ndbrequire(c_writeSchemaRecord.inUse == false);
-    c_writeSchemaRecord.inUse = true;
-
-    c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
-    c_writeSchemaRecord.firstPage = tableId / NDB_SF_PAGE_ENTRIES;
-    c_writeSchemaRecord.noOfPages = 1;
-    c_writeSchemaRecord.m_callback = callback;
-    startWriteSchemaFile(signal);
-  } else {
-    execute(signal, callback, 0);
-  }
-}
-
-void
-Dbdict::createTable_abortWriteSchemaConf(Signal* signal,
-                                         Uint32 oplnk_key,
-                                         Uint32 ret)
-{
-  jam();
-  D("createTable_abortWriteSchemaConf" << V(oplnk_key));
-
-  SchemaOpPtr oplnk_ptr;
-  DropTableRecPtr dropTabPtr;
-  findSchemaOp(oplnk_ptr, dropTabPtr, oplnk_key);
-  ndbrequire(!oplnk_ptr.isNull());
-
-  SchemaOpPtr op_ptr = oplnk_ptr.p->m_opbck_ptr;
-  CreateTableRecPtr createTabPtr;
-  getOpRec(op_ptr, createTabPtr);
-  const CreateTabReq* impl_req = &createTabPtr.p->m_request;
-  Uint32 tableId = impl_req->tableId;
 
   releaseTableObject(tableId);
 
@@ -6403,12 +5881,6 @@ Dbdict::dropTable_parse(Signal* signal, bool master,
   DropTabReq* impl_req = &dropTabPtr.p->m_request;
   Uint32 tableId = impl_req->tableId;
 
-  if (checkSingleUserMode(trans_ptr.p->m_clientRef)) {
-    jam();
-    setError(error, DropTableRef::SingleUser, __LINE__);
-    return;
-  }
-
   TableRecordPtr tablePtr;
   if (!(tableId < c_tableRecordPool.getSize())) {
     jam();
@@ -6429,24 +5901,6 @@ Dbdict::dropTable_parse(Signal* signal, bool master,
     jam();
     setError(error, DropTableRef::BackupInProgress, __LINE__);
     return;
-  }
-
-  // check and save original schema file entry
-  {
-    XSchemaFile* xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-    SchemaFile::TableEntry* te = getTableEntry(xsf, tableId);
-
-    if (te->m_transId != 0 && te->m_transId != trans_ptr.p->m_transId) {
-      jam();
-      setError(error, DropTableRef::ActiveSchemaTrans, __LINE__);
-      return;
-    }
-    if (te->m_tableState == SchemaFile::DROP_PARSED) {
-      jam();
-      setError(error, DropTableRef::DropInProgress, __LINE__);
-      return;
-    }
-    dropTabPtr.p->m_orig_entry = *te;
   }
 
   const TableRecord::TabState tabState = tablePtr.p->tabState;
@@ -6484,15 +5938,15 @@ Dbdict::dropTable_parse(Signal* signal, bool master,
     return;
   }
 
-  // update schema state in memory
+  SchemaFile::TableEntry te; te.init();
+  te.m_tableState = SchemaFile::SF_DROP;
+  te.m_transId = trans_ptr.p->m_transId;
+  Uint32 err = trans_log_schema_op(op_ptr, tableId, &te);
+  if (err)
   {
-    SchemaFile::TableEntry& te = dropTabPtr.p->m_curr_entry;
-    te = dropTabPtr.p->m_orig_entry;
-    te.m_tableState = SchemaFile::DROP_PARSED;
-    te.m_transId = trans_ptr.p->m_transId;
-
-    bool savetodisk = false;
-    updateSchemaState(signal, tableId, &te, (Callback*)0, savetodisk, 1);
+    jam();
+    setError(error, err, __LINE__);
+    return;
   }
 }
 
@@ -6693,50 +6147,7 @@ Dbdict::prepDropTab_writeSchema(Signal* signal, SchemaOpPtr op_ptr)
   c_tableRecordPool.getPtr(tablePtr, impl_req->tableId);
   tablePtr.p->tabState = TableRecord::PREPARE_DROPPING;
 
-  /**
-   * Modify schema  wl3600_todo use updateSchemaState
-   */
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tablePtr.i);
-  SchemaFile::TableState tabState =
-    (SchemaFile::TableState)tableEntry->m_tableState;
-  ndbrequire(tabState == SchemaFile::DROP_PARSED);
-  //ndbrequire(tabState == SchemaFile::TABLE_ADD_COMMITTED ||
-             //tabState == SchemaFile::ALTER_TABLE_COMMITTED ||
-             //tabState == SchemaFile::TEMPORARY_TABLE_COMMITTED);
-  tableEntry->m_tableState = SchemaFile::DROP_TABLE_STARTED;
-  computeChecksum(xsf, tablePtr.i / NDB_SF_PAGE_ENTRIES);
-
-  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
-  Callback callback;
-  callback.m_callbackData = op_ptr.p->op_key;
-  callback.m_callbackFunction = safe_cast(&Dbdict::prepDropTab_writeSchemaConf);
-  if (savetodisk)
-  {
-    ndbrequire(c_writeSchemaRecord.inUse == false);
-    c_writeSchemaRecord.inUse = true;
-
-    c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
-    c_writeSchemaRecord.newFile = false;
-    c_writeSchemaRecord.firstPage = tablePtr.i / NDB_SF_PAGE_ENTRIES;
-    c_writeSchemaRecord.noOfPages = 1;
-    c_writeSchemaRecord.m_callback = callback;
-    startWriteSchemaFile(signal);
-  }
-  else
-  {
-    execute(signal, callback, 0);
-  }
-}
-
-void
-Dbdict::prepDropTab_writeSchemaConf(Signal* signal,
-                                    Uint32 op_key,
-                                    Uint32 ret)
-{
-  jam();
-  D("prepDropTab_writeSchemaConf");
-  prepDropTab_fromLocal(signal, op_key, ret);
+  prepDropTab_fromLocal(signal, op_ptr.p->op_key, 0);
 }
 
 void
@@ -6969,61 +6380,12 @@ Dbdict::dropTab_complete(Signal* signal,
   DropTableRecPtr dropTabPtr;
   findSchemaOp(op_ptr, dropTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   Uint32 tableId = dropTabPtr.p->m_request.tableId;
 
-  /**
-   * Write to schema file
-   */
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tableId);
-  SchemaFile::TableState tabState =
-    (SchemaFile::TableState)tableEntry->m_tableState;
-  ndbrequire(tabState == SchemaFile::DROP_TABLE_STARTED);
-  tableEntry->m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
-  tableEntry->m_transId = 0;
-  computeChecksum(xsf, tableId / NDB_SF_PAGE_ENTRIES);
-
-  TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, tableId);
-  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
-  Callback callback;
-  callback.m_callbackData = op_key;
-  callback.m_callbackFunction = safe_cast(&Dbdict::dropTab_writeSchemaConf);
-  if (savetodisk)
-  {
-    ndbrequire(c_writeSchemaRecord.inUse == false);
-    c_writeSchemaRecord.inUse = true;
-
-    c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
-    c_writeSchemaRecord.firstPage = tableId / NDB_SF_PAGE_ENTRIES;
-    c_writeSchemaRecord.noOfPages = 1;
-    c_writeSchemaRecord.m_callback = callback;
-    startWriteSchemaFile(signal);
-  }
-  else
-  {
-    execute(signal, callback, 0);
-  }
-}
-
-void
-Dbdict::dropTab_writeSchemaConf(Signal* signal,
-                                Uint32 op_key,
-                                Uint32 ret)
-{
-  jam();
-  D("dropTab_writeSchemaConf");
-
-  SchemaOpPtr op_ptr;
-  DropTableRecPtr dropTabPtr;
-  findSchemaOp(op_ptr, dropTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-  const DropTabReq* impl_req = &dropTabPtr.p->m_request;
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-
   unlinkDictObject(op_ptr);
-  releaseTableObject(dropTabPtr.p->m_request.tableId);
+  releaseTableObject(tableId);
 
   // inform SUMA
   {
@@ -7038,7 +6400,7 @@ Dbdict::dropTab_writeSchemaConf(Signal* signal,
       conf->senderRef = 0;
     }
     conf->senderData = op_key;
-    conf->tableId = impl_req->tableId;
+    conf->tableId = tableId;
 
     sendSignal(SUMA_REF, GSN_DROP_TAB_CONF, signal,
                DropTabConf::SignalLength, JBB);
@@ -7062,20 +6424,6 @@ void
 Dbdict::dropTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("dropTable_abortParse" << *op_ptr.p);
-
-  DropTableRecPtr dropTabPtr;
-  getOpRec(op_ptr, dropTabPtr);
-  DropTabReq* impl_req = &dropTabPtr.p->m_request;
-  Uint32 tableId = impl_req->tableId;
-
-  // update schema state in memory  XXX temp
-  if (dropTabPtr.p->m_curr_entry.m_tableState != SchemaFile::INIT)
-  {
-    XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-    SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, tableId);
-    *tableEntry = dropTabPtr.p->m_orig_entry;
-    computeChecksum(xsf, tableId / NDB_SF_PAGE_ENTRIES);
-  }
 
   sendTransConf(signal, op_ptr);
 }
@@ -7235,19 +6583,6 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
   getOpRec(op_ptr, alterTabPtr);
   AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
-  // check that all db nodes run same version
-  if (!check_ndb_versions()) {
-    jam();
-    setError(error, AlterTableRef::IncompatibleVersions, __LINE__);
-    return;
-  }
-
-  if (checkSingleUserMode(trans_ptr.p->m_clientRef)) {
-    jam();
-    setError(error, AlterTableRef::SingleUser, __LINE__);
-    return;
-  }
-
   // get table definition
   TableRecordPtr tablePtr;
   if (!(impl_req->tableId < c_tableRecordPool.getSize())) {
@@ -7374,13 +6709,6 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     return;
   }
 
-  // save original schema file entry
-  {
-    XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-    SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, impl_req->tableId);
-    alterTabPtr.p->m_orig_entry = *tableEntry;
-  }
-
   // master rewrites DictTabInfo (it is re-parsed only on slaves)
   if (master)
   {
@@ -7397,6 +6725,21 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
 
   // save sections
   saveOpSection(op_ptr, handle, AlterTabReq::DICT_TAB_INFO);
+
+  SchemaFile::TableEntry te; te.init();
+  te.m_tableState = SchemaFile::SF_ALTER;
+  te.m_tableVersion = newTablePtr.p->tableVersion;
+  te.m_info_words = getOpSection(op_ptr, AlterTabReq::DICT_TAB_INFO).getSize();
+  te.m_gcp = 0;
+  te.m_transId = trans_ptr.p->m_transId;
+
+  Uint32 err = trans_log_schema_op(op_ptr, impl_req->tableId, &te);
+  if (err)
+  {
+    jam();
+    setError(error, err, __LINE__);
+    return;
+  }
 }
 
 bool
@@ -7582,7 +6925,23 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
     tablePtr.p->noOfAttributes += noOfNewAttr;
   }
 
-  alterTable_toLocal(signal, op_ptr);
+  /**
+   * Write new table definition on prepare
+   */
+  Callback callback = {
+    safe_cast(&Dbdict::alterTable_fromLocal),
+    callback.m_callbackData = op_ptr.p->op_key
+  };
+
+  const OpSection& tabInfoSec =
+    getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
+
+  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
+  if (savetodisk) {
+    writeTableFile(signal, impl_req->tableId, tabInfoSec, &callback);
+  } else {
+    execute(signal, callback, 0);
+  }
 }
 
 void
@@ -7701,17 +7060,23 @@ Dbdict::alterTable_fromLocal(Signal* signal,
 void
 Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
-  //const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
+  const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
   D("alterTable_commit" << *op_ptr.p);
 
-  // wl3600_todo hmm there is no prepare to disk
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, impl_req->tableId);
 
-  ndbrequire(signal->getNoOfSections() == 0);
+  const OpSection& tabInfoSec =
+    getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
+  const Uint32 size = tabInfoSec.getSize();
+
+  // update table record
+  tablePtr.p->packedSize = size;
+  tablePtr.p->tableVersion = impl_req->newTableVersion;
+  tablePtr.p->gciTableCreated = impl_req->gci;
 
   alterTable_toTupCommit(signal, op_ptr);
 }
@@ -7768,85 +7133,13 @@ Dbdict::alterTable_fromTupCommit(Signal* signal,
   TableRecordPtr tablePtr;
   c_tableRecordPool.getPtr(tablePtr, tableId);
 
-  const OpSection& tabInfoSec =
-    getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
-  const Uint32 size = tabInfoSec.getSize();
-  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
-
-  // update table record
-  tablePtr.p->packedSize = size;
-  tablePtr.p->tableVersion = impl_req->newTableVersion;
-  tablePtr.p->gciTableCreated = impl_req->gci;
-
-  SchemaFile::TableEntry tabEntry;
-  tabEntry.init();
-  tabEntry.m_tableVersion = impl_req->newTableVersion;
-  tabEntry.m_tableType = tablePtr.p->tableType;
-  if (savetodisk)
-    tabEntry.m_tableState = SchemaFile::ALTER_TABLE_COMMITTED;
-  else
-    tabEntry.m_tableState = SchemaFile::TEMPORARY_TABLE_COMMITTED;
-  tabEntry.m_gcp = impl_req->gci;
-  tabEntry.m_info_words = size;
-  tabEntry.m_transId = 0;
-
-  Callback callback = {
-    safe_cast(&Dbdict::alterTab_writeSchemaConf),
-    op_ptr.p->op_key
-  };
-
-  updateSchemaState(signal, tableId, &tabEntry, &callback, savetodisk);
-}
-
-void
-Dbdict::alterTab_writeSchemaConf(Signal* signal, Uint32 op_key, Uint32 ret)
-{
-  SchemaOpPtr op_ptr;
-  AlterTableRecPtr alterTabPtr;
-  findSchemaOp(op_ptr, alterTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-  const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
-
-  TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, impl_req->tableId);
-  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
-
-  const OpSection& tabInfoSec =
-    getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
-
-  Callback callback = {
-    safe_cast(&Dbdict::alterTab_writeTableConf),
-    callback.m_callbackData = op_ptr.p->op_key
-  };
-
-  if (savetodisk) {
-    writeTableFile(signal, impl_req->tableId, tabInfoSec, &callback);
-  } else {
-    execute(signal, callback, 0);
-  }
-}
-
-void
-Dbdict::alterTab_writeTableConf(Signal* signal,
-                                Uint32 op_key,
-                                Uint32 ret)
-{
-  jam();
-  SchemaOpPtr op_ptr;
-  AlterTableRecPtr alterTabPtr;
-  findSchemaOp(op_ptr, alterTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-  const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-
-  TableRecordPtr tabPtr;
-  c_tableRecordPool.getPtr(tabPtr, impl_req->tableId);
-
-  tabPtr.p->tabState = TableRecord::DEFINED;
+  tablePtr.p->tabState = TableRecord::DEFINED;
 
   // inform Suma so it can send events to any subscribers of the table
   {
     AlterTabReq* req = (AlterTabReq*)signal->getDataPtrSend();
+
+    SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
     // special use of senderRef
     if (trans_ptr.p->m_isMaster)
@@ -7857,7 +7150,7 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
     req->tableId = impl_req->tableId;
     req->tableVersion = impl_req->tableVersion;
     req->newTableVersion = impl_req->newTableVersion;
-    req->gci = tabPtr.p->gciTableCreated;
+    req->gci = tablePtr.p->gciTableCreated;
     req->requestType = 0;
     req->changeMask = impl_req->changeMask;
     req->connectPtr = RNIL;
@@ -7883,7 +7176,7 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
     api->minVersion = MAKE_VERSION(4,1,15);
 
     AlterTableRep* rep = (AlterTableRep*)api->theData;
-    rep->tableId = tabPtr.p->tableId;
+    rep->tableId = tablePtr.p->tableId;
     // wl3600_todo wants old version?
     rep->tableVersion = impl_req->tableVersion;
     rep->changeType = AlterTableRep::CT_ALTERED;
@@ -7894,7 +7187,7 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
       const RopeHandle& rh =
         AlterTableReq::getNameFlag(impl_req->changeMask)
           ? alterTabPtr.p->m_oldTableName
-          : tabPtr.p->tableName;
+          : tablePtr.p->tableName;
       ConstRope r(c_rope_pool, rh);
       r.copy(oldTableName);
     }
@@ -8288,13 +7581,15 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   releaseSections(handle);
 
   SchemaFile::TableEntry *objEntry = 0;
-  if(obj_id != RNIL){
+  if(obj_id != RNIL)
+  {
     XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
     objEntry = getTableEntry(xsf, obj_id);      
   }
 
   // The table seached for was not found
-  if(objEntry == 0){
+  if(objEntry == 0)
+  {
     jam();
     sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
     return;
@@ -8304,23 +7599,20 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
 
   D("execGET_TABINFOREQ" << V(transId) << " " << *objEntry);
 
-  if (transId != 0 && transId == objEntry->m_transId) {
+  if (transId != 0 && transId == objEntry->m_transId)
+  {
     jam();
     // see own trans always
-  } else {
-    if (objEntry->m_transId != 0) {
+  }
+  else
+  {
+    if (objEntry->m_transId != 0)
+    {
       jam();
       // cannot see another uncommitted trans
       sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
       return;
     }
-    if (objEntry->m_tableState != SchemaFile::TABLE_ADD_COMMITTED &&
-        objEntry->m_tableState != SchemaFile::ALTER_TABLE_COMMITTED &&
-        objEntry->m_tableState != SchemaFile::TEMPORARY_TABLE_COMMITTED){
-      jam();
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
-      return;
-    }//if
 
     if (DictTabInfo::isTable(objEntry->m_tableType) || 
         DictTabInfo::isIndex(objEntry->m_tableType))
@@ -8334,11 +7626,9 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
         sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
         return;
       }
-      ndbrequire(objEntry->m_tableState == SchemaFile::TEMPORARY_TABLE_COMMITTED ||
-                 !(tabPtr.p->m_bits & TableRecord::TR_Temporary));
     }
   }
-  
+
   c_retrieveRecord.busyState = true;
   c_retrieveRecord.blockRef = req->senderRef;
   c_retrieveRecord.m_senderData = req->senderData;
@@ -8348,42 +7638,71 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   c_retrieveRecord.m_table_type = objEntry->m_tableType;
   c_packTable.m_state = PackTable::PTS_GET_TAB;
 
-  if(objEntry->m_tableType==DictTabInfo::Datafile)
+  Uint32 len = 4;
+  if(objEntry->m_tableType == DictTabInfo::Datafile)
   {
     jam();
-    GetTabInfoReq *req= (GetTabInfoReq*)signal->getDataPtrSend();
-    req->senderData= c_retrieveRecord.retrievePage;
-    req->senderRef= reference();
-    req->requestType= GetTabInfoReq::RequestById;
-    req->tableId= obj_id;
-    req->schemaTransId = 0;
 
-    sendSignal(TSMAN_REF, GSN_GET_TABINFOREQ, signal,
-	       GetTabInfoReq::SignalLength, JBB);
-  }
-  else if(objEntry->m_tableType==DictTabInfo::LogfileGroup)
-  {
-    jam();
-    GetTabInfoReq *req= (GetTabInfoReq*)signal->getDataPtrSend();
-    req->senderData= c_retrieveRecord.retrievePage;
-    req->senderRef= reference();
-    req->requestType= GetTabInfoReq::RequestById;
-    req->tableId= obj_id;
-    req->schemaTransId = 0;
+    if (objEntry->m_tableState != SchemaFile::SF_CREATE)
+    {
+      jam();
 
-    sendSignal(LGMAN_REF, GSN_GET_TABINFOREQ, signal,
-	       GetTabInfoReq::SignalLength, JBB);
+      GetTabInfoReq *req= (GetTabInfoReq*)signal->getDataPtrSend();
+      req->senderData= c_retrieveRecord.retrievePage;
+      req->senderRef= reference();
+      req->requestType= GetTabInfoReq::RequestById;
+      req->tableId= obj_id;
+      req->schemaTransId = 0;
+
+      sendSignal(TSMAN_REF, GSN_GET_TABINFOREQ, signal,
+                 GetTabInfoReq::SignalLength, JBB);
+      return;
+    }
+    else
+    {
+      jam();
+      /**
+       * Obj is being created, return 0 free extents
+       */
+      len = 5;
+      signal->theData[4] = 0;
+    }
   }
-  else
+  else if(objEntry->m_tableType == DictTabInfo::LogfileGroup)
   {
     jam();
-    signal->theData[0] = ZPACK_TABLE_INTO_PAGES;
-    signal->theData[1] = obj_id;
-    signal->theData[2] = objEntry->m_tableType;
-    signal->theData[3] = c_retrieveRecord.retrievePage;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+    if (objEntry->m_tableState != SchemaFile::SF_CREATE)
+    {
+      jam();
+      GetTabInfoReq *req= (GetTabInfoReq*)signal->getDataPtrSend();
+      req->senderData= c_retrieveRecord.retrievePage;
+      req->senderRef= reference();
+      req->requestType= GetTabInfoReq::RequestById;
+      req->tableId= obj_id;
+      req->schemaTransId = 0;
+
+      sendSignal(LGMAN_REF, GSN_GET_TABINFOREQ, signal,
+                 GetTabInfoReq::SignalLength, JBB);
+      return;
+    }
+    else
+    {
+      jam();
+      /**
+       * Obj is being created, return 0 free space
+       */
+      len = 6;
+      signal->theData[4] = 0;
+      signal->theData[5] = 0;
+    }
   }
+
   jam();
+  signal->theData[0] = ZPACK_TABLE_INTO_PAGES;
+  signal->theData[1] = obj_id;
+  signal->theData[2] = objEntry->m_tableType;
+  signal->theData[3] = c_retrieveRecord.retrievePage;
+  sendSignal(reference(), GSN_CONTINUEB, signal, len, JBB);
 }//execGET_TABINFOREQ()
 
 void Dbdict::sendGetTabResponse(Signal* signal) 
@@ -9048,12 +8367,6 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
   CreateIndexRecPtr createIndexPtr;
   getOpRec(op_ptr, createIndexPtr);
   CreateIndxImplReq* impl_req = &createIndexPtr.p->m_request;
-
-  if (checkSingleUserMode(trans_ptr.p->m_clientRef)) {
-    jam();
-    setError(error, CreateIndxRef::SingleUser, __LINE__);
-    return;
-  }
 
   // save attribute list
   AttributeList& attrList = createIndexPtr.p->m_attrList;
@@ -9759,12 +9072,6 @@ Dbdict::dropIndex_parse(Signal* signal, bool master,
   DropIndexRecPtr dropIndexPtr;
   getOpRec(op_ptr, dropIndexPtr);
   DropIndxImplReq* impl_req = &dropIndexPtr.p->m_request;
-
-  if (checkSingleUserMode(trans_ptr.p->m_clientRef)) {
-    jam();
-    setError(error, DropIndxRef::SingleUser, __LINE__);
-    return;
-  }
 
   TableRecordPtr indexPtr;
   if (!(impl_req->indexId < c_tableRecordPool.getSize())) {
@@ -16013,8 +15320,8 @@ Dbdict::resizeSchemaFile(XSchemaFile * xsf, Uint32 noOfPages)
     Uint32 tableId = noOfPages * NDB_SF_PAGE_ENTRIES;
     while (tableId < xsf->noOfPages * NDB_SF_PAGE_ENTRIES) {
       SchemaFile::TableEntry * te = getTableEntry(xsf, tableId);
-      if (te->m_tableState != SchemaFile::INIT &&
-          te->m_tableState != SchemaFile::DROP_TABLE_COMMITTED) {
+      if (te->m_tableState != SchemaFile::SF_UNUSED)
+      {
         ndbrequire(false);
       }
       tableId++;
@@ -16052,6 +15359,12 @@ Dbdict::computeChecksum(const Uint32 * src, Uint32 len){
 }
 
 SchemaFile::TableEntry * 
+Dbdict::getTableEntry(Uint32 tableId)
+{
+  return getTableEntry(&c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE], tableId);
+}
+
+SchemaFile::TableEntry *
 Dbdict::getTableEntry(XSchemaFile * xsf, Uint32 tableId)
 {
   Uint32 n = tableId / NDB_SF_PAGE_ENTRIES;
@@ -16063,2108 +15376,476 @@ Dbdict::getTableEntry(XSchemaFile * xsf, Uint32 tableId)
 }
 
 //******************************************
+
+// MODULE: CreateFile
+
+const Dbdict::OpInfo
+Dbdict::CreateFileRec::g_opInfo = {
+  { 'C', 'F', 'l', 0 },
+  GSN_CREATE_FILE_IMPL_REQ,
+  CreateFileImplReq::SignalLength,
+  //
+  &Dbdict::createFile_seize,
+  &Dbdict::createFile_release,
+  //
+  &Dbdict::createFile_parse,
+  &Dbdict::createFile_subOps,
+  &Dbdict::createFile_reply,
+  //
+  &Dbdict::createFile_prepare,
+  &Dbdict::createFile_commit,
+  &Dbdict::createFile_complete,
+  //
+  &Dbdict::createFile_abortParse,
+  &Dbdict::createFile_abortPrepare
+};
+
 void
 Dbdict::execCREATE_FILE_REQ(Signal* signal)
 {
   jamEntry();
-  
-  if(!assembleFragments(signal)){
+  if (!assembleFragments(signal)) {
     jam();
     return;
   }
-
   SectionHandle handle(this, signal);
-  
-  CreateFileReq * req = (CreateFileReq*)signal->getDataPtr();
-  CreateFileRef * ref = (CreateFileRef*)signal->getDataPtrSend();
-  Uint32 senderRef = req->senderRef;
-  Uint32 senderData = req->senderData;
-  Uint32 type = req->objType;
-  Uint32 requestInfo = req->requestInfo;
-  
+
+  const CreateFileReq req_copy =
+    *(const CreateFileReq*)signal->getDataPtr();
+  const CreateFileReq* req = &req_copy;
+
+  ErrorInfo error;
   do {
-    if(getOwnNodeId() != c_masterNodeId){
+    SchemaOpPtr op_ptr;
+    CreateFileRecPtr createFilePtr;
+    CreateFileImplReq* impl_req;
+
+    startClientReq(op_ptr, createFilePtr, req, impl_req, error);
+    if (hasError(error)) {
       jam();
-      ref->errorCode = CreateFileRef::NotMaster;
-      ref->status    = 0;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-    
-    if (checkSingleUserMode(senderRef))
-    {
-      ref->errorCode = CreateFileRef::SingleUser;
-      ref->status    = 0;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
       break;
     }
 
-    Ptr<SchemaTransaction> trans_ptr;
-    if (! c_Trans.seize(trans_ptr)){
-      jam();
-      ref->errorCode = CreateFileRef::Busy;
-      ref->status    = 0;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
-    DictLockReq lockReq;
-    lockReq.userPtr = trans_ptr.i;
-    lockReq.userRef = reference();
-    lockReq.lockType = DictLockReq::CreateFileLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
+    impl_req->file_id = RNIL;
+    impl_req->file_version = 0;
+    impl_req->requestInfo = CreateFileImplReq::Create;
+    if (req->requestInfo & CreateFileReq::ForceCreateFile)
     {
       jam();
-      ref->errorLine = __LINE__;      
-      break;
-    }
-
-    jam(); 
-    const Uint32 trans_key = ++c_opRecordSequence;
-    trans_ptr.p->key = trans_key;
-    trans_ptr.p->m_senderRef = senderRef;
-    trans_ptr.p->m_senderData = senderData;
-    trans_ptr.p->m_nodes = c_aliveNodes;
-    trans_ptr.p->m_errorCode = 0;
-//    trans_ptr.p->m_nodes.clear(); 
-//    trans_ptr.p->m_nodes.set(getOwnNodeId());
-    c_Trans.add(trans_ptr);
-    
-    const Uint32 op_key = ++c_opRecordSequence;
-    trans_ptr.p->m_op.m_key = op_key;
-    trans_ptr.p->m_op.m_vt_index = 1;
-    trans_ptr.p->m_op.m_state = DictObjOp::Preparing;
-    
-    CreateObjReq* create_obj = (CreateObjReq*)signal->getDataPtrSend();
-    create_obj->op_key = op_key;
-    create_obj->senderRef = reference();
-    create_obj->senderData = trans_key;
-    create_obj->clientRef = senderRef;
-    create_obj->clientData = senderData;
-    
-    create_obj->objType = type;
-    create_obj->requestInfo = requestInfo;
-
-    {
-      Uint32 objId = getFreeObjId(0);
-      if (objId == RNIL) {
-        jam();
-        ref->errorCode = CreateFileRef::NoMoreObjectRecords;
-        ref->status    = 0;
-        ref->errorKey  = 0;
-        ref->errorLine = __LINE__;
-
-        dict_lock_unlock(0, &lockReq);
-        break;
-      }
-      
-      create_obj->objId = objId;
-      trans_ptr.p->m_op.m_obj_id = objId;
-      create_obj->gci = 0;
-      
-      XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-      SchemaFile::TableEntry *objEntry = getTableEntry(xsf, objId);      
-      create_obj->objVersion = 
-	create_obj_inc_schema_version(objEntry->m_tableVersion);
+      impl_req->requestInfo = CreateFileImplReq::CreateForce;
     }
     
-    NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
-    SafeCounter tmp(c_counterMgr, trans_ptr.p->m_counter);
-    tmp.init<CreateObjRef>(rg, GSN_CREATE_OBJ_REF, trans_key);
-    sendSignal(rg, GSN_CREATE_OBJ_REQ, signal, 
-	       CreateObjReq::SignalLength, JBB,
-	       &handle);
-
+    handleClientReq(signal, op_ptr, handle);
     return;
-  } while(0);
-  
+  } while (0);
+
   releaseSections(handle);
-  ref->senderData = senderData;
-  ref->masterNodeId = c_masterNodeId;
-  sendSignal(senderRef, GSN_CREATE_FILE_REF,signal,
+
+  CreateFileRef* ref = (CreateFileRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_CREATE_FILE_REF, signal,
 	     CreateFileRef::SignalLength, JBB);
 }
 
-void
-Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
+bool
+Dbdict::createFile_seize(SchemaOpPtr op_ptr)
 {
-  jamEntry();
-  
-  if(!assembleFragments(signal)){
-    jam();
-    return;
-  }
-  
-  SectionHandle handle(this, signal);
-
-  CreateFilegroupReq * req = (CreateFilegroupReq*)signal->getDataPtr();
-  CreateFilegroupRef * ref = (CreateFilegroupRef*)signal->getDataPtrSend();
-  Uint32 senderRef = req->senderRef;
-  Uint32 senderData = req->senderData;
-  Uint32 type = req->objType;
-  
-  do {
-    if(getOwnNodeId() != c_masterNodeId){
-      jam();
-      ref->errorCode = CreateFilegroupRef::NotMaster;
-      ref->status    = 0;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-    
-    if (checkSingleUserMode(senderRef))
-    {
-      ref->errorCode = CreateFilegroupRef::SingleUser;
-      ref->status    = 0;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
-    Ptr<SchemaTransaction> trans_ptr;
-    if (! c_Trans.seize(trans_ptr)){
-      jam();
-      ref->errorCode = CreateFilegroupRef::Busy;
-      ref->status    = 0;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
-    DictLockReq lockReq;
-    lockReq.userPtr = trans_ptr.i;
-    lockReq.userRef = reference();
-    lockReq.lockType = DictLockReq::CreateFilegroupLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
-    {
-      jam();
-      ref->errorLine = __LINE__;      
-      break;
-    }
-
-    jam(); 
-    const Uint32 trans_key = ++c_opRecordSequence;
-    trans_ptr.p->key = trans_key;
-    trans_ptr.p->m_senderRef = senderRef;
-    trans_ptr.p->m_senderData = senderData;
-    trans_ptr.p->m_nodes = c_aliveNodes;
-    trans_ptr.p->m_errorCode = 0;
-    c_Trans.add(trans_ptr);
-    
-    const Uint32 op_key = ++c_opRecordSequence;
-    trans_ptr.p->m_op.m_key = op_key;
-    trans_ptr.p->m_op.m_vt_index = 0;
-    trans_ptr.p->m_op.m_state = DictObjOp::Preparing;
-    
-    CreateObjReq* create_obj = (CreateObjReq*)signal->getDataPtrSend();
-    create_obj->op_key = op_key;
-    create_obj->senderRef = reference();
-    create_obj->senderData = trans_key;
-    create_obj->clientRef = senderRef;
-    create_obj->clientData = senderData;
-    
-    create_obj->objType = type;
-    
-    {
-      Uint32 objId = getFreeObjId(0);
-      if (objId == RNIL) {
-        jam();
-        ref->errorCode = CreateFilegroupRef::NoMoreObjectRecords;
-        ref->status    = 0;
-        ref->errorKey  = 0;
-        ref->errorLine = __LINE__;
-
-        dict_lock_unlock(0, &lockReq);
-        break;
-      }
-      
-      create_obj->objId = objId;
-      trans_ptr.p->m_op.m_obj_id = objId;
-      create_obj->gci = 0;
-      
-      XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-      SchemaFile::TableEntry *objEntry = getTableEntry(xsf, objId);      
-      create_obj->objVersion = 
-	create_obj_inc_schema_version(objEntry->m_tableVersion);
-    }
-    
-    NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
-    SafeCounter tmp(c_counterMgr, trans_ptr.p->m_counter);
-    tmp.init<CreateObjRef>(rg, GSN_CREATE_OBJ_REF, trans_key);
-    sendSignal(rg, GSN_CREATE_OBJ_REQ, signal, 
-	       CreateObjReq::SignalLength, JBB,
-	       &handle);
-
-    return;
-  } while(0);
-  
-  releaseSections(handle);
-  ref->senderData = senderData;
-  ref->masterNodeId = c_masterNodeId;
-  sendSignal(senderRef, GSN_CREATE_FILEGROUP_REF,signal,
-	     CreateFilegroupRef::SignalLength, JBB);
+  return seizeOpRec<CreateFileRec>(op_ptr);
 }
 
 void
-Dbdict::execDROP_FILE_REQ(Signal* signal)
+Dbdict::createFile_release(SchemaOpPtr op_ptr)
 {
-  jamEntry();
-  
-  if(!assembleFragments(signal)){
-    jam();
-    return;
-  }
-  
-  DropFileReq * req = (DropFileReq*)signal->getDataPtr();
-  DropFileRef * ref = (DropFileRef*)signal->getDataPtrSend();
-  Uint32 senderRef = req->senderRef;
-  Uint32 senderData = req->senderData;
-  Uint32 objId = req->file_id;
-  Uint32 version = req->file_version;
-  
-  do {
-    if(getOwnNodeId() != c_masterNodeId){
-      jam();
-      ref->errorCode = DropFileRef::NotMaster;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-    
-    if (checkSingleUserMode(senderRef))
-    {
-      jam();
-      ref->errorCode = DropFileRef::SingleUser;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
-    Ptr<File> file_ptr;
-    if (!c_file_hash.find(file_ptr, objId))
-    {
-      jam();
-      ref->errorCode = DropFileRef::NoSuchFile;
-      ref->errorLine = __LINE__;
-      break;
-    }
-    
-    if (file_ptr.p->m_version != version)
-    {
-      jam();
-      ref->errorCode = DropFileRef::InvalidSchemaObjectVersion;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
-    Ptr<SchemaTransaction> trans_ptr;
-    if (! c_Trans.seize(trans_ptr))
-    {
-      jam();
-      ref->errorCode = DropFileRef::Busy;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
-    DictLockReq lockReq;
-    lockReq.userPtr = trans_ptr.i;
-    lockReq.userRef = reference();
-    lockReq.lockType = DictLockReq::DropFileLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
-    {
-      jam();
-      ref->errorLine = __LINE__;      
-      break;
-    }
-
-    jam();
-    
-    const Uint32 trans_key = ++c_opRecordSequence;
-    trans_ptr.p->key = trans_key;
-    trans_ptr.p->m_senderRef = senderRef;
-    trans_ptr.p->m_senderData = senderData;
-    trans_ptr.p->m_nodes = c_aliveNodes;
-    trans_ptr.p->m_errorCode = 0;
-    c_Trans.add(trans_ptr);
-    
-    const Uint32 op_key = ++c_opRecordSequence;
-    trans_ptr.p->m_op.m_key = op_key;
-    trans_ptr.p->m_op.m_vt_index = 2;
-    trans_ptr.p->m_op.m_state = DictObjOp::Preparing;
-    
-    DropObjReq* drop_obj = (DropObjReq*)signal->getDataPtrSend();
-    drop_obj->op_key = op_key;
-    drop_obj->objVersion = version;
-    drop_obj->objId = objId;
-    drop_obj->objType = file_ptr.p->m_type;
-    trans_ptr.p->m_op.m_obj_id = objId;
-
-    drop_obj->senderRef = reference();
-    drop_obj->senderData = trans_key;
-    drop_obj->clientRef = senderRef;
-    drop_obj->clientData = senderData;
-
-    drop_obj->requestInfo = 0;
-    
-    NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
-    SafeCounter tmp(c_counterMgr, trans_ptr.p->m_counter);
-    tmp.init<CreateObjRef>(rg, GSN_DROP_OBJ_REF, trans_key);
-    sendSignal(rg, GSN_DROP_OBJ_REQ, signal, 
-	       DropObjReq::SignalLength, JBB);
-
-    return;
-  } while(0);
-  
-  ref->senderData = senderData;
-  ref->masterNodeId = c_masterNodeId;
-  sendSignal(senderRef, GSN_DROP_FILE_REF,signal,
-	     DropFileRef::SignalLength, JBB);
+  releaseOpRec<CreateFileRec>(op_ptr);
 }
 
-void
-Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
-{
-  jamEntry();
-  
-  if(!assembleFragments(signal)){
-    jam();
-    return;
-  }
-  
-  DropFilegroupReq * req = (DropFilegroupReq*)signal->getDataPtr();
-  DropFilegroupRef * ref = (DropFilegroupRef*)signal->getDataPtrSend();
-  Uint32 senderRef = req->senderRef;
-  Uint32 senderData = req->senderData;
-  Uint32 objId = req->filegroup_id;
-  Uint32 version = req->filegroup_version;
-  
-  do {
-    if(getOwnNodeId() != c_masterNodeId)
-    {
-      jam();
-      ref->errorCode = DropFilegroupRef::NotMaster;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-    
-    if (checkSingleUserMode(senderRef))
-    {
-      jam();
-      ref->errorCode = DropFilegroupRef::SingleUser;
-      ref->errorKey  = 0;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
-    Ptr<Filegroup> filegroup_ptr;
-    if (!c_filegroup_hash.find(filegroup_ptr, objId))
-    {
-      jam();
-      ref->errorCode = DropFilegroupRef::NoSuchFilegroup;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
-    if (filegroup_ptr.p->m_version != version)
-    {
-      jam();
-      ref->errorCode = DropFilegroupRef::InvalidSchemaObjectVersion;
-      ref->errorLine = __LINE__;
-      break;
-    }
-    
-    Ptr<SchemaTransaction> trans_ptr;
-    if (! c_Trans.seize(trans_ptr))
-    {
-      jam();
-      ref->errorCode = DropFilegroupRef::Busy;
-      ref->errorLine = __LINE__;
-      break;
-    }
-
-    DictLockReq lockReq;
-    lockReq.userPtr = trans_ptr.i;
-    lockReq.userRef = reference();
-    lockReq.lockType = DictLockReq::DropFilegroupLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
-    {
-      jam();
-      ref->errorLine = __LINE__;      
-      break;
-    }
-
-    jam();
-    
-    const Uint32 trans_key = ++c_opRecordSequence;
-    trans_ptr.p->key = trans_key;
-    trans_ptr.p->m_senderRef = senderRef;
-    trans_ptr.p->m_senderData = senderData;
-    trans_ptr.p->m_nodes = c_aliveNodes;
-    trans_ptr.p->m_errorCode = 0;
-    c_Trans.add(trans_ptr);
-    
-    const Uint32 op_key = ++c_opRecordSequence;
-    trans_ptr.p->m_op.m_key = op_key;
-    trans_ptr.p->m_op.m_vt_index = 3;
-    trans_ptr.p->m_op.m_state = DictObjOp::Preparing;
-    
-    DropObjReq* drop_obj = (DropObjReq*)signal->getDataPtrSend();
-    drop_obj->op_key = op_key;
-    drop_obj->objVersion = version;
-    drop_obj->objId = objId;
-    drop_obj->objType = filegroup_ptr.p->m_type;
-    trans_ptr.p->m_op.m_obj_id = objId;
-    
-    drop_obj->senderRef = reference();
-    drop_obj->senderData = trans_key;
-    drop_obj->clientRef = senderRef;
-    drop_obj->clientData = senderData;
-    
-    drop_obj->requestInfo = 0;
-    
-    NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
-    SafeCounter tmp(c_counterMgr, trans_ptr.p->m_counter);
-    tmp.init<CreateObjRef>(rg, GSN_DROP_OBJ_REF, trans_key);
-    sendSignal(rg, GSN_DROP_OBJ_REQ, signal, 
-	       DropObjReq::SignalLength, JBB);
-
-    return;
-  } while(0);
-  
-  ref->senderData = senderData;
-  ref->masterNodeId = c_masterNodeId;
-  sendSignal(senderRef, GSN_DROP_FILEGROUP_REF,signal,
-	     DropFilegroupRef::SignalLength, JBB);
-}
+// CreateFile: PARSE
 
 void
-Dbdict::execCREATE_OBJ_REF(Signal* signal)
-{
-  CreateObjRef * const ref = (CreateObjRef*)signal->getDataPtr();
-  Ptr<SchemaTransaction> trans_ptr;
-
-  jamEntry();
-  ndbrequire(c_Trans.find(trans_ptr, ref->senderData));
-  if(ref->errorCode != CreateObjRef::NF_FakeErrorREF){
-    jam();
-    trans_ptr.p->setErrorCode(ref->errorCode);
-  }
-  Uint32 node = refToNode(ref->senderRef);
-  schemaOperation_reply(signal, trans_ptr.p, node);
-}
-
-void
-Dbdict::execCREATE_OBJ_CONF(Signal* signal)
-{
-  Ptr<SchemaTransaction> trans_ptr;
-  CreateObjConf * const conf = (CreateObjConf*)signal->getDataPtr();
-
-  jamEntry();
-  ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
-  schemaOperation_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
-}
-
-void
-Dbdict::schemaOperation_reply(Signal* signal,
-		              SchemaTransaction * trans_ptr_p,
-		              Uint32 nodeId)
+Dbdict::createFile_parse(Signal* signal, bool master,
+                          SchemaOpPtr op_ptr,
+                          SectionHandle& handle, ErrorInfo& error)
 {
   jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFileRecPtr createFilePtr;
+  getOpRec(op_ptr, createFilePtr);
+  CreateFileImplReq* impl_req = &createFilePtr.p->m_request;
+
+  SegmentedSectionPtr objInfoPtr;
   {
-    SafeCounter tmp(c_counterMgr, trans_ptr_p->m_counter);
-    if(!tmp.clearWaitingFor(nodeId)){
+    bool ok = handle.getSection(objInfoPtr, 0);
+    if (!ok)
+    {
       jam();
+      setError(error, CreateTableRef::InvalidFormat, __LINE__);
       return;
     }
   }
-  
-  switch(trans_ptr_p->m_op.m_state){
-  case DictObjOp::Preparing:{
-    if(trans_ptr_p->m_errorCode != 0)
-    {
-      /**
-       * Failed to prepare on atleast one node -> abort on all
-       */
-      trans_ptr_p->m_op.m_state = DictObjOp::Aborting;
-      trans_ptr_p->m_callback.m_callbackData = trans_ptr_p->key;
-      trans_ptr_p->m_callback.m_callbackFunction= 
-	safe_cast(&Dbdict::trans_abort_start_done);
-      
-      if(f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_abort_start)
-      {
-        jam();
-	(this->*f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_abort_start)
-	  (signal, trans_ptr_p);
-      }
-      else
-      {
-        jam();
-	execute(signal, trans_ptr_p->m_callback, 0);
-      }
-      return;
-    }
-    
-    trans_ptr_p->m_op.m_state = DictObjOp::Prepared;
-    trans_ptr_p->m_callback.m_callbackData = trans_ptr_p->key;
-    trans_ptr_p->m_callback.m_callbackFunction= 
-      safe_cast(&Dbdict::trans_commit_start_done);
-    
-    if(f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_commit_start)
-    {
-      jam();
-      (this->*f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_commit_start)
-	(signal, trans_ptr_p);
-    }
-    else
-    {
-      jam();
-      execute(signal, trans_ptr_p->m_callback, 0);
-    }
-    return;
-  }
-  case DictObjOp::Committing: {
-    ndbrequire(trans_ptr_p->m_errorCode == 0);
-
-    trans_ptr_p->m_op.m_state = DictObjOp::Committed;
-    trans_ptr_p->m_callback.m_callbackData = trans_ptr_p->key;
-    trans_ptr_p->m_callback.m_callbackFunction= 
-      safe_cast(&Dbdict::trans_commit_complete_done);
-    
-    if(f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_commit_complete)
-    {
-      jam();
-      (this->*f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_commit_complete)
-	(signal, trans_ptr_p);
-    }
-    else
-    {
-      jam();
-      execute(signal, trans_ptr_p->m_callback, 0);
-    }
-    return;
-  }
-  case DictObjOp::Aborting:{
-    trans_ptr_p->m_op.m_state = DictObjOp::Committed;
-    trans_ptr_p->m_callback.m_callbackData = trans_ptr_p->key;
-    trans_ptr_p->m_callback.m_callbackFunction= 
-      safe_cast(&Dbdict::trans_abort_complete_done);
-
-    if(f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_abort_complete)
-    {
-      jam();
-      (this->*f_dict_op[trans_ptr_p->m_op.m_vt_index].m_trans_abort_complete)
-	(signal, trans_ptr_p);
-    }
-    else
-    {
-      jam();
-      execute(signal, trans_ptr_p->m_callback, 0);
-    }
-    return;
-  }
-  case DictObjOp::Defined:
-  case DictObjOp::Prepared:
-  case DictObjOp::Committed:
-  case DictObjOp::Aborted:
-    jam();
-    break;
-  }
-  ndbrequire(false);
-}
-
-void
-Dbdict::trans_commit_start_done(Signal* signal, 
-				Uint32 callbackData,
-				Uint32 retValue)
-{
-  Ptr<SchemaTransaction> trans_ptr;
-
-  jam();
-  ndbrequire(retValue == 0);
-  ndbrequire(c_Trans.find(trans_ptr, callbackData));
-  NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
-  SafeCounter tmp(c_counterMgr, trans_ptr.p->m_counter);
-  tmp.init<DictCommitRef>(rg, GSN_DICT_COMMIT_REF, trans_ptr.p->key);
-  
-  DictCommitReq * const req = (DictCommitReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->senderData = trans_ptr.p->key;
-  req->op_key = trans_ptr.p->m_op.m_key;
-  sendSignal(rg, GSN_DICT_COMMIT_REQ, signal, DictCommitReq::SignalLength, 
-	     JBB);
-  trans_ptr.p->m_op.m_state = DictObjOp::Committing;
-}
-
-void
-Dbdict::trans_commit_complete_done(Signal* signal, 
-				   Uint32 callbackData,
-				   Uint32 retValue)
-{
-  Ptr<SchemaTransaction> trans_ptr;
-
-  jam();
-  ndbrequire(retValue == 0);
-  ndbrequire(c_Trans.find(trans_ptr, callbackData));
-
-  DictLockReq lockReq;
-  lockReq.userRef = reference();
-  lockReq.userPtr = trans_ptr.i;
-
-  switch(f_dict_op[trans_ptr.p->m_op.m_vt_index].m_gsn_user_req){
-  case GSN_CREATE_FILEGROUP_REQ:{
-    FilegroupPtr fg_ptr;
-    jam();
-    ndbrequire(c_filegroup_hash.find(fg_ptr, trans_ptr.p->m_op.m_obj_id));
-    
-    CreateFilegroupConf * conf = (CreateFilegroupConf*)signal->getDataPtr();
-    conf->senderRef = reference();
-    conf->senderData = trans_ptr.p->m_senderData;
-    conf->filegroupId = fg_ptr.p->key;
-    conf->filegroupVersion = fg_ptr.p->m_version;
-    
-    //@todo check api failed
-    sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILEGROUP_CONF, signal, 
-	       CreateFilegroupConf::SignalLength, JBB);
-
-    lockReq.lockType = DictLockReq::CreateFilegroupLock;
-    break;
-  }
-  case GSN_CREATE_FILE_REQ:{
-    FilePtr f_ptr;
-    jam();
-    ndbrequire(c_file_hash.find(f_ptr, trans_ptr.p->m_op.m_obj_id));
-    CreateFileConf * conf = (CreateFileConf*)signal->getDataPtr();
-    conf->senderRef = reference();
-    conf->senderData = trans_ptr.p->m_senderData;
-    conf->fileId = f_ptr.p->key;
-    conf->fileVersion = f_ptr.p->m_version;
-
-    //@todo check api failed
-    sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILE_CONF, signal, 
-	       CreateFileConf::SignalLength, JBB);
-
-    lockReq.lockType = DictLockReq::CreateFileLock;
-    break;
-  }
-  case GSN_DROP_FILE_REQ:{
-    DropFileConf * conf = (DropFileConf*)signal->getDataPtr();
-    jam();
-    conf->senderRef = reference();
-    conf->senderData = trans_ptr.p->m_senderData;
-    conf->fileId = trans_ptr.p->m_op.m_obj_id;
-    
-    //@todo check api failed
-    sendSignal(trans_ptr.p->m_senderRef, GSN_DROP_FILE_CONF, signal, 
-	       DropFileConf::SignalLength, JBB);
-
-    lockReq.lockType = DictLockReq::DropFileLock;
-    break;
-  }
-  case GSN_DROP_FILEGROUP_REQ:{
-    DropFilegroupConf * conf = (DropFilegroupConf*)signal->getDataPtr();
-    jam();
-    conf->senderRef = reference();
-    conf->senderData = trans_ptr.p->m_senderData;
-    conf->filegroupId = trans_ptr.p->m_op.m_obj_id;
-    
-    //@todo check api failed
-    sendSignal(trans_ptr.p->m_senderRef, GSN_DROP_FILEGROUP_CONF, signal, 
-	       DropFilegroupConf::SignalLength, JBB);
-
-    lockReq.lockType = DictLockReq::DropFilegroupLock;
-    break;
-  }
-  default:
-    ndbrequire(false);
-  }
-  
-  dict_lock_unlock(signal, &lockReq);
-  c_Trans.release(trans_ptr);
-  return;
-}
-
-void
-Dbdict::trans_abort_start_done(Signal* signal, 
-			       Uint32 callbackData,
-			       Uint32 retValue)
-{
-  Ptr<SchemaTransaction> trans_ptr;
-
-  jam();
-  ndbrequire(retValue == 0);
-  ndbrequire(c_Trans.find(trans_ptr, callbackData));
-  
-  NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
-  SafeCounter tmp(c_counterMgr, trans_ptr.p->m_counter);
-  ndbrequire(tmp.init<DictAbortRef>(rg, trans_ptr.p->key));
-  
-  DictAbortReq * const req = (DictAbortReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->senderData = trans_ptr.p->key;
-  req->op_key = trans_ptr.p->m_op.m_key;
-  
-  sendSignal(rg, GSN_DICT_ABORT_REQ, signal, DictAbortReq::SignalLength, JBB);
-}
-
-void
-Dbdict::trans_abort_complete_done(Signal* signal, 
-				  Uint32 callbackData,
-				  Uint32 retValue)
-{
-  Ptr<SchemaTransaction> trans_ptr;
-
-  jam();
-  ndbrequire(retValue == 0);
-  ndbrequire(c_Trans.find(trans_ptr, callbackData));
-
-  DictLockReq lockReq;
-  lockReq.userRef = reference();
-  lockReq.userPtr = trans_ptr.i;
-
-  switch(f_dict_op[trans_ptr.p->m_op.m_vt_index].m_gsn_user_req){
-  case GSN_CREATE_FILEGROUP_REQ:
-  {
-    //
-    CreateFilegroupRef * ref = (CreateFilegroupRef*)signal->getDataPtr();
-    jam();
-    ref->senderRef = reference();
-    ref->senderData = trans_ptr.p->m_senderData;
-    ref->masterNodeId = c_masterNodeId;
-    ref->errorCode = trans_ptr.p->m_errorCode;
-    ref->errorLine = 0;
-    ref->errorKey = 0;
-    ref->status = 0;
-
-    //@todo check api failed
-    sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILEGROUP_REF, signal, 
-	       CreateFilegroupRef::SignalLength, JBB);
-
-    lockReq.lockType = DictLockReq::CreateFilegroupLock;
-    break;
-  }
-  case GSN_CREATE_FILE_REQ:
-  {
-    CreateFileRef * ref = (CreateFileRef*)signal->getDataPtr();
-    jam();
-    ref->senderRef = reference();
-    ref->senderData = trans_ptr.p->m_senderData;
-    ref->masterNodeId = c_masterNodeId;
-    ref->errorCode = trans_ptr.p->m_errorCode;
-    ref->errorLine = 0;
-    ref->errorKey = 0;
-    ref->status = 0;
-    
-    //@todo check api failed
-    sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILE_REF, signal, 
-	       CreateFileRef::SignalLength, JBB);
-
-    lockReq.lockType = DictLockReq::CreateFileLock;
-    break;
-  }
-  case GSN_DROP_FILE_REQ:
-  {
-    DropFileRef * ref = (DropFileRef*)signal->getDataPtr();
-    jam();
-    ref->senderRef = reference();
-    ref->senderData = trans_ptr.p->m_senderData;
-    ref->masterNodeId = c_masterNodeId;
-    ref->errorCode = trans_ptr.p->m_errorCode;
-    ref->errorLine = 0;
-    ref->errorKey = 0;
-    
-    //@todo check api failed
-    sendSignal(trans_ptr.p->m_senderRef, GSN_DROP_FILE_REF, signal, 
-	       DropFileRef::SignalLength, JBB);
-
-    lockReq.lockType = DictLockReq::DropFileLock;
-    break;
-  }
-  case GSN_DROP_FILEGROUP_REQ:
-  {
-    //
-    DropFilegroupRef * ref = (DropFilegroupRef*)signal->getDataPtr();
-    jam();
-    ref->senderRef = reference();
-    ref->senderData = trans_ptr.p->m_senderData;
-    ref->masterNodeId = c_masterNodeId;
-    ref->errorCode = trans_ptr.p->m_errorCode;
-    ref->errorLine = 0;
-    ref->errorKey = 0;
-    
-    //@todo check api failed
-    sendSignal(trans_ptr.p->m_senderRef, GSN_DROP_FILEGROUP_REF, signal, 
-	       DropFilegroupRef::SignalLength, JBB);
-
-    lockReq.lockType = DictLockReq::DropFilegroupLock;
-    break;
-  }
-  default:
-    ndbrequire(false);
-  }
-  
-  dict_lock_unlock(signal, &lockReq);
-  c_Trans.release(trans_ptr);
-  return;
-}
-
-void
-Dbdict::execCREATE_OBJ_REQ(Signal* signal)
-{
-  jamEntry();
-
-  if(!assembleFragments(signal)){
-    jam();
-    return;
-  }
-
-  CreateObjReq * const req = (CreateObjReq*)signal->getDataPtr();
-  const Uint32 gci = req->gci;
-  const Uint32 objId = req->objId;
-  const Uint32 objVersion = req->objVersion;
-  const Uint32 objType = req->objType;
-  const Uint32 requestInfo = req->requestInfo;
-
-  SegmentedSectionPtr objInfoPtr;
-  SectionHandle handle(this, signal);
-  ndbrequire(handle.getSection(objInfoPtr, CreateObjReq::DICT_OBJ_INFO));
-  handle.clear();
-  
-  CreateObjRecordPtr createObjPtr;  
-  ndbrequire(c_opCreateObj.seize(createObjPtr));
-  
-  const Uint32 key = req->op_key;
-  createObjPtr.p->key = key;
-  c_opCreateObj.add(createObjPtr);
-  createObjPtr.p->m_errorCode = 0;
-  createObjPtr.p->m_senderRef = req->senderRef;
-  createObjPtr.p->m_senderData = req->senderData;
-  createObjPtr.p->m_clientRef = req->clientRef;
-  createObjPtr.p->m_clientData = req->clientData;
-  
-  createObjPtr.p->m_gci = gci;
-  createObjPtr.p->m_obj_id = objId;
-  createObjPtr.p->m_obj_type = objType;
-  createObjPtr.p->m_obj_version = objVersion;
-  createObjPtr.p->m_obj_info_ptr_i = objInfoPtr.i;
-  createObjPtr.p->m_obj_ptr_i = RNIL;
-
-  createObjPtr.p->m_callback.m_callbackData = key;
-  createObjPtr.p->m_callback.m_callbackFunction= 
-    safe_cast(&Dbdict::createObj_prepare_start_done);
-
-  createObjPtr.p->m_restart= 0;
-  switch(objType){
-  case DictTabInfo::Tablespace:
-  case DictTabInfo::LogfileGroup:
-    jam();
-    createObjPtr.p->m_vt_index = 0;
-    break;
-  case DictTabInfo::Datafile:
-  case DictTabInfo::Undofile:
-    /**
-     * Use restart code to impl. ForceCreateFile
-     */
-    if (requestInfo & CreateFileReq::ForceCreateFile)
-    {
-      jam();
-      createObjPtr.p->m_restart= 2;
-    }
-    jam();
-    createObjPtr.p->m_vt_index = 1;
-    break;
-  default:
-    ndbrequire(false);
-  }
-  
-  (this->*f_dict_op[createObjPtr.p->m_vt_index].m_prepare_start)
-    (signal, createObjPtr.p);
-}
-
-void
-Dbdict::execDICT_COMMIT_REQ(Signal* signal)
-{
-  DictCommitReq* req = (DictCommitReq*)signal->getDataPtr();
-  Ptr<SchemaOperation> op;
-
-  jamEntry();
-  ndbrequire(c_schemaOperation.find(op, req->op_key));
-  (this->*f_dict_op[op.p->m_vt_index].m_commit)(signal, op.p);
-}
-
-void
-Dbdict::execDICT_ABORT_REQ(Signal* signal)
-{
-  DictAbortReq* req = (DictAbortReq*)signal->getDataPtr();
-  Ptr<SchemaOperation> op;
-
-  jamEntry();
-  ndbrequire(c_schemaOperation.find(op, req->op_key));
-  (this->*f_dict_op[op.p->m_vt_index].m_abort)(signal, op.p);
-}
-
-void
-Dbdict::execDICT_COMMIT_REF(Signal* signal)
-{
-  DictCommitRef * const ref = (DictCommitRef*)signal->getDataPtr();
-  Ptr<SchemaTransaction> trans_ptr;
-
-  jamEntry();
-  ndbrequire(c_Trans.find(trans_ptr, ref->senderData));
-  if(ref->errorCode != DictCommitRef::NF_FakeErrorREF){
-    jam();
-    trans_ptr.p->setErrorCode(ref->errorCode);
-  }
-  Uint32 node = refToNode(ref->senderRef);
-  schemaOperation_reply(signal, trans_ptr.p, node);
-}
-
-void
-Dbdict::execDICT_COMMIT_CONF(Signal* signal)
-{
-  Ptr<SchemaTransaction> trans_ptr;
-  DictCommitConf * const conf = (DictCommitConf*)signal->getDataPtr();
-
-  jamEntry();
-  ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
-  schemaOperation_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
-}
-
-void
-Dbdict::execDICT_ABORT_REF(Signal* signal)
-{
-  DictAbortRef * const ref = (DictAbortRef*)signal->getDataPtr();
-  Ptr<SchemaTransaction> trans_ptr;
-
-  jamEntry();
-  ndbrequire(c_Trans.find(trans_ptr, ref->senderData));
-  if(ref->errorCode != DictAbortRef::NF_FakeErrorREF){
-    jam();
-    trans_ptr.p->setErrorCode(ref->errorCode);
-  }
-  Uint32 node = refToNode(ref->senderRef);
-  schemaOperation_reply(signal, trans_ptr.p, node);
-}
-
-void
-Dbdict::execDICT_ABORT_CONF(Signal* signal)
-{
-  DictAbortConf * const conf = (DictAbortConf*)signal->getDataPtr();
-  Ptr<SchemaTransaction> trans_ptr;
-
-  jamEntry();
-  ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
-  schemaOperation_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
-}
-
-void
-Dbdict::createObj_prepare_start_done(Signal* signal,
-				     Uint32 callbackData, 
-				     Uint32 returnCode)
-{
-  jam();
-  CreateObjRecordPtr createObjPtr;  
-  
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  SectionHandle handle(this, createObjPtr.p->m_obj_info_ptr_i);
-
-  if(createObjPtr.p->m_errorCode != 0)
-  {
-    jam();
-    createObjPtr.p->m_obj_info_ptr_i= RNIL;
-    releaseSections(handle);
-    createObj_prepare_complete_done(signal, callbackData, 0);
-    return;
-  }
-  
-  SchemaFile::TableEntry tabEntry;
-  bzero(&tabEntry, sizeof(tabEntry));
-  tabEntry.m_tableVersion = createObjPtr.p->m_obj_version;
-  tabEntry.m_tableType    = createObjPtr.p->m_obj_type;
-  tabEntry.m_tableState   = SchemaFile::ADD_STARTED;
-  tabEntry.m_gcp          = createObjPtr.p->m_gci;
-  tabEntry.m_info_words   = handle.m_ptr[0].sz;
-  
-  Callback cb;
-  cb.m_callbackData = createObjPtr.p->key;
-  cb.m_callbackFunction = safe_cast(&Dbdict::createObj_writeSchemaConf1);
-  
-  updateSchemaState(signal, createObjPtr.p->m_obj_id, &tabEntry, &cb);
-  handle.clear();
-}
-
-void
-Dbdict::createObj_writeSchemaConf1(Signal* signal, 
-				   Uint32 callbackData,
-				   Uint32 returnCode)
-{
-  CreateObjRecordPtr createObjPtr;  
-  Callback callback;
-
-  jam();
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  
-  callback.m_callbackData = createObjPtr.p->key;
-  callback.m_callbackFunction = safe_cast(&Dbdict::createObj_writeObjConf);
-  
-  SectionHandle handle(this, createObjPtr.p->m_obj_info_ptr_i);
-  writeTableFile(signal, createObjPtr.p->m_obj_id, handle.m_ptr[0], &callback);
-  
-  releaseSections(handle);
-  createObjPtr.p->m_obj_info_ptr_i = RNIL;
-}
-
-void
-Dbdict::createObj_writeObjConf(Signal* signal, 
-			       Uint32 callbackData,
-			       Uint32 returnCode)
-{
-  CreateObjRecordPtr createObjPtr;
-
-  jam();
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  createObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::createObj_prepare_complete_done);
-  (this->*f_dict_op[createObjPtr.p->m_vt_index].m_prepare_complete)
-    (signal, createObjPtr.p);
-}
-
-void
-Dbdict::createObj_prepare_complete_done(Signal* signal, 
-					Uint32 callbackData,
-					Uint32 returnCode)
-{
-  CreateObjRecordPtr createObjPtr;
-
-  jam();
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  
-  //@todo check for master failed
-  
-  if(createObjPtr.p->m_errorCode == 0){
-    jam();
-    
-    CreateObjConf * const conf = (CreateObjConf*)signal->getDataPtr();
-    conf->senderRef = reference();
-    conf->senderData = createObjPtr.p->m_senderData;
-    sendSignal(createObjPtr.p->m_senderRef, GSN_CREATE_OBJ_CONF,
-	       signal, CreateObjConf::SignalLength, JBB);
-    return;
-  }
-  
-  CreateObjRef * const ref = (CreateObjRef*)signal->getDataPtr();
-  ref->senderRef = reference();
-  ref->senderData = createObjPtr.p->m_senderData;
-  ref->errorCode = createObjPtr.p->m_errorCode;
-  ref->errorLine = 0;
-  ref->errorKey = 0;
-  ref->errorStatus = 0;
-  
-  sendSignal(createObjPtr.p->m_senderRef, GSN_CREATE_OBJ_REF,
-	     signal, CreateObjRef::SignalLength, JBB);
-}
-
-void
-Dbdict::createObj_commit(Signal * signal, SchemaOperation * op)
-{
-  OpCreateObj * createObj = (OpCreateObj*)op;
-
-  createObj->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::createObj_commit_start_done);
-  if (f_dict_op[createObj->m_vt_index].m_commit_start)
-  {
-    jam();
-    (this->*f_dict_op[createObj->m_vt_index].m_commit_start)(signal, createObj);
-  }
-  else
-  {
-    jam();
-    execute(signal, createObj->m_callback, 0);
-  }
-}
-
-void
-Dbdict::createObj_commit_start_done(Signal* signal, 
-				    Uint32 callbackData,
-				    Uint32 returnCode)
-{
-  CreateObjRecordPtr createObjPtr;  
-  
-  jam();
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  
-  Uint32 objId = createObjPtr.p->m_obj_id;
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  SchemaFile::TableEntry objEntry = * getTableEntry(xsf, objId);
-  objEntry.m_tableState = SchemaFile::TABLE_ADD_COMMITTED;
-  
-  Callback callback;
-  callback.m_callbackData = createObjPtr.p->key;
-  callback.m_callbackFunction = 
-    safe_cast(&Dbdict::createObj_writeSchemaConf2);
-  
-  updateSchemaState(signal, createObjPtr.p->m_obj_id, &objEntry, &callback);
-
-}
-
-void
-Dbdict::createObj_writeSchemaConf2(Signal* signal, 
-				   Uint32 callbackData,
-				   Uint32 returnCode)
-{
-  CreateObjRecordPtr createObjPtr;
-
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  createObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::createObj_commit_complete_done);
-  if (f_dict_op[createObjPtr.p->m_vt_index].m_commit_complete)
-  {
-    jam();
-    (this->*f_dict_op[createObjPtr.p->m_vt_index].m_commit_complete)
-      (signal, createObjPtr.p);
-  }
-  else
-  {
-    jam();
-    execute(signal, createObjPtr.p->m_callback, 0);
-  }
-  
-}
-
-void
-Dbdict::createObj_commit_complete_done(Signal* signal, 
-				       Uint32 callbackData,
-				       Uint32 returnCode)
-{
-  CreateObjRecordPtr createObjPtr;
-
-  jam();
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  
-  //@todo check error
-  //@todo check master failed
-  
-  DictCommitConf * const conf = (DictCommitConf*)signal->getDataPtr();
-  conf->senderRef = reference();
-  conf->senderData = createObjPtr.p->m_senderData;
-  sendSignal(createObjPtr.p->m_senderRef, GSN_DICT_COMMIT_CONF,
-	     signal, DictCommitConf::SignalLength, JBB);
-  
-  c_opCreateObj.release(createObjPtr);
-}
-
-void
-Dbdict::createObj_abort(Signal* signal, SchemaOperation* op)
-{
-  OpCreateObj * createObj = (OpCreateObj*)op;
-  
-  createObj->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::createObj_abort_start_done);
-  if (f_dict_op[createObj->m_vt_index].m_abort_start)
-  {
-    jam();
-    (this->*f_dict_op[createObj->m_vt_index].m_abort_start)(signal, createObj);
-  }
-  else
-  {
-    jam();
-    execute(signal, createObj->m_callback, 0);
-  }
-}
-
-void
-Dbdict::createObj_abort_start_done(Signal* signal, 
-				   Uint32 callbackData,
-				   Uint32 returnCode)
-{
-  CreateObjRecordPtr createObjPtr;
-
-  jam();
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  SchemaFile::TableEntry objEntry = * getTableEntry(xsf, 
-						    createObjPtr.p->m_obj_id);
-  objEntry.m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
-  
-  Callback callback;
-  callback.m_callbackData = createObjPtr.p->key;
-  callback.m_callbackFunction = 
-    safe_cast(&Dbdict::createObj_abort_writeSchemaConf);
-  
-  updateSchemaState(signal, createObjPtr.p->m_obj_id, &objEntry, &callback);
-}
-
-void
-Dbdict::createObj_abort_writeSchemaConf(Signal* signal, 
-					Uint32 callbackData,
-					Uint32 returnCode)
-{
-  CreateObjRecordPtr createObjPtr;
-
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-  createObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::createObj_abort_complete_done);
-  
-  if (f_dict_op[createObjPtr.p->m_vt_index].m_abort_complete)
-  {
-    jam();
-    (this->*f_dict_op[createObjPtr.p->m_vt_index].m_abort_complete)
-      (signal, createObjPtr.p);
-  }
-  else
-  {
-    jam();
-    execute(signal, createObjPtr.p->m_callback, 0);
-  }
-}
-
-void
-Dbdict::createObj_abort_complete_done(Signal* signal, 
-				      Uint32 callbackData,
-				      Uint32 returnCode)
-{
-  CreateObjRecordPtr createObjPtr;
-
-  jam();
-  ndbrequire(c_opCreateObj.find(createObjPtr, callbackData));
-
-  DictAbortConf * const conf = (DictAbortConf*)signal->getDataPtr();
-  conf->senderRef = reference();
-  conf->senderData = createObjPtr.p->m_senderData;
-  sendSignal(createObjPtr.p->m_senderRef, GSN_DICT_ABORT_CONF,
-	     signal, DictAbortConf::SignalLength, JBB);
-  
-  c_opCreateObj.release(createObjPtr);
-}
-
-void
-Dbdict::execDROP_OBJ_REQ(Signal* signal)
-{
-  jamEntry();
-
-  if(!assembleFragments(signal)){
-    jam();
-    return;
-  }
-  
-  DropObjReq * const req = (DropObjReq*)signal->getDataPtr();
-
-  const Uint32 objId = req->objId;
-  const Uint32 objVersion = req->objVersion;
-  const Uint32 objType = req->objType;
-  
-  DropObjRecordPtr dropObjPtr;  
-  ndbrequire(c_opDropObj.seize(dropObjPtr));
-  
-  const Uint32 key = req->op_key;
-  dropObjPtr.p->key = key;
-  c_opDropObj.add(dropObjPtr);
-  dropObjPtr.p->m_errorCode = 0;
-  dropObjPtr.p->m_senderRef = req->senderRef;
-  dropObjPtr.p->m_senderData = req->senderData;
-  dropObjPtr.p->m_clientRef = req->clientRef;
-  dropObjPtr.p->m_clientData = req->clientData;
-  
-  dropObjPtr.p->m_obj_id = objId;
-  dropObjPtr.p->m_obj_type = objType;
-  dropObjPtr.p->m_obj_version = objVersion;
-
-  dropObjPtr.p->m_callback.m_callbackData = key;
-  dropObjPtr.p->m_callback.m_callbackFunction= 
-    safe_cast(&Dbdict::dropObj_prepare_start_done);
-
-  switch(objType){
-  case DictTabInfo::Tablespace:
-  case DictTabInfo::LogfileGroup:
-  {
-    Ptr<Filegroup> fg_ptr;
-    jam();
-    dropObjPtr.p->m_vt_index = 3;
-    ndbrequire(c_filegroup_hash.find(fg_ptr, objId));
-    dropObjPtr.p->m_obj_ptr_i = fg_ptr.i;
-    break;
-  
-  }
-  case DictTabInfo::Datafile:
-  {
-    Ptr<File> file_ptr;
-    jam();
-    dropObjPtr.p->m_vt_index = 2;
-    ndbrequire(c_file_hash.find(file_ptr, objId));
-    dropObjPtr.p->m_obj_ptr_i = file_ptr.i;
-    break;
-  }
-  case DictTabInfo::Undofile:
-  {
-    jam();
-    dropObjPtr.p->m_vt_index = 4;
-    return;
-  }
-  default:
-    ndbrequire(false);
-  }
-  
-  signal->header.m_noOfSections = 0;
-  (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_start)
-    (signal, dropObjPtr.p);
-}
-
-void
-Dbdict::dropObj_prepare_start_done(Signal* signal, 
-				   Uint32 callbackData,
-				   Uint32 returnCode)
-{
-  DropObjRecordPtr dropObjPtr;
-  Callback cb;
-
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-
-  cb.m_callbackData = callbackData;
-  cb.m_callbackFunction = 
-    safe_cast(&Dbdict::dropObj_prepare_writeSchemaConf);
-
-  if(dropObjPtr.p->m_errorCode != 0)
-  {
-    jam();
-    dropObj_prepare_complete_done(signal, callbackData, 0);
-    return;
-  }
-  jam();  
-  Uint32 objId = dropObjPtr.p->m_obj_id;
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  SchemaFile::TableEntry objEntry = *getTableEntry(xsf, objId);
-  objEntry.m_tableState = SchemaFile::DROP_TABLE_STARTED;
-  updateSchemaState(signal, objId, &objEntry, &cb);
-}
-
-void
-Dbdict::dropObj_prepare_writeSchemaConf(Signal* signal, 
-					Uint32 callbackData,
-					Uint32 returnCode)
-{
-  DropObjRecordPtr dropObjPtr;
-
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  dropObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::dropObj_prepare_complete_done);
-  if(f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_complete)
-  {
-    jam();
-    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_prepare_complete)
-      (signal, dropObjPtr.p);
-  }
-  else
-  {
-    jam();
-    execute(signal, dropObjPtr.p->m_callback, 0);
-  }
-}
-
-void
-Dbdict::dropObj_prepare_complete_done(Signal* signal, 
-				      Uint32 callbackData,
-				      Uint32 returnCode)
-{
-  DropObjRecordPtr dropObjPtr;
-
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  jam();
-  
-  //@todo check for master failed
-  
-  if(dropObjPtr.p->m_errorCode == 0){
-    jam();
-    
-    DropObjConf * const conf = (DropObjConf*)signal->getDataPtr();
-    conf->senderRef = reference();
-    conf->senderData = dropObjPtr.p->m_senderData;
-    sendSignal(dropObjPtr.p->m_senderRef, GSN_DROP_OBJ_CONF,
-	       signal, DropObjConf::SignalLength, JBB);
-    return;
-  }
-  
-  DropObjRef * const ref = (DropObjRef*)signal->getDataPtr();
-  ref->senderRef = reference();
-  ref->senderData = dropObjPtr.p->m_senderData;
-  ref->errorCode = dropObjPtr.p->m_errorCode;
-  
-  sendSignal(dropObjPtr.p->m_senderRef, GSN_DROP_OBJ_REF,
-	     signal, DropObjRef::SignalLength, JBB);
-
-}
-
-void
-Dbdict::dropObj_commit(Signal * signal, SchemaOperation * op)
-{
-  OpDropObj * dropObj = (OpDropObj*)op;
-
-  dropObj->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::dropObj_commit_start_done);
-  if (f_dict_op[dropObj->m_vt_index].m_commit_start)
-  {
-    jam();
-    (this->*f_dict_op[dropObj->m_vt_index].m_commit_start)(signal, dropObj);
-  }
-  else
-  {
-    jam();
-    execute(signal, dropObj->m_callback, 0);
-  }
-}
-
-void
-Dbdict::dropObj_commit_start_done(Signal* signal, 
-				  Uint32 callbackData,
-				  Uint32 returnCode)
-{
-  DropObjRecordPtr dropObjPtr;
-
-  jam();
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  
-  Uint32 objId = dropObjPtr.p->m_obj_id;
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  SchemaFile::TableEntry objEntry = * getTableEntry(xsf, objId);
-  objEntry.m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
-  
-  Callback callback;
-  callback.m_callbackData = dropObjPtr.p->key;
-  callback.m_callbackFunction = 
-    safe_cast(&Dbdict::dropObj_commit_writeSchemaConf);
-  
-  updateSchemaState(signal, objId, &objEntry, &callback);
-}
-
-void
-Dbdict::dropObj_commit_writeSchemaConf(Signal* signal, 
-				       Uint32 callbackData,
-				       Uint32 returnCode)
-{
-  DropObjRecordPtr dropObjPtr;
-
-  jam();
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  dropObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::dropObj_commit_complete_done);
-  
-  if(f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
-  {
-    jam();
-    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_commit_complete)
-      (signal, dropObjPtr.p);
-  }
-  else
-  {
-    jam();
-    execute(signal, dropObjPtr.p->m_callback, 0);
-  }
-}
-
-void
-Dbdict::dropObj_commit_complete_done(Signal* signal, 
-				     Uint32 callbackData,
-				     Uint32 returnCode)
-{
-  DropObjRecordPtr dropObjPtr;
-
-  jam();
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  
-  //@todo check error
-  //@todo check master failed
-  
-  DictCommitConf * const conf = (DictCommitConf*)signal->getDataPtr();
-  conf->senderRef = reference();
-  conf->senderData = dropObjPtr.p->m_senderData;
-  sendSignal(dropObjPtr.p->m_senderRef, GSN_DICT_COMMIT_CONF,
-	     signal, DictCommitConf::SignalLength, JBB);
-  c_opDropObj.release(dropObjPtr);
-}
-
-void
-Dbdict::dropObj_abort(Signal * signal, SchemaOperation * op)
-{
-  OpDropObj * dropObj = (OpDropObj*)op;
-
-  dropObj->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::dropObj_abort_start_done);
-  if (f_dict_op[dropObj->m_vt_index].m_abort_start)
-  {
-    jam();
-    (this->*f_dict_op[dropObj->m_vt_index].m_abort_start)(signal, dropObj);
-  }
-  else
-  {
-    jam();
-    execute(signal, dropObj->m_callback, 0);
-  }
-}
-
-void
-Dbdict::dropObj_abort_start_done(Signal* signal, 
-				 Uint32 callbackData,
-				 Uint32 returnCode)
-{
-  DropObjRecordPtr dropObjPtr;
-
-  jam();
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  SchemaFile::TableEntry objEntry = * getTableEntry(xsf, 
-						    dropObjPtr.p->m_obj_id);
-
-  Callback callback;
-  callback.m_callbackData = dropObjPtr.p->key;
-  callback.m_callbackFunction = 
-    safe_cast(&Dbdict::dropObj_abort_writeSchemaConf);
-  
-  if (objEntry.m_tableState == SchemaFile::DROP_TABLE_STARTED)
-  {
-    jam();
-    objEntry.m_tableState = SchemaFile::TABLE_ADD_COMMITTED;
-        
-    updateSchemaState(signal, dropObjPtr.p->m_obj_id, &objEntry, &callback);
-  }
-  else
-  {
-    jam();
-    execute(signal, callback, 0);
-  }
-}
-
-void
-Dbdict::dropObj_abort_writeSchemaConf(Signal* signal, 
-				      Uint32 callbackData,
-				      Uint32 returnCode)
-{
-  DropObjRecordPtr dropObjPtr;
-
-  ndbrequire(returnCode == 0);
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  dropObjPtr.p->m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::dropObj_abort_complete_done);
-  
-  if(f_dict_op[dropObjPtr.p->m_vt_index].m_abort_complete)
-  {
-    jam();
-    (this->*f_dict_op[dropObjPtr.p->m_vt_index].m_abort_complete)
-      (signal, dropObjPtr.p);
-  }
-  else
-  {
-    jam();
-    execute(signal, dropObjPtr.p->m_callback, 0);
-  }
-}
-
-void
-Dbdict::dropObj_abort_complete_done(Signal* signal, 
-				    Uint32 callbackData,
-				    Uint32 returnCode)
-{
-  DropObjRecordPtr dropObjPtr;
-  DictAbortConf * const conf = (DictAbortConf*)signal->getDataPtr();
-
-  ndbrequire(c_opDropObj.find(dropObjPtr, callbackData));
-  jam();
-  conf->senderRef = reference();
-  conf->senderData = dropObjPtr.p->m_senderData;
-  sendSignal(dropObjPtr.p->m_senderRef, GSN_DICT_ABORT_CONF,
-	     signal, DictAbortConf::SignalLength, JBB);
-  c_opDropObj.release(dropObjPtr);
-}
-
-void 
-Dbdict::create_fg_prepare_start(Signal* signal, SchemaOperation* op)
-{
-  /**
-   * Put data into table record
-   */
-  jam();
-  SegmentedSectionPtr objInfoPtr;
-  getSection(objInfoPtr, ((OpCreateObj*)op)->m_obj_info_ptr_i);
   SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
 
-  Ptr<DictObject> obj_ptr; obj_ptr.setNull();
-  FilegroupPtr fg_ptr; fg_ptr.setNull();
-  
-  SimpleProperties::UnpackStatus status;
-  DictFilegroupInfo::Filegroup fg; fg.init();
-  do {
-    status = SimpleProperties::unpack(it, &fg, 
-				      DictFilegroupInfo::Mapping, 
-				      DictFilegroupInfo::MappingSize, 
-				      true, true);
-    
-    if(status != SimpleProperties::Eof)
-    {
-      jam();
-      op->m_errorCode = CreateTableRef::InvalidFormat;
-      break;
-    }
-
-    if(fg.FilegroupType == DictTabInfo::Tablespace)
-    {
-      if(!fg.TS_ExtentSize)
-      {
-        jam();
-	op->m_errorCode = CreateFilegroupRef::InvalidExtentSize;
-	break;
-      }
-    } 
-    else if(fg.FilegroupType == DictTabInfo::LogfileGroup)
-    {
-      /**
-       * undo_buffer_size can't be less than 96KB in LGMAN block 
-       */
-      if(fg.LF_UndoBufferSize < 3 * File_formats::NDB_PAGE_SIZE)
-      {
-        jam();
-	op->m_errorCode = CreateFilegroupRef::InvalidUndoBufferSize;
-	break;
-      }
-    }
-    
-    Uint32 len = strlen(fg.FilegroupName) + 1;
-    Uint32 hash = Rope::hash(fg.FilegroupName, len);
-    if(get_object(fg.FilegroupName, len, hash) != 0){
-      jam();
-      op->m_errorCode = CreateTableRef::TableAlreadyExist;
-      break;
-    }
-    
-    if(!c_obj_pool.seize(obj_ptr)){
-      jam();
-      op->m_errorCode = CreateTableRef::NoMoreTableRecords;
-      break;
-    }
-    new (obj_ptr.p) DictObject;
-    
-    if(!c_filegroup_pool.seize(fg_ptr)){
-      jam();
-      op->m_errorCode = CreateTableRef::NoMoreTableRecords;
-      break;
-    }
-  
-    new (fg_ptr.p) Filegroup();
-
-    {
-      Rope name(c_rope_pool, obj_ptr.p->m_name);
-      if(!name.assign(fg.FilegroupName, len, hash)){
-        jam();
-	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
-	break;
-      }
-    }
-    
-    fg_ptr.p->key = op->m_obj_id;
-    fg_ptr.p->m_obj_ptr_i = obj_ptr.i;
-    fg_ptr.p->m_type = fg.FilegroupType;
-    fg_ptr.p->m_version = op->m_obj_version;
-    fg_ptr.p->m_name = obj_ptr.p->m_name;
-
-    switch(fg.FilegroupType){
-    case DictTabInfo::Tablespace:
-    {
-      //fg.TS_DataGrow = group.m_grow_spec;
-      fg_ptr.p->m_tablespace.m_extent_size = fg.TS_ExtentSize;
-      fg_ptr.p->m_tablespace.m_default_logfile_group_id = fg.TS_LogfileGroupId;
-
-      Ptr<Filegroup> lg_ptr;
-      if (!c_filegroup_hash.find(lg_ptr, fg.TS_LogfileGroupId))
-      {
-        jam();
-	op->m_errorCode = CreateFilegroupRef::NoSuchLogfileGroup;
-	goto error;
-      }
-
-      if (lg_ptr.p->m_version != fg.TS_LogfileGroupVersion)
-      {
-        jam();
-	op->m_errorCode = CreateFilegroupRef::InvalidFilegroupVersion;
-	goto error;
-      }
-      increase_ref_count(lg_ptr.p->m_obj_ptr_i);
-      break;
-    }
-    case DictTabInfo::LogfileGroup:
-    {
-      jam();
-      fg_ptr.p->m_logfilegroup.m_undo_buffer_size = fg.LF_UndoBufferSize;
-      fg_ptr.p->m_logfilegroup.m_files.init();
-      //fg.LF_UndoGrow = ;
-      break;
-    }
-    default:
-      ndbrequire(false);
-    }
-
-    obj_ptr.p->m_id = op->m_obj_id;
-    obj_ptr.p->m_type = fg.FilegroupType;
-    obj_ptr.p->m_ref_count = 0;
-    c_obj_hash.add(obj_ptr);
-    c_filegroup_hash.add(fg_ptr);
-    
-    op->m_obj_ptr_i = fg_ptr.i;
-  } while(0);
-
-error:
-  if (op->m_errorCode)
-  {
-    jam();
-    if (!fg_ptr.isNull())
-    {
-      jam();
-      c_filegroup_pool.release(fg_ptr);
-    }
-
-    if (!obj_ptr.isNull())
-    {
-      jam();
-      c_obj_pool.release(obj_ptr);
-    }
-  }
-  
-  execute(signal, op->m_callback, 0);
-}
-
-void
-Dbdict::create_fg_prepare_complete(Signal* signal, SchemaOperation* op)
-{
-  /**
-   * CONTACT TSMAN LGMAN PGMAN 
-   */
-  CreateFilegroupImplReq* req = 
-    (CreateFilegroupImplReq*)signal->getDataPtrSend();
-  jam();
-  req->senderData = op->key;
-  req->senderRef = reference();
-  req->filegroup_id = op->m_obj_id;
-  req->filegroup_version = op->m_obj_version;
-
-  FilegroupPtr fg_ptr;
-  c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
-  
-  Uint32 ref= 0;
-  Uint32 len= 0;
-  switch(op->m_obj_type){
-  case DictTabInfo::Tablespace:
-  {
-    jam();
-    ref = TSMAN_REF;
-    len = CreateFilegroupImplReq::TablespaceLength;
-    req->tablespace.extent_size = fg_ptr.p->m_tablespace.m_extent_size;
-    req->tablespace.logfile_group_id = 
-      fg_ptr.p->m_tablespace.m_default_logfile_group_id;
-    break;
-  }
-  case DictTabInfo::LogfileGroup:
-  {
-    jam();
-    ref = LGMAN_REF;
-    len = CreateFilegroupImplReq::LogfileGroupLength;
-    req->logfile_group.buffer_size = 
-      fg_ptr.p->m_logfilegroup.m_undo_buffer_size;
-    break;
-  }
-  default:
-    ndbrequire(false);
-  }
-  
-  sendSignal(ref, GSN_CREATE_FILEGROUP_REQ, signal, len, JBB);
-}
-
-void
-Dbdict::execCREATE_FILEGROUP_REF(Signal* signal)
-{
-  CreateFilegroupImplRef * ref = (CreateFilegroupImplRef*)signal->getDataPtr();
-  CreateObjRecordPtr op_ptr;
-  jamEntry();
-  ndbrequire(c_opCreateObj.find(op_ptr, ref->senderData));
-  op_ptr.p->m_errorCode = ref->errorCode;
-
-  execute(signal, op_ptr.p->m_callback, 0);  
-}  
-
-void
-Dbdict::execCREATE_FILEGROUP_CONF(Signal* signal)
-{
-  CreateFilegroupImplConf * rep = 
-    (CreateFilegroupImplConf*)signal->getDataPtr();
-  CreateObjRecordPtr op_ptr;
-  jamEntry();
-  ndbrequire(c_opCreateObj.find(op_ptr, rep->senderData));
-  
-  execute(signal, op_ptr.p->m_callback, 0);  
-}
-
-void
-Dbdict::create_fg_abort_start(Signal* signal, SchemaOperation* op){
-  (void) signal->getDataPtrSend();
-
-  if (op->m_obj_ptr_i != RNIL)
-  {
-    jam();
-    send_drop_fg(signal, op, DropFilegroupImplReq::Commit);
-    return;
-  }
-  jam();  
-  execute(signal, op->m_callback, 0);  
-}
-
-void
-Dbdict::create_fg_abort_complete(Signal* signal, SchemaOperation* op)
-{
-  if (op->m_obj_ptr_i != RNIL)
-  {
-    jam();
-    FilegroupPtr fg_ptr;
-    c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
-    
-    release_object(fg_ptr.p->m_obj_ptr_i);
-    c_filegroup_hash.release(fg_ptr);
-  }
-  jam();  
-  execute(signal, op->m_callback, 0);
-}
-
-void 
-Dbdict::create_file_prepare_start(Signal* signal, SchemaOperation* op)
-{
-  /**
-   * Put data into table record
-   */
-  SegmentedSectionPtr objInfoPtr;
-  getSection(objInfoPtr, ((OpCreateObj*)op)->m_obj_info_ptr_i);
-  SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
-  
   Ptr<DictObject> obj_ptr; obj_ptr.setNull();
   FilePtr filePtr; filePtr.setNull();
 
   DictFilegroupInfo::File f; f.init();
   SimpleProperties::UnpackStatus status;
-  status = SimpleProperties::unpack(it, &f, 
-				    DictFilegroupInfo::FileMapping, 
-				    DictFilegroupInfo::FileMappingSize, 
+  status = SimpleProperties::unpack(it, &f,
+				    DictFilegroupInfo::FileMapping,
+				    DictFilegroupInfo::FileMappingSize,
 				    true, true);
-  
-  do {
-    if(status != SimpleProperties::Eof){
+
+  if (status != SimpleProperties::Eof)
+  {
+    jam();
+    setError(error, CreateFileRef::InvalidFormat, __LINE__);
+    return;
+  }
+
+  // Get Filegroup
+  FilegroupPtr fg_ptr;
+  if(!c_filegroup_hash.find(fg_ptr, f.FilegroupId))
+  {
+    jam();
+    setError(error, CreateFileRef::NoSuchFilegroup, __LINE__);
+    return;
+  }
+
+  if(fg_ptr.p->m_version != f.FilegroupVersion)
+  {
+    jam();
+    setError(error, CreateFileRef::InvalidFilegroupVersion, __LINE__);
+    return;
+  }
+
+  switch(f.FileType){
+  case DictTabInfo::Datafile:
+  {
+    if(fg_ptr.p->m_type != DictTabInfo::Tablespace)
+    {
       jam();
-      op->m_errorCode = CreateFileRef::InvalidFormat;
+      setError(error, CreateFileRef::InvalidFileType, __LINE__);
+      return;
+    }
+    break;
+  }
+  case DictTabInfo::Undofile:
+  {
+    if(fg_ptr.p->m_type != DictTabInfo::LogfileGroup)
+    {
+      jam();
+      setError(error, CreateFileRef::InvalidFileType, __LINE__);
+      return;
+    }
+    break;
+  }
+  default:
+    jam();
+    setError(error, CreateFileRef::InvalidFileType, __LINE__);
+    return;
+  }
+
+  Uint32 len = strlen(f.FileName) + 1;
+  Uint32 hash = Rope::hash(f.FileName, len);
+  if(get_object(f.FileName, len, hash) != 0)
+  {
+    jam();
+    setError(error, CreateFileRef::FilenameAlreadyExists, __LINE__);
+    return;
+  }
+
+  {
+    Uint32 dl;
+    const ndb_mgm_configuration_iterator * p =
+      m_ctx.m_config.getOwnConfigIterator();
+    if(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl)
+    {
+      jam();
+      setError(error, CreateFileRef::NotSupportedWhenDiskless, __LINE__);
+      return;
+    }
+  }
+
+  if(!c_obj_pool.seize(obj_ptr))
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    goto error;
+  }
+  new (obj_ptr.p) DictObject;
+
+  if (! c_file_pool.seize(filePtr))
+  {
+    jam();
+    setError(error, CreateFileRef::OutOfFileRecords, __LINE__);
+    goto error;
+  }
+
+  new (filePtr.p) File();
+
+  {
+    Rope name(c_rope_pool, obj_ptr.p->m_name);
+    if(!name.assign(f.FileName, len, hash))
+    {
+      jam();
+      setError(error, CreateTableRef::OutOfStringBuffer, __LINE__);
+      goto error;
+    }
+  }
+
+  if (master)
+  {
+    jam();
+
+    Uint32 objId = getFreeObjId(0);
+    if (objId == RNIL)
+    {
+      jam();
+      setError(error, CreateFilegroupRef::NoMoreObjectRecords, __LINE__);
+      goto error;
+    }
+    Uint32 version = getTableEntry(objId)->m_tableVersion;
+
+    impl_req->file_id = objId;
+    impl_req->file_version = create_obj_inc_schema_version(version);
+  }
+  else if (op_ptr.p->m_restart)
+  {
+    jam();
+    impl_req->file_id = c_restartRecord.activeTable;
+    impl_req->file_version = c_restartRecord.m_entry.m_tableVersion;
+    switch(op_ptr.p->m_restart){
+    case 1:
+      jam();
+      impl_req->requestInfo = CreateFileImplReq::Open;
+      break;
+    case 2:
+      impl_req->requestInfo = CreateFileImplReq::CreateForce;
       break;
     }
+  }
 
-    // Get Filegroup
+  /**
+   * Init file
+   */
+  filePtr.p->key = impl_req->file_id;
+  filePtr.p->m_file_size = ((Uint64)f.FileSizeHi) << 32 | f.FileSizeLo;
+  filePtr.p->m_path = obj_ptr.p->m_name;
+  filePtr.p->m_obj_ptr_i = obj_ptr.i;
+  filePtr.p->m_filegroup_id = f.FilegroupId;
+  filePtr.p->m_type = f.FileType;
+  filePtr.p->m_version = impl_req->file_version;
+
+  obj_ptr.p->m_id = impl_req->file_id;
+  obj_ptr.p->m_type = f.FileType;
+  obj_ptr.p->m_ref_count = 0;
+
+  {
+    SchemaFile::TableEntry te; te.init();
+    te.m_tableState = SchemaFile::SF_CREATE;
+    te.m_tableVersion = filePtr.p->m_version;
+    te.m_tableType = filePtr.p->m_type;
+    te.m_info_words = objInfoPtr.sz;
+    te.m_gcp = 0;
+    te.m_transId = trans_ptr.p->m_transId;
+
+    Uint32 err = trans_log_schema_op(op_ptr, impl_req->file_id, &te);
+    if (err)
+    {
+      jam();
+      setError(error, err, __LINE__);
+      goto error;
+    }
+  }
+
+  c_obj_hash.add(obj_ptr);
+  c_file_hash.add(filePtr);
+
+  // save sections to DICT memory
+  saveOpSection(op_ptr, handle, 0);
+
+  switch(fg_ptr.p->m_type){
+  case DictTabInfo::Tablespace:
+  {
+    jam();
+    increase_ref_count(fg_ptr.p->m_obj_ptr_i);
+    break;
+  }
+  case DictTabInfo::LogfileGroup:
+  {
+    jam();
+    Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
+    list.add(filePtr);
+    break;
+  }
+  default:
+    ndbrequire(false);
+  }
+
+  createFilePtr.p->m_parsed = true;
+  return;
+error:
+  if (!filePtr.isNull())
+  {
+    jam();
+    c_file_pool.release(filePtr);
+  }
+
+  if (!obj_ptr.isNull())
+  {
+    jam();
+    release_object(obj_ptr.i, obj_ptr.p);
+  }
+}
+
+void
+Dbdict::createFile_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  CreateFileRecPtr createFilePtr;
+  getOpRec(op_ptr, createFilePtr);
+  CreateFileImplReq* impl_req = &createFilePtr.p->m_request;
+
+  if (createFilePtr.p->m_parsed)
+  {
+    FilePtr f_ptr;
     FilegroupPtr fg_ptr;
-    if(!c_filegroup_hash.find(fg_ptr, f.FilegroupId)){
-      jam();
-      op->m_errorCode = CreateFileRef::NoSuchFilegroup;
-      break;
-    }
-    
-    if(fg_ptr.p->m_version != f.FilegroupVersion){
-      jam();
-      op->m_errorCode = CreateFileRef::InvalidFilegroupVersion;
-      break;
-    }
-
-    switch(f.FileType){
-    case DictTabInfo::Datafile:
-    {
-      if(fg_ptr.p->m_type != DictTabInfo::Tablespace)
-      {
-        jam();
-	op->m_errorCode = CreateFileRef::InvalidFileType;
-      }
-      jam();
-      break;
-    }
-    case DictTabInfo::Undofile:
-    {
-      if(fg_ptr.p->m_type != DictTabInfo::LogfileGroup)
-      {
-        jam();
-	op->m_errorCode = CreateFileRef::InvalidFileType;
-      }
-      jam();
-      break;
-    }
-    default:
-      jam();
-      op->m_errorCode = CreateFileRef::InvalidFileType;
-    }
-    
-    if(op->m_errorCode)
+    ndbrequire(c_file_hash.find(f_ptr, impl_req->file_id));
+    ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
+    if (f_ptr.p->m_type == DictTabInfo::Datafile)
     {
       jam();
-      break;
+      decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
     }
-
-    Uint32 len = strlen(f.FileName) + 1;
-    Uint32 hash = Rope::hash(f.FileName, len);
-    if(get_object(f.FileName, len, hash) != 0){
-      jam();
-      op->m_errorCode = CreateFileRef::FilenameAlreadyExists;
-      break;
-    }
-    
-    {
-      Uint32 dl;
-      const ndb_mgm_configuration_iterator * p = 
-	m_ctx.m_config.getOwnConfigIterator();
-      if(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl)
-      {
-        jam();
-	op->m_errorCode = CreateFileRef::NotSupportedWhenDiskless;
-	break;
-      }
-    }
-    
-    // Loop through all filenames...
-    if(!c_obj_pool.seize(obj_ptr)){
-      jam();
-      op->m_errorCode = CreateTableRef::NoMoreTableRecords;
-      break;
-    }
-    new (obj_ptr.p) DictObject;
-    
-    if (! c_file_pool.seize(filePtr)){
-      jam();
-      op->m_errorCode = CreateFileRef::OutOfFileRecords;
-      break;
-    }
-
-    new (filePtr.p) File();
-
-    {
-      Rope name(c_rope_pool, obj_ptr.p->m_name);
-      if(!name.assign(f.FileName, len, hash)){
-        jam();
-	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
-	break;
-      }
-    }
-
-    switch(fg_ptr.p->m_type){
-    case DictTabInfo::Tablespace:
-    {
-      jam();
-      increase_ref_count(fg_ptr.p->m_obj_ptr_i);
-      break;
-    }
-    case DictTabInfo::LogfileGroup:
+    else if (f_ptr.p->m_type == DictTabInfo::Undofile)
     {
       jam();
       Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
-      list.add(filePtr);
-      break;
-    }
-    default:
-      ndbrequire(false);
-    }
-    
-    /**
-     * Init file
-     */
-    filePtr.p->key = op->m_obj_id;
-    filePtr.p->m_file_size = ((Uint64)f.FileSizeHi) << 32 | f.FileSizeLo;
-    filePtr.p->m_path = obj_ptr.p->m_name;
-    filePtr.p->m_obj_ptr_i = obj_ptr.i;
-    filePtr.p->m_filegroup_id = f.FilegroupId;
-    filePtr.p->m_type = f.FileType;
-    filePtr.p->m_version = op->m_obj_version;
-    
-    obj_ptr.p->m_id = op->m_obj_id;
-    obj_ptr.p->m_type = f.FileType;
-    obj_ptr.p->m_ref_count = 0;
-    c_obj_hash.add(obj_ptr);
-    c_file_hash.add(filePtr);
-
-    op->m_obj_ptr_i = filePtr.i;
-  } while(0);
-
-  if (op->m_errorCode)
-  {
-    jam();
-    if (!filePtr.isNull())
-    {
-      jam();
-      c_file_pool.release(filePtr);
+      list.remove(f_ptr);
     }
 
-    if (!obj_ptr.isNull())
-    {
-      jam();
-      c_obj_pool.release(obj_ptr);
-    }
+    release_object(f_ptr.p->m_obj_ptr_i);
+    c_file_hash.release(f_ptr);
   }
-  execute(signal, op->m_callback, 0);
+
+  sendTransConf(signal, op_ptr);
 }
 
+bool
+Dbdict::createFile_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  return false;
+}
 
 void
-Dbdict::create_file_prepare_complete(Signal* signal, SchemaOperation* op)
+Dbdict::createFile_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 {
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFileRecPtr createFileRecPtr;
+  getOpRec(op_ptr, createFileRecPtr);
+  CreateFileImplReq* impl_req = &createFileRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    CreateFileConf* conf = (CreateFileConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->fileId = impl_req->file_id;
+    conf->fileVersion = impl_req->file_version;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_FILE_CONF, signal,
+               CreateFileConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    CreateFileRef* ref = (CreateFileRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+    
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_FILE_REF, signal,
+               CreateFileRef::SignalLength, JBB);
+  }
+}
+
+// CreateFile: PREPARE
+
+void
+Dbdict::createFile_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  CreateFileRecPtr createFileRecPtr;
+  getOpRec(op_ptr, createFileRecPtr);
+  CreateFileImplReq* impl_req = &createFileRecPtr.p->m_request;
+
+  Callback cb =  {
+    safe_cast(&Dbdict::createFile_fromWriteObjInfo), op_ptr.p->op_key
+  };
+
+  if (ZRESTART_NO_WRITE_AFTER_READ && op_ptr.p->m_restart == 1)
+  {
+    jam();
+    /**
+     * We read obj from disk, no need to rewrite it
+     */
+    execute(signal, cb, 0);
+    return;
+  }
+
+  const OpSection& objInfoSec = getOpSection(op_ptr, 0);
+  writeTableFile(signal, impl_req->file_id, objInfoSec, &cb);
+}
+
+void
+Dbdict::createFile_fromWriteObjInfo(Signal* signal,
+                                    Uint32 op_key,
+                                    Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  CreateFileRecPtr createFileRecPtr;
+  ndbrequire(findSchemaOp(op_ptr, createFileRecPtr, op_key));
+  CreateFileImplReq* impl_req = &createFileRecPtr.p->m_request;
+
+  if (ret)
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+    return;
+  }
+
   /**
-   * CONTACT TSMAN LGMAN PGMAN 
+   * CONTACT TSMAN LGMAN PGMAN
    */
   CreateFileImplReq* req = (CreateFileImplReq*)signal->getDataPtrSend();
   FilePtr f_ptr;
   FilegroupPtr fg_ptr;
 
-  jam();
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
+  ndbrequire(c_file_hash.find(f_ptr, impl_req->file_id));
   ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
 
-  req->senderData = op->key;
+  req->senderData = op_ptr.p->op_key;
   req->senderRef = reference();
-  switch(((OpCreateObj*)op)->m_restart){
-  case 0:
-  {
-    jam();
-    req->requestInfo = CreateFileImplReq::Create;
-    break;
-  }
-  case 1:
-  {
-    jam();
-    req->requestInfo = CreateFileImplReq::Open;
-    break;
-  }
-  case 2:
-  {
-    jam();
-    req->requestInfo = CreateFileImplReq::CreateForce;
-    break;
-  }
-  }
-	 
+
   req->file_id = f_ptr.p->key;
   req->filegroup_id = f_ptr.p->m_filegroup_id;
   req->filegroup_version = fg_ptr.p->m_version;
   req->file_size_hi = f_ptr.p->m_file_size >> 32;
   req->file_size_lo = f_ptr.p->m_file_size & 0xFFFFFFFF;
+  req->requestInfo = impl_req->requestInfo;
 
   Uint32 ref= 0;
   Uint32 len= 0;
-  switch(op->m_obj_type){
+  switch(f_ptr.p->m_type){
   case DictTabInfo::Datafile:
   {
     jam();
@@ -18183,64 +15864,44 @@ Dbdict::create_file_prepare_complete(Signal* signal, SchemaOperation* op)
   default:
     ndbrequire(false);
   }
-  
+
   char name[MAX_TAB_NAME_SIZE];
   ConstRope tmp(c_rope_pool, f_ptr.p->m_path);
   tmp.copy(name);
   LinearSectionPtr ptr[3];
   ptr[0].p = (Uint32*)&name[0];
   ptr[0].sz = (strlen(name)+1+3)/4;
-  sendSignal(ref, GSN_CREATE_FILE_REQ, signal, len, JBB, ptr, 1);
+  sendSignal(ref, GSN_CREATE_FILE_IMPL_REQ, signal, len, JBB, ptr, 1);
+
+  Callback c =  {
+    safe_cast(&Dbdict::createFile_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
 }
 
 void
-Dbdict::execCREATE_FILE_REF(Signal* signal)
+Dbdict::createFile_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  CreateFileImplRef * ref = (CreateFileImplRef*)signal->getDataPtr();
-  CreateObjRecordPtr op_ptr;
-
-  jamEntry();
-  ndbrequire(c_opCreateObj.find(op_ptr, ref->senderData));
-  op_ptr.p->m_errorCode = ref->errorCode;
-  execute(signal, op_ptr.p->m_callback, 0);  
-}  
-
-void
-Dbdict::execCREATE_FILE_CONF(Signal* signal)
-{
-  CreateFileImplConf * rep = 
-    (CreateFileImplConf*)signal->getDataPtr();
-  CreateObjRecordPtr op_ptr;
-
-  jamEntry();
-  ndbrequire(c_opCreateObj.find(op_ptr, rep->senderData));
-  execute(signal, op_ptr.p->m_callback, 0);  
-}
-
-void
-Dbdict::create_file_commit_start(Signal* signal, SchemaOperation* op)
-{
-  /**
-   * CONTACT TSMAN LGMAN PGMAN 
-   */
   CreateFileImplReq* req = (CreateFileImplReq*)signal->getDataPtrSend();
   FilePtr f_ptr;
   FilegroupPtr fg_ptr;
 
-  jam();
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
+  CreateFileRecPtr createFileRecPtr;
+  getOpRec(op_ptr, createFileRecPtr);
+  CreateFileImplReq* impl_req = &createFileRecPtr.p->m_request;
+
+  ndbrequire(c_file_hash.find(f_ptr, impl_req->file_id));
   ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
 
-  req->senderData = op->key;
+  req->senderData = op_ptr.p->op_key;
   req->senderRef = reference();
-  req->requestInfo = CreateFileImplReq::Commit;
-  
+  req->requestInfo = CreateFileImplReq::Abort;
   req->file_id = f_ptr.p->key;
   req->filegroup_id = f_ptr.p->m_filegroup_id;
   req->filegroup_version = fg_ptr.p->m_version;
 
   Uint32 ref= 0;
-  switch(op->m_obj_type){
+  switch(f_ptr.p->m_type){
   case DictTabInfo::Datafile:
   {
     jam();
@@ -18256,154 +15917,971 @@ Dbdict::create_file_commit_start(Signal* signal, SchemaOperation* op)
   default:
     ndbrequire(false);
   }
-  sendSignal(ref, GSN_CREATE_FILE_REQ, signal, 
-	     CreateFileImplReq::CommitLength, JBB);
+  
+  sendSignal(ref, GSN_CREATE_FILE_IMPL_REQ, signal,
+             CreateFileImplReq::AbortLength, JBB);
+
+  Callback c =  {
+    safe_cast(&Dbdict::createFile_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
 }
 
+// CreateFile: COMMIT
+
 void
-Dbdict::create_file_abort_start(Signal* signal, SchemaOperation* op)
+Dbdict::createFile_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
+  jam();
+
+  CreateFileRecPtr createFileRecPtr;
+  getOpRec(op_ptr, createFileRecPtr);
+  CreateFileImplReq* impl_req = &createFileRecPtr.p->m_request;
+
+  /**
+   * CONTACT TSMAN LGMAN PGMAN
+   */
   CreateFileImplReq* req = (CreateFileImplReq*)signal->getDataPtrSend();
-
-  if (op->m_obj_ptr_i != RNIL)
-  {
-    FilePtr f_ptr;
-    FilegroupPtr fg_ptr;
-
-    jam();
-    c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-    
-    ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
-    
-    req->senderData = op->key;
-    req->senderRef = reference();
-    req->requestInfo = CreateFileImplReq::Abort;
-    
-    req->file_id = f_ptr.p->key;
-    req->filegroup_id = f_ptr.p->m_filegroup_id;
-    req->filegroup_version = fg_ptr.p->m_version;
-    
-    Uint32 ref= 0;
-    switch(op->m_obj_type){
-    case DictTabInfo::Datafile:
-    {
-      jam();
-      ref = TSMAN_REF;
-      break;
-    }
-    case DictTabInfo::Undofile:
-    {
-      jam();
-      ref = LGMAN_REF;
-      break;
-    }
-    default:
-      ndbrequire(false);
-    }
-    sendSignal(ref, GSN_CREATE_FILE_REQ, signal, 
-	       CreateFileImplReq::AbortLength, JBB);
-    return;
-  }
-  execute(signal, op->m_callback, 0);
-}
-
-void
-Dbdict::create_file_abort_complete(Signal* signal, SchemaOperation* op)
-{
-  if (op->m_obj_ptr_i != RNIL)
-  {
-    FilePtr f_ptr;
-    FilegroupPtr fg_ptr;
-
-    jam();
-    c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-    ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
-    switch(fg_ptr.p->m_type){
-    case DictTabInfo::Tablespace:
-    {
-      jam();
-      decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
-      break;
-    }
-    case DictTabInfo::LogfileGroup:
-    {
-      jam();
-      Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
-      list.remove(f_ptr);
-      break;
-    }
-    default:
-      ndbrequire(false);
-    }
-    
-    release_object(f_ptr.p->m_obj_ptr_i);
-    c_file_hash.release(f_ptr);
-  }
-  execute(signal, op->m_callback, 0);
-}
-
-void
-Dbdict::drop_file_prepare_start(Signal* signal, SchemaOperation* op)
-{
-  jam();
-  send_drop_file(signal, op, DropFileImplReq::Prepare);
-}
-
-void
-Dbdict::drop_undofile_prepare_start(Signal* signal, SchemaOperation* op)
-{
-  jam();
-  op->m_errorCode = DropFileRef::DropUndoFileNotSupported;
-  execute(signal, op->m_callback, 0);  
-}
-
-void
-Dbdict::drop_file_commit_start(Signal* signal, SchemaOperation* op)
-{
-  jam();
-  send_drop_file(signal, op, DropFileImplReq::Commit);
-}
-
-void
-Dbdict::drop_file_commit_complete(Signal* signal, SchemaOperation* op)
-{
   FilePtr f_ptr;
   FilegroupPtr fg_ptr;
 
   jam();
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
+  ndbrequire(c_file_hash.find(f_ptr, impl_req->file_id));
+  ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
+
+  req->senderData = op_ptr.p->op_key;
+  req->senderRef = reference();
+  req->requestInfo = CreateFileImplReq::Commit;
+
+  req->file_id = f_ptr.p->key;
+  req->filegroup_id = f_ptr.p->m_filegroup_id;
+  req->filegroup_version = fg_ptr.p->m_version;
+
+  Uint32 ref= 0;
+  switch(f_ptr.p->m_type){
+  case DictTabInfo::Datafile:
+  {
+    jam();
+    ref = TSMAN_REF;
+    break;
+  }
+  case DictTabInfo::Undofile:
+  {
+    jam();
+    ref = LGMAN_REF;
+    break;
+  }
+  default:
+    ndbrequire(false);
+  }
+  sendSignal(ref, GSN_CREATE_FILE_IMPL_REQ, signal,
+	     CreateFileImplReq::CommitLength, JBB);
+
+  Callback c =  {
+    safe_cast(&Dbdict::createFile_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+}
+
+// CreateFile: COMPLETE
+
+void
+Dbdict::createFile_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::createFile_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  jam();
+  SchemaOpPtr op_ptr;
+  CreateFileRecPtr createFilePtr;
+  ndbrequire(findSchemaOp(op_ptr, createFilePtr, op_key));
+
+  if (ret == 0)
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+void
+Dbdict::execCREATE_FILE_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFileImplRef * ref = (CreateFileImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCREATE_FILE_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFileImplConf * conf = (CreateFileImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// CreateFile: END
+
+// MODULE: CreateFilegroup
+
+const Dbdict::OpInfo
+Dbdict::CreateFilegroupRec::g_opInfo = {
+  { 'C', 'F', 'G', 0 },
+  GSN_CREATE_FILEGROUP_IMPL_REQ,
+  CreateFilegroupImplReq::SignalLength,
+  //
+  &Dbdict::createFilegroup_seize,
+  &Dbdict::createFilegroup_release,
+  //
+  &Dbdict::createFilegroup_parse,
+  &Dbdict::createFilegroup_subOps,
+  &Dbdict::createFilegroup_reply,
+  //
+  &Dbdict::createFilegroup_prepare,
+  &Dbdict::createFilegroup_commit,
+  &Dbdict::createFilegroup_complete,
+  //
+  &Dbdict::createFilegroup_abortParse,
+  &Dbdict::createFilegroup_abortPrepare
+};
+
+void
+Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const CreateFilegroupReq req_copy =
+    *(const CreateFilegroupReq*)signal->getDataPtr();
+  const CreateFilegroupReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    CreateFilegroupRecPtr createFilegroupPtr;
+    CreateFilegroupImplReq* impl_req;
+
+    startClientReq(op_ptr, createFilegroupPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->filegroup_id = RNIL;
+    impl_req->filegroup_version = 0;
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  CreateFilegroupRef* ref = (CreateFilegroupRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_CREATE_FILEGROUP_REF, signal,
+	     CreateFilegroupRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::createFilegroup_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<CreateFilegroupRec>(op_ptr);
+}
+
+void
+Dbdict::createFilegroup_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<CreateFilegroupRec>(op_ptr);
+}
+
+// CreateFilegroup: PARSE
+
+void
+Dbdict::createFilegroup_parse(Signal* signal, bool master,
+                              SchemaOpPtr op_ptr,
+                              SectionHandle& handle, ErrorInfo& error)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFilegroupRecPtr createFilegroupPtr;
+  getOpRec(op_ptr, createFilegroupPtr);
+  CreateFilegroupImplReq* impl_req = &createFilegroupPtr.p->m_request;
+
+  SegmentedSectionPtr objInfoPtr;
+  {
+    bool ok = handle.getSection(objInfoPtr, 0);
+    if (!ok)
+    {
+      jam();
+      setError(error, CreateTableRef::InvalidFormat, __LINE__);
+      return;
+    }
+  }
+  SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
+
+  Ptr<DictObject> obj_ptr; obj_ptr.setNull();
+  FilegroupPtr fg_ptr; fg_ptr.setNull();
+
+  DictFilegroupInfo::Filegroup fg; fg.init();
+  SimpleProperties::UnpackStatus status =
+    SimpleProperties::unpack(it, &fg,
+                             DictFilegroupInfo::Mapping,
+                             DictFilegroupInfo::MappingSize,
+                             true, true);
+
+  if(status != SimpleProperties::Eof)
+  {
+    jam();
+    setError(error, CreateTableRef::InvalidFormat, __LINE__);
+    return;
+  }
+
+  if(fg.FilegroupType == DictTabInfo::Tablespace)
+  {
+    if(!fg.TS_ExtentSize)
+    {
+      jam();
+      setError(error, CreateFilegroupRef::InvalidExtentSize, __LINE__);
+      return;
+    }
+  }
+  else if(fg.FilegroupType == DictTabInfo::LogfileGroup)
+  {
+    /**
+     * undo_buffer_size can't be less than 96KB in LGMAN block
+     */
+    if(fg.LF_UndoBufferSize < 3 * File_formats::NDB_PAGE_SIZE)
+    {
+      jam();
+      setError(error, CreateFilegroupRef::InvalidUndoBufferSize, __LINE__);
+      return;
+    }
+  }
+
+  Uint32 len = strlen(fg.FilegroupName) + 1;
+  Uint32 hash = Rope::hash(fg.FilegroupName, len);
+  if(get_object(fg.FilegroupName, len, hash) != 0)
+  {
+    jam();
+    setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
+    return;
+  }
+
+  if(!c_obj_pool.seize(obj_ptr))
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    return;
+  }
+  new (obj_ptr.p) DictObject;
+
+  Uint32 inc_obj_ptr_i = RNIL;
+  if(!c_filegroup_pool.seize(fg_ptr))
+  {
+    jam();
+    setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
+    goto error;
+  }
+
+  new (fg_ptr.p) Filegroup();
+
+  {
+    Rope name(c_rope_pool, obj_ptr.p->m_name);
+    if(!name.assign(fg.FilegroupName, len, hash))
+    {
+      jam();
+      setError(error, CreateTableRef::OutOfStringBuffer, __LINE__);
+      goto error;
+    }
+  }
+
+  switch(fg.FilegroupType){
+  case DictTabInfo::Tablespace:
+  {
+    //fg.TS_DataGrow = group.m_grow_spec;
+    fg_ptr.p->m_tablespace.m_extent_size = fg.TS_ExtentSize;
+    fg_ptr.p->m_tablespace.m_default_logfile_group_id = fg.TS_LogfileGroupId;
+
+    Ptr<Filegroup> lg_ptr;
+    if (!c_filegroup_hash.find(lg_ptr, fg.TS_LogfileGroupId))
+    {
+      jam();
+      setError(error, CreateFilegroupRef::NoSuchLogfileGroup, __LINE__);
+      goto error;
+    }
+
+    if (lg_ptr.p->m_version != fg.TS_LogfileGroupVersion)
+    {
+      jam();
+      setError(error, CreateFilegroupRef::InvalidFilegroupVersion, __LINE__);
+      goto error;
+    }
+    inc_obj_ptr_i = lg_ptr.p->m_obj_ptr_i;
+    break;
+  }
+  case DictTabInfo::LogfileGroup:
+  {
+    jam();
+    fg_ptr.p->m_logfilegroup.m_undo_buffer_size = fg.LF_UndoBufferSize;
+    fg_ptr.p->m_logfilegroup.m_files.init();
+    //fg.LF_UndoGrow = ;
+    break;
+  }
+  default:
+    ndbrequire(false);
+  }
+
+  if (master)
+  {
+    jam();
+
+    Uint32 objId = getFreeObjId(0);
+    if (objId == RNIL)
+    {
+      jam();
+      setError(error, CreateFilegroupRef::NoMoreObjectRecords, __LINE__);
+      goto error;
+    }
+    Uint32 version = getTableEntry(objId)->m_tableVersion;
+
+    impl_req->filegroup_id = objId;
+    impl_req->filegroup_version = create_obj_inc_schema_version(version);
+  }
+  else if (op_ptr.p->m_restart)
+  {
+    jam();
+    impl_req->filegroup_id = c_restartRecord.activeTable;
+    impl_req->filegroup_version = c_restartRecord.m_entry.m_tableVersion;
+  }
+
+  fg_ptr.p->key = impl_req->filegroup_id;
+  fg_ptr.p->m_obj_ptr_i = obj_ptr.i;
+  fg_ptr.p->m_type = fg.FilegroupType;
+  fg_ptr.p->m_version = impl_req->filegroup_version;
+  fg_ptr.p->m_name = obj_ptr.p->m_name;
+
+  obj_ptr.p->m_id = impl_req->filegroup_id;
+  obj_ptr.p->m_type = fg.FilegroupType;
+  obj_ptr.p->m_ref_count = 0;
+
+  {
+    SchemaFile::TableEntry te; te.init();
+    te.m_tableState = SchemaFile::SF_CREATE;
+    te.m_tableVersion = fg_ptr.p->m_version;
+    te.m_tableType = fg_ptr.p->m_type;
+    te.m_info_words = objInfoPtr.sz;
+    te.m_gcp = 0;
+    te.m_transId = trans_ptr.p->m_transId;
+
+    Uint32 err = trans_log_schema_op(op_ptr, impl_req->filegroup_id, &te);
+    if (err)
+    {
+      jam();
+      setError(error, err, __LINE__);
+      goto error;
+    }
+  }
+
+  c_obj_hash.add(obj_ptr);
+  c_filegroup_hash.add(fg_ptr);
+
+  // save sections to DICT memory
+  saveOpSection(op_ptr, handle, 0);
+
+  if (inc_obj_ptr_i != RNIL)
+  {
+    jam();
+    increase_ref_count(inc_obj_ptr_i);
+  }
+  createFilegroupPtr.p->m_parsed = true;
+  return;
+
+error:
+  jam();
+  if (!fg_ptr.isNull())
+  {
+    jam();
+    c_filegroup_pool.release(fg_ptr);
+  }
+
+  if (!obj_ptr.isNull())
+  {
+    jam();
+    release_object(obj_ptr.i, obj_ptr.p);
+  }
+}
+
+void
+Dbdict::createFilegroup_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  CreateFilegroupRecPtr createFilegroupPtr;
+  getOpRec(op_ptr, createFilegroupPtr);
+
+  if (createFilegroupPtr.p->m_parsed)
+  {
+    jam();
+    CreateFilegroupImplReq* impl_req = &createFilegroupPtr.p->m_request;
+
+    FilegroupPtr fg_ptr;
+    ndbrequire(c_filegroup_hash.find(fg_ptr, impl_req->filegroup_id));
+
+    if (fg_ptr.p->m_type == DictTabInfo::Tablespace)
+    {
+      jam();
+      FilegroupPtr lg_ptr;
+      ndbrequire(c_filegroup_hash.find
+                 (lg_ptr, fg_ptr.p->m_tablespace.m_default_logfile_group_id));
+      decrease_ref_count(lg_ptr.p->m_obj_ptr_i);
+    }
+
+    release_object(fg_ptr.p->m_obj_ptr_i);
+    c_filegroup_hash.release(fg_ptr);
+  }
+
+  sendTransConf(signal, op_ptr);
+}
+
+
+bool
+Dbdict::createFilegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  return false;
+}
+
+void
+Dbdict::createFilegroup_reply(Signal* signal,
+                              SchemaOpPtr op_ptr,
+                              ErrorInfo error)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFilegroupRecPtr createFilegroupRecPtr;
+  getOpRec(op_ptr, createFilegroupRecPtr);
+  CreateFilegroupImplReq* impl_req = &createFilegroupRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    CreateFilegroupConf* conf = (CreateFilegroupConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->filegroupId = impl_req->filegroup_id;
+    conf->filegroupVersion = impl_req->filegroup_version;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_FILEGROUP_CONF, signal,
+               CreateFilegroupConf::SignalLength, JBB);
+  } else {
+    jam();
+    CreateFilegroupRef* ref = (CreateFilegroupRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_FILEGROUP_REF, signal,
+               CreateFilegroupRef::SignalLength, JBB);
+  }
+}
+
+// CreateFilegroup: PREPARE
+
+void
+Dbdict::createFilegroup_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  CreateFilegroupRecPtr createFilegroupRecPtr;
+  getOpRec(op_ptr, createFilegroupRecPtr);
+  CreateFilegroupImplReq* impl_req = &createFilegroupRecPtr.p->m_request;
+
+  Callback cb =  {
+    safe_cast(&Dbdict::createFilegroup_fromWriteObjInfo), op_ptr.p->op_key
+  };
+
+  if (ZRESTART_NO_WRITE_AFTER_READ && op_ptr.p->m_restart == 1)
+  {
+    jam();
+    /**
+     * We read obj from disk, no need to rewrite it
+     */
+    execute(signal, cb, 0);
+    return;
+  }
+
+  const OpSection& objInfoSec = getOpSection(op_ptr, 0);
+  writeTableFile(signal, impl_req->filegroup_id, objInfoSec, &cb);
+}
+
+void
+Dbdict::createFilegroup_fromWriteObjInfo(Signal* signal,
+                                         Uint32 op_key,
+                                         Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  CreateFilegroupRecPtr createFilegroupRecPtr;
+  ndbrequire(findSchemaOp(op_ptr, createFilegroupRecPtr, op_key));
+
+  if (ret)
+  {
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+    return;
+  }
+
+  /**
+   * CONTACT TSMAN LGMAN PGMAN
+   */
+  CreateFilegroupImplReq* impl_req = &createFilegroupRecPtr.p->m_request;
+
+  CreateFilegroupImplReq* req =
+    (CreateFilegroupImplReq*)signal->getDataPtrSend();
+  jam();
+  req->senderData = op_ptr.p->op_key;
+  req->senderRef = reference();
+  req->filegroup_id = impl_req->filegroup_id;
+  req->filegroup_version = impl_req->filegroup_version;
+
+  FilegroupPtr fg_ptr;
+  ndbrequire(c_filegroup_hash.find(fg_ptr, impl_req->filegroup_id));
+
+  Uint32 ref= 0;
+  Uint32 len= 0;
+  switch(fg_ptr.p->m_type){
+  case DictTabInfo::Tablespace:
+  {
+    jam();
+    ref = TSMAN_REF;
+    len = CreateFilegroupImplReq::TablespaceLength;
+    req->tablespace.extent_size = fg_ptr.p->m_tablespace.m_extent_size;
+    req->tablespace.logfile_group_id =
+      fg_ptr.p->m_tablespace.m_default_logfile_group_id;
+    break;
+  }
+  case DictTabInfo::LogfileGroup:
+  {
+    jam();
+    ref = LGMAN_REF;
+    len = CreateFilegroupImplReq::LogfileGroupLength;
+    req->logfile_group.buffer_size =
+      fg_ptr.p->m_logfilegroup.m_undo_buffer_size;
+    break;
+  }
+  default:
+    ndbrequire(false);
+  }
+
+  sendSignal(ref, GSN_CREATE_FILEGROUP_IMPL_REQ, signal, len, JBB);
+
+  Callback c =  {
+    safe_cast(&Dbdict::createFilegroup_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+}
+
+// CreateFilegroup: COMMIT
+
+void
+Dbdict::createFilegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  /**
+   * cheat...only create...abort is implemented as DROP
+   */
+  sendTransConf(signal, op_ptr);
+}
+
+// CreateFilegroup: COMPLETE
+
+void
+Dbdict::createFilegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::createFilegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFilegroupRecPtr createFilegroupRecPtr;
+  getOpRec(op_ptr, createFilegroupRecPtr);
+  CreateFilegroupImplReq* impl_req = &createFilegroupRecPtr.p->m_request;
+
+  if (createFilegroupRecPtr.p->m_prepared)
+  {
+    Callback c =  {
+      safe_cast(&Dbdict::createFilegroup_fromLocal), op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+
+    send_drop_fg(signal, op_ptr.p->op_key, impl_req->filegroup_id,
+                 DropFilegroupImplReq::Prepare);
+  }
+
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::createFilegroup_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  jam();
+  SchemaOpPtr op_ptr;
+  CreateFilegroupRecPtr createFilegroupPtr;
+  ndbrequire(findSchemaOp(op_ptr, createFilegroupPtr, op_key));
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  if (ret == 0)
+  {
+    jam();
+    createFilegroupPtr.p->m_prepared = true;
+    sendTransConf(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+void
+Dbdict::execCREATE_FILEGROUP_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFilegroupImplRef * ref = (CreateFilegroupImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCREATE_FILEGROUP_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFilegroupImplConf * conf =
+    (CreateFilegroupImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// CreateFilegroup: END
+
+// MODULE: DropFile
+
+const Dbdict::OpInfo
+Dbdict::DropFileRec::g_opInfo = {
+  { 'D', 'F', 'l', 0 },
+  GSN_DROP_FILE_IMPL_REQ,
+  DropFileImplReq::SignalLength,
+  //
+  &Dbdict::dropFile_seize,
+  &Dbdict::dropFile_release,
+  //
+  &Dbdict::dropFile_parse,
+  &Dbdict::dropFile_subOps,
+  &Dbdict::dropFile_reply,
+  //
+  &Dbdict::dropFile_prepare,
+  &Dbdict::dropFile_commit,
+  &Dbdict::dropFile_complete,
+  //
+  &Dbdict::dropFile_abortParse,
+  &Dbdict::dropFile_abortPrepare
+};
+
+void
+Dbdict::execDROP_FILE_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const DropFileReq req_copy =
+    *(const DropFileReq*)signal->getDataPtr();
+  const DropFileReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    DropFileRecPtr dropFilePtr;
+    DropFileImplReq* impl_req;
+
+    startClientReq(op_ptr, dropFilePtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->file_id = req->file_id;
+    impl_req->file_version = req->file_version;
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  DropFileRef* ref = (DropFileRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_DROP_FILE_REF, signal,
+	     DropFileRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::dropFile_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<DropFileRec>(op_ptr);
+}
+
+void
+Dbdict::dropFile_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<DropFileRec>(op_ptr);
+}
+
+// DropFile: PARSE
+
+void
+Dbdict::dropFile_parse(Signal* signal, bool master,
+                       SchemaOpPtr op_ptr,
+                       SectionHandle& handle, ErrorInfo& error)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFileRecPtr dropFileRecPtr;
+  getOpRec(op_ptr, dropFileRecPtr);
+  DropFileImplReq* impl_req = &dropFileRecPtr.p->m_request;
+
+  FilePtr f_ptr;
+  if (!c_file_hash.find(f_ptr, impl_req->file_id))
+  {
+    jam();
+    setError(error, DropFileRef::NoSuchFile, __LINE__);
+    return;
+  }
+
+  if (f_ptr.p->m_version != impl_req->file_version)
+  {
+    jam();
+    setError(error, DropFileRef::InvalidSchemaObjectVersion, __LINE__);
+    return;
+  }
+
+  if (f_ptr.p->m_type == DictTabInfo::Undofile)
+  {
+    jam();
+    setError(error, DropFileRef::DropUndoFileNotSupported, __LINE__);
+    return;
+  }
+
+  SchemaFile::TableEntry te; te.init();
+  te.m_tableState = SchemaFile::SF_DROP;
+  te.m_transId = trans_ptr.p->m_transId;
+  Uint32 err = trans_log_schema_op(op_ptr, impl_req->file_id, &te);
+  if (err)
+  {
+    jam();
+    setError(error, err, __LINE__);
+    return;
+  }
+}
+
+void
+Dbdict::dropFile_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::dropFile_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  return false;
+}
+
+void
+Dbdict::dropFile_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFileRecPtr dropFileRecPtr;
+  getOpRec(op_ptr, dropFileRecPtr);
+  DropFileImplReq* impl_req = &dropFileRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    DropFileConf* conf = (DropFileConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->fileId = impl_req->file_id;
+    conf->fileVersion = impl_req->file_version;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_FILE_CONF, signal,
+               DropFileConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    DropFileRef* ref = (DropFileRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_FILE_REF, signal,
+               DropFileRef::SignalLength, JBB);
+  }
+}
+
+// DropFile: PREPARE
+
+void
+Dbdict::dropFile_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  DropFileRecPtr dropFileRecPtr;
+  getOpRec(op_ptr, dropFileRecPtr);
+  DropFileImplReq* impl_req = &dropFileRecPtr.p->m_request;
+
+  Callback c =  {
+    safe_cast(&Dbdict::dropFile_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  send_drop_file(signal, op_ptr.p->op_key, impl_req->file_id,
+                 DropFileImplReq::Prepare);
+}
+
+void
+Dbdict::dropFile_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFileRecPtr dropFilePtr;
+  getOpRec(op_ptr, dropFilePtr);
+  DropFileImplReq* impl_req = &dropFilePtr.p->m_request;
+
+  Callback c =  {
+    safe_cast(&Dbdict::dropFile_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  send_drop_file(signal, op_ptr.p->op_key, impl_req->file_id,
+                 DropFileImplReq::Abort);
+}
+
+// DropFile: COMMIT
+
+void
+Dbdict::dropFile_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  DropFileRecPtr dropFileRecPtr;
+  getOpRec(op_ptr, dropFileRecPtr);
+  DropFileImplReq* impl_req = &dropFileRecPtr.p->m_request;
+
+  Callback c =  {
+    safe_cast(&Dbdict::dropFile_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+
+  send_drop_file(signal, op_ptr.p->op_key, impl_req->file_id,
+                 DropFileImplReq::Commit);
+}
+
+// DropFile: COMPLETE
+
+void
+Dbdict::dropFile_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  DropFileRecPtr dropFileRecPtr;
+  getOpRec(op_ptr, dropFileRecPtr);
+  DropFileImplReq* impl_req = &dropFileRecPtr.p->m_request;
+
+  FilePtr f_ptr;
+  FilegroupPtr fg_ptr;
+
+  jam();
+  ndbrequire(c_file_hash.find(f_ptr, impl_req->file_id));
   ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
   decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
   release_object(f_ptr.p->m_obj_ptr_i);
   c_file_hash.release(f_ptr);
-  execute(signal, op->m_callback, 0);
+
+  sendTransConf(signal, op_ptr);
 }
 
 void
-Dbdict::drop_undofile_commit_complete(Signal* signal, SchemaOperation* op)
-{
-  FilePtr f_ptr;
-  FilegroupPtr fg_ptr;
-
-  jam();
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-  ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
-  Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
-  list.remove(f_ptr);
-  release_object(f_ptr.p->m_obj_ptr_i);
-  c_file_hash.release(f_ptr);
-  execute(signal, op->m_callback, 0);
-}
-
-void
-Dbdict::drop_file_abort_start(Signal* signal, SchemaOperation* op)
+Dbdict::dropFile_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
 {
   jam();
-  send_drop_file(signal, op, DropFileImplReq::Abort);
+  SchemaOpPtr op_ptr;
+  DropFileRecPtr dropFilePtr;
+  ndbrequire(findSchemaOp(op_ptr, dropFilePtr, op_key));
+
+  if (ret == 0)
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
 }
 
 void
-Dbdict::send_drop_file(Signal* signal, SchemaOperation* op,
+Dbdict::execDROP_FILE_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  DropFileImplRef * ref = (DropFileImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execDROP_FILE_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  DropFileImplConf * conf = (DropFileImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::send_drop_file(Signal* signal, Uint32 op_key, Uint32 fileId,
 		       DropFileImplReq::RequestInfo type)
 {
   DropFileImplReq* req = (DropFileImplReq*)signal->getDataPtrSend();
@@ -18411,10 +16889,10 @@ Dbdict::send_drop_file(Signal* signal, SchemaOperation* op,
   FilegroupPtr fg_ptr;
 
   jam();
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
+  ndbrequire(c_file_hash.find(f_ptr, fileId));
   ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
   
-  req->senderData = op->key;
+  req->senderData = op_key;
   req->senderRef = reference();
   req->requestInfo = type;
   
@@ -18423,7 +16901,7 @@ Dbdict::send_drop_file(Signal* signal, SchemaOperation* op,
   req->filegroup_version = fg_ptr.p->m_version;
   
   Uint32 ref= 0;
-  switch(op->m_obj_type){
+  switch(f_ptr.p->m_type){
   case DictTabInfo::Datafile:
   {
     jam();
@@ -18439,174 +16917,396 @@ Dbdict::send_drop_file(Signal* signal, SchemaOperation* op,
   default:
     ndbrequire(false);
   }
-  sendSignal(ref, GSN_DROP_FILE_REQ, signal, 
+  sendSignal(ref, GSN_DROP_FILE_IMPL_REQ, signal,
 	     DropFileImplReq::SignalLength, JBB);
 }
 
-void
-Dbdict::execDROP_OBJ_REF(Signal* signal)
-{
-  DropObjRef * const ref = (DropObjRef*)signal->getDataPtr();
-  Ptr<SchemaTransaction> trans_ptr;
+// DropFile: END
 
+// MODULE: DropFilegroup
+
+const Dbdict::OpInfo
+Dbdict::DropFilegroupRec::g_opInfo = {
+  { 'D', 'F', 'g', 0 },
+  GSN_DROP_FILEGROUP_IMPL_REQ,
+  DropFilegroupImplReq::SignalLength,
+  //
+  &Dbdict::dropFilegroup_seize,
+  &Dbdict::dropFilegroup_release,
+  //
+  &Dbdict::dropFilegroup_parse,
+  &Dbdict::dropFilegroup_subOps,
+  &Dbdict::dropFilegroup_reply,
+  //
+  &Dbdict::dropFilegroup_prepare,
+  &Dbdict::dropFilegroup_commit,
+  &Dbdict::dropFilegroup_complete,
+  //
+  &Dbdict::dropFilegroup_abortParse,
+  &Dbdict::dropFilegroup_abortPrepare
+};
+
+void
+Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
+{
   jamEntry();
-  ndbrequire(c_Trans.find(trans_ptr, ref->senderData));
-  if(ref->errorCode != DropObjRef::NF_FakeErrorREF){
+  if (!assembleFragments(signal)) {
     jam();
-    trans_ptr.p->setErrorCode(ref->errorCode);
+    return;
   }
-  Uint32 node = refToNode(ref->senderRef);
-  schemaOperation_reply(signal, trans_ptr.p, node);
+  SectionHandle handle(this, signal);
+
+  const DropFilegroupReq req_copy =
+    *(const DropFilegroupReq*)signal->getDataPtr();
+  const DropFilegroupReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    DropFilegroupRecPtr dropFilegroupPtr;
+    DropFilegroupImplReq* impl_req;
+
+    startClientReq(op_ptr, dropFilegroupPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->filegroup_id = req->filegroup_id;
+    impl_req->filegroup_version = req->filegroup_version;
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  DropFilegroupRef* ref = (DropFilegroupRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_DROP_FILEGROUP_REF, signal,
+	     DropFilegroupRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::dropFilegroup_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<DropFilegroupRec>(op_ptr);
 }
 
 void
-Dbdict::execDROP_OBJ_CONF(Signal* signal)
+Dbdict::dropFilegroup_release(SchemaOpPtr op_ptr)
 {
-  DropObjConf * const conf = (DropObjConf*)signal->getDataPtr();
-  Ptr<SchemaTransaction> trans_ptr;
-
-  jamEntry();
-  ndbrequire(c_Trans.find(trans_ptr, conf->senderData));
-  schemaOperation_reply(signal, trans_ptr.p, refToNode(conf->senderRef));
+  releaseOpRec<DropFilegroupRec>(op_ptr);
 }
 
-void
-Dbdict::execDROP_FILE_REF(Signal* signal)
-{
-  DropFileImplRef * ref = (DropFileImplRef*)signal->getDataPtr();
-  DropObjRecordPtr op_ptr;
-
-  jamEntry();
-  ndbrequire(c_opDropObj.find(op_ptr, ref->senderData));
-  op_ptr.p->m_errorCode = ref->errorCode;
-  execute(signal, op_ptr.p->m_callback, 0);  
-}  
+// DropFilegroup: PARSE
 
 void
-Dbdict::execDROP_FILE_CONF(Signal* signal)
+Dbdict::dropFilegroup_parse(Signal* signal, bool master,
+                          SchemaOpPtr op_ptr,
+                          SectionHandle& handle, ErrorInfo& error)
 {
-  DropFileImplConf * rep = 
-    (DropFileImplConf*)signal->getDataPtr();
-  DropObjRecordPtr op_ptr;
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFilegroupRecPtr dropFilegroupRecPtr;
+  getOpRec(op_ptr, dropFilegroupRecPtr);
+  DropFilegroupImplReq* impl_req = &dropFilegroupRecPtr.p->m_request;
 
-  jamEntry();
-  ndbrequire(c_opDropObj.find(op_ptr, rep->senderData));
-  execute(signal, op_ptr.p->m_callback, 0);  
-}
-
-void
-Dbdict::execDROP_FILEGROUP_REF(Signal* signal)
-{
-  DropFilegroupImplRef * ref = (DropFilegroupImplRef*)signal->getDataPtr();
-  DropObjRecordPtr op_ptr;
-
-  jamEntry();
-  ndbrequire(c_opDropObj.find(op_ptr, ref->senderData));
-  op_ptr.p->m_errorCode = ref->errorCode;
-  execute(signal, op_ptr.p->m_callback, 0);  
-}  
-
-void
-Dbdict::execDROP_FILEGROUP_CONF(Signal* signal)
-{
-  DropFilegroupImplConf * rep = 
-    (DropFilegroupImplConf*)signal->getDataPtr();
-  DropObjRecordPtr op_ptr;
-
-  jamEntry();
-  ndbrequire(c_opDropObj.find(op_ptr, rep->senderData));
-  execute(signal, op_ptr.p->m_callback, 0);  
-}
-
-void
-Dbdict::drop_fg_prepare_start(Signal* signal, SchemaOperation* op)
-{
   FilegroupPtr fg_ptr;
-  c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
-  
+  if (!c_filegroup_hash.find(fg_ptr, impl_req->filegroup_id))
+  {
+    jam();
+    setError(error, DropFilegroupRef::NoSuchFilegroup, __LINE__);
+    return;
+  }
+
+  if (fg_ptr.p->m_version != impl_req->filegroup_version)
+  {
+    jam();
+    setError(error, DropFilegroupRef::InvalidSchemaObjectVersion, __LINE__);
+    return;
+  }
+
   DictObject * obj = c_obj_pool.getPtr(fg_ptr.p->m_obj_ptr_i);
   if (obj->m_ref_count)
   {
     jam();
-    op->m_errorCode = DropFilegroupRef::FilegroupInUse;
-    execute(signal, op->m_callback, 0);  
+    setError(error, DropFilegroupRef::FilegroupInUse, __LINE__);
+    return;
+  }
+
+  SchemaFile::TableEntry te; te.init();
+  te.m_tableState = SchemaFile::SF_DROP;
+  te.m_transId = trans_ptr.p->m_transId;
+  Uint32 err = trans_log_schema_op(op_ptr, impl_req->filegroup_id, &te);
+  if (err)
+  {
+    jam();
+    setError(error, err, __LINE__);
+    return;
+  }
+}
+
+void
+Dbdict::dropFilegroup_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::dropFilegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  return false;
+}
+
+void
+Dbdict::dropFilegroup_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFilegroupRecPtr dropFilegroupRecPtr;
+  getOpRec(op_ptr, dropFilegroupRecPtr);
+  DropFilegroupImplReq* impl_req = &dropFilegroupRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    DropFilegroupConf* conf = (DropFilegroupConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->filegroupId = impl_req->filegroup_id;
+    conf->filegroupVersion = impl_req->filegroup_version;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_FILEGROUP_CONF, signal,
+               DropFilegroupConf::SignalLength, JBB);
   }
   else
   {
     jam();
-    send_drop_fg(signal, op, DropFilegroupImplReq::Prepare);
+    DropFilegroupRef* ref = (DropFilegroupRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_FILEGROUP_REF, signal,
+               DropFilegroupRef::SignalLength, JBB);
+  }
+}
+
+// DropFilegroup: PREPARE
+
+void
+Dbdict::dropFilegroup_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFilegroupRecPtr dropFilegroupRecPtr;
+  getOpRec(op_ptr, dropFilegroupRecPtr);
+  DropFilegroupImplReq* impl_req = &dropFilegroupRecPtr.p->m_request;
+
+  Callback c =  {
+    safe_cast(&Dbdict::dropFilegroup_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  send_drop_fg(signal, op_ptr.p->op_key, impl_req->filegroup_id,
+               DropFilegroupImplReq::Prepare);
+
+  FilegroupPtr fg_ptr;
+  ndbrequire(c_filegroup_hash.find(fg_ptr, impl_req->filegroup_id));
+
+  if (fg_ptr.p->m_type == DictTabInfo::LogfileGroup)
+  {
+    XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+    Ptr<File> filePtr;
+    Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
+    for(list.first(filePtr); !filePtr.isNull(); list.next(filePtr))
+    {
+      jam();
+
+      DictObjectPtr objPtr;
+      c_obj_pool.getPtr(objPtr, filePtr.p->m_obj_ptr_i);
+      SchemaFile::TableEntry * entry = getTableEntry(xsf, objPtr.p->m_id);
+      entry->m_tableState = SchemaFile::SF_DROP;
+      entry->m_transId = trans_ptr.p->m_transId;
+    }
   }
 }
 
 void
-Dbdict::drop_fg_commit_start(Signal* signal, SchemaOperation* op)
+Dbdict::dropFilegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
+  ndbrequire(false);
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFilegroupRecPtr dropFilegroupPtr;
+  getOpRec(op_ptr, dropFilegroupPtr);
+  DropFilegroupImplReq* impl_req = &dropFilegroupPtr.p->m_request;
+
+  Callback c =  {
+    safe_cast(&Dbdict::dropFilegroup_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  send_drop_fg(signal, op_ptr.p->op_key, impl_req->filegroup_id,
+               DropFilegroupImplReq::Abort);
+
   FilegroupPtr fg_ptr;
-  c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
-  if (op->m_obj_type == DictTabInfo::LogfileGroup)
+  ndbrequire(c_filegroup_hash.find(fg_ptr, impl_req->filegroup_id));
+
+  if (fg_ptr.p->m_type == DictTabInfo::LogfileGroup)
   {
-    jam(); 
-    /**
-     * Mark all undofiles as dropped
-     */
+    jam();
+    XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
     Ptr<File> filePtr;
     Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
-    XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
     for(list.first(filePtr); !filePtr.isNull(); list.next(filePtr))
     {
       jam();
-      Uint32 objId = filePtr.p->key;
-      SchemaFile::TableEntry * tableEntry = getTableEntry(xsf, objId);
-      tableEntry->m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
-      computeChecksum(xsf, objId / NDB_SF_PAGE_ENTRIES);
-      release_object(filePtr.p->m_obj_ptr_i);
+
+      DictObjectPtr objPtr;
+      c_obj_pool.getPtr(objPtr, filePtr.p->m_obj_ptr_i);
+      SchemaFile::TableEntry * entry = getTableEntry(xsf, objPtr.p->m_id);
+      entry->m_tableState = SchemaFile::SF_IN_USE;
+      entry->m_transId = 0;
+    }
+  }
+}
+
+// DropFilegroup: COMMIT
+
+void
+Dbdict::dropFilegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFilegroupRecPtr dropFilegroupRecPtr;
+  getOpRec(op_ptr, dropFilegroupRecPtr);
+  DropFilegroupImplReq* impl_req = &dropFilegroupRecPtr.p->m_request;
+
+  Callback c =  {
+    safe_cast(&Dbdict::dropFilegroup_fromLocal), op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  send_drop_fg(signal, op_ptr.p->op_key, impl_req->filegroup_id,
+               DropFilegroupImplReq::Commit);
+
+  FilegroupPtr fg_ptr;
+  ndbrequire(c_filegroup_hash.find(fg_ptr, impl_req->filegroup_id));
+
+  if (fg_ptr.p->m_type == DictTabInfo::LogfileGroup)
+  {
+    jam();
+    /**
+     * Mark all undofiles as dropped
+     */
+    XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+
+    Ptr<File> filePtr;
+    Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
+    for(list.first(filePtr); !filePtr.isNull(); list.next(filePtr))
+    {
+      jam();
+
+      DictObjectPtr objPtr;
+      c_obj_pool.getPtr(objPtr, filePtr.p->m_obj_ptr_i);
+      SchemaFile::TableEntry * entry = getTableEntry(xsf, objPtr.p->m_id);
+      entry->m_tableState = SchemaFile::SF_UNUSED;
+      entry->m_transId = 0;
+
+      release_object(objPtr.i, objPtr.p);
       c_file_hash.remove(filePtr);
     }
     list.release();
   }
-  else if(op->m_obj_type == DictTabInfo::Tablespace)
+  else if(fg_ptr.p->m_type == DictTabInfo::Tablespace)
   {
-    FilegroupPtr lg_ptr;
     jam();
+    FilegroupPtr lg_ptr;
     ndbrequire(c_filegroup_hash.
-	       find(lg_ptr, 
+	       find(lg_ptr,
 		    fg_ptr.p->m_tablespace.m_default_logfile_group_id));
     
     decrease_ref_count(lg_ptr.p->m_obj_ptr_i);
   }
-  jam(); 
-  send_drop_fg(signal, op, DropFilegroupImplReq::Commit);
 }
 
-void
-Dbdict::drop_fg_commit_complete(Signal* signal, SchemaOperation* op)
-{
-  FilegroupPtr fg_ptr;
-  c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
+// DropFilegroup: COMPLETE
 
+void
+Dbdict::dropFilegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
   jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFilegroupRecPtr dropFilegroupRecPtr;
+  getOpRec(op_ptr, dropFilegroupRecPtr);
+  DropFilegroupImplReq* impl_req = &dropFilegroupRecPtr.p->m_request;
+
+  FilegroupPtr fg_ptr;
+  ndbrequire(c_filegroup_hash.find(fg_ptr, impl_req->filegroup_id));
+
   release_object(fg_ptr.p->m_obj_ptr_i);
   c_filegroup_hash.release(fg_ptr);
-  execute(signal, op->m_callback, 0);
+
+  sendTransConf(signal, op_ptr);
 }
 
 void
-Dbdict::drop_fg_abort_start(Signal* signal, SchemaOperation* op)
+Dbdict::dropFilegroup_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
 {
   jam();
-  send_drop_fg(signal, op, DropFilegroupImplReq::Abort);
+  SchemaOpPtr op_ptr;
+  DropFilegroupRecPtr dropFilegroupPtr;
+  ndbrequire(findSchemaOp(op_ptr, dropFilegroupPtr, op_key));
+
+  if (ret == 0)
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
 }
 
 void
-Dbdict::send_drop_fg(Signal* signal, SchemaOperation* op,
+Dbdict::execDROP_FILEGROUP_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  DropFilegroupImplRef * ref = (DropFilegroupImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execDROP_FILEGROUP_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  DropFilegroupImplConf * conf = (DropFilegroupImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+
+void
+Dbdict::send_drop_fg(Signal* signal, Uint32 op_key, Uint32 filegroupId,
 		     DropFilegroupImplReq::RequestInfo type)
 {
   DropFilegroupImplReq* req = (DropFilegroupImplReq*)signal->getDataPtrSend();
   
   FilegroupPtr fg_ptr;
-  c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
+  ndbrequire(c_filegroup_hash.find(fg_ptr, filegroupId));
   
-  req->senderData = op->key;
+  req->senderData = op_key;
   req->senderRef = reference();
   req->requestInfo = type;
   
@@ -18614,7 +17314,7 @@ Dbdict::send_drop_fg(Signal* signal, SchemaOperation* op,
   req->filegroup_version = fg_ptr.p->m_version;
   
   Uint32 ref= 0;
-  switch(op->m_obj_type){
+  switch(fg_ptr.p->m_type){
   case DictTabInfo::Tablespace:
     ref = TSMAN_REF;
     break;
@@ -18625,9 +17325,11 @@ Dbdict::send_drop_fg(Signal* signal, SchemaOperation* op,
     ndbrequire(false);
   }
   
-  sendSignal(ref, GSN_DROP_FILEGROUP_REQ, signal, 
+  sendSignal(ref, GSN_DROP_FILEGROUP_IMPL_REQ, signal,
 	     DropFilegroupImplReq::SignalLength, JBB);
 }
+
+// DropFilegroup: END
 
 /*
   return 1 if all of the below is true
@@ -18781,6 +17483,10 @@ Dbdict::g_opInfoList[] = {
   &Dbdict::DropIndexRec::g_opInfo,
   &Dbdict::AlterIndexRec::g_opInfo,
   &Dbdict::BuildIndexRec::g_opInfo,
+  &Dbdict::CreateFilegroupRec::g_opInfo,
+  &Dbdict::CreateFileRec::g_opInfo,
+  &Dbdict::DropFilegroupRec::g_opInfo,
+  &Dbdict::DropFileRec::g_opInfo,
   0
 };
 
@@ -19338,6 +18044,13 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
       break;
     }
 
+    if (!check_ndb_versions())
+    {
+      jam();
+      setError(error, SchemaTransBeginRef::IncompatibleVersions, __LINE__);
+      return;
+    }
+
     if (!seizeSchemaTrans(trans_ptr)) {
       jam();
       // future when more than 1 tx allowed
@@ -19350,6 +18063,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
     trans_ptr.p->m_clientRef = clientRef;
     trans_ptr.p->m_transId = transId;
     trans_ptr.p->m_requestInfo = requestInfo;
+    trans_ptr.p->m_obj_id = RNIL;
     if (!localTrans)
     {
       jam();
@@ -19436,8 +18150,6 @@ Dbdict::trans_start_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
     {
       jam();
 
-      trans_ptr.p->m_state = SchemaTrans::TS_ABORT_START;
-
       /**
        * Clear nodes that did not reply START-CONF
        */
@@ -19456,15 +18168,6 @@ Dbdict::trans_start_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
       return;
     }
     break;
-  case SchemaTrans::TS_ABORT_START:{
-    jam();
-    sendTransClientReply(signal, trans_ptr);
-
-    const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
-    dict_lock_unlock(signal, &lockReq);
-    releaseSchemaTrans(trans_ptr);
-    return;
-  }
   default:
     jamLine(trans_ptr.p->m_state);
     ndbrequire(false);
@@ -19596,7 +18299,17 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
 
   ErrorInfo error;
   const OpInfo& info = getOpInfo(op_ptr);
-  (this->*(info.m_parse))(signal, true, op_ptr, handle, error);
+
+  if (checkSingleUserMode(trans_ptr.p->m_clientRef))
+  {
+    jam();
+    setError(error, AlterTableRef::SingleUser, __LINE__);
+  }
+  else
+  {
+    jam();
+    (this->*(info.m_parse))(signal, true, op_ptr, handle, error);
+  }
 
   if (hasError(error))
   {
@@ -19773,10 +18486,6 @@ Dbdict::trans_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
   case SchemaTrans::TS_INITIAL:
     ndbrequire(false);
   case SchemaTrans::TS_STARTING:
-    jam();
-    trans_start_recv_reply(signal, trans_ptr);
-    return;
-  case SchemaTrans::TS_ABORT_START:
     jam();
     trans_start_recv_reply(signal, trans_ptr);
     return;
@@ -20192,10 +18901,6 @@ Dbdict::trans_abort_parse_done(Signal* signal, SchemaTransPtr trans_ptr)
 {
   ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PARSE);
 
-  // unlock
-  const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
-  dict_lock_unlock(signal, &lockReq);
-
   trans_end_start(signal, trans_ptr);
 }
 
@@ -20601,10 +19306,6 @@ Dbdict::trans_commit_mutex_unlocked(Signal* signal,
 
   trans_ptr.p->m_commit_mutex.release(c_mutexMgr);
 
-  // unlock
-  const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
-  dict_lock_unlock(signal, &lockReq);
-
   /**
    * Here we should wait for SCHEMA_TRANS_COMMIT_ACK
    *
@@ -20738,6 +19439,7 @@ Dbdict::trans_complete_done(Signal* signal, SchemaTransPtr trans_ptr)
 void
 Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  ndbrequire(trans_ptr.p->m_state != SchemaTrans::TS_ENDING);
   trans_ptr.p->m_state = SchemaTrans::TS_ENDING;
 
   SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
@@ -20765,6 +19467,10 @@ Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
 void
 Dbdict::trans_end_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  // unlock
+  const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
+  dict_lock_unlock(signal, &lockReq);
+
   sendTransClientReply(signal, trans_ptr);
   
   releaseSchemaTrans(trans_ptr);
@@ -20851,6 +19557,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
       ndbrequire(op_ptr.p->nextList == RNIL);
       op_ptr.p->m_state = SchemaOp::OS_ABORTING_PARSE;
       (this->*(info.m_abortParse))(signal, op_ptr);
+      trans_log_schema_op_abort(op_ptr);
       if (!trans_ptr.p->m_isMaster)
       {
         /**
@@ -20875,6 +19582,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
       jam();
       op_ptr.p->m_state = SchemaOp::OS_COMPLETING;
       (this->*(info.m_complete))(signal, op_ptr);
+      trans_log_schema_op_complete(op_ptr);
       return;
     }
   }
@@ -20912,6 +19620,10 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
     // this branch does nothing but is convenient for signal pong
     ndbrequire(findSchemaTrans(trans_ptr, req->transKey));
   }
+
+  trans_ptr.p->m_obj_id = getFreeObjId(0);
+  trans_log(trans_ptr);
+
   sendTransConf(signal, trans_ptr);
   return;
 
@@ -20961,7 +19673,12 @@ Dbdict::slave_run_parse(Signal *signal,
   }
   else
   {
-    if (seizeSchemaOp(op_ptr, op_key, info))
+    if (checkSingleUserMode(trans_ptr.p->m_clientRef))
+    {
+      jam();
+      setError(error, AlterTableRef::SingleUser, __LINE__);
+    }
+    else if (seizeSchemaOp(op_ptr, op_key, info))
     {
       jam();
 
@@ -20999,38 +19716,85 @@ Dbdict::slave_run_flush(Signal *signal,
                         SchemaTransPtr trans_ptr,
                         const SchemaTransImplReq* req)
 {
-  if (!trans_ptr.p->m_isMaster)
-  {
-    jam();
-    jamLine(trans_ptr.p->m_state);
-    const Uint32 rt = DictSignal::getRequestType(req->requestInfo);
-    switch(rt){
-    case SchemaTransImplReq::RT_FLUSH_PREPARE:
+  bool do_flush = false;
+  const Uint32 rt = DictSignal::getRequestType(req->requestInfo);
+  const bool master = trans_ptr.p->m_isMaster;
+
+  jamLine(trans_ptr.p->m_state);
+  switch(rt){
+  case SchemaTransImplReq::RT_FLUSH_PREPARE:
+    if (master)
+    {
+      jam();
+      ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_FLUSH_PREPARE);
+    }
+    else
+    {
+      jam();
       ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_STARTED);
       trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_PREPARE;
-      break;
-    case SchemaTransImplReq::RT_FLUSH_COMMIT:
+    }
+    do_flush = trans_ptr.p->m_flush_prepare;
+    break;
+  case SchemaTransImplReq::RT_FLUSH_COMMIT:
+    if (master)
+    {
+      jam();
+      ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_FLUSH_COMMIT);
+    }
+    else
+    {
+      jam();
       ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_PREPARING);
       trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_COMMIT;
-      break;
-    case SchemaTransImplReq::RT_FLUSH_COMPLETE:
+    }
+    do_flush = trans_ptr.p->m_flush_commit;
+    break;
+  case SchemaTransImplReq::RT_FLUSH_COMPLETE:
+    if (master)
+    {
+      jam();
+      ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_FLUSH_COMPLETE);
+    }
+    else
+    {
+      jam();
       ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_COMMITTING);
       trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_COMPLETE;
-      break;
-    case SchemaTransImplReq::RT_END:
-      /**
-       * No state check here, cause we get here regardless if transaction
-       *   succeded or not...
-       */
-      trans_ptr.p->m_state = SchemaTrans::TS_ENDING;
-      break;
-    default:
-      ndbrequire(false);
     }
+    do_flush = trans_ptr.p->m_flush_complete;
+    break;
+  case SchemaTransImplReq::RT_END:
+    /**
+     * No state check here, cause we get here regardless if transaction
+     *   succeded or not...
+     */
+    trans_ptr.p->m_state = SchemaTrans::TS_ENDING;
+    do_flush = trans_ptr.p->m_flush_end;
+    break;
+  default:
+    ndbrequire(false);
   }
+
+  trans_log(trans_ptr);
+
+#if 1
+  if (do_flush == false)
+  {
+    /**
+     * If no operations needs durable complete phase...
+     *   skip it and leave pending trans...
+     *   will be flushed on next schema trans
+     *   or will be found in state COMMIT
+     */
+    slave_writeSchema_conf(signal, trans_ptr.p->trans_key, 0);
+    return;
+  }
+#endif
 
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   ndbrequire(c_writeSchemaRecord.inUse == false);
+  c_writeSchemaRecord.inUse = true;
   c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
   c_writeSchemaRecord.newFile = false;
   c_writeSchemaRecord.firstPage = 0;
@@ -21040,12 +19804,10 @@ Dbdict::slave_run_flush(Signal *signal,
   c_writeSchemaRecord.m_callback.m_callbackFunction =
     safe_cast(&Dbdict::slave_writeSchema_conf);
 
-#if TODO
-  c_writeSchemaRecord.inUse = true;
+  for(Uint32 i = 0; i<xsf->noOfPages; i++)
+    computeChecksum(xsf, i);
+
   startWriteSchemaFile(signal);
-#else
-  execute(signal, c_writeSchemaRecord.m_callback, 0);
-#endif
 }
 
 void
@@ -21202,6 +19964,160 @@ Dbdict::sendTransRef(Signal* signal, SchemaTransPtr trans_ptr)
   const Uint32 masterRef = trans_ptr.p->m_masterRef;
   sendSignal(masterRef, GSN_SCHEMA_TRANS_IMPL_REF, signal,
              SchemaTransImplRef::SignalLength, JBB);
+}
+
+void
+Dbdict::trans_log(SchemaTransPtr trans_ptr)
+{
+  Uint32 objectId = trans_ptr.p->m_obj_id;
+  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+  SchemaFile::TableEntry * entry = getTableEntry(xsf, objectId);
+
+  jam();
+  jamLine(trans_ptr.p->m_state);
+  jamLine(entry->m_tableState);
+  switch(trans_ptr.p->m_state){
+  case SchemaTrans::TS_STARTED:
+  case SchemaTrans::TS_STARTING:
+    jam();
+    entry->init();
+    entry->m_tableState = SchemaFile::SF_STARTED;
+    entry->m_tableVersion = rand();
+    entry->m_tableType = DictTabInfo::SchemaTransaction;
+    entry->m_info_words = 0;
+    entry->m_gcp = 0;
+    entry->m_transId = trans_ptr.p->m_transId;
+    break;
+  case SchemaTrans::TS_FLUSH_PREPARE:
+    jam();
+    ndbrequire(entry->m_tableState == SchemaFile::SF_STARTED);
+    entry->m_tableState = SchemaFile::SF_PREPARE;
+    break;
+  case SchemaTrans::TS_ABORTING_PREPARE:
+    jam();
+    ndbrequire(entry->m_tableState == SchemaFile::SF_PREPARE);
+    entry->m_tableState = SchemaFile::SF_ABORT;
+    break;
+  case SchemaTrans::TS_FLUSH_COMMIT:
+    jam();
+    ndbrequire(entry->m_tableState == SchemaFile::SF_PREPARE);
+    entry->m_tableState = SchemaFile::SF_COMMIT;
+    break;
+  case SchemaTrans::TS_FLUSH_COMPLETE:
+    jam();
+    ndbrequire(entry->m_tableState == SchemaFile::SF_COMMIT);
+    entry->m_tableState = SchemaFile::SF_COMPLETE;
+    break;
+  case SchemaTrans::TS_ENDING:
+    jam();
+    entry->m_transId = 0;
+    entry->m_tableState = SchemaFile::SF_UNUSED;
+    break;
+  default:
+    ndbrequire(false);
+  }
+}
+
+/**
+ * Schema operation logging (SchemaFile)
+ */
+Uint32
+Dbdict::trans_log_schema_op(SchemaOpPtr op_ptr,
+                            Uint32 objectId,
+                            const SchemaFile::TableEntry * newEntry)
+{
+  jam();
+
+  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+  SchemaFile::TableEntry * oldEntry = getTableEntry(xsf, objectId);
+
+  if (oldEntry->m_transId != 0)
+  {
+    jam();
+    return DropTableRef::ActiveSchemaTrans; // XXX todo add general code
+  }
+
+  SchemaFile::TableEntry tmp = * newEntry;
+  bool restart = op_ptr.p->m_restart;
+  switch((SchemaFile::EntryState)newEntry->m_tableState){
+  case SchemaFile::SF_CREATE:
+    ndbrequire(restart || oldEntry->m_tableState == SchemaFile::SF_UNUSED);
+    break;
+  case SchemaFile::SF_ALTER:
+    ndbrequire(restart || oldEntry->m_tableState == SchemaFile::SF_IN_USE);
+    tmp = * oldEntry;
+    tmp.m_info_words = newEntry->m_info_words;
+    tmp.m_tableVersion = newEntry->m_tableVersion;
+    break;
+  case SchemaFile::SF_DROP:
+    ndbrequire(restart || oldEntry->m_tableState == SchemaFile::SF_IN_USE);
+    tmp = *oldEntry;
+    tmp.m_tableState = SchemaFile::SF_DROP;
+    break;
+  default:
+    jamLine(newEntry->m_tableState);
+    ndbrequire(false);
+  }
+
+  tmp.m_tableState = newEntry->m_tableState;
+  tmp.m_transId = newEntry->m_transId;
+  op_ptr.p->m_orig_entry_id = objectId;
+  op_ptr.p->m_orig_entry = * oldEntry;
+
+  * oldEntry = tmp;
+
+  if (op_ptr.p->m_restart != 1)
+  {
+    jam();
+
+    SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+    trans_ptr.p->m_flush_prepare |= true;
+    trans_ptr.p->m_flush_commit |= true;
+  }
+
+  return 0;
+}
+
+void
+Dbdict::trans_log_schema_op_abort(SchemaOpPtr op_ptr)
+{
+  Uint32 objectId = op_ptr.p->m_orig_entry_id;
+  if (objectId != RNIL)
+  {
+    jam();
+    op_ptr.p->m_orig_entry_id = RNIL;
+    XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+    SchemaFile::TableEntry * entry = getTableEntry(xsf, objectId);
+    * entry = op_ptr.p->m_orig_entry;
+  }
+}
+
+void
+Dbdict::trans_log_schema_op_complete(SchemaOpPtr op_ptr)
+{
+  Uint32 objectId = op_ptr.p->m_orig_entry_id;
+  if (objectId != RNIL)
+  {
+    jam();
+    op_ptr.p->m_orig_entry_id = RNIL;
+    XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+    SchemaFile::TableEntry * entry = getTableEntry(xsf, objectId);
+    switch((SchemaFile::EntryState)entry->m_tableState){
+    case SchemaFile::SF_CREATE:
+      entry->m_tableState = SchemaFile::SF_IN_USE;
+      break;
+    case SchemaFile::SF_ALTER:
+      entry->m_tableState = SchemaFile::SF_IN_USE;
+      break;
+    case SchemaFile::SF_DROP:
+      entry->m_tableState = SchemaFile::SF_UNUSED;
+      break;
+    default:
+      jamLine(entry->m_tableState);
+      ndbrequire(false);
+    }
+    entry->m_transId = 0;
+  }
 }
 
 // reply to trans client for begin/end trans

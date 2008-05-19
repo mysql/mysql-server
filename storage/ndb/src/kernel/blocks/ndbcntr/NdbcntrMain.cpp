@@ -1952,6 +1952,7 @@ void Ndbcntr::execCREATE_TABLE_CONF(Signal* signal)
   ndbrequire(conf->senderData < g_sysTableCount);
   const SysTable& table = *g_sysTableList[conf->senderData];
   table.tableId = conf->tableId;
+  table.tableVersion = conf->tableVersion;
   createSystableLab(signal, conf->senderData + 1);
   //startInsertTransactions(signal);
   return;
@@ -2024,7 +2025,7 @@ void Ndbcntr::crSystab7Lab(Signal* signal)
     tcKeyReq->attrLen            = 5;
     tcKeyReq->tableId            = g_sysTable_SYSTAB_0.tableId;
     tcKeyReq->requestInfo        = reqInfo;
-    tcKeyReq->tableSchemaVersion = ZSYSTAB_VERSION;
+    tcKeyReq->tableSchemaVersion = g_sysTable_SYSTAB_0.tableVersion;
     tcKeyReq->transId1           = 0;
     tcKeyReq->transId2           = ckey;
 
