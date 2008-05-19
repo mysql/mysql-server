@@ -57,12 +57,12 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp) {
     char **MALLOC_N(result_limit, result);
     struct dirent *de;
     DIR *d=opendir(directory);
-    if (d==0 && strcmp(directory, dev_null) != 0) {
+    if (d==0) {
         free(result);
         return errno;
     }
     int dirnamelen = strlen(directory);
-    while (d && (de=readdir(d))) {
+    while ((de=readdir(d))) {
 	if (de==0) return errno;
 	long long thisl;
 	int r = sscanf(de->d_name, "log%llu.tokulog", &thisl);
@@ -89,6 +89,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     if (result==0) return errno;
     result->is_open=0;
     result->is_panicked=0;
+    result->write_log_files = 1;
     result->lg_max = 100<<20; // 100MB default
     result->head = result->tail = 0;
     result->lsn = result->written_lsn = result->fsynced_lsn = (LSN){0};
@@ -111,6 +112,10 @@ int toku_logger_create (TOKULOGGER *resultp) {
 
 void toku_logger_set_cachetable (TOKULOGGER tl, CACHETABLE ct) {
     tl->ct = ct;
+}
+
+void toku_logger_write_log_files (TOKULOGGER tl, int write_log_files) {
+    tl->write_log_files = write_log_files;
 }
 
 static int (*toku_os_fsync_function)(int)=fsync;
@@ -137,10 +142,10 @@ static int open_logfile (TOKULOGGER logger) {
     int fnamelen = strlen(logger->directory)+50;
     char fname[fnamelen];
     snprintf(fname, fnamelen, "%s/log%012llu.tokulog", logger->directory, logger->next_log_file_number);
-    if (strcmp(logger->directory, dev_null) == 0) {
-        logger->fd = open(dev_null, O_RDWR);             if (logger->fd==-1) return errno;
-    } else {
+    if (logger->write_log_files) {
         logger->fd = creat(fname, O_EXCL | 0700);        if (logger->fd==-1) return errno;
+    } else {
+        logger->fd = open(dev_null, O_RDWR);             if (logger->fd==-1) return errno;
     }
     logger->next_log_file_number++;
     int version_l = htonl(log_format_version);
@@ -164,7 +169,7 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     int r;
     long long nexti;
     r = toku_logger_find_next_unused_log_file(directory, &nexti);
-    if (r!=0 && strcmp(directory, dev_null) != 0) return r;
+    if (r!=0) return r;
     logger->directory = toku_strdup(directory);
     if (logger->directory==0) return errno;
     logger->next_log_file_number = nexti;
@@ -175,7 +180,7 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     logger->fsynced_lsn.lsn = 0;
 
     logger->is_open = 1;
-    if (strcmp(directory, dev_null) == 0)
+    if (!logger->write_log_files)
         toku_set_func_fsync(toku_logger_fsync_null);
 
     return 0;
@@ -845,7 +850,10 @@ int toku_set_func_fsync (int (*fsync_function)(int)) {
 static int peek_at_log (TOKULOGGER logger, char* filename, LSN *first_lsn) {
     logger=logger;
     int fd = open(filename, O_RDONLY);
-    if (fd<0) { printf("couldn't open: %s\n", strerror(errno)); return errno; }
+    if (fd<0) { 
+        if (logger->write_log_files) printf("couldn't open: %s\n", strerror(errno)); 
+        return errno; 
+    }
     enum { SKIP = 12+1+4 }; // read the 12 byte header, the first cmd, and the first len
     unsigned char header[SKIP+8];
     int r = read(fd, header, SKIP+8);

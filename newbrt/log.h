@@ -21,6 +21,7 @@ struct logbytes {
 
 int toku_logger_create(TOKULOGGER */*resultp*/);
 void toku_logger_set_cachetable (TOKULOGGER, CACHETABLE);
+void toku_logger_write_log_files (TOKULOGGER, int do_write_log_files);
 int toku_logger_open(const char */*directory*/, TOKULOGGER);
 int toku_logger_log_bytes(TOKULOGGER logger, struct logbytes *bytes, int do_fsync);
 int toku_logger_close(TOKULOGGER *logger);
