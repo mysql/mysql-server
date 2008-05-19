@@ -2,10 +2,10 @@ USE test;
 DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis;
 SHOW TABLES;
 Tables_in_test
-t_gis
-t_string_1
 t_datetime
+t_gis
 t_num
+t_string_1
 t_string_2
 SHOW CREATE TABLE t_num;
 Table	Create Table
@@ -101,10 +101,10 @@ GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))	GEOMETRYCOLLECTION(POINT(44 
 DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
 SHOW TABLES;
 Tables_in_test
-t_gis
-t_string_1
 t_datetime
+t_gis
 t_num
+t_string_1
 t_string_2
 SHOW CREATE TABLE t_num;
 Table	Create Table
