@@ -8503,6 +8503,13 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
       if(DictTabInfo::isTable(type)){
 	switch (tablePtr.p->tabState) {
 	case TableRecord::DEFINING:
+          conf->setTableState(pos, DictTabInfo::StateBuilding);          
+	  break;
+	case TableRecord::PREPARE_DROPPING:
+	case TableRecord::DROPPING:
+	  conf->setTableState(pos, DictTabInfo::StateDropping);
+	  break;
+	case TableRecord::DEFINED:
           if (tablePtr.p->m_read_locked)
           {
             jam();
@@ -8511,15 +8518,8 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
           else
           {
             jam();
-            conf->setTableState(pos, DictTabInfo::StateBuilding);
+            conf->setTableState(pos, DictTabInfo::StateOnline);
           }
-	  break;
-	case TableRecord::PREPARE_DROPPING:
-	case TableRecord::DROPPING:
-	  conf->setTableState(pos, DictTabInfo::StateDropping);
-	  break;
-	case TableRecord::DEFINED:
-	  conf->setTableState(pos, DictTabInfo::StateOnline);
 	  break;
 	default:
 	  conf->setTableState(pos, DictTabInfo::StateBroken);
@@ -8724,10 +8724,16 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
 	  ltd.setTableState(DictTabInfo::StateDropping);
 	  break;
 	case TableRecord::DEFINED:
-	  ltd.setTableState(DictTabInfo::StateOnline);
-	  break;
-	case TableRecord::BACKUP_ONGOING:
-	  ltd.setTableState(DictTabInfo::StateBackup);
+          if (tablePtr.p->m_read_locked)
+          {
+            jam();
+            ltd.setTableState(DictTabInfo::StateBackup);
+          }
+          else
+          {
+            jam();
+            ltd.setTableState(DictTabInfo::StateOnline);
+          }
 	  break;
 	default:
 	  ltd.setTableState(DictTabInfo::StateBroken);
