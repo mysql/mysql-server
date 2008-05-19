@@ -121,6 +121,55 @@ SimplePropertiesSectionReader::getWords(Uint32 * dst, Uint32 len){
 SimplePropertiesSectionWriter::SimplePropertiesSectionWriter(class SectionSegmentPool & pool)
   : m_pool(pool)
 {
+  m_pos = -1;
+  m_head = 0;
+  m_currentSegment = 0;
+  m_prevPtrI = RNIL;
+  reset();
+}
+
+extern void release(SegmentedSectionPtr & ptr);
+
+SimplePropertiesSectionWriter::~SimplePropertiesSectionWriter()
+{
+  release();
+}
+
+void
+SimplePropertiesSectionWriter::release()
+{
+  if (m_head)
+  {
+    if (m_sz)
+    {
+      SegmentedSectionPtr ptr;
+      ptr.p = m_head;
+      ptr.i = m_head->m_lastSegment;
+      ptr.sz = m_sz;
+      m_head->m_sz = m_sz;
+      m_head->m_lastSegment = m_currentSegment->m_lastSegment;
+
+      if((m_pos % SectionSegment::DataLength) == 0){
+        m_pool.release(m_currentSegment->m_lastSegment);
+        m_head->m_lastSegment = m_prevPtrI;
+      }
+      ::release(ptr);
+    }
+    else
+    {
+      m_pool.release(m_head->m_lastSegment);
+    }
+  }
+  m_pos = -1;
+  m_head = 0;
+  m_currentSegment = 0;
+  m_prevPtrI = RNIL;
+}
+
+bool
+SimplePropertiesSectionWriter::reset()
+{
+  release();
   Ptr<SectionSegment> first;
   if(m_pool.seize(first)){
     ;
@@ -129,7 +178,7 @@ SimplePropertiesSectionWriter::SimplePropertiesSectionWriter(class SectionSegmen
     m_head = 0;
     m_currentSegment = 0;
     m_prevPtrI = RNIL;
-    return;
+    return false;
   }
   m_sz = 0;
   m_pos = 0;
@@ -137,14 +186,6 @@ SimplePropertiesSectionWriter::SimplePropertiesSectionWriter(class SectionSegmen
   m_head->m_lastSegment = first.i;
   m_currentSegment = first.p;
   m_prevPtrI = RNIL;
-}
-  
-bool
-SimplePropertiesSectionWriter::reset(){
-  if(m_pos >= 0){
-    m_pos = 0;
-    return true;
-  }
   return false;
 }
 
@@ -188,6 +229,11 @@ SimplePropertiesSectionWriter::putWords(const Uint32 * src, Uint32 len){
   return true;
 }
 
+Uint32 SimplePropertiesSectionWriter::getWordsUsed() const
+{
+  return m_sz;
+}
+
 void
 SimplePropertiesSectionWriter::getPtr(struct SegmentedSectionPtr & dst){
   // Set last ptr and size
@@ -213,8 +259,11 @@ SimplePropertiesSectionWriter::getPtr(struct SegmentedSectionPtr & dst){
   dst.sz = 0;
   dst.i = RNIL;
 
-  m_pool.release(m_head->m_lastSegment);
-  
+  if (m_head)
+  {
+    m_pool.release(m_head->m_lastSegment);
+  }
+
   m_sz = 0;
   m_pos = -1;
   m_head = m_currentSegment = 0;

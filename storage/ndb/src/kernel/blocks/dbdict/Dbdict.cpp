@@ -2153,6 +2153,10 @@ Uint32 Dbdict::getFreeObjId(Uint32 minId)
 Uint32 Dbdict::getFreeTableRecord(Uint32 primaryTableId) 
 {
   Uint32 minId = (primaryTableId == RNIL ? 0 : primaryTableId + 1);
+  if (ERROR_INSERTED(6012) && minId < 4096){
+    minId = 4096;
+    CLEAR_ERROR_INSERT_VALUE;
+  }
   Uint32 i = getFreeObjId(minId);
   if (i == RNIL) {
     jam();
@@ -8448,15 +8452,28 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
 {
   jamEntry();
   ListTablesReq * req = (ListTablesReq*)signal->getDataPtr();
+
+  Uint32 senderRef  = req->senderRef;
+  Uint32 receiverVersion = getNodeInfo(refToNode(senderRef)).m_version;
+
+  if (ndbd_LIST_TABLES_CONF_long_signal(receiverVersion))
+    sendLIST_TABLES_CONF(signal, req);
+  else
+    sendOLD_LIST_TABLES_CONF(signal, req);
+}
+
+void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
+{
   Uint32 senderRef  = req->senderRef;
   Uint32 senderData = req->senderData;
   // save req flags
-  const Uint32 reqTableId = req->getTableId();
-  const Uint32 reqTableType = req->getTableType();
+  const Uint32 reqTableId = req->oldGetTableId();
+  const Uint32 reqTableType = req->oldGetTableType();
   const bool reqListNames = req->getListNames();
   const bool reqListIndexes = req->getListIndexes();
+
   // init the confs
-  ListTablesConf * conf = (ListTablesConf *)signal->getDataPtrSend();
+  OldListTablesConf * conf = (OldListTablesConf *)signal->getDataPtrSend();
   conf->senderData = senderData;
   conf->counter = 0;
   Uint32 pos = 0;
@@ -8583,9 +8600,9 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       pos++;
     }
     
-    if (pos >= ListTablesConf::DataLength) {
+    if (pos >= OldListTablesConf::DataLength) {
       sendSignal(senderRef, GSN_LIST_TABLES_CONF, signal,
-		 ListTablesConf::SignalLength, JBB);
+		 OldListTablesConf::SignalLength, JBB);
       conf->counter++;
       pos = 0;
     }
@@ -8597,9 +8614,9 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
     const Uint32 size = name.size();
     conf->tableData[pos] = size;
     pos++;
-    if (pos >= ListTablesConf::DataLength) {
+    if (pos >= OldListTablesConf::DataLength) {
       sendSignal(senderRef, GSN_LIST_TABLES_CONF, signal,
-		 ListTablesConf::SignalLength, JBB);
+		 OldListTablesConf::SignalLength, JBB);
       conf->counter++;
       pos = 0;
     }
@@ -8615,9 +8632,9 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
 	  *p++ = 0;
       }
       pos++;
-      if (pos >= ListTablesConf::DataLength) {
+      if (pos >= OldListTablesConf::DataLength) {
 	sendSignal(senderRef, GSN_LIST_TABLES_CONF, signal,
-		   ListTablesConf::SignalLength, JBB);
+		   OldListTablesConf::SignalLength, JBB);
 	conf->counter++;
 	pos = 0;
       }
@@ -8625,7 +8642,306 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
   }
   // last signal must have less than max length
   sendSignal(senderRef, GSN_LIST_TABLES_CONF, signal,
-	     ListTablesConf::HeaderLength + pos, JBB);
+	     OldListTablesConf::HeaderLength + pos, JBB);
+}
+
+void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
+{
+  Uint32 senderRef  = req->senderRef;
+  Uint32 senderData = req->senderData;
+  // save req flags
+  const Uint32 reqTableId = req->getTableId();
+  const Uint32 reqTableType = req->getTableType();
+  const bool reqListNames = req->getListNames();
+  const bool reqListIndexes = req->getListIndexes();
+
+  NodeReceiverGroup rg(senderRef);
+
+  DLHashTable<DictObject>::Iterator iter;
+  bool done = !c_obj_hash.first(iter);
+
+  if (done)
+  {
+    /*
+     * Empty hashtable, send empty signal
+     */
+    jam();
+    ListTablesConf * const conf = (ListTablesConf*)signal->getDataPtrSend();
+    conf->senderData = senderData;
+    conf->noOfTables = 0;
+    sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
+               ListTablesConf::SignalLength, JBB);
+    return;
+  }
+
+  /*
+    Pack table data and table names (if requested) in
+    two signal segments and send it in one long fragmented
+    signal
+   */
+  ListTablesData ltd;
+  const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
+  char tname[MAX_TAB_NAME_SIZE];
+  SimplePropertiesSectionWriter tableDataWriter(getSectionSegmentPool());
+  SimplePropertiesSectionWriter tableNamesWriter(getSectionSegmentPool());
+
+  Uint32 count = 0;
+  Uint32 fragId = rand();
+  Uint32 fragInfo = 0;
+  const Uint32 fragSize = 240;
+
+  tableDataWriter.first();
+  tableNamesWriter.first();
+  while(true)
+  {
+    Uint32 type = iter.curr.p->m_type;
+
+    if ((reqTableType != (Uint32)0) && (reqTableType != type))
+      goto flush;
+
+    if (reqListIndexes && !DictTabInfo::isIndex(type))
+      goto flush;
+
+    TableRecordPtr tablePtr;
+    if (DictTabInfo::isTable(type) || DictTabInfo::isIndex(type)){
+      c_tableRecordPool.getPtr(tablePtr, iter.curr.p->m_id);
+
+      if(reqListIndexes && (reqTableId != tablePtr.p->primaryTableId))
+	goto flush;
+
+      ltd.requestData = 0; // clear
+      ltd.setTableId(tablePtr.i); // id
+      ltd.setTableType(type); // type
+      // state
+
+      if(DictTabInfo::isTable(type)){
+	switch (tablePtr.p->tabState) {
+	case TableRecord::DEFINING:
+	  ltd.setTableState(DictTabInfo::StateBuilding);
+	  break;
+	case TableRecord::PREPARE_DROPPING:
+	case TableRecord::DROPPING:
+	  ltd.setTableState(DictTabInfo::StateDropping);
+	  break;
+	case TableRecord::DEFINED:
+	  ltd.setTableState(DictTabInfo::StateOnline);
+	  break;
+	case TableRecord::BACKUP_ONGOING:
+	  ltd.setTableState(DictTabInfo::StateBackup);
+	  break;
+	default:
+	  ltd.setTableState(DictTabInfo::StateBroken);
+	  break;
+	}
+      }
+      if (tablePtr.p->isIndex()) {
+	switch (tablePtr.p->indexState) {
+	case TableRecord::IS_OFFLINE:
+	  ltd.setTableState(DictTabInfo::StateOffline);
+	  break;
+	case TableRecord::IS_BUILDING:
+	  ltd.setTableState(DictTabInfo::StateBuilding);
+	  break;
+	case TableRecord::IS_DROPPING:
+	  ltd.setTableState(DictTabInfo::StateDropping);
+	  break;
+	case TableRecord::IS_ONLINE:
+	  ltd.setTableState(DictTabInfo::StateOnline);
+	  break;
+	default:
+	  ltd.setTableState(DictTabInfo::StateBroken);
+	  break;
+	}
+      }
+      // Logging status
+      if (! (tablePtr.p->m_bits & TableRecord::TR_Logged)) {
+	ltd.setTableStore(DictTabInfo::StoreNotLogged);
+      } else {
+	ltd.setTableStore(DictTabInfo::StorePermanent);
+      }
+      // Temporary status
+      if (tablePtr.p->m_bits & TableRecord::TR_Temporary) {
+	ltd.setTableTemp(NDB_TEMP_TAB_TEMPORARY);
+      } else {
+	ltd.setTableTemp(NDB_TEMP_TAB_PERMANENT);
+      }
+    }
+    if(DictTabInfo::isTrigger(type)){
+      TriggerRecordPtr triggerPtr;
+      c_triggerRecordPool.getPtr(triggerPtr, iter.curr.p->m_id);
+
+      ltd.requestData = 0;
+      ltd.setTableId(triggerPtr.i);
+      ltd.setTableType(type);
+      switch (triggerPtr.p->triggerState) {
+      case TriggerRecord::TS_OFFLINE:
+	ltd.setTableState(DictTabInfo::StateOffline);
+	break;
+      case TriggerRecord::TS_ONLINE:
+	ltd.setTableState(DictTabInfo::StateOnline);
+	break;
+      default:
+	ltd.setTableState(DictTabInfo::StateBroken);
+	break;
+      }
+      ltd.setTableStore(DictTabInfo::StoreNotLogged);
+    }
+    if (DictTabInfo::isFilegroup(type)){
+      jam();
+      ltd.requestData = 0;
+      ltd.setTableId(iter.curr.p->m_id);
+      ltd.setTableType(type); // type
+      ltd.setTableState(DictTabInfo::StateOnline);  // XXX todo
+    }
+    if (DictTabInfo::isFile(type)){
+      jam();
+      ltd.requestData = 0;
+      ltd.setTableId(iter.curr.p->m_id);
+      ltd.setTableType(type); // type
+      ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
+    }
+    tableDataWriter.putWords((Uint32 *) &ltd, listTablesDataSizeInWords);
+    count++;
+
+    if (reqListNames)
+    {
+      jam();
+      Rope name(c_rope_pool, iter.curr.p->m_name);
+      const Uint32 size = name.size(); // String length including \0
+      const Uint32 wsize = (size + 3) / 4;
+      tableNamesWriter.putWord(size);
+      name.copy(tname);
+      tableNamesWriter.putWords((Uint32 *) tname, wsize);
+    }
+
+flush:
+    Uint32 tableDataWords = tableDataWriter.getWordsUsed();
+    Uint32 tableNameWords = tableNamesWriter.getWordsUsed();
+
+    done = !c_obj_hash.next(iter);
+    if ((tableDataWords + tableNameWords) > fragSize || done)
+    {
+      jam();
+
+      /*
+       * Flush signal fragment to keep memory usage down
+       */
+      Uint32 sigLen = ListTablesConf::SignalLength;
+      Uint32 secs = 0;
+      if (tableDataWords != 0)
+      {
+        jam();
+        secs++;
+      }
+      if (tableNameWords != 0)
+      {
+        jam();
+        secs++;
+      }
+      Uint32 * secNos = &signal->theData[sigLen];
+      signal->theData[sigLen + secs] = fragId;
+      SectionHandle handle(this);
+      switch (secs) {
+      case(0):
+        jam();
+        sigLen++; // + fragId;
+        handle.m_cnt = 0;
+        break;
+      case(1):
+      {
+        jam();
+        SegmentedSectionPtr segSecPtr;
+        sigLen += 2; // 1 sections + fragid
+        if (tableNameWords == 0)
+        {
+          tableDataWriter.getPtr(segSecPtr);
+          secNos[0] = ListTablesConf::TABLE_DATA;;
+        }
+        else
+        {
+          tableNamesWriter.getPtr(segSecPtr);
+          secNos[0] = ListTablesConf::TABLE_NAMES;
+        }
+        handle.m_ptr[0] = segSecPtr;
+        handle.m_cnt = 1;
+        break;
+      }
+      case(2):
+      {
+        jam();
+        sigLen += 3; // 2 sections + fragid
+        SegmentedSectionPtr tableDataPtr;
+        tableDataWriter.getPtr(tableDataPtr);
+        SegmentedSectionPtr tableNamesPtr;
+        tableNamesWriter.getPtr(tableNamesPtr);
+        handle.m_ptr[0] = tableDataPtr;
+        handle.m_ptr[1] = tableNamesPtr;
+        handle.m_cnt = 2;
+        secNos[0] = ListTablesConf::TABLE_DATA;
+        secNos[1] = ListTablesConf::TABLE_NAMES;
+        break;
+      }
+      }
+
+      if (done)
+      {
+        jam();
+        if (fragInfo)
+        {
+          jam();
+          fragInfo = 3;
+        }
+      }
+      else
+      {
+        jam();
+        if (fragInfo == 0)
+        {
+          jam();
+          fragInfo = 1;
+        }
+        else
+        {
+          jam();
+          fragInfo = 2;
+        }
+      }
+      signal->header.m_fragmentInfo = fragInfo;
+
+      ListTablesConf * const conf = (ListTablesConf*)signal->getDataPtrSend();
+      conf->senderData = senderData;
+      conf->noOfTables = count;
+      if (handle.m_cnt)
+      {
+        jam();
+        sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
+                   sigLen, JBB, &handle);
+      }
+      else
+      {
+        jam();
+        sendSignal(rg, GSN_LIST_TABLES_CONF, signal,
+                   sigLen, JBB);
+      }
+
+      signal->header.m_noOfSections = 0;
+      signal->header.m_fragmentInfo = 0;
+
+      if (done)
+      {
+        jam();
+        return;
+      }
+
+      /**
+       * Reset counter for next signal
+       * Reset buffers
+       */
+      count = 0;
+      tableDataWriter.first();
+      tableNamesWriter.first();
+    }
+  }
 }
 
 // MODULE: CreateIndex

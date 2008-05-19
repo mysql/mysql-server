@@ -76,6 +76,7 @@ public:
   /**
    * Fragmentation
    */
+  bool isFragmented() const { return m_fragmentInfo != 0;}
   bool isFirstFragment() const { return m_fragmentInfo <= 1;}
   bool isLastFragment() const { 
     return m_fragmentInfo == 0 || m_fragmentInfo == 3; 
