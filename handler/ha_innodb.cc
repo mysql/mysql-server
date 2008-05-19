@@ -9425,9 +9425,10 @@ innodb_plugin_init(void)
 /*====================*/
 		/* out: TRUE if the dynamic InnoDB plugin should start */
 {
-# if !MYSQL_STORAGE_ENGINE_PLUGIN
-#  error "MYSQL_STORAGE_ENGINE_PLUGIN must be nonzero."
-# endif
+#if !MYSQL_STORAGE_ENGINE_PLUGIN
+#error "MYSQL_STORAGE_ENGINE_PLUGIN must be nonzero."
+#endif
+
 	switch (builtin_innobase_plugin) {
 	case 0:
 		return(true);
@@ -9438,39 +9439,45 @@ innodb_plugin_init(void)
 	}
 
 	/* Copy the system variables. */
-	struct st_mysql_plugin* builtin
-		= (struct st_mysql_plugin*) &builtin_innobase_plugin;
-	struct st_mysql_sys_var** v = builtin->system_vars;
-	struct st_mysql_sys_var** w = innobase_system_variables;
 
-	for (; *v; v++, w++) {
-		if (!*w) {
+	struct st_mysql_plugin*		builtin;
+	struct st_mysql_sys_var**	sta;
+	struct st_mysql_sys_var**	dyn;
+
+	builtin = (struct st_mysql_plugin*) &builtin_innobase_plugin;
+	sta = builtin->system_vars;
+	dyn = innobase_system_variables;
+
+	for (; *sta != NULL; sta++, dyn++) {
+		if (*dyn == NULL) {
 			fprintf(stderr, "InnoDB: unknown parameter %s,0x%x\n",
-				(*v)->name, (*v)->flags);
+				(*sta)->name, (*sta)->flags);
 			return(false);
-		} else if (!innobase_match_parameter((*v)->name, (*w)->name)) {
+		} else if (!innobase_match_parameter((*sta)->name,
+						     (*dyn)->name)) {
 			/* Skip the destination parameter, since it doesn't
 			exist in the source. */
-			v--;
+			sta--;
 			continue;
-		/* Ignore changes that affect the READONLY flag. */
-		} else if (((*v)->flags ^ (*w)->flags) & ~PLUGIN_VAR_READONLY) {
+		} else if (((*sta)->flags ^ (*dyn)->flags)
+			   & ~PLUGIN_VAR_READONLY) {
+			/* Ignore changes that affect the READONLY flag. */
 			fprintf(stderr,
 				"InnoDB: parameter mismatch:"
 				" %s,%s,0x%x,0x%x\n",
-				(*v)->name, (*w)->name,
-				(*v)->flags, (*w)->flags);
+				(*sta)->name, (*dyn)->name,
+				(*sta)->flags, (*dyn)->flags);
 			return(false);
-		} else if ((*v)->flags & PLUGIN_VAR_THDLOCAL) {
+		} else if ((*sta)->flags & PLUGIN_VAR_THDLOCAL) {
 			/* Do not copy session variables. */
 			continue;
 		}
 
-		switch ((*v)->flags
+		switch ((*sta)->flags
 			& ~(PLUGIN_VAR_MASK | PLUGIN_VAR_UNSIGNED)) {
-# define COPY_VAR(label, type)						\
+#define COPY_VAR(label, type)						\
 		case label:						\
-			*(type*)(*w)->value = *(type*)(*v)->value;	\
+			*(type*)(*dyn)->value = *(type*)(*sta)->value;	\
 			break;
 
 			COPY_VAR(PLUGIN_VAR_BOOL, char);
@@ -9481,11 +9488,11 @@ innodb_plugin_init(void)
 
 		default:
 			fprintf(stderr, "InnoDB: unknown flags 0x%x for %s\n",
-				(*v)->flags, (*v)->name);
+				(*sta)->flags, (*sta)->name);
 		}
 
 		/* Make the static InnoDB variable point to the dynamic one */
-		(*v)->value = (*w)->value;
+		(*sta)->value = (*dyn)->value;
 	}
 
 	return(true);
