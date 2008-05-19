@@ -3228,31 +3228,8 @@ private:
   void sendSchemaComplete(Signal*, Uint32 callbackData, Uint32);
 
 public:
-  struct SchemaOperation {};
-  void create_fg_prepare_start(Signal* signal, SchemaOperation*);
-  void create_fg_prepare_complete(Signal* signal, SchemaOperation*);
-  void create_fg_abort_start(Signal* signal, SchemaOperation*);
-  void create_fg_abort_complete(Signal* signal, SchemaOperation*);
-
-  void create_file_prepare_start(Signal* signal, SchemaOperation*);
-  void create_file_prepare_complete(Signal* signal, SchemaOperation*);
-  void create_file_commit_start(Signal* signal, SchemaOperation*);
-  void create_file_abort_start(Signal* signal, SchemaOperation*);
-  void create_file_abort_complete(Signal* signal, SchemaOperation*);
-
-  void drop_file_prepare_start(Signal* signal, SchemaOperation*);
-  void drop_file_commit_start(Signal* signal, SchemaOperation*);
-  void drop_file_commit_complete(Signal* signal, SchemaOperation*);
-  void drop_file_abort_start(Signal* signal, SchemaOperation*);
   void send_drop_file(Signal*, Uint32, Uint32, DropFileImplReq::RequestInfo);
-
-  void drop_fg_prepare_start(Signal* signal, SchemaOperation*);
-  void drop_fg_commit_start(Signal* signal, SchemaOperation*);
-  void drop_fg_commit_complete(Signal* signal, SchemaOperation*);
-  void drop_fg_abort_start(Signal* signal, SchemaOperation*);
   void send_drop_fg(Signal*, Uint32, Uint32, DropFilegroupImplReq::RequestInfo);
-  void drop_undofile_prepare_start(Signal* signal, SchemaOperation*);
-  void drop_undofile_commit_complete(Signal* signal, SchemaOperation*);
   
   int checkSingleUserMode(Uint32 senderRef);
 
