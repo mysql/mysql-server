@@ -3770,16 +3770,17 @@ check_and_update_table_version(THD *thd,
     /* Always maintain the latest version and type */
     tables->set_metadata_id(table_share);
   }
-#if 0
+
 #ifndef DBUG_OFF
   /* Spuriously reprepare each statement. */
-  if (thd->m_metadata_observer && thd->stmt_arena->is_reprepared == FALSE)
+  if (_db_strict_keyword_("reprepare_each_statement") &&
+      thd->m_metadata_observer && thd->stmt_arena->is_reprepared == FALSE)
   {
     thd->m_metadata_observer->report_error(thd);
     return TRUE;
   }
 #endif
-#endif
+
   return FALSE;
 }
 
