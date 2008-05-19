@@ -110,8 +110,8 @@ print_old(const char * filename, const SchemaFile * sf, Uint32 sz)
   for (Uint32 i = 0; i < sf->NoOfTableEntries; i++) {
     SchemaFile::TableEntry_old te = sf->TableEntries_old[i];
     if (allflag ||
-        (te.m_tableState != SchemaFile::INIT &&
-         te.m_tableState != SchemaFile::DROP_TABLE_COMMITTED)) {
+        (te.m_tableState != SchemaFile::SF_UNUSED))
+    {
       if (! checkonly)
         ndbout << "Table " << i << ":"
                << " State = " << te.m_tableState 
@@ -181,8 +181,7 @@ print(const char * filename, const SchemaFile * xsf, Uint32 sz)
         }
       }
       if (allflag ||
-          (te.m_tableState != SchemaFile::INIT &&
-           te.m_tableState != SchemaFile::DROP_TABLE_COMMITTED) ||
+          (te.m_tableState != SchemaFile::SF_UNUSED) ||
           entryerr) {
         if (! checkonly || entryerr)
           ndbout << "Table " << j << ":"

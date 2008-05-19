@@ -979,24 +979,24 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_FILE_REF               723
 #define GSN_DROP_FILE_CONF              724
 
-#define GSN_CREATE_OBJ_REQ              725
-#define GSN_CREATE_OBJ_REF              726
-#define GSN_CREATE_OBJ_CONF             727
+#define GSN_CREATE_FILEGROUP_IMPL_REQ   725
+#define GSN_CREATE_FILEGROUP_IMPL_REF   726
+#define GSN_CREATE_FILEGROUP_IMPL_CONF  727
 
-#define GSN_DROP_OBJ_REQ                728
-#define GSN_DROP_OBJ_REF                729
-#define GSN_DROP_OBJ_CONF               730
+#define GSN_CREATE_FILE_IMPL_REQ        728
+#define GSN_CREATE_FILE_IMPL_REF        729
+#define GSN_CREATE_FILE_IMPL_CONF       730
 
 #define GSN_ALLOC_EXTENT_REQ             68
 #define GSN_FREE_EXTENT_REQ              69
 
-#define GSN_DICT_COMMIT_REQ             664
-#define GSN_DICT_COMMIT_REF             665
-#define GSN_DICT_COMMIT_CONF            666
+#define GSN_DROP_FILEGROUP_IMPL_REQ     664
+#define GSN_DROP_FILEGROUP_IMPL_REF     665
+#define GSN_DROP_FILEGROUP_IMPL_CONF    666
 
-#define GSN_DICT_ABORT_REQ              667
-#define GSN_DICT_ABORT_REF              668
-#define GSN_DICT_ABORT_CONF             669
+#define GSN_DROP_FILE_IMPL_REQ          667
+#define GSN_DROP_FILE_IMPL_REF          668
+#define GSN_DROP_FILE_IMPL_CONF         669
 
 /* DICT LOCK signals */
 #define GSN_DICT_LOCK_REQ               410

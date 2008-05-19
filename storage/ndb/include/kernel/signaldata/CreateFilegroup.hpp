@@ -30,11 +30,20 @@ struct CreateFilegroupReq {
    */
   friend bool printCREATE_FILEGROUP_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 6 );
   
-  Uint32 senderData;
-  Uint32 senderRef;
+  union {
+    Uint32 senderData;
+    Uint32 clientData;
+  };
+  union {
+    Uint32 senderRef;
+    Uint32 clientRef;
+  };
   Uint32 objType;
+  Uint32 requestInfo;
+  Uint32 transId;
+  Uint32 transKey;
   SECTION( FILEGROUP_INFO = 0 );
 };
 
@@ -75,8 +84,8 @@ struct CreateFilegroupRef {
   Uint32 masterNodeId;
   Uint32 errorCode;
   Uint32 errorLine; 
-  Uint32 errorKey;
-  Uint32 status;
+  Uint32 errorNodeId;
+  Uint32 transId;
 };
 
 struct CreateFilegroupConf {
@@ -95,12 +104,13 @@ struct CreateFilegroupConf {
    */
   friend bool printCREATE_FILEGROUP_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 filegroupId;
   Uint32 filegroupVersion;
+  Uint32 transId;
 };
 
 struct CreateFileReq {
@@ -116,12 +126,20 @@ struct CreateFileReq {
    */
   friend bool printCREATE_FILE_REQ(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 6 );
   
-  Uint32 senderData;
-  Uint32 senderRef;
+  union {
+    Uint32 senderData;
+    Uint32 clientData;
+  };
+  union {
+    Uint32 senderRef;
+    Uint32 clientRef;
+  };
   Uint32 objType;
   Uint32 requestInfo;
+  Uint32 transId;
+  Uint32 transKey;
   
   enum RequstInfo 
   {
@@ -147,7 +165,7 @@ struct CreateFileRef {
    */
   friend bool printCREATE_FILE_REF(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
 
   enum ErrorCode {
     NoError = 0,
@@ -171,6 +189,8 @@ struct CreateFileRef {
   Uint32 errorLine; 
   Uint32 errorKey;
   Uint32 status;
+  Uint32 errorNodeId;
+  Uint32 transId;
 };
 
 struct CreateFileConf {
@@ -190,12 +210,13 @@ struct CreateFileConf {
    */
   friend bool printCREATE_FILE_CONF(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 fileId;
   Uint32 fileVersion;
+  Uint32 transId;
 };
 
 #endif

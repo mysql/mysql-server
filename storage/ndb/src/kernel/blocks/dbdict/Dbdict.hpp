@@ -64,7 +64,7 @@
 #include <SafeCounter.hpp>
 #include <RequestTracker.hpp>
 #include <Rope.hpp>
-#include <signaldata/DictObjOp.hpp>
+#include <signaldata/CreateFilegroupImpl.hpp>
 #include <signaldata/DropFilegroupImpl.hpp>
 #include <SLList.hpp>
 #include <signaldata/DictSignal.hpp>
@@ -823,14 +823,14 @@ private:
   void execDROP_FILEGROUP_REQ(Signal* signal);
 
   // Internal
-  void execCREATE_FILE_REF(Signal* signal);
-  void execCREATE_FILE_CONF(Signal* signal);
-  void execCREATE_FILEGROUP_REF(Signal* signal);
-  void execCREATE_FILEGROUP_CONF(Signal* signal);
-  void execDROP_FILE_REF(Signal* signal);
-  void execDROP_FILE_CONF(Signal* signal);
-  void execDROP_FILEGROUP_REF(Signal* signal);
-  void execDROP_FILEGROUP_CONF(Signal* signal);
+  void execCREATE_FILE_IMPL_REF(Signal* signal);
+  void execCREATE_FILE_IMPL_CONF(Signal* signal);
+  void execCREATE_FILEGROUP_IMPL_REF(Signal* signal);
+  void execCREATE_FILEGROUP_IMPL_CONF(Signal* signal);
+  void execDROP_FILE_IMPL_REF(Signal* signal);
+  void execDROP_FILE_IMPL_CONF(Signal* signal);
+  void execDROP_FILEGROUP_IMPL_REF(Signal* signal);
+  void execDROP_FILEGROUP_IMPL_CONF(Signal* signal);
 
   void execSCHEMA_TRANS_BEGIN_REQ(Signal* signal);
   void execSCHEMA_TRANS_BEGIN_CONF(Signal* signal);
@@ -970,6 +970,10 @@ private:
     BlockReference returnBlockRef;
     
     Uint32 m_pass; // 0 tablespaces/logfilegroups, 1 tables, 2 indexes
+
+    Uint32 m_tx_ptr_i;
+    Uint32 m_op_cnt;
+    SchemaFile::TableEntry m_entry;
   };
   RestartRecord c_restartRecord;
 
@@ -1063,6 +1067,7 @@ private:
   void resizeSchemaFile(XSchemaFile * xsf, Uint32 noOfPages);
   void computeChecksum(XSchemaFile *, Uint32 pageNo);
   bool validateChecksum(const XSchemaFile *);
+  SchemaFile::TableEntry * getTableEntry(Uint32 tableId);
   SchemaFile::TableEntry * getTableEntry(XSchemaFile *, Uint32 tableId);
 
   Uint32 computeChecksum(const Uint32 * src, Uint32 len);
@@ -1283,16 +1288,10 @@ private:
     // DictObject operated on
     Uint32 m_obj_ptr_i;
 
-    // Copy of original and current schema file entry
-    SchemaFile::TableEntry m_orig_entry;
-    SchemaFile::TableEntry m_curr_entry;
-
     OpRec(const OpInfo& info, Uint32* impl_req_data) :
       m_opInfo(info),
       m_impl_req_data(impl_req_data) {
       m_obj_ptr_i = RNIL;
-      m_orig_entry.init();
-      m_curr_entry.init();
       memcpy(m_opType, m_opInfo.m_opType, 4);
     }
   };
@@ -1358,6 +1357,7 @@ private:
     };
 
     Uint32 m_state;
+    Uint32 m_restart;
     Uint32 op_key;
     Uint32 m_base_op_ptr_i;
     Uint32 nextHash;
@@ -1399,11 +1399,16 @@ private:
     // error always propagates to trans level
     ErrorInfo m_error;
 
+    // Copy of original and current schema file entry
+    Uint32 m_orig_entry_id;
+    SchemaFile::TableEntry m_orig_entry;
+
     // magic is on when record is seized
     enum { DICT_MAGIC = 0xd1c70001 };
     Uint32 m_magic;
 
     SchemaOp() {
+      m_restart = 0;
       m_clientRef = 0;
       m_clientData = 0;
       m_requestInfo = 0;
@@ -1416,6 +1421,9 @@ private:
       m_opbck_ptr.setNull();
       m_magic = 0;
       m_base_op_ptr_i = RNIL;
+
+      m_orig_entry_id = RNIL;
+      m_orig_entry.init();
     }
 
     SchemaOp(Uint32 the_op_key) {
@@ -1592,20 +1600,19 @@ private:
     {
       TS_INITIAL          = 0,
       TS_STARTING         = 1, // Starting at participants
-      TS_ABORT_START      = 2, // Endreq on all START_CONF
-      TS_STARTED          = 3, // Started (potentially with parsed ops)
-      TS_PARSING          = 4, // Parsing at participants
-      TS_SUBOP            = 5, // Creating subop
-      TS_ROLLBACK_SP      = 6, // Rolling back to SP (supported before prepare)
-      TS_FLUSH_PREPARE    = 7,
-      TS_PREPARING        = 8, // Preparing operations
-      TS_ABORTING_PREPARE = 9, // Aborting prepared operations
-      TS_ABORTING_PARSE   = 10,// Aborting parsed operations
-      TS_FLUSH_COMMIT     = 11,
-      TS_COMMITTING       = 12,// Committing
-      TS_FLUSH_COMPLETE   = 13,// Committed
-      TS_COMPLETING       = 14,// Completing
-      TS_ENDING           = 15
+      TS_STARTED          = 2, // Started (potentially with parsed ops)
+      TS_PARSING          = 3, // Parsing at participants
+      TS_SUBOP            = 4, // Creating subop
+      TS_ROLLBACK_SP      = 5, // Rolling back to SP (supported before prepare)
+      TS_FLUSH_PREPARE    = 6,
+      TS_PREPARING        = 7, // Preparing operations
+      TS_ABORTING_PREPARE = 8, // Aborting prepared operations
+      TS_ABORTING_PARSE   = 9, // Aborting parsed operations
+      TS_FLUSH_COMMIT     = 10,
+      TS_COMMITTING       = 11,// Committing
+      TS_FLUSH_COMPLETE   = 12,// Committed
+      TS_COMPLETING       = 13,// Completing
+      TS_ENDING           = 14
     };
 
     Uint32 m_state;
@@ -1631,6 +1638,7 @@ private:
     Uint32 m_requestInfo;
 
     BlockReference m_clientRef;
+    Uint32 m_obj_id;
     Uint32 m_transId;
     TransClient::State m_clientState;
     Uint32 m_clientFlags;
@@ -1657,6 +1665,11 @@ private:
      */
     MutexHandle2<DIH_START_LCP_MUTEX> m_commit_mutex;
 
+    bool m_flush_prepare;
+    bool m_flush_commit;
+    bool m_flush_complete;
+    bool m_flush_end;
+
     // magic is on when record is seized
     enum { DICT_MAGIC = 0xd1c70002 };
     Uint32 m_magic;
@@ -1675,6 +1688,11 @@ private:
       m_callback.m_callbackFunction = 0;
       m_callback.m_callbackData = 0;
       m_magic = 0;
+      m_obj_id = RNIL;
+      m_flush_prepare = false;
+      m_flush_commit = false;
+      m_flush_complete = false;
+      m_flush_end = false;
     }
 
     SchemaTrans(Uint32 the_trans_key) {
@@ -1741,6 +1759,14 @@ private:
 
   void trans_end_start(Signal* signal, SchemaTransPtr);
   void trans_end_recv_reply(Signal*, SchemaTransPtr);
+
+  void trans_log(SchemaTransPtr);
+  Uint32 trans_log_schema_op(SchemaOpPtr,
+                             Uint32 objectId,
+                             const SchemaFile::TableEntry*);
+
+  void trans_log_schema_op_abort(SchemaOpPtr);
+  void trans_log_schema_op_complete(SchemaOpPtr);
 
   // participant
   void recvTransReq(Signal*);
@@ -2019,19 +2045,16 @@ private:
   void createTable_abortPrepare(Signal*, SchemaOpPtr);
 
   // prepare
-  void createTab_writeSchemaConf1(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_dih(Signal*, SchemaOpPtr, OpSection fragSec, Callback*);
   void createTab_dihComplete(Signal*, Uint32 op_key, Uint32 ret);
 
   // commit
-  void createTab_writeSchemaConf2(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_activate(Signal*, SchemaOpPtr, Callback*);
   void createTab_alterComplete(Signal*, Uint32 op_key, Uint32 ret);
 
   // abort prepare
   void createTable_abortLocalConf(Signal*, Uint32 aux_op_key, Uint32 ret);
-  void createTable_abortWriteSchemaConf(Signal*, Uint32 aux_op_key, Uint32 ret);
 
   // MODULE: DropTable
 
@@ -2085,7 +2108,6 @@ private:
   void dropTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
   void prepDropTab_nextStep(Signal*, SchemaOpPtr);
   void prepDropTab_writeSchema(Signal* signal, SchemaOpPtr);
-  void prepDropTab_writeSchemaConf(Signal*, Uint32 op_key, Uint32 ret);
   void prepDropTab_fromLocal(Signal*, Uint32 op_key, Uint32 errorCode);
   void prepDropTab_complete(Signal*, SchemaOpPtr);
 
@@ -2093,7 +2115,6 @@ private:
   void dropTab_nextStep(Signal*, SchemaOpPtr);
   void dropTab_fromLocal(Signal*, Uint32 op_key);
   void dropTab_complete(Signal*, Uint32 op_key, Uint32 ret);
-  void dropTab_writeSchemaConf(Signal*, Uint32 op_key, Uint32 ret);
 
   // MODULE: AlterTable
 
@@ -2178,7 +2199,6 @@ private:
   // commit phase
   void alterTable_toTupCommit(Signal*, SchemaOpPtr);
   void alterTable_fromTupCommit(Signal*, Uint32 op_key, Uint32 ret);
-  void alterTab_writeSchemaConf(Signal*, Uint32 op_key, Uint32 ret);
   void alterTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
 
   // abort
@@ -2709,62 +2729,177 @@ private:
 
   void send_drop_trig_req(Signal*, SchemaOpPtr);
 
-public:
-  struct SchemaOperation : OpRecordCommon {
-    
-    Uint32 m_clientRef; // API (for take-over)
-    Uint32 m_clientData;// API
-    
-    Uint32 m_senderRef; // 
-    Uint32 m_senderData;// transaction key value
-    
-    Uint32 m_errorCode;
-    
-    Uint32 m_obj_id;
-    Uint32 m_obj_type;
-    Uint32 m_obj_version;
-    Uint32 m_obj_ptr_i;
-    Uint32 m_vt_index;
-    Callback m_callback;
-  };
-  typedef Ptr<SchemaOperation> SchemaOperationPtr;
 
-  struct SchemaTransaction : OpRecordCommon {
-    Uint32 m_senderRef; // API
-    Uint32 m_senderData;// API
-    
-    Callback m_callback;
-    SafeCounterHandle m_counter;
-    NodeBitmask m_nodes;
-    
-    Uint32 m_errorCode;
-    SchemaTransaction() {}
-    void setErrorCode(Uint32 c){ if(m_errorCode == 0) m_errorCode = c;}
+  // MODULE: CreateFilegroup
 
-    /**
-     * This should contain "lists" with operations
-     */
-    struct {
-      Uint32 m_key;      // Operation key
-      Uint32 m_vt_index; // Operation type
-      Uint32 m_obj_id;
-      DictObjOp::State m_state;
-    } m_op;
-  };
-private:
+  struct CreateFilegroupRec : public OpRec {
+    bool m_parsed, m_prepared;
+    CreateFilegroupImplReq m_request;
 
-  struct OpCreateObj : public SchemaOperation {
-    Uint32 m_gci;
-    Uint32 m_obj_info_ptr_i;
-    Uint32 m_restart;
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CreateFilegroupRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createFilegroupRecPool;
+    }
+
+    CreateFilegroupRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_parsed = m_prepared = false;
+    }
   };
-  typedef Ptr<OpCreateObj> CreateObjRecordPtr;
-  
-  struct OpDropObj : public SchemaOperation
-  {
+
+  typedef Ptr<CreateFilegroupRec> CreateFilegroupRecPtr;
+  ArrayPool<CreateFilegroupRec> c_createFilegroupRecPool;
+
+  // OpInfo
+  bool createFilegroup_seize(SchemaOpPtr);
+  void createFilegroup_release(SchemaOpPtr);
+  //
+  void createFilegroup_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool createFilegroup_subOps(Signal*, SchemaOpPtr);
+  void createFilegroup_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createFilegroup_prepare(Signal*, SchemaOpPtr);
+  void createFilegroup_commit(Signal*, SchemaOpPtr);
+  void createFilegroup_complete(Signal*, SchemaOpPtr);
+  //
+  void createFilegroup_abortParse(Signal*, SchemaOpPtr);
+  void createFilegroup_abortPrepare(Signal*, SchemaOpPtr);
+
+  void createFilegroup_fromLocal(Signal*, Uint32, Uint32);
+  void createFilegroup_fromWriteObjInfo(Signal*, Uint32, Uint32);
+
+  // MODULE: CreateFile
+
+  struct CreateFileRec : public OpRec {
+    bool m_parsed, m_prepared;
+    CreateFileImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CreateFileRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createFileRecPool;
+    }
+
+    CreateFileRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_parsed = m_prepared = false;
+    }
   };
-  typedef Ptr<OpDropObj> DropObjRecordPtr;
-  
+
+  typedef Ptr<CreateFileRec> CreateFileRecPtr;
+  ArrayPool<CreateFileRec> c_createFileRecPool;
+
+  // OpInfo
+  bool createFile_seize(SchemaOpPtr);
+  void createFile_release(SchemaOpPtr);
+  //
+  void createFile_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool createFile_subOps(Signal*, SchemaOpPtr);
+  void createFile_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createFile_prepare(Signal*, SchemaOpPtr);
+  void createFile_commit(Signal*, SchemaOpPtr);
+  void createFile_complete(Signal*, SchemaOpPtr);
+  //
+  void createFile_abortParse(Signal*, SchemaOpPtr);
+  void createFile_abortPrepare(Signal*, SchemaOpPtr);
+
+  void createFile_fromLocal(Signal*, Uint32, Uint32);
+  void createFile_fromWriteObjInfo(Signal*, Uint32, Uint32);
+
+  // MODULE: DropFilegroup
+
+  struct DropFilegroupRec : public OpRec {
+    bool m_parsed, m_prepared;
+    DropFilegroupImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::DropFilegroupRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_dropFilegroupRecPool;
+    }
+
+    DropFilegroupRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_parsed = m_prepared = false;
+    }
+  };
+
+  typedef Ptr<DropFilegroupRec> DropFilegroupRecPtr;
+  ArrayPool<DropFilegroupRec> c_dropFilegroupRecPool;
+
+  // OpInfo
+  bool dropFilegroup_seize(SchemaOpPtr);
+  void dropFilegroup_release(SchemaOpPtr);
+  //
+  void dropFilegroup_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool dropFilegroup_subOps(Signal*, SchemaOpPtr);
+  void dropFilegroup_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropFilegroup_prepare(Signal*, SchemaOpPtr);
+  void dropFilegroup_commit(Signal*, SchemaOpPtr);
+  void dropFilegroup_complete(Signal*, SchemaOpPtr);
+  //
+  void dropFilegroup_abortParse(Signal*, SchemaOpPtr);
+  void dropFilegroup_abortPrepare(Signal*, SchemaOpPtr);
+
+  void dropFilegroup_fromLocal(Signal*, Uint32, Uint32);
+
+  // MODULE: DropFile
+
+  struct DropFileRec : public OpRec {
+    bool m_parsed, m_prepared;
+    DropFileImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::DropFileRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_dropFileRecPool;
+    }
+
+    DropFileRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_parsed = m_prepared = false;
+    }
+  };
+
+  typedef Ptr<DropFileRec> DropFileRecPtr;
+  ArrayPool<DropFileRec> c_dropFileRecPool;
+
+  // OpInfo
+  bool dropFile_seize(SchemaOpPtr);
+  void dropFile_release(SchemaOpPtr);
+  //
+  void dropFile_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool dropFile_subOps(Signal*, SchemaOpPtr);
+  void dropFile_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropFile_prepare(Signal*, SchemaOpPtr);
+  void dropFile_commit(Signal*, SchemaOpPtr);
+  void dropFile_complete(Signal*, SchemaOpPtr);
+  //
+  void dropFile_abortParse(Signal*, SchemaOpPtr);
+  void dropFile_abortPrepare(Signal*, SchemaOpPtr);
+
+  void dropFile_fromLocal(Signal*, Uint32, Uint32);
+
   /**
    * Only used at coordinator/master
    */
@@ -2774,7 +2909,6 @@ public:
   STATIC_CONST( opSubEventSize = sizeof(OpSubEvent) );
   STATIC_CONST( opDropEventSize = sizeof(OpDropEvent) );
   STATIC_CONST( opSignalUtilSize = sizeof(OpSignalUtil) );
-  STATIC_CONST( opCreateObjSize = sizeof(OpCreateObj) );
 private:
 #define PTR_ALIGN(n) ((((n)+sizeof(void*)-1)>>2)&~((sizeof(void*)-1)>>2))
   union OpRecordUnion {
@@ -2782,7 +2916,6 @@ private:
     Uint32 u_opSubEvent     [PTR_ALIGN(opSubEventSize)];
     Uint32 u_opDropEvent    [PTR_ALIGN(opDropEventSize)];
     Uint32 u_opSignalUtil   [PTR_ALIGN(opSignalUtilSize)];
-    Uint32 u_opCreateObj    [PTR_ALIGN(opCreateObjSize)];
     Uint32 nextPool;
   };
   ArrayPool<OpRecordUnion> c_opRecordPool;
@@ -2792,10 +2925,6 @@ private:
   KeyTable2C<OpSubEvent, OpRecordUnion> c_opSubEvent;
   KeyTable2C<OpDropEvent, OpRecordUnion> c_opDropEvent;
   KeyTable2C<OpSignalUtil, OpRecordUnion> c_opSignalUtil;
-  KeyTable2<SchemaOperation, OpRecordUnion> c_schemaOperation;
-  KeyTable2<SchemaTransaction, OpRecordUnion> c_Trans;
-  KeyTable2Ref<OpCreateObj, SchemaOperation, OpRecordUnion> c_opCreateObj;
-  KeyTable2Ref<OpDropObj, SchemaOperation, OpRecordUnion> c_opDropObj;
 
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
@@ -2842,7 +2971,6 @@ private:
   void initSendSchemaData(Signal* signal);
   void sendSchemaData(Signal* signal);
   Uint32 sendSCHEMA_INFO(Signal* signal, Uint32 nodeId, Uint32* pagePointer);
-  void checkSchemaStatus(Signal* signal);
   void sendDIHSTARTTAB_REQ(Signal* signal);
   
   /* ------------------------------------------------------------ */
@@ -3081,90 +3209,26 @@ private:
 
   void printTables(); // For debugging only
 
-  void restartCreateTab(Signal*, Uint32, 
-			const SchemaFile::TableEntry *, 
-			const SchemaFile::TableEntry *, bool);
-  void restartCreateTab_readTableConf(Signal*, Uint32 op_key, Uint32 ret);
-  void restartCreateTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
-  void restartCreateTab_dihComplete(Signal*, Uint32 op_key, Uint32 ret);
-  void restartCreateTab_activateComplete(Signal*, Uint32 op_key, Uint32 ret);
+  void restartNextPass(Signal*);
+  void restart_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void restart_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void restartEndPass_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void checkSchemaStatus(Signal* signal);
+  void checkPendingSchemaTrans(XSchemaFile* xsf);
 
-  void restartDropTab(Signal* signal, Uint32 tableId,
-                      const SchemaFile::TableEntry *, 
-                      const SchemaFile::TableEntry *);
-  void restartDropTab_complete(Signal*, Uint32 op_key, Uint32 ret);
-
+  void restartCreateObj(Signal*, Uint32, const SchemaFile::TableEntry *, bool);
+  void restartCreateObj_readConf(Signal*, Uint32, Uint32);
+  void restartCreateObj_getTabInfoConf(Signal*);
+  void restartCreateObj_parse(Signal*, SegmentedSectionPtr, bool);
   void restartDropObj(Signal*, Uint32, const SchemaFile::TableEntry *);
-  void restartDropObj_prepare_start_done(Signal*, Uint32, Uint32);
-  void restartDropObj_prepare_complete_done(Signal*, Uint32, Uint32);
-  void restartDropObj_commit_start_done(Signal*, Uint32, Uint32);
-  void restartDropObj_commit_complete_done(Signal*, Uint32, Uint32);
-  
+
   void restart_checkSchemaStatusComplete(Signal*, Uint32 callback, Uint32);
-  void restart_writeSchemaConf(Signal*, Uint32 callbackData, Uint32);
   void masterRestart_checkSchemaStatusComplete(Signal*, Uint32, Uint32);
 
   void sendSchemaComplete(Signal*, Uint32 callbackData, Uint32);
 
-  void execCREATE_OBJ_REQ(Signal* signal);  
-  void execCREATE_OBJ_REF(Signal* signal);  
-  void execCREATE_OBJ_CONF(Signal* signal);
-
-  void createObj_prepare_start_done(Signal* signal, Uint32 callback, Uint32);
-  void createObj_writeSchemaConf1(Signal* signal, Uint32 callback, Uint32);
-  void createObj_writeObjConf(Signal* signal, Uint32 callbackData, Uint32);
-  void createObj_prepare_complete_done(Signal*, Uint32 callbackData, Uint32);
-  void createObj_commit_start_done(Signal* signal, Uint32 callback, Uint32);
-  void createObj_writeSchemaConf2(Signal* signal, Uint32 callbackData, Uint32);
-  void createObj_commit_complete_done(Signal*, Uint32 callbackData, Uint32);
-  void createObj_abort(Signal*, struct CreateObjReq*);
-  void createObj_abort_start_done(Signal*, Uint32 callbackData, Uint32);
-  void createObj_abort_writeSchemaConf(Signal*, Uint32 callbackData, Uint32);
-  void createObj_abort_complete_done(Signal*, Uint32 callbackData, Uint32);  
-
-  void schemaOperation_reply(Signal* signal, SchemaTransaction *, Uint32);
-  void trans_commit_start_done(Signal*, Uint32 callbackData, Uint32);
-  void trans_commit_complete_done(Signal*, Uint32 callbackData, Uint32);
-  void trans_abort_start_done(Signal*, Uint32 callbackData, Uint32);
-  void trans_abort_complete_done(Signal*, Uint32 callbackData, Uint32);
-
-  void execDROP_OBJ_REQ(Signal* signal);  
-  void execDROP_OBJ_REF(Signal* signal);  
-  void execDROP_OBJ_CONF(Signal* signal);
-
-  void dropObj_prepare_start_done(Signal* signal, Uint32 callback, Uint32);
-  void dropObj_prepare_writeSchemaConf(Signal*, Uint32 callback, Uint32);
-  void dropObj_prepare_complete_done(Signal*, Uint32 callbackData, Uint32);
-  void dropObj_commit_start_done(Signal*, Uint32 callbackData, Uint32);
-  void dropObj_commit_writeSchemaConf(Signal*, Uint32 callback, Uint32);
-  void dropObj_commit_complete_done(Signal*, Uint32 callbackData, Uint32);
-  void dropObj_abort_start_done(Signal*, Uint32 callbackData, Uint32);
-  void dropObj_abort_writeSchemaConf(Signal*, Uint32 callback, Uint32);
-  void dropObj_abort_complete_done(Signal*, Uint32 callbackData, Uint32);
-  
-  void restartCreateObj(Signal*, Uint32, 
-			const SchemaFile::TableEntry *,
-			const SchemaFile::TableEntry *, bool);
-  void restartCreateObj_readConf(Signal*, Uint32, Uint32);
-  void restartCreateObj_getTabInfoConf(Signal*);
-  void restartCreateObj_prepare_start_done(Signal*, Uint32, Uint32);
-  void restartCreateObj_write_complete(Signal*, Uint32, Uint32);
-  void restartCreateObj_prepare_complete_done(Signal*, Uint32, Uint32);
-  void restartCreateObj_commit_start_done(Signal*, Uint32, Uint32);
-  void restartCreateObj_commit_complete_done(Signal*, Uint32, Uint32);
-
-  void execDICT_COMMIT_REQ(Signal*);
-  void execDICT_COMMIT_REF(Signal*);
-  void execDICT_COMMIT_CONF(Signal*);
-
-  void execDICT_ABORT_REQ(Signal*);
-  void execDICT_ABORT_REF(Signal*);
-  void execDICT_ABORT_CONF(Signal*);
-
 public:
-  void createObj_commit(Signal*, struct SchemaOperation*);
-  void createObj_abort(Signal*, struct SchemaOperation*);
-
+  struct SchemaOperation {};
   void create_fg_prepare_start(Signal* signal, SchemaOperation*);
   void create_fg_prepare_complete(Signal* signal, SchemaOperation*);
   void create_fg_abort_start(Signal* signal, SchemaOperation*);
@@ -3176,20 +3240,17 @@ public:
   void create_file_abort_start(Signal* signal, SchemaOperation*);
   void create_file_abort_complete(Signal* signal, SchemaOperation*);
 
-  void dropObj_commit(Signal*, struct SchemaOperation*);
-  void dropObj_abort(Signal*, struct SchemaOperation*);
   void drop_file_prepare_start(Signal* signal, SchemaOperation*);
   void drop_file_commit_start(Signal* signal, SchemaOperation*);
   void drop_file_commit_complete(Signal* signal, SchemaOperation*);
   void drop_file_abort_start(Signal* signal, SchemaOperation*);
-  void send_drop_file(Signal*, SchemaOperation*, DropFileImplReq::RequestInfo);
+  void send_drop_file(Signal*, Uint32, Uint32, DropFileImplReq::RequestInfo);
 
   void drop_fg_prepare_start(Signal* signal, SchemaOperation*);
   void drop_fg_commit_start(Signal* signal, SchemaOperation*);
   void drop_fg_commit_complete(Signal* signal, SchemaOperation*);
   void drop_fg_abort_start(Signal* signal, SchemaOperation*);
-  void send_drop_fg(Signal*, SchemaOperation*, DropFilegroupImplReq::RequestInfo);
-
+  void send_drop_fg(Signal*, Uint32, Uint32, DropFilegroupImplReq::RequestInfo);
   void drop_undofile_prepare_start(Signal* signal, SchemaOperation*);
   void drop_undofile_commit_complete(Signal* signal, SchemaOperation*);
   

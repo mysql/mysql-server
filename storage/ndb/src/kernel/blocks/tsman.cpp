@@ -58,11 +58,11 @@ Tsman::Tsman(Block_context& ctx,
   addRecSignal(GSN_DUMP_STATE_ORD, &Tsman::execDUMP_STATE_ORD);
   addRecSignal(GSN_CONTINUEB, &Tsman::execCONTINUEB);
 
-  addRecSignal(GSN_CREATE_FILE_REQ, &Tsman::execCREATE_FILE_REQ);
-  addRecSignal(GSN_CREATE_FILEGROUP_REQ, &Tsman::execCREATE_FILEGROUP_REQ);
+  addRecSignal(GSN_CREATE_FILE_IMPL_REQ, &Tsman::execCREATE_FILE_IMPL_REQ);
+  addRecSignal(GSN_CREATE_FILEGROUP_IMPL_REQ, &Tsman::execCREATE_FILEGROUP_IMPL_REQ);
 
-  addRecSignal(GSN_DROP_FILE_REQ, &Tsman::execDROP_FILE_REQ);
-  addRecSignal(GSN_DROP_FILEGROUP_REQ, &Tsman::execDROP_FILEGROUP_REQ);
+  addRecSignal(GSN_DROP_FILE_IMPL_REQ, &Tsman::execDROP_FILE_IMPL_REQ);
+  addRecSignal(GSN_DROP_FILEGROUP_IMPL_REQ, &Tsman::execDROP_FILEGROUP_IMPL_REQ);
 
   addRecSignal(GSN_FSWRITEREQ, &Tsman::execFSWRITEREQ);
 
@@ -318,7 +318,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal){
 }
 
 void
-Tsman::execCREATE_FILEGROUP_REQ(Signal* signal){
+Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
   jamEntry();
   CreateFilegroupImplReq* req= (CreateFilegroupImplReq*)signal->getDataPtr();
 
@@ -352,7 +352,7 @@ Tsman::execCREATE_FILEGROUP_REQ(Signal* signal){
       (CreateFilegroupImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILEGROUP_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_CONF, signal,
 	       CreateFilegroupImplConf::SignalLength, JBB);
     return;
   } while(0);
@@ -361,7 +361,7 @@ Tsman::execCREATE_FILEGROUP_REQ(Signal* signal){
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->errorCode = err;
-  sendSignal(senderRef, GSN_CREATE_FILEGROUP_REF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_REF, signal,
 	     CreateFilegroupImplRef::SignalLength, JBB);
 }
 
@@ -380,7 +380,7 @@ operator<<(NdbOut& out, const File_formats::Datafile::Extent_header & obj)
 }
 
 void
-Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
+Tsman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal){
   jamEntry();
 
   Uint32 errorCode = 0;
@@ -430,7 +430,7 @@ Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
     ref->senderRef = reference();
     ref->senderData = req.senderData;
     ref->errorCode = errorCode;
-    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_REF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_IMPL_REF, signal,
 	       DropFilegroupImplRef::SignalLength, JBB);
   }
   else
@@ -439,7 +439,7 @@ Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
       (DropFilegroupImplConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = req.senderData;
-    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_CONF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILEGROUP_IMPL_CONF, signal,
 	       DropFilegroupImplConf::SignalLength, JBB);
   }
 }
@@ -457,7 +457,7 @@ Tsman::find_file_by_id(Ptr<Datafile>& ptr,
 }
 
 void
-Tsman::execCREATE_FILE_REQ(Signal* signal){
+Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal){
   jamEntry();
   CreateFileImplReq* req= (CreateFileImplReq*)signal->getDataPtr();
   
@@ -520,7 +520,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
 	CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
 	conf->senderData = senderData;
 	conf->senderRef = reference();
-	sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+	sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 		   CreateFileImplConf::SignalLength, JBB);
 	return;
       }
@@ -552,7 +552,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
       ref->senderData = senderData;
       ref->senderRef = reference();
       ref->errorCode = CreateFileImplRef::FileSizeTooLarge;
-      sendSignal(senderRef, GSN_CREATE_FILE_REF, signal,
+      sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
                  CreateFileImplRef::SignalLength, JBB);
       return;
     }
@@ -577,7 +577,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->errorCode = err;
-  sendSignal(senderRef, GSN_CREATE_FILE_REF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
 	     CreateFileImplRef::SignalLength, JBB);
 }
 
@@ -666,7 +666,7 @@ Tsman::execFSCLOSECONF(Signal* signal)
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);
   }
   else if(ptr.p->m_state == Datafile::FS_DROPPING)
@@ -676,7 +676,7 @@ Tsman::execFSCLOSECONF(Signal* signal)
     DropFileImplConf* conf= (DropFileImplConf*)signal->getDataPtr();
     conf->senderData = senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_DROP_FILE_CONF, signal, 
+    sendSignal(senderRef, GSN_DROP_FILE_IMPL_CONF, signal,
 	       DropFileImplConf::SignalLength, JBB);
 
   }
@@ -870,7 +870,7 @@ Tsman::create_file_ref(Signal* signal,
   ref->errorCode = (CreateFileImplRef::ErrorCode)error;
   ref->fsErrCode = fsError;
   ref->osErrCode = osError;
-  sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_REF, signal, 
+  sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_IMPL_REF, signal,
 	     CreateFileImplRef::SignalLength, JBB);
   
   Local_datafile_list meta(m_file_pool, lg_ptr.p->m_meta_files);
@@ -918,7 +918,7 @@ Tsman::execFSOPENCONF(Signal* signal)
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
     conf->senderRef = reference();
-    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);
     return;
   }
@@ -1051,7 +1051,7 @@ Tsman::execFSREADCONF(Signal* signal){
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
     conf->senderRef = reference();
-    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_CONF, signal, 
+    sendSignal(ptr.p->m_create.m_senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	       CreateFileImplConf::SignalLength, JBB);    
     return;
   } while(0);
@@ -1155,7 +1155,7 @@ Tsman::load_extent_page_callback(Signal* signal,
   CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
   conf->senderData = senderData;
   conf->senderRef = reference();
-  sendSignal(senderRef, GSN_CREATE_FILE_CONF, signal, 
+  sendSignal(senderRef, GSN_CREATE_FILE_IMPL_CONF, signal,
 	     CreateFileImplConf::SignalLength, JBB);
 }
 
@@ -1311,7 +1311,7 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
 }
 
 void
-Tsman::execDROP_FILE_REQ(Signal* signal)
+Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
 {
   jamEntry();
   DropFileImplReq req = *(DropFileImplReq*)signal->getDataPtr();
@@ -1406,7 +1406,7 @@ Tsman::execDROP_FILE_REQ(Signal* signal)
     ref->senderRef = reference();
     ref->senderData = req.senderData;
     ref->errorCode = errorCode;
-    sendSignal(req.senderRef, GSN_DROP_FILE_REF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILE_IMPL_REF, signal,
 	       DropFileImplRef::SignalLength, JBB);
   }
   else
@@ -1414,7 +1414,7 @@ Tsman::execDROP_FILE_REQ(Signal* signal)
     DropFileImplConf* conf = (DropFileImplConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = req.senderData;
-    sendSignal(req.senderRef, GSN_DROP_FILE_CONF, signal,
+    sendSignal(req.senderRef, GSN_DROP_FILE_IMPL_CONF, signal,
 	       DropFileImplConf::SignalLength, JBB);
   }
 }

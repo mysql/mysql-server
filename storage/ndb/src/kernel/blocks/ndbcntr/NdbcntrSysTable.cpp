@@ -37,7 +37,7 @@ Ndbcntr::g_sysTable_SYSTAB_0 = {
   arrayLength(column_SYSTAB_0), column_SYSTAB_0,
   DictTabInfo::SystemTable,
   DictTabInfo::AllNodesSmallTable,
-  true, ~0
+  true, ~0, ~0
 };
 
 // NDB$EVENTS_0
@@ -84,7 +84,7 @@ Ndbcntr::g_sysTable_NDBEVENTS_0 = {
   arrayLength(column_NDBEVENTS_0), column_NDBEVENTS_0,
   DictTabInfo::SystemTable,
   DictTabInfo::AllNodesSmallTable,
-  true, ~0
+  true, ~0, ~0
 };
 
 // all

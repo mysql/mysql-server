@@ -45,10 +45,10 @@ protected:
   void execDUMP_STATE_ORD(Signal* signal);
   void execCONTINUEB(Signal* signal);
   
-  void execCREATE_FILE_REQ(Signal* signal);
-  void execCREATE_FILEGROUP_REQ(Signal* signal);
-  void execDROP_FILE_REQ(Signal* signal);
-  void execDROP_FILEGROUP_REQ(Signal* signal);
+  void execCREATE_FILE_IMPL_REQ(Signal* signal);
+  void execCREATE_FILEGROUP_IMPL_REQ(Signal* signal);
+  void execDROP_FILE_IMPL_REQ(Signal* signal);
+  void execDROP_FILEGROUP_IMPL_REQ(Signal* signal);
   
   void execFSWRITEREQ(Signal*);
   void execFSWRITEREF(Signal*);

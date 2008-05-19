@@ -1412,6 +1412,7 @@ DbUtil::execUTIL_RELEASE_REQ(Signal* signal){
  *
  *  A service with a stored incrementable number
  **************************************************************************/
+#define SYSTAB_0 1
 
 void
 DbUtil::hardcodedPrepare() {
@@ -1427,7 +1428,7 @@ DbUtil::hardcodedPrepare() {
     ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength +
                               ptr.p->keyLen + ptr.p->tckey.attrLen) * 4;
     ptr.p->keyDataPos = TcKeyReq::StaticLength; 
-    ptr.p->tckey.tableId = 0;
+    ptr.p->tckey.tableId = SYSTAB_0;
     Uint32 requestInfo = 0;
     TcKeyReq::setAbortOption(requestInfo, TcKeyReq::CommitIfFailFree);
     TcKeyReq::setOperationType(requestInfo, ZREAD);
@@ -1456,7 +1457,7 @@ DbUtil::hardcodedPrepare() {
     ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength + ptr.p->keyLen + 5) * 4;
     ptr.p->keyDataPos = TcKeyReq::StaticLength; 
     ptr.p->tckey.attrLen = 11;
-    ptr.p->tckey.tableId = 0;
+    ptr.p->tckey.tableId = SYSTAB_0;
     Uint32 requestInfo = 0;
     TcKeyReq::setAbortOption(requestInfo, TcKeyReq::CommitIfFailFree);
     TcKeyReq::setOperationType(requestInfo, ZUPDATE);
@@ -1513,7 +1514,7 @@ DbUtil::hardcodedPrepare() {
     ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength +
                               ptr.p->keyLen + ptr.p->tckey.attrLen) * 4;
     ptr.p->keyDataPos = TcKeyReq::StaticLength;
-    ptr.p->tckey.tableId = 0;
+    ptr.p->tckey.tableId = SYSTAB_0;
     Uint32 requestInfo = 0;
     TcKeyReq::setAbortOption(requestInfo, TcKeyReq::CommitIfFailFree);
     TcKeyReq::setOperationType(requestInfo, ZINSERT);
@@ -1534,7 +1535,7 @@ DbUtil::hardcodedPrepare() {
     ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength + ptr.p->keyLen + 5) * 4;
     ptr.p->keyDataPos = TcKeyReq::StaticLength;
     ptr.p->tckey.attrLen = 9;
-    ptr.p->tckey.tableId = 0;
+    ptr.p->tckey.tableId = SYSTAB_0;
     Uint32 requestInfo = 0;
     TcKeyReq::setAbortOption(requestInfo, TcKeyReq::CommitIfFailFree);
     TcKeyReq::setOperationType(requestInfo, ZUPDATE);
