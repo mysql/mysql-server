@@ -914,8 +914,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
-  thd->server_status&=
-           ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
+  /**
+    Clear the set of flags that are expected to be cleared at the
+    beginning of each command.
+  */
+  thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
   switch (command) {
   case COM_INIT_DB:
   {
@@ -5377,9 +5380,11 @@ void mysql_reset_thd_for_next_command(THD *thd)
 
   thd->query_start_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
-  thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
-                          SERVER_QUERY_NO_INDEX_USED |
-                          SERVER_QUERY_NO_GOOD_INDEX_USED);
+  /*
+    Clear the status flag that are expected to be cleared at the
+    beginning of each SQL statement.
+  */
+  thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
   /*
     If in autocommit mode and not in a transaction, reset
     OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG to not get warnings
