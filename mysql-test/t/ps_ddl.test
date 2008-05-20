@@ -1961,18 +1961,9 @@ deallocate prepare stmt;
 --echo #
 --echo # SQLCOM_SHOW_EVENTS
 --echo #
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
-create table t1 (a int);
-prepare stmt from "show events where (1) in (select * from t1)";
-execute stmt;
-drop table t1;
-create table t1 (x int);
-execute stmt;
-drop table t1;
-deallocate prepare stmt;
+--echo #
+--echo # Please see this test in ps.test, it requires not_embedded.inc
+--echo #
 
 --echo #
 --echo # SQLCOM_SET_OPTION
@@ -2045,7 +2036,7 @@ drop table t1;
 deallocate prepare stmt;
 --echo # Intermediate result: number of reprepares matches the number
 --echo # of tests
-call p_verify_reprepare_count(18);
+call p_verify_reprepare_count(17);
 
 --echo #
 --echo # SQLCOM_ALTER_VIEW
