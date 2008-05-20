@@ -52,8 +52,10 @@ SELECT RIGHT(@@global.slow_query_log_file,15);
 #      Change the value of slow_query_log_file to a invalid value     #
 #######################################################################
 
---Error ER_WRONG_VALUE_FOR_VAR
+# Assumed text if no quotes or numbers.
 SET @@global.slow_query_log_file = mytest.log;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.slow_query_log_file = 12;
 
 --echo '#----------------------FN_DYNVARS_004_03------------------------#'
 ############################################################################## 
