@@ -9,7 +9,8 @@ log_file
 master.log
 '#--------------------FN_DYNVARS_004_02------------------------#'
 SET @@global.general_log_file = mytest.log;
-ERROR 42000: Variable 'general_log_file' can't be set to the value of 'log'
+SET @@global.general_log_file = 12;
+ERROR 42000: Incorrect argument type to variable 'general_log_file'
 '#----------------------FN_DYNVARS_004_03------------------------#'
 SELECT @@global.general_log_file = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
