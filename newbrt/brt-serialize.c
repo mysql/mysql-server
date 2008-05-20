@@ -490,7 +490,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
     wbuf_DISKOFF(wbuf, h->freelist);
     wbuf_DISKOFF(wbuf, h->unused_memory);
     wbuf_int    (wbuf, h->n_named_roots);
-    if (h->n_named_roots>0) {
+    if (h->n_named_roots>=0) {
 	int i;
 	for (i=0; i<h->n_named_roots; i++) {
 	    char *s = h->names[i];
