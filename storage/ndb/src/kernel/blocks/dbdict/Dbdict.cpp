@@ -18012,13 +18012,17 @@ Dbdict::releaseSchemaTrans(SchemaTransPtr& trans_ptr)
   c_schemaTransHash.release(trans_ptr);
   trans_ptr.setNull();
 
-  // only 1 trans at time so it is easy to check for leaks
-  ndbrequire(c_schemaOpPool.getNoOfFree() == c_schemaOpPool.getSize());
-  ndbrequire(c_opSectionBufferPool.getNoOfFree() == c_opSectionBufferPool.getSize());
+  if (c_schemaTransCount == 0)
+  {
+    jam();
+
+    ndbrequire(c_schemaOpPool.getNoOfFree() == c_schemaOpPool.getSize());
+    ndbrequire(c_opSectionBufferPool.getNoOfFree() == c_opSectionBufferPool.getSize());
 #ifdef VM_TRACE
-  if (getNodeState().startLevel == NodeState::SL_STARTED)
-    check_consistency();
+    if (getNodeState().startLevel == NodeState::SL_STARTED)
+      check_consistency();
 #endif
+  }
 }
 
 // client requests
