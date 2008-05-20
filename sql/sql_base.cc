@@ -3737,8 +3737,8 @@ void assign_new_table_id(TABLE_SHARE *share)
 
   @sa Execute_observer
   @sa check_prepared_statement() to see cases when an observer is installed
-  @sa TABLE_LIST::is_metadata_id_equal()
-  @sa TABLE_SHARE::get_metadata_id()
+  @sa TABLE_LIST::is_table_ref_id_equal()
+  @sa TABLE_SHARE::get_table_ref_id()
 
   @param[in]      thd         used to report errors
   @param[in,out]  tables      TABLE_LIST instance created by the parser
@@ -3754,10 +3754,10 @@ bool
 check_and_update_table_version(THD *thd,
                                TABLE_LIST *tables, TABLE_SHARE *table_share)
 {
-  if (! tables->is_metadata_id_equal(table_share))
+  if (! tables->is_table_ref_id_equal(table_share))
   {
-    if (thd->m_metadata_observer &&
-        thd->m_metadata_observer->report_error(thd))
+    if (thd->m_reprepare_observer &&
+        thd->m_reprepare_observer->report_error(thd))
     {
       /*
         Version of the table share is different from the
@@ -3768,15 +3768,15 @@ check_and_update_table_version(THD *thd,
       return TRUE;
     }
     /* Always maintain the latest version and type */
-    tables->set_metadata_id(table_share);
+    tables->set_table_ref_id(table_share);
   }
 
 #ifndef DBUG_OFF
   /* Spuriously reprepare each statement. */
   if (_db_strict_keyword_("reprepare_each_statement") &&
-      thd->m_metadata_observer && thd->stmt_arena->is_reprepared == FALSE)
+      thd->m_reprepare_observer && thd->stmt_arena->is_reprepared == FALSE)
   {
-    thd->m_metadata_observer->report_error(thd);
+    thd->m_reprepare_observer->report_error(thd);
     return TRUE;
   }
 #endif
@@ -3866,7 +3866,7 @@ retry:
       Note, the assert below is known to fail inside stored
       procedures (Bug#27011).
     */
-    DBUG_ASSERT(thd->m_metadata_observer);
+    DBUG_ASSERT(thd->m_reprepare_observer);
     check_and_update_table_version(thd, table_list, share);
     /* Always an error. */
     DBUG_ASSERT(thd->is_error());
