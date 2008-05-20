@@ -2124,17 +2124,9 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_EVENTS
 #
-drop table if exists t1;
-create table t1 (a int);
-prepare stmt from "show events where (1) in (select * from t1)";
-execute stmt;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-drop table t1;
-create table t1 (x int);
-execute stmt;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-drop table t1;
-deallocate prepare stmt;
+#
+# Please see this test in ps.test, it requires not_embedded.inc
+#
 #
 # SQLCOM_SET_OPTION
 #
@@ -2191,7 +2183,7 @@ drop table t1;
 deallocate prepare stmt;
 # Intermediate result: number of reprepares matches the number
 # of tests
-call p_verify_reprepare_count(18);
+call p_verify_reprepare_count(17);
 SUCCESS
 
 #
