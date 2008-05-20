@@ -116,37 +116,6 @@ public:
 #endif
 };
 
-/**
-  If a metadata changed, report a respective error to trigger
-  re-prepare of a prepared statement.
-*/
-
-class Execute_observer: public Metadata_version_observer
-{
-public:
-  virtual bool report_error(THD *thd);
-  /** Set to TRUE if metadata of some used table has changed since prepare */
-  bool m_invalidated;
-};
-
-/**
-  Push an error to the error stack and return TRUE for now.
-  In future we must take special care of statements like CREATE
-  TABLE ... SELECT.  Should we re-prepare such statements every
-  time?
-*/
-
-bool
-Execute_observer::report_error(THD *thd)
-{
-  DBUG_ENTER("Execute_observer::report_error");
-
-  my_error(ER_NEED_REPREPARE, MYF(ME_NO_WARNING_FOR_ERROR|ME_NO_SP_HANDLER));
-
-  m_invalidated= TRUE;
-  DBUG_RETURN(TRUE);
-}
-
 /****************************************************************************/
 
 /**
@@ -3219,7 +3188,7 @@ Prepared_statement::execute_loop(String *expanded_query,
                                  uchar *packet_end)
 {
   const int MAX_REPREPARE_ATTEMPTS= 3;
-  Execute_observer execute_observer;
+  Reprepare_observer reprepare_observer;
   bool error;
   int reprepare_attempt= 0;
 
@@ -3227,7 +3196,7 @@ Prepared_statement::execute_loop(String *expanded_query,
     return TRUE;
 
 reexecute:
-  execute_observer.m_invalidated= FALSE;
+  reprepare_observer.reset_reprepare_observer();
 
   /*
     If the free_list is not empty, we'll wrongly free some externally
@@ -3245,8 +3214,8 @@ reexecute:
   if (sql_command_flags[lex->sql_command] &
       CF_REEXECUTION_FRAGILE)
   {
-    DBUG_ASSERT(thd->m_metadata_observer == NULL);
-    thd->m_metadata_observer= &execute_observer;
+    DBUG_ASSERT(thd->m_reprepare_observer == NULL);
+    thd->m_reprepare_observer = &reprepare_observer;
   }
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -3257,10 +3226,10 @@ reexecute:
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  thd->m_metadata_observer= NULL;
+  thd->m_reprepare_observer= NULL;
 
   if (error && !thd->is_fatal_error && !thd->killed &&
-      execute_observer.m_invalidated &&
+      reprepare_observer.is_invalidated() &&
       reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
   {
     DBUG_ASSERT(thd->main_da.sql_errno() == ER_NEED_REPREPARE);
