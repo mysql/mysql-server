@@ -34,7 +34,7 @@ require "mtr_io.pl";
 
 my $tot_real_time= 0;
 
-our $timestamp= 0;
+our $timestamp= 1;
 our $timediff= 0;
 our $name;
 our $verbose;
