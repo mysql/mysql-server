@@ -6130,6 +6130,3 @@ ER_LOG_PURGE_NO_FILE
 
 ER_NEED_REPREPARE
   eng "Prepared statement needs to be re-prepared"
-
-ER_PS_REBIND
-  eng "Prepared statement result set has changed, a rebind needed"

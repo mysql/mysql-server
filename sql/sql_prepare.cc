@@ -3315,7 +3315,7 @@ Prepared_statement::reprepare()
   @param[in]  copy  the re-prepared prepared statement to verify
                     the metadata of
 
-  @retval TRUE  error, ER_PS_NEED_REBIND is reported
+  @retval TRUE  error, ER_PS_REBIND is reported
   @retval FALSE statement return no or compatible metadata
 */
 
@@ -3333,9 +3333,8 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy)
   if (lex->select_lex.item_list.elements !=
       copy->lex->select_lex.item_list.elements)
   {
-    /** Column counts mismatch. */
-    my_error(ER_PS_REBIND, MYF(0));
-    return TRUE;
+    /** Column counts mismatch, update the client */
+    thd->server_status|= SERVER_STATUS_METADATA_CHANGED;
   }
 
   return FALSE;

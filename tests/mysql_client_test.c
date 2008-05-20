@@ -6668,10 +6668,10 @@ static void test_pure_coverage()
   check_execute_r(stmt, rc); /* unsupported buffer type */
 
   rc= mysql_stmt_store_result(stmt);
-  check_execute(stmt, rc);
+  DIE_UNLESS(rc);
 
   rc= mysql_stmt_store_result(stmt);
-  check_execute_r(stmt, rc); /* commands out of sync */
+  DIE_UNLESS(rc); /* Old error must be reset first */
 
   mysql_stmt_close(stmt);
 
@@ -8423,6 +8423,9 @@ static void test_fetch_offset()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute_r(stmt, rc);
 
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
   rc= mysql_stmt_bind_result(stmt, my_bind);
   check_execute(stmt, rc);
 
@@ -9901,7 +9904,7 @@ static void test_rename()
   MYSQL_STMT *stmt;
   const char *query= "rename table t1 to t2, t3 to t4";
   int rc;
-  myheader("test_table_manipulation");
+  myheader("test_table_rename");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1, t2, t3, t4");
   myquery(rc);
@@ -17383,7 +17386,7 @@ static void test_bug28386()
   DBUG_VOID_RETURN;
 }
 
-static void test_wl4166()
+static void test_wl4166_1()
 {
   MYSQL_STMT *stmt;
   int        int_data;
@@ -17399,7 +17402,7 @@ static void test_wl4166()
   int rc;
   int i;
 
-  myheader("test_wl4166");
+  myheader("test_wl4166_1");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS table_4166");
   myquery(rc);
@@ -17497,6 +17500,97 @@ static void test_wl4166()
   mysql_stmt_close(stmt);
 
   rc= mysql_query(mysql, "DROP TABLE table_4166");
+  myquery(rc);
+}
+
+
+static void test_wl4166_2()
+{
+  MYSQL_STMT *stmt;
+  int        c_int;
+  MYSQL_TIME d_date;
+  MYSQL_BIND bind_out[2];
+  int rc;
+  int i;
+
+  myheader("test_wl4166_2");
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (c_int int, d_date date)");
+  myquery(rc);
+  rc= mysql_query(mysql,
+                  "insert into t1 (c_int, d_date) values (42, '1948-05-15')");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "select * from t1");
+  check_stmt(stmt);
+
+  bzero(bind_out, sizeof(bind_out));
+  bind_out[0].buffer_type= MYSQL_TYPE_LONG;
+  bind_out[0].buffer= (void*) &c_int;
+
+  bind_out[1].buffer_type= MYSQL_TYPE_DATE;
+  bind_out[1].buffer= (void*) &d_date;
+
+  rc= mysql_stmt_bind_result(stmt, bind_out);
+  check_execute(stmt, rc);
+
+  /* int -> varchar transition */
+
+  rc= mysql_query(mysql,
+                  "alter table t1 change column c_int c_int varchar(11)");
+  myquery(rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(c_int == 42);
+  DIE_UNLESS(d_date.year == 1948);
+  DIE_UNLESS(d_date.month == 5);
+  DIE_UNLESS(d_date.day == 15);
+
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  /* varchar to int retrieval with truncation */
+
+  rc= mysql_query(mysql, "update t1 set c_int='abcde'");
+  myquery(rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute_r(stmt, rc);
+
+  DIE_UNLESS(c_int == 0);
+
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  /* alter table and increase the number of columns */
+  rc= mysql_query(mysql, "alter table t1 add column d_int int");
+  myquery(rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute_r(stmt, rc);
+
+  rc= mysql_stmt_reset(stmt);
+  check_execute(stmt, rc);
+
+  /* decrease the number of columns */
+  rc= mysql_query(mysql, "alter table t1 drop d_date, drop d_int");
+  myquery(rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute_r(stmt, rc);
+
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
 
 }
@@ -17807,7 +17901,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug31418", test_bug31418 },
   { "test_bug31669", test_bug31669 },
   { "test_bug28386", test_bug28386 },
-  { "test_wl4166", test_wl4166 },
+  { "test_wl4166_1", test_wl4166_1 },
+  { "test_wl4166_2", test_wl4166_2 },
   { 0, 0 }
 };
 
