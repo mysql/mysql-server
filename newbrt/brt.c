@@ -645,7 +645,6 @@ static const char *unparse_cmd_type (enum brt_cmd_type typ) {
 static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 			    DBT *split,
-			    int debug,
 			    TOKULOGGER);
 
 /* key is not in the buffer.  Either put the key-value pair in the child, or put it in the node. */
@@ -679,7 +678,6 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
 	//printf("%s:%d hello!\n", __FILE__, __LINE__);
 	r = brtnode_put_cmd(t, child, cmd,
 			    &again_split, &againa, &againb, &againk,
-			    0,
 			    logger);
 	if (r!=0) return r;
 	assert(again_split==0); /* I only did the insert if I knew it wouldn't push down, and hence wouldn't split. */
@@ -709,7 +707,6 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
     {
 	int r = brtnode_put_cmd(t, child, cmd,
 				child_did_split, childa, childb, childsplitk,
-				0,
 				logger);
 	if (r!=0) return r;
     }
@@ -745,7 +742,7 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
     return 0;
 }
 
-static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, int debug,  TOKULOGGER logger);
+static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, TOKULOGGER logger);
 
 static int split_count=0;
 
@@ -940,7 +937,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
         if (toku_serialize_brtnode_size(node) > node->nodesize) {
             /* lighten the node by pushing down its buffers.  this may cause
                the current node to split and go away */
-            r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, 0, logger);
+            r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, logger);
             assert(r == 0);
         }
 	if (*did_split == 0) assert(toku_serialize_brtnode_size(node)<=node->nodesize);
@@ -951,7 +948,6 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 				    int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				    DBT *splitk,
-				    int debug,
 				    TOKULOGGER logger) {
     void *childnode_v;
     BRTNODE child;
@@ -969,10 +965,6 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     VERIFY_NODE(child);
     //printf("%s:%d height=%d n_bytes_in_buffer = {%d, %d, %d, ...}\n", __FILE__, __LINE__, child->height, child->n_bytes_in_buffer[0], child->n_bytes_in_buffer[1], child->n_bytes_in_buffer[2]);
     if (child->height>0 && child->u.n.n_children>0) assert(BNC_DISKOFF(child, child->u.n.n_children-1)!=0);
-    if (debug) printf("%s:%d %*spush_some_brt_cmds_down to %lld\n", __FILE__, __LINE__, debug, "", child->thisnodename);
-    /* I am exposing the internals of the hash table here, mostly because I am not thinking of a really
-     * good way to do it otherwise.  I want to loop over the elements of the hash table, deleting some as I
-     * go.  The FIFO_ITERATE macro will break if I delete something from the hash table. */
   
     if (0) {
 	static int count=0;
@@ -996,7 +988,6 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 
 	    //printf("%s:%d random_picked\n", __FILE__, __LINE__);
 	    toku_init_dbt(&childsplitk);
-	    if (debug) printf("%s:%d %*spush down %s\n", __FILE__, __LINE__, debug, "", (char*)key);
 	    r = push_a_brt_cmd_down (t, node, child, childnum,
 				     &brtcmd,
 				     &child_did_split, &childa, &childb,
@@ -1015,7 +1006,6 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 	    if (r!=0) return r;
 	    if (child_did_split) {
 		// If the child splits, we don't push down any further.
-		if (debug) printf("%s:%d %*shandle split splitkey=%s\n", __FILE__, __LINE__, debug, "", (char*)childsplitk.data);
 		r=handle_split_of_child (t, node, childnum,
 					 childa, childb, &childsplitk,
 					 did_split, nodea, nodeb, splitk,
@@ -1029,7 +1019,6 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 	}
 	if (0) printf("%s:%d done random picking\n", __FILE__, __LINE__);
     }
-    if (debug) printf("%s:%d %*sdone push_some_brt_cmds_down, unpinning %lld\n", __FILE__, __LINE__, debug, "", targetchild);
     assert(toku_serialize_brtnode_size(node)<=node->nodesize);
     //verify_local_fingerprint_nonleaf(node);
     r=toku_unpin_brtnode(t, child);
@@ -1038,30 +1027,21 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     return 0;
 }
 
-static int debugp1 (int debug) {
-    return debug ? debug+1 : 0;
-}
-
-static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, int debug,  TOKULOGGER logger)
+static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, TOKULOGGER logger)
 /* If the buffer is too full, then push down.  Possibly the child will split.  That may make us split. */
 {
     assert(node->height>0);
-    if (debug) printf("%s:%d %*sIn maybe_push_down in_buffer=%d childkeylens=%d size=%d\n", __FILE__, __LINE__, debug, "", node->u.n.n_bytes_in_buffers, node->u.n.totalchildkeylens, toku_serialize_brtnode_size(node));
     if (toku_serialize_brtnode_size(node) > node->nodesize ) {
-	if (debug) printf("%s:%d %*stoo full, height=%d\n", __FILE__, __LINE__, debug, "", node->height);	
 	{
 	    /* Push to a child. */
 	    /* Find the heaviest child, and push stuff to it.  Keep pushing to the child until we run out.
 	     * But if the child pushes something to its child and our buffer has gotten small enough, then we stop pushing. */
 	    int childnum;
-	    if (0) printf("%s:%d %*sfind_heaviest_data\n", __FILE__, __LINE__, debug, "");
 	    find_heaviest_child(node, &childnum);
-	    if (0) printf("%s:%d %*spush some down from %lld into %lld (child %d)\n", __FILE__, __LINE__, debug, "", node->thisnodename, BNC_DISKOFF(node, childnum), childnum);
 	    assert(BNC_DISKOFF(node, childnum)!=0);
-	    int r = push_some_brt_cmds_down(t, node, childnum, did_split, nodea, nodeb, splitk, debugp1(debug), logger);
+	    int r = push_some_brt_cmds_down(t, node, childnum, did_split, nodea, nodeb, splitk, logger);
 	    if (r!=0) return r;
 	    assert(*did_split==0 || *did_split==1);
-	    if (debug) printf("%s:%d %*sdid push_some_brt_cmds_down did_split=%d\n", __FILE__, __LINE__, debug, "", *did_split);
 	    if (*did_split) {
 		assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);		
 		assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);		
@@ -1444,7 +1424,6 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
 
 static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			     int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
-			     int debug,
 			     TOKULOGGER logger) {
 //    toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
     VERIFY_NODE(node);
@@ -1555,7 +1534,6 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	//printf("%s:%d splitkey=%s\n", __FILE__, __LINE__, (char*)*splitkey);
 	split_count++;
 	*did_split = 1;
-	if (debug) printf("%s:%d %*snodeb->thisnodename=%lld nodeb->size=%d\n", __FILE__, __LINE__, debug, "", (*nodeb)->thisnodename, (*nodeb)->nodesize);
 	assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
 	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
 	VERIFY_NODE(*nodea);
@@ -1582,7 +1560,7 @@ unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
 /* put a cmd into a nodes child */
 static int brt_nonleaf_put_cmd_child_node (BRT t, BRTNODE node, BRT_CMD cmd,
                                            int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, 
-                                           int debug, TOKULOGGER logger, int childnum, int maybe) {
+                                           TOKULOGGER logger, int childnum, int maybe) {
     int r;
     void *child_v;
     BRTNODE child;
@@ -1604,7 +1582,7 @@ static int brt_nonleaf_put_cmd_child_node (BRT t, BRTNODE node, BRT_CMD cmd,
 
     child_did_split = 0;
     r = brtnode_put_cmd(t, child, cmd,
-                        &child_did_split, &childa, &childb, &childsplitk, debug, logger);
+                        &child_did_split, &childa, &childb, &childsplitk, logger);
     if (r != 0) {
         /* putting to the child failed for some reason, so unpin the child and return the error code */
 	int rr = toku_unpin_brtnode(t, child);
@@ -1632,12 +1610,12 @@ int toku_brt_do_push_cmd = 1;
 /* put a cmd into a node at childnum */
 static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD cmd,
                                       int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
-                                      int debug, TOKULOGGER logger, unsigned int childnum, int can_push, int *do_push_down) {
+                                      TOKULOGGER logger, unsigned int childnum, int can_push, int *do_push_down) {
     //verify_local_fingerprint_nonleaf(node);
 
     /* try to push the cmd to the subtree if the buffer is empty and pushes are enabled */
     if (BNC_NBYTESINBUF(node, childnum) == 0 && can_push && toku_brt_do_push_cmd) {
-        int r = brt_nonleaf_put_cmd_child_node(t, node, cmd, did_split, nodea, nodeb, splitk, debug, logger, childnum, 1);
+        int r = brt_nonleaf_put_cmd_child_node(t, node, cmd, did_split, nodea, nodeb, splitk, logger, childnum, 1);
         if (r == 0)
             return r;
     }
@@ -1664,7 +1642,7 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD cmd,
 
 static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd,
 				 int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
-				 int debug, TOKULOGGER logger) {
+				 TOKULOGGER logger) {
     //verify_local_fingerprint_nonleaf(node);
     unsigned int childnum;
     int r;
@@ -1674,16 +1652,16 @@ static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd,
 
     /* put the cmd in the subtree */
     int do_push_down = 0;
-    r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, logger, childnum, 1, &do_push_down);
+    r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, logger, childnum, 1, &do_push_down);
     if (r != 0) return r;
 
     /* maybe push down */
     if (do_push_down) {
-        if (debug) printf("%s:%d %*sDoing maybe_push_down\n", __FILE__, __LINE__, debug, "");
+        //if (debug) printf("%s:%d %*sDoing maybe_push_down\n", __FILE__, __LINE__, debug, "");
         //verify_local_fingerprint_nonleaf(node);
-        r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, debugp1(debug), logger);
+        r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, logger);
         if (r!=0) return r;
-        if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
+        //if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
         if (*did_split) {
             assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
             assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
@@ -1707,7 +1685,6 @@ static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd,
 /* delete in all subtrees starting from the left most one which contains the key */
 static int brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
 				 int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
-				 int debug,
 				 TOKULOGGER logger) {
     int r;
 
@@ -1740,17 +1717,15 @@ static int brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
     /* issue the to all of the children found previously */
     int do_push_down = 0;
     for (i=0; i<delidx; i++) {
-        r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, debug, logger, sendchild[i], delidx == 1, &do_push_down);
+        r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, logger, sendchild[i], delidx == 1, &do_push_down);
         assert(r == 0);
     }
 
     if (do_push_down) {
         /* maybe push down */
-        if (debug) printf("%s:%d %*sDoing maybe_push_down\n", __FILE__, __LINE__, debug, "");
         //verify_local_fingerprint_nonleaf(node);
-        r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, debugp1(debug), logger);
+        r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, logger);
         if (r!=0) return r;
-        if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
         if (*did_split) {
             assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
             assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
@@ -1773,7 +1748,6 @@ static int brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
 static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				DBT *splitk,
-				int debug,
 				TOKULOGGER logger) {
     switch (cmd->type) {
     case BRT_INSERT:
@@ -1781,12 +1755,12 @@ static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     case BRT_ABORT_BOTH:
     case BRT_COMMIT_BOTH:
     do_once:
-        return brt_nonleaf_cmd_once(t, node, cmd, did_split, nodea, nodeb, splitk, debug, logger);
+        return brt_nonleaf_cmd_once(t, node, cmd, did_split, nodea, nodeb, splitk, logger);
     case BRT_DELETE_ANY:
     case BRT_ABORT_ANY:
     case BRT_COMMIT_ANY:
 	if (0 == (node->flags & TOKU_DB_DUPSORT)) goto do_once; // nondupsort delete_any is just do once.
-        return brt_nonleaf_cmd_many(t, node, cmd, did_split, nodea, nodeb, splitk, debug, logger);
+        return brt_nonleaf_cmd_many(t, node, cmd, did_split, nodea, nodeb, splitk, logger);
     case BRT_NONE:
 	break;
     }
@@ -1808,7 +1782,6 @@ static void verify_local_fingerprint_nonleaf (BRTNODE node) {
 
 static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
-			    int debug,
 			    TOKULOGGER logger) {
     //static int counter=0; // FOO
     //static int oldcounter=0;
@@ -1820,11 +1793,11 @@ static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 //	toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
 	r = brt_leaf_put_cmd(t, node, cmd,
 			     did_split, nodea, nodeb, splitk,
-			     debug, logger);
+			     logger);
     } else {
 	r = brt_nonleaf_put_cmd(t, node, cmd,
 				did_split, nodea, nodeb, splitk,
-				debug, logger);
+				logger);
     }
     //oldcounter=tmpcounter;
     // Watch out.  If did_split then the original node is no longer allocated.
@@ -2325,7 +2298,6 @@ static int push_something(BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_CMD cmd,
     DBT splitk;
     int result = brtnode_put_cmd(brt, *nodep, cmd,
 			     &did_split, &nodea, &nodeb, &splitk,
-			     0,
 			     logger);
     int r;
     if (did_split) {
@@ -2573,7 +2545,7 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
 
     /* if the child's buffer is not empty then try to empty it */
     if (BNC_NBYTESINBUF(node, childnum) > 0) {
-        rr = push_some_brt_cmds_down(brt, node, childnum, &split->did_split, &split->nodea, &split->nodeb, &split->splitk, 0, logger);
+        rr = push_some_brt_cmds_down(brt, node, childnum, &split->did_split, &split->nodea, &split->nodeb, &split->splitk, logger);
         assert(rr == 0);
         /* push down may cause a child split, so childnum may not be appropriate, and the node itself may split, so retry */
         return EAGAIN;
