@@ -700,14 +700,14 @@ const char *set_thd_proc_info(THD *thd, const char *info,
   @sa Prepared_statement::reprepare()
 */
 
-enum enum_metadata_type
+enum enum_table_ref_type
 {
   /** Initial value set by the parser */
-  METADATA_NULL= 0,
-  METADATA_VIEW,
-  METADATA_BASE_TABLE,
-  METADATA_I_S_TABLE,
-  METADATA_TMP_TABLE
+  TABLE_REF_NULL= 0,
+  TABLE_REF_VIEW,
+  TABLE_REF_BASE_TABLE,
+  TABLE_REF_I_S_TABLE,
+  TABLE_REF_TMP_TABLE
 };
 
 /*

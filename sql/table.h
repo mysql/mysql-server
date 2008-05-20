@@ -440,21 +440,21 @@ typedef struct st_table_share
 
   /**
     Convert unrelated members of TABLE_SHARE to one enum
-    representing its metadata type.
+    representing its type.
 
     @todo perhaps we need to have a member instead of a function.
   */
-  enum enum_metadata_type get_metadata_type() const
+  enum enum_table_ref_type get_table_ref_type() const
   {
     if (is_view)
-      return METADATA_VIEW;
+      return TABLE_REF_VIEW;
     switch (tmp_table) {
     case NO_TMP_TABLE:
-      return METADATA_BASE_TABLE;
+      return TABLE_REF_BASE_TABLE;
     case SYSTEM_TMP_TABLE:
-      return METADATA_I_S_TABLE;
+      return TABLE_REF_I_S_TABLE;
     default:
-      return METADATA_TMP_TABLE;
+      return TABLE_REF_TMP_TABLE;
     }
   }
   /**
@@ -479,7 +479,7 @@ typedef struct st_table_share
    to validate prepared statements.
 
    Firstly, sets (in mathematical sense) of version numbers
-   never intersect for different metadata types. Therefore,
+   never intersect for different table types. Therefore,
    version id of a temporary table is never compared with
    a version id of a view, and vice versa.
 
@@ -525,14 +525,14 @@ typedef struct st_table_share
    When this is done, views will be handled in the same fashion
    as the base tables.
 
-   Finally, by taking into account metadata type, we always
+   Finally, by taking into account table type, we always
    track that a change has taken place when a view is replaced
    with a base table, a base table is replaced with a temporary
    table and so on.
 
-   @sa TABLE_LIST::is_metadata_id_equal()
+   @sa TABLE_LIST::is_table_ref_id_equal()
   */
-  ulong get_metadata_version() const
+  ulong get_table_ref_version() const
   {
     return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
   }
@@ -1340,10 +1340,10 @@ struct TABLE_LIST
     @sa check_and_update_table_version()
   */
   inline
-  bool is_metadata_id_equal(TABLE_SHARE *s) const
+  bool is_table_ref_id_equal(TABLE_SHARE *s) const
   {
-    return (m_metadata_type == s->get_metadata_type() &&
-            m_metadata_version == s->get_metadata_version());
+    return (m_table_ref_type == s->get_table_ref_type() &&
+            m_table_ref_version == s->get_table_ref_version());
   }
 
   /**
@@ -1353,10 +1353,10 @@ struct TABLE_LIST
     @sa check_and_update_table_version()
   */
   inline
-  void set_metadata_id(TABLE_SHARE *s)
+  void set_table_ref_id(TABLE_SHARE *s)
   {
-    m_metadata_type= s->get_metadata_type();
-    m_metadata_version= s->get_metadata_version();
+    m_table_ref_type= s->get_table_ref_type();
+    m_table_ref_version= s->get_table_ref_version();
   }
 
 private:
@@ -1370,9 +1370,9 @@ private:
   /* Remembered MERGE child def version.  See top comment in ha_myisammrg.cc */
   ulong         child_def_version;
   /** See comments for set_metadata_id() */
-  enum enum_metadata_type m_metadata_type;
+  enum enum_table_ref_type m_table_ref_type;
   /** See comments for set_metadata_id() */
-  ulong m_metadata_version;
+  ulong m_table_ref_version;
 };
 
 class Item;
