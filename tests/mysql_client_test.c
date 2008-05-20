@@ -17511,7 +17511,6 @@ static void test_wl4166_2()
   MYSQL_TIME d_date;
   MYSQL_BIND bind_out[2];
   int rc;
-  int i;
 
   myheader("test_wl4166_2");
 

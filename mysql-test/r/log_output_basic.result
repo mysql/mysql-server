@@ -15,9 +15,10 @@ FILE
 SET @@global.log_output = NULL;
 ERROR 42000: Variable 'log_output' can't be set to the value of 'NULL'
 SET @@global.log_output = "";
+ERROR 42000: Variable 'log_output' can't be set to the value of ''
 SELECT @@global.log_output;
 @@global.log_output
-
+FILE
 'Bug# 34838: Empty value is allowed where as it is not specified in';
 'documentation';
 '#--------------------FN_DYNVARS_065_03------------------------#'
@@ -117,6 +118,7 @@ WHERE VARIABLE_NAME='log_output';
 1
 '#---------------------FN_DYNVARS_065_07-------------------------#'
 SET @@global.log_output = 0;
+ERROR 42000: Variable 'log_output' can't be set to the value of '0'
 SELECT @@global.log_output;
 @@global.log_output
 
@@ -156,9 +158,10 @@ SELECT @@global.log_output;
 @@global.log_output
 NONE
 SET @@global.log_output = FALSE;
+ERROR 42000: Variable 'log_output' can't be set to the value of '0'
 SELECT @@global.log_output;
 @@global.log_output
-
+NONE
 '#---------------------FN_DYNVARS_065_09----------------------#'
 SET log_output = ON;
 ERROR HY000: Variable 'log_output' is a GLOBAL variable and should be set with SET GLOBAL
