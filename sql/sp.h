@@ -49,9 +49,6 @@ bool
 sp_show_create_routine(THD *thd, int type, sp_name *name);
 
 int
-sp_show_status_routine(THD *thd, int type, const char *wild);
-
-int
 sp_create_routine(THD *thd, int type, sp_head *sp);
 
 int

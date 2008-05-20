@@ -853,8 +853,9 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
   Item *fake_conds= 0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE *table= table_list->table;
-  TABLE_LIST tables;
+#endif
   List<Item> all_fields;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_update");
@@ -878,9 +879,6 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   table_list->register_want_access(SELECT_ACL);
 #endif
 
-  bzero((char*) &tables,sizeof(tables));	// For ORDER BY
-  tables.table= table;
-  tables.alias= table_list->alias;
   thd->lex->allow_sum_func= 0;
 
   if (setup_tables_and_check_access(thd, &select_lex->context, 
