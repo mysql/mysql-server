@@ -5,6 +5,8 @@
 # Load the mysql.ndb_apply_status table into table def cache
 #
 
+# The table might already have been created by mysqld -> ignore error
+--error 0,1
 copy_file $MYSQL_TEST_DIR/std_data/ndb_apply_status.frm $MYSQLTEST_VARDIR/master-data/mysql/ndb_apply_status.frm;
 --disable_result_log
 --disable_abort_on_error
