@@ -1706,6 +1706,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *, MYSQL_FIELD *field);
 #define RESET_SERVER_SIDE 1
 #define RESET_LONG_DATA 2
 #define RESET_STORE_RESULT 4
+#define RESET_CLEAR_ERROR 8
 
 static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags);
 
@@ -2090,7 +2091,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
   To be removed when all commands will fully support prepared mode.
 */
 
-static unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
+static void alloc_stmt_fields(MYSQL_STMT *stmt)
 {
   MYSQL_FIELD *fields, *field, *end;
   MEM_ROOT *alloc= &stmt->mem_root;
@@ -2108,7 +2109,10 @@ static unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
       !(stmt->bind= (MYSQL_BIND *) alloc_root(alloc,
 					      sizeof(MYSQL_BIND) *
 					      stmt->field_count)))
-    return 0;
+  {
+    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
+    return;
+  }
 
   for (fields= mysql->fields, end= fields+stmt->field_count,
 	 field= stmt->fields;
@@ -2127,13 +2131,15 @@ static unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
     field->def      = fields->def ? strdup_root(alloc,fields->def): 0;
     field->max_length= 0;
   }
-  return stmt->field_count;
 }
 
 
-/*
+/**
   Update result set columns metadata if it was sent again in
   reply to COM_STMT_EXECUTE.
+
+  @note If the new field count is different from the original one,
+        an error is set and no update is performed.
 */
 
 static void update_stmt_fields(MYSQL_STMT *stmt)
@@ -2143,7 +2149,22 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
   MYSQL_FIELD *stmt_field= stmt->fields;
   MYSQL_BIND *my_bind= stmt->bind_result_done ? stmt->bind : 0;
 
-  DBUG_ASSERT(stmt->field_count == stmt->mysql->field_count);
+  if (stmt->field_count != stmt->mysql->field_count)
+  {
+    /*
+      The tables used in the statement were altered,
+      and the query now returns a different number of columns.
+      There is no way to continue without reallocating the bind
+      array:
+      - if the number of columns increased, mysql_stmt_fetch()
+      will write beyond allocated memory
+      - if the number of columns decreased, some user-bound
+      buffers will be left unassigned without user knowing
+      that.
+    */
+    set_stmt_error(stmt, CR_NEW_STMT_METADATA, unknown_sqlstate, NULL);
+    return;
+  }
 
   for (; field < field_end; ++field, ++stmt_field)
   {
@@ -2792,6 +2813,50 @@ my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
 }
 
 
+/**
+  Update statement result set metadata from with the new field
+  information sent during statement execute.
+
+  @pre mysql->field_count is not zero
+
+  @retval TRUE   if error: out of memory or the new
+                 result set has a different number of columns
+  @retval FALSE  success
+*/
+
+static void reinit_result_set_metadata(MYSQL_STMT *stmt)
+{
+  /* Server has sent result set metadata */
+  if (stmt->field_count == 0)
+  {
+    /*
+      This is 'SHOW'/'EXPLAIN'-like query. Current implementation of
+      prepared statements can't send result set metadata for these queries
+      on prepare stage. Read it now.
+    */
+    alloc_stmt_fields(stmt);
+  }
+  else
+  {
+    /*
+      Update result set metadata if it for some reason changed between
+      prepare and execute, i.e.:
+      - in case of 'SELECT ?' we don't know column type unless data was
+      supplied to mysql_stmt_execute, so updated column type is sent
+      now.
+      - if data dictionary changed between prepare and execute, for
+      example a table used in the query was altered.
+      Note, that now (4.1.3) we always send metadata in reply to
+      COM_STMT_EXECUTE (even if it is not necessary), so either this or
+      previous branch always works.
+      TODO: send metadata only when it's really necessary and add a warning
+      'Metadata changed' when it's sent twice.
+      */
+    update_stmt_fields(stmt);
+  }
+}
+
+
 /*
   Send placeholders data to server (if there are placeholders)
   and execute prepared statement.
@@ -2847,7 +2912,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
     DBUG_RETURN(1);
   }
 
-  if (reset_stmt_handle(stmt, RESET_STORE_RESULT))
+  if (reset_stmt_handle(stmt, RESET_STORE_RESULT | RESET_CLEAR_ERROR))
     DBUG_RETURN(1);
   /*
     No need to check for stmt->state: if the statement wasn't
@@ -2855,40 +2920,10 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
   */
   if (mysql->methods->stmt_execute(stmt))
     DBUG_RETURN(1);
+  stmt->state= MYSQL_STMT_EXECUTE_DONE;
   if (mysql->field_count)
   {
-    /* Server has sent result set metadata */
-    if (stmt->field_count == 0)
-    {
-      /*
-        This is 'SHOW'/'EXPLAIN'-like query. Current implementation of
-        prepared statements can't send result set metadata for these queries
-        on prepare stage. Read it now.
-      */
-      alloc_stmt_fields(stmt);
-    }
-    else
-    {
-      /*
-        Update result set metadata if it for some reason changed between
-        prepare and execute, i.e.:
-        - in case of 'SELECT ?' we don't know column type unless data was
-          supplied to mysql_stmt_execute, so updated column type is sent
-          now.
-        - if data dictionary changed between prepare and execute, for
-          example a table used in the query was altered.
-        Note, that now (4.1.3) we always send metadata in reply to
-        COM_STMT_EXECUTE (even if it is not necessary), so either this or
-        previous branch always works.
-        TODO: send metadata only when it's really necessary and add a warning
-        'Metadata changed' when it's sent twice.
-      */
-      update_stmt_fields(stmt);
-    }
-  }
-  stmt->state= MYSQL_STMT_EXECUTE_DONE;
-  if (stmt->field_count)
-  {
+    reinit_result_set_metadata(stmt);
     if (stmt->server_status & SERVER_STATUS_CURSOR_EXISTS)
     {
       mysql->status= MYSQL_STATUS_READY;
@@ -2903,7 +2938,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
         network or b) is more efficient if all (few) result set rows are
         precached on client and server's resources are freed.
       */
-      DBUG_RETURN(mysql_stmt_store_result(stmt));
+      mysql_stmt_store_result(stmt);
     }
     else
     {
@@ -2912,7 +2947,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
       stmt->read_row_func= stmt_read_row_unbuffered;
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(test(stmt->last_errno));
 }
 
 
@@ -4766,6 +4801,12 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     DBUG_RETURN(1);
   }
 
+  if (stmt->last_errno)
+  {
+    /* An attempt to use an invalid statement handle. */
+    DBUG_RETURN(1);
+  }
+
   if (mysql->status == MYSQL_STATUS_READY &&
       stmt->server_status & SERVER_STATUS_CURSOR_EXISTS)
   {
@@ -4973,9 +5014,10 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
           stmt->state= MYSQL_STMT_INIT_DONE;
           return 1;
         }
-        stmt_clear_error(stmt);
       }
     }
+    if (flags & RESET_CLEAR_ERROR)
+      stmt_clear_error(stmt);
     stmt->state= MYSQL_STMT_PREPARE_DONE;
   }
   return 0;
@@ -4986,7 +5028,8 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
   DBUG_ENTER("mysql_stmt_free_result");
 
   /* Free the client side and close the server side cursor if there is one */
-  DBUG_RETURN(reset_stmt_handle(stmt, RESET_LONG_DATA | RESET_STORE_RESULT));
+  DBUG_RETURN(reset_stmt_handle(stmt, RESET_LONG_DATA | RESET_STORE_RESULT |
+                                RESET_CLEAR_ERROR));
 }
 
 /********************************************************************
@@ -5067,7 +5110,9 @@ my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
     DBUG_RETURN(1);
   }
   /* Reset the client and server sides of the prepared statement */
-  DBUG_RETURN(reset_stmt_handle(stmt, RESET_SERVER_SIDE | RESET_LONG_DATA));
+  DBUG_RETURN(reset_stmt_handle(stmt,
+                                RESET_SERVER_SIDE | RESET_LONG_DATA |
+                                RESET_CLEAR_ERROR));
 }
 
 /*
