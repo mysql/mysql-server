@@ -1,3 +1,13 @@
+2008-05-08	The InnoDB Team
+
+	* btr/btr0btr.c, mysql-test/innodb_bug36172.result,
+	mysql-test/innodb_bug36172.test:
+	Fix Bug#36172 insert into compressed innodb table crashes
+
+2008-05-08	The InnoDB Team
+
+	InnoDB Plugin 1.0.1 released
+
 2008-05-06	The InnoDB Team
 
 	* handler/ha_innodb.cc, include/srv0srv.h, include/sync0sync.h,
