@@ -165,6 +165,7 @@ printusage()
     << "  -bug 4088   ndb api hang with mixed ops on index table" << endl
     << "  -bug 27018  middle partial part write clobbers rest of part" << endl
     << "  -bug 27370  Potential inconsistent blob reads for ReadCommitted reads" << endl
+    << "  -bug 36756  Handling execute(.., abortOption) and Blobs " << endl
     ;
 }
 
@@ -3020,13 +3021,265 @@ bugtest_27370()
   return 0;
 }
 
+enum OpTypes { 
+  Read,
+  Insert,
+  Update,
+  Write,
+  Delete };
+
+static const char*
+operationName(OpTypes optype)
+{
+  switch(optype){
+  case Read:
+    return "Read";
+  case Insert:
+    return "Insert";
+  case Update:
+    return "Update";
+  case Write:
+    return "Write";
+  case Delete:
+    return "Delete";
+  default:
+    return "Bad operation type";
+  }
+}
+
+static const char*
+aoName(int abortOption)
+{
+  if (abortOption == 0)
+    return "AbortOnError";
+  return "IgnoreError";
+}
+
+static int
+setOperationType(NdbOperation* op, OpTypes optype)
+{
+  switch(optype){
+  case Read:
+    CHK(op->readTuple() == 0);
+    break;
+  case Insert:
+    CHK(op->insertTuple() == 0);
+    break;
+  case Update:
+    CHK(op->updateTuple() == 0);
+    break;
+  case Write:
+    CHK(op->writeTuple() == 0);
+    break;
+  case Delete:
+    CHK(op->deleteTuple() == 0);
+    break;
+  default:
+    CHK(false);
+    return -1;
+  }
+  return 0;
+}
+
+static int
+performOpSpecifics(NdbOperation* op, OpTypes optype, Tup& tup)
+{
+  CHK(getBlobHandles(op) == 0);
+
+  switch(optype){
+  case Read:
+    CHK(getBlobValue(tup) == 0);
+    break;
+  case Insert:
+  case Update:
+    /* Fall through */
+  case Write:
+    CHK(setBlobValue(tup) == 0);
+    break;
+  case Delete:
+    /* Nothing */
+    break;
+  default:
+    CHK(false);
+    return -1;
+  }
+  return 0;
+}
+
+static int
+bugtest_36756()
+{
+  /* Transaction which had accessed a Blob table was ignoring
+   * abortOption passed in the execute() call.
+   * Check that option passed in execute() call overrides 
+   * Default / manually set operation abortOption, even in the
+   * presence of Blobs in the transaction
+   */
+
+  /* Operation
+   *                   Read       Insert        Update    Write    Delete
+   * AbortOnError      Missing*   Duplicate     Missing     -      Missing
+   * IgnoreError       Missing    Duplicate*    Missing*    -      Missing*
+   * 
+   * * Are interesting, where non-default behaviour is requested.
+   */
+  
+  struct ExpectedOutcome
+  {
+    int executeRc;
+    int transactionErrorCode;
+    int opr1ErrorCode;
+    int opr2ErrorCode;
+    int commitStatus;
+  };
+
+  ExpectedOutcome outcomes[5][2]=
+  {
+    // Read
+    {{-1, 626, 0, 0, NdbTransaction::Aborted},   // AE
+     {0, 626, 0, 626, NdbTransaction::Started}}, // IE
+    // Insert
+    {{-1, 630, 0, 0, NdbTransaction::Aborted},   // AE
+     {0, 630, 630, 0, NdbTransaction::Aborted}}, // IE
+    // Update
+    {{-1, 626, 0, 0, NdbTransaction::Aborted},   // AE
+     {0, 626, 0, 626, NdbTransaction::Started}}, // IE
+    // Write
+    {{0, 0, 0, 0, NdbTransaction::Started},      // AE
+     {0, 0, 0, 0, NdbTransaction::Started}},     // IE
+    // Delete
+    {{-1, 626, 0, 0, NdbTransaction::Aborted},   // AE
+     {0, 626, 0, 626, NdbTransaction::Started}}  // IE
+  };
+
+  DBG("bugtest_36756 : IgnoreError Delete of nonexisting tuple aborts");
+
+  for (int iterations=0; iterations < 50; iterations++)
+  {
+    /* Recalculate and insert different tuple every time to 
+     * get different keys(and therefore nodes), and
+     * different length Blobs, including zero length
+     * and NULL
+     */
+    calcTups(true);
+    
+    Tup& tupExists = g_tups[0];
+    Tup& tupDoesNotExist = g_tups[1];
+    
+    /* Setup table with just 1 row present */
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    CHK(g_opr->insertTuple() == 0);
+    CHK(g_opr->equal("PK1", tupExists.m_pk1) == 0);
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
+      CHK(g_opr->equal("PK2", tupExists.m_pk2) == 0);
+      CHK(g_opr->equal("PK3", tupExists.m_pk3) == 0);
+    }
+    CHK(getBlobHandles(g_opr) == 0);
+    
+    CHK(setBlobValue(tupExists) == 0);
+    
+    CHK(g_con->execute(Commit) == 0);
+    g_con->close();
+    
+    //DBG("Iteration : " << iterations);
+    for (int optype=Read; optype <= Delete; optype++)
+    {
+      //DBG("  " << operationName((OpTypes)optype));
+      for (int abortOption=0; abortOption < 2; abortOption++)
+      {
+        //DBG("    " << aoName(abortOption));
+        NdbOperation *opr1, *opr2;
+        NdbOperation::AbortOption ao= (abortOption==0)?
+          NdbOperation::AbortOnError : 
+          NdbOperation::AO_IgnoreError;
+        
+        CHK((g_con= g_ndb->startTransaction()) != 0);
+        
+        /* Operation 1 on existing tuple */
+        CHK((opr1= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+        
+        CHK(setOperationType(opr1, (OpTypes)optype) == 0);
+        
+        CHK(opr1->equal("PK1", tupExists.m_pk1) == 0);
+        if (g_opt.m_pk2chr.m_len != 0)
+        {
+          CHK(opr1->equal("PK2", tupExists.m_pk2) == 0);
+          CHK(opr1->equal("PK3", tupExists.m_pk3) == 0);
+        }
+        CHK(performOpSpecifics(opr1, (OpTypes)optype, tupExists) == 0);
+        
+        /* Operation2 on non existing tuple */
+        CHK((opr2= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+        
+        CHK(setOperationType(opr2, (OpTypes)optype) == 0);
+        
+        CHK(opr2->equal("PK1", tupDoesNotExist.m_pk1) == 0);
+        if (g_opt.m_pk2chr.m_len != 0)
+        {
+          CHK(opr2->equal("PK2", tupDoesNotExist.m_pk2) == 0);
+          CHK(opr2->equal("PK3", tupDoesNotExist.m_pk3) == 0);
+        }
+        CHK(performOpSpecifics(opr2, (OpTypes)optype, tupDoesNotExist) == 0);
+
+        ExpectedOutcome eo= outcomes[optype][abortOption];
+        
+        int rc = g_con->execute(NdbTransaction::NoCommit, ao);
+
+        //DBG("execute returned " << rc <<
+        //    " Trans err " << g_con->getNdbError().code <<
+        //    " Opr1 err " << opr1->getNdbError().code <<
+        //    " Opr2 err " << opr2->getNdbError().code <<
+        //    " CommitStatus " << g_con->commitStatus());
+
+        /* TODO : Bug#36851 Insert does not behave correctly with 
+         * IgnoreError */
+        if (! ((optype == 1) &&
+               (abortOption == 1)))
+        {
+          CHK(rc == eo.executeRc);        
+          CHK(opr1->getNdbError().code == eo.opr1ErrorCode);
+          CHK(opr2->getNdbError().code == eo.opr2ErrorCode);
+          CHK(g_con->commitStatus() == eo.commitStatus);
+        }
+
+        CHK(g_con->getNdbError().code == eo.transactionErrorCode);
+        
+        g_con->close();
+      }
+    }
+    
+    /* Now delete the 'existing'row */
+    CHK((g_con= g_ndb->startTransaction()) != 0);
+    CHK((g_opr= g_con->getNdbOperation(g_opt.m_tname)) != 0);
+    CHK(g_opr->deleteTuple() == 0);
+    CHK(g_opr->equal("PK1", tupExists.m_pk1) == 0);
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
+      CHK(g_opr->equal("PK2", tupExists.m_pk2) == 0);
+      CHK(g_opr->equal("PK3", tupExists.m_pk3) == 0);
+    }
+
+    CHK(g_con->execute(Commit) == 0);
+    g_con->close();
+  }
+
+  g_opr= 0;
+  g_con= 0;
+  g_bh1= 0;
+
+  return 0;
+}
+
 static struct {
   int m_bug;
   int (*m_test)();
 } g_bugtest[] = {
   { 4088, bugtest_4088 },
   { 27018, bugtest_27018 },
-  { 27370, bugtest_27370 }
+  { 27370, bugtest_27370 },
+  { 36756, bugtest_36756 }
 };
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
