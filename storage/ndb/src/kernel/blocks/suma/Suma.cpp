@@ -2385,6 +2385,16 @@ Suma::execSUB_START_REQ(Signal* signal){
                     senderRef, senderData, SubStartRef::OutOfSubOpRecords);
     return;
   }
+
+  if (! check_sub_start(subscriberRef))
+  {
+    jam();
+    c_subscriberPool.release(subbPtr);
+    c_subOpPool.release(subOpPtr);
+    sendSubStartRef(signal,
+                    senderRef, senderData, SubStartRef::NodeDied);
+    return;
+  }
   
   // setup subscriber record
   subbPtr.p->m_senderRef  = subscriberRef;
@@ -2588,6 +2598,19 @@ Suma::execCREATE_TRIG_REF(Signal* signal)
   drop_triggers(signal, subPtr);
 }
 
+bool
+Suma::check_sub_start(Uint32 subscriberRef)
+{
+  Uint32 nodeId = refToNode(subscriberRef);
+  bool startme = c_startup.m_restart_server_node_id;
+  bool handover = c_startup.m_wait_handover;
+  bool connected = 
+    c_failedApiNodes.get(nodeId) == false && 
+    c_connected_nodes.get(nodeId);
+  
+  return (startme || handover || connected);
+}
+
 void
 Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
 {
@@ -2608,13 +2631,8 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
       c_subscriberPool.getPtr(ptr, subOpPtr.p->m_subscriberRef);
 
       Uint32 nodeId = refToNode(ptr.p->m_senderRef);
-      bool startme = c_startup.m_restart_server_node_id;
-      bool handover = c_startup.m_wait_handover;
-      bool connected = 
-        c_failedApiNodes.get(nodeId) == false && 
-        c_connected_nodes.get(nodeId);
-
-      if (startme || handover || connected)
+      
+      if (check_sub_start(ptr.p->m_senderRef))
       {
         SubStartConf* conf = (SubStartConf*)signal->getDataPtrSend();
         conf->senderRef       = reference();
@@ -2641,9 +2659,7 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
       else
       {
         jam();
-        g_eventLogger->warning
-          ("Node %u failed in report_sub_start_conf(%u,%u,%u)",
-           nodeId, startme,handover,connected);
+        
         sendSubStartRef(signal,
                         senderRef, senderData, SubStartRef::NodeDied);
 
