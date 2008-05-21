@@ -376,7 +376,6 @@ public:
 
   void completeSubRemove(SubscriptionPtr subPtr);
   
-
   void send_sub_start_stop_event(Signal *signal,
                                  Ptr<Subscriber> ptr,
                                  NdbDictionary::Event::_TableEvent event,
@@ -389,6 +388,7 @@ public:
   void drop_triggers(Signal*, Ptr<Subscription>);
   void drop_triggers_complete(Signal*, Ptr<Subscription>);
 
+  bool check_sub_start(Uint32 subscriberRef);
   void report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr);
   void report_sub_start_ref(Signal* signal, Ptr<Subscription> subPtr, Uint32);
 
