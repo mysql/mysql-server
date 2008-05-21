@@ -794,11 +794,15 @@ args:
 
 max-time: 600
 cmd: testBlobs
-args: -bug 27018
+args: -bug 27018 -skip p
 
 max-time: 600
 cmd: testBlobs
-args: -bug 27370
+args: -bug 27370 -skip p
+
+max-time: 600
+cmd: testBlobs
+args: -bug 36756 -skip p
 
 max-time: 5000
 cmd: testOIBasic
