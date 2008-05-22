@@ -2261,7 +2261,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     int is_db_excl    = flags & DB_EXCL;    flags&=~DB_EXCL;
     int is_db_create  = flags & DB_CREATE;  flags&=~DB_CREATE;
     int is_db_rdonly  = flags & DB_RDONLY;  flags&=~DB_RDONLY;
-    int is_db_unknown = dbtype == DB_UNKNOWN;
+    if (dbtype != DB_UNKNOWN && dbtype != DB_BTREE) return EINVAL;
     if (flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;
@@ -2316,7 +2316,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 
 
     r = toku_brt_open(db->i->brt, db->i->full_fname, fname, dbname,
-		      is_db_create, is_db_excl, is_db_unknown,
+		      is_db_create, is_db_excl,
 		      db->dbenv->i->cachetable,
 		      txn ? txn->i->tokutxn : NULL_TXN,
 		      db);

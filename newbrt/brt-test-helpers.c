@@ -50,7 +50,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_childre
 int toku_testsetup_root(BRT brt, DISKOFF diskoff) {
     int r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
     if (r!=0) return r;
-    brt->h->unnamed_root = diskoff;
+    brt->h->roots[0] = diskoff;
     r = toku_unpin_brt_header(brt);
     return r;
 }

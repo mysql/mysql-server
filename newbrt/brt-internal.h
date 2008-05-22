@@ -103,14 +103,14 @@ enum {
 
 struct brt_header {
     int dirty;
+    int layout_version;
     unsigned int nodesize;
     DISKOFF freelist;
     DISKOFF unused_memory;
-    DISKOFF unnamed_root;
     int n_named_roots; /* -1 if the only one is unnamed */
-    char  **names;
-    DISKOFF *roots;
-    unsigned int flags;
+    char  **names;             // an array of names.  NULL if subdatabases are not allowed.
+    DISKOFF *roots;            // an array of DISKOFFs.  Element 0 holds the element if no subdatabases allowed.
+    unsigned int *flags_array; // an array of flags.  Element 0 holds the element if no subdatabases allowed.
     
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
 };
@@ -126,6 +126,7 @@ struct brt {
 
     unsigned int nodesize;
     unsigned int flags;
+    unsigned int did_set_flags;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
     int (*dup_compare)(DB*,const DBT*,const DBT*);
     DB *db;           // To pass to the compare fun
@@ -226,7 +227,14 @@ void toku_verify_all_in_mempool(BRTNODE node);
 
 int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) ;
 
-// Diff from 5 to 6:  Added leafentry_estimate
-#define BRT_LAYOUT_VERSION 6
+enum brt_layout_version_e {
+    BRT_LAYOUT_VERSION_5 = 5,
+    BRT_LAYOUT_VERSION_6 = 6, // Diff from 5 to 6:  Add leafentry_estimate
+    BRT_LAYOUT_VERSION_7 = 7, // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdataase flags #333
+    BRT_ANTEULTIMATE_VERSION, // the version after the most recent version
+    BRT_LAYOUT_VERSION   = BRT_ANTEULTIMATE_VERSION-1 // A hack so I don't have to change this line.
+};
+
+void toku_brtheader_free (struct brt_header *h);
 
 #endif

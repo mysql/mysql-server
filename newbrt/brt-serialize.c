@@ -111,7 +111,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     wbuf_literal_bytes(&w, "toku", 4);
     if (node->height==0) wbuf_literal_bytes(&w, "leaf", 4);
     else wbuf_literal_bytes(&w, "node", 4);
-    wbuf_int(&w, node->layout_version);
+    wbuf_int(&w, BRT_LAYOUT_VERSION_7);
     wbuf_ulonglong(&w, node->log_lsn.lsn);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_uint(&w, calculated_size);
@@ -265,9 +265,15 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
 	}
     }
     result->layout_version    = rbuf_int(&rc);
-    if (result->layout_version!=BRT_LAYOUT_VERSION) {
+    {
+	switch (result->layout_version) {
+	case BRT_LAYOUT_VERSION_5:
+	case BRT_LAYOUT_VERSION_6:
+	case BRT_LAYOUT_VERSION_7: goto ok_layout_version;
+	}
 	r=DB_BADFORMAT;
 	goto died1;
+    ok_layout_version: ;
     }
     result->disk_lsn.lsn = rbuf_ulonglong(&rc);
     result->log_lsn = result->disk_lsn;
@@ -297,7 +303,11 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
 	    u_int32_t childfp = rbuf_int(&rc);
 	    BNC_SUBTREE_FINGERPRINT(result, i)= childfp;
 	    check_subtree_fingerprint += childfp;
-	    BNC_SUBTREE_LEAFENTRY_ESTIMATE(result, i)=rbuf_ulonglong(&rc);
+	    if (result->layout_version>BRT_LAYOUT_VERSION_5) {
+		BNC_SUBTREE_LEAFENTRY_ESTIMATE(result, i)=rbuf_ulonglong(&rc);
+	    } else {
+		BNC_SUBTREE_LEAFENTRY_ESTIMATE(result, i)=0;
+	    }
 	}
 	for (i=0; i<result->u.n.n_children-1; i++) {
             if (result->flags & TOKU_DB_DUPSORT) {
@@ -470,13 +480,25 @@ void toku_verify_counts (BRTNODE node) {
 }
     
 int toku_serialize_brt_header_size (struct brt_header *h) {
-    unsigned int size = 4+4+4+8+8+4; /* this size, flags, the tree's nodesize, freelist, unused_memory, named_roots. */
+    unsigned int size = (+8 // "tokudata"  
+			 +4 // size
+			 +4 // tree's nodesize
+			 +4 // version
+			 +8 // freelist
+			 +8 // unused memory
+			 +4); // n_named_roots
     if (h->n_named_roots<0) {
-	size+=8;
+	size+=(+8 // diskoff
+	       +4 // flags
+	       );
     } else {
 	int i;
 	for (i=0; i<h->n_named_roots; i++) {
-	    size+=12 + 1 + strlen(h->names[i]);
+	    size+=(+8 // root diskoff
+		   +4 // flags
+		   +4 // length of null terminated string (including null)
+		   +1 + strlen(h->names[i]) // null-terminated string
+		   );
 	}
     }
     return size;
@@ -484,8 +506,9 @@ int toku_serialize_brt_header_size (struct brt_header *h) {
 
 int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) {
     unsigned int size = toku_serialize_brt_header_size (h); // !!! seems silly to recompute the size when the caller knew it.  Do we really need the size?
+    wbuf_literal_bytes(wbuf, "tokudata", 8);
     wbuf_int    (wbuf, size);
-    wbuf_int    (wbuf, h->flags);
+    wbuf_int    (wbuf, BRT_LAYOUT_VERSION);
     wbuf_int    (wbuf, h->nodesize);
     wbuf_DISKOFF(wbuf, h->freelist);
     wbuf_DISKOFF(wbuf, h->unused_memory);
@@ -496,11 +519,13 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
 	    char *s = h->names[i];
 	    unsigned int l = 1+strlen(s);
 	    wbuf_DISKOFF(wbuf, h->roots[i]);
+	    wbuf_int    (wbuf, h->flags_array[i]);
 	    wbuf_bytes  (wbuf,  s, l);
 	    assert(l>0 && s[l-1]==0);
 	}
     } else {
-	wbuf_DISKOFF(wbuf, h->unnamed_root);
+	wbuf_DISKOFF(wbuf, h->roots[0]);
+	wbuf_int    (wbuf, h->flags_array[0]);
     }
     assert(wbuf->ndone<=wbuf->size);
     return 0;
@@ -521,32 +546,25 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     return r;
 }
 
-int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth) {
-    //printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
+static int deserialize_brtheader_6_or_earlier (int fd, DISKOFF off, struct brt_header **brth) {
+    // Deserialize a brt header from version 6 or earlier.
     struct brt_header *MALLOC(h);
-    struct rbuf rc;
+    if (h==0) return errno;
+    int ret=-1;
+    if (0) { died0: toku_free(h); return ret; }
     int size;
     int sizeagain;
-    int ret = -1;
-    assert(off==0);
-    //printf("%s:%d malloced %p\n", __FILE__, __LINE__, h);
+    h->layout_version = BRT_LAYOUT_VERSION_6;
     {
 	uint32_t size_n;
 	ssize_t r = pread(fd, &size_n, sizeof(size_n), off);
-	if (r==0) {
-        died0:
-	    toku_free(h); return ret;
-	}
-	if (r!=sizeof(size_n)) {ret = EINVAL; goto died0;}
+	assert(r==sizeof(size_n)); // we already read it earlier.
 	size = ntohl(size_n);
     }
+    struct rbuf rc;
     rc.buf = toku_malloc(size);
-    if (rc.buf == NULL) {ret = ENOMEM; goto died0;}
-    if (0) {
-        died1:
-        toku_free(rc.buf);
-        goto died0;
-    }
+    if (rc.buf == NULL) { ret = ENOMEM; goto died0; }
+    if (0) { died1: toku_free(rc.buf); goto died0; }
     rc.size=size;
     if (rc.size<=0) {ret = EINVAL; goto died1;}
     rc.ndone=0;
@@ -557,32 +575,32 @@ int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **br
     h->dirty=0;
     sizeagain        = rbuf_int(&rc);
     if (sizeagain!=size) {ret = EINVAL; goto died1;}
-    h->flags         = rbuf_int(&rc);
+    u_int32_t flags_for_all = rbuf_int(&rc);
     h->nodesize      = rbuf_int(&rc);
     h->freelist      = rbuf_diskoff(&rc);
     h->unused_memory = rbuf_diskoff(&rc);
     h->n_named_roots = rbuf_int(&rc);
     if (h->n_named_roots>=0) {
 	int i;
+	MALLOC_N(h->n_named_roots, h->flags_array);
+	for (i=0; i<h->n_named_roots; i++) h->flags_array[i]=flags_for_all;
 	MALLOC_N(h->n_named_roots, h->roots);
 	if (h->n_named_roots > 0 && h->roots == NULL) {ret = ENOMEM; goto died1;}
 	if (0) {
-	    died2:
+	died2:
 	    toku_free(h->roots);
 	    goto died1;
 	}
 	MALLOC_N(h->n_named_roots, h->names);
 	if (h->n_named_roots > 0 && h->names == NULL) {ret = ENOMEM; goto died2;}
 	if (0) {
-	    died3:
+	died3:
 	    toku_free(h->names);
 	    for (i = 0; i < h->n_named_roots; i++) {
-	        if (h->names[i]) toku_free(h->names[i]);
+		if (h->names[i]) toku_free(h->names[i]);
 	    }
 	    goto died2;
 	}
-	
-	
 	
 	for (i=0; i<h->n_named_roots; i++) {
 	    bytevec nameptr;
@@ -594,16 +612,89 @@ int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **br
 	    if (len > 0 && h->names[i] == NULL) {ret = ENOMEM; goto died3;}
 	}
 	
-	h->unnamed_root = -1;
     } else {
-	h->roots = 0;
+	MALLOC_N(1, h->flags_array);
+	MALLOC_N(1, h->roots);
+	h->flags_array[0]=flags_for_all;
+	h->roots[0] = rbuf_diskoff(&rc);
+
 	h->names = 0;
-	h->unnamed_root = rbuf_diskoff(&rc);
     }
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died3;}
     toku_free(rc.buf);
     *brth = h;
     return 0;
+}
+
+int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct brt_header **brth) {
+    // We already know the first 8 bytes are "tokudata", and we read in the size.
+    struct brt_header *MALLOC(h);
+    if (h==0) return errno;
+    int ret=-1;
+    if (0) { died0: toku_free(h); return ret; }
+    struct rbuf rc;
+    rc.buf = toku_malloc(size-12); // we can skip the first 12 bytes.
+    if (rc.buf == NULL) { ret=errno; if (0) { died1: toku_free(rc.buf); } goto died0; }
+    rc.size = size-12;
+    if (rc.size<=0) { ret = EINVAL; goto died1; }
+    rc.ndone = 0;
+    {
+	ssize_t r = pread(fd, rc.buf, size-12, off+12);
+	if (r!=size-12) { ret = EINVAL; goto died1; }
+    }
+    h->dirty=0;
+    h->layout_version = rbuf_int(&rc);
+    h->nodesize      = rbuf_int(&rc);
+    assert(h->layout_version==BRT_LAYOUT_VERSION_7);
+    h->freelist      = rbuf_diskoff(&rc);
+    h->unused_memory = rbuf_diskoff(&rc);
+    h->n_named_roots = rbuf_int(&rc);
+    if (h->n_named_roots>=0) {
+	int i;
+	int n_to_malloc = (h->n_named_roots == 0) ? 1 : h->n_named_roots;
+	MALLOC_N(n_to_malloc, h->flags_array); if (h->flags_array==0) { ret=errno; if (0) { died2: free(h->flags_array); }                    goto died1; }
+	MALLOC_N(n_to_malloc, h->roots);       if (h->roots==0)       { ret=errno; if (0) { died3: if (h->n_named_roots>=0) free(h->roots); } goto died2; }
+	MALLOC_N(n_to_malloc, h->names);       if (h->names==0)       { ret=errno; if (0) { died4: if (h->n_named_roots>=0) free(h->names); } goto died3; }
+	for (i=0; i<h->n_named_roots; i++) {
+	    h->roots[i]       = rbuf_diskoff(&rc);
+	    h->flags_array[i] = rbuf_int(&rc);
+	    bytevec nameptr;
+	    unsigned int len;
+	    rbuf_bytes(&rc, &nameptr, &len);
+	    assert(strlen(nameptr)+1==len);
+	    h->names[i] = toku_memdup(nameptr, len);
+	    assert(len == 0 || h->names[i] != NULL); // make sure the malloc worked.  Give up if this malloc failed...
+	}
+    } else {
+	int n_to_malloc = 1;
+	MALLOC_N(n_to_malloc, h->flags_array); if (h->flags_array==0) { ret=errno; goto died1; }
+	MALLOC_N(n_to_malloc, h->roots);       if (h->roots==0) { ret=errno; goto died2; }
+	h->names = 0;
+	h->roots[0] = rbuf_diskoff(&rc);
+	h->flags_array[0] = rbuf_int(&rc);
+    }
+    if (rc.ndone!=rc.size) {ret = EINVAL; goto died4;}
+    toku_free(rc.buf);
+    *brth = h;
+    return 0;
+}
+
+int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth) {
+    //printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
+    assert(off==0);
+    //printf("%s:%d malloced %p\n", __FILE__, __LINE__, h);
+
+    char     magic[12];
+    ssize_t r = pread(fd, magic,  12, off);
+    if (r==0) return -1;
+    if (r<0)  return errno;
+    if (r!=12) return EINVAL;
+    if (memcmp(magic,"tokudata",8)==0) {
+	// It's version 7 or later
+	return deserialize_brtheader_7_or_later(ntohl(*(int*)(&magic[8])), fd, off, brth);
+    } else {
+	return deserialize_brtheader_6_or_earlier(fd, off, brth);
+    }
 }
 
 unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {

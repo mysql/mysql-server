@@ -50,12 +50,8 @@ void test_dup_flags(u_int32_t dup_flags) {
     /* verify dup flags match */
     r = db_create(&db, null_env, 0); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
-#if USE_BDB
     if (r == 0 && verbose) 
         printf("%s:%d: WARNING:open ok:dup_mode:%d\n", __FILE__, __LINE__, dup_flags);
-#else
-    assert(flags ? r != 0 : r == 0);
-#endif
     r = db->close(db, 0); assert(r == 0);
 
     r = db_create(&db, null_env, 0); assert(r == 0);

@@ -86,6 +86,7 @@ BINS =  $(REGRESSION_TESTS) \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 CHECKS = \
+ load_version_6 \
  benchmarktest_256 \
  test-assertA test-assertB \
  $(REGRESSION_TESTS) \
@@ -100,6 +101,10 @@ check_fail:
 	test 0 = 1 $(SUMMARIZE_CMD)
 check_ok:
 	test 0 = 0 $(SUMMARIZE_CMD)
+
+check_load_version_6:
+	(cp bench.db.ver6 bench.db.ver6.tmp && \
+	$(VGRIND) ../brtdump bench.db.ver6.tmp > /dev/null ) $(SUMMARIZE_CMD)
 
 check_benchmarktest_256: benchmark-test
 	$(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
