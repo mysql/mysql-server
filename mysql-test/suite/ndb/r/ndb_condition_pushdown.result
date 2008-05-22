@@ -1953,5 +1953,14 @@ create table t1 (a int primary key, b varchar(5000) character set latin1) engine
 insert into t1 values (0, 'I just cant beg you, any-more');
 select * from t1 where b="value";
 a	b
+drop table t1;
+create table t1 (a int primary key, b varchar(5000) character set latin1) engine=ndb;
+insert into t1 values(0, 'Edinburgh'),(1, 'Glasgow'),(2,'Aberdeen');
+select * from t1 where b in ('0', '1', '2','3','4','5','6','7','8','9',
+'10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', 'Aberdeen');
+a	b
+2	Aberdeen
+show warnings;
+Level	Code	Message
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
