@@ -54,15 +54,15 @@ TDB_TESTS = $(patsubst %.c,%.tdb,$(SRCS))
 BDB_DONTRUN = bug627 test_abort1 keyrange keyrange-unflat keyrange-dupsort keyrange-dupsort-unflat
 BDB_TESTS = $(patsubst %.c,%.bdb,$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN)),$(SRCS)))
 
-TDB_TESTS_THAT_SHOULD_FAIL = test_groupcommit_count
-TDB_TESTS_THAT_SHOULD_FAIL_LIT = test_log5.recover test_log7.recover test_log10.recover
+TDB_TESTS_THAT_SHOULD_FAIL = test_groupcommit_count test-recover1 test-recover2 test-recover3 test_txn_recover3
+TDB_TESTS_THAT_SHOULD_FAIL_LIT = test_log2.recover test_log3.recover test_log4.recover test_log5.recover test_log6.recover test_log7.recover test_log8.recover test_log9.recover test_log10.recover
 
 ALL_TESTS = $(TDB_TESTS) $(BDB_TESTS)
 
 RUN_TDB_TESTS = $(patsubst %.tdb,%.tdbrun,$(TDB_TESTS))
 RUN_BDB_TESTS = $(patsubst %.bdb,%.bdbrun,$(BDB_TESTS))
-RUN_ALL_TESTS = $(RUN_TDB_TESTS) $(RUN_BDB_TESTS)
-
+MORE_TESTS = test_v6_v7_assoc3.tdbrun
+RUN_ALL_TESTS = $(RUN_TDB_TESTS) $(RUN_BDB_TESTS) $(MORE_TESTS)
 
 all build: $(ALL_TESTS)
 
@@ -185,6 +185,20 @@ test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
 # serialize these two tests since they use the same directory
 test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdbrun
+
+
+.phony: build_primary_db build_name_db  build_expire_db
+test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb:
+	mkdir $@
+build_primary_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb
+	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/primary.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/primary.db
+build_name_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb
+	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/name.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/name.db
+build_expire_db: test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb
+	gunzip < test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb.original/expire.db.gz > test_v6_assoc3.dir/dir.test_db_assoc3.c.tdb/expire.db
+
+test_v6v7_assoc3.tdbrun: test_db_assoc3.tdb build_primary_db  build_name_db build_expire_db
+	$(SETTOKUENV) (cd test_v6_assoc3.dir; LD_LIBRARY_PATH=../.. $(VGRIND) ../test_db_assoc3.tdb --seed=3 --count=1000 --more)  $(SUMMARIZE_CMD)
 
 test_db_assoc3.tdbrun: test_db_assoc3.tdb
 	$(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE) && \

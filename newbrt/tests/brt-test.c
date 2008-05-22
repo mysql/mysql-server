@@ -914,7 +914,7 @@ static void test_brt_delete_both(int n) {
     r = toku_brt_create(&t); assert(r == 0);
     r = toku_brt_set_flags(t, TOKU_DB_DUP + TOKU_DB_DUPSORT); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, (DB*)0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, (DB*)0);
     assert(r==0);
 
     DBT key, val;
@@ -1019,7 +1019,7 @@ static void test_new_brt_cursor_first(int n, int dup_mode) {
     r = toku_brt_create(&t); assert(r == 0);
     r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, 0); assert(r==0);
 
     DBT key, val;
     int k, v;
@@ -1073,7 +1073,7 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
     r = toku_brt_create(&t); assert(r == 0);
     r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, 0); assert(r==0);
 
     DBT key, val;
     int k, v;
@@ -1127,7 +1127,7 @@ static void test_new_brt_cursor_next(int n, int dup_mode) {
     r = toku_brt_create(&t); assert(r == 0);
     r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, 0); assert(r==0);
 
     DBT key, val;
     int k, v;
@@ -1179,7 +1179,7 @@ static void test_new_brt_cursor_prev(int n, int dup_mode) {
     r = toku_brt_create(&t); assert(r == 0);
     r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, 0); assert(r==0);
 
     DBT key, val;
     int k, v;
@@ -1231,7 +1231,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
     r = toku_brt_create(&t); assert(r == 0);
     r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, ct, null_txn, 0); assert(r==0);
 
     DBT key, val;
     int k, v;
@@ -1311,7 +1311,7 @@ static void test_new_brt_cursor_set_range(int n, int dup_mode) {
     r = toku_brt_create(&brt); assert(r == 0);
     r = toku_brt_set_flags(brt, dup_mode); assert(r == 0);
     r = toku_brt_set_nodesize(brt, 4096); assert(r == 0);
-    r = toku_brt_open(brt, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+    r = toku_brt_open(brt, fname, fname, 0, 1, 1, ct, null_txn, 0); assert(r==0);
 
     int i;
     DBT key, val;

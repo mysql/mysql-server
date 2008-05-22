@@ -134,7 +134,7 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     struct brt_header *MALLOC(h);
     assert(h);
     h->dirty=0;
-    h->flags = header.flags;
+    h->flags_array[0] = header.flags;
     h->nodesize = header.nodesize;
     h->freelist = header.freelist;
     h->unused_memory = header.unused_memory;
@@ -142,7 +142,8 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     r=toku_fifo_create(&h->fifo);
     assert(r==0);
     if ((signed)header.n_named_roots==-1) {
-	h->unnamed_root = header.u.one.root;
+	MALLOC_N(1, h->roots); assert(h->roots);
+	h->roots[0] = header.u.one.root;
     } else {
 	assert(0);
     }
@@ -177,7 +178,7 @@ void toku_recover_newbrtnode (LSN lsn, FILENUM filenum,DISKOFF diskoff,u_int32_t
     n->thisnodename = diskoff;
     n->log_lsn = n->disk_lsn  = lsn;
     //printf("%s:%d %p->disk_lsn=%"PRId64"\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
-    n->layout_version = BRT_LAYOUT_VERSION;
+    n->layout_version = BRT_LAYOUT_VERSION_7;
     n->height         = height;
     n->rand4fingerprint = rand4fingerprint;
     n->flags = is_dup_sort ? TOKU_DB_DUPSORT : 0; // Don't have TOKU_DB_DUP ???
@@ -500,7 +501,7 @@ void toku_recover_leafsplit (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, DISK
     newn->thisnodename = new_diskoff;
     newn->log_lsn = newn->disk_lsn  = lsn;
     //printf("%s:%d %p->disk_lsn=%"PRId64"\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
-    newn->layout_version = BRT_LAYOUT_VERSION;
+    newn->layout_version = BRT_LAYOUT_VERSION_7;
     newn->height         = 0;
     newn->rand4fingerprint = new_rand4;
     newn->flags = is_dup_sort ? TOKU_DB_DUPSORT : 0; // Don't have TOKU_DB_DUP ???
@@ -628,7 +629,7 @@ void toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, DISKOFF UU(ol
     assert(pair->brt);
     r = toku_read_and_pin_brt_header(pair->cf, &pair->brt->h);
     assert(r==0);
-    pair->brt->h->unnamed_root = newroot;
+    pair->brt->h->roots[0] = newroot;
     r = toku_unpin_brt_header(pair->brt);
 }
 void toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), DISKOFF UU(oldroot), DISKOFF UU(newroot)) { assert(0); }

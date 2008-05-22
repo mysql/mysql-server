@@ -171,6 +171,20 @@ int toku_brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **b
     return r;
 }
 	
+void toku_brtheader_free (struct brt_header *h) {
+    if (h->n_named_roots>0) {
+	int i;
+	for (i=0; i<h->n_named_roots; i++) {
+	    toku_free(h->names[i]);
+	}
+	toku_free(h->names);
+    }
+    toku_fifo_free(&h->fifo);
+    toku_free(h->roots);
+    toku_free(h->flags_array);
+    toku_free(h);
+}
+
 void toku_brtheader_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *header_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
     struct brt_header *h = header_v;
     assert(nodename==0);
@@ -180,16 +194,7 @@ void toku_brtheader_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void 
 	toku_serialize_fifo_at(toku_cachefile_fd(cachefile), h->unused_memory, h->fifo);
     }
     if (!keep_me) {
-	if (h->n_named_roots>0) {
-	    int i;
-	    for (i=0; i<h->n_named_roots; i++) {
-		toku_free(h->names[i]);
-	    }
-	    toku_free(h->names);
-	    toku_free(h->roots);
-	}
-	toku_fifo_free(&h->fifo);
-	toku_free(h);
+	toku_brtheader_free(h);
     }
 }
 
@@ -292,11 +297,11 @@ static inline uint32_t myrandom (void) {
 static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) {
     n->tag = TYP_BRTNODE;
     n->nodesize = t->h->nodesize;
-    n->flags = t->h->flags;
+    n->flags = t->flags;
     n->thisnodename = nodename;
     n->disk_lsn.lsn = 0; // a new one can always be 0.
     n->log_lsn = n->disk_lsn;
-    n->layout_version = BRT_LAYOUT_VERSION;
+    n->layout_version = BRT_LAYOUT_VERSION_7;
     n->height       = height;
     n->rand4fingerprint = random();
     n->local_fingerprint = 0;
@@ -1874,6 +1879,7 @@ int toku_brt_create(BRT *brt_ptr) {
     memset(brt, 0, sizeof *brt);
     list_init(&brt->cursors);
     brt->flags = 0;
+    brt->did_set_flags = 0;
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
     brt->compare_fun = toku_default_compare_fun;
     brt->dup_compare = toku_default_compare_fun;
@@ -1884,6 +1890,7 @@ int toku_brt_create(BRT *brt_ptr) {
 }
 
 int toku_brt_set_flags(BRT brt, unsigned int flags) {
+    brt->did_set_flags = 1;
     brt->flags = flags;
     return 0;
 }
@@ -1918,18 +1925,19 @@ int toku_brt_get_fd(BRT brt, int *fdp) {
     return 0;
 }
 
-int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, int load_flags, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
+int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
 
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
     char *malloced_name=0;
+    int db_index;
+
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_brt_open(%s, \"%s\", %d, %p, %d, %p)\n",
 			  __FILE__, __LINE__, fname, dbname, is_create, newbrt, nodesize, cachetable));
     if (0) { died0:  assert(r); return r; }
 
     assert(is_create || !only_create);
-    assert(!load_flags || !only_create);
     t->fname = toku_strdup(fname_in_env);
     if (t->fname==0) {
 	r = errno;
@@ -1994,41 +2002,41 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 		goto died_after_read_and_pin;
 	    }
 	    t->h->dirty=1;
-            t->h->flags = t->flags;
+	    if ((MALLOC_N(1, t->h->flags_array))==0)  { r = errno; if (0) { died3: toku_free(t->h->flags_array); } goto died2; }
+	    t->h->flags_array[0] = t->flags;
 	    t->h->nodesize=t->nodesize;
 	    t->h->freelist=-1;
 	    t->h->unused_memory=2*t->nodesize;
 	    toku_fifo_create(&t->h->fifo);
 	    if (dbname) {
-		t->h->unnamed_root = -1;
 		t->h->n_named_roots = 1;
-		if ((MALLOC_N(1, t->h->names))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died3: toku_free(t->h->names); } goto died2; }
-		if ((MALLOC_N(1, t->h->roots))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: toku_free(t->h->roots); } goto died3; }
-		if ((t->h->names[0] = toku_strdup(dbname))==0) { assert(errno==ENOMEM); r=ENOMEM; if (0) { died5: toku_free(t->h->names[0]); } goto died4; }
+		if ((MALLOC_N(1, t->h->names))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: if (dbname) toku_free(t->h->names); } goto died3; }
+		if ((MALLOC_N(1, t->h->roots))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died5: if (dbname) toku_free(t->h->roots); } goto died4; }
+		if ((t->h->names[0] = toku_strdup(dbname))==0) { assert(errno==ENOMEM); r=ENOMEM; if (0) { died6: if (dbname) toku_free(t->h->names[0]); } goto died5; }
 		t->h->roots[0] = t->nodesize;
 	    } else {
-		t->h->unnamed_root = t->nodesize;
+		MALLOC_N(1, t->h->roots); assert(t->h->roots);
+		t->h->roots[0] = t->nodesize;
 		t->h->n_named_roots = -1;
 		t->h->names=0;
-		t->h->roots=0;
 	    }
 	    
 	    {
 		LOGGEDBRTHEADER lh = {.size= toku_serialize_brt_header_size(t->h),
-				      .flags = t->h->flags,
+				      .flags = t->flags,
 				      .nodesize = t->h->nodesize,
 				      .freelist = t->h->freelist,
 				      .unused_memory = t->h->unused_memory,
 				      .n_named_roots = t->h->n_named_roots };
-		if (t->h->n_named_roots>0) {
+		if (t->h->n_named_roots>=0) {
 		    lh.u.many.names = t->h->names;
 		    lh.u.many.roots = t->h->roots;
 		} else {
-		    lh.u.one.root = t->h->unnamed_root;
+		    lh.u.one.root = t->h->roots[0];
 		}
 		if ((r=toku_log_fheader(toku_txn_logger(txn), (LSN*)0, 0, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), lh))) { goto died6; }
 	    }
-	    if ((r=setup_initial_brt_root_node(t, t->nodesize, toku_txn_logger(txn)))!=0) { died6: if (dbname) goto died5; else goto died2;	}
+	    if ((r=setup_initial_brt_root_node(t, t->nodesize, toku_txn_logger(txn)))!=0) { goto died6; }
 	    //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
 	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0))) { goto died6; }
 	}
@@ -2039,7 +2047,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 	    int i;
 	    assert(r==0);
 	    assert(dbname);
-	    if (t->h->unnamed_root!=-1) { r=EINVAL; goto died_after_read_and_pin; } // Cannot create a subdb in a file that is not enabled for subdbs
+	    if (t->h->n_named_roots<0) { r=EINVAL; goto died_after_read_and_pin; } // Cannot create a subdb in a file that is not enabled for subdbs
 	    assert(t->h->n_named_roots>=0);
 	    for (i=0; i<t->h->n_named_roots; i++) {
 		if (strcmp(t->h->names[i], dbname)==0) {
@@ -2047,11 +2055,16 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 			r = EEXIST;
 			goto died_after_read_and_pin;
 		    }
-		    else goto found_it;
+		    else {
+			db_index = i;
+			goto found_it;
+		    }
 		}
 	    }
 	    if ((t->h->names = toku_realloc(t->h->names, (1+t->h->n_named_roots)*sizeof(*t->h->names))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
 	    if ((t->h->roots = toku_realloc(t->h->roots, (1+t->h->n_named_roots)*sizeof(*t->h->roots))) == 0)   { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
+	    if ((t->h->flags_array = toku_realloc(t->h->flags_array, (1+t->h->n_named_roots)*sizeof(*t->h->flags_array))) == 0) { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
+	    t->h->flags_array[t->h->n_named_roots] = t->flags;
 	    t->h->n_named_roots++;
 	    if ((t->h->names[t->h->n_named_roots-1] = toku_strdup(dbname)) == 0)                                { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
 	    //printf("%s:%d t=%p\n", __FILE__, __LINE__, t);
@@ -2064,12 +2077,14 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 	if ((r = toku_read_and_pin_brt_header(t->cf, &t->h))!=0) goto died1;
 	if (!dbname) {
 	    if (t->h->n_named_roots!=-1) { r = EINVAL; goto died_after_read_and_pin; } // requires a subdb
+	    db_index=0;
 	} else {
 	    int i;
-	    if (t->h->n_named_roots==-1) { r=EINVAL; goto died_after_read_and_pin; } // no suddbs in the db
+	    if (t->h->n_named_roots==-1) { r = EINVAL; goto died_after_read_and_pin; } // no suddbs in the db
 	    // printf("%s:%d n_roots=%d\n", __FILE__, __LINE__, t->h->n_named_roots);
 	    for (i=0; i<t->h->n_named_roots; i++) {
 		if (strcmp(t->h->names[i], dbname)==0) {
+		    db_index=i;
 		    goto found_it;
 		}
 
@@ -2079,9 +2094,12 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 	}
     found_it:
         t->nodesize = t->h->nodesize;                 /* inherit the pagesize from the file */
-        if (t->flags != t->h->flags) {                /* flags must match */
-            if (load_flags) t->flags = t->h->flags;
-            else {r = EINVAL; goto died_after_read_and_pin;}
+	if (!t->did_set_flags) {
+	    t->flags = t->h->flags_array[db_index];
+	} else {
+	    if (t->flags != t->h->flags_array[db_index]) {                /* if flags have been set then flags must match */
+		r = EINVAL; goto died_after_read_and_pin;
+	    }
         }
     }
     assert(t->h);
@@ -2103,7 +2121,6 @@ int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags) {
     //  We just called toku_brt_open, so it should exist...
     assert(r==0);  
 
-    assert(brt->h->unnamed_root==-1);
     assert(brt->h->n_named_roots>=0);
     for (i = 0; i < brt->h->n_named_roots; i++) {
         if (strcmp(brt->h->names[i], dbname) == 0) {
@@ -2143,7 +2160,6 @@ int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *ne
     BRT brt;
     int r;
     const int only_create = 0;
-    const int load_flags  = 0;
 
     r = toku_brt_create(&brt);
     if (r != 0)
@@ -2151,7 +2167,7 @@ int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *ne
     toku_brt_set_nodesize(brt, nodesize);
     toku_brt_set_bt_compare(brt, compare_fun);
 
-    r = toku_brt_open(brt, fname, fname, dbname, is_create, only_create, load_flags, cachetable, txn, db);
+    r = toku_brt_open(brt, fname, fname, dbname, is_create, only_create, cachetable, txn, db);
     if (r != 0) {
         return r;
     }
@@ -2197,7 +2213,8 @@ int toku_brt_debug_mode = 0;//strcmp(key,"hello387")==0;
 
 CACHEKEY* toku_calculate_root_offset_pointer (BRT brt) {
     if (brt->database_name==0) {
-	return &brt->h->unnamed_root;
+	assert(brt->h->n_named_roots==-1);
+	return &brt->h->roots[0];
     } else {
 	int i;
 	for (i=0; i<brt->h->n_named_roots; i++) {

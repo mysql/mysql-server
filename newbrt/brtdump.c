@@ -28,19 +28,25 @@ void dump_header (int f, struct brt_header **header) {
     int r;
     r = toku_deserialize_brtheader_from (f, 0, &h); assert(r==0);
     printf("brtheader:\n");
+    if (h->layout_version==BRT_LAYOUT_VERSION_6) printf(" layout_version<=6\n");
+    else printf(" layout_version=%d\n", h->layout_version);
     printf(" dirty=%d\n", h->dirty);
     printf(" nodesize=%d\n", h->nodesize);
     printf(" freelist=%lld\n", h->freelist);
     printf(" unused_memory=%lld\n", h->unused_memory);
-    printf(" unnamed_root=%lld\n", h->unnamed_root);
-    printf(" n_named_roots=%d\n", h->n_named_roots);
-    if (h->n_named_roots>=0) {
-	int i;
-	for (i=0; i<h->n_named_roots; i++) {
-	    printf("  %s -> %lld\n", h->names[i], h->roots[i]);
+    if (h->n_named_roots==-1) {
+	printf(" unnamed_root=%lld\n", h->roots[0]);
+	printf(" flags=%d\n", h->flags_array[0]);
+    } else {
+	printf(" n_named_roots=%d\n", h->n_named_roots);
+	if (h->n_named_roots>=0) {
+	    int i;
+	    for (i=0; i<h->n_named_roots; i++) {
+		printf("  %s -> %lld\n", h->names[i], h->roots[i]);
+		printf(" flags=%d\n", h->flags_array[i]);
+	    }
 	}
     }
-    printf(" flags=%d\n", h->flags);
     *header = h;
     printf("Fifo:\n");
     r = toku_deserialize_fifo_at(f, h->unused_memory, &h->fifo);
@@ -153,6 +159,7 @@ void dump_node (int f, DISKOFF off) {
 	}
 	if (dump_data) toku_omt_iterate(n->u.l.buffer, print_le, 0);
     }
+    toku_brtnode_free(&n);
 }
 
 int main (int argc, const char *argv[]) {
@@ -176,5 +183,7 @@ int main (int argc, const char *argv[]) {
     for (off=h->nodesize; off<h->unused_memory; off+=h->nodesize) {
 	dump_node(f, off);
     }
+    toku_brtheader_free(h);
+    toku_malloc_cleanup();
     return 0;
 }
