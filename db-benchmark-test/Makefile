@@ -74,3 +74,6 @@ PARGS =
 ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7: db-benchmark-test-tokudb
 	./db-benchmark-test-tokudb --env $@.dir $(PARGS)
 parallel-test-8: ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7
+
+scanscan-tokudb: scanscan.c
+	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LDFLAGS) $< -o $@ -DDIRSUF=tokudb
