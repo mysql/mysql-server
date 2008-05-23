@@ -16,6 +16,7 @@ CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -p 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -e -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup51 >> $NDB_TOOLS_OUTPUT
 USE BANK;
+--sorted_result
 SHOW TABLES;
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;

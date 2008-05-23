@@ -147,6 +147,7 @@ DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis;
 --enable_warnings
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51_data_le >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/std_data/ndb_backup51_data_le >> $NDB_TOOLS_OUTPUT
+--sorted_result
 SHOW TABLES;
 SHOW CREATE TABLE t_num;
 SHOW CREATE TABLE t_datetime;
@@ -168,6 +169,7 @@ SELECT AsText(t_geometrycollection), AsText(t_geometry) FROM t_gis ORDER by t_pk
 DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51_data_be >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/std_data/ndb_backup51_data_be >> $NDB_TOOLS_OUTPUT
+--sorted_result
 SHOW TABLES;
 SHOW CREATE TABLE t_num;
 SHOW CREATE TABLE t_datetime;

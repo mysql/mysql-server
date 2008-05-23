@@ -31,6 +31,8 @@
 #include "NdbWaiter.hpp"
 #include "DictCache.hpp"
 
+class ListTablesReq;
+
 bool
 is_ndb_blob_table(const char* name, Uint32* ptab_id = 0, Uint32* pcol_no = 0);
 bool
@@ -506,8 +508,14 @@ public:
   int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
   int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
   
-  int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData, bool fullyQualifiedNames);
-  int listObjects(NdbApiSignal* signal);
+  int listObjects(NdbDictionary::Dictionary::List& list,
+                  ListTablesReq& ltreq, bool fullyQualifiedNames);
+  int listObjects(NdbApiSignal* signal, bool& listTablesLongSignal);
+
+  int unpackListTables(NdbDictionary::Dictionary::List& list,
+                       bool fullyQualifiedNames);
+  int unpackOldListTables(NdbDictionary::Dictionary::List& list,
+                          bool fullyQualifiedNames);
   
   NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames);
   NdbTableImpl * getTable(const BaseString& name, bool fullyQualifiedNames);
@@ -584,6 +592,7 @@ private:
 
   void execDROP_TABLE_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execDROP_TABLE_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execOLD_LIST_TABLES_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execLIST_TABLES_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
   void execCREATE_FILE_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
@@ -603,6 +612,10 @@ private:
 
   Uint32 m_fragmentId;
   UtilBuffer m_buffer;
+
+  Uint32 m_noOfTables;
+  UtilBuffer m_tableData;
+  UtilBuffer m_tableNames;
 };
 
 class NdbDictionaryImpl;
