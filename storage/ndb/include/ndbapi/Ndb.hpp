@@ -32,6 +32,7 @@
    - NdbIndexScanOperation represents an operation performing a scan using
      an ordered index,
    - NdbRecAttr represents an attribute value
+   - NdbRecord represents a memory layout of a row data for a particular table
    - NdbDictionary represents meta information about tables and attributes.
      
    In addition, the NDB API defines a structure NdbError, which contains the 
@@ -67,7 +68,7 @@
 
    If the operation is of type <var>Commit</var>, then the transaction is
    immediately committed. The transaction <em>must</em> be closed after it has been 
-   commited (event if commit fails), and no further addition or definition of 
+   commited (even if commit fails), and no further addition or definition of 
    operations for this transaction is allowed.
 
    @section secSync                     Synchronous Transactions
@@ -84,8 +85,15 @@
        - NdbTransaction::getNdbScanOperation()
        - NdbTransaction::getNdbIndexOperation()
        - NdbTransaction::getNdbIndexScanOperation()
+       - NdbTransaction::readTuple()
+       - NdbTransaction::insertTuple()
+       - NdbTransaction::updateTuple()
+       - NdbTransaction::writeTuple()
+       - NdbTransaction::deleteTuple()
+       - NdbTransaction::scanTable()
+       - NdbTransaction::scanIndex()
        along with the appropriate methods of the respective NdbOperation class 
-       (or one possiblt one or more of its subclasses).
+       (or possibly one or more of its subclasses).
        Note that the transaction has still not yet been sent to the NDB kernel.
     -# Execute the transaction, using the NdbTransaction::execute() method.
     -# Close the transaction (call Ndb::closeTransaction()).
@@ -318,7 +326,8 @@
       either NdbScanOperation::updateCurrentTuple() or 
       NdbScanOperation::deleteCurrentTuple()
    -# (If performing NdbScanOperation::updateCurrentTuple():) 
-      Setting new values for records simply by using @ref NdbOperation::setValue().
+      Setting new values for records simply by using @ref NdbOperation::setValue()
+      (on the new NdbOperation object retured from updateCurrentTuple()).
       NdbOperation::equal() should <em>not</em> be called in such cases, as the primary 
       key is retrieved from the scan.
 
@@ -345,7 +354,7 @@
 
    @subsection secScanLocks Lock handling with scans
 
-   Performing scans on either a tables or an index has the potential 
+   Performing scans on either a table or an index has the potential  to
    return a great many records; however, Ndb will lock only a predetermined 
    number of rows per fragment at a time.
    How many rows will be locked per fragment is controlled by the 
@@ -764,7 +773,7 @@
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 /**
    <h3>Interpreted Programs</h3>
-   Interpretation programs are executed in a
+   Interpreted programs are executed in a
    register-based virtual machine.
    The virtual machine has eight 64 bit registers numbered 0-7.
    Each register contains type information which is used both
@@ -818,7 +827,7 @@
 
    The virtual machine executes subroutines using a stack for
    its operation.
-   The stack allows for up to 24 subroutine calls in succession.
+   The stack allows for up to 32 subroutine calls in succession.
    Deeper subroutine nesting will cause an abort of the transaction.
 
    All subroutines starts with the instruction
@@ -845,7 +854,6 @@
    The interface is used to send many transactions 
    at the same time to the NDB kernel.  
    This is often much more efficient than using synchronous transactions.
-   The main reason for using this method is to ensure that 
    Sending many transactions at the same time ensures that bigger 
    chunks of data are sent when actually sending and thus decreasing 
    the operating system overhead.
@@ -1051,10 +1059,13 @@ class Ndb
   friend class NdbIndexOperation;
   friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
+  friend class NdbDictionary::Dictionary;
   friend class NdbDictionaryImpl;
   friend class NdbDictInterface;
   friend class NdbBlob;
   friend class NdbImpl;
+  friend class Ndb_cluster_connection;
+  friend class Ndb_cluster_connection_impl;
   friend class Ndb_internal;
   friend class NdbScanFilterImpl;
 #endif
@@ -1254,6 +1265,31 @@ public:
   NdbEventOperation *nextEvent();
 
   /**
+   * Check if all events are consistent
+   * If node failure occurs during resource exaustion events
+   * may be lost and the delivered event data might thus be incomplete.
+   *
+   * @param OUT aGCI
+   *        any inconsistent GCI found
+   *
+   * @return true if all received events are consistent, false if possible
+   * inconsistency
+   */
+  bool isConsistent(Uint64& gci);
+
+  /**
+   * Check if all events in a GCI are consistent
+   * If node failure occurs during resource exaustion events
+   * may be lost and the delivered event data might thus be incomplete.
+   *
+  * @param aGCI
+   *        the GCI to check
+   *
+   * @return true if GCI is consistent, false if possible inconsistency
+   */
+  bool isConsistentGCI(Uint64 gci);
+
+  /**
    * Iterate over distinct event operations which are part of current
    * GCI.  Valid after nextEvent.  Used to get summary information for
    * the epoch (e.g. list of all tables) before processing event data.
@@ -1282,16 +1318,6 @@ public:
    */
 
   /**
-   * Structure for passing in pointers to startTransaction
-   *
-   */
-  struct Key_part_ptr
-  {
-    const void * ptr;
-    unsigned len;
-  };
-
-  /**
    * Start a transaction
    *
    * @note When the transaction is completed it must be closed using
@@ -1310,6 +1336,52 @@ public:
   NdbTransaction* startTransaction(const NdbDictionary::Table *table= 0,
 				   const char  *keyData = 0, 
 				   Uint32       keyLen = 0);
+
+
+  /**
+   * Structure for passing in pointers to startTransaction
+   * 
+   */
+  struct Key_part_ptr
+  {
+    const void * ptr;
+    unsigned len;
+  };
+
+  /**
+   * Start a transaction
+   *
+   * @note When the transaction is completed it must be closed using
+   *       Ndb::closeTransaction or NdbTransaction::close. 
+   *       The transaction must be closed independent of its outcome, i.e.
+   *       even if there is an error.
+   *
+   * @param  table    Pointer to table object used for deciding 
+   *                  which node to run the Transaction Coordinator on
+   * @param  keyData  Null-terminated array of pointers to keyParts that is 
+   *                  part of distribution key.
+   *                  Length of resp. keyPart will be read from
+   *                  metadata and checked against passed value
+   * @param  xfrmbuf  Pointer to temporary buffer that will be used
+   *                  to calculate hashvalue
+   * @param  xfrmbuflen Lengh of buffer
+   *
+   * @note if xfrmbuf is null (default) malloc/free will be made
+   *       if xfrmbuf is not null but length is too short, method will fail
+   *
+   * @return NdbTransaction object, or NULL on failure.
+   */
+  NdbTransaction* startTransaction(const NdbDictionary::Table *table,
+				   const struct Key_part_ptr * keyData,
+				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
+
+  /**
+   * Start a transaction, specifying table+partition as hint for
+   *  TC-selection
+   *
+   */
+  NdbTransaction* startTransaction(const NdbDictionary::Table* table,
+                                   Uint32 partitionId);
 
   /**
    * Compute hash value given table/keys
@@ -1548,6 +1620,16 @@ public:
   int setAutoIncrementValue(const NdbDictionary::Table * aTable,
                             TupleIdRange & range, Uint64 autoValue,
                             bool modify);
+#ifdef NDBAPI_50_COMPAT
+  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
+			       Uint32 cacheSize = 1)
+    {
+      Uint64 val;
+      if (getAutoIncrementValue(aTable, val, cacheSize, 1, 1) == -1)
+        return ~(Uint64)0;
+      return val;
+    }
+#endif
   bool checkUpdateAutoIncrementValue(TupleIdRange & range, Uint64 autoValue);
 private:
   int getTupleIdFromNdb(const NdbTableImpl* table,
@@ -1620,6 +1702,7 @@ private:
   NdbBlob*              getNdbBlob();// Get a blob handle etc
 
   void			releaseSignal(NdbApiSignal* anApiSignal);
+  void                  releaseSignals(Uint32, NdbApiSignal*, NdbApiSignal*);
   void                  releaseSignalsInList(NdbApiSignal** pList);
   void			releaseNdbScanRec(NdbReceiver* aNdbScanRec);
   void			releaseNdbLabel(NdbLabel* anNdbLabel);

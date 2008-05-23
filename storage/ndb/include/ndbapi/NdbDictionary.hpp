@@ -22,6 +22,9 @@ class Ndb;
 struct charset_info_st;
 typedef struct charset_info_st CHARSET_INFO;
 
+/* Forward declaration only. */
+class NdbRecord;
+
 /**
  * @class NdbDictionary
  * @brief Data dictionary class
@@ -111,6 +114,7 @@ public:
       IndexTrigger = 8,       ///< Index maintenance, internal
       SubscriptionTrigger = 9,///< Backup or replication, internal
       ReadOnlyConstraint = 10,///< Trigger, internal
+      TableEvent = 11,        ///< Table event
       Tablespace = 20,        ///< Tablespace
       LogfileGroup = 21,      ///< Logfile group
       Datafile = 22,          ///< Datafile
@@ -352,8 +356,7 @@ public:
 
     /**
      * For blob, get "inline size" i.e. number of initial bytes
-     * to store in table's blob attribute.  This part is normally in
-     * main memory and can be indexed and interpreted.
+     * to store in table's blob attribute.
      */
     int getInlineSize() const;
 
@@ -400,6 +403,17 @@ public:
 
     ArrayType getArrayType() const;
     StorageType getStorageType() const;
+
+    /**
+     * Get if the column is dynamic (NULL values not stored)
+     */
+    bool getDynamic() const;
+
+    /**
+     * Determine if the column is defined relative to an Index
+     * This affects the meaning of the attrId, column no and primary key,
+     */
+    bool getIndexSourced() const;
 
     /** @} *******************************************************************/
 
@@ -477,22 +491,38 @@ public:
     void setCharset(CHARSET_INFO* cs);
 
     /**
-     * For blob, get "inline size" i.e. number of initial bytes
+     * For blob, set "inline size" i.e. number of initial bytes
      * to store in table's blob attribute.  This part is normally in
-     * main memory and can be indexed and interpreted.
+     * main memory.  It can not currently be indexed.
      */
     void setInlineSize(int size);
 
     /**
-     * For blob, get "part size" i.e. number of bytes to store in
+     * For blob, set "part size" i.e. number of bytes to store in
      * each tuple of the "blob table".  Can be set to zero to omit parts
      * and to allow only inline bytes ("tinyblob").
      */
     void setPartSize(int size);
 
     /**
-     * For blob, get "stripe size" i.e. number of consecutive
-     * <em>parts</em> to store in each node group.
+     * For blob, set "stripe size" i.e. number of consecutive
+     * <em>parts</em> to store in a fragment, before moving to
+     * another (random) fragment.
+     *
+     * Striping may improve performance for large blobs
+     * since blob part operations are done in parallel.
+     * Optimal stripe size depends on the transport e.g. tcp/ip.
+     *
+     * Example: Given part size 2048 bytes, set stripe size 8.
+     * This assigns i/o in 16k chunks to each fragment.
+     *
+     * Blobs V1 required non-zero stripe size.  Blobs V2
+     * (created in version >= 5.1.x) have following behaviour:
+     *
+     * Default stripe size is zero, which means no striping and
+     * also that blob part data is stored in the same node group
+     * as the primary table row.  This is done by giving blob parts
+     * table same partition key as the primary table.
      */
     void setStripeSize(int size);
 
@@ -511,6 +541,11 @@ public:
 
     void setArrayType(ArrayType type);
     void setStorageType(StorageType type);
+
+    /**
+     * Set whether column is dynamic.
+     */
+    void setDynamic(bool);
 
     /** @} *******************************************************************/
 
@@ -538,6 +573,9 @@ public:
     static const Column * COPY_ROWID;
     
     int getSizeInBytes() const;
+
+    int getBlobVersion() const; // NDB_BLOB_V1 or NDB_BLOB_V2
+    void setBlobVersion(int blobVersion); // default NDB_BLOB_V2
 #endif
     
   private:
@@ -725,6 +763,13 @@ public:
      */
     const void *getTablespaceData() const;
     Uint32 getTablespaceDataLen() const;
+
+    /**
+     * Get default NdbRecord object for this table
+     * This NdbRecord object becomes invalid at the same time as
+     * the table object - when the ndb_cluster_connection is closed.
+     */
+    const NdbRecord* getDefaultRecord() const;
 
     /** @} *******************************************************************/
 
@@ -988,6 +1033,13 @@ public:
      */
     int validate(struct NdbError& error);
 
+    /**
+     * Return partitionId given a hashvalue
+     *   Note, if table is not retreived (e.i using getTable) result
+     *   will most likely be wrong
+     */
+    Uint32 getPartitionId(Uint32 hashvalue) const ;
+
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class Ndb;
@@ -1017,7 +1069,7 @@ public:
     const char * getName() const;
     
     /**
-     * Get the name of the table being indexed
+     * Get the name of the underlying table being indexed
      */
     const char * getTable() const;
 
@@ -1065,7 +1117,7 @@ public:
     /**
      * Check if index is set to be stored on disk
      *
-     * @return if true then logging id enabled
+     * @return if true then logging is enabled
      *
      * @note Non-logged indexes are rebuilt at system restart.
      * @note Ordered index does not currently support logging.
@@ -1086,6 +1138,14 @@ public:
      * Get object id
      */
     virtual int getObjectId() const;
+
+    /**
+     * Get default NdbRecord object for this index
+     * This NdbRecord object becomes invalid at the same time as
+     * the index object does - when the ndb_cluster_connection 
+     * is closed.
+     */
+    const NdbRecord* getDefaultRecord() const;
 
     /** @} *******************************************************************/
 
@@ -1436,6 +1496,173 @@ public:
     Event(NdbEventImpl&);
   };
 
+  /* Flags for createRecord(). */
+  enum NdbRecordFlags {
+    /*
+      Use special mysqld varchar format in index keys, used only from
+      inside mysqld.
+    */
+    RecMysqldShrinkVarchar= 0x1,
+    /* Use the mysqld record format for bitfields, only used inside mysqld. */
+    RecMysqldBitfield= 0x2
+  };
+  struct RecordSpecification {
+    /*
+      Column described by this entry (the column maximum size defines field
+      size in row).
+      Note that even when creating an NdbRecord for an index, the column
+      pointers must be to columns obtained from the underlying table, not
+      from the index itself.
+    */
+    const Column *column;
+    /*
+      Offset of data from start of a row.
+      
+      For reading blobs, the blob handle (NdbBlob *) will be written into the
+      result row when the operation is created, not the actual blob data. 
+      So at least sizeof(NdbBlob *) must be available in the row.  Other 
+      operations do not write the blob handle into the row.
+      In any case, a blob handle can always be obtained with a call to 
+      NdbOperation/NdbScanOperation::getBlobHandle().
+    */
+    Uint32 offset;
+    /*
+      Offset from start of row of byte containing NULL bit.
+      Not used for columns that are not NULLable.
+    */
+    Uint32 nullbit_byte_offset;
+    /* NULL bit, 0-7. Not used for columns that are not NULLable. */
+    Uint32 nullbit_bit_in_byte;
+  };
+
+  /* Types of NdbRecord object */
+  enum RecordType {
+    TableAccess,
+    IndexAccess
+  };
+  
+  /*
+    Return the type of the passed NdbRecord object
+  */
+  static RecordType getRecordType(const NdbRecord* record);
+  
+  /*
+    Return the name of the table object that the NdbRecord
+    refers to.
+    This method returns Null if the NdbRecord object is not a 
+    TableAccess NdbRecord.
+  */
+  static const char* getRecordTableName(const NdbRecord* record);
+  
+  /*
+    Return the name of the index object that the NdbRecord
+    refers to.
+    This method returns Null if the NdbRecord object is not an
+    IndexAccess NdbRecord
+  */
+  static const char* getRecordIndexName(const NdbRecord* record);
+  
+  /*
+    Get the first Attribute Id specified in the NdbRecord object.
+    Returns false if no Attribute Ids are specified.
+  */
+  static bool getFirstAttrId(const NdbRecord* record, Uint32& firstAttrId);
+
+  /* Get the next Attribute Id specified in the NdbRecord object
+     after the attribute Id passed in.
+     Returns false if there are no more attribute Ids
+  */
+  static bool getNextAttrId(const NdbRecord* record, Uint32& attrId);
+
+  /* Get offset of the given attribute id's storage from the start
+     of the NdbRecord row.
+     Returns false if the attribute id is not present
+  */
+  static bool getOffset(const NdbRecord* record, Uint32 attrId, Uint32& offset);
+  
+  /* Get offset of the given attribute id's null bit from the start
+     of the NdbRecord row.
+     Returns false if the attribute is not present or if the
+     attribute is not nullable
+  */
+  static bool getNullBitOffset(const NdbRecord* record, 
+                               Uint32 attrId, 
+                               Uint32& nullbit_byte_offset,
+                               Uint32& nullbit_bit_in_byte);
+
+  /*
+    Return pointer to beginning of storage of data specified by
+    attrId.
+    This method looks up the offset of the column which is stored in
+    the NdbRecord object, and returns the value of row + offset.
+    There are row-const and non-row-const versions.
+    
+    @param record : Pointer to NdbRecord object describing the row format
+    @param row : Pointer to the start of row data
+    @param attrId : Attribute id of column
+    @return : Pointer to start of the attribute in the row.  Null if the
+    attribute is not part of the NdbRecord definition
+  */
+  static const char* getValuePtr(const NdbRecord* record,
+                                 const char* row,
+                                 Uint32 attrId);
+  
+  static char* getValuePtr(const NdbRecord* record,
+                           char* row,
+                           Uint32 attrId);
+  
+  /*
+    Return a bool indicating whether the null bit for the given
+    column is set to true or false.
+    The location of the null bit in relation to the row pointer is
+    obtained from the passed NdbRecord object.
+    If the column is not nullable, false will be returned.
+    If the column is not part of the NdbRecord definition, false will
+    be returned.
+    
+    @param record : Pointer to NdbRecord object describing the row format
+    @param row : Pointer to the start of row data
+    @param attrId : Attibute id of column
+    @return : true if attrId exists in NdbRecord, is nullable, and null bit
+    in row is set, false otherwise.
+  */
+  static bool isNull(const NdbRecord* record,
+                     const char* row,
+                     Uint32 attrId);
+  
+  /*
+    Set the null bit for the given column to the supplied value.
+    The offset for the null bit is obtained from the passed 
+    NdbRecord object.
+    
+    If the attrId is not part of the NdbRecord, or is not nullable
+    then an error will be returned.
+    
+    @param record : Pointer to NdbRecord object describing the row format
+    @param row : Pointer to the start of row data
+    @param atrId : Attribute id of the column
+    @param value : Value to set null bit to
+    @returns : 0 in success, -1 if the attrId is not part of the record,
+    or is not nullable
+  */
+  static int setNull(const NdbRecord* record,
+                     char* row,
+                     Uint32 attrId,
+                     bool value);
+  
+  /*
+    Return the number of bytes needed to store one row of data
+    laid out as described by the passed NdbRecord structure.
+  */
+  static Uint32 getRecordRowLength(const NdbRecord* record);
+  
+  /*
+    Return an empty column presence bitmask.
+    This bitmask can be used with any NdbRecord to specify that
+    no NdbRecord columns are to be included in the operation.
+  */
+  static const unsigned char* getEmptyBitmask();
+  
   struct AutoGrowSpecification {
     Uint32 min_free;
     Uint64 max_size;
@@ -1770,7 +1997,7 @@ public:
      * @param eventName  Name of event to drop.
      * @return 0 if successful otherwise -1.
      */
-    int dropEvent(const char * eventName);
+    int dropEvent(const char * eventName, int force= 0);
     
     /**
      * Get event with given name.
@@ -1778,6 +2005,14 @@ public:
      * @return an Event if successful, otherwise NULL.
      */
     const Event * getEvent(const char * eventName);
+
+    /**
+     * List defined events
+     * @param list   List of events returned in the dictionary
+     * @return 0 if successful otherwise -1.
+     */
+    int listEvents(List & list);
+    int listEvents(List & list) const;
 
     /** @} *******************************************************************/
 
@@ -1810,15 +2045,26 @@ public:
      */
     int dropTable(const char * name);
     
+    /**
+     * Check if alter of table given defined
+     * Table instance to new definition is supported
+     * @param f Table to alter
+     * @param t New definition of table
+     * @return  TRUE supported      <br>
+     *          FALSE not supported <br>
+     */
+    bool supportedAlterTable(const Table & f, const Table & t);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Alter defined table given defined Table instance
-     * @param table Table to alter
+     * @param f Table to alter
+     * @param t New definition of table
      * @return  -2 (incompatible version) <br>
      *          -1 general error          <br>
      *           0 success                 
      */
-    int alterTable(const Table &table);
+    int alterTable(const Table & f, const Table & t);
 
     /**
      * Invalidate cached table object
@@ -1935,6 +2181,41 @@ public:
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
 #endif
+
+    /*
+      Create an NdbRecord for use in table operations.
+    */
+    NdbRecord *createRecord(const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+
+    /*
+      Create an NdbRecord for use in index operations.
+    */
+    NdbRecord *createRecord(const Index *index,
+                            const Table *table,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+    /*
+      Create an NdbRecord for use in index operations.
+      This variant assumes that the index is for a table in 
+      the current database and schema
+    */
+    NdbRecord *createRecord(const Index *index,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+
+    /*
+      Free an NdbRecord object created earlier with
+      createRecord
+    */
+    void releaseRecord(NdbRecord *rec);
   };
 };
 

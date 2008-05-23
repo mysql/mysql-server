@@ -134,7 +134,7 @@ our $default_vardir;
 
 our $opt_usage;
 our $opt_suites;
-our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
+our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb,ndb_binlog"; # Default suites to run
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 
@@ -3941,9 +3941,13 @@ sub mysqld_arguments ($$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $cluster->{'connect_string'});
+      mtr_add_arg($args, "%s--ndb-wait-connected=20", $prefix);
+      mtr_add_arg($args, "%s--ndb-cluster-connection-pool=3", $prefix);
+      mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
+	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
       }
     }
     else
@@ -4014,10 +4018,13 @@ sub mysqld_arguments ($$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $cluster->{'connect_string'});
-
+      mtr_add_arg($args, "%s--ndb-wait-connected=20", $prefix);
+      mtr_add_arg($args, "%s--ndb-cluster-connection-pool=3", $prefix);
+      mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
+	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
       }
     }
     else
@@ -4278,6 +4285,7 @@ sub stop_all_servers () {
   {
     rm_ndbcluster_tables($mysqld->{'path_myddir'});
   }
+
 }
 
 
@@ -4596,22 +4604,6 @@ sub run_testcase_start_servers($) {
 	 $tinfo->{'master_num'} > 1 )
     {
       # Test needs cluster, start an extra mysqld connected to cluster
-
-      if ( $mysql_version_id >= 50100 )
-      {
-	# First wait for first mysql server to have created ndb system
-	# tables ok FIXME This is a workaround so that only one mysqld
-	# create the tables
-	if ( ! sleep_until_file_created(
-		  "$master->[0]->{'path_myddir'}/mysql/ndb_apply_status.ndb",
-					$master->[0]->{'start_timeout'},
-					$master->[0]->{'pid'}))
-	{
-
-	  $tinfo->{'comment'}= "Failed to create 'mysql/ndb_apply_status' table";
-	  return 1;
-	}
-      }
       mysqld_start($master->[1],$tinfo->{'master_opt'},[]);
     }
 

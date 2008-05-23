@@ -27,7 +27,7 @@
 
 #include <NdbTick.h>
 
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 extern "C" 
 void* 
@@ -136,12 +136,12 @@ WatchDog::run()
     {
       struct tms my_tms;
       times(&my_tms);
-      g_eventLogger.info("Watchdog: User time: %llu  System time: %llu",
-                         (Uint64)my_tms.tms_utime,
-                         (Uint64)my_tms.tms_stime);
-      g_eventLogger.warning("Watchdog: Warning overslept %u ms, expected %u ms.",
-                            NdbTick_getMicrosPassed(last_time, now)/1000,
-                            sleep_time);
+      g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
+                          (Uint64)my_tms.tms_utime,
+                          (Uint64)my_tms.tms_stime);
+      g_eventLogger->warning("Watchdog: Warning overslept %u ms, expected %u ms.",
+                             NdbTick_getMicrosPassed(last_time, now)/1000,
+                             sleep_time);
     }
     last_time = now;
 
@@ -171,13 +171,13 @@ WatchDog::run()
       if (warn)
       {
         const char *last_stuck_action = get_action(oldIPValue);
-        g_eventLogger.warning("Ndb kernel is stuck in: %s", last_stuck_action);
+        g_eventLogger->warning("Ndb kernel is stuck in: %s", last_stuck_action);
         {
           struct tms my_tms;
           times(&my_tms);
-          g_eventLogger.info("Watchdog: User time: %llu  System time: %llu",
-                             (Uint64)my_tms.tms_utime,
-                             (Uint64)my_tms.tms_stime);
+          g_eventLogger->info("Watchdog: User time: %llu  System time: %llu",
+                              (Uint64)my_tms.tms_utime,
+                              (Uint64)my_tms.tms_stime);
         }
         if (elapsed > 3 * theInterval)
         {
