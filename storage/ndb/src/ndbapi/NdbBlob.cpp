@@ -2419,33 +2419,62 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
     }
   }
   if (isInsertOp() && theSetFlag) {
-    /* Add operations to insert parts and update the
-     * Blob head+inline in the main tables
+    /* If the main operation uses AbortOnError then
+     * we can add operations to insert parts and update
+     * the Blob head+inline here.
+     * If the main operation uses IgnoreError then
+     * we have to wait until we are sure that the main
+     * insert succeeded before performing any other
+     * operations (Otherwise we may perform duplicate insert,
+     * and the transaction can fail on the AbortOnError 
+     * part operations or corrupt the head with the 
+     * post-update operation)
      */
-    if (theGetSetBytes > theInlineSize) {
-      // add ops to write rest of a setValue
-      assert(theSetBuf != NULL);
-      const char* buf = theSetBuf + theInlineSize;
-      Uint32 bytes = theGetSetBytes - theInlineSize;
-      assert(thePos == theInlineSize);
-      if (writeDataPrivate(buf, bytes) == -1)
-        DBUG_RETURN(-1);
-    }
-    
-    if (theHeadInlineUpdateFlag)
+    bool performExtraInsertOpsInPreExec= 
+      (theNdbOp->m_abortOption != NdbOperation::AO_IgnoreError);
+
+    if (performExtraInsertOpsInPreExec)
     {
-      NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
-      if (tOp == NULL ||
-          tOp->updateTuple() == -1 ||
-          setTableKeyValue(tOp) == -1 ||
-          setHeadInlineValue(tOp) == -1) {
-        setErrorCode(NdbBlobImpl::ErrAbort);
-        DBUG_RETURN(-1);
+      DBUG_PRINT("info", 
+                 ("Insert abortError - extra ops added in preExecute"));
+      /* Add operations to insert parts and update the
+       * Blob head+inline in the main tables
+       */
+      if (theGetSetBytes > theInlineSize) {
+        // add ops to write rest of a setValue
+        assert(theSetBuf != NULL);
+        const char* buf = theSetBuf + theInlineSize;
+        Uint32 bytes = theGetSetBytes - theInlineSize;
+        assert(thePos == theInlineSize);
+        if (writeDataPrivate(buf, bytes) == -1)
+          DBUG_RETURN(-1);
       }
-      if (thePartitionId != noPartitionId()) {
-        tOp->setPartitionId(thePartitionId);
+      
+      if (theHeadInlineUpdateFlag)
+      {
+        NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
+        if (tOp == NULL ||
+            tOp->updateTuple() == -1 ||
+            setTableKeyValue(tOp) == -1 ||
+            setHeadInlineValue(tOp) == -1) {
+          setErrorCode(NdbBlobImpl::ErrAbort);
+          DBUG_RETURN(-1);
+        }
+        if (thePartitionId != noPartitionId()) {
+          tOp->setPartitionId(thePartitionId);
+        }
+        DBUG_PRINT("info", ("Insert : added op to update head+inline in preExecute"));
       }
-      DBUG_PRINT("info", ("Insert : added op to update head+inline"));
+    }
+    else
+    {
+      DBUG_PRINT("info", 
+                 ("Insert ignoreError - waiting for Blob head insert"));
+      /* Require that this insert op is completed 
+       * before beginning more user ops - avoid interleave
+       * with delete etc.
+       */
+      batch= true;
     }
   }
 
@@ -2687,6 +2716,55 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
         DBUG_RETURN(-1);
     }
   }
+  if (isInsertOp() && theSetFlag) {
+    /* For Inserts where the main table operation is IgnoreError, 
+     * we perform extra operations on the head and inline parts
+     * now
+     */
+    bool performDelayedInsertOpsInPostExec= 
+      (theNdbOp->m_abortOption == NdbOperation::AO_IgnoreError);
+
+    if (performDelayedInsertOpsInPostExec)
+    {
+      DBUG_PRINT("info", ("Insert IgnoreError adding extra ops"));
+      /* Check the main table op for an error (don't proceed if 
+       * it failed) 
+       */
+      if (theNdbOp->theError.code == 0)
+      {
+        /* Add operations to insert parts and update the
+         * Blob head+inline in the main table
+         */
+        if (theGetSetBytes > theInlineSize) {
+          // add ops to write rest of a setValue
+          assert(theSetBuf != NULL);
+          const char* buf = theSetBuf + theInlineSize;
+          Uint32 bytes = theGetSetBytes - theInlineSize;
+          assert(thePos == theInlineSize);
+          if (writeDataPrivate(buf, bytes) == -1)
+            DBUG_RETURN(-1);
+        }
+        
+        if (theHeadInlineUpdateFlag)
+        {
+          NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
+          if (tOp == NULL ||
+              tOp->updateTuple() == -1 ||
+              setTableKeyValue(tOp) == -1 ||
+              setHeadInlineValue(tOp) == -1) {
+            setErrorCode(NdbBlobImpl::ErrAbort);
+            DBUG_RETURN(-1);
+          }
+          if (thePartitionId != noPartitionId()) {
+            tOp->setPartitionId(thePartitionId);
+          }
+          DBUG_PRINT("info", ("Insert : added op to update head+inline"));
+        }
+      }
+      // NOTE : Could map IgnoreError insert error onto Blob here
+    }
+  }
+
   if (isUpdateOp()) {
     assert(anExecType == NdbTransaction::NoCommit);
     getHeadFromRecAttr();
