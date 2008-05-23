@@ -73,7 +73,6 @@ int runTestIncValue64(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
   const NdbDictionary::Table * pTab = ctx->getTab();
   Ndb* pNdb = GETNDB(step);
 
@@ -114,8 +113,16 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
   }
   
   // Attributes
+
+  // Perform initial read of column start value
+  NdbRecAttr* initialVal = pOp->getValue("KOL2");
+  if( initialVal == NULL ) {
+    ERR(pTrans->getNdbError());
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
   
-  // Update column
+  // Update the column
   Uint32 valToIncWith = 1;
   check = pOp->incValue("KOL2", valToIncWith);
   if( check == -1 ) {
@@ -124,8 +131,9 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
 
-  NdbRecAttr* valueRec = pOp->getValue("KOL2");
-  if( valueRec == NULL ) {
+  // Perform final read of column after value
+  NdbRecAttr* afterVal = pOp->getValue("KOL2");
+  if( afterVal == NULL ) {
     ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
@@ -138,8 +146,19 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;
   }
 
-  Uint32 value = valueRec->u_32_value();
+  Uint32 oldValue = initialVal->u_32_value();
+  Uint32 newValue = afterVal->u_32_value();
+  Uint32 expectedValue = oldValue + valToIncWith;
     
+  if (newValue != expectedValue)
+  {
+    g_err << "Failed : Expected " << oldValue << "+" <<
+      valToIncWith << "=" << expectedValue <<
+      " but received " << newValue << endl;
+    pNdb->closeTransaction(pTrans);
+    return NDBT_FAILED;
+  }
+
   pNdb->closeTransaction(pTrans);
 
 
@@ -147,7 +166,6 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
   const NdbDictionary::Table * pTab = ctx->getTab();
   Ndb* pNdb = GETNDB(step);
 
@@ -264,9 +282,12 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
 
 
 int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
   const NdbDictionary::Table * pTab = ctx->getTab();
   Ndb* pNdb = GETNDB(step);
+  const Uint32 okSize= 10000;
+  const Uint32 tooBig= 30000;
+
+  Uint32 codeBuff[tooBig];
 
   int i;
   for (i = 0; i <= 1; i++) {
@@ -291,18 +312,42 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
 
-    int n = i == 0 ? 10000 : 30000;
+    /* Test kernel mechanism for dealing with too large program
+     * We need to provide our own program buffer as default
+     * NdbInterpretedCode buffer will not grow larger than 
+     * NDB_MAX_SCANFILTER_SIZE
+     */
+
+    NdbInterpretedCode code(NULL, // Table is irrelevant
+                            codeBuff,
+                            tooBig); // Size of codeBuff
+    
+    int n = i == 0 ? okSize : tooBig;
     int k;
 
     for (k = 0; k < n; k++) {
 
       // inserts 1 word ATTRINFO
 
-      if (pOp->interpret_exit_ok() == -1) {
-        ERR(pOp->getNdbError());
+      if (code.interpret_exit_ok() == -1) {
+        ERR(code.getNdbError());
         pNdb->closeTransaction(pTrans);
         return NDBT_FAILED;
       }
+    }
+
+    if (code.finalise() != 0)
+    {
+      ERR(code.getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    if (pOp->setInterpretedCode(&code) != 0)
+    {
+      ERR(pOp->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
     }
       
     if (pTrans->execute(NoCommit) == -1) {
