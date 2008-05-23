@@ -146,6 +146,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     const unsigned type = data[offset];
     const AttributeHeader* ah = (const AttributeHeader*)&data[offset + 1];
     const Uint32 attrId = ah->getAttributeId();
+    const Uint32 byteSize = ah->getByteSize();
     const Uint32 dataSize = ah->getDataSize();
     if (type > 4 || attrId >= index.m_numAttrs || dstPos + 2 + dataSize > dstSize) {
       jam();
@@ -157,6 +158,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     xfrmData[dstPos + 0] = data[offset + 0];
     xfrmData[dstPos + 1] = data[offset + 1];
     // copy bound value
+    Uint32 dstBytes = 0;
     Uint32 dstWords = 0;
     if (! ah->isNULL()) {
       jam();
@@ -174,7 +176,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       }
       Uint32 srcBytes = lb + len;
       Uint32 srcWords = (srcBytes + 3) / 4;
-      if (srcWords != dataSize) {
+      if (srcBytes != byteSize) {
         jam();
         scan.m_state = ScanOp::Invalid;
         sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
@@ -183,6 +185,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       uchar* dstPtr = (uchar*)&xfrmData[dstPos + 2];
       if (descAttr.m_charset == 0) {
         memcpy(dstPtr, srcPtr, srcWords << 2);
+        dstBytes = srcBytes;
         dstWords = srcWords;
       } else {
         jam();
@@ -200,6 +203,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
         }
         int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
         ndbrequire(n != -1);
+        dstBytes = n;
         while ((n & 3) != 0) {
           dstPtr[n++] = 0;
         }
@@ -235,7 +239,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       } else {
         // fix length
         AttributeHeader* ah = (AttributeHeader*)&xfrmData[dstPos + 1];
-        ah->setDataSize(dstWords);
+        ah->setByteSize(dstBytes);
         // enter new bound
         jam();
         b.type2 = type2;

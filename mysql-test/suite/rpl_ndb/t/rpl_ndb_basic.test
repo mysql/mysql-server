@@ -259,4 +259,5 @@ SELECT c1 FROM t1 ORDER BY c1 LIMIT 5;
 # cleanup
 --connection master
 DROP TABLE t1;
+
 -- source include/master-slave-end.inc

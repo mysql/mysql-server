@@ -76,6 +76,7 @@ extern "C" {
     /** Usage error */
     NDB_MGM_USAGE_ERROR = 5001
   };
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   struct Ndb_Mgm_Error_Msg {
     enum ndb_mgm_error  code;
     const char *        msg;
@@ -114,6 +115,8 @@ extern "C" {
   };
   const int ndb_mgm_noOfErrorMsgs =
   sizeof(ndb_mgm_error_msgs)/sizeof(struct Ndb_Mgm_Error_Msg);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

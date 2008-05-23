@@ -2151,10 +2151,10 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 sm = 5;
   ndb_mgm_get_int_parameter(p, CFG_DB_STRING_MEMORY, &sm);
   if (sm == 0)
-    sm = 5;
+    sm = 25;
   
   Uint32 sb = 0;
-  if (sm < 100)
+  if (sm <= 100)
   {
     sb = (rps * sm) / 100;
   }
@@ -13747,7 +13747,12 @@ Dbdict::getIndexAttrList(TableRecordPtr indexPtr, AttributeList& list)
     AttributeRecordPtr tempPtr = attrPtr;
     if (! alist.next(tempPtr))
       break;
-    getIndexAttr(indexPtr, attrPtr.i, &list.id[list.sz++]);
+    /**
+     * Post-increment moved out of original expression &list.id[list.sz++]
+     * due to Intel compiler bug on ia64 (BUG#34208).
+     */
+    getIndexAttr(indexPtr, attrPtr.i, &list.id[list.sz]);
+    list.sz++;
   }
   ndbrequire(indexPtr.p->noOfAttributes == list.sz + 1);
 }

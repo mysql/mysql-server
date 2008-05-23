@@ -48,7 +48,7 @@ args: -n PkRead T1
 
 max-time: 600
 cmd: atrt-testBackup
-args: -n BackupOne T1 T6 T3 I3
+args: -n BackupOne T1 T6 I3 D2
 
 max-time: 600
 cmd: atrt-testBackup
@@ -105,7 +105,7 @@ args: -n ReadWithLocksAndInserts T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n PkInsertTwice T1 T6 T10 D1 D2
+args: -n PkInsertTwice T1 T6 D1 D2
 
 max-time: 1500
 cmd: testBasic
@@ -209,19 +209,19 @@ args: -n PkDeleteAsynch
 
 max-time: 1000
 cmd: testBasic
-args: -n MassiveRollback T1 T7 D1 D2
+args: -n MassiveRollback T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n MassiveRollback2 T1 T7 D1 D2
+args: -n MassiveRollback2 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n MassiveRollback3 T1 T7 D1 D2
+args: -n MassiveRollback3 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n MassiveRollback4 T1 T7 D1 D2
+args: -n MassiveRollback4 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
@@ -287,7 +287,7 @@ args: -n ScanDelete
 
 max-time: 500
 cmd: testScan
-args: -n ScanDelete2 T10 D1 D2
+args: -n ScanDelete2 D1 D2
 
 max-time: 500
 cmd: testScan
@@ -323,7 +323,7 @@ args: -n ScanRead488Timeout -l 10 T6 D1 D2
 
 max-time: 600
 cmd: testScan
-args: -n ScanRead40 -l 100 T2 D1 D2 
+args: -n ScanRead40 -l 100 T6 D1 D2 
 
 max-time: 1800
 cmd: testScan
@@ -339,7 +339,7 @@ args: -n ScanRead40RandomTable -l 100 T1
 
 max-time: 3600
 cmd: testScan
-args: -n ScanRead40RandomTable -l 1000 T2 
+args: -n ScanRead40RandomTable -l 1000 T6 
 
 max-time: 500
 cmd: testScan
@@ -471,7 +471,7 @@ args: -n ScanRestart T1 D1 D2
 
 max-time: 500
 cmd: testScan
-args: -l 100 -n Scan-bug8262 T7 D1 D2
+args: -l 100 -n Scan-bug8262 T6 D1 D2
 
 max-time: 500
 cmd: testScan
@@ -571,7 +571,7 @@ args: -n Bug26481 T1
 
 max-time: 1000
 cmd: testNodeRestart
-args: -n Bug28023 T7 D2
+args: -n Bug28023 T6 D2
 
 max-time: 1000
 cmd: testNodeRestart
@@ -609,7 +609,7 @@ args: -n CreateAndDropWithData
 
 max-time: 1500
 cmd: testDict
-args: -n CreateAndDropDuring T6 T10 D1 D2
+args: -n CreateAndDropDuring T6 D1 D2
 
 max-time: 1500
 cmd: testDict
@@ -629,15 +629,15 @@ args: -n FragmentTypeSingle T1
 
 max-time: 1500
 cmd: testDict
-args: -n FragmentTypeAllSmall T1 T6 T7 T8 
+args: -n FragmentTypeAllSmall T1 T6
 
 max-time: 1500
 cmd: testDict
-args: -n FragmentTypeAllLarge T1 T6 T7 T8 
+args: -n FragmentTypeAllLarge T1 T6
 
 max-time: 1500
 cmd: testDict
-args: -n TemporaryTables T1 T6 T7 T8 
+args: -n TemporaryTables T1 T6
 
 max-time: 1500
 cmd: testDict
@@ -670,15 +670,15 @@ args: -n MaxNdb T6
 
 max-time: 500
 cmd: testNdbApi
-args: -n MaxTransactions T1 T6 T7 T8 T13 
+args: -n MaxTransactions T1 T6 T13 
 
 max-time: 500
 cmd: testNdbApi
-args: -n MaxOperations T1 T6 T7 T8 T13 
+args: -n MaxOperations T1 T6 T13 
 
 max-time: 500
 cmd: testNdbApi
-args: -n MaxGetValue T1 T6 T7 T8 T13 
+args: -n MaxGetValue T1 T6 T13 
 
 max-time: 500
 cmd: testNdbApi
@@ -690,7 +690,7 @@ args: -n DeleteNdb T1 T6
 
 max-time: 500
 cmd: testNdbApi
-args: -n WaitUntilReady T1 T6 T7 T8 T13 
+args: -n WaitUntilReady T1 T6 T13 
 
 max-time: 500
 cmd: testNdbApi
@@ -794,19 +794,15 @@ args:
 #
 max-time: 1500
 cmd: testSystemRestart
+args: -n basic T1 
+
+max-time: 1500
+cmd: testSystemRestart
 args: -n SR1 T1 
 
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR1 T6 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR1 T7 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR1 T8 
 
 max-time: 1500
 cmd: testSystemRestart
@@ -826,10 +822,6 @@ args: -n SR2 T6
 
 max-time: 1500
 cmd: testSystemRestart
-args: -n SR2 T7 
-
-max-time: 1500
-cmd: testSystemRestart
 args: -n SR2 D1
 
 max-time: 1500
@@ -843,14 +835,6 @@ args: -n SR_UNDO T1
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_UNDO T6 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_UNDO T7 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_UNDO T8 
 
 max-time: 1000
 cmd: testSRBank
@@ -960,11 +944,11 @@ args: -n ApiMgmStructEventTimeout T1
 
 max-time: 180
 cmd: testIndex
-args: -n Bug28804 T1 T3
+args: -n Bug28804 T1 T6
 
 max-time: 180
 cmd: testIndex
-args: -n Bug28804_ATTRINFO T1 T3
+args: -n Bug28804_ATTRINFO T1 T6
 
 max-time: 1500
 cmd: testSystemRestart
@@ -1052,5 +1036,32 @@ args: -n Bug34216 -l 10 T1 I3 D2
 
 max-time: 1200
 cmd: testNodeRestart
-args: -n mixedmultiop -l 10 T1 I2 I3 D2
+args: -n mixedmultiop T1 I2 I3 D2
 
+# 2008-04-22
+max-time: 1500
+cmd: testNodeRestart
+args: -n MNF -l 15 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36199 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36246 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36247 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36276 T1
+
+# 2008-04-25
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36245 T1
+
+# EOF 2008-04-25
