@@ -208,6 +208,13 @@ public:
     }
   };
   
+  /* State values for handling ENABLE_COMREQ / ENABLE_COMCONF. */
+  enum EnableComState {
+    ENABLE_COM_CM_ADD_COMMIT = 0,
+    ENABLE_COM_CM_COMMIT_NEW = 1,
+    ENABLE_COM_API_REGREQ = 2
+  };
+
 public:
   Qmgr(Block_context&);
   virtual ~Qmgr();
@@ -266,6 +273,10 @@ private:
   void execALLOC_NODEID_CONF(Signal *);
   void execALLOC_NODEID_REF(Signal *);
   void completeAllocNodeIdReq(Signal *);
+  void execENABLE_COMCONF(Signal *signal);
+  void handleEnableComAddCommit(Signal *signal, Uint32 node);
+  void handleEnableComCommitNew(Signal *signal);
+  void handleEnableComApiRegreq(Signal *signal, Uint32 node);
   
   void execSTART_ORD(Signal*);
 
