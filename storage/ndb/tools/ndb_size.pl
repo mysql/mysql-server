@@ -913,14 +913,14 @@ foreach(@{$tables})
 	}
 	foreach my $i(@show_indexes)
 	{
-	    $indexes{${%$i}{Key_name}}= {
-		type=>${%$i}{Index_type},
-		unique=>!${%$i}{Non_unique},
-		comment=>${%$i}{Comment},
-	    } if !defined($indexes{${%$i}{Key_name}});
+	    $indexes{$i->{Key_name}}= {
+		type=>$i->{Index_type},
+		unique=>$i->{Non_unique},
+		comment=>$i->{Comment},
+	    } if !defined($indexes{$i->{Key_name}});
 
-	    $indexes{${%$i}{Key_name}}{columns}[${%$i}{Seq_in_index}-1]=
-		${%$i}{Column_name};
+	    $indexes{$i->{Key_name}}{columns}[$i->{Seq_in_index}-1]=
+		$i->{Column_name};
 	}
     }
     my $t= new MySQL::NDB::Size::Table(name => $table,
