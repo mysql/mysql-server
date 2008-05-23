@@ -176,7 +176,8 @@ private:
   friend class Ndb;
   friend class Ndb_cluster_connection_impl;
   friend class NdbTransaction;
-  
+  friend class NdbDictInterface;
+
   int sendSignalUnCond(NdbApiSignal *, NodeId nodeId);
 
   bool isConnected(NodeId aNodeId);

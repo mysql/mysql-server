@@ -4542,13 +4542,12 @@ NdbDictionaryImpl::listObjects(List& list, NdbDictionary::Object::Type type)
 
   ListTablesReq req;
   req.requestData = 0;
+  req.tableId = 0;
   req.setTableType(getKernelConstant(type, objectTypeMapping, 0));
   req.setListNames(true);
   if (!list2.count)
-    return m_receiver.listObjects(list, req.requestData,
-                                  m_ndb.usingFullyQualifiedNames());
-  ret = m_receiver.listObjects(list1, req.requestData,
-                               m_ndb.usingFullyQualifiedNames());
+    return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
+  ret = m_receiver.listObjects(list1, req, m_ndb.usingFullyQualifiedNames());
   if (ret)
     return ret;
   list.count = list1.count + list2.count;
@@ -4576,25 +4575,168 @@ NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
   ListTablesReq req;
   req.requestData = 0;
   req.setTableId(indexId);
+  req.tableType = 0;
   req.setListNames(true);
   req.setListIndexes(true);
-  return m_receiver.listObjects(list, req.requestData, m_ndb.usingFullyQualifiedNames());
+  return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
 }
 
 int
 NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
-			      Uint32 requestData, bool fullyQualifiedNames)
+                              ListTablesReq& ltreq, bool fullyQualifiedNames)
 {
+  bool listTablesLongSignal = false;
   NdbApiSignal tSignal(m_reference);
   ListTablesReq* const req = CAST_PTR(ListTablesReq, tSignal.getDataPtrSend());
   req->senderRef = m_reference;
   req->senderData = 0;
-  req->requestData = requestData;
+  req->requestData = ltreq.requestData;
+  req->setTableId(ltreq.getTableId());
+  req->setTableType(ltreq.getTableType());
+  if (ltreq.getTableId() > 4096)
+  {
+    /*
+      Enforce new long signal format,
+      if this is not supported by the
+      called node the request will fail
+     */
+    listTablesLongSignal = true;
+  }
+
+  /*
+    Set table id and type according to old format
+    in case sent to old nodes (during upgrade).
+  */
+  req->oldSetTableId(ltreq.getTableId());
+  req->oldSetTableType(ltreq.getTableType());
+
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber = GSN_LIST_TABLES_REQ;
   tSignal.theLength = ListTablesReq::SignalLength;
-  if (listObjects(&tSignal) != 0)
+  if (listObjects(&tSignal, listTablesLongSignal) != 0)
     return -1;
+
+  if (listTablesLongSignal)
+  {
+    return unpackListTables(list, fullyQualifiedNames);
+  }
+  else
+  {
+    return unpackOldListTables(list, fullyQualifiedNames);
+  }
+}
+
+int
+NdbDictInterface::unpackListTables(NdbDictionary::Dictionary::List& list,
+                                   bool fullyQualifiedNames)
+{
+  Uint32 count = 0;
+  Uint32* tableData = (Uint32*)m_tableData.get_data();
+  Uint32* tableNames = (Uint32*)m_tableNames.get_data();
+  const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
+  list.count = m_noOfTables;
+  list.elements = new NdbDictionary::Dictionary::List::Element[m_noOfTables];
+
+  while (count < m_noOfTables)
+  {
+    NdbDictionary::Dictionary::List::Element& element = list.elements[count];
+    ListTablesData* ltd = (ListTablesData *) tableData;
+    tableData += listTablesDataSizeInWords;
+    element.id = ltd->getTableId();
+    element.type = (NdbDictionary::Object::Type)
+      getApiConstant(ltd->getTableType(), objectTypeMapping, 0);
+    element.state = (NdbDictionary::Object::State)
+      getApiConstant(ltd->getTableState(), objectStateMapping, 0);
+    element.store = (NdbDictionary::Object::Store)
+      getApiConstant(ltd->getTableStore(), objectStoreMapping, 0);
+    element.temp = ltd->getTableTemp();
+    // table or index name
+    BaseString databaseName;
+    BaseString schemaName;
+    BaseString objectName;
+    if (!databaseName || !schemaName || !objectName)
+    {
+      m_error.code= 4000;
+      return -1;
+    }
+    Uint32 size = tableNames[0];
+    Uint32 wsize = (size + 3) / 4;
+    tableNames++;
+    if ((element.type == NdbDictionary::Object::UniqueHashIndex) ||
+	(element.type == NdbDictionary::Object::OrderedIndex)) {
+      char * indexName = new char[size];
+      if (indexName == NULL)
+      {
+        m_error.code= 4000;
+        return -1;
+      }
+      memcpy(indexName, (char *) tableNames, size);
+      if (!(databaseName = Ndb::getDatabaseFromInternalName(indexName)) ||
+          !(schemaName = Ndb::getSchemaFromInternalName(indexName)))
+      {
+        delete [] indexName;
+        m_error.code= 4000;
+        return -1;
+      }
+      objectName = BaseString(Ndb::externalizeIndexName(indexName,
+                                                        fullyQualifiedNames));
+      delete [] indexName;
+    } else if ((element.type == NdbDictionary::Object::SystemTable) ||
+	       (element.type == NdbDictionary::Object::UserTable)) {
+      char * tableName = new char[size];
+      if (tableName == NULL)
+      {
+        m_error.code= 4000;
+        return -1;
+      }
+      memcpy(tableName, (char *) tableNames, size);
+      if (!(databaseName = Ndb::getDatabaseFromInternalName(tableName)) ||
+          !(schemaName = Ndb::getSchemaFromInternalName(tableName)))
+      {
+        delete [] tableName;
+        m_error.code= 4000;
+        return -1;
+      }
+      objectName = BaseString(Ndb::externalizeTableName(tableName,
+                                                        fullyQualifiedNames));
+      delete [] tableName;
+    }
+    else {
+      char * otherName = new char[size];
+      if (otherName == NULL)
+      {
+        m_error.code= 4000;
+        return -1;
+      }
+      memcpy(otherName, (char *) tableNames, size);
+      if (!(objectName = BaseString(otherName)))
+      {
+        m_error.code= 4000;
+        return -1;
+      }
+      delete [] otherName;
+    }
+    if (!(element.database = new char[databaseName.length() + 1]) ||
+        !(element.schema = new char[schemaName.length() + 1]) ||
+        !(element.name = new char[objectName.length() + 1]))
+    {
+      m_error.code= 4000;
+      return -1;
+    }
+    strcpy(element.database, databaseName.c_str());
+    strcpy(element.schema, schemaName.c_str());
+    strcpy(element.name, objectName.c_str());
+    count++;
+    tableNames += wsize;
+  }
+
+  return 0;
+}
+
+int
+NdbDictInterface::unpackOldListTables(NdbDictionary::Dictionary::List& list,
+                                      bool fullyQualifiedNames)
+{
   // count
   const Uint32* data = (const Uint32*)m_buffer.get_data();
   const unsigned length = m_buffer.length() / 4;
@@ -4628,14 +4770,14 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
   while (pos < length) {
     NdbDictionary::Dictionary::List::Element& element = list.elements[count];
     Uint32 d = data[pos++];
-    element.id = ListTablesConf::getTableId(d);
+    element.id = OldListTablesConf::getTableId(d);
     element.type = (NdbDictionary::Object::Type)
-      getApiConstant(ListTablesConf::getTableType(d), objectTypeMapping, 0);
+      getApiConstant(OldListTablesConf::getTableType(d), objectTypeMapping, 0);
     element.state = (NdbDictionary::Object::State)
-      getApiConstant(ListTablesConf::getTableState(d), objectStateMapping, 0);
+      getApiConstant(OldListTablesConf::getTableState(d), objectStateMapping, 0);
     element.store = (NdbDictionary::Object::Store)
-      getApiConstant(ListTablesConf::getTableStore(d), objectStoreMapping, 0);
-    element.temp = ListTablesConf::getTableTemp(d);
+      getApiConstant(OldListTablesConf::getTableStore(d), objectStoreMapping, 0);
+    element.temp = OldListTablesConf::getTableTemp(d);
     // table or index name
     Uint32 n = (data[pos++] + 3) >> 2;
     BaseString databaseName;
@@ -4715,7 +4857,8 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
 }
 
 int
-NdbDictInterface::listObjects(NdbApiSignal* signal)
+NdbDictInterface::listObjects(NdbApiSignal* signal,
+                              bool& listTablesLongSignal)
 {
   const Uint32 RETRIES = 100;
   for (Uint32 i = 0; i < RETRIES; i++) {
@@ -4733,6 +4876,24 @@ NdbDictInterface::listObjects(NdbApiSignal* signal)
       m_error.code= 4009;
       return -1;
     }
+    NodeInfo info = m_transporter->theClusterMgr->getNodeInfo(aNodeId).m_info;
+    if (ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
+    {
+      /*
+        Called node will return a long signal
+       */
+      listTablesLongSignal = true;
+    }
+    else if (listTablesLongSignal)
+    {
+      /*
+        We are requesting info from a table with table id > 4096
+        and older versions don't support that, bug#36044
+      */
+      m_error.code= 4105;
+      return -1;
+    }
+
     if (m_transporter->sendSignal(signal, aNodeId) != 0) {
       continue;
     }
@@ -4751,15 +4912,94 @@ NdbDictInterface::listObjects(NdbApiSignal* signal)
 
 void
 NdbDictInterface::execLIST_TABLES_CONF(NdbApiSignal* signal,
-				       LinearSectionPtr ptr[3])
+                                       LinearSectionPtr ptr[3])
 {
-  const unsigned off = ListTablesConf::HeaderLength;
+  Uint16 nodeId = refToNode(signal->theSendersBlockRef);
+  NodeInfo info = m_transporter->theClusterMgr->getNodeInfo(nodeId).m_info;
+  if (!ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
+  {
+    /*
+      Sender doesn't support new signal format
+     */
+    NdbDictInterface::execOLD_LIST_TABLES_CONF(signal, ptr);
+    return;
+  }
+
+  if (signal->isFirstFragment())
+  {
+    m_fragmentId = signal->getFragmentId();
+    m_noOfTables = 0;
+    m_tableData.clear();
+    m_tableNames.clear();
+  }
+  else
+  {
+    Uint32 fid = signal->getFragmentId();
+    if (m_fragmentId != signal->getFragmentId())
+    {
+      abort();
+    }
+  }
+
+  /*
+    Save the count
+   */
+  const ListTablesConf* const conf=
+    CAST_CONSTPTR(ListTablesConf, signal->getDataPtr());
+  m_noOfTables+= conf->noOfTables;
+
+  bool fragmented = signal->isFragmented();
+  Uint32 sigLen = signal->getLength() - 1;
+  const Uint32 secs = signal->m_noOfSections;
+  const Uint32 directMap[3] = {0,1,2};
+  const Uint32 * const secNos =
+    (fragmented) ?
+    &signal->getDataPtr()[sigLen - secs]
+    : (const Uint32 *) &directMap;
+
+  for(Uint32 i = 0; i<secs; i++)
+  {
+    Uint32 sectionNo = secNos[i];
+    switch (sectionNo) {
+    case(ListTablesConf::TABLE_DATA):
+      if (m_tableData.append(ptr[i].p, 4 * ptr[i].sz))
+      {
+        m_error.code= 4000;
+        goto end;
+      }
+      break;
+    case(ListTablesConf::TABLE_NAMES):
+      if (m_tableNames.append(ptr[i].p, 4 * ptr[i].sz))
+      {
+        m_error.code= 4000;
+        goto end;
+      }
+      break;
+    default:
+      abort();
+    }
+  }
+
+ end:
+  if(!signal->isLastFragment()){
+    return;
+  }
+
+  m_waiter.signal(NO_WAIT);
+}
+
+
+void
+NdbDictInterface::execOLD_LIST_TABLES_CONF(NdbApiSignal* signal,
+                                           LinearSectionPtr ptr[3])
+{
+  const unsigned off = OldListTablesConf::HeaderLength;
   const unsigned len = (signal->getLength() - off);
   if (m_buffer.append(signal->getDataPtr() + off, len << 2))
   {
     m_error.code= 4000;
   }
-  if (signal->getLength() < ListTablesConf::SignalLength) {
+  if (signal->getLength() < OldListTablesConf::SignalLength) {
     // last signal has less than full length
     m_waiter.signal(NO_WAIT);
   }
@@ -4816,7 +5056,7 @@ NdbDictInterface::execWAIT_GCP_CONF(NdbApiSignal* signal,
 
 void
 NdbDictInterface::execWAIT_GCP_REF(NdbApiSignal* signal,
-				    LinearSectionPtr ptr[3])
+                                   LinearSectionPtr ptr[3])
 {
   m_waiter.signal(NO_WAIT);
 }

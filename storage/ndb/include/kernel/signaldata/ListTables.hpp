@@ -19,11 +19,63 @@
 #include <Bitmask.hpp>
 #include "SignalData.hpp"
 
+class ListTablesData {
+public:
+  Uint32 getTableId() {
+    return tableId;
+  }
+  void setTableId(Uint32 val) {
+    tableId = val;
+  }
+  Uint32 getTableType() {
+    return tableType;
+  }
+  void setTableType(Uint32 val) {
+    tableType = val;
+  }
+  Uint32 getTableStore() {
+    return BitmaskImpl::getField(1, &requestData, 20, 3);
+  }
+  void setTableStore(Uint32 val) {
+    BitmaskImpl::setField(1, &requestData, 20, 3, val);
+  }
+  Uint32 getTableTemp() {
+    return BitmaskImpl::getField(1, &requestData, 23, 1);
+  }
+  void setTableTemp(Uint32 val) {
+    BitmaskImpl::setField(1, &requestData, 23, 1, val);
+  }
+  Uint32 getTableState() {
+    return BitmaskImpl::getField(1, &requestData, 24, 4);
+  }
+  void setTableState(Uint32 val) {
+    BitmaskImpl::setField(1, &requestData, 24, 4, val);
+  }
+  Uint32 getListNames() {
+    return BitmaskImpl::getField(1, &requestData, 28, 1);
+  }
+  void setListNames(Uint32 val) {
+    BitmaskImpl::setField(1, &requestData, 28, 1, val);
+  }
+  Uint32 getListIndexes() {
+    return BitmaskImpl::getField(1, &requestData, 29, 1);
+  }
+  void setListIndexes(Uint32 val) {
+    BitmaskImpl::setField(1, &requestData, 29, 1, val);
+  }
+public:
+  Uint32 requestData;
+  Uint32 tableId;
+  Uint32 tableType;
+};
+
 /**
+ * DEPRICATED
  * It is convenient to pack request/response data per table in one
  * 32-bit word...
+ *
  */
-class ListTablesData {
+class OldListTablesData {
 public:
   static Uint32 getTableId(Uint32 data) {
     return BitmaskImpl::getField(1, &data, 0, 12);
@@ -83,36 +135,58 @@ class ListTablesReq {
   friend class Dbdict;
 
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( oldSignalLength = 3 );
+  STATIC_CONST( SignalLength = 5 );
 
 public:  
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 requestData;
+  Uint32 tableId;
+  Uint32 tableType;
 
   Uint32 getTableId() {
-    return ListTablesData::getTableId(requestData);
+    return tableId;
   }
   void setTableId(Uint32 val) {
-    ListTablesData::setTableId(requestData, val);
+    tableId = val;
   }
   Uint32 getTableType() const {
-    return ListTablesData::getTableType(requestData);
+    return tableType;
   }
   void setTableType(Uint32 val) {
-    ListTablesData::setTableType(requestData, val);
+    tableType = val;
   }
   Uint32 getListNames() const {
-    return ListTablesData::getListNames(requestData);
+    ListTablesData* ltd = (ListTablesData *) &requestData;
+    return ltd->getListNames();
   }
   void setListNames(Uint32 val) {
-    ListTablesData::setListNames(requestData, val);
+    ListTablesData* ltd = (ListTablesData *) &requestData;
+    ltd->setListNames(val);
   }
   Uint32 getListIndexes() const {
-    return ListTablesData::getListIndexes(requestData);
+    ListTablesData* ltd = (ListTablesData *) &requestData;
+    return ltd->getListIndexes();
   }
   void setListIndexes(Uint32 val) {
-    ListTablesData::setListIndexes(requestData, val);
+    ListTablesData* ltd = (ListTablesData *) &requestData;
+    ltd->setListIndexes(val);
+  }
+
+
+  /* For backwards compatility */
+  Uint32 oldGetTableId() {
+    return OldListTablesData::getTableId(requestData);
+  }
+  void oldSetTableId(Uint32 val) {
+    OldListTablesData::setTableId(requestData, val);
+  }
+  Uint32 oldGetTableType() const {
+    return OldListTablesData::getTableType(requestData);
+  }
+  void oldSetTableType(Uint32 val) {
+    OldListTablesData::setTableType(requestData, val);
   }
 };
 
@@ -127,7 +201,29 @@ class ListTablesConf {
    */
   friend class Backup;
   friend class Table;
-  friend class Suma;
+
+public:
+  STATIC_CONST( SignalLength = 2 );
+
+public:
+  Uint32 senderData;
+  Uint32 noOfTables;
+
+  SECTION( TABLE_DATA = 0 );
+  SECTION( TABLE_NAMES = 1 );
+};
+
+class OldListTablesConf {
+  /**
+   * Sender(s)
+   */
+  friend class Dbdict;
+
+  /**
+   * Reciver(s)
+   */
+  friend class Backup;
+  friend class Table;
 
 public:
   /**
@@ -143,34 +239,34 @@ public:
   Uint32 tableData[DataLength];
 
   static Uint32 getTableId(Uint32 data) {
-    return ListTablesData::getTableId(data);
+    return OldListTablesData::getTableId(data);
   }
   void setTableId(unsigned pos, Uint32 val) {
-    ListTablesData::setTableId(tableData[pos], val);
+    OldListTablesData::setTableId(tableData[pos], val);
   }
   static Uint32 getTableType(Uint32 data) {
-    return ListTablesData::getTableType(data);
+    return OldListTablesData::getTableType(data);
   }
   void setTableType(unsigned pos, Uint32 val) {
-    ListTablesData::setTableType(tableData[pos], val);
+    OldListTablesData::setTableType(tableData[pos], val);
   }
   static Uint32 getTableStore(Uint32 data) {
-    return ListTablesData::getTableStore(data);
+    return OldListTablesData::getTableStore(data);
   }
   void setTableStore(unsigned pos, Uint32 val) {
-    ListTablesData::setTableStore(tableData[pos], val);
+    OldListTablesData::setTableStore(tableData[pos], val);
   }
   static Uint32 getTableState(Uint32 data) {
-    return ListTablesData::getTableState(data);
+    return OldListTablesData::getTableState(data);
   }
   void setTableState(unsigned pos, Uint32 val) {
-    ListTablesData::setTableState(tableData[pos], val);
+    OldListTablesData::setTableState(tableData[pos], val);
   }
   static Uint32 getTableTemp(Uint32 data) {
-    return ListTablesData::getTableTemp(data);
+    return OldListTablesData::getTableTemp(data);
   }
   void setTableTemp(unsigned pos, Uint32 val) {
-    ListTablesData::setTableTemp(tableData[pos], val);
+    OldListTablesData::setTableTemp(tableData[pos], val);
   }
 };
 
