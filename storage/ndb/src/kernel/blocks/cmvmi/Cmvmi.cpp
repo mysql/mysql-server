@@ -35,6 +35,7 @@
 #include <signaldata/EventSubscribeReq.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/DisconnectRep.hpp>
+#include <signaldata/EnableCom.hpp>
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
@@ -74,7 +75,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   addRecSignal(GSN_STTOR,  &Cmvmi::execSTTOR);
   addRecSignal(GSN_READ_CONFIG_REQ,  &Cmvmi::execREAD_CONFIG_REQ);
   addRecSignal(GSN_CLOSE_COMREQ,  &Cmvmi::execCLOSE_COMREQ);
-  addRecSignal(GSN_ENABLE_COMORD,  &Cmvmi::execENABLE_COMORD);
+  addRecSignal(GSN_ENABLE_COMREQ,  &Cmvmi::execENABLE_COMREQ);
   addRecSignal(GSN_OPEN_COMREQ,  &Cmvmi::execOPEN_COMREQ);
   addRecSignal(GSN_TEST_ORD,  &Cmvmi::execTEST_ORD);
 
@@ -516,7 +517,6 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
     }
   }
   
-done:  
   if (userRef != 0) {
     jam(); 
     signal->theData[0] = tStartingNode;
@@ -526,27 +526,49 @@ done:
   mt_receive_unlock();
 }
 
-void Cmvmi::execENABLE_COMORD(Signal* signal)
+void Cmvmi::execENABLE_COMREQ(Signal* signal)
 {
-  // Enable communication with all our NDB blocks to this node
-  
-  Uint32 tStartingNode = signal->theData[0];
-  mt_receive_lock();
-  globalTransporterRegistry.setIOState(tStartingNode, NoHalt);
-  setNodeInfo(tStartingNode).m_connected = true;
-    //-----------------------------------------------------
-  // Report that the version of the node
-  //-----------------------------------------------------
-  signal->theData[0] = NDB_LE_ConnectedApiVersion;
-  signal->theData[1] = tStartingNode;
-  signal->theData[2] = getNodeInfo(tStartingNode).m_version;
-  signal->theData[3] = getNodeInfo(tStartingNode).m_mysql_version;
-  
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
-  mt_receive_unlock();
-  //-----------------------------------------------------
-  
   jamEntry();
+  const EnableComReq *enableComReq = (const EnableComReq *)signal->getDataPtr();
+
+  /* Need to copy out signal data to not clobber it with sendSignal(). */
+  Uint32 senderRef = enableComReq->m_senderRef;
+  Uint32 senderData = enableComReq->m_senderData;
+  Uint32 nodes[NodeBitmask::Size];
+  MEMCOPY_NO_WORDS(nodes, enableComReq->m_nodeIds, NodeBitmask::Size);
+
+  mt_receive_lock();
+  /* Enable communication with all our NDB blocks to these nodes. */
+  Uint32 search_from = 0;
+  for (;;)
+  {
+    Uint32 tStartingNode = NodeBitmask::find(nodes, search_from);
+    if (tStartingNode == NodeBitmask::NotFound)
+      break;
+    search_from = tStartingNode + 1;
+
+    globalTransporterRegistry.setIOState(tStartingNode, NoHalt);
+    setNodeInfo(tStartingNode).m_connected = true;
+
+    //-----------------------------------------------------
+    // Report that the version of the node
+    //-----------------------------------------------------
+    signal->theData[0] = NDB_LE_ConnectedApiVersion;
+    signal->theData[1] = tStartingNode;
+    signal->theData[2] = getNodeInfo(tStartingNode).m_version;
+    signal->theData[3] = getNodeInfo(tStartingNode).m_mysql_version;
+
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
+    //-----------------------------------------------------
+  }
+
+  EnableComConf *enableComConf = (EnableComConf *)signal->getDataPtrSend();
+  enableComConf->m_senderRef = reference();
+  enableComConf->m_senderData = senderData;
+  MEMCOPY_NO_WORDS(enableComConf->m_nodeIds, nodes, NodeBitmask::Size);
+  sendSignal(senderRef, GSN_ENABLE_COMCONF, signal,
+             EnableComConf::SignalLength, JBA);
+  mt_receive_unlock();
 }
 
 void Cmvmi::execDISCONNECT_REP(Signal *signal)
