@@ -652,6 +652,9 @@ static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			    DBT *split,
 			    TOKULOGGER);
 
+// The maximum row size is 16KB according to the PRD.  That means the max pivot key size is 16KB.
+#define MAX_PIVOT_KEY_SIZE (1<<14)
+
 /* key is not in the buffer.  Either put the key-value pair in the child, or put it in the node. */
 static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRTNODE node, BRTNODE child,
 								      BRT_CMD cmd,
@@ -661,7 +664,7 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
     DBT *k = cmd->u.id.key;
     DBT *v = cmd->u.id.val;
     unsigned int oldsize = toku_serialize_brtnode_size(child);
-    unsigned int newsize_bounded = oldsize + k->size + v->size + KEY_VALUE_OVERHEAD + LE_OVERHEAD_BOUND;
+    unsigned int newsize_bounded = oldsize + k->size + v->size + KEY_VALUE_OVERHEAD + LE_OVERHEAD_BOUND + MAX_PIVOT_KEY_SIZE;
     newsize_bounded += (child->height > 0) ? BRT_CMD_OVERHEAD : OMT_ITEM_OVERHEAD;
     
     int to_child = newsize_bounded <= child->nodesize;
