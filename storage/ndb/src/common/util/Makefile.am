@@ -35,6 +35,15 @@ testBitmask_LDFLAGS = @ndb_bin_am_ldflags@ \
          $(top_builddir)/mysys/libmysys.a \
          $(top_builddir)/strings/libmystrings.a
 
+noinst_PROGRAMS = ndb_show_compat
+ndb_show_compat_SOURCES = ndb_show_compat.cc
+ndb_show_compat_LDADD = \
+	$(builddir)libgeneral.la \
+	$(top_builddir)/storage/ndb/src/common/portlib/libportlib.la \
+	$(top_builddir)/dbug/libdbug.a \
+	$(top_builddir)/mysys/libmysys.a \
+	$(top_builddir)/strings/libmystrings.a
+
 testBitmask.cpp : Bitmask.cpp
 	rm -f testBitmask.cpp
 	@LN_CP_F@ Bitmask.cpp testBitmask.cpp
