@@ -59,6 +59,7 @@ SELECT @@global.log_output;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = NULL;
 
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = "";
 SELECT @@global.log_output;
 --echo 'Bug# 34838: Empty value is allowed where as it is not specified in';
@@ -171,6 +172,7 @@ WHERE VARIABLE_NAME='log_output';
 ################################################################### 
 
 # test if variable accepts 0,1,2
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = 0;
 SELECT @@global.log_output;
 
@@ -206,6 +208,7 @@ SET @@global.log_output = 8;
 
 SET @@global.log_output = TRUE;
 SELECT @@global.log_output;
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_output = FALSE;
 SELECT @@global.log_output;
 
