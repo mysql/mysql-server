@@ -143,7 +143,7 @@ private:
   bool is_clone;
 public:
   handler *clone(MEM_ROOT *mem_root);
-  virtual void set_part_info(partition_info *part_info)
+  virtual void set_part_info(partition_info *part_info, bool early)
   {
      m_part_info= part_info;
      m_is_sub_partitioned= part_info->is_sub_partitioned();
@@ -531,7 +531,8 @@ public:
     underlying handlers must have the same implementation for it to work.
   */
   virtual uint8 table_cache_type();
-
+  /* Calculate hash value for PARTITION BY KEY tables.  */
+  uint32 calculate_key_hash_value(Field **field_array);
   /*
     -------------------------------------------------------------------------
     MODULE print messages

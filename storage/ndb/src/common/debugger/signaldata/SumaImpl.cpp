@@ -173,7 +173,8 @@ printSUB_TABLE_DATA(FILE * output, const Uint32 * theData,
 		    Uint32 len, Uint16 receiverBlockNo) {
   const SubTableData * const sig = (SubTableData *)theData;
   fprintf(output, " senderData: %x\n", sig->senderData);
-  fprintf(output, " gci: %x\n", sig->gci);
+  fprintf(output, " gci_hi: %x\n", sig->gci_hi);
+  fprintf(output, " gci_lo: %x\n", sig->gci_lo);
   fprintf(output, " tableId: %x\n", sig->tableId);
   fprintf(output, " operation: %x\n", 
 	  SubTableData::getOperation(sig->requestInfo));
@@ -211,7 +212,7 @@ bool
 printSUB_GCP_COMPLETE_REP(FILE * output, const Uint32 * theData, 
 			  Uint32 len, Uint16 receiverBlockNo) {
   const SubGcpCompleteRep * const sig = (SubGcpCompleteRep *)theData;
-  fprintf(output, " gci: %x\n", sig->gci);
+  fprintf(output, " gci_hi: %x gci_lo: %x\n", sig->gci_hi, sig->gci_lo);
   return false;
 }
 

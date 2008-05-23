@@ -19,6 +19,12 @@
 #include <TransporterDefinitions.hpp>
 #include "TransporterInternalDefinitions.hpp"
 
+#ifdef WORDS_BIGENDIAN
+  #define MY_OWN_BYTE_ORDER 1
+#else
+  #define MY_OWN_BYTE_ORDER 0
+#endif
+
 class Packer {
   Uint32 preComputedWord1;
   Uint32 checksumUsed;     // Checksum shall be included in the message

@@ -35,6 +35,8 @@ class NdbIndexScanOperation : public NdbScanOperation {
 public:
   /**
    * readTuples using ordered index
+   * This method is used to specify details for an old Api Index Scan
+   * operation.
    * 
    * @param lock_mode Lock mode
    * @param scan_flags see @ref ScanFlag
@@ -76,7 +78,7 @@ public:
     return readTuples(lock_mode, scan_flags, parallel, batch);
   }
 #endif
-
+  
   /**
    * Type of ordered index key bound.  The values (0-4) will not change
    * and can be used explicitly (e.g. they could be computed).
@@ -89,8 +91,15 @@ public:
     BoundEQ = 4         ///< equality
   };
 
+  /* Maximum number of ranges that can be supplied to a single 
+   * NdbIndexScanOperation 
+   */
+  enum {
+    MaxRangeNo= 0xfff
+  };
+
   /**
-   * Define bound on index key in range scan.
+   * Define bound on index key in range scan - old Api.
    *
    * Each index key can have lower and/or upper bound.  Setting the key
    * equal to a value defines both upper and lower bounds.  The bounds
@@ -121,6 +130,7 @@ public:
    * @return            0 if successful otherwise -1
    *
    * @note See comment under equal() about data format and length.
+   * @note See the two parameter setBound variant for use with NdbRecord
    */
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   int setBound(const char* attr, int type, const void* value, Uint32 len);
@@ -136,52 +146,160 @@ public:
 #endif
   int setBound(Uint32 anAttrId, int type, const void* aValue);
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
-   * Reset bounds and put operation in list that will be
-   *   sent on next execute
+   * This method is not required and is deprecated.
+   * To perform an Index Scan with multiple batched bounds, use the 
+   * NdbRecord scanIndex() API.
+   * For an old Api Index scan with a single set of bounds, this call 
+   * is not necessary.
+   * Range numbers greater than zero are considered an error.
    */
-  int reset_bounds(bool forceSend = false);
+  int end_of_bound(Uint32 range_no= 0);
+#endif
 
   /**
-   * Marks end of a bound, 
-   *  used when batching index reads (multiple ranges)
-   */
-  int end_of_bound(Uint32 range_no);
-  
-  /**
-   * Return range no for current row
+   * Return range number for current row, as defined in the IndexBound
+   * structure used when the scan was defined.
+   * Only available if the SF_ReadRangeNo and SF_MultiRange flags were
+   * set in the ScanOptions::scan_flags structure passed to scanIndex().
    */
   int get_range_no();
   
+  /* Structure used to describe index scan bounds, for NdbRecord scans. */
+  struct IndexBound {
+    /* Row containing lower bound, or NULL for scan from the start. */
+    const char *low_key;
+    /* Number of columns in lower bound, for bounding by partial prefix. */
+    Uint32 low_key_count;
+    /* True for less-than-or-equal, false for strictly less-than. */
+    bool low_inclusive;
+    /* Row containing upper bound, or NULL for scan to the end. */
+    const char * high_key;
+    /* Number of columns in upper bound, for bounding by partial prefix. */
+    Uint32 high_key_count;
+    /* True for greater-than-or-equal, false for strictly greater-than. */
+    bool high_inclusive;
+    /*
+      Value to identify this bound, may be read with get_range_no().
+      Must be <= MaxRangeNo (set to zero if not using range_no).
+      Note that for ordered scans, the range_no must be strictly increasing
+      for each range, or the result set will not be sorted correctly.
+    */
+    Uint32 range_no;
+  };
+
   /**
-   * Is current scan sorted
+   * Add a bound to an NdbRecord defined Index scan
+   * 
+   * This method is called to add a bound to an IndexScan operation
+   * which has been defined with a call to NdbTransaction::scanIndex().
+   * To add extra bounds, the index scan operation must have been
+   * defined with the the SF_MultiRange flag set.
+   *
+   * Where multiple numbered ranges are defined with multiple calls to 
+   * setBound, and the scan is ordered, the range number for each bound 
+   * must be larger than the range number for the previously defined bound.
+   * 
+   * @param key_record NdbRecord structure for the key the bound is 
+   *        to be added to
+   * @param bound The bound to add
+   * @return 0 for Success, other for Failure.
+   */
+  int setBound(const NdbRecord *key_record,
+               const IndexBound& bound);
+
+  /**
+   * Is current scan sorted?
    */
   bool getSorted() const { return m_ordered; }
 
   /**
-   * Is current scan sorted descending
+   * Is current scan sorted descending?
    */
   bool getDescending() const { return m_descending; }
 
 private:
   NdbIndexScanOperation(Ndb* aNdb);
   virtual ~NdbIndexScanOperation();
+  
+  void initScanBoundStorageOldApi();
+
+  int processIndexScanDefs(LockMode lm,
+                           Uint32 scan_flags,
+                           Uint32 parallel,
+                           Uint32 batch);
+  int scanIndexImpl(const NdbRecord *key_record,
+                    const NdbRecord *result_record,
+                    NdbOperation::LockMode lock_mode,
+                    const unsigned char *result_mask,
+                    const NdbIndexScanOperation::IndexBound *bound,
+                    const NdbScanOperation::ScanOptions *options,
+                    Uint32 sizeOfOptions);
+
+  /* Structure used to collect information about an IndexBound
+   * as it is provided by the old Api setBound() calls
+   */
+  struct OldApiScanBoundInfo
+  {
+    Uint32 highestKey;
+    bool highestSoFarIsStrict;
+    Uint32 keysPresentBitmap;
+    NdbRecAttr *keyRecAttr;
+  };
+
+  int setBoundHelperOldApi(OldApiScanBoundInfo& boundInfo,
+                           Uint32 maxKeyRecordBytes,
+                           Uint32 index_attrId,
+                           Uint32 valueLen,
+                           bool inclusive,
+                           Uint32 byteOffset,
+                           Uint32 nullbit_byte_offset,
+                           Uint32 nullbit_bit_in_byte,
+                           const void *aValue);
 
   int setBound(const NdbColumnImpl*, int type, const void* aValue);
+  int buildIndexBoundOldApi(IndexBound& ib);
+  void releaseIndexBoundOldApi();
   int insertBOUNDS(Uint32 * data, Uint32 sz);
-  Uint32 getKeyFromSCANTABREQ(Uint32* data, Uint32 size);
+  int ndbrecord_insert_bound(const NdbRecord *key_record,
+                             Uint32 column_index,
+                             const char *row,
+                             Uint32 bound_type);
 
   virtual int equal_impl(const NdbColumnImpl*, const char*);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);
 
+  void setDistKeyFromRange(const NdbRecord *key_record,
+                           const NdbRecord *result_record,
+                           const char *row,
+                           Uint32 distkeyMax);
   void fix_get_values();
   int next_result_ordered(bool fetchAllowed, bool forceSend = false);
+  int next_result_ordered_ndbrecord(const char * & out_row,
+                                    bool fetchAllowed,
+                                    bool forceSend);
+  void ordered_insert_receiver(Uint32 start, NdbReceiver *receiver);
+  int ordered_send_scan_wait_for_all(bool forceSend);
   int send_next_scan_ordered(Uint32 idx);
   int compare(Uint32 key, Uint32 cols, const NdbReceiver*, const NdbReceiver*);
-
+  int compare_ndbrecord(const NdbReceiver *r1,
+                        const NdbReceiver *r2) const;
   Uint32 m_sort_columns;
   Uint32 m_this_bound_start;
   Uint32 * m_first_bound_word;
+
+  /* Number of IndexBounds for this scan (NdbRecord only) */
+  Uint32 m_num_bounds;
+  /* Most recently added IndexBound's range number */
+  Uint32 m_previous_range_num;
+  
+  /* Old Scan API bound information */
+  bool oldApiBoundDefined;
+  OldApiScanBoundInfo lowBound;
+  OldApiScanBoundInfo highBound;
+
+  
 
   friend struct Ndb_free_list_t<NdbIndexScanOperation>;
 };

@@ -19,11 +19,7 @@
 #include <ndb_global.h>
 #include <EventLogger.hpp>
 
-#ifndef UNIT_TEST
-extern EventLogger g_eventLogger;
-#else
-extern EventLogger g_eventLogger;
-#endif
+extern EventLogger * g_eventLogger;
 
 static int f_method_idx = 0;
 #ifdef NDBD_MALLOC_METHOD_SBRK
@@ -174,7 +170,7 @@ Ndbd_mem_manager::Ndbd_mem_manager()
   
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
   {
-    g_eventLogger.error("Invalid build, ndbd_malloc_impl.cpp:%d", __LINE__);
+    g_eventLogger->error("Invalid build, ndbd_malloc_impl.cpp:%d", __LINE__);
     abort();
   }
 }
@@ -266,11 +262,11 @@ Ndbd_mem_manager::init(bool alloc_less_memory)
     m_resource_limit[0].m_min = pages;
   }
   
-  g_eventLogger.info("Ndbd_mem_manager::init(%d) min: %dMb initial: %dMb",
-		     alloc_less_memory,
-		     (sizeof(Alloc_page)*m_resource_limit[0].m_min)>>20,
-		     (sizeof(Alloc_page)*pages)>>20);
-  
+  g_eventLogger->info("Ndbd_mem_manager::init(%d) min: %dMb initial: %dMb",
+                      alloc_less_memory,
+                      (sizeof(Alloc_page)*m_resource_limit[0].m_min)>>20,
+                      (sizeof(Alloc_page)*pages)>>20);
+
   if (pages == 0)
   {
     return 0;
@@ -318,21 +314,21 @@ Ndbd_mem_manager::init(bool alloc_less_memory)
   
   if (allocated < m_resource_limit[0].m_min)
   {
-    g_eventLogger.
+    g_eventLogger->
       error("Unable to alloc min memory from OS: min: %lldMb "
-	    " allocated: %lldMb", 
-	    (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_min) >> 20,
-	    (Uint64)(sizeof(Alloc_page)*allocated) >> 20);
+            " allocated: %lldMb",
+            (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_min) >> 20,
+            (Uint64)(sizeof(Alloc_page)*allocated) >> 20);
     return false;
   }
   else if (allocated < pages)
   {
-    g_eventLogger.
+    g_eventLogger->
       warning("Unable to alloc requested memory from OS: min: %lldMb"
-	      " requested: %lldMb allocated: %lldMb",
-	      (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_min)>>20,
-	      (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_max)>>20,
-	      (Uint64)(sizeof(Alloc_page)*allocated)>>20);
+              " requested: %lldMb allocated: %lldMb",
+              (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_min)>>20,
+              (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_max)>>20,
+              (Uint64)(sizeof(Alloc_page)*allocated)>>20);
     if (!alloc_less_memory)
       return false;
   }
@@ -402,10 +398,10 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
 	     " - Unable to use due to bitmap pages missaligned!!",
 	     __LINE__, start, cnt, start, (start_bmp << BPP_2LOG),
 	     (cnt >> (20 - 15)));
-    g_eventLogger.error("ndbd_malloc_impl.cpp:%d:grow(%d, %d) not using %uMb"
-			" - Unable to use due to bitmap pages missaligned!!",
-			__LINE__, start, cnt,
-			(cnt >> (20 - 15)));
+    g_eventLogger->error("ndbd_malloc_impl.cpp:%d:grow(%d, %d) not using %uMb"
+                         " - Unable to use due to bitmap pages missaligned!!",
+                         __LINE__, start, cnt,
+                         (cnt >> (20 - 15)));
 
     dump();
     return;
@@ -881,12 +877,12 @@ main(int argc, char** argv)
   Timer timer[4];
   printf("Startar modul test av Page Manager %dMb %ds\n", 
 	 (sz >> 5), run_time);
-  g_eventLogger.createConsoleHandler();
-  g_eventLogger.setCategory("keso");
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_INFO);
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_CRITICAL);
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_WARNING);
+  g_eventLogger->createConsoleHandler();
+  g_eventLogger->setCategory("keso");
+  g_eventLogger->enable(Logger::LL_ON, Logger::LL_INFO);
+  g_eventLogger->enable(Logger::LL_ON, Logger::LL_CRITICAL);
+  g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
+  g_eventLogger->enable(Logger::LL_ON, Logger::LL_WARNING);
   
 #define DEBUG 0
 

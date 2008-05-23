@@ -20,9 +20,9 @@ EXTRA_PROGRAMS = test_varpage
 test_varpage_SOURCES = test_varpage.cpp tuppage.cpp
 test_varpage_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
-  $(top_builddir)/mysys/libmysys.a \
-  $(top_builddir)/dbug/libdbug.a \
-  $(top_builddir)/strings/libmystrings.a
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

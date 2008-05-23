@@ -236,13 +236,6 @@ UtilTransactions::copyTableData(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    check = pOp->interpret_exit_ok();
-    if( check == -1 ) {
-      ERR(pTrans->getNdbError());
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
-    }  
-
     // Read all attributes
     for (int a = 0; a < tab.getNoOfColumns(); a++){
       if ((row.attributeStore(a) =  
@@ -400,13 +393,6 @@ UtilTransactions::scanReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    check = pOp->interpret_exit_ok();
-    if( check == -1 ) {
-      ERR(pTrans->getNdbError());
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
-    }
-    
     // Call getValue for all the attributes supplied in attrib_list
     // ************************************************
     for (int a = 0; a < noAttribs; a++){
@@ -518,13 +504,6 @@ UtilTransactions::selectCount(Ndb* pNdb,
       sf.begin(NdbScanFilter::OR);
       sf.eq(2, (Uint32)30);
       sf.end();
-    } else {
-      check = pOp->interpret_exit_ok();
-      if( check == -1 ) {
-	ERR(pTrans->getNdbError());
-	closeTransaction(pNdb);
-	return NDBT_FAILED;
-      }
     }
     
     
@@ -679,13 +658,6 @@ restart:
     }
     
     if( rs != 0 ) {
-      ERR(pTrans->getNdbError());
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
-    }
-
-    check = pOp->interpret_exit_ok();
-    if( check == -1 ) {
       ERR(pTrans->getNdbError());
       closeTransaction(pNdb);
       return NDBT_FAILED;
@@ -1074,13 +1046,6 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    check = pOp->interpret_exit_ok();
-    if( check == -1 ) {
-      ERR(pTrans->getNdbError());
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
-    }
-
     if(get_values(pOp, scanRow))
     {
       abort();
@@ -1126,19 +1091,14 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
 
       if(!null_found)
       {
-	if(!iop && (iop= pTrans->getNdbIndexScanOperation(indexName, 
-							  tab.getName())))
+	if(iop= pTrans->getNdbIndexScanOperation(indexName, 
+                                                 tab.getName()))
 	{
 	  if(iop->readTuples(NdbScanOperation::LM_CommittedRead, 
 			     parallelism))
 	    goto error;
-	  iop->interpret_exit_ok();
 	  if(get_values(iop, indexRow))
 	    goto error;
-	}
-	else if(!iop || iop->reset_bounds())
-	{
-	  goto error;
 	}
 	
 	if(equal(pIndex, iop, scanRow))
@@ -1367,11 +1327,6 @@ loop:
       ERR(err= pTrans->getNdbError());
       goto error;
     }
-
-    if( pOp->interpret_exit_ok() == -1 ) {
-      ERR(err= pTrans->getNdbError());
-      goto error;
-    }  
 
     // Read all attributes
     {

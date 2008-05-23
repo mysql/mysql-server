@@ -2,10 +2,10 @@ dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_NDBCLUSTER
 dnl ---------------------------------------------------------------------------
 
-NDB_VERSION_MAJOR=`echo $MYSQL_NUMERIC_VERSION | cut -d. -f1`
-NDB_VERSION_MINOR=`echo $MYSQL_NUMERIC_VERSION | cut -d. -f2`
-NDB_VERSION_BUILD=`echo $MYSQL_NUMERIC_VERSION | cut -d. -f3`
-NDB_VERSION_STATUS=`echo $VERSION | sed 's/^[[-.0-9]]*//'`
+NDB_MYSQL_VERSION_MAJOR=`echo $VERSION | cut -d. -f1`
+NDB_MYSQL_VERSION_MINOR=`echo $VERSION | cut -d. -f2`
+NDB_MYSQL_VERSION_BUILD=`echo $VERSION | cut -d. -f3 | cut -d- -f1`
+
 TEST_NDBCLUSTER=""
 
 dnl for build ndb docs
@@ -53,38 +53,38 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   esac
 
   AC_ARG_WITH([ndb-test],
-              [
-  --with-ndb-test       Include the NDB Cluster ndbapi test programs],
+              [AC_HELP_STRING([--with-ndb-test],
+                              [Include the NDB Cluster ndbapi test programs])],
               [ndb_test="$withval"],
               [ndb_test=no])
   AC_ARG_WITH([ndb-docs],
-              [
-  --with-ndb-docs       Include the NDB Cluster ndbapi and mgmapi documentation],
+              [AC_HELP_STRING([--with-ndb-docs],
+              [Include the NDB Cluster ndbapi and mgmapi documentation])],
               [ndb_docs="$withval"],
               [ndb_docs=no])
   AC_ARG_WITH([ndb-port],
-              [
-  --with-ndb-port       Port for NDB Cluster management server],
+              [AC_HELP_STRING([--with-ndb-port],
+                              [Port for NDB Cluster management server])],
               [ndb_port="$withval"],
               [ndb_port="default"])
   AC_ARG_WITH([ndb-port-base],
-              [
-  --with-ndb-port-base  Base port for NDB Cluster transporters],
+              [AC_HELP_STRING([--with-ndb-port-base],
+                              [Base port for NDB Cluster transporters])],
               [ndb_port_base="$withval"],
               [ndb_port_base="default"])
   AC_ARG_WITH([ndb-debug],
-              [
-  --without-ndb-debug   Disable special ndb debug features],
+              [AC_HELP_STRING([--without-ndb-debug],
+                              [Disable special ndb debug features])],
               [ndb_debug="$withval"],
               [ndb_debug="default"])
   AC_ARG_WITH([ndb-ccflags],
-              AC_HELP_STRING([--with-ndb-ccflags=CFLAGS],
-                           [Extra CFLAGS for ndb compile]),
+              [AC_HELP_STRING([--with-ndb-ccflags=CFLAGS],
+                              [Extra CFLAGS for ndb compile])],
               [ndb_ccflags=${withval}],
               [ndb_ccflags=""])
   AC_ARG_WITH([ndb-binlog],
-              [
-  --without-ndb-binlog       Disable ndb binlog],
+              [AC_HELP_STRING([--without-ndb-binlog],
+                              [Disable ndb binlog])],
               [ndb_binlog="$withval"],
               [ndb_binlog="default"])
 
@@ -139,6 +139,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       have_ndb_debug="default"
       ;;
   esac
+
 
   AC_MSG_RESULT([done.])
 ])
@@ -203,7 +204,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   elif test "$have_ndb_debug" = "full"
   then
-    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD -DAPI_TRACE"
   else
     # no extra ndb debug but still do asserts if debug version
     if test "$with_debug" = "yes" -o "$with_debug" = "full"
@@ -303,6 +304,17 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"],
                      [NDB status version])
 
+
+  AC_SUBST(NDB_MYSQL_VERSION_MAJOR)
+  AC_SUBST(NDB_MYSQL_VERSION_MINOR)
+  AC_SUBST(NDB_MYSQL_VERSION_BUILD)
+  AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_MAJOR], [$NDB_MYSQL_VERSION_MAJOR],
+                     [MySQL major version])
+  AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_MINOR], [$NDB_MYSQL_VERSION_MINOR],
+                     [MySQL minor version])
+  AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_BUILD], [$NDB_MYSQL_VERSION_BUILD],
+                     [MySQL build version])
+
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
@@ -364,6 +376,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
    storage/ndb/test/run-test/Makefile dnl
    storage/ndb/include/ndb_version.h storage/ndb/include/ndb_global.h dnl
    storage/ndb/include/ndb_types.h dnl
+   storage/ndb/swig/Makefile dnl
   )
 ])
 

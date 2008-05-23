@@ -23,7 +23,7 @@
 
 #include <SLList.hpp>
 #include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <DLCFifoList.hpp>
 #include <KeyTable.hpp>
 #include <DataBuffer.hpp>
 #include <SignalCounter.hpp>
@@ -48,20 +48,13 @@ public:
   
   void execSUB_START_REQ(Signal* signal);
   void execSUB_STOP_REQ(Signal* signal);
-  
+
   void execSUB_SYNC_REQ(Signal* signal);
   void execSUB_ABORT_SYNC_REQ(Signal* signal);
-
-  void execSUB_STOP_CONF(Signal* signal);
-  void execSUB_STOP_REF(Signal* signal);
 
  /**
    * Dict interface
    */
-#if 0
-  void execLIST_TABLES_REF(Signal* signal);
-  void execLIST_TABLES_CONF(Signal* signal);
-#endif
   void execGET_TABINFOREF(Signal* signal);
   void execGET_TABINFO_CONF(Signal* signal);
 
@@ -71,6 +64,10 @@ public:
   void execDROP_TAB_CONF(Signal* signal);
   void execALTER_TAB_REQ(Signal* signal);
   void execCREATE_TAB_CONF(Signal* signal);
+
+  void execDICT_LOCK_REF(Signal*);
+  void execDICT_LOCK_CONF(Signal*);
+
   /**
    * Scan interface
    */
@@ -137,61 +134,11 @@ public:
   struct Subscriber {
     Uint32 m_senderRef;
     Uint32 m_senderData;
-    Uint32 m_subPtrI; //reference to subscription
     Uint32 nextList;
 
     union { Uint32 nextPool; Uint32 prevList; };
   };
   typedef Ptr<Subscriber> SubscriberPtr;
-
-  /**
-   * Subscriptions
-   */
-
-  struct Subscription {
-    Subscription() {}
-    Uint32 m_senderRef;
-    Uint32 m_senderData;
-    Uint32 m_subscriptionId;
-    Uint32 m_subscriptionKey;
-    Uint32 m_subscriptionType;
-    Uint16 m_options;
-
-    enum Options {
-      REPORT_ALL       = 0x1,
-      REPORT_SUBSCRIBE = 0x2
-    };
-
-    enum State {
-      UNDEFINED,
-      LOCKED,
-      DEFINED,
-      DROPPED
-    };
-    State m_state;
-    Uint32 n_subscribers;
-
-    Uint32 nextHash;
-    union { Uint32 prevHash; Uint32 nextPool; };
-
-    Uint32 hashValue() const {
-      return m_subscriptionId + m_subscriptionKey;
-    }
-
-    bool equal(const Subscription & s) const {
-      return 
-	m_subscriptionId == s.m_subscriptionId && 
-	m_subscriptionKey == s.m_subscriptionKey;
-    }
-    /**
-     * The following holds the tables included 
-     * in the subscription.
-     */
-    Uint32 m_tableId;
-    Uint32 m_table_ptrI;
-    Uint32 m_current_sync_ptrI;
-  };
-  typedef Ptr<Subscription> SubscriptionPtr;
 
   class Table;
   friend class Table;
@@ -245,73 +192,121 @@ public:
   };
   friend struct SyncRecord;
 
-  int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr,
-		Ptr<SyncRecord> syncPtr);
-  int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr,
-		SubscriberPtr subbPtr);
-  int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr);
-  
-  int completeOneSubscriber(Signal* signal, TablePtr tabPtr, SubscriberPtr subbPtr);
-  void completeAllSubscribers(Signal* signal, TablePtr tabPtr);
-  void completeInitTable(Signal* signal, TablePtr tabPtr);
+  struct SubOpRecord
+  {
+    enum OpType
+    {
+      R_SUB_START_REQ,
+      R_SUB_STOP_REQ,
+      R_START_ME_REQ,
+      R_API_FAIL_REQ,
+      R_SUB_ABORT_START_REQ,
+    };
+
+    Uint32 m_opType;
+    Uint32 m_subPtrI;
+    Uint32 m_senderRef;
+    Uint32 m_senderData;
+    Uint32 m_subscriberRef;
+    Uint32 m_subscriberData;
+
+    Uint32 nextList;
+    union {
+      Uint32 prevList;
+      Uint32 nextPool;
+    };
+  };
+  friend struct SubOpRecord;
+
+  struct Subscription
+  {
+    Uint32 m_seq_no;
+    Uint32 m_subscriptionId;
+    Uint32 m_subscriptionKey;
+    Uint32 m_subscriptionType;
+    Uint16 m_options;
+
+    enum Options {
+      REPORT_ALL       = 0x1,
+      REPORT_SUBSCRIBE = 0x2
+    };
+
+    enum State {
+      UNDEFINED,
+      DEFINED,
+      DROPPED,
+      DEFINING
+    };
+
+    enum TriggerState {
+      T_UNDEFINED,
+      T_CREATING,
+      T_DEFINED,
+      T_DROPPING,
+      T_ERROR
+    };
+
+    State m_state;
+    TriggerState m_trigger_state;
+
+    DLList<Subscriber>::Head m_subscribers;
+    DLFifoList<SubOpRecord>::Head m_create_req;
+    DLFifoList<SubOpRecord>::Head m_start_req;
+    DLFifoList<SubOpRecord>::Head m_stop_req;
+    DLList<SyncRecord>::Head m_syncRecords;
+    
+    Uint32 m_errorCode;
+    Uint32 m_outstanding_trigger;
+    Uint32 m_triggers[3];
+
+    Uint32 nextList, prevList;
+    Uint32 nextHash;
+    union { Uint32 prevHash; Uint32 nextPool; };
+
+    Uint32 hashValue() const {
+      return m_subscriptionId + m_subscriptionKey;
+    }
+
+    bool equal(const Subscription & s) const {
+      return
+	m_subscriptionId == s.m_subscriptionId &&
+	m_subscriptionKey == s.m_subscriptionKey;
+    }
+    /**
+     * The following holds the tables included
+     * in the subscription.
+     */
+    Uint32 m_tableId;
+    Uint32 m_table_ptrI;
+  };
+  typedef Ptr<Subscription> SubscriptionPtr;
 
   struct Table {
-    Table() { m_tableId = ~0; n_subscribers = 0; }
+    Table() { m_tableId = ~0; }
     void release(Suma&);
-    void checkRelease(Suma &suma);
 
-    DLList<Subscriber>::Head c_subscribers;
-    DLList<SyncRecord>::Head c_syncRecords;
+    DLList<Subscription>::Head m_subscriptions;
 
     enum State {
       UNDEFINED,
       DEFINING,
       DEFINED,
-      DROPPED,
-      ALTERED
+      DROPPED
     };
     State m_state;
 
     Uint32 m_ptrI;
-    SubscriberPtr m_drop_subbPtr;
-
-    Uint32 n_subscribers;
-    bool m_reportAll;
 
     bool parseTable(SegmentedSectionPtr ptr, Suma &suma);
     /**
      * Create triggers
      */
-    int setupTrigger(Signal* signal, Suma &suma);
-    void completeTrigger(Signal* signal);
     void createAttributeMask(AttributeMask&, Suma &suma);
-    
-    /**
-     * Drop triggers
-     */
-    void dropTrigger(Signal* signal,Suma&);
-    void runDropTrigger(Signal* signal, Uint32 triggerId,Suma&);
-
-    /**
-     * Sync meta
-     */    
-#if 0
-    void runLIST_TABLES_CONF(Signal* signal);
-#endif
     
     union { Uint32 m_tableId; Uint32 key; };
     Uint32 m_schemaVersion;
-    Uint8  m_hasTriggerDefined[3]; // Insert/Update/Delete
-    Uint8  m_hasOutstandingTriggerReq[3]; // Insert/Update/Delete
-    Uint32 m_triggerIds[3]; // Insert/Update/Delete
 
     Uint32 m_error;
-    /**
-     * Default order in which to ask for attributes during scan
-     *   1) Fixed, not nullable
-     *   2) Rest
-     */
-    DataBuffer<15>::Head m_attributes; // Attribute id's
     
     /**
      * Fragments
@@ -319,6 +314,8 @@ public:
     Uint32 m_fragCount;
     DataBuffer<15>::Head m_fragments;  // Fragment descriptors
     
+    Uint32 m_noOfAttributes;
+
     /**
      * Hash table stuff
      */
@@ -335,8 +332,6 @@ public:
   /**
    * 
    */
-  DLList<Subscriber> c_metaSubscribers;
-  DLList<Subscriber> c_removeDataSubscribers;
 
   /**
    * Lists
@@ -352,6 +347,9 @@ public:
   ArrayPool<Subscription> c_subscriptionPool;
   ArrayPool<SyncRecord> c_syncPool;
   DataBuffer<15>::DataBufferPool c_dataBufferPool;
+  ArrayPool<SubOpRecord> c_subOpPool;
+
+  Uint32 c_maxBufferedEpochs;
 
   NodeBitmask c_failedApiNodes;
   
@@ -360,37 +358,44 @@ public:
    */
   bool removeSubscribersOnNode(Signal *signal, Uint32 nodeId);
 
-  bool checkTableTriggers(SegmentedSectionPtr ptr);
-
-  void addTableId(Uint32 TableId,
-		  SubscriptionPtr subPtr, SyncRecord *psyncRec);
-
   void sendSubIdRef(Signal* signal,Uint32 senderRef,Uint32 senderData,Uint32 errorCode);
-  void sendSubCreateRef(Signal* signal, Uint32 errorCode);
-  void sendSubStartRef(Signal*, SubscriberPtr, Uint32 errorCode, SubscriptionData::Part);
-  void sendSubStartRef(Signal* signal, Uint32 errorCode);
-  void sendSubStopRef(Signal* signal, Uint32 errorCode);
+
+  void sendSubCreateRef(Signal* signal, Uint32 ref, Uint32 data, Uint32 error);
+  void sendSubStartRef(Signal* signal, Uint32 ref, Uint32 data, Uint32 error);
+  void sendSubStopRef(Signal* signal, Uint32 ref, Uint32 data, Uint32 error);
+  void report_sub_stop_conf(Signal* signal,
+                            Ptr<SubOpRecord> subOpPtr,
+                            Ptr<Subscriber> ptr,
+                            bool report,
+                            LocalDLList<Subscriber>& list);
+
   void sendSubSyncRef(Signal* signal, Uint32 errorCode);  
   void sendSubRemoveRef(Signal* signal, const SubRemoveReq& ref,
 			Uint32 errorCode);
-  void sendSubStartComplete(Signal*, SubscriberPtr, Uint32, 
-			    SubscriptionData::Part);
-  void sendSubStopComplete(Signal*, SubscriberPtr);
   void sendSubStopReq(Signal* signal, bool unlock= false);
 
   void completeSubRemove(SubscriptionPtr subPtr);
+  
 
-  void reportAllSubscribers(Signal *signal,
-                            NdbDictionary::Event::_TableEvent table_event,
-                            SubscriptionPtr subPtr,
-                            SubscriberPtr subbPtr);
-
+  void send_sub_start_stop_event(Signal *signal,
+                                 Ptr<Subscriber> ptr,
+                                 NdbDictionary::Event::_TableEvent event,
+                                 bool report,
+                                 LocalDLList<Subscriber>& list);
+  
   Uint32 getFirstGCI(Signal* signal);
 
-  /**
-   * Table admin
-   */
-  void convertNameToId( SubscriptionPtr subPtr, Signal * signal);
+  void create_triggers(Signal*, Ptr<Subscription>);
+  void drop_triggers(Signal*, Ptr<Subscription>);
+  void drop_triggers_complete(Signal*, Ptr<Subscription>);
+
+  void report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr);
+  void report_sub_start_ref(Signal* signal, Ptr<Subscription> subPtr, Uint32);
+
+  void sub_stop_req(Signal*);
+  void check_remove_queue(Signal*, Ptr<Subscription>,
+                          Ptr<SubOpRecord>,bool,bool);
+  void check_release_subscription(Signal* signal, Ptr<Subscription>);
 
   /**
    * Public interface
@@ -423,6 +428,10 @@ public:
   void execAPI_START_REP(Signal* signal);
   void execAPI_FAILREQ(Signal* signal) ;
 
+  void api_fail_gci_list(Signal*, Uint32 node);
+  void api_fail_subscriber_list(Signal*, Uint32 node);
+  void api_fail_subscription(Signal*);
+
   void execSUB_GCP_COMPLETE_ACK(Signal* signal);
 
   /**
@@ -443,6 +452,12 @@ public:
   void execSUMA_START_ME_REQ(Signal* signal);
   void execSUMA_START_ME_REF(Signal* signal);
   void execSUMA_START_ME_CONF(Signal* signal);
+
+  void copySubscription(Signal* signal, DLHashTable<Subscription>::Iterator);
+  void sendSubCreateReq(Signal* signal, Ptr<Subscription>);
+  void copySubscriber(Signal*, Ptr<Subscription>, Ptr<Subscriber>);
+  void abort_start_me(Signal*, Ptr<Subscription>, bool lockowner);
+
   void execSUMA_HANDOVER_REQ(Signal* signal);
   void execSUMA_HANDOVER_REF(Signal* signal);
   void execSUMA_HANDOVER_CONF(Signal* signal);
@@ -462,41 +477,10 @@ public:
    * for Suma that is restarting another
    */
 
-  struct Restart {
-    Restart(Suma& s);
-
-    Suma & suma;
-    Uint32 nodeId;
-
-    DLHashTable<Subscription>::Iterator c_subIt;
-    KeyTable<Table>::Iterator c_tabIt;
-
-    void progError(int line, int cause, const char * extra) { 
-      suma.progError(line, cause, extra); 
-    }
-
-    void resetNode(Uint32 sumaRef);
-    void runSUMA_START_ME_REQ(Signal*, Uint32 sumaRef);
-    void startNode(Signal*, Uint32 sumaRef);
-
-    void createSubscription(Signal* signal, Uint32 sumaRef);
-    void nextSubscription(Signal* signal, Uint32 sumaRef);
-    void runSUB_CREATE_CONF(Signal* signal);
-    void completeSubscription(Signal* signal, Uint32 sumaRef);
-
-    void startSubscriber(Signal* signal, Uint32 sumaRef);
-    void nextSubscriber(Signal* signal, Uint32 sumaRef, SubscriberPtr subbPtr);
-    void sendSubStartReq(SubscriptionPtr subPtr, SubscriberPtr subbPtr,
-			 Signal* signal, Uint32 sumaRef);
-    void runSUB_START_CONF(Signal* signal);
-    void completeSubscriber(Signal* signal, Uint32 sumaRef);
-
-    void completeRestartingNode(Signal* signal, Uint32 sumaRef);
-    void resetRestart(Signal* signal);
-  } Restart;
+  // for LQH transporter overload check
+  const NodeBitmask& getSubscriberNodes() const { return c_subscriber_nodes; }
 
 private:
-  friend class Restart;
   /**
    * Variables
    */
@@ -512,6 +496,19 @@ private:
     Uint32 m_restart_server_node_id;
     NdbNodeBitmask m_handover_nodes;
   } c_startup;
+
+  struct Restart
+  {
+    Uint16 m_abort;
+    Uint16 m_waiting_on_self;
+    Uint32 m_ref;
+    Uint32 m_max_seq;
+    Uint32 m_subPtrI;
+    Uint32 m_subOpPtrI;
+    Uint32 m_bucket; // In c_subscribers hashtable
+  } c_restart;
+
+  Uint32 c_current_seq; // Sequence no on subscription(s)
   
   NodeBitmask c_connected_nodes;  // (NODE/API) START REP / (API/NODE) FAIL REQ
   NodeBitmask c_subscriber_nodes; // 
@@ -524,21 +521,22 @@ private:
   Uint32 c_nodesInGroup[MAX_REPLICAS];
   NdbNodeBitmask c_nodes_in_nodegroup_mask;  // NodeId's of nodes in nodegroup
 
+  void send_dict_lock_req(Signal* signal);
   void send_start_me_req(Signal* signal);
   void check_start_handover(Signal* signal);
   void send_handover_req(Signal* signal);
 
   Uint32 get_responsible_node(Uint32 B) const;
   Uint32 get_responsible_node(Uint32 B, const NdbNodeBitmask& mask) const;
-  bool check_switchover(Uint32 bucket, Uint32 gci);
+  bool check_switchover(Uint32 bucket, Uint64 gci);
 
 public:  
   struct Page_pos
   {
     Uint32 m_page_id;
     Uint32 m_page_pos;  
-    Uint32 m_max_gci;   // max gci on page
-    Uint32 m_last_gci;  // last gci on page
+    Uint64 m_max_gci;   // max gci on page
+    Uint64 m_last_gci;  // last gci on page
   };
 private:
   
@@ -553,15 +551,17 @@ private:
     Uint16 m_state;
     Uint16 m_switchover_node;
     Uint16 m_nodes[MAX_REPLICAS]; 
-    Uint32 m_switchover_gci;
-    Uint32 m_max_acked_gci;
     Uint32 m_buffer_tail;   // Page
+    Uint64 m_switchover_gci;
+    Uint64 m_max_acked_gci;
     Page_pos m_buffer_head;
   };
   
   struct Buffer_page 
   {
-    STATIC_CONST( DATA_WORDS = 8192 - 9);
+    STATIC_CONST( DATA_WORDS = 8192 - 10);
+    STATIC_CONST( GCI_SZ32 = 2 );
+
     Uint32 _tupdata1;
     Uint32 _tupdata2;
     Uint32 _tupdata3;
@@ -570,7 +570,8 @@ private:
     Uint32 m_page_chunk_ptr_i;
     Uint32 m_next_page;      
     Uint32 m_words_used;     // 
-    Uint32 m_max_gci;        //
+    Uint32 m_max_gci_hi;     //
+    Uint32 m_max_gci_lo;     //
     Uint32 m_data[DATA_WORDS];
   };
   
@@ -585,26 +586,32 @@ private:
   
   class Dbtup* m_tup;
   void init_buffers();
-  Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint32 gci, Uint32 sz);
+  Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint64 gci, Uint32 sz);
   Uint32 seize_page();
   void free_page(Uint32 page_id, Buffer_page* page);
   void out_of_buffer(Signal*);
   void out_of_buffer_release(Signal* signal, Uint32 buck);
 
   void start_resend(Signal*, Uint32 bucket);
-  void resend_bucket(Signal*, Uint32 bucket, Uint32 gci, 
-		     Uint32 page_pos, Uint32 last_gci);
-  void release_gci(Signal*, Uint32 bucket, Uint32 gci);
+  void resend_bucket(Signal*, Uint32 bucket, Uint64 gci,
+		     Uint32 page_pos, Uint64 last_gci);
+  void release_gci(Signal*, Uint32 bucket, Uint64 gci);
 
-  Uint32 m_max_seen_gci;      // FIRE_TRIG_ORD
-  Uint32 m_max_sent_gci;      // FIRE_TRIG_ORD -> send
-  Uint32 m_last_complete_gci; // SUB_GCP_COMPLETE_REP
-  Uint32 m_out_of_buffer_gci;
+  Uint64 get_current_gci(Signal*);
+
+  void checkMaxBufferedEpochs
+(Signal *signal);
+
+  Uint64 m_max_seen_gci;      // FIRE_TRIG_ORD
+  Uint64 m_max_sent_gci;      // FIRE_TRIG_ORD -> send
+  Uint64 m_last_complete_gci; // SUB_GCP_COMPLETE_REP
+  Uint64 m_out_of_buffer_gci;
   Uint32 m_gcp_complete_rep_count;
+  bool m_missing_data;
 
   struct Gcp_record 
   {
-    Uint32 m_gci;
+    Uint64 m_gci;
     NodeBitmask m_subscribers;
     union {
       Uint32 nextPool;
@@ -613,7 +620,7 @@ private:
     Uint32 prevList;
   };
   ArrayPool<Gcp_record> c_gcp_pool;
-  DLFifoList<Gcp_record> c_gcp_list;
+  DLCFifoList<Gcp_record> c_gcp_list;
 
   struct Page_chunk
   {
@@ -629,6 +636,11 @@ private:
 
   Uint32 m_first_free_page;
   ArrayPool<Page_chunk> c_page_chunk_pool;
+
+#ifdef VM_TRACE
+  Uint64 m_gcp_monitor;
+#endif
+
 };
 
 #endif

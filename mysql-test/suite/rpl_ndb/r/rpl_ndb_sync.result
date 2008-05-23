@@ -126,7 +126,7 @@ DROP DATABASE ndbsynctest;
 STOP SLAVE;
 reset master;
 select * from mysql.ndb_binlog_index;
-Position	File	epoch	inserts	updates	deletes	schemaops
+Position	File	epoch	inserts	updates	deletes	schemaops	orig_server_id	orig_epoch	gci
 reset slave;
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos
