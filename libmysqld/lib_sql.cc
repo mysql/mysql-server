@@ -285,7 +285,7 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   my_bool res;
 
   int4store(header, stmt->stmt_id);
-  header[4]= (uchar)stmt->flags;
+  header[4]= (uchar) stmt->flags;
   thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;

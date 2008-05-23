@@ -1014,3 +1014,13 @@ Variable_name='table_lock_wait_timeout';
 Variable_name	Value
 table_definition_cache	#
 table_lock_wait_timeout	#
+
+# --
+# -- Bug#34820: log_output can be set to illegal value.
+# --
+SET GLOBAL log_output = '';
+ERROR 42000: Variable 'log_output' can't be set to the value of ''
+SET GLOBAL log_output = 0;
+ERROR 42000: Variable 'log_output' can't be set to the value of '0'
+
+# -- End of Bug#34820.
