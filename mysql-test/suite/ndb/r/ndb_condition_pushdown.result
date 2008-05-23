@@ -1889,6 +1889,38 @@ SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
 fname	lname
 Young	Foo
 drop table t1;
+CREATE TABLE NodeAlias (
+id int(10) unsigned NOT NULL AUTO_INCREMENT,
+nodeId int(10) unsigned NOT NULL,
+displayName varchar(45) DEFAULT NULL,
+aliasKey varchar(45) DEFAULT NULL,
+objectVersion int(10) unsigned NOT NULL DEFAULT '0',
+changed timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+PRIMARY KEY (id),
+KEY NodeAlias_identifies_1_Node (nodeId),
+KEY NodeAlias_KeyIndex (aliasKey)
+) engine=ndb;
+insert into NodeAlias VALUES(null, 2 , '49', '49',  0,'2008-03-07 14:54:59');
+insert into NodeAlias VALUES(null, 3 , '49' , '49' , 0 , '2008-03-07 14:55:24');
+insert into NodeAlias VALUES(null, 4 , '49' , '49' , 0 , '2008-03-07 14:55:51');
+insert into NodeAlias VALUES(null, 5 , '150' , '150' , 0 , '2008-03-10 10:48:30');
+insert into NodeAlias VALUES(null, 6 , '154' , '154' , 0 , '2008-03-10 10:48:43');
+insert into NodeAlias VALUES(null, 7 , '158' , '158' , 0 , '2008-03-10 10:48:57');
+insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
+12:22:26');
+explain select * from NodeAlias where (aliasKey LIKE '491803%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NodeAlias	range	NodeAlias_KeyIndex	NodeAlias_KeyIndex	48	NULL	10	Using where with pushed condition
+select * from NodeAlias where (aliasKey LIKE '491803%') order by id;
+id	nodeId	displayName	aliasKey	objectVersion	changed
+7	8	491803%	491803%	0	2008-03-10 12:22:26
+explain select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NodeAlias	ALL	NodeAlias_KeyIndex	NULL	NULL	NULL	7	Using where
+select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220') order by id;
+id	nodeId	displayName	aliasKey	objectVersion	changed
+7	8	491803%	491803%	0	2008-03-10 12:22:26
+drop table NodeAlias;
 create table t1 (a int, b int, c int, d int, primary key using hash(a))
 engine=ndbcluster;
 insert into t1 values (10,1,100,0+0x1111);

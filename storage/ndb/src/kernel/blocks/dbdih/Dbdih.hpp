@@ -1006,7 +1006,8 @@ private:
 			 Uint32 startGci);
   void findMinGci(ReplicaRecordPtr fmgReplicaPtr,
                   Uint32& keeGci,
-                  Uint32& oldestRestorableGci);
+                  Uint32& oldestRestorableGci, 
+                  bool);
   bool findStartGci(ConstPtr<ReplicaRecord> fstReplicaPtr,
                     Uint32 tfstStopGci,
                     Uint32& tfstStartGci,
@@ -1361,6 +1362,9 @@ private:
     Uint32 m_masterLcpDihRef;
     bool   m_MASTER_LCPREQ_Received;
     Uint32 m_MASTER_LCPREQ_FailedNodeId;
+
+    Uint32 m_lastLCP_COMPLETE_REP_id;
+    Uint32 m_lastLCP_COMPLETE_REP_ref;
   } c_lcpState;
   
   /*------------------------------------------------------------------------*/

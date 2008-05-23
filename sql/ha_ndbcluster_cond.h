@@ -22,6 +22,8 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
+#define round_up_byte(size) ((size + 7) >> 3) << 3
+
 typedef enum ndb_item_type {
   NDB_VALUE = 0,   // Qualified more with Item::Type
   NDB_FIELD = 1,   // Qualified from table definition
@@ -308,56 +310,63 @@ class Ndb_cond_stack : public Sql_alloc
   Ndb_cond_stack *next;
 };
 
-class Ndb_rewrite_context : public Sql_alloc
-{
-public:
-  Ndb_rewrite_context(Item_func *func) 
-    : func_item(func), left_hand_item(NULL), count(0) {};
-  ~Ndb_rewrite_context()
-  {
-    if (next) delete next;
-  }
-  const Item_func *func_item;
-  const Item *left_hand_item;
-  uint count;
-  Ndb_rewrite_context *next;
-};
-
 /*
-  This class is used for storing the context when traversing
-  the Item tree. It stores a reference to the table the condition
-  is defined on, the serialized representation being generated, 
-  if the condition found is supported, and information what is
-  expected next in the tree inorder for the condition to be supported.
-*/
-class Ndb_cond_traverse_context : public Sql_alloc
+  This class implements look-ahead during the parsing
+  of the item tree. It contains bit masks for expected
+  items, field types and field results. It also contains
+  expected collation. The parse context (Ndb_cond_traverse_context)
+  always contains one expect_stack instance (top of the stack).
+  More expects (deeper look-ahead) can be pushed to the expect_stack
+  to check specific order (currently used for detecting support for
+  <field> LIKE <string>|<func>, but not <string>|<func> LIKE <field>).
+ */
+class Ndb_expect_stack : public Sql_alloc
 {
  public:
-   Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,
-			     Ndb_cond_stack* stack)
-    : table(tab), ndb_table(ndb_tab), 
-    supported(TRUE), stack_ptr(stack), cond_ptr(NULL),
-    skip(0), collation(NULL), rewrite_stack(NULL)
+  Ndb_expect_stack(): collation(NULL), next(NULL) 
   {
     // Allocate type checking bitmaps   
-    bitmap_init(&expect_mask, 0, 512, FALSE);
-    bitmap_init(&expect_field_type_mask, 0, 512, FALSE);
-    bitmap_init(&expect_field_result_mask, 0, 512, FALSE);
-
-    if (stack)
-      cond_ptr= stack->ndb_cond;
+    bitmap_init(&expect_mask,
+                0, round_up_byte(Item::MAX_NO_ITEMS), FALSE);
+    bitmap_init(&expect_field_type_mask,
+                0, round_up_byte(MAX_NO_FIELD_TYPES), FALSE);
+    bitmap_init(&expect_field_result_mask,
+                0, round_up_byte(MAX_NO_ITEM_RESULTS), FALSE);
   };
-  ~Ndb_cond_traverse_context()
+  ~Ndb_expect_stack()
   {
     bitmap_free(&expect_mask);
     bitmap_free(&expect_field_type_mask);
     bitmap_free(&expect_field_result_mask);
-    if (rewrite_stack) delete rewrite_stack;
+    if (next)
+      delete next;
+    next= NULL;
   }
+  void push(Ndb_expect_stack* expect_next)
+  {
+    next= expect_next;
+  };
+  void pop()
+  {
+    if (next)
+    {
+      Ndb_expect_stack* expect_next= next;
+      bitmap_clear_all(&expect_mask);
+      bitmap_union(&expect_mask, &next->expect_mask);
+      bitmap_clear_all(&expect_field_type_mask);
+      bitmap_union(&expect_field_type_mask, &next->expect_field_type_mask);
+      bitmap_clear_all(&expect_field_result_mask);
+      bitmap_union(&expect_field_result_mask, &next->expect_field_result_mask);
+      collation= next->collation;
+      next= next->next;
+      delete expect_next;
+    }
+  };
   void expect(Item::Type type)
   {
     bitmap_set_bit(&expect_mask, (uint) type);
-    if (type == Item::FIELD_ITEM) expect_all_field_types();
+    if (type == Item::FIELD_ITEM)
+      expect_all_field_types();
   };
   void dont_expect(Item::Type type)
   {
@@ -413,7 +422,8 @@ class Ndb_cond_traverse_context : public Sql_alloc
   };
   bool expecting_field_result(Item_result result)
   {
-    return bitmap_is_set(&expect_field_result_mask, (uint) result);
+    return bitmap_is_set(&expect_field_result_mask,
+                         (uint) result);
   };
   void expect_no_field_result()
   {
@@ -434,22 +444,146 @@ class Ndb_cond_traverse_context : public Sql_alloc
   };
   bool expecting_collation(CHARSET_INFO* col)
   {
-    bool matching= (!collation) ? true : (collation == col);
+    bool matching= (!collation)
+      ? true
+      : (collation == col);
     collation= NULL;
 
     return matching;
   };
 
-  TABLE* table;
-  const NdbDictionary::Table *ndb_table;
-  bool supported;
-  Ndb_cond_stack* stack_ptr;
-  Ndb_cond* cond_ptr;
+private:
   MY_BITMAP expect_mask;
   MY_BITMAP expect_field_type_mask;
   MY_BITMAP expect_field_result_mask;
-  uint skip;
   CHARSET_INFO* collation;
+  Ndb_expect_stack* next;
+};
+
+class Ndb_rewrite_context : public Sql_alloc
+{
+public:
+  Ndb_rewrite_context(Item_func *func) 
+    : func_item(func), left_hand_item(NULL), count(0) {};
+  ~Ndb_rewrite_context()
+  {
+    if (next) delete next;
+  }
+  const Item_func *func_item;
+  const Item *left_hand_item;
+  uint count;
+  Ndb_rewrite_context *next;
+};
+
+/*
+  This class is used for storing the context when traversing
+  the Item tree. It stores a reference to the table the condition
+  is defined on, the serialized representation being generated, 
+  if the condition found is supported, and information what is
+  expected next in the tree inorder for the condition to be supported.
+*/
+class Ndb_cond_traverse_context : public Sql_alloc
+{
+ public:
+   Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,
+			     Ndb_cond_stack* stack)
+    : table(tab), ndb_table(ndb_tab), 
+    supported(TRUE), cond_stack(stack), cond_ptr(NULL),
+    skip(0), rewrite_stack(NULL)
+  { 
+   if (stack)
+      cond_ptr= stack->ndb_cond;
+  };
+  ~Ndb_cond_traverse_context()
+  {
+    if (rewrite_stack) delete rewrite_stack;
+  }
+  inline void expect(Item::Type type)
+  {
+    expect_stack.expect(type);
+  };
+  inline void dont_expect(Item::Type type)
+  {
+    expect_stack.dont_expect(type);
+  };
+  inline bool expecting(Item::Type type)
+  {
+    return expect_stack.expecting(type);
+  };
+  inline void expect_nothing()
+  {
+    expect_stack.expect_nothing();
+  };
+  inline bool expecting_nothing()
+  {
+    return expect_stack.expecting_nothing();
+  }
+  inline void expect_only(Item::Type type)
+  {
+    expect_stack.expect_only(type);
+  };
+
+  inline void expect_field_type(enum_field_types type)
+  {
+    expect_stack.expect_field_type(type);
+  };
+  inline void expect_all_field_types()
+  {
+    expect_stack.expect_all_field_types();
+  };
+  inline bool expecting_field_type(enum_field_types type)
+  {
+    return expect_stack.expecting_field_type(type);
+  };
+  inline void expect_no_field_type()
+  {
+    expect_stack.expect_no_field_type();
+  };
+  inline bool expecting_no_field_type()
+  {
+    return expect_stack.expecting_no_field_type();
+  };
+  inline void expect_only_field_type(enum_field_types result)
+  {
+    expect_stack.expect_only_field_type(result);
+  };
+
+  inline void expect_field_result(Item_result result)
+  {
+    expect_stack.expect_field_result(result);
+  };
+  inline bool expecting_field_result(Item_result result)
+  {
+    return expect_stack.expecting_field_result(result);
+  };
+  inline void expect_no_field_result()
+  {
+    expect_stack.expect_no_field_result();
+  };
+  inline bool expecting_no_field_result()
+  {
+    return expect_stack.expecting_no_field_result();
+  };
+  inline void expect_only_field_result(Item_result result)
+  {
+    expect_stack.expect_only_field_result(result);
+  };
+  inline void expect_collation(CHARSET_INFO* col)
+  {
+    expect_stack.expect_collation(col);
+  };
+  inline bool expecting_collation(CHARSET_INFO* col)
+  {
+    return expect_stack.expecting_collation(col);
+  };
+
+  TABLE* table;
+  const NdbDictionary::Table *ndb_table;
+  bool supported;
+  Ndb_cond_stack* cond_stack;
+  Ndb_cond* cond_ptr;
+  Ndb_expect_stack expect_stack;
+  uint skip;
   Ndb_rewrite_context *rewrite_stack;
 };
 

@@ -33,7 +33,7 @@ static void require(bool v) { if(!v) abort();}
 InitConfigFileParser::InitConfigFileParser(FILE * out)
 {
   m_info = new ConfigInfo();
-  m_errstream = out ? out : stdout;
+  m_errstream = out ? out : stderr;
 }
 
 InitConfigFileParser::~InitConfigFileParser() {
