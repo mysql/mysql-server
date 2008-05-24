@@ -1087,15 +1087,6 @@ static inline void toku_swap_flag(u_int32_t* flag, u_int32_t* get_flag,
     *flag    += *get_flag;
 }
 
-static inline int toku_uninitialized_swap(DBC* c, DBT* key, DBT* data,
-                                          u_int32_t* flag, u_int32_t* get_flag,
-                                          u_int32_t new_flag) {
-    /* DB_FIRST/DB_LAST do nothing in pre_lock so we can skip the goto.  */
-    if (toku_c_uninitialized(c)) toku_swap_flag(flag, get_flag, new_flag);
-    else return toku_c_get_current_unconditional(c, key, data);
-    return 0;
-}
-
 /*
     Used for partial implementation of nested transactions.
     Work is done by children as normal, but all locking is done by the
