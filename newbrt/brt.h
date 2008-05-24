@@ -60,10 +60,14 @@ extern int toku_brt_do_push_cmd; // control whether push occurs eagerly.
 
 
 int toku_brt_dbt_set(DBT* key, DBT* key_source);
-int toku_brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val);
-int toku_brt_cursor_copyout_with_dat(BRT_CURSOR cursor, DBT *key, DBT *val,
-                                     BRT pdb, DBT* dat, DBT* dat_source);
-
+int toku_brt_cursor_dbts_set(BRT_CURSOR cursor,
+                             DBT* key, DBT* key_source, BOOL key_disposable,
+                             DBT* val, DBT* val_source, BOOL val_disposable);
+int toku_brt_cursor_dbts_set_with_dat(BRT_CURSOR cursor, BRT pdb,
+                                      DBT* key, DBT* key_source, BOOL key_disposable,
+                                      DBT* val, DBT* val_source, BOOL val_disposable,
+                                      DBT* dat, DBT* dat_source, BOOL dat_disposable);
+ 
 int toku_brt_get_fd(BRT, int *);
 
 int toku_brt_height_of_root(BRT, int *height); // for an open brt, return the current height.

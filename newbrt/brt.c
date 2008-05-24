@@ -2711,19 +2711,15 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
 	    if (!le_is_provdel(le)) goto got_a_good_value;
 	}
     }
- got_a_good_value:
-    if (newkey && newval) {
-        r = toku_dbt_set_two_values(newkey, le_latest_key(le), le_latest_keylen(le), &brt->skey,
-                                    newval, le_latest_val(le), le_latest_vallen(le), &brt->sval);
-	if (r!=0) return r;
-    }
-    else if (newkey) {
-	r = toku_dbt_set_value(newkey, le_latest_key(le), le_latest_keylen(le), &brt->skey);
-	if (r!=0) return r;
-    }
-    else if (newval) {
-	r = toku_dbt_set_value(newval, le_latest_val(le), le_latest_vallen(le), &brt->sval);
-	if (r!=0) return r;
+got_a_good_value:
+    if (newkey || newval) {
+        bytevec   key     = newkey ? le_latest_key(le) : NULL;
+        u_int32_t key_len = newkey ? le_latest_keylen(le) : 0; 
+        bytevec   val     = newval ? le_latest_val(le) : NULL;
+        u_int32_t val_len = newval ? le_latest_vallen(le) : 0; 
+        r = toku_dbt_set_two_values(newkey, &key, key_len, &brt->skey, FALSE,
+                                    newval, &val, val_len, &brt->sval, FALSE);
+        if (r!=0) return r;
     }
     return 0;
 }
@@ -2854,8 +2850,8 @@ static inline int brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val) {
     int r = 0;
     void** key_staticp = cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey;
     void** val_staticp = cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval;
-    r = toku_dbt_set_two_values(key, cursor->key.data, cursor->key.size, key_staticp,
-                                val, cursor->val.data, cursor->val.size, val_staticp);
+    r = toku_dbt_set_two_values(key, (bytevec*)&cursor->key.data, cursor->key.size, key_staticp, FALSE,
+                                val, (bytevec*)&cursor->val.data, cursor->val.size, val_staticp, FALSE);
     return r;
 }
 
@@ -2865,25 +2861,39 @@ static inline int brt_cursor_copyout_with_dat(BRT_CURSOR cursor, DBT *key, DBT *
     void** key_staticp = cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey;
     void** val_staticp = cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval;
     void** dat_staticp = &pdb->sval;
-    r = toku_dbt_set_three_values(key, cursor->key.data, cursor->key.size, key_staticp,
-                                  val, cursor->val.data, cursor->val.size, val_staticp,
-                                  dat, dat_source->data, dat_source->size, dat_staticp);
-    return r;
-}
-
-int toku_brt_cursor_copyout_with_dat(BRT_CURSOR cursor, DBT *key, DBT *val,
-                                     BRT pdb, DBT* dat, DBT* dat_source) {
-    int r = brt_cursor_copyout_with_dat(cursor, key, val, pdb, dat, dat_source);
-    return r;
-}
-
-int toku_brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val) {
-    int r = brt_cursor_copyout(cursor, key, val);
+    r = toku_dbt_set_three_values(key, (bytevec*)&cursor->key.data, cursor->key.size, key_staticp, FALSE,
+                                  val, (bytevec*)&cursor->val.data, cursor->val.size, val_staticp, FALSE,
+                                  dat, (bytevec*)&dat_source->data, dat_source->size, dat_staticp, FALSE);
     return r;
 }
 
 int toku_brt_dbt_set(DBT* key, DBT* key_source) {
-    int r = toku_dbt_set_value(key, key_source->data, key_source->size, NULL);
+    int r = toku_dbt_set_value(key, (bytevec*)&key_source->data, key_source->size, NULL, FALSE);
+    return r;
+}
+
+int toku_brt_cursor_dbts_set(BRT_CURSOR cursor,
+                        DBT* key, DBT* key_source, BOOL key_disposable,
+                        DBT* val, DBT* val_source, BOOL val_disposable) {
+    void** key_staticp = cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey;
+    void** val_staticp = cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval;
+    int r;
+    r = toku_dbt_set_two_values(key, (bytevec*)&key_source->data, key_source->size, key_staticp, key_disposable,
+                                val, (bytevec*)&val_source->data, val_source->size, val_staticp, val_disposable);
+    return r;
+}
+
+int toku_brt_cursor_dbts_set_with_dat(BRT_CURSOR cursor, BRT pdb,
+                                      DBT* key, DBT* key_source, BOOL key_disposable,
+                                      DBT* val, DBT* val_source, BOOL val_disposable,
+                                      DBT* dat, DBT* dat_source, BOOL dat_disposable) {
+    void** key_staticp = cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey;
+    void** val_staticp = cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval;
+    void** dat_staticp = &pdb->sval;
+    int r;
+    r = toku_dbt_set_three_values(key, (bytevec*)&key_source->data, key_source->size, key_staticp, key_disposable,
+                                  val, (bytevec*)&val_source->data, val_source->size, val_staticp, val_disposable,
+                                  dat, (bytevec*)&dat_source->data, dat_source->size, dat_staticp, dat_disposable);
     return r;
 }
 
