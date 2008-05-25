@@ -5868,6 +5868,7 @@ check_string_copy_error(Field_str *field,
     Field_longstr::report_if_important_data()
     ptr                      - Truncated rest of string
     end                      - End of truncated string
+    count_spaces             - Treat traling spaces as important data
 
   RETURN VALUES
     0   - None was truncated (or we don't count cut fields)
@@ -5877,10 +5878,12 @@ check_string_copy_error(Field_str *field,
     Check if we lost any important data (anything in a binary string,
     or any non-space in others). If only trailing spaces was lost,
     send a truncation note, otherwise send a truncation error.
+    Silently ignore traling spaces if the count_space parameter is FALSE.
 */
 
 int
-Field_longstr::report_if_important_data(const char *ptr, const char *end)
+Field_longstr::report_if_important_data(const char *ptr, const char *end,
+                                        bool count_spaces)
 {
   if ((ptr < end) && table->in_use->count_cuted_fields)
   {
@@ -5890,10 +5893,13 @@ Field_longstr::report_if_important_data(const char *ptr, const char *end)
         set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
       else
         set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+      return 2;
     }
-    else /* If we lost only spaces then produce a NOTE, not a WARNING */
+    else if (count_spaces)
+    { /* If we lost only spaces then produce a NOTE, not a WARNING */
       set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
-    return 2;
+      return 2;
+    }
   }
   return 0;
 }
@@ -5929,7 +5935,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length))
     return 2;
 
-  return report_if_important_data(from_end_pos, from + length);
+  return report_if_important_data(from_end_pos, from + length, FALSE);
 }
 
 
@@ -6388,7 +6394,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length))
     return 2;
 
-  return report_if_important_data(from_end_pos, from + length);
+  return report_if_important_data(from_end_pos, from + length, TRUE);
 }
 
 
@@ -7025,7 +7031,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length))
     return 2;
 
-  return report_if_important_data(from_end_pos, from + length);
+  return report_if_important_data(from_end_pos, from + length, TRUE);
 
 oom_error:
   /* Fatal OOM error */
