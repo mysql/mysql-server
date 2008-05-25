@@ -522,6 +522,8 @@ sp_head::init(LEX *lex)
   m_qname.str= NULL;
   m_qname.length= 0;
 
+  m_explicit_name= false;
+
   m_db.str= NULL;
   m_db.length= 0;
 
@@ -563,6 +565,8 @@ sp_head::init_sp_name(THD *thd, sp_name *spname)
   m_name.length= spname->m_name.length;
   m_name.str= strmake_root(thd->mem_root, spname->m_name.str,
                            spname->m_name.length);
+
+  m_explicit_name= spname->m_explicit_name;
 
   if (spname->m_qname.length == 0)
     spname->init_qname(thd);

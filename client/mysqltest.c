@@ -5464,6 +5464,7 @@ void init_win_path_patterns()
   const char* paths[] = { "$MYSQL_TEST_DIR",
                           "$MYSQL_TMP_DIR",
                           "$MYSQLTEST_VARDIR",
+                          "$MASTER_MYSOCK",
                           "./test/" };
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
