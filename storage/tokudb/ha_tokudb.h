@@ -14,7 +14,16 @@ typedef struct st_tokudb_share {
     ulonglong last_auto_increment;
     ha_rows rows, org_rows;
     ulong *rec_per_key;
-    DB *status_block, *file, **key_file;
+    DB *status_block;
+    //
+    // DB that is indexed on the primary key
+    //
+    DB *file;
+    //
+    // array of all DB's that make up table, includes DB that
+    // is indexed on the primary key
+    //
+    DB *key_file[MAX_KEY];
     u_int32_t *key_type;
     uint status, version;
     uint ref_length;
@@ -72,24 +81,10 @@ private:
     uchar *primary_key_buff;
 
     //
-    // DB that is indexed on the primary key
-    //
-    DB *file;
-    //
-    // array of all DB's that make up table, includes DB that
-    // is indexed on the primary key
-    //
-    DB **key_file;
-
-    //
     // transaction used by ha_tokudb's cursor
     //
     DB_TXN *transaction;
-    //
-    // array that holds put_flags for each database. So, when doing a
-    // key_file[i]->put, key_type[i] gets passed in for flags
-    //
-    u_int32_t *key_type;
+
     //
     // instance of cursor being used for init_xxx and rnd_xxx functions
     //
@@ -123,7 +118,8 @@ private:
     int pack_row(DBT * row, const uchar * record);
     void unpack_row(uchar * record, DBT * row);
     void unpack_key(uchar * record, DBT * key, uint index);
-    DBT *create_key(DBT * key, uint keynr, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
+    DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
+    DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length);
     int remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key);
     int remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key, key_map * keys);
@@ -132,7 +128,9 @@ private:
     int update_primary_key(DB_TXN * trans, bool primary_key_changed, const uchar * old_row, DBT * old_key, const uchar * new_row, DBT * prim_key, bool local_using_ignore);
     int read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * key, bool);
     DBT *get_pos(DBT * to, uchar * pos);
-
+ 
+    int open_secondary_table(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type);
+ 
 public:
     ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
     ~ha_tokudb() {
@@ -245,6 +243,10 @@ public:
     }
     int cmp_ref(const uchar * ref1, const uchar * ref2);
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
+
+    int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+    int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
+    int final_drop_index(TABLE *table_arg);
 
 private:
     int __close(int mutex_is_locked);
