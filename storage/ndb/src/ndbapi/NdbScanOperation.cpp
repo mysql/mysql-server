@@ -598,13 +598,40 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
                                            Uint32 distkeyMax)
 {
   Uint64 tmp[1000];
+  char* tmpshrink = (char*)tmp;
+  size_t tmplen = sizeof(tmp);
+  
   Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
   Uint32 i;
   for (i = 0; i<key_record->distkey_index_length; i++)
   {
     const NdbRecord::Attr *col =
       &key_record->columns[key_record->distkey_indexes[i]];
-    ptrs[i].ptr = row + col->offset;
+    if (col->flags & NdbRecord::IsMysqldShrinkVarchar)
+    {
+      if (tmplen >= 256)
+      {
+        Uint32 len;
+        bool len_ok = col->shrink_varchar(row, len, tmpshrink);
+        if (!len_ok)
+        {
+          assert(false);
+          return;
+        }
+        ptrs[i].ptr = tmpshrink;
+        tmpshrink += len;
+        tmplen -= len;
+      }
+      else
+      {
+        // no buffer...
+        return;
+      }
+    }
+    else
+    {
+      ptrs[i].ptr = row + col->offset;
+    }
     ptrs[i].len = col->maxSize;
   }
   ptrs[i].ptr = 0;
