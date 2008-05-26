@@ -190,7 +190,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CLOSE_COMCONF               126 /* local */
 #define GSN_CLOSE_COMREQ                127 /* local */
 #define GSN_CM_ACKADD                   128 /* distr. */
-/* 129 unused */
+#define GSN_ENABLE_COMCONF              129 /* local */
 #define GSN_CM_ADD                      130 /* distr. */
 /* 131 unused */
 /* 132 not unused */
@@ -335,7 +335,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIVERIFYCONF                239
 #define GSN_DIVERIFYREF                 240
 #define GSN_DIVERIFYREQ                 241
-#define GSN_ENABLE_COMORD               242
+#define GSN_ENABLE_COMREQ               242 /* local */
 #define GSN_END_LCPCONF                 243
 #define GSN_END_LCP_CONF                243
 #define GSN_END_LCPREQ                  244

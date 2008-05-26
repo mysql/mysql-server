@@ -115,6 +115,7 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_ALLOC_NODEID_REQ,  &Qmgr::execALLOC_NODEID_REQ);
   addRecSignal(GSN_ALLOC_NODEID_CONF,  &Qmgr::execALLOC_NODEID_CONF);
   addRecSignal(GSN_ALLOC_NODEID_REF,  &Qmgr::execALLOC_NODEID_REF);
+  addRecSignal(GSN_ENABLE_COMCONF,  &Qmgr::execENABLE_COMCONF);
   
   // Arbitration signals
   addRecSignal(GSN_ARBIT_PREPREQ, &Qmgr::execARBIT_PREPREQ);
