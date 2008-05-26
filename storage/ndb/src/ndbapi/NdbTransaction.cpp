@@ -307,8 +307,30 @@ NdbTransaction::execute(ExecType aTypeOfExec,
    * NdbBlob::postExecute() for more info.
    */
 
-  ExecType tExecType;
   NdbOperation* tPrepOp;
+
+  if (abortOption != NdbOperation::DefaultAbortOption)
+  {
+    DBUG_PRINT("info", ("Forcing operations to take execute() abortOption %d",
+                        abortOption));
+    /* For Blobs, we have to execute with DefaultAbortOption
+     * If the user supplied a non default AbortOption to execute()
+     * then we need to make sure that all of the operations in their
+     * batch are set to use the supplied AbortOption so that the 
+     * expected behaviour is obtained when executing below
+     */
+    tPrepOp= theFirstOpInList;
+    while(tPrepOp != NULL)
+    {
+      DBUG_PRINT("info", ("Changing abortOption from %d", 
+                          tPrepOp->m_abortOption));
+      tPrepOp->m_abortOption= abortOption;
+      tPrepOp= tPrepOp->next();
+    }
+  }
+
+
+  ExecType tExecType;
   NdbOperation* tCompletedFirstOp = NULL;
   NdbOperation* tCompletedLastOp = NULL;
 
