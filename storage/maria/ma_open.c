@@ -714,7 +714,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       if (share->columndef[i].type == FIELD_BLOB)
       {
 	share->blobs[j].pack_length=
-	  share->columndef[i].length-portable_sizeof_char_ptr;;
+	  share->columndef[i].length-portable_sizeof_char_ptr;
 	share->blobs[j].offset= share->columndef[i].offset;
 	j++;
       }
@@ -1028,6 +1028,14 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
     keyinfo->get_key= _ma_get_pack_key;
     if (keyinfo->seg[0].flag & HA_PACK_KEY)
     {						/* Prefix compression */
+      /*
+        _ma_prefix_search() compares end-space against ASCII blank (' ').
+        It cannot be used for character sets, that do not encode the
+        blank character like ASCII does. UCS2 is an example. All
+        character sets with a fixed width > 1 or a mimimum width > 1
+        cannot represent blank like ASCII does. In these cases we have
+        to use _ma_seq_search() for the search.
+      */
       if (!keyinfo->seg->charset || use_strnxfrm(keyinfo->seg->charset) ||
           (keyinfo->seg->flag & HA_NULL_PART) ||
           keyinfo->seg->charset->mbminlen > 1)

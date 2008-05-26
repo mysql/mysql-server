@@ -88,6 +88,12 @@ int maria_delete_all_rows(MARIA_HA *info)
     there may be data blocks there. We need to throw them away or they may
     re-enter the emptied table or another table later.
   */
+
+#ifdef HAVE_MMAP
+  if (share->file_map)
+    _mi_unmap_file(info);
+#endif
+
   if (_ma_flush_table_files(info, MARIA_FLUSH_DATA|MARIA_FLUSH_INDEX,
                             FLUSH_IGNORE_CHANGED, FLUSH_IGNORE_CHANGED) ||
       my_chsize(info->dfile.file, 0, 0, MYF(MY_WME)) ||
@@ -119,10 +125,9 @@ int maria_delete_all_rows(MARIA_HA *info)
 
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
 #ifdef HAVE_MMAP
-  /* Resize mmaped area */
-  rw_wrlock(&info->s->mmap_lock);
-  _ma_remap_file(info, (my_off_t)0);
-  rw_unlock(&info->s->mmap_lock);
+  /* Map again */
+  if (share->file_map)
+    _ma_dynmap_file(info, (my_off_t) 0);
 #endif
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);

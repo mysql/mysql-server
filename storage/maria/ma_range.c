@@ -147,7 +147,7 @@ static ha_rows _ma_record_pos(MARIA_HA *info, const uchar *key,
     key_len=USE_WHOLE_KEY;
 
   /*
-    my_handler.c:mi_compare_text() has a flag 'skip_end_space'.
+    my_handler.c:ha_compare_text() has a flag 'skip_end_space'.
     This is set in my_handler.c:ha_key_cmp() in dependence on the
     compare flags 'nextflag' and the column type.
 

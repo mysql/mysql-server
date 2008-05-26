@@ -1017,12 +1017,12 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
 	{
 	  if (column->length > 255 && new_length > 127)
 	  {
-	    to[0]=(char) ((new_length & 127)+128);
-	    to[1]=(char) (new_length >> 7);
+            to[0]= (uchar) ((new_length & 127) + 128);
+            to[1]= (uchar) (new_length >> 7);
 	    to+=2;
 	  }
 	  else
-	    *to++= (char) new_length;
+	    *to++= (uchar) new_length;
 	  memcpy((uchar*) to,pos,(size_t) new_length); to+=new_length;
 	  flag|=bit;
 	}
@@ -1056,7 +1056,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
       }
       if ((bit= bit << 1) >= 256)
       {
-	*packpos++ = (char) (uchar) flag;
+	*packpos++ = (uchar) flag;
 	bit=1; flag=0;
       }
     }
@@ -1066,7 +1066,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
     }
   }
   if (bit != 1)
-    *packpos= (char) (uchar) flag;
+    *packpos= (uchar) flag;
   if (info->s->calc_checksum)
     *to++= (uchar) info->cur_row.checksum;
   DBUG_PRINT("exit",("packed length: %d",(int) (to-startpos)));
@@ -1143,12 +1143,14 @@ my_bool _ma_rec_check(MARIA_HA *info,const uchar *record, uchar *rec_buff,
 	    goto err;
 	  if (column->length > 255 && new_length > 127)
 	  {
-	    if (to[0] != (char) ((new_length & 127)+128) ||
-		to[1] != (char) (new_length >> 7))
+            /* purecov: begin inspected */
+            if (to[0] != (uchar) ((new_length & 127) + 128) ||
+                to[1] != (uchar) (new_length >> 7))
 	      goto err;
 	    to+=2;
+            /* purecov: end */
 	  }
-	  else if (*to++ != (char) new_length)
+	  else if (*to++ != (uchar) new_length)
 	    goto err;
 	  to+=new_length;
 	}

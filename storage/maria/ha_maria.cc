@@ -557,7 +557,25 @@ int maria_check_definition(MARIA_KEYDEF *t1_keyinfo,
     }
     for (j=  t1_keyinfo[i].keysegs; j--;)
     {
-      if (t1_keysegs[j].type != t2_keysegs[j].type ||
+      uint8 t1_keysegs_j__type= t1_keysegs[j].type;
+      /*
+        Table migration from 4.1 to 5.1. In 5.1 a *TEXT key part is
+        always HA_KEYTYPE_VARTEXT2. In 4.1 we had only the equivalent of
+        HA_KEYTYPE_VARTEXT1. Since we treat both the same on MyISAM
+        level, we can ignore a mismatch between these types.
+      */
+      if ((t1_keysegs[j].flag & HA_BLOB_PART) &&
+          (t2_keysegs[j].flag & HA_BLOB_PART))
+      {
+        if ((t1_keysegs_j__type == HA_KEYTYPE_VARTEXT2) &&
+            (t2_keysegs[j].type == HA_KEYTYPE_VARTEXT1))
+          t1_keysegs_j__type= HA_KEYTYPE_VARTEXT1; /* purecov: tested */
+        else if ((t1_keysegs_j__type == HA_KEYTYPE_VARBINARY2) &&
+                 (t2_keysegs[j].type == HA_KEYTYPE_VARBINARY1))
+          t1_keysegs_j__type= HA_KEYTYPE_VARBINARY1; /* purecov: inspected */
+      }
+
+      if (t1_keysegs_j__type != t2_keysegs[j].type ||
           t1_keysegs[j].language != t2_keysegs[j].language ||
           t1_keysegs[j].null_bit != t2_keysegs[j].null_bit ||
           t1_keysegs[j].length != t2_keysegs[j].length)
@@ -2433,6 +2451,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                                  share->avg_row_length);
   create_info.data_file_name= ha_create_info->data_file_name;
   create_info.index_file_name= ha_create_info->index_file_name;
+  create_info.language= share->table_charset->number;
 
   /*
     Table is transactional:
@@ -2812,8 +2831,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 					     *engine_callback,
 					     ulonglong *engine_data)
 {
-  ulonglong actual_data_file_length;
-  ulonglong current_data_file_length;
+  DBUG_ENTER("ha_maria::register_query_cache_table");
 
   /*
     No call back function is needed to determine if a cached statement
@@ -2826,39 +2844,50 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
   */
   *engine_data= 0;
 
-  /*
-    If a concurrent INSERT has happened just before the currently processed
-    SELECT statement, the total size of the table is unknown.
-
-    To determine if the table size is known, the current thread's snap shot of
-    the table size with the actual table size are compared.
-
-    If the table size is unknown the SELECT statement can't be cached.
-  */
-
-  /*
-    POSIX visibility rules specify that "2. Whatever memory values a
-    thread can see when it unlocks a mutex <...> can also be seen by any
-    thread that later locks the same mutex". In this particular case,
-    concurrent insert thread had modified the data_file_length in
-    MYISAM_SHARE before it has unlocked (or even locked)
-    structure_guard_mutex. So, here we're guaranteed to see at least that
-    value after we've locked the same mutex. We can see a later value
-    (modified by some other thread) though, but it's ok, as we only want
-    to know if the variable was changed, the actual new value doesn't matter
-  */
-  actual_data_file_length= file->s->state.state.data_file_length;
-  current_data_file_length= file->save_state.data_file_length;
-
-  if (!file->s->now_transactional &&
-      current_data_file_length != actual_data_file_length)
+  if (file->s->concurrent_insert)
   {
-    /* Don't cache current statement. */
-    return FALSE;
+    /*
+      If a concurrent INSERT has happened just before the currently
+      processed SELECT statement, the total size of the table is
+      unknown.
+
+      To determine if the table size is known, the current thread's snap
+      shot of the table size with the actual table size are compared.
+
+      If the table size is unknown the SELECT statement can't be cached.
+
+      When concurrent inserts are disabled at table open, mi_open()
+      does not assign a get_status() function. In this case the local
+      ("current") status is never updated. We would wrongly think that
+      we cannot cache the statement.
+    */
+    ulonglong actual_data_file_length;
+    ulonglong current_data_file_length;
+
+    /*
+      POSIX visibility rules specify that "2. Whatever memory values a
+      thread can see when it unlocks a mutex <...> can also be seen by any
+      thread that later locks the same mutex". In this particular case,
+      concurrent insert thread had modified the data_file_length in
+      MYISAM_SHARE before it has unlocked (or even locked)
+      structure_guard_mutex. So, here we're guaranteed to see at least that
+      value after we've locked the same mutex. We can see a later value
+      (modified by some other thread) though, but it's ok, as we only want
+      to know if the variable was changed, the actual new value doesn't matter
+    */
+    actual_data_file_length= file->s->state.state.data_file_length;
+    current_data_file_length= file->save_state.data_file_length;
+
+    if (!file->s->now_transactional &&
+        current_data_file_length != actual_data_file_length)
+    {
+      /* Don't cache current statement. */
+      DBUG_RETURN(FALSE);
+    }
   }
 
   /* It is ok to try to cache current statement. */
-  return TRUE;
+  DBUG_RETURN(TRUE);
 }
 #endif
 
