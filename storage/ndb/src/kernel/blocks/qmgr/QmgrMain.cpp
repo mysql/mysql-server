@@ -34,6 +34,7 @@
 #include <signaldata/DisconnectRep.hpp>
 #include <signaldata/ApiBroadcast.hpp>
 #include <signaldata/Upgrade.hpp>
+#include <signaldata/EnableCom.hpp>
 
 #include <ndb_version.h>
 
@@ -1928,14 +1929,13 @@ void Qmgr::execCM_ADD(Signal* signal)
     /**
      *  ENABLE COMMUNICATION WITH ALL BLOCKS WITH THE NEWLY ADDED NODE
      */
-    signal->theData[0] = addNodePtr.i;
-    sendSignal(CMVMI_REF, GSN_ENABLE_COMORD, signal, 1, JBA);
-
-    sendCmAckAdd(signal, addNodePtr.i, CmAdd::AddCommit);
-    if(getOwnNodeId() != cpresident){
-      jam();
-      c_start.reset();
-    }
+    EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
+    enableComReq->m_senderRef = reference();
+    enableComReq->m_senderData = ENABLE_COM_CM_ADD_COMMIT;
+    NodeBitmask::clear(enableComReq->m_nodeIds);
+    NodeBitmask::set(enableComReq->m_nodeIds, addNodePtr.i);
+    sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+               EnableComReq::SignalLength, JBA);
     break;
   }
   case CmAdd::CommitNew:
@@ -1944,6 +1944,57 @@ void Qmgr::execCM_ADD(Signal* signal)
   }
 
 }//Qmgr::execCM_ADD()
+
+void
+Qmgr::handleEnableComAddCommit(Signal *signal, Uint32 node)
+{
+  sendCmAckAdd(signal, node, CmAdd::AddCommit);
+  if(getOwnNodeId() != cpresident){
+    jam();
+    c_start.reset();
+  }
+}
+
+void
+Qmgr::execENABLE_COMCONF(Signal *signal)
+{
+  const EnableComConf *enableComConf =
+    (const EnableComConf *)signal->getDataPtr();
+  Uint32 state = enableComConf->m_senderData;
+  Uint32 node = NodeBitmask::find(enableComConf->m_nodeIds, 0);
+
+  jamEntry();
+
+  switch (state)
+  {
+    case ENABLE_COM_CM_ADD_COMMIT:
+      jam();
+      /* Only exactly one node possible here. */
+      ndbrequire(node != NodeBitmask::NotFound);
+      ndbrequire(NodeBitmask::find(enableComConf->m_nodeIds, node + 1) ==
+                 NodeBitmask::NotFound);
+      handleEnableComAddCommit(signal, node);
+      break;
+
+    case ENABLE_COM_CM_COMMIT_NEW:
+      jam();
+      handleEnableComCommitNew(signal);
+      break;
+
+    case ENABLE_COM_API_REGREQ:
+      jam();
+      /* Only exactly one node possible here. */
+      ndbrequire(node != NodeBitmask::NotFound);
+      ndbrequire(NodeBitmask::find(enableComConf->m_nodeIds, node + 1) ==
+                 NodeBitmask::NotFound);
+      handleEnableComApiRegreq(signal, node);
+      break;
+
+    default:
+      jam();
+      ndbrequire(false);
+  }
+}
 
 void
 Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
@@ -1968,6 +2019,10 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
    * ENABLE COMMUNICATION WITH ALL BLOCKS IN THE CURRENT CLUSTER AND SET 
    * THE NODES IN THE CLUSTER TO BE RUNNING. 
    */
+  EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
+  enableComReq->m_senderRef = reference();
+  enableComReq->m_senderData = ENABLE_COM_CM_COMMIT_NEW;
+  NodeBitmask::clear(enableComReq->m_nodeIds);
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
     ptrAss(nodePtr, nodeRec);
@@ -1977,11 +2032,25 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
       // to open communication to ourself.
       /*-------------------------------------------------------------------*/
       jam();
-      signal->theData[0] = nodePtr.i;
-      sendSignal(CMVMI_REF, GSN_ENABLE_COMORD, signal, 1, JBA);
+      NodeBitmask::set(enableComReq->m_nodeIds, nodePtr.i);
     }//if
   }//for
-  
+
+  if (!NodeBitmask::isclear(enableComReq->m_nodeIds))
+  {
+    jam();
+    sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+               EnableComReq::SignalLength, JBA);
+  }
+  else
+  {
+    handleEnableComCommitNew(signal);
+  }
+}
+
+void
+Qmgr::handleEnableComCommitNew(Signal *signal)
+{
   sendSttorryLab(signal);
   
   sendCmAckAdd(signal, getOwnNodeId(), CmAdd::CommitNew);
@@ -3039,23 +3108,34 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
      *----------------------------------------------------------------------*/
     apiNodePtr.p->phase = ZAPI_ACTIVE;
     apiNodePtr.p->blockRef = ref;
-    signal->theData[0] = apiNodePtr.i;
-    sendSignal(CMVMI_REF, GSN_ENABLE_COMORD, signal, 1, JBA);
-    
-    recompute_version_info(type, version);
-    
-    signal->theData[0] = apiNodePtr.i;
-    signal->theData[1] = version;
-    NodeReceiverGroup rg(QMGR, c_clusterNodes);
-    rg.m_nodes.clear(getOwnNodeId());
-    sendVersionedDb(rg, GSN_NODE_VERSION_REP, signal, 2, JBB, 
-		    NDBD_NODE_VERSION_REP);
-    
-    signal->theData[0] = apiNodePtr.i;
-    EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
+    EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
+    enableComReq->m_senderRef = reference();
+    enableComReq->m_senderData = ENABLE_COM_API_REGREQ;
+    NodeBitmask::clear(enableComReq->m_nodeIds);
+    NodeBitmask::set(enableComReq->m_nodeIds, apiNodePtr.i);
+    sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+               EnableComReq::SignalLength, JBA);
   }
   return;
 }//Qmgr::execAPI_REGREQ()
+
+void
+Qmgr::handleEnableComApiRegreq(Signal *signal, Uint32 node)
+{
+  NodeInfo::NodeType type = getNodeInfo(node).getType();
+  Uint32 version = getNodeInfo(node).m_version;
+  recompute_version_info(type, version);
+
+  signal->theData[0] = node;
+  signal->theData[1] = version;
+  NodeReceiverGroup rg(QMGR, c_clusterNodes);
+  rg.m_nodes.clear(getOwnNodeId());
+  sendVersionedDb(rg, GSN_NODE_VERSION_REP, signal, 2, JBB,
+                  NDBD_NODE_VERSION_REP);
+
+  signal->theData[0] = node;
+  EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
+}
 
 void
 Qmgr::sendVersionedDb(NodeReceiverGroup rg,
