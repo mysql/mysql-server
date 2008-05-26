@@ -616,6 +616,11 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
   {
     theDistributionKey= result_record->table->getPartitionId(hashValue);
     theDistrKeyIndicator_= 1;
+
+    ScanTabReq *req= CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
+    ScanTabReq::setDistributionKeyFlag(req->requestInfo, 1);
+    req->distributionKey= theDistributionKey;
+    theSCAN_TABREQ->setLength(ScanTabReq::StaticLength + 1);
   }
 #ifdef VM_TRACE
   else
