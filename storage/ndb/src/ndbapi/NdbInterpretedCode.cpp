@@ -511,14 +511,25 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
   if (val == NULL)
     len = 0;
   else {
-    if (! col->getStringType()) {
-      // prevent assert in NdbSqlUtil on length error
-      Uint32 sizeInBytes = col->m_attrSize * col->m_arraySize;
-      if (len != 0 && len != sizeInBytes)
+    if (! col->getStringType())
+    {
+      /* Fixed size type */
+      len= col->m_attrSize * col->m_arraySize;
+    }
+    else
+    {
+      /* For Like and Not like we must use the passed in 
+       * length.  Otherwise we use the length encoded
+       * in the passed string
+       */
+      if ((branch_type != Interpreter::LIKE) &&
+          (branch_type != Interpreter::NOT_LIKE))
       {
-        DBUG_RETURN(error(BadLength));
+        if (! col->get_var_length(val, len))
+        {
+          DBUG_RETURN(error(BadLength));
+        }
       }
-      len = sizeInBytes;
     }
   }
 
