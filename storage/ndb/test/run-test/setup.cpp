@@ -4,6 +4,9 @@
 #include <my_getopt.h>
 #include <NdbOut.hpp>
 
+extern int g_mt;
+extern int g_mt_rr;
+
 static atrt_host * find(const char * hostname, Vector<atrt_host*>&);
 static bool load_process(atrt_config&, atrt_cluster&, atrt_process::Type, 
 			 size_t idx, const char * hostname);
@@ -303,8 +306,16 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   } 
   case atrt_process::AP_NDBD:
   {
+    if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0))
+    {
+      proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndbd");
+    }
+    else
+    {
+      proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndbmtd");
+    }
+    
     proc.m_proc.m_name.assfmt("%d-%s", proc_no, "ndbd");
-    proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndbd");
     proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
 			      proc.m_host->m_basedir.c_str());
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",

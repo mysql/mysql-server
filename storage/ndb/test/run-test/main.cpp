@@ -59,6 +59,8 @@ int          g_baseport = 10000;
 int          g_fqpn = 0;
 int          g_fix_nodeid= 0;
 int          g_default_ports = 0;
+int          g_mt = 0;
+int          g_mt_rr = 0;
 
 const char * g_cwd = 0;
 const char * g_basedir = 0;
@@ -142,8 +144,11 @@ static struct my_option g_options[] =
     (uchar **) &g_mode, (uchar **) &g_mode,
     0, GET_INT, REQUIRED_ARG, g_mode, 0, 0, 0, 0, 0 },
   { "quit", 256, "Quit before starting tests",
-    (uchar **) &g_mode, (uchar **) &g_do_quit,
+    (uchar **) &g_do_quit, (uchar **) &g_do_quit,
     0, GET_BOOL, NO_ARG, g_do_quit, 0, 0, 0, 0, 0 },
+  { "mt", 256, "Use ndbmtd (0 = never, 1 = round-robin, 2 = only)",
+    (uchar **) &g_mt, (uchar **) &g_mt,
+    0, GET_INT, REQUIRED_ARG, g_mt, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
