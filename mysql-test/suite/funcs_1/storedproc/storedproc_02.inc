@@ -808,7 +808,8 @@ delimiter ;//
 
 CALL h1();
 
-
+--echo This will fail, SQLSTATE 00000 is not allowed
+--ERROR ER_SP_BAD_SQLSTATE
 delimiter //;
 CREATE PROCEDURE sp1()
    begin1_label:BEGIN
@@ -823,12 +824,16 @@ CREATE PROCEDURE sp1()
    END begin1_label//
 delimiter ;//
 
+--echo Verify SP wasn't created
+--ERROR ER_SP_DOES_NOT_EXIST
 CALL sp1();
 
 # cleanup 3.1.2.45+50
 DROP PROCEDURE p1;
 DROP PROCEDURE h1;
-DROP PROCEDURE sp1;
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
 DROP TABLE res_t1;
 
 
