@@ -3238,6 +3238,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     DBT current_primary_key;
     DBT row;
     DB_TXN* txn = NULL;
+    uchar tmp_key_buff[table_arg->s->rec_buff_length];
     //
     // these variables are for error handling
     //
@@ -3309,7 +3310,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         unpack_row(tmp_record, &row);
         for (uint i = 0; i < num_of_keys; i++) {
             DBT secondary_key;
-            create_dbt_key_from_key(&secondary_key,&key_info[i], key_buff, tmp_record);
+            create_dbt_key_from_key(&secondary_key,&key_info[i], tmp_key_buff, tmp_record);
             uint curr_index = i + table_arg->s->keys;
             u_int32_t put_flags = share->key_type[curr_index];
             
