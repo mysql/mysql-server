@@ -877,7 +877,7 @@ static int tokudb_compare_two_keys(KEY *key, const DBT * new_key, const DBT * sa
         int cmp;
         uint new_key_field_length;
         uint saved_key_field_length;
-        if (key_part->null_bit) {
+        if (key_part->field->null_bit) {
             assert(new_key_ptr   < (uchar *) new_key->data   + new_key->size);
             assert(saved_key_ptr < (uchar *) saved_key->data + saved_key->size);
             if (*new_key_ptr != *saved_key_ptr) {
