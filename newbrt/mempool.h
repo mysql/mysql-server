@@ -55,4 +55,7 @@ static inline int toku_mempool_inrange(struct mempool *mp, void *vp, int size) {
     return mp->base <= vp && vp + size <= mp->base + mp->size;
 }
 
+unsigned long toku_mempool_memory_size(struct mempool *mp);
+// Effect: Return the number of bytes that the mempool is using in main memory.  Include fragmented space.  Don't include the mp itself.
+
 #endif

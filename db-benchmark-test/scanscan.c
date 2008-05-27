@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/resource.h>
+#include <unistd.h>
 
 DB_ENV *env;
 DB *db;
@@ -19,6 +21,7 @@ char *dbfilename = "bench.db";
 void setup (void) {
     int r;
     r = db_env_create(&env, 0);                                 assert(r==0);
+    r = env->set_cachesize(env, 0, 127*1024*1024, 1);           assert(r==0);
     r = env->open(env, dbdir, env_open_flags, 0644);            assert(r==0);
     r = db_create(&db, env, 0);                                 assert(r==0);
     r = env->txn_begin(env, 0, &tid, 0);                        assert(r==0);
@@ -32,6 +35,10 @@ void shutdown (void) {
     r = db->close(db, 0);                                       assert(r==0);
     r = tid->commit(tid, 0);                                    assert(r==0);
     r = env->close(env, 0);                                     assert(r==0);
+    {
+	extern unsigned long toku_get_maxrss(void);
+	printf("maxrss=%.2fMB\n", toku_get_maxrss()/256.0);
+    }
 }
 
 double gettime (void) {

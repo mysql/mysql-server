@@ -32,10 +32,10 @@ TDB_LDFLAGS = -L../lib -ltokudb -Wl,-rpath,$(PWD)/../lib
 
 TARGET_BDB = db-benchmark-test-bdb
 TARGET_TDB = db-benchmark-test-tokudb
-TARGETS = $(TARGET_BDB) $(TARGET_TDB)
+TARGETS = $(TARGET_BDB) $(TARGET_TDB) scanscan-tokudb
 
 default: build
-build: $(TARGETS)
+build: $(TARGETS) 
 
 check: check-default check-xfast check-x
 

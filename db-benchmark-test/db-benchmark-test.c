@@ -329,6 +329,12 @@ int main (int argc, const char *argv[]) {
 	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 
 	       (!noserial+!norandom)*total_n_items, (!noserial+!norandom)*total_n_items/tdiff(&t3, &t1));
     }
+#ifdef TOKUDB
+    if (verbose) {
+	extern unsigned long toku_get_maxrss(void);
+	printf("maxrss=%.2fMB\n", toku_get_maxrss()/256.0);
+    }
+#endif
     return 0;
 }
 
