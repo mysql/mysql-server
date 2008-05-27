@@ -225,9 +225,6 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
 int
 NdbOperation::initial_interpreterCheck()
 {
-  printf("initial_interpreterCheck(), theStatus=%u\n",
-         theStatus);
-
   if (isNdbRecordOperation()) {
     /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
     setErrorCodeAbort(4537);
