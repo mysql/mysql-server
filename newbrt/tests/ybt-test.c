@@ -14,14 +14,12 @@ static void ybt_test0 (void) {
     toku_init_dbt(&t0);
     toku_init_dbt(&t1);
     {
-	char* temp1 = "hello";
-	char**temp1p = &temp1;
-	toku_dbt_set_value(&t0, (bytevec*)temp1p, 6, &v0, FALSE);
+	bytevec temp1 = "hello";
+	toku_dbt_set_value(&t0, &temp1, 6, &v0, FALSE);
     }
     {
-        char* temp2 = "foo";
-	char**temp2p = &temp2;
-	toku_dbt_set_value(&t1, (bytevec*)temp2p,   4, &v1, FALSE);
+        bytevec temp2 = "foo";
+	toku_dbt_set_value(&t1, &temp2,   4, &v1, FALSE);
     }
     assert(t0.size==6);
     assert(strcmp(t0.data, "hello")==0); 
@@ -29,9 +27,8 @@ static void ybt_test0 (void) {
     assert(strcmp(t1.data, "foo")==0);
 
     {
-        char* temp3 = "byebye";
-	char**temp3p= &temp3;
-	toku_dbt_set_value(&t1, (bytevec*)temp3p, 7, &v0, FALSE);      /* Use v0, not v1 */
+        bytevec temp3 = "byebye";
+	toku_dbt_set_value(&t1, &temp3, 7, &v0, FALSE);      /* Use v0, not v1 */
     }
     // This assertion would be wrong, since v0 may have been realloc'd, and t0.data may now point
     // at the wrong place
@@ -46,9 +43,8 @@ static void ybt_test0 (void) {
     t0.flags = DB_DBT_USERMEM;
     t0.ulen  = 0;
     {
-        char* temp4 = "hello";
-	char**temp4p=&temp4;
-	toku_dbt_set_value(&t0, (bytevec*)temp4p, 6, 0, FALSE);
+        bytevec temp4 = "hello";
+	toku_dbt_set_value(&t0, &temp4, 6, 0, FALSE);
     }
     assert(t0.data==0);
     assert(t0.size==6);
@@ -58,18 +54,16 @@ static void ybt_test0 (void) {
     t0.flags = DB_DBT_REALLOC;
     v0 = 0;
     {
-        char* temp5 = "internationalization";
-	char**temp5p= &temp5;
-	toku_dbt_set_value(&t0, (bytevec*)temp5p, 21, &v0, FALSE);
+        bytevec temp5 = "internationalization";
+	toku_dbt_set_value(&t0, &temp5, 21, &v0, FALSE);
     }
     assert(v0==0); /* Didn't change v0 */
     assert(t0.size==21);
     assert(strcmp(t0.data, "internationalization")==0);
 
     {
-        char* temp6 = "provincial";
-	char**temp6p= &temp6;
-	toku_dbt_set_value(&t0, (bytevec*)temp6p, 11, &v0, FALSE);
+        bytevec temp6 = "provincial";
+	toku_dbt_set_value(&t0, &temp6, 11, &v0, FALSE);
     }
     assert(t0.size==11);
     assert(strcmp(t0.data, "provincial")==0);
