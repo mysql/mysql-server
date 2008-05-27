@@ -1453,8 +1453,11 @@ srv_suspend_mysql_thread(
 		srv_n_lock_wait_count++;
 		srv_n_lock_wait_current_count++;
 
-		ut_usectime(&sec, &ms);
-		start_time = (ib_longlong)sec * 1000000 + ms;
+		if (ut_usectime(&sec, &ms) == -1) {
+			start_time = -1;
+		} else {
+			start_time = (ib_longlong)sec * 1000000 + ms;
+		}
 	}
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
@@ -1508,14 +1511,20 @@ srv_suspend_mysql_thread(
 	wait_time = ut_difftime(ut_time(), slot->suspend_time);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
-		ut_usectime(&sec, &ms);
-		finish_time = (ib_longlong)sec * 1000000 + ms;
+		if (ut_usectime(&sec, &ms) == -1) {
+			finish_time = -1;
+		} else {
+			finish_time = (ib_longlong)sec * 1000000 + ms;
+		}
 
 		diff_time = (ulint) (finish_time - start_time);
 
 		srv_n_lock_wait_current_count--;
 		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
-		if (diff_time > srv_n_lock_max_wait_time) {
+		if (diff_time > srv_n_lock_max_wait_time &&
+		    /* only update the variable if we successfully
+		    retrieved the start and finish times. See Bug#36819. */
+		    start_time != -1 && finish_time != -1) {
 			srv_n_lock_max_wait_time = diff_time;
 		}
 	}
