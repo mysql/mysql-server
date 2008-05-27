@@ -66,3 +66,7 @@ void toku_mempool_mfree(struct mempool *mp, void *vp, int size) {
     mp->frag_size += size;
     assert(mp->frag_size <= mp->size);
 }
+
+unsigned long toku_mempool_memory_size(struct mempool *mp) {
+    return mp->size; 
+}

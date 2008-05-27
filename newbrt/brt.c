@@ -84,8 +84,25 @@ void toku_brtnode_free (BRTNODE *nodep) {
     *nodep=0;
 }
 
-static long brtnode_size(BRTNODE node) {
-    return toku_serialize_brtnode_size(node);
+static long brtnode_memory_size(BRTNODE node) {
+    if (node->height>0) {
+	return toku_serialize_brtnode_size(node);
+#if 0
+	int n_children = node->u.n.n_children;
+	int fifo_sum=0;
+	int i;
+	for (i=0; i<n_children; i++) {
+	    fifo_sum+=toku_fifo_memory_size(node->u.n.childinfos[i].buffer);
+	}
+	return sizeof(*node)
+	    +(1+n_children)*(sizeof(node->u.n.childinfos[0]))
+	    +(n_children)+(sizeof(node->u.n.childkeys[0]))
+	    +node->u.n.totalchildkeylens
+	    +fifo_sum;
+#endif
+    } else {
+	return sizeof(*node)+toku_omt_memory_size(node->u.l.buffer)+toku_mempool_memory_size(&node->u.l.buffer_mempool);
+    }
 }
 
 
@@ -163,7 +180,7 @@ int toku_brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **b
     BRTNODE *result=(BRTNODE*)brtnode_pv;
     int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result);
     if (r == 0) {
-        *sizep = brtnode_size(*result);
+        *sizep = brtnode_memory_size(*result);
 	*written_lsn = (*result)->disk_lsn;
     }
     //(*result)->parent_brtnode = 0; /* Don't know it right now. */
@@ -233,7 +250,7 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node) {
 //	//if (node->log_lsn.lsn>33320) printf("%s:%d node%lld lsn=%lld\n", __FILE__, __LINE__, node->thisnodename, node->log_lsn.lsn);
 //    }
     VERIFY_NODE(node);
-    return toku_cachetable_unpin(brt->cf, node->thisnodename, node->dirty, brtnode_size(node));
+    return toku_cachetable_unpin(brt->cf, node->thisnodename, node->dirty, brtnode_memory_size(node));
 }
 
 typedef struct kvpair {
@@ -345,7 +362,7 @@ int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logg
     assert(n->nodesize>0);
     //    n->brt            = t;
     //printf("%s:%d putting %p (%lld)\n", __FILE__, __LINE__, n, n->thisnodename);
-    r=toku_cachetable_put(t->cf, n->thisnodename, n, brtnode_size(n),
+    r=toku_cachetable_put(t->cf, n->thisnodename, n, brtnode_memory_size(n),
 			  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
     assert(r==0);
     return 0;
@@ -1852,7 +1869,7 @@ static int setup_initial_brt_root_node (BRT t, DISKOFF offset, TOKULOGGER logger
 	printf("%s:%d put root at %lld\n", __FILE__, __LINE__, offset);
     }
     //printf("%s:%d putting %p (%lld)\n", __FILE__, __LINE__, node, node->thisnodename);
-    r=toku_cachetable_put(t->cf, offset, node, brtnode_size(node),
+    r=toku_cachetable_put(t->cf, offset, node, brtnode_memory_size(node),
 			  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
     if (r!=0) {
 	toku_free(node);
@@ -2287,7 +2304,7 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     r = toku_unpin_brtnode(brt, nodeb);
     if (r!=0) return r;
     //printf("%s:%d put %lld\n", __FILE__, __LINE__, newroot_diskoff);
-    toku_cachetable_put(brt->cf, newroot_diskoff, newroot, brtnode_size(newroot),
+    toku_cachetable_put(brt->cf, newroot_diskoff, newroot, brtnode_memory_size(newroot),
                         toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     *newrootp = newroot;
     return 0;
@@ -2587,7 +2604,7 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
         } else {
             if (r == EAGAIN) 
                 continue;
-            rr = toku_cachetable_unpin(brt->cf, childnode->thisnodename, childnode->dirty, brtnode_size(childnode)); 
+            rr = toku_cachetable_unpin(brt->cf, childnode->thisnodename, childnode->dirty, brtnode_memory_size(childnode)); 
             assert(rr == 0);
             break;
         }

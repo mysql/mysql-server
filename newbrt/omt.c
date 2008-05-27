@@ -524,3 +524,6 @@ void toku_omt_clear(OMT omt) {
     omt->root     = NODE_NULL;
 }
 
+unsigned long toku_omt_memory_size (OMT omt) {
+    return sizeof(*omt)+omt->node_capacity*sizeof(omt->nodes[0]) + omt->tmparray_size*sizeof(omt->tmparray[0]);
+}

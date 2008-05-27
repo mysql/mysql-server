@@ -345,11 +345,35 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     toku_free(remove_me);
 }
 
+static unsigned long toku_maxrss=0;
+unsigned long toku_get_maxrss(void) __attribute__((__visibility__("default")));
+unsigned long toku_get_maxrss(void) {
+    return toku_maxrss;
+}
+
+static unsigned long check_maxrss (void) __attribute__((__unused__));
+static unsigned long check_maxrss (void) {
+    pid_t pid = getpid();
+    char fname[100];
+    snprintf(fname, sizeof(fname), "/proc/%u/statm", pid);
+    FILE *f = fopen(fname, "r");
+    unsigned long ignore, rss;
+    fscanf(f, "%lu %lu", &ignore, &rss);
+    fclose(f);
+    if (toku_maxrss<rss) toku_maxrss=rss;
+    return rss;
+}
+
+
 static int maybe_flush_some (CACHETABLE t, long size __attribute__((unused))) {
     int r = 0;
 again:
 //    if (t->n_in_table >= t->table_size) {
     if (size + t->size_current > t->size_limit) {
+	{
+	    unsigned long rss __attribute__((__unused__)) = check_maxrss();
+	    //printf("this-size=%.6fMB projected size = %.2fMB  limit=%2.fMB  rss=%2.fMB\n", size/(1024.0*1024.0), (size+t->size_current)/(1024.0*1024.0), t->size_limit/(1024.0*1024.0), rss/256.0);
+	}
         /* Try to remove one. */
 	PAIR remove_me;
 	for (remove_me = t->tail; remove_me; remove_me = remove_me->prev) {
@@ -439,7 +463,6 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, 
 	}
     }
     int r;
-    if ((r=maybe_flush_some(t, 1))) return r;
     // Note.  hashit(t,key) may have changed as a result of flushing.
     {
 	void *toku_value; 
@@ -455,6 +478,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, 
             *sizep = size;
         // maybe_flush_some(t, size);
     }
+    if ((r=maybe_flush_some(t, 0))) return r;
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
     return 0;
 }
@@ -491,6 +515,10 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, int dirty, long siz
                 t->size_current += p->size;
             }
 	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
+	    {
+		int r;
+		if ((r=maybe_flush_some(t, 0))) return r;
+	    }
 	    return 0;
 	}
     }

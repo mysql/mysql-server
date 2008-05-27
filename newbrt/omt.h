@@ -282,5 +282,8 @@ void toku_omt_clear(OMT omt);
 //  Note: Will not resize the array, since void precludes allowing a malloc.
 // Performance: time=O(1)
 
+unsigned long toku_omt_memory_size (OMT omt);
+// Effect: Return the size (in bytes) of the omt, as it resides in main memory.  Don't include any of the OMTVALUES.
+
 #endif  /* #ifndef OMT_H */
 
