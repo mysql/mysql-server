@@ -6324,6 +6324,8 @@ retry_temporary_error1:
 int ha_ndbcluster::delete_table(const char *name)
 {
   THD *thd= current_thd;
+  Ndb *ndb;
+  int error= 0;
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
   set_dbname(name);
@@ -6338,17 +6340,35 @@ int ha_ndbcluster::delete_table(const char *name)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
     DBUG_ASSERT(ndb_schema_share);
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    error= HA_ERR_NO_CONNECTION;
+    goto err;
   }
 #endif
 
   if (check_ndb_connection(thd))
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  {
+    error= HA_ERR_NO_CONNECTION;
+    goto err;
+  }
 
-  /* Call ancestor function to delete .ndb file */
-  handler::delete_table(name);
+  ndb= get_ndb(thd);
+  /*
+    Drop table in ndb.
+    If it was already gone it might have been dropped
+    remotely, give a warning and then drop .ndb file.
+   */
+  if (!(error= delete_table(thd, this, ndb, name,
+                            m_dbname, m_tabname)) ||
+      error == HA_ERR_NO_SUCH_TABLE)
+  {
+    /* Call ancestor function to delete .ndb file */
+    int error1= handler::delete_table(name);
+    if (!error)
+      error= error1;
+  }
 
-  DBUG_RETURN(delete_table(thd, this, get_ndb(thd), name, m_dbname, m_tabname));
+err:
+  DBUG_RETURN(error);
 }
 
 
