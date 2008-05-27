@@ -640,7 +640,7 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
     rc.ndone = 0;
     {
 	ssize_t r = pread(fd, rc.buf, size-12, off+12);
-	if (r!=size-12) { ret = EINVAL; goto died1; }
+	if (r!=(ssize_t)size-12) { ret = EINVAL; goto died1; }
     }
     h->dirty=0;
     h->layout_version = rbuf_int(&rc);
