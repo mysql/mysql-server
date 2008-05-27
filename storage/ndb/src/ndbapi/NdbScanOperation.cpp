@@ -638,7 +638,7 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
   
   Uint32 hashValue;
   int ret = Ndb::computeHash(&hashValue, result_record->table,
-                             ptrs, tmp, sizeof(tmp));
+                             ptrs, tmpshrink, tmplen);
   if (ret == 0)
   {
     theDistributionKey= result_record->table->getPartitionId(hashValue);
