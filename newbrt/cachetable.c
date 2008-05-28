@@ -8,6 +8,7 @@
 #include "toku_assert.h"
 #include "brt-internal.h"
 #include "log_header.h"
+#include <malloc.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -76,6 +77,13 @@ struct cachefile {
 };
 
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
+    {
+	static int did_mallopt = 0;
+	if (!did_mallopt) {
+	    mallopt(M_MMAP_THRESHOLD, 1024*64); // 64K and larger should be malloced with mmap().
+	    did_mallopt = 1;
+	}
+    }
     TAGMALLOC(CACHETABLE, t);
     int i;
     t->n_in_table = 0;
@@ -373,6 +381,8 @@ again:
 	{
 	    unsigned long rss __attribute__((__unused__)) = check_maxrss();
 	    //printf("this-size=%.6fMB projected size = %.2fMB  limit=%2.fMB  rss=%2.fMB\n", size/(1024.0*1024.0), (size+t->size_current)/(1024.0*1024.0), t->size_limit/(1024.0*1024.0), rss/256.0);
+	    //struct mallinfo m = mallinfo();
+	    //printf(" arena=%d hblks=%d hblkhd=%d\n", m.arena, m.hblks, m.hblkhd);
 	}
         /* Try to remove one. */
 	PAIR remove_me;

@@ -3,17 +3,11 @@
 #include "brttypes.h"
 
 struct fifo_entry {
-    struct fifo_entry *next;
     unsigned int keylen;
     unsigned int vallen;
     unsigned char type;
     TXNID xid;
     unsigned char key[];
-};
-
-struct fifo {
-    struct fifo_entry *head, *tail;
-    int n;
 };
 
 typedef struct fifo *FIFO;
@@ -26,22 +20,34 @@ int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEM
 int toku_fifo_peek (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid);
 int toku_fifo_peek_cmdstruct (FIFO, BRT_CMD, DBT*, DBT*); // fill in the BRT_CMD, using the two DBTs for the DBT part.
 int toku_fifo_deq(FIFO);
+
+unsigned long toku_fifo_memory_size(FIFO); // return how much memory the fifo uses.
+
 //These two are problematic, since I don't want to malloc() the bytevecs, but dequeueing the fifo frees the memory.
 //int toku_fifo_peek_deq (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid);
 //int toku_fifo_peek_deq_cmdstruct (FIFO, BRT_CMD, DBT*, DBT*); // fill in the BRT_CMD, using the two DBTs for the DBT part.
 void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void*);
 
-#define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,xidvar,body) ({ \
-            struct fifo_entry *entry; \
-            for (entry = fifo->head; entry; entry = entry->next) { \
-                unsigned int keylenvar = entry->keylen; \
-                void *keyvar = entry->key; \
-                unsigned int datalenvar = entry->vallen; \
-                void *datavar = entry->key + entry->keylen; \
-                enum brt_cmd_type typevar = entry->type;	    \
-		TXNID xidvar = entry->xid; \
-                body; \
-            } \
-        })
+#define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,xidvar,body) ({      \
+  int fifo_iterate_off;                                                                    \
+  for (fifo_iterate_off = toku_fifo_iterate_internal_start(fifo);                          \
+       toku_fifo_iterate_internal_has_more(fifo, fifo_iterate_off);			   \
+       fifo_iterate_off = toku_fifo_iterate_internal_next(fifo, fifo_iterate_off)) {       \
+      struct fifo_entry *e = toku_fifo_iterate_internal_get_entry(fifo, fifo_iterate_off); \
+      bytevec keyvar = e->key;                                                             \
+      ITEMLEN keylenvar = e->keylen;                                                       \
+      bytevec datavar = e->key + e->keylen;                                           \
+      ITEMLEN datalenvar = e->vallen;                                                 \
+      int     typevar = e->type;                                                      \
+      TXNID   xidvar = e->xid;                                                        \
+      body;                                                                           \
+  } })
+
+// Internal functions for the iterator.
+int toku_fifo_iterate_internal_start(FIFO fifo);
+int toku_fifo_iterate_internal_has_more(FIFO fifo, int off);
+int toku_fifo_iterate_internal_next(FIFO fifo, int off);
+struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off);
+
 
 #endif

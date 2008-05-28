@@ -7,9 +7,21 @@
 #include "fifo.h"
 #include "ybt.h"
 
+struct fifo {
+    int n_items_in_fifo;
+    char *memory;       // An array of bytes into which fifo_entries are embedded.
+    int   memory_size;  // How big is fifo_memory
+    int   memory_start; // Where is the first used byte?
+    int   memory_used;  // How many bytes are in use? 
+};
+
+const int fifo_initial_size = 4096;
 static void fifo_init(struct fifo *fifo) {
-    fifo->head = fifo->tail = 0;
-    fifo->n = 0;
+    fifo->n_items_in_fifo = 0;
+    fifo->memory       = 0;
+    fifo->memory_size  = 0;
+    fifo->memory_start = 0;
+    fifo->memory_used  = 0;
 }
 
 static int fifo_entry_size(struct fifo_entry *entry) {
@@ -17,39 +29,12 @@ static int fifo_entry_size(struct fifo_entry *entry) {
 }
 
 static struct fifo_entry *fifo_peek(struct fifo *fifo) {
-    return fifo->head;
-}
-
-static void fifo_enq(struct fifo *fifo, struct fifo_entry *entry) {
-    entry->next = 0;
-    if (fifo->head == 0)
-        fifo->head = entry;
-    else
-        fifo->tail->next = entry;
-    fifo->tail = entry;
-    fifo->n += 1;
-}
-
-static struct fifo_entry *fifo_deq(struct fifo *fifo) {
-    struct fifo_entry *entry = fifo->head;
-    if (entry) {
-        fifo->head = entry->next;
-        if (fifo->head == 0)
-            fifo->tail = 0;
-        fifo->n -= 1;
-        assert(fifo->n >= 0);
-    }
-    return entry;
-}
-
-static void fifo_destroy(struct fifo *fifo) {
-    struct fifo_entry *entry;
-    while ((entry = fifo_deq(fifo)) != 0)
-        toku_free_n(entry, fifo_entry_size(entry));
+    if (fifo->n_items_in_fifo == 0) return NULL;
+    else return (struct fifo_entry *)(fifo->memory+fifo->memory_start);
 }
 
 int toku_fifo_create(FIFO *ptr) {
-    struct fifo *fifo = toku_malloc(sizeof (struct fifo));
+    struct fifo *MALLOC(fifo);
     if (fifo == 0) return ENOMEM;
     fifo_init(fifo);
     *ptr = fifo;
@@ -57,25 +42,62 @@ int toku_fifo_create(FIFO *ptr) {
 }
 
 void toku_fifo_free(FIFO *ptr) {
-    struct fifo *fifo = *ptr; *ptr = 0;
-    fifo_destroy(fifo);
-    toku_free_n(fifo, sizeof *fifo);
+    FIFO fifo = *ptr;
+    if (fifo->memory) toku_free(fifo->memory);
+    fifo->memory=0;
+    toku_free(fifo);
+    *ptr = 0;
 }
 
 int toku_fifo_n_entries(FIFO fifo) {
-    return fifo->n;
+    return fifo->n_items_in_fifo;
+}
+
+static int next_power_of_two (int n) {
+    int r = 4096;
+    while (r < n) {
+	r*=2;
+	assert(r>0);
+    }
+    return r;
 }
 
 int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, int type, TXNID xid) {
-    struct fifo_entry *entry = toku_malloc(sizeof (struct fifo_entry) + keylen + datalen);
-    if (entry == 0) return ENOMEM;
+    int need_space_here = sizeof(struct fifo_entry) + keylen + datalen;
+    int need_space_total = fifo->memory_used+need_space_here;
+    if (fifo->memory == NULL) {
+	fifo->memory_size = next_power_of_two(need_space_total);
+	fifo->memory = toku_malloc(fifo->memory_size);
+    }
+    if (fifo->memory_start+need_space_total > fifo->memory_size) {
+	// Out of memory at the end.
+	int next_2 = next_power_of_two(need_space_total);
+	if ((2*next_2 > fifo->memory_size)
+	    || (8*next_2 < fifo->memory_size)) {
+	    // resize the fifo
+	    char *newmem = toku_malloc(next_2);
+	    char *oldmem = fifo->memory;
+	    if (newmem==0) return ENOMEM;
+	    memcpy(newmem, oldmem+fifo->memory_start, fifo->memory_used);
+	    fifo->memory_size = next_2;
+	    fifo->memory_start = 0;
+	    fifo->memory = newmem;
+	    toku_free(oldmem);
+	} else {
+	    // slide things over
+	    memmove(fifo->memory, fifo->memory+fifo->memory_start, fifo->memory_used);
+	    fifo->memory_start = 0;
+	}
+    }
+    struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_start + fifo->memory_used);
     entry->type = type;
     entry->xid  = xid;
     entry->keylen = keylen;
     memcpy(entry->key, key, keylen);
     entry->vallen = datalen;
     memcpy(entry->key + keylen, data, datalen);
-    fifo_enq(fifo, entry);
+    fifo->n_items_in_fifo++;
+    fifo->memory_used += need_space_here;
     return 0;
 }
 
@@ -111,33 +133,33 @@ int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_CMD cmd, DBT*key, DBT*data) {
     return 0;
 }
 
-
 int toku_fifo_deq(FIFO fifo) {
-    struct fifo_entry *entry = fifo_deq(fifo);
-    if (entry == 0) return -1; // if entry is 0 then it was an empty fifo
-    toku_free_n(entry, fifo_entry_size(entry));
+    if (fifo->n_items_in_fifo==0) return -1;
+    struct fifo_entry * e = fifo_peek(fifo);
+    assert(e);
+    int used_here = fifo_entry_size(e);
+    fifo->n_items_in_fifo--;
+    fifo->memory_start+=used_here;
+    fifo->memory_used -=used_here;
     return 0;
 }
 
-// fill in the BRT_CMD, using the two DBTs for the DBT part.
-//int toku_fifo_peek_deq_cmdstruct (FIFO fifo, BRT_CMD cmd, DBT*key, DBT*data) {
-//    int r = toku_fifo_peek_cmdstruct(fifo, cmd, key, data);
-//    if (r!=0) return r;
-//    return toku_fifo_deq(fifo);
-//}
-
-
-//int toku_fifo_peek_deq (FIFO fifo, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid) {
-//    int r= toku_fifo_peek(fifo, key, keylen, data, datalen, type, xid);
-//    if (r==0) return toku_fifo_deq(fifo);
-//    else return r;
-//}
-
-
-void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void *arg) {
-    struct fifo_entry *entry;
-    for (entry = fifo_peek(fifo); entry; entry = entry->next)
-        f(entry->key, entry->keylen, entry->key + entry->keylen, entry->vallen, entry->type, entry->xid, arg);
+int toku_fifo_iterate_internal_start(FIFO fifo) { return fifo->memory_start; }
+int toku_fifo_iterate_internal_has_more(FIFO fifo, int off) { return off < fifo->memory_start + fifo->memory_used; }
+int toku_fifo_iterate_internal_next(FIFO fifo, int off) {
+    struct fifo_entry *e = (struct fifo_entry *)(fifo->memory + off);
+    return off + fifo_entry_size(e);
+}
+struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off) {
+    return (struct fifo_entry *)(fifo->memory + off);
 }
 
+void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void *arg) {
+    FIFO_ITERATE(fifo,
+		 key, keylen, data, datalen, type, xid,
+		 f(key,keylen,data,datalen,type,xid, arg));
+}
 
+unsigned long toku_fifo_memory_size(FIFO fifo) {
+    return sizeof(*fifo)+fifo->memory_size;
+}
