@@ -4131,8 +4131,10 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     (c_tableDesc.RowChecksumFlag ? TableRecord::TR_RowChecksum : 0);
   tablePtr.p->m_bits |= 
     (c_tableDesc.RowGCIFlag ? TableRecord::TR_RowGCI : 0);
+#if DOES_NOT_WORK_CURRENTLY
   tablePtr.p->m_bits |= 
     (c_tableDesc.TableTemporaryFlag ? TableRecord::TR_Temporary : 0);
+#endif
   tablePtr.p->m_bits |=
     (c_tableDesc.ForceVarPartFlag ? TableRecord::TR_ForceVarPart : 0);
   tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
