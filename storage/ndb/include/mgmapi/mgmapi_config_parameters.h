@@ -129,6 +129,7 @@
 #define CFG_DB_SUBSCRIBERS            180
 #define CFG_DB_SUB_OPERATIONS         181
 #define CFG_DB_MAX_BUFFERED_EPOCHS    182 /* subscriptions */
+#define CFG_DB_SUMA_HANDOVER_TIMEOUT  183
 
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
