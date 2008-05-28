@@ -2467,7 +2467,7 @@ static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int3
 
     //TODO: Verify DB* db not yet opened
     //TODO: Verify db file not in use. (all dbs in the file must be unused)
-    r = toku_db_open(db, NULL, fname, dbname, DB_BTREE, 0, 0777);
+    r = toku_db_open(db, NULL, fname, dbname, DB_UNKNOWN, 0, 0777);
     if (r!=0) { goto cleanup; }
     if (db->i->lt) {
         /* Lock tree exists, therefore:
