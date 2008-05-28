@@ -133,6 +133,7 @@ static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
 //static ulong tokudb_log_buffer_size = 0;
 //static ulong tokudb_log_file_size = 0;
 static ulonglong tokudb_cache_size = 0;
+static uint tokudb_cache_memory_percent = 50;
 static char *tokudb_home;
 //static char *tokudb_tmpdir;
 static char *tokudb_data_dir;
@@ -280,7 +281,7 @@ static int tokudb_init_func(void *p) {
         unsigned long pagesize = my_getpagesize();
         unsigned long long npages = my_getphyspages();
         unsigned long long physmem = npages * pagesize;
-        tokudb_cache_size = physmem / 8;
+        tokudb_cache_size = (ulonglong) (physmem * (tokudb_cache_memory_percent / 100.0));
     }
     if (tokudb_cache_size) {
         DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
@@ -3519,6 +3520,8 @@ struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INT
 
 static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0, 0, ~0LL, 0);
 
+static MYSQL_SYSVAR_UINT(cache_memory_percent, tokudb_cache_memory_percent, PLUGIN_VAR_READONLY, "Default percent of physical memory in the TokuDB cache table", NULL, NULL, tokudb_cache_memory_percent, 0, 100, 0);
+
 static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 8 * 1024, 0, ~0L, 0);
 
 static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, PLUGIN_VAR_READONLY, "TokuDB Debug", NULL, NULL, 0, 0, ~0L, 0);
@@ -3562,6 +3565,7 @@ static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp 
 
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
+    MYSQL_SYSVAR(cache_memory_percent),
     MYSQL_SYSVAR(max_lock),
     MYSQL_SYSVAR(data_dir),
     MYSQL_SYSVAR(log_dir),
