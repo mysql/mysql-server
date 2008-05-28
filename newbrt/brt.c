@@ -86,8 +86,9 @@ void toku_brtnode_free (BRTNODE *nodep) {
 
 static long brtnode_memory_size(BRTNODE node) {
     if (node->height>0) {
-	return toku_serialize_brtnode_size(node);
 #if 0
+	return toku_serialize_brtnode_size(node);
+#else
 	int n_children = node->u.n.n_children;
 	int fifo_sum=0;
 	int i;

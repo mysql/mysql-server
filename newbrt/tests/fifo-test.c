@@ -86,6 +86,7 @@ int main(int argc, char *argv[]) {
     }
 
     test_fifo_create();
+    test_fifo_enq(4);
     test_fifo_enq(512);
     toku_malloc_cleanup();
     return 0;
