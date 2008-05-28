@@ -6175,6 +6175,7 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->mytabptr = req->tableId;
   regFragPtr.p->roothashcheck = req->kValue + req->lhFragBits;
   regFragPtr.p->noOfElements = 0;
+  regFragPtr.p->m_commit_count = 0; // stable results
   for (Uint32 i = 0; i < MAX_PARALLEL_SCANS_PER_FRAG; i++) {
     regFragPtr.p->scan[i] = RNIL;
   }//for

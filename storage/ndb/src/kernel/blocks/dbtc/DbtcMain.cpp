@@ -9556,7 +9556,7 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
      * TC - transaction hinting / scan partition pruning has failed
      * Used by testPartitioning.cpp
      */
-    ndbassert(false);
+    CRASH_INSERTION(8050);
   }
 
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF);
