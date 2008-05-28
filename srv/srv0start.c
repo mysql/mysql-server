@@ -202,13 +202,13 @@ srv_parse_data_file_paths_and_sizes(
 
 		str = srv_parse_megabytes(str, &size);
 
-		if (0 == memcmp(str, ":autoextend",
-				(sizeof ":autoextend") - 1)) {
+		if (0 == strncmp(str, ":autoextend",
+				 (sizeof ":autoextend") - 1)) {
 
 			str += (sizeof ":autoextend") - 1;
 
-			if (0 == memcmp(str, ":max:",
-					(sizeof ":max:") - 1)) {
+			if (0 == strncmp(str, ":max:",
+					 (sizeof ":max:") - 1)) {
 
 				str += (sizeof ":max:") - 1;
 
@@ -290,14 +290,15 @@ srv_parse_data_file_paths_and_sizes(
 		(*data_file_names)[i] = path;
 		(*data_file_sizes)[i] = size;
 
-		if (0 == memcmp(str, ":autoextend",
-				(sizeof ":autoextend") - 1)) {
+		if (0 == strncmp(str, ":autoextend",
+				 (sizeof ":autoextend") - 1)) {
 
 			*is_auto_extending = TRUE;
 
 			str += (sizeof ":autoextend") - 1;
 
-			if (0 == memcmp(str, ":max:", (sizeof ":max:") - 1)) {
+			if (0 == strncmp(str, ":max:",
+					 (sizeof ":max:") - 1)) {
 
 				str += (sizeof ":max:") - 1;
 
