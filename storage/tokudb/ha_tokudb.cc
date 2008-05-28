@@ -3238,7 +3238,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     DBT current_primary_key;
     DBT row;
     DB_TXN* txn = NULL;
-    uchar tmp_key_buff[table_arg->s->rec_buff_length];
+    uchar tmp_key_buff[2*table_arg->s->rec_buff_length];
     //
     // these variables are for error handling
     //
