@@ -3324,6 +3324,14 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
                 // it in a good state.
                 //
                 txn->commit(txn, 0);
+                //
+                // found a duplicate in a no_dup DB
+                //
+                if ( (error == DB_KEYEXIST) && (key_info[i].flags & HA_NOSAME)) {
+                    error = HA_ERR_FOUND_DUPP_KEY;
+                    last_dup_key = i;
+                    memcpy(table_arg->record[0], tmp_record, table_arg->s->rec_buff_length);
+                }
                 goto cleanup;
             }
         }
