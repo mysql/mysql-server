@@ -72,6 +72,7 @@ struct TransporterConfiguration {
       Uint32 tcpSndBufSize;
       Uint32 tcpRcvBufSize;
       Uint32 tcpMaxsegSize;
+      Uint32 tcpOverloadLimit;
     } tcp;
     
     struct {

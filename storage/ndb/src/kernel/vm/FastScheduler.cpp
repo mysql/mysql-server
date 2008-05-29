@@ -558,23 +558,3 @@ void
 mt_mem_manager_unlock()
 {
 }
-
-void
-mt_receive_lock()
-{
-}
-
-void
-mt_receive_unlock()
-{
-}
-
-void
-mt_send_lock(void *dummy, NodeId nodeId)
-{
-}
-
-void
-mt_send_unlock(void *dummy, NodeId nodeId)
-{
-}

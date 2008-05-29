@@ -148,7 +148,10 @@ public:
       const char *p= row + offset;
       Uint32 len= uint2korr(p);
       if (len >= 256 || len >= maxSize)
+      {
+        out_len = 0;
         return false;
+      }
       buf[0]= (unsigned char)len;
       memcpy(buf+1, p+2, len);
       out_len= len + 1;

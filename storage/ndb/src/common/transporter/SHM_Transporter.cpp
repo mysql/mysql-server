@@ -42,7 +42,7 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   Transporter(t_reg, tt_SHM_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection_arg,
 	      lNodeId, rNodeId, serverNodeId,
-	      0, false, checksum, signalId),
+	      0, false, checksum, signalId, 4096 + MAX_MESSAGE_SIZE),
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
@@ -348,10 +348,7 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   {
     NdbSleep_MilliSleep(m_timeOutMillis);
     if(*serverStatusFlag == 1 && *clientStatusFlag == 1)
-    {
-      m_last_signal = 0;
       return true;
-    }
   }
 
   DBUG_PRINT("error", ("Failed to set up buffers to node %d",
@@ -362,16 +359,20 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
 bool
 SHM_Transporter::doSend()
 {
-  if(m_last_signal)
-  {
-    m_last_signal = 0;
-    kill(m_remote_pid, g_ndb_shm_signum);
-  }
-  return true;
-}
+  if (!fetch_send_iovec_data())
+    return false;
 
-Uint32
-SHM_Transporter::get_free_buffer() const 
-{
-  return writer->get_free_buffer();
+  Uint32 used = m_send_iovec_used;
+  if (used == 0)
+    return true;                                // Nothing to send
+
+  int nBytesSent = writer->writev(m_send_iovec, used);
+
+  if (nBytesSent > 0)
+  {
+    kill(m_remote_pid, g_ndb_shm_signum);
+    iovec_data_sent(nBytesSent);
+  }
+
+  return true;
 }

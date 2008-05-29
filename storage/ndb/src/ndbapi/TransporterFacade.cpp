@@ -76,8 +76,8 @@ void ndb_thread_fill_thread_object(void *param, uint *len, my_bool server)
 }
 
 void
-reportError(void * callbackObj, NodeId nodeId,
-	    TransporterError errorCode, const char *info)
+TransporterFacade::reportError(NodeId nodeId,
+                               TransporterError errorCode, const char *info)
 {
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: reportError (nodeId=%d, errorCode=%d) %s", 
@@ -86,7 +86,7 @@ reportError(void * callbackObj, NodeId nodeId,
   if(errorCode & TE_DO_DISCONNECT) {
     ndbout_c("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
 	     info ? info : "");
-    ((TransporterFacade*)(callbackObj))->doDisconnect(nodeId);
+    doDisconnect(nodeId);
   }
 }
 
@@ -94,7 +94,8 @@ reportError(void * callbackObj, NodeId nodeId,
  * Report average send length in bytes (4096 last sends)
  */
 void
-reportSendLen(void * callbackObj, NodeId nodeId, Uint32 count, Uint64 bytes){
+TransporterFacade::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
+{
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: reportSendLen (nodeId=%d, bytes/count=%d)", 
 	   (int)nodeId, (Uint32)(bytes/count));
@@ -108,8 +109,8 @@ reportSendLen(void * callbackObj, NodeId nodeId, Uint32 count, Uint64 bytes){
  * Report average receive length in bytes (4096 last receives)
  */
 void
-reportReceiveLen(void * callbackObj, 
-		 NodeId nodeId, Uint32 count, Uint64 bytes){
+TransporterFacade::reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes)
+{
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: reportReceiveLen (nodeId=%d, bytes/count=%d)", 
 	   (int)nodeId, (Uint32)(bytes/count));
@@ -123,27 +124,29 @@ reportReceiveLen(void * callbackObj,
  * Report connection established
  */
 void
-reportConnect(void * callbackObj, NodeId nodeId){
+TransporterFacade::reportConnect(NodeId nodeId)
+{
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportConnect (nodeId=%d)", (int)nodeId);
 #endif
-  ((TransporterFacade*)(callbackObj))->reportConnected(nodeId);
+  reportConnected(nodeId);
 }
 
 /**
  * Report connection broken
  */
 void
-reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 error){
+TransporterFacade::reportDisconnect(NodeId nodeId, Uint32 error){
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportDisconnect (nodeId=%d)", (int)nodeId);
 #endif
-  ((TransporterFacade*)(callbackObj))->reportDisconnected(nodeId);
+  reportDisconnected(nodeId);
 }
 
 void
-transporter_recv_from(void * callbackObj, NodeId nodeId){
-  ((TransporterFacade*)(callbackObj))->hb_received(nodeId);
+TransporterFacade::transporter_recv_from(NodeId nodeId)
+{
+  hb_received(nodeId);
 }
 
 /****************************************************************************
@@ -153,7 +156,9 @@ transporter_recv_from(void * callbackObj, NodeId nodeId){
 /**
  * Report connection broken
  */
-int checkJobBuffer() {
+int
+TransporterFacade::checkJobBuffer()
+{
   return 0;
 }
 
@@ -215,11 +220,11 @@ TRACE_GSN(Uint32 gsn)
  * The execute function : Handle received signal
  */
 void
-execute(void * callbackObj, SignalHeader * const header, 
-	Uint8 prio, Uint32 * const theData,
-	LinearSectionPtr ptr[3]){
+TransporterFacade::deliver_signal(SignalHeader * const header,
+                                  Uint8 prio, Uint32 * const theData,
+                                  LinearSectionPtr ptr[3])
+{
 
-  TransporterFacade * theFacade = (TransporterFacade*)callbackObj;
   TransporterFacade::ThreadData::Object_Execute oe; 
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
   
@@ -228,14 +233,14 @@ execute(void * callbackObj, SignalHeader * const header,
     signalLogger.executeSignal(* header, 
 			       prio,
                                theData,
-			       theFacade->ownId(), 
+			       ownId(),
                                ptr, header->m_noOfSections);
     signalLogger.flushSignalLog();
   }
 #endif  
 
   if (tRecBlockNo >= MIN_API_BLOCK_NO) {
-    oe = theFacade->m_threads.get(tRecBlockNo);
+    oe = m_threads.get(tRecBlockNo);
     if (oe.m_object != 0 && oe.m_executeFunction != 0) {
       /**
        * Handle received signal immediately to avoid any unnecessary
@@ -282,7 +287,7 @@ execute(void * callbackObj, SignalHeader * const header,
 	  Uint32* tDataPtr = &theData[Tsent];
 	  Tsent += TpacketLen;
 	  if (tRecBlockNo >= MIN_API_BLOCK_NO) {
-	    oe = theFacade->m_threads.get(tRecBlockNo);
+	    oe = m_threads.get(tRecBlockNo);
 	    if(oe.m_object != 0 && oe.m_executeFunction != 0){
 	      NdbApiSignal tmpSignal(*header);
 	      NdbApiSignal * tSignal = &tmpSignal;
@@ -299,7 +304,7 @@ execute(void * callbackObj, SignalHeader * const header,
       * The signal was aimed for the Cluster Manager. 
       * We handle it immediately here.
       */     
-     ClusterMgr * clusterMgr = theFacade->theClusterMgr;
+     ClusterMgr * clusterMgr = theClusterMgr;
      const Uint32 gsn = header->theVerId_signalNumber;
 
      switch (gsn){
@@ -324,32 +329,32 @@ execute(void * callbackObj, SignalHeader * const header,
        break;
 
      case GSN_ARBIT_STARTREQ:
-       if (theFacade->theArbitMgr != NULL)
-	 theFacade->theArbitMgr->doStart(theData);
+       if (theArbitMgr != NULL)
+	 theArbitMgr->doStart(theData);
        break;
        
      case GSN_ARBIT_CHOOSEREQ:
-       if (theFacade->theArbitMgr != NULL)
-	 theFacade->theArbitMgr->doChoose(theData);
+       if (theArbitMgr != NULL)
+	 theArbitMgr->doChoose(theData);
        break;
        
      case GSN_ARBIT_STOPORD:
-       if(theFacade->theArbitMgr != NULL)
-	 theFacade->theArbitMgr->doStop(theData);
+       if(theArbitMgr != NULL)
+	 theArbitMgr->doStop(theData);
        break;
 
      case GSN_ALTER_TABLE_REP:
      {
-       if (theFacade->m_globalDictCache == NULL)
+       if (m_globalDictCache == NULL)
          break;
        const AlterTableRep* rep = (const AlterTableRep*)theData;
-       theFacade->m_globalDictCache->lock();
-       theFacade->m_globalDictCache->
+       m_globalDictCache->lock();
+       m_globalDictCache->
 	 alter_table_rep((const char*)ptr[0].p, 
 			 rep->tableId,
 			 rep->tableVersion,
 			 rep->changeType == AlterTableRep::CT_ALTERED);
-       theFacade->m_globalDictCache->unlock();
+       m_globalDictCache->unlock();
        break;
      }
      case GSN_SUB_GCP_COMPLETE_REP:
@@ -359,7 +364,7 @@ execute(void * callbackObj, SignalHeader * const header,
 	*/
        NdbApiSignal tSignal(* header);
        tSignal.setDataPtr(theData);
-       theFacade->for_each(&tSignal, ptr);
+       for_each(&tSignal, ptr);
 
        /**
 	* Reply
@@ -368,12 +373,12 @@ execute(void * callbackObj, SignalHeader * const header,
 	 Uint32* send= tSignal.getDataPtrSend();
 	 memcpy(send, theData, tSignal.getLength() << 2);
 	 ((SubGcpCompleteAck*)send)->rep.senderRef = 
-	   numberToRef(API_CLUSTERMGR, theFacade->theOwnId);
+	   numberToRef(API_CLUSTERMGR, theOwnId);
 	 Uint32 ref= header->theSendersBlockRef;
 	 Uint32 aNodeId= refToNode(ref);
 	 tSignal.theReceiversBlockNumber= refToBlock(ref);
 	 tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
-	 theFacade->sendSignalUnCond(&tSignal, aNodeId);
+	 sendSignalUnCond(&tSignal, aNodeId);
        }
        break;
      }
@@ -408,7 +413,7 @@ copy(Uint32 * & insertPtr,
 }
 
 /**
- * Note that this function need no locking since its
+ * Note that this function needs no locking since it is
  * only called from the constructor of Ndb (the NdbObject)
  * 
  * Which is protected by a mutex
@@ -731,6 +736,14 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
     DBUG_RETURN(false);
   }
   
+  Uint32 total_send_buffer = 0;
+  if(iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer) ||
+     total_send_buffer == 0)
+  {
+    total_send_buffer = theTransporterRegistry->get_total_max_send_buffer();
+  }
+  theTransporterRegistry->allocate_send_buffers(total_send_buffer);
+
   Uint32 rank = 0;
   if(!iter.get(CFG_NODE_ARBIT_RANK, &rank) && rank>0){
     theArbitMgr = new ArbitMgr(* this);
@@ -1569,15 +1582,4 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
 							&s->theData[0],
 							nodeId, 
 							&s->ptr[0]);
-}
-
-/* These are dummy stubs for locking only necessary for multi-threaded ndbd. */
-void
-mt_send_lock(void *dummy, NodeId nodeId)
-{
-}
-
-void
-mt_send_unlock(void *dummy, NodeId nodeId)
-{
 }
