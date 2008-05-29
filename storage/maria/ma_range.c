@@ -48,6 +48,7 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
                             key_range *max_key)
 {
   ha_rows start_pos,end_pos,res;
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_records_in_range");
 
   if ((inx = _ma_check_index(info,inx)) < 0)
@@ -56,10 +57,10 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
   if (fast_ma_readinfo(info))
     DBUG_RETURN(HA_POS_ERROR);
   info->update&= (HA_STATE_CHANGED+HA_STATE_ROW_CHANGED);
-  if (info->s->concurrent_insert)
-    rw_rdlock(&info->s->key_root_lock[inx]);
+  if (share->lock_key_trees)
+    rw_rdlock(&share->key_root_lock[inx]);
 
-  switch(info->s->keyinfo[inx].key_alg){
+  switch(share->keyinfo[inx].key_alg){
 #ifdef HAVE_RTREE_KEYS
   case HA_KEY_ALG_RTREE:
   {
@@ -81,7 +82,7 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
       res= HA_POS_ERROR;
       break;
     }
-    key_buff= info->lastkey+info->s->base.max_key_length;
+    key_buff= info->lastkey+share->base.max_key_length;
     start_key_len= _ma_pack_key(info,inx, key_buff,
                                 min_key->key, min_key->keypart_map,
                                 (HA_KEYSEG**) 0);
@@ -107,8 +108,8 @@ ha_rows maria_records_in_range(MARIA_HA *info, int inx, key_range *min_key,
       res=HA_POS_ERROR;
   }
 
-  if (info->s->concurrent_insert)
-    rw_unlock(&info->s->key_root_lock[inx]);
+  if (share->lock_key_trees)
+    rw_unlock(&share->key_root_lock[inx]);
   fast_ma_writeinfo(info);
 
   /**

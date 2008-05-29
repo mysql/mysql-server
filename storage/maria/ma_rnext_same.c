@@ -39,11 +39,10 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
   if (fast_ma_readinfo(info))
     DBUG_RETURN(my_errno);
 
-  if (info->s->concurrent_insert)
+  if (info->s->lock_key_trees)
     rw_rdlock(&info->s->key_root_lock[inx]);
 
-  switch (keyinfo->key_alg)
-  {
+  switch (keyinfo->key_alg) {
 #ifdef HAVE_RTREE_KEYS
     case HA_KEY_ALG_RTREE:
       if ((error=maria_rtree_find_next(info,inx,
@@ -79,11 +78,12 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
           break;
         }
         /* Skip rows that are inserted by other threads since we got a lock */
-        if (info->cur_row.lastpos < info->state->data_file_length)
+        if (!info->s->non_transactional_concurrent_insert ||
+            info->cur_row.lastpos < info->state->data_file_length)
           break;
       }
   }
-  if (info->s->concurrent_insert)
+  if (info->s->lock_key_trees)
     rw_unlock(&info->s->key_root_lock[inx]);
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);

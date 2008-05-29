@@ -54,12 +54,12 @@ int maria_rsame(MARIA_HA *info, uchar *record, int inx)
     info->lastinx=inx;
     info->lastkey_length= _ma_make_key(info,(uint) inx,info->lastkey,record,
 				      info->cur_row.lastpos);
-    if (info->s->concurrent_insert)
+    if (info->s->lock_key_trees)
       rw_rdlock(&info->s->key_root_lock[inx]);
     VOID(_ma_search(info,info->s->keyinfo+inx,info->lastkey, USE_WHOLE_KEY,
 		    SEARCH_SAME,
 		    info->s->state.key_root[inx]));
-    if (info->s->concurrent_insert)
+    if (info->s->lock_key_trees)
       rw_unlock(&info->s->key_root_lock[inx]);
   }
 

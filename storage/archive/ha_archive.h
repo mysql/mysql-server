@@ -134,7 +134,7 @@ public:
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   void start_bulk_insert(ha_rows rows);
-  int end_bulk_insert();
+  int end_bulk_insert(bool table_will_be_deleted);
   enum row_type get_row_type() const 
   { 
     return ROW_TYPE_COMPRESSED;

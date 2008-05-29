@@ -7112,7 +7112,9 @@ err:
   free_io_cache(from);
   delete [] copy;
 
-  if (errpos >= 3 && to->file->ha_end_bulk_insert() && error <= 0)
+  if (error > 0)
+    to->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
+  if (errpos >= 3 && to->file->ha_end_bulk_insert(error > 1) && error <= 0)
   {
     to->file->print_error(my_errno,MYF(0));
     error=1;

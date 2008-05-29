@@ -1280,6 +1280,14 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
+  /*
+    If transactions was not enabled for a transactional table then
+    file->s->status is not up to date. This is needed for repair_by_sort
+    to work
+  */
+  if (share->base.born_transactional && !share->now_transactional)
+    _ma_copy_nontrans_state_information(file);
+
   param.db_name= table->s->db.str;
   param.table_name= table->alias;
   param.tmpfile_createflag= O_RDWR | O_TRUNC;
@@ -1287,7 +1295,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   param.thd= thd;
   param.tmpdir= &mysql_tmpdir_list;
   param.out_flag= 0;
-  strmov(fixed_name, file->s->open_file_name);
+  strmov(fixed_name, share->open_file_name);
 
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables &&
@@ -1298,7 +1306,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   }
 
   if (!do_optimize ||
-      ((file->s->data_file_type == BLOCK_RECORD) ?
+      ((share->data_file_type == BLOCK_RECORD) ?
        (share->state.changed & STATE_NOT_OPTIMIZED_ROWS) :
        (file->state->del || share->state.split != file->state->records)) &&
       (!(param.testflag & T_QUICK) ||
@@ -1317,7 +1325,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       statistics_done= 1;
       /* TODO: Remove BLOCK_RECORD test when parallel works with blocks */
       if (THDVAR(thd,repair_threads) > 1 &&
-          file->s->data_file_type != BLOCK_RECORD)
+          share->data_file_type != BLOCK_RECORD)
       {
         char buf[40];
         /* TODO: respect maria_repair_threads variable */
@@ -1379,18 +1387,17 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
     /*
-       the following 'if', thought conceptually wrong,
-       is a useful optimization nevertheless.
+      repair updates share->state.state. Ensure that file->state is up to date
     */
-    if (file->state != &file->s->state.state)
-      file->s->state.state= *file->state;
-    if (file->s->base.auto_key)
+    if (file->state != &share->state.state)
+      *file->state= share->state.state;
+    if (share->base.auto_key)
       _ma_update_auto_increment_key(&param, file, 1);
     if (optimize_done)
       error= maria_update_state_info(&param, file,
-                               UPDATE_TIME | UPDATE_OPEN_COUNT |
-                               (local_testflag &
-                                T_STATISTICS ? UPDATE_STAT : 0));
+                                     UPDATE_TIME | UPDATE_OPEN_COUNT |
+                                     (local_testflag &
+                                      T_STATISTICS ? UPDATE_STAT : 0));
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
          HA_STATUS_CONST);
     if (rows != file->state->records && !(param.testflag & T_VERY_SILENT))
@@ -1650,6 +1657,8 @@ int ha_maria::enable_indexes(uint mode)
     {
       sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
                         my_errno, param.db_name, param.table_name);
+      /* This should never fail normally */
+      DBUG_ASSERT(0);
       /* Repairing by sort failed. Now try standard repair method. */
       param.testflag &= ~(T_REP_BY_SORT | T_QUICK);
       error= (repair(thd, param, 0) != HA_ADMIN_OK);
@@ -1790,14 +1799,14 @@ void ha_maria::start_bulk_insert(ha_rows rows)
     != 0  Error
 */
 
-int ha_maria::end_bulk_insert()
+int ha_maria::end_bulk_insert(bool table_will_be_deleted)
 {
   int err;
   DBUG_ENTER("ha_maria::end_bulk_insert");
-  maria_end_bulk_insert(file);
+  maria_end_bulk_insert(file, table_will_be_deleted);
   if ((err= maria_extra(file, HA_EXTRA_NO_CACHE, 0)))
     goto end;
-  if (can_enable_indexes)
+  if (can_enable_indexes && !table_will_be_deleted)
     err= enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
 end:
   if (bulk_insert_single_undo != BULK_INSERT_NONE)
@@ -2181,77 +2190,95 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     external_lock(F_UNLCK) will happen and we can then allow the user to
     create transactional temporary tables.
   */
-  if (!file->s->base.born_transactional)
-    goto skip_transaction;
-  if (lock_type != F_UNLCK)
+  if (file->s->base.born_transactional)
   {
-    if (!trn)  /* no transaction yet - open it now */
+    /* Transactional table */
+    if (lock_type != F_UNLCK)
     {
-      trn= trnman_new_trn(& thd->mysys_var->mutex,
-                          & thd->mysys_var->suspend,
-                          thd->thread_stack + STACK_DIRECTION *
-                          (my_thread_stack_size - STACK_MIN_SIZE));
-      if (unlikely(!trn))
-        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-
-      DBUG_PRINT("info", ("THD_TRN set to 0x%lx", (ulong)trn));
-      THD_TRN= trn;
-      if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
-        trans_register_ha(thd, TRUE, maria_hton);
-    }
-    file->trn= trn;
-    if (!trnman_increment_locked_tables(trn))
-    {
-      trans_register_ha(thd, FALSE, maria_hton);
-      trnman_new_statement(trn);
-    }
-    if (!thd->transaction.on)
-    {
-      /*
-        No need to log REDOs/UNDOs. If this is an internal temporary table
-        which will be renamed to a permanent table (like in ALTER TABLE),
-        the rename happens after unlocking so will be durable (and the table
-        will get its create_rename_lsn).
-        Note: if we wanted to enable users to have an old backup and apply
-        tons of archived logs to roll-forward, we could then not disable
-        REDOs/UNDOs in this case.
-      */
-      DBUG_PRINT("info", ("Disabling logging for table"));
-      _ma_tmp_disable_logging_for_table(file, TRUE);
-    }
-  }
-  else
-  {
-    /*
-      We always re-enable, don't rely on thd->transaction.on as it is
-      sometimes reset to true after unlocking (see mysql_truncate() for a
-      partitioned table based on Maria).
-    */
-    if (_ma_reenable_logging_for_table(file, TRUE))
-      DBUG_RETURN(1);
-    /** @todo zero file->trn also in commit and rollback */
-    file->trn= NULL;
-    if (trn && trnman_has_locked_tables(trn))
-    {
-      if (!trnman_decrement_locked_tables(trn))
+      /* Start of new statement */
+      if (!trn)  /* no transaction yet - open it now */
       {
-        /* autocommit ? rollback a transaction */
-#ifdef MARIA_CANNOT_ROLLBACK
-        if (ma_commit(trn))
-          DBUG_RETURN(1);
-        THD_TRN= 0;
-#else
-        if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
-        {
-          trnman_rollback_trn(trn);
-          DBUG_PRINT("info", ("THD_TRN set to 0x0"));
-          THD_TRN= 0;
-        }
-#endif
+        trn= trnman_new_trn(& thd->mysys_var->mutex,
+                            & thd->mysys_var->suspend,
+                            thd->thread_stack + STACK_DIRECTION *
+                            (my_thread_stack_size - STACK_MIN_SIZE));
+        if (unlikely(!trn))
+          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+        THD_TRN= trn;
+        if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+          trans_register_ha(thd, TRUE, maria_hton);
+      }
+      file->trn= trn;
+      if (!trnman_increment_locked_tables(trn))
+      {
+        trans_register_ha(thd, FALSE, maria_hton);
+        trnman_new_statement(trn);
+      }
+
+      if (file->s->lock.get_status)
+      {
+        if (_ma_setup_live_state(file))
+          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      }
+      else
+      {
+        /*
+          Copy the current state. This may have been wrong if the same file
+          was used several times in the last statement. This should only
+          happen for temporary tables.
+        */
+        *file->state= file->s->state.state;
+      }
+
+      if (!thd->transaction.on)
+      {
+        /*
+          No need to log REDOs/UNDOs. If this is an internal temporary table
+          which will be renamed to a permanent table (like in ALTER TABLE),
+          the rename happens after unlocking so will be durable (and the table
+          will get its create_rename_lsn).
+          Note: if we wanted to enable users to have an old backup and apply
+          tons of archived logs to roll-forward, we could then not disable
+          REDOs/UNDOs in this case.
+        */
+        DBUG_PRINT("info", ("Disabling logging for table"));
+        _ma_tmp_disable_logging_for_table(file, TRUE);
       }
     }
-  }
-skip_transaction:
+    else
+    {
+      /* End of transaction */
+
+      /*
+        We always re-enable, don't rely on thd->transaction.on as it is
+        sometimes reset to true after unlocking (see mysql_truncate() for a
+        partitioned table based on Maria).
+      */
+      if (_ma_reenable_logging_for_table(file, TRUE))
+        DBUG_RETURN(1);
+      /** @todo zero file->trn also in commit and rollback */
+      file->trn= 0;
+      if (trn && trnman_has_locked_tables(trn))
+      {
+        if (!trnman_decrement_locked_tables(trn))
+        {
+          /* autocommit ? rollback a transaction */
+#ifdef MARIA_CANNOT_ROLLBACK
+          if (ma_commit(trn))
+            DBUG_RETURN(1);
+          THD_TRN= 0;
+#else
+          if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+          {
+            trnman_rollback_trn(trn);
+            DBUG_PRINT("info", ("THD_TRN set to 0x0"));
+            THD_TRN= 0;
+          }
+#endif
+        }
+      }
+    }
+  } /* if transactional table */
   DBUG_RETURN(maria_lock_database(file, !table->s->tmp_table ?
                                   lock_type : ((lock_type == F_UNLCK) ?
                                                F_UNLCK : F_EXTRA_LCK)));
@@ -2849,7 +2876,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
     to know if the variable was changed, the actual new value doesn't matter
   */
   actual_data_file_length= file->s->state.state.data_file_length;
-  current_data_file_length= file->save_state.data_file_length;
+  current_data_file_length= file->state->data_file_length;
 
   if (!file->s->now_transactional &&
       current_data_file_length != actual_data_file_length)

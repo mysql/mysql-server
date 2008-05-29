@@ -315,7 +315,7 @@ public:
   virtual int delete_row(const uchar * buf);
   virtual int delete_all_rows(void);
   virtual void start_bulk_insert(ha_rows rows);
-  virtual int end_bulk_insert();
+  virtual int end_bulk_insert(bool);
 
   virtual bool is_fatal_error(int error, uint flags)
   {

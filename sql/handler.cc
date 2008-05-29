@@ -2116,11 +2116,14 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_FOUND_DUPP_KEY:
   {
-    uint key_nr=get_dup_key(error);
-    if ((int) key_nr >= 0)
+    if (table)
     {
-      print_keydup_error(key_nr, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
-      DBUG_VOID_RETURN;
+      uint key_nr=get_dup_key(error);
+      if ((int) key_nr >= 0)
+      {
+        print_keydup_error(key_nr, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
+        DBUG_VOID_RETURN;
+      }
     }
     textno=ER_DUP_KEY;
     break;

@@ -427,7 +427,7 @@ my_bool maria_test_if_sort_rep(MARIA_HA *info, ha_rows rows, ulonglong key_map,
 
 int maria_init_bulk_insert(MARIA_HA *info, ulong cache_size, ha_rows rows);
 void maria_flush_bulk_insert(MARIA_HA *info, uint inx);
-void maria_end_bulk_insert(MARIA_HA *info);
+void maria_end_bulk_insert(MARIA_HA *info, my_bool table_will_be_deleted);
 int maria_assign_to_pagecache(MARIA_HA *info, ulonglong key_map,
 			      PAGECACHE *key_cache);
 void maria_change_pagecache(PAGECACHE *old_key_cache,

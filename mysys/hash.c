@@ -318,7 +318,7 @@ my_bool my_hash_insert(HASH *info,const uchar *record)
   LINT_INIT(ptr_to_rec);
   LINT_INIT(ptr_to_rec2);
 
-  if (HASH_UNIQUE & info->flags)
+  if (info->flags & HASH_UNIQUE)
   {
     uchar *key= (uchar*) hash_key(info, record, &idx, 1);
     if (hash_search(info, key, idx))

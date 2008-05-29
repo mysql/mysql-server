@@ -1,3 +1,8 @@
+#
+# This can't be run with --extern as we are acccessing the tables in the
+# database directly
+#
+
 -- source include/have_maria.inc
 
 --disable_warnings

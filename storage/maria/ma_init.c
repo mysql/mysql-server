@@ -20,6 +20,25 @@
 #include "ma_blockrec.h"
 #include "trnman_public.h"
 #include "ma_checkpoint.h"
+#include <hash.h>
+
+void history_state_free(MARIA_STATE_HISTORY_CLOSED *closed_history)
+{
+  MARIA_STATE_HISTORY *history, *next;
+
+  /*
+    Free all active history
+    In case of maria_open() this list should be empty as the history is moved
+    to handler->share.
+ */
+  for (history= closed_history->state_history; history ; history= next)
+  {
+    next= history->next;
+    my_free(history, MYF(0));
+  }
+  my_free(closed_history, MYF(0));
+}
+
 
 /*
   Initialize maria
@@ -42,8 +61,11 @@ int maria_init(void)
     maria_inited= TRUE;
     pthread_mutex_init(&THR_LOCK_maria,MY_MUTEX_INIT_SLOW);
     _ma_init_block_record_data();
+    trnman_end_trans_hook= _ma_trnman_end_trans_hook;
     my_handler_error_register();
   }
+  hash_init(&maria_stored_state, &my_charset_bin, 32,
+            0, sizeof(LSN), 0, (hash_free_key) history_state_free, 0);
   return 0;
 }
 
@@ -73,5 +95,6 @@ void maria_end(void)
     end_pagecache(maria_pagecache, TRUE);
     ma_control_file_end();
     pthread_mutex_destroy(&THR_LOCK_maria);
+    hash_free(&maria_stored_state);
   }
 }

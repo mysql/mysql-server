@@ -49,6 +49,8 @@ int ma_commit(TRN *trn)
     if crash happens between the two, trn will be rolled back which is an
     issue (transaction's updates were made visible to other transactions).
     So we need to go the first way.
+
+    Note that we have to use | here to ensure that all calls are made.
   */
 
   /*
@@ -56,11 +58,13 @@ int ma_commit(TRN *trn)
     needed only when we support XA.
   */
   res= (translog_write_record(&commit_lsn, LOGREC_COMMIT,
-                              trn, NULL, 0,
-                              sizeof(log_array)/sizeof(log_array[0]),
-                              log_array, NULL, NULL) ||
-        translog_flush(commit_lsn) ||
+                             trn, NULL, 0,
+                             sizeof(log_array)/sizeof(log_array[0]),
+                             log_array, NULL, NULL) |
+        translog_flush(commit_lsn) |
         trnman_commit_trn(trn));
+
+
   /*
     Note: if trnman_commit_trn() fails above, we have already
     written the COMMIT record, so Checkpoint and Recovery will see the
@@ -96,7 +100,6 @@ int maria_commit(MARIA_HA *info)
      @retval #      Error code.
 */
 
-
 int maria_begin(MARIA_HA *info)
 {
   DBUG_ENTER("maria_begin");
@@ -116,3 +119,4 @@ int maria_begin(MARIA_HA *info)
   }
   DBUG_RETURN(0);
 }
+

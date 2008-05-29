@@ -205,7 +205,7 @@ public:
   int close(void);                                              // required
 
   void start_bulk_insert(ha_rows rows);
-  int end_bulk_insert();
+  int end_bulk_insert(bool abort);
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
   int delete_row(const uchar *buf);

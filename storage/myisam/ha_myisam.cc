@@ -1511,12 +1511,12 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
     != 0  Error
 */
 
-int ha_myisam::end_bulk_insert()
+int ha_myisam::end_bulk_insert(bool abort)
 {
   mi_end_bulk_insert(file);
   int err=mi_extra(file, HA_EXTRA_NO_CACHE, 0);
-  return err ? err : can_enable_indexes ?
-                     enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE) : 0;
+  return (err || abort ? err : can_enable_indexes ?
+          enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE) : 0);
 }
 
 

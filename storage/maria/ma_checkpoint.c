@@ -1053,6 +1053,14 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       }
       DBUG_ASSERT(share->pagecache == maria_pagecache);
     }
+    /*
+      Clean up any unused states.
+      TODO: Only do this call if there has been # (10?) ended transactions
+      since last call.
+    */
+    share->state_history=  _ma_remove_not_visible_states(share->state_history,
+                                                         0, 0);
+
     if (share->in_checkpoint & MARIA_CHECKPOINT_SHOULD_FREE_ME)
     {
       /* maria_close() left us to free the share */

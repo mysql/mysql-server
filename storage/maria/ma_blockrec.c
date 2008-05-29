@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 Michael Widenius
+/* Copyright (C) 2007-2008 Michael Widenius
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1934,7 +1934,7 @@ static my_bool write_tail(MARIA_HA *info,
 
   /* Increase data file size, if extended */
   position= (my_off_t) block->page * block_size;
-  if (info->state->data_file_length <= position)
+  if (share->state.state.data_file_length <= position)
   {
     /*
       We are modifying a state member before writing the UNDO; this is a WAL
@@ -1942,7 +1942,7 @@ static my_bool write_tail(MARIA_HA *info,
       data_file_length after writing any log record (FILE_ID/REDO/UNDO) (see
       collect_tables()).
     */
-    info->state->data_file_length= position + block_size;
+    _ma_set_share_data_file_length(share, position + block_size);
   }
 
   if (block_is_read)
@@ -2020,8 +2020,8 @@ static my_bool write_full_pages(MARIA_HA *info,
   sub_blocks= block->sub_blocks;
 
   position= (my_off_t) (page + page_count) * block_size;
-  if (info->state->data_file_length < position)
-    info->state->data_file_length= position;
+  if (share->state.state.data_file_length < position)
+    _ma_set_share_data_file_length(share, position);
 
   /* Increase data file size, if extended */
 
@@ -2044,8 +2044,8 @@ static my_bool write_full_pages(MARIA_HA *info,
                           (ulong) block->page, (ulong) block->page_count));
 
       position= (page + page_count + 1) * block_size;
-      if (info->state->data_file_length < position)
-        info->state->data_file_length= position;
+      if (share->state.state.data_file_length < position)
+        _ma_set_share_data_file_length(share, position);
     }
     lsn_store(buff, lsn);
     buff[PAGE_TYPE_OFFSET]= (uchar) BLOB_PAGE;
@@ -3003,8 +3003,8 @@ static my_bool write_block_record(MARIA_HA *info,
 
   /* Increase data file size, if extended */
   position= (my_off_t) head_block->page * block_size;
-  if (info->state->data_file_length <= position)
-    info->state->data_file_length= position + block_size;
+  if (share->state.state.data_file_length <= position)
+    _ma_set_share_data_file_length(share, position + block_size);
 
   if (head_block_is_read)
   {
@@ -4318,7 +4318,8 @@ static uchar *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
   if (!buff)
   {
     /* check if we tried to read over end of file (ie: bad data in record) */
-    if ((extent->page + 1) * share->block_size > info->state->data_file_length)
+    if ((extent->page + 1) * share->block_size >
+        share->state.state.data_file_length)
       goto crashed;
     DBUG_RETURN(0);
   }
@@ -5223,7 +5224,7 @@ restart_bitmap_scan:
   /* Read next bitmap */
   info->scan.bitmap_page+= share->bitmap.pages_covered;
   filepos= (my_off_t) info->scan.bitmap_page * block_size;
-  if (unlikely(filepos >= info->state->data_file_length))
+  if (unlikely(filepos >= share->state.state.data_file_length))
   {
     DBUG_PRINT("info", ("Found end of file"));
     DBUG_RETURN((my_errno= HA_ERR_END_OF_FILE));
@@ -5798,7 +5799,6 @@ my_bool write_hook_for_undo(enum translog_record_type type
   if (unlikely(LSN_WITH_FLAGS_TO_LSN(trn->first_undo_lsn) == 0))
     trn->first_undo_lsn=
       trn->undo_lsn | LSN_WITH_FLAGS_TO_FLAGS(trn->first_undo_lsn);
-  DBUG_ASSERT(tbl_info->state == &tbl_info->s->state.state);
   return 0;
   /*
     when we implement purging, we will specialize this hook: UNDO_PURGE
@@ -5820,14 +5820,13 @@ my_bool write_hook_for_redo_delete_all(enum translog_record_type type
                                        __attribute__ ((unused)),
                                        LSN *lsn, void *hook_arg)
 {
-  DBUG_ASSERT(tbl_info->state == &tbl_info->s->state.state);
   _ma_reset_status(tbl_info);
   return write_hook_for_redo(type, trn, tbl_info, lsn, hook_arg);
 }
 
 
 /**
-   @brief Upates "records" and "checksum" and calls the generic UNDO hook
+   @brief Updates "records" and "checksum" and calls the generic UNDO hook
 
    @return Operation status, always 0 (success)
 */
@@ -5974,10 +5973,10 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                           STATE_NOT_MOVABLE);
 
   end_of_page= (page + 1) * share->block_size;
-  if (end_of_page > info->state->data_file_length)
+  if (end_of_page > share->state.state.data_file_length)
   {
     DBUG_PRINT("info", ("Enlarging data file from %lu to %lu",
-                        (ulong) info->state->data_file_length,
+                        (ulong) share->state.state.data_file_length,
                         (ulong) end_of_page));
     /*
       New page at end of file. Note that the test above is also positive if
@@ -6109,7 +6108,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     case we extended the file. We could not do it earlier: bitmap code tests
     data_file_length to know if it has to create a new page or not.
   */
-  set_if_bigger(info->state->data_file_length, end_of_page);
+  set_if_bigger(share->state.state.data_file_length, end_of_page);
   DBUG_RETURN(result);
 
 crashed_file:
@@ -6439,13 +6438,13 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
           continue;
 
         if (((page + 1) * share->block_size) >
-            info->state->data_file_length)
+            share->state.state.data_file_length)
         {
           /* New page or half written page at end of file */
           DBUG_PRINT("info", ("Enlarging data file from %lu to %lu",
-                              (ulong) info->state->data_file_length,
+                              (ulong) share->state.state.data_file_length,
                               (ulong) ((page + 1 ) * share->block_size)));
-          info->state->data_file_length= (page + 1) * share->block_size;
+          share->state.state.data_file_length= (page + 1) * share->block_size;
           buff= info->keyread_buff;
           info->keyread_buff_used= 1;
           make_empty_page(info, buff, BLOB_PAGE, 0);
@@ -7065,72 +7064,8 @@ maria_page_get_lsn(uchar *page,
 }
 
 
-/*****************************************************************************
- Lock handling for concurrent insert
-*****************************************************************************/
-
-/*
-  Create a copy of the current status for the table
-
-  SYNOPSIS
-    _ma_get_status()
-    param		Pointer to Myisam handler
-    concurrent_insert	Set to 1 if we are going to do concurrent inserts
-			(THR_WRITE_CONCURRENT_INSERT was used)
-*/
-
-void _ma_block_get_status(void* param, my_bool concurrent_insert)
-{
-  MARIA_HA *info=(MARIA_HA*) param;
-  DBUG_ENTER("_ma_block_get_status");
-  DBUG_PRINT("info", ("concurrent_insert %d", concurrent_insert));
-  info->row_base_length= info->s->base_length;
-  info->row_flag= info->s->base.default_row_flag;
-  if (concurrent_insert)
-  {
-    info->row_flag|= ROW_FLAG_TRANSID;
-    info->row_base_length+= TRANSID_SIZE;
-  }
-  DBUG_VOID_RETURN;
-}
-
-
-void _ma_block_update_status(void *param __attribute__((unused)))
-{
-}
-
-void _ma_block_restore_status(void *param __attribute__((unused)))
-{
-}
-
-
 /**
-  Check if should allow concurrent inserts
-
-  @return
-  @retval 0  ok to use concurrent inserts
-  @retval 1  not ok
-*/
-
-my_bool _ma_block_check_status(void *param __attribute__((unused)))
-{
-  return (my_bool) 0;
-}
-
-
-/**
-  Enable/disable versioning
-*/
-
-void maria_versioning(MARIA_HA *info, my_bool versioning)
-{
-  /* For now, this is a hack */
-  _ma_block_get_status((void*) info, versioning);
-}
-
-
-/**
-  Enable reading of all rows, ignoring versioning
+  @brief Enable reading of all rows, ignoring versioning
 
   @note
     This is mainly useful in single user applications, like maria_pack,

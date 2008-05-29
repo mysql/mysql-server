@@ -25,8 +25,10 @@
 #else
 #include <my_no_pthread.h>
 #endif
+#include <hash.h>
 #include "ma_loghandler.h"
 #include "ma_control_file.h"
+#include "ma_state.h"
 
 /* For testing recovery */
 #ifdef TO_BE_REMOVED
@@ -50,17 +52,6 @@ struct st_transaction;
 #undef my_write
 
 #define CRC_SIZE 4
-
-typedef struct st_maria_status_info
-{
-  ha_rows records;				/* Rows in table */
-  ha_rows del;					/* Removed rows */
-  my_off_t empty;				/* lost space in datafile */
-  my_off_t key_empty;				/* lost space in indexfile */
-  my_off_t key_file_length;
-  my_off_t data_file_length;
-  ha_checksum checksum;
-} MARIA_STATUS_INFO;
 
 typedef struct st_maria_state_info
 {
@@ -269,8 +260,8 @@ typedef struct st_maria_share
 {					/* Shared between opens */
   MARIA_STATE_INFO state;
   MARIA_BASE_INFO base;
-  MARIA_KEYDEF ft2_keyinfo;		/* Second-level ft-key
-						   definition */
+  MARIA_STATE_HISTORY *state_history;
+  MARIA_KEYDEF ft2_keyinfo;		/* Second-level ft-key definition */
   MARIA_KEYDEF *keyinfo;		/* Key definitions */
   MARIA_UNIQUEDEF *uniqueinfo;		/* unique definitions */
   HA_KEYSEG *keyparts;			/* key part info */
@@ -356,6 +347,7 @@ typedef struct st_maria_share
   File data_file;			/* Shared data file */
   int mode;				/* mode of file on open */
   uint reopen;				/* How many times reopened */
+  uint in_trans;                        /* Number of references by trn */
   uint w_locks, r_locks, tot_locks;	/* Number of read/write locks */
   uint block_size;			/* block_size of keyfile & data file*/
   /* Fixed length part of a packed row in BLOCK_RECORD format */
@@ -370,7 +362,9 @@ typedef struct st_maria_share
 
   my_bool changed,			/* If changed since lock */
     global_changed,			/* If changed since open */
-    not_flushed, concurrent_insert;
+    not_flushed;
+  my_bool lock_key_trees;               /* If we have to lock trees on read */
+  my_bool non_transactional_concurrent_insert;
   my_bool delay_key_write;
   my_bool have_rtree;
   /**
@@ -383,6 +377,7 @@ typedef struct st_maria_share
   my_bool used_key_del;                         /* != 0 if key_del is locked */
 #ifdef THREAD
   THR_LOCK lock;
+  void (*lock_restore_status)(void *);
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
   pthread_cond_t intern_cond;
   rw_lock_t *key_root_lock;
@@ -461,7 +456,8 @@ struct st_maria_handler
 {
   MARIA_SHARE *s;			/* Shared between open:s */
   struct st_transaction *trn;           /* Pointer to active transaction */
-  MARIA_STATUS_INFO *state, save_state;
+  MARIA_STATUS_INFO *state, state_save;
+  MARIA_STATUS_INFO *state_start;       /* State at start of transaction */
   MARIA_ROW cur_row;                    /* The active row that we just read */
   MARIA_ROW new_row;			/* Storage for a row during update */
   MARIA_BLOCK_SCAN scan, *scan_save;
@@ -733,7 +729,7 @@ extern uint maria_quick_table_bits;
 extern char *maria_data_root;
 extern uchar maria_zero_string[];
 extern my_bool maria_inited;
-
+extern HASH maria_stored_state;
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param
@@ -1048,6 +1044,7 @@ void _ma_update_status(void *param);
 void _ma_restore_status(void *param);
 void _ma_copy_status(void *to, void *from);
 my_bool _ma_check_status(void *param);
+void _ma_restore_status(void *param);
 void _ma_reset_status(MARIA_HA *maria);
 int _ma_def_scan_remember_pos(MARIA_HA *info, MARIA_RECORD_POS *lastpos);
 void _ma_def_scan_restore_pos(MARIA_HA *info, MARIA_RECORD_POS lastpos);

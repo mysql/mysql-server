@@ -532,9 +532,10 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
       }
       if (!got_error && param->testflag & T_STATISTICS)
         maria_update_key_parts(sinfo->keyinfo, rec_per_key_part, sinfo->unique,
-                         param->stats_method == MI_STATS_METHOD_IGNORE_NULLS?
-                         sinfo->notnull: NULL,
-                         (ulonglong) info->state->records);
+                               param->stats_method ==
+                               MI_STATS_METHOD_IGNORE_NULLS ?
+                               sinfo->notnull : NULL,
+                               (ulonglong) share->state.state.records);
     }
     my_free((uchar*) sinfo->sort_keys,MYF(0));
     my_free(sinfo->rec_buff, MYF(MY_ALLOW_ZERO_PTR));

@@ -328,7 +328,7 @@ class ha_ndbcluster: public handler
   double scan_time();
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   void start_bulk_insert(ha_rows rows);
-  int end_bulk_insert();
+  int end_bulk_insert(bool abort);
 
   static Thd_ndb* seize_thd_ndb();
   static void release_thd_ndb(Thd_ndb* thd_ndb);

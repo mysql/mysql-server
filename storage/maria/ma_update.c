@@ -42,7 +42,7 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
   {
     DBUG_RETURN(my_errno=EACCES);
   }
-  if (info->state->key_file_length >= share->base.margin_key_file_length)
+  if (share->state.state.key_file_length >= share->base.margin_key_file_length)
   {
     DBUG_RETURN(my_errno=HA_ERR_INDEX_FILE_FULL);
   }
@@ -144,24 +144,12 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
     */
     info->cur_row.checksum= (*share->calc_checksum)(info, newrec);
     info->new_row.checksum= (*share->calc_checksum)(info, oldrec);
-    if (!share->now_transactional)
-      info->state->checksum+= info->cur_row.checksum - info->new_row.checksum;
+    info->state->checksum+= info->cur_row.checksum - info->new_row.checksum;
   }
-  {
-    /*
-      Don't update index file if data file is not extended and no status
-      information changed
-    */
-    MARIA_STATUS_INFO state;
-    ha_rows org_split;
-    my_off_t org_delete_link;
 
-    memcpy((char*) &state, (char*) info->state, sizeof(state));
-    org_split=	     share->state.split;
-    org_delete_link= share->state.dellink;
-    if ((*share->update_record)(info, pos, oldrec, newrec))
-      goto err;
-  }
+  if ((*share->update_record)(info, pos, oldrec, newrec))
+    goto err;
+
   if (auto_key_changed & !share->now_transactional)
   {
     const HA_KEYSEG *keyseg= share->keyinfo[share->base.auto_key-1].seg;
@@ -171,8 +159,7 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
   }
 
   /*
-    We can't yet have HA_STATE_AKTIV here, as block_record dosn't support
-    it
+    We can't yet have HA_STATE_AKTIV here, as block_record dosn't support it
   */
   info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED | key_changed);
   share->state.changed|= STATE_NOT_MOVABLE | STATE_NOT_ZEROFILLED;

@@ -355,6 +355,9 @@ INSERT into t2 values (1,1,1), (2,2,2);
 optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	b	1	b	A	5	NULL	NULL	YES	BTREE	
@@ -2100,6 +2103,11 @@ test.t2	check	status	OK
 select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
 t1	t2	length(t3)	length(t4)	length(t5)	length(t6)	t7	t8
 1	a	256	256	4096	4096		
+drop table t2;
+create table t2 (primary key (auto)) engine=maria row_format=dynamic select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
+check table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
 drop table t1,t2;
 CREATE TABLE t1 (seq int, s1 int, s2 blob);
 insert into t1 values (1, 1, MD5(1));
@@ -2242,6 +2250,12 @@ t
 9999-12-31 23:59:59
 2003-01-00 00:00:00
 2003-00-00 00:00:00
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 delete from t1 where t > 0;
 optimize table t1;
 Table	Op	Msg_type	Msg_text

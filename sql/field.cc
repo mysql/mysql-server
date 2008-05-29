@@ -5393,7 +5393,7 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 
 int Field_year::store(double nr)
 {
-  if (nr < 0.0 || nr >= 2155.0)
+  if (nr < 0.0 || nr > 2155.0)
   {
     (void) Field_year::store((longlong) -1, FALSE);
     return 1;

@@ -626,9 +626,9 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
       cmp_translog_addr(lsn, share->state.is_of_horizon) >= 0)
     share->state.key_root[key_nr]= file_size - share->block_size;
 
-  if (file_size > info->state->key_file_length)
+  if (file_size > share->state.state.key_file_length)
   {
-    info->state->key_file_length= file_size;
+    share->state.state.key_file_length= file_size;
     buff= info->keyread_buff;
     info->keyread_buff_used= 1;
     unlock_method= PAGECACHE_LOCK_WRITE;
@@ -1138,7 +1138,7 @@ void _ma_unlock_key_del(MARIA_HA *info)
     MARIA_SHARE *share= info->s;
     pthread_mutex_lock(&share->intern_lock);
     share->used_key_del= 0;
-    share->state.key_del= info->s->current_key_del;
+    share->state.key_del= share->current_key_del;
     pthread_mutex_unlock(&share->intern_lock);
     pthread_cond_signal(&share->intern_cond);
   }

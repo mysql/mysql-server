@@ -276,7 +276,7 @@ connection server1;
 insert into t1 values (35);
 insert into t1 values (NULL);
 connection server2;
---error ER_DUP_ENTRY
+--error ER_DUP_ENTRY, ER_DUP_KEY
 insert into t1 values (NULL);
 select * from t1 order by a;
 

@@ -14,10 +14,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  locking of isam-tables.
-  reads info from a isam-table. Must be first request before doing any furter
-  calls to any isamfunktion.  Is used to allow many process use the same
-  isamdatabase.
+  Locking of Maria-tables.
+  Must be first request before doing any furter calls to any Maria function.
+  Is used to allow many process use the same non transactional Maria table
 */
 
 #include "ma_ftdefs.h"
@@ -57,12 +56,14 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       if (info->lock_type == F_RDLCK)
       {
 	count= --share->r_locks;
-        _ma_restore_status(info);
+        if (share->lock_restore_status)
+          (*share->lock_restore_status)(info);
       }
       else
       {
 	count= --share->w_locks;
-        _ma_update_status(info);
+        if (share->lock.update_status)
+          (*share->lock.update_status)(info);
       }
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks)
@@ -91,16 +92,16 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	if (share->changed && !share->w_locks)
 	{
 #ifdef HAVE_MMAP
-          if ((info->s->mmaped_length !=
-               info->s->state.state.data_file_length) &&
-              (info->s->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
+          if ((share->mmaped_length !=
+               share->state.state.data_file_length) &&
+              (share->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
           {
-            if (info->s->concurrent_insert)
-              rw_wrlock(&info->s->mmap_lock);
-            _ma_remap_file(info, info->s->state.state.data_file_length);
-            info->s->nonmmaped_inserts= 0;
-            if (info->s->concurrent_insert)
-              rw_unlock(&info->s->mmap_lock);
+            if (share->lock_key_trees)
+              rw_wrlock(&share->mmap_lock);
+            _ma_remap_file(info, share->state.state.data_file_length);
+            share->nonmmaped_inserts= 0;
+            if (share->lock_key_trees)
+              rw_unlock(&share->mmap_lock);
           }
 #endif
 #ifdef EXTERNAL_LOCKING
@@ -212,7 +213,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       VOID(_ma_test_if_changed(info));
 
       info->lock_type=lock_type;
-      info->invalidator=info->s->invalidator;
+      info->invalidator=share->invalidator;
       share->w_locks++;
       share->tot_locks++;
       break;
@@ -242,128 +243,6 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 
 
 /****************************************************************************
-  The following functions are called by thr_lock() in threaded applications
-****************************************************************************/
-
-/*
-  Create a copy of the current status for the table
-
-  SYNOPSIS
-    _ma_get_status()
-    param		Pointer to Myisam handler
-    concurrent_insert	Set to 1 if we are going to do concurrent inserts
-			(THR_WRITE_CONCURRENT_INSERT was used)
-*/
-
-void _ma_get_status(void* param, my_bool concurrent_insert)
-{
-  MARIA_HA *info=(MARIA_HA*) param;
-  DBUG_ENTER("_ma_get_status");
-  DBUG_PRINT("info",("key_file: %ld  data_file: %ld  concurrent_insert: %d",
-		     (long) info->s->state.state.key_file_length,
-		     (long) info->s->state.state.data_file_length,
-                     concurrent_insert));
-#ifndef DBUG_OFF
-  if (info->state->key_file_length > info->s->state.state.key_file_length ||
-      info->state->data_file_length > info->s->state.state.data_file_length)
-    DBUG_PRINT("warning",("old info:  key_file: %ld  data_file: %ld",
-			  (long) info->state->key_file_length,
-			  (long) info->state->data_file_length));
-#endif
-  info->save_state=info->s->state.state;
-  info->state= &info->save_state;
-  info->append_insert_at_end= concurrent_insert;
-  DBUG_VOID_RETURN;
-}
-
-
-void _ma_update_status(void* param)
-{
-  MARIA_HA *info=(MARIA_HA*) param;
-  /*
-    Because someone may have closed the table we point at, we only
-    update the state if its our own state.  This isn't a problem as
-    we are always pointing at our own lock or at a read lock.
-    (This is enforced by thr_multi_lock.c)
-  */
-  if (info->state == &info->save_state)
-  {
-    MARIA_SHARE *share= info->s;
-#ifndef DBUG_OFF
-    DBUG_PRINT("info",("updating status:  key_file: %ld  data_file: %ld",
-		       (long) info->state->key_file_length,
-		       (long) info->state->data_file_length));
-    if (info->state->key_file_length < share->state.state.key_file_length ||
-	info->state->data_file_length < share->state.state.data_file_length)
-      DBUG_PRINT("warning",("old info:  key_file: %ld  data_file: %ld",
-			    (long) share->state.state.key_file_length,
-			    (long) share->state.state.data_file_length));
-#endif
-    /*
-      we are going to modify the state without lock's log, this would break
-      recovery if done with a transactional table.
-    */
-    DBUG_ASSERT(!info->s->base.born_transactional);
-    share->state.state= *info->state;
-    info->state= &share->state.state;
-  }
-  info->append_insert_at_end= 0;
-}
-
-
-void _ma_restore_status(void *param)
-{
-  MARIA_HA *info= (MARIA_HA*) param;
-  info->state= &info->s->state.state;
-  info->append_insert_at_end= 0;
-}
-
-
-void _ma_copy_status(void* to,void *from)
-{
-  ((MARIA_HA*) to)->state= &((MARIA_HA*) from)->save_state;
-}
-
-
-/*
-  Check if should allow concurrent inserts
-
-  IMPLEMENTATION
-    Allow concurrent inserts if we don't have a hole in the table or
-    if there is no active write lock and there is active read locks and
-    maria_concurrent_insert == 2. In this last case the new
-    row('s) are inserted at end of file instead of filling up the hole.
-
-    The last case is to allow one to inserts into a heavily read-used table
-    even if there is holes.
-
-  NOTES
-    If there is a an rtree indexes in the table, concurrent inserts are
-    disabled in maria_open()
-
-  RETURN
-    0  ok to use concurrent inserts
-    1  not ok
-*/
-
-my_bool _ma_check_status(void *param)
-{
-  MARIA_HA *info=(MARIA_HA*) param;
-  /*
-    The test for w_locks == 1 is here because this thread has already done an
-    external lock (in other words: w_locks == 1 means no other threads has
-    a write lock)
-  */
-  DBUG_PRINT("info",("dellink: %ld  r_locks: %u  w_locks: %u",
-                     (long) info->s->state.dellink, (uint) info->s->r_locks,
-                     (uint) info->s->w_locks));
-  return (my_bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
-                     (maria_concurrent_insert == 2 && info->s->r_locks &&
-                      info->s->w_locks == 1));
-}
-
-
-/****************************************************************************
  ** functions to read / write the state
 ****************************************************************************/
 
@@ -389,7 +268,7 @@ int _ma_readinfo(register MARIA_HA *info __attribute__ ((unused)),
     }
     if (check_keybuffer)
       VOID(_ma_test_if_changed(info));
-    info->invalidator=info->s->invalidator;
+    info->invalidator=share->invalidator;
   }
   else if (lock_type == F_WRLCK && info->lock_type == F_RDLCK)
   {

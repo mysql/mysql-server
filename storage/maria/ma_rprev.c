@@ -39,7 +39,7 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
   if (fast_ma_readinfo(info))
     DBUG_RETURN(my_errno);
   changed= _ma_test_if_changed(info);
-  if (share->concurrent_insert)
+  if (share->lock_key_trees)
     rw_rdlock(&share->key_root_lock[inx]);
   if (!flag)
     error= _ma_search_last(info, share->keyinfo+inx,
@@ -52,7 +52,7 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
     error= _ma_search(info,share->keyinfo+inx,info->lastkey,
 		     USE_WHOLE_KEY, flag, share->state.key_root[inx]);
 
-  if (share->concurrent_insert)
+  if (share->non_transactional_concurrent_insert)
   {
     if (!error)
     {
@@ -66,8 +66,9 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
 	  break;
       }
     }
-    rw_unlock(&share->key_root_lock[inx]);
   }
+  if (share->lock_key_trees)
+    rw_unlock(&share->key_root_lock[inx]);
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;
   if (error)

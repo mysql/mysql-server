@@ -128,6 +128,27 @@ int maria_close(register MARIA_HA *info)
     }
     else
       share_can_be_freed= TRUE;
+
+    /* Remember share->history for future opens */
+    share->state_history= _ma_remove_not_visible_states(share->state_history,
+                                                        1, 0);
+    if (share->state_history)
+    {
+      MARIA_STATE_HISTORY_CLOSED *history;
+      /*
+        Here we ignore the unlikely case that we don't have memory to
+        store the case. In the worst case what happens is that any transaction
+        that tries to access this table will get a wrong status information.
+      */
+      if ((history= (MARIA_STATE_HISTORY_CLOSED *)
+           my_malloc(sizeof(*history), MYF(MY_WME))))
+      {
+        history->create_rename_lsn= share->state.create_rename_lsn;
+        history->state_history= share->state_history;
+        if (my_hash_insert(&maria_stored_state, (uchar*) history))
+          my_free(history, MYF(0));
+      }
+    }
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
   pthread_mutex_unlock(&share->intern_lock);

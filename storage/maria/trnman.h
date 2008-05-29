@@ -42,9 +42,10 @@ C_MODE_START
 struct st_transaction
 {
   LOCK_OWNER           locks; /* must be the first! see short_trid_to_TRN() */
-  LF_PINS             *pins;
+  LF_PINS              *pins;
+  void                 *used_tables;  /* Tables used by transaction */
+  TRN                  *next, *prev;
   TrID                 trid, min_read_from, commit_trid;
-  TRN                 *next, *prev;
   LSN		       rec_lsn, undo_lsn;
   LSN_WITH_FLAGS       first_undo_lsn;
   uint                 locked_tables;
