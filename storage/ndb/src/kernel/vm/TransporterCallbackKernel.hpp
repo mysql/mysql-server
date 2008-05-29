@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2008 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,31 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef SIGNAL_DROPPED_HPP
-#define SIGNAL_DROPPED_HPP
-
-#include "SignalData.hpp"
-
-class SignalDroppedRep {
-
-  /**
-   * Reciver(s)
-   */
-  friend class SimulatedBlock;
-
-  /**
-   * Sender (TransporterCallback.cpp)
-   */
-  friend class TransporterFacade;
-  friend class TransporterCallbackKernel;
-
-  friend bool printSIGNAL_DROPPED_REP(FILE *, const Uint32 *, Uint32, Uint16);  
+class TransporterCallbackKernel: public TransporterCallback
+{
 public:
-private:
-  Uint32 originalGsn;
-  Uint32 originalLength;
-  Uint32 originalSectionCount;
-  Uint32 originalData[1];
+  /* TransporterCallback interface. */
+  void deliver_signal(SignalHeader * const header,
+                      Uint8 prio,
+                      Uint32 * const signalData,
+                      LinearSectionPtr ptr[3]);
+  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void reportConnect(NodeId nodeId);
+  void reportDisconnect(NodeId nodeId, Uint32 errNo);
+  void reportError(NodeId nodeId, TransporterError errorCode,
+                   const char *info = 0);
+  void transporter_recv_from(NodeId node);
+  virtual ~TransporterCallbackKernel() { }
 };
-
-#endif

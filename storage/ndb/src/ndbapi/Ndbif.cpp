@@ -911,6 +911,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     return;
   } 
   default:
+    tFirstDataPtr = NULL;
     goto InvalidSignal;
   }//swich
 

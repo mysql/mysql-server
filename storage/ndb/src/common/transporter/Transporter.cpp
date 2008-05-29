@@ -36,10 +36,13 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 NodeId rNodeId,
 			 NodeId serverNodeId,
 			 int _byteorder, 
-			 bool _compression, bool _checksum, bool _signalId)
+			 bool _compression, bool _checksum, bool _signalId,
+                         Uint32 max_send_buffer)
   : m_s_port(s_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
     isServer(lNodeId==serverNodeId),
-    m_packer(_signalId, _checksum),  isMgmConnection(_isMgmConnection),
+    m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
+    m_overload_limit(0xFFFFFFFF), isMgmConnection(_isMgmConnection),
+    m_send_iovec_used(0),
     m_type(_type),
     m_transporter_registry(t_reg)
 {
@@ -104,6 +107,8 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
     DBUG_RETURN(false); // TODO assert(0);
   }
   
+  get_callback_obj()->reset_send_buffer(remoteNodeId);
+
   {
     struct sockaddr_in addr;
     SOCKET_SIZE_TYPE addrlen= sizeof(addr);
@@ -164,6 +169,8 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   DBUG_ENTER("Transporter::connect_client");
 
   DBUG_PRINT("info",("port %d isMgmConnection=%d",m_s_port,isMgmConnection));
+
+  get_callback_obj()->reset_send_buffer(remoteNodeId);
 
   SocketOutputStream s_output(sockfd);
   SocketInputStream s_input(sockfd);
@@ -236,5 +243,8 @@ Transporter::doDisconnect() {
     return; //assert(0); TODO will fail
 
   m_connected= false;
+
+  m_send_iovec_used= 0;
+  get_callback_obj()->reset_send_buffer(remoteNodeId);
   disconnectImpl();
 }

@@ -9044,7 +9044,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     rep->nodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
     rep->err = 8038;
     
-    EXECUTE_DIRECT(CMVMI, GSN_DISCONNECT_REP, signal, 2);
+    sendSignal(CMVMI_REF, GSN_DISCONNECT_REP, signal, 2, JBA);
     CLEAR_ERROR_INSERT_VALUE;
   }
   

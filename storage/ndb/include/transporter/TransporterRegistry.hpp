@@ -31,6 +31,7 @@
 #include <sys/epoll.h>
 #endif
 #include "TransporterDefinitions.hpp"
+#include "TransporterCallback.hpp"
 #include <SocketServer.hpp>
 #include <SocketClient.hpp>
 
@@ -91,15 +92,17 @@ public:
  * @class TransporterRegistry
  * @brief ...
  */
-class TransporterRegistry {
+class TransporterRegistry : private TransporterSendBufferHandle {
   friend class SHM_Transporter;
+  friend class SHM_Writer;
   friend class Transporter;
   friend class TransporterService;
 public:
  /**
   * Constructor
   */
-  TransporterRegistry(void * callback = 0 , 
+  TransporterRegistry(TransporterCallback *callback,
+                      bool use_default_send_buffer = true,
 		      unsigned maxTransporters = MAX_NTRANSPORTERS, 
 		      unsigned sizeOfLongSignalMemory = 100);
 
@@ -146,7 +149,7 @@ public:
    * Stops the server, disconnects all the transporter 
    * and deletes them and remove it from the transporter arrays
    */
-  ~TransporterRegistry();
+  virtual ~TransporterRegistry();
 
   bool start_service(SocketServer& server);
   bool start_clients();
@@ -182,10 +185,12 @@ public:
    * Get and set methods for PerformState
    */
   void do_connect(NodeId node_id);
-  void do_disconnect(NodeId node_id);
+  void do_disconnect(NodeId node_id, int errnum = 0);
   bool is_connected(NodeId node_id) { return performStates[node_id] == CONNECTED; };
   void report_connect(NodeId node_id);
   void report_disconnect(NodeId node_id, int errnum);
+  void report_error(NodeId nodeId, TransporterError errorCode,
+                    const char *errorInfo = 0);
   
   /**
    * Get and set methods for IOState
@@ -206,11 +211,23 @@ public:
   bool createSHMTransporter(struct TransporterConfiguration * config);
 
   /**
-   * Get free buffer space
+   * Allocate send buffer for default send buffer handling.
    *
-   *   Get #free bytes in send buffer for <em>node</node>
+   * Upper layer that implements their own TransporterSendBufferHandle do not
+   * use this, instead they manage their own send buffers.
+   *
+   * Argument is the value of config parameter TotalSendBufferMemory. If 0,
+   * a default will be used of sum(max send buffer) over all transporters.
    */
-  Uint32 get_free_buffer(Uint32 node) const ;
+  void allocate_send_buffers(Uint32 total_send_buffer);
+  /**
+   * Get sum of max send buffer over all transporters, to be used as a default
+   * for allocate_send_buffers eg.
+   *
+   * Must be called after creating all transporters for returned value to be
+   * correct.
+   */
+  Uint32 get_total_max_send_buffer() { return m_total_max_send_buffer; }
 
   /**
    * Set or clear overloaded bit.
@@ -230,16 +247,36 @@ public:
    * NOTE signalHeader->xxxBlockRef should contain block numbers and 
    *                                not references
    */
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
+  SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
+                         const SignalHeader * const signalHeader, Uint8 prio,
 			 const Uint32 * const signalData,
 			 NodeId nodeId, 
 			 const LinearSectionPtr ptr[3]);
 
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
+  SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
+                         const SignalHeader * const signalHeader, Uint8 prio,
 			 const Uint32 * const signalData,
 			 NodeId nodeId, 
 			 class SectionSegmentPool & pool,
 			 const SegmentedSectionPtr ptr[3]);
+  /**
+   * Backwards compatiple methods with default send buffer handling.
+   */
+  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
+			 const Uint32 * const signalData,
+			 NodeId nodeId,
+			 const LinearSectionPtr ptr[3])
+  {
+    return prepareSend(this, signalHeader, prio, signalData, nodeId, ptr);
+  }
+  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
+			 const Uint32 * const signalData,
+			 NodeId nodeId,
+			 class SectionSegmentPool & pool,
+			 const SegmentedSectionPtr ptr[3])
+  {
+    return prepareSend(this, signalHeader, prio, signalData, nodeId, pool, ptr);
+  }
   
   /**
    * external_IO
@@ -281,7 +318,7 @@ public:
 protected:
   
 private:
-  void * callbackObj;
+  TransporterCallback *callbackObj;
 
   NdbMgmHandle m_mgm_handle;
 
@@ -328,7 +365,13 @@ private:
    * State arrays, index by host id
    */
   PerformState* performStates;
+  int*          m_disconnect_errnum;
   IOState*      ioStates;
+  struct ErrorState {
+    TransporterError m_code;
+    const char *m_info;
+  };
+  struct ErrorState *m_error_states;
 
   /**
    * Overloaded bits, for fast check.
@@ -336,7 +379,9 @@ private:
   NodeBitmask m_status_overloaded;
  
   /**
-   * Unpack signal data
+   * Unpack signal data.
+   *
+   * Defined in Packer.cpp.
    */
   Uint32 unpack(Uint32 * readPtr,
 		Uint32 bufferSize,
@@ -348,6 +393,7 @@ private:
 		  NodeId remoteNodeId,
 		  IOState state);
 
+  static Uint32 unpack_length_words(const Uint32 *readPtr, Uint32 maxWords);
   /** 
    * Disconnect the transporter and remove it from 
    * theTransporters array. Do not allow any holes 
@@ -368,6 +414,86 @@ private:
 
   int m_shm_own_pid;
   int m_transp_count;
+
+  Uint32 *getWritePtr(TransporterSendBufferHandle *handle,
+                      NodeId node, Uint32 lenBytes, Uint32 prio);
+  void updateWritePtr(TransporterSendBufferHandle *handle,
+                      NodeId node, Uint32 lenBytes, Uint32 prio);
+
+  /**
+   * TransporterSendBufferHandle implementation.
+   *
+   * Used for default send buffer handling, when the upper layer does not
+   * want to do special buffer handling itself.
+   */
+  virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
+                              Uint32 max_use);
+  virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
+  virtual bool forceSend(NodeId node);
+
+private:
+  /* Send buffer pages. */
+  struct SendBufferPage {
+    /* This is the number of words that will fit in one page of send buffer. */
+    static const Uint32 PAGESIZE = 32768;
+    static Uint32 max_data_bytes()
+    {
+      return PAGESIZE - offsetof(SendBufferPage, m_data);
+    }
+
+    /* Send buffer for one transporter is kept in a single-linked list. */
+    struct SendBufferPage *m_next;
+    /* Bytes of send data available in this page. */
+    Uint32 m_bytes;
+    /* Data; real size is to the end of one page. */
+    unsigned char m_data[1];
+  };
+
+  /* Send buffer for one transporter. */
+  struct SendBuffer {
+    /* Linked list of active buffer pages with first and last pointer. */
+    SendBufferPage *m_first_page;
+    SendBufferPage *m_last_page;
+    /**
+     * Current page == the first one with data not yet returned from
+     * get_bytes_to_send_iovec().
+     */
+    SendBufferPage *m_current_page;
+    /**
+     * Offset (in m_current_page) of next data to return from
+     * get_bytes_to_send_iovec().
+     */
+    Uint32 m_offset_unsent_data;
+    /* Offset (in m_first_page) of data not yet passed to bytes_sent(). */
+    Uint32 m_offset_start_data;
+    /* Total size of data in buffer, from m_offset_start_data to end. */
+    Uint32 m_used_bytes;
+  };
+
+  SendBufferPage *alloc_page();
+  void release_page(SendBufferPage *page);
+
+private:
+  /* True if we are using the default send buffer implementation. */
+  bool m_use_default_send_buffer;
+  /* Send buffers. */
+  SendBuffer *m_send_buffers;
+  /* Linked list of free pages. */
+  SendBufferPage *m_page_freelist;
+  /* Original block of memory for pages (so we can free it at exit). */
+  unsigned char *m_send_buffer_memory;
+  /**
+   * Sum of max transporter memory for each transporter.
+   * Used to compute default send buffer size.
+   */
+  Uint32 m_total_max_send_buffer;
+
+public:
+  int get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
+  Uint32 bytes_sent(NodeId node, const struct iovec *src, Uint32 bytes);
+  bool has_data_to_send(NodeId node);
+
+  void reset_send_buffer(NodeId node);
 };
 
 inline void

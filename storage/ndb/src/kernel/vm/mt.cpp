@@ -24,6 +24,7 @@
 #include "mt.hpp"
 #include <DebuggerNames.hpp>
 #include <signaldata/StopForCrash.hpp>
+#include "TransporterCallbackKernel.hpp"
 
 #ifdef __GNUC__
 /* Provides a small (but noticeable) speedup in benchmarks. */
@@ -206,7 +207,8 @@ wakeup(struct thr_wait* wait)
 }
 #endif
 
-inline void require(bool x)
+static inline void
+require(bool x)
 {
   if (unlikely(!(x)))
     abort();
@@ -545,6 +547,173 @@ struct thr_safe_pool
   }
 };
 
+template<typename T, typename U>
+class thread_local_pool
+{
+public:
+  thread_local_pool(thr_safe_pool<U> *global_pool, int max_free) :
+    m_global_pool(global_pool), m_max_free(max_free),
+    m_freelist(0), m_free(0)
+  {
+  }
+
+  T *seize()
+  {
+    T *tmp = m_freelist;
+    if (tmp)
+    {
+      m_freelist = tmp->m_next;
+      assert (m_free > 0);
+      m_free--;
+    }
+    else
+      tmp = (T *)m_global_pool->seize();
+    return tmp;
+  }
+
+  void release(T *t)
+  {
+    int free = m_free;
+    if (free < m_max_free)
+    {
+      m_free = free + 1;
+      t->m_next = m_freelist;
+      m_freelist = t;
+    }
+    else
+      m_global_pool->release((U *)t);
+  }
+
+private:
+  thr_safe_pool<U> *m_global_pool;
+  int m_max_free;
+  T *m_freelist;
+  int m_free;
+};
+
+/**
+ * Send buffer implementation, we have one of these for each thread.
+ *
+ * Enables lock-free prepareSend(), and per-transporter lock for doSend().
+ */
+struct thr_send_buf : public TransporterSendBufferHandle
+{
+  /* One page of send buffer data. */
+  struct page
+  {
+    /* This is the number of words that will fit in one page of send buffer. */
+    static const Uint32 PAGESIZE = 32768;
+    static Uint32 max_data_bytes()
+    {
+      return PAGESIZE - offsetof(page, m_data);
+    }
+
+    /* Send buffer for one transporter is kept in a single-linked list. */
+    page *m_next;
+    /* Bytes of send data available in this page. */
+    Uint32 m_bytes;
+    /* Start of unsent data (next bytes_sent() will count from here). */
+    Uint32 m_start;
+    /* Offset from where to return data in next get_bytes_to_send_iovec(). */
+    Uint32 m_current;
+    /* Data; real size is to the end of one page. */
+    unsigned char m_data[1];
+  };
+
+  /* Linked list of pages for one thread/transporter pair. */
+  struct send_buffer
+  {
+    /* First page, ie. page where next bytes_sent() will count from. */
+    page *m_first_page;
+    /* Last page, ie. page next getWritePtr() will use. */
+    page *m_last_page;
+    /* Page from which next get_bytes_to_send_iovec() will return data. */
+    page *m_current_page;
+    /* Temporary pointer stored in getWritePtr and read in updateWritePtr. */
+    page *m_prev_page;
+    /**
+     * Members to keep track of total buffer usage.
+     *
+     * Since we are non-locking, these will only be approximate, as there is no
+     * defined temporal synchronization between readers and writers.
+     *
+     * We keep two separate counters, one updated only by the writer, and one
+     * updated only by the reader, to avoid the need for locking or atomic
+     * operations. An approximate count of bytes available is obtained from
+     * (m_written_bytes - m_read_bytes), C unsigned arithmetics takes care
+     * to handle overflow/wrapover correctly (for <2Gb send buffers at least).
+     *
+     * It is teoretically possible to get a <0 value (if m_read_bytes is
+     * updated before m_written_bytes), so this needs to be handled.
+     */
+    Uint32 m_written_bytes;
+    Uint32 m_read_bytes;
+
+    Uint32 used_bytes() const
+    {
+      Uint32 used = m_written_bytes - m_read_bytes;
+      return (used >= (Uint32)0x80000000) ? 0 : used;
+    }
+
+    void init()
+    {
+      m_first_page = NULL;
+      m_last_page = NULL;
+      m_current_page = NULL;
+      m_prev_page = NULL;
+      m_written_bytes = 0;
+      m_read_bytes = 0;
+    }
+  };
+
+  thr_send_buf(struct trp_callback *trp_cb, Uint32 thread,
+               thr_safe_pool<thr_job_buffer> *global_pool);
+  bool initial_alloc(NodeId node);
+
+  /* Callback interface. */
+  Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
+                      Uint32 max_use);
+  Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
+  bool forceSend(NodeId node);
+
+  const Uint32 m_self;
+  send_buffer m_buffers[MAX_NTRANSPORTERS];
+  thread_local_pool<page, thr_job_buffer> m_pool;
+  const struct trp_callback *m_trp_callback;
+};
+
+struct trp_callback : public TransporterCallbackKernel
+{
+  trp_callback();
+
+  /* Callback interface. */
+  int checkJobBuffer() { return 0; }
+  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void lock_transporter(NodeId node);
+  void unlock_transporter(NodeId node);
+  int get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
+  Uint32 bytes_sent(NodeId node, const struct iovec *src, Uint32 bytes);
+  bool has_data_to_send(NodeId node);
+  void reset_send_buffer(NodeId node);
+
+  Uint32 total_bytes(NodeId node) const
+  {
+    Uint32 total = 0;
+    for (Uint32 i = 0; i < NUM_THREADS; i++)
+      total += m_thr_buffers[i]->m_buffers[node].used_bytes();
+    return total;
+  }
+
+  thr_send_buf *m_thr_buffers[MAX_THREADS];
+  /**
+   * During send, for each node this holds the id of the thread currently
+   * doing send to that node.
+   */
+  Uint32 m_send_thr[MAX_NTRANSPORTERS];
+};
+
+extern trp_callback g_trp_callback;             // Forward declaration
+
 struct thr_repository
 {
   thr_repository()
@@ -572,6 +741,16 @@ struct thr_repository
    * Send locks for the transporters, one per possible remote node.
    */
   thr_spin_lock m_send_locks[MAX_NTRANSPORTERS];
+  /**
+   * Flag used to coordinate sending to same remote node from different
+   * threads.
+   *
+   * If two threads need to send to the same node at the same time, the
+   * second thread, rather than wait for the first to finish, will just
+   * set this flag, and the first thread will do an extra send when done
+   * with the first.
+   */
+  Uint32 m_force_send[MAX_NTRANSPORTERS];
 };
 
 static
@@ -865,7 +1044,392 @@ flush_jbb_write_state(thr_data *selfptr)
   }
 }
 
-Uint32 senderThreadId;
+thr_send_buf::thr_send_buf(struct trp_callback *trp_cb, Uint32 thread,
+                           thr_safe_pool<thr_job_buffer> *global_pool) :
+  m_self(thread),
+  m_pool(global_pool, THR_FREE_BUF_MAX),
+  m_trp_callback(trp_cb)
+{
+  for (int i = 0; i < MAX_NTRANSPORTERS; i++)
+    m_buffers[i].init();
+}
+
+bool
+thr_send_buf::initial_alloc(NodeId node)
+{
+  send_buffer *b = m_buffers + node;
+
+  page *pg = m_pool.seize();
+  if (pg == NULL)
+    return false;
+
+  pg->m_next = NULL;
+  pg->m_bytes = 0;
+  pg->m_start = 0;
+  pg->m_current = 0;
+  wmb();   // Commit page init before making visible
+
+  /**
+   * Due to no locking, we need to be very careful about initialisation here.
+   *
+   * Initialisation is done by the writer, so what we need to ensure is that
+   * reader will not see an inconsistent state.
+   *
+   * Since reader is using m_current_page != NULL to mean the page is valid,
+   * we set that last, with a store-store barrier.
+   */
+  b->m_first_page = pg;
+  b->m_last_page = pg;
+  b->m_prev_page = NULL;
+  b->m_written_bytes = 0;
+  b->m_read_bytes = 0;
+  wmb();
+  b->m_current_page = pg;
+
+  return true;
+}
+
+Uint32 *
+thr_send_buf::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
+                          Uint32 max_use)
+{
+  send_buffer *b = m_buffers + node;
+  assert(lenBytes > 0);
+
+  /**
+   * Only allocate send buffer memory on first actual use.
+   * Once allocated, at least one page stays, even if empty.
+   */
+  if (unlikely(b->m_first_page == NULL))
+    if (!initial_alloc(node))
+      return NULL;
+
+  /* Check for common case, free space in existing buffer. */
+  page *last_pg = b->m_last_page;
+  assert(last_pg != NULL);
+  if (last_pg->m_bytes + lenBytes <= last_pg->max_data_bytes())
+    return (Uint32 *)(last_pg->m_data + last_pg->m_bytes);
+
+  /**
+   * Check for buffer limit exceeded.
+   *
+   * We do this check only when about to allocate a new page.
+   * This may make us over-use slightly, but that is fine since the remaining
+   * space can in any case not be used for anything else.
+   */
+  if (m_trp_callback->total_bytes(node) + lenBytes > max_use)
+    return NULL;
+
+  /* Need to allocate a new page. */
+  page *new_pg = m_pool.seize();
+  if (new_pg == NULL)
+    return NULL;
+
+  new_pg->m_next = NULL;
+  new_pg->m_bytes = 0;
+  new_pg->m_start = 0;
+  new_pg->m_current = 0;
+  b->m_last_page = new_pg;
+  /** Assigning m_next makes the new page available to readers, so need a
+   * memory barrier here.
+   */
+  wmb();
+  last_pg->m_next = new_pg;
+
+  /* Remeber old last page temporarily until updateWritePtr(). */
+  b->m_prev_page = last_pg;
+
+  return (Uint32 *)(new_pg->m_data);
+}
+
+Uint32
+thr_send_buf::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
+{
+  send_buffer *b = m_buffers + node;
+  page *last_pg = b->m_last_page;
+  assert(lenBytes > 0);
+  assert(last_pg != NULL);
+  assert(last_pg->m_bytes + lenBytes <= last_pg->max_data_bytes());
+
+  b->m_written_bytes += lenBytes;
+  Uint32 used = m_trp_callback->total_bytes(node);
+
+  /* For the first signal in a buffer, split it and move it back so that
+   * previous buffer is 100% utilised.
+   *
+   * This avoids buffer waste for big signals, and also simplifies reader.
+   */
+  if (last_pg->m_bytes == 0)
+  {
+    page *prev_pg = b->m_prev_page;
+    if (prev_pg != NULL && prev_pg->m_bytes < prev_pg->max_data_bytes())
+    {
+      Uint32 part = prev_pg->max_data_bytes() - prev_pg->m_bytes;
+      assert(part < lenBytes);
+      memcpy(prev_pg->m_data + prev_pg->m_bytes, last_pg->m_data, part);
+      memmove(last_pg->m_data, last_pg->m_data + part, lenBytes - part);
+      /* Memory barrier since this makes data available to reader. */
+      wmb();
+      prev_pg->m_bytes = prev_pg->max_data_bytes();
+      last_pg->m_bytes = lenBytes - part;
+
+      return used;
+
+      /**
+       * If at some later point we need to support messages bigger than the
+       * page size, we could do so here similarly by copying from a separate
+       * temporary big thread-local buffer returned from getWritePtr().
+       */
+    }
+  }
+
+  wmb();
+  last_pg->m_bytes += lenBytes;
+  return used;
+}
+
+trp_callback::trp_callback()
+{
+  for (Uint32 i = 0; i < NUM_THREADS; i++)
+    m_thr_buffers[i] = new thr_send_buf(this, i, &g_thr_repository.m_free_list);
+  for (int i = 0; i < MAX_NTRANSPORTERS; i++)
+    m_send_thr[i] = ~(Uint32)0;
+}
+
+void
+trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
+{
+  SignalT<3> signalT;
+  Signal &signal= *(Signal*)&signalT;
+  memset(&signal.header, 0, sizeof(signal.header));
+
+  signal.header.theLength = 3;
+  signal.header.theSendersSignalId = 0;
+  signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
+  signal.theData[0] = NDB_LE_SendBytesStatistic;
+  signal.theData[1] = nodeId;
+  signal.theData[2] = (bytes/count);
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
+  sendprioa(m_send_thr[nodeId], signal.header.theReceiversBlockNumber,
+            &signalT.header, signalT.theData, NULL);
+}
+
+/**
+ * To lock during connect/disconnect, we take both the send lock for the node
+ * (to protect performSend(), and the global receive lock (to protect
+ * performReceive()). By having two locks, we avoid contention between the
+ * common send and receive operations.
+ *
+ * We can have contention between connect/disconnect of one transporter and
+ * receive for the others. But the transporter code should try to keep this
+ * lock only briefly, ie. only to set state to DISCONNECTING / socket fd to
+ * NDB_INVALID_SOCKET, not for the actual close() syscall.
+ */
+void
+trp_callback::lock_transporter(NodeId node)
+{
+  struct thr_repository* rep = &g_thr_repository;
+  /**
+   * Note: take the send lock _first_, so that we will not hold the receive
+   * lock while blocking on the send lock.
+   *
+   * The reverse case, blocking send lock for one transporter while waiting
+   * for receive lock, is not a problem, as the transporter being blocked is
+   * in any case disconnecting/connecting at this point in time, and sends are
+   * non-waiting (so we will not block sending on other transporters).
+   */
+  lock(&rep->m_send_locks[node]);
+  lock(&rep->m_receive_lock);
+}
+
+void
+trp_callback::unlock_transporter(NodeId node)
+{
+  struct thr_repository* rep = &g_thr_repository;
+  unlock(&rep->m_receive_lock);
+  unlock(&rep->m_send_locks[node]);
+}
+
+int
+trp_callback::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
+                                      Uint32 max_iovecs)
+{
+  Uint32 iovecs = 0;
+
+  if (max_iovecs == 0)
+    return 0;
+
+  for (Uint32 thr = 0; thr < NUM_THREADS && iovecs < max_iovecs; thr++)
+  {
+    thr_send_buf::send_buffer *b = m_thr_buffers[thr]->m_buffers + node;
+    thr_send_buf::page *pg = b->m_current_page;
+
+    /* Handle not yet allocated buffer. */
+    if (unlikely(pg == NULL))
+      continue;
+    rmb();
+
+    while (iovecs < max_iovecs)
+    {
+      Uint32 bytes = pg->m_bytes;
+      /* Make sure we see all updates before seen m_bytes value. */
+      rmb();
+      if (bytes > pg->m_current)
+      {
+        dst[iovecs].iov_base = pg->m_data + pg->m_current;
+        dst[iovecs].iov_len = bytes - pg->m_current;
+        iovecs++;
+        pg->m_current = bytes;
+      }
+      if (bytes < pg->max_data_bytes())
+        break;                                  // More data will arrive later
+
+      pg = pg->m_next;
+      if (pg == NULL)
+        break;
+      b->m_current_page = pg;
+    }
+  }
+
+  return iovecs;
+}
+
+Uint32
+trp_callback::bytes_sent(NodeId node, const struct iovec *src, Uint32 bytes)
+{
+  Uint32 curr_thr = 0;
+
+  while (bytes > 0)
+  {
+    const struct iovec *iov = src++;
+
+    /**
+     * This piece of data could be from any thread, so need to search for
+     * which it is.
+     *
+     * Since data is sent in the same order we returned it from
+     * get_bytes_to_send_iovec(), we are likely to find the right one very
+     * quickly by searching in the same order as used in the loop there.
+     */
+#ifdef VM_TRACE
+    Uint32 start_thr = curr_thr;
+#endif
+
+    thr_send_buf::send_buffer *b;
+    thr_send_buf::page *pg;
+    for (;;)
+    {
+      b = m_thr_buffers[curr_thr]->m_buffers + node;
+      if (b->m_current_page != NULL)
+      {
+        rmb();
+
+        pg = b->m_first_page;
+
+        /* Drop the first page if it is completely empty and not last. */
+        if (pg->m_start == pg->max_data_bytes())
+        {
+          thr_send_buf::page *next_pg = pg->m_next;
+          if (next_pg != NULL)
+          {
+            b->m_first_page = next_pg;
+            if (pg == b->m_current_page)
+              b->m_current_page = next_pg;
+            m_thr_buffers[m_send_thr[node]]->m_pool.release(pg);
+            pg = next_pg;
+          }
+        }
+
+        if (pg->m_data + pg->m_start == iov->iov_base)
+          break;                                  // Found it
+      }
+
+      curr_thr = (curr_thr + 1) % NUM_THREADS;
+#ifdef VM_TRACE
+      assert(curr_thr != start_thr);            // Sent data was not in buffer
+#endif
+    }
+
+    assert(pg->m_start + iov->iov_len <= pg->m_current);
+    Uint32 chunk = iov->iov_len;
+    if (chunk > bytes)
+      chunk = bytes;                            // last chunk sent partially
+    bytes -= chunk;
+    pg->m_start += chunk;
+    b->m_read_bytes += chunk;
+    if (pg->m_start == pg->max_data_bytes() && pg->m_next != NULL)
+    {
+      /* All done with this page, de-allocate. */
+      b->m_first_page = pg->m_next;
+      if (b->m_current_page == pg)
+      {
+        assert(pg->m_current == pg->max_data_bytes());
+        b->m_current_page = pg->m_next;
+      }
+      /* Release to send thread thread pool, to avoid need for locks. */
+      m_thr_buffers[m_send_thr[node]]->m_pool.release(pg);
+    }
+  }
+
+  return total_bytes(node);
+}
+
+bool
+trp_callback::has_data_to_send(NodeId node)
+{
+  for (Uint32 thr = 0; thr < NUM_THREADS; thr++)
+  {
+    thr_send_buf::send_buffer *b = m_thr_buffers[thr]->m_buffers + node;
+    thr_send_buf::page *pg = b->m_current_page;
+
+    /* Handle not yet allocated buffer. */
+    if (unlikely(pg == NULL))
+      continue;
+    rmb();
+
+    Uint32 bytes = pg->m_bytes;
+    if (bytes > pg->m_current)
+      return true;
+    if (bytes == pg->max_data_bytes())
+    {
+      thr_send_buf::page *next_pg = pg->m_next;
+      rmb();
+      if (next_pg != NULL && next_pg->m_bytes > next_pg->m_current)
+        return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Clear the send buffers.
+ *
+ * Works by consuming all data with get_bytes_to_send_iovec() + bytes_sent()
+ * (but without sending anything of course). This makes us thread safe, as
+ * long as we take the send lock.
+ */
+void
+trp_callback::reset_send_buffer(NodeId node)
+{
+  struct thr_repository* rep = &g_thr_repository;
+  struct iovec v[32];
+
+  lock(&rep->m_send_locks[node]);
+
+  for (;;)
+  {
+    int count = get_bytes_to_send_iovec(node, v, sizeof(v)/sizeof(v[0]));
+    if (count == 0)
+      break;
+    int bytes = 0;
+    for (int i = 0; i < count; i++)
+      bytes += v[i].iov_len;
+    bytes_sent(node, v, bytes);
+  }
+
+  unlock(&rep->m_send_locks[node]);
+}
 
 static inline
 void
@@ -889,14 +1453,11 @@ register_pending_send(thr_data *selfptr, Uint32 nodeId)
  *
  * If MUST_SEND is true, will always take the lock, waiting on it if needed.
  *
- * Currently, the list of pending nodes to send to is thread-local, but the
- * per-node send buffer is shared by all threads. Thus we might skip a node
- * for which another thread has pending send data, and we might send pending
- * data also for another thread without clearing the node from the pending
- * list of that other thread (but we will never loose signals due to this).
- *
- * Later, when we might move to per-thread-per-node send buffers, eliminating
- * these issues and significantly reducing the send lock contentions.
+ * The list of pending nodes to send to is thread-local, but the per-node send
+ * buffer is shared by all threads. Thus we might skip a node for which
+ * another thread has pending send data, and we might send pending data also
+ * for another thread without clearing the node from the pending list of that
+ * other thread (but we will never loose signals due to this).
  */
 static
 void
@@ -917,29 +1478,86 @@ do_send(struct thr_repository* rep, struct thr_data* selfptr,
   {
     NodeId nodeId = nodes[i];
     *watchDogCounter = 6;
-    if (must_send)
-      lock(&rep->m_send_locks[nodeId]);
-    else if (trylock(&rep->m_send_locks[nodeId]) != 0)
-    {
-      /**
-       * Not doing this node now, re-add to pending list.
-       *
-       * As we only add from the start of an empty list, we are safe from
-       * overwriting the list while we are iterating over it.
-       */
-      register_pending_send(selfptr, nodeId);
-      continue;
-    }
 
     /**
-     * The senderThreadId global is set so that TransporterCallback can know
-     * which thread queue to use to deliver local signals for transporter
-     * state change signals.
+     * If we must send now, set the force_send flag.
+     *
+     * This will ensure that if we do not get the send lock, the thread
+     * holding the lock will try sending again for us when it has released
+     * the lock.
+     *
+     * The lock/unlock pair works as a memory barrier to ensure that the
+     * flag update is flushed to the other thread.
      */
-    senderThreadId = selfptr->m_thr_no;
-    globalTransporterRegistry.performSend(nodeId);
-    unlock(&rep->m_send_locks[nodeId]);
+    if (must_send)
+      rep->m_force_send[nodeId] = 1;
+    do
+    {
+      if (trylock(&rep->m_send_locks[nodeId]) != 0)
+      {
+        if (!must_send)
+        {
+          /**
+           * Not doing this node now, re-add to pending list.
+           *
+           * As we only add from the start of an empty list, we are safe from
+           * overwriting the list while we are iterating over it.
+           */
+          register_pending_send(selfptr, nodeId);
+        }
+        else
+        {
+          /* Other thread will send for us as we set m_force_send. */
+        }
+        break;
+      }
+
+      /**
+       * Now clear the flag, and start sending all data available to this node.
+       *
+       * Put a memory barrier here, so that if another thread tries to grab
+       * the send lock but fails due to us holding it here, we either
+       * 1) Will see m_force_send[nodeId] set to 1 at the end of the loop, or
+       * 2) We clear here the flag just set by the other thread, but then we
+       * will (thanks to mb()) be able to see and send all of the data already
+       * in the first send iteration.
+       */
+      rep->m_force_send[nodeId] = 0;
+      mb();
+
+      /**
+       * Set m_send_thr so that our transporter callback can know which thread
+       * holds the send lock for this remote node.
+       */
+      g_trp_callback.m_send_thr[nodeId] = selfptr->m_thr_no;
+      globalTransporterRegistry.performSend(nodeId);
+      g_trp_callback.m_send_thr[nodeId] = ~(Uint32)0;
+      unlock(&rep->m_send_locks[nodeId]);
+    } while (rep->m_force_send[nodeId]);
   }
+}
+
+/**
+ * This is used in case send buffer gets full, to force an emergency send,
+ * hopefully freeing up some buffer space for the next signal.
+ */
+bool
+thr_send_buf::forceSend(NodeId nodeId)
+{
+  struct thr_repository *rep = &g_thr_repository;
+  struct thr_data *selfptr = rep->m_thread + m_self;
+
+  do
+  {
+    rep->m_force_send[nodeId] = 0;
+    lock(&rep->m_send_locks[nodeId]);
+    g_trp_callback.m_send_thr[nodeId] = selfptr->m_thr_no;
+    globalTransporterRegistry.performSend(nodeId);
+    g_trp_callback.m_send_thr[nodeId] = ~(Uint32)0;
+    unlock(&rep->m_send_locks[nodeId]);
+  } while (rep->m_force_send[nodeId]);
+
+  return true;
 }
 
 static
@@ -1216,6 +1834,13 @@ run_job_buffers(thr_data *selfptr, Signal *sig,
 static inline Uint32
 block2ThreadId(Uint32 block)
 {
+  /**
+   * CMVMIis special, it runs in the receive thread due to calling directly
+   * into TransporterRegistry.
+   */
+  if (block == CMVMI)
+    return 2;
+
   /*
    * Block assignment:
    *    0 BACKUP            LOCAL
@@ -1228,7 +1853,7 @@ block2ThreadId(Uint32 block)
    *    7 NDBCNTR   GLOBAL
    *    8 QMGR      GLOBAL
    *    9 NDBFS     GLOBAL
-   *   10 CMVMI     GLOBAL
+   *   10 CMVMI                    [Receive thread]
    *   11 TRIX      GLOBAL
    *   12 DBUTIL    GLOBAL
    *   13 SUMA              LOCAL
@@ -1316,26 +1941,70 @@ init_thread(thr_data *selfptr, EmulatedJamBuffer *jam, Uint32 *watchDogCounter)
 #endif
 }
 
+/* Assign to this thread all blocks that will run in this thread. */
+static void
+grab_threads(thr_data *selfptr, EmulatedJamBuffer *thread_jam,
+             Uint32 *watchDogCounter)
+{
+  for (Uint32 i = 0; i < NO_OF_BLOCKS; i++)
+  {
+    if (block2ThreadId(i + MIN_BLOCK_NO) == selfptr->m_thr_no)
+    {
+      require(selfptr->m_blocks[i] != 0);
+      selfptr->m_blocks[i]->assignToThread(selfptr->m_thr_no, thread_jam,
+                                           watchDogCounter);
+    }
+  }
+}
+
+/**
+ * Align signal buffer for better cache performance.
+ * Also skew it a litte for each thread to avoid cache pollution.
+ */
+#define SIGBUF_SIZE (sizeof(Signal) + 63 + 256 * MAX_THREADS)
+static Signal *
+aligned_signal(unsigned char signal_buf[SIGBUF_SIZE], unsigned thr_no)
+{
+  UintPtr sigtmp= (UintPtr)signal_buf;
+  sigtmp= (sigtmp+63) & (~(UintPtr)63);
+  sigtmp+= thr_no*256;
+  return (Signal *)sigtmp;
+}
+
 Uint32 receiverThreadId;
 
 /*
- * We only do receive in thread 2, which _only_ does receive.
+ * We only do receive in thread 2, no other threads do receive.
  *
- * Otherwise we have a problem waking up a thread that is sleeping in
- * the transporter
+ * As part of the receive loop, we also periodically call update_connections()
+ * (this way we are similar to single-threaded ndbd).
+ *
+ * The CMVMI block (and no other blocks) run in the same thread as this
+ * receive loop; this way we avoid races between update_connections() and
+ * CMVMI calls into the transporters.
+ *
+ * Note that with this setup, local signals to CMVMI cannot wake up the thread
+ * if it is sleeping on the receive sockets. Thus CMVMI local signal processing
+ * can be (slightly) delayed, however CMVMI is not really performance critical
+ * (hopefully).
  */
 extern "C"
 void *
 mt_receiver_thread_main(void *thr_arg)
 {
+  unsigned char signal_buf[SIGBUF_SIZE];
+  Signal *signal;
   struct thr_repository* rep = &g_thr_repository;
   struct thr_data* selfptr = (struct thr_data *)thr_arg;
   unsigned thr_no = selfptr->m_thr_no;
   EmulatedJamBuffer thread_jam;
   Uint32 watchDogCounter;
+  Uint32 thrSignalId = 0;
 
   init_thread(selfptr, &thread_jam, &watchDogCounter);
   receiverThreadId = thr_no;
+  signal = aligned_signal(signal_buf, thr_no);
+  grab_threads(selfptr, &thread_jam, &watchDogCounter);
 
   while (globalData.theRestartFlag != perform_stop)
   { 
@@ -1349,6 +2018,23 @@ mt_receiver_thread_main(void *thr_arg)
       globalTransporterRegistry.update_connections();
     }
     cnt = (cnt + 1) & 15;
+
+    watchDogCounter = 2;
+    scan_time_queues(selfptr);
+
+    Uint32 sum = run_job_buffers(selfptr, signal,
+                                 &watchDogCounter, &thrSignalId);
+
+    watchDogCounter = 1;
+    sendpacked(selfptr, signal, thr_no);
+
+    if (sum)
+    {
+      watchDogCounter = 6;
+      flush_jbb_write_state(selfptr);
+    }
+
+    do_send(rep, selfptr, &watchDogCounter, TRUE);
 
     watchDogCounter = 7;
 
@@ -1371,7 +2057,7 @@ extern "C"
 void *
 mt_job_thread_main(void *thr_arg)
 {
-  unsigned char signal_buf[sizeof(Signal) + 63 + 256 * MAX_THREADS];
+  unsigned char signal_buf[SIGBUF_SIZE];
   Signal *signal;
   struct timespec nowait;
   nowait.tv_sec = 0;
@@ -1385,28 +2071,9 @@ mt_job_thread_main(void *thr_arg)
   init_thread(selfptr, &thread_jam, &watchDogCounter);
 
   unsigned thr_no = selfptr->m_thr_no;
-  /*
-   * Align signal buffer for better cache performance.
-   * Also skew it a litte for each thread to avoid cache pollution.
-   */
-  UintPtr sigtmp= (UintPtr)signal_buf;
-  sigtmp= (sigtmp+63) & (~(UintPtr)63);
-  sigtmp+= thr_no*256;
-  signal = (Signal *)sigtmp;
+  signal = aligned_signal(signal_buf, thr_no);
 
-  /*
-   * Now we need to somehow assign to this thread all blocks that will run in
-   * this thread.
-   */
-  for (Uint32 i = 0; i < NO_OF_BLOCKS; i++)
-  {
-    if (block2ThreadId(i + MIN_BLOCK_NO) == thr_no)
-    {
-      require(selfptr->m_blocks[i] != 0);
-      selfptr->m_blocks[i]->assignToThread(thr_no, &thread_jam,
-                                           &watchDogCounter);
-    }
-  }
+  grab_threads(selfptr, &thread_jam, &watchDogCounter);
 
   /* Avoid false watchdog alarms caused by race condition. */
   watchDogCounter = 1;
@@ -1537,9 +2204,9 @@ mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
   SendStatus ss;
 
   register_pending_send(selfptr, nodeId);
-  lock(&rep->m_send_locks[nodeId]);
-  ss = globalTransporterRegistry.prepareSend(sh, prio, data, nodeId, ptr);
-  unlock(&rep->m_send_locks[nodeId]);
+  /* prepareSend() is lock-free, as we have per-thread send buffers. */
+  ss = globalTransporterRegistry.prepareSend(g_trp_callback.m_thr_buffers[self],
+                                             sh, prio, data, nodeId, ptr);
   return ss;
 }
 
@@ -1554,10 +2221,9 @@ mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
   SendStatus ss;
 
   register_pending_send(selfptr, nodeId);
-  lock(&rep->m_send_locks[nodeId]);
-  ss = globalTransporterRegistry.prepareSend(sh, prio, data, nodeId,
+  ss = globalTransporterRegistry.prepareSend(g_trp_callback.m_thr_buffers[self],
+                                             sh, prio, data, nodeId,
                                              *thePool, ptr);
-  unlock(&rep->m_send_locks[nodeId]);
   return ss;
 }
 
@@ -1581,16 +2247,16 @@ sendprioa_STOP_FOR_CRASH(Uint32 dst)
   static thr_job_buffer dummy_buffer;
 
   /*
-   * Currently we have two threads with fixed block assignment.
-   * So we send STOP_FOR_CRASH to CMVMI for thread 0 (global) and to
-   * DBLQH for thread 1 (local).
+   * Currently we have three threads with fixed block assignment.
    */
-  assert(dst == 0 || dst == 1); // ToDo when/if more threads.
+  assert(dst == 0 || dst == 1 || dst == 2); // ToDo when/if more threads.
   Uint32 bno = 0;
   if (dst == 0)
-    bno = CMVMI;
+    bno = NDBCNTR;
   else if (dst == 1)
     bno = DBLQH;
+  else if (dst == 2)
+    bno = CMVMI;
   assert(block2ThreadId(bno) == dst);
   struct thr_data * dstptr = rep->m_thread + dst;
 
@@ -1845,6 +2511,7 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
     char buf[100];
     snprintf(buf, sizeof(buf), "send lock node %d", i);
     rep->m_send_locks[i].m_name = strdup(buf);
+    rep->m_force_send[i] = 0;
   }
 }
 
@@ -1941,7 +2608,7 @@ ThreadConfig::doStart(NodeState::StartLevel startLevel)
   StartOrd * const  startOrd = (StartOrd *)&signalT.theData[0];
   startOrd->restartInfo = 0;
   
-  senddelay(0, &signalT.header, 1);
+  senddelay(block2ThreadId(CMVMI), &signalT.header, 1);
   return 0;
 }
 
@@ -1976,7 +2643,7 @@ Uint32
 FastScheduler::traceDumpGetNumThreads()
 {
   /* The last thread is only for receiver -> no trace file. */
-  return NUM_THREADS - 1;
+  return NUM_THREADS;
 }
 
 bool
@@ -1984,7 +2651,7 @@ FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
                                const Uint32 * & thrdTheEmulatedJam,
                                Uint32 & thrdTheEmulatedJamIndex)
 {
-  if (thr_no >= (NUM_THREADS - 1))
+  if (thr_no >= NUM_THREADS)
     return false;
 
 #ifdef NO_EMULATED_JAM
@@ -2028,7 +2695,7 @@ FastScheduler::traceDumpPrepare()
   pthread_mutex_lock(&g_thr_repository.stop_for_crash_mutex);
   g_thr_repository.stopped_threads = 0;
 
-  for (Uint32 thr_no = 0; thr_no < (NUM_THREADS - 1); thr_no++)
+  for (Uint32 thr_no = 0; thr_no < NUM_THREADS; thr_no++)
   {
     if (selfptr != NULL && selfptr->m_thr_no == thr_no)
     {
@@ -2312,31 +2979,11 @@ mt_mem_manager_unlock()
   unlock(&(g_thr_repository.m_mem_manager_lock));
 }
 
-void
-mt_receive_lock()
-{
-  lock(&(g_thr_repository.m_receive_lock));
-}
-
-void
-mt_receive_unlock()
-{
-  unlock(&(g_thr_repository.m_receive_lock));
-}
-
-void
-mt_send_lock(void *dummy, NodeId nodeId)
-{
-  lock(&(g_thr_repository.m_send_locks[nodeId]));
-}
-
-void
-mt_send_unlock(void *dummy, NodeId nodeId)
-{
-  unlock(&(g_thr_repository.m_send_locks[nodeId]));
-}
-
 /**
  * Global data
  */
 struct thr_repository g_thr_repository;
+
+struct trp_callback g_trp_callback;
+
+TransporterRegistry globalTransporterRegistry(&g_trp_callback, false);

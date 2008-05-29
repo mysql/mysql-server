@@ -33,9 +33,8 @@ extern "C" void* runClusterMgr_C(void * me);
  * @class ClusterMgr
  */
 class ClusterMgr {
+  friend class TransporterFacade;
   friend void* runClusterMgr_C(void * me);
-  friend void  execute(void *, struct SignalHeader * const, 
-		       Uint8, Uint32 * const, LinearSectionPtr ptr[3]);
 public:
   ClusterMgr(class TransporterFacade &);
   ~ClusterMgr();
