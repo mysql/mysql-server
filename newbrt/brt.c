@@ -1405,12 +1405,13 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
 	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
 	node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
 	
-	toku_mempool_mfree(&node->u.l.buffer_mempool, 0, leafentry_memsize(le)); // Must pass 0, since le may be no good any more.
-	
 	LEAFENTRY new_le = mempool_malloc_from_omt(node->u.l.buffer, &node->u.l.buffer_mempool, newlen);
 	assert(new_le);
 	memcpy(new_le, newdata, newlen);
 
+	// This mfree must occur after the mempool_malloc so that 
+	toku_mempool_mfree(&node->u.l.buffer_mempool, 0, leafentry_memsize(le)); // Must pass 0, since le may be no good any more.
+	
 	node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
 	node->local_fingerprint += node->rand4fingerprint*toku_le_crc(newdata);
 	toku_free(newdata);
