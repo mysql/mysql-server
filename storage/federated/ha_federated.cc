@@ -1985,12 +1985,12 @@ void ha_federated::start_bulk_insert(ha_rows rows)
   @retval       != 0    Error occured at remote server. Also sets my_errno.
 */
 
-int ha_federated::end_bulk_insert()
+int ha_federated::end_bulk_insert(bool abort)
 {
   int error= 0;
   DBUG_ENTER("ha_federated::end_bulk_insert");
   
-  if (bulk_insert.str && bulk_insert.length)
+  if (!abort && bulk_insert.str && bulk_insert.length)
   {
     if (real_query(bulk_insert.str, bulk_insert.length))
       error= stash_remote_error();

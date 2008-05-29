@@ -108,11 +108,8 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   if ((*share->delete_record)(info, record))
     goto err;				/* Remove record from database */
 
-  if (!share->now_transactional)
-  {
-    info->state->checksum-= info->cur_row.checksum;
-    info->state->records--;
-  }
+  info->state->checksum-= info->cur_row.checksum;
+  info->state->records--;
   info->update= HA_STATE_CHANGED+HA_STATE_DELETED+HA_STATE_ROW_CHANGED;
   share->state.changed|= (STATE_NOT_OPTIMIZED_ROWS | STATE_NOT_MOVABLE |
                           STATE_NOT_ZEROFILLED);
@@ -1400,7 +1397,6 @@ int _ma_write_undo_key_delete(MARIA_HA *info, uint keynr,
   struct st_msg_to_write_hook_for_undo_key msg;
   enum translog_record_type log_type= LOGREC_UNDO_KEY_DELETE;
 
-  info->key_delete_undo_lsn[keynr]= info->trn->undo_lsn;
   lsn_store(log_data, info->trn->undo_lsn);
   key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE, keynr);
   log_pos= log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE;

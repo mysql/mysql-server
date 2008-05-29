@@ -134,6 +134,11 @@ typedef struct st_handler_check_param
   ha_checksum tmp_record_checksum;
   ulonglong   org_key_map;
   ulonglong   testflag;
+
+  /* Following is used to check if rows are visible */
+  ulonglong max_trid, max_found_trid;
+  ulonglong not_visible_rows_found;
+
   size_t use_buffers, read_buffer_length, write_buffer_length;
   size_t sort_buffer_length, sort_key_blocks;
   ulong rec_per_key_part[HA_MAX_KEY_SEG * HA_MAX_POSSIBLE_KEY];

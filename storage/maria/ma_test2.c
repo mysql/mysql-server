@@ -44,6 +44,7 @@ static int silent= 0, opt_quick_mode= 0, transactional= 0, skip_update= 0;
 static int die_in_middle_of_transaction= 0, pack_fields= 1;
 static int pack_seg= HA_SPACE_PACK, pack_type= HA_PACK_KEY, remove_count= -1;
 static int create_flag= 0, srand_arg= 0, checkpoint= 0;
+static my_bool opt_versioning= 0;
 static uint use_blob= 0, update_count= 0;
 static ulong pagecache_size=8192*32;
 static enum data_file_type record_type= DYNAMIC_RECORD;
@@ -83,7 +84,7 @@ int main(int argc, char *argv[])
   if (maria_init() ||
       (init_pagecache(maria_pagecache, pagecache_size, 0, 0,
 		      maria_block_size, MY_WME) == 0) ||
-      ma_control_file_open(TRUE) ||
+      ma_control_file_open(TRUE, TRUE) ||
       (init_pagecache(maria_log_pagecache,
 		      TRANSLOG_PAGECACHE_SIZE, 0, 0,
 		      TRANSLOG_PAGE_SIZE, MY_WME) == 0) ||
@@ -230,6 +231,8 @@ int main(int argc, char *argv[])
   if (!(file=maria_open(filename,2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
   maria_begin(file);
+  if (opt_versioning)
+    maria_versioning(file, 1);
   if (testflag == 1)
     goto end;
   if (checkpoint == 1 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
@@ -1136,12 +1139,15 @@ static void get_options(int argc, char **argv)
     case 'g':
       skip_update= TRUE;
       break;
+    case 'C':
+      opt_versioning= 1;
+      break;
     case '?':
     case 'I':
     case 'V':
-      printf("%s  Ver 1.1 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
+      printf("%s  Ver 1.2 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
       puts("By Monty, for testing Maria\n");
-      printf("Usage: %s [-?AbBcDIKLPRqSsTVWltv] [-k#] [-f#] [-m#] [-e#] [-E#] [-t#]\n",
+      printf("Usage: %s [-?AbBcCDIKLPRqSsTVWltv] [-k#] [-f#] [-m#] [-e#] [-E#] [-t#]\n",
 	     progname);
       exit(0);
     case '#':

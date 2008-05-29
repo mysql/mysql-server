@@ -1,5 +1,5 @@
 #
-# Testing of potential probelms in Maria
+# Testing of potential problems in Maria
 # This code was initially taken from myisam.test
 #
 
@@ -377,6 +377,7 @@ INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,
 create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
 INSERT into t2 values (1,1,1), (2,2,2);
 optimize table t1;
+check table t1;
 show index from t1;
 explain select * from t1,t2 where t1.a=t2.a;
 explain select * from t1,t2 force index(a) where t1.a=t2.a;
@@ -1352,6 +1353,9 @@ insert into t1 values (10,1,1,1,1,1,1,1,1,1,1,1,1,1,NULL,0,0,0,1,1,1,1,'one','on
 create table t2 (primary key (auto)) engine=maria row_format=page select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
 check table t1,t2;
 select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
+drop table t2;
+create table t2 (primary key (auto)) engine=maria row_format=dynamic select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
+check table t2;
 drop table t1,t2;
 
 # Test UPDATE with small BLOB which fits on head page
@@ -1449,6 +1453,8 @@ drop table t1, t2, t3;
 create table t1 (t datetime) engine=maria;
 insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
 select * from t1;
+optimize table t1;
+check table t1;
 delete from t1 where t > 0;
 optimize table t1;
 check table t1;

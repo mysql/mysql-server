@@ -110,7 +110,7 @@ static CONTROL_FILE_ERROR local_ma_control_file_open(void)
 {
   CONTROL_FILE_ERROR error;
   error_handler_hook= my_ignore_message;
-  error= ma_control_file_open(TRUE);
+  error= ma_control_file_open(TRUE, TRUE);
   error_handler_hook= default_error_handler_hook;
   return error;
 }

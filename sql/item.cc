@@ -1468,7 +1468,9 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
     if (collation == &my_charset_bin)
     {
       if (derivation <= dt.derivation)
-	; // Do nothing
+      {
+	/* Do nothing */
+      }
       else
       {
 	set(dt); 
@@ -1480,15 +1482,11 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
       {
         set(dt);
       }
-      else
-      {
-        // Do nothing
-      }
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
              left_is_superset(this, &dt))
     {
-      // Do nothing
+      /* Do nothing */
     }
     else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
              left_is_superset(&dt, this))
@@ -1499,7 +1497,7 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
              derivation < dt.derivation &&
              dt.derivation >= DERIVATION_SYSCONST)
     {
-      // Do nothing;
+      /* Do nothing */
     }
     else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
              dt.derivation < derivation &&
@@ -1516,7 +1514,7 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
   }
   else if (derivation < dt.derivation)
   {
-    // Do nothing
+    /* Do nothing */
   }
   else if (dt.derivation < derivation)
   {
@@ -1526,7 +1524,7 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
   { 
     if (collation == dt.collation)
     {
-      // Do nothing
+      /* Do nothing */
     }
     else 
     {

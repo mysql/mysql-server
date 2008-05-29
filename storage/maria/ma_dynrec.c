@@ -136,7 +136,7 @@ size_t _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
 		      size_t Count, my_off_t offset, myf MyFlags)
 {
   DBUG_PRINT("info", ("maria_read with mmap %d\n", info->dfile.file));
-  if (info->s->concurrent_insert)
+  if (info->s->lock_key_trees)
     rw_rdlock(&info->s->mmap_lock);
 
   /*
@@ -149,13 +149,13 @@ size_t _ma_mmap_pread(MARIA_HA *info, uchar *Buffer,
   if (info->s->mmaped_length >= offset + Count)
   {
     memcpy(Buffer, info->s->file_map + offset, Count);
-    if (info->s->concurrent_insert)
+    if (info->s->lock_key_trees)
       rw_unlock(&info->s->mmap_lock);
     return 0;
   }
   else
   {
-    if (info->s->concurrent_insert)
+    if (info->s->lock_key_trees)
       rw_unlock(&info->s->mmap_lock);
     return my_pread(info->dfile.file, Buffer, Count, offset, MyFlags);
   }
@@ -191,7 +191,7 @@ size_t _ma_mmap_pwrite(MARIA_HA *info, const uchar *Buffer,
 		       size_t Count, my_off_t offset, myf MyFlags)
 {
   DBUG_PRINT("info", ("maria_write with mmap %d\n", info->dfile.file));
-  if (info->s->concurrent_insert)
+  if (info->s->lock_key_trees)
     rw_rdlock(&info->s->mmap_lock);
 
   /*
@@ -204,14 +204,14 @@ size_t _ma_mmap_pwrite(MARIA_HA *info, const uchar *Buffer,
   if (info->s->mmaped_length >= offset + Count)
   {
     memcpy(info->s->file_map + offset, Buffer, Count);
-    if (info->s->concurrent_insert)
+    if (info->s->lock_key_trees)
       rw_unlock(&info->s->mmap_lock);
     return 0;
   }
   else
   {
     info->s->nonmmaped_inserts++;
-    if (info->s->concurrent_insert)
+    if (info->s->lock_key_trees)
       rw_unlock(&info->s->mmap_lock);
     return my_pwrite(info->dfile.file, Buffer, Count, offset, MyFlags);
   }

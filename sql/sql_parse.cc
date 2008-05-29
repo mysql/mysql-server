@@ -2600,10 +2600,12 @@ end_with_restore_list:
 #endif /* HAVE_REPLICATION */
 
   case SQLCOM_ALTER_TABLE:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
     {
       ulong priv=0;
       ulong priv_needed= ALTER_ACL;
+
+      DBUG_ASSERT(first_table == all_tables && first_table != 0);
+
       /*
         Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
         so we have to use a copy of this structure to make execution
@@ -2613,7 +2615,7 @@ end_with_restore_list:
       HA_CREATE_INFO create_info(lex->create_info);
       Alter_info alter_info(lex->alter_info, thd->mem_root);
 
-      if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
+      if (thd->is_fatal_error) /* OOM creating a copy of alter_info */
         goto error;
       /*
         We also require DROP priv for ALTER TABLE ... DROP PARTITION, as well
@@ -4695,11 +4697,6 @@ create_sp_error:
   if (!(sql_command_flags[lex->sql_command] & CF_HAS_ROW_COUNT))
     thd->row_count_func= -1;
 
-  goto finish;
-
-error:
-  res= TRUE;
-
 finish:
   if (need_start_waiting)
   {
@@ -4710,6 +4707,11 @@ finish:
     start_waiting_global_read_lock(thd);
   }
   DBUG_RETURN(res || thd->is_error());
+
+error:
+  thd_proc_info(thd, "query end");
+  res= TRUE;
+  goto finish;
 }
 
 
@@ -7420,6 +7422,7 @@ bool parse_sql(THD *thd,
                Lex_input_stream *lip,
                Object_creation_ctx *creation_ctx)
 {
+  bool mysql_parse_status;
   DBUG_ASSERT(thd->m_lip == NULL);
 
   /* Backup creation context. */
@@ -7435,7 +7438,7 @@ bool parse_sql(THD *thd,
 
   /* Parse the query. */
 
-  bool mysql_parse_status= MYSQLparse(thd) != 0;
+  mysql_parse_status= MYSQLparse(thd) != 0;
 
   /* Check that if MYSQLparse() failed, thd->is_error() is set. */
 

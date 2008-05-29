@@ -11215,6 +11215,16 @@ table_lock:
 lock_option:
           READ_SYM               { $$= TL_READ_NO_INSERT; }
         | WRITE_SYM              { $$= TL_WRITE_DEFAULT; }
+        | WRITE_SYM CONCURRENT
+          {
+#ifdef HAVE_QUERY_CACHE
+            if (Lex->sphead != 0)
+             $$= TL_WRITE_DEFAULT;
+           else
+#endif
+             $$= TL_WRITE_CONCURRENT_INSERT;
+          }
+
         | LOW_PRIORITY WRITE_SYM { $$= TL_WRITE_LOW_PRIORITY; }
         | READ_SYM LOCAL_SYM     { $$= TL_READ; }
         ;

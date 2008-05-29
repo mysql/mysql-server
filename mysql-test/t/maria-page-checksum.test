@@ -1,3 +1,14 @@
+#
+# This can't be run with --extern as we are acccessing the tables in the
+# database directly
+#
+
+-- source include/have_maria.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 select @@global.maria_page_checksum;
 
 --echo # iteration 1

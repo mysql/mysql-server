@@ -283,7 +283,7 @@ int main(int argc __attribute__((unused)),
 
   my_thread_global_init();
 
-  if (ma_control_file_open(TRUE))
+  if (ma_control_file_open(TRUE, TRUE))
   {
     fprintf(stderr, "Can't init control file (%d)\n", errno);
     exit(1);

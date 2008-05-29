@@ -43,6 +43,7 @@ static uint unique_key=HA_NOSAME;
 static uint die_in_middle_of_transaction;
 static my_bool pagecacheing, null_fields, silent, skip_update, opt_unique;
 static my_bool verbose, skip_delete, transactional;
+static my_bool opt_versioning= 0;
 static MARIA_COLUMNDEF recinfo[4];
 static MARIA_KEYDEF keyinfo[10];
 static HA_KEYSEG keyseg[10];
@@ -76,7 +77,7 @@ int main(int argc,char *argv[])
   if (maria_init() ||
       (init_pagecache(maria_pagecache, maria_block_size * 16, 0, 0,
                       maria_block_size, MY_WME) == 0) ||
-      ma_control_file_open(TRUE) ||
+      ma_control_file_open(TRUE, TRUE) ||
       (init_pagecache(maria_log_pagecache,
                       TRANSLOG_PAGECACHE_SIZE, 0, 0,
                       TRANSLOG_PAGE_SIZE, MY_WME) == 0) ||
@@ -209,6 +210,8 @@ static int run_test(const char *filename)
 
   if (maria_begin(file))
     goto err;
+  if (opt_versioning)
+    maria_versioning(file, 1);
   my_errno=0;
   row_count=deleted=0;
   for (i=49 ; i>=1 ; i-=2 )
@@ -338,6 +341,8 @@ static int run_test(const char *filename)
     goto err;
   if (maria_begin(file))
     goto err;
+  if (opt_versioning)
+    maria_versioning(file, 1);
   if (!skip_delete)
   {
     if (!silent)
@@ -766,7 +771,7 @@ static struct my_option my_long_options[] =
    "Test in transactional mode. (Only works with block format)",
    (uchar**) &transactional, (uchar**) &transactional, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"unique", 'C', "Undocumented", (uchar**) &opt_unique,
+  {"unique", 'E', "Check unique handling", (uchar**) &opt_unique,
    (uchar**) &opt_unique, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-rows", 'u', "Max number of rows to update", (uchar**) &update_count,
    (uchar**) &update_count, 0, GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
@@ -774,6 +779,9 @@ static struct my_option my_long_options[] =
    (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version number and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"versioning", 'C', "Use row versioning (only works with block format)",
+   (uchar**) &opt_versioning,  (uchar**) &opt_versioning, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -871,7 +879,8 @@ static void get_options(int argc, char *argv[])
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
-
+  if (transactional)
+    record_type= BLOCK_RECORD;
   return;
 } /* get options */
 

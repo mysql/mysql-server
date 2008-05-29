@@ -51,6 +51,10 @@ static TRN **short_trid_to_active_trn;
 
 /* locks for short_trid_to_active_trn and pool */
 static my_atomic_rwlock_t LOCK_short_trid_to_trn, LOCK_pool;
+static my_bool default_trnman_end_trans_hook(TRN *, my_bool, my_bool);
+
+my_bool (*trnman_end_trans_hook)(TRN *, my_bool, my_bool)=
+  default_trnman_end_trans_hook;
 
 /*
   Simple interface functions
@@ -75,6 +79,16 @@ uint trnman_decrement_locked_tables(TRN *trn)
 void trnman_reset_locked_tables(TRN *trn, uint locked_tables)
 {
   trn->locked_tables= locked_tables;
+}
+
+
+static my_bool
+default_trnman_end_trans_hook(TRN *trn __attribute__ ((unused)),
+                              my_bool commit __attribute__ ((unused)),
+                              my_bool active_transactions
+                              __attribute__ ((unused)))
+{
+  return 0;
 }
 
 
@@ -315,10 +329,17 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
   pthread_mutex_unlock(&LOCK_trn_list);
 
   if (unlikely(!trn->min_read_from))
-    trn->min_read_from= trn->trid;
+  {
+    /*
+      We are the only transaction. Set min_read_from so that we can read
+      our own rows
+    */
+    trn->min_read_from= trn->trid + 1;
+  }
 
   trn->commit_trid= 0;
   trn->rec_lsn= trn->undo_lsn= trn->first_undo_lsn= 0;
+  trn->used_tables= 0;
 
   trn->locks.mutex= mutex;
   trn->locks.cond= cond;
@@ -335,6 +356,9 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
     so it must be done the last
   */
   set_short_trid(trn);
+
+  DBUG_PRINT("exit", ("trn: x%lx  trid: 0x%lu",
+                      (ulong) trn, (ulong) trn->trid));
 
   DBUG_RETURN(trn);
 }
@@ -356,7 +380,7 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
     0  ok
     1  error
 */
-int trnman_end_trn(TRN *trn, my_bool commit)
+my_bool trnman_end_trn(TRN *trn, my_bool commit)
 {
   int res= 1;
   TRN *free_me= 0;
@@ -429,8 +453,7 @@ int trnman_end_trn(TRN *trn, my_bool commit)
   if (res)
   {
     /*
-      res == 1 means the condition in the if() above
-      was false.
+      res == 1 means the condition in the if() above was false.
       res == -1 means lf_hash_insert failed
     */
     trn->next= free_me;
@@ -440,8 +463,10 @@ int trnman_end_trn(TRN *trn, my_bool commit)
   {
     committed_list_max.prev= trn->prev->next= trn;
   }
+  if ((*trnman_end_trans_hook)(trn, commit,
+                               active_list_min.next != &active_list_max))
+    res= -1;
   trnman_active_transactions--;
-  DBUG_PRINT("info", ("pthread_mutex_unlock LOCK_trn_list"));
   pthread_mutex_unlock(&LOCK_trn_list);
 
   /* the rest is done outside of a critical section */
@@ -534,9 +559,19 @@ int trnman_can_read_from(TRN *trn, TrID trid)
   LF_REQUIRE_PINS(3);
 
   if (trid < trn->min_read_from)
-    return 1; /* can read */
-  if (trid > trn->trid)
-    return 0; /* cannot read */
+    return 1; /* Row is visible by all transactions in the system */
+
+  if (trid >= trn->trid)
+  {
+    /*
+      We have now two cases
+      trid > trn->trid, in which case the row is from a new transaction
+      and not visible, in which case we should return 0.
+      trid == trn->trid in which case the row is from the current transaction
+      and we should return 1
+    */
+    return trid == trn->trid;
+  }
 
   found= lf_hash_search(&trid_to_committed_trn, trn->pins, &trid, sizeof(trid));
   if (found == NULL)
@@ -748,8 +783,29 @@ TRN *trnman_get_any_trn()
 
 
 /**
+  Returns the minimum existing transaction id.
+*/
+
+TrID trnman_get_min_trid()
+{
+  TrID min_read_from;
+  if (short_trid_to_active_trn == NULL)
+  {
+    /* Transaction manager not initialize; Probably called from maria_chk */
+    return ~(TrID) 0;
+  }
+
+  pthread_mutex_lock(&LOCK_trn_list);
+  min_read_from= active_list_min.next->min_read_from;
+  pthread_mutex_unlock(&LOCK_trn_list);
+  return min_read_from;
+}
+
+
+/**
   Returns maximum transaction id given to a transaction so far.
 */
+
 TrID trnman_get_max_trid()
 {
   TrID id;
@@ -759,4 +815,40 @@ TrID trnman_get_max_trid()
   id= global_trid_generator;
   pthread_mutex_unlock(&LOCK_trn_list);
   return id;
+}
+
+/**
+  Check if there exist an active transaction between two commit_id's
+
+  @todo
+    Improve speed of this.
+      - Store transactions in tree or skip list
+      - Have function to copying all active transaction id's to b-tree
+        and use b-tree for checking states.  This could be a big win
+        for checkpoint that will call this function for a lot of objects.
+
+  @return
+    0   No transaction exists
+    1   There is at least on active transaction in the given range
+*/
+
+my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
+                                          my_bool trnman_is_locked)
+{
+  TRN *trn;
+  my_bool ret= 0;
+
+  if (!trnman_is_locked)
+    pthread_mutex_lock(&LOCK_trn_list);
+  for (trn= active_list_min.next; trn != &active_list_max; trn= trn->next)
+  {
+    if (trn->trid > min_id && trn->trid < max_id)
+    {
+      ret= 1;
+      break;
+    }
+  }
+  if (!trnman_is_locked)
+    pthread_mutex_unlock(&LOCK_trn_list);
+  return ret;
 }

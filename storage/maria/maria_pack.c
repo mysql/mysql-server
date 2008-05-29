@@ -166,10 +166,10 @@ static int flush_buffer(ulong neaded_length);
 static void end_file_buffer(void);
 static void write_bits(ulonglong value, uint bits);
 static void flush_bits(void);
-static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
-		      ha_checksum crc);
-static int save_state_mrg(File file,PACK_MRG_INFO *isam_file,my_off_t new_length,
-			  ha_checksum crc);
+static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
+                      my_off_t new_length, ha_checksum crc);
+static int save_state_mrg(File file,PACK_MRG_INFO *isam_file,
+                          my_off_t new_length, ha_checksum crc);
 static int mrg_close(PACK_MRG_INFO *mrg);
 static int mrg_rrnd(PACK_MRG_INFO *info,uchar *buf);
 static void mrg_reset(PACK_MRG_INFO *mrg);
@@ -435,6 +435,7 @@ static MARIA_HA *open_maria_file(char *name,int mode)
     DBUG_RETURN(0);
   }
   VOID(maria_lock_database(isam_file,F_WRLCK));
+  maria_ignore_trids(isam_file);
   DBUG_RETURN(isam_file);
 }
 
@@ -1083,7 +1084,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
     }
     else if (error != HA_ERR_RECORD_DELETED)
     {
-      VOID(fprintf(stderr, "Got error %d while reading rows", error));
+      VOID(fprintf(stderr, "Got error %d while reading rows\n", error));
       break;
     }
 
@@ -2997,7 +2998,7 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   for (key=0 ; key < share->base.keys ; key++)
     share->state.key_root[key]= HA_OFFSET_ERROR;
   share->state.key_del= HA_OFFSET_ERROR;
-  isam_file->state->checksum=crc;       /* Save crc here */
+  share->state.state.checksum= crc;     /* Save crc in file */
   share->changed=1;			/* Force write of header */
   share->state.open_count=0;
   share->global_changed=0;

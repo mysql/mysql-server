@@ -263,7 +263,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   bzero(long_tr_id, 6);
 
-  if (ma_control_file_open(TRUE))
+  if (ma_control_file_open(TRUE, TRUE))
   {
     fprintf(stderr, "Can't init control file (%d)\n", errno);
     exit(1);
@@ -430,7 +430,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
 
-  if (ma_control_file_open(TRUE))
+  if (ma_control_file_open(TRUE,TRUE))
   {
     fprintf(stderr, "pass2: Can't init control file (%d)\n", errno);
     exit(1);

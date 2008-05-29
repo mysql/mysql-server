@@ -61,7 +61,8 @@ typedef enum enum_control_file_error {
 } CONTROL_FILE_ERROR;
 
 C_MODE_START
-CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing);
+CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
+                                        my_bool print_error);
 int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno, TrID trid);
 int ma_control_file_end(void);
 my_bool ma_control_file_inited(void);

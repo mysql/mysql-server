@@ -101,13 +101,13 @@ int _ma_write_keypage(register MARIA_HA *info,
     uint page_length, nod;
     _ma_get_used_and_nod(share, buff, page_length, nod);
     if (pos < share->base.keystart ||
-        pos+block_size > info->state->key_file_length ||
+        pos+block_size > share->state.state.key_file_length ||
         (pos & (maria_block_size-1)))
     {
       DBUG_PRINT("error",("Trying to write inside key status region: "
                           "key_start: %lu  length: %lu  page: %lu",
                           (long) share->base.keystart,
-                          (long) info->state->key_file_length,
+                          (long) share->state.state.key_file_length,
                           (long) pos));
       my_errno=EINVAL;
       DBUG_ASSERT(0);
@@ -304,14 +304,18 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
 
   if (_ma_lock_key_del(info, 1))
   {
-    if (info->state->key_file_length >=
-	share->base.max_key_file_length - block_size)
+    pthread_mutex_lock(&share->intern_lock);
+    pos= share->state.state.key_file_length;
+    if (pos >= share->base.max_key_file_length - block_size)
     {
       my_errno=HA_ERR_INDEX_FILE_FULL;
+      pthread_mutex_unlock(&share->intern_lock);
       DBUG_RETURN(HA_OFFSET_ERROR);
     }
-    pos= info->state->key_file_length;
-    info->state->key_file_length+= block_size;
+    share->state.state.key_file_length+= block_size;
+    /* Following is for not transactional tables */
+    info->state->key_file_length= share->state.state.key_file_length;
+    pthread_mutex_unlock(&share->intern_lock);
     (*page_link)->changed= 0;
     (*page_link)->write_lock= PAGECACHE_LOCK_WRITE;
   }
@@ -342,7 +346,7 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
                   (current_key_del != 0) &&
                   ((current_key_del == HA_OFFSET_ERROR) ||
                    (current_key_del <=
-                    (info->state->key_file_length - block_size))));
+                    (share->state.state.key_file_length - block_size))));
 #endif
     }
 

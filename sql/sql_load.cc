@@ -393,7 +393,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= read_sep_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
 			    *enclosed, skip_lines, ignore);
-    if (!thd->prelocked_mode && table->file->ha_end_bulk_insert() && !error)
+    if (!thd->prelocked_mode && table->file->ha_end_bulk_insert(0) && !error)
     {
       table->file->print_error(my_errno, MYF(0));
       error= 1;

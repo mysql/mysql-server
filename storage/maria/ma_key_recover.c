@@ -636,9 +636,9 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
       share->state.key_root[key_nr]= file_size - share->block_size;
   }
 
-  if (file_size > info->state->key_file_length)
+  if (file_size > share->state.state.key_file_length)
   {
-    info->state->key_file_length= file_size;
+    share->state.state.key_file_length= file_size;
     buff= info->keyread_buff;
     info->keyread_buff_used= 1;
     unlock_method= PAGECACHE_LOCK_WRITE;

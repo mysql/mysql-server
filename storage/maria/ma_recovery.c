@@ -2726,6 +2726,13 @@ static void prepare_table_for_close(MARIA_HA *info, TRANSLOG_ADDRESS horizon)
     share->state.is_of_horizon= horizon;
     _ma_state_info_write_sub(share->kfile.file, &share->state, 1);
   }
+
+  /*
+   Ensure that info->state is up to date as
+   _ma_renable_logging_for_table() is depending on this
+  */
+  *info->state= info->s->state.state;
+
   /*
     This leaves PAGECACHE_PLAIN_PAGE pages into the cache, while the table is
     going to switch back to transactional. So the table will be a mix of
@@ -3227,6 +3234,13 @@ my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages)
   if ((share->now_transactional= share->base.born_transactional))
   {
     share->page_type= PAGECACHE_LSN_PAGE;
+
+    /*
+      Copy state information that where updated while the table was used
+      in not transactional mode
+    */
+    _ma_copy_nontrans_state_information(info);
+
     if (flush_pages)
     {
       /*

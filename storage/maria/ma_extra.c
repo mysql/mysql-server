@@ -105,7 +105,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       cache_size= (extra_arg ? *(ulong*) extra_arg :
 		   my_default_record_cache_size);
       if (!(init_io_cache(&info->rec_cache, info->dfile.file,
-			 (uint) min(info->state->data_file_length+1,
+			 (uint) min(share->state.state.data_file_length+1,
 				    cache_size),
 			  READ_CACHE,0L,(pbool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
@@ -113,7 +113,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	info->opt_flag|= READ_CACHE_USED;
 	info->update&=   ~HA_STATE_ROW_CHANGED;
       }
-      if (share->concurrent_insert)
+      if (share->non_transactional_concurrent_insert)
 	info->rec_cache.end_of_file= info->state->data_file_length;
     }
     break;
@@ -124,7 +124,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 		      (pbool) (info->lock_type != F_UNLCK),
 		      (pbool) test(info->update & HA_STATE_ROW_CHANGED));
       info->update&= ~HA_STATE_ROW_CHANGED;
-      if (share->concurrent_insert)
+      if (share->non_transactional_concurrent_insert)
 	info->rec_cache.end_of_file= info->state->data_file_length;
     }
     break;
@@ -143,7 +143,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	  (READ_CACHE_USED | WRITE_CACHE_USED | OPT_NO_ROWS)) &&
 	!share->state.header.uniques)
       if (!(init_io_cache(&info->rec_cache, info->dfile.file, cache_size,
-			 WRITE_CACHE,info->state->data_file_length,
+			 WRITE_CACHE,share->state.state.data_file_length,
 			  (pbool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
       {
@@ -258,7 +258,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	  share->state.open_count++;
 	}
       }
-      share->state.state= *info->state;
+      if (!share->now_transactional)
+        share->state.state= *info->state;
       /*
         That state write to disk must be done, even for transactional tables;
         indeed the table's share is going to be lost (there was a
@@ -546,27 +547,36 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
                           enum flush_type flush_type_for_data,
                           enum flush_type flush_type_for_index)
 {
+  int error= 0;
   MARIA_SHARE *share= info->s;
   /* flush data file first because it's more critical */
   if (flush_data_or_index & MARIA_FLUSH_DATA)
   {
     if ((info->opt_flag & WRITE_CACHE_USED) &&
+        flush_type_for_data != FLUSH_IGNORE_CHANGED &&
         flush_io_cache(&info->rec_cache))
-      goto err;
+      error= 1;
     if (share->data_file_type == BLOCK_RECORD)
     {
-      if(_ma_bitmap_flush(share) ||
-         flush_pagecache_blocks(share->pagecache, &info->dfile,
-                                flush_type_for_data))
-        goto err;
+      if (flush_type_for_data != FLUSH_IGNORE_CHANGED)
+      {
+        if (_ma_bitmap_flush(share))
+          error= 1;
+      }
+      else
+        info->s->bitmap.changed= 0;
+      if (flush_pagecache_blocks(share->pagecache, &info->dfile,
+                                 flush_type_for_data))
+        error= 1;
     }
   }
   if ((flush_data_or_index & MARIA_FLUSH_INDEX) &&
       flush_pagecache_blocks(share->pagecache, &share->kfile,
                              flush_type_for_index))
-    goto err;
-  return 0;
-err:
+    error= 1;
+  if (!error)
+    return 0;
+
   maria_print_error(info->s, HA_ERR_CRASHED);
   maria_mark_crashed(info);
   return 1;

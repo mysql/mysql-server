@@ -39,7 +39,7 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
 
   if (fast_ma_readinfo(info))
     DBUG_RETURN(my_errno);
-  if (info->s->concurrent_insert)
+  if (info->s->lock_key_trees)
     rw_rdlock(&info->s->key_root_lock[inx]);
   changed= _ma_test_if_changed(info);
   if (!flag)
@@ -82,7 +82,7 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
     }
   }
 
-  if (info->s->concurrent_insert)
+  if (info->s->non_transactional_concurrent_insert)
   {
     if (!error)
     {

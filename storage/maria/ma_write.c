@@ -68,6 +68,10 @@ static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page,
 
 /*
   @brief Default handler for returing position to new row
+
+  @note
+    This is only called for non transactional tables and not for block format
+    which is why we use info->state here.
 */
 
 MARIA_RECORD_POS _ma_write_init_default(MARIA_HA *info,
@@ -95,7 +99,7 @@ int maria_write(MARIA_HA *info, uchar *record)
   int save_errno;
   MARIA_RECORD_POS filepos;
   uchar *buff;
-  my_bool lock_tree= share->concurrent_insert;
+  my_bool lock_tree= share->lock_key_trees;
   my_bool fatal_error;
   DBUG_ENTER("maria_write");
   DBUG_PRINT("enter",("index_file: %d  data_file: %d",
@@ -114,12 +118,12 @@ int maria_write(MARIA_HA *info, uchar *record)
 
   if (share->base.reloc == (ha_rows) 1 &&
       share->base.records == (ha_rows) 1 &&
-      info->state->records == (ha_rows) 1)
+      share->state.state.records == (ha_rows) 1)
   {						/* System file */
     my_errno=HA_ERR_RECORD_FILE_FULL;
     goto err2;
   }
-  if (info->state->key_file_length >= share->base.margin_key_file_length)
+  if (share->state.state.key_file_length >= share->base.margin_key_file_length)
   {
     my_errno=HA_ERR_INDEX_FILE_FULL;
     goto err2;
@@ -202,8 +206,7 @@ int maria_write(MARIA_HA *info, uchar *record)
   {
     if ((*share->write_record)(info,record))
       goto err;
-    if (!share->now_transactional)
-      info->state->checksum+= info->cur_row.checksum;
+    info->state->checksum+= info->cur_row.checksum;
   }
   if (!share->now_transactional)
   {
@@ -214,8 +217,8 @@ int maria_write(MARIA_HA *info, uchar *record)
       set_if_bigger(share->state.auto_increment,
                     ma_retrieve_auto_increment(key, keyseg->type));
     }
-    info->state->records++;
   }
+  info->state->records++;
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_WRITTEN |
 		 HA_STATE_ROW_CHANGED);
   share->state.changed|= STATE_NOT_MOVABLE | STATE_NOT_ZEROFILLED;
@@ -394,9 +397,8 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   error= _ma_ck_real_write_btree(info, keyinfo, key, key_length, &new_root,
                                  comp_flag);
   if (!error && share->now_transactional)
-    error=
-      _ma_write_undo_key_insert(info, keyinfo, key_buff, key_length,
-                                root, new_root, &lsn);
+    error= _ma_write_undo_key_insert(info, keyinfo, key_buff, key_length,
+                                     root, new_root, &lsn);
   else
   {
     *root= new_root;
@@ -529,7 +531,7 @@ static int w_search(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   if (flag == 0)
   {
     uint tmp_key_length;
-	/* get position to record with duplicated key */
+    /* get position to record with duplicated key */
     tmp_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,keybuff);
     if (tmp_key_length)
       dup_key_pos= _ma_dpos(info,0,keybuff+tmp_key_length);
@@ -1478,7 +1480,7 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
 
   switch (mode) {
   case free_init:
-    if (share->concurrent_insert)
+    if (share->lock_key_trees)
     {
       rw_wrlock(&share->key_root_lock[param->keynr]);
       share->keyinfo[param->keynr].version++;
@@ -1491,7 +1493,7 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
     return _ma_ck_write_btree(param->info, param->keynr, lastkey,
                               keylen - share->rec_reflength);
   case free_end:
-    if (share->concurrent_insert)
+    if (share->lock_key_trees)
       rw_unlock(&share->key_root_lock[param->keynr]);
     return 0;
   }
@@ -1570,7 +1572,7 @@ void maria_flush_bulk_insert(MARIA_HA *info, uint inx)
   }
 }
 
-void maria_end_bulk_insert(MARIA_HA *info)
+void maria_end_bulk_insert(MARIA_HA *info, my_bool abort)
 {
   DBUG_ENTER("maria_end_bulk_insert");
   if (info->bulk_insert)
@@ -1578,11 +1580,15 @@ void maria_end_bulk_insert(MARIA_HA *info)
     uint i;
     for (i=0 ; i < info->s->base.keys ; i++)
     {
-      if (is_tree_inited(& info->bulk_insert[i]))
+      if (is_tree_inited(&info->bulk_insert[i]))
+      {
+        if (abort)
+          reset_free_element(&info->bulk_insert[i]);
         delete_tree(&info->bulk_insert[i]);
+      }
     }
     my_free(info->bulk_insert, MYF(0));
-    info->bulk_insert=0;
+    info->bulk_insert= 0;
   }
   DBUG_VOID_RETURN;
 }
@@ -1605,7 +1611,6 @@ int _ma_write_undo_key_insert(MARIA_HA *info,
   struct st_msg_to_write_hook_for_undo_key msg;
 
   /* Save if we need to write a clr record */
-  info->key_write_undo_lsn[keyinfo->key_nr]= info->trn->undo_lsn;
   lsn_store(log_data, info->trn->undo_lsn);
   key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
                keyinfo->key_nr);

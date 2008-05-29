@@ -3025,13 +3025,14 @@ void ha_partition::start_bulk_insert(ha_rows rows)
 
   SYNOPSIS
     end_bulk_insert()
+    abort		1 if table will be deleted (error condition)
 
   RETURN VALUE
     >0                      Error code
     0                       Success
 */
 
-int ha_partition::end_bulk_insert()
+int ha_partition::end_bulk_insert(bool abort)
 {
   int error= 0;
   handler **file;
@@ -3041,7 +3042,7 @@ int ha_partition::end_bulk_insert()
   do
   {
     int tmp;
-    if ((tmp= (*file)->ha_end_bulk_insert()))
+    if ((tmp= (*file)->ha_end_bulk_insert(abort)))
       error= tmp;
   } while (*(++file));
   DBUG_RETURN(error);

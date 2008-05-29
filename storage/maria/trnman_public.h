@@ -33,11 +33,13 @@ typedef struct st_transaction TRN;
 
 extern uint trnman_active_transactions, trnman_allocated_transactions;
 extern TRN dummy_transaction_object;
+extern my_bool (*trnman_end_trans_hook)(TRN *trn, my_bool commit,
+                                        my_bool active_transactions);
 
 int trnman_init(TrID);
 void trnman_destroy(void);
 TRN *trnman_new_trn(pthread_mutex_t *, pthread_cond_t *, void *);
-int trnman_end_trn(TRN *trn, my_bool commit);
+my_bool trnman_end_trn(TRN *trn, my_bool commit);
 #define trnman_commit_trn(T) trnman_end_trn(T, TRUE)
 #define trnman_abort_trn(T)  trnman_end_trn(T, FALSE)
 #define trnman_rollback_trn(T)  trnman_end_trn(T, FALSE)
@@ -55,7 +57,10 @@ uint trnman_has_locked_tables(TRN *trn);
 void trnman_reset_locked_tables(TRN *trn, uint locked_tables);
 TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid);
 TRN *trnman_get_any_trn(void);
+TrID trnman_get_min_trid(void);
 TrID trnman_get_max_trid(void);
+my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
+                                          my_bool trnman_is_locked);
 #define TRANSID_SIZE		6
 #define transid_store(dst, id) int6store(dst,id)
 #define transid_korr(P) uint6korr(P)

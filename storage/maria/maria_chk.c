@@ -106,14 +106,21 @@ int main(int argc, char **argv)
   error=0;
   maria_init();
 
+  if (ma_control_file_open(FALSE, opt_require_control_file) &&
+      (opt_require_control_file ||
+       (opt_transaction_logging && (check_param.testflag & T_REP_ANY))))
+  {
+    error= 1;
+    goto end;
+  }
+
   /*
     If we are doing a repair, user may want to store this repair into the log
     so that the log has a complete history and can be used to replay.
   */
   if (opt_transaction_logging && (check_param.testflag & T_REP_ANY))
   {
-    if (ma_control_file_open(FALSE) ||
-        init_pagecache(maria_log_pagecache,
+    if (init_pagecache(maria_log_pagecache,
                        TRANSLOG_PAGECACHE_SIZE, 0, 0,
                        TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
         translog_init(opt_log_dir, TRANSLOG_FILE_SIZE,
@@ -123,14 +130,6 @@ int main(int argc, char **argv)
       _ma_check_print_error(&check_param,
                             "Can't initialize transaction logging. Run "
                             "recovery with switch --skip-transaction-log");
-      error= 1;
-      goto end;
-    }
-  }
-  else
-  {
-    if (ma_control_file_open(FALSE) && opt_require_control_file)
-    {
       error= 1;
       goto end;
     }
@@ -1237,9 +1236,10 @@ static int maria_chk(HA_CHECK *param, char *filename)
       printf("Data records: %7s   Deleted blocks: %7s\n",
              llstr(info->state->records,llbuff),
              llstr(info->state->del,llbuff2));
-    error =maria_chk_status(param,info);
+    maria_chk_init_for_check(param, info);
+    error= maria_chk_status(param,info);
     maria_intersect_keys_active(share->state.key_map, param->keys_in_use);
-    error =maria_chk_size(param,info);
+    error|= maria_chk_size(param,info);
     if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))
       error|=maria_chk_del(param, info,param->testflag);
     if ((!error || (!(param->testflag & (T_FAST | T_FORCE_CREATE)) &&
@@ -1327,7 +1327,15 @@ end2:
                           T_ZEROFILL)))
     error= write_log_record(param);
 
+  if (param->not_visible_rows_found && (param->testflag & T_VERBOSE))
+  {
+    char buff[22];
+    printf("Max transaction id found: %s\n",
+           llstr(param->max_found_trid, buff));
+  }
+
   VOID(fflush(stdout)); VOID(fflush(stderr));
+
   if (param->error_printed)
   {
     if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))

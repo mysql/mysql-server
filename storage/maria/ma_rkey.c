@@ -69,7 +69,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key,
 
   if (fast_ma_readinfo(info))
     goto err;
-  if (share->concurrent_insert)
+  if (share->lock_key_trees)
     rw_rdlock(&share->key_root_lock[inx]);
 
   nextflag=maria_read_vec[search_flag];
@@ -93,7 +93,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key,
     if (!_ma_search(info, keyinfo, key_buff, use_key_length,
                     maria_read_vec[search_flag],
                     info->s->state.key_root[inx]) &&
-        share->concurrent_insert)
+        share->non_transactional_concurrent_insert)
     {
       /*
         Found a key, but it might not be usable. We cannot use rows that
@@ -156,7 +156,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key,
       }
     }
   }
-  if (share->concurrent_insert)
+  if (share->lock_key_trees)
     rw_unlock(&share->key_root_lock[inx]);
 
   if (info->cur_row.lastpos == HA_OFFSET_ERROR)

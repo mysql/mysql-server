@@ -1511,7 +1511,7 @@ void ha_archive::start_bulk_insert(ha_rows rows)
   Other side of start_bulk_insert, is end_bulk_insert. Here we turn off the bulk insert
   flag, and set the share dirty so that the next select will call sync for us.
 */
-int ha_archive::end_bulk_insert()
+int ha_archive::end_bulk_insert(bool table_will_be_deleted)
 {
   DBUG_ENTER("ha_archive::end_bulk_insert");
   bulk_insert= FALSE;

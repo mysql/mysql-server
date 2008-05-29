@@ -369,6 +369,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 void
 Diagnostics_area::reset_diagnostics_area()
 {
+  DBUG_ENTER("reset_diagnostics_area");
 #ifdef DBUG_OFF
   can_overwrite_status= FALSE;
   /** Don't take chances in production */
@@ -382,6 +383,7 @@ Diagnostics_area::reset_diagnostics_area()
   is_sent= FALSE;
   /** Tiny reset in debug mode to see garbage right away */
   m_status= DA_EMPTY;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -395,6 +397,7 @@ Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
                                 ulonglong last_insert_id_arg,
                                 const char *message_arg)
 {
+  DBUG_ENTER("set_ok_status");
   DBUG_ASSERT(! is_set());
   /*
     In production, refuse to overwrite an error or a custom response
@@ -412,6 +415,7 @@ Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
   else
     m_message[0]= '\0';
   m_status= DA_OK;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -422,8 +426,8 @@ Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
 void
 Diagnostics_area::set_eof_status(THD *thd)
 {
-  /** Only allowed to report eof if has not yet reported an error */
-
+  DBUG_ENTER("set_eof_status");
+  /* Only allowed to report eof if has not yet reported an error */
   DBUG_ASSERT(! is_set());
   /*
     In production, refuse to overwrite an error or a custom response
@@ -441,6 +445,7 @@ Diagnostics_area::set_eof_status(THD *thd)
   m_total_warn_count= thd->spcont ? 0 : thd->total_warn_count;
 
   m_status= DA_EOF;
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -451,6 +456,7 @@ void
 Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
                                    const char *message_arg)
 {
+  DBUG_ENTER("set_error_status");
   /*
     Only allowed to report error if has not yet reported a success
     The only exception is when we flush the message to the client,
@@ -467,9 +473,10 @@ Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
 #endif
 
   m_sql_errno= sql_errno_arg;
-  strmake(m_message, message_arg, sizeof(m_message) - 1);
+  strmake(m_message, message_arg, sizeof(m_message)-1);
 
   m_status= DA_ERROR;
+  DBUG_VOID_RETURN;
 }
 
 

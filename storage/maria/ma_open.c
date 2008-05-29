@@ -91,6 +91,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   int save_errno;
   uint errpos;
   MARIA_HA info,*m_info;
+  MARIA_STATUS_INFO *state_dummy;
   my_bitmap_map *changed_fields_bitmap;
   DBUG_ENTER("maria_clone_internal");
 
@@ -118,12 +119,9 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
 		       &info.first_mbr_key, share->base.max_key_length,
 		       &info.maria_rtree_recursion_state,
                        share->have_rtree ? 1024 : 0,
-                       &info.key_write_undo_lsn,
-                       (uint) (sizeof(LSN) * share->base.keys),
-                       &info.key_delete_undo_lsn,
-                       (uint) (sizeof(LSN) * share->base.keys),
                        &changed_fields_bitmap,
                        bitmap_buffer_size(share->base.fields),
+                       &state_dummy, sizeof(*state_dummy),
 		       NullS))
     goto err;
   errpos= 6;
@@ -180,9 +178,18 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
       maria_delay_key_write)
     share->delay_key_write=1;
 
-  info.state= &share->state.state;	/* Change global values by default */
   if (!share->base.born_transactional)   /* For transactional ones ... */
+  {
     info.trn= &dummy_transaction_object; /* ... force crash if no trn given */
+    info.state= &share->state.state;	/* Change global values by default */
+  }
+  else
+  {
+    info.state= state_dummy;
+    *info.state= share->state.state;            /* Initial values */
+  }
+  info.state_start= info.state;                 /* Initial values */
+
   pthread_mutex_unlock(&share->intern_lock);
 
   /* Allocate buffer for one record */
@@ -763,7 +770,31 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile.file))
       goto err;
-
+    if (share->now_transactional)
+    {
+      /* Setup initial state that is visible for all */
+      MARIA_STATE_HISTORY_CLOSED *history;
+      if ((history= (MARIA_STATE_HISTORY_CLOSED *)
+           hash_search(&maria_stored_state,
+                       (uchar*) &share->state.create_rename_lsn, 0)))
+      {
+        /* Move history from hash to share */
+        share->state_history=
+          _ma_remove_not_visible_states(history->state_history, 0, 0);
+        history->state_history= 0;
+        (void) hash_delete(&maria_stored_state, (uchar*) history);
+      }
+      else
+      {
+        /* Table is not part of any active transaction; Create new history */
+        if (!(share->state_history= (MARIA_STATE_HISTORY *)
+              my_malloc(sizeof(*share->state_history), MYF(MY_WME))))
+          goto err;
+        share->state_history->trid= 0;          /* Visibly by all */
+        share->state_history->state= share->state.state;
+        share->state_history->next= 0;
+      }
+    }
 #ifdef THREAD
     thr_lock_init(&share->lock);
     VOID(pthread_mutex_init(&share->intern_lock, MY_MUTEX_INIT_FAST));
@@ -778,28 +809,34 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
     else if (maria_concurrent_insert)
     {
-      share->concurrent_insert=
+      share->non_transactional_concurrent_insert=
 	((share->options & (HA_OPTION_READ_ONLY_DATA | HA_OPTION_TMP_TABLE |
-			   HA_OPTION_COMPRESS_RECORD |
-			   HA_OPTION_TEMP_COMPRESS_RECORD)) ||
+                            HA_OPTION_COMPRESS_RECORD |
+                            HA_OPTION_TEMP_COMPRESS_RECORD)) ||
 	 (open_flags & HA_OPEN_TMP_TABLE) ||
          share->data_file_type == BLOCK_RECORD ||
 	 share->have_rtree) ? 0 : 1;
-      if (share->concurrent_insert)
+      if (share->non_transactional_concurrent_insert ||
+          (!share->temporary && share->now_transactional && !share->base.keys))
       {
-	share->lock.get_status=_ma_get_status;
-	share->lock.copy_status=_ma_copy_status;
-        /**
-           @todo RECOVERY
-           INSERT DELAYED and concurrent inserts are currently disabled for
-           transactional tables; when enabled again, we should re-evaluate
-           what problems the call to _ma_update_status() by
-           thr_reschedule_write_lock() can do (it may hurt Checkpoint as it
-           would be without intern_lock, and it modifies the state).
-        */
-	share->lock.update_status=_ma_update_status;
-	share->lock.restore_status=_ma_restore_status;
-	share->lock.check_status=_ma_check_status;
+        share->lock_key_trees= 1;
+        if (share->data_file_type == BLOCK_RECORD)
+        {
+          share->lock.get_status=    _ma_block_get_status;
+          share->lock.update_status= _ma_block_update_status;
+          share->lock.check_status=  _ma_block_check_status;
+          share->lock.allow_multiple_concurrent_insert= 1;
+          share->lock_restore_status= 0;
+        }
+        else
+        {
+          share->lock.get_status=    _ma_get_status;
+          share->lock.copy_status=   _ma_copy_status;
+          share->lock.update_status= _ma_update_status;
+          share->lock.restore_status=_ma_restore_status;
+          share->lock.check_status=  _ma_check_status;
+          share->lock_restore_status= _ma_restore_status;
+        }
       }
     }
 #endif
@@ -1714,17 +1751,21 @@ int maria_enable_indexes(MARIA_HA *info)
 {
   int error= 0;
   MARIA_SHARE *share= info->s;
+  DBUG_ENTER("maria_enable_indexes");
 
   if ((share->state.state.data_file_length !=
        (share->data_file_type == BLOCK_RECORD ? share->block_size : 0)) ||
       (share->state.state.key_file_length != share->base.keystart))
   {
+    DBUG_PRINT("error", ("data_file_length: %lu  key_file_length: %lu",
+                         (ulong) share->state.state.data_file_length,
+                         (ulong) share->state.state.key_file_length));
     maria_print_error(info->s, HA_ERR_CRASHED);
     error= HA_ERR_CRASHED;
   }
   else
     maria_set_all_keys_active(share->state.key_map, share->base.keys);
-  return error;
+  DBUG_RETURN(error);
 }
 
 

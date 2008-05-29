@@ -700,7 +700,7 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
                            const uchar *record, my_off_t pos);
 int mi_unique_comp(MI_UNIQUEDEF *def, const uchar *a, const uchar *b,
                    my_bool null_are_equal);
-void mi_get_status(void *param, int concurrent_insert);
+void mi_get_status(void *param, my_bool concurrent_insert);
 void mi_update_status(void *param);
 void mi_restore_status(void *param);
 void mi_copy_status(void *to, void *from);

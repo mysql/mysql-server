@@ -12,6 +12,8 @@ $VER= "1.2";
 
 $opt_version= 0;
 $opt_help=    0;
+$opt_verbose= 0;
+$opt_abort_on_error=0;
 
 my $silent= "-s";
 my $maria_path;     # path to "storage/maria"
@@ -34,7 +36,7 @@ sub main
 {
   my ($res, $table);
 
-  if (!GetOptions("help","version"))
+  if (!GetOptions("abort-on-error", "help", "version", "verbose"))
   {
     $flag_exit= 1;
   }
@@ -87,7 +89,10 @@ sub main
   my @t= ("ma_test1$suffix $silent -M -T -c",
           "ma_test2$suffix $silent -L -K -W -P -M -T -c -d500",
           "ma_test2$suffix $silent -M -T -c -b65000",
-          "ma_test2$suffix $silent -M -T -c -b65000 -d800");
+          "ma_test2$suffix $silent -M -T -c -b65000 -d800",
+          "ma_test1$suffix $silent -M -T -c -C",
+          "ma_test2$suffix $silent -L -K -W -P -M -T -c -d500 -C"
+         );
 
   foreach my $prog (@t)
   {
@@ -95,7 +100,7 @@ sub main
     my $prog_no_suffix= $prog;
     $prog_no_suffix=~ s/$suffix// if ($suffix);
     print MY_LOG "TEST WITH $prog_no_suffix\n";
-    $res= `$maria_exe_path/$prog`;
+    $res= my_exec("$maria_exe_path/$prog");
     print MY_LOG $res;
     # derive table's name from program's name
     if ($prog =~ m/ma_(test[0-9]+).*/)
@@ -105,8 +110,8 @@ sub main
     $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
     $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" ";
     $com.= "> $tmp/maria_chk_message.good.txt 2>&1";
-    `$com`;
-    my $checksum=`$maria_exe_path/maria_chk$suffix -dss $table`;
+    my_exec($com);
+    my $checksum= my_exec("$maria_exe_path/maria_chk$suffix -dss $table");
     move("$table.MAD", "$tmp/$table-good.MAD") ||
       die "Can't move $table.MAD to $tmp/$table-good.MAD\n";
     move("$table.MAI", "$tmp/$table-good.MAI") ||
@@ -136,6 +141,9 @@ sub main
            "--testflag=1",
            "--testflag=2 --test-undo=",
            "ma_test1$suffix $silent -M -T -c -N blob -H2",
+           "--testflag=3",
+           "--testflag=4 --test-undo=",
+           "ma_test1$suffix $silent -M -T -c -N blob -H2 --versioning",
            "--testflag=3",
            "--testflag=4 --test-undo=",
            "ma_test1$suffix $silent -M -T -c -N blob -H2",
@@ -171,7 +179,7 @@ sub main
           my $prog_no_suffix= $prog;
           $prog_no_suffix=~ s/$suffix// if ($suffix);
           print MY_LOG "TEST WITH $prog_no_suffix $commit_run_args (commit at end)\n";
-          $res= `$maria_exe_path/$prog $commit_run_args`;
+          $res= my_exec("$maria_exe_path/$prog $commit_run_args");
           print MY_LOG $res;
           # derive table's name from program's name
           if ($prog =~ m/ma_(test[0-9]+).*/)
@@ -181,16 +189,16 @@ sub main
           $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
           $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" ";
           $com.= "> $tmp/maria_chk_message.good.txt 2>&1";
-          $res= `$com`;
+          $res= my_exec($com);
           print MY_LOG $res;
-          $checksum= `$maria_exe_path/maria_chk$suffix -dss $table`;
+          $checksum= my_exec("$maria_exe_path/maria_chk$suffix -dss $table");
           move("$table.MAD", "$tmp/$table-good.MAD") ||
             die "Can't move $table.MAD to $tmp/$table-good.MAD\n";
           move("$table.MAI", "$tmp/$table-good.MAI") ||
             die "Can't move $table.MAI to $tmp/$table-good.MAI\n";
           unlink <maria_log.* maria_log_control>;
           print MY_LOG "TEST WITH $prog_no_suffix $abort_run_args$test_undo[$j] (additional aborted work)\n";
-          $res= `$maria_exe_path/$prog $abort_run_args$test_undo[$j]`;
+          $res= my_exec("$maria_exe_path/$prog $abort_run_args$test_undo[$j]");
           print MY_LOG $res;
           copy("$table.MAD", "$tmp/$table-before_undo.MAD") ||
             die "Can't copy $table.MAD to $tmp/$table-before_undo.MAD\n";
@@ -273,6 +281,11 @@ sub check_table_is_same
   # Data/key file length is random in ma_test2 (as it uses srand() which
   # may differ between machines).
 
+  if ($opt_verbose)
+  {
+    print "checking if table $table has changed\n";
+  }
+
   $com=  "$maria_exe_path/maria_chk$suffix -dvv $table | grep -v \"Creation time:\" ";
   $com.= "| grep -v \"file length\"> $tmp/maria_chk_message.txt 2>&1";
   $res= `$com`;
@@ -328,7 +341,7 @@ sub apply_log
     $log_md5.= md5_conv($_);
   }
   print MY_LOG "applying log\n";
-  `$maria_exe_path/maria_read_log$suffix -a > $tmp/maria_read_log_$table.txt`;
+  my_exec("$maria_exe_path/maria_read_log$suffix -a > $tmp/maria_read_log_$table.txt");
   foreach (<maria_log.*>)
   {
     $log_md5_2.= md5_conv($_);
@@ -416,6 +429,23 @@ sub physical_cmp
 }
 
 
+sub my_exec
+{
+  my($command)= @_;
+  my $res;
+  if ($opt_verbose)
+  {
+    print "$command\n";
+  }
+  $res= `$command`;
+  if ($? != 0 && $opt_abort_on_error)
+  {
+    exit(1);
+  }
+  return $res;
+}
+
+
 ####
 #### usage
 ####
@@ -431,7 +461,11 @@ Run various maria recovery tests and print the results
 
 Options
 --help             Show this help and exit.
+
+--abort-on-error   Abort at once in case of error.
+--verbose          Show commands while there are executing.
 --version          Show version number and exit.
+
 EOF
   exit(0);
 }

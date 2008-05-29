@@ -1798,7 +1798,10 @@ JOIN::exec()
       curr_join->having= curr_join->tmp_having= 0; // Allready done
     
     /* Change sum_fields reference to calculated fields in tmp_table */
-    curr_join->all_fields= *curr_all_fields;
+#ifdef HAVE_purify
+    if (curr_join != this)
+#endif
+      curr_join->all_fields= *curr_all_fields;
     if (!items1)
     {
       items1= items0 + all_fields.elements;
@@ -1816,8 +1819,13 @@ JOIN::exec()
 				      fields_list.elements, all_fields))
 	  DBUG_VOID_RETURN;
       }
-      curr_join->tmp_all_fields1= tmp_all_fields1;
-      curr_join->tmp_fields_list1= tmp_fields_list1;
+#ifdef HAVE_purify
+      if (curr_join != this)
+#endif
+      {
+        curr_join->tmp_all_fields1= tmp_all_fields1;
+        curr_join->tmp_fields_list1= tmp_fields_list1;
+      }
       curr_join->items1= items1;
     }
     curr_all_fields= &tmp_all_fields1;
@@ -2021,8 +2029,13 @@ JOIN::exec()
       tmp_table_param.save_copy_field= curr_join->tmp_table_param.copy_field;
       tmp_table_param.save_copy_field_end=
 	curr_join->tmp_table_param.copy_field_end;
-      curr_join->tmp_all_fields3= tmp_all_fields3;
-      curr_join->tmp_fields_list3= tmp_fields_list3;
+#ifdef HAVE_purify
+      if (curr_join != this)
+#endif
+      {
+        curr_join->tmp_all_fields3= tmp_all_fields3;
+        curr_join->tmp_fields_list3= tmp_fields_list3;
+      }
     }
     else
     {
