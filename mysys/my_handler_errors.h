@@ -55,13 +55,14 @@ static const char *handler_error_messages[]=
   "Failed to get next auto increment value",
   "Failed to set row auto increment value",
   "Unknown (generic) error from engine",
-  "Record is the same",
+  "Record was not update. Original values was same as new values",
   "It is not possible to log this statement",
   "The event was corrupt, leading to illegal data being read",
   "The table is of a new format not supported by this version",
-  "The event could not be processed no other handler error happened",
+  "The event could not be processed. No other handler error happened",
   "Got a fatal error during initialization of handler",
   "File too short; Expected more data in file",
-  "Read page with wrong checksum"
+  "Read page with wrong checksum",
+  "Row is not visible by the current transaction"
 };
 

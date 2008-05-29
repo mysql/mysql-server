@@ -2859,6 +2859,8 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 					     *engine_callback,
 					     ulonglong *engine_data)
 {
+  ulonglong actual_data_file_length;
+  ulonglong current_data_file_length;
   DBUG_ENTER("ha_maria::register_query_cache_table");
 
   /*

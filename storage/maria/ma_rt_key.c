@@ -58,7 +58,7 @@ int maria_rtree_add_key(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
       /* save key */
       DBUG_ASSERT(_ma_dpos(info, nod_flag, key + key_length +
                            share->base.rec_reflength) <
-                  info->state->data_file_length +
+                  share->state.state.data_file_length +
                   share->base.pack_reclength);
       memcpy(key_pos, key, key_length + share->base.rec_reflength);
       added_len= key_length + share->base.rec_reflength;
