@@ -1129,3 +1129,9 @@ cmd: test_event
 args: -n Bug34853 T1
 
 # EOF 2008-04-25
+# 2008-05-29
+max-time: 1200
+cmd: testDict
+args: -l 1 -n FailAddFragment
+
+# EOF 2008-05-29

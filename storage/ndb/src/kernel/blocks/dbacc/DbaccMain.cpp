@@ -858,6 +858,7 @@ void Dbacc::releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr)
   regFragPtr.p->nextfreefrag = cfirstfreefrag;
   cfirstfreefrag = regFragPtr.i;
   initFragGeneral(regFragPtr);
+  RSS_OP_FREE(cnoOfFreeFragrec);
 }//Dbacc::releaseFragRecord()
 
 /* -------------------------------------------------------------------------- */
@@ -8074,6 +8075,7 @@ void Dbacc::seizeDirrange(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::seizeFragrec(Signal* signal) 
 {
+  RSS_OP_ALLOC(cnoOfFreeFragrec);
   fragrecptr.i = cfirstfreefrag;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   cfirstfreefrag = fragrecptr.p->nextfreefrag;
@@ -8520,6 +8522,18 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }//if
 #endif
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    RSS_OP_SNAPSHOT_SAVE(cnoOfFreeFragrec);
+    return;
+  }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    RSS_OP_SNAPSHOT_CHECK(cnoOfFreeFragrec);
+    return;
+  }
 }//Dbacc::execDUMP_STATE_ORD()
 
 void

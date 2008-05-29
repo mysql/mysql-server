@@ -822,5 +822,38 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 
 #include "Mutex.hpp"
 
+#ifdef ERROR_INSERT
+#define RSS_AP_SNAPSHOT(x) Uint32 rss_##x
+#define RSS_AP_SNAPSHOT_SAVE(x) rss_##x = x.getNoOfFree()
+#define RSS_AP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x.getNoOfFree())
+
+#define RSS_OP_COUNTER(x) Uint32 x
+#define RSS_OP_COUNTER_INIT(x) x = 0
+#define RSS_OP_ALLOC(x) x ++
+#define RSS_OP_FREE(x) x --
+#define RSS_OP_ALLOC_X(x,n) x += n
+#define RSS_OP_FREE_X(x,n) x -= n
+
+#define RSS_OP_SNAPSHOT(x) Uint32 rss_##x
+#define RSS_OP_SNAPSHOT_SAVE(x) rss_##x = x
+#define RSS_OP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x)
+#else
+#define RSS_AP_SNAPSHOT(x)
+#define RSS_AP_SNAPSHOT_SAVE(x)
+#define RSS_AP_SNAPSHOT_CHECK(x)
+
+#define RSS_OP_COUNTER(x)
+#define RSS_OP_COUNTER_INIT(x)
+#define RSS_OP_ALLOC(x)
+#define RSS_OP_FREE(x)
+#define RSS_OP_ALLOC_X(x,n)
+#define RSS_OP_FREE_X(x,n)
+
+#define RSS_OP_SNAPSHOT(x)
+#define RSS_OP_SNAPSHOT_SAVE(x)
+#define RSS_OP_SNAPSHOT_CHECK(x)
+
+#endif
+
 #endif
 

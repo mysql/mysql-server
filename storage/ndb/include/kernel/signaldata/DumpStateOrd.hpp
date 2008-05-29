@@ -156,7 +156,10 @@ public:
     
     DumpTsman = 9800, 
     DumpLgman = 10000,
-    DumpPgman = 11000
+    DumpPgman = 11000,
+
+    SchemaResourceSnapshot = 4000, // Save resource consumption
+    SchemaResourceCheckLeak = 4001 // check same as snapshot
   };
 public:
   
