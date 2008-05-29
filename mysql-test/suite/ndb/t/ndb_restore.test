@@ -154,6 +154,9 @@ INSERT INTO t10_c VALUES (1),(2),(3);
 #            - check int
 insert into t10_c values (10000),(2000),(3000);
 
+CREATE TABLE t11_c (a int, b00 int null, b01 int null,b02 int null,b03 int null,b04 int null,b05 int null,b06 int null,b07 int null,b08 int null,b90 int null,b10 int null,b11 int null,b12 int null,b13 int null,b14 int null,b15 int null,b16 int null,b17 int null,b18 int null,b19 int null,b20 int null,b21 int null,b22 int null,b23 int null,b24 int null,b25 int null,b26 int null,b27 int null,b28 int null,b29 int null,b30 int null,b31 int null,b32 int null) engine = ndb;
+insert into t11_c values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
+
 create table t1 engine=myisam as select * from t1_c;
 create table t2 engine=myisam as select * from t2_c;
 create table t3 engine=myisam as select * from t3_c;
@@ -164,6 +167,7 @@ create table t7 engine=myisam as select * from t7_c;
 create table t8 engine=myisam as select * from t8_c;
 create table t9 engine=myisam as select * from t9_c;
 create table t10 engine=myisam as select * from t10_c;
+create table t11 engine=myisam as select * from t11_c;
 
 # check that force varpart is preserved by ndb_restore
 # t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
@@ -171,7 +175,7 @@ create table t10 engine=myisam as select * from t10_c;
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t2_c | grep ForceVarPart
 
 --source include/ndb_backup.inc
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 # check that force varpart is preserved by ndb_restore
@@ -243,6 +247,18 @@ select count(*)
   from (select * from t9 union 
         select * from t9_c) a;
 
+select count(*) from t10;
+select count(*) from t10_c;
+select count(*)
+  from (select * from t10 union 
+        select * from t10_c) a;
+
+select count(*) from t11;
+select count(*) from t11_c;
+select count(*)
+  from (select * from t11 union 
+        select * from t11_c) a;
+
 # Bug #20820 cont'd
 select * from t10_c order by a;
 # Bug #27775 cont'd
@@ -270,7 +286,7 @@ ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
 
 --source include/ndb_backup.inc
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
@@ -328,7 +344,19 @@ select count(*)
   from (select * from t9 union 
         select * from t9_c) a;
 
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+select count(*) from t10;
+select count(*) from t10_c;
+select count(*)
+  from (select * from t10 union 
+        select * from t10_c) a;
+
+select count(*) from t11;
+select count(*) from t11_c;
+select count(*)
+  from (select * from t11 union 
+        select * from t11_c) a;
+
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map '(0,0)' --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
@@ -386,13 +414,24 @@ select count(*)
   from (select * from t9 union 
         select * from t9_c) a;
 
+select count(*) from t10;
+select count(*) from t10_c;
+select count(*)
+  from (select * from t10 union 
+        select * from t10_c) a;
+
+select count(*) from t11;
+select count(*) from t11_c;
+select count(*)
+  from (select * from t11 union 
+        select * from t11_c) a;
 #
 # Drop all table except t2_c
 #   This to make sure that error returned from ndb_restore above is 
 #     guaranteed to be from t2_c, this since order of tables in backup
 #     is none deterministic
 # 
-drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --source include/ndb_backup.inc
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map '(0,1)' $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id 2>&1 | grep Translate || true
 
@@ -401,7 +440,7 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 #
 
 --disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 drop table if exists t2_c;
 --enable_warnings
 
