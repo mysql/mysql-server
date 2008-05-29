@@ -266,6 +266,7 @@ void Dbtup::seizeFragrecord(FragrecordPtr& regFragPtr)
   ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
   cfirstfreefrag= regFragPtr.p->nextfreefrag;
   regFragPtr.p->nextfreefrag= RNIL;
+  RSS_OP_ALLOC(cnoOfFreeFragrec);
 }
 
 void Dbtup::seizeFragoperrec(FragoperrecPtr& fragOperPtr) 
@@ -275,6 +276,7 @@ void Dbtup::seizeFragoperrec(FragoperrecPtr& fragOperPtr)
   cfirstfreeFragopr = fragOperPtr.p->nextFragoprec;
   fragOperPtr.p->nextFragoprec = RNIL;
   fragOperPtr.p->inUse = true;
+  RSS_OP_ALLOC(cnoOfFreeFragoprec);
 }//Dbtup::seizeFragoperrec()
 
 void Dbtup::seizeAlterTabOperation(AlterTabOperationPtr& alterTabOpPtr)
@@ -313,6 +315,17 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   ndbrequire(fragOperPtr.p->attributeCount > 0);
   fragOperPtr.p->attributeCount--;
   const bool lastAttr = (fragOperPtr.p->attributeCount == 0);
+
+  if (ERROR_INSERTED(4009) && regTabPtr.p->fragid[0] == fragId && attrId == 0||
+      ERROR_INSERTED(4010) && regTabPtr.p->fragid[0] == fragId && lastAttr ||
+      ERROR_INSERTED(4011) && regTabPtr.p->fragid[1] == fragId && attrId == 0||
+      ERROR_INSERTED(4012) && regTabPtr.p->fragid[1] == fragId && lastAttr) {
+    jam();
+    terrorCode = 1;
+    addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
 
   if (regTabPtr.p->tableStatus != DEFINING)
   {
@@ -454,17 +467,6 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
                    regTabPtr.p->noOfCharsets,
                    fragOperPtr.p->charsetIndex, attrDes2);
   setTabDescrWord(firstTabDesIndex + 1, attrDes2);
-
-  if (ERROR_INSERTED(4009) && regTabPtr.p->fragid[0] == fragId && attrId == 0||
-      ERROR_INSERTED(4010) && regTabPtr.p->fragid[0] == fragId && lastAttr ||
-      ERROR_INSERTED(4011) && regTabPtr.p->fragid[1] == fragId && attrId == 0||
-      ERROR_INSERTED(4012) && regTabPtr.p->fragid[1] == fragId && lastAttr) {
-    jam();
-    terrorCode = 1;
-    addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
-    CLEAR_ERROR_INSERT_VALUE;
-    return;
-  }
 
 /* **************************************************************** */
 /* **************          TUP_ADD_ATTCONF       ****************** */
@@ -1359,7 +1361,6 @@ void Dbtup::addattrrefuseLab(Signal* signal,
   deleteFragTab(regTabPtr, fragId);
   releaseFragrec(regFragPtr);
   releaseTabDescr(regTabPtr);
-  initTab(regTabPtr);
 
   signal->theData[0]= fragOperPtr.p->lqhPtrFrag;
   signal->theData[1]= terrorCode;
@@ -1372,10 +1373,24 @@ void Dbtup::fragrefuse4Lab(Signal* signal,
                            FragoperrecPtr fragOperPtr,
                            FragrecordPtr regFragPtr,
                            Tablerec* const regTabPtr,
-                           Uint32 fragId) 
+                           Uint32 fragId)
 {
+  bool found = false;
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) 
+  {
+    jam();
+    if (regTabPtr->fragid[i] == fragId) 
+    {
+      jam();
+      ndbrequire(regTabPtr->fragrec[i] == regFragPtr.i);
+      regTabPtr->fragid[i] = RNIL;
+      regTabPtr->fragrec[i] = RNIL;
+      found = true;
+      break;
+    }
+  }
+  ndbrequire(found);
   fragrefuse3Lab(signal, fragOperPtr, regFragPtr, regTabPtr, fragId);
-  initTab(regTabPtr);
 }
 
 void Dbtup::fragrefuse3Lab(Signal* signal,
@@ -1413,6 +1428,7 @@ void Dbtup::releaseFragoperrec(FragoperrecPtr fragOperPtr)
   fragOperPtr.p->inUse = false;
   fragOperPtr.p->nextFragoprec = cfirstfreeFragopr;
   cfirstfreeFragopr = fragOperPtr.i;
+  RSS_OP_FREE(cnoOfFreeFragoprec);
 }//Dbtup::releaseFragoperrec()
 
 void Dbtup::releaseAlterTabOpRec(AlterTabOperationPtr regAlterTabOpPtr)
@@ -1466,6 +1482,19 @@ Dbtup::execDROP_TAB_REQ(Signal* signal)
   
   tabPtr.p->m_dropTable.tabUserRef = req->senderRef;
   tabPtr.p->m_dropTable.tabUserPtr = req->senderData;
+
+  if (tabPtr.p->tableStatus == NOT_DEFINED) 
+  {
+    jam();
+    DropTabConf * const dropConf= (DropTabConf *)signal->getDataPtrSend();
+    dropConf->senderRef= reference();
+    dropConf->senderData= tabPtr.p->m_dropTable.tabUserPtr;
+    dropConf->tableId= tabPtr.i;
+    sendSignal(tabPtr.p->m_dropTable.tabUserRef, GSN_DROP_TAB_CONF,
+               signal, DropTabConf::SignalLength, JBB);
+    return;
+  }
+
   tabPtr.p->tableStatus = DROPPING;
 
   signal->theData[0]= ZREL_FRAG;
