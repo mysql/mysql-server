@@ -3346,7 +3346,7 @@ static int omt_compress_kvspace (OMT omt, struct mempool *memp, size_t added_siz
     }
     void *newmem = toku_malloc(memp->size);
     if (newmem == 0)
-        return -2;
+        return ENOMEM;
     struct mempool new_kvspace;
     toku_mempool_init(&new_kvspace, newmem, memp->size);
     struct omt_compressor_state oc = { &new_kvspace, omt };
@@ -3361,10 +3361,10 @@ void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size) {
     void *v = toku_mempool_malloc(mp, size, 1);
     if (v==0) {
 	original_mp = *mp;
-	if (0 == omt_compress_kvspace(omt, mp, size)) {
-	    v = toku_mempool_malloc(mp, size, 1);
-	    assert(v);
-	}
+	int r = omt_compress_kvspace(omt, mp, size);
+	assert(r==0);
+	v = toku_mempool_malloc(mp, size, 1);
+	assert(v);
     }
     return v;
 }
