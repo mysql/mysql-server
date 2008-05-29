@@ -5,6 +5,7 @@
 
 #include "toku_assert.h"
 #include "memory.h"
+#include <arpa/inet.h>
 
 struct rbuf {
     unsigned char *buf;
@@ -12,12 +13,18 @@ struct rbuf {
     unsigned int  ndone;
 };
 
-static unsigned int rbuf_char (struct rbuf *r) {
+static inline unsigned int rbuf_char (struct rbuf *r) {
     assert(r->ndone<r->size);
     return r->buf[r->ndone++];
 }
 
 static unsigned int rbuf_int (struct rbuf *r) {
+#if 1
+    assert(r->ndone+4 <= r->size);
+    u_int32_t result = ntohl(*(u_int32_t*)(r->buf+r->ndone)); // This only works on machines where unaligned loads are OK.
+    r->ndone+=4;
+    return result;
+#else
     unsigned char c0 = rbuf_char(r);
     unsigned char c1 = rbuf_char(r);
     unsigned char c2 = rbuf_char(r);
@@ -26,6 +33,7 @@ static unsigned int rbuf_int (struct rbuf *r) {
 	    (c1<<16)|
 	    (c2<<8)|
 	    (c3<<0));
+#endif
 }
 
 static inline void rbuf_literal_bytes (struct rbuf *r, bytevec *bytes, unsigned int n_bytes) {

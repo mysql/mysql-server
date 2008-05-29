@@ -29,6 +29,7 @@
 
 #include "brttypes.h"
 #include "rbuf.h"
+#include <arpa/inet.h>
 
 u_int32_t toku_le_crc(LEAFENTRY v);
 
@@ -45,61 +46,68 @@ enum le_state { LE_COMMITTED=1, // A committed pair.
 		LE_PROVDEL,     // A committed pair that has been provisionally deleted
 		LE_PROVPAIR };  // No committed value, but a provisional pair.
 
-struct contents_committed;
-struct contents_both;
-struct contents_provdelorpair;
-
 u_int32_t leafentry_memsize (LEAFENTRY);
 
-enum le_state get_le_state(LEAFENTRY);
-void *get_le_contents(LEAFENTRY);
-enum typ_tag get_le_tag(LEAFENTRY);
+static inline enum le_state get_le_state(LEAFENTRY le) {
+    return *(unsigned char *)le;
+}
 
-u_int32_t committed_keylen (void*cev);
-void* committed_key (void*cev);
-u_int32_t committed_vallen (struct contents_committed *ce);
-void* committed_val (struct contents_committed *ce);
-TXNID both_xid (struct contents_both *ce);
-u_int32_t both_keylen (struct contents_both *ce);
-u_int32_t both_committed_vallen (struct contents_both *ce);
-u_int32_t both_prov_vallen (struct contents_both *ce);
-void* both_key (struct contents_both *ce);
-void* both_committed_val (struct contents_both *ce);
-void* both_prov_val (struct contents_both*ce);
-TXNID provdelorpair_xid (struct contents_provdelorpair *ce);
-u_int32_t provdelorpair_keylen (struct contents_provdelorpair *ce);
-u_int32_t provdelorpair_vallen (struct contents_provdelorpair *ce);
-void* provdelorpair_key (struct contents_provdelorpair *ce);
-void* provdelorpair_val (struct contents_provdelorpair *ce);
+static inline void putint (unsigned char *p, u_int32_t i) {
+#if 1
+    *(u_int32_t*)p = htonl(i);
+#else
+    p[0]=(i>>24)&0xff;
+    p[1]=(i>>16)&0xff;
+    p[2]=(i>> 8)&0xff;
+    p[3]=(i>> 0)&0xff;
+#endif
+}
+static inline void putint64 (unsigned char *p, u_int64_t i) {
+    putint(p, (u_int32_t)(i>>32));
+    putint(p+4, (u_int32_t)(i&0xffffffff));
+}
+static inline u_int32_t getint (unsigned char *p) {
+#if 1
+    return ntohl(*(u_int32_t*)p);
+#else
+    return (p[0]<<24)+(p[1]<<16)+(p[2]<<8)+(p[3]);
+#endif
+}
+static inline u_int64_t getint64 (unsigned char *p) {
+    return (((u_int64_t)getint(p))<<32) + getint(p+4);
+}
 
-#define LESWITCHCALL(le,funname, ...) ({	\
-  assert(get_le_tag(le)==TYP_LEAFENTRY);                                                                                  \
-  switch(get_le_state(le)) {					\
-  case LE_COMMITTED: return funname ## _le_committed( committed_keylen((struct contents_committed*)(get_le_contents(le))), \
-						      committed_key((struct contents_committed*)(get_le_contents(le))),	\
-						      committed_vallen((struct contents_committed*)(get_le_contents(le))), \
-						      committed_val((struct contents_committed*)(get_le_contents(le))), \
-                                                      ## __VA_ARGS__);                   \
-  case LE_BOTH:   return funname ## _le_both( both_xid((struct contents_both*)(get_le_contents(le))),                 \
-					      both_keylen((struct contents_both*)(get_le_contents(le))),              \
-					      both_key((struct contents_both*)(get_le_contents(le))),                 \
-					      both_committed_vallen((struct contents_both*)(get_le_contents(le))),    \
-					      both_committed_val((struct contents_both*)(get_le_contents(le))),       \
-					      both_prov_vallen((struct contents_both*)(get_le_contents(le))),         \
-					      both_prov_val((struct contents_both*)(get_le_contents(le))), \
-                                                      ## __VA_ARGS__);                   \
-  case LE_PROVDEL: return funname ## _le_provdel ( provdelorpair_xid((struct contents_provdelorpair*)(get_le_contents(le))), \
-						  provdelorpair_keylen((struct contents_provdelorpair*)(get_le_contents(le))), \
-						  provdelorpair_key((struct contents_provdelorpair*)(get_le_contents(le))),    \
-						  provdelorpair_vallen((struct contents_provdelorpair*)(get_le_contents(le))), \
-						  provdelorpair_val((struct contents_provdelorpair*)(get_le_contents(le))),    \
-                                                      ## __VA_ARGS__);                   \
-  case LE_PROVPAIR: return funname ## _le_provpair(provdelorpair_xid((struct contents_provdelorpair*)(get_le_contents(le))),    \
-						   provdelorpair_keylen((struct contents_provdelorpair*)(get_le_contents(le))), \
-						   provdelorpair_key((struct contents_provdelorpair*)(get_le_contents(le))), \
-						   provdelorpair_vallen((struct contents_provdelorpair*)(get_le_contents(le))), \
-						   provdelorpair_val((struct contents_provdelorpair*)(get_le_contents(le))), \
-                                                      ## __VA_ARGS__);                   \
+#define LESWITCHCALL(le,funname, ...) ({	                                                                     \
+  switch(get_le_state(le)) {					                                                     \
+  case LE_COMMITTED: {                                                                                               \
+    unsigned char* __klenaddr = 1+(unsigned char*)le;  u_int32_t __klen = getint(__klenaddr);                        \
+    unsigned char* __kvaladdr = 4      + __klenaddr;                                                                 \
+    unsigned char* __clenaddr = __klen + __kvaladdr;   u_int32_t __clen = getint(__clenaddr);                        \
+    unsigned char* __cvaladdr = 4 + __clenaddr;                                                                      \
+    return funname ## _le_committed(__klen, __kvaladdr, __clen, __cvaladdr, ## __VA_ARGS__); }                       \
+  case LE_BOTH: {                                                                                                    \
+    unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
+    unsigned char* __klenaddr = 8 + __xidaddr;         u_int32_t __klen = getint(__klenaddr);                        \
+    unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
+    unsigned char* __clenaddr = __klen + __kvaladdr;   u_int32_t __clen = getint(__clenaddr);                        \
+    unsigned char* __cvaladdr = 4 + __clenaddr;                                                                      \
+    unsigned char* __plenaddr = __clen + __cvaladdr;   u_int32_t __plen = getint(__plenaddr);                        \
+    unsigned char* __pvaladdr = 4 + __plenaddr;                                                                      \
+    return funname ## _le_both(__xid, __klen, __kvaladdr, __clen, __cvaladdr, __plen, __pvaladdr, ## __VA_ARGS__); } \
+  case LE_PROVDEL:  {                                                                                                \
+    unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
+    unsigned char* __klenaddr = 8 + __xidaddr;         u_int32_t __klen = getint(__klenaddr);                        \
+    unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
+    unsigned char* __dlenaddr = __klen + __kvaladdr;   u_int32_t __dlen = getint(__dlenaddr);                        \
+    unsigned char* __dvaladdr = 4 + __dlenaddr;                                                                      \
+    return funname ## _le_provdel(__xid, __klen, __kvaladdr, __dlen, __dvaladdr, ## __VA_ARGS__); }                  \
+  case LE_PROVPAIR:  {                                                                                               \
+    unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
+    unsigned char* __klenaddr = 8 + __xidaddr;         u_int32_t __klen = getint(__klenaddr);                        \
+    unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
+    unsigned char* __plenaddr = __klen + __kvaladdr;   u_int32_t __plen = getint(__plenaddr);                        \
+    unsigned char* __pvaladdr = 4 + __plenaddr;                                                                      \
+    return funname ## _le_provpair(__xid, __klen, __kvaladdr, __plen, __pvaladdr, ## __VA_ARGS__); }                 \
   } abort(); })
 
 

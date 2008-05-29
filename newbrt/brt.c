@@ -3334,9 +3334,12 @@ static int move_it (OMTVALUE lev, u_int32_t idx, void *v) {
     return 0;
 }
 
-int toku_omt_compress_kvspace (OMT omt, struct mempool *memp) {
-    if (toku_mempool_get_frag_size(memp) == 0)
-        return -1;
+// Compress things, and grow the mempool if needed.
+static int omt_compress_kvspace (OMT omt, struct mempool *memp, size_t added_size) {
+    u_int32_t total_size_needed = memp->free_offset-memp->frag_size + added_size;
+    if (total_size_needed+total_size_needed/4 >= memp->size) {
+	memp->size = total_size_needed+total_size_needed/4;
+    }
     void *newmem = toku_malloc(memp->size);
     if (newmem == 0)
         return -2;
@@ -3353,7 +3356,7 @@ int toku_omt_compress_kvspace (OMT omt, struct mempool *memp) {
 void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size) {
     void *v = toku_mempool_malloc(mp, size, 1);
     if (v==0) {
-	if (0 == toku_omt_compress_kvspace(omt, mp)) {
+	if (0 == omt_compress_kvspace(omt, mp, size)) {
 	    v = toku_mempool_malloc(mp, size, 1);
 	    assert(v);
 	}

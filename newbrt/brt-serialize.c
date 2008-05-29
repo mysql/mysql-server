@@ -379,37 +379,35 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
     } else {
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	r=toku_omt_create(&result->u.l.buffer);
+
+	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
+	toku_mempool_init(&result->u.l.buffer_mempool, rc.buf, datasize);
+
+	u_int32_t actual_sum = 0;
+	u_int32_t start_of_data = rc.ndone;
+	OMTVALUE *MALLOC_N(n_in_buf, array);
+	for (i=0; i<n_in_buf; i++) {
+	    LEAFENTRY le = (LEAFENTRY)(&rc.buf[rc.ndone]);
+	    u_int32_t disksize = leafentry_disksize(le);
+	    rc.ndone += disksize;
+	    assert(rc.ndone<=rc.size);
+
+	    array[i]=(OMTVALUE)le;
+	    actual_sum += toku_crc32(toku_null_crc, le, disksize);
+	}
+	u_int32_t end_of_data = rc.ndone;
+	result->u.l.n_bytes_in_buffer += end_of_data-start_of_data + n_in_buf*OMT_ITEM_OVERHEAD;
+	actual_sum *= result->rand4fingerprint;
+	r = toku_omt_create_from_sorted_array(&result->u.l.buffer, array, n_in_buf);
+	toku_free(array);
 	if (r!=0) {
 	    if (0) { died_21: toku_omt_destroy(&result->u.l.buffer); }
 	    goto died1;
 	}
-	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
-	{
-            int mpsize = result->nodesize + result->nodesize/4;
-	    void *mp = toku_malloc(mpsize);
-	    if (mp==0) return ENOMEM; // TODO cleanup
-	    toku_mempool_init(&result->u.l.buffer_mempool, mp, mpsize);
-	}
 
-	u_int32_t actual_sum = 0;
-	//printf("%s:%d node %lld, reading %d items\n", __FILE__, __LINE__, off, n_in_buf);
-	for (i=0; i<n_in_buf; i++) {
-	    LEAFENTRY tmp_le;
-	    //printf("%s:%d reading %dth item\n", __FILE__, __LINE__, i);
-	    u_int32_t memsize, disksize;
-	    rbuf_LEAFENTRY(&rc, &memsize, &disksize, &tmp_le);
-	    LEAFENTRY le = mempool_malloc_from_omt(result->u.l.buffer, &result->u.l.buffer_mempool, memsize);
-	    assert(le);
-	    memcpy(le, tmp_le, memsize);
-	    toku_free(tmp_le);
-	    assert(disksize==leafentry_disksize(le));
-	    result->u.l.n_bytes_in_buffer += disksize + OMT_ITEM_OVERHEAD;
-	    toku_omt_insert_at(result->u.l.buffer, le, i);
-	    actual_sum += result->rand4fingerprint*toku_le_crc(le);
-	    //printf("%s:%d rand4=%08x fp=%08x \n", __FILE__, __LINE__, result->rand4fingerprint, actual_sum);
-	}
-            
+	result->u.l.buffer_mempool.frag_size = start_of_data;
+	result->u.l.buffer_mempool.free_offset = end_of_data;
+
 	if (r!=0) goto died_21;
 	if (actual_sum!=result->local_fingerprint) {
 	    //fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
@@ -436,7 +434,10 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
 	}
     }
     //printf("%s:%d Ok got %lld n_children=%d\n", __FILE__, __LINE__, result->thisnodename, result->n_children);
-    toku_free(rc.buf);
+    if (result->height>0) {
+	// For height==0 we used the buf inside the OMT
+	toku_free(rc.buf);
+    }
     *brtnode = result;
     //toku_verify_counts(result);
     return 0;
