@@ -3545,7 +3545,7 @@ Backup::parseTableDescription(Signal* signal,
   else
   {
     // mask
-    tabPtr.p->maxRecordSize += 1 + ((tmpTab.NoOfAttributes + 31) >> 5);
+    tabPtr.p->maxRecordSize += 1 + ((tmpTab.NoOfAttributes + null + 31) >> 5);
     tabPtr.p->maxRecordSize += (2 * varsize + 3) / 4;
   }
 
