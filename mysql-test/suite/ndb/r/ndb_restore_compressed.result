@@ -119,6 +119,8 @@ INSERT INTO `t9_c` VALUES ('3g4jh8gar2t','joe','q3.net','elredun.com','q3.net','
 CREATE TABLE t10_c (a INT AUTO_INCREMENT KEY) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO t10_c VALUES (1),(2),(3);
 insert into t10_c values (10000),(2000),(3000);
+CREATE TABLE t11_c (a int, b00 int null, b01 int null,b02 int null,b03 int null,b04 int null,b05 int null,b06 int null,b07 int null,b08 int null,b90 int null,b10 int null,b11 int null,b12 int null,b13 int null,b14 int null,b15 int null,b16 int null,b17 int null,b18 int null,b19 int null,b20 int null,b21 int null,b22 int null,b23 int null,b24 int null,b25 int null,b26 int null,b27 int null,b28 int null,b29 int null,b30 int null,b31 int null,b32 int null) engine = ndb;
+insert into t11_c values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
 create table t1 engine=myisam as select * from t1_c;
 create table t2 engine=myisam as select * from t2_c;
 create table t3 engine=myisam as select * from t3_c;
@@ -129,6 +131,7 @@ create table t7 engine=myisam as select * from t7_c;
 create table t8 engine=myisam as select * from t8_c;
 create table t9 engine=myisam as select * from t9_c;
 create table t10 engine=myisam as select * from t10_c;
+create table t11 engine=myisam as select * from t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
@@ -138,7 +141,7 @@ SELECT @the_backup_id:=backup_id FROM test.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>
 DROP TABLE test.backup_info;
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
 select * from information_schema.columns where table_name = "t1_c";
@@ -245,6 +248,28 @@ from (select * from t9 union
 select * from t9_c) a;
 count(*)
 3
+select count(*) from t10;
+count(*)
+6
+select count(*) from t10_c;
+count(*)
+6
+select count(*)
+from (select * from t10 union 
+select * from t10_c) a;
+count(*)
+6
+select count(*) from t11;
+count(*)
+1
+select count(*) from t11_c;
+count(*)
+1
+select count(*)
+from (select * from t11 union 
+select * from t11_c) a;
+count(*)
+1
 select * from t10_c order by a;
 a
 1
@@ -297,7 +322,7 @@ SELECT @the_backup_id:=backup_id FROM test.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>
 DROP TABLE test.backup_info;
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 select count(*) from t1;
 count(*)
 5
@@ -397,7 +422,29 @@ from (select * from t9 union
 select * from t9_c) a;
 count(*)
 3
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+select count(*) from t10;
+count(*)
+6
+select count(*) from t10_c;
+count(*)
+6
+select count(*)
+from (select * from t10 union 
+select * from t10_c) a;
+count(*)
+6
+select count(*) from t11;
+count(*)
+1
+select count(*) from t11_c;
+count(*)
+1
+select count(*)
+from (select * from t11 union 
+select * from t11_c) a;
+count(*)
+1
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 select count(*) from t1;
 count(*)
 5
@@ -497,7 +544,29 @@ from (select * from t9 union
 select * from t9_c) a;
 count(*)
 3
-drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
+select count(*) from t10;
+count(*)
+6
+select count(*) from t10_c;
+count(*)
+6
+select count(*)
+from (select * from t10 union 
+select * from t10_c) a;
+count(*)
+6
+select count(*) from t11;
+count(*)
+1
+select count(*) from t11_c;
+count(*)
+1
+select count(*)
+from (select * from t11 union 
+select * from t11_c) a;
+count(*)
+1
+drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 DELETE FROM test.backup_info;
 LOAD DATA INFILE '../tmp.dat' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
@@ -505,7 +574,7 @@ SELECT @the_backup_id:=backup_id FROM test.backup_info;
 @the_backup_id:=backup_id
 <the_backup_id>
 DROP TABLE test.backup_info;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 drop table if exists t2_c;
 520093696,<the_backup_id>
 select epoch from mysql.ndb_apply_status where server_id=0;
