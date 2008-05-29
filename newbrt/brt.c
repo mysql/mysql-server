@@ -1409,7 +1409,7 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
 	assert(new_le);
 	memcpy(new_le, newdata, newlen);
 
-	// This mfree must occur after the mempool_malloc so that 
+	// This mfree must occur after the mempool_malloc so that when the mempool is compressed everything is accounted for.
 	toku_mempool_mfree(&node->u.l.buffer_mempool, 0, leafentry_memsize(le)); // Must pass 0, since le may be no good any more.
 	
 	node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
