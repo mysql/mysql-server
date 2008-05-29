@@ -85,6 +85,8 @@
 #include <signaldata/BackupLockTab.hpp>
 #include <SLList.hpp>
 
+#include <signaldata/DumpStateOrd.hpp>
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -226,8 +228,28 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
               c_counterMgr.getNoOfFree());
     c_counterMgr.printNODE_FAILREP();
   }
-    
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    RSS_AP_SNAPSHOT_SAVE(c_rope_pool);
+    RSS_AP_SNAPSHOT_SAVE(c_attributeRecordPool);
+    RSS_AP_SNAPSHOT_SAVE(c_tableRecordPool);
+    RSS_AP_SNAPSHOT_SAVE(c_triggerRecordPool);
+    RSS_AP_SNAPSHOT_SAVE(c_obj_pool);
+  }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    RSS_AP_SNAPSHOT_CHECK(c_rope_pool);
+    RSS_AP_SNAPSHOT_CHECK(c_attributeRecordPool);
+    RSS_AP_SNAPSHOT_CHECK(c_tableRecordPool);
+    RSS_AP_SNAPSHOT_CHECK(c_triggerRecordPool);
+    RSS_AP_SNAPSHOT_CHECK(c_obj_pool);
+  }
+
   return;
+
+
 }//Dbdict::execDUMP_STATE_ORD()
 
 /* ---------------------------------------------------------------- */

@@ -144,6 +144,7 @@ Dbtup::setTabDescrWord(Uint32 index, Uint32 word)
 void Dbtup::insertTdArea(Uint32 tabDesRef, Uint32 list) 
 {
   ndbrequire(list < 16);
+  RSS_OP_FREE_X(cnoOfFreeTabDescrRec, 1 << list);
   setTabDescrWord(tabDesRef + ZTD_FL_HEADER, ZTD_TYPE_FREE);
   setTabDescrWord(tabDesRef + ZTD_FL_NEXT, cfreeTdList[list]);
   if (cfreeTdList[list] != RNIL) {
@@ -217,6 +218,8 @@ void Dbtup::itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal)
 void Dbtup::removeTdArea(Uint32 tabDesRef, Uint32 list) 
 {
   ndbrequire(list < 16);
+  RSS_OP_ALLOC_X(cnoOfFreeTabDescrRec, 1 << list);
+
   Uint32 tabDescrNextPtr = getTabDescrWord(tabDesRef + ZTD_FL_NEXT);
   Uint32 tabDescrPrevPtr = getTabDescrWord(tabDesRef + ZTD_FL_PREV);
 

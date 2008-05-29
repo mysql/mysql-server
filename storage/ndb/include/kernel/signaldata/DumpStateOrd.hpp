@@ -164,7 +164,10 @@ public:
     DumpPgman = 11000,
     DumpBackup = 13000,
     DumpBackupSetCompressed = 13001,
-    DumpBackupSetCompressedLCP = 13002
+    DumpBackupSetCompressedLCP = 13002,
+
+    SchemaResourceSnapshot = 4000, // Save resource consumption
+    SchemaResourceCheckLeak = 4001 // check same as snapshot
   };
 public:
   
