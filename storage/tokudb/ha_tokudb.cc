@@ -2856,14 +2856,43 @@ static int rmall(const char *dname) {
             sprintf(fname, "%s/%s", dname, dirent->d_name);
             if (dirent->d_type == DT_DIR) {
                 error = rmall(fname);
-            } else {
-                if (tokudb_debug & TOKUDB_DEBUG_OPEN)
-                    TOKUDB_TRACE("unlink:%s\n", fname);
-                error = unlink(fname);
-            }
-            if (error != 0) {
-                error = errno;
-                break;
+            } 
+            else {
+                if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
+                    TOKUDB_TRACE("removing:%s\n", fname);
+                }
+                //
+                // if clause checks if the file is a .tokudb file
+                //
+                if (strlen(fname) >= strlen (ha_tokudb_ext) &&
+                    strcmp(fname + (strlen(fname) - strlen(ha_tokudb_ext)), ha_tokudb_ext) == 0) 
+                {
+                    //
+                    // if this fails under low memory conditions, gracefully exit and return error
+                    // user will be notified that something went wrong, and he will
+                    // have to deal with it
+                    //
+                    DB* db = NULL;
+                    error = db_create(&db, db_env, 0);
+                    if (error) {
+                        break;
+                    }
+                    //
+                    // it is ok to do db->remove on any .tokudb file, because any such
+                    // file was created with db->open
+                    //
+                    db->remove(db, fname, NULL, 0);
+                }
+                else {
+                    //
+                    // in case we have some file that is not .tokudb, we just delete it
+                    //
+                    error = unlink(fname);
+                    if (error != 0) {
+                        error = errno;
+                        break;
+                    }
+                }
             }
         }
         closedir(d);
@@ -2872,8 +2901,10 @@ static int rmall(const char *dname) {
             if (error != 0)
                 error = errno;
         }
-    } else
+    } 
+    else {
         error = errno;
+    }
     return error;
 }
 
