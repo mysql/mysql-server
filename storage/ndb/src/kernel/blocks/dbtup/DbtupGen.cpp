@@ -118,6 +118,10 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   
   initData();
   CLEAR_ERROR_INSERT_VALUE;
+
+  RSS_OP_COUNTER_INIT(cnoOfFreeFragoprec);
+  RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
+  RSS_OP_COUNTER_INIT(cnoOfFreeTabDescrRec);
 }//Dbtup::Dbtup()
 
 Dbtup::~Dbtup() 
@@ -770,6 +774,7 @@ void Dbtup::releaseFragrec(FragrecordPtr regFragPtr)
 {
   regFragPtr.p->nextfreefrag = cfirstfreefrag;
   cfirstfreefrag = regFragPtr.i;
+  RSS_OP_FREE(cnoOfFreeFragrec);
 }//Dbtup::releaseFragrec()
 
 
