@@ -43,6 +43,9 @@ void Dbacc::initData()
 
   cnoOfAllocatedPages = cpagesize = 0;
   // Records with constant sizes
+
+  RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
+
 }//Dbacc::initData()
 
 void Dbacc::initRecords() 

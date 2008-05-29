@@ -2967,10 +2967,14 @@ private:
   Fragoperrec *fragoperrec;
   Uint32 cfirstfreeFragopr;
   Uint32 cnoOfFragoprec;
+  RSS_OP_COUNTER(cnoOfFreeFragoprec);
+  RSS_OP_SNAPSHOT(cnoOfFreeFragoprec);
 
   Fragrecord *fragrecord;
   Uint32 cfirstfreefrag;
   Uint32 cnoOfFragrec;
+  RSS_OP_COUNTER(cnoOfFreeFragrec);
+  RSS_OP_SNAPSHOT(cnoOfFreeFragrec);
 
   AlterTabOperation *alterTabOperRec;
   Uint32 cfirstfreeAlterTabOp;
@@ -2993,6 +2997,8 @@ private:
 
   TableDescriptor *tableDescriptor;
   Uint32 cnoOfTabDescrRec;
+  RSS_OP_COUNTER(cnoOfFreeTabDescrRec);
+  RSS_OP_SNAPSHOT(cnoOfFreeTabDescrRec);
   
   Uint32 cdata[32];
   Uint32 cdataPages[16];
