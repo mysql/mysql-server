@@ -26,6 +26,7 @@
 #define CFG_NODE_HOST                 5
 #define CFG_NODE_SYSTEM               6
 #define CFG_NODE_DATADIR              7
+#define CFG_9                         9         /* used in later version */
 
 /**
  * DB config parameters
@@ -136,6 +137,7 @@
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
+#define CFG_202                       202       /* used in later version */
 
 #define CFG_MIN_LOGLEVEL          250
 #define CFG_LOGLEVEL_STARTUP      250
@@ -165,6 +167,7 @@
 #define CFG_CONNECTION_HOSTNAME_2     408
 #define CFG_CONNECTION_GROUP          409
 #define CFG_CONNECTION_NODE_ID_SERVER 410
+#define CFG_411                       411       /* used in later version */
 
 #define CFG_TCP_SERVER                452
 #define CFG_TCP_SEND_BUFFER_SIZE      454
