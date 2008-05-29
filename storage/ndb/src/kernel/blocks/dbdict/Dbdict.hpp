@@ -198,6 +198,7 @@ public:
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   ArrayPool<AttributeRecord> c_attributeRecordPool;
   DLHashTable<AttributeRecord> c_attributeRecordHash;
+  RSS_AP_SNAPSHOT(c_attributeRecordPool);
 
   /**
    * Shared table / index record.  Most of this is permanent data stored
@@ -384,6 +385,7 @@ public:
 
   typedef Ptr<TableRecord> TableRecordPtr;
   ArrayPool<TableRecord> c_tableRecordPool;
+  RSS_AP_SNAPSHOT(c_tableRecordPool);
 
   /**  Node Group and Tablespace id+version + range or list data.
     *  This is only stored temporarily in DBDICT during an ongoing
@@ -463,6 +465,7 @@ public:
   Uint32 c_maxNoOfTriggers;
   typedef Ptr<TriggerRecord> TriggerRecordPtr;
   ArrayPool<TriggerRecord> c_triggerRecordPool;
+  RSS_AP_SNAPSHOT(c_triggerRecordPool);
 
   /**
    * Information for each FS connection.
@@ -612,6 +615,7 @@ public:
   Filegroup_hash c_filegroup_hash;
   
   RopePool c_rope_pool;
+  RSS_AP_SNAPSHOT(c_rope_pool);
 
   struct DictObject {
     DictObject() {}
@@ -643,6 +647,7 @@ public:
   
   DLHashTable<DictObject> c_obj_hash; // Name
   ArrayPool<DictObject> c_obj_pool;
+  RSS_AP_SNAPSHOT(c_obj_pool);
   
   DictObject * get_object(const char * name){
     return get_object(name, strlen(name) + 1);

@@ -259,6 +259,22 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
              max_loop);
   }
 #endif
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    RSS_OP_SNAPSHOT_SAVE(cnoOfFreeFragoprec);
+    RSS_OP_SNAPSHOT_SAVE(cnoOfFreeFragrec);
+    RSS_OP_SNAPSHOT_SAVE(cnoOfFreeTabDescrRec);
+    return;
+  }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    RSS_OP_SNAPSHOT_CHECK(cnoOfFreeFragoprec);
+    RSS_OP_SNAPSHOT_CHECK(cnoOfFreeFragrec);
+    RSS_OP_SNAPSHOT_CHECK(cnoOfFreeTabDescrRec);
+    return;
+  }
 }//Dbtup::execDUMP_STATE_ORD()
 
 /* ---------------------------------------------------------------- */
