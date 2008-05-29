@@ -1536,6 +1536,34 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "true"},
 
+  {
+    CFG_TOTAL_SEND_BUFFER_MEMORY,
+    "TotalSendBufferMemory",
+    DB_TOKEN,
+    "Total memory to use for send buffers in all transporters",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "256K",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_RESERVED_SEND_BUFFER_MEMORY,
+    "ReservedSendBufferMemory",
+    DB_TOKEN,
+    "Amount of bytes (out of TotalSendBufferMemory) to reserve for connection\n"
+    "between data nodes. This memory will not be available for connections to\n"
+    "management server or API nodes.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "256K",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -1692,6 +1720,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     UNDEFINED,
     0,
     0
+  },
+
+  {
+    CFG_TOTAL_SEND_BUFFER_MEMORY,
+    "TotalSendBufferMemory",
+    "API",
+    "Total memory to use for send buffers in all transporters",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "256K",
+    STR_VALUE(MAX_INT_RNIL)
   },
 
 
@@ -1861,6 +1902,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_TOTAL_SEND_BUFFER_MEMORY,
+    "TotalSendBufferMemory",
+    MGM_TOKEN,
+    "Total memory to use for send buffers in all transporters",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "256K",
+    STR_VALUE(MAX_INT_RNIL)
+  },
 
   /****************************************************************************
    * TCP
@@ -2087,6 +2141,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "false", "true" },
 
+  {
+    CFG_CONNECTION_OVERLOAD,
+    "OverloadLimit",
+    "TCP",
+    "Number of unsent bytes that must be in the send buffer before the\n"
+    "connection is considered overloaded",
+    ConfigInfo::CI_USED,
+    "false",
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "0"
+  },
+
   /****************************************************************************
    * SHM
    ***************************************************************************/
@@ -2261,6 +2329,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     UNDEFINED,
     0, 0 },
+
+  {
+    CFG_CONNECTION_OVERLOAD,
+    "OverloadLimit",
+    "SHM",
+    "Number of unsent bytes that must be in the send buffer before the\n"
+    "connection is considered overloaded",
+    ConfigInfo::CI_USED,
+    "false",
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
 
   /****************************************************************************
    * SCI
@@ -2473,7 +2555,21 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_STRING,
     UNDEFINED,
-    0, 0 }
+    0, 0 },
+
+  {
+    CFG_CONNECTION_OVERLOAD,
+    "OverloadLimit",
+    "SCI",
+    "Number of unsent bytes that must be in the send buffer before the\n"
+    "connection is considered overloaded",
+    ConfigInfo::CI_USED,
+    "false",
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  }
 };
 
 const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);

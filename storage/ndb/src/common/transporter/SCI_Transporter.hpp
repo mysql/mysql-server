@@ -69,8 +69,7 @@ class SCI_Transporter : public Transporter {
 public:   
  
   /** 
-   * Init the transporter. Allocate sendbuffers and open a SCI virtual device 
-   * for each adapter. 
+   * Init the transporter.
    * @return true if successful, otherwize false 
    */ 
   bool initTransporter();                 
@@ -123,7 +122,6 @@ public:
    */ 
   bool getConnectionStatus(); 
 
-  virtual Uint32 get_free_buffer() const;   
 private: 
   SCI_Transporter(TransporterRegistry &t_reg,
                   const char *local_host,
@@ -167,13 +165,6 @@ private:
   volatile Uint32 * m_localStatusFlag; 
   volatile Uint32 * m_remoteStatusFlag; 
   volatile Uint32 * m_remoteStatusFlag2; 
-
-  struct {
-    Uint32 * m_buffer;       // The buffer
-    Uint32 m_dataSize;       // No of words in buffer
-    Uint32 m_sendBufferSize; // Buffer size
-    Uint32 m_forceSendLimit; // Send when buffer is this full
-  } m_sendBuffer;
 
   SHM_Reader * reader; 
   SHM_Writer * writer; 
@@ -238,9 +229,6 @@ private:
  
   Uint32 m_PacketSize;        // The size of each data packet 
   Uint32 m_BufferSize;        // Mapped SCI buffer size  
- 
-  Uint32 * getWritePtr(Uint32 lenBytes, Uint32 prio);
-  void updateWritePtr(Uint32 lenBytes, Uint32 prio);
 
   /** 
    * doSend. Copies the data from the source (the send buffer) to the  
@@ -262,10 +250,6 @@ private:
   bool hasDataToRead() const { 
     return reader->empty() == false;
   } 
- 
-  bool hasDataToSend() const {
-    return m_sendBuffer.m_dataSize > 0;
-  }
 
   /**  
    * Make the local segment unavailable, no new connections will be accepted. 
@@ -285,7 +269,7 @@ private:
    *  It is always possible to send data with SCI! 
    *  @return True (always) 
    */ 
-  bool sendIsPossible(struct timeval * timeout); 
+  bool send_is_possible(struct timeval * timeout);
    
   void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
     reader->getReadPtr(* ptr, * eod);
@@ -333,6 +317,9 @@ private:
  
   bool init_local();
   bool init_remote();
+
+  bool send_limit_reached(int bufsize) { return (bufsize > m_PacketSize); }
+  bool send_is_possible(struct timeval *timeout) { return 1; }
 
 protected: 
    

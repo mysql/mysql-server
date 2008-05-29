@@ -17,7 +17,6 @@ noinst_LTLIBRARIES = libtransporter.la
 
 libtransporter_la_SOURCES = \
 	Transporter.cpp \
-	SendBuffer.cpp   \
 	TCP_Transporter.cpp \
 	TransporterRegistry.cpp \
         Packer.cpp

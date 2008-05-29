@@ -2195,7 +2195,11 @@ void Tsman::execGET_TABINFOREQ(Signal* signal)
   }
 
   Datafile_hash::Iterator iter;
-  ndbrequire(m_file_hash.first(iter));
+  if (!m_file_hash.first(iter))
+  {
+    ndbrequire(false);
+    return;                                     // Silence compiler warning
+  }
 
   while(iter.curr.p->m_file_id != tableId && m_file_hash.next(iter))
     ;

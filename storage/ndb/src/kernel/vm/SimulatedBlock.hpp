@@ -158,12 +158,6 @@ protected:
 		  Uint32 length, 
 		  JobBufferLevel jbuf ) const ;
 
-  void sendSignalFromReceiver(BlockReference ref,
-                              GlobalSignalNumber gsn,
-                              Signal* signal,
-                              Uint32 length,
-                              JobBufferLevel jobBuffer) const ;
-
   void sendSignal(NodeReceiverGroup rg,
 		  GlobalSignalNumber gsn, 
                   Signal* signal, 

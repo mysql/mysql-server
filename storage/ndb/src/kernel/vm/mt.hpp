@@ -13,7 +13,6 @@
   transporter threads. Only valid while holding the transporter receive lock.
 */
 extern Uint32 receiverThreadId;
-extern Uint32 senderThreadId;
 
 void sendlocal(Uint32 self, Uint32 block, const struct SignalHeader *s,
                const Uint32 *data, const Uint32 secPtr[3]);
@@ -29,8 +28,6 @@ SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
                           class SectionSegmentPool *thePool,
                           const SegmentedSectionPtr ptr[3]);
-void mt_receive_lock();
-void mt_receive_unlock();
 
 /**
  * Lock/unlock pools for long signal section(s)

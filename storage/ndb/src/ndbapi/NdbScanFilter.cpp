@@ -584,9 +584,20 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
   StrBranch2 branch;
   if(m_negative == 1){  //change NdbOperation to its negative
     if(m_current.m_group == NdbScanFilter::AND)
-      branch = table3[op].m_branches[(Uint32)(m_current.m_group) + 1];
-    if(m_current.m_group == NdbScanFilter::OR)
-      branch = table3[op].m_branches[(Uint32)(m_current.m_group) - 1];
+      branch = table3[op].m_branches[NdbScanFilter::OR];
+    else if(m_current.m_group == NdbScanFilter::OR)
+      branch = table3[op].m_branches[NdbScanFilter::AND];
+    else
+    {
+      /**
+       * This is not possible, as NAND/NOR is converted to negative OR/AND in
+       * begin().
+       * But silence the compiler warning about uninitialised variable `branch`
+       */
+      assert(FALSE);
+      m_error.code= 4260;
+      return -1;
+    }
   }else{
     branch = table3[op].m_branches[(Uint32)(m_current.m_group)];
   }

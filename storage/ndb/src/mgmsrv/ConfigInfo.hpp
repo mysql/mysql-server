@@ -53,13 +53,34 @@ public:
    *   Entry for one configuration parameter
    */
   struct ParamInfo {
+    /**
+     * Internal id used to identify configuration parameter when accessing
+     * config.
+     */
     Uint32         _paramId;
+    /* External name, as given in text in config file. */
     const char*    _fname;   
+    /**
+     * Name (as it appears in config file text) of section that this extry
+     * belongs to.
+     *
+     * Each section alsa has one entry with the section name stored in both
+     * _fname and _section.
+     */
     const char*    _section;
+    /* Short textual description/documentation for entry. */
     const char*    _description;
     Status         _status;
     bool           _updateable;    
     Type           _type;          
+    /**
+     * Default value, minimum value (if any), and maximum value (if any).
+     *
+     * Stored as pointers to char * representation of default (eg "10k").
+     *
+     * For section entries, instead the _default member gives the internal id
+     * of that kind of section (CONNECTION_TYPE_TCP, NODE_TYPE_MGM, etc.)
+     */
     const char*    _default;
     const char*    _min;
     const char*    _max;

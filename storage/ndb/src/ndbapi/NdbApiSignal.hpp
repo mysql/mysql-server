@@ -87,16 +87,12 @@ public:
   }
   
 private:
-  friend void execute(void * callbackObj, 
-		      struct SignalHeader * const header, 
-		      Uint8 prio, Uint32 * const theData, 
-		      LinearSectionPtr ptr[3]);
-   
   void setDataPtr(Uint32 *);
   
   friend class NdbTransaction;
   friend class NdbScanReceiver;
   friend class Table;
+  friend class TransporterFacade;
   void copyFrom(const NdbApiSignal * src);
 
   /**

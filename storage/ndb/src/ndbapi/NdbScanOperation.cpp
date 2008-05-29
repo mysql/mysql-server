@@ -1507,12 +1507,12 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
         idx++;
       }
     } while(retVal == 2);
+
+    m_api_receivers_count= last;
+    m_current_api_receiver= idx;
   } else {
     retVal = -3;
   }
-
-  m_api_receivers_count= last;
-  m_current_api_receiver= idx;
 
   switch(retVal)
   {

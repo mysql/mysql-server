@@ -55,12 +55,11 @@ void copy(Uint32 * dst, SegmentedSectionPtr src);
 bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
 
 extern class SectionSegmentPool g_sectionSegmentPool;
+
+/* Defined in SimulatedBlock.cpp */
 void getSection(SegmentedSectionPtr & ptr, Uint32 id);
-void linkSegments(Uint32 head, Uint32 tail);
-
 void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
-void releaseSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
-
+void release(SegmentedSectionPtr & ptr);
 
 #include "DataBuffer.hpp"
 

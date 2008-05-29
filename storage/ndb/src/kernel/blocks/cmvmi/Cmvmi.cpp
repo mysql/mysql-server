@@ -412,9 +412,6 @@ void Cmvmi::execSTTOR(Signal* signal)
   }
 }
 
-/* For locking the receiver/transporter in multi-threaded ndbd. */
-extern void mt_receive_lock(), mt_receive_unlock();
-
 void Cmvmi::execCLOSE_COMREQ(Signal* signal)
 {
   // Close communication with the node and halt input/output from 
@@ -427,7 +424,6 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
 //  Uint32 noOfNodes = closeCom->noOfNodes;
   
   jamEntry();
-  mt_receive_lock();
   for (unsigned i = 0; i < MAX_NODES; i++)
   {
     if(NodeBitmask::get(closeCom->theNodes, i))
@@ -445,22 +441,19 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
       globalTransporterRegistry.do_disconnect(i);
     }
   }
-  mt_receive_unlock();
   if (failNo != 0) 
   {
     jam();
     signal->theData[0] = userRef;
     signal->theData[1] = failNo;
-    /*
-     * We use sendSignalFromReceiver() to deliver the
-     * GSN_CLOSE_COMCONF signal through the job queue of the receiver
-     * thread (in multi-threaded ndbd).
+    /**
+     * Here, we use the fact that CMVMI is running in the same thread as the
+     * receiver (in multi-threaded ndbd).
      *
-     * This way, we avoid executing the signal early, before signals from the
-     * closed node that were received before setting the IO state and
-     * disconnected state of the node.
+     * This ensures that this signal will not be re-ordered with respect to any
+     * signals received from the remote node.
      */
-    sendSignalFromReceiver(QMGR_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
+    sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
   }
 }
 
@@ -475,7 +468,6 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
   jamEntry();
 
   const Uint32 len = signal->getLength();
-  mt_receive_lock();
   if(len == 2)
   {
 #ifdef ERROR_INSERT
@@ -521,9 +513,8 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
     jam(); 
     signal->theData[0] = tStartingNode;
     signal->theData[1] = tData2;
-    sendSignalFromReceiver(userRef, GSN_OPEN_COMCONF, signal, len - 1,JBA);
+    sendSignal(userRef, GSN_OPEN_COMCONF, signal, len - 1,JBA);
   }
-  mt_receive_unlock();
 }
 
 void Cmvmi::execENABLE_COMREQ(Signal* signal)
@@ -537,7 +528,6 @@ void Cmvmi::execENABLE_COMREQ(Signal* signal)
   Uint32 nodes[NodeBitmask::Size];
   MEMCOPY_NO_WORDS(nodes, enableComReq->m_nodeIds, NodeBitmask::Size);
 
-  mt_receive_lock();
   /* Enable communication with all our NDB blocks to these nodes. */
   Uint32 search_from = 0;
   for (;;)
@@ -568,15 +558,13 @@ void Cmvmi::execENABLE_COMREQ(Signal* signal)
   MEMCOPY_NO_WORDS(enableComConf->m_nodeIds, nodes, NodeBitmask::Size);
   sendSignal(senderRef, GSN_ENABLE_COMCONF, signal,
              EnableComConf::SignalLength, JBA);
-  mt_receive_unlock();
 }
 
 void Cmvmi::execDISCONNECT_REP(Signal *signal)
 {
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   const Uint32 hostId = rep->nodeId;
-  const Uint32 errNo  = rep->err;
-  
+
   jamEntry();
 
   setNodeInfo(hostId).m_connected = false;
@@ -614,9 +602,7 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
   if(type == NodeInfo::MGM)
   {
     jam();
-    mt_receive_lock();
     globalTransporterRegistry.setIOState(hostId, NoHalt);
-    mt_receive_unlock();
   }
 
   //------------------------------------------
@@ -840,7 +826,6 @@ Cmvmi::execSTART_ORD(Signal* signal) {
     // Disconnect all nodes as part of the system restart. 
     // We need to ensure that we are starting up
     // without any connected nodes.   
-    mt_receive_lock();
     for(unsigned int i = 1; i < MAX_NODES; i++ )
     {
       if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM)
@@ -849,7 +834,6 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
-    mt_receive_unlock();
     
     /**
      * Start running startphases

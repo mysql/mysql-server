@@ -56,7 +56,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 
       if(messageLen32 == 0 || messageLen32 > MAX_MESSAGE_SIZE){
         DEBUG("Message Size = " << messageLenBytes);
-	reportError(callbackObj, remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         return usedData;
       }//if
       
@@ -70,7 +70,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
 	
 	if(checkSumComputed != checkSumSent){
-	  reportError(callbackObj, remoteNodeId, TE_INVALID_CHECKSUM);
+	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
           return usedData;
 	}//if
       }//if
@@ -110,7 +110,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	sectionData += sz;
       }
 
-      execute(callbackObj, &signalHeader, prio, signalData, ptr);
+      callbackObj->deliver_signal(&signalHeader, prio, signalData, ptr);
       
       readPtr     += messageLen32;
       sizeOfData  -= messageLenBytes;
@@ -138,7 +138,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
       const Uint32 messageLenBytes = ((Uint32)messageLen32) << 2;
       if(messageLen32 == 0 || messageLen32 > MAX_MESSAGE_SIZE){
 	DEBUG("Message Size = " << messageLenBytes);
-	reportError(callbackObj, remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         return usedData;
       }//if
       
@@ -154,7 +154,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	if(checkSumComputed != checkSumSent){
 	  
 	  //theTransporters[remoteNodeId]->disconnect();
-	  reportError(callbackObj, remoteNodeId, TE_INVALID_CHECKSUM);
+	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
           return usedData;
 	}//if
       }//if
@@ -196,7 +196,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	  sectionData += sz;
 	}
 
-	execute(callbackObj, &signalHeader, prio, signalData, ptr);
+	callbackObj->deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
@@ -236,7 +236,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
       
       if(messageLen32 == 0 || messageLen32 > MAX_MESSAGE_SIZE){
         DEBUG("Message Size(words) = " << messageLen32);
-	reportError(callbackObj, remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         return readPtr;
       }//if
       
@@ -246,7 +246,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
 	
 	if(checkSumComputed != checkSumSent){
-	  reportError(callbackObj, remoteNodeId, TE_INVALID_CHECKSUM);
+	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
 	  return readPtr;
 	}//if
       }//if
@@ -285,7 +285,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	sectionData += sz;
       }
       
-      execute(callbackObj, &signalHeader, prio, signalData, ptr);
+      callbackObj->deliver_signal(&signalHeader, prio, signalData, ptr);
       
       readPtr += messageLen32;
     }//while
@@ -306,7 +306,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
       const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
       if(messageLen32 == 0 || messageLen32 > MAX_MESSAGE_SIZE){
 	DEBUG("Message Size(words) = " << messageLen32);
-	reportError(callbackObj, remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         return readPtr;
       }//if
       
@@ -318,7 +318,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	if(checkSumComputed != checkSumSent){
 	  
 	  //theTransporters[remoteNodeId]->disconnect();
-	  reportError(callbackObj, remoteNodeId, TE_INVALID_CHECKSUM);
+	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
 	  return readPtr;
 	}//if
       }//if
@@ -360,7 +360,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	  sectionData += sz;
 	}
 
-	execute(callbackObj, &signalHeader, prio, signalData, ptr);
+	callbackObj->deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
@@ -513,4 +513,27 @@ Packer::pack(Uint32 * insertPtr,
   if(checksumUsed){
     * tmpInserPtr = computeChecksum(&insertPtr[0], len32-1);
   }
+}
+
+/**
+ * Find longest data size that does not exceed given maximum, and does not
+ * cause individual signals to be split.
+ *
+ * Used by SHM_Transporter, as it is designed to send data in Signal chunks,
+ * not bytes or words.
+ */
+Uint32
+TransporterRegistry::unpack_length_words(const Uint32 *readPtr, Uint32 maxWords)
+{
+  Uint32 wordLength = 0;
+
+  while (wordLength + 4 + sizeof(Protocol6) <= maxWords)
+  {
+    Uint32 word1 = readPtr[wordLength];
+    Uint16 messageLen32 = Protocol6::getMessageLength(word1);
+    if (wordLength + messageLen32 > maxWords)
+      break;
+    wordLength += messageLen32;
+  }
+  return wordLength;
 }
