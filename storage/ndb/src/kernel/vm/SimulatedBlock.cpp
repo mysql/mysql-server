@@ -241,6 +241,106 @@ SimulatedBlock::handle_lingering_sections_after_execute(SectionHandle* handle) c
 #endif
 }
 
+static void
+linkSegments(Uint32 head, Uint32 tail){
+  
+  Ptr<SectionSegment> headPtr;
+  g_sectionSegmentPool.getPtr(headPtr, head);
+  
+  Ptr<SectionSegment> tailPtr;
+  g_sectionSegmentPool.getPtr(tailPtr, tail);
+  
+  Ptr<SectionSegment> oldTailPtr;
+  g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment);
+  
+  headPtr.p->m_lastSegment = tailPtr.p->m_lastSegment;
+  headPtr.p->m_sz += tailPtr.p->m_sz;
+  
+  oldTailPtr.p->m_nextSegment = tailPtr.i;
+}
+
+void
+getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]){
+  Uint32 tSec0 = ptr[0].i;
+  Uint32 tSec1 = ptr[1].i;
+  Uint32 tSec2 = ptr[2].i;
+  SectionSegment * p;
+  switch(secCount){
+  case 3:
+    p = g_sectionSegmentPool.getPtr(tSec2);
+    ptr[2].p = p;
+    ptr[2].sz = p->m_sz;
+  case 2:
+    p = g_sectionSegmentPool.getPtr(tSec1);
+    ptr[1].p = p;
+    ptr[1].sz = p->m_sz;
+  case 1:
+    p = g_sectionSegmentPool.getPtr(tSec0);
+    ptr[0].p = p;
+    ptr[0].sz = p->m_sz;
+  case 0:
+    return;
+  }
+  char msg[40];
+  sprintf(msg, "secCount=%d", secCount);
+  ErrorReporter::handleAssert(msg, __FILE__, __LINE__);
+}
+
+void
+getSection(SegmentedSectionPtr & ptr, Uint32 i){
+  ptr.i = i;
+  SectionSegment * p = g_sectionSegmentPool.getPtr(i);
+  ptr.p = p;
+  ptr.sz = p->m_sz;
+}
+
+#ifdef NDBD_MULTITHREADED
+#define MT_SECTION_LOCK mt_section_lock();
+#define MT_SECTION_UNLOCK mt_section_unlock();
+#else
+#define MT_SECTION_LOCK
+#define MT_SECTION_UNLOCK
+#endif
+
+#define relSz(x) ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength)
+
+void
+release(SegmentedSectionPtr & ptr){
+  MT_SECTION_LOCK
+  g_sectionSegmentPool.releaseList(relSz(ptr.sz),
+				   ptr.i, 
+				   ptr.p->m_lastSegment);
+  MT_SECTION_UNLOCK
+}
+
+static void
+releaseSections(Uint32 secCount, SegmentedSectionPtr ptr[3]){
+  Uint32 tSec0 = ptr[0].i;
+  Uint32 tSz0 = ptr[0].sz;
+  Uint32 tSec1 = ptr[1].i;
+  Uint32 tSz1 = ptr[1].sz;
+  Uint32 tSec2 = ptr[2].i;
+  Uint32 tSz2 = ptr[2].sz;
+  MT_SECTION_LOCK
+  switch(secCount){
+  case 3:
+    g_sectionSegmentPool.releaseList(relSz(tSz2), tSec2, 
+				     ptr[2].p->m_lastSegment);
+  case 2:
+    g_sectionSegmentPool.releaseList(relSz(tSz1), tSec1, 
+				     ptr[1].p->m_lastSegment);
+  case 1:
+    g_sectionSegmentPool.releaseList(relSz(tSz0), tSec0, 
+				     ptr[0].p->m_lastSegment);
+  case 0:
+    MT_SECTION_UNLOCK
+    return;
+  }
+  char msg[40];
+  sprintf(msg, "secCount=%d", secCount);
+  ErrorReporter::handleAssert(msg, __FILE__, __LINE__);
+}
+
 
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
@@ -329,73 +429,6 @@ SimulatedBlock::sendSignal(BlockReference ref,
     ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
   }
   return;
-}
-
-/*
- * This is a special version of sendSignal to correctly handle node failure
- * in multithreaded ndbd.
- *
- * For single-threaded ndbd, it is identical to the above sendSignal().
- *
- * For multithreaded ndbd, is is special in that the signal is delivered to
- * the same job queue that is used to deliver signals from the receiver thread.
- * The sending of NODE_FAILREP is done using this method.
- *
- * The purpose of this is to ensure that after a block receives the
- * NODE_FAILREP signal, it is guaranteed that the block will receive no further
- * signals from the failing node. To ensure this we need to have the
- * NODE_FAILREP correctly ordered with respect to other remotely received
- * signals, and this is achieved by using the same job queue.
- *
- * It currently only works for local signals.
- */
-void
-SimulatedBlock::sendSignalFromReceiver(BlockReference ref,
-                                       GlobalSignalNumber gsn,
-                                       Signal* signal,
-                                       Uint32 length,
-                                       JobBufferLevel jobBuffer) const {
-#ifndef NDBD_MULTITHREADED
-  sendSignal(ref, gsn, signal, length, jobBuffer);
-#else
-  BlockReference sendBRef = reference();
-  Uint32 noOfSections = signal->header.m_noOfSections;
-  Uint32 recBlock = refToBlock(ref);
-  Uint32 recNode   = refToNode(ref);
-  Uint32 ourProcessor         = globalData.ownId;
-
-  signal->header.theLength = length;
-  signal->header.theVerId_signalNumber = gsn;
-  signal->header.theReceiversBlockNumber = recBlock;
-  signal->header.m_noOfSections = 0;
-
-  check_sections(signal, noOfSections);
-
-  ndbassert(!((length == 0) || length > 25 || (recBlock == 0)));
-#ifdef VM_TRACE
-  if(globalData.testOn){
-    Uint16 proc =
-      (recNode == 0 ? globalData.ownId : recNode);
-    signal->header.theSendersBlockRef = sendBRef;
-    globalSignalLoggers.sendSignal(signal->header,
-                                   jobBuffer,
-                                   &signal->theData[0],
-                                   proc);
-  }
-#endif
-
-  ndbassert(refToNode(ref) == ourProcessor || refToNode(ref) == 0);
-
-  /* Now lock the receiver and deliver into queue 2 (receiver thread). */
-  mt_receive_lock();
-  if (jobBuffer == JBB)
-    sendlocal(receiverThreadId, recBlock, &signal->header, signal->theData,
-              NULL);
-  else
-    sendprioa(receiverThreadId, recBlock, &signal->header, signal->theData,
-              NULL);
-  mt_receive_unlock();
-#endif
 }
 
 void 

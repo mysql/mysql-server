@@ -44,7 +44,7 @@ extern "C" {
   void atexit_stop_instance();
 }
 
-class TransporterFacade
+class TransporterFacade : public TransporterCallback
 {
 public:
   /**
@@ -149,6 +149,37 @@ public:
   NdbWaiter* rem_last_from_cond_wait_queue();
   // heart beat received from a node (e.g. a signal came)
   void hb_received(NodeId n);
+
+  /* TransporterCallback interface. */
+  void deliver_signal(SignalHeader * const header,
+                      Uint8 prio,
+                      Uint32 * const signalData,
+                      LinearSectionPtr ptr[3]);
+  int checkJobBuffer();
+  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void reportConnect(NodeId nodeId);
+  void reportDisconnect(NodeId nodeId, Uint32 errNo);
+  void reportError(NodeId nodeId, TransporterError errorCode,
+                   const char *info = 0);
+  void transporter_recv_from(NodeId node);
+  int get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
+  {
+    return theTransporterRegistry->get_bytes_to_send_iovec(node, dst, max);
+  }
+  Uint32 bytes_sent(NodeId node, const struct iovec *src, Uint32 bytes)
+  {
+    return theTransporterRegistry->bytes_sent(node, src, bytes);
+  }
+  bool has_data_to_send(NodeId node)
+  {
+    return theTransporterRegistry->has_data_to_send(node);
+  }
+  void reset_send_buffer(NodeId node)
+  {
+    theTransporterRegistry->reset_send_buffer(node);
+  }
+
 
 private:
   void init_cond_wait_queue();
@@ -271,13 +302,6 @@ private:
   Uint32 m_max_trans_id;
   Uint32 m_fragmented_signal_id;
 
-  /**
-   * execute function
-   */
-  friend void execute(void * callbackObj, SignalHeader * const header, 
-                      Uint8 prio, 
-                      Uint32 * const theData, LinearSectionPtr ptr[3]);
-  
 public:
   NdbMutex* theMutexPtr;
 

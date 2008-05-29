@@ -82,8 +82,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      conf->serverNodeId,
 	      0, false, 
 	      conf->checksum,
-	      conf->signalId),
-  m_sendBuffer(conf->tcp.sendBufferSize)
+	      conf->signalId,
+              conf->tcp.sendBufferSize)
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
@@ -99,7 +99,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 71540);
   setIf(sockOptTcpMaxSeg, conf->tcp.tcpMaxsegSize, 0);
 
-  overloadedPct = 80; // make configurable in next patch
+  m_overload_limit = conf->tcp.tcpOverloadLimit ?
+    conf->tcp.tcpOverloadLimit : conf->tcp.sendBufferSize*4/5;
 }
 
 TCP_Transporter::~TCP_Transporter() {
@@ -107,8 +108,6 @@ TCP_Transporter::~TCP_Transporter() {
   // Disconnect
   if (theSocket != NDB_INVALID_SOCKET)
     doDisconnect();
-  
-  // Delete send buffers
   
   // Delete receive buffer!!
   receiveBuffer.destroy();
@@ -128,9 +127,13 @@ bool TCP_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 
 bool TCP_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
 {
+  setSocketOptions(sockfd);
+  setSocketNonBlocking(sockfd);
+
+  get_callback_obj()->lock_transporter(remoteNodeId);
   theSocket = sockfd;
-  setSocketOptions();
-  setSocketNonBlocking(theSocket);
+  get_callback_obj()->unlock_transporter(remoteNodeId);
+
   DBUG_PRINT("info", ("Successfully set-up TCP transporter to node %d",
               remoteNodeId));
   return true;
@@ -148,13 +151,6 @@ TCP_Transporter::initTransporter() {
   }
   
   if(!receiveBuffer.init(recBufSize+MAX_MESSAGE_SIZE)){
-    return false;
-  }
-  
-  // Allocate buffers for sending
-  if (!m_sendBuffer.initBuffer(remoteNodeId)) {
-    // XXX What shall be done here? 
-    // The same is valid for the other init-methods 
     return false;
   }
   
@@ -203,17 +199,16 @@ TCP_Transporter::pre_connect_options(NDB_SOCKET_TYPE sockfd)
 }
 
 void
-TCP_Transporter::setSocketOptions(){
-
-  set_get(theSocket, SOL_SOCKET, SO_RCVBUF, "SO_RCVBUF", sockOptRcvBufSize);
-  set_get(theSocket, SOL_SOCKET, SO_SNDBUF, "SO_SNDBUF", sockOptSndBufSize);
-  set_get(theSocket, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", sockOptNodelay);
-  set_get(theSocket, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
+TCP_Transporter::setSocketOptions(NDB_SOCKET_TYPE socket)
+{
+  set_get(socket, SOL_SOCKET, SO_RCVBUF, "SO_RCVBUF", sockOptRcvBufSize);
+  set_get(socket, SOL_SOCKET, SO_SNDBUF, "SO_SNDBUF", sockOptSndBufSize);
+  set_get(socket, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", sockOptNodelay);
+  set_get(socket, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
 
   if (sockOptTcpMaxSeg)
   {
-    set_get(theSocket, IPPROTO_TCP, TCP_MAXSEG, "TCP_MAXSEG", 
-	    sockOptTcpMaxSeg);
+    set_get(socket, IPPROTO_TCP, TCP_MAXSEG, "TCP_MAXSEG", sockOptTcpMaxSeg);
   }
 }
 
@@ -270,130 +265,52 @@ TCP_Transporter::sendIsPossible(struct timeval * timeout) {
   return false;
 }
 
-Uint32
-TCP_Transporter::get_free_buffer() const 
-{
-  return m_sendBuffer.bufferSizeRemaining();
-}
-
-Uint32 *
-TCP_Transporter::getWritePtr(Uint32 lenBytes, Uint32 prio){
-  
-  Uint32 * insertPtr = m_sendBuffer.getInsertPtr(lenBytes);
-  
-  struct timeval timeout = {0, 10000};
-
-  if (insertPtr == 0) {
-    //-------------------------------------------------
-    // Buffer was completely full. We have severe problems.
-    // We will attempt to wait for a small time
-    //-------------------------------------------------
-    if(sendIsPossible(&timeout)) {
-      //-------------------------------------------------
-      // Send is possible after the small timeout.
-      //-------------------------------------------------
-      if(!doSend()){
-	return 0;
-      } else {
-	//-------------------------------------------------
-	// Since send was successful we will make a renewed
-	// attempt at inserting the signal into the buffer.
-	//-------------------------------------------------
-        insertPtr = m_sendBuffer.getInsertPtr(lenBytes);
-      }//if
-    } else {
-      return 0;
-    }//if
-  }
-  return insertPtr;
-}
-
-void
-TCP_Transporter::updateWritePtr(Uint32 lenBytes, Uint32 prio){
-  m_sendBuffer.updateInsertPtr(lenBytes);
-  update_status_overloaded();
-  
-  const int bufsize = m_sendBuffer.bufferSize();
-  if(bufsize > TCP_SEND_LIMIT) {
-    //-------------------------------------------------
-    // Buffer is full and we are ready to send. We will
-    // not wait since the signal is already in the buffer.
-    // Force flag set has the same indication that we
-    // should always send. If it is not possible to send
-    // we will not worry since we will soon be back for
-    // a renewed trial.
-    //-------------------------------------------------
-    struct timeval no_timeout = {0,0};
-    if(sendIsPossible(&no_timeout)) {
-      //-------------------------------------------------
-      // Send was possible, attempt at a send.
-      //-------------------------------------------------
-      doSend();
-    }//if
-  }
-}
-
 #define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
                (!((sz == -1) && (e == EAGAIN) || (e == EWOULDBLOCK) || (e == EINTR))))
 
 
 bool
 TCP_Transporter::doSend() {
-  // If no sendbuffers are used nothing is done
-  // Sends the contents of the SendBuffers until they are empty
-  // or until select does not select the socket for write.
-  // Before calling send, the socket must be selected for write
-  // using "select"
-  // It writes on the external TCP/IP interface until the send buffer is empty
-  // and as long as write is possible (test it using select)
+  if (!fetch_send_iovec_data())
+    return false;
 
-  // Empty the SendBuffers
-  
-  bool sent_any = true;
-  while (m_sendBuffer.dataSize > 0)
+  Uint32 used = m_send_iovec_used;
+  if (used == 0)
+    return true;                                // Nothing to send
+
+  int nBytesSent = writev(theSocket, m_send_iovec, used);
+
+  if (nBytesSent > 0)
   {
-    const char * const sendPtr = m_sendBuffer.sendPtr;
-    const Uint32 sizeToSend    = m_sendBuffer.sendDataSize;
-    const int nBytesSent = send(theSocket, sendPtr, sizeToSend, 0);
-    
-    if (nBytesSent > 0) 
-    {
-      sent_any = true;
-      m_sendBuffer.bytesSent(nBytesSent);
-      update_status_overloaded();
-      
-      sendCount ++;
-      sendSize  += nBytesSent;
-      if(sendCount == reportFreq)
-      {
-	reportSendLen(get_callback_obj(), remoteNodeId, sendCount, sendSize);
-	sendCount = 0;
-	sendSize  = 0;
-      }
-    } 
-    else 
-    {
-      if (nBytesSent < 0 && InetErrno == EAGAIN && sent_any)
-        break;
+    iovec_data_sent(nBytesSent);
 
-      // Send failed
-#if defined DEBUG_TRANSPORTER
-      g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
-                           "nBytesSent = %d "
-                           "errno = %d strerror = %s",
-                           DISCONNECT_ERRNO(InetErrno, nBytesSent),
-                           remoteNodeId, nBytesSent, InetErrno,
-                           (char*)ndbstrerror(InetErrno));
-#endif
-      if(DISCONNECT_ERRNO(InetErrno, nBytesSent)){
-	doDisconnect();
-	report_disconnect(InetErrno);
-      }
-      
-      return false;
+    sendCount ++;
+    sendSize  += nBytesSent;
+    if(sendCount == reportFreq)
+    {
+      get_callback_obj()->reportSendLen(remoteNodeId, sendCount, sendSize);
+      sendCount = 0;
+      sendSize  = 0;
     }
+    return true;
   }
-  return true;
+  else
+  {
+    /* Send failed. */
+#if defined DEBUG_TRANSPORTER
+    g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
+                         "nBytesSent = %d "
+                         "errno = %d strerror = %s",
+                         DISCONNECT_ERRNO(InetErrno, nBytesSent),
+                         remoteNodeId, nBytesSent, InetErrno,
+                         (char*)ndbstrerror(InetErrno));
+#endif
+    if(DISCONNECT_ERRNO(InetErrno, nBytesSent)){
+      do_disconnect(InetErrno);
+    }
+
+    return false;
+  }
 }
 
 int
@@ -428,7 +345,8 @@ TCP_Transporter::doReceive() {
       receiveSize  += nBytesRead;
       
       if(receiveCount == reportFreq){
-	reportReceiveLen(get_callback_obj(), remoteNodeId, receiveCount, receiveSize);
+	get_callback_obj()->reportReceiveLen(remoteNodeId,
+                                             receiveCount, receiveSize);
 	receiveCount = 0;
 	receiveSize  = 0;
       }
@@ -442,20 +360,7 @@ TCP_Transporter::doReceive() {
                            (char*)ndbstrerror(InetErrno));
 #endif   
       if(DISCONNECT_ERRNO(InetErrno, nBytesRead)){
-	/**
-         * The remote node has closed down.
-         *
-         * In multi-threaded ndbd, we need to grab the send lock before
-         * doDisconnect(), to avoid races when we empty the send buffer.
-         *
-         * In single-threaded ndbd, this is a no-operation.
-         */
-        extern void mt_send_lock(void *, NodeId);
-        extern void mt_send_unlock(void *, NodeId);
-        mt_send_lock(get_callback_obj(), getRemoteNodeId());
-	doDisconnect();
-        mt_send_unlock(get_callback_obj(), getRemoteNodeId());
-	report_disconnect(InetErrno);
+	do_disconnect(InetErrno);
       } 
     }
     return nBytesRead;
@@ -466,15 +371,17 @@ TCP_Transporter::doReceive() {
 
 void
 TCP_Transporter::disconnectImpl() {
-  if(theSocket != NDB_INVALID_SOCKET){
-    if(NDB_CLOSE_SOCKET(theSocket) < 0){
+  get_callback_obj()->lock_transporter(remoteNodeId);
+
+  NDB_SOCKET_TYPE sock = theSocket;
+  receiveBuffer.clear();
+  theSocket = NDB_INVALID_SOCKET;
+
+  get_callback_obj()->unlock_transporter(remoteNodeId);
+
+  if(sock != NDB_INVALID_SOCKET){
+    if(NDB_CLOSE_SOCKET(sock) < 0){
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
   }
-  
-  // Empty send och receive buffers 
-  receiveBuffer.clear();
-  m_sendBuffer.emptyBuffer();
-
-  theSocket = NDB_INVALID_SOCKET;
 }

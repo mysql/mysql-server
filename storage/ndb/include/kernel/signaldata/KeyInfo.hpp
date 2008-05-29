@@ -59,10 +59,10 @@ private:
     1 word of AttributeHeader (containing attribute Id and byte length)
     N words of attribute data (N = (length+3)>>2).
   Additionally, it is possible to send multiple range bounds in a single
-  SCAN_TABREQ and associated ATTRINFO stream (using NdbRecord Index scans and
+  SCAN_TABREQ and associated KEYINFO stream (using NdbRecord Index scans and
   multiple calls to setBound with different range numbers). In this case, the 
   first word of each range bound contains additional information: 
-  bits 16-31 holds the length of this bound, in words of ATTRINFO data, 
+  bits 16-31 holds the length of this bound, in words of KEYINFO data,
   and bits 4-15 holds a number RANGE_NO specified by the application that 
   can be read back from the RANGE_NO pseudo-column.
 

@@ -91,9 +91,6 @@ extern EventLogger * g_eventLogger;
 #include <signaldata/SchemaTrans.hpp>
 #include <DebuggerNames.hpp>
 
-// TransporterCallback.cpp
-extern void release(SegmentedSectionPtr&);
-
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
 

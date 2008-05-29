@@ -140,7 +140,7 @@ SHM_Transporter::checkConnected(){
   volatile Uint32 * sharedCountAttached = 
     (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
   if(*sharedCountAttached != 2) {
-    reportError(callbackObj, remoteNodeId, TE_SHM_DISCONNECT);
+    report_error(TE_SHM_DISCONNECT);
     return false;
   }
   return true;
@@ -155,7 +155,7 @@ SHM_Transporter::disconnectImpl(){
     --*sharedCountAttached;
 
     if(!UnmapViewOfFile(shmBuf)) {
-      reportError(callbackObj, remoteNodeId, TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
+      report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
       return;
     }
     
@@ -166,7 +166,7 @@ SHM_Transporter::disconnectImpl(){
   
   if(_shmSegCreated){
     if(!CloseHandle(hFileMapping)) {
-      reportError(callbackObj, remoteNodeId, TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
+      report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
       return;
     }
     _shmSegCreated = false;

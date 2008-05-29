@@ -435,6 +435,14 @@ Configuration::setupConfiguration(){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched",
 	      "I'm wrong type of node");
   }
+
+  Uint32 total_send_buffer = 0;
+  if(iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer) ||
+     total_send_buffer == 0)
+  {
+    total_send_buffer = globalTransporterRegistry.get_total_max_send_buffer();
+  }
+  globalTransporterRegistry.allocate_send_buffers(total_send_buffer);
   
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 

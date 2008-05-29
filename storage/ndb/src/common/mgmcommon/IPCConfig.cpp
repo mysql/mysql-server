@@ -356,6 +356,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       iter.get(CFG_TCP_SND_BUF_SIZE, &conf.tcp.tcpSndBufSize);
       iter.get(CFG_TCP_RCV_BUF_SIZE, &conf.tcp.tcpRcvBufSize);
       iter.get(CFG_TCP_MAXSEG_SIZE, &conf.tcp.tcpMaxsegSize);
+      iter.get(CFG_CONNECTION_OVERLOAD, &conf.tcp.tcpOverloadLimit);
       
       if(!tr.createTCPTransporter(&conf)){
 	ndbout << "Failed to create TCP Transporter from: " 

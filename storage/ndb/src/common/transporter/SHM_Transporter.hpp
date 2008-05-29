@@ -54,21 +54,6 @@ public:
    */
   bool initTransporter();
   
-  Uint32 * getWritePtr(Uint32 lenBytes, Uint32 prio)
-  {
-    return (Uint32 *)writer->getWritePtr(lenBytes);
-  }
-  
-  void updateWritePtr(Uint32 lenBytes, Uint32 prio)
-  {
-    writer->updateWritePtr(lenBytes);
-    m_last_signal += lenBytes;
-    if(m_last_signal >= m_signal_threshold)
-    {
-      doSend();
-    }
-  }
-  
   void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
     reader->getReadPtr(* ptr, * eod);
   }
@@ -131,18 +116,13 @@ protected:
    */
   void setupBuffers();
 
-  bool hasDataToSend() const { return TRUE; }
-
   /**
    * doSend (i.e signal receiver)
    */
   bool doSend();
   int m_remote_pid;
-  Uint32 m_last_signal;
   Uint32 m_signal_threshold;
 
-  virtual Uint32 get_free_buffer() const;
-  
 private:
   bool _shmSegCreated;
   bool _attached;
@@ -173,6 +153,12 @@ private:
   }
 
   void make_error_info(char info[], int sz);
+
+  bool send_limit_reached(int bufsize)
+  {
+    return ((Uint32)bufsize >= m_signal_threshold);
+  }
+  bool send_is_possible(struct timeval *timeout) { return 1; }
 };
 
 #endif

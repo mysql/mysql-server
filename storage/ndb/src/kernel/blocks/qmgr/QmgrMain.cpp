@@ -5578,9 +5578,9 @@ Qmgr::check_multi_node_shutdown(Signal* signal)
       jam();
       StartOrd * startOrd = (StartOrd *)&signal->theData[0];
       startOrd->restartInfo = c_stopReq.requestInfo;
-      EXECUTE_DIRECT(CMVMI, GSN_START_ORD, signal, 2);
+      sendSignal(CMVMI_REF, GSN_START_ORD, signal, 2, JBA);
     } else {
-      EXECUTE_DIRECT(CMVMI, GSN_STOP_ORD, signal, 1);
+      sendSignal(CMVMI_REF, GSN_STOP_ORD, signal, 1, JBA);
     }
     return true;
   }
