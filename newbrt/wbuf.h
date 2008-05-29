@@ -55,10 +55,14 @@ static void wbuf_int (struct wbuf *w, int32_t i) {
     wbuf_char(w, i>>0);
 #else
     assert(w->ndone + 4 <= w->size);
+ #if 0
     w->buf[w->ndone+0] = i>>24;
     w->buf[w->ndone+1] = i>>16;
     w->buf[w->ndone+2] = i>>8;
     w->buf[w->ndone+3] = i>>0;
+ #else
+    *(u_int32_t*)(&w->buf[w->ndone]) = htonl(i);
+ #endif
  #ifdef CRC_INCR
     w->crc32 = toku_crc32(w->crc32, &w->buf[w->ndone], 4);
  #endif

@@ -74,6 +74,7 @@ REGRESSION_TESTS = \
 	test-brt-overflow \
 	test-del-inorder \
 	test-inc-split \
+	test-leafentry \
 	test-primes \
 	test_oexcl \
 	test_toku_malloc_plain_free \
