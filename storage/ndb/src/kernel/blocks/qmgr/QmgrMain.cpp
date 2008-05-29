@@ -3071,52 +3071,33 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   setNodeInfo(apiNodePtr.i).m_mysql_version = mysql_version;
   setNodeInfo(apiNodePtr.i).m_heartbeat_cnt= 0;
 
-  ApiRegConf * const apiRegConf = (ApiRegConf *)&signal->theData[0];
-  apiRegConf->qmgrRef = reference();
-  apiRegConf->apiHeartbeatFrequency = (chbApiDelay / 10);
-  apiRegConf->version = NDB_VERSION;
-  apiRegConf->mysql_version = NDB_MYSQL_VERSION_D;
-  NodeState state= apiRegConf->nodeState = getNodeState();
+  NodeState state = getNodeState();
+  if (apiNodePtr.p->phase == ZAPI_INACTIVE)
   {
-    NodeRecPtr nodePtr;
-    nodePtr.i = getOwnNodeId();
-    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
-    Uint32 dynamicId = nodePtr.p->ndynamicId;
-
-    if(apiRegConf->nodeState.masterNodeId != getOwnNodeId()){
+    apiNodePtr.p->blockRef = ref;
+    if ((state.startLevel == NodeState::SL_STARTED ||
+         state.getSingleUserMode() ||
+         (state.startLevel == NodeState::SL_STARTING &&
+          state.starting.startPhase >= 100)))
+    {
       jam();
-      apiRegConf->nodeState.dynamicId = dynamicId;
-    } else {
-      apiRegConf->nodeState.dynamicId = -dynamicId;
+      /**----------------------------------------------------------------------
+       * THE API NODE IS REGISTERING. WE WILL ACCEPT IT BY CHANGING STATE AND
+       * SENDING A CONFIRM.
+       *----------------------------------------------------------------------*/
+      apiNodePtr.p->phase = ZAPI_ACTIVE;
+      EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
+      enableComReq->m_senderRef = reference();
+      enableComReq->m_senderData = ENABLE_COM_API_REGREQ;
+      NodeBitmask::clear(enableComReq->m_nodeIds);
+      NodeBitmask::set(enableComReq->m_nodeIds, apiNodePtr.i);
+      sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+                 EnableComReq::SignalLength, JBA);
+      return;
     }
   }
-  NodeVersionInfo info = getNodeVersionInfo();
-  apiRegConf->minDbVersion = info.m_type[NodeInfo::DB].m_min_version;
-  apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
-  sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
 
-  if (apiNodePtr.p->phase == ZAPI_INACTIVE &&
-      (state.startLevel == NodeState::SL_STARTED ||
-       state.getSingleUserMode() ||
-       (state.startLevel == NodeState::SL_STARTING && 
-	state.starting.startPhase >= 100)))
-  {       
-    jam();
-    /**----------------------------------------------------------------------
-     * THE API NODE IS REGISTERING. WE WILL ACCEPT IT BY CHANGING STATE AND 
-     * SENDING A CONFIRM. 
-     *----------------------------------------------------------------------*/
-    apiNodePtr.p->phase = ZAPI_ACTIVE;
-    apiNodePtr.p->blockRef = ref;
-    EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
-    enableComReq->m_senderRef = reference();
-    enableComReq->m_senderData = ENABLE_COM_API_REGREQ;
-    NodeBitmask::clear(enableComReq->m_nodeIds);
-    NodeBitmask::set(enableComReq->m_nodeIds, apiNodePtr.i);
-    sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
-               EnableComReq::SignalLength, JBA);
-  }
-  return;
+  sendApiRegConf(signal, apiNodePtr.i);
 }//Qmgr::execAPI_REGREQ()
 
 void
@@ -3135,6 +3116,42 @@ Qmgr::handleEnableComApiRegreq(Signal *signal, Uint32 node)
 
   signal->theData[0] = node;
   EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
+
+  sendApiRegConf(signal, node);
+}
+
+void
+Qmgr::sendApiRegConf(Signal *signal, Uint32 node)
+{
+  NodeRecPtr apiNodePtr;
+  apiNodePtr.i = node;
+  ptrCheckGuard(apiNodePtr, MAX_NODES, nodeRec);
+  const BlockReference ref = apiNodePtr.p->blockRef;
+  ndbassert(ref != 0);
+
+  ApiRegConf * const apiRegConf = (ApiRegConf *)&signal->theData[0];
+  apiRegConf->qmgrRef = reference();
+  apiRegConf->apiHeartbeatFrequency = (chbApiDelay / 10);
+  apiRegConf->version = NDB_VERSION;
+  apiRegConf->mysql_version = NDB_MYSQL_VERSION_D;
+  apiRegConf->nodeState = getNodeState();
+  {
+    NodeRecPtr nodePtr;
+    nodePtr.i = getOwnNodeId();
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+    Uint32 dynamicId = nodePtr.p->ndynamicId;
+
+    if(apiRegConf->nodeState.masterNodeId != getOwnNodeId()){
+      jam();
+      apiRegConf->nodeState.dynamicId = dynamicId;
+    } else {
+      apiRegConf->nodeState.dynamicId = -dynamicId;
+    }
+  }
+  NodeVersionInfo info = getNodeVersionInfo();
+  apiRegConf->minDbVersion = info.m_type[NodeInfo::DB].m_min_version;
+  apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
+  sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
 }
 
 void

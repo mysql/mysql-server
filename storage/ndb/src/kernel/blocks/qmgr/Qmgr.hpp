@@ -277,6 +277,7 @@ private:
   void handleEnableComAddCommit(Signal *signal, Uint32 node);
   void handleEnableComCommitNew(Signal *signal);
   void handleEnableComApiRegreq(Signal *signal, Uint32 node);
+  void sendApiRegConf(Signal *signal, Uint32 node);
   
   void execSTART_ORD(Signal*);
 
