@@ -103,295 +103,192 @@ show create table t1;
 drop table t1;
 
 #
-# Bug #6760: Add SLEEP() function
+# Bug#6760: Add SLEEP() function (feature request)
 #
-# Note (mleich):
-# --------------
-# The experiments around
+#   Logics of original test:
+#   Reveal that a query with SLEEP does not need less time than estimated.
+#
+# Bug#12689: SLEEP() gets incorrectly cached/optimized-away
+#
+#   Description from bug report (slightly modified)
+#
+#   Bug 1 (happened all time):
+#      SELECT * FROM t1 WHERE SLEEP(1) will only result in a sleep of 1
+#      second, regardless of the number of rows in t1.
+#   Bug 2 (happened all time):
+#      Such a query will also get cached by the query cache, but should not.
+#
+# Notes (mleich, 2008-05)
+# =======================
+#
+# Experiments around
 #    Bug#36345 Test 'func_misc' fails on RHAS3 x86_64
-# showed that the original test for Bug#6760 produced false alarms in case
-# of parallel system time decreases. It was therefore modified.
-# Solution:
-#   We run the test two times and assume a pass if at least one attempt
-#   is successful. The disadvantage is that a parallel "unnatural" increase of
-#   system time (set time via ntpd etc.) is able to hide a wrong working SLEEP
-#   function. This is no problem because
-#   - such changes of the system are rare
-#   - there is an extreme high probability that either the following test
-#     or the frequent runs of the current test on the current testing box or
-#     other boxes catch a wrong working SLEEP function.
-create table t1 (id int,
-                 a timestamp default '2005-05-05 01:01:01',
-                 b timestamp default '2005-05-05 01:01:01');
-insert into t1 set id = 1,a = now();
-select sleep(3);
-update t1 set b = now() where id = 1;
-insert into t1 set id = 2,a = now();
-select sleep(3);
-update t1 set b = now() where id = 2;
-# Check that the timediff caused by the length of the sleep is not plain wrong.
-#   We can have delays in statement processing of 1 - 2 seconds on
-#   an overloaded testing box.
-#   Minimum (= ideal) real timediff = '00:00:03'
-#   Maximum acceptable real timediff = '00:00:07'
-select count(*) >= 1 from t1
-where timediff(b, a) between '00:00:03' and '00:00:07';
-drop table t1;
-
-################################################################################
-# Bug #12689: SLEEP() gets incorrectly cached/optimized-away
+# showed that the tests for both bugs could produce in case of parallel
+# artificial system time (like via ntpd)
+# - decreases false alarm
+# - increases false success
 #
-# Description from bug report (slightly modified)
-# ===============================================
-# Bug 1 (happened all time):
-#    SELECT * FROM t1 WHERE SLEEP(1) will only result in a sleep of 1
-#    second, regardless of the number of rows in t1.
-# Bug 2 (happened all time):
-#    Such a query will also get cached by the query cache, but should not.
+# We try here to circumvent these issues by reimplementation of the tests
+# and sophisticated scripting, although the cause of the problems is a massive
+# error within the setup of the testing environment.
+# Tests relying on or checking derivates of the system time must never meet
+# parallel manipulations of system time.
 #
-# Notes (mleich, May 2008)
-# ========================
-# 1. The testcase for this bug had to be reimplemented because of
-#       Bug#36345 Test 'func_misc' fails on RHAS3 x86_64
-#       - Bad effect: We did not reach the expected time differences.
-#       - Experiments showed that for example a parallel change of the system
-#         time (decrease of time value) like via ntpd provokes this effect.
+# Results of experiments with/without manipulation of system time,
+# information_schema.processlist content, high load on testing box
+# ----------------------------------------------------------------
+# Definition: Predicted_cumulative_sleep_time =
+#                #_of_result_rows * sleep_time_per_result_row
 #
-#    It is a clear error within the setup of the testing environment if
-#    tests relying on derivates of the system time can meet parallel
-#    manipulations of this time. Covering these weaknesses by workarounds
-#    within the tests is often not perfect doable at all and costs
-#    significant development and/or runtime per test.
-#
-#    Results of experiments with/without manipulation of system time:
-#    ----------------------------------------------------------------
-#    Definition: Predicted_cumulative_sleep_time =
-#                   #_of_result_rows * sleep_time_per_result_row
-#                processlist.time refers to the session in state 'User sleep'
-#
-#    1. Total (real sleep time) ~= predicted_cumulative_sleep_time !!
-#    2. processlist.time behaves "synchronous" to system time and NOW() and
-#       shows also the "jumps" caused by system time manipulations
-#    3. processlist.time is unsigned, the next value below 0 is ~ 4G
-#    4. Current processlist.time ~= current real sleep time
-#       if the system time was not manipulated
-#
-# 2. How to reveal the absence of Bug 1:
-#
-#    The state of a session within the PROCESSLIST changes to 'User sleep'
+# 1. Total (real sleep time) ~= predicted_cumulative_sleep_time !!
+# 2. The state of a session within the PROCESSLIST changes to 'User sleep'
 #    if the sessions runs a statement containing the sleep function and the
 #    processing of the statement is just within the phase where the sleep
-#    is done.
+#    is done. (*)
+# 3. NOW() and processlist.time behave "synchronous" to system time and
+#    show also the "jumps" caused by system time manipulations. (*)
+# 4. processlist.time is unsigned, the "next" value below 0 is ~ 4G (*)
+# 5. Current processlist.time ~= current real sleep time if the system time
+#    was not manipulated. (*)
+# 6. High system load can cause delays of <= 2 seconds.
+# 7. Thanks to Davi for excellent hints and ideas.
 #
-#    As soon as the "Real" time where the session is in state 'User sleep'
-#    exceeds the sleep_time_per_result_row we can be sure that the execution
-#    of the query slept more time than needed for just one row.
+#    (*)
+#    - information_schema.processlist is not available before MySQL 5.1.
+#    - Observation of processlist content requires a
+#      - "worker" session sending the query with "send" and pulling results
+#        with "reap"
+#      - session observing the processlist parallel to the worker session
+#      "send" and "reap" do not work in case of an embedded server.
+#    Conclusion: Tests based on processlist have too many restrictions.
 #
-#    "Real" time in state 'User sleep' > sleep_time_per_result_row
+# Solutions for subtests based on TIMEDIFF of values filled via NOW()
+# -------------------------------------------------------------------
+# Run the following sequence three times
+#    1. SELECT <start_time>
+#    2. Query with SLEEP
+#    3. SELECT <end_time>
+# If TIMEDIFF(<end_time>,<start_time>) is at least two times within a
+# reasonable range assume that we did not met errors we were looking for.
 #
-#    Estimation 1:
-#    -------------
-#       n = how often we observed the session is in state 'User sleep'
+# It is extreme unlikely that we have two system time changes within the
+# < 30 seconds runtime. Even if the unlikely happens, there are so
+# frequent runs of this test on this or another testing box which will
+# catch the problem.
 #
-#       "Real" time in state 'User sleep'
-#       = (n - 1) * sleep_time_in_loop
-#         + time needed for the execution of the statements within the loop
-#           (includes the time waiting for getting resources like CPU etc.
-#            which si significant in case of high load on testing box)
-#
-#       (n - 1) * sleep_time_in_loop >= sleep_time_per_result_row
-#
-#       n >= sleep_time_per_result_row / sleep_time_in_loop + 1
-#
-#       Simplification taking truncation of values etc. into account:
-#       n >= sleep_time_per_result_row / sleep_time_in_loop + 2
-#
-#       We cannot have met Bug 1 if
-#          n >= sleep_time_per_result_row / sleep_time_in_loop + 2
-#       is fulfilled.
-#       But there is a significant risk that a run on an overloaded box
-#       does not reach the estimated limit.
-#
-#    Estimation 2:
-#    -------------
-#       processlist.time should show how long a session is within the current
-#       state. I verified by experimenting that this value is not reset per
-#       row of the the result set.
-#
-#       "Real" time in state 'User sleep'
-#       >= highest observed value of processlist.time 
-#
-#       We cannot have met Bug 1 if
-#         highest observed value of processlist.time > sleep_time_per_result_row
-#       is fulfilled.
-#       Unfortunately processlist.time is no more reliable in case of parallel
-#       changes of the system time.
-#
-#    Final solution:
-#    ---------------
-#    Run a subtest with "judging" based on estimation 1. If the limit is not
-#    reached, assume that we suffered from high load and try estimation 2.
-#    If estimation 2 gets cheated by parallel increase of system time
-#    assume that later runs on the same box or other boxes will show if
-#    Bug#12689 occured again.
-#
-# 3. How to reveal the absence of Bug 2:
-#    - By checking the behaviour during second execution:
-#      We run the same statement again and meet the session at least once in
-#      state 'User sleep'.
-#    - By checking secondary information (query cache statistics)
-#      The first execution of the statment must not cause that
-#      Qcache_queries_in_cache is incremented.
-#
-# 4. We do not run
-#    --source include/have_query_cache.inc
-#    at the beginning of this script because we want that this script is not
-#    skipped if the query cache is disabled. This means the detection of wrongly
-#    cached queries is in such cases without real effect.
-#
-# 5. Thanks to Davi for excellent hints and ideas.
-#
-################################################################################
 
-# 1. For Bug 2: Qcache_queries_in_cache must be not incremented if a query with
-#               sleep was first time executed.
+--echo #------------------------------------------------------------------------
+--echo # Tests for Bug#6760 and Bug#12689
+# Number of rows within the intended result set.
+SET @row_count = 4;
+# Parameter within SLEEP function
+SET @sleep_time_per_result_row = 1;
+# Maximum acceptable delay caused by high load on testing box
+SET @max_acceptable_delay = 2;
+# TIMEDIFF = time for query with sleep (mostly the time caused by SLEEP)
+#            + time for delays caused by high load on testing box
+# Ensure that at least a reasonable fraction of TIMEDIFF is belongs to the SLEEP
+# by appropriate setting of variables.
+# Ensure that any "judging" has a base of minimum three attempts.
+# (Test 2 uses all attempts except the first one.)
+if (!` SELECT (@sleep_time_per_result_row * @row_count - @max_acceptable_delay >
+              @sleep_time_per_result_row) AND (@row_count - 1 >= 3)`)
+{
+   --echo # Have to abort because of error in plausibility check
+   --echo ######################################################
+   --vertical_results
+   SELECT @sleep_time_per_result_row * @row_count - @max_acceptable_delay >
+               @sleep_time_per_result_row AS must_be_1,
+               @row_count - 1 >= 3 AS must_be_also_1,
+               @sleep_time_per_result_row, @row_count, @max_acceptable_delay;
+   exit;
+}
 SET @@global.query_cache_size = 1024 * 64;
-let $Qcache_queries_in_cache_before =
-    query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
-SELECT 1 as some_value, sleep(1);
-let $Qcache_queries_in_cache_after =
-    query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
-# Show that the query with sleep was not cached via query cache statistics.
---replace_result $Qcache_queries_in_cache_before <Qcache_queries_in_cache_before> $Qcache_queries_in_cache_after <Qcache_queries_in_cache_after>
-eval SELECT $Qcache_queries_in_cache_before = $Qcache_queries_in_cache_after
-    AS "Was the query not cached (= expectation)?";
-#
-# 2. For Bug 1: Estimation 1
-#               Real sleep time must exceed the sleep time for just one row.
-#
-let $sleep_time_per_result_row = 1;
-let $row_count = 4;
-
 --disable_warnings
-DROP TEMPORARY TABLE IF EXISTS proclist_history;
-DROP           TABLE IF EXISTS t1;
+DROP TEMPORARY TABLE IF EXISTS t_history;
+DROP TABLE IF EXISTS t1;
 --enable_warnings
-CREATE TEMPORARY TABLE proclist_history AS
-SELECT 'Bug 1' AS test, 0 AS attempt, NOW() AS observation_time, state, time
-FROM information_schema.processlist WHERE 1 = 0;
+CREATE TEMPORARY TABLE t_history (attempt SMALLINT,
+start_ts DATETIME, end_ts DATETIME,
+start_cached INTEGER, end_cached INTEGER);
 CREATE TABLE t1 (f1 BIGINT);
-let $num = $row_count;
+let $num = `SELECT @row_count`;
 while ($num)
 {
    INSERT INTO t1 VALUES (1);
    dec $num;
 }
 
-eval SET @sleep_time_per_result_row = $sleep_time_per_result_row;
-let $sleep_command = SELECT sleep(@sleep_time_per_result_row) FROM t1;
-
-# Set wait_timeout to a useful small value.
-let $wait_timeout= `SELECT $row_count * $sleep_time_per_result_row + 5`;
-let $wait_condition =
-    SELECT COUNT(*) >= @sleep_time_per_result_row / 0.1 + 2
-    FROM proclist_history WHERE test = 'Bug 1';
-
---echo ----- establish connection con1 (user = root) -----
-connect (con1,localhost,root,,);
-eval SET @sleep_time_per_result_row = $sleep_time_per_result_row;
-let $Qcache_queries_in_cache_before =
-    query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
---echo Qcache_queries_in_cache: $Qcache_queries_in_cache_before
---echo # Send query with send, pull server responses later
-send;
-eval $sleep_command;
-#
---echo ----- switch to connection default (user = root) -----
-connection default;
-#
---disable_query_log
-let $wait_counter= `SELECT $wait_timeout * 10`;
-let $wait_condition_reps= 0;
-while ($wait_counter)
+let $loops = 4;
+let $num = $loops;
+while ($num)
 {
-   let $success= `$wait_condition`;
-   inc $wait_condition_reps;
+   let $Qcache_queries_in_cache =
+       query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
    eval
-   INSERT INTO proclist_history
-          ( test, attempt, observation_time, state, time)
-   SELECT 'Bug 1', $wait_condition_reps, NOW(), state, time
-   FROM information_schema.processlist 
-   WHERE info = '$sleep_command';
-   if ($success)
-   {
-       let $wait_counter= 0;
-   }
-   if (!$success)
-   {
-       real_sleep 0.1;
-       dec $wait_counter;
-   }
+   INSERT INTO t_history
+   SET attempt = $loops - $num + 1, start_ts = NOW(),
+       start_cached = $Qcache_queries_in_cache;
+   SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+   #
+   # Do not determine Qcache_queries_in_cache before updating end_ts. The SHOW
+   # might cost too much time on an overloaded box.
+   eval
+   UPDATE t_history SET end_ts = NOW()
+   WHERE attempt = $loops - $num + 1;
+   let $Qcache_queries_in_cache =
+          query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
+   eval
+   UPDATE t_history SET end_cached = $Qcache_queries_in_cache
+   WHERE attempt = $loops - $num + 1;
+   # DEBUG eval SELECT * FROM t_history WHERE attempt = $loops - $num + 1;
+   dec $num;
 }
---enable_query_log
-if (!$success)
+
+# 1. The majority of queries with SLEEP must need a reasonable time
+#    -> SLEEP has an impact on runtime
+#       = Replacement for original Bug#6760 test
+#    -> total runtime is clear more needed than for one result row needed
+#       = Replacement for one of the original Bug#12689 tests
+--echo # Test 1: Does the query with SLEEP need a reasonable time?
+eval SELECT COUNT(*) > $loops - 1 INTO @aux1 FROM t_history
+WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
+      BETWEEN 0 AND @max_acceptable_delay;
+SELECT @aux1 AS "Expect 1";
+#
+# 2. The majority of queries (the first one must be ignored) with SLEEP must
+#    need a reasonable time
+#    -> If we assume that the result of a cached query will be sent back
+#       immediate, without any sleep, than the query with SLEEP cannot be cached
+#       (current and intended behaviour for queries with SLEEP).
+#    -> It could be also not excluded that the query was cached but the server
+#       honoured somehow the SLEEP. Such a behaviour would be also acceptable.
+#    = Replacement for one of the original Bug#12689 tests
+--echo # Test 2: Does the query with SLEEP need a reasonable time even in case
+--echo #         of the non first execution?
+eval SELECT COUNT(*) > $loops - 1 - 1 INTO @aux2 FROM t_history
+WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
+      BETWEEN 0 AND @max_acceptable_delay
+      AND attempt > 1;
+SELECT @aux2 AS "Expect 1";
+#
+# 3. The query with SLEEP should be not cached.
+#    -> SHOW STATUS Qcache_queries_in_cache must be not incremented after
+#       the execution of the query with SLEEP
+--echo # Test 3: The query with SLEEP must be not cached.
+eval SELECT COUNT(*) = $loops INTO @aux3 FROM t_history
+WHERE end_cached = start_cached;
+SELECT @aux3 AS "Expect 1";
+#
+# Dump the content of t_history if one of the tests failed.
+if (`SELECT @aux1 + @aux2 + @aux3 <> 3`)
 {
-   # Estimation 1 had no success - We are most probably on a testing box
-   # running under high load.
-   # Try Estimation 2:
-   let $success = `SELECT MAX(time) > @sleep_time_per_result_row
-                  FROM proclist_history WHERE test = 'Bug 1'`;
+   --echo # Some tests failed, dumping the content of t_history
+   SELECT * FROM t_history;
 }
-if (!$success)
-{ 
-   --echo # ------------------------------------------------------------
-   --echo # The check for
-   --echo #    Bug#12689: SLEEP() gets incorrectly cached/optimized-away
-   --echo # failed. None of both estimations are fulfilled.
-   --echo #
-   --echo # Dumping debug information
-   --echo #
-   --echo # Estimation 1:
-   eval $wait_condition;
-   --echo # ------------------------------------------------------------
-   --echo # Estimation 2:
-   SELECT MAX(time) > @sleep_time_per_result_row
-   FROM proclist_history WHERE test = 'Bug 1';
-   --echo # ------------------------------------------------------------
-   SELECT attempt, observation_time, state, time FROM proclist_history
-   WHERE test = 'Bug 1' ORDER BY attempt;
-   --echo # ------------------------------------------------------------
-}
---echo ----- switch to connection con1 (user = root) -----
-connection con1;
---echo # Pull server responses of last query
-reap;
-#
-# 3. For Bug 2: A second execution of the same statement must again show
-#               the session in state 'User sleep'.
---echo ----- switch to connection con1 (user = root) -----
-connection con1;
---echo # Send query with send, pull server responses later
-send;
-eval $sleep_command;
-#
---echo ----- switch to connection default (user = root) -----
-connection default;
-let $wait_condition = SELECT COUNT(*) FROM information_schema.processlist
-                      WHERE info = '$sleep_command'
-                        AND state = 'User sleep';
---source include/wait_condition.inc
-# Simply show that we reached the expected state.
-eval $wait_condition;
---echo ----- switch to connection con1 (user = root) -----
-connection con1;
---echo # Pull server responses of last query
-reap;
---echo ----- switch to connection default and close connection con1 -----
-connection default;
-disconnect con1;
-SET @@global.query_cache_size = default;
 DROP TABLE t1;
-DROP TEMPORARY TABLE proclist_history;
+DROP TEMPORARY TABLE t_history;
+SET @@global.query_cache_size = default;
 
 #
 # Bug #21466: INET_ATON() returns signed, not unsigned
@@ -491,7 +388,7 @@ SELECT NAME_CONST('flag',-SQRT(4)) * MAX(a) FROM t1;
 DROP TABLE t1;
 
 #
-# Bug #27545: erroneous usage of NAME_CONST with a name as the first parameter 
+# Bug #27545: erroneous usage of NAME_CONST with a name as the first parameter
 #             resolved against a column name of a derived table hangs the client
 #
 

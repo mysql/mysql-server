@@ -104,76 +104,99 @@ t1	CREATE TABLE `t1` (
   `length(uuid())` int(10) NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (id int,
-a timestamp default '2005-05-05 01:01:01',
-b timestamp default '2005-05-05 01:01:01');
-insert into t1 set id = 1,a = now();
-select sleep(3);
-sleep(3)
-0
-update t1 set b = now() where id = 1;
-insert into t1 set id = 2,a = now();
-select sleep(3);
-sleep(3)
-0
-update t1 set b = now() where id = 2;
-select count(*) >= 1 from t1
-where timediff(b, a) between '00:00:03' and '00:00:07';
-count(*) >= 1
-1
-drop table t1;
+#------------------------------------------------------------------------
+# Tests for Bug#6760 and Bug#12689
+SET @row_count = 4;
+SET @sleep_time_per_result_row = 1;
+SET @max_acceptable_delay = 2;
 SET @@global.query_cache_size = 1024 * 64;
-SELECT 1 as some_value, sleep(1);
-some_value	sleep(1)
-1	0
-SELECT <Qcache_queries_in_cache_before> = <Qcache_queries_in_cache_before>
-AS "Was the query not cached (= expectation)?";
-Was the query not cached (= expectation)?
-1
-DROP TEMPORARY TABLE IF EXISTS proclist_history;
-DROP           TABLE IF EXISTS t1;
-CREATE TEMPORARY TABLE proclist_history AS
-SELECT 'Bug 1' AS test, 0 AS attempt, NOW() AS observation_time, state, time
-FROM information_schema.processlist WHERE 1 = 0;
+DROP TEMPORARY TABLE IF EXISTS t_history;
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t_history (attempt SMALLINT,
+start_ts DATETIME, end_ts DATETIME,
+start_cached INTEGER, end_cached INTEGER);
 CREATE TABLE t1 (f1 BIGINT);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (1);
-SET @sleep_time_per_result_row = 1;
------ establish connection con1 (user = root) -----
-SET @sleep_time_per_result_row = 1;
-Qcache_queries_in_cache: 0
-# Send query with send, pull server responses later
-SELECT sleep(@sleep_time_per_result_row) FROM t1;
------ switch to connection default (user = root) -----
------ switch to connection con1 (user = root) -----
-# Pull server responses of last query
-sleep(@sleep_time_per_result_row)
-0
-0
-0
-0
------ switch to connection con1 (user = root) -----
-# Send query with send, pull server responses later
-SELECT sleep(@sleep_time_per_result_row) FROM t1;
------ switch to connection default (user = root) -----
-SELECT COUNT(*) FROM information_schema.processlist
-WHERE info = 'SELECT sleep(@sleep_time_per_result_row) FROM t1'
-                        AND state = 'User sleep';
-COUNT(*)
+INSERT INTO t_history
+SET attempt = 4 - 4 + 1, start_ts = NOW(),
+start_cached = 0;
+SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+f1	SLEEP(@sleep_time_per_result_row)
+1	0
+1	0
+1	0
+1	0
+UPDATE t_history SET end_ts = NOW()
+WHERE attempt = 4 - 4 + 1;
+UPDATE t_history SET end_cached = 0
+WHERE attempt = 4 - 4 + 1;
+INSERT INTO t_history
+SET attempt = 4 - 3 + 1, start_ts = NOW(),
+start_cached = 0;
+SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+f1	SLEEP(@sleep_time_per_result_row)
+1	0
+1	0
+1	0
+1	0
+UPDATE t_history SET end_ts = NOW()
+WHERE attempt = 4 - 3 + 1;
+UPDATE t_history SET end_cached = 0
+WHERE attempt = 4 - 3 + 1;
+INSERT INTO t_history
+SET attempt = 4 - 2 + 1, start_ts = NOW(),
+start_cached = 0;
+SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+f1	SLEEP(@sleep_time_per_result_row)
+1	0
+1	0
+1	0
+1	0
+UPDATE t_history SET end_ts = NOW()
+WHERE attempt = 4 - 2 + 1;
+UPDATE t_history SET end_cached = 0
+WHERE attempt = 4 - 2 + 1;
+INSERT INTO t_history
+SET attempt = 4 - 1 + 1, start_ts = NOW(),
+start_cached = 0;
+SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+f1	SLEEP(@sleep_time_per_result_row)
+1	0
+1	0
+1	0
+1	0
+UPDATE t_history SET end_ts = NOW()
+WHERE attempt = 4 - 1 + 1;
+UPDATE t_history SET end_cached = 0
+WHERE attempt = 4 - 1 + 1;
+# Test 1: Does the query with SLEEP need a reasonable time?
+SELECT COUNT(*) > 4 - 1 INTO @aux1 FROM t_history
+WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
+BETWEEN 0 AND @max_acceptable_delay;
+SELECT @aux1 AS "Expect 1";
+Expect 1
 1
------ switch to connection con1 (user = root) -----
-# Pull server responses of last query
-sleep(@sleep_time_per_result_row)
-0
-0
-0
-0
------ switch to connection default and close connection con1 -----
-SET @@global.query_cache_size = default;
+# Test 2: Does the query with SLEEP need a reasonable time even in case
+#         of the non first execution?
+SELECT COUNT(*) > 4 - 1 - 1 INTO @aux2 FROM t_history
+WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
+BETWEEN 0 AND @max_acceptable_delay
+AND attempt > 1;
+SELECT @aux2 AS "Expect 1";
+Expect 1
+1
+# Test 3: The query with SLEEP must be not cached.
+SELECT COUNT(*) = 4 INTO @aux3 FROM t_history
+WHERE end_cached = start_cached;
+SELECT @aux3 AS "Expect 1";
+Expect 1
+1
 DROP TABLE t1;
-DROP TEMPORARY TABLE proclist_history;
+DROP TEMPORARY TABLE t_history;
+SET @@global.query_cache_size = default;
 create table t1 select INET_ATON('255.255.0.1') as `a`;
 show create table t1;
 Table	Create Table
