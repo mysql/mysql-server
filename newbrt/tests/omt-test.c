@@ -3,7 +3,8 @@
 #include <errno.h>
 #include <sys/types.h>
 
-typedef struct value *OMTVALUE;
+// typedef struct value *TESTVALUE;
+typedef struct value *TESTVALUE;
 #include "omt.h"
 #include "../newbrt/memory.h"
 #include "../newbrt/toku_assert.h"
@@ -63,7 +64,7 @@ enum create_type {
 
 /* Globals */
 OMT omt;
-OMTVALUE*       values = NULL;
+TESTVALUE*       values = NULL;
 struct value*   nums   = NULL;
 u_int32_t       length;
 
@@ -97,7 +98,7 @@ void init_identity_values(unsigned int seed, u_int32_t num_elements) {
 
     for (i = 0; i < length; i++) {
         nums[i].number   = i;
-        values[i]        = (OMTVALUE)&nums[i];
+        values[i]        = (TESTVALUE)&nums[i];
     }
 }
 
@@ -111,7 +112,7 @@ void init_distinct_sorted_values(unsigned int seed, u_int32_t num_elements) {
     for (i = 0; i < length; i++) {
         number          += (u_int32_t)(random() % 32) + 1;
         nums[i].number   = number;
-        values[i]        = (OMTVALUE)&nums[i];
+        values[i]        = (TESTVALUE)&nums[i];
     }
 }
 
@@ -220,7 +221,7 @@ void test_create_from_sorted_array(enum create_type create_choice, enum close_wh
     omt = NULL;
 
     if (create_choice == BATCH_INSERT) {
-        r = toku_omt_create_from_sorted_array(&omt, values, length);
+        r = toku_omt_create_from_sorted_array(&omt, (OMTVALUE) values, length);
         CKERR(r);
     }
     else if (create_choice == INSERT_AT) {
@@ -241,16 +242,22 @@ void test_create_from_sorted_array_size(enum create_type create_choice, enum clo
     test_close(close);
 }    
 
-void test_fetch_verify (OMT omtree, OMTVALUE* val, u_int32_t len ) {
+void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
     u_int32_t i;
+    int j;
     int r;
-    OMTVALUE v = (OMTVALUE)&i;
-    OMTVALUE oldv = v;
+    TESTVALUE v = (TESTVALUE)&i;
+    TESTVALUE oldv = v;
+
+    OMTCURSOR c;
+    r = toku_omt_cursor_create(&c);
+    CKERR(r);
+
     assert(len == toku_omt_size(omtree));
     for (i = 0; i < len; i++) {
         assert(oldv!=val[i]);
         v = NULL;
-        r = toku_omt_fetch(omtree, i, &v);
+        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, NULL);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
@@ -258,23 +265,74 @@ void test_fetch_verify (OMT omtree, OMTVALUE* val, u_int32_t len ) {
         assert(v->number == val[i]->number);
 
         v = oldv;
-        r = toku_omt_fetch(omtree, i, &v);
+        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, c);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
         assert(v == val[i]);
         assert(v->number == val[i]->number);
+        assert(toku_omt_cursor_is_valid(c));
+ 
+        v = oldv;
+        r = toku_omt_cursor_current(c, (OMTVALUE) &v);
+        CKERR(r);
+        assert(v != NULL);
+        assert(v != oldv);
+        assert(v == val[i]);
+        assert(v->number == val[i]->number);
+        assert(toku_omt_cursor_is_valid(c));
+
+        v = oldv;
+        j = i + 1;
+        while ((r = toku_omt_cursor_next(c, (OMTVALUE) &v)) == 0) {
+            assert(toku_omt_cursor_is_valid(c));
+            assert(v != NULL);
+            assert(v != oldv);
+            assert(v == val[j]);
+            assert(v->number == val[j]->number);
+            j++;
+            v = oldv;
+        }
+        CKERR2(r, EINVAL);
+        assert(j == (int) len);
+
+        assert(oldv!=val[i]);
+        v = NULL;
+        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, c);
+        CKERR(r);
+        assert(v != NULL);
+        assert(v != oldv);
+        assert(v == val[i]);
+        assert(v->number == val[i]->number);
+
+        v = oldv;
+        j = i - 1;
+        while ((r = toku_omt_cursor_prev(c, (OMTVALUE) &v)) == 0) {
+            assert(toku_omt_cursor_is_valid(c));
+            assert(v != NULL);
+            assert(v != oldv);
+            assert(v == val[j]);
+            assert(v->number == val[j]->number);
+            j--;
+            v = oldv;
+        }
+        CKERR2(r, EINVAL);
+        assert(j == -1);
+
     }
+
     for (i = len; i < len*2; i++) {
         v = oldv;
-        r = toku_omt_fetch(omtree, i, &v);
+        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, NULL);
         CKERR2(r, ERANGE);
         assert(v == oldv);
         v = NULL;
-        r = toku_omt_fetch(omtree, i, &v);
+        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, c);
         CKERR2(r, ERANGE);
         assert(v == NULL);
     }
+
+    toku_omt_cursor_destroy(&c);
 }
 
 void test_create_fetch_verify(enum create_type create_choice, enum close_when_done close) {
@@ -285,22 +343,22 @@ void test_create_fetch_verify(enum create_type create_choice, enum close_when_do
 
 static int iterate_helper_error_return = 1;
 
-int iterate_helper(OMTVALUE v, u_int32_t idx, void* extra) {
+int iterate_helper(TESTVALUE v, u_int32_t idx, void* extra) {
     if (extra == NULL) return iterate_helper_error_return;
-    OMTVALUE* vals = (OMTVALUE *)extra;
+    TESTVALUE* vals = (TESTVALUE *)extra;
     assert(v != NULL);
     assert(v == vals[idx]);
     assert(v->number == vals[idx]->number);
     return 0;
 }
 
-void test_iterate_verify(OMT omtree, OMTVALUE* vals, u_int32_t len) {
+void test_iterate_verify(OMT omtree, TESTVALUE* vals, u_int32_t len) {
     int r;
     iterate_helper_error_return = 0;
-    r = toku_omt_iterate(omtree, iterate_helper, (void*)vals);
+    r = toku_omt_iterate(omtree, (OMTVALUE) iterate_helper, (void*)vals);
     CKERR(r);
     iterate_helper_error_return = 0xFEEDABBA;
-    r = toku_omt_iterate(omtree, iterate_helper, NULL);
+    r = toku_omt_iterate(omtree, (OMTVALUE) iterate_helper, NULL);
     if (!len) {
         CKERR2(r, 0);
     }
@@ -346,7 +404,7 @@ void test_create_set_at(enum create_type create_choice, enum close_when_done clo
     MALLOC_N(length, perm);
     assert(perm);
 
-    OMTVALUE* old_values = NULL;
+    TESTVALUE* old_values = NULL;
     MALLOC_N(length, old_values);
     assert(old_values);
     
@@ -387,8 +445,8 @@ void test_create_set_at(enum create_type create_choice, enum close_when_done clo
     test_close(close);
 }
 
-int insert_helper(OMTVALUE value, void* extra_insert) {
-    OMTVALUE to_insert = (OMTVALUE)extra_insert;
+int insert_helper(TESTVALUE value, void* extra_insert) {
+    TESTVALUE to_insert = (OMTVALUE)extra_insert;
     assert(to_insert);
 
     if (value->number < to_insert->number) return -1;
@@ -411,11 +469,11 @@ void test_create_insert(enum close_when_done close) {
     length = 0;
     while (length < size) {
         u_int32_t choice = perm[length];
-        OMTVALUE to_insert = &nums[choice];
+        TESTVALUE to_insert = &nums[choice];
         u_int32_t idx = UINT32_MAX;
 
         assert(length==toku_omt_size(omt));
-        r = toku_omt_insert(omt, to_insert, insert_helper, to_insert, &idx);
+        r = toku_omt_insert(omt, to_insert, (OMTVALUE) insert_helper, to_insert, &idx);
         CKERR(r);
         assert(idx <= length);
         if (idx > 0) {
@@ -435,7 +493,7 @@ void test_create_insert(enum close_when_done close) {
         test_iterate_verify(omt, values, length);
 
         idx = UINT32_MAX;
-        r = toku_omt_insert(omt, to_insert, insert_helper, to_insert, &idx);
+        r = toku_omt_insert(omt, to_insert, (OMTVALUE) insert_helper, to_insert, &idx);
         CKERR2(r, DB_KEYEXIST);
         assert(idx < length);
         assert(values[idx]->number == to_insert->number);
@@ -588,7 +646,8 @@ typedef struct {
     u_int32_t first_pos;
 } h_extra;
 
-int test_heaviside(OMTVALUE v, void* x) {
+int test_heaviside(OMTVALUE v_omt, void* x) {
+    TESTVALUE v = (OMTVALUE) v_omt;
     h_extra* extra = (h_extra*)x;
     assert(v && x);
     assert(extra->first_zero <= extra->first_pos);
@@ -606,18 +665,23 @@ void heavy_extra(h_extra* extra, u_int32_t first_zero, u_int32_t first_pos) {
 
 void test_find_dir(int dir, void* extra, int (*h)(OMTVALUE, void*),
                    int r_expect, BOOL idx_will_change, u_int32_t idx_expect,
-                   u_int32_t number_expect) {
+                   u_int32_t number_expect, BOOL cursor_valid) {
     u_int32_t idx     = UINT32_MAX;
     u_int32_t old_idx = idx;
-    OMTVALUE omt_val;
+    TESTVALUE omt_val, omt_val_curs;
+    OMTCURSOR c;
     int r;
+    BOOL found;
+
+    r = toku_omt_cursor_create(&c);
+    CKERR(r);
 
     omt_val = NULL;
     if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      &omt_val, &idx);
+        r = toku_omt_find_zero(omt, h, extra,      (OMTVALUE) &omt_val, &idx, c);
     }
     else {
-        r = toku_omt_find(     omt, h, extra, dir, &omt_val, &idx);
+        r = toku_omt_find(     omt, h, extra, dir, (OMTVALUE) &omt_val, &idx, c);
     }
     CKERR2(r, r_expect);
     if (idx_will_change) {
@@ -628,19 +692,42 @@ void test_find_dir(int dir, void* extra, int (*h)(OMTVALUE, void*),
     }
     if (r == DB_NOTFOUND) {
         assert(omt_val == NULL);
+        found = FALSE;
     }
     else {
         assert(omt_val->number == number_expect);
+        found = TRUE;
     }
+ 
+    assert(!cursor_valid == !toku_omt_cursor_is_valid(c));
+    if (cursor_valid) {
+        TESTVALUE tmp;
+        assert(idx_will_change);
+        omt_val_curs = NULL;
+        r = toku_omt_cursor_current(c, (OMTVALUE) &omt_val_curs);
+        CKERR(r);
+        assert(toku_omt_cursor_is_valid(c));
+        r = toku_omt_fetch(omt, idx, (OMTVALUE) &tmp, NULL);
+        CKERR(r);
+        if (found) assert(tmp==omt_val);
+        assert(omt_val_curs != NULL);
+        assert(omt_val_curs == tmp);
+        assert(omt_val_curs->number == tmp->number);
+        if (found) assert(omt_val_curs->number==number_expect);
+    }
+
+    toku_omt_cursor_invalidate(c);
+    assert(!toku_omt_cursor_is_valid(c));
+    toku_omt_cursor_destroy(&c);
 
     /* Verify we can pass NULL value. */
     omt_val = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      NULL, &idx);
+        r = toku_omt_find_zero(omt, h, extra,      NULL, &idx, NULL);
     }
     else {
-        r = toku_omt_find(     omt, h, extra, dir, NULL, &idx);
+        r = toku_omt_find(     omt, h, extra, dir, NULL, &idx, NULL);
     }
     CKERR2(r, r_expect);
     if (idx_will_change) {
@@ -655,10 +742,10 @@ void test_find_dir(int dir, void* extra, int (*h)(OMTVALUE, void*),
     omt_val  = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      &omt_val, NULL);
+        r = toku_omt_find_zero(omt, h, extra,      (OMTVALUE) &omt_val, 0, NULL);
     }
     else {
-        r = toku_omt_find(     omt, h, extra, dir, &omt_val, NULL);
+        r = toku_omt_find(     omt, h, extra, dir, (OMTVALUE) &omt_val, 0, NULL);
     }
     CKERR2(r, r_expect);
     assert(idx == old_idx);
@@ -673,10 +760,10 @@ void test_find_dir(int dir, void* extra, int (*h)(OMTVALUE, void*),
     omt_val  = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      NULL, NULL);
+        r = toku_omt_find_zero(omt, h, extra,      NULL, 0, NULL);
     }
     else {
-        r = toku_omt_find(     omt, h, extra, dir, NULL, NULL);
+        r = toku_omt_find(     omt, h, extra, dir, NULL, 0, NULL);
     }
     CKERR2(r, r_expect);
     assert(idx == old_idx);
@@ -693,9 +780,9 @@ void test_find(enum create_type create_choice, enum close_when_done close) {
         A
 */
     heavy_extra(&extra, length, length);
-    test_find_dir(-1, &extra, test_heaviside, 0,           TRUE,  length-1, length-1);
-    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0,        0);
-    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, TRUE,  length,   length);
+    test_find_dir(-1, &extra, test_heaviside, 0,           TRUE,  length-1, length-1, TRUE);
+    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0,        0,        FALSE);
+    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, TRUE,  length,   length,   FALSE);
 
 
 /*
@@ -703,54 +790,54 @@ void test_find(enum create_type create_choice, enum close_when_done close) {
     B
 */
     heavy_extra(&extra, 0, 0);
-    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0);
-    test_find_dir(+1, &extra, test_heaviside, 0,           TRUE,  0, 0);
-    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, TRUE,  0, 0);
+    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0, FALSE);
+    test_find_dir(+1, &extra, test_heaviside, 0,           TRUE,  0, 0, TRUE);
+    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, TRUE,  0, 0, TRUE);
 
 /*
     0...0
     C
 */
     heavy_extra(&extra, 0, length);
-    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0);
-    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0);
-    test_find_dir(0,  &extra, test_heaviside, 0,           TRUE,  0, 0);
+    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0, FALSE);
+    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0, FALSE);
+    test_find_dir(0,  &extra, test_heaviside, 0,           TRUE,  0, 0, TRUE);
 
 /*
     -...-0...0
         AC
 */
     heavy_extra(&extra, length/2, length);
-    test_find_dir(-1, &extra, test_heaviside, 0,           TRUE,  length/2-1, length/2-1);
-    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0,          0);
-    test_find_dir(0,  &extra, test_heaviside, 0,           TRUE,  length/2,   length/2);
+    test_find_dir(-1, &extra, test_heaviside, 0,           TRUE,  length/2-1, length/2-1, TRUE);
+    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0,          0,          FALSE);
+    test_find_dir(0,  &extra, test_heaviside, 0,           TRUE,  length/2,   length/2,   TRUE);
 
 /*
     0...0+...+
     C    B
 */
     heavy_extra(&extra, 0, length/2);
-    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0);
-    test_find_dir(+1, &extra, test_heaviside, 0,           TRUE,  length/2, length/2);
-    test_find_dir(0,  &extra, test_heaviside, 0,           TRUE,  0,        0);
+    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0,        0,        FALSE);
+    test_find_dir(+1, &extra, test_heaviside, 0,           TRUE,  length/2, length/2, TRUE);
+    test_find_dir(0,  &extra, test_heaviside, 0,           TRUE,  0,        0,        TRUE);
 
 /*
     -...-+...+
         AB
 */
     heavy_extra(&extra, length/2, length/2);
-    test_find_dir(-1, &extra, test_heaviside, 0,           TRUE, length/2-1, length/2-1);
-    test_find_dir(+1, &extra, test_heaviside, 0,           TRUE, length/2,   length/2);
-    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, TRUE, length/2,   length/2);
+    test_find_dir(-1, &extra, test_heaviside, 0,           TRUE, length/2-1, length/2-1, TRUE);
+    test_find_dir(+1, &extra, test_heaviside, 0,           TRUE, length/2,   length/2,   TRUE);
+    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, TRUE, length/2,   length/2,   TRUE);
 
 /*
     -...-0...0+...+
         AC    B
 */    
     heavy_extra(&extra, length/3, 2*length/3);
-    test_find_dir(-1, &extra, test_heaviside, 0, TRUE,   length/3-1,   length/3-1);
-    test_find_dir(+1, &extra, test_heaviside, 0, TRUE, 2*length/3,   2*length/3);
-    test_find_dir(0,  &extra, test_heaviside, 0, TRUE,   length/3,     length/3);
+    test_find_dir(-1, &extra, test_heaviside, 0, TRUE,   length/3-1,   length/3-1, TRUE);
+    test_find_dir(+1, &extra, test_heaviside, 0, TRUE, 2*length/3,   2*length/3,   TRUE);
+    test_find_dir(0,  &extra, test_heaviside, 0, TRUE,   length/3,     length/3,   TRUE);
 
     /* Cleanup */
     test_close(close);

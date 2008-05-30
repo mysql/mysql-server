@@ -607,7 +607,7 @@ void toku_recover_deleteleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_
     node->log_lsn = lsn;
     {
 	OMTVALUE data = 0;
-	r=toku_omt_fetch(node->u.l.buffer, idx, &data);
+	r=toku_omt_fetch(node->u.l.buffer, idx, &data, NULL);
 	assert(r==0);
 	LEAFENTRY oldleafentry=data;
 	u_int32_t  len = leafentry_memsize(oldleafentry);

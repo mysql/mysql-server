@@ -13,8 +13,6 @@
 #include "kv-pair.h"
 #include "leafentry.h"
 
-typedef void* OMTVALUE;
-
 #include "omt.h"
 
 #ifndef BRT_FANOUT

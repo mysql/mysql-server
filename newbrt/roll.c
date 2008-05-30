@@ -55,8 +55,8 @@ static int do_insertion (enum brt_cmd_type type, TXNID xid, FILENUM filenum, BYT
 				data
 				? toku_fill_dbt(&data_dbt, data->data, data->len)
 				: toku_init_dbt(&data_dbt) }};
-    OMTVALUE brtv;
-    r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL);
+    OMTVALUE brtv=NULL; // TODO BBB This is not entirely safe. Verify initialization needed.
+    r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
 
     if (r==DB_NOTFOUND) {
 	r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));

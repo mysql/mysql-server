@@ -49,10 +49,78 @@
 //  Insertion and deletion should run with $O(\log |V|)$ time and $O(\log |V|)$ calls to the Heaviside function.
 //  The memory required is O(|V|).
 //
+
+//**********************************************************************
+//* OMT Cursors
+//**********************************************************************
+
+// OMTs also support cursors.   An OMTCURSOR is a  mutable
+// An OMTCURSOR is a mutable object that, at any moment in time, is
+// either associated with a single OMT or is not associated with any
+// OMT.  Many different OMTCURSORs can be associated with a single OMT.
+
+// We say that an OMTCURSOR is *valid* if it is currently
+// associated with an OMT and has an abstract offset assigned to it.
+// An OMTCURSOR that is not valid is said to be invalid.
+
+// Abstractly, an OMTCURSOR simply contains an integer offset of a
+// particular OMTVALUE.   We call this abstract integer the *offset*.
+// Note, however, that the implementation may use a more
+// complex representation in order to obtain higher performance.
+// (Note: A first implementation might use the integer.)
+
+// Given a valid OMTCURSOR, one
+//  * obtain the OMTVALUE at which the integer points in O(1) time,
+//  * increment or decrement the abstract integer (usually quickly.)
+//    The requirements are that the cursor is initialized to a
+//    randomly chosen valid integer, then the integer can be
+//    incremented in O(1) expected time.
+
+// The OMTCURSOR may become invalidated under several conditions:
+//  * Incrementing or decrementing the abstract integer out of its
+//    valid range invalidates the OMTCURSOR.
+//  * If the OMT is modified, it may invalidate the cursor.
+//  * The user of the OMTCURSOR may explicitly invalidate the cursor.
+//  * The OMT is destroyed (in which case the OMTCURSOR is
+//    invalidated, but not destroyed.)
+
+// Implementation Hint:  One way to implement the OMTCURSOR is with an
+// integer.  The problem is that obtaining the value at which the integer
+// points takes O(\log n) time, which is not fast enough to meet the
+// specification.    However, this implementation is probably much
+// faster than our current implementation because it is O(\log n)
+// integer comparisons instead of O(\log n) key comparisons.  This
+// simple implementation may be the right thing for a first cut.
+//
+// To actually achieve the performance requirements, here's a better
+// implementation:   The OMTCURSOR contains a path from root to leaf.
+// Fetching the current value is O(1) time since the leaf is
+// immediately accessible.   Modifying the path to find the next or
+// previous item has O(1) expected time at a randomly chosen valid
+// point
+//
+// The path can be implemented as an array.  It probably makes sense
+// for the array to by dynamically resized as needed.  Since the
+// array's size is O(log n), it is not necessary to ever shrink the
+// array.  Also, from the perspective of testing, it's probably best
+// if the array is initialized to a short length (e.g., length 4) so
+// that the doubling code is actually exercised.
+
+// One way to implement invalidation is for each OMT to maintain a
+// doubly linked list of OMTCURSORs.  When destroying an OMT or
+// changing the OMT's shape, one can simply step through the list
+// invalidating all the OMTCURSORs.
+
+// The list of OMTCURSORs should use the list.h abstraction.  If it's
+// not clear how to use it, Rich can explain it.
+
 // The programming API:
 
-//typedef struct value *OMTVALUE; // A slight improvement over using void*.
+typedef void *OMTVALUE;
 typedef struct omt *OMT;
+
+typedef struct omtcursor *OMTCURSOR;
+
 
 int toku_omt_create (OMT *omtp);
 // Effect: Create an empty OMT.  Stores it in *omtp.
@@ -175,83 +243,107 @@ int toku_omt_delete_at(OMT omt, u_int32_t index);
 // Rationale: To delete an item, first find its index using toku_omt_find, then delete it.
 // Performance: time=O(\log N) amortized.
 
-
-int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v);
+int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c);
 // Effect: Set *v=V_i
+//   If c != NULL then set c's abstract offset to i.
 // Requires: v   != NULL
 // Returns
 //    0             success
 //    ERANGE        if index>=toku_omt_size(omt)
-// On nonzero return, *v is unchanged.
+//    ENOMEM        if c!=NULL and we run out of memory
+// On nonzero return, *v is unchanged, and c (if nonnull) is either
+//   invalidated or unchanged.
 // Performance: time=O(\log N)
+// Notes: It is possible that c was previously valid and was
+//   associated with a different OMT.   If c is changed by this
+//   function, the function must remove c's association with the old
+//   OMT, and associate it with the new OMT.
 
-int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index);
+int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c);
 // Effect:  Find the smallest i such that h(V_i, extra)>=0
+//   If c != NULL and there is such an i then set c's abstract offset to i.
 //  If there is such an i and h(V_i,extra)==0 then set *index=i and return 0.
 //  If there is such an i and h(V_i,extra)>0  then set *index=i and return DB_NOTFOUND.
-//  If there is no such i then set *index=toku_omt_size(V) and return DB_NOTFOUND.
+//  If there is no such i then set *index=toku_omt_size(V), invalidate the cursor (if not NULL), and return DB_NOTFOUND.
 // Requires: index!=NULL
+// Returns
+//    0             success
+//    ENOMEM        if c!=NULL and we run out of memory
+// Performance: time=O(\log N) (calls to h)
+// Notes: It is possible that c was previously valid and was
+//   associated with a different OMT.   If c is changed by this
+//   function, the function must remove c's association with the old
+//   OMT, and associate it with the new OMT.
+// Future directions: the current implementation can be improved, in some cases, by supporting tail recursion.
+//   This would require an additional parameter that represents the current value of the index where the function is recursing,
+//   so that it becomes similar to the way fetch works.
 
-int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *index);
-/* Effect:
-    If direction >0 then find the smallest i such that h(V_i,extra)>0.
-    If direction <0 then find the largest  i such that h(V_i,extra)<0.
-    (Direction may not be equal to zero.)
-    If value!=NULL then store V_i in *value
-    If index!=NULL then store i in *index.
-   Requires: The signum of h is monotically increasing.
-   Returns
-      0             success
-      DB_NOTFOUND   no such value is found.
-   On nonzero return, *value and *index are unchanged.
-   Performance: time=O(\log N)
-   Rationale:
-     Here's how to use the find function to find various things
-       Cases for find:
-        find first value:         ( h(v)=+1, direction=+1 )
-        find last value           ( h(v)=-1, direction=-1 )
-        find first X              ( h(v)=(v< x) ? -1 : 1    direction=+1 )
-        find last X               ( h(v)=(v<=x) ? -1 : 1    direction=-1 )
-        find X or successor to X  ( same as find first X. )
-
-   Rationale: To help understand heaviside functions and behavor of find:
-    There are 7 kinds of heaviside functions.
-    The signus of the h must be monotonically increasing.
-    Given a function of the following form, A is the element
-    returned for direction>0, B is the element returned
-    for direction<0, C is the element returned for
-    direction==0 (see find_zero) (with a return of 0), and D is the element
-    returned for direction==0 (see find_zero) with a return of DB_NOTFOUND.
-    If any of A, B, or C are not found, then asking for the
-    associated direction will return DB_NOTFOUND.
-    See find_zero for more information.
-    
-    Let the following represent the signus of the heaviside function.
-
-    -...-
-        A
-         D
-
-    +...+
-    B
-    D
-
-    0...0
-    C
-
-    -...-0...0
-        AC
-
-    0...0+...+
-    C    B
-
-    -...-+...+
-        AB
-         D
-
-    -...-0...0+...+
-        AC    B
-*/
+int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *index, OMTCURSOR c);
+// Effect:
+//  If direction >0 then find the smallest i such that h(V_i,extra)>0.
+//  If direction <0 then find the largest  i such that h(V_i,extra)<0.
+//  (Direction may not be equal to zero.)
+//  If value!=NULL then store V_i in *value
+//  If index!=NULL then store i in *index.
+//  If c != NULL and there is such an i then set c's abstract offset to i.
+// Requires: The signum of h is monotically increasing.
+// Performance: time=O(\log N) (calls to h)
+// Returns
+//    0             success
+//    DB_NOTFOUND   no such value is found.
+//    ENOMEM        if c!= NULL and we run out of memory
+// On nonzero return, *value and *index are unchanged, and c (if nonnull) is either
+//   invalidated or unchanged.
+// Notes: It is possible that c was previously valid and was
+//   associated with a different OMT.   If c is changed by this
+//   function, the function must remove c's association with the old
+//   OMT, and associate it with the new OMT.
+// Rationale:
+//   Here's how to use the find function to find various things
+//     Cases for find:
+//      find first value:         ( h(v)=+1, direction=+1 )
+//      find last value           ( h(v)=-1, direction=-1 )
+//      find first X              ( h(v)=(v< x) ? -1 : 1    direction=+1 )
+//      find last X               ( h(v)=(v<=x) ? -1 : 1    direction=-1 )
+//      find X or successor to X  ( same as find first X. )
+//
+// Rationale: To help understand heaviside functions and behavor of find:
+//  There are 7 kinds of heaviside functions.
+//  The signum of the h must be monotonically increasing.
+//  Given a function of the following form, A is the element
+//  returned for direction>0, B is the element returned
+//  for direction<0, C is the element returned for
+//  direction==0 (see find_zero) (with a return of 0), and D is the element
+//  returned for direction==0 (see find_zero) with a return of DB_NOTFOUND.
+//  If any of A, B, or C are not found, then asking for the
+//  associated direction will return DB_NOTFOUND.
+//  See find_zero for more information.
+//  
+//  Let the following represent the signum of the heaviside function.
+//
+//  -...-
+//      A
+//       D
+//
+//  +...+
+//  B
+//  D
+//
+//  0...0
+//  C
+//
+//  -...-0...0
+//      AC
+//
+//  0...0+...+
+//  C    B
+//
+//  -...-+...+
+//      AB
+//       D
+//
+//  -...-0...0+...+
+//      AC    B
 
 
 int toku_omt_split_at(OMT omt, OMT *newomt, u_int32_t index);
@@ -282,7 +374,92 @@ void toku_omt_clear(OMT omt);
 //  Note: Will not resize the array, since void precludes allowing a malloc.
 // Performance: time=O(1)
 
-unsigned long toku_omt_memory_size (OMT omt);
+int toku_omt_cursor_create (OMTCURSOR *p);
+// Effect: Create an OMTCURSOR.  Stores it in *p.  The OMTCURSOR is
+// initially invalid.
+// Requires: p != NULL
+// Returns:
+//   0        success
+//   ENOMEM   out of memory (and doesn't modify *omtp)
+// Performance: constant time.
+
+void toku_omt_cursor_destroy (OMTCURSOR *p);
+// Effect:  Invalidates *p (if it is valid) and frees any memory
+// associated with *p.
+//  Also sets *p=NULL.
+// Requires: *p != NULL
+// Rationale:  The usage is to do something like
+//   toku_omt_cursor_destroy(&c);
+// and now c will have a NULL pointer instead of a dangling freed pointer.
+// Rationale: Returns no values since free() cannot fail.
+// Performance:  time=O(1) x #calls to free
+
+int toku_omt_cursor_is_valid (OMTCURSOR c);
+// Effect:  returns 0 iff c is invalid.
+// Performance:  time=O(1)
+
+int toku_omt_cursor_next (OMTCURSOR c, OMTVALUE *v);
+// Effect: Increment c's abstract offset, and store the corresponding value in v.
+// Requires: v != NULL
+// Returns
+//   0 success
+//   EINVAL if the offset goes out of range or c is invalid.
+// On nonzero return, *v is unchanged and c is invalidated.
+// Performance:  time=O(log N) worst case, expected time=O(1) for a randomly
+//  chosen initial position.
+
+int toku_omt_cursor_current (OMTCURSOR c, OMTVALUE *v);
+// Effect: Store in v the value pointed by c's abstract offset
+// Requires: v != NULL
+// Returns
+//  0 success
+//  EINVAL if c is invalid
+// On non-zero return, *v is unchanged
+// Performance: O(1) time
+
+int toku_omt_cursor_prev (OMTCURSOR c, OMTVALUE *v);
+// Effect: Decrement c's abstract offset, and store the corresponding value in v.
+// Requires: v != NULL
+// Returns
+//   0 success
+//   EINVAL if the offset goes out of range or c is invalid.
+// On nonzero return, *v is unchanged and c is invalidated.
+// Performance:  time=O(log N) worst case, expected time=O(1) for a randomly
+//  chosen initial position.
+
+void toku_omt_cursor_invalidate (OMTCURSOR c);
+// Effect: Invalidate c.  (This does not mean that c is destroyed or
+// that its memory is freed.)
+
+// Usage Hint:   The OMTCURSOR is designed to be used inside the
+// BRTcursor.   A BRTcursor includes a pointer to an OMTCURSOR, which
+// is created when the BRTcursor is created.
+//
+// The brt cursor implements its search by first finding a leaf node,
+// containing an OMT.  The BRT then passes its OMTCURSOR into the lookup
+// method (i.e., one of toku_ebdomt_fetch, toku_omt_find_zero,
+// toku_omt_find).  The lookup method, if successful, sets the
+// OMTCURSOR to refer to that element.
+//
+// As long as the OMTCURSOR remains valid, a BRTCURSOR next or prev
+// operation can be implemented using next or prev on the OMTCURSOR.
+//
+// If the OMTCURSOR becomes invalidated, then the BRT must search
+// again from the root of the tree.   The only error that an OMTCURSOR
+// next operation  can raise is that it is invalid.
+//
+// If an element is inserted into the BRT, it may cause an OMTCURSOR
+// to become invalid.  This is especially true if the element will end
+// up in the OMT associated with the cursor.  A simple implementation
+// is to invalidate all OMTCURSORS any time anything is inserted into
+// into the BRT.  Since the BRT already contains a list of BRT cursors
+// associated with it, it is straightforward to go through that list
+// and invalidate all the cursors.
+//
+// When the BRT closes a cursor, it destroys the OMTCURSOR.
+
+
+size_t toku_omt_memory_size (OMT omt);
 // Effect: Return the size (in bytes) of the omt, as it resides in main memory.  Don't include any of the OMTVALUES.
 
 #endif  /* #ifndef OMT_H */
