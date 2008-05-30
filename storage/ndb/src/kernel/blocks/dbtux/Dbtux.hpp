@@ -451,6 +451,7 @@ private:
   };
   typedef Ptr<Index> IndexPtr;
   ArrayPool<Index> c_indexPool;
+  RSS_AP_SNAPSHOT(c_indexPool);
 
   /*
    * Fragment of an index, as known to DIH/TC.  Represents the two
@@ -481,6 +482,7 @@ private:
   };
   typedef Ptr<Frag> FragPtr;
   ArrayPool<Frag> c_fragPool;
+  RSS_AP_SNAPSHOT(c_fragPool);
 
   /*
    * Fragment metadata operation.
@@ -500,6 +502,7 @@ private:
   };
   typedef Ptr<FragOp> FragOpPtr;
   ArrayPool<FragOp> c_fragOpPool;
+  RSS_AP_SNAPSHOT(c_fragOpPool);
 
   // node handles
 
