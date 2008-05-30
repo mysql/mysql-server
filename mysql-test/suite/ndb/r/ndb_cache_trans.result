@@ -1,4 +1,4 @@
-result_format 2;
+result_format: 2
 drop table if exists t1;
 set GLOBAL query_cache_type=on;
 set GLOBAL query_cache_size=1355776;
