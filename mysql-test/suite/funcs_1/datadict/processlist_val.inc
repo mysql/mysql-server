@@ -34,7 +34,11 @@
 #                   WL#3982 Test information_schema.processlist        #
 # 2008-01-05 HHunger Changed time test and long statement test.        #
 #                    It could happen that the long statement test      #
-#                    fail due to timing problems.                      #          #                                                                      #
+#                    fail due to timing problems.                      #
+# 2008-04-14 pcrews Changed --replace_columns to include host          #
+#                   this is due to failure occurring on Windows        #
+#                   Win results included port number as well causing   #
+#                   test failures                                      # 
 ########################################################################
 
 # Basic preparations
@@ -76,9 +80,9 @@ SHOW FULL PROCESSLIST;
 #
 # Expect to see now DB = 'information_schema'
 USE information_schema;
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 SHOW FULL PROCESSLIST;
 #
 # Expect to see now INFO = 'SELECT INFO FROM INFORMATION_SCHEMA.PROCESSLIST;'
@@ -123,7 +127,7 @@ let $wait_timeout= 4;
 let $wait_condition= SELECT id,user,host,db,command,@time2:=time,state,info FROM INFORMATION_SCHEMA.PROCESSLIST
         WHERE TIME > @time;
 --source include/wait_condition.inc
-# 
+#
 # Expect to hit TIME > @time
 SELECT @time < @time2;
 #
@@ -139,9 +143,9 @@ WHERE USER = 'ddicttestuser1';
 --echo
 --echo ----- switch to connection ddicttestuser1 (user = ddicttestuser1) -----
 connection ddicttestuser1;
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 SHOW FULL PROCESSLIST;
 
 
@@ -156,9 +160,9 @@ connect (con2,localhost,ddicttestuser1,ddictpass,information_schema);
 let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
         WHERE COMMAND = 'Sleep';
 --source include/wait_condition.inc
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 SHOW FULL PROCESSLIST;
 #
 --echo
@@ -285,9 +289,9 @@ let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
 #
 # Expect to see the state 'Locked' for the second connection because the SELECT
 # collides with the WRITE TABLE LOCK.
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 SHOW FULL PROCESSLIST;
 UNLOCK TABLES;
 #

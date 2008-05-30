@@ -1,0 +1,53 @@
+'#---------------------BS_STVARS_049_01----------------------#'
+SELECT COUNT(@@GLOBAL.ssl_key);
+COUNT(@@GLOBAL.ssl_key)
+1
+1 Expected
+'#---------------------BS_STVARS_049_02----------------------#'
+SET @@GLOBAL.ssl_key=1;
+ERROR HY000: Variable 'ssl_key' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.ssl_key);
+COUNT(@@GLOBAL.ssl_key)
+1
+1 Expected
+'#---------------------BS_STVARS_049_03----------------------#'
+SELECT @@GLOBAL.ssl_key = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='ssl_key';
+@@GLOBAL.ssl_key = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.ssl_key);
+COUNT(@@GLOBAL.ssl_key)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='ssl_key';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_049_04----------------------#'
+SELECT @@ssl_key = @@GLOBAL.ssl_key;
+@@ssl_key = @@GLOBAL.ssl_key
+1
+1 Expected
+'#---------------------BS_STVARS_049_05----------------------#'
+SELECT COUNT(@@ssl_key);
+COUNT(@@ssl_key)
+1
+1 Expected
+SELECT COUNT(@@local.ssl_key);
+ERROR HY000: Variable 'ssl_key' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.ssl_key);
+ERROR HY000: Variable 'ssl_key' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.ssl_key);
+COUNT(@@GLOBAL.ssl_key)
+1
+1 Expected
+SELECT ssl_key = @@SESSION.ssl_key;
+ERROR 42S22: Unknown column 'ssl_key' in 'field list'
+Expected error 'Readonly variable'

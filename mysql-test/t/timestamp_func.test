@@ -1,0 +1,79 @@
+############# mysql-test\t\timestamp_func.test #############################
+#                                                                          #
+# Variable Name: timestamp                                                 #
+# Scope: GLOBAL                                                            #
+# Access Type: Dynamic                                                     #
+# Data Type: INTEGER                                                       #
+#                                                                          #
+#                                                                          #
+# Creation Date: 2008-02-25                                                #
+# Author:  Sharique Abdullah                                               #
+#                                                                          #
+# Description: Test Cases of Dynamic System Variable "timestamp"           #
+#              that checks behavior of this variable in the following ways #
+#              * Functionality based on different values                   #
+#                                                                          #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html        #
+#                                                                          #
+############################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+--echo ** Connecting con0 using root **
+connect (con0,localhost,root,,);
+--echo ** Connecting con1 using root **
+connect (con1, localhost, root,,);
+
+--echo '#-----------------------------FN_DYNVARS_179_01------------------#'
+#
+# Checking for connection 1
+#
+
+--echo ** Connection con0 **
+connection con0;
+SET @ts_old = @@SESSION.timestamp;
+--echo waiting 1 sec
+--sleep 1
+SET @ts_new = @@SESSION.timestamp;
+SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
+--echo 1 means >=1 expected is true
+
+
+#
+# Checking for connection 2
+#
+--echo ** Connection con1 **
+connection con1;
+SET @ts_old = @@SESSION.timestamp;
+--echo waiting 4 sec
+--sleep 4
+SET @ts_new = @@SESSION.timestamp;
+SELECT @ts_new - @ts_old >= 4 AS 'Timestamp Difference';
+--echo 1 means >=4 expected is true
+
+--echo '#-----------------------------FN_DYNVARS_179_02---------------------#'
+#
+# Testing timezone change effect
+#
+
+SET @ts_old = @@SESSION.timestamp;
+--sleep 1
+--echo Changing time zone
+SET time_zone = 'MET';
+SET @ts_new = @@SESSION.timestamp;
+SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
+--echo 1 means >=1 expected is true
+
+#
+# Cleanup
+#
+--echo ** Cleanup **
+
+--echo ** Connection default **
+connection default;
+--echo Disconnecting Connections con0, con1
+disconnect con0;
+disconnect con1;

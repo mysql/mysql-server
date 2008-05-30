@@ -3256,7 +3256,7 @@ void Item_func_group_concat::clear()
   no_appended= TRUE;
   if (tree)
     reset_tree(tree);
-  if (distinct)
+  if (unique_filter)
     unique_filter->reset();
   /* No need to reset the table as we never call write_row */
 }

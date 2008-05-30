@@ -1,0 +1,124 @@
+################# mysql-test\t\max_join_size_func.test ########################
+#                                                                             #
+# Variable Name: max_join_size                                                #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: 4294967295                                                   #
+# Range:  1-4294967295                                                        #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-07                                                   #
+# Author:  Salman Rawala                                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable max_join_size            #
+#              that checks the functionality of this variable                 #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+##############################
+#   Creating two new tables  #
+##############################
+
+--echo ## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+
+--echo ## Creating another table t2 ##
+CREATE TABLE t2
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+
+#########################################
+#   Inserting some data in both tables  #
+#########################################
+
+--echo ## Inserting records in both the tables ##
+INSERT INTO t1(name) VALUES('Record_1');
+INSERT INTO t1(name) VALUES('Record_2');
+INSERT INTO t1(name) VALUES('Record_3');
+INSERT INTO t1(name) VALUES('Record_4');
+INSERT INTO t1(name) VALUES('Record_5');
+
+INSERT INTO t2(name) VALUES('Record_1_1');
+INSERT INTO t2(name) VALUES('Record_2_1');
+INSERT INTO t2(name) VALUES('Record_3_1');
+INSERT INTO t2(name) VALUES('Record_4_1');
+INSERT INTO t2(name) VALUES('Record_5_1');
+
+
+--echo '#--------------------FN_DYNVARS_079_01-------------------------#'
+#######################################################################
+#   Verifying case where max_join_size is greater than the join size  #
+#######################################################################
+
+
+--echo ## Setting max_join size value to 10 ## 
+SET @@session.max_join_size=10;
+
+--echo ## This should work ##
+SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id;
+
+
+--echo '#--------------------FN_DYNVARS_079_02-------------------------#'
+####################################################################
+#   Verifying case where max_join_size is less than the join size  #
+####################################################################
+
+--echo ## Creating new connection test_con1 ##
+connect (test_con1, localhost, root,,);
+connection test_con1;
+
+--echo ## Setting value of max_join_size ## 
+SET @@session.max_join_size=8;
+
+--echo ## Since total joins are more than max_join_size value so error will occur ##
+--Error ER_TOO_BIG_SELECT
+SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id;
+
+
+--echo '#--------------------FN_DYNVARS_079_03-------------------------#'
+##########################################################
+#   Verifying behavior of max_join_size on global scope  #
+##########################################################
+
+--echo ## Setting global value of variable ##
+SET @@global.max_join_size=8;
+
+--echo ## Creating and switching to new connection test_con2 ## 
+connect (test_con2, localhost, root,,);
+connection test_con2;
+
+--echo ## Verifying value of max_join_size ##
+SELECT @@global.max_join_size;
+
+--echo ## Since total joins are more than max_join_size value so error will occur ## 
+--Error ER_TOO_BIG_SELECT
+SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id;
+
+--echo ## Dropping both the tables ##
+Drop table t1, t2;
+
+--echo ## Restoring values ##
+SET @@global.max_join_size = DEFAULT;
+SET @@session.max_join_size = DEFAULT;
+
+--echo ## Dropping connections ##
+disconnect test_con1;
+disconnect test_con2;
+

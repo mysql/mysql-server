@@ -398,6 +398,18 @@ drop table t1|
 drop event e1|
 delimiter ;|
 
+#
+# Bug#21432 Database/Table name limited to 64 bytes, not chars, problems with multi-byte
+#
+set names utf8;
+create event имя_события_в_кодировке_утф8_длиной_больше_чем_48 on schedule every 2 year do select 1;
+select EVENT_NAME from information_schema.events
+where event_schema='test';
+drop event имя_события_в_кодировке_утф8_длиной_больше_чем_48;
+--error 1059
+create event
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66
+on schedule every 2 year do select 1;
 
 # 
 # End of tests

@@ -1655,16 +1655,6 @@ Table	Create Table
 show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
 View	Create View	character_set_client	collation_connection
 имя_вью_кодировке_утф8_длиной_больше_чем_42	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `имя_вью_кодировке_утф8_длиной_больше_чем_42` AS select `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`.`имя_поля_в_кодировке_утф8_длиной_больше_чем_45` AS `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` from `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`	utf8	utf8_general_ci
-create event имя_события_в_кодировке_утф8_длиной_больше_чем_48 on schedule every 2 year do select 1;
-select EVENT_NAME from information_schema.events
-where event_schema='test';
-EVENT_NAME
-имя_события_в_кодировке_утф8_длиной_больше_чем_48
-drop event имя_события_в_кодировке_утф8_длиной_больше_чем_48;
-create event
-очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66
-on schedule every 2 year do select 1;
-ERROR 42000: Identifier name 'очень_очень_очень_очень_очень_очень_очень_очень_длинна' is too long
 create trigger имя_триггера_в_кодировке_утф8_длиной_больше_чем_49
 before insert on имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48 for each row set @a:=1;
 select TRIGGER_NAME from information_schema.triggers where

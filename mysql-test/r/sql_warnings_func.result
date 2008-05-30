@@ -1,0 +1,49 @@
+** Setup **
+
+SET @default_sql_warnings = @@sql_warnings;
+CREATE TEMPORARY TABLE t1(a varchar(5), b varchar(20));
+'#-----------------------------FN_DYNVARS_167_01------------#'
+SET @@sql_warnings = DEFAULT;
+affected rows: 0
+INSERT INTO t1 VALUES('abcdef', 'val1');
+affected rows: 1
+'#-----------------------------FN_DYNVARS_167_02------------------#'
+SET @@sql_warnings = 0;
+affected rows: 0
+INSERT INTO t1 VALUES('abcdef', 'val1');
+affected rows: 1
+'#-----------------------------FN_DYNVARS_167_03---------------#'
+SET @@sql_warnings = 1;
+affected rows: 0
+INSERT INTO t1 VALUES('abcdef', 'val1');
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 1
+'#----------------------------FN_DYNVARS_167_04---------------#'
+** Connecting con_int1 using root **
+** Connection con_int1 **
+SELECT @@SESSION.sql_warnings;
+@@SESSION.sql_warnings
+0
+0 / FALSE Expected
+SET SESSION sql_warnings = FALSE;
+** Connecting con_int2 using root **
+** Connection con_int2 **
+SELECT @@SESSION.sql_warnings;
+@@SESSION.sql_warnings
+0
+0 / FALSE Expected
+SET SESSION sql_warnings = TRUE;
+** Connection con_int2 **
+SELECT @@SESSION.sql_warnings;
+@@SESSION.sql_warnings
+1
+1 / TRUE Expected
+** Connection con_int1 **
+SELECT @@SESSION.sql_warnings;
+@@SESSION.sql_warnings
+0
+0 / FALSE Expected
+** Connection default **
+Disconnecting Connections con_int1, con_int2
+DROP TABLE t1;
+SET @@sql_warnings = @default_sql_warnings;

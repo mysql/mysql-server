@@ -47,8 +47,7 @@ START SLAVE;
 # Column 1 is replaced, since the output can be either
 # "Connecting to master" or "Waiting for master update"
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 # 35 # 36 #
---vertical_results
-SHOW SLAVE STATUS;
+query_vertical SHOW SLAVE STATUS;
 
 # Cleanup (Note that slave IO thread is not running)
 --connection slave

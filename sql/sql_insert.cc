@@ -3720,7 +3720,7 @@ void select_create::abort()
   select_insert::abort();
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   reenable_binlog(thd);
-
+  thd->binlog_flush_pending_rows_event(TRUE);
 
   if (m_plock)
   {

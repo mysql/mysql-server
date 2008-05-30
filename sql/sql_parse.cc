@@ -200,45 +200,56 @@ void init_update_queries(void)
 {
   bzero((uchar*) &sql_command_flags, sizeof(sql_command_flags));
 
-  sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_BACKUP_TABLE]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RESTORE_TABLE]=  CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA;
 
-  sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE;
 
-  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_TRIGGERS]=    CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_EVENTS]=      CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_OPEN_TABLES]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_TRIGGERS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_EVENTS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_OPEN_TABLES]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_PLUGINS]=     CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_FIELDS]=      CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_KEYS]=        CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_FIELDS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_KEYS]=        CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_NEW_MASTER]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOGS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
@@ -262,7 +273,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_PROC_CODE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_FUNC_CODE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]=  CF_STATUS_COMMAND;
@@ -270,9 +281,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_PROFILE]= CF_STATUS_COMMAND;
 
    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
-                                               CF_SHOW_TABLE_COMMAND);
+                                                 CF_SHOW_TABLE_COMMAND |
+                                                 CF_REEXECUTION_FRAGILE);
   sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
-                                                CF_SHOW_TABLE_COMMAND);
+                                                CF_SHOW_TABLE_COMMAND |
+                                                CF_REEXECUTION_FRAGILE);
 
   /*
     The following is used to preserver CF_ROW_COUNT during the
@@ -280,7 +293,7 @@ void init_update_queries(void)
     last called (or executed) statement is preserved.
     See mysql_execute_command() for how CF_ROW_COUNT is used.
   */
-  sql_command_flags[SQLCOM_CALL]= 		CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_CALL]= 		CF_HAS_ROW_COUNT | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_EXECUTE]= 		CF_HAS_ROW_COUNT;
 
   /*
@@ -901,8 +914,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
-  thd->server_status&=
-           ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
+  /**
+    Clear the set of flags that are expected to be cleared at the
+    beginning of each command.
+  */
+  thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1998,7 +2014,12 @@ mysql_execute_command(THD *thd)
   DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
   
   switch (lex->sql_command) {
+
   case SQLCOM_SHOW_EVENTS:
+#ifndef HAVE_EVENT_SCHEDULER
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "embedded server");
+    break;
+#endif
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
     res= execute_sqlcom_select(thd, all_tables);
@@ -3301,6 +3322,7 @@ end_with_restore_list:
         can free its locks if LOCK TABLES locked some tables before finding
         that it can't lock a table in its list
       */
+      ha_autocommit_or_rollback(thd, 1);
       end_active_trans(thd);
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
@@ -3482,6 +3504,7 @@ end_with_restore_list:
   }
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
+  #ifdef HAVE_EVENT_SCHEDULER
   do
   {
     DBUG_ASSERT(lex->event_parse_data);
@@ -3535,6 +3558,10 @@ end_with_restore_list:
                                   lex->drop_if_exists)))
       my_ok(thd);
     break;
+#else
+    my_error(ER_NOT_SUPPORTED_YET,MYF(0),"embedded server");
+    break;
+#endif
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
@@ -4304,20 +4331,6 @@ create_sp_error:
       }
       break;
     }
-#ifdef NOT_USED
-  case SQLCOM_SHOW_STATUS_PROC:
-    {
-      res= sp_show_status_routine(thd, TYPE_ENUM_PROCEDURE,
-                                  (lex->wild ? lex->wild->ptr() : NullS));
-      break;
-    }
-  case SQLCOM_SHOW_STATUS_FUNC:
-    {
-      res= sp_show_status_routine(thd, TYPE_ENUM_FUNCTION,
-                                  (lex->wild ? lex->wild->ptr() : NullS));
-      break;
-    }
-#endif
 #ifndef DBUG_OFF
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_FUNC_CODE:
@@ -5367,9 +5380,11 @@ void mysql_reset_thd_for_next_command(THD *thd)
 
   thd->query_start_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
-  thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
-                          SERVER_QUERY_NO_INDEX_USED |
-                          SERVER_QUERY_NO_GOOD_INDEX_USED);
+  /*
+    Clear the status flag that are expected to be cleared at the
+    beginning of each SQL statement.
+  */
+  thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
   /*
     If in autocommit mode and not in a transaction, reset
     OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG to not get warnings

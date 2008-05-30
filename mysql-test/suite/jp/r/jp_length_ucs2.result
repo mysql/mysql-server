@@ -7,9 +7,6 @@ drop table if exists `£Τ£¶`;
 drop table if exists `£Τ£·`;
 drop table if exists `£Τ£Έ`;
 drop table if exists `£Τ£Ή`;
-drop table if exists `£Τ£±£°`;
-drop table if exists `£Τ£±£±`;
-drop table if exists `£Τ£±£²`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
 SET collation_connection = ucs2_general_ci;
@@ -19,12 +16,9 @@ CREATE TABLE `£Τ£³` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engin
 CREATE TABLE `£Τ£΄` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£µ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£¶` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
-CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£±£°` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£±` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£²` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
 INSERT INTO `£Τ£±` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
 INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
 INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
@@ -34,9 +28,6 @@ INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('
 INSERT INTO `£Τ£·` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
 INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
 INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
 SELECT `£Γ£±`, LENGTH(`£Γ£±`) FROM `£Τ£±`;
 £Γ£±	LENGTH(`£Γ£±`)
 	0
@@ -109,30 +100,6 @@ SELECT `£Γ£±`, LENGTH(`£Γ£±`) FROM `£Τ£Ή`;
 νάνέ	4
 νά	2
 	0
-SELECT `£Γ£±`, LENGTH(`£Γ£±`) FROM `£Τ£±£°`;
-£Γ£±	LENGTH(`£Γ£±`)
-±²³΄µ	10
-±²³΄	8
-±²³	6
-±²	4
-±	2
-	0
-SELECT `£Γ£±`, LENGTH(`£Γ£±`) FROM `£Τ£±£±`;
-£Γ£±	LENGTH(`£Γ£±`)
-¤Ά¤¤¤¦¤¨¤ª	10
-¤Ά¤¤¤¦¤¨	8
-¤Ά¤¤¤¦	6
-¤Ά¤¤	4
-¤Ά	2
-	0
-SELECT `£Γ£±`, LENGTH(`£Γ£±`) FROM `£Τ£±£²`;
-£Γ£±	LENGTH(`£Γ£±`)
-νάνένήνίνΰ	10
-νάνένήνί	8
-νάνένή	6
-νάνέ	4
-νά	2
-	0
 DROP TABLE `£Τ£±`;
 DROP TABLE `£Τ£²`;
 DROP TABLE `£Τ£³`;
@@ -142,6 +109,3 @@ DROP TABLE `£Τ£¶`;
 DROP TABLE `£Τ£·`;
 DROP TABLE `£Τ£Έ`;
 DROP TABLE `£Τ£Ή`;
-DROP TABLE `£Τ£±£°`;
-DROP TABLE `£Τ£±£±`;
-DROP TABLE `£Τ£±£²`;

@@ -1,0 +1,325 @@
+################### mysql-test\t\time_zone_basic.test #########################
+#                                                                             #
+# Variable Name: time_zone                                                    #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value: SYSTEM                                                       #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable time_zone                #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+#######################################################################
+#                    START OF time_zone TESTS                         #
+####################################################################### 
+
+
+####################################################################### 
+#      Saving initial value of time_zone in a temporary variable      #
+#######################################################################
+
+SET @global_start_value = @@global.time_zone;
+SELECT @global_start_value;
+
+SET @session_start_value = @@session.time_zone;
+SELECT @session_start_value;
+
+
+--echo '#--------------------FN_DYNVARS_001_01------------------------#'
+######################################################################## 
+#                    Display the DEFAULT value of time_zone            #
+######################################################################## 
+
+SET @@time_zone = "+02:00";
+SET @@time_zone = DEFAULT;
+SELECT @@time_zone;
+
+SET @@global.time_zone = "-00:30";
+SET @@global.time_zone = DEFAULT;
+SELECT @@global.time_zone;
+
+
+--echo '#---------------------FN_DYNVARS_001_02-------------------------#'
+##############################################################################
+#     see if setting global value changes session value and vice versa       #
+##############################################################################
+
+SET @@session.time_zone = "+02:00";
+SELECT @@session.time_zone;
+SET @@global.time_zone = "+05:00";
+SELECT @@global.time_zone;
+SELECT @@session.time_zone AS res_is_02_00;
+
+SET @@session.time_zone = "-02:00";
+SELECT @@session.time_zone;
+SELECT @@global.time_zone AS res_is_05_00;
+# composite check
+SELECT @@global.time_zone=@@session.time_zone AS res_is_false;
+
+
+--echo '#--------------------FN_DYNVARS_001_03------------------------#'
+######################################################################## 
+#              Change the value of time_zone to a valid value          #
+######################################################################## 
+
+# for session scope
+
+SET @@time_zone = "+13:00";
+SELECT @@time_zone;
+SET @@time_zone = "-12:00";
+SELECT @@time_zone;
+SET @@time_zone = "+12:59";
+SELECT @@time_zone;
+SET @@time_zone = "-11:30";
+SELECT @@time_zone;
+SET @@time_zone = "+00:00";
+SELECT @@time_zone;
+SET @@time_zone = "-12:59";
+SELECT @@time_zone;
+SET @@time_zone = "-00:00";
+SELECT @@time_zone;
+SET @@time_zone = "+10:00";
+SELECT @@time_zone;
+SET @@time_zone = "+0:0";
+SELECT @@time_zone;
+SET @@time_zone = "-10:00";
+SELECT @@time_zone;
+SET @@time_zone = "+2:00";
+SELECT @@time_zone;
+
+# for global scope
+
+SET @@global.time_zone = "+13:00";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "-12:00";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "+12:59";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "-11:30";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "+00:00";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "-12:59";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "-00:00";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "+10:00";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "+0:0";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "-10:00";
+SELECT @@global.time_zone;
+SET @@global.time_zone = "+2:00";
+SELECT @@global.time_zone;
+
+
+# these test are dependant on values stored in mysql.time_zone_name
+
+#SET @@time_zone = "africa/cairo";
+#SELECT @@time_zone;
+#SET @@time_zone = "America/Aruba";
+#SELECT @@time_zone;
+#
+#SET @@time_zone = "Etc/GMT-14";
+#SELECT @@time_zone;
+#
+#SET @@time_zone = "GMT-0";
+#SELECT @@time_zone;
+#
+#SET @@time_zone = "UTC";
+#SELECT @@time_zone;
+
+#--echo 'Bug: Region and zone values cant be set in time_zone. Although values are loaded in mysql.time_zone_name'
+
+--echo '#--------------------FN_DYNVARS_001_04-------------------------#'
+########################################################################### 
+#               Change the value of time_zone to invalid value            #
+########################################################################### 
+
+# for session scope
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@time_zone = "+24:00";
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@time_zone = "+23:59";
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@time_zone = "+13:01";
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@time_zone = "-13:01";
+
+# for global scope
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@global.time_zone = "+24:00";
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@global.time_zone = "+23:59";
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@global.time_zone = "+13:01";
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@global.time_zone = "-13:01";
+
+
+#checking time zone names not in mysql.time_zone_name. These test may succeed
+#depending on timezone stored
+
+#SET @@time_zone = "london";
+#SELECT @@time_zone;
+#
+#SET @@time_zone = "GMT+14";
+#SELECT @@time_zone;
+
+
+--echo '#-------------------FN_DYNVARS_001_05----------------------------#'
+########################################################################### 
+#           Assign System time zone to variable for session and global    #
+########################################################################### 
+
+SET @@global.time_zone = 'SYSTEM';
+SELECT @@global.time_zone;
+
+SET @@time_zone = 'SYSTEM';
+SELECT @@time_zone;
+
+--echo '#----------------------FN_DYNVARS_001_06------------------------#'
+######################################################################### 
+#     Check if the value in SESSION Table matches value in variable     #
+#########################################################################
+
+SELECT @@time_zone = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='time_zone';
+
+
+--echo '#----------------------FN_DYNVARS_001_07------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable     #
+#########################################################################
+
+SELECT @@global.time_zone = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='time_zone';
+
+
+--echo '#---------------------FN_DYNVARS_001_08-------------------------#'
+############################################################################# 
+#        Check if ON, OFF, TRUE and FALSE values can be used on variable    #
+############################################################################# 
+# for session scope
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@time_zone = OFF;
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@time_zone = ON;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@time_zone = TRUE;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@time_zone = FALSE;
+
+# for global scope
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@global.time_zone = OFF;
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@global.time_zone = ON;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.time_zone = TRUE;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.time_zone = FALSE;
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+##################################################################### 
+#      Check if Numbers and empty values can be used on variable    #
+##################################################################### 
+# for session scope
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@time_zone = 1;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@time_zone = +0200;
+
+--Error ER_PARSE_ERROR
+SET @@time_zone = GMT+;
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@time_zone = "";
+
+# for global scope
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.time_zone = 1;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.time_zone = +0200;
+
+--Error ER_PARSE_ERROR
+SET @@global.time_zone = GMT+;
+
+--Error ER_UNKNOWN_TIME_ZONE
+SET @@global.time_zone = "";
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points
+#    to same session variable  
+##############################################################################
+
+SET @@time_zone = '+02:30';
+SELECT @@time_zone = @@local.time_zone and @@time_zone = @@session.time_zone;
+SET @@time_zone = '-01:30';
+SELECT @@time_zone = @@local.time_zone and @@time_zone = @@session.time_zone;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+####################################################################
+#   Check if time_zone can be accessed with and without @@ sign    #
+####################################################################
+
+SET time_zone = "+01:00";
+SELECT @@time_zone;
+--Error ER_UNKNOWN_TABLE
+SELECT local.time_zone;
+--Error ER_UNKNOWN_TABLE
+SELECT session.time_zone;
+--Error ER_BAD_FIELD_ERROR
+SELECT time_zone = @@session.time_zone;
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@time_zone = @session_start_value;
+SELECT @@time_zone;
+
+SET @@global.time_zone = @global_start_value;
+SELECT @@global.time_zone;
+
+#######################################################################
+#                    END OF time_zone TESTS                           #
+####################################################################### 

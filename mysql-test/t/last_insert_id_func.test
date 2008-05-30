@@ -1,0 +1,147 @@
+################# mysql-test\t\last_insert_id_func.test #######################
+#                                                                             #
+# Variable Name: last_insert_id                                               #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: -                                                            #
+# Range: -                                                                    #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable key_buffer_size          #
+#              that checks the functionality of this variable                 #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+
+--echo ## Creating new table ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+) ENGINE = INNODB;
+
+--echo '#--------------------FN_DYNVARS_059_01-------------------------#'
+#######################################################################
+#    Setting initial value of last_insert_id and verifying its behavior    #     
+#######################################################################
+
+--echo ## Verifying initial value of ## 
+SELECT @@session.last_insert_id;
+
+--echo ## Inserting records in table t1 ##
+INSERT into t1(name) values('Record_1');
+INSERT into t1(name) values('Record_2');	
+SELECT * from t1;
+
+--echo ## Verifying value of variable after inserting some rows ## 
+SELECT @@session.last_insert_id = 2;
+
+
+--echo '#--------------------FN_DYNVARS_059_02-------------------------#'
+#################################################################################
+# Verifying value of last_insert_id with new connection without committing rows #     
+#################################################################################
+
+--echo ## Creating & connecting to new connection test_con1 ##
+connect (test_con1, localhost, root,,);
+connection test_con1;
+
+SET @@autocommit = 0;
+
+--echo ## Verifying initial value of variable in new connection ## 
+SELECT @@session.last_insert_id;
+
+--echo ## Inserting rows in table t1 ## 
+START TRANSACTION;
+INSERT into t1(name) values('Record_3');
+INSERT into t1(name) values('Record_4');	
+INSERT into t1(name) values('Record_5');
+
+--echo ## Verifying value of variable without committing rows ## 
+SELECT @@session.last_insert_id;
+
+--echo '#--------------------FN_DYNVARS_059_03-------------------------#'
+#########################################################################
+#   Now verifying value of last_insert_id with second new connection    #     
+#########################################################################
+
+--echo ## Creating & connecting to new connection test_con2 ##
+connect (test_con2, localhost, root,,);
+connection test_con2;
+
+--echo ## Inserting values through new connection ##
+INSERT into t1(name) values('Record_6');
+INSERT into t1(name) values('Record_7');
+
+SELECT * from t1;
+
+--echo ## Verifying value of variable in second connection ## 
+SELECT @@last_insert_id;
+
+
+
+--echo '#--------------------FN_DYNVARS_059_04-------------------------#'
+############################################################################
+#      Now verifying value of last_insert_id after committing rows in 
+#      connection # 1 
+############################################################################
+
+--echo ## Switching to test_con1 ##
+connection test_con1;
+
+--echo ## Verifying all records in table & value of variable ##
+SELECT * from t1;
+SELECT @@session.last_insert_id;
+
+--echo ## Commiting records in table ##
+COMMIT;
+SELECT @@session.last_insert_id;
+
+
+--echo ## Switching to test_con2 & verifying value of variable in it ## 
+connection test_con2;
+SELECT @@session.last_insert_id;
+
+
+
+--echo '#--------------------FN_DYNVARS_059_05-------------------------#'
+#####################################################################
+#      Verify value after explicitly setting value of variable      #
+#####################################################################
+
+--echo ## Setting value of variable ## 
+SET @@session.last_insert_id = 100;
+SELECT @@session.last_insert_id;
+
+--echo ## Inserting new record and verifying variable's effect on it ##
+INSERT into t1(name) values('Record_8');
+SELECT @@session.last_insert_id;
+
+--echo ## Dropping table t1 ##
+drop table t1;
+
+--echo ## Disconnecting both the connections ##
+disconnect test_con1;
+disconnect test_con2;
+
+
+
+
+

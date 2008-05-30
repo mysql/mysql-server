@@ -24,7 +24,8 @@
 static bool
 create_string(THD *thd, String *buf,
 	      int sp_type,
-	      sp_name *name,
+	      const char *db, ulong dblen,
+	      const char *name, ulong namelen,
 	      const char *params, ulong paramslen,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
@@ -588,12 +589,13 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
    */
 
   if (!create_string(thd, &defstr,
-		     type,
-		     name,
-		     params, strlen(params),
-		     returns, strlen(returns),
-		     body, strlen(body),
-		     &chistics, &definer_user_name, &definer_host_name))
+                     type,
+                     NULL, 0,
+                     name->m_name.str, name->m_name.length,
+                     params, strlen(params),
+                     returns, strlen(returns),
+                     body, strlen(body),
+                     &chistics, &definer_user_name, &definer_host_name))
   {
     ret= SP_INTERNAL_ERROR;
     goto end;
@@ -732,6 +734,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   DBUG_ENTER("sp_create_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
                        sp->m_name.str));
+  String retstr(64);
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
@@ -819,7 +822,6 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 
     if (sp->m_type == TYPE_ENUM_FUNCTION)
     {
-      String retstr(64);
       sp_returns_type(thd, retstr, sp);
 
       store_failed= store_failed ||
@@ -919,17 +921,21 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 
       String log_query;
       log_query.set_charset(system_charset_info);
-      log_query.append(STRING_WITH_LEN("CREATE "));
-      append_definer(thd, &log_query, &thd->lex->definer->user,
-                     &thd->lex->definer->host);
 
-      LEX_STRING stmt_definition;
-      stmt_definition.str= (char*) thd->lex->stmt_definition_begin;
-      stmt_definition.length= thd->lex->stmt_definition_end
-        - thd->lex->stmt_definition_begin;
-      trim_whitespace(thd->charset(), & stmt_definition);
-
-      log_query.append(stmt_definition.str, stmt_definition.length);
+      if (!create_string(thd, &log_query,
+                         sp->m_type,
+                         (sp->m_explicit_name ? sp->m_db.str : NULL), 
+                         (sp->m_explicit_name ? sp->m_db.length : 0), 
+                         sp->m_name.str, sp->m_name.length,
+                         sp->m_params.str, sp->m_params.length,
+                         retstr.c_ptr(), retstr.length(),
+                         sp->m_body.str, sp->m_body.length,
+                         sp->m_chistics, &(thd->lex->definer->user),
+                         &(thd->lex->definer->host)))
+      {
+        ret= SP_INTERNAL_ERROR;
+        goto done;
+      }
 
       /* Such a statement can always go directly to binlog, no trans cache */
       thd->binlog_query(THD::MYSQL_QUERY_TYPE,
@@ -1067,210 +1073,6 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
 
   close_thread_tables(thd);
   DBUG_RETURN(ret);
-}
-
-
-struct st_used_field
-{
-  const char *field_name;
-  uint field_length;
-  enum enum_field_types field_type;
-  Field *field;
-};
-
-static struct st_used_field init_fields[]=
-{
-  { "Db",                     NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
-  { "Name",                   NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
-  { "Type",                               9, MYSQL_TYPE_STRING,    0},
-  { "Definer",          USER_HOST_BUFF_SIZE, MYSQL_TYPE_STRING,    0},
-  { "Modified",                           0, MYSQL_TYPE_TIMESTAMP, 0},
-  { "Created",                            0, MYSQL_TYPE_TIMESTAMP, 0},
-  { "Security_type",                      1, MYSQL_TYPE_STRING,    0},
-  { "Comment",                NAME_CHAR_LEN, MYSQL_TYPE_STRING,    0},
-  { "character_set_client", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING,    0},
-  { "collation_connection", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING,    0},
-  { "Database Collation",   MY_CS_NAME_SIZE, MYSQL_TYPE_STRING,    0},
-  { 0,                                    0, MYSQL_TYPE_STRING,    0}
-};
-
-
-static int
-print_field_values(THD *thd, TABLE *table,
-		   struct st_used_field *used_fields,
-		   int type, const char *wild)
-{
-  Protocol *protocol= thd->protocol;
-
-  if (table->field[MYSQL_PROC_MYSQL_TYPE]->val_int() == type)
-  {
-    String db_string;
-    String name_string;
-    struct st_used_field *used_field= used_fields;
-
-    if (get_field(thd->mem_root, used_field->field, &db_string))
-      db_string.set_ascii("", 0);
-    used_field+= 1;
-    get_field(thd->mem_root, used_field->field, &name_string);
-
-    if (!wild || !wild[0] || !wild_compare(name_string.ptr(), wild, 0))
-    {
-      protocol->prepare_for_resend();
-      protocol->store(&db_string);
-      protocol->store(&name_string);
-      for (used_field++;
-	   used_field->field_name;
-	   used_field++)
-      {
-	switch (used_field->field_type) {
-	case MYSQL_TYPE_TIMESTAMP:
-	  {
-	    MYSQL_TIME tmp_time;
-
-	    bzero((char *)&tmp_time, sizeof(tmp_time));
-	    ((Field_timestamp *) used_field->field)->get_time(&tmp_time);
-	    protocol->store(&tmp_time);
-	  }
-	  break;
-	default:
-	  {
-	    String tmp_string;
-
-	    get_field(thd->mem_root, used_field->field, &tmp_string);
-	    protocol->store(&tmp_string);
-	  }
-	  break;
-	}
-      }
-      if (protocol->write())
-	return SP_INTERNAL_ERROR;
-    }
-  }
-
-  return SP_OK;
-}
-
-
-/**
-  Implement SHOW STATUS statement for stored routines.
-
-  @param thd          Thread context.
-  @param type         Stored routine type
-                      (TYPE_ENUM_PROCEDURE or TYPE_ENUM_FUNCTION)
-  @param name_pattern Stored routine name pattern.
-
-  @return Error code. SP_OK is returned on success. Other SP_ constants are
-  used to indicate about errors.
-*/
-
-int
-sp_show_status_routine(THD *thd, int type, const char *name_pattern)
-{
-  TABLE *table;
-  TABLE_LIST tables;
-  int res;
-  DBUG_ENTER("sp_show_status_routine");
-
-  DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
-              type == TYPE_ENUM_FUNCTION);
-
-  memset(&tables, 0, sizeof(tables));
-  tables.db= (char*)"mysql";
-  tables.table_name= tables.alias= (char*)"proc";
-
-  if (! (table= open_ltable(thd, &tables, TL_READ, 0)))
-  {
-    res= SP_OPEN_TABLE_FAILED;
-    goto done;
-  }
-  else
-  {
-    Item *item;
-    List<Item> field_list;
-    struct st_used_field *used_field;
-    TABLE_LIST *leaves= 0;
-    st_used_field used_fields[array_elements(init_fields)];
-
-    table->use_all_columns();
-    memcpy((char*) used_fields, (char*) init_fields, sizeof(used_fields));
-    /* Init header */
-    for (used_field= &used_fields[0];
-	 used_field->field_name;
-	 used_field++)
-    {
-      switch (used_field->field_type) {
-      case MYSQL_TYPE_TIMESTAMP:
-	item= new Item_return_date_time(used_field->field_name,
-                                        MYSQL_TYPE_DATETIME);
-	field_list.push_back(item);
-	break;
-      default:
-        item= new Item_empty_string(used_field->field_name,
-                                    used_field->field_length);
-	field_list.push_back(item);
-	break;
-      }
-    }
-    /* Print header */
-    if (thd->protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
-                                                Protocol::SEND_EOF))
-    {
-      res= SP_INTERNAL_ERROR;
-      goto err_case;
-    }
-
-    /*
-      Init fields
-
-      tables is not VIEW for sure => we can pass 0 as condition
-    */
-    thd->lex->select_lex.context.resolve_in_table_list_only(&tables);
-    setup_tables(thd, &thd->lex->select_lex.context,
-                 &thd->lex->select_lex.top_join_list,
-                 &tables, &leaves, FALSE);
-    for (used_field= &used_fields[0];
-	 used_field->field_name;
-	 used_field++)
-    {
-      Item_field *field= new Item_field(&thd->lex->select_lex.context,
-                                        "mysql", "proc",
-					used_field->field_name);
-      if (!field ||
-          !(used_field->field= find_field_in_tables(thd, field, &tables, NULL,
-						    0, REPORT_ALL_ERRORS, 1,
-                                                    TRUE)))
-      {
-	res= SP_INTERNAL_ERROR;
-	goto err_case1;
-      }
-    }
-
-    table->file->ha_index_init(0, 1);
-    if ((res= table->file->index_first(table->record[0])))
-    {
-      res= (res == HA_ERR_END_OF_FILE) ? 0 : SP_INTERNAL_ERROR;
-      goto err_case1;
-    }
-
-    do
-    {
-      res= print_field_values(thd, table, used_fields, type, name_pattern);
-
-      if (res)
-	goto err_case1;
-    }
-    while (!table->file->index_next(table->record[0]));
-
-    res= SP_OK;
-  }
-
-err_case1:
-  my_eof(thd);
-err_case:
-  table->file->ha_index_end();
-  close_thread_tables(thd);
-done:
-  DBUG_RETURN(res);
 }
 
 
@@ -2068,17 +1870,18 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
 */
 static bool
 create_string(THD *thd, String *buf,
-	      int type,
-	      sp_name *name,
-	      const char *params, ulong paramslen,
-	      const char *returns, ulong returnslen,
-	      const char *body, ulong bodylen,
-	      st_sp_chistics *chistics,
+              int type,
+              const char *db, ulong dblen,
+              const char *name, ulong namelen,
+              const char *params, ulong paramslen,
+              const char *returns, ulong returnslen,
+              const char *body, ulong bodylen,
+              st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host)
 {
   /* Make some room to begin with */
-  if (buf->alloc(100 + name->m_qname.length + paramslen + returnslen + bodylen +
+  if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
 		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
                  USER_HOST_BUFF_SIZE))
     return FALSE;
@@ -2089,7 +1892,12 @@ create_string(THD *thd, String *buf,
     buf->append(STRING_WITH_LEN("FUNCTION "));
   else
     buf->append(STRING_WITH_LEN("PROCEDURE "));
-  append_identifier(thd, buf, name->m_name.str, name->m_name.length);
+  if (dblen > 0)
+  {
+    append_identifier(thd, buf, db, dblen);
+    buf->append('.');
+  }
+  append_identifier(thd, buf, name, namelen);
   buf->append('(');
   buf->append(params, paramslen);
   buf->append(')');

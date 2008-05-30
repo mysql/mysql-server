@@ -1,0 +1,134 @@
+############# mysql-test\t\sql_notes_func.test ############################
+#                                                                         #
+# Variable Name: sql_notes                                                #
+# Scope: SESSION                                                          #
+# Access Type: Dynamic                                                    #
+# Data Type: BOOLEAN                                                      #
+# Default Value: 1 TRUE                                                   #
+# Values:       1 TRUE, 0 FALSE                                           #
+#                                                                         #
+#                                                                         #
+# Creation Date: 2008-02-25                                               #
+# Author:  Sharique Abdullah                                              #
+#                                                                         #
+# Description: Test Cases of Dynamic System Variable "sql_notes"          #
+#              that checks behavior of this variable in the following ways#
+#              * Functionality based on different values                  #
+#                                                                         #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html       #
+#                                                                         #
+###########################################################################
+
+# Due to suppressed warnings the pc-protocol is disabled
+--disable_ps_protocol
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+SET @default_sql_notes = @@sql_notes;
+
+--echo '#--------------------FN_DYNVARS_162_01-------------------------#'
+#
+# Value ON
+#
+
+SET SESSION sql_notes = ON;
+
+--echo creating a temporary table
+CREATE TEMPORARY TABLE t1(a varchar(20), b varchar(20));
+--echo conditionally dropping the table twice so that a note generates
+
+DROP TABLE IF EXISTS t1;
+
+SELECT @@warning_count;
+--echo 0 Expected
+
+#
+#This line generates A Note warning
+#
+DROP TABLE IF EXISTS t1;
+
+SELECT @@warning_count;
+--echo 1 Expected
+
+--echo '#--------------------FN_DYNVARS_162_02-------------------------#'
+#
+# Value OFF
+#
+
+SET SESSION sql_notes = OFF;
+
+--echo creating a temporary table
+CREATE TEMPORARY TABLE t1(a varchar(20), b varchar(20));
+--echo conditionally dropping the table twice so that a note generates
+
+DROP TABLE IF EXISTS t1;
+
+SELECT @@warning_count;
+--echo 0 Expected
+
+#
+#This line generates A Note warning
+#
+DROP TABLE IF EXISTS t1;
+
+SELECT @@warning_count;
+--echo 0 Expected
+
+--echo '#------------------FN_DYNVARS_162_03---------------------------#'
+#
+# Session data integrity check & GLOBAL Value check
+#
+
+--echo ** Connecting con_int1 using root **
+connect (con_int1,localhost,root,,);
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_notes;
+--echo 1 / TRUE Expected
+
+SET SESSION sql_notes = FALSE;
+
+--echo ** Connecting con_int2 using root **
+connect (con_int2,localhost,root,,);
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_notes;
+--echo 1 / TRUE Expected
+
+SET SESSION sql_notes = TRUE;
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_notes;
+--echo 1 / TRUE Expected
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_notes;
+--echo 0 / FALSE Expected
+
+--echo ** Connection default **
+connection default;
+--echo Disconnecting Connections con_int1, con_int2
+disconnect con_int1;
+disconnect con_int2;
+
+
+#
+# Cleanup
+#
+
+SET SESSION sql_notes = @default_sql_notes;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--enable_ps_protocol
+
