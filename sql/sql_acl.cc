@@ -695,6 +695,8 @@ my_bool acl_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
+  tables[0].skip_temporary= tables[1].skip_temporary=
+    tables[2].skip_temporary= TRUE;
 
   if (simple_open_n_lock_tables(thd, tables))
   {
@@ -3537,7 +3539,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
                                                            THR_MALLOC);
-  DBUG_ENTER("grant_load");
+  DBUG_ENTER("grant_load_procs_priv");
   (void) hash_init(&proc_priv_hash,system_charset_info,
                    0,0,0, (hash_get_key) get_grant_table,
                    0,0);
@@ -3721,6 +3723,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   table.alias= table.table_name= (char*) "procs_priv";
   table.db= (char *) "mysql";
   table.lock_type= TL_READ;
+  table.skip_temporary= 1;
 
   if (simple_open_n_lock_tables(thd, &table))
   {
@@ -3786,7 +3789,7 @@ my_bool grant_reload(THD *thd)
   tables[0].db= tables[1].db= (char *) "mysql";
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type= tables[1].lock_type= TL_READ;
-
+  tables[0].skip_temporary= tables[1].skip_temporary= TRUE;
   /*
     To avoid deadlocks we should obtain table locks before
     obtaining LOCK_grant rwlock.

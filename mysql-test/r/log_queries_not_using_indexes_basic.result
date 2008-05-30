@@ -1,0 +1,53 @@
+'#---------------------BS_STVARS_041_01----------------------#'
+SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
+COUNT(@@GLOBAL.log_queries_not_using_indexes)
+1
+1 Expected
+'#---------------------BS_STVARS_041_02----------------------#'
+SET @@GLOBAL.log_queries_not_using_indexes=1;
+Expected error 'Read only variable'
+"BUG:It should give error on setting this variable as it is readonly variable"
+SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
+COUNT(@@GLOBAL.log_queries_not_using_indexes)
+1
+1 Expected
+'#---------------------BS_STVARS_041_03----------------------#'
+SELECT @@GLOBAL.log_queries_not_using_indexes = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='log_queries_not_using_indexes';
+@@GLOBAL.log_queries_not_using_indexes = VARIABLE_VALUE
+0
+1 Expected
+SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
+COUNT(@@GLOBAL.log_queries_not_using_indexes)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_queries_not_using_indexes';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_041_04----------------------#'
+SELECT @@log_queries_not_using_indexes = @@GLOBAL.log_queries_not_using_indexes;
+@@log_queries_not_using_indexes = @@GLOBAL.log_queries_not_using_indexes
+1
+1 Expected
+'#---------------------BS_STVARS_041_05----------------------#'
+SELECT COUNT(@@log_queries_not_using_indexes);
+COUNT(@@log_queries_not_using_indexes)
+1
+1 Expected
+SELECT COUNT(@@local.log_queries_not_using_indexes);
+ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.log_queries_not_using_indexes);
+ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
+COUNT(@@GLOBAL.log_queries_not_using_indexes)
+1
+1 Expected
+SELECT log_queries_not_using_indexes = @@SESSION.log_queries_not_using_indexes;
+ERROR 42S22: Unknown column 'log_queries_not_using_indexes' in 'field list'
+Expected error 'Readonly variable'

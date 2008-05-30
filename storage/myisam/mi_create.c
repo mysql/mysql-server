@@ -634,6 +634,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     my_printf_error(0, "MyISAM table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",
                     MYF(0), name + dirname_length(name));
+    my_errno= HA_ERR_TABLE_EXIST;
     goto err;
   }
 

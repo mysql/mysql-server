@@ -13,9 +13,9 @@
 #------------------------------------------------------------------------------#
 # Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Change Author: pcrews                                                        #
+# Change Date: 2008-04-15                                                      #
+# Change: Added --replace_result to account for Windows' use of '\r'           #
 ################################################################################
 
 if ($no_debug)
@@ -35,32 +35,34 @@ let $MYSQLD_DATADIR= `select LEFT(@@datadir, LENGTH(@@datadir)-1)`;
 # - SHOW CREATE TABLE t1 is at least currently most probably more reliable than
 #   the corresponding SELECT on the INFORMATION_SCHEMA
 # - SHOW CREATE TABLE .. cannot write its out put into a file like SELECT
---exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $MYSQLD_DATADIR/test/tmp1 2>&1 || true
+let $show_file= $MYSQLD_DATADIR/test/tmp1;
+--exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $show_file 2>&1 || true
+
 if ($do_file_tests)
 {
 # List the files belonging to the table t1
---exec ls $MYSQLD_DATADIR/test/t1* > $MYSQLD_DATADIR/test/tmp2 2>&1 || true
+let $ls_file= $MYSQLD_DATADIR/test/tmp2;
+let $err_file= $MYSQLD_DATADIR/test/err2;
+--exec ls $MYSQLD_DATADIR/test/t1* > $ls_file 2>$err_file || true
 if ($with_directories)
 {
---exec ls $MYSQLTEST_VARDIR/mysql-test-data-dir/t1* >> $MYSQLD_DATADIR/test/tmp2 2>&1 || true
---exec ls $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1* >> $MYSQLD_DATADIR/test/tmp2 2>&1 || true
+--exec ls $MYSQLTEST_VARDIR/mysql-test-data-dir/t1* >> $ls_file 2>>$err_file || true
+--exec ls $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1* >> $ls_file 2>>$err_file || true
 }
-eval SET @aux = CONCAT('load_file(''$MYSQLD_DATADIR','/test/tmp2''
-)');
-let $file_list= `SELECT @aux`;
+eval SET @aux = load_file('$ls_file');
 }
 if (!$do_file_tests)
 {
-let $file_list= '--- not determined ---';
+SET @aux = '--- not determined ---';
 }
 
 # Insert the current definition of the table t1 into t0_definition
 eval INSERT INTO t0_definition SET state = 'old',
-     create_command = load_file('$MYSQLD_DATADIR/test/tmp1'),
-     file_list      = $file_list;
+     create_command = load_file('$show_file'),
+     file_list      = @aux;
 
 # Print the create table statement into the protocol
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR '\r' ''
 SELECT create_command FROM t0_definition WHERE state = 'old';
 if ($do_file_tests)
 {

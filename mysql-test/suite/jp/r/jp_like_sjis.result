@@ -7,9 +7,6 @@ drop table if exists `‚s‚U`;
 drop table if exists `‚s‚V`;
 drop table if exists `‚s‚W`;
 drop table if exists `‚s‚X`;
-drop table if exists `‚s‚P‚O`;
-drop table if exists `‚s‚P‚P`;
-drop table if exists `‚s‚P‚Q`;
 SET NAMES sjis;
 SET character_set_database = sjis;
 CREATE TABLE `‚s‚P` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = innodb;
@@ -18,12 +15,9 @@ CREATE TABLE `‚s‚R` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engi
 CREATE TABLE `‚s‚S` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `‚s‚T` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `‚s‚U` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = myisam;
-CREATE TABLE `‚s‚V` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚W` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚X` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚P‚O` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `‚s‚P‚P` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `‚s‚P‚Q` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `‚s‚V` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚W` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚X` (`‚b‚P` char(20), INDEX(`‚b‚P`)) DEFAULT CHARSET = sjis engine = MEMORY;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚Q`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚R`;
@@ -33,9 +27,6 @@ LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚U`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚V`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚W`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚X`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_sjis.dat' INTO TABLE `‚s‚P‚O`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis.dat' INTO TABLE `‚s‚P‚P`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_sjis2.dat' INTO TABLE `‚s‚P‚Q`;
 SELECT * FROM `‚s‚P` WHERE `‚b‚P` LIKE ' %';
 ‚b‚P
  !"#$%&'()*+,-./
@@ -258,56 +249,6 @@ SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\
 SELECT * FROM `‚s‚X` WHERE `‚b‚P` LIKE '%ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\';
 ‚b‚P
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
-SELECT * FROM `‚s‚P‚O` WHERE `‚b‚P` LIKE ' %';
-‚b‚P
- !"#$%&'()*+,-./
- ¡¢£¤¥¦§¨©ª«¬­®¯
-SELECT * FROM `‚s‚P‚O` WHERE `‚b‚P` LIKE '% %';
-‚b‚P
- !"#$%&'()*+,-./
- ¡¢£¤¥¦§¨©ª«¬­®¯
-SELECT * FROM `‚s‚P‚O` WHERE `‚b‚P` LIKE '% ';
-‚b‚P
-SELECT * FROM `‚s‚P‚O` WHERE `‚b‚P` LIKE 'À%';
-‚b‚P
-ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
-SELECT * FROM `‚s‚P‚O` WHERE `‚b‚P` LIKE '%×Ø%';
-‚b‚P
-ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
-SELECT * FROM `‚s‚P‚O` WHERE `‚b‚P` LIKE '%¿';
-‚b‚P
-°±²³´µ¶·¸¹º»¼½¾¿
-SELECT * FROM `‚s‚P‚O` WHERE `‚b‚P` LIKE '%°±²³´µ¶·¸¹º»¼½¾¿';
-‚b‚P
-°±²³´µ¶·¸¹º»¼½¾¿
-SELECT * FROM `‚s‚P‚P` WHERE `‚b‚P` LIKE '@%';
-‚b‚P
-@@ABCDEFGHIJKLMNOPQR
-SELECT * FROM `‚s‚P‚P` WHERE `‚b‚P` LIKE '%@%';
-‚b‚P
-@@ABCDEFGHIJKLMNOPQR
-EEğñòóôõö÷EEEEüEEEE@
-SELECT * FROM `‚s‚P‚P` WHERE `‚b‚P` LIKE '%@';
-‚b‚P
-EEğñòóôõö÷EEEEüEEEE@
-SELECT * FROM `‚s‚P‚P` WHERE `‚b‚P` LIKE '‚Æ%';
-‚b‚P
-‚Æ‚Ç‚È‚É‚Ê‚Ë‚Ì‚Í‚Î‚Ï‚Ğ‚Ñ‚Ò‚Ó‚Ô‚Õ‚Ö‚×‚Ø‚Ù
-SELECT * FROM `‚s‚P‚P` WHERE `‚b‚P` LIKE '%‚ %';
-‚b‚P
-E‚Ÿ‚ ‚¡‚¢‚£‚¤‚¥‚¦‚§‚¨‚©‚ª‚«‚¬‚­‚®‚¯‚°‚±
-SELECT * FROM `‚s‚P‚P` WHERE `‚b‚P` LIKE '%‚í';
-‚b‚P
-‚Ú‚Û‚Ü‚İ‚Ş‚ß‚à‚á‚â‚ã‚ä‚å‚æ‚ç‚è‚é‚ê‚ë‚ì‚í
-SELECT * FROM `‚s‚P‚Q` WHERE `‚b‚P` LIKE 'ƒ\%';
-‚b‚P
-ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
-SELECT * FROM `‚s‚P‚Q` WHERE `‚b‚P` LIKE '%–\%';
-‚b‚P
-ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
-SELECT * FROM `‚s‚P‚Q` WHERE `‚b‚P` LIKE '%\';
-‚b‚P
-ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
 DROP TABLE `‚s‚P`;
 DROP TABLE `‚s‚Q`;
 DROP TABLE `‚s‚R`;
@@ -317,6 +258,3 @@ DROP TABLE `‚s‚U`;
 DROP TABLE `‚s‚V`;
 DROP TABLE `‚s‚W`;
 DROP TABLE `‚s‚X`;
-DROP TABLE `‚s‚P‚O`;
-DROP TABLE `‚s‚P‚P`;
-DROP TABLE `‚s‚P‚Q`;

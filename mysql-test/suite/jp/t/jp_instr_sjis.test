@@ -1,3 +1,5 @@
+--source include/have_sjis.inc
+--source include/have_innodb.inc
 --character_set sjis
 --disable_warnings
 drop table if exists `ВsВP`;
@@ -9,7 +11,6 @@ drop table if exists `ВsВU`;
 drop table if exists `ВsВV`;
 drop table if exists `ВsВW`;
 drop table if exists `ВsВX`;
-drop table if exists `ВsВPВO`;
 --enable_warnings
 
 #
@@ -25,12 +26,9 @@ CREATE TABLE `ВsВR` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engin
 CREATE TABLE `ВsВS` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ВsВT` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ВsВU` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = myisam;
-CREATE TABLE `ВsВV` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ВsВW` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ВsВX` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ВsВPВO` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ВsВPВP` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ВsВPВQ` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `ВsВV` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ВsВW` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ВsВX` (`ВbВP` char(5), INDEX(`ВbВP`)) DEFAULT CHARSET = sjis engine = MEMORY;
 
 INSERT INTO `ВsВP` VALUES ('±≤≥іµ');
 INSERT INTO `ВsВQ` VALUES ('В†ВҐВ§В¶В®');
@@ -41,9 +39,6 @@ INSERT INTO `ВsВU` VALUES ('Г\П\Х\Ч\Н\');
 INSERT INTO `ВsВV` VALUES ('±≤≥іµ');
 INSERT INTO `ВsВW` VALUES ('В†ВҐВ§В¶В®');
 INSERT INTO `ВsВX` VALUES ('Г\П\Х\Ч\Н\');
-INSERT INTO `ВsВPВO` VALUES ('±≤≥іµ');
-INSERT INTO `ВsВPВP` VALUES ('В†ВҐВ§В¶В®');
-INSERT INTO `ВsВPВQ` VALUES ('Г\П\Х\Ч\Н\');
 
 #InnoDB
 SELECT INSTR(`ВbВP`,'±') from `ВsВP`;
@@ -85,7 +80,7 @@ SELECT INSTR(`ВbВP`,'Ч\') from `ВsВU`;
 SELECT INSTR(`ВbВP`,'Н\') from `ВsВU`;
 SELECT INSTR(`ВbВP`,'Й\') from `ВsВU`;
 
-#HEAP
+#MEMORY
 SELECT INSTR(`ВbВP`,'±') from `ВsВV`;
 SELECT INSTR(`ВbВP`,'≤') from `ВsВV`;
 SELECT INSTR(`ВbВP`,'≥') from `ВsВV`;
@@ -105,26 +100,6 @@ SELECT INSTR(`ВbВP`,'Ч\') from `ВsВX`;
 SELECT INSTR(`ВbВP`,'Н\') from `ВsВX`;
 SELECT INSTR(`ВbВP`,'Й\') from `ВsВX`;
 
-#BDB
-SELECT INSTR(`ВbВP`,'±') from `ВsВPВO`;
-SELECT INSTR(`ВbВP`,'≤') from `ВsВPВO`;
-SELECT INSTR(`ВbВP`,'≥') from `ВsВPВO`;
-SELECT INSTR(`ВbВP`,'і') from `ВsВPВO`;
-SELECT INSTR(`ВbВP`,'µ') from `ВsВPВO`;
-SELECT INSTR(`ВbВP`,'Ё') from `ВsВPВO`;
-SELECT INSTR(`ВbВP`,'В†') from `ВsВPВP`;
-SELECT INSTR(`ВbВP`,'ВҐ') from `ВsВPВP`;
-SELECT INSTR(`ВbВP`,'В§') from `ВsВPВP`;
-SELECT INSTR(`ВbВP`,'В¶') from `ВsВPВP`;
-SELECT INSTR(`ВbВP`,'В®') from `ВsВPВP`;
-SELECT INSTR(`ВbВP`,'Вс') from `ВsВPВP`;
-SELECT INSTR(`ВbВP`,'Г\') from `ВsВPВQ`;
-SELECT INSTR(`ВbВP`,'П\') from `ВsВPВQ`;
-SELECT INSTR(`ВbВP`,'Х\') from `ВsВPВQ`;
-SELECT INSTR(`ВbВP`,'Ч\') from `ВsВPВQ`;
-SELECT INSTR(`ВbВP`,'Н\') from `ВsВPВQ`;
-SELECT INSTR(`ВbВP`,'Й\') from `ВsВPВQ`;
-
 DROP TABLE `ВsВP`;
 DROP TABLE `ВsВQ`;
 DROP TABLE `ВsВR`;
@@ -134,6 +109,3 @@ DROP TABLE `ВsВU`;
 DROP TABLE `ВsВV`;
 DROP TABLE `ВsВW`;
 DROP TABLE `ВsВX`;
-DROP TABLE `ВsВPВO`;
-DROP TABLE `ВsВPВP`;
-DROP TABLE `ВsВPВQ`;

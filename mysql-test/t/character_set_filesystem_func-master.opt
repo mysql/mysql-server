@@ -1,0 +1,1 @@
+--secure-file-priv=$MYSQL_TEST_DIR --innodb

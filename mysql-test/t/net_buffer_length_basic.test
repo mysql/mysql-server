@@ -1,0 +1,226 @@
+################# mysql-test\t\net_buffer_length_basic.test ###################
+#                                                                             #
+# Variable Name: net_buffer_length                                            #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:  16384                                                       #
+# Range: 1024-1048576                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable net_buffer_length        #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+
+#################################################################
+#           START OF net_buffer_length TESTS                    #
+#################################################################
+
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.net_buffer_length;
+# Due to differences in results of linux and windows
+#SELECT @start_global_value;
+SET @start_session_value = @@session.net_buffer_length;
+#SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_109_01-------------------------#'
+#################################################################
+#     Display the DEFAULT value of net_buffer_length            #
+#################################################################
+
+SET @@global.net_buffer_length = 10000;
+SET @@global.net_buffer_length = DEFAULT;
+SELECT @@global.net_buffer_length;
+
+SET @@session.net_buffer_length = 20000;
+SET @@session.net_buffer_length = DEFAULT;
+SELECT @@session.net_buffer_length;
+
+
+--echo '#--------------------FN_DYNVARS_109_02-------------------------#'
+########################################################################
+#     Check the DEFAULT value of net_buffer_length              #
+########################################################################
+
+SET @@global.net_buffer_length = DEFAULT;
+SELECT @@global.net_buffer_length = 16384;
+
+SET @@session.net_buffer_length = DEFAULT;
+SELECT @@session.net_buffer_length = 16384;
+
+
+--echo '#--------------------FN_DYNVARS_109_03-------------------------#'
+###########################################################################
+# Change the value of net_buffer_length to a valid value for GLOBAL Scope #
+###########################################################################
+
+SET @@global.net_buffer_length = 1024;
+SELECT @@global.net_buffer_length;
+SET @@global.net_buffer_length = 1025;
+SELECT @@global.net_buffer_length;
+SET @@global.net_buffer_length = 1048576;
+SELECT @@global.net_buffer_length;
+SET @@global.net_buffer_length = 1048575;
+SELECT @@global.net_buffer_length;
+SET @@global.net_buffer_length = 65535;
+SELECT @@global.net_buffer_length;
+--echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
+
+
+--echo '#--------------------FN_DYNVARS_109_04-------------------------#'
+############################################################################
+# Change the value of net_buffer_length to a valid value for SESSION Scope #
+############################################################################
+ 
+SET @@session.net_buffer_length = 1024;
+SELECT @@session.net_buffer_length;
+SET @@session.net_buffer_length = 1025;
+SELECT @@session.net_buffer_length;
+SET @@session.net_buffer_length = 1048576;
+SELECT @@session.net_buffer_length;
+SET @@session.net_buffer_length = 1048575;
+SELECT @@session.net_buffer_length;
+SET @@session.net_buffer_length = 65535;
+SELECT @@session.net_buffer_length;
+--echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
+
+
+--echo '#------------------FN_DYNVARS_109_05-----------------------#'
+#############################################################
+# Change the value of net_buffer_length to an invalid value #
+#############################################################
+
+SET @@global.net_buffer_length = 0;
+SELECT @@global.net_buffer_length;
+SET @@global.net_buffer_length = -1024;
+SELECT @@global.net_buffer_length;
+SET @@global.net_buffer_length = 1023;
+SELECT @@global.net_buffer_length;
+SET @@global.net_buffer_length = 1048577;
+SELECT @@global.net_buffer_length;
+SET @@global.net_buffer_length = 104857633;
+SELECT @@global.net_buffer_length;
+--Error ER_PARSE_ERROR
+SET @@global.net_buffer_length = 65530.34.;
+SELECT @@global.net_buffer_length;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.net_buffer_length = test;
+SELECT @@global.net_buffer_length;
+
+SET @@session.net_buffer_length = 0;
+SELECT @@session.net_buffer_length;
+SET @@session.net_buffer_length = -2;
+SELECT @@session.net_buffer_length;
+SET @@session.net_buffer_length = 1048577;
+SELECT @@session.net_buffer_length;
+SET @@session.net_buffer_length = 1048576002;
+SELECT @@session.net_buffer_length;
+--Error ER_PARSE_ERROR
+SET @@session.net_buffer_length = 65530.34.;
+SET @@session.net_buffer_length = 65550;
+SELECT @@session.net_buffer_length;
+--echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.net_buffer_length = test;
+SELECT @@session.net_buffer_length;
+
+
+--echo '#------------------FN_DYNVARS_109_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+
+SELECT @@global.net_buffer_length = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='net_buffer_length';
+
+--echo '#------------------FN_DYNVARS_109_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+SELECT @@session.net_buffer_length = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='net_buffer_length';
+
+
+--echo '#------------------FN_DYNVARS_109_08-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.net_buffer_length = TRUE;
+SELECT @@global.net_buffer_length;
+SET @@global.net_buffer_length = FALSE;
+SELECT @@global.net_buffer_length;
+
+
+--echo '#---------------------FN_DYNVARS_109_09----------------------#'
+#################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable   #
+#################################################################################
+
+SET @@global.net_buffer_length = 2048;
+SELECT @@net_buffer_length = @@global.net_buffer_length;
+
+
+--echo '#---------------------FN_DYNVARS_109_10----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@net_buffer_length = 100000;
+SELECT @@net_buffer_length = @@local.net_buffer_length;
+SELECT @@local.net_buffer_length = @@session.net_buffer_length;
+
+
+--echo '#---------------------FN_DYNVARS_109_11----------------------#'
+############################################################################
+#   Check if net_buffer_length can be accessed with and without @@ sign    #
+############################################################################
+
+SET net_buffer_length = 1024;
+SELECT @@net_buffer_length;
+--Error ER_UNKNOWN_TABLE
+SELECT local.net_buffer_length;
+--Error ER_UNKNOWN_TABLE
+SELECT session.net_buffer_length;
+--Error ER_BAD_FIELD_ERROR
+SELECT net_buffer_length = @@session.net_buffer_length;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.net_buffer_length = @start_global_value;
+# Due to differences in results of linux and windows
+#SELECT @@global.net_buffer_length;
+SET @@session.net_buffer_length = @start_session_value;
+#SELECT @@session.net_buffer_length;
+
+
+######################################################
+#                 END OF net_buffer_length TESTS     #
+######################################################

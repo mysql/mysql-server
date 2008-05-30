@@ -1,0 +1,53 @@
+'#---------------------BS_STVARS_037_01----------------------#'
+SELECT COUNT(@@GLOBAL.innodb_mirrored_log_groups);
+COUNT(@@GLOBAL.innodb_mirrored_log_groups)
+1
+1 Expected
+'#---------------------BS_STVARS_037_02----------------------#'
+SET @@GLOBAL.innodb_mirrored_log_groups=1;
+ERROR HY000: Variable 'innodb_mirrored_log_groups' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.innodb_mirrored_log_groups);
+COUNT(@@GLOBAL.innodb_mirrored_log_groups)
+1
+1 Expected
+'#---------------------BS_STVARS_037_03----------------------#'
+SELECT @@GLOBAL.innodb_mirrored_log_groups = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_mirrored_log_groups';
+@@GLOBAL.innodb_mirrored_log_groups = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.innodb_mirrored_log_groups);
+COUNT(@@GLOBAL.innodb_mirrored_log_groups)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_mirrored_log_groups';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_037_04----------------------#'
+SELECT @@innodb_mirrored_log_groups = @@GLOBAL.innodb_mirrored_log_groups;
+@@innodb_mirrored_log_groups = @@GLOBAL.innodb_mirrored_log_groups
+1
+1 Expected
+'#---------------------BS_STVARS_037_05----------------------#'
+SELECT COUNT(@@innodb_mirrored_log_groups);
+COUNT(@@innodb_mirrored_log_groups)
+1
+1 Expected
+SELECT COUNT(@@local.innodb_mirrored_log_groups);
+ERROR HY000: Variable 'innodb_mirrored_log_groups' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.innodb_mirrored_log_groups);
+ERROR HY000: Variable 'innodb_mirrored_log_groups' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.innodb_mirrored_log_groups);
+COUNT(@@GLOBAL.innodb_mirrored_log_groups)
+1
+1 Expected
+SELECT innodb_mirrored_log_groups = @@SESSION.innodb_mirrored_log_groups;
+ERROR 42S22: Unknown column 'innodb_mirrored_log_groups' in 'field list'
+Expected error 'Readonly variable'

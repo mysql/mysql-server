@@ -1,0 +1,106 @@
+############## mysql-test\t\completion_type_func.test #########################
+#                                                                              #
+# Variable Name: completion_type                                               #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 0                                                             #
+# Valid Values: 0,1 & 2                                                        #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "completion_type"         #
+#              that checks functinality of this variable                       #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#          server-system-variables.html#option_mysqld_completion_type          #
+#                                                                              #
+################################################################################
+
+--source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+
+--echo ## Creating new table ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name varchar(30)
+) ENGINE = INNODB;
+
+--echo '#--------------------FN_DYNVARS_017_01-------------------------#'
+#########################################################
+#    Setting initial value of completion_type to zero   # 
+#########################################################
+
+--echo ## Creating new connection ##
+connect (test_con1,localhost,root,,);
+connection test_con1;
+
+INSERT into t1(name) values('Record_1');
+SET @@autocommit = 0;
+SELECT * from t1;
+
+--echo ## Setting value of variable to 0 ##
+SET @@session.completion_type = 0;
+
+--echo ## Here commit & rollback should work normally ##
+START TRANSACTION;
+SELECT * from t1;
+INSERT into t1(name) values('Record_2');
+INSERT into t1(name) values('Record_3');
+SELECT * from t1;
+DELETE FROM t1 where id = 2;
+SELECT * from t1;
+
+
+START TRANSACTION;
+SELECT * from t1;
+INSERT into t1(name) values('Record_4');
+INSERT into t1(name) values('Record_5');
+COMMIT;
+
+
+--echo '#--------------------FN_DYNVARS_017_02-------------------------#'
+#########################################################
+#    Setting initial value of completion_type to 2      # 
+#########################################################
+
+SET @@session.completion_type = 2;
+
+--echo ## Here commit should work as COMMIT RELEASE ##
+START TRANSACTION;
+SELECT * from t1;
+INSERT into t1(name) values('Record_6');
+INSERT into t1(name) values('Record_7');
+COMMIT;
+
+--echo ## Inserting rows should give error here because connection should ##
+--echo ## disconnect after using COMMIT ##
+--Error 2006,2013,1053
+INSERT into t1(name) values('Record_4');
+
+--echo ## Creating new connection test_con2 ##
+connect (test_con2,localhost,root,,);
+connection test_con2;
+SET @@session.completion_type = 2;
+
+--echo ## Inserting rows and using Rollback which should Rollback & release ##
+START TRANSACTION;
+SELECT * from t1;
+INSERT into t1(name) values('Record_8');
+INSERT into t1(name) values('Record_9');
+ROLLBACK;
+
+--Error 2006,2013,1053
+INSERT into t1(name) values('Record_4');
+
