@@ -2053,7 +2053,6 @@ Uint32 Dbdict::getFreeTableRecord(Uint32 primaryTableId)
   c_tableRecordPool.getPtr(tablePtr, i);
   ndbrequire(tablePtr.p->tabState == TableRecord::NOT_DEFINED);
   initialiseTableRecord(tablePtr);
-  tablePtr.p->tabState = TableRecord::DEFINING;
   return i;
 }
 
@@ -3935,11 +3934,27 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
     
     handleTabInfoInit(r, &parseRecord);
     releaseSections(handle);
+
+    if (parseRecord.errorCode == 0)
+    {
+      if (ERROR_INSERTED(6200) ||
+          (ERROR_INSERTED(6201) && 
+           DictTabInfo::isIndex(parseRecord.tablePtr.p->tableType)))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+        parseRecord.errorCode = 1;
+      }
+    }
     
     if(parseRecord.errorCode != 0){
       jam();
       dict_lock_unlock(0, &lockReq);
       c_opCreateTable.release(createTabPtr);
+      if (!parseRecord.tablePtr.isNull())
+      {
+        jam();
+        releaseTableObject(parseRecord.tablePtr.i, true);
+      }
       break;
     }
     
@@ -3989,9 +4004,20 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
       */
       parseRecord.tablePtr.p->primaryTableId = RNIL;
     }
-    EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
-		   CreateFragmentationReq::SignalLength);
-    jamEntry();
+    if (ERROR_INSERTED(6202) || 
+        (ERROR_INSERTED(6203) && 
+         DictTabInfo::isIndex(parseRecord.tablePtr.p->tableType)))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+      signal->theData[0] = 1;
+    }
+    else
+    {
+      EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
+                     CreateFragmentationReq::SignalLength);
+      jamEntry();
+    }
+    
     if (signal->theData[0] != 0)
     {
       jam();
@@ -6287,7 +6313,7 @@ Dbdict::execTC_SCHVERCONF(Signal* signal){
     jam();    \
     parseP->errorCode = error; parseP->errorLine = __LINE__; \
     parseP->errorKey = it.getKey(); \
-    return;   \
+    return;                         \
   }//if
 
 // handleAddTableFailure(signal, __LINE__, allocatedTable);
@@ -6373,10 +6399,11 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 
   if(checkExist){
     jam();
-    tabRequire(get_object(c_tableDesc.TableName, tableNameLength) == 0, 
-	       CreateTableRef::TableAlreadyExist);
+    
+    tabRequire(get_object(c_tableDesc.TableName, tableNameLength) == 0,
+               CreateTableRef::TableAlreadyExist;);
   }
-  
+
   TableRecordPtr tablePtr;
   switch (parseP->requestType) {
   case DictTabInfo::CreateTableFromAPI: {
@@ -6389,7 +6416,6 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     // Check if no free tables existed.
     /* ---------------------------------------------------------------- */
     tabRequire(tablePtr.i != RNIL, CreateTableRef::NoMoreTableRecords);
-    
     c_tableRecordPool.getPtr(tablePtr);
     break;
   }
@@ -6424,21 +6450,20 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 /* ---------------------------------------------------------------- */
     Uint32 tableVersion = c_tableDesc.TableVersion;
     tablePtr.p->tableVersion = tableVersion;
-    
+ 
     break;
   }
   default:
     ndbrequire(false);
     break;
   }//switch
-  parseP->tablePtr = tablePtr;
   
   { 
     Rope name(c_rope_pool, tablePtr.p->tableName);
     tabRequire(name.assign(c_tableDesc.TableName, tableNameLength, name_hash),
-	       CreateTableRef::OutOfStringBuffer);
+               CreateTableRef::OutOfStringBuffer);
   }
-
+  
   Ptr<DictObject> obj_ptr;
   if (parseP->requestType != DictTabInfo::AlterTableFromAPI) {
     jam();
@@ -6455,7 +6480,9 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 	     c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
 #endif
   }
-  
+  parseP->tablePtr = tablePtr;
+  tablePtr.p->tabState = TableRecord::DEFINING;
+
   // Disallow logging of a temporary table.
   tabRequire(!(c_tableDesc.TableTemporaryFlag && c_tableDesc.TableLoggedFlag),
              CreateTableRef::NoLoggingTemporaryTable);
@@ -6535,6 +6562,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
      * Release table
      */
     releaseTableObject(tablePtr.i, checkExist);
+    parseP->tablePtr.setNull();
     return;
   }
 
