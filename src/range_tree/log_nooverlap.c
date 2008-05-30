@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-typedef void* OMTVALUE;
 #include "../../newbrt/omt.h"
 
 struct __toku_range_tree_local {
@@ -143,7 +142,7 @@ int toku_rt_find(toku_range_tree* tree, toku_interval* query, u_int32_t k,
     extra.end_cmp = tree->end_cmp;
     extra.query   = *query;
 
-    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, NULL, &leftmost);
+    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, NULL, &leftmost, NULL);
     if (r==DB_NOTFOUND) {
         /* Nothing overlaps. */
         *numfound = 0;
@@ -180,7 +179,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     extra.end_cmp = tree->end_cmp;
     extra.query   = range->ends;
 
-    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, NULL, &index);
+    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, NULL, &index, NULL);
     if (r==0) { r = EDOM; goto cleanup; }
     if (r!=DB_NOTFOUND) goto cleanup;
     insert_range = tree->malloc(sizeof(*insert_range));
@@ -207,7 +206,7 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
     extra.end_cmp = tree->end_cmp;
     extra.query   = range->ends;
 
-    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, &value, &index);
+    r = toku_omt_find_zero(tree->i.omt, rt_heaviside, &extra, &value, &index, NULL);
     if (r!=0) { r = EDOM; goto cleanup; }
     assert(value);
     toku_range* data = value;
@@ -240,7 +239,7 @@ static inline int rt_neightbor(toku_range_tree* tree, toku_point* point,
     extra.query.right = point;
 
     assert(direction==1 || direction==-1);
-    r = toku_omt_find(tree->i.omt, rt_heaviside, &extra, direction, &value, &index);
+    r = toku_omt_find(tree->i.omt, rt_heaviside, &extra, direction, &value, &index, NULL);
     if (r==DB_NOTFOUND) {
         *wasfound = FALSE;
         r = 0;
