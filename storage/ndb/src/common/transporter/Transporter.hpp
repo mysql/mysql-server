@@ -28,6 +28,8 @@
 #include <NdbMutex.h>
 #include <NdbThread.h>
 
+#include <sys/uio.h>
+
 class Transporter {
   friend class TransporterRegistry;
 public:
