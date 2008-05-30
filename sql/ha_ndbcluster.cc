@@ -5425,21 +5425,26 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
                          (long) this, (long) thd, (long) thd_ndb,
                          thd_ndb->lock_count));
 
-    if (ndb_cache_check_time && m_rows_changed)
+    if (m_rows_changed)
     {
-      DBUG_PRINT("info", ("Rows has changed and util thread is running"));
+      DBUG_PRINT("info", ("Rows has changed"));
+
       if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
       {
-        DBUG_PRINT("info", ("Add share to list of tables to be invalidated"));
+        DBUG_PRINT("info", ("Add share to list of changed tables"));
         /* NOTE push_back allocates memory using transactions mem_root! */
-        thd_ndb->changed_tables.push_back(m_share, &thd->transaction.mem_root);
+        thd_ndb->changed_tables.push_back(m_share,
+                                          &thd->transaction.mem_root);
       }
 
-      pthread_mutex_lock(&m_share->mutex);
-      DBUG_PRINT("info", ("Invalidating commit_count"));
-      m_share->commit_count= 0;
-      m_share->commit_count_lock++;
-      pthread_mutex_unlock(&m_share->mutex);
+      if (ndb_cache_check_time)
+      {
+        pthread_mutex_lock(&m_share->mutex);
+        DBUG_PRINT("info", ("Invalidating commit_count"));
+        m_share->commit_count= 0;
+        m_share->commit_count_lock++;
+        pthread_mutex_unlock(&m_share->mutex);
+      }
     }
 
     if (!--thd_ndb->lock_count)
@@ -9220,20 +9225,34 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
                                    ulonglong *engine_data)
 {
   Uint64 commit_count;
-  bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   char *dbname= full_name;
   char *tabname= dbname+strlen(dbname)+1;
 #ifndef DBUG_OFF
   char buff[22], buff2[22];
 #endif
   DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
-  DBUG_PRINT("enter", ("dbname: %s, tabname: %s, is_autocommit: %d",
-                       dbname, tabname, is_autocommit));
+  DBUG_PRINT("enter", ("dbname: %s, tabname: %s",
+                       dbname, tabname));
 
-  if (!is_autocommit)
+  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
-    DBUG_PRINT("exit", ("No, don't use cache in transaction"));
-    DBUG_RETURN(FALSE);
+    /* Don't allow qc to be used if table has been previously
+       modified in transaction */
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    if (!thd_ndb->changed_tables.is_empty())
+    {
+      NDB_SHARE* share;
+      List_iterator_fast<NDB_SHARE> it(thd_ndb->changed_tables);
+      while ((share= it++))
+      {
+        if (strcmp(share->table_name, tabname) == 0 &&
+            strcmp(share->db, dbname) == 0)
+        {
+          DBUG_PRINT("exit", ("No, transaction has changed table"));
+          DBUG_RETURN(FALSE);
+        }
+      }
+    }
   }
 
   if (ndb_get_commitcount(thd, dbname, tabname, &commit_count))
@@ -9295,15 +9314,29 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 #ifndef DBUG_OFF
   char buff[22];
 #endif
-  bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
-  DBUG_PRINT("enter",("dbname: %s, tabname: %s, is_autocommit: %d",
-		      m_dbname, m_tabname, is_autocommit));
+  DBUG_PRINT("enter",("dbname: %s, tabname: %s",
+		      m_dbname, m_tabname));
 
-  if (!is_autocommit)
+  if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
-    DBUG_PRINT("exit", ("Can't register table during transaction"));
-    DBUG_RETURN(FALSE);
+    /* Don't allow qc to be used if table has been previously
+       modified in transaction */
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    if (!thd_ndb->changed_tables.is_empty())
+    {
+      DBUG_ASSERT(m_share);
+      NDB_SHARE* share;
+      List_iterator_fast<NDB_SHARE> it(thd_ndb->changed_tables);
+      while ((share= it++))
+      {
+        if (m_share == share)
+        {
+          DBUG_PRINT("exit", ("No, transaction has changed table"));
+          DBUG_RETURN(FALSE);
+        }
+      }
+    }
   }
 
   if (ndb_get_commitcount(thd, m_dbname, m_tabname, &commit_count))
