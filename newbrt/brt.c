@@ -469,7 +469,7 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     if (splitk) {
 	memset(splitk, 0, sizeof *splitk);
 	OMTVALUE lev;
-	r=toku_omt_fetch(node->u.l.buffer, toku_omt_size(node->u.l.buffer)-1, &lev);
+	r=toku_omt_fetch(node->u.l.buffer, toku_omt_size(node->u.l.buffer)-1, &lev, NULL);
 	assert(r==0); // that fetch should have worked.
 	LEAFENTRY le=lev;
 	if (node->flags&TOKU_DB_DUPSORT) {
@@ -1461,7 +1461,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     FILENUM filenum = toku_cachefile_filenum(t->cf);
 
     LEAFENTRY storeddata;
-    OMTVALUE storeddatav;
+    OMTVALUE storeddatav=NULL; // TODO BBB This is not entirely safe. Verify initialization needed.
 
     u_int32_t idx;
     int r;
@@ -1476,7 +1476,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     case BRT_INSERT:
 	
 	r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be,
-			       &storeddatav, &idx);
+			       &storeddatav, &idx, NULL);
 	if (r==DB_NOTFOUND) {
 	    storeddata = 0;
 	} else if (r!=0) {
@@ -1494,7 +1494,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 
 	// Delete the one item
 	r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel,  &be,
-			       &storeddatav, &idx);
+			       &storeddatav, &idx, NULL);
 	if (r == DB_NOTFOUND) break;
 	if (r != 0) return r;
 	storeddata=storeddatav;
@@ -1515,7 +1515,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	// Delete all the matches
 
 	r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be,
-			       &storeddatav, &idx);
+			       &storeddatav, &idx, NULL);
 	if (r == DB_NOTFOUND) break;
 	if (r != 0) return r;
 	storeddata=storeddatav;
@@ -1532,7 +1532,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	    BRT_CMD_S ncmd = { cmd->type, cmd->xid, .u.id={cmd->u.id.key, toku_fill_dbt(&valdbt, save_val, vallen)}};
 	    struct cmd_leafval_bessel_extra nbe = {t, &ncmd, 1};
 	    r = toku_omt_find(node->u.l.buffer, toku_cmd_leafval_bessel,  &nbe, +1,
-			      &storeddatav, &idx);
+			      &storeddatav, &idx, NULL);
 	    
 	    toku_free(save_val);
 	    if (r!=0) break;
@@ -2708,7 +2708,7 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
 			  bessel_from_search_t,
 			  search,
 			  direction,
-			  &datav, &idx);
+			  &datav, &idx, NULL);
     if (r!=0) return r;
 
     LEAFENTRY le = datav;
@@ -2727,7 +2727,7 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
 		break;
 	    }
 	    if (idx>=toku_omt_size(node->u.l.buffer)) continue;
-	    r = toku_omt_fetch(node->u.l.buffer, idx, &datav);
+	    r = toku_omt_fetch(node->u.l.buffer, idx, &datav, NULL);
 	    assert(r==0); // we just validated the index
 	    le = datav;
 	    if (!le_is_provdel(le)) goto got_a_good_value;
@@ -3246,12 +3246,14 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, DBT *key, u_
 	BRT_CMD_S cmd = { BRT_INSERT, 0, .u.id={key,0}};
 	struct cmd_leafval_bessel_extra be = {brt, &cmd, 0};
 	u_int32_t idx;
-	int r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be, 0, &idx);
+	int r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be, 0, &idx, NULL);
+        // TODO: Check for r==ENOMEM if the last argument (cursor) is not NULL
+        // (history: we changed find_zero to support cursor, and now find_zero can fail if the cursor cannot grow)
 	*less += idx;
 	if (r==0 && (brt->flags & TOKU_DB_DUP)) {
 	    // There is something, and so we now want to find the rightmost extent.
 	    u_int32_t idx2;
-	    r = toku_omt_find(node->u.l.buffer, toku_cmd_leafval_bessel, &be, +1, 0, &idx2);
+	    r = toku_omt_find(node->u.l.buffer, toku_cmd_leafval_bessel, &be, +1, 0, &idx2, NULL);
 	    if (r==0) {
 		*greater += toku_omt_size(node->u.l.buffer)-idx2;
 		*equal   += idx2-idx;

@@ -1022,7 +1022,7 @@ static int find_filenum (OMTVALUE v, void *brtv) {
 int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
     OMTVALUE txnv;
     u_int32_t index;
-    int r = toku_omt_find_zero(brt->txns, find_ptr, txn, &txnv, &index);
+    int r = toku_omt_find_zero(brt->txns, find_ptr, txn, &txnv, &index, NULL);
     if (r==0) {
 	// It's already there.
 	assert((TOKUTXN)txnv==txn);
@@ -1039,9 +1039,9 @@ int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
 static int remove_brt (OMTVALUE txnv, u_int32_t UU(idx), void *brtv) {
     TOKUTXN txn = txnv;
     BRT     brt = brtv;
-    OMTVALUE brtv_again;
+    OMTVALUE brtv_again=0;  // TODO BBB This is not entirely safe. Verify initialization needed.
     u_int32_t index;
-    int r = toku_omt_find_zero(txn->open_brts, find_filenum, brt, &brtv_again, &index);
+    int r = toku_omt_find_zero(txn->open_brts, find_filenum, brt, &brtv_again, &index, NULL);
     assert(r==0);
     assert((void*)brtv_again==brtv);
     r = toku_omt_delete_at(txn->open_brts, index);
@@ -1058,9 +1058,9 @@ int toku_txn_note_close_brt (BRT brt) {
 static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     BRT brt     = brtv;
     TOKUTXN txn = txnv;
-    OMTVALUE txnv_again;
+    OMTVALUE txnv_again=0; // TODO BBB This is not entirely safe. Verify initialization needed.
     u_int32_t index;
-    int r = toku_omt_find_zero(brt->txns, find_ptr, txn, &txnv_again, &index);
+    int r = toku_omt_find_zero(brt->txns, find_ptr, txn, &txnv_again, &index, NULL);
     assert(r==0);
     assert((void*)txnv_again==txnv);
     r = toku_omt_delete_at(brt->txns, index);
