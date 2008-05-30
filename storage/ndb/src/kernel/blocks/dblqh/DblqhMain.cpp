@@ -19710,6 +19710,18 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       infoEvent(buf);
     }
   }
+  
+  if (arg == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    RSS_AP_SNAPSHOT_SAVE(c_fragment_pool);
+    return;
+  }
+
+  if (arg == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    RSS_AP_SNAPSHOT_CHECK(c_fragment_pool);
+    return;
+  }
 }//Dblqh::execDUMP_STATE_ORD()
 
 /* **************************************************************** */
