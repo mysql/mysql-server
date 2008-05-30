@@ -1973,9 +1973,10 @@ runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
 #include <NDBT_Tables.hpp>
 
 int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
-  static int acclst[] = { 3001 };
+  static int acclst[] = { 3001, 6200, 6202 };
   static int tuplst[] = { 4007, 4008, 4009, 4010, 4011, 4012 };
-  static int tuxlst[] = { 12001, 12002, 12003, 12004, 12005, 12006 };
+  static int tuxlst[] = { 12001, 12002, 12003, 12004, 12005, 12006, 
+                          6201, 6203 };
   static unsigned acccnt = sizeof(acclst)/sizeof(acclst[0]);
   static unsigned tupcnt = sizeof(tuplst)/sizeof(tuplst[0]);
   static unsigned tuxcnt = sizeof(tuxlst)/sizeof(tuxlst[0]);
