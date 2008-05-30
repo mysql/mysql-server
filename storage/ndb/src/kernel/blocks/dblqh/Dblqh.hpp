@@ -2645,6 +2645,7 @@ private:
 // Configurable
   FragrecordPtr fragptr;
   ArrayPool<Fragrecord> c_fragment_pool;
+  RSS_AP_SNAPSHOT(c_fragment_pool);
 
 #define ZGCPREC_FILE_SIZE 1
   GcpRecord *gcpRecord;
