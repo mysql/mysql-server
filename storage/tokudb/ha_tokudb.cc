@@ -3553,7 +3553,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             uint curr_index = i + table_arg->s->keys;
             u_int32_t put_flags = share->key_type[curr_index];
             
-            error = share->key_file[curr_index]->put(share->key_file[curr_index], NULL, &secondary_key, &current_primary_key, put_flags);
+            error = share->key_file[curr_index]->put(share->key_file[curr_index], txn, &secondary_key, &current_primary_key, put_flags);
             if (error) {
                 //
                 // in the case of any error anywhere, we can just nuke all the files created, so we dont need
