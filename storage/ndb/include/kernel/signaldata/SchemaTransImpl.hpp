@@ -69,7 +69,7 @@ struct SchemaTransImplRef
     TooManySchemaOps = 783,
     SeizeFailed = 783,
     InvalidTransState = 784,
-    NF_FakeErrorREF = 1
+    NF_FakeErrorREF = 99
   };
   Uint32 senderRef;
   union { Uint32 transKey, senderData; };
