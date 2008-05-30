@@ -4113,7 +4113,6 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     ndbrequire(false);
     break;
   }//switch
-  parseP->tablePtr = tablePtr;
   
   { 
     Rope name(c_rope_pool, tablePtr.p->tableName);
@@ -4138,6 +4137,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 	     c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
 #endif
   }
+  parseP->tablePtr = tablePtr;
   
   // Disallow logging of a temporary table.
   tabRequire(!(c_tableDesc.TableTemporaryFlag && c_tableDesc.TableLoggedFlag),
@@ -4662,8 +4662,26 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     handleTabInfoInit(r, &parseRecord);
     releaseSections(handle);
 
-    if (parseRecord.errorCode != 0) {
+    if (parseRecord.errorCode == 0)
+    {
+      if (ERROR_INSERTED(6200) || 
+          (ERROR_INSERTED(6201) && 
+           DictTabInfo::isIndex(parseRecord.tablePtr.p->tableType)))
+      {
+        jam();
+        CLEAR_ERROR_INSERT_VALUE;
+        parseRecord.errorCode = 1;
+      }
+    }
+
+    if (parseRecord.errorCode != 0) 
+    {
       jam();
+      if (!parseRecord.tablePtr.isNull())
+      {
+        jam();
+        releaseTableObject(parseRecord.tablePtr.i, true);
+      }
       setError(error, parseRecord);
       return;
     }
@@ -4725,9 +4743,21 @@ Dbdict::createTable_parse(Signal* signal, bool master,
       tabPtr.p->primaryTableId = RNIL;
     }
 
-    EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
-                   CreateFragmentationReq::SignalLength);
-    jamEntry();
+    if (ERROR_INSERTED(6202) || 
+        (ERROR_INSERTED(6203) && 
+         DictTabInfo::isIndex(parseRecord.tablePtr.p->tableType)))
+    {
+      jam();
+      CLEAR_ERROR_INSERT_VALUE;
+      signal->theData[0] = 1;
+    }
+    else
+    {
+      EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
+                     CreateFragmentationReq::SignalLength);
+      jamEntry();
+    }
+
     if (signal->theData[0] != 0) {
       jam();
       setError(error, signal->theData[0], __LINE__);
