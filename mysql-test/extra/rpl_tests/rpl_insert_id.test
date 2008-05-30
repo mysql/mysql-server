@@ -28,9 +28,17 @@ drop table if exists t1, t2, t3;
 -- source include/master-slave.inc
 #should work for both SBR and RBR
 
+# If concurrent inserts are on, it is not guaranteed that the rows
+# inserted by INSERT are immediately accessible by SELECT in another
+# thread. This would cause problems near the line 'connection master1'
+# below. So we turn off concurrent inserts.
 connection master;
-create table t1(a int auto_increment, key(a));
-create table t2(b int auto_increment, c int, key(b));
+SET @old_concurrent_insert= @@global.concurrent_insert;
+SET @@global.concurrent_insert= 0;
+
+connection master;
+eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
+eval create table t2(b int auto_increment, c int, key(b)) engine=$engine_type;
 insert into t1 values (1),(2),(3);
 insert into t1 values (null);
 insert into t2 values (null,last_insert_id());
@@ -68,8 +76,8 @@ connection master;
 
 drop table t2;
 drop table t1;
-create table t1(a int auto_increment, key(a));
-create table t2(b int auto_increment, c int, key(b));
+eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
+eval create table t2(b int auto_increment, c int, key(b)) engine=$engine_type;
 insert into t1 values (10);
 insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
@@ -94,7 +102,7 @@ sync_with_master;
 
 connection master;
 SET TIMESTAMP=1000000000;
-CREATE TABLE t1 ( a INT UNIQUE );
+eval CREATE TABLE t1 ( a INT UNIQUE ) engine=$engine_type;
 SET FOREIGN_KEY_CHECKS=0;
 # Duplicate Key Errors
 --error 1022, ER_DUP_ENTRY
@@ -109,8 +117,8 @@ sync_slave_with_master;
 --echo #
 
 connection master;
-create table t1(a int auto_increment, key(a));
-create table t2(a int);
+eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
+eval create table t2(a int) engine=$engine_type;
 insert into t1 (a) values (null);
 insert into t2 (a) select a from t1 where a is null;
 insert into t2 (a) select a from t1 where a is null;
@@ -139,11 +147,11 @@ drop function if exists bug15728_insert;
 drop table if exists t1, t2;
 --enable_warnings
 
-create table t1 (
+eval create table t1 (
   id int not null auto_increment,
   last_id int,
   primary key (id)
-);
+) engine=$engine_type;
 create function bug15728() returns int(11)
   return last_insert_id();
 
@@ -152,11 +160,11 @@ insert into t1 (last_id) values (last_insert_id());
 insert into t1 (last_id) values (bug15728());
 
 # Check that nested call replicates too.
-create table t2 (
+eval create table t2 (
   id int not null auto_increment,
   last_id int,
   primary key (id)
-);
+) engine=$engine_type;
 delimiter |;
 create function bug15728_insert() returns int(11) modifies sql data
 begin
@@ -215,8 +223,8 @@ drop procedure foo;
 # test of BUG#20188 REPLACE or ON DUPLICATE KEY UPDATE in
 # auto_increment breaks binlog
 
-create table t1 (n int primary key auto_increment not null,
-b int, unique(b));
+eval create table t1 (n int primary key auto_increment not null,
+                      b int, unique(b)) engine=$engine_type;
 
 # First, test that we do not call restore_auto_increment() too early
 # in write_record():
@@ -257,8 +265,8 @@ select * from t1 order by n;
 # and now test for the bug:
 connection master;
 drop table t1;
-create table t1 (n int primary key auto_increment not null,
-b int, unique(b));
+eval create table t1 (n int primary key auto_increment not null,
+                      b int, unique(b)) engine=$engine_type;
 insert into t1 values(null,100);
 select * from t1 order by n;
 sync_slave_with_master;
@@ -282,29 +290,29 @@ sync_slave_with_master;
 
 connection master;
 # testcase with INSERT VALUES
-CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
-UNIQUE(b));
+eval CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
+                      UNIQUE(b)) ENGINE=$engine_type;
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 sync_slave_with_master;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 connection master;
 drop table t1;
 
 # tescase with INSERT SELECT
-CREATE TABLE t1 (
+eval CREATE TABLE t1 (
   id bigint(20) unsigned NOT NULL auto_increment,
   field_1 int(10) unsigned NOT NULL,
   field_2 varchar(255) NOT NULL,
   field_3 varchar(255) NOT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY field_1 (field_1, field_2)
-);
-CREATE TABLE t2 (
+) ENGINE=$engine_type;
+eval CREATE TABLE t2 (
   field_a int(10) unsigned NOT NULL,
   field_b varchar(255) NOT NULL,
   field_c varchar(255) NOT NULL
-);
+) ENGINE=$engine_type;
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (1, 'a', '1a');
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (2, 'b', '2b');
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (3, 'c', '3c');
@@ -324,9 +332,9 @@ SELECT t2.field_a, t2.field_b, t2.field_c
 FROM t2
 ON DUPLICATE KEY UPDATE
 t1.field_3 = t2.field_c;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY id;
 sync_slave_with_master;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY id;
 connection master;
 drop table t1, t2;
 
@@ -348,17 +356,17 @@ DROP TABLE IF EXISTS t1, t2;
 # Reset result of LAST_INSERT_ID().
 SELECT LAST_INSERT_ID(0);
 
-CREATE TABLE t1 (
+eval CREATE TABLE t1 (
   id INT NOT NULL DEFAULT 0,
   last_id INT,
   PRIMARY KEY (id)
-);
+) ENGINE=$engine_type;
 
-CREATE TABLE t2 (
+eval CREATE TABLE t2 (
   id INT NOT NULL AUTO_INCREMENT,
   last_id INT,
   PRIMARY KEY (id)
-);
+) ENGINE=$engine_type;
 
 delimiter |;
 CREATE PROCEDURE p1()
@@ -369,12 +377,12 @@ END|
 delimiter ;|
 
 CALL p1();
-SELECT * FROM t1;
-SELECT * FROM t2;
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
 
 sync_slave_with_master;
-SELECT * FROM t1;
-SELECT * FROM t2;
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
 
 connection master;
 
@@ -394,11 +402,11 @@ DROP FUNCTION IF EXISTS f3;
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
 
-CREATE TABLE t1 (
+eval CREATE TABLE t1 (
     i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     j INT DEFAULT 0
-);
-CREATE TABLE t2 (i INT);
+) ENGINE=$engine_type;
+eval CREATE TABLE t2 (i INT) ENGINE=$engine_type;
 
 delimiter |;
 CREATE PROCEDURE p1()
@@ -443,14 +451,16 @@ UPDATE t1 SET j= -1 WHERE i IS NULL;
 # Test statement-based replication of function calls.
 INSERT INTO t1 (i) VALUES (NULL);
 
+# Here, we rely on having set @@concurrent_insert= 0 (see comment at
+# the top of this file).
 connection master1;
 INSERT INTO t1 (i) VALUES (NULL);
 
 connection master;
 SELECT f3();
 
-SELECT * FROM t1;
-SELECT * FROM t2;
+SELECT * FROM t1 ORDER BY i;
+SELECT * FROM t2 ORDER BY i;
 
 sync_slave_with_master;
 SELECT * FROM t1;
@@ -472,11 +482,11 @@ sync_slave_with_master;
 
 # Tests in this file are tightly bound together.  Recreate t2.
 connection master;
-create table t2 (
+eval create table t2 (
   id int not null auto_increment,
   last_id int,
   primary key (id)
-);
+) engine=$engine_type;
 
 
 # Test for BUG#20341 "stored function inserting into one
@@ -484,7 +494,8 @@ create table t2 (
 
 connection master;
 truncate table t2;
-create table t1 (id tinyint primary key); # no auto_increment
+# no auto_increment
+eval create table t1 (id tinyint primary key) engine=$engine_type;
 
 delimiter |;
 create function insid() returns int
@@ -504,20 +515,20 @@ insert into t2 (id) values(5),(6),(7);
 delete from t2 where id>=5;
 set sql_log_bin=1;
 insert into t1 select insid();
-select * from t1;
-select * from t2;
+select * from t1 order by id;
+select * from t2 order by id;
 
 sync_slave_with_master;
-select * from t1;
-select * from t2;
+select * from t1 order by id;
+select * from t2 order by id;
 
 connection master;
 drop table t1;
 drop function insid;
 
 truncate table t2;
-create table t1 (n int primary key auto_increment not null,
-b int, unique(b));
+eval create table t1 (n int primary key auto_increment not null,
+                      b int, unique(b)) engine=$engine_type;
 delimiter |;
 create procedure foo()
 begin
@@ -528,14 +539,15 @@ begin
 end|
 delimiter ;|
 call foo();
-select * from t1;
-select * from t2;
+select * from t1 order by n;
+select * from t2 order by id;
 
 sync_slave_with_master;
-select * from t1;
-select * from t2;
+select * from t1 order by n;
+select * from t2 order by id;
 
 connection master;
 drop table t1, t2;
 drop procedure foo;
+SET @@global.concurrent_insert= @old_concurrent_insert;
 sync_slave_with_master;

@@ -1,0 +1,102 @@
+
+
+################## mysql-test\t\ssl_ca_basic.test #############################
+#                                                                             #
+# Variable Name: ssl_ca                                                       #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                      #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable ssl_ca                    #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+-- source include/have_ssl.inc
+
+--echo '#---------------------BS_STVARS_045_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.ssl_ca);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_045_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.ssl_ca=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.ssl_ca);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_045_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.ssl_ca = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='ssl_ca';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.ssl_ca);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='ssl_ca';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_045_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@ssl_ca = @@GLOBAL.ssl_ca;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_045_05----------------------#'
+################################################################################
+#   Check if ssl_ca can be accessed with and without @@ sign                   #
+################################################################################
+
+SELECT COUNT(@@ssl_ca);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.ssl_ca);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.ssl_ca);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.ssl_ca);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT ssl_ca = @@SESSION.ssl_ca;
+--echo Expected error 'Readonly variable'
+
+

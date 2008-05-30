@@ -3,9 +3,9 @@
 #  Functions within VIEWs                         #
 #                                                 #
 ###################################################
-# 2006-12-08 ML   Maintenance + refinements
-# 2005-09-14 ML   Create this test
 # 2007-11-09 HHunger enabled all disabled parts belonging to fixed bugs.
+# 2006-12-08 mleich  Maintenance + refinements
+# 2005-09-14 mleich  Create this test
 #
 # 0.  Some notes about this test:
 # #################################################################
@@ -13,9 +13,9 @@
 # 0.1   This test is unfinished and incomplete, but already useful.
 # -----------------------------------------------------------------
 # 0.1.1 There will be architectural changes in future.
-#       The long sequences with 
+#       The long sequences with
 #           let $col_type= <column to use>;
-#           --source suite/funcs_1/views/<file containing the 
+#           --source suite/funcs_1/views/<file containing the
 #                                         select with function>
 #       per every column type do not look very smart.
 #
@@ -46,7 +46,7 @@
 #
 # 0.2   How to valuate the test results:
 # ---------------------------------------------------------------------------
-#       Due to the extreme "greedy bug hunting" architecture (combinatorics 
+#       Due to the extreme "greedy bug hunting" architecture (combinatorics
 #       + heavy use of sourced scripts) of the following tests, there will be
 #       - no abort of the test execution, when one statements gets an return
 #         code != 0 (The sub testcases are independend.)
@@ -62,10 +62,10 @@
 #            The file with expected results suffers from Bug 5913";
 #            means, the file with expected results contains result sets which
 #            are known to be wrong.
-#            "Attention: The last <whatever> failed" 
+#            "Attention: The last <whatever> failed"
 #            means, a statement which should be successful (bugfree MySQL)
 #            failed.
-#       
+#
 #       "Passed" : The behaviour of your MySQL version does not differ from the
 #                  version used to generate the files with expected results.
 #                  Known bugs affecting these tests could be retrieved by
@@ -87,7 +87,7 @@
 #          with the suspicious result set or server response.
 #          Now all t1_values records are preloaded.
 #       2. Start the server without the initial cleanup of databases etc.
-#          This preserves the content of the table t1_values, which 
+#          This preserves the content of the table t1_values, which
 #          might be needed for replaying the situation.
 #          Example:
 #            ./mysql-test-run.pl   --socket=var/tmp/master.sock --start-dirty
@@ -148,7 +148,7 @@
 #         The script will work with the VIEWs, but omit the simple selects.
 #         The "reject" file contains the view select result sets.
 #      3. Compare the "reject" files of 1. and 2. within a graphical diff tool.
-#      
+#
 #
 
 --disable_warnings
@@ -189,7 +189,7 @@ eval CREATE TABLE t1_values
 ##### BEGIN      Basic preparations      #######################################
 #
 # 1. Extend t1_values with the columns you need
-#    - the column name must show the data type 
+#    - the column name must show the data type
 #    - do not add NOT NULL columns
 #    - do not worry if the intended column data type is not
 #      available for some storage engines
@@ -221,7 +221,7 @@ ALTER TABLE t1_values ADD my_decimal        DECIMAL(64,30);
 #       we do not want to start with "illegal/unexpected/..." values.
 #       Such experiments should be done in other testcases.
 #     Please be careful
-#     - modifying column values of predefined rows they might change many 
+#     - modifying column values of predefined rows they might change many
 #       result sets
 #     - additional predefined rows should be really useful for the majority of
 #       all sub testcases, since they blow up all result sets.
@@ -246,19 +246,19 @@ INSERT INTO t1_values SET
        my_year = '1901',
        my_bigint = -9223372036854775808,
        my_decimal = -9999999999999999999999999999999999.999999999999999999999999999999 ,
-       my_double = -1.7976931348623E+308; 
+       my_double = -1.7976931348623E+308;
 # shortened due to bug#32285
-#       my_double = -1.7976931348623157E+308; 
+#       my_double = -1.7976931348623157E+308;
 #
 # 2.3 record -- everything to "maximum"
 #     numbers, date/time types -> maximum of range
 #     strings, blobs, binaries -> '<- full length of used data type>'
 #     FIXME enum, set ??
 INSERT INTO t1_values SET
-       my_char_30 = '<--------30 characters------->', 
+       my_char_30 = '<--------30 characters------->',
        my_varchar_1000 = CONCAT('<---------1000 characters',
                                 RPAD('',965,'-'),'--------->'),
-       my_binary_30 = '<--------30 characters------->', 
+       my_binary_30 = '<--------30 characters------->',
        my_varbinary_1000 = CONCAT('<---------1000 characters',
                                 RPAD('',965,'-'),'--------->'),
        my_datetime = '9999-12-31 23:59:59',
@@ -270,7 +270,7 @@ INSERT INTO t1_values SET
        my_decimal = +9999999999999999999999999999999999.999999999999999999999999999999 ,
        my_double = 1.7976931348623E+308;
 # shortened due to bug#32285
-#       my_double = -1.7976931348623157E+308; 
+#       my_double = -1.7976931348623157E+308;
 #
 # 2.4 record -- everything to "magic" value if available or
 #               other interesting value
@@ -279,28 +279,28 @@ INSERT INTO t1_values SET
 #                                 characters and preceeding and trailing spaces
 #     FIXME enum, set ??
 INSERT INTO t1_values SET
-       my_char_30 = ' ---äÖüß@µ*$-- ', 
-       my_varchar_1000 = ' ---äÖüß@µ*$-- ', 
-       my_binary_30 = ' ---äÖüß@µ*$-- ', 
-       my_varbinary_1000 = ' ---äÖüß@µ*$-- ', 
+       my_char_30 = ' ---äÖüß@µ*$-- ',
+       my_varchar_1000 = ' ---äÖüß@µ*$-- ',
+       my_binary_30 = ' ---äÖüß@µ*$-- ',
+       my_varbinary_1000 = ' ---äÖüß@µ*$-- ',
        my_datetime = '2004-02-29 23:59:59',
        my_date = '2004-02-29',
        my_timestamp = '2004-02-29 23:59:59',
        my_time = '13:00:00',
        my_year = 2000,
-       my_bigint = 0,  	 
+       my_bigint = 0,  	
        my_decimal = 0.0,
        my_double = 0;
 #
 # 2.5 record -- everything to "harmless" value if available
 #     numbers -> -1 (logical)
-#     strings, blobs, binaries -> '-1' useful for numeric functions 
+#     strings, blobs, binaries -> '-1' useful for numeric functions
 #     FIXME enum, set ??
 INSERT INTO t1_values SET
-       my_char_30 = '-1', 
-       my_varchar_1000 = '-1', 
-       my_binary_30 = '-1', 
-       my_varbinary_1000 = '-1', 
+       my_char_30 = '-1',
+       my_varchar_1000 = '-1',
+       my_binary_30 = '-1',
+       my_varbinary_1000 = '-1',
        my_datetime = '2005-06-28 10:00:00',
        my_date = '2005-06-28',
        my_timestamp = '2005-06-28 10:00:00',
@@ -318,11 +318,11 @@ INSERT INTO t1_values SET
 #     records which should be used dedicated to the SELECT above
 #     - Please avoid WHERE clauses
 #     - Include the PRIMARY KEY ("id") of the base table t1_values into the
-#       select column list    
-#     - Include the base table column used as function parameter into the 
-#       select column list, because it is much easier to check the results 
+#       select column list
+#     - Include the base table column used as function parameter into the
+#       select column list, because it is much easier to check the results
 #     - Do not forget to escape single quotes
-#       Example: 
+#       Example:
 #        SET @my_select = 'SELECT sqrt(my_bigint), my_bigint, id FROM t1_values'
 #        SET @my_select = 'SELECT CONCAT(\'A\',my_char_30), id FROM t1_values';
 #     - Statements, which reveal open crashing bugs MUST be disabled.
@@ -335,10 +335,10 @@ INSERT INTO t1_values SET
 #       most preferred function.
 #       This method avoids that we forget a function and gives a better
 #       overview.
-#       
+#
 #     If you have the time to check the result sets do the insert of the
 #     SELECT with function via:
-#           eval SET @my_select = 
+#           eval SET @my_select =
 #           '<your SELECT>';
 #           --source suite/funcs_1/views/fv1.inc
 #     fv1.inc sets t1_selects.disable_result to 'No' and the effect will be,
@@ -346,7 +346,7 @@ INSERT INTO t1_values SET
 #
 #     If you do have the time to check the result sets do the insert of the
 #     SELECT with function via:
-#           eval SET @my_select = 
+#           eval SET @my_select =
 #           '<your SELECT>';
 #           --source suite/funcs_1/views/fv2.inc
 #     fv2.inc sets t1_selects.disable_result to 'Yes' and the effect will be,
@@ -372,7 +372,7 @@ INSERT INTO t1_values SET
 #
 #       Example:
 #          The function to be tested is "sqrt".
-#          The minimum, maximum, default and NULL value are covered by the 
+#          The minimum, maximum, default and NULL value are covered by the
 #          predefined rows.
 #          A value where sqrt(<value>) = <integer value> in strict mathematics
 #          would be of interest.
@@ -408,7 +408,7 @@ eval INSERT INTO t1_values SET select_id = @select_id,
 # 1.1   CAST
 #
 # Note(ML): I guess the CAST routines are used in many other functions.
-#           Therefore check also nearly all "ugly" variants like 
+#           Therefore check also nearly all "ugly" variants like
 #           CAST(<string composed of non digits> AS DECIMAL) here.
 #
 #        suite/funcs_1/views/fv_cast.inc contains
@@ -595,6 +595,7 @@ let $col_type= my_time;
 let $col_type= my_year;
 --source suite/funcs_1/views/fv_cast.inc
 
+
 # 1.1.6. CAST --> DECIMAL
 --echo ##### 1.1.6. CAST --> DECIMAL
 # Set the following to (37,2) since the default was changed to (10,0) - OBN
@@ -641,7 +642,7 @@ let $col_type= my_year;
 --echo ##### 1.1.7. CAST --> SIGNED INTEGER
 let $target_type= SIGNED INTEGER;
 #
-let $message= 
+let $message=
 "Attention: CAST --> SIGNED INTEGER
             Bug#5913 Traditional mode: BIGINT range not correctly delimited
             Status: To be fixed later";
@@ -677,7 +678,7 @@ let $col_type= my_year;
 --echo ##### 1.1.8. CAST --> UNSIGNED INTEGER
 let $target_type= UNSIGNED INTEGER;
 #
-let $message= 
+let $message=
 "Attention: CAST --> UNSIGNED INTEGER
             The file with expected results suffers from Bug 5913";
 --source include/show_msg80.inc
@@ -723,38 +724,38 @@ let $col_type= my_year;
 let $target_charset= utf8;
 #
 let $col_type= my_char_30;
-eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset), 
+eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset),
 $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_varchar_1000;
-eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset), 
+eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset),
 $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_binary_30;
-eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset), 
+eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset),
 $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_varbinary_1000;
-eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset), 
+eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset),
 $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 #
 # 1.3.2  CONVERT(expr USING koi8r)
 let $target_charset= koi8r;
 let $col_type= my_char_30;
-eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset), 
+eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset),
 $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_varchar_1000;
-eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset), 
+eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset),
 $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_binary_30;
-eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset), 
+eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset),
 $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_varbinary_1000;
-eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset), 
+eval SET @my_select = 'SELECT CONVERT($col_type USING $target_charset),
 $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 
@@ -762,7 +763,7 @@ $col_type, id FROM t1_values';
 # 2.     Control Flow Functions
 # 2.1.   CASE value WHEN [compare-value] THEN result [WHEN ...] [ELSE result]
 #        END                 or
-#        CASE WHEN [condition] THEN result [WHEN ...] [ELSE result] END  
+#        CASE WHEN [condition] THEN result [WHEN ...] [ELSE result] END
 #
 #        FIXME: to be implemented
 #
@@ -861,7 +862,7 @@ let $col_type= my_year;
 --source suite/funcs_1/views/fv_if2.inc
 
 
-# 2.3.   IFNULL(expr1,expr2) 
+# 2.3.   IFNULL(expr1,expr2)
 #           If expr1 is not NULL, IFNULL() returns expr1, else it returns expr2.
 #
 #        suite/funcs_1/views/fv_ifnull.inc contains
@@ -912,7 +913,7 @@ let $col_type= my_year;
 
 # 2.4.    NULLIF(expr1,expr2)
 #            Returns NULL if expr1 = expr2 is true, else returns expr1.
-#            This is the same as 
+#            This is the same as
 #                 CASE WHEN expr1 = expr2 THEN NULL ELSE expr1 END.
 #
 #         FIXME: to be implemented
@@ -949,11 +950,11 @@ $col_type, id FROM t1_values';
 # 3.5.    CHAR_LENGTH(str)
 # 3.6     CHARACTER_LENGTH(str)
 #            CHARACTER_LENGTH() is a synonym for CHAR_LENGTH().
-# 3.7.    COMPRESS(string_to_compress) 
+# 3.7.    COMPRESS(string_to_compress)
 # 3.8.    CONCAT(str1,str2,...)
 # 3.9.    CONCAT_WS(separator,str1,str2,...)
 # 3.10.   CONV(N,from_base,to_base)
-# 3.11.   ELT(N,str1,str2,str3,...) 
+# 3.11.   ELT(N,str1,str2,str3,...)
 # 3.12.   EXPORT_SET(bits,on,off[,separator[,number_of_bits]])
 # 3.13.   FIELD(str,str1,str2,str3,...)
 # 3.14.   FIND_IN_SET(str,strlist)
@@ -981,27 +982,27 @@ $col_type, id FROM t1_values';
 
 
 # 3.19.   LEFT(str,len)
-#            Returns the leftmost len characters from the string str. 
+#            Returns the leftmost len characters from the string str.
 let $col_type= my_char_30;
-eval SET @my_select = 
+eval SET @my_select =
 'SELECT LEFT($col_type, 2), $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_varchar_1000;
-eval SET @my_select = 
+eval SET @my_select =
 'SELECT LEFT($col_type, 2), $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_binary_30;
-eval SET @my_select = 
+eval SET @my_select =
 'SELECT LEFT($col_type, 2), $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_varbinary_1000;
-eval SET @my_select = 
+eval SET @my_select =
 'SELECT LEFT($col_type, 2), $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 # Bug#11728 string function LEFT, strange undocumented behaviour, strict mode
 # Bug#10963 LEFT string function returns wrong result with large length
 let $col_type= my_bigint;
-eval SET @my_select = 
+eval SET @my_select =
 'SELECT LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', $col_type), $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 let $col_type= my_decimal;
@@ -1038,10 +1039,11 @@ $col_type, id FROM t1_values';
 #            If the file doesn't exist or cannot be read ... ,
 #            the function returns NULL.
 # SELECT LOADFILE
-#        Prepare a file:
-SELECT 'äÄ@' INTO OUTFILE '../tmp/func_view.dat';
-eval SET @my_select = 
-'SELECT LOAD_FILE(''../tmp/func_view.dat''), id FROM t1_values';
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval SET @my_select =
+'SELECT LOAD_FILE(''$MYSQLTEST_VARDIR/std_data_ln/funcs_1/load_file.txt'')
+           AS my_col,
+        id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
 
 
@@ -1208,8 +1210,8 @@ $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv2.inc
 
 
-# 3.26.    MAKE_SET(bits,str1,str2,...) 
-# .....        
+# 3.26.    MAKE_SET(bits,str1,str2,...)
+# .....
 #         FIXME: to be implemented
 
 ################################################################################
@@ -1262,6 +1264,7 @@ while ($select_id)
     if ($view_select_result)
     {
        # Create the VIEW
+       --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
        eval CREATE VIEW v1 AS $my_select;
        --disable_query_log
        eval set @got_errno= $mysql_errno ;
@@ -1280,11 +1283,12 @@ while ($select_id)
     if ($simple_select_result)
     {
        # Simple SELECT on the base table of the VIEW for comparison
-       
+
        if ($run_no_result)
        {
           --disable_result_log
        }
+       --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
        eval $my_select
             WHERE select_id = $select_id OR select_id IS NULL order by id;
        if ($run_no_result)
@@ -1304,6 +1308,7 @@ while ($select_id)
     if ($run0)
     {
        # Check the CREATE VIEW statement
+       --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
        SHOW CREATE VIEW v1;
        if ($mysql_errno)
        {
@@ -1347,4 +1352,3 @@ while ($select_id)
 --enable_ps_protocol
 
 DROP TABLE t1_selects, t1_modes, t1_values;
---exec rm $MYSQLTEST_VARDIR/tmp/func_view.dat

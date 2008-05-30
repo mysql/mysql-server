@@ -4,7 +4,7 @@
 # 2007-10-05 mleich
 #    1. Fix for Bug#31237 Test "ndb_views" fails because of differing order ...
 #    2. Cleanup of test
-# 2007-11-15 hhunger WL#4084: Review and fix all disabled tests ... 
+# 2007-11-15 hhunger WL#4084: Review and fix all disabled tests ...
 
 let $message= ! Attention: The file with the expected results is not
               |            thoroughly checked.
@@ -19,7 +19,7 @@ let $message= ! Attention: The file with the expected results is not
 # If this bug is fixed, please
 # 1. set the following variable to 0
 # 2. check, if the test passes
-# 3. remove the workarounds 
+# 3. remove the workarounds
 let $have_bug_32285= 1;
 if ($have_bug_32285)
 {
@@ -2004,7 +2004,7 @@ let $message= Testcase 3.3.1.49A ;
 #       The annoying redundant
 #       eval INSERT INTO t1_results VALUES (@v3_to_v1_options,@statement,
 #                                           @v3_to_v1_violation,$mysql_errno);
-#       could not be put into a file to be sourced because of the closed 
+#       could not be put into a file to be sourced because of the closed
 #       Bug#10267 mysqltest, wrong number of loops when a script is sourced
 #                 within a loop
 # To be implemented later.
@@ -3903,6 +3903,9 @@ SELECT * FROM t1 order by f1, report;
 SELECT * FROM v1 order by f1, report;
 #
 # 3. Length of one base table column is reduced
+# We have to mangle within warnings the row numbers, because they are not
+# deterministic in case of NDB.
+--replace_regex /at row [0-9]/at row <some number>/
 ALTER TABLE t1 CHANGE COLUMN f4 f4 CHAR(8);
 INSERT INTO t1 SET f1 = 3, f4 = '<-- 10 -->', report = 't1 3';
 INSERT INTO v1 SET f1 = 3, f4 = '<-- 10 -->', report = 'v1 3';

@@ -1,0 +1,98 @@
+SET @global_start_value = @@global.init_slave;
+SELECT @global_start_value AS INIT_VALUE;
+INIT_VALUE
+
+'#--------------------FN_DYNVARS_037_01------------------#'
+SELECT init_slave;
+ERROR 42S22: Unknown column 'init_slave' in 'field list'
+SELECT @@init_slave;
+@@init_slave
+
+SET @@global.init_slave='SET autocomit=0';
+SELECT @@global.init_slave;
+@@global.init_slave
+SET autocomit=0
+SET global init_slave='SET autocomit=0';
+SELECT global init_slave;
+ERROR 42S22: Unknown column 'global' in 'field list'
+SELECT @@global init_slave;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'init_slave' at line 1
+'#--------------------FN_DYNVARS_037_02-------------------------#'
+SET @@global.init_slave = 'SET join_buffer_size=8200';
+SET @@global.init_slave = DEFAULT;
+SELECT @@global.init_slave;
+@@global.init_slave
+
+'#--------------------FN_DYNVARS_037_03-------------------------#'
+SET @@session.init_slave = '';
+ERROR HY000: Variable 'init_slave' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@init_slave = "";
+ERROR HY000: Variable 'init_slave' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.init_slave;
+ERROR HY000: Variable 'init_slave' is a GLOBAL variable
+SELECT @@local.init_slave;
+ERROR HY000: Variable 'init_slave' is a GLOBAL variable
+'#--------------------FN_DYNVARS_037_04-------------------------#'
+SET @@global.init_slave="";
+SELECT @@global.init_slave;
+@@global.init_slave
+
+SET @@global.init_slave='SELECT 1,"abc"';
+SELECT @@global.init_slave;
+@@global.init_slave
+SELECT 1,"abc"
+SET @@global.init_slave='SET @a="b"';
+SELECT @@global.init_slave;
+@@global.init_slave
+SET @a="b"
+SET @@global.init_slave="SET autocomit=1;REVOKE ALL ON INFORMATION_SCHEMA.*";
+SELECT @@global.init_slave;
+@@global.init_slave
+SET autocomit=1;REVOKE ALL ON INFORMATION_SCHEMA.*
+SET @@global.init_slave='SHOW VARIABLES';
+SELECT @@global.init_slave;
+@@global.init_slave
+SHOW VARIABLES
+SET @@global.init_slave = NULL;
+SELECT @@global.init_slave;
+@@global.init_slave
+
+SET @@global.init_slave='abc 123 +-*/';
+SELECT @@global.init_slave;
+@@global.init_slave
+abc 123 +-*/
+SET @@global.init_slave=this_will_give_syntax_error;
+SELECT @@global.init_slave;
+@@global.init_slave
+this_will_give_syntax_error
+SET @@global.init_slave = init_slave;
+SELECT @@global.init_slave;
+@@global.init_slave
+init_slave
+'#--------------------FN_DYNVARS_037_05-------------------------#'
+SET @@global.init_slave = true;
+ERROR 42000: Incorrect argument type to variable 'init_slave'
+SET @@global.init_slave = false;
+ERROR 42000: Incorrect argument type to variable 'init_slave'
+SET @@global.init_slave = 1.1;
+ERROR 42000: Incorrect argument type to variable 'init_slave'
+SET @@global.init_slave = 0;
+ERROR 42000: Incorrect argument type to variable 'init_slave'
+SET @@global.init_slave = 1;
+ERROR 42000: Incorrect argument type to variable 'init_slave'
+SET @@global.init_slave = -1;
+ERROR 42000: Incorrect argument type to variable 'init_slave'
+SET @@global.init_slave = ON;
+SELECT @@global.init_slave;
+@@global.init_slave
+ON
+'#--------------------FN_DYNVARS_037_06-------------------------#'
+SELECT @@global.init_slave = (SELECT VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='init_slave') AS res;
+res
+1
+SET @@global.init_slave = @global_start_value;
+SELECT @@global.init_slave;
+@@global.init_slave
+

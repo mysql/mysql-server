@@ -114,6 +114,14 @@ public:
   bool sign() const { return decimal_t::sign; }
   void sign(bool s) { decimal_t::sign= s; }
   uint precision() const { return intg + frac; }
+
+  /** Swap two my_decimal values */
+  void swap(my_decimal &rhs)
+  {
+    swap_variables(my_decimal, *this, rhs);
+    /* Swap the buffer pointers back */
+    swap_variables(decimal_digit_t *, buf, rhs.buf);
+  }
 };
 
 
@@ -169,14 +177,23 @@ inline int check_result_and_overflow(uint mask, int result, my_decimal *val)
 inline uint my_decimal_length_to_precision(uint length, uint scale,
                                            bool unsigned_flag)
 {
-  return (uint) (length - (scale>0 ? 1:0) - (unsigned_flag ? 0:1));
+  /* Precision can't be negative thus ignore unsigned_flag when length is 0. */
+  DBUG_ASSERT(length || !scale);
+  return (uint) (length - (scale>0 ? 1:0) -
+                 (unsigned_flag || !length ? 0:1));
 }
 
 inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
                                              bool unsigned_flag)
 {
+  /*
+    When precision is 0 it means that original length was also 0. Thus
+    unsigned_flag is ignored in this case.
+  */
+  DBUG_ASSERT(precision || !scale);
   set_if_smaller(precision, DECIMAL_MAX_PRECISION);
-  return (uint32)(precision + (scale>0 ? 1:0) + (unsigned_flag ? 0:1));
+  return (uint32)(precision + (scale>0 ? 1:0) +
+                  (unsigned_flag || !precision ? 0:1));
 }
 
 inline

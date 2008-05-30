@@ -2123,6 +2123,13 @@ rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 remove_file $MYSQLTEST_VARDIR/tmp/testdir/file1.txt;
 rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
+#
+# Bug #36041: mysql-test-run doesn't seem to string match 100% effectively
+# on Windows
+#
+
+--replace_result c:\\a.txt z
+SELECT 'c:\\a.txt' AS col;
 
 --echo End of tests
 

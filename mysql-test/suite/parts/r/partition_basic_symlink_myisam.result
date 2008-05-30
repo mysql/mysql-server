@@ -16813,7 +16813,6 @@ MYSQLD_DATADIR/test/t1#P#p2.MYD
 MYSQLD_DATADIR/test/t1#P#p2.MYI
 MYSQLD_DATADIR/test/t1.frm
 MYSQLD_DATADIR/test/t1.par
-ls: MYSQLTEST_VARDIR/mysql-test-data-dir/t1*: No such file or directory
 MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p1.MYI
 MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p2.MYI
 
