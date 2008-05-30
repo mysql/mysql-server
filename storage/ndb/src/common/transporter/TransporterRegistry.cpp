@@ -155,16 +155,16 @@ TransporterRegistry::allocate_send_buffers(Uint32 total_send_buffer)
 
   /* Initialize the page freelist. */
   Uint32 send_buffer_pages =
-    (total_send_buffer + SendBufferPage::PAGESIZE - 1)/SendBufferPage::PAGESIZE;
+    (total_send_buffer + SendBufferPage::PGSIZE - 1)/SendBufferPage::PGSIZE;
   /* Add one extra page of internal fragmentation overhead per transporter. */
   send_buffer_pages += nTransporters;
 
   m_send_buffer_memory =
-    new unsigned char[send_buffer_pages * SendBufferPage::PAGESIZE];
+    new unsigned char[send_buffer_pages * SendBufferPage::PGSIZE];
   if (m_send_buffer_memory == NULL)
   {
     ndbout << "Unable to allocate "
-           << send_buffer_pages * SendBufferPage::PAGESIZE
+           << send_buffer_pages * SendBufferPage::PGSIZE
            << " bytes of memory for send buffers, aborting." << endl;
     abort();
   }
@@ -173,7 +173,7 @@ TransporterRegistry::allocate_send_buffers(Uint32 total_send_buffer)
   for (unsigned i = 0; i < send_buffer_pages; i++)
   {
     SendBufferPage *page =
-      (SendBufferPage *)(m_send_buffer_memory + i * SendBufferPage::PAGESIZE);
+      (SendBufferPage *)(m_send_buffer_memory + i * SendBufferPage::PGSIZE);
     page->m_bytes = 0;
     page->m_next = m_page_freelist;
     m_page_freelist = page;

@@ -435,10 +435,10 @@ private:
   /* Send buffer pages. */
   struct SendBufferPage {
     /* This is the number of words that will fit in one page of send buffer. */
-    static const Uint32 PAGESIZE = 32768;
+    static const Uint32 PGSIZE = 32768;
     static Uint32 max_data_bytes()
     {
-      return PAGESIZE - offsetof(SendBufferPage, m_data);
+      return PGSIZE - offsetof(SendBufferPage, m_data);
     }
 
     /* Send buffer for one transporter is kept in a single-linked list. */
