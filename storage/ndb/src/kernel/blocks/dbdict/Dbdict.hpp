@@ -1116,6 +1116,7 @@ private:
    * Temporary structure used when parsing table info
    */
   struct ParseDictTabInfoRecord {
+    ParseDictTabInfoRecord() { tablePtr.setNull();}
     DictTabInfo::RequestType requestType;
     Uint32 errorCode;
     Uint32 errorLine;

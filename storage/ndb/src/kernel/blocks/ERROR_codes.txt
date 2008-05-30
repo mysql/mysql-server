@@ -587,6 +587,11 @@ Dbdict:
 6005 Crash in participant @ CreateTabReq::CreateDrop
 6007 Fail on readTableFile for READ_TAB_FILE1 (28770)
 
+6200 Set error code after handleTabInfoInit in master
+6201 Set error code after handleTabInfoInit in master (index)
+6202 Set error code before CREATE_FRAGMENTATION in master
+6203 Set error code before CREATE_FRAGMENTATION in master (index)
+
 Dbtup:
 4014 - handleInsert - Out of undo buffer
 4015 - handleInsert - Out of log space
