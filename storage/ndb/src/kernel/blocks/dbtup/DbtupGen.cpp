@@ -73,6 +73,8 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_TUPSEIZEREQ, &Dbtup::execTUPSEIZEREQ);
   addRecSignal(GSN_TUPRELEASEREQ, &Dbtup::execTUPRELEASEREQ);
   addRecSignal(GSN_STORED_PROCREQ, &Dbtup::execSTORED_PROCREQ);
+
+  addRecSignal(GSN_CREATE_TAB_REQ, &Dbtup::execCREATE_TAB_REQ);
   addRecSignal(GSN_TUPFRAGREQ, &Dbtup::execTUPFRAGREQ);
   addRecSignal(GSN_TUP_ADD_ATTRREQ, &Dbtup::execTUP_ADD_ATTRREQ);
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbtup::execALTER_TAB_REQ);

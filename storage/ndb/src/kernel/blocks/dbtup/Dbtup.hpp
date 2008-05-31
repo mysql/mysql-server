@@ -1098,12 +1098,18 @@ ArrayPool<TupTriggerData> c_triggerPool;
     Uint32 fragid[MAX_FRAG_PER_NODE];
     Uint32 fragrec[MAX_FRAG_PER_NODE];
 
-    struct {
-      Uint32 tabUserPtr;
-      Uint32 tabUserRef;
-      Uint32 m_lcpno;
-      Uint32 m_fragPtrI;
-    } m_dropTable;
+    union {
+      struct {
+        Uint32 tabUserPtr;
+        Uint32 tabUserRef;
+        Uint32 m_lcpno;
+        Uint32 m_fragPtrI;
+      } m_dropTable;
+      struct {
+        Uint32 m_fragOpPtrI;
+      } m_createTable;
+    };
+
     State tableStatus;
   };  
 
@@ -1714,8 +1720,10 @@ private:
   void execTUPSEIZEREQ(Signal* signal);
   void execTUPRELEASEREQ(Signal* signal);
   void execSTORED_PROCREQ(Signal* signal);
-  void execTUPFRAGREQ(Signal* signal);
+
+  void execCREATE_TAB_REQ(Signal*);
   void execTUP_ADD_ATTRREQ(Signal* signal);
+  void execTUPFRAGREQ(Signal* signal);
   void execTUP_COMMITREQ(Signal* signal);
   void execTUP_ABORTREQ(Signal* signal);
   void execNDB_STTOR(Signal* signal);

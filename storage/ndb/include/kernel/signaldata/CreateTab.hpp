@@ -18,28 +18,50 @@
 
 #include "SignalData.hpp"
 
-struct CreateTabReq {
+struct CreateTabReq
+{
   STATIC_CONST( SignalLength = 6 );
-  
+  STATIC_CONST( SignalLengthLDM = 6 + 10 );
+
   enum RequestType {
   };
 
   Uint32 senderRef;
   Uint32 senderData;
-  Uint32 requestType;
   Uint32 tableId;
   Uint32 tableVersion;
+  Uint32 requestType;
   Uint32 gci;
+
+  /**
+   * Used when sending to LQH++
+   */
+  Uint32 noOfCharsets;
+  Uint32 tableType;           // DictTabInfo::TableType
+  Uint32 primaryTableId;      // table of index or RNIL
+  Uint32 tablespace_id;       // RNIL for MM table
+  Uint32 forceVarPartFlag;
+  Uint32 noOfAttributes;
+  Uint32 noOfNullAttributes;
+  Uint32 noOfKeyAttr;
+  Uint32 checksumIndicator;
+  Uint32 GCPIndicator;
 
   SECTION( DICT_TAB_INFO = 0 );
   SECTION( FRAGMENTATION = 1 );
 };
 
 struct CreateTabConf {
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 
   Uint32 senderRef;
   Uint32 senderData;
+
+  union {
+    Uint32 lqhConnectPtr;
+    Uint32 tuxConnectPtr;
+    Uint32 tupConnectPtr;
+  };
 };
 
 struct CreateTabRef {

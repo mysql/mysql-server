@@ -27,6 +27,7 @@
 #include <NodeBitmask.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/LqhTransConf.hpp>
+#include <signaldata/CreateTab.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/FsOpenReq.hpp>
 
@@ -423,39 +424,22 @@ public:
       TUP_ATTR_WAIT = 7,
       TUX_ATTR_WAIT = 9
     };
-    LqhAddAttrReq::Entry attributes[LqhAddAttrReq::MAX_ATTRIBUTES];
-    UintR accConnectptr;
     AddFragStatus addfragStatus;
-    UintR dictConnectptr;
     UintR fragmentPtr;
     UintR nextAddfragrec;
-    UintR schemaVer;
+    UintR accConnectptr;
     UintR tupConnectptr;
     UintR tuxConnectptr;
-    UintR checksumIndicator;
-    UintR GCPIndicator;
-    BlockReference dictBlockref;
-    Uint32 m_senderAttrPtr;
+
+    CreateTabReq m_createTabReq;
+    LqhFragReq m_lqhFragReq;
+    LqhAddAttrReq m_addAttrReq;
+
     Uint16 addfragErrorCode;
     Uint16 attrSentToTup;
     Uint16 attrReceived;
-    Uint16 addFragid;
-    Uint16 noOfAttr;
-    Uint16 noOfNull;
-    Uint16 tabId;
     Uint16 totalAttrReceived;
     Uint16 fragCopyCreation;
-    Uint16 noOfKeyAttr;
-    Uint16 noOfCharsets;
-    Uint16 lh3DistrBits;
-    Uint16 tableType;
-    Uint16 primaryTableId;
-    Uint32 tablespace_id;
-    Uint32 maxRowsLow;
-    Uint32 maxRowsHigh;
-    Uint32 minRowsLow;
-    Uint32 minRowsHigh;
-    Uint32 forceVarPartFlag;
   };
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   
@@ -2098,14 +2082,20 @@ private:
   void execSEND_PACKED(Signal* signal);
   void execTUP_ATTRINFO(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
-  void execLQHFRAGREQ(Signal* signal);
+
+  void execCREATE_TAB_REQ(Signal* signal);
+  void execCREATE_TAB_REF(Signal* signal);
+  void execCREATE_TAB_CONF(Signal* signal);
   void execLQHADDATTREQ(Signal* signal);
   void execTUP_ADD_ATTCONF(Signal* signal);
   void execTUP_ADD_ATTRREF(Signal* signal);
+
+  void execLQHFRAGREQ(Signal* signal);
   void execACCFRAGCONF(Signal* signal);
   void execACCFRAGREF(Signal* signal);
   void execTUPFRAGCONF(Signal* signal);
   void execTUPFRAGREF(Signal* signal);
+
   void execTAB_COMMITREQ(Signal* signal);
   void execACCSEIZECONF(Signal* signal);
   void execACCSEIZEREF(Signal* signal);
@@ -2523,8 +2513,9 @@ private:
   void closeExecSrCompletedLab(Signal* signal);
   void readSrFrontpageLab(Signal* signal);
   
-  void sendAddFragReq(Signal* signal);
+  void sendCreateTabReq(Signal*, AddFragRecordPtr);
   void sendAddAttrReq(Signal* signal);
+  void sendAddFragReq(Signal* signal);
   void checkDropTab(Signal*);
   Uint32 checkDropTabState(Tablerec::TableStatus, Uint32) const;
 
@@ -2626,6 +2617,7 @@ private:
   AddFragRecordPtr addfragptr;
   UintR cfirstfreeAddfragrec;
   UintR caddfragrecFileSize;
+  Uint32 c_active_add_frag_ptr_i;
 
 #define ZATTRINBUF_FILE_SIZE 12288  // 1.5 MByte
 #define ZINBUF_DATA_LEN 24            /* POSITION OF 'DATA LENGHT'-VARIABLE. */

@@ -29,26 +29,18 @@ class TupFragReq {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  STATIC_CONST( SignalLength = 18 );
+  STATIC_CONST( SignalLength = 10 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
   Uint32 reqInfo;
   Uint32 tableId;
-  Uint32 noOfAttr;
   Uint32 fragId;
   Uint32 maxRowsLow;
   Uint32 maxRowsHigh;
   Uint32 minRowsLow;
   Uint32 minRowsHigh;
-  Uint32 noOfNullAttr;
-  Uint32 schemaVersion;
-  Uint32 noOfKeyAttr;
-  Uint32 noOfCharsets;
-  Uint32 checksumIndicator;
-  Uint32 globalCheckpointIdIndicator;
   Uint32 tablespaceid;
-  Uint32 forceVarPartFlag;
 };
 
 class TupFragConf {
@@ -79,20 +71,17 @@ class TuxFragReq {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  STATIC_CONST( SignalLength = 14 );
+  STATIC_CONST( SignalLength = 9 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
   Uint32 reqInfo;
   Uint32 tableId;
-  Uint32 noOfAttr;
   Uint32 fragId;
-  Uint32 fragOff;
-  Uint32 tableType;
   Uint32 primaryTableId;
   Uint32 tupIndexFragPtrI;
-  Uint32 tupTableFragPtrI[2];
-  Uint32 accTableFragPtrI[2];
+  Uint32 tupTableFragPtrI;
+  Uint32 accTableFragPtrI;
 };
 
 class TuxFragConf {

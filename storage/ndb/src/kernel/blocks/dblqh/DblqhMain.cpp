@@ -48,6 +48,8 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/PackedSignal.hpp>
 
+#include <signaldata/CreateTab.hpp>
+#include <signaldata/CreateTable.hpp>
 #include <signaldata/PrepDropTab.hpp>
 #include <signaldata/DropTab.hpp>
 
@@ -1099,96 +1101,429 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
 
 // this unbelievable mess could be replaced by one signal to LQH
 // and execute direct to local DICT to get everything at once
+void
+Dblqh::execCREATE_TAB_REQ(Signal* signal)
+{
+  CreateTabReq* req = (CreateTabReq*)signal->getDataPtr();
+  tabptr.i = req->tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
 
-void Dblqh::execLQHFRAGREQ(Signal* signal) 
+  Uint32 senderRef = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  if (tabptr.p->tableStatus != Tablerec::NOT_DEFINED)
+  {
+    jam();
+    CreateTabRef* ref = (CreateTabRef*)signal->getDataPtrSend();
+    ref->senderData = senderData;
+    ref->senderRef = reference();
+    ref->errorCode = CreateTableRef::TableAlreadyExist;
+    sendSignal(senderRef, GSN_CREATE_TAB_REF, signal,
+               CreateTabRef::SignalLength, JBB);
+    return;
+  }
+
+  seizeAddfragrec(signal);
+  addfragptr.p->m_createTabReq = *req;
+  req = &addfragptr.p->m_createTabReq;
+
+  tabptr.p->tableStatus = Tablerec::ADD_TABLE_ONGOING;
+  tabptr.p->tableType = req->tableType;
+  tabptr.p->primaryTableId = (req->primaryTableId == RNIL ? tabptr.i :
+                              req->primaryTableId);
+  tabptr.p->schemaVersion = req->tableVersion;
+  tabptr.p->m_disk_table= 0;
+
+  addfragptr.p->addfragStatus = AddFragRecord::WAIT_TUP;
+  sendCreateTabReq(signal, addfragptr);
+}
+
+void
+Dblqh::sendCreateTabReq(Signal* signal, AddFragRecordPtr addfragptr)
+{
+  TablerecPtr tabPtr;
+  tabPtr.i = addfragptr.p->m_createTabReq.tableId;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+
+  CreateTabReq* req = (CreateTabReq*)signal->getDataPtrSend();
+  * req = addfragptr.p->m_createTabReq;
+
+  req->senderRef = reference();
+  req->senderData = addfragptr.i;
+
+  Uint32 ref = DBTUP_REF;
+  switch(addfragptr.p->addfragStatus){
+  case AddFragRecord::WAIT_TUP:
+    if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+    {
+      jam();
+      req->noOfAttributes = 1;
+      req->noOfKeyAttr = 1;
+      req->noOfNullAttributes = 0;
+    }
+    break;
+  case AddFragRecord::WAIT_TUX:
+    jam();
+    ndbrequire(req->noOfAttributes >= 2);
+    req->noOfAttributes--;
+    ref = DBTUX_REF;
+    break;
+  default:
+    jamLine(addfragptr.p->addfragStatus);
+    ndbrequire(false);
+  }
+
+  sendSignal(ref, GSN_CREATE_TAB_REQ, signal,
+             CreateTabReq::SignalLengthLDM, JBB);
+}
+
+void
+Dblqh::execCREATE_TAB_REF(Signal* signal)
 {
   jamEntry();
-  LqhFragReq * req = (LqhFragReq*)signal->getDataPtr();
-  
-  Uint32 retPtr = req->senderData;
-  BlockReference retRef = req->senderRef;
-  Uint32 fragId = req->fragmentId;
-  Uint32 reqinfo = req->requestInfo;
-  tabptr.i = req->tableId;
-  Uint16 tlocalKeylen = req->localKeyLength;
-  Uint32 tmaxLoadFactor = req->maxLoadFactor;
-  Uint32 tminLoadFactor = req->minLoadFactor;
-  Uint8 tk = req->kValue;
-  Uint8 tlhstar = req->lh3DistrBits;
-  Uint8 tlh = req->lh3PageBits;
-  Uint32 tnoOfAttr = req->noOfAttributes;
-  Uint32 tnoOfNull = req->noOfNullAttributes;
-  Uint32 maxRowsLow = req->maxRowsLow;
-  Uint32 maxRowsHigh = req->maxRowsHigh;
-  Uint32 minRowsLow = req->minRowsLow;
-  Uint32 minRowsHigh = req->minRowsHigh;
-  Uint32 tschemaVersion = req->schemaVersion;
-  Uint32 ttupKeyLength = req->keyLength;
-  Uint32 noOfKeyAttr = req->noOfKeyAttr;
-  Uint32 noOfCharsets = req->noOfCharsets;
-  Uint32 checksumIndicator = req->checksumIndicator;
-  Uint32 gcpIndicator = req->GCPIndicator;
-  Uint32 startGci = req->startGci;
-  Uint32 tableType = req->tableType;
-  Uint32 primaryTableId = req->primaryTableId;
-  Uint32 tablespace= req->tablespace_id;
-  Uint32 logPart = req->logPartId;
-  Uint32 forceVarPartFlag = req->forceVarPartFlag;
 
-  if (signal->getLength() < 20)
-  {
-    logPart = (fragId & 1) + 2 * (tabptr.i & 1);
+  CreateTabRef * ref = (CreateTabRef*)signal->getDataPtr();
+  addfragptr.i = ref->senderData;
+  ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
+
+  abortAddFragOps(signal);
+
+  ref->senderRef = reference();
+  ref->senderData = addfragptr.p->m_createTabReq.senderData;
+  sendSignal(addfragptr.p->m_createTabReq.senderRef,
+             GSN_CREATE_TAB_REF, signal, CreateTabConf::SignalLength, JBB);
+
+  releaseAddfragrec(signal);
+}
+
+void
+Dblqh::execCREATE_TAB_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateTabConf* conf = (CreateTabConf*)signal->getDataPtr();
+  addfragptr.i = conf->senderData;
+  ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
+
+  TablerecPtr tabPtr;
+  tabPtr.i = addfragptr.p->m_createTabReq.tableId;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+
+  switch(addfragptr.p->addfragStatus){
+  case AddFragRecord::WAIT_TUP:
+    jam();
+    addfragptr.p->tupConnectptr = conf->tupConnectPtr;
+    if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+    {
+      jam();
+      addfragptr.p->addfragStatus = AddFragRecord::WAIT_TUX;
+      sendCreateTabReq(signal, addfragptr);
+      return;
+    }
+    break;
+  case AddFragRecord::WAIT_TUX:
+    jam();
+    addfragptr.p->tuxConnectptr = conf->tuxConnectPtr;
+    break;
+  default:
+    jamLine(addfragptr.p->addfragStatus);
+    ndbrequire(false);
   }
-  logPart &= 3;
 
+  addfragptr.p->addfragStatus = AddFragRecord::WAIT_ADD_ATTR;
+
+  conf->senderRef = reference();
+  conf->senderData = addfragptr.p->m_createTabReq.senderData;
+  conf->lqhConnectPtr = addfragptr.i;
+  sendSignal(addfragptr.p->m_createTabReq.senderRef,
+             GSN_CREATE_TAB_CONF, signal, CreateTabConf::SignalLength, JBB);
+}
+
+/* ************************************************************************> */
+/*  LQHADDATTRREQ: Request from DICT to create attributes for the new table. */
+/* ************************************************************************> */
+void Dblqh::execLQHADDATTREQ(Signal* signal)
+{
+  jamEntry();
+  LqhAddAttrReq * req = (LqhAddAttrReq*)signal->getDataPtr();
+
+  addfragptr.i = req->lqhFragPtr;
+  ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
+
+  addfragptr.p->m_addAttrReq = * req;
+
+  const Uint32 tnoOfAttr = req->noOfAttributes;
+
+  ndbrequire(addfragptr.p->addfragStatus == AddFragRecord::WAIT_ADD_ATTR);
+  ndbrequire((tnoOfAttr != 0) && (tnoOfAttr <= LqhAddAttrReq::MAX_ATTRIBUTES));
+  addfragptr.p->totalAttrReceived += tnoOfAttr;
+  ndbrequire(addfragptr.p->totalAttrReceived <=
+             addfragptr.p->m_createTabReq.noOfAttributes);
+
+  addfragptr.p->attrReceived = tnoOfAttr;
+
+  TablerecPtr tabPtr;
+  tabPtr.i = addfragptr.p->m_createTabReq.tableId;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+
+  for (Uint32 i = 0; i < tnoOfAttr; i++)
+  {
+    if(AttributeDescriptor::getDiskBased(req->attributes[i].attrDescriptor))
+    {
+      jam();
+      tabPtr.p->m_disk_table = 1;
+    }
+  }//for
+
+  addfragptr.p->attrSentToTup = 0;
+  addfragptr.p->addfragStatus = AddFragRecord::TUP_ATTR_WAIT;
+  sendAddAttrReq(signal);
+}//Dblqh::execLQHADDATTREQ()
+
+/* *********************>> */
+/*  TUP_ADD_ATTCONF      > */
+/* *********************>> */
+void Dblqh::execTUP_ADD_ATTCONF(Signal* signal)
+{
+  jamEntry();
+  addfragptr.i = signal->theData[0];
+  // implies that operation was released on the other side
+  const bool lastAttr = signal->theData[1];
+  ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
+
+  tabptr.i = addfragptr.p->m_createTabReq.tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  bool tempTable = ((reqinfo & LqhFragReq::TemporaryTable) != 0);
 
-  /* Temporary tables set to defined in system restart */
-  if (tabptr.p->tableStatus == Tablerec::NOT_DEFINED){
-    tabptr.p->tableStatus = Tablerec::ADD_TABLE_ONGOING;
-    tabptr.p->tableType = tableType;
-    tabptr.p->primaryTableId = 
-      (primaryTableId == RNIL ? tabptr.i : primaryTableId);
-    tabptr.p->schemaVersion = tschemaVersion;
-    tabptr.p->m_disk_table= 0;
+  Uint32 noOfAttr = addfragptr.p->m_createTabReq.noOfAttributes;
+
+  switch (addfragptr.p->addfragStatus) {
+  case AddFragRecord::TUP_ATTR_WAIT:
+    if (DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+    {
+      addfragptr.p->addfragStatus = AddFragRecord::TUX_ATTR_WAIT;
+      sendAddAttrReq(signal);
+      break;
+    }
+    goto done_with_attr;
+    break;
+  case AddFragRecord::TUX_ATTR_WAIT:
+    jam();
+    if (lastAttr)
+      addfragptr.p->tuxConnectptr = RNIL;
+    goto done_with_attr;
+    break;
+  done_with_attr:
+    addfragptr.p->attrSentToTup = addfragptr.p->attrSentToTup + 1;
+    ndbrequire(addfragptr.p->attrSentToTup <= addfragptr.p->attrReceived);
+    ndbrequire(addfragptr.p->totalAttrReceived <= noOfAttr);
+    if (addfragptr.p->attrSentToTup < addfragptr.p->attrReceived)
+    {
+      // more in this batch
+      jam();
+      addfragptr.p->addfragStatus = AddFragRecord::TUP_ATTR_WAIT;
+      sendAddAttrReq(signal);
+      return;
+    }
+
+    { // Reply
+      LqhAddAttrConf *const conf = (LqhAddAttrConf*)signal->getDataPtrSend();
+      conf->senderData = addfragptr.p->m_addAttrReq.senderData;
+      conf->senderAttrPtr = addfragptr.p->m_addAttrReq.senderAttrPtr;
+      sendSignal(addfragptr.p->m_createTabReq.senderRef,
+                 GSN_LQHADDATTCONF, signal, LqhAddAttrConf::SignalLength, JBB);
+    }
+    if (addfragptr.p->totalAttrReceived < noOfAttr)
+    {
+      jam();
+      addfragptr.p->addfragStatus = AddFragRecord::WAIT_ADD_ATTR;
+    }
+    else
+    {
+      jam();
+      releaseAddfragrec(signal);
+    }
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+}
+
+/* **********************>> */
+/*  TUX_ADD_ATTRCONF      > */
+/* **********************>> */
+void Dblqh::execTUX_ADD_ATTRCONF(Signal* signal)
+{
+  jamEntry();
+  execTUP_ADD_ATTCONF(signal);
+}//Dblqh::execTUX_ADD_ATTRCONF
+
+/* *********************> */
+/*  TUP_ADD_ATTREF      > */
+/* *********************> */
+void Dblqh::execTUP_ADD_ATTRREF(Signal* signal)
+{
+  jamEntry();
+  addfragptr.i = signal->theData[0];
+  ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
+  Uint32 errorCode = terrorCode = signal->theData[1];
+
+  abortAddFragOps(signal);
+
+  // operation was released on the other side
+  switch (addfragptr.p->addfragStatus) {
+  case AddFragRecord::TUP_ATTR_WAIT:
+    jam();
+    break;
+  case AddFragRecord::TUX_ATTR_WAIT:
+    jam();
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  const Uint32 Ref = addfragptr.p->m_createTabReq.senderRef;
+  const Uint32 senderData = addfragptr.p->m_addAttrReq.senderData;
+
+  releaseAddfragrec(signal);
+
+  LqhAddAttrRef *const ref = (LqhAddAttrRef*)signal->getDataPtrSend();
+  ref->senderData = senderData;
+  ref->errorCode = errorCode;
+  sendSignal(Ref, GSN_LQHADDATTREF, signal,
+	     LqhAddAttrRef::SignalLength, JBB);
+}//Dblqh::execTUP_ADD_ATTRREF()
+
+/* **********************> */
+/*  TUX_ADD_ATTRREF      > */
+/* **********************> */
+void Dblqh::execTUX_ADD_ATTRREF(Signal* signal)
+{
+  jamEntry();
+  execTUP_ADD_ATTRREF(signal);
+}//Dblqh::execTUX_ADD_ATTRREF
+
+/*
+ * Add attribute in TUP or TUX.  Called up to 4 times.
+ */
+void
+Dblqh::sendAddAttrReq(Signal* signal)
+{
+  arrGuard(addfragptr.p->attrSentToTup, LqhAddAttrReq::MAX_ATTRIBUTES);
+  LqhAddAttrReq::Entry& entry =
+    addfragptr.p->m_addAttrReq.attributes[addfragptr.p->attrSentToTup];
+
+  const Uint32 attrId = entry.attrId & 0xffff;
+  const Uint32 primaryAttrId = entry.attrId >> 16;
+
+  tabptr.i = addfragptr.p->m_createTabReq.tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+
+  if (addfragptr.p->addfragStatus == AddFragRecord::TUP_ATTR_WAIT)
+  {
+    if (DictTabInfo::isTable(tabptr.p->tableType) ||
+        DictTabInfo::isHashIndex(tabptr.p->tableType) ||
+        (DictTabInfo::isOrderedIndex(tabptr.p->tableType) &&
+         primaryAttrId == ZNIL)) {
+      jam();
+      TupAddAttrReq* const tupreq = (TupAddAttrReq*)signal->getDataPtrSend();
+      tupreq->tupConnectPtr = addfragptr.p->tupConnectptr;
+      tupreq->notused1 = 0;
+      tupreq->attrId = attrId;
+      tupreq->attrDescriptor = entry.attrDescriptor;
+      tupreq->extTypeInfo = entry.extTypeInfo;
+      sendSignal(DBTUP_REF, GSN_TUP_ADD_ATTRREQ,
+                 signal, TupAddAttrReq::SignalLength, JBB);
+      return;
+    }
+    if (DictTabInfo::isOrderedIndex(tabptr.p->tableType) &&
+        primaryAttrId != ZNIL) {
+      // this attribute is not for TUP
+      jam();
+      TupAddAttrConf* tupconf = (TupAddAttrConf*)signal->getDataPtrSend();
+      tupconf->userPtr = addfragptr.i;
+      tupconf->lastAttr = false;
+      sendSignal(reference(), GSN_TUP_ADD_ATTCONF,
+		 signal, TupAddAttrConf::SignalLength, JBB);
+      return;
+    }
+  }
+
+  if (addfragptr.p->addfragStatus == AddFragRecord::TUX_ATTR_WAIT)
+  {
+    jam();
+    if (DictTabInfo::isOrderedIndex(tabptr.p->tableType) &&
+        primaryAttrId != ZNIL) {
+      jam();
+      TuxAddAttrReq* const tuxreq = (TuxAddAttrReq*)signal->getDataPtrSend();
+      tuxreq->tuxConnectPtr = addfragptr.p->tuxConnectptr;
+      tuxreq->notused1 = 0;
+      tuxreq->attrId = attrId;
+      tuxreq->attrDescriptor = entry.attrDescriptor;
+      tuxreq->extTypeInfo = entry.extTypeInfo;
+      tuxreq->primaryAttrId = primaryAttrId;
+      sendSignal(DBTUX_REF, GSN_TUX_ADD_ATTRREQ,
+		 signal, TuxAddAttrReq::SignalLength, JBB);
+      return;
+    }
+    if (DictTabInfo::isOrderedIndex(tabptr.p->tableType) &&
+        primaryAttrId == ZNIL) {
+      // this attribute is not for TUX
+      jam();
+      TuxAddAttrConf* tuxconf = (TuxAddAttrConf*)signal->getDataPtrSend();
+      tuxconf->userPtr = addfragptr.i;
+      tuxconf->lastAttr = false;
+      sendSignal(reference(), GSN_TUX_ADD_ATTRCONF,
+		 signal, TuxAddAttrConf::SignalLength, JBB);
+      return;
+    }
+  }
+  ndbrequire(false);
+}//Dblqh::sendAddAttrReq
+
+void Dblqh::execLQHFRAGREQ(Signal* signal)
+{
+  jamEntry();
+  LqhFragReq copy = *(LqhFragReq*)signal->getDataPtr();
+  LqhFragReq * req = &copy;
+
+  tabptr.i = req->tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+
+  if (tabptr.p->tableStatus != Tablerec::ADD_TABLE_ONGOING)
+  {
+    jam();
+    fragrefLab(signal, req->senderRef, req->senderData, ZTAB_STATE_ERROR);
+    return;
+  }//if
+
+  if (getFragmentrec(signal, req->fragId))
+  {
+    jam();
+    fragrefLab(signal, req->senderRef, req->senderData, terrorCode);
+    return;
+  }//if
+
+  if (!insertFragrec(signal, req->fragId))
+  {
+    jam();
+    fragrefLab(signal, req->senderRef, req->senderData, terrorCode);
+    return;
   }//if
   
-  if (tabptr.p->tableStatus != Tablerec::ADD_TABLE_ONGOING){
-    jam();
-    fragrefLab(signal, retRef, retPtr, ZTAB_STATE_ERROR);
-    return;
-  }//if
-  //--------------------------------------------------------------------
-  // We could arrive here if we create the fragment as part of a take
-  // over by a hot spare node. The table is then is already created
-  // and bit 31 is set, thus indicating that we are creating a fragment
-  // by copy creation. Also since the node has already been started we
-  // know that it is not a node restart ongoing.
-  //--------------------------------------------------------------------
+  Uint32 copyType = req->requestInfo & 3;
+  bool tempTable = ((req->requestInfo & LqhFragReq::TemporaryTable) != 0);
+  initFragrec(signal, tabptr.i, req->fragId, copyType);
+  fragptr.p->startGci = req->startGci;
+  fragptr.p->newestGci = req->startGci;
+  fragptr.p->tableType = tabptr.p->tableType;
+  fragptr.p->m_log_part_ptr_i = (req->logPartId & 3); // assumes array
 
-  if (getFragmentrec(signal, fragId)) {
-    jam();
-    fragrefLab(signal, retRef, retPtr, terrorCode);
-    return;
-  }//if
-  if (!insertFragrec(signal, fragId)) {
-    jam();
-    fragrefLab(signal, retRef, retPtr, terrorCode);
-    return;
-  }//if
-  Uint32 copyType = reqinfo & 3;
-  initFragrec(signal, tabptr.i, fragId, copyType);
-  fragptr.p->startGci = startGci;
-  fragptr.p->newestGci = startGci;
-  fragptr.p->tableType = tableType;
-  fragptr.p->m_log_part_ptr_i = logPart; // assumes array
-  
-  if (DictTabInfo::isOrderedIndex(tableType)) {
+  if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
     jam();
     // find corresponding primary table fragment
     TablerecPtr tTablePtr;
-    tTablePtr.i = primaryTableId;
+    tTablePtr.i = tabptr.p->primaryTableId;
     ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
     FragrecordPtr tFragPtr;
     tFragPtr.i = RNIL;
@@ -1202,11 +1537,15 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     ndbrequire(tFragPtr.i != RNIL);
     // store it
     fragptr.p->tableFragptr = tFragPtr.i;
-  } else {
+  }
+  else
+  {
+    jam();
     fragptr.p->tableFragptr = fragptr.i;
   }
 
-  if (tempTable) {
+  if (tempTable)
+  {
 //--------------------------------------------
 // reqinfo bit 3-4 = 2 means temporary table
 // without logging or checkpointing.
@@ -1215,64 +1554,27 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     fragptr.p->logFlag = Fragrecord::STATE_FALSE;
     fragptr.p->lcpFlag = Fragrecord::LCP_STATE_FALSE;
   }//if
-  
-//----------------------------------------------
-// For node restarts it is not necessarily zero 
-//----------------------------------------------
-  if (cfirstfreeAddfragrec == RNIL) {
-    jam();
-    deleteFragrec(fragId);
-    fragrefLab(signal, retRef, retPtr, ZNO_ADD_FRAGREC);
-    return;
-  }//if
-  seizeAddfragrec(signal);
-  addfragptr.p->addFragid = fragId;
-  addfragptr.p->fragmentPtr = fragptr.i;
-  addfragptr.p->dictBlockref = retRef;
-  addfragptr.p->dictConnectptr = retPtr;
-  addfragptr.p->m_senderAttrPtr = RNIL;
-  addfragptr.p->noOfAttr = tnoOfAttr;
-  addfragptr.p->noOfNull = tnoOfNull;
-  addfragptr.p->maxRowsLow = maxRowsLow;
-  addfragptr.p->maxRowsHigh = maxRowsHigh;
-  addfragptr.p->minRowsLow = minRowsLow;
-  addfragptr.p->minRowsHigh = minRowsHigh;
-  addfragptr.p->tabId = tabptr.i;
-  addfragptr.p->totalAttrReceived = 0;
-  addfragptr.p->attrSentToTup = ZNIL;/* TO FIND PROGRAMMING ERRORS QUICKLY */
-  addfragptr.p->schemaVer = tschemaVersion;
-  Uint32 tmp = (reqinfo & LqhFragReq::CreateInRunning);
-  addfragptr.p->fragCopyCreation = (tmp == 0 ? 0 : 1);
-  addfragptr.p->addfragErrorCode = 0;
-  addfragptr.p->noOfKeyAttr = noOfKeyAttr;
-  addfragptr.p->noOfCharsets = noOfCharsets;
-  addfragptr.p->checksumIndicator = checksumIndicator;
-  addfragptr.p->GCPIndicator = gcpIndicator;
-  addfragptr.p->lh3DistrBits = tlhstar;
-  addfragptr.p->tableType = tableType;
-  addfragptr.p->primaryTableId = primaryTableId;
-  addfragptr.p->tablespace_id= tablespace;
-  addfragptr.p->forceVarPartFlag = forceVarPartFlag;
-  //
-  addfragptr.p->tupConnectptr = RNIL;
-  addfragptr.p->tuxConnectptr = RNIL;
 
-  if (DictTabInfo::isTable(tableType) ||
-      DictTabInfo::isHashIndex(tableType)) {
+  seizeAddfragrec(signal);
+  addfragptr.p->m_lqhFragReq = * req;
+  addfragptr.p->fragmentPtr = fragptr.i;
+
+  if (DictTabInfo::isTable(tabptr.p->tableType) ||
+      DictTabInfo::isHashIndex(tabptr.p->tableType)) {
     jam();
     AccFragReq* const accreq = (AccFragReq*)signal->getDataPtrSend();
     accreq->userPtr = addfragptr.i;
     accreq->userRef = cownref;
     accreq->tableId = tabptr.i;
-    accreq->reqInfo = copyType << 4;
-    accreq->fragId = fragId;
-    accreq->localKeyLen = tlocalKeylen;
-    accreq->maxLoadFactor = tmaxLoadFactor;
-    accreq->minLoadFactor = tminLoadFactor;
-    accreq->kValue = tk;
-    accreq->lhFragBits = tlhstar;
-    accreq->lhDirBits = tlh;
-    accreq->keyLength = ttupKeyLength;
+    accreq->reqInfo = 0;
+    accreq->fragId = req->fragId;
+    accreq->localKeyLen = addfragptr.p->m_lqhFragReq.localKeyLength;
+    accreq->maxLoadFactor = addfragptr.p->m_lqhFragReq.maxLoadFactor;
+    accreq->minLoadFactor = addfragptr.p->m_lqhFragReq.minLoadFactor;
+    accreq->kValue = addfragptr.p->m_lqhFragReq.kValue;
+    accreq->lhFragBits = addfragptr.p->m_lqhFragReq.lh3DistrBits;
+    accreq->lhDirBits = addfragptr.p->m_lqhFragReq.lh3PageBits;
+    accreq->keyLength = addfragptr.p->m_lqhFragReq.keyLength;
     /* --------------------------------------------------------------------- */
     /* Send ACCFRAGREQ, when confirmation is received send 2 * TUPFRAGREQ to */
     /* create 2 tuple fragments on this node.                                */
@@ -1282,7 +1584,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
 	       signal, AccFragReq::SignalLength, JBB);
     return;
   }
-  if (DictTabInfo::isOrderedIndex(tableType)) {
+  if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
     jam();
     addfragptr.p->addfragStatus = AddFragRecord::WAIT_TUP;
     sendAddFragReq(signal);
@@ -1326,13 +1628,16 @@ void Dblqh::execTUPFRAGCONF(Signal* signal)
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
   fragptr.i = addfragptr.p->fragmentPtr;
   c_fragment_pool.getPtr(fragptr);
+  tabptr.i = fragptr.p->tabRef;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   fragptr.p->tupFragptr = tupFragPtr;
   switch (addfragptr.p->addfragStatus) {
   case AddFragRecord::WAIT_TUP:
     jam();
     fragptr.p->tupFragptr = tupFragPtr;
     addfragptr.p->tupConnectptr = tupConnectptr;
-    if (DictTabInfo::isOrderedIndex(addfragptr.p->tableType)) {
+    if (DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+    {
       addfragptr.p->addfragStatus = AddFragRecord::WAIT_TUX;
       sendAddFragReq(signal);
       break;
@@ -1349,14 +1654,16 @@ void Dblqh::execTUPFRAGCONF(Signal* signal)
     /* ---------------------------------------------------------------- */
     /* Finished create of fragments. Now ready for creating attributes. */
     /* ---------------------------------------------------------------- */
-    addfragptr.p->addfragStatus = AddFragRecord::WAIT_ADD_ATTR;
+    fragptr.p->fragStatus = Fragrecord::FSACTIVE;
     {
       LqhFragConf* conf = (LqhFragConf*)signal->getDataPtrSend();
-      conf->senderData = addfragptr.p->dictConnectptr;
-      conf->lqhFragPtr = addfragptr.i;
-      sendSignal(addfragptr.p->dictBlockref, GSN_LQHFRAGCONF,
+      conf->senderData = addfragptr.p->m_lqhFragReq.senderData;
+      conf->lqhFragPtr = RNIL;
+      conf->fragId = fragptr.p->fragId;
+      sendSignal(addfragptr.p->m_lqhFragReq.senderRef, GSN_LQHFRAGCONF,
 		 signal, LqhFragConf::SignalLength, JBB);
     }
+    releaseAddfragrec(signal);
     break;
   default:
     ndbrequire(false);
@@ -1381,291 +1688,50 @@ Dblqh::sendAddFragReq(Signal* signal)
 {
   fragptr.i = addfragptr.p->fragmentPtr;
   c_fragment_pool.getPtr(fragptr);
-  if (addfragptr.p->addfragStatus == AddFragRecord::WAIT_TUP){
+  tabptr.i = fragptr.p->tabRef;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+  if (addfragptr.p->addfragStatus == AddFragRecord::WAIT_TUP)
+  {
     TupFragReq* const tupFragReq = (TupFragReq*)signal->getDataPtrSend();
-    if (DictTabInfo::isTable(addfragptr.p->tableType) ||
-        DictTabInfo::isHashIndex(addfragptr.p->tableType)) {
-      jam();
-      tupFragReq->userPtr = addfragptr.i;
-      tupFragReq->userRef = cownref;
-      tupFragReq->reqInfo = 0; /* ADD TABLE */
-      tupFragReq->tableId = addfragptr.p->tabId;
-      tupFragReq->noOfAttr = addfragptr.p->noOfAttr;
-      tupFragReq->fragId = addfragptr.p->addFragid;
-      tupFragReq->maxRowsLow = addfragptr.p->maxRowsLow;
-      tupFragReq->maxRowsHigh = addfragptr.p->maxRowsHigh;
-      tupFragReq->minRowsLow = addfragptr.p->minRowsLow;
-      tupFragReq->minRowsHigh = addfragptr.p->minRowsHigh;
-      tupFragReq->noOfNullAttr = addfragptr.p->noOfNull;
-      tupFragReq->schemaVersion = addfragptr.p->schemaVer;
-      tupFragReq->noOfKeyAttr = addfragptr.p->noOfKeyAttr;
-      tupFragReq->noOfCharsets = addfragptr.p->noOfCharsets;
-      tupFragReq->checksumIndicator = addfragptr.p->checksumIndicator;
-      tupFragReq->globalCheckpointIdIndicator = addfragptr.p->GCPIndicator;
-      tupFragReq->tablespaceid = addfragptr.p->tablespace_id;
-      tupFragReq->forceVarPartFlag = addfragptr.p->forceVarPartFlag;
-      sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
-		 signal, TupFragReq::SignalLength, JBB);
-      return;
-    }
-    if (DictTabInfo::isOrderedIndex(addfragptr.p->tableType)) {
-      jam();
-      tupFragReq->userPtr = addfragptr.i;
-      tupFragReq->userRef = cownref;
-      tupFragReq->reqInfo = 0; /* ADD TABLE */
-      tupFragReq->tableId = addfragptr.p->tabId;
-      tupFragReq->noOfAttr = 1; /* ordered index: one array attr */
-      tupFragReq->fragId = addfragptr.p->addFragid;
-      tupFragReq->maxRowsLow = addfragptr.p->maxRowsLow;
-      tupFragReq->maxRowsHigh = addfragptr.p->maxRowsHigh;
-      tupFragReq->minRowsLow = addfragptr.p->minRowsLow;
-      tupFragReq->minRowsHigh = addfragptr.p->minRowsHigh;
-      tupFragReq->noOfNullAttr = 0; /* ordered index: no nullable */
-      tupFragReq->schemaVersion = addfragptr.p->schemaVer;
-      tupFragReq->noOfKeyAttr = 1; /* ordered index: one key */
-      tupFragReq->noOfCharsets = addfragptr.p->noOfCharsets;
-      tupFragReq->checksumIndicator = addfragptr.p->checksumIndicator;
-      tupFragReq->globalCheckpointIdIndicator = addfragptr.p->GCPIndicator;
-      tupFragReq->forceVarPartFlag = addfragptr.p->forceVarPartFlag;      
-      sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
-		 signal, TupFragReq::SignalLength, JBB);
-      return;
-    }
+    tupFragReq->userPtr = addfragptr.i;
+    tupFragReq->userRef = cownref;
+    tupFragReq->reqInfo = 0; /* ADD TABLE */
+    tupFragReq->tableId = tabptr.i;
+    tupFragReq->fragId = addfragptr.p->m_lqhFragReq.fragId;
+    tupFragReq->tablespaceid = addfragptr.p->m_lqhFragReq.tablespace_id;
+    tupFragReq->maxRowsHigh = addfragptr.p->m_lqhFragReq.maxRowsHigh;
+    tupFragReq->maxRowsLow = addfragptr.p->m_lqhFragReq.maxRowsLow;
+    tupFragReq->minRowsHigh = addfragptr.p->m_lqhFragReq.minRowsHigh;
+    tupFragReq->minRowsLow = addfragptr.p->m_lqhFragReq.minRowsLow;
+    sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
+               signal, TupFragReq::SignalLength, JBB);
+    return;
   }
-  if (addfragptr.p->addfragStatus == AddFragRecord::WAIT_TUX) {
-    if (DictTabInfo::isOrderedIndex(addfragptr.p->tableType)) {
-      jam();
-      TuxFragReq* const tuxreq = (TuxFragReq*)signal->getDataPtrSend();
-      tuxreq->userPtr = addfragptr.i;
-      tuxreq->userRef = cownref;
-      tuxreq->reqInfo = 0; /* ADD TABLE */
-      tuxreq->tableId = addfragptr.p->tabId;
-      ndbrequire(addfragptr.p->noOfAttr >= 2);
-      tuxreq->noOfAttr = addfragptr.p->noOfAttr - 1; /* skip NDB$TNODE */
-      tuxreq->fragId = addfragptr.p->addFragid;
-      tuxreq->fragOff = addfragptr.p->lh3DistrBits;
-      tuxreq->tableType = addfragptr.p->tableType;
-      tuxreq->primaryTableId = addfragptr.p->primaryTableId;
-      // pointer to index fragment in TUP
-      tuxreq->tupIndexFragPtrI = fragptr.p->tupFragptr;
-      // pointers to table fragments in TUP and ACC
-      FragrecordPtr tFragPtr;
-      tFragPtr.i = fragptr.p->tableFragptr;
-      c_fragment_pool.getPtr(tFragPtr);
-      tuxreq->tupTableFragPtrI[0] = tFragPtr.p->tupFragptr;
-      tuxreq->tupTableFragPtrI[1] = RNIL;
-      tuxreq->accTableFragPtrI[0] = tFragPtr.p->accFragptr;
-      tuxreq->accTableFragPtrI[1] = RNIL;
-      sendSignal(fragptr.p->tuxBlockref, GSN_TUXFRAGREQ,
-		 signal, TuxFragReq::SignalLength, JBB);
-      return;
-    }
+  if (addfragptr.p->addfragStatus == AddFragRecord::WAIT_TUX)
+  {
+    jam();
+    ndbrequire(DictTabInfo::isOrderedIndex(tabptr.p->tableType));
+    TuxFragReq* const tuxreq = (TuxFragReq*)signal->getDataPtrSend();
+    tuxreq->userPtr = addfragptr.i;
+    tuxreq->userRef = cownref;
+    tuxreq->reqInfo = 0; /* ADD TABLE */
+    tuxreq->tableId = tabptr.i;
+    tuxreq->fragId = addfragptr.p->m_lqhFragReq.fragId;
+    tuxreq->primaryTableId = tabptr.p->primaryTableId;
+    // pointer to index fragment in TUP
+    tuxreq->tupIndexFragPtrI = fragptr.p->tupFragptr;
+    // pointers to table fragments in TUP and ACC
+    FragrecordPtr tFragPtr;
+    tFragPtr.i = fragptr.p->tableFragptr;
+    c_fragment_pool.getPtr(tFragPtr);
+    tuxreq->tupTableFragPtrI = tFragPtr.p->tupFragptr;
+    tuxreq->accTableFragPtrI = tFragPtr.p->accFragptr;
+    sendSignal(fragptr.p->tuxBlockref, GSN_TUXFRAGREQ,
+               signal, TuxFragReq::SignalLength, JBB);
+    return;
   }
-  ndbrequire(false);
 }//Dblqh::sendAddFragReq
 
-/* ************************************************************************> */
-/*  LQHADDATTRREQ: Request from DICT to create attributes for the new table. */
-/* ************************************************************************> */
-void Dblqh::execLQHADDATTREQ(Signal* signal) 
-{
-  jamEntry();
-  LqhAddAttrReq * const req = (LqhAddAttrReq*)signal->getDataPtr();
-  
-  addfragptr.i = req->lqhFragPtr;
-  const Uint32 tnoOfAttr = req->noOfAttributes;
-  const Uint32 senderData = req->senderData;
-  const Uint32 senderAttrPtr = req->senderAttrPtr;
-
-  ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
-  ndbrequire(addfragptr.p->addfragStatus == AddFragRecord::WAIT_ADD_ATTR);
-  ndbrequire((tnoOfAttr != 0) && (tnoOfAttr <= LqhAddAttrReq::MAX_ATTRIBUTES));
-  addfragptr.p->totalAttrReceived += tnoOfAttr;
-  ndbrequire(addfragptr.p->totalAttrReceived <= addfragptr.p->noOfAttr);
-
-  addfragptr.p->attrReceived = tnoOfAttr;
-  for (Uint32 i = 0; i < tnoOfAttr; i++) {
-    addfragptr.p->attributes[i] = req->attributes[i];
-    if(AttributeDescriptor::getDiskBased(req->attributes[i].attrDescriptor))
-    {
-      TablerecPtr tabPtr;
-      tabPtr.i = addfragptr.p->tabId;
-      ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
-      tabPtr.p->m_disk_table = 1;
-    }
-  }//for
-  addfragptr.p->attrSentToTup = 0;
-  ndbrequire(addfragptr.p->dictConnectptr == senderData);
-  addfragptr.p->m_senderAttrPtr = senderAttrPtr;
-  addfragptr.p->addfragStatus = AddFragRecord::TUP_ATTR_WAIT;
-  sendAddAttrReq(signal);
-}//Dblqh::execLQHADDATTREQ()
-
-/* *********************>> */
-/*  TUP_ADD_ATTCONF      > */
-/* *********************>> */
-void Dblqh::execTUP_ADD_ATTCONF(Signal* signal) 
-{
-  jamEntry();
-  addfragptr.i = signal->theData[0];
-  // implies that operation was released on the other side
-  const bool lastAttr = signal->theData[1];
-  ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
-  switch (addfragptr.p->addfragStatus) {
-  case AddFragRecord::TUP_ATTR_WAIT:
-    if (DictTabInfo::isOrderedIndex(addfragptr.p->tableType)) {
-      addfragptr.p->addfragStatus = AddFragRecord::TUX_ATTR_WAIT;
-      sendAddAttrReq(signal);
-      break;
-    }
-    goto done_with_attr;
-    break;
-  case AddFragRecord::TUX_ATTR_WAIT:
-    jam();
-    if (lastAttr)
-      addfragptr.p->tuxConnectptr = RNIL;
-    goto done_with_attr;
-    break;
-  done_with_attr:
-    addfragptr.p->attrSentToTup = addfragptr.p->attrSentToTup + 1;
-    ndbrequire(addfragptr.p->attrSentToTup <= addfragptr.p->attrReceived);
-    ndbrequire(addfragptr.p->totalAttrReceived <= addfragptr.p->noOfAttr);
-    if (addfragptr.p->attrSentToTup < addfragptr.p->attrReceived) {
-      // more in this batch
-      jam();
-      addfragptr.p->addfragStatus = AddFragRecord::TUP_ATTR_WAIT;
-      sendAddAttrReq(signal);
-    } else if (addfragptr.p->totalAttrReceived < addfragptr.p->noOfAttr) {
-      // more batches to receive
-      jam();
-      addfragptr.p->addfragStatus = AddFragRecord::WAIT_ADD_ATTR;
-      LqhAddAttrConf *const conf = (LqhAddAttrConf*)signal->getDataPtrSend();
-      conf->senderData = addfragptr.p->dictConnectptr;
-      conf->senderAttrPtr = addfragptr.p->m_senderAttrPtr;
-      conf->fragId = addfragptr.p->addFragid;
-      sendSignal(addfragptr.p->dictBlockref, GSN_LQHADDATTCONF,
-		 signal, LqhAddAttrConf::SignalLength, JBB);
-    } else {
-      fragptr.i = addfragptr.p->fragmentPtr;
-      c_fragment_pool.getPtr(fragptr);
-      /* ------------------------------------------------------------------ 
-       * WE HAVE NOW COMPLETED ADDING THIS FRAGMENT. WE NOW NEED TO SET THE 
-       * PROPER STATE IN FRAG_STATUS DEPENDENT ON IF WE ARE CREATING A NEW 
-       * REPLICA OR IF WE ARE CREATING A TABLE. FOR FRAGMENTS IN COPY
-       * PROCESS WE DO NOT WANT LOGGING ACTIVATED.      
-       * ----------------------------------------------------------------- */
-      if (addfragptr.p->fragCopyCreation == 1) {
-        jam();
-        if (! DictTabInfo::isOrderedIndex(addfragptr.p->tableType))
-	{
-	  fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
-	  //fragptr.p->m_copy_started_state = Fragrecord::AC_NR_COPY;
-          fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
-	}
-        else
-	{
-          fragptr.p->fragStatus = Fragrecord::FSACTIVE;
-	}
-        fragptr.p->logFlag = Fragrecord::STATE_FALSE;
-      } else {
-        jam();
-        fragptr.p->fragStatus = Fragrecord::FSACTIVE;
-      }//if
-      LqhAddAttrConf *const conf = (LqhAddAttrConf*)signal->getDataPtrSend();
-      conf->senderData = addfragptr.p->dictConnectptr;
-      conf->senderAttrPtr = addfragptr.p->m_senderAttrPtr;
-      conf->fragId = addfragptr.p->addFragid;
-      sendSignal(addfragptr.p->dictBlockref, GSN_LQHADDATTCONF, signal, 
-                 LqhAddAttrConf::SignalLength, JBB);
-      releaseAddfragrec(signal);
-    }//if
-    break;
-  default:
-    ndbrequire(false);
-    break;
-  }
-}
-
-/* **********************>> */
-/*  TUX_ADD_ATTRCONF      > */
-/* **********************>> */
-void Dblqh::execTUX_ADD_ATTRCONF(Signal* signal) 
-{
-  jamEntry();
-  execTUP_ADD_ATTCONF(signal);
-}//Dblqh::execTUX_ADD_ATTRCONF
-
-/*
- * Add attribute in TUP or TUX.  Called up to 4 times.
- */
-void
-Dblqh::sendAddAttrReq(Signal* signal)
-{
-  arrGuard(addfragptr.p->attrSentToTup, LqhAddAttrReq::MAX_ATTRIBUTES);
-  LqhAddAttrReq::Entry& entry =
-    addfragptr.p->attributes[addfragptr.p->attrSentToTup];
-  const Uint32 attrId = entry.attrId & 0xffff;
-  const Uint32 primaryAttrId = entry.attrId >> 16;
-  fragptr.i = addfragptr.p->fragmentPtr;
-  c_fragment_pool.getPtr(fragptr);
-  if (addfragptr.p->addfragStatus == AddFragRecord::TUP_ATTR_WAIT) {
-    if (DictTabInfo::isTable(addfragptr.p->tableType) ||
-        DictTabInfo::isHashIndex(addfragptr.p->tableType) ||
-        (DictTabInfo::isOrderedIndex(addfragptr.p->tableType) &&
-         primaryAttrId == ZNIL)) {
-      jam();
-      TupAddAttrReq* const tupreq = (TupAddAttrReq*)signal->getDataPtrSend();
-      tupreq->tupConnectPtr = addfragptr.p->tupConnectptr;
-      tupreq->notused1 = 0;
-      tupreq->attrId = attrId;
-      tupreq->attrDescriptor = entry.attrDescriptor;
-      tupreq->extTypeInfo = entry.extTypeInfo;
-      sendSignal(fragptr.p->tupBlockref, GSN_TUP_ADD_ATTRREQ,
-          signal, TupAddAttrReq::SignalLength, JBB);
-      return;
-    }
-    if (DictTabInfo::isOrderedIndex(addfragptr.p->tableType) &&
-        primaryAttrId != ZNIL) {
-      // this attribute is not for TUP
-      jam();
-      TupAddAttrConf* tupconf = (TupAddAttrConf*)signal->getDataPtrSend();
-      tupconf->userPtr = addfragptr.i;
-      tupconf->lastAttr = false;
-      sendSignal(reference(), GSN_TUP_ADD_ATTCONF,
-		 signal, TupAddAttrConf::SignalLength, JBB);
-      return;
-    }
-  }
-  if (addfragptr.p->addfragStatus == AddFragRecord::TUX_ATTR_WAIT) {
-    jam();
-    if (DictTabInfo::isOrderedIndex(addfragptr.p->tableType) &&
-        primaryAttrId != ZNIL) {
-      jam();
-      TuxAddAttrReq* const tuxreq = (TuxAddAttrReq*)signal->getDataPtrSend();
-      tuxreq->tuxConnectPtr = addfragptr.p->tuxConnectptr;
-      tuxreq->notused1 = 0;
-      tuxreq->attrId = attrId;
-      tuxreq->attrDescriptor = entry.attrDescriptor;
-      tuxreq->extTypeInfo = entry.extTypeInfo;
-      tuxreq->primaryAttrId = primaryAttrId;
-      sendSignal(fragptr.p->tuxBlockref, GSN_TUX_ADD_ATTRREQ,
-		 signal, TuxAddAttrReq::SignalLength, JBB);
-      return;
-    }
-    if (DictTabInfo::isOrderedIndex(addfragptr.p->tableType) &&
-        primaryAttrId == ZNIL) {
-      // this attribute is not for TUX
-      jam();
-      TuxAddAttrConf* tuxconf = (TuxAddAttrConf*)signal->getDataPtrSend();
-      tuxconf->userPtr = addfragptr.i;
-      tuxconf->lastAttr = false;
-      sendSignal(reference(), GSN_TUX_ADD_ATTRCONF,
-		 signal, TuxAddAttrConf::SignalLength, JBB);
-      return;
-    }
-  }
-  ndbrequire(false);
-}//Dblqh::sendAddAttrReq
 
 /* ************************************************************************>> */
 /*  TAB_COMMITREQ: Commit the new table for use in transactions. Sender DICT. */
@@ -1706,6 +1772,7 @@ void Dblqh::execTAB_COMMITREQ(Signal* signal)
   signal->theData[1] = cownNodeid;
   signal->theData[2] = tabptr.i;
   sendSignal(dihBlockref, GSN_TAB_COMMITCONF, signal, 3, JBB);
+
   return;
 }//Dblqh::execTAB_COMMITREQ()
 
@@ -1728,14 +1795,12 @@ void Dblqh::fragrefLab(Signal* signal,
  */
 void Dblqh::abortAddFragOps(Signal* signal)
 {
-  fragptr.i = addfragptr.p->fragmentPtr;
-  c_fragment_pool.getPtr(fragptr);
   if (addfragptr.p->tupConnectptr != RNIL) {
     jam();
     TupFragReq* const tupFragReq = (TupFragReq*)signal->getDataPtrSend();
     tupFragReq->userPtr = (Uint32)-1;
     tupFragReq->userRef = addfragptr.p->tupConnectptr;
-    sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ, signal, 2, JBB);
+    sendSignal(ctupBlockref, GSN_TUPFRAGREQ, signal, 2, JBB);
     addfragptr.p->tupConnectptr = RNIL;
   }
   if (addfragptr.p->tuxConnectptr != RNIL) {
@@ -1743,7 +1808,7 @@ void Dblqh::abortAddFragOps(Signal* signal)
     TuxFragReq* const tuxFragReq = (TuxFragReq*)signal->getDataPtrSend();
     tuxFragReq->userPtr = (Uint32)-1;
     tuxFragReq->userRef = addfragptr.p->tuxConnectptr;
-    sendSignal(fragptr.p->tuxBlockref, GSN_TUXFRAGREQ, signal, 2, JBB);
+    sendSignal(ctuxBlockref, GSN_TUXFRAGREQ, signal, 2, JBB);
     addfragptr.p->tuxConnectptr = RNIL;
   }
 }
@@ -1756,14 +1821,13 @@ void Dblqh::execACCFRAGREF(Signal* signal)
   jamEntry();
   addfragptr.i = signal->theData[0];
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
-  terrorCode = signal->theData[1];
+  Uint32 errorCode = terrorCode = signal->theData[1];
   ndbrequire(addfragptr.p->addfragStatus == AddFragRecord::ACC_ADDFRAG);
-  addfragptr.p->addfragErrorCode = terrorCode;
 
-  const Uint32 ref = addfragptr.p->dictBlockref;
-  const Uint32 senderData = addfragptr.p->dictConnectptr;
-  const Uint32 errorCode = addfragptr.p->addfragErrorCode;
+  const Uint32 ref = addfragptr.p->m_lqhFragReq.senderRef;
+  const Uint32 senderData = addfragptr.p->m_lqhFragReq.senderData;
   releaseAddfragrec(signal);
+
   fragrefLab(signal, ref, senderData, errorCode);
 
   return;
@@ -1777,10 +1841,9 @@ void Dblqh::execTUPFRAGREF(Signal* signal)
   jamEntry();
   addfragptr.i = signal->theData[0];
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
-  terrorCode = signal->theData[1];
+  Uint32 errorCode = terrorCode = signal->theData[1];
   fragptr.i = addfragptr.p->fragmentPtr;
   c_fragment_pool.getPtr(fragptr);
-  addfragptr.p->addfragErrorCode = terrorCode;
 
   // no operation to release, just add some jams
   switch (addfragptr.p->addfragStatus) {
@@ -1794,11 +1857,9 @@ void Dblqh::execTUPFRAGREF(Signal* signal)
     ndbrequire(false);
     break;
   }
-  abortAddFragOps(signal);
 
-  const Uint32 ref = addfragptr.p->dictBlockref;
-  const Uint32 senderData = addfragptr.p->dictConnectptr;
-  const Uint32 errorCode = addfragptr.p->addfragErrorCode;
+  const Uint32 ref = addfragptr.p->m_lqhFragReq.senderRef;
+  const Uint32 senderData = addfragptr.p->m_lqhFragReq.senderData;
   releaseAddfragrec(signal);
   fragrefLab(signal, ref, senderData, errorCode);
 
@@ -1812,57 +1873,6 @@ void Dblqh::execTUXFRAGREF(Signal* signal)
   jamEntry();
   execTUPFRAGREF(signal);
 }//Dblqh::execTUXFRAGREF
-
-/* *********************> */
-/*  TUP_ADD_ATTREF      > */
-/* *********************> */
-void Dblqh::execTUP_ADD_ATTRREF(Signal* signal) 
-{
-  jamEntry();
-  addfragptr.i = signal->theData[0];
-  ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
-  terrorCode = signal->theData[1];
-  addfragptr.p->addfragErrorCode = terrorCode;
-
-  // operation was released on the other side
-  switch (addfragptr.p->addfragStatus) {
-  case AddFragRecord::TUP_ATTR_WAIT:
-    jam();
-    ndbrequire(addfragptr.p->tupConnectptr != RNIL);
-    addfragptr.p->tupConnectptr = RNIL;
-    break;
-  case AddFragRecord::TUX_ATTR_WAIT:
-    jam();
-    ndbrequire(addfragptr.p->tuxConnectptr != RNIL);
-    addfragptr.p->tuxConnectptr = RNIL;
-    break;
-  default:
-    ndbrequire(false);
-    break;
-  }
-  abortAddFragOps(signal);
-  
-  const Uint32 Ref = addfragptr.p->dictBlockref;
-  const Uint32 senderData = addfragptr.p->dictConnectptr;
-  const Uint32 errorCode = addfragptr.p->addfragErrorCode;
-  releaseAddfragrec(signal);
-  
-  LqhAddAttrRef *const ref = (LqhAddAttrRef*)signal->getDataPtrSend();
-  ref->senderData = senderData;
-  ref->errorCode = errorCode;
-  sendSignal(Ref, GSN_LQHADDATTREF, signal, 
-	     LqhAddAttrRef::SignalLength, JBB);
-  
-}//Dblqh::execTUP_ADD_ATTRREF()
-
-/* **********************> */
-/*  TUX_ADD_ATTRREF      > */
-/* **********************> */
-void Dblqh::execTUX_ADD_ATTRREF(Signal* signal) 
-{
-  jamEntry();
-  execTUP_ADD_ATTRREF(signal);
-}//Dblqh::execTUX_ADD_ATTRREF
 
 void
 Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
@@ -18392,6 +18402,17 @@ void Dblqh::seizeAddfragrec(Signal* signal)
   addfragptr.i = cfirstfreeAddfragrec;
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
   cfirstfreeAddfragrec = addfragptr.p->nextAddfragrec;
+
+  addfragptr.p->accConnectptr = RNIL;
+  addfragptr.p->tupConnectptr = RNIL;
+  addfragptr.p->tuxConnectptr = RNIL;
+  bzero(&addfragptr.p->m_createTabReq, sizeof(addfragptr.p->m_createTabReq));
+  bzero(&addfragptr.p->m_lqhFragReq, sizeof(addfragptr.p->m_lqhFragReq));
+  bzero(&addfragptr.p->m_addAttrReq, sizeof(addfragptr.p->m_addAttrReq));
+  addfragptr.p->addfragErrorCode = 0;
+  addfragptr.p->attrSentToTup = 0;
+  addfragptr.p->attrReceived = 0;
+  addfragptr.p->totalAttrReceived = 0;
 }//Dblqh::seizeAddfragrec()
 
 /* --------------------------------------------------------------------------
