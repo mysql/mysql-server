@@ -23,24 +23,31 @@
  * For historical reasons it looks like we are adding random fragments
  * and attributes to existing index.  In fact all fragments must be
  * created at one time and they have identical attributes.
+ *
+ * But history changes?
+ * Now index will be created using the sequence
+ *   CREATE_TAB_REQ
+ *     TUP_ADD_ATTR_REQ +
+ *
+ * Followed by 0-N
+ *   TUXFRAGREQ
  */
 
+#include <signaldata/CreateTab.hpp>
+
 void
-Dbtux::execTUXFRAGREQ(Signal* signal)
+Dbtux::execCREATE_TAB_REQ(Signal* signal)
 {
   jamEntry();
-  if (signal->theData[0] == (Uint32)-1) {
-    jam();
-    abortAddFragOp(signal);
-    return;
-  }
-  const TuxFragReq reqCopy = *(const TuxFragReq*)signal->getDataPtr();
-  const TuxFragReq* const req = &reqCopy;
+  CreateTabReq copy = *(CreateTabReq*)signal->getDataPtr();
+  CreateTabReq* req = &copy;
+
   IndexPtr indexPtr;
   indexPtr.i = RNIL;
   FragOpPtr fragOpPtr;
   fragOpPtr.i = RNIL;
-  TuxFragRef::ErrorCode errorCode = TuxFragRef::NoError;
+  Uint32 errorCode = 0;
+
   do {
     // get the index record
     if (req->tableId >= c_indexPool.getSize()) {
@@ -49,22 +56,23 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
       break;
     }
     c_indexPool.getPtr(indexPtr, req->tableId);
-    if (indexPtr.p->m_state != Index::NotDefined &&
-        indexPtr.p->m_state != Index::Defining) {
+    if (indexPtr.p->m_state != Index::NotDefined)
+    {
       jam();
       errorCode = TuxFragRef::InvalidRequest;
       indexPtr.i = RNIL;        // leave alone
       break;
     }
+
     // get new operation record
     c_fragOpPool.seize(fragOpPtr);
     ndbrequire(fragOpPtr.i != RNIL);
     new (fragOpPtr.p) FragOp();
-    fragOpPtr.p->m_userPtr = req->userPtr;
-    fragOpPtr.p->m_userRef = req->userRef;
+    fragOpPtr.p->m_userPtr = req->senderData;
+    fragOpPtr.p->m_userRef = req->senderRef;
     fragOpPtr.p->m_indexId = req->tableId;
-    fragOpPtr.p->m_fragId = req->fragId;
-    fragOpPtr.p->m_fragNo = indexPtr.p->m_numFrags;
+    fragOpPtr.p->m_fragId = RNIL;
+    fragOpPtr.p->m_fragNo = RNIL;
     fragOpPtr.p->m_numAttrsRecvd = 0;
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
@@ -72,68 +80,24 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     }
 #endif
     // check if index has place for more fragments
-    ndbrequire(indexPtr.p->m_numFrags < MaxIndexFragments);
-    // seize new fragment record
-    FragPtr fragPtr;
-    c_fragPool.seize(fragPtr);
-    if (fragPtr.i == RNIL) {
+    ndbrequire(indexPtr.p->m_state == Index::NotDefined &&
+               DictTabInfo::isOrderedIndex(req->tableType) &&
+               req->noOfAttributes > 0 &&
+               req->noOfAttributes <= MaxIndexAttributes &&
+               indexPtr.p->m_descPage == RNIL);
+
+    indexPtr.p->m_state = Index::Defining;
+    indexPtr.p->m_tableType = (DictTabInfo::TableType)req->tableType;
+    indexPtr.p->m_tableId = req->primaryTableId;
+    indexPtr.p->m_numAttrs = req->noOfAttributes;
+    indexPtr.p->m_storeNullKey = true;  // not yet configurable
+    // allocate attribute descriptors
+    if (! allocDescEnt(indexPtr)) {
       jam();
-      errorCode = TuxFragRef::NoFreeFragment;
+      errorCode = TuxFragRef::NoFreeAttributes;
       break;
     }
-    new (fragPtr.p) Frag(c_scanOpPool);
-    fragPtr.p->m_tableId = req->primaryTableId;
-    fragPtr.p->m_indexId = req->tableId;
-    fragPtr.p->m_fragId = req->fragId;
-    fragPtr.p->m_numAttrs = req->noOfAttr;
-    fragPtr.p->m_storeNullKey = true;  // not yet configurable
-    fragPtr.p->m_tupIndexFragPtrI = req->tupIndexFragPtrI;
-    fragPtr.p->m_tupTableFragPtrI = req->tupTableFragPtrI[0];
-    fragPtr.p->m_accTableFragPtrI = req->accTableFragPtrI[0];
-    // add the fragment to the index
-    indexPtr.p->m_fragId[indexPtr.p->m_numFrags] = req->fragId;
-    indexPtr.p->m_fragPtrI[indexPtr.p->m_numFrags] = fragPtr.i;
-    indexPtr.p->m_numFrags++;
-    // save under operation
-    fragOpPtr.p->m_fragPtrI = fragPtr.i;
-    // prepare to receive attributes
-    if (fragOpPtr.p->m_fragNo == 0) {
-      jam();
-      // receiving first fragment
-      ndbrequire(
-          indexPtr.p->m_state == Index::NotDefined &&
-          DictTabInfo::isOrderedIndex(req->tableType) &&
-          req->noOfAttr > 0 &&
-          req->noOfAttr <= MaxIndexAttributes &&
-          indexPtr.p->m_descPage == RNIL);
-      indexPtr.p->m_state = Index::Defining;
-      indexPtr.p->m_tableType = (DictTabInfo::TableType)req->tableType;
-      indexPtr.p->m_tableId = req->primaryTableId;
-      indexPtr.p->m_numAttrs = req->noOfAttr;
-      indexPtr.p->m_storeNullKey = true;  // not yet configurable
-      // allocate attribute descriptors
-      if (! allocDescEnt(indexPtr)) {
-        jam();
-        errorCode = TuxFragRef::NoFreeAttributes;
-        break;
-      }
-    } else {
-      // receiving subsequent fragment
-      jam();
-      ndbrequire(
-          indexPtr.p->m_state == Index::Defining &&
-          indexPtr.p->m_tableType == (DictTabInfo::TableType)req->tableType &&
-          indexPtr.p->m_tableId == req->primaryTableId &&
-          indexPtr.p->m_numAttrs == req->noOfAttr);
-    }
-    // copy metadata address to each fragment
-    fragPtr.p->m_descPage = indexPtr.p->m_descPage;
-    fragPtr.p->m_descOff = indexPtr.p->m_descOff;
-#ifdef VM_TRACE
-    if (debugFlags & DebugMeta) {
-      debugOut << "Add frag " << fragPtr.i << " " << *fragPtr.p << endl;
-    }
-#endif
+
     // error inserts
     if (ERROR_INSERTED(12001) && fragOpPtr.p->m_fragNo == 0 ||
         ERROR_INSERTED(12002) && fragOpPtr.p->m_fragNo == 1) {
@@ -143,32 +107,31 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
       break;
     }
     // success
-    TuxFragConf* const conf = (TuxFragConf*)signal->getDataPtrSend();
-    conf->userPtr = req->userPtr;
+    CreateTabConf* conf = (CreateTabConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = req->senderData;
     conf->tuxConnectPtr = fragOpPtr.i;
-    conf->fragPtr = fragPtr.i;
-    conf->fragId = fragPtr.p->m_fragId;
-    sendSignal(req->userRef, GSN_TUXFRAGCONF,
-        signal, TuxFragConf::SignalLength, JBB);
+    sendSignal(req->senderRef, GSN_CREATE_TAB_CONF,
+               signal, CreateTabConf::SignalLength, JBB);
     return;
   } while (0);
   // error
-  TuxFragRef* const ref = (TuxFragRef*)signal->getDataPtrSend();
-  ref->userPtr = req->userPtr;
+
+  CreateTabRef* const ref = (CreateTabRef*)signal->getDataPtrSend();
+  ref->senderData = req->senderData;
   ref->errorCode = errorCode;
-  sendSignal(req->userRef, GSN_TUXFRAGREF,
-      signal, TuxFragRef::SignalLength, JBB);
-  if (fragOpPtr.i != RNIL) {
-#ifdef VM_TRACE
-    if (debugFlags & DebugMeta) {
-      debugOut << "Release on frag error frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
-    }
-#endif
-    c_fragOpPool.release(fragOpPtr);
-  }
+  sendSignal(req->senderRef, GSN_CREATE_TAB_REF,
+             signal, CreateTabRef::SignalLength, JBB);
+
   if (indexPtr.i != RNIL) {
     jam();
     // let DICT drop the unfinished index
+  }
+
+  if (fragOpPtr.i != RNIL)
+  {
+    jam();
+    c_fragOpPool.release(fragOpPtr);
   }
 }
 
@@ -181,10 +144,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
   // get the records
   FragOpPtr fragOpPtr;
   IndexPtr indexPtr;
-  FragPtr fragPtr;
   c_fragOpPool.getPtr(fragOpPtr, req->tuxConnectPtr);
   c_indexPool.getPtr(indexPtr, fragOpPtr.p->m_indexId);
-  c_fragPool.getPtr(fragPtr, fragOpPtr.p->m_fragPtrI);
   TuxAddAttrRef::ErrorCode errorCode = TuxAddAttrRef::NoError;
   do {
     // expected attribute id
@@ -202,7 +163,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
     descAttr.m_charset = (req->extTypeInfo >> 16);
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
-      debugOut << "Add frag " << fragPtr.i << " attr " << attrId << " " << descAttr << endl;
+      debugOut << "attr " << attrId << " " << descAttr << endl;
     }
 #endif
     // check that type is valid and has a binary comparison method
@@ -224,56 +185,14 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       }
     }
     const bool lastAttr = (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd);
-    if (ERROR_INSERTED(12003) && fragOpPtr.p->m_fragNo == 0 && attrId == 0 ||
-        ERROR_INSERTED(12004) && fragOpPtr.p->m_fragNo == 0 && lastAttr ||
-        ERROR_INSERTED(12005) && fragOpPtr.p->m_fragNo == 1 && attrId == 0 ||
-        ERROR_INSERTED(12006) && fragOpPtr.p->m_fragNo == 1 && lastAttr) {
+    if (ERROR_INSERTED(12003) && attrId == 0 ||
+        ERROR_INSERTED(12004) && lastAttr)
+    {
       errorCode = (TuxAddAttrRef::ErrorCode)1;
       CLEAR_ERROR_INSERT_VALUE;
       break;
     }
     if (lastAttr) {
-      jam();
-      // initialize tree header
-      TreeHead& tree = fragPtr.p->m_tree;
-      new (&tree) TreeHead();
-      // make these configurable later
-      tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
-      tree.m_prefSize = MAX_TTREE_PREF_SIZE;
-      const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
-      // size up to and including first 2 entries
-      const unsigned pref = tree.getSize(AccPref);
-      if (! (pref <= tree.m_nodeSize)) {
-        jam();
-        errorCode = TuxAddAttrRef::InvalidNodeSize;
-        break;
-      }
-      const unsigned slots = (tree.m_nodeSize - pref) / TreeEntSize;
-      // leave out work space entry
-      tree.m_maxOccup = 2 + slots - 1;
-      // min occupancy of interior node must be at least 2
-      if (! (2 + maxSlack <= tree.m_maxOccup)) {
-        jam();
-        errorCode = TuxAddAttrRef::InvalidNodeSize;
-        break;
-      }
-      tree.m_minOccup = tree.m_maxOccup - maxSlack;
-      // root node does not exist (also set by ctor)
-      tree.m_root = NullTupLoc;
-#ifdef VM_TRACE
-      if (debugFlags & DebugMeta) {
-        if (fragOpPtr.p->m_fragNo == 0) {
-          debugOut << "Index id=" << indexPtr.i;
-          debugOut << " nodeSize=" << tree.m_nodeSize;
-          debugOut << " headSize=" << NodeHeadSize;
-          debugOut << " prefSize=" << tree.m_prefSize;
-          debugOut << " entrySize=" << TreeEntSize;
-          debugOut << " minOccup=" << tree.m_minOccup;
-          debugOut << " maxOccup=" << tree.m_maxOccup;
-          debugOut << endl;
-        }
-      }
-#endif
       // fragment is defined
 #ifdef VM_TRACE
       if (debugFlags & DebugMeta) {
@@ -301,8 +220,145 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       debugOut << "Release on attr error frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
     }
 #endif
-  c_fragOpPool.release(fragOpPtr);
   // let DICT drop the unfinished index
+}
+
+void
+Dbtux::execTUXFRAGREQ(Signal* signal)
+{
+  jamEntry();
+
+  if (signal->theData[0] == (Uint32)-1) {
+    jam();
+    abortAddFragOp(signal);
+    return;
+  }
+
+  const TuxFragReq reqCopy = *(const TuxFragReq*)signal->getDataPtr();
+  const TuxFragReq* const req = &reqCopy;
+  IndexPtr indexPtr;
+  indexPtr.i = RNIL;
+  TuxFragRef::ErrorCode errorCode = TuxFragRef::NoError;
+  do {
+    // get the index record
+    if (req->tableId >= c_indexPool.getSize()) {
+      jam();
+      errorCode = TuxFragRef::InvalidRequest;
+      break;
+    }
+    c_indexPool.getPtr(indexPtr, req->tableId);
+    if (false && indexPtr.p->m_state != Index::Defining) {
+      jam();
+      errorCode = TuxFragRef::InvalidRequest;
+      indexPtr.i = RNIL;        // leave alone
+      break;
+    }
+
+    // check if index has place for more fragments
+    ndbrequire(indexPtr.p->m_numFrags < MaxIndexFragments);
+    // seize new fragment record
+    FragPtr fragPtr;
+    c_fragPool.seize(fragPtr);
+    if (fragPtr.i == RNIL) {
+      jam();
+      errorCode = TuxFragRef::NoFreeFragment;
+      break;
+    }
+    new (fragPtr.p) Frag(c_scanOpPool);
+    fragPtr.p->m_tableId = req->primaryTableId;
+    fragPtr.p->m_indexId = req->tableId;
+    fragPtr.p->m_fragId = req->fragId;
+    fragPtr.p->m_numAttrs = indexPtr.p->m_numAttrs;
+    fragPtr.p->m_storeNullKey = true;  // not yet configurable
+    fragPtr.p->m_tupIndexFragPtrI = req->tupIndexFragPtrI;
+    fragPtr.p->m_tupTableFragPtrI = req->tupTableFragPtrI;
+    fragPtr.p->m_accTableFragPtrI = req->accTableFragPtrI;
+    // add the fragment to the index
+    Uint32 fragNo = indexPtr.p->m_numFrags;
+    indexPtr.p->m_fragId[indexPtr.p->m_numFrags] = req->fragId;
+    indexPtr.p->m_fragPtrI[indexPtr.p->m_numFrags] = fragPtr.i;
+    indexPtr.p->m_numFrags++;
+
+    // copy metadata address to each fragment
+    fragPtr.p->m_descPage = indexPtr.p->m_descPage;
+    fragPtr.p->m_descOff = indexPtr.p->m_descOff;
+#ifdef VM_TRACE
+    if (debugFlags & DebugMeta) {
+      debugOut << "Add frag " << fragPtr.i << " " << *fragPtr.p << endl;
+    }
+#endif
+    // error inserts
+    if (ERROR_INSERTED(12001) && fragNo == 0 ||
+        ERROR_INSERTED(12002) && fragNo == 1) {
+      jam();
+      errorCode = (TuxFragRef::ErrorCode)1;
+      CLEAR_ERROR_INSERT_VALUE;
+      break;
+    }
+
+    // initialize tree header
+    TreeHead& tree = fragPtr.p->m_tree;
+    new (&tree) TreeHead();
+    // make these configurable later
+    tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
+    tree.m_prefSize = MAX_TTREE_PREF_SIZE;
+    const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
+    // size up to and including first 2 entries
+    const unsigned pref = tree.getSize(AccPref);
+    if (! (pref <= tree.m_nodeSize)) {
+      jam();
+      errorCode = (TuxFragRef::ErrorCode)TuxAddAttrRef::InvalidNodeSize;
+      break;
+    }
+    const unsigned slots = (tree.m_nodeSize - pref) / TreeEntSize;
+    // leave out work space entry
+    tree.m_maxOccup = 2 + slots - 1;
+    // min occupancy of interior node must be at least 2
+    if (! (2 + maxSlack <= tree.m_maxOccup)) {
+      jam();
+        errorCode = (TuxFragRef::ErrorCode)TuxAddAttrRef::InvalidNodeSize;
+        break;
+    }
+    tree.m_minOccup = tree.m_maxOccup - maxSlack;
+    // root node does not exist (also set by ctor)
+    tree.m_root = NullTupLoc;
+#ifdef VM_TRACE
+    if (debugFlags & DebugMeta) {
+      if (fragNo == 0) {
+        debugOut << "Index id=" << indexPtr.i;
+        debugOut << " nodeSize=" << tree.m_nodeSize;
+        debugOut << " headSize=" << NodeHeadSize;
+        debugOut << " prefSize=" << tree.m_prefSize;
+        debugOut << " entrySize=" << TreeEntSize;
+        debugOut << " minOccup=" << tree.m_minOccup;
+        debugOut << " maxOccup=" << tree.m_maxOccup;
+        debugOut << endl;
+      }
+    }
+#endif
+
+    // success
+    TuxFragConf* const conf = (TuxFragConf*)signal->getDataPtrSend();
+    conf->userPtr = req->userPtr;
+    conf->tuxConnectPtr = RNIL;
+    conf->fragPtr = fragPtr.i;
+    conf->fragId = fragPtr.p->m_fragId;
+    sendSignal(req->userRef, GSN_TUXFRAGCONF,
+        signal, TuxFragConf::SignalLength, JBB);
+    return;
+  } while (0);
+
+  // error
+  TuxFragRef* const ref = (TuxFragRef*)signal->getDataPtrSend();
+  ref->userPtr = req->userPtr;
+  ref->errorCode = errorCode;
+  sendSignal(req->userRef, GSN_TUXFRAGREF,
+      signal, TuxFragRef::SignalLength, JBB);
+
+  if (indexPtr.i != RNIL) {
+    jam();
+    // let DICT drop the unfinished index
+  }
 }
 
 /*

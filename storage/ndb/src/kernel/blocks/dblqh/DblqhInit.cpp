@@ -64,6 +64,7 @@ void Dblqh::initData()
   m_backup_ptr = RNIL;
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
+  c_active_add_frag_ptr_i = RNIL;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -278,7 +279,10 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_FSSYNCCONF,  &Dblqh::execFSSYNCCONF);
   addRecSignal(GSN_REMOVE_MARKER_ORD, &Dblqh::execREMOVE_MARKER_ORD);
 
-  //addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
+  addRecSignal(GSN_CREATE_TAB_REQ, &Dblqh::execCREATE_TAB_REQ);
+  addRecSignal(GSN_CREATE_TAB_REF, &Dblqh::execCREATE_TAB_REF);
+  addRecSignal(GSN_CREATE_TAB_CONF, &Dblqh::execCREATE_TAB_CONF);
+
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dblqh::execPREP_DROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
 

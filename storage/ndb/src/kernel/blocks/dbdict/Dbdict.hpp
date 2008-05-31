@@ -2052,8 +2052,9 @@ private:
 
   // prepare
   void createTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
-  void createTab_dih(Signal*, SchemaOpPtr, OpSection fragSec, Callback*);
-  void createTab_dihComplete(Signal*, Uint32 op_key, Uint32 ret);
+  void createTab_local(Signal*, SchemaOpPtr, OpSection fragSec, Callback*);
+  void createTab_dih(Signal*, SchemaOpPtr);
+  void createTab_localComplete(Signal*, Uint32 op_key, Uint32 ret);
 
   // commit
   void createTab_activate(Signal*, SchemaOpPtr, Callback*);

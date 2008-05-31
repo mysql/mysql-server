@@ -5019,28 +5019,224 @@ Dbdict::createTab_writeTableConf(Signal* signal,
   Callback callback;
   callback.m_callbackData = op_ptr.p->op_key;
   callback.m_callbackFunction =
-    safe_cast(&Dbdict::createTab_dihComplete);
+    safe_cast(&Dbdict::createTab_localComplete);
 
-  createTab_dih(signal, op_ptr, fragSec, &callback);
+  createTab_local(signal, op_ptr, fragSec, &callback);
 }
 
 void
-Dbdict::createTab_dih(Signal* signal,
-		      SchemaOpPtr op_ptr,
-		      OpSection fragSec,
-		      Callback * c)
+Dbdict::createTab_local(Signal* signal,
+                        SchemaOpPtr op_ptr,
+                        OpSection fragSec,
+                        Callback * c)
 {
   jam();
   CreateTableRecPtr createTabPtr;
   getOpRec(op_ptr, createTabPtr);
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
-  D("createTab_dih" << *op_ptr.p);
-
   createTabPtr.p->m_callback = * c;
 
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
+
+  /**
+   * Start by createing table in LQH
+   */
+  CreateTabReq* req = (CreateTabReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->tableId = createTabPtr.p->m_request.tableId;
+  req->tableVersion = tabPtr.p->tableVersion;
+  req->requestType = 0;
+  req->gci = 0;
+  req->noOfCharsets = tabPtr.p->noOfCharsets;
+  req->tableType = tabPtr.p->tableType;
+  req->primaryTableId = tabPtr.p->primaryTableId;
+  req->forceVarPartFlag = !!(tabPtr.p->m_bits& TableRecord::TR_ForceVarPart);
+  req->noOfNullAttributes = tabPtr.p->noOfNullBits;
+  req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
+  req->checksumIndicator = 1;
+  req->GCPIndicator = 1;
+  req->noOfAttributes = tabPtr.p->noOfAttributes;
+  sendSignal(DBLQH_REF, GSN_CREATE_TAB_REQ, signal,
+             CreateTabReq::SignalLengthLDM, JBB);
+
+
+  /**
+   * Create KeyDescriptor
+   */
+  {
+    KeyDescriptor* desc= g_key_descriptor_pool.getPtr(tabPtr.i);
+    new (desc) KeyDescriptor();
+
+    Uint32 key = 0;
+    Ptr<AttributeRecord> attrPtr;
+    LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool,
+                                          tabPtr.p->m_attributes);
+    for(list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr))
+    {
+      AttributeRecord* aRec = attrPtr.p;
+      if (aRec->tupleKey)
+      {
+        Uint32 attr = aRec->attributeDescriptor;
+
+        desc->noOfKeyAttr ++;
+        desc->keyAttr[key].attributeDescriptor = attr;
+        Uint32 csNumber = (aRec->extPrecision >> 16);
+        if (csNumber)
+        {
+          desc->keyAttr[key].charsetInfo = all_charsets[csNumber];
+          ndbrequire(all_charsets[csNumber] != 0);
+          desc->hasCharAttr = 1;
+        }
+        else
+        {
+          desc->keyAttr[key].charsetInfo = 0;
+        }
+        if (AttributeDescriptor::getDKey(attr))
+        {
+          desc->noOfDistrKeys ++;
+        }
+        if (AttributeDescriptor::getArrayType(attr) != NDB_ARRAYTYPE_FIXED)
+        {
+          desc->noOfVarKeys ++;
+        }
+        key++;
+      }
+    }
+    ndbrequire(key == tabPtr.p->noOfPrimkey);
+  }
+}
+
+void
+Dbdict::execCREATE_TAB_REF(Signal* signal)
+{
+  // no longer received
+  ndbrequire(false);
+}
+
+void
+Dbdict::execCREATE_TAB_CONF(Signal* signal)
+{
+  jamEntry();
+
+  CreateTabConf* conf = (CreateTabConf*)signal->getDataPtr();
+
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;
+  findSchemaOp(op_ptr, createTabPtr, conf->senderData);
+  ndbrequire(!op_ptr.isNull());
+
+  createTabPtr.p->m_lqhFragPtr = conf->lqhConnectPtr;
+
+  TableRecordPtr tabPtr;
+  c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
+  sendLQHADDATTRREQ(signal, op_ptr, tabPtr.p->m_attributes.firstItem);
+}
+
+
+void
+Dbdict::sendLQHADDATTRREQ(Signal* signal,
+			  SchemaOpPtr op_ptr,
+			  Uint32 attributePtrI)
+{
+  jam();
+  CreateTableRecPtr createTabPtr;
+  getOpRec(op_ptr, createTabPtr);
+
+  TableRecordPtr tabPtr;
+  c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
+  LqhAddAttrReq * const req = (LqhAddAttrReq*)signal->getDataPtrSend();
+  Uint32 i = 0;
+  for(i = 0; i<LqhAddAttrReq::MAX_ATTRIBUTES && attributePtrI != RNIL; i++){
+    jam();
+    AttributeRecordPtr attrPtr;
+    c_attributeRecordPool.getPtr(attrPtr, attributePtrI);
+    LqhAddAttrReq::Entry& entry = req->attributes[i];
+    entry.attrId = attrPtr.p->attributeId;
+    entry.attrDescriptor = attrPtr.p->attributeDescriptor;
+    entry.extTypeInfo = 0;
+    // charset number passed to TUP, TUX in upper half
+    entry.extTypeInfo |= (attrPtr.p->extPrecision & ~0xFFFF);
+    if (tabPtr.p->isIndex()) {
+      Uint32 primaryAttrId;
+      if (attrPtr.p->nextList != RNIL) {
+        getIndexAttr(tabPtr, attributePtrI, &primaryAttrId);
+      } else {
+        primaryAttrId = ZNIL;
+        if (tabPtr.p->isOrderedIndex())
+          entry.attrId = 0;     // attribute goes to TUP
+      }
+      entry.attrId |= (primaryAttrId << 16);
+    }
+    attributePtrI = attrPtr.p->nextList;
+  }
+  req->lqhFragPtr = createTabPtr.p->m_lqhFragPtr;
+  req->senderData = op_ptr.p->op_key;
+  req->senderAttrPtr = attributePtrI;
+  req->noOfAttributes = i;
+
+  sendSignal(DBLQH_REF, GSN_LQHADDATTREQ, signal,
+	     LqhAddAttrReq::HeaderLength + LqhAddAttrReq::EntryLength * i, JBB);
+}
+
+void
+Dbdict::execLQHADDATTCONF(Signal * signal)
+{
+  jamEntry();
+  LqhAddAttrConf * const conf = (LqhAddAttrConf*)signal->getDataPtr();
+
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;
+  findSchemaOp(op_ptr, createTabPtr, conf->senderData);
+  ndbrequire(!op_ptr.isNull());
+
+  const Uint32 nextAttrPtr = conf->senderAttrPtr;
+  if(nextAttrPtr != RNIL){
+    jam();
+    sendLQHADDATTRREQ(signal, op_ptr, nextAttrPtr);
+    return;
+  }
+
+  createTab_dih(signal, op_ptr);
+}
+
+void
+Dbdict::execLQHADDATTREF(Signal * signal)
+{
+  jamEntry();
+  LqhAddAttrRef * const ref = (LqhAddAttrRef*)signal->getDataPtr();
+
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;
+  findSchemaOp(op_ptr, createTabPtr, ref->senderData);
+  ndbrequire(!op_ptr.isNull());
+
+  setError(op_ptr, ref->errorCode, __LINE__);
+
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
+{
+  CreateTableRecPtr createTabPtr;
+  getOpRec(op_ptr, createTabPtr);
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  D("createTab_dih" << *op_ptr.p);
+
+  TableRecordPtr tabPtr;
+  c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
+
+
+  /**
+   * NOTE: use array access here...
+   *   as during SR m_noOfSections == 0
+   *   i.e getOpSection will crash
+   */
+  const OpSection& fragSec = op_ptr.p->m_section[CreateTabReq::FRAGMENTATION];
 
   DiAddTabReq * req = (DiAddTabReq*)signal->getDataPtrSend();
   req->connectPtr = op_ptr.p->op_key;
@@ -5078,48 +5274,6 @@ Dbdict::createTab_dih(Signal* signal,
                DiAddTabReq::SignalLength, JBB,
                ptr, noOfSections);
   }
-  /**
-   * Create KeyDescriptor
-   */
-  KeyDescriptor* desc= g_key_descriptor_pool.getPtr(tabPtr.i);
-  new (desc) KeyDescriptor();
-
-  Uint32 key = 0;
-  Ptr<AttributeRecord> attrPtr;
-  LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool,
-                                        tabPtr.p->m_attributes);
-  for(list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr))
-  {
-    AttributeRecord* aRec = attrPtr.p;
-    if (aRec->tupleKey)
-    {
-      Uint32 attr = aRec->attributeDescriptor;
-
-      desc->noOfKeyAttr ++;
-      desc->keyAttr[key].attributeDescriptor = attr;
-      Uint32 csNumber = (aRec->extPrecision >> 16);
-      if (csNumber)
-      {
-        desc->keyAttr[key].charsetInfo = all_charsets[csNumber];
-        ndbrequire(all_charsets[csNumber] != 0);
-        desc->hasCharAttr = 1;
-      }
-      else
-      {
-        desc->keyAttr[key].charsetInfo = 0;
-      }
-      if (AttributeDescriptor::getDKey(attr))
-      {
-        desc->noOfDistrKeys ++;
-      }
-      if (AttributeDescriptor::getArrayType(attr) != NDB_ARRAYTYPE_FIXED)
-      {
-        desc->noOfVarKeys ++;
-      }
-      key++;
-    }
-  }
-  ndbrequire(key == tabPtr.p->noOfPrimkey);
 }
 
 static
@@ -5211,28 +5365,18 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
     req->kValue = tabPtr.p->kValue;
     req->lh3DistrBits = 0; //lhDistrBits;
     req->lh3PageBits = 0; //lhPageBits;
-    req->noOfAttributes = tabPtr.p->noOfAttributes;
-    req->noOfNullAttributes = tabPtr.p->noOfNullBits;
     req->maxRowsLow = maxRows & 0xFFFFFFFF;
     req->maxRowsHigh = maxRows >> 32;
     req->minRowsLow = minRows & 0xFFFFFFFF;
     req->minRowsHigh = minRows >> 32;
-    req->schemaVersion = tabPtr.p->tableVersion;
     Uint32 keyLen = tabPtr.p->tupKeyLength;
     req->keyLength = keyLen; // wl-2066 no more "long keys"
     req->nextLCP = lcpNo;
 
-    req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
-    req->noOfCharsets = tabPtr.p->noOfCharsets;
-    req->checksumIndicator = 1;
-    req->GCPIndicator = 1;
     req->startGci = startGci;
-    req->tableType = tabPtr.p->tableType;
-    req->primaryTableId = tabPtr.p->primaryTableId;
     req->tablespace_id= tabPtr.p->m_tablespace_id;
     req->tablespace_id = tabPtr.p->m_tablespace_id;
     req->logPartId = logPart;
-    req->forceVarPartFlag = !!(tabPtr.p->m_bits& TableRecord::TR_ForceVarPart);
     sendSignal(DBLQH_REF, GSN_LQHFRAGREQ, signal,
 	       LqhFragReq::SignalLength, JBB);
   }
@@ -5250,96 +5394,7 @@ Dbdict::execLQHFRAGCONF(Signal * signal)
   ndbrequire(!op_ptr.isNull());
 
   createTabPtr.p->m_lqhFragPtr = conf->lqhFragPtr;
-
-  TableRecordPtr tabPtr;
-  c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
-  sendLQHADDATTRREQ(signal, op_ptr, tabPtr.p->m_attributes.firstItem);
-}
-
-void
-Dbdict::execLQHFRAGREF(Signal * signal)
-{
-  jamEntry();
-  LqhFragRef * const ref = (LqhFragRef*)signal->getDataPtr();
-
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;
-  findSchemaOp(op_ptr, createTabPtr, ref->senderData);
-  ndbrequire(!op_ptr.isNull());
-
-  setError(op_ptr, ref->errorCode, __LINE__);
-
-  {
-    AddFragRef * const ref = (AddFragRef*)signal->getDataPtr();
-    ref->dihPtr = createTabPtr.p->m_dihAddFragPtr;
-    sendSignal(DBDIH_REF, GSN_ADD_FRAGREF, signal,
-	       AddFragRef::SignalLength, JBB);
-  }
-}
-
-void
-Dbdict::sendLQHADDATTRREQ(Signal* signal,
-			  SchemaOpPtr op_ptr,
-			  Uint32 attributePtrI)
-{
-  jam();
-  CreateTableRecPtr createTabPtr;
-  getOpRec(op_ptr, createTabPtr);
-
-  TableRecordPtr tabPtr;
-  c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
-  LqhAddAttrReq * const req = (LqhAddAttrReq*)signal->getDataPtrSend();
-  Uint32 i = 0;
-  for(i = 0; i<LqhAddAttrReq::MAX_ATTRIBUTES && attributePtrI != RNIL; i++){
-    jam();
-    AttributeRecordPtr attrPtr;
-    c_attributeRecordPool.getPtr(attrPtr, attributePtrI);
-    LqhAddAttrReq::Entry& entry = req->attributes[i];
-    entry.attrId = attrPtr.p->attributeId;
-    entry.attrDescriptor = attrPtr.p->attributeDescriptor;
-    entry.extTypeInfo = 0;
-    // charset number passed to TUP, TUX in upper half
-    entry.extTypeInfo |= (attrPtr.p->extPrecision & ~0xFFFF);
-    if (tabPtr.p->isIndex()) {
-      Uint32 primaryAttrId;
-      if (attrPtr.p->nextList != RNIL) {
-        getIndexAttr(tabPtr, attributePtrI, &primaryAttrId);
-      } else {
-        primaryAttrId = ZNIL;
-        if (tabPtr.p->isOrderedIndex())
-          entry.attrId = 0;     // attribute goes to TUP
-      }
-      entry.attrId |= (primaryAttrId << 16);
-    }
-    attributePtrI = attrPtr.p->nextList;
-  }
-  req->lqhFragPtr = createTabPtr.p->m_lqhFragPtr;
-  req->senderData = op_ptr.p->op_key;
-  req->senderAttrPtr = attributePtrI;
-  req->noOfAttributes = i;
-
-  sendSignal(DBLQH_REF, GSN_LQHADDATTREQ, signal,
-	     LqhAddAttrReq::HeaderLength + LqhAddAttrReq::EntryLength * i, JBB);
-}
-
-void
-Dbdict::execLQHADDATTCONF(Signal * signal)
-{
-  jamEntry();
-  LqhAddAttrConf * const conf = (LqhAddAttrConf*)signal->getDataPtr();
-
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;
-  findSchemaOp(op_ptr, createTabPtr, conf->senderData);
-  ndbrequire(!op_ptr.isNull());
-
-  const Uint32 fragId = conf->fragId;
-  const Uint32 nextAttrPtr = conf->senderAttrPtr;
-  if(nextAttrPtr != RNIL){
-    jam();
-    sendLQHADDATTRREQ(signal, op_ptr, nextAttrPtr);
-    return;
-  }
+  Uint32 fragId = conf->fragId;
 
   {
     AddFragConf * const conf = (AddFragConf*)signal->getDataPtr();
@@ -5351,10 +5406,10 @@ Dbdict::execLQHADDATTCONF(Signal * signal)
 }
 
 void
-Dbdict::execLQHADDATTREF(Signal * signal)
+Dbdict::execLQHFRAGREF(Signal * signal)
 {
   jamEntry();
-  LqhAddAttrRef * const ref = (LqhAddAttrRef*)signal->getDataPtr();
+  LqhFragRef * const ref = (LqhFragRef*)signal->getDataPtr();
 
   SchemaOpPtr op_ptr;
   CreateTableRecPtr createTabPtr;
@@ -5387,22 +5442,7 @@ Dbdict::execDIADDTABCONF(Signal* signal)
   signal->theData[1] = reference();
   signal->theData[2] = createTabPtr.p->m_request.tableId;
 
-  if(createTabPtr.p->m_dihAddFragPtr != RNIL){
-    jam();
-
-    /**
-     * We did perform at least one LQHFRAGREQ
-     */
-    sendSignal(DBLQH_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
-    return;
-  } else {
-    /**
-     * No local fragment (i.e. no LQHFRAGREQ)
-     */
-    execute(signal, createTabPtr.p->m_callback, 0);
-    return;
-    //sendSignal(DBDIH_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
-  }
+  sendSignal(DBLQH_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
 }
 
 void
@@ -5479,12 +5519,11 @@ Dbdict::execTAB_COMMITREF(Signal* signal) {
 }//execTAB_COMMITREF()
 
 void
-Dbdict::createTab_dihComplete(Signal* signal,
-			      Uint32 op_key,
-			      Uint32 ret)
+Dbdict::createTab_localComplete(Signal* signal,
+                                Uint32 op_key,
+                                Uint32 ret)
 {
   jam();
-  D("createTab_dihComplete");
 
   SchemaOpPtr op_ptr;
   CreateTableRecPtr createTabPtr;
@@ -5746,20 +5785,6 @@ void
 Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal)
 {
   // currently not received
-  ndbrequire(false);
-}
-
-void
-Dbdict::execCREATE_TAB_REF(Signal* signal)
-{
-  // no longer received
-  ndbrequire(false);
-}
-
-void
-Dbdict::execCREATE_TAB_CONF(Signal* signal)
-{
-  // no longer received
   ndbrequire(false);
 }
 

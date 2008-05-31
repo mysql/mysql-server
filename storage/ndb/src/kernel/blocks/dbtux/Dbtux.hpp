@@ -562,6 +562,7 @@ private:
   /*
    * DbtuxMeta.cpp
    */
+  void execCREATE_TAB_REQ(Signal*);
   void execTUXFRAGREQ(Signal* signal);
   void execTUX_ADD_ATTRREQ(Signal* signal);
   void execALTER_INDX_IMPL_REQ(Signal* signal);
