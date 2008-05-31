@@ -419,10 +419,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   if (tableId >= cnoOfTablerec)
   {
     jam();
-    req->userPtr = userptr;
-    req->userRef = 800;
-    sendSignal(userblockref, GSN_TUPFRAGREF, signal, 2, JBB);
-    return;
+    terrorCode = 800;
+    goto sendref;
   }
 #endif
 
