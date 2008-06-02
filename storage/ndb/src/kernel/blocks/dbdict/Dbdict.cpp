@@ -4054,6 +4054,12 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     tabRequire(get_object(c_tableDesc.TableName, tableNameLength) == 0, 
 	       CreateTableRef::TableAlreadyExist);
   }
+
+  if (DictTabInfo::isIndex(c_tableDesc.TableType))
+  {
+    jam();
+    parseP->requestType = DictTabInfo::AddTableFromDict;
+  }
   
   TableRecordPtr tablePtr;
   switch (parseP->requestType) {
@@ -5562,6 +5568,15 @@ Dbdict::createTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   c.m_callbackData = op_ptr.p->op_key;
   c.m_callbackFunction = safe_cast(&Dbdict::createTab_alterComplete);
   createTab_activate(signal, op_ptr, &c);
+
+  if (DictTabInfo::isIndex(tabPtr.p->tableType))
+  {
+    Ptr<TableRecord> basePtr;
+    c_tableRecordPool.getPtr(basePtr, tabPtr.p->primaryTableId);
+
+    LocalDLFifoList<TableRecord> list(c_tableRecordPool, basePtr.p->m_indexes);
+    list.add(tabPtr);
+  }
 }
 
 void
@@ -6316,6 +6331,15 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
              tablePtr.p->m_obj_ptr_i);
   }
 #endif
+
+  if (DictTabInfo::isIndex(tablePtr.p->tableType))
+  {
+    Ptr<TableRecord> basePtr;
+    c_tableRecordPool.getPtr(basePtr, tablePtr.p->primaryTableId);
+
+    LocalDLFifoList<TableRecord> list(c_tableRecordPool, basePtr.p->m_indexes);
+    list.remove(tablePtr);
+  }
 
   dropTab_nextStep(signal, op_ptr);
 }
@@ -8645,6 +8669,12 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
     }
   }
 
+  if (master)
+  {
+    jam();
+    impl_req->indexId = getFreeObjId(0);
+  }
+
   if (ERROR_INSERTED(6122)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -8709,6 +8739,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
   //indexPtr.p->noOfAttributes += 1;
   //indexPtr.p->noOfNullAttr = 0;
 
+  w.add(DictTabInfo::TableId, createIndexPtr.p->m_request.indexId);
   w.add(DictTabInfo::TableName, createIndexPtr.p->m_indexName);
   { bool flag = createIndexPtr.p->m_bits & TableRecord::TR_Logged;
     w.add(DictTabInfo::TableLoggedFlag, (Uint32)flag);
@@ -8854,7 +8885,6 @@ Dbdict::createIndex_fromCreateTable(Signal* signal, Uint32 op_key, Uint32 ret)
       (const CreateTableConf*)signal->getDataPtr();
 
     ndbrequire(conf->transId == trans_ptr.p->m_transId);
-    impl_req->indexId = conf->tableId;
     impl_req->indexVersion = conf->tableVersion;
     createIndexPtr.p->m_sub_create_table = true;
     createSubOps(signal, op_ptr);
@@ -8973,6 +9003,9 @@ Dbdict::createIndex_prepare(Signal* signal, SchemaOpPtr op_ptr)
   jam();
   D("createIndex_prepare");
 
+  CreateIndexRecPtr createIndexPtr;
+  getOpRec(op_ptr, createIndexPtr);
+
   sendTransConf(signal, op_ptr);
 }
 
@@ -9013,6 +9046,10 @@ Dbdict::createIndex_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("createIndex_abortPrepare" << *op_ptr.p);
   // wl3600_todo
+
+  CreateIndexRecPtr createIndexPtr;
+  getOpRec(op_ptr, createIndexPtr);
+
   sendTransConf(signal, op_ptr);
 }
 
