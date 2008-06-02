@@ -168,7 +168,7 @@ WHERE attempt = 4 - 1 + 1;
 UPDATE t_history SET end_cached = 0
 WHERE attempt = 4 - 1 + 1;
 # Test 1: Does the query with SLEEP need a reasonable time?
-SELECT COUNT(*) > 4 - 1 INTO @aux1 FROM t_history
+SELECT COUNT(*) >= 4 - 1 INTO @aux1 FROM t_history
 WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
 BETWEEN 0 AND @max_acceptable_delay;
 SELECT @aux1 AS "Expect 1";
@@ -176,7 +176,7 @@ Expect 1
 1
 # Test 2: Does the query with SLEEP need a reasonable time even in case
 #         of the non first execution?
-SELECT COUNT(*) > 4 - 1 - 1 INTO @aux2 FROM t_history
+SELECT COUNT(*) >= 4 - 1 - 1 INTO @aux2 FROM t_history
 WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
 BETWEEN 0 AND @max_acceptable_delay
 AND attempt > 1;
