@@ -55,6 +55,20 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
     abort();
   }
 #endif
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    RSS_AP_SNAPSHOT_SAVE(c_indexPool);
+    RSS_AP_SNAPSHOT_SAVE(c_fragPool);
+    RSS_AP_SNAPSHOT_SAVE(c_fragOpPool);
+  }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    RSS_AP_SNAPSHOT_CHECK(c_indexPool);
+    RSS_AP_SNAPSHOT_CHECK(c_fragPool);
+    RSS_AP_SNAPSHOT_CHECK(c_fragOpPool);
+  }
 }
 
 #ifdef VM_TRACE
