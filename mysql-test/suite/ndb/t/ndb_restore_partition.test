@@ -356,7 +356,7 @@ select count(*)
 # This test is soo borked that i'm disabeling it...
 #   it fails with "Translate frm" as code *incorrectly* thinks that malloc
 #   failed, i.e code after that has *never* run
-#drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 #--source include/ndb_backup.inc
 #--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map '(0,1)' $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id 2>&1 | grep Translate || true
 
