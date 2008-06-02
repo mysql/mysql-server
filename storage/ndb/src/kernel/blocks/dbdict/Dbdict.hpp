@@ -373,6 +373,10 @@ public:
     Uint32 fragmentCount;
     Uint32 m_tablespace_id;
 
+    /** List of indexes attached to table */
+    DLFifoList<TableRecord>::Head m_indexes;
+    Uint32 nextList, prevList;
+
     /*
      * Access rights to table during single user mode
      */
