@@ -42,6 +42,14 @@ public:
 
   Vector<T>& operator=(const Vector<T>&);
 
+  /**
+   * Shallow equal (i.e does memcmp)
+   */
+  bool equal(const Vector<T>& obj) const;
+
+  int assign(const T*, Uint32 cnt);
+  int assign(const Vector<T>& obj) { return assign(obj.getBase(), obj.size());}
+
   T* getBase() { return m_items;}
   const T* getBase() const { return m_items;}
 private:
@@ -180,6 +188,30 @@ Vector<T>::operator=(const Vector<T>& obj){
     }
   }
   return * this;
+}
+
+template<class T>
+int
+Vector<T>::assign(const T* src, Uint32 cnt)
+{
+  clear();
+  for (Uint32 i = 0; i<cnt; i++)
+  {
+    int ret;
+    if ((ret = push_back(src[i])))
+      return ret;
+  }
+  return 0;
+}
+
+template<class T>
+bool
+Vector<T>::equal(const Vector<T>& obj) const
+{
+  if (size() != obj.size())
+    return false;
+
+  return memcmp(getBase(), obj.getBase(), size() * sizeof(T)) == 0;
 }
 
 template<class T>

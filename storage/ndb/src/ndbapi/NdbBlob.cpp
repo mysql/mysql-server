@@ -104,7 +104,6 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   */
   bt.m_primaryTableId = t->m_id;
   bt.m_fd.clear();
-  bt.m_ts.clear();
   bt.m_range.clear();
   bt.setFragmentCount(t->getFragmentCount());
   bt.m_tablespace_id = t->m_tablespace_id;

@@ -268,7 +268,7 @@ static Uint32 get_no_fragments(Uint64 max_rows, Uint32 no_nodes)
 static void set_default_nodegroups(NdbDictionary::Table *table)
 {
   Uint32 no_parts = table->getFragmentCount();
-  Uint16 node_group[MAX_NDB_PARTITIONS];
+  Uint32 node_group[MAX_NDB_PARTITIONS];
   Uint32 i;
 
   node_group[0] = 0;
@@ -276,7 +276,7 @@ static void set_default_nodegroups(NdbDictionary::Table *table)
   {
     node_group[i] = UNDEF_NODEGROUP;
   }
-  table->setFragmentData((const void*)node_group, 2 * no_parts);
+  table->setFragmentData(node_group, no_parts);
 }
 
 Uint32 BackupRestore::map_ng(Uint32 ng)
@@ -309,7 +309,7 @@ Uint32 BackupRestore::map_ng(Uint32 ng)
 }
 
 
-bool BackupRestore::map_nodegroups(Uint16 *ng_array, Uint32 no_parts)
+bool BackupRestore::map_nodegroups(Uint32 *ng_array, Uint32 no_parts)
 {
   Uint32 i;
   bool mapped = FALSE;
@@ -319,7 +319,7 @@ bool BackupRestore::map_nodegroups(Uint16 *ng_array, Uint32 no_parts)
   for (i = 0; i < no_parts; i++)
   {
     Uint32 ng;
-    ng = map_ng((Uint32)ng_array[i]);
+    ng = map_ng(ng_array[i]);
     if (ng != ng_array[i])
       mapped = TRUE;
     ng_array[i] = ng;
@@ -1109,9 +1109,10 @@ BackupRestore::table(const TableS & table){
         restored in the same node groups as when backup was taken or by
         using a node group map supplied to the ndb_restore program.
       */
-      Uint16 *ng_array = (Uint16*)copy.getFragmentData();
+      Vector<Uint32> new_array;
       Uint16 no_parts = copy.getFragmentCount();
-      if (map_nodegroups(ng_array, no_parts))
+      new_array.assign(copy.getFragmentData(), no_parts);
+      if (map_nodegroups(new_array.getBase(), no_parts))
       {
         if (translate_frm(&copy))
         {
@@ -1120,7 +1121,7 @@ BackupRestore::table(const TableS & table){
           return false;
         }
       }
-      copy.setFragmentData((const void *)ng_array, no_parts << 1);
+      copy.setFragmentData(new_array.getBase(), no_parts);
     }
 
     /**

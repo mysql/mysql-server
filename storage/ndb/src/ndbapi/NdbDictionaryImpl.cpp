@@ -476,8 +476,6 @@ NdbTableImpl::init(){
   m_externalName.clear();
   m_mysqlName.clear();
   m_frm.clear();
-  m_ts_name.clear();
-  m_ts.clear();
   m_fd.clear();
   m_range.clear();
   m_fragmentType= NdbDictionary::Object::FragAllSmall;
@@ -544,20 +542,12 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     DBUG_PRINT("info",("m_frm not equal"));
     DBUG_RETURN(false);
   }
-  if (m_fd.length() != obj.m_fd.length() ||
-      (memcmp(m_fd.get_data(), obj.m_fd.get_data(), m_fd.length())))
+  if (!m_fd.equal(obj.m_fd))
   {
     DBUG_PRINT("info",("m_fd not equal"));
     DBUG_RETURN(false);
   }
-  if (m_ts.length() != obj.m_ts.length() ||
-      (memcmp(m_ts.get_data(), obj.m_ts.get_data(), m_ts.length())))
-  {
-    DBUG_PRINT("info",("m_ts not equal"));
-    DBUG_RETURN(false);
-  }
-  if (m_range.length() != obj.m_range.length() ||
-      (memcmp(m_range.get_data(), obj.m_range.get_data(), m_range.length())))
+  if (!m_range.equal(obj.m_range))
   {
     DBUG_PRINT("info",("m_range not equal"));
     DBUG_RETURN(false);
@@ -730,10 +720,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   }
   m_externalName.assign(org.m_externalName);
   m_frm.assign(org.m_frm.get_data(), org.m_frm.length());
-  m_ts_name.assign(org.m_ts_name.get_data(), org.m_ts_name.length());
-  m_ts.assign(org.m_ts.get_data(), org.m_ts.length());
-  m_fd.assign(org.m_fd.get_data(), org.m_fd.length());
-  m_range.assign(org.m_range.get_data(), org.m_range.length());
+  m_fd.assign(org.m_fd);
+  m_range.assign(org.m_range);
 
   m_fragmentType = org.m_fragmentType;
   /*
@@ -886,24 +874,8 @@ NdbTableImpl::validate(NdbError& error)
   return 0;
 }
 
-const void*
-NdbTableImpl::getTablespaceNames() const
-{
-  return m_ts_name.get_data();
-}
-
-Uint32
-NdbTableImpl::getTablespaceNamesLen() const
-{
-  return m_ts_name.length();
-}
-
-int NdbTableImpl::setTablespaceNames(const void *data, Uint32 len)
-{
-  return !m_ts_name.assign(data, len);
-}
-
-void NdbTableImpl::setFragmentCount(Uint32 count)
+void
+NdbTableImpl::setFragmentCount(Uint32 count)
 {
   m_fragmentCount= count;
 }
@@ -930,55 +902,40 @@ NdbTableImpl::getFrmLength() const
   return m_frm.length();
 }
 
-int NdbTableImpl::setFragmentData(const void* data, Uint32 len)
+int
+NdbTableImpl::setFragmentData(const Uint32* data, Uint32 cnt)
 {
-  return m_fd.assign(data, len);
+  return m_fd.assign(data, cnt);
 }
 
-const void * 
+const Uint32 *
 NdbTableImpl::getFragmentData() const
 {
-  return m_fd.get_data();
+  return m_fd.getBase();
 }
 
 Uint32
 NdbTableImpl::getFragmentDataLen() const 
 {
-  return m_fd.length();
+  return m_fd.size();
 }
 
-int NdbTableImpl::setTablespaceData(const void* data, Uint32 len)
-{
-  return !m_ts.assign(data, len);
-}
-
-const void * 
-NdbTableImpl::getTablespaceData() const
-{
-  return m_ts.get_data();
-}
-
-Uint32
-NdbTableImpl::getTablespaceDataLen() const 
-{
-  return m_ts.length();
-}
-
-int NdbTableImpl::setRangeListData(const void* data, Uint32 len)
+int
+NdbTableImpl::setRangeListData(const Int32* data, Uint32 len)
 {
   return m_range.assign(data, len);
 }
 
-const void * 
+const Int32 *
 NdbTableImpl::getRangeListData() const
 {
-  return m_range.get_data();
+  return m_range.getBase();
 }
 
 Uint32
 NdbTableImpl::getRangeListDataLen() const 
 {
-  return m_range.length();
+  return m_range.size();
 }
 
 int
@@ -2496,11 +2453,24 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       impl->updateMysqlName() ||
       !impl->m_externalName.assign(externalName) ||
       impl->m_frm.assign(tableDesc->FrmData, tableDesc->FrmLen) ||
-      impl->m_fd.assign(tableDesc->FragmentData, tableDesc->FragmentDataLen) ||
-      impl->m_range.assign(tableDesc->RangeListData, tableDesc->RangeListDataLen))
+      impl->m_range.assign((Int32*)tableDesc->RangeListData,
+                           /* yuck */tableDesc->RangeListDataLen / 4))
   {
     DBUG_RETURN(4000);
   }
+
+  {
+    /**
+     * NOTE: fragment data is currently an array of Uint16
+     *       and len is specified in bytes (yuck)
+     *       please change to Uint32 and len == count
+     */
+    Uint32 cnt = tableDesc->FragmentDataLen / 2;
+    for (Uint32 i = 0; i<cnt; i++)
+      if (impl->m_fd.push_back((Uint32)tableDesc->FragmentData[i]))
+        DBUG_RETURN(4000);
+  }
+
   impl->m_fragmentCount = tableDesc->FragmentCount;
 
   /*
@@ -2965,12 +2935,8 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
     AlterTableReq::setFrmFlag(change_mask, true);
   if(!impl.m_fd.equal(old_impl.m_fd))
     AlterTableReq::setFragDataFlag(change_mask, true);
-  if(!impl.m_ts_name.equal(old_impl.m_ts_name))
-    AlterTableReq::setTsNameFlag(change_mask, true);
   if(!impl.m_range.equal(old_impl.m_range))
     AlterTableReq::setRangeListFlag(change_mask, true);
-  if(!impl.m_ts.equal(old_impl.m_ts))
-    AlterTableReq::setTsFlag(change_mask, true);
 
   /* No other property can be changed in alter table. */
   Uint32 old_sz= old_impl.m_columns.size();
@@ -3062,7 +3028,6 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
 				     UtilBufferWriter & w)
 {
   unsigned i, err;
-  char *ts_names[MAX_NDB_PARTITIONS];
   DBUG_ENTER("NdbDictInterface::serializeTableDesc");
 
   impl.computeAggregates();
@@ -3128,18 +3093,26 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   tmpTab->FrmLen = impl.m_frm.length();
   memcpy(tmpTab->FrmData, impl.m_frm.get_data(), impl.m_frm.length());
 
-  tmpTab->FragmentDataLen = impl.m_fd.length();
-  memcpy(tmpTab->FragmentData, impl.m_fd.get_data(), impl.m_fd.length());
+  {
+    /**
+     * NOTE: fragment data is currently an array of Uint16
+     *       and len is specified in bytes (yuck)
+     *       please change to Uint32 and len == count
+     */
+    const Uint32* src = impl.m_fd.getBase();
+    tmpTab->FragmentDataLen = 2*impl.m_fd.size();
+    for (Uint32 i = 0; i<impl.m_fd.size(); i++)
+      tmpTab->FragmentData[i] = (Uint16)src[i];
+  }
 
-  tmpTab->TablespaceDataLen = impl.m_ts.length();
-  memcpy(tmpTab->TablespaceData, impl.m_ts.get_data(), impl.m_ts.length());
-
-  tmpTab->RangeListDataLen = impl.m_range.length();
-  memcpy(tmpTab->RangeListData, impl.m_range.get_data(),
-         impl.m_range.length());
-
-  memcpy(ts_names, impl.m_ts_name.get_data(),
-         impl.m_ts_name.length());
+  {
+    /**
+     * NOTE: len is specified in bytes (yuck)
+     *       please change to len == count
+     */
+    tmpTab->RangeListDataLen = 4*impl.m_range.size();
+    memcpy(tmpTab->RangeListData, impl.m_range.getBase(),4*impl.m_range.size());
+  }
 
   tmpTab->FragmentCount= impl.m_fragmentCount;
   tmpTab->TableLoggedFlag = impl.m_logging;
@@ -3160,40 +3133,6 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   tmpTab->LinearHashFlag = impl.m_linear_flag;
   tmpTab->SingleUserMode = impl.m_single_user_mode;
   tmpTab->ForceVarPartFlag = impl.m_force_var_part;
-
-  if (impl.m_ts_name.length())
-  {
-    char **ts_name_ptr= (char**)ts_names;
-    i= 0;
-    do
-    {
-      NdbTablespaceImpl tmp;
-      if (*ts_name_ptr)
-      {
-        if(get_filegroup(tmp, NdbDictionary::Object::Tablespace, 
-                         (const char*)*ts_name_ptr) == 0)
-        {
-          tmpTab->TablespaceData[2*i] = tmp.m_id;
-          tmpTab->TablespaceData[2*i + 1] = tmp.m_version;
-        }
-        else
-        { 
-          NdbMem_Free((void*)tmpTab);
-          DBUG_RETURN(-1);
-        }
-      }
-      else
-      {
-        /*
-          No tablespace used, set tablespace id to NULL
-        */
-        tmpTab->TablespaceData[2*i] = RNIL;
-        tmpTab->TablespaceData[2*i + 1] = 0;
-      }
-      ts_name_ptr++;
-    } while (++i < tmpTab->FragmentCount);
-    tmpTab->TablespaceDataLen= 4*i;
-  }
 
   tmpTab->FragmentType = getKernelConstant(impl.m_fragmentType,
  					   fragmentTypeMapping,

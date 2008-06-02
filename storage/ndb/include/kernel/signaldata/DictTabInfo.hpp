@@ -347,7 +347,7 @@ public:
     Uint32 TablespaceDataLen;
     Uint32 TablespaceData[2*MAX_NDB_PARTITIONS];
     Uint32 RangeListDataLen;
-    char   RangeListData[4*2*MAX_NDB_PARTITIONS*2];
+    Uint32 RangeListData[2*MAX_NDB_PARTITIONS*2];
     
     Uint32 RowGCIFlag;
     Uint32 RowChecksumFlag;
