@@ -160,17 +160,13 @@ public:
   int setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
-  int setFragmentData(const void* data, Uint32 len);
-  const void * getFragmentData() const;
+
+  int setFragmentData(const Uint32* data, Uint32 cnt);
+  const Uint32 * getFragmentData() const;
   Uint32 getFragmentDataLen() const;
-  int setTablespaceNames(const void* data, Uint32 len);
-  Uint32 getTablespaceNamesLen() const;
-  const void * getTablespaceNames() const;
-  int setTablespaceData(const void* data, Uint32 len);
-  const void * getTablespaceData() const;
-  Uint32 getTablespaceDataLen() const;
-  int setRangeListData(const void* data, Uint32 len);
-  const void * getRangeListData() const;
+
+  int setRangeListData(const Int32* data, Uint32 cnt);
+  const Int32 * getRangeListData() const;
   Uint32 getRangeListDataLen() const;
 
   const char * getMysqlName() const;
@@ -184,10 +180,8 @@ public:
   BaseString m_externalName;
   BaseString m_mysqlName;
   UtilBuffer m_frm; 
-  UtilBuffer m_ts_name;      //Tablespace Names
-  UtilBuffer m_ts;           //TablespaceData
-  UtilBuffer m_fd;           //FragmentData
-  UtilBuffer m_range;        //Range Or List Array
+  Vector<Uint32> m_fd;
+  Vector<Int32> m_range;
   NdbDictionary::Object::FragmentType m_fragmentType;
 
   /**

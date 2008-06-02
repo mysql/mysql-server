@@ -367,7 +367,6 @@ public:
     
     /**  frm data for this table */
     RopeHandle frmData;
-    RopeHandle tsData;
     RopeHandle ngData;
     RopeHandle rangeData;
 

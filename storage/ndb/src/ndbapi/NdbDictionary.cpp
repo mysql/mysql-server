@@ -652,6 +652,7 @@ NdbDictionary::Table::setSingleUserMode(enum NdbDictionary::Table::SingleUserMod
   m_impl.m_single_user_mode = (Uint8)mode;
 }
 
+#if 0
 int
 NdbDictionary::Table::setTablespaceNames(const void *data, Uint32 len)
 {
@@ -669,6 +670,7 @@ NdbDictionary::Table::getTablespaceNamesLen() const
 {
   return m_impl.getTablespaceNamesLen();
 }
+#endif
 
 void
 NdbDictionary::Table::setLinearFlag(Uint32 flag)
@@ -699,7 +701,7 @@ NdbDictionary::Table::setFrm(const void* data, Uint32 len){
   return m_impl.setFrm(data, len);
 }
 
-const void* 
+const Uint32*
 NdbDictionary::Table::getFragmentData() const {
   return m_impl.getFragmentData();
 }
@@ -710,28 +712,12 @@ NdbDictionary::Table::getFragmentDataLen() const {
 }
 
 int
-NdbDictionary::Table::setFragmentData(const void* data, Uint32 len)
+NdbDictionary::Table::setFragmentData(const Uint32* data, Uint32 cnt)
 {
-  return m_impl.setFragmentData(data, len);
+  return m_impl.setFragmentData(data, cnt);
 }
 
-const void* 
-NdbDictionary::Table::getTablespaceData() const {
-  return m_impl.getTablespaceData();
-}
-
-Uint32
-NdbDictionary::Table::getTablespaceDataLen() const {
-  return m_impl.getTablespaceDataLen();
-}
-
-int
-NdbDictionary::Table::setTablespaceData(const void* data, Uint32 len)
-{
-  return m_impl.setTablespaceData(data, len);
-}
-
-const void* 
+const Int32*
 NdbDictionary::Table::getRangeListData() const {
   return m_impl.getRangeListData();
 }
@@ -742,7 +728,7 @@ NdbDictionary::Table::getRangeListDataLen() const {
 }
 
 int
-NdbDictionary::Table::setRangeListData(const void* data, Uint32 len)
+NdbDictionary::Table::setRangeListData(const Int32* data, Uint32 len)
 {
   return m_impl.setRangeListData(data, len);
 }

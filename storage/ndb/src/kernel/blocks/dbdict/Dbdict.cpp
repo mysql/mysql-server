@@ -386,7 +386,6 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     char frmData[MAX_FRM_DATA_SIZE];
     char rangeData[16*MAX_NDB_PARTITIONS];
     char ngData[2*MAX_NDB_PARTITIONS];
-    char tsData[2*2*MAX_NDB_PARTITIONS];
     char defaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
     char attributeName[MAX_ATTR_NAME_SIZE];
   };
@@ -473,10 +472,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 
   {
     jam();
-    ConstRope ts(c_rope_pool, tablePtr.p->tsData);
-    ts.copy(tsData);
-    w.add(DictTabInfo::TablespaceDataLen, ts.size());
-    w.add(DictTabInfo::TablespaceData, tsData, ts.size());
+    w.add(DictTabInfo::TablespaceDataLen, (Uint32)0);
 
     ConstRope ng(c_rope_pool, tablePtr.p->ngData);
     ng.copy(ngData);
@@ -4176,16 +4172,12 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     tabRequire(frm.assign(c_tableDesc.FrmData, c_tableDesc.FrmLen),
 	       CreateTableRef::OutOfStringBuffer);
     Rope range(c_rope_pool, tablePtr.p->rangeData);
-    tabRequire(range.assign(c_tableDesc.RangeListData,
+    tabRequire(range.assign((const char*)c_tableDesc.RangeListData,
                c_tableDesc.RangeListDataLen),
 	      CreateTableRef::OutOfStringBuffer);
     Rope fd(c_rope_pool, tablePtr.p->ngData);
     tabRequire(fd.assign((const char*)c_tableDesc.FragmentData,
                          c_tableDesc.FragmentDataLen),
-	       CreateTableRef::OutOfStringBuffer);
-    Rope ts(c_rope_pool, tablePtr.p->tsData);
-    tabRequire(ts.assign((const char*)c_tableDesc.TablespaceData,
-                         c_tableDesc.TablespaceDataLen),
 	       CreateTableRef::OutOfStringBuffer);
   }
   
@@ -5826,11 +5818,6 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
   
   {
     Rope tmp(c_rope_pool, tablePtr.p->frmData);
-    tmp.erase();
-  }
-
-  {
-    Rope tmp(c_rope_pool, tablePtr.p->tsData);
     tmp.erase();
   }
 

@@ -748,24 +748,6 @@ public:
     Uint32 getFrmLength() const;
 
     /**
-     * Get Fragment Data (id, state and node group)
-     */
-    const void *getFragmentData() const;
-    Uint32 getFragmentDataLen() const;
-
-    /**
-     * Get Range or List Array (value, partition)
-     */
-    const void *getRangeListData() const;
-    Uint32 getRangeListDataLen() const;
-
-    /**
-     * Get Tablespace Data (id, version)
-     */
-    const void *getTablespaceData() const;
-    Uint32 getTablespaceDataLen() const;
-
-    /**
      * Get default NdbRecord object for this table
      * This NdbRecord object becomes invalid at the same time as
      * the table object - when the ndb_cluster_connection is closed.
@@ -904,34 +886,35 @@ public:
     int setFrm(const void* data, Uint32 len);
 
     /**
-     * Set array of fragment information containing
-     * Fragment Identity
-     * Node group identity
-     * Fragment State
+     * Set fragmentation
+     *   One Uint32 per fragment, containing nodegroup of fragment
+     *   nodegroups[0] - correspondce to fragment 0
+     *
+     * Note: This calls also modifies <em>setFragmentCount</em>
+     *
      */
-    int setFragmentData(const void* data, Uint32 len);
+    int setFragmentData(const Uint32 * nodegroups, Uint32 cnt);
 
     /**
-     * Set/Get tablespace names per fragment
+     * Get Fragment Data (array of node groups)
      */
-    int setTablespaceNames(const void* data, Uint32 len);
-    const void *getTablespaceNames();
-    Uint32 getTablespaceNamesLen() const;
-
-    /**
-     * Set tablespace information per fragment
-     * Contains a tablespace id and a tablespace version
-     */
-    int setTablespaceData(const void* data, Uint32 len);
+    const Uint32 *getFragmentData() const;
+    Uint32 getFragmentDataLen() const;
 
     /**
      * Set array of information mapping range values and list values
-     * to fragments. This is essentially a sorted map consisting of
-     * pairs of value, fragment identity. For range partitions there is
-     * one pair per fragment. For list partitions it could be any number
-     * of pairs, at least as many as there are fragments.
+     * to fragments.
+     *
+     * For range, this is a sorted list of range values
+     * For list, this is a list of pairs { value, partition }
      */
-    int setRangeListData(const void* data, Uint32 len);
+    int setRangeListData(const Int32* data, Uint32 cnt);
+
+    /**
+     * Get Range or List Array (value, partition)
+     */
+    const Int32 *getRangeListData() const;
+    Uint32 getRangeListDataLen() const;
 
     /**
      * Set table object type
