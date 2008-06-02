@@ -1,14 +1,8 @@
-#### suite/funcs_1/t/memory_triggers.test
+#### suite/funcs_1/t/memory_trig_09.test
 
 # Memory tables should be used
 #
 # Set $engine_type
 let $engine_type= memory;
 
-# Create some objects needed in many testcases
-USE test;
---source suite/funcs_1/include/memory_tb3.inc
-
 --source suite/funcs_1/triggers/triggers_09.inc
-DROP TABLE test.tb3;
-

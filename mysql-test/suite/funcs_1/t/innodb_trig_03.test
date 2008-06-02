@@ -1,4 +1,4 @@
-#### suite/funcs_1/t/innodb_triggers.test
+#### suite/funcs_1/t/innodb_trig_03.test
 
 # InnoDB tables should be used
 #
@@ -7,10 +7,4 @@
 # 2. Set $engine_type
 let $engine_type= innodb;
 
-# Create some objects needed in many testcases
-USE test;
---source suite/funcs_1/include/innodb_tb3.inc
-
 --source suite/funcs_1/triggers/triggers_03.inc
-DROP TABLE test.tb3;
-

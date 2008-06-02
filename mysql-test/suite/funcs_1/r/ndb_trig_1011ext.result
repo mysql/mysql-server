@@ -273,16 +273,12 @@ ERROR HY000: Can't update table 't1' in stored function/trigger because it is al
 select * from t1 order by f1;
 f1
 0
-1
 select * from t2 order by f2;
 f2
-2
 select * from t3 order by f3;
 f3
-3
 select * from t4 order by f4;
 f4
-4
 drop trigger tr1;
 drop trigger tr2;
 drop trigger tr3;
@@ -368,7 +364,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int(11) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=<engine_to_be_used> DEFAULT CHARSET=latin1
 insert into t1 values (1);
 create trigger tr1 after insert on t1
 for each row insert into t2 (f2) values (new.f1+1);
@@ -384,13 +380,10 @@ commit;
 select * from t1 order by f1;
 f1
 1
-1
 select * from t2 order by f2;
 f2
-2
 select * from t3 order by f3;
 f3
-3
 drop trigger tr1;
 drop trigger tr2;
 drop trigger tr3;
