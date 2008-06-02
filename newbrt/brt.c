@@ -3138,7 +3138,42 @@ static int brt_cursor_compare_prev(brt_search_t *search, DBT *x, DBT *y) {
     return compare_kv_xy(brt, search->k, search->v, x, y) > 0; /* return max xy: kv > xy */
 }
 
+static int brt_cursor_prev_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval)
+// Effect: If possible, decrement the cursor and return the key-value pair 
+//  (i.e., the previous one from what the cursor pointed to before.)
+// That is, do DB_PREV on DUP databases, and do DB_PREV_NODUP on NODUP databases.
+{
+    if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
+	{
+	    int rr = toku_read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h);
+	    if (rr!=0) return rr;
+	    uint64_t h_counter = cursor->brt->h->root_put_counter;
+	    rr = toku_unpin_brt_header(cursor->brt);
+	    assert(rr==0);
+	    if (h_counter != cursor->root_put_counter) return -1;
+	}
+	OMTVALUE le;
+	int r = toku_omt_cursor_prev(cursor->omtcursor, &le);
+	if (r==0) {
+	    DBT key,val;
+	    toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
+	    toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+	    bytevec keyb = le_latest_key(le);
+	    bytevec valb = le_latest_val(le);
+	    r = toku_dbt_set_two_values(&key, &keyb, le_latest_keylen(le), NULL, FALSE,
+					&val, &valb, le_latest_vallen(le), NULL, FALSE);
+	    assert(r==0);
+	    brt_cursor_set_key_val(cursor, &key, &val);
+	    return brt_cursor_copyout(cursor, outkey, outval);
+	}
+    }
+    return -1;
+}
+
 static int brt_cursor_prev(BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKULOGGER logger) {
+    if (0!=(cursor->brt->flags & TOKU_DB_DUP) &&
+	brt_cursor_prev_shortcut(cursor, outkey, outval)==0)
+	return 0;
     brt_search_t search; brt_search_init(&search, brt_cursor_compare_prev, BRT_SEARCH_RIGHT, &cursor->key, &cursor->val, cursor->brt);
     return brt_cursor_search(cursor, &search, outkey, outval, logger);
 }
@@ -3149,6 +3184,9 @@ static int brt_cursor_compare_prev_nodup(brt_search_t *search, DBT *x, DBT *y) {
 }
 
 static int brt_cursor_prev_nodup(BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKULOGGER logger) {
+    if (0==(cursor->brt->flags & TOKU_DB_DUP) &&
+	brt_cursor_prev_shortcut(cursor, outkey, outval)==0)
+	return 0;
     brt_search_t search; brt_search_init(&search, brt_cursor_compare_prev_nodup, BRT_SEARCH_RIGHT, &cursor->key, &cursor->val, cursor->brt);
     return brt_cursor_search(cursor, &search, outkey, outval, logger);
 }
