@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <sys/types.h>
 
+typedef void *OMTVALUE;
 #include "omt.h"
 #include "omt-internal.h"
 #include "../newbrt/memory.h"

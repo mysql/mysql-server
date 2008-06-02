@@ -3,8 +3,8 @@
 #include <errno.h>
 #include <sys/types.h>
 
-// typedef struct value *TESTVALUE;
-typedef struct value *TESTVALUE;
+typedef struct value *OMTVALUE;
+typedef OMTVALUE TESTVALUE;
 #include "omt.h"
 #include "../newbrt/memory.h"
 #include "../newbrt/toku_assert.h"
@@ -221,7 +221,7 @@ void test_create_from_sorted_array(enum create_type create_choice, enum close_wh
     omt = NULL;
 
     if (create_choice == BATCH_INSERT) {
-        r = toku_omt_create_from_sorted_array(&omt, (OMTVALUE) values, length);
+        r = toku_omt_create_from_sorted_array(&omt, values, length);
         CKERR(r);
     }
     else if (create_choice == INSERT_AT) {
@@ -257,7 +257,7 @@ void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
     for (i = 0; i < len; i++) {
         assert(oldv!=val[i]);
         v = NULL;
-        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, NULL);
+        r = toku_omt_fetch(omtree, i, &v, NULL);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
@@ -265,7 +265,7 @@ void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
         assert(v->number == val[i]->number);
 
         v = oldv;
-        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, c);
+        r = toku_omt_fetch(omtree, i, &v, c);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
@@ -274,7 +274,7 @@ void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
         assert(toku_omt_cursor_is_valid(c));
  
         v = oldv;
-        r = toku_omt_cursor_current(c, (OMTVALUE) &v);
+        r = toku_omt_cursor_current(c, &v);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
@@ -284,7 +284,7 @@ void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
 
         v = oldv;
         j = i + 1;
-        while ((r = toku_omt_cursor_next(c, (OMTVALUE) &v)) == 0) {
+        while ((r = toku_omt_cursor_next(c, &v)) == 0) {
             assert(toku_omt_cursor_is_valid(c));
             assert(v != NULL);
             assert(v != oldv);
@@ -298,7 +298,7 @@ void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
 
         assert(oldv!=val[i]);
         v = NULL;
-        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, c);
+        r = toku_omt_fetch(omtree, i, &v, c);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
@@ -307,7 +307,7 @@ void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
 
         v = oldv;
         j = i - 1;
-        while ((r = toku_omt_cursor_prev(c, (OMTVALUE) &v)) == 0) {
+        while ((r = toku_omt_cursor_prev(c, &v)) == 0) {
             assert(toku_omt_cursor_is_valid(c));
             assert(v != NULL);
             assert(v != oldv);
@@ -323,11 +323,11 @@ void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
 
     for (i = len; i < len*2; i++) {
         v = oldv;
-        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, NULL);
+        r = toku_omt_fetch(omtree, i, &v, NULL);
         CKERR2(r, ERANGE);
         assert(v == oldv);
         v = NULL;
-        r = toku_omt_fetch(omtree, i, (OMTVALUE) &v, c);
+        r = toku_omt_fetch(omtree, i, &v, c);
         CKERR2(r, ERANGE);
         assert(v == NULL);
     }
@@ -355,10 +355,10 @@ int iterate_helper(TESTVALUE v, u_int32_t idx, void* extra) {
 void test_iterate_verify(OMT omtree, TESTVALUE* vals, u_int32_t len) {
     int r;
     iterate_helper_error_return = 0;
-    r = toku_omt_iterate(omtree, (OMTVALUE) iterate_helper, (void*)vals);
+    r = toku_omt_iterate(omtree, iterate_helper, (void*)vals);
     CKERR(r);
     iterate_helper_error_return = 0xFEEDABBA;
-    r = toku_omt_iterate(omtree, (OMTVALUE) iterate_helper, NULL);
+    r = toku_omt_iterate(omtree, iterate_helper, NULL);
     if (!len) {
         CKERR2(r, 0);
     }
@@ -473,7 +473,7 @@ void test_create_insert(enum close_when_done close) {
         u_int32_t idx = UINT32_MAX;
 
         assert(length==toku_omt_size(omt));
-        r = toku_omt_insert(omt, to_insert, (OMTVALUE) insert_helper, to_insert, &idx);
+        r = toku_omt_insert(omt, to_insert, insert_helper, to_insert, &idx);
         CKERR(r);
         assert(idx <= length);
         if (idx > 0) {
@@ -493,7 +493,7 @@ void test_create_insert(enum close_when_done close) {
         test_iterate_verify(omt, values, length);
 
         idx = UINT32_MAX;
-        r = toku_omt_insert(omt, to_insert, (OMTVALUE) insert_helper, to_insert, &idx);
+        r = toku_omt_insert(omt, to_insert, insert_helper, to_insert, &idx);
         CKERR2(r, DB_KEYEXIST);
         assert(idx < length);
         assert(values[idx]->number == to_insert->number);
@@ -678,10 +678,10 @@ void test_find_dir(int dir, void* extra, int (*h)(OMTVALUE, void*),
 
     omt_val = NULL;
     if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      (OMTVALUE) &omt_val, &idx, c);
+        r = toku_omt_find_zero(omt, h, extra,      &omt_val, &idx, c);
     }
     else {
-        r = toku_omt_find(     omt, h, extra, dir, (OMTVALUE) &omt_val, &idx, c);
+        r = toku_omt_find(     omt, h, extra, dir, &omt_val, &idx, c);
     }
     CKERR2(r, r_expect);
     if (idx_will_change) {
@@ -704,10 +704,10 @@ void test_find_dir(int dir, void* extra, int (*h)(OMTVALUE, void*),
         TESTVALUE tmp;
         assert(idx_will_change);
         omt_val_curs = NULL;
-        r = toku_omt_cursor_current(c, (OMTVALUE) &omt_val_curs);
+        r = toku_omt_cursor_current(c, &omt_val_curs);
         CKERR(r);
         assert(toku_omt_cursor_is_valid(c));
-        r = toku_omt_fetch(omt, idx, (OMTVALUE) &tmp, NULL);
+        r = toku_omt_fetch(omt, idx, &tmp, NULL);
         CKERR(r);
         if (found) assert(tmp==omt_val);
         assert(omt_val_curs != NULL);
@@ -742,10 +742,10 @@ void test_find_dir(int dir, void* extra, int (*h)(OMTVALUE, void*),
     omt_val  = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(omt, h, extra,      (OMTVALUE) &omt_val, 0, NULL);
+        r = toku_omt_find_zero(omt, h, extra,      &omt_val, 0, NULL);
     }
     else {
-        r = toku_omt_find(     omt, h, extra, dir, (OMTVALUE) &omt_val, 0, NULL);
+        r = toku_omt_find(     omt, h, extra, dir, &omt_val, 0, NULL);
     }
     CKERR2(r, r_expect);
     assert(idx == old_idx);

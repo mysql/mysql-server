@@ -116,7 +116,6 @@
 
 // The programming API:
 
-typedef void *OMTVALUE;
 typedef struct omt *OMT;
 
 typedef struct omtcursor *OMTCURSOR;

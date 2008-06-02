@@ -39,7 +39,7 @@ struct omt {
 };
 
 //Initial max size of root-to-leaf path
-#define TOKU_OMTCURSOR_INITIAL_SIZE 64
+#define TOKU_OMTCURSOR_INITIAL_SIZE 4
 
 // Cursor for order maintenance tree
 struct omtcursor {

@@ -13,6 +13,7 @@
 #include "kv-pair.h"
 #include "leafentry.h"
 
+typedef void *OMTVALUE;
 #include "omt.h"
 
 #ifndef BRT_FANOUT
@@ -111,6 +112,8 @@ struct brt_header {
     unsigned int *flags_array; // an array of flags.  Element 0 holds the element if no subdatabases allowed.
     
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
+
+    uint64_t root_put_counter;
 };
 
 struct brt {
@@ -190,6 +193,8 @@ struct brt_cursor {
     DBT val;
     int is_temporary_cursor;  // If it is a temporary cursor then use the following skey and sval to return tokudb-managed values in dbts.  Otherwise use the brt's skey and skval.
     void *skey, *sval;
+    OMTCURSOR omtcursor;
+    uint64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
 };
 
 // logs the memory allocation, but not the creation of the new node
