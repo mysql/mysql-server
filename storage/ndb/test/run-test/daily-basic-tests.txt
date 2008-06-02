@@ -1151,3 +1151,10 @@ cmd: testDict
 args: -l 1 -n FailAddFragment
 
 # EOF 2008-05-29
+# 2008-05-30
+max-time: 1200
+cmd: testDict
+args: -l 1 -n FailCreateHashmap T1
+
+# EOF 2008-05-30
+# EOF

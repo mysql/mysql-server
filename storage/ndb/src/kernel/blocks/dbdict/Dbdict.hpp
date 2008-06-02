@@ -59,6 +59,8 @@
 #include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/DictLock.hpp>
 #include <signaldata/SumaImpl.hpp>
+#include <signaldata/CreateHashMap.hpp>
+#include <signaldata/HashMapImpl.hpp>
 #include "SchemaFile.hpp"
 #include <blocks/mutexes.hpp>
 #include <SafeCounter.hpp>
@@ -237,6 +239,10 @@ public:
 
     /* Table version (incremented when tableId is re-used) */
     Uint32 tableVersion;
+
+    /* */
+    Uint32 hashMapObjectId;
+    Uint32 hashMapVersion;
 
     /* Table name (may not be unique under "alter table") */
     RopeHandle tableName;
@@ -2504,6 +2510,83 @@ private:
   // commit phase
   void buildIndex_toLocalOnline(Signal*, SchemaOpPtr);
   void buildIndex_fromLocalOnline(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: CreateHashMap
+
+  struct HashMapRecord {
+    HashMapRecord(){}
+
+    /* Table id (array index in DICT and other blocks) */
+    union {
+      Uint32 m_object_id;
+      Uint32 key;
+    };
+    Uint32 m_obj_ptr_i;      // in HashMap_pool
+    Uint32 m_object_version;
+
+    RopeHandle m_name;
+
+    /**
+     * ptr.i, in g_hash_map
+     */
+    Uint32 m_map_ptr_i;
+    union {
+      Uint32 nextPool;
+      Uint32 nextHash;
+    };
+    Uint32 prevHash;
+
+    Uint32 hashValue() const { return key;}
+    bool equal(const HashMapRecord& obj) const { return key == obj.key;}
+
+  };
+  typedef Ptr<HashMapRecord> HashMapPtr;
+  typedef ArrayPool<HashMapRecord> HashMap_pool;
+  typedef KeyTableImpl<HashMap_pool, HashMapRecord> HashMap_hash;
+
+  HashMap_pool c_hash_map_pool;
+  HashMap_hash c_hash_map_hash;
+  RSS_AP_SNAPSHOT(c_hash_map_pool);
+  RSS_AP_SNAPSHOT(g_hash_map);
+
+  struct CreateHashMapRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CreateHashMapRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createHashMapRecPool;
+    }
+
+    CreateHashMapImplReq m_request;
+
+    CreateHashMapRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+    }
+  };
+
+  typedef Ptr<CreateHashMapRec> CreateHashMapRecPtr;
+  ArrayPool<CreateHashMapRec> c_createHashMapRecPool;
+  void execCREATE_HASH_MAP_REQ(Signal* signal);
+
+  // OpInfo
+  bool createHashMap_seize(SchemaOpPtr);
+  void createHashMap_release(SchemaOpPtr);
+  //
+  void createHashMap_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool createHashMap_subOps(Signal*, SchemaOpPtr);
+  void createHashMap_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createHashMap_prepare(Signal*, SchemaOpPtr);
+  void createHashMap_writeObjConf(Signal* signal, Uint32, Uint32);
+  void createHashMap_commit(Signal*, SchemaOpPtr);
+  void createHashMap_complete(Signal*, SchemaOpPtr);
+  //
+  void createHashMap_abortParse(Signal*, SchemaOpPtr);
+  void createHashMap_abortPrepare(Signal*, SchemaOpPtr);
+
+  void packHashMapIntoPages(SimpleProperties::Writer&, Ptr<HashMapRecord>);
 
   /**
    * Operation record for Util Signals.

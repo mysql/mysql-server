@@ -201,6 +201,7 @@ public:
   Vector<const NdbDictionary::Table*> m_indexes;
   Vector<NdbDictionary::Tablespace*> m_tablespaces;    // Index by id
   Vector<NdbDictionary::LogfileGroup*> m_logfilegroups;// Index by id
+  Vector<NdbDictionary::HashMap*> m_hashmaps;
 
   static const PromotionRules m_allowed_promotion_attrs[];
 };

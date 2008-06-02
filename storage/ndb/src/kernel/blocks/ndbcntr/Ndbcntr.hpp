@@ -147,6 +147,8 @@ public:
   // schema trans
   Uint32 c_schemaTransId;
   Uint32 c_schemaTransKey;
+  Uint32 c_hashMapId;
+  Uint32 c_hashMapVersion;
 
 public:
   Ndbcntr(Block_context&);
@@ -191,6 +193,8 @@ private:
   void execSCHEMA_TRANS_END_REF(Signal* signal);
   void execCREATE_TABLE_REF(Signal* signal);
   void execCREATE_TABLE_CONF(Signal* signal);
+  void execCREATE_HASH_MAP_REF(Signal* signal);
+  void execCREATE_HASH_MAP_CONF(Signal* signal);
   void execNDB_STTORRY(Signal* signal);
   void execNDB_STARTCONF(Signal* signal);
   void execREAD_NODESREQ(Signal* signal);
@@ -233,6 +237,7 @@ private:
   // Generated statement blocks
   void systemErrorLab(Signal* signal, int line);
 
+  void createHashMap(Signal*, Uint32 index);
   void createSystableLab(Signal* signal, unsigned index);
   void crSystab7Lab(Signal* signal);
   void crSystab8Lab(Signal* signal);

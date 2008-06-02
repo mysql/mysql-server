@@ -2950,7 +2950,9 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
       if (! (DictTabInfo::isTable(tableType) ||
              DictTabInfo::isIndex(tableType) ||
              DictTabInfo::isFilegroup(tableType) ||
-             DictTabInfo::isFile(tableType)))
+             DictTabInfo::isFile(tableType)
+             || DictTabInfo::isHashMap(tableType)
+             ))
       {
         jam();
         continue;

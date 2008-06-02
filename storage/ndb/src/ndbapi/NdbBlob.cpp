@@ -118,6 +118,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
       break;
     case NdbDictionary::Object::DistrKeyLin:
     case NdbDictionary::Object::DistrKeyHash:
+    case NdbDictionary::Object::HashMapPartition:
       bt.setFragmentType(t->getFragmentType());
       break;
     case NdbDictionary::Object::UserDefined:
@@ -125,6 +126,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
       break;
     default:
       DBUG_ASSERT(0);
+      DBUG_RETURN(-1);
       break;
   }
   DBUG_PRINT("info", ("Define BLOB table V%d with"

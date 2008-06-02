@@ -277,6 +277,20 @@ RestoreMetaData::readMetaTableDesc() {
 	   << dec << dst->getObjectId() << " " << dst->getPath() << endl;
     break;
   }
+  case DictTabInfo::HashMap:
+  {
+    NdbDictionary::HashMap * dst = new NdbDictionary::HashMap;
+    errcode =
+      NdbDictInterface::parseHashMapInfo(NdbHashMapImpl::getImpl(* dst),
+                                         (Uint32*)ptr, len);
+    if (errcode)
+      delete dst;
+    obj.m_objPtr = dst;
+
+    m_objects.push(obj, 0); // Put first
+    return true;
+    break;
+  }
   default:
     err << "Unsupported table type!! " << sectionInfo[2] << endl;
     return false;

@@ -29,7 +29,7 @@ class DiAddTabReq {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 11 );
+  STATIC_CONST( SignalLength = 12 );
   SECTION( FRAGMENTATION = 0 );
   SECTION( TS_RANGE = 0 );
   
@@ -45,6 +45,7 @@ private:
   Uint32 primaryTableId;
   Uint32 temporaryTable;
   Uint32 schemaTransId;
+  Uint32 hashMapPtrI;
 };
 
 class DiAddTabRef {

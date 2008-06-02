@@ -944,5 +944,17 @@ SectionHandle::~SectionHandle()
 
 #endif
 
+struct Hash2FragmentMap
+{
+  STATIC_CONST( MAX_MAP = 240 );
+  Uint32 m_cnt;
+  Uint32 m_fragments;
+  Uint8 m_map[MAX_MAP];
+  Uint32 nextPool;
+  Uint32 m_object_id;
+};
+
+extern ArrayPool<Hash2FragmentMap> g_hash_map;
+
 #endif
 
