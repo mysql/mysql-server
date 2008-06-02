@@ -5485,8 +5485,17 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
     signal->theData[5] = op_ptr.p->op_key;
     signal->theData[6] = (Uint32)tabPtr.p->noOfPrimkey;
     signal->theData[7] = (Uint32)tabPtr.p->singleUserMode;
+    signal->theData[8] = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
 
-    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 8, JBB);
+    if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+    {
+      jam();
+      TableRecordPtr basePtr;
+      c_tableRecordPool.getPtr(basePtr, tabPtr.p->primaryTableId);
+      signal->theData[8] =(basePtr.p->fragmentType == DictTabInfo::UserDefined);
+    }
+
+    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 9, JBB);
     return;
   }
 
