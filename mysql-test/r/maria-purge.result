@@ -37,13 +37,13 @@ set global maria_log_file_size=16777216;
 set global maria_checkpoint_interval=30;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000002	in use
+MARIA	master-data/maria_log.00000002	in use
 insert into t2 select * from t1;
 insert into t1 select * from t2;
 set global maria_checkpoint_interval=30;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000004	in use
+MARIA	master-data/maria_log.00000004	in use
 set global maria_log_file_size=16777216;
 select @@global.maria_log_file_size;
 @@global.maria_log_file_size
@@ -51,7 +51,7 @@ select @@global.maria_log_file_size;
 set global maria_checkpoint_interval=30;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000004	in use
+MARIA	master-data/maria_log.00000004	in use
 set global maria_log_file_size=8388608;
 select @@global.maria_log_file_size;
 @@global.maria_log_file_size
@@ -61,32 +61,32 @@ insert into t1 select * from t2;
 set global maria_checkpoint_interval=30;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000004	free
-maria	master-data/maria_log.00000005	free
-maria	master-data/maria_log.00000006	free
-maria	master-data/maria_log.00000007	free
-maria	master-data/maria_log.00000008	in use
+MARIA	master-data/maria_log.00000004	free
+MARIA	master-data/maria_log.00000005	free
+MARIA	master-data/maria_log.00000006	free
+MARIA	master-data/maria_log.00000007	free
+MARIA	master-data/maria_log.00000008	in use
 flush logs;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000008	in use
+MARIA	master-data/maria_log.00000008	in use
 set global maria_log_file_size=16777216;
 set global maria_log_purge_type=external;
 insert into t1 select * from t2;
 set global maria_checkpoint_interval=30;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000008	free
-maria	master-data/maria_log.00000009	in use
+MARIA	master-data/maria_log.00000008	free
+MARIA	master-data/maria_log.00000009	in use
 flush logs;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000008	free
-maria	master-data/maria_log.00000009	in use
+MARIA	master-data/maria_log.00000008	free
+MARIA	master-data/maria_log.00000009	in use
 set global maria_log_purge_type=immediate;
 insert into t1 select * from t2;
 set global maria_checkpoint_interval=30;
 SHOW ENGINE maria logs;
 Type	Name	Status
-maria	master-data/maria_log.00000011	in use
+MARIA	master-data/maria_log.00000011	in use
 drop table t1, t2;

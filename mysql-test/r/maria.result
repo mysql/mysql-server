@@ -2121,6 +2121,7 @@ show variables like 'maria%';
 Variable_name	Value
 maria_block_size	8192
 maria_checkpoint_interval	30
+maria_force_start_after_recovery_failures	0
 maria_log_file_size	4294959104
 maria_log_purge_type	immediate
 maria_max_sort_file_size	9223372036854775807
@@ -2128,6 +2129,7 @@ maria_page_checksum	OFF
 maria_pagecache_age_threshold	300
 maria_pagecache_buffer_size	8388600
 maria_pagecache_division_limit	100
+maria_recover	OFF
 maria_repair_threads	1
 maria_sort_buffer_size	8388608
 maria_stats_method	nulls_unequal

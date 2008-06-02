@@ -191,12 +191,12 @@ static void print_preamble()
      @retval !=0    Error
 */
 
-int maria_recover(void)
+int maria_recovery_from_log(void)
 {
   int res= 1;
   FILE *trace_file;
   uint warnings_count;
-  DBUG_ENTER("maria_recover");
+  DBUG_ENTER("maria_recovery_from_log");
 
   DBUG_ASSERT(!maria_in_recovery);
   maria_in_recovery= TRUE;
@@ -462,7 +462,12 @@ end:
                "Maria recovery failed. Please run maria_chk -r on all maria "
                "tables and delete all maria_log.######## files", MYF(0));
   procent_printed= 0;
-  /* we don't cleanly close tables if we hit some error (may corrupt them) */
+  /*
+    We don't cleanly close tables if we hit some error (may corrupt them by
+    flushing some wrong blocks made from wrong REDOs). It also leaves their
+    open_count>0, which ensures that --maria-recover, if used, will try to
+    repair them.
+  */
   DBUG_RETURN(error);
 }
 
@@ -1224,6 +1229,12 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
            " maria_chk -r", share->open_file_name);
     error= -1; /* not fatal, try with other tables */
     goto end;
+    /*
+      Note that if a first recovery fails to apply a REDO, it marks the table
+      corrupted and stops the entire recovery. A second recovery will find the
+      table is marked corrupted and skip it (and thus possibly handle other
+      tables).
+    */
   }
   /* don't log any records for this work */
   _ma_tmp_disable_logging_for_table(info, FALSE);

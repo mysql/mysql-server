@@ -25,7 +25,7 @@
 C_MODE_START
 enum maria_apply_log_way
 { MARIA_LOG_APPLY, MARIA_LOG_DISPLAY_HEADER, MARIA_LOG_CHECK };
-int maria_recover(void);
+int maria_recovery_from_log(void);
 int maria_apply_log(LSN lsn, enum maria_apply_log_way apply,
                     FILE *trace_file,
                     my_bool execute_undo_phase, my_bool skip_DDLs,

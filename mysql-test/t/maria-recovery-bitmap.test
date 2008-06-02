@@ -11,6 +11,7 @@
 drop database if exists mysqltest;
 --enable_warnings
 create database mysqltest;
+let $mms_tname=t;
 
 # Include scripts can perform SQL. For it to not influence the main test
 # they use a separate connection. This way if they use a DDL it would

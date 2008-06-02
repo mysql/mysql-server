@@ -86,7 +86,7 @@ void maria_end(void)
         from the log, as it cannot process REDOs).
       */
       (void)ma_control_file_write_and_force(last_checkpoint_lsn, last_logno,
-                                            trid);
+                                            trid, recovery_failures);
     }
     trnman_destroy();
     if (translog_status == TRANSLOG_OK)

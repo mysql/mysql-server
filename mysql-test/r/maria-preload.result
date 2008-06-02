@@ -1,4 +1,7 @@
 drop table if exists t1, t2;
+create temporary table initial
+select variable_name,variable_value from
+information_schema.global_status where variable_name like "Maria_pagecache_read%";
 create table t1 (
 a int not null auto_increment,
 b char(16) not null,
@@ -46,24 +49,24 @@ count(*)
 20672
 flush tables;
 flush status;
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211388
-Maria_pagecache_reads	115
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	211644
+MARIA_PAGECACHE_READS	3
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211414
-Maria_pagecache_reads	122
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	211926
+MARIA_PAGECACHE_READS	11
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211440
-Maria_pagecache_reads	122
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	212208
+MARIA_PAGECACHE_READS	12
 flush tables;
 flush status;
 select @@preload_buffer_size;
@@ -72,23 +75,23 @@ select @@preload_buffer_size;
 load index into cache t1;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211511
-Maria_pagecache_reads	193
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	212535
+MARIA_PAGECACHE_READS	84
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211537
-Maria_pagecache_reads	193
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	212817
+MARIA_PAGECACHE_READS	85
 flush tables;
 flush status;
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211537
-Maria_pagecache_reads	193
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	213073
+MARIA_PAGECACHE_READS	86
 set session preload_buffer_size=256*1024;
 select @@preload_buffer_size;
 @@preload_buffer_size
@@ -96,23 +99,23 @@ select @@preload_buffer_size;
 load index into cache t1 ignore leaves;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211608
-Maria_pagecache_reads	264
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	213400
+MARIA_PAGECACHE_READS	158
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211634
-Maria_pagecache_reads	270
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	213682
+MARIA_PAGECACHE_READS	165
 flush tables;
 flush status;
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211634
-Maria_pagecache_reads	270
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	213938
+MARIA_PAGECACHE_READS	166
 set session preload_buffer_size=1*1024;
 select @@preload_buffer_size;
 @@preload_buffer_size
@@ -121,52 +124,53 @@ load index into cache t1, t2 key (primary,b) ignore leaves;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
 test.t2	preload_keys	status	OK
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211748
-Maria_pagecache_reads	384
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	214308
+MARIA_PAGECACHE_READS	281
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 select count(*) from t2 where b = 'test1';
 count(*)
 2584
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211788
-Maria_pagecache_reads	387
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	214604
+MARIA_PAGECACHE_READS	285
 flush tables;
 flush status;
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211788
-Maria_pagecache_reads	387
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	214860
+MARIA_PAGECACHE_READS	286
 load index into cache t3, t2 key (primary,b) ;
 Table	Op	Msg_type	Msg_text
 test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
 test.t3	preload_keys	error	Corrupt
 test.t2	preload_keys	status	OK
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211831
-Maria_pagecache_reads	430
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	215159
+MARIA_PAGECACHE_READS	330
 flush tables;
 flush status;
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211831
-Maria_pagecache_reads	430
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	215415
+MARIA_PAGECACHE_READS	331
 load index into cache t3 key (b), t2 key (c) ;
 Table	Op	Msg_type	Msg_text
 test.t3	preload_keys	Error	Table 'test.t3' doesn't exist
 test.t3	preload_keys	error	Corrupt
 test.t2	preload_keys	Error	Key 'c' doesn't exist in table 't2'
 test.t2	preload_keys	status	Operation failed
-show status like "maria_pagecache_read%";
-Variable_name	Value
-Maria_pagecache_read_requests	211831
-Maria_pagecache_reads	430
+select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+variable_name	g.variable_value-i.variable_value
+MARIA_PAGECACHE_READ_REQUESTS	215671
+MARIA_PAGECACHE_READS	332
 drop table t1, t2;
+drop temporary table initial;
 show status like "key_read%";
 Variable_name	Value
 Key_read_requests	0

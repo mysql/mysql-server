@@ -317,6 +317,10 @@ extern void translog_deassign_id_from_share(struct st_maria_share *share);
 extern void
 translog_assign_id_to_share_from_recovery(struct st_maria_share *share,
                                           uint16 id);
+extern my_bool translog_walk_filenames(const char *directory,
+                                       my_bool (*callback)(const char *,
+                                                           const char *));
+
 enum enum_translog_status
 {
   TRANSLOG_UNINITED, /* no initialization done or error during initialization */

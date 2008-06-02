@@ -1,12 +1,14 @@
 # Maria helper script
 # Copies tables' data and index file to other directory, and control file.
-# Tables are t1...t[$mms_tables].
+# Tables are $mms_tname1...$mms_tname[$mms_tables].
 # Later, mysqld is shutdown, and that snapshot is put back into the
 # datadir, control file too ("flashing recovery's brain"), and recovery is let
 # to run on it (see maria_verify_recovery.inc).
 
 # API:
-# set $mms_tables to N, the script will cover tables mysqltest.t1,...tN
+# set $mms_tname to a string, and $mms_tables to a number N, the script will
+# cover tables mysqltest.$mms_tname1,...$mms_tnameN
+
 
 connection admin;
 

@@ -39,6 +39,8 @@ Start of changeable part:
   - Checksum of changeable part
   - LSN of last checkpoint
   - Number of last log file
+  - Max trid in control file (since Maria 1.5 May 2008)
+  - Number of consecutive recovery failures (since Maria 1.5 May 2008)
 .....  Here we can add new variables without changing format
 
 The idea is that one can add new variables to the control file and still
@@ -80,7 +82,9 @@ one should increment the control file version number.
 #define CF_FILENO_SIZE 4
 #define CF_MAX_TRID_OFFSET (CF_FILENO_OFFSET + CF_FILENO_SIZE)
 #define CF_MAX_TRID_SIZE TRANSID_SIZE
-#define CF_CHANGEABLE_TOTAL_SIZE (CF_MAX_TRID_OFFSET + CF_MAX_TRID_SIZE)
+#define CF_RECOV_FAIL_OFFSET (CF_MAX_TRID_OFFSET + CF_MAX_TRID_SIZE)
+#define CF_RECOV_FAIL_SIZE 1
+#define CF_CHANGEABLE_TOTAL_SIZE (CF_RECOV_FAIL_OFFSET + CF_RECOV_FAIL_SIZE)
 
 /*
   The following values should not be changed, except when changing version
@@ -107,6 +111,12 @@ uint32 last_logno=          FILENO_IMPOSSIBLE;
    clean shutdown (in case of crash, logs have better information).
 */
 TrID   max_trid_in_control_file= 0;
+
+/**
+  Number of consecutive log or recovery failures. Reset to 0 after recovery's
+  success.
+*/
+uint8 recovery_failures= 0;
 
 /**
    @brief If log's lock should be asserted when writing to control file.
@@ -188,7 +198,7 @@ static CONTROL_FILE_ERROR create_control_file(const char *name,
 
   /* init the file with these "undefined" values */
   DBUG_RETURN(ma_control_file_write_and_force(LSN_IMPOSSIBLE,
-                                              FILENO_IMPOSSIBLE, 0));
+                                              FILENO_IMPOSSIBLE, 0, 0));
 }
 
 
@@ -420,6 +430,9 @@ CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
   if (new_cf_changeable_size >= (CF_MAX_TRID_OFFSET + CF_MAX_TRID_SIZE))
     max_trid_in_control_file=
       transid_korr(buffer + new_cf_create_time_size + CF_MAX_TRID_OFFSET);
+  if (new_cf_changeable_size >= (CF_RECOV_FAIL_OFFSET + CF_RECOV_FAIL_SIZE))
+    recovery_failures=
+      (buffer + new_cf_create_time_size + CF_RECOV_FAIL_OFFSET)[0];
 
 ok:
   DBUG_RETURN(0);
@@ -436,19 +449,21 @@ err:
 
 /*
   Write information durably to the control file; stores this information into
-  the last_checkpoint_lsn, last_logno, max_trid_in_control_file global
-  variables.
+  the last_checkpoint_lsn, last_logno, max_trid_in_control_file,
+  recovery_failures global variables.
   Called when we have created a new log (after syncing this log's creation),
-  when we have written a checkpoint (after syncing this log record), and at
-  shutdown (for storing trid in case logs are soon removed by user).
+  when we have written a checkpoint (after syncing this log record), at
+  shutdown (for storing trid in case logs are soon removed by user), and
+  before and after recovery (to store recovery_failures).
   Variables last_checkpoint_lsn and last_logno must be protected by caller
   using log's lock, unless this function is called at startup.
 
   SYNOPSIS
     ma_control_file_write_and_force()
-    checkpoint_lsn       LSN of last checkpoint
-    logno                last log file number
-    trid                 maximum transaction longid.
+    last_checkpoint_lsn_arg LSN of last checkpoint
+    last_logno_arg          last log file number
+    max_trid_arg            maximum transaction longid
+    recovery_failures_arg   consecutive recovery failures
 
   NOTE
     We always want to do one single my_pwrite() here to be as atomic as
@@ -459,17 +474,26 @@ err:
     1 - Error
 */
 
-int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno,
-                                    TrID trid)
+int ma_control_file_write_and_force(LSN last_checkpoint_lsn_arg,
+                                    uint32 last_logno_arg,
+                                    TrID max_trid_arg,
+                                    uint8 recovery_failures_arg)
 {
   uchar buffer[CF_MAX_SIZE];
   uint32 sum;
+  my_bool no_need_sync;
   DBUG_ENTER("ma_control_file_write_and_force");
 
-  if ((last_checkpoint_lsn == checkpoint_lsn) &&
-      (last_logno == logno) &&
-      (max_trid_in_control_file == trid))
-    DBUG_RETURN(0); /* no need to write */
+  /*
+    We don't need to sync if this is just an increase of
+    recovery_failures: it's even good if that counter is not increased on disk
+    in case of power or hardware failure (less false positives when removing
+    logs).
+  */
+  no_need_sync= ((last_checkpoint_lsn == last_checkpoint_lsn_arg) &&
+                 (last_logno == last_logno_arg) &&
+                 (max_trid_in_control_file == max_trid_arg) &&
+                 (recovery_failures_arg > 0));
 
   if (control_file_fd < 0)
     DBUG_RETURN(1);
@@ -479,9 +503,10 @@ int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno,
     translog_lock_handler_assert_owner();
 #endif
 
-  lsn_store(buffer + CF_LSN_OFFSET, checkpoint_lsn);
-  int4store(buffer + CF_FILENO_OFFSET, logno);
-  transid_store(buffer + CF_MAX_TRID_OFFSET, trid);
+  lsn_store(buffer + CF_LSN_OFFSET, last_checkpoint_lsn_arg);
+  int4store(buffer + CF_FILENO_OFFSET, last_logno_arg);
+  transid_store(buffer + CF_MAX_TRID_OFFSET, max_trid_arg);
+  (buffer + CF_RECOV_FAIL_OFFSET)[0]= recovery_failures_arg;
 
   if (cf_changeable_size > CF_CHANGEABLE_TOTAL_SIZE)
   {
@@ -514,12 +539,13 @@ int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno,
 
   if (my_pwrite(control_file_fd, buffer, cf_changeable_size,
                 cf_create_time_size, MYF(MY_FNABP |  MY_WME)) ||
-      my_sync(control_file_fd, MYF(MY_WME)))
+      (!no_need_sync && my_sync(control_file_fd, MYF(MY_WME))))
     DBUG_RETURN(1);
 
-  last_checkpoint_lsn= checkpoint_lsn;
-  last_logno= logno;
-  max_trid_in_control_file= trid;
+  last_checkpoint_lsn= last_checkpoint_lsn_arg;
+  last_logno= last_logno_arg;
+  max_trid_in_control_file= max_trid_arg;
+  recovery_failures= recovery_failures_arg;
 
   cf_changeable_size= CF_CHANGEABLE_TOTAL_SIZE; /* no more warning */
   DBUG_RETURN(0);
@@ -558,7 +584,7 @@ int ma_control_file_end(void)
   */
   last_checkpoint_lsn= LSN_IMPOSSIBLE;
   last_logno= FILENO_IMPOSSIBLE;
-  max_trid_in_control_file= 0;
+  max_trid_in_control_file= recovery_failures= 0;
 
   DBUG_RETURN(close_error);
 }

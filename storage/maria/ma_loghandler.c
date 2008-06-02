@@ -17,6 +17,7 @@
 #include "trnman.h"
 #include "ma_blockrec.h" /* for some constants and in-write hooks */
 #include "ma_key_recover.h" /* For some in-write hooks */
+#include "ma_checkpoint.h"
 
 /*
   On Windows, neither my_open() nor my_sync() work for directories.
@@ -1522,7 +1523,8 @@ static my_bool translog_create_new_file()
     DBUG_RETURN(1);
 
   if (ma_control_file_write_and_force(last_checkpoint_lsn, file_no,
-                                      max_trid_in_control_file))
+                                      max_trid_in_control_file,
+                                      recovery_failures))
   {
     translog_stop_writing();
     DBUG_RETURN(1);
@@ -3211,21 +3213,29 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
 
 
 /**
-  @brief Check log files presence
+  Applies function 'callback' to all files (in a directory) which
+  name looks like a log's name (maria_log.[0-9]{7}).
+  If 'callback' returns TRUE this interrupts the walk and returns
+  TRUE. Otherwise FALSE is returned after processing all log files.
+  It cannot just use log_descriptor.directory because that may not yet have
+  been initialized.
 
-  @retval 0 no log files.
-  @retval 1 there is at least 1 log file in the directory
+  @param  directory        directory to scan
+  @param  callback         function to apply; is passed directory and base
+                           name of found file
 */
 
-my_bool translog_is_log_files()
+my_bool translog_walk_filenames(const char *directory,
+                                my_bool (*callback)(const char *,
+                                                    const char *))
 {
   MY_DIR *dirp;
   uint i;
   my_bool rc= FALSE;
 
   /* Finds and removes transaction log files */
-  if (!(dirp = my_dir(log_descriptor.directory, MYF(MY_DONT_SORT))))
-    return 1;
+  if (!(dirp = my_dir(directory, MYF(MY_DONT_SORT))))
+    return FALSE;
 
   for (i= 0; i < dirp->number_off_files; i++)
   {
@@ -3239,14 +3249,14 @@ my_bool translog_is_log_files()
         file[15] >= '0' && file[15] <= '9' &&
         file[16] >= '0' && file[16] <= '9' &&
         file[17] >= '0' && file[17] <= '9' &&
-        file[18] == '\0')
+        file[18] == '\0' && (*callback)(directory, file))
     {
       rc= TRUE;
       break;
     }
   }
   my_dirend(dirp);
-  return FALSE;
+  return rc;
 }
 
 
@@ -3266,6 +3276,19 @@ static void translog_fill_overhead_table()
        page_overhead[i]+= TRANSLOG_PAGE_SIZE /
                            DISK_DRIVE_SECTOR_SIZE;
   }
+}
+
+
+/**
+  Callback to find first log in directory.
+*/
+
+static my_bool translog_callback_search_first(const char *directory
+                                              __attribute__((unused)),
+                                              const char *filename
+                                              __attribute__((unused)))
+{
+  return TRUE;
 }
 
 
@@ -3353,7 +3376,7 @@ my_bool translog_init_with_table(const char *directory,
       my_init_dynamic_array(&log_descriptor.unfinished_files,
                             sizeof(struct st_file_counter),
                             10, 10))
-    DBUG_RETURN(1);
+    goto err;
   log_descriptor.min_need_file= 0;
   log_descriptor.min_file_number= 0;
   log_descriptor.last_lsn_checked= LSN_IMPOSSIBLE;
@@ -3367,7 +3390,7 @@ my_bool translog_init_with_table(const char *directory,
     my_errno= errno;
     DBUG_PRINT("error", ("Error %d during opening directory '%s'",
                          errno, log_descriptor.directory));
-    DBUG_RETURN(1);
+    goto err;
   }
 #endif
   log_descriptor.in_buffers_only= LSN_IMPOSSIBLE;
@@ -3417,7 +3440,7 @@ my_bool translog_init_with_table(const char *directory,
   for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
   {
     if (translog_buffer_init(log_descriptor.buffers + i))
-      DBUG_RETURN(1);
+      goto err;
 #ifndef DBUG_OFF
     log_descriptor.buffers[i].buffer_no= (uint8) i;
 #endif
@@ -3461,7 +3484,8 @@ my_bool translog_init_with_table(const char *directory,
     log_descriptor.horizon= last_page= MAKE_LSN(last_logno, 0);
     if (translog_get_last_page_addr(&last_page, &pageok, no_errors))
     {
-      if (!translog_is_log_files())
+      if (!translog_walk_filenames(log_descriptor.directory,
+                                   &translog_callback_search_first))
       {
         /*
           Files was deleted, just start from the next log number, so that
@@ -3472,7 +3496,7 @@ my_bool translog_init_with_table(const char *directory,
         logs_found= 0;
       }
       else
-        DBUG_RETURN(1);
+        goto err;
     }
     else if (LSN_OFFSET(last_page) == 0)
     {
@@ -3485,7 +3509,7 @@ my_bool translog_init_with_table(const char *directory,
       {
         last_page-= LSN_ONE_FILE;
         if (translog_get_last_page_addr(&last_page, &pageok, 0))
-          DBUG_RETURN(1);
+          goto err;
       }
     }
     if (logs_found)
@@ -3497,7 +3521,7 @@ my_bool translog_init_with_table(const char *directory,
       if (allocate_dynamic(&log_descriptor.open_files,
                            log_descriptor.max_file -
                            log_descriptor.min_file + 1))
-        DBUG_RETURN(1);
+        goto err;
       for (i = log_descriptor.max_file; i >= log_descriptor.min_file; i--)
       {
         /*
@@ -3526,10 +3550,10 @@ my_bool translog_init_with_table(const char *directory,
           if (file)
           {
             free(file);
-            DBUG_RETURN(1);
+            goto err;
           }
           else
-            DBUG_RETURN(1);
+            goto err;
         }
         translog_file_init(file, i, 1);
         /* we allocated space so it can't fail */
@@ -3543,7 +3567,7 @@ my_bool translog_init_with_table(const char *directory,
   {
     /* There is no logs and there is read-only mode => nothing to read */
     DBUG_PRINT("error", ("No logs and read-only mode"));
-    DBUG_RETURN(1);
+    goto err;
   }
 
   if (logs_found)
@@ -3568,7 +3592,7 @@ my_bool translog_init_with_table(const char *directory,
       TRANSLOG_ADDRESS current_file_last_page;
       current_file_last_page= current_page;
       if (translog_get_last_page_addr(&current_file_last_page, &pageok, 0))
-        DBUG_RETURN(1);
+        goto err;
       if (!pageok)
       {
         DBUG_PRINT("error", ("File %lu have no complete last page",
@@ -3585,7 +3609,7 @@ my_bool translog_init_with_table(const char *directory,
         uchar *page;
         data.addr= &current_page;
         if ((page= translog_get_page(&data, psize_buff.buffer, NULL)) == NULL)
-          DBUG_RETURN(1);
+          goto err;
         if (data.was_recovered)
         {
           DBUG_PRINT("error", ("file no: %lu (%d)  "
@@ -3614,7 +3638,7 @@ my_bool translog_init_with_table(const char *directory,
     {
       /* Panic!!! Even page which should be valid is invalid */
       /* TODO: issue error */
-      DBUG_RETURN(1);
+      goto err;
     }
     DBUG_PRINT("info", ("Last valid page is in file: %lu  "
                         "offset: %lu (0x%lx)  "
@@ -3639,7 +3663,7 @@ my_bool translog_init_with_table(const char *directory,
                   LSN_FILE_NO(log_descriptor.horizon));
       if ((page= translog_get_page(&data, psize_buff.buffer, NULL)) == NULL ||
           (chunk_offset= translog_get_first_chunk_offset(page)) == 0)
-        DBUG_RETURN(1);
+        goto err;
 
       /* Puts filled part of old page in the buffer */
       log_descriptor.horizon= last_valid_page;
@@ -3654,7 +3678,7 @@ my_bool translog_init_with_table(const char *directory,
         uint16 chunk_length;
         if ((chunk_length=
              translog_get_total_chunk_length(page, chunk_offset)) == 0)
-          DBUG_RETURN(1);
+          goto err;
         DBUG_PRINT("info", ("chunk: offset: %u  length: %u",
                             (uint) chunk_offset, (uint) chunk_length));
         chunk_offset+= chunk_length;
@@ -3690,7 +3714,7 @@ my_bool translog_init_with_table(const char *directory,
                                                       open_files,
                                                       0, TRANSLOG_FILE **))->
                                     handler.file))
-        DBUG_RETURN(1);
+        goto err;
       version_changed= (info.maria_version != TRANSLOG_VERSION_ID);
     }
   }
@@ -3702,25 +3726,26 @@ my_bool translog_init_with_table(const char *directory,
                                                    MYF(0));
     DBUG_PRINT("info", ("The log is not found => we will create new log"));
     if (file == NULL)
-       DBUG_RETURN(1);
+       goto err;
     /* Start new log system from scratch */
     log_descriptor.horizon= MAKE_LSN(start_file_num,
                                      TRANSLOG_PAGE_SIZE); /* header page */
     if ((file->handler.file=
          create_logfile_by_number_no_cache(start_file_num)) == -1)
-      DBUG_RETURN(1);
+      goto err;
     translog_file_init(file, start_file_num, 0);
     if (insert_dynamic(&log_descriptor.open_files, (uchar*)&file))
-      DBUG_RETURN(1);
+      goto err;
     log_descriptor.min_file= log_descriptor.max_file= start_file_num;
     if (translog_write_file_header())
-      DBUG_RETURN(1);
+      goto err;
     DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
                 log_descriptor.open_files.elements);
 
     if (ma_control_file_write_and_force(checkpoint_lsn, start_file_num,
-                                        max_trid_in_control_file))
-      DBUG_RETURN(1);
+                                        max_trid_in_control_file,
+                                        recovery_failures))
+      goto err;
     /* assign buffer 0 */
     translog_start_buffer(log_descriptor.buffers, &log_descriptor.bc, 0);
     translog_new_page_header(&log_descriptor.horizon, &log_descriptor.bc);
@@ -3734,7 +3759,7 @@ my_bool translog_init_with_table(const char *directory,
     log_descriptor.horizon= LSN_REPLACE_OFFSET(log_descriptor.horizon,
                                                TRANSLOG_PAGE_SIZE);
     if (translog_create_new_file())
-      DBUG_RETURN(1);
+      goto err;
     /*
       Buffer system left untouched after recovery => we should init it
       (starting from buffer 0)
@@ -3767,7 +3792,7 @@ my_bool translog_init_with_table(const char *directory,
   id_to_share= (MARIA_SHARE **) my_malloc(SHARE_ID_MAX * sizeof(MARIA_SHARE*),
                                           MYF(MY_WME | MY_ZEROFILL));
   if (unlikely(!id_to_share))
-    DBUG_RETURN(1);
+    goto err;
   id_to_share--; /* min id is 1 */
 
   /* Check the last LSN record integrity */
@@ -3783,7 +3808,7 @@ my_bool translog_init_with_table(const char *directory,
     page_addr= (log_descriptor.horizon -
                 ((log_descriptor.horizon - 1) % TRANSLOG_PAGE_SIZE + 1));
     if (translog_scanner_init(page_addr, 1, &scanner, 1))
-      DBUG_RETURN(1);
+      goto err;
     scanner.page_offset= page_overhead[scanner.page[TRANSLOG_PAGE_FLAGS]];
     for (;;)
     {
@@ -3797,7 +3822,7 @@ my_bool translog_init_with_table(const char *directory,
         if (translog_get_next_chunk(&scanner))
         {
           translog_destroy_scanner(&scanner);
-          DBUG_RETURN(1);
+          goto err;
         }
         if (scanner.page != END_OF_LOG)
           chunk_1byte= scanner.page[scanner.page_offset];
@@ -3808,7 +3833,7 @@ my_bool translog_init_with_table(const char *directory,
         if (translog_get_next_chunk(&scanner))
         {
           translog_destroy_scanner(&scanner);
-          DBUG_RETURN(1);
+          goto err;
         }
         if (scanner.page == END_OF_LOG)
           break; /* it was the last record */
@@ -3845,7 +3870,7 @@ my_bool translog_init_with_table(const char *directory,
       }
       translog_destroy_scanner(&scanner);
       if (translog_scanner_init(page_addr, 1, &scanner, 1))
-        DBUG_RETURN(1);
+        goto err;
       scanner.page_offset= page_overhead[scanner.page[TRANSLOG_PAGE_FLAGS]];
     }
     translog_destroy_scanner(&scanner);
@@ -3872,7 +3897,7 @@ my_bool translog_init_with_table(const char *directory,
         else if (translog_truncate_log(last_lsn))
         {
           translog_free_record_header(&rec);
-          DBUG_RETURN(1);
+          goto err;
         }
       }
       else
@@ -3898,7 +3923,7 @@ my_bool translog_init_with_table(const char *directory,
             else if (translog_truncate_log(last_lsn))
             {
               translog_free_record_header(&rec);
-              DBUG_RETURN(1);
+              goto err;
             }
           }
         }
@@ -3907,6 +3932,9 @@ my_bool translog_init_with_table(const char *directory,
     }
   }
   DBUG_RETURN(0);
+err:
+  ma_message_no_user(0, "log initialization failed");
+  DBUG_RETURN(1);
 }
 
 

@@ -381,7 +381,7 @@ int _ma_test_if_changed(register MARIA_HA *info)
   tells us if the MARIA file wasn't properly closed. (This is true if
   my_disable_locking is set).
 
-  open_count is not maintained on disk for transactional or temporary tables.
+  open_count is not maintained on disk for temporary tables.
 */
 
 int _ma_mark_file_changed(MARIA_HA *info)
@@ -400,11 +400,16 @@ int _ma_mark_file_changed(MARIA_HA *info)
       share->state.open_count++;
     }
     /*
-      temp tables don't need an open_count as they are removed on crash;
-      transactional tables are fixed by log-based recovery, so don't need an
-      open_count either (and we thus avoid the disk write below).
+      Temp tables don't need an open_count as they are removed on crash.
+      In theory transactional tables are fixed by log-based recovery, so don't
+      need an open_count either, but if recovery has failed and logs have been
+      removed (by maria-force-start-after-recovery-failures), we still need to
+      detect dubious tables.
+      If we didn't maintain open_count on disk for a table, after a crash
+      we wouldn't know if it was closed at crash time (thus does not need a
+      check) or not. So we would have to check all tables: overkill.
     */
-    if (!(share->temporary | share->base.born_transactional))
+    if (!share->temporary)
     {
       mi_int2store(buff,share->state.open_count);
       buff[2]=1;				/* Mark that it's changed */
@@ -471,7 +476,7 @@ int _ma_decrement_open_count(MARIA_HA *info)
     {
       share->state.open_count--;
       share->changed= 1;                        /* We have to update state */
-      if (!(share->temporary | share->base.born_transactional))
+      if (!share->temporary)
       {
         mi_int2store(buff,share->state.open_count);
         write_error= (int) my_pwrite(share->kfile.file, buff, sizeof(buff),

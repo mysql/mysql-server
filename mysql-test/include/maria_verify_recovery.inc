@@ -2,7 +2,8 @@
 # Runs recovery, compare with expected table data.
 
 # API:
-# 1) set $mms_tables to N, the script will cover tables mysqltest.t1,...tN
+# 1) set $mms_tname to a string, and $mms_tables to a number N, the script
+# will cover tables mysqltest.$mms_tname1,...$mms_tnameN
 # 2) set $mvr_debug_option to the crash way
 # 3) set $mvr_crash_statement to the statement which will trigger a crash
 # 4) set $mvr_restore_old_snapshot to 1 if you want recovery to run on
@@ -77,10 +78,10 @@ let $mms_purpose=comparison;
 let $mms_compare_physically=$mms_compare_physically_save;
 while ($mms_table_to_use)
 {
-  eval check table t$mms_table_to_use extended;
+  eval check table $mms_tname$mms_table_to_use extended;
   --echo * testing that checksum after recovery is as expected
-  let $new_checksum=`CHECKSUM TABLE t$mms_table_to_use`;
-  let $old_checksum=`CHECKSUM TABLE mysqltest_for_$mms_purpose.t$mms_table_to_use`;
+  let $new_checksum=`CHECKSUM TABLE $mms_tname$mms_table_to_use`;
+  let $old_checksum=`CHECKSUM TABLE mysqltest_for_$mms_purpose.$mms_tname$mms_table_to_use`;
   # the $ text variables above are of the form "db.tablename\tchecksum",
   # as db differs, we use substring().
   --disable_query_log

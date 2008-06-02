@@ -362,24 +362,24 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE	
 drop table t1;
 * TEST of recovery when OPTIMIZE has replaced the index file and crash
-create table t1 (a varchar(100), key(a)) engine=maria;
-insert into t1 select (rand()) from t2;
-flush table t1;
-* copied t1 for comparison
+create table t_corrupted1 (a varchar(100), key(a)) engine=maria;
+insert into t_corrupted1 select (rand()) from t2;
+flush table t_corrupted1;
+* copied t_corrupted1 for comparison
 SET SESSION debug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash_sort_index";
 * crashing mysqld intentionally
-optimize table t1;
+optimize table t_corrupted1;
 ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
-check table t1 extended;
+check table t_corrupted1 extended;
 Table	Op	Msg_type	Msg_text
-mysqltest.t1	check	warning	Table is marked as crashed and last repair failed
-mysqltest.t1	check	status	OK
+mysqltest.t_corrupted1	check	warning	Table is marked as crashed and last repair failed
+mysqltest.t_corrupted1	check	status	OK
 * testing that checksum after recovery is as expected
 Checksum-check
 ok
 use mysqltest;
-drop table t1, t2;
+drop table t_corrupted1, t2;
 drop database mysqltest_for_feeding_recovery;
 drop database mysqltest_for_comparison;
 drop database mysqltest;

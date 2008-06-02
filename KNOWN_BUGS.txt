@@ -24,23 +24,9 @@ or in the worst case add it here for others to know!
 Known bugs that we are working on and will be fixed shortly
 ===========================================================
 
-- If the log files are damaged or inconsistent, Maria may fail to start.
-  We should fix that if this happens and mysqld is restarted (thanks to
-  mysqld_safe, instance manager or other script) it should disregard the
-  old logs, start anyway and automaticly repair any tables that was found
-  to be crashed on open.
-  Temporary fix is to remove or maria_log.???????? files from the data
-  directory, restart mysqld and run CHECK TABLE / REPAIR TABLE or 
-  mysqlcheck on your Maria tables
 - We have some instabilities in log writing that is under investigatation
   This causes mainly assert to triggers in the code and sometimes
   the log handler doesn't start up after restart.
-- LOAD INDEX commands are for the moment ignored for Maria tables
-  (The code needs to be rewritten to do all reads through page cache to
-  avoid half-block reads)
-- Some concurrency bugs in Maria's page cache which sometimes show up
-  under load http://bugs.mysql.com/bug.php?id=34161 and
-  http://bugs.mysql.com/bug.php?id=34634 .
 
 Known bugs that are planned to be fixed before Beta
 ===================================================
@@ -61,19 +47,15 @@ Known bugs that are planned to be fixed before Beta
 Missing features that is planned to fix before Beta
 ===================================================
 
-- We will add an maria-recover option to automaticly repair any
-  crashed tables on open. (This is needed for not transactional tables
-  and also in edge cases for transactional tables when the table
-  crashed because of a bug in  MySQL or Maria code)
 - Multiple concurrent inserts & multiple concurrent readers at same time
   with full MVCC control.  Note that UPDATE and DELETE will still be
   blocking (as with MyISAM)
 - COUNT(*) and TABLE CHECKSUM under MVCC (ie, they are instant and kept up
   to date even with multiple inserter)
-- Recovery of fulltext and GIS indexes.
 
 
 Features planned for future releases
 ====================================
 
 http://forge.mysql.com/worklog/
+(you can enter "maria" in the "quick search" field there).

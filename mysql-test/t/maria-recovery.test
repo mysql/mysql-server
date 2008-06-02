@@ -12,6 +12,7 @@ let $MARIA_LOG=../tmp;
 drop database if exists mysqltest;
 --enable_warnings
 create database mysqltest;
+let $mms_tname=t;
 
 # Include scripts can perform SQL. For it to not influence the main test
 # they use a separate connection. This way if they use a DDL it would
@@ -297,19 +298,25 @@ show keys from t1; # should be enabled
 drop table t1;
 
 --echo * TEST of recovery when OPTIMIZE has replaced the index file and crash
-create table t1 (a varchar(100), key(a)) engine=maria;
+create table t_corrupted1 (a varchar(100), key(a)) engine=maria;
+# we use a special name because this test portion will generate
+# corruption warnings, which we tell mtr_report.pl to ignore by
+# putting the message in mtr_report.pl, but we don't want to it ignore
+# corruption messages of other tests, hence the special name
+# 't_corrupted' and not just 't'.
+let $mms_tname=t_corrupted;
 let $mvr_restore_old_snapshot=0;
 let $mms_compare_physically=0;
-let $mvr_crash_statement= optimize table t1;
+let $mvr_crash_statement= optimize table t_corrupted1;
 let $mvr_debug_option="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash_sort_index";
-insert into t1 select (rand()) from t2;
+insert into t_corrupted1 select (rand()) from t2;
 -- source include/maria_make_snapshot_for_comparison.inc
 # Recovery will not fix the table, but we expect to see it marked
 # "crashed on repair".
 # Because crash is mild, the table is actually not corrupted, so the
 # "check table extended" done below fixes the table.
 -- source include/maria_verify_recovery.inc
-drop table t1, t2;
+drop table t_corrupted1, t2;
 
 # clean up everything
 let $mms_purpose=feeding_recovery;

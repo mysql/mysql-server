@@ -44,6 +44,8 @@ extern uint32 last_logno;
 
 extern TrID max_trid_in_control_file;
 
+extern uint8 recovery_failures;
+
 extern my_bool maria_multi_threaded, maria_in_recovery;
 
 typedef enum enum_control_file_error {
@@ -63,7 +65,9 @@ typedef enum enum_control_file_error {
 C_MODE_START
 CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
                                         my_bool print_error);
-int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno, TrID trid);
+int ma_control_file_write_and_force(LSN last_checkpoint_lsn_arg,
+                                    uint32 last_logno_arg, TrID max_trid_arg,
+                                    uint8 recovery_failures_arg);
 int ma_control_file_end(void);
 my_bool ma_control_file_inited(void);
 C_MODE_END

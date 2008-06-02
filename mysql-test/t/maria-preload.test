@@ -8,6 +8,11 @@
 drop table if exists t1, t2;
 --enable_warnings
 
+# Work around BUG#34911 "FLUSH STATUS doesn't flush what it should":
+# compute differences in status variables before and after relevant queries
+create temporary table initial
+select variable_name,variable_value from
+information_schema.global_status where variable_name like "Maria_pagecache_read%";
 
 # we don't use block-format because we want page cache stats
 # about indices and not data pages.
@@ -59,50 +64,50 @@ select count(*) from t1;
 select count(*) from t2;
 
 flush tables; flush status;
-show status like "maria_pagecache_read%";
-
+let $show_stat=select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Maria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+eval $show_stat;
 select count(*) from t1 where b = 'test1';
-show status like "maria_pagecache_read%";
+eval $show_stat;
 select count(*) from t1 where b = 'test1';
-show status like "maria_pagecache_read%";
+eval $show_stat;
 
 flush tables; flush status;
 select @@preload_buffer_size;
 load index into cache t1;
-show status like "maria_pagecache_read%";
+eval $show_stat;
 select count(*) from t1 where b = 'test1';
-show status like "maria_pagecache_read%";
+eval $show_stat;
 
 flush tables; flush status;
-show status like "maria_pagecache_read%";
+eval $show_stat;
 set session preload_buffer_size=256*1024;
 select @@preload_buffer_size;
 load index into cache t1 ignore leaves;
-show status like "maria_pagecache_read%";
+eval $show_stat;
 select count(*) from t1 where b = 'test1';
-show status like "maria_pagecache_read%";
+eval $show_stat;
 
 flush tables; flush status; 
-show status like "maria_pagecache_read%";
+eval $show_stat;
 set session preload_buffer_size=1*1024;
 select @@preload_buffer_size;
 load index into cache t1, t2 key (primary,b) ignore leaves;
-show status like "maria_pagecache_read%";
+eval $show_stat;
 select count(*) from t1 where b = 'test1';
 select count(*) from t2 where b = 'test1';
-show status like "maria_pagecache_read%";
+eval $show_stat;
 
 flush tables; flush status;
-show status like "maria_pagecache_read%";
+eval $show_stat;
 load index into cache t3, t2 key (primary,b) ;
-show status like "maria_pagecache_read%";
-
+eval $show_stat;
 flush tables; flush status;
-show status like "maria_pagecache_read%";
+eval $show_stat;
 load index into cache t3 key (b), t2 key (c) ;
-show status like "maria_pagecache_read%";
+eval $show_stat;
 
 drop table t1, t2;
+drop temporary table initial;
 
 # check that Maria didn't use key cache
 show status like "key_read%";
