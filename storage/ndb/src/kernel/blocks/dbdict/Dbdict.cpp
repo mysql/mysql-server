@@ -236,6 +236,8 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_SAVE(c_tableRecordPool);
     RSS_AP_SNAPSHOT_SAVE(c_triggerRecordPool);
     RSS_AP_SNAPSHOT_SAVE(c_obj_pool);
+    RSS_AP_SNAPSHOT_SAVE(c_hash_map_pool);
+    RSS_AP_SNAPSHOT_SAVE(g_hash_map);
   }
 
   if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
@@ -245,6 +247,8 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_CHECK(c_tableRecordPool);
     RSS_AP_SNAPSHOT_CHECK(c_triggerRecordPool);
     RSS_AP_SNAPSHOT_CHECK(c_obj_pool);
+    RSS_AP_SNAPSHOT_CHECK(c_hash_map_pool);
+    RSS_AP_SNAPSHOT_CHECK(g_hash_map);
   }
 
   return;
@@ -346,6 +350,12 @@ void Dbdict::packTableIntoPages(Signal* signal)
     packFileIntoPages(w, fg_ptr, 0);
     break;
   }
+  case DictTabInfo::HashMap:{
+    Ptr<HashMapRecord> hm_ptr;
+    ndbrequire(c_hash_map_hash.find(hm_ptr, tableId));
+    packHashMapIntoPages(w, hm_ptr);
+    break;
+  }
   case DictTabInfo::UndefTableType:
   case DictTabInfo::HashIndexTrigger:
   case DictTabInfo::SubscriptionTrigger:
@@ -424,6 +434,14 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::MinRowsLow, tablePtr.p->minRowsLow);
   w.add(DictTabInfo::MinRowsHigh, tablePtr.p->minRowsHigh);
   w.add(DictTabInfo::SingleUserMode, tablePtr.p->singleUserMode);
+  w.add(DictTabInfo::HashMapObjectId, tablePtr.p->hashMapObjectId);
+
+  if (tablePtr.p->hashMapObjectId != RNIL)
+  {
+    HashMapPtr hm_ptr;
+    ndbrequire(c_hash_map_hash.find(hm_ptr, tablePtr.p->hashMapObjectId));
+    w.add(DictTabInfo::HashMapVersion, hm_ptr.p->m_object_version);
+  }
 
   if(signal)
   {
@@ -1621,6 +1639,7 @@ Dbdict::Dbdict(Block_context& ctx):
   c_schemaTransList(c_schemaTransPool),
   c_schemaTransCount(0),
   c_txHandleHash(c_txHandlePool),
+  c_hash_map_hash(c_hash_map_pool),
   c_opCreateEvent(c_opRecordPool),
   c_opSubEvent(c_opRecordPool),
   c_opDropEvent(c_opRecordPool),
@@ -1804,6 +1823,8 @@ Dbdict::Dbdict(Block_context& ctx):
 
   addRecSignal(GSN_DICT_LOCK_REQ, &Dbdict::execDICT_LOCK_REQ);
   addRecSignal(GSN_DICT_UNLOCK_ORD, &Dbdict::execDICT_UNLOCK_ORD);
+
+  addRecSignal(GSN_CREATE_HASH_MAP_REQ, &Dbdict::execCREATE_HASH_MAP_REQ);
 }//Dbdict::Dbdict()
 
 Dbdict::~Dbdict() 
@@ -2218,7 +2239,12 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_createFileRecPool.setSize(32);
   c_dropFilegroupRecPool.setSize(32);
   c_dropFileRecPool.setSize(32);
-  
+  c_createHashMapRecPool.setSize(32);
+
+  c_hash_map_hash.setSize(4);
+  c_hash_map_pool.setSize(32);
+  g_hash_map.setSize(32);
+
   c_opRecordPool.setSize(256);   // XXX need config params
   c_opCreateEvent.setSize(2);
   c_opSubEvent.setSize(2);
@@ -3100,29 +3126,31 @@ checkSchemaStatus(Uint32 tableType, Uint32 pass)
   case DictTabInfo::IndexTrigger:
     return false;
   case DictTabInfo::LogfileGroup:
-    return pass == 0 || pass == 9 || pass == 10;
+    return pass == 0 || pass == 11 || pass == 12;
   case DictTabInfo::Tablespace:
-    return pass == 1 || pass == 8 || pass == 11;
+    return pass == 1 || pass == 10 || pass == 13;
   case DictTabInfo::Datafile:
   case DictTabInfo::Undofile:
-    return pass == 2 || pass == 7 || pass == 12;
+    return pass == 2 || pass == 9 || pass == 14;
+  case DictTabInfo::HashMap:
+    return pass == 3 || pass == 8 || pass == 15;
   case DictTabInfo::SystemTable:
   case DictTabInfo::UserTable:
-    return /* pass == 3 || pass == 6 || */ pass == 13;
+    return /* pass == 3 || pass == 7 || */ pass == 16;
   case DictTabInfo::UniqueHashIndex:
   case DictTabInfo::HashIndex:
   case DictTabInfo::UniqueOrderedIndex:
   case DictTabInfo::OrderedIndex:
-    return /* pass == 4 || pass == 5 || */ pass == 14;
+    return /* pass == 4 || pass == 6 || */ pass == 17;
   }
-  
+
   return false;
 }
 
-static const Uint32 CREATE_OLD_PASS = 4;
-static const Uint32 DROP_OLD_PASS = 9;
-static const Uint32 CREATE_NEW_PASS = 14;
-static const Uint32 LAST_PASS = 14;
+static const Uint32 CREATE_OLD_PASS = 5;
+static const Uint32 DROP_OLD_PASS = 11;
+static const Uint32 CREATE_NEW_PASS = 17;
+static const Uint32 LAST_PASS = 17;
 
 NdbOut&
 operator<<(NdbOut& out, const SchemaFile::TableEntry entry)
@@ -3139,23 +3167,26 @@ operator<<(NdbOut& out, const SchemaFile::TableEntry entry)
 }
 
 /**
- * Pass 0  Create old LogfileGroup
- * Pass 1  Create old Tablespace
- * Pass 2  Create old Datafile/Undofile
- * Pass 3  Create old Table           // NOT DONE DUE TO DIH
- * Pass 4  Create old Index           // NOT DONE DUE TO DIH
+ * Pass 0 Create old LogfileGroup
+ * Pass 1 Create old Tablespace
+ * Pass 2 Create old Datafile/Undofile
+ * Pass 3 Create old HashMap
+ * Pass 4 Create old Table           // NOT DONE DUE TO DIH
+ * Pass 5 Create old Index           // NOT DONE DUE TO DIH
  
- * Pass 5  Drop old Index             // NOT DONE DUE TO DIH
- * Pass 6  Drop old Table             // NOT DONE DUE TO DIH
- * Pass 7  Drop old Datafile/Undofile
- * Pass 8  Drop old Tablespace
- * Pass 9  Drop old Logfilegroup
+ * Pass 6 Drop old Index             // NOT DONE DUE TO DIH
+ * Pass 7 Drop old Table             // NOT DONE DUE TO DIH
+ * Pass 8 Drop old HashMap
+ * Pass 9 Drop old Datafile/Undofile
+ * Pass 10 Drop old Tablespace
+ * Pass 11 Drop old Logfilegroup
  
- * Pass 10 Create new LogfileGroup
- * Pass 11 Create new Tablespace
- * Pass 12 Create new Datafile/Undofile
- * Pass 13 Create new Table
- * Pass 14 Create new Index
+ * Pass 12 Create new LogfileGroup
+ * Pass 13 Create new Tablespace
+ * Pass 14 Create new Datafile/Undofile
+ * Pass 15 Create new HashMap
+ * Pass 16 Create new Table
+ * Pass 17 Create new Index
  */
 
 void Dbdict::checkSchemaStatus(Signal* signal) 
@@ -3658,6 +3689,12 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   case DictTabInfo::LogfileGroup:
   {
     Ptr<CreateFilegroupRec> opRecPtr;
+    seizeSchemaOp(op_ptr, opRecPtr);
+    break;
+  }
+  case DictTabInfo::HashMap:
+  {
+    Ptr<CreateHashMapRec> opRecPtr;
     seizeSchemaOp(op_ptr, opRecPtr);
     break;
   }
@@ -4172,6 +4209,43 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->defaultNoPartFlag = c_tableDesc.DefaultNoPartFlag; 
   tablePtr.p->linearHashFlag = c_tableDesc.LinearHashFlag; 
   tablePtr.p->singleUserMode = c_tableDesc.SingleUserMode;
+  tablePtr.p->hashMapObjectId = c_tableDesc.HashMapObjectId;
+  tablePtr.p->hashMapVersion = c_tableDesc.HashMapVersion;
+
+  if (tablePtr.p->fragmentType == DictTabInfo::HashMapPartition &&
+      tablePtr.p->hashMapObjectId == RNIL)
+  {
+    Uint32 fragments = tablePtr.p->fragmentCount;
+    if (fragments == 0)
+    {
+      jam();
+      fragments = c_numberNode;
+    }
+    char buf[MAX_TAB_NAME_SIZE+1];
+    BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
+                         NDB_DEFAULT_HASHMAP_BUCKTETS,
+                         fragments);
+    DictObject* dictObj = get_object(buf);
+    if (dictObj && dictObj->m_type == DictTabInfo::HashMap)
+    {
+      jam();
+      HashMapPtr hm_ptr;
+      ndbrequire(c_hash_map_hash.find(hm_ptr, dictObj->m_id));
+      tablePtr.p->hashMapObjectId = hm_ptr.p->m_object_id;
+      tablePtr.p->hashMapVersion = hm_ptr.p->m_object_version;
+    }
+  }
+
+  if (tablePtr.p->fragmentType == DictTabInfo::HashMapPartition)
+  {
+    jam();
+    HashMapPtr hm_ptr;
+    tabRequire(c_hash_map_hash.find(hm_ptr, tablePtr.p->hashMapObjectId),
+               CreateTableRef::InvalidTablespace);
+
+    tabRequire(hm_ptr.p->m_object_version ==  tablePtr.p->hashMapVersion,
+               CreateTableRef::InvalidTablespace);
+  }
   
   {
     Rope frm(c_rope_pool, tablePtr.p->frmData);
@@ -4713,6 +4787,19 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     frag_req->noOfFragments = tabPtr.p->fragmentCount;
     frag_req->fragmentationType = tabPtr.p->fragmentType;
 
+    if (tabPtr.p->hashMapObjectId != RNIL)
+    {
+      jam();
+      HashMapPtr hm_ptr;
+      ndbrequire(c_hash_map_hash.find(hm_ptr, tabPtr.p->hashMapObjectId));
+      frag_req->map_ptr_i = hm_ptr.p->m_map_ptr_i;
+    }
+    else
+    {
+      jam();
+      frag_req->map_ptr_i = RNIL;
+    }
+
     Uint32* frag_data32 = &signal->theData[25];
     Uint16* frag_data = (Uint16*)frag_data32;
     MEMCOPY_NO_WORDS(frag_data, c_fragData, c_fragDataLen);
@@ -5249,6 +5336,17 @@ Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
   req->temporaryTable = !!(tabPtr.p->m_bits & TableRecord::TR_Temporary);
   // no transaction for restart tab (should add one)
   req->schemaTransId = !trans_ptr.isNull() ? trans_ptr.p->m_transId : 0;
+
+  if (tabPtr.p->hashMapObjectId != RNIL)
+  {
+    HashMapPtr hm_ptr;
+    ndbrequire(c_hash_map_hash.find(hm_ptr, tabPtr.p->hashMapObjectId));
+    req->hashMapPtrI = hm_ptr.p->m_map_ptr_i;
+  }
+  else
+  {
+    req->hashMapPtrI = RNIL;
+  }
 
   // fragmentation in long signal section
   {
@@ -8021,7 +8119,7 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
       conf->counter++;
       pos = 0;
     }
-    
+
     if (! reqListNames)
       continue;
     
@@ -8217,6 +8315,13 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     if (DictTabInfo::isFile(type)){
       jam();
       ltd.requestData = 0;
+      ltd.setTableId(iter.curr.p->m_id);
+      ltd.setTableType(type); // type
+      ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
+    }
+    if (DictTabInfo::isHashMap(type))
+    {
+      jam();
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type); // type
       ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
@@ -8556,7 +8661,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
     switch (impl_req->indexType) {
     case DictTabInfo::UniqueHashIndex:
       jam();
-      createIndexPtr.p->m_fragmentType = DictTabInfo::DistrKeyUniqueHashIndex;
+      createIndexPtr.p->m_fragmentType = DictTabInfo::HashMapPartition;
       break;
     case DictTabInfo::OrderedIndex:
       jam();
@@ -17596,6 +17701,7 @@ Dbdict::g_opInfoList[] = {
   &Dbdict::CreateFileRec::g_opInfo,
   &Dbdict::DropFilegroupRec::g_opInfo,
   &Dbdict::DropFileRec::g_opInfo,
+  &Dbdict::CreateHashMapRec::g_opInfo,
   0
 };
 
@@ -19173,6 +19279,7 @@ Dbdict::trans_rollback_sp_start(Signal* signal, SchemaTransPtr trans_ptr)
 
     const OpInfo& info = getOpInfo(op_ptr);
     (this->*(info.m_abortParse))(signal, op_ptr);
+    trans_log_schema_op_abort(op_ptr);
     return;
   }
 
@@ -20737,6 +20844,580 @@ Dbdict::findCallback(Callback& callback, Uint32 any_key)
   callback.m_callbackData = 0;
   return false;
 }
+
+// MODULE: CreateHashMap
+
+ArrayPool<Hash2FragmentMap> g_hash_map;
+
+const Dbdict::OpInfo
+Dbdict::CreateHashMapRec::g_opInfo = {
+  { 'C', 'H', 'M', 0 },
+  GSN_CREATE_HASH_MAP_REQ,
+  CreateHashMapReq::SignalLength,
+  //
+  &Dbdict::createHashMap_seize,
+  &Dbdict::createHashMap_release,
+  //
+  &Dbdict::createHashMap_parse,
+  &Dbdict::createHashMap_subOps,
+  &Dbdict::createHashMap_reply,
+  //
+  &Dbdict::createHashMap_prepare,
+  &Dbdict::createHashMap_commit,
+  &Dbdict::createHashMap_complete,
+  //
+  &Dbdict::createHashMap_abortParse,
+  &Dbdict::createHashMap_abortPrepare
+};
+
+bool
+Dbdict::createHashMap_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<CreateHashMapRec>(op_ptr);
+}
+
+void
+Dbdict::createHashMap_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<CreateHashMapRec>(op_ptr);
+}
+
+void
+Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const CreateHashMapReq req_copy =
+    *(const CreateHashMapReq*)signal->getDataPtr();
+  const CreateHashMapReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    CreateHashMapRecPtr createHashMapPtr;
+    CreateHashMapImplReq* impl_req;
+
+    startClientReq(op_ptr, createHashMapPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->objectId = RNIL;
+    impl_req->objectVersion = 0;
+    impl_req->buckets = req->buckets;
+    impl_req->fragments = req->fragments;
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  CreateHashMapRef* ref = (CreateHashMapRef*)signal->getDataPtrSend();
+
+  ref->senderRef = reference();
+  ref->senderData= req->clientData;
+  ref->transId = req->transId;
+  getError(error, ref);
+
+  sendSignal(req->clientRef, GSN_CREATE_HASH_MAP_REF, signal,
+             CreateHashMapRef::SignalLength, JBB);
+}
+
+// CreateHashMap: PARSE
+
+void
+Dbdict::createHashMap_parse(Signal* signal, bool master,
+                            SchemaOpPtr op_ptr,
+                            SectionHandle& handle, ErrorInfo& error)
+{
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateHashMapRecPtr createHashMapPtr;
+  getOpRec(op_ptr, createHashMapPtr);
+  CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+
+  jam();
+
+  SegmentedSectionPtr objInfoPtr;
+  DictHashMapInfo::HashMap hm; hm.init();
+  if (handle.m_cnt)
+  {
+    SimpleProperties::UnpackStatus status;
+
+    handle.getSection(objInfoPtr, CreateHashMapReq::INFO);
+    SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
+    status = SimpleProperties::unpack(it, &hm,
+				      DictHashMapInfo::Mapping,
+				      DictHashMapInfo::MappingSize,
+				      true, true);
+
+    if (ERROR_INSERTED(6204))
+    {
+      jam();
+      CLEAR_ERROR_INSERT_VALUE;
+      setError(error, 1, __LINE__);
+      return;
+    }
+
+    if (status != SimpleProperties::Eof)
+    {
+      jam();
+      setError(error, CreateTableRef::InvalidFormat, __LINE__);
+      return;
+    }
+  }
+  else if (!master)
+  {
+    jam();
+    setError(error, CreateTableRef::InvalidFormat, __LINE__);
+    return;
+  }
+  else
+  {
+    /**
+     * Convienienc branch...(only master)
+     * No info, create "default"
+     */
+    jam();
+    Uint32 buckets = impl_req->buckets;
+    Uint32 fragments = impl_req->fragments;
+    if (fragments == 0)
+    {
+      jam();
+      fragments = c_numberNode;
+    }
+    BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName),
+                         "DEFAULT-HASHMAP-%u-%u",
+                         buckets,
+                         fragments);
+
+    if (buckets == 0 || buckets > Hash2FragmentMap::MAX_MAP)
+    {
+      jam();
+      setError(error, CreateTableRef::InvalidFormat, __LINE__);
+      return;
+    }
+
+    hm.HashMapBuckets = buckets;
+    for (Uint32 i = 0; i<buckets; i++)
+    {
+      hm.HashMapValues[i] = (i % fragments);
+    }
+
+    /**
+     * pack is stupid...and requires bytes!
+     * we store shorts...so multiply by 2
+     */
+    hm.HashMapBuckets *= sizeof(Uint16);
+    SimpleProperties::UnpackStatus s;
+    SimplePropertiesSectionWriter w(getSectionSegmentPool());
+    s = SimpleProperties::pack(w,
+                               &hm,
+                               DictHashMapInfo::Mapping,
+                               DictHashMapInfo::MappingSize, true);
+    ndbrequire(s == SimpleProperties::Eof);
+    w.getPtr(objInfoPtr);
+  }
+
+  Uint32 len = strlen(hm.HashMapName) + 1;
+  Uint32 hash = Rope::hash(hm.HashMapName, len);
+
+  if (ERROR_INSERTED(6205))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 1, __LINE__);
+    return;
+  }
+
+  if(get_object(hm.HashMapName, len, hash) != 0)
+  {
+    jam();
+    setError(error, CreateTableRef::TableAlreadyExist, __LINE__);
+    return;
+  }
+
+  if (ERROR_INSERTED(6206))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 1, __LINE__);
+    return;
+  }
+
+  RopeHandle name;
+  {
+    Rope tmp(c_rope_pool, name);
+    if(!tmp.assign(hm.HashMapName, len, hash))
+    {
+      jam();
+      setError(error, CreateTableRef::OutOfStringBuffer, __LINE__);
+      return;
+    }
+  }
+
+  Uint32 objId = RNIL;
+  Uint32 objVersion = RNIL;
+  Uint32 errCode = 0;
+  Uint32 errLine = 0;
+  DictObjectPtr obj_ptr; obj_ptr.setNull();
+  HashMapPtr hm_ptr; hm_ptr.setNull();
+  Ptr<Hash2FragmentMap> map_ptr; map_ptr.setNull();
+
+  if (master)
+  {
+    jam();
+
+    if (ERROR_INSERTED(6207))
+    {
+      jam();
+      CLEAR_ERROR_INSERT_VALUE;
+      setError(error, 1, __LINE__);
+      goto error;
+    }
+
+    objId = impl_req->objectId = getFreeObjId(0);
+    if (objId == RNIL)
+    {
+      jam();
+      errCode = CreateTableRef::NoMoreTableRecords;
+      errLine = __LINE__;
+      goto error;
+    }
+
+    Uint32 version = getTableEntry(impl_req->objectId)->m_tableVersion;
+    impl_req->objectVersion = create_obj_inc_schema_version(version);
+  }
+  else if (op_ptr.p->m_restart)
+  {
+    impl_req->objectId = c_restartRecord.activeTable;
+    impl_req->objectVersion=c_restartRecord.m_entry.m_tableVersion;
+  }
+
+  objId = impl_req->objectId;
+  objVersion = impl_req->objectVersion;
+
+  if (ERROR_INSERTED(6208))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 1, __LINE__);
+    goto error;
+  }
+
+  if(!c_obj_pool.seize(obj_ptr))
+  {
+    jam();
+    errCode = CreateTableRef::NoMoreTableRecords;
+    errLine = __LINE__;
+    goto error;
+  }
+
+  new (obj_ptr.p) DictObject;
+  obj_ptr.p->m_id = objId;
+  obj_ptr.p->m_type = DictTabInfo::HashMap;
+  obj_ptr.p->m_ref_count = 0;
+  obj_ptr.p->m_name = name;
+  c_obj_hash.add(obj_ptr);
+
+  if (ERROR_INSERTED(6209))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 1, __LINE__);
+    goto error;
+  }
+
+  if (!g_hash_map.seize(map_ptr))
+  {
+    jam();
+    errCode = CreateTableRef::NoMoreTableRecords;
+    errLine = __LINE__;
+    goto error;
+  }
+
+  if (ERROR_INSERTED(6210))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 1, __LINE__);
+    goto error;
+  }
+
+  if(!c_hash_map_pool.seize(hm_ptr))
+  {
+    jam();
+    errCode = CreateTableRef::NoMoreTableRecords;
+    errLine = __LINE__;
+    goto error;
+  }
+
+  new (hm_ptr.p) HashMapRecord();
+
+  hm_ptr.p->m_object_id = objId;
+  hm_ptr.p->m_object_version = objVersion;
+  hm_ptr.p->m_name = name;
+  hm_ptr.p->m_obj_ptr_i = obj_ptr.i;
+  hm_ptr.p->m_map_ptr_i = map_ptr.i;
+  c_hash_map_hash.add(hm_ptr);
+
+  /**
+   * pack is stupid...and requires bytes!
+   * we store shorts...so divide by 2
+   */
+  hm.HashMapBuckets /= sizeof(Uint16);
+
+  map_ptr.p->m_cnt = hm.HashMapBuckets;
+  map_ptr.p->m_object_id = objId;
+  {
+    Uint32 tmp = 0;
+    for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
+    {
+      map_ptr.p->m_map[i] = hm.HashMapValues[i];
+      if (hm.HashMapValues[i] > tmp)
+        tmp = hm.HashMapValues[i];
+    }
+    map_ptr.p->m_fragments = tmp + 1;
+  }
+
+  if (ERROR_INSERTED(6211))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(error, 1, __LINE__);
+    goto error;
+  }
+
+  {
+    SchemaFile::TableEntry te; te.init();
+    te.m_tableState = SchemaFile::SF_CREATE;
+    te.m_tableVersion = objVersion;
+    te.m_tableType = obj_ptr.p->m_type;
+    te.m_info_words = objInfoPtr.sz;
+    te.m_gcp = 0;
+    te.m_transId = trans_ptr.p->m_transId;
+
+    Uint32 err = trans_log_schema_op(op_ptr, objId, &te);
+    ndbrequire(err == 0);
+  }
+
+  saveOpSection(op_ptr, objInfoPtr, 0);
+  handle.m_ptr[CreateHashMapReq::INFO] = objInfoPtr;
+  handle.m_cnt = 1;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d",
+           hm.HashMapName, objId, hm_ptr.p->m_obj_ptr_i);
+#endif
+
+  return;
+
+error:
+  ndbrequire(hasError(error));
+
+  if (!hm_ptr.isNull())
+  {
+    jam();
+    c_hash_map_hash.release(hm_ptr);
+  }
+
+  if (!map_ptr.isNull())
+  {
+    jam();
+    g_hash_map.release(map_ptr);
+  }
+
+  if (!obj_ptr.isNull())
+  {
+    jam();
+    release_object(obj_ptr.i);
+  }
+  else
+  {
+    jam();
+    Rope tmp(c_rope_pool, name);
+    tmp.erase();
+  }
+}
+
+void
+Dbdict::createHashMap_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createHashMap_abortParse" << *op_ptr.p);
+
+  if (op_ptr.p->m_orig_entry_id != RNIL)
+  {
+    jam();
+
+    CreateHashMapRecPtr createHashMapPtr;
+    getOpRec(op_ptr, createHashMapPtr);
+    CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+
+    Ptr<HashMapRecord> hm_ptr;
+    ndbrequire(c_hash_map_hash.find(hm_ptr, impl_req->objectId));
+
+    release_object(hm_ptr.p->m_obj_ptr_i);
+    g_hash_map.release(hm_ptr.p->m_map_ptr_i);
+    c_hash_map_hash.release(hm_ptr);
+  }
+
+  // wl3600_todo probably nothing..
+
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::createHashMap_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  return false;
+}
+
+void
+Dbdict::createHashMap_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  jam();
+  D("createHashMap_reply");
+
+  SchemaTransPtr& trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateHashMapRecPtr createHashMapPtr;
+  getOpRec(op_ptr, createHashMapPtr);
+  const CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+
+  if (!hasError(error)) {
+    CreateHashMapConf* conf = (CreateHashMapConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->objectId = impl_req->objectId;
+    conf->objectVersion = impl_req->objectVersion;
+
+    D(V(conf->objectId) << V(conf->objectVersion));
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_HASH_MAP_CONF, signal,
+               CreateHashMapConf::SignalLength, JBB);
+  } else {
+    jam();
+    CreateHashMapRef* ref = (CreateHashMapRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_HASH_MAP_REF, signal,
+               CreateHashMapRef::SignalLength, JBB);
+  }
+}
+
+// CreateHashMap: PREPARE
+
+void
+Dbdict::createHashMap_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  D("createHashMap_prepare");
+
+  CreateHashMapRecPtr createHashMapPtr;
+  getOpRec(op_ptr, createHashMapPtr);
+  CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+
+  Callback cb;
+  cb.m_callbackData = op_ptr.p->op_key;
+  cb.m_callbackFunction = safe_cast(&Dbdict::createHashMap_writeObjConf);
+
+  const OpSection& tabInfoSec = getOpSection(op_ptr, 0);
+  writeTableFile(signal, impl_req->objectId, tabInfoSec, &cb);
+}
+
+void
+Dbdict::createHashMap_writeObjConf(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  CreateHashMapRecPtr createHashMapPtr;
+  findSchemaOp(op_ptr, createHashMapPtr, op_key);
+
+  ndbrequire(!op_ptr.isNull());
+
+  sendTransConf(signal, op_ptr);
+}
+
+// CreateHashMap: COMMIT
+
+void
+Dbdict::createHashMap_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  D("createHashMap_commit");
+
+  CreateHashMapRecPtr createHashMapPtr;
+  getOpRec(op_ptr, createHashMapPtr);
+
+  sendTransConf(signal, op_ptr);
+}
+
+// CreateHashMap: COMPLETE
+
+void
+Dbdict::createHashMap_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+// CreateHashMap: ABORT
+
+void
+Dbdict::createHashMap_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createHashMap_abortPrepare" << *op_ptr.p);
+  // wl3600_todo
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::packHashMapIntoPages(SimpleProperties::Writer & w,
+                             Ptr<HashMapRecord> hm_ptr)
+{
+  DictHashMapInfo::HashMap hm; hm.init();
+
+  Ptr<Hash2FragmentMap> map_ptr;
+  g_hash_map.getPtr(map_ptr, hm_ptr.p->m_map_ptr_i);
+
+  ConstRope r(c_rope_pool, hm_ptr.p->m_name);
+  r.copy(hm.HashMapName);
+  hm.HashMapBuckets = map_ptr.p->m_cnt;
+  hm.HashMapObjectId = hm_ptr.p->m_object_id;
+  hm.HashMapVersion = hm_ptr.p->m_object_version;
+
+  for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
+  {
+    hm.HashMapValues[i] = map_ptr.p->m_map[i];
+  }
+
+  /**
+   * pack is stupid...and requires bytes!
+   * we store shorts...so multiply by 2
+   */
+  hm.HashMapBuckets *= sizeof(Uint16);
+  SimpleProperties::UnpackStatus s;
+  s = SimpleProperties::pack(w,
+			     &hm,
+			     DictHashMapInfo::Mapping,
+			     DictHashMapInfo::MappingSize, true);
+
+  ndbrequire(s == SimpleProperties::Eof);
+}
+
+// CreateHashMap: END
+
 
 // MODULE: debug
 

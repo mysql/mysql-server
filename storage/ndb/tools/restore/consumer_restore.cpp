@@ -653,6 +653,45 @@ BackupRestore::object(Uint32 type, const void * ptr)
     return true;
     break;
   }
+  case DictTabInfo::HashMap:
+  {
+    NdbDictionary::HashMap old(*(NdbDictionary::HashMap*)ptr);
+
+    Uint32 id = old.getObjectId();
+
+    if (m_restore_meta)
+    {
+      int ret = dict->createHashMap(old);
+      if (ret == 0)
+      {
+        info << "Created hashmap: " << old.getName() << endl;
+      }
+    }
+
+    NdbDictionary::HashMap curr;
+    if (dict->getHashMap(curr, old.getName()) == 0)
+    {
+      NdbDictionary::HashMap* currptr =
+        new NdbDictionary::HashMap(curr);
+      NdbDictionary::HashMap * null = 0;
+      m_hashmaps.set(currptr, id, null);
+      debug << "Retreived hashmap: " << currptr->getName()
+            << " oldid: " << id << " newid: " << currptr->getObjectId()
+            << " " << (void*)currptr << endl;
+      return true;
+    }
+
+    NdbError errobj = dict->getNdbError();
+    err << "Failed to retrieve hashmap \"" << old.getName() << "\": "
+	<< errobj << endl;
+
+    return false;
+  }
+  default:
+  {
+    err << "Unknown object type: " << type << endl;
+    break;
+  }
   }
   return true;
 }
@@ -1088,8 +1127,17 @@ BackupRestore::table(const TableS & table){
       debug << " newid: " << ts->getObjectId() << endl;
       copy.setTablespace(* ts);
     }
-    
-    if (copy.getDefaultNoPartitionsFlag())
+
+    if (copy.getFragmentType() == NdbDictionary::Object::HashMapPartition)
+    {
+      Uint32 id;
+      if (copy.getHashMap(&id))
+      {
+        NdbDictionary::HashMap * hm = m_hashmaps[id];
+        copy.setHashMap(* hm);
+      }
+    }
+    else if (copy.getDefaultNoPartitionsFlag())
     {
       /*
         Table was defined with default number of partitions. We can restore
@@ -2412,3 +2460,4 @@ template class Vector<NdbDictionary::Table*>;
 template class Vector<const NdbDictionary::Table*>;
 template class Vector<NdbDictionary::Tablespace*>;
 template class Vector<NdbDictionary::LogfileGroup*>;
+template class Vector<NdbDictionary::HashMap*>;

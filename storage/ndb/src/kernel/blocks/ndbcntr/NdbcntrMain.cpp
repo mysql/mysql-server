@@ -22,6 +22,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateTable.hpp>
+#include <signaldata/CreateHashMap.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/TcKeyReq.hpp>
@@ -1842,12 +1843,51 @@ void Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
   ndbrequire(conf->transId == c_schemaTransId);
   c_schemaTransKey = conf->transKey;
 
-  createSystableLab(signal, 0);
+  createHashMap(signal, 0);
 }
 
 void Ndbcntr::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
 {
   ndbrequire(false);
+}
+
+void
+Ndbcntr::createHashMap(Signal* signal, Uint32 idx)
+{
+  CreateHashMapReq* const req = (CreateHashMapReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->clientData = idx;
+  req->requestInfo = 0;
+  req->transId = c_schemaTransId;
+  req->transKey = c_schemaTransKey;
+  req->buckets = 240;
+  req->fragments = (1 + idx) * c_allDefinedNodes.count();
+  sendSignal(DBDICT_REF, GSN_CREATE_HASH_MAP_REQ, signal,
+	     CreateHashMapReq::SignalLength, JBB);
+}
+
+void
+Ndbcntr::execCREATE_HASH_MAP_REF(Signal* signal)
+{
+  jamEntry();
+
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::execCREATE_HASH_MAP_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateHashMapConf* conf = (CreateHashMapConf*)signal->getDataPtrSend();
+
+  if (conf->senderData == 0)
+  {
+    jam();
+    c_hashMapId = conf->objectId;
+    c_hashMapVersion = conf->objectVersion;
+  }
+
+  createSystableLab(signal, 0);
 }
 
 void Ndbcntr::endSchemaTransLab(Signal* signal)
@@ -1902,6 +1942,8 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
   //w.add(DictTabInfo::KeyLength, 1);
   w.add(DictTabInfo::TableTypeVal, (Uint32)table.tableType);
   w.add(DictTabInfo::SingleUserMode, (Uint32)NDB_SUM_READ_WRITE);
+  w.add(DictTabInfo::HashMapObjectId, c_hashMapId);
+  w.add(DictTabInfo::HashMapVersion, c_hashMapVersion);
 
   for (unsigned i = 0; i < table.columnCount; i++) {
     const SysColumn& column = table.columnList[i];
