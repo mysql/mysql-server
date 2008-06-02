@@ -68,7 +68,9 @@ REGRESSION_TESTS = \
 	log-test5 \
 	log-test6 \
 	memtest \
+	omt-cursor-test \
 	omt-test \
+	shortcut \
 	test-assert \
 	test-brt-delete-both \
 	test-brt-overflow \

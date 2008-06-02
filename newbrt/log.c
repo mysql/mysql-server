@@ -1039,7 +1039,7 @@ int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
 static int remove_brt (OMTVALUE txnv, u_int32_t UU(idx), void *brtv) {
     TOKUTXN txn = txnv;
     BRT     brt = brtv;
-    OMTVALUE brtv_again=0;  // TODO BBB This is not entirely safe. Verify initialization needed.
+    OMTVALUE brtv_again=NULL;
     u_int32_t index;
     int r = toku_omt_find_zero(txn->open_brts, find_filenum, brt, &brtv_again, &index, NULL);
     assert(r==0);
@@ -1058,7 +1058,7 @@ int toku_txn_note_close_brt (BRT brt) {
 static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     BRT brt     = brtv;
     TOKUTXN txn = txnv;
-    OMTVALUE txnv_again=0; // TODO BBB This is not entirely safe. Verify initialization needed.
+    OMTVALUE txnv_again=NULL;
     u_int32_t index;
     int r = toku_omt_find_zero(brt->txns, find_ptr, txn, &txnv_again, &index, NULL);
     assert(r==0);
