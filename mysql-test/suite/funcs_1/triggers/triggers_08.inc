@@ -4,6 +4,9 @@
 # (test case numbering refer to requirement document TP v1.1)
 #======================================================================
 
+USE test;
+--source suite/funcs_1/include/tb3.inc
+
 # General setup for Trigger tests
 let $message= Testcase: 3.5:;
 --source include/show_msg.inc
@@ -56,16 +59,19 @@ let $message= Testcase 3.5.8.3/4:;
 	grant SELECT, INSERT, UPDATE, DELETE on db_test.* to test_general;
 	grant LOCK TABLES on db_test.* to test_general;
 	Use db_test;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1_i (
 		i120 char ascii not null DEFAULT b'101',
 		i136 smallint zerofill not null DEFAULT 999,
 		i144 int zerofill not null DEFAULT 99999,
 		i163 decimal (63,30)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1_u (
 		u120 char ascii not null DEFAULT b'101',
 		u136 smallint zerofill not null DEFAULT 999,
 		u144 int zerofill not null DEFAULT 99999,
 		u163 decimal (63,30)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1_d (
 		d120 char ascii not null DEFAULT b'101',
 		d136 smallint zerofill not null DEFAULT 999,
@@ -549,4 +555,4 @@ let $message= Testcase 3.5.8.7;
 	drop user test_general;
 	drop user test_super@localhost;
 
-
+DROP TABLE test.tb3;
