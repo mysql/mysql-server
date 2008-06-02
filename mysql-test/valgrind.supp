@@ -379,6 +379,15 @@
 }
 
 {
+   dlclose memory loss from plugin
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:plugin_dl_del
+}
+
+{
    dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 64 bit
    Memcheck:Leak
    fun:*alloc

@@ -88,10 +88,8 @@ my_bool _ma_setup_live_state(MARIA_HA *info)
     It's enough to compare trids here (instead of calling
     tranman_can_read_from) as history->trid is a commit_trid
   */
-  DBUG_PRINT("QQ", ("trn->trid: 0x%lu", (long) trn->trid));
   while (trn->trid < history->trid)
     history= history->next;
-  DBUG_PRINT("QQ", ("his->trid: 0x%lu", (long) history->trid));
   pthread_mutex_unlock(&share->intern_lock);
   /* The current item can't be deleted as it's the first one visible for us */
   tables->state_start=  tables->state_current= history->state;
@@ -349,10 +347,12 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
       {
         if (!(history= my_malloc(sizeof(*history), MYF(MY_WME))))
         {
+          /* purecov: begin inspected */
+          error= 1;
           pthread_mutex_unlock(&share->intern_lock);
           my_free(tables, MYF(0));
-          error= 1;
           continue;
+          /* purecov: end */
         }
         history->state= share->state_history->state;
         history->next= share->state_history;

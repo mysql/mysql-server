@@ -91,7 +91,7 @@ int maria_delete_all_rows(MARIA_HA *info)
 
 #ifdef HAVE_MMAP
   if (share->file_map)
-    _mi_unmap_file(info);
+    _ma_unmap_file(info);
 #endif
 
   if (_ma_flush_table_files(info, MARIA_FLUSH_DATA|MARIA_FLUSH_INDEX,
