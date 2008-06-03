@@ -2,15 +2,49 @@
 
 #include <errno.h>
 #include <sys/types.h>
+#include <stdint.h>
 
 typedef void *OMTVALUE;
 #include "omt.h"
-#include "omt-internal.h"
 #include "../newbrt/memory.h"
 #include "../newbrt/toku_assert.h"
 #include "../include/db.h"
 #include "../newbrt/brttypes.h"
 
+typedef u_int32_t node_idx;
+static const node_idx NODE_NULL = UINT32_MAX;
+
+typedef struct omt_node *OMT_NODE;
+struct omt_node {
+    u_int32_t weight; /* Size of subtree rooted at this node (including this one). */
+    node_idx  left;   /* Index of left  subtree. */
+    node_idx  right;  /* Index of right subtree. */
+    OMTVALUE  value;  /* The value stored in the node. */
+};
+
+struct omt {
+    node_idx   root;
+
+    u_int32_t  node_capacity;
+    OMT_NODE   nodes;
+    node_idx   free_idx;
+
+    u_int32_t  tmparray_size;
+    node_idx*  tmparray;
+
+    OMTCURSOR  associated; // the OMTs associated with this.
+};
+
+struct omt_cursor {
+    OMT omt;   // The omt this cursor is associated with.  NULL if not present.
+    u_int32_t max_pathlen; //Max (root to leaf) path length;
+    u_int32_t pathlen;     //Length of current path
+    node_idx *path;
+    OMTCURSOR next,prev; // circular linked list of all OMTCURSORs associated with omt.
+};
+
+//Initial max size of root-to-leaf path
+static const u_int32_t TOKU_OMTCURSOR_INITIAL_SIZE = 4;
 
 static int omt_create_internal(OMT *omtp, u_int32_t num_starting_nodes) {
     if (num_starting_nodes < 2) num_starting_nodes = 2;
@@ -31,6 +65,7 @@ static int omt_create_internal(OMT *omtp, u_int32_t num_starting_nodes) {
         return errno;
     }
     result->free_idx = 0;
+    result->associated = NULL;
     *omtp = result;
     return 0;
 }
@@ -39,8 +74,74 @@ int toku_omt_create (OMT *omtp) {
     return omt_create_internal(omtp, 2);
 }
 
+int toku_omt_cursor_create (OMTCURSOR *omtcp) {
+    OMTCURSOR MALLOC(c);
+    if (c==NULL) return errno;
+    c->omt = NULL;
+    c->next = c->prev = NULL;
+    c->max_pathlen    = TOKU_OMTCURSOR_INITIAL_SIZE;
+    c->pathlen        = 0;
+    MALLOC_N(c->max_pathlen, c->path); 
+    if (c->path==NULL) {
+        toku_free(c);
+        return errno;
+    }
+    *omtcp = c;
+    return 0;
+}
+
+void toku_omt_cursor_invalidate (OMTCURSOR c) {
+    if (c==NULL || c->omt==NULL) return;
+    if (c->next == c) {
+	// It's the last one.
+	c->omt->associated = NULL;
+    } else {
+	OMTCURSOR next = c->next;
+	OMTCURSOR prev = c->prev;
+	if (c->omt->associated == c) {
+	    c->omt->associated = next;
+	}
+	next->prev = prev;
+	prev->next = next;
+    }
+    c->next = c->prev = NULL;
+    c->omt = NULL;
+}
+
+void toku_omt_cursor_destroy (OMTCURSOR *p) {
+    toku_omt_cursor_invalidate(*p);
+    toku_free((*p)->path);
+    toku_free(*p);
+    *p = NULL;
+}
+
+static void invalidate_cursors (OMT omt) {
+    OMTCURSOR assoced;
+    while ((assoced = omt->associated)) {
+	toku_omt_cursor_invalidate(assoced);
+    }
+}
+
+static void associate (OMT omt, OMTCURSOR c)
+{
+    if (c->omt==omt) return;
+    toku_omt_cursor_invalidate(c);
+    if (omt->associated==NULL) {
+	c->prev = c;
+	c->next = c;
+	omt->associated = c;
+    } else {
+	c->prev = omt->associated->prev;
+	c->next = omt->associated;
+	omt->associated->prev->next = c;
+	omt->associated->prev = c;
+    }
+    c->omt = omt;
+}
+
 void toku_omt_destroy(OMT *omtp) {
     OMT omt=*omtp;
+    invalidate_cursors(omt);
     toku_free(omt->nodes);
     toku_free(omt->tmparray);
     toku_free(omt);
@@ -242,7 +343,8 @@ static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_
 
 int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index) {
     int r;
-    if (index>nweight(omt, omt->root)) return ERANGE;
+    invalidate_cursors(omt);
+    if (index>nweight(omt, omt->root)) return EINVAL;
     if ((r=maybe_resize_and_rebuild(omt, 1+nweight(omt, omt->root), MAYBE_REBUILD))) return r;
     node_idx* rebalance_idx = NULL;
     insert_internal(omt, &omt->root, value, index, &rebalance_idx);
@@ -263,7 +365,7 @@ static inline void set_at_internal(OMT omt, node_idx n_idx, OMTVALUE v, u_int32_
 }
 
 int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index) {
-    if (index>=nweight(omt, omt->root)) return ERANGE;
+    if (index>=nweight(omt, omt->root)) return EINVAL;
     set_at_internal(omt, omt->root, value, index);
     return 0;
 }
@@ -310,7 +412,8 @@ static inline void delete_internal(OMT omt, node_idx *n_idxp, u_int32_t index, O
 int toku_omt_delete_at(OMT omt, u_int32_t index) {
     OMTVALUE v;
     int r;
-    if (index>=nweight(omt, omt->root)) return ERANGE;
+    invalidate_cursors(omt);
+    if (index>=nweight(omt, omt->root)) return EINVAL;
     if ((r=maybe_resize_and_rebuild(omt, -1+nweight(omt, omt->root), MAYBE_REBUILD))) return r;
     node_idx* rebalance_idx = NULL;
     delete_internal(omt, &omt->root, index, &v, &rebalance_idx);
@@ -318,7 +421,12 @@ int toku_omt_delete_at(OMT omt, u_int32_t index) {
     return 0;
 }
 
-static int omtcursor_stack_push(OMTCURSOR c, node_idx idx) {
+static inline void omtcursor_stack_pop(OMTCURSOR c) {
+    assert(c->pathlen);
+    c->pathlen--;
+}
+
+static inline int omtcursor_stack_push(OMTCURSOR c, node_idx idx) {
     if (c->max_pathlen-1<=c->pathlen) {
         //Increase max_pathlen
         u_int32_t new_max = c->max_pathlen*2;
@@ -331,46 +439,31 @@ static int omtcursor_stack_push(OMTCURSOR c, node_idx idx) {
     return 0;
 }
 
-static node_idx omtcursor_stack_peek(OMTCURSOR c) {
+static inline node_idx omtcursor_stack_peek(OMTCURSOR c) {
     return c->path[c->pathlen-1];
 }
 
-static node_idx omtcursor_stack_pop(OMTCURSOR c) {
-    assert(c->pathlen);
-    node_idx value = omtcursor_stack_peek(c);;
-    c->pathlen--;
-    return value;
-}
-
-static void omtcursor_associate(OMTCURSOR c, OMT omt) {
-    c->omt     = omt;
-    c->pathlen = 0;
-}
-
 static inline int fetch_internal(OMT V, node_idx idx, u_int32_t i, OMTVALUE *v, OMTCURSOR c) {
-    int r;
-    // Add the current index to the cursor path
-    if (c!=NULL && (r=omtcursor_stack_push(c, idx))) return r;
-
-    /* Find the node corresponding to index idx */
     OMT_NODE n = V->nodes+idx;
-
-    /* Visit recursively the appropriate sub-tree */
+    int r;
+    if (c!=NULL && (r=omtcursor_stack_push(c, idx))) return r;
     if (i < nweight(V, n->left)) {
         return fetch_internal(V, n->left,  i, v, c);
     } else if (i == nweight(V, n->left)) {
         *v = n->value;
+        return 0;
     } else {
         return fetch_internal(V, n->right, i-nweight(V, n->left)-1, v, c);
     }
-    return 0;
 }
 
 int toku_omt_fetch(OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c) {
-    if (i>=nweight(V, V->root)) return ERANGE;
-    if (c!=NULL) omtcursor_associate(c, V);
+    if (i>=nweight(V, V->root)) return EINVAL;
+    if (c) associate(V,c);
     int r = fetch_internal(V, V->root, i, v, c);
-    if (c!=NULL && r!=0) toku_omt_cursor_invalidate(c);
+    if (c && r!=0) {
+        toku_omt_cursor_invalidate(c);
+    }
     return r;
 }
 
@@ -399,6 +492,8 @@ int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v,
     int r;
     u_int32_t idx;
 
+    invalidate_cursors(omt);
+
     r = toku_omt_find_zero(omt, h, v, NULL, &idx, NULL);
     if (r==0) {
         if (index) *index = idx;
@@ -412,13 +507,14 @@ int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v,
     return 0;
 }
 
-static inline int find_internal_zero(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c) {
+static inline int find_internal_zero(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c)
+// requires: index!=NULL
+{
     int r;
     if (n_idx==NODE_NULL) {
-	*index=0;
+	*index = 0;
 	return DB_NOTFOUND;
     }
-    // Add the current index to the cursor path
     if (c!=NULL && (r=omtcursor_stack_push(c, n_idx))) return r;
     OMT_NODE n = omt->nodes+n_idx;
     int hv = h(n->value, extra);
@@ -427,17 +523,12 @@ static inline int find_internal_zero(OMT omt, node_idx n_idx, int (*h)(OMTVALUE,
         *index += nweight(omt, n->left)+1;
         return r;
     } else if (hv>0) {
-        r = find_internal_zero(omt, n->left, h, extra, value, index, c);
-        if (c!=NULL && r==DB_NOTFOUND && *index==nweight(omt, n->left)) {
-            //Truncate the saved cursor path at n_idx.
-            while (omtcursor_stack_peek(c)!=n_idx) omtcursor_stack_pop(c);
-        }
-        return r;
+        return find_internal_zero(omt, n->left, h, extra, value, index, c);
     } else {
-        r = find_internal_zero(omt, n->left, h, extra, value, index, c);
+        r =  find_internal_zero(omt, n->left, h, extra, value, index, c);
         if (r==DB_NOTFOUND) {
             *index = nweight(omt, n->left);
-            *value = n->value;
+            if (value) *value = n->value;
             if (c!=NULL) {
                 //Truncate the saved cursor path at n_idx.
                 while (omtcursor_stack_peek(c)!=n_idx) omtcursor_stack_pop(c);
@@ -449,35 +540,32 @@ static inline int find_internal_zero(OMT omt, node_idx n_idx, int (*h)(OMTVALUE,
 }
 
 int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c) {
-    if (c!=NULL) omtcursor_associate(c, V);
-    u_int32_t idx_tmp;
-    OMTVALUE  val_tmp; 
-    int r = find_internal_zero(V, V->root, h, extra, &val_tmp, &idx_tmp, c);
-    if (c!=NULL && ( (r!=0 && r!=DB_NOTFOUND) ||
-                      idx_tmp==nweight(V, V->root))) {
-        toku_omt_cursor_invalidate(c);
+    //Index can be modified before a cursor error, so we must use a temp.
+    u_int32_t tmp_index;
+    if (c) associate(V,c);
+    int r = find_internal_zero(V, V->root, h, extra, value, &tmp_index, c);
+    if (c && r!=0) {
+	toku_omt_cursor_invalidate(c);
     }
-    if (c==NULL || r==0 || r==DB_NOTFOUND) {
-        if (index!=NULL)         *index = idx_tmp;
-        if (value!=NULL && r==0) *value = val_tmp;
-    }
+    if ((r==0 || r==DB_NOTFOUND) && index!=NULL) *index = tmp_index;
     return r;
 }
 
 //  If direction <0 then find the largest  i such that h(V_i,extra)<0.
-static inline int find_internal_minus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c) {
+static inline int find_internal_minus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c)
+// requires: index!=NULL
+{
     int r;
     if (n_idx==NODE_NULL) return DB_NOTFOUND;
-    // Add the current index to the cursor path
     if (c!=NULL && (r=omtcursor_stack_push(c, n_idx))) return r;
     OMT_NODE n = omt->nodes+n_idx;
     int hv = h(n->value, extra);
     if (hv<0) {
         r = find_internal_minus(omt, n->right, h, extra, value, index, c);
-        if (r==0) (*index) += nweight(omt, n->left)+1;
+        if (r==0) *index += nweight(omt, n->left)+1;
         else if (r==DB_NOTFOUND) {
             *index = nweight(omt, n->left);
-            *value = n->value;
+            if (value!=NULL) *value = n->value;
             if (c!=NULL) {
                 //Truncate the saved cursor path at n_idx.
                 while (omtcursor_stack_peek(c)!=n_idx) omtcursor_stack_pop(c);
@@ -491,10 +579,11 @@ static inline int find_internal_minus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE
 }
 
 //  If direction >0 then find the smallest i such that h(V_i,extra)>0.
-static inline int find_internal_plus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c) {
+static inline int find_internal_plus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c)
+// requires: index!=NULL
+{
     int r;
     if (n_idx==NODE_NULL) return DB_NOTFOUND;
-    // Add the current index to the cursor path
     if (c!=NULL && (r=omtcursor_stack_push(c, n_idx))) return r;
     OMT_NODE n = omt->nodes+n_idx;
     int hv = h(n->value, extra);
@@ -502,7 +591,7 @@ static inline int find_internal_plus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE,
         r = find_internal_plus(omt, n->left, h, extra, value, index, c);
         if (r==DB_NOTFOUND) {
             *index = nweight(omt, n->left);
-            *value = n->value;
+            if (value!=NULL) *value = n->value;
             if (c!=NULL) {
                 //Truncate the saved cursor path at n_idx.
                 while (omtcursor_stack_peek(c)!=n_idx) omtcursor_stack_pop(c);
@@ -512,39 +601,35 @@ static inline int find_internal_plus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE,
         return r;
     } else {
         r = find_internal_plus(omt, n->right, h, extra, value, index, c);
-        if (r==0) (*index) += nweight(omt, n->left)+1;
+        if (r==0) *index += nweight(omt, n->left)+1;
         return r;
     }
 }
 
 int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *index, OMTCURSOR c) {
+    u_int32_t tmp_index;
+    int r;
+    if (index==NULL) index=&tmp_index;
+    if (c) associate(V,c);
     if (direction==0) {
 	abort();
+    } else if (direction<0) {
+        r = find_internal_minus(V, V->root, h, extra, value, index, c);
+    } else {
+        r = find_internal_plus( V, V->root, h, extra, value, index, c);
     }
-    else {
-        int r;
-        u_int32_t idx_tmp;
-        OMTVALUE  val_tmp;
-        if (c!=NULL) omtcursor_associate(c, V);
-        if (direction<0) {
-            r = find_internal_minus(V, V->root, h, extra, &val_tmp, &idx_tmp, c);
-        } else {
-            r = find_internal_plus( V, V->root, h, extra, &val_tmp, &idx_tmp, c);
-        }
-        if (c!=NULL && r!=0) toku_omt_cursor_invalidate(c);
-        if (r==0) {
-            if (index!=NULL) *index = idx_tmp;
-            if (value!=NULL) *value = val_tmp;
-        }
-        return r;
+    if (c && r!=0) {
+	toku_omt_cursor_invalidate(c);
     }
+    return r;
 }
 
 int toku_omt_split_at(OMT omt, OMT *newomtp, u_int32_t index) {
     int r                = ENOSYS;
     OMT newomt           = NULL;
     OMTVALUE *tmp_values = NULL;
-    if (index>nweight(omt, omt->root)) { r = ERANGE; goto cleanup; }
+    invalidate_cursors(omt);
+    if (index>nweight(omt, omt->root)) { r = EINVAL; goto cleanup; }
     u_int32_t newsize = nweight(omt, omt->root)-index;
     if ((r = omt_create_internal(&newomt, newsize))) goto cleanup;
     MALLOC_N(nweight(omt, omt->root), tmp_values);
@@ -568,6 +653,8 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
     int r                = ENOSYS;
     OMT newomt           = NULL;
     OMTVALUE *tmp_values = NULL;
+    invalidate_cursors(leftomt);
+    invalidate_cursors(rightomt);
     u_int32_t newsize = toku_omt_size(leftomt)+toku_omt_size(rightomt);
     if ((r = omt_create_internal(&newomt, newsize))) goto cleanup;
     MALLOC_N(newsize, tmp_values);
@@ -589,118 +676,94 @@ cleanup:
 }
 
 void toku_omt_clear(OMT omt) {
+    invalidate_cursors(omt);
     omt->free_idx = 0;
     omt->root     = NODE_NULL;
 }
 
-int toku_omt_cursor_create(OMTCURSOR *p) {
-    OMTCURSOR MALLOC(result);
-    if (result==NULL) return errno;
-    result->max_pathlen = TOKU_OMTCURSOR_INITIAL_SIZE;
-    result->pathlen     = 0;
-    MALLOC_N(result->max_pathlen, result->path); 
-    if (result->path==NULL) {
-        toku_free(result);
-        return errno;
-    }
-    result->omt = NULL;
-    *p = result;
-    return 0;
+unsigned long toku_omt_memory_size (OMT omt) {
+    return sizeof(*omt)+omt->node_capacity*sizeof(omt->nodes[0]) + omt->tmparray_size*sizeof(omt->tmparray[0]);
 }
 
-void toku_omt_cursor_destroy(OMTCURSOR *p) {
-    OMTCURSOR c=*p;
-    toku_free(c->path);
-    toku_free(c);
-    *p = NULL;
+int toku_omt_cursor_is_valid (OMTCURSOR c) {
+    return c->omt!=NULL;
 }
 
-int toku_omt_cursor_is_valid(OMTCURSOR c) {
-    return c->pathlen>0 && c->omt!=NULL;
-}
-
-void toku_omt_cursor_invalidate(OMTCURSOR c) {
-    c->pathlen = 0;
-    c->omt=NULL;
-}
-
-static void omtcursor_current_internal(OMTCURSOR c, OMTVALUE *v) {
+static inline void omtcursor_current_internal(OMTCURSOR c, OMTVALUE *v) {
     *v = c->omt->nodes[omtcursor_stack_peek(c)].value;
 }
 
-int toku_omt_cursor_current(OMTCURSOR c, OMTVALUE *v) {
-    if (!toku_omt_cursor_is_valid(c)) return EINVAL;
-    omtcursor_current_internal(c, v);
-    return 0;
-}
-
-static int omtcursor_next_internal(OMTCURSOR c) {
-    if (!toku_omt_cursor_is_valid(c)) return EINVAL;
+static inline int omtcursor_next_internal(OMTCURSOR c) {
     OMT_NODE current = c->omt->nodes+omtcursor_stack_peek(c);
     if (current->right!=NODE_NULL) {
         //Enter into subtree
-        if (omtcursor_stack_push(c, current->right)) goto invalidate;
+        if (omtcursor_stack_push(c, current->right)) return EINVAL;
         current = c->omt->nodes+current->right;
         while (current->left!=NODE_NULL) {
-            if (omtcursor_stack_push(c, current->left)) goto invalidate;
+            if (omtcursor_stack_push(c, current->left)) return EINVAL;
             current = c->omt->nodes+current->left;
         }
         return 0;
     }
     else {
         //Pop the stack till we remove a left child.
+        node_idx parent_idx = omtcursor_stack_peek(c);
+        node_idx child_idx;
         while (c->pathlen>=2) {
-            node_idx child_idx  = omtcursor_stack_pop(c);
-            node_idx parent_idx = omtcursor_stack_peek(c);
+            child_idx  = parent_idx;
+            omtcursor_stack_pop(c);
+            parent_idx = omtcursor_stack_peek(c);
             if (c->omt->nodes[parent_idx].left==child_idx) return 0;
         }
-        goto invalidate;
+        return EINVAL;
     }
-invalidate:
-    toku_omt_cursor_invalidate(c);
-    return EINVAL;
 }
 
-int toku_omt_cursor_next(OMTCURSOR c, OMTVALUE *v) {
-    if (omtcursor_next_internal(c)) return EINVAL;
-    omtcursor_current_internal(c, v);
-    return 0;
+int toku_omt_cursor_next (OMTCURSOR c, OMTVALUE *v) {
+    if (c->omt == NULL) return EINVAL;
+    int r = omtcursor_next_internal(c);
+    if (r!=0) toku_omt_cursor_invalidate(c);
+    else omtcursor_current_internal(c, v);
+    return r;
 }
 
-static int omtcursor_prev_internal(OMTCURSOR c) {
-    if (!toku_omt_cursor_is_valid(c)) return EINVAL;
+static inline int omtcursor_prev_internal(OMTCURSOR c) {
     OMT_NODE current = c->omt->nodes+omtcursor_stack_peek(c);
     if (current->left!=NODE_NULL) {
         //Enter into subtree
-        if (omtcursor_stack_push(c, current->left)) goto invalidate;
+        if (omtcursor_stack_push(c, current->left)) return EINVAL;
         current = c->omt->nodes+current->left;
         while (current->right!=NODE_NULL) {
-            if (omtcursor_stack_push(c, current->right)) goto invalidate;
+            if (omtcursor_stack_push(c, current->right)) return EINVAL;
             current = c->omt->nodes+current->right;
         }
         return 0;
     }
     else {
         //Pop the stack till we remove a right child.
+        node_idx parent_idx = omtcursor_stack_peek(c);
+        node_idx child_idx;
         while (c->pathlen>=2) {
-            node_idx child_idx  = omtcursor_stack_pop(c);
-            node_idx parent_idx = omtcursor_stack_peek(c);
+            child_idx  = parent_idx;
+            omtcursor_stack_pop(c);
+            parent_idx = omtcursor_stack_peek(c);
             if (c->omt->nodes[parent_idx].right==child_idx) return 0;
         }
-        goto invalidate;
+        return EINVAL;
     }
-invalidate:
-    toku_omt_cursor_invalidate(c);
-    return EINVAL;
 }
 
-int toku_omt_cursor_prev(OMTCURSOR c, OMTVALUE *v) {
-    if (omtcursor_prev_internal(c)) return EINVAL;
+int toku_omt_cursor_prev (OMTCURSOR c, OMTVALUE *v) {
+    if (c->omt == NULL) return EINVAL;
+    int r = omtcursor_prev_internal(c);
+    if (r!=0) toku_omt_cursor_invalidate(c);
+    else omtcursor_current_internal(c, v);
+    return r;
+}
+
+int toku_omt_cursor_current (OMTCURSOR c, OMTVALUE *v) {
+    if (c->omt == NULL) return EINVAL;
     omtcursor_current_internal(c, v);
     return 0;
-}
-
-size_t toku_omt_memory_size (OMT omt) {
-    return sizeof(*omt)+omt->node_capacity*sizeof(omt->nodes[0]) + omt->tmparray_size*sizeof(omt->tmparray[0]);
 }
 
