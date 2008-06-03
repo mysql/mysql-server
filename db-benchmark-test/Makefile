@@ -58,13 +58,17 @@ clean:
 ifeq ($(PROF_FLAGS),-pg)
 OFILES = \
 	../src/ydb.o ../src/errors.o ../src/elocks.o \
-	../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/gpma.o ../newbrt/leafentry.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o ../newbrt/toku_assert.o ../newbrt/recover.o \
+	../newbrt/newbrt.o \
 	../src/lock_tree/locktree.o ../src/lock_tree/rth.o ../src/lock_tree/lth.o ../src/lock_tree/idlth.o ../src/lock_tree/db_id.o \
 	../src/range_tree/rangetree.o
 db-benchmark-test-tokudb: db-benchmark-test.c
 	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(OFILES) -lz $< -o $@ -DDIRSUF=tokudb
+scanscan-tokudb: scanscan.c
+	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(OFILES) -lz $< -o $@ -DDIRSUF=tokudb
 else
 db-benchmark-test-tokudb: db-benchmark-test.c
+	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LDFLAGS) $< -o $@ -DDIRSUF=tokudb
+scanscan-tokudb: scanscan.c
 	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LDFLAGS) $< -o $@ -DDIRSUF=tokudb
 endif
 db-benchmark-test-bdb: db-benchmark-test.c
@@ -75,5 +79,3 @@ ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7: db-benchmark-test-tokud
 	./db-benchmark-test-tokudb --env $@.dir $(PARGS)
 parallel-test-8: ptest0 ptest1 ptest2 ptest3 ptest4 ptest5 ptest6 ptest7
 
-scanscan-tokudb: scanscan.c
-	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LDFLAGS) $< -o $@ -DDIRSUF=tokudb

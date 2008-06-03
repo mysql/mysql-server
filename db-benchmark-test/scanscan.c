@@ -15,7 +15,12 @@ DBC *dbc;
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
 const char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */;
+#define TXNS
+#ifdef TXNS
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
+#else
+int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
+#endif
 char *dbfilename = "bench.db";
 
 void setup (void) {
@@ -24,7 +29,9 @@ void setup (void) {
     r = env->set_cachesize(env, 0, 127*1024*1024, 1);           assert(r==0);
     r = env->open(env, dbdir, env_open_flags, 0644);            assert(r==0);
     r = db_create(&db, env, 0);                                 assert(r==0);
+#ifdef TXNS
     r = env->txn_begin(env, 0, &tid, 0);                        assert(r==0);
+#endif
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, 0644); assert(r==0);
     r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
 }
@@ -33,7 +40,9 @@ void shutdown (void) {
     int r;
     r = dbc->c_close(dbc);                                      assert(r==0);
     r = db->close(db, 0);                                       assert(r==0);
+#ifdef TXNS
     r = tid->commit(tid, 0);                                    assert(r==0);
+#endif
     r = env->close(env, 0);                                     assert(r==0);
     {
 	extern unsigned long toku_get_maxrss(void);
@@ -77,6 +86,7 @@ int main (int argc, char *argv[]) {
     argc=argc;
     argv=argv;
     setup();
+    scanscan();
     scanscan();
     shutdown();
     return 0;
