@@ -331,7 +331,7 @@ static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_
 int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index) {
     int r;
     invalidate_cursors(omt);
-    if (index>nweight(omt, omt->root)) return ERANGE;
+    if (index>nweight(omt, omt->root)) return EINVAL;
     if ((r=maybe_resize_and_rebuild(omt, 1+nweight(omt, omt->root), MAYBE_REBUILD))) return r;
     node_idx* rebalance_idx = NULL;
     insert_internal(omt, &omt->root, value, index, &rebalance_idx);
@@ -352,7 +352,7 @@ static inline void set_at_internal(OMT omt, node_idx n_idx, OMTVALUE v, u_int32_
 }
 
 int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index) {
-    if (index>=nweight(omt, omt->root)) return ERANGE;
+    if (index>=nweight(omt, omt->root)) return EINVAL;
     set_at_internal(omt, omt->root, value, index);
     return 0;
 }
@@ -400,7 +400,7 @@ int toku_omt_delete_at(OMT omt, u_int32_t index) {
     OMTVALUE v;
     int r;
     invalidate_cursors(omt);
-    if (index>=nweight(omt, omt->root)) return ERANGE;
+    if (index>=nweight(omt, omt->root)) return EINVAL;
     if ((r=maybe_resize_and_rebuild(omt, -1+nweight(omt, omt->root), MAYBE_REBUILD))) return r;
     node_idx* rebalance_idx = NULL;
     delete_internal(omt, &omt->root, index, &v, &rebalance_idx);
@@ -420,7 +420,7 @@ static inline void fetch_internal(OMT V, node_idx idx, u_int32_t i, OMTVALUE *v)
 }
 
 int toku_omt_fetch(OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c) {
-    if (i>=nweight(V, V->root)) return ERANGE;
+    if (i>=nweight(V, V->root)) return EINVAL;
     fetch_internal(V, V->root, i, v);
     if (c) {
 	associate(V,c);
@@ -562,7 +562,7 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
     } else {
         r = find_internal_plus( V, V->root, h, extra, value, index);
     }
-    if (c) {
+    if (c && r==0) {
 	associate(V,c);
 	c->index=*index;
     }
@@ -574,7 +574,7 @@ int toku_omt_split_at(OMT omt, OMT *newomtp, u_int32_t index) {
     OMT newomt           = NULL;
     OMTVALUE *tmp_values = NULL;
     invalidate_cursors(omt);
-    if (index>nweight(omt, omt->root)) { r = ERANGE; goto cleanup; }
+    if (index>nweight(omt, omt->root)) { r = EINVAL; goto cleanup; }
     u_int32_t newsize = nweight(omt, omt->root)-index;
     if ((r = omt_create_internal(&newomt, newsize))) goto cleanup;
     MALLOC_N(nweight(omt, omt->root), tmp_values);

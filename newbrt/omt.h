@@ -227,7 +227,7 @@ int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index);
 //
 // Returns:
 //   0         success
-//   ERANGE    if index>toku_omt_size(omt)
+//   EINVAL    if index>toku_omt_size(omt)
 //   ENOMEM
 // On error, omt is unchanged.
 // Performance: time=O(\log N) amortized time.
@@ -237,7 +237,7 @@ int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index);
 // Effect:  Replaces the item at index with value.
 // Returns:
 //   0       success
-//   ERANGE    if index>=toku_omt_size(omt)
+//   EINVAL  if index>=toku_omt_size(omt)
 // On error, omt i sunchanged.
 // Performance: time=O(\log N)
 // Rationale: The BRT needs to be able to replace a value with another copy of the same value (allocated in a different location)
@@ -265,7 +265,7 @@ int toku_omt_delete_at(OMT omt, u_int32_t index);
 //         Decreases indexes of all items at slot >= index by 1.
 // Returns
 //     0            success
-//     ERANGE       if index>=toku_omt_size(omt)
+//     EINVAL       if index>=toku_omt_size(omt)
 // On error, omt is unchanged.
 // Rationale: To delete an item, first find its index using toku_omt_find, then delete it.
 // Performance: time=O(\log N) amortized.
@@ -277,7 +277,7 @@ int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c);
 // Requires: v   != NULL
 // Returns
 //    0             success
-//    ERANGE        if index>=toku_omt_size(omt)
+//    EINVAL        if index>=toku_omt_size(omt)
 // On nonzero return, *v is unchanged, and c (if nonnull) is either
 //   invalidated or unchanged.
 // Performance: time=O(\log N)
@@ -304,7 +304,8 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
 //   Returns
 //      0             success
 //      DB_NOTFOUND   no such value is found.
-//   On nonzero return, *value and *index are unchanged.
+//   On nonzero return, *value and *index are unchanged, and c (if nonnull) is either invalidated
+//      or unchanged.
 //   Performance: time=O(\log N)
 //   Rationale:
 //     Here's how to use the find function to find various things
@@ -360,7 +361,7 @@ int toku_omt_split_at(OMT omt, OMT *newomt, u_int32_t index);
 // Requires: newomt != NULL
 // Returns
 //    0             success,
-//    ERANGE        if index > toku_omt_size(omt)
+//    EINVAL        if index > toku_omt_size(omt)
 //    ENOMEM
 // On nonzero return, omt and *newomt are unmodified.
 // Performance: time=O(n)
