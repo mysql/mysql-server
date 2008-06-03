@@ -21,6 +21,12 @@ void setup (void) {
     r=txn->commit(txn, 0);    assert(r==0);
 }
 
+void shutdown (void) {
+    int r;
+    r= db->close(db, 0); CKERR(r);
+    r= env->close(env, 0); CKERR(r);
+}
+
 void doit (void) {
     DBT key,data;
     int r;
@@ -54,6 +60,7 @@ int main (int argc, const char *argv[]) {
 
     setup();
     doit();
+    shutdown();
 
     return 0;
 }
