@@ -6791,6 +6791,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   Uint32 noOfFragments = req->noOfFragments;
   const Uint32 fragType = req->fragmentationType;
   const Uint32 primaryTableId = req->primaryTableId;
+  const Uint32 map_ptr_i = req->map_ptr_i;
 
   Uint32 err = 0;
   
@@ -6838,7 +6839,17 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             set_default_node_groups(signal, noOfFragments);
           }
           break;
-        default:
+        case DictTabInfo::HashMapPartition:
+        {
+          jam();
+          ndbrequire(map_ptr_i != RNIL);
+          Ptr<Hash2FragmentMap> ptr;
+          g_hash_map.getPtr(ptr, map_ptr_i);
+          noOfFragments = ptr.p->m_fragments;
+          set_default_node_groups(signal, noOfFragments);
+          break;
+        }
+      default:
           jam();
           if (noOfFragments == 0)
           {
@@ -7058,29 +7069,39 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     tabPtr.p->tabStorage= TabRecord::ST_NOLOGGING;
   tabPtr.p->kvalue = req->kValue;
 
-  switch ((DictTabInfo::FragmentType)fragType)
+  switch ((DictTabInfo::FragmentType)fragType){
+  case DictTabInfo::HashMapPartition:
+    tabPtr.p->method = TabRecord::HASH_MAP;
+    break;
+  case DictTabInfo::AllNodesSmallTable:
+  case DictTabInfo::AllNodesMediumTable:
+  case DictTabInfo::AllNodesLargeTable:
+  case DictTabInfo::SingleFragment:
+    jam();
+  case DictTabInfo::DistrKeyLin:
+    jam();
+    tabPtr.p->method = TabRecord::LINEAR_HASH;
+    break;
+  case DictTabInfo::DistrKeyHash:
+    jam();
+    tabPtr.p->method = TabRecord::NORMAL_HASH;
+    break;
+  case DictTabInfo::DistrKeyUniqueHashIndex:
+  case DictTabInfo::DistrKeyOrderedIndex:
   {
-    case DictTabInfo::AllNodesSmallTable:
-    case DictTabInfo::AllNodesMediumTable:
-    case DictTabInfo::AllNodesLargeTable:
-    case DictTabInfo::SingleFragment:
-      jam();
-    case DictTabInfo::DistrKeyLin:
-      jam();
-      tabPtr.p->method= TabRecord::LINEAR_HASH;
-      break;
-    case DictTabInfo::DistrKeyHash:
-    case DictTabInfo::DistrKeyUniqueHashIndex:
-    case DictTabInfo::DistrKeyOrderedIndex:
-      jam();
-      tabPtr.p->method= TabRecord::NORMAL_HASH;
-      break;
-    case DictTabInfo::UserDefined:
-      jam();
-      tabPtr.p->method= TabRecord::USER_DEFINED;
-      break;
-    default:
-      ndbrequire(false);
+    TabRecordPtr primTabPtr;
+    primTabPtr.i = req->primaryTableId;
+    ptrCheckGuard(primTabPtr, ctabFileSize, tabRecord);
+    tabPtr.p->method = primTabPtr.p->method;
+    req->hashMapPtrI = primTabPtr.p->m_map_ptr_i;
+    break;
+  }
+  case DictTabInfo::UserDefined:
+    jam();
+    tabPtr.p->method = TabRecord::USER_DEFINED;
+    break;
+  default:
+    ndbrequire(false);
   }
 
   union {
@@ -7125,6 +7146,12 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   tabPtr.p->mask = logTotalFragments - 1;
   tabPtr.p->hashpointer = tabPtr.p->totalfragments - logTotalFragments;
   allocFragments(tabPtr.p->totalfragments, tabPtr);  
+
+  if (tabPtr.p->method == TabRecord::HASH_MAP)
+  {
+    jam();
+    tabPtr.p->m_map_ptr_i = req->hashMapPtrI;
+  }
 
   Uint32 index = 2;
   for (Uint32 fragId = 0; fragId < noFragments; fragId++) {
@@ -7534,7 +7561,15 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   TabRecord* regTabDesc = tabRecord;
   jamEntry();
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
-  if (tabPtr.p->method == TabRecord::LINEAR_HASH)
+  Uint32 map_ptr_i = tabPtr.p->m_map_ptr_i;
+  if (tabPtr.p->method == TabRecord::HASH_MAP)
+  {
+    jam();
+    Ptr<Hash2FragmentMap> ptr;
+    g_hash_map.getPtr(ptr, map_ptr_i);
+    fragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
+  }
+  else if (tabPtr.p->method == TabRecord::LINEAR_HASH)
   {
     jam();
     fragId = hashValue & tabPtr.p->mask;

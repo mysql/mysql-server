@@ -160,17 +160,13 @@ public:
   int setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
-  int setFragmentData(const void* data, Uint32 len);
-  const void * getFragmentData() const;
+
+  int setFragmentData(const Uint32* data, Uint32 cnt);
+  const Uint32 * getFragmentData() const;
   Uint32 getFragmentDataLen() const;
-  int setTablespaceNames(const void* data, Uint32 len);
-  Uint32 getTablespaceNamesLen() const;
-  const void * getTablespaceNames() const;
-  int setTablespaceData(const void* data, Uint32 len);
-  const void * getTablespaceData() const;
-  Uint32 getTablespaceDataLen() const;
-  int setRangeListData(const void* data, Uint32 len);
-  const void * getRangeListData() const;
+
+  int setRangeListData(const Int32* data, Uint32 cnt);
+  const Int32 * getRangeListData() const;
   Uint32 getRangeListDataLen() const;
 
   const char * getMysqlName() const;
@@ -184,10 +180,8 @@ public:
   BaseString m_externalName;
   BaseString m_mysqlName;
   UtilBuffer m_frm; 
-  UtilBuffer m_ts_name;      //Tablespace Names
-  UtilBuffer m_ts;           //TablespaceData
-  UtilBuffer m_fd;           //FragmentData
-  UtilBuffer m_range;        //Range Or List Array
+  Vector<Uint32> m_fd;
+  Vector<Int32> m_range;
   NdbDictionary::Object::FragmentType m_fragmentType;
 
   /**
@@ -211,6 +205,7 @@ public:
   Uint32 m_hashValueMask;
   Uint32 m_hashpointerValue;
   Vector<Uint16> m_fragments;
+  Vector<Uint8> m_hash_map;
 
   Uint64 m_max_rows;
   Uint64 m_min_rows;
@@ -283,6 +278,9 @@ public:
   BaseString m_tablespace_name;
   Uint32 m_tablespace_id;
   Uint32 m_tablespace_version;
+
+  Uint32 m_hash_map_id;
+  Uint32 m_hash_map_version;
 };
 
 class NdbIndexImpl : public NdbDictionary::Index, public NdbDictObjectImpl {
@@ -522,6 +520,29 @@ public:
   NdbDictionary::Undofile * m_facade;
 };
 
+struct NdbHashMapImpl : public NdbDictionary::HashMap, public NdbDictObjectImpl
+{
+  NdbHashMapImpl();
+  NdbHashMapImpl(NdbDictionary::HashMap &);
+  ~NdbHashMapImpl();
+
+  int assign(const NdbHashMapImpl& src);
+
+  BaseString m_name;
+  Vector<Uint32> m_map;
+  NdbDictionary::HashMap * m_facade;
+
+  static NdbHashMapImpl & getImpl(NdbDictionary::HashMap & t){
+    return t.m_impl;
+  }
+
+  static const NdbHashMapImpl & getImpl(const NdbDictionary::HashMap & t){
+    return t.m_impl;
+  }
+
+
+};
+
 class NdbDictInterface {
 public:
   // one transaction per Dictionary instance is supported
@@ -621,6 +642,9 @@ public:
   static int parseFilegroupInfo(NdbFilegroupImpl &dst,
 				const Uint32 * data, Uint32 len);
   
+  static int parseHashMapInfo(NdbHashMapImpl& dst,
+                              const Uint32 * data, Uint32 len);
+
   int create_file(const NdbFileImpl &, const NdbFilegroupImpl&, 
 		  bool overwrite, NdbDictObjectImpl*);
   int drop_file(const NdbFileImpl &);
@@ -635,6 +659,10 @@ public:
   static int create_index_obj_from_table(NdbIndexImpl ** dst, 
 					 NdbTableImpl* index_table,
 					 const NdbTableImpl* primary_table);
+
+  int create_hashmap(const NdbHashMapImpl&, NdbDictObjectImpl*);
+  int get_hashmap(NdbHashMapImpl&, Uint32 id);
+  int get_hashmap(NdbHashMapImpl&, const char * name);
 
   int beginSchemaTrans();
   int endSchemaTrans(Uint32 flags);
@@ -703,6 +731,9 @@ private:
 
   void execWAIT_GCP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execWAIT_GCP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+
+  void execCREATE_HASH_MAP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execCREATE_HASH_MAP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
   Uint32 m_fragmentId;
   UtilBuffer m_buffer;

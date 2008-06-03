@@ -358,6 +358,7 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   BlockReference retPtr = signal->theData[5];
   Uint32 noOfKeyAttr = signal->theData[6];
   tabptr.p->singleUserMode = (Uint8)signal->theData[7];
+  Uint32 userDefinedPartitioning = (Uint8)signal->theData[8];
   ndbrequire(noOfKeyAttr <= MAX_ATTRIBUTES_IN_INDEX);
 
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tabptr.i);
@@ -372,6 +373,7 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   tabptr.p->hasCharAttr = desc->hasCharAttr;
   tabptr.p->noOfDistrKeys = desc->noOfDistrKeys;
   tabptr.p->hasVarKeys = desc->noOfVarKeys > 0;
+  tabptr.p->set_user_defined_partitioning(userDefinedPartitioning);
   signal->theData[0] = tabptr.i;
   signal->theData[1] = retPtr;
   sendSignal(retRef, GSN_TC_SCHVERCONF, signal, 2, JBB);
@@ -12909,7 +12911,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
     Data points to distrGroupHashValue since scanInfo is used to send
     fragment id of receiving fragment
   */
-  Uint32 * dataPtr = &tcKeyReq->distrGroupHashValue;
+  Uint32 * dataPtr = &tcKeyReq->scanInfo;
   Uint32 tcKeyLength = TcKeyReq::StaticLength;
   Uint32 tcKeyRequestInfo = tcIndxReq->requestInfo;
   TcIndexData* indexData;
@@ -12968,9 +12970,13 @@ void Dbtc::executeIndexOperation(Signal* signal,
     jam();
     moreKeyData = indexOp->transIdAI.next(aiIter, headerSize - 1);
   }//if
-  tcKeyReq->scanInfo = *aiIter.data; //Fragment Id
+  if (tabPtr.p->get_user_defined_partitioning())
+  {
+    jam();
+    * dataPtr++ = *aiIter.data; //Fragment Id
+    TcKeyReq::setDistributionKeyFlag(tcKeyRequestInfo, 1U);
+  }
   moreKeyData = indexOp->transIdAI.next(aiIter);
-  TcKeyReq::setDistributionKeyFlag(tcKeyRequestInfo, 1U);
   while(// If we have not read complete key
 	(keySize != 0) &&
 	(dataPos < keyBufSize)) {

@@ -118,7 +118,8 @@ public:
       Tablespace = 20,        ///< Tablespace
       LogfileGroup = 21,      ///< Logfile group
       Datafile = 22,          ///< Datafile
-      Undofile = 23           ///< Undofile
+      Undofile = 23,          ///< Undofile
+      HashMap = 24
     };
 
     /**
@@ -162,7 +163,8 @@ public:
       FragAllLarge = 4,       ///< Four fragments per node.
       DistrKeyHash = 5,
       DistrKeyLin = 6,
-      UserDefined = 7
+      UserDefined = 7,
+      HashMapPartition = 9
     };
   };
 
@@ -193,6 +195,7 @@ public:
   
   class Table; // forward declaration
   class Tablespace; // forward declaration
+  class HashMap; // Forward
 //  class NdbEventOperation; // forward declaration
 
   /**
@@ -748,24 +751,6 @@ public:
     Uint32 getFrmLength() const;
 
     /**
-     * Get Fragment Data (id, state and node group)
-     */
-    const void *getFragmentData() const;
-    Uint32 getFragmentDataLen() const;
-
-    /**
-     * Get Range or List Array (value, partition)
-     */
-    const void *getRangeListData() const;
-    Uint32 getRangeListDataLen() const;
-
-    /**
-     * Get Tablespace Data (id, version)
-     */
-    const void *getTablespaceData() const;
-    Uint32 getTablespaceDataLen() const;
-
-    /**
      * Get default NdbRecord object for this table
      * This NdbRecord object becomes invalid at the same time as
      * the table object - when the ndb_cluster_connection is closed.
@@ -871,6 +856,9 @@ public:
     int setTablespace(const class Tablespace &);
     bool getTablespace(Uint32 *id= 0, Uint32 *version= 0) const;
 
+    bool getHashMap(Uint32* id = 0, Uint32* version = 0) const;
+    int setHashMap(const class HashMap &);
+
     /**
      * Get table object type
      */
@@ -904,34 +892,35 @@ public:
     int setFrm(const void* data, Uint32 len);
 
     /**
-     * Set array of fragment information containing
-     * Fragment Identity
-     * Node group identity
-     * Fragment State
+     * Set fragmentation
+     *   One Uint32 per fragment, containing nodegroup of fragment
+     *   nodegroups[0] - correspondce to fragment 0
+     *
+     * Note: This calls also modifies <em>setFragmentCount</em>
+     *
      */
-    int setFragmentData(const void* data, Uint32 len);
+    int setFragmentData(const Uint32 * nodegroups, Uint32 cnt);
 
     /**
-     * Set/Get tablespace names per fragment
+     * Get Fragment Data (array of node groups)
      */
-    int setTablespaceNames(const void* data, Uint32 len);
-    const void *getTablespaceNames();
-    Uint32 getTablespaceNamesLen() const;
-
-    /**
-     * Set tablespace information per fragment
-     * Contains a tablespace id and a tablespace version
-     */
-    int setTablespaceData(const void* data, Uint32 len);
+    const Uint32 *getFragmentData() const;
+    Uint32 getFragmentDataLen() const;
 
     /**
      * Set array of information mapping range values and list values
-     * to fragments. This is essentially a sorted map consisting of
-     * pairs of value, fragment identity. For range partitions there is
-     * one pair per fragment. For list partitions it could be any number
-     * of pairs, at least as many as there are fragments.
+     * to fragments.
+     *
+     * For range, this is a sorted list of range values
+     * For list, this is a list of pairs { value, partition }
      */
-    int setRangeListData(const void* data, Uint32 len);
+    int setRangeListData(const Int32* data, Uint32 cnt);
+
+    /**
+     * Get Range or List Array (value, partition)
+     */
+    const Int32 *getRangeListData() const;
+    Uint32 getRangeListDataLen() const;
 
     /**
      * Set table object type
@@ -1916,6 +1905,51 @@ public:
   };
 
   /**
+   * @class HashMap
+   * @brief Represents a HashMap in an NDB Cluster
+   *
+   */
+  class HashMap : public Object {
+  public:
+    HashMap();
+    HashMap(const HashMap&);
+    virtual ~HashMap();
+
+    void setName(const char *);
+    const char * getName() const;
+
+    void setMap(const Uint32* values, Uint32 len);
+    Uint32 getMapLen() const;
+    int getMapValues(Uint32* dst, Uint32 len) const;
+
+    /**
+     * equal
+     *   compares *values* only
+     */
+    bool equal(const HashMap&) const;
+
+    /**
+     * Get object status
+     */
+    virtual Object::Status getObjectStatus() const;
+
+    /**
+     * Get object version
+     */
+    virtual int getObjectVersion() const;
+
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
+
+  private:
+    friend class NdbHashMapImpl;
+    class NdbHashMapImpl & m_impl;
+    HashMap(NdbHashMapImpl&);
+  };
+
+  /**
    * @class Dictionary
    * @brief Dictionary for defining and retreiving meta data
    */
@@ -2240,6 +2274,45 @@ public:
     int dropUndofile(const Undofile&);
     Undofile getUndofile(Uint32 node, const char * path);
     
+
+    /** @} *******************************************************************/
+    /**
+     * @name HashMap
+     * @{
+     */
+
+    /**
+     * Create a HashMap in database
+     */
+    int createHashMap(const HashMap&, ObjectId* = 0);
+
+    /**
+     * Get a HashMap by name
+     */
+    int getHashMap(HashMap& dst, const char* name);
+
+    /**
+     * Get a HashMap for a table
+     */
+    int getHashMap(HashMap& dst, const Table* table);
+
+    /**
+     * Get default HashMap
+     */
+    int getDefaultHashMap(HashMap& dst, Uint32 fragments);
+
+
+    /**
+     * Init a default HashMap
+     */
+    int initDefaultHashMap(HashMap& dst, Uint32 fragments);
+
+    /**
+     * create (or retreive) a HashMap suitable for alter
+     * NOTE: Requires a started schema transaction
+     */
+    int prepareHashMap(const Table& oldTable, Table& newTable);
+
     /** @} *******************************************************************/
 
     /**

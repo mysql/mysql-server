@@ -460,7 +460,8 @@ public:
       LINEAR_HASH = 0,
       NOTDEFINED = 1,
       NORMAL_HASH = 2,
-      USER_DEFINED = 3
+      USER_DEFINED = 3,
+      HASH_MAP = 4
     };
     enum Storage {
       ST_NOLOGGING = 0,         // Table is not logged, but survives SR
@@ -484,7 +485,10 @@ public:
     Uint32 tabFile[2];
     Uint32 connectrec;                                    
     Uint32 hashpointer;
-    Uint32 mask;
+    union {
+      Uint32 mask;
+      Uint32 m_map_ptr_i;
+    };
     Uint32 noOfWords;
     Uint32 schemaVersion;
     Uint32 tabRemoveNode;

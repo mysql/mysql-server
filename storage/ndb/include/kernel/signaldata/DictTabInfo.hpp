@@ -143,6 +143,9 @@ public:
     
     SingleUserMode     = 152,
 
+    HashMapObjectId    = 153,
+    HashMapVersion     = 154,
+
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -181,7 +184,8 @@ public:
     DistrKeyLin = 5,
     UserDefined = 6,
     DistrKeyUniqueHashIndex = 7,
-    DistrKeyOrderedIndex = 8
+    DistrKeyOrderedIndex = 8,
+    HashMapPartition = 9
   };
   
   // TableType constants + objects
@@ -203,6 +207,7 @@ public:
     LogfileGroup = 21,      ///< Logfile group
     Datafile = 22,          ///< Datafile
     Undofile = 23,          ///< Undofile
+    HashMap = 24,
 
     SchemaTransaction = 30
   };
@@ -269,6 +274,12 @@ public:
     return
       tableType == Datafile||
       tableType == Undofile;
+  }
+
+  static inline bool
+  isHashMap(int tableType) {
+    return
+      tableType == HashMap;
   }
   
   // Object state for translating from/to API
@@ -347,12 +358,15 @@ public:
     Uint32 TablespaceDataLen;
     Uint32 TablespaceData[2*MAX_NDB_PARTITIONS];
     Uint32 RangeListDataLen;
-    char   RangeListData[4*2*MAX_NDB_PARTITIONS*2];
+    Uint32 RangeListData[2*MAX_NDB_PARTITIONS*2];
     
     Uint32 RowGCIFlag;
     Uint32 RowChecksumFlag;
 
     Uint32 SingleUserMode;
+
+    Uint32 HashMapObjectId;
+    Uint32 HashMapVersion;
     
     Table() {}
     void init();
@@ -735,6 +749,43 @@ struct DictFilegroupInfo {
   };
   static const Uint32 FileMappingSize;
   static const SimpleProperties::SP2StructMapping FileMapping[];
+};
+
+#define DHMIMAP(x, y, z) \
+  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+
+#define DHMIMAP2(x, y, z, u, v) \
+  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+
+#define DHMIMAPS(x, y, z, u, v) \
+  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+
+#define DHMIMAPB(x, y, z, u, v, l) \
+  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+                     my_offsetof(x, l) }
+
+#define DHMIBREAK(x) \
+  { DictHashMapInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
+
+struct DictHashMapInfo {
+  enum KeyValues {
+    HashMapName    = 1,
+    HashMapBuckets = 2,
+    HashMapValues  = 3
+  };
+
+  // Table data interpretation
+  struct HashMap {
+    char   HashMapName[MAX_TAB_NAME_SIZE];
+    Uint32 HashMapBuckets;
+    Uint16 HashMapValues[512];
+    Uint32 HashMapObjectId;
+    Uint32 HashMapVersion;
+    HashMap() {}
+    void init();
+  };
+  static const Uint32 MappingSize;
+  static const SimpleProperties::SP2StructMapping Mapping[];
 };
 
 #endif

@@ -46,6 +46,7 @@
 #include <NdbMem.h>
 #include <util/version.h>
 #include <NdbSleep.h>
+#include <signaldata/CreateHashMap.hpp>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -476,11 +477,9 @@ NdbTableImpl::init(){
   m_externalName.clear();
   m_mysqlName.clear();
   m_frm.clear();
-  m_ts_name.clear();
-  m_ts.clear();
   m_fd.clear();
   m_range.clear();
-  m_fragmentType= NdbDictionary::Object::FragAllSmall;
+  m_fragmentType= NdbDictionary::Object::HashMapPartition;
   m_hashValueMask= 0;
   m_hashpointerValue= 0;
   m_linear_flag= true;
@@ -510,6 +509,8 @@ NdbTableImpl::init(){
   m_tablespace_id = ~0;
   m_tablespace_version = ~0;
   m_single_user_mode = 0;
+  m_hash_map_id = RNIL;
+  m_hash_map_version = ~0;
 }
 
 bool
@@ -544,20 +545,12 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     DBUG_PRINT("info",("m_frm not equal"));
     DBUG_RETURN(false);
   }
-  if (m_fd.length() != obj.m_fd.length() ||
-      (memcmp(m_fd.get_data(), obj.m_fd.get_data(), m_fd.length())))
+  if (!m_fd.equal(obj.m_fd))
   {
     DBUG_PRINT("info",("m_fd not equal"));
     DBUG_RETURN(false);
   }
-  if (m_ts.length() != obj.m_ts.length() ||
-      (memcmp(m_ts.get_data(), obj.m_ts.get_data(), m_ts.length())))
-  {
-    DBUG_PRINT("info",("m_ts not equal"));
-    DBUG_RETURN(false);
-  }
-  if (m_range.length() != obj.m_range.length() ||
-      (memcmp(m_range.get_data(), obj.m_range.get_data(), m_range.length())))
+  if (!m_range.equal(obj.m_range))
   {
     DBUG_PRINT("info",("m_range not equal"));
     DBUG_RETURN(false);
@@ -730,10 +723,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   }
   m_externalName.assign(org.m_externalName);
   m_frm.assign(org.m_frm.get_data(), org.m_frm.length());
-  m_ts_name.assign(org.m_ts_name.get_data(), org.m_ts_name.length());
-  m_ts.assign(org.m_ts.get_data(), org.m_ts.length());
-  m_fd.assign(org.m_fd.get_data(), org.m_fd.length());
-  m_range.assign(org.m_range.get_data(), org.m_range.length());
+  m_fd.assign(org.m_fd);
+  m_range.assign(org.m_range);
 
   m_fragmentType = org.m_fragmentType;
   /*
@@ -886,24 +877,8 @@ NdbTableImpl::validate(NdbError& error)
   return 0;
 }
 
-const void*
-NdbTableImpl::getTablespaceNames() const
-{
-  return m_ts_name.get_data();
-}
-
-Uint32
-NdbTableImpl::getTablespaceNamesLen() const
-{
-  return m_ts_name.length();
-}
-
-int NdbTableImpl::setTablespaceNames(const void *data, Uint32 len)
-{
-  return !m_ts_name.assign(data, len);
-}
-
-void NdbTableImpl::setFragmentCount(Uint32 count)
+void
+NdbTableImpl::setFragmentCount(Uint32 count)
 {
   m_fragmentCount= count;
 }
@@ -930,55 +905,40 @@ NdbTableImpl::getFrmLength() const
   return m_frm.length();
 }
 
-int NdbTableImpl::setFragmentData(const void* data, Uint32 len)
+int
+NdbTableImpl::setFragmentData(const Uint32* data, Uint32 cnt)
 {
-  return m_fd.assign(data, len);
+  return m_fd.assign(data, cnt);
 }
 
-const void * 
+const Uint32 *
 NdbTableImpl::getFragmentData() const
 {
-  return m_fd.get_data();
+  return m_fd.getBase();
 }
 
 Uint32
 NdbTableImpl::getFragmentDataLen() const 
 {
-  return m_fd.length();
+  return m_fd.size();
 }
 
-int NdbTableImpl::setTablespaceData(const void* data, Uint32 len)
-{
-  return !m_ts.assign(data, len);
-}
-
-const void * 
-NdbTableImpl::getTablespaceData() const
-{
-  return m_ts.get_data();
-}
-
-Uint32
-NdbTableImpl::getTablespaceDataLen() const 
-{
-  return m_ts.length();
-}
-
-int NdbTableImpl::setRangeListData(const void* data, Uint32 len)
+int
+NdbTableImpl::setRangeListData(const Int32* data, Uint32 len)
 {
   return m_range.assign(data, len);
 }
 
-const void * 
+const Int32 *
 NdbTableImpl::getRangeListData() const
 {
-  return m_range.get_data();
+  return m_range.getBase();
 }
 
 Uint32
 NdbTableImpl::getRangeListDataLen() const 
 {
-  return m_range.length();
+  return m_range.size();
 }
 
 int
@@ -2067,6 +2027,12 @@ NdbDictInterface::execSignal(void* dictImpl,
   case GSN_WAIT_GCP_REF:
     tmp->execWAIT_GCP_REF(signal, ptr);
     break;
+  case GSN_CREATE_HASH_MAP_REF:
+    tmp->execCREATE_HASH_MAP_REF(signal, ptr);
+    break;
+  case GSN_CREATE_HASH_MAP_CONF:
+    tmp->execCREATE_HASH_MAP_CONF(signal, ptr);
+    break;
   default:
     abort();
   }
@@ -2317,6 +2283,21 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
       delete rt;
       return NULL;
      }
+
+    if (rt->m_fragmentType == NdbDictionary::Object::HashMapPartition)
+    {
+      NdbHashMapImpl tmp;
+      if (get_hashmap(tmp, rt->m_hash_map_id))
+      {
+        delete rt;
+        return NULL;
+      }
+      for (Uint32 i = 0; i<tmp.m_map.size(); i++)
+      {
+        assert(tmp.m_map[i] <= 255);
+        rt->m_hash_map.push_back(tmp.m_map[i]);
+      }
+    }
   }
   
   return rt;
@@ -2410,6 +2391,7 @@ fragmentTypeMapping[] = {
   { DictTabInfo::DistrKeyHash,      NdbDictionary::Object::DistrKeyHash },
   { DictTabInfo::DistrKeyLin,      NdbDictionary::Object::DistrKeyLin },
   { DictTabInfo::UserDefined,      NdbDictionary::Object::UserDefined },
+  { DictTabInfo::HashMapPartition, NdbDictionary::Object::HashMapPartition },
   { -1, -1 }
 };
 
@@ -2496,11 +2478,24 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       impl->updateMysqlName() ||
       !impl->m_externalName.assign(externalName) ||
       impl->m_frm.assign(tableDesc->FrmData, tableDesc->FrmLen) ||
-      impl->m_fd.assign(tableDesc->FragmentData, tableDesc->FragmentDataLen) ||
-      impl->m_range.assign(tableDesc->RangeListData, tableDesc->RangeListDataLen))
+      impl->m_range.assign((Int32*)tableDesc->RangeListData,
+                           /* yuck */tableDesc->RangeListDataLen / 4))
   {
     DBUG_RETURN(4000);
   }
+
+  {
+    /**
+     * NOTE: fragment data is currently an array of Uint16
+     *       and len is specified in bytes (yuck)
+     *       please change to Uint32 and len == count
+     */
+    Uint32 cnt = tableDesc->FragmentDataLen / 2;
+    for (Uint32 i = 0; i<cnt; i++)
+      if (impl->m_fd.push_back((Uint32)tableDesc->FragmentData[i]))
+        DBUG_RETURN(4000);
+  }
+
   impl->m_fragmentCount = tableDesc->FragmentCount;
 
   /*
@@ -2517,6 +2512,17 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     getApiConstant(tableDesc->FragmentType, 
 		   fragmentTypeMapping, 
 		   (Uint32)NdbDictionary::Object::FragUndefined);
+
+  if (impl->m_fragmentType == NdbDictionary::Object::HashMapPartition)
+  {
+    impl->m_hash_map_id = tableDesc->HashMapObjectId;
+    impl->m_hash_map_version = tableDesc->HashMapVersion;
+  }
+  else
+  {
+    impl->m_hash_map_id = ~0;
+    impl->m_hash_map_version = ~0;
+  }
   
   Uint64 max_rows = ((Uint64)tableDesc->MaxRowsHigh) << 32;
   max_rows += tableDesc->MaxRowsLow;
@@ -2965,12 +2971,8 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
     AlterTableReq::setFrmFlag(change_mask, true);
   if(!impl.m_fd.equal(old_impl.m_fd))
     AlterTableReq::setFragDataFlag(change_mask, true);
-  if(!impl.m_ts_name.equal(old_impl.m_ts_name))
-    AlterTableReq::setTsNameFlag(change_mask, true);
   if(!impl.m_range.equal(old_impl.m_range))
     AlterTableReq::setRangeListFlag(change_mask, true);
-  if(!impl.m_ts.equal(old_impl.m_ts))
-    AlterTableReq::setTsFlag(change_mask, true);
 
   /* No other property can be changed in alter table. */
   Uint32 old_sz= old_impl.m_columns.size();
@@ -3062,7 +3064,6 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
 				     UtilBufferWriter & w)
 {
   unsigned i, err;
-  char *ts_names[MAX_NDB_PARTITIONS];
   DBUG_ENTER("NdbDictInterface::serializeTableDesc");
 
   impl.computeAggregates();
@@ -3128,18 +3129,26 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   tmpTab->FrmLen = impl.m_frm.length();
   memcpy(tmpTab->FrmData, impl.m_frm.get_data(), impl.m_frm.length());
 
-  tmpTab->FragmentDataLen = impl.m_fd.length();
-  memcpy(tmpTab->FragmentData, impl.m_fd.get_data(), impl.m_fd.length());
+  {
+    /**
+     * NOTE: fragment data is currently an array of Uint16
+     *       and len is specified in bytes (yuck)
+     *       please change to Uint32 and len == count
+     */
+    const Uint32* src = impl.m_fd.getBase();
+    tmpTab->FragmentDataLen = 2*impl.m_fd.size();
+    for (Uint32 i = 0; i<impl.m_fd.size(); i++)
+      tmpTab->FragmentData[i] = (Uint16)src[i];
+  }
 
-  tmpTab->TablespaceDataLen = impl.m_ts.length();
-  memcpy(tmpTab->TablespaceData, impl.m_ts.get_data(), impl.m_ts.length());
-
-  tmpTab->RangeListDataLen = impl.m_range.length();
-  memcpy(tmpTab->RangeListData, impl.m_range.get_data(),
-         impl.m_range.length());
-
-  memcpy(ts_names, impl.m_ts_name.get_data(),
-         impl.m_ts_name.length());
+  {
+    /**
+     * NOTE: len is specified in bytes (yuck)
+     *       please change to len == count
+     */
+    tmpTab->RangeListDataLen = 4*impl.m_range.size();
+    memcpy(tmpTab->RangeListData, impl.m_range.getBase(),4*impl.m_range.size());
+  }
 
   tmpTab->FragmentCount= impl.m_fragmentCount;
   tmpTab->TableLoggedFlag = impl.m_logging;
@@ -3161,44 +3170,13 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   tmpTab->SingleUserMode = impl.m_single_user_mode;
   tmpTab->ForceVarPartFlag = impl.m_force_var_part;
 
-  if (impl.m_ts_name.length())
-  {
-    char **ts_name_ptr= (char**)ts_names;
-    i= 0;
-    do
-    {
-      NdbTablespaceImpl tmp;
-      if (*ts_name_ptr)
-      {
-        if(get_filegroup(tmp, NdbDictionary::Object::Tablespace, 
-                         (const char*)*ts_name_ptr) == 0)
-        {
-          tmpTab->TablespaceData[2*i] = tmp.m_id;
-          tmpTab->TablespaceData[2*i + 1] = tmp.m_version;
-        }
-        else
-        { 
-          NdbMem_Free((void*)tmpTab);
-          DBUG_RETURN(-1);
-        }
-      }
-      else
-      {
-        /*
-          No tablespace used, set tablespace id to NULL
-        */
-        tmpTab->TablespaceData[2*i] = RNIL;
-        tmpTab->TablespaceData[2*i + 1] = 0;
-      }
-      ts_name_ptr++;
-    } while (++i < tmpTab->FragmentCount);
-    tmpTab->TablespaceDataLen= 4*i;
-  }
-
   tmpTab->FragmentType = getKernelConstant(impl.m_fragmentType,
  					   fragmentTypeMapping,
 					   DictTabInfo::AllNodesSmallTable);
   tmpTab->TableVersion = rand();
+
+  tmpTab->HashMapObjectId = impl.m_hash_map_id;
+  tmpTab->HashMapVersion = impl.m_hash_map_version;
 
   const char *tablespace_name= impl.m_tablespace_name.c_str();
 loop:
@@ -7159,7 +7137,263 @@ NdbDictInterface::parseFileInfo(NdbFileImpl &dst,
   return 0;
 }
 
+/**
+ * HashMap
+ */
+
+NdbHashMapImpl::NdbHashMapImpl()
+  : NdbDictionary::HashMap(* this),
+    NdbDictObjectImpl(NdbDictionary::Object::HashMap), m_facade(this)
+{
+}
+
+NdbHashMapImpl::NdbHashMapImpl(NdbDictionary::HashMap & f)
+  : NdbDictionary::HashMap(* this),
+    NdbDictObjectImpl(NdbDictionary::Object::HashMap), m_facade(&f)
+{
+}
+
+NdbHashMapImpl::~NdbHashMapImpl()
+{
+}
+
+int
+NdbHashMapImpl::assign(const NdbHashMapImpl& org)
+{
+  m_id = org.m_id;
+  m_version = org.m_version;
+  m_status = org.m_status;
+
+  m_name.assign(org.m_name);
+  m_map.assign(org.m_map);
+
+  return 0;
+}
+
+int
+NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
+                              const char * name)
+{
+  NdbApiSignal tSignal(m_reference);
+  GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
+
+  size_t strLen = strlen(name) + 1;
+
+  req->senderRef = m_reference;
+  req->senderData = 0;
+  req->requestType =
+    GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
+  req->tableNameLen = strLen;
+  req->schemaTransId = m_tx.transId();
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
+  tSignal.theLength = GetTabInfoReq::SignalLength;
+
+  LinearSectionPtr ptr[1];
+  ptr[0].p  = (Uint32*)name;
+  ptr[0].sz = (strLen + 3)/4;
+
+#ifndef IGNORE_VALGRIND_WARNINGS
+  if (strLen & 3)
+  {
+    Uint32 pad = 0;
+    m_buffer.clear();
+    m_buffer.append(name, strLen);
+    m_buffer.append(&pad, 4);
+    ptr[0].p = (Uint32*)m_buffer.get_data();
+  }
+#endif
+
+  int r = dictSignal(&tSignal, ptr, 1,
+		     -1, // any node
+		     WAIT_GET_TAB_INFO_REQ,
+		     DICT_WAITFOR_TIMEOUT, 100);
+  if (r)
+  {
+    dst.m_id = -1;
+    dst.m_version = ~0;
+
+    return -1;
+  }
+
+  m_error.code = parseHashMapInfo(dst,
+                                  (Uint32*)m_buffer.get_data(),
+                                  m_buffer.length() / 4);
+
+  return m_error.code;
+}
+
+int
+NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
+                              Uint32 id)
+{
+  NdbApiSignal tSignal(m_reference);
+  GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
+
+  req->senderRef = m_reference;
+  req->senderData = 0;
+  req->requestType =
+    GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
+  req->tableId = id;
+  req->schemaTransId = m_tx.transId();
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
+  tSignal.theLength = GetTabInfoReq::SignalLength;
+
+  int r = dictSignal(&tSignal, 0, 0,
+		     -1, // any node
+		     WAIT_GET_TAB_INFO_REQ,
+		     DICT_WAITFOR_TIMEOUT, 100);
+  if (r)
+  {
+    dst.m_id = -1;
+    dst.m_version = ~0;
+
+    return -1;
+  }
+
+  m_error.code = parseHashMapInfo(dst,
+                                  (Uint32*)m_buffer.get_data(),
+                                  m_buffer.length() / 4);
+
+  return m_error.code;
+}
+
+int
+NdbDictInterface::parseHashMapInfo(NdbHashMapImpl &dst,
+                                   const Uint32 * data, Uint32 len)
+{
+  SimplePropertiesLinearReader it(data, len);
+
+  SimpleProperties::UnpackStatus status;
+  DictHashMapInfo::HashMap hm; hm.init();
+  status = SimpleProperties::unpack(it, &hm,
+                                    DictHashMapInfo::Mapping,
+                                    DictHashMapInfo::MappingSize,
+                                    true, true);
+
+  if(status != SimpleProperties::Eof){
+    return CreateFilegroupRef::InvalidFormat;
+  }
+
+  dst.m_name.assign(hm.HashMapName);
+  dst.m_id= hm.HashMapObjectId;
+  dst.m_version = hm.HashMapVersion;
+
+  /**
+   * pack is stupid...and requires bytes!
+   * we store shorts...so divide by 2
+   */
+  hm.HashMapBuckets /= sizeof(Uint16);
+
+  dst.m_map.clear();
+  for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
+  {
+    dst.m_map.push_back(hm.HashMapValues[i]);
+  }
+
+  return 0;
+}
+
+int
+NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
+                                 NdbDictObjectImpl* obj)
+{
+  DictHashMapInfo::HashMap hm; hm.init();
+  snprintf(hm.HashMapName, sizeof(hm.HashMapName), src.getName());
+  hm.HashMapBuckets = src.getMapLen();
+  for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
+  {
+    hm.HashMapValues[i] = NdbHashMapImpl::getImpl(src).m_map[i];
+  }
+
+  /**
+   * pack is stupid...and requires bytes!
+   * we store shorts...so multiply by 2
+   */
+  hm.HashMapBuckets *= sizeof(Uint16);
+  SimpleProperties::UnpackStatus s;
+  UtilBufferWriter w(m_buffer);
+  s = SimpleProperties::pack(w,
+                             &hm,
+                             DictHashMapInfo::Mapping,
+                             DictHashMapInfo::MappingSize, true);
+
+  if(s != SimpleProperties::Eof)
+  {
+    abort();
+  }
+
+  NdbApiSignal tSignal(m_reference);
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber = GSN_CREATE_HASH_MAP_REQ;
+  tSignal.theLength = CreateHashMapReq::SignalLength;
+
+  CreateHashMapReq* req = CAST_PTR(CreateHashMapReq, tSignal.getDataPtrSend());
+  req->clientRef = m_reference;
+  req->clientData = 0;
+  req->requestInfo |= m_tx.requestFlags();
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+  req->fragments = 0; // not used from here
+  req->buckets = 0; // not used from here
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].sz = m_buffer.length() / 4;
+
+  int err[]= { CreateTableRef::Busy, CreateTableRef::NotMaster, 0 };
+
+  /*
+    Send signal without time-out since creating files can take a very long
+    time if the file is very big.
+  */
+  int ret = dictSignal(&tSignal, ptr, 1,
+		       0, // master
+		       WAIT_CREATE_INDX_REQ,
+		       -1, 100,
+		       err);
+
+  if (ret == 0 && obj)
+  {
+    Uint32* data = (Uint32*)m_buffer.get_data();
+    obj->m_id = data[0];
+    obj->m_version = data[1];
+  }
+
+  return ret;
+}
+
+void
+NdbDictInterface::execCREATE_HASH_MAP_REF(NdbApiSignal * signal,
+                                          LinearSectionPtr ptr[3])
+{
+  const CreateHashMapRef* ref =
+    CAST_CONSTPTR(CreateHashMapRef, signal->getDataPtr());
+  m_error.code = ref->errorCode;
+  m_masterNodeId = ref->masterNodeId;
+  m_waiter.signal(NO_WAIT);
+}
+
+
+void
+NdbDictInterface::execCREATE_HASH_MAP_CONF(NdbApiSignal * signal,
+                                           LinearSectionPtr ptr[3])
+{
+  const CreateHashMapConf* conf=
+    CAST_CONSTPTR(CreateHashMapConf, signal->getDataPtr());
+  m_buffer.grow(4 * 2); // 2 words
+  Uint32* data = (Uint32*)m_buffer.get_data();
+  data[0] = conf->objectId;
+  data[1] = conf->objectVersion;
+
+  m_waiter.signal(NO_WAIT);
+}
+
+
+
 template class Vector<int>;
+template class Vector<Uint8>;
 template class Vector<Uint16>;
 template class Vector<Uint32>;
 template class Vector<Vector<Uint32> >;

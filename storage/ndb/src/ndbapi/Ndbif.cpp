@@ -717,6 +717,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_SCHEMA_TRANS_END_REF:
   case GSN_WAIT_GCP_CONF:
   case GSN_WAIT_GCP_REF:
+  case GSN_CREATE_HASH_MAP_REF:
+  case GSN_CREATE_HASH_MAP_CONF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
     return;

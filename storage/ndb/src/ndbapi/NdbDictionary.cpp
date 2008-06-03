@@ -652,6 +652,7 @@ NdbDictionary::Table::setSingleUserMode(enum NdbDictionary::Table::SingleUserMod
   m_impl.m_single_user_mode = (Uint8)mode;
 }
 
+#if 0
 int
 NdbDictionary::Table::setTablespaceNames(const void *data, Uint32 len)
 {
@@ -669,6 +670,7 @@ NdbDictionary::Table::getTablespaceNamesLen() const
 {
   return m_impl.getTablespaceNamesLen();
 }
+#endif
 
 void
 NdbDictionary::Table::setLinearFlag(Uint32 flag)
@@ -699,7 +701,7 @@ NdbDictionary::Table::setFrm(const void* data, Uint32 len){
   return m_impl.setFrm(data, len);
 }
 
-const void* 
+const Uint32*
 NdbDictionary::Table::getFragmentData() const {
   return m_impl.getFragmentData();
 }
@@ -710,28 +712,12 @@ NdbDictionary::Table::getFragmentDataLen() const {
 }
 
 int
-NdbDictionary::Table::setFragmentData(const void* data, Uint32 len)
+NdbDictionary::Table::setFragmentData(const Uint32* data, Uint32 cnt)
 {
-  return m_impl.setFragmentData(data, len);
+  return m_impl.setFragmentData(data, cnt);
 }
 
-const void* 
-NdbDictionary::Table::getTablespaceData() const {
-  return m_impl.getTablespaceData();
-}
-
-Uint32
-NdbDictionary::Table::getTablespaceDataLen() const {
-  return m_impl.getTablespaceDataLen();
-}
-
-int
-NdbDictionary::Table::setTablespaceData(const void* data, Uint32 len)
-{
-  return m_impl.setTablespaceData(data, len);
-}
-
-const void* 
+const Int32*
 NdbDictionary::Table::getRangeListData() const {
   return m_impl.getRangeListData();
 }
@@ -742,7 +728,7 @@ NdbDictionary::Table::getRangeListDataLen() const {
 }
 
 int
-NdbDictionary::Table::setRangeListData(const void* data, Uint32 len)
+NdbDictionary::Table::setRangeListData(const Int32* data, Uint32 len)
 {
   return m_impl.setRangeListData(data, len);
 }
@@ -840,6 +826,26 @@ NdbDictionary::Table::setTablespace(const NdbDictionary::Tablespace & ts){
   return !m_impl.m_tablespace_name.assign(ts.getName());
 }
 
+bool
+NdbDictionary::Table::getHashMap(Uint32 *id, Uint32 *version) const
+{
+  if (m_impl.m_hash_map_id == RNIL)
+    return false;
+  if (id)
+    *id= m_impl.m_hash_map_id;
+  if (version)
+    *version= m_impl.m_hash_map_version;
+  return true;
+}
+
+int
+NdbDictionary::Table::setHashMap(const NdbDictionary::HashMap& hm)
+{
+  m_impl.m_hash_map_id = hm.getObjectId();
+  m_impl.m_hash_map_version = hm.getObjectVersion();
+  return 0;
+}
+
 void
 NdbDictionary::Table::setRowChecksumIndicator(bool val){
   m_impl.m_row_checksum = val;
@@ -906,6 +912,11 @@ NdbDictionary::Table::getPartitionId(Uint32 hashValue) const
   {
     Uint32 cnt = m_impl.m_fragmentCount;
     return hashValue % (cnt ? cnt : 1);
+  }
+  case NdbDictionary::Object::HashMapPartition:
+  {
+    Uint32 cnt = m_impl.m_hash_map.size();
+    return m_impl.m_hash_map[hashValue % cnt];
   }
   default:
     return 0;
@@ -1671,6 +1682,251 @@ NdbDictionary::Undofile::getObjectVersion() const {
 int 
 NdbDictionary::Undofile::getObjectId() const {
   return m_impl.m_id;
+}
+
+/*****************************************************************
+ * HashMap facade
+ */
+NdbDictionary::HashMap::HashMap()
+  : m_impl(* new NdbHashMapImpl(* this))
+{
+}
+
+NdbDictionary::HashMap::HashMap(NdbHashMapImpl & impl)
+  : m_impl(impl)
+{
+}
+
+NdbDictionary::HashMap::HashMap(const NdbDictionary::HashMap & org)
+  : Object(org), m_impl(* new NdbHashMapImpl(* this))
+{
+  m_impl.assign(org.m_impl);
+}
+
+NdbDictionary::HashMap::~HashMap(){
+  NdbHashMapImpl * tmp = &m_impl;
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+void
+NdbDictionary::HashMap::setName(const char * path)
+{
+  m_impl.m_name.assign(path);
+}
+
+const char *
+NdbDictionary::HashMap::getName() const
+{
+  return m_impl.m_name.c_str();
+}
+
+void
+NdbDictionary::HashMap::setMap(const Uint32* map, Uint32 len)
+{
+  m_impl.m_map.assign(map, len);
+}
+
+Uint32
+NdbDictionary::HashMap::getMapLen() const
+{
+  return m_impl.m_map.size();
+}
+
+int
+NdbDictionary::HashMap::getMapValues(Uint32* dst, Uint32 len) const
+{
+  if (len != getMapLen())
+    return -1;
+
+  memcpy(dst, m_impl.m_map.getBase(), sizeof(Uint32) * len);
+  return 0;
+}
+
+bool
+NdbDictionary::HashMap::equal(const NdbDictionary::HashMap & obj) const
+{
+  return m_impl.m_map.equal(obj.m_impl.m_map);
+}
+
+NdbDictionary::Object::Status
+NdbDictionary::HashMap::getObjectStatus() const {
+  return m_impl.m_status;
+}
+
+int
+NdbDictionary::HashMap::getObjectVersion() const {
+  return m_impl.m_version;
+}
+
+int
+NdbDictionary::HashMap::getObjectId() const {
+  return m_impl.m_id;
+}
+
+int
+NdbDictionary::Dictionary::getDefaultHashMap(NdbDictionary::HashMap& dst,
+                                             Uint32 fragments)
+{
+  BaseString tmp;
+  tmp.assfmt("DEFAULT-HASHMAP-%u-%u",
+             NDB_DEFAULT_HASHMAP_BUCKTETS, fragments);
+
+  return getHashMap(dst, tmp.c_str());
+}
+
+int
+NdbDictionary::Dictionary::getHashMap(NdbDictionary::HashMap& dst,
+                                      const char * name)
+{
+  return m_impl.m_receiver.get_hashmap(NdbHashMapImpl::getImpl(dst), name);
+}
+
+int
+NdbDictionary::Dictionary::getHashMap(NdbDictionary::HashMap& dst,
+                                      const NdbDictionary::Table* tab)
+{
+  if (tab == 0 ||
+      tab->getFragmentType() != NdbDictionary::Object::HashMapPartition)
+  {
+    return -1;
+  }
+  return
+    m_impl.m_receiver.get_hashmap(NdbHashMapImpl::getImpl(dst),
+                                  NdbTableImpl::getImpl(*tab).m_hash_map_id);
+}
+
+int
+NdbDictionary::Dictionary::initDefaultHashMap(NdbDictionary::HashMap& dst,
+                                              Uint32 fragments)
+{
+  BaseString tmp;
+  tmp.assfmt("DEFAULT-HASHMAP-%u-%u",
+             NDB_DEFAULT_HASHMAP_BUCKTETS, fragments);
+
+  dst.setName(tmp.c_str());
+
+  Vector<Uint32> map;
+  for (Uint32 i = 0; i<NDB_DEFAULT_HASHMAP_BUCKTETS; i++)
+  {
+    map.push_back(i % fragments);
+  }
+
+  dst.setMap(map.getBase(), map.size());
+  return 0;
+}
+
+int
+NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
+                                          Table& newTableF)
+{
+  if (!hasSchemaTrans())
+  {
+    return -1;
+  }
+
+  const NdbTableImpl& oldTable = NdbTableImpl::getImpl(oldTableF);
+  NdbTableImpl& newTable = NdbTableImpl::getImpl(newTableF);
+
+  if (oldTable.getFragmentType() == NdbDictionary::Object::HashMapPartition)
+  {
+    HashMap oldmap;
+    if (getHashMap(oldmap, &oldTable) == -1)
+    {
+      return -1;
+    }
+
+    if (oldmap.getObjectVersion() != (int)oldTable.m_hash_map_version)
+    {
+      return -1;
+    }
+
+    HashMap newmapF;
+    NdbHashMapImpl& newmap = NdbHashMapImpl::getImpl(newmapF);
+    newmap.assign(NdbHashMapImpl::getImpl(oldmap));
+
+    Uint32 oldcnt = oldTable.getFragmentCount();
+    Uint32 newcnt = newTable.getFragmentCount();
+
+    for (Uint32 i = 0; i<newmap.m_map.size(); i++)
+    {
+      Uint32 newval = i % newcnt;
+      if (newval >= oldcnt)
+      {
+        newmap.m_map[i] = newval;
+      }
+    }
+
+    /**
+     * Check if this accidently became a "default" map
+     */
+    HashMap def;
+    if (getDefaultHashMap(def, newcnt) == 0)
+    {
+      if (def.equal(newmapF))
+      {
+        newTable.m_hash_map_id = def.getObjectId();
+        newTable.m_hash_map_version = def.getObjectVersion();
+        return 0;
+      }
+    }
+
+    initDefaultHashMap(def, newcnt);
+    if (def.equal(newmapF))
+    {
+      ObjectId tmp;
+      if (createHashMap(def, &tmp) == -1)
+      {
+        return -1;
+      }
+      newTable.m_hash_map_id = tmp.getObjectId();
+      newTable.m_hash_map_version = tmp.getObjectVersion();
+      return 0;
+    }
+
+    int cnt = 0;
+retry:
+    if (cnt == 0)
+    {
+      newmap.m_name.assfmt("HASHMAP-%u-%u-%u",
+                           NDB_DEFAULT_HASHMAP_BUCKTETS,
+                           oldcnt,
+                           newcnt);
+    }
+    else
+    {
+      newmap.m_name.assfmt("HASHMAP-%u-%u-%u-#%u",
+                           NDB_DEFAULT_HASHMAP_BUCKTETS,
+                           oldcnt,
+                           newcnt,
+                           cnt);
+
+    }
+
+    if (getHashMap(def, newmap.getName()) == 0)
+    {
+      if (def.equal(newmap))
+      {
+        newTable.m_hash_map_id = def.getObjectId();
+        newTable.m_hash_map_version = def.getObjectVersion();
+        return 0;
+      }
+      cnt++;
+      goto retry;
+    }
+
+    ObjectId tmp;
+    if (createHashMap(newmapF, &tmp) == -1)
+    {
+      return -1;
+    }
+    newTable.m_hash_map_id = tmp.getObjectId();
+    newTable.m_hash_map_version = tmp.getObjectVersion();
+    return 0;
+  }
+  assert(false); // NOT SUPPORTED YET
+  return -1;
 }
 
 /*****************************************************************
@@ -2604,4 +2860,18 @@ bool
 NdbDictionary::Dictionary::hasSchemaTrans() const
 {
   return m_impl.hasSchemaTrans();
+}
+
+int
+NdbDictionary::Dictionary::createHashMap(const HashMap& map, ObjectId * dst)
+{
+  ObjectId tmp;
+  if (dst == 0)
+    dst = &tmp;
+
+  int ret;
+  DO_TRANS(ret,
+           m_impl.m_receiver.create_hashmap(NdbHashMapImpl::getImpl(map),
+                                            &NdbDictObjectImpl::getImpl(*dst)));
+  return ret;
 }

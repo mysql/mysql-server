@@ -977,6 +977,7 @@ public:
       TR_DROPPING     = 1 << 1,
       TR_STORED_TABLE = 1 << 2,
       TR_PREPARED     = 1 << 3
+      ,TR_USER_DEFINED_PARTITIONING = 1 << 4
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
@@ -986,6 +987,16 @@ public:
     void set_dropping(Uint8 f)    { f ? m_flags |= (Uint16)TR_DROPPING     : m_flags &= ~(Uint16)TR_DROPPING; }
     void set_storedTable(Uint8 f) { f ? m_flags |= (Uint16)TR_STORED_TABLE : m_flags &= ~(Uint16)TR_STORED_TABLE; }
     void set_prepared(Uint8 f)    { f ? m_flags |= (Uint16)TR_PREPARED : m_flags &= ~(Uint16)TR_PREPARED; }
+
+    Uint8 get_user_defined_partitioning() const {
+      return (m_flags & TR_USER_DEFINED_PARTITIONING) != 0;
+    }
+
+    void set_user_defined_partitioning(Uint8 f) {
+      f ?
+        m_flags |= (Uint16)TR_USER_DEFINED_PARTITIONING :
+        m_flags &= ~(Uint16)TR_USER_DEFINED_PARTITIONING;
+    }
 
     Uint8 noOfKeyAttr;
     Uint8 hasCharAttr;

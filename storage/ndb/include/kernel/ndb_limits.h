@@ -171,4 +171,6 @@
  */
 #define LCP_RESTORE_BUFFER (4*32)
 
+#define NDB_DEFAULT_HASHMAP_BUCKTETS 240
+
 #endif

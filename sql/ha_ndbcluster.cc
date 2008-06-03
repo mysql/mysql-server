@@ -11273,7 +11273,7 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
     }
     range_data[i]= (int32)range_val;
   }
-  tab->setRangeListData(range_data, sizeof(int32)*part_info->no_parts);
+  tab->setRangeListData(range_data, part_info->no_parts);
 error:
   my_free((char*)range_data, MYF(0));
   DBUG_RETURN(error);
@@ -11284,7 +11284,7 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
   NDBTAB *tab= (NDBTAB*)tab_ref;
   int32 *list_data= (int32*)my_malloc(part_info->no_list_values * 2
                                       * sizeof(int32), MYF(0));
-  uint32 *part_id, i;
+  uint32 i;
   int error= 0;
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_list_data");
@@ -11307,10 +11307,9 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
       goto error;
     }
     list_data[2*i]= (int32)list_val;
-    part_id= (uint32*)&list_data[2*i+1];
-    *part_id= list_entry->partition_id;
+    list_data[2*i+1]= list_entry->partition_id;
   }
-  tab->setRangeListData(list_data, 2*sizeof(int32)*part_info->no_list_values);
+  tab->setRangeListData(list_data, 2*part_info->no_list_values);
 error:
   my_free((char*)list_data, MYF(0));
   DBUG_RETURN(error);
@@ -11333,7 +11332,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
                                           TABLE *table,
                                           void *tab_par)
 {
-  uint16 frag_data[MAX_PARTITIONS];
+  uint32 frag_data[MAX_PARTITIONS];
   char *ts_names[MAX_PARTITIONS];
   ulong fd_index= 0, i, j;
   NDBTAB *tab= (NDBTAB*)tab_par;
@@ -11415,8 +11414,6 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
     if (!part_info->is_sub_partitioned())
     {
       ng= part_elem->nodegroup_id;
-      if (first && ng == UNDEF_NODEGROUP)
-        ng= 0;
       ts_names[fd_index]= part_elem->tablespace_name;
       frag_data[fd_index++]= ng;
     }
@@ -11428,14 +11425,13 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
       {
         part_elem= sub_it++;
         ng= part_elem->nodegroup_id;
-        if (first && ng == UNDEF_NODEGROUP)
-          ng= 0;
         ts_names[fd_index]= part_elem->tablespace_name;
         frag_data[fd_index++]= ng;
       } while (++j < part_info->no_subparts);
     }
     first= FALSE;
   } while (++i < part_info->no_parts);
+
   tab->setDefaultNoPartitionsFlag(part_info->use_default_no_partitions);
   tab->setLinearFlag(part_info->linear_hash_ind);
   {
@@ -11449,9 +11445,8 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
       tab->setMinRows(min_rows);
     }
   }
-  tab->setTablespaceNames(ts_names, fd_index*sizeof(char*));
   tab->setFragmentCount(fd_index);
-  tab->setFragmentData(&frag_data, fd_index*2);
+  tab->setFragmentData(frag_data, fd_index);
   DBUG_RETURN(0);
 }
 

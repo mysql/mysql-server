@@ -32,7 +32,7 @@ class CreateFragmentationReq {
   friend bool printCREATE_FRAGMENTATION_REQ(FILE *, 
 					    const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 6 );
   
 private:
   Uint32 senderRef;
@@ -40,6 +40,7 @@ private:
   Uint32 fragmentationType;
   Uint32 noOfFragments;
   Uint32 primaryTableId;  // use same fragmentation as this table if not RNIL
+  Uint32 map_ptr_i;
 };
 
 class CreateFragmentationRef {
