@@ -205,10 +205,10 @@ TRACE_GSN(Uint32 gsn)
   case GSN_API_REGCONF:
     return false;
 #endif
-#if 0
+#if 1
   case GSN_SUB_GCP_COMPLETE_REP:
   case GSN_SUB_GCP_COMPLETE_ACK:
-    return true;
+    return false;
 #endif
   default:
     return true;
