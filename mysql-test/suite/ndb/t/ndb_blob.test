@@ -564,3 +564,27 @@ show warnings;
 
 drop table t1;
 drop table t2;
+
+# bug # 31284
+#   Long Blob (8000 byte parts) with Blob v2 (+2 bytes length)
+#   exposed buffer overrun for old Api setValue() call used for
+#   writing parts.
+#   Check that data written into long Blob can be retrieved
+#   correctly
+create table t1 (
+  a    int primary key,
+  giga longblob) 
+engine=ndb;
+
+# length 10
+set @stuff = '1234567890';
+
+# 20,000 bytes = 3 parts
+insert into t1 values (0, repeat(@stuff, 2000));
+
+# Check that we get the same data back that we put in
+select sha1(repeat(@stuff, 2000));
+select sha1(giga) from t1;
+select (giga = repeat(@stuff, 2000)) from t1 where a=0;
+
+drop table t1;

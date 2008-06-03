@@ -37,6 +37,16 @@ public:
   STATIC_CONST( HeaderLength = 3 );
   STATIC_CONST( DataLength = 20 );
   STATIC_CONST( MaxSignalLength = HeaderLength + DataLength );
+  
+  /* IndexBound constants */
+  STATIC_CONST( PerBoundColumnOverhead = 2 );
+  /* Max number of key columns with max total key size */
+  STATIC_CONST( MaxWordsPerBoundRow =   \
+                (PerBoundColumnOverhead * MAX_ATTRIBUTES_IN_INDEX)    \
+                + MAX_KEY_SIZE_IN_WORDS );
+  /* Single key column with max total key size */
+  STATIC_CONST( MaxWordsPerBoundColumn =     \
+                PerBoundColumnOverhead + MAX_KEY_SIZE_IN_WORDS );
 
 private:
   Uint32 connectPtr;

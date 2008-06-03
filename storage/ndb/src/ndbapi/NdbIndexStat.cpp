@@ -398,7 +398,7 @@ NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
                              Uint32* keyStatData,
                              Uint32& keyLength)
 {
-  char buf[256]; // For shrinking MySQLD varchars
+  char buf[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
 
   Uint32 key_index= record->key_indexes[ keyPartNum ];
   const NdbRecord::Attr *column= &record->columns[ key_index ];
