@@ -620,3 +620,19 @@ show warnings;
 Level	Code	Message
 drop table t1;
 drop table t2;
+create table t1 (
+a    int primary key,
+giga longblob) 
+engine=ndb;
+set @stuff = '1234567890';
+insert into t1 values (0, repeat(@stuff, 2000));
+select sha1(repeat(@stuff, 2000));
+sha1(repeat(@stuff, 2000))
+c8d94eb4127361ac22cf1c8a8f1178a37fb25e41
+select sha1(giga) from t1;
+sha1(giga)
+c8d94eb4127361ac22cf1c8a8f1178a37fb25e41
+select (giga = repeat(@stuff, 2000)) from t1 where a=0;
+(giga = repeat(@stuff, 2000))
+1
+drop table t1;
