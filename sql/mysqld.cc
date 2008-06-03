@@ -328,7 +328,7 @@ static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
-static my_bool opt_bdb, opt_isam, opt_ndbcluster, opt_merge;
+static my_bool opt_bdb, opt_isam, opt_ndbcluster, opt_merge, opt_federated;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
@@ -4989,7 +4989,8 @@ enum options_mysqld
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
   OPT_SECURE_FILE_PRIV,
   OPT_KEEP_FILES_ON_CREATE,
-  OPT_INNODB_ADAPTIVE_HASH_INDEX
+  OPT_INNODB_ADAPTIVE_HASH_INDEX,
+  OPT_FEDERATED
 };
 
 
@@ -5175,6 +5176,9 @@ Disable with --skip-external-locking.",
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"federated", OPT_FEDERATED, "Enable Federated storage engine. Disable with \
+--skip-federated.",
+   (gptr*) &opt_federated, (gptr*) &opt_federated, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
   {"gdb", OPT_DEBUGGING,
@@ -7322,6 +7326,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       have_merge_db= SHOW_OPTION_DISABLED;
     break;
+#ifdef HAVE_FEDERATED_DB
+  case OPT_FEDERATED:
+    if (opt_federated)
+      have_federated_db= SHOW_OPTION_YES;
+    else
+      have_federated_db= SHOW_OPTION_DISABLED;
+    break;
+#endif
 #ifdef HAVE_BERKELEY_DB
   case OPT_BDB_NOSYNC:
     /* Deprecated option */
