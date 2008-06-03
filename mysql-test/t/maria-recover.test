@@ -1,6 +1,8 @@
 # Test of the --maria-recover option.
 
 --source include/have_maria.inc
+--source include/have_debug.inc # will be removed
+
 
 select @@global.maria_recover;
 set global maria_recover=off;
@@ -46,7 +48,9 @@ perl;
     close FILE;
 EOF
 
+disable_ps_protocol;
 select * from t_corrupted2; # should show corruption and repair messages
+enable_ps_protocol;
 select * from t_corrupted2; # should show just rows
 
 drop database mysqltest;
