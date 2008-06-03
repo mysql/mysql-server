@@ -68,6 +68,8 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, MinRowsLow, MinRowsLow),
   DTIMAP(Table, MinRowsHigh, MinRowsHigh),
   DTIMAP(Table, SingleUserMode, SingleUserMode),
+  DTIMAP(Table, HashMapObjectId, HashMapObjectId),
+  DTIMAP(Table, HashMapVersion, HashMapVersion),
   DTIBREAK(AttributeName)
 };
 
@@ -135,7 +137,7 @@ DictTabInfo::Table::init(){
   MinLoadFactor = 78;
   MaxLoadFactor = 80;
   KeyLength = 0;
-  FragmentType = DictTabInfo::AllNodesSmallTable;
+  FragmentType = DictTabInfo::HashMapPartition;
   TableType = DictTabInfo::UndefTableType;
   TableVersion = 0;
   IndexState = ~0;
@@ -170,6 +172,9 @@ DictTabInfo::Table::init(){
   MinRowsHigh = 0;
 
   SingleUserMode = 0;
+
+  HashMapObjectId = RNIL;
+  HashMapVersion = RNIL;
 }
 
 void
@@ -308,4 +313,32 @@ DictTabInfo::isBlobTableName(const char* name, Uint32* ptab_id, Uint32* pcol_no)
   if (pcol_no)
     *pcol_no = col_no;
   return true;
+}
+
+/**
+ * HashMap
+ */
+const
+SimpleProperties::SP2StructMapping
+DictHashMapInfo::Mapping[] = {
+  DHMIMAPS(HashMap, HashMapName, HashMapName, 0, MAX_TAB_NAME_SIZE),
+  DHMIMAP2(HashMap, HashMapBuckets, HashMapBuckets, 0, 256),
+  DTIMAP(HashMap, HashMapObjectId, HashMapObjectId),
+  DTIMAP(HashMap, HashMapVersion, HashMapVersion),
+
+  /**
+   * This *should* change to Uint16 or similar once endian is pushed
+   */
+  DHMIMAPB(HashMap, HashMapValues, HashMapValues, 0, 256*2, HashMapBuckets)
+};
+
+//static
+const Uint32 DictHashMapInfo::MappingSize =
+  sizeof(DictHashMapInfo::Mapping) / sizeof(SimpleProperties::SP2StructMapping);
+
+
+void
+DictHashMapInfo::HashMap::init()
+{
+  bzero(this, sizeof(* this));
 }

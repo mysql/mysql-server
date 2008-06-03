@@ -268,7 +268,7 @@ static Uint32 get_no_fragments(Uint64 max_rows, Uint32 no_nodes)
 static void set_default_nodegroups(NdbDictionary::Table *table)
 {
   Uint32 no_parts = table->getFragmentCount();
-  Uint16 node_group[MAX_NDB_PARTITIONS];
+  Uint32 node_group[MAX_NDB_PARTITIONS];
   Uint32 i;
 
   node_group[0] = 0;
@@ -276,7 +276,7 @@ static void set_default_nodegroups(NdbDictionary::Table *table)
   {
     node_group[i] = UNDEF_NODEGROUP;
   }
-  table->setFragmentData((const void*)node_group, 2 * no_parts);
+  table->setFragmentData(node_group, no_parts);
 }
 
 Uint32 BackupRestore::map_ng(Uint32 ng)
@@ -309,7 +309,7 @@ Uint32 BackupRestore::map_ng(Uint32 ng)
 }
 
 
-bool BackupRestore::map_nodegroups(Uint16 *ng_array, Uint32 no_parts)
+bool BackupRestore::map_nodegroups(Uint32 *ng_array, Uint32 no_parts)
 {
   Uint32 i;
   bool mapped = FALSE;
@@ -319,7 +319,7 @@ bool BackupRestore::map_nodegroups(Uint16 *ng_array, Uint32 no_parts)
   for (i = 0; i < no_parts; i++)
   {
     Uint32 ng;
-    ng = map_ng((Uint32)ng_array[i]);
+    ng = map_ng(ng_array[i]);
     if (ng != ng_array[i])
       mapped = TRUE;
     ng_array[i] = ng;
@@ -651,6 +651,45 @@ BackupRestore::object(Uint32 type, const void * ptr)
       m_n_undofile++;
     }
     return true;
+    break;
+  }
+  case DictTabInfo::HashMap:
+  {
+    NdbDictionary::HashMap old(*(NdbDictionary::HashMap*)ptr);
+
+    Uint32 id = old.getObjectId();
+
+    if (m_restore_meta)
+    {
+      int ret = dict->createHashMap(old);
+      if (ret == 0)
+      {
+        info << "Created hashmap: " << old.getName() << endl;
+      }
+    }
+
+    NdbDictionary::HashMap curr;
+    if (dict->getHashMap(curr, old.getName()) == 0)
+    {
+      NdbDictionary::HashMap* currptr =
+        new NdbDictionary::HashMap(curr);
+      NdbDictionary::HashMap * null = 0;
+      m_hashmaps.set(currptr, id, null);
+      debug << "Retreived hashmap: " << currptr->getName()
+            << " oldid: " << id << " newid: " << currptr->getObjectId()
+            << " " << (void*)currptr << endl;
+      return true;
+    }
+
+    NdbError errobj = dict->getNdbError();
+    err << "Failed to retrieve hashmap \"" << old.getName() << "\": "
+	<< errobj << endl;
+
+    return false;
+  }
+  default:
+  {
+    err << "Unknown object type: " << type << endl;
     break;
   }
   }
@@ -1088,8 +1127,17 @@ BackupRestore::table(const TableS & table){
       debug << " newid: " << ts->getObjectId() << endl;
       copy.setTablespace(* ts);
     }
-    
-    if (copy.getDefaultNoPartitionsFlag())
+
+    if (copy.getFragmentType() == NdbDictionary::Object::HashMapPartition)
+    {
+      Uint32 id;
+      if (copy.getHashMap(&id))
+      {
+        NdbDictionary::HashMap * hm = m_hashmaps[id];
+        copy.setHashMap(* hm);
+      }
+    }
+    else if (copy.getDefaultNoPartitionsFlag())
     {
       /*
         Table was defined with default number of partitions. We can restore
@@ -1109,9 +1157,10 @@ BackupRestore::table(const TableS & table){
         restored in the same node groups as when backup was taken or by
         using a node group map supplied to the ndb_restore program.
       */
-      Uint16 *ng_array = (Uint16*)copy.getFragmentData();
+      Vector<Uint32> new_array;
       Uint16 no_parts = copy.getFragmentCount();
-      if (map_nodegroups(ng_array, no_parts))
+      new_array.assign(copy.getFragmentData(), no_parts);
+      if (map_nodegroups(new_array.getBase(), no_parts))
       {
         if (translate_frm(&copy))
         {
@@ -1120,7 +1169,7 @@ BackupRestore::table(const TableS & table){
           return false;
         }
       }
-      copy.setFragmentData((const void *)ng_array, no_parts << 1);
+      copy.setFragmentData(new_array.getBase(), no_parts);
     }
 
     /**
@@ -2411,3 +2460,4 @@ template class Vector<NdbDictionary::Table*>;
 template class Vector<const NdbDictionary::Table*>;
 template class Vector<NdbDictionary::Tablespace*>;
 template class Vector<NdbDictionary::LogfileGroup*>;
+template class Vector<NdbDictionary::HashMap*>;

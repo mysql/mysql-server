@@ -1412,7 +1412,7 @@ DbUtil::execUTIL_RELEASE_REQ(Signal* signal){
  *
  *  A service with a stored incrementable number
  **************************************************************************/
-#define SYSTAB_0 1
+#define SYSTAB_0 2
 
 void
 DbUtil::hardcodedPrepare() {

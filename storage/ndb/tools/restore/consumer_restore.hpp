@@ -18,7 +18,7 @@
 
 #include "consumer.hpp"
 
-bool map_nodegroups(Uint16 *ng_array, Uint32 no_parts);
+bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
 
 struct restore_callback_t {
   class BackupRestore *restore;
@@ -109,7 +109,7 @@ public:
   bool search_replace(char *search_str, char **new_data,
                       const char **data, const char *end_data,
                       uint *new_data_len);
-  bool map_nodegroups(Uint16 *ng_array, Uint32 no_parts);
+  bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
   Uint32 map_ng(Uint32 ng);
   bool translate_frm(NdbDictionary::Table *table);
 
@@ -201,6 +201,7 @@ public:
   Vector<const NdbDictionary::Table*> m_indexes;
   Vector<NdbDictionary::Tablespace*> m_tablespaces;    // Index by id
   Vector<NdbDictionary::LogfileGroup*> m_logfilegroups;// Index by id
+  Vector<NdbDictionary::HashMap*> m_hashmaps;
 
   static const PromotionRules m_allowed_promotion_attrs[];
 };

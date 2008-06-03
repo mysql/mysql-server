@@ -397,9 +397,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_LCP_PREPARE_REF             295
 #define GSN_LCP_PREPARE_CONF            294
 
-/* 297 unused */
-/* 298 unused */
-/* 299 unused */
+#define GSN_CREATE_HASH_MAP_REQ         297
+#define GSN_CREATE_HASH_MAP_REF         298
+#define GSN_CREATE_HASH_MAP_CONF        299
+
 #define GSN_SHRINKCHECK2                301
 #define GSN_GET_SCHEMA_INFOREQ          302
 /* 303 not unused */
