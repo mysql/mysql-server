@@ -37,7 +37,7 @@ struct omt {
 
 struct omt_cursor {
     OMT omt;   // The omt this cursor is associated with.  NULL if not present.
-    int index; // This is the state for the initial implementation
+    u_int32_t index; // This is the state for the initial implementation
     OMTCURSOR next,prev; // circular linked list of all OMTCURSORs associated with omt.
 };
 
@@ -99,7 +99,7 @@ void toku_omt_cursor_invalidate (OMTCURSOR c) {
 void toku_omt_cursor_destroy (OMTCURSOR *p) {
     toku_omt_cursor_invalidate(*p);
     toku_free(*p);
-    *p = 0;
+    *p = NULL;
 }
 
 static void invalidate_cursors (OMT omt) {
