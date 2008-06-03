@@ -1,7 +1,8 @@
 # Test of the --maria-recover option.
 
 --source include/have_maria.inc
---source include/have_debug.inc # will be removed
+# line below will be removed
+--source include/have_debug.inc
 
 
 select @@global.maria_recover;
@@ -48,6 +49,7 @@ perl;
     close FILE;
 EOF
 
+# line below will be removed
 disable_ps_protocol;
 select * from t_corrupted2; # should show corruption and repair messages
 enable_ps_protocol;
