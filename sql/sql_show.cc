@@ -3519,12 +3519,6 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       ptr=strxmov(ptr, " row_format=",
                   ha_row_type[(uint) share->row_type],
                   NullS);
-    if (share->transactional != HA_CHOICE_UNDEF)
-    {
-      ptr= strxmov(ptr, " TRANSACTIONAL=",
-                   (share->transactional == HA_CHOICE_YES ? "1" : "0"),
-                   NullS);
-    }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (show_table->s->db_type() == partition_hton &&
         show_table->part_info != NULL &&

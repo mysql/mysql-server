@@ -1102,7 +1102,6 @@ static void __cdecl kill_server(int sig_ptr)
 
   close_connections();
   if (sig != MYSQL_KILL_SIGNAL &&
-      sig != SIGINT &&				/* Bug#18235 */
       sig != 0)
     unireg_abort(1);				/* purecov: inspected */
   else

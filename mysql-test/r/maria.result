@@ -2373,3 +2373,9 @@ SELECT a FROM t1 WHERE MATCH a AGAINST ('+city (of)*' IN BOOLEAN MODE);
 a
 City Of God
 DROP TABLE t1;
+create table t1(a int) engine=maria transactional=1;
+select CREATE_OPTIONS from information_schema.TABLES where
+TABLE_SCHEMA='test' and TABLE_NAME='t1';
+CREATE_OPTIONS
+transactional=1
+drop table t1;

@@ -3532,21 +3532,10 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     thd->binlog_start_trans_and_stmt();
   }
 
-   /*
-     If error during the CREATE SELECT we drop the table, so no need for
-     engines to do logging of insertions (optimization). We don't do it for
-     temporary tables (yet) as re-enabling causes an undesirable commit.
-   */
-
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values,
                                        &extra_lock, hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
-
-  if (((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0) &&
-      !create_info->table_existed &&
-      ha_enable_transaction(thd, FALSE))
-    DBUG_RETURN(-1);
 
   if (extra_lock)
   {
@@ -3688,9 +3677,6 @@ bool select_create::send_eof()
     abort();
   else
   {
-    if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
-        !create_info->table_existed)
-      ha_enable_transaction(thd, TRUE);
     /*
       Do an implicit commit at end of statement for non-temporary
       tables.  This can fail, but we should unlock the table
@@ -3724,7 +3710,7 @@ void select_create::abort()
     truncating the transaction cache of the binary log. To do this, we
     pretend that the statement is transactional, even though it might
     be the case that it was not.
- 
+
     We roll back the statement prior to deleting the table and prior
     to releasing the lock on the table, since there might be potential
     for failure if the rollback is executed after the drop or after
@@ -3735,12 +3721,10 @@ void select_create::abort()
     log state.
   */
   tmp_disable_binlog(thd);
-  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
-      !create_info->table_existed)
-    ha_enable_transaction(thd, TRUE);
   select_insert::abort();
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   reenable_binlog(thd);
+
 
   if (m_plock)
   {
