@@ -187,7 +187,7 @@ SET @sleep_time_per_result_row = 1;
 SET @max_acceptable_delay = 2;
 # TIMEDIFF = time for query with sleep (mostly the time caused by SLEEP)
 #            + time for delays caused by high load on testing box
-# Ensure that at least a reasonable fraction of TIMEDIFF is belongs to the SLEEP
+# Ensure that at least a reasonable fraction of TIMEDIFF belongs to the SLEEP
 # by appropriate setting of variables.
 # Ensure that any "judging" has a base of minimum three attempts.
 # (Test 2 uses all attempts except the first one.)
@@ -251,7 +251,7 @@ while ($num)
 #    -> total runtime is clear more needed than for one result row needed
 #       = Replacement for one of the original Bug#12689 tests
 --echo # Test 1: Does the query with SLEEP need a reasonable time?
-eval SELECT COUNT(*) > $loops - 1 INTO @aux1 FROM t_history
+eval SELECT COUNT(*) >= $loops - 1 INTO @aux1 FROM t_history
 WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
       BETWEEN 0 AND @max_acceptable_delay;
 SELECT @aux1 AS "Expect 1";
@@ -266,7 +266,7 @@ SELECT @aux1 AS "Expect 1";
 #    = Replacement for one of the original Bug#12689 tests
 --echo # Test 2: Does the query with SLEEP need a reasonable time even in case
 --echo #         of the non first execution?
-eval SELECT COUNT(*) > $loops - 1 - 1 INTO @aux2 FROM t_history
+eval SELECT COUNT(*) >= $loops - 1 - 1 INTO @aux2 FROM t_history
 WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
       BETWEEN 0 AND @max_acceptable_delay
       AND attempt > 1;

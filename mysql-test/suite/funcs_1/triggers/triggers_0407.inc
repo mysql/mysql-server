@@ -4,6 +4,9 @@
 # (test case numbering refer to requirement document TP v1.1)
 #======================================================================
 
+USE test;
+--source suite/funcs_1/include/tb3.inc
+
 --disable_abort_on_error
 
 # General setup for Trigger tests
@@ -43,7 +46,8 @@ let $message= Testcase 3.5.4.1:;
 	connection con1_super;
 	create database db_drop;
 	Use db_drop;
-	eval create table t1 (f1 char(30)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1 (f1 char(30)) engine = $engine_type;
 	grant INSERT, SELECT on db_drop.t1 to test_general;
 	Use db_drop;
 	Create trigger trg1 BEFORE INSERT on t1
@@ -82,7 +86,8 @@ let $message= Testcase 3.5.4.2:;
 	--disable_warnings
 	drop table if exists t1_432 ;
 	--enable_warnings
-	eval create table t1_432 (f1 char (30)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1_432 (f1 char (30)) engine = $engine_type;
 	--error ER_TRG_DOES_NOT_EXIST
 	Drop trigger tr_does_not_exit;
 #cleanup
@@ -104,8 +109,10 @@ let $message= Testcase 3.5.4.3:;
 	drop table if exists t1_433 ;
 	drop table if exists t1_433a ;
 	--enable_warnings
-	eval create table t1_433 (f1 char (30)) engine=$engine_type;
-	eval create table t1_433a (f1a char (5)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1_433 (f1 char (30)) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1_433a (f1a char (5)) engine = $engine_type;
 
 	CREATE TRIGGER trg3 BEFORE INSERT on t1_433 for each row
 		set new.f1 = 'Trigger 3.5.4.3';
@@ -141,7 +148,8 @@ let $message= Testcase 3.5.4.4:;
 	connection con1_super;
 	create database db_drop4;
 	Use db_drop4;
-	eval create table t1 (f1 char(30)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1 (f1 char(30)) engine = $engine_type;
 	grant INSERT, SELECT on db_drop4.t1 to test_general;
 	Create trigger trg4 BEFORE INSERT on t1
 		for each row set new.f1='Trigger 3.5.4.4';
@@ -157,7 +165,8 @@ let $message= Testcase 3.5.4.4:;
 		where information_schema.triggers.trigger_name='trg4';
 	create database db_drop4;
 	Use db_drop4;
-	eval create table t1 (f1 char(30)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1 (f1 char(30)) engine = $engine_type;
 	grant INSERT, SELECT on db_drop4.t1 to test_general;
 	connection con1_general;
 	Insert into t1 values ('2nd Insert 3.5.4.4');
@@ -181,7 +190,8 @@ let $message= Testcase 3.5.4.5:;
 	connection con1_super;
 	create database db_drop5;
 	Use db_drop5;
-	eval create table t1 (f1 char(50)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1 (f1 char(50)) engine = $engine_type;
 	grant INSERT, SELECT on t1 to test_general;
 	Create trigger trg5 BEFORE INSERT on t1
 		for each row set new.f1='Trigger 3.5.4.5';
@@ -195,7 +205,8 @@ let $message= Testcase 3.5.4.5:;
 	select trigger_schema, trigger_name, event_object_table
 		from information_schema.triggers
 		where information_schema.triggers.trigger_name='trg5';
-	eval create table t1 (f1 char(50)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1 (f1 char(50)) engine = $engine_type;
 	grant INSERT, SELECT on t1 to test_general;
 	connection con1_general;
 	Insert into t1 values ('2nd Insert 3.5.4.5');
@@ -281,7 +292,8 @@ let $message= Testcase 3.5.5.4:;
 	create database dbtest_one;
 	create database dbtest_two;
 	use dbtest_two;
-	eval create table t2 (f1 char(15)) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t2 (f1 char(15)) engine = $engine_type;
 	use dbtest_one;
 	--error ER_TRG_IN_WRONG_SCHEMA
 	create trigger trg4 before INSERT
@@ -609,3 +621,4 @@ let $message= Testcase 3.5.7.17 (see Testcase 3.5.1.1);
 	drop user test_general;
 	drop user test_super@localhost;
 
+DROP TABLE test.tb3;
