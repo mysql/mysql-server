@@ -71,7 +71,7 @@ int toku_omt_create (OMT *omtp) {
 
 int toku_omt_cursor_create (OMTCURSOR *omtcp) {
     OMTCURSOR MALLOC(c);
-    if (c==0) return errno;
+    if (c==NULL) return errno;
     c->omt = NULL;
     c->next = c->prev = NULL;
     *omtcp = c;
@@ -497,7 +497,7 @@ static inline int find_internal_zero(OMT omt, node_idx n_idx, int (*h)(OMTVALUE,
 
 int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index, OMTCURSOR c) {
     u_int32_t tmp_index;
-    if (index==0) index=&tmp_index;
+    if (index==NULL) index=&tmp_index;
     int r = find_internal_zero(V, V->root, h, extra, value, index);
     if (c && r==0) {
 	associate(V,c);
@@ -554,7 +554,7 @@ static inline int find_internal_plus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE,
 int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *index, OMTCURSOR c) {
     u_int32_t tmp_index;
     int r;
-    if (index==0) index=&tmp_index;
+    if (index==NULL) index=&tmp_index;
     if (direction==0) {
 	abort();
     } else if (direction<0) {
@@ -637,22 +637,27 @@ int toku_omt_cursor_is_valid (OMTCURSOR c) {
 int toku_omt_cursor_next (OMTCURSOR c, OMTVALUE *v) {
     if (c->omt == NULL) return EINVAL;
     c->index++;
-    int r = toku_omt_fetch(c->omt, c->index, v, 0);
+    int r = toku_omt_fetch(c->omt, c->index, v, NULL);
     if (r!=0) toku_omt_cursor_invalidate(c);
     return r;
 }
 
 int toku_omt_cursor_prev (OMTCURSOR c, OMTVALUE *v) {
     if (c->omt == NULL) return EINVAL;
+    if (c->index==0) {
+       toku_omt_cursor_invalidate(c);
+       return EINVAL;
+    }
     c->index--;
-    int r = toku_omt_fetch(c->omt, c->index, v, 0);
+    int r = toku_omt_fetch(c->omt, c->index, v, NULL);
     if (r!=0) toku_omt_cursor_invalidate(c);
     return r;
 }
 
 int toku_omt_cursor_current (OMTCURSOR c, OMTVALUE *v) {
     if (c->omt == NULL) return EINVAL;
-    int r = toku_omt_fetch(c->omt, c->index, v, 0);
+    int r = toku_omt_fetch(c->omt, c->index, v, NULL);
     if (r!=0) toku_omt_cursor_invalidate(c);
     return r;
 }
+
