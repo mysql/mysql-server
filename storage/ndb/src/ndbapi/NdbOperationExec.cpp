@@ -606,7 +606,7 @@ int
 NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, 
                                     Uint64 aTransId)
 {
-  char buf[256];
+  char buf[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
   Uint32 *keyInfoPtr, *attrInfoPtr;
   Uint32 remain;
   int res;

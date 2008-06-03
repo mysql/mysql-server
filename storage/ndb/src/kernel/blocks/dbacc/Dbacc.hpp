@@ -881,6 +881,10 @@ private:
   FragmentrecPtr fragrecptr;
   Uint32 cfirstfreefrag;
   Uint32 cfragmentsize;
+  RSS_OP_COUNTER(cnoOfFreeFragrec);
+  RSS_OP_SNAPSHOT(cnoOfFreeFragrec);
+
+
 /* --------------------------------------------------------------------------------- */
 /* FS_CONNECTREC                                                                     */
 /* --------------------------------------------------------------------------------- */

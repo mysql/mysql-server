@@ -24,6 +24,8 @@
 #include <random.h>
 #include <NdbAutoPtr.hpp>
 #include <NdbMixRestarter.hpp>
+#include <NdbSqlUtil.hpp>
+#include <NdbEnv.h>
 
 char f_tablename[256];
  
@@ -1967,10 +1969,13 @@ runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+#include <NDBT_Tables.hpp>
+
 int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
-  static int acclst[] = { 3001 };
+  static int acclst[] = { 3001, 6200, 6202 };
   static int tuplst[] = { 4007, 4008, 4009, 4010, 4011, 4012 };
-  static int tuxlst[] = { 12001, 12002, 12003, 12004, 12005, 12006 };
+  static int tuxlst[] = { 12001, 12002, 12003, 12004, 12005, 12006, 
+                          6201, 6203 };
   static unsigned acccnt = sizeof(acclst)/sizeof(acclst[0]);
   static unsigned tupcnt = sizeof(tuplst)/sizeof(tuplst[0]);
   static unsigned tuxcnt = sizeof(tuxlst)/sizeof(tuxlst[0]);
@@ -1982,31 +1987,64 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
   NdbDictionary::Table tab(*ctx->getTab());
   tab.setFragmentType(NdbDictionary::Object::FragAllLarge);
 
+  int errNo = 0;
+  char buf[100];
+  if (NdbEnv_GetEnv("ERRNO", buf, sizeof(buf)))
+  {
+    errNo = atoi(buf);
+    ndbout_c("Using errno: %u", errNo);
+  }
+  
   // ordered index on first few columns
   NdbDictionary::Index idx("X");
   idx.setTable(tab.getName());
   idx.setType(NdbDictionary::Index::OrderedIndex);
   idx.setLogging(false);
-  for (int i_hate_broken_compilers = 0;
-       i_hate_broken_compilers < 3 &&
+  for (int cnt = 0, i_hate_broken_compilers = 0;
+       cnt < 3 &&
        i_hate_broken_compilers < tab.getNoOfColumns();
        i_hate_broken_compilers++) {
-    idx.addColumn(*tab.getColumn(i_hate_broken_compilers));
+    if (NdbSqlUtil::check_column_for_ordered_index
+        (tab.getColumn(i_hate_broken_compilers)->getType(), 0) == 0 &&
+        tab.getColumn(i_hate_broken_compilers)->getStorageType() != 
+        NdbDictionary::Column::StorageTypeDisk)
+    {
+      idx.addColumn(*tab.getColumn(i_hate_broken_compilers));
+      cnt++;
+    }
+  }
+
+  for (Uint32 i = 0; i<tab.getNoOfColumns(); i++)
+  {
+    if (tab.getColumn(i)->getStorageType() == 
+        NdbDictionary::Column::StorageTypeDisk)
+    {
+      NDBT_Tables::create_default_tablespace(pNdb);
+      break;
+    }
   }
 
   const int loops = ctx->getNumLoops();
   int result = NDBT_OK;
   (void)pDic->dropTable(tab.getName());
 
+  int dump1 = DumpStateOrd::SchemaResourceSnapshot;
+  int dump2 = DumpStateOrd::SchemaResourceCheckLeak;
+
   for (int l = 0; l < loops; l++) {
     for (unsigned i0 = 0; i0 < acccnt; i0++) {
       unsigned j = (l == 0 ? i0 : myRandom48(acccnt));
       int errval = acclst[j];
+      if (errNo != 0 && errNo != errval)
+        continue;
       g_info << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
+      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
+
       CHECK2(pDic->createTable(tab) != 0,
              "failed to fail after error insert " << errval);
+      CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
       CHECK2(pDic->createTable(tab) == 0,
              pDic->getNdbError());
       CHECK2(pDic->dropTable(tab.getName()) == 0,
@@ -2015,11 +2053,15 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
     for (unsigned i1 = 0; i1 < tupcnt; i1++) {
       unsigned j = (l == 0 ? i1 : myRandom48(tupcnt));
       int errval = tuplst[j];
+      if (errNo != 0 && errNo != errval)
+        continue;
       g_info << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
+      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(pDic->createTable(tab) != 0,
              "failed to fail after error insert " << errval);
+      CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
       CHECK2(pDic->createTable(tab) == 0,
              pDic->getNdbError());
       CHECK2(pDic->dropTable(tab.getName()) == 0,
@@ -2028,13 +2070,17 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
     for (unsigned i2 = 0; i2 < tuxcnt; i2++) {
       unsigned j = (l == 0 ? i2 : myRandom48(tuxcnt));
       int errval = tuxlst[j];
+      if (errNo != 0 && errNo != errval)
+        continue;
       g_info << "insert error node=" << nodeId << " value=" << errval << endl;
       CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
              "failed to set error insert");
       CHECK2(pDic->createTable(tab) == 0,
              pDic->getNdbError());
+      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
       CHECK2(pDic->createIndex(idx) != 0,
              "failed to fail after error insert " << errval);
+      CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
       CHECK2(pDic->createIndex(idx) == 0,
              pDic->getNdbError());
       CHECK2(pDic->dropTable(tab.getName()) == 0,

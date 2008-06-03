@@ -133,6 +133,9 @@ public:
       return (flags & IsNullable) &&
              (row[nullbit_byte_offset] & (1 << nullbit_bit_in_byte));
     }
+
+    /* 255 bytes of data and 1 byte of length */
+    STATIC_CONST( SHRINK_VARCHAR_BUFFSIZE= 256 );
     /*
       Mysqld uses a slightly different format for storing varchar in
       index keys; the length is always two bytes little endian, even
@@ -143,7 +146,7 @@ public:
     {
       const char *p= row + offset;
       Uint32 len= uint2korr(p);
-      if (len >= 256 || len >= maxSize)
+      if (len >= SHRINK_VARCHAR_BUFFSIZE || len >= maxSize)
         return false;
       buf[0]= (unsigned char)len;
       memcpy(buf+1, p+2, len);
