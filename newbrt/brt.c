@@ -3067,8 +3067,10 @@ static int brt_cursor_next_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
 	    if (h_counter != cursor->root_put_counter) return -1;
 	}
 	OMTVALUE le;
+get_next:;
 	int r = toku_omt_cursor_next(cursor->omtcursor, &le);
 	if (r==0) {
+            if (le_is_provdel(le)) goto get_next;
 	    DBT key,val;
 	    toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
 	    toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
@@ -3153,8 +3155,10 @@ static int brt_cursor_prev_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
 	    if (h_counter != cursor->root_put_counter) return -1;
 	}
 	OMTVALUE le;
+get_prev:;
 	int r = toku_omt_cursor_prev(cursor->omtcursor, &le);
 	if (r==0) {
+            if (le_is_provdel(le)) goto get_prev;
 	    DBT key,val;
 	    toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
 	    toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
