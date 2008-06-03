@@ -481,7 +481,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   int tReturnCode;
   Uint32 tAttrId;
   Uint32 tData;
-  Uint32 tempData[2000];
+  Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
   OperationType tOpType = theOperationType;
   OperationStatus tStatus = theStatus;
 
@@ -884,7 +884,9 @@ NdbOperation::setVarValue(const NdbColumnImpl* tAttrInfo,
   DBUG_PRINT("info", ("aLen=%u", (Uint32)aLen));
 
   // wl3717_todo not optimal..
-  Uint64 buf[2048];
+  const Uint32 MaxTupleSizeInLongWords= (NDB_MAX_TUPLE_SIZE + 7)/ 8;
+  Uint64 buf[ MaxTupleSizeInLongWords ];
+  assert( aLen < (NDB_MAX_TUPLE_SIZE - 2) );
   unsigned char* p = (unsigned char*)buf;
   p[0] = (aLen & 0xff);
   p[1] = (aLen >> 8);

@@ -515,7 +515,8 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
                                            const char *row,
                                            Uint32 distkeyMax)
 {
-  Uint64 tmp[1000];
+  const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8; 
+  Uint64 tmp[ MaxKeySizeInLongWords ];
   char* tmpshrink = (char*)tmp;
   size_t tmplen = sizeof(tmp);
   
@@ -2854,7 +2855,7 @@ NdbIndexScanOperation::ndbrecord_insert_bound(const NdbRecord *key_record,
                                               const char *row,
                                               Uint32 bound_type)
 {
-  char buf[256];
+  char buf[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
   Uint32 currLen= theTotalNrOfKeyWordInSignal;
   Uint32 remaining= KeyInfo::DataLength - currLen;
   const NdbRecord::Attr *column= &key_record->columns[column_index];
@@ -2904,7 +2905,10 @@ NdbIndexScanOperation::ndbrecord_insert_bound(const NdbRecord *key_record,
     theTotalNrOfKeyWordInSignal= currLen + totalLen;
   } else {
     if(!aligned || !nobytes){
-      Uint32 tempData[2000];
+      /* Space for Bound type, Attr header and (possibly max-sized)
+       * key column
+       */
+      Uint32 tempData[ KeyInfo::MaxWordsPerBoundColumn ];
       if (len > sizeof(tempData))
         len= sizeof(tempData);
       tempData[0] = bound_type;

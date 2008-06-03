@@ -1115,7 +1115,7 @@ NdbOperation::branch_col(Uint32 type,
 
   m_no_disk_flag &= (col->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
 
-  Uint32 tempData[2000];
+  Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
   if (((UintPtr)val & 3) != 0) {
     memcpy(tempData, val, len);
     val = tempData;
