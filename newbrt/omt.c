@@ -565,6 +565,8 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
     if (c && r==0) {
 	associate(V,c);
 	c->index=*index;
+    } else {
+	toku_omt_cursor_invalidate(c);
     }
     return r;
 }
