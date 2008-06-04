@@ -1,17 +1,11 @@
 USE test;
-drop table if exists tb3 ;
+drop table if exists tb3;
 create table tb3 (
 f118 char not null DEFAULT 'a',
 f119 char binary not null DEFAULT b'101',
 f120 char ascii not null DEFAULT b'101',
-f121 tinytext,
-f122 text,
-f123 mediumtext,
-f124 longtext unicode,
-f125 tinyblob,
-f126 blob,
-f127 mediumblob,
-f128 longblob,
+f121 char(50),
+f122 char(50),
 f129 binary not null DEFAULT b'101',
 f130 tinyint not null DEFAULT 99,
 f131 tinyint unsigned not null DEFAULT 99,
@@ -59,14 +53,11 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = ndb;
+) engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/ndb_tb3.txt'
-into table tb3;
 
 Testcase: 3.5.1.1:
 ------------------
@@ -121,8 +112,8 @@ set @test_before = 0;
 set @test_after = 0;
 select f121, f122, f142, f144, f134 from tb3 where f121 = 'Test 3.5.1.1';
 f121	f122	f142	f144	f134
-Test 3.5.1.1	Second Row	2	0000000006	2
 Test 3.5.1.1	Before Update Trigger	27	0000000008	1
+Test 3.5.1.1	Second Row	2	0000000006	2
 select @test_before, @test_after;
 @test_before	@test_after
 0	0
@@ -195,7 +186,7 @@ Testcase 3.5.1.7: - need to fix
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
-create table t1 (f1 int, f2 char(25),f3 int) engine=ndb;
+create table t1 (f1 int, f2 char(25),f3 int) engine = <engine_to_be_used>;
 CREATE TRIGGER trg5_1 BEFORE INSERT on test.t1
 for each row set new.f3 = '14';
 CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
@@ -239,7 +230,7 @@ ERROR HY000: Trigger in wrong schema
 drop database if exists trig_db;
 create database trig_db;
 use trig_db;
-create table t1 (f1 integer) engine = ndb;
+create table t1 (f1 integer) engine = <engine_to_be_used>;
 use test;
 CREATE TRIGGER trig_db.trg6_2 AFTER INSERT on tb3
 for each row set @ret_trg6_2 = 5;
@@ -267,8 +258,8 @@ Testcase 3.5.1.?:
 -----------------
 drop table if exists t1;
 drop table if exists t2;
-create table t1 (f1 char(50), f2 integer) engine = ndb;
-create table t2 (f1 char(50), f2 integer) engine = ndb;
+create table t1 (f1 char(50), f2 integer) engine = <engine_to_be_used>;
+create table t2 (f1 char(50), f2 integer) engine = <engine_to_be_used>;
 create trigger trig before insert on t1
 for each row set new.f1 ='trig t1';
 create trigger trig before update on t2
@@ -300,15 +291,15 @@ create database trig_db1;
 create database trig_db2;
 create database trig_db3;
 use trig_db1;
-create table t1 (f1 char(50), f2 integer) engine = ndb;
+create table t1 (f1 char(50), f2 integer) engine = <engine_to_be_used>;
 create trigger trig before insert on t1
 for each row set new.f1 ='trig1', @test_var1='trig1';
 use trig_db2;
-create table t2 (f1 char(50), f2 integer) engine = ndb;
+create table t2 (f1 char(50), f2 integer) engine = <engine_to_be_used>;
 create trigger trig before insert on t2
 for each row set new.f1 ='trig2', @test_var2='trig2';
 use trig_db3;
-create table t1 (f1 char(50), f2 integer) engine = ndb;
+create table t1 (f1 char(50), f2 integer) engine = <engine_to_be_used>;
 create trigger trig before insert on t1
 for each row set new.f1 ='trig3', @test_var3='trig3';
 set @test_var1= '', @test_var2= '', @test_var3= '';
@@ -346,8 +337,8 @@ drop database if exists trig_db2;
 create database trig_db1;
 create database trig_db2;
 use trig_db1;
-create table t1 (f1 char(50), f2 integer) engine = ndb;
-create table trig_db2.t1 (f1 char(50), f2 integer) engine = ndb;
+create table t1 (f1 char(50), f2 integer) engine = <engine_to_be_used>;
+create table trig_db2.t1 (f1 char(50), f2 integer) engine = <engine_to_be_used>;
 create trigger trig1_b before insert on t1
 for each row set @test_var1='trig1_b';
 create trigger trig_db1.trig1_a after insert on t1
