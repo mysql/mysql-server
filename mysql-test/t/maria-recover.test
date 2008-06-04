@@ -1,9 +1,6 @@
 # Test of the --maria-recover option.
 
 --source include/have_maria.inc
-# line below will be removed
---source include/have_debug.inc
-
 
 select @@global.maria_recover;
 set global maria_recover=off;

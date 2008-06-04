@@ -35,6 +35,7 @@ ulong	maria_block_size= MARIA_KEY_BLOCK_LENGTH;
 my_bool maria_flush= 0, maria_single_user= 0;
 my_bool maria_delay_key_write= 0, maria_page_checksums= 1;
 my_bool maria_inited= FALSE;
+my_bool maria_in_ha_maria= FALSE; /* If used from ha_maria or not */
 pthread_mutex_t THR_LOCK_maria;
 #if defined(THREAD) && !defined(DONT_USE_RW_LOCKS)
 ulong maria_concurrent_insert= 2;
