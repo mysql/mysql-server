@@ -634,8 +634,16 @@ struct st_maria_handler
 #define maria_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define maria_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
 #ifdef EXTRA_DEBUG
-#define maria_print_error(SHARE, ERRNO)                     \
-        _ma_report_error((ERRNO), (SHARE)->index_file_name)
+/**
+  Brings additional information in certain debug builds and in standalone
+  (non-ha_maria) programs. To help debugging. Not in ha_maria, to not spam the
+  user (some messages can be produced many times per statement, or even
+  wrongly during some repair operations).
+*/
+#define maria_print_error(SHARE, ERRNO)                         \
+  do{ if (!maria_in_ha_maria)                                   \
+      _ma_report_error((ERRNO), (SHARE)->index_file_name); }    \
+  while(0)
 #else
 #define maria_print_error(SHARE, ERRNO) while (0)
 #endif
@@ -728,7 +736,7 @@ extern uint maria_read_vec[], maria_readnext_vec[];
 extern uint maria_quick_table_bits;
 extern char *maria_data_root;
 extern uchar maria_zero_string[];
-extern my_bool maria_inited;
+extern my_bool maria_inited, maria_in_ha_maria;
 extern HASH maria_stored_state;
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */

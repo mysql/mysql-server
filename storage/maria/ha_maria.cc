@@ -2941,7 +2941,7 @@ static int ha_maria_init(void *p)
     maria_recovery_from_log() ||
     ((force_start_after_recovery_failures != 0) && mark_recovery_success()) ||
     ma_checkpoint_init(checkpoint_interval);
-  maria_multi_threaded= TRUE;
+  maria_multi_threaded= maria_in_ha_maria= TRUE;
   return res ? HA_ERR_INITIALIZATION : 0;
 }
 
