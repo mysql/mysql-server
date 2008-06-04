@@ -1135,3 +1135,9 @@ cmd: testDict
 args: -l 1 -n FailAddFragment
 
 # EOF 2008-05-29
+# 2008-06-03
+max-time: 1200
+cmd: testNdbApi
+args: -l 100 -n Bug37158
+
+# EOF 2008-06-03
