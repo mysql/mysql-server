@@ -2737,7 +2737,7 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
 		break;
 	    }
 	    if (idx>=toku_omt_size(node->u.l.buffer)) continue;
-	    r = toku_omt_fetch(node->u.l.buffer, idx, &datav, NULL);
+	    r = toku_omt_fetch(node->u.l.buffer, idx, &datav, omtcursor);
 	    assert(r==0); // we just validated the index
 	    le = datav;
 	    if (!le_is_provdel(le)) goto got_a_good_value;
