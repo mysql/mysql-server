@@ -111,10 +111,11 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
 }
 
 #define ok_read_from(T1, T2, RES)                       \
-  i= trnman_can_read_from(trn[T1], trn[T2]->trid);       \
+  i= trnman_can_read_from(trn[T1], trid[T2]);       \
   ok(i == RES, "trn" #T1 " %s read from trn" #T2, i ? "can" : "cannot")
 #define start_transaction(T)                            \
-  trn[T]= trnman_new_trn(&mutexes[T], &conds[T], &i + STACK_SIZE)
+  trn[T]= trnman_new_trn(&mutexes[T], &conds[T], &i + STACK_SIZE); \
+  trid[T]= trn[T]->trid
 #define commit(T)               trnman_commit_trn(trn[T])
 #define abort(T)                trnman_abort_trn(trn[T])
 
@@ -122,6 +123,7 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
 void test_trnman_read_from()
 {
   TRN *trn[Ntrns];
+  TrID trid[Ntrns];
   pthread_mutex_t mutexes[Ntrns];
   pthread_cond_t conds[Ntrns];
   int i;
@@ -142,6 +144,7 @@ void test_trnman_read_from()
   ok_read_from(3, 0, 1);
   ok_read_from(3, 1, 0);
   ok_read_from(3, 2, 0);
+  ok_read_from(3, 3, 1);
   commit(1);                               /* commit trn2 */
   ok_read_from(3, 1, 0);
   commit(3);                               /* commit trn5 */
@@ -158,7 +161,7 @@ int main(int argc __attribute__((unused)), char **argv)
   MY_INIT(argv[0]);
   my_init();
 
-  plan(6);
+  plan(7);
 
   if (my_atomic_initialize())
     return exit_status();
