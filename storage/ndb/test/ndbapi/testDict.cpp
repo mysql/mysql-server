@@ -6034,6 +6034,67 @@ err:
 }
 
 // end schema trans
+
+int 
+runFailCreateHashmap(NDBT_Context* ctx, NDBT_Step* step)
+{
+  static int lst[] = { 6204, 6205, 6206, 6207, 6208, 6209, 6210, 6211, 0 };
+  
+  NdbRestarter restarter;
+  int nodeId = restarter.getMasterNodeId();
+  Ndb* pNdb = GETNDB(step);  
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+
+  int errNo = 0;
+  char buf[100];
+  if (NdbEnv_GetEnv("ERRNO", buf, sizeof(buf)))
+  {
+    errNo = atoi(buf);
+    ndbout_c("Using errno: %u", errNo);
+  }
+  
+  const int loops = ctx->getNumLoops();
+  int result = NDBT_OK;
+
+  int dump1 = DumpStateOrd::SchemaResourceSnapshot;
+  int dump2 = DumpStateOrd::SchemaResourceCheckLeak;
+
+  NdbDictionary::HashMap hm;
+  pDic->initDefaultHashMap(hm, 1);
+
+loop:
+  if (pDic->getHashMap(hm, hm.getName()) != -1)
+  {
+    pDic->initDefaultHashMap(hm, rand() % 64);
+    goto loop;
+  }
+
+  for (int l = 0; l < loops; l++) 
+  {
+    for (unsigned i0 = 0; lst[i0]; i0++) 
+    {
+      unsigned j = (l == 0 ? i0 : myRandom48(i0 + l));
+      int errval = lst[j];
+      if (errNo != 0 && errNo != errval)
+        continue;
+      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
+             "failed to set error insert");
+      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
+      
+      int res = pDic->createHashMap(hm);
+      CHECK2(res != 0, "create hashmap failed to fail");
+
+      NdbDictionary::HashMap check;
+      CHECK2(res != 0, "create hashmap existed");
+      
+      CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
+    }
+  }
+end:
+  return result;
+}
+// end FAIL create hashmap
  
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
@@ -6239,6 +6300,11 @@ TESTCASE("SchemaTrans",
 TESTCASE("Bug29186",
          ""){
   INITIALIZER(runBug29186);
+}
+TESTCASE("FailCreateHashmap",
+         "Fail create hashmap")
+{
+  INITIALIZER(runFailCreateHashmap);
 }
 NDBT_TESTSUITE_END(testDict);
 

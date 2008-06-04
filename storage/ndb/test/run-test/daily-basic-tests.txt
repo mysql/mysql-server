@@ -1157,4 +1157,10 @@ cmd: testDict
 args: -l 1 -n FailCreateHashmap T1
 
 # EOF 2008-05-30
+# 2008-06-03
+max-time: 1200
+cmd: testNdbApi
+args: -l 100 -n Bug37158
+
+# EOF 2008-06-03
 # EOF
