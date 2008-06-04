@@ -1674,6 +1674,60 @@ done:
   return result;
 }
 
+int 
+runBug37158(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  Ndb* pNdb = GETNDB(step);
+
+  for (Uint32 i = 0; i<ctx->getNumLoops(); i++)
+  {
+    HugoOperations hugoOps(*ctx->getTab());
+    hugoOps.startTransaction(pNdb);
+    if (hugoOps.pkWriteRecord(pNdb, 0) != 0)
+    {
+      result = NDBT_FAILED;
+      goto done;
+    }
+    
+
+    if (hugoOps.pkWritePartialRecord(pNdb, 1) != 0)
+    {
+      result = NDBT_FAILED;
+      goto done;
+    }
+    
+    if (hugoOps.pkWriteRecord(pNdb, 2) != 0)
+    {
+      result = NDBT_FAILED;
+      goto done;
+    }
+    
+    if (hugoOps.pkUpdateRecord(pNdb, 0) != 0)
+    {
+      result = NDBT_FAILED;
+      goto done;
+    }
+    
+    if (hugoOps.execute_Commit(pNdb, AO_IgnoreError) == 4011)
+    {
+      result = NDBT_FAILED;
+      goto done;
+    }
+    hugoOps.closeTransaction(pNdb);
+
+    if (runClearTable(ctx, step) != 0)
+    {
+      result = NDBT_FAILED;
+      goto done;
+    }
+  }
+  
+done:
+
+  return result;
+}
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -1781,6 +1835,10 @@ TESTCASE("ExecuteAsynch",
 TESTCASE("Bug28443", 
 	 ""){ 
   INITIALIZER(runBug28443);
+}
+TESTCASE("Bug37158", 
+	 ""){ 
+  INITIALIZER(runBug37158);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
