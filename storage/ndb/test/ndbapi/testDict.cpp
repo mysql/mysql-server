@@ -4279,9 +4279,9 @@ st_verify_obj(const ST_Obj& obj,
       chk2(element.state == NdbDictionary::Object::StateBuilding, obj.name);
   }
   else {
-    if (obj.is_table() || obj.is_trigger())
+    if (obj.is_trigger())
       chk2(element.state == NdbDictionary::Object::StateOnline, obj.name);
-    if (obj.is_index())
+    if (obj.is_table() || obj.is_index())
       chk2(element.state == NdbDictionary::Object::StateDropping, obj.name);
   }
   return 0;
