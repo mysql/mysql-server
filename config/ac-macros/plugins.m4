@@ -280,7 +280,7 @@ dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CONFIGURE_PLUGINS
 dnl
 dnl SYNOPSIS
-dnl   MYSQL_PLUGIN_DEPENDS([name,name...])
+dnl   MYSQL_CONFIGURE_PLUGINS([name,name...])
 dnl
 dnl DESCRIPTION
 dnl   Used last, emits all required shell code to configure the plugins
@@ -735,13 +735,13 @@ dnl   Emits shell script for checking configure arguments
 dnl   Arguments to this macro is default value for selected plugins
 
 AC_DEFUN([_MYSQL_CHECK_PLUGIN_ARGS],[
- __MYSQL_CHECK_PLUGIN_ARGS(m4_default([$1], [none]))
+ __MYSQL_CHECK_PLUGIN_ARGS(m4_default([$1], [default]))
 ])
 
 AC_DEFUN([__MYSQL_CHECK_PLUGIN_ARGS],[
  AC_ARG_WITH([plugins],
 AS_HELP_STRING([--with-plugins=PLUGIN[[[[[,PLUGIN..]]]]]],
-               [Plugins to include in mysqld. (default is: $1) Must be a
+               [Plugins to include in mysqld. Must be a
                 configuration name or a comma separated list of plugins.])
 AS_HELP_STRING([],
                [Available configurations are:] dnl

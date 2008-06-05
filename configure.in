@@ -2387,7 +2387,7 @@ MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
 
 dnl -- ndbcluster requires partition to be enabled
 
-MYSQL_CONFIGURE_PLUGINS([none])
+MYSQL_CONFIGURE_PLUGINS([default])
 
 # Only build client code?
 AC_ARG_WITH(server,
