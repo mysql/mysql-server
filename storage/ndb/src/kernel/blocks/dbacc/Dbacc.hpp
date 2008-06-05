@@ -663,6 +663,8 @@ private:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
 
+  void execDROP_FRAG_REQ(Signal*);
+
   // Statement blocks
   void ACCKEY_error(Uint32 fromWhere);
 

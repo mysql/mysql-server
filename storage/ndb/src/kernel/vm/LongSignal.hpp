@@ -54,6 +54,21 @@ void copy(SegmentedSectionPtr dst, Uint32 * src, Uint32 len);
 void copy(Uint32 * dst, SegmentedSectionPtr src);
 bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
 
+inline
+bool
+import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len)
+{
+  Ptr<SectionSegment> tmp;
+  if (import(tmp, src, len))
+  {
+    ptr.i = tmp.i;
+    ptr.p = tmp.p;
+    ptr.sz = len;
+    return true;
+  }
+  return false;
+}
+
 extern class SectionSegmentPool g_sectionSegmentPool;
 
 /* Defined in SimulatedBlock.cpp */

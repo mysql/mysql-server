@@ -58,6 +58,7 @@
 
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
+#include <signaldata/AlterTable.hpp>
 #include <signaldata/PrepDropTab.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/DictTabInfo.hpp>
@@ -6718,8 +6719,8 @@ void Dbdih::execDISEIZEREQ(Signal* signal)
   ndbrequire(cfirstconnect != RNIL);
   connectPtr.i = cfirstconnect;
   ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-  cfirstconnect = connectPtr.p->nfConnect;
-  connectPtr.p->nfConnect = RNIL;
+  cfirstconnect = connectPtr.p->nextPool;
+  connectPtr.p->nextPool = RNIL;
   connectPtr.p->userpointer = userPtr;
   connectPtr.p->userblockref = userRef;
   connectPtr.p->connectState = ConnectRecord::INUSE;
@@ -6794,7 +6795,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 map_ptr_i = req->map_ptr_i;
 
   Uint32 err = 0;
-  
+
   do {
     NodeGroupRecordPtr NGPtr;
     TabRecordPtr primTabPtr;
@@ -6845,7 +6846,17 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           ndbrequire(map_ptr_i != RNIL);
           Ptr<Hash2FragmentMap> ptr;
           g_hash_map.getPtr(ptr, map_ptr_i);
-          noOfFragments = ptr.p->m_fragments;
+          if (noOfFragments == 0)
+          {
+            jam();
+            noOfFragments = ptr.p->m_fragments;
+          }
+          else if (noOfFragments < ptr.p->m_fragments)
+          {
+            jam();
+            err = CreateFragmentationRef::InvalidFragmentationType;
+            break;
+          }
           set_default_node_groups(signal, noOfFragments);
           break;
         }
@@ -6974,7 +6985,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 
     fragments[0]= noOfReplicas;
     fragments[1]= noOfFragments;
-    
+
     if(senderRef != 0)
     {
       jam();
@@ -7009,16 +7020,17 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   ConnectRecordPtr connectPtr;
   connectPtr.i = cfirstconnect;
   ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-  cfirstconnect = connectPtr.p->nfConnect;
+  cfirstconnect = connectPtr.p->nextPool;
   
   const Uint32 userPtr = req->connectPtr;
   const BlockReference userRef = signal->getSendersBlockRef();
-  connectPtr.p->nfConnect = RNIL;
+  connectPtr.p->nextPool = RNIL;
   connectPtr.p->userpointer = userPtr;
   connectPtr.p->userblockref = userRef;
   connectPtr.p->connectState = ConnectRecord::INUSE;
   connectPtr.p->table = req->tableId;
-  
+  connectPtr.p->m_alter.m_changeMask = 0;
+
   TabRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
@@ -7032,6 +7044,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   if(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE){
     jam();
     tabPtr.p->tabStatus = TabRecord::TS_CREATING;
+    connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
     sendAddFragreq(signal, connectPtr, tabPtr, 0);
     return;
   }
@@ -7151,6 +7164,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   {
     jam();
     tabPtr.p->m_map_ptr_i = req->hashMapPtrI;
+    tabPtr.p->m_new_map_ptr_i = RNIL;
   }
 
   Uint32 index = 2;
@@ -7196,6 +7210,7 @@ Dbdih::addTable_closeConf(Signal * signal, Uint32 tabPtrI){
   ConnectRecordPtr connectPtr;
   connectPtr.i = tabPtr.p->connectrec;
   ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+  connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
   
   sendAddFragreq(signal, connectPtr, tabPtr, 0);
 }
@@ -7204,7 +7219,7 @@ void
 Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr, 
 		      TabRecordPtr tabPtr, Uint32 fragId){
   jam();
-  const Uint32 fragCount = tabPtr.p->totalfragments;
+  const Uint32 fragCount = connectPtr.p->m_alter.m_totalfragments;
   ReplicaRecordPtr replicaPtr;
   LINT_INIT(replicaPtr.p);
   replicaPtr.i = RNIL;
@@ -7269,19 +7284,44 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
     req->totalFragments = fragCount;
     req->startGci = SYSFILE->newestRestorableGCI;
     req->logPartId = fragPtr.p->m_log_part_id;
+    req->changeMask = 0;
+
+    if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
+    {
+      jam();
+      req->changeMask = connectPtr.p->m_alter.m_changeMask;
+    }
+
     sendSignal(DBDICT_REF, GSN_ADD_FRAGREQ, signal, 
 	       AddFragReq::SignalLength, JBB);
     return;
   }
   
-  // Done
-  DiAddTabConf * const conf = (DiAddTabConf*)signal->getDataPtr();
-  conf->senderData = connectPtr.p->userpointer;
-  sendSignal(connectPtr.p->userblockref, GSN_DIADDTABCONF, signal, 
-	     DiAddTabConf::SignalLength, JBB);  
+  if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
+  {
+    jam();
+    // Request handled successfully
 
-  // Release
-  release_connect(connectPtr);
+    if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
+    {
+      jam();
+      tabPtr.p->m_new_map_ptr_i = connectPtr.p->m_alter.m_new_map_ptr_i;
+    }
+
+    send_alter_tab_conf(signal, connectPtr);
+  }
+  else
+  {
+    // Done
+    DiAddTabConf * const conf = (DiAddTabConf*)signal->getDataPtr();
+    conf->senderData = connectPtr.p->userpointer;
+    sendSignal(connectPtr.p->userblockref, GSN_DIADDTABCONF, signal,
+               DiAddTabConf::SignalLength, JBB);
+
+    // Release
+    release_connect(connectPtr);
+  }
+
 }
 void
 Dbdih::release_connect(ConnectRecordPtr ptr)
@@ -7289,7 +7329,7 @@ Dbdih::release_connect(ConnectRecordPtr ptr)
   ptr.p->userblockref = ZNIL;
   ptr.p->userpointer = RNIL;
   ptr.p->connectState = ConnectRecord::FREE;
-  ptr.p->nfConnect = cfirstconnect;
+  ptr.p->nextPool = cfirstconnect;
   cfirstconnect = ptr.i;
 }
 
@@ -7318,16 +7358,25 @@ Dbdih::execADD_FRAGREF(Signal* signal){
   connectPtr.i = ref->dihPtr;
   ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
 
+  if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
+  {
+    jam();
+
+    connectPtr.p->connectState = ConnectRecord::ALTER_TABLE_ABORT;
+    drop_fragments(signal, connectPtr, connectPtr.p->m_alter.m_totalfragments);
+    return;
+  }
+  else
   {
     DiAddTabRef * const ref = (DiAddTabRef*)signal->getDataPtr();
     ref->senderData = connectPtr.p->userpointer;
     ref->errorCode = ~0;
     sendSignal(connectPtr.p->userblockref, GSN_DIADDTABREF, signal, 
 	       DiAddTabRef::SignalLength, JBB);  
+
+    // Release
+    release_connect(connectPtr);
   }
-  
-  // Release
-  release_connect(connectPtr);
 }
 
 /*
@@ -7515,25 +7564,360 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
+  ConnectRecordPtr connectPtr;
+  connectPtr.i = RNIL;
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
-    tabPtr.p->schemaVersion = newTableVersion;
+    jam();
+
+    ndbrequire(cfirstconnect != RNIL);
+    connectPtr.i = cfirstconnect;
+    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+    cfirstconnect = connectPtr.p->nextPool;
+
+    connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
+    connectPtr.p->m_alter.m_org_totalfragments = tabPtr.p->totalfragments;
+    connectPtr.p->m_alter.m_changeMask = req->changeMask;
+    connectPtr.p->m_alter.m_new_map_ptr_i = req->new_map_ptr_i;
+    connectPtr.p->userpointer = senderData;
+    connectPtr.p->userblockref = senderRef;
+    connectPtr.p->connectState = ConnectRecord::ALTER_TABLE;
+    connectPtr.p->table = tabPtr.i;
     break;
   case AlterTabReq::AlterTableRevert:
+    jam();
     tabPtr.p->schemaVersion = tableVersion;
+
+    connectPtr.i = req->connectPtr;
+    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+    connectPtr.p->userpointer = senderData;
+    connectPtr.p->userblockref = senderRef;
+
+    if (AlterTableReq::getAddFragFlag(req->changeMask))
+    {
+      jam();
+      connectPtr.p->connectState = ConnectRecord::ALTER_TABLE_REVERT;
+      drop_fragments(signal, connectPtr,
+                     connectPtr.p->m_alter.m_totalfragments);
+      return;
+    }
+
+    send_alter_tab_conf(signal, connectPtr);
+    release_connect(connectPtr);
+    return;
     break;
+  case AlterTabReq::AlterTableCommit:
+    jam();
+    tabPtr.p->schemaVersion = newTableVersion;
+
+    connectPtr.i = req->connectPtr;
+    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+    connectPtr.p->userpointer = senderData;
+    connectPtr.p->userblockref = senderRef;
+
+    tabPtr.p->totalfragments = connectPtr.p->m_alter.m_totalfragments;
+    if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
+    {
+      jam();
+      Uint32 save = tabPtr.p->m_map_ptr_i;
+      tabPtr.p->m_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
+      tabPtr.p->m_new_map_ptr_i = save;
+
+      for (Uint32 i = 0; i<tabPtr.p->totalfragments; i++)
+      {
+        jam();
+        FragmentstorePtr fragPtr;
+        getFragstore(tabPtr.p, i, fragPtr);
+        fragPtr.p->distributionKey = (fragPtr.p->distributionKey + 1) & 0xFF;
+      }
+      send_alter_tab_conf(signal, connectPtr);
+      return;
+    }
+
+    send_alter_tab_conf(signal, connectPtr);
+    release_connect(connectPtr);
+    return;
+  case AlterTabReq::AlterTableComplete:
+    jam();
+    connectPtr.i = req->connectPtr;
+    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+    connectPtr.p->userpointer = senderData;
+    connectPtr.p->userblockref = senderRef;
+
+    send_alter_tab_conf(signal, connectPtr);
+    release_connect(connectPtr);
+    tabPtr.p->m_new_map_ptr_i = RNIL;
+    return;
   default:
     ndbrequire(false);
     break;
   }
 
-  // Request handled successfully 
+  if (AlterTableReq::getAddFragFlag(req->changeMask))
+  {
+    jam();
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+    union {
+      Uint16 buf[2+2*MAX_NDB_PARTITIONS];
+      Uint32 _align[1];
+    };
+    copy(_align, ptr);
+    releaseSections(handle);
+    Uint32 err;
+    Uint32 save = tabPtr.p->totalfragments;
+    if ((err = add_fragments_to_table(tabPtr, buf)))
+    {
+      jam();
+      send_alter_tab_ref(signal, connectPtr, err);
+      return;
+    }
+
+    connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
+    tabPtr.p->totalfragments = save; // Dont make the available yet...
+    sendAddFragreq(signal, connectPtr, tabPtr,
+                   connectPtr.p->m_alter.m_org_totalfragments);
+    return;
+  }
+
+  send_alter_tab_conf(signal, connectPtr);
+}
+
+Uint32
+Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
+{
+  Uint32 replicas = buf[0];
+  Uint32 cnt = buf[1];
+
+  Uint32 i = 0;
+  Uint32 err = 0;
+  Uint32 current = tabPtr.p->totalfragments;
+  for (i = 0; i<cnt; i++)
+  {
+    FragmentstorePtr fragPtr;
+    if (ERROR_INSERTED(7212) && cnt)
+    {
+      err = 1;
+      CLEAR_ERROR_INSERT_VALUE;
+      goto error;
+    }
+
+    if ((err = add_fragment_to_table(tabPtr, current + i, fragPtr)))
+      goto error;
+
+    fragPtr.p->m_log_part_id = buf[2+(1 + replicas)*i];
+    fragPtr.p->preferredPrimary = buf[2+(1 + replicas)*i + 1];
+    Uint32 activeIndex = 0;
+    for (Uint32 j = 0; j<replicas; j++)
+    {
+      const Uint32 nodeId = buf[2+(1 + replicas)*i + 1 + j];
+      ReplicaRecordPtr replicaPtr;
+      allocStoredReplica(fragPtr, replicaPtr, nodeId);
+      if (getNodeStatus(nodeId) == NodeRecord::ALIVE) {
+        jam();
+        ndbrequire(activeIndex < MAX_REPLICAS);
+        fragPtr.p->activeNodes[activeIndex] = nodeId;
+        activeIndex++;
+      } else {
+        jam();
+        removeStoredReplica(fragPtr, replicaPtr);
+        linkOldStoredReplica(fragPtr, replicaPtr);
+      }
+    }
+    fragPtr.p->fragReplicas = activeIndex;
+  }
+
+  return 0;
+error:
+  for(i = i + current; i != current; i--)
+  {
+    release_fragment_from_table(tabPtr, i);
+  }
+
+  return err;
+}
+
+Uint32
+Dbdih::add_fragment_to_table(Ptr<TabRecord> tabPtr,
+                             Uint32 fragId,
+                             Ptr<Fragmentstore>& fragPtr)
+{
+  Uint32 fragments = tabPtr.p->totalfragments;
+  Uint32 chunks = tabPtr.p->noOfFragChunks;
+
+  ndbrequire(fragId == fragments); // Only add at the end
+
+  if (ERROR_INSERTED(7211))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    return 1;
+  }
+
+  Uint32 allocated = chunks << LOG_NO_OF_FRAGS_PER_CHUNK;
+  if (fragId < allocated)
+  {
+    jam();
+    tabPtr.p->totalfragments++;
+    getFragstore(tabPtr.p, fragId, fragPtr);
+    return 0;
+  }
+
+  /**
+   * Allocate a new chunk
+   */
+  fragPtr.i = cfirstfragstore;
+  if (fragPtr.i == RNIL)
+  {
+    jam();
+    return -1;
+  }
+
+  ptrCheckGuard(fragPtr, cfragstoreFileSize, fragmentstore);
+  cfirstfragstore = fragPtr.p->nextFragmentChunk;
+  ndbrequire(cremainingfrags >= NO_OF_FRAGS_PER_CHUNK);
+  cremainingfrags -= NO_OF_FRAGS_PER_CHUNK;
+
+  tabPtr.p->startFid[chunks] = fragPtr.i;
+  for (Uint32 i = 0; i<NO_OF_FRAGS_PER_CHUNK; i++)
+  {
+    jam();
+    Ptr<Fragmentstore> tmp;
+    tmp.i = fragPtr.i + i;
+    ptrCheckGuard(tmp, cfragstoreFileSize, fragmentstore);
+    initFragstore(tmp);
+  }
+
+  tabPtr.p->totalfragments++;
+  tabPtr.p->noOfFragChunks++;
+
+  return 0;
+}
+
+void
+Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
+{
+  Uint32 fragments = tabPtr.p->totalfragments;
+  Uint32 chunks = tabPtr.p->noOfFragChunks;
+
+  if (fragId >= fragments)
+  {
+    jam();
+    return;
+  }
+  ndbrequire(fragId == fragments - 1); // only remove at end
+  ndbrequire(fragments != 0);
+
+  Uint32 allocated = chunks << LOG_NO_OF_FRAGS_PER_CHUNK;
+  if (fragId < allocated)
+  {
+    jam();
+
+    FragmentstorePtr fragPtr;
+    getFragstore(tabPtr.p, fragId, fragPtr);
+
+    fragPtr.p->nextFragmentChunk = cfirstfragstore;
+    cfirstfragstore = fragPtr.i;
+    cremainingfrags += NO_OF_FRAGS_PER_CHUNK;
+  }
+
+  tabPtr.p->totalfragments--;
+}
+
+void
+Dbdih::send_alter_tab_ref(Signal* signal, Ptr<ConnectRecord> connectPtr,
+                          Uint32 errCode)
+{
+  AlterTabRef* ref = (AlterTabRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->senderData = connectPtr.p->userpointer;
+  ref->errorCode = errCode;
+  sendSignal(connectPtr.p->userblockref, GSN_ALTER_TAB_REF, signal,
+             AlterTabRef::SignalLength, JBB);
+
+  release_connect(connectPtr);
+}
+
+void
+Dbdih::send_alter_tab_conf(Signal* signal, Ptr<ConnectRecord> connectPtr)
+{
   AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
-  conf->senderData = senderData;
-  conf->connectPtr = RNIL;
-  sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal, 
-	     AlterTabConf::SignalLength, JBB);
+  conf->senderData = connectPtr.p->userpointer;
+  conf->connectPtr = connectPtr.i;
+  sendSignal(connectPtr.p->userblockref, GSN_ALTER_TAB_CONF, signal,
+             AlterTabConf::SignalLength, JBB);
+}
+
+void
+Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
+                      Uint32 curr)
+{
+  ndbrequire(curr >= connectPtr.p->m_alter.m_org_totalfragments);
+  if (curr == connectPtr.p->m_alter.m_org_totalfragments)
+  {
+    /**
+     * done...
+     */
+    jam();
+    Ptr<TabRecord> tabPtr;
+    tabPtr.i = connectPtr.p->table;
+    ptrAss(tabPtr, tabRecord);
+    for (Uint32 i = connectPtr.p->m_alter.m_totalfragments - 1;
+         i >= connectPtr.p->m_alter.m_org_totalfragments; i--)
+    {
+      jam();
+      release_fragment_from_table(tabPtr, i);
+    }
+
+    switch(connectPtr.p->connectState){
+    case ConnectRecord::ALTER_TABLE_ABORT:
+    {
+      jam();
+      send_alter_tab_ref(signal, connectPtr, ~0);
+      return;
+    }
+    case ConnectRecord::ALTER_TABLE_REVERT:
+    {
+      jam();
+      send_alter_tab_conf(signal, connectPtr);
+      release_connect(connectPtr);
+      return;
+    }
+    default:
+      jamLine(connectPtr.p->connectState);
+      ndbrequire(false);
+    }
+    return;
+  }
+
+  ndbrequire(curr > 0);
+  DropFragReq* req = (DropFragReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = connectPtr.i;
+  req->tableId = connectPtr.p->table;
+  req->fragId = curr - 1;
+  req->requestInfo = DropFragReq::AlterTableAbort;
+  sendSignal(DBLQH_REF, GSN_DROP_FRAG_REQ, signal,
+             DropFragReq::SignalLength, JBB);
+}
+
+void
+Dbdih::execDROP_FRAG_REF(Signal* signal)
+{
+  ndbrequire(false);
+}
+
+void
+Dbdih::execDROP_FRAG_CONF(Signal* signal)
+{
+  DropFragConf* conf = (DropFragConf*)signal->getDataPtr();
+
+  ConnectRecordPtr connectPtr;
+  connectPtr.i = conf->senderData;
+  ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+
+  drop_fragments(signal, connectPtr, conf->fragId);
 }
 
 /*
@@ -7556,24 +7940,36 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   tabPtr.i = req->tableId;
   Uint32 hashValue = req->hashValue;
   Uint32 ttabFileSize = ctabFileSize;
-  Uint32 fragId;
+  Uint32 fragId, newFragId = RNIL;
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
   jamEntry();
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
   Uint32 map_ptr_i = tabPtr.p->m_map_ptr_i;
+  Uint32 new_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
   if (tabPtr.p->method == TabRecord::HASH_MAP)
   {
     jam();
     Ptr<Hash2FragmentMap> ptr;
     g_hash_map.getPtr(ptr, map_ptr_i);
     fragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
+
+    if (unlikely(new_map_ptr_i != RNIL))
+    {
+      jam();
+      g_hash_map.getPtr(ptr, new_map_ptr_i);
+      newFragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
+      if (newFragId == fragId)
+      {
+        jam();
+        newFragId = RNIL;
+      }
+    }
   }
   else if (tabPtr.p->method == TabRecord::LINEAR_HASH)
   {
     jam();
     fragId = hashValue & tabPtr.p->mask;
-    ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE);
     if (fragId < tabPtr.p->hashpointer) {
       jam();
       fragId = hashValue & ((tabPtr.p->mask << 1) + 1);
@@ -7604,6 +8000,17 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   conf->zero = 0;
   conf->reqinfo = sig2;
   conf->fragId = fragId;
+
+  if (unlikely(newFragId != RNIL))
+  {
+    jam();
+    conf->reqinfo |= DiGetNodesConf::REORG_MOVING;
+    getFragstore(tabPtr.p, newFragId, fragPtr);
+    nodeCount = extractNodeInfo(fragPtr.p, conf->nodes + 2 + MAX_REPLICAS);
+    conf->nodes[MAX_REPLICAS] = newFragId;
+    conf->nodes[MAX_REPLICAS + 1] = (nodeCount - 1) +
+      (fragPtr.p->distributionKey << 16);
+  }
 }//Dbdih::execDIGETNODESREQ()
 
 Uint32 Dbdih::extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[]) 
@@ -7632,12 +8039,12 @@ Dbdih::getFragstore(TabRecord * tab,        //In parameter
                     FragmentstorePtr & fragptr) //Out parameter
 {
   FragmentstorePtr fragPtr;
-  Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
-  Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
   Uint32 TfragstoreFileSize = cfragstoreFileSize;
   Fragmentstore* TfragStore = fragmentstore;
-  if (chunkNo < MAX_NDB_NODES) {
-    fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
+  Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
+  Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
+  fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
+  if (likely(chunkNo < MAX_NDB_NODES)) {
     ptrCheckGuard(fragPtr, TfragstoreFileSize, TfragStore);
     fragptr = fragPtr;
     return;
@@ -10519,6 +10926,7 @@ void Dbdih::execCOPY_TABCONF(Signal* signal)
     connectPtr.i = tabPtr.p->connectrec;
     ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord); 
     
+    connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
     sendAddFragreq(signal, connectPtr, tabPtr, 0);
     return;
   }//if
@@ -13194,11 +13602,12 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       connectPtr.p->userblockref = ZNIL;
       connectPtr.p->connectState = ConnectRecord::FREE;
       connectPtr.p->table = RNIL;
-      connectPtr.p->nfConnect = connectPtr.i + 1;
+      connectPtr.p->nextPool = connectPtr.i + 1;
+      bzero(connectPtr.p->nodes, sizeof(connectPtr.p->nodes));
     }//for
     connectPtr.i = cconnectFileSize - 1;
     ptrAss(connectPtr, connectRecord);
-    connectPtr.p->nfConnect = RNIL;
+    connectPtr.p->nextPool = RNIL;
     cfirstconnect = 0;
     break;
   }
@@ -15267,6 +15676,17 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     c_activeTakeOverList.next(ptr);
     signal->theData[0] = arg;
     signal->theData[1] = ptr.i;
+  }
+
+  if (arg == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
+    return;
+  }
+  if (arg == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
+    return;
   }
 }//Dbdih::execDUMP_STATE_ORD()
 

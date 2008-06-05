@@ -731,6 +731,22 @@ void Dbtup::executeTriggers(KeyReqStruct *req_struct,
   }
 }
 
+bool
+Dbtup::check_fire_trigger(const Fragrecord * fragPtrP,
+                          const TupTriggerData* trigPtrP,
+                          const KeyReqStruct * req_struct,
+                          const Operationrec * regOperPtr) const
+{
+  jam();
+  switch(fragPtrP->fragStatus){
+  case Fragrecord::FS_REORG_NEW:
+    jam();
+    return false;
+  default:
+    return true;
+  }
+}
+
 void Dbtup::executeTrigger(KeyReqStruct *req_struct,
                            TupTriggerData* const trigPtr,
                            Operationrec* const regOperPtr,
@@ -792,6 +808,12 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
       return;
     }
   }
+  else if (unlikely(regFragPtr.p->fragStatus != Fragrecord::FS_ONLINE))
+  {
+    if (!check_fire_trigger(regFragPtr.p, trigPtr, req_struct, regOperPtr))
+      return;
+  }
+
   if (!readTriggerInfo(trigPtr,
                        regOperPtr,
                        req_struct,

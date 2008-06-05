@@ -29,7 +29,7 @@ class TupFragReq {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  STATIC_CONST( SignalLength = 10 );
+  STATIC_CONST( SignalLength = 11 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
@@ -41,6 +41,7 @@ private:
   Uint32 minRowsLow;
   Uint32 minRowsHigh;
   Uint32 tablespaceid;
+  Uint32 changeMask;
 };
 
 class TupFragConf {

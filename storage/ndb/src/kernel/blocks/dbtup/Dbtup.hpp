@@ -717,7 +717,13 @@ struct Fragrecord {
   Uint32 m_lcp_scan_op;
   Uint32 m_lcp_keep_list;
 
-  State fragStatus;
+  enum FragState
+  { FS_FREE
+    ,FS_ONLINE           // Ordinary fragment
+    ,FS_REORG_NEW        // A new (not yet "online" fragment)
+    ,FS_REORG_COMMIT     // An ordinary fragment which has been split
+    ,FS_REORG_COMMIT_NEW // An new fragment which is online
+  } fragStatus;
   Uint32 fragTableId;
   Uint32 fragmentId;
   Uint32 nextfreefrag;
@@ -1733,6 +1739,8 @@ private:
   void execTUP_DEALLOCREQ(Signal* signal);
   void execTUP_WRITELOG_REQ(Signal* signal);
 
+  void execDROP_FRAG_REQ(Signal*);
+
   // Ordered index related
   void execBUILD_INDX_IMPL_REQ(Signal* signal);
   void buildIndex(Signal* signal, Uint32 buildPtrI);
@@ -2405,15 +2413,13 @@ private:
 
 
   /* Alter table methods. */
-  void handleAlterTabPrepare(Signal *signal, const Tablerec *regTabPtr);
-  void sendAlterTabRef(Signal *signal, AlterTabReq *req, Uint32 errorCode);
-  void sendAlterTabConf(Signal *, AlterTabReq *, Uint32 clientData=RNIL);
-  void handleAlterTableCommit(Signal *signal,
-                              AlterTabOperationPtr regAlterTabOpPtr,
-                              Tablerec *regTabPtr);
-  void handleAlterTableAbort(Signal *signal,
-                             AlterTabOperationPtr regAlterTabOpPtr,
-                             Tablerec *regTabPtr);
+  void handleAlterTablePrepare(Signal *, const AlterTabReq *, const Tablerec *);
+  void handleAlterTableCommit(Signal *, const AlterTabReq *, Tablerec *);
+  void handleAlterTableComplete(Signal *, const AlterTabReq *, Tablerec *);
+  void handleAlterTableAbort(Signal *, const AlterTabReq *, const Tablerec *);
+  void sendAlterTabRef(Signal *signal, Uint32 errorCode);
+  void sendAlterTabConf(Signal *, Uint32 clientData=RNIL);
+
   void handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
                         Uint32 noOfCharsets,
                         Uint32 & charsetIndex, Uint32 & attrDes2);
@@ -2564,6 +2570,11 @@ private:
                       TupTriggerData* trigPtr, 
                       Operationrec* regOperPtr,
                       bool disk);
+
+  bool check_fire_trigger(const Fragrecord*,
+                          const TupTriggerData*,
+                          const KeyReqStruct*,
+                          const Operationrec*) const;
 
   bool readTriggerInfo(TupTriggerData* trigPtr,
                        Operationrec* regOperPtr,

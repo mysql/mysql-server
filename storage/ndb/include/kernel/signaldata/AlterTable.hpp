@@ -44,10 +44,12 @@ struct AlterTableReq {
   t = Changed tablespace name array
   s = Changed tablespace id array
   a = Add attribute
+  f = Add fragment(s)
+  r = Reorg fragment(s)
 
            1111111111222222222233
  01234567890123456789012345678901
- nfdrtsa-------------------------
+ nfdrtsafr-----------------------
 */
 #define NAME_SHIFT        (0)
 #define FRM_SHIFT         (1)
@@ -56,6 +58,10 @@ struct AlterTableReq {
 #define TS_NAME_SHIFT     (4)
 #define TS_SHIFT          (5)
 #define ADD_ATTR_SHIFT    (6)
+#define ADD_FRAG_SHIFT    (7)
+#define REORG_FRAG_SHIFT  (8)
+#define REORG_COMMIT_SHIFT   (9)
+#define REORG_COMPLETE_SHIFT (10)
 
  /**
    * Getters and setters
@@ -74,6 +80,20 @@ struct AlterTableReq {
   static void setTsFlag(UintR &  changeMask, Uint32 tsFlg);
   static Uint8 getAddAttrFlag(const UintR & changeMask);
   static void setAddAttrFlag(UintR &  changeMask, Uint32 tsFlg);
+  static Uint8 getAddFragFlag(const UintR & changeMask);
+  static void setAddFragFlag(UintR &  changeMask, Uint32 tsFlg);
+  static Uint8 getReorgFragFlag(const UintR & changeMask);
+  static void setReorgFragFlag(UintR &  changeMask, Uint32 tsFlg);
+  static Uint8 getReorgCommitFlag(const UintR & changeMask);
+  static void setReorgCommitFlag(UintR &  changeMask, Uint32 tsFlg);
+  static Uint8 getReorgCompleteFlag(const UintR & changeMask);
+  static void setReorgCompleteFlag(UintR &  changeMask, Uint32 tsFlg);
+
+  static bool getReorgSubOp(const UintR & changeMask){
+    return
+      getReorgCommitFlag(changeMask) ||
+      getReorgCompleteFlag(changeMask);
+  }
 };
 
 inline
@@ -160,11 +180,63 @@ AlterTableReq::setAddAttrFlag(UintR & changeMask, Uint32 addAttrFlg){
   changeMask |= (addAttrFlg << ADD_ATTR_SHIFT);
 }
 
+inline
+Uint8
+AlterTableReq::getAddFragFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> ADD_FRAG_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setAddFragFlag(UintR & changeMask, Uint32 addAttrFlg){
+  changeMask |= (addAttrFlg << ADD_FRAG_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getReorgFragFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> REORG_FRAG_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setReorgFragFlag(UintR & changeMask, Uint32 reorgAttrFlg){
+  changeMask |= (reorgAttrFlg << REORG_FRAG_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getReorgCommitFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> REORG_COMMIT_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setReorgCommitFlag(UintR & changeMask, Uint32 reorgAttrFlg){
+  changeMask |= (reorgAttrFlg << REORG_COMMIT_SHIFT);
+}
+
+
+inline
+Uint8
+AlterTableReq::getReorgCompleteFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> REORG_COMPLETE_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setReorgCompleteFlag(UintR & changeMask, Uint32 reorgAttrFlg){
+  changeMask |= (reorgAttrFlg << REORG_COMPLETE_SHIFT);
+}
+
 struct AlterTableConf {
   STATIC_CONST( SignalLength = 6 );
 
   Uint32 senderRef;
-  Uint32 clientData;
+  union {
+    Uint32 clientData;
+    Uint32 senderData;
+  };
   Uint32 transId;
   Uint32 tableId;
   Uint32 tableVersion;
@@ -201,7 +273,10 @@ struct AlterTableRef {
   };
 
   Uint32 senderRef;
-  Uint32 clientData;
+  union {
+    Uint32 clientData;
+    Uint32 senderData;
+  };
   Uint32 transId;
   Uint32 errorCode;
   Uint32 errorLine; 

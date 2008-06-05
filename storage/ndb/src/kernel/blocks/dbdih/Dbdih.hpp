@@ -134,11 +134,22 @@ public:
     enum ConnectState {
       INUSE = 0,
       FREE = 1,
-      STARTED = 2
+      STARTED = 2,
+      ALTER_TABLE = 3,
+      ALTER_TABLE_ABORT = 4, // "local" abort
+      ALTER_TABLE_REVERT = 5
     };
-    Uint32 nodes[MAX_REPLICAS];
+    union {
+      Uint32 nodes[MAX_REPLICAS];
+      struct {
+        Uint32 m_changeMask;
+        Uint32 m_totalfragments;
+        Uint32 m_org_totalfragments;
+        Uint32 m_new_map_ptr_i;
+      } m_alter;
+    };
     ConnectState connectState;
-    Uint32 nfConnect;
+    Uint32 nextPool;
     Uint32 table;
     Uint32 userpointer;
     BlockReference userblockref;
@@ -484,7 +495,10 @@ public:
 
     Uint32 tabFile[2];
     Uint32 connectrec;                                    
-    Uint32 hashpointer;
+    union {
+      Uint32 hashpointer;
+      Uint32 m_new_map_ptr_i;
+    };
     union {
       Uint32 mask;
       Uint32 m_map_ptr_i;
@@ -742,6 +756,8 @@ private:
   void execSTART_FRAGCONF(Signal *);
   void execADD_FRAGCONF(Signal *);
   void execADD_FRAGREF(Signal *);
+  void execDROP_FRAG_REF(Signal *);
+  void execDROP_FRAG_CONF(Signal *);
   void execFSOPENCONF(Signal *);
   void execFSOPENREF(Signal *);
   void execFSCLOSECONF(Signal *);
@@ -1113,6 +1129,14 @@ private:
   void getFragstore(TabRecord *, Uint32 fragNo, FragmentstorePtr & ptr);
   void initialiseFragstore();
 
+  Uint32 add_fragments_to_table(Ptr<TabRecord>, const Uint16 buf[]);
+  Uint32 add_fragment_to_table(Ptr<TabRecord>, Uint32, Ptr<Fragmentstore>&);
+
+  void drop_fragments(Signal*, ConnectRecordPtr, Uint32 last);
+  void release_fragment_from_table(Ptr<TabRecord>, Uint32 fragId);
+  void send_alter_tab_ref(Signal*, Ptr<ConnectRecord>, Uint32);
+  void send_alter_tab_conf(Signal*, Ptr<ConnectRecord>);
+
 //------------------------------------
 // Page Record specific methods
 //------------------------------------
@@ -1209,6 +1233,7 @@ private:
   Fragmentstore *fragmentstore;
   Uint32 cfirstfragstore;
   Uint32 cfragstoreFileSize;
+  RSS_OP_SNAPSHOT(cremainingfrags);
 
   Uint32 c_nextNodeGroup;
   NodeGroupRecord *nodeGroupRecord;

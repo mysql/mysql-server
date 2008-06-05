@@ -213,6 +213,8 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_START_FRAGCONF, &Dbdih::execSTART_FRAGCONF);
   addRecSignal(GSN_ADD_FRAGCONF, &Dbdih::execADD_FRAGCONF);
   addRecSignal(GSN_ADD_FRAGREF, &Dbdih::execADD_FRAGREF);
+  addRecSignal(GSN_DROP_FRAG_REF, &Dbdih::execDROP_FRAG_REF);
+  addRecSignal(GSN_DROP_FRAG_CONF, &Dbdih::execDROP_FRAG_CONF);
   addRecSignal(GSN_FSOPENCONF, &Dbdih::execFSOPENCONF);
   addRecSignal(GSN_FSOPENREF, &Dbdih::execFSOPENREF, true);
   addRecSignal(GSN_FSCLOSECONF, &Dbdih::execFSCLOSECONF);

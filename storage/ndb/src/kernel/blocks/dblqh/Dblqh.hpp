@@ -434,6 +434,7 @@ public:
     CreateTabReq m_createTabReq;
     LqhFragReq m_lqhFragReq;
     LqhAddAttrReq m_addAttrReq;
+    DropFragReq m_dropFragReq;
 
     Uint16 addfragErrorCode;
     Uint16 attrSentToTup;
@@ -2096,6 +2097,10 @@ private:
   void execTUPFRAGCONF(Signal* signal);
   void execTUPFRAGREF(Signal* signal);
 
+  void execDROP_FRAG_REQ(Signal*);
+  void execDROP_FRAG_REF(Signal*);
+  void execDROP_FRAG_CONF(Signal*);
+
   void execTAB_COMMITREQ(Signal* signal);
   void execACCSEIZECONF(Signal* signal);
   void execACCSEIZEREF(Signal* signal);
@@ -2260,6 +2265,7 @@ private:
   void checkScanTcCompleted(Signal* signal);
   void closeFile(Signal* signal, LogFileRecordPtr logFilePtr, Uint32 place);
   void completedLogPage(Signal* signal, Uint32 clpType, Uint32 place);
+  void commit_reorg(TablerecPtr tablePtr);
   void deleteFragrec(Uint32 fragId);
   void deleteTransidHash(Signal* signal);
   void findLogfile(Signal* signal,
@@ -2429,8 +2435,7 @@ private:
   void continueCloseScanAfterBlockedLab(Signal* signal);
   void continueCloseCopyAfterBlockedLab(Signal* signal);
   void sendExecFragRefLab(Signal* signal);
-  void fragrefLab(Signal* signal, BlockReference retRef,
-                  Uint32 retPtr, Uint32 errorCode);
+  void fragrefLab(Signal* signal, Uint32 errorCode, const LqhFragReq* req);
   void abortAddFragOps(Signal* signal);
   void rwConcludedLab(Signal* signal);
   void sendsttorryLab(Signal* signal);

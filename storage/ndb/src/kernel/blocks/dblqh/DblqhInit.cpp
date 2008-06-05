@@ -313,6 +313,10 @@ Dblqh::Dblqh(Block_context& ctx):
   addRecSignal(GSN_PREPARE_COPY_FRAG_REQ,
 	       &Dblqh::execPREPARE_COPY_FRAG_REQ);
   
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dblqh::execDROP_FRAG_REQ);
+  addRecSignal(GSN_DROP_FRAG_REF, &Dblqh::execDROP_FRAG_REF);
+  addRecSignal(GSN_DROP_FRAG_CONF, &Dblqh::execDROP_FRAG_CONF);
+
   initData();
 
 #ifdef VM_TRACE

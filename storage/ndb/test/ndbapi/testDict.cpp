@@ -133,7 +133,7 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runDropTheTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
-  const NdbDictionary::Table* pTab = ctx->getTab();
+  //const NdbDictionary::Table* pTab = ctx->getTab();
   
   // Try to create table in db
   pNdb->getDictionary()->dropTable(f_tablename);
@@ -329,7 +329,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
     i++;
   }
   
-  for (Uint32 i = 0; i<numTables; i++)
+  for (Uint32 i = 0; i<(Uint32)numTables; i++)
     if (tabList[i])
       pDic->dropTable(NDBT_Tables::getTable(i)->getName());
   
@@ -1315,7 +1315,7 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     myColumn.setPrimaryKey(true);
     myColumn.setNullable(false);
     myColumn.setAutoIncrement(true);
-    if (startvalue != ~0) // check that default value starts with 1
+    if (startvalue != ~(Uint32)0) // check that default value starts with 1
       myColumn.setAutoIncrementInitialValue(startvalue);
     myTable.addColumn(myColumn);
 
@@ -1326,7 +1326,7 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     }
 
 
-    if (startvalue == ~0) // check that default value starts with 1
+    if (startvalue == ~(Uint32)0) // check that default value starts with 1
       startvalue = 1;
 
     for (int i = 0; i < 16; i++) {
@@ -1834,13 +1834,13 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
 
   const Uint32 count = NDBT_Tables::getNumTables();
-  for (i=0; i < count; i++){
+  for (i=0; i < (int)count; i++){
     const NdbDictionary::Table * tab = NDBT_Tables::getTable(i);
     pNdb->getDictionary()->createTable(* tab);
     
     const NdbDictionary::Table * tab2 = pNdb->getDictionary()->getTable(tab->getName());
     
-    for(size_t j = 0; j<tab->getNoOfColumns(); j++){
+    for(size_t j = 0; j<(size_t)tab->getNoOfColumns(); j++){
       cols.push_back((char*)tab2);
       cols.push_back(strdup(tab->getColumn(j)->getName()));
     }
@@ -1855,9 +1855,9 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
 
   srand(time(0));
   Uint32 size = cols.size() / 2;
-  char ** columns = &cols[0];
+  //char ** columns = &cols[0];
   Uint64 start = NdbTick_CurrentMillisecond();
-  for(i = 0; i<times; i++){
+  for(i = 0; i<(int)times; i++){
     int j = 2 * (rand() % size);
     const NdbDictionary::Table* tab = (const NdbDictionary::Table*)tcols[j];
     const char * col = tcols[j+1];
@@ -1872,7 +1872,7 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   per /= times;
   
   ndbout_c("%d random getColumn(name) in %Ld ms -> %d us/get",
-	   times, stop, per);
+	   times, stop, (Uint32)per);
 
   return NDBT_OK;
 }
@@ -1955,7 +1955,7 @@ runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
   NdbDictionary::Table tab = *ctx->getTab();
   tab.setTablespaceName("DEFAULT-TS");
   
-  for(Uint32 i = 0; i<tab.getNoOfColumns(); i++)
+  for(Uint32 i = 0; i<(Uint32)tab.getNoOfColumns(); i++)
     if(!tab.getColumn(i)->getPrimaryKey())
       tab.getColumn(i)->setStorageType(NdbDictionary::Column::StorageTypeDisk);
   
@@ -2486,7 +2486,7 @@ runBug21755(NDBT_Context* ctx, NDBT_Step* step)
   idx0.setType(NdbDictionary::Index::OrderedIndex);
   idx0.setTable(pTab0.getName());
   idx0.setStoredIndex(false);
-  for (Uint32 i = 0; i<pTab0.getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)pTab0.getNoOfColumns(); i++)
   {
     const NdbDictionary::Column * col = pTab0.getColumn(i);
     if(col->getPrimaryKey()){
@@ -2711,7 +2711,7 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
 {
   int lgError = 15000;
   int tsError = 16000;
-  int res;
+  //int res;
   char lgname[256];
   char ufname[256];
   char tsname[256];
@@ -3018,7 +3018,7 @@ RandSchemaOp::create_index(Ndb* ndb, Obj* tab)
   idx0.setTable(pTab->getName());
   idx0.setStoredIndex(ordered ? false : stored);
 
-  for (Uint32 i = 0; i<pTab->getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)pTab->getNoOfColumns(); i++)
   {
     if (pTab->getColumn(i)->getPrimaryKey())
       idx0.addColumn(pTab->getColumn(i)->getName());
@@ -3192,7 +3192,7 @@ runDictRestart(NDBT_Context* ctx, NDBT_Step* step)
   if (res.init(ctx, step))
     return NDBT_FAILED;
   
-  for (Uint32 i = 0; i<loops; i++)
+  for (Uint32 i = 0; i<(Uint32)loops; i++)
   {
     for (Uint32 j = 0; j<10; j++)
       if (dict.schema_op(pNdb))
@@ -3451,6 +3451,8 @@ DropDDObjectsVerify(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+/** telco-6.4 **/
+
 // begin schema trans
 
 #undef chk1
@@ -3605,7 +3607,7 @@ ST_Trg::realname() const
   const char* r = strchr(p, '>');
   assert(q != 0 && r != 0 && q < r);
   assert(ind->id != -1);
-  sprintf(realname_buf, "%.*s%d%s", q - p, p, ind->id, r + 1);
+  sprintf(realname_buf, "%.*s%d%s", (int)(q - p), p, ind->id, r + 1);
   return realname_buf;
 }
 
@@ -4499,7 +4501,7 @@ st_equal_index(const NdbDictionary::Index& i1, const NdbDictionary::Index& i2)
   NdbDictionary::Object::Type type;
   type = (NdbDictionary::Object::Type)i1.getType();
   int n;
-  for (n = 0; n < i1.getNoOfColumns(); n++) {
+  for (n = 0; n < (int)i1.getNoOfColumns(); n++) {
     const NdbDictionary::Column* c1 = i1.getColumn(n);
     const NdbDictionary::Column* c2 = i2.getColumn(n);
     assert(c1 != 0 && c2 != 0);
@@ -5707,8 +5709,10 @@ st_test_mnf_parse(ST_Con& c, int arg = -1)
 {
   g_info << "not yet" << endl;
   return NDBT_OK;
+#if 0
 err:
   return NDBT_FAILED;
+#endif
 }
 
 static int
@@ -6095,6 +6099,213 @@ end:
   return result;
 }
 // end FAIL create hashmap
+
+int
+runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
+{
+  static int lst[] = { 7211, 7212, 4050, 12008, 6212, 0 };
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  NdbDictionary::Table tab(*ctx->getTab());
+  NdbRestarter restarter;
+  int nodeId = restarter.getMasterNodeId();
+
+  int errNo = 0;
+  char buf[100];
+  if (NdbEnv_GetEnv("ERRNO", buf, sizeof(buf)))
+  {
+    errNo = atoi(buf);
+    ndbout_c("Using errno: %u", errNo);
+  }
+
+  // ordered index on first few columns
+  NdbDictionary::Index idx("X");
+  idx.setTable(tab.getName());
+  idx.setType(NdbDictionary::Index::OrderedIndex);
+  idx.setLogging(false);
+  for (int cnt = 0, i_hate_broken_compilers = 0;
+       cnt < 3 &&
+       i_hate_broken_compilers < tab.getNoOfColumns();
+       i_hate_broken_compilers++) {
+    if (NdbSqlUtil::check_column_for_ordered_index
+        (tab.getColumn(i_hate_broken_compilers)->getType(), 0) == 0 &&
+        tab.getColumn(i_hate_broken_compilers)->getStorageType() !=
+        NdbDictionary::Column::StorageTypeDisk)
+    {
+      idx.addColumn(*tab.getColumn(i_hate_broken_compilers));
+      cnt++;
+    }
+  }
+
+  for (Uint32 i = 0; i<tab.getNoOfColumns(); i++)
+  {
+    if (tab.getColumn(i)->getStorageType() ==
+        NdbDictionary::Column::StorageTypeDisk)
+    {
+      NDBT_Tables::create_default_tablespace(pNdb);
+      break;
+    }
+  }
+
+  const int loops = ctx->getNumLoops();
+  int result = NDBT_OK;
+  (void)pDic->dropTable(tab.getName());
+  if (pDic->createTable(tab) != 0)
+  {
+    ndbout << "FAIL: " << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pDic->createIndex(idx) != 0)
+  {
+    ndbout << "FAIL: " << pDic->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  const NdbDictionary::Table * org = pDic->getTable(tab.getName());
+  NdbDictionary::Table altered = * org;
+  altered.setFragmentCount(org->getFragmentCount() + 2);
+
+  NdbDictionary::HashMap hm;
+  pDic->initDefaultHashMap(hm, altered.getFragmentCount());
+  if (pDic->getHashMap(hm, hm.getName()) == -1)
+  {
+    if (pDic->createHashMap(hm) != 0)
+    {
+      ndbout << "Failed to create hashmap: " << pDic->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  int dump1 = DumpStateOrd::SchemaResourceSnapshot;
+  int dump2 = DumpStateOrd::SchemaResourceCheckLeak;
+
+  for (int l = 0; l < loops; l++)
+  {
+    for (unsigned i0 = 0; lst[i0]; i0++)
+    {
+      unsigned j = (l == 0 ? i0 : myRandom48(sizeof(lst)/sizeof(lst[0]) - 1));
+      int errval = lst[j];
+      if (errNo != 0 && errNo != errval)
+        continue;
+      g_info << "insert error node=" << nodeId << " value=" << errval << endl;
+      CHECK2(restarter.insertErrorInNode(nodeId, errval) == 0,
+             "failed to set error insert");
+      CHECK(restarter.dumpStateAllNodes(&dump1, 1) == 0);
+
+      CHECK2(pDic->alterTable(*org, altered) != 0,
+             "failed to fail after error insert " << errval);
+      CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
+
+      const NdbDictionary::Table* check = pDic->getTable(tab.getName());
+
+      CHECK2((check->getObjectId() == org->getObjectId() &&
+              check->getObjectVersion() == org->getObjectVersion()),
+             "table has been altered!");
+    }
+  }
+
+end:
+  (void)pDic->dropTable(tab.getName());
+  return result;
+}
+// fail add partition
+
+int
+runTableAddPartition(NDBT_Context* ctx, NDBT_Step* step){
+
+  int result = NDBT_OK;
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+  //int records = ctx->getNumRecords();
+  const int loops = ctx->getNumLoops();
+
+  ndbout << "|- " << ctx->getTab()->getName() << endl;
+
+  NdbDictionary::Table myTab= *(ctx->getTab());
+  myTab.setFragmentType(NdbDictionary::Object::HashMapPartition);
+
+  for (int l = 0; l < loops && result == NDBT_OK ; l++)
+  {
+    // Try to create table in db
+    if (NDBT_Tables::createTable(pNdb, myTab.getName()) != 0){
+      return NDBT_FAILED;
+    }
+
+    // Verify that table is in db
+    const NdbDictionary::Table* pTab2 =
+      NDBT_Table::discoverTableFromDb(pNdb, myTab.getName());
+    if (pTab2 == NULL){
+      ndbout << myTab.getName() << " was not found in DB"<< endl;
+      return NDBT_FAILED;
+    }
+    ctx->setTab(pTab2);
+
+#if 0
+    // Load table
+    HugoTransactions beforeTrans(*ctx->getTab());
+    if (beforeTrans.loadTable(pNdb, records) != 0){
+      return NDBT_FAILED;
+    }
+#endif
+
+    // Add attributes to table.
+    BaseString pTabName(pTab2->getName());
+    const NdbDictionary::Table * oldTable = dict->getTable(pTabName.c_str());
+
+    NdbDictionary::Table newTable= *oldTable;
+
+    newTable.setFragmentCount(2 * oldTable->getFragmentCount());
+    CHECK2(dict->alterTable(*oldTable, newTable) == 0,
+           "TableAddAttrs failed");
+
+    /* Need to purge old version and reload new version after alter table. */
+    dict->invalidateTable(pTabName.c_str());
+
+#if 0
+    {
+      HugoTransactions afterTrans(* dict->getTable(pTabName.c_str()));
+
+      ndbout << "delete...";
+      if (afterTrans.clearTable(pNdb) != 0)
+      {
+        return NDBT_FAILED;
+      }
+      ndbout << endl;
+
+      ndbout << "insert...";
+      if (afterTrans.loadTable(pNdb, records) != 0){
+        return NDBT_FAILED;
+      }
+      ndbout << endl;
+
+      ndbout << "update...";
+      if (afterTrans.scanUpdateRecords(pNdb, records) != 0)
+      {
+        return NDBT_FAILED;
+      }
+      ndbout << endl;
+
+      ndbout << "delete...";
+      if (afterTrans.clearTable(pNdb) != 0)
+      {
+        return NDBT_FAILED;
+      }
+      ndbout << endl;
+    }
+#endif
+    abort();
+    // Drop table.
+    dict->dropTable(pTabName.c_str());
+  }
+end:
+
+  return result;
+}
+
+/** telco-6.4 **/
  
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
@@ -6301,11 +6512,22 @@ TESTCASE("Bug29186",
          ""){
   INITIALIZER(runBug29186);
 }
+/** telco-6.4 **/
 TESTCASE("FailCreateHashmap",
          "Fail create hashmap")
 {
   INITIALIZER(runFailCreateHashmap);
 }
+TESTCASE("FailAddPartition",
+         "Fail add partition")
+{
+  INITIALIZER(runFailAddPartition);
+}
+TESTCASE("TableAddPartitions",
+	 "Add partitions to an existing table using alterTable()"){
+  INITIALIZER(runTableAddPartition);
+}
+/** telco-6.4 **/
 NDBT_TESTSUITE_END(testDict);
 
 int main(int argc, const char** argv){

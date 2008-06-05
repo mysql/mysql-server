@@ -34,6 +34,7 @@
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
 #include <my_sys.h>
+#include <signaldata/LqhFrag.hpp>
 
 void
 Dbtup::execCREATE_TAB_REQ(Signal* signal)
@@ -401,6 +402,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint32 reqinfo        = req->reqInfo;
   Uint32 fragId         = req->fragId;
   Uint32 tablespace_id  = req->tablespaceid;
+  Uint32 changeMask     = req->changeMask;
 
   Uint64 maxRows =
     (((Uint64)req->maxRowsHigh) << 32) + req->maxRowsLow;
@@ -480,7 +482,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   }
 
   if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
-      ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId)
+      ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId ||
+      ERROR_INSERTED(4050))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -488,6 +491,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     goto sendref;
   }
 
+  regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
   regFragPtr.p->fragTableId= regTabPtr.i;
   regFragPtr.p->fragmentId= fragId;
   regFragPtr.p->m_tablespace_id= tablespace_id;
@@ -518,6 +522,12 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   }
   new (&regFragPtr.p->m_disk_alloc_info)
     Disk_alloc_info(regTabPtr.p, rep.tablespace.extent_size);
+
+  if (AlterTableReq::getReorgFragFlag(changeMask))
+  {
+    jam();
+    regFragPtr.p->fragStatus = Fragrecord::FS_REORG_NEW;
+  }
 
   signal->theData[0]= userptr;
   signal->theData[1]= fragId;
@@ -597,299 +607,350 @@ void
 Dbtup::execALTER_TAB_REQ(Signal *signal)
 {
   jamEntry();
-  if(!assembleFragments(signal))
-    return;
-  AlterTabReq *const req= (AlterTabReq *)signal->getDataPtr();
-  SectionHandle handle(this, signal);
-  if (!AlterTableReq::getAddAttrFlag(req->changeMask))
-  {
-    /* Nothing to do in TUP. */
-    releaseSections(handle);
-    sendAlterTabConf(signal, req);
-    return;
-  }
+
+  AlterTabReq copy= *(AlterTabReq *)signal->getDataPtr();
+  AlterTabReq * req = &copy;
 
   TablerecPtr regTabPtr;
   regTabPtr.i= req->tableId;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
-  AlterTabReq::RequestType alterType=
-    (AlterTabReq::RequestType)req->requestType;
-
-  if(alterType==AlterTabReq::AlterTablePrepare)
+  switch((AlterTabReq::RequestType)req->requestType){
+  case AlterTabReq::AlterTablePrepare:
   {
     jam();
-    ndbrequire(handle.m_cnt == 1);
-    copy(signal->theData+25, handle.m_ptr[0]);
-    releaseSections(handle);
-    handleAlterTabPrepare(signal, regTabPtr.p);
+
+    if (AlterTableReq::getAddAttrFlag(req->changeMask))
+    {
+      jam();
+      SectionHandle handle(this, signal);
+      ndbrequire(handle.m_cnt == 1);
+      ::copy(signal->theData+25, handle.m_ptr[0]);
+      releaseSections(handle);
+    }
+    handleAlterTablePrepare(signal, req, regTabPtr.p);
     return;
   }
-  releaseSections(handle);
-
-  AlterTabOperationPtr regAlterTabOpPtr;
-  if (req->connectPtr==RNIL)
+  case AlterTabReq::AlterTableCommit:
   {
     jam();
-    /* This means that we failed in prepare, or never got there. */
-    sendAlterTabConf(signal, req);
+    handleAlterTableCommit(signal, req, regTabPtr.p);
     return;
   }
-  regAlterTabOpPtr.i= req->connectPtr;
-  ptrCheckGuard(regAlterTabOpPtr, cnoOfAlterTabOps, alterTabOperRec);
-
-  if(alterType==AlterTabReq::AlterTableCommit)
+  case AlterTabReq::AlterTableRevert:
   {
-    handleAlterTableCommit(signal, regAlterTabOpPtr, regTabPtr.p);
+    jam();
+    handleAlterTableAbort(signal, req, regTabPtr.p);
+    return;
   }
-  else if(alterType==AlterTabReq::AlterTableRevert)
+  case AlterTabReq::AlterTableComplete:
   {
-    handleAlterTableAbort(signal, regAlterTabOpPtr, regTabPtr.p);
+    jam();
+    handleAlterTableComplete(signal, req, regTabPtr.p);
+    return;
   }
-  else
-  {
-    ndbrequire(false);
   }
+  ndbrequire(false);
 }
 
 void
-Dbtup::handleAlterTabPrepare(Signal *signal, const Tablerec *regTabPtr)
+Dbtup::handleAlterTablePrepare(Signal *signal,
+                               const AlterTabReq *req,
+                               const Tablerec *regTabPtr)
 {
-  AlterTabReq *const req= (AlterTabReq *)signal->getDataPtr();
-
-  Uint32 noOfNewAttr= req->noOfNewAttr;
-  Uint32 newNoOfCharsets= req->newNoOfCharsets;
-  Uint32 newNoOfKeyAttrs= req->newNoOfKeyAttrs;
-
-  Uint32 *attrInfo= signal->theData+25;
-
-  Uint32 oldNoOfAttr= regTabPtr->m_no_of_attributes;
-  Uint32 newNoOfAttr= oldNoOfAttr+noOfNewAttr;
-
-  /* Can only add attributes if varpart already present. */
-  if((regTabPtr->m_attributes[MM].m_no_of_varsize +
-      regTabPtr->m_attributes[MM].m_no_of_dynamic +
-      (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)) == 0)
-  {
-    sendAlterTabRef(signal, req, ZINVALID_ALTER_TAB);
-    return;
-  }
-
-  AlterTabOperationPtr regAlterTabOpPtr;
-  seizeAlterTabOperation(regAlterTabOpPtr);
-
-  regAlterTabOpPtr.p->newNoOfAttrs= newNoOfAttr;
-  regAlterTabOpPtr.p->newNoOfCharsets= newNoOfCharsets;
-  regAlterTabOpPtr.p->newNoOfKeyAttrs= newNoOfKeyAttrs;
-
-  /* Allocate a new (possibly larger) table descriptor buffer. */
-  Uint32 allocSize= getTabDescrOffsets(newNoOfAttr, newNoOfCharsets,
-                                       newNoOfKeyAttrs,
-                                       regAlterTabOpPtr.p->tabDesOffset);
-  Uint32 tableDescriptorRef= allocTabDescr(allocSize);
-  if (tableDescriptorRef == RNIL) {
-    jam();
-    releaseAlterTabOpRec(regAlterTabOpPtr);
-    sendAlterTabRef(signal, req, terrorCode);
-    return;
-  }
-  regAlterTabOpPtr.p->tableDescriptor= tableDescriptorRef;
-  regAlterTabOpPtr.p->desAllocSize= allocSize;
-
-  /*
-    Get new pointers into tableDescriptor, and copy over old data.
-    (Rest will be recomputed in computeTableMetaData() in case of
-    ALTER_TAB_REQ[commit]).
-  */
-  Uint32* desc= &tableDescriptor[tableDescriptorRef].tabDescr;
-  CHARSET_INFO** CharsetArray=
-    (CHARSET_INFO**)(desc + regAlterTabOpPtr.p->tabDesOffset[2]);
-  memcpy(CharsetArray, regTabPtr->charsetArray,
-         sizeof(*CharsetArray)*regTabPtr->noOfCharsets);
-  Uint32 *attrDesPtr= desc + regAlterTabOpPtr.p->tabDesOffset[4];
-  memcpy(attrDesPtr,
-         &tableDescriptor[regTabPtr->tabDescriptor].tabDescr,
-         (ZAD_SIZE<<2)*oldNoOfAttr);
-  attrDesPtr+= ZAD_SIZE*oldNoOfAttr;
-
-  /*
-    Loop over the new attributes to add.
-     - Save AttributeDescriptor word in new TabDescriptor record.
-     - Compute charset pos, as we will not save original csNumber.
-     - Compute size needed for dynamic bitmap mask allocation.
-     - Compute number of dynamic varsize, needed for fixsize offset calculation
-       in ALTER_TAB_REQ[commit];
-   */
-  Uint32 charsetIndex= regTabPtr->noOfCharsets;
-  Uint32 dyn_nullbits= regTabPtr->m_dyn_null_bits;
-  if (dyn_nullbits == 0)
+  Uint32 connectPtr = RNIL;
+  if (AlterTableReq::getAddAttrFlag(req->changeMask))
   {
     jam();
-    dyn_nullbits = DYN_BM_LEN_BITS;
-  }
 
-  Uint32 noDynFix= regTabPtr->m_attributes[MM].m_no_of_dyn_fix;
-  Uint32 noDynVar= regTabPtr->m_attributes[MM].m_no_of_dyn_var;
-  Uint32 noDynamic= regTabPtr->m_attributes[MM].m_no_of_dynamic;
-  for (Uint32 i= 0; i<noOfNewAttr; i++)
-  {
-    Uint32 attrDescriptor= *attrInfo++;
-    Uint32 csNumber= (*attrInfo++ >> 16);
-    Uint32 attrDes2= 0;
+    Uint32 noOfNewAttr= req->noOfNewAttr;
+    Uint32 newNoOfCharsets= req->newNoOfCharsets;
+    Uint32 newNoOfKeyAttrs= req->newNoOfKeyAttrs;
 
-    /* Only dynamic attributes possible for add attr */
-    ndbrequire(AttributeDescriptor::getDynamic(attrDescriptor));
-    ndbrequire(!AttributeDescriptor::getDiskBased(attrDescriptor));
+    Uint32 *attrInfo= signal->theData+25;
 
-    handleCharsetPos(csNumber, CharsetArray, newNoOfCharsets,
-                     charsetIndex, attrDes2);
+    Uint32 oldNoOfAttr= regTabPtr->m_no_of_attributes;
+    Uint32 newNoOfAttr= oldNoOfAttr+noOfNewAttr;
 
-    Uint32 null_pos= dyn_nullbits;
-    Uint32 arrType= AttributeDescriptor::getArrayType(attrDescriptor);
-    noDynamic++;
-    if (arrType==NDB_ARRAYTYPE_FIXED)
+    /* Can only add attributes if varpart already present. */
+    if((regTabPtr->m_attributes[MM].m_no_of_varsize +
+        regTabPtr->m_attributes[MM].m_no_of_dynamic +
+        (regTabPtr->m_bits & Tablerec::TR_ForceVarPart)) == 0)
     {
-      Uint32 words= AttributeDescriptor::getSizeInWords(attrDescriptor);
+      sendAlterTabRef(signal, ZINVALID_ALTER_TAB);
+      return;
+    }
 
-      if(AttributeDescriptor::getSize(attrDescriptor) > 0)
+    AlterTabOperationPtr regAlterTabOpPtr;
+    seizeAlterTabOperation(regAlterTabOpPtr);
+
+    regAlterTabOpPtr.p->newNoOfAttrs= newNoOfAttr;
+    regAlterTabOpPtr.p->newNoOfCharsets= newNoOfCharsets;
+    regAlterTabOpPtr.p->newNoOfKeyAttrs= newNoOfKeyAttrs;
+
+    /* Allocate a new (possibly larger) table descriptor buffer. */
+    Uint32 allocSize= getTabDescrOffsets(newNoOfAttr, newNoOfCharsets,
+                                         newNoOfKeyAttrs,
+                                         regAlterTabOpPtr.p->tabDesOffset);
+    Uint32 tableDescriptorRef= allocTabDescr(allocSize);
+    if (tableDescriptorRef == RNIL) {
+      jam();
+      releaseAlterTabOpRec(regAlterTabOpPtr);
+      sendAlterTabRef(signal, terrorCode);
+      return;
+    }
+    regAlterTabOpPtr.p->tableDescriptor= tableDescriptorRef;
+    regAlterTabOpPtr.p->desAllocSize= allocSize;
+
+    /*
+      Get new pointers into tableDescriptor, and copy over old data.
+      (Rest will be recomputed in computeTableMetaData() in case of
+      ALTER_TAB_REQ[commit]).
+    */
+    Uint32* desc= &tableDescriptor[tableDescriptorRef].tabDescr;
+    CHARSET_INFO** CharsetArray=
+      (CHARSET_INFO**)(desc + regAlterTabOpPtr.p->tabDesOffset[2]);
+    memcpy(CharsetArray, regTabPtr->charsetArray,
+           sizeof(*CharsetArray)*regTabPtr->noOfCharsets);
+    Uint32 *attrDesPtr= desc + regAlterTabOpPtr.p->tabDesOffset[4];
+    memcpy(attrDesPtr,
+           &tableDescriptor[regTabPtr->tabDescriptor].tabDescr,
+           (ZAD_SIZE<<2)*oldNoOfAttr);
+    attrDesPtr+= ZAD_SIZE*oldNoOfAttr;
+
+    /*
+      Loop over the new attributes to add.
+      - Save AttributeDescriptor word in new TabDescriptor record.
+      - Compute charset pos, as we will not save original csNumber.
+      - Compute size needed for dynamic bitmap mask allocation.
+      - Compute number of dynamic varsize, needed for fixsize offset calculation
+      in ALTER_TAB_REQ[commit];
+    */
+    Uint32 charsetIndex= regTabPtr->noOfCharsets;
+    Uint32 dyn_nullbits= regTabPtr->m_dyn_null_bits;
+    if (dyn_nullbits == 0)
+    {
+      jam();
+      dyn_nullbits = DYN_BM_LEN_BITS;
+    }
+
+    Uint32 noDynFix= regTabPtr->m_attributes[MM].m_no_of_dyn_fix;
+    Uint32 noDynVar= regTabPtr->m_attributes[MM].m_no_of_dyn_var;
+    Uint32 noDynamic= regTabPtr->m_attributes[MM].m_no_of_dynamic;
+    for (Uint32 i= 0; i<noOfNewAttr; i++)
+    {
+      Uint32 attrDescriptor= *attrInfo++;
+      Uint32 csNumber= (*attrInfo++ >> 16);
+      Uint32 attrDes2= 0;
+
+      /* Only dynamic attributes possible for add attr */
+      ndbrequire(AttributeDescriptor::getDynamic(attrDescriptor));
+      ndbrequire(!AttributeDescriptor::getDiskBased(attrDescriptor));
+
+      handleCharsetPos(csNumber, CharsetArray, newNoOfCharsets,
+                       charsetIndex, attrDes2);
+
+      Uint32 null_pos= dyn_nullbits;
+      Uint32 arrType= AttributeDescriptor::getArrayType(attrDescriptor);
+      noDynamic++;
+      if (arrType==NDB_ARRAYTYPE_FIXED)
       {
-        jam();
-        if(words > InternalMaxDynFix)
-          goto treat_as_varsize;
-        noDynFix++;
-        dyn_nullbits+= words;
+        Uint32 words= AttributeDescriptor::getSizeInWords(attrDescriptor);
+
+        if(AttributeDescriptor::getSize(attrDescriptor) > 0)
+        {
+          jam();
+          if(words > InternalMaxDynFix)
+            goto treat_as_varsize;
+          noDynFix++;
+          dyn_nullbits+= words;
+        }
+        else
+        {
+          /* Bit type. */
+          jam();
+          Uint32 bits= AttributeDescriptor::getArraySize(attrDescriptor);
+          null_pos+= bits;
+          dyn_nullbits+= bits+1;
+        }
       }
       else
       {
-        /* Bit type. */
         jam();
-        Uint32 bits= AttributeDescriptor::getArraySize(attrDescriptor);
-        null_pos+= bits;
-        dyn_nullbits+= bits+1;
-      }
-    }
-    else
-    {
-      jam();
     treat_as_varsize:
-      noDynVar++;
-      dyn_nullbits++;
+        noDynVar++;
+        dyn_nullbits++;
+      }
+      AttributeOffset::setNullFlagPos(attrDes2, null_pos);
+
+      *attrDesPtr++= attrDescriptor;
+      *attrDesPtr++= attrDes2;
     }
-    AttributeOffset::setNullFlagPos(attrDes2, null_pos);
+    ndbassert(newNoOfCharsets==charsetIndex);
 
-    *attrDesPtr++= attrDescriptor;
-    *attrDesPtr++= attrDes2;
+    regAlterTabOpPtr.p->noOfDynNullBits= dyn_nullbits;
+    ndbassert(noDynamic ==
+              regTabPtr->m_attributes[MM].m_no_of_dynamic + noOfNewAttr);
+    regAlterTabOpPtr.p->noOfDynFix= noDynFix;
+    regAlterTabOpPtr.p->noOfDynVar= noDynVar;
+    regAlterTabOpPtr.p->noOfDynamic= noDynamic;
+
+    /* Allocate the new (possibly larger) dynamic descriptor. */
+    allocSize= getDynTabDescrOffsets((dyn_nullbits+31)>>5,
+                                     regAlterTabOpPtr.p->dynTabDesOffset);
+    Uint32 dynTableDescriptorRef= allocTabDescr(allocSize);
+    if (dynTableDescriptorRef == RNIL) {
+      jam();
+      freeTabDescr(tableDescriptorRef, regAlterTabOpPtr.p->desAllocSize);
+      releaseAlterTabOpRec(regAlterTabOpPtr);
+      sendAlterTabRef(signal, terrorCode);
+      return;
+    }
+    regAlterTabOpPtr.p->dynDesAllocSize= allocSize;
+    regAlterTabOpPtr.p->dynTableDescriptor= dynTableDescriptorRef;
+    connectPtr = regAlterTabOpPtr.i;
   }
-  ndbassert(newNoOfCharsets==charsetIndex);
 
-  regAlterTabOpPtr.p->noOfDynNullBits= dyn_nullbits;
-  ndbassert(noDynamic ==
-            regTabPtr->m_attributes[MM].m_no_of_dynamic + noOfNewAttr);
-  regAlterTabOpPtr.p->noOfDynFix= noDynFix;
-  regAlterTabOpPtr.p->noOfDynVar= noDynVar;
-  regAlterTabOpPtr.p->noOfDynamic= noDynamic;
-
-  /* Allocate the new (possibly larger) dynamic descriptor. */
-  allocSize= getDynTabDescrOffsets((dyn_nullbits+31)>>5,
-                                   regAlterTabOpPtr.p->dynTabDesOffset);
-  Uint32 dynTableDescriptorRef= allocTabDescr(allocSize);
-  if (dynTableDescriptorRef == RNIL) {
-    jam();
-    freeTabDescr(tableDescriptorRef, regAlterTabOpPtr.p->desAllocSize);
-    releaseAlterTabOpRec(regAlterTabOpPtr);
-    sendAlterTabRef(signal, req, terrorCode);
-    return;
-  }
-  regAlterTabOpPtr.p->dynDesAllocSize= allocSize;
-  regAlterTabOpPtr.p->dynTableDescriptor= dynTableDescriptorRef;
-
-  sendAlterTabConf(signal, req, regAlterTabOpPtr.i);
+  sendAlterTabConf(signal, connectPtr);
 }
 
 void
-Dbtup::sendAlterTabRef(Signal *signal, AlterTabReq *req, Uint32 errorCode)
+Dbtup::sendAlterTabRef(Signal *signal, Uint32 errorCode)
 {
-  signal->header.m_noOfSections = 0;
-
-  AlterTabAll *const src= (AlterTabAll *)req;
-  Uint32 senderRef= src->req.senderRef;
-  Uint32 senderData= src->req.senderData;
-
-  AlterTabAll *const dst= (AlterTabAll *)signal->getDataPtrSend();
-  dst->ref.senderRef= reference();
-  dst->ref.senderData= senderData;
-  dst->ref.errorCode= errorCode;
-  dst->ref.errorLine= 0;
-  dst->ref.errorKey= 0;
-  dst->ref.errorStatus= 0;
-
-  sendSignal(senderRef, GSN_ALTER_TAB_REF, signal,
-             AlterTabRef::SignalLength, JBB);
+  signal->theData[0] = errorCode;
+  signal->theData[1] = RNIL;
 }
 
 void
-Dbtup::sendAlterTabConf(Signal *signal, AlterTabReq *req, Uint32 connectPtr)
+Dbtup::sendAlterTabConf(Signal *signal, Uint32 connectPtr)
 {
-  signal->header.m_noOfSections = 0;
-
-  AlterTabAll *const src= (AlterTabAll *)req;
-  Uint32 senderRef= src->req.senderRef;
-  Uint32 senderData= src->req.senderData;
-
-  AlterTabAll *const dst= (AlterTabAll *)signal->getDataPtrSend();
-  dst->conf.senderRef= reference();
-  dst->conf.senderData= senderData;
-  dst->conf.connectPtr= connectPtr;
-
-  sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
-             AlterTabConf::SignalLength, JBB);
+  signal->theData[0] = 0;
+  signal->theData[1] = connectPtr;
 }
 
 void
 Dbtup::handleAlterTableCommit(Signal *signal,
-                              AlterTabOperationPtr regAlterTabOpPtr,
+                              const AlterTabReq* req,
                               Tablerec *regTabPtr)
 {
-  /* Free old table descriptors. */
-  releaseTabDescr(regTabPtr);
+  if (AlterTableReq::getAddAttrFlag(req->changeMask))
+  {
+    AlterTabOperationPtr regAlterTabOpPtr;
+    regAlterTabOpPtr.i= req->connectPtr;
+    ptrCheckGuard(regAlterTabOpPtr, cnoOfAlterTabOps, alterTabOperRec);
 
-  /* Set new attribute counts. */
-  regTabPtr->m_no_of_attributes= regAlterTabOpPtr.p->newNoOfAttrs;
-  regTabPtr->noOfCharsets= regAlterTabOpPtr.p->newNoOfCharsets;
-  regTabPtr->noOfKeyAttr= regAlterTabOpPtr.p->newNoOfKeyAttrs;
-  regTabPtr->m_attributes[MM].m_no_of_dyn_fix= regAlterTabOpPtr.p->noOfDynFix;
-  regTabPtr->m_attributes[MM].m_no_of_dyn_var= regAlterTabOpPtr.p->noOfDynVar;
-  regTabPtr->m_attributes[MM].m_no_of_dynamic= regAlterTabOpPtr.p->noOfDynamic;
-  regTabPtr->m_dyn_null_bits= regAlterTabOpPtr.p->noOfDynNullBits;
+    /* Free old table descriptors. */
+    releaseTabDescr(regTabPtr);
 
-  /* Install the new (larger) table descriptors. */
-  setUpDescriptorReferences(regAlterTabOpPtr.p->tableDescriptor,
-                            regTabPtr,
-                            regAlterTabOpPtr.p->tabDesOffset);
-  setupDynDescriptorReferences(regAlterTabOpPtr.p->dynTableDescriptor,
-                               regTabPtr,
-                               regAlterTabOpPtr.p->dynTabDesOffset);
+    /* Set new attribute counts. */
+    regTabPtr->m_no_of_attributes= regAlterTabOpPtr.p->newNoOfAttrs;
+    regTabPtr->noOfCharsets= regAlterTabOpPtr.p->newNoOfCharsets;
+    regTabPtr->noOfKeyAttr= regAlterTabOpPtr.p->newNoOfKeyAttrs;
+    regTabPtr->m_attributes[MM].m_no_of_dyn_fix= regAlterTabOpPtr.p->noOfDynFix;
+    regTabPtr->m_attributes[MM].m_no_of_dyn_var= regAlterTabOpPtr.p->noOfDynVar;
+    regTabPtr->m_attributes[MM].m_no_of_dynamic= regAlterTabOpPtr.p->noOfDynamic;
+    regTabPtr->m_dyn_null_bits= regAlterTabOpPtr.p->noOfDynNullBits;
 
-  releaseAlterTabOpRec(regAlterTabOpPtr);
+    /* Install the new (larger) table descriptors. */
+    setUpDescriptorReferences(regAlterTabOpPtr.p->tableDescriptor,
+                              regTabPtr,
+                              regAlterTabOpPtr.p->tabDesOffset);
+    setupDynDescriptorReferences(regAlterTabOpPtr.p->dynTableDescriptor,
+                                 regTabPtr,
+                                 regAlterTabOpPtr.p->dynTabDesOffset);
 
-  /* Recompute aggregate table meta data. */
-  computeTableMetaData(regTabPtr);
+    releaseAlterTabOpRec(regAlterTabOpPtr);
 
-  sendAlterTabConf(signal, (AlterTabReq *)signal->getDataPtr());
+    /* Recompute aggregate table meta data. */
+    computeTableMetaData(regTabPtr);
+  }
+
+  if (AlterTableReq::getReorgFragFlag(req->changeMask))
+  {
+    FragrecordPtr regFragPtr;
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    {
+      jam();
+      if ((regFragPtr.i = regTabPtr->fragrec[i]) != RNIL)
+      {
+        jam();
+        ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
+        switch(regFragPtr.p->fragStatus){
+        case Fragrecord::FS_ONLINE:
+          jam();
+          regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMMIT;
+          break;
+        case Fragrecord::FS_REORG_NEW:
+          jam();
+          regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMMIT_NEW;
+          break;
+        default:
+          jamLine(regFragPtr.p->fragStatus);
+          ndbrequire(false);
+        }
+      }
+    }
+  }
+
+  sendAlterTabConf(signal, RNIL);
+}
+
+void
+Dbtup::handleAlterTableComplete(Signal *signal,
+                                const AlterTabReq* req,
+                                Tablerec *regTabPtr)
+{
+  if (AlterTableReq::getReorgCompleteFlag(req->changeMask))
+  {
+    FragrecordPtr regFragPtr;
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    {
+      jam();
+      if ((regFragPtr.i = regTabPtr->fragrec[i]) != RNIL)
+      {
+        jam();
+        ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
+        switch(regFragPtr.p->fragStatus){
+        case Fragrecord::FS_REORG_COMMIT:
+        case Fragrecord::FS_REORG_COMMIT_NEW:
+          jam();
+          regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
+          break;
+        default:
+          jamLine(regFragPtr.p->fragStatus);
+          ndbrequire(false);
+        }
+      }
+    }
+  }
+
+  sendAlterTabConf(signal, RNIL);
 }
 
 void
 Dbtup::handleAlterTableAbort(Signal *signal,
-                             AlterTabOperationPtr regAlterTabOpPtr,
-                              Tablerec *regTabPtr)
+                             const AlterTabReq* req,
+                             const Tablerec *regTabPtr)
 {
-  freeTabDescr(regAlterTabOpPtr.p->tableDescriptor,
-               regAlterTabOpPtr.p->desAllocSize);
-  freeTabDescr(regAlterTabOpPtr.p->dynTableDescriptor,
-               regAlterTabOpPtr.p->dynDesAllocSize);
-  releaseAlterTabOpRec(regAlterTabOpPtr);
+  if (AlterTableReq::getAddAttrFlag(req->changeMask))
+  {
+    jam();
+    if (req->connectPtr != RNIL)
+    {
+      jam();
+      AlterTabOperationPtr regAlterTabOpPtr;
+      regAlterTabOpPtr.i= req->connectPtr;
+      ptrCheckGuard(regAlterTabOpPtr, cnoOfAlterTabOps, alterTabOperRec);
 
-  sendAlterTabConf(signal, (AlterTabReq *)signal->getDataPtr());
+      freeTabDescr(regAlterTabOpPtr.p->tableDescriptor,
+                   regAlterTabOpPtr.p->desAllocSize);
+      freeTabDescr(regAlterTabOpPtr.p->dynTableDescriptor,
+                   regAlterTabOpPtr.p->dynDesAllocSize);
+      releaseAlterTabOpRec(regAlterTabOpPtr);
+    }
+  }
+
+  sendAlterTabConf(signal, RNIL);
 }
 
 /*
@@ -1915,11 +1976,25 @@ Dbtup::drop_fragment_fsremove_done(Signal* signal,
   tabPtr.p->fragrec[i]= RNIL;
   releaseFragrec(fragPtr);
 
-  signal->theData[0]= ZREL_FRAG;
-  signal->theData[1]= tabPtr.i;
-  signal->theData[2]= logfile_group_id;
-  sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
-
+  if (tabPtr.p->tableStatus == DROPPING)
+  {
+    jam();
+    signal->theData[0]= ZREL_FRAG;
+    signal->theData[1]= tabPtr.i;
+    signal->theData[2]= logfile_group_id;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
+  }
+  else
+  {
+    jam();
+    DropFragConf* conf = (DropFragConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = tabPtr.p->m_dropTable.tabUserPtr;
+    conf->tableId = tabPtr.i;
+    sendSignal(tabPtr.p->m_dropTable.tabUserRef, GSN_DROP_FRAG_CONF,
+               signal, DropFragConf::SignalLength, JBB);
+    return;
+  }
 }
 
 // Remove LCP
@@ -1970,8 +2045,6 @@ Dbtup::execFSREMOVECONF(Signal* signal)
   tabPtr.i = conf->userPointer;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
-  ndbrequire(tabPtr.p->tableStatus == DROPPING);
-  
   fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
 
@@ -2089,3 +2162,53 @@ Dbtup::get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage)
 
   return true;
 }
+
+void
+Dbtup::execDROP_FRAG_REQ(Signal* signal)
+{
+  jamEntry();
+  if (ERROR_INSERTED(4013)) {
+#ifdef VM_TRACE
+    verifytabdes();
+#endif
+  }
+  DropFragReq* req= (DropFragReq*)signal->getDataPtr();
+
+  TablerecPtr tabPtr;
+  tabPtr.i= req->tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+
+  tabPtr.p->m_dropTable.tabUserRef = req->senderRef;
+  tabPtr.p->m_dropTable.tabUserPtr = req->senderData;
+
+  Uint32 fragIndex = RNIL;
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+  {
+    jam();
+    if (tabPtr.p->fragid[i] == req->fragId)
+    {
+      jam();
+      fragIndex= tabPtr.p->fragrec[i];
+      break;
+    }
+  }
+  if (fragIndex != RNIL)
+  {
+    jam();
+
+    signal->theData[0] = ZUNMAP_PAGES;
+    signal->theData[1] = tabPtr.i;
+    signal->theData[2] = fragIndex;
+    signal->theData[3] = 0;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);
+    return;
+  }
+
+  DropFragConf* conf = (DropFragConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = tabPtr.p->m_dropTable.tabUserPtr;
+  conf->tableId = tabPtr.i;
+  sendSignal(tabPtr.p->m_dropTable.tabUserRef, GSN_DROP_FRAG_CONF,
+             signal, DropFragConf::SignalLength, JBB);
+}
+
