@@ -475,6 +475,12 @@ void Dblqh::execCONTINUEB(Signal* signal)
     }
     return;
   }
+  case ZWAIT_REORG_SUMA_FILTER_ENABLED:
+  {
+    jam();
+    wait_reorg_suma_filter_enabled(signal);
+    return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -2197,6 +2203,7 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   tablePtr.i = tableId;
   ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
 
+  Uint32 len = signal->getLength();
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
     jam();
@@ -2217,12 +2224,19 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   case AlterTabReq::AlterTableComplete:
     jam();
     break;
+  case AlterTabReq::AlterTableSumaEnable:
+    jam();
+    break;
+  case AlterTabReq::AlterTableSumaFilter:
+    jam();
+    signal->theData[len++] = cnewestGci + 3;
+    break;
   default:
     ndbrequire(false);
     break;
   }
 
-  EXECUTE_DIRECT(DBTUP, GSN_ALTER_TAB_REQ, signal, signal->getLength());
+  EXECUTE_DIRECT(DBTUP, GSN_ALTER_TAB_REQ, signal, len);
   jamEntry();
 
   Uint32 errCode = signal->theData[0];
@@ -2237,10 +2251,45 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
     sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
                AlterTabConf::SignalLength, JBB);
   }
+  else if (errCode == ~Uint32(0))
+  {
+    /**
+     * Wait
+     */
+    ndbrequire(requestType == AlterTabReq::AlterTableSumaFilter);
+    signal->theData[0] = ZWAIT_REORG_SUMA_FILTER_ENABLED;
+    signal->theData[1] = cnewestGci + 3;
+    signal->theData[2] = senderData;
+    signal->theData[3] = connectPtr;
+    signal->theData[4] = senderRef;
+    wait_reorg_suma_filter_enabled(signal);
+    return;
+  }
   else
   {
     ndbrequire(false);
   }
+}
+
+void
+Dblqh::wait_reorg_suma_filter_enabled(Signal* signal)
+{
+  if (cnewestCompletedGci >= signal->theData[1])
+  {
+    jam();
+    Uint32 senderData = signal->theData[2];
+    Uint32 connectPtr = signal->theData[3];
+    Uint32 senderRef = signal->theData[4];
+
+    AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    conf->connectPtr = connectPtr;
+    sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
+               AlterTabConf::SignalLength, JBB);
+    return;
+  }
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 500, 5);
 }
 
 void

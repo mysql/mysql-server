@@ -2183,6 +2183,8 @@ private:
     Uint32 m_sub_add_frag_index_ptr;
     bool m_sub_trigger;
     bool m_sub_copy_data;
+    bool m_sub_suma_enable;
+    bool m_sub_suma_filter;
 
     AlterTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
@@ -2203,6 +2205,8 @@ private:
       m_sub_reorg_complete = false;
       m_sub_trigger = false;
       m_sub_copy_data = false;
+      m_sub_suma_enable = false;
+      m_sub_suma_filter = false;
     }
 #ifdef VM_TRACE
     void print(NdbOut&) const;
@@ -2244,6 +2248,8 @@ private:
 
   void alterTable_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr);
   void alterTable_fromCreateTrigger(Signal*, Uint32 op_key, Uint32 ret);
+
+  void alterTable_toSumaSync(Signal* signal, SchemaOpPtr op_ptr, Uint32);
 
   // commit phase
   void alterTable_toCommitComplete(Signal*, SchemaOpPtr, Uint32 = ~Uint32(0));

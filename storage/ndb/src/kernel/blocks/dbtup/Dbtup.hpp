@@ -723,6 +723,8 @@ struct Fragrecord {
     ,FS_REORG_NEW        // A new (not yet "online" fragment)
     ,FS_REORG_COMMIT     // An ordinary fragment which has been split
     ,FS_REORG_COMMIT_NEW // An new fragment which is online
+    ,FS_REORG_COMPLETE     // An ordinary fragment which has been split
+    ,FS_REORG_COMPLETE_NEW // An new fragment which is online
   } fragStatus;
   Uint32 fragTableId;
   Uint32 fragmentId;
@@ -841,7 +843,7 @@ struct Operationrec {
     unsigned int op_type : 3;
     unsigned int delete_insert_flag : 1;
     unsigned int primary_replica : 1;
-    unsigned int unused : 2;
+    unsigned int m_reorg : 2;
     unsigned int m_disk_preallocated : 1;
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
@@ -1114,6 +1116,9 @@ ArrayPool<TupTriggerData> c_triggerPool;
       struct {
         Uint32 m_fragOpPtrI;
       } m_createTable;
+      struct {
+        Uint32 m_gci_hi;
+      } m_reorg_suma_filter;
     };
 
     State tableStatus;
@@ -2579,6 +2584,9 @@ private:
                           const Operationrec*) const;
 
   bool check_fire_reorg(const KeyReqStruct *, Fragrecord::FragState) const;
+  bool check_fire_suma(const KeyReqStruct *,
+                       const Operationrec*,
+                       const Fragrecord*) const;
 
   bool readTriggerInfo(TupTriggerData* trigPtr,
                        Operationrec* regOperPtr,

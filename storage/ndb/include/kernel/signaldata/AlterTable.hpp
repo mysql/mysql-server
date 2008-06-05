@@ -62,6 +62,8 @@ struct AlterTableReq {
 #define REORG_FRAG_SHIFT  (8)
 #define REORG_COMMIT_SHIFT   (9)
 #define REORG_COMPLETE_SHIFT (10)
+#define REORG_SUMA_ENABLE (11)
+#define REORG_SUMA_FILTER (12)
 
  /**
    * Getters and setters
@@ -88,11 +90,17 @@ struct AlterTableReq {
   static void setReorgCommitFlag(UintR &  changeMask, Uint32 tsFlg);
   static Uint8 getReorgCompleteFlag(const UintR & changeMask);
   static void setReorgCompleteFlag(UintR &  changeMask, Uint32 tsFlg);
+  static Uint8 getReorgSumaEnableFlag(const UintR & changeMask);
+  static void setReorgSumaEnableFlag(UintR &  changeMask, Uint32 tsFlg);
+  static Uint8 getReorgSumaFilterFlag(const UintR & changeMask);
+  static void setReorgSumaFilterFlag(UintR &  changeMask, Uint32 tsFlg);
 
   static bool getReorgSubOp(const UintR & changeMask){
     return
       getReorgCommitFlag(changeMask) ||
-      getReorgCompleteFlag(changeMask);
+      getReorgCompleteFlag(changeMask) ||
+      getReorgSumaEnableFlag(changeMask) ||
+      getReorgSumaFilterFlag(changeMask);
   }
 };
 
@@ -227,6 +235,30 @@ inline
 void
 AlterTableReq::setReorgCompleteFlag(UintR & changeMask, Uint32 reorgAttrFlg){
   changeMask |= (reorgAttrFlg << REORG_COMPLETE_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getReorgSumaEnableFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> REORG_SUMA_ENABLE) & 1);
+}
+
+inline
+void
+AlterTableReq::setReorgSumaEnableFlag(UintR & changeMask, Uint32 reorgAttrFlg){
+  changeMask |= (reorgAttrFlg << REORG_SUMA_ENABLE);
+}
+
+inline
+Uint8
+AlterTableReq::getReorgSumaFilterFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> REORG_SUMA_FILTER) & 1);
+}
+
+inline
+void
+AlterTableReq::setReorgSumaFilterFlag(UintR & changeMask, Uint32 reorgAttrFlg){
+  changeMask |= (reorgAttrFlg << REORG_SUMA_FILTER);
 }
 
 struct AlterTableConf {
