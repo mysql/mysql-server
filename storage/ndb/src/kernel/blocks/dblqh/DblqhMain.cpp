@@ -10162,12 +10162,18 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   keyInfo->transId2 = tcConP->transid[1];
   
   Uint32 * src = signal->theData+25;
-  if(connectedToNode){
+  if(connectedToNode)
+  {
     jam();
     
-    /* KEYINFO20 is only sent to API, so cannot have nodeId == own nodeId. */
-    ndbrequire(nodeId != getOwnNodeId());
-
+    if (nodeId == getOwnNodeId())
+    {
+      EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal,
+                     KeyInfo20::HeaderLength + keyLen);
+      jamEntry();
+      return keyLen;
+    }
+    else
     {
       if(keyLen <= KeyInfo20::DataLength || !longable) {
 	while(keyLen > KeyInfo20::DataLength){

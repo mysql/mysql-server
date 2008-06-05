@@ -67,7 +67,9 @@ public:
     TableName          = 3,  ///< String
     AttributeName      = 4,  ///< String
     TableId	       = 5,
-    AttributeId	       = 6
+    AttributeId	       = 6,
+    ScanTakeOverInd    = 7,
+    ReorgInd           = 8
   };
 
   // Signal constants

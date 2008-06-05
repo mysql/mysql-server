@@ -1735,7 +1735,8 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_subscriptionPtrI = subPtr.i;
   syncPtr.p->ptrI               = syncPtr.i;
   syncPtr.p->m_error            = 0;
-  
+  syncPtr.p->m_requestInfo      = req->requestInfo;
+
   {
     jam();
     syncPtr.p->m_tableList.append(&subPtr.p->m_tableId, 1);
@@ -2137,12 +2138,20 @@ Suma::SyncRecord::nextScan(Signal* signal)
   ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
   ScanFragReq::setAttrLen(req->requestInfo, attrLen);
+  if (m_requestInfo == SubSyncReq::LM_Exclusive)
+  {
+    ScanFragReq::setLockMode(req->requestInfo, 1);
+    ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
+    ScanFragReq::setKeyinfoFlag(req->requestInfo, 1);
+  }
+
   req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (suma.getOwnNodeId() << 8);
   req->clientOpPtr = (ptrI << 16);
   req->batch_size_rows= parallelism;
+
   req->batch_size_bytes= 0;
   suma.sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal, 
 		  ScanFragReq::SignalLength, JBB);
@@ -3321,8 +3330,40 @@ Suma::execTRANSID_AI(Signal* signal)
     src += len;
     sum += len;
   }
-  
+  f_trigBufferSize = sum;
+
   ndbrequire(src == end);
+
+  if (syncPtr.p->m_requestInfo != SubSyncReq::LM_Exclusive)
+  {
+    sendScanSubTableData(signal, syncPtr, 0);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+void
+Suma::execKEYINFO20(Signal* signal)
+{
+  jamEntry();
+  KeyInfo20* data = (KeyInfo20*)signal->getDataPtr();
+
+  const Uint32 opPtrI = data->clientOpPtr;
+  const Uint32 takeOver = data->scanInfo_Node;
+
+  ndbrequire(f_bufferLock == opPtrI);
+
+  Ptr<SyncRecord> syncPtr;
+  c_syncPool.getPtr(syncPtr, (opPtrI >> 16));
+  sendScanSubTableData(signal, syncPtr, takeOver);
+}
+
+void
+Suma::sendScanSubTableData(Signal* signal,
+                           Ptr<SyncRecord> syncPtr, Uint32 takeOver)
+{
+  const Uint32 attribs = syncPtr.p->m_currentNoOfAttributes;
+  const Uint32 sum =  f_trigBufferSize;
 
   /**
    * Send data to subscriber
@@ -3337,6 +3378,7 @@ Suma::execTRANSID_AI(Signal* signal)
   SubscriptionPtr subPtr;
   c_subscriptions.getPtr(subPtr, syncPtr.p->m_subscriptionPtrI);
   
+
   /**
    * Initialize signal
    */  
@@ -3349,6 +3391,7 @@ Suma::execTRANSID_AI(Signal* signal)
 			     NdbDictionary::Event::_TE_SCAN); // Scan
   sdata->gci_hi = 0; // Undefined
   sdata->gci_lo = 0;
+  sdata->takeOver = takeOver;
 #if PRINT_ONLY
   ndbout_c("GSN_SUB_TABLE_DATA (scan) #attr: %d len: %d", attribs, sum);
 #else
@@ -3363,8 +3406,6 @@ Suma::execTRANSID_AI(Signal* signal)
    * Reset f_bufferLock
    */
   f_bufferLock = 0;
-
-  DBUG_VOID_RETURN;
 }
 
 /**********************************************************

@@ -883,6 +883,17 @@ void DbUtil::readPrepareProps(Signal* signal,
   ndbrequire(reader->next());
   UtilPrepareReq::KeyValue tableKey = 
     (UtilPrepareReq::KeyValue) reader->getKey();
+  if (tableKey == UtilPrepareReq::ScanTakeOverInd)
+  {
+    reader->next();
+    tableKey = (UtilPrepareReq::KeyValue) reader->getKey();
+  }
+  if (tableKey == UtilPrepareReq::ReorgInd)
+  {
+    reader->next();
+    tableKey = (UtilPrepareReq::KeyValue) reader->getKey();
+  }
+
   ndbrequire((tableKey == UtilPrepareReq::TableName) ||
 	     (tableKey == UtilPrepareReq::TableId));
 
@@ -1053,6 +1064,23 @@ DbUtil::prepareOperation(Signal* signal,
   Uint32 tableId;
   UtilPrepareReq::KeyValue tableKey = 
     (UtilPrepareReq::KeyValue) prepPagesReader.getKey();
+
+  bool scanTakeOver = false;
+  bool reorg = false;
+  if (tableKey == UtilPrepareReq::ScanTakeOverInd)
+  {
+    scanTakeOver = true;
+    prepPagesReader.next();
+    tableKey = (UtilPrepareReq::KeyValue) prepPagesReader.getKey();
+  }
+
+  if (tableKey == UtilPrepareReq::ReorgInd)
+  {
+    reorg = true;
+    prepPagesReader.next();
+    tableKey = (UtilPrepareReq::KeyValue) prepPagesReader.getKey();
+  }
+
   if (tableKey == UtilPrepareReq::TableId) {
     jam();
     tableId = prepPagesReader.getUint32();
@@ -1088,6 +1116,12 @@ DbUtil::prepareOperation(Signal* signal,
   ndbrequire(prepPagesReader.first() && prepPagesReader.next() && 
 	     prepPagesReader.next());
   
+  if (scanTakeOver)
+    prepPagesReader.next();
+
+  if (reorg)
+    prepPagesReader.next();
+
   DictTabInfo::Table tableDesc; tableDesc.init();
   AttrMappingBuffer::DataBufferIterator attrMappingIt;
   ndbrequire(prepPtr.p->prepOpPtr.p->attrMapping.first(attrMappingIt));
@@ -1107,7 +1141,7 @@ DbUtil::prepareOperation(Signal* signal,
   while(prepPagesReader.next()) {
     UtilPrepareReq::KeyValue attributeKey = 
       (UtilPrepareReq::KeyValue) prepPagesReader.getKey();    
-    
+
     ndbrequire((attributeKey == UtilPrepareReq::AttributeName) ||
 	       (attributeKey == UtilPrepareReq::AttributeId));
     if (attributeKey == UtilPrepareReq::AttributeName) {
@@ -1299,6 +1333,16 @@ DbUtil::prepareOperation(Signal* signal,
    * Preparing of PreparedOperation signal train 
    **********************************************/
   Uint32 static_len = TcKeyReq::StaticLength;
+  Uint32 requestInfo = 0;
+  if (scanTakeOver)
+  {
+    static_len ++;
+    TcKeyReq::setScanIndFlag(requestInfo, 1);
+  }
+  if (reorg)
+  {
+    TcKeyReq::setReorgFlag(requestInfo, 1);
+  }
   prepOpPtr.p->tckey.tableId = tableDesc.TableId;
   prepOpPtr.p->tckey.tableSchemaVersion = tableDesc.TableVersion;
   prepOpPtr.p->noOfKeyAttr = tableDesc.NoOfKeyAttr;
@@ -1312,7 +1356,6 @@ DbUtil::prepareOperation(Signal* signal,
   }
   prepOpPtr.p->keyDataPos = static_len;  // Start of keyInfo[] in tckeyreq
   
-  Uint32 requestInfo = 0;
   TcKeyReq::setAbortOption(requestInfo, TcKeyReq::AbortOnError);
   TcKeyReq::setKeyLength(requestInfo, tableDesc.KeyLength);  
   switch(operationType) {
@@ -1804,6 +1847,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   const Uint32  clientData     = req->senderData;
   const Uint32  prepareId      = req->getPrepareId();
   const bool    releaseFlag    = req->getReleaseFlag();
+  const Uint32  scanTakeOver   = req->scanTakeOver;
 
   if(signal->getNoOfSections() == 0) {
     // Missing prepare data
@@ -1857,6 +1901,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   ndbrequire(transPtr.p->operations.seize(opPtr));
   opPtr.p->prepOp   = prepOpPtr.p;
   opPtr.p->prepOp_i = prepOpPtr.i;
+  opPtr.p->m_scanTakeOver = scanTakeOver;
   
 #if 0 //def EVENT_DEBUG
   printf("opPtr.p->rs.seize( %u )\n", prepOpPtr.p->rsLen);
@@ -1970,7 +2015,7 @@ DbUtil::runTransaction(Signal* signal, TransactionPtr transPtr){
   transPtr.p->recv = 0;
   transPtr.p->errorCode = 0;
   getTransId(transPtr.p);
-  
+
   OperationPtr opPtr;
   ndbrequire(transPtr.p->operations.first(opPtr));
   
@@ -2031,6 +2076,11 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   tcKey->transId1 = transPtr.p->transId[0];
   tcKey->transId2 = transPtr.p->transId[1];
   tcKey->requestInfo |= start;
+
+  if (TcKeyReq::getScanIndFlag(tcKey->requestInfo))
+  {
+    tcKey->scanInfo = op->m_scanTakeOver;
+  }
   
 #if 0 //def EVENT_DEBUG
   // Debugging

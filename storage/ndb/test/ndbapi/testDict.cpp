@@ -6103,7 +6103,7 @@ end:
 int
 runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
 {
-  static int lst[] = { 7211, 7212, 4050, 12008, 6212, 6124, 6213, 0 };
+  static int lst[] = { 7211, 7212, 4050, 12008, 6212, 6124, 6213, 6214, 0 };
 
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
@@ -6219,7 +6219,7 @@ runTableAddPartition(NDBT_Context* ctx, NDBT_Step* step){
 
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* dict = pNdb->getDictionary();
-  //int records = ctx->getNumRecords();
+  int records = ctx->getNumRecords();
   const int loops = ctx->getNumLoops();
 
   ndbout << "|- " << ctx->getTab()->getName() << endl;
@@ -6243,7 +6243,7 @@ runTableAddPartition(NDBT_Context* ctx, NDBT_Step* step){
     }
     ctx->setTab(pTab2);
 
-#if 0
+#if 1
     // Load table
     HugoTransactions beforeTrans(*ctx->getTab());
     if (beforeTrans.loadTable(pNdb, records) != 0){

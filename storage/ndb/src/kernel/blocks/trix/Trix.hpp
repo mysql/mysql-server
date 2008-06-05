@@ -41,8 +41,9 @@ public:
   // Subscription data, when communicating with SUMA
 
   enum RequestType {
-    TABLE_REORG = 0,
-    INDEX_BUILD = 1
+    REORG_COPY = 0
+    ,INDEX_BUILD = 1
+    //ALTER_TABLE
   };
   typedef DataBuffer<11> AttrOrderBuffer;
 
@@ -156,6 +157,8 @@ private:
   void execBUILD_INDX_IMPL_CONF(Signal* signal);
   void execBUILD_INDX_IMPL_REF(Signal* signal);
 
+  void execCOPY_DATA_IMPL_REQ(Signal* signal);
+
   void execUTIL_PREPARE_CONF(Signal* signal);
   void execUTIL_PREPARE_REF(Signal* signal);
   void execUTIL_EXECUTE_CONF(Signal* signal);
@@ -177,9 +180,8 @@ private:
   void setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr);
   void startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr);
   void prepareInsertTransactions(Signal* signal, SubscriptionRecPtr subRecPtr);
-  void executeInsertTransaction(Signal* signal, SubscriptionRecPtr subRecPtr,
-				SegmentedSectionPtr headerPtr,
-				SegmentedSectionPtr dataPtr);
+  void executeBuildInsertTransaction(Signal* signal, SubscriptionRecPtr);
+  void executeReorgInsertTransaction(Signal*, SubscriptionRecPtr, Uint32);
   void buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr);
   void buildFailed(Signal* signal, 
 		   SubscriptionRecPtr subRecPtr, 

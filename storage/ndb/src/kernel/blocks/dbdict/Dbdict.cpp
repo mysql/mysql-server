@@ -1823,6 +1823,13 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_DICT_UNLOCK_ORD, &Dbdict::execDICT_UNLOCK_ORD);
 
   addRecSignal(GSN_CREATE_HASH_MAP_REQ, &Dbdict::execCREATE_HASH_MAP_REQ);
+
+  addRecSignal(GSN_COPY_DATA_REQ, &Dbdict::execCOPY_DATA_REQ);
+  addRecSignal(GSN_COPY_DATA_REF, &Dbdict::execCOPY_DATA_REF);
+  addRecSignal(GSN_COPY_DATA_CONF, &Dbdict::execCOPY_DATA_CONF);
+
+  addRecSignal(GSN_COPY_DATA_IMPL_REF, &Dbdict::execCOPY_DATA_IMPL_REF);
+  addRecSignal(GSN_COPY_DATA_IMPL_CONF, &Dbdict::execCOPY_DATA_IMPL_CONF);
 }//Dbdict::Dbdict()
 
 Dbdict::~Dbdict() 
@@ -2314,6 +2321,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_dropFilegroupRecPool.setSize(32);
   c_dropFileRecPool.setSize(32);
   c_createHashMapRecPool.setSize(32);
+  c_copyDataRecPool.setSize(32);
 
   c_hash_map_hash.setSize(4);
   c_hash_map_pool.setSize(32);
@@ -7402,6 +7410,21 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
       alterTabPtr.p->m_sub_trigger = true;
       return true;
     }
+
+    if (alterTabPtr.p->m_sub_copy_data == false)
+    {
+      jam();
+      Callback c = {
+        safe_cast(&Dbdict::alterTable_fromCopyData),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      alterTable_toCopyData(signal, op_ptr);
+
+      alterTabPtr.p->m_sub_copy_data = true;
+      return true;
+    }
   }
 
   return false;
@@ -7589,6 +7612,39 @@ Dbdict::alterTable_toCreateTrigger(Signal* signal,
 
 void
 Dbdict::alterTable_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  alterTable_fromAlterIndex(signal, op_key, ret);
+}
+
+void
+Dbdict::alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  AlterTableRecPtr alterTablePtr;
+  getOpRec(op_ptr, alterTablePtr);
+  const AlterTabReq* impl_req = &alterTablePtr.p->m_request;
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, impl_req->tableId);
+
+  CopyDataReq* req = (CopyDataReq*)signal->getDataPtrSend();
+
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = 0;
+  req->requestType = 0;
+  req->srcTableId = impl_req->tableId;
+  req->dstTableId = impl_req->tableId;
+
+  sendSignal(reference(), GSN_COPY_DATA_REQ, signal,
+             CopyDataReq::SignalLength, JBB);
+}
+
+void
+Dbdict::alterTable_fromCopyData(Signal* signal, Uint32 op_key, Uint32 ret)
 {
   alterTable_fromAlterIndex(signal, op_key, ret);
 }
@@ -8684,7 +8740,8 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     jam();
     // see own trans always
   }
-  else
+  else  if (refToBlock(req->senderRef) != DBUTIL && /** XXX cheat */
+            refToBlock(req->senderRef) != SUMA)
   {
     Uint32 err;
     if ((err = check_read_obj(objEntry)))
@@ -12293,6 +12350,293 @@ Dbdict::execBUILD_INDX_IMPL_REF(Signal* signal)
 }
 
 // BuildIndex: END
+
+// MODULE: CopyData
+
+const Dbdict::OpInfo
+Dbdict::CopyDataRec::g_opInfo = {
+  { 'D', 'C', 'D', 0 },
+  GSN_COPY_DATA_IMPL_REQ,
+  CopyDataImplReq::SignalLength,
+
+  //
+  &Dbdict::copyData_seize,
+  &Dbdict::copyData_release,
+  //
+  &Dbdict::copyData_parse,
+  &Dbdict::copyData_subOps,
+  &Dbdict::copyData_reply,
+  //
+  &Dbdict::copyData_prepare,
+  &Dbdict::copyData_commit,
+  &Dbdict::copyData_complete,
+  //
+  &Dbdict::copyData_abortParse,
+  &Dbdict::copyData_abortPrepare
+};
+
+bool
+Dbdict::copyData_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<CopyDataRec>(op_ptr);
+}
+
+void
+Dbdict::copyData_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<CopyDataRec>(op_ptr);
+}
+
+void
+Dbdict::execCOPY_DATA_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const CopyDataReq req_copy =
+    *(const CopyDataReq*)signal->getDataPtr();
+  const CopyDataReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    CopyDataRecPtr copyDataPtr;
+    CopyDataImplReq* impl_req;
+
+    startClientReq(op_ptr, copyDataPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->srcTableId = req->srcTableId;
+    impl_req->dstTableId = req->dstTableId;
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  CopyDataRef* ref = (CopyDataRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->senderData = req->clientData;
+  ref->transId = req->transId;
+  getError(error, ref);
+
+  sendSignal(req->clientRef, GSN_COPY_DATA_REF, signal,
+             CopyDataRef::SignalLength, JBB);
+}
+
+// CopyData: PARSE
+
+void
+Dbdict::copyData_parse(Signal* signal, bool master,
+                       SchemaOpPtr op_ptr,
+                       SectionHandle& handle, ErrorInfo& error)
+{
+  D("copyData_parse");
+
+  /**
+   * Nothing here...
+   */
+}
+
+bool
+Dbdict::copyData_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("copyData_subOps" << V(op_ptr.i) << *op_ptr.p);
+
+  return false;
+}
+
+void
+Dbdict::copyData_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  jam();
+
+  SchemaTransPtr& trans_ptr = op_ptr.p->m_trans_ptr;
+  CopyDataRecPtr copyDataPtr;
+  getOpRec(op_ptr, copyDataPtr);
+  //const CopyDataImplReq* impl_req = &copyDataPtr.p->m_request;
+
+  if (!hasError(error)) {
+    CopyDataConf* conf = (CopyDataConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_COPY_DATA_CONF, signal,
+               CopyDataConf::SignalLength, JBB);
+  } else {
+    jam();
+    CopyDataRef* ref = (CopyDataRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_COPY_DATA_REF, signal,
+               CopyDataRef::SignalLength, JBB);
+  }
+}
+
+// CopyData: PREPARE
+
+void
+Dbdict::copyData_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  CopyDataRecPtr copyDataPtr;
+  getOpRec(op_ptr, copyDataPtr);
+  const CopyDataImplReq* impl_req = &copyDataPtr.p->m_request;
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  CopyDataImplReq* req = (CopyDataImplReq*)signal->getDataPtrSend();
+  * req = * impl_req;
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+
+  Callback c = {
+    safe_cast(&Dbdict::copyData_fromLocal),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  Uint32 cnt =0;
+  Uint32 tmp[MAX_ATTRIBUTES_IN_TABLE];
+  TableRecordPtr tabPtr;
+  c_tableRecordPool.getPtr(tabPtr, impl_req->srcTableId);
+  {
+    LocalDLFifoList<AttributeRecord> alist(c_attributeRecordPool,
+                                           tabPtr.p->m_attributes);
+    AttributeRecordPtr attrPtr;
+    for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
+    {
+      tmp[cnt++] = attrPtr.p->attributeId;
+    }
+  }
+
+  LinearSectionPtr ls_ptr[3];
+  ls_ptr[0].sz = cnt;
+  ls_ptr[0].p = tmp;
+
+  sendSignal(TRIX_REF, GSN_COPY_DATA_IMPL_REQ, signal,
+             CopyDataImplReq::SignalLength, JBB, ls_ptr, 1);
+}
+
+void
+Dbdict::copyData_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  CopyDataRecPtr copyDataPtr;
+  findSchemaOp(op_ptr, copyDataPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  if (ERROR_INSERTED(6214))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    ret = 1;
+  }
+  
+  if (ret == 0) {
+    jam();
+    sendTransConf(signal, op_ptr);
+  } else {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+
+// CopyData: COMMIT
+
+void
+Dbdict::copyData_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  CopyDataRecPtr copyDataPtr;
+  getOpRec(op_ptr, copyDataPtr);
+
+  D("copyData_commit" << *op_ptr.p);
+  sendTransConf(signal, op_ptr);
+}
+
+
+// CopyData: COMPLETE
+
+void
+Dbdict::copyData_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+// CopyData: ABORT
+
+void
+Dbdict::copyData_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("copyData_abortParse" << *op_ptr.p);
+  // wl3600_todo
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::copyData_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("copyData_abortPrepare" << *op_ptr.p);
+
+  // nothing to do, entire index table will be dropped
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::execCOPY_DATA_CONF(Signal* signal)
+{
+  jamEntry();
+  const CopyDataConf* conf = (const CopyDataConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execCOPY_DATA_REF(Signal* signal)
+{
+  jamEntry();
+  const CopyDataRef* ref = (const CopyDataRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCOPY_DATA_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  const CopyDataImplConf* conf = (const CopyDataImplConf*)signal->getDataPtr();
+  ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execCOPY_DATA_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  const CopyDataImplRef* ref = (const CopyDataImplRef*)signal->getDataPtr();
+  ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
+  handleDictRef(signal, ref);
+}
+
+
+// CopyData: END
+
 
 /*****************************************************
  *
@@ -18806,6 +19150,7 @@ Dbdict::g_opInfoList[] = {
   &Dbdict::DropFilegroupRec::g_opInfo,
   &Dbdict::DropFileRec::g_opInfo,
   &Dbdict::CreateHashMapRec::g_opInfo,
+  &Dbdict::CopyDataRec::g_opInfo,
   0
 };
 
