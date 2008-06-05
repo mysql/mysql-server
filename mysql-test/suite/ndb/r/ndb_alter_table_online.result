@@ -674,7 +674,7 @@ Warnings:
 Warning	1478	Row format FIXED incompatible with dynamic attribute b
 -- t1 --
 Version: #
-Fragment type: 5
+Fragment type: 9
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -705,7 +705,7 @@ CREATE TABLE t1
 b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
 -- t1 --
 Version: #
-Fragment type: 5
+Fragment type: 9
 K Value: 6
 Min load factor: 78
 Max load factor: 80

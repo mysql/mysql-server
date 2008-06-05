@@ -6488,6 +6488,33 @@ int ha_ndbcluster::create(const char *name,
   if ((my_errno= set_up_partition_info(part_info, form, (void*)&tab)))
     goto abort;
 
+  // Check for HashMap
+  if (tab.getFragmentType() == NDBTAB::HashMapPartition)
+  {
+    NdbDictionary::HashMap hm;
+    int res= dict->getDefaultHashMap(hm, tab.getFragmentCount());
+    if (res == -1)
+    {
+      res= dict->initDefaultHashMap(hm, tab.getFragmentCount());
+      if (res == -1)
+      {
+        const NdbError err= dict->getNdbError();
+        set_ndb_err(thd, err);
+        my_errno= ndb_to_mysql_error(&err);
+        goto abort;
+      }
+
+      res= dict->createHashMap(hm);
+      if (res == -1)
+      {
+        const NdbError err= dict->getNdbError();
+        set_ndb_err(thd, err);
+        my_errno= ndb_to_mysql_error(&err);
+        goto abort;
+      }
+    }
+  }
+
   // Create the table in NDB     
   if (dict->createTable(tab) != 0) 
   {
@@ -11350,10 +11377,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   {
     Field **fields= part_info->part_field_array;
 
-    if (part_info->linear_hash_ind)
-      ftype= NDBTAB::DistrKeyLin;
-    else
-      ftype= NDBTAB::DistrKeyHash;
+    ftype= NDBTAB::HashMapPartition;
 
     for (i= 0; i < part_info->part_field_list.elements; i++)
     {
@@ -11462,7 +11486,8 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_DROP_UNIQUE_INDEX |
     HA_ADD_COLUMN |
     HA_COLUMN_STORAGE |
-    HA_COLUMN_FORMAT;
+    HA_COLUMN_FORMAT |
+    HA_ADD_PARTITION;
 }
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
@@ -11504,9 +11529,9 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
   }
 
-  if (alter_flags->is_set(HA_ADD_COLUMN))
+  if (alter_flags->is_set(HA_ADD_COLUMN) ||
+      alter_flags->is_set(HA_ADD_PARTITION))
   {
-     NDBCOL col;
      Ndb *ndb= get_ndb(thd);
      NDBDICT *dict= ndb->getDictionary();
      ndb->setDatabaseName(m_dbname);
@@ -11514,40 +11539,51 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
      NdbDictionary::Table new_tab= *old_tab;
      partition_info *part_info= table->part_info;
 
-     /*
-        Check that we are only adding columns
-     */
-     if ((*alter_flags & ~add_column).is_set())
+     if (alter_flags->is_set(HA_ADD_COLUMN))
      {
-       DBUG_PRINT("info", ("Only add column exclusively can be performed on-line"));
-       DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
-     }
-     /*
-        Check for extra fields for hidden primary key
-        or user defined partitioning
-     */
-     if (table_share->primary_key == MAX_KEY ||
-	 part_info->part_type != HASH_PARTITION ||
-	 !part_info->list_of_part_fields)
-       DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+       NDBCOL col;
 
-     /* Find the new fields */
-     for (uint i= table->s->fields; i < altered_table->s->fields; i++)
-     {
-       Field *field= altered_table->field[i];
-       DBUG_PRINT("info", ("Found new field %s", field->field_name));
-       DBUG_PRINT("info", ("storage_type %i, column_format %i",
-			   (uint) field->field_storage_type(),
-			   (uint) field->column_format()));
-       /* Create new field to check if it can be added */
-       if ((my_errno= create_ndb_column(0, col, field, create_info,
-                                        COLUMN_FORMAT_TYPE_DYNAMIC)))
+       /*
+         Check that we are only adding columns
+       */
+       if ((*alter_flags & ~add_column).is_set())
        {
-         DBUG_PRINT("info", ("create_ndb_column returned %u", my_errno));
-         DBUG_RETURN(my_errno);
+         DBUG_PRINT("info", ("Only add column exclusively can be performed on-line"));
+         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
        }
-       new_tab.addColumn(col);
+       /*
+         Check for extra fields for hidden primary key
+         or user defined partitioning
+       */
+       if (table_share->primary_key == MAX_KEY ||
+           part_info->part_type != HASH_PARTITION ||
+           !part_info->list_of_part_fields)
+         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+
+       /* Find the new fields */
+       for (uint i= table->s->fields; i < altered_table->s->fields; i++)
+       {
+         Field *field= altered_table->field[i];
+         DBUG_PRINT("info", ("Found new field %s", field->field_name));
+         DBUG_PRINT("info", ("storage_type %i, column_format %i",
+                             (uint) field->field_storage_type(),
+                             (uint) field->column_format()));
+         /* Create new field to check if it can be added */
+         if ((my_errno= create_ndb_column(0, col, field, create_info,
+                                          COLUMN_FORMAT_TYPE_DYNAMIC)))
+         {
+           DBUG_PRINT("info", ("create_ndb_column returned %u", my_errno));
+           DBUG_RETURN(my_errno);
+         }
+         new_tab.addColumn(col);
+       }
      }
+
+     if (alter_flags->is_set(HA_ADD_PARTITION))
+     {
+       new_tab.setFragmentCount(part_info->no_parts);
+     }
+
      if (dict->supportedAlterTable(*old_tab, new_tab))
      {
        DBUG_PRINT("info", ("Adding column(s) supported on-line"));
@@ -11779,6 +11815,21 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
 	}
         new_tab->addColumn(col);
      }
+  }
+
+  if (alter_flags->is_set(HA_ADD_PARTITION))
+  {
+    partition_info *part_info= table->part_info;
+    new_tab->setFragmentCount(part_info->no_parts);
+
+    int res= dict->prepareHashMap(*old_tab, *new_tab);
+    if (res == -1)
+    {
+      const NdbError err= dict->getNdbError();
+      set_ndb_err(thd, err);
+      my_errno= ndb_to_mysql_error(&err);
+      goto abort;
+    }
   }
 
   DBUG_RETURN(0);
