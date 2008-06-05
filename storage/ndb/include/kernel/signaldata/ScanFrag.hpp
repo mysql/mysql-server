@@ -37,6 +37,13 @@ public:
   friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
   
 public:
+  enum ReorgFlag
+  {
+    REORG_ALL = 0
+    ,REORG_NOT_MOVED = 1 // Only return not moved rows
+    ,REORG_MOVED = 2    // Only return moved rows
+  };
+
   Uint32 senderData;
   Uint32 resultRef;       // Where to send the result
   Uint32 savePointId;
@@ -73,6 +80,9 @@ public:
   static void setScanPrio(Uint32& requestInfo, Uint32 prio);
   static void setNoDiskFlag(Uint32& requestInfo, Uint32 val);
   static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
+
+  static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
+  static Uint32 getReorgFlag(const Uint32 & requestInfo);
 };
 
 /*
@@ -234,10 +244,11 @@ public:
  * z = descending            - 1  Bit 10
  * t = tup scan              - 1  Bit 11 (implies x=z=0)
  * p = Scan prio             - 4  Bits (12-15) -> max 15
+ * r = Reorg flag            - 2  Bits (1-2)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *     dlxhkrztppppaaaaaaaaaaaaaaaa 
+ *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
@@ -256,6 +267,9 @@ public:
 
 #define SF_PRIO_SHIFT 12
 #define SF_PRIO_MASK 15
+
+#define SF_REORG_SHIFT      (1)
+#define SF_REORG_MASK       (3)
 
 inline 
 Uint32
@@ -418,6 +432,19 @@ inline
 Uint32
 KeyInfo20::getScanOp(Uint32 scanInfo){
   return (scanInfo >> 8) & 0x3FF;
+}
+
+inline
+Uint32
+ScanFragReq::getReorgFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_REORG_SHIFT) & SF_REORG_MASK;
+}
+
+inline
+void
+ScanFragReq::setReorgFlag(UintR & requestInfo, UintR val){
+  ASSERT_MAX(val, SF_REORG_MASK, "ScanFragReq::setLcpScanFlag");
+  requestInfo |= (val << SF_REORG_SHIFT);
 }
 
 #endif

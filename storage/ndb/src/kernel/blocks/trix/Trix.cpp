@@ -489,6 +489,8 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
   subRec->pendingSubSyncContinueConf = false;
   subRec->prepareId = RNIL;
   subRec->requestType = INDEX_BUILD;
+  subRec->fragCount = 0;
+  subRec->m_rows_processed = 0;
 
   // Get column order segments
   Uint32 noOfSections = handle.m_cnt;
@@ -724,9 +726,12 @@ void Trix::execSUB_TABLE_DATA(Signal* signal)
     executeBuildInsertTransaction(signal, subRecPtr);
     break;
   case REORG_COPY:
-    executeReorgInsertTransaction(signal, subRecPtr, subTableData->takeOver);
+  case REORG_DELETE:
+    executeReorgTransaction(signal, subRecPtr, subTableData->takeOver);
     break;
   }
+
+  subRecPtr.p->m_rows_processed++;
 
   DBUG_VOID_RETURN;
 }
@@ -782,10 +787,19 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   subSyncReq->subscriptionKey = subRec->subscriptionKey;
   subSyncReq->part = SubscriptionData::TableData;
   subSyncReq->requestInfo = 0;
+  subSyncReq->fragCount = subRec->fragCount;
 
   if (subRec->requestType == REORG_COPY)
+  {
+    jam();
     subSyncReq->requestInfo |= SubSyncReq::LM_Exclusive;
-
+  }
+  else if (subRec->requestType == REORG_DELETE)
+  {
+    jam();
+    subSyncReq->requestInfo |= SubSyncReq::LM_Exclusive;
+    subSyncReq->requestInfo |= SubSyncReq::Reorg;
+  }
   subRecPtr.p->expectedConf = 1;
 
   DBUG_PRINT("info",("i: %u subscriptionId: %u, subscriptionKey: %u",
@@ -905,9 +919,9 @@ void Trix::executeBuildInsertTransaction(Signal* signal,
 	     sectionsPtr, UtilExecuteReq::NoOfSections);
 }
 
-void Trix::executeReorgInsertTransaction(Signal* signal,
-                                         SubscriptionRecPtr subRecPtr,
-                                         Uint32 takeOver)
+void Trix::executeReorgTransaction(Signal* signal,
+                                   SubscriptionRecPtr subRecPtr,
+                                   Uint32 takeOver)
 {
   jam();
   SubscriptionRecord* subRec = subRecPtr.p;
@@ -1023,6 +1037,7 @@ Trix::execUTIL_RELEASE_CONF(Signal* signal){
   
   switch(subRecPtr.p->requestType){
   case REORG_COPY:
+  case REORG_DELETE:
     if (subRecPtr.p->errorCode == BuildIndxRef::NoError)
     {
       jam();
@@ -1033,6 +1048,12 @@ Trix::execUTIL_RELEASE_CONF(Signal* signal){
 
       sendSignal(subRecPtr.p->userReference, GSN_COPY_DATA_IMPL_CONF, signal,
                  CopyDataImplConf::SignalLength , JBB);
+
+      infoEvent("%s table %u processed %llu rows",
+                subRecPtr.p->requestType == REORG_COPY ?
+                "reorg-copy" : "reorg-delete",
+                subRecPtr.p->sourceTableId,
+                subRecPtr.p->m_rows_processed);
     } else {
       jam();
       // Build failed, reply to original sender
@@ -1056,6 +1077,11 @@ Trix::execUTIL_RELEASE_CONF(Signal* signal){
 
       sendSignal(subRecPtr.p->userReference, GSN_BUILD_INDX_IMPL_CONF, signal,
                  BuildIndxConf::SignalLength , JBB);
+
+      infoEvent("index-build table %u index: %u processed %llu rows",
+                subRecPtr.p->sourceTableId,
+                subRecPtr.p->targetTableId,
+                subRecPtr.p->m_rows_processed);
     } else {
       jam();
       // Build failed, reply to original sender
@@ -1135,7 +1161,20 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
   subRec->subscriptionCreated = false;
   subRec->pendingSubSyncContinueConf = false;
   subRec->prepareId = req->transId;
-  subRec->requestType = REORG_COPY;
+  subRec->fragCount = req->srcFragments;
+  subRec->m_rows_processed = 0;
+  switch(req->requestType){
+  case CopyDataImplReq::ReorgCopy:
+    jam();
+    subRec->requestType = REORG_COPY;
+    break;
+  case CopyDataImplReq::ReorgDelete:
+    subRec->requestType = REORG_DELETE;
+    break;
+  default:
+    jamLine(req->requestType);
+    ndbrequire(false);
+  }
 
   // Get column order segments
   Uint32 noOfSections = handle.m_cnt;
@@ -1168,7 +1207,14 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     LinearWriter w(&propPage[0],128);
     w.first();
     w.add(UtilPrepareReq::NoOfOperations, 1);
-    w.add(UtilPrepareReq::OperationType, UtilPrepareReq::Write);
+    if (subRec->requestType == REORG_COPY)
+    {
+      w.add(UtilPrepareReq::OperationType, UtilPrepareReq::Write);
+    }
+    else
+    {
+      w.add(UtilPrepareReq::OperationType, UtilPrepareReq::Delete);
+    }
     w.add(UtilPrepareReq::ScanTakeOverInd, 1);
     w.add(UtilPrepareReq::ReorgInd, 1);
     w.add(UtilPrepareReq::TableId, subRec->targetTableId);

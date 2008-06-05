@@ -42,7 +42,8 @@ public:
 
   enum RequestType {
     REORG_COPY = 0
-    ,INDEX_BUILD = 1
+    ,REORG_DELETE = 1
+    ,INDEX_BUILD = 2
     //ALTER_TABLE
   };
   typedef DataBuffer<11> AttrOrderBuffer;
@@ -115,11 +116,13 @@ private:
     Uint32 noOfIndexColumns;
     Uint32 noOfKeyColumns;
     Uint32 parallelism;
+    Uint32 fragCount;
     Uint32 syncPtr;
     BuildIndxRef::ErrorCode errorCode;
     bool subscriptionCreated;
     bool pendingSubSyncContinueConf;
     Uint32 expectedConf; // Count in n UTIL_EXECUTE_CONF + 1 SUB_SYNC_CONF
+    Uint64 m_rows_processed;
     union {
       Uint32 nextPool;
       Uint32 nextList;
@@ -181,7 +184,7 @@ private:
   void startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr);
   void prepareInsertTransactions(Signal* signal, SubscriptionRecPtr subRecPtr);
   void executeBuildInsertTransaction(Signal* signal, SubscriptionRecPtr);
-  void executeReorgInsertTransaction(Signal*, SubscriptionRecPtr, Uint32);
+  void executeReorgTransaction(Signal*, SubscriptionRecPtr, Uint32);
   void buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr);
   void buildFailed(Signal* signal, 
 		   SubscriptionRecPtr subRecPtr, 

@@ -21,9 +21,12 @@
 struct CopyDataReq
 {
 
-  STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalLength = 9 );
 
   enum RequestType {
+    ReorgCopy = 0,
+    ReorgDelete = 1
+    // AlterTableCopy
   };
 
   union {
@@ -40,6 +43,7 @@ struct CopyDataReq
   Uint32 requestInfo;
   Uint32 srcTableId;
   Uint32 dstTableId;
+  Uint32 srcFragments; // Only used for ReorgDelete
 };
 
 struct CopyDataConf

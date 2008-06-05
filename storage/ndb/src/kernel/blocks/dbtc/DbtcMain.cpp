@@ -3052,7 +3052,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   else if (Tspecial_op_flags & TcConnectRecord::SOF_REORG_DELETE)
   {
     jam();
-    // Dont fire reorg trigger(s)
+    handle_reorg_trigger(conf);
+    Tdata2 = conf->reqinfo;
   }
   else if (Tdata2 & DiGetNodesConf::REORG_MOVING)
   {
