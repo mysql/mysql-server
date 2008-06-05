@@ -212,12 +212,12 @@ Dbtc::Dbtc(Block_context& ctx):
   addRecSignal(GSN_SCAN_HBREP, &Dbtc::execSCAN_HBREP);
   addRecSignal(GSN_COMPLETED, &Dbtc::execCOMPLETED);
   addRecSignal(GSN_COMMITTED, &Dbtc::execCOMMITTED);
-  addRecSignal(GSN_DIGETPRIMCONF, &Dbtc::execDIGETPRIMCONF);
-  addRecSignal(GSN_DIGETPRIMREF, &Dbtc::execDIGETPRIMREF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF, &Dbtc::execDIH_SCAN_GET_NODES_CONF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_REF, &Dbtc::execDIH_SCAN_GET_NODES_REF);
   addRecSignal(GSN_DISEIZECONF, &Dbtc::execDISEIZECONF);
   addRecSignal(GSN_DIVERIFYCONF, &Dbtc::execDIVERIFYCONF);
-  addRecSignal(GSN_DI_FCOUNTCONF, &Dbtc::execDI_FCOUNTCONF);
-  addRecSignal(GSN_DI_FCOUNTREF, &Dbtc::execDI_FCOUNTREF);
+  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Dbtc::execDIH_SCAN_TAB_CONF);
+  addRecSignal(GSN_DIH_SCAN_TAB_REF, &Dbtc::execDIH_SCAN_TAB_REF);
   addRecSignal(GSN_GCP_NOMORETRANS, &Dbtc::execGCP_NOMORETRANS);
   addRecSignal(GSN_LQHKEYCONF, &Dbtc::execLQHKEYCONF);
   addRecSignal(GSN_NDB_STTOR, &Dbtc::execNDB_STTOR);

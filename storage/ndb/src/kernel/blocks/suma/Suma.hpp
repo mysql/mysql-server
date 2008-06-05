@@ -89,10 +89,10 @@ public:
   /**
    * DIH signals
    */
-  void execDI_FCOUNTREF(Signal* signal);
-  void execDI_FCOUNTCONF(Signal* signal);
-  void execDIGETPRIMREF(Signal* signal);
-  void execDIGETPRIMCONF(Signal* signal);
+  void execDIH_SCAN_TAB_REF(Signal* signal);
+  void execDIH_SCAN_TAB_CONF(Signal* signal);
+  void execDIH_SCAN_GET_NODES_REF(Signal* signal);
+  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
   void execCHECKNODEGROUPSCONF(Signal *signal);
   void execGCP_PREPARE(Signal *signal);
 
@@ -312,6 +312,7 @@ public:
     
     union { Uint32 m_tableId; Uint32 key; };
     Uint32 m_schemaVersion;
+    Uint32 m_scan_cookie;
 
     Uint32 m_error;
     

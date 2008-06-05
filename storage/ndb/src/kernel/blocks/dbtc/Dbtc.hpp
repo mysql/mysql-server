@@ -1229,6 +1229,7 @@ public:
 
     // The index of table that is scanned
     Uint32 scanTableref;
+    Uint32 m_scan_cookie;
 
     // Number of operation records per scanned fragment
     // Number of operations in first batch
@@ -1344,12 +1345,12 @@ private:
   void execCOMPLETED(Signal* signal);
   void execCOMMITTED(Signal* signal);
   void execDIGETNODESREF(Signal* signal);
-  void execDIGETPRIMCONF(Signal* signal);
-  void execDIGETPRIMREF(Signal* signal);
+  void execDIH_SCAN_GET_NODES_REF(Signal* signal);
+  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
   void execDISEIZECONF(Signal* signal);
   void execDIVERIFYCONF(Signal* signal);
-  void execDI_FCOUNTCONF(Signal* signal);
-  void execDI_FCOUNTREF(Signal* signal);
+  void execDIH_SCAN_TAB_REF(Signal* signal);
+  void execDIH_SCAN_TAB_CONF(Signal* signal);
   void execGCP_NOMORETRANS(Signal* signal);
   void execLQHKEYCONF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
@@ -1464,7 +1465,7 @@ private:
 		   const UintR scanParallel, 
 		   const UintR noOprecPerFrag);
   void initScanfragrec(Signal* signal);
-  void releaseScanResources(ScanRecordPtr, bool not_started = false);
+  void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
   void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);

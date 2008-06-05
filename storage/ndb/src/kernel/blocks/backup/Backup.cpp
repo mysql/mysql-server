@@ -24,7 +24,7 @@
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 
-#include <signaldata/DihFragCount.hpp>
+#include <signaldata/DihScanTab.hpp>
 #include <signaldata/ScanFrag.hpp>
 
 #include <signaldata/GetTabInfo.hpp>
@@ -3419,13 +3419,13 @@ Backup::afterGetTabinfoLockTab(Signal *signal,
     }
     
     ndbrequire(ptr.p->tables.first(tabPtr));
-    DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtrSend();
-    req->m_connectionData = RNIL;
-    req->m_tableRef = tabPtr.p->tableId;
-    req->m_senderData = ptr.i;
-    req->m_schemaTransId = 0;
-    sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
-               DihFragCountReq::SignalLength, JBB);
+    DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = ptr.i;
+    req->tableId = tabPtr.p->tableId;
+    req->schemaTransId = 0;
+    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
+               DihScanTabReq::SignalLength, JBB);
     return;
   }//if
 
@@ -3555,23 +3555,23 @@ Backup::parseTableDescription(Signal* signal,
 }
 
 void
-Backup::execDI_FCOUNTCONF(Signal* signal)
+Backup::execDIH_SCAN_TAB_CONF(Signal* signal)
 {
   jamEntry();
-  DihFragCountConf * const conf = (DihFragCountConf*)signal->getDataPtr();
-  const Uint32 userPtr = conf->m_connectionData;
-  const Uint32 fragCount = conf->m_fragmentCount;
-  const Uint32 tableId = conf->m_tableRef;
-  const Uint32 senderData = conf->m_senderData;
+  DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
+  const Uint32 fragCount = conf->fragmentCount;
+  const Uint32 tableId = conf->tableId;
+  const Uint32 senderData = conf->senderData;
+  const Uint32 scanCookie = conf->scanCookie;
+  ndbrequire(conf->reorgFlag == 0); // no backup during table reorg
 
-  ndbrequire(userPtr == RNIL && signal->length() == 5);
-  
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, senderData);
 
   TablePtr tabPtr;
   ndbrequire(findTable(ptr, tabPtr, tableId));
   
+  tabPtr.p->m_scan_cookie = scanCookie;
   ndbrequire(tabPtr.p->fragments.seize(fragCount) != false);
   for(Uint32 i = 0; i<fragCount; i++) {
     jam();
@@ -3589,13 +3589,13 @@ Backup::execDI_FCOUNTCONF(Signal* signal)
    */
   if(ptr.p->tables.next(tabPtr)) {
     jam();
-    DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtrSend();
-    req->m_connectionData = RNIL;
-    req->m_tableRef = tabPtr.p->tableId;
-    req->m_senderData = ptr.i;
-    req->m_schemaTransId = 0;
-    sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
-               DihFragCountReq::SignalLength, JBB);
+    DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = ptr.i;
+    req->tableId = tabPtr.p->tableId;
+    req->schemaTransId = 0;
+    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
+               DihScanTabReq::SignalLength, JBB);
     return;
   }//if
   
@@ -3619,32 +3619,42 @@ Backup::getFragmentInfo(Signal* signal,
       
       if(fragPtr.p->scanned == 0 && fragPtr.p->scanning == 0) {
 	jam();
-	signal->theData[0] = RNIL;
-	signal->theData[1] = ptr.i;
-	signal->theData[2] = tabPtr.p->tableId;
-	signal->theData[3] = fragNo;
-	sendSignal(DBDIH_REF, GSN_DIGETPRIMREQ, signal, 4, JBB);
+        DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
+        req->senderRef = reference();
+        req->senderData = ptr.i;
+        req->tableId = tabPtr.p->tableId;
+        req->fragId = fragNo;
+        req->scanCookie = tabPtr.p->m_scan_cookie;
+	sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
+                   DihScanGetNodesReq::SignalLength, JBB);
 	return;
       }//if
     }//for
+
+    DihScanTabCompleteRep*rep= (DihScanTabCompleteRep*)signal->getDataPtrSend();
+    rep->tableId = tabPtr.p->tableId;
+    rep->scanCookie = tabPtr.p->m_scan_cookie;
+    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+               DihScanTabCompleteRep::SignalLength, JBB);
+
     fragNo = 0;
   }//for
   
+
   getFragmentInfoDone(signal, ptr);
 }
 
 void
-Backup::execDIGETPRIMCONF(Signal* signal)
+Backup::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
 {
   jamEntry();
   
-  const Uint32 userPtr = signal->theData[0];
-  const Uint32 senderData = signal->theData[1];
-  const Uint32 nodeCount = signal->theData[6];
-  const Uint32 tableId = signal->theData[7];
-  const Uint32 fragNo = signal->theData[8];
+  DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtrSend();
+  const Uint32 senderData = conf->senderData;
+  const Uint32 nodeCount = conf->count;
+  const Uint32 tableId = conf->tableId;
+  const Uint32 fragNo = conf->fragId;
 
-  ndbrequire(userPtr == RNIL && signal->length() == 9);
   ndbrequire(nodeCount > 0 && nodeCount <= MAX_REPLICAS);
   
   BackupRecordPtr ptr LINT_SET_PTR;
@@ -3656,7 +3666,7 @@ Backup::execDIGETPRIMCONF(Signal* signal)
   FragmentPtr fragPtr;
   tabPtr.p->fragments.getPtr(fragPtr, fragNo);
   
-  fragPtr.p->node = signal->theData[2];
+  fragPtr.p->node = conf->nodes[0];
 
   getFragmentInfo(signal, ptr, tabPtr, fragNo + 1);
 }

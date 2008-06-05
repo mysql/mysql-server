@@ -85,9 +85,9 @@ Suma::Suma(Block_context& ctx) :
   /**
    * Dih interface
    */
-  addRecSignal(GSN_DI_FCOUNTCONF, &Suma::execDI_FCOUNTCONF);
-  addRecSignal(GSN_DI_FCOUNTREF, &Suma::execDI_FCOUNTREF);
-  addRecSignal(GSN_DIGETPRIMCONF, &Suma::execDIGETPRIMCONF);
+  addRecSignal(GSN_DIH_SCAN_TAB_REF, &Suma::execDIH_SCAN_TAB_REF);
+  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Suma::execDIH_SCAN_TAB_CONF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF, &Suma::execDIH_SCAN_GET_NODES_CONF);
   addRecSignal(GSN_CHECKNODEGROUPSCONF, &Suma::execCHECKNODEGROUPSCONF);
   addRecSignal(GSN_GCP_PREPARE, &Suma::execGCP_PREPARE);
 

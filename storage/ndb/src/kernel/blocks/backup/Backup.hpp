@@ -104,8 +104,8 @@ protected:
   /**
    * DIH signals
    */
-  void execDI_FCOUNTCONF(Signal* signal);
-  void execDIGETPRIMCONF(Signal* signal);
+  void execDIH_SCAN_TAB_CONF(Signal* signal);
+  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
 
   /**
    * FS signals
@@ -193,6 +193,7 @@ public:
     Uint32 tableId;
     Uint32 schemaVersion;
     Uint32 tableType;
+    Uint32 m_scan_cookie;
     Uint32 triggerIds[3];
     bool   triggerAllocated[3];
     Uint32 maxRecordSize;
