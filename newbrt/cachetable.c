@@ -250,8 +250,14 @@ unsigned int ct_hash_longlong (unsigned long long l) {
 }
 #endif
 
-static unsigned int hashit (CACHETABLE t, CACHEKEY key) {
-    return hash_key((unsigned char*)&key, sizeof(key))%t->table_size;
+static unsigned int hashit (CACHETABLE t, CACHEKEY key, CACHEFILE cachefile) {
+    unsigned int h1 = hash_key((unsigned char*)&key, sizeof(key));
+#if 1
+    h1 = hash_key_extend(h1, (unsigned char*)&cachefile, sizeof(cachefile));
+#else
+    cachefile=cachefile;
+#endif
+    return h1%t->table_size;
 }
 
 static void cachetable_rehash (CACHETABLE t, int primeindexdelta) {
@@ -266,11 +272,13 @@ static void cachetable_rehash (CACHETABLE t, int primeindexdelta) {
     //printf("%s:%d newtable_size=%d\n", __FILE__, __LINE__, newtable_size);
     assert(newtable!=0);
     t->primeidx=newprimeindex;
+    int oldtable_size = t->table_size;
+    t->table_size=newtable_size;
     for (i=0; i<newtable_size; i++) newtable[i]=0;
-    for (i=0; i<t->table_size; i++) {
+    for (i=0; i<oldtable_size; i++) {
 	PAIR p;
 	while ((p=t->table[i])!=0) {
-	    unsigned int h = hash_key((unsigned char *)&p->key, sizeof (p->key))%newtable_size;
+	    unsigned int h = hashit(t, p->key, p->cachefile);
 	    t->table[i] = p->hash_chain;
 	    p->hash_chain = newtable[h];
 	    newtable[h] = p;
@@ -279,7 +287,6 @@ static void cachetable_rehash (CACHETABLE t, int primeindexdelta) {
     toku_free(t->table);
     // printf("Freed\n");
     t->table=newtable;
-    t->table_size=newtable_size;
     //printf("Done growing or shrinking\n");
 }
 
@@ -346,7 +353,7 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     t->n_in_table--;
     // Remove it from the hash chain.
     {
-	unsigned int h = hashit(t, remove_me->key);
+	unsigned int h = hashit(t, remove_me->key, remove_me->cachefile);
 	t->table[h] = remove_from_hash_chain (remove_me, t->table[h]);
     }
     t->size_current -= remove_me->size;
@@ -439,7 +446,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     {
 	PAIR p;
-	for (p=cachefile->cachetable->table[hashit(cachefile->cachetable, key)]; p; p=p->hash_chain) {
+	for (p=cachefile->cachetable->table[hashit(cachefile->cachetable, key, cachefile)]; p; p=p->hash_chain) {
 	    if (p->key==key && p->cachefile==cachefile) {
 		// Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
 		// In practice, the functions better be the same.
@@ -453,7 +460,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size
     int r;
     if ((r=maybe_flush_some(cachefile->cachetable, size))) return r;
     // flushing could change the result from hashit()
-    r = cachetable_insert_at(cachefile, hashit(cachefile->cachetable, key), key, value, size, flush_callback, fetch_callback, extraargs, 1, ZERO_LSN);
+    r = cachetable_insert_at(cachefile, hashit(cachefile->cachetable, key, cachefile), key, value, size, flush_callback, fetch_callback, extraargs, 1, ZERO_LSN);
     return r;
 }
 
@@ -462,7 +469,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, 
     CACHETABLE t = cachefile->cachetable;
     int tsize __attribute__((__unused__)) = t->table_size;
     PAIR p;
-    for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
+    for (p=t->table[hashit(t,key,cachefile)]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    *value = p->value;
             if (sizep) *sizep = p->size;
@@ -482,7 +489,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, 
 	if ((r=fetch_callback(cachefile, key, &toku_value, &size, extraargs, &written_lsn))) {
             return r;
 	}
-	cachetable_insert_at(cachefile, hashit(t,key), key, toku_value, size, flush_callback, fetch_callback, extraargs, 0, written_lsn);
+	cachetable_insert_at(cachefile, hashit(t,key,cachefile), key, toku_value, size, flush_callback, fetch_callback, extraargs, 0, written_lsn);
 	*value = toku_value;
         if (sizep)
             *sizep = size;
@@ -496,7 +503,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, 
 int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value) {
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
-    for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
+    for (p=t->table[hashit(t,key,cachefile)]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    *value = p->value;
 	    p->pinned++;
@@ -514,7 +521,7 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, int dirty, long siz
     PAIR p;
     WHEN_TRACE_CT(printf("%s:%d unpin(%lld)", __FILE__, __LINE__, key));
     //printf("%s:%d is dirty now=%d\n", __FILE__, __LINE__, dirty);
-    for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
+    for (p=t->table[hashit(t,key,cachefile)]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    assert(p->pinned>0);
 	    p->pinned--;
@@ -540,13 +547,13 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, int dirty, long siz
 int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newkey) {
   CACHETABLE t = cachefile->cachetable;
   PAIR *ptr_to_p,p;
-  for (ptr_to_p = &t->table[hashit(t, oldkey)],  p = *ptr_to_p;
+  for (ptr_to_p = &t->table[hashit(t, oldkey,cachefile)],  p = *ptr_to_p;
        p;
        ptr_to_p = &p->hash_chain,                p = *ptr_to_p) {
     if (p->key==oldkey && p->cachefile==cachefile) {
       *ptr_to_p = p->hash_chain;
       p->key = newkey;
-      int nh = hashit(t, newkey);
+      int nh = hashit(t, newkey, cachefile);
       p->hash_chain = t->table[nh];
       t->table[nh] = p;
       return 0;
@@ -586,7 +593,7 @@ void toku_cachetable_verify (CACHETABLE t) {
 	for (p=t->head; p; p=p->next) {
 	    assert(p->verify_flag==0);
 	    PAIR p2;
-	    for (p2=t->table[hashit(t,p->key)]; p2; p2=p2->hash_chain) {
+	    for (p2=t->table[hashit(t,p->key, p->cachefile)]; p2; p2=p2->hash_chain) {
 		if (p2==p) {
 		    /* found it */
 		    goto next;
@@ -674,7 +681,7 @@ int toku_cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
     /* Removing something already present is OK. */
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
-    for (p=t->table[hashit(t,key)]; p; p=p->hash_chain) {
+    for (p=t->table[hashit(t,key, cachefile)]; p; p=p->hash_chain) {
 	if (p->key==key && p->cachefile==cachefile) {
 	    flush_and_remove(t, p, write_me);
             if (4 * t->n_in_table < t->table_size)
@@ -762,10 +769,10 @@ void toku_cachetable_get_state (CACHETABLE ct, int *num_entries_ptr, int *hash_s
         *size_limit_ptr = ct->size_limit;
 }
 
-int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, void **value_ptr,
+int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, void **value_ptr,
 				   int *dirty_ptr, long long *pin_ptr, long *size_ptr) {
     PAIR p;
-    for (p = ct->table[hashit(ct, key)]; p; p = p->hash_chain) {
+    for (p = ct->table[hashit(ct, key, cf)]; p; p = p->hash_chain) {
         if (p->key == key) {
             if (value_ptr)
                 *value_ptr = p->value;
