@@ -65,7 +65,7 @@
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/FsOpenReq.hpp>
-#include <signaldata/DihFragCount.hpp>
+#include <signaldata/DihScanTab.hpp>
 #include <signaldata/DictLock.hpp>
 #include <DebuggerNames.hpp>
 #include <signaldata/Upgrade.hpp>
@@ -627,6 +627,12 @@ void Dbdih::execCONTINUEB(Signal* signal)
   {
     jam();
     lcpBlockedLab(signal, true, signal->theData[1]);
+    return;
+  }
+  case DihContinueB::ZWAIT_OLD_SCAN:
+  {
+    jam();
+    wait_old_scan(signal);
     return;
   }
   }//switch
@@ -7040,6 +7046,9 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   tabPtr.p->schemaVersion = req->schemaVersion;
   tabPtr.p->primaryTableId = req->primaryTableId;
   tabPtr.p->schemaTransId = req->schemaTransId;
+  tabPtr.p->m_scan_count[0] = 0;
+  tabPtr.p->m_scan_count[1] = 0;
+  tabPtr.p->m_scan_reorg_flag = 0;
 
   if(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE){
     jam();
@@ -7630,6 +7639,12 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
         getFragstore(tabPtr.p, i, fragPtr);
         fragPtr.p->distributionKey = (fragPtr.p->distributionKey + 1) & 0xFF;
       }
+
+      ndbassert(tabPtr.p->m_scan_count[1] == 0);
+      tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
+      tabPtr.p->m_scan_count[0] = 0;
+      tabPtr.p->m_scan_reorg_flag = 1;
+
       send_alter_tab_conf(signal, connectPtr);
       return;
     }
@@ -7647,6 +7662,18 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     send_alter_tab_conf(signal, connectPtr);
     release_connect(connectPtr);
     tabPtr.p->m_new_map_ptr_i = RNIL;
+    tabPtr.p->m_scan_reorg_flag = 0;
+    return;
+  case AlterTabReq::AlterTableWaitScan:
+    jam();
+    signal->theData[0] = DihContinueB::ZWAIT_OLD_SCAN;
+    signal->theData[1] = tabPtr.i;
+    signal->theData[2] = senderRef;
+    signal->theData[3] = senderData;
+    signal->theData[4] = connectPtr.i;
+    signal->theData[5] = NdbTick_CurrentMillisecond() / 1000;
+    signal->theData[6] = 3;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 7, JBB);
     return;
   default:
     ndbrequire(false);
@@ -7736,6 +7763,54 @@ error:
   }
 
   return err;
+}
+
+void
+Dbdih::wait_old_scan(Signal* signal)
+{
+  jam();
+
+  TabRecordPtr tabPtr;
+  tabPtr.i = signal->theData[1];
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+  if (tabPtr.p->m_scan_count[1] == 0)
+  {
+    jam();
+    Uint32 senderRef = signal->theData[2];
+    Uint32 senderData = signal->theData[3];
+    Uint32 connectPtrI = signal->theData[4];
+
+    AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    conf->connectPtr = connectPtrI;
+    sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
+               AlterTabConf::SignalLength, JBB);
+    return;
+  }
+
+  Uint32 start = signal->theData[5];
+  Uint32 wait = signal->theData[6];
+  Uint32 now = NdbTick_CurrentMillisecond() / 1000;
+  if (now > start + wait)
+  {
+    infoEvent("Waiting(%u) for scans(%u) to complete on table %u",
+              now - start,
+              tabPtr.p->m_scan_count[1],
+              tabPtr.i);
+
+    if (wait == 3)
+    {
+      signal->theData[6] = 3 + 7;
+    }
+    else
+    {
+      signal->theData[6] = 2 * wait;
+    }
+  }
+
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 7);
 }
 
 Uint32
@@ -8171,135 +8246,116 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
   return;
 }//Dbdih::execDIVERIFYREQ()
 
-void Dbdih::execDI_FCOUNTREQ(Signal* signal) 
+void Dbdih::execDIH_SCAN_TAB_REQ(Signal* signal)
 {
-  DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtr();
-  ConnectRecordPtr connectPtr;
+  DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtr();
   TabRecordPtr tabPtr;
-  const BlockReference senderRef = signal->senderBlockRef();
-  const Uint32 senderData = req->m_senderData;
+  const Uint32 senderData = req->senderData;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 schemaTransId = req->schemaTransId;
+
   jamEntry();
-  connectPtr.i = req->m_connectionData;
-  tabPtr.i = req->m_tableRef;
+
+  tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
   if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
   {
-    if (tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
-        tabPtr.p->schemaTransId == req->m_schemaTransId) {
+    if (! (tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
+           tabPtr.p->schemaTransId == schemaTransId))
+    {
       jam();
-    }
-    else {
-      jam();
-      const Uint32 schemaTransId = req->m_schemaTransId;
-      DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
-      //connectPtr.i == RNIL -> question without connect record
-      if(connectPtr.i == RNIL)
-        ref->m_connectionData = RNIL;
-      else
-      {
-        jam();
-        ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-        ref->m_connectionData = connectPtr.p->userpointer;
-      }
-      ref->m_tableRef = tabPtr.i;
-      ref->m_senderData = senderData;
-      ref->m_error = DihFragCountRef::ErroneousTableState;
-      ref->m_tableStatus = tabPtr.p->tabStatus;
-      ref->m_schemaTransId = schemaTransId;
-      sendSignal(senderRef, GSN_DI_FCOUNTREF, signal, 
-                 DihFragCountRef::SignalLength, JBB);
-      return;
+      goto error;
     }
   }
 
-  if(connectPtr.i != RNIL){
-    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-    if (connectPtr.p->connectState == ConnectRecord::INUSE) {
-      jam();
-      DihFragCountConf* conf = (DihFragCountConf*)signal->getDataPtrSend();
-      conf->m_connectionData = connectPtr.p->userpointer;
-      conf->m_tableRef = tabPtr.i;
-      conf->m_senderData = senderData;
-      conf->m_fragmentCount = tabPtr.p->totalfragments;
-      conf->m_noOfBackups = tabPtr.p->noOfBackups;
-      sendSignal(connectPtr.p->userblockref, GSN_DI_FCOUNTCONF, signal,
-                 DihFragCountConf::SignalLength, JBB);
-      return;
-    }//if
-    const Uint32 schemaTransId = req->m_schemaTransId;
-    DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
-    ref->m_connectionData = connectPtr.p->userpointer;
-    ref->m_tableRef = tabPtr.i;
-    ref->m_senderData = senderData;
-    ref->m_error = DihFragCountRef::ErroneousTableState;
-    ref->m_tableStatus = tabPtr.p->tabStatus;
-    ref->m_schemaTransId = schemaTransId;
-    sendSignal(connectPtr.p->userblockref, GSN_DI_FCOUNTREF, signal, 
-               DihFragCountRef::SignalLength, JBB);
-    return;
-  }//if
-  DihFragCountConf* conf = (DihFragCountConf*)signal->getDataPtrSend();
-  //connectPtr.i == RNIL -> question without connect record
-  conf->m_connectionData = RNIL;
-  conf->m_tableRef = tabPtr.i;
-  conf->m_senderData = senderData;
-  conf->m_fragmentCount = tabPtr.p->totalfragments;
-  conf->m_noOfBackups = tabPtr.p->noOfBackups;
-  sendSignal(senderRef, GSN_DI_FCOUNTCONF, signal, 
-             DihFragCountConf::SignalLength, JBB);
+  tabPtr.p->m_scan_count[0]++;
+
+  {
+    DihScanTabConf* conf = (DihScanTabConf*)signal->getDataPtrSend();
+    conf->tableId = tabPtr.i;
+    conf->senderData = senderData;
+    conf->fragmentCount = tabPtr.p->totalfragments;
+    conf->noOfBackups = tabPtr.p->noOfBackups;
+    conf->scanCookie = tabPtr.p->m_map_ptr_i;
+    conf->reorgFlag = tabPtr.p->m_scan_reorg_flag;
+    sendSignal(senderRef, GSN_DIH_SCAN_TAB_CONF, signal,
+               DihScanTabConf::SignalLength, JBB);
+  }
+  return;
+
+error:
+  DihScanTabRef* ref = (DihScanTabRef*)signal->getDataPtrSend();
+  ref->tableId = tabPtr.i;
+  ref->senderData = senderData;
+  ref->error = DihScanTabRef::ErroneousTableState;
+  ref->tableStatus = tabPtr.p->tabStatus;
+  ref->schemaTransId = schemaTransId;
+  sendSignal(senderRef, GSN_DIH_SCAN_TAB_REF, signal,
+             DihScanTabRef::SignalLength, JBB);
+  return;
+
 }//Dbdih::execDI_FCOUNTREQ()
 
-void Dbdih::execDIGETPRIMREQ(Signal* signal) 
+void Dbdih::execDIH_SCAN_GET_NODES_REQ(Signal* signal)
 {
   FragmentstorePtr fragPtr;
-  ConnectRecordPtr connectPtr;
   TabRecordPtr tabPtr;
   jamEntry();
-  Uint32 passThrough = signal->theData[1];
-  tabPtr.i = signal->theData[2];
+  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
+  Uint32 senderRef = req->senderRef;
+  Uint32 senderData = req->senderData;
+  Uint32 fragId = req->fragId;
+
+  tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType)) {
     jam();
     tabPtr.i = tabPtr.p->primaryTableId;
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   }
-  Uint32 fragId = signal->theData[3];
-  
-  if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE) {
-    jam();
-    ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
-               tabPtr.p->schemaTransId == signal->theData[4]);
-  }
-  connectPtr.i = signal->theData[0];
-  if(connectPtr.i != RNIL)
-  {
-    jam();
-    ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-    signal->theData[0] = connectPtr.p->userpointer;
-  }
-  else
-  {
-    jam();
-    signal->theData[0] = RNIL;
-  }
   
   Uint32 nodes[MAX_REPLICAS];
   getFragstore(tabPtr.p, fragId, fragPtr);
   Uint32 count = extractNodeInfo(fragPtr.p, nodes);
-  
-  signal->theData[1] = passThrough;
-  signal->theData[2] = nodes[0];
-  signal->theData[3] = nodes[1];
-  signal->theData[4] = nodes[2];
-  signal->theData[5] = nodes[3];
-  signal->theData[6] = count;
-  signal->theData[7] = tabPtr.i;
-  signal->theData[8] = fragId;
 
-  const BlockReference senderRef = signal->senderBlockRef();
-  sendSignal(senderRef, GSN_DIGETPRIMCONF, signal, 9, JBB);
+  DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtrSend();
+  conf->senderData = senderData;
+  conf->nodes[0] = nodes[0];
+  conf->nodes[1] = nodes[1];
+  conf->nodes[2] = nodes[2];
+  conf->nodes[3] = nodes[3];
+  conf->count = count;
+  conf->tableId = tabPtr.i;
+  conf->fragId = fragId;
+  sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_CONF, signal,
+             DihScanGetNodesConf::SignalLength, JBB);
 }//Dbdih::execDIGETPRIMREQ()
+
+void
+Dbdih::execDIH_SCAN_TAB_COMPLETE_REP(Signal* signal)
+{
+  jamEntry();
+  DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtr();
+  TabRecordPtr tabPtr;
+  tabPtr.i = rep->tableId;
+  Uint32 map_ptr_i = rep->scanCookie;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+  if (map_ptr_i == tabPtr.p->m_map_ptr_i)
+  {
+    jam();
+    ndbassert(tabPtr.p->m_scan_count[0]);
+    tabPtr.p->m_scan_count[0]--;
+  }
+  else
+  {
+    jam();
+    ndbassert(tabPtr.p->m_scan_count[1]);
+    tabPtr.p->m_scan_count[1]--;
+  }
+}
+
 
 /****************************************************************************/
 /* **********     GLOBAL-CHECK-POINT HANDLING  MODULE           *************/

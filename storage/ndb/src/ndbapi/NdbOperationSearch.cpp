@@ -520,49 +520,6 @@ NdbOperation::getKeyFromTCREQ(Uint32* data, Uint32 & size)
   return 0;
 }
 
-int
-NdbOperation::handle_distribution_key(const NdbColumnImpl* tAttrInfo,
-                                      const Uint64* value, Uint32 len)
-{
-  DBUG_ENTER("NdbOperation::handle_distribution_key");
-
-  if (theDistrKeyIndicator_ == 1)
-    DBUG_RETURN(0);
-
-  if (theNoOfTupKeyLeft > 0 || m_accessTable->m_noOfDistributionKeys > 1)
-    DBUG_RETURN(0);
-  
-  DBUG_DUMP("value", (const uchar*)value, len << 2);
-
-  if(m_accessTable->m_noOfDistributionKeys == 1)
-  {
-    Ndb::Key_part_ptr ptrs[2];
-    ptrs[0].ptr = value;
-    ptrs[0].len = len;
-    ptrs[1].ptr = 0;
-    
-    const Uint32 MaxKeyLenInLongWords= (NDB_MAX_KEY_SIZE + 7)/ 8; 
-    Uint64 tmp[ MaxKeyLenInLongWords ]; 
-    Uint32 hashValue;
-    int ret = Ndb::computeHash(&hashValue, 
-                               m_currentTable,
-                               ptrs, tmp, sizeof(tmp));
-    
-    if (ret == 0)
-    {
-      setPartitionId(m_currentTable->getPartitionId(hashValue));
-    }
-#ifdef VM_TRACE
-    else
-    {
-      ndbout << "Err: " << ret << endl;
-      assert(false);
-    }
-#endif
-  }
-  DBUG_RETURN(0);
-}
-
 void
 NdbOperation::setPartitionId(Uint32 value)
 {

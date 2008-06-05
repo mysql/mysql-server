@@ -7382,20 +7382,6 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
       return true;
     }
 
-    if (alterTabPtr.p->m_sub_reorg_complete == false)
-    {
-      jam();
-      Callback c = {
-        safe_cast(&Dbdict::alterTable_fromReorgTable),
-        op_ptr.p->op_key
-      };
-      op_ptr.p->m_callback = c;
-
-      alterTabPtr.p->m_sub_reorg_complete = true;
-      alterTable_toReorgTable(signal, op_ptr, 1);
-      return true;
-    }
-
     if (alterTabPtr.p->m_sub_trigger == false)
     {
       jam();
@@ -7423,6 +7409,20 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
       alterTable_toCopyData(signal, op_ptr);
 
       alterTabPtr.p->m_sub_copy_data = true;
+      return true;
+    }
+
+    if (alterTabPtr.p->m_sub_reorg_complete == false)
+    {
+      jam();
+      Callback c = {
+        safe_cast(&Dbdict::alterTable_fromReorgTable),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      alterTabPtr.p->m_sub_reorg_complete = true;
+      alterTable_toReorgTable(signal, op_ptr, 1);
       return true;
     }
   }
@@ -8098,7 +8098,9 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 }
 
 void
-Dbdict::alterTable_toCommitComplete(Signal* signal, SchemaOpPtr op_ptr)
+Dbdict::alterTable_toCommitComplete(Signal* signal,
+                                    SchemaOpPtr op_ptr,
+                                    Uint32 type)
 {
   D("alterTable_toTupCommit");
 
@@ -8109,16 +8111,28 @@ Dbdict::alterTable_toCommitComplete(Signal* signal, SchemaOpPtr op_ptr)
   AlterTabReq* req = (AlterTabReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->senderData = op_ptr.p->op_key;
-  switch(op_ptr.p->m_state){
-  case SchemaOp::OS_COMMITTING:
-    req->requestType = AlterTabReq::AlterTableCommit;
-    break;
-  case SchemaOp::OS_COMPLETING:
-    req->requestType = AlterTabReq::AlterTableComplete;
-    break;
-  default:
-    jamLine(op_ptr.p->m_state);
-    ndbrequire(false);
+  if (type == ~Uint32(0))
+  {
+    jam();
+    switch(op_ptr.p->m_state){
+    case SchemaOp::OS_COMMITTING:
+      jam();
+      req->requestType = AlterTabReq::AlterTableCommit;
+      break;
+    case SchemaOp::OS_COMPLETING:
+      jam();
+      req->requestType = AlterTabReq::AlterTableComplete;
+      break;
+    default:
+      jamLine(op_ptr.p->m_state);
+      ndbrequire(false);
+    }
+  }
+  else
+  {
+    jam();
+    jamLine(type);
+    req->requestType = type;
   }
 
   req->tableId = impl_req->tableId;
@@ -8283,7 +8297,15 @@ Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
   alterTabPtr.p->m_blockNo[1] = RNIL;
   alterTabPtr.p->m_blockNo[2] = RNIL;
 
-  if (AlterTableReq::getReorgCompleteFlag(impl_req->changeMask))
+  if (AlterTableReq::getReorgCommitFlag(impl_req->changeMask))
+  {
+    jam();
+    alterTabPtr.p->m_blockNo[0] = DBDIH;
+    alterTable_toCommitComplete(signal, op_ptr,
+                                AlterTabReq::AlterTableWaitScan);
+    return;
+  }
+  else if (AlterTableReq::getReorgCompleteFlag(impl_req->changeMask))
   {
     jam();
 

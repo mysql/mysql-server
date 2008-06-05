@@ -2246,7 +2246,7 @@ private:
   void alterTable_fromCreateTrigger(Signal*, Uint32 op_key, Uint32 ret);
 
   // commit phase
-  void alterTable_toCommitComplete(Signal*, SchemaOpPtr);
+  void alterTable_toCommitComplete(Signal*, SchemaOpPtr, Uint32 = ~Uint32(0));
   void alterTable_fromCommitComplete(Signal*, Uint32 op_key, Uint32 ret);
   void alterTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
 

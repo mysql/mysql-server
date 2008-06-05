@@ -244,9 +244,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CREATE_FRAGREF              179
 #define GSN_CREATE_FRAGREQ              180
 #define GSN_DEBUG_SIG                   181
-#define GSN_DI_FCOUNTCONF               182
-#define GSN_DI_FCOUNTREF                183
-#define GSN_DI_FCOUNTREQ                184
+#define GSN_DIH_SCAN_TAB_REQ            182
+#define GSN_DIH_SCAN_TAB_REF            183
+#define GSN_DIH_SCAN_TAB_CONF           184
+#define GSN_DIH_SCAN_TAB_COMPLETE_REP   287
 #define GSN_DIADDTABCONF                185
 #define GSN_DIADDTABREF                 186
 #define GSN_DIADDTABREQ                 187
@@ -300,9 +301,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIGETNODESCONF              210
 #define GSN_DIGETNODESREF               211
 #define GSN_DIGETNODESREQ               212
-#define GSN_DIGETPRIMCONF               213
-#define GSN_DIGETPRIMREF                214
-#define GSN_DIGETPRIMREQ                215
+#define GSN_DIH_SCAN_GET_NODES_REQ      213
+#define GSN_DIH_SCAN_GET_NODES_REF      215
+#define GSN_DIH_SCAN_GET_NODES_CONF     214
 
 #define GSN_DIH_RESTARTCONF             217
 #define GSN_DIH_RESTARTREF              218
@@ -385,7 +386,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_UPGRADE_PROTOCOL_ORD        285
 
 /* 286 not unused */
-/* 287 unused */
+/* 287 not unused */
 #define GSN_GETGCICONF                  288
 #define GSN_GETGCIREQ                   289
 #define GSN_HOT_SPAREREP                290

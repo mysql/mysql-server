@@ -508,6 +508,8 @@ public:
     Uint32 tabRemoveNode;
     Uint32 totalfragments;
     Uint32 noOfFragChunks;
+    Uint32 m_scan_count[2];
+    Uint32 m_scan_reorg_flag;
     Uint32 tabErrorCode;
     struct {
       Uint32 tabUserRef;
@@ -741,8 +743,9 @@ private:
   void execDIRELEASEREQ(Signal *);
   void execDISEIZEREQ(Signal *);
   void execSTTOR(Signal *);
-  void execDI_FCOUNTREQ(Signal *);
-  void execDIGETPRIMREQ(Signal *);
+  void execDIH_SCAN_TAB_REQ(Signal *);
+  void execDIH_SCAN_GET_NODES_REQ(Signal *);
+  void execDIH_SCAN_TAB_COMPLETE_REP(Signal*);
   void execGCP_SAVEREF(Signal *);
   void execGCP_TCFINISHED(Signal *);
   void execREAD_NODESCONF(Signal *);
@@ -1129,6 +1132,7 @@ private:
   void getFragstore(TabRecord *, Uint32 fragNo, FragmentstorePtr & ptr);
   void initialiseFragstore();
 
+  void wait_old_scan(Signal*);
   Uint32 add_fragments_to_table(Ptr<TabRecord>, const Uint16 buf[]);
   Uint32 add_fragment_to_table(Ptr<TabRecord>, Uint32, Ptr<Fragmentstore>&);
 

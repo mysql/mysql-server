@@ -64,8 +64,9 @@ Backup::Backup(Block_context& ctx) :
   addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Backup::execDROP_TRIG_IMPL_REF);
   addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Backup::execDROP_TRIG_IMPL_CONF);
 
-  addRecSignal(GSN_DI_FCOUNTCONF, &Backup::execDI_FCOUNTCONF);
-  addRecSignal(GSN_DIGETPRIMCONF, &Backup::execDIGETPRIMCONF);
+  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Backup::execDIH_SCAN_TAB_CONF);
+  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF,
+               &Backup::execDIH_SCAN_GET_NODES_CONF);
 
   addRecSignal(GSN_FSOPENREF, &Backup::execFSOPENREF, true);
   addRecSignal(GSN_FSOPENCONF, &Backup::execFSOPENCONF);
