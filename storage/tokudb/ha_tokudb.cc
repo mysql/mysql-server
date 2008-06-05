@@ -722,20 +722,6 @@ ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
             flags &= ~(HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
             break;
         }
-        switch (key_part->field->key_type()) {
-        case HA_KEYTYPE_TEXT:
-        case HA_KEYTYPE_VARTEXT1:
-        case HA_KEYTYPE_VARTEXT2:
-            /* QQQ
-               As BDB stores only one copy of equal strings, we can't use key read
-               on these. Binary collations do support key read though.
-             */
-            if (!(key_part->field->charset()->state & MY_CS_BINSORT))
-                flags &= ~HA_KEYREAD_ONLY;
-            break;
-        default:               // Keep compiler happy
-            break;
-        }
     }
     DBUG_RETURN(flags);
 }
