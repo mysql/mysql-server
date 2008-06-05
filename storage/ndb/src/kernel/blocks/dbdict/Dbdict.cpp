@@ -2162,7 +2162,7 @@ Dbdict::check_read_obj(SchemaFile::TableEntry* te, Uint32 transId)
   case SchemaFile::SF_DROP:
     jam();
     /** uncommitted drop */
-    return 0;
+    return DropTableRef::ActiveSchemaTrans;
   case SchemaFile::SF_IN_USE:
     jam();
     return 0;
