@@ -341,14 +341,6 @@ public:
 
     Uint32 nextPool;
 
-    enum TabState {
-      NOT_DEFINED = 0,
-      DEFINING = 2,
-      DEFINED = 4,
-      PREPARE_DROPPING = 5,
-      DROPPING = 6
-    };
-    TabState tabState;
     Uint32 m_read_locked; // BACKUP_ONGOING
 
     /**    Number of words */
@@ -1718,6 +1710,10 @@ private:
     void print(NdbOut&) const;
 #endif
   };
+
+  Uint32 check_read_obj(Uint32 objId, Uint32 transId = 0);
+  Uint32 check_read_obj(SchemaFile::TableEntry*, Uint32 transId = 0);
+  Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
   ArrayPool<SchemaTrans> c_schemaTransPool;
   DLHashTable<SchemaTrans> c_schemaTransHash;
