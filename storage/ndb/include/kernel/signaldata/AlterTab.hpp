@@ -27,7 +27,9 @@ struct AlterTabReq {
     AlterTableCommit = 1,  // Commit alter table
     AlterTableRevert = 2,  // Prepare failed, revert instead
     AlterTableComplete = 3,
-    AlterTableWaitScan = 4
+    AlterTableWaitScan = 4,
+    AlterTableSumaEnable = 5,
+    AlterTableSumaFilter = 6
   };
 
   Uint32 senderRef;

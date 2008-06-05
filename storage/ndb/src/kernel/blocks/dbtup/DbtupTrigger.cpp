@@ -748,11 +748,20 @@ Dbtup::check_fire_trigger(const Fragrecord * fragPtrP,
                           const Operationrec * regOperPtr) const
 {
   jam();
+
+  if (trigPtrP->triggerType == TriggerType::SUBSCRIPTION_BEFORE)
+  {
+    if (!check_fire_suma(req_struct, regOperPtr, fragPtrP))
+      return false;
+    return true;
+  }
+
   switch(fragPtrP->fragStatus){
   case Fragrecord::FS_REORG_NEW:
     jam();
     return false;
   case Fragrecord::FS_REORG_COMMIT:
+  case Fragrecord::FS_REORG_COMPLETE:
     return req_struct->m_reorg == 0;
   default:
     return true;
@@ -767,6 +776,7 @@ Dbtup::check_fire_reorg(const KeyReqStruct *req_struct,
   switch(state){
   case Fragrecord::FS_ONLINE:
   case Fragrecord::FS_REORG_COMMIT_NEW:
+  case Fragrecord::FS_REORG_COMPLETE_NEW:
     jam();
     if (flag == 2)
     {
@@ -776,10 +786,61 @@ Dbtup::check_fire_reorg(const KeyReqStruct *req_struct,
     return false;
   case Fragrecord::FS_REORG_NEW:
   case Fragrecord::FS_REORG_COMMIT:
+  case Fragrecord::FS_REORG_COMPLETE:
   default:
     jam();
     return false;
   }
+}
+
+bool
+Dbtup::check_fire_suma(const KeyReqStruct *req_struct,
+                       const Operationrec* opPtrP,
+                       const Fragrecord* regFragPtrP) const
+{
+  Ptr<Tablerec> tablePtr;
+  tablePtr.i = regFragPtrP->fragTableId;
+  Fragrecord::FragState state = regFragPtrP->fragStatus;
+  Uint32 gci_hi = req_struct->gci_hi;
+  Uint32 flag = opPtrP->op_struct.m_reorg;
+
+  switch(state){
+  case Fragrecord::FS_FREE:
+    ndbassert(false);
+    return false;
+  case Fragrecord::FS_ONLINE:
+    jam();
+    return true;
+  case Fragrecord::FS_REORG_NEW:
+    jam();
+    return false;
+  case Fragrecord::FS_REORG_COMMIT_NEW:
+    jam();
+    return false;
+  case Fragrecord::FS_REORG_COMPLETE_NEW:
+    jam();
+    return true;
+  case Fragrecord::FS_REORG_COMMIT:
+    jam();
+    return true;
+  case Fragrecord::FS_REORG_COMPLETE:
+    jam();
+    if (flag != 1)
+    {
+      jam();
+      return true;
+    }
+    break;
+  }
+
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  if (gci_hi < tablePtr.p->m_reorg_suma_filter.m_gci_hi)
+  {
+    jam();
+    return true;
+  }
+
+  return false;
 }
 
 void Dbtup::executeTrigger(KeyReqStruct *req_struct,

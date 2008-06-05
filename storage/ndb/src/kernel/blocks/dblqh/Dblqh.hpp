@@ -236,6 +236,7 @@ class Dbtup;
 #define ZPREP_DROP_TABLE 20
 #define ZENABLE_EXPAND_CHECK 21
 #define ZRETRY_TCKEYREF 22
+#define ZWAIT_REORG_SUMA_FILTER_ENABLED 23
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -2266,7 +2267,10 @@ private:
   void checkScanTcCompleted(Signal* signal);
   void closeFile(Signal* signal, LogFileRecordPtr logFilePtr, Uint32 place);
   void completedLogPage(Signal* signal, Uint32 clpType, Uint32 place);
+
   void commit_reorg(TablerecPtr tablePtr);
+  void wait_reorg_suma_filter_enabled(Signal*);
+
   void deleteFragrec(Uint32 fragId);
   void deleteTransidHash(Signal* signal);
   void findLogfile(Signal* signal,

@@ -649,6 +649,65 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
     handleAlterTableComplete(signal, req, regTabPtr.p);
     return;
   }
+  case AlterTabReq::AlterTableSumaEnable:
+  {
+    FragrecordPtr regFragPtr;
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    {
+      jam();
+      if ((regFragPtr.i = regTabPtr.p->fragrec[i]) != RNIL)
+      {
+        jam();
+        ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
+        switch(regFragPtr.p->fragStatus){
+        case Fragrecord::FS_REORG_COMMIT_NEW:
+          jam();
+          if (0)
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_COMMIT_NEW", "FS_REORG_COMPLETE_NEW");
+          regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMPLETE_NEW;
+          break;
+        default:
+          break;
+        }
+      }
+    }
+    sendAlterTabConf(signal, RNIL);
+    return;
+  }
+  case AlterTabReq::AlterTableSumaFilter:
+  {
+    Uint32 gci = signal->theData[signal->getLength() - 1];
+    regTabPtr.p->m_reorg_suma_filter.m_gci_hi = gci;
+    FragrecordPtr regFragPtr;
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    {
+      jam();
+      if ((regFragPtr.i = regTabPtr.p->fragrec[i]) != RNIL)
+      {
+        jam();
+        ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
+        switch(regFragPtr.p->fragStatus){
+        case Fragrecord::FS_REORG_COMMIT:
+          jam();
+          if (0)
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s (gci: %u)",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_COMMIT", "FS_REORG_COMPLETE",
+                   gci);
+          regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMPLETE;
+          break;
+        default:
+          break;
+        }
+      }
+    }
+    signal->theData[0] = ~Uint32(0);
+    return;
+  }
+  default:
+    break;
   }
   ndbrequire(false);
 }
@@ -879,10 +938,18 @@ Dbtup::handleAlterTableCommit(Signal *signal,
         case Fragrecord::FS_ONLINE:
           jam();
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMMIT;
+          if (0)
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_ONLINE", "FS_REORG_COMMIT");
           break;
         case Fragrecord::FS_REORG_NEW:
           jam();
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMMIT_NEW;
+          if (0)
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_NEW", "FS_REORG_COMMIT_NEW");
           break;
         default:
           jamLine(regFragPtr.p->fragStatus);
@@ -911,9 +978,20 @@ Dbtup::handleAlterTableComplete(Signal *signal,
         jam();
         ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
         switch(regFragPtr.p->fragStatus){
-        case Fragrecord::FS_REORG_COMMIT:
-        case Fragrecord::FS_REORG_COMMIT_NEW:
+        case Fragrecord::FS_REORG_COMPLETE:
           jam();
+          if (0)
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_COMPLETE", "FS_ONLINE");
+          regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
+          break;
+        case Fragrecord::FS_REORG_COMPLETE_NEW:
+          jam();
+          if (0)
+            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
+                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                     "FS_REORG_COMPLETE_NEW", "FS_ONLINE");
           regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
           break;
         default:

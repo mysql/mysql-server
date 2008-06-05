@@ -7382,6 +7382,35 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
       return true;
     }
 
+    if (alterTabPtr.p->m_sub_suma_enable == false)
+    {
+      jam();
+      Callback c = {
+        safe_cast(&Dbdict::alterTable_fromReorgTable),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      alterTabPtr.p->m_sub_suma_enable = true;
+      alterTable_toSumaSync(signal, op_ptr, 0);
+      return true;
+    }
+
+
+    if (alterTabPtr.p->m_sub_suma_filter == false)
+    {
+      jam();
+      Callback c = {
+        safe_cast(&Dbdict::alterTable_fromReorgTable),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      alterTabPtr.p->m_sub_suma_filter = true;
+      alterTable_toSumaSync(signal, op_ptr, 1);
+      return true;
+    }
+
     if (alterTabPtr.p->m_sub_trigger == false)
     {
       jam();
@@ -7689,6 +7718,46 @@ Dbdict::alterTable_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
                AlterTableRef::SignalLength, JBB);
   }
 }
+
+void
+Dbdict::alterTable_toSumaSync(Signal* signal,
+                              SchemaOpPtr op_ptr,
+                              Uint32 step)
+{
+  jam();
+  AlterTableRecPtr alterTabPtr;
+  getOpRec(op_ptr, alterTabPtr);
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
+
+  AlterTableReq* req = (AlterTableReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = 0;
+  req->tableId = impl_req->tableId;
+  req->tableVersion = impl_req->tableVersion;
+  req->changeMask = 0;
+  if (step == 0)
+  {
+    jam();
+    AlterTableReq::setReorgSumaEnableFlag(req->changeMask, 1);
+  }
+  else if (step == 1)
+  {
+    AlterTableReq::setReorgSumaFilterFlag(req->changeMask, 1);
+  }
+  else
+  {
+    jamLine(step);
+    ndbrequire(false);
+  }
+
+  sendSignal(reference(), GSN_ALTER_TABLE_REQ, signal,
+             AlterTableReq::SignalLength, JBB);
+}
+
 
 // AlterTable: PREPARE
 
@@ -8074,7 +8143,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     tablePtr.p->hashMapVersion = newTablePtr.p->hashMapVersion;
     alterTabPtr.p->m_blockNo[1] = RNIL;
   }
-  if (AlterTableReq::getReorgCommitFlag(impl_req->changeMask))
+  else if (AlterTableReq::getReorgCommitFlag(impl_req->changeMask))
   {
     jam();
     /**
@@ -8083,13 +8152,11 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     alterTabPtr.p->m_blockNo[0] = RNIL;
     alterTabPtr.p->m_blockNo[2] = RNIL;
   }
-  else if (AlterTableReq::getReorgCompleteFlag(impl_req->changeMask))
+  else if (AlterTableReq::getReorgCompleteFlag(impl_req->changeMask) ||
+           AlterTableReq::getReorgSumaEnableFlag(impl_req->changeMask) ||
+           AlterTableReq::getReorgSumaFilterFlag(impl_req->changeMask))
   {
     jam();
-
-    /**
-     * Reorg complete, LQH/DIH
-     */
     sendTransConf(signal, op_ptr);
     return;
   }
@@ -8317,7 +8384,22 @@ Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
     alterTable_toCommitComplete(signal, op_ptr);
     return;
   }
-
+  else if (AlterTableReq::getReorgSumaEnableFlag(impl_req->changeMask))
+  {
+    jam();
+    alterTabPtr.p->m_blockNo[0] = DBLQH;
+    alterTable_toCommitComplete(signal, op_ptr,
+                                AlterTabReq::AlterTableSumaEnable);
+    return;
+  }
+  else if (AlterTableReq::getReorgSumaFilterFlag(impl_req->changeMask))
+  {
+    jam();
+    alterTabPtr.p->m_blockNo[0] = DBLQH;
+    alterTable_toCommitComplete(signal, op_ptr,
+                                AlterTabReq::AlterTableSumaFilter);
+    return;
+  }
   sendTransConf(signal, op_ptr);
 }
 

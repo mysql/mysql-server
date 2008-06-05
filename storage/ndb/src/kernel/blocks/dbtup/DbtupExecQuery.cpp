@@ -651,6 +651,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    regOperPtr->fragmentPtr= Rfragptr;
    regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0xf;
    regOperPtr->op_struct.delete_insert_flag = false;
+   regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
    regOperPtr->storedProcedureId= Rstoredid;
 
    regOperPtr->m_copy_tuple_location.setNull();
@@ -996,8 +997,10 @@ handle_reorg(Dbtup::KeyReqStruct * req_struct,
   case Dbtup::Fragrecord::FS_FREE:
   case Dbtup::Fragrecord::FS_REORG_NEW:
   case Dbtup::Fragrecord::FS_REORG_COMMIT_NEW:
+  case Dbtup::Fragrecord::FS_REORG_COMPLETE_NEW:
     return;
   case Dbtup::Fragrecord::FS_REORG_COMMIT:
+  case Dbtup::Fragrecord::FS_REORG_COMPLETE:
     if (reorg != 1)
       return;
     break;

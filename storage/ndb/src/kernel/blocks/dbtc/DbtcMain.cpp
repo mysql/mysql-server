@@ -3310,7 +3310,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   if (Tspecial_op == 0)
   {
   }
-  else if (Tspecial_op & TcConnectRecord::SOF_REORG_TRIGGER_BASE)
+  else if (Tspecial_op & (TcConnectRecord::SOF_REORG_TRIGGER_BASE |
+                          TcConnectRecord::SOF_REORG_DELETE))
   {
     reorg = 1;
   }
