@@ -7387,6 +7387,21 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
       alterTable_toReorgTable(signal, op_ptr, 1);
       return true;
     }
+
+    if (alterTabPtr.p->m_sub_trigger == false)
+    {
+      jam();
+      Callback c = {
+        safe_cast(&Dbdict::alterTable_fromCreateTrigger),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      alterTable_toCreateTrigger(signal, op_ptr);
+
+      alterTabPtr.p->m_sub_trigger = true;
+      return true;
+    }
   }
 
   return false;
@@ -7517,6 +7532,65 @@ Dbdict::alterTable_fromReorgTable(Signal* signal,
     setError(error, ref);
     abortSubOps(signal, op_ptr, error);
   }
+}
+
+void
+Dbdict::alterTable_toCreateTrigger(Signal* signal,
+                                   SchemaOpPtr op_ptr)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  AlterTableRecPtr alterTablePtr;
+  getOpRec(op_ptr, alterTablePtr);
+  const AlterTabReq* impl_req = &alterTablePtr.p->m_request;
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, impl_req->tableId);
+
+  const TriggerTmpl& triggerTmpl = g_reorgTriggerTmpl[0];
+
+  CreateTrigReq* req = (CreateTrigReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::setRequestType(requestInfo, CreateTrigReq::CreateTriggerOnline);
+
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = requestInfo;
+  req->tableId = impl_req->tableId;
+  req->tableVersion = impl_req->tableVersion;
+  req->indexId = RNIL;
+  req->indexVersion = RNIL;
+  req->triggerNo = 0;
+  req->forceTriggerId = RNIL;
+
+  TriggerInfo::packTriggerInfo(req->triggerInfo, triggerTmpl.triggerInfo);
+
+  req->receiverRef = 0;
+  bzero(&req->attributeMask, sizeof(req->attributeMask));
+
+  char triggerName[MAX_TAB_NAME_SIZE];
+  sprintf(triggerName, triggerTmpl.nameFormat, impl_req->tableId);
+
+  // name section
+  Uint32 buffer[2 + ((MAX_TAB_NAME_SIZE + 3) >> 2)];    // SP string
+  LinearWriter w(buffer, sizeof(buffer) >> 2);
+  w.reset();
+  w.add(DictTabInfo::TableName, triggerName);
+  LinearSectionPtr lsPtr[3];
+  lsPtr[0].p = buffer;
+  lsPtr[0].sz = w.getWordsUsed();
+
+  sendSignal(reference(), GSN_CREATE_TRIG_REQ, signal,
+             CreateTrigReq::SignalLength, JBB, lsPtr, 1);
+}
+
+void
+Dbdict::alterTable_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  alterTable_fromAlterIndex(signal, op_key, ret);
 }
 
 void
@@ -10551,6 +10625,18 @@ Dbdict::g_buildIndexConstraintTmpl[1] = {
   }
 };
 
+const Dbdict::TriggerTmpl
+Dbdict::g_reorgTriggerTmpl[1] = {
+  { "NDB$REORG_%u",
+    {
+      TriggerType::REORG_TRIGGER,
+      TriggerActionTime::TA_AFTER,
+      TriggerEvent::TE_CUSTOM,
+      false, true, false
+    }
+  }
+};
+
 // AlterIndex: PARSE
 
 void
@@ -10821,32 +10907,6 @@ Dbdict::alterIndex_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr)
 }
 
 void
-Dbdict::alterIndex_atCreateTrigger(Signal* signal, SchemaOpPtr op_ptr)
-{
-  /*
-   * Index trigger req has been parsed on this participant.  Connect the
-   * index and the trigger on this node.  Trigger number comes in the
-   * signal because we have no access to trigger counter in coordinator.
-   * There is a counter under index record but it is better to use it
-   * for verification.
-   */
-  CreateTriggerRecPtr createTriggerPtr;
-  getOpRec(op_ptr, createTriggerPtr);
-  const CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
-
-  TriggerRecordPtr triggerPtr;
-  c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
-
-  TableRecordPtr indexPtr;
-  c_tableRecordPool.getPtr(indexPtr, impl_req->indexId);
-
-  D("alterIndex_atCreateTrigger" << *op_ptr.p);
-
-  triggerPtr.p->indexId = impl_req->indexId;
-  indexPtr.p->triggerId = impl_req->triggerId;
-}
-
-void
 Dbdict::alterIndex_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
 {
   jam();
@@ -10912,23 +10972,6 @@ Dbdict::alterIndex_toDropTrigger(Signal* signal, SchemaOpPtr op_ptr)
 
   sendSignal(reference(), GSN_DROP_TRIG_REQ, signal,
              DropTrigReq::SignalLength, JBB);
-}
-
-void
-Dbdict::alterIndex_atDropTrigger(Signal* signal, SchemaOpPtr op_ptr)
-{
-  DropTriggerRecPtr dropTriggerPtr;
-  getOpRec(op_ptr, dropTriggerPtr);
-  const DropTrigImplReq* impl_req = &dropTriggerPtr.p->m_request;
-
-  // the trigger is already deleted
-
-  TableRecordPtr indexPtr;
-  c_tableRecordPool.getPtr(indexPtr, impl_req->indexId);
-
-  D("alterIndex_atDropTrigger" << *op_ptr.p);
-
-  indexPtr.p->triggerId = RNIL;
 }
 
 void
@@ -11769,25 +11812,6 @@ Dbdict::buildIndex_toCreateConstraint(Signal* signal, SchemaOpPtr op_ptr)
 }
 
 void
-Dbdict::buildIndex_atCreateConstraint(Signal* signal, SchemaOpPtr op_ptr)
-{
-  CreateTriggerRecPtr createTriggerPtr;
-  getOpRec(op_ptr, createTriggerPtr);
-  const CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
-
-  TriggerRecordPtr triggerPtr;
-  c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
-
-  TableRecordPtr indexPtr;
-  c_tableRecordPool.getPtr(indexPtr, impl_req->tableId);
-
-  D("buildIndex_atCreateConstraint" << *op_ptr.p);
-
-  ndbrequire(indexPtr.p->buildTriggerId == RNIL);
-  indexPtr.p->buildTriggerId = impl_req->triggerId;
-}
-
-void
 Dbdict::buildIndex_fromCreateConstraint(Signal* signal, Uint32 op_key, Uint32 ret)
 {
   jam();
@@ -11935,24 +11959,6 @@ Dbdict::buildIndex_toDropConstraint(Signal* signal, SchemaOpPtr op_ptr)
 
   sendSignal(reference(), GSN_DROP_TRIG_REQ, signal,
              DropTrigReq::SignalLength, JBB, ls_ptr, 1);
-}
-
-void
-Dbdict::buildIndex_atDropConstraint(Signal* signal, SchemaOpPtr op_ptr)
-{
-  DropTriggerRecPtr dropTriggerPtr;
-  getOpRec(op_ptr, dropTriggerPtr);
-  const DropTrigImplReq* impl_req = &dropTriggerPtr.p->m_request;
-
-  // the trigger is already deleted
-
-  TableRecordPtr indexPtr;
-  c_tableRecordPool.getPtr(indexPtr, impl_req->tableId);
-
-  D("buildIndex_atDropConstraint" << *op_ptr.p);
-
-  ndbrequire(indexPtr.p->buildTriggerId != RNIL);
-  indexPtr.p->buildTriggerId = RNIL;
 }
 
 void
@@ -14893,6 +14899,9 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     TriggerType::Value type =
       TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
     switch(type){
+    case TriggerType::REORG_TRIGGER:
+      jam();
+      createTrigger_create_drop_trigger_operation(signal, op_ptr, error);
     case TriggerType::SECONDARY_INDEX:
       jam();
       createTriggerPtr.p->m_sub_dst = false;
@@ -14959,7 +14968,82 @@ Dbdict::createTrigger_parse_endpoint(Signal* signal,
     return;
   }
 
-  return;
+  Ptr<TriggerRecord> triggerPtr;
+  c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+  switch(TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo)){
+  case TriggerType::REORG_TRIGGER:
+    jam();
+    createTrigger_create_drop_trigger_operation(signal, op_ptr, error);
+    return;
+  default:
+    return;
+  }
+}
+
+void
+Dbdict::createTrigger_create_drop_trigger_operation(Signal* signal,
+                                                    SchemaOpPtr op_ptr,
+                                                    ErrorInfo& error)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateTriggerRecPtr createTriggerPtr;
+  getOpRec(op_ptr, createTriggerPtr);
+  CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
+
+  /**
+   * Construct a dropTrigger operation
+   */
+  SchemaOpPtr& oplnk_ptr = op_ptr.p->m_oplnk_ptr;
+  ndbrequire(oplnk_ptr.isNull());
+  DropTriggerRecPtr dropTriggerPtr;
+  seizeSchemaOp(oplnk_ptr, dropTriggerPtr);
+  if (oplnk_ptr.isNull())
+  {
+    jam();
+    setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
+    return;
+  }
+
+
+  DropTrigImplReq* aux_impl_req = &dropTriggerPtr.p->m_request;
+  aux_impl_req->senderRef = reference();
+  aux_impl_req->senderData = op_ptr.p->op_key;
+  aux_impl_req->requestType = 0;
+  aux_impl_req->tableId = impl_req->tableId;
+  aux_impl_req->tableVersion = 0; // not used
+  aux_impl_req->indexId = 0;
+  aux_impl_req->indexVersion = 0; // not used
+  aux_impl_req->triggerNo = 0;
+  aux_impl_req->triggerId = impl_req->triggerId;
+  aux_impl_req->triggerInfo = impl_req->triggerInfo;
+
+  // link other way too
+  oplnk_ptr.p->m_opbck_ptr = op_ptr;
+  oplnk_ptr.p->m_trans_ptr = trans_ptr;
+  dropTriggerPtr.p->m_main_op = createTriggerPtr.p->m_main_op;
+
+  if (createTriggerPtr.p->m_main_op)
+  {
+    jam();
+    return;
+  }
+
+  switch(refToBlock(createTriggerPtr.p->m_block_list[0])){
+  case DBTC:
+    jam();
+    dropTriggerPtr.p->m_block_list[0] = DBLQH_REF;
+    break;
+  case DBLQH:
+    jam();
+    dropTriggerPtr.p->m_block_list[0] = DBTC_REF;
+    break;
+  default:
+    ndbassert(false);
+    setError(error, CreateTrigRef::BadRequestType, __LINE__);
+    return;
+  }
 }
 
 bool
@@ -15142,6 +15226,14 @@ Dbdict::createTrigger_prepare(Signal* signal, SchemaOpPtr op_ptr)
     return;
   }
 
+  if (ERROR_INSERTED(6213))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    setError(op_ptr, 1, __LINE__);
+    sendTransRef(signal, op_ptr);
+    return;
+  }
+
   Callback c =  { safe_cast(&Dbdict::createTrigger_prepare_fromLocal),
                   op_ptr.p->op_key
   };
@@ -15185,6 +15277,13 @@ Dbdict::createTrigger_commit(Signal* signal, SchemaOpPtr op_ptr)
   getOpRec(op_ptr, createTriggerPtr);
   const CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
 
+  if (!op_ptr.p->m_oplnk_ptr.isNull())
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
+    return;
+  }
+
   if (createTriggerPtr.p->m_main_op)
   {
     jam();
@@ -15206,6 +15305,30 @@ void
 Dbdict::createTrigger_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
+
+  CreateTriggerRecPtr createTriggerPtr;
+  getOpRec(op_ptr, createTriggerPtr);
+
+  if (!op_ptr.p->m_oplnk_ptr.isNull())
+  {
+    jam();
+
+    /**
+     * Create trigger commit...will drop trigger
+     */
+    if (hasDictObject(op_ptr))
+    {
+      jam();
+      DictObjectPtr obj_ptr;
+      getDictObject(op_ptr, obj_ptr);
+      unlinkDictObject(op_ptr);
+      linkDictObject(op_ptr.p->m_oplnk_ptr, obj_ptr);
+    }
+    op_ptr.p->m_oplnk_ptr.p->m_state = SchemaOp::OS_COMPLETING;
+    dropTrigger_commit(signal, op_ptr.p->m_oplnk_ptr);
+    return;
+  }
+
   sendTransConf(signal, op_ptr);
 }
 
@@ -22703,7 +22826,9 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
       break;
     }
   } else {
-    ndbrequire(false);
+    TriggerInfo ti;
+    TriggerInfo::unpackTriggerInfo(triggerPtr.p->triggerInfo, ti);
+    ndbrequire(ti.triggerType == TriggerType::REORG_TRIGGER);
   }
 }
 

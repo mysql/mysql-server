@@ -2180,6 +2180,7 @@ private:
     bool m_sub_reorg_complete;
     bool m_sub_add_frag;
     Uint32 m_sub_add_frag_index_ptr;
+    bool m_sub_trigger;
 
     AlterTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
@@ -2198,6 +2199,7 @@ private:
       m_sub_add_frag = false;
       m_sub_reorg_commit = false;
       m_sub_reorg_complete = false;
+      m_sub_trigger = false;
     }
 #ifdef VM_TRACE
     void print(NdbOut&) const;
@@ -2233,6 +2235,9 @@ private:
 
   void alterTable_toReorgTable(Signal*, SchemaOpPtr, Uint32 step);
   void alterTable_fromReorgTable(Signal*, Uint32 op_key, Uint32 ret);
+
+  void alterTable_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr);
+  void alterTable_fromCreateTrigger(Signal*, Uint32 op_key, Uint32 ret);
 
   // commit phase
   void alterTable_toCommitComplete(Signal*, SchemaOpPtr);
@@ -2382,6 +2387,7 @@ private:
   static const TriggerTmpl g_hashIndexTriggerTmpl[1];
   static const TriggerTmpl g_orderedIndexTriggerTmpl[1];
   static const TriggerTmpl g_buildIndexConstraintTmpl[1];
+  static const TriggerTmpl g_reorgTriggerTmpl[1];
 
   struct AlterIndexRec : public OpRec {
     AlterIndxImplReq m_request;
@@ -2785,6 +2791,8 @@ private:
   void createTrigger_toCreateEndpoint(Signal*, SchemaOpPtr,
 				      CreateTrigReq::EndpointFlag);
   void createTrigger_fromCreateEndpoint(Signal*, Uint32, Uint32);
+  void createTrigger_create_drop_trigger_operation(Signal*,SchemaOpPtr,
+                                                   ErrorInfo& error);
 
   void createTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //

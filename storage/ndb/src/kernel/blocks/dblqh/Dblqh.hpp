@@ -2001,6 +2001,7 @@ public:
     Uint8 opSimple;
     Uint8 opExec;
     Uint8 operation;
+    Uint8 m_reorg;
     Uint8 reclenAiLqhkey;
     Uint8 m_offset_current_keybuf;
     Uint8 replicaType;

@@ -3580,6 +3580,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->totReclenAi = LqhKeyReq::getAttrLen(TtotReclenAi);
   regTcPtr->tcScanInfo  = lqhKeyReq->scanInfo;
   regTcPtr->indTakeOver = LqhKeyReq::getScanTakeOverFlag(TtotReclenAi);
+  regTcPtr->m_reorg     = LqhKeyReq::getReorgFlag(TtotReclenAi);
 
   regTcPtr->readlenAi = 0;
   regTcPtr->currTupAiLen = 0;
@@ -4789,6 +4790,7 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   Ttupreq = Ttupreq + (regTcPtr->opExec << 10);
   Ttupreq = Ttupreq + (regTcPtr->apiVersionNo << 11);
   Ttupreq = Ttupreq + (regTcPtr->m_use_rowid << 11);
+  Ttupreq = Ttupreq + (regTcPtr->m_reorg << 12);
 
   /* --------------------------------------------------------------------- 
    * Clear interpreted mode bit since we do not want the next replica to
@@ -5431,6 +5433,8 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   LqhKeyReq::setReturnedReadLenAIFlag(Treqinfo, TreadLenAiInd);
 
   UintR TotReclenAi = regTcPtr->totSendlenAi;
+  LqhKeyReq::setReorgFlag(TotReclenAi, regTcPtr->m_reorg);
+
 /* ------------------------------------------------------------------------- */
 /* WE ARE NOW PREPARED TO SEND THE LQHKEYREQ. WE HAVE TO DECIDE IF ATTRINFO  */
 /* IS INCLUDED IN THE LQHKEYREQ SIGNAL AND THEN SEND IT.                     */
@@ -17702,6 +17706,7 @@ void Dblqh::initReqinfoExecSr(Signal* signal)
   regTcPtr->nodeAfterNext[1] = ZNIL;
   regTcPtr->dirtyOp = ZFALSE;
   regTcPtr->tcBlockref = cownref;
+  regTcPtr->m_reorg = 0;
 }//Dblqh::initReqinfoExecSr()
 
 /* -------------------------------------------------------------------------- 

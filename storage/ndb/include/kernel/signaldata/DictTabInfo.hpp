@@ -202,6 +202,7 @@ public:
     SubscriptionTrigger = 16,
     ReadOnlyConstraint = 17,
     IndexTrigger = 18,
+    ReorgTrigger = 19,
     
     Tablespace = 20,        ///< Tablespace
     LogfileGroup = 21,      ///< Logfile group
@@ -260,7 +261,8 @@ public:
       tableType == HashIndexTrigger ||
       tableType == SubscriptionTrigger ||
       tableType == ReadOnlyConstraint ||
-      tableType == IndexTrigger;
+      tableType == IndexTrigger ||
+      tableType == ReorgTrigger;
   }
   static inline bool
   isFilegroup(int tableType) {

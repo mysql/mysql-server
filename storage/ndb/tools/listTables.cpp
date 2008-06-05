@@ -129,6 +129,9 @@ list(const char * tabname,
         case NdbDictionary::Object::ReadOnlyConstraint:
             strcpy(type, "ReadOnlyConstraint");
             break;
+        case NdbDictionary::Object::ReorgTrigger:
+            strcpy(type, "ReorgTrigger");
+            break;
 	case NdbDictionary::Object::Tablespace:
 	  strcpy(type, "Tablespace");
 	  break;

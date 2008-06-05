@@ -1432,6 +1432,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( LCP_KEEP    = 0x02000000 ); // Should be returned in LCP
     STATIC_CONST( FREE        = 0x02800000 ); // Is free
     STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
+    STATIC_CONST( REORG_MOVE  = 0x08000000 );
 
     Tuple_header() {}
     Uint32 get_tuple_version() const { 
@@ -1590,6 +1591,7 @@ struct KeyReqStruct {
   bool            interpreted_exec;
   bool            last_row;
   bool            m_use_rowid;
+  Uint8           m_reorg;
 
   Signal*         signal;
   Uint32 no_fired_triggers;
@@ -2575,6 +2577,8 @@ private:
                           const TupTriggerData*,
                           const KeyReqStruct*,
                           const Operationrec*) const;
+
+  bool check_fire_reorg(const KeyReqStruct *, Fragrecord::FragState) const;
 
   bool readTriggerInfo(TupTriggerData* trigPtr,
                        Operationrec* regOperPtr,
