@@ -67,6 +67,7 @@ Dbtup::findTriggerList(Tablerec* table,
     }
     break;
   case TriggerType::SECONDARY_INDEX:
+  case TriggerType::REORG_TRIGGER:
     switch (tevent) {
     case TriggerEvent::TE_INSERT:
       jam();
@@ -247,7 +248,8 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigImplReq* req)
     TriggerPtr ptr;
   } tmp[3];
 
-  if (ttype == TriggerType::SECONDARY_INDEX)
+  if (ttype == TriggerType::SECONDARY_INDEX ||
+      ttype == TriggerType::REORG_TRIGGER)
   {
     jam();
     cnt = 3;
@@ -295,6 +297,13 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigImplReq* req)
       jam();
       tptr.p->sendBeforeValues = false;
     }
+
+    if (ttype == TriggerType::REORG_TRIGGER)
+    {
+      jam();
+      tptr.p->sendBeforeValues = false;
+    }
+
     /*
       tptr.p->sendOnlyChangedAttributes = false;
       if (((tptr.p->triggerType == TriggerType::SUBSCRIPTION) ||
@@ -381,7 +390,8 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber send
     TriggerPtr ptr;
   } tmp[3];
 
-  if (ttype == TriggerType::SECONDARY_INDEX)
+  if (ttype == TriggerType::SECONDARY_INDEX ||
+      ttype == TriggerType::REORG_TRIGGER)
   {
     jam();
     cnt = 3;
@@ -742,8 +752,33 @@ Dbtup::check_fire_trigger(const Fragrecord * fragPtrP,
   case Fragrecord::FS_REORG_NEW:
     jam();
     return false;
+  case Fragrecord::FS_REORG_COMMIT:
+    return req_struct->m_reorg == 0;
   default:
     return true;
+  }
+}
+
+bool
+Dbtup::check_fire_reorg(const KeyReqStruct *req_struct,
+                        Fragrecord::FragState state) const
+{
+  Uint32 flag = req_struct->m_reorg;
+  switch(state){
+  case Fragrecord::FS_ONLINE:
+  case Fragrecord::FS_REORG_COMMIT_NEW:
+    jam();
+    if (flag == 2)
+    {
+      jam();
+      return true;
+    }
+    return false;
+  case Fragrecord::FS_REORG_NEW:
+  case Fragrecord::FS_REORG_COMMIT:
+  default:
+    jam();
+    return false;
   }
 }
 
@@ -782,11 +817,13 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   Uint32* const keyBuffer = &cinBuffer[0];
   Uint32* const afterBuffer = &coutBuffer[0];
   Uint32* const beforeBuffer = &clogMemBuffer[0];
-  
+  Uint32 triggerType = trigPtr->triggerType;
+
   Uint32 noPrimKey, noAfterWords, noBeforeWords;
   FragrecordPtr regFragPtr;
   regFragPtr.i= regOperPtr->fragmentPtr;
   ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
+  Fragrecord::FragState fragstatus = regFragPtr.p->fragStatus;
 
   if (ref == BACKUP) {
     jam();
@@ -807,6 +844,11 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
       jam();
       return;
     }
+  }
+  else if (unlikely(triggerType == TriggerType::REORG_TRIGGER))
+  {
+    if (!check_fire_reorg(req_struct, fragstatus))
+      return;
   }
   else if (unlikely(regFragPtr.p->fragStatus != Fragrecord::FS_ONLINE))
   {
@@ -839,8 +881,9 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   trigAttrInfo->setConnectionPtr(req_struct->TC_index);
   trigAttrInfo->setTriggerId(trigPtr->triggerId);
 
-  switch(trigPtr->triggerType) {
+  switch(triggerType) {
   case (TriggerType::SECONDARY_INDEX):
+  case (TriggerType::REORG_TRIGGER):
     jam();
     ref = req_struct->TC_ref;
     executeDirect = false;
@@ -1161,8 +1204,9 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
 
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
+  case (TriggerType::REORG_TRIGGER):
     jam();
-    fireTrigOrd->m_triggerType = TriggerType::SECONDARY_INDEX;
+    fireTrigOrd->m_triggerType = trigPtr->triggerType;
     fireTrigOrd->m_transId1 = req_struct->trans_id1;
     fireTrigOrd->m_transId2 = req_struct->trans_id2;
     sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD, 

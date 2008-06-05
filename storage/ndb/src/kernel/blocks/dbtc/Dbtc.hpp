@@ -330,7 +330,10 @@ public:
      * Index id, only used by secondary_index triggers.  This is same as
      * index table id in DICT.
      **/
-    Uint32 indexId;
+    union {
+      Uint32 indexId; // For unique index trigger
+      Uint32 tableId; // For reorg trigger
+    };
 
     /**
      * Prev pointer (used in list)
@@ -629,7 +632,7 @@ public:
   struct ApiConnectRecord {
     ApiConnectRecord(ArrayPool<TcFiredTriggerData> & firedTriggerPool,
 		     ArrayPool<TcIndexOperation> & seizedIndexOpPool):
-      isIndexOp(false),
+      m_special_op_flags(0),
       theFiredTriggers(firedTriggerPool),
       theSeizedIndexOperations(seizedIndexOpPool) 
     {}
@@ -689,7 +692,7 @@ public:
     Uint8 triggerPending; // Used to mark waiting for a CONTINUEB
 
     Uint8 m_exec_flag;
-    Uint8 isIndexOp;      // Used to mark on-going TcKeyReq as indx table access
+    Uint8 m_special_op_flags; // Used to mark on-going TcKeyReq as indx table
 
     Uint8 takeOverRec;
     Uint8 currentReplicaNo;
@@ -805,15 +808,31 @@ public:
                              /* 1 = UPDATE REQUEST                          */
                              /* 2 = INSERT REQUEST                          */
                              /* 3 = DELETE REQUEST                          */
+    Uint8 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
+    enum SpecialOpFlags {
+      SOF_NORMAL = 0,
+      SOF_INDEX_TABLE_READ = 1,       // Read index table
+      SOF_INDEX_BASE_TABLE_ACCESS = 2,// Execute on "real" table
+      SOF_REORG_TRIGGER_BASE = 4,
+      SOF_REORG_TRIGGER = 4 | 16,     // A reorg trigger
+      SOF_REORG_MOVING = 8,           // A record that should be moved
+      SOF_TRIGGER = 16                // A trigger
+    };
     
+    static inline bool isIndexOp(Uint8 flags) {
+      return
+        flags == SOF_INDEX_TABLE_READ ||
+        flags == SOF_INDEX_BASE_TABLE_ACCESS;
+    }
+
     //---------------------------------------------------
     // Fourth 16 byte cache line. The mildly hot variables.
     // tcNodedata expands 4 Bytes into the next cache line
     // with indexes almost never used.
     //---------------------------------------------------
     UintR clientData;           /* SENDERS OPERATION POINTER              */
-    UintR dihConnectptr;         /* CONNECTION TO DIH BLOCK ON THIS NODE   */
-    UintR prevTcConnect;         /* DOUBLY LINKED LIST OF TC CONNECT RECORDS*/
+    UintR dihConnectptr;        /* CONNECTION TO DIH BLOCK ON THIS NODE   */
+    UintR prevTcConnect;        /* DOUBLY LINKED LIST OF TC CONNECT RECORDS*/
     UintR savePointId;
 
     Uint16 tcNodedata[4];
@@ -827,9 +846,8 @@ public:
     UintR savedState[LqhKeyConf::SignalLength];
     
     // Index data
-    Uint8 isIndexOp; // Used to mark on-going TcKeyReq as index table access
     UintR indexOp;
-    UintR currentIndexId;
+    UintR currentTriggerId;
     UintR attrInfoLen;
   };
   
@@ -1581,6 +1599,13 @@ private:
                             TcConnectRecordPtr* opPtr,
                             TcIndexData* indexData,
                             bool holdOperation = false);
+
+  void executeReorgTrigger(Signal* signal,
+                           TcDefinedTriggerData* definedTriggerData,
+                           TcFiredTriggerData* firedTriggerData,
+                           ApiConnectRecordPtr* transPtr,
+                           TcConnectRecordPtr* opPtr);
+
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
   // Generated statement blocks
   void warningHandlerLab(Signal* signal, int line);

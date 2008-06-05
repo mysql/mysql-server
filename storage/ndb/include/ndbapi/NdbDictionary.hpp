@@ -119,6 +119,7 @@ public:
       LogfileGroup = 21,      ///< Logfile group
       Datafile = 22,          ///< Datafile
       Undofile = 23,          ///< Undofile
+      ReorgTrigger = 19,
       HashMap = 24
     };
 

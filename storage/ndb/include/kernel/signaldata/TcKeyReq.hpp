@@ -134,7 +134,6 @@ private:
 
   static Uint16 getKeyLength(const UintR & requestInfo);
   static Uint8  getAIInTcKeyReq(const UintR & requestInfo);
-  static Uint8  getExecutingTrigger(const UintR & requestInfo);
   static UintR  getNoDiskFlag(const UintR & requestInfo);
 
   /**
@@ -162,7 +161,6 @@ private:
   
   static void setKeyLength(UintR & requestInfo, Uint32 len);
   static void setAIInTcKeyReq(UintR & requestInfo, Uint32 len);
-  static void setExecutingTrigger(UintR & requestInfo, Uint32 flag);
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
 
   /**
@@ -181,7 +179,6 @@ private:
  c = Commit Indicator      - 1  Bit 4
  d = Dirty Indicator       - 1  Bit 0
  e = Scan Indicator        - 1  Bit 14
- f = Execute fired trigger - 1  Bit 19 
  i = Interpreted Indicator - 1  Bit 15
  k = Key length            - 12 Bits -> Max 4095 (Bit 20 - 31)
  o = Operation Type        - 3  Bits -> Max 7 (Bit 5-7)
@@ -193,7 +190,7 @@ private:
 
            1111111111222222222233
  01234567890123456789012345678901
- dnb cooop lsyyeiaaafkkkkkkkkkkkk
+ dnb cooop lsyyeiaaa kkkkkkkkkkkk
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -217,8 +214,6 @@ private:
 
 #define COMMIT_TYPE_SHIFT  (12)
 #define COMMIT_TYPE_MASK   (3)
-
-#define EXECUTING_TRIGGER_SHIFT (19)
 
 /**
  * Scan Info
@@ -339,12 +334,6 @@ TcKeyReq::getAIInTcKeyReq(const UintR & requestInfo){
 }
 
 inline
-Uint8
-TcKeyReq::getExecutingTrigger(const UintR & requestInfo){
-  return (Uint8)((requestInfo >> EXECUTING_TRIGGER_SHIFT) & 1);
-}
-
-inline
 void 
 TcKeyReq::clearRequestInfo(UintR & requestInfo){
   requestInfo = 0;
@@ -444,14 +433,6 @@ TcKeyReq::setAIInTcKeyReq(UintR & requestInfo, Uint32 len){
   ASSERT_MAX(len, AINFO_MASK, "TcKeyReq::setAIInTcKeyReq");
   requestInfo &= ~(AINFO_MASK << AINFO_SHIFT);
   requestInfo |= (len << AINFO_SHIFT);
-}
-
-inline
-void 
-TcKeyReq::setExecutingTrigger(UintR & requestInfo, Uint32 flag){
-  ASSERT_BOOL(flag, "TcKeyReq::setExecutingTrigger");
-  requestInfo &= ~(1 << EXECUTING_TRIGGER_SHIFT);
-  requestInfo |= (flag << EXECUTING_TRIGGER_SHIFT);
 }
 
 inline

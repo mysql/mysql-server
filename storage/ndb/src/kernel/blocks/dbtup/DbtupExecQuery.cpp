@@ -662,6 +662,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.TC_ref= sig3;
    Uint32 pageid = req_struct.frag_page_id= sig4;
    req_struct.m_use_rowid = (TrequestInfo >> 11) & 1;
+   req_struct.m_reorg = (TrequestInfo >> 12) & 3;
 
    sig1= tupKeyReq->attrBufLen;
    sig2= tupKeyReq->applRef;
@@ -973,6 +974,31 @@ int Dbtup::handleReadReq(Signal* signal,
   return -1;
 }
 
+static
+void
+handle_reorg(Dbtup::KeyReqStruct * req_struct,
+             Dbtup::Fragrecord::FragState state)
+{
+  Uint32 reorg = req_struct->m_reorg;
+  switch(state){
+  case Dbtup::Fragrecord::FS_FREE:
+  case Dbtup::Fragrecord::FS_REORG_NEW:
+  case Dbtup::Fragrecord::FS_REORG_COMMIT_NEW:
+    return;
+  case Dbtup::Fragrecord::FS_REORG_COMMIT:
+    if (reorg != 1)
+      return;
+    break;
+  case Dbtup::Fragrecord::FS_ONLINE:
+    if (reorg != 2)
+      return;
+    break;
+  default:
+    return;
+  }
+  req_struct->m_tuple_ptr->m_header_bits |= Dbtup::Tuple_header::REORG_MOVE;
+}
+
 /* ---------------------------------------------------------------- */
 /* ---------------------------- UPDATE ---------------------------- */
 /* ---------------------------------------------------------------- */
@@ -1104,6 +1130,11 @@ int Dbtup::handleUpdateReq(Signal* signal,
 							    sizes)) {
       goto error;
     }
+  }
+
+  if (req_struct->m_reorg)
+  {
+    handle_reorg(req_struct, regFragPtr->fragStatus);
   }
   
   req_struct->m_tuple_ptr->set_tuple_version(tup_version);
@@ -1631,6 +1662,11 @@ int Dbtup::handleInsertReq(Signal* signal,
     Tuple_header* disk_ptr= req_struct->m_disk_ptr;
     disk_ptr->m_header_bits = 0;
     disk_ptr->m_base_record_ref= ref.ref();
+  }
+
+  if (req_struct->m_reorg)
+  {
+    handle_reorg(req_struct, regFragPtr->fragStatus);
   }
   
   if (regTabPtr->m_bits & Tablerec::TR_Checksum) 

@@ -2410,6 +2410,7 @@ objectTypeMapping[] = {
   { DictTabInfo::LogfileGroup,       NdbDictionary::Object::LogfileGroup },
   { DictTabInfo::Datafile,           NdbDictionary::Object::Datafile },
   { DictTabInfo::Undofile,           NdbDictionary::Object::Undofile },
+  { DictTabInfo::ReorgTrigger,       NdbDictionary::Object::ReorgTrigger },
   { -1, -1 }
 };
 

@@ -35,7 +35,8 @@ struct TriggerType {
     READ_ONLY_CONSTRAINT  = DictTabInfo::ReadOnlyConstraint,
     ORDERED_INDEX         = DictTabInfo::IndexTrigger,
     
-    SUBSCRIPTION_BEFORE   = 9 // Only used by TUP/SUMA, should be REMOVED!!
+    SUBSCRIPTION_BEFORE   = 9, // Only used by TUP/SUMA, should be REMOVED!!
+    REORG_TRIGGER         = DictTabInfo::ReorgTrigger
   };
 };
 

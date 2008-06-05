@@ -6103,7 +6103,7 @@ end:
 int
 runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
 {
-  static int lst[] = { 7211, 7212, 4050, 12008, 6212, 0 };
+  static int lst[] = { 7211, 7212, 4050, 12008, 6212, 6124, 6213, 0 };
 
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
