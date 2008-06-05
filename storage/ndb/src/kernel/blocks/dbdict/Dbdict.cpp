@@ -7638,6 +7638,7 @@ Dbdict::alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr)
   req->requestType = 0;
   req->srcTableId = impl_req->tableId;
   req->dstTableId = impl_req->tableId;
+  req->srcFragments = tablePtr.p->fragmentCount;
 
   sendSignal(reference(), GSN_COPY_DATA_REQ, signal,
              CopyDataReq::SignalLength, JBB);
@@ -12415,6 +12416,7 @@ Dbdict::execCOPY_DATA_REQ(Signal* signal)
 
     impl_req->srcTableId = req->srcTableId;
     impl_req->dstTableId = req->dstTableId;
+    impl_req->srcFragments = req->srcFragments;
 
     handleClientReq(signal, op_ptr, handle);
     return;
@@ -12504,6 +12506,7 @@ Dbdict::copyData_prepare(Signal* signal, SchemaOpPtr op_ptr)
   req->senderRef = reference();
   req->senderData = op_ptr.p->op_key;
   req->transId = trans_ptr.p->m_transId;
+  req->srcFragments = 0; // All
 
   Callback c = {
     safe_cast(&Dbdict::copyData_fromLocal),
@@ -12564,13 +12567,9 @@ void
 Dbdict::copyData_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  CopyDataRecPtr copyDataPtr;
-  getOpRec(op_ptr, copyDataPtr);
 
-  D("copyData_commit" << *op_ptr.p);
   sendTransConf(signal, op_ptr);
 }
-
 
 // CopyData: COMPLETE
 
@@ -12578,7 +12577,46 @@ void
 Dbdict::copyData_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  sendTransConf(signal, op_ptr);
+
+  CopyDataRecPtr copyDataPtr;
+  getOpRec(op_ptr, copyDataPtr);
+  const CopyDataImplReq* impl_req = &copyDataPtr.p->m_request;
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  CopyDataImplReq* req = (CopyDataImplReq*)signal->getDataPtrSend();
+  * req = * impl_req;
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->requestType = CopyDataImplReq::ReorgDelete;
+
+  Callback c = {
+    safe_cast(&Dbdict::copyData_fromLocal),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  Uint32 cnt =0;
+  Uint32 tmp[MAX_ATTRIBUTES_IN_TABLE];
+  TableRecordPtr tabPtr;
+  c_tableRecordPool.getPtr(tabPtr, impl_req->srcTableId);
+  {
+    LocalDLFifoList<AttributeRecord> alist(c_attributeRecordPool,
+                                           tabPtr.p->m_attributes);
+    AttributeRecordPtr attrPtr;
+    for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
+    {
+      if (AttributeDescriptor::getPrimaryKey(attrPtr.p->attributeDescriptor))
+        tmp[cnt++] = attrPtr.p->attributeId;
+    }
+  }
+
+  LinearSectionPtr ls_ptr[3];
+  ls_ptr[0].sz = cnt;
+  ls_ptr[0].p = tmp;
+
+  sendSignal(TRIX_REF, GSN_COPY_DATA_IMPL_REQ, signal,
+             CopyDataImplReq::SignalLength, JBB, ls_ptr, 1);
 }
 
 // CopyData: ABORT

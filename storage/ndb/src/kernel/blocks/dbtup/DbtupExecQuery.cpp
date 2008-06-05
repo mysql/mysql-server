@@ -359,6 +359,18 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
 {
   OperationrecPtr currOpPtr;
   currOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
+  Uint32 bits = req_struct->m_tuple_ptr->m_header_bits;
+
+  if (unlikely(req_struct->m_reorg))
+  {
+    Uint32 moved = bits & Tuple_header::REORG_MOVE;
+    if (! ((req_struct->m_reorg == 1 && moved == 0) ||
+           (req_struct->m_reorg == 2 && moved != 0)))
+    {
+      terrorCode= ZTUPLE_DELETED_ERROR;
+      return false;
+    }
+  }
   if (currOpPtr.i == RNIL)
   {
     if (regTabPtr->need_expand(disk))

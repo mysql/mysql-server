@@ -166,6 +166,7 @@ public:
     Uint32 m_requestInfo;
     TableList m_tableList;    // Tables to sync
     TableList::DataBufferIterator m_tableList_it;
+    Uint32 m_frag_cnt;
 
     /**
      * Sync data

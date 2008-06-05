@@ -1736,6 +1736,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->ptrI               = syncPtr.i;
   syncPtr.p->m_error            = 0;
   syncPtr.p->m_requestInfo      = req->requestInfo;
+  syncPtr.p->m_frag_cnt         = req->fragCount;
 
   {
     jam();
@@ -2115,11 +2116,19 @@ Suma::SyncRecord::nextScan(Signal* signal)
   TablePtr tabPtr;
   FragmentDescriptor fd;
   SubscriptionPtr subPtr;
+loop:
   if(!getNextFragment(&tabPtr, &fd)){
     jam();
     completeScan(signal);
     DBUG_VOID_RETURN;
   }
+  if (m_frag_cnt && fd.m_fragDesc.m_fragmentNo >= m_frag_cnt)
+  {
+    jam();
+    m_currentFragment++;
+    goto loop;
+  }
+
   suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
  
   DataBuffer<15>::Head head = m_attributeList;
@@ -2138,11 +2147,16 @@ Suma::SyncRecord::nextScan(Signal* signal)
   ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
   ScanFragReq::setAttrLen(req->requestInfo, attrLen);
-  if (m_requestInfo == SubSyncReq::LM_Exclusive)
+  if (m_requestInfo & SubSyncReq::LM_Exclusive)
   {
     ScanFragReq::setLockMode(req->requestInfo, 1);
     ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 1);
+  }
+
+  if (m_requestInfo & SubSyncReq::Reorg)
+  {
+    ScanFragReq::setReorgFlag(req->requestInfo, ScanFragReq::REORG_MOVED);
   }
 
   req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
@@ -3334,7 +3348,7 @@ Suma::execTRANSID_AI(Signal* signal)
 
   ndbrequire(src == end);
 
-  if (syncPtr.p->m_requestInfo != SubSyncReq::LM_Exclusive)
+  if ((syncPtr.p->m_requestInfo & SubSyncReq::LM_Exclusive) == 0)
   {
     sendScanSubTableData(signal, syncPtr, 0);
   }

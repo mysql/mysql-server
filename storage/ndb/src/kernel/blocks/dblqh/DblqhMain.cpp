@@ -9444,6 +9444,7 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   Uint32 reqinfo = (scanPtr.p->scanLockHold == ZFALSE);
   reqinfo = reqinfo + (regTcPtr->operation << 6);
   reqinfo = reqinfo + (regTcPtr->opExec << 10);
+  reqinfo = reqinfo + (regTcPtr->m_reorg << 12);
 
   TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend(); 
   
@@ -10010,6 +10011,7 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
   tcConnectptr.p->m_disk_table = tTablePtr.p->m_disk_table &&
     (!req || !ScanFragReq::getNoDiskFlag(req->requestInfo));  
+  tcConnectptr.p->m_reorg = ScanFragReq::getReorgFlag(req->requestInfo);
 
   tabptr.p->usageCount++;
 }//Dblqh::initScanTc()
