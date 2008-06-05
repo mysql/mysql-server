@@ -34,6 +34,7 @@
  */
 
 #include <signaldata/CreateTab.hpp>
+#include <signaldata/LqhFrag.hpp>
 
 void
 Dbtux::execCREATE_TAB_REQ(Signal* signal)
@@ -257,6 +258,13 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     // check if index has place for more fragments
     ndbrequire(indexPtr.p->m_numFrags < MaxIndexFragments);
     // seize new fragment record
+    if (ERROR_INSERTED(12008))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+      errorCode = TuxFragRef::InvalidRequest;
+      break;
+    }
+
     FragPtr fragPtr;
     c_fragPool.seize(fragPtr);
     if (fragPtr.i == RNIL) {
@@ -560,4 +568,44 @@ Dbtux::freeDescEnt(IndexPtr indexPtr)
   }
   ndbrequire(off + size == DescPageSize - pagePtr.p->m_numFree);
   pagePtr.p->m_numFree += size;
+}
+
+void
+Dbtux::execDROP_FRAG_REQ(Signal* signal)
+{
+  DropFragReq copy = *(DropFragReq*)signal->getDataPtr();
+  DropFragReq *req = &copy;
+
+  IndexPtr indexPtr;
+  c_indexPool.getPtr(indexPtr, req->tableId);
+  Uint32 i = 0;
+  for (i = 0; i < indexPtr.p->m_numFrags; i++)
+  {
+    jam();
+    if (indexPtr.p->m_fragId[i] == req->fragId)
+    {
+      jam();
+      FragPtr fragPtr;
+      c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
+      c_fragPool.release(fragPtr);
+
+      for (i++; i < indexPtr.p->m_numFrags; i++)
+      {
+        jam();
+        indexPtr.p->m_fragPtrI[i-1] = indexPtr.p->m_fragPtrI[i];
+        indexPtr.p->m_fragId[i-1] = indexPtr.p->m_fragId[i];
+      }
+      indexPtr.p->m_numFrags--;
+      break;
+    }
+  }
+
+
+  // reply to sender
+  DropFragConf* const conf = (DropFragConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = req->senderData;
+  conf->tableId = req->tableId;
+  sendSignal(req->senderRef, GSN_DROP_FRAG_CONF,
+             signal, DropFragConf::SignalLength, JBB);
 }

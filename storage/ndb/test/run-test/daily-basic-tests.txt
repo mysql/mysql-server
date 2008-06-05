@@ -1163,4 +1163,10 @@ cmd: testNdbApi
 args: -l 100 -n Bug37158
 
 # EOF 2008-06-03
+# 2008-06-05
+max-time: 1200
+cmd: testDict
+args: -n FailAddPartition T1 I3
+
+# EOF 2008-06-05
 # EOF

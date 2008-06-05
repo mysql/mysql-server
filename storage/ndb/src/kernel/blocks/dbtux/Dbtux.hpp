@@ -567,6 +567,7 @@ private:
   void execTUX_ADD_ATTRREQ(Signal* signal);
   void execALTER_INDX_IMPL_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
+  void execDROP_FRAG_REQ(Signal* signal);
   bool allocDescEnt(IndexPtr indexPtr);
   void freeDescEnt(IndexPtr indexPtr);
   void abortAddFragOp(Signal* signal);

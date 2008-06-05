@@ -25,7 +25,8 @@ struct AlterTabReq {
   enum RequestType {
     AlterTablePrepare = 0, // Prepare alter table
     AlterTableCommit = 1,  // Commit alter table
-    AlterTableRevert = 2   // Prepare failed, revert instead
+    AlterTableRevert = 2,  // Prepare failed, revert instead
+    AlterTableComplete = 3
   };
 
   Uint32 senderRef;
@@ -41,9 +42,13 @@ struct AlterTabReq {
   Uint32 connectPtr;
   Uint32 noOfNewAttr;
   Uint32 newNoOfCharsets;
-  Uint32 newNoOfKeyAttrs;
+  union {
+    Uint32 newNoOfKeyAttrs;
+    Uint32 new_map_ptr_i;
+  };
 
   SECTION( DICT_TAB_INFO = 0 );
+  SECTION( FRAGMENTATION = 1 );
   /*
     When sent to DICT, the first section contains the new table definition.
     When sent to TUP, the first section contains the new attributes.
@@ -61,7 +66,7 @@ struct AlterTabConf {
 };
 
 struct AlterTabRef {
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 7 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -69,6 +74,7 @@ struct AlterTabRef {
   Uint32 errorLine; 
   Uint32 errorKey;
   Uint32 errorStatus;
+  Uint32 connectPtr;
 };
 
 /*

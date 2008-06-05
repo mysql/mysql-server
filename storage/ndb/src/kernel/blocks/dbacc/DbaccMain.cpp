@@ -697,14 +697,23 @@ Dbacc::execDROP_TAB_REQ(Signal* signal){
   sendSignal(cownBlockref, GSN_CONTINUEB, signal, 2, JBB);
 }
 
-void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
-{
+void
+Dbacc::execDROP_FRAG_REQ(Signal* signal){
+  jamEntry();
+  DropFragReq* req = (DropFragReq*)signal->getDataPtr();
+
   TabrecPtr tabPtr;
-  tabPtr.i = tableId;
+  tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctablesize, tabrec);
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+
+  tabPtr.p->tabUserRef = req->senderRef;
+  tabPtr.p->tabUserPtr = req->senderData;
+
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+  {
     jam();
-    if (tabPtr.p->fragholder[i] != RNIL) {
+    if (tabPtr.p->fragholder[i] == req->fragId)
+    {
       jam();
       tabPtr.p->fragholder[i] = RNIL;
       releaseFragResources(signal, tabPtr.p->fragptrholder[i]);
@@ -712,16 +721,51 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
     }//if
   }//for
   
-  /**
-   * Finished...
-   */
+  releaseRootFragResources(signal, req->tableId);
+}
 
-  DropTabConf * const dropConf = (DropTabConf *)signal->getDataPtrSend();
-  dropConf->senderRef = reference();
-  dropConf->senderData = tabPtr.p->tabUserPtr;
-  dropConf->tableId = tabPtr.i;
-  sendSignal(tabPtr.p->tabUserRef, GSN_DROP_TAB_CONF,
-             signal, DropTabConf::SignalLength, JBB);
+void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
+{
+  TabrecPtr tabPtr;
+  tabPtr.i = tableId;
+  ptrCheckGuard(tabPtr, ctablesize, tabrec);
+
+  //XXX ugly
+  if (refToBlock(tabPtr.p->tabUserRef) == DBDICT)
+  {
+    jam();
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+      jam();
+      if (tabPtr.p->fragholder[i] != RNIL) {
+        jam();
+        tabPtr.p->fragholder[i] = RNIL;
+        releaseFragResources(signal, tabPtr.p->fragptrholder[i]);
+        return;
+      }//if
+    }//for
+
+    /**
+     * Finished...
+     */
+    DropTabConf * const dropConf = (DropTabConf *)signal->getDataPtrSend();
+    dropConf->senderRef = reference();
+    dropConf->senderData = tabPtr.p->tabUserPtr;
+    dropConf->tableId = tabPtr.i;
+    sendSignal(tabPtr.p->tabUserRef, GSN_DROP_TAB_CONF,
+               signal, DropTabConf::SignalLength, JBB);
+  }
+  else
+  {
+    ndbrequire(refToBlock(tabPtr.p->tabUserRef) == DBLQH);
+
+    DropFragConf * conf = (DropFragConf *)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = tabPtr.p->tabUserPtr;
+    conf->tableId = tabPtr.i;
+    sendSignal(tabPtr.p->tabUserRef, GSN_DROP_FRAG_CONF,
+               signal, DropFragConf::SignalLength, JBB);
+
+  }
   
   tabPtr.p->tabUserPtr = RNIL;
   tabPtr.p->tabUserRef = 0;

@@ -116,6 +116,7 @@ Dbacc::Dbacc(Block_context& ctx):
   addRecSignal(GSN_NDB_STTOR, &Dbacc::execNDB_STTOR);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbacc::execDROP_TAB_REQ);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbacc::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
 
   initData();
 

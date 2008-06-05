@@ -32,11 +32,11 @@ class AddFragReq {
   friend bool printADD_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 11 );
+  STATIC_CONST( SignalLength = 12 );
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
-    TemporaryTable = 0x00000010
+    TemporaryTable  = 0x00000010
   };
 private:
   Uint32 dihPtr;
@@ -50,6 +50,7 @@ private:
   Uint32 startGci;
   Uint32 tablespaceId;
   Uint32 logPartId;
+  Uint32 changeMask;
 };
 
 class AddFragRef {
@@ -65,10 +66,11 @@ class AddFragRef {
 
   friend bool printADD_FRAG_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 1 );
+  STATIC_CONST( SignalLength = 2 );
   
 private:
   Uint32 dihPtr;
+  Uint32 fragId;
 };
 
 class AddFragConf {
@@ -105,7 +107,7 @@ class LqhFragReq {
   friend bool printLQH_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 21 );
+  STATIC_CONST( SignalLength = 22 );
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -140,6 +142,7 @@ private:
   Uint32 maxRowsHigh;
   Uint32 minRowsLow;
   Uint32 minRowsHigh;
+  Uint32 changeMask;
 };
 
 class LqhFragConf {
@@ -155,12 +158,14 @@ class LqhFragConf {
 
   friend bool printLQH_FRAG_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 5 );
 
 private:
   Uint32 senderData;
   Uint32 lqhFragPtr;
+  Uint32 tableId;
   Uint32 fragId;
+  Uint32 changeMask;
 };
 
 class LqhFragRef {
@@ -176,11 +181,15 @@ class LqhFragRef {
 
   friend bool printLQH_FRAG_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 6 );
 
 private:
   Uint32 senderData;
   Uint32 errorCode;
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 requestInfo;
+  Uint32 changeMask;
 };
 
 class LqhAddAttrReq {
@@ -250,6 +259,39 @@ public:
 private:
   Uint32 senderData;
   Uint32 senderAttrPtr;
+};
+
+struct DropFragReq
+{
+  STATIC_CONST( SignalLength = 5 );
+  enum RequestInfo
+  {
+    AlterTableAbort = 0x1
+  };
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 requestInfo;
+};
+
+struct DropFragRef
+{
+  STATIC_CONST( SignalLength = 5 );
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 errCode;
+};
+
+struct DropFragConf
+{
+  STATIC_CONST( SignalLength = 4 );
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragId;
 };
 
 #endif

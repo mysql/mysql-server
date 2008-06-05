@@ -539,9 +539,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 /* 424 unused */
 /* 425 unused */
-/* 426 unused */
-/* 427 unused */
-/* 428 unused */
+#define GSN_DROP_FRAG_REQ               426 /* local */
+#define GSN_DROP_FRAG_REF               427 /* local */
+#define GSN_DROP_FRAG_CONF              428 /* local */
 /* 429 unused */
 /* 430 unused */
 #define GSN_TUPFRAGCONF                 431

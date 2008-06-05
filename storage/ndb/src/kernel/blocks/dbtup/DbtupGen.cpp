@@ -107,6 +107,8 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_FSREMOVEREF, &Dbtup::execFSREMOVEREF, true);
   addRecSignal(GSN_FSREMOVECONF, &Dbtup::execFSREMOVECONF, true);
 
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dbtup::execDROP_FRAG_REQ);
+
   attrbufrec = 0;
   fragoperrec = 0;
   fragrecord = 0;
@@ -603,7 +605,7 @@ void Dbtup::initializeFragrecord()
     ptrAss(regFragPtr, fragrecord);
     new (regFragPtr.p) Fragrecord();
     regFragPtr.p->nextfreefrag = regFragPtr.i + 1;
-    regFragPtr.p->fragStatus = IDLE;
+    regFragPtr.p->fragStatus = Fragrecord::FS_FREE;
   }//for
   regFragPtr.i = cnoOfFragrec - 1;
   ptrAss(regFragPtr, fragrecord);

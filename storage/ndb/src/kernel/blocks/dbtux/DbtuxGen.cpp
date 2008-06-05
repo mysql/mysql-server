@@ -77,6 +77,8 @@ Dbtux::Dbtux(Block_context& ctx) :
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
 
   addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);
+
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dbtux::execDROP_FRAG_REQ);
 }
 
 Dbtux::~Dbtux()

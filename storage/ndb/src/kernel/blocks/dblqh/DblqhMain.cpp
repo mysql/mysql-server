@@ -54,6 +54,7 @@
 #include <signaldata/DropTab.hpp>
 
 #include <signaldata/AlterTab.hpp>
+#include <signaldata/AlterTable.hpp>
 #include <signaldata/DictTabInfo.hpp>
 
 #include <signaldata/LCP.hpp>
@@ -1490,24 +1491,25 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   tabptr.i = req->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
 
-  if (tabptr.p->tableStatus != Tablerec::ADD_TABLE_ONGOING)
+  if (tabptr.p->tableStatus != Tablerec::ADD_TABLE_ONGOING &&
+      (AlterTableReq::getAddFragFlag(req->changeMask) == 0))
   {
     jam();
-    fragrefLab(signal, req->senderRef, req->senderData, ZTAB_STATE_ERROR);
+    fragrefLab(signal, ZTAB_STATE_ERROR, req);
     return;
   }//if
 
   if (getFragmentrec(signal, req->fragId))
   {
     jam();
-    fragrefLab(signal, req->senderRef, req->senderData, terrorCode);
+    fragrefLab(signal, terrorCode, req);
     return;
   }//if
 
   if (!insertFragrec(signal, req->fragId))
   {
     jam();
-    fragrefLab(signal, req->senderRef, req->senderData, terrorCode);
+    fragrefLab(signal, terrorCode, req);
     return;
   }//if
   
@@ -1659,7 +1661,9 @@ void Dblqh::execTUPFRAGCONF(Signal* signal)
       LqhFragConf* conf = (LqhFragConf*)signal->getDataPtrSend();
       conf->senderData = addfragptr.p->m_lqhFragReq.senderData;
       conf->lqhFragPtr = RNIL;
+      conf->tableId = addfragptr.p->m_lqhFragReq.tableId;
       conf->fragId = fragptr.p->fragId;
+      conf->changeMask = addfragptr.p->m_lqhFragReq.changeMask;
       sendSignal(addfragptr.p->m_lqhFragReq.senderRef, GSN_LQHFRAGCONF,
 		 signal, LqhFragConf::SignalLength, JBB);
     }
@@ -1703,6 +1707,7 @@ Dblqh::sendAddFragReq(Signal* signal)
     tupFragReq->maxRowsLow = addfragptr.p->m_lqhFragReq.maxRowsLow;
     tupFragReq->minRowsHigh = addfragptr.p->m_lqhFragReq.minRowsHigh;
     tupFragReq->minRowsLow = addfragptr.p->m_lqhFragReq.minRowsLow;
+    tupFragReq->changeMask = addfragptr.p->m_lqhFragReq.changeMask;
     sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
                signal, TupFragReq::SignalLength, JBB);
     return;
@@ -1778,14 +1783,17 @@ void Dblqh::execTAB_COMMITREQ(Signal* signal)
 
 
 void Dblqh::fragrefLab(Signal* signal,
-                       BlockReference fragBlockRef,
-                       Uint32 fragConPtr,
-                       Uint32 errorCode) 
+                       Uint32 errorCode,
+                       const LqhFragReq* req)
 {
   LqhFragRef * ref = (LqhFragRef*)signal->getDataPtrSend();
-  ref->senderData = fragConPtr;
+  ref->senderData = req->senderData;
   ref->errorCode = errorCode;
-  sendSignal(fragBlockRef, GSN_LQHFRAGREF, signal, 
+  ref->requestInfo = req->requestInfo;
+  ref->tableId = req->tableId;
+  ref->fragId = req->fragId;
+  ref->changeMask = req->changeMask;
+  sendSignal(req->senderRef, GSN_LQHFRAGREF, signal,
 	     LqhFragRef::SignalLength, JBB);
   return;
 }//Dblqh::fragrefLab()
@@ -1824,11 +1832,8 @@ void Dblqh::execACCFRAGREF(Signal* signal)
   Uint32 errorCode = terrorCode = signal->theData[1];
   ndbrequire(addfragptr.p->addfragStatus == AddFragRecord::ACC_ADDFRAG);
 
-  const Uint32 ref = addfragptr.p->m_lqhFragReq.senderRef;
-  const Uint32 senderData = addfragptr.p->m_lqhFragReq.senderData;
+  fragrefLab(signal, errorCode, &addfragptr.p->m_lqhFragReq);
   releaseAddfragrec(signal);
-
-  fragrefLab(signal, ref, senderData, errorCode);
 
   return;
 }//Dblqh::execACCFRAGREF()
@@ -1858,12 +1863,97 @@ void Dblqh::execTUPFRAGREF(Signal* signal)
     break;
   }
 
-  const Uint32 ref = addfragptr.p->m_lqhFragReq.senderRef;
-  const Uint32 senderData = addfragptr.p->m_lqhFragReq.senderData;
+  fragrefLab(signal, errorCode, &addfragptr.p->m_lqhFragReq);
   releaseAddfragrec(signal);
-  fragrefLab(signal, ref, senderData, errorCode);
 
 }//Dblqh::execTUPFRAGREF()
+
+void
+Dblqh::execDROP_FRAG_REQ(Signal* signal)
+{
+  DropFragReq *req = (DropFragReq*)signal->getDataPtr();
+  seizeAddfragrec(signal);
+  addfragptr.p->m_dropFragReq = *req;
+
+  /**
+   * 1 - self
+   * 2 - acc
+   * 3 - tup
+   * 4 - tux (optional)
+   */
+  tabptr.i = req->tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+
+  deleteFragrec(req->fragId);
+
+  Uint32 ref = DBACC_REF;
+  if (DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+  {
+    jam();
+    ref = DBTUP_REF;
+  }
+
+  req->senderRef = reference();
+  req->senderData = addfragptr.i;
+  sendSignal(ref, GSN_DROP_FRAG_REQ, signal, DropFragReq::SignalLength, JBB);
+}
+
+void
+Dblqh::execDROP_FRAG_REF(Signal* signal)
+{
+  ndbrequire(false);
+}
+
+void
+Dblqh::execDROP_FRAG_CONF(Signal* signal)
+{
+  DropFragConf* conf = (DropFragConf*)signal->getDataPtr();
+  addfragptr.i = conf->senderData;
+  ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
+
+  Uint32 ref = RNIL;
+  switch(refToBlock(conf->senderRef)){
+  case DBACC:
+    jam();
+    ref = DBTUP_REF;
+    break;
+  case DBTUP:
+  {
+    tabptr.i = addfragptr.p->m_dropFragReq.tableId;
+    ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+    if (DictTabInfo::isOrderedIndex(tabptr.p->tableType))
+    {
+      jam();
+      ref = DBTUX_REF;
+    }
+    break;
+  }
+  case DBTUX:
+    break;
+  default:
+    ndbrequire(false);
+  }
+
+  if (ref != RNIL)
+  {
+    DropFragReq* req = (DropFragReq*)signal->getDataPtrSend();
+    * req = addfragptr.p->m_dropFragReq;
+    req->senderRef = reference();
+    req->senderData = addfragptr.i;
+    sendSignal(ref, GSN_DROP_FRAG_REQ, signal, DropFragReq::SignalLength,
+               JBB);
+    return;
+  }
+
+  conf->senderRef = reference();
+  conf->senderData = addfragptr.p->m_dropFragReq.senderData;
+  conf->tableId = addfragptr.p->m_dropFragReq.tableId;
+  conf->fragId = addfragptr.p->m_dropFragReq.fragId;
+  sendSignal(addfragptr.p->m_dropFragReq.senderRef, GSN_DROP_FRAG_CONF,
+             signal, DropFragConf::SignalLength, JBB);
+
+  releaseAddfragrec(signal);
+}
 
 /* ************>> */
 /*  TUXFRAGREF  > */
@@ -2089,7 +2179,12 @@ void
 Dblqh::execALTER_TAB_REQ(Signal* signal)
 {
   jamEntry();
-  const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
+
+  if(!assembleFragments(signal))
+    return;
+
+  AlterTabReq copy = *(AlterTabReq*)signal->getDataPtr();
+  const AlterTabReq* req = &copy;
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
   const Uint32 tableId = req->tableId;
@@ -2104,23 +2199,64 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
 
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
-    tablePtr.p->schemaVersion = newTableVersion;
+    jam();
     break;
   case AlterTabReq::AlterTableRevert:
+    jam();
     tablePtr.p->schemaVersion = tableVersion;
+    break;
+  case AlterTabReq::AlterTableCommit:
+    jam();
+    tablePtr.p->schemaVersion = newTableVersion;
+    if (AlterTableReq::getReorgFragFlag(req->changeMask))
+    {
+      jam();
+      commit_reorg(tablePtr);
+    }
+    break;
+  case AlterTabReq::AlterTableComplete:
+    jam();
     break;
   default:
     ndbrequire(false);
     break;
   }
 
-  // Request handled successfully
-  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
-  conf->senderRef = reference();
-  conf->senderData = senderData;
-  conf->connectPtr = RNIL;
-  sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
-	     AlterTabConf::SignalLength, JBB);
+  EXECUTE_DIRECT(DBTUP, GSN_ALTER_TAB_REQ, signal, signal->getLength());
+  jamEntry();
+
+  Uint32 errCode = signal->theData[0];
+  Uint32 connectPtr = signal->theData[1];
+  if (errCode == 0)
+  {
+    // Request handled successfully
+    AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = senderData;
+    conf->connectPtr = connectPtr;
+    sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
+               AlterTabConf::SignalLength, JBB);
+  }
+  else
+  {
+    ndbrequire(false);
+  }
+}
+
+void
+Dblqh::commit_reorg(TablerecPtr tablePtr)
+{
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+  {
+    jam();
+    Ptr<Fragrecord> fragPtr;
+    if ((fragPtr.i = tablePtr.p->fragrec[i]) != RNIL)
+    {
+      jam();
+      c_fragment_pool.getPtr(fragPtr);
+      fragPtr.p->fragDistributionKey = (fragPtr.p->fragDistributionKey+1)&0xFF;
+    }
+  }
 }
 
 /* ************************************************************************>> 
@@ -18409,6 +18545,7 @@ void Dblqh::seizeAddfragrec(Signal* signal)
   bzero(&addfragptr.p->m_createTabReq, sizeof(addfragptr.p->m_createTabReq));
   bzero(&addfragptr.p->m_lqhFragReq, sizeof(addfragptr.p->m_lqhFragReq));
   bzero(&addfragptr.p->m_addAttrReq, sizeof(addfragptr.p->m_addAttrReq));
+  bzero(&addfragptr.p->m_dropFragReq, sizeof(addfragptr.p->m_dropFragReq));
   addfragptr.p->addfragErrorCode = 0;
   addfragptr.p->attrSentToTup = 0;
   addfragptr.p->attrReceived = 0;

@@ -515,10 +515,15 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
 
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
-    tabPtr.p->currentSchemaVersion = newTableVersion;
+    jam();
     break;
   case AlterTabReq::AlterTableRevert:
+    jam();
     tabPtr.p->currentSchemaVersion = tableVersion;
+    break;
+  case AlterTabReq::AlterTableCommit:
+    jam();
+    tabPtr.p->currentSchemaVersion = newTableVersion;
     break;
   default:
     ndbrequire(false);

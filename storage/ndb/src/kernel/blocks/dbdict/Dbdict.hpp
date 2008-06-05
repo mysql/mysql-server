@@ -391,7 +391,10 @@ public:
     *  TODO RONM: Look into improvements of this
     */
   Uint32 c_fragDataLen;
-  Uint16 c_fragData[MAX_NDB_PARTITIONS];
+  union {
+    Uint16 c_fragData[MAX_NDB_PARTITIONS];
+    Uint32 c_fragData_align32[1];
+  };
   Uint32 c_tsIdData[2*MAX_NDB_PARTITIONS];
 
   /**
@@ -808,6 +811,10 @@ private:
 
   void execCREATE_TABLE_REQ(Signal* signal);
   void execALTER_TABLE_REQ(Signal* signal);
+
+  Uint32 get_fragmentation(Signal*, Uint32 tableId);
+  Uint32 create_fragmentation(Signal* signal, TableRecordPtr,
+                              const Uint16*, Uint32 cnt);
   void execCREATE_FRAGMENTATION_REQ(Signal*);
   void execCREATE_FRAGMENTATION_REF(Signal*);
   void execCREATE_FRAGMENTATION_CONF(Signal*);
@@ -821,6 +828,8 @@ private:
   void execCREATE_TAB_CONF(Signal* signal);  
   void execALTER_TAB_REF(Signal* signal);
   void execALTER_TAB_CONF(Signal* signal);
+  void execALTER_TABLE_REF(Signal* signal);
+  void execALTER_TABLE_CONF(Signal* signal);
   bool check_ndb_versions() const;
 
   void execCREATE_FILE_REQ(Signal* signal);
@@ -2157,13 +2166,20 @@ private:
     // what was actually changed so far
     Uint32 m_changeMaskDone;
 
-    // connect ptr towards TUP
-    Uint32 m_tupAlterTabPtr;
+    // connect ptr towards TUP, DIH, LQH
+    Uint32 m_dihAddFragPtr;
+    Uint32 m_lqhFragPtr;
 
     // local blocks to process
-    enum { BlockCount = 4 };
+    enum { BlockCount = 3 };
     Uint32 m_blockNo[BlockCount];
     Uint32 m_blockIndex;
+
+    // used for creating subops for add partitions, wrt ordered index
+    bool m_sub_reorg_commit;
+    bool m_sub_reorg_complete;
+    bool m_sub_add_frag;
+    Uint32 m_sub_add_frag_index_ptr;
 
     AlterTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
@@ -2172,12 +2188,16 @@ private:
       m_tablePtr.setNull();
       m_newTablePtr.setNull();
       m_changeMaskDone = 0;
-      m_tupAlterTabPtr = RNIL;
+      m_dihAddFragPtr = RNIL;
+      m_lqhFragPtr = RNIL;
       m_blockNo[0] = DBLQH;
       m_blockNo[1] = DBDIH;
       m_blockNo[2] = DBTC;
-      m_blockNo[3] = DBTUP;
       m_blockIndex = 0;
+      m_sub_add_frag_index_ptr = RNIL;
+      m_sub_add_frag = false;
+      m_sub_reorg_commit = false;
+      m_sub_reorg_complete = false;
     }
 #ifdef VM_TRACE
     void print(NdbOut&) const;
@@ -2208,14 +2228,23 @@ private:
   void alterTable_toLocal(Signal*, SchemaOpPtr);
   void alterTable_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
 
+  void alterTable_toAlterIndex(Signal*, SchemaOpPtr);
+  void alterTable_fromAlterIndex(Signal*, Uint32 op_key, Uint32 ret);
+
+  void alterTable_toReorgTable(Signal*, SchemaOpPtr, Uint32 step);
+  void alterTable_fromReorgTable(Signal*, Uint32 op_key, Uint32 ret);
+
   // commit phase
-  void alterTable_toTupCommit(Signal*, SchemaOpPtr);
-  void alterTable_fromTupCommit(Signal*, Uint32 op_key, Uint32 ret);
+  void alterTable_toCommitComplete(Signal*, SchemaOpPtr);
+  void alterTable_fromCommitComplete(Signal*, Uint32 op_key, Uint32 ret);
   void alterTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
 
   // abort
   void alterTable_abortToLocal(Signal*, SchemaOpPtr);
   void alterTable_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  Uint32 check_supported_add_fragment(Uint16*, const Uint16*);
+  Uint32 check_supported_reorg(Uint32, Uint32);
 
   // MODULE: CreateIndex
 
@@ -2375,6 +2404,10 @@ private:
     // prepare phase
     bool m_tc_index_done;
 
+    // connect pointers towards DIH and LQH
+    Uint32 m_dihAddFragPtr;
+    Uint32 m_lqhFragPtr;
+
     AlterIndexRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
@@ -2424,6 +2457,9 @@ private:
   void alterIndex_toCreateLocal(Signal*, SchemaOpPtr);
   void alterIndex_toDropLocal(Signal*, SchemaOpPtr);
   void alterIndex_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+
+  void alterIndex_toAddPartitions(Signal*, SchemaOpPtr);
+  void alterIndex_fromAddPartitions(Signal*, Uint32 op_key, Uint32 ret);
 
   // abort
   void alterIndex_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);

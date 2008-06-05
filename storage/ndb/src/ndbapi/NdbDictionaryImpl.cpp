@@ -2977,8 +2977,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   /* No other property can be changed in alter table. */
   Uint32 old_sz= old_impl.m_columns.size();
   Uint32 sz= impl.m_columns.size();
-  if(impl.m_fragmentCount != old_impl.m_fragmentCount ||
-     impl.m_logging != old_impl.m_logging ||
+  if(impl.m_logging != old_impl.m_logging ||
      impl.m_temporary != old_impl.m_temporary ||
      impl.m_row_gci != old_impl.m_row_gci ||
      impl.m_row_checksum != old_impl.m_row_checksum ||
@@ -3000,6 +2999,13 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   {
     DBUG_PRINT("info", ("Old and new table not compatible"));
     goto invalid_alter_table;
+  }
+
+  if (impl.m_fragmentCount != old_impl.m_fragmentCount)
+  {
+    if (impl.m_fragmentType != NdbDictionary::Object::HashMapPartition)
+      goto invalid_alter_table;
+    AlterTableReq::setAddFragFlag(change_mask, true);
   }
 
   /*

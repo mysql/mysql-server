@@ -37,14 +37,20 @@ struct SchemaTransImplReq
     RT_END           = 0xa // release...
   };
 
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 8 );
   Uint32 senderRef;
   Uint32 transId;
   Uint32 transKey;
   Uint32 requestInfo;   // request type | op extra | global flags | local flags
-  Uint32 clientRef;
   Uint32 opKey;
-  Uint32 gsn;
+  union {
+    struct {
+      Uint32 clientRef;
+    } start;
+    struct {
+      Uint32 gsn;
+    } parse;
+  };
 };
 
 struct SchemaTransImplConf

@@ -686,6 +686,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
+FragmentCount: 2
 TableStatus: Retrieved
 -- Attributes -- 
 pk1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -716,6 +717,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+FragmentCount: 2
 TableStatus: Retrieved
 -- Attributes -- 
 pk1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
