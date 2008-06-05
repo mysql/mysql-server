@@ -8293,6 +8293,9 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
       ltd.setTableId(triggerPtr.i);
       ltd.setTableType(type);
       switch (triggerPtr.p->triggerState) {
+      case TriggerRecord::TS_DEFINING:
+	ltd.setTableState(DictTabInfo::StateBuilding);
+	break;
       case TriggerRecord::TS_OFFLINE:
 	ltd.setTableState(DictTabInfo::StateOffline);
 	break;
