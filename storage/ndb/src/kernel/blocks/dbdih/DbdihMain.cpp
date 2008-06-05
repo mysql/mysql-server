@@ -8020,8 +8020,17 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   TabRecord* regTabDesc = tabRecord;
   jamEntry();
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
+
+  if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+  {
+    jam();
+    tabPtr.i = tabPtr.p->primaryTableId;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  }
+
   Uint32 map_ptr_i = tabPtr.p->m_map_ptr_i;
   Uint32 new_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
+
   if (tabPtr.p->method == TabRecord::HASH_MAP)
   {
     jam();

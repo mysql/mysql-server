@@ -374,6 +374,7 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   tabptr.p->noOfDistrKeys = desc->noOfDistrKeys;
   tabptr.p->hasVarKeys = desc->noOfVarKeys > 0;
   tabptr.p->set_user_defined_partitioning(userDefinedPartitioning);
+
   signal->theData[0] = tabptr.i;
   signal->theData[1] = retPtr;
   sendSignal(retRef, GSN_TC_SCHVERCONF, signal, 2, JBB);
@@ -9453,8 +9454,9 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   ScanRecordPtr scanptr;
-  scanptr.i = apiConnectptr.p->apiScanRec;
+  scanptr.i = regApiPtr->apiScanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_FRAGMENT_COUNT);
   scanptr.p->m_scan_cookie = conf->scanCookie;
@@ -9464,7 +9466,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
     jam();
     ScanFragReq::setReorgFlag(scanptr.p->scanRequestInfo, 1);
   }
-  if (apiConnectptr.p->apiFailState == ZTRUE) {
+  if (regApiPtr->apiFailState == ZTRUE) {
     jam();
     releaseScanResources(signal, scanptr, true);
     handleApiFailState(signal, apiConnectptr.i);
@@ -9491,17 +9493,28 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
     return;
   }
 
-  cachePtr.i = apiConnectptr.p->cachePtr;
+  cachePtr.i = regApiPtr->cachePtr;
   ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
   CacheRecord * regCachePtrP = cachePtr.p;
+
+  Uint32 version = getNodeInfo(refToNode(regApiPtr->ndbapiBlockref)).m_version;
+  if (unlikely(!ndb_scan_distributionkey(version)))
+  {
+    jam();
+    regCachePtrP->distributionKeyIndicator = 0;
+  }
   if (regCachePtrP->distributionKeyIndicator)
   {
     jam();
+    ndbrequire(DictTabInfo::isOrderedIndex(tabPtr.p->tableType) ||
+               tabPtr.p->get_user_defined_partitioning());
+
     DiGetNodesReq * req = (DiGetNodesReq *)&signal->theData[0];
     const DiGetNodesConf * get_conf = (DiGetNodesConf *)&signal->theData[0];
     req->tableId = tabPtr.i;
     req->hashValue = cachePtr.p->distributionKey;
-    req->distr_key_indicator = TRUE;
+    req->distr_key_indicator = tabPtr.p->get_user_defined_partitioning();
+
     EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
                    DiGetNodesReq::SignalLength);
     UintR TerrorIndicator = signal->theData[0];
@@ -9514,6 +9527,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
                    true);
       return;
     }
+
     scanptr.p->scanNextFragId = get_conf->fragId;
     tfragCount = 1;
   }

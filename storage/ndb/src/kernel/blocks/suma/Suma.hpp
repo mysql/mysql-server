@@ -113,8 +113,6 @@ public:
 
   void suma_ndbrequire(bool v);
 
-  typedef DataBuffer<15> TableList;
-  
   union FragmentDescriptor { 
     struct  {
       Uint16 m_fragmentNo;
@@ -149,7 +147,7 @@ public:
 
   struct SyncRecord {
     SyncRecord(Suma& s, DataBuffer<15>::DataBufferPool & p)
-      : m_tableList(p), suma(s)
+      : suma(s)
 #ifdef ERROR_INSERT
 	, cerrorInsert(s.cerrorInsert)
 #endif
@@ -162,22 +160,24 @@ public:
 
     Uint32 m_subscriptionPtrI;
     Uint32 m_error;
-    Uint32 m_currentTable;
     Uint32 m_requestInfo;
-    TableList m_tableList;    // Tables to sync
-    TableList::DataBufferIterator m_tableList_it;
-    Uint32 m_frag_cnt;
+
+    Uint32 m_frag_cnt; // only scan this many fragments...
+    Uint32 m_tableId;  // redundant...
+
+    /**
+     * Fragments
+     */
+    Uint32 m_scan_cookie;
+    DataBuffer<15>::Head m_fragments;  // Fragment descriptors
 
     /**
      * Sync data
      */
     Uint32 m_currentFragment;       // Index in tabPtr.p->m_fragments
-    DataBuffer<15>::Head m_attributeList; // Attribute if other than default
-    DataBuffer<15>::Head m_tabList; // tables if other than default
-    
-    Uint32 m_currentTableId;        // Current table
     Uint32 m_currentNoOfAttributes; // No of attributes for current table
-
+    DataBuffer<15>::Head m_attributeList; // Attribute if other than default
+    
     void startScan(Signal*);
     void nextScan(Signal*);
     bool getNextFragment(TablePtr * tab, FragmentDescriptor * fd);
@@ -312,15 +312,8 @@ public:
     
     union { Uint32 m_tableId; Uint32 key; };
     Uint32 m_schemaVersion;
-    Uint32 m_scan_cookie;
 
     Uint32 m_error;
-    
-    /**
-     * Fragments
-     */
-    Uint32 m_fragCount;
-    DataBuffer<15>::Head m_fragments;  // Fragment descriptors
     
     Uint32 m_noOfAttributes;
 

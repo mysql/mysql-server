@@ -288,6 +288,7 @@ NdbScanOperation::handleScanOptions(const ScanOptions *options)
     assert(theBlobList == NULL);
     theDistributionKey = options->partitionId;
     theDistrKeyIndicator_ = 1;
+    assert((m_attribute_record->flags & NdbRecord::RecHasUserDefinedPartitioning) != 0);
     DBUG_PRINT("info", ("NdbScanOperation::handleScanOptions(dist key): %u",
                         theDistributionKey));
   }
@@ -642,7 +643,14 @@ NdbIndexScanOperation::setDistKeyFromRange(const NdbRecord *key_record,
                              ptrs, tmpshrink, tmplen);
   if (ret == 0)
   {
-    theDistributionKey= result_record->table->getPartitionId(hashValue);
+    if (result_record->flags & NdbRecord::RecHasUserDefinedPartitioning)
+    {
+      theDistributionKey= result_record->table->getPartitionId(hashValue);
+    }
+    else
+    {
+      theDistributionKey = hashValue;
+    }
     theDistrKeyIndicator_= 1;
 
     ScanTabReq *req= CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
@@ -795,6 +803,7 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
     multi-range protocol so that the distribution key could be specified
     individually for each of the multiple ranges.
   */
+
   if (m_num_bounds == 1 &&  
       ! theDistrKeyIndicator_ && // Partitioning not already specified.
       ! m_multi_range)           // Only single range optimisation currently
@@ -1874,7 +1883,6 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   ScanTabReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
   req->requestInfo = reqInfo;
   req->distributionKey= theDistributionKey;
-
   theSCAN_TABREQ->setLength(ScanTabReq::StaticLength + theDistrKeyIndicator_);
 
   /* All scans use NdbRecord internally */

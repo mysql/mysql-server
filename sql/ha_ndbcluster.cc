@@ -7807,7 +7807,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info, bool early)
   m_part_info= part_info;
   if (!early)
   {
-    m_use_partition_pruning= TRUE;
+    m_use_partition_pruning= FALSE;
     if (!(m_part_info->part_type == HASH_PARTITION &&
           m_part_info->list_of_part_fields &&
           !m_part_info->is_sub_partitioned()))
@@ -7817,6 +7817,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info, bool early)
         all use MySQL defined partitioning. PARTITION BY KEY uses NDB native
         partitioning scheme.
       */
+      m_use_partition_pruning= TRUE;
       m_user_defined_partitioning= TRUE;
     }
     if (m_part_info->part_type == HASH_PARTITION &&
