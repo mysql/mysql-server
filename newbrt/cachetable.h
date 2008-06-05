@@ -75,8 +75,8 @@ int toku_cachefile_fd (CACHEFILE);
 // Useful for debugging
 void toku_cachetable_print_state (CACHETABLE ct);
 void toku_cachetable_get_state(CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr);
-int toku_cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, void **value_ptr,
-			     int *dirty_ptr, long long *pin_ptr, long *size_ptr);
+int toku_cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, CACHEFILE cf, void **value_ptr,
+				  int *dirty_ptr, long long *pin_ptr, long *size_ptr);
 
 void toku_cachefile_verify (CACHEFILE cf);  // Verify the whole cachetable that the CF is in.  Slow.
 void toku_cachetable_verify (CACHETABLE t); // Slow...

@@ -328,14 +328,14 @@ static void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = toku_cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
+    r = toku_cachetable_get_key_state(t, key, f, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 1);
 
     r = toku_cachetable_unpin(f, key, CACHETABLE_CLEAN, 0);
     assert(r == 0);
-    r = toku_cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
+    r = toku_cachetable_get_key_state(t, key, f, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 0);
@@ -345,7 +345,7 @@ static void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = toku_cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
+    r = toku_cachetable_get_key_state(t, key, f, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 1);
@@ -354,7 +354,7 @@ static void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = toku_cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
+    r = toku_cachetable_get_key_state(t, key, f, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 0);
@@ -365,7 +365,7 @@ static void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = toku_cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
+    r = toku_cachetable_get_key_state(t, key, f, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 0);
     assert(pinned == 1);
@@ -374,7 +374,7 @@ static void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = toku_cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
+    r = toku_cachetable_get_key_state(t, key, f, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 0);
     assert(pinned == 0);
@@ -384,7 +384,7 @@ static void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = toku_cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
+    r = toku_cachetable_get_key_state(t, key, f, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 0);
     assert(pinned == 1);
@@ -393,7 +393,7 @@ static void test_dirty() {
     assert(r == 0);
 
     // cachetable_print_state(t);
-    r = toku_cachetable_get_key_state(t, key, &value, &dirty, &pinned, &entry_size);
+    r = toku_cachetable_get_key_state(t, key, f, &value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 0);
@@ -438,7 +438,7 @@ static void test_size_resize() {
     assert(r == 0);
 
     void *entry_value; int dirty; long long pinned; long entry_size;
-    r = toku_cachetable_get_key_state(t, key, &entry_value, &dirty, &pinned, &entry_size);
+    r = toku_cachetable_get_key_state(t, key, f, &entry_value, &dirty, &pinned, &entry_size);
     assert(r == 0);
     assert(dirty == 1);
     assert(pinned == 1);
@@ -500,7 +500,7 @@ static void test_size_flush() {
         assert(n_entries == min2(i+1, n));
 
         void *entry_value; int dirty; long long pinned; long entry_size;
-        r = toku_cachetable_get_key_state(t, key, &entry_value, &dirty, &pinned, &entry_size);
+        r = toku_cachetable_get_key_state(t, key, f, &entry_value, &dirty, &pinned, &entry_size);
         assert(r == 0);
         assert(dirty == 1);
         assert(pinned == 1);
