@@ -72,6 +72,7 @@
 #include <signaldata/DictSignal.hpp>
 #include <signaldata/SchemaTransImpl.hpp>
 #include <LockQueue.hpp>
+#include <signaldata/CopyData.hpp>
 
 // Debug Macros
 
@@ -2181,6 +2182,7 @@ private:
     bool m_sub_add_frag;
     Uint32 m_sub_add_frag_index_ptr;
     bool m_sub_trigger;
+    bool m_sub_copy_data;
 
     AlterTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
@@ -2200,6 +2202,7 @@ private:
       m_sub_reorg_commit = false;
       m_sub_reorg_complete = false;
       m_sub_trigger = false;
+      m_sub_copy_data = false;
     }
 #ifdef VM_TRACE
     void print(NdbOut&) const;
@@ -2224,6 +2227,9 @@ private:
   //
   void alterTable_abortParse(Signal*, SchemaOpPtr);
   void alterTable_abortPrepare(Signal*, SchemaOpPtr);
+
+  void alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr);
+  void alterTable_fromCopyData(Signal*, Uint32 op_key, Uint32 ret);
 
   // prepare phase
   void alterTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
@@ -2625,6 +2631,49 @@ private:
   void createHashMap_abortPrepare(Signal*, SchemaOpPtr);
 
   void packHashMapIntoPages(SimpleProperties::Writer&, Ptr<HashMapRecord>);
+
+  // MODULE: CopyData
+
+  struct CopyDataRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CopyDataRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_copyDataRecPool;
+    }
+
+    CopyDataImplReq m_request;
+
+    CopyDataRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+    }
+  };
+
+  typedef Ptr<CopyDataRec> CopyDataRecPtr;
+  ArrayPool<CopyDataRec> c_copyDataRecPool;
+  void execCOPY_DATA_REQ(Signal* signal);
+  void execCOPY_DATA_REF(Signal* signal);
+  void execCOPY_DATA_CONF(Signal* signal);
+  void execCOPY_DATA_IMPL_REF(Signal* signal);
+  void execCOPY_DATA_IMPL_CONF(Signal* signal);
+
+  // OpInfo
+  bool copyData_seize(SchemaOpPtr);
+  void copyData_release(SchemaOpPtr);
+  //
+  void copyData_parse(Signal*, bool master,
+                      SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool copyData_subOps(Signal*, SchemaOpPtr);
+  void copyData_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void copyData_prepare(Signal*, SchemaOpPtr);
+  void copyData_fromLocal(Signal*, Uint32, Uint32);
+  void copyData_commit(Signal*, SchemaOpPtr);
+  void copyData_complete(Signal*, SchemaOpPtr);
+  //
+  void copyData_abortParse(Signal*, SchemaOpPtr);
+  void copyData_abortPrepare(Signal*, SchemaOpPtr);
 
   /**
    * Operation record for Util Signals.

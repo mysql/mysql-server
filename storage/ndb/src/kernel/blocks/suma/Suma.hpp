@@ -75,6 +75,7 @@ public:
   void execSCAN_FRAGREF(Signal* signal);
   void execSCAN_FRAGCONF(Signal* signal);
   void execTRANSID_AI(Signal* signal);
+  void execKEYINFO20(Signal* signal);
   void execSUB_SYNC_CONTINUE_REF(Signal* signal);
   void execSUB_SYNC_CONTINUE_CONF(Signal* signal);
   
@@ -162,6 +163,7 @@ public:
     Uint32 m_subscriptionPtrI;
     Uint32 m_error;
     Uint32 m_currentTable;
+    Uint32 m_requestInfo;
     TableList m_tableList;    // Tables to sync
     TableList::DataBufferIterator m_tableList_it;
 
@@ -653,6 +655,8 @@ private:
 
   Uint32 m_startphase;
   Uint32 m_typeOfStart;
+
+  void sendScanSubTableData(Signal* signal, Ptr<SyncRecord>, Uint32);
 };
 
 #endif

@@ -2736,6 +2736,19 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TDistrKeyFlag       = TcKeyReq::getDistributionKeyFlag(Treqinfo);
   Uint8 TNoDiskFlag         = TcKeyReq::getNoDiskFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
+  Uint8 Treorg              = TcKeyReq::getReorgFlag(Treqinfo);
+
+  if (Treorg)
+  {
+    if (TOperationType == ZWRITE)
+      regTcPtr->m_special_op_flags = TcConnectRecord::SOF_REORG_COPY;
+    else if (TOperationType == ZDELETE)
+      regTcPtr->m_special_op_flags = TcConnectRecord::SOF_REORG_DELETE;
+    else
+    {
+      ndbassert(false);
+    }
+  }
   
   regTcPtr->dirtyOp  = TDirtyFlag;
   regTcPtr->opSimple = TSimpleFlag;
@@ -3036,10 +3049,20 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     handle_reorg_trigger(conf);
     Tdata2 = conf->reqinfo;
   }
+  else if (Tspecial_op_flags & TcConnectRecord::SOF_REORG_DELETE)
+  {
+    jam();
+    // Dont fire reorg trigger(s)
+  }
   else if (Tdata2 & DiGetNodesConf::REORG_MOVING)
   {
     jam();
     regTcPtr->m_special_op_flags |= TcConnectRecord::SOF_REORG_MOVING;
+  }
+  else if (Tspecial_op_flags & TcConnectRecord::SOF_REORG_COPY)
+  {
+    jam();
+    conf->nodes[0] = 0;
   }
 
   UintR Tdata1 = conf->fragId;
@@ -3182,32 +3205,48 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
   else
   {
     /**
-     * This is when a reorg trigger fired...
+     * 1) This is when a reorg trigger fired...
      *   but the tuple should *not* move
+     *   This should be prevent using the LqhKeyReq::setReorgFlag
      *
-     * This should be prevent using the LqhKeyReq::setMovingFlag
+     * 2) This also happens during reorg copy, when a row should *not* be moved
      */
-    ndbassert(false);
-
     jam();
     Uint32 trigOp = regTcPtr->triggeringOperation;
+    Uint32 TclientData = regTcPtr->clientData;
     releaseKeys();
     releaseAttrinfo();
     regApiPtr->lqhkeyreqrec--;
     unlinkReadyTcCon(signal);
     releaseTcCon();
 
-    TcConnectRecordPtr opPtr;
-    opPtr.i = trigOp;
-    ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
-    opPtr.p->triggerExecutionCount--;
-    if (opPtr.p->triggerExecutionCount == 0) {
-      /*
-        We have completed current trigger execution
-        Continue triggering operation
-      */
+    if (trigOp != RNIL)
+    {
       jam();
-      continueTriggeringOp(signal, opPtr.p);
+      //ndbassert(false); // see above
+      TcConnectRecordPtr opPtr;
+      opPtr.i = trigOp;
+      ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+      opPtr.p->triggerExecutionCount--;
+      if (opPtr.p->triggerExecutionCount == 0)
+      {
+        /**
+         * We have completed current trigger execution
+         * Continue triggering operation
+         */
+        jam();
+        continueTriggeringOp(signal, opPtr.p);
+      }
+      return;
+    }
+    else
+    {
+      jam();
+      Uint32 Ttckeyrec = regApiPtr->tckeyrec;
+      regApiPtr->tcSendArray[Ttckeyrec] = TclientData;
+      regApiPtr->tcSendArray[Ttckeyrec + 1] = 0;
+      regApiPtr->tckeyrec = Ttckeyrec + 2;
+      lqhKeyConf_checkTransactionState(signal, apiConnectptr);
     }
   }
 }//Dbtc::attrinfoDihReceivedLab()
@@ -14285,7 +14324,12 @@ void Dbtc::executeReorgTrigger(Signal* signal,
     attrLen += keyValues.getSize();
     break;
   case TriggerEvent::TE_UPDATE:
-    optype = ZUPDATE;
+    /**
+     * Only update should be write, as COPY is done as update
+     *   a (maybe) better solution would be to have a different
+     *   trigger event for COPY
+     */
+    optype = ZWRITE;
     attrLen += keyValues.getSize();
     break;
   case TriggerEvent::TE_DELETE:

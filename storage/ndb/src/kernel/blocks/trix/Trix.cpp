@@ -24,6 +24,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include <signaldata/CopyData.hpp>
 #include <signaldata/BuildIndxImpl.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/UtilPrepare.hpp>
@@ -31,6 +32,7 @@
 #include <signaldata/UtilRelease.hpp>
 #include <SectionReader.hpp>
 #include <AttributeHeader.hpp>
+#include <signaldata/TcKeyReq.hpp>
 
 #define CONSTRAINT_VIOLATION 893
 
@@ -66,6 +68,7 @@ Trix::Trix(Block_context& ctx) :
   addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &Trix::execBUILD_INDX_IMPL_CONF);
   addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Trix::execBUILD_INDX_IMPL_REF);
 
+  addRecSignal(GSN_COPY_DATA_IMPL_REQ, &Trix::execCOPY_DATA_IMPL_REQ);
 
   addRecSignal(GSN_UTIL_PREPARE_CONF, &Trix::execUTIL_PREPARE_CONF);
   addRecSignal(GSN_UTIL_PREPARE_REF, &Trix::execUTIL_PREPARE_REF);
@@ -485,6 +488,7 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
   subRec->subscriptionCreated = false;
   subRec->pendingSubSyncContinueConf = false;
   subRec->prepareId = RNIL;
+  subRec->requestType = INDEX_BUILD;
 
   // Get column order segments
   Uint32 noOfSections = handle.m_cnt;
@@ -594,7 +598,8 @@ void Trix::execUTIL_EXECUTE_REF(Signal* signal)
   if(utilExecuteRef->TCErrorCode == CONSTRAINT_VIOLATION)
     buildFailed(signal, subRecPtr, BuildIndxRef::IndexNotUnique);
   else
-    buildFailed(signal, subRecPtr, BuildIndxRef::InternalError);
+    buildFailed(signal, subRecPtr,
+                (BuildIndxRef::ErrorCode)utilExecuteRef->TCErrorCode);
 }
 
 void Trix::execSUB_CREATE_CONF(Signal* signal)
@@ -714,14 +719,15 @@ void Trix::execSUB_TABLE_DATA(Signal* signal)
     DBUG_VOID_RETURN;
   }
   subRecPtr.p = subRec;
-  SectionHandle handle(this, signal);
-  SegmentedSectionPtr headerPtr, dataPtr;
+  switch(subRecPtr.p->requestType){
+  case INDEX_BUILD:
+    executeBuildInsertTransaction(signal, subRecPtr);
+    break;
+  case REORG_COPY:
+    executeReorgInsertTransaction(signal, subRecPtr, subTableData->takeOver);
+    break;
+  }
 
-  handle.getSection(headerPtr, 0);
-  handle.getSection(dataPtr, 1);
-  executeInsertTransaction(signal, subRecPtr, headerPtr, dataPtr);
-
-  releaseSections(handle);
   DBUG_VOID_RETURN;
 }
 
@@ -762,6 +768,7 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   while (moreAttributes) {
     attributeList[i++] = *iter.data;
     moreAttributes = subRec->attributeOrder.next(iter);
+
   }
   // Merge index and key column segments
   struct LinearSectionPtr orderPtr[3];
@@ -774,6 +781,10 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   subSyncReq->subscriptionId = subRec->subscriptionId;
   subSyncReq->subscriptionKey = subRec->subscriptionKey;
   subSyncReq->part = SubscriptionData::TableData;
+  subSyncReq->requestInfo = 0;
+
+  if (subRec->requestType == REORG_COPY)
+    subSyncReq->requestInfo |= SubSyncReq::LM_Exclusive;
 
   subRecPtr.p->expectedConf = 1;
 
@@ -823,17 +834,13 @@ void Trix::prepareInsertTransactions(Signal* signal,
 	     sectionsPtr, UtilPrepareReq::NoOfSections);
 }
 
-void Trix::executeInsertTransaction(Signal* signal, 
-				    SubscriptionRecPtr subRecPtr,
-				    SegmentedSectionPtr headerPtr,
-				    SegmentedSectionPtr dataPtr)
+void Trix::executeBuildInsertTransaction(Signal* signal,
+                                         SubscriptionRecPtr subRecPtr)
 {
   jam();
   SubscriptionRecord* subRec = subRecPtr.p;
   UtilExecuteReq * utilExecuteReq = 
     (UtilExecuteReq *)signal->getDataPtrSend();
-  Uint32* headerBuffer = signal->theData + 25;
-  Uint32*  dataBuffer = headerBuffer + headerPtr.sz;
 
   utilExecuteReq->senderRef = reference();
   utilExecuteReq->senderData = subRecPtr.i;
@@ -850,8 +857,18 @@ void Trix::executeInsertTransaction(Signal* signal,
   printf("\n");
 #endif
   // Save scan result in linear buffers
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr headerPtr, dataPtr;
+
+  handle.getSection(headerPtr, 0);
+  handle.getSection(dataPtr, 1);
+
+  Uint32* headerBuffer = signal->theData + 25;
+  Uint32* dataBuffer = headerBuffer + headerPtr.sz;
+
   copy(headerBuffer, headerPtr);
   copy(dataBuffer, dataPtr);
+  releaseSections(handle);
 
   // Calculate packed key size
   Uint32 noOfKeyData = 0;
@@ -886,6 +903,48 @@ void Trix::executeInsertTransaction(Signal* signal,
   sendSignal(DBUTIL_REF, GSN_UTIL_EXECUTE_REQ, signal,
 	     UtilExecuteReq::SignalLength, JBB,
 	     sectionsPtr, UtilExecuteReq::NoOfSections);
+}
+
+void Trix::executeReorgInsertTransaction(Signal* signal,
+                                         SubscriptionRecPtr subRecPtr,
+                                         Uint32 takeOver)
+{
+  jam();
+  SubscriptionRecord* subRec = subRecPtr.p;
+  UtilExecuteReq * utilExecuteReq =
+    (UtilExecuteReq *)signal->getDataPtrSend();
+
+  const Uint32 tScanInfo = takeOver & 0x3FFFF;
+  const Uint32 tTakeOverFragment = takeOver >> 20;
+  {
+    UintR scanInfo = 0;
+    TcKeyReq::setTakeOverScanFlag(scanInfo, 1);
+    TcKeyReq::setTakeOverScanFragment(scanInfo, tTakeOverFragment);
+    TcKeyReq::setTakeOverScanInfo(scanInfo, tScanInfo);
+    utilExecuteReq->scanTakeOver = scanInfo;
+  }
+
+  utilExecuteReq->senderRef = reference();
+  utilExecuteReq->senderData = subRecPtr.i;
+  utilExecuteReq->prepareId = subRec->prepareId;
+#if 0
+  printf("Header size %u\n", headerPtr.sz);
+  for(int i = 0; i < headerPtr.sz; i++)
+    printf("H'%.8x ", headerBuffer[i]);
+  printf("\n");
+
+  printf("Data size %u\n", dataPtr.sz);
+  for(int i = 0; i < dataPtr.sz; i++)
+    printf("H'%.8x ", dataBuffer[i]);
+  printf("\n");
+#endif
+  // Increase expected CONF count
+  subRec->expectedConf++;
+
+  SectionHandle handle(this, signal);
+  sendSignal(DBUTIL_REF, GSN_UTIL_EXECUTE_REQ, signal,
+	     UtilExecuteReq::SignalLength, JBB,
+	     &handle);
 }
 
 void Trix::buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr)
@@ -962,27 +1021,54 @@ Trix::execUTIL_RELEASE_CONF(Signal* signal){
   SubscriptionRecPtr subRecPtr;
   c_theSubscriptions.getPtr(subRecPtr, conf->senderData);
   
-  if (subRecPtr.p->errorCode == BuildIndxRef::NoError) {
-    jam();
-    // Build is complete, reply to original sender
-    BuildIndxImplConf* buildIndxConf =
-      (BuildIndxImplConf*)signal->getDataPtrSend();
-    buildIndxConf->senderRef = reference(); //wl3600_todo ok?
-    buildIndxConf->senderData = subRecPtr.p->connectionPtr;
+  switch(subRecPtr.p->requestType){
+  case REORG_COPY:
+    if (subRecPtr.p->errorCode == BuildIndxRef::NoError)
+    {
+      jam();
+      // Build is complete, reply to original sender
+      CopyDataImplConf* conf = (CopyDataImplConf*)signal->getDataPtrSend();
+      conf->senderRef = reference(); //wl3600_todo ok?
+      conf->senderData = subRecPtr.p->connectionPtr;
 
-    sendSignal(subRecPtr.p->userReference, GSN_BUILD_INDX_IMPL_CONF, signal, 
-	       BuildIndxConf::SignalLength , JBB);  
-  } else {
-    jam();
-    // Build failed, reply to original sender
-    BuildIndxImplRef* buildIndxRef =
-      (BuildIndxImplRef*)signal->getDataPtrSend();
-    buildIndxRef->senderRef = reference();
-    buildIndxRef->senderData = subRecPtr.p->connectionPtr;
-    buildIndxRef->errorCode = subRecPtr.p->errorCode;
+      sendSignal(subRecPtr.p->userReference, GSN_COPY_DATA_IMPL_CONF, signal,
+                 CopyDataImplConf::SignalLength , JBB);
+    } else {
+      jam();
+      // Build failed, reply to original sender
+      CopyDataImplRef* ref = (CopyDataImplRef*)signal->getDataPtrSend();
+      ref->senderRef = reference();
+      ref->senderData = subRecPtr.p->connectionPtr;
+      ref->errorCode = subRecPtr.p->errorCode;
 
-    sendSignal(subRecPtr.p->userReference, GSN_BUILD_INDX_IMPL_REF, signal, 
-	       BuildIndxRef::SignalLength , JBB);  
+      sendSignal(subRecPtr.p->userReference, GSN_COPY_DATA_IMPL_REF, signal,
+                 CopyDataImplRef::SignalLength , JBB);
+    }
+    break;
+  case INDEX_BUILD:
+    if (subRecPtr.p->errorCode == BuildIndxRef::NoError) {
+      jam();
+      // Build is complete, reply to original sender
+      BuildIndxImplConf* buildIndxConf =
+        (BuildIndxImplConf*)signal->getDataPtrSend();
+      buildIndxConf->senderRef = reference(); //wl3600_todo ok?
+      buildIndxConf->senderData = subRecPtr.p->connectionPtr;
+
+      sendSignal(subRecPtr.p->userReference, GSN_BUILD_INDX_IMPL_CONF, signal,
+                 BuildIndxConf::SignalLength , JBB);
+    } else {
+      jam();
+      // Build failed, reply to original sender
+      BuildIndxImplRef* buildIndxRef =
+        (BuildIndxImplRef*)signal->getDataPtrSend();
+      buildIndxRef->senderRef = reference();
+      buildIndxRef->senderData = subRecPtr.p->connectionPtr;
+      buildIndxRef->errorCode = subRecPtr.p->errorCode;
+
+      sendSignal(subRecPtr.p->userReference, GSN_BUILD_INDX_IMPL_REF, signal,
+                 BuildIndxRef::SignalLength , JBB);
+    }
+    break;
   }
 
   // Release subscription record
@@ -1004,6 +1090,101 @@ void Trix::checkParallelism(Signal* signal, SubscriptionRecord* subRec)
     subRec->pendingSubSyncContinueConf = false;
   }
 }
+
+// CopyData
+void
+Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const CopyDataImplReq reqData = *(const CopyDataImplReq*)signal->getDataPtr();
+  const CopyDataImplReq *req = &reqData;
+
+  // Seize a subscription record
+  SubscriptionRecPtr subRecPtr;
+  SectionHandle handle(this, signal);
+
+  if (!c_theSubscriptions.seize(subRecPtr))
+  {
+    jam();
+    // Failed to allocate subscription record
+    releaseSections(handle);
+
+    CopyDataImplRef* ref = (CopyDataRef*)signal->getDataPtrSend();
+
+    ref->errorCode = -1; // XXX CopyDataImplRef::AllocationFailure;
+    ref->senderData = req->senderData;
+    ref->transId = req->transId;
+    sendSignal(req->senderRef, GSN_COPY_DATA_IMPL_REF, signal,
+               CopyDataImplRef::SignalLength, JBB);
+    return;
+  }
+
+  SubscriptionRecord* subRec = subRecPtr.p;
+  subRec->errorCode = BuildIndxRef::NoError;
+  subRec->userReference = req->senderRef;
+  subRec->connectionPtr = req->senderData;
+  subRec->schemaTransId = req->transId;
+  subRec->subscriptionId = rand();
+  subRec->subscriptionKey = rand();
+  subRec->indexType = RNIL;
+  subRec->sourceTableId = req->srcTableId;
+  subRec->targetTableId = req->dstTableId;
+  subRec->parallelism = 16;
+  subRec->expectedConf = 0;
+  subRec->subscriptionCreated = false;
+  subRec->pendingSubSyncContinueConf = false;
+  subRec->prepareId = req->transId;
+  subRec->requestType = REORG_COPY;
+
+  // Get column order segments
+  Uint32 noOfSections = handle.m_cnt;
+  if (noOfSections > 0) {
+    jam();
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+    append(subRec->attributeOrder, ptr, getSectionSegmentPool());
+    subRec->noOfIndexColumns = ptr.sz;
+  }
+  if (noOfSections > 1) {
+    jam();
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 1);
+    append(subRec->attributeOrder, ptr, getSectionSegmentPool());
+    subRec->noOfKeyColumns = ptr.sz;
+  }
+
+  releaseSections(handle);
+  {
+    UtilPrepareReq * utilPrepareReq =
+      (UtilPrepareReq *)signal->getDataPtrSend();
+
+    utilPrepareReq->senderRef = reference();
+    utilPrepareReq->senderData = subRecPtr.i;
+    utilPrepareReq->schemaTransId = subRec->schemaTransId;
+
+    const Uint32 pageSizeInWords = 128;
+    Uint32 propPage[pageSizeInWords];
+    LinearWriter w(&propPage[0],128);
+    w.first();
+    w.add(UtilPrepareReq::NoOfOperations, 1);
+    w.add(UtilPrepareReq::OperationType, UtilPrepareReq::Write);
+    w.add(UtilPrepareReq::ScanTakeOverInd, 1);
+    w.add(UtilPrepareReq::ReorgInd, 1);
+    w.add(UtilPrepareReq::TableId, subRec->targetTableId);
+    // Add index attributes in increasing order and one PK attribute
+    for(Uint32 i = 0; i < subRec->noOfIndexColumns; i++)
+      w.add(UtilPrepareReq::AttributeId, i);
+
+    struct LinearSectionPtr sectionsPtr[UtilPrepareReq::NoOfSections];
+    sectionsPtr[UtilPrepareReq::PROPERTIES_SECTION].p = propPage;
+    sectionsPtr[UtilPrepareReq::PROPERTIES_SECTION].sz = w.getWordsUsed();
+    sendSignal(DBUTIL_REF, GSN_UTIL_PREPARE_REQ, signal,
+               UtilPrepareReq::SignalLength, JBB,
+               sectionsPtr, UtilPrepareReq::NoOfSections);
+  }
+}
+
 
 BLOCK_FUNCTIONS(Trix)
 

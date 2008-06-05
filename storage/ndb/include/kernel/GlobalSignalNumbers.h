@@ -439,9 +439,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_READ_CONFIG_REQ             334 /* new name for sizealt, local */
 #define GSN_READ_CONFIG_CONF            335 /* new name for sizealt, local */
 
-/* 336 unused */
-/* 337 unused */
-/* 338 unused */
+#define GSN_COPY_DATA_REQ               336
+#define GSN_COPY_DATA_REF               337
+#define GSN_COPY_DATA_CONF              338
+
 #define GSN_OPEN_COMCONF                339
 #define GSN_OPEN_COMREF                 340
 #define GSN_OPEN_COMREQ                 341
@@ -535,10 +536,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 /* 421 not unused */
 /* 422 not unused */
-/* 423 unused */
+#define GSN_COPY_DATA_IMPL_REQ          423 /* local */
+#define GSN_COPY_DATA_IMPL_REF          424 /* local */
+#define GSN_COPY_DATA_IMPL_CONF         425 /* local */
 
-/* 424 unused */
-/* 425 unused */
 #define GSN_DROP_FRAG_REQ               426 /* local */
 #define GSN_DROP_FRAG_REF               427 /* local */
 #define GSN_DROP_FRAG_CONF              428 /* local */

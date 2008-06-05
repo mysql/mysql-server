@@ -816,7 +816,9 @@ public:
       SOF_REORG_TRIGGER_BASE = 4,
       SOF_REORG_TRIGGER = 4 | 16,     // A reorg trigger
       SOF_REORG_MOVING = 8,           // A record that should be moved
-      SOF_TRIGGER = 16                // A trigger
+      SOF_TRIGGER = 16,               // A trigger
+      SOF_REORG_COPY = 32,
+      SOF_REORG_DELETE = 64
     };
     
     static inline bool isIndexOp(Uint8 flags) {

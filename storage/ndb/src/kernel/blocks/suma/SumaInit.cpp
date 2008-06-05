@@ -96,6 +96,7 @@ Suma::Suma(Block_context& ctx) :
    */
   addRecSignal(GSN_SCAN_HBREP, &Suma::execSCAN_HBREP);
   addRecSignal(GSN_TRANSID_AI, &Suma::execTRANSID_AI);
+  addRecSignal(GSN_KEYINFO20, &Suma::execKEYINFO20);
   addRecSignal(GSN_SCAN_FRAGREF, &Suma::execSCAN_FRAGREF);
   addRecSignal(GSN_SCAN_FRAGCONF, &Suma::execSCAN_FRAGCONF);
 #if 0

@@ -40,6 +40,7 @@ class TcKeyReq {
   friend class NdbScanOperation;
   friend class NdbBlob;
   friend class DbUtil;
+  friend class Trix;
 
   /**
    * For printing
@@ -163,6 +164,8 @@ private:
   static void setAIInTcKeyReq(UintR & requestInfo, Uint32 len);
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
 
+  static void setReorgFlag(UintR & requestInfo, UintR val);
+  static UintR getReorgFlag(const UintR & requestInfo);
   /**
    * Set:ers for scanInfo
    */
@@ -187,10 +190,11 @@ private:
  s = Start Indicator       - 1  Bit 11
  y = Commit Type           - 2  Bit 12-13
  n = No disk flag          - 1  Bit 1
+ r = reorg flag            - 1  Bit 19
 
            1111111111222222222233
  01234567890123456789012345678901
- dnb cooop lsyyeiaaa kkkkkkkkkkkk
+ dnb cooop lsyyeiaaarkkkkkkkkkkkk
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -214,6 +218,8 @@ private:
 
 #define COMMIT_TYPE_SHIFT  (12)
 #define COMMIT_TYPE_MASK   (3)
+
+#define TC_REORG_SHIFT     (19)
 
 /**
  * Scan Info
@@ -514,6 +520,19 @@ TcKeyReq::setNoDiskFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
   requestInfo &= ~(1 << TCKEY_NODISK_SHIFT);
   requestInfo |= (flag << TCKEY_NODISK_SHIFT);
+}
+
+inline
+UintR
+TcKeyReq::getReorgFlag(const UintR & requestInfo){
+  return (requestInfo >> TC_REORG_SHIFT) & 1;
+}
+
+inline
+void
+TcKeyReq::setReorgFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
+  requestInfo |= (flag << TC_REORG_SHIFT);
 }
 
 #endif

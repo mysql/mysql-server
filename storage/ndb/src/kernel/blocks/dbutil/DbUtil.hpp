@@ -293,6 +293,7 @@ public:
     
     Uint32 transPtrI;
     
+    Uint32 m_scanTakeOver;
     Uint32 rsRecv;
     Uint32 rsExpect;
     inline bool complete() const { return rsRecv == rsExpect; }

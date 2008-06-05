@@ -260,13 +260,18 @@ struct SubSyncReq {
   friend struct Grep;
   
   friend bool printSUB_SYNC_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 6 );
   
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
   Uint32 part; // SubscriptionData::Part
+  Uint32 requestInfo;
+
+  enum {
+    LM_Exclusive = 0x1
+  };
 
   SECTION( ATTRIBUTE_LIST = 0); // Used when doing SingelTableScan  
   SECTION( TABLE_LIST = 1 );
@@ -334,6 +339,7 @@ struct SubTableData {
   union {
     Uint32 changeMask;
     Uint32 anyValue;
+    Uint32 takeOver;
   };
   Uint32 totalLen;
   Uint32 gci_lo;

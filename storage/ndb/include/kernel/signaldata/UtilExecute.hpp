@@ -40,7 +40,7 @@ class UtilExecuteReq {
   friend bool printUTIL_EXECUTE_REQ(FILE * output, const Uint32 * theData, 
 				    Uint32 len, Uint16 receiverBlockNo);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   STATIC_CONST( HEADER_SECTION = 0 );
   STATIC_CONST( DATA_SECTION = 1 );
   STATIC_CONST( NoOfSections = 2 );
@@ -51,10 +51,11 @@ public:
   Uint32 getPrepareId() const { return prepareId & 0xFF; };
   void setReleaseFlag() { prepareId |= 0x100; };
   bool getReleaseFlag() const { return (prepareId & 0x100) != 0; };
-private:
+
   Uint32 senderData; // MUST be no 1!
   Uint32 senderRef;
   Uint32 prepareId;     // Which prepared transaction to execute
+  Uint32 scanTakeOver;
 };
 
 /**
