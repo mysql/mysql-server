@@ -1717,9 +1717,6 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
     return;
   }
 
-  bool ok = false;
-  SubscriptionData::Part part = (SubscriptionData::Part)req->part;
-  
   Ptr<SyncRecord> syncPtr;
   LocalDLList<SyncRecord> list(c_syncPool, subPtr.p->m_syncRecords);
   if(!list.seize(syncPtr))
@@ -1727,6 +1724,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
     jam();
     releaseSections(handle);
     sendSubSyncRef(signal, 1416);
+    return;
   }
   
   new (syncPtr.p) Ptr<SyncRecord>;
@@ -1737,10 +1735,10 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_error            = 0;
   syncPtr.p->m_requestInfo      = req->requestInfo;
   syncPtr.p->m_frag_cnt         = req->fragCount;
+  syncPtr.p->m_tableId          = subPtr.p->m_tableId;
 
   {
     jam();
-    syncPtr.p->m_tableList.append(&subPtr.p->m_tableId, 1);
     if(handle.m_cnt > 0)
     {
       SegmentedSectionPtr ptr;
@@ -1751,7 +1749,19 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
     }
   }
 
-  syncPtr.p->startScan(signal);
+  /**
+   * We need to gather fragment info
+   */
+  {
+    jam();
+    DihScanTabReq* req = (DihScanTabReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = syncPtr.i;
+    req->tableId = subPtr.p->m_tableId;
+    req->schemaTransId = subPtr.p->m_schemaTransId;
+    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
+               DihScanTabReq::SignalLength, JBB);
+  }
 }
 
 void
@@ -1765,6 +1775,128 @@ Suma::sendSubSyncRef(Signal* signal, Uint32 errCode){
 	     SubSyncRef::SignalLength,
 	     JBB);
   return;
+}
+
+void
+Suma::execDIH_SCAN_TAB_REF(Signal* signal)
+{
+  jamEntry();
+  DBUG_ENTER("Suma::execDI_FCOUNTREF");
+  DihScanTabRef * ref = (DihScanTabRef*)signal->getDataPtr();
+  switch ((DihScanTabRef::ErrorCode) ref->error)
+  {
+  case DihScanTabRef::ErroneousTableState:
+    jam();
+    if (ref->tableStatus == Dbdih::TabRecord::TS_CREATING)
+    {
+      const Uint32 tableId = ref->tableId;
+      const Uint32 synPtrI = ref->senderData;
+      const Uint32 schemaTransId = ref->schemaTransId;
+      DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
+
+      req->senderData = synPtrI;
+      req->senderRef = reference();
+      req->tableId = tableId;
+      req->schemaTransId = schemaTransId;
+      sendSignalWithDelay(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
+                          DihScanTabReq::SignalLength,
+                          DihScanTabReq::RetryInterval);
+      DBUG_VOID_RETURN;
+    }
+    ndbrequire(false);
+  default:
+    ndbrequire(false);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+void
+Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
+{
+  jamEntry();
+  DBUG_ENTER("Suma::execDI_FCOUNTCONF");
+  ndbassert(signal->getNoOfSections() == 0);
+  DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
+  const Uint32 tableId = conf->tableId;
+  const Uint32 fragCount = conf->fragmentCount;
+  const Uint32 scanCookie = conf->scanCookie;
+
+  Ptr<SyncRecord> ptr;
+  c_syncPool.getPtr(ptr, conf->senderData);
+
+  LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
+  ndbrequire(fragBuf.getSize() == 0);
+
+  ndbassert(fragCount >= ptr.p->m_frag_cnt);
+  if (ptr.p->m_frag_cnt == 0)
+  {
+    jam();
+    ptr.p->m_frag_cnt = fragCount;
+  }
+  ptr.p->m_scan_cookie = scanCookie;
+
+  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = ptr.i;
+  req->tableId = tableId;
+  req->fragId = 0;
+  req->scanCookie = scanCookie;
+  sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
+             DihScanGetNodesReq::SignalLength, JBB);
+
+  DBUG_VOID_RETURN;
+}
+
+void
+Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
+{
+  jamEntry();
+  DBUG_ENTER("Suma::execDIGETPRIMCONF");
+  ndbassert(signal->getNoOfSections() == 0);
+
+  DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtr();
+  const Uint32 nodeCount = conf->count;
+  const Uint32 tableId = conf->tableId;
+  const Uint32 fragNo = conf->fragId;
+
+  ndbrequire(nodeCount > 0 && nodeCount <= MAX_REPLICAS);
+
+  Ptr<SyncRecord> ptr;
+  c_syncPool.getPtr(ptr, conf->senderData);
+
+  {
+    LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
+
+    /**
+     * Add primary node for fragment to list
+     */
+    FragmentDescriptor fd;
+    fd.m_fragDesc.m_nodeId = conf->nodes[0];
+    fd.m_fragDesc.m_fragmentNo = fragNo;
+    signal->theData[2] = fd.m_dummy;
+    fragBuf.append(&signal->theData[2], 1);
+  }
+
+  const Uint32 nextFrag = fragNo + 1;
+  if(nextFrag == ptr.p->m_frag_cnt)
+  {
+    jam();
+
+    ptr.p->startScan(signal);
+    return;
+  }
+
+  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = ptr.i;
+  req->tableId = tableId;
+  req->fragId = nextFrag;
+  req->scanCookie = ptr.p->m_scan_cookie;
+  sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
+             DihScanGetNodesReq::SignalLength, JBB);
+
+  DBUG_VOID_RETURN;
 }
 
 /**********************************************************
@@ -1860,7 +1992,6 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   
   SectionHandle handle(this, signal);
   GetTabInfoConf* conf = (GetTabInfoConf*)signal->getDataPtr();
-  Uint32 tableId = conf->tableId;
   TablePtr tabPtr;
   c_tablePool.getPtr(tabPtr, conf->senderData);
   SegmentedSectionPtr ptr;
@@ -1868,17 +1999,35 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   ndbrequire(tabPtr.p->parseTable(ptr, *this));
   releaseSections(handle);
 
-  /**
-   * We need to gather fragment info
-   */
-  jam();
-  DihScanTabReq* req = (DihScanTabReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->senderData = tabPtr.i;
-  req->tableId = tableId;
-  req->schemaTransId = tabPtr.p->m_schemaTransId;
-  sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
-             DihScanTabReq::SignalLength, JBB);
+  tabPtr.p->m_state = Table::DEFINED;
+
+  LocalDLList<Subscription> subList(c_subscriptionPool,
+                                    tabPtr.p->m_subscriptions);
+  Ptr<Subscription> subPtr;
+  bool empty = subList.isEmpty();
+  for(subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
+  {
+    jam();
+    subPtr.p->m_state = Subscription::DEFINED;
+
+    Ptr<SubOpRecord> ptr;
+    LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_create_req);
+    for (list.first(ptr); !ptr.isNull();)
+    {
+      jam();
+      SubCreateConf * const conf = (SubCreateConf*)signal->getDataPtrSend();
+      conf->senderRef  = reference();
+      conf->senderData = ptr.p->m_senderData;
+      sendSignal(ptr.p->m_senderRef, GSN_SUB_CREATE_CONF, signal,
+                 SubCreateConf::SignalLength, JBB);
+
+      Ptr<SubOpRecord> tmp = ptr;
+      list.next(ptr);
+      list.release(tmp);
+    }
+  }
+
+  ndbassert(!empty);
 }
 
 bool
@@ -1908,167 +2057,6 @@ Suma::Table::parseTable(SegmentedSectionPtr ptr,
   DBUG_RETURN(true);
 }
 
-void 
-Suma::execDIH_SCAN_TAB_REF(Signal* signal)
-{
-  jamEntry();
-  DBUG_ENTER("Suma::execDI_FCOUNTREF");
-  DihScanTabRef * ref = (DihScanTabRef*)signal->getDataPtr();
-  switch ((DihScanTabRef::ErrorCode) ref->error)
-  {
-  case DihScanTabRef::ErroneousTableState:
-    jam();
-    if (ref->tableStatus == Dbdih::TabRecord::TS_CREATING)
-    {
-      const Uint32 tableId = ref->tableId;
-      const Uint32 tabPtrI = ref->senderData;
-      const Uint32 schemaTransId = ref->schemaTransId;
-      DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
-
-      req->senderData = tabPtrI;
-      req->senderRef = reference();
-      req->tableId = tableId;
-      req->schemaTransId = schemaTransId;
-      sendSignalWithDelay(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
-                          DihScanTabReq::SignalLength,
-                          DihScanTabReq::RetryInterval);
-      DBUG_VOID_RETURN;
-    }
-    ndbrequire(false);
-  default:
-    ndbrequire(false);
-  }
-
-  DBUG_VOID_RETURN;
-}
-
-void 
-Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
-{
-  jamEntry();
-  DBUG_ENTER("Suma::execDI_FCOUNTCONF");
-  ndbassert(signal->getNoOfSections() == 0);
-  DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
-  const Uint32 tableId = conf->tableId;
-  const Uint32 fragCount = conf->fragmentCount;
-  const Uint32 scanCookie = conf->scanCookie;
-
-  TablePtr tabPtr;
-  tabPtr.i= conf->senderData;
-  ndbrequire((tabPtr.p= c_tablePool.getPtr(tabPtr.i)) != 0);
-  ndbrequire(tabPtr.p->m_tableId == tableId);
-
-  LocalDataBuffer<15> fragBuf(c_dataBufferPool, tabPtr.p->m_fragments);
-  ndbrequire(fragBuf.getSize() == 0);
-  
-  tabPtr.p->m_fragCount = fragCount;
-  tabPtr.p->m_scan_cookie = scanCookie;
-
-  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->senderData = tabPtr.i;
-  req->tableId = tableId;
-  req->fragId = 0;
-  req->scanCookie = 0;
-  sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-             DihScanGetNodesReq::SignalLength, JBB);
-
-  DBUG_VOID_RETURN;
-}
-
-void
-Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
-{
-  jamEntry();
-  DBUG_ENTER("Suma::execDIGETPRIMCONF");
-  ndbassert(signal->getNoOfSections() == 0);
-
-  DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtr();
-  const Uint32 nodeCount = conf->count;
-  const Uint32 tableId = conf->tableId;
-  const Uint32 fragNo = conf->fragId;
-  
-  ndbrequire(nodeCount > 0 && nodeCount <= MAX_REPLICAS);
-  
-  TablePtr tabPtr;
-  tabPtr.i= conf->senderData;
-  ndbrequire((tabPtr.p= c_tablePool.getPtr(tabPtr.i)) != 0);
-  ndbrequire(tabPtr.p->m_tableId == tableId);
-
-  {
-    LocalDataBuffer<15> fragBuf(c_dataBufferPool,tabPtr.p->m_fragments);  
-    
-    /**
-     * Add primary node for fragment to list
-     */
-    FragmentDescriptor fd;
-    fd.m_fragDesc.m_nodeId = conf->nodes[0];
-    fd.m_fragDesc.m_fragmentNo = fragNo;
-    signal->theData[2] = fd.m_dummy;
-    fragBuf.append(&signal->theData[2], 1);
-  }
-  
-  const Uint32 nextFrag = fragNo + 1;
-  if(nextFrag == tabPtr.p->m_fragCount)
-  {
-    jam();
-
-    /**
-     * XXXX JONAS
-     * Should probably be at end of SCAN (sync)
-     * And sync should really refetch fragments before each "run"
-     */
-    DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtr();
-    rep->tableId = tableId;
-    rep->scanCookie = tabPtr.p->m_scan_cookie;
-    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-               DihScanTabCompleteRep::SignalLength, JBB);
-
-    tabPtr.p->m_state = Table::DEFINED;
-
-    LocalDLList<Subscription> subList(c_subscriptionPool,
-                                      tabPtr.p->m_subscriptions);
-    Ptr<Subscription> subPtr;
-    bool empty = subList.isEmpty();
-    for(subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
-    {
-      jam();
-      subPtr.p->m_state = Subscription::DEFINED;
-
-      Ptr<SubOpRecord> ptr;
-      LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_create_req);
-      for (list.first(ptr); !ptr.isNull();)
-      {
-        jam();
-        SubCreateConf * const conf = (SubCreateConf*)signal->getDataPtrSend();
-        conf->senderRef  = reference();
-        conf->senderData = ptr.p->m_senderData;
-        sendSignal(ptr.p->m_senderRef, GSN_SUB_CREATE_CONF, signal,
-                   SubCreateConf::SignalLength, JBB);
-
-        Ptr<SubOpRecord> tmp = ptr;
-        list.next(ptr);
-        list.release(tmp);
-      }
-    }
-
-    ndbassert(!empty);
-
-    return;
-  }
-
-  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->senderData = tabPtr.i;
-  req->tableId = tableId;
-  req->fragId = nextFrag;
-  req->scanCookie = 0;
-  sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-             DihScanGetNodesReq::SignalLength, JBB);
-
-  DBUG_VOID_RETURN;
-}
-
 /**********************************************************
  *
  * Scan interface
@@ -2084,7 +2072,6 @@ Suma::SyncRecord::startScan(Signal* signal)
   /**
    * Get fraginfo
    */
-  m_currentTable = 0;
   m_currentFragment = 0;
   nextScan(signal);
   DBUG_VOID_RETURN;
@@ -2097,29 +2084,24 @@ Suma::SyncRecord::getNextFragment(TablePtr * tab,
   jam();
   SubscriptionPtr subPtr;
   suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
-  TableList::DataBufferIterator tabIt;
   DataBuffer<15>::DataBufferIterator fragIt;
   
-  m_tableList.position(tabIt, m_currentTable);
-  for(; !tabIt.curr.isNull(); m_tableList.next(tabIt), m_currentTable++)
-  {
-    TablePtr tabPtr;
-    ndbrequire(suma.c_tables.find(tabPtr, * tabIt.data));
-    LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool,  tabPtr.p->m_fragments);
+  TablePtr tabPtr;
+  suma.c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool,  m_fragments);
     
-    fragBuf.position(fragIt, m_currentFragment);
-    for(; !fragIt.curr.isNull(); fragBuf.next(fragIt), m_currentFragment++)
-    {
-      FragmentDescriptor tmp;
-      tmp.m_dummy = * fragIt.data;
-      if(tmp.m_fragDesc.m_nodeId == suma.getOwnNodeId()){
-	* fd = tmp;
-	* tab = tabPtr;
-	return true;
-      }
+  fragBuf.position(fragIt, m_currentFragment);
+  for(; !fragIt.curr.isNull(); fragBuf.next(fragIt), m_currentFragment++)
+  {
+    FragmentDescriptor tmp;
+    tmp.m_dummy = * fragIt.data;
+    if(tmp.m_fragDesc.m_nodeId == suma.getOwnNodeId()){
+      * fd = tmp;
+      * tab = tabPtr;
+      return true;
     }
-    m_currentFragment = 0;
   }
+  m_currentFragment = 0;
   return false;
 }
 
@@ -2131,17 +2113,10 @@ Suma::SyncRecord::nextScan(Signal* signal)
   TablePtr tabPtr;
   FragmentDescriptor fd;
   SubscriptionPtr subPtr;
-loop:
   if(!getNextFragment(&tabPtr, &fd)){
     jam();
     completeScan(signal);
     DBUG_VOID_RETURN;
-  }
-  if (m_frag_cnt && fd.m_fragDesc.m_fragmentNo >= m_frag_cnt)
-  {
-    jam();
-    m_currentFragment++;
-    goto loop;
   }
 
   suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
@@ -2209,7 +2184,6 @@ loop:
     suma.sendSignal(DBLQH_REF, GSN_ATTRINFO, signal, dataPos, JBB);
   }
   
-  m_currentTableId = tabPtr.p->m_tableId;
   m_currentNoOfAttributes = attrBuf.getSize();        
 
   DBUG_VOID_RETURN;
@@ -2302,6 +2276,15 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
   jam();
   DBUG_ENTER("Suma::SyncRecord::completeScan");
 
+  SubscriptionPtr subPtr;
+  suma.c_subscriptionPool.getPtr(subPtr, m_subscriptionPtrI);
+
+  DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtr();
+  rep->tableId = subPtr.p->m_tableId;
+  rep->scanCookie = m_scan_cookie;
+  suma.sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+                  DihScanTabCompleteRep::SignalLength, JBB);
+
 #if PRINT_ONLY
   ndbout_c("GSN_SUB_SYNC_CONF (data)");
 #else
@@ -2324,8 +2307,6 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
 #endif
 
   release();
-  SubscriptionPtr subPtr;
-  suma.c_subscriptionPool.getPtr(subPtr, m_subscriptionPtrI);
   LocalDLList<SyncRecord> list(suma.c_syncPool, subPtr.p->m_syncRecords);
   Ptr<SyncRecord> tmp;
   tmp.i = ptrI;
@@ -2369,7 +2350,7 @@ Suma::execSUB_START_REQ(Signal* signal){
   Uint32 senderData           = req->senderData;
   Uint32 subscriberData       = req->subscriberData;
   Uint32 subscriberRef        = req->subscriberRef;
-  SubscriptionData::Part part = (SubscriptionData::Part)req->part;
+  //SubscriptionData::Part part = (SubscriptionData::Part)req->part;
 
   Subscription key; 
   key.m_subscriptionId        = req->subscriptionId;
@@ -2701,8 +2682,6 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
       Uint32 senderData = subOpPtr.p->m_senderData;
       c_subscriberPool.getPtr(ptr, subOpPtr.p->m_subscriberRef);
 
-      Uint32 nodeId = refToNode(ptr.p->m_senderRef);
-      
       if (check_sub_start(ptr.p->m_senderRef))
       {
         SubStartConf* conf = (SubStartConf*)signal->getDataPtrSend();
@@ -3413,7 +3392,7 @@ Suma::sendScanSubTableData(Signal* signal,
    */  
   SubTableData * sdata = (SubTableData*)signal->getDataPtrSend();
   Uint32 ref = syncPtr.p->m_senderRef;
-  sdata->tableId = syncPtr.p->m_currentTableId;
+  sdata->tableId = syncPtr.p->m_tableId;
   sdata->senderData = syncPtr.p->m_senderData;
   sdata->requestInfo = 0;
   SubTableData::setOperation(sdata->requestInfo, 
@@ -4364,16 +4343,15 @@ void
 Suma::Table::release(Suma & suma){
   jamBlock(&suma);
 
-  LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool, m_fragments);
-  fragBuf.release();
-
   m_state = UNDEFINED;
 }
 
 void
 Suma::SyncRecord::release(){
   jam();
-  m_tableList.release();
+
+  LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool, m_fragments);
+  fragBuf.release();
 
   LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributeList);
   attrBuf.release();  

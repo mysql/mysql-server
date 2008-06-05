@@ -255,4 +255,14 @@ ndb_fire_trig_ord_transid(Uint32 version)
   return 0;
 }
 
+#define NDBD_SCAN_DISTKEY NDB_MAKE_VERSION(6,4,0)
+
+static
+inline
+int
+ndb_scan_distributionkey(Uint32 version)
+{
+  return version >= NDBD_SCAN_DISTKEY;
+}
+
 #endif

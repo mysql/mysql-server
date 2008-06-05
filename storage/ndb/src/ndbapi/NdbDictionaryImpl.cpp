@@ -6222,6 +6222,9 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
     rec->flags|= NdbRecord::RecIsIndex;
   rec->m_keyLenInWords= table->m_keyLenInWords;
 
+  if (table->m_fragmentType == NdbDictionary::Object::UserDefined)
+    rec->flags |= NdbRecord::RecHasUserDefinedPartitioning;
+
   return rec;
 
  err:

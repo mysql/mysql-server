@@ -50,6 +50,9 @@ public:
 
     /* This NdbRecord is a default NdbRecord */
     RecIsDefaultRec= 0x20
+
+    /* The table has user defined partitioning */
+    ,RecHasUserDefinedPartitioning = 0x40
   };
 
   /* Flag bits for individual columns in the NdbRecord. */
