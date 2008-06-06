@@ -468,8 +468,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG},
   {"buffer_pool_pages_free",
   (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
+#ifdef UNIV_DEBUG
   {"buffer_pool_pages_latched",
   (char*) &export_vars.innodb_buffer_pool_pages_latched,  SHOW_LONG},
+#endif /* UNIV_DEBUG */
   {"buffer_pool_pages_misc",
   (char*) &export_vars.innodb_buffer_pool_pages_misc,	  SHOW_LONG},
   {"buffer_pool_pages_total",
@@ -3709,7 +3711,8 @@ ha_innobase::innobase_autoinc_lock(void)
 		old style only if another transaction has already acquired
 		the AUTOINC lock on behalf of a LOAD FILE or INSERT ... SELECT
 		etc. type of statement. */
-		if (thd_sql_command(user_thd) == SQLCOM_INSERT) {
+		if (thd_sql_command(user_thd) == SQLCOM_INSERT
+		    || thd_sql_command(user_thd) == SQLCOM_REPLACE) {
 			dict_table_t*	table = prebuilt->table;
 
 			/* Acquire the AUTOINC mutex. */
@@ -5614,6 +5617,29 @@ ha_innobase::create(
 	DBUG_ENTER("ha_innobase::create");
 
 	DBUG_ASSERT(thd != NULL);
+	DBUG_ASSERT(create_info != NULL);
+
+#ifdef __WIN__
+	/* Names passed in from server are in two formats:
+	1. <database_name>/<table_name>: for normal table creation
+	2. full path: for temp table creation, or sym link
+
+	When srv_file_per_table is on, check for full path pattern, i.e.
+	X:\dir\...,		X is a driver letter, or
+	\\dir1\dir2\...,	UNC path
+	returns error if it is in full path format, but not creating a temp.
+	table. Currently InnoDB does not support symbolic link on Windows. */
+
+	if (srv_file_per_table
+	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+
+		if ((name[1] == ':')
+		    || (name[0] == '\\' && name[1] == '\\')) {
+			sql_print_error("Cannot create table %s\n", name);
+			DBUG_RETURN(HA_ERR_GENERIC);
+		}
+	}
+#endif
 
 	if (form->s->fields > 1000) {
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
