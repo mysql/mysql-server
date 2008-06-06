@@ -57,9 +57,10 @@ INSERT INTO t1 VALUES
 insert into t2 select * from t1;
 select count(*) from t1;
 select count(*) from t2;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t1 | sort
 --sorted_result
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t2 | sort
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t1 | sort | grep -v Version
+--sorted_result
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t2 | sort | grep -v Version
 --sorted_result
 select * from t1 where a < 20;
 --sorted_result
@@ -96,9 +97,9 @@ alter online table t2 add partition partitions 4;
 select count(*) from t1;
 select count(*) from t2;
 --sorted_result
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t1 | sort
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t1 | sort | grep -v Version
 --sorted_result
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t2 | sort
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t2 | sort | grep -v Version
 --sorted_result
 select * from t1 where a < 20;
 --sorted_result
@@ -135,9 +136,9 @@ alter online table t2 add partition partitions 1;
 select count(*) from t1;
 select count(*) from t2;
 --sorted_result
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t1 | sort
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t1 | sort | grep -v Version
 --sorted_result
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t2 | sort
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test -p t2 | sort | grep -v Version
 --sorted_result
 select * from t1 where a < 20;
 --sorted_result

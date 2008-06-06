@@ -79,7 +79,6 @@ Row GCI: 1
 SingleUserMode: 0
 TableStatus: Retrieved
 Temporary table: no
-Version: 1
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
 b$unique(b) - UniqueHashIndex
@@ -113,7 +112,6 @@ Row GCI: 1
 SingleUserMode: 0
 TableStatus: Retrieved
 Temporary table: no
-Version: 1
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
 b$unique(b) - UniqueHashIndex
@@ -246,7 +244,6 @@ Row GCI: 1
 SingleUserMode: 0
 TableStatus: Retrieved
 Temporary table: no
-Version: 16777217
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
 b$unique(b) - UniqueHashIndex
@@ -284,7 +281,6 @@ Row GCI: 1
 SingleUserMode: 0
 TableStatus: Retrieved
 Temporary table: no
-Version: 16777217
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
 b$unique(b) - UniqueHashIndex
@@ -419,7 +415,6 @@ Row GCI: 1
 SingleUserMode: 0
 TableStatus: Retrieved
 Temporary table: no
-Version: 33554433
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
 b$unique(b) - UniqueHashIndex
@@ -458,7 +453,6 @@ Row GCI: 1
 SingleUserMode: 0
 TableStatus: Retrieved
 Temporary table: no
-Version: 33554433
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
 b$unique(b) - UniqueHashIndex
