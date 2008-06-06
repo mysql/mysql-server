@@ -439,7 +439,6 @@ static int toku_env_get_cachesize(DB_ENV * env, u_int32_t *gbytes, u_int32_t *by
 static int locked_env_get_cachesize(DB_ENV *env, u_int32_t *gbytes, u_int32_t *bytes, int *ncache) {
     toku_ydb_lock(); int r = toku_env_get_cachesize(env, gbytes, bytes, ncache); toku_ydb_unlock(); return r;
 }
-
 #endif
 
 static int toku_env_set_data_dir(DB_ENV * env, const char *dir) {
@@ -2604,7 +2603,7 @@ static int toku_db_fd(DB *db, int *fdp) {
     return toku_brt_get_fd(db->i->brt, fdp);
 }
 
-static int toku_db_keyrange64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
+static int toku_db_key_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
     HANDLE_PANICKED_DB(db);
 
     // note that toku_brt_keyrange does not have a txn param
@@ -2616,6 +2615,21 @@ static int toku_db_keyrange64(DB* db, DB_TXN* txn __attribute__((__unused__)), D
     // temporarily set is_exact to 0 because brt_keyrange does not have this parameter
     *is_exact = 0;
 cleanup:
+    return r;
+}
+
+int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, DBT *key_left, DBT *val_left, DBT *key_right, DBT *val_right) {
+    HANDLE_PANICKED_DB(db);
+    if (!db->i->lt || !txn) return EINVAL;
+
+    DB_TXN* txn_anc = toku_txn_ancestor(txn);
+    int r;
+    if ((r=toku_txn_add_lt(txn_anc, db->i->lt))) return r;
+    TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+
+    r = toku_lt_acquire_range_read_lock(db->i->lt, db, id_anc,
+                                        key_left,  val_left,
+                                        key_right, val_right);
     return r;
 }
 
@@ -2702,6 +2716,13 @@ static int locked_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_
     toku_ydb_lock(); int r = autotxn_db_get(db, txn, key, data, flags); toku_ydb_unlock(); return r;
 }
 
+int locked_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, DBT *key_left, DBT *val_left, DBT *key_right, DBT *val_right) {
+    toku_ydb_lock();
+    int r = toku_db_pre_acquire_read_lock(db, txn, key_left, val_left, key_right, val_right);
+    toku_ydb_unlock();
+    return r;
+}
+
 static inline int autotxn_db_pget(DB* db, DB_TXN* txn, DBT* key, DBT* pkey,
                                   DBT* data, u_int32_t flags) {
     BOOL changed; int r;
@@ -2778,8 +2799,18 @@ static int locked_db_fd(DB *db, int *fdp) {
 }
 
 
-static int locked_db_keyrange64(DB* db, DB_TXN* txn, DBT* dbt, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
-    toku_ydb_lock(); int r = toku_db_keyrange64(db, txn, dbt, less, equal, greater, is_exact); toku_ydb_unlock(); return r;
+static int locked_db_key_range64(DB* db, DB_TXN* txn, DBT* dbt, u_int64_t* less, u_int64_t* equal, u_int64_t* greater, int* is_exact) {
+    toku_ydb_lock(); int r = toku_db_key_range64(db, txn, dbt, less, equal, greater, is_exact); toku_ydb_unlock(); return r;
+}
+
+static const DBT* toku_db_dbt_pos_infty(void) __attribute__((pure));
+static const DBT* toku_db_dbt_pos_infty(void) {
+    return toku_lt_infinity;
+}
+
+static const DBT* toku_db_dbt_neg_infty(void) __attribute__((pure));
+static const DBT* toku_db_dbt_neg_infty(void) {
+    return toku_lt_neg_infinity;
 }
 
 static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
@@ -2811,27 +2842,32 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         return ENOMEM;
     }
     memset(result, 0, sizeof *result);
-    result->key_range64 = locked_db_keyrange64;
     result->dbenv = env;
-    result->associate = locked_db_associate;
-    result->close = locked_db_close;
-    result->cursor = locked_db_cursor;
-    result->del = locked_db_del;
-    result->get = locked_db_get;
-    //    result->key_range = locked_db_key_range;
-    result->open = locked_db_open;
-    result->pget = locked_db_pget;
-    result->put = locked_db_put;
-    result->remove = locked_db_remove;
-    result->rename = locked_db_rename;
-    result->set_bt_compare = locked_db_set_bt_compare;
-    result->set_dup_compare = locked_db_set_dup_compare;
-    result->set_errfile = locked_db_set_errfile;
-    result->set_pagesize = locked_db_set_pagesize;
-    result->set_flags = locked_db_set_flags;
-    result->get_flags = locked_db_get_flags;
-    //    result->stat = locked_db_stat;
-    result->fd = locked_db_fd;
+#define SDB(name) result->name = locked_db_ ## name
+    SDB(key_range64);
+    SDB(associate);
+    SDB(close);
+    SDB(cursor);
+    SDB(del);
+    SDB(get);
+    //    SDB(key_range);
+    SDB(open);
+    SDB(pget);
+    SDB(put);
+    SDB(remove);
+    SDB(rename);
+    SDB(set_bt_compare);
+    SDB(set_dup_compare);
+    SDB(set_errfile);
+    SDB(set_pagesize);
+    SDB(set_flags);
+    SDB(get_flags);
+    //    SDB(stat);
+    SDB(fd);
+    SDB(pre_acquire_read_lock);
+#undef SDB
+    result->dbt_pos_infty = toku_db_dbt_pos_infty;
+    result->dbt_neg_infty = toku_db_dbt_neg_infty;
     MALLOC(result->i);
     if (result->i == 0) {
         toku_free(result);

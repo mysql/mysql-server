@@ -301,7 +301,11 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]), 0);
 
     assert(sizeof(db_fields32)==sizeof(db_fields64));
-    const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)"};
+    const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
+                         "int (*pre_acquire_read_lock)(DB*, DB_TXN*, DBT*, DBT*, DBT*, DBT*)",
+                         "const DBT* (*dbt_pos_infty)(void)",
+                         "const DBT* (*dbt_neg_infty)(void)",
+                         NULL};
     print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
 
     assert(sizeof(db_txn_active_fields32)==sizeof(db_txn_active_fields64));
