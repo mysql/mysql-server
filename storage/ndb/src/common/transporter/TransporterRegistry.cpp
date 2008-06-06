@@ -1821,14 +1821,14 @@ TransporterRegistry::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
   if (offset == page->m_bytes)
     return 0;
 
-  dst[0].iov_base = page->m_data + offset;
+  dst[0].iov_base = (char*)(page->m_data + offset);
   dst[0].iov_len = page->m_bytes - offset;
   Uint32 count = 1;
   page = page->m_next;
 
   while (page != NULL && count < max)
   {
-    dst[count].iov_base = page->m_data;
+    dst[count].iov_base = (char*)page->m_data;
     dst[count].iov_len = page->m_bytes;
     page = page->m_next;
     count++;
