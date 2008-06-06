@@ -2618,7 +2618,7 @@ cleanup:
     return r;
 }
 
-int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, DBT *key_left, DBT *val_left, DBT *key_right, DBT *val_right) {
+int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
 
@@ -2716,7 +2716,7 @@ static int locked_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_
     toku_ydb_lock(); int r = autotxn_db_get(db, txn, key, data, flags); toku_ydb_unlock(); return r;
 }
 
-int locked_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, DBT *key_left, DBT *val_left, DBT *key_right, DBT *val_right) {
+int locked_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
     toku_ydb_lock();
     int r = toku_db_pre_acquire_read_lock(db, txn, key_left, val_left, key_right, val_right);
     toku_ydb_unlock();
