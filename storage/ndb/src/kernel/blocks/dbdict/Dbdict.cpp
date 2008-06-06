@@ -363,6 +363,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
   case DictTabInfo::ReadOnlyConstraint:
   case DictTabInfo::IndexTrigger:
   case DictTabInfo::SchemaTransaction:
+  case DictTabInfo::ReorgTrigger:
     ndbrequire(false);
   }
   
