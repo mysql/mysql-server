@@ -3446,6 +3446,7 @@ buf_print(void)
 }
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
 UNIV_INTERN
@@ -3532,6 +3533,7 @@ buf_get_latched_pages_number(void)
 
 	return(fixed_pages_number);
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Returns the number of pending buf pool ios. */
