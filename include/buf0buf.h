@@ -530,12 +530,14 @@ buf_page_print(
 	const byte*	read_buf,	/* in: a database page */
 	ulint		zip_size);	/* in: compressed page size, or
 					0 for uncompressed pages */
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
 UNIV_INTERN
 ulint
 buf_get_latched_pages_number(void);
 /*==============================*/
+#endif /* UNIV_DEBUG */
 /*************************************************************************
 Returns the number of pending buf pool ios. */
 UNIV_INTERN
