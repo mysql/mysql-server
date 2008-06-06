@@ -187,7 +187,7 @@ struct __toku_db {
   char __toku_dummy1[8];
   void *app_private; /* 32-bit offset=20 size=4, 64=bit offset=32 size=8 */
   DB_ENV *dbenv; /* 32-bit offset=24 size=4, 64=bit offset=40 size=8 */
-  int (*pre_acquire_read_lock)(DB*, DB_TXN*, DBT*, DBT*, DBT*, DBT*);
+  int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*);
   void* __toku_dummy2[41];
   char __toku_dummy3[80];
   void *api_internal; /* 32-bit offset=276 size=4, 64=bit offset=464 size=8 */
