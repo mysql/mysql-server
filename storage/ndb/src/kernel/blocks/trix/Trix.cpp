@@ -1105,7 +1105,8 @@ Trix::execUTIL_RELEASE_CONF(Signal* signal){
 void Trix::checkParallelism(Signal* signal, SubscriptionRecord* subRec)
 {
   if ((subRec->pendingSubSyncContinueConf) &&
-      (subRec->expectedConf < subRec->parallelism)) {
+      (subRec->expectedConf == 1)) {
+    jam();
     SubSyncContinueConf  * subSyncContinueConf = 
       (SubSyncContinueConf *) signal->getDataPtrSend();
     subSyncContinueConf->subscriptionId = subRec->subscriptionId;
@@ -1114,6 +1115,7 @@ void Trix::checkParallelism(Signal* signal, SubscriptionRecord* subRec)
     sendSignal(SUMA_REF, GSN_SUB_SYNC_CONTINUE_CONF, signal, 
 	       SubSyncContinueConf::SignalLength , JBB);  
     subRec->pendingSubSyncContinueConf = false;
+    return;
   }
 }
 
