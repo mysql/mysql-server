@@ -20,7 +20,7 @@ struct omt_node {
     node_idx  left;   /* Index of left  subtree. */
     node_idx  right;  /* Index of right subtree. */
     OMTVALUE  value;  /* The value stored in the node. */
-};
+} __attribute__((__packed__));
 
 struct omt {
     node_idx   root;
