@@ -59,26 +59,32 @@ double gettime (void) {
 
 void scanscan (void) {
     int r;
-    long long totalbytes=0;
-    double prevtime = gettime();
     int counter=0;
-    while (1) {
+    for (counter=0; counter<2; counter++) {
+	long long totalbytes=0;
+	int rowcounter=0;
+	double prevtime = gettime();
 	DBT k,v;
 	memset(&k, 0, sizeof(k));
 	memset(&v, 0, sizeof(v));
-	r = dbc->c_get(dbc, &k, &v, DB_NEXT);
-	if (r==DB_NOTFOUND) {
-	    double thistime = gettime();
-	    double tdiff = thistime-prevtime;
-	    printf("Scan %lld bytes in %9.6fs at %9fMB/s\n", totalbytes, tdiff, 1e-6*totalbytes/tdiff);
-	    r = dbc->c_get(dbc, &k, &v, DB_FIRST);
-	    prevtime = thistime;
-	    totalbytes=0;
-	    counter++;
-	    if (counter>0) return;
+	r = dbc->c_get(dbc, &k, &v, DB_FIRST);
+	if (r!=DB_NOTFOUND) {
+	    totalbytes += k.size + v.size;
+	    rowcounter++;
+	    assert(r==0);
+	    while (1) {
+		r = dbc->c_get(dbc, &k, &v, DB_NEXT);
+		if (r==DB_NOTFOUND) {
+		    break;
+		}
+		assert(r==0);
+		totalbytes += k.size + v.size;
+		rowcounter++;
+	    }
 	}
-	assert(r==0);
-	totalbytes += k.size + v.size;
+	double thistime = gettime();
+	double tdiff = thistime-prevtime;
+	printf("Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
     }
 }
 
@@ -86,7 +92,6 @@ int main (int argc, char *argv[]) {
     argc=argc;
     argv=argv;
     setup();
-    scanscan();
     scanscan();
     shutdown();
     return 0;
