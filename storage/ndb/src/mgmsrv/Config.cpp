@@ -14,27 +14,22 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "Config.hpp"
-#include <ctype.h>
-#include <string.h>
 #include "MgmtErrorReporter.hpp"
-#include <Properties.hpp>
 
 //*****************************************************************************
 //  Ctor / Dtor
 //*****************************************************************************
 
-Config::Config() {
-  m_oldConfig = 0;
-  m_configValues = 0;
+Config::Config(struct ndb_mgm_configuration *config_values) :
+  m_configValues(config_values)
+{
 }
+
 
 Config::~Config() {
   if(m_configValues != 0){
     free(m_configValues);
   }
-
-  if(m_oldConfig != 0)
-    delete m_oldConfig;
 }
 
 /*****************************************************************************/

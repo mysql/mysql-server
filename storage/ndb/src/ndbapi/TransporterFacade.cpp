@@ -27,7 +27,6 @@
 #include <NdbSleep.h>
 
 #include "API.hpp"
-#include <ConfigRetriever.hpp>
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
 #include <NdbConfig.h>

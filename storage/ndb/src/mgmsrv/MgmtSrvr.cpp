@@ -24,8 +24,6 @@
 #include <NdbOut.hpp>
 #include <NdbApiSignal.hpp>
 #include <kernel_types.h>
-#include <RefConvert.hpp>
-#include <BlockNumbers.h>
 #include <GlobalSignalNumbers.h>
 #include <signaldata/TestOrd.hpp>
 #include <signaldata/TamperOrd.hpp>
@@ -37,7 +35,6 @@
 #include <signaldata/EventReport.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/BackupSignalData.hpp>
-#include <signaldata/ManagementServer.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/AllocNodeId.hpp>
@@ -310,17 +307,6 @@ int MgmtSrvr::translateStopRef(Uint32 errCode)
   return 4999;
 }
 
-int 
-MgmtSrvr::getNodeCount(enum ndb_mgm_node_type type) const 
-{
-  int count = 0;
-  NodeId nodeId = 0;
-
-  while (getNextNodeId(&nodeId, type)) {
-    count++;
-  }
-  return count;
-}
 
 int 
 MgmtSrvr::getPort() const
@@ -361,23 +347,13 @@ MgmtSrvr::getPort() const
   return port;
 }
 
-/* Constructor */
-int MgmtSrvr::init()
-{
-  if ( _ownNodeId > 0)
-    return 0;
-  return -1;
-}
 
 MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
 		   const char *config_filename,
 		   const char *connect_string) :
-  _blockNumber(1), // Hard coded block number since it makes it easy to send
-                   // signals to other management servers.
+  _blockNumber(-1),
   m_socket_server(socket_server),
   _ownReference(0),
-  theSignalIdleList(NULL),
-  theWaitState(WAIT_SUBSCRIBE_CONF),
   m_local_mgm_handle(0),
   m_event_listner(this),
   m_master_node(0)
@@ -395,11 +371,8 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
 
   theFacade = 0;
 
-  m_newConfig = NULL;
   if (config_filename)
     m_configFilename.assign(config_filename);
-
-  m_nextConfigGenerationNumber = 0;
 
   m_config_retriever= new ConfigRetriever(connect_string,
 					  NDB_VERSION, NDB_MGM_NODE_TYPE_MGM);
@@ -438,8 +411,6 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
       exit(-1);
     }
   }
-
-  theMgmtWaitForResponseCondPtr = NdbCondition_Create();
 
   m_configMutex = NdbMutex_Create();
 
@@ -481,7 +452,6 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
     }
   }
 
-  _props = NULL;
   BaseString error_string;
 
   if ((m_node_id_mutex = NdbMutex_Create()) == 0)
@@ -532,31 +502,13 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
 }
 
 
-//****************************************************************************
-//****************************************************************************
-bool 
-MgmtSrvr::check_start() 
-{
-  if (_config == 0) {
-    DEBUG("MgmtSrvr.cpp: _config is NULL.");
-    return false;
-  }
-
-  return true;
-}
-
 bool 
 MgmtSrvr::start(BaseString &error_string, const char * bindaddress)
 {
   int mgm_connect_result;
 
   DBUG_ENTER("MgmtSrvr::start");
-  if (_props == NULL) {
-    if (!check_start()) {
-      error_string.append("MgmtSrvr.cpp: check_start() failed.");
-      DBUG_RETURN(false);
-    }
-  }
+
   theFacade= new TransporterFacade(0);
   
   if(theFacade == 0) {
@@ -570,7 +522,7 @@ MgmtSrvr::start(BaseString &error_string, const char * bindaddress)
     DBUG_RETURN(false);
   }
 
-  MGM_REQUIRE(_blockNumber == 1);
+  assert(_blockNumber == -1);
 
   // Register ourself at TransporterFacade to be able to receive signals
   // and to be notified when a database process has died.
@@ -652,11 +604,7 @@ MgmtSrvr::~MgmtSrvr()
   stopEventLog();
 
   NdbMutex_Destroy(m_node_id_mutex);
-  NdbCondition_Destroy(theMgmtWaitForResponseCondPtr);
   NdbMutex_Destroy(m_configMutex);
-
-  if(m_newConfig != NULL)
-    free(m_newConfig);
 
   if(_config != NULL)
     delete _config;
@@ -1985,10 +1933,10 @@ const char* MgmtSrvr::getErrorText(int errorCode, char *buf, int buf_sz)
   return buf;
 }
 
-void 
+
+void
 MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
 {
-  // The way of handling a received signal is taken from the Ndb class.
   int gsn = signal->readSignalNumber();
 
   switch (gsn) {
@@ -2018,16 +1966,25 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
                          refToNode(signal->theSendersBlockRef),
                          refToBlock(signal->theSendersBlockRef));
   }
-
-  if (theWaitState == NO_WAIT) {
-    NdbCondition_Signal(theMgmtWaitForResponseCondPtr);
-  }
 }
+
+
+void
+MgmtSrvr::signalReceivedNotification(void* mgmtSrvr,
+                                     NdbApiSignal* signal,
+				     LinearSectionPtr ptr[3])
+{
+  ((MgmtSrvr*)mgmtSrvr)->handleReceivedSignal(signal);
+}
+
 
 void
 MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
 {
   DBUG_ENTER("MgmtSrvr::handleStatus");
+  DBUG_PRINT("enter",("nodeid: %d, alive: %d, nfComplete: %d",
+                      nodeId, alive, nfComplete));
+
   Uint32 theData[25];
   EventReport *rep = (EventReport *)theData;
 
@@ -2050,29 +2007,14 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
   DBUG_VOID_RETURN;
 }
 
-//****************************************************************************
-//****************************************************************************
 
-void 
-MgmtSrvr::signalReceivedNotification(void* mgmtSrvr, 
-                                     NdbApiSignal* signal,
-				     LinearSectionPtr ptr[3]) 
-{
-  ((MgmtSrvr*)mgmtSrvr)->handleReceivedSignal(signal);
-}
-
-
-//****************************************************************************
-//****************************************************************************
-void 
-MgmtSrvr::nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
+void
+MgmtSrvr::nodeStatusNotification(void* mgmSrv, Uint32 nodeId,
 				 bool alive, bool nfComplete)
 {
-  DBUG_ENTER("MgmtSrvr::nodeStatusNotification");
-  DBUG_PRINT("enter",("nodeid= %d, alive= %d, nfComplete= %d", nodeId, alive, nfComplete));
   ((MgmtSrvr*)mgmSrv)->handleStatus(nodeId, alive, nfComplete);
-  DBUG_VOID_RETURN;
 }
+
 
 enum ndb_mgm_node_type 
 MgmtSrvr::getNodeType(NodeId nodeId) const 
