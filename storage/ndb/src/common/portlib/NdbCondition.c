@@ -26,7 +26,51 @@ struct NdbCondition
   pthread_cond_t cond;
 };
 
+#ifdef HAVE_CLOCK_GETTIME
+static int clock_id = CLOCK_REALTIME;
+#endif
 
+void
+NdbCondition_Init()
+{
+#if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
+    defined CLOCK_MONOTONIC
+  
+  int res, init = 0;
+  pthread_cond_t tmp;
+  pthread_condattr_t attr;
+  if ((res = pthread_condattr_init(&attr)) != 0)
+    goto nogo;
+
+  init = 1;
+  
+  if ((res = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC)) != 0)
+    goto nogo;
+
+  if ((res = pthread_cond_init(&tmp, &attr)) != 0)
+    goto nogo;
+
+  pthread_condattr_destroy(&attr);
+  pthread_cond_destroy(&tmp);
+
+  clock_id = CLOCK_MONOTONIC;
+  
+  return;
+  
+nogo:
+  if (init)
+  {
+    pthread_condattr_destroy(&attr);
+  }
+  
+  clock_id = CLOCK_REALTIME;
+  fprintf(stderr, 
+          "Failed to use CLOCK_MONOTONIC for pthread_condition res: %u\n", 
+          res);
+  fflush(stderr);
+  return;
+#endif
+}
 
 struct NdbCondition* 
 NdbCondition_Create(void)
@@ -38,8 +82,24 @@ NdbCondition_Create(void)
   
   if (tmpCond == NULL)
     return NULL;
-  
+ 
+#if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
+    defined CLOCK_MONOTONIC
+  if (clock_id == CLOCK_MONOTONIC)
+  {
+    pthread_condattr_t attr;
+    pthread_condattr_init(&attr);
+    pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+    result = pthread_cond_init(&tmpCond->cond, &attr);
+    pthread_condattr_destroy(&attr);
+  }
+  else
+  {
+    result = pthread_cond_init(&tmpCond->cond, NULL);
+  }
+#else
   result = pthread_cond_init(&tmpCond->cond, NULL);
+#endif
   
   assert(result==0);
   return tmpCond;
@@ -73,7 +133,7 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
     return 1;
   
 #ifdef HAVE_CLOCK_GETTIME
-  clock_gettime(CLOCK_REALTIME, &abstime);
+  clock_gettime(clock_id, &abstime);
 #else
   {
     struct timeval tick_time;

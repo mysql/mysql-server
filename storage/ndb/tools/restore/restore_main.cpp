@@ -648,20 +648,20 @@ static void exitHandler(int code)
 
 static void init_progress()
 {
-  struct timeval the_time;
-  gettimeofday(&the_time, 0);
-  g_report_next = the_time.tv_sec + opt_progress_frequency;
+  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
+  g_report_next = now + opt_progress_frequency;
 }
 
 static int check_progress()
 {
   if (!opt_progress_frequency)
     return 0;
-  struct timeval the_time;
-  gettimeofday(&the_time, 0);
-  if (the_time.tv_sec >= g_report_next)
+
+  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
+  
+  if (now  >= g_report_next)
   {
-    g_report_next = the_time.tv_sec + opt_progress_frequency;
+    g_report_next = now + opt_progress_frequency;
     return 1;
   }
   return 0;
