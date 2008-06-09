@@ -11962,6 +11962,8 @@ void Dbdih::checkGcpStopLab(Signal* signal)
  */
 void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
 {
+  Uint32 save_counter = m_gcp_monitor.m_gcp_save.m_counter;
+  Uint32 micro_counter = m_gcp_monitor.m_micro_gcp.m_counter;
   m_gcp_monitor.m_gcp_save.m_counter = 0;
   m_gcp_monitor.m_micro_gcp.m_counter = 0;
 
@@ -11986,7 +11988,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
     return;
   }
 
-  if (m_gcp_monitor.m_gcp_save.m_counter == m_gcp_monitor.m_gcp_save.m_max_lag)
+  if (save_counter == m_gcp_monitor.m_gcp_save.m_max_lag)
   {
     switch(m_gcp_save.m_master.m_state){
     case GcpSave::GCP_SAVE_IDLE:
@@ -12050,7 +12052,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
     }
   }
 
-  if (m_gcp_monitor.m_micro_gcp.m_counter==m_gcp_monitor.m_micro_gcp.m_max_lag)
+  if (micro_counter == m_gcp_monitor.m_micro_gcp.m_max_lag)
   {
     switch(m_micro_gcp.m_master.m_state){
     case MicroGcp::M_GCP_IDLE:
