@@ -17,7 +17,6 @@
 #include <OutputStream.hpp>
 
 #include "MgmtSrvr.hpp"
-#include "SignalQueue.hpp"
 #include <InitConfigFileParser.hpp>
 #include <ConfigRetriever.hpp>
 #include <ndb_version.h>

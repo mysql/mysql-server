@@ -290,6 +290,7 @@ struct PurgeStruct
   NDB_TICKS tick;
 };
 
+extern int g_errorInsert;
 #define ERROR_INSERTED(x) (g_errorInsert == x || m_errorInsert == x)
 
 #define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}

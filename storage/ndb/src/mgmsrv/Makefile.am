@@ -23,11 +23,8 @@ ndbbin_PROGRAMS = ndb_mgmd
 
 ndb_mgmd_SOURCES = \
 	MgmtSrvr.cpp \
-	MgmtSrvrGeneralSignalHandling.cpp \
 	main.cpp \
 	Services.cpp \
-	convertStrToInt.cpp \
-	SignalQueue.cpp \
 	MgmtSrvrConfig.cpp \
 	ConfigInfo.cpp \
 	InitConfigFileParser.cpp \
