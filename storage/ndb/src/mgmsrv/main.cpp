@@ -24,7 +24,6 @@
 #include "Services.hpp"
 #include <version.h>
 #include <kernel_types.h>
-#include <Properties.hpp>
 #include <NdbOut.hpp>
 #include <NdbMain.h>
 #include <NdbDaemon.h>
@@ -237,9 +236,6 @@ start:
   if (g_print_full_config)
     goto the_end;
 
-  if (glob->mgmObject->init())
-    goto error_end;
-
   my_setwd(NdbConfig_get_path(0), MYF(0));
 
   glob->localNodeId= glob->mgmObject->getOwnNodeId();
@@ -276,12 +272,6 @@ start:
 	     "and if you are executing on the correct computer", 
              (_bind_address ? _bind_address : "*"), glob->port);
     delete mapi;
-    goto error_end;
-  }
-
-  if(!glob->mgmObject->check_start()){
-    ndbout_c("Unable to check start management server.");
-    ndbout_c("Probably caused by illegal initial configuration file.");
     goto error_end;
   }
 
