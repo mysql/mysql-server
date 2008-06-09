@@ -26,6 +26,8 @@ extern void destroy_event_logger(class EventLogger ** g_eventLogger);
 
 static int ndb_init_called = 0;
 
+extern "C" void NdbCondition_Init();
+
 extern "C"
 {
 
@@ -44,6 +46,8 @@ ndb_init_internal()
       exit(1);
     }
   }
+
+  NdbCondition_Init();
 }
 
 int
