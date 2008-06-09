@@ -215,7 +215,6 @@ InitConfigFileParser::run_config_rules(Context& ctx)
   
   Config * ret = new Config();
   ret->m_configValues = (struct ndb_mgm_configuration*)ctx.m_configValues.getConfigValues();
-  ret->m_oldConfig = ctx.m_config; ctx.m_config = 0;
   return ret;
 }
 

@@ -16,37 +16,20 @@
 #ifndef MgmtSrvr_H
 #define MgmtSrvr_H
 
-#include <kernel_types.h>
 #include "Config.hpp"
-#include <NdbCondition.h>
 #include <mgmapi.h>
 
-#include <NdbTCP.h>
 #include <ConfigRetriever.hpp>
 #include <Vector.hpp>
 #include <NodeBitmask.hpp>
-#include <signaldata/ManagementServer.hpp>
 #include <ndb_version.h>
 #include <EventLogger.hpp>
-#include <signaldata/EventSubscribeReq.hpp>
 
 #include <SignalSender.hpp>
 
-/**
- * @desc Block number for Management server.
- * @todo This should probably be somewhere else. I don't know where atm.
- */
-#define MGMSRV 1
-
 #define MGM_ERROR_MAX_INJECT_SESSION_ONLY 10000
 
-extern int g_errorInsert;
-
-class ConfigInfoServer;
-class NdbApiSignal;
-class Config;
 class SetLogLevelOrd;
-class SocketServer;
 
 class Ndb_mgmd_event_service : public EventLoggerBase 
 {
@@ -81,22 +64,11 @@ public:
   void unlock(){ m_clients.unlock(); }
 };
 
+
+
 /**
- * @class MgmtSrvr
- * @brief Main class for the management server. 
- *
- * It has one interface to be used by a local client. 
- * With the methods it's possible to send different kind of commands to 
- * DB processes, as log level, set trace number etc. 
- *
- * A MgmtSrvr creates a ConfigInfoServer which serves request on TCP sockets. 
- * The requests come typical from DB and API processes which want
- * to fetch its configuration parameters. The MgmtSrvr knows about the
- * configuration by reading a configuration file.
- *
- * The MgmtSrvr class corresponds in some ways to the Ndb class in API. 
- * It creates a TransporterFacade, receives signals and defines signals
- * to send and receive.
+  @class MgmtSrvr
+  @brief Main class for the management server.
  */
 class MgmtSrvr {
   
@@ -159,15 +131,8 @@ public:
   MgmtSrvr(SocketServer *socket_server,
 	   const char *config_filename,      /* Where to save config */
 	   const char *connect_string); 
-  int init();
   NodeId getOwnNodeId() const {return _ownNodeId;};
 
-  /**
-   *   Read (initial) config file, create TransporterFacade, 
-   *   define signals, create ConfigInfoServer.
-   *   @return true if succeeded, otherwise false
-   */
-  bool check_start(); // may be run before start to check that some things are ok
   bool start(BaseString &error_string, const char * bindaddress = 0);
 
   ~MgmtSrvr();
@@ -175,7 +140,7 @@ public:
   /**
    * Get status on a node.
    * address may point to a common area (e.g. from inet_addr)
-   * There is no gaurentee that it is preserved across calls.
+   * There is no guarentee that it is preserved across calls.
    * Copy the string if you are not going to use it immediately.
    */
   int status(int nodeId,
@@ -392,7 +357,7 @@ public:
   int dumpState(int processId, const char* args);
 
   /**
-   * Get next node id (node id gt that _nodeId)
+   * Get next node id (node id gt than _nodeId)
    *  of specified type and save it in _nodeId
    *
    *   @return false if none found
@@ -423,14 +388,6 @@ public:
   const Config * getConfig() const;
 
   /**
-   * Returns the node count for the specified node type.
-   *
-   *  @param type The node type.
-   *  @return The number of nodes of the specified type.
-   */
-  int getNodeCount(enum ndb_mgm_node_type type) const;
-
-  /**
    * Returns the port number.
    * @return port number.
    */
@@ -454,9 +411,7 @@ public:
 
   void updateStatus();
 
-  //**************************************************************************
 private:
-  //**************************************************************************
 
   int sendStopMgmd(NodeId nodeId,
                    bool abort,
@@ -505,84 +460,32 @@ private:
   BlockReference _ownReference; 
   NdbMutex *m_configMutex;
   const Config * _config;
-  Config * m_newConfig;
   BaseString m_configFilename;
-  Uint32 m_nextConfigGenerationNumber;
-  
+
   NodeBitmask m_reserved_nodes;
   struct in_addr m_connect_address[MAX_NODES];
 
-  //**************************************************************************
-  // Specific signal handling methods
-  //**************************************************************************
-
-  static void defineSignals(int blockNumber);
-  //**************************************************************************
-  // Description: Define all signals to be sent or received for a block
-  // Parameters:
-  //  blockNumber: The block number send/receive
-  // Returns: -
-  //**************************************************************************
-
   void handleReceivedSignal(NdbApiSignal* signal);
-  //**************************************************************************
-  // Description: This method is called from "another" thread when a signal
-  //  is received. If expect the received signal and succeed to handle it
-  //  we signal with a condition variable to the waiting
-  //  thread (receiveOptimisedResponse) that the signal has arrived.
-  // Parameters:
-  //  signal: The recieved signal
-  // Returns: -
-  //**************************************************************************
-
   void handleStatus(NodeId nodeId, bool alive, bool nfComplete);
-  //**************************************************************************
-  // Description: Handle the death of a process
-  // Parameters:
-  //  processId: Id of the dead process.
-  // Returns: -
-  //**************************************************************************
 
-  //**************************************************************************
-  // Specific signal handling data
-  //**************************************************************************
-
-
-  //**************************************************************************
-  //**************************************************************************
-  // General signal handling methods
-  // This functions are more or less copied from the Ndb class.
-
-  
   /**
-   * WaitSignalType defines states where each state define a set of signals
-   * we accept to receive. 
-   * The state is set after we have sent a signal.
-   * When a signal arrives we first check current state (handleReceivedSignal)
-   * to verify that we expect the arrived signal. 
-   * It's only then we are in state accepting the arrived signal 
-   * we handle the signal.
-   */
-  enum WaitSignalType { 
-    NO_WAIT,			// We don't expect to receive any signal
-    WAIT_SUBSCRIBE_CONF 	// Accept event subscription confirmation
-  };
-  
-  /**
-   *   This function is called from "outside" of MgmtSrvr
-   *   when a signal is sent to MgmtSrvr.
-   *   @param  mgmtSrvr: The MgmtSrvr object which shall recieve the signal.
-   *   @param  signal: The received signal.
+     Callback function installed into TransporterFacade, will be called
+     once for each new signal received to the MgmtSrvr.
+     @param  mgmtSrvr: The MgmtSrvr object which shall recieve the signal.
+     @param  signal: The received signal.
+     @param  ptr: The long part(s) of the signal
    */
   static void signalReceivedNotification(void* mgmtSrvr, 
 					 NdbApiSignal* signal, 
 					 struct LinearSectionPtr ptr[3]);
 
   /**
-   *   Called from "outside" of MgmtSrvr when a DB process has died.
-   *   @param  mgmtSrvr:   The MgmtSrvr object wreceiveOptimisedResponsehich 
-   *                       shall receive the notification.
-   *   @param  processId:  Id of the dead process.
+     Callback function installed into TransporterFacade, will be called
+     when status of a node changes.
+     @param  mgmtSrvr: The MgmtSrvr object which shall receive
+     the notification.
+     @param  processId: Id of the node whose status changed.
+     @param alive: true if the other node is alive
    */
   static void nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
 				     bool alive, bool nfCompleted);
@@ -592,26 +495,6 @@ private:
    */
   void eventReport(const Uint32 * theData, Uint32 len);
  
-
-  //**************************************************************************
-  //**************************************************************************
-  // General signal handling data
-
-  STATIC_CONST( WAIT_FOR_RESPONSE_TIMEOUT = 300000 ); // Milliseconds
-  // Max time to wait for a signal to arrive
-
-  NdbApiSignal* theSignalIdleList;
-  // List of unused signals
-  
-  Uint32 theWaitNode;
-  WaitSignalType theWaitState;
-  // State denoting a set of signals we accept to recieve.
-
-  NdbCondition* theMgmtWaitForResponseCondPtr; 
-  // Condition variable used when we wait for a signal to arrive/a 
-  // signal arrives.
-  // We wait in receiveOptimisedResponse and signal in handleReceivedSignal.
-
   NdbMgmHandle m_local_mgm_handle;
   char m_local_mgm_connect_string[20];
   class TransporterFacade * theFacade;
@@ -640,8 +523,6 @@ private:
   static void *logLevelThread_C(void *);
   void logLevelThreadRun();
   
-  Config *_props;
-
   ConfigRetriever *m_config_retriever;
 };
 
