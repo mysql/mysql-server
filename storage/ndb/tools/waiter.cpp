@@ -216,7 +216,7 @@ waitClusterStatus(const char* _addr,
   bool allInState = false;
 
   Uint64 time_now = NdbTick_CurrentMillisecond();
-  Int64 timeout_time = time_now + 1000 * _timeout;
+  Uint64 timeout_time = time_now + 1000 * _timeout;
 
   while (allInState == false){
     if (_timeout > 0 && time_now > timeout_time){
