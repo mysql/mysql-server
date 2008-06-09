@@ -2553,10 +2553,12 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
 //
 int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
+    int error; 
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
-    TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT), buf, active_index, &row, &last_key, 1));
+    error = read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT), buf, active_index, &row, &last_key, 1);
+    TOKUDB_DBUG_RETURN(error);
 }
 
 //
@@ -2602,10 +2604,12 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
 //
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
+    int error;
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_prev_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
-    TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV), buf, active_index, &row, &last_key, 1));
+    error = read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV), buf, active_index, &row, &last_key, 1);
+    TOKUDB_DBUG_RETURN(error);
 }
 
 //
@@ -2619,10 +2623,12 @@ int ha_tokudb::index_prev(uchar * buf) {
 //
 int ha_tokudb::index_first(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_first");
+    int error;
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_first_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
-    TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_FIRST), buf, active_index, &row, &last_key, 1));
+    error = read_row(cursor->c_get(cursor, &last_key, &row, DB_FIRST), buf, active_index, &row, &last_key, 1);
+    TOKUDB_DBUG_RETURN(error);
 }
 
 //
@@ -2636,10 +2642,12 @@ int ha_tokudb::index_first(uchar * buf) {
 //
 int ha_tokudb::index_last(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_last");
+    int error;
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_last_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
-    TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_LAST), buf, active_index, &row, &last_key, 1));
+    error = read_row(cursor->c_get(cursor, &last_key, &row, DB_LAST), buf, active_index, &row, &last_key, 1);
+    TOKUDB_DBUG_RETURN(error);
 }
 
 //
@@ -2683,6 +2691,7 @@ int ha_tokudb::rnd_end() {
 //
 int ha_tokudb::rnd_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
+    int error;
     DBT row;
     //
     // The reason we do not just call index_next is that index_next 
@@ -2691,7 +2700,8 @@ int ha_tokudb::rnd_next(uchar * buf) {
     statistic_increment(table->in_use->status_var.ha_read_rnd_next_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
     DBUG_DUMP("last_key", (uchar *) last_key.data, last_key.size);
-    TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT), buf, primary_key, &row, &last_key, 1));
+    error = read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT), buf, primary_key, &row, &last_key, 1);
+    TOKUDB_DBUG_RETURN(error);
 }
 
 
