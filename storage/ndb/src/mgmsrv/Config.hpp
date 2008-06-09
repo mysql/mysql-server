@@ -16,16 +16,9 @@
 #ifndef Config_H
 #define Config_H
 
-#include <LogLevel.hpp>
+#include "ConfigInfo.hpp"
+#include <mgmapi_configuration.hpp>
 
-#include <kernel_types.h>
-
-#include <NdbOut.hpp>
-#include <ndb_limits.h>
-#include <Properties.hpp>
-#include <ConfigInfo.hpp>
-
-class ConfigInfo;
 
 /**
  * @class Config
@@ -44,10 +37,7 @@ class ConfigInfo;
 
 class Config {
 public:
-  /**
-   *   Constructor which loads the object with an Properties object
-   */
-  Config();
+  Config(struct ndb_mgm_configuration *config_values = NULL);
   virtual ~Config();
 
   /**
@@ -74,7 +64,6 @@ private:
    *   Information about parameters (min, max values etc)
    */
 public:
-  Properties * m_oldConfig;
   struct ndb_mgm_configuration * m_configValues;
 };
 
