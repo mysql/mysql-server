@@ -218,19 +218,20 @@ ndb_mgm_set_name(NdbMgmHandle handle, const char *name)
 
 extern "C"
 int
-ndb_mgm_set_connectstring(NdbMgmHandle handle, const char * mgmsrv)
+ndb_mgm_set_connectstring(NdbMgmHandle handle, const char* connect_string)
 {
   DBUG_ENTER("ndb_mgm_set_connectstring");
   DBUG_PRINT("info", ("handle: 0x%lx", (long) handle));
   handle->cfg.~LocalConfig();
   new (&(handle->cfg)) LocalConfig;
-  if (!handle->cfg.init(mgmsrv, 0) ||
+  if (!handle->cfg.init(connect_string, 0) ||
       handle->cfg.ids.size() == 0)
   {
     handle->cfg.~LocalConfig();
     new (&(handle->cfg)) LocalConfig;
     handle->cfg.init(0, 0); /* reset the LocalConfig */
-    SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, mgmsrv ? mgmsrv : "");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING,
+              connect_string ? connect_string : "");
     DBUG_RETURN(-1);
   }
   handle->cfg_i= -1;
