@@ -1877,7 +1877,8 @@ buf_page_get_gen(
 	      || mode == BUF_GET_NOWAIT
 	      || mode == BUF_GET_IF_IN_POOL_OR_WATCH);
 
-	ut_ad(zip_size == fil_space_get_zip_size(space));
+	/* zip_size can be zero if called from ibuf. */
+	ut_ad(zip_size == 0 || zip_size == fil_space_get_zip_size(space));
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, mtr));
 #endif
