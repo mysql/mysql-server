@@ -89,9 +89,11 @@ ConfigRetriever::~ConfigRetriever()
 {
   DBUG_ENTER("ConfigRetriever::~ConfigRetriever");
   if (m_handle) {
-    if(m_end_session)
-      ndb_mgm_end_session(m_handle);
-    ndb_mgm_disconnect(m_handle);
+    if (ndb_mgm_is_connected(m_handle)) {
+      if(m_end_session)
+        ndb_mgm_end_session(m_handle);
+      ndb_mgm_disconnect(m_handle);
+    }
     ndb_mgm_destroy_handle(&m_handle);
   }
   DBUG_VOID_RETURN;
