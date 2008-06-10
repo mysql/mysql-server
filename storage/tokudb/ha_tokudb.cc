@@ -722,14 +722,6 @@ const char **ha_tokudb::bas_ext() const {
 ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_flags");
     ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
-    for (uint i = all_parts ? 0 : part; i <= part; i++) {
-        KEY_PART_INFO *key_part = table_share->key_info[idx].key_part + i;
-        if (key_part->field->type() == FIELD_TYPE_BLOB) {
-            /* We can't use BLOBS to shortcut sorts */
-            flags &= ~(HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
-            break;
-        }
-    }
     DBUG_RETURN(flags);
 }
 
