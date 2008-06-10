@@ -89,6 +89,9 @@ static int toku_db_cursor(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int is
 
 /* txn methods */
 
+/* lightweight cursor methods. */
+static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra);
+
 /* cursor methods */
 static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag);
 static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag);
@@ -1662,6 +1665,22 @@ static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
     return r;
 }
 
+static int locked_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
+    return toku_c_getf_next(c, flag, f, extra); // flags are grabbed inside.
+}
+
+static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
+    DBT key,val;
+    memset(&key, 0, sizeof(key));
+    memset(&val, 0, sizeof(val));
+    flag &= ~DB_PRELOCKED; // Get rid of the prelock flag, because c_get doesn't know about it.
+    assert(flag==0);
+    int r = c->c_get(c, &key, &val, DB_NEXT);
+    if (r==0) f(&key, &val, extra);
+    return r;
+}
+
+
 static int toku_c_close(DBC * c) {
     int r = toku_brt_cursor_close(c->i->c);
     toku_free(c->i);
@@ -1967,6 +1986,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
     result->c_close = locked_c_close;
     result->c_del = locked_c_del;
     result->c_count = locked_c_count;
+    result->c_getf_next = locked_c_getf_next; // Don't need loc
     MALLOC(result->i);
     assert(result->i);
     result->dbp = db;

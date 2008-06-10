@@ -5,12 +5,12 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 DB_ENV *env;
 DB *db;
 DB_TXN *tid=0;
-DBC *dbc;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
@@ -33,12 +33,10 @@ void setup (void) {
     r = env->txn_begin(env, 0, &tid, 0);                        assert(r==0);
 #endif
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, 0644); assert(r==0);
-    r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
 }
 
 void shutdown (void) {
     int r;
-    r = dbc->c_close(dbc);                                      assert(r==0);
     r = db->close(db, 0);                                       assert(r==0);
 #ifdef TXNS
     r = tid->commit(tid, 0);                                    assert(r==0);
@@ -65,34 +63,136 @@ void scanscan (void) {
 	int rowcounter=0;
 	double prevtime = gettime();
 	DBT k,v;
+	DBC *dbc;
+	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
 	memset(&k, 0, sizeof(k));
 	memset(&v, 0, sizeof(v));
-	r = dbc->c_get(dbc, &k, &v, DB_FIRST);
-	if (r!=DB_NOTFOUND) {
+	while (0 == (r = dbc->c_get(dbc, &k, &v, DB_NEXT))) {
 	    totalbytes += k.size + v.size;
 	    rowcounter++;
-	    assert(r==0);
-	    while (1) {
-		r = dbc->c_get(dbc, &k, &v, DB_NEXT);
-		if (r==DB_NOTFOUND) {
-		    break;
-		}
-		assert(r==0);
-		totalbytes += k.size + v.size;
-		rowcounter++;
-	    }
 	}
+	r = dbc->c_close(dbc);                                      assert(r==0);
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
-	printf("Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
+	printf("Scan    %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
     }
 }
 
-int main (int argc, char *argv[]) {
-    argc=argc;
-    argv=argv;
-    setup();
-    scanscan();
-    shutdown();
+struct extra_count {
+    long long totalbytes;
+    int rowcounter;
+};
+void counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
+    struct extra_count *e=extrav;
+    e->totalbytes += key->size + data->size;
+    e->rowcounter++;
+}
+
+void scanscan_lwc (void) {
+    int r;
+    int counter=0;
+    for (counter=0; counter<2; counter++) {
+	struct extra_count e = {0,0};
+	double prevtime = gettime();
+	DBC *dbc;
+	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
+	while (0 == (r = dbc->c_getf_next(dbc, 0, counttotalbytes, &e)));
+	r = dbc->c_close(dbc);                                      assert(r==0);
+	double thistime = gettime();
+	double tdiff = thistime-prevtime;
+	printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
+    }
+}
+
+struct extra_verify {
+    long long totalbytes;
+    int rowcounter;
+    DBT k,v; // the k and v are gotten using the old cursor
+};
+void checkbytes (DBT const *key, DBT const *data, void *extrav) {
+    struct extra_verify *e=extrav;
+    e->totalbytes += key->size + data->size;
+    e->rowcounter++;
+    assert(e->k.size == key->size);
+    assert(e->v.size == data->size);
+    assert(memcmp(e->k.data, key->data,  key->size)==0);
+    assert(memcmp(e->v.data, data->data, data->size)==0);
+    assert(e->k.data != key->data);
+    assert(e->v.data != data->data);
+}
+    
+
+void scanscan_verify (void) {
+    int r;
+    int counter=0;
+    for (counter=0; counter<2; counter++) {
+	struct extra_verify v;
+	v.totalbytes=0;
+	v.rowcounter=0;
+	double prevtime = gettime();
+	DBC *dbc1, *dbc2;
+	r = db->cursor(db, tid, &dbc1, 0);                           assert(r==0);
+	r = db->cursor(db, tid, &dbc2, 0);                           assert(r==0);
+	memset(&v.k, 0, sizeof(v.k));
+	memset(&v.v, 0, sizeof(v.v));
+	while (1) {
+	    int r1,r2;
+	    r2 = dbc1->c_get(dbc1, &v.k, &v.v, DB_NEXT);
+	    r1 = dbc2->c_getf_next(dbc2, 0, checkbytes, &v);
+	    assert(r1==r2);
+	    if (r1) break;
+	}
+	r = dbc1->c_close(dbc1);                                      assert(r==0);
+	r = dbc2->c_close(dbc2);                                      assert(r==0);
+	double thistime = gettime();
+	double tdiff = thistime-prevtime;
+	printf("verify   %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", v.totalbytes, v.rowcounter, tdiff, 1e-6*v.totalbytes/tdiff);
+    }
+}
+
+
+const char *pname;
+int verify_lwc=0, lwc=0, hwc=1;
+
+
+void parse_args (int argc, const char *argv[]) {
+    pname=argv[0];
+    argc--;
+    argv++;
+    while (argc>0) {
+	if (strcmp(*argv,"--verify-lwc")==0) verify_lwc=1;
+	else if (strcmp(*argv, "--lwc")==0)  lwc=1;
+	else if (strcmp(*argv, "--nohwc")==0) hwc=0;
+	else {
+	    printf("Usage:\n%s [--verify-lwc] [--lwc] [--nohwc]\n", pname);
+	    exit(1);
+	}
+	argc--;
+	argv++;
+    }
+}
+
+int main (int argc, const char *argv[]) {
+
+    parse_args(argc,argv);
+
+    if (hwc) {
+	setup();
+	scanscan();
+	shutdown();
+    }
+
+    if (lwc) {
+	setup();
+	scanscan_lwc();
+	shutdown();
+    }
+
+    if (verify_lwc) {
+	setup();
+	scanscan_verify();
+	shutdown();
+    }
+
     return 0;
 }

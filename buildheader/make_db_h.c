@@ -111,6 +111,7 @@ void print_defines (void) {
     dodefine(DB_SET_RANGE);
     printf("#define DB_CURRENT_BINDING 253\n"); // private tokudb
     dodefine(DB_RMW);
+    printf("#define DB_PRELOCKED 0x00800000\n"); // private tokudb
 
     dodefine(DB_DBT_APPMALLOC);
 #ifdef DB_DBT_MULTIPLE
@@ -301,12 +302,14 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     print_struct("db_lsn", 0, db_lsn_fields32, db_lsn_fields64, sizeof(db_lsn_fields32)/sizeof(db_lsn_fields32[0]), 0);
 
     assert(sizeof(db_fields32)==sizeof(db_fields64));
-    const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
-                         "int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*)",
-                         "const DBT* (*dbt_pos_infty)(void)",
-                         "const DBT* (*dbt_neg_infty)(void)",
-                         NULL};
-    print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
+    {
+	const char *extra[]={"int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact)",
+			     "int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*)",
+			     "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",
+			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
+			     NULL};
+	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
+    }
 
     assert(sizeof(db_txn_active_fields32)==sizeof(db_txn_active_fields64));
     print_struct("db_txn_active", 0, db_txn_active_fields32, db_txn_active_fields64, sizeof(db_txn_active_fields32)/sizeof(db_txn_active_fields32[0]), 0);
@@ -316,8 +319,20 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     assert(sizeof(db_txn_stat_fields32)==sizeof(db_txn_stat_fields64));
     print_struct("db_txn_stat", 0, db_txn_stat_fields32, db_txn_stat_fields64, sizeof(db_txn_stat_fields32)/sizeof(db_txn_stat_fields32[0]), 0);
 
-    assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
-    print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), 0);
+    {
+	const char *extra[]={"int (*c_getf_next)(DBC *, u_int32_t, void(*)(DBT const *, DBT  const *, void *), void *)",
+			     "int (*c_getf_next_dup)(DBC *, u_int32_t, void(*)(DBT  const *, DBT const *, void *), void *)",
+			     "int (*c_getf_next_no_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
+			     "int (*c_getf_prev)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
+			     "int (*c_getf_prev_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
+			     "int (*c_getf_prev_no_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
+			     "int (*c_getf_current)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
+			     "int (*c_getf_first)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
+			     "int (*c_getf_last)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
+			     NULL};
+	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
+	print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);
+    }
 
     assert(sizeof(dbt_fields32)==sizeof(dbt_fields64));
     print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]), 0);
