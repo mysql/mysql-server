@@ -112,7 +112,13 @@ static int run_test(const char *filename)
   uchar read_record[MAX_REC_LENGTH];
   int upd= 10;
   ha_rows hrows;
-  
+
+  bzero(&uniquedef, sizeof(uniquedef));
+  bzero(&create_info, sizeof(create_info));
+  bzero(recinfo, sizeof(recinfo));
+  bzero(keyinfo, sizeof(keyinfo));
+  bzero(keyseg, sizeof(keyseg));
+
   /* Define a column for NULLs and DEL markers*/
   
   recinfo[0].type=FIELD_NORMAL;
@@ -147,7 +153,6 @@ static int run_test(const char *filename)
   if (!silent)
     printf("- Creating isam-file\n");
   
-  bzero((char*) &create_info,sizeof(create_info));
   create_info.max_rows=10000000;
   
   if (mi_create(filename,
