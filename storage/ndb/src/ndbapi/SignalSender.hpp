@@ -43,7 +43,7 @@ private:
 
 class SignalSender {
 public:
-  SignalSender(TransporterFacade *facade);
+  SignalSender(TransporterFacade *facade, int blockNo = -1);
   virtual ~SignalSender();
   
   int lock();
