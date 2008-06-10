@@ -8,6 +8,29 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+const char *pname;
+int verify_lwc=0, lwc=0, hwc=1, prelock=0;
+
+
+void parse_args (int argc, const char *argv[]) {
+    pname=argv[0];
+    argc--;
+    argv++;
+    while (argc>0) {
+	if (strcmp(*argv,"--verify-lwc")==0) verify_lwc=1;
+	else if (strcmp(*argv, "--lwc")==0)  lwc=1;
+	else if (strcmp(*argv, "--nohwc")==0) hwc=0;
+	else if (strcmp(*argv, "--prelock")==0) prelock=1;
+	else {
+	    printf("Usage:\n%s [--verify-lwc] [--lwc] [--nohwc]\n", pname);
+	    exit(1);
+	}
+	argc--;
+	argv++;
+    }
+}
+
+
 DB_ENV *env;
 DB *db;
 DB_TXN *tid=0;
@@ -33,6 +56,13 @@ void setup (void) {
     r = env->txn_begin(env, 0, &tid, 0);                        assert(r==0);
 #endif
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, 0644); assert(r==0);
+    if (prelock) {
+	r = db->pre_acquire_read_lock(db,
+				      tid,
+				      db->dbt_neg_infty(), db->dbt_neg_infty(),
+				      db->dbt_pos_infty(), db->dbt_pos_infty());
+	assert(r==0);
+    }
 }
 
 void shutdown (void) {
@@ -150,27 +180,6 @@ void scanscan_verify (void) {
     }
 }
 
-
-const char *pname;
-int verify_lwc=0, lwc=0, hwc=1;
-
-
-void parse_args (int argc, const char *argv[]) {
-    pname=argv[0];
-    argc--;
-    argv++;
-    while (argc>0) {
-	if (strcmp(*argv,"--verify-lwc")==0) verify_lwc=1;
-	else if (strcmp(*argv, "--lwc")==0)  lwc=1;
-	else if (strcmp(*argv, "--nohwc")==0) hwc=0;
-	else {
-	    printf("Usage:\n%s [--verify-lwc] [--lwc] [--nohwc]\n", pname);
-	    exit(1);
-	}
-	argc--;
-	argv++;
-    }
-}
 
 int main (int argc, const char *argv[]) {
 
