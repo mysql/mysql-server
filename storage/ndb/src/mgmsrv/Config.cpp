@@ -14,7 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "Config.hpp"
-#include "MgmtErrorReporter.hpp"
 
 //*****************************************************************************
 //  Ctor / Dtor
@@ -38,6 +37,7 @@ void
 Config::printAllNameValuePairs(NdbOut &out,
 			       const Properties *prop,
 			       const char* s) const {
+#if 0
   Properties::Iterator it(prop);
   const Properties * section = m_info.getInfo(s);
   for (const char* n = it.first(); n != NULL; n = it.next()) {
@@ -85,6 +85,7 @@ Config::printAllNameValuePairs(NdbOut &out,
     }      
     out << endl;
   }
+#endif
 }
 
 /*****************************************************************************/
