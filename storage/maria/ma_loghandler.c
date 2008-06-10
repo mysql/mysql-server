@@ -137,9 +137,7 @@ struct st_translog_buffer
     content of page which present in both buffers)
   */
   struct st_translog_buffer *overlay;
-#ifndef DBUG_OFF
   uint buffer_no;
-#endif
   /*
     Lock for the buffer.
 
@@ -3494,9 +3492,7 @@ my_bool translog_init_with_table(const char *directory,
   {
     if (translog_buffer_init(log_descriptor.buffers + i))
       goto err;
-#ifndef DBUG_OFF
     log_descriptor.buffers[i].buffer_no= (uint8) i;
-#endif
     DBUG_PRINT("info", ("translog_buffer buffer #%u: 0x%lx",
                         i, (ulong) log_descriptor.buffers + i));
   }
