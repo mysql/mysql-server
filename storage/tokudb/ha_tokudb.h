@@ -116,7 +116,15 @@ private:
     uint version;
     bool key_read, using_ignore;
 
+    //
+    // After a cursor encounters an error, the cursor will be unusable
+    // In case MySQL attempts to do a cursor operation (such as rnd_next
+    // or index_prev), we will gracefully return this error instead of crashing
+    //
+    int last_cursor_error;
+
     PRIM_KEY_PART_INFO* primary_key_offsets;
+
     bool fix_rec_buff_for_blob(ulong length);
 #define TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH 5 // QQQ why 5?
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
