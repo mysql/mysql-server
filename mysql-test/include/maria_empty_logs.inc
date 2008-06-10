@@ -4,6 +4,9 @@
 # API: set mel_keep_control_file=1 if want to keep control file;
 # uses vardir, port and socket.
 
+connection default;
+let $default_db=`select database()`;
+
 connection admin;
 
 -- echo * shut down mysqld, removed logs, restarted it
@@ -71,4 +74,4 @@ EOF
 connection default;
 # the effect of "use" is lost after a restart so we are back into db "test",
 # because connection 'default' was created with db "test".
-use mysqltest;
+eval use $default_db;

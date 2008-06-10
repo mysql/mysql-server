@@ -384,7 +384,7 @@
    fun:calloc
    fun:_dlerror_run
    fun:dlclose
-   fun:plugin_dl_del
+   fun:plugin_dl_del(st_mysql_lex_string const*)
 }
 
 {

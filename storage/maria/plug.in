@@ -1,5 +1,5 @@
 MYSQL_STORAGE_ENGINE(maria,, [Maria Storage Engine],
-        [Crash-safe tables with MyISAM heritage], [max,max-no-ndb])
+        [Crash-safe tables with MyISAM heritage], [default,max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(maria,  [storage/maria])
 MYSQL_PLUGIN_STATIC(maria,     [libmaria.a])
 # Maria will probably go first into max builds, not all builds,
