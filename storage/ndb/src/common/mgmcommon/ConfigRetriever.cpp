@@ -24,7 +24,6 @@
 
 #include <NdbTCP.h>
 #include <NdbEnv.h>
-#include "MgmtErrorReporter.hpp"
 
 #include <uucode.h>
 #include <Properties.hpp>

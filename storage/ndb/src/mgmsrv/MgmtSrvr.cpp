@@ -17,7 +17,6 @@
 #include <my_pthread.h>
 
 #include "MgmtSrvr.hpp"
-#include "MgmtErrorReporter.hpp"
 #include "ndb_mgmd_error.h"
 #include <ConfigRetriever.hpp>
 
@@ -433,7 +432,7 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
       if(iter.get(CFG_NODE_ID, &id) != 0)
 	continue;
       
-      MGM_REQUIRE(id < MAX_NODES);
+      assert(id < MAX_NODES);
       
       switch(type){
       case NODE_TYPE_DB:
