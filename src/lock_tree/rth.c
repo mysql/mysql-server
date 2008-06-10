@@ -61,7 +61,7 @@ cleanup:
     return r;
 }
 
-toku_rt_forest* toku_rth_find(toku_rth* rth, TXNID key) {
+rt_forest* toku_rth_find(toku_rth* rth, TXNID key) {
     assert(rth);
 
     u_int32_t index          = toku__rth_hash(rth, key);
@@ -89,7 +89,7 @@ static inline toku_rth_elt* toku__rth_next(toku_rth* rth) {
     return rth->iter_curr;
 }
 
-toku_rt_forest* toku_rth_next(toku_rth* rth) {
+rt_forest* toku_rth_next(toku_rth* rth) {
     assert(rth);
     toku_rth_elt* next = toku__rth_next(rth);
     return rth->iter_curr != &rth->iter_head ? &next->value : NULL;

@@ -16,8 +16,8 @@
 #include <brttypes.h>
 #include <rangetree.h>
 
-typedef struct __toku_rt_forest toku_rt_forest;
-struct __toku_rt_forest {
+typedef struct __rt_forest rt_forest;
+struct __rt_forest {
     TXNID          hash_key;
     toku_range_tree* self_read;
     toku_range_tree* self_write;
@@ -25,7 +25,7 @@ struct __toku_rt_forest {
 
 typedef struct __toku_rth_elt toku_rth_elt;
 struct __toku_rth_elt {
-    toku_rt_forest  value;
+    rt_forest  value;
     toku_rth_elt*   next_in_bucket;
     toku_rth_elt*   next_in_iteration;
     toku_rth_elt*   prev_in_iteration;
@@ -52,11 +52,11 @@ int  toku_rth_create(toku_rth** ptable,
                      void  (*user_free)   (void*),
                      void* (*user_realloc)(void*, size_t));
 
-toku_rt_forest* toku_rth_find       (toku_rth* table, TXNID key);
+rt_forest* toku_rth_find       (toku_rth* table, TXNID key);
 
 void            toku_rth_start_scan (toku_rth* table);
 
-toku_rt_forest* toku_rth_next       (toku_rth* table);
+rt_forest* toku_rth_next       (toku_rth* table);
 
 void            toku_rth_delete     (toku_rth* table, TXNID key);
 
