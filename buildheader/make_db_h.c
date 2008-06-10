@@ -112,6 +112,7 @@ void print_defines (void) {
     printf("#define DB_CURRENT_BINDING 253\n"); // private tokudb
     dodefine(DB_RMW);
     printf("#define DB_PRELOCKED 0x00800000\n"); // private tokudb
+    printf("#define DB_PRELOCKED_WRITE 0x00400000\n"); // private tokudb
 
     dodefine(DB_DBT_APPMALLOC);
 #ifdef DB_DBT_MULTIPLE
