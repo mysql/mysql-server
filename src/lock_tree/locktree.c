@@ -374,7 +374,7 @@ static inline int toku__p_makecopy(toku_lock_tree* tree, toku_point** ppoint) {
    Returns NULL if it does not exist yet. */
 toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn) {
     assert(tree);
-    toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
+    rt_forest* forest = toku_rth_find(tree->rth, txn);
     return forest ? forest->self_read : NULL;
 }
 
@@ -383,7 +383,7 @@ toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn) {
 toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree,
                                              TXNID txn) {
     assert(tree);
-    toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
+    rt_forest* forest = toku_rth_find(tree->rth, txn);
     return forest ? forest->self_write : NULL;
 }
 
@@ -409,7 +409,7 @@ static inline int toku__lt_selfread(toku_lock_tree* tree, TXNID txn,
     int r = ENOSYS;
     assert(tree && pselfread);
 
-    toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
+    rt_forest* forest = toku_rth_find(tree->rth, txn);
     if (!forest) {
         /* Neither selfread nor selfwrite exist. */
         r = toku__lt_add_locked_txn(tree, txn);
@@ -438,7 +438,7 @@ static inline int toku__lt_selfwrite(toku_lock_tree* tree, TXNID txn,
     int r = ENOSYS;
     assert(tree && pselfwrite);
 
-    toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
+    rt_forest* forest = toku_rth_find(tree->rth, txn);
     if (!forest) {
         /* Neither selfread nor selfwrite exist. */
         r = toku__lt_add_locked_txn(tree, txn);
@@ -1346,7 +1346,7 @@ int toku_lt_close(toku_lock_tree* tree) {
     if (!first_error && r!=0) { first_error = r; }
 
     toku_rth_start_scan(tree->rth);
-    toku_rt_forest* forest;
+    rt_forest* forest;
     
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
         r = toku__lt_free_contents(tree, forest->self_read,  NULL);
@@ -1438,7 +1438,7 @@ static inline int toku__lt_write_range_conflicts_reads(toku_lock_tree* tree,
     int r    = 0;
     BOOL met = FALSE;
     toku_rth_start_scan(tree->rth);
-    toku_rt_forest* forest;
+    rt_forest* forest;
     
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
         if (forest->self_read != NULL && toku__lt_txn_cmp(forest->hash_key, txn)) {
@@ -1628,7 +1628,7 @@ static inline int toku__lt_do_escalation(toku_lock_tree* tree) {
     r = toku__lt_escalate_write_locks(tree);
     if (r!=0) { goto cleanup; }
 
-    toku_rt_forest* forest;    
+    rt_forest* forest;    
     toku_rth_start_scan(tree->rth);
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
         if (forest->self_read) {
@@ -2006,7 +2006,7 @@ static inline int toku__lt_border_delete(toku_lock_tree* tree, toku_range_tree* 
 static inline int toku__lt_defer_unlocking_txn(toku_lock_tree* tree, TXNID txnid) {
     int r = ENOSYS;
 
-    toku_rt_forest* forest = toku_rth_find(tree->txns_to_unlock, txnid);
+    rt_forest* forest = toku_rth_find(tree->txns_to_unlock, txnid);
     /* Should not be unlocking a transaction twice. */
     assert(!forest);
     r = toku_rth_insert(tree->txns_to_unlock, txnid);
@@ -2057,7 +2057,7 @@ static inline int toku__lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
 static inline int toku__lt_unlock_deferred_txns(toku_lock_tree* tree) {
     int r = ENOSYS;
     toku_rth_start_scan(tree->txns_to_unlock);
-    toku_rt_forest* forest = NULL;
+    rt_forest* forest = NULL;
     while ((forest = toku_rth_next(tree->txns_to_unlock)) != NULL) {
         /* This can only fail with a panic so it is fine to quit immediately. */
         r = toku__lt_unlock_txn(tree, forest->hash_key);
@@ -2078,7 +2078,7 @@ static inline void toku__lt_clear(toku_lock_tree* tree) {
     toku_rt_clear(tree->borderwrite);
 
     toku_rth_start_scan(tree->rth);
-    toku_rt_forest* forest;
+    rt_forest* forest;
     u_int32_t ranges = 0;
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
         u_int32_t size;

@@ -35,7 +35,7 @@ int main(int argc, const char *argv[]) {
         r = toku_rth_insert(rth, (TXNID)i);
         CKERR(r);
     }
-    toku_rt_forest* f;
+    rt_forest* f;
     for (i = 1; i < iterations; i++) {
         f = toku_rth_find(rth, (TXNID)i);
         assert(f);
