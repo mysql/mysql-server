@@ -388,7 +388,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
      return;
   } else {
     ; // Ignore all other block numbers.
-    if(header->theVerId_signalNumber!=3) {
+    if(header->theVerId_signalNumber != GSN_API_REGREQ) {
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
       ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
 	     << header->theVerId_signalNumber  << endl;
