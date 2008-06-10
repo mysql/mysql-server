@@ -42,6 +42,7 @@ noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
 			ma_test_loghandler-t \
                         ma_test_loghandler_multigroup-t \
 			ma_test_loghandler_multithread-t \
+			ma_test_loghandler_multiflush-t \
 			ma_test_loghandler_pagecache-t \
 			ma_test_loghandler_long-t \
 			ma_test_loghandler_noflush-t \
@@ -54,6 +55,8 @@ noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
 ma_test_loghandler_t_SOURCES = ma_test_loghandler-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_multigroup_t_SOURCES = ma_test_loghandler_multigroup-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c sequence_storage.c sequence_storage.h
 ma_test_loghandler_multithread_t_SOURCES = ma_test_loghandler_multithread-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
+ma_test_loghandler_multiflush_t_SOURCES = ma_test_loghandler_multithread-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
+ma_test_loghandler_multiflush_t_CPPFLAGS = -DMULTIFLUSH_TEST
 ma_test_loghandler_pagecache_t_SOURCES = ma_test_loghandler_pagecache-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_long_t_SOURCES = ma_test_loghandler-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_long_t_CPPFLAGS = -DLONG_LOG_TEST
