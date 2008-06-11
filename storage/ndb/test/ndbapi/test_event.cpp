@@ -2515,6 +2515,70 @@ err:
 
 /** Telco 6.3 **/
 
+int
+runBug37279(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  if (runCreateEvent(ctx, step))
+  {
+    return NDBT_FAILED;
+  }
+  
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+  
+  const NdbDictionary::Table* tab = dict->getTable(ctx->getTab()->getName());
+  const NdbDictionary::Table* org = tab;
+  NdbEventOperation* pOp0 = createEventOperation(pNdb, *tab);
+  
+  if (pOp0 == 0)
+  {
+    return NDBT_FAILED;
+  }
+  
+  {
+    Ndb* ndb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+    if (ndb->init() != 0)
+    {
+      delete ndb;
+      ndbout_c("here: %u", __LINE__);
+      return NDBT_FAILED;
+    }
+    
+    if (ndb->waitUntilReady(30) != 0)
+    {
+      delete ndb;
+      ndbout_c("here: %u", __LINE__);
+      return NDBT_FAILED;
+    }
+    
+    ndb->getDictionary()->dropTable(tab->getName());
+    delete ndb;
+  }
+  
+  int nodeId = res.getDbNodeId(rand() % res.getNumDbNodes());
+  ndbout_c("stopping %u", nodeId);
+  res.restartOneDbNode(nodeId,
+                       /** initial */ false,
+                       /** nostart */ false,
+                       /** abort   */ true);
+  if (res.waitClusterStarted())
+  {
+    return NDBT_FAILED;
+  }
+  
+  pNdb->dropEventOperation(pOp0);
+  runDropEvent(ctx, step);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -2693,6 +2757,10 @@ TESTCASE("Bug35208", ""){
   FINALIZER(runDropEvent);
   FINALIZER(runVerify);
   FINALIZER(runDropShadowTable);
+}
+TESTCASE("Bug37279", "")
+{
+  INITIALIZER(runBug37279);
 }
 NDBT_TESTSUITE_END(test_event);
 
