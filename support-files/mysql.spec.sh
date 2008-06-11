@@ -1,4 +1,22 @@
-%define mysql_version		@VERSION@
+# Copyright (C) 2000-2007 MySQL AB
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING. If not, write to the
+# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
+# MA  02110-1301  USA.
+
+%define mysql_version   @VERSION@
+%define mysql_vendor    MySQL AB
+
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
 # to enable static linking (off by default)
 %{?_with_static:%define STATIC_BUILD 1}
@@ -9,7 +27,7 @@
 %define release 0.glibc23
 %endif
 %define license GPL
-%define mysqld_user		mysql
+%define mysqld_user	mysql
 %define mysqld_group	mysql
 %define server_suffix -standard
 %define mysqldatadir /var/lib/mysql
@@ -20,6 +38,23 @@
 
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
+# On SuSE 9 no separate "debuginfo" package is built. To enable basic
+# debugging on that platform, we don't strip binaries on SuSE 9. We
+# disable the strip of binaries by redefining the RPM macro
+# "__os_install_post" leaving out the script calls that normally does
+# this. We do this in all cases, as on platforms where "debuginfo" is
+# created, a script "find-debuginfo.sh" will be called that will do
+# the strip anyway, part of separating the executable and debug
+# information into separate files put into separate packages.
+#
+# Some references (shows more advanced conditional usage):
+# http://www.redhat.com/archives/rpm-list/2001-November/msg00257.html
+# http://www.redhat.com/archives/rpm-list/2003-February/msg00275.html
+# http://www.redhat.com/archives/rhl-devel-list/2004-January/msg01546.html
+# http://lists.opensuse.org/archive/opensuse-commit/2006-May/1171.html
+
+%define __os_install_post /usr/lib/rpm/brp-compress
+
 Name: MySQL
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
@@ -29,7 +64,7 @@ License:	%{license}
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
 Packager:	MySQL Production Engineering Team <build@mysql.com>
-Vendor:		MySQL AB
+Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
 Obsoletes:	mysql
@@ -46,12 +81,9 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 MySQL AB.
 
-The MySQL software has Dual Licensing, which means you can use the MySQL
-software free of charge under the GNU General Public License
-(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
-licenses from MySQL AB if you do not wish to be bound by the terms of
-the GPL. See the chapter "Licensing and Support" in the manual for
-further info.
+Copyright (C) 2000-2007 MySQL AB
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,
+and you are welcome to modify and redistribute it under the GPL license.
 
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
@@ -71,12 +103,9 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 MySQL AB.
 
-The MySQL software has Dual Licensing, which means you can use the MySQL
-software free of charge under the GNU General Public License
-(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
-licenses from MySQL AB if you do not wish to be bound by the terms of
-the GPL. See the chapter "Licensing and Support" in the manual for
-further info.
+Copyright (C) 2000-2007 MySQL AB
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,
+and you are welcome to modify and redistribute it under the GPL license.
 
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
@@ -86,7 +115,7 @@ This package includes the MySQL server binary (incl. InnoDB) as well
 as related utilities to run and administrate a MySQL server.
 
 If you want to access and work with the database, you have to install
-package "MySQL-client" as well!
+the package "MySQL-client" as well!
 
 %package client
 Summary: MySQL - Client
@@ -253,7 +282,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
-	    --with-readline ;
+	    --with-readline ; \
 	    # Add this for more debugging support
 	    # --with-debug
 	    # Add this for MyISAM RAID support:
@@ -319,7 +348,10 @@ then
   cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
 fi
 
-make test-bt
+( cd mysql-test
+  perl ./mysql-test-run.pl --comment="max"    --force --report-features
+  perl ./mysql-test-run.pl --comment="max+ps" --force --ps-protocol
+  true )
 
 # Save mysqld-max
 ./libtool --mode=execute cp sql/mysqld sql/mysqld-max
@@ -332,7 +364,7 @@ make test-bt
 (cd ndb; make install DESTDIR=$RBR)
 
 # Install embedded server library in the build root
-install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
+install -m644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
 
 # Include libgcc.a in the devel subpackage (BUG 4921)
 if expr "$CC" : ".*gcc.*" > /dev/null ;
@@ -341,7 +373,7 @@ then
   if [ -f $libgcc ]
   then
     %define have_libgcc 1
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+    install -m644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
   fi
 fi
 
@@ -382,10 +414,8 @@ then
   cp -fp config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-( cd mysql-test
-  perl ./mysql-test-run.pl --force --report-features
-  perl ./mysql-test-run.pl --force --ps-protocol
-  true )
+echo "# standard"
+make test-bt
 
 %install
 RBR=$RPM_BUILD_ROOT
@@ -400,7 +430,6 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 
-
 # Install all binaries stripped 
 make install-strip DESTDIR=$RBR benchdir_root=%{_datadir}
 
@@ -414,12 +443,12 @@ install -s -m755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
 install -s -m755 $MBD/extra/perror.ndb $RBR%{_bindir}/perror
 
 # install symbol files ( for stack trace resolution)
-install -m644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
-install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
+install -m 644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
+install -m 644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
 
 # Install logrotate and autostart
-install -m644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
-install -m755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
+install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -451,7 +480,7 @@ fi
 mysql_datadir=%{mysqldatadir}
 
 # Create data directory if needed
-if test ! -d $mysql_datadir; then mkdir -m755 $mysql_datadir; fi
+if test ! -d $mysql_datadir; then mkdir -m 755 $mysql_datadir; fi
 if test ! -d $mysql_datadir/mysql; then mkdir $mysql_datadir/mysql; fi
 if test ! -d $mysql_datadir/test; then mkdir $mysql_datadir/test; fi
 
@@ -493,12 +522,11 @@ chmod -R og-rw $mysql_datadir/mysql
 # Allow safe_mysqld to start mysqld and print a message before we exit
 sleep 2
 
-
 %post ndb-storage
 mysql_clusterdir=/var/lib/mysql-cluster
 
 # Create cluster directory if needed
-if test ! -d $mysql_clusterdir; then mkdir -m755 $mysql_clusterdir; fi
+if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
 
 
 %post Max
@@ -642,10 +670,12 @@ fi
 %files ndb-storage
 %defattr(-,root,root,0755)
 %attr(755, root, root) %{_sbindir}/ndbd
+%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
 
 %files ndb-management
 %defattr(-,root,root,0755)
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
+%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
 
 %files ndb-tools
 %defattr(-,root,root,0755)
@@ -737,6 +767,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Mar 19 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Add the man pages for "ndbd" and "ndb_mgmd".
+
 * Fri Mar 02 2007 Joerg Bruehe <joerg@mysql.com>
 
 - Add several man pages for NDB which are now created.

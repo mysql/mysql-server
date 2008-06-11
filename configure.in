@@ -5,7 +5,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 4.1.24)
+AM_INIT_AUTOMAKE(mysql, 4.1.25)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -21,14 +21,24 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=4
 NDB_VERSION_MINOR=1
-NDB_VERSION_BUILD=24
+NDB_VERSION_BUILD=25
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
-MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
-MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
-MYSQL_VERSION_ID=`echo $MYSQL_NO_DASH_VERSION. | sed -e 's/[[^0-9.]]//g; s/\./  /g; s/ \([[0-9]]\) / 0\\1 /g; s/ //g'`
+# We take some made up examples
+#
+#  VERSION                  5.1.40sp1-alpha     5.0.34a
+#  MYSQL_NO_DASH_VERSION    5.1.40sp1           5.0.34a
+#  MYSQL_NUMERIC_VERSION    5.1.40              5.0.34
+#  MYSQL_BASE_VERSION       5.1                 5.0
+#  MYSQL_VERSION_ID         50140               50034
+#
+MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
+MYSQL_NUMERIC_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|[[a-z]][[a-z0-9]]*$||"`
+MYSQL_BASE_VERSION=`echo $MYSQL_NUMERIC_VERSION | sed -e "s|\.[[^.]]*$||"`
+MYSQL_VERSION_ID=`echo $MYSQL_NUMERIC_VERSION | \
+    awk -F. '{printf "%d%0.2d%0.2d", $1, $2, $3}'`
 
 # The port should be constant for a LONG time
 MYSQL_TCP_PORT_DEFAULT=3306
@@ -205,7 +215,7 @@ CC_VERSION=`$CC --version | sed 1q`
 esac
 if test $? -eq "0"
 then
-  AC_MSG_CHECKING("C Compiler version");
+  AC_MSG_CHECKING("C Compiler version")
   AC_MSG_RESULT("$CC $CC_VERSION")
 else
 CC_VERSION=""
@@ -220,7 +230,7 @@ CXX_VERSION=`$CXX --version | sed 1q`
 esac
 if test $? -eq "0"
 then
-  AC_MSG_CHECKING("C++ compiler version");
+  AC_MSG_CHECKING("C++ compiler version")
   AC_MSG_RESULT("$CXX $CXX_VERSION")
 else
 CXX_VERSION=""
@@ -1369,7 +1379,7 @@ See the Installation chapter in the Reference Manual for more information.])
             AC_MSG_RESULT("no need to check headers")
         fi
         
-        AC_MSG_CHECKING("for pthread_create in -lpthread");
+        AC_MSG_CHECKING("for pthread_create in -lpthread")
         ac_save_LIBS="$LIBS"
         LIBS="$LIBS -lpthread"
         AC_TRY_LINK( [#include <pthread.h>],
@@ -1429,7 +1439,7 @@ then
       then
 	AC_MSG_RESULT("yes")
       else
-	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.])
       fi
       AC_MSG_RESULT("yes")
     elif test -f /usr/local/lib/libpthread.a -o -f /usr/local/lib/libpthread.so
@@ -1445,7 +1455,7 @@ then
       then
 	AC_MSG_RESULT("yes")
       else
-	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.])
       fi
       AC_MSG_RESULT("yes")
     # Hack for SCO UnixWare 7.1.x
@@ -1487,7 +1497,7 @@ then
         AC_MSG_RESULT("no")
       fi
     else
-      AC_MSG_ERROR([On SCO UNIX MySQL requires that the FSUThreads package is installed. See the Installation chapter in the Reference Manual.]);
+      AC_MSG_ERROR([On SCO UNIX MySQL requires that the FSUThreads package is installed. See the Installation chapter in the Reference Manual.])
     fi
   else
     AC_MSG_RESULT("no")
@@ -1585,7 +1595,7 @@ else
   if test "$with_mit_threads" = "no"
   then
     # pthread_create is in standard libraries (As in BSDI 3.0)
-    AC_MSG_CHECKING("for pthread_create in -libc");
+    AC_MSG_CHECKING("for pthread_create in -libc")
     AC_TRY_LINK(
     [#include <pthread.h>],
     [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1593,7 +1603,7 @@ else
     AC_MSG_RESULT("$with_posix_threads")
     if test "$with_posix_threads" = "no"
     then
-      AC_MSG_CHECKING("for pthread_create in -lpthread");
+      AC_MSG_CHECKING("for pthread_create in -lpthread")
       ac_save_LIBS="$LIBS"
       LIBS="$LIBS -lpthread"
       AC_TRY_LINK(
@@ -1604,7 +1614,7 @@ else
       if test "$with_posix_threads" = "no"
       then
         LIBS=" $ac_save_LIBS -lpthreads"
-        AC_MSG_CHECKING("for pthread_create in -lpthreads");
+        AC_MSG_CHECKING("for pthread_create in -lpthreads")
         AC_TRY_LINK(
         [#include <pthread.h>],
         [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1614,7 +1624,7 @@ else
         then
 	  # This is for FreeBSD
 	  LIBS="$ac_save_LIBS -pthread"
-	  AC_MSG_CHECKING("for pthread_create in -pthread");
+	  AC_MSG_CHECKING("for pthread_create in -pthread")
 	  AC_TRY_LINK(
 	  [#include <pthread.h>],
 	  [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1895,7 +1905,7 @@ if test "$ac_cv_conv_longlong_to_float" != "yes"
 then
   AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
-again]);
+again])
 fi
 fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
@@ -2047,7 +2057,7 @@ CFLAGS="$ORG_CFLAGS"
 AC_CHECK_FUNC(fseeko,
 [if test "$large_file_support" = no -a "$TARGET_LINUX" = "true";
 then
-  AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
+  AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!")
 fi]
 )
 
@@ -2740,7 +2750,7 @@ do
       ;;
     *)
       AC_MSG_ERROR([Charset '$cs' not available. (Available are: $CHARSETS_AVAILABLE).
-      See the Installation chapter in the Reference Manual.]);
+      See the Installation chapter in the Reference Manual.])
   esac
 done
 
@@ -2917,7 +2927,7 @@ case $default_charset in
       ;;
     *)
       AC_MSG_ERROR([Charset $cs not available. (Available are: $CHARSETS_AVAILABLE).
-      See the Installation chapter in the Reference Manual.]);
+      See the Installation chapter in the Reference Manual.])
 esac
 
 if test "$default_collation" = default; then
@@ -2942,7 +2952,7 @@ else
       Collation $default_collation is not valid for character set $default_charset.
       Valid collations are: $default_charset_collations.
       See the Installation chapter in the Reference Manual.
-  ]);
+  ])
 fi
 
 AC_DEFINE_UNQUOTED([MYSQL_DEFAULT_CHARSET_NAME], ["$default_charset"],

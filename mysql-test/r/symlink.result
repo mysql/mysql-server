@@ -91,23 +91,15 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1(a INT)
-DATA DIRECTORY='TEST_DIR/master-data/mysql'
-INDEX DIRECTORY='TEST_DIR/master-data/mysql';
-RENAME TABLE t1 TO user;
-ERROR HY000: Can't create/write to file 'TEST_DIR/master-data/mysql/user.MYI' (Errcode: 17)
-DROP TABLE t1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
+DATA DIRECTORY='TEST_DIR/tmp'
+INDEX DIRECTORY='TEST_DIR/tmp';
+ERROR HY000: Can't create/write to file 'TEST_DIR/tmp/t1.MYI' (Errcode: 17)
+CREATE TABLE t2(a INT)
+DATA DIRECTORY='TEST_DIR/tmp'
+INDEX DIRECTORY='TEST_DIR/tmp';
+RENAME TABLE t2 TO t1;
+ERROR HY000: Can't create/write to file 'TEST_DIR/tmp/t1.MYI' (Errcode: 17)
+DROP TABLE t2;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
@@ -144,4 +136,16 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
 drop table t1;
 deallocate prepare stmt;
+CREATE TABLE t1(a INT)
+DATA DIRECTORY='TEST_DIR/var/master-data/test';
+ERROR HY000: Incorrect arguments to DATA DIRECORY
+CREATE TABLE t1(a INT)
+DATA DIRECTORY='TEST_DIR/var/master-data/';
+ERROR HY000: Incorrect arguments to DATA DIRECORY
+CREATE TABLE t1(a INT)
+INDEX DIRECTORY='TEST_DIR/var/master-data';
+ERROR HY000: Incorrect arguments to INDEX DIRECORY
+CREATE TABLE t1(a INT)
+INDEX DIRECTORY='TEST_DIR/var/master-data_var';
+ERROR HY000: Can't create/write to file 'TEST_DIR/var/master-data_var/t1.MYI' (Errcode: 2)
 End of 4.1 tests
