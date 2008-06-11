@@ -9,7 +9,8 @@
 #include <unistd.h>
 
 const char *pname;
-int verify_lwc=0, lwc=0, hwc=1, prelock=0;
+int verify_lwc=0, lwc=0, hwc=1, prelock=0, prelockflag=0;
+u_int32_t lock_flag = DB_PRELOCKED;
 
 
 void parse_args (int argc, const char *argv[]) {
@@ -21,8 +22,10 @@ void parse_args (int argc, const char *argv[]) {
 	else if (strcmp(*argv, "--lwc")==0)  lwc=1;
 	else if (strcmp(*argv, "--nohwc")==0) hwc=0;
 	else if (strcmp(*argv, "--prelock")==0) prelock=1;
+        else if (strcmp(*argv, "--prelockflag")==0) prelockflag=1;
+        else if (strcmp(*argv, "--prelockwriteflag")==0) { prelockflag=1; lock_flag = DB_PRELOCKED_WRITE; }
 	else {
-	    printf("Usage:\n%s [--verify-lwc] [--lwc] [--nohwc]\n", pname);
+	    printf("Usage:\n%s [--verify-lwc] [--lwc] [--nohwc] [--prelock] [--prelockflag] [--prelockwriteflag]\n", pname);
 	    exit(1);
 	}
 	argc--;
@@ -97,7 +100,11 @@ void scanscan (void) {
 	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
 	memset(&k, 0, sizeof(k));
 	memset(&v, 0, sizeof(v));
-	while (0 == (r = dbc->c_get(dbc, &k, &v, DB_NEXT))) {
+        u_int32_t c_get_flags = DB_NEXT;
+        if (prelockflag && (counter || prelock)) {
+            c_get_flags |= lock_flag;
+        }
+	while (0 == (r = dbc->c_get(dbc, &k, &v, c_get_flags))) {
 	    totalbytes += k.size + v.size;
 	    rowcounter++;
 	}
@@ -126,7 +133,11 @@ void scanscan_lwc (void) {
 	double prevtime = gettime();
 	DBC *dbc;
 	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
-	while (0 == (r = dbc->c_getf_next(dbc, 0, counttotalbytes, &e)));
+        u_int32_t f_flags = 0;
+        if (prelockflag && (counter || prelock)) {
+            f_flags |= lock_flag;
+        }
+	while (0 == (r = dbc->c_getf_next(dbc, f_flags, counttotalbytes, &e)));
 	r = dbc->c_close(dbc);                                      assert(r==0);
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
@@ -165,10 +176,16 @@ void scanscan_verify (void) {
 	r = db->cursor(db, tid, &dbc2, 0);                           assert(r==0);
 	memset(&v.k, 0, sizeof(v.k));
 	memset(&v.v, 0, sizeof(v.v));
+        u_int32_t f_flags = 0;
+        u_int32_t c_get_flags = DB_NEXT;
+        if (prelockflag && (counter || prelock)) {
+            f_flags     |= lock_flag;
+            c_get_flags |= lock_flag;
+        }
 	while (1) {
 	    int r1,r2;
-	    r2 = dbc1->c_get(dbc1, &v.k, &v.v, DB_NEXT);
-	    r1 = dbc2->c_getf_next(dbc2, 0, checkbytes, &v);
+	    r2 = dbc1->c_get(dbc1, &v.k, &v.v, c_get_flags);
+	    r1 = dbc2->c_getf_next(dbc2, f_flags, checkbytes, &v);
 	    assert(r1==r2);
 	    if (r1) break;
 	}
