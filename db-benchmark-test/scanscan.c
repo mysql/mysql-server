@@ -9,23 +9,39 @@
 #include <unistd.h>
 
 const char *pname;
-int verify_lwc=0, lwc=0, hwc=1, prelock=0, prelockflag=0;
-u_int32_t lock_flag = DB_PRELOCKED;
+enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY } run_mode = RUN_HWC;
+int do_txns=1, prelock=0, prelockflag=0;
+u_int32_t lock_flag = 0;
 
 
 void parse_args (int argc, const char *argv[]) {
     pname=argv[0];
     argc--;
     argv++;
+    int specified_run_mode=0;
     while (argc>0) {
-	if (strcmp(*argv,"--verify-lwc")==0) verify_lwc=1;
-	else if (strcmp(*argv, "--lwc")==0)  lwc=1;
-	else if (strcmp(*argv, "--nohwc")==0) hwc=0;
-	else if (strcmp(*argv, "--prelock")==0) prelock=1;
-        else if (strcmp(*argv, "--prelockflag")==0) prelockflag=1;
+	if (strcmp(*argv,"--verify-lwc")==0) {
+	    if (specified_run_mode && run_mode!=RUN_VERIFY) { two_modes: fprintf(stderr, "You specified two run modes\n"); exit(1); }
+	    run_mode = RUN_VERIFY;
+	} else if (strcmp(*argv, "--lwc")==0)  {
+	    if (specified_run_mode && run_mode!=RUN_LWC) goto two_modes;
+	    run_mode = RUN_LWC;
+	} else if (strcmp(*argv, "--hwc")==0)  {
+	    if (specified_run_mode && run_mode!=RUN_VERIFY) goto two_modes;
+	    run_mode = RUN_HWC;
+	} else if (strcmp(*argv, "--prelock")==0) prelock=1;
+        else if (strcmp(*argv, "--prelockflag")==0)      { prelockflag=1; lock_flag = DB_PRELOCKED; }
         else if (strcmp(*argv, "--prelockwriteflag")==0) { prelockflag=1; lock_flag = DB_PRELOCKED_WRITE; }
+	else if (strcmp(*argv, "--nox")==0)              { do_txns=0; }
 	else {
-	    printf("Usage:\n%s [--verify-lwc] [--lwc] [--nohwc] [--prelock] [--prelockflag] [--prelockwriteflag]\n", pname);
+	    fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag]\n", pname);
+	    fprintf(stderr, "  --hwc               run heavy weight cursors (this is the default)\n");
+	    fprintf(stderr, "  --verify-lwc        means to run the light weight cursor and the heavyweight cursor to verify that they get the same answer.\n");
+	    fprintf(stderr, "  --lwc               run light weight cursors instead of heavy weight cursors\n");
+	    fprintf(stderr, "  --prelock           acquire a read lock on the entire table before running\n");
+	    fprintf(stderr, "  --prelockflag       pass DB_PRELOCKED to the the cursor get operation whenever the locks have been acquired\n");
+	    fprintf(stderr, "  --prelockwriteflag  pass DB_PRELOCKED_WRITE to the cursor get operation\n");
+	    fprintf(stderr, "  --nox               no transactions\n");
 	    exit(1);
 	}
 	argc--;
@@ -41,24 +57,20 @@ DB_TXN *tid=0;
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
 const char *dbdir = "./bench."  STRINGIFY(DIRSUF) "/"; /* DIRSUF is passed in as a -D argument to the compiler. */;
-#define TXNS
-#ifdef TXNS
-int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
-#else
-int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
-#endif
+int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
+int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 char *dbfilename = "bench.db";
 
 void setup (void) {
     int r;
-    r = db_env_create(&env, 0);                                 assert(r==0);
-    r = env->set_cachesize(env, 0, 127*1024*1024, 1);           assert(r==0);
-    r = env->open(env, dbdir, env_open_flags, 0644);            assert(r==0);
-    r = db_create(&db, env, 0);                                 assert(r==0);
-#ifdef TXNS
-    r = env->txn_begin(env, 0, &tid, 0);                        assert(r==0);
-#endif
-    r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, 0644); assert(r==0);
+    r = db_env_create(&env, 0);                                                           assert(r==0);
+    r = env->set_cachesize(env, 0, 127*1024*1024, 1);                                     assert(r==0);
+    r = env->open(env, dbdir, do_txns? env_open_flags_yesx : env_open_flags_nox, 0644);   assert(r==0);
+    r = db_create(&db, env, 0);                                                           assert(r==0);
+    if (do_txns) {
+	r = env->txn_begin(env, 0, &tid, 0);                                              assert(r==0);
+    }
+    r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, 0644);                           assert(r==0);
     if (prelock) {
 	r = db->pre_acquire_read_lock(db,
 				      tid,
@@ -71,9 +83,9 @@ void setup (void) {
 void shutdown (void) {
     int r;
     r = db->close(db, 0);                                       assert(r==0);
-#ifdef TXNS
-    r = tid->commit(tid, 0);                                    assert(r==0);
-#endif
+    if (do_txns) {
+	r = tid->commit(tid, 0);                                    assert(r==0);
+    }
     r = env->close(env, 0);                                     assert(r==0);
     {
 	extern unsigned long toku_get_maxrss(void);
@@ -88,7 +100,7 @@ double gettime (void) {
     return tv.tv_sec + 1e-6*tv.tv_usec;
 }
 
-void scanscan (void) {
+void scanscan_hwc (void) {
     int r;
     int counter=0;
     for (counter=0; counter<2; counter++) {
@@ -202,23 +214,15 @@ int main (int argc, const char *argv[]) {
 
     parse_args(argc,argv);
 
-    if (hwc) {
-	setup();
-	scanscan();
-	shutdown();
+    setup();
+    switch (run_mode) {
+    case RUN_HWC:    scanscan_hwc();    goto ok;
+    case RUN_LWC:    scanscan_lwc();    goto ok;
+    case RUN_VERIFY: scanscan_verify(); goto ok;
     }
-
-    if (lwc) {
-	setup();
-	scanscan_lwc();
-	shutdown();
-    }
-
-    if (verify_lwc) {
-	setup();
-	scanscan_verify();
-	shutdown();
-    }
+    assert(0);
+ ok:
+    shutdown();
 
     return 0;
 }
