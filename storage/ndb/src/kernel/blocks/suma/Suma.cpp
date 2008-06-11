@@ -2629,8 +2629,6 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
       Uint32 senderData = subOpPtr.p->m_senderData;
       c_subscriberPool.getPtr(ptr, subOpPtr.p->m_subscriberRef);
 
-      Uint32 nodeId = refToNode(ptr.p->m_senderRef);
-      
       if (check_sub_start(ptr.p->m_senderRef))
       {
         SubStartConf* conf = (SubStartConf*)signal->getDataPtrSend();
@@ -4378,9 +4376,11 @@ Suma::sendSubCreateReq(Signal* signal, Ptr<Subscription> subPtr)
 
   Ptr<Table> tabPtr;
   c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  bool dropped = 
+    subPtr.p->m_state == Subscription::DROPPED ||
+    tabPtr.p->m_state == Table::DROPPED;
 
-  if (subPtr.p->m_state != Subscription::DROPPED &&
-      tabPtr.p->m_state != Table::DROPPED)
+  if (! dropped)
   {
     jam();
     c_restart.m_waiting_on_self = 0;
@@ -4478,7 +4478,14 @@ Suma::execSUB_CREATE_CONF(Signal* signal)
   }
 
   Ptr<Subscriber> ptr;
-  if (subPtr.p->m_state != Subscription::DROPPED)
+
+  Ptr<Table> tabPtr;
+  c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  bool dropped = 
+    subPtr.p->m_state == Subscription::DROPPED ||
+    tabPtr.p->m_state == Table::DROPPED;
+  
+  if (! dropped)
   {
     LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
     list.first(ptr);
@@ -4487,7 +4494,7 @@ Suma::execSUB_CREATE_CONF(Signal* signal)
   {
     ptr.setNull();
   }
-
+  
   copySubscriber(signal, subPtr, ptr);
 }
 
@@ -4905,7 +4912,8 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
   if(unlikely(bucket->m_state & mask))
   {
     jam();
-    ndbout_c("release_gci(%d, %llu) -> node failure -> abort", buck, gci);
+    ndbout_c("release_gci(%d, %llu) 0x%x-> node failure -> abort", 
+             buck, gci, bucket->m_state);
     return;
   }
   
