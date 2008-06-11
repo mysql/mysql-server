@@ -122,6 +122,8 @@ struct __toku_lock_tree {
     u_int32_t          ref_count;
     /** db_id associated with the lock tree */
     toku_db_id*        db_id;
+    TXNID              table_lock_owner;
+    BOOL               table_is_locked;
 };
 
 struct __toku_ltm {

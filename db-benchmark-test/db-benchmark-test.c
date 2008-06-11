@@ -16,6 +16,11 @@
 #define DB_YESOVERWRITE 0
 #endif
 
+#if !defined(DB_PRELOCKED_WRITE)
+#define NO_DB_PRELOCKED
+#define DB_PRELOCKED_WRITE 0
+#endif
+
 int verbose=1;
 
 enum { SERIAL_SPACING = 1<<6 };
@@ -32,11 +37,24 @@ long long cachesize = 128*1024*1024;
 int dupflags = 0;
 int noserial = 0; // Don't do the serial stuff
 int norandom = 0; // Don't do the random stuff
+int prelock  = 0;
+int prelockflag = 0;
 int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
 int do_transactions = 0;
 int n_insertions_since_txn_began=0;
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
+u_int32_t put_flags = DB_YESOVERWRITE;
+
+
+static void do_prelock(DB* db, DB_TXN* txn) {
+    if (prelock) {
+#if !defined(NO_DB_PRELOCKED)
+        int r = db->pre_acquire_table_lock(db, txn);
+        assert(r==0);
+#endif
+    }
+}
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
@@ -138,13 +156,14 @@ void insert (long long v) {
     long_long_to_array(kc, v);
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    int r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), DB_YESOVERWRITE);
+    int r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), put_flags);
     CKERR(r);
     if (do_transactions) {
 	if (n_insertions_since_txn_began>=items_per_transaction) {
 	    n_insertions_since_txn_began=0;
 	    r = tid->commit(tid, 0); assert(r==0);
 	    r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+            do_prelock(db, tid);
 	    n_insertions_since_txn_began=0;
 	}
 	n_insertions_since_txn_began++;
@@ -155,9 +174,10 @@ void serial_insert_from (long long from) {
     long long i;
     if (do_transactions) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+        do_prelock(db, tid);
 	{
 	    DBT k,v;
-	    r=db->put(db, tid, fill_dbt(&k, "a", 1), fill_dbt(&v, "b", 1), DB_YESOVERWRITE);
+	    r=db->put(db, tid, fill_dbt(&k, "a", 1), fill_dbt(&v, "b", 1), put_flags);
 	    CKERR(r);
 	}
 				      
@@ -179,6 +199,7 @@ void random_insert_below (long long below) {
     long long i;
     if (do_transactions) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+        do_prelock(db, tid);
     }
     for (i=0; i<items_per_iteration; i++) {
 	insert(llrandom()%below);
@@ -297,9 +318,17 @@ int main (int argc, const char *argv[]) {
 	} else if (strcmp(arg, "--env") == 0) {
 	    if (i+1 >= argc) return print_usage(argv[0]);
 	    dbdir = argv[++i];
+        } else if (strcmp(arg, "--prelock") == 0) {
+            prelock=1;
+        } else if (strcmp(arg, "--prelockflag") == 0) {
+            prelock=1;
+            prelockflag=1;
         } else {
 	    return print_usage(argv[0]);
 	}
+    }
+    if (do_transactions && prelockflag) {
+        put_flags |= DB_PRELOCKED_WRITE;
     }
     if (i<argc) {
         /* if it looks like a number */
