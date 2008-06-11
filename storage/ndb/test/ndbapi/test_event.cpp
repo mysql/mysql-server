@@ -2579,6 +2579,72 @@ runBug37279(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug37338(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  int nodeId = res.getDbNodeId(rand() % res.getNumDbNodes());
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+  const NdbDictionary::Table* tab = dict->getTable(ctx->getTab()->getName());
+
+  const char * name = "BugXXX";
+  NdbDictionary::Table copy = * tab;
+  copy.setName(name);
+  dict->dropTable(name);
+
+  for (int i = 0; i<ctx->getNumLoops(); i++)
+  {
+    Ndb* ndb0;
+    Ndb_cluster_connection *con0;
+    NdbEventOperation* pOp0;
+    NdbDictionary::Dictionary * dict0;
+
+    cc(&con0, &ndb0);
+    dict0 = ndb0->getDictionary();
+    if (dict0->createTable(copy) != 0)
+    {
+      ndbout << dict0->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    const NdbDictionary::Table * copyptr = dict0->getTable(name);
+    if (copyptr == 0)
+    {
+      return NDBT_FAILED;
+    }
+    createEvent(ndb0, *copyptr, ctx);
+    pOp0 = createEventOperation(ndb0, *copyptr);
+    dict0 = ndb0->getDictionary();dict->dropTable(name);
+    
+    res.restartOneDbNode(nodeId,
+                         /** initial */ false,
+                         /** nostart */ true,
+                         /** abort   */ true);
+    
+    res.waitNodesNoStart(&nodeId, 1);
+    res.startNodes(&nodeId, 1);
+    if (res.waitClusterStarted())
+    {
+      return NDBT_FAILED;
+    }
+    
+    ndb0->dropEventOperation(pOp0);
+    
+    delete ndb0;
+    delete con0;
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -2761,6 +2827,10 @@ TESTCASE("Bug35208", ""){
 TESTCASE("Bug37279", "")
 {
   INITIALIZER(runBug37279);
+}
+TESTCASE("Bug37338", "")
+{
+  INITIALIZER(runBug37338);
 }
 NDBT_TESTSUITE_END(test_event);
 

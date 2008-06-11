@@ -3781,12 +3781,13 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   /**
    * Add GCP COMPLETE REP to buffer
    */
+  bool subscribers = !c_subscriber_nodes.isclear();
   for(Uint32 i = 0; i<c_no_of_buckets; i++)
   {
     if(m_active_buckets.get(i))
       continue;
 
-    if (!c_subscriber_nodes.isclear())
+    if (subscribers || (c_buckets[i].m_state & Bucket::BUCKET_RESEND))
     {
       //Uint32* dst;
       get_buffer_ptr(signal, i, gci, 0);
@@ -5020,7 +5021,7 @@ Suma::start_resend(Signal* signal, Uint32 buck)
   }
 
   Uint64 min= bucket->m_max_acked_gci + 1;
-  Uint64 max = pos.m_max_gci;
+  Uint64 max = m_max_seen_gci;
 
   ndbrequire(max <= m_max_seen_gci);
 
@@ -5029,7 +5030,9 @@ Suma::start_resend(Signal* signal, Uint32 buck)
     ndbrequire(pos.m_page_id == bucket->m_buffer_tail);
     m_active_buckets.set(buck);
     m_gcp_complete_rep_count ++;
-    ndbout_c("empty bucket -> active");
+    ndbout_c("empty bucket (%u/%u %u/%u) -> active", 
+             Uint32(min >> 32), Uint32(min),
+             Uint32(max >> 32), Uint32(max));
     return;
   }
 
