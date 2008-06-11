@@ -2721,6 +2721,20 @@ int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, cons
     return r;
 }
 
+int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
+    HANDLE_PANICKED_DB(db);
+    if (!db->i->lt || !txn) return EINVAL;
+
+    DB_TXN* txn_anc = toku_txn_ancestor(txn);
+    int r;
+    if ((r=toku_txn_add_lt(txn_anc, db->i->lt))) return r;
+    TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+
+    r = toku_lt_acquire_range_write_lock(db->i->lt, db, id_anc,
+                                         toku_lt_neg_infinity, toku_lt_neg_infinity,
+                                         toku_lt_infinity,     toku_lt_infinity);
+    return r;
+}
 
 //TODO: DB_AUTO_COMMIT.
 //TODO: Nowait only conditionally?
@@ -2807,6 +2821,13 @@ static int locked_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_
 int locked_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
     toku_ydb_lock();
     int r = toku_db_pre_acquire_read_lock(db, txn, key_left, val_left, key_right, val_right);
+    toku_ydb_unlock();
+    return r;
+}
+
+int locked_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
+    toku_ydb_lock();
+    int r = toku_db_pre_acquire_table_lock(db, txn);
     toku_ydb_unlock();
     return r;
 }
@@ -2953,6 +2974,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     //    SDB(stat);
     SDB(fd);
     SDB(pre_acquire_read_lock);
+    SDB(pre_acquire_table_lock);
 #undef SDB
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;
