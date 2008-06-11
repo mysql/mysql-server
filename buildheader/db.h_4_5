@@ -189,14 +189,15 @@ struct __toku_db {
   void* __toku_dummy1[36];
   char __toku_dummy2[96];
   void *api_internal; /* 32-bit offset=268 size=4, 64=bit offset=440 size=8 */
-  const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
+  int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   void* __toku_dummy3[3];
   int (*associate) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t); /* 32-bit offset=288 size=4, 64=bit offset=480 size=8 */
   int (*close) (DB*, u_int32_t); /* 32-bit offset=292 size=4, 64=bit offset=488 size=8 */
-  const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
+  const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t); /* 32-bit offset=300 size=4, 64=bit offset=504 size=8 */
   int (*del) (DB *, DB_TXN *, DBT *, u_int32_t); /* 32-bit offset=304 size=4, 64=bit offset=512 size=8 */
-  void* __toku_dummy4[2];
+  const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
+  void* __toku_dummy4[1];
   int (*fd) (DB *, int *); /* 32-bit offset=316 size=4, 64=bit offset=536 size=8 */
   int (*get) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t); /* 32-bit offset=320 size=4, 64=bit offset=544 size=8 */
   void* __toku_dummy5[8];
