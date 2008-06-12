@@ -7500,8 +7500,6 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
   LINT_INIT(sent_to_disk);
-  LINT_INIT(flush_horizon);
-
 
   pthread_mutex_lock(&log_descriptor.log_flush_lock);
   DBUG_PRINT("info", ("Everything is flushed up to (%lu,0x%lx)",
@@ -7526,6 +7524,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
     log_descriptor.next_pass_max_lsn= LSN_IMPOSSIBLE;
   }
   log_descriptor.flush_in_progress= 1;
+  flush_horizon= log_descriptor.previous_flush_horizon;
   DBUG_PRINT("info", ("flush_in_progress is set"));
   pthread_mutex_unlock(&log_descriptor.log_flush_lock);
 
