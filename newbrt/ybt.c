@@ -51,8 +51,9 @@ static inline int dbt_set_copy(DBT* ybt, bytevec* datap, ITEMLEN len, void** sta
             tempdata  = (void*)*datap;
             do_malloc = FALSE;
         }
-        else if (ybt->flags==DB_DBT_REALLOC) {
-             if (ybt->data && ybt->ulen>=len && ybt->ulen/2<=len) {
+        else if (ybt->flags==DB_DBT_REALLOC && ybt->data) {
+            if (!ybt->ulen) ybt->ulen = ybt->size;
+            if (ybt->ulen>=len && ybt->ulen/2<=len) {
                 tempdata  = ybt->data;
                 do_malloc = FALSE;
             }
