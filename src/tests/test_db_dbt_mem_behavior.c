@@ -128,7 +128,14 @@ int main(int argc, const char *argv[]) {
             }
                 
             assert(!was_truncated);
-            assert(!ulen_changed);
+
+            BOOL ulen_should_change = FALSE;
+#if defined(USE_TDB)
+            if (flags[j] == DB_DBT_REALLOC) {
+                ulen_should_change = old_ulen < sizeof(DATA);
+            }
+#endif
+            assert(ulen_should_change == ulen_changed);
             assert(size_full);
             assert(clone == !small_buffer);
         }
