@@ -30,7 +30,7 @@ static inline int dbt_set_preprocess(DBT* ybt, ITEMLEN len, void** staticptrp, v
             if (ybt->flags==0 && staticptrp==NULL) { r = -1; goto cleanup; }
             if (!input_disposable) {
                 *tmp_data = toku_malloc(len);
-                if (!*tmp_data && len > 0) { r = errno; goto cleanup; }
+                if (!*tmp_data) { r = errno; goto cleanup; }
             }
         }
         else { r = EINVAL; goto cleanup; }
