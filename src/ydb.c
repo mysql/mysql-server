@@ -1101,8 +1101,6 @@ typedef struct {
     DB*         db;                 // db the cursor is iterating over
     DB_TXN*     txn_anc;            // The (root) ancestor of the transaction
     TXNID       id_anc;
-    DBT         cursor_key;         // Original position of cursor (key portion)
-    DBT         cursor_val;         // Original position of cursor (val portion)
     DBT         tmp_key;            // Temporary key to protect out param
     DBT         tmp_val;            // Temporary val to protect out param
     DBT         tmp_dat;            // Temporary data val to protect out param 
@@ -1110,7 +1108,6 @@ typedef struct {
     u_int32_t   op;                 // The operation portion of the c_get flag
     u_int32_t   lock_flags;         // The prelock flags.
     BOOL        cursor_is_write;    // Whether op can change position of cursor
-    BOOL        cursor_was_saved;   // Whether we saved the cursor yet.
     BOOL        key_is_read;        
     BOOL        key_is_write;
     BOOL        val_is_read;
@@ -1118,7 +1115,6 @@ typedef struct {
     BOOL        dat_is_read;
     BOOL        dat_is_write;
     BOOL        duplicates;
-    BOOL        cursor_malloced;
     BOOL        tmp_key_malloced;
     BOOL        tmp_val_malloced;
     BOOL        tmp_dat_malloced;
@@ -1299,7 +1295,7 @@ static int toku_c_get_save_inputs(C_GET_VARS* g, DBT* key, DBT* val) {
     return r;
 }
 
-static int toku_c_get_post_lock(C_GET_VARS* g, BOOL found, DBT* orig_key, DBT* orig_val) {
+static int toku_c_get_post_lock(C_GET_VARS* g, BOOL found, DBT* orig_key, DBT* orig_val, DBT *prev_key, DBT *prev_val) {
     int r = ENOSYS;
     toku_lock_tree* lt = g->db->i->lt;
     if (!lt) { r = 0; goto cleanup; }
@@ -1353,8 +1349,8 @@ static int toku_c_get_post_lock(C_GET_VARS* g, BOOL found, DBT* orig_key, DBT* o
         case (DB_NEXT):
         case (DB_NEXT_NODUP):
             assert(!toku_c_uninitialized(g->c));
-            key_l = &g->cursor_key;
-            val_l = &g->cursor_val;
+            key_l = prev_key;
+            val_l = prev_val;
             key_r = found ? &g->tmp_key : toku_lt_infinity;
             val_r = found ? &g->tmp_val : toku_lt_infinity;
             break;
@@ -1363,21 +1359,21 @@ static int toku_c_get_post_lock(C_GET_VARS* g, BOOL found, DBT* orig_key, DBT* o
             assert(!toku_c_uninitialized(g->c));
             key_l = found ? &g->tmp_key : toku_lt_neg_infinity;
             val_l = found ? &g->tmp_val : toku_lt_neg_infinity;
-            key_r = &g->cursor_key;
-            val_r = &g->cursor_val;
+            key_r = prev_key;
+            val_r = prev_val;
             break;
         case (DB_NEXT_DUP):
             assert(!toku_c_uninitialized(g->c));
-            key_l = key_r = &g->cursor_key;
-            val_l = &g->cursor_val;
+            key_l = key_r = prev_key;
+            val_l = prev_val;
             val_r = found ? &g->tmp_val : toku_lt_infinity;
             break;
 #ifdef DB_PREV_DUP
         case (DB_PREV_DUP):
             assert(!toku_c_uninitialized(g->c));
-            key_l = key_r = &g->cursor_key;
+            key_l = key_r = prev_key;
             val_l = found ? &g->tmp_val : toku_lt_neg_infinity;
-            val_r = &g->cursor_val;
+            val_r = prev_val;
             break;
 #endif
         default:
@@ -1394,31 +1390,6 @@ static int toku_c_get_post_lock(C_GET_VARS* g, BOOL found, DBT* orig_key, DBT* o
     r = 0;
 cleanup:
     return r;
-}
-
-/* Used to save the state of a cursor. */
-int brt_cursor_save_key_val(BRT_CURSOR cursor, DBT* key, DBT* val);
-
-/* Used to restore the state of a cursor. */
-void brt_cursor_set_key_val_manually(BRT_CURSOR cursor, DBT* key, DBT* val);
-
-static int toku_c_get_save_cursor(C_GET_VARS* g) {
-    int r = ENOSYS;
-    if (!g->cursor_is_write) { r = 0; goto cleanup; }
-    if (!toku_c_uninitialized(g->c)) {
-        g->cursor_key.flags = DB_DBT_MALLOC;
-        g->cursor_val.flags = DB_DBT_MALLOC;
-    }
-    if ((r = brt_cursor_save_key_val(g->c->i->c, &g->cursor_key, &g->cursor_val))) goto cleanup;
-    if (!toku_c_uninitialized(g->c)) g->cursor_malloced = TRUE;
-    g->cursor_was_saved = TRUE;
-    r = 0;
-cleanup:
-    return r;
-}
-
-static int toku_c_pget_save_cursor(C_GET_VARS* g) {
-    return toku_c_get_save_cursor(g);
 }
 
 static int toku_c_pget_assign_outputs(C_GET_VARS* g, DBT* key, DBT* val, DBT* dat) {
@@ -1484,8 +1455,6 @@ static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * val, u_int32_t flag)
     /* Determine whether the key and val parameters are read, write,
      * or both. */
     if ((r = toku_c_get_describe_inputs(&g))) goto cleanup;
-    /* Save the cursor position if the op can modify the cursor position. */
-    if ((r = toku_c_get_save_cursor(&g))) goto cleanup;
     /* Save key and value to temporary local versions. */
     if ((r = toku_c_get_save_inputs(&g, key, val))) goto cleanup;
     /* Run the cursor operation on the brt. */
@@ -1498,27 +1467,17 @@ static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * val, u_int32_t flag)
     if (r!=0 && r!=DB_NOTFOUND) goto cleanup;
     /* If we have not yet locked, lock now. */
     BOOL found = r_cursor_op==0;
-    r = toku_c_get_post_lock(&g, found, key, val);
-    if (r!=0) goto cleanup;
+    r = toku_c_get_post_lock(&g, found, key, val,
+			     found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c),
+			     found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_key(c->i->c));
+    if (r!=0) {
+	if (g.cursor_is_write && r_cursor_op==0) brt_cursor_restore_state_from_prev(c->i->c);
+	goto cleanup;
+    }
     /* if found, write the outputs to the output parameters. */
     if (found && (r = toku_c_get_assign_outputs(&g, key, val))) goto cleanup; 
     r = r_cursor_op;
 cleanup:
-    if (g.cursor_was_saved && g.cursor_malloced) {
-        /* We saved the cursor.  We either need to restore it, or free
-         * the saved version. */
-        if (r!=0 && r!=DB_NOTFOUND) {
-            /* Failure since 0 and DB_NOTFOUND are 'successes';
-             * Restore the cursor. */
-            brt_cursor_set_key_val_manually(c->i->c, &g.cursor_key, &g.cursor_val);
-            /* cursor_key/val will be zeroed out. */
-        }
-        else {
-            /* Delete the saved cursor. */
-            if (g.cursor_key.data) toku_free(g.cursor_key.data);
-            if (g.cursor_val.data) toku_free(g.cursor_val.data);
-        }
-    }
     /* Cleanup temporary keys. */
     if (g.tmp_key.data && g.tmp_key_malloced) toku_free(g.tmp_key.data);
     if (g.tmp_val.data && g.tmp_val_malloced) toku_free(g.tmp_val.data);
@@ -1573,23 +1532,15 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
     /* Initialize variables. */
     g.c    = c;
     g.db   = c->dbp;
-    g.flag = flag;
     unsigned int brtflags;
     toku_brt_get_flags(g.db->i->brt, &brtflags);
     g.duplicates   = (brtflags & TOKU_DB_DUPSORT) != 0;
 
-    /* Standardize the op flag. */
-    toku_c_pget_fix_flags(&g);
-    /* Determine whether the key, val, and data, parameters are read, write,
-     * or both. */
-    if ((r = toku_c_pget_describe_inputs(&g))) goto cleanup;
- 
     /* The 'key' from C_GET_VARS is the secondary key, and the 'val'
      * from C_GET_VARS is the primary key.  The 'data' parameter here
      * is ALWAYS write-only */ 
 
-    /* Save the cursor position if the op can modify the cursor position. */
-    if ((r = toku_c_pget_save_cursor(&g))) goto cleanup;;
+    int r_cursor_op;
 
     if (0) {
 delete_silently_and_retry:
@@ -1606,39 +1557,38 @@ delete_silently_and_retry:
         memset(&g.tmp_dat, 0, sizeof(g.tmp_dat));
         g.tmp_dat_malloced = FALSE;
         /* Silently delete and re-run. */
-        if ((r = toku_c_del_noassociate(c, 0))) goto cleanup;
+        if ((r = toku_c_del_noassociate(c, 0))) goto cleanup_after_actual_get;
+	if (g.cursor_is_write && r_cursor_op==0) brt_cursor_restore_state_from_prev(c->i->c);
     }
+
+    g.flag = flag;
+    /* Standardize the op flag. */
+    toku_c_pget_fix_flags(&g);
+    /* Determine whether the key, val, and data, parameters are read, write,
+     * or both. */
+    if ((r = toku_c_pget_describe_inputs(&g))) goto cleanup;
+
     /* Save the inputs. */
     if ((r = toku_c_pget_save_inputs(&g, key, pkey, data))) goto cleanup;
 
-    if ((r = toku_c_get_noassociate(c, &g.tmp_key, &g.tmp_val, g.flag))) goto cleanup;
+    if ((r_cursor_op = r = toku_c_get_noassociate(c, &g.tmp_key, &g.tmp_val, g.flag))) goto cleanup;
 
     r = toku_db_get(pdb, c->i->txn, &g.tmp_val, &g.tmp_dat, 0);
     if (r==DB_NOTFOUND) goto delete_silently_and_retry;
-    if (r!=0) goto cleanup;
+    if (r!=0) {
+    cleanup_after_actual_get:
+	if (g.cursor_is_write && r_cursor_op==0) brt_cursor_restore_state_from_prev(c->i->c);
+	goto cleanup;
+    }
 
     r = verify_secondary_key(g.db, &g.tmp_val, &g.tmp_dat, &g.tmp_key);
     if (r==DB_SECONDARY_BAD) goto delete_silently_and_retry;
-    if (r!=0) goto cleanup;
+    if (r!=0) goto cleanup_after_actual_get;
 
     /* Atomically assign all 3 outputs. */
-    if ((r = toku_c_pget_assign_outputs(&g, key, pkey, data))) goto cleanup;
+    if ((r = toku_c_pget_assign_outputs(&g, key, pkey, data))) goto cleanup_after_actual_get;
     r = 0;
 cleanup:
-    if (g.cursor_was_saved && g.cursor_malloced) {
-        /* We saved the cursor.  We either need to restore it, or free
-         * the saved version. */
-        if (r!=0) {
-            /* Restore the cursor. */
-            brt_cursor_set_key_val_manually(c->i->c, &g.cursor_key, &g.cursor_val);
-            /* cursor_key/val will be zeroed out. */
-        }
-        else {
-            /* Delete the saved cursor. */
-            if (g.cursor_key.data) toku_free(g.cursor_key.data);
-            if (g.cursor_val.data) toku_free(g.cursor_val.data);
-        }
-    }
     /* Cleanup temporary keys. */
     if (g.tmp_key.data && g.tmp_key_malloced) toku_free(g.tmp_key.data);
     if (g.tmp_val.data && g.tmp_val_malloced) toku_free(g.tmp_val.data);
@@ -1698,19 +1648,11 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
     DBT key,val;
     memset(&key, 0, sizeof(key));
     memset(&val, 0, sizeof(val));
-    DBT prevkey,prevval;
-    memset(&prevkey, 0, sizeof(key)); prevkey.flags = DB_DBT_MALLOC;
-    memset(&prevval, 0, sizeof(val)); prevval.flags = DB_DBT_MALLOC;
     int r;
 
     DB *db=c->dbp;
     toku_lock_tree* lt = db->i->lt;
     BOOL do_locking = lt!=NULL && !lock_flags;
-    if (do_locking) { 
-        r = brt_cursor_save_key_val(c->i->c, &prevkey, &prevval);
-        if (r!=0) goto cleanup;
-    }
-
 
     unsigned int brtflags;
     toku_brt_get_flags(db->i->brt, &brtflags);
@@ -1721,11 +1663,15 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
     if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
     int found = c_get_result==0;
     if (do_locking) {
+
+	DBT *prevkey = found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c);
+	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_key(c->i->c);
+
         DB_TXN *txn_anc = toku_txn_ancestor(c->i->txn);
         r = toku_txn_add_lt(txn_anc, lt);
         if (r!=0) goto cleanup;
         r = toku_lt_acquire_range_read_lock(lt, db, toku_txn_get_txnid(txn_anc->i->tokutxn),
-                                            &prevkey, &prevval,
+                                            prevkey, prevval,
                                             found ? &key : toku_lt_infinity,
                                             found ? &val : toku_lt_infinity);
         if (r!=0) goto cleanup;
@@ -1735,8 +1681,6 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
     }
     r = c_get_result;
  cleanup:
-    if (prevkey.data) toku_free(prevkey.data);
-    if (prevval.data) toku_free(prevval.data);
     return r;
 }
 

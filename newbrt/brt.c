@@ -2838,14 +2838,10 @@ int toku_brt_search(BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOK
 }
 
 static inline void dbt_cleanup(DBT *dbt) {
-    if (dbt->data && (dbt->flags & DB_DBT_MALLOC)) {
+    if (dbt->data && (   (dbt->flags & DB_DBT_REALLOC)
+		      || (dbt->flags & DB_DBT_MALLOC))) {
         toku_free_n(dbt->data, dbt->size); dbt->data = 0; 
     }
-}
-
-static inline void brt_cursor_cleanup(BRT_CURSOR cursor) {
-    dbt_cleanup(&cursor->key);
-    dbt_cleanup(&cursor->val);
 }
 
 static inline int brt_cursor_not_set(BRT_CURSOR cursor) {
@@ -2856,24 +2852,15 @@ BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c) {
     return brt_cursor_not_set(c);
 }
 
-static inline void brt_cursor_set_key_val(BRT_CURSOR cursor, DBT *newkey, DBT *newval) {
-    brt_cursor_cleanup(cursor);
-    cursor->key = *newkey; memset(newkey, 0, sizeof *newkey);
-    cursor->val = *newval; memset(newval, 0, sizeof *newval);
-}
-
-/* Used to restore the state of a cursor. */
-void brt_cursor_set_key_val_manually(BRT_CURSOR cursor, DBT* key, DBT* val) {
-    brt_cursor_set_key_val(cursor, key, val);
-}
-
 int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, int is_temporary_cursor) {
     BRT_CURSOR cursor = toku_malloc(sizeof *cursor);
     if (cursor == 0)
         return ENOMEM;
     cursor->brt = brt;
-    toku_init_dbt(&cursor->key);
-    toku_init_dbt(&cursor->val);
+    toku_init_dbt(&cursor->key);     cursor->key.flags     = DB_DBT_REALLOC;
+    toku_init_dbt(&cursor->val);     cursor->val.flags     = DB_DBT_REALLOC;
+    toku_init_dbt(&cursor->prevkey); cursor->prevkey.flags = DB_DBT_REALLOC;
+    toku_init_dbt(&cursor->prevval); cursor->prevval.flags = DB_DBT_REALLOC;
     list_push(&brt->cursors, &cursor->cursors_link);
     cursor->is_temporary_cursor=is_temporary_cursor;
     cursor->skey = cursor->sval = 0;
@@ -2885,13 +2872,44 @@ int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, int is_temporary_cursor) {
 }
 
 int toku_brt_cursor_close(BRT_CURSOR cursor) {
-    brt_cursor_cleanup(cursor);
+    dbt_cleanup(&cursor->key);
+    dbt_cleanup(&cursor->val);
+    dbt_cleanup(&cursor->prevkey);
+    dbt_cleanup(&cursor->prevval);
     if (cursor->skey) toku_free(cursor->skey);
     if (cursor->sval) toku_free(cursor->sval);
     list_remove(&cursor->cursors_link);
     toku_omt_cursor_destroy(&cursor->omtcursor);
     toku_free_n(cursor, sizeof *cursor);
     return 0;
+}
+
+DBT *brt_cursor_peek_prev_key(BRT_CURSOR cursor)
+// Effect: Return a pointer to a DBT for the previous key.  
+// Requires:  The caller may not modify that DBT or the memory at which it points.
+{
+    return &cursor->prevkey;
+}
+
+DBT *brt_cursor_peek_prev_val(BRT_CURSOR cursor)
+// Effect: Return a pointer to a DBT for the previous val
+// Requires:  The caller may not modify that DBT or the memory at which it points.
+{
+    return &cursor->prevval;
+}
+
+DBT *brt_cursor_peek_current_key(BRT_CURSOR cursor)
+// Effect: Return a pointer to a DBT for the current key.  
+// Requires:  The caller may not modify that DBT or the memory at which it points.
+{
+    return &cursor->key;
+}
+
+DBT *brt_cursor_peek_current_val(BRT_CURSOR cursor)
+// Effect: Return a pointer to a DBT for the current val
+// Requires:  The caller may not modify that DBT or the memory at which it points.
+{
+    return &cursor->val;
 }
 
 static inline int compare_k_x(BRT brt, DBT *k, DBT *x) {
@@ -2960,26 +2978,6 @@ int toku_brt_cursor_dbts_set_with_dat(BRT_CURSOR cursor, BRT pdb,
     return r;
 }
 
-/* Used to save the state of a cursor. */
-int brt_cursor_save_key_val(BRT_CURSOR cursor, DBT* key, DBT* val) {
-    if (brt_cursor_not_set(cursor)) {
-        if (key) { *key = cursor->key; }
-        if (val) { *val = cursor->val; }
-        return 0;
-    }
-    else {
-        assert(!key || key->flags == DB_DBT_MALLOC);
-        assert(!val || val->flags == DB_DBT_MALLOC);
-        int r;
-        if ((r = brt_cursor_copyout(cursor, key, val))) { return r; }
-        /* An initialized cursor cannot have NULL key->data or
-         * val->data. */
-        assert(key==NULL || key->data!=NULL);
-        assert(val==NULL || val->data!=NULL);
-        return 0;
-    }
-}
-
 static int brt_cursor_compare_set(brt_search_t *search, DBT *x, DBT *y) {
     BRT brt = search->context;
     return compare_kv_xy(brt, search->k, search->v, x, y) <= 0; /* return min xy: kv <= xy */
@@ -2990,8 +2988,8 @@ static int brt_cursor_current(BRT_CURSOR cursor, int op, DBT *outkey, DBT *outva
         return EINVAL;
     if (op == DB_CURRENT) {
         int r = ENOSYS;
-        DBT newkey; toku_init_dbt(&newkey); newkey.flags = DB_DBT_MALLOC;
-        DBT newval; toku_init_dbt(&newval); newval.flags = DB_DBT_MALLOC;
+        DBT newkey; toku_init_dbt(&newkey); newkey.flags = DB_DBT_REALLOC;
+        DBT newval; toku_init_dbt(&newval); newval.flags = DB_DBT_REALLOC;
 
         brt_search_t search; brt_search_init(&search, brt_cursor_compare_set, BRT_SEARCH_LEFT, &cursor->key, &cursor->val, cursor->brt);
         r = toku_brt_search(cursor->brt, &search, &newkey, &newval, logger, cursor->omtcursor, &cursor->root_put_counter);
@@ -3004,54 +3002,64 @@ static int brt_cursor_current(BRT_CURSOR cursor, int op, DBT *outkey, DBT *outva
     return brt_cursor_copyout(cursor, outkey, outval);
 }
 
+static void swap_dbts (DBT *a, DBT *b) {
+    DBT tmp=*a;
+    *a=*b;
+    *b=tmp;
+}
+static void swap_cursor_dbts (BRT_CURSOR cursor) {
+    swap_dbts(&cursor->prevkey, &cursor->key);
+    swap_dbts(&cursor->prevval, &cursor->val);
+}
+
+void brt_cursor_restore_state_from_prev(BRT_CURSOR cursor) {
+    toku_omt_cursor_invalidate(cursor->omtcursor);
+    swap_cursor_dbts(cursor);
+}
+
 /* search for the first kv pair that matches the search object */
 static int brt_cursor_search(BRT_CURSOR cursor, brt_search_t *search, DBT *outkey, DBT *outval, TOKULOGGER logger) {
-    DBT newkey; toku_init_dbt(&newkey); newkey.flags = DB_DBT_MALLOC;
-    DBT newval; toku_init_dbt(&newval); newval.flags = DB_DBT_MALLOC;
+    assert(cursor->prevkey.flags == DB_DBT_REALLOC);
+    assert(cursor->prevval.flags == DB_DBT_REALLOC);
 
-    int r = toku_brt_search(cursor->brt, search, &newkey, &newval, logger, cursor->omtcursor, &cursor->root_put_counter);
+    int r = toku_brt_search(cursor->brt, search, &cursor->prevkey, &cursor->prevval, logger, cursor->omtcursor, &cursor->root_put_counter);
     if (r == 0) {
-        brt_cursor_set_key_val(cursor, &newkey, &newval);
+	swap_cursor_dbts(cursor);
         r = brt_cursor_copyout(cursor, outkey, outval);
     }
-    dbt_cleanup(&newkey);
-    dbt_cleanup(&newval);
     return r;
 }
 
 /* search for the kv pair that matches the search object and is equal to kv */
 static int brt_cursor_search_eq_kv_xy(BRT_CURSOR cursor, brt_search_t *search, DBT *outkey, DBT *outval, TOKULOGGER logger) {
-    DBT newkey; toku_init_dbt(&newkey); newkey.flags = DB_DBT_MALLOC;
-    DBT newval; toku_init_dbt(&newval); newval.flags = DB_DBT_MALLOC;
+    assert(cursor->prevkey.flags == DB_DBT_REALLOC);
+    assert(cursor->prevval.flags == DB_DBT_REALLOC);
 
-    int r = toku_brt_search(cursor->brt, search, &newkey, &newval, logger, cursor->omtcursor, &cursor->root_put_counter);
+    int r = toku_brt_search(cursor->brt, search, &cursor->prevkey, &cursor->prevval, logger, cursor->omtcursor, &cursor->root_put_counter);
     if (r == 0) {
-        if (compare_kv_xy(cursor->brt, search->k, search->v, &newkey, &newval) == 0) {
-            brt_cursor_set_key_val(cursor, &newkey, &newval);
+        if (compare_kv_xy(cursor->brt, search->k, search->v, &cursor->prevkey, &cursor->prevval) == 0) {
+	    swap_cursor_dbts(cursor);
             r = brt_cursor_copyout(cursor, outkey, outval);
-        } else 
+        } else {
             r = DB_NOTFOUND;
+	}
     }
-    dbt_cleanup(&newkey);
-    dbt_cleanup(&newval);
     return r;
 }
 
 /* search for the kv pair that matches the search object and is equal to k */
 static int brt_cursor_search_eq_k_x(BRT_CURSOR cursor, brt_search_t *search, DBT *outkey, DBT *outval, TOKULOGGER logger) {
-    DBT newkey; toku_init_dbt(&newkey); newkey.flags = DB_DBT_MALLOC;
-    DBT newval; toku_init_dbt(&newval); newval.flags = DB_DBT_MALLOC;
+    assert(cursor->prevkey.flags == DB_DBT_REALLOC);
+    assert(cursor->prevval.flags == DB_DBT_REALLOC);
 
-    int r = toku_brt_search(cursor->brt, search, &newkey, &newval, logger, cursor->omtcursor, &cursor->root_put_counter);
+    int r = toku_brt_search(cursor->brt, search, &cursor->prevkey, &cursor->prevval, logger, cursor->omtcursor, &cursor->root_put_counter);
     if (r == 0) {
-        if (compare_k_x(cursor->brt, search->k, &newkey) == 0) {
-            brt_cursor_set_key_val(cursor, &newkey, &newval);
+        if (compare_k_x(cursor->brt, search->k, &cursor->prevkey) == 0) {
+	    swap_cursor_dbts(cursor);
             r = brt_cursor_copyout(cursor, outkey, outval);
         } else 
             r = DB_NOTFOUND;
     }
-    dbt_cleanup(&newkey);
-    dbt_cleanup(&newval);
     return r;
 }
 
@@ -3094,15 +3102,18 @@ get_next:;
 	int r = toku_omt_cursor_next(cursor->omtcursor, &le);
 	if (r==0) {
             if (le_is_provdel(le)) goto get_next;
-	    DBT key,val;
-	    toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
-	    toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+	    
+	    assert(cursor->prevkey.flags == DB_DBT_REALLOC);
+	    assert(cursor->prevval.flags == DB_DBT_REALLOC);
+
 	    bytevec keyb = le_latest_key(le);
 	    bytevec valb = le_latest_val(le);
-	    r = toku_dbt_set_two_values(&key, &keyb, le_latest_keylen(le), NULL, FALSE,
-					&val, &valb, le_latest_vallen(le), NULL, FALSE);
+	    r = toku_dbt_set_two_values(&cursor->prevkey, &keyb, le_latest_keylen(le), NULL, FALSE,
+					&cursor->prevval, &valb, le_latest_vallen(le), NULL, FALSE);
 	    assert(r==0);
-	    brt_cursor_set_key_val(cursor, &key, &val);
+
+	    swap_cursor_dbts(cursor);
+
 	    return brt_cursor_copyout(cursor, outkey, outval);
 	}
     }
@@ -3182,15 +3193,18 @@ get_prev:;
 	int r = toku_omt_cursor_prev(cursor->omtcursor, &le);
 	if (r==0) {
             if (le_is_provdel(le)) goto get_prev;
-	    DBT key,val;
-	    toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
-	    toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+
+	    assert(cursor->prevkey.flags == DB_DBT_REALLOC);
+	    assert(cursor->prevval.flags == DB_DBT_REALLOC);
+
 	    bytevec keyb = le_latest_key(le);
 	    bytevec valb = le_latest_val(le);
-	    r = toku_dbt_set_two_values(&key, &keyb, le_latest_keylen(le), NULL, FALSE,
-					&val, &valb, le_latest_vallen(le), NULL, FALSE);
+	    r = toku_dbt_set_two_values(&cursor->prevkey, &keyb, le_latest_keylen(le), NULL, FALSE,
+					&cursor->prevval, &valb, le_latest_vallen(le), NULL, FALSE);
 	    assert(r==0);
-	    brt_cursor_set_key_val(cursor, &key, &val);
+
+	    swap_cursor_dbts(cursor);
+
 	    return brt_cursor_copyout(cursor, outkey, outval);
 	}
     }
