@@ -2703,7 +2703,7 @@ static int bessel_from_search_t (OMTVALUE lev, void *extra) {
     LESWITCHCALL(leafval, pair_leafval_bessel, search);
 }
 
-static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, OMTCURSOR omtcursor) {
+static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, TOKULOGGER logger, OMTCURSOR omtcursor) {
     // Now we have to convert from brt_search_t to the bessel function with a direction.  What a pain...
     int direction;
     switch (search->direction) {
@@ -2723,12 +2723,35 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
 
     LEAFENTRY le = datav;
     if (le_is_provdel(le)) {
+        TXNID xid = le_any_xid(le);
+        TOKUTXN txn = 0;
+        toku_txn_find_by_xid(brt, xid, &txn);
+
 	// Provisionally deleted stuff is gone.
 	// So we need to scan in the direction to see if we can find something
 	while (1) {
+            // see if the transaction is alive
+            TXNID newxid = le_any_xid(le);
+            if (newxid != xid) {
+                xid = newxid;
+                txn = 0;
+                toku_txn_find_by_xid(brt, xid, &txn);
+            }
+
 	    switch (search->direction) {
 	    case BRT_SEARCH_LEFT:
-		idx++;
+                if (txn) {
+                    // printf("xid %llu -> %p\n", (unsigned long long) xid, txn);
+                    idx++;
+                } else {
+                    // apply a commit message for this leafentry to the node
+                    // printf("apply commit_both %llu\n", (unsigned long long) xid);
+                    DBT key, val;
+                    BRT_CMD_S brtcmd = { BRT_COMMIT_BOTH, xid, .u.id= {toku_fill_dbt(&key, le_latest_key(le), le_latest_keylen(le)),
+                                                                       toku_fill_dbt(&val, le_latest_val(le), le_latest_vallen(le))} };
+                    r = brt_leaf_apply_cmd_once(brt, node, &brtcmd, logger, idx, le);
+                    assert(r == 0);
+                }
 		if (idx>=toku_omt_size(node->u.l.buffer)) return DB_NOTFOUND;
 		break;
 	    case BRT_SEARCH_RIGHT:
@@ -2760,7 +2783,7 @@ static int brt_search_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *new
     if (node->height > 0)
         return brt_search_nonleaf_node(brt, node, search, newkey, newval, split, logger, omtcursor);
     else
-        return brt_search_leaf_node(brt, node, search, newkey, newval, omtcursor);
+        return brt_search_leaf_node(brt, node, search, newkey, newval, logger, omtcursor);
 }
 
 int toku_brt_search(BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULOGGER logger, OMTCURSOR omtcursor, uint64_t *root_put_counter)

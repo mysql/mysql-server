@@ -132,6 +132,7 @@ void* le_any_key (LEAFENTRY le);
 u_int32_t le_any_keylen (LEAFENTRY le);
 void* le_any_val (LEAFENTRY le);
 u_int32_t le_any_vallen (LEAFENTRY le);
+u_int64_t le_any_xid (LEAFENTRY le);
 
 #endif
 

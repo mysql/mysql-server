@@ -1001,11 +1001,10 @@ int toku_read_rollback_backwards(int fd, off_t at, struct roll_entry **item, off
     return 0;
 }
 
-
-static int find_ptr (OMTVALUE v, void *vfind) {
-    if (v<vfind) return -1;
-    if (v>vfind) return +1;
-    return 0;
+static int find_xid (OMTVALUE v, void *txnv) {
+    TOKUTXN txn = v;
+    TOKUTXN txnfind = txnv;
+    return txn->txnid64 - txnfind->txnid64;
 }
 
 static int find_filenum (OMTVALUE v, void *brtv) {
@@ -1022,7 +1021,7 @@ static int find_filenum (OMTVALUE v, void *brtv) {
 int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
     OMTVALUE txnv;
     u_int32_t index;
-    int r = toku_omt_find_zero(brt->txns, find_ptr, txn, &txnv, &index, NULL);
+    int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv, &index, NULL);
     if (r==0) {
 	// It's already there.
 	assert((TOKUTXN)txnv==txn);
@@ -1060,7 +1059,7 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     TOKUTXN txn = txnv;
     OMTVALUE txnv_again=NULL;
     u_int32_t index;
-    int r = toku_omt_find_zero(brt->txns, find_ptr, txn, &txnv_again, &index, NULL);
+    int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv_again, &index, NULL);
     assert(r==0);
     assert((void*)txnv_again==txnv);
     r = toku_omt_delete_at(brt->txns, index);
@@ -1072,4 +1071,13 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
 static void note_txn_closing (TOKUTXN txn) {
     toku_omt_iterate(txn->open_brts, remove_txn, txn);
     toku_omt_destroy(&txn->open_brts);
+}
+
+int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr) {
+    struct tokutxn fake_txn; fake_txn.txnid64 = xid;
+    uint32_t index;
+    OMTVALUE txnv;
+    int r = toku_omt_find_zero(brt->txns, find_xid, &fake_txn, &txnv, &index, NULL);
+    if (r == 0) *txnptr = txnv;
+    return r;
 }
