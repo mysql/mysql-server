@@ -169,4 +169,8 @@ int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item);
 int toku_txn_note_brt (TOKUTXN txn, BRT brt);
 int toku_txn_note_close_brt (BRT brt);
 
+// find the TOKUTXN object by xid
+// if found then return 0 and set txnptr to the address of the TOKUTXN object
+int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr);
+
 #endif

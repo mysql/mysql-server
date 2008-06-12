@@ -407,3 +407,24 @@ u_int32_t any_vallen_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kv
 u_int32_t le_any_vallen (LEAFENTRY le) {
     LESWITCHCALL(le, any_vallen);
 }
+
+
+u_int64_t any_xid_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
+    return 0;
+}
+
+u_int64_t any_xid_le_both (TXNID xid, u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
+    return xid;
+}
+
+u_int64_t any_xid_le_provdel (TXNID xid, u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
+    return xid;
+}
+
+u_int64_t any_xid_le_provpair (TXNID xid, u_int32_t UU(klen), void *UU(kval), u_int32_t UU(plen), void *UU(pval)) {
+    return xid;
+}
+
+u_int64_t le_any_xid (LEAFENTRY le) {
+    LESWITCHCALL(le, any_xid);
+}
