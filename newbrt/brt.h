@@ -53,6 +53,12 @@ int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN);
 int toku_brt_cursor_close (BRT_CURSOR curs);
 BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c);
 
+DBT *brt_cursor_peek_prev_key(BRT_CURSOR cursor);
+DBT *brt_cursor_peek_prev_val(BRT_CURSOR cursor);
+DBT *brt_cursor_peek_current_key(BRT_CURSOR cursor);
+DBT *brt_cursor_peek_current_val(BRT_CURSOR cursor);
+void brt_cursor_restore_state_from_prev(BRT_CURSOR cursor);
+
 typedef struct brtenv *BRTENV;
 int brtenv_checkpoint (BRTENV env);
 
