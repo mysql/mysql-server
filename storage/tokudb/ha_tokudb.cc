@@ -3032,7 +3032,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                     TOKUDB_DBUG_RETURN(0);     // Don't create stmt trans
             }
             DBUG_PRINT("trans", ("starting transaction stmt"));
-	    if (trx->stmt) 
+            if (trx->stmt) 
                 if (tokudb_debug & TOKUDB_DEBUG_TXN) 
                     TOKUDB_TRACE("warning:stmt=%p\n", trx->stmt);
             if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0))) {
@@ -3673,6 +3673,35 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     assert(error == 0);
+
+    //
+    // grab some locks to make this go faster
+    // first a global read lock on the main DB, because
+    // we intend to scan the entire thing
+    //
+    error = share->file->pre_acquire_read_lock(
+        share->file, 
+        txn, 
+        share->file->dbt_neg_infty(), 
+        NULL, 
+        share->file->dbt_pos_infty(), 
+        NULL
+        );
+    if (error) { txn->commit(txn, 0); goto cleanup; }
+
+    //
+    // now grab a table write lock for secondary tables we
+    // are creating
+    //
+    for (uint i = 0; i < num_of_keys; i++) {
+        uint curr_index = i + table_arg->s->keys;
+        error = share->key_file[curr_index]->pre_acquire_table_lock(
+            share->key_file[curr_index],
+            txn
+            );
+        if (error) { txn->commit(txn, 0); goto cleanup; }
+    }
+
     if ((error = share->file->cursor(share->file, txn, &tmp_cursor, 0))) {
         tmp_cursor = NULL;             // Safety
         goto cleanup;
@@ -3682,7 +3711,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     // for each element in the primary table, insert the proper key value pair in each secondary table
     // that is created
     //
-    cursor_ret_val = tmp_cursor->c_get(tmp_cursor, &current_primary_key, &row, DB_NEXT);
+    cursor_ret_val = tmp_cursor->c_get(tmp_cursor, &current_primary_key, &row, DB_NEXT | DB_PRELOCKED);
     while (cursor_ret_val != DB_NOTFOUND) {
         if (cursor_ret_val) {
             error = cursor_ret_val;
