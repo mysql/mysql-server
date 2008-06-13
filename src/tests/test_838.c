@@ -331,6 +331,9 @@ void test_838_defer_delete_commit(int n) {
             assert(r == 0);
         }
 
+    
+    int expectr = 0;
+
     // walk
     {
         DB_TXN *txn;
@@ -343,7 +346,14 @@ void test_838_defer_delete_commit(int n) {
             gettimeofday(&tstart, 0);
             DBT key, val;
             r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST);
+#if USE_TDB
             assert(r == DB_LOCK_NOTGRANTED);
+#elif USE_BDB
+            assert(r == DB_RUNRECOVERY);
+            expectr = r;
+#else
+#error
+#endif
             gettimeofday(&tnow, 0);
             unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
             t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
@@ -355,18 +365,18 @@ void test_838_defer_delete_commit(int n) {
                 testresult = 1;
         }
         r = cursor->c_close(cursor); assert(r == 0);
-        r = txn->commit(txn, 0); assert(r == 0);
+        r = txn->commit(txn, 0); assert(r == expectr);
     }
 
     // delete commit
-    r = txn_delete->commit(txn_delete, 0); assert(r == 0);
-    r = txn_master_delete->commit(txn_master_delete, 0); assert(r == 0);
+    r = txn_delete->commit(txn_delete, 0); assert(r == expectr);
+    r = txn_master_delete->commit(txn_master_delete, 0); assert(r == expectr);
 
     // close db
-    r = db->close(db, 0); assert(r == 0);
+    r = db->close(db, 0); assert(r == expectr);
 
     // reopen and walk
-    {
+    if (expectr == 0) {
         DB_TXN *txn = 0;
         r = env->txn_begin(env, 0, &txn, 0); assert(r == 0);
 
@@ -375,7 +385,7 @@ void test_838_defer_delete_commit(int n) {
 
         r = txn->commit(txn, 0); assert(r == 0);
     }
-    {
+    if (expectr == 0) {
         DB_TXN *txn;
         r = env->txn_begin(env, 0, &txn, 0); assert(r == 0);
         DBC *cursor;
@@ -402,7 +412,7 @@ void test_838_defer_delete_commit(int n) {
     }
 
     // close env
-    r = env->close(env, 0); assert(r == 0);
+    r = env->close(env, 0); assert(r == expectr);
 }
 
 int main(int argc, const char *argv[]) {
