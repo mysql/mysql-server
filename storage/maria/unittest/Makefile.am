@@ -27,7 +27,7 @@ LDADD=			$(top_builddir)/unittest/mytap/libmytap.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
+noinst_PROGRAMS =	ma_control_file-t trnman-t \
 			ma_pagecache_single_1k-t ma_pagecache_single_8k-t \
 			ma_pagecache_single_64k-t \
 			ma_pagecache_consist_1k-t \
@@ -103,7 +103,8 @@ ma_pagecache_rwconsist_1k_t_SOURCES =	ma_pagecache_rwconsist.c
 ma_pagecache_rwconsist_1k_t_CPPFLAGS = -DTEST_PAGE_SIZE=1024
 
 # the generic lock manager may not be used in the end and lockman1-t crashes,
-# so we don't build lockman-t and lockman1-t 
+# and lockman2-t takes at least quarter an hour,
+# so we don't build lockman-t and lockman1-t and lockman2-t 
 CLEANFILES =		maria_log_control page_cache_test_file_1 \
 			maria_log.????????
 
