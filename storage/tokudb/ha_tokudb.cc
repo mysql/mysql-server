@@ -2604,7 +2604,7 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
         !(table->key_info[active_index].flags & HA_NOSAME) && 
         !(table->key_info[active_index].flags & HA_END_SPACE_KEY)) {
 
-        u_int32_t flags = lock_grabbed ? (DB_NEXT_DUP | DB_PRELOCKED) : DB_NEXT;
+        u_int32_t flags = lock_grabbed ? (DB_NEXT_DUP | DB_PRELOCKED) : DB_NEXT_DUP;
         error = cursor->c_get(cursor, &last_key, &row, flags);
         error = read_row(error, buf, active_index, &row, &last_key, 1);
     } else {
