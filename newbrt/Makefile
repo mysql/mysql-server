@@ -66,7 +66,6 @@ BRT_SOURCES = \
   memory \
   mempool \
   omt \
-  primes \
   recover \
   roll \
   toku_assert \
@@ -129,8 +128,6 @@ cachetable-test: $(OFILES)
 
 cachetable-test2.o: cachetable.h memory.h
 cachetable-test2: $(OFILES)
-
-test-primes: test-primes.o newbrt.o
 
 test-assert: newbrt.o
 

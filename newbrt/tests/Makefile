@@ -77,7 +77,6 @@ REGRESSION_TESTS = \
 	test-del-inorder \
 	test-inc-split \
 	test-leafentry \
-	test-primes \
 	test_oexcl \
 	test_toku_malloc_plain_free \
 	ybt-test \
