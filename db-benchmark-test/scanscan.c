@@ -224,5 +224,11 @@ int main (int argc, const char *argv[]) {
  ok:
     shutdown();
 
+#ifdef TOKUDB
+    if (0) {
+	extern void print_hash_histogram (void) __attribute__((__visibility__("default")));
+	print_hash_histogram();
+    }
+#endif
     return 0;
 }

@@ -363,6 +363,10 @@ int main (int argc, const char *argv[]) {
 	extern unsigned long toku_get_maxrss(void);
 	printf("maxrss=%.2fMB\n", toku_get_maxrss()/256.0);
     }
+    if (0) {
+	extern void print_hash_histogram (void) __attribute__((__visibility__("default")));
+	print_hash_histogram();
+    }
 #endif
     return 0;
 }
