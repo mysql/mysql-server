@@ -103,7 +103,8 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
 #endif
     //assert(calculated_size<=size);
     //char buf[size];
-    char *MALLOC_N(node->nodesize,buf);
+    size_t n_to_write = node->ever_been_written ? w.ndone : node->nodesize;
+    char *MALLOC_N(n_to_write, buf);
     //toku_verify_counts(node);
     //assert(size>0);
     //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
@@ -193,13 +194,13 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     wbuf_uint(&w, w.crc32);
 #endif
 
-    memset(w.buf+w.ndone, 0, (size_t)(node->nodesize-w.ndone)); // fill with zeros
+    if (!node->ever_been_written)
+	memset(w.buf+w.ndone, 0, (size_t)(node->nodesize-w.ndone)); // fill with zeros
 
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
 	// If the node has never been written, then write the whole buffer, including the zeros
 	//size_t n_to_write = node->nodesize;
-	size_t n_to_write = node->ever_been_written ? w.ndone : node->nodesize;
 	ssize_t r=pwrite(fd, w.buf, n_to_write, off);
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
 	assert(r==(ssize_t)n_to_write);
