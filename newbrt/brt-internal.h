@@ -50,6 +50,7 @@ typedef struct brtnode *BRTNODE;
 struct brtnode {
     enum typ_tag tag;
     unsigned int nodesize;
+    int ever_been_written;
     unsigned int flags;
     DISKOFF thisnodename;   // The size of the node allocated on disk.  Not all is necessarily in use.
     //  These two LSNs are used to decide when to make a copy of a node instead of overwriting it.

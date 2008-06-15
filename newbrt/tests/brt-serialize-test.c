@@ -23,6 +23,7 @@ static void test_serialize(void) {
     //    source_brt.fd=fd;
     char *hello_string;
     sn.nodesize = nodesize;
+    sn.ever_been_written = 0;
     sn.flags = 0x11223344;
     sn.thisnodename = sn.nodesize*20;
     sn.disk_lsn.lsn = 789;
