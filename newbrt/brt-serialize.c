@@ -197,9 +197,12 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
 
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
-	ssize_t r=pwrite(fd, w.buf, (size_t)node->nodesize, off); // write the whole buffer, including the zeros
+	// If the node has never been written, then write the whole buffer, including the zeros
+	//size_t n_to_write = node->nodesize;
+	size_t n_to_write = node->ever_been_written ? w.ndone : node->nodesize;
+	ssize_t r=pwrite(fd, w.buf, n_to_write, off);
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
-	assert(r==(ssize_t)node->nodesize);
+	assert(r==(ssize_t)n_to_write);
     }
 
     if (calculated_size!=w.ndone)
@@ -222,6 +225,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
 	if (0) { died0: toku_free(result); }
 	return r;
     }
+    result->ever_been_written = 1; 
     {
 	u_int32_t datasize_n;
 	r = pread(fd, &datasize_n, sizeof(datasize_n), off +8+4+8);

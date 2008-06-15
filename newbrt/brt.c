@@ -366,6 +366,7 @@ int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logg
     assert(n);
     assert(t->h->nodesize>0);
     //printf("%s:%d malloced %lld (and malloc again=%lld)\n", __FILE__, __LINE__, name, malloc_diskblock(t, t->nodesize));
+    n->ever_been_written = 0;
     initialize_brtnode(t, n, name, height);
     *result = n;
     assert(n->nodesize>0);
@@ -1872,6 +1873,7 @@ static int setup_initial_brt_root_node (BRT t, DISKOFF offset, TOKULOGGER logger
     int r;
     TAGMALLOC(BRTNODE, node);
     assert(node);
+    node->ever_been_written = 0;
     //printf("%s:%d\n", __FILE__, __LINE__);
     initialize_brtnode(t, node,
 		       offset, /* the location is one nodesize offset from 0. */
@@ -2269,6 +2271,7 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     r=malloc_diskblock(&newroot_diskoff, brt, new_nodesize, logger);
     assert(r==0);
     assert(newroot);
+    newroot->ever_been_written = 0;
     if (brt->database_name==0) {
 	toku_log_changeunnamedroot(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), *rootp, newroot_diskoff);
     } else {
