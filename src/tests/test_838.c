@@ -364,7 +364,12 @@ void test_838_defer_delete_commit(int n) {
             if (i > 0 && t > 10*maxt)
                 testresult = 1;
         }
-        r = cursor->c_close(cursor); assert(r == 0);
+        r = cursor->c_close(cursor);
+#if USE_BDB
+        if (r != expectr) printf("%s:%d:WARNING r=%d expectr=%d\n", __FILE__, __LINE__, r, expectr);
+#else
+        assert(r == expectr);
+#endif
         r = txn->commit(txn, 0); assert(r == expectr);
     }
 
