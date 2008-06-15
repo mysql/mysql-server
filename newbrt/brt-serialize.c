@@ -103,7 +103,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
 #endif
     //assert(calculated_size<=size);
     //char buf[size];
-    size_t n_to_write = node->ever_been_written ? w.ndone : node->nodesize;
+    size_t n_to_write = node->ever_been_written ? calculated_size : node->nodesize;
     char *MALLOC_N(n_to_write, buf);
     //toku_verify_counts(node);
     //assert(size>0);
