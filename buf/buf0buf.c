@@ -1936,7 +1936,9 @@ loop2:
 		goto loop;
 	}
 
-	ut_ad(page_zip_get_size(&block->page.zip) == zip_size);
+	/* zip_size can be 0 if called from ibuf */
+	ut_ad(zip_size == 0
+	      || page_zip_get_size(&block->page.zip) == zip_size);
 
 	must_read = buf_block_get_io_fix(block) == BUF_IO_READ;
 
