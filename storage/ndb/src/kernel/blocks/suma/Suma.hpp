@@ -228,13 +228,13 @@ public:
 
     enum Options {
       REPORT_ALL       = 0x1,
-      REPORT_SUBSCRIBE = 0x2
+      REPORT_SUBSCRIBE = 0x2,
+      MARKED_DROPPED   = 0x4
     };
 
     enum State {
       UNDEFINED,
       DEFINED,
-      DROPPED,
       DEFINING
     };
 
