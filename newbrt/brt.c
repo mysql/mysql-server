@@ -1587,6 +1587,8 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
     int i;
     assert(node->height>0);
+#define DO_PIVOT_SEARCH_LR 0
+#if DO_PIVOT_SEARCH_LR
     for (i=0; i<node->u.n.n_children-1; i++) {
 	int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i]);
         if (cmp > 0) continue;
@@ -1594,6 +1596,15 @@ unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
         return i;
     }
     return node->u.n.n_children-1;
+#else
+    // give preference for appending to the dictionary.  no change for
+    // random keys
+    for (i = node->u.n.n_children-2; i >= 0; i--) {
+        int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i]);
+        if (cmp > 0) return i+1;
+    }
+    return 0;
+#endif
 }
 
 /* put a cmd into a nodes child */
