@@ -55,12 +55,12 @@ f223 year(3),
 f224 year(4),
 f225 enum("1enum","2enum"),
 f226 set("1set","2set"),
-f236 char(95) unicode,
-f241 char(255) unicode,
+f236 char(95),
+f241 char(255),
 f237 char(130) binary,
 f238 varchar(25000) binary,
 f239 varbinary(0),
-f240 varchar(1200) unicode
+f240 varchar(1200)
 ) engine = memory;
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>

@@ -1,0 +1,20 @@
+# suite/funcs_1/t/is_tables_embedded.test
+#
+# Check the layout of information_schema.tables and the impact of
+# CREATE/ALTER/DROP TABLE/VIEW/SCHEMA ... on it.
+# Variant for the embedded server
+#    The expected results must equal is_tables except that all users
+#    have all privileges (affects some result sets).
+#
+# There is detailed information about this test within
+#    suite/funcs_1/datadict/is_tables.inc
+#
+# Author:
+# 2008-06-06 mleich Create this this variant for the embedded server.
+#
+
+if (`SELECT VERSION() NOT LIKE '%embedded%'`)
+{
+   --skip Test requires: embedded server
+}
+--source suite/funcs_1/datadict/is_tables.inc
