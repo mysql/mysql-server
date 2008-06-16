@@ -153,7 +153,7 @@ my $opt_sleep;
 my $opt_testcase_timeout=    15; # 15 minutes
 my $opt_suite_timeout   =   180; # 3 hours
 my $opt_shutdown_timeout=    10; # 10 seconds
-my $opt_start_timeout   =    30; # 30 seconds
+my $opt_start_timeout   =   180; # 180 seconds
 
 my $opt_start;
 my $opt_start_dirty;
