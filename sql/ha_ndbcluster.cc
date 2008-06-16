@@ -8611,13 +8611,19 @@ static int ndbcluster_init(void *p)
 
   /* allocate connection resources and connect to cluster */
   if (ndbcluster_connect(connect_callback))
+  {
+    DBUG_PRINT("error", ("Could not initiate connection to cluster"));
     goto ndbcluster_init_error;
+  }
 
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())
+  {
+    DBUG_PRINT("error", ("Could start the injector thread"));
     goto ndbcluster_init_error;
+  }
 
   ndb_cache_check_time = opt_ndb_cache_check_time;
   // Create utility thread
@@ -8665,6 +8671,8 @@ ndbcluster_init_error:
   DBUG_RETURN(TRUE);
 }
 
+int ndbcluster_binlog_end(THD *thd);
+
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 {
   DBUG_ENTER("ndbcluster_end");
@@ -8673,15 +8681,8 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
     DBUG_RETURN(0);
   ndbcluster_inited= 0;
 
-  /* wait for util thread to finish */
-  sql_print_information("Stopping Cluster Utility thread");
-  pthread_mutex_lock(&LOCK_ndb_util_thread);
-  ndbcluster_terminating= 1;
-  pthread_cond_signal(&COND_ndb_util_thread);
-  while (ndb_util_thread_running > 0)
-    pthread_cond_wait(&COND_ndb_util_ready, &LOCK_ndb_util_thread);
-  pthread_mutex_unlock(&LOCK_ndb_util_thread);
-
+  /* wait for util and binlog thread to finish */
+  ndbcluster_binlog_end(NULL);
 
   {
     pthread_mutex_lock(&ndbcluster_mutex);
@@ -10913,6 +10914,11 @@ ndb_util_thread_end:
 ndb_util_thread_fail:
   if (share_list)
     delete [] share_list;
+  if (thd_ndb)
+  {
+    ha_ndbcluster::release_thd_ndb(thd_ndb);
+    set_thd_ndb(thd, NULL);
+  }
   thd->cleanup();
   delete thd;
   
