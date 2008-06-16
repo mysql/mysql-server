@@ -7,7 +7,7 @@ create table tb1 (
 f1 char(0),
 f2 char(0) binary,
 f3 char(0) ascii,
-f4 tinytext unicode,
+f4 tinytext,
 f5 text,
 f6 mediumtext,
 f7 longtext,

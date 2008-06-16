@@ -6,7 +6,7 @@ create table tb1 (
 f1 char(0),
 f2 char(0) binary,
 f3 char(0) ascii,
-f4 tinytext unicode,
+f4 tinytext,
 f5 text,
 f6 mediumtext,
 f7 longtext,
@@ -142,7 +142,7 @@ f120 char ascii not null DEFAULT b'101',
 f121 tinytext,
 f122 text,
 f123 mediumtext,
-f124 longtext unicode,
+f124 longtext,
 f125 tinyblob,
 f126 blob,
 f127 mediumblob,
@@ -254,13 +254,13 @@ f223 year(3),
 f224 year(4),
 f225 enum("1enum","2enum"),
 f226 set("1set","2set"),
-f235 char(0) unicode,
+f235 char(0),
 f236 char(90),
 f237 char(255) ascii,
 f238 varchar(0),
 f239 varchar(20000) binary,
-f240 varchar(2000) unicode,
-f241 char(100) unicode
+f240 varchar(2000),
+f241 char(100)
 ) engine = innodb;
 load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/innodb_tb4.txt'
 into table tb4;
@@ -460,7 +460,7 @@ NULL	test	tb1	f36	36	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0
 NULL	test	tb1	f37	37	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0)			select,insert,update,references	
 NULL	test	tb1	f38	38	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	decimal(64,0)			select,insert,update,references	
 NULL	test	tb1	f39	39	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references	
-NULL	test	tb1	f4	4	NULL	YES	tinytext	127	255	NULL	NULL	ucs2	ucs2_general_ci	tinytext			select,insert,update,references	
+NULL	test	tb1	f4	4	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
 NULL	test	tb1	f40	40	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references	
 NULL	test	tb1	f41	41	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references	
 NULL	test	tb1	f42	42	0000000000000000000000000000000000000000000000000000000000000010	NO	decimal	NULL	NULL	64	0	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references	
@@ -542,7 +542,7 @@ NULL	test	tb3	f120	3		NO	char	1	1	NULL	NULL	latin1	latin1_swedish_ci	char(1)			
 NULL	test	tb3	f121	4	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
 NULL	test	tb3	f122	5	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references	
 NULL	test	tb3	f123	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	latin1	latin1_swedish_ci	mediumtext			select,insert,update,references	
-NULL	test	tb3	f124	7	NULL	YES	longtext	2147483647	4294967295	NULL	NULL	ucs2	ucs2_general_ci	longtext			select,insert,update,references	
+NULL	test	tb3	f124	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	latin1	latin1_swedish_ci	longtext			select,insert,update,references	
 NULL	test	tb3	f125	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	tinyblob			select,insert,update,references	
 NULL	test	tb3	f126	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
 NULL	test	tb3	f127	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references	
@@ -645,13 +645,13 @@ NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			sele
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f225	50	NULL	YES	enum	5	5	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references	
 NULL	test	tb4	f226	51	NULL	YES	set	9	9	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references	
-NULL	test	tb4	f235	52	NULL	YES	char	0	0	NULL	NULL	ucs2	ucs2_general_ci	char(0)			select,insert,update,references	
+NULL	test	tb4	f235	52	NULL	YES	char	0	0	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references	
 NULL	test	tb4	f236	53	NULL	YES	char	90	90	NULL	NULL	latin1	latin1_swedish_ci	char(90)			select,insert,update,references	
 NULL	test	tb4	f237	54	NULL	YES	char	255	255	NULL	NULL	latin1	latin1_swedish_ci	char(255)			select,insert,update,references	
 NULL	test	tb4	f238	55	NULL	YES	varchar	0	0	NULL	NULL	latin1	latin1_swedish_ci	varchar(0)			select,insert,update,references	
 NULL	test	tb4	f239	56	NULL	YES	varchar	20000	20000	NULL	NULL	latin1	latin1_bin	varchar(20000)			select,insert,update,references	
-NULL	test	tb4	f240	57	NULL	YES	varchar	2000	4000	NULL	NULL	ucs2	ucs2_general_ci	varchar(2000)			select,insert,update,references	
-NULL	test	tb4	f241	58	NULL	YES	char	100	200	NULL	NULL	ucs2	ucs2_general_ci	char(100)			select,insert,update,references	
+NULL	test	tb4	f240	57	NULL	YES	varchar	2000	2000	NULL	NULL	latin1	latin1_swedish_ci	varchar(2000)			select,insert,update,references	
+NULL	test	tb4	f241	58	NULL	YES	char	100	100	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references	
 NULL	test1	tb2	f100	42	00000000000000000008.8	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references	
 NULL	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test1	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
@@ -736,6 +736,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	set	latin1	latin1_swedish_ci
 1.0000	text	latin1	latin1_swedish_ci
 1.0000	tinytext	latin1	latin1_swedish_ci
+1.0000	varchar	latin1	latin1_swedish_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -746,10 +747,6 @@ WHERE table_schema LIKE 'test%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH <> 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
-2.0000	char	ucs2	ucs2_general_ci
-2.0000	longtext	ucs2	ucs2_general_ci
-2.0000	varchar	ucs2	ucs2_general_ci
-2.0079	tinytext	ucs2	ucs2_general_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -780,7 +777,6 @@ NULL	year	NULL	NULL
 NULL	char	latin1	latin1_bin
 NULL	char	latin1	latin1_swedish_ci
 NULL	varchar	latin1	latin1_swedish_ci
-NULL	char	ucs2	ucs2_general_ci
 --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
 --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
 SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
@@ -844,7 +840,7 @@ NULL	test	t9	f3	int	NULL	NULL	NULL	NULL	int(11)
 NULL	test	tb1	f1	char	0	0	latin1	latin1_swedish_ci	char(0)
 NULL	test	tb1	f2	char	0	0	latin1	latin1_bin	char(0)
 NULL	test	tb1	f3	char	0	0	latin1	latin1_swedish_ci	char(0)
-2.0079	test	tb1	f4	tinytext	127	255	ucs2	ucs2_general_ci	tinytext
+1.0000	test	tb1	f4	tinytext	255	255	latin1	latin1_swedish_ci	tinytext
 1.0000	test	tb1	f5	text	65535	65535	latin1	latin1_swedish_ci	text
 1.0000	test	tb1	f6	mediumtext	16777215	16777215	latin1	latin1_swedish_ci	mediumtext
 1.0000	test	tb1	f7	longtext	4294967295	4294967295	latin1	latin1_swedish_ci	longtext
@@ -956,7 +952,7 @@ NULL	test	tb2	f107	year	NULL	NULL	NULL	NULL	year(4)
 1.0000	test	tb3	f121	tinytext	255	255	latin1	latin1_swedish_ci	tinytext
 1.0000	test	tb3	f122	text	65535	65535	latin1	latin1_swedish_ci	text
 1.0000	test	tb3	f123	mediumtext	16777215	16777215	latin1	latin1_swedish_ci	mediumtext
-2.0000	test	tb3	f124	longtext	2147483647	4294967295	ucs2	ucs2_general_ci	longtext
+1.0000	test	tb3	f124	longtext	4294967295	4294967295	latin1	latin1_swedish_ci	longtext
 1.0000	test	tb3	f125	tinyblob	255	255	NULL	NULL	tinyblob
 1.0000	test	tb3	f126	blob	65535	65535	NULL	NULL	blob
 1.0000	test	tb3	f127	mediumblob	16777215	16777215	NULL	NULL	mediumblob
@@ -1059,13 +1055,13 @@ NULL	test	tb4	f223	year	NULL	NULL	NULL	NULL	year(4)
 NULL	test	tb4	f224	year	NULL	NULL	NULL	NULL	year(4)
 1.0000	test	tb4	f225	enum	5	5	latin1	latin1_swedish_ci	enum('1enum','2enum')
 1.0000	test	tb4	f226	set	9	9	latin1	latin1_swedish_ci	set('1set','2set')
-NULL	test	tb4	f235	char	0	0	ucs2	ucs2_general_ci	char(0)
+NULL	test	tb4	f235	char	0	0	latin1	latin1_swedish_ci	char(0)
 1.0000	test	tb4	f236	char	90	90	latin1	latin1_swedish_ci	char(90)
 1.0000	test	tb4	f237	char	255	255	latin1	latin1_swedish_ci	char(255)
 NULL	test	tb4	f238	varchar	0	0	latin1	latin1_swedish_ci	varchar(0)
 1.0000	test	tb4	f239	varchar	20000	20000	latin1	latin1_bin	varchar(20000)
-2.0000	test	tb4	f240	varchar	2000	4000	ucs2	ucs2_general_ci	varchar(2000)
-2.0000	test	tb4	f241	char	100	200	ucs2	ucs2_general_ci	char(100)
+1.0000	test	tb4	f240	varchar	2000	2000	latin1	latin1_swedish_ci	varchar(2000)
+1.0000	test	tb4	f241	char	100	100	latin1	latin1_swedish_ci	char(100)
 NULL	test1	tb2	f59	decimal	NULL	NULL	NULL	NULL	decimal(10,0) unsigned
 NULL	test1	tb2	f60	decimal	NULL	NULL	NULL	NULL	decimal(64,0) unsigned
 NULL	test1	tb2	f61	decimal	NULL	NULL	NULL	NULL	decimal(10,0) unsigned zerofill
