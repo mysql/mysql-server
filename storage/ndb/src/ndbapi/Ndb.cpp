@@ -550,7 +550,8 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       Uint32 hashValue;
       {
 	Uint32 buf[4];
-        Uint64 tmp[1000];
+        const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8;
+        Uint64 tmp[ MaxKeySizeInLongWords ];
 
         if (keyLen >= sizeof(tmp))
         {

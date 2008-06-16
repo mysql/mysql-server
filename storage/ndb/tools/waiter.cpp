@@ -21,6 +21,7 @@
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
+#include <NdbTick.h>
 
 #include <NDBT.hpp>
 
@@ -214,12 +215,11 @@ waitClusterStatus(const char* _addr,
   const int MAX_RESET_ATTEMPTS = 10;
   bool allInState = false;
 
-  struct timeval time_now;
-  gettimeofday(&time_now, 0);
-  Int64 timeout_time = time_now.tv_sec + _timeout;
+  Uint64 time_now = NdbTick_CurrentMillisecond();
+  Uint64 timeout_time = time_now + 1000 * _timeout;
 
   while (allInState == false){
-    if (_timeout > 0 && time_now.tv_sec > timeout_time){
+    if (_timeout > 0 && time_now > timeout_time){
       /**
        * Timeout has expired waiting for the nodes to enter
        * the state we want
@@ -257,7 +257,7 @@ waitClusterStatus(const char* _addr,
 	    << " resetting timeout "
 	    << resetAttempts << endl;
 
-      timeout_time = time_now.tv_sec + _timeout;
+      timeout_time = time_now + 1000 * _timeout;
 
       resetAttempts++;
     }
@@ -290,7 +290,8 @@ waitClusterStatus(const char* _addr,
     }
 
     attempts++;
-    gettimeofday(&time_now, 0);
+    
+    time_now = NdbTick_CurrentMillisecond();
   }
   return 0;
 }
