@@ -18,11 +18,6 @@
 #ifndef _global_h
 #define _global_h
 
-#ifndef EMBEDDED_LIBRARY
-#define HAVE_REPLICATION
-#define HAVE_EXTERNAL_CLIENT
-#endif
-
 /*
   InnoDB depends on some MySQL internals which other plugins should not
   need.  This is because of InnoDB's foreign key support, "safe" binlog
@@ -100,6 +95,11 @@
 #define HAVE_NDB_BINLOG 1
 #endif
 #endif /* !EMBEDDED_LIBRARY */
+
+#ifndef EMBEDDED_LIBRARY
+#define HAVE_REPLICATION
+#define HAVE_EXTERNAL_CLIENT
+#endif
 
 /* Some defines to avoid ifdefs in the code */
 #ifndef NETWARE_YIELD
