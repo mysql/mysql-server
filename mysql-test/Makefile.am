@@ -60,7 +60,7 @@ TEST_DIRS = t r include std_data std_data/parts \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
 	suite/bugs/data suite/bugs/t suite/bugs/r \
 	suite/federated \
-	suite/funcs_1 suite/funcs_1/bitdata suite/funcs_1/data \
+	suite/funcs_1 suite/funcs_1/bitdata \
 	suite/funcs_1/include suite/funcs_1/lib suite/funcs_1/r \
 	suite/funcs_1/t suite/funcs_1/views suite/funcs_1/cursors \
 	suite/funcs_1/datadict suite/funcs_1/storedproc suite/funcs_1/triggers \
