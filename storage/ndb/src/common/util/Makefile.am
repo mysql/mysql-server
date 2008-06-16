@@ -41,10 +41,10 @@ testBitmask_LDFLAGS = @ndb_bin_am_ldflags@ \
          $(top_builddir)/mysys/libmysyslt.la \
          $(top_builddir)/strings/libmystringslt.la
 
-#noinst_PROGRAMS = ndb_show_compat
-ndb_show_compat_SOURCES = ndb_show_compat.cc
+noinst_PROGRAMS = ndb_show_compat
+ndb_show_compat_SOURCES = ndb_show_compat.cpp
 ndb_show_compat_LDADD = \
-	$(builddir)libgeneral.la \
+	libgeneral.la \
 	$(top_builddir)/storage/ndb/src/common/portlib/libportlib.la \
 	$(top_builddir)/dbug/libdbuglt.la \
 	$(top_builddir)/mysys/libmysyslt.la \

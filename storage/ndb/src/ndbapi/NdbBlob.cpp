@@ -621,7 +621,7 @@ int
 NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
                         Buf& packedBuf, Buf& unpackedBuf)
 {
-  char buf[256];
+  char buf[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
   DBUG_ENTER("NdbBlob::copyKeyFromRow");
 
   assert(record->flags & NdbRecord::RecHasAllKeys);

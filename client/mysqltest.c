@@ -7236,6 +7236,8 @@ int main(int argc, char **argv)
 	break;
       }
       case Q_COMMENT:
+      {
+        const char* p= command->query;
         command->last_argument= command->end;
 
         /* Don't output comments in v1 */
@@ -7247,13 +7249,13 @@ int main(int argc, char **argv)
           break;
 
         /* Write comment's with two starting #'s to result file */
-        const char* p= command->query;
         if (p && *p == '#' && *(p+1) == '#')
         {
           dynstr_append_mem(&ds_res, command->query, command->query_len);
           dynstr_append(&ds_res, "\n");
         }
 	break;
+      }
       case Q_EMPTY_LINE:
         /* Don't output newline in v1 */
         if (opt_result_format_version == 1)

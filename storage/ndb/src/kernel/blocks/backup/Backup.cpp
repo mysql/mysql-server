@@ -2392,9 +2392,8 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 void
 Backup::initReportStatus(Signal *signal, BackupRecordPtr ptr)
 {
-  struct timeval the_time;
-  gettimeofday(&the_time, 0);
-  ptr.p->m_next_report = the_time.tv_sec + m_backup_report_frequency;
+  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
+  ptr.p->m_next_report = now + m_backup_report_frequency;
 }
 
 void
@@ -2403,12 +2402,11 @@ Backup::checkReportStatus(Signal *signal, BackupRecordPtr ptr)
   if (m_backup_report_frequency == 0)
     return;
 
-  struct timeval the_time;
-  gettimeofday(&the_time, 0);
-  if (the_time.tv_sec > ptr.p->m_next_report)
+  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
+  if (now > ptr.p->m_next_report)
   {
     reportStatus(signal, ptr);
-    ptr.p->m_next_report = the_time.tv_sec + m_backup_report_frequency;
+    ptr.p->m_next_report = now + m_backup_report_frequency;
   }
 }
 
