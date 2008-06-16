@@ -359,7 +359,7 @@ btr_cur_search_to_nth_level(
 	cursor->low_match = ULINT_UNDEFINED;
 #endif
 
-	/* This flags are mutually exclusive, they are lumped together
+	/* These flags are mutually exclusive, they are lumped together
 	with the latch mode for historical reasons. It's possible for
 	none of the flags to be set. */
 	if (latch_mode & BTR_INSERT) {
