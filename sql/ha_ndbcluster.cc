@@ -10660,7 +10660,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   struct timespec abstime;
-  Thd_ndb *thd_ndb;
+  Thd_ndb *thd_ndb= NULL;
   uint share_list_size= 0;
   NDB_SHARE **share_list= NULL;
 
