@@ -44,12 +44,12 @@ my @cmd_output;
 my $whatever; # garbage data
 my $base_server_cmd= "perl mysql-test-run.pl --mysqld=--maria-force-start-after-recovery-failures=$force_after maria-recover ";
 if ($^O =~ /^mswin/i)
-{
-  print <<EOF;
+  {
+    print <<EOF;
 WARNING: with Activestate Perl, mysql-test-run.pl --start-and-exit has a bug:
 it does not exit; cygwin perl recommended
 EOF
-}
+  }
 my $iswindows= ( $^O =~ /win/i  && $^O !~ /darwin/i );
 $base_server_cmd.= ($iswindows ? "--mysqld=--console" : "--mem");
 my $server_cmd;
