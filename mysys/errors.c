@@ -75,7 +75,7 @@ void init_glob_errs()
   EE(EE_STAT)		= "Can't get stat of '%s' (Errcode: %d)";
   EE(EE_CANT_CHSIZE)	= "Can't change size of file (Errcode: %d)";
   EE(EE_CANT_OPEN_STREAM)= "Can't open stream from handle (Errcode: %d)";
-  EE(EE_GETWD)		= "Can't get working dirctory (Errcode: %d)";
+  EE(EE_GETWD)		= "Can't get working directory (Errcode: %d)";
   EE(EE_SETWD)		= "Can't change dir to '%s' (Errcode: %d)";
   EE(EE_LINK_WARNING)	= "Warning: '%s' had %d links";
   EE(EE_OPEN_WARNING)	= "Warning: %d files and %d streams is left open\n";
