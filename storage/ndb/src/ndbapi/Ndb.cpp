@@ -1894,11 +1894,9 @@ Uint64 Ndb::getLatestGCI()
 
 void Ndb::setReportThreshEventGCISlip(unsigned thresh)
 {
- if (theEventBuffer->m_free_thresh != thresh)
+ if (theEventBuffer->m_gci_slip_thresh != thresh)
  {
-   theEventBuffer->m_free_thresh= thresh;
-   theEventBuffer->m_min_free_thresh= thresh;
-   theEventBuffer->m_max_free_thresh= 100;
+   theEventBuffer->m_gci_slip_thresh= thresh;
  }
 }
 
