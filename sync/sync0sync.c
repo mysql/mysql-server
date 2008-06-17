@@ -1089,6 +1089,9 @@ sync_thread_add_level(
 		     || sync_thread_levels_g(array, SYNC_REC_LOCK));
 		break;
 	case SYNC_IBUF_BITMAP:
+		/* Either the thread must own the master mutex to all
+		the bitmap pages, or it is allowed to latch only ONE
+		bitmap page. */
 		ut_a((sync_thread_levels_contain(array, SYNC_IBUF_BITMAP_MUTEX)
 		      && sync_thread_levels_g(array, SYNC_IBUF_BITMAP - 1))
 		     || sync_thread_levels_g(array, SYNC_IBUF_BITMAP));
