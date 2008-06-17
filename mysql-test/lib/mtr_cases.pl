@@ -773,6 +773,13 @@ sub collect_one_test_case($$$$$$$$$) {
 	if ( $::used_default_engine =~ /^innodb/i );
     }
 
+    #enable federated for this test
+    if ($tinfo->{'federated_test'})
+    {
+      push(@{$tinfo->{'master_opt'}}, "--loose-federated");
+      push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
+    }
+
     if ( $tinfo->{'big_test'} and ! $::opt_big_test )
     {
       $tinfo->{'skip'}= 1;
@@ -891,6 +898,8 @@ our @tags=
  ["include/have_ndb_extra.inc", "ndb_extra", 1],
  ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["require_manager", "require_manager", 1],
+ ["include/federated.inc", "federated_test", 1],
+ ["include/have_federated_db.inc", "federated_test", 1],
 );
 
 sub mtr_options_from_test_file($$) {
