@@ -488,7 +488,8 @@ protected:
    *
    */
   Uint32 create_distr_key(Uint32 tableId,
-			  Uint32 *data, 
+			  const Uint32* src,
+                          Uint32 *dst, 
 			  const Uint32 keyPaLen[MAX_ATTRIBUTES_IN_INDEX])const;
   
 private:

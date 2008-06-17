@@ -53,6 +53,8 @@ void print(SegmentedSectionPtr ptr, FILE* out);
 void copy(SegmentedSectionPtr dst, Uint32 * src, Uint32 len);
 void copy(Uint32 * dst, SegmentedSectionPtr src);
 bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
+/* appendToSection : If firstSegmentIVal == RNIL, import */
+bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
 
 inline
 bool
@@ -75,6 +77,8 @@ extern class SectionSegmentPool g_sectionSegmentPool;
 void getSection(SegmentedSectionPtr & ptr, Uint32 id);
 void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
 void release(SegmentedSectionPtr & ptr);
+void releaseSection(Uint32 firstSegmentIVal);
+
 
 #include "DataBuffer.hpp"
 

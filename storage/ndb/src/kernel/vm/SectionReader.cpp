@@ -128,6 +128,7 @@ SectionReader::getWords(Uint32 * dst, Uint32 len){
     memcpy(dst, &p->theData[ind], 4 * left);
     dst += left;
     len -= left;
+    m_pos += left;
     ind = 0;
     left = SectionSegment::DataLength;
     p = m_pool.getPtr(p->m_nextSegment);

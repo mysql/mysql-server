@@ -259,6 +259,11 @@ public:
 			 NodeId nodeId, 
 			 class SectionSegmentPool & pool,
 			 const SegmentedSectionPtr ptr[3]);
+  SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
+                         const SignalHeader * const signalHeader, Uint8 prio,
+                         const Uint32 * const signalData,
+                         NodeId nodeId,
+                         GenericSectionPtr ptr[3]);
   /**
    * Backwards compatiple methods with default send buffer handling.
    */
@@ -276,6 +281,13 @@ public:
 			 const SegmentedSectionPtr ptr[3])
   {
     return prepareSend(this, signalHeader, prio, signalData, nodeId, pool, ptr);
+  }
+  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
+                         const Uint32 * const signalData,
+                         NodeId nodeId,
+                         GenericSectionPtr ptr[3])
+  {
+    return prepareSend(this, signalHeader, prio, signalData, nodeId, ptr);
   }
   
   /**

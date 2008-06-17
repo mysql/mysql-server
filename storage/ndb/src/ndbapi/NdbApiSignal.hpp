@@ -70,6 +70,7 @@ public:
  
    const Uint32 *       getDataPtr() const;
          Uint32 *       getDataPtrSend();
+   STATIC_CONST(        MaxSignalWords = 25);
 
   NodeId                get_sender_node();
 
@@ -98,7 +99,7 @@ private:
   /**
    * Only used when creating a signal in the api
    */
-  Uint32 theData[25];
+  Uint32 theData[MaxSignalWords];
   NdbApiSignal *theNextSignal;
   Uint32 *theRealData;
 };

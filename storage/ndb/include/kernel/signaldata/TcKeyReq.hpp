@@ -24,6 +24,21 @@
  *
  * - SENDER:    API, NDBCNTR
  * - RECEIVER:  TC
+ *
+ * Short TCKEYREQ
+ * Prior to NDB 6.4.0, TCKEYREQ was always sent as a short signal train with 
+ * up to 8 words of KeyInfo and 5 words of AttrInfo in the TCKEYREQ signal, and 
+ * all other Key and AttrInfo sent in separate signal trains.  This format is 
+ * supported for non NdbRecord operations, backwards compatibility, and for 
+ * internal TCKEYREQ signals received from non-API clients.
+ * 
+ * Long TCKEYREQ
+ * From NDB 6.4.0, for NdbRecord operations the API nodes send long TCKEYREQ 
+ * signals with all KeyInfo and AttrInfo in long sections sent with the 
+ * TCKEYREQ signal.  As each section has a section length, and no Key/AttrInfo 
+ * is sent in the TCKEYREQ signal itself, the KeyLength, AttrInfoLen and 
+ * AIInTcKeyReq fields of the header are no longer required, and their bits 
+ * can be reused in future.
  */
 class TcKeyReq {
   /**
@@ -58,6 +73,12 @@ public:
   STATIC_CONST( MaxAttrInfo = 5 );
   STATIC_CONST( MaxTotalAttrInfo = 0xFFFF );
 
+  /**
+   * Long signal variant of TCKEYREQ
+   */
+  STATIC_CONST( KeyInfoSectionNum = 0 );
+  STATIC_CONST( AttrInfoSectionNum = 1 );
+
 private:
 
   enum AbortOption {
@@ -80,11 +101,19 @@ private:
     UintR apiOperationPtr;      // DATA 1
   };
   /**
-   * ATTRIBUTE INFO (attrinfo) LENGTH
-   * This is the total length of all attribute info that is sent from
-   * the application as part of this operation. 
-   * It includes all attribute info sent in possible attrinfo 
-   * signals as well as the attribute info sent in TCKEYREQ.
+   * Short TCKEYREQ only : 
+   *   ATTRIBUTE INFO (attrinfo) LENGTH
+   *   This is the total length of all attribute info that is sent from
+   *   the application as part of this operation. 
+   *   It includes all attribute info sent in possible attrinfo 
+   *   signals as well as the attribute info sent in TCKEYREQ.
+   *
+   *   (APIVERSION << 16 | ATTRINFOLEN)
+   *
+   * Long TCKEYREQ
+   *   (APIVERSION << 16)
+   *   Get AttrInfoLength from length of section 1, if present.
+   *
    */
   UintR attrLen;              // DATA 2   (also stores API Version)
   UintR tableId;              // DATA 3
@@ -178,12 +207,15 @@ private:
  * Request Info
  *
  a = Attr Info in TCKEYREQ - 3  Bits -> Max 7 (Bit 16-18)
+     (Short TCKEYREQ only, for long req a == 0)
  b = Distribution Key Ind  - 1  Bit 2
  c = Commit Indicator      - 1  Bit 4
  d = Dirty Indicator       - 1  Bit 0
  e = Scan Indicator        - 1  Bit 14
  i = Interpreted Indicator - 1  Bit 15
  k = Key length            - 12 Bits -> Max 4095 (Bit 20 - 31)
+     (Short TCKEYREQ only, for long req use length of
+      section 0)
  o = Operation Type        - 3  Bits -> Max 7 (Bit 5-7)
  l = Execute               - 1  Bit 10
  p = Simple Indicator      - 1  Bit 8
@@ -194,7 +226,8 @@ private:
 
            1111111111222222222233
  01234567890123456789012345678901
- dnb cooop lsyyeiaaarkkkkkkkkkkkk
+ dnb cooop lsyyeiaaarkkkkkkkkkkkk  (Short TCKEYREQ)
+ dnb cooop lsyyei   r              (Long TCKEYREQ)
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -253,12 +286,13 @@ private:
 /**
  * Attr Len
  *
- n = Attrinfo length(words)   - 16 Bits -> max 65535
+ n = Attrinfo length(words)   - 16 Bits -> max 65535 (Short TCKEYREQ only)
  a = API version no           - 16 Bits -> max 65535
 
            1111111111222222222233
  01234567890123456789012345678901
- aaaaaaaaaaaaaaaannnnnnnnnnnnnnnn
+ aaaaaaaaaaaaaaaannnnnnnnnnnnnnnn   (Short TCKEYREQ)
+ aaaaaaaaaaaaaaaa                   (Long TCKEYREQ)
 */
 
 #define API_VER_NO_SHIFT     (16)

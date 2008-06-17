@@ -172,16 +172,12 @@ NdbScanOperation::handleScanGetValuesOldApi()
  * the final update or final read sections.
  */
 int
-NdbScanOperation::addInterpretedCode(Uint32 aTC_ConnectPtr,
-                                     Uint64 aTransId)
+NdbScanOperation::addInterpretedCode()
 {
   Uint32 mainProgramWords= 0;
   Uint32 subroutineWords= 0;
+  const NdbInterpretedCode* code= m_interpreted_code;
 
-  /* Where to start writing the new AIs */
-  Uint32 *attrInfoPtr= theATTRINFOptr;
-  Uint32 remain= AttrInfo::MaxSignalLength - theAI_LenInCurrAI;
-  const NdbInterpretedCode *code= m_interpreted_code;
   /* Any disk access? */
   m_no_disk_flag &= 
     !(code->m_flags & NdbInterpretedCode::UsesDisk);
@@ -192,11 +188,8 @@ NdbScanOperation::addInterpretedCode(Uint32 aTC_ConnectPtr,
     code->m_first_sub_instruction_pos :
     code->m_instructions_length;
   
-  int res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       (const char *)code->m_buffer,
-                                       mainProgramWords << 2,
-                                       &attrInfoPtr, &remain);
-
+  int res = insertATTRINFOloop(code->m_buffer,
+                               mainProgramWords);
   if (res == 0)
   {
     /* Add subroutines, if we have any */
@@ -211,22 +204,14 @@ NdbScanOperation::addInterpretedCode(Uint32 aTC_ConnectPtr,
         code->m_instructions_length -
         code->m_first_sub_instruction_pos;
       
-      res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                         (const char *)subroutineStart,
-                                         subroutineWords << 2,
-                                         &attrInfoPtr, &remain);
+      res = insertATTRINFOloop(subroutineStart,
+                               subroutineWords);
     }
 
     /* Update signal section lengths */
     theInterpretedSize= mainProgramWords;
     theSubroutineSize= subroutineWords;
   }
-
-  /* Need to keep theAI_LenInCurrAI up to date although 
-   * insertATTRINFOData_NdbRecord does not.  Needed for setting
-   * the last AI length in prepareSendScan
-   */
-  theAI_LenInCurrAI= theCurrentATTRINFO->getLength();
 
   return res;
 };
@@ -466,8 +451,7 @@ NdbScanOperation::scanImpl(const unsigned char *result_mask,
    */
   if (m_interpreted_code != NULL)
   {
-    if (addInterpretedCode(theNdbCon->theTCConPtr,
-                           theNdbCon->theTransactionId) == -1)
+    if (addInterpretedCode() == -1)
       return -1;
   }
   
@@ -982,6 +966,8 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
   m_ordered = m_descending = false;
   Uint32 fragCount = m_currentTable->m_fragmentCount;
 
+  assert(fragCount > 0);
+  
   if (parallel > fragCount || parallel == 0) {
      parallel = fragCount;
   }

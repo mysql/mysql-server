@@ -788,6 +788,8 @@ inline
 void 
 ArrayPool<T>::releaseList(Uint32 n, Uint32 first, Uint32 last){
 
+  assert( n != 0 );
+
   if(first < size && last < size){
     Uint32 ff = firstFree;
     firstFree = first;

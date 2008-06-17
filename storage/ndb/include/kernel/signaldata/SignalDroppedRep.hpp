@@ -24,6 +24,7 @@ class SignalDroppedRep {
    * Reciver(s)
    */
   friend class SimulatedBlock;
+  friend class Dbtc;
 
   /**
    * Sender (TransporterCallback.cpp)

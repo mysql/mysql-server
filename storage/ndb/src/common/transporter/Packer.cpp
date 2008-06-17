@@ -394,6 +394,32 @@ import(Uint32 * & insertPtr, const LinearSectionPtr & ptr){
   insertPtr += sz;
 }
 
+inline
+void
+importGeneric(Uint32 * & insertPtr, GenericSectionPtr & ptr){
+  /* Use the section iterator to obtain the words in this section */
+  Uint32 remain= ptr.sz;
+
+  ptr.sectionIter->reset();
+
+  while (remain > 0)
+  {
+    Uint32 len= 0;
+    Uint32* next= ptr.sectionIter->getNextWords(len);
+
+    assert(next != NULL);
+
+    memcpy(insertPtr, next, 4 * len);
+    insertPtr+= len;
+    remain-= len;
+  }
+
+  /* Check that there were no more words available from the
+   * Signal iterator
+   */
+  assert(ptr.sectionIter->getNextWords(remain) == NULL);
+}
+
 void copy(Uint32 * & insertPtr, 
 	  class SectionSegmentPool &, const SegmentedSectionPtr & ptr);
 
@@ -512,6 +538,66 @@ Packer::pack(Uint32 * insertPtr,
   
   if(checksumUsed){
     * tmpInserPtr = computeChecksum(&insertPtr[0], len32-1);
+  }
+}
+
+
+void
+Packer::pack(Uint32 * insertPtr, 
+	     Uint32 prio, 
+	     const SignalHeader * header, 
+	     const Uint32 * theData,
+	     GenericSectionPtr ptr[3]) const {
+  Uint32 i;
+  
+  Uint32 dataLen32 = header->theLength;
+  Uint32 no_segs = header->m_noOfSections;
+
+  Uint32 len32 = 
+    dataLen32 + no_segs + 
+    checksumUsed + signalIdUsed + (sizeof(Protocol6)/4);
+  
+
+  for(i = 0; i<no_segs; i++){
+    len32 += ptr[i].sz;
+  }
+  
+  /**
+   * Do insert of data
+   */
+  Uint32 word1 = preComputedWord1;
+  Uint32 word2 = 0;
+  Uint32 word3 = 0;
+  
+  Protocol6::setPrio(word1, prio);
+  Protocol6::setMessageLength(word1, len32);
+  Protocol6::createProtocol6Header(word1, word2, word3, header);
+
+  insertPtr[0] = word1;
+  insertPtr[1] = word2;
+  insertPtr[2] = word3;
+  
+  Uint32 * tmpInsertPtr = &insertPtr[3];
+  
+  if(signalIdUsed){
+    * tmpInsertPtr = header->theSignalId;
+    tmpInsertPtr++;
+  }
+  
+  memcpy(tmpInsertPtr, theData, 4 * dataLen32);
+
+  tmpInsertPtr += dataLen32;
+  for(i = 0; i<no_segs; i++){
+    tmpInsertPtr[i] = ptr[i].sz;
+  }
+
+  tmpInsertPtr += no_segs;
+  for(i = 0; i<no_segs; i++){
+    importGeneric(tmpInsertPtr, ptr[i]);
+  }
+  
+  if(checksumUsed){
+    * tmpInsertPtr = computeChecksum(&insertPtr[0], len32-1);
   }
 }
 
