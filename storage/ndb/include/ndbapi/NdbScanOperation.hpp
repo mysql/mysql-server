@@ -387,8 +387,7 @@ protected:
   NdbRecAttr* getValue_NdbRecAttr_scan(const NdbColumnImpl*, char* aValue);
 
   int handleScanGetValuesOldApi();
-  int addInterpretedCode(Uint32 aTC_ConncetPtr,
-                         Uint64 aTransId);
+  int addInterpretedCode();
   int handleScanOptions(const ScanOptions *options);
   int generatePackedReadAIs(const NdbRecord *reseult_record,
                             bool needAllKeys,

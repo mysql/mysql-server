@@ -146,4 +146,15 @@ extern "C" {
 
 #define NDB_O_DIRECT_WRITE_ALIGNMENT 512
 
+#ifndef STATIC_ASSERT
+#if defined VM_TRACE
+// Compile-time assert for use from procedure body
+// Zero length array not allowed in C
+// Add use of array to avoid compiler warning
+#define STATIC_ASSERT(expr) { char static_assert[(expr)? 1 : 0] = {'\0'}; if (static_assert[0]) {}; }
+#else
+#define STATIC_ASSERT(expr)
+#endif
+#endif
+
 #endif

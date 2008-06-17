@@ -37,7 +37,10 @@ require(bool b){
     abort();
 }
 
-#define relSz(x) ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength)
+/* Calculate number of segments to release based on section size
+ * Always release one segment, even if size is zero
+ */
+#define relSz(x) ((x == 0)? 1 : ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength))
 
 void
 release(SectionSegmentPool & thePool, SegmentedSectionPtr & ptr){

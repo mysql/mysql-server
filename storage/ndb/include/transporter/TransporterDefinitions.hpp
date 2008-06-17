@@ -129,6 +129,20 @@ struct SegmentedSectionPtr {
   bool isNull() const { return p == 0;}
 };
 
+/* Abstract interface for iterating over
+ * words in a section
+ */
+struct GenericSectionIterator {
+  virtual ~GenericSectionIterator() {};
+  virtual void reset()=0;
+  virtual Uint32* getNextWords(Uint32& sz)=0;
+};
+
+struct GenericSectionPtr {
+  Uint32 sz;
+  GenericSectionIterator* sectionIter;
+};
+
 class NdbOut & operator <<(class NdbOut & out, SignalHeader & sh);
 
 #endif // Define of TransporterDefinitions_H

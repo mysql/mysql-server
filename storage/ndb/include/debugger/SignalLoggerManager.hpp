@@ -84,6 +84,10 @@ public:
   void sendSignal(const SignalHeader&, Uint8 prio, 
 		  const Uint32 * theData, Uint32 node,
                   const LinearSectionPtr ptr[3], Uint32 secs);
+
+  void sendSignal(const SignalHeader&, Uint8 prio,
+                  const Uint32 * theData, Uint32 node,
+                  const GenericSectionPtr ptr[3], Uint32 secs);
   
   /**
    * For output signals
@@ -159,6 +163,14 @@ public:
                                     const SignalHeader & sh,
                                     const SegmentedSectionPtr ptr[3],
                                     unsigned i);
+
+  /**
+   * Print generic section.
+   */
+  static void printGenericSection(FILE * output,
+                                  const SignalHeader & sh,
+                                  const GenericSectionPtr ptr[3],
+                                  unsigned i);
 
   /**
    * Print data word in hex.  Adds line break before the word
