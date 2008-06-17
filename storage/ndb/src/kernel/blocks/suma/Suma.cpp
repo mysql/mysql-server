@@ -733,6 +733,7 @@ void Suma::execAPI_FAILREQ(Signal* signal)
 
   c_failedApiNodes.set(failedApiNode);
   c_subscriber_nodes.clear(failedApiNode);
+  c_subscriber_per_node[failedApiNode] = 0;
   
   check_start_handover(signal);
 
@@ -2680,6 +2681,7 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
         
         list.add(ptr);
         c_subscriber_nodes.set(refToNode(ptr.p->m_senderRef));
+        c_subscriber_per_node[refToNode(ptr.p->m_senderRef)]++;
       }
       else
       {
@@ -3157,6 +3159,17 @@ Suma::report_sub_stop_conf(Signal* signal,
   conf->senderData= senderData;
   sendSignal(senderRef, GSN_SUB_STOP_CONF, signal,
 	     SubStopConf::SignalLength, JBB);
+
+  Uint32 nodeId = refToNode(ptr.p->m_senderRef);
+  if (c_subscriber_per_node[nodeId])
+  {
+    c_subscriber_per_node[nodeId]--;
+    if (c_subscriber_per_node[nodeId] == 0)
+    {
+      jam();
+      c_subscriber_nodes.clear(nodeId);
+    }
+  }
 }
 
 void
