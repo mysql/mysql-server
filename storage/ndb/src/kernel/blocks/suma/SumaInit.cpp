@@ -124,6 +124,7 @@ Suma::Suma(Block_context& ctx) :
   m_gcp_monitor = 0;
 #endif
   m_missing_data = false;
+  bzero(c_subscriber_per_node, sizeof(c_subscriber_per_node));
 }
 
 Suma::~Suma()
