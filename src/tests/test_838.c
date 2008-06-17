@@ -215,7 +215,7 @@ void test_838_txn(int n) {
             gettimeofday(&tnow, 0);
             unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
             t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu\n", i, t);
+            if (verbose) printf("%d %llu %llu\n", i, t, maxt);
             
             // the first cursor op takes a long time as it needs to clean out the provisionally
             // deleted messages
@@ -254,7 +254,7 @@ void test_838_txn(int n) {
             gettimeofday(&tnow, 0);
             unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
             t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu\n", i, t);
+            if (verbose) printf("%d %llu %llu\n", i, t, maxt);
             if (i > 0 && t > 10*maxt)
                 testresult = 1;
         }
@@ -357,7 +357,7 @@ void test_838_defer_delete_commit(int n) {
             gettimeofday(&tnow, 0);
             unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
             t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu\n", i, t);
+            if (verbose) printf("%d %llu %llu\n", i, t, maxt);
             
             // the first cursor op takes a long time as it needs to clean out the provisionally
             // deleted messages
@@ -405,7 +405,7 @@ void test_838_defer_delete_commit(int n) {
             gettimeofday(&tnow, 0);
             unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
             t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu\n", i, t);
+            if (verbose) printf("%d %llu %llu\n", i, t, maxt);
             if (i > 0 && t > 10*maxt)
                 testresult = 1;
         }
