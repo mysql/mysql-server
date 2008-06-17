@@ -128,7 +128,7 @@ private:
     // we set this to TRUE so that successive cursor calls can know
     // know to limit the locking overhead in a call to the fractal tree
     //
-    bool lock_grabbed;
+    bool range_lock_grabbed;
 
     PRIM_KEY_PART_INFO* primary_key_offsets;
 
