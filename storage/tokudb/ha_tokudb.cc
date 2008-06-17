@@ -2192,6 +2192,12 @@ int ha_tokudb::delete_row(const uchar * record) {
 }
 
 //
+// Macro to test if read_lock is already grabbed
+//
+
+#define READ_LOCK_GRABBED() (range_lock_grabbed || (lock.type == TL_READ_NO_INSERT) || (lock.type == TL_WRITE))
+
+//
 // Initializes local cursor on DB with index keynr
 // Parameters:
 //          keynr - key (index) number
@@ -2570,7 +2576,7 @@ int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
     int error; 
     DBT row;
-    u_int32_t flags = range_lock_grabbed ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
+    u_int32_t flags = READ_LOCK_GRABBED() ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
     CHECK_VALID_CURSOR();
     
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
@@ -2604,11 +2610,11 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
         !(table->key_info[active_index].flags & HA_NOSAME) && 
         !(table->key_info[active_index].flags & HA_END_SPACE_KEY)) {
 
-        u_int32_t flags = range_lock_grabbed ? (DB_NEXT_DUP | DB_PRELOCKED) : DB_NEXT_DUP;
+        u_int32_t flags = READ_LOCK_GRABBED() ? (DB_NEXT_DUP | DB_PRELOCKED) : DB_NEXT_DUP;
         error = cursor->c_get(cursor, &last_key, &row, flags);
         error = read_row(error, buf, active_index, &row, &last_key, 1);
     } else {
-        u_int32_t flags = range_lock_grabbed ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
+        u_int32_t flags = READ_LOCK_GRABBED() ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
         error = read_row(cursor->c_get(cursor, &last_key, &row, flags), buf, active_index, &row, &last_key, 1);
         if (!error &&::key_cmp_if_same(table, key, active_index, keylen))
             error = HA_ERR_END_OF_FILE;
@@ -2629,7 +2635,7 @@ cleanup:
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
     int error;
-    u_int32_t flags = range_lock_grabbed ? (DB_PREV | DB_PRELOCKED) : DB_PREV;
+    u_int32_t flags = READ_LOCK_GRABBED() ? (DB_PREV | DB_PRELOCKED) : DB_PREV;
     CHECK_VALID_CURSOR();
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_prev_count, &LOCK_status);
@@ -2736,7 +2742,7 @@ int ha_tokudb::rnd_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
     int error;
     DBT row;    
-    u_int32_t flags = range_lock_grabbed ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
+    u_int32_t flags = READ_LOCK_GRABBED() ? (DB_NEXT | DB_PRELOCKED) : DB_NEXT;
 
     CHECK_VALID_CURSOR()
     //
@@ -3046,6 +3052,24 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             trans_register_ha(thd, FALSE, tokudb_hton);
         }
         transaction = trx->stmt;
+        //
+        // pre-acquire locks if possible
+        //
+        uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+        if (lock.type == TL_READ_NO_INSERT) {
+            for (uint i = 0; i < curr_num_DBs; i++) {
+                DB* db = share->key_file[i];
+                error = db->pre_acquire_read_lock(db, transaction, db->dbt_neg_infty(), NULL, db->dbt_pos_infty(), NULL);
+                if (error) { TOKUDB_DBUG_RETURN(error); }
+            }
+        }
+        else if (lock.type == TL_WRITE) {
+            for (uint i = 0; i < curr_num_DBs; i++) {
+                DB* db = share->key_file[i];
+                error = db->pre_acquire_table_lock(db, transaction);
+                if (error) { TOKUDB_DBUG_RETURN(error); }
+            }
+        }
     }
     else {
         lock.type = TL_UNLOCK;  // Unlocked
@@ -3129,7 +3153,7 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     TOKUDB_DBUG_ENTER("ha_tokudb::store_lock, lock_type=%d", lock_type);
     if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
         /* If we are not doing a LOCK TABLE, then allow multiple writers */
-        if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && !thd->in_lock_tables) {
+        if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE_LOW_PRIORITY) && !thd->in_lock_tables) {
             lock_type = TL_WRITE_ALLOW_WRITE;
         }
         lock.type = lock_type;
