@@ -152,7 +152,7 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, u_int32_t *crc, u_int32_t *len)
     assert(0);
     u_int8_t state;
     int r = toku_fread_u_int8_t (f, &state, crc, len); if (r!=0) return r;
-    TXNID xid = 0;
+    TXNID xid;
     BYTESTRING a,b,c;
     u_int32_t memsize, disksize;
     switch ((enum le_state)state) {
@@ -165,7 +165,7 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, u_int32_t *crc, u_int32_t *len)
 	toku_free_BYTESTRING(b);
 	return r;
     case LE_BOTH:
-	r = toku_fread_TXNID(f, &xid, crc, len);
+	r = toku_fread_TXNID(f, &xid, crc, len);     if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &a, crc, len);  if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &b, crc, len);  if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &c, crc, len);  if (r!=0) return r;
@@ -176,7 +176,7 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, u_int32_t *crc, u_int32_t *len)
 	toku_free_BYTESTRING(c);
 	return r;
     case LE_PROVDEL:
-	r = toku_fread_TXNID(f, &xid, crc, len);
+	r = toku_fread_TXNID(f, &xid, crc, len);     if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &a, crc, len);  if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &b, crc, len);  if (r!=0) return r;
 	r = le_provdel(xid, a.len, a.data, b.len, b.data,
@@ -185,7 +185,7 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, u_int32_t *crc, u_int32_t *len)
 	toku_free_BYTESTRING(b);
 	return r;
     case LE_PROVPAIR:
-	r = toku_fread_TXNID(f, &xid, crc, len);
+	r = toku_fread_TXNID(f, &xid, crc, len);     if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &a, crc, len);  if (r!=0) return r;
 	r = toku_fread_BYTESTRING(f, &b, crc, len);  if (r!=0) return r;
 	r = le_provpair(xid, a.len, a.data, b.len, b.data,
