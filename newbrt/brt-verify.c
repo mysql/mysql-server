@@ -64,11 +64,13 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
     BRTNODE node;
     void *node_v;
     int r;
-    if ((r = toku_cachetable_get_and_pin(brt->cf, off, &node_v, NULL,
+    u_int32_t fullhash = toku_cachetable_hash(brt->cf, off);
+    if ((r = toku_cachetable_get_and_pin(brt->cf, off, fullhash, &node_v, NULL,
 					 toku_brtnode_flush_callback, toku_brtnode_fetch_callback, (void*)(long)brt->h->nodesize)))
 	return r;
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
+    assert(node->fullhash==fullhash);
     verify_local_fingerprint(node);
     if (node->height>0) {
 	int i;
@@ -138,7 +140,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 	LEAFENTRY prev=0;
 	toku_omt_iterate(node->u.l.buffer, check_increasing, &prev);
     }
-    if ((r = toku_cachetable_unpin(brt->cf, off, 0, 0))) return r;
+    if ((r = toku_cachetable_unpin(brt->cf, off, fullhash, 0, 0))) return r;
     return result;
 }
 

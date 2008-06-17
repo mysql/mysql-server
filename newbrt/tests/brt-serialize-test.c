@@ -55,7 +55,7 @@ static void test_serialize(void) {
 
     toku_serialize_brtnode_to(fd, sn.nodesize*(DISKOFF)20, &sn);  assert(r==0);
 
-    r = toku_deserialize_brtnode_from(fd, nodesize*(DISKOFF)20, &dn);
+    r = toku_deserialize_brtnode_from(fd, nodesize*(DISKOFF)20, 0/*pass zero for hash*/, &dn);
     assert(r==0);
 
     assert(dn->thisnodename==nodesize*20);

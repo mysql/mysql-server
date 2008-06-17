@@ -80,7 +80,8 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
     //print_ints();
 }
 
-static int fetch_forchain (CACHEFILE f __attribute__((__unused__)), CACHEKEY key, void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+static int fetch_forchain (CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
+    assert(toku_cachetable_hash(f, key)==fullhash);
     assert((long)extraargs==(long)key);
     *value = (void*)(long)key;
     written_lsn->lsn = 0;
@@ -91,11 +92,13 @@ static void verify_cachetable_against_present (void) {
     int i;
     for (i=0; i<n_present; i++) {
 	void *v;
-	int r;
-	assert(toku_cachetable_maybe_get_and_pin(present_items[i].cf,
-						 present_items[i].key,
-						 &v)==0);
-	r = toku_cachetable_unpin(present_items[i].cf, present_items[i].key, CACHETABLE_CLEAN, test_object_size);
+	u_int32_t fullhash = toku_cachetable_hash(present_items[i].cf, present_items[i].key);
+	int r=toku_cachetable_maybe_get_and_pin(present_items[i].cf,
+						present_items[i].key,
+						toku_cachetable_hash(present_items[i].cf, present_items[i].key),
+						&v);
+	assert(r==0);
+	r = toku_cachetable_unpin(present_items[i].cf, present_items[i].key, fullhash, CACHETABLE_CLEAN, test_object_size);
     }
 }
 
@@ -117,9 +120,10 @@ static void test_chaining (void) {
     for (i=0; i<N_PRESENT_LIMIT; i++) {
 	int fnum = i%N_FILES;
 	//printf("%s:%d Add %d\n", __FILE__, __LINE__, i);
-	r = toku_cachetable_put(f[fnum], i, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i); assert(r==0);
+	u_int32_t fhash = toku_cachetable_hash(f[fnum], i);
+	r = toku_cachetable_put(f[fnum], i, fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i); assert(r==0);
 	item_becomes_present(f[fnum], i);
-	r = toku_cachetable_unpin(f[fnum], i, CACHETABLE_CLEAN, test_object_size);                                                assert(r==0);
+	r = toku_cachetable_unpin(f[fnum], i, fhash, CACHETABLE_CLEAN, test_object_size);                                 assert(r==0);
 	//print_ints();
     }
     for (trial=0; trial<TRIALS; trial++) {
@@ -128,8 +132,10 @@ static void test_chaining (void) {
 	    int whichone = random()%n_present;
 	    void *value;
 	    //printf("Touching %d (%lld, %p)\n", whichone, present_items[whichone].key, present_items[whichone].cf);
+	    u_int32_t fhash = toku_cachetable_hash(present_items[whichone].cf, present_items[whichone].key);
 	    r = toku_cachetable_get_and_pin(present_items[whichone].cf,
 					    present_items[whichone].key,
+					    fhash,
 					    &value,
 					    NULL,
 					    flush_forchain,
@@ -139,6 +145,7 @@ static void test_chaining (void) {
 	    assert(r==0);
 	    r = toku_cachetable_unpin(present_items[whichone].cf,
 				      present_items[whichone].key,
+				      fhash,
 				      CACHETABLE_CLEAN, test_object_size);
 	    assert(r==0);
 	}
@@ -147,11 +154,12 @@ static void test_chaining (void) {
 	int fnum = i%N_FILES;
 	// i is always incrementing, so we need not worry about inserting a duplicate
 	//printf("%s:%d Add {%d,%p}\n", __FILE__, __LINE__, i, f[fnum]);
-	r = toku_cachetable_put(f[fnum], i, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i); assert(r==0);
+	u_int32_t fhash = toku_cachetable_hash(f[fnum], i);
+	r = toku_cachetable_put(f[fnum], i, fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i); assert(r==0);
 	item_becomes_present(f[fnum], i);
 	//print_ints();
 	//cachetable_print_state(ct);
-	r = toku_cachetable_unpin(f[fnum], i, CACHETABLE_CLEAN, test_object_size);                                                assert(r==0);
+	r = toku_cachetable_unpin(f[fnum], i, fhash, CACHETABLE_CLEAN, test_object_size);                                                assert(r==0);
 	verify_cachetable_against_present();
 
 	if (random()%10==0) {

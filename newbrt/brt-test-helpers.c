@@ -58,7 +58,7 @@ int toku_testsetup_root(BRT brt, DISKOFF diskoff) {
 int toku_testsetup_get_sersize(BRT brt, DISKOFF diskoff) // Return the size on disk
 {
     void *node_v;
-    int r  = toku_cachetable_get_and_pin(brt->cf, diskoff, &node_v, NULL,
+    int r  = toku_cachetable_get_and_pin(brt->cf, diskoff, toku_cachetable_hash(brt->cf, diskoff), &node_v, NULL,
 					 toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     assert(r==0);
     int size = toku_serialize_brtnode_size(node_v);
@@ -70,7 +70,7 @@ int toku_testsetup_get_sersize(BRT brt, DISKOFF diskoff) // Return the size on d
 int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
     void *node_v;
     int r;
-    r = toku_cachetable_get_and_pin(brt->cf, diskoff, &node_v, NULL,
+    r = toku_cachetable_get_and_pin(brt->cf, diskoff, toku_cachetable_hash(brt->cf, diskoff), &node_v, NULL,
 				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) return r;
     BRTNODE node=node_v;
@@ -122,7 +122,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
 int toku_testsetup_insert_to_nonleaf (BRT brt, DISKOFF diskoff, enum brt_cmd_type cmdtype, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
     void *node_v;
     int r;
-    r = toku_cachetable_get_and_pin(brt->cf, diskoff, &node_v, NULL,
+    r = toku_cachetable_get_and_pin(brt->cf, diskoff, toku_cachetable_hash(brt->cf, diskoff), &node_v, NULL,
 				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) return r;
     BRTNODE node=node_v;

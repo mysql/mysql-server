@@ -26,7 +26,7 @@ void print_item (bytevec val, ITEMLEN len) {
 void dump_header (int f, struct brt_header **header) {
     struct brt_header *h;
     int r;
-    r = toku_deserialize_brtheader_from (f, 0, &h); assert(r==0);
+    r = toku_deserialize_brtheader_from (f, 0, 0/*pass 0 for hash.  It doesn't matter.*/, &h); assert(r==0);
     printf("brtheader:\n");
     if (h->layout_version==BRT_LAYOUT_VERSION_6) printf(" layout_version<=6\n");
     else printf(" layout_version=%d\n", h->layout_version);
@@ -78,7 +78,7 @@ void dump_header (int f, struct brt_header **header) {
 
 void dump_node (int f, DISKOFF off) {
     BRTNODE n;
-    int r = toku_deserialize_brtnode_from (f, off, &n);
+    int r = toku_deserialize_brtnode_from (f, off, 0 /*pass zero for hash, it doesn't matter*/, &n);
     assert(r==0);
     assert(n!=0);
     printf("brtnode\n");
