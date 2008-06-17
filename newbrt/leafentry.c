@@ -152,7 +152,7 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, u_int32_t *crc, u_int32_t *len)
     assert(0);
     u_int8_t state;
     int r = toku_fread_u_int8_t (f, &state, crc, len); if (r!=0) return r;
-    TXNID xid;
+    TXNID xid = 0;
     BYTESTRING a,b,c;
     u_int32_t memsize, disksize;
     switch ((enum le_state)state) {
