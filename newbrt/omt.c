@@ -25,7 +25,6 @@ struct omt_node {
 
 
 struct omt_array {
-    u_int32_t  capacity;
     u_int32_t  start_idx;
     u_int32_t  num_values;
     OMTVALUE  *values;
@@ -34,16 +33,13 @@ struct omt_array {
 struct omt_tree {
     node_idx   root;
 
-    u_int32_t  node_capacity;
     OMT_NODE   nodes;
     node_idx   free_idx;
-
-    u_int32_t  tmparray_size;
-    node_idx*  tmparray;
 };
 
 struct omt {
     BOOL       is_array;
+    u_int32_t  capacity;
     union {
         struct omt_array a;
         struct omt_tree t;
@@ -62,10 +58,10 @@ static int omt_create_internal(OMT *omtp, u_int32_t num_starting_nodes) {
     OMT MALLOC(result);
     if (result==NULL) return errno;
     result->is_array       = TRUE;
+    result->capacity       = 2*num_starting_nodes;
     result->i.a.num_values = 0;
     result->i.a.start_idx  = 0;
-    result->i.a.capacity   = 2*num_starting_nodes;
-    MALLOC_N(result->i.a.capacity, result->i.a.values);
+    MALLOC_N(result->capacity, result->i.a.values);
     if (result->i.a.values==NULL) {
         toku_free(result);
         return errno;
@@ -142,12 +138,12 @@ static inline u_int32_t omt_size(OMT omt) {
 }
 
 static inline node_idx omt_node_malloc(OMT omt) {
-    assert(omt->i.t.free_idx < omt->i.t.node_capacity);
+    assert(omt->i.t.free_idx < omt->capacity);
     return omt->i.t.free_idx++;
 }
 
 static inline void omt_node_free(OMT omt, node_idx idx) {
-    assert(idx < omt->i.t.node_capacity);
+    assert(idx < omt->capacity);
 }
 
 static inline void fill_array_with_subtree_values(OMT omt, OMTVALUE *array, node_idx tree_idx) {
@@ -184,15 +180,15 @@ static inline void rebuild_from_sorted_array(OMT omt, node_idx *n_idxp,
 
 static inline int maybe_resize_array(OMT omt, u_int32_t n) {
     u_int32_t new_size = n<=2 ? 4 : 2*n;
-    u_int32_t room = omt->i.a.capacity - omt->i.a.start_idx;
+    u_int32_t room = omt->capacity - omt->i.a.start_idx;
 
-    if (room<n || omt->i.a.capacity/2>=new_size) {
+    if (room<n || omt->capacity/2>=new_size) {
         OMTVALUE *MALLOC_N(new_size, tmp_values);
         if (tmp_values==NULL) return errno;
         memcpy(tmp_values, omt->i.a.values+omt->i.a.start_idx,
                omt->i.a.num_values*sizeof(*tmp_values));
         omt->i.a.start_idx = 0;
-        omt->i.a.capacity  = new_size;
+        omt->capacity  = new_size;
         toku_free(omt->i.a.values);
         omt->i.a.values    = tmp_values;
     }
@@ -204,24 +200,15 @@ static int omt_convert_to_tree(OMT omt) {
     u_int32_t num_nodes = omt_size(omt);
     u_int32_t new_size  = num_nodes*2;
 
-    node_idx *new_tmparray = NULL;
-    OMT_NODE  new_nodes    = NULL;
-    MALLOC_N(new_size, new_nodes);
+    OMT_NODE MALLOC_N(new_size, new_nodes);
     if (new_nodes==NULL) return errno;
-    MALLOC_N(new_size, new_tmparray);
-    if (new_tmparray==NULL) {
-        toku_free(new_nodes);
-        return errno;
-    }
     OMTVALUE *values     = omt->i.a.values;
     OMTVALUE *tmp_values = values + omt->i.a.start_idx;
     omt->is_array          = FALSE;
     omt->i.t.nodes         = new_nodes;
-    omt->i.t.node_capacity = new_size;
+    omt->capacity = new_size;
     omt->i.t.free_idx      = 0; /* Allocating from mempool starts over. */
     omt->i.t.root          = NODE_NULL;
-    omt->i.t.tmparray      = new_tmparray;
-    omt->i.t.tmparray_size = new_size;
     rebuild_from_sorted_array(omt, &omt->i.t.root, tmp_values, num_nodes);
     toku_free(values);
     return 0;
@@ -234,17 +221,16 @@ static int omt_convert_to_array(OMT omt) {
     OMTVALUE *MALLOC_N(capacity, tmp_values);
     if (tmp_values==NULL) return errno;
     fill_array_with_subtree_values(omt, tmp_values, omt->i.t.root);
-    toku_free(omt->i.t.tmparray);
     toku_free(omt->i.t.nodes);
     omt->is_array = TRUE;
-    omt->i.a.capacity   = capacity;
+    omt->capacity   = capacity;
     omt->i.a.num_values = num_values;
     omt->i.a.values     = tmp_values;
     omt->i.a.start_idx  = 0;
     return 0;
 }
 
-static inline int maybe_resize_and_convert(OMT omt, u_int32_t n) {
+static inline int maybe_resize_or_convert(OMT omt, u_int32_t n) {
     if (omt->is_array) return maybe_resize_array(omt, n);
 
     u_int32_t new_size = n<=2 ? 4 : 2*n;
@@ -256,19 +242,10 @@ static inline int maybe_resize_and_convert(OMT omt, u_int32_t n) {
     //Rebuilding means we first turn it to an array.
     //Lets pause at the array form.
     u_int32_t num_nodes = nweight(omt, omt->i.t.root);
-    if ((omt->i.t.node_capacity/2 >= new_size) ||
-        (omt->i.t.free_idx>=omt->i.t.node_capacity && num_nodes<n) ||
-        (omt->i.t.node_capacity<n)) {
+    if ((omt->capacity/2 >= new_size) ||
+        (omt->i.t.free_idx>=omt->capacity && num_nodes<n) ||
+        (omt->capacity<n)) {
         return omt_convert_to_array(omt);
-    }
-    if (omt->i.t.tmparray_size<n ||
-        (omt->i.t.tmparray_size/2 >= new_size)) {
-        /* Malloc and free instead of realloc (saves the memcpy). */
-        node_idx *MALLOC_N(new_size, new_tmparray);
-        if (new_tmparray==NULL) return errno;
-        toku_free(omt->i.t.tmparray); 
-        omt->i.t.tmparray      = new_tmparray;
-        omt->i.t.tmparray_size = new_size;
     }
     return 0;
 }
@@ -309,8 +286,24 @@ static inline void rebalance(OMT omt, node_idx *n_idxp) {
         if (r==0) return;
     }
     OMT_NODE n   = omt->i.t.nodes+idx;
-    fill_array_with_subtree_idxs(omt, omt->i.t.tmparray, idx);
-    rebuild_subtree_from_idxs(omt, n_idxp, omt->i.t.tmparray, n->weight);
+    node_idx *tmp_array;
+    size_t mem_needed = n->weight*sizeof(*tmp_array);
+    size_t mem_free   = (omt->capacity-omt->i.t.free_idx)*sizeof(*omt->i.t.nodes);
+    BOOL malloced;
+    if (mem_needed<=mem_free) {
+        //There is sufficient free space at the end of the nodes array
+        //to hold enough node indexes to rebalance.
+        malloced  = FALSE;
+        tmp_array = (node_idx*)(omt->i.t.nodes+omt->i.t.free_idx);
+    }
+    else {
+        malloced  = TRUE;
+        MALLOC_N(n->weight, tmp_array);
+        if (tmp_array==NULL) return;    //Don't rebalance.  Still a working tree.
+    }
+    fill_array_with_subtree_idxs(omt, tmp_array, idx);
+    rebuild_subtree_from_idxs(omt, n_idxp, tmp_array, n->weight);
+    if (malloced) toku_free(tmp_array);
 }
 
 static inline BOOL will_need_rebalance(OMT omt, node_idx n_idx, int leftmod, int rightmod) {
@@ -637,13 +630,8 @@ int toku_omt_create (OMT *omtp) {
 void toku_omt_destroy(OMT *omtp) {
     OMT omt=*omtp;
     invalidate_cursors(omt);
-    if (omt->is_array) {
-        toku_free(omt->i.a.values);
-    }
-    else {
-        toku_free(omt->i.t.nodes);
-        toku_free(omt->i.t.tmparray);
-    }
+    if (omt->is_array) toku_free(omt->i.a.values);
+    else               toku_free(omt->i.t.nodes);
     toku_free(omt);
     *omtp=NULL;
 }
@@ -666,7 +654,7 @@ int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index) {
     int r;
     invalidate_cursors(omt);
     if (index>omt_size(omt)) return EINVAL;
-    if ((r=maybe_resize_and_convert(omt, 1+omt_size(omt)))) return r;
+    if ((r=maybe_resize_or_convert(omt, 1+omt_size(omt)))) return r;
     if (omt->is_array && index!=omt->i.a.num_values &&
         (index!=0 || omt->i.a.start_idx==0)) {
         if ((r=omt_convert_to_tree(omt))) return r;
@@ -704,7 +692,7 @@ int toku_omt_delete_at(OMT omt, u_int32_t index) {
     int r;
     invalidate_cursors(omt);
     if (index>=omt_size(omt)) return EINVAL;
-    if ((r=maybe_resize_and_convert(omt, -1+omt_size(omt)))) return r;
+    if ((r=maybe_resize_or_convert(omt, -1+omt_size(omt)))) return r;
     if (omt->is_array && index!=0 && index!=omt->i.a.num_values-1) {
         if ((r=omt_convert_to_tree(omt))) return r;
     }
@@ -873,10 +861,6 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
     return 0;
 }
 
-////TODO: This function can actually clear memory (can free) and require a
-//malloc the next time around.
-////TODO: Can convert to array using this function.
-//If not freeing, can instead reuse old array (either mempool or tmparray)
 void toku_omt_clear(OMT omt) {
     invalidate_cursors(omt);
     if (omt->is_array) {
@@ -886,13 +870,17 @@ void toku_omt_clear(OMT omt) {
     else {
         omt->i.t.free_idx = 0;
         omt->i.t.root     = NODE_NULL;
+        int r = omt_convert_to_array(omt);
+        assert((!omt->is_array) == (r!=0));
+        //If we fail to convert (malloc), then nothing has changed.
+        //Continue anyway.
     }
 }
 
 unsigned long toku_omt_memory_size (OMT omt) {
     if (omt->is_array) {
-        return sizeof(*omt)+omt->i.a.capacity*sizeof(omt->i.a.values[0]);
+        return sizeof(*omt)+omt->capacity*sizeof(omt->i.a.values[0]);
     }
-    return sizeof(*omt)+omt->i.t.node_capacity*sizeof(omt->i.t.nodes[0]) + omt->i.t.tmparray_size*sizeof(omt->i.t.tmparray[0]);
+    return sizeof(*omt)+omt->capacity*sizeof(omt->i.t.nodes[0]);
 }
 
