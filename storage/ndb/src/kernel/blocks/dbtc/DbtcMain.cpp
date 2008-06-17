@@ -3660,9 +3660,9 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
                                BlockReference TBRef)
 {
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
+  CacheRecord * const regCachePtr = cachePtr.p;
 #ifdef ERROR_INSERT
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  CacheRecord * const regCachePtr = cachePtr.p;
 
   if (ERROR_INSERTED(8009)) {
     if (regApiPtr->apiConnectstate == CS_STARTED) {
