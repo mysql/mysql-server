@@ -1237,6 +1237,19 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
+#ifdef UNIV_DEBUG
+	/* We have observed deadlocks with a 5MB buffer pool but
+	the actual lower limit could very well be a little higher. */
+
+	if (srv_buf_pool_size <= 5 * 1024 * 1024) {
+
+		fprintf(stderr, "InnoDB: Warning: Small buffer pool size "
+			"(%luM), the flst_validate() debug function "
+			"can cause a deadlock if the buffer pool fills up.\n",
+			srv_buf_pool_size / 1024 / 1024);
+	}
+#endif
+
 	fsp_init();
 	log_init();
 
