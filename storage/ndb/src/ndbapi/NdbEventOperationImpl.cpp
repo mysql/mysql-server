@@ -1047,10 +1047,10 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_ndb(ndb),
   m_latestGCI(0), m_latest_complete_GCI(0),
   m_total_alloc(0),
-  m_free_thresh(10),
-  m_min_free_thresh(10),
-  m_max_free_thresh(100),
-  m_gci_slip_thresh(3),
+  m_free_thresh(0),
+  m_min_free_thresh(0),
+  m_max_free_thresh(0),
+  m_gci_slip_thresh(0),
   m_dropped_ev_op(0),
   m_active_op_count(0),
   m_add_drop_mutex(0)
@@ -3278,28 +3278,32 @@ NdbEventBuffer::reportStatus()
   else
     apply_gci= latest_gci;
 
-  if (100*(Uint64)m_free_data_sz < m_min_free_thresh*(Uint64)m_total_alloc &&
-      m_total_alloc > 1024*1024)
+  if (m_free_thresh)
   {
-    /* report less free buffer than m_free_thresh,
-       next report when more free than 2 * m_free_thresh
-    */
-    m_min_free_thresh= 0;
-    m_max_free_thresh= 2 * m_free_thresh;
-    goto send_report;
-  }
+    if (100*(Uint64)m_free_data_sz < m_min_free_thresh*(Uint64)m_total_alloc &&
+        m_total_alloc > 1024*1024)
+    {
+      /* report less free buffer than m_free_thresh,
+         next report when more free than 2 * m_free_thresh
+      */
+      m_min_free_thresh= 0;
+      m_max_free_thresh= 2 * m_free_thresh;
+      goto send_report;
+    }
   
-  if (100*(Uint64)m_free_data_sz > m_max_free_thresh*(Uint64)m_total_alloc &&
-      m_total_alloc > 1024*1024)
-  {
-    /* report more free than 2 * m_free_thresh
-       next report when less free than m_free_thresh
-    */
-    m_min_free_thresh= m_free_thresh;
-    m_max_free_thresh= 100;
-    goto send_report;
+    if (100*(Uint64)m_free_data_sz > m_max_free_thresh*(Uint64)m_total_alloc &&
+        m_total_alloc > 1024*1024)
+    {
+      /* report more free than 2 * m_free_thresh
+         next report when less free than m_free_thresh
+      */
+      m_min_free_thresh= m_free_thresh;
+      m_max_free_thresh= 100;
+      goto send_report;
+    }
   }
-  if (latest_gci-apply_gci >=  m_gci_slip_thresh)
+  if (m_gci_slip_thresh &&
+      (latest_gci-apply_gci >= m_gci_slip_thresh))
   {
     goto send_report;
   }

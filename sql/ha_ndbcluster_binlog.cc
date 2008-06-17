@@ -609,15 +609,10 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
    - wait for binlog thread to shutdown
 */
 
-static int ndbcluster_binlog_end(THD *thd)
+int ndbcluster_binlog_end(THD *thd)
 {
   DBUG_ENTER("ndbcluster_binlog_end");
 
-  if (!ndbcluster_binlog_inited)
-    DBUG_RETURN(0);
-  ndbcluster_binlog_inited= 0;
-
-#ifdef HAVE_NDB_BINLOG
   if (ndb_util_thread_running > 0)
   {
     /*
@@ -627,6 +622,7 @@ static int ndbcluster_binlog_end(THD *thd)
       however be a likely case as the ndbcluster_binlog_end is supposed to
       be called before ndb_cluster_end().
     */
+    sql_print_information("Stopping Cluster Utility thread");
     pthread_mutex_lock(&LOCK_ndb_util_thread);
     /* Ensure mutex are not freed if ndb_cluster_end is running at same time */
     ndb_util_thread_running++;
@@ -638,18 +634,23 @@ static int ndbcluster_binlog_end(THD *thd)
     pthread_mutex_unlock(&LOCK_ndb_util_thread);
   }
 
-  /* wait for injector thread to finish */
-  ndbcluster_binlog_terminating= 1;
-  pthread_mutex_lock(&injector_mutex);
-  pthread_cond_signal(&injector_cond);
-  while (ndb_binlog_thread_running > 0)
-    pthread_cond_wait(&injector_cond, &injector_mutex);
-  pthread_mutex_unlock(&injector_mutex);
-
-  pthread_mutex_destroy(&injector_mutex);
-  pthread_cond_destroy(&injector_cond);
-  pthread_mutex_destroy(&ndb_schema_share_mutex);
-#endif
+  if (ndbcluster_binlog_inited)
+  {
+    ndbcluster_binlog_inited= 0;
+    if (ndb_binlog_thread_running)
+    {
+      /* wait for injector thread to finish */
+      ndbcluster_binlog_terminating= 1;
+      pthread_mutex_lock(&injector_mutex);
+      pthread_cond_signal(&injector_cond);
+      while (ndb_binlog_thread_running > 0)
+        pthread_cond_wait(&injector_cond, &injector_mutex);
+      pthread_mutex_unlock(&injector_mutex);
+    }
+    pthread_mutex_destroy(&injector_mutex);
+    pthread_cond_destroy(&injector_cond);
+    pthread_mutex_destroy(&ndb_schema_share_mutex);
+  }
 
   DBUG_RETURN(0);
 }
@@ -4926,7 +4927,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   /*
     Set up ndb binlog
   */
-  sql_print_information("Starting MySQL Cluster Binlog Thread");
+  sql_print_information("Starting Cluster Binlog Thread");
 
   pthread_detach_this_thread();
   thd->real_id= pthread_self();
@@ -5722,6 +5723,11 @@ err:
 
   hash_free(&ndb_schema_objects);
 
+  if (thd_ndb)
+  {
+    ha_ndbcluster::release_thd_ndb(thd_ndb);
+    set_thd_ndb(thd, NULL);
+  }
   net_end(&thd->net);
   thd->cleanup();
   delete thd;
