@@ -3070,9 +3070,6 @@ corrupt:
 		ut_error;
 	}
 
-	mutex_exit(buf_page_get_mutex(bpage));
-	buf_pool_mutex_exit();
-
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "Has %s page space %lu page no %lu\n",
@@ -3081,6 +3078,9 @@ corrupt:
 			(ulong) buf_page_get_page_no(bpage));
 	}
 #endif /* UNIV_DEBUG */
+
+	mutex_exit(buf_page_get_mutex(bpage));
+	buf_pool_mutex_exit();
 }
 
 /*************************************************************************
