@@ -35,8 +35,8 @@ INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
 dist-hook:
 	mkdir -p \
 		$(distdir)/t \
-                $(distdir)/extra/binlog_tests \
-                $(distdir)/extra/rpl_tests \
+		$(distdir)/extra/binlog_tests \
+		$(distdir)/extra/rpl_tests \
 		$(distdir)/r \
 		$(distdir)/include \
 		$(distdir)/std_data \
@@ -46,7 +46,7 @@ dist-hook:
 		$(distdir)/std_data/ndb_backup51_data_le \
 		$(distdir)/std_data/parts \
 		$(distdir)/lib \
-                $(distdir)/std_data/funcs_1 \
+		$(distdir)/std_data/funcs_1 \
 		$(distdir)/lib/My
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
@@ -77,7 +77,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(distdir)/std_data/ndb_backup51_data_be
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(distdir)/std_data/ndb_backup51_data_le
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(distdir)/std_data/parts
-	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/* $(distdir)/std_data/funcs_1
+	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/*.txt $(distdir)/std_data/funcs_1
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/My/*.pm $(distdir)/lib/My
 	-rm -rf `find $(distdir)/suite -type d -name SCCS` $(distdir)/suite/row_lock
@@ -132,7 +132,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_be
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_le
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(DESTDIR)$(testdir)/std_data/parts
-	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/* $(DESTDIR)$(testdir)/std_data/funcs_1
+	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/*.txt $(DESTDIR)$(testdir)/std_data/funcs_1
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/My/*.pm $(DESTDIR)$(testdir)/lib/My
 	for f in `(cd $(srcdir); find suite -type f | egrep -v 'SCCS|row_lock')`; \
