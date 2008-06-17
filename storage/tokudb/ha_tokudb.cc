@@ -3607,6 +3607,10 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     DB_TXN* txn = NULL;
     uchar tmp_key_buff[2*table_arg->s->rec_buff_length];
     //
+    // number of DB files we have open currently, before add_index is executed
+    //
+    uint curr_num_DBs = table_arg->s->keys + test(hidden_primary_key);
+    //
     // these variables are for error handling
     //
     uint num_files_created = 0;
@@ -3656,7 +3660,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     // open all the DB files and set the appropriate variables in share
     // they go to the end of share->key_file
     //
-    curr_index = table_arg->s->keys;
+    curr_index = curr_num_DBs;
     for (uint i = 0; i < num_of_keys; i++, curr_index++) {
         error = open_secondary_table(
             &share->key_file[curr_index], 
@@ -3697,7 +3701,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     // are creating
     //
     for (uint i = 0; i < num_of_keys; i++) {
-        uint curr_index = i + table_arg->s->keys;
+        uint curr_index = i + curr_num_DBs;
         error = share->key_file[curr_index]->pre_acquire_table_lock(
             share->key_file[curr_index],
             txn
@@ -3724,7 +3728,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         for (uint i = 0; i < num_of_keys; i++) {
             DBT secondary_key;
             create_dbt_key_from_key(&secondary_key,&key_info[i], tmp_key_buff, tmp_record);
-            uint curr_index = i + table_arg->s->keys;
+            uint curr_index = i + curr_num_DBs;
             u_int32_t put_flags = share->key_type[curr_index];
             
             error = share->key_file[curr_index]->put(share->key_file[curr_index], txn, &secondary_key, &current_primary_key, put_flags);
@@ -3760,7 +3764,7 @@ cleanup:
         // We need to delete all the files that may have been created
         // The DB's must be closed and removed
         //
-        for (uint i = table_arg->s->keys; i < table_arg->s->keys + num_DB_opened; i++) {
+        for (uint i = curr_num_DBs; i < curr_num_DBs + num_DB_opened; i++) {
             share->key_file[i]->close(share->key_file[i], 0);
             share->key_file[i] = NULL;
         }
