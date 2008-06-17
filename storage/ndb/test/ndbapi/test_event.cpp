@@ -2645,6 +2645,52 @@ runBug37338(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug37442(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  int nodeId = res.getDbNodeId(rand() % res.getNumDbNodes());
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+  const NdbDictionary::Table* tab = dict->getTable(ctx->getTab()->getName());
+
+  if (runCreateEvent(ctx, step))
+  {
+    return NDBT_FAILED;
+  }
+  
+  for (int i = 0; i<ctx->getNumLoops(); i++)
+  {
+    NdbEventOperation * pOp = createEventOperation(GETNDB(step), *tab);
+    
+    res.restartOneDbNode(nodeId,
+                         /** initial */ false,
+                         /** nostart */ true,
+                         /** abort   */ true);
+    
+    res.waitNodesNoStart(&nodeId, 1);
+
+    GETNDB(step)->dropEventOperation(pOp);
+    
+    res.startNodes(&nodeId, 1);
+    if (res.waitClusterStarted())
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  runDropEvent(ctx, step);
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -2831,6 +2877,10 @@ TESTCASE("Bug37279", "")
 TESTCASE("Bug37338", "")
 {
   INITIALIZER(runBug37338);
+}
+TESTCASE("Bug37442", "")
+{
+  INITIALIZER(runBug37442);
 }
 NDBT_TESTSUITE_END(test_event);
 
