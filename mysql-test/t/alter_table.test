@@ -914,3 +914,37 @@ unlock tables;
 select * from t1;
 check table t1;
 drop table t1;
+
+#
+# Bug#33873: Fast ALTER TABLE doesn't work with multibyte character sets
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (id int, c int) character set latin1;
+INSERT INTO t1 VALUES (1,1);
+--enable_info
+ALTER TABLE t1 CHANGE c d int;
+ALTER TABLE t1 CHANGE d c int;
+ALTER TABLE t1 MODIFY c VARCHAR(10);
+ALTER TABLE t1 CHANGE c d varchar(10);
+ALTER TABLE t1 CHANGE d c varchar(10);
+--disable_info
+DROP TABLE t1;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (id int, c int) character set utf8;
+INSERT INTO t1 VALUES (1,1);
+--enable_info
+ALTER TABLE t1 CHANGE c d int;
+ALTER TABLE t1 CHANGE d c int;
+ALTER TABLE t1 MODIFY c VARCHAR(10);
+ALTER TABLE t1 CHANGE c d varchar(10);
+ALTER TABLE t1 CHANGE d c varchar(10);
+--disable_info
+DROP TABLE t1;
+
+--echo End of 5.1 tests
