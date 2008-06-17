@@ -300,6 +300,14 @@ static inline void rebuild_subtree_from_idxs(OMT omt, node_idx *n_idxp, node_idx
 
 static inline void rebalance(OMT omt, node_idx *n_idxp) {
     node_idx idx = *n_idxp;
+    if (idx==omt->i.t.root) {
+        //Try to convert to an array.
+        //If this fails, (malloc) nothing will have changed.
+        //In the failure case we continue on to the standard rebalance
+        //algorithm.
+        int r = omt_convert_to_array(omt);
+        if (r==0) return;
+    }
     OMT_NODE n   = omt->i.t.nodes+idx;
     fill_array_with_subtree_idxs(omt, omt->i.t.tmparray, idx);
     rebuild_subtree_from_idxs(omt, n_idxp, omt->i.t.tmparray, n->weight);
