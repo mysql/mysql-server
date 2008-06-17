@@ -199,6 +199,7 @@ static int omt_convert_to_tree(OMT omt) {
     if (!omt->is_array) return 0;
     u_int32_t num_nodes = omt_size(omt);
     u_int32_t new_size  = num_nodes*2;
+    new_size = new_size < 4 ? 4 : new_size;
 
     OMT_NODE MALLOC_N(new_size, new_nodes);
     if (new_nodes==NULL) return errno;
@@ -206,7 +207,7 @@ static int omt_convert_to_tree(OMT omt) {
     OMTVALUE *tmp_values = values + omt->i.a.start_idx;
     omt->is_array          = FALSE;
     omt->i.t.nodes         = new_nodes;
-    omt->capacity = new_size;
+    omt->capacity          = new_size;
     omt->i.t.free_idx      = 0; /* Allocating from mempool starts over. */
     omt->i.t.root          = NODE_NULL;
     rebuild_from_sorted_array(omt, &omt->i.t.root, tmp_values, num_nodes);
@@ -217,13 +218,15 @@ static int omt_convert_to_tree(OMT omt) {
 static int omt_convert_to_array(OMT omt) {
     if (omt->is_array) return 0;
     u_int32_t num_values = omt_size(omt);
-    u_int32_t capacity  = 2*num_values;
-    OMTVALUE *MALLOC_N(capacity, tmp_values);
+    u_int32_t new_size  = 2*num_values;
+    new_size = new_size < 4 ? 4 : new_size;
+
+    OMTVALUE *MALLOC_N(new_size, tmp_values);
     if (tmp_values==NULL) return errno;
     fill_array_with_subtree_values(omt, tmp_values, omt->i.t.root);
     toku_free(omt->i.t.nodes);
-    omt->is_array = TRUE;
-    omt->capacity   = capacity;
+    omt->is_array       = TRUE;
+    omt->capacity       = new_size;
     omt->i.a.num_values = num_values;
     omt->i.a.values     = tmp_values;
     omt->i.a.start_idx  = 0;
