@@ -39,6 +39,7 @@ struct ctpair {
     int      verify_flag; /* Used in verify_cachetable() */
     LSN      modified_lsn; // What was the LSN when modified (undefined if not dirty)
     LSN      written_lsn;  // What was the LSN when written (we need to get this information when we fetch)
+    u_int32_t fullhash;
 };
 
 // The cachetable is as close to an ENV as we get.
@@ -61,6 +62,7 @@ struct fileid {
 
 struct cachefile {
     CACHEFILE next;
+    u_int32_t header_fullhash;
     u_int64_t refcount; /* CACHEFILEs are shared. Use a refcount to decide when to really close it.
 			 * The reference count is one for every open DB.
 			 * Plus one for every commit/rollback record.  (It would be harder to keep a count for every open transaction,
@@ -144,6 +146,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fna
     {
 	CACHEFILE MALLOC(newcf);
 	newcf->filenum.fileid = next_filenum_to_use.fileid++;
+	newcf->header_fullhash = toku_cachetable_hash(newcf, 0);
 	newcf->next = t->cachefiles;
 	newcf->refcount = 1;
 	newcf->fd = fd;
@@ -265,26 +268,18 @@ static inline u_int32_t final (u_int32_t a, u_int32_t b, u_int32_t c) {
   return c;
 }
 
-static unsigned int hashit (CACHETABLE t, CACHEKEY key, CACHEFILE cachefile) {
-    if (0) {
-	unsigned int h1;
-	if (0) {
-	    h1 = hash_key((unsigned char*)&key, sizeof(key));
-	    h1 = hash_key_extend(h1, (unsigned char*)&cachefile->filenum, sizeof(cachefile->filenum));
-	    h1 = hash_key_extend(h1, (unsigned char*)&cachefile, sizeof(cachefile));
-	} else {
-	    unsigned long long k = (unsigned long long) key;
-	    u_int32_t f = cachefile->filenum.fileid;
-	    h1 = k >> 32;
-	    h1 = (h1 * 16777619) ^ (k & 0xffffffff);
-	    h1 = (h1 * 16777619) ^ f;
-	}
-	return h1%t->table_size;
-    } else {
-	assert(0==(t->table_size & (t->table_size -1))); // make sure table is power of two
-	return (final(cachefile->filenum.fileid, (u_int32_t)(key>>32), (u_int32_t)key))&(t->table_size-1);
-    }
+u_int32_t toku_cachetable_hash (CACHEFILE cachefile, CACHEKEY key)
+// Effect: Return a 32-bit hash key.  The hash key shall be suitable for using with bitmasking for a table of size power-of-two.
+{
+    return final(cachefile->filenum.fileid, (u_int32_t)(key>>32), (u_int32_t)key);
 }
+
+#if 0
+static unsigned int hashit (CACHETABLE t, CACHEKEY key, CACHEFILE cachefile) {
+    assert(0==(t->table_size & (t->table_size -1))); // make sure table is power of two
+    return (toku_cachetable_hash(key,cachefile))&(t->table_size-1);
+}
+#endif
 
 static void cachetable_rehash (CACHETABLE t, u_int32_t newtable_size) {
     // printf("rehash %p %d %d %d\n", t, primeindexdelta, t->n_in_table, t->table_size);
@@ -300,7 +295,7 @@ static void cachetable_rehash (CACHETABLE t, u_int32_t newtable_size) {
     for (i=0; i<oldtable_size; i++) {
 	PAIR p;
 	while ((p=t->table[i])!=0) {
-	    unsigned int h = hashit(t, p->key, p->cachefile);
+	    unsigned int h = p->fullhash&(newtable_size-1);
 	    t->table[i] = p->hash_chain;
 	    p->hash_chain = newtable[h];
 	    newtable[h] = p;
@@ -376,7 +371,7 @@ static void flush_and_remove (CACHETABLE t, PAIR remove_me, int write_me) {
     t->n_in_table--;
     // Remove it from the hash chain.
     {
-	unsigned int h = hashit(t, remove_me->key, remove_me->cachefile);
+	unsigned int h = remove_me->fullhash&(t->table_size-1);
 	t->table[h] = remove_from_hash_chain (remove_me, t->table[h]);
     }
     t->size_current -= remove_me->size;
@@ -433,12 +428,13 @@ again:
     return r;
 }
 
-static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *value, long size,
+static int cachetable_insert_at(CACHEFILE cachefile, u_int32_t fullhash, CACHEKEY key, void *value, long size,
                                 cachetable_flush_func_t flush_callback,
                                 cachetable_fetch_func_t fetch_callback,
                                 void *extraargs, int dirty,
 				LSN   written_lsn) {
     TAGMALLOC(PAIR, p);
+    p->fullhash = fullhash;
     p->pinned = 1;
     p->dirty = dirty;
     p->size = size;
@@ -452,8 +448,10 @@ static int cachetable_insert_at(CACHEFILE cachefile, int h, CACHEKEY key, void *
     p->extraargs = extraargs;
     p->modified_lsn.lsn = 0;
     p->written_lsn  = written_lsn;
+    p->fullhash = fullhash;
     CACHETABLE ct = cachefile->cachetable;
     lru_add_to_list(ct, p);
+    u_int32_t h = fullhash & (ct->table_size-1);
     p->hash_chain = ct->table[h];
     ct->table[h] = p;
     ct->n_in_table++;
@@ -478,13 +476,13 @@ void note_hash_count (int count) {
     hash_histogram[count]++;
 }
 
-int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size,
-                   cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
+int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void*value, long size,
+			cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     int count=0;
     {
 	PAIR p;
-	for (p=cachefile->cachetable->table[hashit(cachefile->cachetable, key, cachefile)]; p; p=p->hash_chain) {
+	for (p=cachefile->cachetable->table[fullhash&(cachefile->cachetable->table_size-1)]; p; p=p->hash_chain) {
 	    count++;
 	    if (p->key==key && p->cachefile==cachefile) {
 		note_hash_count(count);
@@ -501,18 +499,18 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size
     int r;
     note_hash_count(count);
     if ((r=maybe_flush_some(cachefile->cachetable, size))) return r;
-    // flushing could change the result from hashit()
-    r = cachetable_insert_at(cachefile, hashit(cachefile->cachetable, key, cachefile), key, value, size, flush_callback, fetch_callback, extraargs, 1, ZERO_LSN);
+    // flushing could change the table size, but wont' change the fullhash
+    r = cachetable_insert_at(cachefile, fullhash, key, value, size, flush_callback, fetch_callback, extraargs, 1, ZERO_LSN);
     return r;
 }
 
-int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, long *sizep,
+int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 				cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     CACHETABLE t = cachefile->cachetable;
     int tsize __attribute__((__unused__)) = t->table_size;
     PAIR p;
     int count=0;
-    for (p=t->table[hashit(t,key,cachefile)]; p; p=p->hash_chain) {
+    for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key==key && p->cachefile==cachefile) {
 	    note_hash_count(count);
@@ -526,16 +524,16 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, 
     }
     note_hash_count(count);
     int r;
-    // Note.  hashit(t,key) may have changed as a result of flushing.
+    // Note.  hashit(t,key) may have changed as a result of flushing.  But fullhash won't have changed.
     {
 	void *toku_value; 
         long size = 1; // compat
 	LSN written_lsn;
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
-	if ((r=fetch_callback(cachefile, key, &toku_value, &size, extraargs, &written_lsn))) {
+	if ((r=fetch_callback(cachefile, key, fullhash, &toku_value, &size, extraargs, &written_lsn))) {
             return r;
 	}
-	cachetable_insert_at(cachefile, hashit(t,key,cachefile), key, toku_value, size, flush_callback, fetch_callback, extraargs, 0, written_lsn);
+	cachetable_insert_at(cachefile, fullhash, key, toku_value, size, flush_callback, fetch_callback, extraargs, 0, written_lsn);
 	*value = toku_value;
         if (sizep)
             *sizep = size;
@@ -546,11 +544,11 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, 
     return 0;
 }
 
-int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**value) {
+int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value) {
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     int count = 0;
-    for (p=t->table[hashit(t,key,cachefile)]; p; p=p->hash_chain) {
+    for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key==key && p->cachefile==cachefile) {
 	    note_hash_count(count);
@@ -566,13 +564,14 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, void**
 }
 
 
-int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, int dirty, long size) {
+int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, int dirty, long size) {
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     WHEN_TRACE_CT(printf("%s:%d unpin(%lld)", __FILE__, __LINE__, key));
     //printf("%s:%d is dirty now=%d\n", __FILE__, __LINE__, dirty);
     int count = 0;
-    for (p=t->table[hashit(t,key,cachefile)]; p; p=p->hash_chain) {
+    //assert(fullhash == toku_cachetable_hash(cachefile, key));
+    for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key==key && p->cachefile==cachefile) {
 	    note_hash_count(count);
@@ -602,7 +601,8 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
   CACHETABLE t = cachefile->cachetable;
   PAIR *ptr_to_p,p;
   int count = 0;
-  for (ptr_to_p = &t->table[hashit(t, oldkey,cachefile)],  p = *ptr_to_p;
+  u_int32_t fullhash = toku_cachetable_hash(cachefile, oldkey);
+  for (ptr_to_p = &t->table[fullhash&(t->table_size-1)],  p = *ptr_to_p;
        p;
        ptr_to_p = &p->hash_chain,                p = *ptr_to_p) {
     count++;
@@ -610,7 +610,9 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
       note_hash_count(count);
       *ptr_to_p = p->hash_chain;
       p->key = newkey;
-      int nh = hashit(t, newkey, cachefile);
+      u_int32_t new_fullhash = toku_cachetable_hash(cachefile, newkey);
+      u_int32_t nh = new_fullhash&(t->table_size-1);
+      p->fullhash = new_fullhash;
       p->hash_chain = t->table[nh];
       t->table[nh] = p;
       return 0;
@@ -651,7 +653,9 @@ void toku_cachetable_verify (CACHETABLE t) {
 	for (p=t->head; p; p=p->next) {
 	    assert(p->verify_flag==0);
 	    PAIR p2;
-	    for (p2=t->table[hashit(t,p->key, p->cachefile)]; p2; p2=p2->hash_chain) {
+	    u_int32_t fullhash = p->fullhash;
+	    //assert(fullhash==toku_cachetable_hash(p->cachefile, p->key));
+	    for (p2=t->table[fullhash&(t->table_size-1)]; p2; p2=p2->hash_chain) {
 		if (p2==p) {
 		    /* found it */
 		    goto next;
@@ -740,7 +744,8 @@ int toku_cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     int count = 0;
-    for (p=t->table[hashit(t,key, cachefile)]; p; p=p->hash_chain) {
+    u_int32_t fullhash = toku_cachetable_hash(cachefile, key);
+    for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key==key && p->cachefile==cachefile) {
 	    flush_and_remove(t, p, write_me);
@@ -834,7 +839,8 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
 				   int *dirty_ptr, long long *pin_ptr, long *size_ptr) {
     PAIR p;
     int count = 0;
-    for (p = ct->table[hashit(ct, key, cf)]; p; p = p->hash_chain) {
+    u_int32_t fullhash = toku_cachetable_hash(cf, key);
+    for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
 	count++;
         if (p->key == key) {
 	    note_hash_count(count);
@@ -903,4 +909,8 @@ TOKULOGGER toku_cachefile_logger (CACHEFILE cf) {
 
 FILENUM toku_cachefile_filenum (CACHEFILE cf) {
     return cf->filenum;
+}
+
+u_int32_t toku_cachefile_fullhash_of_header (CACHEFILE cachefile) {
+    return cachefile->header_fullhash;
 }

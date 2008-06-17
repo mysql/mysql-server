@@ -67,6 +67,7 @@ struct brtnode {
     u_int32_t rand4fingerprint;
     u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the buffers, but does not include child subtree fingerprints. */
     int    dirty;
+    u_int32_t fullhash;
     union node {
 	struct nonleaf {
 	    // Don't actually store the subree fingerprint in the in-memory data structure.
@@ -103,6 +104,7 @@ enum {
 
 struct brt_header {
     int dirty;
+    u_int32_t fullhash;
     int layout_version;
     unsigned int nodesize;
     DISKOFF freelist;
@@ -140,7 +142,7 @@ struct brt {
 
 /* serialization code */
 void toku_serialize_brtnode_to(int fd, DISKOFF off, BRTNODE node);
-int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode);
+int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t /*fullhash*/, BRTNODE *brtnode);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
@@ -149,7 +151,7 @@ void toku_verify_counts(BRTNODE);
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h);
-int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth);
+int toku_deserialize_brtheader_from (int fd, DISKOFF off, u_int32_t fullhash, struct brt_header **brth);
 
 int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo); // Write a fifo into a disk, without worrying about fitting it into a block.  This write is done at the end of the file.
 int toku_deserialize_fifo_at (int fd, off_t at, FIFO *fifo);
@@ -200,7 +202,7 @@ struct brt_cursor {
 
 // logs the memory allocation, but not the creation of the new node
 int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logger);
-int toku_unpin_brtnode (BRT brt, BRTNODE node) ;
+int toku_unpin_brtnode (BRT brt, BRTNODE node);
 unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t);
 
 /* Stuff for testing */

@@ -147,7 +147,9 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     } else {
 	assert(0);
     }
-    toku_cachetable_put(pair->cf, 0, h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, 0);
+    h->fullhash = fullhash;
+    toku_cachetable_put(pair->cf, 0, fullhash, h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
     if (pair->brt) {
 	toku_free(pair->brt->h);
     }  else {
@@ -203,12 +205,14 @@ void toku_recover_newbrtnode (LSN lsn, FILENUM filenum,DISKOFF diskoff,u_int32_t
 	MALLOC_N(2,n->u.n.childkeys);
     }
     // Now put it in the cachetable
-    toku_cachetable_put(pair->cf, diskoff, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, diskoff);
+    n->fullhash = fullhash;
+    toku_cachetable_put(pair->cf, diskoff, fullhash, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
 
     VERIFY_COUNTS(n);
 
     n->log_lsn = lsn;
-    r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(n));
+    r = toku_cachetable_unpin(pair->cf, diskoff, fullhash, 1, toku_serialize_brtnode_size(n));
     assert(r==0);
 }
 
@@ -218,9 +222,12 @@ static void recover_setup_node (FILENUM filenum, DISKOFF diskoff, CACHEFILE *cf,
     assert(r==0);
     assert(pair->brt);
     void *node_v;
-    r = toku_cachetable_get_and_pin(pair->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, diskoff);
+    r = toku_cachetable_get_and_pin(pair->cf, diskoff, fullhash,
+				    &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
     assert(r==0);
     BRTNODE node = node_v;
+    assert(fullhash==node->fullhash);
     *resultnode = node;
     *cf = pair->cf;
 }
@@ -230,7 +237,9 @@ static void toku_recover_deqrootentry (LSN lsn __attribute__((__unused__)), FILE
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *h_v;
-    r = toku_cachetable_get_and_pin(pair->cf, 0, &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, 0);
+    r = toku_cachetable_get_and_pin(pair->cf, 0, fullhash,
+				    &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
     assert(r==0);
     struct brt_header *h=h_v;
     bytevec storedkey,storeddata;
@@ -241,7 +250,7 @@ static void toku_recover_deqrootentry (LSN lsn __attribute__((__unused__)), FILE
     assert(r==0);
     r = toku_fifo_deq(h->fifo);
     assert(r==0);
-    r = toku_cachetable_unpin(pair->cf, 0, 1, 0);
+    r = toku_cachetable_unpin(pair->cf, 0, fullhash, 1, 0);
     assert(r==0);
 }
 
@@ -250,12 +259,13 @@ void toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM fil
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *h_v;
-    r = toku_cachetable_get_and_pin(pair->cf, 0, &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, 0);
+    r = toku_cachetable_get_and_pin(pair->cf, 0, fullhash, &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
     assert(r==0);
     struct brt_header *h=h_v;
     r = toku_fifo_enq(h->fifo, key.data, key.len, val.data, val.len, typ, xid); 
     assert(r==0);
-    r = toku_cachetable_unpin(pair->cf, 0, 1, 0);
+    r = toku_cachetable_unpin(pair->cf, 0, fullhash, 1, 0);
     assert(r==0);
     toku_free(key.data);
     toku_free(val.data);
@@ -281,7 +291,7 @@ void toku_recover_brtdeq (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t c
     node->u.n.n_bytes_in_buffers -= sizediff;
     BNC_NBYTESINBUF(node, childnum) -= sizediff;
     r = toku_fifo_deq(BNC_BUFFER(node, childnum)); // don't deq till were' done looking at the data.
-    r = toku_cachetable_unpin(cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(cf, diskoff, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
 
@@ -297,7 +307,7 @@ void toku_recover_brtenq (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t c
     node->local_fingerprint += node->rand4fingerprint * toku_calccrc32_cmd(typ, xid, key.data, key.len, data.data, data.len);
     node->log_lsn = lsn;
     u_int32_t sizediff = key.len + data.len + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
-    r = toku_cachetable_unpin(cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(cf, diskoff, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
     node->u.n.n_bytes_in_buffers += sizediff;
     BNC_NBYTESINBUF(node, childnum) += sizediff;
@@ -330,7 +340,7 @@ void toku_recover_addchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     BNC_NBYTESINBUF(node, childnum) = 0;
     node->u.n.n_children++;
     node->log_lsn = lsn;
-    r = toku_cachetable_unpin(cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(cf, diskoff, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
 
@@ -340,10 +350,12 @@ void toku_recover_delchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     assert(r==0);
     void *node_v;
     assert(pair->brt);
-    r = toku_cachetable_get_and_pin(pair->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, diskoff);
+    r = toku_cachetable_get_and_pin(pair->cf, diskoff, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
     assert(r==0);
     BRTNODE node = node_v;
     assert(node->height>0);
+    assert(node->fullhash==fullhash);
 
     assert(childnum < (unsigned)node->u.n.n_children);
     assert(node->u.n.childinfos[childnum].subtree_fingerprint == childfingerprint);
@@ -364,7 +376,7 @@ void toku_recover_delchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     node->u.n.n_children--;
 
     node->log_lsn = lsn;
-    r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(pair->cf, diskoff, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
     toku_free(pivotkey.data);
 }
@@ -375,14 +387,16 @@ void toku_recover_setchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     assert(r==0);
     void *node_v;
     assert(pair->brt);
-    r = toku_cachetable_get_and_pin(pair->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, diskoff);
+    r = toku_cachetable_get_and_pin(pair->cf, diskoff, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
     assert(r==0);
     BRTNODE node = node_v;
+    assert(node->fullhash == fullhash);
     assert(node->height>0);
     assert(childnum < (unsigned)node->u.n.n_children);
     BNC_DISKOFF(node, childnum) = newchild;
     node->log_lsn = lsn;
-    r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(pair->cf, diskoff, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
 void toku_recover_setpivot (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, BYTESTRING pivotkey) {
@@ -391,9 +405,11 @@ void toku_recover_setpivot (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     assert(r==0);
     void *node_v;
     assert(pair->brt);
-    r = toku_cachetable_get_and_pin(pair->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, diskoff);
+    r = toku_cachetable_get_and_pin(pair->cf, diskoff, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
     assert(r==0);
     BRTNODE node = node_v;
+    assert(node->fullhash==fullhash);
     assert(node->height>0);
     
     struct kv_pair *new_pivot = kv_pair_malloc(pivotkey.data, pivotkey.len, 0, 0);
@@ -402,7 +418,7 @@ void toku_recover_setpivot (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     node->u.n.totalchildkeylens += toku_brt_pivot_key_len(pair->brt, node->u.n.childkeys[childnum]);
 
     node->log_lsn = lsn;
-    r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(pair->cf, diskoff, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 
     toku_free(pivotkey.data);
@@ -414,14 +430,16 @@ void toku_recover_changechildfingerprint (LSN lsn, FILENUM filenum, DISKOFF disk
     assert(r==0);
     void *node_v;
     assert(pair->brt);
-    r = toku_cachetable_get_and_pin(pair->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, diskoff);
+    r = toku_cachetable_get_and_pin(pair->cf, diskoff, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
     assert(r==0);
     BRTNODE node = node_v;
+    assert(node->fullhash == fullhash);
     assert(node->height>0);
     assert((signed)childnum <= node->u.n.n_children); // we allow the childnum to be one too large.
     BNC_SUBTREE_FINGERPRINT(node, childnum) = newfingerprint;
     node->log_lsn = lsn;
-    r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(pair->cf, diskoff, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
     
 }
@@ -488,15 +506,18 @@ void toku_recover_leafsplit (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, DISK
     int r = find_cachefile(filenum, &pair);
     void *nodeA_v;
     assert(pair->brt);
-    r = toku_cachetable_get_and_pin(pair->cf, old_diskoff, &nodeA_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    u_int32_t oldn_fullhash = toku_cachetable_hash(pair->cf, old_diskoff);
+    r = toku_cachetable_get_and_pin(pair->cf, old_diskoff, oldn_fullhash, &nodeA_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
     assert(r==0);
     BRTNODE oldn = nodeA_v;
+    assert(oldn->fullhash==oldn_fullhash);
     assert(oldn->height==0);
 
     TAGMALLOC(BRTNODE, newn);
     assert(newn);
     //printf("%s:%d leafsplit %p (%lld) %p (%lld)\n", __FILE__, __LINE__, oldn, old_diskoff, newn, new_diskoff);
 
+    newn->fullhash     = toku_cachetable_hash(pair->cf, new_diskoff);
     newn->nodesize     = new_node_size;
     newn->thisnodename = new_diskoff;
     newn->log_lsn = newn->disk_lsn  = lsn;
@@ -557,12 +578,13 @@ void toku_recover_leafsplit (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, DISK
     toku_verify_all_in_mempool(oldn);    toku_verify_counts(oldn);
     toku_verify_all_in_mempool(newn);    toku_verify_counts(newn);
 
-    toku_cachetable_put(pair->cf, new_diskoff, newn, toku_serialize_brtnode_size(newn), toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
+    toku_cachetable_put(pair->cf, new_diskoff, newn->fullhash,
+			newn, toku_serialize_brtnode_size(newn), toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
     newn->log_lsn = lsn;
-    r = toku_cachetable_unpin(pair->cf, new_diskoff, 1, toku_serialize_brtnode_size(newn));
+    r = toku_cachetable_unpin(pair->cf, new_diskoff, newn->fullhash, 1, toku_serialize_brtnode_size(newn));
     assert(r==0);
     oldn->log_lsn = lsn;
-    r = toku_cachetable_unpin(pair->cf, old_diskoff, 1, toku_serialize_brtnode_size(oldn));
+    r = toku_cachetable_unpin(pair->cf, old_diskoff, oldn->fullhash, 1, toku_serialize_brtnode_size(oldn));
     assert(r==0);
 }
 
@@ -572,9 +594,11 @@ void toku_recover_insertleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_
     assert(r==0);
     void *node_v;
     assert(pair->brt);
-    r = toku_cachetable_get_and_pin(pair->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, diskoff);
+    r = toku_cachetable_get_and_pin(pair->cf, diskoff, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
     assert(r==0);
     BRTNODE node = node_v;
+    assert(node->fullhash==fullhash);
     assert(node->height==0);
     VERIFY_COUNTS(node);
     node->log_lsn = lsn;
@@ -588,7 +612,7 @@ void toku_recover_insertleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_
 	node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + leafentry_disksize(newleafentry);
 	node->local_fingerprint += node->rand4fingerprint * toku_le_crc(newleafentry);
     }
-    r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(pair->cf, diskoff, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
     toku_free_LEAFENTRY(newleafentry);
 }
@@ -599,9 +623,11 @@ void toku_recover_deleteleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_
     assert(r==0);
     void *node_v;
     assert(pair->brt);
-    r = toku_cachetable_get_and_pin(pair->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    u_int32_t fullhash = toku_cachetable_hash(pair->cf, diskoff);
+    r = toku_cachetable_get_and_pin(pair->cf, diskoff, fullhash, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
     assert(r==0);
     BRTNODE node = node_v;
+    assert(node->fullhash==fullhash);
     assert(node->height==0);
     VERIFY_COUNTS(node);
     node->log_lsn = lsn;
@@ -618,7 +644,7 @@ void toku_recover_deleteleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_
 	r = toku_omt_delete_at(node->u.l.buffer, idx);
 	assert(r==0);
     }
-    r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(pair->cf, diskoff, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
 

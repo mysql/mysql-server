@@ -215,7 +215,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     toku_free(buf);
 }
 
-int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
+int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTNODE *brtnode) {
     TAGMALLOC(BRTNODE, result);
     struct rbuf rc;
     int i;
@@ -294,6 +294,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
     result->local_fingerprint = rbuf_int(&rc);
 //    printf("%s:%d read %08x\n", __FILE__, __LINE__, result->local_fingerprint);
     result->dirty = 0;
+    result->fullhash = fullhash;
     //printf("height==%d\n", result->height);
     if (result->height>0) {
 	result->u.n.totalchildkeylens=0;
@@ -552,10 +553,11 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     return r;
 }
 
-static int deserialize_brtheader_6_or_earlier (int fd, DISKOFF off, struct brt_header **brth) {
+static int deserialize_brtheader_6_or_earlier (int fd, DISKOFF off, struct brt_header **brth, u_int32_t fullhash) {
     // Deserialize a brt header from version 6 or earlier.
     struct brt_header *MALLOC(h);
     if (h==0) return errno;
+    h->fullhash = fullhash;
     int ret=-1;
     if (0) { died0: toku_free(h); return ret; }
     int size;
@@ -632,11 +634,12 @@ static int deserialize_brtheader_6_or_earlier (int fd, DISKOFF off, struct brt_h
     return 0;
 }
 
-int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct brt_header **brth) {
+int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct brt_header **brth, u_int32_t fullhash) {
     // We already know the first 8 bytes are "tokudata", and we read in the size.
     struct brt_header *MALLOC(h);
     if (h==0) return errno;
     int ret=-1;
+    h->fullhash = fullhash;
     if (0) { died0: toku_free(h); return ret; }
     struct rbuf rc;
     rc.buf = toku_malloc(size-12); // we can skip the first 12 bytes.
@@ -685,7 +688,7 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
     return 0;
 }
 
-int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth) {
+int toku_deserialize_brtheader_from (int fd, DISKOFF off, u_int32_t fullhash, struct brt_header **brth) {
     //printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
     assert(off==0);
     //printf("%s:%d malloced %p\n", __FILE__, __LINE__, h);
@@ -697,9 +700,9 @@ int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **br
     if (r!=12) return EINVAL;
     if (memcmp(magic,"tokudata",8)==0) {
 	// It's version 7 or later
-	return deserialize_brtheader_7_or_later(ntohl(*(int*)(&magic[8])), fd, off, brth);
+	return deserialize_brtheader_7_or_later(ntohl(*(int*)(&magic[8])), fd, off, brth, fullhash);
     } else {
-	return deserialize_brtheader_6_or_earlier(fd, off, brth);
+	return deserialize_brtheader_6_or_earlier(fd, off, brth, fullhash);
     }
 }
 

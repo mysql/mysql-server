@@ -32,25 +32,27 @@ typedef void (cachetable_flush_func_t)(CACHEFILE, CACHEKEY key, void*value, long
 typedef cachetable_flush_func_t *CACHETABLE_FLUSH_FUNC_T;
 
 /* If we are asked to fetch something, get it by calling this back. */
-typedef int (cachetable_fetch_func_t)(CACHEFILE, CACHEKEY key, void **value, long *sizep, void *extraargs, LSN *written_lsn);
+typedef int (cachetable_fetch_func_t)(CACHEFILE, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs, LSN *written_lsn);
 typedef cachetable_fetch_func_t *CACHETABLE_FETCH_FUNC_T;
 
 /* Error if already present.  On success, pin the value. */
-int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, void* value, long size,
+int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
+			void* value, long size,
 			cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
 
-int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, void**/*value*/, long *sizep,
+int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
+				void**/*value*/, long *sizep,
 				cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs);
 
 /* If the the item is already in memory, then return 0 and store it in the void**.
  * If the item is not in memory, then return nonzero. */
-int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, void**);
+int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
 
 /* cachetable object state wrt external memory */
 #define CACHETABLE_CLEAN 0
 #define CACHETABLE_DIRTY 1
 
-int toku_cachetable_unpin(CACHEFILE, CACHEKEY, int dirty, long size); /* Note whether it is dirty when we unpin it. */
+int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, int dirty, long size); /* Note whether it is dirty when we unpin it. */
 int toku_cachetable_remove (CACHEFILE, CACHEKEY, int /*write_me*/); /* Removing something already present is OK. */
 int toku_cachetable_assert_all_unpinned (CACHETABLE);
 int toku_cachefile_count_pinned (CACHEFILE, int /*printthem*/ );
@@ -89,5 +91,10 @@ FILENUM toku_cachefile_filenum (CACHEFILE);
 int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf);
 
 int toku_cachetable_checkpoint (CACHETABLE ct);
+
+u_int32_t toku_cachetable_hash (CACHEFILE cachefile, CACHEKEY key);
+// Effect: Return a 32-bit hash key.  The hash key shall be suitable for using with bitmasking for a table of size power-of-two.
+
+u_int32_t toku_cachefile_fullhash_of_header (CACHEFILE cachefile);
 
 #endif
