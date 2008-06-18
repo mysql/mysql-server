@@ -356,6 +356,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
 	//printf("%s:%d n PMA= %p (rcount=%d)\n", __FILE__, __LINE__, n->u.l.buffer, rcount); 
 	rcount++;
 	n->u.l.n_bytes_in_buffer = 0;
+        n->u.l.seqinsert = 0;
     }
 }
 
@@ -1515,9 +1516,19 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 
     switch (cmd->type) {
     case BRT_INSERT:
-	
-	r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be,
-			       &storeddatav, &idx, NULL);
+        if (node->u.l.seqinsert) {
+            idx = toku_omt_size(node->u.l.buffer);
+            r = toku_omt_fetch(node->u.l.buffer, idx-1, &storeddatav, NULL);
+            if (r != 0) goto fz;
+            storeddata = storeddatav;
+            int cmp = toku_cmd_leafval_bessel(storeddata, &be);
+            if (cmp >= 0) goto fz;
+            r = DB_NOTFOUND;
+        } else {
+        fz:
+            r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be,
+                                   &storeddatav, &idx, NULL);
+        }
 	if (r==DB_NOTFOUND) {
 	    storeddata = 0;
 	} else if (r!=0) {
@@ -1528,6 +1539,10 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	
 	r = brt_leaf_apply_cmd_once(t, node, cmd, logger, idx, storeddata);
 	if (r!=0) return r;
+        if (idx == toku_omt_size(node->u.l.buffer)-1)
+            node->u.l.seqinsert += 1;
+        else
+            node->u.l.seqinsert = 0;
 	break;
     case BRT_DELETE_BOTH:
     case BRT_ABORT_BOTH:
