@@ -222,6 +222,7 @@ execute(void * callbackObj,
 
   const Uint32 secCount = header->m_noOfSections;
   const Uint32 length = header->theLength;
+  header->theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
 
 #ifdef TRACE_DISTRIBUTED
   ndbout_c("recv: %s(%d) from (%s, %d)",
