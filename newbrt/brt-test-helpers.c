@@ -51,6 +51,7 @@ int toku_testsetup_root(BRT brt, DISKOFF diskoff) {
     int r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
     if (r!=0) return r;
     brt->h->roots[0] = diskoff;
+    brt->h->root_hashes[0].valid = FALSE;
     r = toku_unpin_brt_header(brt);
     return r;
 }

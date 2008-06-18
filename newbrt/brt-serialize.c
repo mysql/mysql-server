@@ -595,10 +595,12 @@ static int deserialize_brtheader_6_or_earlier (int fd, DISKOFF off, struct brt_h
 	MALLOC_N(h->n_named_roots, h->flags_array);
 	for (i=0; i<h->n_named_roots; i++) h->flags_array[i]=flags_for_all;
 	MALLOC_N(h->n_named_roots, h->roots);
-	if (h->n_named_roots > 0 && h->roots == NULL) {ret = ENOMEM; goto died1;}
+	MALLOC_N(h->n_named_roots, h->root_hashes);
+	if (h->n_named_roots > 0 && (h->roots == NULL || h->root_hashes==NULL)) {ret = ENOMEM; goto died1;}
 	if (0) {
 	died2:
 	    toku_free(h->roots);
+	    toku_free(h->root_hashes);
 	    goto died1;
 	}
 	MALLOC_N(h->n_named_roots, h->names);
@@ -615,6 +617,7 @@ static int deserialize_brtheader_6_or_earlier (int fd, DISKOFF off, struct brt_h
 	for (i=0; i<h->n_named_roots; i++) {
 	    bytevec nameptr;
 	    unsigned int len;
+	    h->root_hashes[i].valid = FALSE;
 	    h->roots[i] = rbuf_diskoff(&rc);
 	    rbuf_bytes(&rc, &nameptr, &len);
 	    if (strlen(nameptr)+1!=len) {ret = EINVAL; goto died3;}
@@ -625,9 +628,10 @@ static int deserialize_brtheader_6_or_earlier (int fd, DISKOFF off, struct brt_h
     } else {
 	MALLOC_N(1, h->flags_array);
 	MALLOC_N(1, h->roots);
+	MALLOC_N(1, h->root_hashes);
 	h->flags_array[0]=flags_for_all;
 	h->roots[0] = rbuf_diskoff(&rc);
-
+	h->root_hashes[0].valid = FALSE;
 	h->names = 0;
     }
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died3;}
@@ -665,8 +669,10 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
 	int n_to_malloc = (h->n_named_roots == 0) ? 1 : h->n_named_roots;
 	MALLOC_N(n_to_malloc, h->flags_array); if (h->flags_array==0) { ret=errno; if (0) { died2: free(h->flags_array); }                    goto died1; }
 	MALLOC_N(n_to_malloc, h->roots);       if (h->roots==0)       { ret=errno; if (0) { died3: if (h->n_named_roots>=0) free(h->roots); } goto died2; }
-	MALLOC_N(n_to_malloc, h->names);       if (h->names==0)       { ret=errno; if (0) { died4: if (h->n_named_roots>=0) free(h->names); } goto died3; }
+	MALLOC_N(n_to_malloc, h->root_hashes); if (h->root_hashes==0) { ret=errno; if (0) { died4: if (h->n_named_roots>=0) free(h->root_hashes); } goto died3; }
+	MALLOC_N(n_to_malloc, h->names);       if (h->names==0)       { ret=errno; if (0) { died5: if (h->n_named_roots>=0) free(h->names); } goto died4; }
 	for (i=0; i<h->n_named_roots; i++) {
+	    h->root_hashes[i].valid = FALSE;
 	    h->roots[i]       = rbuf_diskoff(&rc);
 	    h->flags_array[i] = rbuf_int(&rc);
 	    bytevec nameptr;
@@ -680,11 +686,13 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
 	int n_to_malloc = 1;
 	MALLOC_N(n_to_malloc, h->flags_array); if (h->flags_array==0) { ret=errno; goto died1; }
 	MALLOC_N(n_to_malloc, h->roots);       if (h->roots==0) { ret=errno; goto died2; }
+	MALLOC_N(n_to_malloc, h->root_hashes); if (h->root_hashes==0) { ret=errno; goto died3; }
 	h->names = 0;
 	h->roots[0] = rbuf_diskoff(&rc);
+	h->root_hashes[0].valid = FALSE;
 	h->flags_array[0] = rbuf_int(&rc);
     }
-    if (rc.ndone!=rc.size) {ret = EINVAL; goto died4;}
+    if (rc.ndone!=rc.size) {ret = EINVAL; goto died5;}
     toku_free(rc.buf);
     *brth = h;
     return 0;
