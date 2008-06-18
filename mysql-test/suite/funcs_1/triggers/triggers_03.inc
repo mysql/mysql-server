@@ -6,6 +6,10 @@
 #======================================================================
 # WL#4084: enable disabled parts. 2007-11-15, hhunger
 
+# This test cannot be used for the embedded server because we check here
+# privilgeges.
+--source include/not_embedded.inc
+
 USE test;
 --source suite/funcs_1/include/tb3.inc
 
