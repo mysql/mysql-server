@@ -874,9 +874,16 @@ sub collect_one_test_case {
     }
   }
 
+  if ($tinfo->{'federated_test'})
+  {
+    # This is a test that need federated, enable it
+    push(@{$tinfo->{'master_opt'}}, "--loose-federated");
+    push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
+  }
+
   if ( $tinfo->{'innodb_test'} )
   {
-      # This is a test that need innodb
+    # This is a test that need innodb
     if ( $::mysqld_variables{'innodb'} ne "TRUE" )
     {
       # innodb is not supported, skip it
@@ -996,7 +1003,7 @@ my @tags=
  ["include/master-slave.inc", "rpl_test", 1],
  ["include/ndb_master-slave.inc", "rpl_test", 1],
  ["include/ndb_master-slave.inc", "ndb_test", 1],
- ["include/federated.inc", "federated_test", 1],
+ ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
 );
 
