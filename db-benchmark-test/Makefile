@@ -43,7 +43,7 @@ check-default: $(TARGET_TDB)
 	$(VGRIND) ./$(TARGET_TDB) $(QUIET) $(SUMMARIZE_CMD)
 
 check-x: $(TARGET_TDB)
-	$(VGRIND) ./$(TARGET_TDB) $(QUIET) -x --xcount 1000 --periter 100000 10 $(SUMMARIZE_CMD)
+	$(VGRIND) ./$(TARGET_TDB) $(QUIET) -x --xcount 1000 --periter 100000 --env x.dir 10 $(SUMMARIZE_CMD)
 
 
 # A fast transaction test that detects #455.

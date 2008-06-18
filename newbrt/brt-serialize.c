@@ -333,6 +333,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
 	}
 	for (i=0; i<result->u.n.n_children; i++) {
 	    BNC_DISKOFF(result,i) = rbuf_diskoff(&rc);
+	    BNC_HAVE_FULLHASH(result, i) = FALSE;
 	    BNC_NBYTESINBUF(result,i) = 0;
 	    //printf("Child %d at %lld\n", i, result->children[i]);
 	}

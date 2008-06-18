@@ -41,6 +41,8 @@ struct brtnode_nonleaf_childinfo {
     u_int32_t    subtree_fingerprint;
     u_int64_t    leafentry_estimate; // estimate how many leafentries are below us.
     DISKOFF      diskoff;
+    BOOL         have_fullhash;     // do we have the full hash?
+    u_int32_t    fullhash;          // the fullhash of the child
     FIFO         buffer;
     unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
 };
@@ -82,6 +84,8 @@ struct brtnode {
 #define BNC_DISKOFF(node,i) ((node)->u.n.childinfos[i].diskoff)
 #define BNC_BUFFER(node,i) ((node)->u.n.childinfos[i].buffer)
 #define BNC_NBYTESINBUF(node,i) ((node)->u.n.childinfos[i].n_bytes_in_buffer)
+#define BNC_HAVE_FULLHASH(node,i) ((node)->u.n.childinfos[i].have_fullhash)
+#define BNC_FULLHASH(node,i) ((node)->u.n.childinfos[i].fullhash)
 
 	    struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
 							 Note: It is possible that Child 1's keys are == to child 0's key's, so it is
