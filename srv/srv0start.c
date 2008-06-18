@@ -1462,13 +1462,30 @@ innobase_start_or_create_for_mysql(void)
 	} else {
 
 		/* Check if we support the max format that is stamped
-		on the system tablespace. */
+		on the system tablespace. 
+		Note:  We are NOT allowed to make any modifications to
+		the TRX_SYS_PAGE_NO page before recovery  because this
+		page also contains the max_trx_id etc. important system
+		variables that are required for recovery.  We need to
+		ensure that we return the system to a state where normal
+		recovery is guaranteed to work. We do this by
+		invalidating the buffer cache, this will force the
+		reread of the page and restoration to it's last known
+		consistent state, this is REQUIRED for the recovery
+		process to work. */
 		err = trx_sys_file_format_max_check(
 			srv_check_file_format_at_startup);
 
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
+
+		/* Invalidate the buffer pool to ensure that we reread
+		the page that we read above, during recovery.
+		Note that this is not as heavy weight as it seems. At
+		this point there will be only ONE page in the buf_LRU
+		and there must be no page in the buf_flush list. */
+		buf_pool_invalidate();
 
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
@@ -1526,6 +1543,13 @@ innobase_start_or_create_for_mysql(void)
 		are initialized in trx_sys_init_at_db_start(). */
 
 		recv_recovery_from_checkpoint_finish();
+
+		/* It is possible that file_format tag has never
+		been set. In this case we initialize it to minimum
+		value.  Important to note that we can do it ONLY after
+		we have finished the recovery process so that the
+		image of TRX_SYS_PAGE_NO is not stale. */
+		trx_sys_file_format_tag_init();
 	}
 
 	if (!create_new_db && sum_of_new_sizes > 0) {
