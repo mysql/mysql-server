@@ -1,3 +1,4 @@
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -169,7 +170,7 @@ ROUTINE_DEFINITION	NULL
 IS_DETERMINISTIC	NO
 SQL_DATA_ACCESS	CONTAINS SQL
 SECURITY_TYPE	DEFINER
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	
 	
 root@localhost	db_storedproc_1

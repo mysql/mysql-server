@@ -1,6 +1,10 @@
 #### suite/funcs_1/t/ndb_storedproc.test
 #
 
+# This test cannot be used for the embedded server because we check here
+# privileges.
+--source include/not_embedded.inc
+
 --source include/have_ndb.inc
 let $engine_type= ndb;
 
