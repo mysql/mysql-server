@@ -85,7 +85,7 @@ $(LIBRARY): $(DBBINS) | buildlocktrees
 	$(CC)  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
 
 $(LIBNAME).a: $(DBBINS) | buildlocktrees
-	$(AR) rv $@ $^  $(LOCKTREE_BINS)
+	$(AR) cr $@ $^  $(LOCKTREE_BINS)
 
 $(LIBNAME).a(ydb.o): ydb.o
 
@@ -93,6 +93,6 @@ $(TLIBRARY): $(TDBBINS) | buildlocktrees
 	$(CC)  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
 
 $(TLIBNAME).a: $(TDBBINS) | buildlocktrees
-	$(AR) rv $@ $^  $(LOCKTREE_BINS)
+	$(AR) cr $@ $^  $(LOCKTREE_BINS)
 
 $(TLIBNAME).a(ydbtrace.o): ydbtrace.o
