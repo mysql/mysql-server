@@ -407,6 +407,8 @@ static int fill_buf (OMTVALUE lev, u_int32_t idx, void *varray) {
 
 static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
     BRTNODE B;
+    int r;
+
     assert(node->height==0);
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
     toku_create_new_brtnode(t, &B, 0, logger);
@@ -422,56 +424,87 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     toku_verify_all_in_mempool(node);
 
     u_int32_t n_leafentries = toku_omt_size(node->u.l.buffer);
-    OMTVALUE *MALLOC_N(n_leafentries, leafentries);
-    assert(leafentries);
-    toku_omt_iterate(node->u.l.buffer, fill_buf, leafentries);
     u_int32_t break_at = 0;
-    {
-	u_int32_t i;
-	u_int32_t sumlesizes=0;
-	for (i=0; i<n_leafentries; i++) sumlesizes += leafentry_disksize(leafentries[i]);
-	u_int32_t sumsofar=0;
-	for (i=0; i<n_leafentries; i++) {
-	    assert(toku_mempool_inrange(&node->u.l.buffer_mempool, leafentries[i], leafentry_memsize(leafentries[i])));
-	    sumsofar += leafentry_disksize(leafentries[i]);
-	    if (sumsofar*2 >= sumlesizes) {
-		break_at = i;
-		break;
-	    }
-	}
+    if (node->u.l.seqinsert >= n_leafentries/2) {
+        break_at = n_leafentries - 1;
+        node->u.l.seqinsert = 0;
+        
+        // fetch the max from the node and delete it
+        OMTVALUE v;
+        r = toku_omt_fetch(node->u.l.buffer, break_at, &v, NULL);
+        assert(r == 0);
+        r = toku_omt_delete_at(node->u.l.buffer, break_at);
+        assert(r == 0);
+
+        LEAFENTRY oldle = v;
+        LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
+        assert(newle!=0); // it's a fresh mpool, so this should always work.
+        u_int32_t diff_fp = toku_le_crc(oldle);
+        u_int32_t diff_size = OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
+        memcpy(newle, oldle, leafentry_memsize(oldle));
+        toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
+        node->local_fingerprint -= node->rand4fingerprint * diff_fp;
+        B   ->local_fingerprint += B   ->rand4fingerprint * diff_fp;
+        node->u.l.n_bytes_in_buffer -= diff_size;
+        B   ->u.l.n_bytes_in_buffer += diff_size;
+
+        // insert into B
+        r = toku_omt_insert_at(B->u.l.buffer, newle, 0);
+        assert(r == 0);
+
+        toku_verify_all_in_mempool(node);
+        toku_verify_all_in_mempool(B);
+    } else {
+        OMTVALUE *MALLOC_N(n_leafentries, leafentries);
+        assert(leafentries);
+        toku_omt_iterate(node->u.l.buffer, fill_buf, leafentries);
+        break_at = 0;
+        {
+            u_int32_t i;
+            u_int32_t sumlesizes=0;
+            for (i=0; i<n_leafentries; i++) sumlesizes += leafentry_disksize(leafentries[i]);
+            u_int32_t sumsofar=0;
+            for (i=0; i<n_leafentries; i++) {
+                assert(toku_mempool_inrange(&node->u.l.buffer_mempool, leafentries[i], leafentry_memsize(leafentries[i])));
+                sumsofar += leafentry_disksize(leafentries[i]);
+                if (sumsofar*2 >= sumlesizes) {
+                    break_at = i;
+                    break;
+                }
+            }
+        }
+        // Now we know where we are going to break it
+        OMT old_omt = node->u.l.buffer;
+        toku_omt_destroy(&B->u.l.buffer); // Destroy B's empty OMT, so I can rebuild it from an array
+        {
+            u_int32_t i;
+            u_int32_t diff_fp = 0;
+            u_int32_t diff_size = 0;
+            for (i=break_at; i<n_leafentries; i++) {
+                LEAFENTRY oldle = leafentries[i];
+                LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
+                assert(newle!=0); // it's a fresh mpool, so this should always work.
+                diff_fp += toku_le_crc(oldle);
+                diff_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
+                memcpy(newle, oldle, leafentry_memsize(oldle));
+                toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
+                leafentries[i] = newle;
+            }
+            node->local_fingerprint -= node->rand4fingerprint * diff_fp;
+            B   ->local_fingerprint += B   ->rand4fingerprint * diff_fp;
+            node->u.l.n_bytes_in_buffer -= diff_size;
+            B   ->u.l.n_bytes_in_buffer += diff_size;
+        }
+        if ((r = toku_omt_create_from_sorted_array(&B->u.l.buffer,    leafentries+break_at, n_leafentries-break_at))) return r;
+        if ((r = toku_omt_create_from_sorted_array(&node->u.l.buffer, leafentries,          break_at))) return r;
+
+        toku_free(leafentries);
+
+        toku_verify_all_in_mempool(node);
+        toku_verify_all_in_mempool(B);
+
+        toku_omt_destroy(&old_omt);
     }
-    // Now we know where we are going to break it
-    OMT old_omt = node->u.l.buffer;
-    toku_omt_destroy(&B->u.l.buffer); // Destroy B's empty OMT, so I can rebuild it from an array
-    {
-	u_int32_t i;
-	u_int32_t diff_fp = 0;
-	u_int32_t diff_size = 0;
-	for (i=break_at; i<n_leafentries; i++) {
-	    LEAFENTRY oldle = leafentries[i];
-	    LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
-	    assert(newle!=0); // it's a fresh mpool, so this should always work.
-	    diff_fp += toku_le_crc(oldle);
-	    diff_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
-	    memcpy(newle, oldle, leafentry_memsize(oldle));
-	    toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
-	    leafentries[i] = newle;
-	}
-	node->local_fingerprint -= node->rand4fingerprint * diff_fp;
-	B   ->local_fingerprint += B   ->rand4fingerprint * diff_fp;
-	node->u.l.n_bytes_in_buffer -= diff_size;
-	B   ->u.l.n_bytes_in_buffer += diff_size;
-    }
-    int r;
-    if ((r = toku_omt_create_from_sorted_array(&B->u.l.buffer,    leafentries+break_at, n_leafentries-break_at))) return r;
-    if ((r = toku_omt_create_from_sorted_array(&node->u.l.buffer, leafentries,          break_at))) return r;
-
-    toku_free(leafentries);
-
-    toku_verify_all_in_mempool(node);
-    toku_verify_all_in_mempool(B);
-
-    toku_omt_destroy(&old_omt);
 
     LSN lsn={0};
     r = toku_log_leafsplit(logger, &lsn, 0, filenum, node->thisnodename, B->thisnodename, n_leafentries, break_at, node->nodesize, B->rand4fingerprint, (t->flags&TOKU_DB_DUPSORT)!=0);
