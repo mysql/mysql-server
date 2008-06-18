@@ -368,7 +368,6 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
     if (!(share = (TOKUDB_SHARE *) hash_search(&tokudb_open_tables, (uchar *) table_name, length))) {
         ulong *rec_per_key;
         char *tmp_name;
-        u_int32_t *key_type;
         uint num_keys = table->s->keys;
 
         if (!(share = (TOKUDB_SHARE *) 
@@ -376,7 +375,6 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
                             &share, sizeof(*share),
                             &tmp_name, length + 1, 
                             &rec_per_key, num_keys * sizeof(ha_rows), 
-                            &key_type, (num_keys + 1) * sizeof(u_int32_t), 
                             NullS))) {
             pthread_mutex_unlock(&tokudb_mutex);
             return NULL;
@@ -387,7 +385,6 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
         strmov(share->table_name, table_name);
 
         share->rec_per_key = rec_per_key;
-        share->key_type = key_type;
         bzero((void *) share->key_file, sizeof(share->key_file));
 
         if (my_hash_insert(&tokudb_open_tables, (uchar *) share))

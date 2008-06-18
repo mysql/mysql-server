@@ -21,10 +21,11 @@ typedef struct st_tokudb_share {
     DB *file;
     //
     // array of all DB's that make up table, includes DB that
-    // is indexed on the primary key
+    // is indexed on the primary key, add 1 in case primary
+    // key is hidden
     //
-    DB *key_file[MAX_KEY];
-    u_int32_t *key_type;
+    DB *key_file[MAX_KEY +1];
+    u_int32_t key_type[MAX_KEY +1];
     uint status, version;
     uint ref_length;
     bool fixed_length_primary_key, fixed_length_row;
