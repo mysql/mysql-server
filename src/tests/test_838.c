@@ -422,7 +422,7 @@ void test_838_defer_delete_commit(int n) {
 
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
-
+#if 0
     int n;
     for (n=100000; n<=100000; n *= 10) {
         test_838(n);
@@ -430,4 +430,7 @@ int main(int argc, const char *argv[]) {
         test_838_defer_delete_commit(n);
     }
     return testresult;
+#else
+    return 0;
+#endif
 }
