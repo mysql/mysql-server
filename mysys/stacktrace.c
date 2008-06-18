@@ -17,7 +17,7 @@
 #define DONT_DEFINE_VOID 1
 
 #include <my_global.h>
-#include "stacktrace.h"
+#include <my_stacktrace.h>
 
 #ifndef __WIN__
 #include <signal.h>
@@ -33,16 +33,22 @@
 
 #define PTR_SANE(p) ((p) && (char*)(p) >= heap_start && (char*)(p) <= heap_end)
 
-char *heap_start;
+static char *heap_start;
+extern char *__bss_start;
 
-void safe_print_str(const char* name, const char* val, int max_len)
+void my_init_stacktrace()
+{
+  heap_start = (char*) &__bss_start;
+}
+
+void my_safe_print_str(const char* name, const char* val, int max_len)
 {
   char *heap_end= (char*) sbrk(0);
   fprintf(stderr, "%s at %p ", name, val);
 
   if (!PTR_SANE(val))
   {
-    fprintf(stderr, " is invalid pointer\n");
+    fprintf(stderr, "is an invalid pointer\n");
     return;
   }
 
@@ -103,6 +109,12 @@ inline uint32* find_prev_pc(uint32* pc, uchar** fp)
 #endif /* defined(__alpha__) && defined(__GNUC__) */
 
 #if BACKTRACE_DEMANGLE
+
+char __attribute__ ((weak)) *my_demangle(const char *mangled_name, int *status)
+{
+  return NULL;
+}
+
 static void my_demangle_symbols(char **addrs, int n)
 {
   int status, i;
@@ -158,7 +170,7 @@ static void backtrace_current_thread(void)
 #endif
 
 
-void  print_stacktrace(uchar* stack_bottom, ulong thread_stack)
+void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
 #if HAVE_BACKTRACE
   backtrace_current_thread();
@@ -281,16 +293,7 @@ end:
 #endif /* HAVE_STACKTRACE */
 
 /* Produce a core for the thread */
-
-#ifdef NOT_USED /* HAVE_LINUXTHREADS */
-void write_core(int sig)
-{
-  signal(sig, SIG_DFL);
-  if (fork() != 0) exit(1);			/* Abort main program */
-  /* Core will be written at exit */
-}
-#else
-void write_core(int sig)
+void my_write_core(int sig)
 {
   signal(sig, SIG_DFL);
 #ifdef HAVE_gcov
@@ -308,7 +311,7 @@ void write_core(int sig)
   sigsend(P_PID,P_MYID,sig);
 #endif
 }
-#endif
+
 #else /* __WIN__*/
 
 #include <dbghelp.h>
@@ -356,6 +359,10 @@ static EXCEPTION_POINTERS *exception_ptrs;
 #define MODULE64_SIZE_WINXP 576
 #define STACKWALK_MAX_FRAMES 64
 
+void my_init_stacktrace()
+{
+}
+
 /*
   Dynamically load dbghelp functions
 */
@@ -395,7 +402,7 @@ BOOL init_dbghelp_functions()
   return rc;
 }
 
-void set_exception_pointers(EXCEPTION_POINTERS *ep)
+void my_set_exception_pointers(EXCEPTION_POINTERS *ep)
 {
   exception_ptrs = ep;
 }
@@ -405,7 +412,7 @@ void set_exception_pointers(EXCEPTION_POINTERS *ep)
 #define SYMOPT_NO_PROMPTS 0
 #endif
 
-void print_stacktrace(uchar* unused1, ulong unused2)
+void my_print_stacktrace(uchar* unused1, ulong unused2)
 {
   HANDLE  hProcess= GetCurrentProcess();
   HANDLE  hThread= GetCurrentThread();
@@ -513,7 +520,7 @@ void print_stacktrace(uchar* unused1, ulong unused2)
   file name is constructed from executable name plus
   ".dmp" extension
 */
-void write_core(int unused)
+void my_write_core(int unused)
 {
   char path[MAX_PATH];
   char dump_fname[MAX_PATH]= "core.dmp";
@@ -560,7 +567,7 @@ void write_core(int unused)
 }
 
 
-void safe_print_str(const char *name, const char *val, int len)
+void my_safe_print_str(const char *name, const char *val, int len)
 {
   fprintf(stderr,"%s at %p", name, val);
   __try 
