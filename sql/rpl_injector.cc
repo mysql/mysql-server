@@ -86,6 +86,14 @@ int injector::transaction::commit()
    DBUG_RETURN(0);
 }
 
+int injector::transaction::rollback()
+{
+   DBUG_ENTER("injector::transaction::rollback()");
+   ha_autocommit_or_rollback(m_thd, 1 /* error to get rollback */);
+   end_trans(m_thd, ROLLBACK);
+   DBUG_RETURN(0);
+}
+
 int injector::transaction::use_table(server_id_type sid, table tbl)
 {
   DBUG_ENTER("injector::transaction::use_table");

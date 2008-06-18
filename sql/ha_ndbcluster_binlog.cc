@@ -3885,7 +3885,8 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
 static int
 ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                                     ndb_binlog_index_row **rows,
-                                    injector::transaction &trans)
+                                    injector::transaction &trans,
+                                    unsigned &trans_row_count)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   TABLE *table= event_data->table;
@@ -3982,6 +3983,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   {
   case NDBEVENT::TE_INSERT:
     row->n_inserts++;
+    trans_row_count++;
     DBUG_PRINT("info", ("INSERT INTO %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
@@ -4004,6 +4006,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     break;
   case NDBEVENT::TE_DELETE:
     row->n_deletes++;
+    trans_row_count++;
     DBUG_PRINT("info",("DELETE FROM %s.%s",
                        table->s->db.str, table->s->table_name.str));
     {
@@ -4044,6 +4047,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     break;
   case NDBEVENT::TE_UPDATE:
     row->n_updates++;
+    trans_row_count++;
     DBUG_PRINT("info", ("UPDATE %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
@@ -4686,6 +4690,7 @@ restart:
         bzero((char*)&_row, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
         injector::transaction trans;
+        unsigned trans_row_count= 0;
         // pass table map before epoch
         {
           Uint32 iter= 0;
@@ -4852,7 +4857,7 @@ restart:
 #endif
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans);
+            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans, trans_row_count);
           else
           {
             // set injector_ndb database/schema from table internal name
@@ -4895,9 +4900,20 @@ restart:
         write_timer.stop();
 #endif
 
-        if (trans.good())
+        while (trans.good())
         {
-          //DBUG_ASSERT(row.n_inserts || row.n_updates || row.n_deletes);
+          if (trans_row_count == 0)
+          {
+            /* nothing to commit, rollback instead */
+            if (int r= trans.rollback())
+            {
+              sql_print_error("NDB Binlog: "
+                              "Error during ROLLBACK of GCI %u/%u. Error: %d",
+                              uint(gci >> 32), uint(gci), r);
+              /* TODO: Further handling? */
+            }
+            break;
+          }
           thd->proc_info= "Committing events to binlog";
           injector::transaction::binlog_pos start= trans.start_pos();
           if (int r= trans.commit())
@@ -4919,6 +4935,7 @@ restart:
             do_check_ndb_binlog_index= 0;
           }
           ndb_latest_applied_binlog_epoch= gci;
+          break;
         }
         ndb_latest_handled_binlog_epoch= gci;
 
