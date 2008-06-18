@@ -171,4 +171,12 @@
  */
 #define LCP_RESTORE_BUFFER (4*32)
 
+/**
+ * Bits/mask used for coding/decoding blockno/blockinstance
+ */
+#define NDBMT_BLOCK_BITS 9
+#define NDBMT_BLOCK_MASK 0x001FF
+#define NDBMT_BLOCK_INSTANCES_BITS 7
+#define NDBMT_BLOCK_INSTANCE_MASK 0xFE00
+
 #endif

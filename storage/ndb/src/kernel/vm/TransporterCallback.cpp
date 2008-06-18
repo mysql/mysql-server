@@ -256,6 +256,7 @@ execute(void * callbackObj,
     secPtrI[1] = secPtr[1].i;
     secPtrI[2] = secPtr[2].i;
 
+    header->theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
     globalScheduler.execute(header, prio, theData, secPtrI);  
     return;
   }
