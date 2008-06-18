@@ -537,8 +537,8 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
 
     *nodea = node;
     *nodeb = B;
-    assert(toku_serialize_brtnode_size(node)<node->nodesize);
-    assert(toku_serialize_brtnode_size(B)   <B->nodesize);
+    assert(toku_serialize_brtnode_size(node) <= node->nodesize);
+    assert(toku_serialize_brtnode_size(B)    <= B->nodesize);
     return 0;
 }
 
@@ -679,8 +679,8 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
     *nodea = node;
     *nodeb = B;
 
-    assert(toku_serialize_brtnode_size(node)<node->nodesize);
-    assert(toku_serialize_brtnode_size(B)<B->nodesize);
+    assert(toku_serialize_brtnode_size(node) <= node->nodesize);
+    assert(toku_serialize_brtnode_size(B) <= B->nodesize);
     return 0;
 }
 
