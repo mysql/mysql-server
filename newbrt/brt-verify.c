@@ -151,7 +151,8 @@ int toku_verify_brt (BRT brt) {
 	if (0) { died0: toku_unpin_brt_header(brt); }
 	return r;
     }
-    rootp = toku_calculate_root_offset_pointer(brt);
+    u_int32_t root_hash;
+    rootp = toku_calculate_root_offset_pointer(brt, &root_hash);
     if ((r=toku_verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1))) goto died0;
     if ((r = toku_unpin_brt_header(brt))!=0) return r;
     return 0;

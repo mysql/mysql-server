@@ -107,6 +107,13 @@ enum {
     BRT_PIVOT_FRONT_COMPRESS = 8,
 };
 
+struct remembered_hash {
+    BOOL    valid;      // set to FALSE if the fullhash is invalid
+    FILENUM fnum; 
+    DISKOFF root;
+    u_int32_t fullhash; // fullhash is the hashed value of fnum and root.
+};
+
 struct brt_header {
     int dirty;
     u_int32_t fullhash;
@@ -117,6 +124,7 @@ struct brt_header {
     int n_named_roots; /* -1 if the only one is unnamed */
     char  **names;             // an array of names.  NULL if subdatabases are not allowed.
     DISKOFF *roots;            // an array of DISKOFFs.  Element 0 holds the element if no subdatabases allowed.
+    struct remembered_hash *root_hashes;     // an array of hashes of the root offsets.
     unsigned int *flags_array; // an array of flags.  Element 0 holds the element if no subdatabases allowed.
     
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
@@ -180,7 +188,7 @@ extern cachetable_flush_func_t toku_brtnode_flush_callback, toku_brtheader_flush
 extern cachetable_fetch_func_t toku_brtnode_fetch_callback, toku_brtheader_fetch_callback;
 extern int toku_read_and_pin_brt_header (CACHEFILE cf, struct brt_header **header);
 extern int toku_unpin_brt_header (BRT brt);
-extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt);
+extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
 
 static const BRTNODE null_brtnode=0;
 

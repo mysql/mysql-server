@@ -142,8 +142,10 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     r=toku_fifo_create(&h->fifo);
     assert(r==0);
     if ((signed)header.n_named_roots==-1) {
-	MALLOC_N(1, h->roots); assert(h->roots);
+	MALLOC_N(1, h->roots);       assert(h->roots);
+	MALLOC_N(1, h->root_hashes); assert(h->root_hashes);
 	h->roots[0] = header.u.one.root;
+	h->root_hashes[0].valid= FALSE;
     } else {
 	assert(0);
     }
@@ -656,6 +658,7 @@ void toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, DISKOFF UU(ol
     r = toku_read_and_pin_brt_header(pair->cf, &pair->brt->h);
     assert(r==0);
     pair->brt->h->roots[0] = newroot;
+    pair->brt->h->root_hashes[0].valid = FALSE;
     r = toku_unpin_brt_header(pair->brt);
 }
 void toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), DISKOFF UU(oldroot), DISKOFF UU(newroot)) { assert(0); }
