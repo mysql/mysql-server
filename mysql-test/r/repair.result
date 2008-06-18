@@ -130,7 +130,7 @@ test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" to fix
 # REPAIR old table USE_FRM should fail
 REPAIR TABLE t1 USE_FRM;
 Table	Op	Msg_type	Msg_text
-t1	repair	error	Failed reparing incompatible .FRM file
+t1	repair	error	Failed repairing incompatible .frm file
 # Run REPAIR TABLE to upgrade .frm file
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
