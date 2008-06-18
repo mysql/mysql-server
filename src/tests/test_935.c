@@ -40,7 +40,7 @@ void testit(const int klen, const int vlen, const int n, const int lastvlen) {
 
     // insert to fill up a node
     {    
-        void *v = malloc(vlen); assert(v);
+        void *v = malloc(vlen); assert(v); memset(v, 0, vlen);
         DB_TXN *txn = 0;
         int i;
         for (i=0; i<n; i++) {
@@ -61,7 +61,7 @@ void testit(const int klen, const int vlen, const int n, const int lastvlen) {
 
     // add another one to force a node split
     {    
-        void *v = malloc(vlen); assert(v);
+        void *v = malloc(vlen); assert(v); memset(v, 0, vlen);
         DB_TXN *txn = 0;
         int k = htonl(n+1);
         DBT key, val;
