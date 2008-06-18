@@ -386,6 +386,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
     } else {
 	int n_in_buf = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
+        result->u.l.seqinsert = 0;
 
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
 	toku_mempool_init(&result->u.l.buffer_mempool, rc.buf, datasize);
