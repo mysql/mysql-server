@@ -104,8 +104,14 @@ sub fix_server_id {
 sub fix_socket {
   my ($self, $config, $group_name, $group)= @_;
   # Put socket file in tmpdir
-  my $dir= $group->value('tmpdir');
+  my $dir= $self->{ARGS}->{tmpdir};
   return "$dir/$group_name.sock";
+}
+
+sub fix_tmpdir {
+  my ($self, $config, $group_name, $group)= @_;
+  my $dir= $self->{ARGS}->{tmpdir};
+  return "$dir/$group_name";
 }
 
 sub fix_log_error {
@@ -182,7 +188,7 @@ sub fix_ssl_client_key {
 my @mysqld_rules=
   (
  { 'basedir' => sub { return shift->{ARGS}->{basedir}; } },
- { 'tmpdir' => sub { return shift->{ARGS}->{tmpdir}; } },
+ { 'tmpdir' => \&fix_tmpdir },
  { 'character-sets-dir' => \&fix_charset_dir },
  { 'language' => \&fix_language },
  { 'datadir' => \&fix_datadir },
@@ -291,6 +297,16 @@ my @mysqltest_rules=
 my @mysqlbinlog_rules=
 (
  { 'character-sets-dir' => \&fix_charset_dir },
+);
+
+
+#
+# Rules to run for [mysql_upgrade] section
+#  - will be run in order listed here
+#
+my @mysql_upgrade_rules=
+(
+ { 'tmpdir' => sub { return shift->{ARGS}->{tmpdir}; } },
 );
 
 
@@ -599,6 +615,11 @@ sub new_config {
   $self->run_rules_for_group($config,
 			     $config->insert('mysqlbinlog'),
 			     @mysqlbinlog_rules);
+
+  # [mysql_upgrade] need additional settings
+  $self->run_rules_for_group($config,
+			     $config->insert('mysql_upgrade'),
+			     @mysql_upgrade_rules);
 
   # Additional rules required for [client]
   $self->run_rules_for_group($config,

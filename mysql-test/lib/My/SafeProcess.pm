@@ -65,7 +65,7 @@ END {
   # Kill any children still running
   for my $proc (values %running){
     if ( $proc->is_child($$) ){
-      print "Killing: $proc\n";
+      #print "Killing: $proc\n";
       $proc->kill();
     }
   }
@@ -128,6 +128,7 @@ sub new {
   my $verbose  = delete($opts{'verbose'});
   my $host     = delete($opts{'host'});
   my $shutdown = delete($opts{'shutdown'});
+  my $user_data= delete($opts{'user_data'});
 
 #  if (defined $host) {
 #    $safe_script=  "lib/My/SafeProcess/safe_process_cpcd.pl";
@@ -173,6 +174,7 @@ sub new {
       SAFE_NAME => $name,
       SAFE_SHUTDOWN => $shutdown,
       PARENT => $$,
+      SAFE_USER_DATA => $user_data,
      }, $class);
 
   # Put the new process in list of running
@@ -461,8 +463,8 @@ sub wait_one {
     return 1;
   }
 
-  warn "wait_one: expected pid $pid but got $retpid"
-    unless( $retpid == $pid );
+  #warn "wait_one: expected pid $pid but got $retpid"
+  #  unless( $retpid == $pid );
 
   $self->_collect();
   return 0;
@@ -545,5 +547,17 @@ sub _verbose {
   return unless $_verbose;
   print STDERR " ## ", @_, "\n";
 }
+
+
+sub pid {
+  my ($self)= @_;
+  return $self->{SAFE_PID};
+}
+
+sub user_data {
+  my ($self)= @_;
+  return $self->{SAFE_USER_DATA};
+}
+
 
 1;

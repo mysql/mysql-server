@@ -61,6 +61,9 @@ sub _split_option {
   elsif ($option=~ /^--(.*)$/){
     return ($1, undef)
   }
+  elsif ($option=~ /^\$(.*)$/){ # $VAR
+    return ($1, undef)
+  }
   elsif ($option=~ /^(.*)=(.*)$/){
     return ($1, $2)
   }

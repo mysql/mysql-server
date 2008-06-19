@@ -26,15 +26,20 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_print_header mtr_report mtr_report_stats
 		mtr_warning mtr_error mtr_debug mtr_verbose
 		mtr_verbose_restart mtr_report_test_passed
-		mtr_report_test_failed mtr_report_test_skipped);
+		mtr_report_test_skipped mtr_print
+		mtr_report_test);
 
 use mtr_match;
 require "mtr_io.pl";
 
 my $tot_real_time= 0;
 
-our $timestamp= 0;
-our $timediff= 1;
+our $timestamp= 1;
+our $timediff= 0;
+our $name;
+our $verbose;
+our $verbose_restart= 0;
+our $timer= 1;
 
 sub report_option {
   my ($opt, $value)= @_;
@@ -43,115 +48,134 @@ sub report_option {
   $opt =~ s/-/_/g;
   no strict 'refs';
   ${$opt}= $value;
+
+  #print $name, " setting $opt to ", (defined $value? $value : "undef") ,"\n";
 }
 
-sub SHOW_SUITE_NAME() { return  1; };
+sub _name {
+  return $name ? $name." " : undef;
+}
 
 sub _mtr_report_test_name ($) {
   my $tinfo= shift;
   my $tname= $tinfo->{name};
 
-  # Remove suite part of name
-  $tname =~ s/.*\.// unless SHOW_SUITE_NAME;
+  return unless defined $verbose;
 
   # Add combination name if any
   $tname.= " '$tinfo->{combination}'"
     if defined $tinfo->{combination};
 
-  print _timestamp();
-  printf "%-30s ", $tname;
+  print _name(), _timestamp();
+  printf "%-40s ", $tname;
 }
 
 
 sub mtr_report_test_skipped ($) {
-  my $tinfo= shift;
-  _mtr_report_test_name($tinfo);
-
+  my ($tinfo)= @_;
   $tinfo->{'result'}= 'MTR_RES_SKIPPED';
-  if ( $tinfo->{'disable'} )
-  {
-    mtr_report("[ disabled ]  $tinfo->{'comment'}");
-  }
-  elsif ( $tinfo->{'comment'} )
-  {
-    if ( $tinfo->{skip_detected_by_test} )
-    {
-      mtr_report("[ skip ].  $tinfo->{'comment'}");
-    }
-    else
-    {
-      mtr_report("[ skip ]  $tinfo->{'comment'}");
-    }
-  }
-  else
-  {
-    mtr_report("[ skip ]");
-  }
+
+  mtr_report_test($tinfo);
 }
 
 
-sub mtr_report_test_passed ($$) {
-  my ($tinfo, $use_timer)= @_;
-  _mtr_report_test_name($tinfo);
+sub mtr_report_test_passed ($) {
+  my ($tinfo)= @_;
 
-  my $timer=  "";
-  if ( $use_timer and -f "$::opt_vardir/log/timer" )
+  # Save the timer value
+  my $timer_str=  "";
+  if ( $timer and -f "$::opt_vardir/log/timer" )
   {
-    $timer= mtr_fromfile("$::opt_vardir/log/timer");
-    $tot_real_time += ($timer/1000);
-    $timer= sprintf "%12s", $timer;
+    $timer_str= mtr_fromfile("$::opt_vardir/log/timer");
+    $tinfo->{timer}= $timer_str;
   }
+
   # Set as passed unless already set
   if ( not defined $tinfo->{'result'} ){
     $tinfo->{'result'}= 'MTR_RES_PASSED';
   }
-  mtr_report("[ pass ]   $timer");
+
+  mtr_report_test($tinfo);
 }
 
 
-sub mtr_report_test_failed ($$) {
-  my ($tinfo, $logfile)= @_;
+sub mtr_report_test ($) {
+  my ($tinfo)= @_;
   _mtr_report_test_name($tinfo);
 
-  $tinfo->{'result'}= 'MTR_RES_FAILED';
-  my $test_failures= $tinfo->{'failures'} || 0;
-  $tinfo->{'failures'}=  $test_failures + 1;
-  if ( defined $tinfo->{'warnings'} )
-  {
-    mtr_report("[ fail ]  Found warnings in server log file!");
-    mtr_report($tinfo->{'warnings'});
-    return;
-  }
-  elsif ( defined $tinfo->{'timeout'} )
-  {
-    mtr_report("[ fail ]  timeout");
-    return;
-  }
-  else
-  {
-    mtr_report("[ fail ]");
-  }
+  if ($tinfo->{'result'} eq 'MTR_RES_FAILED'){
 
-  if ( $tinfo->{'comment'} )
-  {
-    # The test failure has been detected by mysql-test-run.pl
-    # when starting the servers or due to other error, the reason for
-    # failing the test is saved in "comment"
-    mtr_report("\nERROR: $tinfo->{'comment'}");
+    if ( defined $tinfo->{'warnings'} )
+    {
+      mtr_report("[ fail ]  Found warnings in server log file!");
+      mtr_report($tinfo->{'warnings'});
+      return;
+    }
+    if ( defined $tinfo->{'timeout'} )
+    {
+      mtr_report("[ fail ]  timeout");
+      return;
+    }
+    else
+    {
+      mtr_report("[ fail ]");
+    }
+
+    if ( $tinfo->{'comment'} )
+    {
+      # The test failure has been detected by mysql-test-run.pl
+      # when starting the servers or due to other error, the reason for
+      # failing the test is saved in "comment"
+      mtr_report("\nERROR: $tinfo->{'comment'}");
+    }
+    elsif ( $tinfo->{logfile} )
+    {
+      # Test failure was detected by test tool and its report
+      # about what failed has been saved to file. Display the report.
+      mtr_report("\n");
+      mtr_report($tinfo->{logfile}, "\n");
+
+    }
+    else
+    {
+      # Neither this script or the test tool has recorded info
+      # about why the test has failed. Should be debugged.
+      mtr_report("\nUnexpected termination, probably when starting mysqld");;
+    }
   }
-  elsif ( defined $logfile and -f $logfile )
+  elsif ($tinfo->{'result'} eq 'MTR_RES_SKIPPED')
   {
-    # Test failure was detected by test tool and its report
-    # about what failed has been saved to file. Display the report.
-    print "\n";
-    mtr_printfile($logfile);
-    print "\n";
+    if ( $tinfo->{'disable'} )
+    {
+      mtr_report("[ disabled ]  $tinfo->{'comment'}");
+    }
+    elsif ( $tinfo->{'comment'} )
+    {
+      if ( $tinfo->{skip_detected_by_test} )
+      {
+	mtr_report("[ skip ]. $tinfo->{'comment'}");
+      }
+      else
+      {
+	mtr_report("[ skip ]  $tinfo->{'comment'}");
+      }
+    }
+    else
+    {
+      mtr_report("[ skip ]");
+    }
   }
-  else
+  elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED')
   {
-    # Neither this script or the test tool has recorded info
-    # about why the test has failed. Should be debugged.
-    mtr_report("\nUnexpected termination, probably when starting mysqld");;
+    my $timer_str= $tinfo->{timer} || "";
+    $tot_real_time += ($timer_str/1000);
+    mtr_report("[ pass ] ", sprintf("%5s", $timer_str));
+
+    # Show any problems check-testcase found
+    if ( defined $tinfo->{'check'} )
+    {
+      mtr_report($tinfo->{'check'});
+    }
   }
 }
 
@@ -172,22 +196,27 @@ sub mtr_report_stats ($) {
 
   foreach my $tinfo (@$tests)
   {
-    if ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' )
+    if ( $tinfo->{failures} )
     {
+      # Test has failed at least one time
+      $tot_tests++;
+      $tot_failed++;
+    }
+    elsif ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' )
+    {
+      # Test was skipped
       $tot_skiped++;
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_PASSED' )
     {
+      # Test passed
       $tot_tests++;
       $tot_passed++;
     }
-    elsif ( $tinfo->{'result'} eq 'MTR_RES_FAILED' )
-    {
-      $tot_tests++;
-      $tot_failed++;
-    }
+
     if ( $tinfo->{'restarted'} )
     {
+      # Servers was restarted
       $tot_restarts++;
     }
 
@@ -207,7 +236,7 @@ sub mtr_report_stats ($) {
   # ----------------------------------------------------------------------
   print "The servers were restarted $tot_restarts times\n";
 
-  if ( $::opt_timer )
+  if ( $timer )
   {
     use English;
 
@@ -249,6 +278,14 @@ sub mtr_report_stats ($) {
   # Print a list of testcases that failed
   if ( $tot_failed != 0 )
   {
+
+    # Print each failed test, again
+    #foreach my $test ( @$tests ){
+    #  if ( $test->{failures} ) {
+    #    mtr_report_test($test);
+    #  }
+    #}
+
     my $ratio=  $tot_passed * 100 / $tot_tests;
     print "Failed $tot_failed/$tot_tests tests, ";
     printf("%.2f", $ratio);
@@ -262,7 +299,7 @@ sub mtr_report_stats ($) {
     foreach my $tinfo (@$tests)
     {
       my $tname= $tinfo->{'name'};
-      if ( $tinfo->{'result'} eq 'MTR_RES_FAILED' and ! $seen{$tname})
+      if ( $tinfo->{failures} and ! $seen{$tname})
       {
         print " $tname";
 	$seen{$tname}= 1;
@@ -280,7 +317,7 @@ sub mtr_report_stats ($) {
    }
   else
   {
-    print "All $tot_tests tests were successful.\n";
+    print "All $tot_tests tests were successful.\n\n";
   }
 
   if ( $tot_failed != 0 || $found_problems)
@@ -309,14 +346,11 @@ sub mtr_print_thick_line {
 
 sub mtr_print_header () {
   print "\n";
-  if ( $::opt_timer )
-  {
-    print "TEST                            RESULT        TIME (ms)\n";
-  }
-  else
-  {
-    print "TEST                            RESULT\n";
-  }
+  printf "TEST";
+  print " " x 38;
+  print "RESULT   ";
+  print "TIME (ms)" if $timer;
+  print "\n";
   mtr_print_line();
   print "\n";
 }
@@ -355,38 +389,50 @@ sub _timestamp {
 		 $tm->hour, $tm->min, $tm->sec, $diff);
 }
 
+# Always print message to screen
+sub mtr_print (@) {
+  print _name(), join(" ", @_), "\n";
+}
 
-# Print message to screen
+
+# Print message to screen if verbose is defined
 sub mtr_report (@) {
-  print join(" ", @_), "\n";
+  if (defined $verbose)
+  {
+    print _name(), join(" ", @_), "\n";
+  }
 }
 
 
 # Print warning to screen
 sub mtr_warning (@) {
-  print STDERR _timestamp(), "mysql-test-run: WARNING: ", join(" ", @_), "\n";
+  print STDERR _name(), _timestamp(),
+    "mysql-test-run: WARNING: ", join(" ", @_), "\n";
 }
 
 
 # Print error to screen and then exit
 sub mtr_error (@) {
-  print STDERR _timestamp(), "mysql-test-run: *** ERROR: ", join(" ", @_), "\n";
+  print STDERR _name(), _timestamp(),
+    "mysql-test-run: *** ERROR: ", join(" ", @_), "\n";
   exit(1);
 }
 
 
 sub mtr_debug (@) {
-  if ( $::opt_verbose > 1 )
+  if ( $verbose > 2 )
   {
-    print STDERR _timestamp(), "####: ", join(" ", @_), "\n";
+    print STDERR _name(),
+      _timestamp(), "####: ", join(" ", @_), "\n";
   }
 }
 
 
 sub mtr_verbose (@) {
-  if ( $::opt_verbose )
+  if ( $verbose )
   {
-    print STDERR _timestamp(), "> ",join(" ", @_),"\n";
+    print STDERR _name(), _timestamp(),
+      "> ",join(" ", @_),"\n";
   }
 }
 
@@ -394,9 +440,10 @@ sub mtr_verbose (@) {
 sub mtr_verbose_restart (@) {
   my ($server, @args)= @_;
   my $proc= $server->{proc};
-  if ( $::opt_verbose_restart )
+  if ( $verbose_restart )
   {
-    print STDERR _timestamp(), "> Restart $proc - ",join(" ", @args),"\n";
+    print STDERR _name(),_timestamp(),
+      "> Restart $proc - ",join(" ", @args),"\n";
   }
 }
 
