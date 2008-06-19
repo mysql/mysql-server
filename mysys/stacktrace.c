@@ -109,6 +109,8 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
   void *addrs[128];
   char **strings= NULL;
   int n = backtrace(addrs, array_elements(addrs));
+  fprintf(stderr, "stack_bottom = %p thread_stack 0x%lx\n",
+          stack_bottom, thread_stack);
 #if BACKTRACE_DEMANGLE
   if ((strings= backtrace_symbols(addrs, n)))
   {
