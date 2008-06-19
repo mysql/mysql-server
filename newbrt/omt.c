@@ -172,9 +172,9 @@ static inline void rebuild_from_sorted_array(OMT omt, node_idx *n_idxp,
         OMT_NODE newnode  = omt->i.t.nodes+newidx;
         newnode->weight   = numvalues;
         newnode->value    = values[halfway]; 
+        *n_idxp = newidx; // update everything before the recursive calls so the second call can be a tail call.
         rebuild_from_sorted_array(omt, &newnode->left,  values,           halfway);
         rebuild_from_sorted_array(omt, &newnode->right, values+halfway+1, numvalues-(halfway+1));
-        *n_idxp = newidx;
     }
 }
 
