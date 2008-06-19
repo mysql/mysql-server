@@ -48,6 +48,7 @@
 #ifdef __WIN__
 #include <direct.h>
 #endif
+#include <signal.h>
 #include <my_stacktrace.h>
 
 #ifdef __WIN__
@@ -6847,12 +6848,12 @@ void mark_progress(struct st_command* command __attribute__((unused)),
 
 }
 
+#ifdef HAVE_STACKTRACE
 
-static sig_handler dump_backtrace(int sig)
+static void dump_backtrace(void)
 {
   struct st_connection *conn= cur_con;
 
-  fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
   my_safe_print_str("read_command_buf", read_command_buf,
                     sizeof(read_command_buf));
   if (conn)
@@ -6866,6 +6867,21 @@ static sig_handler dump_backtrace(int sig)
   my_print_stacktrace(NULL, my_thread_stack_size);
 }
 
+#else
+
+static void dump_backtrace(void)
+{
+  fputs("Backtrace not available.\n", stderr);
+}
+
+#endif
+
+static sig_handler signal_handler(int sig)
+{
+  fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
+  dump_backtrace();
+}
+
 #ifdef __WIN__
 
 LONG WINAPI exception_filter(EXCEPTION_POINTERS *exp)
@@ -6873,7 +6889,7 @@ LONG WINAPI exception_filter(EXCEPTION_POINTERS *exp)
   __try
   {
     my_set_exception_pointers(exp);
-    dump_backtrace(exp->ExceptionRecord->ExceptionCode);
+    signal_handler(exp->ExceptionRecord->ExceptionCode);
   }
   __except(EXCEPTION_EXECUTE_HANDLER)
   {
@@ -6910,13 +6926,15 @@ static void init_signal_handling(void)
   struct sigaction sa;
   DBUG_ENTER("init_signal_handling");
 
+#ifdef HAVE_STACKTRACE
   my_init_stacktrace();
+#endif
 
   sa.sa_flags = SA_RESETHAND | SA_NODEFER;
   sigemptyset(&sa.sa_mask);
   sigprocmask(SIG_SETMASK, &sa.sa_mask, NULL);
 
-  sa.sa_handler= dump_backtrace;
+  sa.sa_handler= signal_handler;
 
   sigaction(SIGSEGV, &sa, NULL);
   sigaction(SIGABRT, &sa, NULL);

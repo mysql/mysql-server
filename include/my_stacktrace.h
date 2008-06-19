@@ -27,6 +27,11 @@
 #define HAVE_STACKTRACE 1
 #endif
 
+#if HAVE_BACKTRACE && (HAVE_BACKTRACE_SYMBOLS || HAVE_BACKTRACE_SYMBOLS_FD)
+#undef HAVE_STACKTRACE
+#define HAVE_STACKTRACE 1
+#endif
+
 #if !defined(__NETWARE__)
 #define HAVE_WRITE_CORE
 #endif

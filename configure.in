@@ -2351,6 +2351,17 @@ if test "x$mysql_cv_weak_symbol" = xyes; then
             [Define to 1 if compiler supports weak symbol attribute.])
 fi
 
+AC_CACHE_CHECK([whether __bss_start is defined], mysql_cv_bss_start,
+[AC_TRY_LINK([],[
+  extern char *__bss_start;
+  return __bss_start ? 1 : 0;
+], [mysql_cv_bss_start=yes], [mysql_cv_bss_start=no])])
+
+if test "x$mysql_cv_bss_start" = xyes; then
+  AC_DEFINE(HAVE_BSS_START, 1,
+            [Define to 1 if compiler defines __bss_start.])
+fi
+
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 AC_CHECK_HEADERS(cxxabi.h)

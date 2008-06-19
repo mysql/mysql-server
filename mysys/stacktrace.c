@@ -34,11 +34,16 @@
 #define PTR_SANE(p) ((p) && (char*)(p) >= heap_start && (char*)(p) <= heap_end)
 
 static char *heap_start;
+
+#ifdef HAVE_BSS_START
 extern char *__bss_start;
+#endif
 
 void my_init_stacktrace()
 {
+#ifdef HAVE_BSS_START
   heap_start = (char*) &__bss_start;
+#endif
 }
 
 void my_safe_print_str(const char* name, const char* val, int max_len)
@@ -58,7 +63,68 @@ void my_safe_print_str(const char* name, const char* val, int max_len)
   fputc('\n', stderr);
 }
 
-#ifdef TARGET_OS_LINUX
+#if HAVE_BACKTRACE && (HAVE_BACKTRACE_SYMBOLS || HAVE_BACKTRACE_SYMBOLS_FD)
+
+#if BACKTRACE_DEMANGLE
+
+char __attribute__ ((weak)) *my_demangle(const char *mangled_name, int *status)
+{
+  return NULL;
+}
+
+static void my_demangle_symbols(char **addrs, int n)
+{
+  int status, i;
+  char *begin, *end, *demangled;
+
+  for (i= 0; i < n; i++)
+  {
+    demangled= NULL;
+    begin= strchr(addrs[i], '(');
+    end= begin ? strchr(begin, '+') : NULL;
+
+    if (begin && end)
+    {
+      *begin++= *end++= '\0';
+      demangled= my_demangle(begin, &status);
+      if (!demangled || status)
+      {
+        demangled= NULL;
+        begin[-1]= '(';
+        end[-1]= '+';
+      }
+    }
+
+    if (demangled)
+      fprintf(stderr, "%s(%s+%s\n", addrs[i], demangled, end);
+    else
+      fprintf(stderr, "%s\n", addrs[i]);
+  }
+}
+
+#endif /* BACKTRACE_DEMANGLE */
+
+void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
+{
+  void *addrs[128];
+  char **strings= NULL;
+  int n = backtrace(addrs, array_elements(addrs));
+#if BACKTRACE_DEMANGLE
+  if ((strings= backtrace_symbols(addrs, n)))
+  {
+    my_demangle_symbols(strings, n);
+    free(strings);
+  }
+#endif
+#if HAVE_BACKTRACE_SYMBOLS_FD
+  if (!strings)
+  {
+    backtrace_symbols_fd(addrs, n, fileno(stderr));
+  }
+#endif
+}
+
+#elif defined(TARGET_OS_LINUX)
 
 #ifdef __i386__
 #define SIGRETURN_FRAME_OFFSET 17
@@ -108,74 +174,8 @@ inline uint32* find_prev_pc(uint32* pc, uchar** fp)
 }
 #endif /* defined(__alpha__) && defined(__GNUC__) */
 
-#if BACKTRACE_DEMANGLE
-
-char __attribute__ ((weak)) *my_demangle(const char *mangled_name, int *status)
-{
-  return NULL;
-}
-
-static void my_demangle_symbols(char **addrs, int n)
-{
-  int status, i;
-  char *begin, *end, *demangled;
-
-  for (i= 0; i < n; i++)
-  {
-    demangled= NULL;
-    begin= strchr(addrs[i], '(');
-    end= begin ? strchr(begin, '+') : NULL;
-
-    if (begin && end)
-    {
-      *begin++= *end++= '\0';
-      demangled= my_demangle(begin, &status);
-      if (!demangled || status)
-      {
-        demangled= NULL;
-        begin[-1]= '(';
-        end[-1]= '+';
-      }
-    }
-
-    if (demangled)
-      fprintf(stderr, "%s(%s+%s\n", addrs[i], demangled, end);
-    else
-      fprintf(stderr, "%s\n", addrs[i]);
-  }
-}
-#endif
-
-
-#if HAVE_BACKTRACE
-static void backtrace_current_thread(void)
-{
-  void *addrs[128];
-  char **strings= NULL;
-  int n = backtrace(addrs, array_elements(addrs));
-#if BACKTRACE_DEMANGLE
-  if ((strings= backtrace_symbols(addrs, n)))
-  {
-    my_demangle_symbols(strings, n);
-    free(strings);
-  }
-#endif
-#if HAVE_BACKTRACE_SYMBOLS_FD
-  if (!strings)
-  {
-    backtrace_symbols_fd(addrs, n, fileno(stderr));
-  }
-#endif
-}
-#endif
-
-
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
-#if HAVE_BACKTRACE
-  backtrace_current_thread();
-  return;
-#endif
   uchar** fp;
   uint frame_count = 0, sigreturn_frame_count;
 #if defined(__alpha__) && defined(__GNUC__)
