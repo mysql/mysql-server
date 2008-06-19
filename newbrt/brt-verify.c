@@ -98,8 +98,15 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
                                   int type __attribute__((__unused__)),
 				  TXNID xid __attribute__((__unused__)),
 				  void *ignore __attribute__((__unused__))) {
-		    if (thislorange) assert(toku_keycompare(thislorange,thislolen,key,keylen)<0);
-		    if (thishirange && toku_keycompare(key,keylen,thishirange,thishilen)>0) {
+		    DBT k1,k2;
+		    if (thislorange) assert(brt->compare_fun(brt->db,
+							     toku_fill_dbt(&k1,thislorange,thislolen),
+							     toku_fill_dbt(&k2,key,keylen))
+					    <0);
+		    if (thishirange && (brt->compare_fun(brt->db,
+							 toku_fill_dbt(&k1,key,keylen),
+							 toku_fill_dbt(&k2,thishirange,thishilen))
+					>0)) {
 			printf("%s:%d in buffer %d key %s is bigger than %s\n", __FILE__, __LINE__, i, (char*)key, (char*)thishirange);
 			result=1;
 		    }
@@ -115,8 +122,10 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 	for (i=0; i<node->u.n.n_children; i++) {
 	    if (i>0) {
 		//printf(" %s:%d i=%d %p v=%s\n", __FILE__, __LINE__, i, node->u.n.childkeys[i-1], (char*)kv_pair_key(node->u.n.childkeys[i-1]));
-		if (lorange) assert(toku_keycompare(lorange,lolen, kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]))<0);
-		if (hirange) assert(toku_keycompare(kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]), hirange, hilen)<=0);
+		DBT k1,k2,k3;
+		toku_fill_dbt(&k2, kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]));
+		if (lorange) assert(brt->compare_fun(brt->db, toku_fill_dbt(&k1, lorange, lolen), &k2) <0);
+		if (hirange) assert(brt->compare_fun(brt->db, &k2, toku_fill_dbt(&k3, hirange, hilen)) <=0);
 	    }
 	    if (recurse) {
 		result|=toku_verify_brtnode(brt, BNC_DISKOFF(node, i),
