@@ -301,6 +301,16 @@ my @mysqlbinlog_rules=
 
 
 #
+# Rules to run for [mysql_upgrade] section
+#  - will be run in order listed here
+#
+my @mysql_upgrade_rules=
+(
+ { 'tmpdir' => sub { return shift->{ARGS}->{tmpdir}; } },
+);
+
+
+#
 # Generate a [client.<suffix>] group to be
 # used for connecting to [mysqld.<suffix>]
 #
@@ -605,6 +615,11 @@ sub new_config {
   $self->run_rules_for_group($config,
 			     $config->insert('mysqlbinlog'),
 			     @mysqlbinlog_rules);
+
+  # [mysql_upgrade] need additional settings
+  $self->run_rules_for_group($config,
+			     $config->insert('mysql_upgrade'),
+			     @mysql_upgrade_rules);
 
   # Additional rules required for [client]
   $self->run_rules_for_group($config,
