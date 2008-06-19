@@ -4024,7 +4024,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
   {
     error= send_check_errmsg(thd, table_list, "repair",
-                             "Failed reparing incompatible .FRM file");
+                             "Failed repairing incompatible .frm file");
     goto end;
   }
 
