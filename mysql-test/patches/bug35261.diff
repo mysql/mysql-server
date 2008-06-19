@@ -1,0 +1,85 @@
+--- mysql-test/t/date_formats.test.orig	2007-06-15 02:53:07.000000000 +0300
++++ mysql-test/t/date_formats.test	2008-03-19 17:25:10.000000000 +0200
+@@ -7,9 +7,15 @@
+ --enable_warnings
+ 
+ --replace_result ROW <format> STATEMENT <format> MIXED <format>
+-SHOW GLOBAL VARIABLES LIKE "%e_format";
++SELECT variable_name, variable_value
++FROM information_schema.global_variables
++WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
++ORDER BY variable_name;
+ --replace_result ROW <format> STATEMENT <format> MIXED <format>
+-SHOW SESSION VARIABLES LIKE "%e_format";
++SELECT variable_name, variable_value
++FROM information_schema.session_variables
++WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
++ORDER BY variable_name;
+ 
+ #
+ # Test setting a lot of different formats to see which formats are accepted and
+@@ -37,7 +43,10 @@
+ set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
+ 
+ --replace_result ROW <format> STATEMENT <format> MIXED <format>
+-SHOW SESSION VARIABLES LIKE "%e_format";
++SELECT variable_name, variable_value
++FROM information_schema.session_variables
++WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
++ORDER BY variable_name;
+ 
+ --error 1231
+ SET time_format='%h:%i:%s';
+--- mysql-test/r/date_formats.result.orig	2008-02-12 21:09:14.000000000 +0200
++++ mysql-test/r/date_formats.result	2008-03-19 17:26:33.000000000 +0200
+@@ -1,14 +1,20 @@
+ drop table if exists t1;
+-SHOW GLOBAL VARIABLES LIKE "%e_format";
+-Variable_name	Value
+-date_format	%d.%m.%Y
+-datetime_format	%Y-%m-%d %H:%i:%s
+-time_format	%H.%i.%s
+-SHOW SESSION VARIABLES LIKE "%e_format";
+-Variable_name	Value
+-date_format	%d.%m.%Y
+-datetime_format	%Y-%m-%d %H:%i:%s
+-time_format	%H.%i.%s
++SELECT variable_name, variable_value
++FROM information_schema.global_variables
++WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
++ORDER BY variable_name;
++variable_name	variable_value
++DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
++DATE_FORMAT	%d.%m.%Y
++TIME_FORMAT	%H.%i.%s
++SELECT variable_name, variable_value
++FROM information_schema.session_variables
++WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
++ORDER BY variable_name;
++variable_name	variable_value
++DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
++DATE_FORMAT	%d.%m.%Y
++TIME_FORMAT	%H.%i.%s
+ SET time_format='%H%i%s';
+ SET time_format='%H:%i:%s.%f';
+ SET time_format='%h-%i-%s.%f%p';
+@@ -26,11 +32,14 @@
+ set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
+ set datetime_format= '%h:%i:%s %p %Y-%m-%d';
+ set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
+-SHOW SESSION VARIABLES LIKE "%e_format";
+-Variable_name	Value
+-date_format	%m-%d-%Y
+-datetime_format	%h:%i:%s.%f %p %Y-%m-%d
+-time_format	%h:%i:%s%p
++SELECT variable_name, variable_value
++FROM information_schema.session_variables
++WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
++ORDER BY variable_name;
++variable_name	variable_value
++DATETIME_FORMAT	%h:%i:%s.%f %p %Y-%m-%d
++DATE_FORMAT	%m-%d-%Y
++TIME_FORMAT	%h:%i:%s%p
+ SET time_format='%h:%i:%s';
+ ERROR 42000: Variable 'time_format' can't be set to the value of '%h:%i:%s'
+ SET time_format='%H %i:%s';
