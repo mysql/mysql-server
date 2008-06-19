@@ -41,6 +41,7 @@ use Getopt::Long;
 use My::File::Path; # Patched version of File::Path
 use File::Basename;
 use File::Copy;
+use File::Find;
 use File::Temp qw / tempdir /;
 use File::Spec::Functions qw / splitdir /;
 use My::Platform;
@@ -48,9 +49,12 @@ use My::SafeProcess;
 use My::ConfigFactory;
 use My::Options;
 use My::Find;
+use My::SysInfo;
 use mtr_cases;
 use mtr_report;
 use mtr_match;
+use IO::Socket::INET;
+use IO::Select;
 
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
@@ -88,7 +92,6 @@ my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
-our $opt_verbose_restart= 0;  # Verbose output for restarts
 
 our $exe_mysql;
 our $exe_mysqladmin;
@@ -141,7 +144,7 @@ my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
 my $opt_baseport;
-my $opt_mtr_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
+my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 
 my $opt_record;
 my $opt_report_features;
@@ -150,10 +153,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=    15; # 15 minutes
-my $opt_suite_timeout   =   180; # 3 hours
-my $opt_shutdown_timeout=    10; # 10 seconds
-my $opt_start_timeout   =   180; # 180 seconds
+my $opt_testcase_timeout=    15; # minutes
+my $opt_suite_timeout   =   180; # minutes
+my $opt_shutdown_timeout=    10; # seconds
+my $opt_start_timeout   =   180; # seconds
 
 my $opt_start;
 my $opt_start_dirty;
@@ -161,9 +164,9 @@ my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= 2;
 
-my $opt_strace_client;
+my $opt_parallel;
 
-our $opt_timer= 1;
+my $opt_strace_client;
 
 our $opt_user;
 
@@ -194,37 +197,69 @@ our %mysqld_variables;
 my $source_dist= 0;
 
 my $opt_max_save_core= $ENV{MTR_MAX_SAVE_CORE} || 5;
-my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
-
 my $opt_max_save_datadir= $ENV{MTR_MAX_SAVE_DATADIR} || 20;
-my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
+my $opt_max_test_fail= $ENV{MTR_MAX_TEST_FAIL} || 10;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
 
 main();
 
+
 sub main {
+  report_option('verbose', 0);
 
-  command_line_setup();
+  # This is needed for test log evaluation in "gen-build-status-page"
+  # in all cases where the calling tool does not log the commands
+  # directly before it executes them, like "make test-force-pl" in RPM builds.
+  mtr_report("Logging: $0 ", join(" ", @ARGV));
 
-  mtr_report("Checking supported features...");
+  Getopt::Long::Configure("pass_through");
+  GetOptions('parallel=i' => \$opt_parallel) or usage("Can't read options");
 
-  check_ndbcluster_support(\%mysqld_variables);
-  check_ssl_support(\%mysqld_variables);
-  check_debug_support(\%mysqld_variables);
+  if ( not defined $opt_parallel ) {
+    # Try to find a suitable value for number of workers
+    my $sys_info= My::SysInfo->new();
 
-  executable_setup();
+    $opt_parallel= $sys_info->num_cpus();
+    for my $limit (2000, 1500, 1000, 500){
+      $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
+    }
+    $opt_parallel= 1 if ($opt_parallel < 1);
+    mtr_report("Using parallel: $opt_parallel");
+  }
 
-  environment_setup();
+  # Create server socket on any free port
+  my $server = new IO::Socket::INET
+    (
+     LocalAddr => 'localhost',
+     Proto => 'tcp',
+     Listen => $opt_parallel,
+    );
+  mtr_error("Could not create testcase server port: $!") unless $server;
+  my $server_port = $server->sockport();
+  mtr_report("Using server port $server_port");
 
-  if ( $opt_gcov )
-  {
+  # Create child processes
+  my %children;
+  for my $child_num (1..$opt_parallel){
+    my $child_pid= My::SafeProcess::Base::_safe_fork();
+    if ($child_pid == 0){
+      $server= undef; # Close the server port in child
+      run_worker($server_port, $child_num);
+      exit(1);
+    }
+
+    $children{$child_pid}= 1;
+  }
+
+  command_line_setup(0);
+
+  if ( $opt_gcov ) {
     gcov_prepare();
   }
 
-  if (!$opt_suites)
-  {
+  if (!$opt_suites) {
     $opt_suites= $DEFAULT_SUITES;
 
     # Check for any extra suites to enable based on the path name
@@ -238,10 +273,9 @@ sub main {
        "mysql-6.0-ndb"                  => "ndb_team",
       );
 
-    foreach my $dir ( reverse splitdir($basedir) )
-    {
+    foreach my $dir ( reverse splitdir($basedir) ) {
       my $extra_suite= $extra_suites{$dir};
-      if (defined $extra_suite){
+      if (defined $extra_suite) {
 	mtr_report("Found extra suite: $extra_suite");
 	$opt_suites= "$extra_suite,$opt_suites";
 	last;
@@ -252,26 +286,377 @@ sub main {
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_suites, \@opt_cases);
 
-  initialize_servers();
-
   if ( $opt_report_features ) {
     # Put "report features" as the first test to run
-    my $tinfo = {};
-    $tinfo->{'name'} = 'report_features';
-    $tinfo->{'result_file'} = undef; # Prints result
-    $tinfo->{'path'} = 'include/report-features.test';
-    $tinfo->{'master_opt'} = [];
-    $tinfo->{'slave_opt'} = [];
+    my $tinfo = My::Test->new
+      (
+       name           => 'report_features',
+       result_file    => undef, # Prints result
+       path           => 'include/report-features.test'.
+       master_opt     => [],
+       slave_opt      => [],
+      );
     unshift(@$tests, $tinfo);
   }
+
+  initialize_servers();
+
+  mtr_report();
+  mtr_print_thick_line();
+  mtr_print_header();
+
+  my $num_tests= @$tests;
+  my $completed= run_test_server($server, $tests, $opt_parallel);
+
+  # Send Ctrl-C to any children still running
+  kill("INT", keys(%children));
+
+  # Wait for childs to exit
+  foreach my $pid (keys %children)
+  {
+    my $ret_pid= waitpid($pid, 0);
+    if ($ret_pid != $pid){
+      mtr_report("Unknown process $ret_pid exited");
+    }
+    else {
+      delete $children{$ret_pid};
+    }
+  }
+
+  if ( not defined @$completed ) {
+    mtr_error("Test suite aborted");
+  }
+
+  if ( @$completed != $num_tests){
+
+    if ($opt_force){
+      # All test should have been run, print any that are still in $tests
+      foreach my $test ( @$tests ){
+	$test->print_test();
+      }
+    }
+
+    # Not all tests completed, failure
+    mtr_report();
+    mtr_report("Only ", int(@$completed), " of $num_tests completed.");
+    mtr_error("Not all tests completed");
+  }
+
+  mtr_print_line();
+
+  mtr_report_stats($completed);
+
+  exit(0);
+}
+
+
+sub run_test_server {
+  my ($server, $tests, $childs) = @_;
+
+  my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
+  my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
+  my $num_failed_test= 0; # Number of tests failed so far
+
+  # Scheduler variables
+  my $max_ndb= $opt_parallel / 2;
+  $max_ndb = 4 if $max_ndb > 4;
+  $max_ndb = 1 if $max_ndb < 1;
+  my $num_ndb_tests= 0;
+
+  my $completed= [];
+  my %running;
+  my $result;
+
+  my $suite_timeout_proc= My::SafeProcess->timer($opt_suite_timeout * 60);
+
+  my $s= IO::Select->new();
+  $s->add($server);
+  while (1) {
+    my @ready = $s->can_read(1); # Wake up once every second
+    foreach my $sock (@ready) {
+      if ($sock == $server) {
+	# New client connected
+	my $child= $sock->accept();
+	mtr_verbose("Client connected");
+	$s->add($child);
+	print $child "HELLO\n";
+      }
+      else {
+	my $line= <$sock>;
+	if (!defined $line) {
+	  # Client disconnected
+	  mtr_verbose("Child closed socket");
+	  $s->remove($sock);
+	  if (--$childs == 0){
+	    $suite_timeout_proc->kill();
+	    return $completed;
+	  }
+	  next;
+	}
+	chomp($line);
+
+	if ($line eq 'TESTRESULT'){
+	  $result= My::Test::read_test($sock);
+	  # $result->print_test();
+
+	  # Report test status
+	  mtr_report_test($result);
+
+	  if ( $result->is_failed() ) {
+
+	    # Save the workers "savedir" in var/log
+	    my $worker_savedir= $result->{savedir};
+	    my $worker_savename= basename($worker_savedir);
+	    my $savedir= "$opt_vardir/log/$worker_savename";
+
+	    if ($opt_max_save_datadir > 0 &&
+		$num_saved_datadir >= $opt_max_save_datadir)
+	    {
+	      mtr_report(" - skipping '$worker_savedir/'");
+	      rmtree($worker_savedir);
+	    }
+	    else {
+	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
+	      rename($worker_savedir, $savedir);
+
+	      if ($opt_max_save_core > 0) {
+		# Limit number of core files saved
+		find({ no_chdir => 1,
+		       wanted => sub {
+			 my $core_file= $File::Find::name;
+			 my $core_name= basename($core_file);
+
+			 if ($core_name =~ "core*"){
+			   if ($num_saved_cores >= $opt_max_save_core) {
+			     mtr_report(" - deleting '$core_name'",
+				      "($num_saved_cores/$opt_max_save_core)");
+			     unlink("$core_file");
+			   }
+			   else {
+			     mtr_report(" - found '$core_name'",
+				      "($num_saved_cores/$opt_max_save_core)");
+			   }
+			   ++$num_saved_cores;
+			 }
+		       }
+		     },
+		     $savedir);
+	      }
+	    }
+	    $num_saved_datadir++;
+
+	    if ( !$opt_force ) {
+	      # Test has failed, force is off
+	      $suite_timeout_proc->kill();
+	      push(@$completed, $result);
+	      return $completed;
+	    }
+	    elsif ($num_failed_test > 0 and
+		   $num_failed_test >= $opt_max_test_fail) {
+	      $suite_timeout_proc->kill();
+	      mtr_report("Too many tests($num_failed_test) failed!",
+			 "Terminating...");
+	      return undef;
+	    }
+	    $num_failed_test++;
+	  }
+
+	  # Retry test run after test failure
+	  my $retries= $result->{retries} || 2;
+	  my $test_has_failed= $result->{failures} || 0;
+	  if ($test_has_failed and $retries <= $opt_retry){
+	    # Test should be run one more time unless it has failed
+	    # too many times already
+	    my $failures= $result->{failures};
+	    if ($opt_retry > 1 and $failures >= $opt_retry_failure){
+	      mtr_report("\nTest has failed $failures times,",
+			 "no more retries!\n");
+	    }
+	    else {
+	      mtr_report("\nRetrying test, attempt($retries/$opt_retry)...\n");
+	      delete($result->{result});
+	      $result->{retries}= $retries+1;
+	      $result->write_test($sock, 'TESTCASE');
+	      next;
+	    }
+	  }
+
+	  # Repeat test $opt_repeat number of times
+	  my $repeat= $result->{repeat} || 1;
+	  if ($repeat < $opt_repeat)
+	  {
+	    $result->{retries}= 0;
+	    $result->{failures}= 0;
+	    delete($result->{result});
+	    $result->{repeat}= $repeat+1;
+	    $result->write_test($sock, 'TESTCASE');
+	    next;
+	  }
+
+	  # Remove from list of running
+	  mtr_error("'", $result->{name},"' is not known to be running")
+	    unless delete $running{$result->key()};
+
+	  # Update scheduler variables
+	  $num_ndb_tests-- if ($result->{ndb_test});
+
+	  # Save result in completed list
+	  push(@$completed, $result);
+
+	}
+	elsif ($line eq 'START'){
+	  ; # Send first test
+	}
+	else {
+	  mtr_error("Unknown response: '$line' from client");
+	}
+
+	# Find next test to schedule
+	# - Try to use same configuration as worker used last time
+	# - Limit number of parallel ndb tests
+
+	my $next;
+	my $second_best;
+	for(my $i= 0; $i <= $#$tests; $i++)
+	{
+	  my $t= $tests->[$i];
+
+	  if (run_testcase_check_skip_test($t)){
+	    # Move the test to completed list
+	    #mtr_report("skip - Moving test $i to completed");
+	    push(@$completed, splice(@$tests, $i, 1));
+	    redo; # Start over again
+	  }
+
+	  # Limit number of parallell NDB tests
+	  if ($t->{ndb_test} and $num_ndb_tests >= $max_ndb){
+	    #mtr_report("Skipping, num ndb is already at max, $num_ndb_tests");
+	    next;
+	  }
+
+	  # Prefer same configuration
+	  if (defined $result and
+	      $result->{template_path} eq $t->{template_path})
+	  {
+	    #mtr_report("Test uses same config => good match");
+	    # Test uses same config => good match
+	    $next= splice(@$tests, $i, 1);
+	    last;
+	  }
+
+	  # Second best choice is the first that does not fulfill
+	  # any of the above conditions
+	  if (!defined $second_best){
+	    #mtr_report("Setting second_best to $i");
+	    $second_best= $i;
+	  }
+	}
+
+	# Use second best choice if no other test has been found
+	if (!$next and defined $second_best){
+	  #mtr_report("Take second best choice $second_best");
+	  mtr_error("Internal error, second best too large")
+	    if $second_best >  $#$tests;
+	  $next= splice(@$tests, $second_best, 1);
+	}
+
+	if ($next) {
+	  #$next->print_test();
+	  $next->write_test($sock, 'TESTCASE');
+	  $running{$next->key()}= $next;
+	  $num_ndb_tests++ if ($next->{ndb_test});
+	}
+	else {
+	  # No more test, tell child to exit
+	  #mtr_report("Saying BYE to child");
+	  print $sock "BYE\n";
+	}
+      }
+    }
+
+    # ----------------------------------------------------
+    # Check if test suite timer expired
+    # ----------------------------------------------------
+    if ( ! $suite_timeout_proc->wait_one(0) )
+    {
+      mtr_report("Test suite timeout! Terminating...");
+      return undef;
+    }
+  }
+}
+
+
+sub run_worker ($) {
+  my ($server_port, $thread_num)= @_;
+
+  $SIG{INT}= sub { exit(1); };
+
+  report_option('name',"worker[$thread_num]");
+
+  # Connect to server
+  my $server = new IO::Socket::INET
+    (
+     PeerAddr => 'localhost',
+     PeerPort => $server_port,
+     Proto    => 'tcp'
+    );
+  mtr_error("Could not connect to server at port $server_port: $!")
+    unless $server;
+
+  # Read hello from server which it will send when shared
+  # resources have been setup
+  my $hello= <$server>;
+
+  command_line_setup($thread_num);
+
+  if ( $opt_gcov )
+  {
+    gcov_prepare();
+  }
+
+  setup_vardir();
+  mysql_install_db($thread_num);
 
   if ( using_extern() ) {
     create_config_file_for_extern(%opts_extern);
   }
 
-  run_tests($tests);
+  # Ask server for first test
+  print $server "START\n";
 
-  exit(0);
+  while(my $line= <$server>){
+    chomp($line);
+    if ($line eq 'TESTCASE'){
+      my $test= My::Test::read_test($server);
+      #$test->print_test();
+      run_testcase($test);
+      #$test->{result}= 'MTR_RES_PASSED';
+      # Send it back, now with results set
+      #$test->print_test();
+      $test->write_test($server, 'TESTRESULT');
+    }
+    elsif ($line eq 'BYE'){
+      mtr_report("Server said BYE");
+      exit(0);
+    }
+    else {
+      mtr_error("Could not understand server, '$line'");
+    }
+  }
+
+  stop_all_servers();
+
+  if ( $opt_gcov )
+  {
+    gcov_collect(); # collect coverage information
+  }
+
+  if ( $opt_gcov )
+  {
+    gcov_collect(); # collect coverage information
+  }
+
+  exit(1);
 }
 
 
@@ -281,13 +666,10 @@ sub ignore_option {
 }
 
 sub command_line_setup {
+  my ($thread_num)= @_;
+
   my $opt_comment;
   my $opt_usage;
-
-  # This is needed for test log evaluation in "gen-build-status-page"
-  # in all cases where the calling tool does not log the commands
-  # directly before it executes them, like "make test-force-pl" in RPM builds.
-  mtr_report("Logging: $0 ", join(" ", @ARGV));
 
   # Read the command line options
   # Note: Keep list, and the order, in sync with usage at end of this file
@@ -328,7 +710,7 @@ sub command_line_setup {
 	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
-	     'build-thread|mtr-build-thread=i' => \$opt_mtr_build_thread,
+	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
 
              # Test case authoring
              'record'                   => \$opt_record,
@@ -355,6 +737,7 @@ sub command_line_setup {
              'strace-client:s'          => \$opt_strace_client,
              'max-save-core=i'          => \$opt_max_save_core,
              'max-save-datadir=i'       => \$opt_max_save_datadir,
+             'max-test-fail=i'          => \$opt_max_test_fail,
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
@@ -387,10 +770,10 @@ sub command_line_setup {
              'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
-             'reorder'                  => \&collect_option,
+             'reorder!'                 => \&collect_option,
              'enable-disabled'          => \&collect_option,
              'verbose+'                 => \$opt_verbose,
-             'verbose-restart'          => \$opt_verbose_restart,
+             'verbose-restart'          => \&report_option,
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
              'start'                    => \$opt_start,
@@ -398,13 +781,14 @@ sub command_line_setup {
 	     'repeat=i'                 => \$opt_repeat,
 	     'retry=i'                  => \$opt_retry,
 	     'retry-failure=i'          => \$opt_retry_failure,
-             'timer!'                   => \$opt_timer,
+             'timer!'                   => \&report_option,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'shutdown-timeout=i'       => \$opt_shutdown_timeout,
              'warnings!'                => \$opt_warnings,
 	     'timestamp'                => \&report_option,
+	     'timediff'                 => \&report_option,
 
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
@@ -412,9 +796,21 @@ sub command_line_setup {
   usage("") if $opt_usage;
 
   # --------------------------------------------------------------------------
-  # Check mtr_build_thread and calculate baseport
+  # Setup verbosity
   # --------------------------------------------------------------------------
-  set_mtr_build_thread_ports($opt_mtr_build_thread);
+  if ($thread_num == 0){
+    # The server should by default have verbose on
+    report_option('verbose', $opt_verbose ? $opt_verbose : 0);
+  } else {
+    # Worker should by default have verbose off
+    report_option('verbose', $opt_verbose ? $opt_verbose : undef);
+  }
+
+  # --------------------------------------------------------------------------
+  # Check build_thread and calculate baseport
+  # Use auto build thread in all but first worker
+  # --------------------------------------------------------------------------
+  set_build_thread_ports($thread_num > 1 ? 'auto' : $opt_build_thread);
 
   if ( -d "../sql" )
   {
@@ -541,8 +937,9 @@ sub command_line_setup {
 
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
+  # - Dont check in workers
   # --------------------------------------------------------------------------
-  if ( defined $opt_mem )
+  if ( defined $opt_mem and $thread_num == 0)
   {
     mtr_error("Can't use --mem and --vardir at the same time ")
       if $opt_vardir;
@@ -558,7 +955,7 @@ sub command_line_setup {
     {
       if ( -d $fs )
       {
-	my $template= "var_${opt_mtr_build_thread}_XXXX";
+	my $template= "var_${opt_build_thread}_XXXX";
 	$opt_mem= tempdir( $template, DIR => $fs, CLEANUP => 0);
 	last;
       }
@@ -573,6 +970,11 @@ sub command_line_setup {
   {
     $opt_vardir= $default_vardir;
   }
+
+  # If more than one parallel run, use a subdir of the selected var
+  if ($thread_num && $opt_parallel > 1) {
+    $opt_vardir.= "/".$thread_num;
+   }
 
   $path_vardir_trace= $opt_vardir;
   # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
@@ -594,6 +996,11 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
+
+  # If more than one parallel run, use a subdir of the selected tmpdir
+  if ($thread_num && $opt_parallel > 1 and $opt_tmpdir ne "$opt_vardir/tmp") {
+    $opt_tmpdir.= "/".$thread_num;
+   }
 
   # --------------------------------------------------------------------------
   # fast option
@@ -672,6 +1079,11 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
+  # Set timeout values
+  # --------------------------------------------------------------------------
+  $opt_start_timeout*= $opt_parallel;
+
+  #
   # Check valgrind arguments
   # --------------------------------------------------------------------------
   if ( $opt_valgrind or $opt_valgrind_path or @valgrind_args)
@@ -727,6 +1139,16 @@ sub command_line_setup {
   $path_testlog=         "$opt_vardir/log/mysqltest.log";
   $path_current_testlog= "$opt_vardir/log/current_test";
 
+  mtr_report("Checking supported features...");
+
+  check_ndbcluster_support(\%mysqld_variables);
+  check_ssl_support(\%mysqld_variables);
+  check_debug_support(\%mysqld_variables);
+
+  executable_setup();
+
+  environment_setup();
+
 }
 
 
@@ -745,19 +1167,20 @@ sub command_line_setup {
 # http://www.ncftp.com/ncftpd/doc/misc/ephemeral_ports.html
 # But a fairly safe range seems to be 5001 - 32767
 #
-sub set_mtr_build_thread_ports($) {
-  my $mtr_build_thread= shift || 0;
+sub set_build_thread_ports($) {
+  my $build_thread= shift || 0;
 
-  if ( lc($mtr_build_thread) eq 'auto' ) {
-    print "Requesting build thread... ";
-    $mtr_build_thread=
+  if ( lc($build_thread) eq 'auto' ) {
+    mtr_report("Requesting build thread... ");
+    $build_thread=
       mtr_require_unique_id_and_wait("/tmp/mysql-test-ports", 200, 299);
-    print "got ".$mtr_build_thread."\n";
+    mtr_report(" - got $build_thread");
   }
-  $ENV{MTR_BUILD_THREAD}= $mtr_build_thread;
+  $ENV{MTR_BUILD_THREAD}= $build_thread;
+  $opt_build_thread= $build_thread;
 
   # Calculate baseport
-  $opt_baseport= $mtr_build_thread * 10 + 10000;
+  $opt_baseport= $build_thread * 10 + 10000;
   if ( $opt_baseport < 5001 or $opt_baseport + 9 >= 32767 )
   {
     mtr_error("MTR_BUILD_THREAD number results in a port",
@@ -765,7 +1188,7 @@ sub set_mtr_build_thread_ports($) {
               "($opt_baseport - $opt_baseport + 9)");
   }
 
-  mtr_report("Using MR_BUILD_THREAD $mtr_build_thread,",
+  mtr_report("Using MTR_BUILD_THREAD $build_thread,",
 	     "with reserved ports $opt_baseport..".($opt_baseport+9));
 
 }
@@ -1090,8 +1513,8 @@ sub environment_setup {
 
   $ENV{'UDF_EXAMPLE_LIB'}=
     ($lib_udf_example ? basename($lib_udf_example) : "");
-  $ENV{'UDF_EXAMPLE_LIB_OPT'}=
-    ($lib_udf_example ? "--plugin_dir=" . dirname($lib_udf_example) : "");
+  $ENV{'UDF_EXAMPLE_LIB_OPT'}= "--plugin-dir=".
+    ($lib_udf_example ? dirname($lib_udf_example) : "");
 
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
@@ -1102,9 +1525,9 @@ sub environment_setup {
 		      "$basedir/storage/example/.libs/ha_example.so",);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
-    $ENV{'EXAMPLE_PLUGIN_OPT'}=
-      ($lib_example_plugin ?
-       "--plugin_dir=" . dirname($lib_example_plugin) : "");
+    $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
+      ($lib_example_plugin ? dirname($lib_example_plugin) : "");
+
   }
 
   # --------------------------------------------------------------------------
@@ -1366,7 +1789,7 @@ sub remove_stale_vardir () {
 # Create var and the directories needed in var
 #
 sub setup_vardir() {
-  mtr_report("Creating var directory...");
+  mtr_report("Creating var directory '$opt_vardir'...");
 
   if ( $opt_vardir eq $default_vardir )
   {
@@ -1575,7 +1998,7 @@ sub ndbcluster_wait_started($$){
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
-  mtr_add_arg($args, "--timeout=60");
+  mtr_add_arg($args, "--timeout=%d", $opt_start_timeout);
 
   if ($ndb_waiter_extra_opt)
   {
@@ -1754,76 +2177,6 @@ sub ndbcluster_start ($) {
 }
 
 
-#
-# Run the collected tests
-#
-my $suite_timeout_proc;
-sub run_tests {
-  my ($tests)= @_;
-
-  mtr_report();
-  mtr_print_thick_line();
-  mtr_print_header();
-
-  $suite_timeout_proc= My::SafeProcess->timer($opt_suite_timeout* 60);
-  foreach my $tinfo ( @$tests )
-  {
-    if (run_testcase_check_skip_test($tinfo))
-    {
-      next;
-    }
-
-    for my $repeat (1..$opt_repeat){
-
-      if (run_testcase($tinfo))
-      {
-	# Testcase failed, enter retry mode
-	my $retries= 1;
-	while ($retries < $opt_retry){
-	  mtr_report("\nRetrying, attempt($retries/$opt_retry)...\n");
-
-	  if (run_testcase($tinfo) <= 0)
-	  {
-	    # Testcase suceeded
-
-	    my $test_has_failed= $tinfo->{failures} || 0;
-	    if (!$test_has_failed){
-	      last;
-	    }
-	  }
-	  else
-	  {
-	    # Testcase failed
-
-	    # Limit number of test failures
-	    my $failures= $tinfo->{failures};
-	    if ($opt_retry > 1 and $failures >= $opt_retry_failure){
-	      mtr_report("Test has failed $failures times, no more retries!\n");
-	      last;
-	    }
-	  }
-	  $retries++;
-	}
-      }
-    }
-  }
-  # Kill the test suite timer
-  $suite_timeout_proc->kill();
-
-  mtr_print_line();
-
-  stop_all_servers();
-
-  if ( $opt_gcov )
-  {
-    gcov_collect(); # collect coverage information
-  }
-
-  mtr_report_stats($tests);
-
-}
-
-
 sub create_config_file_for_extern {
   my %opts=
     (
@@ -1971,7 +2324,7 @@ sub initialize_servers {
       remove_stale_vardir();
       setup_vardir();
 
-      mysql_install_db();
+      mysql_install_db(0);
     }
   }
   check_running_as_root();
@@ -2028,6 +2381,7 @@ sub sql_to_bootstrap {
 
 
 sub mysql_install_db {
+  my ($thread_num)= @_;
   my $data_dir= "$opt_vardir/install.db";
 
   mtr_report("Installing system database...");
@@ -2063,6 +2417,8 @@ sub mysql_install_db {
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
   # ----------------------------------------------------------------------
   $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
+
+  return if $thread_num > 0; # Only generate MYSQLD_BOOTSTRAP_CMD in workers
 
   # ----------------------------------------------------------------------
   # Create the bootstrap.sql file
@@ -2222,25 +2578,111 @@ sub do_before_run_mysqltest($)
 }
 
 
+#
+# Check all server for sideffects
+#
+# RETURN VALUE
+#  0 ok
+#  1 Check failed
+#  >1 Fatal errro
+
 sub check_testcase($$)
 {
   my ($tinfo, $mode)= @_;
-  my $result;
+  my $tname= $tinfo->{name};
 
-  # Parallell( mysqlds(), run_check_testcase, check_testcase_failed );
+  # Start the mysqltest processes in parallel to save time
+  # also makes it possible to wait for any process to exit during the check
+  my %started;
   foreach my $mysqld ( mysqlds() )
   {
     if ( defined $mysqld->{'proc'} )
     {
-      if (run_check_testcase($tinfo, $mode, $mysqld))
-      {
-	# Check failed, mark the test case with that info
-	$tinfo->{'check_testcase_failed'}= 1;
-	$result= 1;
-      }
+      my $proc= start_check_testcase($tinfo, $mode, $mysqld);
+      $started{$proc->pid()}= $proc;
     }
   }
-  return $result;
+
+  # Return immediately if no check proceess was started
+  return 0 unless ( keys %started );
+
+  while (1){
+    my $result;
+    my $proc= My::SafeProcess->wait_any();
+    mtr_report("Got $proc");
+
+    if ( delete $started{$proc->pid()} ) {
+
+      my $err_file= $proc->user_data();
+      my $base_file= mtr_match_extension($err_file, "err"); # Trim extension
+
+      # One check testcase process returned
+      my $res= $proc->exit_status();
+
+      if ( $res == 0){
+	# Check completed without problem
+
+	# Remove the .err file the check generated
+	unlink($err_file);
+
+	# Remove the .result file the check generated
+	if ( $mode eq 'after' ){
+	  unlink("$base_file.result");
+	}
+
+	if ( keys(%started) == 0){
+	  # All checks completed
+	  return 0;
+	}
+	# Wait for next process to exit
+	next;
+      }
+      else
+      {
+	if ( $mode eq "after" and $res == 1 )
+	{
+	  # Test failed, grab the report mysqltest has created
+	  my $report= mtr_grab_file($err_file);
+	  $tinfo->{check}.=
+	    "\nThe check of testcase '$tname' failed, this is the\n".
+	      "diff between before and after:\n";
+	  $tinfo->{check}.= $report;
+
+	  # Check failed, mark the test case with that info
+	  $tinfo->{'check_testcase_failed'}= 1;
+	  $result= 1;
+	}
+	elsif ( $res )
+	{
+	  my $report= mtr_grab_file($err_file);
+	  $tinfo->{comment}.=
+	    "Could not execute 'check-testcase' $mode testcase '$tname':\n";
+	  $tinfo->{comment}.= $report;
+
+	  $result= 2;
+	}
+
+	# Remove the .err file the check generated
+	unlink($err_file);
+
+	# Remove the .result file the check generated
+	unlink("$base_file.result");
+
+      }
+    }
+    else {
+      # Unknown process returned, most likley a crash, abort everything
+      $tinfo->{comment}=
+	"Unexpected process $proc returned during ".
+	"check testcase $mode test";
+      $result= 3;
+    }
+
+    # Kill any check processes still running
+    map($_->kill(), values(%started));
+
+    return $result;
+  }
 }
 
 
@@ -2391,16 +2833,15 @@ sub run_testcase ($) {
   # ----------------------------------------------------------------------
   if ( $opt_start or $opt_start_dirty )
   {
-    $suite_timeout_proc->kill();
-    mtr_report("\nStarted", started(all_servers()));
-    mtr_report("Waiting for server(s) to exit...");
+    mtr_print("\nStarted", started(all_servers()));
+    mtr_print("Waiting for server(s) to exit...");
     my $proc= My::SafeProcess->wait_any();
     if ( grep($proc eq $_, started(all_servers())) )
     {
-      mtr_report("Server $proc died");
+      mtr_print("Server $proc died");
       exit(1);
     }
-    mtr_report("Unknown process $proc died");
+    mtr_print("Unknown process $proc died");
     exit(1);
   }
 
@@ -2408,9 +2849,14 @@ sub run_testcase ($) {
 
   do_before_run_mysqltest($tinfo);
 
-  if ( $opt_check_testcases )
-  {
-    check_testcase($tinfo, "before")
+  if ( $opt_check_testcases and check_testcase($tinfo, "before") ){
+    # Failed to record state of server or server crashed
+    report_failure_and_restart($tinfo);
+
+    # Stop the test case timer
+    $test_timeout_proc->kill();
+
+    return 1;
   }
 
   my $test= start_mysqltest($tinfo);
@@ -2444,15 +2890,23 @@ sub run_testcase ($) {
 	}
 	else
 	{
-	  mtr_report_test_passed($tinfo, $opt_timer);
+	  mtr_report_test_passed($tinfo);
 	}
 
-	if ( $opt_check_testcases and check_testcase($tinfo, "after"))
+	my $check_res;
+	if ( $opt_check_testcases and
+	     $check_res= check_testcase($tinfo, "after"))
 	{
-	  # Stop all servers that are known to be running
-	  stop_all_servers();
-	  clean_datadir();
-	  mtr_report("Resuming tests...\n");
+	  if ($check_res == 1) {
+	    # Test case had sideeffects, not fatal error, just continue
+	    stop_all_servers();
+	    mtr_report("Resuming tests...\n");
+	  }
+	  else {
+	    # Test case check failed fatally, probably a server crashed
+	    report_failure_and_restart($tinfo);
+	    return 1;
+	  }
 	}
       }
       elsif ( $res == 62 )
@@ -2536,15 +2990,6 @@ sub run_testcase ($) {
       return 1;
     }
 
-    # ----------------------------------------------------
-    # Check if test suite timer expired
-    # ----------------------------------------------------
-    if ( $proc eq $suite_timeout_proc )
-    {
-      mtr_report("Test suite timeout! Terminating...");
-      exit(1);
-    }
-
     mtr_error("Unhandled process $proc exited");
   }
   mtr_error("Should never come here");
@@ -2557,7 +3002,7 @@ sub run_testcase ($) {
 #  0 OK
 #  1 Check failed
 #
-sub run_check_warnings ($$) {
+sub start_check_warnings ($$) {
   my $tinfo=    shift;
   my $mysqld=   shift;
 
@@ -2575,37 +3020,17 @@ sub run_check_warnings ($$) {
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
 
   my $errfile= "$opt_vardir/tmp/$name.err";
-  my $res= My::SafeProcess->run
+  my $proc= My::SafeProcess->new
     (
      name          => $name,
      path          => $exe_mysqltest,
      error         => $errfile,
      output        => $errfile,
      args          => \$args,
+     user_data     => $errfile,
     );
-
-  if ( $res == 0 )
-  {
-    my $report= mtr_grab_file($errfile);
-    # Log to var/log/warnings file
-    mtr_tofile("$opt_vardir/log/warnings",
-               $tname."\n",
-               $report);
-
-    $res= 1;
-    $tinfo->{'warnings'}.= $report;
-  }
-  elsif ( $res == 62 ) {
-    # Test case was ok and called "skip"
-    $res= 0;
-  }
-  elsif ( $res )
-  {
-    mtr_report("\nCould not execute 'check-warnings' for testcase '$tname':");
-    mtr_printfile($errfile);
-    $res= 0; # Ignore error
-  }
-  return $res;
+  mtr_verbose("Started $proc");
+  return $proc;
 }
 
 
@@ -2617,17 +3042,94 @@ sub check_warnings ($) {
   my ($tinfo)= @_;
   my $res= 0;
 
-  # Clear previous warnings
-  $tinfo->{warnings}= undef;
+  my $tname= $tinfo->{name};
 
-  # Parallell( mysqlds(), run_check_warning, check_warning_failed);
+  # Clear previous warnings
+  delete($tinfo->{warnings});
+
+  # Start the mysqltest processes in parallel to save time
+  # also makes it possible to wait for any process to exit during the check
+  my %started;
   foreach my $mysqld ( mysqlds() )
   {
-    if (run_check_warnings($tinfo, $mysqld)){
-      $res= 1;
-      mtr_report();
+    if ( defined $mysqld->{'proc'} )
+    {
+      my $proc= start_check_warnings($tinfo, $mysqld);
+      $started{$proc->pid()}= $proc;
     }
   }
+
+  # Return immediately if no check proceess was started
+  return 0 unless ( keys %started );
+
+  while (1){
+    my $result= 0;
+    my $proc= My::SafeProcess->wait_any();
+    mtr_report("Got $proc");
+
+    if ( delete $started{$proc->pid()} ) {
+      # One check warning process returned
+      my $res= $proc->exit_status();
+      my $err_file= $proc->user_data();
+
+      if ( $res == 0 or $res == 62 ){
+
+	if ( $res == 0 ) {
+	  # Check completed with problem
+	  my $report= mtr_grab_file($err_file);
+	  # Log to var/log/warnings file
+	  mtr_tofile("$opt_vardir/log/warnings",
+		     $tname."\n".$report);
+
+	  $tinfo->{'warnings'}.= $report;
+	  $result= 1;
+	}
+
+	if ( $res == 62 ) {
+	  # Test case was ok and called "skip"
+	  ;
+	}
+	# Remove the .err file the check generated
+	unlink($err_file);
+
+	if ( keys(%started) == 0){
+	  # All checks completed
+	  return $result;
+	}
+	# Wait for next process to exit
+	next;
+      }
+      else
+      {
+	my $report= mtr_grab_file($err_file);
+	$tinfo->{comment}.=
+	  "Could not execute 'check-warnings' for testcase '$tname':";
+	$tinfo->{comment}.= $report;
+
+	$result= 2;
+      }
+      # Remove the .err file the check generated
+      unlink($err_file);
+    }
+    else {
+      # Unknown process returned, most likley a crash, abort everything
+      $tinfo->{comment}=
+	"Unexpected process $proc returned during ".
+	"check warnings";
+      $result= 3;
+    }
+
+    # Kill any check processes still running
+    map($_->kill(), values(%started));
+
+    return $result;
+  }
+
+
+
+
+  return $res;
+
   return $res;
 }
 
@@ -2663,9 +3165,40 @@ sub check_expected_crash_and_restart {
 }
 
 
+# Remove all files and subdirectories of a directory
+sub clean_dir {
+  my ($dir)= @_;
+  mtr_verbose("clean_dir: $dir");
+  finddepth(
+	  { no_chdir => 1,
+	    wanted => sub {
+	      if (-d $_){
+		# A dir
+		if ($_ eq $dir){
+		  # The dir to clean
+		  return;
+		} else {
+		  mtr_verbose("rmdir: '$_'");
+		  rmdir($_) or mtr_warning("rmdir($_) failed: $!");
+		}
+	      } else {
+		# Hopefully a file
+		mtr_verbose("unlink: '$_'");
+		unlink($_) or mtr_warning("unlink($_) failed: $!");
+	      }
+	    }
+	  },
+	    $dir);
+}
+
+
 sub clean_datadir {
 
   mtr_verbose("Cleaning datadirs...");
+
+  if (started(all_servers()) != 0){
+    mtr_error("Trying to clean datadir before all servers stopped");
+  }
 
   foreach my $cluster ( clusters() )
   {
@@ -2685,38 +3218,12 @@ sub clean_datadir {
   }
 
   # Remove all files in tmp and var/tmp
-  rmtree("$opt_vardir/tmp");
-  mkpath("$opt_vardir/tmp");
+  clean_dir("$opt_vardir/tmp");
   if ($opt_tmpdir ne "$opt_vardir/tmp"){
-    rmtree($opt_tmpdir);
-    mkpath($opt_tmpdir);
+    clean_dir($opt_tmpdir);
   }
 }
 
-
-#
-# Limit number of core files saved
-#
-sub limit_cores_after_failure ($) {
-  my ($datadir)= @_;
-
-  # Look for core files
-  foreach my $core_file ( glob("$datadir/core*") )
-  {
-    my $core_name= basename($core_file);
-    if ($opt_max_save_core > 0 && $num_saved_cores >= $opt_max_save_core) {
-      # Delete file to avoid saving it  when the datadir is later saved
-      mtr_report(" - deleting '$core_name'",
-		 "($num_saved_cores/$opt_max_save_core)");
-      unlink("$core_file");
-    }
-    else {
-      mtr_report(" - found '$core_name'",
-		 "($num_saved_cores/$opt_max_save_core)");
-    }
-    ++$num_saved_cores;
-  }
-}
 
 #
 # Save datadir before it's removed
@@ -2724,16 +3231,9 @@ sub limit_cores_after_failure ($) {
 sub save_datadir_after_failure($$) {
   my ($dir, $savedir)= @_;
 
-  if ($opt_max_save_datadir > 0 &&
-      $num_saved_datadir >= $opt_max_save_datadir)
-  {
-    mtr_report(" - skipping '$dir'");
-  }
-  else {
-    mtr_report(" - saving '$dir'");
-    my $dir_name= basename($dir);
-    rename("$dir", "$savedir/$dir_name");
-  }
+  mtr_report(" - saving '$dir'");
+  my $dir_name= basename($dir);
+  rename("$dir", "$savedir/$dir_name");
 }
 
 
@@ -2748,19 +3248,19 @@ sub after_failure ($) {
   $save_dir.= "-$tinfo->{combination}"
     if defined $tinfo->{combination};
 
+  # Save savedir  path for server
+  $tinfo->{savedir}= $save_dir;
+
   mkpath($save_dir) if ! -d $save_dir;
 
   # Save the used my.cnf file
   copy($path_config_file, $save_dir);
 
+  # Copy the tmp dir
+  copytree("$opt_vardir/tmp/", "$save_dir/tmp/");
+
   if ( clusters() ) {
     foreach my $cluster ( clusters() ) {
-
-      foreach my $server ( ndbds($cluster), ndb_mgmds($cluster) ) {
-	my $data_dir= $server->value('DataDir');
-	limit_cores_after_failure($data_dir);
-      }
-
       my $cluster_dir= "$opt_vardir/".$cluster->{name};
       save_datadir_after_failure($cluster_dir, $save_dir);
     }
@@ -2768,33 +3268,43 @@ sub after_failure ($) {
   else {
     foreach my $mysqld ( mysqlds() ) {
       my $data_dir= $mysqld->value('datadir');
-      limit_cores_after_failure($data_dir);
       save_datadir_after_failure(dirname($data_dir), $save_dir);
     }
   }
-
-  $num_saved_datadir++;
-
-  clean_datadir();
 }
 
 
 sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
-  mtr_report_test_failed($tinfo, $path_current_testlog);
-  print "\n";
-  if ( $opt_force )
-  {
-    # Stop all servers that are known to be running
-    stop_all_servers();
+  stop_all_servers();
 
-    after_failure($tinfo);
-    mtr_report("Resuming tests...\n");
-    return;
+  $tinfo->{'result'}= 'MTR_RES_FAILED';
+
+  my $test_failures= $tinfo->{'failures'} || 0;
+  $tinfo->{'failures'}=  $test_failures + 1;
+
+
+  my $logfile= $path_current_testlog;
+  if ( $tinfo->{comment} )
+  {
+    # The test failure has been detected by mysql-test-run.pl
+    # when starting the servers or due to other error, the reason for
+    # failing the test is saved in "comment"
+    ;
   }
-  mtr_error("Test '$tinfo->{'name'}' failed.",
-	    "To continue, re-run with '--force'");
+  elsif ( defined $logfile and -f $logfile )
+  {
+    # Test failure was detected by test tool and its report
+    # about what failed has been saved to file. Save the report
+    # in tinfo
+    $tinfo->{logfile}= mtr_fromfile($logfile);
+  }
+
+  after_failure($tinfo);
+
+  mtr_report_test($tinfo);
+
 }
 
 
@@ -3007,7 +3517,7 @@ sub mysqld_start ($$) {
 
 sub stop_all_servers () {
 
-  mtr_report("Stopping all servers...");
+  mtr_verbose("Stopping all servers...");
 
   # Kill all started servers
   My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill
@@ -3174,12 +3684,32 @@ sub started { return grep(defined $_, map($_->{proc}, @_));  }
 sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 
+sub envsubst {
+  my $string= shift;
+
+  if ( ! defined $ENV{$string} )
+  {
+    mtr_error(".opt file references '$string' which is not set");
+  }
+
+  return $ENV{$string};
+}
+
+
 sub get_extra_opts {
   my ($mysqld, $tinfo)= @_;
 
-  return
+  my $opts=
     $mysqld->option("#!use-slave-opt") ?
       $tinfo->{slave_opt} : $tinfo->{master_opt};
+
+  # Expand environment variables
+  foreach my $opt ( @$opts )
+  {
+    $opt =~ s/\$\{(\w+)\}/envsubst($1)/ge;
+    $opt =~ s/\$(\w+)/envsubst($1)/ge;
+  }
+  return $opts;
 }
 
 
@@ -3283,8 +3813,17 @@ sub start_servers($) {
     }
 
     # Copy datadir from installed system db
-    copytree("$opt_vardir/install.db", $datadir)
+    for my $path ( "$opt_vardir", "$opt_vardir/..") {
+      my $install_db= "$path/install.db";
+      copytree($install_db, $datadir)
+	if -d $install_db;
+    }
+    mtr_error("Failed to copy system db to '$datadir'")
       unless -d $datadir;
+
+    # Create the servers tmpdir
+    my $tmpdir= $mysqld->value('tmpdir');
+    mkpath($tmpdir) unless -d $tmpdir;
 
     # Write start of testcase to log file
     mark_log($mysqld->value('log-error'), $tinfo);
@@ -3350,10 +3889,9 @@ sub start_servers($) {
 # After testcase, run and compare with the recorded file, they should be equal!
 #
 # RETURN VALUE
-#  0 OK
-#  1 Check failed
+#  The newly started process
 #
-sub run_check_testcase ($$$) {
+sub start_check_testcase ($$$) {
   my $tinfo=    shift;
   my $mode=     shift;
   my $mysqld=   shift;
@@ -3378,28 +3916,17 @@ sub run_check_testcase ($$$) {
     mtr_add_arg($args, "--record");
   }
   my $errfile= "$opt_vardir/tmp/$name.err";
-  my $res= My::SafeProcess->run
+  my $proc= My::SafeProcess->new
     (
      name          => $name,
      path          => $exe_mysqltest,
      error         => $errfile,
      args          => \$args,
+     user_data     => $errfile,
     );
 
-  if ( $mode eq "after" and $res == 1 )
-  {
-    mtr_report("\nThe check of testcase '$tname' failed, this is the\n",
-	       "diff between before and after:\n");
-    # Test failed, display the report mysqltest has created
-    mtr_printfile($errfile);
-  }
-  elsif ( $res )
-  {
-    mtr_report("\nCould not execute 'check-testcase' $mode testcase '$tname':");
-    mtr_printfile($errfile);
-    mtr_report();
-  }
-  return $res;
+  mtr_report("Started $proc");
+  return $proc;
 }
 
 
@@ -3457,10 +3984,7 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "$exe_mysqltest");
   }
 
-  if ( $opt_timer )
-  {
-    mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
-  }
+  mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
 
   if ( $opt_compress )
   {
@@ -3903,6 +4427,10 @@ Options for debugging the product
                         up disks for heavily crashing server). Defaults to
                         $opt_max_save_datadir, set to 0 for no limit. Set
                         it's default with MTR_MAX_SAVE_DATDIR
+  max-test-fail         Limit the number of test failurs before aborting
+                        the current test run. Defaults to
+                        $opt_max_test_fail, set to 0 for no limit. Set
+                        it's default with MTR_MAX_TEST_FAIL
 
 Options for valgrind
 
