@@ -1,0 +1,38 @@
+diff -pu sql/mysql_priv.h sql/mysql_priv.h
+--- sql/mysql_priv.h	2007-11-14 15:28:19.000000000 +0200
++++ sql/mysql_priv.h	2008-01-08 10:45:53.000000000 +0200
+@@ -2094,6 +2094,7 @@ uint build_table_shadow_filename(char *b
+ #define FN_TO_IS_TMP    (1 << 1)
+ #define FN_IS_TMP       (FN_FROM_IS_TMP | FN_TO_IS_TMP)
+ #define NO_FRM_RENAME   (1 << 2)
++#define FN_FRM_ONLY     (1 << 3)
+ 
+ /* from hostname.cc */
+ struct in_addr;
+diff -pu sql/sql_table.cc sql/sql_table.cc
+--- sql/sql_table.cc	2007-11-02 00:48:11.000000000 +0200
++++ sql/sql_table.cc	2008-01-08 10:46:04.000000000 +0200
+@@ -1791,8 +1791,9 @@ bool quick_rm_table(handlerton *base,con
+   if (my_delete(path,MYF(0)))
+     error= 1; /* purecov: inspected */
+   path[path_length - reg_ext_length]= '\0'; // Remove reg_ext
+-  DBUG_RETURN(ha_delete_table(current_thd, base, path, db, table_name, 0) ||
+-              error);
++  if (!(flags & FN_FRM_ONLY))
++    error|= ha_delete_table(current_thd, base, path, db, table_name, 0);
++  DBUG_RETURN(error);
+ }
+ 
+ /*
+@@ -6680,7 +6681,10 @@ err1:
+     close_temporary_table(thd, new_table, 1, 1);
+   }
+   else
+-    VOID(quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP));
++    VOID(quick_rm_table(new_db_type, new_db, tmp_name,
++                        create_info->frm_only
++                        ? FN_IS_TMP | FN_FRM_ONLY
++                        : FN_IS_TMP));
+ 
+ err:
+   /*
