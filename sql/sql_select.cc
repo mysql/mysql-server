@@ -888,6 +888,7 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
+        tables= 0;
 	error=0;
 	DBUG_RETURN(0);
       }
@@ -901,6 +902,7 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
         zero_result_cause= "No matching min/max row";
+        tables= 0;
         error=0;
         DBUG_RETURN(0);
       }
