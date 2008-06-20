@@ -1469,7 +1469,7 @@ static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * val, u_int32_t flag)
     BOOL found = r_cursor_op==0;
     r = toku_c_get_post_lock(&g, found, key, val,
 			     found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c),
-			     found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_key(c->i->c));
+			     found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_val(c->i->c));
     if (r!=0) {
 	if (g.cursor_is_write && r_cursor_op==0) brt_cursor_restore_state_from_prev(c->i->c);
 	goto cleanup;
