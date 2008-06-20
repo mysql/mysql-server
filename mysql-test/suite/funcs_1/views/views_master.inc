@@ -4001,7 +4001,7 @@ DESCRIBE v1;
 SELECT * FROM t1 order by f1, f2;
 SELECT * FROM v1 order by 2;
 # Some statements for comparison
-# - the ugly SQRT('DEF) as constant
+# - the ugly SQRT('DEF') as constant
 SELECT SQRT('DEF');
 # - Will a VIEW based on the same definition show the same result ?
 CREATE VIEW v2 AS SELECT SQRT('DEF');
