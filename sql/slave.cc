@@ -4136,6 +4136,7 @@ bool rpl_master_erroneous_autoinc(THD *thd)
   if (active_mi && active_mi->rli.sql_thd == thd)
   {
     Relay_log_info *rli= &active_mi->rli;
+    DBUG_EXECUTE_IF("simulate_bug33029", return TRUE;);
     return rpl_master_has_bug(rli, 33029, FALSE);
   }
   return FALSE;
