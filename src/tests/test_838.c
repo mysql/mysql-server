@@ -7,20 +7,71 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
+#include <sys/resource.h>
 #include <db.h>
 #include "test.h"
 
 // the exit value of this program is nonzero when the test fails
 int testresult = 0;
-int numexperiments = 20;
-
-// maxt is set to the longest cursor next without transactions
-// we then compare this time to the time with transactions and try to be within a factor of 10
-unsigned long long maxt;
+int numexperiments = 40;
 
 DBT *dbt_init_static(DBT *dbt) {
     memset(dbt, 0, sizeof *dbt);
     return dbt;
+}
+
+long long get_vtime() {
+#if 0
+    // this is useless as the user time only counts milliseconds
+    struct rusage rusage;
+    int r = getrusage(RUSAGE_SELF, &rusage);
+    assert(r == 0);
+    return rusage.ru_utime.tv_sec * 1000000LL + rusage.ru_utime.tv_usec;
+#else
+    // this may be affected by other processes
+    struct timeval tv;
+    int r = gettimeofday(&tv, 0);
+    assert(r == 0);
+    return tv.tv_sec * 1000000LL + tv.tv_usec;
+#endif
+}
+
+void print_times(long long times[], int n) {
+    int i;
+    for (i=0; i<n; i++)
+        printf("%lld ", times[i]);
+    printf("\n");
+}
+
+void do_times(long long times[], int n) {
+    long long xtimes[n];
+    int i;
+    long long s = 0;
+    for (i=0; i<n; i++) {
+        xtimes[i] = times[i];
+        s += times[i];
+        if (verbose) printf("%llu ", times[i]);
+    }
+    int cmp(const void *a, const void *b) {
+        return *(long long *)a - *(long long *)b;
+    }
+    qsort(xtimes, n, sizeof (long long), cmp);
+    printf(": medium %llu mean %llu\n", xtimes[n/2], s/n);
+
+    // verify that the times are within a factor of 10 of the medium time
+    // skip the first startup time
+    for (i=1; i<n; i++) {
+        long long t = times[i] - xtimes[n/2];
+        if (t < 0) t = -t;
+        if (t > 10*xtimes[n/2]) {
+            printf("%s:%d:warning %llu %llu\n", __FILE__, __LINE__, t, xtimes[n/2]);
+            if (!verbose)
+                print_times(times, n);
+            testresult = 1;
+        }
+    }
+
+    printf("\n");
 }
 
 void test_838(int n) {
@@ -76,24 +127,21 @@ void test_838(int n) {
     }
 
     // walk
-    maxt = 0;
     {
         DB_TXN *txn = 0;
         DBC *cursor;
         r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
+        long long t[numexperiments];
         int i;
         for (i=0; i<numexperiments; i++) {
-            struct timeval tstart, tnow;
-            gettimeofday(&tstart, 0);
+            long long tstart = get_vtime();
             DBT key, val;
             r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST);
             assert(r == DB_NOTFOUND);
-            gettimeofday(&tnow, 0);
-            unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
-            t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu\n", i, t);
-            if (t > maxt) maxt = t;
+            long long tnow = get_vtime();
+            t[i] = tnow - tstart;
         }
+        do_times(t, numexperiments);
         r = cursor->c_close(cursor); assert(r == 0);
     }
 
@@ -110,19 +158,17 @@ void test_838(int n) {
         DB_TXN *txn = 0;
         DBC *cursor;
         r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
+        long long t[numexperiments];
         int i;
         for (i=0; i<numexperiments; i++) {
-            struct timeval tstart, tnow;
-            gettimeofday(&tstart, 0);
+            long long tstart = get_vtime();
             DBT key, val;
             r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST);
             assert(r == DB_NOTFOUND);
-            gettimeofday(&tnow, 0);
-            unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
-            t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu\n", i, t);
-            if (t > maxt) maxt = t;
+            long long tnow = get_vtime();
+            t[i] = tnow - tstart;
         }
+        do_times(t, numexperiments);
         r = cursor->c_close(cursor); assert(r == 0);
 
         // close db
@@ -205,23 +251,17 @@ void test_838_txn(int n) {
         r = env->txn_begin(env, 0, &txn, 0); assert(r == 0);
         DBC *cursor;
         r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
+        long long t[numexperiments];
         int i;
         for (i=0; i<numexperiments; i++) {
-            struct timeval tstart, tnow;
-            gettimeofday(&tstart, 0);
+            long long tstart = get_vtime();
             DBT key, val;
             r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST);
             assert(r == DB_NOTFOUND);
-            gettimeofday(&tnow, 0);
-            unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
-            t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu %llu\n", i, t, maxt);
-            
-            // the first cursor op takes a long time as it needs to clean out the provisionally
-            // deleted messages
-            if (i > 0 && t > 10*maxt)
-                testresult = 1;
+            long long tnow = get_vtime();
+            t[i] = tnow - tstart;
         }
+        do_times(t, numexperiments);
         r = cursor->c_close(cursor); assert(r == 0);
         r = txn->commit(txn, 0); assert(r == 0);
     }
@@ -244,20 +284,17 @@ void test_838_txn(int n) {
         r = env->txn_begin(env, 0, &txn, 0); assert(r == 0);
         DBC *cursor;
         r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
+        long long t[numexperiments];
         int i;
         for (i=0; i<numexperiments; i++) {
-            struct timeval tstart, tnow;
-            gettimeofday(&tstart, 0);
+            long long tstart = get_vtime();
             DBT key, val;
             r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST);
             assert(r == DB_NOTFOUND);
-            gettimeofday(&tnow, 0);
-            unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
-            t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu %llu\n", i, t, maxt);
-            if (i > 0 && t > 10*maxt)
-                testresult = 1;
+            long long tnow = get_vtime();
+            t[i] = tnow - tstart;
         }
+        do_times(t, numexperiments);
         r = cursor->c_close(cursor); assert(r == 0);
         r = txn->commit(txn, 0); assert(r == 0);
         
@@ -340,10 +377,10 @@ void test_838_defer_delete_commit(int n) {
         r = env->txn_begin(env, 0, &txn, 0); assert(r == 0);
         DBC *cursor;
         r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
+        long long t[numexperiments];
         int i;
         for (i=0; i<numexperiments; i++) {
-            struct timeval tstart, tnow;
-            gettimeofday(&tstart, 0);
+            long long tstart = get_vtime();
             DBT key, val;
             r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST);
 #if USE_TDB
@@ -354,16 +391,10 @@ void test_838_defer_delete_commit(int n) {
 #else
 #error
 #endif
-            gettimeofday(&tnow, 0);
-            unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
-            t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu %llu\n", i, t, maxt);
-            
-            // the first cursor op takes a long time as it needs to clean out the provisionally
-            // deleted messages
-            if (i > 0 && t > 10*maxt)
-                testresult = 1;
+            long long tnow = get_vtime();
+            t[i] = tnow - tstart;
         }
+        do_times(t, numexperiments);
         r = cursor->c_close(cursor);
 #if USE_BDB
         if (r != expectr) printf("%s:%d:WARNING r=%d expectr=%d\n", __FILE__, __LINE__, r, expectr);
@@ -395,20 +426,17 @@ void test_838_defer_delete_commit(int n) {
         r = env->txn_begin(env, 0, &txn, 0); assert(r == 0);
         DBC *cursor;
         r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
+        long long t[numexperiments];
         int i;
         for (i=0; i<numexperiments; i++) {
-            struct timeval tstart, tnow;
-            gettimeofday(&tstart, 0);
+            long long tstart = get_vtime();
             DBT key, val;
             r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_FIRST);
             assert(r == DB_NOTFOUND);
-            gettimeofday(&tnow, 0);
-            unsigned long long t = tnow.tv_sec * 1000000ULL + tnow.tv_usec;
-            t -= tstart.tv_sec * 1000000ULL + tstart.tv_usec;
-            if (verbose) printf("%d %llu %llu\n", i, t, maxt);
-            if (i > 0 && t > 10*maxt)
-                testresult = 1;
+            long long tnow = get_vtime();
+            t[i] = tnow - tstart;
         }
+        do_times(t, numexperiments);
         r = cursor->c_close(cursor); assert(r == 0);
         r = txn->commit(txn, 0); assert(r == 0);
 
@@ -421,8 +449,19 @@ void test_838_defer_delete_commit(int n) {
 }
 
 int main(int argc, const char *argv[]) {
-    parse_args(argc, argv);
-#if 0
+    int i;
+    for (i=1; i<argc; i++) {
+        const char *arg = argv[i];
+        if (strcmp(arg, "-v") == 0) {
+            verbose++;
+        }
+        if (strcmp(arg, "-numexperiments") == 0) {
+            if (i+1 >= argc)
+                return 1;
+            numexperiments = atoi(argv[++i]);
+        }
+    }
+
     int n;
     for (n=100000; n<=100000; n *= 10) {
         test_838(n);
@@ -430,7 +469,4 @@ int main(int argc, const char *argv[]) {
         test_838_defer_delete_commit(n);
     }
     return testresult;
-#else
-    return 0;
-#endif
 }
