@@ -444,7 +444,9 @@ parse_args(int argc, char** argv)
     mycnf.append("my.cnf");
     if (lstat(mycnf.c_str(), &sbuf) != 0)
     {
-      g_logger.error("Unable to stat %s", mycnf.c_str());
+      g_logger.error("Could not find out which config file to use! "
+                     "Pass it as first argument to atrt: 'atrt <config file>' "
+                     "(default: '%s')", mycnf.c_str());
       return false;
     }
   }
