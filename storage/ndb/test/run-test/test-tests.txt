@@ -3,7 +3,7 @@ cmd: testBasic
 args: -n PkRead T1
 
 max-time: 1800
-cmd: testMgm
+cmd: testSingleUserMode
 args: -n SingleUserMode T1 
 
 #
