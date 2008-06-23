@@ -15,6 +15,7 @@
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
+#include "NdbMgmd.hpp"
 #include <HugoTransactions.hpp>
 #include <UtilTransactions.hpp>
 #include <NdbRestarter.hpp>
@@ -173,12 +174,12 @@ int runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step){
 
 int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   Uint64 session_id= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
   ndb_mgm_connect(h,0,0,0);
   int s= ndb_mgm_get_fd(h);
   session_id= ndb_mgm_get_session_id(h);
@@ -191,7 +192,7 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
   int slen= sizeof(struct NdbMgmSession);
 
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
   ndb_mgm_connect(h,0,0,0);
 
   NdbSleep_SecSleep(1);
@@ -214,7 +215,7 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
 
 int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_FAILED;
   int cc= 0;
   int mgmd_nodeid= 0;
@@ -222,7 +223,7 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   ndbout << "TEST connect timeout" << endl;
 
@@ -246,7 +247,7 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
   else
     goto done;
 
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   ndbout << "TEST connect timeout" << endl;
 
@@ -284,7 +285,7 @@ done:
 
 int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_FAILED;
   int cc= 0;
   int mgmd_nodeid= 0;
@@ -292,7 +293,7 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   ndbout << "TEST timout check_connection" << endl;
   int errs[] = { 1, 2, 3, -1};
@@ -404,14 +405,14 @@ done:
 
 int runTestApiGetStatusTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_OK;
   int cc= 0;
   int mgmd_nodeid= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   int errs[] = { 0, 5, 6, 7, 8, 9, -1 };
 
@@ -492,13 +493,13 @@ done:
 
 int runTestMgmApiGetConfigTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   int errs[] = { 0, 1, 2, 3, -1 };
 
@@ -572,13 +573,13 @@ done:
 
 int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   int errs[] = { 10000, 0, -1 };
 
@@ -682,13 +683,13 @@ done:
 
 int runTestMgmApiStructEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   int errs[] = { 10000, 0, -1 };
 
