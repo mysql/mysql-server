@@ -56,7 +56,7 @@ void do_times(long long times[], int n) {
         return *(long long *)a - *(long long *)b;
     }
     qsort(xtimes, n, sizeof (long long), cmp);
-    printf(": medium %llu mean %llu\n", xtimes[n/2], s/n);
+    if (verbose) printf(": medium %llu mean %llu\n", xtimes[n/2], s/n);
 
     // verify that the times are within a factor of 10 of the medium time
     // skip the first startup time
@@ -70,8 +70,6 @@ void do_times(long long times[], int n) {
             testresult = 1;
         }
     }
-
-    printf("\n");
 }
 
 void test_838(int n) {
