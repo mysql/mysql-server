@@ -50,7 +50,7 @@ public:
   // Get arguments
   int getNumRecords() const;
   int getNumLoops() const;
-  char * getRemoteMgm() const;
+
   // Common place to store state between 
   // steps, for example information from one step to the 
   // verifier about how many records have been inserted
@@ -84,7 +84,6 @@ public:
 
   void setTab(const NdbDictionary::Table*);
   void addTab(const NdbDictionary::Table*);
-  void setRemoteMgm(char * mgm);
 
   /**
    * Get no of steps running/completed
@@ -114,7 +113,6 @@ private:
   int records;
   int loops;
   bool stopped;
-  char * remote_mgm;
   Properties props;
   NdbMutex* propertyMutexPtr;
   NdbCondition* propertyCondPtr;
