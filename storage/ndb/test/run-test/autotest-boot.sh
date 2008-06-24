@@ -13,7 +13,8 @@ save_args=$*
 VERSION="autotest-boot.sh version 1.00"
 
 DATE=`date '+%Y-%m-%d'`
-HOST=`hostname -s`
+#HOST=`hostname -s`
+HOST=`hostname`
 export DATE HOST
 
 set -e
