@@ -61,6 +61,12 @@ show tables//
 delimiter ; # Reset delimiter
 
 #
+# Bug #33812: mysql client incorrectly parsing DELIMITER
+#
+select a as delimiter from t1
+delimiter ; # Reset delimiter
+
+#
 # Bug #36244: MySQL CLI doesn't recognize standalone -- as comment
 #             before DELIMITER statement
 #
