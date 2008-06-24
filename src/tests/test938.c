@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include "test.h"
 
-unsigned char N=8;
+unsigned char N=5;
 int fact(int n) {
     if (n<=2) return n;
     else return n*fact(n-1);
@@ -23,7 +23,7 @@ void run (int choice) {
     int i;
     int r;
     for (i=0; i<N; i++) {
-	v[i]=i;
+	v[i]=10*i;
     }
     for (i=0; i<N; i++) {
 	int nchoices=N-i;
@@ -40,10 +40,11 @@ void run (int choice) {
     DB_TXN *txn;
     {
 	r=env->txn_begin(env, 0, &txn, 0);                            CKERR(r);
-	for (i=0; i<N; i+=2) {
+	for (i=0; i<N; i++) {
 	    DBT kdbt,vdbt;
-	    char key=v[i];
-	    char val=v[i+1];
+	    char key=25;
+	    char val=v[i];
+	    //printf("put %d %d\n", key, val);
 	    r=db->put(db, txn, dbt_init(&kdbt, &key, 1), dbt_init(&vdbt, &val, 1), DB_YESOVERWRITE); CKERR(r);
 	}
 	r=txn->commit(txn, DB_TXN_NOSYNC);                                        CKERR(r);
@@ -57,12 +58,12 @@ void run (int choice) {
 	dbt_init_malloc(&vdbt);
 	i=0;
 	while (0==(r=c->c_get(c, &kdbt, &vdbt, DB_NEXT))) {
-	    printf("Got %d %d\n", *(unsigned char*)kdbt.data, *(unsigned char*)vdbt.data);
+	    //printf("Got %d %d\n", *(unsigned char*)kdbt.data, *(unsigned char*)vdbt.data);
 	    i++;
 	}
 	CKERR2(r, DB_NOTFOUND);
-	printf("i=%d N=%d\n", i, N);
-	assert(i==N/2);
+	//printf("i=%d N=%d\n", i, N);
+	assert(i==N);
 	r=c->c_close(c);                                                          CKERR(r);
 	r=txn->commit(txn, DB_TXN_NOSYNC);                                        CKERR(r);
     }
@@ -129,7 +130,7 @@ int main(int argc, const char *argv[]) {
 	r=txn->commit(txn, 0);                                        CKERR(r);
     }
     int i;
-    printf("fact(%d)=%d\n", N, fact(N));
+    //printf("fact(%d)=%d\n", N, fact(N));
     for (i=0; i<fact(N); i++) {
 	run(i);
     }
