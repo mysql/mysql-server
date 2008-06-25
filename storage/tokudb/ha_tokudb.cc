@@ -2996,15 +2996,17 @@ int ha_tokudb::reset(void) {
 int ha_tokudb::external_lock(THD * thd, int lock_type) {
     TOKUDB_DBUG_ENTER("ha_tokudb::external_lock %d", thd_sql_command(thd));
     // QQQ this is here to allow experiments without transactions
-    if ((tokudb_init_flags & DB_INIT_TXN) == 0) 
+    if ((tokudb_init_flags & DB_INIT_TXN) == 0) {
         TOKUDB_DBUG_RETURN(0);
+    }
     int error = 0;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
         trx = (tokudb_trx_data *)
             my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
-        if (!trx)
+        if (!trx) {
             TOKUDB_DBUG_RETURN(1);
+        }
         thd_data_set(thd, tokudb_hton->slot, trx);
     }
     if (trx->all == 0) {
@@ -3022,24 +3024,29 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                     trx->tokudb_lock_count--;      // We didn't get the lock
                     TOKUDB_DBUG_RETURN(error);
                 }
-                if (tokudb_debug & TOKUDB_DEBUG_TXN)
+                if (tokudb_debug & TOKUDB_DEBUG_TXN) {
                     TOKUDB_TRACE("master:%p\n", trx->all);
+                }
                 trx->sp_level = trx->all;
                 trans_register_ha(thd, TRUE, tokudb_hton);
-                if (thd->in_lock_tables)
+                if (thd->in_lock_tables) {
                     TOKUDB_DBUG_RETURN(0);     // Don't create stmt trans
+                }
             }
             DBUG_PRINT("trans", ("starting transaction stmt"));
-            if (trx->stmt) 
-                if (tokudb_debug & TOKUDB_DEBUG_TXN) 
+            if (trx->stmt) { 
+                if (tokudb_debug & TOKUDB_DEBUG_TXN) {
                     TOKUDB_TRACE("warning:stmt=%p\n", trx->stmt);
+                }
+            }
             if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0))) {
                 /* We leave the possible master transaction open */
                 trx->tokudb_lock_count--;  // We didn't get the lock
                 TOKUDB_DBUG_RETURN(error);
             }
-            if (tokudb_debug & TOKUDB_DEBUG_TXN)
+            if (tokudb_debug & TOKUDB_DEBUG_TXN) {
                 TOKUDB_TRACE("stmt:%p:%p\n", trx->sp_level, trx->stmt);
+            }
             trans_register_ha(thd, FALSE, tokudb_hton);
         }
         transaction = trx->stmt;
