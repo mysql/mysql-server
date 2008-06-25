@@ -24,9 +24,4 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t3 VALUES (1,1), (1,2), (2
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c
 master-bin.000001	#	Query	#	#	use `test`; COMMIT
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
-master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE t1, t2, t3;
