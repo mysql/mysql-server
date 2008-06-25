@@ -23,7 +23,8 @@ include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 test_PROGRAMS = atrt
 test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-ndbmaster.cnf \
-          conf-dl145a.cnf test-tests.txt conf-test.cnf db.sql
+          conf-fimafeng08.cnf conf-dl145a.cnf test-tests.txt conf-test.cnf db.sql
+#          conf-dl145a.cnf test-tests.txt conf-test.cnf db.sql
 
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
           atrt-clear-result.sh autotest-run.sh
