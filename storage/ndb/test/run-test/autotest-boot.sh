@@ -13,7 +13,12 @@ save_args=$*
 VERSION="autotest-boot.sh version 1.00"
 
 DATE=`date '+%Y-%m-%d'`
-HOST=`hostname -s`
+if [ `uname -s` != "SunOS" ]
+then
+  HOST=`hostname -s`
+else
+  HOST=`hostname`
+fi
 export DATE HOST
 
 set -e

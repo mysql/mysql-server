@@ -15,5 +15,6 @@ else
 fi
 
 extra_flags="$extra_flags $max_cflags -g"
+extra_configs="$extra_configs $NDB_AUTOTEST_CONFIGURE_OPTIONS"
 
 . "$path/FINISH.sh"

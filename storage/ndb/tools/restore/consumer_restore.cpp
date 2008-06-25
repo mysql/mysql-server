@@ -21,6 +21,8 @@
 #include <ndb_internal.hpp>
 #include <ndb_logevent.h>
 
+#define NDB_ANYVALUE_FOR_NOLOGGING 0xFFFFFFFF
+
 extern my_bool opt_core;
 
 extern FilteredNdbOut err;
@@ -33,6 +35,8 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
 
 extern const char * g_connect_string;
 extern BaseString g_options;
+
+extern unsigned int opt_no_binlog;
 
 bool BackupRestore::m_preserve_trailing_spaces = false;
 
@@ -1536,6 +1540,11 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
       exitHandler();
     }
 
+    if (opt_no_binlog)
+    {
+      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+    }
+
     // Prepare transaction (the transaction is NOT yet sent to NDB)
     cb->n_bytes= n_bytes;
     cb->connection->executeAsynchPrepare(NdbTransaction::Commit,
@@ -1796,6 +1805,10 @@ BackupRestore::logEntry(const LogEntry & tup)
     } // if
   }
   
+  if (opt_no_binlog)
+  {
+    op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+  }
   const int ret = trans->execute(NdbTransaction::Commit);
   if (ret != 0)
   {
