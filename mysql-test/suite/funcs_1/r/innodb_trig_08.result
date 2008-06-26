@@ -1,17 +1,11 @@
 USE test;
-drop table if exists tb3 ;
+drop table if exists tb3;
 create table tb3 (
 f118 char not null DEFAULT 'a',
 f119 char binary not null DEFAULT b'101',
 f120 char ascii not null DEFAULT b'101',
-f121 tinytext,
-f122 text,
-f123 mediumtext,
-f124 longtext unicode,
-f125 tinyblob,
-f126 blob,
-f127 mediumblob,
-f128 longblob,
+f121 char(50),
+f122 char(50),
 f129 binary not null DEFAULT b'101',
 f130 tinyint not null DEFAULT 99,
 f131 tinyint unsigned not null DEFAULT 99,
@@ -59,13 +53,11 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = innodb;
+) engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/innodb_tb3.txt'
-into table tb3;
 
 Testcase: 3.5:
 --------------
@@ -94,17 +86,17 @@ create table t1_i (
 i120 char ascii not null DEFAULT b'101',
 i136 smallint zerofill not null DEFAULT 999,
 i144 int zerofill not null DEFAULT 99999,
-i163 decimal (63,30)) engine=innodb;
+i163 decimal (63,30)) engine=<engine_to_be_used>;
 create table t1_u (
 u120 char ascii not null DEFAULT b'101',
 u136 smallint zerofill not null DEFAULT 999,
 u144 int zerofill not null DEFAULT 99999,
-u163 decimal (63,30)) engine=innodb;
+u163 decimal (63,30)) engine=<engine_to_be_used>;
 create table t1_d (
 d120 char ascii not null DEFAULT b'101',
 d136 smallint zerofill not null DEFAULT 999,
 d144 int zerofill not null DEFAULT 99999,
-d163 decimal (63,30)) engine=innodb;
+d163 decimal (63,30)) engine=<engine_to_be_used>;
 Insert into t1_u values ('a',111,99999,999.99);
 Insert into t1_u values ('b',222,99999,999.99);
 Insert into t1_u values ('c',333,99999,999.99);
