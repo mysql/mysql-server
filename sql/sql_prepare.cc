@@ -1154,9 +1154,9 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     if (table_list->lock_type == TL_WRITE_DELAYED &&
         !(table_list->table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
     {
-      my_error(ER_ILLEGAL_HA, MYF(0), (table_list->view ?
-                                       table_list->view_name.str :
-                                       table_list->table_name));
+      my_error(ER_DELAYED_NOT_SUPPORTED, MYF(0), (table_list->view ?
+                                                  table_list->view_name.str :
+                                                  table_list->table_name));
       goto error;
     }
     while ((values= its++))

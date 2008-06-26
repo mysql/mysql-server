@@ -6130,3 +6130,6 @@ ER_LOG_PURGE_NO_FILE
 
 ER_NEED_REPREPARE
   eng "Prepared statement needs to be re-prepared"
+
+ER_DELAYED_NOT_SUPPORTED  
+  eng "DELAYED option not supported for table '%-.192s'"
