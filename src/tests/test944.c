@@ -57,11 +57,11 @@ void run (int choice) {
 	dbt_init_malloc(&vdbt);
 	i=0;
 	while (0==(r=c->c_get(c, &kdbt, &vdbt, DB_NEXT))) {
-	    printf("Got %d %d\n", *(unsigned char*)kdbt.data, *(unsigned char*)vdbt.data);
+	    //printf("Got %d %d\n", *(unsigned char*)kdbt.data, *(unsigned char*)vdbt.data);
 	    i++;
 	}
 	CKERR2(r, DB_NOTFOUND);
-	printf("i=%d N=%d\n", i, N);
+	//printf("i=%d N=%d\n", i, N);
 	assert(i==N/2);
 	r=c->c_close(c);                                                          CKERR(r);
 	r=txn->commit(txn, DB_TXN_NOSYNC);                                        CKERR(r);
@@ -72,7 +72,7 @@ void run (int choice) {
 	    DBT kdbt;
 	    char key=v[i];
 	    r=db->del(db, txn, dbt_init(&kdbt, &key, 1), 0);                      CKERR(r);
-	    printf(" del %d\n", key);
+	    //printf(" del %d\n", key);
 	}
 	r=txn->commit(txn, DB_TXN_NOSYNC);                                        CKERR(r);
     }
@@ -122,7 +122,7 @@ int main(int argc, const char *argv[]) {
 	r=txn->commit(txn, 0);                                        CKERR(r);
     }
     int i;
-    printf("fact(%d)=%d\n", N, fact(N));
+    //printf("fact(%d)=%d\n", N, fact(N));
     for (i=0; i<fact(N); i++) {
 	run(i);
     }
