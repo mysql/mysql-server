@@ -36,24 +36,58 @@ else
 my $force_after= 3;
 my $corrupt_file= $corrupt_index ? "MAI" : "MAD";
 my $corrupt_message= 
-  "\\[ERROR\\] mysqld: Table '.\/test\/t1' is marked as crashed and should be repaired";
+  "\\[ERROR\\] mysqld(.exe)*: Table '..test.t1' is marked as crashed and should be repaired";
 
 my $sql_name= "./var/tmp/create_table.sql";
 my $error_log_name= "./var/log/master.err";
 my @cmd_output;
 my $whatever; # garbage data
-my $base_server_cmd= "perl mysql-test-run.pl --mem --mysqld=--maria-force-start-after-recovery-failures=$force_after maria-recover";
+my $base_server_cmd= "perl mysql-test-run.pl --mysqld=--maria-force-start-after-recovery-failures=$force_after maria-recover ";
+if ($^O =~ /^mswin/i)
+  {
+    print <<EOF;
+WARNING: with Activestate Perl, mysql-test-run.pl --start-and-exit has a bug:
+it does not exit; cygwin perl recommended
+EOF
+  }
+my $iswindows= ( $^O =~ /win/i  && $^O !~ /darwin/i );
+$base_server_cmd.= ($iswindows ? "--mysqld=--console" : "--mem");
 my $server_cmd;
-my $client_cmd= "../client/mysql -u root -S var/tmp/master.sock test < $sql_name";
 my $server_pid_name="./var/run/master.pid";
 my $server_pid;
 my $i; # count of server restarts
 sub kill_server;
 
+my $suffix= ($iswindows ? ".exe" : "");
+my $client_exe_path= "../client/release";
+# we use -f, sometimes -x is unexpectedly false in Cygwin
+if ( ! -f "$client_exe_path/mysql$suffix" )
+  {
+    $client_exe_path= "../client/relwithdebinfo";
+    if ( ! -f "$client_exe_path/mysql$suffix" )
+    {
+      $client_exe_path= "../client/debug";
+      if ( ! -f "$client_exe_path/mysql$suffix" )
+      {
+        $client_exe_path= "../client";
+        if ( ! -f "$client_exe_path/mysql$suffix" )
+        {
+          die("Cannot find 'mysql' executable\n");
+        }
+      }
+    }
+  }
+
 print "starting mysqld\n";
 $server_cmd= $base_server_cmd . " --start-and-exit 2>&1";
 @cmd_output=`$server_cmd`;
 die if $?;
+my $master_port= (grep (/Using MASTER_MYPORT .*= (\d+)$/, @cmd_output))[0];
+$master_port =~ s/.*= //;
+chomp $master_port;
+die unless $master_port > 0;
+
+my $client_cmd= "$client_exe_path/mysql -u root -h 127.0.0.1 -P $master_port test < $sql_name";
 
 open(FILE, ">", $sql_name) or die;
 
@@ -113,7 +147,7 @@ for($i= 1; $i <= $force_after; $i= $i + 1)
     open(FILE, "<", $error_log_name) or die;
     @cmd_output= <FILE>;
     close FILE;
-    die unless grep(/\[ERROR\] mysqld: Maria engine: log initialization failed/, @cmd_output);
+    die unless grep(/\[ERROR\] mysqld(.exe)*: Maria engine: log initialization failed/, @cmd_output);
     die unless grep(/\[ERROR\] Plugin 'MARIA' init function returned error./, @cmd_output);
     print "failed - ok\n";
   }
@@ -125,8 +159,8 @@ die if $?;
 open(FILE, "<", $error_log_name) or die;
 @cmd_output= <FILE>;
 close FILE;
-die unless grep(/\[Warning\] mysqld: Maria engine: removed all logs after [\d]+ consecutive failures of recovery from logs/, @cmd_output);
-die unless grep(/\[ERROR\] mysqld: File '..\/tmp\/maria_log.00000001' not found \(Errcode: 2\)/, @cmd_output);
+die unless grep(/\[Warning\] mysqld(.exe)*: Maria engine: removed all logs after [\d]+ consecutive failures of recovery from logs/, @cmd_output);
+die unless grep(/\[ERROR\] mysqld(.exe)*: File '...tmp.maria_log.00000001' not found \(Errcode: 2\)/, @cmd_output);
 print "success - ok\n";
 
 open(FILE, ">", $sql_name) or die;
@@ -151,7 +185,7 @@ open(FILE, "<", $error_log_name) or die;
 @cmd_output= <FILE>;
 close FILE;
 die unless grep(/$corrupt_message/, @cmd_output);
-die unless grep(/\[Warning\] Recovering table: '.\/test\/t1'/, @cmd_output);
+die unless grep(/\[Warning\] Recovering table: '..test.t1'/, @cmd_output);
 print "was corrupted and automatically repaired - ok\n";
 
 # remove our traces
@@ -164,14 +198,38 @@ sub kill_server
   {
     my ($sig)= @_;
     my $wait_count= 0;
+    my $kill_cmd;
+    my @kill_output;
     open(FILE, "<", $server_pid_name) or die;
     @cmd_output= <FILE>;
     close FILE;
     $server_pid= $cmd_output[0];
+    chomp $server_pid;
     die unless $server_pid > 0;
-    kill($sig, $server_pid) or die;
-    while (kill (0, $server_pid))
+    if ($iswindows)
       {
+        # On Windows, server_pid_name is not the "main" process id
+        # so perl's kill() does not see this process id.
+        # But taskkill works, though only with /F ("-9"-style kill).
+        $kill_cmd= "taskkill /F /PID $server_pid 2>&1";
+        @kill_output= `$kill_cmd`;
+        die unless grep(/has been terminated/, @kill_output);
+      }
+    else
+      {
+        kill($sig, $server_pid) or die;
+      }
+    while (1) # wait until mysqld process gone
+      {
+        if ($iswindows)
+          {
+            @kill_output= `$kill_cmd`;
+            last if grep(/not found/, @kill_output);
+          }
+        else
+          {
+            kill (0, $server_pid) or last;
+          }
         print "waiting for mysqld to die\n" if ($wait_count > 30);
         $wait_count= $wait_count + 1;
         select(undef, undef, undef, 0.1);

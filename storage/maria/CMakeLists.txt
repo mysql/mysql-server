@@ -24,7 +24,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
 SET(MARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c 
             ma_rnext.c ma_rnext_same.c 
             ma_search.c ma_page.c ma_key_recover.c ma_key.c 
-            ma_locking.c 
+            ma_locking.c ma_state.c
             ma_rrnd.c ma_scan.c ma_cache.c 
             ma_statrec.c ma_packrec.c ma_dynrec.c 
             ma_blockrec.c ma_bitmap.c 

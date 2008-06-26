@@ -28,16 +28,35 @@ static const char *default_dbug_option;
 
 #define PCACHE_SIZE (1024*1024*10)
 
+#define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
 /*#define LOG_FLAGS TRANSLOG_SECTOR_PROTECTION | TRANSLOG_PAGE_CRC */
 #define LOG_FLAGS 0
 /*#define LONG_BUFFER_SIZE (1024L*1024L*1024L + 1024L*1024L*512)*/
+
+#ifdef MULTIFLUSH_TEST
+
+#define LONG_BUFFER_SIZE (16384L)
+#define MIN_REC_LENGTH 10
+#define SHOW_DIVIDER 20
+#define ITERATIONS 10000
+#define FLUSH_ITERATIONS 1000
+#define WRITERS 2
+#define FLUSHERS 10
+
+#else
+
 #define LONG_BUFFER_SIZE (512L*1024L*1024L)
 #define MIN_REC_LENGTH 30
 #define SHOW_DIVIDER 10
-#define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
 #define ITERATIONS 3
+#define FLUSH_ITERATIONS 0
 #define WRITERS 3
+#define FLUSHERS 0
+
+#endif
+
 static uint number_of_writers= WRITERS;
+static uint number_of_flushers= FLUSHERS;
 
 static pthread_cond_t COND_thread_count;
 static pthread_mutex_t LOCK_thread_count;
@@ -47,6 +66,9 @@ static ulong lens[WRITERS][ITERATIONS];
 static LSN lsns1[WRITERS][ITERATIONS];
 static LSN lsns2[WRITERS][ITERATIONS];
 static uchar *long_buffer;
+
+
+static LSN last_lsn; /* For test purposes the variable allow dirty read/write */
 
 /*
   Get pseudo-random length of the field in
@@ -177,6 +199,7 @@ void writer(int num)
       return;
     }
     lsns2[num][i]= lsn;
+    last_lsn= lsn;
     pthread_mutex_lock(&LOCK_thread_count);
     ok(1, "write records");
     pthread_mutex_unlock(&LOCK_thread_count);
@@ -205,6 +228,33 @@ static void *test_thread_writer(void *arg)
 }
 
 
+static void *test_thread_flusher(void *arg)
+{
+  int param= *((int*) arg);
+  int i;
+
+  my_thread_init();
+
+  for(i= 0; i < FLUSH_ITERATIONS; i++)
+  {
+    translog_flush(last_lsn);
+    pthread_mutex_lock(&LOCK_thread_count);
+    ok(1, "-- flush %d", param);
+    pthread_mutex_unlock(&LOCK_thread_count);
+  }
+
+  pthread_mutex_lock(&LOCK_thread_count);
+  thread_count--;
+  ok(1, "flusher finished"); /* just to show progress */
+  VOID(pthread_cond_signal(&COND_thread_count));        /* Tell main we are
+                                                           ready */
+  pthread_mutex_unlock(&LOCK_thread_count);
+  free((uchar*) arg);
+  my_thread_end();
+  return(0);
+}
+
+
 int main(int argc __attribute__((unused)),
          char **argv __attribute__ ((unused)))
 {
@@ -219,7 +269,8 @@ int main(int argc __attribute__((unused)),
   int *param, error;
   int rc;
 
-  plan(WRITERS + ITERATIONS * WRITERS * 3);
+  plan(WRITERS + FLUSHERS +
+       ITERATIONS * WRITERS * 3 + FLUSH_ITERATIONS * FLUSHERS );
 
   bzero(&pagecache, sizeof(pagecache));
   maria_data_root= (char *)".";
@@ -329,19 +380,36 @@ int main(int argc __attribute__((unused)),
 
 
   pthread_mutex_lock(&LOCK_thread_count);
-  while (number_of_writers != 0)
+  while (number_of_writers != 0 || number_of_flushers != 0)
   {
-    param= (int*) malloc(sizeof(int));
-    *param= number_of_writers - 1;
-    if ((error= pthread_create(&tid, &thr_attr, test_thread_writer,
-                               (void*) param)))
+    if (number_of_writers)
     {
-      fprintf(stderr, "Got error: %d from pthread_create (errno: %d)\n",
-              error, errno);
-      exit(1);
+      param= (int*) malloc(sizeof(int));
+      *param= number_of_writers - 1;
+      if ((error= pthread_create(&tid, &thr_attr, test_thread_writer,
+                                 (void*) param)))
+      {
+        fprintf(stderr, "Got error: %d from pthread_create (errno: %d)\n",
+                error, errno);
+        exit(1);
+      }
+      thread_count++;
+      number_of_writers--;
     }
-    thread_count++;
-    number_of_writers--;
+    if (number_of_flushers)
+    {
+      param= (int*) malloc(sizeof(int));
+      *param= number_of_flushers - 1;
+      if ((error= pthread_create(&tid, &thr_attr, test_thread_flusher,
+                                 (void*) param)))
+      {
+        fprintf(stderr, "Got error: %d from pthread_create (errno: %d)\n",
+                error, errno);
+        exit(1);
+      }
+      thread_count++;
+      number_of_flushers--;
+    }
   }
   pthread_mutex_unlock(&LOCK_thread_count);
 

@@ -1,7 +1,5 @@
-#
-# This can't be run with --extern as we are acccessing the tables in the
-# database directly
-#
+# Tests for two bugs related to ALTER TABLE and maria-specific alter
+# options (PAGE_CHECKSUM and TRANSACTIONAL).
 
 -- source include/have_maria.inc
 
@@ -9,7 +7,15 @@
 drop table if exists t1;
 --enable_warnings
 
+#
+# Test for BUG#35441 "Cannot change PAGE_CHECKSUM table option"
+#
+
 select @@global.maria_page_checksum;
+
+# we scan through combinations in the cartesian product of
+# (first value of maria_page_checksum) x (clauses in CREATE TABLE) x
+# (second value of maria_page_checksum) x (clauses in ALTER TABLE).
 
 --echo # iteration 1
 set global maria_page_checksum = 0 ;
@@ -1054,3 +1060,498 @@ perl;
     close FILE;
 EOF
 drop table t1;
+
+#
+# Test for BUG#37005
+# "Maria: ALTER TABLE TRANSACTIONAL=0 leaves table transactional inside Maria"
+#
+
+# we scan through combinations in the cartesian product of
+# (clauses in CREATE TABLE) x (clauses in ALTER TABLE).
+
+--echo # iteration 1
+create table t1(a int) engine=maria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 modify a bigint ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 2
+create table t1(a int) engine=maria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 3
+create table t1(a int) engine=maria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 4
+create table t1(a int) engine=maria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=maria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 5
+create table t1(a int) engine=maria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=maria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 6
+create table t1(a int) engine=maria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=maria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 7
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 modify a bigint ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 8
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 9
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 10
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=maria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 11
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=maria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 12
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=maria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 13
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 modify a bigint ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 14
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 15
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 16
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=maria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 17
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=maria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 18
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=maria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLTEST_VARDIR/master-data/test/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/mariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+

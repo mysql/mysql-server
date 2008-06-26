@@ -86,8 +86,9 @@ static double rt_data[]=
   -1
 };
 
-static int silent= 0, testflag= 0, transactional= 0,
-  die_in_middle_of_transaction= 0, checkpoint= 0, create_flag= 0;
+static int testflag, checkpoint, create_flag;
+static my_bool silent, transactional, die_in_middle_of_transaction,
+  opt_versioning;
 static enum data_file_type record_type= DYNAMIC_RECORD;
 
 int main(int argc, char *argv[])
@@ -141,7 +142,11 @@ static int run_test(const char *filename)
   int upd= 10;
   ha_rows hrows;
 
-  bzero((char*) recinfo,sizeof(recinfo));
+  bzero(&uniquedef, sizeof(uniquedef));
+  bzero(&create_info, sizeof(create_info));
+  bzero(recinfo, sizeof(recinfo));
+  bzero(keyinfo, sizeof(keyinfo));
+  bzero(keyseg, sizeof(keyseg));
 
   /* Define a column for NULLs and DEL markers*/
 
@@ -179,7 +184,6 @@ static int run_test(const char *filename)
   if (!silent)
     printf("- Creating isam-file\n");
 
-  bzero((char*) &create_info,sizeof(create_info));
   create_info.max_rows=10000000;
   create_info.transactional= transactional;
 
@@ -197,6 +201,8 @@ static int run_test(const char *filename)
   if (!(file=maria_open(filename,2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
   maria_begin(file);
+  if (opt_versioning)
+    maria_versioning(file, 1);
   if (testflag == 1)
     goto end;
   if (checkpoint == 1 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
@@ -215,13 +221,19 @@ static int run_test(const char *filename)
     }
     else
     {
-      printf("maria_write: %d\n", error);
+      fprintf(stderr, "maria_write: %d\n", error);
       goto err;
     }
   }
 
+  if (maria_scan_init(file))
+  {
+    fprintf(stderr, "maria_scan_init failed\n");
+    goto err;
+  }
   if ((error=read_with_pos(file)))
     goto err;
+  maria_scan_end(file);
 
   if (!silent)
     printf("- Reading rows with key\n");
@@ -236,7 +248,7 @@ static int run_test(const char *filename)
 
     if (error && error!=HA_ERR_KEY_NOT_FOUND)
     {
-      printf("     maria_rkey: %3d  errno: %3d\n",error,my_errno);
+      fprintf(stderr,"     maria_rkey: %3d  errno: %3d\n",error,my_errno);
       goto err;
     }
     if (error == HA_ERR_KEY_NOT_FOUND)
@@ -268,7 +280,8 @@ static int run_test(const char *filename)
     error=maria_scan(file,read_record);
     if (error)
     {
-      printf("pos: %2d  maria_rrnd: %3d  errno: %3d\n",i,error,my_errno);
+      fprintf(stderr, "pos: %2d  maria_rrnd: %3d  errno: %3d\n", i, error,
+              my_errno);
       goto err;
     }
     print_record(read_record,maria_position(file),"\n");
@@ -276,7 +289,8 @@ static int run_test(const char *filename)
     error=maria_delete(file,read_record);
     if (error)
     {
-      printf("pos: %2d maria_delete: %3d errno: %3d\n",i,error,my_errno);
+      fprintf(stderr, "pos: %2d maria_delete: %3d errno: %3d\n", i, error,
+              my_errno);
       goto err;
     }
   }
@@ -305,7 +319,8 @@ static int run_test(const char *filename)
     {
       if (error==HA_ERR_RECORD_DELETED)
       {
-        printf("found deleted record\n");
+        if (!silent)
+          printf("found deleted record\n");
         /*
           In BLOCK_RECORD format, maria_scan() never returns deleted records,
           while in DYNAMIC format it can. Don't count such record:
@@ -313,17 +328,20 @@ static int run_test(const char *filename)
         max_i++;
         continue;
       }
-      printf("pos: %2d  maria_rrnd: %3d  errno: %3d\n",i,error,my_errno);
+      fprintf(stderr, "pos: %2d  maria_rrnd: %3d  errno: %3d\n",i , error,
+              my_errno);
       goto err;
     }
     print_record(read_record,maria_position(file),"");
     create_record1(record,i+nrecords*upd);
-    printf("\t-> ");
+    if (!silent)
+      printf("\t-> ");
     print_record(record,maria_position(file),"\n");
     error=maria_update(file,read_record,record);
     if (error)
     {
-      printf("pos: %2d  maria_update: %3d  errno: %3d\n",i,error,my_errno);
+      fprintf(stderr, "pos: %2d  maria_update: %3d  errno: %3d\n",i, error,
+              my_errno);
       goto err;
     }
   }
@@ -351,7 +369,7 @@ static int run_test(const char *filename)
   if ((error=maria_rkey(file,read_record,0,record+1,HA_WHOLE_KEY,
                         HA_READ_MBR_INTERSECT)))
   {
-    printf("maria_rkey: %3d  errno: %3d\n",error,my_errno);
+    fprintf(stderr, "maria_rkey: %3d  errno: %3d\n",error,my_errno);
     goto err;
   }
   print_record(read_record,maria_position(file),"  maria_rkey\n");
@@ -363,13 +381,14 @@ static int run_test(const char *filename)
     {
       if (error==HA_ERR_END_OF_FILE)
         break;
-      printf("maria_next: %3d  errno: %3d\n",error,my_errno);
+      fprintf(stderr, "maria_next: %3d  errno: %3d\n",error,my_errno);
       goto err;
     }
     print_record(read_record,maria_position(file),"  maria_rnext_same\n");
       row_count++;
   }
-  printf("     %d rows\n",row_count);
+  if (!silent)
+    printf("     %d rows\n",row_count);
 
   if (!silent)
     printf("- Test maria_rfirst then a sequence of maria_rnext\n");
@@ -377,7 +396,7 @@ static int run_test(const char *filename)
   error=maria_rfirst(file,read_record,0);
   if (error)
   {
-    printf("maria_rfirst: %3d  errno: %3d\n",error,my_errno);
+    fprintf(stderr, "maria_rfirst: %3d  errno: %3d\n",error,my_errno);
     goto err;
   }
   row_count=1;
@@ -389,13 +408,14 @@ static int run_test(const char *filename)
     {
       if (error==HA_ERR_END_OF_FILE)
         break;
-      printf("maria_next: %3d  errno: %3d\n",error,my_errno);
+      fprintf(stderr, "maria_next: %3d  errno: %3d\n",error,my_errno);
       goto err;
     }
     print_record(read_record,maria_position(file),"  maria_rnext\n");
     row_count++;
   }
-  printf("     %d rows\n",row_count);
+  if (!silent)
+    printf("     %d rows\n",row_count);
 
   if (!silent)
     printf("- Test maria_records_in_range()\n");
@@ -407,7 +427,8 @@ static int run_test(const char *filename)
   range.length= 1000;                           /* Big enough */
   range.flag= HA_READ_MBR_INTERSECT;
   hrows= maria_records_in_range(file,0, &range, (key_range*) 0);
-  printf("     %ld rows\n", (long) hrows);
+  if (!silent)
+    printf("     %ld rows\n", (long) hrows);
 
 end:
   maria_scan_end(file);
@@ -432,7 +453,8 @@ end:
         goto err;
       break;
     }
-    printf("Dying on request without maria_commit()/maria_close()\n");
+    if (!silent)
+      printf("Dying on request without maria_commit()/maria_close()\n");
     exit(0);
   }
   if (maria_commit(file))
@@ -444,7 +466,7 @@ end:
   return 0;
 
 err:
-  printf("got error: %3d when using maria-database\n",my_errno);
+  fprintf(stderr, "got error: %3d when using maria-database\n",my_errno);
   return 1;           /* skip warning */
 }
 
@@ -469,7 +491,8 @@ static int read_with_pos (MARIA_HA * file)
         break;
       if (error==HA_ERR_RECORD_DELETED)
         continue;
-      printf("pos: %2d  maria_rrnd: %3d  errno: %3d\n",i,error,my_errno);
+      fprintf(stderr, "pos: %2d  maria_rrnd: %3d  errno: %3d\n", i, error,
+              my_errno);
       return error;
     }
     print_record(read_record,maria_position(file),"\n");
@@ -485,6 +508,8 @@ static void bprint_record(char * record,
 {
   int i;
   char * pos;
+  if (silent)
+    return;
   i=(unsigned char)record[0];
   printf("%02X ",i);
 
@@ -505,6 +530,8 @@ static void print_record(uchar *record,
   uchar *pos;
   double c;
 
+  if (silent)
+    return;
   printf("     rec=(%d)",(unsigned char)record[0]);
   for ( pos=record+1, i=0; i<2*ndims; i++)
    {
@@ -605,6 +632,9 @@ static struct my_option my_long_options[] =
    "Test in transactional mode. (Only works with block format)",
    (uchar**) &transactional, (uchar**) &transactional, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
+  {"versioning", 'C', "Use row versioning (only works with block format)",
+   (uchar**) &opt_versioning,  (uchar**) &opt_versioning, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

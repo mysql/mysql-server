@@ -1,0 +1,18 @@
+CREATE TABLE t1 (
+line BLOB,
+kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
+name VARCHAR(32)
+) transactional=0 row_format=page engine=maria;
+select count(*) from t1;
+count(*)
+810
+delete from t1 limit 1000;
+select count(*) from t1;
+count(*)
+0
+select name from t1;
+name
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

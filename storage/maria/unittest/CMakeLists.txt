@@ -22,7 +22,6 @@ LINK_LIBRARIES(maria myisam mytap mysys dbug strings wsock32 zlib)
 
 ADD_EXECUTABLE(ma_control_file-t ma_control_file-t.c)
 ADD_EXECUTABLE(trnman-t trnman-t.c)
-ADD_EXECUTABLE(lockman2-t lockman2-t.c)
 ADD_EXECUTABLE(ma_test_loghandler-t  
 	ma_test_loghandler-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c)
 ADD_EXECUTABLE(ma_test_loghandler_multigroup-t  

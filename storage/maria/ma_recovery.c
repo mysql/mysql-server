@@ -3063,7 +3063,8 @@ static LSN parse_checkpoint_record(LSN lsn)
     Find LSN higher or equal to this TRANSLOG_ADDRESS, suitable for
     translog_read_record() functions.
   */
-  checkpoint_start= translog_next_LSN(start_address, LSN_IMPOSSIBLE);
+  start_address= checkpoint_start=
+    translog_next_LSN(start_address, LSN_IMPOSSIBLE);
   if (checkpoint_start == LSN_IMPOSSIBLE)
   {
     /*

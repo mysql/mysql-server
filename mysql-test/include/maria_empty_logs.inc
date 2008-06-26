@@ -4,10 +4,10 @@
 # API: set mel_keep_control_file=1 if want to keep control file;
 # uses vardir, port and socket.
 
+connection default;
+let $default_db=`select database()`;
+
 connection admin;
-
-let $current_database= `select database()`;
-
 -- echo * shut down mysqld, removed logs, restarted it
 append_file $MYSQLTEST_VARDIR/tmp/master0.expect;
 wait-maria_empty_logs.inc
@@ -73,5 +73,5 @@ EOF
 connection default;
 # Restore current database as the effect of "use" was lost after restart
 --disable_query_log
-eval use $current_database;
+eval use $default_db;
 --enable_query_log

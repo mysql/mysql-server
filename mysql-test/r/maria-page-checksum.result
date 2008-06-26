@@ -650,3 +650,291 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
 Page checksums are used
 drop table t1;
+# iteration 1
+create table t1(a int) engine=maria  ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+Crashsafe:           yes
+alter table t1 modify a bigint ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+Crashsafe:           yes
+drop table t1;
+# iteration 2
+create table t1(a int) engine=maria  ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+Crashsafe:           yes
+alter table t1  transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+drop table t1;
+# iteration 3
+create table t1(a int) engine=maria  ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+Crashsafe:           yes
+alter table t1  transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+drop table t1;
+# iteration 4
+create table t1(a int) engine=maria  ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+Crashsafe:           yes
+alter table t1 engine=maria  ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+Crashsafe:           yes
+drop table t1;
+# iteration 5
+create table t1(a int) engine=maria  ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+Crashsafe:           yes
+alter table t1 engine=maria transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+drop table t1;
+# iteration 6
+create table t1(a int) engine=maria  ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+Crashsafe:           yes
+alter table t1 engine=maria transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+drop table t1;
+# iteration 7
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+alter table t1 modify a bigint ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+drop table t1;
+# iteration 8
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+alter table t1  transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+drop table t1;
+# iteration 9
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+alter table t1  transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+drop table t1;
+# iteration 10
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+alter table t1 engine=maria  ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+drop table t1;
+# iteration 11
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+alter table t1 engine=maria transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+drop table t1;
+# iteration 12
+create table t1(a int) engine=maria transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+alter table t1 engine=maria transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+drop table t1;
+# iteration 13
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+alter table t1 modify a bigint ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+drop table t1;
+# iteration 14
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+alter table t1  transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+drop table t1;
+# iteration 15
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+alter table t1  transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+drop table t1;
+# iteration 16
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+alter table t1 engine=maria  ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+drop table t1;
+# iteration 17
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+alter table t1 engine=maria transactional=0 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=0
+Crashsafe:           no
+drop table t1;
+# iteration 18
+create table t1(a int) engine=maria transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+alter table t1 engine=maria transactional=1 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+Crashsafe:           yes
+drop table t1;

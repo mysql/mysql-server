@@ -27,7 +27,7 @@ LDADD=			$(top_builddir)/unittest/mytap/libmytap.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
+noinst_PROGRAMS =	ma_control_file-t trnman-t \
 			ma_pagecache_single_1k-t ma_pagecache_single_8k-t \
 			ma_pagecache_single_64k-t \
 			ma_pagecache_consist_1k-t \
@@ -42,6 +42,7 @@ noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
 			ma_test_loghandler-t \
                         ma_test_loghandler_multigroup-t \
 			ma_test_loghandler_multithread-t \
+			ma_test_loghandler_multiflush-t \
 			ma_test_loghandler_pagecache-t \
 			ma_test_loghandler_long-t \
 			ma_test_loghandler_noflush-t \
@@ -54,6 +55,8 @@ noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
 ma_test_loghandler_t_SOURCES = ma_test_loghandler-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_multigroup_t_SOURCES = ma_test_loghandler_multigroup-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c sequence_storage.c sequence_storage.h
 ma_test_loghandler_multithread_t_SOURCES = ma_test_loghandler_multithread-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
+ma_test_loghandler_multiflush_t_SOURCES = ma_test_loghandler_multithread-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
+ma_test_loghandler_multiflush_t_CPPFLAGS = -DMULTIFLUSH_TEST
 ma_test_loghandler_pagecache_t_SOURCES = ma_test_loghandler_pagecache-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_long_t_SOURCES = ma_test_loghandler-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_long_t_CPPFLAGS = -DLONG_LOG_TEST
@@ -100,7 +103,8 @@ ma_pagecache_rwconsist_1k_t_SOURCES =	ma_pagecache_rwconsist.c
 ma_pagecache_rwconsist_1k_t_CPPFLAGS = -DTEST_PAGE_SIZE=1024
 
 # the generic lock manager may not be used in the end and lockman1-t crashes,
-# so we don't build lockman-t and lockman1-t 
+# and lockman2-t takes at least quarter an hour,
+# so we don't build lockman-t and lockman1-t and lockman2-t 
 CLEANFILES =		maria_log_control page_cache_test_file_1 \
 			maria_log.????????
 

@@ -266,12 +266,15 @@ sub run_check_tests
                       ["-m10000 -e16384 -E16384 -K -L","-sm"],
                       ["-L -K -W -P -b32768", "-se"],
                       ["-c -b65000","-se"] );
+  my @ma_rt_test_opt= ( ); # (["--checksum", "-se"] );
+
 
   if ($count)
   {
     $nr_tests= 2;                # Number of tests outside loops
     for ($i= 0; defined($ma_test1_opt[$i]); $i++) { $nr_tests+=2; }
     for ($i= 0; defined($ma_test2_opt[$i]); $i++) { $nr_tests+=2; }
+    for ($i= 0; defined($ma_rt_test_opt[$i]); $i++) { $nr_tests+=2; }
     return $nr_tests;
   }
 
@@ -298,6 +301,16 @@ sub run_check_tests
     ok("$maria_exe_path/maria_chk$suffix $ma_test2_opt[$i][1] test2",
        $verbose, $i + 1);
   }
+
+  for ($i= 0; defined($ma_rt_test_opt[$i]); $i++)
+  {
+    unlink <maria_log_control maria_log.*>;
+    ok("$maria_exe_path/ma_rt_test$suffix $silent $ma_rt_test_opt[$i][0] $row_type",
+       $verbose, $i + 1);
+    ok("$maria_exe_path/maria_chk$suffix $ma_rt_test_opt[$i][1] rt_test",
+       $verbose, $i + 1);
+  }
+
   unlink <maria_log_control maria_log.*>;
 
   return 0;

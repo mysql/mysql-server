@@ -91,7 +91,9 @@ sub main
           "ma_test2$suffix $silent -M -T -c -b65000",
           "ma_test2$suffix $silent -M -T -c -b65000 -d800",
           "ma_test1$suffix $silent -M -T -c -C",
-          "ma_test2$suffix $silent -L -K -W -P -M -T -c -d500 -C"
+          "ma_test2$suffix $silent -L -K -W -P -M -T -c -d500 -C",
+          #"ma_rt_test$suffix $silent -M -T -c -C",
+          # @todo: also add to @t2
          );
 
   foreach my $prog (@t)
@@ -103,9 +105,13 @@ sub main
     $res= my_exec("$maria_exe_path/$prog");
     print MY_LOG $res;
     # derive table's name from program's name
-    if ($prog =~ m/ma_(test[0-9]+).*/)
+    if ($prog =~ m/^ma_(\S+)\s.*/)
     {
       $table= $1;
+    }
+    else
+    {
+      die("can't guess table name");
     }
     $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
     $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" ";
@@ -182,9 +188,13 @@ sub main
           $res= my_exec("$maria_exe_path/$prog $commit_run_args");
           print MY_LOG $res;
           # derive table's name from program's name
-          if ($prog =~ m/ma_(test[0-9]+).*/)
+          if ($prog =~ m/^ma_(\S+)\s.*/)
           {
             $table= $1;
+          }
+          else
+          {
+            die("can't guess table name");
           }
           $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
           $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" ";

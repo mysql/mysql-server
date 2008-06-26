@@ -114,7 +114,8 @@ uchar maria_ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
 {
   uchar *doc=*start;
   int ctype;
-  uint mwc, length, mbl;
+  uint mwc, length;
+  int mbl;
 
   param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
   param->weight_adjust= param->wasign= 0;
@@ -122,7 +123,7 @@ uchar maria_ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
 
   while (doc<end)
   {
-    for (; doc < end; doc+= (mbl > 0 ? mbl : 1))
+    for (; doc < end; doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
       if (true_word_char(ctype, *doc))
@@ -140,7 +141,8 @@ uchar maria_ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
         {
           /* param->prev=' '; */
           *start=doc+1;
-          if (*doc == FTB_LQUOT) param->quot= (char *) *start;
+          if (*doc == FTB_LQUOT)
+            param->quot= (char *) *start;
           param->type= (*doc == FTB_RBR ? FT_TOKEN_RIGHT_PAREN : FT_TOKEN_LEFT_PAREN);
           goto ret;
         }
@@ -160,7 +162,8 @@ uchar maria_ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
     }
 
     mwc=length=0;
-    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    for (word->pos= doc; doc < end; length++,
+         doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
       if (true_word_char(ctype, *doc))
@@ -205,13 +208,13 @@ uchar maria_ft_simple_get_word(CHARSET_INFO *cs, uchar **start,
                                my_bool skip_stopwords)
 {
   uchar *doc= *start;
-  uint mwc, length, mbl;
-  int ctype;
+  uint mwc, length;
+  int ctype, mbl;
   DBUG_ENTER("maria_ft_simple_get_word");
 
   do
   {
-    for (;; doc+= (mbl > 0 ? mbl : 1))
+    for (;; doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       if (doc >= end)
         DBUG_RETURN(0);
@@ -221,7 +224,8 @@ uchar maria_ft_simple_get_word(CHARSET_INFO *cs, uchar **start,
     }
 
     mwc= length= 0;
-    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    for (word->pos= doc; doc < end; length++,
+         doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
     {
       mbl= cs->cset->ctype(cs, &ctype, doc, end);
       if (true_word_char(ctype, *doc))
@@ -393,7 +397,9 @@ MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info,
        mysql_add_word == 0 - parser is not initialized
        mysql_add_word != 0 - parser is initialized, or no
                              initialization needed. */
-    info->ftparser_param[ftparser_nr].mysql_add_word= (void *)1;
+    info->ftparser_param[ftparser_nr].mysql_add_word=
+      (int (*)(struct st_mysql_ftparser_param *, char *, int,
+               MYSQL_FTPARSER_BOOLEAN_INFO *)) 1;
     if (parser->init && parser->init(&info->ftparser_param[ftparser_nr]))
       return 0;
   }

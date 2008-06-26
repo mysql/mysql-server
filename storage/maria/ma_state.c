@@ -28,9 +28,9 @@
      10 ended transactions since last time it was called.
 */
 
-#include <maria_def.h>
+#include "maria_def.h"
 #include "trnman.h"
-#include <ma_blockrec.h>
+#include "ma_blockrec.h"
 
 /**
    @brief Setup initial start-of-transaction state for a table
