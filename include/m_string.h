@@ -134,6 +134,12 @@ extern	size_t my_bcmp(const uchar *s1,const uchar *s2,size_t len);
 #define bzero_if_purify(A,B)
 #endif /* HAVE_purify */
 
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
+#define LINT_INIT_STRUCT(var) bzero(&var, sizeof(var)) /* No uninitialize-warning */
+#else
+#define LINT_INIT_STRUCT(var)
+#endif
+
 #ifndef bmove512
 extern	void bmove512(uchar *dst,const uchar *src,size_t len);
 #endif

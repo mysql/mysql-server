@@ -396,6 +396,7 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEY *key,
   MARIA_KEY org_key;
   DBUG_ENTER("_ma_ck_write_btree_with_log");
 
+  LINT_INIT_STRUCT(org_key);
   if (share->now_transactional)
   {
     /* Save original value as the key may change */

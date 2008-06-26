@@ -4427,8 +4427,8 @@ static int sort_key_read(MARIA_SORT_PARAM *sort_param, uchar *key)
   int error;
   MARIA_SORT_INFO *sort_info= sort_param->sort_info;
   MARIA_HA *info= sort_info->info;
-  DBUG_ENTER("sort_key_read");
   MARIA_KEY int_key;
+  DBUG_ENTER("sort_key_read");
 
   if ((error=sort_get_next_record(sort_param)))
     DBUG_RETURN(error);
