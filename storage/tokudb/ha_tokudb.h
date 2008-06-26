@@ -37,6 +37,11 @@ typedef struct st_prim_key_part_info {
     uint part_index;
 } PRIM_KEY_PART_INFO;
 
+typedef enum {
+    lock_read = 0,
+    lock_write
+} TABLE_LOCK_TYPE;
+
 class ha_tokudb : public handler {
 private:
     THR_LOCK_DATA lock;         ///< MySQL lock
@@ -153,6 +158,7 @@ private:
     DBT *get_pos(DBT * to, uchar * pos);
  
     int open_secondary_table(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type);
+    int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
  
 public:
     ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
