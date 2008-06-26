@@ -65,3 +65,10 @@ delimiter ; # Reset delimiter
 #
 select a as delimiter from t1
 delimiter ; # Reset delimiter
+
+#
+# Bug #36244: MySQL CLI doesn't recognize standalone -- as comment
+#             before DELIMITER statement
+#
+--
+DELIMITER ;

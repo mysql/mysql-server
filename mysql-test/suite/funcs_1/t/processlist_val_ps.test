@@ -14,6 +14,10 @@
 #                                                                      #
 ########################################################################
 
+# This test does not make sense on the embedded server because processlist
+# will be empty.
+--source include/not_embedded.inc
+
 # The file with expected results fits only to a run with "--ps-protocol".
 if (`SELECT $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0
         OR $PS_PROTOCOL = 0`)

@@ -63,13 +63,13 @@ f231 VARBINARY(192),
 f232 VARBINARY(27),
 f233 VARBINARY(64),
 f234 VARBINARY(192),
-f235 char(255) unicode,
+f235 char(255),
 f236 char(60) ascii,
 f237 char(255) binary,
 f238 varchar(0) binary,
 f239 varbinary(1000),
-f240 varchar(120) unicode,
-f241 char(100) unicode,
+f240 varchar(120),
+f241 char(100),
 f242 bit(30)
 ) engine = myisam;
 
