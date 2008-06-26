@@ -1,8 +1,16 @@
+#### suite/funcs_1/triggers/triggers_03.inc
 #======================================================================
 #
 # Trigger Tests
 # (test case numbering refer to requirement document TP v1.1)
 #======================================================================
+
+# This test cannot be used for the embedded server because we check here
+# privilgeges.
+--source include/not_embedded.inc
+
+USE test;
+--source suite/funcs_1/include/tb3.inc
 
 --disable_abort_on_error
 
@@ -20,6 +28,7 @@ let $message= Testcase 3.5.3:;
 	--enable_warnings
 	create database priv_db;
 	use priv_db;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 char(20)) engine= $engine_type;
 
 	create User test_noprivs@localhost;
@@ -569,7 +578,9 @@ let $message=Testcase: 3.5.3.x:;
         drop table if exists t2;
         --enable_warnings
 
+        --replace_result $engine_type <engine_to_be_used>
         eval create table t1 (f1 int) engine= $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
         eval create table t2 (f2 int) engine= $engine_type;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
@@ -656,3 +667,5 @@ let $message=Testcase: 3.5.3.x:;
 	drop user test_noprivs;
 	--enable_warnings
 
+use test;
+drop table tb3;
