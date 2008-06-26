@@ -5817,6 +5817,14 @@ ha_innobase::info(
 		if (thd_sql_command(user_thd) == SQLCOM_TRUNCATE) {
 
 			n_rows = 0;
+
+			/* We need to reset the prebuilt value too, otherwise
+			checks for values greater than the last value written
+			to the table will fail and the autoinc counter will
+			not be updated. This will force write_row() into
+			attempting an update of the table's AUTOINC counter. */
+
+			prebuilt->last_value = 0;
 		}
 
 		stats.records = (ha_rows)n_rows;
