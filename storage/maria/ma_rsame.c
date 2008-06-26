@@ -15,16 +15,20 @@
 
 #include "maria_def.h"
 
-/*
+/**
   Find current row with read on position or read on key
 
-  NOTES
-    If inx >= 0 find record using key
+  @notes
+  If inx >= 0 find record using key
 
-  RETURN
-    0                      Ok
-    HA_ERR_KEY_NOT_FOUND   Row is deleted
-    HA_ERR_END_OF_FILE     End of file
+  @warning
+  This function is not row version safe.
+  This is not crtical as this function is not used by MySQL
+
+  @return
+  @retval 0                      Ok
+  @retval HA_ERR_KEY_NOT_FOUND   Row is deleted
+  @retval HA_ERR_END_OF_FILE     End of file
 */
 
 
@@ -51,16 +55,18 @@ int maria_rsame(MARIA_HA *info, uchar *record, int inx)
 
   if (inx >= 0)
   {
-    info->lastinx=inx;
-    info->lastkey_length= _ma_make_key(info,(uint) inx,info->lastkey,record,
-				      info->cur_row.lastpos);
+    MARIA_KEYDEF *keyinfo= info->s->keyinfo + inx;
+    info->lastinx= inx;
+    (*keyinfo->make_key)(info, &info->last_key, (uint) inx,
+                         info->lastkey_buff, record,
+                         info->cur_row.lastpos,
+                         info->cur_row.trid);
     if (info->s->lock_key_trees)
-      rw_rdlock(&info->s->key_root_lock[inx]);
-    VOID(_ma_search(info,info->s->keyinfo+inx,info->lastkey, USE_WHOLE_KEY,
-		    SEARCH_SAME,
+      rw_rdlock(&keyinfo->root_lock);
+    VOID(_ma_search(info, &info->last_key, SEARCH_SAME,
 		    info->s->state.key_root[inx]));
     if (info->s->lock_key_trees)
-      rw_unlock(&info->s->key_root_lock[inx]);
+      rw_unlock(&keyinfo->root_lock);
   }
 
   if (!(*info->read_record)(info, record, info->cur_row.lastpos))

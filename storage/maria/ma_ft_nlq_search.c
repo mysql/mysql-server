@@ -64,7 +64,7 @@ static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
 static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 {
   int	       subkeys, r;
-  uint	       keylen, doc_cnt;
+  uint	       doc_cnt;
   FT_SUPERDOC  sdoc, *sptr;
   TREE_ELEMENT *selem;
   double       gweight=1;
@@ -73,27 +73,28 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   MARIA_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
   my_off_t     key_root=info->s->state.key_root[aio->keynr];
   uint         extra=HA_FT_WLEN+info->s->base.rec_reflength;
+  MARIA_KEY    key;
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   float tmp_weight;
 #else
 #error
 #endif
-
   DBUG_ENTER("walk_and_match");
 
   word->weight=LWS_FOR_QUERY;
 
-  keylen= _ma_ft_make_key(info, aio->keynr, keybuff, word, 0);
-  keylen-=HA_FT_WLEN;
+  _ma_ft_make_key(info, &key, aio->keynr, keybuff, word, 0);
+  key.data_length-= HA_FT_WLEN;
   doc_cnt=0;
 
   /* Skip rows inserted by current inserted */
-  for (r= _ma_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root) ;
+  for (r= _ma_search(info, &key, SEARCH_FIND, key_root) ;
        !r &&
-         (subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
+         (subkeys=ft_sintXkorr(info->last_key.data +
+                               info->last_key.data_length +
+                               info->last_key.ref_length - extra)) > 0 &&
          info->cur_row.lastpos >= info->state->data_file_length ;
-       r= _ma_search_next(info, keyinfo, info->lastkey,
-                          info->lastkey_length, SEARCH_BIGGER, key_root))
+       r= _ma_search_next(info, &info->last_key, SEARCH_BIGGER, key_root))
     ;
 
   info->update|= HA_STATE_AKTIV;              /* for _ma_test_if_changed() */
@@ -102,10 +103,12 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   while (!r && gweight)
   {
 
-    if (keylen &&
+    if (key.data_length &&
         ha_compare_text(aio->charset,
-                        (uchar*) info->lastkey+1, info->lastkey_length-extra-1,
-                        (uchar*) keybuff+1, keylen-1, 0, 0))
+                        info->last_key.data+1,
+                        info->last_key.data_length +
+                        info->last_key.ref_length - extra - 1,
+                        key.data+1, key.data_length-1, 0, 0))
      break;
 
     if (subkeys<0)
@@ -116,10 +119,10 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
         TODO here: unsafe optimization, should this word
         be skipped (based on subkeys) ?
       */
-      keybuff+=keylen;
-      keyinfo=& info->s->ft2_keyinfo;
+      keybuff+= key.data_length;
+      keyinfo= &info->s->ft2_keyinfo;
       key_root= info->cur_row.lastpos;
-      keylen=0;
+      key.data_length= 0;
       r= _ma_search_first(info, keyinfo, key_root);
       goto do_skip;
     }
@@ -155,16 +158,15 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
       gweight=0;
 
     if (_ma_test_if_changed(info) == 0)
-	r= _ma_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
-                             SEARCH_BIGGER, key_root);
+	r= _ma_search_next(info, &info->last_key, SEARCH_BIGGER, key_root);
     else
-	r= _ma_search(info, keyinfo, info->lastkey, info->lastkey_length,
-                        SEARCH_BIGGER, key_root);
+	r= _ma_search(info, &info->last_key, SEARCH_BIGGER, key_root);
 do_skip:
-    while ((subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
+    while ((subkeys=ft_sintXkorr(info->last_key.data +
+                                 info->last_key.data_length +
+                                 info->last_key.ref_length - extra)) > 0 &&
            !r && info->cur_row.lastpos >= info->state->data_file_length)
-      r= _ma_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
-                            SEARCH_BIGGER, key_root);
+      r= _ma_search_next(info, &info->last_key, SEARCH_BIGGER, key_root);
 
   }
   word->weight=gweight;
@@ -224,7 +226,7 @@ FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, uchar *query,
   aio.info=info;
   aio.keynr=keynr;
   aio.charset=info->s->keyinfo[keynr].seg->charset;
-  aio.keybuff= (uchar*) info->lastkey+info->s->base.max_key_length;
+  aio.keybuff= info->lastkey_buff2;
   parser= info->s->keyinfo[keynr].parser;
   if (! (ftparser_param= maria_ftparser_call_initializer(info, keynr, 0)))
     goto err;

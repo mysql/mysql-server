@@ -81,6 +81,8 @@ int maria_delete_all_rows(MARIA_HA *info)
     /* Other branch called function below when writing log record, in hook */
     _ma_reset_status(info);
   }
+  /* Remove old history as the table is now empty for everyone */
+  _ma_reset_state(info);
 
   /*
     If we are using delayed keys or if the user has done changes to the tables
@@ -115,7 +117,7 @@ int maria_delete_all_rows(MARIA_HA *info)
       files.
     */
     my_bool error= _ma_state_info_write(share, 1|4) ||
-      _ma_update_state_lsns(share, lsn, FALSE, FALSE) ||
+      _ma_update_state_lsns(share, lsn, trnman_get_min_trid(), FALSE, FALSE) ||
       _ma_sync_table_files(info);
     info->trn->rec_lsn= LSN_IMPOSSIBLE;
     if (error)
@@ -159,6 +161,7 @@ void _ma_reset_status(MARIA_HA *info)
   MARIA_SHARE *share= info->s;
   MARIA_STATE_INFO *state= &share->state;
   uint i;
+  DBUG_ENTER("_ma_reset_status");
 
   state->split= 0;
   state->state.records= state->state.del= 0;
@@ -177,4 +180,5 @@ void _ma_reset_status(MARIA_HA *info)
   /* Clear all keys */
   for (i=0 ; i < share->base.keys ; i++)
     state->key_root[i]= HA_OFFSET_ERROR;
+  DBUG_VOID_RETURN;
 }

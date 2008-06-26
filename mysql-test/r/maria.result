@@ -2346,6 +2346,25 @@ t1	CREATE TABLE `t1` (
   `c` char(1) DEFAULT NULL
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
 drop table t1;
+create table t1 (a int, key(a)) transactional=0;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t1 select NULL from t1;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create temporary table t1 (a int, key(a)) transactional=1;
+create temporary table t2 (a int, key(a)) transactional=1;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 where a >= 4;
+count(*)
+1
+drop table t1;
 create table t1 (i int auto_increment not null primary key) transactional=0;
 check table t1 extended;
 Table	Op	Msg_type	Msg_text

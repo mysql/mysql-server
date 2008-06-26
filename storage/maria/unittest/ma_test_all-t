@@ -8,7 +8,7 @@ use File::Basename;
 
 $|= 1;
 $^W = 1; # warnings, because env cannot parse 'perl -w'
-$VER= "1.3";
+$VER= "1.4";
 
 $opt_version=         0;
 $opt_help=            0;
@@ -40,9 +40,15 @@ sub run_tests
   my $nr_tests= 0;
   my $flag_exit= 0;
 
-  if (!GetOptions("help", "version", "verbose", "abort-on-error",
-                  "valgrind=s", "silent=s", "number-of-tests",
-                  "run-tests=s"))
+  if (!GetOptions("help" => \$opt_help,
+                  "version" => \$opt_version,
+                  "verbose" => \$opt_verbose,
+                  "abort-on-error" => \$opt_abort_on_error,
+                  "valgrind=s" => \$opt_valgrind,
+                  "silent=s" => \$opt_silent,
+                  "number-of-tests" => \$opt_number_of_tests,
+                  "run-tests=s" => \$opt_run_tests,
+                  "start-from=s" => \$opt_run_tests))
   {
     $flag_exit= 1;
   }
@@ -103,7 +109,8 @@ sub run_tests
 
   if (defined($opt_run_tests))
   {
-    if ($opt_run_tests =~ m/^(\d+)$/)
+    if ($opt_run_tests =~ m/^(\d+)$/ ||
+        $opt_run_tests =~ m/^(\d+)\.+$/)
     {
       $test_begin= $1;
     }
@@ -389,8 +396,8 @@ sub run_pack_tests()
           "$maria_exe_path/maria_chk$suffix -se test2",
           $NEW_TEST,
           "$maria_exe_path/ma_test1$suffix $silent -c $row_type",
-	  "cp test1.MAD test2.MAD",
-	  "cp test1.MAI test2.MAI",
+          "cp test1.MAD test2.MAD",
+          "cp test1.MAI test2.MAI",
           "$maria_exe_path/maria_pack$suffix --force -s --join=test3 test1 test2",
           "$maria_exe_path/maria_chk -s test3",
           "$maria_exe_path/maria_chk -s --safe-recover test3",
@@ -673,9 +680,11 @@ Options
 --abort-on-error   Abort at once in case of error.
 --number-of-tests  Print the total number of tests and exit.
 --run-tests=...    Test number(s) that should be run. You can give just
-                   one number or a range. For example 45..89
-                   Use this with caution, because some of the tests
+                   one number or a range. For example 45..89. To run a specific
+                   test alone, for example test 215, use --run-tests=215..215
+                   Use this option with caution, because some of the tests
                    might depend on previous ones.
+--start-from=...   Alias for --run-tests
 --silent=...       Silent option passed to ma_test* tests ('$opt_silent')
 --valgrind=...     Options for valgrind.
                    ('$opt_valgrind')

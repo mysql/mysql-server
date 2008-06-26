@@ -378,7 +378,6 @@ err1:
 int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
 {
   my_off_t root;
-  MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
@@ -389,7 +388,7 @@ int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
   info->rtree_recursion_depth = -1;
   info->buff_used = 1;
   
-  return rtree_get_req(info, &keyinfo[keynr], key_length, root, 0);
+  return rtree_get_req(info, info->s->keyinfo + keynr, key_length, root, 0);
 }
 
 
@@ -436,7 +435,7 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
       return -1;
     }
   
-    return rtree_get_req(info, &keyinfo[keynr], key_length, root, 0);
+    return rtree_get_req(info, keyinfo, key_length, root, 0);
   }
 }
 

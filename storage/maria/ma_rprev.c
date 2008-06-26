@@ -27,6 +27,7 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
   int error,changed;
   register uint flag;
   MARIA_SHARE *share= info->s;
+  MARIA_KEYDEF *keyinfo;
   DBUG_ENTER("maria_rprev");
 
   if ((inx = _ma_check_index(info,inx)) < 0)
@@ -38,37 +39,33 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
 
   if (fast_ma_readinfo(info))
     DBUG_RETURN(my_errno);
+  keyinfo= share->keyinfo + inx;
   changed= _ma_test_if_changed(info);
   if (share->lock_key_trees)
-    rw_rdlock(&share->key_root_lock[inx]);
+    rw_rdlock(&keyinfo->root_lock);
   if (!flag)
-    error= _ma_search_last(info, share->keyinfo+inx,
-			  share->state.key_root[inx]);
+    error= _ma_search_last(info, keyinfo, share->state.key_root[inx]);
   else if (!changed)
-    error= _ma_search_next(info,share->keyinfo+inx,info->lastkey,
-			  info->lastkey_length,flag,
-			  share->state.key_root[inx]);
+    error= _ma_search_next(info, &info->last_key,
+                           flag | info->last_key.flag,
+                           share->state.key_root[inx]);
   else
-    error= _ma_search(info,share->keyinfo+inx,info->lastkey,
-		     USE_WHOLE_KEY, flag, share->state.key_root[inx]);
+    error= _ma_search(info, &info->last_key, flag | info->last_key.flag,
+                      share->state.key_root[inx]);
 
-  if (share->non_transactional_concurrent_insert)
+  if (!error)
   {
-    if (!error)
+    while (!(*share->row_is_visible)(info))
     {
-      while (info->cur_row.lastpos >= info->state->data_file_length)
-      {
-	/* Skip rows that are inserted by other threads since we got a lock */
-	if  ((error= _ma_search_next(info,share->keyinfo+inx,info->lastkey,
-				    info->lastkey_length,
-				    SEARCH_SMALLER,
-				    share->state.key_root[inx])))
-	  break;
-      }
+      /* Skip rows that are inserted by other threads since we got a lock */
+      if  ((error= _ma_search_next(info, &info->last_key,
+                                   SEARCH_SMALLER,
+                                   share->state.key_root[inx])))
+        break;
     }
   }
   if (share->lock_key_trees)
-    rw_unlock(&share->key_root_lock[inx]);
+    rw_unlock(&keyinfo->root_lock);
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;
   if (error)

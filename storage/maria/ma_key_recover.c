@@ -295,7 +295,6 @@ my_bool write_hook_for_undo_key_delete(enum translog_record_type type,
 }
 
 
-
 /*****************************************************************************
   Functions for logging of key page changes
 *****************************************************************************/
@@ -311,7 +310,7 @@ my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
 {
   uint translog_parts;
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 7 + 7], *log_pos;
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 7 + 7 + 2], *log_pos;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
   DBUG_ENTER("_ma_log_prefix");
   DBUG_PRINT("enter", ("page: %lu  changed_length: %u  move_length: %d",
@@ -321,6 +320,10 @@ my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
   log_pos= log_data + FILEID_STORE_SIZE;
   page_store(log_pos, page);
   log_pos+= PAGE_STORE_SIZE;
+
+  /* Store keypage_flag */
+  *log_pos++= KEY_OP_SET_PAGEFLAG;
+  *log_pos++= buff[KEYPAGE_TRANSFLAG_OFFSET];
 
   if (move_length < 0)
   {
@@ -397,7 +400,7 @@ my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
 {
   LSN lsn;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 10 + 7], *log_pos;
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 10 + 7 + 2], *log_pos;
   int diff;
   uint translog_parts, extra_length;
   DBUG_ENTER("_ma_log_suffix");
@@ -409,6 +412,10 @@ my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
   log_pos= log_data + FILEID_STORE_SIZE;
   page_store(log_pos, page);
   log_pos+= PAGE_STORE_SIZE;
+
+  /* Store keypage_flag */
+  *log_pos++= KEY_OP_SET_PAGEFLAG;
+  *log_pos++= buff[KEYPAGE_TRANSFLAG_OFFSET];
 
   if ((diff= (int) (new_length - org_length)) < 0)
   {
@@ -477,7 +484,7 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
                     my_bool handle_overflow __attribute__ ((unused)))
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3 + 3 + 3 + 3 + 7];
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3 + 3 + 3 + 3 + 7 + 2];
   uchar *log_pos;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
   uint offset= (uint) (key_pos - buff);
@@ -498,6 +505,10 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
   page/= info->s->block_size;
   page_store(log_pos, page);
   log_pos+= PAGE_STORE_SIZE;
+
+  /* Store keypage_flag */
+  *log_pos++= KEY_OP_SET_PAGEFLAG;
+  *log_pos++= buff[KEYPAGE_TRANSFLAG_OFFSET];
 
   if (buff_length + move_length > page_length)
   {
@@ -806,6 +817,8 @@ err:
    KEY_OP_DEL_SUFFIX 2 length             Reduce page length with this
 				          Sets position to start of page
    KEY_OP_CHECK      6 page_length[2},CRC Used only when debugging
+   KEY_OP_COMPACT_PAGE  6 transid
+   KEY_OP_SET_PAGEFLAG  1 flag for page
 
    @return Operation status
      @retval 0      OK
@@ -851,7 +864,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   _ma_get_used_and_nod(share, buff, page_length, nod_flag);
   keypage_header= share->keypage_header;
   org_page_length= page_length;
-  DBUG_PRINT("info", ("page_length: %u", page_length));
+  DBUG_PRINT("redo", ("page_length: %u", page_length));
 
   /* Apply modifications to page */
   do
@@ -860,12 +873,14 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     case KEY_OP_OFFSET:                         /* 1 */
       page_offset= uint2korr(header);
       header+= 2;
+      DBUG_PRINT("redo", ("key_op_offset: %u", page_offset));
       DBUG_ASSERT(page_offset >= keypage_header && page_offset <= page_length);
       break;
     case KEY_OP_SHIFT:                          /* 2 */
     {
       int length= sint2korr(header);
       header+= 2;
+      DBUG_PRINT("redo", ("key_op_shift: %d", length));
       DBUG_ASSERT(page_offset != 0 && page_offset <= page_length &&
                   page_length + length < share->block_size);
 
@@ -881,6 +896,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     case KEY_OP_CHANGE:                         /* 3 */
     {
       uint length= uint2korr(header);
+      DBUG_PRINT("redo", ("key_op_change: %u", length));
       DBUG_ASSERT(page_offset != 0 && page_offset + length <= page_length);
 
       memcpy(buff + page_offset, header + 2 , length);
@@ -891,6 +907,9 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     {
       uint insert_length= uint2korr(header);
       uint changed_length= uint2korr(header+2);
+      DBUG_PRINT("redo", ("key_op_add_prefix: %u  %u",
+                          insert_length, changed_length));
+
       DBUG_ASSERT(insert_length <= changed_length &&
                   page_length + changed_length <= share->block_size);
 
@@ -905,6 +924,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     {
       uint length= uint2korr(header);
       header+= 2;
+      DBUG_PRINT("redo", ("key_op_del_prefix: %u", length));
       DBUG_ASSERT(length <= page_length - keypage_header);
 
       bmove(buff + keypage_header, buff + keypage_header +
@@ -917,6 +937,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     case KEY_OP_ADD_SUFFIX:                     /* 6 */
     {
       uint insert_length= uint2korr(header);
+      DBUG_PRINT("redo", ("key_op_add_prefix: %u", insert_length));
       DBUG_ASSERT(page_length + insert_length <= share->block_size);
       memcpy(buff + page_length, header+2, insert_length);
 
@@ -928,6 +949,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     {
       uint del_length= uint2korr(header);
       header+= 2;
+      DBUG_PRINT("redo", ("key_op_del_suffix: %u", del_length));
       DBUG_ASSERT(page_length - del_length >= keypage_header);
       page_length-= del_length;
       break;
@@ -944,11 +966,12 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       if (crc != (uint32) my_checksum(0, buff + LSN_STORE_SIZE,
                                       page_length - LSN_STORE_SIZE))
       {
-        DBUG_PRINT("info",("page_length %u",page_length));
+        DBUG_PRINT("error", ("page_length %u",page_length));
         DBUG_DUMP("KEY_OP_CHECK bad page", buff, share->block_size);
         DBUG_ASSERT("crc" == "failure in REDO_INDEX");
       }
 #endif
+      DBUG_PRINT("redo", ("key_op_check"));
       header+= 6;
       break;
     }
@@ -965,6 +988,8 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       */
       uint full_length, log_memcpy_length;
       const uchar *log_memcpy_end;
+
+      DBUG_PRINT("redo", ("key_op_multi_copy"));
       full_length= uint2korr(header);
       header+= 2;
       log_memcpy_length= uint2korr(header);
@@ -983,6 +1008,24 @@ uint _ma_apply_redo_index(MARIA_HA *info,
         memcpy(buff + to, buff + from, full_length);
       }
       break;
+    }
+    case KEY_OP_SET_PAGEFLAG:
+      DBUG_PRINT("redo", ("key_op_set_pageflag"));
+      buff[KEYPAGE_TRANSFLAG_OFFSET]= *header++;
+      break;
+    case KEY_OP_COMPACT_PAGE:
+    {
+      TrID transid= transid_korr(header);
+      uint keynr= _ma_get_keynr(share, buff);
+
+      DBUG_PRINT("redo", ("key_op_compact_page"));
+      header+= TRANSID_SIZE;
+      if (_ma_compact_keypage(info, share->keyinfo + keynr, (my_off_t) 0,
+                              buff, transid))
+      {
+        result= 1;
+        goto err;
+      }
     }
     case KEY_OP_NONE:
     default:
@@ -1034,8 +1077,9 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
   LSN lsn;
   my_bool res;
   uint keynr;
-  uchar key[HA_MAX_KEY_BUFF];
+  uchar key_buff[MARIA_MAX_KEY_BUFF];
   MARIA_SHARE *share= info->s;
+  MARIA_KEY key;
   my_off_t new_root;
   struct st_msg_to_write_hook_for_undo_key msg;
   DBUG_ENTER("_ma_apply_undo_key_insert");
@@ -1047,15 +1091,29 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
   length-= KEY_NR_STORE_SIZE;
 
   /* We have to copy key as _ma_ck_real_delete() may change it */
-  memcpy(key, header + KEY_NR_STORE_SIZE, length);
-  DBUG_DUMP("key", key, length);
+  memcpy(key_buff, header + KEY_NR_STORE_SIZE, length);
+  DBUG_DUMP("key_buff", key_buff, length);
 
   new_root= share->state.key_root[keynr];
-  res= (share->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE) ?
-    maria_rtree_real_delete(info, keynr, key, length - share->rec_reflength,
-                            &new_root) :
-    _ma_ck_real_delete(info, share->keyinfo+keynr, key,
-                       length - share->rec_reflength, &new_root);
+  /*
+    Change the key to an internal structure.
+    It's safe to have SEARCH_USER_KEY_HAS_TRANSID even if there isn't
+    a transaction id, as ha_key_cmp() will stop comparison when key length
+    is reached.
+    For index with transid flag, the ref_length of the key is not correct.
+    This should however be safe as long as this key is only used for
+    comparsion against other keys (not for packing or for read-next etc as
+    in this case we use data_length + ref_length, which is correct.
+  */
+  key.keyinfo=     share->keyinfo + keynr;
+  key.data=        key_buff;
+  key.data_length= length - share->rec_reflength;
+  key.ref_length=  share->rec_reflength;
+  key.flag=        SEARCH_USER_KEY_HAS_TRANSID;
+
+  res= ((share->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE) ?
+        maria_rtree_real_delete(info, &key, &new_root) :
+        _ma_ck_real_delete(info, &key, &new_root));
   if (res)
     _ma_mark_file_crashed(share);
   msg.root= &share->state.key_root[keynr];
@@ -1086,10 +1144,11 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
   LSN lsn;
   my_bool res;
   uint keynr, skip_bytes;
-  uchar key[HA_MAX_KEY_BUFF];
+  uchar key_buff[MARIA_MAX_KEY_BUFF];
   MARIA_SHARE *share= info->s;
   my_off_t new_root;
   struct st_msg_to_write_hook_for_undo_key msg;
+  MARIA_KEY key;
   DBUG_ENTER("_ma_apply_undo_key_delete");
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_OPTIMIZED_KEYS |
@@ -1101,16 +1160,21 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
   length-= skip_bytes;
 
   /* We have to copy key as _ma_ck_real_write_btree() may change it */
-  memcpy(key, header, length);
-  DBUG_DUMP("key", key, length);
+  memcpy(key_buff, header, length);
+  DBUG_DUMP("key", key_buff, length);
+
+  key.keyinfo=     share->keyinfo + keynr;
+  key.data=        key_buff;
+  key.data_length= length - share->rec_reflength;
+  key.ref_length=  share->rec_reflength;
+  key.flag=        SEARCH_USER_KEY_HAS_TRANSID;
 
   new_root= share->state.key_root[keynr];
   res= (share->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE) ?
-    maria_rtree_insert_level(info, keynr, key, length - share->rec_reflength,
-                             -1, &new_root) :
-    _ma_ck_real_write_btree(info, share->keyinfo+keynr, key,
-                            length - share->rec_reflength, &new_root,
-                            share->keyinfo[keynr].write_comp_flag);
+    maria_rtree_insert_level(info, &key, -1, &new_root) :
+    _ma_ck_real_write_btree(info, &key, &new_root,
+                            share->keyinfo[keynr].write_comp_flag |
+                            key.flag);
   if (res)
     _ma_mark_file_crashed(share);
 

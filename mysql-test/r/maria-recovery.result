@@ -3,7 +3,6 @@ drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 create table t1 (a varchar(1000)) engine=maria;
 * TEST of REDO: see if recovery can reconstruct if we give it an old table
 * copied t1 for feeding_recovery
@@ -121,7 +120,6 @@ a
 drop table t1;
 * TEST of two REDOs for same page in one REDO group
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 CREATE TABLE t1 (
 i int,
 b blob default NULL,
@@ -154,7 +152,6 @@ LENGTH(b)
 drop table t1;
 * TEST of INSERT vs state.auto_increment
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 CREATE TABLE t1 (
 i int auto_increment primary key,
 c varchar(6),
@@ -242,7 +239,6 @@ insert into t1 values(null, "f");
 drop table t1;
 * TEST of removing logs manually
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 * TEST of UNDO_ROW_DELETE preserving rowid
 create table t1(a int) engine=maria;
 insert into t1 values(1),(2);

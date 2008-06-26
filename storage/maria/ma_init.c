@@ -56,6 +56,8 @@ void history_state_free(MARIA_STATE_HISTORY_CLOSED *closed_history)
 
 int maria_init(void)
 {
+  DBUG_ASSERT(maria_block_size &&
+              maria_block_size % MARIA_MIN_KEY_BLOCK_LENGTH == 0);
   if (!maria_inited)
   {
     maria_inited= TRUE;

@@ -17,10 +17,16 @@
 
 #include "maria_def.h"
 
-	/* Print a key in user understandable format */
+void _ma_print_key(FILE *stream, MARIA_KEY *key)
+{
+  _ma_print_keydata(stream, key->keyinfo->seg, key->data, key->data_length);
+}
 
-void _ma_print_key(FILE *stream, register HA_KEYSEG *keyseg,
-		   const uchar *key, uint length)
+
+/* Print a key in a user understandable format */
+
+void _ma_print_keydata(FILE *stream, register HA_KEYSEG *keyseg,
+                       const uchar *key, uint length)
 {
   int flag;
   short int s_1;

@@ -89,6 +89,8 @@ int main(int argc,char *argv[])
     fprintf(stderr, "Error in initialization\n");
     exit(1);
   }
+  if (opt_versioning)
+    init_thr_lock();
 
   exit(run_test("test1"));
 }

@@ -21,15 +21,12 @@
 
 #ifdef HAVE_RTREE_KEYS
 
-int maria_rtree_add_key(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
-                        const uchar *key,
-                        uint key_length, uchar *page_buf, my_off_t page,
-                        my_off_t *new_page);
+int maria_rtree_add_key(MARIA_HA *info, const MARIA_KEY *key, uchar *page_buf,
+                        my_off_t page, my_off_t *new_page);
 int maria_rtree_delete_key(MARIA_HA *info, uchar *page_buf, uchar *key,
                            uint key_length, uint nod_flag, my_off_t page);
-int maria_rtree_set_key_mbr(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
-                            uchar *key,
-                            uint key_length, my_off_t child_page);
+int maria_rtree_set_key_mbr(MARIA_HA *info, MARIA_KEY *key,
+                            my_off_t child_page);
 
 #endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_key_h */

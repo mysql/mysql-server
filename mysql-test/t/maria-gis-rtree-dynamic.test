@@ -369,6 +369,7 @@ SET @@RAND_SEED1=178507359, @@RAND_SEED2=332493072;
 DELETE FROM t1 ORDER BY RAND() LIMIT 10;
 SET @@RAND_SEED1=1034033013, @@RAND_SEED2=558966507;
 DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+CHECK TABLE t1 extended;
 UPDATE t1 set spatial_point=GeomFromText('POINT(230 9)') where  c1 like 'y%';
 UPDATE t1 set spatial_point=GeomFromText('POINT(95 35)') where  c1 like 'j%';
 UPDATE t1 set spatial_point=GeomFromText('POINT(93 99)') where  c1 like 'a%';
@@ -539,6 +540,7 @@ UPDATE t1 set spatial_point=GeomFromText('POINT(120 137)') where  c1 like 'w%';
 UPDATE t1 set spatial_point=GeomFromText('POINT(207 147)') where  c1 like 'c%';
 UPDATE t1 set spatial_point=GeomFromText('POINT(31 125)') where  c1 like 'e%';
 UPDATE t1 set spatial_point=GeomFromText('POINT(27 36)') where  c1 like 'r%';
+check table t1 extended;
 INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
   ('b', 'c', 'e', GeomFromText('POINT(41 137)')),
   ('p', 'y', 'k', GeomFromText('POINT(50 22)')),
@@ -640,6 +642,7 @@ INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
   ('m', 'i', 'd', GeomFromText('POINT(117 226)')),
   ('z', 'y', 'y', GeomFromText('POINT(62 81)')),
   ('g', 'v', 'm', GeomFromText('POINT(66 158)'));
+check table t1 extended;
 SET @@RAND_SEED1=481064922, @@RAND_SEED2=438133497;
 DELETE FROM t1 ORDER BY RAND() LIMIT 10;
 SET @@RAND_SEED1=280535103, @@RAND_SEED2=444518646;

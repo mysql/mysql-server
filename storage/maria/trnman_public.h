@@ -59,6 +59,7 @@ TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid);
 TRN *trnman_get_any_trn(void);
 TrID trnman_get_min_trid(void);
 TrID trnman_get_max_trid(void);
+TrID trnman_get_min_safe_trid();
 my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
                                           my_bool trnman_is_locked);
 #define TRANSID_SIZE		6

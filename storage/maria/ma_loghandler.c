@@ -1649,7 +1649,7 @@ static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
   }
   cursor->ptr= ptr;
   DBUG_PRINT("info", ("NewP buffer #%u: 0x%lx  chaser: %d  Size: %lu (%lu)  "
-                      "Horizon: (%lu,0x%lu)",
+                      "Horizon: (%lu,0x%lx)",
                       (uint) cursor->buffer->buffer_no, (ulong) cursor->buffer,
                       cursor->chaser, (ulong) cursor->buffer->size,
                       (ulong) (cursor->ptr - cursor->buffer->buffer),
@@ -3162,8 +3162,8 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
   uchar page_buff[TRANSLOG_PAGE_SIZE];
   DBUG_ENTER("translog_truncate_log");
   /* TODO: write warning to the client */
-  DBUG_PRINT("warning", ("removing all records from (%lx,0x%lx) "
-                         "till (%lx,0x%lx)",
+  DBUG_PRINT("warning", ("removing all records from (%lu,0x%lx) "
+                         "till (%lu,0x%lx)",
                          LSN_IN_PARTS(addr),
                          LSN_IN_PARTS(log_descriptor.horizon)));
   DBUG_ASSERT(cmp_translog_addr(addr, log_descriptor.horizon) < 0);
@@ -4945,7 +4945,7 @@ static uchar *translog_put_LSN_diff(LSN base_lsn, LSN lsn, uchar *dst)
 {
   uint64 diff;
   DBUG_ENTER("translog_put_LSN_diff");
-  DBUG_PRINT("enter", ("Base: (0x%lu,0x%lx)  val: (0x%lu,0x%lx)  dst: 0x%lx",
+  DBUG_PRINT("enter", ("Base: (%lu,0x%lx)  val: (%lu,0x%lx)  dst: 0x%lx",
                        LSN_IN_PARTS(base_lsn), LSN_IN_PARTS(lsn),
                        (ulong) dst));
   DBUG_ASSERT(base_lsn > lsn);
@@ -5030,7 +5030,7 @@ static uchar *translog_get_LSN_from_diff(LSN base_lsn, uchar *src, uchar *dst)
   uint32 file_no, rec_offset;
   uint8 code;
   DBUG_ENTER("translog_get_LSN_from_diff");
-  DBUG_PRINT("enter", ("Base: (0x%lx,0x%lx)  src: 0x%lx  dst 0x%lx",
+  DBUG_PRINT("enter", ("Base: (%lu,0x%lx)  src: 0x%lx  dst 0x%lx",
                        LSN_IN_PARTS(base_lsn), (ulong) src, (ulong) dst));
   first_byte= *((uint8*) src);
   code= first_byte >> 6; /* Length is in 2 most significant bits */
@@ -6297,7 +6297,7 @@ my_bool translog_scanner_init(LSN lsn,
 {
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_scanner_init");
-  DBUG_PRINT("enter", ("Scanner: 0x%lx  LSN: (0x%lu,0x%lx)",
+  DBUG_PRINT("enter", ("Scanner: 0x%lx  LSN: (%lu,0x%lx)",
                        (ulong) scanner, LSN_IN_PARTS(lsn)));
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
@@ -6312,8 +6312,7 @@ my_bool translog_scanner_init(LSN lsn,
   scanner->direct_link= NULL;
 
   scanner->horizon= translog_get_horizon();
-  DBUG_PRINT("info", ("horizon: (0x%lu,0x%lx)",
-                      LSN_IN_PARTS(scanner->horizon)));
+  DBUG_PRINT("info", ("horizon: (%lu,0x%lx)", LSN_IN_PARTS(scanner->horizon)));
 
   /* lsn < horizon */
   DBUG_ASSERT(lsn <= scanner->horizon);
@@ -6783,7 +6782,7 @@ int translog_read_record_header(LSN lsn, TRANSLOG_HEADER_BUFFER *buff)
   TRANSLOG_ADDRESS addr;
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_read_record_header");
-  DBUG_PRINT("enter", ("LSN: (0x%lu,0x%lx)", LSN_IN_PARTS(lsn)));
+  DBUG_PRINT("enter", ("LSN: (%lu,0x%lx)", LSN_IN_PARTS(lsn)));
   DBUG_ASSERT(LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE != 0);
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
@@ -7221,7 +7220,7 @@ static void translog_force_current_buffer_to_finish()
               LSN_FILE_NO(log_descriptor.bc.buffer->offset));
   translog_check_cursor(&log_descriptor.bc);
   DBUG_ASSERT(left < TRANSLOG_PAGE_SIZE);
-  if (left != 0)
+  if (left)
   {
     /*
        TODO: if 'left' is so small that can't hold any other record

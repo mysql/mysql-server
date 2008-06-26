@@ -18,11 +18,15 @@
 #include "maria_def.h"
 #include "m_ctype.h"
 #include "ma_sp_defs.h"
+#include "ma_blockrec.h"                        /* For ROW_FLAG_TRANSID */
+#include <trnman.h>
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif
 
 #define CHECK_KEYS                              /* Enable safety checks */
+
+static int _ma_put_key_in_record(MARIA_HA *info,uint keynr,uchar *record);
 
 #define FIX_LENGTH(cs, pos, length, char_length)                            \
             do {                                                            \
@@ -31,46 +35,146 @@
               set_if_smaller(char_length,length);                           \
             } while(0)
 
-static int _ma_put_key_in_record(MARIA_HA *info,uint keynr,uchar *record);
+
+/**
+  Store trid in a packed format as part of a key
+
+  @fn    transid_store_packed
+  @param info   Maria handler
+  @param to     End of key to which we should store a packed transid
+  @param trid   Trid to be stored
+
+  @notes
+
+  Keys that have a transid has the lowest bit set for the last byte of the key
+  This function sets this bit for the key.
+
+  Trid is max 6 bytes long
+
+  First Trid it's converted to a smaller number by using
+  trid= trid - create_trid.
+  Then trid is then shifted up one bit so that we can use the
+  lowest bit as a marker if it's followed by another trid.
+
+  Trid is then stored as follows:
+
+  if trid < 256-12
+    one byte
+  else
+    one byte prefix (256-length_of_trid_in_bytes) followed by data
+    in high-byte-first order
+
+  Prefix bytes 244 to 249 are reserved for negative transid, that can be used
+  when we pack transid relative to each other on a key block.
+
+  We have to store transid in high-byte-first order to be able to do a
+  fast byte-per-byte comparision of them without packing them up.
+*/
+
+uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid)
+{
+  uchar *start;
+  uint length;
+  uchar buff[8];
+  DBUG_ASSERT(trid < (LL(1) << (MAX_PACK_TRANSID_SIZE*8)));
+  DBUG_ASSERT(trid >= info->s->state.create_trid);
+
+  trid= (trid - info->s->state.create_trid) << 1;
+
+  /* Mark that key contains transid */
+  to[-1]|= 1;
+
+  if (trid < MIN_TRANSID_PACK_PREFIX)
+  {
+    to[0]= (uchar) trid;
+    return 1;
+  }
+  start= to;
+
+  /* store things in low-byte-first-order in buff */
+  to= buff;
+  do
+  {
+    *to++= (uchar) trid;
+    trid= trid>>8;
+  } while (trid);
+
+  length= (uint) (to - buff);
+  start[0]= (uchar) (256 - length);             /* Store length prefix */
+  start++;
+  /* Copy things in high-byte-first order to output buffer */
+  do
+  {
+    *start++= *--to;
+  } while (to != buff);
+  return length+1;
+}
+
+
+/**
+   Read packed transid
+
+   @fn    transid_get_packed
+   @param info   Maria handler
+   @param from	 Transid is stored here
+
+   See transid_store_packed() for how transid is packed
+
+*/
+
+ulonglong transid_get_packed(MARIA_SHARE *share, const uchar *from)
+{
+  ulonglong value;
+  uint length;
+
+  if (from[0] < MIN_TRANSID_PACK_PREFIX)
+    value= (ulonglong) from[0];
+  else
+  {
+    value= 0;
+    for (length= (uint) (256 - from[0]), value= (ulonglong) from[1], from+=2;
+         --length ;
+         from++)
+      value= (value << 8) + ((ulonglong) *from);
+  }
+  return (value >> 1) + share->state.create_trid;
+}
+
 
 /*
-  Make a intern key from a record
+  Make a normal (not spatial or fulltext) intern key from a record
 
   SYNOPSIS
     _ma_make_key()
     info		MyiSAM handler
+    int_key		Store created key here
     keynr		key number
-    key			Store created key here
+    key			Buffer used to store key data
     record		Record
     filepos		Position to record in the data file
 
+  NOTES
+    This is used to generate keys from the record on insert, update and delete
+
   RETURN
-    Length of key
+    key
 */
 
-uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
-		  const uchar *record, MARIA_RECORD_POS filepos)
+MARIA_KEY *_ma_make_key(MARIA_HA *info, MARIA_KEY *int_key, uint keynr,
+                        uchar *key, const uchar *record,
+                        MARIA_RECORD_POS filepos, ulonglong trid)
 {
   const uchar *pos;
-  uchar *start;
   reg1 HA_KEYSEG *keyseg;
-  my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
+  my_bool is_ft;
   DBUG_ENTER("_ma_make_key");
 
-  if (info->s->keyinfo[keynr].flag & HA_SPATIAL)
-  {
-    /*
-      TODO: nulls processing
-    */
-#ifdef HAVE_SPATIAL
-    DBUG_RETURN(_ma_sp_make_key(info,keynr, key,record,filepos));
-#else
-    DBUG_ASSERT(0); /* maria_open should check that this never happens*/
-#endif
-  }
+  int_key->data= key;
+  int_key->flag= 0;                             /* Always return full key */
+  int_key->keyinfo= info->s->keyinfo + keynr;
 
-  start=key;
-  for (keyseg=info->s->keyinfo[keynr].seg ; keyseg->type ;keyseg++)
+  is_ft= int_key->keyinfo->flag & HA_FULLTEXT;
+  for (keyseg= int_key->keyinfo->seg ; keyseg->type ;keyseg++)
   {
     enum ha_base_keytype type=(enum ha_base_keytype) keyseg->type;
     uint length=keyseg->length;
@@ -188,13 +292,22 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
       cs->cset->fill(cs, (char*) key+char_length, length-char_length, ' ');
     key+= length;
   }
-  _ma_dpointer(info,key,filepos);
+  _ma_dpointer(info->s, key, filepos);
+  int_key->data_length= (key - int_key->data);
+  int_key->ref_length= info->s->rec_reflength;
+  int_key->flag= 0;
+  if (_ma_have_versioning(info) && trid)
+  {
+    int_key->ref_length+= transid_store_packed(info,
+                                               key + int_key->ref_length,
+                                               (TrID) trid);
+    int_key->flag|= SEARCH_USER_KEY_HAS_TRANSID;
+  }
+
   DBUG_PRINT("exit",("keynr: %d",keynr));
-  DBUG_DUMP("key",start,(uint) (key-start)+keyseg->length);
-  DBUG_EXECUTE("key",
-	       _ma_print_key(DBUG_FILE,info->s->keyinfo[keynr].seg,start,
-			     (uint) (key-start)););
-  DBUG_RETURN((uint) (key-start));		/* Return keylength */
+  DBUG_DUMP_KEY("key", int_key);
+  DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE, int_key););
+  DBUG_RETURN(int_key);
 } /* _ma_make_key */
 
 
@@ -204,35 +317,40 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
   SYNOPSIS
     _ma_pack_key()
     info		MARIA handler
-    uint keynr		key number
-    key			Store packed key here
-    old			Not packed key
+    int_key		Store key here
+    keynr		key number
+    key			Buffer for key data
+    old			Original not packed key
     keypart_map         bitmap of used keyparts
     last_used_keyseg	out parameter.  May be NULL
 
    RETURN
-     length of packed key
+   int_key
 
      last_use_keyseg    Store pointer to the keyseg after the last used one
 */
 
-uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key,
-                  const uchar *old, key_part_map keypart_map,
-                  HA_KEYSEG **last_used_keyseg)
+MARIA_KEY *_ma_pack_key(register MARIA_HA *info, MARIA_KEY *int_key,
+                        uint keynr, uchar *key,
+                        const uchar *old, key_part_map keypart_map,
+                        HA_KEYSEG **last_used_keyseg)
 {
-  uchar *start_key=key;
   HA_KEYSEG *keyseg;
-  my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
+  my_bool is_ft;
   DBUG_ENTER("_ma_pack_key");
 
+  int_key->data= key;
+  int_key->keyinfo= info->s->keyinfo + keynr;
+
   /* "one part" rtree key is 2*SPDIMS part key in Maria */
-  if (info->s->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE)
+  if (int_key->keyinfo->key_alg == HA_KEY_ALG_RTREE)
     keypart_map= (((key_part_map)1) << (2*SPDIMS)) - 1;
 
   /* only key prefixes are supported */
   DBUG_ASSERT(((keypart_map+1) & keypart_map) == 0);
 
-  for (keyseg=info->s->keyinfo[keynr].seg ; keyseg->type && keypart_map;
+  is_ft= int_key->keyinfo->flag & HA_FULLTEXT;
+  for (keyseg=int_key->keyinfo->seg ; keyseg->type && keypart_map;
        old+= keyseg->length, keyseg++)
   {
     enum ha_base_keytype type= (enum ha_base_keytype) keyseg->type;
@@ -303,10 +421,28 @@ uint _ma_pack_key(register MARIA_HA *info, uint keynr, uchar *key,
   if (last_used_keyseg)
     *last_used_keyseg= keyseg;
 
-  DBUG_PRINT("exit", ("length: %u", (uint) (key-start_key)));
-  DBUG_RETURN((uint) (key-start_key));
+  /* set flag to SEARCH_PART_KEY if we are not using all key parts */
+  int_key->flag= keyseg->type ? SEARCH_PART_KEY : 0;
+  int_key->ref_length= 0;
+  int_key->data_length= (key - int_key->data);
+
+  DBUG_PRINT("exit", ("length: %u", int_key->data_length));
+  DBUG_RETURN(int_key);
 } /* _ma_pack_key */
 
+
+/**
+   Copy a key
+*/
+
+void _ma_copy_key(MARIA_KEY *to, const MARIA_KEY *from)
+{
+  memcpy(to->data, from->data, from->data_length + from->ref_length);
+  to->keyinfo=     from->keyinfo;
+  to->data_length= from->data_length;
+  to->ref_length=  from->ref_length;
+  to->flag=        from->flag;
+}
 
 
 /*
@@ -337,9 +473,9 @@ static int _ma_put_key_in_record(register MARIA_HA *info, uint keynr,
   uchar *blob_ptr;
   DBUG_ENTER("_ma_put_key_in_record");
 
-  blob_ptr= info->lastkey2;             /* Place to put blob parts */
-  key=info->lastkey;                    /* KEy that was read */
-  key_end=key+info->lastkey_length;
+  blob_ptr= info->lastkey_buff2;         /* Place to put blob parts */
+  key= info->last_key.data;               /* Key that was read */
+  key_end= key + info->last_key.data_length;
   for (keyseg=info->s->keyinfo[keynr].seg ; keyseg->type ;keyseg++)
   {
     if (keyseg->null_bit)

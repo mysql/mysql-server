@@ -252,11 +252,13 @@ enum ha_base_keytype {
 #define HA_SPATIAL		1024    /* For spatial search */
 #define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
 #define HA_GENERATED_KEY	8192	/* Automaticly generated key */
+#define HA_RTREE_INDEX	        16384	/* For RTREE search */
 
         /* The combination of the above can be used for key type comparison. */
 #define HA_KEYFLAG_MASK (HA_NOSAME | HA_PACK_KEY | HA_AUTO_KEY | \
                          HA_BINARY_PACK_KEY | HA_FULLTEXT | HA_UNIQUE_CHECK | \
-                         HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
+                         HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY | \
+                         HA_RTREE_INDEX)
 
 #define HA_KEY_HAS_PART_KEY_SEG 65536   /* Key contains partial segments */
 
@@ -479,6 +481,14 @@ typedef ulong key_part_map;
 #define MBR_DATA        16384
 #define SEARCH_NULL_ARE_EQUAL 32768	/* NULL in keys are equal */
 #define SEARCH_NULL_ARE_NOT_EQUAL 65536	/* NULL in keys are not equal */
+/* Use this when inserting a key in position order */
+#define SEARCH_INSERT   SEARCH_NULL_ARE_NOT_EQUAL*2
+/* Only part of the key is specified while reading */
+#define SEARCH_PART_KEY SEARCH_INSERT*2
+/* Used when user key (key 2) contains transaction id's */
+#define SEARCH_USER_KEY_HAS_TRANSID SEARCH_PART_KEY*2
+/* Used when page key (key 1) contains transaction id's */
+#define SEARCH_PAGE_KEY_HAS_TRANSID SEARCH_USER_KEY_HAS_TRANSID*2
 
 	/* bits in opt_flag */
 #define QUICK_USED	1

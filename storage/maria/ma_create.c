@@ -75,7 +75,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u",
                       keys, columns, uniques, flags));
 
-  DBUG_ASSERT(maria_block_size && maria_block_size % MARIA_MIN_KEY_BLOCK_LENGTH == 0);
+  DBUG_ASSERT(maria_inited);
   LINT_INIT(dfile);
   LINT_INIT(file);
 
@@ -95,6 +95,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   if (flags & HA_DONT_TOUCH_DATA)
   {
+    /* We come here from recreate table */
     org_datafile_type= ci->org_data_file_type;
     if (!(ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD))
       options= (ci->old_options &
@@ -110,6 +111,12 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                  HA_OPTION_DELAY_KEY_WRITE | HA_OPTION_LONG_BLOB_PTR |
                  HA_OPTION_PAGE_CHECKSUM));
     }
+  }
+  else
+  {
+    /* Transactional tables must be of type BLOCK_RECORD */
+    if (ci->transactional)
+      datafile_type= BLOCK_RECORD;
   }
 
   if (ci->reloc_rows > ci->max_rows)
@@ -128,7 +135,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
 
   /* Start by checking fields and field-types used */
-
   varchar_length=long_varchar_count=packed= not_block_record_extra_length=
     pack_reclength= max_field_lengths= 0;
   reclength= min_pack_length= ci->null_bytes;
@@ -296,7 +302,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   pack_bytes= (packed + 7) / 8;
   if (pack_reclength != INT_MAX32)
     pack_reclength+= reclength+pack_bytes +
-      test(test_all_bits(options, HA_OPTION_CHECKSUM | HA_PACK_RECORD));
+      test(test_all_bits(options, HA_OPTION_CHECKSUM | HA_OPTION_PACK_RECORD));
   min_pack_length+= pack_bytes;
   /* Calculate min possible row length for rows-in-block */
   extra_header_size= MAX_FIXED_HEADER_SIZE;
@@ -392,6 +398,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     share.state.key_root[i]= HA_OFFSET_ERROR;
     length= real_length_diff= 0;
     min_key_length= key_length= pointer;
+
+    if (keydef->key_alg == HA_KEY_ALG_RTREE)
+      keydef->flag|= HA_RTREE_INDEX;            /* For easier tests */
 
     if (keydef->flag & HA_SPATIAL)
     {
@@ -1055,7 +1064,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       DROP+CREATE happened (applying REDOs to the wrong table).
     */
     share.kfile.file= file;
-    if (_ma_update_state_lsns_sub(&share, lsn, FALSE, TRUE))
+    if (_ma_update_state_lsns_sub(&share, lsn, trnman_get_min_safe_trid(),
+                                  FALSE, TRUE))
       goto err;
     my_free(log_data, MYF(0));
   }
@@ -1277,6 +1287,8 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
    It acquires intern_lock to protect the LSNs and state write.
 
    @param  share           table's share
+   @param  lsn		   LSN to write to log files
+   @param  create_trid     Trid to be used as state.create_trid
    @param  do_sync         if the write should be forced to disk
    @param  update_create_rename_lsn if this LSN should be updated or not
 
@@ -1285,12 +1297,12 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
      @retval 1      error (disk problem)
 */
 
-int _ma_update_state_lsns(MARIA_SHARE *share, LSN lsn, my_bool do_sync,
-                          my_bool update_create_rename_lsn)
+int _ma_update_state_lsns(MARIA_SHARE *share, LSN lsn, TrID create_trid,
+                          my_bool do_sync, my_bool update_create_rename_lsn)
 {
   int res;
   pthread_mutex_lock(&share->intern_lock);
-  res= _ma_update_state_lsns_sub(share, lsn, do_sync,
+  res= _ma_update_state_lsns_sub(share, lsn, create_trid, do_sync,
                                  update_create_rename_lsn);
   pthread_mutex_unlock(&share->intern_lock);
   return res;
@@ -1305,6 +1317,8 @@ int _ma_update_state_lsns(MARIA_SHARE *share, LSN lsn, my_bool do_sync,
    needed (when creating a table or opening it for the first time).
 
    @param  share           table's share
+   @param  lsn		   LSN to write to log files
+   @param  create_trid     Trid to be used as state.create_trid
    @param  do_sync         if the write should be forced to disk
    @param  update_create_rename_lsn if this LSN should be updated or not
 
@@ -1320,15 +1334,19 @@ int _ma_update_state_lsns(MARIA_SHARE *share, LSN lsn, my_bool do_sync,
 */
 #pragma optimize("",off)
 #endif
-int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, my_bool do_sync,
+int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, TrID create_trid,
+                              my_bool do_sync,
                               my_bool update_create_rename_lsn)
 {
   uchar buf[LSN_STORE_SIZE * 3], *ptr;
+  uchar trid_buff[8];
   File file= share->kfile.file;
   DBUG_ASSERT(file >= 0);
   for (ptr= buf; ptr < (buf + sizeof(buf)); ptr+= LSN_STORE_SIZE)
     lsn_store(ptr, lsn);
   share->state.skip_redo_lsn= share->state.is_of_horizon= lsn;
+  share->state.create_trid= create_trid;
+  mi_int8store(trid_buff, create_trid);
   if (update_create_rename_lsn)
   {
     share->state.create_rename_lsn= lsn;
@@ -1348,13 +1366,14 @@ int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, my_bool do_sync,
   }
   else
     lsn_store(buf, share->state.create_rename_lsn);
-  return my_pwrite(file, buf, sizeof(buf),
-                   sizeof(share->state.header) +
-                   MARIA_FILE_CREATE_RENAME_LSN_OFFSET, MYF(MY_NABP)) ||
-    (do_sync && my_sync(file, MYF(0)));
+  return (my_pwrite(file, buf, sizeof(buf),
+                    sizeof(share->state.header) +
+                    MARIA_FILE_CREATE_RENAME_LSN_OFFSET, MYF(MY_NABP)) ||
+          my_pwrite(file, trid_buff, sizeof(trid_buff),
+                    sizeof(share->state.header) +
+                    MARIA_FILE_CREATE_TRID_OFFSET, MYF(MY_NABP)) ||
+          (do_sync && my_sync(file, MYF(0))));
 }
 #if (_MSC_VER == 1310)
 #pragma optimize("",on)
 #endif /*VS2003 compiler bug workaround*/
-
-

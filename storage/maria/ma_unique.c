@@ -18,24 +18,34 @@
 #include "maria_def.h"
 #include <m_ctype.h>
 
+/**
+  Check if there exist a row with the same hash
+
+  @notes
+  This function is not versioning safe. For the moment this is not a problem
+  as it's only used for internal temporary tables in MySQL for which there
+  isn't any versioning information.
+*/
+
 my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
 			ha_checksum unique_hash, my_off_t disk_pos)
 {
   my_off_t lastpos=info->cur_row.lastpos;
-  MARIA_KEYDEF *key= &info->s->keyinfo[def->key];
-  uchar *key_buff= info->lastkey2;
+  MARIA_KEYDEF *keyinfo= &info->s->keyinfo[def->key];
+  uchar *key_buff= info->lastkey_buff2;
+  MARIA_KEY key;
   DBUG_ENTER("_ma_check_unique");
   DBUG_PRINT("enter",("unique_hash: %lu", (ulong) unique_hash));
 
-  maria_unique_store(record+key->seg->start, unique_hash);
-  _ma_make_key(info,def->key,key_buff,record,0);
+  maria_unique_store(record+keyinfo->seg->start, unique_hash);
+  /* Can't be spatial so it's ok to call _ma_make_key directly here */
+  _ma_make_key(info, &key, def->key, key_buff, record, 0, 0);
 
-  /* The above changed info->lastkey2. Inform maria_rnext_same(). */
+  /* The above changed info->lastkey_buff2. Inform maria_rnext_same(). */
   info->update&= ~HA_STATE_RNEXT_SAME;
 
-  if (_ma_search(info,info->s->keyinfo+def->key,key_buff,
-                 MARIA_UNIQUE_HASH_LENGTH,
-		 SEARCH_FIND,info->s->state.key_root[def->key]))
+  DBUG_ASSERT(key.data_length == MARIA_UNIQUE_HASH_LENGTH);
+  if (_ma_search(info, &key, SEARCH_FIND, info->s->state.key_root[def->key]))
   {
     info->page_changed=1;			/* Can't optimize read next */
     info->cur_row.lastpos= lastpos;
@@ -55,10 +65,10 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
       DBUG_PRINT("info",("Found duplicate"));
       DBUG_RETURN(1);				/* Found identical  */
     }
-    if (_ma_search_next(info,info->s->keyinfo+def->key, info->lastkey,
-			MARIA_UNIQUE_HASH_LENGTH, SEARCH_BIGGER,
+    DBUG_ASSERT(info->last_key.data_length == MARIA_UNIQUE_HASH_LENGTH);
+    if (_ma_search_next(info, &info->last_key, SEARCH_BIGGER,
 			info->s->state.key_root[def->key]) ||
-	bcmp((char*) info->lastkey, (char*) key_buff,
+	bcmp((char*) info->last_key.data, (char*) key_buff,
              MARIA_UNIQUE_HASH_LENGTH))
     {
       info->page_changed= 1;			/* Can't optimize read next */

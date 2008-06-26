@@ -87,7 +87,7 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
         nxLockFlags = NX_RANGE_LOCK_EXCL;
       }
 
-      if (MyFlags & MY_DONT_WAIT)
+      if (MyFlags & MY_NO_WAIT)
       {
         /* Don't block on the lock. */
         nxLockFlags |= NX_RANGE_LOCK_TRYLOCK;

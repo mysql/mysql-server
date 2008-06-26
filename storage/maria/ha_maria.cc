@@ -2271,10 +2271,17 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       else
       {
         /*
-          Copy the current state. This may have been wrong if the same file
-          was used several times in the last statement. This should only
-          happen for temporary tables.
+          We come here in the following cases:
+           - The table is a temporary table
+           - It's a table which is crash safe but not yet versioned, for
+             example a table with fulltext or rtree keys
+
+          Set the current state to point to save_state so that the
+          block_format code don't count the same record twice.
+          Copy also the current state. This may have been wrong if the
+          same file was used several times in the last statement
         */
+        file->state=  file->state_start;
         *file->state= file->s->state.state;
       }
 
@@ -2305,7 +2312,13 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       if (_ma_reenable_logging_for_table(file, TRUE))
         DBUG_RETURN(1);
       /** @todo zero file->trn also in commit and rollback */
-      file->trn= 0;
+      file->trn= 0;                             // Safety
+      /*
+        Ensure that file->state points to the current number of rows. This
+        is needed if someone calls maria_info() without first doing an
+        external lock of the table
+      */
+      file->state= &file->s->state.state;
       if (trn && trnman_has_locked_tables(trn))
       {
         if (!trnman_decrement_locked_tables(trn))
@@ -2341,6 +2354,8 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
     DBUG_ASSERT(trn); // this may be called only after external_lock()
     DBUG_ASSERT(trnman_has_locked_tables(trn));
     DBUG_ASSERT(lock_type != TL_UNLOCK);
+    DBUG_ASSERT(file->trn == trn);
+
     /*
       If there was an implicit commit under this LOCK TABLES by a previous
       statement (like a DDL), at least if that previous statement was about a
@@ -2378,6 +2393,7 @@ int ha_maria::implicit_commit(THD *thd)
 #endif
   TRN *trn;
   int error= 0;
+  TABLE *table;
   DBUG_ENTER("ha_maria::implicit_commit");
   if ((trn= THD_TRN) != NULL)
   {
@@ -2398,6 +2414,30 @@ int ha_maria::implicit_commit(THD *thd)
     THD_TRN= trn;
     if (unlikely(trn == NULL))
       error= HA_ERR_OUT_OF_MEM;
+
+    /*
+      Move all locked tables to the new transaction
+      We must do it here as otherwise file->thd and file->state may be
+      stale pointers. We can't do this in start_stmt() as we don't know
+      when we should call _ma_setup_live_state() and in some cases, like
+      in check table, we use the table without calling start_stmt().
+     */
+    for (table=thd->open_tables; table ; table=table->next)
+    {
+      if (table->db_stat && table->file->ht == maria_hton)
+      {
+        MARIA_HA *handler= ((ha_maria*) table->file)->file;
+        if (handler->s->base.born_transactional)
+        {
+          handler->trn= trn;
+          if (handler->s->lock.get_status)
+          {
+            if (_ma_setup_live_state(handler))
+              error= HA_ERR_OUT_OF_MEM;
+          }
+        }
+      }
+    }
   }
   DBUG_RETURN(error);
 }
@@ -2407,8 +2447,25 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
                                      THR_LOCK_DATA **to,
                                      enum thr_lock_type lock_type)
 {
+  /* Test if we can fix test below */
+  DBUG_ASSERT(lock_type != TL_UNLOCK &&
+              (lock_type == TL_IGNORE || file->lock.type == TL_UNLOCK));
   if (lock_type != TL_IGNORE && file->lock.type == TL_UNLOCK)
+  {
+    /*
+      We have to disable concurrent inserts for INSERT ... SELECT or
+      INSERT/UPDATE/DELETE with sub queries if we are using statement based
+      logging.  We take the safe route here and disable this for all commands
+      that only does reading that are not SELECT.
+    */
+    if (lock_type <= TL_READ_HIGH_PRIORITY &&
+        !thd->current_stmt_binlog_row_based &&
+        (thd->lex->sql_command != SQLCOM_SELECT &&
+         thd->lex->sql_command != SQLCOM_LOCK_TABLES) &&
+        mysql_bin_log.is_open())
+      lock_type= TL_READ_NO_INSERT;
     file->lock.type= lock_type;
+  }
   *to++= &file->lock;
   return to;
 }

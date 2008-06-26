@@ -136,7 +136,7 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_checkpoint.c ma_recovery.c ma_commit.c \
 			ma_pagecrc.c ma_recovery_util.c \
 			ha_maria.cc
-CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA?
+CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA? maria_log_control maria_log.0000*
 
 SUFFIXES = .sh
 

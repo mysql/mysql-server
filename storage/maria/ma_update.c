@@ -13,22 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Update an old row in a MARIA table */
-
 #include "ma_fulltext.h"
 #include "ma_rt_index.h"
+#include "trnman.h"
+
+/**
+   Update an old row in a MARIA table
+*/
 
 int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
 {
   int flag,key_changed,save_errno;
   reg3 my_off_t pos;
   uint i;
-  uchar old_key[HA_MAX_KEY_BUFF],*new_key;
+  uchar old_key_buff[MARIA_MAX_KEY_BUFF],*new_key_buff;
   my_bool auto_key_changed= 0;
   ulonglong changed;
   MARIA_SHARE *share= info->s;
+  MARIA_KEYDEF *keyinfo;
   DBUG_ENTER("maria_update");
-  LINT_INIT(new_key);
+  LINT_INIT(new_key_buff);
   LINT_INIT(changed);
 
   DBUG_EXECUTE_IF("maria_pretend_crashed_table_on_usage",
@@ -81,13 +85,13 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
 
   /* Check which keys changed from the original row */
 
-  new_key= info->lastkey2;
+  new_key_buff= info->lastkey_buff2;
   changed=0;
-  for (i=0 ; i < share->base.keys ; i++)
+  for (i=0, keyinfo= share->keyinfo ; i < share->base.keys ; i++, keyinfo++)
   {
     if (maria_is_key_active(share->state.key_map, i))
     {
-      if (share->keyinfo[i].flag & HA_FULLTEXT )
+      if (keyinfo->flag & HA_FULLTEXT )
       {
 	if (_ma_ft_cmp(info,i,oldrec, newrec))
 	{
@@ -101,27 +105,33 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
 	    key_changed|=HA_STATE_WRITTEN;
 	  }
 	  changed|=((ulonglong) 1 << i);
-	  if (_ma_ft_update(info,i,old_key,oldrec,newrec,pos))
+	  if (_ma_ft_update(info,i,old_key_buff,oldrec,newrec,pos))
 	    goto err;
 	}
       }
       else
       {
-	uint new_length= _ma_make_key(info,i,new_key,newrec,pos);
-	uint old_length= _ma_make_key(info,i,old_key,oldrec,pos);
+        MARIA_KEY new_key, old_key;
+
+        (*keyinfo->make_key)(info,&new_key, i, new_key_buff, newrec,
+                             pos, info->trn->trid);
+        (*keyinfo->make_key)(info,&old_key, i, old_key_buff,
+                             oldrec, pos, info->cur_row.trid);
 
         /* The above changed info->lastkey2. Inform maria_rnext_same(). */
         info->update&= ~HA_STATE_RNEXT_SAME;
 
-	if (new_length != old_length ||
-	    memcmp(old_key, new_key, new_length))
+	if (new_key.data_length != old_key.data_length ||
+	    memcmp(old_key.data, new_key.data, new_key.data_length))
 	{
 	  if ((int) i == info->lastinx)
 	    key_changed|=HA_STATE_WRITTEN;	/* Mark that keyfile changed */
 	  changed|=((ulonglong) 1 << i);
-	  share->keyinfo[i].version++;
-	  if (share->keyinfo[i].ck_delete(info,i,old_key,old_length)) goto err;
-	  if (share->keyinfo[i].ck_insert(info,i,new_key,new_length)) goto err;
+	  keyinfo->version++;
+	  if (keyinfo->ck_delete(info,&old_key))
+            goto err;
+	  if (keyinfo->ck_insert(info,&new_key))
+            goto err;
 	  if (share->base.auto_key == i+1)
 	    auto_key_changed=1;
 	}
@@ -202,16 +212,20 @@ err:
       {
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
-	  if ((flag++ && _ma_ft_del(info,i,new_key,newrec,pos)) ||
-	      _ma_ft_add(info,i,old_key,oldrec,pos))
+	  if ((flag++ && _ma_ft_del(info,i,new_key_buff,newrec,pos)) ||
+	      _ma_ft_add(info,i,old_key_buff,oldrec,pos))
 	    break;
 	}
 	else
 	{
-	  uint new_length= _ma_make_key(info,i,new_key,newrec,pos);
-	  uint old_length= _ma_make_key(info,i,old_key,oldrec,pos);
-	  if ((flag++ && _ma_ck_delete(info,i,new_key,new_length)) ||
-	      _ma_ck_write(info,i,old_key,old_length))
+          MARIA_KEY new_key, old_key;
+          (*share->keyinfo[i].make_key)(info, &new_key, i, new_key_buff,
+                                        newrec, pos,
+                                        info->trn->trid);
+          (*share->keyinfo[i].make_key)(info, &old_key, i, old_key_buff,
+                                        oldrec, pos, info->cur_row.trid);
+	  if ((flag++ && _ma_ck_delete(info, &new_key)) ||
+	      _ma_ck_write(info, &old_key))
 	    break;
 	}
       }

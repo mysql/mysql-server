@@ -6,6 +6,8 @@
 
 connection admin;
 
+let $current_database= `select database()`;
+
 -- echo * shut down mysqld, removed logs, restarted it
 append_file $MYSQLTEST_VARDIR/tmp/master0.expect;
 wait-maria_empty_logs.inc
@@ -69,6 +71,7 @@ EOF
 --source include/wait_until_connected_again.inc
 
 connection default;
-# the effect of "use" is lost after a restart so we are back into db "test",
-# because connection 'default' was created with db "test".
-use mysqltest;
+# Restore current database as the effect of "use" was lost after restart
+--disable_query_log
+eval use $current_database;
+--enable_query_log

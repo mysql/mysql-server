@@ -73,3 +73,6 @@ void _ma_set_share_data_file_length(struct st_maria_share *share,
 void _ma_copy_nontrans_state_information(MARIA_HA *info);
 my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
                                   my_bool active_transactions);
+my_bool _ma_row_visible_always(MARIA_HA *info);
+my_bool _ma_row_visible_non_transactional_table(MARIA_HA *info);
+my_bool _ma_row_visible_transactional_table(MARIA_HA *info);

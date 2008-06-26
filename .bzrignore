@@ -1448,6 +1448,7 @@ storage/maria/maria_log
 storage/maria/maria_log.*
 storage/maria/maria_pack
 storage/maria/maria_read_log
+storage/maria/tmp
 storage/maria/tmp/*
 storage/maria/unittest/ma_pagecache_consist_1k-t-big
 storage/maria/unittest/ma_pagecache_consist_1kHC-t-big

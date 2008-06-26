@@ -94,7 +94,7 @@
 */
 
 int maria_rtree_key_cmp(HA_KEYSEG *keyseg, const uchar *b, const uchar *a,
-                        uint key_length, uint nextflag)
+                        uint key_length, uint32 nextflag)
 {
   for (; (int) key_length > 0; keyseg += 2 )
   {
@@ -695,7 +695,7 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 }
 
 
-#define RT_PAGE_MBR_KORR(share, type, korr_func, store_func, len)        \
+#define RT_PAGE_MBR_KORR(share, type, korr_func, store_func, len, to)    \
 { \
   type amin, amax, bmin, bmax; \
   amin= korr_func(k + inc); \
@@ -710,14 +710,14 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
     if (amax < bmax) \
       amax= bmax; \
 } \
-  store_func(c, amin); \
-  c += len; \
-  store_func(c, amax); \
-  c += len; \
+  store_func(to, amin); \
+  to+= len; \
+  store_func(to, amax); \
+  to += len;           \
   inc += 2 * len; \
 }
 
-#define RT_PAGE_MBR_GET(share, type, get_func, store_func, len)  \
+#define RT_PAGE_MBR_GET(share, type, get_func, store_func, len, to)      \
 { \
   type amin, amax, bmin, bmax; \
   get_func(amin, k + inc); \
@@ -732,20 +732,20 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
     if (amax < bmax) \
       amax= bmax; \
 } \
-  store_func(c, amin); \
-  c += len; \
-  store_func(c, amax); \
-  c += len; \
+  store_func(to, amin); \
+  to+= len; \
+  store_func(to, amax); \
+  to+= len; \
   inc += 2 * len; \
 }
 
 /*
   Calculates key page total MBR= MBR(key1) + MBR(key2) + ...
-  Stores into *c.
+  Stores into *to.
 */
 int maria_rtree_page_mbr(const MARIA_HA *info, const HA_KEYSEG *keyseg,
                          const uchar *page_buf,
-                         uchar *c, uint key_length)
+                         uchar *to, uint key_length)
 {
   MARIA_SHARE *share= info->s;
   uint inc= 0;
@@ -768,42 +768,42 @@ int maria_rtree_page_mbr(const MARIA_HA *info, const HA_KEYSEG *keyseg,
 
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:
-      RT_PAGE_MBR_KORR(share, int8, mi_sint1korr, mi_int1store, 1);
+      RT_PAGE_MBR_KORR(share, int8, mi_sint1korr, mi_int1store, 1, to);
       break;
     case HA_KEYTYPE_BINARY:
-      RT_PAGE_MBR_KORR(share, uint8, mi_uint1korr, mi_int1store, 1);
+      RT_PAGE_MBR_KORR(share, uint8, mi_uint1korr, mi_int1store, 1, to);
       break;
     case HA_KEYTYPE_SHORT_INT:
-      RT_PAGE_MBR_KORR(share, int16, mi_sint2korr, mi_int2store, 2);
+      RT_PAGE_MBR_KORR(share, int16, mi_sint2korr, mi_int2store, 2, to);
       break;
     case HA_KEYTYPE_USHORT_INT:
-      RT_PAGE_MBR_KORR(share, uint16, mi_uint2korr, mi_int2store, 2);
+      RT_PAGE_MBR_KORR(share, uint16, mi_uint2korr, mi_int2store, 2, to);
       break;
     case HA_KEYTYPE_INT24:
-      RT_PAGE_MBR_KORR(share, int32, mi_sint3korr, mi_int3store, 3);
+      RT_PAGE_MBR_KORR(share, int32, mi_sint3korr, mi_int3store, 3, to);
       break;
     case HA_KEYTYPE_UINT24:
-      RT_PAGE_MBR_KORR(share, uint32, mi_uint3korr, mi_int3store, 3);
+      RT_PAGE_MBR_KORR(share, uint32, mi_uint3korr, mi_int3store, 3, to);
       break;
     case HA_KEYTYPE_LONG_INT:
-      RT_PAGE_MBR_KORR(share, int32, mi_sint4korr, mi_int4store, 4);
+      RT_PAGE_MBR_KORR(share, int32, mi_sint4korr, mi_int4store, 4, to);
       break;
     case HA_KEYTYPE_ULONG_INT:
-      RT_PAGE_MBR_KORR(share, uint32, mi_uint4korr, mi_int4store, 4);
+      RT_PAGE_MBR_KORR(share, uint32, mi_uint4korr, mi_int4store, 4, to);
       break;
 #ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
-      RT_PAGE_MBR_KORR(share, longlong, mi_sint8korr, mi_int8store, 8);
+      RT_PAGE_MBR_KORR(share, longlong, mi_sint8korr, mi_int8store, 8, to);
       break;
     case HA_KEYTYPE_ULONGLONG:
-      RT_PAGE_MBR_KORR(share, ulonglong, mi_uint8korr, mi_int8store, 8);
+      RT_PAGE_MBR_KORR(share, ulonglong, mi_uint8korr, mi_int8store, 8, to);
       break;
 #endif
     case HA_KEYTYPE_FLOAT:
-      RT_PAGE_MBR_GET(share, float, mi_float4get, mi_float4store, 4);
+      RT_PAGE_MBR_GET(share, float, mi_float4get, mi_float4store, 4, to);
       break;
     case HA_KEYTYPE_DOUBLE:
-      RT_PAGE_MBR_GET(share, double, mi_float8get, mi_float8store, 8);
+      RT_PAGE_MBR_GET(share, double, mi_float8get, mi_float8store, 8, to);
       break;
     case HA_KEYTYPE_END:
       return 0;

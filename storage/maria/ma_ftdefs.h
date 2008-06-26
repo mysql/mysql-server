@@ -103,12 +103,13 @@ typedef struct st_maria_ft_word {
 
 int is_stopword(char *word, uint len);
 
-uint _ma_ft_make_key(MARIA_HA *, uint , uchar *, FT_WORD *, my_off_t);
+MARIA_KEY *_ma_ft_make_key(MARIA_HA *, MARIA_KEY *, uint , uchar *, FT_WORD *,
+                           my_off_t);
 
 uchar maria_ft_get_word(CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
-                 MYSQL_FTPARSER_BOOLEAN_INFO *);
+                        MYSQL_FTPARSER_BOOLEAN_INFO *);
 uchar maria_ft_simple_get_word(CHARSET_INFO *, uchar **, const uchar *,
-                        FT_WORD *, my_bool);
+                               FT_WORD *, my_bool);
 
 typedef struct _st_maria_ft_seg_iterator {
   uint        num, len;

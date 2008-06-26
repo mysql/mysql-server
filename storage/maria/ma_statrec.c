@@ -30,7 +30,7 @@ my_bool _ma_write_static_record(MARIA_HA *info, const uchar *record)
 		info->s->state.dellink+1,
 		 MYF(MY_NABP)))
       goto err;
-    info->s->state.dellink= _ma_rec_pos(info, temp);
+    info->s->state.dellink= _ma_rec_pos(info->s, temp);
     info->state->del--;
     info->state->empty-=info->s->base.pack_reclength;
     if (info->s->file_write(info, record, info->s->base.reclength,
@@ -103,7 +103,7 @@ my_bool _ma_delete_static_record(MARIA_HA *info,
   info->state->del++;
   info->state->empty+=info->s->base.pack_reclength;
   temp[0]= '\0';			/* Mark that record is deleted */
-  _ma_dpointer(info,temp+1,info->s->state.dellink);
+  _ma_dpointer(info->s, temp+1, info->s->state.dellink);
   info->s->state.dellink= info->cur_row.lastpos;
   info->rec_cache.seek_not_done=1;
   return (info->s->file_write(info, temp, 1+info->s->rec_reflength,
