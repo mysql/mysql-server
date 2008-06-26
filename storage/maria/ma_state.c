@@ -186,6 +186,8 @@ void _ma_reset_state(MARIA_HA *info)
 
     /* Set the current history to current state */
     share->state_history->state= share->state.state;
+    /* Set current table handler to point to new history state */
+    info->state= info->state_start= &share->state_history->state;
     for (history= history->next ; history ; history= next)
     {
       next= history->next;
@@ -446,7 +448,8 @@ my_bool _ma_block_check_status(void *param __attribute__((unused)))
 void maria_versioning(MARIA_HA *info, my_bool versioning)
 {
   /* For now, this is a hack */
-  _ma_block_get_status((void*) info, versioning);
+  if (info->s->have_versioning)
+    _ma_block_get_status((void*) info, versioning);
 }
 
 
@@ -475,4 +478,49 @@ void _ma_copy_nontrans_state_information(MARIA_HA *info)
 {
   info->s->state.state.records=          info->state->records;
   info->s->state.state.checksum=         info->state->checksum;
+}
+
+
+/****************************************************************************
+  Virtual functions to check if row is visible
+****************************************************************************/
+
+/**
+   Row is always visible
+   This is for tables without concurrent insert
+*/
+
+my_bool _ma_row_visible_always(MARIA_HA *info __attribute__((unused)))
+{
+  return 1;
+}
+
+
+/**
+   Row visibility for non transactional tables with concurrent insert
+
+   @implementation
+   When we got our table lock, we saved the current
+   data_file_length. Concurrent inserts always go to the end of the
+   file. So we can test if the found key references a new record.
+*/
+
+my_bool _ma_row_visible_non_transactional_table(MARIA_HA *info)
+{
+  return info->cur_row.lastpos < info->state->data_file_length;
+}
+
+
+/**
+   Row visibility for transactional tables with versioning
+
+
+   @TODO
+   Add test if found key was marked deleted and it was deleted by
+   us. In that case we should return 0
+*/
+
+my_bool _ma_row_visible_transactional_table(MARIA_HA *info)
+{
+  return trnman_can_read_from(info->trn, info->cur_row.trid);
 }

@@ -3,7 +3,6 @@ drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 CREATE TABLE t1 (
 line LINESTRING NOT NULL,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',

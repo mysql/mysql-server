@@ -40,8 +40,9 @@ enum wkbByteOrder
   wkbNDR = 1     /* Little Endian */
 };
 
-uint _ma_sp_make_key(register MARIA_HA *info, uint keynr, uchar *key,
-                     const uchar *record, my_off_t filepos);
+MARIA_KEY *_ma_sp_make_key(MARIA_HA *info, MARIA_KEY *ret_key, uint keynr,
+                           uchar *key, const uchar *record, my_off_t filepos,
+                           ulonglong trid);
 
 #endif /*HAVE_SPATIAL*/
 #endif /* _SP_DEFS_H */

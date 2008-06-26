@@ -860,12 +860,12 @@ static my_bool extend_area_on_page(MARIA_HA *info,
 }
 
 
-/*
-  @brief Copy not changed fields from 'from' to 'to'
+/**
+   @brief Copy not changed fields from 'from' to 'to'
 
-  @notes
-  Assumption is that most fields are not changed!
-  (Which is why we don't test if all bits are set for some bytes in bitmap)
+   @notes
+   Assumption is that most fields are not changed!
+   (Which is why we don't test if all bits are set for some bytes in bitmap)
 */
 
 void copy_not_changed_fields(MARIA_HA *info, MY_BITMAP *changed_fields,
@@ -1361,7 +1361,6 @@ static void calc_record_size(MARIA_HA *info, const uchar *record,
                         whole block.
     min_read_from       If <> 0, remove all trid's that are less than this
 */
-
 
 void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
                             my_bool extend_block, TrID min_read_from,

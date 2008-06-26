@@ -225,8 +225,9 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
   if (my_b_inited(&tempfile_for_exceptions))
   {
     MARIA_HA *idx=info->sort_info->info;
-    uint     keyno=info->key;
-    uint     key_length, ref_length=idx->s->rec_reflength;
+    uint16    key_length;
+    MARIA_KEY key;
+    key.keyinfo= idx->s->keyinfo + info->key;
 
     if (!no_messages)
       printf("  - Adding exceptions\n"); /* purecov: tested */
@@ -239,8 +240,12 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
         && !my_b_read(&tempfile_for_exceptions,(uchar*)sort_keys,
 		      (uint) key_length))
     {
-	if (_ma_ck_write(idx,keyno,(uchar*) sort_keys,key_length-ref_length))
-	  goto err;
+      key.data=       (uchar*) sort_keys;
+      key.ref_length= idx->s->rec_reflength;
+      key.data_length= key_length - key.ref_length;
+      key.flag= 0;
+      if (_ma_ck_write(idx, &key))
+        goto err;
     }
   }
 
@@ -615,7 +620,7 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
     }
     if (my_b_inited(&sinfo->tempfile_for_exceptions))
     {
-      uint key_length;
+      uint16 key_length;
 
       if (param->testflag & T_VERBOSE)
         printf("Key %d  - Dumping 'long' keys\n", sinfo->key+1);
@@ -634,10 +639,19 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
         uchar maria_ft_buf[HA_FT_MAXBYTELEN + HA_FT_WLEN + 10];
         if (key_length > sizeof(maria_ft_buf) ||
             my_b_read(&sinfo->tempfile_for_exceptions, (uchar*)maria_ft_buf,
-                      (uint)key_length) ||
-            _ma_ck_write(info, sinfo->key, maria_ft_buf,
-                         key_length - info->s->rec_reflength))
-          got_error=1;
+                      (uint) key_length))
+          got_error= 1;
+        else
+        {
+          MARIA_KEY tmp_key;
+          tmp_key.keyinfo= info->s->keyinfo + sinfo->key;
+          tmp_key.data= maria_ft_buf;
+          tmp_key.ref_length= info->s->rec_reflength;
+          tmp_key.data_length= key_length - info->s->rec_reflength;
+          tmp_key.flag= 0;
+          if (_ma_ck_write(info, &tmp_key))
+            got_error=1;
+        }
       }
     }
   }
@@ -719,7 +733,7 @@ static int write_keys_varlen(MARIA_SORT_PARAM *info,
 static int write_key(MARIA_SORT_PARAM *info, uchar *key,
 			    IO_CACHE *tempfile)
 {
-  uint key_length=info->real_key_length;
+  uint16 key_length=info->real_key_length;
   DBUG_ENTER("write_key");
 
   if (!my_b_inited(tempfile) &&
@@ -836,7 +850,6 @@ static uint read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
                                          uint sort_length)
 {
   register uint count;
-  uint16 length_of_key = 0;
   uint idx;
   uchar *buffp;
 
@@ -846,6 +859,7 @@ static uint read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
 
     for (idx=1;idx<=count;idx++)
     {
+      uint16 length_of_key;
       if (my_pread(fromfile->file,(uchar*)&length_of_key,sizeof(length_of_key),
                    buffpek->file_pos,MYF_RW))
         return((uint) -1);

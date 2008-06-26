@@ -3,6 +3,7 @@
 
 # pre-requisites for maria_empty_logs
 connect (admin, 127.0.0.1, root,,test,,);
+#
 --enable_reconnect
 connection default;
 --enable_reconnect
@@ -67,8 +68,6 @@ SHOW ENGINE maria logs;
 
 insert into t2 select * from t1;
 insert into t1 select * from t2;
-
-
 
 eval set global maria_checkpoint_interval=$def_checkinterval;
 --replace_regex /Size +[0-9]+ ; .+master-data/master-data/

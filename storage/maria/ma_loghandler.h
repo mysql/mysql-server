@@ -161,7 +161,9 @@ enum en_key_op
   KEY_OP_ADD_SUFFIX,    /* Insert data at end of page */
   KEY_OP_DEL_SUFFIX,    /* Delete data at end of page */
   KEY_OP_CHECK,         /* For debugging; CRC of used part of page */
-  KEY_OP_MULTI_COPY     /* List of memcpy()s with fixed-len sources in page */
+  KEY_OP_MULTI_COPY,    /* List of memcpy()s with fixed-len sources in page */
+  KEY_OP_SET_PAGEFLAG,  /* Set pageflag from next byte */
+  KEY_OP_COMPACT_PAGE   /* Compact key page */
 };
 
 /* Size of log file; One log file is restricted to 4G */

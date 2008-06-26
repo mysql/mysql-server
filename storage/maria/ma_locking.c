@@ -427,6 +427,7 @@ int _ma_mark_file_changed(MARIA_HA *info)
       if (_ma_set_uuid(info, 0) ||
           (share->state.create_rename_lsn == LSN_REPAIRED_BY_MARIA_CHK &&
            _ma_update_state_lsns_sub(share, translog_get_horizon(),
+                                     trnman_get_min_trid(),
                                      TRUE, TRUE)))
         DBUG_RETURN(1);
       share->state.changed|= STATE_NOT_MOVABLE;

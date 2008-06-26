@@ -28,6 +28,8 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
 {
   int error,changed;
   uint flag;
+  MARIA_SHARE *share= info->s;
+  MARIA_KEYDEF *keyinfo;
   DBUG_ENTER("maria_rnext");
 
   if ((inx = _ma_check_index(info,inx)) < 0)
@@ -39,27 +41,30 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
 
   if (fast_ma_readinfo(info))
     DBUG_RETURN(my_errno);
-  if (info->s->lock_key_trees)
-    rw_rdlock(&info->s->key_root_lock[inx]);
+  keyinfo= share->keyinfo + inx;
+  if (share->lock_key_trees)
+    rw_rdlock(&keyinfo->root_lock);
   changed= _ma_test_if_changed(info);
   if (!flag)
   {
-    switch(info->s->keyinfo[inx].key_alg){
+    switch (keyinfo->key_alg){
 #ifdef HAVE_RTREE_KEYS
     case HA_KEY_ALG_RTREE:
-      error=maria_rtree_get_first(info,inx,info->lastkey_length);
+      error=maria_rtree_get_first(info, inx,
+                                  info->last_key.data_length +
+                                  info->last_key.ref_length);
+                                  
       break;
 #endif
     case HA_KEY_ALG_BTREE:
     default:
-      error= _ma_search_first(info,info->s->keyinfo+inx,
-			   info->s->state.key_root[inx]);
+      error= _ma_search_first(info, keyinfo, share->state.key_root[inx]);
       break;
     }
   }
   else
   {
-    switch (info->s->keyinfo[inx].key_alg) {
+    switch (keyinfo->key_alg) {
 #ifdef HAVE_RTREE_KEYS
     case HA_KEY_ALG_RTREE:
       /*
@@ -67,38 +72,36 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
 	may be changed since last call, so we do need
 	to skip rows inserted by other threads like in btree
       */
-      error= maria_rtree_get_next(info,inx,info->lastkey_length);
+      error= maria_rtree_get_next(info, inx, info->last_key.data_length +
+                                  info->last_key.ref_length);
       break;
 #endif
     case HA_KEY_ALG_BTREE:
     default:
       if (!changed)
-	error= _ma_search_next(info,info->s->keyinfo+inx,info->lastkey,
-			       info->lastkey_length,flag,
-			       info->s->state.key_root[inx]);
+	error= _ma_search_next(info, &info->last_key,
+                               flag | info->last_key.flag,
+			       share->state.key_root[inx]);
       else
-	error= _ma_search(info,info->s->keyinfo+inx,info->lastkey,
-			  USE_WHOLE_KEY,flag, info->s->state.key_root[inx]);
+	error= _ma_search(info, &info->last_key, flag | info->last_key.flag,
+                          share->state.key_root[inx]);
     }
   }
 
-  if (info->s->non_transactional_concurrent_insert)
+  if (!error)
   {
-    if (!error)
+    while (!(*share->row_is_visible)(info))
     {
-      while (info->cur_row.lastpos >= info->state->data_file_length)
-      {
-	/* Skip rows inserted by other threads since we got a lock */
-	if  ((error= _ma_search_next(info,info->s->keyinfo+inx,
-				    info->lastkey,
-				    info->lastkey_length,
-				    SEARCH_BIGGER,
-				    info->s->state.key_root[inx])))
-	  break;
-      }
+      /* Skip rows inserted by other threads since we got a lock */
+      if  ((error= _ma_search_next(info, &info->last_key,
+                                   SEARCH_BIGGER,
+                                   share->state.key_root[inx])))
+        break;
     }
-    rw_unlock(&info->s->key_root_lock[inx]);
   }
+  if (share->lock_key_trees)
+    rw_unlock(&keyinfo->root_lock);
+
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_NEXT_FOUND;

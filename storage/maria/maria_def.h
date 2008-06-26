@@ -75,12 +75,13 @@ typedef struct st_maria_state_info
   } header;
 
   MARIA_STATUS_INFO state;
+  /* maria_ha->state points here for crash-safe but not versioned tables */
+  MARIA_STATUS_INFO common;
   ha_rows split;			/* number of split blocks */
   my_off_t dellink;			/* Link to next removed block */
   pgcache_page_no_t first_bitmap_with_space;
   ulonglong auto_increment;
-  ulong process;			/* process that updated table last */
-  ulong unique;				/* Unique number for this process */
+  TrID create_trid;                     /* Minum trid for file */
   ulong update_count;			/* Updated for each write lock */
   ulong status;
   double *rec_per_key_part;
@@ -135,6 +136,7 @@ typedef struct st_maria_state_info
 #define MARIA_FILE_OPEN_COUNT_OFFSET 0
 #define MARIA_FILE_CHANGED_OFFSET 2
 #define MARIA_FILE_CREATE_RENAME_LSN_OFFSET 4
+#define MARIA_FILE_CREATE_TRID_OFFSET (4 + LSN_STORE_SIZE*3 + 11*8)
 
 #define MARIA_STATE_KEY_SIZE	(8 + 4)
 #define MARIA_STATE_KEYBLOCK_SIZE  8
@@ -143,11 +145,14 @@ typedef struct st_maria_state_info
 #define MARIA_KEYDEF_SIZE	(2+ 5*2)
 #define MARIA_UNIQUEDEF_SIZE	(2+1+1)
 #define HA_KEYSEG_SIZE		(6+ 2*2 + 4*2)
+#define MARIA_MAX_KEY_BUFF	(HA_MAX_KEY_BUFF + MAX_PACK_TRANSID_SIZE)
 #define MARIA_COLUMNDEF_SIZE	(2*7+1+1+4)
 #define MARIA_BASE_INFO_SIZE	(MY_UUID_SIZE + 5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
 #define MARIA_INDEX_BLOCK_MARGIN 16	/* Safety margin for .MYI tables */
 /* Internal management bytes needed to store 2 keys on an index page */
-#define MARIA_INDEX_OVERHEAD_SIZE (TRANSID_SIZE * 2)
+#define MAX_PACK_TRANSID_SIZE (TRANSID_SIZE+1)
+#define MIN_TRANSID_PACK_PREFIX (256-TRANSID_SIZE*2)
+#define MARIA_INDEX_OVERHEAD_SIZE (MAX_PACK_TRANSID_SIZE * 2)
 #define MARIA_DELETE_KEY_NR  255	/* keynr for deleted blocks */
 
 /*
@@ -323,8 +328,9 @@ typedef struct st_maria_share
   /* Compare a row in memory with a row on disk */
   my_bool (*compare_unique)(MARIA_HA *, MARIA_UNIQUEDEF *,
                             const uchar *record, MARIA_RECORD_POS pos);
-  my_off_t (*keypos_to_recpos)(MARIA_HA *info, my_off_t pos);
-  my_off_t (*recpos_to_keypos)(MARIA_HA *info, my_off_t pos);
+  my_off_t (*keypos_to_recpos)(struct st_maria_share *share, my_off_t pos);
+  my_off_t (*recpos_to_keypos)(struct st_maria_share *share, my_off_t pos);
+  my_bool (*row_is_visible)(MARIA_HA *);
 
   /* Mapings to read/write the data file */
   size_t (*file_read)(MARIA_HA *, uchar *, size_t, my_off_t, myf);
@@ -374,13 +380,13 @@ typedef struct st_maria_share
      (FALSE, TRUE) is impossible.
   */
   my_bool now_transactional;
+  my_bool have_versioning;
   my_bool used_key_del;                         /* != 0 if key_del is locked */
 #ifdef THREAD
   THR_LOCK lock;
   void (*lock_restore_status)(void *);
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
   pthread_cond_t intern_cond;
-  rw_lock_t *key_root_lock;
 #endif
   my_off_t mmaped_length;
   uint nonmmaped_inserts;		/* counter of writing in
@@ -460,6 +466,7 @@ struct st_maria_handler
   MARIA_STATUS_INFO *state_start;       /* State at start of transaction */
   MARIA_ROW cur_row;                    /* The active row that we just read */
   MARIA_ROW new_row;			/* Storage for a row during update */
+  MARIA_KEY last_key;                   /* Last found key */
   MARIA_BLOCK_SCAN scan, *scan_save;
   MARIA_BLOB *blobs;			/* Pointer to blobs */
   MARIA_BIT_BUFF bit_buff;
@@ -473,7 +480,8 @@ struct st_maria_handler
   MYSQL_FTPARSER_PARAM *ftparser_param;	/* share info between init/deinit */
   uchar *buff;				/* page buffer */
   uchar *keyread_buff;                   /* Buffer for last key read */
-  uchar *lastkey, *lastkey2;		/* Last used search key */
+  uchar *lastkey_buff;			/* Last used search key */
+  uchar *lastkey_buff2;
   uchar *first_mbr_key;			/* Searhed spatial key */
   uchar *rec_buff;			/* Temp buffer for recordpack */
   uchar *blob_buff;                     /* Temp buffer for blobs */
@@ -510,12 +518,14 @@ struct st_maria_handler
   uint opt_flag;			/* Optim. for space/speed */
   uint update;				/* If file changed since open */
   int lastinx;				/* Last used index */
-  uint lastkey_length;			/* Length of key in lastkey */
   uint last_rkey_length;		/* Last length in maria_rkey() */
+  uint *last_rtree_keypos;              /* Last key positions for rtrees */
+  uint bulk_insert_ref_length;          /* Lenght of row ref during bi */
   uint non_flushable_state;
   enum ha_rkey_function last_key_func;	/* CONTAIN, OVERLAP, etc */
-  uint save_lastkey_length;
-  uint pack_key_length;			/* For MARIAMRG */
+  uint save_lastkey_data_length;
+  uint save_lastkey_ref_length;
+  uint pack_key_length;			/* For MARIA_MRG */
   myf lock_wait;			/* is 0 or MY_SHORT_WAIT */
   int errkey;				/* Got last error on this key */
   int lock_type;			/* How database was locked */
@@ -588,7 +598,10 @@ struct st_maria_handler
 #define MAX_KEYPAGE_HEADER_SIZE (LSN_STORE_SIZE + KEYPAGE_USED_SIZE + \
                                  KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE + \
                                  TRANSID_SIZE)
-#define KEYPAGE_FLAG_ISNOD 1
+#define KEYPAGE_FLAG_ISNOD      1
+#define KEYPAGE_FLAG_HAS_TRANSID 2
+/* Position to KEYPAGE_FLAG for transactional tables */
+#define KEYPAGE_TRANSFLAG_OFFSET LSN_STORE_SIZE + TRANSID_SIZE + KEYPAGE_KEYID_SIZE
 
 #define _ma_get_page_used(share,x) \
   ((uint) mi_uint2korr((x) + (share)->keypage_header - KEYPAGE_USED_SIZE))
@@ -599,8 +612,13 @@ struct st_maria_handler
 
 #define _ma_get_used_and_nod(share,buff,length,nod)                     \
 {                                                                      \
-  nod=    _ma_test_if_nod((share),(buff));                              \
-  length= _ma_get_page_used((share),(buff));                            \
+  (nod)=    _ma_test_if_nod((share),(buff));                            \
+  (length)= _ma_get_page_used((share),(buff));                          \
+}
+#define _ma_get_used_and_nod_with_flag(share,flag,buff,length,nod)     \
+{                                                                      \
+  (nod)= (((flag) & KEYPAGE_FLAG_ISNOD) ? (share)->base.key_reflength : 0); \
+  (length)= _ma_get_page_used((share),(buff));                          \
 }
 #define _ma_store_keynr(share, x, nr) x[(share)->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE]= (nr)
 #define _ma_get_keynr(share, x) ((uchar) x[(share)->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE])
@@ -610,6 +628,7 @@ struct st_maria_handler
   transid_korr((buff) + LSN_STORE_SIZE)
 #define _ma_get_keypage_flag(share,x) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]
 #define _ma_store_keypage_flag(share,x,flag) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]= (flag)
+#define _ma_mark_page_with_transid(share, x) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]|= KEYPAGE_FLAG_HAS_TRANSID
 
 
 /*
@@ -647,6 +666,7 @@ struct st_maria_handler
 #else
 #define maria_print_error(SHARE, ERRNO) while (0)
 #endif
+#define DBUG_DUMP_KEY(name, key) DBUG_DUMP(name, (key)->data, (key)->data_length + (key)->ref_length)
 
 
 /* Functions to store length of space packed keys, VARCHAR or BLOB keys */
@@ -674,6 +694,7 @@ struct st_maria_handler
 
 #define maria_max_key_length() ((maria_block_size - MAX_KEYPAGE_HEADER_SIZE)/2 - MARIA_INDEX_OVERHEAD_SIZE)
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
+#define _ma_have_versioning(info) ((info)->row_flag & ROW_FLAG_TRANSID)
 
 #define MARIA_MIN_BLOCK_LENGTH	20		/* Because of delete-link */
 /* Don't use to small record-blocks */
@@ -732,7 +753,7 @@ extern pthread_mutex_t THR_LOCK_maria;
 extern LIST *maria_open_list;
 extern uchar maria_file_magic[], maria_pack_file_magic[];
 extern uchar maria_uuid[MY_UUID_SIZE];
-extern uint maria_read_vec[], maria_readnext_vec[];
+extern uint32 maria_read_vec[], maria_readnext_vec[];
 extern uint maria_quick_table_bits;
 extern char *maria_data_root;
 extern uchar maria_zero_string[];
@@ -782,47 +803,38 @@ extern my_bool _ma_update_static_record(MARIA_HA *, MARIA_RECORD_POS,
                                         const uchar *, const uchar *);
 extern my_bool _ma_delete_static_record(MARIA_HA *info, const uchar *record);
 extern my_bool _ma_cmp_static_record(MARIA_HA *info, const uchar *record);
-extern int _ma_ck_write(MARIA_HA *info, uint keynr, uchar *key,
-                        uint length);
-extern int _ma_enlarge_root(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                            const uchar *key, MARIA_RECORD_POS *root);
-extern int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-                      uchar *key, uchar *anc_buff, uchar *key_pos,
-                      my_off_t anc_page, uchar *key_buff, my_off_t father_page,
-                      uchar *father_buff, MARIA_PINNED_PAGE *father_page_link,
+extern my_bool _ma_ck_write(MARIA_HA *info, MARIA_KEY *key);
+extern int _ma_enlarge_root(MARIA_HA *info, MARIA_KEY *key,
+                            MARIA_RECORD_POS *root);
+extern int _ma_insert(MARIA_HA *info, MARIA_KEY *key, uchar *anc_buff,
+                      uchar *key_pos, my_off_t anc_page, uchar *key_buff,
+                      my_off_t father_page, uchar *father_buff,
+                      MARIA_PINNED_PAGE *father_page_link,
                       uchar *father_key_pos, my_bool insert_last);
-extern int _ma_ck_real_write_btree(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                   uchar *key, uint key_length,
-                                   MARIA_RECORD_POS *root, uint comp_flag);
-extern int _ma_split_page(register MARIA_HA *info,
-                          register MARIA_KEYDEF *keyinfo,
-                          uchar *key, my_off_t split_page, uchar *split_buff,
-                          uint org_split_length,
+extern int _ma_ck_real_write_btree(MARIA_HA *info, MARIA_KEY *key,
+                                   MARIA_RECORD_POS *root, uint32 comp_flag);
+extern int _ma_split_page(MARIA_HA *info, MARIA_KEY *key, my_off_t split_page,
+                          uchar *split_buff, uint org_split_length,
                           uchar *inserted_key_pos, uint changed_length,
                           int move_length,
                           uchar *key_buff, my_bool insert_last_key);
-extern uchar *_ma_find_half_pos(MARIA_HA *info, uint nod_flag,
-                                MARIA_KEYDEF *keyinfo,
-                                uchar *page, uchar *key,
-                                uint *return_key_length,
-                                uchar ** after_key);
-extern int _ma_calc_static_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
+extern uchar *_ma_find_half_pos(MARIA_HA *info, MARIA_KEY *key, uint nod_flag,
+                                uchar *page, uchar ** after_key);
+extern int _ma_calc_static_key_length(const MARIA_KEY *key, uint nod_flag,
                                       uchar *key_pos, uchar *org_key,
-                                      uchar *key_buff, const uchar *key,
+                                      uchar *key_buff,
                                       MARIA_KEY_PARAM *s_temp);
-extern int _ma_calc_var_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
+extern int _ma_calc_var_key_length(const MARIA_KEY *key, uint nod_flag,
                                    uchar *key_pos, uchar *org_key,
-                                   uchar *key_buff, const uchar *key,
+                                   uchar *key_buff,
                                    MARIA_KEY_PARAM *s_temp);
-extern int _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo,
-                                        uint nod_flag, uchar *key_pos,
+extern int _ma_calc_var_pack_key_length(const MARIA_KEY *key,
+                                        uint nod_flag, uchar *next_key,
                                         uchar *org_key, uchar *prev_key,
-                                        const uchar *key,
                                         MARIA_KEY_PARAM *s_temp);
-extern int _ma_calc_bin_pack_key_length(MARIA_KEYDEF *keyinfo,
-                                        uint nod_flag, uchar *key_pos,
+extern int _ma_calc_bin_pack_key_length(const MARIA_KEY *key,
+                                        uint nod_flag, uchar *next_key,
                                         uchar *org_key, uchar *prev_key,
-                                        const uchar *key,
                                         MARIA_KEY_PARAM *s_temp);
 extern void _ma_store_static_key(MARIA_KEYDEF *keyinfo, uchar *key_pos,
                                  MARIA_KEY_PARAM *s_temp);
@@ -835,10 +847,8 @@ extern void _ma_store_pack_key(MARIA_KEYDEF *keyinfo, uchar *key_pos,
 extern void _ma_store_bin_pack_key(MARIA_KEYDEF *keyinfo, uchar *key_pos,
                                    MARIA_KEY_PARAM *s_temp);
 
-extern int _ma_ck_delete(MARIA_HA *info, uint keynr, uchar *key,
-                         uint key_length);
-extern int _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                              uchar *key, uint key_length,
+extern int _ma_ck_delete(MARIA_HA *info, MARIA_KEY *key);
+extern int _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
                               my_off_t *root);
 extern int _ma_readinfo(MARIA_HA *info, int lock_flag, int check_keybuffer);
 extern int _ma_writeinfo(MARIA_HA *info, uint options);
@@ -849,54 +859,55 @@ extern my_bool _ma_set_uuid(MARIA_HA *info, my_bool reset_uuid);
 extern my_bool _ma_check_if_zero(uchar *pos, size_t size);
 extern int _ma_decrement_open_count(MARIA_HA *info);
 extern int _ma_check_index(MARIA_HA *info, int inx);
-extern int _ma_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *key,
-                      uint key_len, uint nextflag, my_off_t pos);
-extern int _ma_bin_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                          uchar *page, const uchar *key, uint key_len,
-                          uint comp_flag, uchar **ret_pos, uchar *buff,
+extern int _ma_search(MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
+                      my_off_t pos);
+extern int _ma_bin_search( const MARIA_KEY *key, uchar *page,
+                          uint32 comp_flag, uchar **ret_pos, uchar *buff,
                           my_bool *was_last_key);
-extern int _ma_seq_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                          uchar *page, const uchar *key, uint key_len,
+extern int _ma_seq_search(const MARIA_KEY *key, uchar *page,
                           uint comp_flag, uchar ** ret_pos, uchar *buff,
                           my_bool *was_last_key);
-extern int _ma_prefix_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                             uchar *page, const uchar *key, uint key_len,
-                             uint comp_flag, uchar ** ret_pos, uchar *buff,
+extern int _ma_prefix_search(const MARIA_KEY *key, uchar *page,
+                             uint32 comp_flag, uchar ** ret_pos, uchar *buff,
                              my_bool *was_last_key);
 extern my_off_t _ma_kpos(uint nod_flag, const uchar *after_key);
 extern void _ma_kpointer(MARIA_HA *info, uchar *buff, my_off_t pos);
-extern MARIA_RECORD_POS _ma_dpos(MARIA_HA *info, uint nod_flag,
-                                 const uchar *after_key);
-extern MARIA_RECORD_POS _ma_rec_pos(MARIA_HA *info, uchar *ptr);
-extern void _ma_dpointer(MARIA_HA *info, uchar *buff, MARIA_RECORD_POS pos);
-extern uint _ma_get_static_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                               uchar **page, uchar *key);
-extern uint _ma_get_pack_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                             uchar **page, uchar *key);
-extern uint _ma_get_binary_pack_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
-                                    uchar ** page_pos, uchar *key);
-extern uchar *_ma_get_last_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                               uchar *keypos, uchar *lastkey,
-                               uchar *endpos, uint *return_key_length);
-extern uchar *_ma_get_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                          uchar *page, uchar *key, uchar *keypos,
-                          uint *return_key_length);
+MARIA_RECORD_POS _ma_row_pos_from_key(const MARIA_KEY *key);
+TrID _ma_trid_from_key(const MARIA_KEY *key);
+extern MARIA_RECORD_POS _ma_rec_pos(MARIA_SHARE *share, uchar *ptr);
+extern void _ma_dpointer(MARIA_SHARE *share, uchar *buff,
+                         MARIA_RECORD_POS pos);
+extern uint _ma_get_static_key(MARIA_KEY *key, uint page_flag, uint nod_flag,
+                               uchar **page);
+extern uchar *_ma_skip_static_key(MARIA_KEY *key, uint page_flag,
+                           uint nod_flag, uchar *page);
+extern uint _ma_get_pack_key(MARIA_KEY *key, uint page_flag, uint nod_flag,
+                             uchar **page);
+extern uchar *_ma_skip_pack_key(MARIA_KEY *key, uint page_flag,
+                                uint nod_flag, uchar *page);
+extern uint _ma_get_binary_pack_key(MARIA_KEY *key, uint page_flag,
+                                    uint nod_flag, uchar **page_pos);
+uchar *_ma_skip_binary_pack_key(MARIA_KEY *key, uint page_flag,
+                                uint nod_flag, uchar *page);
+extern uchar *_ma_get_last_key(MARIA_KEY *key, uchar *keypos, uchar *endpos);
+extern uchar *_ma_get_key(MARIA_KEY *key, uchar *page, uchar *keypos);
 extern uint _ma_keylength(MARIA_KEYDEF *keyinfo, const uchar *key);
-extern uint _ma_keylength_part(MARIA_KEYDEF *keyinfo, register const uchar *key,
+extern uint _ma_keylength_part(MARIA_KEYDEF *keyinfo, const uchar *key,
                                HA_KEYSEG *end);
-extern uchar *_ma_move_key(MARIA_KEYDEF *keyinfo, uchar *to, const uchar *from);
-extern int _ma_search_next(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                           uchar *key, uint key_length, uint nextflag,
-                           my_off_t pos);
+extern uchar *_qq_move_key(MARIA_KEYDEF *keyinfo, uchar *to,
+                           const uchar *from);
+
+extern int _ma_search_next(MARIA_HA *info, MARIA_KEY *key,
+                           uint32 nextflag, my_off_t pos);
 extern int _ma_search_first(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                             my_off_t pos);
 extern int _ma_search_last(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                            my_off_t pos);
-extern my_off_t _ma_static_keypos_to_recpos(MARIA_HA *info, my_off_t pos);
-extern my_off_t _ma_static_recpos_to_keypos(MARIA_HA *info, my_off_t pos);
-extern my_off_t _ma_transparent_recpos(MARIA_HA *info, my_off_t pos);
-extern my_off_t _ma_transaction_keypos_to_recpos(MARIA_HA *info, my_off_t pos);
-extern my_off_t _ma_transaction_recpos_to_keypos(MARIA_HA *info, my_off_t pos);
+extern my_off_t _ma_static_keypos_to_recpos(MARIA_SHARE *share, my_off_t pos);
+extern my_off_t _ma_static_recpos_to_keypos(MARIA_SHARE *share, my_off_t pos);
+extern my_off_t _ma_transparent_recpos(MARIA_SHARE *share, my_off_t pos);
+extern my_off_t _ma_transaction_keypos_to_recpos(MARIA_SHARE *, my_off_t pos);
+extern my_off_t _ma_transaction_recpos_to_keypos(MARIA_SHARE *, my_off_t pos);
 
 extern uchar *_ma_fetch_keypage(MARIA_HA *info,
                                 const MARIA_KEYDEF *keyinfo,
@@ -910,11 +921,24 @@ extern int _ma_write_keypage(MARIA_HA *info,
 extern int _ma_dispose(MARIA_HA *info, my_off_t pos, my_bool page_not_read);
 extern my_off_t _ma_new(register MARIA_HA *info, int level,
                         MARIA_PINNED_PAGE **page_link);
-extern uint _ma_make_key(MARIA_HA *info, uint keynr, uchar *key,
-                         const uchar *record, MARIA_RECORD_POS filepos);
-extern uint _ma_pack_key(MARIA_HA *info, uint keynr, uchar *key,
-                         const uchar *old, key_part_map keypart_map,
-                         HA_KEYSEG ** last_used_keyseg);
+extern my_bool _ma_compact_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                                   my_off_t page_pos, uchar *page,
+                                   TrID min_read_from);
+extern uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid);
+extern ulonglong transid_get_packed(MARIA_SHARE *share, const uchar *from);
+#define transid_packed_length(data) \
+  ((data)[0] < MIN_TRANSID_PACK_PREFIX ? 1 : \
+   (uint) (257 - (uchar) (data)[0]))
+#define key_has_transid(key) (*(key) & 1)
+
+extern MARIA_KEY *_ma_make_key(MARIA_HA *info, MARIA_KEY *int_key, uint keynr,
+                               uchar *key, const uchar *record,
+                               MARIA_RECORD_POS filepos, ulonglong trid);
+extern MARIA_KEY *_ma_pack_key(MARIA_HA *info, MARIA_KEY *int_key,
+                               uint keynr, uchar *key,
+                               const uchar *old, key_part_map keypart_map,
+                               HA_KEYSEG ** last_used_keyseg);
+extern void _ma_copy_key(MARIA_KEY *to, const MARIA_KEY *from);
 extern int _ma_read_key_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS);
 extern my_bool _ma_read_cache(IO_CACHE *info, uchar *buff,
                               MARIA_RECORD_POS pos, size_t length,
@@ -931,8 +955,9 @@ extern int _ma_write_part_record(MARIA_HA *info, my_off_t filepos,
                                  ulong length, my_off_t next_filepos,
                                  uchar ** record, ulong *reclength,
                                  int *flag);
-extern void _ma_print_key(FILE *stream, HA_KEYSEG *keyseg,
-                          const uchar *key, uint length);
+extern void _ma_print_key(FILE *stream, MARIA_KEY *key);
+extern void _ma_print_keydata(FILE *stream, HA_KEYSEG *keyseg,
+                              const uchar *key, uint length);
 extern my_bool _ma_once_init_pack_row(MARIA_SHARE *share, File dfile);
 extern my_bool _ma_once_end_pack_row(MARIA_SHARE *share);
 extern int _ma_read_pack_record(MARIA_HA *info, uchar *buf,
@@ -1103,11 +1128,11 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
 int _ma_sync_table_files(const MARIA_HA *info);
 int _ma_initialize_data_file(MARIA_SHARE *share, File dfile);
 int _ma_update_state_lsns(MARIA_SHARE *share,
-                          LSN lsn, my_bool do_sync, my_bool
-                          update_create_rename_lsn);
-int _ma_update_state_lsns_sub(MARIA_SHARE *share,
-                              LSN lsn, my_bool do_sync, my_bool
-                              update_create_rename_lsn);
+                          LSN lsn, TrID create_trid, my_bool do_sync,
+                          my_bool update_create_rename_lsn);
+int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn,
+                              TrID create_trid, my_bool do_sync,
+                              my_bool update_create_rename_lsn);
 void _ma_set_data_pagecache_callbacks(PAGECACHE_FILE *file,
                                       MARIA_SHARE *share);
 void _ma_set_index_pagecache_callbacks(PAGECACHE_FILE *file,

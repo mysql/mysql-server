@@ -12,7 +12,6 @@ insert into t2 select * from t2;
 insert into t2 select * from t2;
 insert into t2 select * from t2;
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 create table t1 (a varchar(100)) engine=maria transactional=1;
 show create table t1;
 Table	Create Table
@@ -28,7 +27,6 @@ show engine maria logs;
 Type	Name	Status
 MARIA	Size        24576 maria_log.00000001	unknown
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 truncate table t1;
 insert into t1 select * from t2;
 show engine maria logs;
@@ -36,7 +34,6 @@ Type	Name	Status
 MARIA	Size        16384 maria_log.00000001	unknown
 drop table t1;
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 create table t1 (a varchar(100)) engine=maria transactional=1;
 insert into t1 values('a');
 create table if not exists t1 select * from t2;
@@ -46,7 +43,6 @@ show engine maria logs;
 Type	Name	Status
 MARIA	Size        24576 maria_log.00000001	unknown
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 drop table t1;
 create table t1 engine=maria transactional=1 select * from t2;
 show engine maria logs;

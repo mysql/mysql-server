@@ -75,8 +75,7 @@ static int sort_key_cmp(MARIA_SORT_PARAM *sort_param, const void *a,
 static int sort_maria_ft_key_write(MARIA_SORT_PARAM *sort_param,
                                    const uchar *a);
 static int sort_key_write(MARIA_SORT_PARAM *sort_param, const uchar *a);
-static my_off_t get_record_for_key(MARIA_HA *info,MARIA_KEYDEF *keyinfo,
-                                   const uchar *key);
+static my_off_t get_record_for_key(MARIA_KEYDEF *keyinfo, const uchar *key);
 static int sort_insert_key(MARIA_SORT_PARAM  *sort_param,
                            reg1 SORT_KEY_BLOCKS *key_block,
 			   const uchar *key, my_off_t prev_block);
@@ -252,7 +251,7 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info,
       else
       {
 	param->record_checksum+=(ha_checksum) next_link;
-	next_link= _ma_rec_pos(info, (uchar *) buff + 1);
+	next_link= _ma_rec_pos(share, (uchar *) buff + 1);
 	empty+=share->base.pack_reclength;
       }
     }
@@ -540,7 +539,7 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
     if (chk_index(param,info,keyinfo,share->state.key_root[key],info->buff,
 		  &keys, param->key_crc+key,1))
       DBUG_RETURN(-1);
-    if(!(keyinfo->flag & (HA_FULLTEXT | HA_SPATIAL)))
+    if (!(keyinfo->flag & (HA_FULLTEXT | HA_SPATIAL | HA_RTREE_INDEX)))
     {
       if (keys != share->state.state.records)
       {
@@ -597,9 +596,10 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
 
       /* Check that there isn't a row with auto_increment = 0 in the table */
       maria_extra(info,HA_EXTRA_KEYREAD,0);
-      bzero(info->lastkey,keyinfo->seg->length);
-      if (!maria_rkey(info, info->rec_buff, key, (const uchar*) info->lastkey,
-                      (key_part_map)1, HA_READ_KEY_EXACT))
+      bzero(info->lastkey_buff, keyinfo->seg->length);
+      if (!maria_rkey(info, info->rec_buff, key,
+                      info->lastkey_buff,
+                      (key_part_map) 1, HA_READ_KEY_EXACT))
       {
 	/* Don't count this as a real warning, as maria_chk can't correct it */
 	uint save=param->warning_printed;
@@ -807,17 +807,18 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 		     ha_checksum *key_checksum, uint level)
 {
   int flag;
-  uint used_length,comp_flag,nod_flag,key_length=0;
-  uchar key[HA_MAX_POSSIBLE_KEY_BUFF],*temp_buff,*keypos,*old_keypos,*endpos;
+  uint used_length,comp_flag,page_flag,nod_flag;
+  uchar *temp_buff, *keypos, *old_keypos, *endpos;
   my_off_t next_page,record;
   MARIA_SHARE *share= info->s;
   char llbuff[22];
   uint diff_pos[2];
+  MARIA_KEY tmp_key;
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff", buff, _ma_get_page_used(share, buff));
 
   /* TODO: implement appropriate check for RTree keys */
-  if (keyinfo->flag & HA_SPATIAL)
+  if (keyinfo->flag & (HA_SPATIAL | HA_RTREE_INDEX))
     DBUG_RETURN(0);
 
   if (!(temp_buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
@@ -827,11 +828,16 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   }
 
   if (keyinfo->flag & HA_NOSAME)
-    comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* Not real duplicates */
+  {
+    /* Not real duplicates */
+    comp_flag=SEARCH_FIND | SEARCH_UPDATE | SEARCH_INSERT;
+  }
   else
     comp_flag=SEARCH_SAME;			/* Keys in positionorder */
 
-  _ma_get_used_and_nod(share, buff, used_length, nod_flag);
+  page_flag= _ma_get_keypage_flag(share, buff);
+  _ma_get_used_and_nod_with_flag(share, page_flag, buff, used_length,
+                                 nod_flag);
   keypos= buff + share->keypage_header + nod_flag;
   endpos= buff + used_length;
 
@@ -845,19 +851,28 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     _ma_check_print_error(param, "Page at %s is not marked for index %u",
                           llstr(page, llbuff),
                           (uint) (keyinfo - share->keyinfo));
-
-  if (used_length > keyinfo->block_length)
+  if ((page_flag & KEYPAGE_FLAG_HAS_TRANSID) &&
+      !share->base.born_transactional)
   {
-    _ma_check_print_error(param,"Wrong pageinfo at page: %s",
-			 llstr(page,llbuff));
+    _ma_check_print_error(param,
+                          "Page at %s is marked with HAS_TRANSID even if "
+                          "table is not transactional",
+                          llstr(page, llbuff));
+  }    
+
+  if (used_length > (uint) keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE)
+  {
+    _ma_check_print_error(param,"Page at %s has impossible (too big) pagelength",
+                          llstr(page,llbuff));
     goto err;
   }
+
+  info->last_key.keyinfo= tmp_key.keyinfo= keyinfo;
+  tmp_key.data=    info->lastkey_buff2;
   for ( ;; )
   {
     if (*_ma_killed_ptr(param))
       goto err;
-    memcpy(info->lastkey, key, key_length);
-    info->lastkey_length= key_length;
     if (nod_flag)
     {
       next_page= _ma_kpos(nod_flag,keypos);
@@ -867,23 +882,39 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     }
     old_keypos=keypos;
     if (keypos >= endpos ||
-	(key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,key)) == 0)
+	!(*keyinfo->get_key)(&tmp_key, page_flag, nod_flag, &keypos))
       break;
     if (keypos > endpos)
     {
-      _ma_check_print_error(param,"Wrong key block length at page: %s",
+      _ma_check_print_error(param,
+                            "Page length and length of keys don't match at "
+                            "page: %s",
                             llstr(page,llbuff));
       goto err;
     }
-    if ((*keys)++ &&
-	(flag=ha_key_cmp(keyinfo->seg, (uchar*) info->lastkey, (uchar*) key,
-                         key_length, comp_flag, diff_pos)) >=0)
+    if (share->data_file_type == BLOCK_RECORD &&
+        !(page_flag & KEYPAGE_FLAG_HAS_TRANSID) &&
+        key_has_transid(tmp_key.data + tmp_key.data_length +
+                        share->rec_reflength-1))
     {
-      DBUG_DUMP("old", info->lastkey, info->lastkey_length);
-      DBUG_DUMP("new", key, key_length);
+      _ma_check_print_error(param,
+                            "Found key marked for transid on page that is not "
+                            "marked for transid at: %s",
+                            llstr(page,llbuff));
+      goto err;
+    }
+        
+    if ((*keys)++ &&
+	(flag=ha_key_cmp(keyinfo->seg, info->last_key.data, tmp_key.data,
+                         tmp_key.data_length + tmp_key.ref_length,
+                         (comp_flag | SEARCH_INSERT | (tmp_key.flag >> 1) |
+                          info->last_key.flag), diff_pos)) >=0)
+    {
+      DBUG_DUMP_KEY("old", &info->last_key);
+      DBUG_DUMP_KEY("new", &tmp_key);
       DBUG_DUMP("new_in_page", old_keypos, (uint) (keypos-old_keypos));
 
-      if (comp_flag & SEARCH_FIND && flag == 0)
+      if ((comp_flag & SEARCH_FIND) && flag == 0)
 	_ma_check_print_error(param,"Found duplicated key at page %s",
                               llstr(page,llbuff));
       else
@@ -891,19 +922,22 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                               llstr(page,llbuff));
       goto err;
     }
+
     if (param->testflag & T_STATISTICS)
     {
       if (*keys != 1L)				/* not first_key */
       {
         if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
-          ha_key_cmp(keyinfo->seg, (uchar*) info->lastkey, (uchar*) key,
-                     USE_WHOLE_KEY, SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
+          ha_key_cmp(keyinfo->seg, (uchar*) info->last_key.data, 
+                     tmp_key.data, tmp_key.data_length,
+                     SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
                      diff_pos);
         else if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
         {
           diff_pos[0]= maria_collect_stats_nonulls_next(keyinfo->seg,
                                                         param->notnull_count,
-                                                        info->lastkey, key);
+                                                        info->last_key.data,
+                                                        tmp_key.data);
         }
 	param->unique_count[diff_pos[0]-1]++;
       }
@@ -911,18 +945,19 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       {
         if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
           maria_collect_stats_nonulls_first(keyinfo->seg, param->notnull_count,
-                                         key);
+                                            tmp_key.data);
       }
     }
-    (*key_checksum)+= maria_byte_checksum((uchar*) key,
-                                          key_length- share->rec_reflength);
-    record= _ma_dpos(info,0,key+key_length);
+    _ma_copy_key(&info->last_key, &tmp_key);
+    (*key_checksum)+= maria_byte_checksum(tmp_key.data, tmp_key.data_length);
+    record= _ma_row_pos_from_key(&tmp_key);
+
     if (keyinfo->flag & HA_FULLTEXT) /* special handling for ft2 */
     {
       uint off;
       int  subkeys;
-      get_key_full_length_rdonly(off, key);
-      subkeys=ft_sintXkorr(key+off);
+      get_key_full_length_rdonly(off, tmp_key.data);
+      subkeys= ft_sintXkorr(tmp_key.data + off);
       if (subkeys < 0)
       {
         ha_rows tmp_keys=0;
@@ -943,7 +978,11 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       }
       /* fall through */
     }
-    if (record >= share->state.state.data_file_length)
+    if ((share->data_file_type != BLOCK_RECORD &&
+         record >= share->state.state.data_file_length) ||
+        (share->data_file_type == BLOCK_RECORD &&
+         ma_recordpos_to_page(record) * share->base.min_block_length >=
+         share->state.state.data_file_length))
     {
 #ifndef DBUG_OFF
       char llbuff2[22], llbuff3[22];
@@ -952,7 +991,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       DBUG_PRINT("test",("page: %s  record: %s  filelength: %s",
 			 llstr(page,llbuff),llstr(record,llbuff2),
 			 llstr(share->state.state.data_file_length,llbuff3)));
-      DBUG_DUMP("key",(uchar*) key,key_length);
+      DBUG_DUMP_KEY("key", &tmp_key);
       DBUG_DUMP("new_in_page", old_keypos, (uint) (keypos-old_keypos));
       goto err;
     }
@@ -1054,7 +1093,7 @@ static int check_keys_in_record(HA_CHECK *param, MARIA_HA *info, int extend,
   MARIA_SHARE *share= info->s;
   MARIA_KEYDEF *keyinfo;
   char llbuff[22+4];
-  uint key;
+  uint keynr;
 
   param->tmp_record_checksum+= (ha_checksum) start_recpos;
   param->records++;
@@ -1063,17 +1102,18 @@ static int check_keys_in_record(HA_CHECK *param, MARIA_HA *info, int extend,
     printf("%s\r", llstr(param->records, llbuff));
     VOID(fflush(stdout));
   }
-
+  
   /* Check if keys match the record */
-  for (key=0, keyinfo= share->keyinfo; key < share->base.keys;
-       key++,keyinfo++)
+  for (keynr=0, keyinfo= share->keyinfo; keynr < share->base.keys;
+       keynr++, keyinfo++)
   {
-    if (maria_is_key_active(share->state.key_map, key))
+    if (maria_is_key_active(share->state.key_map, keynr))
     {
-      if(!(keyinfo->flag & HA_FULLTEXT))
+      MARIA_KEY key;
+      if (!(keyinfo->flag & HA_FULLTEXT))
       {
-        uint key_length= _ma_make_key(info,key,info->lastkey,record,
-                                      start_recpos);
+        (*keyinfo->make_key)(info, &key, keynr, info->lastkey_buff, record,
+                             start_recpos, 0);
         if (extend)
         {
           /* We don't need to lock the key tree here as we don't allow
@@ -1081,26 +1121,24 @@ static int check_keys_in_record(HA_CHECK *param, MARIA_HA *info, int extend,
           */
           int search_result=
 #ifdef HAVE_RTREE_KEYS
-            (keyinfo->flag & HA_SPATIAL) ?
-            maria_rtree_find_first(info, key, info->lastkey, key_length,
-                                   MBR_EQUAL | MBR_DATA) :
+            (keyinfo->flag & (HA_SPATIAL | HA_RTREE_INDEX)) ?
+            maria_rtree_find_first(info, &key, MBR_EQUAL | MBR_DATA) :
 #endif
-            _ma_search(info,keyinfo,info->lastkey,key_length,
-                       SEARCH_SAME, share->state.key_root[key]);
+            _ma_search(info, &key, SEARCH_SAME, share->state.key_root[keynr]);
           if (search_result)
           {
             record_pos_to_txt(info, start_recpos, llbuff);
             _ma_check_print_error(param,
                                   "Record at: %14s  "
                                   "Can't find key for index: %2d",
-                                  llbuff, key+1);
+                                  llbuff, keynr+1);
             if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
               return -1;
           }
         }
         else
-          param->tmp_key_crc[key]+=
-            maria_byte_checksum((uchar*) info->lastkey, key_length);
+          param->tmp_key_crc[keynr]+=
+            maria_byte_checksum(key.data, key.data_length);
       }
     }
   }
@@ -2016,7 +2054,8 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
     for (key=0 ; key < share->base.keys;  key++)
     {
       if (param->tmp_key_crc[key] != param->key_crc[key] &&
-          !(share->keyinfo[key].flag & (HA_FULLTEXT | HA_SPATIAL)))
+          !(share->keyinfo[key].flag &
+            (HA_FULLTEXT | HA_SPATIAL | HA_RTREE_INDEX)))
       {
 	_ma_check_print_error(param,"Checksum for key: %2d doesn't match checksum for records",
                               key+1);
@@ -2172,7 +2211,8 @@ static my_bool protect_against_repair_crash(MARIA_HA *info,
         return TRUE;
     }
     if (translog_status == TRANSLOG_OK &&
-        _ma_update_state_lsns(share, translog_get_horizon(), FALSE, FALSE))
+        _ma_update_state_lsns(share, translog_get_horizon(),
+                              share->state.create_trid, FALSE, FALSE))
       return TRUE;
     if (_ma_sync_table_files(info))
       return TRUE;
@@ -2525,10 +2565,12 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
                               llstr(info->dup_key_pos,llbuff2));
       if (param->testflag & T_VERBOSE)
       {
-	VOID(_ma_make_key(info,(uint) info->errkey,info->lastkey,
-                          sort_param.record,0L));
-	_ma_print_key(stdout,share->keyinfo[info->errkey].seg,info->lastkey,
-		      USE_WHOLE_KEY);
+        MARIA_KEY tmp_key;
+        MARIA_KEYDEF *keyinfo= share->keyinfo + info->errkey;
+	(*keyinfo->make_key)(info, &tmp_key, (uint) info->errkey,
+                             info->lastkey_buff,
+                             sort_param.record, 0L, 0);
+        _ma_print_key(stdout, &tmp_key);
       }
       sort_info.dupp++;
       if ((param->testflag & (T_FORCE_UNIQUENESS|T_QUICK)) == T_QUICK)
@@ -2710,35 +2752,31 @@ err:
 static int writekeys(MARIA_SORT_PARAM *sort_param)
 {
   uint i;
-  uchar *key;
   MARIA_HA *info=     sort_param->sort_info->info;
   MARIA_SHARE *share= info->s;
-  uchar     *buff=    sort_param->record;
+  uchar *record=    sort_param->record;
+  uchar *key_buff;
   my_off_t filepos=   sort_param->current_filepos;
+  MARIA_KEY key;
   DBUG_ENTER("writekeys");
 
-  key= info->lastkey+share->base.max_key_length;
+  key_buff= info->lastkey_buff+share->base.max_key_length;
+
   for (i=0 ; i < share->base.keys ; i++)
   {
     if (maria_is_key_active(share->state.key_map, i))
     {
       if (share->keyinfo[i].flag & HA_FULLTEXT )
       {
-        if (_ma_ft_add(info,i, key,buff,filepos))
+        if (_ma_ft_add(info, i, key_buff, record, filepos))
 	  goto err;
       }
-#ifdef HAVE_SPATIAL
-      else if (share->keyinfo[i].flag & HA_SPATIAL)
-      {
-	uint key_length= _ma_make_key(info,i,key,buff,filepos);
-	if (maria_rtree_insert(info, i, key, key_length))
-	  goto err;
-      }
-#endif /*HAVE_SPATIAL*/
       else
       {
-	uint key_length= _ma_make_key(info,i,key,buff,filepos);
-	if (_ma_ck_write(info,i,key,key_length))
+	if (!(*share->keyinfo[i].make_key)(info, &key, i, key_buff, record,
+                                         filepos, 0))
+          goto err;
+	if ((*share->keyinfo[i].ck_insert)(info, &key))
 	  goto err;
       }
     }
@@ -2755,13 +2793,14 @@ static int writekeys(MARIA_SORT_PARAM *sort_param)
       {
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
         {
-          if (_ma_ft_del(info,i,key,buff,filepos))
+          if (_ma_ft_del(info,i,key_buff,record,filepos))
 	    break;
         }
         else
 	{
-	  uint key_length= _ma_make_key(info,i,key,buff,filepos);
-	  if (_ma_ck_delete(info,i,key,key_length))
+	  (*share->keyinfo[i].make_key)(info, &key, i, key_buff, record,
+                                        filepos, 0);
+	  if (_ma_ck_delete(info, &key))
 	    break;
 	}
       }
@@ -2781,29 +2820,29 @@ int maria_movepoint(register MARIA_HA *info, uchar *record,
                     MARIA_RECORD_POS oldpos, MARIA_RECORD_POS newpos,
                     uint prot_key)
 {
-  register uint i;
-  uchar *key;
-  uint key_length;
+  uint i;
+  uchar *key_buff;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_movepoint");
 
-  key= info->lastkey+share->base.max_key_length;
+  key_buff= info->lastkey_buff + share->base.max_key_length;
   for (i=0 ; i < share->base.keys; i++)
   {
     if (i != prot_key && maria_is_key_active(share->state.key_map, i))
     {
-      key_length= _ma_make_key(info,i,key,record,oldpos);
-      if (share->keyinfo[i].flag & HA_NOSAME)
+      MARIA_KEY key;
+      (*share->keyinfo[i].make_key)(info, &key, i, key_buff, record, oldpos,
+                                    0);
+      if (key.keyinfo->flag & HA_NOSAME)
       {					/* Change pointer direct */
 	uint nod_flag;
 	MARIA_KEYDEF *keyinfo;
 	keyinfo=share->keyinfo+i;
-	if (_ma_search(info,keyinfo,key,USE_WHOLE_KEY,
-		       (uint) (SEARCH_SAME | SEARCH_SAVE_BUFF),
+	if (_ma_search(info, &key, (uint32) (SEARCH_SAME | SEARCH_SAVE_BUFF),
 		       share->state.key_root[i]))
 	  DBUG_RETURN(-1);
 	nod_flag= _ma_test_if_nod(share, info->buff);
-	_ma_dpointer(info,info->int_keypos-nod_flag-
+	_ma_dpointer(share, info->int_keypos - nod_flag -
 		     share->rec_reflength,newpos);
 	if (_ma_write_keypage(info, keyinfo, info->last_keypage,
                               PAGECACHE_LOCK_LEFT_UNLOCKED, DFLT_INIT_HITS,
@@ -2812,10 +2851,11 @@ int maria_movepoint(register MARIA_HA *info, uchar *record,
       }
       else
       {					/* Change old key to new */
-	if (_ma_ck_delete(info,i,key,key_length))
+	if (_ma_ck_delete(info, &key))
 	  DBUG_RETURN(-1);
-	key_length= _ma_make_key(info,i,key,record,newpos);
-	if (_ma_ck_write(info,i,key,key_length))
+	(*share->keyinfo[i].make_key)(info, &key, i, key_buff, record, newpos,
+                                      0);
+	if (_ma_ck_write(info, &key))
 	  DBUG_RETURN(-1);
       }
     }
@@ -2997,23 +3037,25 @@ static void put_crc(uchar *buff, my_off_t pos, MARIA_SHARE *share)
 }
 
 
-	 /* Sort records recursive using one index */
+/* Sort index blocks recursive using one index */
 
 static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
                           MARIA_KEYDEF *keyinfo,
 			  my_off_t pagepos, File new_file)
 {
-  uint length,nod_flag,used_length, key_length;
+  uint length,nod_flag,used_length;
   uchar *buff,*keypos,*endpos;
-  uchar key[HA_MAX_POSSIBLE_KEY_BUFF];
   my_off_t new_page_pos,next_page;
   MARIA_SHARE *share= info->s;
+  MARIA_KEY key;
   DBUG_ENTER("sort_one_index");
 
   /* cannot walk over R-tree indices */
   DBUG_ASSERT(keyinfo->key_alg != HA_KEY_ALG_RTREE);
   new_page_pos=param->new_file_pos;
   param->new_file_pos+=keyinfo->block_length;
+  key.keyinfo= keyinfo;
+  key.data= info->lastkey_buff;
 
   if (!(buff= (uchar*) my_alloca((uint) keyinfo->block_length)))
   {
@@ -3028,9 +3070,11 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   }
   if ((nod_flag=_ma_test_if_nod(share, buff)) || keyinfo->flag & HA_FULLTEXT)
   {
+    uint page_flag= _ma_get_keypage_flag(share, buff);
     used_length= _ma_get_page_used(share, buff);
     keypos=buff + share->keypage_header + nod_flag;
     endpos=buff + used_length;
+
     for ( ;; )
     {
       if (nod_flag)
@@ -3049,19 +3093,19 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
 	}
       }
       if (keypos >= endpos ||
-	  (key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,key)) == 0)
+	  !(*keyinfo->get_key)(&key, page_flag, nod_flag, &keypos))
 	break;
       DBUG_ASSERT(keypos <= endpos);
       if (keyinfo->flag & HA_FULLTEXT)
       {
         uint off;
         int  subkeys;
-        get_key_full_length_rdonly(off, key);
-        subkeys=ft_sintXkorr(key+off);
+        get_key_full_length_rdonly(off, key.data);
+        subkeys= ft_sintXkorr(key.data + off);
         if (subkeys < 0)
         {
-          next_page= _ma_dpos(info,0,key+key_length);
-          _ma_dpointer(info,keypos-nod_flag-share->rec_reflength,
+          next_page= _ma_row_pos_from_key(&key);
+          _ma_dpointer(share, keypos - nod_flag - share->rec_reflength,
                        param->new_file_pos); /* Save new pos */
           if (sort_one_index(param,info,&share->ft2_keyinfo,
                              next_page,new_file))
@@ -3108,8 +3152,8 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
   my_off_t pos;
   my_off_t key_file_length= share->state.state.key_file_length;
   uint block_size= share->block_size;
-  my_bool zero_lsn= share->base.born_transactional &&
-    !(param->testflag & T_ZEROFILL_KEEP_LSN);
+  my_bool zero_lsn= (share->base.born_transactional &&
+                     !(param->testflag & T_ZEROFILL_KEEP_LSN));
   DBUG_ENTER("maria_zerofill_index");
 
   if (!(param->testflag & T_SILENT))
@@ -3138,6 +3182,25 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
     }
     if (zero_lsn)
       bzero(buff, LSN_SIZE);
+
+    if (share->base.born_transactional)
+    {
+      uint keynr= _ma_get_keynr(share, buff);
+      if (keynr != MARIA_DELETE_KEY_NR)
+      {
+        DBUG_ASSERT(keynr < share->base.keys);
+        if (_ma_compact_keypage(info, share->keyinfo + keynr, pos,
+                                buff, ~(TrID) 0))
+        {
+          _ma_check_print_error(param,
+                                "Page %9s: Got error %d when reading index "
+                                "file",
+                                llstr(pos, llbuff), my_errno);
+          DBUG_RETURN(1);
+        }
+      }
+    }
+
     length= _ma_get_page_used(share, buff);
     DBUG_ASSERT(length <= block_size);
     if (length < block_size)
@@ -3246,7 +3309,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
                                page_type == HEAD_PAGE ?
                                share->base.min_block_length : 0);
 
-        /* Zerofille the not used part */
+        /* Zerofill the not used part */
         offset= uint2korr(dir) + uint2korr(dir+2);
         dir_start= (uint) (dir - buff);
         DBUG_ASSERT(dir_start >= offset);
@@ -3308,6 +3371,9 @@ int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
       info->s->state.changed&= ~(STATE_NOT_MOVABLE | STATE_MOVED);
     /* Ensure state are flushed to disk */
     info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+
+    /* Reset create_trid to make file comparable */
+    info->s->state.create_trid= 0;
   }
   if (reenable_logging)
     _ma_reenable_logging_for_table(info, FALSE);
@@ -4361,6 +4427,7 @@ static int sort_key_read(MARIA_SORT_PARAM *sort_param, uchar *key)
   int error;
   MARIA_SORT_INFO *sort_info= sort_param->sort_info;
   MARIA_HA *info= sort_info->info;
+  MARIA_KEY int_key;
   DBUG_ENTER("sort_key_read");
 
   if ((error=sort_get_next_record(sort_param)))
@@ -4375,10 +4442,12 @@ static int sort_key_read(MARIA_SORT_PARAM *sort_param, uchar *key)
   if (_ma_sort_write_record(sort_param))
     DBUG_RETURN(1);
 
-  sort_param->real_key_length=
-    (info->s->rec_reflength+
-     _ma_make_key(info, sort_param->key, key,
-		  sort_param->record, sort_param->current_filepos));
+  (*info->s->keyinfo[sort_param->key].make_key)(info, &int_key,
+                                                sort_param->key, key,
+                                                sort_param->record,
+                                                sort_param->current_filepos,
+                                                0);
+  sort_param->real_key_length= int_key.data_length + int_key.ref_length;
 #ifdef HAVE_purify
   bzero(key+sort_param->real_key_length,
 	(sort_param->key_length-sort_param->real_key_length));
@@ -4393,6 +4462,7 @@ static int sort_maria_ft_key_read(MARIA_SORT_PARAM *sort_param, uchar *key)
   MARIA_SORT_INFO *sort_info=sort_param->sort_info;
   MARIA_HA *info=sort_info->info;
   FT_WORD *wptr=0;
+  MARIA_KEY int_key;
   DBUG_ENTER("sort_maria_ft_key_read");
 
   if (!sort_param->wordlist)
@@ -4419,10 +4489,10 @@ static int sort_maria_ft_key_read(MARIA_SORT_PARAM *sort_param, uchar *key)
     wptr=(FT_WORD*)(sort_param->wordptr);
   }
 
-  sort_param->real_key_length=(info->s->rec_reflength+
-			       _ma_ft_make_key(info, sort_param->key,
-                                               key, wptr++,
-                                               sort_param->current_filepos));
+  _ma_ft_make_key(info, &int_key, sort_param->key, key, wptr++,
+                  sort_param->current_filepos);
+  sort_param->real_key_length= int_key.data_length + int_key.ref_length;
+
 #ifdef HAVE_purify
   if (sort_param->key_length > sort_param->real_key_length)
     bzero(key+sort_param->real_key_length,
@@ -5139,9 +5209,10 @@ static int sort_key_write(MARIA_SORT_PARAM *sort_param, const uchar *a)
 
   if (sort_info->key_block->inited)
   {
-    cmp=ha_key_cmp(sort_param->seg, (uchar*) sort_info->key_block->lastkey,
-		   a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
-		   diff_pos);
+    cmp= ha_key_cmp(sort_param->seg, (uchar*) sort_info->key_block->lastkey,
+                    a, USE_WHOLE_KEY,
+                    SEARCH_FIND | SEARCH_UPDATE | SEARCH_INSERT,
+                    diff_pos);
     if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
       ha_key_cmp(sort_param->seg, (uchar*) sort_info->key_block->lastkey,
                  a, USE_WHOLE_KEY,
@@ -5165,21 +5236,19 @@ static int sort_key_write(MARIA_SORT_PARAM *sort_param, const uchar *a)
   if ((sort_param->keyinfo->flag & HA_NOSAME) && cmp == 0)
   {
     sort_info->dupp++;
-    sort_info->info->cur_row.lastpos= get_record_for_key(sort_info->info,
-                                                         sort_param->keyinfo,
+    sort_info->info->cur_row.lastpos= get_record_for_key(sort_param->keyinfo,
                                                          a);
     _ma_check_print_warning(param,
 			   "Duplicate key %2u for record at %10s against record at %10s",
                             sort_param->key + 1,
                             llstr(sort_info->info->cur_row.lastpos, llbuff),
-                            llstr(get_record_for_key(sort_info->info,
-                                                     sort_param->keyinfo,
+                            llstr(get_record_for_key(sort_param->keyinfo,
                                                      sort_info->key_block->
                                                      lastkey),
                                   llbuff2));
     param->testflag|=T_RETRY_WITHOUT_QUICK;
     if (sort_info->param->testflag & T_VERBOSE)
-      _ma_print_key(stdout,sort_param->seg, a, USE_WHOLE_KEY);
+      _ma_print_keydata(stdout,sort_param->seg, a, USE_WHOLE_KEY);
     return (sort_delete_record(sort_param));
   }
 #ifndef DBUG_OFF
@@ -5228,7 +5297,7 @@ int _ma_sort_ft_buf_flush(MARIA_SORT_PARAM *sort_param)
   error=_ma_flush_pending_blocks(sort_param);
   /* updating lastkey with second-level tree info */
   ft_intXstore(maria_ft_buf->lastkey+val_off, -maria_ft_buf->count);
-  _ma_dpointer(sort_info->info, maria_ft_buf->lastkey+val_off+HA_FT_WLEN,
+  _ma_dpointer(sort_info->info->s, maria_ft_buf->lastkey+val_off+HA_FT_WLEN,
       share->state.key_root[sort_param->key]);
   /* restoring first level tree data in sort_info/sort_param */
   sort_info->key_block=sort_info->key_block_end- sort_info->param->sort_key_blocks;
@@ -5331,12 +5400,16 @@ word_init_ft_buf:
 } /* sort_maria_ft_key_write */
 
 
-	/* get pointer to record from a key */
+/* get pointer to record from a key */
 
-static my_off_t get_record_for_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-				   const uchar *key)
+static my_off_t get_record_for_key(MARIA_KEYDEF *keyinfo,
+				   const uchar *key_data)
 {
-  return _ma_dpos(info,0, key + _ma_keylength(keyinfo, key));
+  MARIA_KEY key;
+  key.keyinfo= keyinfo;
+  key.data= (uchar*) key_data;
+  key.data_length= _ma_keylength(keyinfo, key_data);
+  return _ma_row_pos_from_key(&key);
 } /* get_record_for_key */
 
 
@@ -5355,6 +5428,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   MARIA_SORT_INFO *sort_info= sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
   MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
+  MARIA_KEY tmp_key;
   MARIA_HA *info= sort_info->info;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("sort_insert_key");
@@ -5389,16 +5463,22 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
     _ma_kpointer(info,key_block->end_pos,prev_block);
   }
 
-  t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,
-				(uchar*) 0,lastkey,lastkey,key,
-				 &s_temp);
+  tmp_key.keyinfo= keyinfo;
+  tmp_key.data= (uchar*) key;
+  tmp_key.data_length= _ma_keylength(keyinfo, key) - share->base.rec_reflength;
+  tmp_key.ref_length=  share->base.rec_reflength;
+
+  t_length= (*keyinfo->pack_key)(&tmp_key, nod_flag,
+                                 (uchar*) 0, lastkey, lastkey, &s_temp);
   (*keyinfo->store_key)(keyinfo, key_block->end_pos+nod_flag,&s_temp);
   a_length+=t_length;
   _ma_store_page_used(share, anc_buff, a_length);
   key_block->end_pos+=t_length;
   if (a_length <= (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
   {
-    VOID(_ma_move_key(keyinfo, key_block->lastkey, key));
+    MARIA_KEY tmp_key2;
+    tmp_key2.data= key_block->lastkey;
+    _ma_copy_key(&tmp_key2, &tmp_key);
     key_block->last_length=a_length-t_length;
     DBUG_RETURN(0);
   }
@@ -5474,7 +5554,7 @@ static int sort_delete_record(MARIA_SORT_PARAM *sort_param)
   if (flush_io_cache(&row_info->rec_cache))
     DBUG_RETURN(1);
 
-  key= key_info->lastkey + key_info->s->base.max_key_length;
+  key= key_info->lastkey_buff + key_info->s->base.max_key_length;
   if ((error=(*row_info->s->read_record)(row_info, sort_param->record,
                                          key_info->cur_row.lastpos)) &&
 	error != HA_ERR_RECORD_DELETED)
@@ -5487,9 +5567,11 @@ static int sort_delete_record(MARIA_SORT_PARAM *sort_param)
 
   for (i=0 ; i < sort_info->current_key ; i++)
   {
-    uint key_length= _ma_make_key(key_info, i, key, sort_param->record,
-                                  key_info->cur_row.lastpos);
-    if (_ma_ck_delete(key_info, i, key, key_length))
+    MARIA_KEY tmp_key;
+    (*key_info->s->keyinfo[i].make_key)(key_info, &tmp_key, i, key,
+                                        sort_param->record,
+                                        key_info->cur_row.lastpos, 0);
+    if (_ma_ck_delete(key_info, &tmp_key))
     {
       _ma_check_print_error(param,
                             "Can't delete key %d from record to be removed",
@@ -5771,7 +5853,9 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   (*org_info)->s->state.state.records= info.state->records;
   if (share.state.create_time)
     (*org_info)->s->state.create_time=share.state.create_time;
+#ifdef EXTERNAL_LOCKING
   (*org_info)->s->state.unique= (*org_info)->this_unique= share.state.unique;
+#endif
   (*org_info)->s->state.state.checksum= info.state->checksum;
   (*org_info)->s->state.state.del= info.state->del;
   (*org_info)->s->state.dellink= share.state.dellink;
@@ -6075,7 +6159,8 @@ void maria_disable_non_unique_index(MARIA_HA *info, ha_rows rows)
               (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES));
   for (i=0 ; i < share->base.keys ; i++,key++)
   {
-    if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) &&
+    if (!(key->flag &
+          (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY | HA_RTREE_INDEX)) &&
         ! maria_too_big_key_for_sort(key,rows) && share->base.auto_key != i+1)
     {
       maria_clear_key_active(share->state.key_map, i);
@@ -6457,7 +6542,8 @@ my_bool write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
       point state (without crash mark) is already written.
     */
     if ((!(param->testflag & T_NO_CREATE_RENAME_LSN) &&
-         _ma_update_state_lsns(share, lsn, FALSE, FALSE)) ||
+         _ma_update_state_lsns(share, lsn, share->state.create_trid, FALSE,
+                               FALSE)) ||
         _ma_sync_table_files(info))
       return TRUE;
     share->now_transactional= save_now_transactional;

@@ -2,7 +2,6 @@ drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 create table t1 (a varchar(10000)) engine=maria;
 * TEST of over-allocated bitmap not flushed by checkpoint
 insert into t1 values ("bbbbbbb");

@@ -20,7 +20,7 @@
 #ifdef HAVE_RTREE_KEYS
 
 int maria_rtree_key_cmp(HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
-                        uint key_length, uint nextflag);
+                        uint key_length, uint32 nextflag);
 int maria_rtree_combine_rect(const HA_KEYSEG *keyseg,
                              const uchar *, const uchar *, uchar*,
                              uint key_length);

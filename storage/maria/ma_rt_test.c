@@ -131,7 +131,7 @@ static int run_test(const char *filename)
   int key_type=HA_KEYTYPE_DOUBLE;
   int key_length=8;
   int null_fields=0;
-  int nrecords=sizeof(rt_data)/(sizeof(double)*4);/* 3000;*/
+  int nrecords=sizeof(rt_data)/(sizeof(double)*4);/* 40 */
   int rec_length=0;
   int uniques=0;
   int i, max_i;
@@ -333,7 +333,7 @@ static int run_test(const char *filename)
       goto err;
     }
     print_record(read_record,maria_position(file),"");
-    create_record(record,i+nrecords*upd);
+    create_record1(record,i+nrecords*upd);
     if (!silent)
       printf("\t-> ");
     print_record(record,maria_position(file),"\n");

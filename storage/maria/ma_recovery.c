@@ -951,7 +951,8 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     eprint(tracef, "Failed to open renamed table");
     goto end;
   }
-  if (_ma_update_state_lsns(info->s, rec->lsn, TRUE, TRUE))
+  if (_ma_update_state_lsns(info->s, rec->lsn, info->s->state.create_trid,
+                            TRUE, TRUE))
     goto end;
   if (maria_close(info))
     goto end;
@@ -1027,8 +1028,8 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
   else if (maria_repair(&param, info, name, quick_repair))
     goto end;
 
-  if (_ma_update_state_lsns(info->s, rec->lsn, TRUE,
-                            !(param.testflag & T_NO_CREATE_RENAME_LSN)))
+  if (_ma_update_state_lsns(info->s, rec->lsn, trnman_get_min_safe_trid(),
+                            TRUE, !(param.testflag & T_NO_CREATE_RENAME_LSN)))
     goto end;
   error= 0;
 
@@ -1202,11 +1203,13 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     if (close_one_table(share->open_file_name, lsn_of_file_id))
       goto end;
   }
-  DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
   if (!share->base.born_transactional)
   {
-    tprint(tracef, ", is not transactional\n");
-    ALERT_USER();
+    /*
+      This can happen if one converts a transactional table to a
+      not transactional table
+    */
+    tprint(tracef, ", is not transactional.  Ignoring open request");
     error= -1;
     goto end;
   }
@@ -1789,7 +1792,7 @@ prototype_redo_exec_hook(UNDO_KEY_INSERT)
       if (keyseg->flag & HA_SWAP_KEY)
       {
         /* We put key from log record to "data record" packing format... */
-        uchar reversed[HA_MAX_KEY_BUFF];
+        uchar reversed[MARIA_MAX_KEY_BUFF];
         uchar *key_ptr= to;
         uchar *key_end= key_ptr + keyseg->length;
         to= reversed + keyseg->length;

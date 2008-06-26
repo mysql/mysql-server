@@ -138,3 +138,22 @@ select count(*) from t1;
 count(*)
 7
 drop table t1;
+CREATE TABLE t1 (fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,    g GEOMETRY NOT NULL,   SPATIAL KEY(g) ) transactional=1 row_format=page engine=maria;
+lock tables t1 write concurrent, t1 as t2 write concurrent;
+insert into t1 (fid,g) values (NULL,GeomFromText('LineString(0 0,1 1)'));
+select fid from t1 as t2;
+fid
+1
+select count(*) from t1 as t2;
+count(*)
+1
+insert into t1 (fid,g) values (NULL,GeomFromText('LineString(0 0,1 1)'));
+select fid from t1 as t2;
+fid
+1
+2
+select count(*) from t1 as t2;
+count(*)
+2
+unlock tables;
+drop table t1;

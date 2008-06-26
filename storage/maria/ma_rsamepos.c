@@ -19,13 +19,16 @@
 #include "maria_def.h"
 
 
-	/*
-	** If inx >= 0 update index pointer
-	** Returns one of the following values:
-	**  0 = Ok.
-	** HA_ERR_KEY_NOT_FOUND = Row is deleted
-	** HA_ERR_END_OF_FILE   = End of file
-	*/
+/*
+  Read row based on postion
+
+  @param inx      If inx >= 0 postion the given index on found row
+
+  @return
+  @retval  0                    Ok
+  @retval HA_ERR_KEY_NOT_FOUND  Row is deleted
+  @retval HA_ERR_END_OF_FILE   End of file
+*/
 
 int maria_rsame_with_pos(MARIA_HA *info, uchar *record, int inx,
                          MARIA_RECORD_POS filepos)
@@ -50,8 +53,10 @@ int maria_rsame_with_pos(MARIA_HA *info, uchar *record, int inx,
   info->lastinx= inx;
   if (inx >= 0)
   {
-    info->lastkey_length= _ma_make_key(info,(uint) inx,info->lastkey,record,
-				      info->cur_row.lastpos);
+    (*info->s->keyinfo[inx].make_key)(info, &info->last_key, (uint) inx,
+                                      info->lastkey_buff,
+                                      record, info->cur_row.lastpos,
+                                      info->cur_row.trid);
     info->update|=HA_STATE_KEY_CHANGED;		/* Don't use indexposition */
   }
   DBUG_RETURN(0);

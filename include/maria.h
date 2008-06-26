@@ -160,10 +160,24 @@ struct st_maria_share;
 struct st_maria_handler;			/* For referense */
 typedef struct st_maria_handler MARIA_HA;
 struct st_maria_s_param;
+struct st_maria_keydef;
+
+typedef struct st_maria_key                 /* Internal info about a key */
+{
+  uchar *data;                              /* Data for key */
+  struct st_maria_keydef *keyinfo;	    /* Definition for key */
+  uint data_length;                         /* Length of key data */
+  uint ref_length;                          /* record ref + transid */
+  uint32 flag;                               /* 0 or SEARCH_PART_KEY */
+} MARIA_KEY;
+
 
 typedef struct st_maria_keydef          /* Key definition with open & info */
 {
   struct st_maria_share *share;         /* Pointer to base (set in open) */
+#ifdef THREAD
+  rw_lock_t root_lock;                  /* locking of tree */
+#endif
   uint16 keysegs;                       /* Number of key-segment */
   uint16 flag;                          /* NOSAME, PACK_USED */
 
@@ -180,20 +194,23 @@ typedef struct st_maria_keydef          /* Key definition with open & info */
 
   HA_KEYSEG *seg, *end;
   struct st_mysql_ftparser *parser;     /* Fulltext [pre]parser */
-  int (*bin_search)(MARIA_HA *info,
-		    struct st_maria_keydef *keyinfo, uchar *page,
-                    const uchar *key, uint key_len, uint comp_flag,
-                    uchar **ret_pos,
-		    uchar *buff, my_bool *was_last_key);
-  uint(*get_key)(struct st_maria_keydef *keyinfo, uint nod_flag,
-                 uchar **page, uchar *key);
-  int (*pack_key)(struct st_maria_keydef *keyinfo, uint nod_flag,
+  int (*bin_search)(const MARIA_KEY *key, uchar *page,
+                    uint32 comp_flag, uchar **ret_pos, uchar *buff,
+                    my_bool *was_last_key);
+  uint (*get_key)(MARIA_KEY *key, uint page_flag, uint nod_flag,
+                  uchar **page);
+  uchar *(*skip_key)(MARIA_KEY *key, uint page_flag, uint nod_flag,
+                     uchar *page);
+  int (*pack_key)(const MARIA_KEY *key, uint nod_flag,
 		  uchar *next_key, uchar *org_key, uchar *prev_key,
-		  const uchar *key, struct st_maria_s_param *s_temp);
+		  struct st_maria_s_param *s_temp);
   void (*store_key)(struct st_maria_keydef *keyinfo, uchar *key_pos,
 		    struct st_maria_s_param *s_temp);
-  int (*ck_insert)(MARIA_HA *inf, uint k_nr, uchar *k, uint klen);
-  int (*ck_delete)(MARIA_HA *inf, uint k_nr, uchar *k, uint klen);
+  my_bool (*ck_insert)(MARIA_HA *inf, MARIA_KEY *key);
+  int (*ck_delete)(MARIA_HA *inf, MARIA_KEY *klen);
+  MARIA_KEY *(*make_key)(MARIA_HA *info, MARIA_KEY *int_key, uint keynr,
+                         uchar *key, const uchar *record,
+                         MARIA_RECORD_POS filepos, ulonglong trid);
 } MARIA_KEYDEF;
 
 

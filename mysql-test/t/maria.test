@@ -1519,6 +1519,30 @@ show create table t1;
 drop table t1;
 
 #
+# Some tests that have failed with transactional=0
+#
+
+# Testing buik insert
+create table t1 (a int, key(a)) transactional=0;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t1 select NULL from t1;
+check table t1;
+drop table t1;
+
+#
+# Some tests with temporary tables
+#
+
+create temporary table t1 (a int, key(a)) transactional=1;
+create temporary table t2 (a int, key(a)) transactional=1;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+select count(*) from t1 where a >= 4;
+drop table t1;
+
+#
 # Test problems with small rows and row_type=page 
 # Bug 35048 "maria table corruption reported when transactional=0"
 #

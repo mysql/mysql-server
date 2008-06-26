@@ -3,4 +3,4 @@
 # so slow...
 
 --source include/big_test.inc
---source t/rpl_truncate_7ndb.test
+--source suite/rpl_ndb/t/rpl_truncate_7ndb.test

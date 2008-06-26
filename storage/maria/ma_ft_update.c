@@ -135,13 +135,13 @@ FT_WORD * _ma_ft_parserecord(MARIA_HA *info, uint keynr, const uchar *record,
 static int _ma_ft_store(MARIA_HA *info, uint keynr, uchar *keybuf,
 			FT_WORD *wlist, my_off_t filepos)
 {
-  uint key_length;
   DBUG_ENTER("_ma_ft_store");
 
   for (; wlist->pos; wlist++)
   {
-    key_length= _ma_ft_make_key(info,keynr,keybuf,wlist,filepos);
-    if (_ma_ck_write(info, keynr, keybuf, key_length))
+    MARIA_KEY key;
+    _ma_ft_make_key(info, &key, keynr, keybuf, wlist, filepos);
+    if (_ma_ck_write(info, &key))
       DBUG_RETURN(1);
    }
    DBUG_RETURN(0);
@@ -150,13 +150,14 @@ static int _ma_ft_store(MARIA_HA *info, uint keynr, uchar *keybuf,
 static int _ma_ft_erase(MARIA_HA *info, uint keynr, uchar *keybuf,
 			FT_WORD *wlist, my_off_t filepos)
 {
-  uint key_length, err=0;
+  uint err=0;
   DBUG_ENTER("_ma_ft_erase");
 
   for (; wlist->pos; wlist++)
   {
-    key_length= _ma_ft_make_key(info,keynr,keybuf,wlist,filepos);
-    if (_ma_ck_delete(info, keynr, keybuf, key_length))
+    MARIA_KEY key;
+    _ma_ft_make_key(info, &key, keynr, keybuf, wlist, filepos);
+    if (_ma_ck_delete(info, &key))
       err=1;
    }
    DBUG_RETURN(err);
@@ -199,7 +200,6 @@ int _ma_ft_update(MARIA_HA *info, uint keynr, uchar *keybuf,
   int error= -1;
   FT_WORD *oldlist,*newlist, *old_word, *new_word;
   CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
-  uint key_length;
   int cmp, cmp2;
   DBUG_ENTER("_ma_ft_update");
 
@@ -218,14 +218,16 @@ int _ma_ft_update(MARIA_HA *info, uint keynr, uchar *keybuf,
 
     if (cmp < 0 || cmp2)
     {
-      key_length= _ma_ft_make_key(info,keynr,keybuf,old_word,pos);
-      if ((error= _ma_ck_delete(info,keynr, keybuf,key_length)))
+      MARIA_KEY key;
+      _ma_ft_make_key(info, &key, keynr, keybuf, old_word, pos);
+      if ((error= _ma_ck_delete(info, &key)))
         goto err;
     }
     if (cmp > 0 || cmp2)
     {
-      key_length= _ma_ft_make_key(info, keynr, keybuf, new_word,pos);
-      if ((error= _ma_ck_write(info, keynr, keybuf,key_length)))
+      MARIA_KEY key;
+      _ma_ft_make_key(info, &key, keynr, keybuf, new_word,pos);
+      if ((error= _ma_ck_write(info, &key)))
         goto err;
     }
     if (cmp<=0) old_word++;
@@ -278,8 +280,9 @@ int _ma_ft_del(MARIA_HA *info, uint keynr, uchar *keybuf, const uchar *record,
 }
 
 
-uint _ma_ft_make_key(MARIA_HA *info, uint keynr, uchar *keybuf, FT_WORD *wptr,
-                     my_off_t filepos)
+MARIA_KEY *_ma_ft_make_key(MARIA_HA *info, MARIA_KEY *key, uint keynr,
+                           uchar *keybuf,
+                           FT_WORD *wptr, my_off_t filepos)
 {
   uchar buf[HA_FT_MAXBYTELEN+16];
   DBUG_ENTER("_ma_ft_make_key");
@@ -295,7 +298,8 @@ uint _ma_ft_make_key(MARIA_HA *info, uint keynr, uchar *keybuf, FT_WORD *wptr,
 
   int2store(buf+HA_FT_WLEN,wptr->len);
   memcpy(buf+HA_FT_WLEN+2,wptr->pos,wptr->len);
-  DBUG_RETURN(_ma_make_key(info, keynr, keybuf, buf, filepos));
+  /* Can't be spatial so it's ok to call _ma_make_key directly here */
+  DBUG_RETURN(_ma_make_key(info, key, keynr, keybuf, buf, filepos, 0));
 }
 
 
@@ -303,7 +307,7 @@ uint _ma_ft_make_key(MARIA_HA *info, uint keynr, uchar *keybuf, FT_WORD *wptr,
   convert key value to ft2
 */
 
-uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
+uint _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
 {
   MARIA_SHARE *share= info->s;
   my_off_t root;
@@ -312,6 +316,7 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
   uchar *key_ptr= (uchar*) dynamic_array_ptr(da, 0), *end;
   uint length, key_length;
   MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
+  MARIA_KEY tmp_key;
   DBUG_ENTER("_ma_ft_convert_to_ft2");
 
   /* we'll generate one pageful at once, and insert the rest one-by-one */
@@ -320,8 +325,8 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
   set_if_smaller(length, da->elements);
   length=length * keyinfo->keylength;
 
-  get_key_full_length_rdonly(key_length, key);
-  while (_ma_ck_delete(info, keynr, key, key_length) == 0)
+  get_key_full_length_rdonly(key_length, key->data);
+  while (_ma_ck_delete(info, key) == 0)
   {
     /*
       nothing to do here.
@@ -331,7 +336,7 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
 
   /* creating pageful of keys */
   bzero(info->buff, share->keypage_header);
-  _ma_store_keynr(share, info->buff, keynr);
+  _ma_store_keynr(share, info->buff, keyinfo->key_nr);
   _ma_store_page_used(share, info->buff, length + share->keypage_header);
   memcpy(info->buff + share->keypage_header, key_ptr, length);
   info->keyread_buff_used= info->page_changed=1;      /* info->buff is used */
@@ -346,17 +351,23 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, uint keynr, uchar *key)
 
   /* inserting the rest of key values */
   end= (uchar*) dynamic_array_ptr(da, da->elements);
+  tmp_key.keyinfo= keyinfo;
+  tmp_key.data_length= keyinfo->keylength;
+  tmp_key.ref_length= 0;
+  tmp_key.flag= 0;
   for (key_ptr+=length; key_ptr < end; key_ptr+=keyinfo->keylength)
-    if(_ma_ck_real_write_btree(info, keyinfo, key_ptr, 0, &root, SEARCH_SAME))
+  {
+    tmp_key.data= key_ptr;
+    if (_ma_ck_real_write_btree(info, key, &root, SEARCH_SAME))
       DBUG_RETURN(-1);
+  }
 
   /* now, writing the word key entry */
-  ft_intXstore(key+key_length, - (int) da->elements);
-  _ma_dpointer(info, key+key_length+HA_FT_WLEN, root);
+  ft_intXstore(key->data + key_length, - (int) da->elements);
+  _ma_dpointer(share, key->data + key_length + HA_FT_WLEN, root);
 
-  DBUG_RETURN(_ma_ck_real_write_btree(info,
-                                     share->keyinfo+keynr,
-                                     key, 0,
-                                     &share->state.key_root[keynr],
-                                     SEARCH_SAME));
+  DBUG_RETURN(_ma_ck_real_write_btree(info, key,
+                                      &share->state.key_root[key->keyinfo->
+                                                             key_nr],
+                                      SEARCH_SAME));
 }

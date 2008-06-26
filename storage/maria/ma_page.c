@@ -13,7 +13,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Read and write key blocks */
+/*
+  Read and write key blocks
+
+  The basic structure of a key block is as follows:
+
+  LSN		7 (LSN_STORE_SIZE);     Log number for last change;
+  		Only for transactional pages
+  PACK_TRANSID  6 (TRANSID_SIZE);       Relative transid to pack page transid's
+  		Only for transactional pages
+  KEYNR		1 (KEYPAGE_KEYID_SIZE)  Which index this page belongs to
+  FLAG          1 (KEYPAGE_FLAG_SIZE)   Flags for page
+  PAGE_SIZE	2 (KEYPAGE_USED_SIZE)   How much of the page is used.
+  					high-byte-first
+
+  The flag is a combination of the following values:
+
+   KEYPAGE_FLAG_ISNOD            Page is a node
+   KEYPAGE_FLAG_HAS_TRANSID      There may be a transid on the page.
+
+  After this we store key data, either packed or not packed, directly
+  after each other.  If the page is a node flag, there is a pointer to
+  the next key page at page start and after each key.
+
+  At end of page the last KEYPAGE_CHECKSUM_SIZE bytes are reserved for a
+  page checksum.
+*/
 
 #include "maria_def.h"
 #include "trnman.h"
@@ -163,7 +188,7 @@ int _ma_write_keypage(register MARIA_HA *info,
 }
 
 
-/*
+/**
   @brief Put page in free list
 
   @fn    _ma_dispose()
@@ -366,3 +391,150 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
   DBUG_PRINT("exit",("Pos: %ld",(long) pos));
   DBUG_RETURN(pos);
 } /* _ma_new */
+
+
+/**
+   Log compactation of a index page
+*/
+
+static my_bool _ma_log_compact_keypage(MARIA_HA *info, my_off_t page,
+                                       TrID min_read_from)
+{
+  LSN lsn;
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 1 + TRANSID_SIZE];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+  MARIA_SHARE *share= info->s;
+  DBUG_ENTER("_ma_log_compact_keypage");
+  DBUG_PRINT("enter", ("page: %lu", (ulong) page));
+
+  /* Store address of new root page */
+  page/= share->block_size;
+  page_store(log_data + FILEID_STORE_SIZE, page);
+
+  log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE]= KEY_OP_COMPACT_PAGE;
+  transid_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE +1,
+                min_read_from);
+
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+
+  if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
+                            info->trn, info,
+                            (translog_size_t) sizeof(log_data),
+                            TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                            log_data, NULL))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+
+/**
+   Remove all transaction id's less than given one from a key page
+
+   @fn    _ma_compact_keypage()
+   @param keyinfo        Key handler
+   @param page_pos       Page position on disk
+   @param page           Buffer for page
+   @param min_read_from  Remove all trids from page less than this
+
+   @retval 0             Ok
+   ®retval 1             Error;  my_errno contains the error
+*/
+
+my_bool _ma_compact_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+                            my_off_t page_pos, uchar *page, TrID min_read_from)
+{
+  MARIA_SHARE *share= keyinfo->share;
+  MARIA_KEY key;
+  uchar *start_of_page, *endpos, *start_of_empty_space;
+  uint page_flag, nod_flag, saved_space;
+  my_bool page_has_transid;
+  DBUG_ENTER("_ma_compact_keypage");
+
+  page_flag= _ma_get_keypage_flag(share, page);
+  if (!(page_flag & KEYPAGE_FLAG_HAS_TRANSID))
+    DBUG_RETURN(0);                    /* No transaction id on page */
+
+  nod_flag= _ma_test_if_nod(share, page);
+  endpos= page + _ma_get_page_used(share, page);
+  key.data= info->lastkey_buff;
+  key.keyinfo= keyinfo;
+
+  start_of_page= page;
+  page_has_transid= 0;
+  page+= share->keypage_header + nod_flag;
+  key.data[0]= 0;                             /* safety */
+  start_of_empty_space= 0;
+  saved_space= 0;
+  do
+  {
+    if (!(page= (*keyinfo->skip_key)(&key, 0, 0, page)))
+    {
+      DBUG_PRINT("error",("Couldn't find last key:  page: 0x%lx",
+                          (long) page));
+      maria_print_error(share, HA_ERR_CRASHED);
+      my_errno=HA_ERR_CRASHED;
+      DBUG_RETURN(1);
+    }
+    if (key_has_transid(page-1))
+    {
+      uint transid_length;
+      transid_length= transid_packed_length(page);
+
+      if (min_read_from == ~(TrID) 0 ||
+          min_read_from < transid_get_packed(share, page))
+      {
+        page[-1]&= 254;                           /* Remove transid marker */
+        transid_length= transid_packed_length(page);
+        if (start_of_empty_space)
+        {
+          /* Move block before the transid up in page */
+          uint copy_length= (uint) (page - start_of_empty_space) - saved_space;
+          memmove(start_of_empty_space, start_of_empty_space + saved_space,
+                  copy_length);
+          start_of_empty_space+= copy_length;
+        }
+        else
+          start_of_empty_space= page;
+        saved_space+= transid_length;
+      }
+      else
+        page_has_transid= 1;                /* At least one id left */
+      page+= transid_length;
+    }
+    page+= nod_flag;
+  } while (page < endpos);
+
+  DBUG_ASSERT(page == endpos);
+
+  if (start_of_empty_space)
+  {
+    /*
+      Move last block down
+      This is always true if any transid was removed
+    */
+    uint copy_length= (uint) (endpos - start_of_empty_space) - saved_space;
+    uint page_length;
+
+    if (copy_length)
+      memmove(start_of_empty_space, start_of_empty_space + saved_space,
+              copy_length);
+    page_length= (uint) (start_of_empty_space + copy_length - start_of_page);
+    _ma_store_page_used(share, start_of_page, page_length);
+  }
+
+  if (!page_has_transid)
+  {
+    page_flag&= ~KEYPAGE_FLAG_HAS_TRANSID;
+    _ma_store_keypage_flag(share, start_of_page, page_flag);
+    /* Clear packed transid (in case of zerofill) */
+    bzero(start_of_page + LSN_STORE_SIZE, TRANSID_SIZE);
+  }
+
+  if (share->now_transactional)
+  {
+    if (_ma_log_compact_keypage(info, page_pos, min_read_from))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
