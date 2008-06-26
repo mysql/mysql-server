@@ -95,6 +95,10 @@ typedef union
 #define MAX_NUMBER_OF_LSNS_PER_RECORD 2
 
 
+/* max lsn calculation for buffer */
+#define BUFFER_MAX_LSN(B)  \
+  ((B)->last_lsn == LSN_IMPOSSIBLE ? (B)->prev_last_lsn : (B)->last_lsn)
+
 /* log write buffer descriptor */
 struct st_translog_buffer
 {
@@ -2093,9 +2097,7 @@ static my_bool translog_buffer_next(TRANSLOG_ADDRESS *horizon,
   }
   log_descriptor.buffers[old_buffer_no].next_buffer_offset= new_buffer->offset;
   new_buffer->prev_last_lsn=
-    ((log_descriptor.buffers[old_buffer_no].last_lsn != LSN_IMPOSSIBLE) ?
-     log_descriptor.buffers[old_buffer_no].last_lsn :
-     log_descriptor.buffers[old_buffer_no].prev_last_lsn);
+    BUFFER_MAX_LSN(log_descriptor.buffers + old_buffer_no);
   DBUG_PRINT("info", ("prev_last_lsn set to (%lu,0x%lx)  buffer: 0x%lx",
                       LSN_IN_PARTS(new_buffer->prev_last_lsn),
                       (ulong) new_buffer));
@@ -7516,7 +7518,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
     {
       /* fix lsn if it was horizon */
       if (cmp_translog_addr(lsn, log_descriptor.bc.buffer->last_lsn) > 0)
-          lsn= log_descriptor.bc.buffer->last_lsn;
+          lsn= BUFFER_MAX_LSN(log_descriptor.bc.buffer);
       translog_flush_wait_for_end(lsn);
       pthread_mutex_unlock(&log_descriptor.log_flush_lock);
       DBUG_RETURN(0);
@@ -7551,11 +7553,24 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
        i= (i + 1) % TRANSLOG_BUFFERS_NO) {}
   start_buffer_no= i;
 
-  /* if we have to flush last buffer then we will finish it */
-  if (cmp_translog_addr(lsn, log_descriptor.bc.buffer->prev_last_lsn) > 0)
+  DBUG_PRINT("info",
+             ("start from: %u  current: %u  prev last lsn: (%lu,0x%lx)",
+              (uint) start_buffer_no, (uint) log_descriptor.bc.buffer_no,
+              LSN_IN_PARTS(log_descriptor.bc.buffer->prev_last_lsn)));
+
+
+  /*
+    if LSN up to which we have to flush bigger then maximum LSN of previous
+    buffer and at least one LSN was saved in the current buffer (last_lsn !=
+    LSN_IMPOSSIBLE) then we better finish the current buffer.
+  */
+  if (cmp_translog_addr(lsn, log_descriptor.bc.buffer->prev_last_lsn) > 0 &&
+      log_descriptor.bc.buffer->last_lsn != LSN_IMPOSSIBLE)
   {
     struct st_translog_buffer *buffer= log_descriptor.bc.buffer;
     lsn= log_descriptor.bc.buffer->last_lsn; /* fix lsn if it was horizon */
+    DBUG_PRINT("info", ("LSN to flush fixed to last lsn: (%lu,0x%lx)",
+               LSN_IN_PARTS(log_descriptor.bc.buffer->last_lsn)));
     last_buffer_no= log_descriptor.bc.buffer_no;
     log_descriptor.is_everything_flushed= 1;
     translog_force_current_buffer_to_finish();
