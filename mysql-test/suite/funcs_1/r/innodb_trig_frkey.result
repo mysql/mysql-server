@@ -1,141 +1,73 @@
-USE test;
-drop table if exists tb3 ;
-create table tb3 (
-f118 char not null DEFAULT 'a',
-f119 char binary not null DEFAULT b'101',
-f120 char ascii not null DEFAULT b'101',
-f121 tinytext,
-f122 text,
-f123 mediumtext,
-f124 longtext unicode,
-f125 tinyblob,
-f126 blob,
-f127 mediumblob,
-f128 longblob,
-f129 binary not null DEFAULT b'101',
-f130 tinyint not null DEFAULT 99,
-f131 tinyint unsigned not null DEFAULT 99,
-f132 tinyint zerofill not null DEFAULT 99,
-f133 tinyint unsigned zerofill not null DEFAULT 99,
-f134 smallint not null DEFAULT 999,
-f135 smallint unsigned not null DEFAULT 999,
-f136 smallint zerofill not null DEFAULT 999,
-f137 smallint unsigned zerofill not null DEFAULT 999,
-f138 mediumint not null DEFAULT 9999,
-f139 mediumint unsigned not null DEFAULT 9999,
-f140 mediumint zerofill not null DEFAULT 9999,
-f141 mediumint unsigned zerofill not null DEFAULT 9999,
-f142 int not null DEFAULT 99999,
-f143 int unsigned not null DEFAULT 99999,
-f144 int zerofill not null DEFAULT 99999,
-f145 int unsigned zerofill not null DEFAULT 99999,
-f146 bigint not null DEFAULT 999999,
-f147 bigint unsigned not null DEFAULT 999999,
-f148 bigint zerofill not null DEFAULT 999999,
-f149 bigint unsigned zerofill not null DEFAULT 999999,
-f150 decimal not null DEFAULT 999.999,
-f151 decimal unsigned not null DEFAULT 999.17,
-f152 decimal zerofill not null DEFAULT 999.999,
-f153 decimal unsigned zerofill,
-f154 decimal (0),
-f155 decimal (64),
-f156 decimal (0) unsigned,
-f157 decimal (64) unsigned,
-f158 decimal (0) zerofill,
-f159 decimal (64) zerofill,
-f160 decimal (0) unsigned zerofill,
-f161 decimal (64) unsigned zerofill,
-f162 decimal (0,0),
-f163 decimal (63,30),
-f164 decimal (0,0) unsigned,
-f165 decimal (63,30) unsigned,
-f166 decimal (0,0) zerofill,
-f167 decimal (63,30) zerofill,
-f168 decimal (0,0) unsigned zerofill,
-f169 decimal (63,30) unsigned zerofill,
-f170 numeric,
-f171 numeric unsigned,
-f172 numeric zerofill,
-f173 numeric unsigned zerofill,
-f174 numeric (0),
-f175 numeric (64)
-) engine = innodb;
-Warnings:
-Note	1265	Data truncated for column 'f150' at row 1
-Note	1265	Data truncated for column 'f151' at row 1
-Note	1265	Data truncated for column 'f152' at row 1
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/innodb_tb3.txt'
-into table tb3;
 
 Testcase x.x.x.1:
 -----------------
 DROP TABLE IF EXISTS t0, t1, t2;
-CREATE TABLE t0 (col1 char(50)) ENGINE=innodb;
-CREATE TABLE t1 (id INT NOT NULL, col1 char(50),
-PRIMARY KEY (id)) ENGINE=innodb;
+CREATE TABLE t0 (col1 CHAR(50))
+ENGINE = <engine_to_be_tested>;
+CREATE TABLE t1 (id INT NOT NULL, col1 CHAR(50), PRIMARY KEY (id))
+ENGINE = <engine_to_be_tested>;
 CREATE TABLE t2 (id INT PRIMARY KEY, f_id INT,
-INDEX par_ind (f_id), col1 char(50),
-FOREIGN KEY (f_id) REFERENCES t1(id)
-ON DELETE SET NULL) ENGINE=innodb;
-insert into t1 values (1,'Department A');
-insert into t1 values (2,'Department B');
-insert into t1 values (3,'Department C');
-insert into t2 values (1,2,'Emp 1');
-insert into t2 values (2,2,'Emp 2');
-insert into t2 values (3,2,'Emp 3');
-create trigger trig after insert on t0 for each row
-delete from t1 where col1=new.col1;
-select * from t2;
+INDEX par_ind (f_id), col1 CHAR(50),
+FOREIGN KEY (f_id) REFERENCES t1(id) ON DELETE SET NULL)
+ENGINE = <engine_to_be_tested>;
+INSERT INTO t1 VALUES (1,'Department A');
+INSERT INTO t1 VALUES (2,'Department B');
+INSERT INTO t1 VALUES (3,'Department C');
+INSERT INTO t2 VALUES (1,2,'Emp 1');
+INSERT INTO t2 VALUES (2,2,'Emp 2');
+INSERT INTO t2 VALUES (3,2,'Emp 3');
+CREATE TRIGGER trig AFTER INSERT ON t0 FOR EACH ROW
+DELETE FROM t1 WHERE col1 = new.col1;
+SELECT * FROM t2;
 id	f_id	col1
 1	2	Emp 1
 2	2	Emp 2
 3	2	Emp 3
-lock tables t0 write, t1 write;
-insert into t0 values ('Department B');
-unlock tables;
-select * from t2;
+LOCK TABLES t0 WRITE, t1 WRITE;
+INSERT INTO t0 VALUES ('Department B');
+UNLOCK TABLES;
+SELECT * FROM t2;
 id	f_id	col1
 1	NULL	Emp 1
 2	NULL	Emp 2
 3	NULL	Emp 3
-drop trigger trig;
-drop table t2, t1;
+DROP TRIGGER trig;
+DROP TABLE t2, t1;
 
 Testcase x.x.x.2:
 -----------------
 DROP TABLE IF EXISTS t1, t2;
-CREATE TABLE t1 (id INT NOT NULL, col1 char(50),
-PRIMARY KEY (id)) ENGINE=innodb;
+CREATE TABLE t1 (id INT NOT NULL, col1 CHAR(50), PRIMARY KEY (id))
+ENGINE = <engine_to_be_tested>;
 CREATE TABLE t2 (id INT PRIMARY KEY, f_id INT,
-INDEX par_ind (f_id), col1 char(50),
-FOREIGN KEY (f_id) REFERENCES t1(id)
-ON UPDATE CASCADE) ENGINE=innodb;
-insert into t1 values (1,'Department A');
-insert into t1 values (2,'Department B');
-insert into t1 values (3,'Department C');
-insert into t2 values (1,2,'Emp 1');
-insert into t2 values (2,3,'Emp 2');
-insert into t2 values (3,4,'Emp 3');
+INDEX par_ind (f_id), col1 CHAR(50),
+FOREIGN KEY (f_id) REFERENCES t1(id) ON UPDATE CASCADE)
+ENGINE = <engine_to_be_tested>;
+INSERT INTO t1 VALUES (1,'Department A');
+INSERT INTO t1 VALUES (2,'Department B');
+INSERT INTO t1 VALUES (3,'Department C');
+INSERT INTO t2 VALUES (1,2,'Emp 1');
+INSERT INTO t2 VALUES (2,3,'Emp 2');
+insert into t2 VALUES (3,4,'Emp 3');
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f_id`) REFERENCES `t1` (`id`) ON UPDATE CASCADE)
-create trigger tr_t2 before insert on t2 for each row
-insert into t1 values(new.f_id, concat('New Department ', new.f_id));
-lock tables t1 write, t2 write;
-insert into t2 values (3,4,'Emp 3');
-unlock tables;
-select * from t1;
+CREATE TRIGGER tr_t2 BEFORE INSERT ON t2 FOR EACH ROW
+INSERT INTO t1 VALUES(new.f_id, CONCAT('New Department ', new.f_id));
+LOCK TABLES t1 WRITE, t2 WRITE;
+INSERT INTO t2 VALUES (3,4,'Emp 3');
+UNLOCK TABLES;
+SELECT * FROM t1;
 id	col1
 1	Department A
 2	Department B
 3	Department C
 4	New Department 4
-select * from t2;
+SELECT * FROM t2;
 id	f_id	col1
 1	2	Emp 1
 2	3	Emp 2
 3	4	Emp 3
-drop trigger tr_t2;
-drop table t2, t1, t0;
+DROP TRIGGER tr_t2;
+DROP TABLE t2, t1, t0;
 
 Foreign Key tests disabled (bug 11472 - stored in trig_frkey2.test)
 -------------------------------------------------------------------
-DROP TABLE test.tb3;

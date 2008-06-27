@@ -4,5 +4,6 @@
 #
 # Set $engine_type
 let $engine_type= memory;
+--source suite/funcs_1/include/bug28309_skip.inc
 
 --source suite/funcs_1/triggers/triggers_1011ext.inc
