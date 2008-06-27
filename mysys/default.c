@@ -48,13 +48,12 @@ char *my_defaults_extra_file=0;
 /* Which directories are searched for options (and in which order) */
 
 #define MAX_DEFAULT_DIRS 6
-const char *default_directories[MAX_DEFAULT_DIRS + 1];
+#define DEFAULT_DIRS_SIZE (MAX_DEFAULT_DIRS + 1)  /* Terminate with NULL */
+static const char **default_directories = NULL;
 
 #ifdef __WIN__
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
 #define NEWLINE "\r\n"
-static char system_dir[FN_REFLEN], shared_system_dir[FN_REFLEN],
-            config_dir[FN_REFLEN];
 #else
 static const char *f_extensions[]= { ".cnf", 0 };
 #define NEWLINE "\n"
@@ -85,19 +84,34 @@ static int search_default_file_with_ext(Process_option_func func,
 					const char *config_file, int recursion_level);
 
 
-
 /**
   Create the list of default directories.
 
+  @param alloc  MEM_ROOT where the list of directories is stored
+
   @details
+  The directories searched, in order, are:
+  - Windows:     GetSystemWindowsDirectory()
+  - Windows:     GetWindowsDirectory()
+  - Windows:     C:/
+  - Windows:     Directory above where the executable is located
+  - Netware:     sys:/etc/
+  - Unix:        /etc/
+  - Unix:        /etc/mysql/
+  - Unix:        --sysconfdir=<path> (compile-time option)
+  - ALL:         getenv(DEFAULT_HOME_ENV)
+  - ALL:         --defaults-extra-file=<path> (run-time option)
+  - Unix:        ~/
+
   On all systems, if a directory is already in the list, it will be moved
   to the end of the list.  This avoids reading defaults files multiple times,
   while ensuring the correct precedence.
 
-  @return void
+  @retval NULL  Failure (out of memory, probably)
+  @retval other Pointer to NULL-terminated array of default directories
 */
 
-static void (*init_default_directories)();
+static const char **init_default_directories(MEM_ROOT *alloc);
 
 
 static char *remove_end_comment(char *ptr);
@@ -390,8 +404,9 @@ int load_defaults(const char *conf_file, const char **groups,
   struct handle_option_ctx ctx;
   DBUG_ENTER("load_defaults");
 
-  init_default_directories();
   init_alloc_root(&alloc,512,0);
+  if ((default_directories= init_default_directories(&alloc)) == NULL)
+    goto err;
   /*
     Check if the user doesn't want any default option processing
     --no-defaults is always the first option
@@ -873,34 +888,49 @@ void my_print_default_files(const char *conf_file)
   my_bool have_ext= fn_ext(conf_file)[0] != 0;
   const char **exts_to_use= have_ext ? empty_list : f_extensions;
   char name[FN_REFLEN], **ext;
-  const char **dirs;
 
-  init_default_directories();
   puts("\nDefault options are read from the following files in the given order:");
 
   if (dirname_length(conf_file))
     fputs(conf_file,stdout);
   else
   {
-    for (dirs=default_directories ; *dirs; dirs++)
+    /*
+      If default_directories is already initialized, use it.  Otherwise,
+      use a private MEM_ROOT.
+    */
+    const char **dirs = default_directories;
+    MEM_ROOT alloc;
+    init_alloc_root(&alloc,512,0);
+
+    if (!dirs && (dirs= init_default_directories(&alloc)) == NULL)
     {
-      for (ext= (char**) exts_to_use; *ext; ext++)
+      fputs("Internal error initializing default directories list", stdout);
+    }
+    else
+    {
+      for ( ; *dirs; dirs++)
       {
-	const char *pos;
-	char *end;
-	if (**dirs)
-	  pos= *dirs;
-	else if (my_defaults_extra_file)
-	  pos= my_defaults_extra_file;
-	else
-	  continue;
-	end= convert_dirname(name, pos, NullS);
-	if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
-	  *end++='.';
-	strxmov(end, conf_file, *ext, " ", NullS);
-	fputs(name,stdout);
+        for (ext= (char**) exts_to_use; *ext; ext++)
+        {
+          const char *pos;
+          char *end;
+          if (**dirs)
+            pos= *dirs;
+          else if (my_defaults_extra_file)
+            pos= my_defaults_extra_file;
+          else
+            continue;
+          end= convert_dirname(name, pos, NullS);
+          if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
+            *end++= '.';
+          strxmov(end, conf_file, *ext, " ", NullS);
+          fputs(name, stdout);
+        }
       }
     }
+
+    free_root(&alloc, MYF(0));
   }
   puts("");
 }
@@ -937,32 +967,23 @@ void print_defaults(const char *conf_file, const char **groups)
 #include <help_end.h>
 
 
-/*
-  This extra complexity is to avoid declaring 'rc' if it won't be
-  used.
-*/
-#define ADD_DIRECTORY_INTERNAL(DIR) \
-  array_append_string_unique((DIR), default_directories, \
-                             array_elements(default_directories))
-#ifdef DBUG_OFF
-#  define ADD_DIRECTORY(DIR)  (void) ADD_DIRECTORY_INTERNAL(DIR)
-#else
-#define ADD_DIRECTORY(DIR) \
-  do { \
-    my_bool rc= ADD_DIRECTORY_INTERNAL(DIR); \
-    DBUG_ASSERT(rc == FALSE);                   /* Success */ \
-  } while (0)
-#endif
+static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
+{
+  char buf[FN_REFLEN];
+  uint len;
+  char *p;
+  my_bool err __attribute__((unused));
 
+  /* Normalize directory name */
+  len= unpack_dirname(buf, dir);
+  if (!(p= strmake_root(alloc, buf, len)))
+    return 1;  /* Failure */
+  /* Should never fail if DEFAULT_DIRS_SIZE is correct size */
+  err= array_append_string_unique(p, dirs, DEFAULT_DIRS_SIZE);
+  DBUG_ASSERT(err == FALSE);
 
-#define ADD_COMMON_DIRECTORIES() \
-  do { \
-    char *env; \
-    if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV)))) \
-      ADD_DIRECTORY(env); \
-    /* Placeholder for --defaults-extra-file=<path> */ \
-    ADD_DIRECTORY(""); \
-  } while (0)
+  return 0;
+}
 
 
 #ifdef __WIN__
@@ -1001,115 +1022,88 @@ static size_t my_get_system_windows_directory(char *buffer, size_t size)
 }
 
 
-/**
-  Initialize default directories for Microsoft Windows
-
-  @details
-    1. GetSystemWindowsDirectory()
-    2. GetWindowsDirectory()
-    3. C:/
-    4. Directory above where the executable is located
-    5. getenv(DEFAULT_HOME_ENV)
-    6. --defaults-extra-file=<path> (run-time option)
-*/
-
-static void init_default_directories_win()
+static const char *my_get_module_parent(char *buf, size_t size)
 {
-  bzero((char *) default_directories, sizeof(default_directories));
+  if (!GetModuleFileName(NULL, buf, size))
+    return NULL;
 
-  if (my_get_system_windows_directory(shared_system_dir,
-                                      sizeof(shared_system_dir)))
-    ADD_DIRECTORY(shared_system_dir);
-
-  if (GetWindowsDirectory(system_dir,sizeof(system_dir)))
-    ADD_DIRECTORY(system_dir);
-
-  ADD_DIRECTORY("C:/");
-
-  if (GetModuleFileName(NULL, config_dir, sizeof(config_dir)))
+  char *last= NULL, *end= strend(buf);
+  /*
+    Look for the second-to-last \ in the filename, but hang on
+    to a pointer after the last \ in case we're in the root of
+    a drive.
+  */
+  for ( ; end > buf; end--)
   {
-    char *last= NULL, *end= strend(config_dir);
-    /*
-      Look for the second-to-last \ in the filename, but hang on
-      to a pointer after the last \ in case we're in the root of
-      a drive.
-    */
-    for ( ; end > config_dir; end--)
+    if (*end == FN_LIBCHAR)
     {
-      if (*end == FN_LIBCHAR)
+      if (last)
       {
-        if (last)
-        {
-          if (end != config_dir)
-          {
-            /* Keep the last '\' as this works both with D:\ and a directory */
-            end[1]= 0;
-          }
-          else
-          {
-            /* No parent directory (strange). Use current dir + '\' */
-            last[1]= 0;
-          }
-          break;
-        }
-        last= end;
+        /* Keep the last '\' as this works both with D:\ and a directory */
+        end[1]= 0;
+        break;
       }
+      last= end;
     }
-    ADD_DIRECTORY(config_dir);
   }
 
-  ADD_COMMON_DIRECTORIES();
+  return buf;
 }
+#endif /* __WIN__ */
 
-static void (*init_default_directories)()= init_default_directories_win;
+
+static const char **init_default_directories(MEM_ROOT *alloc)
+{
+  const char **dirs;
+  char *env;
+  int errors= 0;
+
+  dirs= (const char **)alloc_root(alloc, DEFAULT_DIRS_SIZE * sizeof(char *));
+  if (dirs == NULL)
+    return NULL;
+  bzero((char *) dirs, DEFAULT_DIRS_SIZE * sizeof(char *));
+
+#ifdef __WIN__
+
+  {
+    char fname_buffer[FN_REFLEN];
+    if (my_get_system_windows_directory(fname_buffer, sizeof(fname_buffer)))
+      errors += add_directory(alloc, fname_buffer, dirs);
+
+    if (GetWindowsDirectory(fname_buffer, sizeof(fname_buffer)))
+      errors += add_directory(alloc, fname_buffer, dirs);
+
+    errors += add_directory(alloc, "C:/", dirs);
+
+    if (my_get_module_parent(fname_buffer, sizeof(fname_buffer)) != NULL)
+      errors += add_directory(alloc, fname_buffer, dirs);
+  }
 
 #elif defined(__NETWARE__)
 
-/**
-  Initialize default directories for Novell Netware
-
-  @details
-    1. sys:/etc/
-    2. getenv(DEFAULT_HOME_ENV)
-    3. --defaults-extra-file=<path> (run-time option)
-*/
-
-static void init_default_directories_netware()
-{
-  bzero((char *) default_directories, sizeof(default_directories));
-  ADD_DIRECTORY("sys:/etc/");
-  ADD_COMMON_DIRECTORIES();
-}
-
-static void (*init_default_directories)()= init_default_directories_netware;
+  errors += add_directory(alloc, "sys:/etc/", dirs);
 
 #else
 
-/**
-  Initialize default directories for Unix
+  errors += add_directory(alloc, "/etc/", dirs);
+  errors += add_directory(alloc, "/etc/mysql/", dirs);
 
-  @details
-    1. /etc/
-    2. /etc/mysql/
-    3. --sysconfdir=<path> (compile-time option)
-    4. getenv(DEFAULT_HOME_ENV)
-    5. --defaults-extra-file=<path> (run-time option)
-    6. "~/"
-*/
-
-static void init_default_directories_unix()
-{
-  bzero((char *) default_directories, sizeof(default_directories));
-  ADD_DIRECTORY("/etc/");
-  ADD_DIRECTORY("/etc/mysql/");
-#ifdef DEFAULT_SYSCONFDIR
+#if defined(DEFAULT_SYSCONFDIR)
   if (DEFAULT_SYSCONFDIR != "")
-    ADD_DIRECTORY(DEFAULT_SYSCONFDIR);
+    errors += add_directory(alloc, DEFAULT_SYSCONFDIR, dirs);
+#endif /* DEFAULT_SYSCONFDIR */
+
 #endif
-  ADD_COMMON_DIRECTORIES();
-  ADD_DIRECTORY("~/");
+
+  if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))
+    errors += add_directory(alloc, env, dirs);
+
+  /* Placeholder for --defaults-extra-file=<path> */
+  errors += add_directory(alloc, "", dirs);
+
+#if !defined(__WIN__) && !defined(__NETWARE__)
+  errors += add_directory(alloc, "~/", dirs);
+#endif
+
+  return (errors > 0 ? NULL : dirs);
 }
-
-static void (*init_default_directories)()= init_default_directories_unix;
-
-#endif
