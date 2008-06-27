@@ -6,6 +6,11 @@
 
 --source include/have_innodb.inc
 
+--disable_warnings
+drop view if exists v1;
+drop table if exists t1,t4;
+--enable_warnings
+
 #
 # Bug #12672: primary key implcitly included in every innodb index
 #
@@ -93,3 +98,22 @@ alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;
 explain select distinct f1, f2 from t1;
 drop table t1;
+
+
+#
+# Bug #36632: Select distinct from a simple view on an InnoDB table
+#             returns incorrect results
+#
+create table t1(pk int primary key) engine=innodb;
+create view v1 as select pk from t1 where pk < 20;
+
+insert into t1 values (1), (2), (3), (4);
+select distinct pk from v1;
+
+insert into t1 values (5), (6), (7);
+select distinct pk from v1;
+
+drop view v1;
+drop table t1;
+
+--echo End of 5.1 tests
