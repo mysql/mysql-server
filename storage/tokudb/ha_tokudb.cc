@@ -2195,6 +2195,31 @@ int ha_tokudb::delete_row(const uchar * record) {
 }
 
 //
+// Notification that a scan of entire secondary table is about
+// to take place. Will pre acquire table read lock
+// Returns:
+//      0 on success
+//      error otherwise
+//
+int ha_tokudb::prepare_index_scan() {
+    int error;
+    DB* db = share->key_file[active_index];
+    error = db->pre_acquire_read_lock(
+        db, 
+        transaction, 
+        db->dbt_neg_infty(), db->dbt_neg_infty(), 
+        db->dbt_pos_infty(), db->dbt_pos_infty()
+        );
+    if (error) { last_cursor_error = error; goto cleanup; }
+
+    range_lock_grabbed = true;
+    error = 0;
+cleanup:
+    return error;
+}
+
+
+//
 // Initializes local cursor on DB with index keynr
 // Parameters:
 //          keynr - key (index) number
