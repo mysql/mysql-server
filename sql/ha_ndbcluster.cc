@@ -3650,29 +3650,30 @@ ha_ndbcluster::setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
                                             bool use_active_index)
 {
   DBUG_ENTER("setup_key_ref_for_ndb_record");
-  if (table_share->primary_key != MAX_KEY)
+  if (use_active_index)
   {
-    if (use_active_index)
-    {
-      /*
-        Using unique key and getting read before write removal
-        optimisation working. Use key_rec according to this
-        unique index instead of primary key index
-      */
-      *key_rec= m_index[active_index].ndb_unique_record_row;
-    }
-    else
-      *key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
+    /* Use unique key to access table */
+    DBUG_PRINT("info", ("Using unique index (%u)", active_index));
+    *key_rec= m_index[active_index].ndb_unique_record_row;
     *key_row= record;
-    DBUG_VOID_RETURN;
+  }
+  else if (table_share->primary_key != MAX_KEY)
+  {
+    /* Use primary key to access table */
+    DBUG_PRINT("info", ("Using primary key"));
+    *key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
+    *key_row= record;
   }
   else
   {
     /* Use hidden primary key previously read into m_ref. */
+    DBUG_PRINT("info", ("Using hidden primary key (%l)", m_ref));
+    /* Can't use hidden pk if we didn't read it first */
+    DBUG_ASSERT(m_read_before_write_removal_used == false);
     *key_rec= m_ndb_hidden_key_record;
     *key_row= (const uchar *)(&m_ref);
-    DBUG_VOID_RETURN;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -10345,6 +10346,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         ppartitionId=&partitionId;
       }
 
+      DBUG_PRINT("info", ("Generating Pk/Unique key read for range %u",
+                          i));
       if (!(op= pk_unique_index_read_key(active_index,
                                          r->start_key.key,
                                          row_buf, lm,
@@ -10365,6 +10368,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     const NdbOperation* rangeOp= lastOp ? lastOp->next() : 
       trans->getFirstDefinedOperation();
     
+    DBUG_PRINT("info", ("Executing reads"));
+
     if (execute_no_commit_ie(m_thd_ndb, trans) == 0)
     {
       m_multi_range_result_ptr= buffer->buffer;
