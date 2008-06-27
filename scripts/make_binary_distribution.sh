@@ -61,6 +61,7 @@ system=`echo $system | sed -e 's/[a-z]*-\(.*\)/\1/g'`
 system=`echo $system | sed -e 's/darwin6.*/osx10.2/g'`
 system=`echo $system | sed -e 's/darwin7.*/osx10.3/g'`
 system=`echo $system | sed -e 's/darwin8.*/osx10.4/g'`
+system=`echo $system | sed -e 's/darwin9.*/osx10.5/g'`
 system=`echo $system | sed -e 's/\(aix4.3\).*/\1/g'`
 system=`echo $system | sed -e 's/\(aix5.1\).*/\1/g'`
 system=`echo $system | sed -e 's/\(aix5.2\).*/\1/g'`
