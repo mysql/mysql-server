@@ -1102,7 +1102,7 @@ max-time: 600
 cmd: test_event
 args: -l 1 -n SubscribeNR T1
 
-max-time: 300
+max-time: 600
 cmd: testNodeRestart
 args: -n Bug34702 T1
 
