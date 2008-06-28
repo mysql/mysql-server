@@ -996,7 +996,9 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
     if (test_all_bits(param.testflag,
 		      (uint) (T_RETRY_WITHOUT_QUICK | T_QUICK)))
     {
-      param.testflag&= ~T_RETRY_WITHOUT_QUICK;
+      param.testflag&= ~(T_RETRY_WITHOUT_QUICK | T_QUICK);
+      /* Ensure we don't loose any rows when retrying without quick */
+      param.testflag|= T_SAFE_REPAIR;
       sql_print_information("Retrying repair of: '%s' without quick",
                             table->s->path.str);
       continue;
@@ -1130,7 +1132,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       error=  mi_repair(&param, file, fixed_name,
 			test(param.testflag & T_QUICK));
     }
-    param.testflag=testflag;
+    param.testflag= testflag | (param.testflag & T_RETRY_WITHOUT_QUICK);
     optimize_done=1;
   }
   if (!error)

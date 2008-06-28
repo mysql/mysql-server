@@ -99,6 +99,7 @@ static my_bool _ma_flush_table_files_before_swap(HA_CHECK *param,
                                                  MARIA_HA *info);
 static TrID max_trid_in_system(void);
 static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid);
+void retry_if_quick(MARIA_SORT_PARAM *param, int error);
 
 
 /* Initialize check param with default values */
@@ -4632,9 +4633,12 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
       }
       /* Retry only if wrong record, not if disk error */
       if (flag != HA_ERR_WRONG_IN_RECORD)
+      {
+        retry_if_quick(sort_param, flag);
         DBUG_RETURN(flag);
+      }
     }
-    break;
+    break;                                      /* Impossible */
   }
   case STATIC_RECORD:
     for (;;)
@@ -4644,8 +4648,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
       {
 	if (sort_param->read_cache.error)
 	  param->out_flag |= O_DATA_LOST;
-        param->retry_repair=1;
-        param->testflag|=T_RETRY_WITHOUT_QUICK;
+        retry_if_quick(sort_param, my_errno);
 	DBUG_RETURN(-1);
       }
       sort_param->start_recpos=sort_param->pos;
@@ -6632,5 +6635,24 @@ static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid)
                             llstr(used_trid, buff),
                             llstr(param->max_trid, buff2));
     }
+  }
+}
+
+
+/**
+  Mark that we can retry normal repair if we used quick repair
+
+  We shouldn't do this in case of disk error as in this case we are likely
+  to loose much more than expected.
+*/
+
+void retry_if_quick(MARIA_SORT_PARAM *sort_param, int error)
+{
+  HA_CHECK *param=sort_param->sort_info->param;
+
+  if (!sort_param->fix_datafile && error >= HA_ERR_FIRST)
+  {
+    param->retry_repair=1;
+    param->testflag|=T_RETRY_WITHOUT_QUICK;
   }
 }
