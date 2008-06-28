@@ -4615,7 +4615,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   stat_info->update_time=          file->stats.update_time;
   stat_info->check_time=           file->stats.check_time;
   stat_info->check_sum= 0;
-  if (file->ha_table_flags() & HA_HAS_CHECKSUM)
+  if (file->ha_table_flags() & (HA_HAS_OLD_CHECKSUM | HA_HAS_NEW_CHECKSUM))
     stat_info->check_sum= file->checksum();
   return;
 }

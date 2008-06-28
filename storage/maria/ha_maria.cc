@@ -923,7 +923,7 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     int_table_flags|= HA_CAN_INSERT_DELAYED;
   }
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
-    int_table_flags |= HA_HAS_CHECKSUM;
+    int_table_flags |= HA_HAS_NEW_CHECKSUM;
 
   for (i= 0; i < table->s->keys; i++)
   {

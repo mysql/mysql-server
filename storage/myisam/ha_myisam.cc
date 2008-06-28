@@ -690,7 +690,19 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
   if (!table->s->db_record_offset)
     int_table_flags|=HA_REC_NOT_IN_SEQ;
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
-    int_table_flags|=HA_HAS_CHECKSUM;
+  {
+    /*
+      Set which type of automatic checksum we have
+      The old checksum and new checksum are identical if there is no
+      null fields.
+      Files with new checksum has the HA_OPTION_NULL_FIELDS bit set.
+    */      
+    if ((file->s->options & HA_OPTION_NULL_FIELDS) ||
+        !file->s->has_null_fields)
+      int_table_flags|= HA_HAS_NEW_CHECKSUM;
+    if (!(file->s->options & HA_OPTION_NULL_FIELDS))
+      int_table_flags|= HA_HAS_OLD_CHECKSUM;
+  }
 
   for (i= 0; i < table->s->keys; i++)
   {
@@ -2041,6 +2053,27 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;
 }
+
+
+/**
+  Check if a table is incompatible with the current version.
+
+  The cases are:
+  - Table has checksum, varchars and are not of dynamic record type
+*/
+
+int ha_myisam::check_for_upgrade(HA_CHECK_OPT *check_opt)
+{
+  if (!(file->s->options & HA_OPTION_NULL_FIELDS) &&
+      !(file->s->options & HA_OPTION_PACK_RECORD) &&
+      file->s->has_varchar_fields)
+  {
+    /* We need alter there to get the HA_OPTION_NULL_FIELDS flag to be set */
+    return HA_ADMIN_NEEDS_ALTER;
+  }
+  return HA_ADMIN_OK;
+}
+
 
 extern int mi_panic(enum ha_panic_function flag);
 int myisam_panic(handlerton *hton, ha_panic_function flag)
