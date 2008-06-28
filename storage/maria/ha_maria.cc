@@ -2474,8 +2474,9 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
         mysql_bin_log.is_open())
       lock_type= TL_READ_NO_INSERT;
     else if (lock_type == TL_WRITE_CONCURRENT_INSERT &&
-             (thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
-              thd->lex->sql_command == SQLCOM_REPLACE_SELECT))
+             (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
+              thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
+              thd->lex->sql_command == SQLCOM_LOAD))
       lock_type= TL_WRITE;
     file->lock.type= lock_type;
   }

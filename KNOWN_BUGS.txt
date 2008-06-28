@@ -29,6 +29,11 @@ Known bugs that we are working on and will be fixed shortly
   the log handler doesn't start up after restart.
   Most of this should now be fixed...
 
+- INSERT on a duplicate key against a key inserted by another connection
+  that has not yet ended will give a duplicate key error instead of
+  waiting for the other statement to end.
+
+
 Known bugs that are planned to be fixed before Gamma/RC
 =======================================================
 
@@ -56,14 +61,20 @@ this on a table:
   wrong results if someone else is doing writes on the table during repair
   or someone is doing selects during the repair index phase.
 
-INSERT ... SELECT and REPLACE ... SELECT are blocking inserts and 
-SELECT for the table.
+INSERT ... SELECT, REPLACE ... SELECT and LOAD DATA are blocking
+inserts and SELECT for the table.  They should only have to do this if
+the destination is empty (as then we are using fast index rebuild).
 
 Missing features that is planned to fix before Beta
 ===================================================
 
+None
+
 Features planned for future releases
 ====================================
+
+Most notable is full transaction support and multiple reader/writers
+in Maria 2.0
 
 http://forge.mysql.com/worklog/
 (you can enter "maria" in the "quick search" field there).
