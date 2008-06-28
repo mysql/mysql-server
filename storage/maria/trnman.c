@@ -519,17 +519,24 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
 */
 void trnman_free_trn(TRN *trn)
 {
-  TRN *tmp= pool;
+  /*
+     union is to solve strict aliasing issue.
+     without it gcc 3.4.3 doesn't notice that updating *(void **)&tmp
+     modifies the value of tmp.
+  */
+  union { TRN *trn; void *v; } tmp;
+
+  tmp.trn= pool;
 
   my_atomic_rwlock_wrlock(&LOCK_pool);
   do
   {
     /*
-      without this volatile cast gcc-3.4.4 moved the assignment
+      without this volatile cast gcc-3.4.4 moves the assignment
       down after the loop at -O2
     */
-    *(TRN * volatile *)&(trn->next)= tmp;
-  } while (!my_atomic_casptr((void **)&pool, (void **)&tmp, trn));
+    *(TRN * volatile *)&(trn->next)= tmp.trn;
+  } while (!my_atomic_casptr((void **)&pool, &tmp.v, trn));
   my_atomic_rwlock_wrunlock(&LOCK_pool);
 }
 

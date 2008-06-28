@@ -19,7 +19,7 @@
 #include "m_ctype.h"
 #include "ma_sp_defs.h"
 #include "ma_blockrec.h"                        /* For ROW_FLAG_TRANSID */
-#include <trnman.h>
+#include "trnman.h"
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif

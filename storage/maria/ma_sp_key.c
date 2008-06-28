@@ -15,7 +15,7 @@
 
 #include "maria_def.h"
 #include "ma_blockrec.h"                        /* For ROW_FLAG_TRANSID */
-#include <trnman.h>
+#include "trnman.h"
 
 #ifdef HAVE_SPATIAL
 

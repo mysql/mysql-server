@@ -1349,6 +1349,7 @@ uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state)
 {
   uchar	buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
 
+#ifdef EXTERNAL_LOCKING
   /* trick to detect transactional tables */
   DBUG_ASSERT(state->create_rename_lsn == LSN_IMPOSSIBLE);
   if (!maria_single_user)
@@ -1357,6 +1358,7 @@ uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state)
       return 1;
     _ma_state_info_read(buff, state);
   }
+#endif
   return 0;
 }
 

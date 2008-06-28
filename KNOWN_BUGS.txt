@@ -27,9 +27,10 @@ Known bugs that we are working on and will be fixed shortly
 - We have some instabilities in log writing that is under investigatation
   This causes mainly assert to triggers in the code and sometimes
   the log handler doesn't start up after restart.
+  Most of this should now be fixed...
 
-Known bugs that are planned to be fixed before Beta
-===================================================
+Known bugs that are planned to be fixed before Gamma/RC
+=======================================================
 
 - If we get a write failure on disk (disk full or disk error) for the
   log, we should stop all usage of transactional tables and mark all
@@ -44,15 +45,22 @@ Known bugs that are planned to be fixed before Beta
   or kill mysqld, remove logs and repair tables.
 
 
+Known bugs that are planned to be fixed later
+=============================================
+
+LOCK TABLES .. WRITE CONCURRENT is mainly done for testing MVCC.  Don't
+use this in production.  Things that is not working if you are using
+this on a table:
+
+- INSERT/REPLACE ... SELECT on an empty table may cause crashes or
+  wrong results if someone else is doing writes on the table during repair
+  or someone is doing selects during the repair index phase.
+
+INSERT ... SELECT and REPLACE ... SELECT are blocking inserts and 
+SELECT for the table.
+
 Missing features that is planned to fix before Beta
 ===================================================
-
-- Multiple concurrent inserts & multiple concurrent readers at same time
-  with full MVCC control.  Note that UPDATE and DELETE will still be
-  blocking (as with MyISAM)
-- COUNT(*) and TABLE CHECKSUM under MVCC (ie, they are instant and kept up
-  to date even with multiple inserter)
-
 
 Features planned for future releases
 ====================================

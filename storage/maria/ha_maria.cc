@@ -1714,7 +1714,7 @@ int ha_maria::enable_indexes(uint mode)
       /* This should never fail normally */
       DBUG_ASSERT(0);
       /* Repairing by sort failed. Now try standard repair method. */
-      param.testflag &= ~(T_REP_BY_SORT | T_QUICK);
+      param.testflag &= ~T_REP_BY_SORT;
       error= (repair(thd, &param, 0) != HA_ADMIN_OK);
       /*
         If the standard repair succeeded, clear all error messages which
@@ -2473,6 +2473,10 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
          thd->lex->sql_command != SQLCOM_LOCK_TABLES) &&
         mysql_bin_log.is_open())
       lock_type= TL_READ_NO_INSERT;
+    else if (lock_type == TL_WRITE_CONCURRENT_INSERT &&
+             (thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
+              thd->lex->sql_command == SQLCOM_REPLACE_SELECT))
+      lock_type= TL_WRITE;
     file->lock.type= lock_type;
   }
   *to++= &file->lock;
