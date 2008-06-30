@@ -223,10 +223,12 @@ struct __toku_db {
   int (*set_pagesize) (DB *, u_int32_t); /* 32-bit offset=520 size=4, 64=bit offset=944 size=8 */
   void* __toku_dummy13[6];
   int (*stat) (DB *, void *, u_int32_t); /* 32-bit offset=548 size=4, 64=bit offset=1000 size=8 */
-  void* __toku_dummy14[4];
+  void* __toku_dummy14[2];
+  int (*truncate) (DB *, DB_TXN *, u_int32_t *, u_int32_t); /* 32-bit offset=560 size=4, 64=bit offset=1024 size=8 */
+  void* __toku_dummy15[1];
   int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t); /* 32-bit offset=568 size=4, 64=bit offset=1040 size=8 */
-  void* __toku_dummy15[5]; /* Padding at the end */ 
-  char __toku_dummy16[16];  /* Padding at the end */ 
+  void* __toku_dummy16[5]; /* Padding at the end */ 
+  char __toku_dummy17[16];  /* Padding at the end */ 
 };
 struct __toku_db_txn_active {
   u_int32_t txnid; /* 32-bit offset=0 size=4, 64=bit offset=0 size=4 */

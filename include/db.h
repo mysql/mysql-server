@@ -224,29 +224,31 @@ struct __toku_db {
   int (*set_pagesize) (DB *, u_int32_t); /* 32-bit offset=508 size=4, 64=bit offset=920 size=8 */
   void* __toku_dummy13[6];
   int (*stat) (DB *, void *, u_int32_t); /* 32-bit offset=536 size=4, 64=bit offset=976 size=8 */
-  void* __toku_dummy14[4];
+  void* __toku_dummy14[2];
+  int (*truncate) (DB *, DB_TXN *, u_int32_t *, u_int32_t); /* 32-bit offset=548 size=4, 64=bit offset=1000 size=8 */
+  void* __toku_dummy15[1];
   int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t); /* 32-bit offset=556 size=4, 64=bit offset=1016 size=8 */
-  void* __toku_dummy15[5]; /* Padding at the end */ 
-  char __toku_dummy16[16];  /* Padding at the end */ 
+  void* __toku_dummy16[5]; /* Padding at the end */ 
+  char __toku_dummy17[16];  /* Padding at the end */ 
 };
 struct __toku_db_txn_active {
   u_int32_t txnid; /* 32-bit offset=0 size=4, 64=bit offset=0 size=4 */
-  void* __toku_dummy0[1];
-  char __toku_dummy1[12];
-  DB_LSN lsn; /* 32-bit offset=20 size=8, 64=bit offset=24 size=8 */
+  void* __toku_dummy0[2];
+  char __toku_dummy1[4];
+  DB_LSN lsn; /* 32-bit offset=16 size=8, 64=bit offset=24 size=8 */
   char __toku_dummy2[184];  /* Padding at the end */ 
 };
 struct __toku_db_txn {
   DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   struct __toku_db_txn_internal *i;
-  void* __toku_dummy0[16];
-  char __toku_dummy1[16];
-  void *api_internal; /* 32-bit offset=88 size=4, 64=bit offset=160 size=8 */
+  void* __toku_dummy0[17];
+  char __toku_dummy1[8];
+  void *api_internal; /* 32-bit offset=84 size=4, 64=bit offset=160 size=8 */
   void* __toku_dummy2[2];
-  int (*abort) (DB_TXN *); /* 32-bit offset=100 size=4, 64=bit offset=184 size=8 */
-  int (*commit) (DB_TXN*, u_int32_t); /* 32-bit offset=104 size=4, 64=bit offset=192 size=8 */
+  int (*abort) (DB_TXN *); /* 32-bit offset=96 size=4, 64=bit offset=184 size=8 */
+  int (*commit) (DB_TXN*, u_int32_t); /* 32-bit offset=100 size=4, 64=bit offset=192 size=8 */
   void* __toku_dummy3[2];
-  u_int32_t (*id) (DB_TXN *); /* 32-bit offset=116 size=4, 64=bit offset=216 size=8 */
+  u_int32_t (*id) (DB_TXN *); /* 32-bit offset=112 size=4, 64=bit offset=216 size=8 */
   void* __toku_dummy4[5]; /* Padding at the end */ 
 };
 struct __toku_db_txn_stat {
