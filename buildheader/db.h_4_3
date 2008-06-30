@@ -210,7 +210,8 @@ struct __toku_db {
   int (*put) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t); /* 32-bit offset=372 size=4, 64=bit offset=648 size=8 */
   int (*remove) (DB *, const char *, const char *, u_int32_t); /* 32-bit offset=376 size=4, 64=bit offset=656 size=8 */
   int (*rename) (DB *, const char *, const char *, const char *, u_int32_t); /* 32-bit offset=380 size=4, 64=bit offset=664 size=8 */
-  void* __toku_dummy8[4];
+  int (*truncate) (DB *, DB_TXN *, u_int32_t *, u_int32_t); /* 32-bit offset=384 size=4, 64=bit offset=672 size=8 */
+  void* __toku_dummy8[3];
   int (*set_dup_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=400 size=4, 64=bit offset=704 size=8 */
   void* __toku_dummy9[2];
   void (*set_errfile) (DB *, FILE*); /* 32-bit offset=412 size=4, 64=bit offset=728 size=8 */

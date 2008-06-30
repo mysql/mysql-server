@@ -70,6 +70,7 @@ struct fieldinfo db_fields32[] = {
   {"int (*set_flags) (DB *, u_int32_t)", 492, 4},
   {"int (*set_pagesize) (DB *, u_int32_t)", 520, 4},
   {"int (*stat) (DB *, void *, u_int32_t)", 548, 4},
+  {"int (*truncate) (DB *, DB_TXN *, u_int32_t *, u_int32_t)", 560, 4},
   {"int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t)", 568, 4},
   {0, 608, 608} /* size of whole struct */
 };

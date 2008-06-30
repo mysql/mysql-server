@@ -71,21 +71,22 @@ struct fieldinfo db_fields32[] = {
   {"int (*set_flags) (DB *, u_int32_t)", 480, 4},
   {"int (*set_pagesize) (DB *, u_int32_t)", 508, 4},
   {"int (*stat) (DB *, void *, u_int32_t)", 536, 4},
+  {"int (*truncate) (DB *, DB_TXN *, u_int32_t *, u_int32_t)", 548, 4},
   {"int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t)", 556, 4},
   {0, 596, 596} /* size of whole struct */
 };
 struct fieldinfo db_txn_active_fields32[] = {
   {"u_int32_t txnid", 0, 4},
-  {"DB_LSN lsn", 20, 8},
-  {0, 212, 212} /* size of whole struct */
+  {"DB_LSN lsn", 16, 8},
+  {0, 208, 208} /* size of whole struct */
 };
 struct fieldinfo db_txn_fields32[] = {
   {"DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/", 0, 4},
-  {"void *api_internal", 88, 4},
-  {"int (*abort) (DB_TXN *)", 100, 4},
-  {"int (*commit) (DB_TXN*, u_int32_t)", 104, 4},
-  {"u_int32_t (*id) (DB_TXN *)", 116, 4},
-  {0, 140, 140} /* size of whole struct */
+  {"void *api_internal", 84, 4},
+  {"int (*abort) (DB_TXN *)", 96, 4},
+  {"int (*commit) (DB_TXN*, u_int32_t)", 100, 4},
+  {"u_int32_t (*id) (DB_TXN *)", 112, 4},
+  {0, 136, 136} /* size of whole struct */
 };
 struct fieldinfo db_txn_stat_fields32[] = {
   {"u_int32_t st_nactive", 32, 4},

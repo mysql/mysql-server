@@ -149,6 +149,7 @@ void sample_db_offsets (void) {
     STRUCT_SETUP(DB, set_flags,      "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, set_pagesize,   "int (*%s) (DB *, u_int32_t)");
     STRUCT_SETUP(DB, stat,           "int (*%s) (DB *, void *, u_int32_t)");
+    STRUCT_SETUP(DB, truncate,       "int (*%s) (DB *, DB_TXN *, u_int32_t *, u_int32_t)");
     STRUCT_SETUP(DB, verify,         "int (*%s) (DB *, const char *, const char *, FILE *, u_int32_t)");
     sort_and_dump_fields("db", sizeof(DB));
 }
