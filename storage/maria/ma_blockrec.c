@@ -1345,21 +1345,22 @@ static void calc_record_size(MARIA_HA *info, const uchar *record,
 }
 
 
-/*
+/**
   Compact page by removing all space between rows
 
-  IMPLEMENTATION
-    Move up all rows to start of page.
-    Move blocks that are directly after each other with one memmove.
+  Moves up all rows to start of page. Moves blocks that are directly after
+  each other with one memmove.
 
-  SYNOPSIS
-    _ma_compact_block_page()
-    buff                Page to compact
-    block_size          Size of page
-    rownr               Put empty data after this row
-    extend_block	If 1, extend the block at 'rownr' to cover the
+  @note if rownr is the last row in the page, and extend_block is false,
+  caller has to make sure to update bitmap page afterwards to reflect freed
+  space.
+
+  @param  buff          Page to compact
+  @param  block_size    Size of page
+  @param  rownr         Put empty data after this row
+  @param  extend_block	If 1, extend the block at 'rownr' to cover the
                         whole block.
-    min_read_from       If <> 0, remove all trid's that are less than this
+  @param  min_read_from If <> 0, remove all trid's that are less than this
 */
 
 void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,

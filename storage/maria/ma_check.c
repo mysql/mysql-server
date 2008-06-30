@@ -3308,11 +3308,16 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
         bzero(buff, LSN_SIZE);
       if (max_entry != 0)
       {
+        my_bool is_head_page= (page_type == HEAD_PAGE);
         dir= dir_entry_pos(buff, block_size, max_entry - 1);
         _ma_compact_block_page(buff, block_size, max_entry -1, 0,
-                               page_type == HEAD_PAGE ? ~(TrID) 0 : 0,
-                               page_type == HEAD_PAGE ?
+                               is_head_page ? ~(TrID) 0 : 0,
+                               is_head_page ?
                                share->base.min_block_length : 0);
+        /* compactation may have increased free space */
+        if (_ma_bitmap_set(info, page, is_head_page,
+                           uint2korr(buff + EMPTY_SPACE_OFFSET)))
+          goto err;
 
         /* Zerofill the not used part */
         offset= uint2korr(dir) + uint2korr(dir+2);
@@ -3334,10 +3339,9 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                              LSN_IMPOSSIBLE, 1);
   }
-  if (flush_pagecache_blocks(share->pagecache, &info->dfile,
-                             FLUSH_FORCE_WRITE))
-    DBUG_RETURN(1);
-  DBUG_RETURN(0);
+  DBUG_RETURN(_ma_bitmap_flush(share) ||
+              flush_pagecache_blocks(share->pagecache, &info->dfile,
+                                     FLUSH_FORCE_WRITE));
 
 err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
