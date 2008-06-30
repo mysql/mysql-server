@@ -426,9 +426,10 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
 
     u_int32_t n_leafentries = toku_omt_size(node->u.l.buffer);
     u_int32_t break_at = 0;
-    if (node->u.l.seqinsert >= n_leafentries/2) {
+    unsigned int seqinsert = node->u.l.seqinsert;
+    node->u.l.seqinsert = 0;
+    if (seqinsert >= n_leafentries/2) {
         break_at = n_leafentries - 1;
-        node->u.l.seqinsert = 0;
         
         // fetch the max from the node and delete it
         OMTVALUE v;
