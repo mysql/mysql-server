@@ -49,7 +49,12 @@ let $more_pk_ui_tests= 0;
 ##### Storage engine to be tested
 let $engine= 'ndbcluster';
 --source include/have_ndb.inc
+connection default;
 
+# range, list and hash partitioning in ndb requires new_mode
+--disable_query_log
+set new=on;
+--enable_query_log
 ##### Execute the test of "table" files
 # NDB has no files per PK, UI, ...
 let $do_file_tests= 0;
