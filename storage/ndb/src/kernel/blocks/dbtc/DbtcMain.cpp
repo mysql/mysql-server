@@ -2165,6 +2165,12 @@ void Dbtc::execATTRINFO(Signal* signal)
     int TattrlengthRemain = regCachePtr->attrlength - 
       regCachePtr->currReclenAi;
     
+    /* Setup tcConnectptr to ensure that error handling etc.
+     * can access required state
+     */
+    tcConnectptr.i = regApiPtr->lastTcConnect;
+    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+
     /* Add AttrInfo to any existing AttrInfo we have 
      * Some short TCKEYREQ signals have no ATTRINFO in
      * the TCKEYREQ itself
@@ -2174,7 +2180,7 @@ void Dbtc::execATTRINFO(Signal* signal)
                           Tlength))
     {
       DEBUG("No more section segments available");
-      TCKEY_abort(signal, 24);
+      appendToSectionErrorLab(signal);
       return;
     }//if
 
@@ -2188,7 +2194,6 @@ void Dbtc::execATTRINFO(Signal* signal)
       /* RECEIVED THEN IT IS NOT ALLOWED TO RECEIVE ANY FURTHER          */
       /* OPERATIONS.                                                     */
       /****************************************************************>*/
-      UintR TlastConnect = regApiPtr->lastTcConnect;
       if (TcompRECEIVING) {
         jam();
         regApiPtr->apiConnectstate = CS_STARTED;
@@ -2196,8 +2201,6 @@ void Dbtc::execATTRINFO(Signal* signal)
         jam();
         regApiPtr->apiConnectstate = CS_START_COMMITTING;
       }//if
-      tcConnectptr.i = TlastConnect;
-      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
       attrinfoDihReceivedLab(signal);
     } else if (TattrlengthRemain < 0) {
       jam();
@@ -2780,6 +2783,45 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
   UintR TapiConnectptrIndex = apiConnectptr.i;
   UintR TsenderData = tcKeyReq->senderData;
+
+  if (ERROR_INSERTED(8065) || 
+      ERROR_INSERTED(8066) ||
+      ERROR_INSERTED(8067))
+  {
+    /* Consume all but 10(8065) or all but 1 (8066) or all (8077) of 
+     * the SegmentedSection buffers to allow testing of what happens 
+     * when they're exhausted, either in this signal or one to follow
+     * 8068 frees all 'hoarded' segments
+     */
+    Uint32 segmentsToLeave= ERROR_INSERTED(8065)? 
+      10 : 
+      ERROR_INSERTED(8066) ? 
+      1 :
+      0;
+    Uint32 freeSegments= g_sectionSegmentPool.getNoOfFree();
+    DEBUG("Hoarding all but " << segmentsToLeave << 
+          " of " << freeSegments << " free segments");
+    if (freeSegments >= segmentsToLeave)
+    {
+      Uint32 numToAlloc= (g_sectionSegmentPool.getNoOfFree() - segmentsToLeave);
+      Uint32 segmentsIVal= errorInsertHoardedSegments;
+      Uint32 space[SectionSegment::DataLength];
+      
+      while (numToAlloc-- > 0)
+        appendToSection(segmentsIVal, space, SectionSegment::DataLength);
+      
+      errorInsertHoardedSegments= segmentsIVal;
+    }
+  }
+
+  if (ERROR_INSERTED(8068) && 
+      (errorInsertHoardedSegments != RNIL))
+  {
+    /* Free the SegmentedSection buffers taken previously */
+    DEBUG("Freeing hoarded segments");
+    releaseSection(errorInsertHoardedSegments);
+    errorInsertHoardedSegments= RNIL;
+  }   
 
   /* Key and attribute lengths are passed in the header for 
    * short TCKEYREQ and  passed as section lengths for long 
@@ -3947,10 +3989,11 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
    * Dropped signal really means that we ran out of 
    * long signal buffering to store its sections
    */
+  jamEntry();
   const SignalDroppedRep* rep = (SignalDroppedRep*) &signal->theData[0];
   Uint32 originalGSN= rep->originalGsn;
 
-  jamEntry();
+  DEBUG("SignalDroppedRep received for GSN " << originalGSN);
 
   // TODO : Add handling for long signal variants as they
   //        are added here (TCINDXREQ, SCANTABREQ etc.)
@@ -3967,8 +4010,8 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
      * have been truncated.  We must not read beyond
      * word # 22
      * We will send an Abort to the Api using info from
-     * the received signal and clean up our state for
-     * the transaction.
+     * the received signal and clean up our transaction 
+     * state
      */
     const TcKeyReq * const truncatedTcKeyReq = 
       (TcKeyReq *) &rep->originalData[0];
@@ -3982,22 +4025,38 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
       return;
     }
     
-    /* Have a valid Api ConnectPtr...
+    /* We have a valid Api ConnectPtr...
+     * Ensure that we have the  necessary information 
+     * to send a rollback to the client
      */
     apiConnectptr.i = apiIndex;
     ApiConnectRecord * const regApiPtr = &apiConnectRecord[apiIndex];
     apiConnectptr.p = regApiPtr;
+    UintR transId1= truncatedTcKeyReq->transId1;
+    UintR transId2= truncatedTcKeyReq->transId2;
+    
+    /* Ensure that the apiConnectptr global is initialised
+     * may not be in cases where we drop the first signal of
+     * a transaction
+     */
+    apiConnectptr.p->transid[0] = transId1;
+    apiConnectptr.p->transid[1] = transId2;
+    apiConnectptr.p->returncode = ZGET_DATAREC_ERROR;
 
-    terrorCode= ZGET_DATAREC_ERROR; // Todo : New error?
+    /* Set m_exec_flag according to the dropped request */
+    apiConnectptr.p->m_exec_flag = 
+      TcKeyReq::getExecuteFlag(truncatedTcKeyReq->requestInfo);
 
-    abortErrorLab(signal); // Todo : Is this ok for TcIndxReq?
+    DEBUG("  Execute flag set to " << apiConnectptr.p->m_exec_flag);
+
+    abortErrorLab(signal);
 
     break;
   }
   default:
     jam();
     /* Don't expect dropped signals for other GSNs,
-     * handle as before
+     * default handling
      */
     SimulatedBlock::execSIGNAL_DROPPED_REP(signal);
   };
@@ -11206,6 +11265,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
   apiConnectptr.p->apiConnectstate = CS_ABORTING;
   apiConnectptr.p->abortState = AS_IDLE;
   releaseAllSeizedIndexOperations(apiConnectptr.p);
+
   if(apiConnectptr.p->m_exec_flag || apiConnectptr.p->apiFailState == ZTRUE){
     jam();
     bool ok = false;
@@ -12893,7 +12953,7 @@ Dbtc::saveINDXKEYINFO(Signal* signal,
     jam();
     // Failed to seize keyInfo, abort transaction
 #ifdef VM_TRACE
-    ndbout_c("Dbtc::saveINDXKEYINFO: Failed to seize keyinfo\n");
+    ndbout_c("Dbtc::saveINDXKEYINFO: Failed to seize buffer for KeyInfo\n");
 #endif
     // Abort transaction
     apiConnectptr.i = indexOp->connectionIndex;
@@ -12936,7 +12996,7 @@ Dbtc::saveINDXATTRINFO(Signal* signal,
   {
     jam();
 #ifdef VM_TRACE
-    ndbout_c("Dbtc::saveINDXATTRINFO: Failed to seize attrInfo\n");
+    ndbout_c("Dbtc::saveINDXATTRINFO: Failed to seize buffer for attrInfo\n");
 #endif
     apiConnectptr.i = indexOp->connectionIndex;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -13040,12 +13100,12 @@ bool  Dbtc::saveTRANSID_AI(Signal* signal,
       {
         jam();
 #ifdef VM_TRACE
-        ndbout_c("Dbtc::saveTRANSID_AI: Failed to add to section\n");
+        ndbout_c("Dbtc::saveTRANSID_AI: Failed to seize beffer for TRANSID_AI\n");
 #endif
         apiConnectptr.i = indexOp->connectionIndex;
         ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
         releaseIndexOperation(apiConnectptr.p, indexOp);
-        terrorCode = 4000;
+        terrorCode = ZGET_DATAREC_ERROR;
         abortErrorLab(signal);
         return false;
       }
