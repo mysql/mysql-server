@@ -322,6 +322,8 @@ Dbtc::Dbtc(Block_context& ctx):
   tcFailRecord = 0;
   c_apiConTimer = 0;
   c_apiConTimer_line = 0;
+
+  errorInsertHoardedSegments= RNIL;
 }//Dbtc::Dbtc()
 
 Dbtc::~Dbtc() 

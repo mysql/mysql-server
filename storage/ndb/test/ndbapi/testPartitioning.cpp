@@ -394,7 +394,7 @@ run_startHint(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   for(int i = 0; i<records && result == NDBT_OK; i++)
   {
-    char buffer[8000];
+    char buffer[NDB_MAX_TUPLE_SIZE];
     char* start= buffer + (rand() & 7);
     char* pos= start;
     
@@ -474,7 +474,7 @@ run_startHint_ordered_index(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   for(int i = 0; i<records && result == NDBT_OK; i++)
   {
-    char buffer[8000];
+    char buffer[NDB_MAX_TUPLE_SIZE];
     char* start= buffer + (rand() & 7);
     char* pos= start;
     

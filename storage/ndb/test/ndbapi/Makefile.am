@@ -31,6 +31,7 @@ testBlobs \
 testDataBuffers \
 testDict \
 testIndex \
+testLimits \
 testMgm \
 testNdbApi \
 testNodeRestart \
@@ -83,6 +84,7 @@ testBlobs_SOURCES = testBlobs.cpp
 testDataBuffers_SOURCES = testDataBuffers.cpp
 testDict_SOURCES = testDict.cpp
 testIndex_SOURCES = testIndex.cpp
+testLimits_SOURCES = testLimits.cpp
 testMgm_SOURCES = testMgm.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNodeRestart_SOURCES = testNodeRestart.cpp
