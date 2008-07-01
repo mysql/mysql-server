@@ -13,6 +13,12 @@
 #include "cachetable.h"
 #include "key.h"
 
+// these flags control whether or not we send commit messages for
+// various operations
+#define TOKU_DO_COMMIT_CMD_INSERT 0
+#define TOKU_DO_COMMIT_CMD_DELETE 1
+#define TOKU_DO_COMMIT_CMD_DELETE_BOTH 1
+
 int toku_commit_fcreate (TXNID xid __attribute__((__unused__)),
 			 BYTESTRING bs_fname __attribute__((__unused__)),
 			 TOKUTXN    txn       __attribute__((__unused__))) {
@@ -79,8 +85,12 @@ static int do_nothing_with_filenum(TOKUTXN txn, FILENUM filenum) {
 
 
 int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
-    return do_nothing_with_filenum(txn, filenum);
+#if TOKU_DO_COMMIT_CMD_INSERT
     return do_insertion (BRT_COMMIT_BOTH, xid, filenum, key, &data, txn);
+#else
+    xid = xid; key = key; data = data;
+    return do_nothing_with_filenum(txn, filenum);
+#endif
 }
 
 int toku_rollback_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
@@ -88,8 +98,12 @@ int toku_rollback_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRI
 }
 
 int toku_commit_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
-    return do_nothing_with_filenum(txn, filenum);
+#if TOKU_DO_COMMIT_CMD_DELETE_BOTH
     return do_insertion (BRT_COMMIT_BOTH, xid, filenum, key, &data, txn);
+#else
+    xid = xid; key = key; data = data;
+    return do_nothing_with_filenum(txn, filenum);
+#endif
 }
 
 int toku_rollback_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
@@ -97,8 +111,12 @@ int toku_rollback_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTE
 }
 
 int toku_commit_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN txn) {
-    return do_nothing_with_filenum(txn, filenum);
+#if TOKU_DO_COMMIT_CMD_DELETE
     return do_insertion (BRT_COMMIT_ANY, xid, filenum, key, 0, txn);
+#else
+    xid = xid; key = key;
+    return do_nothing_with_filenum(txn, filenum);
+#endif
 }
 
 int toku_rollback_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN txn) {
