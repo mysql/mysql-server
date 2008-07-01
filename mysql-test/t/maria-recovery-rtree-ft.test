@@ -19,7 +19,7 @@ let $mms_tname=t;
 # Include scripts can perform SQL. For it to not influence the main test
 # they use a separate connection. This way if they use a DDL it would
 # not autocommit in the main test.
-connect (admin, 127.0.0.1, root,,mysqltest,,);
+connect (admin, localhost, root,,mysqltest,,);
 --enable_reconnect
 
 connection default;
