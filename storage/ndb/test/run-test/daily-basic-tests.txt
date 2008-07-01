@@ -629,7 +629,7 @@ args: -n CreateAndDropDuring T6 D1 D2
 
 max-time: 1500
 cmd: testDict
-args: -n CreateInvalidTables 
+args: -n CreateInvalidTables T1 
 
 max-time: 1500
 cmd: testDict
