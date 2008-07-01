@@ -36,18 +36,9 @@ NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   records = 1;
   loops = 1;
   stopped = false;
-  remote_mgm ="";
   propertyMutexPtr = NdbMutex_Create();
   propertyCondPtr = NdbCondition_Create();
 }
-
- 
-char * NDBT_Context::getRemoteMgm() const {
-  return remote_mgm;
-} 
-void NDBT_Context::setRemoteMgm(char * mgm) {
-  remote_mgm = strdup(mgm);
-} 
 
 
 NDBT_Context::~NDBT_Context(){
@@ -893,8 +884,6 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
 	
       ctx->setNumRecords(records);
       ctx->setNumLoops(loops);
-      if(remote_mgm != NULL)
-	ctx->setRemoteMgm(remote_mgm);
       ctx->setSuite(this);
       
       const NdbDictionary::Table** tables= ctx->getTables();
@@ -987,8 +976,6 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
       ctx->setTab(ptab);
       ctx->setNumRecords(records);
       ctx->setNumLoops(loops);
-      if(remote_mgm != NULL)
-        ctx->setRemoteMgm(remote_mgm);
       ctx->setSuite(this);
     
       result = tests[t]->execute(ctx);
@@ -1090,8 +1077,6 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
     ctx->setTab(pTab2);
     ctx->setNumRecords(records);
     ctx->setNumLoops(loops);
-    if(remote_mgm != NULL)
-      ctx->setRemoteMgm(remote_mgm);
     ctx->setSuite(this);
     
     result = tests[t]->execute(ctx);
@@ -1188,7 +1173,6 @@ static int opt_print_cases = false;
 static int opt_records;
 static int opt_loops;
 static int opt_timer;
-static char * opt_remote_mgm = NULL;
 static char * opt_testname = NULL;
 static int opt_verbose;
 static int opt_seed = 0;
@@ -1218,10 +1202,6 @@ static struct my_option my_long_options[] =
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "testname", 'n', "Name of test to run",
     (uchar **) &opt_testname, (uchar **) &opt_testname, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "remote_mgm", 'm',
-    "host:port to mgmsrv of remote cluster",
-    (uchar **) &opt_remote_mgm, (uchar **) &opt_remote_mgm, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "timer", 't', "Print execution time",
     (uchar **) &opt_timer, (uchar **) &opt_timer, 0,
@@ -1309,7 +1289,6 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   else 
     setOutputLevel(0); // Show only g_err ?
 
-  remote_mgm = opt_remote_mgm;
   records = opt_records;
   loops = opt_loops;
   timer = opt_timer;

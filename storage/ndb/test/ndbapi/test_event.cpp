@@ -1806,7 +1806,6 @@ runBug31701(NDBT_Context* ctx, NDBT_Step* step)
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   
-  if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
   if(ctx->getPropertyWait("LastGCI_hi", ~(Uint32)0))
   {
     g_err << "FAIL " << __LINE__ << endl;

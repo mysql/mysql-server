@@ -15,170 +15,28 @@
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
-#include <HugoTransactions.hpp>
-#include <UtilTransactions.hpp>
-#include <NdbRestarter.hpp>
-#include <Vector.hpp>
-#include <random.h>
+#include "NdbMgmd.hpp"
 #include <mgmapi.h>
 #include <mgmapi_debug.h>
-#include <ndb_logevent.h>
 #include <InputStream.hpp>
 #include <signaldata/EventReport.hpp>
 
-int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
+/*
+  Tests that only need the mgmd(s) started
 
-  int records = ctx->getNumRecords();
-  HugoTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.loadTable(GETNDB(step), records) != 0){
-    return NDBT_FAILED;
-  }
-  return NDBT_OK;
-}
+  Start ndb_mgmd and set NDB_CONNECTSTRING pointing
+  to that/those ndb_mgmd(s), then run testMgm
+ */
 
-int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
-  int records = ctx->getNumRecords();
-  
-  UtilTransactions utilTrans(*ctx->getTab());
-  if (utilTrans.clearTable2(GETNDB(step),  records) != 0){
-    return NDBT_FAILED;
-  }
-  return NDBT_OK;
-}
-
-
-int create_index_on_pk(Ndb* pNdb, const char* tabName){
-  int result  = NDBT_OK;
-
-  const NdbDictionary::Table * tab = NDBT_Table::discoverTableFromDb(pNdb,
-								     tabName);
-
-  // Create index      
-  const char* idxName = "IDX_ON_PK";
-  ndbout << "Create: " <<idxName << "( ";
-  NdbDictionary::Index pIdx(idxName);
-  pIdx.setTable(tabName);
-  pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
-  for (int c = 0; c< tab->getNoOfPrimaryKeys(); c++){    
-    pIdx.addIndexColumn(tab->getPrimaryKey(c));
-    ndbout << tab->getPrimaryKey(c)<<" ";
-  }
-  
-  ndbout << ") ";
-  if (pNdb->getDictionary()->createIndex(pIdx) != 0){
-    ndbout << "FAILED!" << endl;
-    const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
-    result = NDBT_FAILED;
-  } else {
-    ndbout << "OK!" << endl;
-  }
-  return result;
-}
-
-int drop_index_on_pk(Ndb* pNdb, const char* tabName){
-  int result = NDBT_OK;
-  const char* idxName = "IDX_ON_PK";
-  ndbout << "Drop: " << idxName;
-  if (pNdb->getDictionary()->dropIndex(idxName, tabName) != 0){
-    ndbout << "FAILED!" << endl;
-    const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
-    result = NDBT_FAILED;
-  } else {
-    ndbout << "OK!" << endl;
-  }
-  return result;
-}
-
-
-#define CHECK(b) if (!(b)) { \
-  g_err << "ERR: "<< step->getName() \
-         << " failed on line " << __LINE__ << endl; \
-  result = NDBT_FAILED; \
-  continue; } 
-
-int runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
-  NdbRestarter restarter;
-  char tabName[255];
-  strncpy(tabName, ctx->getTab()->getName(), 255);
-  ndbout << "tabName="<<tabName<<endl;
-  
-  int i = 0;
-  int count;
-  HugoTransactions hugoTrans(*ctx->getTab());
-  UtilTransactions utilTrans(*ctx->getTab());
-  while (i<loops && result == NDBT_OK) {
-    g_info << i << ": ";
-    int timeout = 120;
-    // Test that the single user mode api can do everything     
-    CHECK(restarter.enterSingleUserMode(pNdb->getNodeId()) == 0);
-    CHECK(restarter.waitClusterSingleUser(timeout) == 0); 
-    CHECK(hugoTrans.loadTable(pNdb, records, 128) == 0);
-    CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
-    CHECK(hugoTrans.pkUpdateRecords(pNdb, records) == 0);
-    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(count == records);
-    CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
-    CHECK(hugoTrans.scanReadRecords(pNdb, records/2, 0, 64) == 0);
-    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(count == (records/2));
-    CHECK(utilTrans.clearTable(pNdb, records/2) == 0);
-    CHECK(restarter.exitSingleUserMode() == 0);
-    CHECK(restarter.waitClusterStarted(timeout) == 0); 
-
-    // Test create index in single user mode
-    CHECK(restarter.enterSingleUserMode(pNdb->getNodeId()) == 0);
-    CHECK(restarter.waitClusterSingleUser(timeout) == 0); 
-    CHECK(create_index_on_pk(pNdb, tabName) == 0);
-    CHECK(hugoTrans.loadTable(pNdb, records, 128) == 0);
-    CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
-    CHECK(hugoTrans.pkUpdateRecords(pNdb, records) == 0);
-    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(count == records);
-    CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
-    CHECK(drop_index_on_pk(pNdb, tabName) == 0);	  
-    CHECK(restarter.exitSingleUserMode() == 0);
-    CHECK(restarter.waitClusterStarted(timeout) == 0); 
-
-    // Test recreate index in single user mode
-    CHECK(create_index_on_pk(pNdb, tabName) == 0);
-    CHECK(hugoTrans.loadTable(pNdb, records, 128) == 0);
-    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(restarter.enterSingleUserMode(pNdb->getNodeId()) == 0);
-    CHECK(restarter.waitClusterSingleUser(timeout) == 0); 
-    CHECK(drop_index_on_pk(pNdb, tabName) == 0);	
-    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(create_index_on_pk(pNdb, tabName) == 0);
-    CHECK(restarter.exitSingleUserMode() == 0);
-    CHECK(restarter.waitClusterStarted(timeout) == 0); 
-    CHECK(drop_index_on_pk(pNdb, tabName) == 0);
-
-    CHECK(utilTrans.clearTable(GETNDB(step),  records) == 0);
-
-    ndbout << "Restarting cluster" << endl;
-    CHECK(restarter.restartAll() == 0);
-    CHECK(restarter.waitClusterStarted(timeout) == 0);
-    CHECK(pNdb->waitUntilReady(timeout) == 0);
-
-    i++;
-
-  }
-  return result;
-}
 
 int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   Uint64 session_id= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
   ndb_mgm_connect(h,0,0,0);
   int s= ndb_mgm_get_fd(h);
   session_id= ndb_mgm_get_session_id(h);
@@ -191,7 +49,7 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
   int slen= sizeof(struct NdbMgmSession);
 
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
   ndb_mgm_connect(h,0,0,0);
 
   NdbSleep_SecSleep(1);
@@ -214,15 +72,12 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
 
 int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_FAILED;
-  int cc= 0;
-  int mgmd_nodeid= 0;
-  ndb_mgm_reply reply;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   ndbout << "TEST connect timeout" << endl;
 
@@ -246,7 +101,7 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
   else
     goto done;
 
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   ndbout << "TEST connect timeout" << endl;
 
@@ -284,7 +139,7 @@ done:
 
 int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_FAILED;
   int cc= 0;
   int mgmd_nodeid= 0;
@@ -292,7 +147,7 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   ndbout << "TEST timout check_connection" << endl;
   int errs[] = { 1, 2, 3, -1};
@@ -404,14 +259,13 @@ done:
 
 int runTestApiGetStatusTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_OK;
-  int cc= 0;
   int mgmd_nodeid= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   int errs[] = { 0, 5, 6, 7, 8, 9, -1 };
 
@@ -492,13 +346,13 @@ done:
 
 int runTestMgmApiGetConfigTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   int errs[] = { 0, 1, 2, 3, -1 };
 
@@ -572,13 +426,13 @@ done:
 
 int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   int errs[] = { 10000, 0, -1 };
 
@@ -682,13 +536,13 @@ done:
 
 int runTestMgmApiStructEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
 {
-  char *mgm= ctx->getRemoteMgm();
+  NdbMgmd mgmd;
   int result= NDBT_OK;
   int mgmd_nodeid= 0;
 
   NdbMgmHandle h;
   h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
   int errs[] = { 10000, 0, -1 };
 
@@ -788,11 +642,6 @@ done:
 }
 
 NDBT_TESTSUITE(testMgm);
-TESTCASE("SingleUserMode", 
-	 "Test single user mode"){
-  INITIALIZER(runTestSingleUserMode);
-  FINALIZER(runClearTable);
-}
 TESTCASE("ApiSessionFailure",
 	 "Test failures in MGMAPI session"){
   INITIALIZER(runTestApiSession);
@@ -832,7 +681,6 @@ NDBT_TESTSUITE_END(testMgm);
 
 int main(int argc, const char** argv){
   ndb_init();
-  myRandom48Init(NdbTick_CurrentMillisecond());
   return testMgm.execute(argc, argv);
 }
 
