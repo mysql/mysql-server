@@ -33,6 +33,7 @@ testDict \
 testIndex \
 testLimits \
 testMgm \
+testSingleUserMode \
 testNdbApi \
 testNodeRestart \
 testUpgrade \
@@ -86,6 +87,7 @@ testDict_SOURCES = testDict.cpp
 testIndex_SOURCES = testIndex.cpp
 testLimits_SOURCES = testLimits.cpp
 testMgm_SOURCES = testMgm.cpp
+testSingleUserMode_SOURCES = testSingleUserMode.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNodeRestart_SOURCES = testNodeRestart.cpp
 testUpgrade_SOURCES = testUpgrade.cpp

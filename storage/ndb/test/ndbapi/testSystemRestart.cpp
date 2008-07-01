@@ -1271,7 +1271,7 @@ runBug29167(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   const Uint32 nodeCount = restarter.getNumDbNodes();
 
-  if (nodeCount < 2)
+  if (nodeCount < 4)
     return NDBT_OK;
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
