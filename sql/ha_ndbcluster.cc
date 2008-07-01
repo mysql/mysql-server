@@ -3667,7 +3667,7 @@ ha_ndbcluster::setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
   else
   {
     /* Use hidden primary key previously read into m_ref. */
-    DBUG_PRINT("info", ("Using hidden primary key (%l)", m_ref));
+    DBUG_PRINT("info", ("Using hidden primary key (%llu)", m_ref));
     /* Can't use hidden pk if we didn't read it first */
     DBUG_ASSERT(m_read_before_write_removal_used == false);
     *key_rec= m_ndb_hidden_key_record;
