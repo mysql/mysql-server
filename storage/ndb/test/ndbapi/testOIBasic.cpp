@@ -2127,8 +2127,8 @@ Val::cmpchars(Par par, const uchar* buf1, uint len1, const uchar* buf2, uint len
   CHARSET_INFO* cs = chs->m_cs;
   int k;
   if (!par.m_collsp) {
-    uchar x1[maxxmulsize * 8000];
-    uchar x2[maxxmulsize * 8000];
+    uchar x1[maxxmulsize * NDB_MAX_TUPLE_SIZE];
+    uchar x2[maxxmulsize * NDB_MAX_TUPLE_SIZE];
     // make strxfrm pad both to same length
     uint len = maxxmulsize * col.m_bytelength;
     int n1 = NdbSqlUtil::strnxfrm_bug7284(cs, x1, chs->m_xmul * len, buf1, len1);
@@ -2153,7 +2153,7 @@ Val::verify(Par par, const Val& val2) const
 static void
 printstring(NdbOut& out, const uchar* str, uint len, bool showlen)
 {
-  char buf[4 * 8000];
+  char buf[4 * NDB_MAX_TUPLE_SIZE];
   char *p = buf;
   *p++ = '[';
   if (showlen) {

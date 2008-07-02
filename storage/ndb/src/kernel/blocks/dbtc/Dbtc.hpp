@@ -1957,6 +1957,9 @@ private:
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, ApiConnectRecordPtr);
 
+  // For Error inserts
+  Uint32 errorInsertHoardedSegments;
+
   /************************** API CONNECT RECORD ***********************/
   /* *******************************************************************/
   /* THE API CONNECT RECORD CONTAINS THE CONNECTION RECORD TO WHICH THE*/

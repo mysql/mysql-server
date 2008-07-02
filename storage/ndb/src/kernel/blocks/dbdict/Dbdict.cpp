@@ -4367,6 +4367,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
      * Release table
      */
     releaseTableObject(tablePtr.i, checkExist);
+    parseP->tablePtr.setNull();
     return;
   }
 
