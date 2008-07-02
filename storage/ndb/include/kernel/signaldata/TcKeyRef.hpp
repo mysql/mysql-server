@@ -43,7 +43,7 @@ public:
   STATIC_CONST( SignalLength = 5 );
 
 private:
-  Uint32 connectPtr;
+  Uint32 connectPtr; /* Operation pointer */
   Uint32 transId[2];
   Uint32 errorCode;
   Uint32 errorData;

@@ -1177,4 +1177,26 @@ cmd: testDict
 args: -n FailAddPartition T1 I3
 
 # EOF 2008-06-05
+
+# Test data buffering for TCKEYREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionPk WIDE_2COL
+
+# Test data buffering for TCINDXREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionIx WIDE_2COL_IX
+
+# Run some tests on max size / max num cols tables
+max-time: 500
+cmd: testBasic
+args: -n PkRead WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+
+max-time: 500
+cmd: testBasic
+args: -n PkUpdate WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+
+
+# EOF 2008-06-30
 # EOF

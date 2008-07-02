@@ -31,6 +31,7 @@ testBlobs \
 testDataBuffers \
 testDict \
 testIndex \
+testLimits \
 testMgm \
 testSingleUserMode \
 testNdbApi \
@@ -84,6 +85,7 @@ testBlobs_SOURCES = testBlobs.cpp
 testDataBuffers_SOURCES = testDataBuffers.cpp
 testDict_SOURCES = testDict.cpp
 testIndex_SOURCES = testIndex.cpp
+testLimits_SOURCES = testLimits.cpp
 testMgm_SOURCES = testMgm.cpp
 testSingleUserMode_SOURCES = testSingleUserMode.cpp
 testNdbApi_SOURCES = testNdbApi.cpp

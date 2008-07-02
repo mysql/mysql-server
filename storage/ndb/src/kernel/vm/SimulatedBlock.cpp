@@ -328,6 +328,9 @@ appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len) {
   if (len == 0) 
     return true;  
 
+  Uint32 remain= SectionSegment::DataLength;
+  Uint32 segmentLen= 0;
+
   if (firstSegmentIVal == RNIL)
   {
     /* First data to be added to this section */
@@ -349,15 +352,27 @@ appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len) {
     /* Section has at least one segment with data already */
     g_sectionSegmentPool.getPtr(firstPtr, firstSegmentIVal);
     g_sectionSegmentPool.getPtr(currPtr, firstPtr.p->m_lastSegment);
+
+    Uint32 existingLen= firstPtr.p->m_sz;
+    assert(existingLen > 0);
+    segmentLen= existingLen % SectionSegment::DataLength;
+    
+    /* If existingLen %  SectionSegment::DataLength == 0
+     * we assume that the last segment is full
+     */
+    segmentLen= segmentLen == 0 ? 
+      SectionSegment::DataLength :
+      segmentLen;
+
+    remain= SectionSegment::DataLength - segmentLen;
   }
 
-  Uint32 existingLen= firstPtr.p->m_sz;
   firstPtr.p->m_sz+= len;
-  Uint32 segmentLen= existingLen % SectionSegment::DataLength;
-  Uint32 remain= SectionSegment::DataLength - segmentLen;
 
   while(len > remain) {
-    /* Fill this segment, and link in another one */
+    /* Fill this segment, and link in another one 
+     * Note that we can memcpy to a bad address with size 0
+     */
     memcpy(&currPtr.p->theData[segmentLen], src, remain << 2);
     src += remain;
     len -= remain;

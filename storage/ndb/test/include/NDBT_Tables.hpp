@@ -27,6 +27,27 @@ typedef int (* NDBT_CreateTableHook)(Ndb*, NdbDictionary::Table&, int when,
 
 class NDBT_Tables {
 public:
+  /* Some constants for the maximum sizes of keys and attributes
+   * in various cases
+   */
+  STATIC_CONST(MaxRowBytes= NDB_MAX_TUPLE_SIZE_IN_WORDS * 4);
+  STATIC_CONST(MaxKeyBytes= NDB_MAX_KEYSIZE_IN_WORDS * 4);
+  STATIC_CONST(MinKeyBytes= 4); // Single Unsigned key
+
+  STATIC_CONST(MaxVarTypeKeyBytes= MaxKeyBytes - 2); // 2 length bytes
+
+  STATIC_CONST(MaxKeyMaxAttrBytes= MaxRowBytes - MaxKeyBytes);
+  STATIC_CONST(MaxKeyMaxVarTypeAttrBytes= MaxKeyMaxAttrBytes - 2);
+
+  STATIC_CONST(MinKeyMaxAttrBytes= MaxRowBytes - MinKeyBytes);
+  STATIC_CONST(MinKeyMaxVarTypeAttrBytes= MinKeyMaxAttrBytes - 2);
+
+  STATIC_CONST(UniqueIndexOverheadBytes= 4); // For FragId
+  STATIC_CONST(MaxKeyMaxVarTypeAttrBytesIndex = 
+               MaxKeyMaxVarTypeAttrBytes - UniqueIndexOverheadBytes);
+
+  /* Hugo requires 2 unsigned int columns somewhere in the table */
+  STATIC_CONST(HugoOverheadBytes= 2 * 4); 
 
   static int createTable(Ndb* pNdb, const char* _name, bool _temp = false, 
 			 bool existsOK = false, NDBT_CreateTableHook = 0,
