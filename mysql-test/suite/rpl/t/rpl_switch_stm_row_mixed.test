@@ -147,6 +147,9 @@ create table t5 select * from t1 where 3 in (select 1 union select 2 union selec
 # what if UUID() is first:
 insert into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3 union select * from t4);
 
+sync_slave_with_master;
+connection master;
+
 # inside a stored procedure
 
 delimiter |;
@@ -300,7 +303,7 @@ insert delayed into t2 values(@a);
 # sync_slave_with_master is later called). Instead, we wait until the
 # rows make it to t2 on the slave.
 connection slave;
-let $wait_condition= SELECT COUNT(*) = 19 FROM t2;
+let $wait_condition= SELECT COUNT(*) = 19 FROM mysqltest1.t2;
 --source include/wait_condition.inc
 connection master;
 
