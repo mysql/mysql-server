@@ -1483,16 +1483,23 @@ void ha_tokudb::unpack_key(uchar * record, DBT * key, uint index) {
         /* tokutek change to make pack_key and unpack_key work for
            decimals */
         uint unpack_length = key_part->length;
+        //
+        // TEMPORARY HACK
+        // True change is to modify the Field_new_decimal class to properly
+        // implement unpack_key, pack_key, and pack_cmp, part of ticket 977
+        //
         if (key_part->field->type() == MYSQL_TYPE_NEWDECIMAL) {
-            Field_new_decimal *field_nd = (Field_new_decimal *) key_part->field;
-            unpack_length += field_nd->precision << 8;
+            memcpy(record + field_offset(key_part->field), pos, key_part->length);
+            pos += key_part->length;
         }
-        pos = (uchar *) key_part->field->unpack_key(record + field_offset(key_part->field), pos,
+        else {
+            pos = (uchar *) key_part->field->unpack_key(record + field_offset(key_part->field), pos,
 #if MYSQL_VERSION_ID < 50123
-                                                    unpack_length);
+                                                        unpack_length);
 #else
-                                                    unpack_length, table->s->db_low_byte_first);
+                                                        unpack_length, table->s->db_low_byte_first);
 #endif
+        }
     }
 }
 
