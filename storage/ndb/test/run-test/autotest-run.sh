@@ -259,7 +259,15 @@ cd ..
 p2=`pwd`
 cd ..
 tarfile=res.$RUN.$clone.$target.$DATE.$HOST.$$.tgz
-tar cfz $tar_dir/$tarfile `basename $p2`/$DATE
+if [ `uname -s` != "SunOS" ]
+then
+    tar cfz $tar_dir/$tarfile `basename $p2`/$DATE
+else
+    tarfile2=res.$RUN.$clone.$target.$DATE.$HOST.$$.tar
+    tar cf $tar_dir/$tarfile2 `basename $p2`/$DATE
+    gzip -c $tar_dir/$tarfile2 > $tar_dir/$tarfile
+    rm -f $tar_dir/$tarfile2
+fi
 
 if [ "$report" ]
 then
