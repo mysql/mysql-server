@@ -113,7 +113,6 @@ private:
     // if non-zero (not necessarily 1), primary key is hidden
     //
     uint hidden_primary_key;
-    uint version;
     bool key_read, using_ignore;
 
     //
