@@ -13,10 +13,11 @@ let $def_checkinterval=`select @@global.maria_checkpoint_interval`;
 set global maria_checkpoint_interval=0;
 
 # Work around BUG#34911 "FLUSH STATUS doesn't flush what it should":
-# compute differences in status variables before and after relevant queries
+# compute differences in status variables before and after relevant
+# queries. Maria_pagecache_read_requests varies accross machines.
 create temporary table initial
 select variable_name,variable_value from
-information_schema.global_status where variable_name like "Maria_pagecache_read%";
+information_schema.global_status where variable_name like "Maria_pagecache_reads";
 
 # we don't use block-format because we want page cache stats
 # about indices and not data pages.
