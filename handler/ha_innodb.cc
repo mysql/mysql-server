@@ -9058,7 +9058,7 @@ innodb_file_format_check_validate(
 
 		if (innobase_file_format_check_on_off(file_format_input)) {
 			sql_print_warning(
-				"InnoDB: invalid innodb_file_format_check"
+				"InnoDB: invalid innodb_file_format_check "
 				"value; on/off can only be set at startup or "
 				"in the configuration file");
 		} else if (innobase_file_format_check_validate(
