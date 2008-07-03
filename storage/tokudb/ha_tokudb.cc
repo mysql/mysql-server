@@ -162,7 +162,6 @@ static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, con
 static void tokudb_cleanup_log_files(void);
 static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table);
 static int free_share(TOKUDB_SHARE * share, TABLE * table, uint hidden_primary_key, bool mutex_is_locked);
-static void update_status(TOKUDB_SHARE * share, TABLE * table);
 static int tokudb_end(handlerton * hton, ha_panic_function type);
 static bool tokudb_flush_logs(handlerton * hton);
 static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * print, enum ha_stat_type);
@@ -409,9 +408,6 @@ static int free_share(TOKUDB_SHARE * share, TABLE * table, uint hidden_primary_k
         pthread_mutex_unlock(&share->mutex);
     if (!--share->use_count) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
-
-        /* this does share->file->close() implicitly */
-        update_status(share, table);
 
         //
         // number of open DB's may not be equal to number of keys we have because add_index
@@ -1777,36 +1773,6 @@ void ha_tokudb::get_status() {
         share->status |= STATUS_PRIMARY_KEY_INIT;
         pthread_mutex_unlock(&share->mutex);
     }
-    DBUG_VOID_RETURN;
-}
-
-static void update_status(TOKUDB_SHARE * share, TABLE * table) {
-    TOKUDB_DBUG_ENTER("update_status");
-    pthread_mutex_lock(&share->mutex);
-    if (!share->status_block) {
-        /*
-           Create sub database 'status' if it doesn't exist from before
-           (This '*should*' always exist for table created with MySQL)
-         */
-
-        char name_buff[FN_REFLEN];
-        char newname[get_name_length(share->table_name) + 32];
-        make_name(newname, share->table_name, "status");
-        fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
-        if (db_create(&share->status_block, db_env, 0))
-            goto end;
-        share->status_block->set_flags(share->status_block, 0);
-        if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, DB_THREAD | DB_CREATE, my_umask))
-            goto end;
-    }
-    {
-        //
-        // used to write data here. The data that was written
-        // is no longer required to be put in status.tokudb
-        //
-    }
-  end:
-    pthread_mutex_unlock(&share->mutex);
     DBUG_VOID_RETURN;
 }
 
