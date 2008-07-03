@@ -72,8 +72,8 @@ typedef struct st_tokudb_trx_data {
 #define HA_TOKUDB_EXTRA_ROWS    100
 
 /* Bits for share->status */
-#define STATUS_PRIMARY_KEY_INIT 1
-#define STATUS_AUTO_INCREMENT_INIT 8
+#define STATUS_PRIMARY_KEY_INIT 0x1
+#define STATUS_AUTO_INCREMENT_INIT 0x2
 
 // tokudb debug tracing
 #define TOKUDB_DEBUG_INIT 1
