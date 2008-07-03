@@ -1755,8 +1755,9 @@ void ha_tokudb::get_status() {
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
             uint open_mode = (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
                               | DB_THREAD);
-            if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+            if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
                 TOKUDB_TRACE("open:%s\n", newname);
+            }
             if (!db_create(&share->status_block, db_env, 0)) {
                 if (share->status_block->open(share->status_block, NULL, name_buff, NULL, DB_BTREE, open_mode, 0)) {
                     share->status_block->close(share->status_block, 0);
