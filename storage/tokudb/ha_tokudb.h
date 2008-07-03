@@ -12,7 +12,6 @@ typedef struct st_tokudb_share {
 
     ulonglong auto_ident;
     ulonglong last_auto_increment;
-    ha_rows rows, org_rows;
     ulong *rec_per_key;
     DB *status_block;
     //
@@ -104,10 +103,6 @@ private:
     // flags that are returned in table_flags()
     //
     ulong int_table_flags;
-    //
-    // count on the number of rows that gets changed, such as when write_row occurs
-    //
-    ulong changed_rows;
     //
     // index into key_file that holds DB* that is indexed on
     // the primary_key. this->key_file[primary_index] == this->file
