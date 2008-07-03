@@ -1024,10 +1024,12 @@ static size_t my_get_system_windows_directory(char *buffer, size_t size)
 
 static const char *my_get_module_parent(char *buf, size_t size)
 {
+  char *last= NULL;
+  char *end;
   if (!GetModuleFileName(NULL, buf, size))
     return NULL;
+  end= strend(buf);
 
-  char *last= NULL, *end= strend(buf);
   /*
     Look for the second-to-last \ in the filename, but hang on
     to a pointer after the last \ in case we're in the root of
