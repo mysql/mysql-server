@@ -299,7 +299,7 @@ call p_verify_reprepare_count(0);
 
 --echo # Test 7-b: dependent FUNCTION has changed
 --echo #
---echo # Note, this scenario is not supported, subject of Bug#12093
+--echo # Note, this scenario is supported, subject of Bug#12093
 --echo #
 drop trigger t1_ai;
 create trigger t1_ai after insert on t1 for  each row
@@ -311,9 +311,8 @@ execute stmt using @var;
 select @var;
 drop function f1;
 create function f1 (a int) returns int return 0;
---error ER_SP_DOES_NOT_EXIST
 execute stmt using @var;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 drop function f1;
 deallocate prepare stmt;
 
@@ -353,8 +352,14 @@ select * from t2;
 drop view v1;
 create view v1 as select a from t2;
 set @var=8;
+--echo # XXX: bug, the SQL statement in the trigger is still
+--echo # pointing at table 't3', since the view was expanded
+--echo # at first statement execution.
+--echo # Repreparation of the main statement doesn't cause repreparation
+--echo # of trigger statements.
+--error ER_NO_SUCH_TABLE
 execute stmt using @var;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 --echo #
 --echo # Sic: the insert went into t3, even though the view now
 --echo # points at t2. This is because neither the merged view
@@ -703,14 +708,13 @@ execute stmt;
 call p_verify_reprepare_count(0);
 drop function f1;
 create function f1() returns int return 2;
---echo # XXX: Bug#12093. We only get a different error
+--echo # XXX: Used to be another manifestation of Bug#12093.
+--echo # We only used to get a different error
 --echo # message because the non-existing procedure error is masked
 --echo # by the view.
---error ER_VIEW_INVALID
 execute stmt;
---error ER_VIEW_INVALID
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 
 --echo # Part 18b: dependent procedure has changed (referred to via a function)
 
@@ -734,15 +738,14 @@ execute stmt;
 call p_verify_reprepare_count(0);
 drop procedure p1;
 create procedure p1(out x int) select max(a) from t2 into x;
---echo # XXX: bug. The prelocked list is not invalidated
---echo # and we keep opening table t1, whereas the procedure
+--echo # XXX: used to be a bug. The prelocked list was not invalidated
+--echo # and we kept opening table t1, whereas the procedure
 --echo # is now referring to table t2
---error ER_VIEW_INVALID
-execute stmt;
-call p_verify_reprepare_count(0);
-flush table t1;
 execute stmt;
 call p_verify_reprepare_count(1);
+flush table t1;
+execute stmt;
+call p_verify_reprepare_count(0);
 execute stmt;
 
 --echo # Test 18-c: dependent VIEW has changed
@@ -1326,7 +1329,6 @@ drop table v_27690_2;
 deallocate prepare stmt;
 
 --echo #=====================================================================
---echo # TODO: fix the below two bugs and modify their tests
 --echo #
 --echo # Bug#21294 Executing a prepared statement that executes
 --echo # a stored function which was recreat
@@ -1341,15 +1343,13 @@ drop function f1;
 create function f1() returns int return 10;
 
 # might pass or fail, implementation dependent
---error ER_SP_DOES_NOT_EXIST
 execute stmt;
 
 drop function f1;
 create function f1() returns int return 20;
 
---error ER_SP_DOES_NOT_EXIST
 execute stmt;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(2);
 
 drop function f1;
 deallocate prepare stmt;
@@ -1388,20 +1388,16 @@ drop procedure p_12093_unrelated;
 
 connection default;
 
---echo # XXX: bug
---error ER_SP_DOES_NOT_EXIST
+--echo # XXX: used to be a bug
 execute stmt_sf;
---echo # XXX: bug
---error ER_SP_DOES_NOT_EXIST
+--echo # XXX: used to be a bug
 execute stmt_sp;
 
---echo # XXX: bug
---error ER_SP_DOES_NOT_EXIST
+--echo # XXX: used to be a bug
 execute stmt_sf;
---echo # XXX: bug
---error ER_SP_DOES_NOT_EXIST
+--echo # XXX: used to be a bug
 execute stmt_sp;
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(2);
 
 disconnect con1;
 
