@@ -399,13 +399,4 @@ show table status;
 select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda
-set global innodb_file_format_check=`Cheetah`;
-ERROR HY000: Incorrect arguments to SET
-set global innodb_file_format_check=`on`;
-ERROR HY000: Incorrect arguments to SET
-set global innodb_file_format_check=`off`;
-ERROR HY000: Incorrect arguments to SET
-select @@innodb_file_format_check;
-@@innodb_file_format_check
-Barracuda
 drop table normal_table, zip_table;

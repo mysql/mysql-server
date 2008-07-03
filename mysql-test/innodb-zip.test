@@ -316,12 +316,5 @@ select @@innodb_file_format_check;
 show table status;
 -- enable_result_log
 select @@innodb_file_format_check;
--- error ER_WRONG_ARGUMENTS
-set global innodb_file_format_check=`Cheetah`;
--- error ER_WRONG_ARGUMENTS
-set global innodb_file_format_check=`on`;
--- error ER_WRONG_ARGUMENTS
-set global innodb_file_format_check=`off`;
-select @@innodb_file_format_check;
 drop table normal_table, zip_table;
 -- disable_result_log
