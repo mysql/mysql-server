@@ -275,6 +275,7 @@ public:
     THR_LOCK_DATA **store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type);
 
     void get_status();
+    void init_hidden_prim_key_info();
     inline void get_auto_primary_key(uchar * to) {
         pthread_mutex_lock(&share->mutex);
         share->auto_ident++;

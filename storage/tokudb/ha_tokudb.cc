@@ -1029,6 +1029,9 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     uint max_key_length;
     int error;
 
+    transaction = NULL;
+    cursor = NULL;
+
     if (tokudb_init_flags & DB_INIT_TXN)
         open_flags += DB_AUTO_COMMIT;
 
@@ -1166,19 +1169,21 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             share->fixed_length_primary_key = (ref_length == table->key_info[primary_key].key_length);
             share->status |= STATUS_PRIMARY_KEY_INIT;
         }
+        else {
+            init_hidden_prim_key_info();
+        }
         share->ref_length = ref_length;
+
+        get_status();
+
     }
     ref_length = share->ref_length;     // If second open
     pthread_mutex_unlock(&share->mutex);
 
-    transaction = NULL;
-    cursor = NULL;
     key_read = false;
     stats.block_size = 1<<20;    // QQQ Tokudb DB block size
     share->fixed_length_row = !(table_share->db_create_options & HA_OPTION_PACK_RECORD);
 
-    // QQQ what happens if get_status fails
-    get_status();
     info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
     TOKUDB_DBUG_RETURN(0);
@@ -1722,14 +1727,11 @@ int ha_tokudb::read_last() {
     TOKUDB_DBUG_RETURN(error);
 }
 
-/** @brief
-    Get status information that is stored in the 'status' sub database
-    and the max used value for the hidden primary key.
-*/
-void ha_tokudb::get_status() {
-    TOKUDB_DBUG_ENTER("ha_tokudb::get_status");
-    pthread_mutex_lock(&share->mutex);
-
+//
+// get max used hidden primary key value
+//
+void ha_tokudb::init_hidden_prim_key_info() {
+    TOKUDB_DBUG_ENTER("ha_tokudb::init_prim_key_info");
     if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
         (void) extra(HA_EXTRA_KEYREAD);
         int error = read_last();
@@ -1749,8 +1751,17 @@ void ha_tokudb::get_status() {
         }
 
         share->status |= STATUS_PRIMARY_KEY_INIT;
-    }
+    }    
+    DBUG_VOID_RETURN;
+}
 
+
+
+/** @brief
+    Get metadata info stored in status.tokudb
+    */
+void ha_tokudb::get_status() {
+    TOKUDB_DBUG_ENTER("ha_tokudb::get_status");
     //
     // retrieve metadata from status_block
     //
@@ -1838,7 +1849,6 @@ void ha_tokudb::get_status() {
         }
     }
     txn->commit(txn,0);
-    pthread_mutex_unlock(&share->mutex);
     DBUG_VOID_RETURN;
 }
 
@@ -3541,7 +3551,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     }
 
 
-    /* Create the status block to save information from last status command */
+    /* Create status.tokudb and save relevant metadata */
     DB *status_block = NULL;
     if (!(error = (db_create(&status_block, db_env, 0)))) {
         make_name(newname, name, "status");
