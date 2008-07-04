@@ -34,7 +34,7 @@ typedef struct st_tokudb_share {
 //
 // no capabilities yet
 //
-#define HA_TOKU_CAP 324
+#define HA_TOKU_CAP 0
 
 
 //
