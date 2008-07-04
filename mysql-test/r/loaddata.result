@@ -212,7 +212,7 @@ set @@secure_file_priv= 0;
 ERROR HY000: Variable 'secure_file_priv' is a read only variable
 truncate table t1;
 load data infile 'MYSQL_TEST_DIR/t/loaddata.test' into table t1;
-ERROR HY000: The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
+Got one of the listed errors
 select * from t1;
 a	b	c
 select load_file("MYSQL_TEST_DIR/t/loaddata.test");
