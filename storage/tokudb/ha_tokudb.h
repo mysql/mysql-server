@@ -24,11 +24,28 @@ typedef struct st_tokudb_share {
     //
     DB *key_file[MAX_KEY +1];
     u_int32_t key_type[MAX_KEY +1];
-    uint status, version;
+    uint status, version, capabilities;
     uint ref_length;
     bool fixed_length_primary_key, fixed_length_row;
 
 } TOKUDB_SHARE;
+
+#define HA_TOKU_VERSION 1
+//
+// no capabilities yet
+//
+#define HA_TOKU_CAP 324
+
+
+//
+// These are keys that will be used for retrieving metadata in status.tokudb
+// To get the version, one looks up the value associated with key hatoku_version
+// in status.tokudb
+//
+typedef enum {
+    hatoku_version = 0,
+    hatoku_capabilities
+} HA_METADATA_KEY ;
 
 typedef struct st_prim_key_part_info {
     uint offset;
