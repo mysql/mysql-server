@@ -1169,9 +1169,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             share->fixed_length_primary_key = (ref_length == table->key_info[primary_key].key_length);
             share->status |= STATUS_PRIMARY_KEY_INIT;
         }
-        else {
-            init_hidden_prim_key_info();
-        }
         share->ref_length = ref_length;
 
         error = get_status();
@@ -1187,6 +1184,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     key_read = false;
     stats.block_size = 1<<20;    // QQQ Tokudb DB block size
     share->fixed_length_row = !(table_share->db_create_options & HA_OPTION_PACK_RECORD);
+
+    init_hidden_prim_key_info();
 
     info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
