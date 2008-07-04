@@ -286,10 +286,9 @@ source include/wait_for_slave_to_stop.inc;
 --echo *** On Master ***
 connection master;
 SET SESSION BINLOG_FORMAT=STATEMENT;
-exec cp ./suite/rpl/data/rpl_bug28618.dat $MYSQLTEST_VARDIR/tmp/;
+
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/rpl_bug28618.dat' INTO TABLE t10 FIELDS TERMINATED BY '|';
-remove_file $MYSQLTEST_VARDIR/tmp/rpl_bug28618.dat;
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/rpl_bug28618.dat' INTO TABLE t10 FIELDS TERMINATED BY '|';
 
 SELECT * FROM t10 ORDER BY a;
 

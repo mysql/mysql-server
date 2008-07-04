@@ -103,7 +103,7 @@ DELETE FROM t1;
 DELETE FROM t2;
 
 ******************** LOAD DATA INFILE ********************
-LOAD DATA INFILE '../../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
 SELECT * FROM t1 ORDER BY a;
 a	b
 10	line A
@@ -884,7 +884,7 @@ master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t2
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Begin_load_query	1	#	;file_id=#;block_len=#
-master-bin.000001	#	Execute_load_query	1	#	use `test_rpl`; LOAD DATA INFILE '../../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;file_id=#
+master-bin.000001	#	Execute_load_query	1	#	use `test_rpl`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;file_id=#
 master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; BEGIN
 master-bin.000001	#	Query	1	#	use `test_rpl`; DELETE FROM t1
