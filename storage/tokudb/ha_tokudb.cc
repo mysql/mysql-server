@@ -1735,6 +1735,7 @@ int ha_tokudb::read_last() {
 //
 void ha_tokudb::init_hidden_prim_key_info() {
     TOKUDB_DBUG_ENTER("ha_tokudb::init_prim_key_info");
+    pthread_mutex_lock(&share->mutex);
     if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
         (void) extra(HA_EXTRA_KEYREAD);
         int error = read_last();
@@ -1754,7 +1755,8 @@ void ha_tokudb::init_hidden_prim_key_info() {
         }
 
         share->status |= STATUS_PRIMARY_KEY_INIT;
-    }    
+    }
+    pthread_mutex_unlock(&share->mutex);
     DBUG_VOID_RETURN;
 }
 
