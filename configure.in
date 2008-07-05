@@ -2812,9 +2812,15 @@ EOF
 
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
   *solaris*-i?86-no-yes)
-  # ndb fail for whatever strange reason to link Sun Forte/x86
-  # unless using incremental linker
-  CXXFLAGS="$CXXFLAGS -xildon"
+  if $CC -xildon 2>&1 | grep "illegal option" >/dev/null
+  then
+    # This Solaris ld does not support -xildon
+    true
+  else
+    # ndb fail for whatever strange reason to link Sun Forte/x86
+    # unless using incremental linker
+    CXXFLAGS="$CXXFLAGS -xildon"
+  fi
   ;;
   *) ;;
 esac
