@@ -1,8 +1,9 @@
 -- source include/have_maria.inc
 -- source include/big_test.inc
+-- source include/not_embedded.inc
 
 # pre-requisites for maria_empty_logs
-connect (admin, 127.0.0.1, root,,test,,);
+connect (admin, localhost, root,,test,,);
 #
 --enable_reconnect
 connection default;

@@ -48,7 +48,7 @@ EOF
 
 # line below will be removed
 disable_ps_protocol;
-replace_regex /.mysqltest.t_corrupted2/t_corrupted2/ ;
+replace_regex /Table.*t_corrupted2/t_corrupted2/ ;
 select * from t_corrupted2; # should show corruption and repair messages
 enable_ps_protocol;
 select * from t_corrupted2; # should show just rows

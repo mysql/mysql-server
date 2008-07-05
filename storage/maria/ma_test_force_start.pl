@@ -160,7 +160,7 @@ open(FILE, "<", $error_log_name) or die;
 @cmd_output= <FILE>;
 close FILE;
 die unless grep(/\[Warning\] mysqld(.exe)*: Maria engine: removed all logs after [\d]+ consecutive failures of recovery from logs/, @cmd_output);
-die unless grep(/\[ERROR\] mysqld(.exe)*: File '...tmp.maria_log.00000001' not found \(Errcode: 2\)/, @cmd_output);
+die unless grep(/\[ERROR\] mysqld(.exe)*: File '.*tmp.maria_log.00000001' not found \(Errcode: 2\)/, @cmd_output);
 print "success - ok\n";
 
 open(FILE, ">", $sql_name) or die;

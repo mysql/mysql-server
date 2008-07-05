@@ -1523,8 +1523,8 @@ int _ma_write_undo_key_delete(MARIA_HA *info, const MARIA_KEY *key,
   return translog_write_record(res_lsn, log_type,
                                info->trn, info,
                                (translog_size_t)
-                               log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
-                               log_array[TRANSLOG_INTERNAL_PARTS + 1].length,
+                               (log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
+                                log_array[TRANSLOG_INTERNAL_PARTS + 1].length),
                                TRANSLOG_INTERNAL_PARTS + 2, log_array,
                                log_data + LSN_STORE_SIZE, &msg) ? -1 : 0;
 }

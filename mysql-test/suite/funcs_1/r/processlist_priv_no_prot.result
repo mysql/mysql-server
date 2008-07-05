@@ -32,7 +32,7 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
   `TIME` bigint(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+)  DEFAULT CHARSET=utf8
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	root	localhost	information_schema	Query	TIME	NULL	SHOW processlist
@@ -102,7 +102,7 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
   `TIME` bigint(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+)  DEFAULT CHARSET=utf8
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	localhost	information_schema	Query	TIME	NULL	SHOW processlist
