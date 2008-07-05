@@ -110,6 +110,7 @@ end:
    @param all            1 if we should delete the first state if it's
                          visible for all.  For the moment this is only used
                          on close() of table.
+   @param trnman_is_locked  Set to 1 if we have already a lock on trnman.
 
    @notes
      The assumption is that items in the history list is ordered by
@@ -121,6 +122,9 @@ end:
      As long as some states exists, we keep the newest = (last commit)
      state as first state in the history.  This is to allow us to just move
      the history from the global list to the share when we open the table.
+
+     Note that if 'all' is set trnman_is_locked must be 0, becasue
+     trnman_get_min_trid() will take a lock on trnman.
 
    @return
    @retval Pointer to new history list
@@ -157,6 +161,7 @@ MARIA_STATE_HISTORY
 
   if (all && parent == &org_history->next)
   {
+    DBUG_ASSERT(trnman_is_locked == 0);
     /* There is only one state left. Delete this if it's visible for all */
     if (last_trid < trnman_get_min_trid())
     {
@@ -166,6 +171,29 @@ MARIA_STATE_HISTORY
   }
   DBUG_RETURN(org_history);
 }
+
+
+/**
+   @brief Remove not used state history
+
+   @notes
+   share and trnman are not locked.
+
+   We must first lock trnman and then share->intern_lock. This is becasue
+   _ma_trnman_end_trans_hook() has a lock on trnman and then
+   takes share->intern_lock.
+*/
+
+void _ma_remove_not_visible_states_with_lock(MARIA_SHARE *share)
+{
+  trnman_lock();
+  pthread_mutex_lock(&share->intern_lock);
+  share->state_history=  _ma_remove_not_visible_states(share->state_history, 0,
+                                                       1);
+  pthread_mutex_unlock(&share->intern_lock);
+  trnman_unlock();
+}
+
 
 /*
   Free state history information from share->history and reset information

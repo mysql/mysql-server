@@ -1324,7 +1324,7 @@ uint _ma_get_binary_pack_key(MARIA_KEY *int_key, uint page_flag, uint nod_flag,
   }
 
   /* Copy rest of data ptr and, if appropriate, trans_id and node_ptr */
-  memcpy(key, from, length);
+  memcpy(key, from, length + nod_flag);
   *page_pos= from + length + nod_flag;
   
   DBUG_RETURN(int_key->data_length + int_key->ref_length);
@@ -1359,7 +1359,7 @@ uchar *_ma_skip_binary_pack_key(MARIA_KEY *key, uint page_flag,
 }
 
 
-/*
+/**
   @brief Get key at position without knowledge of previous key
 
   @return pointer to next key

@@ -76,3 +76,4 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
 my_bool _ma_row_visible_always(MARIA_HA *info);
 my_bool _ma_row_visible_non_transactional_table(MARIA_HA *info);
 my_bool _ma_row_visible_transactional_table(MARIA_HA *info);
+void _ma_remove_not_visible_states_with_lock(struct st_maria_share *share);

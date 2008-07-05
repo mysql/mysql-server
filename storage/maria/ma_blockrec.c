@@ -1691,11 +1691,16 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
     {
       if (res->empty_space + res->length >= length)
       {
+        /*
+          We can't just verify min_block_length here as the newly found block
+          may be smaller than min_block_length.
+        */
         _ma_compact_block_page(res->buff, block_size, res->rownr, 1,
                                page_type == HEAD_PAGE ?
                                info->trn->min_read_from : 0,
                                page_type == HEAD_PAGE ?
-                               share->base.min_block_length : 0);
+                               min(res->length, share->base.min_block_length) :
+                               0);
         /* All empty space are now after current position */
         dir= dir_entry_pos(res->buff, block_size, res->rownr);
         res->length= res->empty_space= uint2korr(dir+2);

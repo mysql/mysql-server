@@ -65,5 +65,7 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
 #define TRANSID_SIZE		6
 #define transid_store(dst, id) int6store(dst,id)
 #define transid_korr(P) uint6korr(P)
+void trnman_lock();
+void trnman_unlock();
 C_MODE_END
 #endif

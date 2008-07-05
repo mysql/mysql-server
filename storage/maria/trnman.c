@@ -851,7 +851,7 @@ TrID trnman_get_max_trid()
 }
 
 /**
-  Check if there exist an active transaction between two commit_id's
+  @brief Check if there exist an active transaction between two commit_id's
 
   @todo
     Improve speed of this.
@@ -884,4 +884,23 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
   if (!trnman_is_locked)
     pthread_mutex_unlock(&LOCK_trn_list);
   return ret;
+}
+
+
+/**
+   lock transaction list
+*/
+
+void trnman_lock()
+{
+  pthread_mutex_lock(&LOCK_trn_list);
+}
+
+/**
+   unlock transaction list
+*/
+
+void trnman_unlock()
+{
+  pthread_mutex_unlock(&LOCK_trn_list);
 }

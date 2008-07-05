@@ -787,7 +787,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
            hash_search(&maria_stored_state,
                        (uchar*) &share->state.create_rename_lsn, 0)))
       {
-        /* Move history from hash to share */
+        /*
+          Move history from hash to share. This is safe to do as we
+          don't have a lock on share->intern_lock.
+        */
         share->state_history=
           _ma_remove_not_visible_states(history->state_history, 0, 0);
         history->state_history= 0;

@@ -839,7 +839,8 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   page_flag= _ma_get_keypage_flag(share, buff);
   _ma_get_used_and_nod_with_flag(share, page_flag, buff, used_length,
                                  nod_flag);
-  keypos= buff + share->keypage_header + nod_flag;
+  old_keypos= buff + share->keypage_header;
+  keypos= old_keypos+ nod_flag;
   endpos= buff + used_length;
 
   param->keydata+=   used_length;
@@ -879,7 +880,10 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       next_page= _ma_kpos(nod_flag,keypos);
       if (chk_index_down(param,info,keyinfo,next_page,
                          temp_buff,keys,key_checksum,level+1))
+      {
+        DBUG_DUMP("page_data", old_keypos, (uint) (keypos - old_keypos));
 	goto err;
+      }
     }
     old_keypos=keypos;
     if (keypos >= endpos ||

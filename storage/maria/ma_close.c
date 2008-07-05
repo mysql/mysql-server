@@ -129,7 +129,11 @@ int maria_close(register MARIA_HA *info)
     else
       share_can_be_freed= TRUE;
 
-    /* Remember share->history for future opens */
+    /*
+      Remember share->history for future opens
+      Here we take share->intern_lock followed by trans_lock but this is
+      safe as no other thread one can use 'share' here.
+    */
     share->state_history= _ma_remove_not_visible_states(share->state_history,
                                                         1, 0);
     if (share->state_history)
