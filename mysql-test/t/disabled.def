@@ -12,7 +12,6 @@
 federated_transactions   : Bug#29523 Transactions do not work
 csv_alter_table      : Bug#33696 2008-01-21 pcrews no .result file - bug allows NULL columns in CSV tables
 user_limits     : Bug#23921 random failure of user_limits.test
-status               : Bug#32966 main.status fails
 thread_cache_size_func : Bug#36733 main.thread_cache_size_func fails randomly
 binlog_cache_size_basic_32            : Bug #36522: Some tests of system variables have diffs on 64bit platorms
 bulk_insert_buffer_size_basic_32      : Bug #36522: Some tests of system variables have diffs on 64bit platorms
@@ -96,3 +95,5 @@ tmp_table_size_basic_64               : Bug #36522: Some tests of system variabl
 transaction_alloc_block_size_basic_64 : Bug #36522: Some tests of system variables have diffs on 64bit platorms
 transaction_prealloc_size_basic_64    : Bug #36522: Some tests of system variables have diffs on 64bit platorms
 wait_timeout_basic_64                 : Bug #36522: Some tests of system variables have diffs on 64bit platorms
+wait_timeout_func                     : BUG#36873 2008-07-06 sven wait_timeout_func.test fails randomly
+innodb_max_dirty_pages_pct_func       : BUG#37906 2008-07-06 sven innodb_max_dirty_pages_pct_func does not clean up after itself

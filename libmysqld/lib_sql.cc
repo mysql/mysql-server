@@ -79,6 +79,15 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   my_bool result= 1;
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
+  my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
+
+  if (!thd)
+  {
+    /* Do "reconnect" if possible */
+    if (mysql_reconnect(mysql) || stmt_skip)
+      return 1;
+    thd= (THD *) mysql->thd;
+  }
 
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.start_new_query();

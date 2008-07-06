@@ -48,3 +48,61 @@ SET @@global.query_cache_size=0;
 set @@global.table_definition_cache=@save_table_definition_cache;
 
 # End of 4.1 tests
+
+#
+# Bug#33362: Query cache invalidation (truncate) may hang if cached query uses many tables
+#
+
+SET @save_table_definition_cache = @@global.table_definition_cache;
+SET @@global.table_definition_cache = 512;
+
+let $c= 255;
+
+while ($c)
+{
+  eval CREATE TABLE t$c (a INT);
+  eval INSERT INTO t$c VALUES ($c);
+  dec $c;
+}
+
+let $c= 254;
+let $str= t255;
+
+while ($c)
+{
+  let $str= t$c,$str;
+  dec $c;
+}
+
+eval CREATE TABLE t0 (a INT) ENGINE=MERGE UNION($str);
+SET GLOBAL query_cache_size = 1048576;
+FLUSH STATUS;
+SELECT a FROM t0 WHERE a = 1;
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+
+let $c= 255;
+let $i= 1;
+
+while ($c)
+{
+  eval TRUNCATE TABLE t$c;
+  eval SELECT a FROM t$i;
+  dec $c;
+  inc $i;
+}
+
+SELECT a FROM t0;
+DROP TABLE t0;
+
+let $c= 255;
+
+while ($c)
+{
+  eval DROP TABLE t$c;
+  dec $c;
+}
+
+SET @@global.query_cache_size = 0;
+SET @@global.table_definition_cache = @save_table_definition_cache;
+
+--echo End of 5.1 tests
