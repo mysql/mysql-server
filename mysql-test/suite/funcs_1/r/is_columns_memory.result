@@ -244,12 +244,12 @@ f223 year(3),
 f224 year(4),
 f225 enum("1enum","2enum"),
 f226 set("1set","2set"),
-f236 char(95) unicode,
-f241 char(255) unicode,
+f236 char(95),
+f241 char(255),
 f237 char(130) binary,
 f238 varchar(25000) binary,
 f239 varbinary(0),
-f240 varchar(1200) unicode
+f240 varchar(1200)
 ) engine = memory;
 load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/memory_tb4.txt'
 into table tb4;
@@ -620,12 +620,12 @@ NULL	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			sele
 NULL	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references	
 NULL	test	tb4	f225	50	NULL	YES	enum	5	5	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references	
 NULL	test	tb4	f226	51	NULL	YES	set	9	9	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references	
-NULL	test	tb4	f236	52	NULL	YES	char	95	190	NULL	NULL	ucs2	ucs2_general_ci	char(95)			select,insert,update,references	
+NULL	test	tb4	f236	52	NULL	YES	char	95	95	NULL	NULL	latin1	latin1_swedish_ci	char(95)			select,insert,update,references	
 NULL	test	tb4	f237	54	NULL	YES	char	130	130	NULL	NULL	latin1	latin1_bin	char(130)			select,insert,update,references	
 NULL	test	tb4	f238	55	NULL	YES	varchar	25000	25000	NULL	NULL	latin1	latin1_bin	varchar(25000)			select,insert,update,references	
 NULL	test	tb4	f239	56	NULL	YES	varbinary	0	0	NULL	NULL	NULL	NULL	varbinary(0)			select,insert,update,references	
-NULL	test	tb4	f240	57	NULL	YES	varchar	1200	2400	NULL	NULL	ucs2	ucs2_general_ci	varchar(1200)			select,insert,update,references	
-NULL	test	tb4	f241	53	NULL	YES	char	255	510	NULL	NULL	ucs2	ucs2_general_ci	char(255)			select,insert,update,references	
+NULL	test	tb4	f240	57	NULL	YES	varchar	1200	1200	NULL	NULL	latin1	latin1_swedish_ci	varchar(1200)			select,insert,update,references	
+NULL	test	tb4	f241	53	NULL	YES	char	255	255	NULL	NULL	latin1	latin1_swedish_ci	char(255)			select,insert,update,references	
 NULL	test1	tb2	f100	42	00000000000000000008.8	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references	
 NULL	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
 NULL	test1	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	NULL	NULL	time			select,insert,update,references	
@@ -702,6 +702,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	char	latin1	latin1_swedish_ci
 1.0000	enum	latin1	latin1_swedish_ci
 1.0000	set	latin1	latin1_swedish_ci
+1.0000	varchar	latin1	latin1_swedish_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -712,8 +713,6 @@ WHERE table_schema LIKE 'test%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH <> 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
-2.0000	char	ucs2	ucs2_general_ci
-2.0000	varchar	ucs2	ucs2_general_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -1006,12 +1005,12 @@ NULL	test	tb4	f223	year	NULL	NULL	NULL	NULL	year(4)
 NULL	test	tb4	f224	year	NULL	NULL	NULL	NULL	year(4)
 1.0000	test	tb4	f225	enum	5	5	latin1	latin1_swedish_ci	enum('1enum','2enum')
 1.0000	test	tb4	f226	set	9	9	latin1	latin1_swedish_ci	set('1set','2set')
-2.0000	test	tb4	f236	char	95	190	ucs2	ucs2_general_ci	char(95)
-2.0000	test	tb4	f241	char	255	510	ucs2	ucs2_general_ci	char(255)
+1.0000	test	tb4	f236	char	95	95	latin1	latin1_swedish_ci	char(95)
+1.0000	test	tb4	f241	char	255	255	latin1	latin1_swedish_ci	char(255)
 1.0000	test	tb4	f237	char	130	130	latin1	latin1_bin	char(130)
 1.0000	test	tb4	f238	varchar	25000	25000	latin1	latin1_bin	varchar(25000)
 NULL	test	tb4	f239	varbinary	0	0	NULL	NULL	varbinary(0)
-2.0000	test	tb4	f240	varchar	1200	2400	ucs2	ucs2_general_ci	varchar(1200)
+1.0000	test	tb4	f240	varchar	1200	1200	latin1	latin1_swedish_ci	varchar(1200)
 NULL	test1	tb2	f59	decimal	NULL	NULL	NULL	NULL	decimal(10,0) unsigned
 NULL	test1	tb2	f60	decimal	NULL	NULL	NULL	NULL	decimal(64,0) unsigned
 NULL	test1	tb2	f61	decimal	NULL	NULL	NULL	NULL	decimal(10,0) unsigned zerofill

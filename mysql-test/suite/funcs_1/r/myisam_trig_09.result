@@ -1,17 +1,12 @@
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 USE test;
-drop table if exists tb3 ;
+drop table if exists tb3;
 create table tb3 (
 f118 char not null DEFAULT 'a',
 f119 char binary not null DEFAULT b'101',
 f120 char ascii not null DEFAULT b'101',
-f121 tinytext,
-f122 text,
-f123 mediumtext,
-f124 longtext unicode,
-f125 tinyblob,
-f126 blob,
-f127 mediumblob,
-f128 longblob,
+f121 char(50),
+f122 char(50),
 f129 binary not null DEFAULT b'101',
 f130 tinyint not null DEFAULT 99,
 f131 tinyint unsigned not null DEFAULT 99,
@@ -59,12 +54,12 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) Engine = myisam;
+) engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/myisam_tb3.txt'
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/memory_tb3.txt'
 into table tb3;
 
 Testcase 3.5.9.1/2:
@@ -74,9 +69,9 @@ set new.f142 = 94087, @counter=@counter+1;
 TotalRows
 10
 Affected
-8
+9
 NotAffected
-2
+1
 NewValuew
 0
 set @counter=0;
@@ -84,7 +79,7 @@ Update tb3 Set f142='1' where f130<100;
 select count(*) as ExpectedChanged, @counter as TrigCounter
 from tb3 where f142=94087;
 ExpectedChanged	TrigCounter
-8	8
+9	9
 select count(*) as ExpectedNotChange from tb3
 where f130<100 and f142<>94087;
 ExpectedNotChange
