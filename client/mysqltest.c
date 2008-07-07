@@ -48,7 +48,15 @@
 #ifdef __WIN__
 #include <direct.h>
 #endif
+#include <signal.h>
+#include <my_stacktrace.h>
 
+#ifdef __WIN__
+#include <crtdbg.h>
+#define SIGNAL_FMT "exception 0x%x"
+#else
+#define SIGNAL_FMT "signal %d"
+#endif
 
 /* Use cygwin for --exec and --system before 5.0 */
 #if MYSQL_VERSION_ID < 50000
@@ -214,6 +222,7 @@ struct st_connection
   /* Used when creating views and sp, to avoid implicit commit */
   MYSQL* util_mysql;
   char *name;
+  size_t name_len;
   MYSQL_STMT* stmt;
 
 #ifdef EMBEDDED_LIBRARY
@@ -4613,6 +4622,7 @@ void do_connect(struct st_command *command)
                         ds_connection_name.str));
     if (!(con_slot->name= my_strdup(ds_connection_name.str, MYF(MY_WME))))
       die("Out of memory");
+    con_slot->name_len= strlen(con_slot->name);
     cur_con= con_slot;
     
     if (con_slot == next_con)
@@ -7015,6 +7025,104 @@ void mark_progress(struct st_command* command __attribute__((unused)),
 
 }
 
+#ifdef HAVE_STACKTRACE
+
+static void dump_backtrace(void)
+{
+  struct st_connection *conn= cur_con;
+
+  my_safe_print_str("read_command_buf", read_command_buf,
+                    sizeof(read_command_buf));
+  if (conn)
+  {
+    my_safe_print_str("conn->name", conn->name, conn->name_len);
+#ifdef EMBEDDED_LIBRARY
+    my_safe_print_str("conn->cur_query", conn->cur_query, conn->cur_query_len);
+#endif
+  }
+  fputs("Attempting backtrace...\n", stderr);
+  my_print_stacktrace(NULL, my_thread_stack_size);
+}
+
+#else
+
+static void dump_backtrace(void)
+{
+  fputs("Backtrace not available.\n", stderr);
+}
+
+#endif
+
+static sig_handler signal_handler(int sig)
+{
+  fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
+  dump_backtrace();
+}
+
+#ifdef __WIN__
+
+LONG WINAPI exception_filter(EXCEPTION_POINTERS *exp)
+{
+  __try
+  {
+    my_set_exception_pointers(exp);
+    signal_handler(exp->ExceptionRecord->ExceptionCode);
+  }
+  __except(EXCEPTION_EXECUTE_HANDLER)
+  {
+    fputs("Got exception in exception handler!\n", stderr);
+  }
+
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+
+static void init_signal_handling(void)
+{
+  UINT mode;
+
+  /* Set output destination of messages to the standard error stream. */
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+
+  /* Do not not display the a error message box. */
+  mode= SetErrorMode(0) | SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX;
+  SetErrorMode(mode);
+
+  SetUnhandledExceptionFilter(exception_filter);
+}
+
+#else /* __WIN__ */
+
+static void init_signal_handling(void)
+{
+  struct sigaction sa;
+  DBUG_ENTER("init_signal_handling");
+
+#ifdef HAVE_STACKTRACE
+  my_init_stacktrace();
+#endif
+
+  sa.sa_flags = SA_RESETHAND | SA_NODEFER;
+  sigemptyset(&sa.sa_mask);
+  sigprocmask(SIG_SETMASK, &sa.sa_mask, NULL);
+
+  sa.sa_handler= signal_handler;
+
+  sigaction(SIGSEGV, &sa, NULL);
+  sigaction(SIGABRT, &sa, NULL);
+#ifdef SIGBUS
+  sigaction(SIGBUS, &sa, NULL);
+#endif
+  sigaction(SIGILL, &sa, NULL);
+  sigaction(SIGFPE, &sa, NULL);
+}
+
+#endif /* !__WIN__ */
 
 int main(int argc, char **argv)
 {
@@ -7027,6 +7135,8 @@ int main(int argc, char **argv)
 
   save_file[0]= 0;
   TMPDIR[0]= 0;
+
+  init_signal_handling();
 
   /* Init expected errors */
   memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));

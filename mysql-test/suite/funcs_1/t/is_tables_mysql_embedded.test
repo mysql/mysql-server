@@ -1,0 +1,18 @@
+# suite/funcs_1/t/is_tables_mysql_embedded.test
+#
+# Check the content of information_schema.tables about tables within
+# the database mysql (= the system tables).
+# Variant for the embedded server
+#    The expected results must equal is_tables_mysql except that all users
+#    have all privileges (affects some result sets).
+#
+# Author:
+# 2008-06-06 mleich Create this this variant for the embedded server.
+#
+
+if (`SELECT VERSION() NOT LIKE '%embedded%'`)
+{
+   --skip Test requires: embedded server
+}
+let $my_where = WHERE table_schema = 'mysql';
+--source suite/funcs_1/datadict/tables1.inc
