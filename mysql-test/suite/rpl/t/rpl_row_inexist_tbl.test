@@ -1,33 +1,43 @@
-# Test to see what slave says when master is updating a table it does
-# not have
+# ==== Purpose ====
+#
+# Verify that slave gives an error message if master updates a table
+# that slave does not have.
+#
+# ==== Method ====
+#
+# Create a table on master, wait till it's on slave, remove it from
+# slave.  Then update the table on master.
+
 --source include/have_binlog_format_row.inc
 
 source include/master-slave.inc;
 
-connection master;
-create table t1 (a int not null primary key);
-insert into  t1 values (1);
-create table t2 (a int);
-insert into  t2 values (1);
-update t1, t2 set t1.a = 0 where t1.a = t2.a;
+--echo ==== Setup table on master but not on slave ====
+--echo [on master]
+CREATE TABLE t1 (a INT);
 
+--echo [on slave]
 sync_slave_with_master;
-# t2 should not have been replicated
-# t1 should have been properly updated 
-show tables;
-select * from t1;
-drop table t1;
+DROP TABLE t1;
 
+--echo ==== Modify table on master ====
+--echo [on master]
 connection master;
-insert into t1 values (1);
+INSERT INTO t1 VALUES (1);
 
+--echo ==== Verify error on slave ====
+--echo [on slave]
 connection slave;
 # slave should have stopped because can't find table t1
 --source include/wait_for_slave_sql_to_stop.inc
 # see if we have a good error message:
---replace_column 7 #
-source include/show_slave_status.inc;
+let $err= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
+--echo Last_SQL_Error = $err
 
-# cleanup
+--echo ==== Clean up ====
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo [on master]
 connection master;
-drop table t1, t2;
+DROP TABLE t1;
