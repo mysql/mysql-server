@@ -1658,9 +1658,9 @@ SELECT DISTINCT (SELECT a) FROM t1 LIMIT 100;
 DROP TABLE t1;
 create table t1 (a int, b decimal(13, 3));
 insert into t1 values (1, 0.123);
-select a, (select max(b) from t1) into outfile "subselect.out.file.1" from t1;
+select a, (select max(b) from t1) into outfile "../../tmp/subselect.out.file.1" from t1;
 delete from t1;
-load data infile "subselect.out.file.1" into table t1;
+load data infile "../../tmp/subselect.out.file.1" into table t1;
 select * from t1;
 a	b
 1	0.123
@@ -4391,3 +4391,10 @@ SELECT * FROM t1 WHERE _utf8'a' = ANY (SELECT s1 FROM t1);
 s1
 a
 DROP TABLE t1;
+CREATE TABLE t1(c int, KEY(c));
+CREATE TABLE t2(a int, b int);
+INSERT INTO t2 VALUES (1, 10), (2, NULL);
+INSERT INTO t1 VALUES (1), (3);
+SELECT * FROM t2 WHERE b NOT IN (SELECT max(t.c) FROM t1, t1 t WHERE t.c>10);
+a	b
+DROP TABLE t1,t2;

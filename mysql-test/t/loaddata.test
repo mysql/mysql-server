@@ -163,7 +163,7 @@ set @@secure_file_priv= 0;
 # Test "load data"
 truncate table t1;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT, ER_TEXTFILE_NOT_READABLE
 eval load data infile '$MYSQL_TEST_DIR/t/loaddata.test' into table t1;
 select * from t1;
 
