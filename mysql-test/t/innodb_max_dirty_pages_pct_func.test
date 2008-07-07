@@ -25,6 +25,8 @@
 # Check if setting innodb_max_dirty_pages_pct is changed in new connection# 
 ###########################################################################
 
+SET @old_innodb_max_dirty_pages_pct= @@global.innodb_max_dirty_pages_pct;
+
 SET @@global.innodb_max_dirty_pages_pct = 80;
 --echo 'connect (con1,localhost,root,,,,)'
 connect (con1,localhost,root,,,,);
@@ -157,6 +159,8 @@ DROP PROCEDURE add_records;
 DROP PROCEDURE add_until;
 DROP PROCEDURE check_pct;
 DROP FUNCTION dirty_pct;
+DROP TABLE t1;
+SET @@global.innodb_max_dirty_pages_pct = @old_innodb_max_dirty_pages_pct;
 
 ##################################################################
 # End of functionality Testing for innodb_max_dirty_pages_pct    #
