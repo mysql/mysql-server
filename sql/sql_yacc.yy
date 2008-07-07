@@ -1355,12 +1355,44 @@ query:
               my_message(ER_EMPTY_QUERY, ER(ER_EMPTY_QUERY), MYF(0));
               MYSQL_YYABORT;
             }
+            thd->lex->sql_command= SQLCOM_EMPTY_QUERY;
+            thd->m_lip->found_semicolon= NULL;
+          }
+        | verb_clause
+          {
+            Lex_input_stream *lip = YYTHD->m_lip;
+
+            if ((YYTHD->client_capabilities & CLIENT_MULTI_QUERIES) &&
+                ! lip->stmt_prepare_mode &&
+                ! lip->eof())
+            {
+              /*
+                We found a well formed query, and multi queries are allowed:
+                - force the parser to stop after the ';'
+                - mark the start of the next query for the next invocation
+                  of the parser.
+              */
+              lip->next_state= MY_LEX_END;
+              lip->found_semicolon= lip->get_ptr();
+            }
             else
             {
-              thd->lex->sql_command= SQLCOM_EMPTY_QUERY;
+              /* Single query, terminated. */
+              lip->found_semicolon= NULL;
             }
           }
-        | verb_clause END_OF_INPUT {}
+          ';'
+          opt_end_of_input
+        | verb_clause END_OF_INPUT
+          {
+            /* Single query, not terminated. */
+            YYTHD->m_lip->found_semicolon= NULL;
+          }
+        ;
+
+opt_end_of_input:
+          /* empty */
+        | END_OF_INPUT
         ;
 
 verb_clause:
@@ -1774,10 +1806,6 @@ server_option:
 
 event_tail:
           EVENT_SYM opt_if_not_exists sp_name
-          /*
-            BE CAREFUL when you add a new rule to update the block where
-            YYTHD->client_capabilities is set back to original value
-          */
           {
             THD *thd= YYTHD;
             LEX *lex=Lex;
@@ -1786,14 +1814,6 @@ event_tail:
             if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
               MYSQL_YYABORT;
             lex->event_parse_data->identifier= $3;
-
-            /*
-              We have to turn of CLIENT_MULTI_QUERIES while parsing a
-              stored procedure, otherwise yylex will chop it into pieces
-              at each ';'.
-            */
-            $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
-            thd->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 
             lex->sql_command= SQLCOM_CREATE_EVENT;
             /* We need that for disallowing subqueries */
@@ -1804,15 +1824,6 @@ event_tail:
           opt_ev_comment
           DO_SYM ev_sql_stmt
           {
-            /*
-              Restore flag if it was cleared above
-              $1 - EVENT_SYM
-              $2 - opt_if_not_exists
-              $3 - sp_name
-              $4 - the block above
-            */
-            YYTHD->client_capabilities |= $<ulong_num>4;
-
             /*
               sql_command is set here because some rules in ev_sql_stmt
               can overwrite it
@@ -5406,10 +5417,6 @@ alter:
           view_tail
           {}
         | ALTER definer_opt EVENT_SYM sp_name
-          /*
-            BE CAREFUL when you add a new rule to update the block where
-            YYTHD->client_capabilities is set back to original value
-          */
           {
             /* 
               It is safe to use Lex->spname because
@@ -5423,14 +5430,6 @@ alter:
               MYSQL_YYABORT;
             Lex->event_parse_data->identifier= $4;
 
-            /*
-              We have to turn off CLIENT_MULTI_QUERIES while parsing a
-              stored procedure, otherwise yylex will chop it into pieces
-              at each ';'.
-            */
-            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-            YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-
             Lex->sql_command= SQLCOM_ALTER_EVENT;
           }
           ev_alter_on_schedule_completion
@@ -5439,15 +5438,6 @@ alter:
           opt_ev_comment
           opt_ev_sql_stmt
           {
-            /*
-              $1 - ALTER
-              $2 - definer_opt
-              $3 - EVENT_SYM
-              $4 - sp_name
-              $5 - the block above
-            */
-            YYTHD->client_capabilities |= $<ulong_num>5;
-
             if (!($6 || $7 || $8 || $9 || $10))
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -12181,13 +12171,6 @@ trigger_tail:
 
             lex->sphead= sp;
             lex->spname= $3;
-            /*
-              We have to turn of CLIENT_MULTI_QUERIES while parsing a
-              stored procedure, otherwise yylex will chop it into pieces
-              at each ';'.
-            */
-            $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
-            thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 
             bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
@@ -12200,9 +12183,6 @@ trigger_tail:
 
             lex->sql_command= SQLCOM_CREATE_TRIGGER;
             sp->set_stmt_end(YYTHD);
-            /* Restore flag if it was cleared above */
-
-            YYTHD->client_capabilities |= $<ulong_num>15;
             sp->restore_thd_mem_root(YYTHD);
 
             if (sp->is_not_allowed_in_function("trigger"))
@@ -12294,13 +12274,6 @@ sf_tail:
 
             sp->m_type= TYPE_ENUM_FUNCTION;
             lex->sphead= sp;
-            /*
-              We have to turn off CLIENT_MULTI_QUERIES while parsing a
-              stored procedure, otherwise yylex will chop it into pieces
-              at each ';'.
-            */
-            $<ulong_num>$= thd->client_capabilities & CLIENT_MULTI_QUERIES;
-            thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 
             tmp_param_begin= lip->get_cpp_tok_start();
             tmp_param_begin++;
@@ -12406,8 +12379,6 @@ sf_tail:
                                   ER(ER_NATIVE_FCT_NAME_COLLISION),
                                   sp->m_name.str);
             }
-            /* Restore flag if it was cleared above */
-            thd->client_capabilities |= $<ulong_num>5;
             sp->restore_thd_mem_root(thd);
           }
         ;
@@ -12434,13 +12405,6 @@ sp_tail:
             sp->init_sp_name(YYTHD, $3);
 
             lex->sphead= sp;
-            /*
-             * We have to turn of CLIENT_MULTI_QUERIES while parsing a
-             * stored procedure, otherwise yylex will chop it into pieces
-             * at each ';'.
-             */
-            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-            YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
           }
           '('
           {
@@ -12479,12 +12443,6 @@ sp_tail:
 
             sp->set_stmt_end(YYTHD);
             lex->sql_command= SQLCOM_CREATE_PROCEDURE;
-            /*
-              Restore flag if it was cleared above
-              Be careful with counting. the block where we save the value
-              is $4.
-            */
-            YYTHD->client_capabilities |= $<ulong_num>4;
             sp->restore_thd_mem_root(YYTHD);
           }
         ;
