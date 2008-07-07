@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.26-rc)
+AM_INIT_AUTOMAKE(mysql, 5.1.28)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -2341,10 +2341,31 @@ then
 fi
 AC_MSG_RESULT("$netinet_inc")
 
+AC_CACHE_CHECK([support for weak symbols], mysql_cv_weak_symbol,
+[AC_TRY_LINK([],[
+  extern void __attribute__((weak)) foo(void);
+], [mysql_cv_weak_symbol=yes], [mysql_cv_weak_symbol=no])])
+
+if test "x$mysql_cv_weak_symbol" = xyes; then
+  AC_DEFINE(HAVE_WEAK_SYMBOL, 1,
+            [Define to 1 if compiler supports weak symbol attribute.])
+fi
+
+AC_CACHE_CHECK([whether __bss_start is defined], mysql_cv_bss_start,
+[AC_TRY_LINK([],[
+  extern char *__bss_start;
+  return __bss_start ? 1 : 0;
+], [mysql_cv_bss_start=yes], [mysql_cv_bss_start=no])])
+
+if test "x$mysql_cv_bss_start" = xyes; then
+  AC_DEFINE(HAVE_BSS_START, 1,
+            [Define to 1 if compiler defines __bss_start.])
+fi
+
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 AC_CHECK_HEADERS(cxxabi.h)
-AC_CACHE_CHECK([checking for abi::__cxa_demangle], mysql_cv_cxa_demangle,
+AC_CACHE_CHECK([for abi::__cxa_demangle], mysql_cv_cxa_demangle,
 [AC_TRY_LINK([#include <cxxabi.h>], [
   char *foo= 0; int bar= 0;
   foo= abi::__cxa_demangle(foo, foo, 0, &bar);
