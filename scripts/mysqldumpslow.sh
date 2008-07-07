@@ -83,7 +83,7 @@ while ( defined($_ = shift @pending) or defined($_ = <>) ) {
     s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
     my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
 
-    s/^# Query_time: (\d+)  Lock_time: (\d+)  Rows_sent: (\d+).*\n//;
+    s/^# Query_time: ([0-9.]+)  Lock_time: ([0-9.]+)  Rows_sent: ([0-9.]+).*\n//;
     my ($t, $l, $r) = ($1, $2, $3);
     $t -= $l unless $opt{l};
 
