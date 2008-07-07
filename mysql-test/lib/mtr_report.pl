@@ -402,7 +402,10 @@ sub mtr_report_stats ($) {
 		 )) or
 
                 # Test case for Bug#31590 produces the following error:
-                /Out of sort memory; increase server sort buffer size/
+                /Out of sort memory; increase server sort buffer size/ or
+
+                # Bug#35161, test of auto repair --myisam-recover
+                /able.*_will_crash/
 		)
             {
               next;                       # Skip these lines
