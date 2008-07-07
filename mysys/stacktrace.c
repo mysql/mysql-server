@@ -17,7 +17,7 @@
 #define DONT_DEFINE_VOID 1
 
 #include <my_global.h>
-#include "stacktrace.h"
+#include <my_stacktrace.h>
 
 #ifndef __WIN__
 #include <signal.h>
@@ -33,16 +33,27 @@
 
 #define PTR_SANE(p) ((p) && (char*)(p) >= heap_start && (char*)(p) <= heap_end)
 
-char *heap_start;
+static char *heap_start;
 
-void safe_print_str(const char* name, const char* val, int max_len)
+#ifdef HAVE_BSS_START
+extern char *__bss_start;
+#endif
+
+void my_init_stacktrace()
+{
+#ifdef HAVE_BSS_START
+  heap_start = (char*) &__bss_start;
+#endif
+}
+
+void my_safe_print_str(const char* name, const char* val, int max_len)
 {
   char *heap_end= (char*) sbrk(0);
   fprintf(stderr, "%s at %p ", name, val);
 
   if (!PTR_SANE(val))
   {
-    fprintf(stderr, " is invalid pointer\n");
+    fprintf(stderr, "is an invalid pointer\n");
     return;
   }
 
@@ -52,7 +63,70 @@ void safe_print_str(const char* name, const char* val, int max_len)
   fputc('\n', stderr);
 }
 
-#ifdef TARGET_OS_LINUX
+#if HAVE_BACKTRACE && (HAVE_BACKTRACE_SYMBOLS || HAVE_BACKTRACE_SYMBOLS_FD)
+
+#if BACKTRACE_DEMANGLE
+
+char __attribute__ ((weak)) *my_demangle(const char *mangled_name, int *status)
+{
+  return NULL;
+}
+
+static void my_demangle_symbols(char **addrs, int n)
+{
+  int status, i;
+  char *begin, *end, *demangled;
+
+  for (i= 0; i < n; i++)
+  {
+    demangled= NULL;
+    begin= strchr(addrs[i], '(');
+    end= begin ? strchr(begin, '+') : NULL;
+
+    if (begin && end)
+    {
+      *begin++= *end++= '\0';
+      demangled= my_demangle(begin, &status);
+      if (!demangled || status)
+      {
+        demangled= NULL;
+        begin[-1]= '(';
+        end[-1]= '+';
+      }
+    }
+
+    if (demangled)
+      fprintf(stderr, "%s(%s+%s\n", addrs[i], demangled, end);
+    else
+      fprintf(stderr, "%s\n", addrs[i]);
+  }
+}
+
+#endif /* BACKTRACE_DEMANGLE */
+
+void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
+{
+  void *addrs[128];
+  char **strings= NULL;
+  int n = backtrace(addrs, array_elements(addrs));
+  fprintf(stderr, "stack_bottom = %p thread_stack 0x%lx\n",
+          stack_bottom, thread_stack);
+#if BACKTRACE_DEMANGLE
+  if ((strings= backtrace_symbols(addrs, n)))
+  {
+    my_demangle_symbols(strings, n);
+    free(strings);
+  }
+#endif
+#if HAVE_BACKTRACE_SYMBOLS_FD
+  if (!strings)
+  {
+    backtrace_symbols_fd(addrs, n, fileno(stderr));
+  }
+#endif
+}
+
+#elif defined(TARGET_OS_LINUX)
 
 #ifdef __i386__
 #define SIGRETURN_FRAME_OFFSET 17
@@ -102,68 +176,8 @@ inline uint32* find_prev_pc(uint32* pc, uchar** fp)
 }
 #endif /* defined(__alpha__) && defined(__GNUC__) */
 
-#if BACKTRACE_DEMANGLE
-static void my_demangle_symbols(char **addrs, int n)
+void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
-  int status, i;
-  char *begin, *end, *demangled;
-
-  for (i= 0; i < n; i++)
-  {
-    demangled= NULL;
-    begin= strchr(addrs[i], '(');
-    end= begin ? strchr(begin, '+') : NULL;
-
-    if (begin && end)
-    {
-      *begin++= *end++= '\0';
-      demangled= my_demangle(begin, &status);
-      if (!demangled || status)
-      {
-        demangled= NULL;
-        begin[-1]= '(';
-        end[-1]= '+';
-      }
-    }
-
-    if (demangled)
-      fprintf(stderr, "%s(%s+%s\n", addrs[i], demangled, end);
-    else
-      fprintf(stderr, "%s\n", addrs[i]);
-  }
-}
-#endif
-
-
-#if HAVE_BACKTRACE
-static void backtrace_current_thread(void)
-{
-  void *addrs[128];
-  char **strings= NULL;
-  int n = backtrace(addrs, array_elements(addrs));
-#if BACKTRACE_DEMANGLE
-  if ((strings= backtrace_symbols(addrs, n)))
-  {
-    my_demangle_symbols(strings, n);
-    free(strings);
-  }
-#endif
-#if HAVE_BACKTRACE_SYMBOLS_FD
-  if (!strings)
-  {
-    backtrace_symbols_fd(addrs, n, fileno(stderr));
-  }
-#endif
-}
-#endif
-
-
-void  print_stacktrace(uchar* stack_bottom, ulong thread_stack)
-{
-#if HAVE_BACKTRACE
-  backtrace_current_thread();
-  return;
-#endif
   uchar** fp;
   uint frame_count = 0, sigreturn_frame_count;
 #if defined(__alpha__) && defined(__GNUC__)
@@ -281,16 +295,7 @@ end:
 #endif /* HAVE_STACKTRACE */
 
 /* Produce a core for the thread */
-
-#ifdef NOT_USED /* HAVE_LINUXTHREADS */
-void write_core(int sig)
-{
-  signal(sig, SIG_DFL);
-  if (fork() != 0) exit(1);			/* Abort main program */
-  /* Core will be written at exit */
-}
-#else
-void write_core(int sig)
+void my_write_core(int sig)
 {
   signal(sig, SIG_DFL);
 #ifdef HAVE_gcov
@@ -308,7 +313,7 @@ void write_core(int sig)
   sigsend(P_PID,P_MYID,sig);
 #endif
 }
-#endif
+
 #else /* __WIN__*/
 
 #include <dbghelp.h>
@@ -356,6 +361,10 @@ static EXCEPTION_POINTERS *exception_ptrs;
 #define MODULE64_SIZE_WINXP 576
 #define STACKWALK_MAX_FRAMES 64
 
+void my_init_stacktrace()
+{
+}
+
 /*
   Dynamically load dbghelp functions
 */
@@ -395,7 +404,7 @@ BOOL init_dbghelp_functions()
   return rc;
 }
 
-void set_exception_pointers(EXCEPTION_POINTERS *ep)
+void my_set_exception_pointers(EXCEPTION_POINTERS *ep)
 {
   exception_ptrs = ep;
 }
@@ -405,7 +414,7 @@ void set_exception_pointers(EXCEPTION_POINTERS *ep)
 #define SYMOPT_NO_PROMPTS 0
 #endif
 
-void print_stacktrace(uchar* unused1, ulong unused2)
+void my_print_stacktrace(uchar* unused1, ulong unused2)
 {
   HANDLE  hProcess= GetCurrentProcess();
   HANDLE  hThread= GetCurrentThread();
@@ -513,7 +522,7 @@ void print_stacktrace(uchar* unused1, ulong unused2)
   file name is constructed from executable name plus
   ".dmp" extension
 */
-void write_core(int unused)
+void my_write_core(int unused)
 {
   char path[MAX_PATH];
   char dump_fname[MAX_PATH]= "core.dmp";
@@ -560,7 +569,7 @@ void write_core(int unused)
 }
 
 
-void safe_print_str(const char *name, const char *val, int len)
+void my_safe_print_str(const char *name, const char *val, int len)
 {
   fprintf(stderr,"%s at %p", name, val);
   __try 

@@ -5145,51 +5145,51 @@ compare_tables(TABLE *table,
   Field **f_ptr, *field;
   uint changes= 0, tmp;
   uint key_count;
-  List_iterator_fast<Create_field> new_field_it(alter_info->create_list);
-  Create_field *new_field;
+  List_iterator_fast<Create_field> new_field_it, tmp_new_field_it;
+  Create_field *new_field, *tmp_new_field;
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *end;
+  THD *thd= table->in_use;
   /*
     Remember if the new definition has new VARCHAR column;
     create_info->varchar will be reset in mysql_prepare_create_table.
   */
   bool varchar= create_info->varchar;
+  /*
+    Create a copy of alter_info.
+    To compare the new and old table definitions, we need to "prepare"
+    the new definition - transform it from parser output to a format
+    that describes the final table layout (all column defaults are
+    initialized, duplicate columns are removed). This is done by
+    mysql_prepare_create_table.  Unfortunately,
+    mysql_prepare_create_table performs its transformations
+    "in-place", that is, modifies the argument.  Since we would
+    like to keep compare_tables() idempotent (not altering any
+    of the arguments) we create a copy of alter_info here and
+    pass it to mysql_prepare_create_table, then use the result
+    to evaluate possibility of fast ALTER TABLE, and then
+    destroy the copy.
+  */
+  Alter_info tmp_alter_info(*alter_info, thd->mem_root);
+  uint db_options= 0; /* not used */
+
   DBUG_ENTER("compare_tables");
 
-  {
-    THD *thd= table->in_use;
-    /*
-      Create a copy of alter_info.
-      To compare the new and old table definitions, we need to "prepare"
-      the new definition - transform it from parser output to a format
-      that describes the final table layout (all column defaults are
-      initialized, duplicate columns are removed). This is done by
-      mysql_prepare_create_table.  Unfortunately,
-      mysql_prepare_create_table performs its transformations
-      "in-place", that is, modifies the argument.  Since we would
-      like to keep compare_tables() idempotent (not altering any
-      of the arguments) we create a copy of alter_info here and
-      pass it to mysql_prepare_create_table, then use the result
-      to evaluate possibility of fast ALTER TABLE, and then
-      destroy the copy.
-    */
-    Alter_info tmp_alter_info(*alter_info, thd->mem_root);
-    uint db_options= 0; /* not used */
-    /* Create the prepared information. */
-    if (mysql_prepare_create_table(thd, create_info,
-                                   &tmp_alter_info,
-                                   (table->s->tmp_table != NO_TMP_TABLE),
-                                   &db_options,
-                                   table->file, key_info_buffer,
-                                   &key_count, 0))
-      DBUG_RETURN(1);
-    /* Allocate result buffers. */
-    if (! (*index_drop_buffer=
-           (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
-        ! (*index_add_buffer=
-           (uint*) thd->alloc(sizeof(uint) * tmp_alter_info.key_list.elements)))
-      DBUG_RETURN(1);
-  }
+  /* Create the prepared information. */
+  if (mysql_prepare_create_table(thd, create_info,
+                                  &tmp_alter_info,
+                                  (table->s->tmp_table != NO_TMP_TABLE),
+                                  &db_options,
+                                  table->file, key_info_buffer,
+                                  &key_count, 0))
+    DBUG_RETURN(1);
+  /* Allocate result buffers. */
+  if (! (*index_drop_buffer=
+          (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
+      ! (*index_add_buffer=
+          (uint*) thd->alloc(sizeof(uint) * tmp_alter_info.key_list.elements)))
+    DBUG_RETURN(1);
+
   /*
     Some very basic checks. If number of fields changes, or the
     handler, we need to run full ALTER TABLE. In the future
@@ -5233,18 +5233,28 @@ compare_tables(TABLE *table,
   }
 
   /*
+    Use transformed info to evaluate possibility of fast ALTER TABLE
+    but use the preserved field to persist modifications.
+  */
+  new_field_it.init(alter_info->create_list);
+  tmp_new_field_it.init(tmp_alter_info.create_list);
+
+  /*
     Go through fields and check if the original ones are compatible
     with new table.
   */
-  for (f_ptr= table->field, new_field= new_field_it++;
-       (field= *f_ptr); f_ptr++, new_field= new_field_it++)
+  for (f_ptr= table->field, new_field= new_field_it++,
+       tmp_new_field= tmp_new_field_it++;
+       (field= *f_ptr);
+       f_ptr++, new_field= new_field_it++,
+       tmp_new_field= tmp_new_field_it++)
   {
     /* Make sure we have at least the default charset in use. */
     if (!new_field->charset)
       new_field->charset= create_info->default_table_charset;
 
     /* Check that NULL behavior is same for old and new fields */
-    if ((new_field->flags & NOT_NULL_FLAG) !=
+    if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
 	(uint) (field->flags & NOT_NULL_FLAG))
     {
       *need_copy_table= ALTER_TABLE_DATA_CHANGED;
@@ -5253,8 +5263,8 @@ compare_tables(TABLE *table,
 
     /* Don't pack rows in old tables if the user has requested this. */
     if (create_info->row_type == ROW_TYPE_DYNAMIC ||
-	(new_field->flags & BLOB_FLAG) ||
-	new_field->sql_type == MYSQL_TYPE_VARCHAR &&
+	(tmp_new_field->flags & BLOB_FLAG) ||
+	tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
 	create_info->row_type != ROW_TYPE_FIXED)
       create_info->table_options|= HA_OPTION_PACK_RECORD;
 
@@ -5262,11 +5272,11 @@ compare_tables(TABLE *table,
     field->flags&= ~FIELD_IS_RENAMED;
     if (my_strcasecmp(system_charset_info,
 		      field->field_name,
-		      new_field->field_name))
+		      tmp_new_field->field_name))
       field->flags|= FIELD_IS_RENAMED;      
 
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
-    if (!(tmp= field->is_equal(new_field)))
+    if (!(tmp= field->is_equal(tmp_new_field)))
     {
       *need_copy_table= ALTER_TABLE_DATA_CHANGED;
       DBUG_RETURN(0);
