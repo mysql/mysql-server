@@ -1429,29 +1429,31 @@ DROP TABLE t1;
 # Bug#21704: Renaming column does not update FK definition.
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
---enable_warnings
-
-CREATE TABLE t1(id INT PRIMARY KEY)
-  ENGINE=innodb;
-
-CREATE TABLE t2(
-  t1_id INT PRIMARY KEY,
-  CONSTRAINT fk1 FOREIGN KEY (t1_id) REFERENCES t1(id))
-  ENGINE=innodb;
-
---echo
-
---disable_result_log
---error ER_ERROR_ON_RENAME
-ALTER TABLE t1 CHANGE id id2 INT;
---enable_result_log
-
---echo
-
-DROP TABLE t2;
-DROP TABLE t1;
+#
+# --disable_warnings
+# DROP TABLE IF EXISTS t1;
+# DROP TABLE IF EXISTS t2;
+# --enable_warnings
+#
+# CREATE TABLE t1(id INT PRIMARY KEY)
+#   ENGINE=innodb;
+#
+# CREATE TABLE t2(
+#   t1_id INT PRIMARY KEY,
+#   CONSTRAINT fk1 FOREIGN KEY (t1_id) REFERENCES t1(id))
+#   ENGINE=innodb;
+#
+# --echo
+#
+# --disable_result_log
+# --error ER_ERROR_ON_RENAME
+# ALTER TABLE t1 CHANGE id id2 INT;
+# --enable_result_log
+#
+# --echo
+#
+# DROP TABLE t2;
+# DROP TABLE t1;
+#
 
 --echo End of 5.1 tests

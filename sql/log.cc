@@ -741,10 +741,14 @@ bool Log_to_file_event_handler::
            ulonglong query_utime, ulonglong lock_utime, bool is_command,
            const char *sql_text, uint sql_text_len)
 {
-  return mysql_slow_log.write(thd, current_time, query_start_arg,
-                              user_host, user_host_len,
-                              query_utime, lock_utime, is_command,
-                              sql_text, sql_text_len);
+  Silence_log_table_errors error_handler;
+  thd->push_internal_handler(&error_handler);
+  bool retval= mysql_slow_log.write(thd, current_time, query_start_arg,
+                                    user_host, user_host_len,
+                                    query_utime, lock_utime, is_command,
+                                    sql_text, sql_text_len);
+  thd->pop_internal_handler();
+  return retval;
 }
 
 
@@ -760,9 +764,13 @@ bool Log_to_file_event_handler::
               const char *sql_text, uint sql_text_len,
               CHARSET_INFO *client_cs)
 {
-  return mysql_log.write(event_time, user_host, user_host_len,
-                         thread_id, command_type, command_type_len,
-                         sql_text, sql_text_len);
+  Silence_log_table_errors error_handler;
+  thd->push_internal_handler(&error_handler);
+  bool retval= mysql_log.write(event_time, user_host, user_host_len,
+                               thread_id, command_type, command_type_len,
+                               sql_text, sql_text_len);
+  thd->pop_internal_handler();
+  return retval;
 }
 
 
