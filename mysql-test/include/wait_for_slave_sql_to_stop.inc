@@ -15,7 +15,6 @@
 ####################################################
 if (!$keep_connection)
 {
-  --echo [on slave]
   connection slave;
 }
 let $row_number= 1;
