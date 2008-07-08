@@ -53,7 +53,7 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = memory;
+) engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
@@ -129,7 +129,7 @@ delete from tb3 where f122 like 'Test 3.5.10.1/2/3%';
 
 Testcase 3.5.10.4:
 ------------------
-create table tb_load (f1 int, f2 char(25),f3 int) engine=memory;
+create table tb_load (f1 int, f2 char(25),f3 int) engine = <engine_to_be_used>;
 Create trigger trg4 before insert on tb_load
 for each row set new.f3=-(new.f1 div 5), @counter= @counter+1;
 set @counter= 0;
@@ -163,7 +163,7 @@ Testcase 3.5.10.6: (implemented in trig_frkey.test)
 
 Testcase 3.5.10.extra:
 ----------------------
-create table t1_sp (var136 tinyint, var151 decimal) engine=memory;
+create table t1_sp (var136 tinyint, var151 decimal) engine = <engine_to_be_used>;
 create trigger trg before insert on t1_sp
 for each row set @counter=@counter+1;
 create procedure trig_sp()
@@ -212,12 +212,12 @@ drop table if exists t2_2;
 drop table if exists t2_3;
 drop table if exists t2_4;
 drop table if exists t3;
-create table t1 (f1 integer) engine=memory;
-create table t2_1 (f1 integer) engine=memory;
-create table t2_2 (f1 integer) engine=memory;
-create table t2_3 (f1 integer) engine=memory;
-create table t2_4 (f1 integer) engine=memory;
-create table t3 (f1 integer) engine=memory;
+create table t1 (f1 integer) engine = <engine_to_be_used>;
+create table t2_1 (f1 integer) engine = <engine_to_be_used>;
+create table t2_2 (f1 integer) engine = <engine_to_be_used>;
+create table t2_3 (f1 integer) engine = <engine_to_be_used>;
+create table t2_4 (f1 integer) engine = <engine_to_be_used>;
+create table t3 (f1 integer) engine = <engine_to_be_used>;
 insert into t1 values (1);
 create trigger tr1 after insert on t1 for each row
 BEGIN
@@ -255,10 +255,10 @@ drop table if exists t1;
 drop table if exists t2;
 drop table if exists t3;
 drop table if exists t4;
-create table t1 (f1 integer) engine = memory;
-create table t2 (f2 integer) engine = memory;
-create table t3 (f3 integer) engine = memory;
-create table t4 (f4 integer) engine = memory;
+create table t1 (f1 integer) engine = <engine_to_be_used>;
+create table t2 (f2 integer) engine = <engine_to_be_used>;
+create table t3 (f3 integer) engine = <engine_to_be_used>;
+create table t4 (f4 integer) engine = <engine_to_be_used>;
 insert into t1 values (0);
 create trigger tr1 after insert on t1
 for each row insert into t2 (f2) values (new.f1+1);
@@ -298,7 +298,7 @@ set @sql_mode='traditional';
 create table t1_sp (
 count integer,
 var136 tinyint,
-var151 decimal) engine=memory;
+var151 decimal) engine = <engine_to_be_used>;
 create procedure trig_sp()
 begin
 declare done int default 0;
@@ -352,7 +352,7 @@ drop procedure trig_sp;
 drop trigger trg;
 drop table t1_sp;
 
-Testcase y.y.y.5: Roleback of nested trigger references
+Testcase y.y.y.5: Rollback of nested trigger references
 -------------------------------------------------------
 set @@sql_mode='traditional';
 use test;
@@ -360,10 +360,10 @@ drop table if exists t1;
 drop table if exists t2;
 drop table if exists t3;
 drop table if exists t4;
-create table t1 (f1 integer) engine = memory;
-create table t2 (f2 integer) engine = memory;
-create table t3 (f3 integer) engine = memory;
-create table t4 (f4 tinyint) engine = memory;
+create table t1 (f1 integer) engine = <engine_to_be_used>;
+create table t2 (f2 integer) engine = <engine_to_be_used>;
+create table t3 (f3 integer) engine = <engine_to_be_used>;
+create table t4 (f4 tinyint) engine = <engine_to_be_used>;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

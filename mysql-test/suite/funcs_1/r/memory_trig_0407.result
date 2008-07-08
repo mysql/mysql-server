@@ -53,13 +53,11 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = memory;
+) engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/memory_tb3.txt'
-into table tb3;
 
 Testcase: 3.5:
 --------------
@@ -80,7 +78,7 @@ Testcase 3.5.4.1:
 -----------------
 create database db_drop;
 Use db_drop;
-create table t1 (f1 char(30)) engine=memory;
+create table t1 (f1 char(30)) engine = <engine_to_be_used>;
 grant INSERT, SELECT on db_drop.t1 to test_general;
 Use db_drop;
 Create trigger trg1 BEFORE INSERT on t1
@@ -108,7 +106,7 @@ Testcase 3.5.4.2:
 create database db_drop2;
 Use db_drop2;
 drop table if exists t1_432 ;
-create table t1_432 (f1 char (30)) engine=memory;
+create table t1_432 (f1 char (30)) engine = <engine_to_be_used>;
 Drop trigger tr_does_not_exit;
 ERROR HY000: Trigger does not exist
 drop table if exists t1_432 ;
@@ -120,8 +118,8 @@ create database db_drop3;
 Use db_drop3;
 drop table if exists t1_433 ;
 drop table if exists t1_433a ;
-create table t1_433 (f1 char (30)) engine=memory;
-create table t1_433a (f1a char (5)) engine=memory;
+create table t1_433 (f1 char (30)) engine = <engine_to_be_used>;
+create table t1_433a (f1a char (5)) engine = <engine_to_be_used>;
 CREATE TRIGGER trg3 BEFORE INSERT on t1_433 for each row
 set new.f1 = 'Trigger 3.5.4.3';
 Drop trigger t1.433.trg3;
@@ -141,7 +139,7 @@ Testcase 3.5.4.4:
 -----------------
 create database db_drop4;
 Use db_drop4;
-create table t1 (f1 char(30)) engine=memory;
+create table t1 (f1 char(30)) engine = <engine_to_be_used>;
 grant INSERT, SELECT on db_drop4.t1 to test_general;
 Create trigger trg4 BEFORE INSERT on t1
 for each row set new.f1='Trigger 3.5.4.4';
@@ -162,7 +160,7 @@ where information_schema.triggers.trigger_name='trg4';
 trigger_schema	trigger_name	event_object_table
 create database db_drop4;
 Use db_drop4;
-create table t1 (f1 char(30)) engine=memory;
+create table t1 (f1 char(30)) engine = <engine_to_be_used>;
 grant INSERT, SELECT on db_drop4.t1 to test_general;
 Insert into t1 values ('2nd Insert 3.5.4.4');
 Select * from t1;
@@ -177,7 +175,7 @@ Testcase 3.5.4.5:
 -----------------
 create database db_drop5;
 Use db_drop5;
-create table t1 (f1 char(50)) engine=memory;
+create table t1 (f1 char(50)) engine = <engine_to_be_used>;
 grant INSERT, SELECT on t1 to test_general;
 Create trigger trg5 BEFORE INSERT on t1
 for each row set new.f1='Trigger 3.5.4.5';
@@ -193,7 +191,7 @@ select trigger_schema, trigger_name, event_object_table
 from information_schema.triggers
 where information_schema.triggers.trigger_name='trg5';
 trigger_schema	trigger_name	event_object_table
-create table t1 (f1 char(50)) engine=memory;
+create table t1 (f1 char(50)) engine = <engine_to_be_used>;
 grant INSERT, SELECT on t1 to test_general;
 Insert into t1 values ('2nd Insert 3.5.4.5');
 Select * from t1;
@@ -234,7 +232,7 @@ Testcase 3.5.5.4:
 create database dbtest_one;
 create database dbtest_two;
 use dbtest_two;
-create table t2 (f1 char(15)) engine=memory;
+create table t2 (f1 char(15)) engine = <engine_to_be_used>;
 use dbtest_one;
 create trigger trg4 before INSERT
 on dbtest_two.t2 for each row set new.f1='trig 3.5.5.4';
