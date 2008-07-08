@@ -1579,13 +1579,15 @@ sub executable_setup_ndb () {
 
   $exe_ndbd=
     mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
-			 "$ndb_path/ndbd");
+			 "$ndb_path/ndbd",
+			 "$glob_basedir/libexec/ndbd");
   $exe_ndb_mgm=
     mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-			 "$ndb_path/ndb_mgmd");
+			 "$ndb_path/ndb_mgmd",
+			 "$glob_basedir/libexec/ndb_mgmd");
   $exe_ndb_waiter=
     mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
 			 "$ndb_path/ndb_waiter");
