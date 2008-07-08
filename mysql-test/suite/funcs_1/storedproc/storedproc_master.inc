@@ -2862,8 +2862,20 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 # missing BEGIN
+# PLEASE NOTE:
+# this test client has the MULTI_QUERY capability,
+# so that the following request (starting at 'CREATE' and ending at the //
+# delimiter) is interpreted as follows:
+# 1) it's a multi query
+# 2) the first query is a valid CREATE PROCEDURE statement, and the
+# procedure consist of only one SELECT statement
+# 3) the second query is a SET statement, which is broken since it's
+# referencing an unknown column 'cnt'
+# 4) the next query (SELECT @count) is not parsed or executed, since 3)
+# failed
+
 delimiter //;
---error ER_PARSE_ERROR
+--error ER_BAD_FIELD_ERROR
 CREATE PROCEDURE sp1( cnt int(20) )
     SELECT count(*) into cnt from t2;
     set @count = cnt;
@@ -2871,11 +2883,10 @@ CREATE PROCEDURE sp1( cnt int(20) )
 END//
 delimiter ;//
 
---error ER_SP_DOES_NOT_EXIST
 CALL sp1( 10 );
 
 --disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
+DROP PROCEDURE sp1;
 --enable_warnings
 
 # wrong order of BEGIN and END
