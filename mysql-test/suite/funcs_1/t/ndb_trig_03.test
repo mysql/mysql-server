@@ -1,0 +1,10 @@
+#### suite/funcs_1/t/ndb_trig_03.test
+
+# NDB tables should be used
+#
+# 1. Check if NDB is available
+--source include/have_ndb.inc
+# 2. Set $engine_type
+let $engine_type= ndbcluster;
+
+--source suite/funcs_1/triggers/triggers_03.inc

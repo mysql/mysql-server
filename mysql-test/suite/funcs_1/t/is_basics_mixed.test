@@ -11,6 +11,19 @@
 #                   Create this script based on older scripts and new code.
 #
 
+# This test is strict adjusted to the behaviour of the non embedded server.
+# Example of common differences between both servers:
+#    USE information_schema; CREATE VIEW tables AS SELECT 'garbage';
+#    non embedded server:
+#        - errname ER_DBACCESS_DENIED_ERROR
+#        - ERROR 42000: Access denied for user 'root'@'localhost' to
+#          database 'information_schema'
+#    embedded server:
+#        - errno 1 
+#        - Can't create/write to file
+#          '.../var/master-data/information_schema/tables.frm~
+--source include/not_embedded.inc
+
 --source suite/funcs_1/datadict/datadict.pre
 
 # $engine_type must point to storage engine which is all time available.

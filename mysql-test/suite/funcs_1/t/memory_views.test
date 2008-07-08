@@ -4,6 +4,7 @@
 #
 # Set $engine_type
 let $engine_type= memory;
+--source suite/funcs_1/include/bug28309_skip.inc
 
 # Create some objects needed in many testcases
 USE test;

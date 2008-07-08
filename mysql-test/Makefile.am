@@ -67,7 +67,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50_data_be/BACKUP* $(distdir)/std_data/ndb_backup50_data_be
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50_data_le/BACKUP* $(distdir)/std_data/ndb_backup50_data_le
-	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/* $(distdir)/std_data/funcs_1
+	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/*.txt $(distdir)/std_data/funcs_1
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
 	-rm -rf `find $(distdir)/suite -type d -name SCCS`
 
@@ -106,7 +106,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50_data_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50_data_be
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50_data_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50_data_le
-	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/* $(DESTDIR)$(testdir)/std_data/funcs_1
+	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/*.txt $(DESTDIR)$(testdir)/std_data/funcs_1
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
 	for f in `(cd $(srcdir); find suite -type f | grep -v SCCS)`; \
 	do \
