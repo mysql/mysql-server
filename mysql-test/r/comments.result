@@ -35,7 +35,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 prepare bar from "DELETE FROM table_28779 WHERE a = 7 OR 1=1/*! AND 2=2;";
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 prepare bar from "DELETE FROM table_28779 WHERE a = 7 OR 1=1/*! AND 2=2;*";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';*' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '*' at line 1
 prepare bar from "DELETE FROM table_28779 WHERE a = 7 OR 1=1/*!98765' AND b = 'bar';";
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*!98765' AND b = 'bar'' at line 1
 prepare bar from "DELETE FROM table_28779 WHERE a = 7 OR 1=1/*!98765' AND b = 'bar';*";
