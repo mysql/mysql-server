@@ -699,7 +699,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
     // flags defined in sql\handler.h
     int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
                     HA_FILE_BASED | HA_CAN_GEOMETRY | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX), 
-    last_dup_key((uint) - 1), using_ignore(0), last_cursor_error(0),range_lock_grabbed(false), primary_key_offsets(NULL) {
+    added_rows(0), deleted_rows(0), last_dup_key((uint) - 1), using_ignore(0), last_cursor_error(0),range_lock_grabbed(false), primary_key_offsets(NULL) {
     transaction = NULL;
 }
 
@@ -1176,7 +1176,19 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
             __close(1);
             TOKUDB_DBUG_RETURN(1);
         }
-
+        //////////////////////
+        u_int64_t num_rows = 0;
+        int error = estimate_num_rows(share->file,&num_rows);
+        //
+        // estimate_num_rows should not fail under normal conditions
+        //
+        if (error == 0) {
+            share->rows = num_rows;
+        }
+        else {
+            __close(1);
+            TOKUDB_DBUG_RETURN(1);
+        }
     }
     ref_length = share->ref_length;     // If second open
     pthread_mutex_unlock(&share->mutex);
@@ -1866,7 +1878,7 @@ cleanup:
 */
 ha_rows ha_tokudb::estimate_rows_upper_bound() {
     TOKUDB_DBUG_ENTER("ha_tokudb::estimate_rows_upper_bound");
-    DBUG_RETURN(stats.records + HA_TOKUDB_EXTRA_ROWS);
+    DBUG_RETURN(share->rows + HA_TOKUDB_EXTRA_ROWS);
 }
 
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
@@ -1983,6 +1995,9 @@ int ha_tokudb::write_row(uchar * record) {
     }
     if (error == DB_KEYEXIST) {
         error = HA_ERR_FOUND_DUPP_KEY;
+    }
+    else if (!error) {
+        added_rows++;
     }
     TOKUDB_DBUG_RETURN(error);
 }
@@ -2264,6 +2279,9 @@ int ha_tokudb::delete_row(const uchar * record) {
         }
         if (error != DB_LOCK_DEADLOCK && error != DB_LOCK_NOTGRANTED)
             break;
+    }
+    if (!error) {
+        deleted_rows++;
     }
     TOKUDB_DBUG_RETURN(error);
 }
@@ -3023,18 +3041,10 @@ void ha_tokudb::position(const uchar * record) {
 //      0, always success
 //
 int ha_tokudb::info(uint flag) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d", this, flag);
+    TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld", this, flag, share->rows);
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
-        u_int64_t num_rows = 0;
-        int error = estimate_num_rows(share->file,&num_rows);
-        //
-        // estimate_num_rows should not fail under normal conditions
-        // if it does fail, just keep stats.record unchanged
-        //
-        if (error == 0) {
-            stats.records = num_rows;
-        }
+        stats.records = share->rows;
         stats.deleted = 0;
     }
     if ((flag & HA_STATUS_CONST)) {
@@ -3248,6 +3258,19 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     }
     else {
         lock.type = TL_UNLOCK;  // Unlocked
+
+        pthread_mutex_lock(&share->mutex);
+        // hate dealing with comparison of signed vs unsigned, so doing this
+        if (deleted_rows > added_rows && share->rows < (deleted_rows - added_rows)) {
+            share->rows = 0;
+        }
+        else {
+            share->rows += (added_rows - deleted_rows);
+        }
+        pthread_mutex_unlock(&share->mutex);
+        added_rows = 0;
+        deleted_rows = 0;
+
         if (!--trx->tokudb_lock_count) {
             if (trx->stmt) {
                 /*
