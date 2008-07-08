@@ -429,33 +429,49 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     unsigned int seqinsert = node->u.l.seqinsert;
     node->u.l.seqinsert = 0;
     if (seqinsert >= n_leafentries/2) {
+        u_int32_t node_size = toku_serialize_brtnode_size(node);
         break_at = n_leafentries - 1;
-        
-        // fetch the max from the node and delete it
         OMTVALUE v;
-        r = toku_omt_fetch(node->u.l.buffer, break_at, &v, NULL);
-        assert(r == 0);
-        r = toku_omt_delete_at(node->u.l.buffer, break_at);
-        assert(r == 0);
+        while (1) {
+            r = toku_omt_fetch(node->u.l.buffer, break_at, &v, NULL);
+            assert(r == 0);
+            LEAFENTRY le = v;
+            node_size -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+            if (node_size <= node->nodesize)
+                break;
+            break_at -= 1;
+        }
 
-        LEAFENTRY oldle = v;
-        LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
-        assert(newle!=0); // it's a fresh mpool, so this should always work.
-        u_int32_t diff_fp = toku_le_crc(oldle);
-        u_int32_t diff_size = OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
-        memcpy(newle, oldle, leafentry_memsize(oldle));
-        toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
-        node->local_fingerprint -= node->rand4fingerprint * diff_fp;
-        B   ->local_fingerprint += B   ->rand4fingerprint * diff_fp;
-        node->u.l.n_bytes_in_buffer -= diff_size;
-        B   ->u.l.n_bytes_in_buffer += diff_size;
+        u_int32_t i;
+        for (i=0; break_at < toku_omt_size(node->u.l.buffer); i++) {
+            // fetch the max from the node and delete it
+            if (i > 0) {
+                r = toku_omt_fetch(node->u.l.buffer, break_at, &v, NULL);
+                assert(r == 0);
+            }
+            LEAFENTRY oldle = v;
+            u_int32_t diff_fp = toku_le_crc(oldle);
+            u_int32_t diff_size = OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
 
-        // insert into B
-        r = toku_omt_insert_at(B->u.l.buffer, newle, 0);
-        assert(r == 0);
+            r = toku_omt_delete_at(node->u.l.buffer, break_at);
+            assert(r == 0);
 
-        toku_verify_all_in_mempool(node);
-        toku_verify_all_in_mempool(B);
+            LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
+            assert(newle!=0); // it's a fresh mpool, so this should always work.
+            memcpy(newle, oldle, leafentry_memsize(oldle));
+            toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
+            node->local_fingerprint -= node->rand4fingerprint * diff_fp;
+            B   ->local_fingerprint += B   ->rand4fingerprint * diff_fp;
+            node->u.l.n_bytes_in_buffer -= diff_size;
+            B   ->u.l.n_bytes_in_buffer += diff_size;
+
+            // insert into B
+            r = toku_omt_insert_at(B->u.l.buffer, newle, i);
+            assert(r == 0);
+
+            toku_verify_all_in_mempool(node);
+            toku_verify_all_in_mempool(B);
+        }
     } else {
         OMTVALUE *MALLOC_N(n_leafentries, leafentries);
         assert(leafentries);
@@ -1576,8 +1592,8 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	if (r!=0) return r;
         if (idx == toku_omt_size(node->u.l.buffer)-1)
             node->u.l.seqinsert += 1;
-        else
-            node->u.l.seqinsert = 0;
+        else if (node->u.l.seqinsert > 0)
+            node->u.l.seqinsert -= 1;
 	break;
     case BRT_DELETE_BOTH:
     case BRT_ABORT_BOTH:
