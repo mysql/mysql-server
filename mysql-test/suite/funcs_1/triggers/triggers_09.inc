@@ -4,6 +4,13 @@
 # (test case numbering refer to requirement document TP v1.1)
 #======================================================================
 
+USE test;
+--source suite/funcs_1/include/tb3.inc
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval
+load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/memory_tb3.txt'
+into table tb3;
 
 #################################
 ####### Section 3.5.9 ###########
@@ -313,4 +320,4 @@ let $message= Testcase 3.5.9.13:;
 let $message= Testcase 3.5.9.14: (implied in previous tests);
 --source include/show_msg.inc
 
-	
+DROP TABLE test.tb3;

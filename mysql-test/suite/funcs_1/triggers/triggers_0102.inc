@@ -4,6 +4,9 @@
 # (test case numbering refer to requirement document TP v1.1)
 #======================================================================
 
+USE test;
+--source suite/funcs_1/include/tb3.inc
+
 # OBM - ToDo
 ############
 # 1. Performace
@@ -52,6 +55,7 @@ use test;
         select @test_before, @test_after;
 	Insert into tb3 (f121, f122, f142, f144, f134)
 		values ('Test 3.5.1.1', 'First Row', @test_before, @test_after, 1);
+        --sorted_result
 	select f121, f122, f142, f144, f134 from tb3 where f121 = 'Test 3.5.1.1';
         select @test_before, @test_after;
 
@@ -63,6 +67,7 @@ use test;
 			tb3.f142 = @test_before,
 			tb3.f144 = @test_after
 		where tb3.f121 = 'Test 3.5.1.1';
+        --sorted_result
 	select f121, f122, f142, f144, f134 from tb3 where f121 = 'Test 3.5.1.1';
         select @test_before, @test_after;
 
@@ -71,9 +76,11 @@ use test;
 		values ('Test 3.5.1.1', 'Second Row', 5, 6, 2);
 	set @test_before = 0;
 	set @test_after = 0;
+        --sorted_result
 	select f121, f122, f142, f144, f134 from tb3 where f121 = 'Test 3.5.1.1';
         select @test_before, @test_after;
 	Delete from tb3 where f121 = 'Test 3.5.1.1' and f134 = 2;
+        --sorted_result
 	select f121, f122, f142, f144, f134 from tb3 where f121 = 'Test 3.5.1.1';
         select @test_before, @test_after;
 
@@ -211,7 +218,8 @@ let $message= Testcase 3.5.1.7: - need to fix;
 --source include/show_msg.inc
 
 	drop table if exists t1;
-	eval create table t1 (f1 int, f2 char(25),f3 int) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1 (f1 int, f2 char(25),f3 int) engine = $engine_type;
 	CREATE TRIGGER trg5_1 BEFORE INSERT on test.t1
 		for each row set new.f3 = '14';
 	CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
@@ -261,6 +269,7 @@ let $message= Testcase 3.5.1.8:;
 	--enable_warnings
 	create database trig_db;
 	use trig_db;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 integer) engine = $engine_type;
 
 	# Can't create a trigger in a different database
@@ -324,7 +333,9 @@ let $message= Testcase 3.5.1.?:;
 	drop table if exists t1;
 	drop table if exists t2;
 	--enable_warnings
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 char(50), f2 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t2 (f1 char(50), f2 integer) engine = $engine_type;
 
 	create trigger trig before insert on t1
@@ -366,14 +377,17 @@ let $message= Testcase 3.5.1.11:;
 	create database trig_db2;
 	create database trig_db3;
 	use trig_db1;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 char(50), f2 integer) engine = $engine_type;
 	create trigger trig before insert on t1
 		for each row set new.f1 ='trig1', @test_var1='trig1';
 	use trig_db2;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t2 (f1 char(50), f2 integer) engine = $engine_type;
 	create trigger trig before insert on t2
 		for each row set new.f1 ='trig2', @test_var2='trig2';
 	use trig_db3;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 char(50), f2 integer) engine = $engine_type;
 	create trigger trig before insert on t1
 		for each row set new.f1 ='trig3', @test_var3='trig3';
@@ -425,7 +439,9 @@ let $message= Testcase 3.5.2.1/2/3:;
 	create database trig_db1;
 	create database trig_db2;
 	use trig_db1;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 char(50), f2 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table trig_db2.t1 (f1 char(50), f2 integer) engine = $engine_type;
 	create trigger trig1_b before insert on t1
 		for each row set @test_var1='trig1_b';
@@ -445,3 +461,4 @@ let $message= Testcase 3.5.2.1/2/3:;
 	--disable_warnings
 	drop database trig_db1;
 	drop database trig_db2;
+DROP TABLE test.tb3;
