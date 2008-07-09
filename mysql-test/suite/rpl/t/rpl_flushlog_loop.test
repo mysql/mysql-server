@@ -74,3 +74,9 @@ source include/wait_for_slave_param.inc;
 --replace_result $SLAVE_MYPORT SLAVE_PORT $slave_param_value POSITION
 --replace_column 1 # 8 # 9 # 16 # 23 # 33 # 34 # 35 #
 --query_vertical SHOW SLAVE STATUS
+
+--disable_query_log
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+--enable_query_log
