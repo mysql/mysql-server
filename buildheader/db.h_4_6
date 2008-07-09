@@ -11,9 +11,9 @@ extern "C" {
 #define TOKUDB 1
 #define DB_VERSION_MAJOR 4
 #define DB_VERSION_MINOR 6
-#define DB_VERSION_PATCH 19
+#define DB_VERSION_PATCH 21
 #ifndef _TOKUDB_WRAP_H
-#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.19"
+#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.21"
 #else
 #define DB_VERSION_STRING_ydb "Tokutek: TokuDB (wrapped bdb)"
 #endif
@@ -185,23 +185,23 @@ struct __toku_db_lsn {
 struct __toku_db {
   struct __toku_db_internal *i;
   int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact);
-  void* __toku_dummy0[1];
-  char __toku_dummy1[8];
+  int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*);
+  char __toku_dummy0[8];
   void *app_private; /* 32-bit offset=20 size=4, 64=bit offset=32 size=8 */
   DB_ENV *dbenv; /* 32-bit offset=24 size=4, 64=bit offset=40 size=8 */
-  int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*);
-  void* __toku_dummy2[41];
-  char __toku_dummy3[80];
-  void *api_internal; /* 32-bit offset=276 size=4, 64=bit offset=464 size=8 */
   int (*pre_acquire_table_lock)(DB*, DB_TXN*);
-  void* __toku_dummy4[3];
+  const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
+  const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
+  void* __toku_dummy1[39];
+  char __toku_dummy2[80];
+  void *api_internal; /* 32-bit offset=276 size=4, 64=bit offset=464 size=8 */
+  void* __toku_dummy3[4];
   int (*associate) (DB*, DB_TXN*, DB*, int(*)(DB*, const DBT*, const DBT*, DBT*), u_int32_t); /* 32-bit offset=296 size=4, 64=bit offset=504 size=8 */
   int (*close) (DB*, u_int32_t); /* 32-bit offset=300 size=4, 64=bit offset=512 size=8 */
-  const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
+  void* __toku_dummy4[1];
   int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t); /* 32-bit offset=308 size=4, 64=bit offset=528 size=8 */
   int (*del) (DB *, DB_TXN *, DBT *, u_int32_t); /* 32-bit offset=312 size=4, 64=bit offset=536 size=8 */
-  const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
-  void* __toku_dummy5[2];
+  void* __toku_dummy5[3];
   int (*fd) (DB *, int *); /* 32-bit offset=328 size=4, 64=bit offset=568 size=8 */
   int (*get) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t); /* 32-bit offset=332 size=4, 64=bit offset=576 size=8 */
   void* __toku_dummy6[8];
@@ -268,16 +268,24 @@ struct __toku_dbc {
   DB *dbp; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */
   struct __toku_dbc_internal *i;
   int (*c_getf_next)(DBC *, u_int32_t, void(*)(DBT const *, DBT  const *, void *), void *);
-  void* __toku_dummy0[32];
+  int (*c_getf_next_dup)(DBC *, u_int32_t, void(*)(DBT  const *, DBT const *, void *), void *);
+  int (*c_getf_next_no_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
+  int (*c_getf_prev)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
+  int (*c_getf_prev_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
+  int (*c_getf_prev_no_dup)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
+  int (*c_getf_current)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
+  int (*c_getf_first)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
+  int (*c_getf_last)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
+  void* __toku_dummy0[24];
   char __toku_dummy1[104];
   int (*c_close) (DBC *); /* 32-bit offset=244 size=4, 64=bit offset=384 size=8 */
   int (*c_count) (DBC *, db_recno_t *, u_int32_t); /* 32-bit offset=248 size=4, 64=bit offset=392 size=8 */
   int (*c_del) (DBC *, u_int32_t); /* 32-bit offset=252 size=4, 64=bit offset=400 size=8 */
-  int (*c_getf_next_dup)(DBC *, u_int32_t, void(*)(DBT  const *, DBT const *, void *), void *);
+  void* __toku_dummy2[1];
   int (*c_get) (DBC *, DBT *, DBT *, u_int32_t); /* 32-bit offset=260 size=4, 64=bit offset=416 size=8 */
   int (*c_pget) (DBC *, DBT *, DBT *, DBT *, u_int32_t); /* 32-bit offset=264 size=4, 64=bit offset=424 size=8 */
   int (*c_put) (DBC *, DBT *, DBT *, u_int32_t); /* 32-bit offset=268 size=4, 64=bit offset=432 size=8 */
-  void* __toku_dummy2[8]; /* Padding at the end */ 
+  void* __toku_dummy3[8]; /* Padding at the end */ 
 };
 struct __toku_dbt {
   void*data; /* 32-bit offset=0 size=4, 64=bit offset=0 size=8 */

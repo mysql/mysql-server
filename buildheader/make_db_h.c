@@ -187,15 +187,13 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 		    n_dummys--;
 		    did_toku_internal=1;
 		}
+		while (n_dummys>0 && extra_decls && *extra_decls) {
+		    printf("  %s;\n", *extra_decls);
+		    extra_decls++;
+		    n_dummys--;
+		}
 		if (n_dummys>0) {
-		    if (extra_decls && *extra_decls) {
-			printf("  %s;\n", *extra_decls);
-			extra_decls++;
-			n_dummys--;
-		    }
-		    if (n_dummys>0) {
-			printf("  void* __toku_dummy%d[%d];\n", dummy_counter++, n_dummys);
-		    }
+		    printf("  void* __toku_dummy%d[%d];\n", dummy_counter++, n_dummys);
 		}
 		diff64-=diff*2;
 		diff32-=diff;
@@ -221,6 +219,7 @@ void print_struct (const char *structname, int need_internal, struct fieldinfo *
 	current_32 += fields32[i].size;
 	current_64 += fields64[i].size;
     }
+    if (extra_decls) assert(NULL==*extra_decls); // make sure that the extra decls all got used up.
     {
 	unsigned int this_32 = fields32[N-1].off;
 	unsigned int this_64 = fields64[N-1].off;
