@@ -50,9 +50,10 @@ BINS= brtdump \
 build default: bins libs tdb-recover tdb_logprint $(TEST_OFILES)
 	cd tests;$(MAKE) build
 
-# Put crc first to make it work right
+# Put crc first to make -combine work right
 BRT_SOURCES = \
   crc \
+  bread \
   brt-serialize \
   brt-verify \
   brt \
@@ -88,7 +89,7 @@ tdb_logprint: $(OFILES)
 recover.o: log_header.h log-internal.h log.h brttypes.h kv-pair.h memory.h key.h cachetable.h
 tdb-recover: $(OFILES)
 
-roll.o: log_header.h log-internal.h log.h brttypes.h kv-pair.h memory.h key.h cachetable.h omt.h
+roll.o: log_header.h log-internal.h log.h brttypes.h kv-pair.h memory.h key.h cachetable.h omt.h bread.h
 
 log_code.o: log_header.h wbuf.h log-internal.h rbuf.h
 log_header.h: log_code.c

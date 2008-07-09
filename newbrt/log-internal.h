@@ -148,4 +148,4 @@ static inline char *fixup_fname(BYTESTRING *f) {
     return fname;
 }
 
-int toku_read_rollback_backwards(int fd, off_t at, struct roll_entry **item, off_t *new_at);
+int toku_read_rollback_backwards(BREAD, struct roll_entry **item);

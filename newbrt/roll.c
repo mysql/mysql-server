@@ -12,6 +12,7 @@
 #include "log-internal.h"
 #include "cachetable.h"
 #include "key.h"
+#include "bread.h"
 
 // these flags control whether or not we send commit messages for
 // various operations
@@ -124,27 +125,34 @@ int toku_rollback_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN 
 }
 
 int toku_commit_fileentries (int fd, off_t filesize, TOKUTXN txn) {
-    while (filesize>0) {
-        int r;
+    BREAD f = create_bread_from_fd_initialize_at(fd, filesize, 1<<20);
+    int r=0;
+    while (bread_has_more(f)) {
         struct roll_entry *item;
-        r = toku_read_rollback_backwards(fd, filesize, &item, &filesize);
-        if (r!=0) { return r; }
+        r = toku_read_rollback_backwards(f, &item);
+        if (r!=0) goto finish;
         r = toku_commit_rollback_item(txn, item);
-        if (r!=0) { return r; }
+        if (r!=0) goto finish;
     }
-    return 0;
+ finish:
+    { int r2 = close_bread_without_closing_fd(f); assert(r2==0); }
+    return r;
 }
 
 int toku_rollback_fileentries (int fd, off_t filesize, TOKUTXN txn) {
-    while (filesize>0) {
-        int r;
+    BREAD f = create_bread_from_fd_initialize_at(fd, filesize, 1<<20);
+    assert(f);
+    int r=0;
+    while (bread_has_more(f)) {
         struct roll_entry *item;
-        r = toku_read_rollback_backwards(fd, filesize, &item, &filesize);
-        if (r!=0) { return r; }
+        r = toku_read_rollback_backwards(f, &item);
+        if (r!=0) goto finish;
         r = toku_abort_rollback_item(txn, item);
-        if (r!=0) { return r; }
+        if (r!=0) goto finish;
     }
-    return 0;
+ finish:
+    { int r2 = close_bread_without_closing_fd(f); assert(r2==0); }
+    return r;
 }
 
 int toku_commit_rollinclude (BYTESTRING bs,TOKUTXN txn) {

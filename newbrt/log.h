@@ -8,6 +8,7 @@
 #include "../include/db.h"
 #include "brttypes.h"
 #include "memory.h"
+#include "bread.h"
 
 struct logbytes;
 struct logbytes {
