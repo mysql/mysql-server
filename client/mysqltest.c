@@ -276,7 +276,8 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
-  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
+  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR, Q_LIST_FILES,
+  Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -368,6 +369,9 @@ const char *command_names[]=
   "change_user",
   "mkdir",
   "rmdir",
+  "list_files",
+  "list_files_write_file",
+  "list_files_append_file",
 
   0
 };
@@ -2832,6 +2836,126 @@ void do_rmdir(struct st_command *command)
   error= rmdir(ds_dirname.str) != 0;
   handle_command_error(command, error);
   dynstr_free(&ds_dirname);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  get_list_files
+  ds          output
+  ds_dirname  dir to list
+  ds_wild     wild-card file pattern (can be empty)
+
+  DESCRIPTION
+  list all entries in directory (matching ds_wild if given)
+*/
+
+static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
+                          const DYNAMIC_STRING *ds_wild)
+{
+  uint i;
+  MY_DIR *dir_info;
+  FILEINFO *file;
+  DBUG_ENTER("get_list_files");
+
+  DBUG_PRINT("info", ("listing directory: %s", ds_dirname->str));
+  /* Note that my_dir sorts the list if not given any flags */
+  if (!(dir_info= my_dir(ds_dirname->str, MYF(0))))
+    DBUG_RETURN(1);
+  for (i= 0; i < (uint) dir_info->number_off_files; i++)
+  {
+    file= dir_info->dir_entry + i;
+    if (file->name[0] == '.' &&
+        (file->name[1] == '\0' ||
+         (file->name[1] == '.' && file->name[2] == '\0')))
+      continue;                               /* . or .. */
+    if (ds_wild && ds_wild->length &&
+        wild_compare(file->name, ds_wild->str, 0))
+      continue;
+    dynstr_append(ds, file->name);
+    dynstr_append(ds, "\n");
+  }
+  my_dirend(dir_info);
+  DBUG_RETURN(0);
+}
+
+
+/*
+  SYNOPSIS
+  do_list_files
+  command	called command
+
+  DESCRIPTION
+  list_files <dir_name> [<file_name>]
+  List files and directories in directory <dir_name> (like `ls`)
+  [Matching <file_name>, where wild-cards are allowed]
+*/
+
+static void do_list_files(struct st_command *command)
+{
+  int error;
+  static DYNAMIC_STRING ds_dirname;
+  static DYNAMIC_STRING ds_wild;
+  const struct command_arg list_files_args[] = {
+    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to list"},
+    {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
+  };
+  DBUG_ENTER("do_list_files");
+
+  check_command_args(command, command->first_argument,
+                     list_files_args,
+                     sizeof(list_files_args)/sizeof(struct command_arg), ' ');
+
+  error= get_list_files(&ds_res, &ds_dirname, &ds_wild);
+  handle_command_error(command, error);
+  dynstr_free(&ds_dirname);
+  dynstr_free(&ds_wild);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_list_files_write_file_command
+  command       called command
+  append        append file, or create new
+
+  DESCRIPTION
+  list_files_{write|append}_file <filename> <dir_name> [<match_file>]
+  List files and directories in directory <dir_name> (like `ls`)
+  [Matching <match_file>, where wild-cards are allowed]
+
+  Note: File will be truncated if exists and append is not true.
+*/
+
+static void do_list_files_write_file_command(struct st_command *command,
+                                             my_bool append)
+{
+  int error;
+  static DYNAMIC_STRING ds_content;
+  static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_dirname;
+  static DYNAMIC_STRING ds_wild;
+  const struct command_arg list_files_args[] = {
+    {"filename", ARG_STRING, TRUE, &ds_filename, "Filename for write"},
+    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to list"},
+    {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
+  };
+  DBUG_ENTER("do_list_files_write_file");
+
+  check_command_args(command, command->first_argument,
+                     list_files_args,
+                     sizeof(list_files_args)/sizeof(struct command_arg), ' ');
+
+  init_dynamic_string(&ds_content, "", 1024, 1024);
+  error= get_list_files(&ds_content, &ds_dirname, &ds_wild);
+  handle_command_error(command, error);
+  str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
+  dynstr_free(&ds_content);
+  dynstr_free(&ds_filename);
+  dynstr_free(&ds_dirname);
+  dynstr_free(&ds_wild);
   DBUG_VOID_RETURN;
 }
 
@@ -7147,6 +7271,13 @@ int main(int argc, char **argv)
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_MKDIR: do_mkdir(command); break;
       case Q_RMDIR: do_rmdir(command); break;
+      case Q_LIST_FILES: do_list_files(command); break;
+      case Q_LIST_FILES_WRITE_FILE:
+        do_list_files_write_file_command(command, FALSE);
+        break;
+      case Q_LIST_FILES_APPEND_FILE:
+        do_list_files_write_file_command(command, TRUE);
+        break;
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_APPEND_FILE: do_append_file(command); break;
