@@ -48,6 +48,9 @@ server-id	= 1
 # Uncomment the following if you want to log updates
 #log-bin=mysql-bin
 
+# Disable Federated by default
+skip-federated
+
 # Uncomment the following if you are NOT using BDB tables
 #skip-bdb
 
