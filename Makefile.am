@@ -231,5 +231,62 @@ test-full-qa:
 	    test-binlog-statement test-ext test-fast-view \
 	        test-fast-cursor test-unit
 
+#
+# Headers which need to be checked for abi/api compatibility
+#
+
+PREPROCESSOR_C_HEADER=$(top_srcdir)/include/mysql/plugin.h \
+					$(top_srcdir)/sql/mysql_priv.h \
+					$(top_srcdir)/include/mysql.h
+
+#
+# Rule for checking that the abi/api has not changed.
+#
+# The following steps are followed in the rule below
+#
+# 1) Generate preprocessor output for the files that need to
+#    be tested for abi/api changes. use -nostdinc to prevent 
+#    generation of preprocessor output for system headers. This 
+#    results in messages in stderr saying that these headers 
+#    were not found. Redirect the stderr output to /dev/null 
+#    to prevent seeing these messages.
+# 2) sed the output to remove blank lines and lines that begin
+#    with # (The header information is retained to enable easy
+#    analysis of abi diffs at a later stage).
+# 3) diff the generated file and the canons (.pp files already in
+#    the repository).
+# 4) delete the .out file that is generated.
+#
+# If the diff fails, the generated file is not removed. This will
+# be useful for analysis of ABI differences (e.g. using a visual
+# diff tool).
+#
+# A ABI change that causes a build to fail will always be accompanied
+# by new canons (.out files). The .out files that are not removed will
+# be replaced as the new .pp files.
+#
+# e.g. If include/mysql/plugin.h has an ABI change then this rule would
+# leave a include/mysql/plugin.out file.
+#
+# A developer with a justified API change will then do a
+# mv include/mysql/plugin.out include/mysql/plugin.pp 
+# to replace the old canons with the new ones.
+#
+
+abi_check:	$(PREPROCESSOR_C_HEADER)
+	 set -ex; \
+	 for file in $(PREPROCESSOR_C_HEADER); do \
+	         @CC@ -E -nostdinc -dI \
+	                  -I$(top_srcdir)/include \
+	                  -I$(top_srcdir)/include/mysql \
+	                  -I$(top_srcdir)/sql \
+	                                 $$file 2>/dev/null | \
+	                  @SED@ -e '/^# /d' \
+	                            -e '/^[ 	]*$$/d' > $$file.out; \
+	                  @DIFF@ $$file.pp $$file.out; \
+	                  @RM@ $$file.out; \
+	 done
+	 touch $@
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
