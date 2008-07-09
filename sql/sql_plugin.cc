@@ -1882,7 +1882,7 @@ static int check_func_bool(THD *thd, struct st_mysql_sys_var *var,
     }
     result= (int) tmp;
   }
-  *(int*)save= -result;
+  *(my_bool *) save= -result;
   return 0;
 err:
   my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->name, strvalue);
@@ -2063,7 +2063,7 @@ err:
 static void update_func_bool(THD *thd, struct st_mysql_sys_var *var,
                              void *tgt, const void *save)
 {
-  *(my_bool *) tgt= *(int *) save ? 1 : 0;
+  *(my_bool *) tgt= *(my_bool *) save ? TRUE : FALSE;
 }
 
 
