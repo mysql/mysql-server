@@ -357,6 +357,9 @@ myisam_repair_threads = 1
 myisam_recover
 
 
+# Disable Federated by default
+skip-federated
+
 # *** BDB Specific options ***
 
 # Use this option if you run a MySQL server with BDB support enabled but
