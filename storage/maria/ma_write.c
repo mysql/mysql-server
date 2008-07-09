@@ -1027,11 +1027,11 @@ static uchar *_ma_find_last_pos(MARIA_HA *info, MARIA_KEY *int_key,
                                 uchar *page, uchar **after_key)
 {
   uint keys, length, key_ref_length, page_flag;
-  uint last_data_length, last_ref_length;
-  uchar *key, *end, *lastpos,*prevpos;
+  uchar *end, *lastpos, *prevpos;
   uchar key_buff[MARIA_MAX_KEY_BUFF];
   MARIA_SHARE *share= info->s;
   MARIA_KEYDEF *keyinfo= int_key->keyinfo;
+  MARIA_KEY tmp_key;
   DBUG_ENTER("_ma_find_last_pos");
 
   key_ref_length= share->keypage_header;
@@ -1053,33 +1053,35 @@ static uchar *_ma_find_last_pos(MARIA_HA *info, MARIA_KEY *int_key,
     DBUG_RETURN(end);
   }
 
-  LINT_INIT(prevpos);
-  LINT_INIT(last_data_length);
-  LINT_INIT(last_ref_length);
   end=page+length-key_ref_length;
-  key= int_key->data;
-
-  length=0;
   lastpos=page;
-  int_key->data= key_buff;
+  tmp_key.data= key_buff;
+  tmp_key.keyinfo= int_key->keyinfo;
   key_buff[0]= 0;                               /* Safety */
 
-  while (page < end)
+  /* We know that there are at least 2 keys on the page */
+
+  if (!(length=(*keyinfo->get_key)(&tmp_key, page_flag, 0, &page)))
+  {
+    maria_print_error(keyinfo->share, HA_ERR_CRASHED);
+    my_errno=HA_ERR_CRASHED;
+    DBUG_RETURN(0);
+  }
+
+  do
   {
     prevpos=lastpos; lastpos=page;
-    last_data_length= int_key->data_length;
-    last_ref_length=  int_key->ref_length;
-    memcpy(key, key_buff, length);		/* previous key */
-    if (!(length=(*keyinfo->get_key)(int_key, page_flag, 0, &page)))
+    int_key->data_length= tmp_key.data_length;
+    int_key->ref_length=  tmp_key.ref_length;
+    int_key->flag=        tmp_key.flag;
+    memcpy(int_key->data, key_buff, length);		/* previous key */
+    if (!(length=(*keyinfo->get_key)(&tmp_key, page_flag, 0, &page)))
     {
       maria_print_error(keyinfo->share, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(0);
     }
-  }
-  int_key->data=   key;
-  int_key->data_length= last_data_length;
-  int_key->ref_length=  last_ref_length;
+  } while (page < end);
 
   *after_key=lastpos;
   DBUG_PRINT("exit",("returns: 0x%lx  page: 0x%lx  end: 0x%lx",
