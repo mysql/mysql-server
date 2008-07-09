@@ -687,6 +687,9 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
     bmove(keypos,keypos-length, (int) (endpos-keypos)+length);
   (*keyinfo->store_key)(keyinfo,keypos,&s_temp);
   key_start= keypos;
+  if (tmp_key.flag & (SEARCH_USER_KEY_HAS_TRANSID |
+                      SEARCH_PAGE_KEY_HAS_TRANSID))
+    _ma_mark_page_with_transid(share, anc_buff);
 
   /* Save pointer to next leaf on parent page */
   if (!(*keyinfo->get_key)(&ret_key, page_flag, share->base.key_reflength,

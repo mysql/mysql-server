@@ -645,7 +645,7 @@ static void _ma_print_directory(uchar *buff, uint block_size)
 }
 
 
-static void check_directory(uchar *buff, uint block_size)
+static void check_directory(uchar *buff, uint block_size, uint min_row_length)
 {
   uchar *dir, *end;
   uint max_entry= (uint) buff[DIR_COUNT_OFFSET];
@@ -666,6 +666,7 @@ static void check_directory(uchar *buff, uint block_size)
     if (offset)
     {
       DBUG_ASSERT(offset >= end_of_prev_row);
+      DBUG_ASSERT(!length || length >= min_row_length);
       end_of_prev_row= offset + length;
     }
     else
@@ -688,7 +689,7 @@ static void check_directory(uchar *buff, uint block_size)
   DBUG_ASSERT(deleted == 0);
 }
 #else
-#define check_directory(A,B)
+#define check_directory(A,B,C)
 #endif /* DBUG_OFF */
 
 
@@ -855,7 +856,7 @@ static my_bool extend_area_on_page(MARIA_HA *info,
   int2store(dir + 2, length);
   *ret_offset= rec_offset;
   *ret_length= length;
-  check_directory(buff, block_size);
+  check_directory(buff, block_size, info ? info->s->base.min_block_length : 0);
   DBUG_RETURN(0);
 }
 
@@ -1059,11 +1060,12 @@ static uchar *find_free_position(MARIA_HA *info,
                                      PAGE_SUFFIX_SIZE);
     length= start_of_next_entry(dir) - first_pos;
     int2store(dir, first_pos);                /* Update dir entry */
-    int2store(dir + 2, length);
+    int2store(dir + 2, 0);
     *res_rownr= free_entry;
     *res_length= length;
 
-    check_directory(buff, block_size);
+    check_directory(buff, block_size,
+                    info ? info->s->base.min_block_length : 0);
     DBUG_RETURN(dir);
   }
   /* No free places in dir; create a new one */
@@ -1080,10 +1082,11 @@ static uchar *find_free_position(MARIA_HA *info,
   length= (uint) (dir - buff - first_pos);
   DBUG_ASSERT(length <= *empty_space);
   int2store(dir, first_pos);
-  int2store(dir+2, length);                   /* Max length of region */
+  int2store(dir + 2, 0);                      /* Max length of region */
   *res_rownr= max_entry;
   *res_length= length;
 
+  check_directory(buff, block_size, info ? info->s->base.min_block_length : 0);
   DBUG_RETURN(dir);
 }
 
@@ -1162,7 +1165,8 @@ static my_bool extend_directory(MARIA_HA *info, uchar *buff, uint block_size,
     }
   }
 
-  check_directory(buff, block_size);
+  check_directory(buff, block_size,
+                  info ? min(info->s->base.min_block_length, length) : 0);
   DBUG_RETURN(0);
 }
 
@@ -1543,6 +1547,7 @@ void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
     /* Extend rownr block to cover hole */
     rownr_length= next_free_pos - start_of_found_block;
     int2store(dir+2, rownr_length);
+    DBUG_ASSERT(rownr_length >= min_row_length);
   }
   else
   {
@@ -1551,6 +1556,7 @@ void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
       /* Extend last block to cover whole page */
       uint length= ((uint) (dir - buff) - start_of_found_block);
       int2store(dir+2, length);
+      DBUG_ASSERT(length >= min_row_length);
     }
     else
     {
@@ -1560,6 +1566,7 @@ void _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
     }
     buff[PAGE_TYPE_OFFSET]&= ~(uchar) PAGE_CAN_BE_COMPACTED;
   }
+  check_directory(buff, block_size, min_row_length);
   DBUG_EXECUTE("directory", _ma_print_directory(buff, block_size););
   DBUG_VOID_RETURN;
 }
@@ -1691,16 +1698,12 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
     {
       if (res->empty_space + res->length >= length)
       {
-        /*
-          We can't just verify min_block_length here as the newly found block
-          may be smaller than min_block_length.
-        */
         _ma_compact_block_page(res->buff, block_size, res->rownr, 1,
-                               page_type == HEAD_PAGE ?
-                               info->trn->min_read_from : 0,
-                               page_type == HEAD_PAGE ?
-                               min(res->length, share->base.min_block_length) :
-                               0);
+                               (page_type == HEAD_PAGE ?
+                                info->trn->min_read_from : 0),
+                               (page_type == HEAD_PAGE ?
+                                share->base.min_block_length :
+                                0));
         /* All empty space are now after current position */
         dir= dir_entry_pos(res->buff, block_size, res->rownr);
         res->length= res->empty_space= uint2korr(dir+2);
@@ -2729,6 +2732,8 @@ static my_bool write_block_record(MARIA_HA *info,
       page_buff[DIR_FREE_OFFSET] == END_OF_DIR_FREE_LIST)
     head_block->empty_space= 0;               /* Page is full */
   head_block->used|= BLOCKUSED_USED;
+
+  check_directory(page_buff, share->block_size, share->base.min_block_length);
 
   /*
      Now we have to write tail pages, as we need to store the position
@@ -3836,7 +3841,7 @@ static int delete_dir_entry(uchar *buff, uint block_size, uint record_number,
   }
 #endif
 
-  check_directory(buff, block_size);
+  check_directory(buff, block_size, 0);
   empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
   dir= dir_entry_pos(buff, block_size, record_number);
   length= uint2korr(dir + 2);
@@ -3911,7 +3916,7 @@ static int delete_dir_entry(uchar *buff, uint block_size, uint record_number,
 
   *empty_space_res= empty_space;
 
-  check_directory(buff, block_size);
+  check_directory(buff, block_size, 0);
   DBUG_RETURN(0);
 }
 
