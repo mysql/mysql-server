@@ -2342,6 +2342,12 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       {
         if (!trnman_decrement_locked_tables(trn))
         {
+          /*
+            OK should not have been sent to client yet (ACID).
+            This is a bit excessive, ACID requires this only if there are some
+            changes to commit (rollback shouldn't be tested).
+          */
+          DBUG_ASSERT(!thd->main_da.is_sent);
           /* autocommit ? rollback a transaction */
 #ifdef MARIA_CANNOT_ROLLBACK
           if (ma_commit(trn))
@@ -2403,9 +2409,14 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
   be participant in the connection's transaction and so the implicit commits
   (ha_commit()) (like in end_active_trans()) will do the implicit commit
   without need to call this function which can then be removed.
+
+  @param  thd              THD object
+  @param  new_trn          if a new transaction should be created; a new
+                           transaction is not needed when we know that the
+                           tables will be unlocked very soon.
 */
 
-int ha_maria::implicit_commit(THD *thd)
+int ha_maria::implicit_commit(THD *thd, bool new_trn)
 {
 #ifndef MARIA_CANNOT_ROLLBACK
 #error this method should be removed
@@ -2414,11 +2425,34 @@ int ha_maria::implicit_commit(THD *thd)
   int error= 0;
   TABLE *table;
   DBUG_ENTER("ha_maria::implicit_commit");
+  if (!new_trn && thd->locked_tables)
+  {
+    /*
+      "we are under LOCK TABLES" <=> "we shouldn't commit".
+      As thd->locked_tables is true, we are either under LOCK TABLES, or in
+      prelocking; prelocking can be under LOCK TABLES, or not (and in this
+      latter case only we should commit).
+      Note that we come here only at the end of the top statement
+      (dispatch_command()), we are never committing inside a sub-statement./
+    */
+    enum prelocked_mode_type prelocked_mode= thd->prelocked_mode;
+    if ((prelocked_mode == NON_PRELOCKED) ||
+        (prelocked_mode == PRELOCKED_UNDER_LOCK_TABLES))
+    {
+      DBUG_PRINT("info", ("locked_tables, skipping"));
+      DBUG_RETURN(0);
+    }
+  }
   if ((trn= THD_TRN) != NULL)
   {
     uint locked_tables= trnman_has_locked_tables(trn);
     if (unlikely(ma_commit(trn)))
       error= 1;
+    if (!new_trn)
+    {
+      THD_TRN= NULL;
+      goto end;
+    }
     /*
       We need to create a new transaction and put it in THD_TRN. Indeed,
       tables may be under LOCK TABLES, and so they will start the next
@@ -2458,6 +2492,7 @@ int ha_maria::implicit_commit(THD *thd)
       }
     }
   }
+end:
   DBUG_RETURN(error);
 }
 
