@@ -14,7 +14,8 @@
 BDB = 4_4
 BDBDIR = ../../berkeleydb
 MYSQL_H = -I$(BDBDIR)/db-4.1.25/build_unix/
-CFLAGS = -Wall -W -O2 -Werror -g
+OPTFLAGS = -O2
+CFLAGS = -Wall -W -Werror -g $(OPTFLAGS)
 
 runs: runs_mysql runs_installed
 samples: sample_offsets_4_6 sample_offsets_4_5 sample_offsets_4_4 sample_offsets_4_3 sample_offsets_4_1
