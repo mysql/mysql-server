@@ -7,12 +7,30 @@
 #include <sys/resource.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "rdtsc.h"
 
 const char *pname;
 enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY } run_mode = RUN_HWC;
 int do_txns=1, prelock=0, prelockflag=0;
 u_int32_t lock_flag = 0;
+int do_rdtsc = 0;
+#define NTRACE 1000000
+int next_trace = 0;
+unsigned long long tracebuffer[NTRACE];
 
+static inline void add_trace() {
+#if USE_RDTSC
+    if (next_trace < NTRACE)
+        tracebuffer[next_trace++] = rdtsc();
+#endif
+}
+
+void print_trace() {
+    if (do_rdtsc == 0) return;
+    int i;
+    for (i=0; i<NTRACE; i++)
+        if (tracebuffer[i]) printf("%llu\n", tracebuffer[i]);
+}
 
 void parse_args (int argc, const char *argv[]) {
     pname=argv[0];
@@ -33,6 +51,7 @@ void parse_args (int argc, const char *argv[]) {
         else if (strcmp(*argv, "--prelockflag")==0)      { prelockflag=1; lock_flag = DB_PRELOCKED; }
         else if (strcmp(*argv, "--prelockwriteflag")==0) { prelockflag=1; lock_flag = DB_PRELOCKED_WRITE; }
 	else if (strcmp(*argv, "--nox")==0)              { do_txns=0; }
+        else if (strcmp(*argv, "--rdtsc")==0)            { do_rdtsc=1; }
 	else {
 	    fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag]\n", pname);
 	    fprintf(stderr, "  --hwc               run heavy weight cursors (this is the default)\n");
@@ -116,7 +135,9 @@ void scanscan_hwc (void) {
         if (prelockflag && (counter || prelock)) {
             c_get_flags |= lock_flag;
         }
+        add_trace();
 	while (0 == (r = dbc->c_get(dbc, &k, &v, c_get_flags))) {
+            add_trace();
 	    totalbytes += k.size + v.size;
 	    rowcounter++;
 	}
@@ -124,6 +145,7 @@ void scanscan_hwc (void) {
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
 	printf("Scan    %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
+        print_trace();
     }
 }
 
