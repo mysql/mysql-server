@@ -601,15 +601,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	pos->null_bit=0;
 	pos->flag=0;					/* For purify */
 	pos++;
-
-        if ((share->keyinfo[i].flag & HA_NOSAME) && i != 0)
-        {
-          /*
-            We can't yet have versioning if there is more than one unique
-            key
-          */
-          versioning= 0;
-        }
       }
       for (i=0 ; i < uniques ; i++)
       {

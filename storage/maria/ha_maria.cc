@@ -1812,9 +1812,12 @@ void ha_maria::start_bulk_insert(ha_rows rows)
        a lot of rows.
        We should not do this for only a few rows as this is slower and
        we don't want to update the key statistics based of only a few rows.
+       Index file rebuild requires an exclusive lock, so if versioning is on
+       don't do it (see how ha_maria::store_lock() tries to predict repair).
     */
     if (file->state->records == 0 && can_enable_indexes &&
-        (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES))
+        (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES) &&
+        (file->lock.type == TL_WRITE))
     {
       /**
          @todo for a single-row INSERT SELECT, we will go into repair, which
@@ -2478,13 +2481,23 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
         !thd->current_stmt_binlog_row_based &&
         (thd->lex->sql_command != SQLCOM_SELECT &&
          thd->lex->sql_command != SQLCOM_LOCK_TABLES) &&
+        (thd->options & OPTION_BIN_LOG) &&
         mysql_bin_log.is_open())
       lock_type= TL_READ_NO_INSERT;
     else if (lock_type == TL_WRITE_CONCURRENT_INSERT &&
-             (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
-              thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
-              thd->lex->sql_command == SQLCOM_LOAD))
+             (file->state->records == 0))
+    {
+      /*
+        Bulk insert may use repair, which will cause problems if other
+        threads try to read/insert to the table: disable versioning.
+        Note that our read of file->state->records is incorrect, as such
+        variable may have changed when we come to start_bulk_insert() (worse
+        case: we see != 0 so allow versioning, start_bulk_insert() sees 0 and
+        uses repair). This is prevented because start_bulk_insert() will not
+        try repair if we enabled versioning.
+      */
       lock_type= TL_WRITE;
+    }
     file->lock.type= lock_type;
   }
   *to++= &file->lock;

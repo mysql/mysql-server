@@ -2154,6 +2154,7 @@ mysql_execute_command(THD *thd)
     goto error;
 #endif
   }
+  break;
   case SQLCOM_SHOW_NEW_MASTER:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))

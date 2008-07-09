@@ -54,16 +54,7 @@ Known bugs that are planned to be fixed later
 =============================================
 
 LOCK TABLES .. WRITE CONCURRENT is mainly done for testing MVCC.  Don't
-use this in production.  Things that is not working if you are using
-this on a table:
-
-- INSERT/REPLACE ... SELECT on an empty table may cause crashes or
-  wrong results if someone else is doing writes on the table during repair
-  or someone is doing selects during the repair index phase.
-
-INSERT ... SELECT, REPLACE ... SELECT and LOAD DATA are blocking
-inserts and SELECT for the table.  They should only have to do this if
-the destination is empty (as then we are using fast index rebuild).
+use this in production.
 
 Missing features that is planned to fix before Beta
 ===================================================
