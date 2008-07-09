@@ -4154,8 +4154,14 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
+
+    Fix_fields() can fail, in which case a call of update_hash() might
+    crash the server, so if fix fields fails, we just return with an
+    error.
   */
-  e.fix_fields(thd, 0);
+  if (e.fix_fields(thd, 0))
+    return 1;
+
   /*
     A variable can just be considered as a table with
     a single record and with a single column. Thus, like
