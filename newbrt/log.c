@@ -985,18 +985,15 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
     return 0;
 }
 
-int toku_read_rollback_backwards(int fd, off_t at, struct roll_entry **item, off_t *new_at) {
-    if (at==0) return -1;
+int toku_read_rollback_backwards(BREAD br, struct roll_entry **item) {
     u_int32_t nbytes_n; ssize_t sr;
-    if ((sr=pread(fd, &nbytes_n, 4, at-4))!=4) { assert(sr<0); return errno; }
+    if ((sr=bread_backwards(br, &nbytes_n, 4))!=4) { assert(sr<0); return errno; }
     u_int32_t n_bytes=ntohl(nbytes_n);
-    assert(at>=n_bytes);
     unsigned char *buf = toku_malloc(n_bytes);
     if (buf==0) return errno;
-    if ((sr=pread(fd, buf, n_bytes, at-n_bytes))!=(ssize_t)n_bytes) { assert(sr<0); return errno; }
+    if ((sr=bread_backwards(br, buf, n_bytes-4))!=(ssize_t)n_bytes-4) { assert(sr<0); return errno; }
     int r = toku_parse_rollback(buf, n_bytes, item);
     if (r!=0) return r;
-    (*new_at) -= n_bytes;
     toku_free(buf);
     return 0;
 }

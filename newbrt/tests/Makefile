@@ -42,6 +42,7 @@ CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500 -I.
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
 # Also keep them sorted.
 REGRESSION_TESTS = \
+	bread-test \
 	brt-serialize-test \
 	brt-test \
 	brt-test-cursor \
