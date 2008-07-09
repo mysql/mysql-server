@@ -671,6 +671,10 @@ static LOG_DESC INIT_LOGREC_REDO_BITMAP_NEW_PAGE=
  NULL, NULL, NULL, 0,
  "redo_create_bitmap", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
 
+static LOG_DESC INIT_LOGREC_IMPORTED_TABLE=
+{LOGRECTYPE_VARIABLE_LENGTH, 0, 0, NULL, NULL, NULL, 0,
+ "imported_table", LOGREC_IS_GROUP_ITSELF, NULL, NULL};
+
 const myf log_write_flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
 
 void translog_table_init()
@@ -758,6 +762,8 @@ void translog_table_init()
     INIT_LOGREC_UNDO_BULK_INSERT;
   log_record_type_descriptor[LOGREC_REDO_BITMAP_NEW_PAGE]=
     INIT_LOGREC_REDO_BITMAP_NEW_PAGE;
+  log_record_type_descriptor[LOGREC_IMPORTED_TABLE]=
+    INIT_LOGREC_IMPORTED_TABLE;
   for (i= LOGREC_FIRST_FREE; i < LOGREC_NUMBER_OF_TYPES; i++)
     log_record_type_descriptor[i].rclass= LOGRECTYPE_NOT_ALLOWED;
 #ifndef DBUG_OFF

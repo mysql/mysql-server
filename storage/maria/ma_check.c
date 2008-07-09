@@ -3368,8 +3368,9 @@ int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
 {
   my_bool error, reenable_logging,
     zero_lsn= !(param->testflag & T_ZEROFILL_KEEP_LSN);
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_zerofill");
-  if ((reenable_logging= info->s->now_transactional))
+  if ((reenable_logging= share->now_transactional))
     _ma_tmp_disable_logging_for_table(info, 0);
   if (!(error= (maria_zerofill_index(param, info, name) ||
                 maria_zerofill_data(param, info, name) ||
@@ -3379,14 +3380,19 @@ int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
       Mark that we have done zerofill of data and index. If we zeroed pages'
       LSN, table is movable.
     */
-    info->s->state.changed&= ~STATE_NOT_ZEROFILLED;
+    share->state.changed&= ~STATE_NOT_ZEROFILLED;
     if (zero_lsn)
-      info->s->state.changed&= ~(STATE_NOT_MOVABLE | STATE_MOVED);
-    /* Ensure state are flushed to disk */
+    {
+      share->state.changed&= ~(STATE_NOT_MOVABLE | STATE_MOVED);
+      /* Table should get new LSNs */
+      share->state.create_rename_lsn= share->state.is_of_horizon=
+        share->state.skip_redo_lsn= LSN_NEEDS_NEW_STATE_LSNS;
+    }
+    /* Ensure state is later flushed to disk, if within maria_chk */
     info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
     /* Reset create_trid to make file comparable */
-    info->s->state.create_trid= 0;
+    share->state.create_trid= 0;
   }
   if (reenable_logging)
     _ma_reenable_logging_for_table(info, FALSE);

@@ -665,7 +665,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     if (share->base.born_transactional)
     {
       share->page_type= PAGECACHE_LSN_PAGE;
-      if (share->state.create_rename_lsn == LSN_REPAIRED_BY_MARIA_CHK)
+      if (share->state.create_rename_lsn == LSN_NEEDS_NEW_STATE_LSNS)
       {
         /*
           Was repaired with maria_chk, maybe later maria_pack-ed. Some sort of
@@ -674,7 +674,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         */
         if (((open_flags & HA_OPEN_FROM_SQL_LAYER) &&
              (share->state.changed & STATE_NOT_MOVABLE)) || maria_in_recovery)
-          _ma_update_state_lsns_sub(share, translog_get_horizon(),
+          _ma_update_state_lsns_sub(share, LSN_IMPOSSIBLE,
                                     trnman_get_min_safe_trid(), TRUE, TRUE);
       }
       else if ((!LSN_VALID(share->state.create_rename_lsn) ||
@@ -688,7 +688,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       {
         /*
           If in Recovery, it will not work. If LSN is invalid and not
-          LSN_REPAIRED_BY_MARIA_CHK, header must be corrupted.
+          LSN_NEEDS_NEW_STATE_LSNS, header must be corrupted.
           In both cases, must repair.
         */
         my_errno=((share->state.changed & STATE_CRASHED_ON_REPAIR) ?

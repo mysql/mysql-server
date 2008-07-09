@@ -425,8 +425,8 @@ int _ma_mark_file_changed(MARIA_HA *info)
     {
       /* Lock table to current installation */
       if (_ma_set_uuid(info, 0) ||
-          (share->state.create_rename_lsn == LSN_REPAIRED_BY_MARIA_CHK &&
-           _ma_update_state_lsns_sub(share, translog_get_horizon(),
+          (share->state.create_rename_lsn == LSN_NEEDS_NEW_STATE_LSNS &&
+           _ma_update_state_lsns_sub(share, LSN_IMPOSSIBLE,
                                      trnman_get_min_trid(),
                                      TRUE, TRUE)))
         DBUG_RETURN(1);

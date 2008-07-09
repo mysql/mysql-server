@@ -77,6 +77,7 @@ prototype_redo_exec_hook(FILE_ID);
 prototype_redo_exec_hook(INCOMPLETE_LOG);
 prototype_redo_exec_hook_dummy(INCOMPLETE_GROUP);
 prototype_redo_exec_hook(UNDO_BULK_INSERT);
+prototype_redo_exec_hook(IMPORTED_TABLE);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
@@ -1861,6 +1862,24 @@ prototype_redo_exec_hook(UNDO_BULK_INSERT)
 }
 
 
+prototype_redo_exec_hook(IMPORTED_TABLE)
+{
+  char *name;
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+      rec->record_length)
+  {
+    eprint(tracef, "Failed to read record");
+    return 1;
+  }
+  name= (char *)log_record_buffer.str;
+  tprint(tracef, "Table '%s' was imported (auto-zerofilled) in this Maria instance\n", name);
+  return 0;
+}
+
+
 prototype_redo_exec_hook(COMMIT)
 {
   uint16 sid= rec->short_trid;
@@ -2328,6 +2347,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_redo_exec_hook_shared(REDO_NEW_ROW_TAIL, REDO_INSERT_ROW_TAIL);
   install_redo_exec_hook(UNDO_BULK_INSERT);
   install_undo_exec_hook(UNDO_BULK_INSERT);
+  install_redo_exec_hook(IMPORTED_TABLE);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
 #ifndef DBUG_OFF

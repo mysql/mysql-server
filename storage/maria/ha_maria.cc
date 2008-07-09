@@ -1268,6 +1268,7 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
   HA_CHECK param;
+  MARIA_SHARE *share= file->s;
 
   if (!file)
     return HA_ADMIN_INTERNAL_ERROR;
@@ -1277,8 +1278,14 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
   param.op_name= "zerofill";
   param.testflag= check_opt->flags | T_SILENT | T_ZEROFILL;
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
-  error=maria_zerofill(&param, file, file->s->open_file_name);
+  error=maria_zerofill(&param, file, share->open_file_name);
 
+  if (!error)
+  {
+    pthread_mutex_lock(&share->intern_lock);
+    maria_update_state_info(&param, file, UPDATE_TIME | UPDATE_OPEN_COUNT);
+    pthread_mutex_unlock(&share->intern_lock);
+  }
   return error;
 }
 
