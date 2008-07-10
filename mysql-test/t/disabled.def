@@ -106,3 +106,4 @@ rpl_max_binlog_size_func              : BUG#37962 2008-07-08 sven *_func tests c
 slow_query_log_func                   : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 sql_low_priority_updates_func         : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 timestamp_func                        : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
+log_output_func                       : BUG#37766 2008-07-10 sven main.log_output_func randomly fails in pushbuild

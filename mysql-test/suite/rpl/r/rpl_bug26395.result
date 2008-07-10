@@ -21,7 +21,7 @@ a
 1
 [on slave]
 ==== Verify results on slave ====
-STOP SLAVE;
+include/stop_slave.inc
 SELECT "" AS Slave_IO_State;
 Slave_IO_State
 

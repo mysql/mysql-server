@@ -1,3 +1,4 @@
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 drop table if exists t1;
 drop database if exists mysqltest;
@@ -1351,4 +1352,4 @@ DROP PROCEDURE sp3;
 DROP USER 'userbug33464'@'localhost';
 use test;
 DROP DATABASE dbbug33464;
-End of 5.1 tests
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

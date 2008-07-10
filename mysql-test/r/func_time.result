@@ -1078,6 +1078,7 @@ Note	1003	select timestampdiff(WEEK,'2001-02-01','2001-05-01') AS `a1`,timestamp
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
 100 100 04 04 4
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 create table t1 (a timestamp default '2005-05-05 01:01:01',
 b timestamp default '2005-05-05 01:01:01');
@@ -1121,6 +1122,7 @@ call t_sysdate();
 @a != @b
 1
 drop procedure t_sysdate;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 select timestampdiff(month,'2004-09-11','2004-09-11');
 timestampdiff(month,'2004-09-11','2004-09-11')
 0

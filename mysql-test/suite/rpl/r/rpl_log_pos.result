@@ -7,7 +7,7 @@ start slave;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
-stop slave;
+include/stop_slave.inc
 change master to master_log_pos=75;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -49,7 +49,7 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 start slave;
-stop slave;
+include/stop_slave.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
