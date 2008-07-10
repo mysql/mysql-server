@@ -570,8 +570,10 @@ static int log_and_save_brtenq(TOKULOGGER logger, BRT t, BRTNODE node, int child
     u_int32_t new_fingerprint = old_fingerprint + fdiff;
     //printf("%s:%d node=%lld fingerprint old=%08x new=%08x diff=%08x xid=%lld\n", __FILE__, __LINE__, (long long)node->thisnodename, old_fingerprint, new_fingerprint, fdiff, (long long)xid);
     *fingerprint = new_fingerprint;
-    int r = toku_log_brtenq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, xid, type, keybs, databs);
-    if (r!=0) return r;
+    if (t->txn_that_created != xid) {
+	int r = toku_log_brtenq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, xid, type, keybs, databs);
+	if (r!=0) return r;
+    }
     return 0;
 }
 
@@ -632,8 +634,10 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 		u_int32_t delta = toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
 		u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
 		if (r!=0) return r;
-		r = toku_log_brtdeq(logger, &node->log_lsn, 0, fnum, node->thisnodename, n_children_in_a);
-		if (r!=0) return r;
+		if (t->txn_that_created != xid) {
+		    r = toku_log_brtdeq(logger, &node->log_lsn, 0, fnum, node->thisnodename, n_children_in_a);
+		    if (r!=0) return r;
+		}
 		r = log_and_save_brtenq(logger, t, B, targchild, xid, type, key, keylen, data, datalen, &B->local_fingerprint);
 		r = toku_fifo_enq(to_htab, key, keylen, data, datalen, type, xid);
 		if (r!=0) return r;
@@ -814,7 +818,7 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
     u_int32_t old_fingerprint = node->local_fingerprint;
     u_int32_t new_fingerprint = old_fingerprint - node->rand4fingerprint*toku_calccrc32_cmdstruct(cmd);
     node->local_fingerprint = new_fingerprint;
-    {
+    if (t->txn_that_created != cmd->xid) {
 	int r = toku_log_brtdeq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum);
 	assert(r==0);
     }
@@ -907,7 +911,10 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 		 ({
 		     u_int32_t old_fingerprint   = node->local_fingerprint;
 		     u_int32_t new_fingerprint   = old_fingerprint - node->rand4fingerprint*toku_calccrc32_cmd(type, xid, skey, skeylen, sval, svallen);
-		     r = toku_log_brtdeq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum);
+		     if (t->txn_that_created != xid) {
+			 r = toku_log_brtdeq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum);
+			 assert(r==0);
+		     }
 		     node->local_fingerprint = new_fingerprint;
 		 }));
 
@@ -1492,8 +1499,10 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
     //printf(" got "); print_leafentry(stdout, newdata); printf("\n");
 
     if (le && newdata) {
-	if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) return r;
-	if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
+	if (t->txn_that_created != cmd->xid) {
+	    if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) return r;
+	    if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
+	}
 
 	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
 	node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
@@ -1518,7 +1527,9 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
 	if (le) {
 	    // It's there, note that it's gone and remove it from the mempool
 
-	    if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) return r;
+	    if (t->txn_that_created != cmd->xid) {
+		if ((r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx))) return r;
+	    }
 
 	    if ((r = toku_omt_delete_at(node->u.l.buffer, idx))) return r;
 
@@ -1534,7 +1545,9 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
 	    memcpy(new_le, newdata, newlen);
 	    if ((r = toku_omt_insert_at(node->u.l.buffer, new_le, idx))) return r;
 
-	    if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
+	    if (t->txn_that_created != cmd->xid) {
+		if ((r = toku_log_insertleafentry(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, idx, newdata))) return r;
+	    }
 
 	    node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
 	    node->local_fingerprint += node->rand4fingerprint*toku_le_crc(newdata);
@@ -2129,6 +2142,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     }
     t->database_name = malloced_name;
     t->db = db;
+    t->txn_that_created = 0; // Uses 0 for no transaction.
     {
 	int fd = open(fname, O_RDWR, 0777);
 	if (fd==-1) {
@@ -2139,6 +2153,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
                     goto died0a;
                 }
                 fd = open(fname, O_RDWR | O_CREAT, 0777);
+		t->txn_that_created = toku_txn_get_txnid(txn);
                 if (fd==-1) {
 		    r = errno;
                     t->database_name=0;
@@ -2571,10 +2586,10 @@ int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger) {
 
 int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
-    if (txn) {
+    if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
+	toku_cachefile_refup(brt->cf);
 	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
 	BYTESTRING databs = {val->size, toku_memdup(val->data, val->size)};
-	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmdinsert(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
 	if (r!=0) return r;
 	r = toku_txn_note_brt(txn, brt);
@@ -2603,7 +2618,7 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
 
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
-    if (txn) {
+    if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
 	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
 	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmddelete(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs);
@@ -2620,7 +2635,7 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
 int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     //{ unsigned i; printf("del %p keylen=%d key={", brt->db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", val->size); for(i=0; i<val->size; i++) printf("%d,", ((char*)val->data)[i]); printf("}\n"); }
     int r;
-    if (txn) {
+    if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
 	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
 	BYTESTRING databs = {val->size, toku_memdup(val->data, val->size)};
 	toku_cachefile_refup(brt->cf);
