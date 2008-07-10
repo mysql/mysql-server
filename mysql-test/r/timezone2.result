@@ -269,6 +269,7 @@ select * from t1;
 convert_tz(NULL, NULL, NULL)
 NULL
 drop table t1;
+SET @old_log_bin_trust_function_creators = @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 create table t1 (ldt datetime, udt datetime);
 create function f1(i datetime) returns datetime
@@ -284,7 +285,7 @@ ldt	ldt2
 2006-04-19 16:30:00	2006-04-19 16:30:00
 drop table t1;
 drop function f1;
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (t TIMESTAMP);
 INSERT INTO t1 VALUES (NULL), (NULL);

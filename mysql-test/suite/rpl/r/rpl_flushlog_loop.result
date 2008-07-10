@@ -18,11 +18,7 @@ start slave;
 stop slave;
 change master to master_host='127.0.0.1',master_user='root',
 master_password='',master_port=SLAVE_PORT;
-start slave;
-
-let $result_pattern= '%127.0.0.1%root%slave-bin.000001%slave-bin.000001%Yes%Yes%0%0%None%' ;
-
---source include/wait_slave_status.inc
+include/start_slave.inc
 FLUSH LOGS;
 SHOW SLAVE STATUS;
 Slave_IO_State	#

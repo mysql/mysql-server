@@ -180,7 +180,7 @@ Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	<Last_SQL_Errno>
 Last_SQL_Error	<Last_SQL_Error>
 set GLOBAL slave_transaction_retries=10;
-START SLAVE;
+include/start_slave.inc
 select * from t1 order by nid;
 nid	nom	prenom
 1	LOCK	ABC1
