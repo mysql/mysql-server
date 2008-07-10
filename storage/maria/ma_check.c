@@ -814,6 +814,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   MARIA_SHARE *share= info->s;
   char llbuff[22];
   uint diff_pos[2];
+  uchar tmp_key_buff[MARIA_MAX_KEY_BUFF];
   MARIA_KEY tmp_key;
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff", buff, _ma_get_page_used(share, buff));
@@ -860,7 +861,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                           "Page at %s is marked with HAS_TRANSID even if "
                           "table is not transactional",
                           llstr(page, llbuff));
-  }    
+  }
 
   if (used_length > (uint) keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE)
   {
@@ -870,7 +871,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   }
 
   info->last_key.keyinfo= tmp_key.keyinfo= keyinfo;
-  tmp_key.data=    info->lastkey_buff2;
+  tmp_key.data= tmp_key_buff;
   for ( ;; )
   {
     if (*_ma_killed_ptr(param))
@@ -908,7 +909,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                             llstr(page,llbuff));
       goto err;
     }
-        
+
     if ((*keys)++ &&
 	(flag=ha_key_cmp(keyinfo->seg, info->last_key.data, tmp_key.data,
                          tmp_key.data_length + tmp_key.ref_length,
@@ -933,7 +934,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       if (*keys != 1L)				/* not first_key */
       {
         if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
-          ha_key_cmp(keyinfo->seg, (uchar*) info->last_key.data, 
+          ha_key_cmp(keyinfo->seg, (uchar*) info->last_key.data,
                      tmp_key.data, tmp_key.data_length,
                      SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
                      diff_pos);
@@ -1107,7 +1108,7 @@ static int check_keys_in_record(HA_CHECK *param, MARIA_HA *info, int extend,
     printf("%s\r", llstr(param->records, llbuff));
     VOID(fflush(stdout));
   }
-  
+
   /* Check if keys match the record */
   for (keynr=0, keyinfo= share->keyinfo; keynr < share->base.keys;
        keynr++, keyinfo++)
