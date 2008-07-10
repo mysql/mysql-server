@@ -43,12 +43,35 @@ static inline void brwl_rlock (struct brwl *l) {
 enum {K=1000};
 pthread_rwlock_t rwlocks[K];
 struct brwl blocks[K];
+pthread_mutex_t mlocks[K];
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     int j;
     int i;
     int r;
     struct timeval start, end;
+    for (j=0; j<3; j++) {
+	for (i=0; i<K; i++) {
+	    r=pthread_mutex_init(&mlocks[i], NULL);
+	    assert(r==0);
+	}
+	gettimeofday(&start, 0);
+	for (i=0; i<K; i++) {
+	    r = pthread_mutex_lock(&mlocks[i]);
+	    assert(r==0);
+	}
+	gettimeofday(&end, 0);
+	printf("pthread_mutex_lock       took %9.3fus for %d ops:  %9.3fus/lock (%9.3fMops/s)\n", tdiff(&start,&end), K, tdiff(&start,&end)/K, K/tdiff(&start,&end));
+
+	gettimeofday(&start, 0);
+	for (i=0; i<K; i++) {
+	    r = pthread_mutex_unlock(&mlocks[i]);
+	    assert(r==0);
+	}
+	gettimeofday(&end, 0);
+	printf("pthread_mutex_unlock     took %9.3fus for %d ops:  %9.3fus/lock (%9.3fMops/s)\n", tdiff(&start,&end), K, tdiff(&start,&end)/K, K/tdiff(&start,&end));
+    }
+
     for (j=0; j<3; j++) {
 	for (i=0; i<K; i++) {
 	    r=pthread_rwlock_init(&rwlocks[i], NULL);
