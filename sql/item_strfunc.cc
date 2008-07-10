@@ -3258,7 +3258,8 @@ static char clock_seq_and_node_str[]="-0000-000000000000";
 
 /* number of 100-nanosecond intervals between
    1582-10-15 00:00:00.00 and 1970-01-01 00:00:00.00 */
-#define UUID_TIME_OFFSET ((ulonglong) 141427 * 24 * 60 * 60 * 1000 * 10 )
+#define UUID_TIME_OFFSET ((ulonglong) 141427 * 24 * 60 * 60 * \
+                          1000 * 1000 * 10)
 
 #define UUID_VERSION      0x1000
 #define UUID_VARIANT      0x8000
@@ -3317,24 +3318,64 @@ String *Item_func_uuid::val_str(String *str)
     set_clock_seq_str();
   }
 
-  ulonglong tv=my_getsystime() + UUID_TIME_OFFSET + nanoseq;
-  if (unlikely(tv < uuid_time))
-    set_clock_seq_str();
-  else if (unlikely(tv == uuid_time))
+  ulonglong tv= my_getsystime() + UUID_TIME_OFFSET + nanoseq;
+
+  if (likely(tv > uuid_time))
   {
-    /* special protection from low-res system clocks */
-    nanoseq++;
-    tv++;
+    /*
+      Current time is ahead of last timestamp, as it should be.
+      If we "borrowed time", give it back, just as long as we
+      stay ahead of the previous timestamp.
+    */
+    if (nanoseq)
+    {
+      DBUG_ASSERT((tv > uuid_time) && (nanoseq > 0));
+      /*
+        -1 so we won't make tv= uuid_time for nanoseq >= (tv - uuid_time)
+      */
+      long delta= min(nanoseq, tv - uuid_time -1);
+      tv-= delta;
+      nanoseq-= delta;
+    }
   }
   else
   {
-    if (nanoseq)
+    if (unlikely(tv == uuid_time))
     {
-      tv-=nanoseq;
-      nanoseq=0;
+      /*
+        For low-res system clocks. If several requests for UUIDs
+        end up on the same tick, we add a nano-second to make them
+        different.
+        ( current_timestamp + nanoseq * calls_in_this_period )
+        may end up > next_timestamp; this is OK. Nonetheless, we'll
+        try to unwind nanoseq when we get a chance to.
+        If nanoseq overflows, we'll start over with a new numberspace
+        (so the if() below is needed so we can avoid the ++tv and thus
+        match the follow-up if() if nanoseq overflows!).
+      */
+      if (likely(++nanoseq))
+        ++tv;
     }
-    DBUG_ASSERT(tv > uuid_time);
+
+    if (unlikely(tv <= uuid_time))
+    {
+      /*
+        If the admin changes the system clock (or due to Daylight
+        Saving Time), the system clock may be turned *back* so we
+        go through a period once more for which we already gave out
+        UUIDs.  To avoid duplicate UUIDs despite potentially identical
+        times, we make a new random component.
+        We also come here if the nanoseq "borrowing" overflows.
+        In either case, we throw away any nanoseq borrowing since it's
+        irrelevant in the new numberspace.
+      */
+      set_clock_seq_str();
+      tv= my_getsystime() + UUID_TIME_OFFSET;
+      nanoseq= 0;
+      DBUG_PRINT("uuid",("making new numberspace"));
+    }
   }
+
   uuid_time=tv;
   pthread_mutex_unlock(&LOCK_uuid_generator);
 
