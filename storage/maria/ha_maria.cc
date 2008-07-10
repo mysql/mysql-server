@@ -3138,15 +3138,9 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
   actual_data_file_length= file->s->state.state.data_file_length;
   current_data_file_length= file->state->data_file_length;
 
-  if (file->s->non_transactional_concurrent_insert &&
-      current_data_file_length != actual_data_file_length)
-  {
-    /* Don't cache current statement. */
-    return FALSE;
-  }
-
-  /* It is ok to try to cache current statement. */
-  return TRUE;
+  /* Return whether is ok to try to cache current statement. */
+  DBUG_RETURN(!(file->s->non_transactional_concurrent_insert &&
+                current_data_file_length != actual_data_file_length));
 }
 #endif
 
