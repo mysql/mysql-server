@@ -593,6 +593,12 @@ int ha_partition::drop_partitions(const char *path)
   int  error= 0;
   DBUG_ENTER("ha_partition::drop_partitions");
 
+  /*
+    Assert that it works without HA_FILE_BASED and lower_case_table_name = 2.
+    We use m_file[0] as long as all partitions have the same storage engine.
+  */
+  DBUG_ASSERT(!strcmp(path, get_canonical_filename(m_file[0], path,
+                                                   part_name_buff)));
   do
   {
     partition_element *part_elem= part_it++;
@@ -681,6 +687,13 @@ int ha_partition::rename_partitions(const char *path)
   handler *file;
   partition_element *part_elem, *sub_elem;
   DBUG_ENTER("ha_partition::rename_partitions");
+
+  /*
+    Assert that it works without HA_FILE_BASED and lower_case_table_name = 2.
+    We use m_file[0] as long as all partitions have the same storage engine.
+  */
+  DBUG_ASSERT(!strcmp(path, get_canonical_filename(m_file[0], path,
+                                                   norm_name_buff)));
 
   if (temp_partitions)
   {
@@ -1276,6 +1289,12 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
   THD *thd= current_thd;
   DBUG_ENTER("ha_partition::change_partitions");
 
+  /*
+    Assert that it works without HA_FILE_BASED and lower_case_table_name = 2.
+    We use m_file[0] as long as all partitions have the same storage engine.
+  */
+  DBUG_ASSERT(!strcmp(path, get_canonical_filename(m_file[0], path,
+                                                   part_name_buff)));
   m_reorged_parts= 0;
   if (!m_part_info->is_sub_partitioned())
     no_subparts= 1;
@@ -1708,8 +1727,10 @@ uint ha_partition::del_ren_cre_table(const char *from,
 {
   int save_error= 0;
   int error;
-  char from_buff[FN_REFLEN], to_buff[FN_REFLEN];
+  char from_buff[FN_REFLEN], to_buff[FN_REFLEN], from_lc_buff[FN_REFLEN],
+       to_lc_buff[FN_REFLEN];
   char *name_buffer_ptr;
+  const char *from_path, *to_path;
   uint i;
   handler **file, **abort_file;
   DBUG_ENTER("del_ren_cre_table()");
@@ -1717,17 +1738,29 @@ uint ha_partition::del_ren_cre_table(const char *from,
   if (get_from_handler_file(from, current_thd->mem_root))
     DBUG_RETURN(TRUE);
   DBUG_ASSERT(m_file_buffer);
+  DBUG_PRINT("enter", ("from: (%s) to: (%s)", from, to));
   name_buffer_ptr= m_name_buffer_ptr;
   file= m_file;
+  /*
+    Since ha_partition has HA_FILE_BASED, it must alter underlying table names
+    if they do not have HA_FILE_BASED and lower_case_table_names == 2.
+    See Bug#37402, for Mac OS X.
+    The appended #P#<partname>[#SP#<subpartname>] will remain in current case.
+    Using the first partitions handler, since mixing handlers is not allowed.
+  */
+  from_path= get_canonical_filename(*file, from, from_lc_buff);
+  if (to != NULL)
+    to_path= get_canonical_filename(*file, to, to_lc_buff);
   i= 0;
   do
   {
-    create_partition_name(from_buff, from, name_buffer_ptr, NORMAL_PART_NAME,
-                          FALSE);
+    create_partition_name(from_buff, from_path, name_buffer_ptr,
+                          NORMAL_PART_NAME, FALSE);
+
     if (to != NULL)
     {						// Rename branch
-      create_partition_name(to_buff, to, name_buffer_ptr, NORMAL_PART_NAME,
-                            FALSE);
+      create_partition_name(to_buff, to_path, name_buffer_ptr,
+                            NORMAL_PART_NAME, FALSE);
       error= (*file)->ha_rename_table(from_buff, to_buff);
     }
     else if (table_arg == NULL)			// delete branch
@@ -1749,7 +1782,7 @@ create_error:
   name_buffer_ptr= m_name_buffer_ptr;
   for (abort_file= file, file= m_file; file < abort_file; file++)
   {
-    create_partition_name(from_buff, from, name_buffer_ptr, NORMAL_PART_NAME,
+    create_partition_name(from_buff, from_path, name_buffer_ptr, NORMAL_PART_NAME,
                           FALSE);
     VOID((*file)->ha_delete_table((const char*) from_buff));
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
