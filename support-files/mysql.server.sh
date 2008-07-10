@@ -150,24 +150,47 @@ parse_manager_arguments() {
 }
 
 wait_for_pid () {
+  verb="$1"
+  manager_pid="$2"  # process ID of the program operating on the pid-file
   i=0
+  avoid_race_condition="by checking again"
   while test $i -ne $service_startup_timeout ; do
-    sleep 1
-    case "$1" in
+
+    case "$verb" in
       'created')
+        # wait for a PID-file to pop into existence.
         test -s $pid_file && i='' && break
-        kill -0 $2 || break # if the program goes away, stop waiting
         ;;
       'removed')
+        # wait for this PID-file to disappear
         test ! -s $pid_file && i='' && break
         ;;
       *)
-        echo "wait_for_pid () usage: wait_for_pid created|removed"
+        echo "wait_for_pid () usage: wait_for_pid created|removed manager_pid"
         exit 1
         ;;
     esac
+
+    # if manager isn't running, then pid-file will never be updated
+    if test -n "$manager_pid"; then
+      if kill -0 "$manager_pid" 2>/dev/null; then
+        :  # the manager still runs
+      else
+        # The manager may have exited between the last pid-file check and now.  
+        if test -n "$avoid_race_condition"; then
+          avoid_race_condition=""
+          continue  # Check again.
+        fi
+
+        # there's nothing that will affect the file.
+        log_failure_msg "Manager of pid-file quit without updating file."
+        return 1  # not waiting any more.
+      fi
+    fi
+
     echo $echo_n ".$echo_c"
     i=`expr $i + 1`
+    sleep 1
   done
 
   if test -z "$i" ; then
@@ -335,7 +358,7 @@ case "$mode" in
       echo $echo_n "Shutting down MySQL"
       kill $mysqlmanager_pid
       # mysqlmanager should remove the pid_file when it exits, so wait for it.
-      wait_for_pid removed; return_value=$?
+      wait_for_pid removed "$mysqlmanager_pid"; return_value=$?
 
       # delete lock for RedHat / SuSE
       if test -f $lock_dir

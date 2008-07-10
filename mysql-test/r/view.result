@@ -3618,4 +3618,47 @@ ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default val
 set @@sql_mode=@old_mode;
 drop view v1;
 drop table t1;
-End of 5.0 tests.
+create table t1 (a int, key(a));
+create table t2 (c int);
+create view v1 as select a b from t1;
+create view v2 as select 1 a from t2, v1 where c in 
+(select 1 from t1 where b = a);
+insert into t1 values (1), (1);
+insert into t2 values (1), (1);
+prepare stmt from "select * from v2 where a = 1";
+execute stmt;
+a
+1
+1
+1
+1
+drop view v1, v2;
+drop table t1, t2;
+CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT p.a AS a FROM t1 p, t1 q;
+INSERT INTO t1 VALUES (1), (1);
+SELECT MAX(a), COUNT(DISTINCT a) FROM v1 GROUP BY a;
+MAX(a)	COUNT(DISTINCT a)
+1	1
+DROP VIEW v1;
+DROP TABLE t1;
+# -----------------------------------------------------------------
+# -- Bug#34337: Server crash when Altering a view using a table name.
+# -----------------------------------------------------------------
+
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1(c1 INT);
+
+SELECT * FROM t1;
+c1
+ALTER ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW t1 (c2) AS SELECT (1);
+ERROR HY000: 'test.t1' is not VIEW
+
+DROP TABLE t1;
+
+# -- End of test case for Bug#34337.
+
+# -----------------------------------------------------------------
+# -- End of 5.0 tests.
+# -----------------------------------------------------------------

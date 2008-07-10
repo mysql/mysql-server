@@ -1,0 +1,559 @@
+DROP DATABASE IF EXISTS test1;
+CREATE DATABASE test1;
+USE test;
+USE test;
+USE test;
+DROP TABLE IF EXISTS t1, t2, t4, t10, t11;
+CREATE TABLE t1  (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = NDB;
+CREATE TABLE t2  (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = NDB;
+CREATE TABLE t4  (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = NDB;
+CREATE TABLE t10 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = NDB;
+CREATE TABLE t11 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = NDB;
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t1;
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t2;
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t4;
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t10;
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t11;
+drop TABLE if exists t3;
+CREATE TABLE t3 (f1 char(20), f2 char(20), f3 integer) ENGINE = NDB;
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t3.txt' INTO TABLE t3;
+drop database if exists test4;
+CREATE database test4;
+use test4;
+CREATE TABLE t6 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = NDB;
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t6;
+use test;
+drop TABLE if exists t7, t8;
+CREATE TABLE t7 (f1 char(20), f2 char(25), f3 date, f4 int) ENGINE = NDB;
+CREATE TABLE t8 (f1 char(20), f2 char(25), f3 date, f4 int) ENGINE = NDB;
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' INTO TABLE t7;
+Warnings:
+Warning	1265	Data truncated for column 'f3' at row 1
+Warning	1265	Data truncated for column 'f3' at row 2
+Warning	1265	Data truncated for column 'f3' at row 3
+Warning	1265	Data truncated for column 'f3' at row 4
+Warning	1265	Data truncated for column 'f3' at row 5
+Warning	1265	Data truncated for column 'f3' at row 6
+Warning	1265	Data truncated for column 'f3' at row 7
+Warning	1265	Data truncated for column 'f3' at row 8
+Warning	1265	Data truncated for column 'f3' at row 9
+Warning	1265	Data truncated for column 'f3' at row 10
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' INTO TABLE t8;
+Warnings:
+Warning	1265	Data truncated for column 'f3' at row 1
+Warning	1265	Data truncated for column 'f3' at row 2
+Warning	1265	Data truncated for column 'f3' at row 3
+Warning	1265	Data truncated for column 'f3' at row 4
+Warning	1265	Data truncated for column 'f3' at row 5
+Warning	1265	Data truncated for column 'f3' at row 6
+Warning	1265	Data truncated for column 'f3' at row 7
+Warning	1265	Data truncated for column 'f3' at row 8
+Warning	1265	Data truncated for column 'f3' at row 9
+Warning	1265	Data truncated for column 'f3' at row 10
+drop TABLE if exists t9;
+CREATE TABLE t9 (f1 int, f2 char(25), f3 int) ENGINE = NDB;
+LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' INTO TABLE t9;
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+SELECT *,
+LEFT( table_comment,
+IF(INSTR(table_comment,'InnoDB free') = 0
+AND INSTR(table_comment,'number_of_replicas') = 0,
+LENGTH(table_comment),
+INSTR(table_comment,'InnoDB free')
++ INSTR(table_comment,'number_of_replicas') - 1))
+AS "user_comment",
+'-----------------------------------------------------' AS "Separator"
+FROM information_schema.tables
+WHERE table_schema LIKE 'test%' AND table_type = 'BASE TABLE'
+ORDER BY table_schema,table_name;
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t1
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t10
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t11
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t2
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t3
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t4
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t7
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t8
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t9
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test4
+TABLE_NAME	t6
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+DROP   USER testuser1@localhost;
+CREATE USER testuser1@localhost;
+GRANT SELECT ON db_datadict.* TO testuser1@localhost;
+# Establish connection testuser1 (user=testuser1)
+SELECT *,
+LEFT( table_comment,
+IF(INSTR(table_comment,'InnoDB free') = 0
+AND INSTR(table_comment,'number_of_replicas') = 0,
+LENGTH(table_comment),
+INSTR(table_comment,'InnoDB free')
++ INSTR(table_comment,'number_of_replicas') - 1))
+AS "user_comment",
+'-----------------------------------------------------' AS "Separator"
+FROM information_schema.tables
+WHERE table_schema LIKE 'test%' AND table_type = 'BASE TABLE'
+ORDER BY table_schema,table_name;
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t1
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t10
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t11
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t2
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t3
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t4
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t7
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t8
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test
+TABLE_NAME	t9
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	test4
+TABLE_NAME	t6
+TABLE_TYPE	BASE TABLE
+ENGINE	ndbcluster
+VERSION	10
+ROW_FORMAT	Fixed
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+# Switch to connection default and close connection testuser1
+DROP USER testuser1@localhost;
+DROP DATABASE db_datadict;
+DROP DATABASE test1;
+DROP DATABASE test4;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE test.t3;
+DROP TABLE test.t4;
+DROP TABLE test.t7;
+DROP TABLE test.t8;
+DROP TABLE test.t9;
+DROP TABLE test.t10;
+DROP TABLE test.t11;

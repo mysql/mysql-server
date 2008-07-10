@@ -454,6 +454,8 @@ public:
 
 class Field_longstr :public Field_str
 {
+protected:
+  int report_if_important_data(const char *ptr, const char *end);
 public:
   Field_longstr(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                 uchar null_bit_arg, utype unireg_check_arg,

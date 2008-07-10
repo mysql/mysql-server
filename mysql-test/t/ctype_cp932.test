@@ -404,8 +404,10 @@ DROP TABLE t4;
 
 SET collation_connection='cp932_japanese_ci';
 -- source include/ctype_filesort.inc
+-- source include/ctype_like_range_f1f2.inc
 SET collation_connection='cp932_bin';
 -- source include/ctype_filesort.inc
+-- source include/ctype_like_range_f1f2.inc
 
 #
 # Bug#29333 myisam corruption with

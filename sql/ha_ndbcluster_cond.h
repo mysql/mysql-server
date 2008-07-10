@@ -228,6 +228,7 @@ public:
     case (Item_func::ISNOTNULL_FUNC): { return NDB_ISNOTNULL_FUNC; }
     case (Item_func::LIKE_FUNC): { return NDB_LIKE_FUNC; }
     case (Item_func::NOT_FUNC): { return NDB_NOT_FUNC; }
+    case (Item_func::NEG_FUNC): { return NDB_UNKNOWN_FUNC; }
     case (Item_func::UNKNOWN_FUNC): { return NDB_UNKNOWN_FUNC; }
     case (Item_func::COND_AND_FUNC): { return NDB_COND_AND_FUNC; }
     case (Item_func::COND_OR_FUNC): { return NDB_COND_OR_FUNC; }

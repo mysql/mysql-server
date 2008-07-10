@@ -699,7 +699,20 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
   while (*slave_running)			// Should always be true
   {
     DBUG_PRINT("loop", ("killing slave thread"));
-    KICK_SLAVE(thd);
+
+    pthread_mutex_lock(&thd->LOCK_delete);
+#ifndef DONT_USE_THR_ALARM
+    /*
+      Error codes from pthread_kill are:
+      EINVAL: invalid signal number (can't happen)
+      ESRCH: thread already killed (can happen, should be ignored)
+    */
+    IF_DBUG(int err= ) pthread_kill(thd->real_id, thr_client_alarm);
+    DBUG_ASSERT(err != EINVAL);
+#endif
+    thd->awake(THD::NOT_KILLED);
+    pthread_mutex_unlock(&thd->LOCK_delete);
+
     /*
       There is a small chance that slave thread might miss the first
       alarm. To protect againts it, resend the signal until it reacts
@@ -2685,7 +2698,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
                                     longlong timeout)
 {
   if (!inited)
-    return -1;
+    return -2;
   int event_count = 0;
   ulong init_abort_pos_wait;
   int error=0;
@@ -2896,6 +2909,9 @@ void set_slave_thread_default_charset(THD* thd, RELAY_LOG_INFO *rli)
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
+#if !defined(DBUG_OFF)
+  int simulate_error= 0;
+#endif
   thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO; 
   thd->security_ctx->skip_grants();
@@ -2915,10 +2931,17 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->thread_id = thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
+  DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
+                  simulate_error|= (1 << SLAVE_THD_IO););
+  DBUG_EXECUTE_IF("simulate_sql_slave_error_on_init",
+                  simulate_error|= (1 << SLAVE_THD_SQL););
+#if !defined(DBUG_OFF)
+  if (init_thr_lock() || thd->store_globals() || simulate_error & (1<< thd_type))
+#else
   if (init_thr_lock() || thd->store_globals())
+#endif
   {
     thd->cleanup();
-    delete thd;
     DBUG_RETURN(-1);
   }
 
@@ -3115,6 +3138,11 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
      Check if condition stated in UNTIL clause of START SLAVE is reached.
    SYNOPSYS
      st_relay_log_info::is_until_satisfied()
+     master_beg_pos    position of the beginning of to be executed event
+                       (not log_pos member of the event that points to the
+                        beginning of the following event)
+
+
    DESCRIPTION
      Checks if UNTIL condition is reached. Uses caching result of last 
      comparison of current log file name and target log file name. So cached 
@@ -3139,7 +3167,7 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
      false - condition not met
 */
 
-bool st_relay_log_info::is_until_satisfied()
+bool st_relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
 {
   const char *log_name;
   ulonglong log_pos;
@@ -3149,7 +3177,7 @@ bool st_relay_log_info::is_until_satisfied()
   if (until_condition == UNTIL_MASTER_POS)
   {
     log_name= group_master_log_name;
-    log_pos= group_master_log_pos;
+    log_pos= master_beg_pos;
   }
   else
   { /* until_condition == UNTIL_RELAY_POS */
@@ -3228,28 +3256,6 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
      wait for something for example inside of next_event().
    */
   pthread_mutex_lock(&rli->data_lock);
-  /*
-    This tests if the position of the end of the last previous executed event
-    hits the UNTIL barrier.
-    We would prefer to test if the position of the start (or possibly) end of
-    the to-be-read event hits the UNTIL barrier, this is different if there
-    was an event ignored by the I/O thread just before (BUG#13861 to be
-    fixed).
-  */
-  if (rli->until_condition!=RELAY_LOG_INFO::UNTIL_NONE &&
-      rli->is_until_satisfied())
-  {
-    char buf[22];
-    sql_print_information("Slave SQL thread stopped because it reached its"
-                    " UNTIL position %s", llstr(rli->until_pos(), buf));
-    /*
-      Setting abort_slave flag because we do not want additional message about
-      error in query execution to be printed.
-    */
-    rli->abort_slave= 1;
-    pthread_mutex_unlock(&rli->data_lock);
-    return 1;
-  }
 
   Log_event * ev = next_event(rli);
 
@@ -3266,6 +3272,27 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     int type_code = ev->get_type_code();
     int exec_res;
 
+    /*
+      This tests if the position of the beginning of the current event
+      hits the UNTIL barrier.
+    */
+    if (rli->until_condition != RELAY_LOG_INFO::UNTIL_NONE &&
+        rli->is_until_satisfied((thd->options & OPTION_BEGIN || !ev->log_pos) ?
+                                rli->group_master_log_pos :
+                                ev->log_pos - ev->data_written))
+    {
+      char buf[22];
+      sql_print_information("Slave SQL thread stopped because it reached its"
+                            " UNTIL position %s", llstr(rli->until_pos(), buf));
+      /*
+        Setting abort_slave flag because we do not want additional message about
+        error in query execution to be printed.
+      */
+      rli->abort_slave= 1;
+      pthread_mutex_unlock(&rli->data_lock);
+      delete ev;
+      return 1;
+    }
     /*
       Queries originating from this server must be skipped.
       Low-level events (Format_desc, Rotate, Stop) from this server
@@ -3516,6 +3543,7 @@ slave_begin:
 
   thd= new THD; // note that contructor of THD uses DBUG_ !
   THD_CHECK_SENTRY(thd);
+  mi->io_thd = thd;
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
@@ -3526,7 +3554,6 @@ slave_begin:
     sql_print_error("Failed during slave I/O thread initialization");
     goto err;
   }
-  mi->io_thd = thd;
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -3866,9 +3893,11 @@ slave_begin:
 
   thd = new THD; // note that contructor of THD uses DBUG_ !
   thd->thread_stack = (char*)&thd; // remember where our stack is
+  rli->sql_thd= thd;
   
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
+  rli->slave_running = 1;
 
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_SQL))
@@ -3883,7 +3912,6 @@ slave_begin:
     goto err;
   }
   thd->init_for_queries();
-  rli->sql_thd= thd;
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
@@ -3896,7 +3924,6 @@ slave_begin:
     start receiving data so we realize we are not caught up and
     Seconds_Behind_Master grows. No big deal.
   */
-  rli->slave_running = 1;
   rli->abort_slave = 0;
   pthread_mutex_unlock(&rli->run_lock);
   pthread_cond_broadcast(&rli->start_cond);
@@ -3976,6 +4003,22 @@ Slave SQL thread aborted. Can't execute init_slave query");
       goto err;
     }
   }
+
+  /*
+    First check until condition - probably there is nothing to execute. We
+    do not want to wait for next event in this case.
+  */
+  pthread_mutex_lock(&rli->data_lock);
+  if (rli->until_condition != RELAY_LOG_INFO::UNTIL_NONE &&
+      rli->is_until_satisfied(rli->group_master_log_pos))
+  {
+    char buf[22];
+    sql_print_information("Slave SQL thread stopped because it reached its"
+                          " UNTIL position %s", llstr(rli->until_pos(), buf));
+    pthread_mutex_unlock(&rli->data_lock);
+    goto err;
+  }
+  pthread_mutex_unlock(&rli->data_lock);
 
   /* Read queries from the IO/THREAD until this thread is killed */
 

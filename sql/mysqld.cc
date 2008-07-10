@@ -475,14 +475,13 @@ char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
+     mysql_unpacked_real_data_home[FN_REFLEN],
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
-
+char *mysql_data_home= mysql_real_data_home;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
-
-char *mysql_data_home= mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
@@ -2399,10 +2398,6 @@ static void init_signals(void)
   struct sigaction sa;
   DBUG_ENTER("init_signals");
 
-  if (test_flags & TEST_SIGINT)
-  {
-    my_sigset(thr_kill_signal, end_thread_signal);
-  }
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
@@ -2439,7 +2434,6 @@ static void init_signals(void)
   (void) sigemptyset(&set);
   my_sigset(SIGPIPE,SIG_IGN);
   sigaddset(&set,SIGPIPE);
-  sigaddset(&set,SIGINT);
 #ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
@@ -2461,9 +2455,12 @@ static void init_signals(void)
     sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
+    my_sigset(thr_kill_signal, end_thread_signal);
     // May be SIGINT
     sigdelset(&set, thr_kill_signal);
   }
+  else
+    sigaddset(&set,SIGINT);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -5936,7 +5933,7 @@ log and this option does nothing anymore.",
    "Data file autoextend increment in megabytes",
    (gptr*) &srv_auto_extend_increment,
    (gptr*) &srv_auto_extend_increment,
-   0, GET_LONG, REQUIRED_ARG, 8L, 1L, 1000L, 0, 1L, 0},
+   0, GET_ULONG, REQUIRED_ARG, 8L, 1L, 1000L, 0, 1L, 0},
   {"innodb_buffer_pool_awe_mem_mb", OPT_INNODB_BUFFER_POOL_AWE_MEM_MB,
    "If Windows AWE is used, the size of InnoDB buffer pool allocated from the AWE memory.",
    (gptr*) &innobase_buffer_pool_awe_mem_mb, (gptr*) &innobase_buffer_pool_awe_mem_mb, 0,
@@ -5949,7 +5946,7 @@ log and this option does nothing anymore.",
   {"innodb_commit_concurrency", OPT_INNODB_COMMIT_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &srv_commit_concurrency, (gptr*) &srv_commit_concurrency,
-   0, GET_LONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},
   {"innodb_concurrency_tickets", OPT_INNODB_CONCURRENCY_TICKETS,
    "Number of times a thread is allowed to enter InnoDB within the same \
     SQL query after it has once got the ticket",
@@ -7750,6 +7747,9 @@ static void fix_paths(void)
     pos[1]= 0;
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
+  (void) fn_format(buff, mysql_real_data_home, "", "",
+                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
+  (void) unpack_dirname(mysql_unpacked_real_data_home, buff);
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);

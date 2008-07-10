@@ -109,11 +109,14 @@ void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
 }
 
 
-#define get_object(p, obj) \
+#define get_object(p, obj, msg) \
 {\
   uint len = (uint)*p++;  \
   if (p + len > p_end || len >= sizeof(obj)) \
+  {\
+    errmsg= msg;\
     goto err; \
+  }\
   strmake(obj,(char*) p,len); \
   p+= len; \
 }\
@@ -158,6 +161,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   int res;
   SLAVE_INFO *si;
   uchar *p= packet, *p_end= packet + packet_length;
+  const char *errmsg= "Wrong parameters to function register_slave";
 
   if (check_access(thd, REPL_SLAVE_ACL, any_db,0,0,0,0))
     return 1;
@@ -166,9 +170,9 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
 
   thd->server_id= si->server_id= uint4korr(p);
   p+= 4;
-  get_object(p,si->host);
-  get_object(p,si->user);
-  get_object(p,si->password);
+  get_object(p,si->host, "Failed to register slave: too long 'report-host'");
+  get_object(p,si->user, "Failed to register slave: too long 'report-user'");
+  get_object(p,si->password, "Failed to register slave; too long 'report-password'");
   if (p+10 > p_end)
     goto err;
   si->port= uint2korr(p);
@@ -187,8 +191,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
 
 err:
   my_free((gptr) si, MYF(MY_WME));
-  my_message(ER_UNKNOWN_ERROR, "Wrong parameters to function register_slave",
-	     MYF(0));
+  my_message(ER_UNKNOWN_ERROR, errmsg, MYF(0)); /* purecov: inspected */
 err2:
   return 1;
 }

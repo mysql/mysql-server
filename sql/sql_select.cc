@@ -360,10 +360,10 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
       }
     }
     new_ref= direct_ref ?
-              new Item_direct_ref(ref->context, item_ref, ref->field_name,
-                          ref->table_name, ref->alias_name_used) :
-              new Item_ref(ref->context, item_ref, ref->field_name,
-                          ref->table_name, ref->alias_name_used);
+              new Item_direct_ref(ref->context, item_ref, ref->table_name,
+                          ref->field_name, ref->alias_name_used) :
+              new Item_ref(ref->context, item_ref, ref->table_name,
+                          ref->field_name, ref->alias_name_used);
     if (!new_ref)
       return TRUE;
     ref->outer_ref= new_ref;
@@ -2899,7 +2899,9 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	  }
 	}
 	else if (old->eq_func && new_fields->eq_func &&
-		 old->val->eq(new_fields->val, old->field->binary()))
+                 old->val->eq_by_collation(new_fields->val, 
+                                           old->field->binary(),
+                                           old->field->charset()))
 
 	{
 	  old->level= and_level;
@@ -10806,7 +10808,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         we found a row, as no new rows can be added to the result.
       */
       if (not_used_in_distinct && found_records != join->found_records)
-        return NESTED_LOOP_OK;
+        return NESTED_LOOP_NO_MORE_ROWS;
     }
     else
       join_tab->read_record.file->unlock_row();
@@ -11183,19 +11185,42 @@ join_read_key(JOIN_TAB *tab)
 }
 
 
+/*
+  ref access method implementation: "read_first" function
+
+  SYNOPSIS
+    join_read_always_key()
+      tab  JOIN_TAB of the accessed table
+
+  DESCRIPTION
+    This is "read_fist" function for the "ref" access method.
+   
+    The functon must leave the index initialized when it returns.
+    ref_or_null access implementation depends on that.
+
+  RETURN
+    0  - Ok
+   -1  - Row not found 
+    1  - Error
+*/
+
 static int
 join_read_always_key(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
 
+  /* Initialize the index first */
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key);
+
+  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   for (uint i= 0 ; i < tab->ref.key_parts ; i++)
   {
     if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
         return -1;
-  } 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key);
+  }
+
   if (cp_buffer_from_ref(tab->join->thd, &tab->ref))
     return -1;
   if ((error=table->file->index_read(table->record[0],

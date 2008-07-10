@@ -8511,7 +8511,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_strnncollsp_simple,
     my_strnxfrm_simple,	/* strnxfrm     */
     my_strnxfrmlen_simple,
-    my_like_range_simple,/* like_range   */
+    my_like_range_mb,   /* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
     my_strcasecmp_mb,
     my_instr_mb,

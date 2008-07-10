@@ -1,6 +1,9 @@
 #### suite/funcs_1/t/innodb_storedproc.test
 #
 
+--source include/have_innodb.inc
 let $engine_type= innodb;
+
+--source suite/funcs_1/storedproc/load_sp_tb.inc
 
 --source suite/funcs_1/storedproc/storedproc_master.inc

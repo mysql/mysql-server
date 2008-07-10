@@ -35,6 +35,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   READ_RECORD	info;
   bool          using_limit=limit != HA_POS_ERROR;
   bool		transactional_table, safe_update, const_cond;
+  bool          triggers_applicable;
   ha_rows	deleted;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
@@ -93,6 +94,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   select_lex->no_error= thd->lex->ignore;
 
+  /* NOTE: TRUNCATE must not invoke triggers. */
+
+  triggers_applicable= table->triggers &&
+                       thd->lex->sql_command != SQLCOM_TRUNCATE;
+
   /*
     Test if the user wants to delete all rows and deletion doesn't have
     any side-effects (because of triggers), so we can use optimized
@@ -102,8 +108,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   */
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
-      (thd->lex->sql_command == SQLCOM_TRUNCATE ||
-       !(table->triggers && table->triggers->has_delete_triggers()))
+      !(triggers_applicable && table->triggers->has_delete_triggers())
      )
   {
     deleted= table->file->records;
@@ -217,7 +222,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   init_ftfuncs(thd, select_lex, 1);
   thd_proc_info(thd, "updating");
 
-  if (table->triggers)
+  if (triggers_applicable)
   {
     table->triggers->mark_fields_used(thd, TRG_EVENT_DELETE);
     if (table->triggers->has_triggers(TRG_EVENT_DELETE,
@@ -239,7 +244,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     if (!(select && select->skip_record())&& !thd->net.report_error )
     {
 
-      if (table->triggers &&
+      if (triggers_applicable &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                             TRG_ACTION_BEFORE, FALSE))
       {
@@ -250,7 +255,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       if (!(error=table->file->delete_row(table->record[0])))
       {
 	deleted++;
-        if (table->triggers &&
+        if (triggers_applicable &&
             table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                               TRG_ACTION_AFTER, FALSE))
         {
@@ -730,8 +735,6 @@ void multi_delete::send_error(uint errcode,const char *err)
     }
     thd->transaction.all.modified_non_trans_table= true;
   }
-  DBUG_ASSERT(!normal_tables || !deleted ||
-              thd->transaction.stmt.modified_non_trans_table);
   DBUG_VOID_RETURN;
 }
 
@@ -839,8 +842,6 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-  DBUG_ASSERT(!normal_tables || !deleted ||
-              thd->transaction.stmt.modified_non_trans_table);
   if ((local_error == 0) || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())

@@ -1486,7 +1486,7 @@ my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql)
 
 const char *STDCALL mysql_sqlstate(MYSQL *mysql)
 {
-  return mysql->net.sqlstate;
+  return mysql ? mysql->net.sqlstate : cant_connect_sqlstate;
 }
 
 uint STDCALL mysql_warning_count(MYSQL *mysql)
@@ -2456,7 +2456,7 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   int4store(buff+5, 1);                         /* iteration count */
 
   res= test(cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
-                                 packet, length, 1, NULL) ||
+                                 packet, length, 1, stmt) ||
             (*mysql->methods->read_query_result)(mysql));
   stmt->affected_rows= mysql->affected_rows;
   stmt->server_status= mysql->server_status;
@@ -2673,7 +2673,7 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
     int4store(buff + 4, stmt->prefetch_rows); /* number of rows to fetch */
     if ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH,
                                             buff, sizeof(buff), NullS, 0,
-                                            1, NULL))
+                                            1, stmt))
     {
       set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
       return 1;
@@ -3340,7 +3340,7 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
     */
     if ((*mysql->methods->advanced_command)(mysql, COM_STMT_SEND_LONG_DATA,
                                             buff, sizeof(buff), data,
-                                            length, 1, NULL))
+                                            length, 1, stmt))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error,
 		      mysql->net.last_errno, mysql->net.sqlstate);
@@ -4737,6 +4737,13 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
   MYSQL_DATA *result= &stmt->result;
   DBUG_ENTER("mysql_stmt_store_result");
 
+  if (!mysql)
+  {
+    /* mysql can be reset in mysql_close called from mysql_reconnect */
+    set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate);
+    DBUG_RETURN(1);
+  }
+
   mysql= mysql->last_used_con;
 
   if (!stmt->field_count)
@@ -4762,7 +4769,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     int4store(buff, stmt->stmt_id);
     int4store(buff + 4, (int)~0); /* number of rows to fetch */
     if (cli_advanced_command(mysql, COM_STMT_FETCH, buff, sizeof(buff),
-                             NullS, 0, 1, NULL))
+                             NullS, 0, 1, stmt))
     {
       set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
       DBUG_RETURN(1);
@@ -4949,7 +4956,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
         char buff[MYSQL_STMT_HEADER]; /* packet header: 4 bytes for stmt id */
         int4store(buff, stmt->stmt_id);
         if ((*mysql->methods->advanced_command)(mysql, COM_STMT_RESET, buff,
-                                                sizeof(buff), 0, 0, 0, NULL))
+                                                sizeof(buff), 0, 0, 0, stmt))
         {
           set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                           mysql->net.sqlstate);

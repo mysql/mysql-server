@@ -608,6 +608,7 @@ drop database mysqltest;
 #
 --disable_warnings
 drop view if exists v1;
+drop table if exists t1;
 --enable_warnings
 
 # Backup anonymous users and remove them. (They get in the way of

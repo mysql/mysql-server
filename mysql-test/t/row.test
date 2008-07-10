@@ -224,3 +224,16 @@ SET @x:= (SELECT h FROM t1 WHERE (a,b,c,d,e,f,g)=(1,2,3,4,5,6,7));
 SELECT @x;
 
 DROP TABLE t1;
+
+#
+# Bug #34620: item_row.cc:50: Item_row::illegal_method_call(const char*):
+#             Assertion `0' failed
+#
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1);
+
+SELECT ROW(a, 1) IN (SELECT SUM(b), 1) FROM t1 GROUP BY a;
+SELECT ROW(a, 1) IN (SELECT SUM(b), 3) FROM t1 GROUP BY a;
+
+DROP TABLE t1;

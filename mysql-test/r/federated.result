@@ -2045,6 +2045,32 @@ select 1 from t1 order by a;
 drop table t1;
 drop table t1;
 drop view v1;
+CREATE TABLE t1 (a INT, b INT, KEY(a,b));
+INSERT INTO t1 VALUES(NULL,1),(1,NULL),(NULL,NULL),(1,1),(2,2);
+CREATE TABLE t1 (a INT, b INT, KEY(a,b)) ENGINE=federated
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+SELECT * FROM t1 WHERE a IS NULL;
+a	b
+NULL	NULL
+NULL	1
+SELECT * FROM t1 WHERE a IS NOT NULL;
+a	b
+1	NULL
+1	1
+2	2
+SELECT * FROM t1 WHERE a=1 AND b=1;
+a	b
+1	1
+SELECT * FROM t1 WHERE a IS NULL AND b=1;
+a	b
+NULL	1
+SELECT * FROM t1 WHERE a IS NOT NULL AND b=1;
+a	b
+1	1
+DROP TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT) ENGINE=federated CONNECTION='mysql://@:://';
+DROP TABLE t1;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
