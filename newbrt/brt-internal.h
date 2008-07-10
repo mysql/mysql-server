@@ -151,6 +151,7 @@ struct brt {
     void *skey,*sval; /* Used for DBT return values. */
 
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
+    u_int64_t txn_that_created; // which txn created it.  Use  0 if no such txn.
 };
 
 /* serialization code */

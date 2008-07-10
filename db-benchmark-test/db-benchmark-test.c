@@ -41,6 +41,7 @@ int prelock  = 0;
 int prelockflag = 0;
 int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
+int singlex = 0;  // Do a single transaction
 int do_transactions = 0;
 int n_insertions_since_txn_began=0;
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
@@ -108,7 +109,8 @@ void setup (void) {
     assert(r == 0);
 
     if (do_transactions) {
-	r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
+	r=dbenv->txn_begin(dbenv, 0, &tid, 0); CKERR(r);
+	if (singlex) do_prelock(db, tid);
     }
     if (pagesize && db->set_pagesize) {
         r = db->set_pagesize(db, pagesize); 
@@ -121,7 +123,7 @@ void setup (void) {
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, 0644);
     if (r!=0) fprintf(stderr, "errno=%d, %s\n", errno, strerror(errno));
     assert(r == 0);
-    if (do_transactions) {
+    if (do_transactions && !singlex) {
 	r=tid->commit(tid, 0);    assert(r==0);
     }
 
@@ -130,6 +132,10 @@ void setup (void) {
 void shutdown (void) {
     int r;
     
+    if (do_transactions && singlex) {
+	r=tid->commit(tid, 0);    assert(r==0);
+    }
+
     r = db->close(db, 0);
     assert(r == 0);
     r = dbenv->close(dbenv, 0);
@@ -159,7 +165,7 @@ void insert (long long v) {
     int r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), put_flags);
     CKERR(r);
     if (do_transactions) {
-	if (n_insertions_since_txn_began>=items_per_transaction) {
+	if (n_insertions_since_txn_began>=items_per_transaction && !singlex) {
 	    n_insertions_since_txn_began=0;
 	    r = tid->commit(tid, 0); assert(r==0);
 	    r=dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
@@ -172,7 +178,7 @@ void insert (long long v) {
 
 void serial_insert_from (long long from) {
     long long i;
-    if (do_transactions) {
+    if (do_transactions && !singlex) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
         do_prelock(db, tid);
 	{
@@ -185,7 +191,7 @@ void serial_insert_from (long long from) {
     for (i=0; i<items_per_iteration; i++) {
 	insert((from+i)*SERIAL_SPACING);
     }
-    if (do_transactions) {
+    if (do_transactions && !singlex) {
 	int  r= tid->commit(tid, 0);             assert(r==0);
 	tid=0;
     }
@@ -197,14 +203,14 @@ long long llrandom (void) {
 
 void random_insert_below (long long below) {
     long long i;
-    if (do_transactions) {
+    if (do_transactions && !singlex) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
         do_prelock(db, tid);
     }
     for (i=0; i<items_per_iteration; i++) {
 	insert(llrandom()%below);
     }
-    if (do_transactions) {
+    if (do_transactions && !singlex) {
 	int  r= tid->commit(tid, 0);             assert(r==0);
 	tid=0;
     }
@@ -251,6 +257,7 @@ int print_usage (const char *argv0) {
     fprintf(stderr, "    --pagesize PAGESIZE sets the database page size\n");
     fprintf(stderr, "    --noserial         causes the serial insertions to be skipped\n");
     fprintf(stderr, "    --xcount N         how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
+    fprintf(stderr, "    --singlex          Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
     fprintf(stderr, "    --periter N      how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
     fprintf(stderr, "    --DB_INIT_TXN (1|0) turn on or turn off the DB_INIT_TXN env_open_flag\n");
     fprintf(stderr, "    --DB_INIT_LOG (1|0) turn on or turn off the DB_INIT_LOG env_open_flag\n");
@@ -273,7 +280,6 @@ int main (int argc, const char *argv[]) {
 	    verbose--; if (verbose<0) verbose=0;
 	} else if (strcmp(arg, "-x") == 0) {
             do_transactions = 1;
-            env_open_flags += DB_INIT_TXN | DB_INIT_LOG | DB_INIT_LOCK;
         } else if (strcmp(arg, "--DB_INIT_TXN") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             if (atoi(argv[++i]))
@@ -294,6 +300,9 @@ int main (int argc, const char *argv[]) {
 	    noserial=1;
 	} else if (strcmp(arg, "--norandom") == 0) {
 	    norandom=1;
+	} else if (strcmp(arg, "--singlex") == 0) {
+	    do_transactions = 1;
+	    singlex = 1;
 	} else if (strcmp(arg, "--xcount") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             items_per_transaction = strtoll(argv[++i], 0, 10);
@@ -326,6 +335,9 @@ int main (int argc, const char *argv[]) {
         } else {
 	    return print_usage(argv[0]);
 	}
+    }
+    if (do_transactions) {
+	env_open_flags |= DB_INIT_TXN | DB_INIT_LOG | DB_INIT_LOCK;
     }
     if (do_transactions && prelockflag) {
         put_flags |= DB_PRELOCKED_WRITE;
