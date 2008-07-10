@@ -25,6 +25,13 @@ insert into t1 values (1);
 --exec $NDB_MGM --no-defaults -e "all restart" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
 
+# Create separate connection and use that for detecting
+# when mysqld has reconnected to ndbd
+connect (ndb_wait_con,127.0.0.1,root,,test,$MASTER_MYPORT,);
+--source include/ndb_wait_connected.inc
+disconnect ndb_wait_con;
+connection server1;
+
 --error 1297
 insert into t1 values (2);
 --error 1296
@@ -44,6 +51,7 @@ select * from t2 order by a limit 3;
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
 
 --connection server2
+--source include/ndb_wait_connected.inc
 create table t2 (a int key) engine=ndbcluster;
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 select * from t2 order by a limit 3;
@@ -58,6 +66,7 @@ select * from t2 order by a limit 3;
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
 
 --connection server1
+--source include/ndb_wait_connected.inc
 show tables;
 create table t2 (a int key) engine=ndbcluster;
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);

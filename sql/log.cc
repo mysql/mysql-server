@@ -122,6 +122,20 @@ static int binlog_prepare(THD *thd, bool all)
   return 0;
 }
 
+/**
+  This function is called once after each statement.
+
+  It has the responsibility to flush the transaction cache to the
+  binlog file on commits.
+
+  @param thd   The client thread that executes the transaction.
+  @param all   true if this is the last statement before a COMMIT
+               statement; false if either this is a statement in a
+               transaction but not the last, or if this is a statement
+               not inside a BEGIN block and autocommit is on.
+
+  @see handlerton::commit
+*/
 static int binlog_commit(THD *thd, bool all)
 {
   IO_CACHE *trans_log= (IO_CACHE*)thd->ha_data[binlog_hton.slot];
@@ -134,7 +148,15 @@ static int binlog_commit(THD *thd, bool all)
     // we're here because trans_log was flushed in MYSQL_LOG::log_xid()
     DBUG_RETURN(0);
   }
-  if (all)
+  /*
+    Write commit event if at least one of the following holds:
+     - the user sends an explicit COMMIT; or
+     - the autocommit flag is on, and we are not inside a BEGIN.
+    However, if the user has not sent an explicit COMMIT, and we are
+    either inside a BEGIN or run with autocommit off, then this is not
+    the end of a transaction and we should not write a commit event.
+  */
+  if (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
@@ -144,6 +166,22 @@ static int binlog_commit(THD *thd, bool all)
     DBUG_RETURN(binlog_end_trans(thd, trans_log, &invisible_commit));
 }
 
+/**
+  This function is called when a transaction involving a transactional
+  table is rolled back.
+
+  It has the responsibility to flush the transaction cache to the
+  binlog file. However, if the transaction does not involve
+  non-transactional tables, nothing needs to be logged.
+
+  @param thd   The client thread that executes the transaction.
+  @param all   true if this is the last statement before a COMMIT
+               statement; false if either this is a statement in a
+               transaction but not the last, or if this is a statement
+               not inside a BEGIN block and autocommit is on.
+
+  @see handlerton::rollback
+*/
 static int binlog_rollback(THD *thd, bool all)
 {
   int error=0;
@@ -1284,10 +1322,10 @@ err:
 void MYSQL_LOG::make_log_name(char* buf, const char* log_ident)
 {
   uint dir_len = dirname_length(log_file_name); 
-  if (dir_len > FN_REFLEN)
+  if (dir_len >= FN_REFLEN)
     dir_len=FN_REFLEN-1;
   strnmov(buf, log_file_name, dir_len);
-  strmake(buf+dir_len, log_ident, FN_REFLEN - dir_len);
+  strmake(buf+dir_len, log_ident, FN_REFLEN - dir_len -1);
 }
 
 
@@ -1817,9 +1855,11 @@ uint MYSQL_LOG::next_file_id()
   IMPLEMENTATION
     - To support transaction over replication, we wrap the transaction
       with BEGIN/COMMIT or BEGIN/ROLLBACK in the binary log.
-      We want to write a BEGIN/ROLLBACK block when a non-transactional table
-      was updated in a transaction which was rolled back. This is to ensure
-      that the same updates are run on the slave.
+      If a transaction that only involves transactional tables is
+      rolled back, we do not binlog it. However, we write a
+      BEGIN/ROLLBACK block when a non-transactional table was updated
+      in a transaction which was rolled back. This is to ensure that
+      the same updates are run on the slave.
 */
 
 bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
@@ -1837,32 +1877,34 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
     byte header[LOG_EVENT_HEADER_LEN];
 
     /*
-      Log "BEGIN" at the beginning of the transaction.
-      which may contain more than 1 SQL statement.
+      Log "BEGIN" at the beginning of every transaction.  Here, a
+      transaction is either a BEGIN..COMMIT block or a single
+      statement in autocommit mode.
     */
-    if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
-    {
-      Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE);
-      /*
-        Imagine this is rollback due to net timeout, after all statements of
-        the transaction succeeded. Then we want a zero-error code in BEGIN.
-        In other words, if there was a really serious error code it's already
-        in the statement's events, there is no need to put it also in this
-        internally generated event, and as this event is generated late it
-        would lead to false alarms.
-        This is safer than thd->clear_error() against kills at shutdown.
-      */
-      qinfo.error_code= 0;
-      /*
-        Now this Query_log_event has artificial log_pos 0. It must be adjusted
-        to reflect the real position in the log. Not doing it would confuse the
-	slave: it would prevent this one from knowing where he is in the
-	master's binlog, which would result in wrong positions being shown to
-	the user, MASTER_POS_WAIT undue waiting etc.
-      */
-      if (qinfo.write(&log_file))
-	goto err;
-    }
+    Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE);
+    /*
+      Imagine this is rollback due to net timeout, after all
+      statements of the transaction succeeded. Then we want a
+      zero-error code in BEGIN.  In other words, if there was a
+      really serious error code it's already in the statement's
+      events, there is no need to put it also in this internally
+      generated event, and as this event is generated late it would
+      lead to false alarms.
+
+      This is safer than thd->clear_error() against kills at shutdown.
+    */
+    qinfo.error_code= 0;
+    /*
+      Now this Query_log_event has artificial log_pos 0. It must be
+      adjusted to reflect the real position in the log. Not doing it
+      would confuse the slave: it would prevent this one from
+      knowing where he is in the master's binlog, which would result
+      in wrong positions being shown to the user, MASTER_POS_WAIT
+      undue waiting etc.
+    */
+    if (qinfo.write(&log_file))
+      goto err;
+
     /* Read from the file used to cache the queries .*/
     if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
       goto err;

@@ -152,7 +152,6 @@ if [ x"$TARGET" != x"release" ] ; then
   cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
 fi
 cp tests/$TARGET/*.exe                                   $DESTDIR/bin/
-cp libmysql/$TARGET/*.exe                                $DESTDIR/bin/
 cp libmysql/$TARGET/libmysql.dll                         $DESTDIR/bin/
 
 # FIXME really needed?!
@@ -328,35 +327,34 @@ if [ -d mysql-test/extra ] ; then
 fi
 
 # ----------------------------------------------------------------------
-# Copy what could be usable in the "scripts" directory. Currently
-# only SQL files, others are Bourne shell scripts or Perl scripts
-# not really usable on Windows.
-#
-# But to be nice to the few Cygwin users we might have in 5.0 we
-# continue to copy the stuff, but don't include it in the WiX install.
+# Copy what could be usable in the "scripts" directory
 # ----------------------------------------------------------------------
+
+mysql_scripts="\
+mysql_config.pl \
+mysql_convert_table_format.pl \
+mysql_explain_log.pl \
+mysql_install_db.pl \
+mysql_secure_installation.pl \
+mysql_tableinfo.pl \
+mysqld_multi.pl \
+mysqldumpslow.pl \
+mysqlhotcopy.pl \
+"
 
 mkdir -p $DESTDIR/scripts
 
-# Uncomment and remove the for loop in 5.1
-#cp scripts/*.sql $DESTDIR/scripts/
-
-for i in `cd scripts && ls`; do \
-  if echo $i | grep -q '\.sh'; then \
-    cp scripts/$i $DESTDIR/scripts/`echo $i | sed -e 's/\.sh$//'`; \
-  elif [ -d scripts/$i -o $i = Makefile.am -o $i = Makefile.in -o -e scripts/$i.sh ] ; then \
-    : ; \
-  else \
-    cp scripts/$i $DESTDIR/scripts/$i; \
-  fi; \
+for i in $mysql_scripts
+do
+  cp scripts/$i $DESTDIR/scripts/$i
 done
 
 cp -pR sql/share $DESTDIR/
 cp -pR sql-bench $DESTDIR/
 rm -f $DESTDIR/sql-bench/*.sh $DESTDIR/sql-bench/Makefile*
 
-# The SQL initialisation code is really expected to be in "share"
-mv $DESTDIR/scripts/*.sql $DESTDIR/share/ || true
+# The SQL initialisation code is to be in "share"
+cp scripts/*.sql $DESTDIR/share/
 
 # ----------------------------------------------------------------------
 # Clean up from possibly copied SCCS directories

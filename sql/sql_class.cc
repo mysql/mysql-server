@@ -948,6 +948,7 @@ void THD::rollback_item_tree_changes()
 select_result::select_result()
 {
   thd=current_thd;
+  nest_level= -1;
 }
 
 void select_result::send_error(uint errcode,const char *err)
@@ -1236,16 +1237,18 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     }
   }
   field_term_length=exchange->field_term->length();
-  field_term_char= field_term_length ? (*exchange->field_term)[0] : INT_MAX;
+  field_term_char= field_term_length ?
+                   (int) (uchar) (*exchange->field_term)[0] : INT_MAX;
   if (!exchange->line_term->length())
     exchange->line_term=exchange->field_term;	// Use this if it exists
-  field_sep_char= (exchange->enclosed->length() ? (*exchange->enclosed)[0] :
-                   field_term_char);
-  escape_char=	(exchange->escaped->length() ? (*exchange->escaped)[0] : -1);
+  field_sep_char= (exchange->enclosed->length() ?
+                  (int) (uchar) (*exchange->enclosed)[0] : field_term_char);
+  escape_char=	(exchange->escaped->length() ?
+                (int) (uchar) (*exchange->escaped)[0] : -1);
   is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
-		  (*exchange->line_term)[0] : INT_MAX);
+                 (int) (uchar) (*exchange->line_term)[0] : INT_MAX);
   if (!field_term_length)
     exchange->opt_enclosed=0;
   if (!exchange->enclosed->length())
@@ -1402,10 +1405,11 @@ bool select_export::send_data(List<Item> &items)
                Don't escape field_term_char by doubling - doubling is only
                valid for ENCLOSED BY characters:
               */
-              (enclosed || !is_ambiguous_field_term || *pos != field_term_char))
+              (enclosed || !is_ambiguous_field_term ||
+               (int) (uchar) *pos != field_term_char))
           {
 	    char tmp_buff[2];
-            tmp_buff[0]= ((int) *pos == field_sep_char &&
+            tmp_buff[0]= ((int) (uchar) *pos == field_sep_char &&
                           is_ambiguous_field_sep) ?
                           field_sep_char : escape_char;
 	    tmp_buff[1]= *pos ? *pos : '0';

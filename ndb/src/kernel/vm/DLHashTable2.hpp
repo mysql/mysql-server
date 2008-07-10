@@ -43,8 +43,8 @@ public:
   /**
    * Seize element from pool - return i
    *
-   * Note must be either added using <b>add</b> or released 
-   * using <b>release</b>
+   * Note *must* be added using <b>add</b> (even before hash.release)
+   *             or be released using pool
    */
   bool seize(Ptr<T> &);
 
@@ -375,7 +375,14 @@ DLHashTable2<T, U>::remove(Ptr<T> & ptr){
     prevP->nextHash = next;
   } else {
     const Uint32 hv = ptr.p->hashValue() & mask;  
-    hashValues[hv] = next;
+    if (hashValues[hv] == ptr.i)
+    {
+      hashValues[hv] = next;
+    }
+    else
+    {
+      // Will add assert in 5.1
+    }
   }
   
   if(next != RNIL){
@@ -396,7 +403,14 @@ DLHashTable2<T, U>::release(Ptr<T> & ptr){
     prevP->nextHash = next;
   } else {
     const Uint32 hv = ptr.p->hashValue() & mask;  
-    hashValues[hv] = next;
+    if (hashValues[hv] == ptr.i)
+    {
+      hashValues[hv] = next;
+    }
+    else
+    {
+      // Will add assert in 5.1
+    }
   }
   
   if(next != RNIL){

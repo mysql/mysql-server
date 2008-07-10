@@ -107,6 +107,16 @@ libs="$libs @openssl_libs@ @STATIC_NSS_FLAGS@ "
 libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @LIBS@ @openssl_libs@ "
 embedded_libs=" $ldflags -L$pkglibdir -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @innodb_system_libs@ @openssl_libs@ "
 
+if [ -r "$pkglibdir/libmygcc.a" ]; then
+  # When linking against the static library with a different version of GCC
+  # from what was used to compile the library, some symbols may not be defined
+  # automatically.  We package the libmygcc.a from the build host, to provide
+  # definitions for those.  Bugs 4921, 19561, 19817, 21158, etc.
+  libs="$libs -lmygcc "
+  libs_r="$libs_r -lmygcc "
+  embedded_libs="$embedded_libs -lmygcc "
+fi
+
 cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
 
@@ -116,6 +126,7 @@ include="-I$pkgincludedir"
 for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
               DPEDANTIC_SAFEMALLOC DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
               DEXTRA_DEBUG DHAVE_purify O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
+              'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
               Xa xstrconst "xc99=none" \
               unroll2 ip mp restrict
 do

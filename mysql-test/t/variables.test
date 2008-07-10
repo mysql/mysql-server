@@ -126,8 +126,8 @@ set GLOBAL query_cache_size=100000;
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
 set GLOBAL myisam_max_sort_file_size=default;
---replace_result 2147483647 FILE_SIZE 9223372036854775807 FILE_SIZE
-show variables like 'myisam_max_sort_file_size';
+--replace_result 9223372036853727232 FILE_SIZE 2146435072 FILE_SIZE
+show global variables like 'myisam_max_sort_file_size';
 
 set global net_retry_count=10, session net_retry_count=10;
 set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;

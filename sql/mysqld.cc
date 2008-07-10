@@ -138,6 +138,13 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/mman.h>
 #endif
 
+#ifdef __WIN__ 
+#include <crtdbg.h>
+#define SIGNAL_FMT "exception 0x%x"
+#else
+#define SIGNAL_FMT "signal %d"
+#endif
+
 #ifdef __NETWARE__
 #define zVOLSTATE_ACTIVE 6
 #define zVOLSTATE_DEACTIVE 2
@@ -184,7 +191,7 @@ typedef fp_except fp_except_t;
      this on freebsd
   */
 
-inline void reset_floating_point_exceptions()
+inline void set_proper_floating_point_mode()
 {
   /* Don't fall for overflow, underflow,divide-by-zero or loss of precision */
 #if defined(__i386__)
@@ -195,8 +202,22 @@ inline void reset_floating_point_exceptions()
 	     FP_X_IMP));
 #endif
 }
+#elif defined(__sgi)
+/* for IRIX to use set_fpc_csr() */
+#include <sys/fpu.h>
+
+inline void set_proper_floating_point_mode()
+{
+  /* Enable denormalized DOUBLE values support for IRIX */
+  {
+    union fpc_csr n;
+    n.fc_word = get_fpc_csr();
+    n.fc_struct.flush = 0;
+    set_fpc_csr(n.fc_word);
+  }
+}
 #else
-#define reset_floating_point_exceptions()
+#define set_proper_floating_point_mode()
 #endif /* __FreeBSD__ && HAVE_IEEEFP_H */
 
 } /* cplusplus */
@@ -213,6 +234,7 @@ inline void reset_floating_point_exceptions()
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
+extern "C" sig_handler handle_segfault(int sig);
 
 /* Constants */
 
@@ -1017,9 +1039,6 @@ static void __cdecl kill_server(int sig_ptr)
 #endif
   close_connections();
   if (sig != MYSQL_KILL_SIGNAL &&
-#ifdef __WIN__
-      sig != SIGINT &&				/* Bug#18235 */
-#endif
       sig != 0)
     unireg_abort(1);				/* purecov: inspected */
   else
@@ -1578,8 +1597,7 @@ static void network_init(void)
 		      FORMAT_MESSAGE_FROM_SYSTEM,
 		      NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		      (LPTSTR) &lpMsgBuf, 0, NULL );
-	MessageBox(NULL, (LPTSTR) lpMsgBuf, "Error from CreateNamedPipe",
-		    MB_OK|MB_ICONINFORMATION);
+	sql_perror((char *)lpMsgBuf);
 	LocalFree(lpMsgBuf);
 	unireg_abort(1);
       }
@@ -1782,17 +1800,163 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
 ******************************************************************************/
 
 
-#if defined(__WIN__) || defined(OS2)
+#if defined(__WIN__)
+
+
+/*
+  On Windows, we use native SetConsoleCtrlHandler for handle events like Ctrl-C
+  with graceful shutdown.
+  Also, we do not use signal(), but SetUnhandledExceptionFilter instead - as it
+  provides possibility to pass the exception to just-in-time debugger, collect
+  dumps and potentially also the exception and thread context used to output
+  callstack.
+*/
+
+static BOOL WINAPI console_event_handler( DWORD type ) 
+{
+  DBUG_ENTER("console_event_handler");
+  if(type == CTRL_C_EVENT)
+  {
+     /*
+       Do not shutdown before startup is finished and shutdown
+       thread is initialized. Otherwise there is a race condition 
+       between main thread doing initialization and CTRL-C thread doing
+       cleanup, which can result into crash.
+     */
+     if(hEventShutdown)
+       kill_mysql();
+     else
+       sql_print_warning("CTRL-C ignored during startup");
+     DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  In Visual Studio 2005 and later, default SIGABRT handler will overwrite
+  any unhandled exception filter set by the application  and will try to
+  call JIT debugger. This is not what we want, this we calling __debugbreak
+  to stop in debugger, if process is being debugged or to generate 
+  EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
+*/
+
+#if (_MSC_VER >= 1400)
+static void my_sigabrt_handler(int sig)
+{
+  __debugbreak();
+}
+#endif /*_MSC_VER >=1400 */
+
+void win_install_sigabrt_handler(void)
+{
+#if (_MSC_VER >=1400)
+  /*abort() should not override our exception filter*/
+  _set_abort_behavior(0,_CALL_REPORTFAULT);
+  signal(SIGABRT,my_sigabrt_handler);
+#endif /* _MSC_VER >=1400 */
+}
+
+#ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
+#define DEBUGGER_ATTACH_TIMEOUT 120
+/*
+  Wait for debugger to attach and break into debugger. If debugger is not attached,
+  resume after timeout.
+*/
+static void wait_for_debugger(int timeout_sec)
+{
+   if(!IsDebuggerPresent())
+   {
+     int i;
+     printf("Waiting for debugger to attach, pid=%u\n",GetCurrentProcessId());
+     fflush(stdout);
+     for(i= 0; i < timeout_sec; i++)
+     {
+       Sleep(1000);
+       if(IsDebuggerPresent())
+       {
+         /* Break into debugger */
+         __debugbreak();
+         return;
+       }
+     }
+     printf("pid=%u, debugger not attached after %d seconds, resuming\n",GetCurrentProcessId(),
+       timeout_sec);
+     fflush(stdout);
+   }
+}
+#endif /* DEBUG_UNHANDLED_EXCEPTION_FILTER */
+
+LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
+{
+   static BOOL first_time= TRUE;
+   if(!first_time)
+   {
+     /*
+       This routine can be called twice, typically
+       when detaching in JIT debugger.
+       Return EXCEPTION_EXECUTE_HANDLER to terminate process.
+     */
+     return EXCEPTION_EXECUTE_HANDLER;
+   }
+   first_time= FALSE;
+#ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
+   /*
+    Unfortunately there is no clean way to debug unhandled exception filters,
+    as debugger does not stop there(also documented in MSDN) 
+    To overcome, one could put a MessageBox, but this will not work in service.
+    Better solution is to print error message and sleep some minutes 
+    until debugger is attached
+  */
+  wait_for_debugger(DEBUGGER_ATTACH_TIMEOUT);
+#endif /* DEBUG_UNHANDLED_EXCEPTION_FILTER */
+  __try
+  {
+    set_exception_pointers(ex_pointers);
+    handle_segfault(ex_pointers->ExceptionRecord->ExceptionCode);
+  }
+  __except(EXCEPTION_EXECUTE_HANDLER)
+  {
+    DWORD written;
+    const char msg[] = "Got exception in exception handler!\n";
+    WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),msg, sizeof(msg)-1, 
+      &written,NULL);
+  }
+  /*
+    Return EXCEPTION_CONTINUE_SEARCH to give JIT debugger
+    (drwtsn32 or vsjitdebugger) possibility to attach,
+    if JIT debugger is configured.
+    Windows Error reporting might generate a dump here.
+  */
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+
 static void init_signals(void)
 {
-  int signals[] = {SIGINT,SIGILL,SIGFPE,SIGSEGV,SIGTERM,SIGABRT } ;
-  for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
-    signal(signals[i], kill_server) ;
-#if defined(__WIN__)
-  signal(SIGBREAK,SIG_IGN);	//ignore SIGBREAK for NT
-#else
-  signal(SIGBREAK, kill_server);
-#endif
+  win_install_sigabrt_handler();
+  if(opt_console)
+    SetConsoleCtrlHandler(console_event_handler,TRUE);
+  else
+  {
+    /* Avoid MessageBox()es*/
+   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+   _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+   _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+   _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+   _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+   _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+
+   /*
+     Do not use SEM_NOGPFAULTERRORBOX in the following SetErrorMode (),
+     because it would prevent JIT debugger and Windows error reporting
+     from working. We need WER or JIT-debugging, since our own unhandled
+     exception filter is not guaranteed to work in all situation
+     (like heap corruption or stack overflow)
+   */
+   SetErrorMode(SetErrorMode(0)|SEM_FAILCRITICALERRORS|SEM_NOOPENFILEERRORBOX);
+  }
+  SetUnhandledExceptionFilter(my_unhandler_exception_filter);
 }
 
 static void start_signal_handler(void)
@@ -2080,8 +2244,8 @@ static void start_signal_handler(void)
 
 static void check_data_home(const char *path)
 {}
+#endif /*__WIN__ || __NETWARE || __EMX__*/
 
-#else /* if ! __WIN__ && ! __EMX__ */
 
 #ifdef HAVE_LINUXTHREADS
 #define UNSAFE_DEFAULT_LINUX_THREADS 200
@@ -2101,7 +2265,7 @@ extern "C" sig_handler handle_segfault(int sig)
   */
   if (segfaulted)
   {
-    fprintf(stderr, "Fatal signal %d while backtracing\n", sig);
+    fprintf(stderr, "Fatal " SIGNAL_FMT " while backtracing\n", sig);
     exit(1);
   }
 
@@ -2111,7 +2275,7 @@ extern "C" sig_handler handle_segfault(int sig)
   localtime_r(&curr_time, &tm);
 
   fprintf(stderr,"\
-%02d%02d%02d %2d:%02d:%02d - mysqld got signal %d;\n\
+%02d%02d%02d %2d:%02d:%02d - mysqld got " SIGNAL_FMT " ;\n\
 This could be because you hit a bug. It is also possible that this binary\n\
 or one of the libraries it was linked against is corrupt, improperly built,\n\
 or misconfigured. This error can also be caused by malfunctioning hardware.\n",
@@ -2152,6 +2316,10 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
     fprintf(stderr,"thd=%p\n",thd);
+    fprintf(stderr,"\
+Attempting backtrace. You can use the following information to find out\n\
+where mysqld died. If you see no messages after this, something went\n\
+terribly wrong...\n");
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
 		     thread_stack);
   }
@@ -2200,15 +2368,22 @@ of those buggy OS calls.  You should consider whether you really need the\n\
 bugs.\n");
   }
 
+#ifdef HAVE_WRITE_CORE
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
     fprintf(stderr, "Writing a core file\n");
     fflush(stderr);
     write_core(sig);
   }
+#endif
+
+#ifndef __WIN__
+  /* On Windows, do not terminate, but pass control to exception filter */
   exit(1);
+#endif
 }
 
+#if !defined(__WIN__) && !defined(__NETWARE__) && !defined(__EMX__)
 #ifndef SA_RESETHAND
 #define SA_RESETHAND 0
 #endif
@@ -2553,19 +2728,6 @@ static void my_str_free_mysqld(void *ptr)
 
 
 #ifdef __WIN__
-
-struct utsname
-{
-  char nodename[FN_REFLEN];
-};
-
-
-int uname(struct utsname *a)
-{
-  return -1;
-}
-
-
 pthread_handler_t handle_shutdown(void *arg)
 {
   MSG msg;
@@ -2578,18 +2740,6 @@ pthread_handler_t handle_shutdown(void *arg)
 #endif /* EMBEDDED_LIBRARY */
      kill_server(MYSQL_KILL_SIGNAL);
   return 0;
-}
-
-
-int STDCALL handle_kill(ulong ctrl_type)
-{
-  if (ctrl_type == CTRL_CLOSE_EVENT ||
-      ctrl_type == CTRL_SHUTDOWN_EVENT)
-  {
-    kill_server(MYSQL_KILL_SIGNAL);
-    return TRUE;
-  }
-  return FALSE;
 }
 #endif
 
@@ -3129,7 +3279,7 @@ static int init_server_components()
   query_cache_init();
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
-  reset_floating_point_exceptions();
+  set_proper_floating_point_mode();
   init_thr_lock();
 #ifdef HAVE_REPLICATION
   init_slave_list();
@@ -3618,11 +3768,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     freopen(log_error_file,"a+",stdout);
     freopen(log_error_file,"a+",stderr);
     FreeConsole();				// Remove window
-  }
-  else
-  {
-    /* Don't show error dialog box when on foreground: it stops the server */ 
-    SetErrorMode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
   }
 #endif
 
@@ -4968,7 +5113,7 @@ Disable with --skip-bdb (will save memory).",
   {"concurrent-insert", OPT_CONCURRENT_INSERT,
    "Use concurrent insert with MyISAM. Disable with --concurrent-insert=0",
    (gptr*) &myisam_concurrent_insert, (gptr*) &myisam_concurrent_insert,
-   0, GET_LONG, OPT_ARG, 1, 0, 2, 0, 0, 0},
+   0, GET_ULONG, OPT_ARG, 1, 0, 2, 0, 0, 0},
   {"console", OPT_CONSOLE, "Write error output on screen; Don't remove the console window on windows.",
    (gptr*) &opt_console, (gptr*) &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -5137,7 +5282,7 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
   {"innodb_max_purge_lag", OPT_INNODB_MAX_PURGE_LAG,
    "Desired maximum length of the purge queue (0 = no limit)",
    (gptr*) &srv_max_purge_lag,
-   (gptr*) &srv_max_purge_lag, 0, GET_LONG, REQUIRED_ARG, 0, 0, ~0L,
+   (gptr*) &srv_max_purge_lag, 0, GET_ULONG, REQUIRED_ARG, 0, 0, ULONG_MAX,
    0, 1L, 0},
   {"innodb_rollback_on_timeout", OPT_INNODB_ROLLBACK_ON_TIMEOUT,
    "Roll back the complete transaction on lock wait timeout, for 4.x compatibility (disabled by default)",
@@ -5247,7 +5392,8 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
 #ifdef HAVE_MMAP
   {"log-tc-size", OPT_LOG_TC_SIZE, "Size of transaction coordinator log.",
    (gptr*) &opt_tc_log_size, (gptr*) &opt_tc_log_size, 0, GET_ULONG,
-   REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ~0L, 0, TC_LOG_PAGE_SIZE, 0},
+   REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ULONG_MAX, 0,
+   TC_LOG_PAGE_SIZE, 0},
 #endif
   {"log-update", OPT_UPDATE_LOG,
    "The update log is deprecated since version 5.0, is replaced by the binary \
@@ -5355,8 +5501,8 @@ Disable with --skip-ndbcluster (will save memory).",
   {"ndb-autoincrement-prefetch-sz", OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
    "Specify number of autoincrement values that are prefetched.",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
-   (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
-   0, GET_ULONG, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
+   (gptr*) &max_system_variables.ndb_autoincrement_prefetch_sz,
+   0, GET_ULONG, REQUIRED_ARG, 1, 1, 256, 0, 0, 0},
   {"ndb-force-send", OPT_NDB_FORCE_SEND,
    "Force send of buffers to ndb immediately without waiting for "
    "other threads.",
@@ -5676,8 +5822,8 @@ log and this option does nothing anymore.",
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"warnings", 'W', "Deprecated; use --log-warnings instead.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, ~0L,
-   0, 0, 0},
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG,
+   1, 0, ULONG_MAX, 0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
     (gptr*) &back_log, (gptr*) &back_log, 0, GET_ULONG,
@@ -5686,29 +5832,29 @@ log and this option does nothing anymore.",
   { "bdb_cache_size", OPT_BDB_CACHE_SIZE,
     "The buffer that is allocated to cache index and rows for BDB tables.",
     (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULONG,
-    REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE, 0},
+    REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, ULONG_MAX, 0, IO_SIZE, 0},
   /* QQ: The following should be removed soon! (bdb_max_lock preferred) */
   {"bdb_lock_max", OPT_BDB_MAX_LOCK, "Synonym for bdb_max_lock.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
-   REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},
+   REQUIRED_ARG, 10000, 0, ULONG_MAX, 0, 1, 0},
   {"bdb_log_buffer_size", OPT_BDB_LOG_BUFFER_SIZE,
    "The buffer that is allocated to cache index and rows for BDB tables.",
    (gptr*) &berkeley_log_buffer_size, (gptr*) &berkeley_log_buffer_size, 0,
-   GET_ULONG, REQUIRED_ARG, 0, 256*1024L, ~0L, 0, 1024, 0},
+   GET_ULONG, REQUIRED_ARG, 256*1024L, 256*1024L, ULONG_MAX, 0, 1024, 0},
   {"bdb_max_lock", OPT_BDB_MAX_LOCK,
    "The maximum number of locks you can have active on a BDB table.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
-   REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},
+   REQUIRED_ARG, 10000, 0, ULONG_MAX, 0, 1, 0},
 #endif /* HAVE_BERKELEY_DB */
   {"binlog_cache_size", OPT_BINLOG_CACHE_SIZE,
    "The size of the cache to hold the SQL statements for the binary log during a transaction. If you often use big, multi-statement transactions you can increase this to get more performance.",
    (gptr*) &binlog_cache_size, (gptr*) &binlog_cache_size, 0, GET_ULONG,
-   REQUIRED_ARG, 32*1024L, IO_SIZE, ~0L, 0, IO_SIZE, 0},
+   REQUIRED_ARG, 32*1024L, IO_SIZE, ULONG_MAX, 0, IO_SIZE, 0},
   {"bulk_insert_buffer_size", OPT_BULK_INSERT_BUFFER_SIZE,
    "Size of tree cache used in bulk insert optimisation. Note that this is a limit per thread!",
    (gptr*) &global_system_variables.bulk_insert_buff_size,
    (gptr*) &max_system_variables.bulk_insert_buff_size,
-   0, GET_ULONG, REQUIRED_ARG, 8192*1024, 0, ~0L, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, 8192*1024, 0, ULONG_MAX, 0, 1, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
    "The number of seconds the mysqld server is waiting for a connect packet before responding with 'Bad handshake'.",
     (gptr*) &connect_timeout, (gptr*) &connect_timeout,
@@ -5731,7 +5877,7 @@ log and this option does nothing anymore.",
   {"delayed_insert_limit", OPT_DELAYED_INSERT_LIMIT,
    "After inserting delayed_insert_limit rows, the INSERT DELAYED handler will check if there are any SELECT statements pending. If so, it allows these to execute before continuing.",
     (gptr*) &delayed_insert_limit, (gptr*) &delayed_insert_limit, 0, GET_ULONG,
-    REQUIRED_ARG, DELAYED_LIMIT, 1, ~0L, 0, 1, 0},
+    REQUIRED_ARG, DELAYED_LIMIT, 1, ULONG_MAX, 0, 1, 0},
   {"delayed_insert_timeout", OPT_DELAYED_INSERT_TIMEOUT,
    "How long a INSERT DELAYED thread should wait for INSERT statements before terminating.",
    (gptr*) &delayed_insert_timeout, (gptr*) &delayed_insert_timeout, 0,
@@ -5739,7 +5885,7 @@ log and this option does nothing anymore.",
   { "delayed_queue_size", OPT_DELAYED_QUEUE_SIZE,
     "What size queue (in rows) should be allocated for handling INSERT DELAYED. If the queue becomes full, any client that does INSERT DELAYED will wait until there is room in the queue again.",
     (gptr*) &delayed_queue_size, (gptr*) &delayed_queue_size, 0, GET_ULONG,
-    REQUIRED_ARG, DELAYED_QUEUE_SIZE, 1, ~0L, 0, 1, 0},
+    REQUIRED_ARG, DELAYED_QUEUE_SIZE, 1, ULONG_MAX, 0, 1, 0},
   {"div_precision_increment", OPT_DIV_PRECINCREMENT,
    "Precision of the result of '/' operator will be increased on that value.",
    (gptr*) &global_system_variables.div_precincrement,
@@ -5776,16 +5922,16 @@ log and this option does nothing anymore.",
     (gptr*) &ft_stopword_file, (gptr*) &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "group_concat_max_len", OPT_GROUP_CONCAT_MAX_LEN,
-    "The maximum length of the result of function  group_concat.",
+    "The maximum length of the result of function group_concat.",
     (gptr*) &global_system_variables.group_concat_max_len,
     (gptr*) &max_system_variables.group_concat_max_len, 0, GET_ULONG,
-    REQUIRED_ARG, 1024, 4, (long) ~0, 0, 1, 0},
+    REQUIRED_ARG, 1024, 4, ULONG_MAX, 0, 1, 0},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_additional_mem_pool_size", OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
    "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
    (gptr*) &innobase_additional_mem_pool_size,
    (gptr*) &innobase_additional_mem_pool_size, 0, GET_LONG, REQUIRED_ARG,
-   1*1024*1024L, 512*1024L, ~0L, 0, 1024, 0},
+   1*1024*1024L, 512*1024L, LONG_MAX, 0, 1024, 0},
   {"innodb_autoextend_increment", OPT_INNODB_AUTOEXTEND_INCREMENT,
    "Data file autoextend increment in megabytes",
    (gptr*) &srv_auto_extend_increment,
@@ -5809,7 +5955,7 @@ log and this option does nothing anymore.",
     SQL query after it has once got the ticket",
    (gptr*) &srv_n_free_tickets_to_enter,
    (gptr*) &srv_n_free_tickets_to_enter,
-   0, GET_LONG, REQUIRED_ARG, 500L, 1L, ~0L, 0, 1L, 0},
+   0, GET_ULONG, REQUIRED_ARG, 500L, 1L, ULONG_MAX, 0, 1L, 0},
   {"innodb_file_io_threads", OPT_INNODB_FILE_IO_THREADS,
    "Number of file I/O threads in InnoDB.", (gptr*) &innobase_file_io_threads,
    (gptr*) &innobase_file_io_threads, 0, GET_LONG, REQUIRED_ARG, 4, 4, 64, 0,
@@ -5825,7 +5971,7 @@ log and this option does nothing anymore.",
   {"innodb_log_buffer_size", OPT_INNODB_LOG_BUFFER_SIZE,
    "The size of the buffer which InnoDB uses to write log to the log files on disk.",
    (gptr*) &innobase_log_buffer_size, (gptr*) &innobase_log_buffer_size, 0,
-   GET_LONG, REQUIRED_ARG, 1024*1024L, 256*1024L, ~0L, 0, 1024, 0},
+   GET_LONG, REQUIRED_ARG, 1024*1024L, 256*1024L, LONG_MAX, 0, 1024, 0},
   {"innodb_log_file_size", OPT_INNODB_LOG_FILE_SIZE,
    "Size of each log file in a log group.",
    (gptr*) &innobase_log_file_size, (gptr*) &innobase_log_file_size, 0,
@@ -5843,24 +5989,24 @@ log and this option does nothing anymore.",
   {"innodb_open_files", OPT_INNODB_OPEN_FILES,
    "How many files at the maximum InnoDB keeps open at the same time.",
    (gptr*) &innobase_open_files, (gptr*) &innobase_open_files, 0,
-   GET_LONG, REQUIRED_ARG, 300L, 10L, ~0L, 0, 1L, 0},
+   GET_LONG, REQUIRED_ARG, 300L, 10L, LONG_MAX, 0, 1L, 0},
   {"innodb_sync_spin_loops", OPT_INNODB_SYNC_SPIN_LOOPS,
    "Count of spin-loop rounds in InnoDB mutexes",
    (gptr*) &srv_n_spin_wait_rounds,
    (gptr*) &srv_n_spin_wait_rounds,
-   0, GET_LONG, REQUIRED_ARG, 20L, 0L, ~0L, 0, 1L, 0},
+   0, GET_ULONG, REQUIRED_ARG, 20L, 0L, ULONG_MAX, 0, 1L, 0},
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments. "
    "Sets the maximum number of threads allowed inside InnoDB. Value 0"
    " will disable the thread throttling.",
    (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
-   0, GET_LONG, REQUIRED_ARG, 8, 0, 1000, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, 8, 0, 1000, 0, 1, 0},
   {"innodb_thread_sleep_delay", OPT_INNODB_THREAD_SLEEP_DELAY,
    "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0"
     " disable a sleep",
    (gptr*) &srv_thread_sleep_delay,
    (gptr*) &srv_thread_sleep_delay,
-   0, GET_LONG, REQUIRED_ARG, 10000L, 0L, ~0L, 0, 1L, 0},
+   0, GET_ULONG, REQUIRED_ARG, 10000L, 0L, ULONG_MAX, 0, 1L, 0},
 #endif /* HAVE_INNOBASE_DB */
   {"interactive_timeout", OPT_INTERACTIVE_TIMEOUT,
    "The number of seconds the server waits for activity on an interactive connection before closing it.",
@@ -5890,7 +6036,7 @@ log and this option does nothing anymore.",
    (gptr*) &dflt_key_cache_var.param_age_threshold,
    (gptr*) 0,
    0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
-   300, 100, ~0L, 0, 100, 0},
+   300, 100, ULONG_MAX, 0, 100, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
    "The default size of key cache blocks",
    (gptr*) &dflt_key_cache_var.param_block_size,
@@ -5926,7 +6072,7 @@ log and this option does nothing anymore.",
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (gptr*) &max_binlog_cache_size, (gptr*) &max_binlog_cache_size, 0,
-   GET_ULONG, REQUIRED_ARG, ~0L, IO_SIZE, ~0L, 0, IO_SIZE, 0},
+   GET_ULONG, REQUIRED_ARG, ULONG_MAX, IO_SIZE, ULONG_MAX, 0, IO_SIZE, 0},
   {"max_binlog_size", OPT_MAX_BINLOG_SIZE,
    "Binary log will be rotated automatically when the size exceeds this \
 value. Will also apply to relay logs if max_relay_log_size is 0. \
@@ -5936,7 +6082,7 @@ The minimum value for this variable is 4096.",
   {"max_connect_errors", OPT_MAX_CONNECT_ERRORS,
    "If there is more than this number of interrupted connections from a host this host will be blocked from further connections.",
    (gptr*) &max_connect_errors, (gptr*) &max_connect_errors, 0, GET_ULONG,
-    REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
+    REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ULONG_MAX, 0, 1, 0},
   {"max_connections", OPT_MAX_CONNECTIONS,
    "The number of simultaneous clients allowed.", (gptr*) &max_connections,
    (gptr*) &max_connections, 0, GET_ULONG, REQUIRED_ARG, 100, 1, 16384, 0, 1,
@@ -5979,7 +6125,7 @@ The minimum value for this variable is 4096.",
     "Limit assumed max number of seeks when looking up rows based on a key",
     (gptr*) &global_system_variables.max_seeks_for_key,
     (gptr*) &max_system_variables.max_seeks_for_key, 0, GET_ULONG,
-    REQUIRED_ARG, ~0L, 1, ~0L, 0, 1, 0 },
+    REQUIRED_ARG, ULONG_MAX, 1, ULONG_MAX, 0, 1, 0 },
   {"max_sort_length", OPT_MAX_SORT_LENGTH,
    "The number of bytes to use when sorting BLOB or TEXT values (only the first max_sort_length bytes of each value are used; the rest are ignored).",
    (gptr*) &global_system_variables.max_sort_length,
@@ -5994,20 +6140,20 @@ The minimum value for this variable is 4096.",
    "Maximum number of temporary tables a client can keep open at a time.",
    (gptr*) &global_system_variables.max_tmp_tables,
    (gptr*) &max_system_variables.max_tmp_tables, 0, GET_ULONG,
-   REQUIRED_ARG, 32, 1, ~0L, 0, 1, 0},
+   REQUIRED_ARG, 32, 1, ULONG_MAX, 0, 1, 0},
   {"max_user_connections", OPT_MAX_USER_CONNECTIONS,
    "The maximum number of active connections for a single user (0 = no limit).",
    (gptr*) &max_user_connections, (gptr*) &max_user_connections, 0, GET_UINT,
-   REQUIRED_ARG, 0, 1, ~0, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, (uint) ~0, 0, 1, 0},
   {"max_write_lock_count", OPT_MAX_WRITE_LOCK_COUNT,
    "After this many write locks, allow some read locks to run in between.",
    (gptr*) &max_write_lock_count, (gptr*) &max_write_lock_count, 0, GET_ULONG,
-   REQUIRED_ARG, ~0L, 1, ~0L, 0, 1, 0},
+   REQUIRED_ARG, ULONG_MAX, 1, ULONG_MAX, 0, 1, 0},
   {"multi_range_count", OPT_MULTI_RANGE_COUNT,
    "Number of key ranges to request at once.",
    (gptr*) &global_system_variables.multi_range_count,
    (gptr*) &max_system_variables.multi_range_count, 0,
-   GET_ULONG, REQUIRED_ARG, 256, 1, ~0L, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, 256, 1, ULONG_MAX, 0, 1, 0},
   {"myisam_block_size", OPT_MYISAM_BLOCK_SIZE,
    "Block size to be used for MyISAM index pages.",
    (gptr*) &opt_myisam_block_size,
@@ -6035,7 +6181,7 @@ The minimum value for this variable is 4096.",
    "Number of threads to use when repairing MyISAM tables. The value of 1 disables parallel repair.",
    (gptr*) &global_system_variables.myisam_repair_threads,
    (gptr*) &max_system_variables.myisam_repair_threads, 0,
-   GET_ULONG, REQUIRED_ARG, 1, 1, ~0L, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, 1, 1, ULONG_MAX, 0, 1, 0},
   {"myisam_sort_buffer_size", OPT_MYISAM_SORT_BUFFER_SIZE,
    "The buffer that is allocated when sorting the index when doing a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
    (gptr*) &global_system_variables.myisam_sort_buff_size,
@@ -6061,7 +6207,7 @@ The minimum value for this variable is 4096.",
    "If a read on a communication port is interrupted, retry this many times before giving up.",
    (gptr*) &global_system_variables.net_retry_count,
    (gptr*) &max_system_variables.net_retry_count,0,
-   GET_ULONG, REQUIRED_ARG, MYSQLD_NET_RETRY_COUNT, 1, ~0L, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, MYSQLD_NET_RETRY_COUNT, 1, ULONG_MAX, 0, 1, 0},
   {"net_write_timeout", OPT_NET_WRITE_TIMEOUT,
    "Number of seconds to wait for a block to be written to a connection  before aborting the write.",
    (gptr*) &global_system_variables.net_write_timeout,
@@ -6090,7 +6236,7 @@ The minimum value for this variable is 4096.",
    "Allocation block size for query parsing and execution",
    (gptr*) &global_system_variables.query_alloc_block_size,
    (gptr*) &max_system_variables.query_alloc_block_size, 0, GET_ULONG,
-   REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ~0L, 0, 1024, 0},
+   REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
 #ifdef HAVE_QUERY_CACHE
   {"query_cache_limit", OPT_QUERY_CACHE_LIMIT,
    "Don't cache results that are bigger than this.",
@@ -6123,12 +6269,13 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.query_prealloc_size,
    (gptr*) &max_system_variables.query_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, QUERY_ALLOC_PREALLOC_SIZE,
-   ~0L, 0, 1024, 0},
+   ULONG_MAX, 0, 1024, 0},
   {"range_alloc_block_size", OPT_RANGE_ALLOC_BLOCK_SIZE,
    "Allocation block size for storing ranges during optimization",
    (gptr*) &global_system_variables.range_alloc_block_size,
    (gptr*) &max_system_variables.range_alloc_block_size, 0, GET_ULONG,
-   REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, 4096, ~0L, 0, 1024, 0},
+   REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, RANGE_ALLOC_BLOCK_SIZE, ULONG_MAX,
+   0, 1024, 0},
   {"read_buffer_size", OPT_RECORD_BUFFER,
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (gptr*) &global_system_variables.read_buff_size,
@@ -6198,7 +6345,7 @@ The minimum value for this variable is 4096.",
    "Synchronously flush binary log to disk after every #th event. "
    "Use 0 (default) to disable synchronous flushing.",
    (gptr*) &sync_binlog_period, (gptr*) &sync_binlog_period, 0, GET_ULONG,
-   REQUIRED_ARG, 0, 0, ~0L, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},
@@ -6222,7 +6369,7 @@ The minimum value for this variable is 4096.",
   {"thread_stack", OPT_THREAD_STACK,
    "The stack size for each thread.", (gptr*) &thread_stack,
    (gptr*) &thread_stack, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
-   1024L*128L, ~0L, 0, 1024, 0},
+   1024L*128L, ULONG_MAX, 0, 1024, 0},
   { "time_format", OPT_TIME_FORMAT,
     "The TIME format (for future).",
     (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],
@@ -6238,12 +6385,12 @@ The minimum value for this variable is 4096.",
    "Allocation block size for various transaction-related structures",
    (gptr*) &global_system_variables.trans_alloc_block_size,
    (gptr*) &max_system_variables.trans_alloc_block_size, 0, GET_ULONG,
-   REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ~0L, 0, 1024, 0},
+   REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
   {"transaction_prealloc_size", OPT_TRANS_PREALLOC_SIZE,
    "Persistent buffer for various transaction-related structures",
    (gptr*) &global_system_variables.trans_prealloc_size,
    (gptr*) &max_system_variables.trans_prealloc_size, 0, GET_ULONG,
-   REQUIRED_ARG, TRANS_ALLOC_PREALLOC_SIZE, 1024, ~0L, 0, 1024, 0},
+   REQUIRED_ARG, TRANS_ALLOC_PREALLOC_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
   {"updatable_views_with_limit", OPT_UPDATABLE_VIEWS_WITH_LIMIT,
    "1 = YES = Don't issue an error message (warning only) if a VIEW without presence of a key of the underlying table is used in queries with a LIMIT clause for updating. 0 = NO = Prohibit update of a VIEW, which does not contain a key of the underlying table and the query uses a LIMIT clause (usually get from GUI tools).",
    (gptr*) &global_system_variables.updatable_views_with_limit,

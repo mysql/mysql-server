@@ -30,13 +30,15 @@ user=""
 force=0
 in_rpm=0
 ip_only=0
-windows=0
+cross_bootstrap=0
 
 usage()
 {
   cat <<EOF
 Usage: $0 [OPTIONS]
   --basedir=path       The path to the MySQL installation directory.
+  --cross-bootstrap    For internal use.  Used when building the MySQL system
+                       tables on a different host than the target.
   --datadir=path       The path to the MySQL data directory.
   --force              Causes mysql_install_db to run even if DNS does not
                        work.  In that case, grant table entries that normally
@@ -56,8 +58,6 @@ Usage: $0 [OPTIONS]
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
-  --windows            For internal use.  This option is used for creating
-                       Windows distributions.
 
 All other options are passed to the mysqld program
 
@@ -67,7 +67,7 @@ EOF
 
 s_echo()
 {
-  if test "$in_rpm" -eq 0 -a "$windows" -eq 0
+  if test "$in_rpm" -eq 0 -a "$cross_bootstrap" -eq 0
   then
     echo "$1"
   fi
@@ -109,16 +109,17 @@ parse_arguments()
       --no-defaults|--defaults-file=*|--defaults-extra-file=*)
         defaults="$arg" ;;
 
-      --windows)
-	# This is actually a "cross bootstrap" argument used when
-        # building the MySQL system tables on a different host
-        # than the target. The platform independent
-        # files that are created in --datadir on the host can
-        # be copied to the target system, the most common use for
-        # this feature is in the windows installer which will take
-        # the files from datadir and include them as part of the install
-        # package.
-         windows=1 ;;
+      --cross-bootstrap|--windows)
+        # Used when building the MySQL system tables on a different host than
+        # the target. The platform-independent files that are created in
+        # --datadir on the host can be copied to the target system.
+        #
+        # The most common use for this feature is in the Windows installer
+        # which will take the files from datadir and include them as part of
+        # the install package.  See top-level 'dist-hook' make target.
+        #
+        # --windows is a deprecated alias
+         cross_bootstrap=1 ;;
 
       *)
         if test -n "$pick_args"
@@ -181,14 +182,14 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 if test -n "$basedir"
 then
   print_defaults=`find_in_basedir my_print_defaults bin extra`
-  if ! test -x "$print_defaults"
+  if test ! -x "$print_defaults"
   then
     missing_in_basedir my_print_defaults
     exit 1
   fi
 else
   print_defaults="@bindir@/my_print_defaults"
-  if ! test -x "$print_defaults"
+  if test ! -x "$print_defaults"
   then
     echo "FATAL ERROR: Could not find $print_defaults"
     echo
@@ -213,8 +214,8 @@ then
   pkgdatadir="@pkgdatadir@"
 else
   bindir="$basedir/bin"
-  # We set up bootstrap-specific paths later, so skip this for --windows
-  if test "$windows" -eq 0
+  # We set up bootstrap-specific paths later, so skip this for now
+  if test "$cross_bootstrap" -eq 0
   then
     pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql`
     if test -z "$pkgdatadir"
@@ -223,7 +224,7 @@ else
       exit 1
     fi
     mysqld=`find_in_basedir mysqld libexec sbin bin`
-    if ! test -x "$mysqld"
+    if test ! -x "$mysqld"
     then
       missing_in_basedir mysqld
       exit 1
@@ -256,8 +257,8 @@ do
   fi
 done
 
-# Set up Windows-specific paths
-if test "$windows" -eq 1
+# Set up bootstrap-specific paths
+if test "$cross_bootstrap" -eq 1
 then
   mysqld="./sql/mysqld"
   if test -n "$srcdir" -a -f "$srcdir/sql/share/english/errmsg.sys"
@@ -280,7 +281,7 @@ fi
 hostname=`@HOSTNAME@`
 
 # Check if hostname is valid
-if test "$windows" -eq 0 -a "$in_rpm" -eq 0 -a "$force" -eq 0
+if test "$cross_bootstrap" -eq 0 -a "$in_rpm" -eq 0 -a "$force" -eq 0
 then
   resolved=`$bindir/resolveip $hostname 2>&1`
   if [ $? -ne 0 ]
@@ -329,6 +330,16 @@ then
   args="$args --user=$user"
 fi
 
+# When doing a "cross bootstrap" install, no reference to the current
+# host should be added to the system tables.  So we filter out any
+# lines which contain the current host name.
+if test $cross_bootstrap -eq 1
+then
+  filter_cmd_line="sed -e '/@current_hostname/d'"
+else
+  filter_cmd_line="cat"
+fi
+
 # Peform the install of system tables
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
@@ -337,15 +348,14 @@ mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
 
 # Pipe mysql_system_tables.sql to "mysqld --bootstrap"
 s_echo "Installing MySQL system tables..."
-if `(echo "use mysql;"; cat $create_system_tables $fill_system_tables) | $mysqld_install_cmd_line`
+if { echo "use mysql;"; cat $create_system_tables $fill_system_tables; } | eval "$filter_cmd_line" | $mysqld_install_cmd_line > /dev/null
 then
   s_echo "OK"
 
   s_echo "Filling help tables..."
   # Pipe fill_help_tables.sql to "mysqld --bootstrap"
-  if `(echo "use mysql;"; cat $fill_help_tables) | $mysqld_install_cmd_line`
+  if { echo "use mysql;"; cat $fill_help_tables; } | $mysqld_install_cmd_line > /dev/null
   then
-    # Fill suceeded
     s_echo "OK"
   else
     echo
@@ -359,14 +369,12 @@ then
   s_echo "support-files/mysql.server to the right place for your system"
   s_echo
 
-  if test "$windows" -eq 0
+  if test "$cross_bootstrap" -eq 0
   then
-    # A root password should of course also be set on Windows!
-    # The reason for not displaying these prompts here is that when
-    # executing this script with the --windows argument the script
-    # is used to generate system tables mainly used by the
-    # windows installer. And thus the password should not be set until
-    # those files has been copied to the target system
+    # This is not a true installation on a running system.  The end user must
+    # set a password after installing the data files on the real host system.
+    # At this point, there is no end user, so it does not make sense to print
+    # this reminder.
     echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
     echo "To do so, start the server, then issue the following commands:"
     echo "$bindir/mysqladmin -u root password 'new-password'"

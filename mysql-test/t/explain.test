@@ -66,4 +66,32 @@ explain extended select * from t1 having 1;
 drop view v1;
 drop table t1;
 
+#
+# Bug #32241: memory corruption due to large index map in 'Range checked for 
+#             each record'
+#
+
+CREATE TABLE t1(c INT);
+INSERT INTO t1 VALUES (),();
+
+CREATE TABLE t2 (b INT,
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
+KEY(b),KEY(b),KEY(b),KEY(b),KEY(b));
+
+INSERT INTO t2 VALUES (),(),();
+
+# We only need to make sure that there is no buffer overrun and the index map
+# is displayed correctly
+--replace_column 1 X 2 X 3 X 4 X 5 X 6 X 7 X 8 X 9 X
+EXPLAIN SELECT 1 FROM
+  (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
+DROP TABLE t2;
+DROP TABLE t1;
+
 # End of 5.0 tests.

@@ -112,7 +112,7 @@ SocketServer::setup(SocketServer::Service * service,
   const int on = 1;
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, 
 		 (const char*)&on, sizeof(on)) == -1) {
-    DBUG_PRINT("error",("getsockopt() - %d - %s",
+    DBUG_PRINT("error",("setsockopt() - %d - %s",
 			errno, strerror(errno)));
     NDB_CLOSE_SOCKET(sock);
     DBUG_RETURN(false);

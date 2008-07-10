@@ -727,6 +727,7 @@ public:
     // Index op return context
     UintR indexOp;
     UintR clientData;
+    Uint32 errorData;
     UintR attrInfoLen;
     
     UintR accumulatingIndexOp;
@@ -1673,6 +1674,7 @@ private:
   UintR cfailure_nr;
   UintR coperationsize;
   UintR ctcTimer;
+  UintR cDbHbInterval;
 
   ApiConnectRecordPtr tmpApiConnectptr;
   UintR tcheckGcpId;

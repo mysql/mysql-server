@@ -126,6 +126,7 @@ public:
 
   /**
    * setField - Set bitfield at given position and length (max 32 bits)
+   * Note : length == 0 not supported.
    */
   static void setField(unsigned size, Uint32 data[],
       unsigned pos, unsigned len, Uint32 val);
@@ -133,6 +134,7 @@ public:
 
   /**
    * getField - Get bitfield at given position and length
+   * Note : length == 0 not supported.
    */
   static void getField(unsigned size, const Uint32 data[],
 		       unsigned pos, unsigned len, Uint32 dst[]);
@@ -814,7 +816,10 @@ BitmaskImpl::getField(unsigned size, const Uint32 src[],
 		      unsigned pos, unsigned len, Uint32 dst[])
 {
   assert(pos + len <= (size << 5));
-  
+  assert (len != 0);
+  if (len == 0)
+    return;
+
   src += (pos >> 5);
   Uint32 offset = pos & 31;
   * dst = (* src >> offset) & (len >= 32 ? ~0 : (1 << len) - 1);
@@ -833,6 +838,9 @@ BitmaskImpl::setField(unsigned size, Uint32 dst[],
 		      unsigned pos, unsigned len, const Uint32 src[])
 {
   assert(pos + len <= (size << 5));
+  assert(len != 0);
+  if (len == 0)
+    return;
 
   dst += (pos >> 5);
   Uint32 offset = pos & 31;

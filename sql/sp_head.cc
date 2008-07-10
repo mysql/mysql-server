@@ -453,7 +453,7 @@ sp_head::operator new(size_t size) throw()
 }
 
 void 
-sp_head::operator delete(void *ptr, size_t size)
+sp_head::operator delete(void *ptr, size_t size) throw()
 {
   DBUG_ENTER("sp_head::operator delete");
   MEM_ROOT own_root;
@@ -1958,11 +1958,17 @@ sp_head::backpatch(sp_label_t *lab)
   uint dest= instructions();
   List_iterator_fast<bp_t> li(m_backpatch);
 
+  DBUG_ENTER("sp_head::backpatch");
   while ((bp= li++))
   {
     if (bp->lab == lab)
+    {
+      DBUG_PRINT("info", ("backpatch: (m_ip %d, label 0x%lx <%s>) to dest %d",
+                          bp->instr->m_ip, (ulong) lab, lab->name, dest));
       bp->instr->backpatch(dest, lab->ctx);
+    }
   }
+  DBUG_VOID_RETURN;
 }
 
 /*

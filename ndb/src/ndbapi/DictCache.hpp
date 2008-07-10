@@ -36,6 +36,7 @@ public:
   // range of cached tuple ids per thread
   Uint64 m_first_tuple_id;
   Uint64 m_last_tuple_id;
+  Uint64 m_highest_seen;
 
   Uint64 m_local_data[1]; // Must be last member. Used to access extra space.
 private:

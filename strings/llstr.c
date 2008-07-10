@@ -32,3 +32,9 @@ char *llstr(longlong value,char *buff)
   longlong10_to_str(value,buff,-10);
   return buff;
 }
+
+char *ullstr(longlong value,char *buff)
+{
+  longlong10_to_str(value,buff,10);
+  return buff;
+}

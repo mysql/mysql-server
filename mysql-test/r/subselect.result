@@ -77,10 +77,9 @@ ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
 ERROR HY000: Incorrect parameters to procedure 'ANALYSE'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
-a
+ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
-a
-1
+ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT (SELECT 1,2,3) = ROW(1,2,3);
 (SELECT 1,2,3) = ROW(1,2,3)
 1
@@ -1307,7 +1306,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using where
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where (`test`.`t1`.`b` <> 30))))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 a
 2
@@ -1315,8 +1314,8 @@ a
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	Using where
-2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	
+2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
 drop table t1, t2, t3;
@@ -1334,9 +1333,9 @@ a
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index; Using where
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a)))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
 2
@@ -1346,7 +1345,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index; Using where
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where (`test`.`t1`.`b` <> 30))))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 a
 2
@@ -1373,7 +1372,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index; Using where
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where (`test`.`t1`.`b` <> 30))))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
 drop table t1, t2, t3;
 create table t1 (a int, b int);
 create table t2 (a int, b int);
@@ -1737,7 +1736,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	12	Using where
 2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index; Using where
 Warnings:
-Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`text` AS `text` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`id`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`id`) in t1 on PRIMARY where (`test`.`t1`.`id` < 8))))))
+Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`text` AS `text` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`id`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`id`) in t1 on PRIMARY where ((`test`.`t1`.`id` < 8) and (<cache>(`test`.`t1`.`id`) = `test`.`t1`.`id`)))))))
 explain extended select * from t1 as tt where not exists (select id from t1 where id < 8 and (id = tt.id or id is null) having id is not null);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	tt	ALL	NULL	NULL	NULL	NULL	12	Using where
@@ -2304,24 +2303,27 @@ drop table t1,t2;
 CREATE TABLE t1 ( a int, b int );
 CREATE TABLE t2 ( c int, d int );
 INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
-SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+SELECT a AS abc, b FROM t1 outr WHERE b = 
+(SELECT MIN(b) FROM t1 WHERE a=outr.a);
 abc	b
 1	2
 2	3
 3	4
-INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+INSERT INTO t2 SELECT a AS abc, b FROM t1 outr WHERE b = 
+(SELECT MIN(b) FROM t1 WHERE a=outr.a);
 select * from t2;
 c	d
 1	2
 2	3
 3	4
-CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+CREATE TABLE t3 SELECT a AS abc, b FROM t1 outr WHERE b = 
+(SELECT MIN(b) FROM t1 WHERE a=outr.a);
 select * from t3;
 abc	b
 1	2
 2	3
 3	4
-prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 outr WHERE b = (SELECT MIN(b) FROM t1 WHERE a=outr.a);";
 execute stmt1;
 deallocate prepare stmt1;
 select * from t2;
@@ -2333,7 +2335,7 @@ c	d
 2	3
 3	4
 drop table t3;
-prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 outr WHERE b = (SELECT MIN(b) FROM t1 WHERE a=outr.a);";
 execute stmt1;
 select * from t3;
 abc	b
@@ -2515,7 +2517,9 @@ INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,680
 INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
 INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
 /*!40000 ALTER TABLE t1 ENABLE KEYS */;
-SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
+SELECT DISTINCT Continent AS c FROM t1 outr WHERE 
+Code <> SOME ( SELECT Code FROM t1 WHERE Continent = outr.Continent AND 
+Population < 200);
 c
 Oceania
 drop table t1;
@@ -3558,22 +3562,19 @@ SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS
 (SELECT i FROM t1) UNION 
 (SELECT i FROM t1)
 );
-i
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION 
+(SELECT i FROM t1)
+)' at line 3
 SELECT * FROM t1 
 WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
-i
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT i FROM t1)))' at line 2
 explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
 from t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union (select t12.i from t1 t12))
 from t1' at line 1
 explain select * from t1 where not exists 
 ((select t11.i from t1 t11) union (select t12.i from t1 t12));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-4	UNION	t12	system	NULL	NULL	NULL	NULL	0	const row not found
-NULL	UNION RESULT	<union2,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union (select t12.i from t1 t12))' at line 2
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(250), b INT auto_increment, PRIMARY KEY (b));
 insert into t1 (a) values (FLOOR(rand() * 100));
@@ -3666,6 +3667,8 @@ CREATE TABLE t1 (a int, b int auto_increment, PRIMARY KEY (b));
 CREATE TABLE t2 (x int auto_increment, y int, z int,
 PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
 SET SESSION sort_buffer_size = 32 * 1024;
+Warnings:
+Warning	1292	Truncated incorrect sort_buffer_size value: '32768'
 SELECT SQL_NO_CACHE COUNT(*) 
 FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
 FROM t1) t;
@@ -4101,6 +4104,8 @@ INSERT INTO `t1` VALUES ('asdf','2007-02-08 01:11:26');
 INSERT INTO `t2` VALUES ('abcdefghijk');
 INSERT INTO `t2` VALUES ('asdf');
 SET session sort_buffer_size=8192;
+Warnings:
+Warning	1292	Truncated incorrect sort_buffer_size value: '8192'
 SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2;
 d1
 1
@@ -4139,6 +4144,107 @@ SELECT (SELECT SUM(t1.a) FROM t2 WHERE a=1) FROM t1;
 (SELECT SUM(t1.a) FROM t2 WHERE a=1)
 3
 DROP TABLE t1,t2;
+create table t1(a int,b int,key(a),key(b));
+insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
+(6,7),(7,4),(5,3);
+select sum(a),a from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1
+)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+sum(a)	a
+select sum(a),a from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+ERROR HY000: Thread stack overrun detected
+explain select sum(a),a from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 
+)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	a	a	5	NULL	9	Using where; Using index
+2	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+3	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+4	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+5	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+6	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+7	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+8	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+9	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+10	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+11	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
+12	SUBQUERY	t1	range	a	a	5	NULL	1	Using where; Using temporary; Using filesort
+13	SUBQUERY	t1	index	NULL	a	5	NULL	9	Using index
+explain select sum(a),a from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
+select sum(a) from t1 
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1
+)group by b limit 1)group by b limit 1)group by b limit 1) 
+group by a;
+ERROR HY000: Thread stack overrun detected
+drop table t1;
 CREATE TABLE t1 (a1 INT, a2 INT);
 CREATE TABLE t2 (b1 INT, b2 INT);
 INSERT INTO t1 VALUES (100, 200);
@@ -4199,4 +4305,139 @@ LEFT(t1.a1,1)
 SELECT a2 FROM t2 WHERE t2.a2 IN (SELECT t1.a1 FROM t1,t3 WHERE t1.b1=t3.a3);
 a2
 DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (a CHAR(1), b VARCHAR(10));
+INSERT INTO t1 VALUES ('a', 'aa');
+INSERT INTO t1 VALUES ('a', 'aaa');
+SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
+a	b
+CREATE INDEX I1 ON t1 (a);
+CREATE INDEX I2 ON t1 (b);
+EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t1	index_subquery	I1	I1	2	func	2	Using index; Using where
+SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
+a	b
+CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10));
+INSERT INTO t2 SELECT * FROM t1;
+CREATE INDEX I1 ON t2 (a);
+CREATE INDEX I2 ON t2 (b);
+EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	I1	I1	4	func	2	Using index; Using where
+SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
+a	b
+EXPLAIN
+SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t1	index_subquery	I1	I1	2	func	2	Using index; Using where
+SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
+a	b
+DROP TABLE t1,t2;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
+EXPLAIN 
+SELECT a AS out_a, MIN(b) FROM t1
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = out_a)
+GROUP BY a;
+ERROR 42S22: Unknown column 'out_a' in 'where clause'
+SELECT a AS out_a, MIN(b) FROM t1
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = out_a)
+GROUP BY a;
+ERROR 42S22: Unknown column 'out_a' in 'where clause'
+EXPLAIN 
+SELECT a AS out_a, MIN(b) FROM t1 t1_outer
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = t1_outer.a)
+GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_outer	ALL	NULL	NULL	NULL	NULL	4	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+SELECT a AS out_a, MIN(b) FROM t1 t1_outer
+WHERE b > (SELECT MIN(b) FROM t1 WHERE a = t1_outer.a)
+GROUP BY a;
+out_a	MIN(b)
+1	2
+2	4
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
+2
+2
+2
+EXPLAIN EXTENDED
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select 2 AS `2` from `test`.`t1` where exists(select 1 AS `1` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`))
+EXPLAIN EXTENDED
+SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a) UNION 
+(SELECT 1 FROM t2 WHERE t1.a = t2.a));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION 
+(SELECT 1 FROM t2 WHERE t1.a = t2.a))' at line 2
+DROP TABLE t1,t2;
+create table t1(f11 int, f12 int);
+create table t2(f21 int unsigned not null, f22 int, f23 varchar(10));
+insert into t1 values(1,1),(2,2), (3, 3);
+set session sort_buffer_size= 33*1024;
+select count(*) from t1 where f12 = 
+(select f22 from t2 where f22 = f12 order by f21 desc, f22, f23 limit 1);
+count(*)
+3
+drop table t1,t2;
+CREATE TABLE t4 (
+f7 varchar(32) collate utf8_bin NOT NULL default '',
+f10 varchar(32) collate utf8_bin default NULL,
+PRIMARY KEY  (f7)
+);
+INSERT INTO t4 VALUES(1,1), (2,null);
+CREATE TABLE t2 (
+f4 varchar(32) collate utf8_bin NOT NULL default '',
+f2 varchar(50) collate utf8_bin default NULL,
+f3 varchar(10) collate utf8_bin default NULL,
+PRIMARY KEY  (f4),
+UNIQUE KEY uk1 (f2)
+);
+INSERT INTO t2 VALUES(1,1,null), (2,2,null);
+CREATE TABLE t1 (
+f8 varchar(32) collate utf8_bin NOT NULL default '',
+f1 varchar(10) collate utf8_bin default NULL,
+f9 varchar(32) collate utf8_bin default NULL,
+PRIMARY KEY  (f8)
+);
+INSERT INTO t1 VALUES (1,'P',1), (2,'P',1), (3,'R',2);
+CREATE TABLE t3 (
+f6 varchar(32) collate utf8_bin NOT NULL default '',
+f5 varchar(50) collate utf8_bin default NULL,
+PRIMARY KEY (f6)
+);
+INSERT INTO t3 VALUES (1,null), (2,null);
+SELECT
+IF(t1.f1 = 'R', a1.f2, t2.f2) AS a4,
+IF(t1.f1 = 'R', a1.f3, t2.f3) AS f3,
+SUM(
+IF(
+(SELECT VPC.f2
+FROM t2 VPC, t4 a2, t2 a3
+WHERE
+VPC.f4 = a2.f10 AND a3.f2 = a4
+LIMIT 1) IS NULL, 
+0, 
+t3.f5
+)
+) AS a6
+FROM 
+t2, t3, t1 JOIN t2 a1 ON t1.f9 = a1.f4
+GROUP BY a4;
+a4	f3	a6
+1	NULL	NULL
+2	NULL	NULL
+DROP TABLE t1, t2, t3, t4;
 End of 5.0 tests.

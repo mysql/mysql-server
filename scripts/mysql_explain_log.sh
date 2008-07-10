@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 # Copyright (C) 2001-2003, 2006 MySQL AB
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -196,9 +196,10 @@ if (defined ($help)) {
 	elsif (m/^\s+(.+)$/ ) { # command could be some lines ...
 	  #print "multi-lined ($1)\n";
 	  my ($A)=$1;
- 	  chomp $A;
-	  $Param->{Query} .= " $1";
-	  #print "multi-lined ($1)<<$Param->{Query}>>\n";
+	  $A =~ s/\-\-.*//;  
+          
+	  $Param->{Query} .= " $A";
+	  #print "multi-lined ($A)<<$Param->{Query}>>\n";
 	}
 
 

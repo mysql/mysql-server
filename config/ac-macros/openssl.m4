@@ -126,11 +126,11 @@ AC_MSG_CHECKING(for OpenSSL)
     AC_MSG_RESULT(no)
 	if test ! -z "$openssl_includes"
 	then
-		AC_MSG_ERROR(Can't have --with-openssl-includes without --with-openssl);
+		AC_MSG_ERROR(Can't have --with-openssl-includes without --with-openssl)
 	fi
 	if test ! -z "$openssl_libs"
 	then
-		AC_MSG_ERROR(Can't have --with-openssl-libs without --with-openssl);
+		AC_MSG_ERROR(Can't have --with-openssl-libs without --with-openssl)
 	fi
   fi
   AC_SUBST(openssl_libs)

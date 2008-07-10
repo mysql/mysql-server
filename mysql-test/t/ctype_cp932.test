@@ -8,6 +8,10 @@ drop table if exists t3;
 drop table if exists t4;
 --enable_warnings
 
+SET @test_character_set= 'cp932';
+SET @test_collation= 'cp932_japanese_ci';
+-- source include/ctype_common.inc
+
 set names cp932;
 set character_set_database = cp932;
  

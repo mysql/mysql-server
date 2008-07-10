@@ -2410,6 +2410,15 @@ SELECT * FROM v1;
 # 3.3.1.54
 --vertical_results
 SET sql_mode = 'traditional,ansi';
+# due to bug#32496 "no trailing blanks in identifier".
+CREATE OR REPLACE VIEW v1 AS
+SELECT f3 AS "pure column f3:", f1 + f3 AS "sum of columns f1 + f3 =",
+       3 * (- 0.11111E+1) AS "product of constants 3 * (- 0.11111E+1):",
+       '->' || CAST(f3 AS CHAR) || '<-'
+         AS "expression with '||'=CONCAT and CAST(DECIMAL column AS CHAR):"
+FROM t1 WHERE f1 = 2;
+# This error is not conformant with ansi (see bug#32496). hhunger
+--error ER_WRONG_COLUMN_NAME
 CREATE OR REPLACE VIEW v1 AS
 SELECT f3 AS "pure column f3: ", f1 + f3 AS "sum of columns f1 + f3 = ",
        3 * (- 0.11111E+1) AS "product of constants 3 * (- 0.11111E+1): ",
