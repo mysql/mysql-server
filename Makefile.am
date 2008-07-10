@@ -232,23 +232,28 @@ test-full-qa:
 	        test-fast-cursor test-unit
 
 #
-# Headers which need to be checked for abi/api compatibility
+# Headers which need to be checked for abi/api compatibility.
+# API_PREPROCESSOR_HEADER will be used until mysql_priv.h stablizes
+# after which TEST_PREPROCESSOR_HEADER will be used.
 #
 
-PREPROCESSOR_C_HEADER=$(top_srcdir)/include/mysql/plugin.h \
-					$(top_srcdir)/sql/mysql_priv.h \
-					$(top_srcdir)/include/mysql.h
+API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
+                           $(top_srcdir)/include/mysql.h
+
+TEST_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
+                            $(top_srcdir)/sql/mysql_priv.h \
+                            $(top_srcdir)/include/mysql.h
 
 #
-# Rule for checking that the abi/api has not changed.
+# Rules for checking that the abi/api has not changed.
 #
-# The following steps are followed in the rule below
+# The following steps are followed in the do_abi_check rule below
 #
 # 1) Generate preprocessor output for the files that need to
-#    be tested for abi/api changes. use -nostdinc to prevent 
-#    generation of preprocessor output for system headers. This 
-#    results in messages in stderr saying that these headers 
-#    were not found. Redirect the stderr output to /dev/null 
+#    be tested for abi/api changes. use -nostdinc to prevent
+#    generation of preprocessor output for system headers. This
+#    results in messages in stderr saying that these headers
+#    were not found. Redirect the stderr output to /dev/null
 #    to prevent seeing these messages.
 # 2) sed the output to remove blank lines and lines that begin
 #    with # (The header information is retained to enable easy
@@ -273,9 +278,15 @@ PREPROCESSOR_C_HEADER=$(top_srcdir)/include/mysql/plugin.h \
 # to replace the old canons with the new ones.
 #
 
-abi_check:	$(PREPROCESSOR_C_HEADER)
-	 set -ex; \
-	 for file in $(PREPROCESSOR_C_HEADER); do \
+abi_check:	$(API_PREPROCESSOR_HEADER)
+	$(MAKE) abi_headers="$^" do_abi_check
+
+abi_check_all:	$(TEST_PREPROCESSOR_HEADER)
+	$(MAKE) abi_headers="$^" do_abi_check
+
+do_abi_check:
+	set -ex; \
+	for file in $(abi_headers); do \
 	         @CC@ -E -nostdinc -dI \
 	                  -I$(top_srcdir)/include \
 	                  -I$(top_srcdir)/include/mysql \
@@ -285,8 +296,7 @@ abi_check:	$(PREPROCESSOR_C_HEADER)
 	                            -e '/^[ 	]*$$/d' > $$file.out; \
 	                  @DIFF@ $$file.pp $$file.out; \
 	                  @RM@ $$file.out; \
-	 done
-	 touch $@
+	done
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
