@@ -3333,7 +3333,7 @@ String *Item_func_uuid::val_str(String *str)
       /*
         -1 so we won't make tv= uuid_time for nanoseq >= (tv - uuid_time)
       */
-      long delta= min(nanoseq, tv - uuid_time -1);
+      long delta= min(nanoseq, (long) (tv - uuid_time -1));
       tv-= delta;
       nanoseq-= delta;
     }
