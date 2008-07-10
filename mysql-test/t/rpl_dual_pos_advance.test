@@ -7,6 +7,7 @@
 # It also will test BUG#13861.
 
 source include/master-slave.inc;
+source include/have_innodb.inc;
 
 
 # set up "dual head"
@@ -30,45 +31,58 @@ save_master_pos;
 connection master;
 sync_with_master;
 
-# Now test BUG#13861. This will be enabled when Guilhem fixes this
-# bug.
+#
+# BUG#13861 - START SLAVE UNTIL may stop 1 evnt too late if
+#             log-slave-updates and circul repl
+#
+stop slave;
 
-# stop slave
+create table t2 (n int); # create one ignored event
 
-# create table t2 (n int); # create one ignored event
+save_master_pos;
+connection slave;
+sync_with_master;
 
-# save_master_pos;
-# connection slave;
-# sync_with_master;
+connection slave;
 
-# connection slave;
+show tables;
 
-# show tables;
+save_master_pos;
 
-# save_master_pos;
+create table t3 (n int) engine=innodb;
+set @a=1;
+insert into t3 values(@a);
+begin;
+insert into t3 values(2);
+insert into t3 values(3);
+commit;
+insert into t3 values(4);
 
-# create table t3 (n int);
 
-# connection master;
+connection master;
 
 # bug is that START SLAVE UNTIL may stop too late, we test that by
 # asking it to stop before creation of t3.
 
-# start slave until master_log_file="slave-bin.000001",master_log_pos=195;
-
-# wait until it's started (the position below is the start of "CREATE
-# TABLE t2") (otherwise wait_for_slave_to_stop may return at once)
-
-# select master_pos_wait("slave-bin.000001",137);
-
-# wait_for_slave_to_stop;
+start slave until master_log_file="slave-bin.000001",master_log_pos=195;
+wait_for_slave_to_stop;
 
 # then BUG#13861 causes t3 to show up below (because stopped too
 # late).
 
-# show tables;
+show tables;
 
-# start slave;
+# ensure that we do not break set @a=1; insert into t3 values(@a);
+start slave until master_log_file="slave-bin.000001",master_log_pos=438;
+wait_for_slave_to_stop;
+select * from t3;
+
+# ensure that we do not break transaction
+start slave until master_log_file="slave-bin.000001",master_log_pos=663;
+wait_for_slave_to_stop;
+select * from t3;
+
+start slave;
 
 # BUG#13023 is that Exec_master_log_pos may stay too low "forever":
 
@@ -99,7 +113,7 @@ show tables;
 
 stop slave;
 reset slave;
-drop table t1,t4,t5,t6; # add t2 and t3 later
+drop table t1,t2,t3,t4,t5,t6;
 
 save_master_pos;
 connection slave;

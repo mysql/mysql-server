@@ -1,7 +1,4 @@
-SET @NO_REFRESH = IF( '' = '', 0, 1);
 USE test;
-set @@global.max_heap_table_size  = 4294967295;
-set @@session.max_heap_table_size = 4294967295;
 drop table if exists tb3;
 create table tb3 (
 f118 char not null DEFAULT 'a', 
@@ -745,3 +742,4 @@ drop database if exists priv_db;
 drop user test_yesprivs@localhost;
 drop user test_noprivs@localhost;
 drop user test_noprivs;
+DROP TABLE test.tb3;

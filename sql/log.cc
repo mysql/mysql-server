@@ -2496,12 +2496,7 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
     void
 */
 
-#ifdef EMBEDDED_LIBRARY
-void vprint_msg_to_log(enum loglevel level __attribute__((unused)),
-                       const char *format __attribute__((unused)),
-                       va_list argsi __attribute__((unused)))
-{}
-#else /*!EMBEDDED_LIBRARY*/
+#ifndef EMBEDDED_LIBRARY
 static void print_buffer_to_file(enum loglevel level, const char *buffer)
 {
   time_t skr;

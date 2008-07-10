@@ -117,6 +117,7 @@ uint		mysql_port=0;
 char		*mysql_unix_port= 0;
 const char	*unknown_sqlstate= "HY000";
 const char	*not_error_sqlstate= "00000";
+const char	*cant_connect_sqlstate= "08001";
 #ifdef HAVE_SMEM
 char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
@@ -131,6 +132,9 @@ static int wait_for_data(my_socket fd, uint timeout);
 
 CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
 
+/* Server error code and message */
+unsigned int mysql_server_last_errno;
+char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 
 /****************************************************************************
   A modified version of connect().  my_connect() allows you to specify
@@ -665,11 +669,12 @@ my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check,
-                     MYSQL_STMT *stmt __attribute__((unused)))
+                     MYSQL_STMT *stmt)
 {
   NET *net= &mysql->net;
   my_bool result= 1;
   init_sigpipe_variables
+  my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
   DBUG_ENTER("cli_advanced_command");
 
   /* Don't give sigpipe errors if the client doesn't want them */
@@ -677,7 +682,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   if (mysql->net.vio == 0)
   {						/* Do reconnect if possible */
-    if (mysql_reconnect(mysql))
+    if (mysql_reconnect(mysql) || stmt_skip)
       DBUG_RETURN(1);
   }
   if (mysql->status != MYSQL_STATUS_READY ||
@@ -708,7 +713,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       goto end;
     }
     end_server(mysql);
-    if (mysql_reconnect(mysql))
+    if (mysql_reconnect(mysql) || stmt_skip)
       goto end;
     if (net_write_command(net,(uchar) command, header, header_length,
 			  arg, arg_length))
@@ -752,10 +757,18 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
   DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
   DBUG_ASSERT(mysql != 0);
 
-  net= &mysql->net;
-  net->last_errno= errcode;
-  strmov(net->last_error, ER(errcode));
-  strmov(net->sqlstate, sqlstate);
+  if (mysql)
+  {
+    net= &mysql->net;
+    net->last_errno= errcode;
+    strmov(net->last_error, ER(errcode));
+    strmov(net->sqlstate, sqlstate);
+  }
+  else
+  {
+    mysql_server_last_errno= errcode;
+    strmov(mysql_server_last_error, ER(errcode));
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -1477,7 +1490,10 @@ mysql_init(MYSQL *mysql)
   if (!mysql)
   {
     if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
+    {
+      set_mysql_error(NULL, CR_OUT_OF_MEMORY, unknown_sqlstate);
       return 0;
+    }
     mysql->free_me=1;
   }
   else
@@ -2503,6 +2519,9 @@ my_bool mysql_reconnect(MYSQL *mysql)
       if (stmt->state != MYSQL_STMT_INIT_DONE)
       {
         stmt->mysql= 0;
+        stmt->last_errno= CR_SERVER_LOST;
+        strmov(stmt->last_error, ER(CR_SERVER_LOST));
+        strmov(stmt->sqlstate, unknown_sqlstate);
       }
       else
       {
@@ -3064,13 +3083,13 @@ unsigned int STDCALL mysql_num_fields(MYSQL_RES *res)
 
 uint STDCALL mysql_errno(MYSQL *mysql)
 {
-  return mysql->net.last_errno;
+  return mysql ? mysql->net.last_errno : mysql_server_last_errno;
 }
 
 
 const char * STDCALL mysql_error(MYSQL *mysql)
 {
-  return mysql->net.last_error;
+  return mysql ? mysql->net.last_error : mysql_server_last_error;
 }
 
 

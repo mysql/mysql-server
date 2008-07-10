@@ -3306,7 +3306,7 @@ grant RELOAD on *.* to mysqltest_1@localhost;
 mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SUPER,REPLICATION CLIENT privilege for this operation (1227)
 mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SUPER,REPLICATION CLIENT privilege for this operation (1227)
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=537;
+CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=#;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 CREATE TABLE `t1` (

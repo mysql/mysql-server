@@ -1207,6 +1207,22 @@ bool Item_name_const::is_null()
   return value_item->is_null();
 }
 
+
+Item_name_const::Item_name_const(Item *name_arg, Item *val):
+    value_item(val), name_item(name_arg)
+{
+  if (!(valid_args= name_item->basic_const_item() &&
+                    (value_item->basic_const_item() ||
+                     ((value_item->type() == FUNC_ITEM) &&
+                      (((Item_func *) value_item)->functype() ==
+                                                 Item_func::NEG_FUNC) &&
+                      (((Item_func *) value_item)->key_item()->type() !=
+                       FUNC_ITEM)))))
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
+  Item::maybe_null= TRUE;
+}
+
+
 Item::Type Item_name_const::type() const
 {
   /*
@@ -1218,8 +1234,17 @@ Item::Type Item_name_const::type() const
     if (item->type() == FIELD_ITEM) 
       ((Item_field *) item)->... 
     we return NULL_ITEM in the case to avoid wrong casting.
+
+    valid_args guarantees value_item->basic_const_item(); if type is
+    FUNC_ITEM, then we have a fudged item_func_neg() on our hands
+    and return the underlying type.
   */
-  return valid_args ? value_item->type() : NULL_ITEM;
+  return valid_args ?
+             (((value_item->type() == FUNC_ITEM) &&
+               (((Item_func *) value_item)->functype() == Item_func::NEG_FUNC)) ?
+             ((Item_func *) value_item)->key_item()->type() :
+             value_item->type()) :
+           NULL_ITEM;
 }
 
 
@@ -1240,6 +1265,7 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
+  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
   fixed= 1;
@@ -2385,14 +2411,14 @@ default_set_param_func(Item_param *param,
 
 
 Item_param::Item_param(unsigned pos_in_query_arg) :
-  strict_type(FALSE),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
   item_type(PARAM_ITEM),
   param_type(MYSQL_TYPE_VARCHAR),
   pos_in_query(pos_in_query_arg),
-  set_param_func(default_set_param_func)
+  set_param_func(default_set_param_func),
+  limit_clause_param(FALSE)
 {
   name= (char*) "?";
   /* 
@@ -2581,8 +2607,13 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   {
     item_result_type= entry->type;
     unsigned_flag= entry->unsigned_flag;
-    if (strict_type && required_result_type != item_result_type)
-      DBUG_RETURN(1);
+    if (limit_clause_param)
+    {
+      my_bool unused;
+      set_int(entry->val_int(&unused), MY_INT64_NUM_DECIMAL_DIGITS);
+      item_type= Item::INT_ITEM;
+      DBUG_RETURN(!unsigned_flag && value.integer < 0 ? 1 : 0);
+    }
     switch (item_result_type) {
     case REAL_RESULT:
       set_double(*(double*)entry->value);
@@ -3907,6 +3938,18 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     else if (!from_field)
       goto error;
 
+    if (!outer_fixed && cached_table && cached_table->select_lex &&
+          context->select_lex &&
+          cached_table->select_lex != context->select_lex)
+    {
+      int ret;
+      if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
+        goto error;
+      else if (!ret)
+        return FALSE;
+      outer_fixed= 1;
+    }
+
     /*
       if it is not expression from merged VIEW we will set this field.
 
@@ -3921,18 +3964,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     */
     if (from_field == view_ref_found)
       return FALSE;
-
-    if (!outer_fixed && cached_table && cached_table->select_lex &&
-          context->select_lex &&
-          cached_table->select_lex != context->select_lex)
-    {
-      int ret;
-      if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
-        goto error;
-      else if (!ret)
-        return FALSE;
-      outer_fixed= 1;
-    }
 
     set_field(from_field);
     if (thd->lex->in_sum_func &&
@@ -4087,6 +4118,30 @@ bool Item_field::subst_argument_checker(byte **arg)
 }
 
 
+/**
+  Convert a numeric value to a zero-filled string
+
+  @param[in,out]  item   the item to operate on
+  @param          field  The field that this value is equated to
+
+  This function converts a numeric value to a string. In this conversion
+  the zero-fill flag of the field is taken into account.
+  This is required so the resulting string value can be used instead of
+  the field reference when propagating equalities.
+*/
+
+static void convert_zerofill_number_to_string(Item **item, Field_num *field)
+{
+  char buff[MAX_FIELD_WIDTH],*pos;
+  String tmp(buff,sizeof(buff), field->charset()), *res;
+
+  res= (*item)->val_str(&tmp);
+  field->prepend_zeros(res);
+  pos= (char *) sql_strmake (res->ptr(), res->length());
+  *item= new Item_string(pos, res->length(), field->charset());
+}
+
+
 /*
   Set a pointer to the multiple equality the field reference belongs to
   (if any)
@@ -4135,6 +4190,13 @@ Item *Item_field::equal_fields_propagator(byte *arg)
   if (!item ||
       (cmp_context != (Item_result)-1 && item->cmp_context != cmp_context))
     item= this;
+  else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
+  {
+    if (item && cmp_context != INT_RESULT)
+      convert_zerofill_number_to_string(&item, (Field_num *)field);
+    else
+      item= this;
+  }
   return item;
 }
 
@@ -4305,6 +4367,49 @@ String *Item::check_well_formed_result(String *str, bool send_error)
   }
   return str;
 }
+
+/*
+  Compare two items using a given collation
+  
+  SYNOPSIS
+    eq_by_collation()
+    item               item to compare with
+    binary_cmp         TRUE <-> compare as binaries
+    cs                 collation to use when comparing strings
+
+  DESCRIPTION
+    This method works exactly as Item::eq if the collation cs coincides with
+    the collation of the compared objects. Otherwise, first the collations that
+    differ from cs are replaced for cs and then the items are compared by
+    Item::eq. After the comparison the original collations of items are
+    restored.
+
+  RETURN
+    1    compared items has been detected as equal   
+    0    otherwise
+*/
+
+bool Item::eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs)
+{
+  CHARSET_INFO *save_cs= 0;
+  CHARSET_INFO *save_item_cs= 0;
+  if (collation.collation != cs)
+  {
+    save_cs= collation.collation;
+    collation.collation= cs;
+  }
+  if (item->collation.collation != cs)
+  {
+    save_item_cs= item->collation.collation;
+    item->collation.collation= cs;
+  }
+  bool res= eq(item, binary_cmp);
+  if (save_cs)
+    collation.collation= save_cs;
+  if (save_item_cs)
+    item->collation.collation= save_item_cs;
+  return res;
+}  
 
 
 /*

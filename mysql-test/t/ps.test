@@ -1824,4 +1824,146 @@ select * from t1 where a = @a and b = @b;
 deallocate prepare stmt;
 drop table t1;
 
+#
+# Bug#32890 Crash after repeated create and drop of tables and views
+#
+
+--disable_warnings
+drop view if exists v1;
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a int, b int);
+insert into t1 values (1,1), (2,2), (3,3);
+insert into t1 values (3,1), (1,2), (2,3);
+
+prepare stmt from "create view v1 as select * from t1";
+execute stmt;
+drop table t1;
+create table t1 (a int, b int);
+drop view v1;
+execute stmt;
+show create view v1;
+drop view v1;
+
+prepare stmt from "create view v1 (c,d) as select a,b from t1";
+execute stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+
+prepare stmt from "create view v1 (c) as select b+1 from t1";
+execute stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+
+prepare stmt from "create view v1 (c,d,e,f) as select a,b,a in (select a+2 from t1), a = all (select a from t1) from t1";
+execute stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+
+prepare stmt from "create or replace view v1 as select 1";
+execute stmt;
+show create view v1;
+select * from v1;
+execute stmt;
+show create view v1;
+deallocate prepare stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+
+prepare stmt from "create view v1 as select 1, 1";
+execute stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+
+prepare stmt from "create view v1 (x) as select a from t1 where a > 1";
+execute stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+
+prepare stmt from "create view v1 as select * from `t1` `b`";
+execute stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+select * from v1;
+drop view v1;
+
+prepare stmt from "create view v1 (a,b,c) as select * from t1";
+--error ER_VIEW_WRONG_LIST
+execute stmt;
+--error ER_VIEW_WRONG_LIST
+execute stmt;
+deallocate prepare stmt;
+
+drop table t1;
+create temporary table t1 (a int, b int);
+
+prepare stmt from "create view v1 as select * from t1";
+--error ER_VIEW_SELECT_TMPTABLE
+execute stmt;
+--error ER_VIEW_SELECT_TMPTABLE
+execute stmt;
+deallocate prepare stmt;
+
+drop table t1;
+
+--error ER_NO_SUCH_TABLE
+prepare stmt from "create view v1 as select * from t1";
+--error ER_NO_SUCH_TABLE
+prepare stmt from "create view v1 as select * from `t1` `b`";
+
+#
+# Bug#33851: Passing UNSIGNED param to EXECUTE returns ERROR 1210
+#
+
+prepare stmt from "select ?";
+set @arg= 123456789.987654321;
+select @arg;
+execute stmt using @arg;
+set @arg= "string";
+select @arg;
+execute stmt using @arg;
+set @arg= 123456;
+select @arg;
+execute stmt using @arg;
+set @arg= cast(-12345.54321 as decimal(20, 10));
+select @arg;
+execute stmt using @arg;
+deallocate prepare stmt;
+
 --echo End of 5.0 tests.

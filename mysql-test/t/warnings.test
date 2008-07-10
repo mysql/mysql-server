@@ -212,4 +212,37 @@ DROP PROCEDURE sp1;
 DROP PROCEDURE sp2;
 DROP PROCEDURE sp3;
 
+
+#
+# Bug#30059: End-space truncation warnings are inconsistent or incorrect
+#
+
+create table t1 (c_char char(255), c_varchar varchar(255), c_tinytext tinytext);
+create table t2 (c_tinyblob tinyblob); # not affected by bug, for regression testing
+set @c = repeat(' ', 256);
+set @q = repeat('q', 256);
+
+set sql_mode = '';
+
+insert into t1 values(@c, @c, @c);
+insert into t2 values(@c);
+insert into t1 values(@q, @q, @q);
+insert into t2 values(@q);
+
+set sql_mode = 'traditional';
+
+insert into t1 values(@c, @c, @c);
+--error 1406
+insert into t2 values(@c);
+--error 1406
+insert into t1 values(@q, NULL, NULL);
+--error 1406
+insert into t1 values(NULL, @q, NULL);
+--error 1406
+insert into t1 values(NULL, NULL, @q);
+--error 1406
+insert into t2 values(@q);
+
+drop table t1, t2;
+
 --echo End of 5.0 tests

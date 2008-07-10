@@ -73,6 +73,9 @@ CONFIGURE_FILE(mysql_secure_installation.pl.in
 CONFIGURE_FILE(mysql_tableinfo.sh
                scripts/mysql_tableinfo.pl ESCAPE_QUOTES @ONLY)
 
+CONFIGURE_FILE(mysql_upgrade_shell.sh
+               scripts/mysql_upgrade_shell.pl ESCAPE_QUOTES @ONLY)
+
 CONFIGURE_FILE(mysqld_multi.sh
                scripts/mysqld_multi.pl ESCAPE_QUOTES @ONLY)
 

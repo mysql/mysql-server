@@ -1,0 +1,17 @@
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+DROP   USER testuser1@localhost;
+CREATE USER testuser1@localhost;
+GRANT SELECT ON db_datadict.* TO testuser1@localhost;
+SELECT * FROM information_schema.table_constraints
+WHERE table_schema = 'information_schema'
+ORDER BY table_schema,table_name,constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+# Establish connection testuser1 (user=testuser1)
+SELECT * FROM information_schema.table_constraints
+WHERE table_schema = 'information_schema'
+ORDER BY table_schema,table_name,constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+# Switch to connection default and close connection testuser1
+DROP USER testuser1@localhost;
+DROP DATABASE db_datadict;

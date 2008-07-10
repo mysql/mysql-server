@@ -125,6 +125,7 @@ create table t1 (c char(2), vc varchar(2));
 insert into t1 values(0x4120, 0x4120);
 insert into t1 values(0x412020, 0x412020);
 Warnings:
+Note	1265	Data truncated for column 'c' at row 1
 Note	1265	Data truncated for column 'vc' at row 1
 drop table t1;
 set @old_sql_mode= @@sql_mode, sql_mode= 'traditional';

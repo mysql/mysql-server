@@ -602,6 +602,12 @@ void ha_myisammrg::append_create_info(String *packet)
     packet->append(STRING_WITH_LEN(" INSERT_METHOD="));
     packet->append(get_type(&merge_insert_method,file->merge_insert_method-1));
   }
+  /*
+    There is no sence adding UNION clause in case there is no underlying
+    tables specified.
+  */
+  if (file->open_tables == file->end_table)
+    return;
   packet->append(STRING_WITH_LEN(" UNION=("));
   MYRG_TABLE *open_table,*first;
 

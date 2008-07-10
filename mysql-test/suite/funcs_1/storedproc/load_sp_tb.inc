@@ -12,9 +12,6 @@ let $message= --source suite/funcs_1/storedproc/load_sp_tb.inc;
 --disable_abort_on_error
 --enable_query_log
 
-SET @@global.max_heap_table_size=4294967295;
-SET @@session.max_heap_table_size=4294967295;
-
 # use the same .inc to cleanup before and after the test
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 

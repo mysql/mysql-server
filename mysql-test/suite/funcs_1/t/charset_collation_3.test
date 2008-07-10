@@ -1,0 +1,24 @@
+# Tests checking the content of the information_schema tables
+#      character_sets
+#      collations
+#      collation_character_set_applicability
+#
+# Content variant 3 which should fit to
+#    Community and Cluster builds (binaries provided by MySQL)
+#
+# Please read suite/funcs_1/datadict/charset_collation.inc for
+# additional information.
+#
+# Created:
+# 2007-12-18 mleich - remove the unstable character_set/collation subtests
+#                     from include/datadict-master.inc
+#                   - create this new test
+#
+
+if (`SELECT @@version_comment NOT LIKE '%Community%'
+        AND @@version_comment NOT LIKE '%Cluster%'`)
+{
+   skip Test needs Community or Cluster build;
+}
+
+--source suite/funcs_1/datadict/charset_collation.inc

@@ -1,7 +1,4 @@
-SET @NO_REFRESH = IF( '' = '', 0, 1);
 USE test;
-set @@global.max_heap_table_size  = 4294967295;
-set @@session.max_heap_table_size = 4294967295;
 drop table if exists tb3;
 create table tb3 (
 f118 char not null DEFAULT 'a', 
@@ -265,3 +262,4 @@ drop trigger trg6c;
 
 Testcase 3.5.9.14: (implied in previous tests)
 ----------------------------------------------
+DROP TABLE test.tb3;
