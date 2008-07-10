@@ -436,4 +436,15 @@ set @@sql_mode='TRADITIONAL';
 create table t1 (a text default '');
 set @@sql_mode='';
 
+#
+# Bug #32282: TEXT silently truncates when value is exactly 65536 bytes
+#
+
+CREATE TABLE t (c TEXT CHARSET ASCII);
+INSERT INTO t (c) VALUES (REPEAT('1',65537));
+INSERT INTO t (c) VALUES (REPEAT('2',65536));
+INSERT INTO t (c) VALUES (REPEAT('3',65535));
+SELECT LENGTH(c), CHAR_LENGTH(c) FROM t;
+DROP TABLE t;
+
 --echo End of 5.0 tests

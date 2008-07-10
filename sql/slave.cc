@@ -2447,14 +2447,15 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->prepare_for_resend();
   
     /*
-      TODO: we read slave_running without run_lock, whereas these variables
-      are updated under run_lock and not data_lock. In 5.0 we should lock
-      run_lock on top of data_lock (with good order).
+      slave_running can be accessed without run_lock but not other
+      non-volotile members like mi->io_thd, which is guarded by the mutex.
     */
+    pthread_mutex_lock(&mi->run_lock);
+    protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
+    pthread_mutex_unlock(&mi->run_lock);
+
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
-
-    protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->user, &my_charset_bin);
     protocol->store((uint32) mi->port);
@@ -3338,7 +3339,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       }
 
       DBUG_PRINT("info", ("thd->options: %s",
-                          (thd->options & OPTION_BEGIN) ? "OPTION_BEGIN" : ""))
+                          (thd->options & OPTION_BEGIN) ? "OPTION_BEGIN" : ""));
 
       /*
         Protect against common user error of setting the counter to 1
@@ -3348,7 +3349,10 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       if (rli->slave_skip_counter &&
           !((type_code == INTVAR_EVENT ||
              type_code == RAND_EVENT ||
-             type_code == USER_VAR_EVENT) &&
+             type_code == USER_VAR_EVENT ||
+             type_code == BEGIN_LOAD_QUERY_EVENT ||
+             type_code == APPEND_BLOCK_EVENT ||
+             type_code == CREATE_FILE_EVENT) &&
             rli->slave_skip_counter == 1) &&
 #if MYSQL_VERSION_ID < 50100
           /*

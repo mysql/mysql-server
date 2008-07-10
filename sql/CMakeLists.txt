@@ -48,7 +48,7 @@ ENDIF(DISABLE_GRANT_OPTIONS)
 
 ADD_EXECUTABLE(mysqld${MYSQLD_EXE_SUFFIX}
 	       ../sql-common/client.c derror.cc des_key_file.cc
-               discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
+               discover.cc ../libmysql/errmsg.c field.cc  stacktrace.c stacktrace.h field_conv.cc 
                filesort.cc gstream.cc ha_blackhole.cc 
                ha_archive.cc ha_heap.cc ha_myisam.cc ha_myisammrg.cc
                ha_innodb.cc ha_federated.cc ha_berkeley.cc

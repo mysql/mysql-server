@@ -767,8 +767,8 @@ Ndb::getNodeId()
 }
 
 /****************************************************************************
-Uint64 getAutoIncrementValue( const char* aTableName,
-                              Uint64 & tupleId, 
+int    getAutoIncrementValue( const char* aTableName,
+                              Uint64 & autoValue, 
                               Uint32 cacheSize, 
                               Uint64 step,
                               Uint64 start);
@@ -779,6 +779,7 @@ Parameters:     aTableName (IN) : The table name.
                 step       (IN) : Specifies the step between the 
                                   autoincrement values.
                 start      (IN) : Start value for first value
+Returns:        0 if succesful, -1 if error encountered
 Remark:		Returns a new autoincrement value to the application.
                 The autoincrement values can be increased by steps
                 (default 1) and a number of values can be prefetched
@@ -892,9 +893,18 @@ Ndb::getTupleIdFromNdb(Ndb_local_table_info* info,
   DBUG_RETURN(0);
 }
 
+/****************************************************************************
+int readAutoIncrementValue( const char* aTableName,
+                            Uint64 & autoValue);
+
+Parameters:     aTableName (IN) : The table name.
+                autoValue  (OUT) : The current autoincrement value
+Returns:        0 if succesful, -1 if error encountered
+Remark:		Returns the current autoincrement value to the application.
+****************************************************************************/
 int
 Ndb::readAutoIncrementValue(const char* aTableName,
-                            Uint64 & tupleId)
+                            Uint64 & autoValue)
 {
   DBUG_ENTER("Ndb::readAutoIncrementValue");
   BaseString internal_tabname(internalize_table_name(aTableName));
@@ -905,15 +915,15 @@ Ndb::readAutoIncrementValue(const char* aTableName,
     theError.code = theDictionary->getNdbError().code;
     DBUG_RETURN(-1);
   }
-  if (readTupleIdFromNdb(info, tupleId) == -1)
+  if (readTupleIdFromNdb(info, autoValue) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)autoValue));
   DBUG_RETURN(0);
 }
 
 int
 Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable,
-                            Uint64 & tupleId)
+                            Uint64 & autoValue)
 {
   DBUG_ENTER("Ndb::readAutoIncrementValue");
   assert(aTable != 0);
@@ -926,9 +936,9 @@ Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable,
     theError.code = theDictionary->getNdbError().code;
     DBUG_RETURN(-1);
   }
-  if (readTupleIdFromNdb(info, tupleId) == -1)
+  if (readTupleIdFromNdb(info, autoValue) == -1)
     DBUG_RETURN(-1);
-  DBUG_PRINT("info", ("value %lu", (ulong)tupleId));
+  DBUG_PRINT("info", ("value %lu", (ulong)autoValue));
   DBUG_RETURN(0);
 }
 
@@ -956,9 +966,20 @@ Ndb::readTupleIdFromNdb(Ndb_local_table_info* info,
   DBUG_RETURN(0);
 }
 
+/****************************************************************************
+int setAutoIncrementValue( const char* aTableName,
+                           Uint64 autoValue,
+                           bool modify);
+
+Parameters:     aTableName (IN) : The table name.
+                autoValue  (IN) : The new autoincrement value
+                modify     (IN) : Modify existing value (not initialization)
+Returns:        0 if succesful, -1 if error encountered
+Remark:		Sets a new autoincrement value for the application.
+****************************************************************************/
 int
 Ndb::setAutoIncrementValue(const char* aTableName,
-                           Uint64 tupleId, bool increase)
+                           Uint64 autoValue, bool modify)
 {
   DBUG_ENTER("Ndb::setAutoIncrementValue");
   BaseString internal_tabname(internalize_table_name(aTableName));
@@ -969,14 +990,14 @@ Ndb::setAutoIncrementValue(const char* aTableName,
     theError.code = theDictionary->getNdbError().code;
     DBUG_RETURN(-1);
   }
-  if (setTupleIdInNdb(info, tupleId, increase) == -1)
+  if (setTupleIdInNdb(info, autoValue, modify) == -1)
     DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
 int
 Ndb::setAutoIncrementValue(const NdbDictionary::Table * aTable,
-                           Uint64 tupleId, bool increase)
+                           Uint64 autoValue, bool modify)
 {
   DBUG_ENTER("Ndb::setAutoIncrementValue");
   assert(aTable != 0);
@@ -989,38 +1010,42 @@ Ndb::setAutoIncrementValue(const NdbDictionary::Table * aTable,
     theError.code = theDictionary->getNdbError().code;
     DBUG_RETURN(-1);
   }
-  if (setTupleIdInNdb(info, tupleId, increase) == -1)
+  if (setTupleIdInNdb(info, autoValue, modify) == -1)
     DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
 int
 Ndb::setTupleIdInNdb(Ndb_local_table_info* info,
-                     Uint64 tupleId, bool increase)
+                     Uint64 tupleId, bool modify)
 {
   DBUG_ENTER("Ndb::setTupleIdInNdb");
-  if (increase)
+  if (modify)
   {
-    if (info->m_first_tuple_id != info->m_last_tuple_id)
+    if (checkTupleIdInNdb(info, tupleId))
     {
-      assert(info->m_first_tuple_id < info->m_last_tuple_id);
-      if (tupleId <= info->m_first_tuple_id + 1)
-	DBUG_RETURN(0);
-      if (tupleId <= info->m_last_tuple_id)
+      if (info->m_first_tuple_id != info->m_last_tuple_id)
       {
-	info->m_first_tuple_id = tupleId - 1;
-        DBUG_PRINT("info", 
-                   ("Setting next auto increment cached value to %lu",
-                    (ulong)tupleId));  
-	DBUG_RETURN(0);
+        assert(info->m_first_tuple_id < info->m_last_tuple_id);
+        if (tupleId <= info->m_first_tuple_id + 1)
+          DBUG_RETURN(0);
+        if (tupleId <= info->m_last_tuple_id)
+        {
+	  info->m_first_tuple_id = tupleId - 1;
+          DBUG_PRINT("info",
+                     ("Setting next auto increment cached value to %lu",
+                      (ulong)tupleId));
+	  DBUG_RETURN(0);
+        }
       }
+      /*
+       * if tupleId <= NEXTID, do nothing.  otherwise update NEXTID to
+       * tupleId and set cached range to first = last = tupleId - 1.
+       */
+      Uint64 opValue = tupleId;
+      if (opTupleIdOnNdb(info, opValue, 2) == -1)
+        DBUG_RETURN(-1);
     }
-    /*
-     * if tupleId <= NEXTID, do nothing.  otherwise update NEXTID to
-     * tupleId and set cached range to first = last = tupleId - 1.
-     */
-    if (opTupleIdOnNdb(info, tupleId, 2) == -1)
-      DBUG_RETURN(-1);
   }
   else
   {
@@ -1031,6 +1056,32 @@ Ndb::setTupleIdInNdb(Ndb_local_table_info* info,
       DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
+}
+
+int
+Ndb::checkTupleIdInNdb(Ndb_local_table_info* info, Uint64 tupleId)
+{
+  DBUG_ENTER("Ndb::checkTupleIdIndNdb");
+  if ((info->m_first_tuple_id != ~(Uint64)0) &&
+      (info->m_first_tuple_id > tupleId))
+  {
+   /*
+    * If we have ever cached a value in this object and this cached
+    * value is larger than the value we're trying to set then we
+    * need not check with the real value in the SYSTAB_0 table.
+    */
+    DBUG_RETURN(0);
+  }
+  if (info->m_highest_seen > tupleId)
+  {
+    /*
+     * Although we've never cached any higher value we have read
+     * a higher value and again it isn't necessary to change the
+     * auto increment value.
+     */
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
 }
 
 int
@@ -1094,6 +1145,7 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op)
 
       info->m_first_tuple_id = ~(Uint64)0;
       info->m_last_tuple_id  = ~(Uint64)0;
+      info->m_highest_seen = 0;
       break;
     case 2:
       tOperation->interpretedUpdateTuple();
@@ -1103,19 +1155,18 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op)
       // compare NEXTID >= opValue
       tOperation->branch_le(2, 1, 0);
       tOperation->write_attr("NEXTID", 1);
-      tOperation->interpret_exit_ok();
       tOperation->def_label(0);
-      tOperation->interpret_exit_nok(9999);
-      
+      tOperation->interpret_exit_ok();
+      tRecAttrResult = tOperation->getValue("NEXTID");
       if (tConnection->execute( Commit ) == -1)
       {
-        if (tConnection->theError.code != 9999)
-          goto error_handler;
+        goto error_handler;
       }
       else
       {
+	info->m_highest_seen = tRecAttrResult->u_64_value();
 	DBUG_PRINT("info", 
-		   ("Setting next auto increment value (db) to %lu",
+		   ("Setting auto increment value (db) to %lu",
 		    (ulong)opValue));  
         info->m_first_tuple_id = info->m_last_tuple_id = opValue - 1;
       }
@@ -1126,7 +1177,7 @@ Ndb::opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op)
       tRecAttrResult = tOperation->getValue("NEXTID");
       if (tConnection->execute( Commit ) == -1 )
         goto error_handler;
-      opValue = tRecAttrResult->u_64_value(); // out
+      info->m_highest_seen = opValue = tRecAttrResult->u_64_value(); // out
       break;
     default:
       goto error_handler;
@@ -1415,11 +1466,7 @@ Ndb::printState(const char* fmt, ...)
   NdbMutex_Lock(ndb_print_state_mutex);
   bool dups = false;
   unsigned i;
-  ndbout << buf << " ndb=" << hex << this << dec;
-#ifndef NDB_WIN32
-  ndbout << " thread=" << (int)pthread_self();
-#endif
-  ndbout << endl;
+  ndbout << buf << " ndb=" << hex << (void*)this << endl;
   for (unsigned n = 0; n < MAX_NDB_NODES; n++) {
     NdbTransaction* con = theConnectionArray[n];
     if (con != 0) {

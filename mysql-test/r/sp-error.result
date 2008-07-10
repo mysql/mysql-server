@@ -1465,3 +1465,51 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ..inexistent();
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.inexistent()' at line 1
 USE test;
+drop procedure if exists proc_33983_a;
+drop procedure if exists proc_33983_b;
+drop procedure if exists proc_33983_c;
+drop procedure if exists proc_33983_d;
+create procedure proc_33983_a()
+begin
+label1:
+begin
+label2:
+begin
+select 1;
+end label1;
+end;
+end|
+ERROR 42000: End-label label1 without match
+create procedure proc_33983_b()
+begin
+label1:
+repeat
+label2:
+repeat
+select 1;
+until FALSE end repeat label1;
+until FALSE end repeat;
+end|
+ERROR 42000: End-label label1 without match
+create procedure proc_33983_c()
+begin
+label1:
+while TRUE do
+label2:
+while TRUE do
+select 1;
+end while label1;
+end while;
+end|
+ERROR 42000: End-label label1 without match
+create procedure proc_33983_d()
+begin
+label1:
+loop
+label2:
+loop
+select 1;
+end loop label1;
+end loop;
+end|
+ERROR 42000: End-label label1 without match

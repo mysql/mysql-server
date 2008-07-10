@@ -481,14 +481,9 @@ sub command_line_setup () {
   $opt_suite=        "main";    # Special default suite
   my $opt_comment;
 
-  $opt_master_myport=          9306;
-  $opt_slave_myport=           9308;
-  $opt_ndbcluster_port=        9310;
-  $opt_ndbcluster_port_slave=  9311;
-  $im_port=                    9312;
-  $im_mysqld1_port=            9313;
-  $im_mysqld2_port=            9314;
-  
+  # Magic number -69.4 results in traditional test ports starting from 9306.
+  set_mtr_build_thread_ports(-69.4);
+
   # If so requested, we try to avail ourselves of a unique build thread number.
   if ( $ENV{'MTR_BUILD_THREAD'} ) {
     if ( lc($ENV{'MTR_BUILD_THREAD'}) eq 'auto' ) {
@@ -1322,6 +1317,7 @@ sub set_mtr_build_thread_ports($) {
   }
 
   # Up to two masters, up to three slaves
+  # A magic value in command_line_setup depends on these equations.
   $opt_master_myport=         $mtr_build_thread * 10 + 10000; # and 1
   $opt_slave_myport=          $opt_master_myport + 2;  # and 3 4
   $opt_ndbcluster_port=       $opt_master_myport + 5;
@@ -3769,12 +3765,11 @@ sub mysqld_arguments ($$$$) {
 
 
   # When mysqld is run by a root user(euid is 0), it will fail
-  # to start unless we specify what user to run as. If not running
-  # as root it will be ignored, see BUG#30630
+  # to start unless we specify what user to run as, see BUG#30630
   my $euid= $>;
   if (!$glob_win32 and $euid == 0 and
       grep(/^--user/, @$extra_opt, @opt_extra_mysqld_opt) == 0) {
-    mtr_add_arg($args, "%s--user=root");
+    mtr_add_arg($args, "%s--user=root", $prefix);
   }
 
   if ( $opt_valgrind_mysqld )

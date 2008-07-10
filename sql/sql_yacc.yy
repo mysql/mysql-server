@@ -1150,7 +1150,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <variable> internal_variable_name
 
-%type <select_lex> subselect subselect_init
+%type <select_lex> subselect take_first_select
 	get_select_lex
 
 %type <boolfunc2creator> comp_op
@@ -1173,8 +1173,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	field_opt_list opt_binary table_lock_list table_lock
 	ref_list opt_on_delete opt_on_delete_list opt_on_delete_item use
 	opt_delete_options opt_delete_option varchar nchar nvarchar
-	opt_outer table_list table_name table_alias_ref_list table_alias_ref
-	opt_option opt_place
+	opt_outer table_list table_name opt_option opt_place
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges grant_ident grant_list grant_option
 	object_privilege object_privilege_list user_list rename_list
@@ -2228,6 +2227,10 @@ sp_proc_stmt:
 
 	    lex->sphead->backpatch(lex->spcont->pop_label());
 	  }
+        | sp_labeled_block
+          {}
+        | sp_unlabeled_block
+          {}
 	| LEAVE_SYM label_ident
 	  {
 	    LEX *lex= Lex;
@@ -2245,9 +2248,17 @@ sp_proc_stmt:
 	      sp_instr_jump *i;
 	      uint ip= sp->instructions();
 	      uint n;
+              /*
+                When jumping to a BEGIN-END block end, the target jump
+                points to the block hpop/cpop cleanup instructions,
+                so we should exclude the block context here.
+                When jumping to something else (i.e., SP_LAB_ITER),
+                there are no hpop/cpop at the jump destination,
+                so we should include the block context here for cleanup.
+              */
+              bool exclusive= (lab->type == SP_LAB_BEGIN);
 
-	      n= ctx->diff_handlers(lab->ctx, TRUE);  /* Exclusive the dest. */
-
+	      n= ctx->diff_handlers(lab->ctx, exclusive);
 	      if (n)
               {
                 sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
@@ -2255,10 +2266,12 @@ sp_proc_stmt:
                   MYSQL_YYABORT;
 	        sp->add_instr(hpop);
               }
-	      n= ctx->diff_cursors(lab->ctx, TRUE);  /* Exclusive the dest. */
+	      n= ctx->diff_cursors(lab->ctx, exclusive);
 	      if (n)
               {
                 sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
+                if (cpop == NULL)
+                  MYSQL_YYABORT;
 	        sp->add_instr(cpop);
               }
 	      i= new sp_instr_jump(ip, ctx);
@@ -2290,12 +2303,16 @@ sp_proc_stmt:
 	      if (n)
               {
                 sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
+                if (hpop == NULL)
+                  MYSQL_YYABORT;
 	        sp->add_instr(hpop);
               }
 	      n= ctx->diff_cursors(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
               {
                 sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
+                if (cpop == NULL)
+                  MYSQL_YYABORT;
 	        sp->add_instr(cpop);
               }
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
@@ -2591,19 +2608,17 @@ sp_labeled_control:
 	  sp_unlabeled_control sp_opt_label
 	  {
 	    LEX *lex= Lex;
+            sp_label_t *lab= lex->spcont->pop_label();
 
 	    if ($5.str)
 	    {
-	      sp_label_t *lab= lex->spcont->find_label($5.str);
-
-	      if (!lab ||
-	          my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
+	      if (my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
 	      {
 	        my_error(ER_SP_LABEL_MISMATCH, MYF(0), $5.str);
 	        MYSQL_YYABORT;
 	      }
 	    }
-	    lex->sphead->backpatch(lex->spcont->pop_label());
+	    lex->sphead->backpatch(lab);
 	  }
 	;
 
@@ -2612,15 +2627,59 @@ sp_opt_label:
         | label_ident   { $$= $1; }
 	;
 
-sp_unlabeled_control:
+sp_labeled_block:
+          label_ident ':'
+          {
+            LEX *lex= Lex;
+            sp_pcontext *ctx= lex->spcont;
+            sp_label_t *lab= ctx->find_label($1.str);
+
+            if (lab)
+            {
+              my_error(ER_SP_LABEL_REDEFINE, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+
+            lab= lex->spcont->push_label($1.str,
+                                         lex->sphead->instructions());
+            lab->type= SP_LAB_BEGIN;
+          }
+          sp_block_content sp_opt_label
+          {
+            LEX *lex= Lex;
+            sp_label_t *lab= lex->spcont->pop_label();
+
+            if ($5.str)
+            {
+              if (my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
+              {
+                my_error(ER_SP_LABEL_MISMATCH, MYF(0), $5.str);
+                MYSQL_YYABORT;
+              }
+            }
+          }
+        ;
+
+sp_unlabeled_block:
+          { /* Unlabeled blocks get a secret label. */
+            LEX *lex= Lex;
+            uint ip= lex->sphead->instructions();
+            sp_label_t *lab= lex->spcont->push_label((char *)"", ip);
+            lab->type= SP_LAB_BEGIN;
+          }
+          sp_block_content
+          {
+            LEX *lex= Lex;
+            lex->spcont->pop_label();
+          }
+        ;
+
+sp_block_content:
 	  BEGIN_SYM
 	  { /* QQ This is just a dummy for grouping declarations and statements
 	       together. No [[NOT] ATOMIC] yet, and we need to figure out how
 	       make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
 	    LEX *lex= Lex;
-	    sp_label_t *lab= lex->spcont->last_label();
-
-	    lab->type= SP_LAB_BEGIN;
 	    lex->spcont= lex->spcont->push_context(LABEL_DEFAULT_SCOPE);
 	  }
 	  sp_decls
@@ -2650,7 +2709,10 @@ sp_unlabeled_control:
             }
 	    lex->spcont= ctx->pop_context();
 	  }
-	| LOOP_SYM
+        ;
+
+sp_unlabeled_control:
+	  LOOP_SYM
 	  sp_proc_stmts1 END LOOP_SYM
 	  {
 	    LEX *lex= Lex;
@@ -4224,6 +4286,14 @@ select_paren:
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
+            if (sel->linkage == UNION_TYPE &&
+                sel->olap != UNSPECIFIED_OLAP_TYPE &&
+                sel->master_unit()->fake_select_lex)
+            {
+ 	       my_error(ER_WRONG_USAGE, MYF(0),
+                        "CUBE/ROLLUP", "ORDER BY");
+               MYSQL_YYABORT;
             }
             /* select in braces, can't contain global parameters */
 	    if (sel->master_unit()->fake_select_lex)
@@ -6179,7 +6249,8 @@ order_clause:
           SELECT_LEX *sel= lex->current_select;
           SELECT_LEX_UNIT *unit= sel-> master_unit();
 	  if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
-	      sel->olap != UNSPECIFIED_OLAP_TYPE)
+              sel->olap != UNSPECIFIED_OLAP_TYPE &&
+              (sel->linkage != UNION_TYPE || sel->braces))
 	  {
 	    my_error(ER_WRONG_USAGE, MYF(0),
                      "CUBE/ROLLUP", "ORDER BY");
@@ -6355,7 +6426,8 @@ procedure_item:
 select_var_list_init:
 	   {
              LEX *lex=Lex;
-	     if (!lex->describe && (!(lex->result= new select_dumpvar())))
+	     if (!lex->describe && 
+                 (!(lex->result= new select_dumpvar(lex->nest_level))))
 	        MYSQL_YYABORT;
 	   }
 	   select_var_list
@@ -6429,7 +6501,7 @@ into_destination:
           LEX *lex= Lex;
           lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
           if (!(lex->exchange= new sql_exchange($2.str, 0)) ||
-              !(lex->result= new select_export(lex->exchange)))
+              !(lex->result= new select_export(lex->exchange, lex->nest_level)))
             MYSQL_YYABORT;
 	}
 	opt_field_term opt_line_term
@@ -6441,7 +6513,7 @@ into_destination:
 	    lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 	    if (!(lex->exchange= new sql_exchange($2.str,1)))
 	      MYSQL_YYABORT;
-	    if (!(lex->result= new select_dump(lex->exchange)))
+	    if (!(lex->result= new select_dump(lex->exchange, lex->nest_level)))
 	      MYSQL_YYABORT;
 	  }
 	}
@@ -6572,20 +6644,6 @@ table_name:
 	table_ident
 	{
 	  if (!Select->add_table_to_list(YYTHD, $1, NULL, TL_OPTION_UPDATING))
-	    MYSQL_YYABORT;
-	}
-	;
-
-table_alias_ref_list:
-        table_alias_ref
-        | table_alias_ref_list ',' table_alias_ref;
-
-table_alias_ref:
-	table_ident
-	{
-	  if (!Select->add_table_to_list(YYTHD, $1, NULL,
-                                         TL_OPTION_UPDATING | TL_OPTION_ALIAS,
-                                         Lex->lock_option ))
 	    MYSQL_YYABORT;
 	}
 	;
@@ -6860,7 +6918,7 @@ single_multi:
             if (multi_delete_set_locks_and_link_aux_tables(Lex))
               MYSQL_YYABORT;
           }
-	| FROM table_alias_ref_list
+	| FROM table_wild_list
 	  { mysql_init_multi_delete(Lex); }
 	  USING join_table_list where_clause
           { 
@@ -9527,12 +9585,18 @@ union_list:
 	UNION_SYM union_option
 	{
 	  LEX *lex=Lex;
-	  if (lex->result)
-	  {
-	    /* Only the last SELECT can have  INTO...... */
-	    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
-	    MYSQL_YYABORT;
-	  }
+	  if (lex->result && 
+              (lex->result->get_nest_level() == -1 ||
+               lex->result->get_nest_level() == lex->nest_level))
+          {
+            /* 
+               Only the last SELECT can have INTO unless the INTO and UNION
+               are at different nest levels. In version 5.1 and above, INTO
+               will onle be allowed at top level.
+            */
+            my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
+            MYSQL_YYABORT;
+          }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	  {
             my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -9599,35 +9663,22 @@ union_option:
 	| ALL       { $$=0; }
         ;
 
-subselect:
-        SELECT_SYM subselect_start subselect_init subselect_end
+take_first_select: /* empty */
         {
-          $$= $3;
-        }
-        | '(' subselect_start subselect ')'
-          {
-	    THD *thd= YYTHD;
-            /*
-              note that a local variable can't be used for
-              $3 as it's used in local variable construction
-              and some compilers can't guarnatee the order
-              in which the local variables are initialized.
-            */
-            List_iterator<Item> it($3->item_list);
-            Item *item;
-            /*
-              we must fill the items list for the "derived table".
-            */
-            while ((item= it++))
-              add_item_to_list(thd, item);
-          }
-          union_clause subselect_end { $$= $3; };
+          $$= Lex->current_select->master_unit()->first_select();
+        };
 
-subselect_init:
-  select_init2
-  {
-    $$= Lex->current_select->master_unit()->first_select();
-  };
+subselect:
+        SELECT_SYM subselect_start select_init2 take_first_select 
+        subselect_end
+        {
+          $$= $4;
+        }
+        | '(' subselect_start select_paren take_first_select 
+        subselect_end ')'
+        {
+          $$= $4;
+        };
 
 subselect_start:
 	{

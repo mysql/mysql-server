@@ -81,3 +81,34 @@ select * from t1;
 select * from t1;
 
 drop table t1;
+
+#For BUG#29851 TRUNCATE causes error 4350 from cluster in INSERT... ON DUPLICATE KEY UPDATE
+
+connection con1;
+
+--disable_warnings
+DROP TABLE IF EXISTS truncate_test;
+--enable_warnings
+
+CREATE TABLE truncate_test (
+  i INT PRIMARY KEY,
+  a INT,
+  b VARCHAR(11),
+  UNIQUE KEY (a) 
+) ENGINE = NDB;
+
+INSERT INTO truncate_test VALUES (1, 1, 'test') ON DUPLICATE KEY UPDATE b = 'new';
+INSERT INTO truncate_test VALUES (1, 1, 'test') ON DUPLICATE KEY UPDATE b = 'new';
+
+connection con2;
+TRUNCATE truncate_test;
+
+connection con1;
+INSERT INTO truncate_test VALUES (1, 1, 'test') ON DUPLICATE KEY UPDATE b = 'new';
+SELECT * FROM truncate_test;
+
+connection con2;
+INSERT INTO truncate_test VALUES (1, 1, 'test') ON DUPLICATE KEY UPDATE b = 'new';
+SELECT * FROM truncate_test;
+
+DROP TABLE truncate_test;

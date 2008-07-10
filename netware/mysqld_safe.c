@@ -28,6 +28,7 @@
 
 #include "my_config.h"
 #include "my_manage.h"
+#include "mysql_version.h"
 
 /******************************************************************************
 

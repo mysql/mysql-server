@@ -530,12 +530,14 @@ static int process_all_tables_in_db(char *database)
   else
   {
     while ((row = mysql_fetch_row(res)))
-    {
-      if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
-        continue;
-
-      handle_request_for_tables(row[0], fixed_name_length(row[0]));
-    }
+      /* Skip tables with an engine of NULL (probably a view). */
+      if (row[1])
+      {
+        if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
+          continue;
+        
+        handle_request_for_tables(row[0], fixed_name_length(row[0]));
+      }
   }
   mysql_free_result(res);
   return 0;

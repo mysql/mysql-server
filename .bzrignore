@@ -1351,3 +1351,5 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+scripts/make_win_src_distribution_old
+server-tools/instance-manager/net_serv.cc

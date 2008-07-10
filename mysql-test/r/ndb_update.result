@@ -26,7 +26,7 @@ pk1	b	c
 2	2	2
 4	1	1
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
-ERROR 23000: Duplicate entry '' for key 0
+ERROR 23000: Duplicate entry '2' for key 2
 UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
 select * from t1 order by pk1;
 pk1	b	c

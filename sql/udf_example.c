@@ -648,13 +648,11 @@ my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
     return 1;
   }
   bzero(initid->ptr,sizeof(longlong));
-  /*
-    Fool MySQL to think that this function is a constant
-    This will ensure that MySQL only evalutes the function
-    when the rows are sent to the client and not before any ORDER BY
-    clauses
+  /* 
+    sequence() is a non-deterministic function : it has different value 
+    even if called with the same arguments.
   */
-  initid->const_item=1;
+  initid->const_item=0;
   return 0;
 }
 

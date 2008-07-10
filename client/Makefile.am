@@ -34,7 +34,8 @@ mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysqltest_SOURCES=              mysqltest.c \
 				$(top_srcdir)/mysys/my_getsystime.c \
-				$(top_srcdir)/mysys/my_copy.c
+				$(top_srcdir)/mysys/my_copy.c \
+				$(top_srcdir)/mysys/my_mkdir.c
 
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 mysqlbinlog_SOURCES =   	mysqlbinlog.cc \

@@ -21,13 +21,15 @@
 #include <m_ctype.h>
 #include <my_sys.h>
 #include <m_string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#ifndef HAVE_BROKEN_NETINET_INCLUDES
-#include <netinet/in.h>
+#ifndef WIN32
+#  include <sys/types.h>
+#  include <sys/socket.h>
+#  ifndef HAVE_BROKEN_NETINET_INCLUDES
+#    include <netinet/in.h>
+#  endif
+#  include <arpa/inet.h>
+#  include <netdb.h>
 #endif
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <my_net.h>
 #include <my_getopt.h>
 
@@ -116,11 +118,21 @@ int main(int argc, char **argv)
 
   while (argc--)
   {
+#ifndef WIN32
+    struct in_addr addr;
+#endif
     ip = *argv++;    
 
-    if (my_isdigit(&my_charset_latin1,ip[0]))
+    /* Not compatible with IPv6!  Probably should use getnameinfo(). */
+#ifdef WIN32
+    taddr = inet_addr(ip);
+    if(taddr != INADDR_NONE)
     {
-      taddr = inet_addr(ip);
+#else
+    if (inet_aton(ip, &addr) != 0)
+    {
+      taddr= addr.s_addr;
+#endif
       if (taddr == htonl(INADDR_BROADCAST))
       {	
 	puts("Broadcast");

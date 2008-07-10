@@ -1229,9 +1229,6 @@ bool change_master(THD* thd, MASTER_INFO* mi)
       DBUG_RETURN(TRUE);
     }
   }
-  mi->rli.group_master_log_pos = mi->master_log_pos;
-  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
-
   /*
     Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
     so restore them to good values. If we left them to ''/0, that would work;
@@ -1243,6 +1240,7 @@ bool change_master(THD* thd, MASTER_INFO* mi)
     That's why we always save good coords in rli.
   */
   mi->rli.group_master_log_pos= mi->master_log_pos;
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   strmake(mi->rli.group_master_log_name,mi->master_log_name,
 	  sizeof(mi->rli.group_master_log_name)-1);
 
@@ -1355,6 +1353,11 @@ bool mysql_show_binlog_events(THD* thd)
     if ((file=open_binlog(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
 
+    /*
+      to account binlog event header size
+    */
+    thd->variables.max_allowed_packet += MAX_LOG_EVENT_HEADER;
+
     pthread_mutex_lock(log_lock);
 
     /*
@@ -1365,7 +1368,6 @@ bool mysql_show_binlog_events(THD* thd)
        This code will fail on a mixed relay log (one which has Format_desc then
        Rotate then Format_desc).
     */
-
     ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,description_event);
     if (ev)
     {
@@ -1556,37 +1558,52 @@ err:
   DBUG_RETURN(TRUE);
 }
 
-
+/**
+   Load data's io cache specific hook to be executed
+   before a chunk of data is being read into the cache's buffer
+   The fuction instantianates and writes into the binlog
+   replication events along LOAD DATA processing.
+   
+   @param file  pointer to io-cache
+   @return 0
+*/
 int log_loaded_block(IO_CACHE* file)
 {
+  DBUG_ENTER("log_loaded_block");
   LOAD_FILE_INFO *lf_info;
-  uint block_len ;
-
-  /* file->request_pos contains position where we started last read */
-  char* buffer = (char*) file->request_pos;
-  if (!(block_len = (char*) file->read_end - (char*) buffer))
-    return 0;
-  lf_info = (LOAD_FILE_INFO*) file->arg;
+  uint block_len;
+  /* buffer contains position where we started last read */
+  char* buffer= (char*) my_b_get_buffer_start(file);
+  uint max_event_size= current_thd->variables.max_allowed_packet;
+  lf_info= (LOAD_FILE_INFO*) file->arg;
   if (lf_info->last_pos_in_file != HA_POS_ERROR &&
-      lf_info->last_pos_in_file >= file->pos_in_file)
-    return 0;
-  lf_info->last_pos_in_file = file->pos_in_file;
-  if (lf_info->wrote_create_file)
+      lf_info->last_pos_in_file >= my_b_get_pos_in_file(file))
+    DBUG_RETURN(0);
+  
+  for (block_len= my_b_get_bytes_in_buffer(file); block_len > 0;
+       buffer += min(block_len, max_event_size),
+       block_len -= min(block_len, max_event_size))
   {
-    Append_block_log_event a(lf_info->thd, lf_info->thd->db, buffer,
-                             block_len, lf_info->log_delayed);
-    mysql_bin_log.write(&a);
+    lf_info->last_pos_in_file= my_b_get_pos_in_file(file);
+    if (lf_info->wrote_create_file)
+    {
+      Append_block_log_event a(lf_info->thd, lf_info->thd->db, buffer,
+                               min(block_len, max_event_size),
+                               lf_info->log_delayed);
+      mysql_bin_log.write(&a);
+    }
+    else
+    {
+      Begin_load_query_log_event b(lf_info->thd, lf_info->thd->db,
+                                   buffer,
+                                   min(block_len, max_event_size),
+                                   lf_info->log_delayed);
+      mysql_bin_log.write(&b);
+      lf_info->wrote_create_file= 1;
+      DBUG_SYNC_POINT("debug_lock.created_file_event",10);
+    }
   }
-  else
-  {
-    Begin_load_query_log_event b(lf_info->thd, lf_info->thd->db,
-                                 buffer, block_len,
-                                 lf_info->log_delayed);
-    mysql_bin_log.write(&b);
-    lf_info->wrote_create_file = 1;
-    DBUG_SYNC_POINT("debug_lock.created_file_event",10);
-  }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 #endif /* HAVE_REPLICATION */

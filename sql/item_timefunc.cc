@@ -3303,7 +3303,7 @@ Field *Item_func_str_to_date::tmp_table_field(TABLE *t_arg)
   if (cached_field_type == MYSQL_TYPE_TIME)
     return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
   if (cached_field_type == MYSQL_TYPE_DATE)
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+    return (new Field_newdate(maybe_null, name, t_arg, &my_charset_bin));
   if (cached_field_type == MYSQL_TYPE_DATETIME)
     return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
   return (new Field_string(max_length, maybe_null, name, t_arg, &my_charset_bin));
@@ -3415,6 +3415,8 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   ltime->day= days_in_month[month_idx];
   if ( month_idx == 1 && calc_days_in_year(ltime->year) == 366)
     ltime->day= 29;
+  ltime->hour= ltime->minute= ltime->second= 0;
+  ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
 }

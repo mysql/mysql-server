@@ -1,4 +1,4 @@
-#!@PERL@ -w
+#!/usr/bin/perl
 
 use strict;
 use Getopt::Long;
@@ -39,7 +39,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.22";
+my $VERSION = "1.23";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -132,7 +132,6 @@ GetOptions( \%opt,
 #   'target'  - destination directory of the copy
 #   'tables'  - array-ref to list of tables in the db
 #   'files'   - array-ref to list of files to be copied
-#               (RAID files look like 'nn/name.MYD')
 #   'index'   - array-ref to list of indexes to be copied
 #
 
@@ -263,7 +262,6 @@ my $hc_locks = "";
 my $hc_tables = "";
 my $num_tables = 0;
 my $num_files = 0;
-my $raid_dir_regex = '[A-Za-z0-9]{2}';
 
 foreach my $rdb ( @db_desc ) {
     my $db = $rdb->{src};
@@ -292,19 +290,11 @@ foreach my $rdb ( @db_desc ) {
       or die "Cannot open dir '$db_dir': $!";
 
     my %db_files;
-    my @raid_dir = ();
 
     while ( defined( my $name = readdir DBDIR ) ) {
-	if ( $name =~ /^$raid_dir_regex$/ && -d "$db_dir/$name" ) {
-	    push @raid_dir, $name;
-	}
-	else {
-	    $db_files{$name} = $1 if ( $name =~ /(.+)\.\w+$/ );
-        }
+        $db_files{$name} = $1 if ( $name =~ /(.+)\.\w+$/ );
     }
     closedir( DBDIR );
-
-    scan_raid_dir( \%db_files, $db_dir, @raid_dir );
 
     unless( keys %db_files ) {
 	warn "'$db' is an empty database\n";
@@ -335,8 +325,6 @@ foreach my $rdb ( @db_desc ) {
     $rdb->{index}  = [ @index_files ];
     my @hc_tables = map { quote_names("$db.$_") } @dbh_tables;
     $rdb->{tables} = [ @hc_tables ];
-
-    $rdb->{raid_dirs} = [ get_raid_dirs( $rdb->{files} ) ];
 
     $hc_locks .= ", "  if ( length $hc_locks && @hc_tables );
     $hc_locks .= join ", ", map { "$_ READ" } @hc_tables;
@@ -411,27 +399,24 @@ if ($opt{method} =~ /^cp\b/)
 retire_directory( @existing ) if @existing && !$opt{addtodest};
 
 foreach my $rdb ( @db_desc ) {
-    foreach my $td ( '', @{$rdb->{raid_dirs}} ) {
-
-	my $tgt_dirpath = "$rdb->{target}/$td";
-	# Remove trailing slashes (needed for Mac OS X)
-    	substr($tgt_dirpath, 1) =~ s|/+$||;
-	if ( $opt{dryrun} ) {
-	    print "mkdir $tgt_dirpath, 0750\n";
-	}
-	elsif ($opt{method} =~ /^scp\b/) {
-	    ## assume it's there?
-	    ## ...
-	}
-	else {
-	    mkdir($tgt_dirpath, 0750) or die "Can't create '$tgt_dirpath': $!\n"
-		unless -d $tgt_dirpath;
-	     if ($^O !~ m/^(NetWare)$/)  
-    	    {
-	    my @f_info= stat "$datadir/$rdb->{src}";
-	    chown $f_info[4], $f_info[5], $tgt_dirpath;
-    	    }
-	}
+    my $tgt_dirpath = "$rdb->{target}";
+    # Remove trailing slashes (needed for Mac OS X)
+    substr($tgt_dirpath, 1) =~ s|/+$||;
+    if ( $opt{dryrun} ) {
+        print "mkdir $tgt_dirpath, 0750\n";
+    }
+    elsif ($opt{method} =~ /^scp\b/) {
+        ## assume it's there?
+        ## ...
+    }
+    else {
+        mkdir($tgt_dirpath, 0750) or die "Can't create '$tgt_dirpath': $!\n"
+            unless -d $tgt_dirpath;
+        if ($^O !~ m/^(NetWare)$/)  
+        {
+            my @f_info= stat "$datadir/$rdb->{src}";
+            chown $f_info[4], $f_info[5], $tgt_dirpath;
+        }
     }
 }
 
@@ -489,7 +474,7 @@ foreach my $rdb ( @db_desc )
   my @files = map { "$datadir/$rdb->{src}/$_" } @{$rdb->{files}};
   next unless @files;
   
-  eval { copy_files($opt{method}, \@files, $rdb->{target}, $rdb->{raid_dirs} ); };
+  eval { copy_files($opt{method}, \@files, $rdb->{target}); };
   push @failed, "$rdb->{src} -> $rdb->{target} failed: $@"
     if ( $@ );
   
@@ -582,7 +567,7 @@ exit 0;
 # ---
 
 sub copy_files {
-    my ($method, $files, $target, $raid_dirs) = @_;
+    my ($method, $files, $target) = @_;
     my @cmd;
     print "Copying ".@$files." files...\n" unless $opt{quiet};
 
@@ -603,15 +588,8 @@ sub copy_files {
 	# add recursive option for scp
 	$cp.= " -r" if $^O =~ /m^(solaris|linux|freebsd|darwin)$/ && $method =~ /^scp\b/;
 
-	my @non_raid = map { "'$_'" } grep { ! m:/$raid_dir_regex/[^/]+$: } @$files;
-
-	# add files to copy and the destination directory
-	safe_system( $cp, @non_raid, "'$target'" ) if (@non_raid);
-	
-	foreach my $rd ( @$raid_dirs ) {
-	    my @raid = map { "'$_'" } grep { m:$rd/: } @$files;
-	    safe_system( $cp, @raid, "'$target'/$rd" ) if ( @raid );
-	}
+	# perform the actual copy
+	safe_system( $cp, (map { "'$_'" } @$files), "'$target'" );
     }
     else
     {
@@ -787,35 +765,6 @@ sub get_row_hash {
   my $sth = $dbh->prepare($sql);
   $sth->execute;
   return $sth->fetchrow_hashref();
-}
-
-sub scan_raid_dir {
-    my ( $r_db_files, $data_dir, @raid_dir ) = @_;
-
-    local(*RAID_DIR);
-    
-    foreach my $rd ( @raid_dir ) {
-
-	opendir(RAID_DIR, "$data_dir/$rd" ) 
-	    or die "Cannot open dir '$data_dir/$rd': $!";
-
-	while ( defined( my $name = readdir RAID_DIR ) ) {
-	    $r_db_files->{"$rd/$name"} = $1 if ( $name =~ /(.+)\.\w+$/ );
-	}
-	closedir( RAID_DIR );
-    }
-}
-
-sub get_raid_dirs {
-    my ( $r_files ) = @_;
-
-    my %dirs = ();
-    foreach my $f ( @$r_files ) {
-	if ( $f =~ m:^($raid_dir_regex)/: ) {
-	    $dirs{$1} = 1;
-	}
-    }
-    return sort keys %dirs;
 }
 
 sub get_list_of_tables {
