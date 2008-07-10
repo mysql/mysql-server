@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <sys/mode.h>
 #include "my_manage.h"
+#include "mysql_version.h"
 #ifdef __NETWARE__
 #define strindex(a,b) ((char*)strindex(a,b))
 #define strstr(a,b)   ((char*)strstr(a,b))

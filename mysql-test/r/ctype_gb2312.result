@@ -64,6 +64,10 @@ select a sounds like a from t1;
 a sounds like a
 1
 1
+select 1 from t1 order by cast(a as char(1));
+1
+1
+1
 drop table t1;
 DROP DATABASE d1;
 USE test;

@@ -15,6 +15,7 @@
 # MA  02110-1301  USA.
 
 %define mysql_version   @VERSION@
+%define mysql_vendor    MySQL AB
 
 # use "rpmbuild --with static" or "rpm --define '_with_static 1'" (for RPM 3.x)
 # to enable static linking (off by default)
@@ -69,7 +70,7 @@ License:	%{license}
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
 Packager:	MySQL Production Engineering Team <build@mysql.com>
-Vendor:		MySQL AB
+Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
 Obsoletes:	mysql
@@ -425,6 +426,72 @@ touch $RBR%{_sysconfdir}/my.cnf
 touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 
 %pre server
+# Check if we can safely upgrade.  An upgrade is only safe if it's from one
+# of our RPMs in the same version family.
+
+installed=`rpm -q --whatprovides mysql-server 2> /dev/null`
+if [ $? -eq 0 -a -n "$installed" ]; then
+  vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
+  version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
+  myvendor='%{mysql_vendor}'
+  myversion='%{mysql_version}'
+
+  old_family=`echo $version   | sed -n -e 's,^\([1-9][0-9]*\.[0-9][0-9]*\)\..*$,\1,p'`
+  new_family=`echo $myversion | sed -n -e 's,^\([1-9][0-9]*\.[0-9][0-9]*\)\..*$,\1,p'`
+
+  [ -z "$vendor" ] && vendor='<unknown>'
+  [ -z "$old_family" ] && old_family="<unrecognized version $version>"
+  [ -z "$new_family" ] && new_family="<bad package specification: version $myversion>"
+
+  error_text=
+  if [ "$vendor" != "$myvendor" ]; then
+    error_text="$error_text
+The current MySQL server package is provided by a different
+vendor ($vendor) than $myvendor.  Some files may be installed
+to different locations, including log files and the service
+startup script in %{_sysconfdir}/init.d/.
+"
+  fi
+
+  if [ "$old_family" != "$new_family" ]; then
+    error_text="$error_text
+Upgrading directly from MySQL $old_family to MySQL $new_family may not
+be safe in all cases.  A manual dump and restore using mysqldump is
+recommended.  It is important to review the MySQL manual's Upgrading
+section for version-specific incompatibilities.
+"
+  fi
+
+  if [ -n "$error_text" ]; then
+    cat <<HERE >&2
+
+******************************************************************
+A MySQL server package ($installed) is installed.
+$error_text
+A manual upgrade is required.
+
+- Ensure that you have a complete, working backup of your data and my.cnf
+  files
+- Shut down the MySQL server cleanly
+- Remove the existing MySQL packages.  Usually this command will
+  list the packages you should remove:
+  rpm -qa | grep -i '^mysql-'
+
+  You may choose to use 'rpm --nodeps -ev <package-name>' to remove
+  the package which contains the mysqlclient shared library.  The
+  library will be reinstalled by the MySQL-shared-compat package.
+- Install the new MySQL packages supplied by $myvendor
+- Ensure that the MySQL server is started
+- Run the 'mysql_upgrade' program
+
+This is a brief description of the upgrade process.  Important details
+can be found in the MySQL manual, in the Upgrading section.
+******************************************************************
+HERE
+    exit 1
+  fi
+fi
+
 # Shut down a previously installed server first
 if test -x %{_sysconfdir}/init.d/mysql
 then
@@ -726,6 +793,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Mon Feb 18 2008 Timothy Smith <tim@mysql.com>
+
+- Require a manual upgrade if the alread-installed mysql-server is
+  from another vendor, or is of a different major version.
+
 * Fri Nov 16 2007 Joerg Bruehe <joerg@mysql.com>
 
 - When testing the debug server, use "make test-bt-debug".

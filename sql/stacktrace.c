@@ -13,11 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/* Workaround for Bug#32082: VOID redefinition on Win results in compile errors*/
+#define DONT_DEFINE_VOID 1
+
 #include <my_global.h>
 #include "stacktrace.h"
+
+#ifndef __WIN__
 #include <signal.h>
 #include <my_pthread.h>
-
 #ifdef HAVE_STACKTRACE
 #include <unistd.h>
 #include <strings.h>
@@ -118,10 +122,7 @@ void  print_stacktrace(gptr stack_bottom, ulong thread_stack)
 #endif
   LINT_INIT(fp);
 
-  fprintf(stderr,"\
-Attempting backtrace. You can use the following information to find out\n\
-where mysqld died. If you see no messages after this, something went\n\
-terribly wrong...\n");
+
 #ifdef __i386__
   __asm __volatile__ ("movl %%ebp,%0"
 		      :"=r"(fp)
@@ -257,3 +258,267 @@ void write_core(int sig)
 #endif
 }
 #endif
+#else /* __WIN__*/
+
+#include <dbghelp.h>
+
+/*
+  Stack tracing on Windows is implemented using Debug Helper library(dbghelp.dll)
+  We do not redistribute dbghelp and the one comes with older OS (up to Windows 2000)
+  is missing some important functions like functions StackWalk64 or MinidumpWriteDump.
+  Hence, we have to load functions at runtime using LoadLibrary/GetProcAddress.
+*/
+
+typedef DWORD (WINAPI *SymSetOptions_FctType)(DWORD dwOptions);
+typedef BOOL  (WINAPI *SymGetModuleInfo64_FctType)
+  (HANDLE,DWORD64,PIMAGEHLP_MODULE64) ;
+typedef BOOL  (WINAPI *SymGetSymFromAddr64_FctType)
+  (HANDLE,DWORD64,PDWORD64,PIMAGEHLP_SYMBOL64) ;
+typedef BOOL  (WINAPI *SymGetLineFromAddr64_FctType)
+  (HANDLE,DWORD64,PDWORD,PIMAGEHLP_LINE64);
+typedef BOOL  (WINAPI *SymInitialize_FctType)
+  (HANDLE,PSTR,BOOL);
+typedef BOOL  (WINAPI *StackWalk64_FctType)
+  (DWORD,HANDLE,HANDLE,LPSTACKFRAME64,PVOID,PREAD_PROCESS_MEMORY_ROUTINE64,
+  PFUNCTION_TABLE_ACCESS_ROUTINE64,PGET_MODULE_BASE_ROUTINE64 ,
+  PTRANSLATE_ADDRESS_ROUTINE64);
+typedef BOOL (WINAPI *MiniDumpWriteDump_FctType)(
+    IN HANDLE hProcess,
+    IN DWORD ProcessId,
+    IN HANDLE hFile,
+    IN MINIDUMP_TYPE DumpType,
+    IN CONST PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam, OPTIONAL
+    IN CONST PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam, OPTIONAL
+    IN CONST PMINIDUMP_CALLBACK_INFORMATION CallbackParam OPTIONAL
+    );
+
+static SymSetOptions_FctType           pSymSetOptions;
+static SymGetModuleInfo64_FctType      pSymGetModuleInfo64;
+static SymGetSymFromAddr64_FctType     pSymGetSymFromAddr64;
+static SymInitialize_FctType           pSymInitialize;
+static StackWalk64_FctType             pStackWalk64;
+static SymGetLineFromAddr64_FctType    pSymGetLineFromAddr64;
+static MiniDumpWriteDump_FctType       pMiniDumpWriteDump;
+
+static EXCEPTION_POINTERS *exception_ptrs;
+
+#define MODULE64_SIZE_WINXP 576
+#define STACKWALK_MAX_FRAMES 64
+
+/*
+  Dynamically load dbghelp functions
+*/
+BOOL init_dbghelp_functions()
+{
+  static BOOL first_time= TRUE;
+  static BOOL rc;
+  HMODULE hDbghlp;
+
+  if(first_time)
+  {
+    first_time= FALSE;
+    hDbghlp= LoadLibrary("dbghelp");
+    if(!hDbghlp)
+    {
+      rc= FALSE;
+      return rc;
+    }
+    pSymSetOptions= (SymSetOptions_FctType)
+      GetProcAddress(hDbghlp,"SymSetOptions");
+    pSymInitialize= (SymInitialize_FctType)
+      GetProcAddress(hDbghlp,"SymInitialize");
+    pSymGetModuleInfo64= (SymGetModuleInfo64_FctType)
+      GetProcAddress(hDbghlp,"SymGetModuleInfo64");
+    pSymGetLineFromAddr64= (SymGetLineFromAddr64_FctType)
+      GetProcAddress(hDbghlp,"SymGetLineFromAddr64");
+    pSymGetSymFromAddr64=(SymGetSymFromAddr64_FctType)
+      GetProcAddress(hDbghlp,"SymGetSymFromAddr64");
+    pStackWalk64= (StackWalk64_FctType)
+      GetProcAddress(hDbghlp,"StackWalk64");
+    pMiniDumpWriteDump = (MiniDumpWriteDump_FctType)
+      GetProcAddress(hDbghlp,"MiniDumpWriteDump");
+
+    rc = (BOOL)(pSymSetOptions && pSymInitialize && pSymGetModuleInfo64
+    && pSymGetLineFromAddr64 && pSymGetSymFromAddr64 && pStackWalk64);
+  }
+  return rc;
+}
+
+void set_exception_pointers(EXCEPTION_POINTERS *ep)
+{
+  exception_ptrs = ep;
+}
+
+/* Platform SDK in VS2003 does not have definition for SYMOPT_NO_PROMPTS*/
+#ifndef SYMOPT_NO_PROMPTS
+#define SYMOPT_NO_PROMPTS 0
+#endif
+
+void print_stacktrace(gptr unused1, ulong unused2)
+{
+  HANDLE  hProcess= GetCurrentProcess();
+  HANDLE  hThread= GetCurrentThread();
+  static  IMAGEHLP_MODULE64 module= {sizeof(module)};
+  static  IMAGEHLP_SYMBOL64_PACKAGE package;
+  DWORD64 addr;
+  DWORD   machine;
+  int     i;
+  CONTEXT context;
+  STACKFRAME64 frame={0};
+
+  if(!exception_ptrs || !init_dbghelp_functions())
+    return;
+
+  /* Copy context, as stackwalking on original will unwind the stack */
+  context = *(exception_ptrs->ContextRecord);
+  /*Initialize symbols.*/
+  pSymSetOptions(SYMOPT_LOAD_LINES|SYMOPT_NO_PROMPTS|SYMOPT_DEFERRED_LOADS|SYMOPT_DEBUG);
+  pSymInitialize(hProcess,NULL,TRUE);
+
+  /*Prepare stackframe for the first StackWalk64 call*/
+  frame.AddrFrame.Mode= frame.AddrPC.Mode= frame.AddrStack.Mode= AddrModeFlat;
+#if (defined _M_IX86)
+  machine= IMAGE_FILE_MACHINE_I386;
+  frame.AddrFrame.Offset= context.Ebp;
+  frame.AddrPC.Offset=    context.Eip;
+  frame.AddrStack.Offset= context.Esp;
+#elif (defined _M_X64)
+  machine = IMAGE_FILE_MACHINE_AMD64;
+  frame.AddrFrame.Offset= context.Rbp;
+  frame.AddrPC.Offset=    context.Rip;
+  frame.AddrStack.Offset= context.Rsp;
+#else
+  /*There is currently no need to support IA64*/
+#pragma error ("unsupported architecture")
+#endif
+
+  package.sym.SizeOfStruct= sizeof(package.sym);
+  package.sym.MaxNameLength= sizeof(package.name);
+
+  /*Walk the stack, output useful information*/ 
+  for(i= 0; i< STACKWALK_MAX_FRAMES;i++)
+  {
+    DWORD64 function_offset= 0;
+    DWORD line_offset= 0;
+    IMAGEHLP_LINE64 line= {sizeof(line)};
+    BOOL have_module= FALSE;
+    BOOL have_symbol= FALSE;
+    BOOL have_source= FALSE;
+
+    if(!pStackWalk64(machine, hProcess, hThread, &frame, &context, 0, 0, 0 ,0))
+      break;
+    addr= frame.AddrPC.Offset;
+
+    have_module= pSymGetModuleInfo64(hProcess,addr,&module);
+#ifdef _M_IX86
+    if(!have_module)
+    {
+      /*
+        ModuleInfo structure has been "compatibly" extended in releases after XP,
+        and its size was increased. To make XP dbghelp.dll function
+        happy, pretend passing the old structure.
+      */
+      module.SizeOfStruct= MODULE64_SIZE_WINXP;
+      have_module= pSymGetModuleInfo64(hProcess, addr, &module);
+    }
+#endif
+
+    have_symbol= pSymGetSymFromAddr64(hProcess, addr, &function_offset,
+      &(package.sym));
+    have_source= pSymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
+
+    fprintf(stderr, "%p    ", addr);
+    if(have_module)
+    {
+      char *base_image_name= strrchr(module.ImageName, '\\');
+      if(base_image_name)
+        base_image_name++;
+      else
+        base_image_name= module.ImageName;
+      fprintf(stderr, "%s!", base_image_name);
+    }
+    if(have_symbol)
+      fprintf(stderr, "%s()", package.sym.Name);
+    else if(have_module)
+      fprintf(stderr, "???");
+
+    if(have_source)
+    {
+      char *base_file_name= strrchr(line.FileName, '\\');
+      if(base_file_name)
+        base_file_name++;
+      else
+        base_file_name= line.FileName;
+      fprintf(stderr,"[%s:%u]", base_file_name, line.LineNumber);
+    }
+    fprintf(stderr, "\n");
+  }
+  fflush(stderr);
+}
+
+
+/*
+  Write dump. The dump is created in current directory,
+  file name is constructed from executable name plus
+  ".dmp" extension
+*/
+void write_core(int unused)
+{
+  char path[MAX_PATH];
+  char dump_fname[MAX_PATH]= "core.dmp";
+  MINIDUMP_EXCEPTION_INFORMATION info;
+  HANDLE hFile;
+
+  if(!exception_ptrs || !init_dbghelp_functions() || !pMiniDumpWriteDump)
+    return;
+
+  info.ExceptionPointers= exception_ptrs;
+  info.ClientPointers= FALSE;
+  info.ThreadId= GetCurrentThreadId();
+
+  if(GetModuleFileName(NULL, path, sizeof(path)))
+  {
+    _splitpath(path, NULL, NULL,dump_fname,NULL);
+    strncat(dump_fname, ".dmp", sizeof(dump_fname));
+  }
+
+  hFile= CreateFile(dump_fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
+    FILE_ATTRIBUTE_NORMAL, 0);
+  if(hFile)
+  {
+    /* Create minidump */
+    if(pMiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(),
+      hFile, MiniDumpNormal, &info, 0, 0))
+    {
+      fprintf(stderr, "Minidump written to %s\n",
+        _fullpath(path, dump_fname, sizeof(path)) ? path : dump_fname);
+    }
+    else
+    {
+      fprintf(stderr,"MiniDumpWriteDump() failed, last error %u\n",
+        GetLastError());
+    }
+    CloseHandle(hFile);
+  }
+  else
+  {
+    fprintf(stderr, "CreateFile(%s) failed, last error %u\n", dump_fname,
+      GetLastError());
+  }
+  fflush(stderr);
+}
+
+
+void safe_print_str(const char *name, const char *val, int len)
+{
+  fprintf(stderr,"%s at %p", name, val);
+  __try 
+  {
+    fprintf(stderr,"=%.*s\n", len, val);
+  }
+  __except(EXCEPTION_EXECUTE_HANDLER)
+  {
+    fprintf(stderr,"is an invalid string pointer\n");
+  }
+}
+#endif /*__WIN__*/

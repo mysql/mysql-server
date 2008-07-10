@@ -387,12 +387,16 @@ typedef struct st_udf_args
 
 typedef struct st_udf_init
 {
-  my_bool maybe_null;			/* 1 if function can return NULL */
-  unsigned int decimals;		/* for real functions */
-  unsigned long max_length;		/* For string functions */
-  char	  *ptr;				/* free pointer for function data */
-  my_bool const_item;			/* 0 if result is independent of arguments */
+  my_bool maybe_null;          /* 1 if function can return NULL */
+  unsigned int decimals;       /* for real functions */
+  unsigned long max_length;    /* For string functions */
+  char *ptr;                   /* free pointer for function data */
+  my_bool const_item;          /* 1 if function always returns the same value */
 } UDF_INIT;
+/* 
+  TODO: add a notion for determinism of the UDF. 
+  See Item_udf_func::update_used_tables ()
+*/
 
   /* Constants when using compression */
 #define NET_HEADER_SIZE 4		/* standard header size */

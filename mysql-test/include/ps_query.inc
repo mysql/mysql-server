@@ -434,8 +434,8 @@ execute stmt1 ;
 let $1= 3 ;
 while ($1)
 {
-  prepare stmt1 from ' SELECT a as ccc from t1 where a+1=
-                           (SELECT 1+ccc from t1 where ccc+1=a+1 and a=1) ';
+  prepare stmt1 from ' SELECT a as ccc from t1 outr where a+1=
+                           (SELECT 1+outr.a from t1 where outr.a+1=a+1 and a=1) ';
   execute stmt1 ;
   deallocate prepare stmt1 ;
   dec $1 ;

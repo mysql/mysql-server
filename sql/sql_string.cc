@@ -307,8 +307,8 @@ bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
     return TRUE;
   
   /*
-    Note, this is only safe for little-endian UCS-2.
-    If we add big-endian UCS-2 sometimes, this code
+    Note, this is only safe for big-endian UCS-2.
+    If we add little-endian UCS-2 sometimes, this code
     will be more complicated. But it's OK for now.
   */
   bzero((char*) Ptr, offset);
@@ -858,7 +858,7 @@ outp:
   with optional left padding (for binary -> UCS2 conversion)
   
   SYNOPSIS
-    well_formed_copy_nhars()
+    well_formed_copy_nchars()
     to			     Store result here
     to_length                Maxinum length of "to" string
     to_cs		     Character set of "to" string
@@ -997,7 +997,10 @@ outp:
         goto outp;
       }
       else
+      {
+        from= from_prev;
         break;
+      }
     }
     *from_end_pos= from;
     res= to - to_start;

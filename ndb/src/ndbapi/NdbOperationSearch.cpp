@@ -129,6 +129,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 
     OperationType tOpType = theOperationType;
     Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+    const Uint32 totalSizeInWords = (sizeInBytes + 3) / 4;
 
     Uint32 real_len;
     if (! tAttrInfo->get_var_length(aValue, real_len)) {
@@ -150,20 +151,37 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
        * aValue. If it is not aligned then we start by copying the value to 
        * tempData and use this as aValue instead.
        ***********************************************************************/
-      const int attributeSize = sizeInBytes;
-      const int slack = sizeInBytes & 3;
+      int attributeSize = sizeInBytes;
+      int slack = (sizeInBytes & 3) ? 4 - (sizeInBytes & 3) : 0;
       const int align = UintPtr(aValue) & 7;
 
+      switch(tAttrInfo->m_type){
+      case NdbDictionary::Column::Varchar:
+      case NdbDictionary::Column::Varbinary:
+        attributeSize = 1 + *(Uint8*)aValue;
+        slack = 4 * totalSizeInWords - attributeSize;
+        break;
+      case NdbDictionary::Column::Longvarchar:
+      case NdbDictionary::Column::Longvarbinary:
+      {
+        const Uint8* ptr = (const Uint8*)aValue;
+        attributeSize = 2 + ptr[0] + 256 * ptr[1];
+        slack = 4*totalSizeInWords - attributeSize;
+        break;
+      }
+      default:
+        break;
+      }
+      
       if (((align & 3) != 0) || (slack != 0) || (tDistrKey && (align != 0)))
       {
-	((Uint32*)tempData)[attributeSize >> 2] = 0;
-	memcpy(&tempData[0], aValue, attributeSize);
-	aValue = (char*)&tempData[0];
+        char * tmp = (char*)tempData;
+        memcpy(tmp, aValue, attributeSize);
+        aValue = tmp;
+        bzero(tmp + attributeSize, slack);
       }//if
     }
 
-    Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Inc. bits in last word
-    
     if (true){ //tArraySize != 0) {
       Uint32 tTupKeyLen = theTupKeyLen;
       

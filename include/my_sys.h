@@ -531,6 +531,12 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 #define my_b_tell(info) ((info)->pos_in_file + \
 			 (uint) (*(info)->current_pos - (info)->request_pos))
 
+#define my_b_get_buffer_start(info) (info)->request_pos 
+#define my_b_get_bytes_in_buffer(info) (char*) (info)->read_end -   \
+  (char*) my_b_get_buffer_start(info)
+#define my_b_get_pos_in_file(info) (info)->pos_in_file
+
+
 /* tell write offset in the SEQ_APPEND cache */
 my_off_t my_b_append_tell(IO_CACHE* info);
 my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */

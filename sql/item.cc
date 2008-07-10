@@ -1209,7 +1209,17 @@ bool Item_name_const::is_null()
 
 Item::Type Item_name_const::type() const
 {
-  return value_item->type();
+  /*
+    As 
+    1. one can try to create the Item_name_const passing non-constant 
+    arguments, although it's incorrect and 
+    2. the type() method can be called before the fix_fields() to get
+    type information for a further type cast, e.g. 
+    if (item->type() == FIELD_ITEM) 
+      ((Item_field *) item)->... 
+    we return NULL_ITEM in the case to avoid wrong casting.
+  */
+  return valid_args ? value_item->type() : NULL_ITEM;
 }
 
 
@@ -1221,14 +1231,14 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
   s.length(0);
 
   if (value_item->fix_fields(thd, &value_item) ||
-      name_item->fix_fields(thd, &name_item))
+      name_item->fix_fields(thd, &name_item) ||
+      !value_item->const_item() ||
+      !name_item->const_item() ||
+      !(item_name= name_item->val_str(&s))) // Can't have a NULL name 
+  {
+    my_error(ER_RESERVED_SYNTAX, MYF(0), "NAME_CONST");
     return TRUE;
-  if (!(value_item->const_item() && name_item->const_item()))
-    return TRUE;
-
-  if (!(item_name= name_item->val_str(&s)))
-    return TRUE; /* Can't have a NULL name */
-
+  }
   set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
@@ -2570,6 +2580,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   if (entry && entry->value)
   {
     item_result_type= entry->type;
+    unsigned_flag= entry->unsigned_flag;
     if (strict_type && required_result_type != item_result_type)
       DBUG_RETURN(1);
     switch (item_result_type) {
@@ -2865,7 +2876,10 @@ const String *Item_param::query_val_str(String* str) const
 {
   switch (state) {
   case INT_VALUE:
-    str->set(value.integer, &my_charset_bin);
+    if (unsigned_flag)
+      str->set((ulonglong) value.integer, &my_charset_bin);
+    else
+      str->set(value.integer, &my_charset_bin);
     break;
   case REAL_VALUE:
     str->set(value.real, NOT_FIXED_DEC, &my_charset_bin);
@@ -3356,7 +3370,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
     resolve_ref_in_select_and_group()
     thd     current thread
     ref     column reference being resolved
-    select  the sub-select that ref is resolved against
+    select  the select that ref is resolved against
 
   DESCRIPTION
     Resolve a column reference (usually inside a HAVING clause) against the
@@ -3427,6 +3441,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   }
 
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
+      select->having_fix_field  &&
       select_ref != not_found_item && !group_by_ref)
   {
     /*
@@ -3641,7 +3656,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     }
 
     /* Search in SELECT and GROUP lists of the outer select. */
-    if (outer_context->resolve_in_select_list)
+    if (place != IN_WHERE && place != IN_ON)
     {
       if (!(ref= resolve_ref_in_select_and_group(thd, this, select)))
         return -1; /* Some error occurred (e.g. ambiguous names). */
@@ -4374,7 +4389,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
 			    name, table, 0, unsigned_flag);
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
-    return new Field_date(maybe_null, name, table, &my_charset_bin);
+    return new Field_newdate(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_TIME:
     return new Field_time(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_TIMESTAMP:
@@ -6598,6 +6613,8 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
     */
     Field *field= ((Item_field *) item)->field;
     enum_field_types type= field->real_type();
+    if (field->is_created_from_null_item)
+      return MYSQL_TYPE_NULL;
     /* work around about varchar type field detection */
     if (type == MYSQL_TYPE_STRING && field->type() == MYSQL_TYPE_VAR_STRING)
       return MYSQL_TYPE_VAR_STRING;
@@ -6849,6 +6866,8 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
                          Field::NONE, name,
                          table, get_set_pack_length(enum_set_typelib->count),
                          enum_set_typelib, collation.collation);
+  case MYSQL_TYPE_NULL:
+    return make_string_field(table);
   default:
     break;
   }

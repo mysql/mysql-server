@@ -2780,8 +2780,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
     strxmov(src_path, (*tmp_table)->s->path, reg_ext, NullS);
   else
   {
-    strxmov(src_path, mysql_data_home, "/", src_table->db, "/",
-            src_table->table_name, reg_ext, NullS);
+    char *tablename_pos= strxmov(src_path, mysql_data_home, "/", NullS);
+    strxmov(tablename_pos, src_table->db, "/", src_table->table_name,
+            reg_ext, NullS);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, tablename_pos);
     /* Resolve symlinks (for windows) */
     fn_format(src_path, src_path, "", "", MYF(MY_UNPACK_FILENAME));
     if (access(src_path, F_OK))

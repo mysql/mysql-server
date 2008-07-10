@@ -1111,11 +1111,13 @@ class Item_name_const : public Item
 {
   Item *value_item;
   Item *name_item;
+  bool valid_args;
 public:
   Item_name_const(Item *name_arg, Item *val):
     value_item(val), name_item(name_arg)
   {
-    if(!value_item->basic_const_item())
+    if (!(valid_args= name_item->basic_const_item() & 
+                      value_item->basic_const_item()))
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
     Item::maybe_null= TRUE;
   }
@@ -2452,8 +2454,18 @@ class Item_cache: public Item
 protected:
   Item *example;
   table_map used_table_map;
+  /*
+    Field that this object will get value from. This is set/used by 
+    index-based subquery engines to detect and remove the equality injected 
+    by IN->EXISTS transformation.
+    For all other uses of Item_cache, cached_field doesn't matter.
+  */  
+  Field *cached_field;
 public:
-  Item_cache(): example(0), used_table_map(0) {fixed= 1; null_value= 1;}
+  Item_cache(): example(0), used_table_map(0), cached_field(0) 
+  {
+    fixed= 1; null_value= 1;
+  }
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
@@ -2465,6 +2477,8 @@ public:
     decimals= item->decimals;
     collation.set(item->collation);
     unsigned_flag= item->unsigned_flag;
+    if (item->type() == FIELD_ITEM)
+      cached_field= ((Item_field *)item)->field;
     return 0;
   };
   virtual void store(Item *)= 0;
@@ -2475,6 +2489,14 @@ public:
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
   void print(String *str);
+  bool eq_def(Field *field) 
+  { 
+    return cached_field ? cached_field->eq_def (field) : FALSE;
+  }
+  bool eq(const Item *item, bool binary_cmp) const
+  {
+    return this == item;
+  }
 };
 
 

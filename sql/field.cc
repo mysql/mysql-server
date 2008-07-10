@@ -1304,7 +1304,8 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
-   field_length(length_arg), null_bit(null_bit_arg) 
+   field_length(length_arg), null_bit(null_bit_arg), 
+   is_created_from_null_item(FALSE)
 {
   flags=null_ptr ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
@@ -5194,6 +5195,13 @@ String *Field_date::val_str(String *val_buffer,
 }
 
 
+bool Field_date::get_time(MYSQL_TIME *ltime)
+{
+  bzero((char *)ltime, sizeof(MYSQL_TIME));
+  return 0;
+}
+
+
 int Field_date::cmp(const char *a_ptr, const char *b_ptr)
 {
   int32 a,b;
@@ -5259,6 +5267,9 @@ void Field_date::sql_type(String &res) const
     1  Value was cut during conversion
     2  Wrong date string
     3  Datetime value that was cut (warning level NOTE)
+       This is used by opt_range.cc:get_mm_leaf(). Note that there is a
+       nearly-identical class Field_date doesn't ever return 3 from its
+       store function.
 */
 
 int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)

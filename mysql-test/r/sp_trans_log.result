@@ -16,6 +16,7 @@ show binlog events from 98 /* with fixes for #23333 will show there are 2 querie
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	#
 master-bin.000001	#	Query	1	#	#
+master-bin.000001	#	Query	1	#	#
 select count(*),@a from t1 /* must be 1,1 */|
 count(*)	@a
 1	1

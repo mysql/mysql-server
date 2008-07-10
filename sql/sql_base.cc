@@ -4254,7 +4254,36 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         *resolution= RESOLVED_IGNORING_ALIAS;
         break;
       }
-    } 
+    }
+    else if (table_name && item->type() == Item::REF_ITEM &&
+             ((Item_ref *)item)->ref_type() == Item_ref::VIEW_REF)
+    {
+      /*
+        TODO:Here we process prefixed view references only. What we should 
+        really do is process all types of Item_refs. But this will currently 
+        lead to a clash with the way references to outer SELECTs (from the 
+        HAVING clause) are handled in e.g. :
+        SELECT 1 FROM t1 AS t1_o GROUP BY a
+          HAVING (SELECT t1_o.a FROM t1 AS t1_i GROUP BY t1_i.a LIMIT 1).
+        Processing all Item_refs here will cause t1_o.a to resolve to itself.
+        We still need to process the special case of Item_direct_view_ref 
+        because in the context of views they have the same meaning as 
+        Item_field for tables.
+      */
+      Item_ident *item_ref= (Item_ident *) item;
+      if (item_ref->name && item_ref->table_name &&
+          !my_strcasecmp(system_charset_info, item_ref->name, field_name) &&
+          !my_strcasecmp(table_alias_charset, item_ref->table_name,
+                         table_name) &&
+          (!db_name || (item_ref->db_name && 
+                        !strcmp (item_ref->db_name, db_name))))
+      {
+        found= li.ref();
+        *counter= i;
+        *resolution= RESOLVED_IGNORING_ALIAS;
+        break;
+      }
+    }
   }
   if (!found)
   {

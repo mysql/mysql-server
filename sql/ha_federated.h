@@ -277,6 +277,7 @@ public:
   int update_row(const byte *old_data, byte *new_data);
   int delete_row(const byte *buf);
   int index_init(uint keynr);
+  ha_rows estimate_rows_upper_bound();
   int index_read(byte *buf, const byte *key,
                  uint key_len, enum ha_rkey_function find_flag);
   int index_read_idx(byte *buf, uint idx, const byte *key,

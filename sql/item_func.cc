@@ -2009,7 +2009,7 @@ void Item_func_round::fix_length_and_dec()
     int length_increase= ((decimals_delta <= 0) || truncate) ? 0:1;
 
     precision-= decimals_delta - length_increase;
-    decimals= decimals_to_set;
+    decimals= min(decimals_to_set, DECIMAL_MAX_SCALE);
     max_length= my_decimal_precision_to_length(precision, decimals,
                                                unsigned_flag);
     break;
@@ -2108,18 +2108,18 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
 {
   my_decimal val, *value= args[0]->val_decimal(&val);
   longlong dec= args[1]->val_int();
-  if (dec > 0 || (dec < 0 && args[1]->unsigned_flag))
-  {
+  if (dec >= 0 || args[1]->unsigned_flag)
     dec= min((ulonglong) dec, decimals);
-    decimals= (uint8) dec; // to get correct output
-  }
   else if (dec < INT_MIN)
     dec= INT_MIN;
     
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
                      my_decimal_round(E_DEC_FATAL_ERROR, value, (int) dec,
-                                      truncate, decimal_value) > 1)))
+                                      truncate, decimal_value) > 1))) 
+  {
+    decimal_value->frac= decimals;
     return decimal_value;
+  }
   return 0;
 }
 
@@ -2968,6 +2968,12 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     func->max_length=min(initid.max_length,MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
+    /* 
+      Keep used_tables_cache in sync with const_item_cache.
+      See the comment in Item_udf_func::update_used tables.
+    */  
+    if (!const_item_cache && !used_tables_cache)
+      used_tables_cache= RAND_TABLE_BIT;
     func->decimals=min(initid.decimals,NOT_FIXED_DEC);
   }
   initialized=1;
@@ -4596,6 +4602,8 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   if (var_entry)
   {
+    unsigned_flag= var_entry->unsigned_flag;
+
     collation.set(var_entry->collation);
     switch (var_entry->type) {
     case REAL_RESULT:
