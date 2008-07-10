@@ -29,8 +29,12 @@ start slave;
 --vertical_results
 show slave status;
 
+# cleanup: slave io thread has been stopped "irrecoverably"
+# so we clean up mess manually
+
 connection master;
 drop table t1;
-sync_with_master;
+connection slave;
+drop table t1;
 
 # end of 4.1 tests

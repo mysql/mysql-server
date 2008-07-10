@@ -1,1 +1,0 @@
-SET @NO_REFRESH = IF( '' = '', 0, 1);

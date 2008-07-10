@@ -2337,7 +2337,7 @@ class user_var_entry
   bool unsigned_flag;
 
   double val_real(my_bool *null_value);
-  longlong val_int(my_bool *null_value);
+  longlong val_int(my_bool *null_value) const;
   String *val_str(my_bool *null_value, String *str, uint decimals);
   my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
   DTCollation collation;

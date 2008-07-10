@@ -1,5 +1,7 @@
 source include/master-slave.inc;
 
+connection master;
+
 # Init for rstore of variable values
 set @my_slave_net_timeout         =@@global.slave_net_timeout;
 
@@ -18,3 +20,8 @@ show variables like 'slave_skip_errors';
 
 # Restore touched values
 set global slave_net_timeout      =@my_slave_net_timeout;
+
+# bug#34427 slave misses rendezvous
+# don't let the master be shut down until the slave has connected
+sync_slave_with_master;
+

@@ -1709,4 +1709,186 @@ a	b
 9999999999999999	14632475938453979136
 deallocate prepare stmt;
 drop table t1;
+drop view if exists v1;
+drop table if exists t1;
+create table t1 (a int, b int);
+insert into t1 values (1,1), (2,2), (3,3);
+insert into t1 values (3,1), (1,2), (2,3);
+prepare stmt from "create view v1 as select * from t1";
+execute stmt;
+drop table t1;
+create table t1 (a int, b int);
+drop view v1;
+execute stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1`
+drop view v1;
+prepare stmt from "create view v1 (c,d) as select a,b from t1";
+execute stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d` from `t1`
+select * from v1;
+c	d
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d` from `t1`
+select * from v1;
+c	d
+drop view v1;
+prepare stmt from "create view v1 (c) as select b+1 from t1";
+execute stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
+select * from v1;
+c
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`b` + 1) AS `c` from `t1`
+select * from v1;
+c
+drop view v1;
+prepare stmt from "create view v1 (c,d,e,f) as select a,b,a in (select a+2 from t1), a = all (select a from t1) from t1";
+execute stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) AS `a+2` from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` AS `a` from `t1`) AS `f` from `t1`
+select * from v1;
+c	d	e	f
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) AS `a+2` from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` AS `a` from `t1`) AS `f` from `t1`
+select * from v1;
+c	d	e	f
+drop view v1;
+prepare stmt from "create or replace view v1 as select 1";
+execute stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`
+select * from v1;
+1
+1
+execute stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`
+deallocate prepare stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`
+select * from v1;
+1
+1
+drop view v1;
+prepare stmt from "create view v1 as select 1, 1";
+execute stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`,1 AS `My_exp_1`
+select * from v1;
+1	My_exp_1
+1	1
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`,1 AS `My_exp_1`
+select * from v1;
+1	My_exp_1
+1	1
+drop view v1;
+prepare stmt from "create view v1 (x) as select a from t1 where a > 1";
+execute stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `x` from `t1` where (`t1`.`a` > 1)
+select * from v1;
+x
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `x` from `t1` where (`t1`.`a` > 1)
+select * from v1;
+x
+drop view v1;
+prepare stmt from "create view v1 as select * from `t1` `b`";
+execute stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `b`.`a` AS `a`,`b`.`b` AS `b` from `t1` `b`
+select * from v1;
+a	b
+drop view v1;
+execute stmt;
+deallocate prepare stmt;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `b`.`a` AS `a`,`b`.`b` AS `b` from `t1` `b`
+select * from v1;
+a	b
+drop view v1;
+prepare stmt from "create view v1 (a,b,c) as select * from t1";
+execute stmt;
+ERROR HY000: View's SELECT and view's field list have different column counts
+execute stmt;
+ERROR HY000: View's SELECT and view's field list have different column counts
+deallocate prepare stmt;
+drop table t1;
+create temporary table t1 (a int, b int);
+prepare stmt from "create view v1 as select * from t1";
+execute stmt;
+ERROR HY000: View's SELECT refers to a temporary table 't1'
+execute stmt;
+ERROR HY000: View's SELECT refers to a temporary table 't1'
+deallocate prepare stmt;
+drop table t1;
+prepare stmt from "create view v1 as select * from t1";
+ERROR 42S02: Table 'test.t1' doesn't exist
+prepare stmt from "create view v1 as select * from `t1` `b`";
+ERROR 42S02: Table 'test.t1' doesn't exist
+prepare stmt from "select ?";
+set @arg= 123456789.987654321;
+select @arg;
+@arg
+123456789.987654321
+execute stmt using @arg;
+?
+123456789.987654321
+set @arg= "string";
+select @arg;
+@arg
+string
+execute stmt using @arg;
+?
+string
+set @arg= 123456;
+select @arg;
+@arg
+123456
+execute stmt using @arg;
+?
+123456
+set @arg= cast(-12345.54321 as decimal(20, 10));
+select @arg;
+@arg
+-12345.5432100000
+execute stmt using @arg;
+?
+-12345.5432100000
+deallocate prepare stmt;
 End of 5.0 tests.

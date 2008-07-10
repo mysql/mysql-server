@@ -1512,6 +1512,44 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 }
 
 
+/**
+  @brief Validate and prepare for execution CREATE VIEW statement
+
+  @param stmt prepared statement
+
+  @note This function handles create view commands.
+
+  @retval FALSE Operation was a success.
+  @retval TRUE An error occured.
+*/
+
+static bool mysql_test_create_view(Prepared_statement *stmt)
+{
+  DBUG_ENTER("mysql_test_create_view");
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  bool res= TRUE;
+  /* Skip first table, which is the view we are creating */
+  bool link_to_local;
+  TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
+  TABLE_LIST *tables= lex->query_tables;
+
+  if (create_view_precheck(thd, tables, view, lex->create_view_mode))
+    goto err;
+
+  if (open_normal_and_derived_tables(thd, tables, 0))
+    goto err;
+
+  lex->view_prepare_mode= 1;
+  res= select_like_stmt_test(stmt, 0, 0);
+
+err:
+  /* put view back for PS rexecuting */
+  lex->link_first_table_back(view, link_to_local);
+  DBUG_RETURN(res);
+}
+
+
 /*
   Validate and prepare for execution a multi update statement.
 
@@ -1730,6 +1768,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
       my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
       goto error;
     }
+    res= mysql_test_create_view(stmt);
     break;
   case SQLCOM_DO:
     res= mysql_test_do_fields(stmt, tables, lex->insert_list);
@@ -2480,7 +2519,7 @@ void mysql_stmt_close(THD *thd, char *packet)
   DBUG_ENTER("mysql_stmt_close");
 
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))
-    DBUG_VOID_RETURN;
+    goto out;
 
   /*
     The only way currently a statement can be deallocated when it's
@@ -2489,6 +2528,9 @@ void mysql_stmt_close(THD *thd, char *packet)
   DBUG_ASSERT(! (stmt->flags & (uint) Prepared_statement::IS_IN_USE));
   (void) stmt->deallocate();
 
+out:
+  /* clear errors, response packet is not expected */
+  thd->clear_error();
   DBUG_VOID_RETURN;
 }
 
@@ -2555,10 +2597,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
   if (packet_length <= MYSQL_LONG_DATA_HEADER)
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_send_long_data");
-    DBUG_VOID_RETURN;
-  }
+    goto out;
 #endif
 
   stmt_id= uint4korr(packet);
@@ -2566,7 +2605,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   if (!(stmt=find_prepared_statement(thd, stmt_id,
                                      "mysql_stmt_send_long_data")))
-    DBUG_VOID_RETURN;
+    goto out;
 
   param_number= uint2korr(packet);
   packet+= 2;
@@ -2578,7 +2617,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
             "mysql_stmt_send_long_data");
-    DBUG_VOID_RETURN;
+    goto out;
   }
 #endif
 
@@ -2594,6 +2633,10 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     stmt->last_errno= ER_OUTOFMEMORY;
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
+
+out:
+  /* clear errors, response packet is not expected */
+  thd->clear_error();
   DBUG_VOID_RETURN;
 }
 

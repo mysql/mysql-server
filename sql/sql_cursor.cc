@@ -88,6 +88,7 @@ class Materialized_cursor: public Server_side_cursor
 public:
   Materialized_cursor(select_result *result, TABLE *table);
 
+  int fill_item_list(THD *thd, List<Item> &send_fields);
   virtual bool is_open() const { return table != 0; }
   virtual int open(JOIN *join __attribute__((unused)));
   virtual void fetch(ulong num_rows);
@@ -109,6 +110,7 @@ class Select_materialize: public select_union
 {
   select_result *result; /* the result object of the caller (PS or SP) */
 public:
+  Materialized_cursor *materialized_cursor;
   Select_materialize(select_result *result_arg) :result(result_arg) {}
   virtual bool send_fields(List<Item> &list, uint flags);
 };
@@ -152,7 +154,7 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
 
   if (! (sensitive_cursor= new (thd->mem_root) Sensitive_cursor(thd, result)))
   {
-    delete result;
+    delete result_materialize;
     return 1;
   }
 
@@ -174,13 +176,13 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
   /*
     Possible options here:
     - a sensitive cursor is open. In this case rc is 0 and
-      result_materialize->table is NULL, or
+      result_materialize->materialized_cursor is NULL, or
     - a materialized cursor is open. In this case rc is 0 and
-      result_materialize->table is not NULL
-    - an error occured during materializaton.
-      result_materialize->table is not NULL, but rc != 0
+      result_materialize->materialized is not NULL
+    - an error occurred during materialization.
+      result_materialize->materialized_cursor is not NULL, but rc != 0
     - successful completion of mysql_execute_command without
-      a cursor: rc is 0, result_materialize->table is NULL,
+      a cursor: rc is 0, result_materialize->materialized_cursor is NULL,
       sensitive_cursor is not open.
       This is possible if some command writes directly to the
       network, bypassing select_result mechanism. An example of
@@ -191,7 +193,7 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
 
   if (sensitive_cursor->is_open())
   {
-    DBUG_ASSERT(!result_materialize->table);
+    DBUG_ASSERT(!result_materialize->materialized_cursor);
     /*
       It's safer if we grab THD state after mysql_execute_command
       is finished and not in Sensitive_cursor::open(), because
@@ -202,18 +204,10 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
     *pcursor= sensitive_cursor;
     goto end;
   }
-  else if (result_materialize->table)
+  else if (result_materialize->materialized_cursor)
   {
-    Materialized_cursor *materialized_cursor;
-    TABLE *table= result_materialize->table;
-    MEM_ROOT *mem_root= &table->mem_root;
-
-    if (!(materialized_cursor= new (mem_root)
-                               Materialized_cursor(result, table)))
-    {
-      rc= 1;
-      goto err_open;
-    }
+    Materialized_cursor *materialized_cursor=
+      result_materialize->materialized_cursor;
 
     if ((rc= materialized_cursor->open(0)))
     {
@@ -229,8 +223,6 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
 err_open:
   DBUG_ASSERT(! (sensitive_cursor && sensitive_cursor->is_open()));
   delete sensitive_cursor;
-  if (result_materialize->table)
-    free_tmp_table(thd, result_materialize->table);
 end:
   delete result_materialize;
   return rc;
@@ -544,6 +536,51 @@ Materialized_cursor::Materialized_cursor(select_result *result_arg,
 }
 
 
+/**
+  Preserve the original metadata that would be sent to the client.
+
+  @param thd Thread identifier.
+  @param send_fields List of fields that would be sent.
+*/
+
+int Materialized_cursor::fill_item_list(THD *thd, List<Item> &send_fields)
+{
+  Query_arena backup_arena;
+  int rc;
+  List_iterator_fast<Item> it_org(send_fields);
+  List_iterator_fast<Item> it_dst(item_list);
+  Item *item_org;
+  Item *item_dst;
+
+  thd->set_n_backup_active_arena(this, &backup_arena);
+
+  if ((rc= table->fill_item_list(&item_list)))
+    goto end;
+
+  DBUG_ASSERT(send_fields.elements == item_list.elements);
+
+  /*
+    Unless we preserve the original metadata, it will be lost,
+    since new fields describe columns of the temporary table.
+    Allocate a copy of the name for safety only. Currently
+    items with original names are always kept in memory,
+    but in case this changes a memory leak may be hard to notice.
+  */
+  while ((item_dst= it_dst++, item_org= it_org++))
+  {
+    Send_field send_field;
+    Item_ident *ident= static_cast<Item_ident *>(item_dst);
+    item_org->make_field(&send_field);
+
+    ident->db_name=    thd->strdup(send_field.db_name);
+    ident->table_name= thd->strdup(send_field.table_name);
+  }
+end:
+  thd->restore_active_arena(this, &backup_arena);
+  /* Check for thd->is_error() in case of OOM */
+  return rc || thd->net.report_error;
+}
+
 int Materialized_cursor::open(JOIN *join __attribute__((unused)))
 {
   THD *thd= fake_unit.thd;
@@ -552,8 +589,7 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
 
   thd->set_n_backup_active_arena(this, &backup_arena);
   /* Create a list of fields and start sequential scan */
-  rc= (table->fill_item_list(&item_list) ||
-       result->prepare(item_list, &fake_unit) ||
+  rc= (result->prepare(item_list, &fake_unit) ||
        table->file->ha_rnd_init(TRUE));
   thd->restore_active_arena(this, &backup_arena);
   if (rc == 0)
@@ -664,6 +700,24 @@ bool Select_materialize::send_fields(List<Item> &list, uint flags)
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
                           FALSE, thd->options | TMP_TABLE_ALL_COLUMNS, ""))
     return TRUE;
+
+  materialized_cursor= new (&table->mem_root)
+                       Materialized_cursor(result, table);
+
+  if (! materialized_cursor)
+  {
+    free_tmp_table(table->in_use, table);
+    table= 0;
+    return TRUE;
+  }
+  if (materialized_cursor->fill_item_list(unit->thd, list))
+  {
+    delete materialized_cursor;
+    table= 0;
+    materialized_cursor= 0;
+    return TRUE;
+  }
+
   return FALSE;
 }
 

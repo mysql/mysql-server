@@ -16,10 +16,12 @@ SET collation_connection='euckr_korean_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
 -- source include/ctype_like_escape.inc
+-- source include/ctype_like_range_f1f2.inc
 SET collation_connection='euckr_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
 -- source include/ctype_like_escape.inc
+-- source include/ctype_like_range_f1f2.inc
 
 #
 # Bug#15377 Valid multibyte sequences are truncated on INSERT

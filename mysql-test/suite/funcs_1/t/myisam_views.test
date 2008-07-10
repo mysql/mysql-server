@@ -5,33 +5,16 @@
 # Set $engine_type
 let $engine_type= myisam;
 
-# Decide, if the objects are to be (re)created
-#
-# - once at the beginning of a set of testcases ('$NO_REFRESH' <> '' --> TRUE)
-#   That means the current script must not (re)create any object.
-#   It can expect, that the objects already exist.
-#
-# - per every testscript/case ('$NO_REFRESH' = '' --> FALSE)
-#   That means all objects have to be (re)created within the current script.
-
-eval SET @NO_REFRESH = IF( '$NO_REFRESH' = '', 0, 1);
-
-let $run= `SELECT @NO_REFRESH = 0`;
-if ($run)
-{
-
-    # Create some objects needed in many testcases
-    USE test;
-    --source suite/funcs_1/include/myisam_tb2.inc
-    --disable_warnings
-    DROP DATABASE IF EXISTS test1;
-    --enable_warnings
-    CREATE DATABASE test1;
-    USE test1;
-    --source suite/funcs_1/include/myisam_tb2.inc
-    USE test;
-
-}
+# Create some objects needed in many testcases
+USE test;
+--source suite/funcs_1/include/myisam_tb2.inc
+--disable_warnings
+DROP DATABASE IF EXISTS test1;
+--enable_warnings
+CREATE DATABASE test1;
+USE test1;
+--source suite/funcs_1/include/myisam_tb2.inc
+USE test;
 
 let $message= Attention: The nesting level @max_level in Testcase 3.3.1.A6
               (Complicated nested VIEWs) has to be limited to 20 because of
@@ -40,10 +23,6 @@ let $message= Attention: The nesting level @max_level in Testcase 3.3.1.A6
 SET @limit1 = 20;
 --source suite/funcs_1/views/views_master.inc
 
-# If we created the database in the above loop we now need to drop it
-let $run= `SELECT @NO_REFRESH = 0`;
-if ($run)
-{
-    DROP DATABASE IF EXISTS test1;
-}
+DROP DATABASE test1;
+DROP TABLE test.tb2;
 

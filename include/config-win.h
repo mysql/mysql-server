@@ -257,60 +257,6 @@ inline double ulonglong2double(ulonglong value)
 
 
 #define STACK_DIRECTION -1
-
-/* Optimized store functions for Intel x86 */
-
-#ifndef _WIN64
-#define sint2korr(A)	(*((int16 *) (A)))
-#define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
-				  (((uint32) 255L << 24) | \
-				   (((uint32) (uchar) (A)[2]) << 16) |\
-				   (((uint32) (uchar) (A)[1]) << 8) | \
-				   ((uint32) (uchar) (A)[0])) : \
-				  (((uint32) (uchar) (A)[2]) << 16) |\
-				  (((uint32) (uchar) (A)[1]) << 8) | \
-				  ((uint32) (uchar) (A)[0])))
-#define sint4korr(A)	(*((long *) (A)))
-#define uint2korr(A)	(*((uint16 *) (A)))
-/*
-   ATTENTION !
-   
-    Please, note, uint3korr reads 4 bytes (not 3) !
-    It means, that you have to provide enough allocated space !
-*/
-#define uint3korr(A)	(long) (*((unsigned int *) (A)) & 0xFFFFFF)
-#define uint4korr(A)	(*((unsigned long *) (A)))
-#define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
-				    (((uint32) ((uchar) (A)[1])) << 8) +\
-				    (((uint32) ((uchar) (A)[2])) << 16) +\
-				    (((uint32) ((uchar) (A)[3])) << 24)) +\
-				    (((ulonglong) ((uchar) (A)[4])) << 32))
-#define uint8korr(A)	(*((ulonglong *) (A)))
-#define sint8korr(A)	(*((longlong *) (A)))
-#define int2store(T,A)	*((uint16*) (T))= (uint16) (A)
-#define int3store(T,A)		{ *(T)=  (uchar) ((A));\
-				  *(T+1)=(uchar) (((uint) (A) >> 8));\
-				  *(T+2)=(uchar) (((A) >> 16)); }
-#define int4store(T,A)	*((long *) (T))= (long) (A)
-#define int5store(T,A)	{ *(T)= (uchar)((A));\
-			  *((T)+1)=(uchar) (((A) >> 8));\
-			  *((T)+2)=(uchar) (((A) >> 16));\
-			  *((T)+3)=(uchar) (((A) >> 24)); \
-			  *((T)+4)=(uchar) (((A) >> 32)); }
-#define int8store(T,A)	*((ulonglong *) (T))= (ulonglong) (A)
-
-#define doubleget(V,M)	do { *((long *) &V) = *((long*) M); \
-			    *(((long *) &V)+1) = *(((long*) M)+1); } while(0)
-#define doublestore(T,V) do { *((long *) T) = *((long*) &V); \
-			      *(((long *) T)+1) = *(((long*) &V)+1); } while(0)
-#define float4get(V,M) { *((long *) &(V)) = *((long*) (M)); }
-#define floatstore(T,V) memcpy((byte*)(T), (byte*)(&V), sizeof(float))
-#define floatget(V,M)   memcpy((byte*)(&V), (byte*)(M), sizeof(float))
-#define float8get(V,M) doubleget((V),(M))
-#define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
-#define float8store(V,M) doublestore((V),(M))
-#endif /* _WIN64 */
-
 #define HAVE_PERROR
 #define HAVE_VFPRINT
 #define HAVE_RENAME		/* Have rename() as function */

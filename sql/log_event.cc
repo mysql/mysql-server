@@ -373,6 +373,7 @@ Log_event::Log_event(const char* buf,
 #endif
   when = uint4korr(buf);
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
+  data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
   {
     log_pos= 0;
@@ -405,7 +406,7 @@ Log_event::Log_event(const char* buf,
         binlog, so which will cause problems if the user uses this value
         in CHANGE MASTER).
       */
-    log_pos+= uint4korr(buf + EVENT_LEN_OFFSET);
+    log_pos+= data_written; /* purecov: inspected */
   }
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 

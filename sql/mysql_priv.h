@@ -73,6 +73,7 @@ extern const char *primary_key_name;
 #include "mysql_com.h"
 #include <violite.h>
 #include "unireg.h"
+#define IS_NUM(t)	((t) <= FIELD_TYPE_INT24 || (t) == FIELD_TYPE_YEAR || (t) == FIELD_TYPE_NEWDECIMAL)
 
 void init_sql_alloc(MEM_ROOT *root, uint block_size, uint pre_alloc_size);
 gptr sql_alloc(unsigned size);
@@ -1274,6 +1275,7 @@ void my_dbopt_free(void);
 extern time_t server_start_time, flush_status_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
+	    mysql_unpacked_real_data_home[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
