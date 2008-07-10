@@ -4,7 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-stop slave;
+include/stop_slave.inc
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (1),(2),(3),(4);
 drop table t1;
@@ -149,7 +149,7 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 start slave;
-stop slave;
+include/stop_slave.inc
 start slave sql_thread until master_log_file='master-bin.000001', master_log_pos=740;
 SHOW SLAVE STATUS;
 Slave_IO_State	#

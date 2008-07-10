@@ -92,7 +92,7 @@ Master D	4	D
 * Do failure for C and then make new connection B->D *
 STOP SLAVE;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-START SLAVE;
+include/start_slave.inc
 INSERT INTO t1 VALUES(6,'C',2);
 INSERT INTO t1(b,c) VALUES('B',2);
 INSERT INTO t1(b,c) VALUES('A',2);
@@ -119,7 +119,7 @@ Master D	8	D
 STOP SLAVE;
 STOP SLAVE;
 CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',master_log_file='LOG_FILE',master_log_pos=LOG_POS;
-START SLAVE;
+include/start_slave.inc
 
 * Check data inserted before failure *
 SELECT 'Master A',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
@@ -166,7 +166,7 @@ Master D	12	D
 *** Testing restoring scheme A->B->C->D->A after failure ***
 
 * Remove wrong event from C and restore B->C->D *
-STOP SLAVE;
+include/stop_slave.inc
 DELETE FROM t1 WHERE a = 6;
 START SLAVE;
 RESET MASTER;

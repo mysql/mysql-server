@@ -77,11 +77,9 @@ if (!`SELECT @@BINLOG_FORMAT = 'ROW'`) {
   SELECT * FROM t2 ORDER BY a;
 }
 
-STOP SLAVE;
---source include/wait_for_slave_to_stop.inc
+--source include/stop_slave.inc
 RENAME TABLE t3_bak TO t3;
-START SLAVE;
---source include/wait_for_slave_to_start.inc
+--source include/start_slave.inc
 
 --connection master
 TRUNCATE t1;
@@ -121,11 +119,9 @@ SHOW TABLES LIKE 't%';
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
-STOP SLAVE;
---source include/wait_for_slave_to_stop.inc
+--source include/stop_slave.inc
 RENAME TABLE t3_bak TO t3;
-START SLAVE;
---source include/wait_for_slave_to_start.inc
+--source include/start_slave.inc
 
 --connection master
 TRUNCATE t1;
@@ -167,11 +163,9 @@ SHOW TABLES LIKE 't%';
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
-STOP SLAVE;
---source include/wait_for_slave_to_stop.inc
+source include/stop_slave.inc;
 RENAME TABLE t3_bak TO t3;
-START SLAVE;
---source include/wait_for_slave_to_start.inc
+source include/start_slave.inc;
 
 # Clean up
 --echo *** Clean up ***
