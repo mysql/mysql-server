@@ -174,4 +174,10 @@ int toku_txn_note_close_brt (BRT brt);
 // if found then return 0 and set txnptr to the address of the TOKUTXN object
 int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr);
 
+
+// Allocate memory as part of a rollback structure.  It will be freed when the transaction completes.
+void* toku_malloc_in_rollback(TOKUTXN txn, size_t size);
+void *toku_memdup_in_rollback(TOKUTXN txn, const void *v, size_t len);
+char *toku_strdup_in_rollback(TOKUTXN txn, const char *s);
+
 #endif

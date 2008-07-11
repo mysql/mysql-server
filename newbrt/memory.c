@@ -211,6 +211,7 @@ void *toku_memdup (const void *v, size_t len) {
     memcpy(r,v,len);
     return r;
 }
+
 char *toku_strdup (const char *s) {
     return toku_memdup(s, strlen(s)+1);
 }

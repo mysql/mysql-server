@@ -5,6 +5,7 @@
 
 #include "toku_assert.h"
 #include "memory.h"
+#include "memarena.h"
 #include <arpa/inet.h>
 
 struct rbuf {
@@ -64,9 +65,15 @@ static inline DISKOFF rbuf_diskoff (struct rbuf *r) {
 static inline void rbuf_TXNID (struct rbuf *r, TXNID *txnid) {
     *txnid = rbuf_ulonglong(r);
 }
+static inline void rbuf_ma_TXNID (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), TXNID *txnid) {
+    return rbuf_TXNID(r, txnid);
+}
 
 static inline void rbuf_FILENUM (struct rbuf *r, FILENUM *filenum) {
     filenum->fileid = rbuf_int(r);
+}
+static inline void rbuf_ma_FILENUM (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), FILENUM *filenum) {
+    return rbuf_FILENUM(r, filenum);
 }
 
 // Don't try to use the same space, malloc it
@@ -75,6 +82,15 @@ static inline void rbuf_BYTESTRING (struct rbuf *r, BYTESTRING *bs) {
     u_int32_t newndone = r->ndone + bs->len;
     assert(newndone < r->size);
     bs->data = toku_memdup(&r->buf[r->ndone], (size_t)bs->len);
+    assert(bs->data);
+    r->ndone = newndone;
+}
+
+static inline void rbuf_ma_BYTESTRING  (struct rbuf *r, MEMARENA ma, BYTESTRING *bs) {
+    bs->len  = rbuf_int(r);
+    u_int32_t newndone = r->ndone + bs->len;
+    assert(newndone < r->size);
+    bs->data = memarena_memdup(ma, &r->buf[r->ndone], (size_t)bs->len);
     assert(bs->data);
     r->ndone = newndone;
 }

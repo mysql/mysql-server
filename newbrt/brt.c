@@ -2588,8 +2588,8 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
     if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
 	toku_cachefile_refup(brt->cf);
-	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
-	BYTESTRING databs = {val->size, toku_memdup(val->data, val->size)};
+	BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
+	BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
 	r = toku_logger_save_rollback_cmdinsert(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
 	if (r!=0) return r;
 	r = toku_txn_note_brt(txn, brt);
@@ -2619,7 +2619,7 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
     if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
-	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
+	BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
 	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmddelete(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs);
 	if (r!=0) return r;

@@ -65,6 +65,7 @@ BRT_SOURCES = \
   log \
   log_code \
   memory \
+  memarena \
   mempool \
   omt \
   recover \
