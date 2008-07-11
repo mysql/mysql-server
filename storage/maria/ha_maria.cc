@@ -1961,6 +1961,7 @@ bool ha_maria::is_crashed() const
 
 int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 {
+  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -1970,6 +1971,7 @@ int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 
 int ha_maria::delete_row(const uchar * buf)
 {
+  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
   ha_statistic_increment(&SSV::ha_delete_count);
   return maria_delete(file, buf);
 }
@@ -2506,6 +2508,7 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
               (lock_type == TL_IGNORE || file->lock.type == TL_UNLOCK));
   if (lock_type != TL_IGNORE && file->lock.type == TL_UNLOCK)
   {
+    const enum enum_sql_command sql_command= thd->lex->sql_command;
     /*
       We have to disable concurrent inserts for INSERT ... SELECT or
       INSERT/UPDATE/DELETE with sub queries if we are using statement based
@@ -2514,24 +2517,33 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
     */
     if (lock_type <= TL_READ_HIGH_PRIORITY &&
         !thd->current_stmt_binlog_row_based &&
-        (thd->lex->sql_command != SQLCOM_SELECT &&
-         thd->lex->sql_command != SQLCOM_LOCK_TABLES) &&
+        (sql_command != SQLCOM_SELECT &&
+         sql_command != SQLCOM_LOCK_TABLES) &&
         (thd->options & OPTION_BIN_LOG) &&
         mysql_bin_log.is_open())
       lock_type= TL_READ_NO_INSERT;
-    else if (lock_type == TL_WRITE_CONCURRENT_INSERT &&
-             (file->state->records == 0))
+    else if (lock_type == TL_WRITE_CONCURRENT_INSERT)
     {
+      const enum enum_duplicates duplicates= thd->lex->duplicates;
       /*
-        Bulk insert may use repair, which will cause problems if other
+        Explanation for the 3 conditions below, in order:
+
+        - Bulk insert may use repair, which will cause problems if other
         threads try to read/insert to the table: disable versioning.
         Note that our read of file->state->records is incorrect, as such
         variable may have changed when we come to start_bulk_insert() (worse
         case: we see != 0 so allow versioning, start_bulk_insert() sees 0 and
         uses repair). This is prevented because start_bulk_insert() will not
         try repair if we enabled versioning.
+        - INSERT SELECT ON DUPLICATE KEY UPDATE comes here with
+        TL_WRITE_CONCURRENT_INSERT but shouldn't because it can do
+        update/delete of a row and versioning doesn't support that
+        - same for LOAD DATA CONCURRENT REPLACE.
       */
-      lock_type= TL_WRITE;
+      if ((file->state->records == 0) ||
+          (sql_command == SQLCOM_INSERT_SELECT && duplicates == DUP_UPDATE) ||
+          (sql_command == SQLCOM_LOAD && duplicates == DUP_REPLACE))
+        lock_type= TL_WRITE;
     }
     file->lock.type= lock_type;
   }
