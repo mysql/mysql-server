@@ -127,15 +127,18 @@ int toku_rollback_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN 
 int toku_commit_fileentries (int fd, off_t filesize, TOKUTXN txn) {
     BREAD f = create_bread_from_fd_initialize_at(fd, filesize, 1<<20);
     int r=0;
+    MEMARENA ma = memarena_create();
     while (bread_has_more(f)) {
         struct roll_entry *item;
-        r = toku_read_rollback_backwards(f, &item);
+        r = toku_read_rollback_backwards(f, &item, ma);
         if (r!=0) goto finish;
         r = toku_commit_rollback_item(txn, item);
         if (r!=0) goto finish;
+	memarena_clear(ma);
     }
  finish:
     { int r2 = close_bread_without_closing_fd(f); assert(r2==0); }
+    memarena_close(&ma);
     return r;
 }
 
@@ -143,15 +146,18 @@ int toku_rollback_fileentries (int fd, off_t filesize, TOKUTXN txn) {
     BREAD f = create_bread_from_fd_initialize_at(fd, filesize, 1<<20);
     assert(f);
     int r=0;
+    MEMARENA ma = memarena_create();
     while (bread_has_more(f)) {
         struct roll_entry *item;
-        r = toku_read_rollback_backwards(f, &item);
+        r = toku_read_rollback_backwards(f, &item, ma);
         if (r!=0) goto finish;
         r = toku_abort_rollback_item(txn, item);
         if (r!=0) goto finish;
+	memarena_clear(ma);
     }
  finish:
     { int r2 = close_bread_without_closing_fd(f); assert(r2==0); }
+    memarena_close(&ma);
     return r;
 }
 

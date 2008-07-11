@@ -25,6 +25,20 @@
 
 static char dev_null[] = "/dev/null";
 
+void* toku_malloc_in_rollback(TOKUTXN txn, size_t size) {
+    return malloc_in_memarena(txn->rollentry_arena, size);
+}
+
+void *toku_memdup_in_rollback(TOKUTXN txn, const void *v, size_t len) {
+    void *r=toku_malloc_in_rollback(txn, len);
+    memcpy(r,v,len);
+    return r;
+}
+
+char *toku_strdup_in_rollback(TOKUTXN txn, const char *s) {
+    return toku_memdup_in_rollback(txn, s, strlen(s)+1);
+}
+
 int toku_logger_fsync_null(int fd __attribute__((__unused__))) {
     return 0;
 }
@@ -366,15 +380,7 @@ int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbu
 static void note_txn_closing (TOKUTXN txn);
 
 static void cleanup_txn (TOKUTXN txn) {
-    struct roll_entry *item;
-    while ((item=txn->newest_logentry)) {
-	txn->newest_logentry = item->prev;
-	rolltype_dispatch(item, toku_free_rolltype_);
-	toku_free(item);
-	toku_logger_rollback_malloc_size -= sizeof(*item);
-	toku_logger_rollback_malloc_count --;
-    }
-
+    memarena_close(&txn->rollentry_arena);
     if (txn->rollentry_filename!=0) {
 	int r = close(txn->rollentry_fd);
 	assert(r==0);
@@ -392,24 +398,13 @@ static void cleanup_txn (TOKUTXN txn) {
 int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item) {
     int r=0;
     rolltype_dispatch_assign(item, toku_commit_, r, txn);
-    if (r!=0) return r;
-    u_int32_t rollback_fsize = toku_logger_rollback_fsize(item);
-    toku_logger_rollback_malloc_size -= rollback_fsize;
-    toku_logger_rollback_malloc_count --;
-    rolltype_dispatch(item, toku_free_rolltype_);
-    toku_free(item);
-    return 0;
+    return r;
 }
 
 int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item) {
     int r=0;
     rolltype_dispatch_assign(item, toku_rollback_, r, txn);
     if (r!=0) return r;
-    u_int32_t rollback_fsize = toku_logger_rollback_fsize(item);
-    toku_logger_rollback_malloc_size -= rollback_fsize;
-    toku_logger_rollback_malloc_count --;
-    rolltype_dispatch(item, toku_free_rolltype_);
-    toku_free(item);
     return 0;
 }
 
@@ -421,62 +416,63 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
     // printf("%s:%d committing\n", __FILE__, __LINE__);
     // panic handled in log_commit
     int r = toku_log_commit(txn->logger, (LSN*)0, (txn->parent==0) && !nosync, txn->txnid64); // exits holding neither of the tokulogger locks.
-    if (r!=0) {
-	cleanup_txn(txn);
-	return r;
-    } else if (txn->parent!=0) {
-        // First we must put a rollinclude entry into the parent if we have a rollentry file.
-        if (txn->rollentry_filename) {
-            int len = strlen(txn->rollentry_filename);
-            // Don't have to strdup the rollentry_filename because
-            // we take ownership of it.
-            BYTESTRING fname = {len, txn->rollentry_filename};
-            r = toku_logger_save_rollback_rollinclude(txn->parent, fname);
-            if (r!=0) { cleanup_txn(txn); return r; }
-            r = close(txn->rollentry_fd);
-            if (r!=0) {
-                // We have to do the unlink ourselves, and then
-                // set txn->rollentry_filename=0 so that the cleanup
-                // won't try to close the fd again.
-                unlink(txn->rollentry_filename);
-                txn->rollentry_filename = 0;
-                cleanup_txn(txn);
-                return r;
-            }
-            // Stop the cleanup from closing and unlinking the file.
-            txn->rollentry_filename = 0;
-        }
-	// Append the list to the front of the parent.
-	if (txn->oldest_logentry) {
-	    // There are some entries, so link them in.
-	    txn->oldest_logentry->prev = txn->parent->newest_logentry;
-	    txn->parent->newest_logentry = txn->newest_logentry;
-	}
-	if (txn->parent->oldest_logentry==0) {
-	    txn->parent->oldest_logentry = txn->oldest_logentry;
-	}
-	txn->newest_logentry = txn->oldest_logentry = 0;
-
-	// Note the open brts, the omts must be merged
-	r = toku_omt_iterate(txn->open_brts, note_brt_used_in_parent_txn, txn->parent);
-	assert(r==0);
-
-    } else {
-	// do the commit calls and free everything
-	// we do the commit calls in reverse order too.
-	{
-	    struct roll_entry *item;
-	    //printf("%s:%d abort\n", __FILE__, __LINE__);
-	    while ((item=txn->newest_logentry)) {
-		txn->newest_logentry = item->prev;
-		r = toku_commit_rollback_item(txn, item);
+    if (r==0) {
+	if (txn->parent!=0) {
+	    // First we must put a rollinclude entry into the parent if we have a rollentry file.
+	    if (txn->rollentry_filename) {
+		int len = strlen(txn->rollentry_filename);
+		// Don't have to strdup the rollentry_filename because
+		// we take ownership of it.
+		BYTESTRING fname = {len, txn->rollentry_filename};
+		r = toku_logger_save_rollback_rollinclude(txn->parent, fname);
 		if (r!=0) { cleanup_txn(txn); return r; }
+		r = close(txn->rollentry_fd);
+		if (r!=0) {
+		    // We have to do the unlink ourselves, and then
+		    // set txn->rollentry_filename=0 so that the cleanup
+		    // won't try to close the fd again.
+		    unlink(txn->rollentry_filename);
+		    txn->rollentry_filename = 0;
+		    cleanup_txn(txn);
+		    return r;
+		}
+		// Stop the cleanup from closing and unlinking the file.
+		txn->rollentry_filename = 0;
 	    }
-	}
+	    // Append the list to the front of the parent.
+	    if (txn->oldest_logentry) {
+		// There are some entries, so link them in.
+		txn->oldest_logentry->prev = txn->parent->newest_logentry;
+		txn->parent->newest_logentry = txn->newest_logentry;
+	    }
+	    if (txn->parent->oldest_logentry==0) {
+		txn->parent->oldest_logentry = txn->oldest_logentry;
+	    }
+	    txn->newest_logentry = txn->oldest_logentry = 0;
+	    // Put all the memarena data into the parent.
+	    memarena_move_buffers(txn->parent->rollentry_arena, txn->rollentry_arena);
 
-	// Read stuff out of the file and execute it.
-	if (txn->rollentry_filename) {
-            r = toku_commit_fileentries(txn->rollentry_fd, txn->rollentry_filesize, txn);
+	    // Note the open brts, the omts must be merged
+	    r = toku_omt_iterate(txn->open_brts, note_brt_used_in_parent_txn, txn->parent);
+	    assert(r==0);
+
+	} else {
+	    // do the commit calls and free everything
+	    // we do the commit calls in reverse order too.
+	    {
+		struct roll_entry *item;
+		//printf("%s:%d abort\n", __FILE__, __LINE__);
+		while ((item=txn->newest_logentry)) {
+		    txn->newest_logentry = item->prev;
+		    r = toku_commit_rollback_item(txn, item);
+		    if (r!=0) { cleanup_txn(txn); return r; }
+		}
+	    }
+
+	    // Read stuff out of the file and execute it.
+	    if (txn->rollentry_filename) {
+		r = toku_commit_fileentries(txn->rollentry_fd, txn->rollentry_filesize, txn);
+	    }
 	}
     }
     cleanup_txn(txn);
@@ -507,6 +503,9 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER 
     result->logger = logger;
     result->parent = parent_tokutxn;
     result->oldest_logentry = result->newest_logentry = 0;
+
+    result->rollentry_arena = memarena_create();
+
     list_push(&logger->live_txns, &result->live_txns_link);
     result->rollentry_resident_bytecount=0;
     result->rollentry_filename = 0;
@@ -519,7 +518,7 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER 
 int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
-    BYTESTRING bs = { .len=strlen(fname), .data = strdup(fname) };
+    BYTESTRING bs = { .len=strlen(fname), .data = toku_strdup_in_rollback(txn, fname) };
     int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, mode);
     if (r!=0) return r;
     r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), bs);
@@ -960,8 +959,6 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	    txn->oldest_logentry = item->next;
 	    if (item->next) { item->next->prev=0; }
 	    toku_logger_rollback_wbufwrite(&w, item);
-	    rolltype_dispatch(item, toku_free_rolltype_);
-	    toku_free(item);
 	}
 	assert(txn->rollentry_resident_bytecount==0);
 	assert((ssize_t)w.ndone==bufsize);
@@ -981,20 +978,22 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	assert(r==(ssize_t)w.ndone);
 	txn->rollentry_filesize+=w.ndone;
 	toku_free(buf);
+
+	// Cleanup the rollback memory
+	memarena_clear(txn->rollentry_arena);
     }
     return 0;
 }
 
-int toku_read_rollback_backwards(BREAD br, struct roll_entry **item) {
+int toku_read_rollback_backwards(BREAD br, struct roll_entry **item, MEMARENA ma) {
     u_int32_t nbytes_n; ssize_t sr;
     if ((sr=bread_backwards(br, &nbytes_n, 4))!=4) { assert(sr<0); return errno; }
     u_int32_t n_bytes=ntohl(nbytes_n);
-    unsigned char *buf = toku_malloc(n_bytes);
+    unsigned char *buf = malloc_in_memarena(ma, n_bytes);
     if (buf==0) return errno;
     if ((sr=bread_backwards(br, buf, n_bytes-4))!=(ssize_t)n_bytes-4) { assert(sr<0); return errno; }
-    int r = toku_parse_rollback(buf, n_bytes, item);
+    int r = toku_parse_rollback(buf, n_bytes, item, ma);
     if (r!=0) return r;
-    toku_free(buf);
     return 0;
 }
 

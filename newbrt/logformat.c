@@ -338,16 +338,6 @@ void generate_dispatch (void) {
     fprintf(hf, " }})\n");
 }
 		
-void generate_log_free(void) {
-    DO_ROLLBACKS(lt, ({
-			fprintf2(cf, hf, "void toku_free_rolltype_%s(struct rolltype_%s *e)", lt->name, lt->name);
-			fprintf(hf, ";\n");
-			fprintf(cf, " {\n");
-			DO_FIELDS(ft, lt, fprintf(cf, "  toku_free_%s(e->%s);\n", ft->type, ft->name));
-			fprintf(cf, "}\n");
-		    }));
-}
-
 void generate_log_writer (void) {
     DO_LOGTYPES(lt, ({
 			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
@@ -468,8 +458,6 @@ void generate_logprint (void) {
 }
 
 void generate_rollbacks (void) {
-    fprintf(cf,        "u_int64_t toku_logger_rollback_malloc_size=0, toku_logger_rollback_malloc_count=0;\n");
-    fprintf(hf, "extern u_int64_t toku_logger_rollback_malloc_size,   toku_logger_rollback_malloc_count;\n");
     DO_ROLLBACKS(lt, ({
 		    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
 		    DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
@@ -481,8 +469,7 @@ void generate_rollbacks (void) {
 			DO_FIELDS(ft, lt, fprintf(cf, "%s%s", (count++>0)?", ":"", ft->name));
 			fprintf(cf, ");\n");
 		    }
-		    fprintf(cf, "  struct roll_entry *v = toku_malloc(sizeof(*v));\n");
-		    fprintf(cf, "  toku_logger_rollback_malloc_count++; toku_logger_rollback_malloc_size+=rollback_fsize;\n");
+		    fprintf(cf, "  struct roll_entry *v = toku_malloc_in_rollback(txn, sizeof(*v));\n");
 		    fprintf(cf, "  if (v==0) return errno;\n");
 		    fprintf(cf, "  v->cmd = %d;\n", lt->command_and_flags&0xff);
 		    DO_FIELDS(ft, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, ft->name, ft->name));
@@ -541,14 +528,14 @@ void generate_rollbacks (void) {
     fprintf(cf, "  }\n  assert(0);\n  return 0;\n");
     fprintf(cf, "}\n");
 
-    fprintf2(cf, hf, "int toku_parse_rollback(unsigned char *buf, u_int32_t n_bytes, struct roll_entry **itemp)");
+    fprintf2(cf, hf, "int toku_parse_rollback(unsigned char *buf, u_int32_t n_bytes, struct roll_entry **itemp, MEMARENA ma)");
     fprintf(hf, ";\n");
-    fprintf(cf, " {\n  assert(n_bytes>0);\n  struct roll_entry *item = toku_malloc(sizeof(*item));\n  item->cmd=buf[0];\n");
+    fprintf(cf, " {\n  assert(n_bytes>0);\n  struct roll_entry *item = malloc_in_memarena(ma, sizeof(*item));\n  item->cmd=buf[0];\n");
     fprintf(cf, "  struct rbuf rc = {buf, n_bytes, 1};\n");
     fprintf(cf, "  switch(item->cmd) {\n");
     DO_ROLLBACKS(lt, ({
 		fprintf(cf, "  case RT_%s:\n", lt->name);
-		DO_FIELDS(ft, lt, fprintf(cf, "  rbuf_%s(&rc, &item->u.%s.%s);\n", ft->type, lt->name, ft->name));
+		DO_FIELDS(ft, lt, fprintf(cf, "  rbuf_ma_%s(&rc, ma, &item->u.%s.%s);\n", ft->type, lt->name, ft->name));
 		fprintf(cf, "    *itemp = item;\n");
 		fprintf(cf, "    return 0;\n");
 	    }));
@@ -567,6 +554,7 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     fprintf2(cf, hf, "#ident \"Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved.\"\n");
     fprintf(cf, "#include <stdio.h>\n");
     fprintf(hf, "#include \"brt-internal.h\"\n");
+    fprintf(hf, "#include \"memarena.h\"\n");
     fprintf(cf, "#include \"log_header.h\"\n");
     fprintf(cf, "#include \"wbuf.h\"\n");
     fprintf(cf, "#include \"log-internal.h\"\n");
@@ -574,7 +562,6 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     generate_log_struct();
     generate_dispatch();
     generate_log_writer();
-    generate_log_free();
     generate_log_reader();
     generate_logprint();
     generate_rollbacks();

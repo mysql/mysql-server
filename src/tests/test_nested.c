@@ -83,7 +83,7 @@ void test_nested (void) {
     lookup(3, txn2, DB_NOTFOUND);
     insert(3, txn2);
     lookup(3, txn2, 0);
-    r=txn->commit(txn2, 0); CKERR(r);
+    r=txn2->commit(txn2, 0); CKERR(r);
     lookup(0, txn, DB_NOTFOUND);
     lookup(1, txn, DB_NOTFOUND);
     lookup(2, txn, 0);

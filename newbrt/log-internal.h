@@ -4,6 +4,7 @@
 #include "log.h"
 #include "toku_assert.h"
 #include "list.h"
+#include "memarena.h"
 #include <stdio.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -88,6 +89,9 @@ struct tokutxn {
     LSN        first_lsn; /* The first lsn in the transaction. */
     struct roll_entry *oldest_logentry,*newest_logentry; /* Only logentries with rollbacks are here. There is a list going from newest to oldest. */
     struct list live_txns_link;
+
+    MEMARENA   rollentry_arena;
+
     size_t     rollentry_resident_bytecount; // How many bytes for the rollentries that are stored in main memory.
     char      *rollentry_filename;
     int        rollentry_fd;         // If we spill the roll_entries, we write them into this fd.
@@ -148,4 +152,4 @@ static inline char *fixup_fname(BYTESTRING *f) {
     return fname;
 }
 
-int toku_read_rollback_backwards(BREAD, struct roll_entry **item);
+int toku_read_rollback_backwards(BREAD, struct roll_entry **item, MEMARENA);
