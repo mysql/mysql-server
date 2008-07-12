@@ -1,3 +1,4 @@
+drop table if exists t1,t2;
 CREATE TABLE t1 (
 line BLOB,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
@@ -16,3 +17,16 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+create table t1 (i int) engine=maria;
+create table t2 (j int) engine=maria;
+lock table t1 write, t2 read;
+alter table t1 modify i int default 1;
+insert into t1 values (2);
+alter table t1 modify i bigint default 1;
+select count(*) from t1;
+count(*)
+1
+select * from t1;
+i
+2
+drop table t1,t2;

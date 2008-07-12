@@ -27,7 +27,7 @@
    pthread allocate_tls memory loss
    Memcheck:Leak
    fun:calloc
-   obj:/lib64/ld*.so
+   obj:/lib*/ld*.so
    fun:_dl_allocate_tls
    fun:pthread_create*
 }
@@ -388,40 +388,58 @@
 }
 
 {
-   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 64 bit
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit
    Memcheck:Leak
    fun:*alloc
-   obj:/lib64/ld-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/libc-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
    fun:__libc_dlopen_mode
    fun:pthread_cancel_init
    fun:_Unwind_ForcedUnwind
-
 }
 
 {
-   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 64 bit
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit
    Memcheck:Leak
    fun:*alloc
-   obj:/lib64/ld-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/libc-*.so
-   obj:/lib64/ld-*.so
-   obj:/lib64/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
    fun:__libc_dlopen_mode
    fun:pthread_cancel_init
    fun:_Unwind_ForcedUnwind
 }
 
+#
+# Reading wrong addresses on SuSe Linux 10.3 32 bit
+#
+
+{
+   Reading wrong data in libc_dlopen
+   Memcheck:Addr4
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+}
 
 #
 # These seem to be libc threading stuff, not related to MySQL code (allocations

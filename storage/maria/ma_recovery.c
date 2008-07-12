@@ -3214,6 +3214,16 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
 
   /* if we disabled before writing the record, record wouldn't reach log */
   share->now_transactional= FALSE;
+
+  /*
+    Reset state pointers. This is needed as in ALTER table we may do
+    commit fllowed by _ma_renable_logging_for_table and then
+    info->state may point to a state that was deleted by
+    _ma_trnman_end_trans_hook()
+   */
+  share->state.common= *info->state;
+  info->state= &share->state.common;
+
   /*
     Some code in ma_blockrec.c assumes a trn even if !now_transactional but in
     this case it only reads trn->rec_lsn, which has to be LSN_IMPOSSIBLE and
@@ -3255,6 +3265,7 @@ my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages)
       in not transactional mode
     */
     _ma_copy_nontrans_state_information(info);
+    _ma_reset_history(info->s);
 
     if (flush_pages)
     {

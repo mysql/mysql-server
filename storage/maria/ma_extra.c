@@ -322,6 +322,13 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (share->kfile.file >= 0)
       _ma_decrement_open_count(info);
     pthread_mutex_lock(&share->intern_lock);
+    if (info->trn)
+    {
+      _ma_remove_table_from_trnman(share, info->trn);
+      /* Ensure we don't point to the deleted data in trn */
+      info->state= &share->state.state;
+    }
+
     type= do_flush ? FLUSH_RELEASE : FLUSH_IGNORE_CHANGED;
     if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                               type, type))
