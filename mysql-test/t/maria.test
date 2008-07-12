@@ -1148,8 +1148,47 @@ create table t1 (a int not null, b int, key (a) key_block_size=1024, key(b) key_
 show create table t1;
 drop table t1;
 
+#
+# from bug37276_reduced_corruption.sql
+#
+create table t2(a varchar(255),key(a))engine=maria row_format=dynamic transactional=0;
+insert into t2 values (repeat('o',124)), (repeat('h',226)), (repeat('i',236)),
+(repeat('l',234)), (repeat('b',13)), (repeat('g',236)), (repeat('y',205)),
+(repeat('c',99)), (repeat('g',145)), (repeat('o',131)), (repeat('e',63)),
+(repeat('q',155)), (repeat('k',87)), (repeat('i',54)), (repeat('p',84)),
+(repeat('m',119)), (repeat('c',2)), (repeat('a',174)), (repeat('g',160)),
+(repeat('t',147)), (repeat('n',107));
+insert into t2 values ('nupdjlafwfvuuvruxkyjxpmupihzgspkaybijztkeukgzzkrxmd');
+insert into t2 values (repeat('g',40)), (repeat('i',173)), (repeat('q',126)),
+(repeat('i',217)), (repeat('f',161)), (repeat('i',28)), (repeat('a',35)),
+(repeat('y',27)), (repeat('o',100)), (repeat('o',175)), (repeat('f',69)),
+(repeat('k',156)), (repeat('n',220)), (repeat('q',247)), (repeat('y',180)),
+(repeat('v',209)), (repeat('m',169)), (repeat('y',170)), (repeat('r',151)),
+(repeat('d',38)), (repeat('g',64)), (repeat('k',77)), (repeat('l',150)),
+(repeat('s',150)), (repeat('u',127)), (repeat('l',15)), (repeat('m',33)),
+(repeat('r',177)), (repeat('v',197)), (repeat('k',62)), (repeat('h',219)),
+(repeat('u',161)), (repeat('y',118)), (repeat('i',184)), (repeat('z',202)),
+(repeat('j',113)), (repeat('q',95)), (repeat('q',164)), (repeat('e',54)),
+(repeat('e',60)), (repeat('l',203)), (repeat('g',77)), (repeat('y',44)),
+(repeat('j',196)), (repeat('t',45)), (repeat('l',190)), (repeat('l',89)),
+(repeat('q',45)), (repeat('e',191)), (repeat('t',38)), (repeat('f',148)),
+(repeat('c',25)), (repeat('v',97)), (repeat('i',83)), (repeat('s',166)),
+(repeat('d',96)), (repeat('v',82)), (repeat('n',127)), (repeat('i',201)),
+(repeat('x',184)), (repeat('d',76)), (repeat('u',17)), (repeat('a',178));
+insert into t2 values ('hwvfiavnmufgbulapzrolonwxufheqymvjncnczlzcjokzqlsvmomcjzgzwzquyxpunxdmotdczocwliaprpubwaeccsulvittgizcutxxb');
+insert into t2 values (repeat('x',28)), (repeat('p',21)), (repeat('k',241)),
+(repeat('i',243)), (repeat('b',172)), (repeat('z',94)), (repeat('i',218)),
+(repeat('a',177)), (repeat('g',251)), (repeat('q',161)), (repeat('x',231)),
+(repeat('p',51)), (repeat('f',141)), (repeat('m',28)), (repeat('r',77)),
+(repeat('h',56)), (repeat('k',23)), (repeat('f',198)), (repeat('o',243)),
+(repeat('d',160)), (repeat('h',82));
+
+check table t2 extended;
+drop table t2;
+
 --disable_result_log
 --disable_query_log
 eval set global storage_engine=$default_engine, maria_page_checksum=$default_checksum;
 --enable_result_log
 --enable_query_log
+

@@ -85,3 +85,26 @@ select count(*) from t1;
 select * from t1;
 drop table t1,t2;
 
+#
+# test INSERT ON DUPLICATE KEY UPDATE
+#
+
+create table t1(id int, s char(1), unique(s)) engine=maria;
+insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
+insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
+insert into t1 select 1,"a" on duplicate key update t1.id=t1.id+1;
+select * from t1;
+
+# test REPLACE SELECT
+replace into t1 select 1,"a";
+select * from t1;
+drop table t1;
+
+# test LOAD DATA INFILE REPLACE
+create table t1 (pk int primary key, apk int unique, data int) engine=maria;
+insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
+load data concurrent infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+drop table t1;

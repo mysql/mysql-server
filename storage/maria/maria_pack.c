@@ -2979,7 +2979,7 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   share->state.version=(ulong) time((time_t*) 0);
   if (share->base.born_transactional)
     share->state.create_rename_lsn= share->state.is_of_horizon=
-      share->state.skip_redo_lsn= LSN_REPAIRED_BY_MARIA_CHK;
+      share->state.skip_redo_lsn= LSN_NEEDS_NEW_STATE_LSNS;
   if (! maria_is_all_keys_active(share->state.key_map, share->base.keys))
   {
     /*
@@ -3031,7 +3031,7 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
   state.state.empty=0;
   state.state.records=state.split=(ha_rows) mrg->records;
   state.create_rename_lsn= state.is_of_horizon= state.skip_redo_lsn=
-    LSN_REPAIRED_BY_MARIA_CHK;
+    LSN_NEEDS_NEW_STATE_LSNS;
 
   /* See comment above in save_state about key_file_length handling. */
   if (mrg->src_file_has_indexes_disabled)

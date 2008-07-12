@@ -814,6 +814,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   MARIA_SHARE *share= info->s;
   char llbuff[22];
   uint diff_pos[2];
+  uchar tmp_key_buff[MARIA_MAX_KEY_BUFF];
   MARIA_KEY tmp_key;
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff", buff, _ma_get_page_used(share, buff));
@@ -860,7 +861,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                           "Page at %s is marked with HAS_TRANSID even if "
                           "table is not transactional",
                           llstr(page, llbuff));
-  }    
+  }
 
   if (used_length > (uint) keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE)
   {
@@ -870,7 +871,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   }
 
   info->last_key.keyinfo= tmp_key.keyinfo= keyinfo;
-  tmp_key.data=    info->lastkey_buff2;
+  tmp_key.data= tmp_key_buff;
   for ( ;; )
   {
     if (*_ma_killed_ptr(param))
@@ -908,7 +909,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                             llstr(page,llbuff));
       goto err;
     }
-        
+
     if ((*keys)++ &&
 	(flag=ha_key_cmp(keyinfo->seg, info->last_key.data, tmp_key.data,
                          tmp_key.data_length + tmp_key.ref_length,
@@ -933,7 +934,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       if (*keys != 1L)				/* not first_key */
       {
         if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
-          ha_key_cmp(keyinfo->seg, (uchar*) info->last_key.data, 
+          ha_key_cmp(keyinfo->seg, (uchar*) info->last_key.data,
                      tmp_key.data, tmp_key.data_length,
                      SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
                      diff_pos);
@@ -1107,7 +1108,7 @@ static int check_keys_in_record(HA_CHECK *param, MARIA_HA *info, int extend,
     printf("%s\r", llstr(param->records, llbuff));
     VOID(fflush(stdout));
   }
-  
+
   /* Check if keys match the record */
   for (keynr=0, keyinfo= share->keyinfo; keynr < share->base.keys;
        keynr++, keyinfo++)
@@ -3368,8 +3369,9 @@ int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
 {
   my_bool error, reenable_logging,
     zero_lsn= !(param->testflag & T_ZEROFILL_KEEP_LSN);
+  MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_zerofill");
-  if ((reenable_logging= info->s->now_transactional))
+  if ((reenable_logging= share->now_transactional))
     _ma_tmp_disable_logging_for_table(info, 0);
   if (!(error= (maria_zerofill_index(param, info, name) ||
                 maria_zerofill_data(param, info, name) ||
@@ -3379,14 +3381,19 @@ int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
       Mark that we have done zerofill of data and index. If we zeroed pages'
       LSN, table is movable.
     */
-    info->s->state.changed&= ~STATE_NOT_ZEROFILLED;
+    share->state.changed&= ~STATE_NOT_ZEROFILLED;
     if (zero_lsn)
-      info->s->state.changed&= ~(STATE_NOT_MOVABLE | STATE_MOVED);
-    /* Ensure state are flushed to disk */
+    {
+      share->state.changed&= ~(STATE_NOT_MOVABLE | STATE_MOVED);
+      /* Table should get new LSNs */
+      share->state.create_rename_lsn= share->state.is_of_horizon=
+        share->state.skip_redo_lsn= LSN_NEEDS_NEW_STATE_LSNS;
+    }
+    /* Ensure state is later flushed to disk, if within maria_chk */
     info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
     /* Reset create_trid to make file comparable */
-    info->s->state.create_trid= 0;
+    share->state.create_trid= 0;
   }
   if (reenable_logging)
     _ma_reenable_logging_for_table(info, FALSE);

@@ -1155,7 +1155,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
                                T_ZEROFILL | T_ZEROFILL_KEEP_LSN)) !=
            (T_ZEROFILL | T_ZEROFILL_KEEP_LSN)))
         share->state.create_rename_lsn= share->state.is_of_horizon=
-          share->state.skip_redo_lsn= LSN_REPAIRED_BY_MARIA_CHK;
+          share->state.skip_redo_lsn= LSN_NEEDS_NEW_STATE_LSNS;
     }
     if (!error && (param->testflag & T_REP_ANY))
     {
@@ -1409,6 +1409,18 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
       get_date(buff,1,share->state.check_time);
       printf("Recover time:        %s\n",buff);
     }
+    if (share->base.born_transactional)
+    {
+      printf("LSNs:                create_rename (%lu,0x%lx),"
+             " state_horizon (%lu,0x%lx), skip_redo (%lu,0x%lx)\n",
+             LSN_IN_PARTS(share->state.create_rename_lsn),
+             LSN_IN_PARTS(share->state.is_of_horizon),
+             LSN_IN_PARTS(share->state.skip_redo_lsn));
+    }
+    compile_time_assert((MY_UUID_STRING_LENGTH + 1) <= sizeof(buff));
+    buff[MY_UUID_STRING_LENGTH]= 0;
+    my_uuid2str(share->base.uuid, buff);
+    printf("UUID:                %s\n", buff);
     pos=buff;
     if (share->state.changed & STATE_CRASHED)
       strmov(buff,"crashed");

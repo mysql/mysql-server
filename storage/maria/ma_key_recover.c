@@ -207,7 +207,8 @@ my_bool write_hook_for_undo_key(enum translog_record_type type,
     @todo BUG
     so we have log mutex and then intern_lock.
     While in checkpoint we have intern_lock and then log mutex, like when we
-    flush bitmap (flushing bitmap pages can call hook which takes log mutex).
+    flush bitmap (flushing bitmap pages can call hook which takes log mutex);
+    and in _ma_update_state_lsns_sub() this is the same.
     So we can deadlock.
     Another one is that in translog_assign_id_to_share() we have intern_lock
     and then log mutex.

@@ -1268,6 +1268,7 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
   HA_CHECK param;
+  MARIA_SHARE *share= file->s;
 
   if (!file)
     return HA_ADMIN_INTERNAL_ERROR;
@@ -1277,8 +1278,14 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
   param.op_name= "zerofill";
   param.testflag= check_opt->flags | T_SILENT | T_ZEROFILL;
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
-  error=maria_zerofill(&param, file, file->s->open_file_name);
+  error=maria_zerofill(&param, file, share->open_file_name);
 
+  if (!error)
+  {
+    pthread_mutex_lock(&share->intern_lock);
+    maria_update_state_info(&param, file, UPDATE_TIME | UPDATE_OPEN_COUNT);
+    pthread_mutex_unlock(&share->intern_lock);
+  }
   return error;
 }
 
@@ -1805,9 +1812,12 @@ void ha_maria::start_bulk_insert(ha_rows rows)
        a lot of rows.
        We should not do this for only a few rows as this is slower and
        we don't want to update the key statistics based of only a few rows.
+       Index file rebuild requires an exclusive lock, so if versioning is on
+       don't do it (see how ha_maria::store_lock() tries to predict repair).
     */
     if (file->state->records == 0 && can_enable_indexes &&
-        (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES))
+        (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES) &&
+        (file->lock.type == TL_WRITE))
     {
       /**
          @todo for a single-row INSERT SELECT, we will go into repair, which
@@ -1951,6 +1961,7 @@ bool ha_maria::is_crashed() const
 
 int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 {
+  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -1960,6 +1971,7 @@ int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 
 int ha_maria::delete_row(const uchar * buf)
 {
+  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
   ha_statistic_increment(&SSV::ha_delete_count);
   return maria_delete(file, buf);
 }
@@ -2332,6 +2344,12 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       {
         if (!trnman_decrement_locked_tables(trn))
         {
+          /*
+            OK should not have been sent to client yet (ACID).
+            This is a bit excessive, ACID requires this only if there are some
+            changes to commit (rollback shouldn't be tested).
+          */
+          DBUG_ASSERT(!thd->main_da.is_sent);
           /* autocommit ? rollback a transaction */
 #ifdef MARIA_CANNOT_ROLLBACK
           if (ma_commit(trn))
@@ -2393,9 +2411,14 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
   be participant in the connection's transaction and so the implicit commits
   (ha_commit()) (like in end_active_trans()) will do the implicit commit
   without need to call this function which can then be removed.
+
+  @param  thd              THD object
+  @param  new_trn          if a new transaction should be created; a new
+                           transaction is not needed when we know that the
+                           tables will be unlocked very soon.
 */
 
-int ha_maria::implicit_commit(THD *thd)
+int ha_maria::implicit_commit(THD *thd, bool new_trn)
 {
 #ifndef MARIA_CANNOT_ROLLBACK
 #error this method should be removed
@@ -2404,11 +2427,34 @@ int ha_maria::implicit_commit(THD *thd)
   int error= 0;
   TABLE *table;
   DBUG_ENTER("ha_maria::implicit_commit");
+  if (!new_trn && thd->locked_tables)
+  {
+    /*
+      "we are under LOCK TABLES" <=> "we shouldn't commit".
+      As thd->locked_tables is true, we are either under LOCK TABLES, or in
+      prelocking; prelocking can be under LOCK TABLES, or not (and in this
+      latter case only we should commit).
+      Note that we come here only at the end of the top statement
+      (dispatch_command()), we are never committing inside a sub-statement./
+    */
+    enum prelocked_mode_type prelocked_mode= thd->prelocked_mode;
+    if ((prelocked_mode == NON_PRELOCKED) ||
+        (prelocked_mode == PRELOCKED_UNDER_LOCK_TABLES))
+    {
+      DBUG_PRINT("info", ("locked_tables, skipping"));
+      DBUG_RETURN(0);
+    }
+  }
   if ((trn= THD_TRN) != NULL)
   {
     uint locked_tables= trnman_has_locked_tables(trn);
     if (unlikely(ma_commit(trn)))
       error= 1;
+    if (!new_trn)
+    {
+      THD_TRN= NULL;
+      goto end;
+    }
     /*
       We need to create a new transaction and put it in THD_TRN. Indeed,
       tables may be under LOCK TABLES, and so they will start the next
@@ -2448,6 +2494,7 @@ int ha_maria::implicit_commit(THD *thd)
       }
     }
   }
+end:
   DBUG_RETURN(error);
 }
 
@@ -2461,6 +2508,7 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
               (lock_type == TL_IGNORE || file->lock.type == TL_UNLOCK));
   if (lock_type != TL_IGNORE && file->lock.type == TL_UNLOCK)
   {
+    const enum enum_sql_command sql_command= thd->lex->sql_command;
     /*
       We have to disable concurrent inserts for INSERT ... SELECT or
       INSERT/UPDATE/DELETE with sub queries if we are using statement based
@@ -2469,15 +2517,34 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
     */
     if (lock_type <= TL_READ_HIGH_PRIORITY &&
         !thd->current_stmt_binlog_row_based &&
-        (thd->lex->sql_command != SQLCOM_SELECT &&
-         thd->lex->sql_command != SQLCOM_LOCK_TABLES) &&
+        (sql_command != SQLCOM_SELECT &&
+         sql_command != SQLCOM_LOCK_TABLES) &&
+        (thd->options & OPTION_BIN_LOG) &&
         mysql_bin_log.is_open())
       lock_type= TL_READ_NO_INSERT;
-    else if (lock_type == TL_WRITE_CONCURRENT_INSERT &&
-             (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
-              thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
-              thd->lex->sql_command == SQLCOM_LOAD))
-      lock_type= TL_WRITE;
+    else if (lock_type == TL_WRITE_CONCURRENT_INSERT)
+    {
+      const enum enum_duplicates duplicates= thd->lex->duplicates;
+      /*
+        Explanation for the 3 conditions below, in order:
+
+        - Bulk insert may use repair, which will cause problems if other
+        threads try to read/insert to the table: disable versioning.
+        Note that our read of file->state->records is incorrect, as such
+        variable may have changed when we come to start_bulk_insert() (worse
+        case: we see != 0 so allow versioning, start_bulk_insert() sees 0 and
+        uses repair). This is prevented because start_bulk_insert() will not
+        try repair if we enabled versioning.
+        - INSERT SELECT ON DUPLICATE KEY UPDATE comes here with
+        TL_WRITE_CONCURRENT_INSERT but shouldn't because it can do
+        update/delete of a row and versioning doesn't support that
+        - same for LOAD DATA CONCURRENT REPLACE.
+      */
+      if ((file->state->records == 0) ||
+          (sql_command == SQLCOM_INSERT_SELECT && duplicates == DUP_UPDATE) ||
+          (sql_command == SQLCOM_LOAD && duplicates == DUP_REPLACE))
+        lock_type= TL_WRITE;
+    }
     file->lock.type= lock_type;
   }
   *to++= &file->lock;
@@ -3083,15 +3150,9 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
   actual_data_file_length= file->s->state.state.data_file_length;
   current_data_file_length= file->state->data_file_length;
 
-  if (file->s->non_transactional_concurrent_insert &&
-      current_data_file_length != actual_data_file_length)
-  {
-    /* Don't cache current statement. */
-    return FALSE;
-  }
-
-  /* It is ok to try to cache current statement. */
-  return TRUE;
+  /* Return whether is ok to try to cache current statement. */
+  DBUG_RETURN(!(file->s->non_transactional_concurrent_insert &&
+                current_data_file_length != actual_data_file_length));
 }
 #endif
 
