@@ -437,7 +437,7 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
             assert(r == 0);
             LEAFENTRY le = v;
             node_size -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
-            if (node_size <= node->nodesize)
+            if (node_size <= node->nodesize && (n_leafentries - break_at) >= 2)
                 break;
             break_at -= 1;
         }
@@ -1603,10 +1603,22 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	
 	r = brt_leaf_apply_cmd_once(t, node, cmd, logger, idx, storeddata);
 	if (r!=0) return r;
-        if (idx == toku_omt_size(node->u.l.buffer)-1)
+
+        // if the insertion point is within a window of the right edge of
+        // the leaf then it is sequential
+
+        // window = min(32, number of leaf entries/16)
+        u_int32_t s = toku_omt_size(node->u.l.buffer);
+        u_int32_t w = s / 16;
+        if (w == 0) w = 1; 
+        if (w > 32) w = 32;
+
+        // within the window?
+        if (s - idx <= w) {
             node->u.l.seqinsert += 1;
-        else if (node->u.l.seqinsert > 0)
-            node->u.l.seqinsert -= 1;
+        } else {
+            node->u.l.seqinsert = 0;
+        }
 	break;
     case BRT_DELETE_BOTH:
     case BRT_ABORT_BOTH:
