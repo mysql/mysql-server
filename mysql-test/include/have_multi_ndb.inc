@@ -10,7 +10,7 @@ drop table if exists t1, t2;
 --enable_warnings
 flush tables;
 --require r/have_ndb.require
-show variables like "have_ndbcluster";
+show variables like 'have_ndbcluster';
 enable_query_log;
 
 # Check that server2 has NDB support
@@ -21,7 +21,7 @@ drop table if exists t1, t2;
 --enable_warnings
 flush tables;
 --require r/have_ndb.require
-show variables like "have_ndbcluster";
+show variables like 'have_ndbcluster';
 enable_query_log;
 
 # Set the default connection to 'server1'
