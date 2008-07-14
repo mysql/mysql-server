@@ -314,6 +314,7 @@ drop procedure f2;
 drop procedure f3;
 drop procedure f4;
 drop table t1;
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 reset query cache;
 drop function if exists f1;
@@ -346,7 +347,7 @@ id
 drop table t1;
 drop function f1;
 set GLOBAL query_cache_size=0;
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET @@global.log_bin_trust_function_creators = @old_log_bin_trust_function_creators;
 DROP DATABASE IF EXISTS bug30269;
 FLUSH STATUS;
 CREATE DATABASE bug30269;

@@ -27,11 +27,9 @@ GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
 
 --echo [on slave]
 sync_slave_with_master;
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
+source include/stop_slave.inc;
 CHANGE MASTER TO master_user='rpl', master_password='rpl';
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+source include/start_slave.inc;
 
 --echo ==== Do replication as new user ====
 --echo [on master]
@@ -53,8 +51,7 @@ sync_slave_with_master;
 
 --echo ==== Restart slave without privileges =====
 # (slave.err will contain access denied error for this START SLAVE command)
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
+source include/stop_slave.inc;
 START SLAVE;
 source include/wait_for_slave_sql_to_start.inc;
 

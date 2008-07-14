@@ -25,13 +25,8 @@ stop slave;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$SLAVE_MYPORT;
-start slave;
 
-#
-#  Wait for start of slave IO and SQL threads
-#
-let $result_pattern= '%127.0.0.1%root%slave-bin.000001%slave-bin.000001%Yes%Yes%0%0%None%';
---source include/wait_slave_status.inc
+source include/start_slave.inc;
 
 #
 #  Flush logs of slave

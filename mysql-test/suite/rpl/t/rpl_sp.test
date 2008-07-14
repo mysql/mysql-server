@@ -11,6 +11,7 @@
 source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
 
+
 # we need a db != test, where we don't have automatic grants
 --disable_warnings
 drop database if exists mysqltest1;
@@ -240,6 +241,8 @@ begin
 end|
 delimiter ;|
 connection master;
+set @old_log_bin_trust_routine_creators= @@global.log_bin_trust_routine_creators;
+set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 # test old variable name:
 set global log_bin_trust_routine_creators=1;
 # now use new name:
@@ -247,6 +250,8 @@ set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=1;
 # slave needs it too otherwise will not execute what master allowed:
 connection slave;
+set @old_log_bin_trust_routine_creators= @@global.log_bin_trust_routine_creators;
+set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 set global log_bin_trust_function_creators=1;
 
 connection con1;
@@ -571,9 +576,12 @@ show binlog events in 'master-bin.000001' from 106;
 # Restore log_bin_trust_function_creators to its original value.
 # This is a cleanup for all parts above where we tested stored
 # functions and triggers.
-set global log_bin_trust_function_creators=0;
+connection slave;
+set @@global.log_bin_trust_routine_creators= @old_log_bin_trust_routine_creators;
+set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 connection master;
-set global log_bin_trust_function_creators=0;
+set @@global.log_bin_trust_routine_creators= @old_log_bin_trust_routine_creators;
+set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
 # Clean up
 drop database mysqltest;

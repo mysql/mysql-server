@@ -44,9 +44,9 @@ a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
 1	AA_for_row_or_YY_for_stmt_mixed
-STOP SLAVE;
+include/stop_slave.inc
 RENAME TABLE t3_bak TO t3;
-START SLAVE;
+include/start_slave.inc
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
@@ -78,9 +78,9 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
-STOP SLAVE;
+include/stop_slave.inc
 RENAME TABLE t3_bak TO t3;
-START SLAVE;
+include/start_slave.inc
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
@@ -116,8 +116,8 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
-STOP SLAVE;
+include/stop_slave.inc
 RENAME TABLE t3_bak TO t3;
-START SLAVE;
+include/start_slave.inc
 *** Clean up ***
 DROP TABLE t1,t2,t3;

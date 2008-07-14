@@ -13,4 +13,5 @@ select count(*) from t1;
 count(*)
 70
 drop table t1;
+include/stop_slave.inc
 drop table t1;

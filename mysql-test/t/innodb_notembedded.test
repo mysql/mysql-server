@@ -5,6 +5,8 @@
 drop table if exists t1;
 --enable_warnings
 
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+
 connect (a,localhost,root,,);
 connect (b,localhost,root,,);
 
@@ -39,4 +41,4 @@ drop table t1;
 drop function f1;
 disconnect a;
 disconnect b;
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

@@ -228,6 +228,7 @@ drop table t1;
 # Test for bug #11081 "Using a CONVERT_TZ function in a stored function
 # or trigger fails".
 #
+SET @old_log_bin_trust_function_creators = @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
 create table t1 (ldt datetime, udt datetime);
@@ -243,7 +244,7 @@ select ldt, f1(udt) as ldt2 from t1;
 drop table t1;
 drop function f1;
 
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
 # End of 5.0 tests
 
