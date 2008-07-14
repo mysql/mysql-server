@@ -169,6 +169,8 @@ private:
     SELECT_LEX and other classes).
   */
   MEM_ROOT main_mem_root;
+  /* Version of the stored functions cache at the time of prepare. */
+  ulong m_sp_cache_version;
 private:
   bool set_db(const char *db, uint db_length);
   bool set_parameters(String *expanded_query,
@@ -2819,7 +2821,8 @@ Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
   param_array(0),
   param_count(0),
   last_errno(0),
-  flags((uint) IS_IN_USE)
+  flags((uint) IS_IN_USE),
+  m_sp_cache_version(0)
 {
   init_sql_alloc(&main_mem_root, thd_arg->variables.query_alloc_block_size,
                   thd_arg->variables.query_prealloc_size);
@@ -3072,6 +3075,20 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     init_stmt_after_parse(lex);
     state= Query_arena::PREPARED;
     flags&= ~ (uint) IS_IN_USE;
+    /*
+      This is for prepared statement validation purposes.
+      A statement looks up and pre-loads all its stored functions
+      at prepare. Later on, if a function is gone from the cache,
+      execute may fail.
+      Remember the cache version to be able to invalidate the prepared
+      statement at execute if it changes.
+      We only need to care about version of the stored functions cache:
+      if a prepared statement uses a stored procedure, it's indirect,
+      via a stored function. The only exception is SQLCOM_CALL,
+      but the latter one looks up the stored procedure each time
+      it's invoked, rather than once at prepare.
+    */
+    m_sp_cache_version= sp_cache_version(&thd->sp_func_cache);
 
     /* 
       Log COM_EXECUTE to the general log. Note, that in case of SQL
@@ -3383,6 +3400,7 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
   swap_variables(LEX_STRING, name, copy->name);
   /* Ditto */
   swap_variables(char *, db, copy->db);
+  swap_variables(ulong, m_sp_cache_version, copy->m_sp_cache_version);
 
   DBUG_ASSERT(db_length == copy->db_length);
   DBUG_ASSERT(param_count == copy->param_count);
@@ -3441,6 +3459,19 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     my_error(ER_PS_NO_RECURSION, MYF(0));
     return TRUE;
   }
+
+  /*
+    Reprepare the statement if we're using stored functions
+    and the version of the stored routines cache has changed.
+  */
+  if (lex->uses_stored_routines() &&
+      m_sp_cache_version != sp_cache_version(&thd->sp_func_cache) &&
+      thd->m_reprepare_observer &&
+      thd->m_reprepare_observer->report_error(thd))
+  {
+    return TRUE;
+  }
+
 
   /*
     For SHOW VARIABLES lex->result is NULL, as it's a non-SELECT
