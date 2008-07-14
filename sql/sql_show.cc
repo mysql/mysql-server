@@ -4105,9 +4105,11 @@ bool get_schema_tables_result(JOIN *join,
       {
         result= 1;
         join->error= 1;
+        tab->read_record.file= table_list->table->file;
         table_list->schema_table_state= executed_place;
         break;
       }
+      tab->read_record.file= table_list->table->file;
       table_list->schema_table_state= executed_place;
     }
   }

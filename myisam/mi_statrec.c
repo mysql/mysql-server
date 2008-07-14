@@ -137,8 +137,8 @@ int _mi_cmp_static_record(register MI_INFO *info, register const byte *old)
     if (memcmp((byte*) info->rec_buff, (byte*) old,
 	       (uint) info->s->base.reclength))
     {
-      DBUG_DUMP("read",old,info->s->base.reclength);
-      DBUG_DUMP("disk",info->rec_buff,info->s->base.reclength);
+      DBUG_DUMP("read",(uchar *)old,info->s->base.reclength);
+      DBUG_DUMP("disk",(uchar *)info->rec_buff,info->s->base.reclength);
       my_errno=HA_ERR_RECORD_CHANGED;		/* Record have changed */
       DBUG_RETURN(1);
     }

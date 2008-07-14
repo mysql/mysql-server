@@ -4405,52 +4405,70 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
        field->type() == FIELD_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   err= value->save_in_field_no_warnings(field, 1);
-  if (err > 0 && field->cmp_type() != value->result_type())
+  if (err > 0)
   {
-    if ((type == Item_func::EQ_FUNC || type == Item_func::EQUAL_FUNC) &&
-	value->result_type() == item_cmp_type(field->result_type(),
-                                              value->result_type()))
-
+    if (field->cmp_type() != value->result_type())
     {
-      tree= new (alloc) SEL_ARG(field, 0, 0);
-      tree->type= SEL_ARG::IMPOSSIBLE;
-      goto end;
-    }
-    else
-    {
-      /*
-        TODO: We should return trees of the type SEL_ARG::IMPOSSIBLE
-        for the cases like int_field > 999999999999999999999999 as well.
-      */
-      tree= 0;
-      if (err == 3 && field->type() == FIELD_TYPE_DATE && 
-          (type == Item_func::GT_FUNC || type == Item_func::GE_FUNC || 
-           type == Item_func::LT_FUNC || type == Item_func::LE_FUNC) )
+      if ((type == Item_func::EQ_FUNC || type == Item_func::EQUAL_FUNC) &&
+          value->result_type() == item_cmp_type(field->result_type(),
+                                                value->result_type()))
       {
-        /*
-          We were saving DATETIME into a DATE column, the conversion went ok
-          but a non-zero time part was cut off.
-
-          In MySQL's SQL dialect, DATE and DATETIME are compared as datetime
-          values. Index over a DATE column uses DATE comparison. Changing 
-          from one comparison to the other is possible:
-
-          datetime(date_col)< '2007-12-10 12:34:55' -> date_col<='2007-12-10'
-          datetime(date_col)<='2007-12-10 12:34:55' -> date_col<='2007-12-10'
-
-          datetime(date_col)> '2007-12-10 12:34:55' -> date_col>='2007-12-10'
-          datetime(date_col)>='2007-12-10 12:34:55' -> date_col>='2007-12-10'
-
-          but we'll need to convert '>' to '>=' and '<' to '<='. This will
-          be done together with other types at the end of this function
-          (grep for field_is_equal_to_item)
-        */
+        tree= new (alloc) SEL_ARG(field, 0, 0);
+        tree->type= SEL_ARG::IMPOSSIBLE;
+        goto end;
       }
       else
-        goto end;
+      {
+        /*
+          TODO: We should return trees of the type SEL_ARG::IMPOSSIBLE
+          for the cases like int_field > 999999999999999999999999 as well.
+        */
+        tree= 0;
+        if (err == 3 && field->type() == FIELD_TYPE_DATE &&
+            (type == Item_func::GT_FUNC || type == Item_func::GE_FUNC ||
+             type == Item_func::LT_FUNC || type == Item_func::LE_FUNC) )
+        {
+          /*
+            We were saving DATETIME into a DATE column, the conversion went ok
+            but a non-zero time part was cut off.
+
+            In MySQL's SQL dialect, DATE and DATETIME are compared as datetime
+            values. Index over a DATE column uses DATE comparison. Changing 
+            from one comparison to the other is possible:
+
+            datetime(date_col)< '2007-12-10 12:34:55' -> date_col<='2007-12-10'
+            datetime(date_col)<='2007-12-10 12:34:55' -> date_col<='2007-12-10'
+
+            datetime(date_col)> '2007-12-10 12:34:55' -> date_col>='2007-12-10'
+            datetime(date_col)>='2007-12-10 12:34:55' -> date_col>='2007-12-10'
+
+            but we'll need to convert '>' to '>=' and '<' to '<='. This will
+            be done together with other types at the end of this function
+            (grep for field_is_equal_to_item)
+          */
+        }
+        else
+          goto end;
+      }
     }
-  } 
-  if (err < 0)
+
+    /*
+      guaranteed at this point:  err > 0; field and const of same type
+      If an integer got bounded (e.g. to within 0..255 / -128..127)
+      for < or >, set flags as for <= or >= (no NEAR_MAX / NEAR_MIN)
+    */
+    else if (err == 1 && field->result_type() == INT_RESULT)
+    {
+      if (type == Item_func::LT_FUNC && (value->val_int() > 0))
+        type = Item_func::LE_FUNC;
+      else if (type == Item_func::GT_FUNC &&
+               !((Field_num*)field)->unsigned_flag &&
+               !((Item_int*)value)->unsigned_flag &&
+               (value->val_int() < 0))
+        type = Item_func::GE_FUNC;
+    }
+  }
+  else if (err < 0)
   {
     field->table->in_use->variables.sql_mode= orig_sql_mode;
     /* This happens when we try to insert a NULL field in a not null column */
@@ -9552,8 +9570,6 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
   int idx;
   char buff[1024];
   DBUG_ENTER("print_sel_tree");
-  if (! _db_on_)
-    DBUG_VOID_RETURN;
 
   String tmp(buff,sizeof(buff),&my_charset_bin);
   tmp.length(0);
@@ -9583,8 +9599,6 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
                                 struct st_ror_scan_info **end)
 {
   DBUG_ENTER("print_ror_scans");
-  if (! _db_on_)
-    DBUG_VOID_RETURN;
 
   char buff[1024];
   String tmp(buff,sizeof(buff),&my_charset_bin);
@@ -9647,7 +9661,7 @@ static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg)
 {
   char buf[MAX_KEY/8+1];
   DBUG_ENTER("print_quick");
-  if (! _db_on_ || !quick)
+  if (!quick)
     DBUG_VOID_RETURN;
   DBUG_LOCK_FILE;
 

@@ -615,8 +615,8 @@ bool check_merge_table_access(THD *thd, char *db,
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
-bool mysql_multi_update_prepare(THD *thd);
-bool mysql_multi_delete_prepare(THD *thd);
+int mysql_multi_update_prepare(THD *thd);
+int mysql_multi_delete_prepare(THD *thd);
 bool mysql_insert_select_prepare(THD *thd);
 bool update_precheck(THD *thd, TABLE_LIST *tables);
 bool delete_precheck(THD *thd, TABLE_LIST *tables);
@@ -709,7 +709,7 @@ struct Query_cache_query_flags
 
 uint build_table_path(char *buff, size_t bufflen, const char *db,
                       const char *table, const char *ext);
-bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
+int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
@@ -749,7 +749,7 @@ pthread_handler_t handle_one_connection(void *arg);
 pthread_handler_t handle_bootstrap(void *arg);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
-bool mysql_execute_command(THD *thd);
+int mysql_execute_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);
@@ -880,7 +880,7 @@ void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table,
                                       enum_duplicates duplic);
 void mark_fields_used_by_triggers_for_insert_stmt(THD *thd, TABLE *table,
                                                   enum_duplicates duplic);
-bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
+int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                   SQL_LIST *order, ha_rows rows, ulonglong options,
                   bool reset_auto_increment);
@@ -1065,6 +1065,13 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 extern Item **not_found_item;
 
 /*
+  A set of constants used for checking non aggregated fields and sum
+  functions mixture in the ONLY_FULL_GROUP_BY_MODE.
+*/
+#define NON_AGG_FIELD_USED  1
+#define SUM_FUNC_USED       2
+
+/*
   This enumeration type is used only by the function find_item_in_list
   to return the info on how an item has been resolved against a list
   of possibly aliased items.
@@ -1126,7 +1133,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_refresh(THD *thd);
 int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
-bool open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
@@ -1197,7 +1204,7 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
 bool eval_const_cond(COND *cond);
 
 /* sql_load.cc */
-bool mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
+int mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,
                 List<Item> &set_values_list,
                 enum enum_duplicates handle_duplicates, bool ignore,

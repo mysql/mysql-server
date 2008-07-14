@@ -4,6 +4,14 @@
 # (test case numbering refer to requirement document TP v1.1)
 #======================================================================
 
+USE test;
+--source suite/funcs_1/include/tb3.inc
+
+--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+eval
+load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/memory_tb3.txt'
+into table tb3;
+
 --disable_abort_on_error
 
 ##############################################
@@ -48,7 +56,8 @@ let $message= Testcase 3.5.10.1/2/3:;
 	Insert into vw11 (f122, f151) values ('Test 3.5.10.1/2/3', 2);
 	Insert into vw11 (f122, f151) values ('Not in View', 3);
 	select f121, f122, f151, f163
-		from tb3 where f122 like 'Test 3.5.10.1/2/3%';
+		from tb3 where f122 like 'Test 3.5.10.1/2/3%' order by f151;
+        --sorted_result
 	select f121, f122, f151, f163 from vw11;
 	select f121, f122, f151, f163
 		from tb3 where f122 like 'Not in View';
@@ -56,7 +65,8 @@ let $message= Testcase 3.5.10.1/2/3:;
 #Section 3.5.10.2
 	Update vw11 set f163=1;
 	select f121, f122, f151, f163 from tb3
-		where f122 like 'Test 3.5.10.1/2/3%';
+		where f122 like 'Test 3.5.10.1/2/3%' order by f151;
+        --sorted_result
 	select f121, f122, f151, f163 from vw11;
 
 #Section 3.5.10.3
@@ -64,7 +74,8 @@ let $message= Testcase 3.5.10.1/2/3:;
 	Select @test_var as 'before delete';
 	delete from vw11 where f151=1;
 	select f121, f122, f151, f163 from tb3
-		where f122 like 'Test 3.5.10.1/2/3%';
+		where f122 like 'Test 3.5.10.1/2/3%' order by f151;
+        --sorted_result
 	select f121, f122, f151, f163 from vw11;
 	Select @test_var as 'after delete';
 
@@ -88,17 +99,18 @@ let $message= Testcase 3.5.10.1/2/3:;
 let $message= Testcase 3.5.10.4:;
 --source include/show_msg.inc
 
-	eval create table tb_load (f1 int, f2 char(25),f3 int) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table tb_load (f1 int, f2 char(25),f3 int) engine = $engine_type;
 	Create trigger trg4 before insert on tb_load
 		for each row set new.f3=-(new.f1 div 5), @counter= @counter+1;
 
 	set @counter= 0;
 	select @counter as 'Rows Loaded Before';
-	--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-	eval load data infile '$MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' into table tb_load;
+	--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+	eval load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t9.txt' into table tb_load;
 
 	select @counter as 'Rows Loaded After';
-	Select * from tb_load limit 10;
+	Select * from tb_load order by f1 limit 10;
 
 #Cleanup
 	--disable_warnings
@@ -131,7 +143,8 @@ let $message= Testcase 3.5.10.6: (implemented in trig_frkey.test);
 let $message= Testcase 3.5.10.extra:;
 --source include/show_msg.inc
 
-	eval create table t1_sp (var136 tinyint, var151 decimal) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1_sp (var136 tinyint, var151 decimal) engine = $engine_type;
 
 	create trigger trg before insert on t1_sp
 		for each row set @counter=@counter+1;
@@ -157,7 +170,7 @@ let $message= Testcase 3.5.10.extra:;
 
 	set @counter=0;
 	select @counter;
-	--error 1329
+	--error ER_SP_FETCH_NO_DATA
 	call trig_sp();
 	select @counter;
 	select count(*) from tb3;
@@ -203,12 +216,18 @@ let $message= Testcase y.y.y.2: Check for triggers starting triggers;
 	drop table if exists t3;
 	--enable_warnings
 
-	eval create table t1 (f1 integer) engine=$engine_type;
-	eval create table t2_1 (f1 integer) engine=$engine_type;
-	eval create table t2_2 (f1 integer) engine=$engine_type;
-	eval create table t2_3 (f1 integer) engine=$engine_type;
-	eval create table t2_4 (f1 integer) engine=$engine_type;
-	eval create table t3 (f1 integer) engine=$engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t1 (f1 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t2_1 (f1 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t2_2 (f1 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t2_3 (f1 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t2_4 (f1 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
+	eval create table t3 (f1 integer) engine = $engine_type;
 
 	insert into t1 values (1);
 	delimiter //;
@@ -233,7 +252,7 @@ let $message= Testcase y.y.y.2: Check for triggers starting triggers;
 #lock tables t1 write, t2_1 write, t2_2 write, t2_3 write, t2_4 write, t3 write;
 	insert into t1 values (1);
 #unlock tables;
-	select * from t3;
+	select * from t3 order by f1;
 
 #Cleanup
 	--disable_warnings
@@ -256,9 +275,13 @@ let $message= Testcase y.y.y.3: Circular trigger reference;
 	drop table if exists t3;
 	drop table if exists t4;
 	--enable_warnings
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t2 (f2 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t3 (f3 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t4 (f4 integer) engine = $engine_type;
 
 	insert into t1 values (0);
@@ -271,13 +294,13 @@ let $message= Testcase y.y.y.3: Circular trigger reference;
 	create trigger tr4 after insert on t4
 		for each row insert into t1 (f1) values (new.f4+1);
 
-	# OBN See bug 11896
-	--error 1442
+        # Bug#11896 Partial locking in case of recursive trigger definittions
+	--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 	insert into t1 values (1);
-	select * from t1;
-	select * from t2;
-	select * from t3;
-	select * from t4;
+	select * from t1 order by f1;
+	select * from t2 order by f2;
+	select * from t3 order by f3;
+	select * from t4 order by f4;
 
 #Cleanup
 	--disable_warnings
@@ -294,14 +317,15 @@ let $message= Testcase y.y.y.3: Circular trigger reference;
 
 #Section y.y.y.4
 # Testcase: create recursive trigger/storedprocedures conditions
-let $message= Testcase y.y.y.4: Recursive trigger/SP references (disabled bug 11889);
+let $message= Testcase y.y.y.4: Recursive trigger/SP references;
 --source include/show_msg.inc
 
 set @sql_mode='traditional';
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1_sp (
 		count integer,
 		var136 tinyint,
-		var151 decimal) engine=$engine_type;
+		var151 decimal) engine = $engine_type;
 
 	delimiter //;
 	create procedure trig_sp()
@@ -327,7 +351,7 @@ set @sql_mode='traditional';
 
 	set @counter=0;
 	select @counter;
-	--error 1456
+	--error ER_SP_RECURSION_LIMIT
 	call trig_sp();
 	select @counter;
 	select count(*) from tb3;
@@ -337,7 +361,7 @@ set @sql_mode='traditional';
 	set @@max_sp_recursion_depth= 10;
 	set @counter=0;
 	select @counter;
-	--error 1442
+	--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 	call trig_sp();
 	select @counter;
 	select count(*) from tb3;
@@ -353,7 +377,7 @@ set @sql_mode='traditional';
 
 # Testcase: y.y.y.5:
 # Checking rollback of nested trigger definitions
-let $message= Testcase y.y.y.5: Roleback of nested trigger references;
+let $message= Testcase y.y.y.5: Rollback of nested trigger references;
 --source include/show_msg.inc
 
 	set @@sql_mode='traditional';
@@ -364,10 +388,15 @@ let $message= Testcase y.y.y.5: Roleback of nested trigger references;
 	drop table if exists t3;
 	drop table if exists t4;
 	--enable_warnings
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t2 (f2 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t3 (f3 integer) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t4 (f4 tinyint) engine = $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
 	show create table t1;
 	insert into t1 values (1);
 	create trigger tr1 after insert on t1
@@ -377,19 +406,18 @@ let $message= Testcase y.y.y.5: Roleback of nested trigger references;
 	create trigger tr3 after insert on t3
 		for each row insert into t4 (f4) values (new.f3+1000);
 
-#lock tables t1 write, t2 write, t3 write, t4 write;
-
 	set autocommit=0;
 	start transaction;
-	--error 1264
+# Bug#32656 NDB: Duplicate key error aborts transaction in handler.
+#           Doesn't talk back to SQL
+	--error ER_WARN_DATA_OUT_OF_RANGE
 	insert into t1 values (1);
 	commit;
-	select * from t1;
-	select * from t2;
-	select * from t3;
-#unlock tables;
+	select * from t1 order by f1;
+	select * from t2 order by f2;
+	select * from t3 order by f3;
+
 #Cleanup
-	--disable_warnings
 	drop trigger tr1;
 	drop trigger tr2;
 	drop trigger tr3;
@@ -397,5 +425,5 @@ let $message= Testcase y.y.y.5: Roleback of nested trigger references;
 	drop table t2;
 	drop table t3;
 	drop table t4;
-	--enable_warnings
 
+DROP TABLE test.tb3;

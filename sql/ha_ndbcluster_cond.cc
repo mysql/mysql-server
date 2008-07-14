@@ -1419,7 +1419,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbScanOperation *op,
     uint32 pack_len= field->pack_length();
     const byte* ptr= key;
     DBUG_PRINT("info", ("Filtering value for %s", field->field_name));
-    DBUG_DUMP("key", (char*)ptr, pack_len);
+    DBUG_DUMP("key", (uchar*)ptr, pack_len);
     if (key_part->null_bit)
     {
       DBUG_PRINT("info", ("Generating ISNULL filter"));

@@ -1035,7 +1035,7 @@ public:
     return lowest possible my_time_t in case of ambiguity or if we
     provide time corresponding to the time-gap.
 
-    You should call init_time() function before using this function.
+    You should call my_init_time() function before using this function.
 
   RETURN VALUE
     Corresponding my_time_t value or 0 in case of error
@@ -2278,7 +2278,7 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
 
   DBUG_ENTER("my_tz_find");
   DBUG_PRINT("enter", ("time zone name='%s'",
-                      name ? ((String *)name)->c_ptr() : "NULL"));
+                      name ? ((String *)name)->c_ptr_safe() : "NULL"));
 
   DBUG_ASSERT(!time_zone_tables_exist || tz_tables || current_thd->slave_thread);
 
@@ -2757,7 +2757,7 @@ main(int argc, char **argv)
   }
   printf("gmt_sec_to_TIME = localtime for time_t in [1000000000,1100000000) range\n");
 
-  init_time();
+  my_init_time();
 
   /*
     Be careful here! my_system_gmt_sec doesn't fully handle unnormalized

@@ -4,7 +4,7 @@
 # 2007-10-05 mleich
 #    1. Fix for Bug#31237 Test "ndb_views" fails because of differing order ...
 #    2. Cleanup of test
-# 2007-11-15 hhunger WL#4084: Review and fix all disabled tests ... 
+# 2007-11-15 hhunger WL#4084: Review and fix all disabled tests ...
 
 let $message= ! Attention: The file with the expected results is not
               |            thoroughly checked.
@@ -19,7 +19,7 @@ let $message= ! Attention: The file with the expected results is not
 # If this bug is fixed, please
 # 1. set the following variable to 0
 # 2. check, if the test passes
-# 3. remove the workarounds 
+# 3. remove the workarounds
 let $have_bug_32285= 1;
 if ($have_bug_32285)
 {
@@ -2004,7 +2004,7 @@ let $message= Testcase 3.3.1.49A ;
 #       The annoying redundant
 #       eval INSERT INTO t1_results VALUES (@v3_to_v1_options,@statement,
 #                                           @v3_to_v1_violation,$mysql_errno);
-#       could not be put into a file to be sourced because of the closed 
+#       could not be put into a file to be sourced because of the closed
 #       Bug#10267 mysqltest, wrong number of loops when a script is sourced
 #                 within a loop
 # To be implemented later.
@@ -3998,7 +3998,7 @@ DESCRIBE v1;
 SELECT * FROM t1 order by f1, f2;
 SELECT * FROM v1 order by 2;
 # Some statements for comparison
-# - the ugly SQRT('DEF) as constant
+# - the ugly SQRT('DEF') as constant
 SELECT SQRT('DEF');
 # - Will a VIEW based on the same definition show the same result ?
 CREATE VIEW v2 AS SELECT SQRT('DEF');

@@ -113,3 +113,33 @@ SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
 
 --echo End of 4.1 tests
+
+#
+# BUG#36055 - mysql_upgrade doesn't really 'upgrade' tables
+#
+
+--echo # Test with a saved table from 4.1
+--copy_file std_data/bug36055.frm $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--copy_file std_data/bug36055.MYD $MYSQLTEST_VARDIR/master-data/test/t1.MYD
+--copy_file std_data/bug36055.MYI $MYSQLTEST_VARDIR/master-data/test/t1.MYI
+
+--replace_column 12 # 13 #
+SHOW TABLE STATUS LIKE 't1';
+SELECT * FROM t1;
+
+--echo # Run CHECK TABLE, it should indicate table need a REPAIR TABLE
+CHECK TABLE t1 FOR UPGRADE;
+
+--echo # REPAIR old table USE_FRM should fail
+REPAIR TABLE t1 USE_FRM;
+
+--echo # Run REPAIR TABLE to upgrade .frm file
+REPAIR TABLE t1;
+--replace_column 12 # 13 #
+SHOW TABLE STATUS LIKE 't1';
+SELECT * FROM t1;
+
+REPAIR TABLE t1 USE_FRM;
+SELECT * FROM t1;
+
+DROP TABLE t1;

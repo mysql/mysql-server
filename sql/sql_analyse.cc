@@ -195,13 +195,13 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
   */
   for (; str != end && my_isspace(system_charset_info, *str); str++) ;
   if (str == end)
-    return 0;
+    DBUG_RETURN(0);
 
   if (*str == '-')
   {
     info->negative = 1;
     if (++str == end || *str == '0') // converting -0 to a number
-      return 0;			     // might lose information
+      DBUG_RETURN(0);		     // might lose information
   }
   else
     info->negative = 0;
@@ -219,33 +219,33 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
     int error;
     info->ullval= (ulonglong) my_strtoll10(begin, &endpos, &error);
     if (info->integers == 1)
-      return 0;			     // a single number can't be zerofill
+      DBUG_RETURN(0);		     // a single number can't be zerofill
     info->maybe_zerofill = 1;
-    return 1;			     // a zerofill number, or an integer
+    DBUG_RETURN(1);		     // a zerofill number, or an integer
   }
   if (*str == '.' || *str == 'e' || *str == 'E')
   {
     if (info->zerofill)		     // can't be zerofill anymore
-      return 0;
+      DBUG_RETURN(0);
     if ((str + 1) == end)	     // number was something like '123[.eE]'
     {
       char *endpos= (char*) str;
       int error;
       info->ullval= (ulonglong) my_strtoll10(begin, &endpos, &error);
-      return 1;
+      DBUG_RETURN(1);
     }
     if (*str == 'e' || *str == 'E')  // number may be something like '1e+50'
     {
       str++;
       if (*str != '-' && *str != '+')
-	return	0;
+        DBUG_RETURN(0);
       for (str++; str != end && my_isdigit(system_charset_info,*str); str++) ;
       if (str == end)
       {
 	info->is_float = 1;	     // we can't use variable decimals here
-	return 1;
+        DBUG_RETURN(1);
       }
-      return 0;
+      DBUG_RETURN(0);
     }
     for (str++; *(end - 1) == '0'; end--);  // jump over zeros at the end
     if (str == end)		     // number was something like '123.000'
@@ -253,17 +253,17 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       char *endpos= (char*) str;
       int error;
       info->ullval= (ulonglong) my_strtoll10(begin, &endpos, &error);
-      return 1;
+      DBUG_RETURN(1);
     }
     for (; str != end && my_isdigit(system_charset_info,*str); str++)
       info->decimals++;
     if (str == end)
     {
       info->dval = my_atof(begin);
-      return 1;
+      DBUG_RETURN(1);
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -683,7 +683,7 @@ int analyse::send_row(List<Item> &field_list __attribute__((unused)))
 } // analyse::send_row
 
 
-bool analyse::end_of_records()
+int analyse::end_of_records()
 {
   field_info **f = f_info;
   char buff[MAX_FIELD_WIDTH];

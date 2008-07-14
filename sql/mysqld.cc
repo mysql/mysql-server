@@ -328,7 +328,7 @@ static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
-static my_bool opt_bdb, opt_isam, opt_ndbcluster, opt_merge;
+static my_bool opt_bdb, opt_isam, opt_ndbcluster, opt_merge, opt_federated;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
@@ -1071,12 +1071,9 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 
 extern "C" sig_handler print_signal_warning(int sig)
 {
-  if (!DBUG_IN_USE)
-  {
-    if (global_system_variables.log_warnings)
-      sql_print_warning("Got signal %d from thread %ld",
-                        sig, my_thread_id());
-  }
+  if (global_system_variables.log_warnings)
+    sql_print_warning("Got signal %d from thread %ld",
+                      sig, my_thread_id());
 #ifdef DONT_REMEMBER_SIGNAL
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
@@ -3623,8 +3620,6 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   /* ^^^  Nothing should be before this line! */
 
-  DEBUGGER_OFF;
-
   /* Set signal used to kill MySQL */
 #if defined(SIGUSR2)
   thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
@@ -4995,7 +4990,8 @@ enum options_mysqld
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
   OPT_SECURE_FILE_PRIV,
   OPT_KEEP_FILES_ON_CREATE,
-  OPT_INNODB_ADAPTIVE_HASH_INDEX
+  OPT_INNODB_ADAPTIVE_HASH_INDEX,
+  OPT_FEDERATED
 };
 
 
@@ -5181,6 +5177,9 @@ Disable with --skip-external-locking.",
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"federated", OPT_FEDERATED, "Enable Federated storage engine. Disable with \
+--skip-federated.",
+   (gptr*) &opt_federated, (gptr*) &opt_federated, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
   {"gdb", OPT_DEBUGGING,
@@ -6956,7 +6955,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   switch(optid) {
   case '#':
 #ifndef DBUG_OFF
-    DBUG_PUSH(argument ? argument : default_dbug_option);
+    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
@@ -7335,6 +7334,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       have_merge_db= SHOW_OPTION_DISABLED;
     break;
+#ifdef HAVE_FEDERATED_DB
+  case OPT_FEDERATED:
+    if (opt_federated)
+      have_federated_db= SHOW_OPTION_YES;
+    else
+      have_federated_db= SHOW_OPTION_DISABLED;
+    break;
+#endif
 #ifdef HAVE_BERKELEY_DB
   case OPT_BDB_NOSYNC:
     /* Deprecated option */

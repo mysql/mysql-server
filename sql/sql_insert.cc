@@ -708,9 +708,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   error=0;
   id=0;
+
   thd_proc_info(thd, "update");
   if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+
   if (duplic == DUP_REPLACE)
   {
     if (!table->triggers || !table->triggers->has_delete_triggers())
@@ -736,8 +738,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     values_list.elements, and - if nothing else - to initialize
     the code to make the call of end_bulk_insert() below safe.
   */
-  if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
-    table->file->start_bulk_insert(values_list.elements);
+#ifndef EMBEDDED_LIBRARY
+  if (lock_type != TL_WRITE_DELAYED)
+#endif /* EMBEDDED_LIBRARY */
+  {
+    if (duplic != DUP_ERROR || ignore)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (!thd->prelocked_mode)
+      table->file->start_bulk_insert(values_list.elements);
+  }
 
   thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
                                        (MODE_STRICT_TRANS_TABLES |
@@ -863,6 +872,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     else if (table->next_number_field && info.copied)
       id=table->next_number_field->val_int();	// Return auto_increment value
 
+    if (duplic != DUP_ERROR || ignore)
+      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+
     transactional_table= table->file->has_transactions();
 
     if ((changed= (info.copied || info.deleted || info.updated)))
@@ -942,8 +954,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   thd->next_insert_id=0;			// Reset this if wrongly used
   table->auto_increment_field_not_null= FALSE;
-  if (duplic != DUP_ERROR || ignore)
-    table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if (duplic == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
@@ -1283,7 +1293,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     select_lex->fix_prepare_information(thd, &fake_conds, &fake_conds);
     select_lex->first_execution= 0;
   }
-  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+  /*
+    Only call extra() handler method if we are not performing a DELAYED
+    operation. It will instead be executed by delayed insert thread.
+  */
+  if ((duplic == DUP_UPDATE || duplic == DUP_REPLACE) &&
+      (table->reginfo.lock_type != TL_WRITE_DELAYED))
     table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
   DBUG_RETURN(FALSE);
 }
@@ -2453,6 +2468,9 @@ bool Delayed_insert::handle_inserts(void)
 
     info.ignore= row->ignore;
     info.handle_duplicates= row->dup;
+    if (info.handle_duplicates == DUP_UPDATE || 
+        info.handle_duplicates == DUP_REPLACE)
+      table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
     if (info.ignore ||
 	info.handle_duplicates != DUP_ERROR)
     {

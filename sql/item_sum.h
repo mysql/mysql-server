@@ -239,6 +239,13 @@ public:
   int8 max_arg_level;     /* max level of unbound column references          */
   int8 max_sum_func_level;/* max level of aggregation for embedded functions */
   bool quick_group;			/* If incremental update of fields */
+  /*
+    This list is used by the check for mixing non aggregated fields and
+    sum functions in the ONLY_FULL_GROUP_BY_MODE. We save all outer fields
+    directly or indirectly used under this function it as it's unclear
+    at the moment of fixing outer field whether it's aggregated or not.
+  */
+  List<Item_field> outer_fields;
 
 protected:  
   table_map used_tables_cache;

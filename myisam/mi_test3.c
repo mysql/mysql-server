@@ -119,7 +119,6 @@ int main(int argc,char **argv)
 static void get_options(int argc, char **argv)
 {
   char *pos,*progname;
-  DEBUGGER_OFF;
 
   progname= argv[0];
 
@@ -149,7 +148,6 @@ static void get_options(int argc, char **argv)
       printf("Usage: %s [-?lKA] [-f#] [-t#]\n",progname);
       exit(0);
     case '#':
-      DEBUGGER_ON;
       DBUG_PUSH (++pos);
       break;
     default:

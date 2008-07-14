@@ -153,7 +153,9 @@ int main(int argc, char **argv) {
   my_init();
 
   if (argc > argcnt && argv[argcnt][0] == '-' && argv[argcnt][1] == '#')
+  {
     DBUG_PUSH(argv[argcnt++]+2);
+  }
 
   if (argc > argcnt)
     the_set = argv[argcnt++];

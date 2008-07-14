@@ -568,37 +568,13 @@ JOIN::prepare(Item ***rref_pointer_array,
   /*
     Check if there are references to un-aggregated columns when computing 
     aggregate functions with implicit grouping (there is no GROUP BY).
-    TODO:  Add check of calculation of GROUP functions and fields:
-	   SELECT COUNT(*)+table.col1 from table1;
   */
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY && !group_list &&
+      select_lex->full_group_by_flag == (NON_AGG_FIELD_USED | SUM_FUNC_USED))
   {
-    if (!group_list)
-    {
-      uint flag=0;
-      List_iterator_fast<Item> it(fields_list);
-      Item *item;
-      while ((item= it++))
-      {
-	if (item->with_sum_func)
-	  flag|=1;
-	else if (!(flag & 2) && !item->const_during_execution())
-	  flag|=2;
-      }
-      if (having)
-      {
-        if (having->with_sum_func)
-          flag |= 1;
-        else if (!having->const_during_execution())
-          flag |= 2;
-      }
-      if (flag == 3)
-      {
-	my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
-                   ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
-	DBUG_RETURN(-1);
-      }
-    }
+    my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
+               ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
+    DBUG_RETURN(-1);
   }
   {
     /* Caclulate the number of groups */
@@ -857,6 +833,7 @@ JOIN::optimize()
                             "Impossible HAVING" : "Impossible WHERE"));
       zero_result_cause=  having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
+      tables= 0;
       error= 0;
       DBUG_RETURN(0);
     }
@@ -2138,11 +2115,12 @@ JOIN::exec()
   /* 
     With EXPLAIN EXTENDED we have to restore original ref_array
     for a derived table which is always materialized.
-    Otherwise we would not be able to print the query  correctly.
+    We also need to do this when we have temp table(s).
+    Otherwise we would not be able to print the query correctly.
   */ 
-  if (items0 &&
-      (thd->lex->describe & DESCRIBE_EXTENDED) &&
-      select_lex->linkage == DERIVED_TABLE_TYPE)      
+  if (items0 && (thd->lex->describe & DESCRIBE_EXTENDED) &&
+      (select_lex->linkage == DERIVED_TABLE_TYPE ||
+       exec_tmp_table1 || exec_tmp_table2))
     set_items_ref_array(items0);
 
   DBUG_VOID_RETURN;
@@ -14482,7 +14460,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
           ifield->db_name= iref->db_name;
         }
 #ifndef DBUG_OFF
-	if (_db_on_ && !item_field->name)
+	if (!item_field->name)
 	{
 	  char buff[256];
 	  String str(buff,sizeof(buff),&my_charset_bin);
@@ -15817,6 +15795,14 @@ void st_select_lex::print(THD *thd, String *str)
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
     print_join(thd, str, &top_join_list);
+  }
+  else if (where)
+  {
+    /*
+      "SELECT 1 FROM DUAL WHERE 2" should not be printed as 
+      "SELECT 1 WHERE 2": the 1st syntax is valid, but the 2nd is not.
+    */
+    str->append(STRING_WITH_LEN(" from DUAL "));
   }
 
   // Where

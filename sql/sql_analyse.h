@@ -350,7 +350,7 @@ public:
   virtual bool change_columns(List<Item> &fields);
   virtual int  send_row(List<Item> &fields);
   virtual void end_group(void) {}
-  virtual bool end_of_records(void);
+  virtual int end_of_records(void);
   friend Procedure *proc_analyse_init(THD *thd, ORDER *param,
 				      select_result *result,
 				      List<Item> &field_list);
