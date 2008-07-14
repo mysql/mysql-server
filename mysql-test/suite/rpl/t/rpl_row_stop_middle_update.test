@@ -15,12 +15,12 @@ save_master_pos;
 
 connection slave;
 
-# slave will automatically tell itself to stop thanks to the .opt
+# slave will automatically stop the sql thread thanks to the .opt
 # file; it will initiate the stop request after the first
 # Rows_log_event (out of 3) but should wait until the last one is
 # executed before stopping.
 
-wait_for_slave_to_stop;
+source include/wait_for_slave_sql_to_stop.inc;
 
 # check that we inserted all rows (waited until the last Rows event)
 select count(*) from t1;
@@ -28,4 +28,5 @@ select count(*) from t1;
 connection master;
 drop table t1;
 connection slave; # slave SQL thread is stopped
+source include/stop_slave.inc;
 drop table t1;

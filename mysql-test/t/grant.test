@@ -3,6 +3,7 @@
 # Grant tests not performed with embedded server
 -- source include/not_embedded.inc
 
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
 # Cleanup
@@ -1468,4 +1469,4 @@ use test;
 DROP DATABASE dbbug33464;
 
 
---echo End of 5.1 tests
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

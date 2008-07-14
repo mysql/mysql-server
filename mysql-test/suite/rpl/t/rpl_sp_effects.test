@@ -10,6 +10,8 @@
 # ****************************************************************
 connection master;
 
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+
 # cleanup
 --disable_warnings
 drop procedure if exists p1;
@@ -254,8 +256,8 @@ drop table t2;
 drop procedure sp_bug26199;
 drop function sf_bug26199;
 
-sync_slave_with_master;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
-SET GLOBAL log_bin_trust_function_creators = 0;
+sync_slave_with_master;
 
 --echo end of the tests

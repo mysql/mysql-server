@@ -51,6 +51,6 @@ enable_warnings;
 remove_file $MYSQLD_DATADIR/slave-relay-bin.000001;
 remove_file $MYSQLD_DATADIR/slave-relay-bin.index;
 stop slave sql_thread;
-let $keep_connection=1;
+let $slave_keep_connection=1;
 source include/wait_for_slave_sql_to_stop.inc;
 

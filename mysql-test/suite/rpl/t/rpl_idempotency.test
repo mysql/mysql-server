@@ -207,9 +207,8 @@ select * from ti1 order by b /* must be (2),(3) */;
 # foreign key: row is referenced
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -240,11 +239,10 @@ delete from ti1 where b=3;
 
 connection master;
 insert into ti2 set a=3, b=3 /* offending write event */;
+
 --echo *** slave must stop
-
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -282,9 +280,8 @@ connection master;
 insert into ti1 set b=1 /* offending write event */;
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -318,9 +315,8 @@ connection master;
 DELETE FROM t1 WHERE a = -2;
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -337,9 +333,8 @@ set global slave_exec_mode='STRICT';
 connection master;
 DELETE FROM t2 WHERE a = -2;
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -360,9 +355,8 @@ connection master;
 UPDATE t1 SET a = 1 WHERE a = -1;
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -381,9 +375,8 @@ connection master;
 UPDATE t2 SET a = 1 WHERE a = -1;
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
