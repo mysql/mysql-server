@@ -464,8 +464,42 @@ Item *create_func_cast(Item *a, Cast_target cast_type,
   case ITEM_CAST_TIME:		res= new Item_time_typecast(a); break;
   case ITEM_CAST_DATETIME:	res= new Item_datetime_typecast(a); break;
   case ITEM_CAST_DECIMAL:
-    len= c_len ? atoi(c_len) : 0;
-    dec= c_dec ? atoi(c_dec) : 0;
+    if (c_len == NULL)
+    {
+      len= 0;
+    }
+    else
+    {
+      ulong decoded_size;
+      errno= 0;
+      decoded_size= strtoul(c_len, NULL, 10);
+      if (errno != 0)
+      {
+        my_error(ER_TOO_BIG_PRECISION, MYF(0), c_len, a->name,
+                 DECIMAL_MAX_PRECISION);
+        return NULL;
+      }
+      len= decoded_size;
+    }
+
+    if (c_dec == NULL)
+    {
+      dec= 0;
+    }
+    else
+    {
+      ulong decoded_size;
+      errno= 0;
+      decoded_size= strtoul(c_dec, NULL, 10);
+      if ((errno != 0) || (decoded_size > UINT_MAX))
+      {
+        my_error(ER_TOO_BIG_SCALE, MYF(0), c_dec, a->name,
+                 DECIMAL_MAX_SCALE);
+        return NULL;
+      }
+      dec= decoded_size;
+    }
+
     my_decimal_trim(&len, &dec);
     if (len < dec)
     {
@@ -486,8 +520,25 @@ Item *create_func_cast(Item *a, Cast_target cast_type,
     }
     res= new Item_decimal_typecast(a, len, dec);
     break;
+
   case ITEM_CAST_CHAR:
-    len= c_len ? atoi(c_len) : -1;
+    if (c_len == NULL)
+    {
+      len= LL(-1);
+    }
+    else
+    {
+      ulong decoded_size;
+      errno= 0;
+      decoded_size= strtoul(c_len, NULL, 10);
+      if ((errno != 0) || (decoded_size > MAX_FIELD_BLOBLENGTH))
+      {
+        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
+        return NULL;
+      }
+      len= decoded_size;
+    }
+
     res= new Item_char_typecast(a, len, cs ? cs : 
 				current_thd->variables.collation_connection);
     break;

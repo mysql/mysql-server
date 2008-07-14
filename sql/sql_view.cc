@@ -649,7 +649,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       buff.append(')');
     }
     buff.append(STRING_WITH_LEN(" AS "));
-    buff.append(views->source.str, views->source.length);
+    buff.append(views->query.str, views->query.length);
+    if (views->with_check == VIEW_CHECK_LOCAL)
+      buff.append(STRING_WITH_LEN(" WITH LOCAL CHECK OPTION"));
+    else if (views->with_check == VIEW_CHECK_CASCADED)
+      buff.append(STRING_WITH_LEN(" WITH CASCADED CHECK OPTION"));
 
     Query_log_event qinfo(thd, buff.ptr(), buff.length(), 0, FALSE);
     mysql_bin_log.write(&qinfo);
@@ -926,8 +930,6 @@ loop_out:
   }
   DBUG_RETURN(0);
 err:
-  view->query.str= NULL;
-  view->query.length= 0;
   view->md5.str= NULL;
   view->md5.length= 0;
   DBUG_RETURN(error);

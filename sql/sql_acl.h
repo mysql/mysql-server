@@ -183,13 +183,13 @@ int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
 bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
                              char *ip, char *db);
 bool acl_check_host(const char *host, const char *ip);
-bool check_change_password(THD *thd, const char *host, const char *user,
+int check_change_password(THD *thd, const char *host, const char *user,
                            char *password, uint password_len);
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *password);
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
                  ulong rights, bool revoke);
-bool mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
+int mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
                        List <LEX_COLUMN> &column_list, ulong rights,
                        bool revoke);
 bool mysql_routine_grant(THD *thd, TABLE_LIST *table, bool is_proc,
@@ -225,7 +225,7 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table);
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc);
-bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
+int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc);
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);

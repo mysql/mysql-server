@@ -2004,7 +2004,7 @@ void sys_var_thd_date_time_format::update2(THD *thd, enum_var_type type,
 {
   DATE_TIME_FORMAT *old;
   DBUG_ENTER("sys_var_date_time_format::update2");
-  DBUG_DUMP("positions",(char*) new_value->positions,
+  DBUG_DUMP("positions", new_value->positions,
 	    sizeof(new_value->positions));
 
   if (type == OPT_GLOBAL)

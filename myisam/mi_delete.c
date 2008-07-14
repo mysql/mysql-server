@@ -223,7 +223,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   my_off_t leaf_page,next_block;
   uchar lastkey[MI_MAX_KEY_BUFF];
   DBUG_ENTER("d_search");
-  DBUG_DUMP("page",(byte*) anc_buff,mi_getint(anc_buff));
+  DBUG_DUMP("page",(uchar*) anc_buff,mi_getint(anc_buff));
 
   search_key_length= (comp_flag & SEARCH_FIND) ? key_length : USE_WHOLE_KEY;
   flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key, search_key_length,
@@ -381,7 +381,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     ret_value|=_mi_write_keypage(info,keyinfo,page,DFLT_INIT_HITS,anc_buff);
   else
   {
-    DBUG_DUMP("page",(byte*) anc_buff,mi_getint(anc_buff));
+    DBUG_DUMP("page",(uchar*) anc_buff,mi_getint(anc_buff));
   }
   my_afree((byte*) leaf_buff);
   DBUG_PRINT("exit",("Return: %d",ret_value));
@@ -411,7 +411,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
   DBUG_ENTER("del");
   DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx", (long) leaf_page,
 		      (ulong) keypos));
-  DBUG_DUMP("leaf_buff",(byte*) leaf_buff,mi_getint(leaf_buff));
+  DBUG_DUMP("leaf_buff",(uchar*) leaf_buff,mi_getint(leaf_buff));
 
   endpos=leaf_buff+mi_getint(leaf_buff);
   if (!(key_start=_mi_get_last_key(info,keyinfo,leaf_buff,keybuff,endpos,
@@ -428,7 +428,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
       ret_value= -1;
     else
     {
-      DBUG_DUMP("next_page",(byte*) next_buff,mi_getint(next_buff));
+      DBUG_DUMP("next_page",(uchar*) next_buff,mi_getint(next_buff));
       if ((ret_value=del(info,keyinfo,key,anc_buff,next_page,next_buff,
 			 keypos,next_block,ret_key)) >0)
       {
@@ -517,8 +517,8 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   DBUG_ENTER("underflow");
   DBUG_PRINT("enter",("leaf_page: %ld  keypos: 0x%lx",(long) leaf_page,
 		      (ulong) keypos));
-  DBUG_DUMP("anc_buff",(byte*) anc_buff,mi_getint(anc_buff));
-  DBUG_DUMP("leaf_buff",(byte*) leaf_buff,mi_getint(leaf_buff));
+  DBUG_DUMP("anc_buff",(uchar*) anc_buff,mi_getint(anc_buff));
+  DBUG_DUMP("leaf_buff",(uchar*) leaf_buff,mi_getint(leaf_buff));
 
   buff=info->buff;
   info->buff_used=1;
@@ -554,7 +554,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     if (!_mi_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,buff,0))
       goto err;
     buff_length=mi_getint(buff);
-    DBUG_DUMP("next",(byte*) buff,buff_length);
+    DBUG_DUMP("next",(uchar*) buff,buff_length);
 
     /* find keys to make a big key-page */
     bmove((byte*) next_keypos-key_reflength,(byte*) buff+2,
@@ -659,7 +659,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       goto err;
   buff_length=mi_getint(buff);
   endpos=buff+buff_length;
-  DBUG_DUMP("prev",(byte*) buff,buff_length);
+  DBUG_DUMP("prev",(uchar*) buff,buff_length);
 
   /* find keys to make a big key-page */
   bmove((byte*) next_keypos - key_reflength,(byte*) leaf_buff+2,
@@ -715,8 +715,8 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       goto err;
     _mi_kpointer(info,leaf_key+key_length,leaf_page);
     /* Save key in anc_buff */
-    DBUG_DUMP("anc_buff",(byte*) anc_buff,anc_length);
-    DBUG_DUMP("key_to_anc",(byte*) leaf_key,key_length);
+    DBUG_DUMP("anc_buff",(uchar*) anc_buff,anc_length);
+    DBUG_DUMP("key_to_anc",(uchar*) leaf_key,key_length);
 
     temp_pos=anc_buff+anc_length;
     t_length=(*keyinfo->pack_key)(keyinfo,key_reflength,
@@ -737,7 +737,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       bmove((byte*) leaf_buff+2,(byte*) half_pos-nod_flag,(size_t) nod_flag);
     if (!(length=(*keyinfo->get_key)(keyinfo,nod_flag,&half_pos,leaf_key)))
       goto err;
-    DBUG_DUMP("key_to_leaf",(byte*) leaf_key,length);
+    DBUG_DUMP("key_to_leaf",(uchar*) leaf_key,length);
     t_length=(*keyinfo->pack_key)(keyinfo,nod_flag, (uchar*) 0,
 				  (uchar*) 0, (uchar*) 0, leaf_key, &s_temp);
     length=(uint) ((buff+buff_length)-half_pos);

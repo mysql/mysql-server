@@ -639,6 +639,13 @@ void THD::cleanup_after_query()
   {
     clear_next_insert_id= 0;
     next_insert_id= 0;
+
+    /*
+      BUG#33029, if one statement in a SP set this member to 1, all
+      statment after this statement in the SP would be considered used
+      INSERT_ID value, reset this member after each query to fix this.
+    */
+    insert_id_used= 0;
   }
   /*
     Reset rand_used so that detection of calls to rand() will save random 

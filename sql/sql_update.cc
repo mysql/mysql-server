@@ -716,7 +716,7 @@ static table_map get_table_map(List<Item> *items)
     TRUE  Error
 */
 
-bool mysql_multi_update_prepare(THD *thd)
+int mysql_multi_update_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *table_list= lex->query_tables;
@@ -1440,6 +1440,12 @@ bool multi_update::send_data(List<Item> &not_used_values)
           tbl->file->position(tbl->record[0]);
         memcpy((char*) tmp_table->field[field_num]->ptr,
                (char*) tbl->file->ref, tbl->file->ref_length);
+        /*
+         For outer joins a rowid field may have no NOT_NULL_FLAG,
+         so we have to reset NULL bit for this field.
+         (set_notnull() resets NULL bit only if available).
+        */
+        tmp_table->field[field_num]->set_notnull();
         field_num++;
       } while ((tbl= tbl_it++));
 

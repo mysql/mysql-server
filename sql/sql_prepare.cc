@@ -1403,7 +1403,7 @@ error:
 */
 
 static bool select_like_stmt_test(Prepared_statement *stmt,
-                                  bool (*specific_prepare)(THD *thd),
+                                  int (*specific_prepare)(THD *thd),
                                   ulong setup_tables_done_option)
 {
   DBUG_ENTER("select_like_stmt_test");
@@ -1441,7 +1441,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 static bool
 select_like_stmt_test_with_open_n_lock(Prepared_statement *stmt,
                                        TABLE_LIST *tables,
-                                       bool (*specific_prepare)(THD *thd),
+                                       int (*specific_prepare)(THD *thd),
                                        ulong setup_tables_done_option)
 {
   DBUG_ENTER("select_like_stmt_test_with_open_n_lock");
@@ -1630,7 +1630,7 @@ error:
     because mysql_handle_derived uses local tables lists.
 */
 
-static bool mysql_insert_select_prepare_tester(THD *thd)
+static int mysql_insert_select_prepare_tester(THD *thd)
 {
   SELECT_LEX *first_select= &thd->lex->select_lex;
   TABLE_LIST *second_table= ((TABLE_LIST*)first_select->table_list.first)->

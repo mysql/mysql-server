@@ -110,6 +110,7 @@ our $glob_basedir;
 
 our $path_charsetsdir;
 our $path_client_bindir;
+our $path_client_libdir;
 our $path_language;
 our $path_timefile;
 our $path_snapshot;
@@ -623,6 +624,8 @@ sub command_line_setup () {
              'vardir=s'                 => \$opt_vardir,
              'benchdir=s'               => \$glob_mysql_bench_dir,
              'mem'                      => \$opt_mem,
+             'client-bindir=s'          => \$path_client_bindir,
+             'client-libdir=s'          => \$path_client_libdir,
 
              # Misc
              'report-features'          => \$opt_report_features,
@@ -717,11 +720,19 @@ sub command_line_setup () {
   #
 
   # Look for the client binaries directory
-  $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
-				       "$glob_basedir/client_debug",
-				       vs_config_dirs('client', ''),
-				       "$glob_basedir/client",
-				       "$glob_basedir/bin");
+  if ($path_client_bindir)
+  {
+    # --client-bindir=path set on command line, check that the path exists
+    $path_client_bindir= mtr_path_exists($path_client_bindir);
+  }
+  else
+  {
+    $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
+					 "$glob_basedir/client_debug",
+					 vs_config_dirs('client', ''),
+					 "$glob_basedir/client",
+					 "$glob_basedir/bin");
+  }
 
   if (!$opt_extern)
   {
@@ -1367,7 +1378,15 @@ sub datadir_list_setup () {
 
 sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
-  my $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
+  my $tmpdir;
+  if ( $opt_tmpdir ) {
+    # Use the requested tmpdir
+    mkpath($opt_tmpdir) if (! -d $opt_tmpdir);
+    $tmpdir= $opt_tmpdir;
+  }
+  else {
+    $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
+  }
 
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
@@ -1428,7 +1447,7 @@ sub collect_mysqld_features () {
       }
     }
   }
-  rmtree($tmpdir);
+  rmtree($tmpdir) if (!$opt_tmpdir);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
@@ -1737,6 +1756,7 @@ sub mysql_upgrade_arguments()
   mtr_add_arg($args, "--socket=$master->[0]->{'path_sock'}");
   mtr_add_arg($args, "--datadir=$master->[0]->{'path_myddir'}");
   mtr_add_arg($args, "--basedir=$glob_basedir");
+  mtr_add_arg($args, "--tmpdir=$opt_tmpdir");
 
   if ( $opt_debug )
   {
@@ -1755,19 +1775,25 @@ sub environment_setup () {
 
   my @ld_library_paths;
 
-  # --------------------------------------------------------------------------
-  # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
-  # are used in favor of the system installed ones
-  # --------------------------------------------------------------------------
-  if ( $source_dist )
+  if ($path_client_libdir)
   {
-    push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
-                            "$glob_basedir/libmysql_r/.libs/",
-                            "$glob_basedir/zlib.libs/");
+    # Use the --client-libdir passed on commandline
+    push(@ld_library_paths, "$path_client_libdir");
   }
   else
   {
-    push(@ld_library_paths, "$glob_basedir/lib");
+    # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
+    # are used in favor of the system installed ones
+    if ( $source_dist )
+    {
+      push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
+	   "$glob_basedir/libmysql_r/.libs/",
+	   "$glob_basedir/zlib.libs/");
+    }
+    else
+    {
+      push(@ld_library_paths, "$glob_basedir/lib");
+    }
   }
 
  # --------------------------------------------------------------------------
@@ -2019,6 +2045,9 @@ sub environment_setup () {
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
   }
+  # Always use the given tmpdir for the LOAD files created
+  # by mysqlbinlog
+  $cmdline_mysqlbinlog .=" --local-load=$opt_tmpdir";
 
   if ( $opt_debug )
   {
@@ -3739,9 +3768,9 @@ sub mysqld_arguments ($$$$) {
   {
     # By default, prevent the started mysqld to access files outside of vardir
     my $secure_file_dir= $opt_vardir;
-    if ( $opt_suite ne "main" )
+    if ( $opt_suite ne "main" and $opt_suite ne "funcs_1" )
     {
-      # When running a suite other than default allow the mysqld
+      # When running a suite other than default or funcs_1 allow the mysqld
       # access to subdirs of mysql-test/ in order to make it possible
       # to "load data" from the suites data/ directory.
       $secure_file_dir= $glob_mysql_test_dir;
@@ -5235,6 +5264,8 @@ Misc options
   warnings | log-warnings Pass --log-warnings to mysqld
 
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
+  client-bindir=PATH    Path to the directory where client binaries are located
+  client-libdir=PATH    Path to the directory where client libraries are located
 
 Deprecated options
   with-openssl          Deprecated option for ssl

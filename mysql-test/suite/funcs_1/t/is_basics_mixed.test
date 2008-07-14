@@ -11,6 +11,19 @@
 #                   Create this script based on older scripts and new code.
 #
 
+# This test is strict adjusted to the behaviour of the non embedded server.
+# Example of common differences between both servers:
+#    USE information_schema; CREATE VIEW tables AS SELECT 'garbage';
+#    non embedded server:
+#        - errname ER_DBACCESS_DENIED_ERROR
+#        - ERROR 42000: Access denied for user 'root'@'localhost' to
+#          database 'information_schema'
+#    embedded server:
+#        - errno 1 
+#        - Can't create/write to file
+#          '.../var/master-data/information_schema/tables.frm~
+--source include/not_embedded.inc
+
 --source suite/funcs_1/datadict/datadict.pre
 
 # $engine_type must point to storage engine which is all time available.
@@ -174,7 +187,7 @@ WHERE table_schema = 'db_datadict' ORDER BY table_name LIMIT 1;
 SELECT @table_name,@table_schema;
 #
 # SELECT INTO OUTFILE
-let $OUTFILE = $MYSQL_TMP_DIR/datadict.out;
+let $OUTFILE = $MYSQLTEST_VARDIR/tmp/datadict.out;
 --error 0,1
 remove_file $OUTFILE;
 --replace_result $OUTFILE <OUTFILE>

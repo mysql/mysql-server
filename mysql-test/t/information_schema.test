@@ -1113,8 +1113,6 @@ select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_TABLE` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 
---echo End of 5.0 tests.
-
 #
 # Bug#30079 A check for "hidden" I_S tables is flawed
 #
@@ -1122,4 +1120,29 @@ select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 show fields from information_schema.table_names;
 --error 1109
 show keys from information_schema.table_names;
+
+#
+# Bug#34529: Crash on complex Falcon I_S select after ALTER .. PARTITION BY
+#
+USE information_schema;
+SET max_heap_table_size = 16384;
+
+CREATE TABLE test.t1( a INT );
+
+# What we need to create here is a bit of a corner case:
+# We need a star query with information_schema tables, where the first
+# branch of the star join produces zero rows, so that reading of the 
+# second branch never happens. At the same time we have to make sure
+# that data for at least the last table is swapped from MEMORY/HEAP to 
+# MyISAM. This and only this triggers the bug.
+SELECT *
+FROM tables ta
+JOIN collations co ON ( co.collation_name = ta.table_catalog )
+JOIN character_sets cs ON ( cs.character_set_name = ta.table_catalog );
+
+DROP TABLE test.t1;
+SET max_heap_table_size = DEFAULT;
+USE test;
+
+--echo End of 5.0 tests.
 

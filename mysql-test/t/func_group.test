@@ -916,5 +916,15 @@ DROP VIEW v1;
 DROP TABLE t1;
 SET SQL_MODE=DEFAULT;
 
+#
+# Bug #34512: CAST( AVG( double ) AS DECIMAL ) returns wrong results
+#
+
+CREATE TABLE t1(a DOUBLE);
+INSERT INTO t1 VALUES (10), (20);
+SELECT AVG(a), CAST(AVG(a) AS DECIMAL) FROM t1;
+
+DROP TABLE t1;
+
 ###
 --echo End of 5.0 tests

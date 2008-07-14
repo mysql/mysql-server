@@ -157,14 +157,12 @@ typedef uint rf_SetTimer;
 
 #define Socket_defined
 #define my_socket SOCKET
-#define bool BOOL
 #define SIGPIPE SIGINT
 #define RETQSORTTYPE void
 #define QSORT_TYPE_IS_VOID
 #define RETSIGTYPE void
 #define SOCKET_SIZE_TYPE int
 #define my_socket_defined
-#define bool_defined
 #define byte_defined
 #define HUGE_PTR
 #define STDCALL __stdcall	    /* Used by libmysql.dll */
@@ -406,4 +404,4 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_CHARSET_ujis 1
 #define HAVE_CHARSET_utf8 1
 #define HAVE_UCA_COLLATIONS 1
-
+#define HAVE_BOOL 1

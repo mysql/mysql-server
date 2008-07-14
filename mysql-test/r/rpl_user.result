@@ -35,11 +35,11 @@ drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
 ERROR HY000: Operation DROP USER failed for 'not_exist_user1'@'fakehost','not_exist_user2'@'fakehost'
 select Host,User from mysql.user where Host='fakehost';
 Host	User
-show binlog events from 98;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	98	Query	1	#	use `test`; create user 'foo'@'fakehost'
-master-bin.000001	189	Query	1	#	use `test`; create user 'foo'@'fakehost', 'bar'@'fakehost'
-master-bin.000001	298	Query	1	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
-master-bin.000001	412	Query	1	#	use `test`; rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost'
-master-bin.000001	579	Query	1	#	use `test`; drop user 'foofoo'@'fakehost'
-master-bin.000001	671	Query	1	#	use `test`; drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; create user 'foo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; create user 'foo'@'fakehost', 'bar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; drop user 'foofoo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost'

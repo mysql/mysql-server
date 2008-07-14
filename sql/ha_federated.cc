@@ -1095,7 +1095,7 @@ bool ha_federated::create_where_from_key(String *to,
       uint store_length= key_part->store_length;
       uint part_length= min(store_length, length);
       needs_quotes= 1;
-      DBUG_DUMP("key, start of loop", (char *) ptr, length);
+      DBUG_DUMP("key, start of loop", (uchar *)ptr, length);
 
       if (key_part->null_bit)
       {

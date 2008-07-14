@@ -883,7 +883,7 @@ int ha_tina::delete_all_rows()
   DBUG_ENTER("ha_tina::delete_all_rows");
 
   if (!records_is_known)
-    return (my_errno=HA_ERR_WRONG_COMMAND);
+    DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
 
   /* Invalidate all cached mmap pages */
   if (free_mmap(share)) 

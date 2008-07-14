@@ -4374,4 +4374,26 @@ a4	f3	a6
 1	NULL	NULL
 2	NULL	NULL
 DROP TABLE t1, t2, t3, t4;
+create table t1 (a float(5,4) zerofill);
+create table t2 (a float(5,4),b float(2,0));
+select t1.a from t1 where   
+t1.a= (select b from t2 limit 1) and not
+t1.a= (select a from t2 limit 1) ;
+a
+drop table t1, t2;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+Warnings:
+Note	1003	select 1 AS `1` from `test`.`t1` where <in_optimizer>(1,<exists>(select 1 AS `1` from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(1) = <ref_null_helper>(1))))
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select 1 AS `1` from `test`.`t1` where <in_optimizer>(1,<exists>(select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a` having (<cache>(1) = <ref_null_helper>(1))))
+DROP TABLE t1;
 End of 5.0 tests.

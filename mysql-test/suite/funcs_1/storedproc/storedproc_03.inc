@@ -5,38 +5,67 @@
 # ==============================================================================
 # (numbering from requirement document TP v1.0, Last updated: 25 Jan 2005 01:00)
 #
-# 3.1.3 Syntax checks for the stored procedure-specific flow control statements IF, CASE, LOOP, LEAVE, ITERATE, REPEAT, WHILE:
+# 3.1.3 Syntax checks for the stored procedure-specific flow control statements
+#       IF, CASE, LOOP, LEAVE, ITERATE, REPEAT, WHILE:
 #
 #-  1. Ensure that all subclauses that should be supported are supported.
-#-  2. Ensure that all subclauses that should not be supported are disallowed with an appropriate error message.
-#-  3. Ensure that all supported subclauses are supported only in the correct order.
-#-  4. Ensure that an appropriate error message is returned if a subclause is out-of-order in a stored procedure definition.
-#-  5. Ensure that all subclauses that are defined to be mandatory are indeed required to be mandatory by the MySQL server and tools.
-#-  6. Ensure that any subclauses that are defined to be optional are indeed treated as optional by the MySQL server and tools.
-##  7. Ensure that the IF statement acts correctly for all variants, including cases where statements are nested.
-##  8. Ensure that the CASE statement acts correctly for all variants, including cases where statements are nested.
-##  9. Ensure that the LOOP statement acts correctly for all variants, including cases where statements are nested.
+#-  2. Ensure that all subclauses that should not be supported are disallowed
+#      with an appropriate error message.
+#-  3. Ensure that all supported subclauses are supported only in the
+#      correct order.
+#-  4. Ensure that an appropriate error message is returned if a subclause is
+#      out-of-order in a stored procedure definition.
+#-  5. Ensure that all subclauses that are defined to be mandatory are indeed
+#      required to be mandatory by the MySQL server and tools.
+#-  6. Ensure that any subclauses that are defined to be optional are indeed
+#      treated as optional by the MySQL server and tools.
+##  7. Ensure that the IF statement acts correctly for all variants, including
+#      cases where statements are nested.
+##  8. Ensure that the CASE statement acts correctly for all variants,
+#      including cases where statements are nested.
+##  9. Ensure that the LOOP statement acts correctly for all variants,
+#      including cases where statements are nested.
 #- 10. Ensure that the labels enclosing each LOOP statement must match.
-#- 11. Ensure that it is possible to put a beginning label at the start of a LOOP statement without also requiring an ending label at the end of the same statement.
-#- 12. Ensure that it is not possible to put an ending label at the end of a LOOP statement without also requiring a matching beginning label at the start of the same statement.
+#- 11. Ensure that it is possible to put a beginning label at the start of
+#      a LOOP statement without also requiring an ending label at the end of
+#      the same statement.
+#- 12. Ensure that it is not possible to put an ending label at the end of
+#      a LOOP statement without also requiring a matching beginning label
+#      at the start of the same statement.
 #- 13. Ensure that every beginning label must end with a colon (:).
 #- 14. Ensure that every beginning label with the same scope must be unique.
-## 15. Ensure that the LEAVE statement acts correctly for all variants, including cases where statements are nested.
-## 16. Ensure that the ITERATE statement acts correctly for all variants, including cases where statements are nested.
-#- 17. Ensure that the ITERATE statement fails, with an appropriate error message, if it appears in any context other than within LOOP, REPEAT, or WHILE statements.
-## 18. Ensure that the REPEAT statement acts correctly for all variants, including cases where statements are nested.
+## 15. Ensure that the LEAVE statement acts correctly for all variants,
+#      including cases where statements are nested.
+## 16. Ensure that the ITERATE statement acts correctly for all variants,
+#      including cases where statements are nested.
+#- 17. Ensure that the ITERATE statement fails, with an appropriate error
+#      message, if it appears in any context other than within LOOP, REPEAT,
+#      or WHILE statements.
+## 18. Ensure that the REPEAT statement acts correctly for all variants,
+#      including cases where statements are nested.
 #- 19. Ensure that the labels enclosing each REPEAT statement must match.
-#- 20. Ensure that it is possible to put a beginning label at the start of a REPEAT statement without also requiring an ending label at the end of the same statement.
-#- 21. Ensure that it is not possible to put an ending label at the end of a REPEAT statement without also requiring a matching beginning label at the start of the same statement.
+#- 20. Ensure that it is possible to put a beginning label at the start of
+#      a REPEAT statement without also requiring an ending label at the end
+#      of the same statement.
+#- 21. Ensure that it is not possible to put an ending label at the end of
+#      a REPEAT statement without also requiring a matching beginning label
+#      at the start of the same statement.
 #- 22. Ensure that every beginning label must end with a colon (:).
 #- 23. Ensure that every beginning label with the same scope must be unique.
-## 24. Ensure that the WHILE statement acts correctly for all variants, including cases where statements are nested.
+## 24. Ensure that the WHILE statement acts correctly for all variants,
+#      including cases where statements are nested.
 #- 25. Ensure that the labels enclosing each WHILE statement must match.
-#- 26. Ensure that it is possible to put a beginning label at the start of a WHILE statement without also requiring an ending label at the end of the same statement.
-#- 27. Ensure that it is not possible to put an ending label at the end of a WHILE statement without also requiring a matching beginning label at the start of the same statement.
+#- 26. Ensure that it is possible to put a beginning label at the start of
+#      a WHILE statement without also requiring an ending label at the end
+#      of the same statement.
+#- 27. Ensure that it is not possible to put an ending label at the end of
+#      a WHILE statement without also requiring a matching beginning label
+#      at the start of the same statement.
 #- 28. Ensure that every beginning label must end with a colon (:).
 #- 29. Ensure that every beginning label with the same scope must be unique.
-## 30. Ensure that multiple cases of all possible combinations of the control flow statements, nested within multiple compound statements within a stored procedure, always act correctly and return the expected result.
+## 30. Ensure that multiple cases of all possible combinations of the control
+#      flow statements, nested within multiple compound statements within
+#      a stored procedure, always act correctly and return the expected result.
 #
 # ==============================================================================
 let $message= Section 3.1.3 - Syntax checks for the stored procedure-specific flow
@@ -237,8 +266,9 @@ DROP PROCEDURE IF EXISTS sp31316;
 delimiter //;
 
 # wrong label at iterate
-#Error: 1308 SQLSTATE: 42000 (ER_SP_LILABEL_MISMATCH) Message: %s with no matching label: %s
---error 1308
+# Error: SQLSTATE: 42000 (ER_SP_LILABEL_MISMATCH)
+#        Message: %s with no matching label: %s
+--error ER_SP_LILABEL_MISMATCH
 CREATE PROCEDURE sp31316( )
 BEGIN
    declare count1 integer default 1;
@@ -436,8 +466,9 @@ BEGIN
 END//
 delimiter ;//
 
-#Error: 1318 SQLSTATE: 42000 (ER_SP_WRONG_NO_OF_ARGS) Message: Incorrect number of arguments for %s %s; expected %u, got %u
---error 1318
+# Error: SQLSTATE: 42000 (ER_SP_WRONG_NO_OF_ARGS)
+#        Message: Incorrect number of arguments for %s %s; expected %u, got %u
+--error ER_SP_WRONG_NO_OF_ARGS
 CALL sp31330();
 
 CALL sp31330(1);
@@ -459,6 +490,7 @@ drop table res_tbl;
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 
 # ==============================================================================
-let $message= .                               +++ END OF SCRIPT +++;
---source include/show_msg80.inc
+--echo
+--echo .                               +++ END OF SCRIPT +++
+--echo --------------------------------------------------------------------------------
 # ==============================================================================

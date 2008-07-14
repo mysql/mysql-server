@@ -449,7 +449,7 @@ bool load_db_opt_by_name(THD *thd, const char *db_name,
 
 */
 
-bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
+int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
                      bool silent)
 {
   char	 path[FN_REFLEN+16];

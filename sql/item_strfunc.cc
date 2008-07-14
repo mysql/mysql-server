@@ -294,6 +294,12 @@ String *Item_func_concat::val_str(String *str)
     {
       if (!(res=args[i]->val_str(str)))
 	goto null;
+      /*
+       CONCAT accumulates its result in the result of its the first
+       non-empty argument. Because of this we need is_const to be 
+       evaluated only for it.
+      */
+      is_const= args[i]->const_item() || !args[i]->used_tables();
     }
     else
     {

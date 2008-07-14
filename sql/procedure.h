@@ -144,7 +144,7 @@ public:
   virtual int send_row(List<Item> &fields)=0;
   virtual bool change_columns(List<Item> &fields)=0;
   virtual void update_refs(void) {}
-  virtual bool end_of_records() { return 0; }
+  virtual int end_of_records() { return 0; }
 };
 
 Procedure *setup_procedure(THD *thd,ORDER *proc_param,select_result *result,

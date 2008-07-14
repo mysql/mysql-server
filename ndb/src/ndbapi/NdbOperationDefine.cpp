@@ -440,7 +440,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
                        theOperationType,
                        (long) aValuePassed, len));
   if (aValuePassed != NULL)
-    DBUG_DUMP("value", (char*)aValuePassed, len);
+    DBUG_DUMP("value", (uchar*)aValuePassed, len);
 
   int tReturnCode;
   Uint32 tAttrId;
