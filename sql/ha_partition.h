@@ -531,6 +531,7 @@ public:
     underlying handlers must have the same implementation for it to work.
   */
   virtual uint8 table_cache_type();
+  virtual ha_rows records();
 
   /*
     -------------------------------------------------------------------------
