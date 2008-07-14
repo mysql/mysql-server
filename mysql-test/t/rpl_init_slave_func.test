@@ -73,8 +73,7 @@ sync_with_master;
 
 SET @@global.init_slave = "SET @a=5";
 
-stop slave;
---wait_for_slave_to_stop
+source include/stop_slave.inc;
 reset slave;
 # Clean up old test tables
 --disable_warnings

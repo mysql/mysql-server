@@ -57,8 +57,7 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
 connect(slave,127.0.0.1,root,,test,$SLAVE_MYPORT2);
 STOP SLAVE;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-START SLAVE;
---source include/wait_for_slave_to_start.inc
+source include/start_slave.inc;
 disconnect slave;
 --connection master_c
 INSERT INTO t1 VALUES(6,'C',2);
@@ -67,9 +66,7 @@ INSERT INTO t1 VALUES(6,'C',2);
 INSERT INTO t1(b,c) VALUES('B',2);
 # Wait while C will stop.
 --connection master_c
---let $slave_param= Slave_SQL_Running
---let $slave_param_value= No
---source include/wait_for_slave_param.inc
+source include/wait_for_slave_sql_to_stop.inc;
 --connection master_a
 INSERT INTO t1(b,c) VALUES('A',2);
 --connection master_d
@@ -105,8 +102,7 @@ STOP SLAVE;
 --replace_result $SLAVE_MYPORT MASTER_B_PORT $file_c LOG_FILE $pos_c LOG_POS 
 --eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$SLAVE_MYPORT,master_user='root',master_log_file='$file_c',master_log_pos=$pos_c
 connect(slave,127.0.0.1,root,,test,$SLAVE_MYPORT2);
-START SLAVE;
---source include/wait_for_slave_to_start.inc
+source include/start_slave.inc;
 disconnect slave;
 --connection master_b
 --sync_slave_with_master master_d
@@ -154,8 +150,7 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
 # distributed to other servers
 --echo * Remove wrong event from C and restore B->C->D *
 --connection master_d
-STOP SLAVE;
---wait_for_slave_to_stop
+source include/stop_slave.inc;
 --connection master_c
 DELETE FROM t1 WHERE a = 6;
 START SLAVE;

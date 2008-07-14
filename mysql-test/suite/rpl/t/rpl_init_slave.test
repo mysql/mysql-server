@@ -7,33 +7,25 @@ source include/master-slave.inc;
 set global max_connections=151;
 
 connection slave;
-stop slave;
-source include/wait_for_slave_to_stop.inc;
-start slave;
-source include/wait_for_slave_to_start.inc;
+source include/stop_slave.inc;
+source include/start_slave.inc;
 
 connection master;
-save_master_pos;
-connection slave;
+sync_slave_with_master;
 show variables like 'init_slave';
 show variables like 'max_connections';
-sync_with_master;
 reset master;
 connection master;
 show variables like 'init_slave';
 show variables like 'max_connections';
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 # Save variable value
 set @my_global_init_connect= @@global.init_connect;
 set global init_connect="set @c=1";
 show variables like 'init_connect';
 connection master;
-save_master_pos;
-connection slave;
-sync_with_master;
-stop slave;
+sync_slave_with_master;
+source include/stop_slave.inc;
 
 # Restore changed global variable
 set global init_connect= @my_global_init_connect;

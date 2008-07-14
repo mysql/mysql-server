@@ -16,6 +16,6 @@ INSERT INTO t1 VALUES (1);
 [on slave]
 Last_SQL_Error = Error 'Table 'test.t1' doesn't exist' on opening tables
 ==== Clean up ====
-STOP SLAVE;
+include/stop_slave.inc
 [on master]
 DROP TABLE t1;

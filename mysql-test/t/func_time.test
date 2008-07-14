@@ -606,6 +606,7 @@ select time_format('100:00:00', '%H %k %h %I %l');
 # Bug #12562: Make SYSDATE behave like it does in Oracle: always the current
 #             time, regardless of magic to make NOW() always the same for the
 #             entirety of a statement.
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
 create table t1 (a timestamp default '2005-05-05 01:01:01',
@@ -656,6 +657,7 @@ end;
 delimiter ;//
 call t_sysdate();
 drop procedure t_sysdate;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
 #
 # Bug #13534: timestampdiff() returned incorrect results across leap years
