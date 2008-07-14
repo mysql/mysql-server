@@ -591,7 +591,7 @@ sp_head::init_strings(THD *thd, LEX *lex)
   const char *endp;                  /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
-  Lex_input_stream *lip=thd->m_lip;
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
 
   if (m_param_begin && m_param_end)
   {
