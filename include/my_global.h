@@ -533,8 +533,12 @@ C_MODE_END
 #undef DBUG_OFF
 #endif
 
-#if defined(_lint) && !defined(DBUG_OFF)
-#define DBUG_OFF
+/* We might be forced to turn debug off, if not turned off already */
+#if (defined(FORCE_DBUG_OFF) || defined(_lint)) && !defined(DBUG_OFF)
+#  define DBUG_OFF
+#  ifdef DBUG_ON
+#    undef DBUG_ON
+#  endif
 #endif
 
 #include <my_dbug.h>
@@ -980,7 +984,7 @@ typedef int		myf;	/* Type of MyFlags in my_funcs */
 typedef char		byte;	/* Smallest addressable unit */
 #endif
 typedef char		my_bool; /* Small bool */
-#if !defined(bool) && !defined(bool_defined) && (!defined(HAVE_BOOL) || !defined(__cplusplus))
+#if !defined(bool) && (!defined(HAVE_BOOL) || !defined(__cplusplus))
 typedef char		bool;	/* Ordinary boolean values 0 1 */
 #endif
 	/* Macros for converting *constants* to the right type */

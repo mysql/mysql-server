@@ -9,20 +9,25 @@ DROP DATABASE IF EXISTS db_storedproc_1;
 CREATE DATABASE db_storedproc;
 CREATE DATABASE db_storedproc_1;
 USE db_storedproc;
-create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t1;
-create table t2(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t2;
-create table t3(f1 char(20),f2 char(20),f3 integer) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t3.txt' into table t3;
-create table t4(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t4;
+create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t1;
+create table t2(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t2;
+create table t3(f1 char(20),f2 char(20),f3 integer) engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t3.txt' into table t3;
+create table t4(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t4;
 USE db_storedproc_1;
-create table t6(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t6;
+create table t6(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t6;
 USE db_storedproc;
-create table t7 (f1 char(20), f2 char(25), f3 date, f4 int) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' into table t7;
+create table t7 (f1 char(20), f2 char(25), f3 date, f4 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t7;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -34,8 +39,9 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-create table t8 (f1 char(20), f2 char(25), f3 date, f4 int) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' into table t8;
+create table t8 (f1 char(20), f2 char(25), f3 date, f4 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t8;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -47,12 +53,14 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-create table t9(f1 int, f2 char(25), f3 int) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' into table t9;
-create table t10(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t10;
-create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = memory;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t11;
+create table t9(f1 int, f2 char(25), f3 int) engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t9.txt' into table t9;
+create table t10(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t10;
+create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t11;
 
 Section 3.1.2 - Syntax checks for the stored procedure-specific
 programming statements BEGIN/END, DECLARE, SET, SELECT/INTO, OPEN, FETCH, CLOSE:
@@ -164,7 +172,7 @@ declare y integer default 1;
 set @x = x;
 set @y = y;
 set @z = 234;
-SELECT f1, f2 into @x, @y from t2 limit 1;
+SELECT f1, f2 into @x, @y from t2 where f1='a`' and f2='a`' limit 1;
 SELECT @x, @y, @z, invar;
 BEGIN
 set @x = 2;
@@ -207,7 +215,7 @@ BEGIN
 declare x integer; declare y integer;
 set @x=x;
 set @y=y;
-SELECT f4, f3 into @x, @y from t2 limit 1;
+SELECT f4, f3 into @x, @y from t2 where f4=-5000 and f3='1000-01-01' limit 1;
 SELECT @x, @y;
 END//
 CALL sp1();
@@ -695,7 +703,7 @@ Testcase 3.1.2.54:
 ------------------
 
 Ensure that a handler with a condition defined with an SQLSTATE that begins with
-“01“ is always exactly equivalent in action to a handler with an SQLWARNING
+Â“01Â“ is always exactly equivalent in action to a handler with an SQLWARNING
 condition.
 --------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp0;
@@ -794,7 +802,7 @@ Testcase 3.1.2.56:
 ------------------
 
 Ensure that a handler with a condition defined with an SQLSTATE that begins with
-“02“ is always exactly equivalent in action to a handler with a NOT FOUND
+Â“02Â“ is always exactly equivalent in action to a handler with a NOT FOUND
 condition.
 --------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp0;
@@ -902,7 +910,7 @@ Testcase 3.1.2.58:
 ------------------
 
 Ensure that a handler with a condition defined with an SQLSTATE that begins with
-anything other that “01“ or “02“ is always exactly equivalent in action to a
+anything other that Â“01Â“ or Â“02Â“ is always exactly equivalent in action to a
 handler with an SQLEXCEPTION condition.
 --------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp0;
@@ -1082,7 +1090,8 @@ declare f2_value char(20);
 declare f5_value char(20);
 declare f4_value integer;
 declare f6_value integer;
-declare cur1 cursor for SELECT f1, f2, f4, f5, f6 from t2 limit 3;
+declare cur1 cursor for SELECT f1, f2, f4, f5, f6 from t2
+where f4 >=-5000 order by f4 limit 3;
 open cur1;
 while proceed do
 SELECT count AS 'loop';
@@ -1165,7 +1174,7 @@ of a compound statement ends.
 DROP TABLE IF EXISTS temp1;
 DROP PROCEDURE IF EXISTS sp1;
 create table temp1( f0 char(20), f1 char(20), f2 char(20), f3 int, f4 char(20) );
-SELECT f1, f2, f4, f5 from t2;
+SELECT f1, f2, f4, f5 from t2 order by f4;
 f1	f2	f4	f5
 a`	a`	-5000	a`
 aaa	aaa	-4999	aaa
@@ -1185,8 +1194,8 @@ declare newf1 char(20);
 declare newf2 char(20);
 declare newf5 char(20);
 declare newf4 integer;
-declare cur1 cursor for SELECT f1, f2, f4, f5 from t2 limit 5;
-declare cur2 cursor for SELECT f1, f2, f4, f5 from t2 limit 5;
+declare cur1 cursor for SELECT f1, f2, f4, f5 from t2 where f4 >= -5000 order by f4 limit 5;
+declare cur2 cursor for SELECT f1, f2, f4, f5 from t2 where f4 >= -5000 order by f4 limit 5;
 open cur1;
 open cur2;
 BEGIN
@@ -1268,8 +1277,10 @@ declare i_newf11 char(20);
 declare i_newf12 char(20);
 declare i_newf13 date;
 declare i_newf14 integer;
-declare cur1 cursor for SELECT f1, f2, f3, f4 from t2 limit 4;
-declare cur2 cursor for SELECT f1, f2, f3, f4 from t2 limit 3;
+declare cur1 cursor for SELECT f1, f2, f3, f4 from t2
+where f4>=-5000 order by f4 limit 4;
+declare cur2 cursor for SELECT f1, f2, f3, f4 from t2
+where f4>=-5000 order by f4 limit 3;
 declare continue handler for sqlstate '02000' set proceed=0;
 open cur1;
 open cur2;
@@ -1300,8 +1311,10 @@ DECLARE o_newf11 CHAR(20);
 DECLARE o_newf12 CHAR(20);
 DECLARE o_newf13 DATE;
 DECLARE o_newf14 INTEGER;
-DECLARE cur1 CURSOR FOR SELECT f1, f2, f3, f4 FROM t2 LIMIT 5;
-DECLARE cur2 CURSOR FOR SELECT f1, f2, f3, f4 FROM t2 LIMIT 5;
+DECLARE cur1 CURSOR FOR SELECT f1, f2, f3, f4 FROM t2
+WHERE f4>=-5000 ORDER BY f4 LIMIT 5;
+DECLARE cur2 CURSOR FOR SELECT f1, f2, f3, f4 FROM t2
+WHERE f4>=-5000 ORDER BY f4 LIMIT 5;
 DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET proceed=0;
 OPEN cur1;
 OPEN cur2;

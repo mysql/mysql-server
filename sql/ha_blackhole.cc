@@ -115,7 +115,7 @@ const char *ha_blackhole::index_type(uint key_number)
 int ha_blackhole::write_row(byte * buf)
 {
   DBUG_ENTER("ha_blackhole::write_row");
-  DBUG_RETURN(0);
+  DBUG_RETURN(table->next_number_field ? update_auto_increment() : 0);
 }
 
 int ha_blackhole::rnd_init(bool scan)

@@ -49,7 +49,7 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
   {
     DBUG_PRINT("error",("page %lu had wrong page length: %u",
 			(ulong) page, page_size));
-    DBUG_DUMP("page", (char*) tmp, keyinfo->block_length);
+    DBUG_DUMP("page", (uchar*) tmp, keyinfo->block_length);
     info->last_keypage = HA_OFFSET_ERROR;
     mi_print_error(info->s, HA_ERR_CRASHED);
     my_errno = HA_ERR_CRASHED;
@@ -80,7 +80,7 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     DBUG_RETURN((-1));
   }
   DBUG_PRINT("page",("write page at: %lu",(long) page));
-  DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
+  DBUG_DUMP("buff",(uchar*) buff,mi_getint(buff));
 #endif
 
   if ((length=keyinfo->block_length) > IO_SIZE*2 &&

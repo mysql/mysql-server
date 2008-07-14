@@ -3660,5 +3660,23 @@ DROP TABLE t1;
 # -- End of test case for Bug#34337.
 
 # -----------------------------------------------------------------
+# -- Bug#35193: VIEW query is rewritten without "FROM DUAL",
+# --            causing syntax error
+# -----------------------------------------------------------------
+
+CREATE VIEW v1 AS SELECT 1 FROM DUAL WHERE 1;
+
+SELECT * FROM v1;
+1
+1
+SHOW CREATE TABLE v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1` from DUAL  where 1
+
+DROP VIEW v1;
+
+# -- End of test case for Bug#35193.
+
+# -----------------------------------------------------------------
 # -- End of 5.0 tests.
 # -----------------------------------------------------------------

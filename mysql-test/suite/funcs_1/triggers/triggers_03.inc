@@ -1,8 +1,16 @@
+#### suite/funcs_1/triggers/triggers_03.inc
 #======================================================================
 #
 # Trigger Tests
 # (test case numbering refer to requirement document TP v1.1)
 #======================================================================
+
+# This test cannot be used for the embedded server because we check here
+# privilgeges.
+--source include/not_embedded.inc
+
+USE test;
+--source suite/funcs_1/include/tb3.inc
 
 --disable_abort_on_error
 
@@ -20,6 +28,7 @@ let $message= Testcase 3.5.3:;
 	--enable_warnings
 	create database priv_db;
 	use priv_db;
+        --replace_result $engine_type <engine_to_be_used>
 	eval create table t1 (f1 char(20)) engine= $engine_type;
 
 	create User test_noprivs@localhost;
@@ -63,14 +72,14 @@ let $message= Testcase 3.5.3.2:;
         select current_user;
 	use priv_db;
 
-	--error 1227
+	--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 	create trigger trg1_1 before INSERT on t1 for each row
 		set new.f1 = 'trig 3.5.3.2_1-no';
 
 	connection default;
 	use priv_db;
 	insert into t1 (f1) values ('insert 3.5.3.2-no');
-	select f1 from t1;
+	select f1 from t1 order by f1;
 
 	connection yes_privs;
         select current_user;
@@ -83,29 +92,27 @@ let $message= Testcase 3.5.3.2:;
         select current_user;
 	use priv_db;
 
-        # Added following the fix to bug 5861
-	--error 1143
+        --error ER_COLUMNACCESS_DENIED_ERROR
 	insert into t1 (f1) values ('insert 3.5.3.2-yes');
-	select f1 from t1;
-	grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
-let $message= note: once 15166 is fixed a similar case for SELECT needs to be added;
---source include/show_msg.inc
+	select f1 from t1 order by f1;
 
-	insert into t1 (f1) values ('insert 3.5.3.2-yes');
-	select f1 from t1;
+        grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
+        insert into t1 (f1) values ('insert 3.5.3.2-yes');
+        select f1 from t1 order by f1;
+
 let $message= Testcase 3.5.3.6:;
 --source include/show_msg.inc
 
 	connection no_privs;
 	use priv_db;
 
-	--error 1227
+	--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 	drop trigger trg1_2;
 
 	connection default;
 	use priv_db;
 	insert into t1 (f1) values ('insert 3.5.3.6-yes');
-	select f1 from t1;
+	select f1 from t1 order by f1;
 
 	connection yes_privs;
 	use priv_db;
@@ -115,12 +122,12 @@ let $message= Testcase 3.5.3.6:;
 	connection default;
 	use priv_db;
 	insert into t1 (f1) values ('insert 3.5.3.6-no');
-	select f1 from t1;
+	select f1 from t1 order by f1;
 
 # Cleanup
 	--disable_warnings
 	connection default;
-	--error 0, 1360
+	--error 0, ER_TRG_DOES_NOT_EXIST
 	drop trigger trg1_2;
 	disconnect no_privs;
 	disconnect yes_privs;
@@ -131,8 +138,6 @@ let $message= Testcase 3.5.3.6:;
 # Test case: Ensure that use of the construct "SET NEW. <column name> = <value>"
 #            fails at CREATE TRIGGER time, if the current user does not have the
 #            UPDATE privilege on the column specified
-# Note: As a result of bug 8884 the triggers are actually created.
-#       Disabled because of bug 8884
 
 # --- 3.5.3.7a - Privs set on a global level
 let $message=Testcase 3.5.3.7a:;
@@ -156,18 +161,15 @@ let $message=Testcase 3.5.3.7a:;
 	select current_user;
 	use priv_db;
 	show grants;
-	select f1 from t1;
+	select f1 from t1 order by f1;
 
-let $message= Trigger create disabled - should fail - Bug 8884;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg4a_1 before INSERT on t1 for each row
-#		set new.f1 = 'trig 3.5.3.7-1a';
+	create trigger trg4a_1 before INSERT on t1 for each row
+		set new.f1 = 'trig 3.5.3.7-1a';
 
 	connection default;
+	--error ER_COLUMNACCESS_DENIED_ERROR
 	insert into t1 (f1) values ('insert 3.5.3.7-1a');
-	select f1 from t1;
-	--error 0, 1360
+	select f1 from t1 order by f1;
 	drop trigger trg4a_1;
 
 	connection yes_privs_424a;
@@ -179,14 +181,8 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 
-
-        # Added to bypass bug 15166
-let $message= SELECT priv added to bypass bug 15166;
---source include/show_msg.inc
-	grant SELECT on *.* to test_yesprivs@localhost;
-
 	insert into t1 (f1) values ('insert 3.5.3.7-2b');
-	select f1 from t1;
+	select f1 from t1 order by f1;
 
 # Cleanup
 	--disable_warnings
@@ -220,18 +216,14 @@ let $message= Testcase 3.5.3.7b:;
 	show grants;
 	use priv_db;
 
-let $message= Trigger create disabled - should fail - Bug 8884;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg4b_1 before UPDATE on t1 for each row
-#		set new.f1 = 'trig 3.5.3.7-1b';
+	create trigger trg4b_1 before UPDATE on t1 for each row
+		set new.f1 = 'trig 3.5.3.7-1b';
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1b');
-	select f1 from t1;
+	select f1 from t1 order by f1;
 	update t1 set  f1 = 'update 3.5.3.7-1b' where f1 = 'insert 3.5.3.7-1b';
-	select f1 from t1;
-	--error 0, 1360
+	select f1 from t1 order by f1;
 	drop trigger trg4b_1;
 
 	connection yes_privs_424b;
@@ -242,15 +234,10 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 
-        # Added to bypass bug 15166
-let $message= SELECT priv added to bypass bug 15166;
---source include/show_msg.inc
-	grant SELECT on priv_db.* to test_yesprivs@localhost;
-
 	insert into t1 (f1) values ('insert 3.5.3.7-2b');
-	select f1 from t1;
+	select f1 from t1 order by f1;
 	update t1 set  f1 = 'update 3.5.3.7-2b' where f1 = 'insert 3.5.3.7-2b';
-	select f1 from t1;
+	select f1 from t1 order by f1;
 # Cleanup
 	--disable_warnings
 	drop trigger trg4b_2;
@@ -283,16 +270,12 @@ let $message= Testcase 3.5.3.7c;
 	show grants;
 	use priv_db;
 
-let $message= Trigger create disabled - should fail - Bug 8884;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg4c_1 before INSERT on t1 for each row
-#		set new.f1 = 'trig 3.5.3.7-1c';
+	create trigger trg4c_1 before INSERT on t1 for each row
+		set new.f1 = 'trig 3.5.3.7-1c';
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1c');
-	select f1 from t1;
-	--error 0, 1360
+	select f1 from t1 order by f1;
 	drop trigger trg4c_1;
 
 	connection yes_privs_424c;
@@ -303,13 +286,8 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 
-        # Added to bypass bug 15166
-let $message= SELECT priv added to bypass bug 15166;
---source include/show_msg.inc
-	grant SELECT on priv_db.t1 to test_yesprivs@localhost;
-
 	insert into t1 (f1) values ('insert 3.5.3.7-2c');
-	select f1 from t1;
+	select f1 from t1 order by f1;
 
 # Cleanup
 	--disable_warnings
@@ -344,16 +322,12 @@ let $message= Testcase 3.5.3.7d:;
 	connection no_privs_424d;
 	show grants;
 	use priv_db;
-let $message= Trigger create disabled - should fail - Bug 8884;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg4d_1 before INSERT on t1 for each row
-#		set new.f1 = 'trig 3.5.3.7-1d';
+	create trigger trg4d_1 before INSERT on t1 for each row
+		set new.f1 = 'trig 3.5.3.7-1d';
 
 	connection default;
 	insert into t1 (f1) values ('insert 3.5.3.7-1d');
-	select f1 from t1;
-	--error 0, 1360
+	select f1 from t1 order by f1;
 	drop trigger trg4d_1;
 
 	connection yes_privs_424d;
@@ -364,13 +338,8 @@ let $message= Trigger create disabled - should fail - Bug 8884;
 
 	connection default;
 
-        # Added to bypass bug 15166
-let $message= SELECT priv added to bypass bug 15166;
---source include/show_msg.inc
-	grant SELECT (f1) on priv_db.t1 to test_yesprivs@localhost;
-
 	insert into t1 (f1) values ('insert 3.5.3.7-2d');
-	select f1 from t1;
+	select f1 from t1 order by f1;
 
 # Cleanup
 	--disable_warnings
@@ -408,18 +377,14 @@ let $message= Testcase 3.5.3.8a:;
 	use priv_db;
 	show grants;
 
-let $message= Trigger create disabled - should fail - Bug 8887;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg5a_1 before INSERT on t1 for each row
-#		set @test_var = new.f1;
+	create trigger trg5a_1 before INSERT on t1 for each row
+		set @test_var = new.f1;
 
 	connection default;
         set @test_var = 'before trig 3.5.3.8-1a';
 	select @test_var;
 	insert into t1 (f1) values ('insert 3.5.3.8-1a');
 	select @test_var;
-	--error 0, 1360
 	drop trigger trg5a_1;
 
 	connection yes_privs_425a;
@@ -432,11 +397,6 @@ let $message= Trigger create disabled - should fail - Bug 8887;
 	connection default;
         set @test_var= 'before trig 3.5.3.8-2a';
 	select @test_var;
-
-        # Added to bypass bug 15166
-let $message= UPDATE priv added to bypass bug 15166;
---source include/show_msg.inc
-	grant UPDATE on *.* to test_yesprivs@localhost;
 
 	insert into t1 (f1) values ('insert 3.5.3.8-2a');
 	select @test_var;
@@ -473,11 +433,8 @@ let $message= Testcase: 3.5.3.8b;
 	show grants;
 	use priv_db;
 
-let $message= Trigger create disabled - should fail - Bug 8887;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg5b_1 before UPDATE on t1 for each row
-#		set @test_var= new.f1;
+	create trigger trg5b_1 before UPDATE on t1 for each row
+		set @test_var= new.f1;
 
 	connection default;
         set @test_var= 'before trig 3.5.3.8-1b';
@@ -485,7 +442,6 @@ let $message= Trigger create disabled - should fail - Bug 8887;
 	select @test_var;
 	update t1 set  f1= 'update 3.5.3.8-1b' where f1 = 'insert 3.5.3.8-1b';
 	select @test_var;
-	--error 0, 1360
 	drop trigger trg5b_1;
 
 	connection yes_privs_425b;
@@ -498,11 +454,6 @@ let $message= Trigger create disabled - should fail - Bug 8887;
         set @test_var= 'before trig 3.5.3.8-2b';
 	insert into t1 (f1) values ('insert 3.5.3.8-2b');
 	select @test_var;
-
-        # Added to bypass bug 15166
-let $message= UPDATE priv added to bypass bug 15166;
---source include/show_msg.inc
-	grant UPDATE on priv_db.* to test_yesprivs@localhost;
 
 	update t1 set  f1= 'update 3.5.3.8-2b' where f1 = 'insert 3.5.3.8-2b';
 	select @test_var;
@@ -538,17 +489,13 @@ let $message= Testcase 3.5.3.8c:;
 	show grants;
 	use priv_db;
 
-let $message= Trigger create disabled - should fail - Bug 8887;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg5c_1 before INSERT on t1 for each row
-#		set @test_var= new.f1;
+	create trigger trg5c_1 before INSERT on t1 for each row
+		set @test_var= new.f1;
 
 	connection default;
         set @test_var= 'before trig 3.5.3.8-1c';
 	insert into t1 (f1) values ('insert 3.5.3.8-1c');
 	select @test_var;
-	--error 0, 1360
 	drop trigger trg5c_1;
 
 	connection yes_privs_425c;
@@ -559,11 +506,6 @@ let $message= Trigger create disabled - should fail - Bug 8887;
 
 	connection default;
         set @test_var='before trig 3.5.3.8-2c';
-
-        # Added to bypass bug 15166
-let $message= UPDATE priv added to bypass bug 15166;
---source include/show_msg.inc
-	grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
 
 	insert into t1 (f1) values ('insert 3.5.3.8-2c');
 	select @test_var;
@@ -598,17 +540,13 @@ let $message=Testcase: 3.5.3.8d:;
 	connection no_privs_425d;
 	show grants;
 	use priv_db;
-let $message= Trigger create disabled - should fail - Bug 8887;
---source include/show_msg.inc
-#	--error 1227
-#	create trigger trg5d_1 before INSERT on t1 for each row
-#		set @test_var= new.f1;
+	create trigger trg5d_1 before INSERT on t1 for each row
+		set @test_var= new.f1;
 
 	connection default;
         set @test_var='before trig 3.5.3.8-1d';
 	insert into t1 (f1) values ('insert 3.5.3.8-1d');
 	select @test_var;
-	--error 0, 1360
 	drop trigger trg5d_1;
 
 	connection yes_privs_425d;
@@ -620,11 +558,6 @@ let $message= Trigger create disabled - should fail - Bug 8887;
 	connection default;
         set @test_var='before trig 3.5.3.8-2d';
 
-        # Added to bypass bug 15166
-let $message= UPDATE priv added to bypass bug 15166;
---source include/show_msg.inc
-	grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
-
 	insert into t1 (f1) values ('insert 3.5.3.8-2d');
 	select @test_var;
 
@@ -633,8 +566,7 @@ let $message= UPDATE priv added to bypass bug 15166;
 	drop trigger trg5d_2;
 	--enable_warnings
 
-# --- 3.5.3.x - additional tests following the fix to bug 5861 / WL 2818
-#               to test for trigger definer privs in the case of trigger
+# --- 3.5.3.x   to test for trigger definer privs in the case of trigger
 #               actions (insert/update/delete/select) performed on other
 #               tables.
 let $message=Testcase: 3.5.3.x:;
@@ -646,7 +578,9 @@ let $message=Testcase: 3.5.3.x:;
         drop table if exists t2;
         --enable_warnings
 
+        --replace_result $engine_type <engine_to_be_used>
         eval create table t1 (f1 int) engine= $engine_type;
+        --replace_result $engine_type <engine_to_be_used>
         eval create table t2 (f2 int) engine= $engine_type;
 
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
@@ -671,8 +605,8 @@ let $message=Testcase: 3.5.3.x:;
 	revoke SELECT on priv_db.t2 from test_yesprivs@localhost;
 	grant INSERT on priv_db.t2 to test_yesprivs@localhost;
 	insert into t1 (f1) values (4);
-	select f1 from t1;
-	select f2 from t2;
+	select f1 from t1 order by f1;
+	select f2 from t2 order by f2;
 
 	connection yes_353x;
 	use priv_db;
@@ -687,8 +621,8 @@ let $message=Testcase: 3.5.3.x:;
 	revoke INSERT on priv_db.t2 from test_yesprivs@localhost;
 	grant UPDATE on priv_db.t2 to test_yesprivs@localhost;
 	insert into t1 (f1) values (2);
-	select f1 from t1;
-	select f2 from t2;
+	select f1 from t1 order by f1;
+	select f2 from t2 order by f2;
 
 	connection yes_353x;
 	use priv_db;
@@ -703,8 +637,8 @@ let $message=Testcase: 3.5.3.x:;
 	revoke UPDATE on priv_db.t2 from test_yesprivs@localhost;
 	grant SELECT on priv_db.t2 to test_yesprivs@localhost;
 	insert into t1 (f1) values (1);
-	select f1 from t1;
-	select f2 from t2;
+	select f1 from t1 order by f1;
+	select f2 from t2 order by f2;
         select @aaa;
 
 	connection yes_353x;
@@ -720,8 +654,8 @@ let $message=Testcase: 3.5.3.x:;
 	revoke SELECT on priv_db.t2 from test_yesprivs@localhost;
 	grant DELETE on priv_db.t2 to test_yesprivs@localhost;
 	insert into t1 (f1) values (1);
-	select f1 from t1;
-	select f2 from t2;
+	select f1 from t1 order by f1;
+	select f2 from t2 order by f2;
 
 
 
@@ -733,3 +667,5 @@ let $message=Testcase: 3.5.3.x:;
 	drop user test_noprivs;
 	--enable_warnings
 
+use test;
+drop table tb3;

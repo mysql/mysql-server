@@ -11675,7 +11675,7 @@ static void test_bug5194()
                         MAX_PARAM_COUNT * CHARS_PER_PARAM + 1);
   param_str= (char*) malloc(COLUMN_COUNT * CHARS_PER_PARAM);
 
-  if (bind == 0 || query == 0 || param_str == 0)
+  if (my_bind == 0 || query == 0 || param_str == 0)
   {
     fprintf(stderr, "Can't allocate enough memory for query structs\n");
     if (my_bind)
@@ -16596,7 +16596,6 @@ int main(int argc, char **argv)
 {
   struct my_tests_st *fptr;
 
-  DEBUGGER_OFF;
   MY_INIT(argv[0]);
 
   load_defaults("my", client_test_load_default_groups, &argc, &argv);

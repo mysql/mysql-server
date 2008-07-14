@@ -677,7 +677,7 @@ int ha_ndbcluster::set_ndb_key(NdbOperation *ndb_op, Field *field,
   DBUG_PRINT("enter", ("%d: %s, ndb_type: %u, len=%d", 
                        fieldnr, field->field_name, field->type(),
                        pack_len));
-  DBUG_DUMP("key", (char*)field_ptr, pack_len);
+  DBUG_DUMP("key", (uchar*)field_ptr, pack_len);
   
   DBUG_ASSERT(ndb_supported_type(field->type()));
   DBUG_ASSERT(! (field->flags & BLOB_FLAG));
@@ -699,7 +699,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
   DBUG_PRINT("enter", ("%d: %s, type: %u, len=%d, is_null=%s", 
                        fieldnr, field->field_name, field->type(), 
                        pack_len, field->is_null()?"Y":"N"));
-  DBUG_DUMP("value", (char*) field_ptr, pack_len);
+  DBUG_DUMP("value", (uchar*) field_ptr, pack_len);
 
   DBUG_ASSERT(ndb_supported_type(field->type()));
   {
@@ -737,7 +737,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
           // Set value to NULL
           DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL, pack_len) != 0));
         DBUG_PRINT("info", ("bit field"));
-        DBUG_DUMP("value", (char*)&bits, pack_len);
+        DBUG_DUMP("value", (uchar*)&bits, pack_len);
 #ifdef WORDS_BIGENDIAN
         /* store lsw first */
         bits = ((bits >> 32) & 0x00000000FFFFFFFFLL)
@@ -768,7 +768,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
 
       DBUG_PRINT("value", ("set blob ptr: %p  len: %u",
                            blob_ptr, blob_len));
-      DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
+      DBUG_DUMP("value", (uchar*)blob_ptr, min(blob_len, 26));
 
       if (set_blob_value)
         *set_blob_value= TRUE;
@@ -1007,8 +1007,8 @@ int ha_ndbcluster::get_metadata(const char *path)
                    ("metadata, pack_length: %d getFrmLength: %d memcmp: %d", 
                     pack_length, tab->getFrmLength(),
                     memcmp(pack_data, tab->getFrmData(), pack_length)));      
-        DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
-        DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
+        DBUG_DUMP("pack_data", (uchar*)pack_data, pack_length);
+        DBUG_DUMP("frm", (uchar*)tab->getFrmData(), tab->getFrmLength());
         error= 3;
         invalidating_ndb_table= FALSE;
       }
@@ -1502,7 +1502,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
   int res;
   DBUG_ENTER("pk_read");
   DBUG_PRINT("enter", ("key_len: %u", key_len));
-  DBUG_DUMP("key", (char*)key, key_len);
+  DBUG_DUMP("key", (uchar*)key, key_len);
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
@@ -1514,7 +1514,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
   {
     // This table has no primary key, use "hidden" primary key
     DBUG_PRINT("info", ("Using hidden key"));
-    DBUG_DUMP("key", (char*)key, 8);    
+    DBUG_DUMP("key", (uchar*)key, 8);    
     if (set_hidden_key(op, no_fields, key))
       ERR_RETURN(trans->getNdbError());
     
@@ -1797,7 +1797,7 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   NdbIndexOperation *op;
   DBUG_ENTER("ha_ndbcluster::unique_index_read");
   DBUG_PRINT("enter", ("key_len: %u, index: %u", key_len, active_index));
-  DBUG_DUMP("key", (char*)key, key_len);
+  DBUG_DUMP("key", (uchar*)key, key_len);
   
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
@@ -2126,7 +2126,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
       {
         DBUG_PRINT("info", ("key %d:%d offset=%d length=%d last=%d bound=%d",
                             j, i, tot_len, part_len, p.part_last, p.bound_type));
-        DBUG_DUMP("info", (const char*)p.part_ptr, part_store_len);
+        DBUG_DUMP("info", (const uchar*)p.part_ptr, part_store_len);
 
         // Set bound if not cancelled via type -1
         if (p.bound_type != -1)
@@ -2644,7 +2644,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       
       // Require that the PK for this record has previously been 
       // read into m_ref
-      DBUG_DUMP("key", m_ref, NDB_HIDDEN_PRIMARY_KEY_LENGTH);
+      DBUG_DUMP("key", (uchar *)m_ref, NDB_HIDDEN_PRIMARY_KEY_LENGTH);
       
       if (set_hidden_key(op, table->s->fields, m_ref))
         ERR_RETURN(op->getNdbError());
@@ -2864,8 +2864,6 @@ void ha_ndbcluster::print_results()
   DBUG_ENTER("print_results");
 
 #ifndef DBUG_OFF
-  if (!_db_on_)
-    DBUG_VOID_RETURN;
 
   char buf_type[MAX_FIELD_WIDTH], buf_val[MAX_FIELD_WIDTH];
   String type(buf_type, sizeof(buf_type), &my_charset_bin);
@@ -3341,7 +3339,7 @@ void ha_ndbcluster::position(const byte *record)
     memcpy(ref, m_ref, ref_length);
   }
   
-  DBUG_DUMP("ref", (char*)ref, ref_length);
+  DBUG_DUMP("ref", (uchar*)ref, ref_length);
   DBUG_VOID_RETURN;
 }
 
@@ -6263,7 +6261,7 @@ static int packfrm(const void *data, uint len,
   }
 
   DBUG_PRINT("info", ("org_len: %lu  comp_len: %lu", org_len, comp_len));
-  DBUG_DUMP("compressed", (char*)data, org_len);
+  DBUG_DUMP("compressed", (uchar*)data, org_len);
   
   error= 2;
   blob_len= sizeof(frm_blob_struct::frm_blob_header)+org_len;
@@ -6307,7 +6305,7 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
  
    DBUG_PRINT("blob",("ver: %lu  complen: %lu  orglen: %lu",
                      ver,complen,orglen));
-   DBUG_DUMP("blob->data", (char*) blob->data, complen);
+   DBUG_DUMP("blob->data", (uchar*) blob->data, complen);
  
    if (ver != 1)
    {

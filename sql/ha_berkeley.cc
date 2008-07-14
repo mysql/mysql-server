@@ -467,7 +467,7 @@ berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
   uint key_length=new_key->size;
 
-  DBUG_DUMP("key_in_index", saved_key_ptr, saved_key->size);
+  DBUG_DUMP("key_in_index", (uchar *)saved_key_ptr, saved_key->size);
   for (; key_part != end && (int) key_length > 0; key_part++)
   {
     int cmp;
@@ -903,7 +903,7 @@ DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
     key_length-=key_part->length;
   }
   key->size= (u_int32_t) (buff  - (char*) key->data);
-  DBUG_DUMP("key",(char*) key->data, key->size);
+  DBUG_DUMP("key",(uchar*) key->data, key->size);
   DBUG_RETURN(key);
 }
 
@@ -947,7 +947,7 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
     key_length-=key_part->store_length;
   }
   key->size= (u_int32_t) (buff  - (char*) key->data);
-  DBUG_DUMP("key",(char*) key->data, key->size);
+  DBUG_DUMP("key",(uchar*) key->data, key->size);
   DBUG_RETURN(key);
 }
 
@@ -1705,7 +1705,7 @@ DBT *ha_berkeley::get_pos(DBT *to, byte *pos)
       pos+=key_part->field->packed_col_length((char*) pos,key_part->length);
     to->size= (uint) (pos- (byte*) to->data);
   }
-  DBUG_DUMP("key", (char*) to->data, to->size);
+  DBUG_DUMP("key", (uchar*) to->data, to->size);
   return to;
 }
 

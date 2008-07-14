@@ -1232,7 +1232,11 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     Item *item_having_part2= 0;
     for (uint i= 0; i < cols_num; i++)
     {
-      DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
+      DBUG_ASSERT(left_expr->fixed &&
+                  select_lex->ref_pointer_array[i]->fixed ||
+                  (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
+                   ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
+                    Item_ref::OUTER_REF));
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
@@ -1306,7 +1310,11 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     for (uint i= 0; i < cols_num; i++)
     {
       Item *item, *item_isnull;
-      DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
+      DBUG_ASSERT(left_expr->fixed &&
+                  select_lex->ref_pointer_array[i]->fixed ||
+                  (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
+                   ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
+                    Item_ref::OUTER_REF));
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
@@ -1434,6 +1442,19 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 
   DBUG_ENTER("Item_in_subselect::select_in_like_transformer");
 
+  {
+    /*
+      IN/SOME/ALL/ANY subqueries aren't support LIMIT clause. Without it
+      ORDER BY clause becomes meaningless thus we drop it here.
+    */
+    SELECT_LEX *sl= current->master_unit()->first_select();
+    for (; sl; sl= sl->next_select())
+    {
+      if (sl->join)
+        sl->join->order= 0;
+    }
+  }
+
   if (changed)
   {
     DBUG_RETURN(RES_OK);
@@ -1468,6 +1489,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 
   transformed= 1;
   arena= thd->activate_stmt_arena_if_needed(&backup);
+
   /*
     Both transformers call fix_fields() only for Items created inside them,
     and all that items do not make permanent changes in current item arena

@@ -550,6 +550,17 @@ static int do_send_query(struct st_connection *cn, const char *q, int q_len,
   return 0;
 }
 
+static void wait_query_thread_end(struct st_connection *con)
+{
+  if (!con->query_done)
+  {
+    pthread_mutex_lock(&con->mutex);
+    while (!con->query_done)
+      pthread_cond_wait(&con->cond, &con->mutex);
+    pthread_mutex_unlock(&con->mutex);
+  }
+}
+
 #else /*EMBEDDED_LIBRARY*/
 
 #define do_send_query(cn,q,q_len,flags) mysql_send_query(&cn->mysql, q, q_len)
@@ -1525,7 +1536,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   DBUG_ENTER("dyn_string_cmp");
   DBUG_PRINT("enter", ("fname: %s", fname));
 
-  if ((fd= create_temp_file(temp_file_path, NULL,
+  if ((fd= create_temp_file(temp_file_path, TMPDIR,
                             "tmp", O_CREAT | O_SHARE | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for ds");
@@ -4071,7 +4082,14 @@ void do_close_connection(struct st_command *command)
       con->mysql.net.vio = 0;
     }
   }
-#endif
+#else
+  /*
+    As query could be still executed in a separate theread
+    we need to check if the query's thread was finished and probably wait
+    (embedded-server specific)
+  */
+  wait_query_thread_end(con);
+#endif /*EMBEDDED_LIBRARY*/
   if (con->stmt)
     mysql_stmt_close(con->stmt);
   con->stmt= 0;
@@ -4361,6 +4379,9 @@ void do_connect(struct st_command *command)
           (int) (sizeof(connections)/sizeof(struct st_connection)));
   }
 
+#ifdef EMBEDDED_LIBRARY
+  con_slot->query_done= 1;
+#endif
   if (!mysql_init(&con_slot->mysql))
     die("Failed on mysql_init()");
   if (opt_compress || con_compress)
@@ -5443,6 +5464,7 @@ void init_win_path_patterns()
   const char* paths[] = { "$MYSQL_TEST_DIR",
                           "$MYSQL_TMP_DIR",
                           "$MYSQLTEST_VARDIR",
+                          "$MASTER_MYSOCK",
                           "./test/" };
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
@@ -5848,16 +5870,11 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
   }
 #ifdef EMBEDDED_LIBRARY
   /*
-   Here we handle 'reap' command, so we need to check if the
-   query's thread was finished and probably wait
+    Here we handle 'reap' command, so we need to check if the
+    query's thread was finished and probably wait
   */
   else if (flags & QUERY_REAP_FLAG)
-  {
-    pthread_mutex_lock(&cn->mutex);
-    while (!cn->query_done)
-      pthread_cond_wait(&cn->cond, &cn->mutex);
-    pthread_mutex_unlock(&cn->mutex);
-  }
+    wait_query_thread_end(cn);
 #endif /*EMBEDDED_LIBRARY*/
   if (!(flags & QUERY_REAP_FLAG))
     DBUG_VOID_RETURN;

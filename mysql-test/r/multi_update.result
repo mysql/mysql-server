@@ -573,8 +573,8 @@ count(*)
 select count(*) from t3 /* must be 1 */;
 count(*)
 1
-show binlog events from 98;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	98	Query	1	#	use `test`; delete t3.* from t2,t3 where t2.a=t3.a
+master-bin.000001	#	Query	#	#	use `test`; delete t3.* from t2,t3 where t2.a=t3.a
 drop table t1, t2, t3;
 end of tests

@@ -3046,7 +3046,7 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
     The lock will automaticaly be freed by close_thread_tables()
 */
 
-bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   uint counter;
   bool need_reopen;

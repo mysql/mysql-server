@@ -130,7 +130,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	       (byte*) myisam_file_magic, 4))
     {
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
-      DBUG_DUMP("error_dump",(char*) share->state.header.file_version,
+      DBUG_DUMP("error_dump",(uchar*) share->state.header.file_version,
 		head_length);
       my_errno=HA_ERR_NOT_A_TABLE;
       goto err;

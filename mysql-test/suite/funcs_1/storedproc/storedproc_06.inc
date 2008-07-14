@@ -1,5 +1,9 @@
 #### suite/funcs_1/storedproc/storedproc_06.inc
-#
+
+# This test cannot be used for the embedded server because we check here
+# privileges.
+--source include/not_embedded.inc
+
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 
 # ==============================================================================
@@ -7,20 +11,29 @@
 #
 # 3.1.6 Privilege checks:
 #
-#  1. Ensure that no user may create a stored procedure without the GRANT CREATE ROUTINE privilege.
+#  1. Ensure that no user may create a stored procedure without the
+#     GRANT CREATE ROUTINE privilege.
 #  2. Ensure that root always has the GRANT CREATE ROUTINE privilege.
-#  3. Ensure that a user with the GRANT CREATE ROUTINE privilege can always create both a procedure and a function, on any appropriate database.
-#  4. Ensure that the default security provision of a stored procedure is SQL SECURITY DEFINER.
-#  5. Ensure that a stored procedure defined with SQL SECURITY DEFINER can be called/executed by any user, using only the privileges (including database access privileges) associated with the user who created the stored procedure.
-#  6. Ensure that a stored procedure defined with SQL SECURITY INVOKER can be called/executed by any user, using only the privileges (including database access privileges) associated with the user executing the stored procedure.
+#  3. Ensure that a user with the GRANT CREATE ROUTINE privilege can always
+#     create both a procedure and a function, on any appropriate database.
+#  4. Ensure that the default security provision of a stored procedure is
+#     SQL SECURITY DEFINER.
+#  5. Ensure that a stored procedure defined with SQL SECURITY DEFINER can be
+#     called/executed by any user, using only the privileges (including
+#     database access privileges) associated with the user who created
+#     the stored procedure.
+#  6. Ensure that a stored procedure defined with SQL SECURITY INVOKER can be
+#     called/executed by any user, using only the privileges (including
+#     database access privileges) associated with the user executing
+#     the stored procedure.
 #
 # ==============================================================================
 let $message= Section 3.1.6 - Privilege Checks:;
 --source include/show_msg80.inc
 
-USE db_storedproc_1;
 
 connection default;
+USE db_storedproc_1;
 --source suite/funcs_1/include/show_connection.inc
 
 # ------------------------------------------------------------------------------
@@ -47,7 +60,7 @@ connect (user1a, localhost, user_1, , db_storedproc_1);
 USE db_storedproc_1;
 
 delimiter //;
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 CREATE PROCEDURE sp1(v1 char(20))
 BEGIN
     SELECT * from db_storedproc_1.t6 where t6.f2= 'xyz';
@@ -58,6 +71,7 @@ disconnect user1a;
 
 # add privilege again and check
 connection default;
+USE db_storedproc_1;
 --source suite/funcs_1/include/show_connection.inc
 
 GRANT CREATE ROUTINE ON db_storedproc_1.* TO 'user_1'@'localhost';
@@ -77,6 +91,7 @@ disconnect user1b;
 
 # cleanup
 connection default;
+USE db_storedproc_1;
 --source suite/funcs_1/include/show_connection.inc
 
 DROP USER 'user_1'@'localhost';
@@ -132,6 +147,7 @@ disconnect user2;
 
 # cleanup
 connection default;
+USE db_storedproc_1;
 --source suite/funcs_1/include/show_connection.inc
 
 drop user 'user_1'@'localhost';
@@ -242,33 +258,33 @@ disconnect user5_1;
 connect (user5_2, localhost, user_2, , db_storedproc_1);
 --source suite/funcs_1/include/show_connection.inc
 
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_s_i();
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_ins();
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_sel();
 
 # now 'add' INSERT to DEFINER
 connection default;
 --source suite/funcs_1/include/show_connection.inc
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_sel();
 grant insert on db_storedproc_1.* to 'user_1'@'localhost';
 flush privileges;
 
 connection user5_2;
 --source suite/funcs_1/include/show_connection.inc
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_s_i();
 CALL sp5_ins();
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_sel();
 
 # now 'add' SELECT to DEFINER
 connection default;
 --source suite/funcs_1/include/show_connection.inc
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_sel();
 grant SELECT on db_storedproc_1.* to 'user_1'@'localhost';
 #grant execute on db_storedproc_1.* to 'user_2'@'localhost';
@@ -288,9 +304,9 @@ flush privileges;
 
 connection user5_2;
 --source suite/funcs_1/include/show_connection.inc
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_s_i();
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_ins();
 CALL sp5_sel();
 
@@ -302,11 +318,11 @@ flush privileges;
 
 connection user5_2;
 --source suite/funcs_1/include/show_connection.inc
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_s_i();
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_ins();
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp5_sel();
 
 # cleanup
@@ -373,9 +389,9 @@ disconnect user6_1;
 connect (user6_2, localhost, user_2, , db_storedproc_1);
 --source suite/funcs_1/include/show_connection.inc
 
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp3166_s_i();
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp3166_ins();
 CALL sp3166_sel();
 
@@ -405,10 +421,10 @@ FLUSH PRIVILEGES;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user6_4, localhost, user_2, , db_storedproc_1);
 --source suite/funcs_1/include/show_connection.inc
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp3166_s_i();
 CALL sp3166_ins();
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp3166_sel();
 disconnect user6_4;
 
@@ -422,11 +438,11 @@ FLUSH PRIVILEGES;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user6_5, localhost, user_2, , db_storedproc_1);
 --source suite/funcs_1/include/show_connection.inc
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 CALL sp3166_s_i();
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 CALL sp3166_ins();
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 CALL sp3166_sel();
 disconnect user6_5;
 
@@ -447,6 +463,7 @@ DROP USER 'user_2'@'localhost';
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 
 # ==============================================================================
-let $message= .                               +++ END OF SCRIPT +++;
---source include/show_msg80.inc
+--echo
+--echo .                               +++ END OF SCRIPT +++
+--echo --------------------------------------------------------------------------------
 # ==============================================================================

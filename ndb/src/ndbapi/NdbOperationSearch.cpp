@@ -62,7 +62,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
                        theOperationType,
                        (long) aValuePassed, aVariableKeyLen));
   if (aValuePassed != NULL)
-    DBUG_DUMP("value", (char*)aValuePassed, aVariableKeyLen);
+    DBUG_DUMP("value", (uchar*)aValuePassed, aVariableKeyLen);
   
   register Uint32 tAttrId;
 

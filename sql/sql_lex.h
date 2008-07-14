@@ -616,7 +616,16 @@ public:
     joins on the right.
   */
   List<String> *prev_join_using;
-
+  /*
+    Bitmap used in the ONLY_FULL_GROUP_BY_MODE to prevent mixture of aggregate
+    functions and non aggregated fields when GROUP BY list is absent.
+    Bits:
+      0 - non aggregated fields are used in this select,
+          defined as NON_AGG_FIELD_USED.
+      1 - aggregate functions are used in this select,
+          defined as SUM_FUNC_USED.
+  */
+  uint8 full_group_by_flag;
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();

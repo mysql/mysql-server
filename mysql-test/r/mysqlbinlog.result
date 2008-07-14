@@ -268,7 +268,7 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-CREATE DEFINER=`root`@`localhost` procedure p1()
+CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 begin
 select 1;
 end
