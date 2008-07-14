@@ -1263,9 +1263,13 @@ int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows) {
     *num_rows = equal + greater;
     error = 0;
 cleanup:
-    if (do_commit) {        
+    if (do_commit) {
         transaction->commit(transaction, 0);
         transaction = NULL;
+    }
+    if (crsr != NULL) {
+        crsr->c_close(crsr);
+        crsr = NULL;
     }
     return error;
 }
