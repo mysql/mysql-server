@@ -5,6 +5,10 @@
 ########################################
 
 -- source include/have_ndb.inc
+# range, list and hash partitioning in ndb requires new_mode
+--disable_query_log
+set new=on;
+--enable_query_log
 
 --disable_warnings
 DROP TABLE IF EXISTS test.t1;
