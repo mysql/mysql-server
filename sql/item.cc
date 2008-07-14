@@ -5013,21 +5013,28 @@ Item_bin_string::Item_bin_string(const char *str, uint str_length)
   if (!ptr)
     return;
   str_value.set(ptr, max_length, &my_charset_bin);
-  ptr+= max_length - 1;
-  ptr[1]= 0;                     // Set end null for string
-  for (; end >= str; end--)
+
+  if (max_length > 0)
   {
-    if (power == 256)
+    ptr+= max_length - 1;
+    ptr[1]= 0;                     // Set end null for string
+    for (; end >= str; end--)
     {
-      power= 1;
-      *ptr--= bits;
-      bits= 0;     
+      if (power == 256)
+      {
+        power= 1;
+        *ptr--= bits;
+        bits= 0;
+      }
+      if (*end == '1')
+        bits|= power;
+      power<<= 1;
     }
-    if (*end == '1')
-      bits|= power; 
-    power<<= 1;
+    *ptr= (char) bits;
   }
-  *ptr= (char) bits;
+  else
+    ptr[0]= 0;
+
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   fixed= 1;
 }
