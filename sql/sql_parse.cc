@@ -5875,29 +5875,35 @@ bool check_stack_overrun(THD *thd, long margin,
 
 bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 {
-  LEX	*lex= current_thd->lex;
+  Yacc_state *state= & current_thd->m_parser_state->m_yacc;
   ulong old_info=0;
+  DBUG_ASSERT(state);
   if ((uint) *yystacksize >= MY_YACC_MAX)
     return 1;
-  if (!lex->yacc_yyvs)
+  if (!state->yacc_yyvs)
     old_info= *yystacksize;
   *yystacksize= set_zone((*yystacksize)*2,MY_YACC_INIT,MY_YACC_MAX);
-  if (!(lex->yacc_yyvs= (char*)
-	my_realloc((gptr) lex->yacc_yyvs,
+  if (!(state->yacc_yyvs= (char*)
+        my_realloc(state->yacc_yyvs,
 		   *yystacksize*sizeof(**yyvs),
 		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
-      !(lex->yacc_yyss= (char*)
-	my_realloc((gptr) lex->yacc_yyss,
+      !(state->yacc_yyss= (char*)
+        my_realloc(state->yacc_yyss,
 		   *yystacksize*sizeof(**yyss),
 		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
     return 1;
   if (old_info)
-  {						// Copy old info from stack
-    memcpy(lex->yacc_yyss, (gptr) *yyss, old_info*sizeof(**yyss));
-    memcpy(lex->yacc_yyvs, (gptr) *yyvs, old_info*sizeof(**yyvs));
+  {
+    /*
+      Only copy the old stack on the first call to my_yyoverflow(),
+      when replacing a static stack (YYINITDEPTH) by a dynamic stack.
+      For subsequent calls, my_realloc already did preserve the old stack.
+    */
+    memcpy(state->yacc_yyss, *yyss, old_info*sizeof(**yyss));
+    memcpy(state->yacc_yyvs, *yyvs, old_info*sizeof(**yyvs));
   }
-  *yyss=(short*) lex->yacc_yyss;
-  *yyvs=(YYSTYPE*) lex->yacc_yyvs;
+  *yyss= (short*) state->yacc_yyss;
+  *yyvs= (YYSTYPE*) state->yacc_yyvs;
   return 0;
 }
 
@@ -6136,11 +6142,12 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
 
-    Lex_input_stream lip(thd, inBuf, length);
-    thd->m_lip= &lip;
+    Parser_state parser_state(thd, inBuf, length);
+    thd->m_parser_state= &parser_state;
 
     int err= MYSQLparse(thd);
-    *found_semicolon= lip.found_semicolon;
+    *found_semicolon= parser_state.m_lip.found_semicolon;
+    thd->m_parser_state= NULL;
 
     if (!err && ! thd->is_fatal_error)
     {
@@ -6165,10 +6172,16 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (lip.found_semicolon &&
-              (thd->query_length= (ulong)(lip.found_semicolon - thd->query)))
+          if (parser_state.m_lip.found_semicolon &&
+              (thd->query_length= (ulong)(parser_state.m_lip.found_semicolon
+                                          - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
+          if (*found_semicolon)
+          {
+            lex->safe_to_cache_query= 0;
+            thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
+          }
           lex->set_trg_event_type_for_tables();
           mysql_execute_command(thd);
           query_cache_end_of_result(thd);
@@ -6220,11 +6233,13 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  Lex_input_stream lip(thd, inBuf, length);
-  thd->m_lip= &lip;
+  Parser_state parser_state(thd, inBuf, length);
+  thd->m_parser_state= &parser_state;
+
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
   int err= MYSQLparse((void*) thd);
+  thd->m_parser_state= NULL;
 
   if (!err && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
@@ -7290,7 +7305,7 @@ bool check_simple_select()
   if (lex->current_select != &lex->select_lex)
   {
     char command[80];
-    Lex_input_stream *lip= thd->m_lip;
+    Lex_input_stream *lip= & thd->m_parser_state->m_lip;
     strmake(command, lip->yylval->symbol.str,
 	    min(lip->yylval->symbol.length, sizeof(command)-1));
     my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);

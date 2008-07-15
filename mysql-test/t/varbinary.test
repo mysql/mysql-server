@@ -84,3 +84,31 @@ select length(a) from t1;
 alter table t1 modify a varchar(255);
 select length(a) from t1;
 
+#
+# Bug#35658 (An empty binary value leads to mysqld crash)
+#
+
+select 0b01000001;
+
+select 0x41;
+
+select b'01000001';
+
+select x'41', 0+x'41';
+
+select N'abc', length(N'abc');
+
+select N'', length(N'');
+
+select '', length('');
+
+select b'', 0+b'';
+
+select x'', 0+x'';
+
+--error ER_BAD_FIELD_ERROR
+select 0x;
+
+--error ER_BAD_FIELD_ERROR
+select 0b;
+
