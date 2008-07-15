@@ -1394,11 +1394,58 @@ dict_index_remove_from_cache(
 	dict_index_t*	index)	/* in, own: index */
 {
 	ulint		size;
+	ulint		retries = 0;
+	btr_search_t*	info;
 
 	ut_ad(table && index);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	/* We always create search info whether or not adaptive
+	hash index is enabled or not. */
+	info = index->search_info;
+	ut_ad(info);
+
+	/* We are not allowed to free the in-memory index struct
+ 	dict_index_t until all entries in the adaptive hash index
+	that point to any of the page belonging to his b-tree index
+	are dropped. This is so because dropping of these entries
+	require access to dict_index_t struct. To avoid such scenario
+	We keep a count of number of such pages in the search_info and
+	only free the dict_index_t struct when this count drops to
+	zero. */
+
+	for (;;) {
+		ulint ref_count = btr_search_info_get_ref_count(info);
+		if (ref_count == 0) {
+			break;
+		}
+
+		/* Sleep for 10ms before trying again. */
+		os_thread_sleep(10000);
+		++retries;
+
+		if (retries % 500 == 0) {
+			/* No luck after 5 seconds of wait. */
+			fprintf(stderr, "InnoDB: Error: Waited for"
+					" %lu secs for hash index"
+					" ref_count (%lu) to drop"
+					" to 0.\n"
+					"index: \"%s\""
+					" table: \"%s\"\n",
+					retries/100,
+					ref_count,
+					index->name,
+					table->name);
+		}
+
+		/* To avoid a hang here we commit suicide if the
+		ref_count doesn't drop to zero in 600 seconds. */
+		if (retries >= 60000) {
+			ut_error;
+		}
+	}
 
 	rw_lock_free(&index->lock);
 
