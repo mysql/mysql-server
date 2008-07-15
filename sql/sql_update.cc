@@ -358,7 +358,7 @@ int mysql_update(THD *thd,
                Full index scan must be started with init_read_record_idx
       */
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info,thd,table,select,0,1);
+        init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
@@ -422,7 +422,7 @@ int mysql_update(THD *thd,
   
   if (select && select->quick && select->quick->reset())
         goto err;
-  init_read_record(&info,thd,table,select,0,1);
+  init_read_record(&info, thd, table, select, 0, 1, FALSE);
 
   updated= found= 0;
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
