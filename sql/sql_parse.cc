@@ -1559,8 +1559,10 @@ static bool do_command(THD *thd)
     /* Check if we can continue without closing the connection */
 
     if (net->error != 3)
+    {
       return_value= TRUE;			// We have to close it.
       goto out;
+    }
 
     net_send_error(thd, net->last_errno, NullS);
     net->error= 0;
