@@ -44,6 +44,8 @@
 #include "sql_plugin.h"
 #include "scheduler.h"
 
+class Parser_state;
+
 /**
   Query type constants.
 
@@ -804,8 +806,8 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
 bool test_if_data_home_dir(const char *dir);
 
 bool parse_sql(THD *thd,
-               class Lex_input_stream *lip,
-               class Object_creation_ctx *creation_ctx);
+               Parser_state *parser_state,
+               Object_creation_ctx *creation_ctx);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
