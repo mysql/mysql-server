@@ -23,6 +23,7 @@
 #define YYPARSE_PARAM yythd
 #define YYLEX_PARAM yythd
 #define YYTHD ((THD *)yythd)
+#define YYLIP (& YYTHD->m_parser_state->m_lip)
 
 #define MYSQL_YACC
 #define YYINITDEPTH 100
@@ -86,7 +87,7 @@ const LEX_STRING null_lex_str={0,0};
 void my_parse_error(const char *s)
 {
   THD *thd= current_thd;
-  Lex_input_stream *lip= thd->m_lip;
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
 
   const char *yytext= lip->tok_start;
   /* Push an error into the error stack */
@@ -1203,21 +1204,54 @@ END_OF_INPUT
 
 
 query:
-	END_OF_INPUT
-	{
-	   THD *thd= YYTHD;
-	   if (!thd->bootstrap &&
-	      (!(thd->lex->select_lex.options & OPTION_FOUND_COMMENT)))
-	   {
-	     my_message(ER_EMPTY_QUERY, ER(ER_EMPTY_QUERY), MYF(0));
-	     MYSQL_YYABORT;
-	   }
-	   else
-	   {
-	     thd->lex->sql_command= SQLCOM_EMPTY_QUERY;
-	   }
-	}
-	| verb_clause END_OF_INPUT {};
+          END_OF_INPUT
+          {
+            THD *thd= YYTHD;
+            if (!thd->bootstrap &&
+              (!(thd->lex->select_lex.options & OPTION_FOUND_COMMENT)))
+            {
+              my_message(ER_EMPTY_QUERY, ER(ER_EMPTY_QUERY), MYF(0));
+              MYSQL_YYABORT;
+            }
+            thd->lex->sql_command= SQLCOM_EMPTY_QUERY;
+            YYLIP->found_semicolon= NULL;
+          }
+        | verb_clause
+          {
+            Lex_input_stream *lip = YYLIP;
+
+            if ((YYTHD->client_capabilities & CLIENT_MULTI_QUERIES) &&
+                ! lip->stmt_prepare_mode &&
+                ! (lip->ptr >= lip->end_of_query))
+            {
+              /*
+                We found a well formed query, and multi queries are allowed:
+                - force the parser to stop after the ';'
+                - mark the start of the next query for the next invocation
+                  of the parser.
+              */
+              lip->next_state= MY_LEX_END;
+              lip->found_semicolon= lip->ptr;
+            }
+            else
+            {
+              /* Single query, terminated. */
+              lip->found_semicolon= NULL;
+            }
+          }
+          ';'
+          opt_end_of_input
+        | verb_clause END_OF_INPUT
+          {
+            /* Single query, not terminated. */
+            YYLIP->found_semicolon= NULL;
+          }
+        ;
+
+opt_end_of_input:
+          /* empty */
+        | END_OF_INPUT
+        ;
 
 verb_clause:
 	  statement
@@ -2122,7 +2156,7 @@ sp_proc_stmt:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 
 	    if (lex->sphead->reset_lex(thd))
               MYSQL_YYABORT;
@@ -2132,7 +2166,7 @@ sp_proc_stmt:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 	    sp_head *sp= lex->sphead;
 
             sp->m_flags|= sp_get_flags_for_command(lex);
@@ -4470,16 +4504,12 @@ select_item:
 
 remember_name:
 	{
-          THD *thd= YYTHD;
-          Lex_input_stream *lip= thd->m_lip;
-          $$= (char*) lip->tok_start;
+          $$= (char*) YYLIP->tok_start;
         };
 
 remember_end:
 	{
-          THD *thd= YYTHD;
-          Lex_input_stream *lip= thd->m_lip;
-          $$=(char*) lip->tok_end;
+          $$=(char*) YYLIP->tok_end;
         };
 
 select_item2:
@@ -6419,7 +6449,7 @@ procedure_item:
 	  remember_name expr
 	  {
             THD *thd= YYTHD;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 
 	    if (add_proc_to_list(thd, $2))
 	      MYSQL_YYABORT;
@@ -7491,7 +7521,7 @@ load:   LOAD DATA_SYM
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
 	  if (lex->sphead)
 	  {
@@ -7533,10 +7563,7 @@ load_data:
         }
         opt_duplicate INTO
         {
-          THD *thd= YYTHD;
-	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
-	  lex->fname_end= lip->ptr;
+	  Lex->fname_end= YYLIP->ptr;
 	}
         TABLE_SYM table_ident
         {
@@ -7754,7 +7781,7 @@ param_marker:
         {
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
           Item_param *item;
           if (! lex->parsing_options.allows_variable)
           {
@@ -7787,7 +7814,7 @@ literal:
 	| NULL_SYM
           {
             $$ = new Item_null();
-            YYTHD->m_lip->next_state=MY_LEX_OPERATOR_OR_IDENT;
+            YYLIP->next_state= MY_LEX_OPERATOR_OR_IDENT;
           }
 	| FALSE_SYM	{ $$= new Item_int((char*) "FALSE",0,1); }
 	| TRUE_SYM	{ $$= new Item_int((char*) "TRUE",1,1); }
@@ -7891,7 +7918,7 @@ simple_ident:
 	{
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 	  sp_variable_t *spv;
           sp_pcontext *spc = lex->spcont;
 	  if (spc && (spv = spc->find_variable(&$1)))
@@ -8504,7 +8531,7 @@ option_type_value:
         {
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
           if (lex->sphead)
           {
@@ -8535,7 +8562,7 @@ option_type_value:
         {
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
           if (lex->sphead)
           {
@@ -9845,7 +9872,7 @@ trigger_tail:
 	{
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 	  sp_head *sp;
 	 
 	  if (lex->sphead)
@@ -9867,13 +9894,6 @@ trigger_tail:
 
 	  lex->sphead= sp;
 	  lex->spname= $3;
-	  /*
-	    We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	    stored procedure, otherwise yylex will chop it into pieces
-	    at each ';'.
-	  */
-	  sp->m_old_cmq= thd->client_capabilities & CLIENT_MULTI_QUERIES;
-	  thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	  
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
@@ -9888,9 +9908,6 @@ trigger_tail:
 	  
 	  lex->sql_command= SQLCOM_CREATE_TRIGGER;
 	  sp->init_strings(YYTHD, lex);
-	  /* Restore flag if it was cleared above */
-	  if (sp->m_old_cmq)
-	    YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	  sp->restore_thd_mem_root(YYTHD);
 	
 	  if (sp->is_not_allowed_in_function("trigger"))
@@ -9948,7 +9965,7 @@ sf_tail:
           { /* $5 */
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 	    sp_head *sp;
 
 	    lex->stmt_definition_begin= $1;
@@ -9968,23 +9985,12 @@ sf_tail:
 
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
-	    /*
-	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	     * stored procedure, otherwise yylex will chop it into pieces
-	     * at each ';'.
-	     */
-	    sp->m_old_cmq= thd->client_capabilities & CLIENT_MULTI_QUERIES;
-	    thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	    lex->sphead->m_param_begin= lip->tok_start+1;
 	  }
           sp_fdparam_list /* $6 */
           ')' /* $7 */
           { /* $8 */
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-
-	    lex->sphead->m_param_end= lip->tok_start;
+	    Lex->sphead->m_param_end= YYLIP->tok_start;
 	  }
           RETURNS_SYM /* $9 */
 	  { /* $10 */
@@ -10010,7 +10016,7 @@ sf_tail:
           { /* $14 */
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 
 	    lex->sphead->m_chistics= &lex->sp_chistics;
 	    lex->sphead->m_body_begin= lip->tok_start;
@@ -10030,9 +10036,6 @@ sf_tail:
               my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
               MYSQL_YYABORT;
             }
-	    /* Restore flag if it was cleared above */
-	    if (sp->m_old_cmq)
-	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	;
@@ -10062,28 +10065,17 @@ sp_tail:
           sp->init_sp_name(YYTHD, $3);
 
 	  lex->sphead= sp;
-	  /*
-	   * We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	   * stored procedure, otherwise yylex will chop it into pieces
-	   * at each ';'.
-	   */
-	  sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-	  YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 	}
         '('
 	{
-          THD *thd= YYTHD;
-	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
-
-	  lex->sphead->m_param_begin= lip->tok_start+1;
+	  Lex->sphead->m_param_begin= YYLIP->tok_start+1;
 	}
 	sp_pdparam_list
 	')'
 	{
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
 	  lex->sphead->m_param_end= lip->tok_start;
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
@@ -10092,7 +10084,7 @@ sp_tail:
 	{
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
 	  lex->sphead->m_chistics= &lex->sp_chistics;
 	  lex->sphead->m_body_begin= lip->tok_start;
@@ -10104,9 +10096,6 @@ sp_tail:
 
 	  sp->init_strings(YYTHD, lex);
 	  lex->sql_command= SQLCOM_CREATE_PROCEDURE;
-	  /* Restore flag if it was cleared above */
-	  if (sp->m_old_cmq)
-	    YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	  sp->restore_thd_mem_root(YYTHD);
 	}
 	;

@@ -192,7 +192,6 @@ void lex_start(THD *thd)
   lex->select_lex.order_list.empty();
   lex->select_lex.udf_list.empty();
   lex->current_select= &lex->select_lex;
-  lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->sql_command= lex->orig_sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
@@ -210,11 +209,16 @@ void lex_start(THD *thd)
 
 void lex_end(LEX *lex)
 {
-  DBUG_ENTER("lex_end");
-  DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
-  x_free(lex->yacc_yyss);
-  x_free(lex->yacc_yyvs);
-  DBUG_VOID_RETURN;
+  /* Empty in 5.0, non empty in 5.1 */
+}
+
+Yacc_state::~Yacc_state()
+{
+  if (yacc_yyss)
+  {
+    x_free(yacc_yyss);
+    x_free(yacc_yyvs);
+  }
 }
 
 
@@ -531,7 +535,7 @@ int MYSQLlex(void *arg, void *yythd)
   uint length;
   enum my_lex_states state;
   THD *thd= (THD *)yythd;
-  Lex_input_stream *lip= thd->m_lip;
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
   CHARSET_INFO *cs= thd->charset();
@@ -1010,21 +1014,8 @@ int MYSQLlex(void *arg, void *yythd)
       yySkip();
       return (SET_VAR);
     case MY_LEX_SEMICOLON:			// optional line terminator
-      if (yyPeek())
-      {
-        if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            !lip->stmt_prepare_mode)
-        {
-	  lex->safe_to_cache_query= 0;
-          lip->found_semicolon= lip->ptr;
-          thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
-          lip->next_state=     MY_LEX_END;
-          return (END_OF_INPUT);
-        }
-        state= MY_LEX_CHAR;		// Return ';'
-	break;
-      }
-      /* fall true */
+      state= MY_LEX_CHAR;               // Return ';'
+      break;
     case MY_LEX_EOL:
       if (lip->ptr >= lip->end_of_query)
       {
@@ -1039,7 +1030,7 @@ int MYSQLlex(void *arg, void *yythd)
     case MY_LEX_END:
       lip->next_state=MY_LEX_END;
       return(0);			// We found end of input last time
-      
+
       /* Actually real shouldn't start with . but allow them anyhow */
     case MY_LEX_REAL_OR_POINT:
       if (my_isdigit(cs,yyPeek()))
@@ -1794,7 +1785,7 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 st_lex::st_lex()
-  :result(0), yacc_yyss(0), yacc_yyvs(0),
+  :result(0),
    sql_command(SQLCOM_END)
 {
   reset_query_tables_list(TRUE);
