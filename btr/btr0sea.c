@@ -161,6 +161,7 @@ btr_search_info_create(
 	info->magic_n = BTR_SEARCH_MAGIC_N;
 #endif /* UNIV_DEBUG */
 
+	info->ref_count = 0;
 	info->root_guess = NULL;
 
 	info->hash_analysis = 0;
@@ -182,6 +183,32 @@ btr_search_info_create(
 	info->left_side = TRUE;
 
 	return(info);
+}
+
+/*********************************************************************
+Returns the value of ref_count. The value is protected by
+btr_search_latch. */
+UNIV_INLINE
+ulint
+btr_search_info_get_ref_count(
+/*==========================*/
+				/* out: ref_count value. */
+	btr_search_t*   info)	/* in: search info. */
+{
+	ulint ret;
+
+	ut_ad(info);
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	rw_lock_s_lock(&btr_search_latch);
+	ret = info->ref_count;
+	rw_lock_s_unlock(&btr_search_latch);
+
+	return(ret);
 }
 
 /*************************************************************************
@@ -1022,8 +1049,12 @@ next_rec:
 		ha_remove_all_nodes_to_page(table, folds[i], page);
 	}
 
+	ut_a(index->search_info->ref_count > 0);
+	index->search_info->ref_count--;
+
 	block->is_hashed = FALSE;
 	block->index = NULL;
+	
 cleanup:
 	if (UNIV_UNLIKELY(block->n_pointers)) {
 		/* Corruption */
@@ -1242,6 +1273,15 @@ btr_search_build_page_hash_index(
 				 || (block->curr_n_bytes != n_bytes)
 				 || (block->curr_left_side != left_side))) {
 		goto exit_func;
+	}
+
+	/* This counter is decremented every time we drop page
+	hash index entries and is incremented here. Since we can
+	rebuild hash index for a page that is already hashed, we
+	have to take care not to increment the counter in that
+	case. */
+	if (!block->is_hashed) {
+		index->search_info->ref_count++;
 	}
 
 	block->is_hashed = TRUE;
