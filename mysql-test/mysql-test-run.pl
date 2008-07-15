@@ -251,7 +251,7 @@ our $opt_sleep;
 our $opt_testcase_timeout;
 our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
-my  $default_suite_timeout=       180; # 3 hours max
+my  $default_suite_timeout=       300; # 5 hours max
 
 our $opt_start_and_exit;
 our $opt_start_dirty;
@@ -1684,7 +1684,8 @@ sub executable_setup () {
     # Look for mysql_fix_privilege_tables.sql script
     $file_mysql_fix_privilege_tables=
       mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
-  		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
+  		    "$glob_basedir/share/mysql_fix_privilege_tables.sql",
+  		    "$glob_basedir/share/mysql/mysql_fix_privilege_tables.sql");
 
     if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
     {
