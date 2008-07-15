@@ -72,11 +72,47 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
 }
 
 
-/* init struct for read with info->read_record */
+/*
+  init struct for read with info->read_record 
+
+  SYNOPSIS
+    init_read_record()
+      info              OUT read structure
+      thd               Thread handle
+      table             Table the data [originally] comes from.
+      select            SQL_SELECT structure. We may select->quick or 
+                        select->file as data source
+      use_record_cache  Call file->extra_opt(HA_EXTRA_CACHE,...)
+                        if we're going to do sequential read and some
+                        additional conditions are satisfied.
+      print_error       Copy this to info->print_error
+      disable_rr_cache  Don't use rr_from_cache (used by sort-union
+                        index-merge which produces rowid sequences that 
+                        are already ordered)
+
+  DESCRIPTION
+    This function sets up reading data via one of the methods:
+
+    rr_unpack_from_tempfile  Unpack full records from sequential file
+    rr_unpack_from_buffer    ... or from buffer
+    
+    rr_from_tempfile         Read rowids from tempfile and get full records
+                             with handler->rnd_pos() calls.
+    rr_from_pointers         ... or get rowids from buffer
+    
+    rr_from_cache            Read a bunch of rowids from file, sort them, 
+                             get records in rowid order, return, repeat.
+
+    rr_quick                 Get data from QUICK_*_SELECT
+    
+    rr_sequential            Sequentially scan the table using
+                             handler->rnd_next() calls
+*/
 
 void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 		      SQL_SELECT *select,
-		      int use_record_cache, bool print_error)
+		      int use_record_cache, bool print_error, 
+                      bool disable_rr_cache)
 {
   IO_CACHE *tempfile;
   DBUG_ENTER("init_read_record");
@@ -121,7 +157,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
       it doesn't make sense to use cache - we don't read from the table
       and table->sort.io_cache is read sequentially
     */
-    if (!table->sort.addon_field &&
+    if (!disable_rr_cache &&
+        !table->sort.addon_field &&
         ! (specialflag & SPECIAL_SAFE_MODE) &&
 	thd->variables.read_rnd_buff_size &&
 	!(table->file->table_flags() & HA_FAST_KEY_READ) &&
