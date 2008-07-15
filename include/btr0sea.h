@@ -40,7 +40,7 @@ btr_search_enable(void);
 
 /************************************************************************
 Returns search info for an index. */
-UNIV_INTERN
+UNIV_INLINE
 btr_search_t*
 btr_search_get_info(
 /*================*/
@@ -57,7 +57,7 @@ btr_search_info_create(
 /*********************************************************************
 Returns the value of ref_count. The value is protected by
 btr_search_latch. */
-UNIV_INLINE
+UNIV_INTERN
 ulint
 btr_search_info_get_ref_count(
 /*==========================*/
