@@ -58,6 +58,8 @@ dist-hook:
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
 
+all-local:		abi_check
+
 tags:
 	support-files/build-tags
 
