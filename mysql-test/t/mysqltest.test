@@ -91,6 +91,8 @@ select otto from (select 1 as otto) as t1;
 --error 1
 --exec echo "error S42S22; select otto from (select 1 as otto) as t1;" | $MYSQL_TEST  2>&1
 
+--error 1
+--exec echo "error S00000; remove_file $MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp;" | $MYSQL_TEST  2>&1
 
 
 # ----------------------------------------------------------------------------
