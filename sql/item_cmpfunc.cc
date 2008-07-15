@@ -3758,8 +3758,6 @@ longlong Item_func_in::val_int()
     return (longlong) (!null_value && tmp != negated);
   }
 
-  if ((null_value= args[0]->null_value))
-    return 0;
   have_null= 0;
   for (uint i= 1 ; i < arg_count ; i++)
   {
@@ -3769,6 +3767,8 @@ longlong Item_func_in::val_int()
     if (!(value_added_map & (1 << (uint)cmp_type)))
     {
       in_item->store_value(args[0]);
+      if ((null_value= args[0]->null_value))
+        return 0;
       value_added_map|= 1 << (uint)cmp_type;
     }
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
