@@ -7936,6 +7936,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   handler *file= head->file;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::read_keys_and_merge");
 
+
   file->extra(HA_EXTRA_KEYREAD);
   head->prepare_for_position();
 
@@ -7994,15 +7995,17 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
   }
 
-  DBUG_PRINT("info", ("ok"));
-  /* ok, all row ids are in Unique */
+  /*
+    Ok all rowids are in the Unique now. The next call will initialize
+    head->sort structure so it can be used to iterate through the rowids
+    sequence.
+  */
   result= unique->get(head);
   delete unique;
   doing_pk_scan= FALSE;
   /* index_merge currently doesn't support "using index" at all */
   file->extra(HA_EXTRA_NO_KEYREAD);
-  /* start table scan */
-  init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1, 1);
+  init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1 , 1, TRUE);
   DBUG_RETURN(result);
 }
 
@@ -8028,6 +8031,7 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
   {
     result= HA_ERR_END_OF_FILE;
     end_read_record(&read_record);
+    free_io_cache(head);
     /* All rows from Unique have been retrieved, do a clustered PK scan */
     if (pk_quick_select)
     {
