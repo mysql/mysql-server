@@ -24,13 +24,13 @@ reset master;
 reset slave;
 --enable_query_log
 connection slave;
---disable_query_log
-reset master;
---enable_query_log
 reset slave;
 # Clean up old test tables
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
+--disable_query_log
+reset master;
+--enable_query_log
 start slave;
 source include/wait_for_slave_to_start.inc;
