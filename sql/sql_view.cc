@@ -1081,8 +1081,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     char old_db_buf[NAME_LEN+1];
     LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
     bool dbchanged;
-    Lex_input_stream lip(thd, table->query.str, table->query.length);
-    thd->m_lip= &lip;
+    Parser_state parser_state(thd, table->query.str, table->query.length);
 
     /* 
       Use view db name as thread default database, in order to ensure
@@ -1091,6 +1090,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if ((result= sp_use_new_db(thd, table->view_db, &old_db, 1, &dbchanged)))
       goto end;
 
+    thd->m_parser_state= &parser_state;
     lex_start(thd);
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
@@ -1125,6 +1125,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     CHARSET_INFO *save_cs= thd->variables.character_set_client;
     thd->variables.character_set_client= system_charset_info;
     res= MYSQLparse((void *)thd);
+    thd->m_parser_state= NULL;
 
     if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||
         (old_lex->sql_command == SQLCOM_SHOW_CREATE))
