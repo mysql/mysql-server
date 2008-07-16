@@ -92,6 +92,146 @@ static int toku_db_cursor(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int is
 /* lightweight cursor methods. */
 static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra);
 
+static int toku_c_getf_heavi(DBC *c, u_int32_t flags,
+                             void(*f)(DBT const *key, DBT const *value, void *extra_f, int r_h),
+                             void *extra_f,
+                             int (*h)(const DBT *key, const DBT *value, void *extra_h),
+                             void *extra_h, int direction); 
+// There is a total order on all key/value pairs in the database.
+// In a DB_DUPSORT db, let V_i = (Key,Value) refer to the ith element (0 based indexing).
+// In a NODUP      db, let V_i = (Key)       refer to the ith element (0 based indexing).
+// We define V_{-1}             = -\infty and
+//           V_{|V|}            =  \infty and
+//           h(-\infty,extra_h) = -1 by definition and
+//           h( \infty,extra_h) =  1 by definition
+// Requires: Direction != 0
+// Effect: 
+//    if direction >0 then find the smallest i such that h(V_i,extra_h)>=0.
+//    if direction <0 then find the largest  i such that h(V_i,extra_h)<=0.
+//    Let signus(r_h) = signus(h(V_i, extra_h)) 
+//    If flags&(DB_PRELOCKED|DB_PRELOCKED_WRITE) then skip locking
+//      That is, we already own the locks
+//    else 
+//      if direction >0 then readlock [V_{i-1}, V_i]
+//      if direction <0 then readlock [V_i,     V_{i+1}]
+//      That is, If we search from the right, lock the element we found, up to the
+//           next element to the right.
+//      If locking fails, return the locking error code
+//    
+//    If (0<=i<|V|) then
+//      call f(V_i.Key, V_i.Value, extra_f, r_h)
+//      Note: The lifetime of V_i.Key and V_i.Value is limited: they may only
+//            be referenced until f returns
+//      and return 0
+//    else
+//      return DB_NOTFOUND
+// Rationale: Locking
+//      If we approach from the left (direction<0) we need to prevent anyone
+//      from inserting anything to our right that could change our answer,
+//      so we lock the range from the element found, to the next element to the right.
+//      The inverse argument applies for approaching from the right.
+// Rationale: passing r_h to f
+//      We want to save the performance hit of requiring f to call h again to
+//      find out what h's return value was.
+// Rationale: separate extra_f, extra_h parameters
+//      If the same extra parameter is sent to both f and h, then you need a
+//      special struct for each tuple (f_i, h_i) you use instead of a struct for each
+//      f_i and each h_i.
+// Requires: The signum of h is monotically increasing.
+//  Requires: f does not create references to key, value, or data within once f
+//           exits
+// Returns
+//      0                   success
+//      DB_NOTFOUND         i is not in [0,|V|)
+//      DB_LOCK_NOTGRANTED  Failed to obtain a lock.
+//  On nonzero return, what c points to becomes undefined, That is, c becomes uninitialized
+// Performance: ... TODO
+// Implementation Notes:
+//      How do we get the extra locking information efficiently?
+//        After finding the target, we can copy the cursor, do a DB_NEXT,
+//        or do a DB_NEXT+DB_PREV (vice versa for direction<0).
+//        Can we have the BRT provide two key/value pairs instead of one?
+//        That is, brt_cursor_c_getf_heavi_and_next for direction >0
+//        and  brt_cursor_c_getf_heavi_and_prev for direction <0
+//      Current suggestion is to make a copy of the cursor, and use the
+//        copy to find the next(prev) element by using DB_NEXT(DB_PREV).
+//        This has the overhead of needing to make a copy of the cursor,
+//        which probably has a memcpy involved.
+//        The argument against returning two key/value pairs is that
+//        we should not have to pay to retreive both when we're doing something
+//        simple like DB_NEXT.
+//        This could be mitigated by having two BRT functions (or one with a
+//        BOOL parameter) such that it only returns two values when necessary.
+// Parameters
+//  c           The cursor
+//  flags       Additional bool parameters. The current allowed flags are
+//              DB_PRELOCKED and DB_PRELOCKED_WRITE (bitwise or'd to use both)
+//  h           A heaviside function that, along with direction, defines the query.
+//              extra_h is passed to h
+//              For additional information on heaviside functions, see omt.h
+//              NOTE: In a DB_DUPSORT database, both key and value will be
+//              passed to h.  In a NODUP database, only key will be passed to h.
+//  f           A callback function (i.e. smart dbts) to provide the result of the
+//              query.  key and value are the key/value pair found, extra_f is
+//              passed to f, r_h is the return value for h for the key and value returned.
+//              This is used as output. That is, we call f with the outputs of the
+//              function.
+//  direction   Which direction to search in on the heaviside function.  >0
+//              means from the right, <0 means from the left.
+//  extra_f     Any extra information required for f
+//  extra_h     Any extra information required for h
+//
+// Example:
+//  Find the smallest V_i = (key_i,val_i) such that key_i > key_x, assume
+//   key.data and val.data are c strings, and print them out.
+//      Create a struct to hold key_x, that is extra_h
+//      Direction = 1 (We approach from the right, and want the smallest such
+//          element).
+//      Construct a heaviside function that returns >=0 if the
+//      given key > key_x, and -1 otherwise
+//          That is, call the comparison function on (key, key_x)
+//      Create a struct to hold key_x, that is extra_f
+//      construct f to call printf on key_x.data, key_i.data, val_i.data.
+//  Find the least upper bound (greatest lower bound)
+//      In this case, h can just return the comparison function's answer.
+//      direction >0 means upper bound, direction <0 means lower bound.
+//      (If you want upper/lower bound of the keyvalue pair, you need
+//      to call the comparison function on the values if the key comparison
+//      returns 0).
+// Handlerton implications:
+//  The handlerton needs at most one heaviside function per special query type (where a
+//  special query is one that is not directly supported by the bdb api excluding
+//  this function).
+//  It is possible that more than query type can use the same heaviside function
+//  if the extra_h parameter can be used to change its behavior sufficiently.
+//
+//  That is, part of extra_h can be a boolean strictly_greater
+//  You can construct a single heaviside function that converts 0 to -1
+//  (strictly greater) from the comparison function, or one that just returns
+//  the results of the comparison function (greater or equal).
+//
+// Implementation Notes:
+//  The BRT search function supports the following searches:
+//      SEARCH_LEFT(h(V_i))
+//          Given a step function b, that goes from 0 to 1
+//          find the greatest i such that h_b(V_i) == 1
+//          If it does not exist, return not found
+//      SEARCH_RIGHT(h(V_i))
+//          Given a step function b, that goes from 1 to 0
+//          find the smallest i such that h_b(V_i) == 1
+//          If it does not exist, return not found
+//  We can implement c_getf_heavi using these BRT search functions.
+//  A query of direction<0:
+//      Create wrapper function B
+//          return h(V_i) <=0 ? 1 : 0;
+//      SEARCH_RIGHT(B)
+//  A query of direction>0:
+//      Create wrapper function B
+//          return h(V_i) >=0 ? 1 : 0;
+//      SEARCH_LEFT(B)
+
+// Effect: Lightweight cursor get
+
 /* cursor methods */
 static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag);
 static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag);
@@ -1639,7 +1779,6 @@ static int toku_c_getf_next_old(DBC *c, u_int32_t flag, void(*f)(DBT const *key,
 
 static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT const *data, void *extra), void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
-    //int prelocked = flag & DB_PRELOCKED;
     if (toku_c_uninitialized(c)) return toku_c_getf_next_old(c, flag, f, extra); //return toku_c_getf_first(c, flag, f, extra);
     u_int32_t lock_flags = get_prelocked_flags(flag);
     flag &= ~lock_flags;
@@ -1682,6 +1821,130 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
     r = c_get_result;
  cleanup:
     return r;
+}
+
+static int locked_c_getf_heavi(DBC *c, u_int32_t flags,
+                               void(*f)(DBT const *key, DBT const *value, void *extra_f, int r_h),
+                               void *extra_f,
+                               int (*h)(const DBT *key, const DBT *value, void *extra_h),
+                               void *extra_h, int direction) {
+    toku_ydb_lock();  int r = toku_c_getf_heavi(c, flags, f, extra_f, h, extra_h, direction); toku_ydb_unlock(); return r;
+}
+
+static int toku_c_getf_heavi(DBC *c, u_int32_t flags,
+                             void(*f)(DBT const *key, DBT const *value, void *extra_f, int r_h),
+                             void *extra_f,
+                             int (*h)(const DBT *key, const DBT *value, void *extra_h),
+                             void *extra_h, int direction) {
+    if (direction==0) return EINVAL;
+    DBC *tmp_c = NULL;
+    int r;
+    u_int32_t lock_flags = get_prelocked_flags(flags);
+    flags &= ~lock_flags;
+    assert(flags==0);
+    struct heavi_wrapper wrapper;
+    wrapper.h       = h;
+    wrapper.extra_h = extra_h;
+    wrapper.r_h     = direction;
+
+    TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
+    int c_get_result = toku_brt_cursor_get_heavi(c->i->c, NULL, NULL, txn, direction, &wrapper);
+    if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
+    BOOL found = c_get_result==0;
+    DB *db=c->dbp;
+    toku_lock_tree* lt = db->i->lt;
+    if (lt!=NULL && !lock_flags) {
+        DBT tmp_key;
+        DBT tmp_val;
+        DBT *left_key, *left_val, *right_key, *right_val;
+        if (direction<0) {
+            if (!found) {
+                r = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_FIRST, txn);
+                if (r!=0 && r!=DB_NOTFOUND) goto cleanup;
+                if (r==DB_NOTFOUND) right_key = right_val = (DBT*)toku_lt_infinity;
+                else {
+                    //Restore cursor to the 'uninitialized' state it was just in.
+                    brt_cursor_restore_state_from_prev(c->i->c);
+                    right_key = brt_cursor_peek_prev_key(c->i->c);
+                    right_val = brt_cursor_peek_prev_val(c->i->c);
+                }
+                left_key = left_val = (DBT*)toku_lt_neg_infinity;
+            }
+            else {
+                left_key = brt_cursor_peek_current_key(c->i->c);
+                left_val = brt_cursor_peek_current_val(c->i->c);
+                //Try to find right end the fast way.
+                r = toku_brt_cursor_peek_next(c->i->c, &tmp_key, &tmp_val);
+                if (r==0) {
+                    right_key = &tmp_key;
+                    right_val = &tmp_val;
+                }
+                else {
+                    //Find the right end the slow way.
+                    if ((r = toku_db_cursor(c->dbp, c->i->txn, &tmp_c, 0, 0))) goto cleanup;
+                    r=toku_brt_cursor_after(tmp_c->i->c, left_key, left_val,
+                                                         NULL,     NULL, txn);
+                    if (r!=0 && r!=DB_NOTFOUND) goto cleanup;
+                    if (r==DB_NOTFOUND) right_key = right_val = (DBT*)toku_lt_infinity;
+                    else {
+                        right_key = brt_cursor_peek_current_key(tmp_c->i->c);
+                        right_val = brt_cursor_peek_current_val(tmp_c->i->c);
+                    }
+                }
+            }
+        }
+        else {
+            //direction>0
+            if (!found) {
+                r = toku_brt_cursor_get(c->i->c, NULL, NULL, DB_LAST, txn);
+                if (r!=0 && r!=DB_NOTFOUND) goto cleanup;
+                if (r==DB_NOTFOUND) left_key = left_val = (DBT*)toku_lt_neg_infinity;
+                else {
+                    //Restore cursor to the 'uninitialized' state it was just in.
+                    brt_cursor_restore_state_from_prev(c->i->c);
+                    left_key = brt_cursor_peek_prev_key(c->i->c);
+                    left_val = brt_cursor_peek_prev_val(c->i->c);
+                }
+                right_key = right_val = (DBT*)toku_lt_infinity;
+            }
+            else {
+                right_key = brt_cursor_peek_current_key(c->i->c);
+                right_val = brt_cursor_peek_current_val(c->i->c);
+                //Try to find left end the fast way.
+                r=toku_brt_cursor_peek_prev(c->i->c, &tmp_key, &tmp_val);
+                if (r==0) {
+                    left_key = &tmp_key;
+                    left_val = &tmp_val;
+                }
+                else {
+                    //Find the left end the slow way.
+                    if ((r = toku_db_cursor(c->dbp, c->i->txn, &tmp_c, 0, 0))) goto cleanup;
+                    r=toku_brt_cursor_before(tmp_c->i->c, right_key, right_val,
+                                                          NULL,      NULL, txn);
+                    if (r==DB_NOTFOUND) left_key = left_val = (DBT*)toku_lt_neg_infinity;
+                    else {
+                        left_key = brt_cursor_peek_current_key(tmp_c->i->c);
+                        left_val = brt_cursor_peek_current_val(tmp_c->i->c);
+                    }
+                }
+            }
+        }
+        DB_TXN* txn_anc = toku_txn_ancestor(c->i->txn);
+        TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+        if ((r = toku_txn_add_lt(txn_anc, lt))) goto cleanup;
+        r = toku_lt_acquire_range_read_lock(lt, db, id_anc,
+                                            left_key, left_val,
+                                            right_key, right_val);
+        if (r!=0) goto cleanup;
+    }
+    if (found) {
+        f(brt_cursor_peek_current_key(c->i->c), brt_cursor_peek_current_val(c->i->c), extra_f, wrapper.r_h);
+    }
+    r = c_get_result;
+cleanup:;
+    int r2 = 0;
+    if (tmp_c) r2 = toku_c_close(tmp_c);
+    return r ? r : r2;
 }
 
 static int toku_c_close(DBC * c) {
@@ -1987,13 +2250,16 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
-    result->c_get = locked_c_get;
-    result->c_pget = locked_c_pget;
-    result->c_put = locked_c_put;
-    result->c_close = locked_c_close;
-    result->c_del = locked_c_del;
-    result->c_count = locked_c_count;
-    result->c_getf_next = locked_c_getf_next;
+#define SCRS(name) result->name = locked_ ## name
+    SCRS(c_get);
+    SCRS(c_pget);
+    SCRS(c_put);
+    SCRS(c_close);
+    SCRS(c_del);
+    SCRS(c_count);
+    SCRS(c_getf_next);
+    SCRS(c_getf_heavi);
+#undef SCRS
     MALLOC(result->i);
     assert(result->i);
     result->dbp = db;

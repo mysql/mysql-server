@@ -49,6 +49,17 @@ int toku_verify_brt (BRT brt);
 typedef struct brt_cursor *BRT_CURSOR;
 int toku_brt_cursor (BRT, BRT_CURSOR*, int is_temporary_cursor);
 int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, TOKUTXN);
+struct heavi_wrapper {
+    int (*h)(const DBT *key, const DBT *value, void *extra_h);
+    void *extra_h;
+    int r_h;
+};
+typedef struct heavi_wrapper *HEAVI_WRAPPER;
+int toku_brt_cursor_get_heavi (BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKUTXN txn, int direction, HEAVI_WRAPPER wrapper);
+int toku_brt_cursor_peek_prev(BRT_CURSOR cursor, DBT *outkey, DBT *outval);
+int toku_brt_cursor_peek_next(BRT_CURSOR cursor, DBT *outkey, DBT *outval);
+int toku_brt_cursor_before(BRT_CURSOR cursor, DBT *key, DBT *val, DBT *outkey, DBT *outval, TOKUTXN txn);
+int toku_brt_cursor_after(BRT_CURSOR cursor, DBT *key, DBT *val, DBT *outkey, DBT *outval, TOKUTXN txn);
 int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN);
 int toku_brt_cursor_close (BRT_CURSOR curs);
 BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c);

@@ -271,7 +271,8 @@ struct __toku_dbc {
   int (*c_getf_current)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
   int (*c_getf_first)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
   int (*c_getf_last)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
-  void* __toku_dummy0[14];
+  int (*c_getf_heavi)(DBC *, u_int32_t, void(*f)(DBT const *, DBT const *, void *, int), void *extra_f, int (*h)(const DBT *key, const DBT *value, void *extra_h), void *extra_h, int direction);
+  void* __toku_dummy0[13];
   char __toku_dummy1[104];
   int (*c_close) (DBC *); /* 32-bit offset=204 size=4, 64=bit offset=304 size=8 */
   int (*c_count) (DBC *, db_recno_t *, u_int32_t); /* 32-bit offset=208 size=4, 64=bit offset=312 size=8 */

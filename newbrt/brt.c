@@ -3322,11 +3322,75 @@ get_next:;
     return -1;
 }
 
+int toku_brt_cursor_peek_prev(BRT_CURSOR cursor, DBT *outkey, DBT *outval) {
+    if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
+	{
+	    int rr = toku_read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h);
+	    if (rr!=0) return rr;
+	    uint64_t h_counter = cursor->brt->h->root_put_counter;
+	    rr = toku_unpin_brt_header(cursor->brt);
+	    assert(rr==0);
+	    if (h_counter != cursor->root_put_counter) return -1;
+	}
+	OMTVALUE le;
+        u_int32_t index = 0;
+        int r = toku_omt_cursor_current_index(cursor->omtcursor, &index);
+        assert(r==0);
+        OMT omt = toku_omt_cursor_get_omt(cursor->omtcursor);
+get_prev:;
+        if (index>0) {
+            r = toku_omt_fetch(omt, --index, &le, NULL); 
+            if (r==0) {
+                if (le_is_provdel(le)) goto get_prev;
+                toku_fill_dbt(outkey, le_latest_key(le), le_latest_keylen(le));
+                toku_fill_dbt(outval, le_latest_val(le), le_latest_vallen(le));
+                return 0;
+            }
+        }
+    }
+    return -1;
+}
+
+int toku_brt_cursor_peek_next(BRT_CURSOR cursor, DBT *outkey, DBT *outval) {
+    if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
+	{
+	    int rr = toku_read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h);
+	    if (rr!=0) return rr;
+	    uint64_t h_counter = cursor->brt->h->root_put_counter;
+	    rr = toku_unpin_brt_header(cursor->brt);
+	    assert(rr==0);
+	    if (h_counter != cursor->root_put_counter) return -1;
+	}
+	OMTVALUE le;
+        u_int32_t index = UINT32_MAX;
+        int r = toku_omt_cursor_current_index(cursor->omtcursor, &index);
+        assert(r==0);
+        OMT omt = toku_omt_cursor_get_omt(cursor->omtcursor);
+get_next:;
+        if (++index<toku_omt_size(omt)) {
+            r = toku_omt_fetch(omt, index, &le, NULL); 
+            if (r==0) {
+                if (le_is_provdel(le)) goto get_next;
+                toku_fill_dbt(outkey, le_latest_key(le), le_latest_keylen(le));
+                toku_fill_dbt(outval, le_latest_val(le), le_latest_vallen(le));
+                return 0;
+            }
+        }
+    }
+    return -1;
+}
+
 static int brt_cursor_next(BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKULOGGER logger) {
     if (0!=(cursor->brt->flags & TOKU_DB_DUP) &&
 	brt_cursor_next_shortcut(cursor, outkey, outval)==0)
 	return 0;
     brt_search_t search; brt_search_init(&search, brt_cursor_compare_next, BRT_SEARCH_LEFT, &cursor->key, &cursor->val, cursor->brt);
+    return brt_cursor_search(cursor, &search, outkey, outval, logger);
+}
+
+int toku_brt_cursor_after(BRT_CURSOR cursor, DBT *key, DBT *val, DBT *outkey, DBT *outval, TOKUTXN txn) {
+    TOKULOGGER logger = toku_txn_logger(txn);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_next, BRT_SEARCH_LEFT, key, val, cursor->brt);
     return brt_cursor_search(cursor, &search, outkey, outval, logger);
 }
 
@@ -3411,6 +3475,12 @@ get_prev:;
 	}
     }
     return -1;
+}
+
+int toku_brt_cursor_before(BRT_CURSOR cursor, DBT *key, DBT *val, DBT *outkey, DBT *outval, TOKUTXN txn) {
+    TOKULOGGER logger = toku_txn_logger(txn);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_prev, BRT_SEARCH_RIGHT, key, val, cursor->brt);
+    return brt_cursor_search(cursor, &search, outkey, outval, logger);
 }
 
 static int brt_cursor_prev(BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKULOGGER logger) {
@@ -3541,6 +3611,34 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, DBT *val, int get_flags, T
         break;
     }
     return r;
+}
+
+static int brt_cursor_compare_heavi(brt_search_t *search, DBT *x, DBT *y) {
+    HEAVI_WRAPPER wrapper = search->context; 
+    int r = wrapper->h(x, y, wrapper->extra_h);
+    // wrapper->r_h must have the same signus as the final chosen element.
+    // it is initialized to -1 or 1.  0's are closer to the min (max) that we
+    // want so once we hit 0 we keep it.
+    if (r==0) wrapper->r_h = 0;
+    return (search->direction&BRT_SEARCH_LEFT) ? r>=0 : r<=0;
+}
+
+//We pass in toku_dbt_fake to the search functions, since it will not pass the
+//key(or val) to the heaviside function if key(or val) is NULL. 
+//It is not used for anything else,
+//the actual 'extra' information for the heaviside function is inside the
+//wrapper.
+static const DBT __toku_dbt_fake;
+static const DBT* const toku_dbt_fake = &__toku_dbt_fake;
+
+int toku_brt_cursor_get_heavi (BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKUTXN txn, int direction, HEAVI_WRAPPER wrapper) {
+    TOKULOGGER logger = toku_txn_logger(txn);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_heavi,
+                                         direction < 0 ? BRT_SEARCH_RIGHT : BRT_SEARCH_LEFT,
+                                         (DBT*)toku_dbt_fake,
+                                         cursor->brt->flags & TOKU_DB_DUPSORT ? (DBT*)toku_dbt_fake : NULL,
+                                         wrapper);
+    return brt_cursor_search(cursor, &search, outkey, outval, logger);
 }
 
 static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, u_int32_t fullhash, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater) {

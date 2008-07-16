@@ -330,6 +330,9 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 			     "int (*c_getf_current)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
 			     "int (*c_getf_first)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
 			     "int (*c_getf_last)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *)",
+                             "int (*c_getf_heavi)(DBC *, u_int32_t, "
+                                 "void(*f)(DBT const *, DBT const *, void *, int), void *extra_f, "
+                                 "int (*h)(const DBT *key, const DBT *value, void *extra_h), void *extra_h, int direction)",
 			     NULL};
 	assert(sizeof(dbc_fields32)==sizeof(dbc_fields64));
 	print_struct("dbc", 1, dbc_fields32, dbc_fields64, sizeof(dbc_fields32)/sizeof(dbc_fields32[0]), extra);

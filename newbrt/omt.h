@@ -417,6 +417,19 @@ int toku_omt_cursor_next (OMTCURSOR c, OMTVALUE *v);
 // Performance:  time=O(log N) worst case, expected time=O(1) for a randomly
 //  chosen initial position.
 
+int toku_omt_cursor_current_index(OMTCURSOR c, u_int32_t *index);
+// Effect: Stores c's offset in *index.
+// Requires: index != NULL
+// Returns
+//  0 success
+//  EINVAL c is invalid
+// On nonzero return, *index is unchanged and c is unchanged.
+// Performance: time=O(1)
+
+OMT toku_omt_cursor_get_omt(OMTCURSOR c);
+// Effect: returns the associated omt or NULL if not associated.
+// Performance: time=O(1)
+
 int toku_omt_cursor_current (OMTCURSOR c, OMTVALUE *v);
 // Effect: Store in v the value pointed by c's abstract offset
 // Requires: v != NULL
