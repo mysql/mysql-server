@@ -32,21 +32,6 @@ drop table t2;
 select * from t1;
 select * from t2;
 
-# DEBUG CODE ADDED BY SVEN. BUG#38127
-let $count_t1= `SELECT COUNT(*) FROM t1`;
-let $count_t2= `SELECT COUNT(*) FROM t2`;
-if (`SELECT $count_t1 != 3 OR $count_t2 != 70`)
-{
-  --echo Test case bug! See BUG#38127. Printing debug info.
-  --cat_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
-  SHOW MASTER STATUS;
-  SHOW BINLOG EVENTS;
-  --exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001
-  SHOW TABLES;
-  exit;
-}
-# END DEBUG CODE
-
 #
 #  Verify that events larger than the default IO_CACHE buffer
 #  are handled correctly (BUG#25628).
