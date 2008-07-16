@@ -1342,7 +1342,12 @@ static void fix_net_retry_count(THD *thd __attribute__((unused)),
 static void fix_query_cache_size(THD *thd, enum_var_type type)
 {
 #ifdef HAVE_QUERY_CACHE
-  query_cache_size= query_cache.resize(query_cache_size);
+  ulong requested= query_cache_size;
+  query_cache.resize(query_cache_size);
+  if (requested != query_cache_size)
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_QC_RESIZE, ER(ER_WARN_QC_RESIZE),
+			requested, query_cache_size);
 #endif
 }
 
