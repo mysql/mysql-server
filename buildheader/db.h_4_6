@@ -11,9 +11,9 @@ extern "C" {
 #define TOKUDB 1
 #define DB_VERSION_MAJOR 4
 #define DB_VERSION_MINOR 6
-#define DB_VERSION_PATCH 21
+#define DB_VERSION_PATCH 19
 #ifndef _TOKUDB_WRAP_H
-#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.21"
+#define DB_VERSION_STRING "Tokutek: TokuDB 4.6.19"
 #else
 #define DB_VERSION_STRING_ydb "Tokutek: TokuDB (wrapped bdb)"
 #endif
@@ -276,7 +276,8 @@ struct __toku_dbc {
   int (*c_getf_current)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
   int (*c_getf_first)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
   int (*c_getf_last)(DBC *, u_int32_t, void(*)(DBT const *, DBT const *, void *), void *);
-  void* __toku_dummy0[24];
+  int (*c_getf_heavi)(DBC *, u_int32_t, void(*f)(DBT const *, DBT const *, void *, int), void *extra_f, int (*h)(const DBT *key, const DBT *value, void *extra_h), void *extra_h, int direction);
+  void* __toku_dummy0[23];
   char __toku_dummy1[104];
   int (*c_close) (DBC *); /* 32-bit offset=244 size=4, 64=bit offset=384 size=8 */
   int (*c_count) (DBC *, db_recno_t *, u_int32_t); /* 32-bit offset=248 size=4, 64=bit offset=392 size=8 */

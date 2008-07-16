@@ -9,6 +9,37 @@
 
 #include "test.h"
 
+struct heavi_extra {
+    DBT key;
+    DBT val;
+    DB* db;
+};
+
+int heavi_after(const DBT *key, const DBT *val, void *extra) {
+    //Assumes cmp is int_dbt_cmp
+    struct heavi_extra *info = extra;
+    int cmp = int_dbt_cmp(info->db, key, &info->key);
+    if (cmp!=0) return cmp;
+    if (!val) return -1;
+    cmp = int_dbt_cmp(info->db, val, &info->val);
+    return cmp<=0 ? -1 : 0;
+    //Returns <0 for too small/equal
+    //Returns 0 for greater, but with the same key
+    //Returns >0 for greater with different key
+}
+
+int heavi_before(const DBT *key, const DBT *val, void *extra) {
+    struct heavi_extra *info = extra;
+    int cmp = int_dbt_cmp(info->db, key, &info->key);
+    if (cmp!=0) return cmp;
+    if (!val) return +1;
+    cmp = int_dbt_cmp(info->db, val, &info->val);
+    return cmp>=0 ? 1 : 0;
+    //Returns >0 for too large/equal
+    //Returns 0 for smaller with same key
+    //returns -1 for smaller with different key
+}
+
 // ENVDIR is defined in the Makefile
 
 int dbtcmp(DBT *dbt1, DBT *dbt2) {
@@ -593,6 +624,162 @@ void test_current(u_int32_t dup_flags) {
     close_dbs();
 }
 
+struct dbt_pair {
+    DBT key;
+    DBT val;
+};
+
+struct int_pair {
+    int key;
+    int val;
+};
+
+int got_r_h;
+
+void f_heavi(DBT const *key, DBT const *val, void *extra_f, int r_h) {
+    struct int_pair *info = extra_f;
+
+    if (r_h==0) got_r_h = 0;
+    assert(key->size == 4);
+    assert(val->size == 4);
+    
+    info->key = *(int*)key->data;
+    info->val = *(int*)val->data;
+}
+
+void cget_heavi(BOOL success, BOOL find, char txn, int _key, int _val, 
+          int _key_expect, int _val_expect, int direction,
+          int r_h_expect,
+          int (*h)(const DBT*,const DBT*,void*)) {
+#if defined(USE_BDB)
+    return;
+#else
+    assert(txns[(int)txn] && cursors[(int)txn]);
+
+    int r;
+    struct heavi_extra input;
+    struct int_pair output;
+    dbt_init(&input.key, &_key, sizeof(int));
+    dbt_init(&input.val, &_val, sizeof(int));
+    input.db = db;
+    output.key = 0;
+    output.val = 0;
+    
+    got_r_h = direction;
+
+    r = cursors[(int)txn]->c_getf_heavi(cursors[(int)txn], 0, //No prelocking
+               f_heavi, &output,
+               h, &input, direction);
+    if (!success) {
+        CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
+        return;
+    }
+    if (!find) {
+        CKERR2s(r,  DB_NOTFOUND, DB_KEYEMPTY);
+        return;
+    }
+    CKERR(r);
+    assert(got_r_h == r_h_expect);
+    assert(output.key == _key_expect);
+    assert(output.val == _val_expect);
+#endif
+}
+
+
+void test_heavi(u_int32_t dup_flags) {
+    /* ********************************************************************** */
+    setup_dbs(dup_flags);
+    cget_heavi(TRUE, FALSE, 'a', 0, 0, 0, 0,  1, 0, heavi_after); 
+    cget_heavi(TRUE, FALSE, 'a', 0, 0, 0, 0, -1, 0, heavi_before); 
+    close_dbs();
+    /* ********************************************************************** */
+    //Not found locks left to right (with empty db == entire db)
+    setup_dbs(dup_flags);
+    cget_heavi(TRUE, FALSE, 'a', 0, 0, 0, 0,  1, 0, heavi_after); 
+    put(FALSE, 'b', 7, 6);
+    put(FALSE, 'b', -1, -1);
+    put(TRUE,  'a', 4, 4);
+    early_commit('a');
+    put(TRUE, 'b', 7, 6);
+    put(TRUE, 'b', -1, -1);
+    close_dbs();
+    /* ********************************************************************** */
+    //Not found locks left to right (with empty db == entire db)
+    setup_dbs(dup_flags);
+    cget_heavi(TRUE, FALSE, 'a', 0, 0, 0, 0, -1, 0, heavi_before); 
+    put(FALSE, 'b', 7, 6);
+    put(FALSE, 'b', -1, -1);
+    put(TRUE,  'a', 4, 4);
+    early_commit('a');
+    put(TRUE, 'b', 7, 6);
+    put(TRUE, 'b', -1, -1);
+    close_dbs();
+    /* ********************************************************************** */
+    //Duplicate mode behaves differently.
+    setup_dbs(dup_flags);
+    int k,v;
+    for (k = 10; k <= 100; k+= 10) {
+        v = k+5;
+        put(TRUE, 'a', k, v);
+    }
+    if (dup_flags) {
+        cget_heavi(TRUE, TRUE, 'a', 100, 0, 100, 105,  1, 0, heavi_after); 
+    }
+    else {
+        cget_heavi(TRUE, FALSE, 'a', 100, 0, 0, 0,  1, 0, heavi_after); 
+    }
+    close_dbs();
+    /* ********************************************************************** */
+    //Locks stop at actual elements in the DB.
+    setup_dbs(dup_flags);
+    //int k,v;
+    for (k = 10; k <= 100; k+= 10) {
+        v = k+5;
+        put(TRUE, 'a', k, v);
+    }
+    cget_heavi(TRUE, FALSE, 'a', 105, 1, 0, 0,  1, 0, heavi_after); 
+    put(FALSE, 'b', 104, 1);
+    put(FALSE, 'b', 105, 0);
+    put(FALSE, 'b', 105, 1);
+    put(FALSE, 'b', 105, 2);
+    put(FALSE, 'b', 106, 0);
+    put(TRUE,  'b', 99,  0);
+    put(dup_flags!=0, 'b', 100, 104);
+    close_dbs();
+    /* ********************************************************************** */
+    // Test behavior of heavi_after
+    setup_dbs(dup_flags);
+    //int k,v;
+    for (k = 10; k <= 100; k+= 10) {
+        v = k+5;
+        put(TRUE, 'a', k, v);
+    }
+    for (k = 5; k <= 95; k+= 10) {
+        v = k+5;
+        cget_heavi(TRUE, TRUE, 'a', k, v, k+5, v+5,  1, 1, heavi_after); 
+    }
+    put(FALSE, 'b', -1, -2);
+    put(TRUE, 'b', 200, 201);
+    cget_heavi(FALSE, FALSE, 'a', 105, 105, 0, 0, 1, 0, heavi_after);
+    close_dbs();
+    /* ********************************************************************** */
+    // Test behavior of heavi_before
+    setup_dbs(dup_flags);
+    //int k,v;
+    for (k = 10; k <= 100; k+= 10) {
+        v = k+5;
+        put(TRUE, 'a', k, v);
+    }
+    for (k = 105; k >= 15; k-= 10) {
+        v = k+5;
+        cget_heavi(TRUE, TRUE, 'a', k, v, k-5, v-5,  -1, -1, heavi_before); 
+    }
+    put(FALSE, 'b', 200, 201);
+    put(TRUE,  'b', -1, -2);
+    cget_heavi(FALSE, FALSE, 'a', -5, -5, 0, 0, -1, 0, heavi_after);
+    close_dbs();
+}
+
 void test(u_int32_t dup_flags) {
     /* ********************************************************************** */
     setup_dbs(dup_flags);
@@ -637,6 +824,9 @@ void test(u_int32_t dup_flags) {
     test_dbdel(dup_flags);
     /* ********************************************************************** */
     test_current(dup_flags);
+    /* ********************************************************************** */
+    test_heavi(dup_flags);
+    /* ********************************************************************** */
 }
 
 

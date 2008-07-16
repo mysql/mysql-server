@@ -80,6 +80,10 @@ int toku_omt_cursor_create (OMTCURSOR *omtcp) {
     return 0;
 }
 
+OMT toku_omt_cursor_get_omt(OMTCURSOR c) {
+    return c->omt;
+}
+
 void toku_omt_cursor_invalidate (OMTCURSOR c) {
     if (c==NULL || c->omt==NULL) return;
     if (c->next == c) {
@@ -624,6 +628,12 @@ int toku_omt_cursor_current (OMTCURSOR c, OMTVALUE *v) {
     if (r!=0) toku_omt_cursor_invalidate(c);
     return r;
 }
+
+int toku_omt_cursor_current_index(OMTCURSOR c, u_int32_t *index) {
+    if (c->omt == NULL) return EINVAL;
+    *index = c->index;
+    return 0;
+} 
 
 //TODO: Put all omt API functions here.
 int toku_omt_create (OMT *omtp) {
