@@ -245,8 +245,6 @@ private:
 
   void free_query_internal(Query_cache_block *point);
 
-  ulong get_minimal_size_limit();
-
 protected:
   /*
     The following mutex is locked when searching or changing global
