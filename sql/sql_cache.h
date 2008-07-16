@@ -282,6 +282,8 @@ private:
   void free_query_internal(Query_cache_block *point);
   void invalidate_table_internal(THD *thd, uchar *key, uint32 key_length);
 
+  ulong get_minimal_size_limit();
+
 protected:
   /*
     The following mutex is locked when searching or changing global
