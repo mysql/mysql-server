@@ -176,7 +176,7 @@ void udf_init()
   }
 
   table= tables.table;
-  init_read_record(&read_record_info, new_thd, table, NULL,1,0);
+  init_read_record(&read_record_info, new_thd, table, NULL,1,0,FALSE);
   while (!(error = read_record_info.read_record(&read_record_info)))
   {
     DBUG_PRINT("info",("init udf record"));
