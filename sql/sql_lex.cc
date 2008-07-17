@@ -1010,21 +1010,8 @@ int MYSQLlex(void *arg, void *yythd)
       yySkip();
       return (SET_VAR);
     case MY_LEX_SEMICOLON:			// optional line terminator
-      if (yyPeek())
-      {
-        if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            !lip->stmt_prepare_mode)
-        {
-	  lex->safe_to_cache_query= 0;
-          lip->found_semicolon= lip->ptr;
-          thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
-          lip->next_state=     MY_LEX_END;
-          return (END_OF_INPUT);
-        }
-        state= MY_LEX_CHAR;		// Return ';'
-	break;
-      }
-      /* fall true */
+      state= MY_LEX_CHAR;               // Return ';'
+      break;
     case MY_LEX_EOL:
       if (lip->ptr >= lip->end_of_query)
       {
@@ -1039,7 +1026,7 @@ int MYSQLlex(void *arg, void *yythd)
     case MY_LEX_END:
       lip->next_state=MY_LEX_END;
       return(0);			// We found end of input last time
-      
+
       /* Actually real shouldn't start with . but allow them anyhow */
     case MY_LEX_REAL_OR_POINT:
       if (my_isdigit(cs,yyPeek()))
