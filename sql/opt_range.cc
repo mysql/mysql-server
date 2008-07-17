@@ -8556,7 +8556,8 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
                                      uint used_key_parts_arg)
- :QUICK_RANGE_SELECT(*q), rev_it(rev_ranges)
+ :QUICK_RANGE_SELECT(*q), rev_it(rev_ranges),
+  used_key_parts (used_key_parts_arg)
 {
   QUICK_RANGE *r;
 
@@ -8598,10 +8599,11 @@ int QUICK_SELECT_DESC::get_next()
     int result;
     if (last_range)
     {						// Already read through key
-      result = ((last_range->flag & EQ_RANGE)
-		? file->index_next_same(record, last_range->min_key,
-					last_range->min_length) :
-		file->index_prev(record));
+      result = ((last_range->flag & EQ_RANGE && 
+                 used_key_parts <= head->key_info[index].key_parts) ? 
+                file->index_next_same(record, last_range->min_key,
+                                      last_range->min_length) :
+                file->index_prev(record));
       if (!result)
       {
 	if (cmp_prev(*rev_it.ref()) == 0)
@@ -8625,7 +8627,9 @@ int QUICK_SELECT_DESC::get_next()
       continue;
     }
 
-    if (last_range->flag & EQ_RANGE)
+    if (last_range->flag & EQ_RANGE &&
+        used_key_parts <= head->key_info[index].key_parts)
+
     {
       result = file->index_read_map(record, last_range->max_key,
                                     last_range->max_keypart_map,
@@ -8634,6 +8638,8 @@ int QUICK_SELECT_DESC::get_next()
     else
     {
       DBUG_ASSERT(last_range->flag & NEAR_MAX ||
+                  (last_range->flag & EQ_RANGE && 
+                   used_key_parts > head->key_info[index].key_parts) ||
                   range_reads_after_key(last_range));
       result=file->index_read_map(record, last_range->max_key,
                                   last_range->max_keypart_map,
@@ -8729,54 +8735,6 @@ bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg)
 	  !(range_arg->flag & EQ_RANGE) ||
 	  head->key_info[index].key_length != range_arg->max_length) ? 1 : 0;
 }
-
-
-/* TRUE if we are reading over a key that may have a NULL value */
-
-#ifdef NOT_USED
-bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
-					   uint used_key_parts)
-{
-  uint offset, end;
-  KEY_PART *key_part = key_parts,
-           *key_part_end= key_part+used_key_parts;
-
-  for (offset= 0,  end = min(range_arg->min_length, range_arg->max_length) ;
-       offset < end && key_part != key_part_end ;
-       offset+= key_part++->store_length)
-  {
-    if (!memcmp((char*) range_arg->min_key+offset,
-		(char*) range_arg->max_key+offset,
-		key_part->store_length))
-      continue;
-
-    if (key_part->null_bit && range_arg->min_key[offset])
-      return 1;				// min_key is null and max_key isn't
-    // Range doesn't cover NULL. This is ok if there is no more null parts
-    break;
-  }
-  /*
-    If the next min_range is > NULL, then we can use this, even if
-    it's a NULL key
-    Example:  SELECT * FROM t1 WHERE a = 2 AND b >0 ORDER BY a DESC,b DESC;
-
-  */
-  if (key_part != key_part_end && key_part->null_bit)
-  {
-    if (offset >= range_arg->min_length || range_arg->min_key[offset])
-      return 1;					// Could be null
-    key_part++;
-  }
-  /*
-    If any of the key parts used in the ORDER BY could be NULL, we can't
-    use the key to sort the data.
-  */
-  for (; key_part != key_part_end ; key_part++)
-    if (key_part->null_bit)
-      return 1;					// Covers null part
-  return 0;
-}
-#endif
 
 
 void QUICK_RANGE_SELECT::add_info_string(String *str)
