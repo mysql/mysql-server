@@ -10,11 +10,6 @@
 # 2008-06-06 mleich Create this this variant for the embedded server.
 #
 
-let $value= query_get_value(SHOW VARIABLES LIKE 'version_compile_os',Value,1);
-if (`SELECT '$value' LIKE 'apple-darwin%'`)
-{
-   skip Bug#37380 Test funcs_1.is_columns_myisam_embedded fails on OS X;
-}
 if (`SELECT VERSION() NOT LIKE '%embedded%'`)
 {
    --skip Test requires: embedded server
