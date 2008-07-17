@@ -2849,12 +2849,13 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
-  Lex_input_stream lip(thd, thd->query, thd->query_length);
-  lip.stmt_prepare_mode= TRUE;
-  thd->m_lip= &lip;
+  Parser_state parser_state(thd, thd->query, thd->query_length);
+  parser_state.m_lip.stmt_prepare_mode= TRUE;
+  thd->m_parser_state= &parser_state;
   lex_start(thd);
   lex->safe_to_cache_query= FALSE;
   int err= MYSQLparse((void *)thd);
+  thd->m_parser_state= NULL;
   lex->set_trg_event_type_for_tables();
 
   error= err || thd->is_fatal_error ||

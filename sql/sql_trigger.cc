@@ -968,11 +968,13 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
 
-        Lex_input_stream lip(thd, trg_create_str->str, trg_create_str->length);
-        thd->m_lip= &lip;
+        Parser_state parser_state(thd, trg_create_str->str,
+                                  trg_create_str->length);
+        thd->m_parser_state= &parser_state;
         lex_start(thd);
         thd->spcont= NULL;
         int err= MYSQLparse((void *)thd);
+        thd->m_parser_state= NULL;
 
         if (err || thd->is_fatal_error)
         {
