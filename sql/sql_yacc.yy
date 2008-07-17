@@ -23,6 +23,7 @@
 #define YYPARSE_PARAM yythd
 #define YYLEX_PARAM yythd
 #define YYTHD ((THD *)yythd)
+#define YYLIP (& YYTHD->m_parser_state->m_lip)
 
 #define MYSQL_YACC
 #define YYINITDEPTH 100
@@ -86,7 +87,7 @@ const LEX_STRING null_lex_str={0,0};
 void my_parse_error(const char *s)
 {
   THD *thd= current_thd;
-  Lex_input_stream *lip= thd->m_lip;
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
 
   const char *yytext= lip->tok_start;
   /* Push an error into the error stack */
@@ -1213,11 +1214,11 @@ query:
               MYSQL_YYABORT;
             }
             thd->lex->sql_command= SQLCOM_EMPTY_QUERY;
-            thd->m_lip->found_semicolon= NULL;
+            YYLIP->found_semicolon= NULL;
           }
         | verb_clause
           {
-            Lex_input_stream *lip = YYTHD->m_lip;
+            Lex_input_stream *lip = YYLIP;
 
             if ((YYTHD->client_capabilities & CLIENT_MULTI_QUERIES) &&
                 ! lip->stmt_prepare_mode &&
@@ -1243,7 +1244,7 @@ query:
         | verb_clause END_OF_INPUT
           {
             /* Single query, not terminated. */
-            YYTHD->m_lip->found_semicolon= NULL;
+            YYLIP->found_semicolon= NULL;
           }
         ;
 
@@ -2155,7 +2156,7 @@ sp_proc_stmt:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 
 	    if (lex->sphead->reset_lex(thd))
               MYSQL_YYABORT;
@@ -2165,7 +2166,7 @@ sp_proc_stmt:
 	  {
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 	    sp_head *sp= lex->sphead;
 
             sp->m_flags|= sp_get_flags_for_command(lex);
@@ -4503,16 +4504,12 @@ select_item:
 
 remember_name:
 	{
-          THD *thd= YYTHD;
-          Lex_input_stream *lip= thd->m_lip;
-          $$= (char*) lip->tok_start;
+          $$= (char*) YYLIP->tok_start;
         };
 
 remember_end:
 	{
-          THD *thd= YYTHD;
-          Lex_input_stream *lip= thd->m_lip;
-          $$=(char*) lip->tok_end;
+          $$=(char*) YYLIP->tok_end;
         };
 
 select_item2:
@@ -6452,7 +6449,7 @@ procedure_item:
 	  remember_name expr
 	  {
             THD *thd= YYTHD;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 
 	    if (add_proc_to_list(thd, $2))
 	      MYSQL_YYABORT;
@@ -7524,7 +7521,7 @@ load:   LOAD DATA_SYM
         {
           THD *thd= YYTHD;
           LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
 	  if (lex->sphead)
 	  {
@@ -7566,10 +7563,7 @@ load_data:
         }
         opt_duplicate INTO
         {
-          THD *thd= YYTHD;
-	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
-	  lex->fname_end= lip->ptr;
+	  Lex->fname_end= YYLIP->ptr;
 	}
         TABLE_SYM table_ident
         {
@@ -7787,7 +7781,7 @@ param_marker:
         {
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
           Item_param *item;
           if (! lex->parsing_options.allows_variable)
           {
@@ -7820,7 +7814,7 @@ literal:
 	| NULL_SYM
           {
             $$ = new Item_null();
-            YYTHD->m_lip->next_state=MY_LEX_OPERATOR_OR_IDENT;
+            YYLIP->next_state= MY_LEX_OPERATOR_OR_IDENT;
           }
 	| FALSE_SYM	{ $$= new Item_int((char*) "FALSE",0,1); }
 	| TRUE_SYM	{ $$= new Item_int((char*) "TRUE",1,1); }
@@ -7924,7 +7918,7 @@ simple_ident:
 	{
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 	  sp_variable_t *spv;
           sp_pcontext *spc = lex->spcont;
 	  if (spc && (spv = spc->find_variable(&$1)))
@@ -8537,7 +8531,7 @@ option_type_value:
         {
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
           if (lex->sphead)
           {
@@ -8568,7 +8562,7 @@ option_type_value:
         {
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
           if (lex->sphead)
           {
@@ -9878,7 +9872,7 @@ trigger_tail:
 	{
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 	  sp_head *sp;
 	 
 	  if (lex->sphead)
@@ -9971,7 +9965,7 @@ sf_tail:
           { /* $5 */
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 	    sp_head *sp;
 
 	    lex->stmt_definition_begin= $1;
@@ -9996,11 +9990,7 @@ sf_tail:
           sp_fdparam_list /* $6 */
           ')' /* $7 */
           { /* $8 */
-            THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-
-	    lex->sphead->m_param_end= lip->tok_start;
+	    Lex->sphead->m_param_end= YYLIP->tok_start;
 	  }
           RETURNS_SYM /* $9 */
 	  { /* $10 */
@@ -10026,7 +10016,7 @@ sf_tail:
           { /* $14 */
             THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
+            Lex_input_stream *lip= YYLIP;
 
 	    lex->sphead->m_chistics= &lex->sp_chistics;
 	    lex->sphead->m_body_begin= lip->tok_start;
@@ -10078,18 +10068,14 @@ sp_tail:
 	}
         '('
 	{
-          THD *thd= YYTHD;
-	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
-
-	  lex->sphead->m_param_begin= lip->tok_start+1;
+	  Lex->sphead->m_param_begin= YYLIP->tok_start+1;
 	}
 	sp_pdparam_list
 	')'
 	{
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
 	  lex->sphead->m_param_end= lip->tok_start;
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
@@ -10098,7 +10084,7 @@ sp_tail:
 	{
           THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          Lex_input_stream *lip= thd->m_lip;
+          Lex_input_stream *lip= YYLIP;
 
 	  lex->sphead->m_chistics= &lex->sp_chistics;
 	  lex->sphead->m_body_begin= lip->tok_start;

@@ -4177,7 +4177,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     current query id
   */
   from->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-  init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
+  init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->row_count= 0;
