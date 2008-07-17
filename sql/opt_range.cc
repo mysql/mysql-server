@@ -7936,7 +7936,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   handler *file= head->file;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::read_keys_and_merge");
 
-
+  /* We're going to just read rowids. */
   file->extra(HA_EXTRA_KEYREAD);
   head->prepare_for_position();
 
