@@ -942,25 +942,18 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
     } while (block != queries_blocks);
   }
   free_cache();
-  query_cache_size= query_cache_size_arg;
-  ::query_cache_size= init_cache();
 
-  if (::query_cache_size != query_cache_size_arg)
-  {
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_WARN_QC_RESIZE, ER(ER_WARN_QC_RESIZE),
-                        query_cache_size_arg,
-                        get_minimal_size_limit(),
-                        ::query_cache_size);
-  }
+  query_cache_size= query_cache_size_arg;
+  new_query_cache_size= init_cache();
 
   STRUCT_LOCK(&structure_guard_mutex);
   m_cache_status= Query_cache::NO_FLUSH_IN_PROGRESS;
   pthread_cond_signal(&COND_cache_status_changed);
-  
+  if (new_query_cache_size)
+    DBUG_EXECUTE("check_querycache",check_integrity(1););
   STRUCT_UNLOCK(&structure_guard_mutex);
 
-  DBUG_RETURN(::query_cache_size);
+  DBUG_RETURN(new_query_cache_size);
 }
 
 
@@ -1823,24 +1816,6 @@ void Query_cache::init()
   DBUG_VOID_RETURN;
 }
 
-/**
-  Return the lowest possible query cache size.
-*/
-
-ulong Query_cache::get_minimal_size_limit()
-{
-  ulong approx_additional_data_size= (sizeof(Query_cache) +
-                                      sizeof(void*)*(def_query_hash_size+
-                                      def_table_hash_size));
-
-  ulong data_size= (min_allocation_unit << QUERY_CACHE_MEM_BIN_STEP_PWR2 <<
-                    QUERY_CACHE_MEM_BIN_FIRST_STEP_PWR2) +
-                    ALIGN_SIZE(1) - 1 +
-                    (1 << QUERY_CACHE_MEM_BIN_STEP_PWR2) - 1 +
-                    (1 << QUERY_CACHE_MEM_BIN_FIRST_STEP_PWR2) - 1;
-
-  return(data_size + approx_additional_data_size);
-}
 
 ulong Query_cache::init_cache()
 {
