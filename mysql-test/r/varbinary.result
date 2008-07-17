@@ -78,3 +78,34 @@ alter table t1 modify a varchar(255);
 select length(a) from t1;
 length(a)
 6
+select 0b01000001;
+0b01000001
+A
+select 0x41;
+0x41
+A
+select b'01000001';
+b'01000001'
+A
+select x'41', 0+x'41';
+x'41'	0+x'41'
+A	65
+select N'abc', length(N'abc');
+abc	length(N'abc')
+abc	3
+select N'', length(N'');
+	length(N'')
+	0
+select '', length('');
+	length('')
+	0
+select b'', 0+b'';
+b''	0+b''
+	0
+select x'', 0+x'';
+x''	0+x''
+	0
+select 0x;
+ERROR 42S22: Unknown column '0x' in 'field list'
+select 0b;
+ERROR 42S22: Unknown column '0b' in 'field list'

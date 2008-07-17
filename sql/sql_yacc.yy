@@ -1216,21 +1216,54 @@ END_OF_INPUT
 
 
 query:
-	END_OF_INPUT
-	{
-	   THD *thd= YYTHD;
-	   if (!thd->bootstrap &&
-	      (!(thd->lex->select_lex.options & OPTION_FOUND_COMMENT)))
-	   {
-	     my_message(ER_EMPTY_QUERY, ER(ER_EMPTY_QUERY), MYF(0));
-	     MYSQL_YYABORT;
-	   }
-	   else
-	   {
-	     thd->lex->sql_command= SQLCOM_EMPTY_QUERY;
-	   }
-	}
-	| verb_clause END_OF_INPUT {};
+          END_OF_INPUT
+          {
+            THD *thd= YYTHD;
+            if (!thd->bootstrap &&
+              (!(thd->lex->select_lex.options & OPTION_FOUND_COMMENT)))
+            {
+              my_message(ER_EMPTY_QUERY, ER(ER_EMPTY_QUERY), MYF(0));
+              MYSQL_YYABORT;
+            }
+            thd->lex->sql_command= SQLCOM_EMPTY_QUERY;
+            thd->m_lip->found_semicolon= NULL;
+          }
+        | verb_clause
+          {
+            Lex_input_stream *lip = YYTHD->m_lip;
+
+            if ((YYTHD->client_capabilities & CLIENT_MULTI_QUERIES) &&
+                ! lip->stmt_prepare_mode &&
+                ! (lip->ptr >= lip->end_of_query))
+            {
+              /*
+                We found a well formed query, and multi queries are allowed:
+                - force the parser to stop after the ';'
+                - mark the start of the next query for the next invocation
+                  of the parser.
+              */
+              lip->next_state= MY_LEX_END;
+              lip->found_semicolon= lip->ptr;
+            }
+            else
+            {
+              /* Single query, terminated. */
+              lip->found_semicolon= NULL;
+            }
+          }
+          ';'
+          opt_end_of_input
+        | verb_clause END_OF_INPUT
+          {
+            /* Single query, not terminated. */
+            YYTHD->m_lip->found_semicolon= NULL;
+          }
+        ;
+
+opt_end_of_input:
+          /* empty */
+        | END_OF_INPUT
+        ;
 
 verb_clause:
 	  statement
@@ -9961,13 +9994,6 @@ trigger_tail:
 
 	  lex->sphead= sp;
 	  lex->spname= $3;
-	  /*
-	    We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	    stored procedure, otherwise yylex will chop it into pieces
-	    at each ';'.
-	  */
-	  sp->m_old_cmq= thd->client_capabilities & CLIENT_MULTI_QUERIES;
-	  thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	  
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
@@ -9982,9 +10008,6 @@ trigger_tail:
 	  
 	  lex->sql_command= SQLCOM_CREATE_TRIGGER;
 	  sp->init_strings(YYTHD, lex);
-	  /* Restore flag if it was cleared above */
-	  if (sp->m_old_cmq)
-	    YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	  sp->restore_thd_mem_root(YYTHD);
 	
 	  if (sp->is_not_allowed_in_function("trigger"))
@@ -10062,13 +10085,6 @@ sf_tail:
 
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
-	    /*
-	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	     * stored procedure, otherwise yylex will chop it into pieces
-	     * at each ';'.
-	     */
-	    sp->m_old_cmq= thd->client_capabilities & CLIENT_MULTI_QUERIES;
-	    thd->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	    lex->sphead->m_param_begin= lip->tok_start+1;
 	  }
           sp_fdparam_list /* $6 */
@@ -10124,9 +10140,6 @@ sf_tail:
               my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
               MYSQL_YYABORT;
             }
-	    /* Restore flag if it was cleared above */
-	    if (sp->m_old_cmq)
-	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	;
@@ -10156,13 +10169,6 @@ sp_tail:
           sp->init_sp_name(YYTHD, $3);
 
 	  lex->sphead= sp;
-	  /*
-	   * We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	   * stored procedure, otherwise yylex will chop it into pieces
-	   * at each ';'.
-	   */
-	  sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-	  YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 	}
         '('
 	{
@@ -10198,9 +10204,6 @@ sp_tail:
 
 	  sp->init_strings(YYTHD, lex);
 	  lex->sql_command= SQLCOM_CREATE_PROCEDURE;
-	  /* Restore flag if it was cleared above */
-	  if (sp->m_old_cmq)
-	    YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	  sp->restore_thd_mem_root(YYTHD);
 	}
 	;
