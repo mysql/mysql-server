@@ -2648,8 +2648,8 @@ int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     //{ unsigned i; printf("del %p keylen=%d key={", brt->db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", val->size); for(i=0; i<val->size; i++) printf("%d,", ((char*)val->data)[i]); printf("}\n"); }
     int r;
     if (txn && (brt->txn_that_created != toku_txn_get_txnid(txn))) {
-	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
-	BYTESTRING databs = {val->size, toku_memdup(val->data, val->size)};
+	BYTESTRING keybs  = {key->size, toku_memdup_in_rollback(txn, key->data, key->size)};
+	BYTESTRING databs = {val->size, toku_memdup_in_rollback(txn, val->data, val->size)};
 	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmddeleteboth(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
 	if (r!=0) return r;
