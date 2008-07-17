@@ -405,6 +405,9 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
 bool federated_db_init()
 {
   DBUG_ENTER("federated_db_init");
+  /* the federated engine can be disabled by a command line option */
+  if (have_federated_db == SHOW_OPTION_DISABLED)
+    DBUG_RETURN(TRUE);
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
