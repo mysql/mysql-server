@@ -2713,10 +2713,6 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     bzero((void *) &row, sizeof(row));
     pack_key(&last_key, active_index, key_buff, key, key_len);
 
-    DBT h_key, h_val;
-    bzero((void*) &h_key, sizeof(h_key));
-    bzero((void*) &h_val, sizeof(h_val));
-
     struct dbt_copy_info copy_info; //Needed as part of the smart dbt.
     struct heavi_info heavi_info;   //Needed for the heaviside function.
     copy_info.key = &last_key;
