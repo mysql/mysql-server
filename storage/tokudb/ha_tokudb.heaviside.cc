@@ -2703,6 +2703,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     // TOKUDB_DBUG_DUMP("key=", key, key_len);
     DBT row;
     int error;
+    int h_error;
 
     CHECK_VALID_CURSOR();
 
@@ -2710,10 +2711,14 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     bzero((void *) &row, sizeof(row));
     pack_key(&last_key, active_index, key_buff, key, key_len);
 
+    DBT h_key, h_val;
+    bzero((void*) &h_key, sizeof(h_key));
+    bzero((void*) &h_val, sizeof(h_val));
+
     struct dbt_copy_info copy_info; //Needed as part of the smart dbt.
     struct heavi_info heavi_info;   //Needed for the heaviside function.
-    copy_info.key = &last_key;
-    copy_info.val = &row;
+    copy_info.key = &h_key;
+    copy_info.val = &h_val;
     heavi_info.db = share->key_file[active_index];
     heavi_info.key = &last_key;
     switch (find_flag) {
@@ -2727,14 +2732,55 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         }
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
-        error = cursor->c_getf_heavi(cursor, 0, dbt_copy_heavi, &copy_info,
+        //Heaviside
+        h_error = cursor->c_getf_heavi(cursor, 0, dbt_copy_heavi, &copy_info,
                                      after_key_heavi, &heavi_info, 1);
-        if (error==0 && copy_info.error!=0) error = copy_info.error;
+        if (h_error==0 && copy_info.error!=0) h_error = copy_info.error;
+        //Old Slow
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        if (error == 0) {
+            DBT orig_key;
+            pack_key(&orig_key, active_index, key_buff2, key, key_len);
+            for (;;) {
+                if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
+                    break;
+                error = cursor->c_get(cursor, &last_key, &row, DB_NEXT_NODUP);
+                if (error != 0)
+                    break;
+            }
+        }
+        //verify
+        assert(error==h_error);
+        if (error==0) {
+            assert(h_key.size == last_key.size);
+            assert(h_val.size == row.size);
+            assert(!memcmp(h_key.data, last_key.data, h_key.size));
+            assert(!memcmp(h_val.data, row.data, h_key.size));
+            free(h_key.data);
+            free(h_val.data);
+        }
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
-        error = cursor->c_getf_heavi(cursor, 0, dbt_copy_heavi, &copy_info,
+        //heaviside
+        h_error = cursor->c_getf_heavi(cursor, 0, dbt_copy_heavi, &copy_info,
                                      before_key_heavi, &heavi_info, -1);
-        if (error==0 && copy_info.error!=0) error = copy_info.error;
+        if (h_error==0 && copy_info.error!=0) h_error = copy_info.error;
+        //Slow
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        if (error == 0)
+            error = cursor->c_get(cursor, &last_key, &row, DB_PREV);
+        else if (error == DB_NOTFOUND)
+            error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
+        //Verify
+        assert(error==h_error);
+        if (error==0) {
+            assert(h_key.size == last_key.size);
+            assert(h_val.size == row.size);
+            assert(!memcmp(h_key.data, last_key.data, h_key.size));
+            assert(!memcmp(h_val.data, row.data, h_key.size));
+            free(h_key.data);
+            free(h_val.data);
+        }
         break;
     case HA_READ_KEY_OR_NEXT: /* Record or next record */
         error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
@@ -2751,9 +2797,39 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
             error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
-        error = cursor->c_getf_heavi(cursor, 0, dbt_copy_heavi, &copy_info,
+        //heaviside
+        h_error = cursor->c_getf_heavi(cursor, 0, dbt_copy_heavi, &copy_info,
                                      prefix_last_or_prev_heavi, &heavi_info, -1);
-        if (error==0 && copy_info.error!=0) error = copy_info.error;
+        if (h_error==0 && copy_info.error!=0) h_error = copy_info.error;
+        //Slow
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        if (error == 0) {
+            DBT orig_key;
+            pack_key(&orig_key, active_index, key_buff2, key, key_len);
+            for (;;) {
+                if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
+                    break;
+                error = cursor->c_get(cursor, &last_key, &row, DB_NEXT_NODUP);
+                if (error != 0)
+                    break;
+            }
+            if (error == 0)
+                error = cursor->c_get(cursor, &last_key, &row, DB_PREV);
+            else if (error == DB_NOTFOUND)
+                error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
+        }
+        else if (error == DB_NOTFOUND)
+            error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
+        //Verify
+        assert(error==h_error);
+        if (error==0) {
+            assert(h_key.size == last_key.size);
+            assert(h_val.size == row.size);
+            assert(!memcmp(h_key.data, last_key.data, h_key.size));
+            assert(!memcmp(h_val.data, row.data, h_key.size));
+            free(h_key.data);
+            free(h_val.data);
+        }
         break;
     default:
         TOKUDB_TRACE("unsupported:%d\n", find_flag);
@@ -2771,8 +2847,6 @@ cleanup:
     // We need to clean up our own memory with heaviside functions, since they
     // use smart dbts.
     //
-    if (last_key.flags==DB_DBT_REALLOC && last_key.data) free(last_key.data);
-    if (row.flags==DB_DBT_REALLOC && row.data) free(row.data);
     TOKUDB_DBUG_RETURN(error);
 }
 
