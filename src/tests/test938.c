@@ -54,12 +54,14 @@ void run (int choice) {
 	DBC *c;
 	r=db->cursor(db, txn, &c, 0);                                 CKERR(r);
 	DBT kdbt,vdbt;
-	dbt_init_malloc(&kdbt);
-	dbt_init_malloc(&vdbt);
+	memset(&kdbt, 0, sizeof(kdbt));
+	memset(&vdbt, 0, sizeof(vdbt));
 	i=0;
 	while (0==(r=c->c_get(c, &kdbt, &vdbt, DB_NEXT))) {
 	    //printf("Got %d %d\n", *(unsigned char*)kdbt.data, *(unsigned char*)vdbt.data);
 	    i++;
+	    kdbt.data=0;
+	    vdbt.data=0;
 	}
 	CKERR2(r, DB_NOTFOUND);
 	//printf("i=%d N=%d\n", i, N);
@@ -72,8 +74,8 @@ void run (int choice) {
 	DBC *c;
 	r=db->cursor(db, txn, &c, 0);                                 CKERR(r);
 	DBT kdbt,vdbt;
-	dbt_init_malloc(&kdbt);
-	dbt_init_malloc(&vdbt);
+	memset(&kdbt, 0, sizeof(kdbt));
+	memset(&vdbt, 0, sizeof(vdbt));
 	i=0;
 	while (0==(r=(c->c_get(c, &kdbt, &vdbt, DB_FIRST)))) {
 	    i++;
