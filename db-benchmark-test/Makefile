@@ -14,7 +14,7 @@ SUMMARIZE_CMD =
 QUIET =
 endif
 
-BENCHDBS = bench.bdb/ bench.tokudb
+BENCHDBS = bench.bdb/ bench.tokudb ptest*.dir/ x.dir/ xfast.dir/
 
 OPTFLAGS = -O2
 CFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
