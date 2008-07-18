@@ -682,6 +682,7 @@ extern my_string fn_format(my_string to,const char *name,const char *dir,
 			   const char *form, uint flag);
 extern size_s strlength(const char *str);
 extern void pack_dirname(my_string to,const char *from);
+extern uint normalize_dirname(char * to, const char *from);
 extern uint unpack_dirname(my_string to,const char *from);
 extern uint cleanup_dirname(my_string to,const char *from);
 extern uint system_filename(my_string to,const char *from);
