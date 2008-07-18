@@ -34,7 +34,7 @@ $(DBCXX):
 	cd ..;make
 
 clean:
-	rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db
+	rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db dir.test.db.assoc3 test_reverse_compare_fun.cpp.dir
 
 check_test1: test1
 	$(VGRIND) ./$< $(SUMMARIZE_CMD)
