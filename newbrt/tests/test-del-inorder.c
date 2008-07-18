@@ -36,6 +36,7 @@ void doit (void) {
     unlink(fname);
     r = toku_open_brt(fname, 0, 1, &t, NODESIZE, ct, null_txn, toku_default_compare_fun, null_db);
     assert(r==0);
+    free(fname);
 
     r = toku_testsetup_leaf(t, &nodea);
     assert(r==0);
