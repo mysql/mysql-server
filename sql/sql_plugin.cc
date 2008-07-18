@@ -1361,7 +1361,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     goto end;
   }
   table= tables.table;
-  init_read_record(&read_record_info, new_thd, table, NULL, 1, 0);
+  init_read_record(&read_record_info, new_thd, table, NULL, 1, 0, FALSE);
   table->use_all_columns();
   /*
     there're no other threads running yet, so we don't need a mutex.

@@ -686,12 +686,10 @@ public:
   int get_type() { return QS_TYPE_RANGE_DESC; }
 private:
   bool range_reads_after_key(QUICK_RANGE *range);
-#ifdef NOT_USED
-  bool test_if_null_range(QUICK_RANGE *range, uint used_key_parts);
-#endif
   int reset(void) { rev_it.rewind(); return QUICK_RANGE_SELECT::reset(); }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
+  uint used_key_parts;
 };
 
 

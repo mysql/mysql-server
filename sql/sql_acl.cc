@@ -324,7 +324,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   acl_cache->clear(1);				// Clear locked hostname cache
 
   init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
-  init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0);
+  init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0, 
+                   FALSE);
   table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));
   while (!(read_record_info.read_record(&read_record_info)))
@@ -373,7 +374,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_hosts);
 
-  init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0);
+  init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0,FALSE);
   table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100));
   password_length= table->field[2]->field_length /
@@ -561,7 +562,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_users);
 
-  init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0);
+  init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0,FALSE);
   table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100));
   while (!(read_record_info.read_record(&read_record_info)))
