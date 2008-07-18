@@ -53,8 +53,8 @@ void run (int choice) {
 	DBC *c;
 	r=db->cursor(db, txn, &c, 0);                                 CKERR(r);
 	DBT kdbt,vdbt;
-	dbt_init_malloc(&kdbt);
-	dbt_init_malloc(&vdbt);
+	dbt_init(&kdbt, 0, 0);
+	dbt_init(&vdbt, 0, 0);
 	i=0;
 	while (0==(r=c->c_get(c, &kdbt, &vdbt, DB_NEXT))) {
 	    //printf("Got %d %d\n", *(unsigned char*)kdbt.data, *(unsigned char*)vdbt.data);
@@ -91,11 +91,11 @@ void run (int choice) {
 	DBC *c;
 	r=db->cursor(db, txn, &c, 0);                                 CKERR(r);
 	DBT k,v;
-	r=c->c_get(c, dbt_init_malloc(&k), dbt_init_malloc(&v), DB_FIRST); CKERR(r);
+	r=c->c_get(c, dbt_init(&k, 0, 0), dbt_init(&v, 0, 0), DB_FIRST); CKERR(r);
 	assert(*(char*)k.data==v1); assert(*(char*)v.data==v101);
-	r=c->c_get(c, dbt_init_malloc(&k), dbt_init_malloc(&v), DB_NEXT);  CKERR(r);
+	r=c->c_get(c, dbt_init(&k, 0, 0), dbt_init(&v, 0, 0), DB_NEXT);  CKERR(r);
 	assert(*(char*)k.data==v2); assert(*(char*)v.data==v102);
-	r=c->c_get(c, dbt_init_malloc(&k), dbt_init_malloc(&v), DB_NEXT);  assert(r!=0);
+	r=c->c_get(c, dbt_init(&k, 0, 0), dbt_init(&v, 0, 0), DB_NEXT);  assert(r!=0);
 	r=c->c_close(c);                                                   CKERR(r);
 	r=txn->commit(txn, 0);                                             CKERR(r);
     }
