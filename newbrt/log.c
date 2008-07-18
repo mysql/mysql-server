@@ -423,7 +423,7 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 		int len = strlen(txn->rollentry_filename);
 		// Don't have to strdup the rollentry_filename because
 		// we take ownership of it.
-		BYTESTRING fname = {len, txn->rollentry_filename};
+		BYTESTRING fname = {len, toku_strdup_in_rollback(txn, txn->rollentry_filename)};
 		r = toku_logger_save_rollback_rollinclude(txn->parent, fname);
 		if (r!=0) { cleanup_txn(txn); return r; }
 		r = close(txn->rollentry_fd);
@@ -432,11 +432,13 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 		    // set txn->rollentry_filename=0 so that the cleanup
 		    // won't try to close the fd again.
 		    unlink(txn->rollentry_filename);
+		    toku_free(txn->rollentry_filename);
 		    txn->rollentry_filename = 0;
 		    cleanup_txn(txn);
 		    return r;
 		}
 		// Stop the cleanup from closing and unlinking the file.
+		toku_free(txn->rollentry_filename);
 		txn->rollentry_filename = 0;
 	    }
 	    // Append the list to the front of the parent.
