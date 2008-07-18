@@ -410,6 +410,56 @@ static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
   DBUG_RETURN(tmp);
 }
 
+#ifndef DBUG_OFF
+/*
+  Print a text, SQL-like record representation into dbug trace.
+
+  Note: this function is a work in progress: at the moment
+   - column read bitmap is ignored (can print garbage for unused columns)
+   - there is no quoting
+*/
+static void dbug_print_record(TABLE *table, bool print_rowid)
+{
+  char buff[1024];
+  Field **pfield;
+  String tmp(buff,sizeof(buff),&my_charset_bin);
+  DBUG_LOCK_FILE;
+  
+  fprintf(DBUG_FILE, "record (");
+  for (pfield= table->field; *pfield ; pfield++)
+    fprintf(DBUG_FILE, "%s%s", (*pfield)->field_name, (pfield[1])? ", ":"");
+  fprintf(DBUG_FILE, ") = ");
+
+  fprintf(DBUG_FILE, "(");
+  for (pfield= table->field; *pfield ; pfield++)
+  {
+    Field *field=  *pfield;
+
+    if (field->is_null())
+      fwrite("NULL", sizeof(char), 4, DBUG_FILE);
+   
+    if (field->type() == MYSQL_TYPE_BIT)
+      (void) field->val_int_as_str(&tmp, 1);
+    else
+      field->val_str(&tmp);
+
+    fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
+    if (pfield[1])
+      fwrite(", ", sizeof(char), 2, DBUG_FILE);
+  }
+  fprintf(DBUG_FILE, ")");
+  if (print_rowid)
+  {
+    fprintf(DBUG_FILE, " rowid ");
+    for (uint i=0; i < table->file->ref_length; i++)
+    {
+      fprintf(DBUG_FILE, "%x", (uchar)table->file->ref[i]);
+    }
+  }
+  fprintf(DBUG_FILE, "\n");
+  DBUG_UNLOCK_FILE;
+}
+#endif 
 
 /**
   Search after sort_keys and write them into tempfile.
@@ -488,13 +538,10 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 		    current_thd->variables.read_buff_size);
   }
 
-  READ_RECORD read_record_info;
   if (quick_select)
   {
     if (select->quick->reset())
       DBUG_RETURN(HA_POS_ERROR);
-    init_read_record(&read_record_info, current_thd, select->quick->head,
-                     select, 1, 1);
   }
 
   /* Remember original bitmaps */
@@ -514,12 +561,13 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   {
     if (quick_select)
     {
-      if ((error= read_record_info.read_record(&read_record_info)))
+      if ((error= select->quick->get_next()))
       {
         error= HA_ERR_END_OF_FILE;
         break;
       }
       file->position(sort_form->record[0]);
+      DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
     }
     else					/* Not quick-select */
     {
@@ -576,15 +624,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     if (thd->is_error())
       break;
   }
-  if (quick_select)
-  {
-    /*
-      index_merge quick select uses table->sort when retrieving rows, so free
-      resoures it has allocated.
-    */
-    end_read_record(&read_record_info);
-  }
-  else
+  if (!quick_select)
   {
     (void) file->extra(HA_EXTRA_NO_CACHE);	/* End cacheing of records */
     if (!next_pos)
