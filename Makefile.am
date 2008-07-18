@@ -273,10 +273,10 @@ TEST_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
 # be replaced as the new .pp files.
 #
 # e.g. If include/mysql/plugin.h has an ABI change then this rule would
-# leave a include/mysql/plugin.out file.
+# leave a <build directory>/abi_check.out file.
 #
 # A developer with a justified API change will then do a
-# mv include/mysql/plugin.out include/mysql/plugin.pp 
+# mv <build directory>/abi_check.out include/mysql/plugin.pp 
 # to replace the old canons with the new ones.
 #
 
@@ -293,11 +293,14 @@ do_abi_check:
 	                  -I$(top_srcdir)/include \
 	                  -I$(top_srcdir)/include/mysql \
 	                  -I$(top_srcdir)/sql \
+	                  -I$(top_builddir)/include \
+	                  -I$(top_builddir)/include/mysql \
+	                  -I$(top_builddir)/sql \
 	                                 $$file 2>/dev/null | \
 	                  @SED@ -e '/^# /d' \
-	                            -e '/^[ 	]*$$/d' > $$file.out; \
-	                  @DIFF@ $$file.pp $$file.out; \
-	                  @RM@ $$file.out; \
+	                            -e '/^[ 	]*$$/d' > $(top_builddir)/abi_check.out; \
+	                  @DIFF@ $$file.pp $(top_builddir)/abi_check.out; \
+	                  @RM@ $(top_builddir)/abi_check.out; \
 	done
 
 # Don't update the files from bitkeeper

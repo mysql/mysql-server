@@ -38,6 +38,8 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h
 
+EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
+
 # Remove built files and the symlinked directories
 CLEANFILES =            $(BUILT_SOURCES) readline openssl
 
