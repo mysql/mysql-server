@@ -453,7 +453,16 @@ int toku_omt_cursor_prev (OMTCURSOR c, OMTVALUE *v);
 void toku_omt_cursor_invalidate (OMTCURSOR c);
 // Effect: Invalidate c.  (This does not mean that c is destroyed or
 // that its memory is freed.)
+// If c is valid, the invalidate callback function (if any) will be called
+// before invalidating c.
 
+void toku_omt_cursor_set_invalidate_callback(OMTCURSOR c, void (*f)(OMTCURSOR,void*), void* extra);
+// Effect:
+//  Saves function 'f' to be called whenever the cursor is invalidated.
+//  'extra' is passed as an additional parameter to f.
+// Requires:
+//  The lifetime of the 'extra' parameter must continue at least till the cursor
+//  is destroyed.
 
 #endif  /* #ifndef OMT_H */
 

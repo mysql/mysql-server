@@ -843,11 +843,96 @@ void test_find(enum create_type create_choice, enum close_when_done close) {
     test_close(close);
 }
 
+void invalidate_callback_null(OMTCURSOR c, void *extra) {
+    assert(c && !extra);
+}
+
+void invalidate_callback_inc(OMTCURSOR c, void *extra) {
+    assert(c);
+    int *num = extra;
+    (*num)++;
+}
+
+void test_invalidate(enum create_type create_choice, BOOL set_callback, BOOL invalidate_callback) {
+    init_identity_values(random_seed, 100);
+    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
+
+    OMTCURSOR c;
+    int invalidate_count = 0;
+        
+    int r = toku_omt_cursor_create(&c);
+    if (set_callback || invalidate_callback) {
+        toku_omt_cursor_set_invalidate_callback(c, invalidate_callback_inc, &invalidate_count);
+    } 
+    if (invalidate_callback) {
+        toku_omt_cursor_set_invalidate_callback(c, invalidate_callback_null, NULL);
+    }
+    OMTVALUE val;
+    r = toku_omt_fetch(omt, 0, &val, c); CKERR(r);
+    assert(toku_omt_cursor_is_valid(c));
+    assert(invalidate_count==0);
+    r = toku_omt_cursor_prev(c, &val); CKERR2(r, EINVAL);
+    assert(!toku_omt_cursor_is_valid(c));
+    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
+    else                                      assert(invalidate_count==0);
+    r = toku_omt_cursor_prev(c, &val); CKERR2(r, EINVAL);
+    assert(!toku_omt_cursor_is_valid(c));
+    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
+    else                                      assert(invalidate_count==0);
+
+    r = toku_omt_fetch(omt, toku_omt_size(omt)-1, &val, c); CKERR(r);
+    assert(toku_omt_cursor_is_valid(c));
+    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
+    else                                      assert(invalidate_count==0);
+
+    r = toku_omt_cursor_prev(c, &val); CKERR(r);
+    assert(toku_omt_cursor_is_valid(c));
+    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
+    else                                      assert(invalidate_count==0);
+    r = toku_omt_cursor_next(c, &val); CKERR(r);
+    assert(toku_omt_cursor_is_valid(c));
+    if (set_callback && !invalidate_callback) assert(invalidate_count==1);
+    else                                      assert(invalidate_count==0);
+    r = toku_omt_cursor_next(c, &val); CKERR2(r, EINVAL);
+    assert(!toku_omt_cursor_is_valid(c));
+    if (set_callback && !invalidate_callback) assert(invalidate_count==2);
+    else                                      assert(invalidate_count==0);
+
+    r = toku_omt_fetch(omt, toku_omt_size(omt)-1, &val, c); CKERR(r);
+    assert(toku_omt_cursor_is_valid(c));
+    if (set_callback && !invalidate_callback) assert(invalidate_count==2);
+    else                                      assert(invalidate_count==0);
+
+    test_close(CLOSE_WHEN_DONE);
+    assert(!toku_omt_cursor_is_valid(c));
+    if (set_callback && !invalidate_callback) assert(invalidate_count==3);
+    else                                      assert(invalidate_count==0);
+
+    init_identity_values(random_seed, 100);
+    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
+    r = toku_omt_fetch(omt, toku_omt_size(omt)-1, &val, c); CKERR(r);
+    assert(toku_omt_cursor_is_valid(c));
+    if (set_callback && !invalidate_callback) assert(invalidate_count==3);
+    else                                      assert(invalidate_count==0);
+
+    toku_omt_cursor_destroy(&c);
+    if (set_callback && !invalidate_callback) assert(invalidate_count==4);
+    else                                      assert(invalidate_count==0);
+
+    test_close(CLOSE_WHEN_DONE);
+    if (set_callback && !invalidate_callback) assert(invalidate_count==4);
+    else                                      assert(invalidate_count==0);
+}
+
 void runtests_create_choice(enum create_type create_choice) {
     test_create_array(create_choice, TEST_SORTED);
     test_create_array(create_choice, TEST_RANDOM);
     test_create_array(create_choice, TEST_IDENTITY);
     test_find(        create_choice, CLOSE_WHEN_DONE);
+    test_invalidate(  create_choice, FALSE, FALSE);
+    test_invalidate(  create_choice, FALSE, TRUE);
+    test_invalidate(  create_choice, TRUE,  FALSE);
+    test_invalidate(  create_choice, TRUE,  TRUE);
 }
 
 int main(int argc, const char *argv[]) {

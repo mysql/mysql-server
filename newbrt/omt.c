@@ -49,6 +49,8 @@ struct omt {
 
 struct omt_cursor {
     OMT omt;   // The omt this cursor is associated with.  NULL if not present.
+    void (*invalidate)(OMTCURSOR, void*);
+    void *invalidate_extra;
     u_int32_t index; // This is the state for the initial implementation
     OMTCURSOR next,prev; // circular linked list of all OMTCURSORs associated with omt.
 };
@@ -76,6 +78,8 @@ int toku_omt_cursor_create (OMTCURSOR *omtcp) {
     if (c==NULL) return errno;
     c->omt = NULL;
     c->next = c->prev = NULL;
+    c->invalidate = NULL;
+    c->invalidate_extra = NULL;
     *omtcp = c;
     return 0;
 }
@@ -84,8 +88,14 @@ OMT toku_omt_cursor_get_omt(OMTCURSOR c) {
     return c->omt;
 }
 
+void toku_omt_cursor_set_invalidate_callback(OMTCURSOR c, void (*f)(OMTCURSOR,void*), void* extra) {
+    c->invalidate = f;
+    c->invalidate_extra = extra;
+}
+
 void toku_omt_cursor_invalidate (OMTCURSOR c) {
     if (c==NULL || c->omt==NULL) return;
+    if (c->invalidate) c->invalidate(c, c->invalidate_extra);
     if (c->next == c) {
 	// It's the last one.
 	c->omt->associated = NULL;
