@@ -974,8 +974,7 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
   char *p;
   my_bool err __attribute__((unused));
 
-  /* Normalize directory name */
-  len= unpack_dirname(buf, dir);
+  len= normalize_dirname(buf, dir);
   if (!(p= strmake_root(alloc, buf, len)))
     return 1;  /* Failure */
   /* Should never fail if DEFAULT_DIRS_SIZE is correct size */
@@ -1026,7 +1025,7 @@ static const char *my_get_module_parent(char *buf, size_t size)
 {
   char *last= NULL;
   char *end;
-  if (!GetModuleFileName(NULL, buf, size))
+  if (!GetModuleFileName(NULL, buf, (DWORD) size))
     return NULL;
   end= strend(buf);
 
