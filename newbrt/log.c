@@ -371,7 +371,8 @@ int toku_logger_fsync (TOKULOGGER logger) {
 // wbuf points into logbytes
 int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbuf *wbuf, int do_fsync) {
     if (logger->is_panicked) return EINVAL;
-    wbuf_int(wbuf, toku_crc32(0, wbuf->buf, wbuf->ndone));
+    u_int32_t checksum = murmur_finish(&wbuf->murmur);
+    wbuf_int(wbuf, checksum);
     wbuf_int(wbuf, 4+wbuf->ndone);
     logbytes->nbytes=wbuf->ndone;
     return toku_logger_log_bytes(logger, logbytes, do_fsync);
@@ -545,11 +546,11 @@ int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
     return 0;
 }
 
-int toku_fread_u_int8_t (FILE *f, u_int8_t *v, u_int32_t *crc, u_int32_t *len) {
+int toku_fread_u_int8_t (FILE *f, u_int8_t *v, struct murmur *mm, u_int32_t *len) {
     int vi=fgetc(f);
     if (vi==EOF) return -1;
     u_int8_t vc=vi;
-    (*crc) = toku_crc32(*crc, &vc, 1);
+    murmur_add(mm, &vc, 1);
     (*len)++;
     *v = vc;
     return 0;
@@ -568,57 +569,57 @@ int toku_fread_u_int32_t_nocrclen (FILE *f, u_int32_t *v) {
 	  (c3<<0));
     return 0;
 }
-int toku_fread_u_int32_t (FILE *f, u_int32_t *v, u_int32_t *crc, u_int32_t *len) {
+int toku_fread_u_int32_t (FILE *f, u_int32_t *v, struct murmur *murmur, u_int32_t *len) {
     u_int8_t c0,c1,c2,c3;
     int r;
-    r = toku_fread_u_int8_t (f, &c0, crc, len); if(r!=0) return r;
-    r = toku_fread_u_int8_t (f, &c1, crc, len); if(r!=0) return r;
-    r = toku_fread_u_int8_t (f, &c2, crc, len); if(r!=0) return r;
-    r = toku_fread_u_int8_t (f, &c3, crc, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, &c0, murmur, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, &c1, murmur, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, &c2, murmur, len); if(r!=0) return r;
+    r = toku_fread_u_int8_t (f, &c3, murmur, len); if(r!=0) return r;
     *v = ((c0<<24)|
 	  (c1<<16)|
 	  (c2<< 8)|
 	  (c3<<0));
     return 0;
 }
-int toku_fread_int32_t (FILE *f, int32_t *v, u_int32_t *crc, u_int32_t *len) {
+int toku_fread_int32_t (FILE *f, int32_t *v, struct murmur *murmur, u_int32_t *len) {
     u_int32_t uv;
-    int r = toku_fread_u_int32_t(f, &uv, crc, len);
+    int r = toku_fread_u_int32_t(f, &uv, murmur, len);
     int32_t rv = uv;
     if (r==0) *v=rv;
     return r;
 }
 
-int toku_fread_u_int64_t (FILE *f, u_int64_t *v, u_int32_t *crc, u_int32_t *len) {
+int toku_fread_u_int64_t (FILE *f, u_int64_t *v, struct murmur *murmur, u_int32_t *len) {
     u_int32_t v1,v2;
     int r;
-    r=toku_fread_u_int32_t(f, &v1, crc, len);    if (r!=0) return r;
-    r=toku_fread_u_int32_t(f, &v2, crc, len);    if (r!=0) return r;
+    r=toku_fread_u_int32_t(f, &v1, murmur, len);    if (r!=0) return r;
+    r=toku_fread_u_int32_t(f, &v2, murmur, len);    if (r!=0) return r;
     *v = (((u_int64_t)v1)<<32 ) | ((u_int64_t)v2);
     return 0;
 }
-int toku_fread_LSN     (FILE *f, LSN *lsn, u_int32_t *crc, u_int32_t *len) {
-    return toku_fread_u_int64_t (f, &lsn->lsn, crc, len);
+int toku_fread_LSN     (FILE *f, LSN *lsn, struct murmur *murmur, u_int32_t *len) {
+    return toku_fread_u_int64_t (f, &lsn->lsn, murmur, len);
 }
-int toku_fread_FILENUM (FILE *f, FILENUM *filenum, u_int32_t *crc, u_int32_t *len) {
-    return toku_fread_u_int32_t (f, &filenum->fileid, crc, len);
+int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct murmur *murmur, u_int32_t *len) {
+    return toku_fread_u_int32_t (f, &filenum->fileid, murmur, len);
 }
-int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, u_int32_t *crc, u_int32_t *len) {
-    int r = toku_fread_u_int64_t (f, (u_int64_t*)diskoff, crc, len); // sign conversion will be OK.
+int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, struct murmur *murmur, u_int32_t *len) {
+    int r = toku_fread_u_int64_t (f, (u_int64_t*)diskoff, murmur, len); // sign conversion will be OK.
     return r;
 }
-int toku_fread_TXNID   (FILE *f, TXNID *txnid, u_int32_t *crc, u_int32_t *len) {
-    return toku_fread_u_int64_t (f, txnid, crc, len);
+int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct murmur *murmur, u_int32_t *len) {
+    return toku_fread_u_int64_t (f, txnid, murmur, len);
 }
 
 // fills in the bs with malloced data.
-int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, u_int32_t *crc, u_int32_t *len) {
-    int r=toku_fread_u_int32_t(f, (u_int32_t*)&bs->len, crc, len);
+int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct murmur *murmur, u_int32_t *len) {
+    int r=toku_fread_u_int32_t(f, (u_int32_t*)&bs->len, murmur, len);
     if (r!=0) return r;
     bs->data = toku_malloc(bs->len);
     u_int32_t i;
     for (i=0; i<bs->len; i++) {
-	r=toku_fread_u_int8_t(f, (u_int8_t*)&bs->data[i], crc, len);
+	r=toku_fread_u_int8_t(f, (u_int8_t*)&bs->data[i], murmur, len);
 	if (r!=0) {
 	    toku_free(bs->data);
 	    bs->data=0;
@@ -628,50 +629,50 @@ int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, u_int32_t *crc, u_int32_t *l
     return 0;
 }
 
-int toku_fread_LOGGEDBRTHEADER (FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_int32_t *len) {
+int toku_fread_LOGGEDBRTHEADER (FILE *f, LOGGEDBRTHEADER *v, struct murmur *murmur, u_int32_t *len) {
     int r;
-    r = toku_fread_u_int32_t(f, &v->size,          crc, len); if (r!=0) return r;
-    r = toku_fread_u_int32_t(f, &v->flags,         crc, len); if (r!=0) return r;
-    r = toku_fread_u_int32_t(f, &v->nodesize,      crc, len); if (r!=0) return r;
-    r = toku_fread_DISKOFF  (f, &v->freelist,      crc, len); if (r!=0) return r;
-    r = toku_fread_DISKOFF  (f, &v->unused_memory, crc, len); if (r!=0) return r;
-    r = toku_fread_int32_t  (f, &v->n_named_roots, crc, len); if (r!=0) return r;
+    r = toku_fread_u_int32_t(f, &v->size,          murmur, len); if (r!=0) return r;
+    r = toku_fread_u_int32_t(f, &v->flags,         murmur, len); if (r!=0) return r;
+    r = toku_fread_u_int32_t(f, &v->nodesize,      murmur, len); if (r!=0) return r;
+    r = toku_fread_DISKOFF  (f, &v->freelist,      murmur, len); if (r!=0) return r;
+    r = toku_fread_DISKOFF  (f, &v->unused_memory, murmur, len); if (r!=0) return r;
+    r = toku_fread_int32_t  (f, &v->n_named_roots, murmur, len); if (r!=0) return r;
     assert(v->n_named_roots==-1);
-    r = toku_fread_DISKOFF  (f, &v->u.one.root,     crc, len); if (r!=0) return r;
+    r = toku_fread_DISKOFF  (f, &v->u.one.root,     murmur, len); if (r!=0) return r;
     return 0;
 }
 
-int toku_fread_INTPAIRARRAY (FILE *f, INTPAIRARRAY *v, u_int32_t *crc, u_int32_t *len) {
+int toku_fread_INTPAIRARRAY (FILE *f, INTPAIRARRAY *v, struct murmur *murmur, u_int32_t *len) {
     int r;
     u_int32_t i;
-    r = toku_fread_u_int32_t(f, &v->size, crc, len); if (r!=0) return r;
+    r = toku_fread_u_int32_t(f, &v->size, murmur, len); if (r!=0) return r;
     MALLOC_N(v->size, v->array);
     if (v->array==0) return errno;
     for (i=0; i<v->size; i++) {
-	r = toku_fread_u_int32_t(f, &v->array[i].a, crc, len); if (r!=0) return r;
-	r = toku_fread_u_int32_t(f, &v->array[i].b, crc, len); if (r!=0) return r;
+	r = toku_fread_u_int32_t(f, &v->array[i].a, murmur, len); if (r!=0) return r;
+	r = toku_fread_u_int32_t(f, &v->array[i].b, murmur, len); if (r!=0) return r;
     }
     return 0;
 }
 
-int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format __attribute__((__unused__))) {
     LSN v;
-    int r = toku_fread_LSN(inf, &v, crc, len);
+    int r = toku_fread_LSN(inf, &v, murmur, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%" PRId64, fieldname, v.lsn);
     return 0;
 }
-int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format __attribute__((__unused__))) {
     TXNID v;
-    int r = toku_fread_TXNID(inf, &v, crc, len);
+    int r = toku_fread_TXNID(inf, &v, murmur, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%" PRId64, fieldname, v);
     return 0;
 }
 
-int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format) {
+int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format) {
     u_int8_t v;
-    int r = toku_fread_u_int8_t(inf, &v, crc, len);
+    int r = toku_fread_u_int8_t(inf, &v, murmur, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%d", fieldname, v);
     if (format) fprintf(outf, format, v);
@@ -682,9 +683,9 @@ int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, u_int3
     
 }
 
-int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format) {
+int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format) {
     u_int32_t v;
-    int r = toku_fread_u_int32_t(inf, &v, crc, len);
+    int r = toku_fread_u_int32_t(inf, &v, murmur, len);
     if (r!=0) return r;
     fprintf(outf, " %s=", fieldname);
     fprintf(outf, format ? format : "%d", v);
@@ -709,39 +710,39 @@ void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data) {
     
 }
 
-int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format __attribute__((__unused__))) {
     BYTESTRING bs;
-    int r = toku_fread_BYTESTRING(inf, &bs, crc, len);
+    int r = toku_fread_BYTESTRING(inf, &bs, murmur, len);
     if (r!=0) return r;
     fprintf(outf, " %s=", fieldname);
     toku_print_BYTESTRING(outf, bs.len, bs.data);
     toku_free(bs.data);
     return 0;
 }
-int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format) {
-    return toku_logprint_u_int32_t(outf, inf, fieldname, crc, len, format);
+int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format) {
+    return toku_logprint_u_int32_t(outf, inf, fieldname, murmur, len, format);
     
 }
-int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_DISKOFF (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format __attribute__((__unused__))) {
     DISKOFF v;
-    int r = toku_fread_DISKOFF(inf, &v, crc, len);
+    int r = toku_fread_DISKOFF(inf, &v, murmur, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%lld", fieldname, v);
     return 0;
 }
-int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format __attribute__((__unused__))) {
     LOGGEDBRTHEADER v;
-    int r = toku_fread_LOGGEDBRTHEADER(inf, &v, crc, len);
+    int r = toku_fread_LOGGEDBRTHEADER(inf, &v, murmur, len);
     if (r!=0) return r;
     fprintf(outf, " %s={size=%d flags=%d nodesize=%d freelist=%lld unused_memory=%lld n_named_roots=%d", fieldname, v.size, v.flags, v.nodesize, v.freelist, v.unused_memory, v.n_named_roots);
     return 0;
     
 }
 
-int toku_logprint_INTPAIRARRAY (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_INTPAIRARRAY (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format __attribute__((__unused__))) {
     INTPAIRARRAY v;
     u_int32_t i;
-    int r = toku_fread_INTPAIRARRAY(inf, &v, crc, len);
+    int r = toku_fread_INTPAIRARRAY(inf, &v, murmur, len);
     if (r!=0) return r;
     fprintf(outf, " %s={size=%d array={", fieldname, v.size);
     for (i=0; i<v.size; i++) {

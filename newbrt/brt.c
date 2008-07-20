@@ -391,7 +391,7 @@ static int insert_to_buffer_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT 
     int r = toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, xid);
     if (r!=0) return r;
 //    printf("%s:%d fingerprint %08x -> ", __FILE__, __LINE__, node->local_fingerprint);
-    node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_cmd(type, xid, k->data, k->size, v->data, v->size);
+    node->local_fingerprint += node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, k->data, k->size, v->data, v->size);
 //    printf(" %08x\n", node->local_fingerprint);
     BNC_NBYTESINBUF(node,childnum) += n_bytes_added;
     node->u.n.n_bytes_in_buffers += n_bytes_added;
@@ -566,7 +566,7 @@ static int log_and_save_brtenq(TOKULOGGER logger, BRT t, BRTNODE node, int child
     BYTESTRING keybs  = {.len=keylen,  .data=(char*)key};
     BYTESTRING databs = {.len=datalen, .data=(char*)data};
     u_int32_t old_fingerprint = *fingerprint;
-    u_int32_t fdiff=node->rand4fingerprint*toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
+    u_int32_t fdiff=node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
     u_int32_t new_fingerprint = old_fingerprint + fdiff;
     //printf("%s:%d node=%lld fingerprint old=%08x new=%08x diff=%08x xid=%lld\n", __FILE__, __LINE__, (long long)node->thisnodename, old_fingerprint, new_fingerprint, fdiff, (long long)xid);
     *fingerprint = new_fingerprint;
@@ -631,7 +631,7 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 		if (fr!=0) break;
 		int n_bytes_moved = keylen+datalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
 		u_int32_t old_from_fingerprint = node->local_fingerprint;
-		u_int32_t delta = toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
+		u_int32_t delta = toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
 		u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
 		if (r!=0) return r;
 		if (t->txn_that_created != xid) {
@@ -816,7 +816,7 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
     DBT *v = cmd->u.id.val;
     //if (debug) printf("%s:%d %*sinserted down child_did_split=%d\n", __FILE__, __LINE__, debug, "", child_did_split);
     u_int32_t old_fingerprint = node->local_fingerprint;
-    u_int32_t new_fingerprint = old_fingerprint - node->rand4fingerprint*toku_calccrc32_cmdstruct(cmd);
+    u_int32_t new_fingerprint = old_fingerprint - node->rand4fingerprint*toku_calc_fingerprint_cmdstruct(cmd);
     node->local_fingerprint = new_fingerprint;
     if (t->txn_that_created != cmd->xid) {
 	int r = toku_log_brtdeq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum);
@@ -910,7 +910,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid,
 		 ({
 		     u_int32_t old_fingerprint   = node->local_fingerprint;
-		     u_int32_t new_fingerprint   = old_fingerprint - node->rand4fingerprint*toku_calccrc32_cmd(type, xid, skey, skeylen, sval, svallen);
+		     u_int32_t new_fingerprint   = old_fingerprint - node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, skey, skeylen, sval, svallen);
 		     if (t->txn_that_created != xid) {
 			 r = toku_log_brtdeq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum);
 			 assert(r==0);
@@ -1950,7 +1950,7 @@ static void verify_local_fingerprint_nonleaf (BRTNODE node) {
     for (i=0; i<node->u.n.n_children; i++)
 	FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 			  ({
-			      fp += node->rand4fingerprint * toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
+			      fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
 			  }));
     assert(fp==node->local_fingerprint);
 }

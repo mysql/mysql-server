@@ -82,7 +82,7 @@ RANGETREE_BINS = range_tree/rangetree.o
 LOCKTREE_BINS  = lock_tree/locktree.o lock_tree/rth.o lock_tree/lth.o lock_tree/idlth.o lock_tree/db_id.o $(RANGETREE_BINS)
 
 $(LIBRARY): $(DBBINS) | buildlocktrees
-	$(CC)  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
+	$(CC)  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) $(RPATHNAME)
 
 $(LIBNAME).a: $(DBBINS) | buildlocktrees
 	$(AR) cr $@ $^  $(LOCKTREE_BINS)
@@ -90,7 +90,7 @@ $(LIBNAME).a: $(DBBINS) | buildlocktrees
 $(LIBNAME).a(ydb.o): ydb.o
 
 $(TLIBRARY): $(TDBBINS) | buildlocktrees
-	$(CC)  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
+	$(CC)  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) $(RPATHNAME)
 
 $(TLIBNAME).a: $(TDBBINS) | buildlocktrees
 	$(AR) cr $@ $^  $(LOCKTREE_BINS)
