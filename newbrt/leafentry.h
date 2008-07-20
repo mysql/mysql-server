@@ -29,6 +29,7 @@
 
 #include "brttypes.h"
 #include "rbuf.h"
+#include "murmur.h"
 #include <arpa/inet.h>
 
 u_int32_t toku_le_crc(LEAFENTRY v);
@@ -116,8 +117,8 @@ u_int32_t leafentry_disksize (LEAFENTRY le); // this is the same as logsizeof_LE
 u_int32_t toku_logsizeof_LEAFENTRY(LEAFENTRY le);
 void wbuf_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
 void rbuf_LEAFENTRY(struct rbuf *r, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *le);
-int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, u_int32_t *crc, u_int32_t *len); // read a leafentry from a log
-int toku_logprint_LEAFENTRY(FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format); // read a leafentry from a log and then print it in human-readable form.
+int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, struct murmur *, u_int32_t *len); // read a leafentry from a log
+int toku_logprint_LEAFENTRY(FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *format); // read a leafentry from a log and then print it in human-readable form.
 void toku_free_LEAFENTRY(LEAFENTRY le);
 int print_leafentry (FILE *outf, LEAFENTRY v); // Print a leafentry out in human-readable form.
 
