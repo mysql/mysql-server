@@ -59,7 +59,7 @@ static void verify_local_fingerprint_nonleaf (BRTNODE node);
 // then we lose that counter.  So we also keep a global counter.
 // An alternative would be to keep only the global counter.  But that would invalidate all OMTCURSORS
 // even from unrelated BRTs.  This way we only invalidate an OMTCURSOR if
-static uint64_t global_root_put_counter = 0;
+static u_int64_t global_root_put_counter = 0;
 
 /* Frees a node, including all the stuff in the hash table. */
 void toku_brtnode_free (BRTNODE *nodep) {
@@ -309,18 +309,18 @@ u_int32_t mp_pool_size_for_nodesize (u_int32_t nodesize) {
 
 // Simple LCG random number generator.  Not high quality, but good enough.
 static int r_seeded=0;
-static uint32_t rstate=1;
+static u_int32_t rstate=1;
 static inline void mysrandom (int s) {
     rstate=s;
     r_seeded=1;
 }
-static inline uint32_t myrandom (void) {
+static inline u_int32_t myrandom (void) {
     if (!r_seeded) {
 	struct timeval tv;
 	gettimeofday(&tv, 0);
 	mysrandom(tv.tv_sec);
     }
-    rstate = (279470275ull*(uint64_t)rstate)%4294967291ull;
+    rstate = (279470275ull*(u_int64_t)rstate)%4294967291ull;
     return rstate;
 }
 
@@ -3034,7 +3034,7 @@ static int brt_search_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *new
         return brt_search_leaf_node(brt, node, search, newkey, newval, logger, omtcursor);
 }
 
-int toku_brt_search(BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULOGGER logger, OMTCURSOR omtcursor, uint64_t *root_put_counter)
+int toku_brt_search(BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULOGGER logger, OMTCURSOR omtcursor, u_int64_t *root_put_counter)
 // Effect: Perform a search.  Associate cursor with a leaf if possible.
 {
     int r, rr;
@@ -3409,7 +3409,7 @@ static int brt_cursor_next_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
 	{
 	    int rr = toku_read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h);
 	    if (rr!=0) return rr;
-	    uint64_t h_counter = cursor->brt->h->root_put_counter;
+	    u_int64_t h_counter = cursor->brt->h->root_put_counter;
 	    rr = toku_unpin_brt_header(cursor->brt);
 	    assert(rr==0);
 	    if (h_counter != cursor->root_put_counter) return -1;
@@ -3450,7 +3450,7 @@ int toku_brt_cursor_peek_prev(BRT_CURSOR cursor, DBT *outkey, DBT *outval) {
 	{
 	    int rr = toku_read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h);
 	    if (rr!=0) return rr;
-	    uint64_t h_counter = cursor->brt->h->root_put_counter;
+	    u_int64_t h_counter = cursor->brt->h->root_put_counter;
 	    rr = toku_unpin_brt_header(cursor->brt);
 	    assert(rr==0);
 	    if (h_counter != cursor->root_put_counter) return -1;
@@ -3479,7 +3479,7 @@ int toku_brt_cursor_peek_next(BRT_CURSOR cursor, DBT *outkey, DBT *outval) {
 	{
 	    int rr = toku_read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h);
 	    if (rr!=0) return rr;
-	    uint64_t h_counter = cursor->brt->h->root_put_counter;
+	    u_int64_t h_counter = cursor->brt->h->root_put_counter;
 	    rr = toku_unpin_brt_header(cursor->brt);
 	    assert(rr==0);
 	    if (h_counter != cursor->root_put_counter) return -1;
@@ -3572,7 +3572,7 @@ static int brt_cursor_prev_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
 	{
 	    int rr = toku_read_and_pin_brt_header(cursor->brt->cf, &cursor->brt->h);
 	    if (rr!=0) return rr;
-	    uint64_t h_counter = cursor->brt->h->root_put_counter;
+	    u_int64_t h_counter = cursor->brt->h->root_put_counter;
 	    rr = toku_unpin_brt_header(cursor->brt);
 	    assert(rr==0);
 	    if (h_counter != cursor->root_put_counter) return -1;

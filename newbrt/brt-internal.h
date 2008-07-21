@@ -128,7 +128,7 @@ struct brt_header {
     
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
 
-    uint64_t root_put_counter;
+    u_int64_t root_put_counter;
 };
 
 struct brt {
@@ -211,7 +211,7 @@ struct brt_cursor {
     int is_temporary_cursor;  // If it is a temporary cursor then use the following skey and sval to return tokudb-managed values in dbts.  Otherwise use the brt's skey and skval.
     void *skey, *sval;
     OMTCURSOR omtcursor;
-    uint64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
+    u_int64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
 };
 
 // logs the memory allocation, but not the creation of the new node

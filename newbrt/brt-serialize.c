@@ -430,8 +430,8 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
 	if (n_read_so_far+4!=rc.size) {
 	    r = DB_BADFORMAT; goto died_21;
 	}
-	uint32_t crc = murmur_string(rc.buf, n_read_so_far);
-	uint32_t storedcrc = rbuf_int(&rc);
+	u_int32_t crc = murmur_string(rc.buf, n_read_so_far);
+	u_int32_t storedcrc = rbuf_int(&rc);
 	if (crc!=storedcrc) {
 	    printf("Bad CRC\n");
 	    printf("%s:%d crc=%08x stored=%08x\n", __FILE__, __LINE__, crc, storedcrc);
@@ -698,7 +698,7 @@ int read_char (int fd, off_t *at, char *result) {
     return 0;
 }
 
-int read_uint64_t (int fd, off_t *at, u_int64_t *result) {
+int read_u_int64_t (int fd, off_t *at, u_int64_t *result) {
     u_int32_t v1=0,v2=0;
     int r;
     if ((r = read_int(fd, at, &v1))) return r;
@@ -732,7 +732,7 @@ int toku_deserialize_fifo_at (int fd, off_t at, FIFO *fifo) {
 	u_int32_t keylen=0, vallen=0;
 	char *key=0, *val=0;
 	if ((r=read_char(fd, &at, &type))) return r;
-	if ((r=read_uint64_t(fd, &at, &xid))) return r;
+	if ((r=read_u_int64_t(fd, &at, &xid))) return r;
 	if ((r=read_int(fd, &at, &keylen))) return r;
 	if ((r=read_nbytes(fd, &at, &key, keylen))) return r;
 	if ((r=read_int(fd, &at, &vallen))) return r;
