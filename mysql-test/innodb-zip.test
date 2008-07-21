@@ -107,7 +107,7 @@ drop table t1;
 create table t1( c1 int not null, c2 blob, c3 blob, c4 blob,
 		primary key(c1, c2(22), c3(22)))
 		engine = innodb row_format = dynamic;
-
+begin;
 insert into t1 values(1, repeat('A', 20000), repeat('B', 20000),
 			repeat('C', 20000));
 
