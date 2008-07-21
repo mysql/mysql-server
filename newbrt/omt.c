@@ -612,6 +612,11 @@ int toku_omt_cursor_is_valid (OMTCURSOR c) {
     return c->omt!=NULL;
 }
 
+void toku_omt_cursor_set_index(OMTCURSOR c, u_int32_t index) {
+    assert(c->omt);
+    c->index = index;
+}
+
 int toku_omt_cursor_next (OMTCURSOR c, OMTVALUE *v) {
     if (c->omt == NULL) return EINVAL;
     c->index++;

@@ -270,6 +270,11 @@ int toku_omt_delete_at(OMT omt, u_int32_t index);
 // Rationale: To delete an item, first find its index using toku_omt_find, then delete it.
 // Performance: time=O(\log N) amortized.
 
+void toku_omt_cursor_set_index(OMTCURSOR c, u_int32_t index);
+// Effect:
+//  Set the abstract index.
+// Requires:
+//  The cursor is not invalid.
 
 int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v, OMTCURSOR c);
 // Effect: Set *v=V_i

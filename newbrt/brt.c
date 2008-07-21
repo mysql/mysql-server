@@ -3418,10 +3418,12 @@ static int brt_cursor_next_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
         //Save current value in prev.
         save_omtcursor_current_in_prev(cursor);
 
+        u_int32_t starting_index;
         u_int32_t index;
         u_int32_t size = toku_omt_size(toku_omt_cursor_get_omt(cursor->omtcursor));
-        int r = toku_omt_cursor_current_index(cursor->omtcursor, &index);
+        int r = toku_omt_cursor_current_index(cursor->omtcursor, &starting_index);
         assert(r==0);
+        index = starting_index;
         while (index+1 < size) {
             r = toku_omt_cursor_next(cursor->omtcursor, &le);
             assert(r==0);
@@ -3437,7 +3439,8 @@ static int brt_cursor_next_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
 
             return brt_cursor_copyout(cursor, outkey, outval);
         }
-        brt_cursor_invalidate_callback(cursor->omtcursor, cursor);
+        toku_omt_cursor_set_index(cursor->omtcursor, starting_index);
+        toku_omt_cursor_invalidate(cursor->omtcursor);
     }
     return -1;
 }
@@ -3578,9 +3581,11 @@ static int brt_cursor_prev_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
         //Save current value in prev.
         save_omtcursor_current_in_prev(cursor);
 
-        u_int32_t index = 0;
-        int r = toku_omt_cursor_current_index(cursor->omtcursor, &index);
+        u_int32_t starting_index = 0;
+        u_int32_t index;
+        int r = toku_omt_cursor_current_index(cursor->omtcursor, &starting_index);
         assert(r==0);
+        index = starting_index;
         while (index>0) {
             r = toku_omt_cursor_prev(cursor->omtcursor, &le);
             assert(r==0);
@@ -3596,7 +3601,8 @@ static int brt_cursor_prev_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
 
             return brt_cursor_copyout(cursor, outkey, outval);
         }
-        brt_cursor_invalidate_callback(cursor->omtcursor, cursor);
+        toku_omt_cursor_set_index(cursor->omtcursor, starting_index);
+        toku_omt_cursor_invalidate(cursor->omtcursor);
     }
     return -1;
 }
