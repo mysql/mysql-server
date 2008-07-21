@@ -377,7 +377,7 @@ error:
 int dump_dbt(DBT* dbt)
 {
    char* str;
-   uint32_t index;
+   u_int32_t index;
    
    assert(dbt);
    str = (char*)dbt->data;

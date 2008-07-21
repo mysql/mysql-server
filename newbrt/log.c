@@ -1074,7 +1074,7 @@ static void note_txn_closing (TOKUTXN txn) {
 
 int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr) {
     struct tokutxn fake_txn; fake_txn.txnid64 = xid;
-    uint32_t index;
+    u_int32_t index;
     OMTVALUE txnv;
     int r = toku_omt_find_zero(brt->txns, find_xid, &fake_txn, &txnv, &index, NULL);
     if (r == 0) *txnptr = txnv;

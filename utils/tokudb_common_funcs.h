@@ -25,9 +25,9 @@ else {                                                            \
 }
 
 int   strtoint32  (char* str,  int32_t* num,  int32_t min,  int32_t max, int base);
-int   strtouint32 (char* str, uint32_t* num, uint32_t min, uint32_t max, int base);
+int   strtouint32 (char* str, u_int32_t* num, u_int32_t min, u_int32_t max, int base);
 int   strtoint64  (char* str,  int64_t* num,  int64_t min,  int64_t max, int base);
-int   strtouint64 (char* str, uint64_t* num, uint64_t min, uint64_t max, int base);
+int   strtouint64 (char* str, u_int64_t* num, u_int64_t min, u_int64_t max, int base);
 
 /*
  * Convert a string to an integer of type "type".
@@ -79,11 +79,11 @@ error:                                                         \
 }
 
 DEF_STR_TO(strtoint32,  int32_t,  int64_t,  strtoll,  PRId32);
-DEF_STR_TO(strtouint32, uint32_t, uint64_t, strtoull, PRIu32);
+DEF_STR_TO(strtouint32, u_int32_t, u_int64_t, strtoull, PRIu32);
 DEF_STR_TO(strtoint64,  int64_t,  int64_t,  strtoll,  PRId64);
-DEF_STR_TO(strtouint64, uint64_t, uint64_t, strtoull, PRIu64);
+DEF_STR_TO(strtouint64, u_int64_t, u_int64_t, strtoull, PRIu64);
 
-void outputbyte(uint8_t ch)
+void outputbyte(u_int8_t ch)
 {
    if (g.plaintext) {
       if (ch == '\\')         printf("\\\\");
@@ -98,7 +98,7 @@ void outputstring(char* str)
    char* p;
 
    for (p = str; *p != '\0'; p++) {
-      outputbyte((uint8_t)*p);
+      outputbyte((u_int8_t)*p);
    }
 }
 

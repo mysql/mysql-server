@@ -218,9 +218,9 @@ int main(int argc, const char *argv[]) {
     assert(bufsize >= 2);
     verify_all_overlap(&find_range, buf, found);
 
-    uint32_t inserted = 2;
-    const uint32_t start_loop    = 100;
-    const uint32_t end_loop      = 200;
+    u_int32_t inserted = 2;
+    const u_int32_t start_loop    = 100;
+    const u_int32_t end_loop      = 200;
     for (i = start_loop; i < end_loop; i += 4) {
         range.ends.left  = (toku_point*)&nums[i];
         range.ends.right = (toku_point*)&nums[i+2];

@@ -12,8 +12,8 @@
 
 #include "test.h"
 
-uint64_t lorange = 0;
-uint64_t hirange = 1<<24;
+u_int64_t lorange = 0;
+u_int64_t hirange = 1<<24;
 
 void test_key_size_limit(int dup_mode) {
     if (verbose > 1) printf("%s:%d\n", __FUNCTION__, dup_mode);
@@ -37,17 +37,17 @@ void test_key_size_limit(int dup_mode) {
 
     void *k = 0;
     void *v = 0;
-    uint32_t lo = lorange, mi = 0, hi = hirange;
-    uint32_t bigest = 0;
+    u_int32_t lo = lorange, mi = 0, hi = hirange;
+    u_int32_t bigest = 0;
     while (lo <= hi) {
         mi = lo + (hi - lo) / 2;
         assert(lo <= mi && mi <= hi);
-        uint32_t ks = mi;
+        u_int32_t ks = mi;
         if (verbose > 1) printf("trying %u %u %u ks=%u\n", lo, mi, hi, ks);
         k = realloc(k, ks); assert(k);
         memset(k, 0, ks);
         memcpy(k, &ks, sizeof ks);
-        uint32_t vs = sizeof (uint32_t);
+        u_int32_t vs = sizeof (u_int32_t);
         v = realloc(v, vs); assert(v);
         memset(v, 0, vs);
         memcpy(v, &vs, sizeof vs);
@@ -92,17 +92,17 @@ void test_data_size_limit(int dup_mode) {
 
     void *k = 0;
     void *v = 0;
-    uint32_t lo = lorange, mi = 0, hi = hirange;
-    uint32_t bigest = 0;
+    u_int32_t lo = lorange, mi = 0, hi = hirange;
+    u_int32_t bigest = 0;
     while (lo <= hi) {
         mi = lo + (hi - lo) / 2;
         assert(lo <= mi && mi <= hi);
-        uint32_t ks = sizeof (uint32_t);
+        u_int32_t ks = sizeof (u_int32_t);
         if (verbose > 1) printf("trying %u %u %u ks=%u\n", lo, mi, hi, ks);
         k = realloc(k, ks); assert(k);
         memset(k, 0, ks);
         memcpy(k, &ks, sizeof ks);
-        uint32_t vs = mi;
+        u_int32_t vs = mi;
         v = realloc(v, vs); assert(v);
         memset(v, 0, vs);
         memcpy(v, &vs, sizeof vs);

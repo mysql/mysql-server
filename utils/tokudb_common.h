@@ -11,7 +11,7 @@
 #include <inttypes.h>
 #include <signal.h>
 
-typedef uint8_t bool;
+typedef u_int8_t bool;
 
 #define true ((bool)1)
 #define false ((bool)0)
