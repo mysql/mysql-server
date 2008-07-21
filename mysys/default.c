@@ -1017,7 +1017,7 @@ static const char *my_get_module_parent(char *buf, size_t size)
 {
   char *last= NULL;
   char *end;
-  if (!GetModuleFileName(NULL, buf, size))
+  if (!GetModuleFileName(NULL, buf, (DWORD) size))
     return NULL;
   end= strend(buf);
 
