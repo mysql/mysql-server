@@ -1618,23 +1618,23 @@ bool mysql_xa_recover(THD *thd)
   @return
     always 0
 */
-static my_bool release_temporary_latches(THD *thd, plugin_ref plugin,
-                                 void *unused)
-{
-  handlerton *hton= plugin_data(plugin, handlerton *);
-
-  if (hton->state == SHOW_OPTION_YES && hton->release_temporary_latches)
-    hton->release_temporary_latches(hton, thd);
-
-  return FALSE;
-}
-
 
 int ha_release_temporary_latches(THD *thd)
 {
-  plugin_foreach(thd, release_temporary_latches, MYSQL_STORAGE_ENGINE_PLUGIN, 
-                 NULL);
+  Ha_trx_info *info;
 
+  /*
+    Note that below we assume that only transactional storage engines
+    may need release_temporary_latches(). If this will ever become false,
+    we could iterate on thd->open_tables instead (and remove duplicates
+    as if (!seen[hton->slot]) { seen[hton->slot]=1; ... }).
+  */
+  for (info= thd->transaction.stmt.ha_list; info; info= info->next())
+  {
+    handlerton *hton= info->ht();
+    if (hton && hton->release_temporary_latches)
+        hton->release_temporary_latches(hton, thd);
+  }
   return 0;
 }
 
