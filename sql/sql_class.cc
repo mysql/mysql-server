@@ -529,7 +529,7 @@ THD::THD()
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL),
-   m_lip(NULL)
+   m_parser_state(NULL)
 {
   ulong tmp;
 
@@ -2882,8 +2882,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
    */
   if (rpl_master_erroneous_autoinc(this))
   {
-    backup->auto_inc_intervals_forced= auto_inc_intervals_forced;
-    auto_inc_intervals_forced.empty();
+    DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
+    auto_inc_intervals_forced.swap(&backup->auto_inc_intervals_forced);
   }
 #endif
   
@@ -2931,8 +2931,8 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
    */
   if (rpl_master_erroneous_autoinc(this))
   {
-    auto_inc_intervals_forced= backup->auto_inc_intervals_forced;
-    backup->auto_inc_intervals_forced.empty();
+    backup->auto_inc_intervals_forced.swap(&auto_inc_intervals_forced);
+    DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
   }
 #endif
 
