@@ -64,15 +64,26 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
 int toku_cachetable_close (CACHETABLE*); /* Flushes everything to disk, and destroys the cachetable. */
 
 int toku_cachefile_close (CACHEFILE*, TOKULOGGER);
-//int cachefile_flush (CACHEFILE); /* Flush everything related to the VOID* to disk and free all memory.  Don't destroy the cachetable. */
 
-void toku_cachefile_refup (CACHEFILE cfp); // Increment the reference count.  Use close to decrement it.
+int toku_cachefile_flush (CACHEFILE); 
+// effect: flush everything owned by the cachefile.
+// returns: 0 if success
+
+void toku_cachefile_refup (CACHEFILE cfp); 
+// Increment the reference count.  Use close to decrement it.
 
 // Return on success (different from pread and pwrite)
 //int cachefile_pwrite (CACHEFILE, const void *buf, size_t count, off_t offset);
 //int cachefile_pread  (CACHEFILE, void *buf, size_t count, off_t offset);
 
 int toku_cachefile_fd (CACHEFILE);
+// get the file descriptor bound to this cachefile
+// returns: the file descriptor
+
+int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname);
+// set the cachefile's fd and fname. 
+// effect: bind the cachefile to a new fd and fname. the old fd is closed.
+// returns: 0 if success
 
 // Useful for debugging
 void toku_cachetable_print_state (CACHETABLE ct);
