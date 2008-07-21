@@ -6,5 +6,5 @@
 -- require r/have_symlink.require
 
 disable_query_log;
-show variables like "have_symlink";
+show variables like 'have_symlink';
 enable_query_log;

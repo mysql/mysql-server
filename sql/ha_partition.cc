@@ -4045,7 +4045,7 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
   }
   else if (!(error= file->index_next(buf)))
   {
-    if (!(file->ha_table_flags() & HA_READ_ORDER) ||
+    if (!(file->index_flags(active_index, 0, 1) & HA_READ_ORDER) ||
         compare_key(end_range) <= 0)
     {
       m_last_part= m_part_spec.start_part;
@@ -4123,7 +4123,7 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
     }
     if (!error)
     {
-      if (!(file->ha_table_flags() & HA_READ_ORDER) ||
+      if (!(file->index_flags(active_index, 0, 1) & HA_READ_ORDER) ||
           compare_key(end_range) <= 0)
       {
         m_last_part= i;
@@ -5359,6 +5359,34 @@ ha_rows ha_partition::estimate_rows_upper_bound()
         DBUG_RETURN(HA_POS_ERROR);
       tot_rows+= rows;
     }
+  } while (*(++file));
+  DBUG_RETURN(tot_rows);
+}
+
+
+/**
+  Number of rows in table. see handler.h
+
+  SYNOPSIS
+    records()
+
+  RETURN VALUE
+    Number of total rows in a partitioned table.
+*/
+
+ha_rows ha_partition::records()
+{
+  ha_rows rows, tot_rows= 0;
+  handler **file;
+  DBUG_ENTER("ha_partition::records");
+
+  file= m_file;
+  do
+  {
+    rows= (*file)->records();
+    if (rows == HA_POS_ERROR)
+      DBUG_RETURN(HA_POS_ERROR);
+    tot_rows+= rows;
   } while (*(++file));
   DBUG_RETURN(tot_rows);
 }
