@@ -3070,6 +3070,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   int ret = 0;
   bool exit_loop= 0;
   LOG_INFO log_info;
+  THD *thd =current_thd;
   DBUG_ENTER("purge_logs");
   DBUG_PRINT("info",("to_log= %s",to_log));
 
@@ -3140,18 +3141,30 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
         }
         else
         {
-          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                              ER_BINLOG_PURGE_FATAL_ERR,
-                              "a problem with deleting %s; "
-                              "consider examining correspondence "
-                              "of your binlog index file "
-                              "to the actual binlog files",
-                              log_info.log_file_name);
+          if (thd)
+          {
+            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                ER_BINLOG_PURGE_FATAL_ERR,
+                                "a problem with deleting %s; "
+                                "consider examining correspondence "
+                                "of your binlog index file "
+                                "to the actual binlog files",
+                                log_info.log_file_name);
+          }
+          else
+          {
+            sql_print_information("Failed to delete file '%s'; "
+                                  "consider examining correspondence "
+                                  "of your binlog index file "
+                                  "to the actual binlog files",
+                                  log_info.log_file_name);
+          }
           if (my_errno == EMFILE)
           {
             DBUG_PRINT("info",
                        ("my_errno: %d, set ret = LOG_INFO_EMFILE", my_errno));
             error= LOG_INFO_EMFILE;
+            goto err;
           }
           error= LOG_INFO_FATAL;
           goto err;
