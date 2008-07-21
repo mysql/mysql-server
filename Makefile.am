@@ -299,7 +299,7 @@ do_abi_check:
 	                                 $$file 2>/dev/null | \
 	                  @SED@ -e '/^# /d' \
 	                            -e '/^[ 	]*$$/d' > $(top_builddir)/abi_check.out; \
-	                  @DIFF@ $$file.pp $(top_builddir)/abi_check.out; \
+	                  @DIFF@ -b $$file.pp $(top_builddir)/abi_check.out; \
 	                  @RM@ $(top_builddir)/abi_check.out; \
 	done
 
