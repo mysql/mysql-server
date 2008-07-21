@@ -25,6 +25,7 @@ struct __toku_db_internal {
     int freed;
     struct db_header *header;
     int database_number; // -1 if it is the single unnamed database.  Nonnengative number otherwise.
+    char *fname;
     char *full_fname;
     char *database_name;
     //int fd;

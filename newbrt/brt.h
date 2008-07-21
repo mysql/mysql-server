@@ -23,6 +23,12 @@ int toku_brt_set_bt_compare(BRT, int (*bt_compare)(DB *, const DBT*, const DBT*)
 int toku_brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT*));
 int brt_set_cachetable(BRT, CACHETABLE);
 int toku_brt_open(BRT, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
+
+int toku_brt_reopen (BRT brt, const char *fname, const char *fname_in_env, TOKUTXN txn);
+// reopen the tree
+// effect: attach the tree to a new file
+// returns: 0 if success
+
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
 int toku_brt_insert (BRT, DBT *, DBT *, TOKUTXN);
@@ -30,10 +36,20 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v);
 int toku_brt_delete (BRT brt, DBT *k, TOKUTXN);
 int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN); // Delete a pair only if both k and v are equal according to the comparison function.
 int toku_close_brt (BRT, TOKULOGGER);
-int toku_dump_brt (BRT brt);
-void brt_fsync (BRT); /* fsync, but don't clear the caches. */
 
+int toku_dump_brt (BRT brt);
+
+void brt_fsync (BRT); /* fsync, but don't clear the caches. */
 void brt_flush (BRT); /* fsync and clear the caches. */ 
+
+int toku_brt_get_cursor_count (BRT brt);
+// get the number of cursors in the tree
+// returns: the number of cursors.  
+// asserts: the number of cursors >= 0.
+
+int toku_brt_flush (BRT brt);
+// effect: the tree's cachefile is flushed
+// returns: 0 if success
 
 /* create and initialize a cache table
    cachesize is the upper limit on the size of the size of the values in the table 

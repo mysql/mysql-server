@@ -1149,6 +1149,7 @@ static int toku_db_close(DB * db, u_int32_t flags) {
     int is_panicked = toku_env_is_panicked(db->dbenv); 
     env_unref(db->dbenv);
     toku_free(db->i->database_name);
+    toku_free(db->i->fname);
     toku_free(db->i->full_fname);
     toku_free(db->i);
     toku_free(db);
@@ -2571,10 +2572,15 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     r = find_db_file(db->dbenv, fname, &db->i->full_fname);
     if (r != 0) goto error_cleanup;
     // printf("Full name = %s\n", db->i->full_fname);
+    assert(db->i->fname == 0);
+    db->i->fname = toku_strdup(fname);
+    if (db->i->fname == 0) { 
+        r = ENOMEM; goto error_cleanup;
+    }
+    assert(db->i->database_name == 0);
     db->i->database_name = toku_strdup(dbname ? dbname : "");
     if (db->i->database_name == 0) {
-        r = ENOMEM;
-        goto error_cleanup;
+        r = ENOMEM; goto error_cleanup;
     }
     if (is_db_rdonly)
         openflags |= O_RDONLY;
@@ -2640,6 +2646,10 @@ error_cleanup:
     if (db->i->full_fname) {
         toku_free(db->i->full_fname);
         db->i->full_fname = NULL;
+    }
+    if(db->i->fname) {
+        toku_free(db->i->fname);
+        db->i->fname = NULL;
     }
     if (db->i->lt) {
         toku_lt_remove_ref(db->i->lt);
@@ -3042,6 +3052,51 @@ int locked_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     return r;
 }
 
+// truncate a database
+// effect: remove all of the rows from a database
+static int toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t flags) {
+    HANDLE_PANICKED_DB(db);
+    int r;
+
+    // dont support flags (yet)
+    if (flags)
+        return EINVAL;
+    // dont support cursors 
+    if (toku_brt_get_cursor_count(db->i->brt) > 0)
+        return EINVAL;
+    // dont support sub databases (yet)
+    if (db->i->database_name != 0 && strcmp(db->i->database_name, "") != 0)
+        return EINVAL;
+    // dont support associated databases (yet)
+    if (!list_empty(&db->i->associated))
+        return EINVAL;
+
+    // acquire a table lock
+    if (txn) {
+        r = toku_db_pre_acquire_table_lock(db, txn);
+        if (r != 0)
+            return r;
+    }
+
+    *row_count = 0;
+
+    // flush the cached tree blocks
+    r = toku_brt_flush(db->i->brt);
+    if (r != 0) 
+        return r;
+
+    // rename the db file and log the rename operation (for now, just unlink the file)
+    r = unlink(db->i->full_fname);
+    if (r == -1) 
+        r = errno;
+    if (r != 0) 
+        return r;
+
+    // reopen the new db file
+    r = toku_brt_reopen(db->i->brt, db->i->full_fname, db->i->fname, txn ? txn->i->tokutxn : NULL_TXN);
+    return r;
+}
+
 static inline int autotxn_db_pget(DB* db, DB_TXN* txn, DBT* key, DBT* pkey,
                                   DBT* data, u_int32_t flags) {
     BOOL changed; int r;
@@ -3132,6 +3187,11 @@ static const DBT* toku_db_dbt_neg_infty(void) {
     return toku_lt_neg_infinity;
 }
 
+static int locked_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t flags) {
+    toku_ydb_lock(); int r = toku_db_truncate(db, txn, row_count, flags); toku_ydb_unlock(); return r\
+                                                                                                 ;
+}
+
 static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
 
@@ -3185,6 +3245,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(fd);
     SDB(pre_acquire_read_lock);
     SDB(pre_acquire_table_lock);
+    SDB(truncate);
 #undef SDB
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;
