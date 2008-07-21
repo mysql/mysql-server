@@ -1,5 +1,6 @@
 // truncate a database with open cursors
 // verify that the truncate returns EINVAL
+// BDB returns 0 but calls the error callback
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +10,16 @@
 #include <arpa/inet.h>
 #include <db.h>
 #include "test.h"
+
+#if USE_BDB
+int test_errors = 0;
+
+void test_errcall(const DB_ENV *emv, const char *errpfx, const char *msg) {
+    if (verbose) printf("%s %s\n", errpfx, msg);
+    test_errors++;
+}
+
+#endif
 
 // try to truncate with cursors active
 int test_truncate_with_cursors(int n) {
@@ -53,8 +64,17 @@ int test_truncate_with_cursors(int n) {
     assert(i == n);
 
     // try to truncate with an active cursor
+#if USE_BDB
+    db->set_errcall(db, test_errcall);
+    assert(test_errors == 0);
+#endif
     u_int32_t row_count = 0;
-    r = db->truncate(db, 0, &row_count, 0); assert(r == EINVAL);
+    r = db->truncate(db, 0, &row_count, 0); 
+#if USE_BDB
+    assert(r == 0 && test_errors);
+#else
+    assert(r == EINVAL);
+#endif
 
     r = cursor->c_close(cursor); assert(r == 0);
 
