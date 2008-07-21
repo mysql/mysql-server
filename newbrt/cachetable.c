@@ -119,12 +119,10 @@ static FILENUM next_filenum_to_use={0};
 
 static void cachefile_init_filenum(CACHEFILE newcf, int fd, const char *fname, struct fileid fileid) \
 {
-    newcf->filenum.fileid = next_filenum_to_use.fileid++;
     newcf->fd = fd;
     newcf->fileid = fileid;
     newcf->fname  = fname ? toku_strdup(fname) : 0;
 }
-
 
 // If something goes wrong, close the fd.  After this, the caller shouldn't close the fd, but instead should close the cachefile.
 int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fname) {
@@ -156,6 +154,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fna
     {
 	CACHEFILE MALLOC(newcf);
         newcf->cachetable = t;
+        newcf->filenum.fileid = next_filenum_to_use.fileid++;
         cachefile_init_filenum(newcf, fd, fname, fileid);
 	newcf->refcount = 1;
 	newcf->header_fullhash = toku_cachetable_hash(newcf, 0);
