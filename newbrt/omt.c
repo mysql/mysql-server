@@ -628,7 +628,7 @@ int toku_omt_cursor_prev (OMTCURSOR c, OMTVALUE *v) {
     }
     c->index--;
     int r = toku_omt_fetch(c->omt, c->index, v, NULL);
-    if (r!=0) toku_omt_cursor_invalidate(c);
+    assert(r==0);
     return r;
 }
 

@@ -205,6 +205,7 @@ unsigned int toku_brtnode_pivot_key_len (BRTNODE, struct kv_pair *); // Given th
 struct brt_cursor {
     struct list cursors_link;
     BRT brt;
+    BOOL current_in_omt, prev_in_omt;
     DBT key, val;             // The key-value pair that the cursor currently points to
     DBT prevkey, prevval;     // The key-value pair that the cursor pointed to previously.  (E.g., when we do a DB_NEXT)
     int is_temporary_cursor;  // If it is a temporary cursor then use the following skey and sval to return tokudb-managed values in dbts.  Otherwise use the brt's skey and skval.
