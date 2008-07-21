@@ -447,7 +447,8 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
   if (thd->protocol == &thd->protocol_binary)
   {
     uint length;
-    row= (MYSQL_ROWS *)alloc_root(&data->alloc, rows * sizeof(MYSQL_ROWS));
+    row= (MYSQL_ROWS *)alloc_root(&data->alloc,
+                                  (size_t) (rows * sizeof(MYSQL_ROWS)));
     end_row= row + rows;
     data->data= row;
 
