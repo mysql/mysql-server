@@ -1,6 +1,10 @@
 # Can't run with embedded server
 -- source include/not_embedded.inc
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 # Test of the xml output of the 'mysql' and 'mysqldump' clients -- makes
 # sure that basic encoding issues are handled properly
 create table t1 (
