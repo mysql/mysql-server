@@ -3096,7 +3096,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
         /*
           It's not fatal if we can't stat a log file that does not exist;
           If we could not stat, we won't delete.
-        */     
+        */
         if (thd)
         {
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -3235,6 +3235,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
   LOG_INFO log_info;
   MY_STAT stat_area;
   THD *thd= current_thd;
+  
   DBUG_ENTER("purge_logs_before_date");
 
   pthread_mutex_lock(&LOCK_index);
@@ -3263,8 +3264,8 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
                               ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                               log_info.log_file_name);
         }
-	sql_print_information("Failed to execute my_stat on file '%s'",
-			      log_info.log_file_name);
+        sql_print_information("Failed to execute my_stat on file '%s'",
+                              log_info.log_file_name);
         my_errno= 0;
       }
       else
