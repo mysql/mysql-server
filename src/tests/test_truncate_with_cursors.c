@@ -15,7 +15,7 @@
 int test_errors = 0;
 
 void test_errcall(const DB_ENV *emv, const char *errpfx, const char *msg) {
-    if (verbose) printf("%s %s\n", errpfx, msg);
+    if (verbose) fprintf(stderr, "%s %s\n", errpfx, msg);
     test_errors++;
 }
 
@@ -71,7 +71,14 @@ int test_truncate_with_cursors(int n) {
     u_int32_t row_count = 0;
     r = db->truncate(db, 0, &row_count, 0); 
 #if USE_BDB
-    assert(r == 0 && test_errors);
+    // It looks like for 4.6 there's no error code, even though the documentation says "it is an error to truncate with open cursors".
+    // For 4.3 the error code is EINVAL
+    // I don't know where the boundary really is:  Is it an error in 4.5 or 4.4?
+    if (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR>=6) {
+	assert(r == 0 && test_errors);
+    } else { 
+	assert(r == EINVAL && test_errors);
+    }
 #else
     assert(r == EINVAL);
 #endif
