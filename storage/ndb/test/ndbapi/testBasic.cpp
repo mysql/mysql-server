@@ -19,8 +19,6 @@
 #include <UtilTransactions.hpp>
 #include <NdbRestarter.hpp>
 
-#define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
-
 
 /**
  * TODO 
