@@ -1000,6 +1000,7 @@ loop:
     if(r == -1){
       if(pNdb->getDictionary()->getNdbError().code == 755)
       {
+	ndbout << "Error: " << pNdb->getDictionary()->getNdbError() << endl;
 	if (create_default_tablespace(pNdb) == 0)
 	{
 	  goto loop;
