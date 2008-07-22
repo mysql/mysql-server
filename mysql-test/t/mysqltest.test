@@ -91,6 +91,10 @@ select otto from (select 1 as otto) as t1;
 --error 1
 --exec echo "error S42S22; select otto from (select 1 as otto) as t1;" | $MYSQL_TEST  2>&1
 
+# expecting a SQL-state for a command that can't give one should fail
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1
+--exec echo "error S00000; remove_file $MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp;" | $MYSQL_TEST  2>&1
 
 
 # ----------------------------------------------------------------------------
