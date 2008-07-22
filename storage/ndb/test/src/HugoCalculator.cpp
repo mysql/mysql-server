@@ -104,7 +104,11 @@ calc_len(Uint32 rvalue, int maxlen)
   else
     minlen = 64;
 
-  if (maxlen <= minlen)
+  if ((Uint32)maxlen <= minlen)
+    return maxlen;
+
+  /* Ensure coverage of maxlen */
+  if ((rvalue & 64) == 0)
     return maxlen;
 
   return minlen + (rvalue % (maxlen - minlen));
@@ -255,7 +259,7 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
     if (i != m_updatesCol && id != m_idCol) {
       const NdbDictionary::Column* attr = m_tab.getColumn(i);      
       Uint32 len = attr->getSizeInBytes(), real_len;
-      char buf[8000];
+      char buf[NDB_MAX_TUPLE_SIZE];
       const char* res = calcValue(id, i, updates, buf, len, &real_len);
       if (res == NULL){
 	if (!pRow->attributeStore(i)->isNULL()){

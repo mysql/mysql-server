@@ -467,10 +467,6 @@ args: -n ScanReadWhileNodeIsDown D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanRestart T1 D1 D2 
-
-max-time: 500
-cmd: testScan
 args: -l 100 -n Scan-bug8262 T6 D1 D2
 
 max-time: 500
@@ -1106,13 +1102,25 @@ max-time: 600
 cmd: test_event
 args: -l 1 -n SubscribeNR T1
 
-max-time: 300
+max-time: 600
 cmd: testNodeRestart
 args: -n Bug34702 T1
 
 max-time: 600
 cmd: test_event
 args: -n Bug35208 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug37279 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug37338 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug37442 T1
 
 # 2008-04-22
 max-time: 1500
@@ -1169,4 +1177,26 @@ cmd: testDict
 args: -n FailAddPartition T1 I3
 
 # EOF 2008-06-05
+
+# Test data buffering for TCKEYREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionPk WIDE_2COL
+
+# Test data buffering for TCINDXREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionIx WIDE_2COL_IX
+
+# Run some tests on max size / max num cols tables
+max-time: 500
+cmd: testBasic
+args: -n PkRead WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+
+max-time: 500
+cmd: testBasic
+args: -n PkUpdate WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+
+
+# EOF 2008-06-30
 # EOF

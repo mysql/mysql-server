@@ -349,6 +349,33 @@ SignalLoggerManager::sendSignal(const SignalHeader& sh, Uint8 prio,
 }
 
 void
+SignalLoggerManager::sendSignal(const SignalHeader& sh,
+                                Uint8 prio,
+				const Uint32 * theData, Uint32 node,
+                                const GenericSectionPtr ptr[3], Uint32 secs)
+{
+  Uint32 trace = sh.theTrace;
+  Uint32 senderBlockNo = refToBlock(sh.theSendersBlockRef);
+  //Uint32 receiverBlockNo = sh.theReceiversBlockNumber;
+
+  if(outputStream != 0 && 
+     (traceId == 0 || traceId == trace) &&
+     (logMatch(senderBlockNo, LogOut) ||
+      (m_logDistributed && m_ownNodeId != node))){
+#ifdef VM_TRACE_TIME
+    fprintf(outputStream, "---- Send ----- Signal - %d ----\n", time(0));
+#else
+    fprintf(outputStream, "---- Send ----- Signal ----------------\n");
+#endif
+
+    printSignalHeader(outputStream, sh, prio, node, false);
+    printSignalData(outputStream, sh, theData);
+    for (unsigned i = 0; i < secs; i++)
+      printGenericSection(outputStream, sh, ptr, i);
+  }
+}
+
+void
 SignalLoggerManager::sendSignalWithDelay(Uint32 delayInMilliSeconds,
 					 const SignalHeader & sh, Uint8 prio, 
 					 const Uint32 * theData, Uint32 node,
@@ -490,6 +517,33 @@ SignalLoggerManager::printLinearSection(FILE * output,
   if (len > 0)
     putc('\n', output);
 }
+
+void
+SignalLoggerManager::printGenericSection(FILE * output,
+                                         const SignalHeader & sh,
+                                         const GenericSectionPtr ptr[3],
+                                         unsigned i)
+{
+  fprintf(output, "SECTION %u type=generic", i);
+  if (i >= 3) {
+    fprintf(output, " *** invalid ***\n");
+    return;
+  }
+  const Uint32 len = ptr[i].sz;
+  Uint32 pos = 0;
+  Uint32 chunksz = 0;
+  fprintf(output, " size=%u\n", (unsigned)len);
+  ptr[i].sectionIter->reset();
+  while (pos < len) {
+    Uint32* data= ptr[i].sectionIter->getNextWords(chunksz);
+    Uint32 i=0;
+    while (i < chunksz)
+      printDataWord(output, pos, data[i++]);
+  }
+  if (len > 0)
+    putc('\n', output);
+}
+
 
 void
 SignalLoggerManager::printDataWord(FILE * output, Uint32 & pos, const Uint32 data)

@@ -74,6 +74,8 @@ public:
   int sendSignal(NdbApiSignal * signal, NodeId nodeId);
   int sendSignal(NdbApiSignal*, NodeId, 
 		 LinearSectionPtr ptr[3], Uint32 secs);
+  int sendSignal(NdbApiSignal*, NodeId,
+                 GenericSectionPtr ptr[3], Uint32 secs);
   int sendFragmentedSignal(NdbApiSignal*, NodeId, 
 			   LinearSectionPtr ptr[3], Uint32 secs);
 

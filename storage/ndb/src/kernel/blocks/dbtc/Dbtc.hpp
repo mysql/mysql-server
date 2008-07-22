@@ -247,6 +247,16 @@ public:
     IS_BUILDING = 0,          // build in progress, start state at create
     IS_ONLINE = 1             // ready to use
   };
+
+  /* Sub states of IndexOperation while waiting for TransId_AI
+   * from index table lookup
+   */
+  enum IndexTransIdAIState {
+    ITAS_WAIT_HEADER = 0,     // Initial state
+    ITAS_WAIT_FRAGID = 1,     // Waiting for fragment id word
+    ITAS_WAIT_KEY = 2,        // Waiting for (more) key information
+    ITAS_ALL_RECEIVED = 3     // All TransIdAI info received
+  };
   
 
   /**--------------------------------------------------------------------------
@@ -543,14 +553,15 @@ public:
   UintR c_maxNumberOfIndexes;
 
   struct TcIndexOperation {
-    TcIndexOperation(AttributeBuffer::DataBufferPool & abp) :
+    TcIndexOperation() :
       indexOpState(IOS_NOOP),
-      expectedKeyInfo(0),
-      keyInfo(abp),
-      expectedAttrInfo(0),
-      attrInfo(abp),
-      expectedTransIdAI(0),
-      transIdAI(abp),
+      pendingKeyInfo(0),
+      keyInfoSectionIVal(RNIL),
+      pendingAttrInfo(0),
+      attrInfoSectionIVal(RNIL),
+      transIdAIState(ITAS_WAIT_HEADER),
+      pendingTransIdAI(0),
+      transIdAISectionIVal(RNIL),
       indexReadTcConnect(RNIL)
     {}
 
@@ -561,12 +572,14 @@ public:
     // Index data
     Uint32 indexOpId;
     IndexOperationState indexOpState; // Used to mark on-going TcKeyReq
-    Uint32 expectedKeyInfo;
-    AttributeBuffer keyInfo;   // For accumulating IndxKeyInfo
-    Uint32 expectedAttrInfo;
-    AttributeBuffer attrInfo; // For accumulating IndxAttrInfo
-    Uint32 expectedTransIdAI;
-    AttributeBuffer transIdAI; // For accumulating TransId_AI
+    Uint32 pendingKeyInfo;
+    Uint32 keyInfoSectionIVal;
+    Uint32 pendingAttrInfo;
+    Uint32 attrInfoSectionIVal;
+    IndexTransIdAIState transIdAIState;
+    Uint32 pendingTransIdAI;
+    Uint32 transIdAISectionIVal; // For accumulating TransId_AI
+    Uint32 fragmentId;
     
     TcKeyReq tcIndxReq;
     UintR connectionIndex;
@@ -917,8 +930,9 @@ public:
      */
     Uint8  opExec;     
 
-    Uint8  unused;
-    Uint8  unused1;
+    /* Use of Long signals */
+    Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
+    Uint8  useLongLqhKeyReq; /* Outgoing LqhKeyReq should be long */
 
     //---------------------------------------------------
     // Second 16 byte cache line in second 64 byte cache
@@ -940,9 +954,13 @@ public:
 
     //---------------------------------------------------
     // Fourth 16 byte cache line in second 64
-    // byte cache line. Not used currently.
+    // byte cache line. Diverse use.
+    // Second 8 bytes not used currently
     //---------------------------------------------------
-    UintR  packedCacheVar[4];
+    /* I-values for KeyInfo and AttrInfo sections */ 
+    Uint32 keyInfoSectionI;
+    Uint32 attrInfoSectionI;
+    UintR  packedCacheVar[2];
   };
   
   typedef Ptr<CacheRecord> CacheRecordPtr;
@@ -1394,6 +1412,8 @@ private:
   void execINDXKEYINFO(Signal* signal);
   void execINDXATTRINFO(Signal* signal);
   void execALTER_INDX_IMPL_REQ(Signal* signal);
+  void execSIGNAL_DROPPED_REP(Signal* signal);
+
 
   // Index table lookup
   void execTCKEYCONF(Signal* signal);
@@ -1480,8 +1500,8 @@ private:
   void handleGcp(Signal* signal);
   void hash(Signal* signal);
   bool handle_special_hash(Uint32 dstHash[4], 
-			     Uint32* src, Uint32 srcLen, 
-			     Uint32 tabPtrI, bool distr);
+                           const Uint32* src, Uint32 srcLen, 
+                           Uint32 tabPtrI, bool distr);
   
   void initApiConnect(Signal* signal);
   void initApiConnectRec(Signal* signal, 
@@ -1525,9 +1545,13 @@ private:
                     UintR TattrinfoPtr,
                     AttrbufRecord * const regAttrPtr,
                     UintR TBref);
+  bool sendAttrInfoTrain(Signal* signal,
+                         UintR TBRef,
+                         Uint32 offset,
+                         SegmentedSectionPtr& section);
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
-  void sendKeyinfo(Signal* signal, BlockReference TBRef, Uint32 len);
-  void sendlqhkeyreq(Signal* signal, BlockReference TBRef);
+  void sendlqhkeyreq(Signal* signal, 
+                     BlockReference TBRef);
   void sendSystemError(Signal* signal, int line);
   void sendtckeyconf(Signal* signal, UintR TcommitFlag);
   void sendTcIndxConf(Signal* signal, UintR TcommitFlag);
@@ -1618,17 +1642,22 @@ private:
   void diFcountReqLab(Signal* signal, ScanRecordPtr);
   void signalErrorRefuseLab(Signal* signal);
   void abort080Lab(Signal* signal);
-  void packKeyData000Lab(Signal* signal, BlockReference TBRef, Uint32 len);
+  void packKeyData000Lab(Signal* signal, 
+                         BlockReference TBRef, 
+                         Uint32 len);
+  void packKeyDataFromSection(Signal* signal,
+                              BlockReference TBRef,
+                              Uint32 offset,
+                              SegmentedSectionPtr& keyInfoSection);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode, 
 		    bool not_started = false);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
   void abort010Lab(Signal* signal);
   void abort015Lab(Signal* signal);
-  void packLqhkeyreq(Signal* signal, BlockReference TBRef);
+  void packLqhkeyreq(Signal* signal, 
+                     BlockReference TBRef);
   void packLqhkeyreq040Lab(Signal* signal,
-                           UintR anAttrBufIndex,
                            BlockReference TBRef);
-  void packLqhkeyreq040Lab(Signal* signal);
   void returnFromQueuedDeliveryLab(Signal* signal);
   void startTakeOverLab(Signal* signal);
   void toCompleteHandlingLab(Signal* signal);
@@ -1641,11 +1670,11 @@ private:
   void complete010Lab(Signal* signal);
   void releaseAtErrorLab(Signal* signal);
   void seizeDatabuferrorLab(Signal* signal);
+  void appendToSectionErrorLab(Signal* signal);
   void scanAttrinfoLab(Signal* signal, UintR Tlen);
   void seizeAttrbuferrorLab(Signal* signal);
   void attrinfoDihReceivedLab(Signal* signal);
   void aiErrorLab(Signal* signal);
-  void attrinfo020Lab(Signal* signal);
   void scanReleaseResourcesLab(Signal* signal);
   void scanCompletedLab(Signal* signal);
   void scanError(Signal* signal, ScanRecordPtr, Uint32 errorCode);
@@ -1702,6 +1731,7 @@ private:
   CacheRecordPtr cachePtr;
   UintR ccacheFilesize;
 
+  // TODO : Remove when SCANTABREQ uses SegmentedSection
   AttrbufRecord *attrbufRecord;
   AttrbufRecordPtr attrbufptr;
   UintR cattrbufFilesize;
@@ -1826,6 +1856,7 @@ private:
   UintR capiConnectClosing[MAX_NODES];
   UintR con_lineNodes;
 
+  // TODO : Remove when ScanTabReq uses Segmented Sections
   DatabufRecord *databufRecord;
   DatabufRecordPtr databufptr;
   DatabufRecordPtr tmpDatabufptr;
@@ -1925,6 +1956,9 @@ private:
 
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, ApiConnectRecordPtr);
+
+  // For Error inserts
+  Uint32 errorInsertHoardedSegments;
 
   /************************** API CONNECT RECORD ***********************/
   /* *******************************************************************/

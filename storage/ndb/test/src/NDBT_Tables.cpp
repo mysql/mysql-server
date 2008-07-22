@@ -437,20 +437,6 @@ NDBT_Table *test_tables[]=
   &D1, &D2
 };
 
-struct NDBT_IndexList {
-  const char * m_table;
-  const char ** m_indexes;
-};
-
-static
-const
-NDBT_IndexList indexes[] = {
-  "I1", I1_Indexes, 
-  "I2", I2_Indexes, 
-  "I3", I3_Indexes,
-  0, 0
-};
-
 static
 const
 int numTestTables = sizeof(test_tables)/sizeof(NDBT_Table*);
@@ -757,6 +743,260 @@ const
 int numUtilTables = sizeof(util_tables)/sizeof(NDBT_Table*);
 
 
+/**
+ * Define other test tables that we may create
+ */
+
+/* WIDE_2COL
+ * Single var length key going up to max size of key
+ * Single var length attribute using remaining row space
+ */
+static 
+const
+NDBT_Attribute WIDE_2COL_ATTRIBS[] = {
+  /* Note that we can't have any index on this table as it
+   * has no space for the extra FRAGID the index requires!
+   */
+  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarchar, 
+                 NDBT_Tables::MaxVarTypeKeyBytes, true), 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+                 NDBT_Tables::MaxKeyMaxVarTypeAttrBytes, false)
+};
+
+
+static
+NDBT_Table WIDE_2COL("WIDE_2COL", sizeof(WIDE_2COL_ATTRIBS)/
+                     sizeof(NDBT_Attribute), WIDE_2COL_ATTRIBS);
+
+/* WIDE_2COL_IX
+ * Single var length key going up to max size of key
+ * Single var length attribute using most of remaining row space,
+ * but not all as we need space in the index for FragId
+ */
+static 
+const
+NDBT_Attribute WIDE_2COL_IX_ATTRIBS[] = {
+  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarchar, 
+                 NDBT_Tables::MaxVarTypeKeyBytes, true), 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+                 NDBT_Tables::MaxKeyMaxVarTypeAttrBytesIndex , false)
+};
+
+static
+NDBT_Table WIDE_2COL_IX("WIDE_2COL_IX", sizeof(WIDE_2COL_IX_ATTRIBS)/
+                        sizeof(NDBT_Attribute), WIDE_2COL_IX_ATTRIBS);
+
+static
+const char* WIDE_2COL_IX_Indexes[] = {
+  "UNIQUE", "ATTR", 0,
+  0};
+
+/* WIDE_MAXKEY_HUGO
+ * Single var length key going up to max size of key
+ * Var length attr going using up remaining space
+ * Two unsigned int columns required by Hugo tools
+ */
+static 
+const
+NDBT_Attribute WIDE_MAXKEY_HUGO_ATTRIBS[] = {
+  /* Note that we can't have any index on this table as it
+   * has no space for the extra FRAGID the index requires!
+   */
+  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarchar, 
+                 NDBT_Tables::MaxVarTypeKeyBytes, true), 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+                 NDBT_Tables::MaxKeyMaxVarTypeAttrBytes -
+                 NDBT_Tables::HugoOverheadBytes, false),
+  NDBT_Attribute("HUGOID", NdbDictionary::Column::Unsigned,
+                 1, false),
+  NDBT_Attribute("HUGOUPDATE", NdbDictionary::Column::Unsigned,
+                 1, false)
+};
+
+static
+NDBT_Table WIDE_MAXKEY_HUGO("WIDE_MAXKEY_HUGO", sizeof(WIDE_MAXKEY_HUGO_ATTRIBS)/
+                          sizeof(NDBT_Attribute), WIDE_MAXKEY_HUGO_ATTRIBS);
+
+/* WIDE_MAXATTR_HUGO
+ * Single unsigned int key
+ * Var length attr using up remaining space
+ * Two unsigned int columns required by Hugo tools
+ */
+static 
+const
+NDBT_Attribute WIDE_MAXATTR_HUGO_ATTRIBS[] = {
+  NDBT_Attribute("KEY", NdbDictionary::Column::Unsigned,
+                 1, true), 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+                 NDBT_Tables::MinKeyMaxVarTypeAttrBytes -
+                 NDBT_Tables::HugoOverheadBytes, false),
+  NDBT_Attribute("HUGOID", NdbDictionary::Column::Unsigned,
+                 1, false),
+  NDBT_Attribute("HUGOUPDATE", NdbDictionary::Column::Unsigned,
+                 1, false)
+};
+
+static
+NDBT_Table WIDE_MAXATTR_HUGO("WIDE_MAXATTR_HUGO", sizeof(WIDE_MAXATTR_HUGO_ATTRIBS)/
+                             sizeof(NDBT_Attribute), WIDE_MAXATTR_HUGO_ATTRIBS);
+
+typedef NDBT_Table* (*TableGenerator)(const char* name);
+
+static NDBT_Table* WIDE_MAXKEYMAXCOLS_HUGO= NULL;
+
+static
+NDBT_Table* createMaxKeyMaxColsHugoTabDef(const char* name)
+{
+  if (WIDE_MAXKEYMAXCOLS_HUGO == NULL)
+  {
+    /* Create a wide table with the max num of keys
+     * and the max num of attrs
+     */
+    NdbDictionary::Column* attrs[NDB_MAX_ATTRIBUTES_IN_TABLE];
+    const int buffsize=100;
+    char namebuff[buffsize];
+    Uint32 attrNum=0;
+
+    /* Keys */
+    for (;attrNum < (NDB_MAX_ATTRIBUTES_IN_INDEX - 1); attrNum ++)
+    {
+      snprintf(namebuff, buffsize, "K%d", attrNum);
+      attrs[attrNum]= new NDBT_Attribute(namebuff,
+                                         NdbDictionary::Column::Unsigned,
+                                         1, true);
+    }
+    /* Last key uses remaining key space */
+    snprintf(namebuff, buffsize, "K%d", attrNum);
+    attrs[attrNum]= new NDBT_Attribute(namebuff,
+                                       NdbDictionary::Column::Char,
+                                       (NDB_MAX_KEYSIZE_IN_WORDS -
+                                        (NDB_MAX_ATTRIBUTES_IN_INDEX -1)) * 4,
+                                       true);
+
+    attrNum ++;
+
+    /* Attributes */
+    for (;attrNum < (NDB_MAX_ATTRIBUTES_IN_TABLE - 1); attrNum ++)
+    {
+      snprintf(namebuff, buffsize, "A%d", attrNum);
+      attrs[attrNum]= new NDBT_Attribute(namebuff,
+                                         NdbDictionary::Column::Unsigned,
+                                         1, false);
+    }
+
+    /* Last attr uses remaining attr space */
+    snprintf(namebuff, buffsize, "A%d", attrNum);
+    attrs[attrNum]= new NDBT_Attribute(namebuff,
+                                       NdbDictionary::Column::Char,
+                                       (NDB_MAX_TUPLE_SIZE_IN_WORDS -
+                                        NDB_MAX_KEYSIZE_IN_WORDS -
+                                        ((NDB_MAX_ATTRIBUTES_IN_TABLE -
+                                          NDB_MAX_ATTRIBUTES_IN_INDEX) - 1)) * 4,
+                                       false);
+    
+    WIDE_MAXKEYMAXCOLS_HUGO= new NDBT_Table(name, NDB_MAX_ATTRIBUTES_IN_TABLE,
+                                            attrs);
+
+    /* Free attributes, table will remain until program exit */
+    for (attrNum=0; attrNum < NDB_MAX_ATTRIBUTES_IN_TABLE; attrNum++)
+      delete attrs[attrNum];
+    
+  }
+
+  return WIDE_MAXKEYMAXCOLS_HUGO;
+}
+
+static NDBT_Table* WIDE_MINKEYMAXCOLS_HUGO= NULL;
+
+static
+NDBT_Table* createMinKeyMaxColsHugoTabDef(const char* name)
+{
+  if (WIDE_MINKEYMAXCOLS_HUGO == NULL)
+  {
+    /* Create a wide table with one key and the max number
+     * of attributes
+     */
+    NdbDictionary::Column* attrs[NDB_MAX_ATTRIBUTES_IN_TABLE];
+    const int buffsize=100;
+    char namebuff[buffsize];
+    Uint32 attrNum=0;
+    attrs[attrNum]= new NDBT_Attribute("K1",
+                                       NdbDictionary::Column::Unsigned,
+                                       1, true);
+    attrNum ++;
+
+    /* Attributes */
+    for (;attrNum < (NDB_MAX_ATTRIBUTES_IN_TABLE - 1); attrNum ++)
+    {
+      snprintf(namebuff, buffsize, "A%d", attrNum);
+      attrs[attrNum]= new NDBT_Attribute(namebuff,
+                                         NdbDictionary::Column::Unsigned,
+                                         1, false);
+    }
+    
+    /* Last attr uses remaining attr space */
+    snprintf(namebuff, buffsize, "A%d", attrNum);
+    attrs[attrNum]= new NDBT_Attribute(namebuff,
+                                       NdbDictionary::Column::Char,
+                                       (NDB_MAX_TUPLE_SIZE_IN_WORDS -
+                                        (NDB_MAX_ATTRIBUTES_IN_TABLE - 1)) * 4,
+                                       false);
+    
+    WIDE_MINKEYMAXCOLS_HUGO= new NDBT_Table(name, NDB_MAX_ATTRIBUTES_IN_TABLE,
+                                            attrs);
+
+    /* Free attributes, table will remain until program exit */
+    for (attrNum=0; attrNum < NDB_MAX_ATTRIBUTES_IN_TABLE; attrNum++)
+      delete attrs[attrNum];
+    
+
+  }
+
+  return WIDE_MINKEYMAXCOLS_HUGO;
+}
+
+// Define array with pointer to other test tables
+
+struct OtherTable
+{
+  const char* name;
+  NDBT_Table* tab;
+  TableGenerator tabGen;
+};
+
+static
+const
+OtherTable other_tables[]=
+{ 
+  {"WIDE_2COL", &WIDE_2COL, NULL},
+  {"WIDE_2COL_IX", &WIDE_2COL_IX, NULL},
+  {"WIDE_MAXKEY_HUGO", &WIDE_MAXKEY_HUGO, NULL},
+  {"WIDE_MAXATTR_HUGO", &WIDE_MAXATTR_HUGO, NULL},
+  {"WIDE_MAXKEYMAXCOLS_HUGO", NULL, createMaxKeyMaxColsHugoTabDef},
+  {"WIDE_MINKEYMAXCOLS_HUGO", NULL, createMinKeyMaxColsHugoTabDef}
+};
+
+static
+const
+int numOtherTables = sizeof(other_tables)/sizeof(OtherTable);
+
+
+/* Secondary indexes for our tables */
+struct NDBT_IndexList {
+  const char * m_table;
+  const char ** m_indexes;
+};
+
+static
+const
+NDBT_IndexList indexes[] = {
+  "I1", I1_Indexes, 
+  "I2", I2_Indexes, 
+  "I3", I3_Indexes,
+  "WIDE_2COL_IX", WIDE_2COL_IX_Indexes,
+  0, 0
+};
+
 const
 NdbDictionary::Table*
 NDBT_Tables::getTable(const char* _nam){
@@ -778,6 +1018,14 @@ NDBT_Tables::getTable(const char* _nam){
       return util_tables[i];
     }
   }
+  for(i=0; i<numOtherTables; i++){
+    if (strcmp(other_tables[i].name, _nam) == 0){
+      return (other_tables[i].tab != NULL)? 
+        other_tables[i].tab :
+        (*other_tables[i].tabGen)(other_tables[i].name);
+    }
+  }
+
   // TPK_no tables
   // Dynamcially create table vith primary key size
   // set to no
@@ -1000,6 +1248,7 @@ loop:
     if(r == -1){
       if(pNdb->getDictionary()->getNdbError().code == 755)
       {
+	ndbout << "Error: " << pNdb->getDictionary()->getNdbError() << endl;
 	if (create_default_tablespace(pNdb) == 0)
 	{
 	  goto loop;
@@ -1043,7 +1292,7 @@ loop:
 	
 	j++;
 	while(indexes[i].m_indexes[j] != 0){
-	  tmpIndx.addIndexColumn(indexes[i].m_indexes[j]);
+          tmpIndx.addIndexColumn(indexes[i].m_indexes[j]);
 	  j++;
 	}
 	j++;

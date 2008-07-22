@@ -97,7 +97,7 @@ void Dbtc::initRecords()
   TcIndexOperationPtr ioptr;
   while(indexOps.seize(ioptr) == true) {
     p= ioptr.p;
-    new (p) TcIndexOperation(c_theAttributeBufferPool);
+    new (p) TcIndexOperation(); // TODO : Modify alloc size of c_theAttributeBufferPool
   }
   indexOps.release();
 
@@ -264,6 +264,7 @@ Dbtc::Dbtc(Block_context& ctx):
 
   addRecSignal(GSN_TRANSID_AI_R, &Dbtc::execTRANSID_AI_R);
   addRecSignal(GSN_KEYINFO20_R, &Dbtc::execKEYINFO20_R);
+  addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dbtc::execSIGNAL_DROPPED_REP, true);
 
   // Index table lookup
   addRecSignal(GSN_TCKEYCONF, &Dbtc::execTCKEYCONF);
@@ -321,6 +322,8 @@ Dbtc::Dbtc(Block_context& ctx):
   tcFailRecord = 0;
   c_apiConTimer = 0;
   c_apiConTimer_line = 0;
+
+  errorInsertHoardedSegments= RNIL;
 }//Dbtc::Dbtc()
 
 Dbtc::~Dbtc() 

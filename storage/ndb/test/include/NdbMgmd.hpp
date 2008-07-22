@@ -13,32 +13,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef SIGNAL_DROPPED_HPP
-#define SIGNAL_DROPPED_HPP
+#ifndef NDB_MGMD_HPP
+#define NDB_MGMD_HPP
 
-#include "SignalData.hpp"
+#include <BaseString.hpp>
 
-class SignalDroppedRep {
 
-  /**
-   * Reciver(s)
-   */
-  friend class SimulatedBlock;
-  friend class Dbtc;
-
-  /**
-   * Sender (TransporterCallback.cpp)
-   */
-  friend class TransporterFacade;
-  friend class TransporterCallbackKernel;
-
-  friend bool printSIGNAL_DROPPED_REP(FILE *, const Uint32 *, Uint32, Uint16);  
+class NdbMgmd {
+  BaseString m_connect_str;
 public:
-private:
-  Uint32 originalGsn;
-  Uint32 originalLength;
-  Uint32 originalSectionCount;
-  Uint32 originalData[1];
+  NdbMgmd() :
+    m_connect_str(getenv("NDB_CONNECTSTRING"))
+    {
+      if (!m_connect_str.length()){
+        fprintf(stderr, "Could not init NdbConnectString");
+        abort();
+      }
+    }
+
+  const char* getConnectString() const {
+    return m_connect_str.c_str();
+  }
 };
 
 #endif

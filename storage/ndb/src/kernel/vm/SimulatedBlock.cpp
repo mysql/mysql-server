@@ -302,7 +302,114 @@ getSection(SegmentedSectionPtr & ptr, Uint32 i){
 #define MT_SECTION_UNLOCK
 #endif
 
-#define relSz(x) ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength)
+/**
+ * appendToSection
+ * Append supplied words to the chain of section segments 
+ * indicated by the first section passed.
+ * If the passed IVal == RNIL then a section will be seized
+ * and the IVal will be updated to indicate the first IVal
+ * section in the chain
+ * Sections are made up of linked SectionSegment objects
+ * where : 
+ *   - The first SectionSegment's m_sz is the size of the
+ *     whole section
+ *   - The first SectionSegment's m_lastSegment refers to
+ *     the last segment in the section
+ *   - Each SectionSegment's m_nextSegment refers to the
+ *     next segment in the section, *except* for the last
+ *     SectionSegment's which is RNIL
+ *   - Each SectionSegment except the first does not use
+ *     its m_sz or m_nextSegment members.
+ */
+bool
+appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len) {
+  Ptr<SectionSegment> firstPtr, currPtr;
+
+  if (len == 0) 
+    return true;  
+
+  Uint32 remain= SectionSegment::DataLength;
+  Uint32 segmentLen= 0;
+
+  if (firstSegmentIVal == RNIL)
+  {
+    /* First data to be added to this section */
+    MT_SECTION_LOCK
+      bool result= g_sectionSegmentPool.seize(firstPtr);
+    MT_SECTION_UNLOCK
+
+    if (!result)
+      return false;
+    
+    firstPtr.p->m_sz= 0;
+    firstPtr.p->m_ownerRef= 0;
+    firstSegmentIVal= firstPtr.i;
+
+    currPtr= firstPtr;
+  }
+  else
+  {
+    /* Section has at least one segment with data already */
+    g_sectionSegmentPool.getPtr(firstPtr, firstSegmentIVal);
+    g_sectionSegmentPool.getPtr(currPtr, firstPtr.p->m_lastSegment);
+
+    Uint32 existingLen= firstPtr.p->m_sz;
+    assert(existingLen > 0);
+    segmentLen= existingLen % SectionSegment::DataLength;
+    
+    /* If existingLen %  SectionSegment::DataLength == 0
+     * we assume that the last segment is full
+     */
+    segmentLen= segmentLen == 0 ? 
+      SectionSegment::DataLength :
+      segmentLen;
+
+    remain= SectionSegment::DataLength - segmentLen;
+  }
+
+  firstPtr.p->m_sz+= len;
+
+  while(len > remain) {
+    /* Fill this segment, and link in another one 
+     * Note that we can memcpy to a bad address with size 0
+     */
+    memcpy(&currPtr.p->theData[segmentLen], src, remain << 2);
+    src += remain;
+    len -= remain;
+    Ptr<SectionSegment> prevPtr= currPtr;
+    MT_SECTION_LOCK
+      bool result = g_sectionSegmentPool.seize(currPtr);
+    MT_SECTION_UNLOCK
+    if (!result)
+    {
+      /* Failed, ensure segment list is consistent for
+       * freeing later
+       */
+      firstPtr.p->m_lastSegment= prevPtr.i;
+      firstPtr.p->m_sz-= len;
+      return false;
+    }
+    prevPtr.p->m_nextSegment = currPtr.i;
+    currPtr.p->m_sz= 0;
+    currPtr.p->m_ownerRef= 0;
+
+    segmentLen= 0;
+    remain= SectionSegment::DataLength;
+  }
+
+  /* Data fits in the current last segment */
+  firstPtr.p->m_lastSegment= currPtr.i;
+  currPtr.p->m_nextSegment= RNIL;
+  memcpy(&currPtr.p->theData[segmentLen], src, len << 2);
+
+  return true;
+}
+
+/* Macro to calculate number of segments to free for given section length
+ * Since releaseList() always releases one segment, we make sure to always
+ * ask for one to be released, even when x == 0.
+ */
+#define relSz(x) ((x == 0)?1 : ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength))
 
 void
 release(SegmentedSectionPtr & ptr){
@@ -311,6 +418,21 @@ release(SegmentedSectionPtr & ptr){
 				   ptr.i, 
 				   ptr.p->m_lastSegment);
   MT_SECTION_UNLOCK
+}
+
+void
+releaseSection(Uint32 firstSegmentIVal)
+{
+  if (firstSegmentIVal != RNIL)
+  {
+    SectionSegment* p = g_sectionSegmentPool.getPtr(firstSegmentIVal);
+
+    MT_SECTION_LOCK
+    g_sectionSegmentPool.releaseList(relSz(p->m_sz),
+                                     firstSegmentIVal,
+                                     p->m_lastSegment);
+    MT_SECTION_UNLOCK
+  }
 }
 
 static void
@@ -1506,8 +1628,6 @@ SimulatedBlock::printTimes(FILE * output){
 
 #endif
 
-void release(SegmentedSectionPtr & ptr);
-
 SimulatedBlock::FragmentInfo::FragmentInfo(Uint32 fragId, Uint32 sender){
   m_fragmentId = fragId;
   m_senderRef = sender;
@@ -2549,7 +2669,8 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
 
 Uint32
 SimulatedBlock::create_distr_key(Uint32 tableId,
-				 Uint32 *data, 
+				 const Uint32 *src,
+                                 Uint32* dst,
 				 const Uint32 
 				 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const 
 {
@@ -2557,11 +2678,11 @@ SimulatedBlock::create_distr_key(Uint32 tableId,
   const Uint32 noOfKeyAttr = desc->noOfKeyAttr;
   Uint32 noOfDistrKeys = desc->noOfDistrKeys;
   
-  Uint32 *src = data;
-  Uint32 *dst = data;
   Uint32 i = 0;
   Uint32 dstPos = 0;
   
+  /* --Note that src and dst may be the same location-- */
+
   if(keyPartLen)
   {
     while (i < noOfKeyAttr && noOfDistrKeys) 

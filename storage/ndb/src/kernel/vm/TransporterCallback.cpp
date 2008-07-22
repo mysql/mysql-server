@@ -84,7 +84,7 @@ import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
     ;
   } else {
     MT_SECTION_UNLOCK
-    ndbout_c("here");
+    ndbout_c("No Segmented Sections for import");
     return false;
   }
 
@@ -103,9 +103,12 @@ import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
     if(g_sectionSegmentPool.seize(currPtr)){
       ;
     } else {
+      /* Leave segment chain in ok condition for release */
       first.p->m_lastSegment = prevPtr.i;
+      first.p->m_sz-= len;
+      prevPtr.p->m_nextSegment = RNIL;
       MT_SECTION_UNLOCK
-      ndbout_c("hera");
+      ndbout_c("Not enough Segmented Sections during import");
       return false;
     }
   }
@@ -139,7 +142,10 @@ copy(Uint32 * dst, SegmentedSectionPtr src){
   copy(dst, g_sectionSegmentPool, src);
 }
 
-#define relSz(x) ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength)
+/* Calculate number of segments to release based on section size
+ * Always release one segment, even if size is zero
+ */
+#define relSz(x) ((x == 0)? 1 : ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength))
 
 #include <DebuggerNames.hpp>
 
@@ -185,6 +191,7 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
 
   const Uint32 secCount = header->m_noOfSections;
   const Uint32 length = header->theLength;
+  header->theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
 
 #ifdef TRACE_DISTRIBUTED
   ndbout_c("recv: %s(%d) from (%s, %d)",
@@ -196,6 +203,8 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
 
   bool ok = true;
   Ptr<SectionSegment> secPtr[3];
+  secPtr[0].p = secPtr[1].p = secPtr[2].p = 0;
+
   switch(secCount){
   case 3:
     ok &= import(secPtr[2], ptr[2].p, ptr[2].sz);
@@ -239,7 +248,8 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
   MT_SECTION_LOCK
   for(Uint32 i = 0; i<secCount; i++){
     if(secPtr[i].p != 0){
-      g_sectionSegmentPool.releaseList(relSz(ptr[i].sz), secPtr[i].i, 
+      g_sectionSegmentPool.releaseList(relSz(secPtr[i].p->m_sz), 
+                                       secPtr[i].i, 
 				       secPtr[i].p->m_lastSegment);
     }
   }
