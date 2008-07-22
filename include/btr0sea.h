@@ -43,7 +43,6 @@ btr_search_info_create(
 /*********************************************************************
 Returns the value of ref_count. The value is protected by
 btr_search_latch. */
-UNIV_INLINE
 ulint
 btr_search_info_get_ref_count(
 /*==========================*/
