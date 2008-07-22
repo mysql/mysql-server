@@ -642,6 +642,7 @@ done:
 }
 
 NDBT_TESTSUITE(testMgm);
+DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
 	 "Test failures in MGMAPI session"){
   INITIALIZER(runTestApiSession);
@@ -681,6 +682,8 @@ NDBT_TESTSUITE_END(testMgm);
 
 int main(int argc, const char** argv){
   ndb_init();
+  testMgm.setCreateTable(false);
+  testMgm.setRunAllTables(true);
   return testMgm.execute(argc, argv);
 }
 

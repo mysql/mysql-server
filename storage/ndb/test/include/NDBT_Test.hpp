@@ -122,13 +122,11 @@ typedef int (NDBT_TESTFUNC)(NDBT_Context*, NDBT_Step*);
 
 class NDBT_Step {
 public:
-  NDBT_Step(NDBT_TestCase* ptest, 
-		const char* pname,
-		NDBT_TESTFUNC* pfunc);
+  NDBT_Step(NDBT_TestCase* ptest,
+            const char* pname,
+            NDBT_TESTFUNC* pfunc);
   virtual ~NDBT_Step() {}
   int execute(NDBT_Context*);
-  virtual int setUp(Ndb_cluster_connection&) = 0;
-  virtual void tearDown() = 0;
   void setContext(NDBT_Context*);
   NDBT_Context* getContext();
   void print();
@@ -141,23 +139,18 @@ protected:
   NDBT_TESTFUNC* func;
   NDBT_TestCase* testcase;
   int step_no;
-};
 
-class NDBT_NdbApiStep : public NDBT_Step {
+private:
+  int setUp(Ndb_cluster_connection&);
+  void tearDown();
+  Ndb* m_ndb;
+
 public:
-  NDBT_NdbApiStep(NDBT_TestCase* ptest,
-		  const char* pname,
-		  NDBT_TESTFUNC* pfunc);
-  virtual ~NDBT_NdbApiStep() {}
-  virtual int setUp(Ndb_cluster_connection&);
-  virtual void tearDown();
+  Ndb* getNdb() const;
 
-  Ndb* getNdb();
-protected:
-  Ndb* ndb;
 };
 
-class NDBT_ParallelStep : public NDBT_NdbApiStep {
+class NDBT_ParallelStep : public NDBT_Step {
 public:
   NDBT_ParallelStep(NDBT_TestCase* ptest,
 		    const char* pname,
@@ -165,7 +158,7 @@ public:
   virtual ~NDBT_ParallelStep() {}
 };
 
-class NDBT_Verifier : public NDBT_NdbApiStep {
+class NDBT_Verifier : public NDBT_Step {
 public:
   NDBT_Verifier(NDBT_TestCase* ptest,
 		const char* name,
@@ -173,7 +166,7 @@ public:
   virtual ~NDBT_Verifier() {}
 };
 
-class NDBT_Initializer  : public NDBT_NdbApiStep {
+class NDBT_Initializer  : public NDBT_Step {
 public:
   NDBT_Initializer(NDBT_TestCase* ptest,
 		   const char* name,
@@ -181,12 +174,18 @@ public:
   virtual ~NDBT_Initializer() {}
 };
 
-class NDBT_Finalizer  : public NDBT_NdbApiStep {
+class NDBT_Finalizer  : public NDBT_Step {
 public:
   NDBT_Finalizer(NDBT_TestCase* ptest,
 		 const char* name,
 		 NDBT_TESTFUNC* func);
   virtual ~NDBT_Finalizer() {}
+};
+
+
+enum NDBT_DriverType {
+  DummyDriver,
+  NdbApiDriver
 };
 
 
@@ -211,9 +210,12 @@ public:
   virtual bool tableExists(NdbDictionary::Table* aTable) = 0;
   virtual bool isVerify(const NdbDictionary::Table* aTable) = 0;
 
-  virtual void saveTestResult(const NdbDictionary::Table* ptab, int result) = 0;
+  virtual void saveTestResult(const char*, int result) = 0;
   virtual void printTestResult() = 0;
   void initBeforeTest(){ timer.doReset();};
+
+  void setDriverType(NDBT_DriverType type) { m_driverType= type; }
+  NDBT_DriverType getDriverType() const { return m_driverType; }
 
   /**
    * Get no of steps running/completed
@@ -243,6 +245,7 @@ protected:
   Properties props;
   NdbTimer timer;
   bool isVerifyTables;
+  NDBT_DriverType m_driverType;
 };
 
 static const int FAILED_TO_CREATE = 1000;
@@ -281,7 +284,7 @@ public:
   virtual ~NDBT_TestCaseImpl1();
   int addStep(NDBT_Step*);
   int addVerifier(NDBT_Verifier*);
-  int addInitializer(NDBT_Initializer*);
+  int addInitializer(NDBT_Initializer*, bool first= false);
   int addFinalizer(NDBT_Finalizer*);
   void addTable(const char*, bool);
   bool tableExists(NdbDictionary::Table*);
@@ -300,7 +303,7 @@ public:
 private:
   static const int  NORESULT = 999;
   
-  void saveTestResult(const NdbDictionary::Table* ptab, int result);
+  void saveTestResult(const char*, int result);
   void printTestResult();
 
   void startStepInThread(int stepNo, NDBT_Context* ctx);
@@ -371,14 +374,24 @@ public:
 
   void setTemporaryTables(bool val);
   bool getTemporaryTables() const;
+
+  void setLogging(bool val);
+  bool getLogging() const;
+
+  int createTables(Ndb_cluster_connection&) const;
+  int dropTables(Ndb_cluster_connection&) const;
+
+  void setDriverType(NDBT_DriverType type) { m_driverType= type; }
+  NDBT_DriverType getDriverType() const { return m_driverType; }
+
 private:
   int executeOne(Ndb_cluster_connection&,
 		 const char* _tabname, const char* testname = NULL);
   int executeAll(Ndb_cluster_connection&,
 		 const char* testname = NULL);
   void execute(Ndb_cluster_connection&,
-	       Ndb*, const NdbDictionary::Table*, const char* testname = NULL);
-  
+	       const NdbDictionary::Table*, const char* testname = NULL);
+
   int report(const char* _tcname = NULL);
   int reportAllTables(const char* );
   const char* name;
@@ -392,13 +405,14 @@ private:
   int loops;
   int timer;
   NdbTimer testSuiteTimer;
-  bool createTable;
+  bool m_createTable;
+  bool m_createAll;
   bool diskbased;
   bool runonce;
   const char* tsname;
-  bool createAllTables;
   bool temporaryTables;
-  bool nologging;
+  bool m_logging;
+  NDBT_DriverType m_driverType;
 };
 
 
@@ -413,9 +427,17 @@ C##suitname():NDBT_TestSuite(#suitname){ \
  NDBT_Initializer* pti; pti = NULL; \
  NDBT_Finalizer* ptf; ptf = NULL; 
 
+// The default driver type to use for all tests in suite
+#define DRIVER(type) \
+  setDriverType(type)
+
 #define TESTCASE(testname, comment) \
   pt = new NDBT_TestCaseImpl1(this, testname, comment); \
   addTest(pt);
+
+// The driver type to use for a particular testcase
+#define TESTCASE_DRIVER(type) \
+  pt->setDriverType(type);
 
 #define TC_PROPERTY(propname, propval) \
   pt->setProperty(propname, propval);
@@ -464,6 +486,6 @@ C##suitname():NDBT_TestSuite(#suitname){ \
  } } ; C##suitname suitname
 
 // Helper functions for retrieving variables from NDBT_Step
-#define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
+#define GETNDB(ps) ((NDBT_Step*)ps)->getNdb()
 
 #endif

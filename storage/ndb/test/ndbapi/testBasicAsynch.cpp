@@ -19,8 +19,6 @@
 #include "HugoAsynchTransactions.hpp"
 #include "UtilTransactions.hpp"
 
-#define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
-
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
   int records = ctx->getNumRecords();

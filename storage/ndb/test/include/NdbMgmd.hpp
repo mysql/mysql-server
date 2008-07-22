@@ -26,7 +26,7 @@ public:
     m_connect_str(getenv("NDB_CONNECTSTRING"))
     {
       if (!m_connect_str.length()){
-        fprintf(stderr, "Could not init NdbConnectCtring");
+        fprintf(stderr, "Could not init NdbConnectString");
         abort();
       }
     }
