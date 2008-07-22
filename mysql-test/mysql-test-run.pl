@@ -251,7 +251,7 @@ our $opt_sleep;
 our $opt_testcase_timeout;
 our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
-my  $default_suite_timeout=       180; # 3 hours max
+my  $default_suite_timeout=       300; # 5 hours max
 
 our $opt_start_and_exit;
 our $opt_start_dirty;
@@ -1579,13 +1579,15 @@ sub executable_setup_ndb () {
 
   $exe_ndbd=
     mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
-			 "$ndb_path/ndbd");
+			 "$ndb_path/ndbd",
+			 "$glob_basedir/libexec/ndbd");
   $exe_ndb_mgm=
     mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-			 "$ndb_path/ndb_mgmd");
+			 "$ndb_path/ndb_mgmd",
+			 "$glob_basedir/libexec/ndb_mgmd");
   $exe_ndb_waiter=
     mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
 			 "$ndb_path/ndb_waiter");
@@ -1682,7 +1684,8 @@ sub executable_setup () {
     # Look for mysql_fix_privilege_tables.sql script
     $file_mysql_fix_privilege_tables=
       mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
-  		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
+  		    "$glob_basedir/share/mysql_fix_privilege_tables.sql",
+  		    "$glob_basedir/share/mysql/mysql_fix_privilege_tables.sql");
 
     if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
     {
