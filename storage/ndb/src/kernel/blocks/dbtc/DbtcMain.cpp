@@ -69,6 +69,7 @@
 #include <signaldata/IndxKeyInfo.hpp>
 #include <signaldata/IndxAttrInfo.hpp>
 #include <signaldata/PackedSignal.hpp>
+#include <signaldata/SignalDroppedRep.hpp>
 #include <AttributeHeader.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <AttributeDescriptor.hpp>
@@ -1506,7 +1507,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
 
   case 24:
     jam();
-    seizeAttrbuferrorLab(signal);
+    appendToSectionErrorLab(signal);
     return;
 
   case 25:
@@ -1916,49 +1917,91 @@ void Dbtc::packKeyData000Lab(Signal* signal,
   } while (1);
 }//Dbtc::packKeyData000Lab()
 
+/**
+ * packKeyDataFromSection
+ * Method to pack a KeyInfo signal train from KeyInfo in the supplied
+ * Section
+ * KeyInfo will be taken from the section, starting at the supplied
+ * offset
+ */
+void Dbtc::packKeyDataFromSection(Signal* signal,
+                                  BlockReference TBRef,
+                                  Uint32 offset,
+                                  SegmentedSectionPtr& section)
+{
+  jam();
+
+  Uint32 totalLen= section.sz;
+
+  ndbassert( offset < totalLen );
+
+  signal->theData[0] = tcConnectptr.i;
+  signal->theData[1] = apiConnectptr.p->transid[0];
+  signal->theData[2] = apiConnectptr.p->transid[1];
+  Uint32 * dst = signal->theData + KeyInfo::HeaderLength;
+  
+  SectionReader keyInfoReader(section, getSectionSegmentPool());
+  keyInfoReader.step(offset);
+  totalLen-= offset;
+
+  while(totalLen != 0)
+  {
+    Uint32 dataInSignal= MIN(KeyInfo::DataLength, totalLen); 
+    keyInfoReader.getWords(dst, dataInSignal);
+    totalLen-= dataInSignal;
+    
+    sendSignal(TBRef, GSN_KEYINFO, signal, 
+               KeyInfo::HeaderLength + dataInSignal, JBB);
+  } 
+}//Dbtc::packKeyDataFromSection()
+
+/**
+ * tckeyreq020Lab
+ * Handle received KEYINFO signal
+ */
 void Dbtc::tckeyreq020Lab(Signal* signal) 
 {
   CacheRecord * const regCachePtr = cachePtr.p;
-  UintR TdataPos = 0;
   UintR TkeyLen = regCachePtr->keylen;
   UintR Tlen = regCachePtr->save1;
+  UintR wordsInSignal= MIN(KeyInfo::DataLength,
+                           (TkeyLen - Tlen));
+  
+  ndbassert(! regCachePtr->isLongTcKeyReq );
+  ndbassert( regCachePtr->keyInfoSectionI != RNIL );
 
-  do {
-    if (cfirstfreeDatabuf == RNIL) {
-      jam();
-      seizeDatabuferrorLab(signal);
-      return;
-    }//if
-    linkKeybuf(signal);
-    arrGuard(TdataPos, 19);
-    databufptr.p->data[0] = signal->theData[TdataPos + 3];
-    databufptr.p->data[1] = signal->theData[TdataPos + 4];
-    databufptr.p->data[2] = signal->theData[TdataPos + 5];
-    databufptr.p->data[3] = signal->theData[TdataPos + 6];
-    Tlen = Tlen + 4;
-    TdataPos = TdataPos + 4;
-    if (Tlen < TkeyLen) {
-      jam();
-      if (TdataPos >= tmaxData) {
-        jam();
-	/*----------------------------------------------------*/
-	/** EXIT AND WAIT FOR SIGNAL KEYINFO OR KEYINFO9     **/
-	/** WHEN EITHER OF THE SIGNALS IS RECEIVED A JUMP    **/
-	/** TO LABEL "KEYINFO_LABEL" IS DONE. THEN THE       **/
-	/** PROGRAM RETURNS TO LABEL TCKEYREQ020             **/
-	/*----------------------------------------------------*/
-        setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
-        regCachePtr->save1 = Tlen;
-        tcConnectptr.p->tcConnectstate = OS_WAIT_KEYINFO;
-        return;
-      }//if
-    } else {
-      jam();
-      tckeyreq050Lab(signal);
-      return;
-    }//if
-  } while (1);
-  return;
+  /* Add received KeyInfo data to the existing KeyInfo section */
+  if (! appendToSection(regCachePtr->keyInfoSectionI,
+                        &signal->theData[KeyInfo::HeaderLength],
+                        wordsInSignal))
+  {
+    // TODO : Consider error insert
+    jam();
+    appendToSectionErrorLab(signal);
+    return;
+  }
+  Tlen+= wordsInSignal;
+
+  if (Tlen < TkeyLen)
+  {
+    /* More KeyInfo still to be read 
+     * Set timer and state and wait
+     */
+    jam();
+    setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+    regCachePtr->save1 = Tlen;
+    tcConnectptr.p->tcConnectstate = OS_WAIT_KEYINFO;
+    return;
+  }
+  else
+  {
+    /* Have all the KeyInfo ... continue processing
+     * TCKEYREQ
+     */
+    jam();
+    tckeyreq050Lab(signal);
+    return;
+  }
 }//Dbtc::tckeyreq020Lab()
 
 /* ------------------------------------------------------------------------- */
@@ -2089,7 +2132,7 @@ void Dbtc::execATTRINFO(Signal* signal)
     TCKEY_abort(signal, 20);
     return;
   }
-  Tlength -= 3;
+  Tlength -= AttrInfo::HeaderLength;
   UintR TcompREC_COMMIT = (regApiPtr->apiConnectstate == CS_REC_COMMITTING);
   UintR TcompRECEIVING = (regApiPtr->apiConnectstate == CS_RECEIVING);
   UintR TcompBOTH = TcompREC_COMMIT | TcompRECEIVING;
@@ -2113,23 +2156,36 @@ void Dbtc::execATTRINFO(Signal* signal)
       TCKEY_abort(signal, 43);
       return;
     }//if
-    UintR TfirstfreeAttrbuf = cfirstfreeAttrbuf;
-    UintR TcurrReclenAi = regCachePtr->currReclenAi;
-    UintR TattrLen = regCachePtr->attrlength;
 
-    setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
-    cachePtr.i = TcachePtr;
-    cachePtr.p = regCachePtr;
-    TcurrReclenAi = TcurrReclenAi + Tlength;
-    regCachePtr->currReclenAi = TcurrReclenAi;
-    int TattrlengthRemain = TattrLen - TcurrReclenAi;
+    /* Update TC global cache ptr */
+    cachePtr.i= TcachePtr;
+    cachePtr.p= regCachePtr;
 
-    if (TfirstfreeAttrbuf == RNIL) {
-      DEBUG("No more attrinfo buffers");
-      TCKEY_abort(signal, 24);
+    regCachePtr->currReclenAi+= Tlength;
+    int TattrlengthRemain = regCachePtr->attrlength - 
+      regCachePtr->currReclenAi;
+    
+    /* Setup tcConnectptr to ensure that error handling etc.
+     * can access required state
+     */
+    tcConnectptr.i = regApiPtr->lastTcConnect;
+    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+
+    /* Add AttrInfo to any existing AttrInfo we have 
+     * Some short TCKEYREQ signals have no ATTRINFO in
+     * the TCKEYREQ itself
+     */
+    if (! appendToSection(regCachePtr->attrInfoSectionI,
+                          &signal->theData[AttrInfo::HeaderLength],
+                          Tlength))
+    {
+      DEBUG("No more section segments available");
+      appendToSectionErrorLab(signal);
       return;
     }//if
-    saveAttrbuf(signal);
+
+    setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
+
     if (TattrlengthRemain == 0) {
       /****************************************************************>*/
       /* HERE WE HAVE FOUND THAT THE LAST SIGNAL BELONGING TO THIS       */
@@ -2138,7 +2194,6 @@ void Dbtc::execATTRINFO(Signal* signal)
       /* RECEIVED THEN IT IS NOT ALLOWED TO RECEIVE ANY FURTHER          */
       /* OPERATIONS.                                                     */
       /****************************************************************>*/
-      UintR TlastConnect = regApiPtr->lastTcConnect;
       if (TcompRECEIVING) {
         jam();
         regApiPtr->apiConnectstate = CS_STARTED;
@@ -2146,15 +2201,13 @@ void Dbtc::execATTRINFO(Signal* signal)
         jam();
         regApiPtr->apiConnectstate = CS_START_COMMITTING;
       }//if
-      tcConnectptr.i = TlastConnect;
-      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
       attrinfoDihReceivedLab(signal);
     } else if (TattrlengthRemain < 0) {
       jam();
       DEBUG("ATTRINFO wrong total length="<<Tlength
 	    <<", TattrlengthRemain="<<TattrlengthRemain
-	    <<", TattrLen="<<TattrLen
-	    <<", TcurrReclenAi="<<TcurrReclenAi);
+	    <<", TattrLen="<< regCachePtr->attrlength
+	    <<", TcurrReclenAi="<< regCachePtr->currReclenAi);
       tcConnectptr.i = regApiPtr->lastTcConnect;
       ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
       aiErrorLab(signal);
@@ -2205,48 +2258,39 @@ void Dbtc::execATTRINFO(Signal* signal)
 /*       MODULE: HASH MODULE                                              */
 /*       DESCRIPTION: CONTAINS THE HASH VALUE CALCULATION                 */
 /* *********************************************************************> */
-void Dbtc::hash(Signal* signal) 
+void Dbtc::hash(Signal* signal)
 {
-  DatabufRecordPtr locDatabufptr;
-  UintR ti;
-  UintR  Tdata0;
-  UintR  Tdata1;
-  UintR  Tdata2;
-  UintR  Tdata3;
   UintR*  Tdata32;
   
   CacheRecord * const regCachePtr = cachePtr.p;
-  Tdata32 = signal->theData;
-  
-  Tdata0 = regCachePtr->keydata[0];
-  Tdata1 = regCachePtr->keydata[1];
-  Tdata2 = regCachePtr->keydata[2];
-  Tdata3 = regCachePtr->keydata[3];
-  Tdata32[0] = Tdata0;
-  Tdata32[1] = Tdata1;
-  Tdata32[2] = Tdata2;
-  Tdata32[3] = Tdata3;
-  if (regCachePtr->keylen > 4) {
-    locDatabufptr.i = regCachePtr->firstKeybuf;
-    ti = 4;
-    while (locDatabufptr.i != RNIL) {
-      ptrCheckGuard(locDatabufptr, cdatabufFilesize, databufRecord);
-      Tdata0 = locDatabufptr.p->data[0];
-      Tdata1 = locDatabufptr.p->data[1];
-      Tdata2 = locDatabufptr.p->data[2];
-      Tdata3 = locDatabufptr.p->data[3];
-      Tdata32[ti    ] = Tdata0;
-      Tdata32[ti + 1] = Tdata1;
-      Tdata32[ti + 2] = Tdata2;
-      Tdata32[ti + 3] = Tdata3;
-      locDatabufptr.i = locDatabufptr.p->nextDatabuf;
-      ti += 4;
-    }//while
-  }//if
-
+  SegmentedSectionPtr keyInfoSection;
   UintR keylen = (UintR)regCachePtr->keylen;
   Uint32 distKey = regCachePtr->distributionKeyIndicator;
   
+  getSection(keyInfoSection, regCachePtr->keyInfoSectionI);
+
+  ndbassert( keyInfoSection.sz <= MAX_KEY_SIZE_IN_WORDS );
+  ndbassert( keyInfoSection.sz == keylen );
+  /* Copy KeyInfo section from segmented storage into linear storage
+   * in signal->theData
+   */
+  if (keylen <= SectionSegment::DataLength)
+  {
+    /* No need to copy keyinfo into a linear space 
+     * Note that we require that the data in the section is
+     * 64-bit aligned for md5_hash below
+     */
+    ndbassert( keyInfoSection.p != NULL );
+
+    Tdata32= &keyInfoSection.p->theData[0];
+  }
+  else
+  {
+    /* Copy segmented keyinfo into linear space in the signal */
+    Tdata32= signal->theData;
+    copy(Tdata32, keyInfoSection);
+  }
+
   Uint32 tmp[4];
   if(!regCachePtr->m_special_hash)
   {
@@ -2257,6 +2301,10 @@ void Dbtc::hash(Signal* signal)
     handle_special_hash(tmp, Tdata32, keylen, regCachePtr->tableref, !distKey);
   }
   
+  /* Primary key hash value is first word of hash on PK columns
+   * Distribution key hash value is second word of hash on distribution
+   * key columns, or a user defined value
+   */
   thashValue = tmp[0];
   if (distKey){
     jam();
@@ -2268,46 +2316,66 @@ void Dbtc::hash(Signal* signal)
 }//Dbtc::hash()
 
 bool
-Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen, 
+Dbtc::handle_special_hash(Uint32 dstHash[4], 
+                          const Uint32* src, Uint32 srcLen, 
 			  Uint32 tabPtrI,
 			  bool distr)
 {
-  Uint64 Tmp[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
+  const Uint32 MAX_KEY_SIZE_IN_LONG_WORDS= 
+    (MAX_KEY_SIZE_IN_WORDS + 1) / 2;
+  Uint64 alignedWorkspace[MAX_KEY_SIZE_IN_LONG_WORDS * MAX_XFRM_MULTIPLY];
+  Uint32* workspace= (Uint32*)alignedWorkspace;
   const TableRecord* tabPtrP = &tableRecord[tabPtrI];
   const bool hasVarKeys = tabPtrP->hasVarKeys;
   const bool hasCharAttr = tabPtrP->hasCharAttr;
   const bool compute_distkey = distr && (tabPtrP->noOfDistrKeys > 0);
   
-  Uint32 *dst = (Uint32*)Tmp;
-  Uint32 dstPos = 0;
+  const Uint32 *hashInput = workspace;
+  Uint32 inputLen = 0;
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
   Uint32 * keyPartLenPtr;
+
+  /* Normalise KeyInfo into workspace if necessary */
   if(hasCharAttr || (compute_distkey && hasVarKeys))
   {
     keyPartLenPtr = keyPartLen;
-    dstPos = xfrm_key(tabPtrI, src, dst, sizeof(Tmp) >> 2, keyPartLenPtr);
-    if (unlikely(dstPos == 0))
+    inputLen = xfrm_key(tabPtrI, 
+                        src, 
+                        workspace, 
+                        sizeof(alignedWorkspace) >> 2, 
+                        keyPartLenPtr);
+    if (unlikely(inputLen == 0))
     {
       goto error;
     }
   } 
   else 
   {
-    dst = src;
-    dstPos = srcLen;
+    /* Keyinfo already suitable for hash */
+    hashInput = src;
+    inputLen = srcLen;
     keyPartLenPtr = 0;
   }
   
-  md5_hash(dstHash, (Uint64*)dst, dstPos);
+  /* Calculate primary key hash */
+  md5_hash(dstHash, (Uint64*)hashInput, inputLen);
   
+  /* If the distribution key != primary key then we have to
+   * form a distribution key from the primary key and calculate 
+   * a separate distribution hash based on this
+   */
   if(compute_distkey)
   {
     jam();
     
-    Uint32 tmp[4];
-    Uint32 len = create_distr_key(tabPtrI, dst, keyPartLenPtr);
-    md5_hash(tmp, (Uint64*)dst, len);
-    dstHash[1] = tmp[1];
+    Uint32 distrKeyHash[4];
+    /* Reshuffle primary key columns to get just distribution key */
+    Uint32 len = create_distr_key(tabPtrI, hashInput, workspace, keyPartLenPtr);
+    /* Calculate distribution key hash */
+    md5_hash(distrKeyHash, (Uint64*) workspace, len);
+
+    /* Just one word used for distribution */
+    dstHash[1] = distrKeyHash[1];
   }
   return true;  // success
 
@@ -2452,6 +2520,8 @@ Dbtc::seizeCacheRecord(Signal* signal)
   regCachePtr->firstAttrbuf = RNIL;
   regCachePtr->lastAttrbuf = RNIL;
   regCachePtr->currReclenAi = 0;
+  regCachePtr->keyInfoSectionI = RNIL;
+  regCachePtr->attrInfoSectionI = RNIL;
   return 0;
 }//Dbtc::seizeCacheRecord()  
 
@@ -2466,10 +2536,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 {
   Uint32 sendersNodeId = refToNode(signal->getSendersBlockRef());
   UintR compare_transid1, compare_transid2;
-  UintR titcLenAiInTckeyreq;
-  UintR TkeyLength;
   const TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtr();
   UintR Treqinfo;
+  SectionHandle handle(this, signal);
 
   jamEntry();
   /*-------------------------------------------------------------------------
@@ -2485,14 +2554,16 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   ttransid_ptr = 6; 
   apiConnectptr.i = TapiIndex;
   if (TapiIndex >= TapiMaxIndex) {
+    releaseSections(handle);
     TCKEY_abort(signal, 6);
     return;
   }//if
   if (TtabIndex >= TtabMaxIndex) {
+    releaseSections(handle);
     TCKEY_abort(signal, 7);
     return;
   }//if
-
+  
   Treqinfo = tcKeyReq->requestInfo;
   //--------------------------------------------------------------------------
   // Optimised version of ptrAss(tabptr, tableRecord)
@@ -2522,6 +2593,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       initApiConnectRec(signal, regApiPtr);
       regApiPtr->m_exec_flag = TexecFlag;
     } else {
+      releaseSections(handle);
       if(getAllowStartTransaction(sendersNodeId, localTabptr.p->singleUserMode) == true){
 	/*------------------------------------------------------------------
 	 * WE EXPECTED A START TRANSACTION. SINCE NO OPERATIONS HAVE BEEN 
@@ -2553,6 +2625,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
           getNodeState().getSingleUserApi() != sendersNodeId &&
           !localTabptr.p->singleUserMode)
       {
+        releaseSections(handle);
 	TCKEY_abort(signal, TexecFlag ? 60 : 57);
         return;
       }
@@ -2568,6 +2641,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       jam();
       compare_transid1 = compare_transid1 | compare_transid2;
       if (compare_transid1 != 0) {
+        releaseSections(handle);
 	TCKEY_abort(signal, 1);
 	return;
       }//if
@@ -2577,6 +2651,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if (regApiPtr->abortState == AS_IDLE) {
       if (TstartFlag == 1) {
         if(getAllowStartTransaction(sendersNodeId, localTabptr.p->singleUserMode) == false){
+          releaseSections(handle);
           TCKEY_abort(signal, TexecFlag ? 60 : 57);
           return;
         }
@@ -2588,6 +2663,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         initApiConnectRec(signal, regApiPtr);
 	regApiPtr->m_exec_flag = TexecFlag;
       } else if(TexecFlag) {
+        releaseSections(handle);
 	TCKEY_abort(signal, 59);
 	return;
       } else { 
@@ -2598,6 +2674,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 	//--------------------------------------------------------------------
 	jam();
 	DEBUG("Drop TCKEYREQ - apiConnectState=CS_ABORTING, ==AS_IDLE");
+        releaseSections(handle);
         return;
       }//if
     } else {
@@ -2605,6 +2682,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       // Previous transaction is still aborting
       //----------------------------------------------------------------------
       jam();
+      releaseSections(handle);
       if (TstartFlag == 1) {
 	//--------------------------------------------------------------------
 	// If a new transaction tries to start while the old is 
@@ -2639,6 +2717,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
      * ANYTHING TO HAPPEN ON THIS CONNECTION AGAIN. 
      * THUS THERE IS NO ACTION FROM THE API THAT CAN SPEED UP THIS PROCESS.
      *---------------------------------------------------------------------*/
+    releaseSections(handle);
     TCKEY_abort(signal, 55);
     return;
   }//switch
@@ -2654,6 +2733,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     /* THE API IS WORKING WITH AN OLD SCHEMA VERSION. IT NEEDS REPLACEMENT.  */
     /* COULD ALSO BE THAT THE TABLE IS NOT DEFINED.                          */
     /*-----------------------------------------------------------------------*/
+      releaseSections(handle);
       TCKEY_abort(signal, 8);
       return;
     }
@@ -2664,15 +2744,18 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   // more TC records available.
   //-------------------------------------------------------------------------
   if (ERROR_INSERTED(8032)) {
+    releaseSections(handle);
     TCKEY_abort(signal, 3);
     return;
   }//if
   
   if (seizeTcRecord(signal) != 0) {
+    releaseSections(handle);
     return;
   }//if
   
   if (seizeCacheRecord(signal) != 0) {
+    releaseSections(handle);
     return;
   }//if
 
@@ -2695,10 +2778,81 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regApiPtr->lqhkeyreqrec = Tlqhkeyreqrec + 1;
   regCachePtr->apiVersionNo = TapiVersionNo;
 
+  /* If we have any sections at all then this is a long TCKEYREQ */
+  regCachePtr->isLongTcKeyReq= ( handle.m_cnt != 0 );
+
   UintR TapiConnectptrIndex = apiConnectptr.i;
   UintR TsenderData = tcKeyReq->senderData;
-  UintR TattrLen = TcKeyReq::getAttrinfoLen(tcKeyReq->attrLen);
+
+  if (ERROR_INSERTED(8065) || 
+      ERROR_INSERTED(8066) ||
+      ERROR_INSERTED(8067))
+  {
+    /* Consume all but 10(8065) or all but 1 (8066) or all (8077) of 
+     * the SegmentedSection buffers to allow testing of what happens 
+     * when they're exhausted, either in this signal or one to follow
+     * 8068 frees all 'hoarded' segments
+     */
+    Uint32 segmentsToLeave= ERROR_INSERTED(8065)? 
+      10 : 
+      ERROR_INSERTED(8066) ? 
+      1 :
+      0;
+    Uint32 freeSegments= g_sectionSegmentPool.getNoOfFree();
+    DEBUG("Hoarding all but " << segmentsToLeave << 
+          " of " << freeSegments << " free segments");
+    if (freeSegments >= segmentsToLeave)
+    {
+      Uint32 numToAlloc= (g_sectionSegmentPool.getNoOfFree() - segmentsToLeave);
+      Uint32 segmentsIVal= errorInsertHoardedSegments;
+      Uint32 space[SectionSegment::DataLength];
+      
+      while (numToAlloc-- > 0)
+        appendToSection(segmentsIVal, space, SectionSegment::DataLength);
+      
+      errorInsertHoardedSegments= segmentsIVal;
+    }
+  }
+
+  if (ERROR_INSERTED(8068) && 
+      (errorInsertHoardedSegments != RNIL))
+  {
+    /* Free the SegmentedSection buffers taken previously */
+    DEBUG("Freeing hoarded segments");
+    releaseSection(errorInsertHoardedSegments);
+    errorInsertHoardedSegments= RNIL;
+  }   
+
+  /* Key and attribute lengths are passed in the header for 
+   * short TCKEYREQ and  passed as section lengths for long 
+   * TCKEYREQ
+   */
+  UintR TkeyLength = 0;
+  UintR TattrLen = 0;
+  UintR titcLenAiInTckeyreq = 0;
+
+  if (regCachePtr->isLongTcKeyReq)
+  {
+    SegmentedSectionPtr keyInfoSec;
+    if (handle.getSection(keyInfoSec, TcKeyReq::KeyInfoSectionNum))
+      TkeyLength= keyInfoSec.sz;
+
+    SegmentedSectionPtr attrInfoSec;
+    if (handle.getSection(attrInfoSec, TcKeyReq::AttrInfoSectionNum))
+      TattrLen= attrInfoSec.sz;
+  }
+  else
+  {
+    TkeyLength = TcKeyReq::getKeyLength(Treqinfo);
+    TattrLen= TcKeyReq::getAttrinfoLen(tcKeyReq->attrLen);
+    titcLenAiInTckeyreq = TcKeyReq::getAIInTcKeyReq(Treqinfo);
+  }
+    
   UintR TattrinfoCount = c_counters.cattrinfoCount;
+
+  regCachePtr->keylen = TkeyLength;
+  regCachePtr->lenAiInTckeyreq = titcLenAiInTckeyreq;
+  regCachePtr->currReclenAi = titcLenAiInTckeyreq;
 
   regTcPtr->apiConnect = TapiConnectptrIndex;
   regTcPtr->clientData = TsenderData;
@@ -2775,49 +2929,94 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
     TkeyIndex = TDistrKeyIndex + TDistrKeyFlag;
   }
-  Uint32* TkeyDataPtr = &TOptionalDataPtr[TkeyIndex];
 
-  UintR Tdata1 = TkeyDataPtr[0];
-  UintR Tdata2 = TkeyDataPtr[1];
-  UintR Tdata3 = TkeyDataPtr[2];
-  UintR Tdata4 = TkeyDataPtr[3];
-  UintR Tdata5;
-
-  regCachePtr->keydata[0] = Tdata1;
-  regCachePtr->keydata[1] = Tdata2;
-  regCachePtr->keydata[2] = Tdata3;
-  regCachePtr->keydata[3] = Tdata4;
-
-  TkeyLength = TcKeyReq::getKeyLength(Treqinfo);
-  Uint32 TAIDataIndex;
-  if (TkeyLength > 8) {
-    TAIDataIndex = TkeyIndex + 8;
-  } else {
-    if (TkeyLength == 0) {
-      TCKEY_abort(signal, 4);
-      return;
-    }//if
-    TAIDataIndex = TkeyIndex + TkeyLength;
-  }//if
-  Uint32* TAIDataPtr = &TOptionalDataPtr[TAIDataIndex];
-
-  titcLenAiInTckeyreq = TcKeyReq::getAIInTcKeyReq(Treqinfo);
-  regCachePtr->keylen = TkeyLength;
-  regCachePtr->lenAiInTckeyreq = titcLenAiInTckeyreq;
-  regCachePtr->currReclenAi = titcLenAiInTckeyreq;
   regCachePtr->m_special_hash = 
     localTabptr.p->hasCharAttr | (localTabptr.p->noOfDistrKeys > 0);
-  Tdata1 = TAIDataPtr[0];
-  Tdata2 = TAIDataPtr[1];
-  Tdata3 = TAIDataPtr[2];
-  Tdata4 = TAIDataPtr[3];
-  Tdata5 = TAIDataPtr[4];
 
-  regCachePtr->attrinfo0     = Tdata1;
-  regCachePtr->attrinfo15[0] = Tdata2;
-  regCachePtr->attrinfo15[1] = Tdata3;
-  regCachePtr->attrinfo15[2] = Tdata4;
-  regCachePtr->attrinfo15[3] = Tdata5;
+  if (TkeyLength == 0)
+  {
+    releaseSections(handle);
+    TCKEY_abort(signal, 4);
+    return;
+  }
+  
+  /* KeyInfo and AttrInfo are buffered in segmented sections
+   * If they arrived in segmented sections then there's nothing to do
+   * If they arrived in short signals then they are appended into
+   * segmented sections
+   */
+  if (regCachePtr->isLongTcKeyReq)
+  {
+    ndbassert( titcLenAiInTckeyreq == 0);
+    /* Long TcKeyReq - KI and AI already in sections */
+    SegmentedSectionPtr keyInfoSection, attrInfoSection;
+
+    /* Store i value for first long section of KeyInfo
+     * and AttrInfo in Cache Record
+     */
+    handle.getSection(keyInfoSection,
+                      TcKeyReq::KeyInfoSectionNum);
+
+    regCachePtr->keyInfoSectionI= keyInfoSection.i;
+  
+    if (regCachePtr->attrlength != 0)
+    {
+      ndbassert( handle.m_cnt == 2 );
+      handle.getSection(attrInfoSection,
+                        TcKeyReq::AttrInfoSectionNum);
+      regCachePtr->attrInfoSectionI= attrInfoSection.i;
+    }
+    else
+    {
+      ndbassert( handle.m_cnt == 1 );
+    }
+
+    /* Detach sections from the handle, we are now responsible
+     * for always freeing them before returning
+     * For a long TcKeyReq, they will be freed at the end
+     * of the processing this signal.
+     */
+    handle.clear();
+  }
+  else
+  {
+    /* Short TcKeyReq - need to receive KI and AI into 
+     * segmented sections
+     * We store any KI and AI from the TCKeyReq now and
+     * will then wait for further signals if necessary
+     */
+    ndbassert( handle.m_cnt == 0 );
+    Uint32 keyInfoInTCKeyReq= MIN(TkeyLength, TcKeyReq::MaxKeyInfo);
+
+    bool ok= appendToSection(regCachePtr->keyInfoSectionI,
+                             &TOptionalDataPtr[TkeyIndex],
+                             keyInfoInTCKeyReq);
+    
+    // TODO : Consider error insert
+    if (!ok)
+    {
+      jam();
+      appendToSectionErrorLab(signal);
+      return;
+    }
+                   
+    if (titcLenAiInTckeyreq != 0)
+    {
+      Uint32 TAIDataIndex= TkeyIndex + keyInfoInTCKeyReq;
+
+      ok= appendToSection(regCachePtr->attrInfoSectionI,
+                          &TOptionalDataPtr[TAIDataIndex],
+                          titcLenAiInTckeyreq);
+
+      // TODO : Consider error insert
+      if (!ok)
+      {
+        jam();
+        appendToSectionErrorLab(signal);
+        return;
+      }
+    }
+  }
 
   if (TOperationType == ZREAD || TOperationType == ZREAD_EX) {
     Uint32 TreadCount = c_counters.creadCount;
@@ -2912,44 +3111,32 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       regApiPtr->apiConnectstate = CS_RECEIVING;
     }//if
   }//if
-  if (TkeyLength <= 4) {
-    tckeyreq050Lab(signal);
-    return;
-  } else {
-    if (cfirstfreeDatabuf != RNIL) {
-      jam();
-      linkKeybuf(signal);
-      Tdata1 = TkeyDataPtr[4];
-      Tdata2 = TkeyDataPtr[5];
-      Tdata3 = TkeyDataPtr[6];
-      Tdata4 = TkeyDataPtr[7];
 
-      DatabufRecord * const regDataPtr = databufptr.p;
-      regDataPtr->data[0] = Tdata1;
-      regDataPtr->data[1] = Tdata2;
-      regDataPtr->data[2] = Tdata3;
-      regDataPtr->data[3] = Tdata4;
-    } else {
-      jam();
-      seizeDatabuferrorLab(signal);
-      return;
-    }//if
-    if (TkeyLength <= 8) {
-      jam();
-      tckeyreq050Lab(signal);
-      return;
-    } else {
-      jam();
-      /* --------------------------------------------------------------------
-       * THE TCKEYREQ DIDN'T CONTAIN ALL KEY DATA, 
-       * SAVE STATE AND WAIT FOR KEYINFO 
-       * --------------------------------------------------------------------*/
-      setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
-      regCachePtr->save1 = 8;
-      regTcPtr->tcConnectstate = OS_WAIT_KEYINFO;
-      return;
-    }//if
+  if (regCachePtr->isLongTcKeyReq) 
+  {
+    jam();
+    /* Have all the KeyInfo (and AttrInfo), process now */
+    tckeyreq050Lab(signal);
+  } 
+  else if (TkeyLength <= TcKeyReq::MaxKeyInfo) 
+  {
+    jam();
+    /* Have all the KeyInfo, get any extra AttrInfo */
+    tckeyreq050Lab(signal);
+  }
+  else 
+  {
+    jam();
+    /* --------------------------------------------------------------------
+     * THE TCKEYREQ DIDN'T CONTAIN ALL KEY DATA, 
+     * SAVE STATE AND WAIT FOR KEYINFO 
+     * --------------------------------------------------------------------*/
+    setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+    regCachePtr->save1 = 8;
+    regTcPtr->tcConnectstate = OS_WAIT_KEYINFO;
+    return;
   }//if
+  
   return;
 }//Dbtc::execTCKEYREQ()
 
@@ -2969,6 +3156,11 @@ handle_reorg_trigger(DiGetNodesConf * conf)
   }
 }
 
+/**
+ * tckeyreq050Lab
+ * This method is executed once all KeyInfo has been obtained for
+ * the TcKeyReq signal
+ */
 void Dbtc::tckeyreq050Lab(Signal* signal) 
 {
   UintR tnoOfBackup;
@@ -3008,6 +3200,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
   regCachePtr->hashValue = ThashValue;
+
+  ndbassert( signal->getNoOfSections() == 0 );
 
   DiGetNodesReq * const req = (DiGetNodesReq *)&signal->theData[0];
   req->tableId = Ttableref;
@@ -3135,7 +3329,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     regTcPtr->noOfNodes = (Uint8)(TlastReplicaNo + 1);
   }//if
 
-  if (regCachePtr->lenAiInTckeyreq == regCachePtr->attrlength) {
+  if (regCachePtr->isLongTcKeyReq || 
+      (regCachePtr->lenAiInTckeyreq == regCachePtr->attrlength)) {
     /****************************************************************>*/
     /* HERE WE HAVE FOUND THAT THE LAST SIGNAL BELONGING TO THIS      */
     /* OPERATION HAVE BEEN RECEIVED. THIS MEANS THAT WE CAN NOW REUSE */
@@ -3175,7 +3370,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   return;
 }//Dbtc::tckeyreq050Lab()
 
-void Dbtc::attrinfoDihReceivedLab(Signal* signal) 
+void Dbtc::attrinfoDihReceivedLab(Signal* signal)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
@@ -3254,23 +3449,39 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
 }//Dbtc::attrinfoDihReceivedLab()
 
 void Dbtc::packLqhkeyreq(Signal* signal,
-                         BlockReference TBRef) 
+                         BlockReference TBRef)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   UintR Tkeylen = regCachePtr->keylen;
-  UintR TfirstAttrbuf = regCachePtr->firstAttrbuf;
+
+  ndbassert( signal->getNoOfSections() == 0 );
+
   sendlqhkeyreq(signal, TBRef);
-  if (Tkeylen > 4) {
-    packKeyData000Lab(signal, TBRef, Tkeylen - 4);
-    releaseKeys();
+
+  /* Do we need to send a KeyInfo signal train? */
+  if ((! regCachePtr->useLongLqhKeyReq) &&
+      (Tkeylen > LqhKeyReq::MaxKeyInfo)) 
+  {
+    /* Build KeyInfo train from KeyInfo long signal section */
+    SegmentedSectionPtr keyInfoSection;
+
+    getSection(keyInfoSection, regCachePtr->keyInfoSectionI);
+
+    packKeyDataFromSection(signal, 
+                           TBRef, 
+                           LqhKeyReq::MaxKeyInfo,
+                           keyInfoSection);
   }//if
+
+  /* Release key storage */ 
+  releaseKeys();
   packLqhkeyreq040Lab(signal,
-                      TfirstAttrbuf,
                       TBRef);
 }//Dbtc::packLqhkeyreq()
 
+
 void Dbtc::sendlqhkeyreq(Signal* signal,
-                         BlockReference TBRef) 
+                         BlockReference TBRef)
 {
   UintR tslrAttrLen;
   UintR Tdata10;
@@ -3321,6 +3532,11 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     reorg = 2;
   }
 
+  /* Todo : Determine whether to use a long Lqh key req based on the
+   * version of the target Lqh node
+   */
+  regCachePtr->useLongLqhKeyReq= 0;
+
   tslrAttrLen = 0;
   LqhKeyReq::setAttrLen(tslrAttrLen, regCachePtr->attrlength);
   /* ---------------------------------------------------------------------- */
@@ -3354,11 +3570,21 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setNoDiskFlag(Tdata10, regCachePtr->m_no_disk_flag);
 
   /* ----------------------------------------------------------------------- 
-   * Sequential Number of first LQH = 0, bit 22-23                           
-   * IF ATTRIBUTE INFORMATION IS SENT IN TCKEYREQ,
-   * IT IS ALSO SENT IN LQHKEYREQ
+   * If we are sending a short LQHKEYREQ, then there will be some AttrInfo
+   * in the LQHKEYREQ.
+   * Work out how much we'll send
    * ----------------------------------------------------------------------- */
-  LqhKeyReq::setAIInLqhKeyReq(Tdata10, regCachePtr->lenAiInTckeyreq);
+  UintR aiInLqhKeyReq= 0;
+
+  if (! regCachePtr->useLongLqhKeyReq)
+  {
+    /* Short LQHKEYREQ : 
+     * Send max 5 words of AttrInfo in LQHKEYREQ 
+     */
+    aiInLqhKeyReq= MIN(LqhKeyReq::MaxAttrInfo, regCachePtr->attrlength);
+  }
+      
+  LqhKeyReq::setAIInLqhKeyReq(Tdata10, aiInLqhKeyReq);
   /* -----------------------------------------------------------------------
    * Bit 27 == 0 since TC record is the same as the client record.
    * Bit 28 == 0 since readLenAi can only be set after reading in LQH.
@@ -3421,37 +3647,45 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     nextPos++;
   }//if
 
-  sig0 = regCachePtr->keydata[0];
-  sig1 = regCachePtr->keydata[1];
-  sig2 = regCachePtr->keydata[2];
-  sig3 = regCachePtr->keydata[3];
-  UintR Tkeylen = regCachePtr->keylen;
+  if (regCachePtr->useLongLqhKeyReq)
+  {
+    ndbassert(false); // TODO
+  }
+  else
+  {
+    /* Build short LQHKeyReq from Key + AttrInfo sections
+     *
+     * Read upto 4 words of KeyInfo from TCKEYREQ KeyInfo section into
+     * LqhKeyReq signal
+     */
+    SegmentedSectionPtr keyInfoSection;
+    
+    getSection(keyInfoSection, regCachePtr->keyInfoSectionI);
+    SectionReader keyInfoReader(keyInfoSection, getSectionSegmentPool());
+    
+    UintR keyLenInLqhKeyReq= MIN(LqhKeyReq::MaxKeyInfo, regCachePtr->keylen);
 
-  lqhKeyReq->variableData[nextPos + 0] = sig0;
-  lqhKeyReq->variableData[nextPos + 1] = sig1;
-  lqhKeyReq->variableData[nextPos + 2] = sig2;
-  lqhKeyReq->variableData[nextPos + 3] = sig3;
+    keyInfoReader.getWords(&lqhKeyReq->variableData[nextPos], keyLenInLqhKeyReq);
 
-  if (Tkeylen < 4) {
-    nextPos += Tkeylen;
-  } else {
-    nextPos += 4;
-  }//if
+    nextPos+= keyLenInLqhKeyReq;
+    
+    if (aiInLqhKeyReq != 0)
+    {
+      /* Read upto 5 words of AttrInfo from TCKEYREQ KeyInfo section into
+       * LqhKeyReq signal
+       */
+      SegmentedSectionPtr attrInfoSection;
 
-  sig0 = regCachePtr->attrinfo0;
-  sig1 = regCachePtr->attrinfo15[0];
-  sig2 = regCachePtr->attrinfo15[1];
-  sig3 = regCachePtr->attrinfo15[2];
-  sig4 = regCachePtr->attrinfo15[3];
-  UintR TlenAi = regCachePtr->lenAiInTckeyreq;
+      ndbassert(regCachePtr->attrInfoSectionI != RNIL);
 
-  lqhKeyReq->variableData[nextPos + 0] = sig0;
-  lqhKeyReq->variableData[nextPos + 1] = sig1;
-  lqhKeyReq->variableData[nextPos + 2] = sig2;
-  lqhKeyReq->variableData[nextPos + 3] = sig3;
-  lqhKeyReq->variableData[nextPos + 4] = sig4;
-
-  nextPos += TlenAi;
+      getSection(attrInfoSection, regCachePtr->attrInfoSectionI);
+      SectionReader attrInfoReader(attrInfoSection, getSectionSegmentPool());
+      
+      attrInfoReader.getWords(&lqhKeyReq->variableData[nextPos], aiInLqhKeyReq);
+      
+      nextPos+= aiInLqhKeyReq;
+    }
+  }
 
   // Reset trigger count
   regTcPtr->accumulatingTriggerData.i = RNIL;  
@@ -3459,17 +3693,19 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   regTcPtr->noFiredTriggers = 0;
   regTcPtr->triggerExecutionCount = 0;
 
+  // TODO : Long LqhKeyReq variant
   sendSignal(TBRef, GSN_LQHKEYREQ, signal, 
              nextPos + LqhKeyReq::FixedSignalLength, JBB);
 }//Dbtc::sendlqhkeyreq()
 
 void Dbtc::packLqhkeyreq040Lab(Signal* signal,
-                               UintR anAttrBufIndex,
-                               BlockReference TBRef) 
+                               BlockReference TBRef)
 {
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
+  CacheRecord * const regCachePtr = cachePtr.p;
 #ifdef ERROR_INSERT
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+
   if (ERROR_INSERTED(8009)) {
     if (regApiPtr->apiConnectstate == CS_STARTED) {
       attrbufptr.i = RNIL;
@@ -3486,40 +3722,47 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
   }//if
 #endif
 
-  UintR TattrbufFilesize = cattrbufFilesize;
-  AttrbufRecord *localAttrbufRecord = attrbufRecord;
-  while (1) {
-    if (anAttrBufIndex == RNIL) {
-      UintR TtcTimer = ctcTimer;
-      UintR Tread = (regTcPtr->operation == ZREAD);
-      UintR Tdirty = (regTcPtr->dirtyOp == ZTRUE);
-      UintR Tboth = Tread & Tdirty;
-      setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
-      jam();
-      /*--------------------------------------------------------------------
-       *   WE HAVE SENT ALL THE SIGNALS OF THIS OPERATION. SET STATE AND EXIT.
-       *---------------------------------------------------------------------*/
-      releaseAttrinfo();
-      if (Tboth) {
+  /* Do we have an ATTRINFO train to send? */
+  if (!regCachePtr->useLongLqhKeyReq)
+  {
+    /* Short LqhKeyReq */
+    if (regCachePtr->attrlength > LqhKeyReq::MaxAttrInfo)
+    {
+      SegmentedSectionPtr attrInfoSection;
+
+      getSection(attrInfoSection, regCachePtr->attrInfoSectionI);
+
+      if (unlikely( !sendAttrInfoTrain(signal,
+                                       TBRef,
+                                       LqhKeyReq::MaxAttrInfo,
+                                       attrInfoSection)))
+      {
         jam();
-        releaseDirtyRead(signal, apiConnectptr, tcConnectptr.p);
+        TCKEY_abort(signal, 17);
         return;
-      }//if
-      regTcPtr->tcConnectstate = OS_OPERATING;
-      return;
-    }//if
-    if (anAttrBufIndex < TattrbufFilesize) {
-      AttrbufRecord * const regAttrPtr = &localAttrbufRecord[anAttrBufIndex];
-      anAttrBufIndex = regAttrPtr->attrbuf[ZINBUF_NEXT];
-      sendAttrinfo(signal,
-                   tcConnectptr.i,
-                   regAttrPtr,
-                   TBRef);
-    } else {
-      TCKEY_abort(signal, 17);
-      return;
-    }//if
-  }//while
+      }
+    }
+  } // useLongLqhKeyReq
+
+  /* Release AttrInfo related storage, and the Cache Record */
+  releaseAttrinfo();
+
+  UintR TtcTimer = ctcTimer;
+  UintR Tread = (regTcPtr->operation == ZREAD);
+  UintR Tdirty = (regTcPtr->dirtyOp == ZTRUE);
+  UintR Tboth = Tread & Tdirty;
+  setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
+  jam();
+  /*--------------------------------------------------------------------
+   *   WE HAVE SENT ALL THE SIGNALS OF THIS OPERATION. SET STATE AND EXIT.
+   *---------------------------------------------------------------------*/
+  if (Tboth) {
+    jam();
+    releaseDirtyRead(signal, apiConnectptr, tcConnectptr.p);
+    return;
+  }//if
+  regTcPtr->tcConnectstate = OS_OPERATING;
+  return;
 }//Dbtc::packLqhkeyreq040Lab()
 
 /* ========================================================================= */
@@ -3543,21 +3786,28 @@ void Dbtc::releaseAttrinfo()
     Tattrbufptr.i = Tmp;
     jam();
   }//while
-  if (Tattrbufptr.i == RNIL) {
-//---------------------------------------------------
-// Now we will release the cache record at the same
-// time as releasing the attrinfo records.
-//---------------------------------------------------
-    ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-    UintR TfirstfreeCacheRec = cfirstfreeCacheRec;
-    UintR TCacheIndex = cachePtr.i;
-    cfirstfreeAttrbuf = TfirstfreeAttrbuf;
-    regCachePtr->nextCacheRec = TfirstfreeCacheRec;
-    cfirstfreeCacheRec = TCacheIndex;
-    regApiPtr->cachePtr = RNIL;
+  if (Tattrbufptr.i != RNIL) {
+    systemErrorLab(0, __LINE__);
     return;
-  }//if
-  systemErrorLab(0, __LINE__);
+  }
+
+  Uint32 attrInfoSectionI= cachePtr.p->attrInfoSectionI;
+
+  /* Release AttrInfo section if there is one */
+  releaseSection( attrInfoSectionI );
+  cachePtr.p->attrInfoSectionI= RNIL;
+
+  //---------------------------------------------------
+  // Now we will release the cache record at the same
+  // time as releasing the attrinfo records.
+  //---------------------------------------------------
+  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+  UintR TfirstfreeCacheRec = cfirstfreeCacheRec;
+  UintR TCacheIndex = cachePtr.i;
+  cfirstfreeAttrbuf = TfirstfreeAttrbuf;
+  regCachePtr->nextCacheRec = TfirstfreeCacheRec;
+  cfirstfreeCacheRec = TCacheIndex;
+  regApiPtr->cachePtr = RNIL;
   return;
 }//Dbtc::releaseAttrinfo()
 
@@ -3731,6 +3981,89 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
   }//while
   return;
 }//Dbtc::execPACKED_SIGNAL()
+
+
+void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
+{
+  /* An incoming signal was dropped, handle it 
+   * Dropped signal really means that we ran out of 
+   * long signal buffering to store its sections
+   */
+  jamEntry();
+  const SignalDroppedRep* rep = (SignalDroppedRep*) &signal->theData[0];
+  Uint32 originalGSN= rep->originalGsn;
+
+  DEBUG("SignalDroppedRep received for GSN " << originalGSN);
+
+  // TODO : Add handling for long signal variants as they
+  //        are added here (TCINDXREQ, SCANTABREQ etc.)
+
+  switch(originalGSN) {
+  case GSN_TCKEYREQ:
+    jam(); 
+    /* Fall through */
+  case GSN_TCINDXREQ:
+  {
+    jam();
+    
+    /* Get original signal data - unfortunately it may
+     * have been truncated.  We must not read beyond
+     * word # 22
+     * We will send an Abort to the Api using info from
+     * the received signal and clean up our transaction 
+     * state
+     */
+    const TcKeyReq * const truncatedTcKeyReq = 
+      (TcKeyReq *) &rep->originalData[0];
+    
+    const UintR apiIndex = truncatedTcKeyReq->apiConnectPtr;
+    
+    if (apiIndex >= capiConnectFilesize)
+    {
+      jam();
+      warningHandlerLab(signal, __LINE__);
+      return;
+    }
+    
+    /* We have a valid Api ConnectPtr...
+     * Ensure that we have the  necessary information 
+     * to send a rollback to the client
+     */
+    apiConnectptr.i = apiIndex;
+    ApiConnectRecord * const regApiPtr = &apiConnectRecord[apiIndex];
+    apiConnectptr.p = regApiPtr;
+    UintR transId1= truncatedTcKeyReq->transId1;
+    UintR transId2= truncatedTcKeyReq->transId2;
+    
+    /* Ensure that the apiConnectptr global is initialised
+     * may not be in cases where we drop the first signal of
+     * a transaction
+     */
+    apiConnectptr.p->transid[0] = transId1;
+    apiConnectptr.p->transid[1] = transId2;
+    apiConnectptr.p->returncode = ZGET_DATAREC_ERROR;
+
+    /* Set m_exec_flag according to the dropped request */
+    apiConnectptr.p->m_exec_flag = 
+      TcKeyReq::getExecuteFlag(truncatedTcKeyReq->requestInfo);
+
+    DEBUG("  Execute flag set to " << apiConnectptr.p->m_exec_flag);
+
+    abortErrorLab(signal);
+
+    break;
+  }
+  default:
+    jam();
+    /* Don't expect dropped signals for other GSNs,
+     * default handling
+     */
+    SimulatedBlock::execSIGNAL_DROPPED_REP(signal);
+  };
+  
+  return;
+}
+
 
 void Dbtc::execLQHKEYCONF(Signal* signal) 
 {
@@ -8955,6 +9288,12 @@ void Dbtc::seizeDatabuferrorLab(Signal* signal)
   releaseAtErrorLab(signal);
 }//Dbtc::seizeDatabuferrorLab()
 
+void Dbtc::appendToSectionErrorLab(Signal* signal)
+{
+  terrorCode = ZGET_DATAREC_ERROR; // TODO : New error?
+  releaseAtErrorLab(signal);
+}//Dbtc::appendToSectionErrorLab
+
 void Dbtc::releaseAtErrorLab(Signal* signal) 
 {
   ptrGuard(tcConnectptr);
@@ -9096,6 +9435,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 
   jamEntry();
 
+  ndbassert( signal->getNoOfSections() == 1 );
   SectionHandle handle(this, signal);
   SegmentedSectionPtr api_op_ptr;
   handle.getSection(api_op_ptr, 0);
@@ -10925,6 +11265,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
   apiConnectptr.p->apiConnectstate = CS_ABORTING;
   apiConnectptr.p->abortState = AS_IDLE;
   releaseAllSeizedIndexOperations(apiConnectptr.p);
+
   if(apiConnectptr.p->m_exec_flag || apiConnectptr.p->apiFailState == ZTRUE){
     jam();
     bool ok = false;
@@ -11025,6 +11366,13 @@ void Dbtc::releaseKeys()
   }//while
   cachePtr.p->firstKeybuf = RNIL;
   cachePtr.p->lastKeybuf = RNIL;
+  
+  Uint32 keyInfoSectionI= cachePtr.p->keyInfoSectionI;
+
+  /* Release KeyInfo section if there is one */
+  releaseSection(keyInfoSectionI);
+  cachePtr.p->keyInfoSectionI= RNIL;
+
 }//Dbtc::releaseKeys()
 
 void Dbtc::releaseTcConnectFail(Signal* signal) 
@@ -11160,40 +11508,52 @@ void Dbtc::sendAttrinfo(Signal* signal,
   sendSignal(TBref, GSN_ATTRINFO, signal, TdataPos + 3, JBB);
 }//Dbtc::sendAttrinfo()
 
+/**
+ * sendAttrInfoTrain
+ * This method sends an ATTRINFO signal train using AttrInfo
+ * from the section passed, starting at the supplied offset
+ */
+bool Dbtc::sendAttrInfoTrain(Signal* signal,
+                             UintR TBRef,
+                             Uint32 offset,
+                             SegmentedSectionPtr& section)
+{
+  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+  
+  Uint32 attrInfoLength= section.sz;
+  SectionReader attrInfoReader(section, getSectionSegmentPool());
+    
+  ndbassert( offset < attrInfoLength );
+  if (unlikely(! attrInfoReader.step( offset )))
+    return false;
+  attrInfoLength-= offset;
+
+  signal->theData[0] = tcConnectptr.i;
+  signal->theData[1] = regApiPtr->transid[0];
+  signal->theData[2] = regApiPtr->transid[1];
+
+  while (attrInfoLength != 0)
+  {
+    Uint32 dataInSignal= MIN(AttrInfo::DataLength, attrInfoLength);
+
+    if (unlikely(! attrInfoReader.getWords(&signal->theData[3], 
+                                           dataInSignal)))
+      return false;
+
+    sendSignal(TBRef, GSN_ATTRINFO, signal, 
+               AttrInfo::HeaderLength + dataInSignal, JBB);
+    
+    attrInfoLength-= dataInSignal;
+  }
+  return true;
+} //Dbtc::sendAttrInfosFromSection()
+
 void Dbtc::sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr) 
 {
   signal->theData[0] = TcContinueB::ZCONTINUE_TIME_OUT_CONTROL;
   signal->theData[1] = TapiConPtr;
   sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
 }//Dbtc::sendContinueTimeOutControl()
-
-void Dbtc::sendKeyinfo(Signal* signal, BlockReference TBRef, Uint32 len) 
-{
-  signal->theData[0] = tcConnectptr.i;
-  signal->theData[1] = apiConnectptr.p->transid[0];
-  signal->theData[2] = apiConnectptr.p->transid[1];
-  signal->theData[3] = cdata[0];
-  signal->theData[4] = cdata[1];
-  signal->theData[5] = cdata[2];
-  signal->theData[6] = cdata[3];
-  signal->theData[7] = cdata[4];
-  signal->theData[8] = cdata[5];
-  signal->theData[9] = cdata[6];
-  signal->theData[10] = cdata[7];
-  signal->theData[11] = cdata[8];
-  signal->theData[12] = cdata[9];
-  signal->theData[13] = cdata[10];
-  signal->theData[14] = cdata[11];
-  signal->theData[15] = cdata[12];
-  signal->theData[16] = cdata[13];
-  signal->theData[17] = cdata[14];
-  signal->theData[18] = cdata[15];
-  signal->theData[19] = cdata[16];
-  signal->theData[20] = cdata[17];
-  signal->theData[21] = cdata[18];
-  signal->theData[22] = cdata[19];
-  sendSignal(TBRef, GSN_KEYINFO, signal, 3 + len, JBB);
-}//Dbtc::sendKeyinfo()
 
 void Dbtc::sendSystemError(Signal* signal, int line) 
 {
@@ -12249,14 +12609,15 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   const UintR TapiIndex = tcIndxReq->apiConnectPtr;
   Uint32 tcIndxRequestInfo = tcIndxReq->requestInfo;
   Uint32 startFlag = tcIndxReq->getStartFlag(tcIndxRequestInfo);
-  Uint32 * dataPtr = &tcIndxReq->scanInfo;
-  Uint32 indexBufSize = 8; // Maximum for index in TCINDXREQ
-  Uint32 attrBufSize = 5;  // Maximum for attrInfo in TCINDXREQ
   ApiConnectRecordPtr transPtr;
+  bool isLongTcIndxReq= (signal->getNoOfSections() != 0);
+  SectionHandle handle(this, signal);
+
   transPtr.i = TapiIndex;
   if (transPtr.i >= capiConnectFilesize) {
     jam();
     warningHandlerLab(signal, __LINE__);
+    releaseSections(handle);
     return;
   }//if
   ptrAss(transPtr, apiConnectRecord);
@@ -12270,7 +12631,8 @@ void Dbtc::execTCINDXREQ(Signal* signal)
       (regApiPtr->apiConnectstate == CS_ABORTING && 
        regApiPtr->abortState == AS_IDLE)) {
     jam();
-    // This is a newly started transaction, clean-up
+    // This is a newly started transaction, clean-up from any
+    // previous transaction.
     releaseAllSeizedIndexOperations(regApiPtr);
 
     regApiPtr->apiConnectstate = CS_STARTED;
@@ -12282,6 +12644,8 @@ void Dbtc::execTCINDXREQ(Signal* signal)
       getNodeState().getSingleUserApi() !=
       refToNode(regApiPtr->ndbapiBlockref))
   {
+    jam();
+    releaseSections(handle);
     terrorCode = ZCLUSTER_IN_SINGLEUSER_MODE;
     regApiPtr->m_exec_flag |= TcKeyReq::getExecuteFlag(tcIndxRequestInfo);
     apiConnectptr = transPtr;
@@ -12291,6 +12655,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
 
   if (ERROR_INSERTED(8036) || !seizeIndexOperation(regApiPtr, indexOpPtr)) {
     jam();
+    releaseSections(handle);
     // Failed to allocate index operation
     terrorCode = 288;
     regApiPtr->m_exec_flag |= TcKeyReq::getExecuteFlag(tcIndxRequestInfo);
@@ -12306,41 +12671,81 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   indexOp->connectionIndex = TapiIndex;
   regApiPtr->accumulatingIndexOp = indexOp->indexOpId;
 
-  // If operation is readTupleExclusive or updateTuple then read index 
-  // table with exclusive lock
-  Uint32 indexLength = TcKeyReq::getKeyLength(tcIndxRequestInfo);
-  Uint32 attrLength = TcKeyReq::getAttrinfoLen(tcIndxReq->attrLen);
-  indexOp->expectedKeyInfo = indexLength;
-  Uint32 includedIndexLength = MIN(indexLength, indexBufSize);
-  indexOp->expectedAttrInfo = attrLength;
-  Uint32 includedAttrLength = MIN(attrLength, attrBufSize);
+  if (isLongTcIndxReq)
+  {
+    jam();
+    /* KeyInfo and AttrInfo already received into sections */
+    SegmentedSectionPtr keyInfoSection, attrInfoSection;
 
-  int ret;
-  if ((ret = saveINDXKEYINFO(signal, 
-                             indexOp, 
-                             dataPtr, 
-                             includedIndexLength)) == 0) 
-  {
-    jam();
-    // We have received all we need
-    readIndexTable(signal, regApiPtr, indexOp);
-    return;
-  }
-  else if (ret == -1)
-  {
-    jam();
-    return;
-  }
+    /* Store i value for first long section of KeyInfo
+     * and AttrInfo in Index operation
+     */
+    handle.getSection(keyInfoSection,
+                      TcKeyReq::KeyInfoSectionNum);
+
+    indexOp->keyInfoSectionIVal= keyInfoSection.i;
   
-  dataPtr += includedIndexLength;
-  if (saveINDXATTRINFO(signal, 
-                       indexOp, 
-                       dataPtr, 
-                       includedAttrLength) == 0) {
-    jam();
-    // We have received all we need
+    if (handle.m_cnt == 2)
+    {
+      handle.getSection(attrInfoSection,
+                        TcKeyReq::AttrInfoSectionNum);
+      indexOp->attrInfoSectionIVal= attrInfoSection.i;
+    }
+
+    /* Detach sections from the handle
+     * Success path code, or index operation cleanup is
+     * now responsible for freeing the sections
+     */
+    handle.clear();
+
+    /* All data received, process */
     readIndexTable(signal, regApiPtr, indexOp);
     return;
+  }
+  else
+  {
+    jam();
+    /* Short TcIndxReq, build up KeyInfo and AttrInfo
+     * sections from separate signals
+     */
+    Uint32 * dataPtr = &tcIndxReq->scanInfo;
+    Uint32 indexLength = TcKeyReq::getKeyLength(tcIndxRequestInfo);
+    Uint32 attrLength = TcKeyReq::getAttrinfoLen(tcIndxReq->attrLen);
+
+    indexOp->pendingKeyInfo = indexLength;
+    indexOp->pendingAttrInfo = attrLength;
+
+    const Uint32 includedIndexLength = MIN(indexLength, TcKeyReq::MaxKeyInfo);
+    const Uint32 includedAttrLength = MIN(attrLength, TcKeyReq::MaxAttrInfo);
+    int ret;
+
+    if ((ret = saveINDXKEYINFO(signal, 
+                               indexOp, 
+                               dataPtr, 
+                               includedIndexLength)) == 0) 
+    {
+      jam();
+      /* All KI + no AI received, process */
+      readIndexTable(signal, regApiPtr, indexOp);
+      return;
+    }
+    else if (ret == -1)
+    {
+      jam();
+      return;
+    }
+    
+    dataPtr += includedIndexLength;
+
+    if (saveINDXATTRINFO(signal, 
+                         indexOp, 
+                         dataPtr, 
+                         includedAttrLength) == 0) {
+      jam();
+      /* All KI and AI received, process */
+      readIndexTable(signal, regApiPtr, indexOp);
+      return;
+    }
   }
 }
 
@@ -12466,12 +12871,15 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
   if((indexOpPtr.i = regApiPtr->accumulatingIndexOp) != RNIL)
   {
     indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
+
+    ndbassert( indexOp->pendingKeyInfo > 0 );
+
     if (saveINDXKEYINFO(signal,
 			indexOp, 
 			src, 
 			keyInfoLength) == 0) {
       jam();
-      // We have received all we need
+      /* All KI + AI received, process */
       readIndexTable(signal, regApiPtr, indexOp);
     }
   }
@@ -12511,12 +12919,15 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
   if((indexOpPtr.i = regApiPtr->accumulatingIndexOp) != RNIL)
   {
     indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
+
+    ndbassert( indexOp->pendingAttrInfo > 0 );
+
     if (saveINDXATTRINFO(signal,
 			 indexOp, 
 			 src, 
 			 attrInfoLength) == 0) {
       jam();
-      // We have received all we need
+      /* All KI + AI received, process */
       readIndexTable(signal, regApiPtr, indexOp);
       return;
     }
@@ -12525,7 +12936,7 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
 }
 
 /**
- * Save signal INDXKEYINFO
+ * Save received KeyInfo
  * Return true if we have received all needed data
  */
 int 
@@ -12534,11 +12945,15 @@ Dbtc::saveINDXKEYINFO(Signal* signal,
                       const Uint32 *src, 
                       Uint32 len)
 {
-  if (ERROR_INSERTED(8052) || !indexOp->keyInfo.append(src, len)) {
+  if (ERROR_INSERTED(8052) || 
+      ! appendToSection(indexOp->keyInfoSectionIVal,
+                        src,
+                        len)) 
+  {
     jam();
     // Failed to seize keyInfo, abort transaction
 #ifdef VM_TRACE
-    ndbout_c("Dbtc::saveINDXKEYINFO: Failed to seize keyinfo\n");
+    ndbout_c("Dbtc::saveINDXKEYINFO: Failed to seize buffer for KeyInfo\n");
 #endif
     // Abort transaction
     apiConnectptr.i = indexOp->connectionIndex;
@@ -12550,6 +12965,8 @@ Dbtc::saveINDXKEYINFO(Signal* signal,
     abortErrorLab(signal);
     return -1;
   }
+  indexOp->pendingKeyInfo-= len;
+
   if (receivedAllINDXKEYINFO(indexOp) && receivedAllINDXATTRINFO(indexOp)) {
     jam();
     return 0;
@@ -12559,7 +12976,7 @@ Dbtc::saveINDXKEYINFO(Signal* signal,
 
 bool Dbtc::receivedAllINDXKEYINFO(TcIndexOperation* indexOp)
 {
-  return (indexOp->keyInfo.getSize() == indexOp->expectedKeyInfo);
+  return (indexOp->pendingKeyInfo == 0);
 }
 
 /**
@@ -12572,10 +12989,14 @@ Dbtc::saveINDXATTRINFO(Signal* signal,
                        const Uint32 *src, 
                        Uint32 len)
 {
-  if (ERROR_INSERTED(8051) || !indexOp->attrInfo.append(src, len)) {
+  if (ERROR_INSERTED(8051) || 
+      ! appendToSection(indexOp->attrInfoSectionIVal,
+                        src,
+                        len))
+  {
     jam();
 #ifdef VM_TRACE
-    ndbout_c("Dbtc::saveINDXATTRINFO: Failed to seize attrInfo\n");
+    ndbout_c("Dbtc::saveINDXATTRINFO: Failed to seize buffer for attrInfo\n");
 #endif
     apiConnectptr.i = indexOp->connectionIndex;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -12586,6 +13007,9 @@ Dbtc::saveINDXATTRINFO(Signal* signal,
     abortErrorLab(signal);
     return -1;
   }
+
+  indexOp->pendingAttrInfo-= len;
+
   if (receivedAllINDXKEYINFO(indexOp) && receivedAllINDXATTRINFO(indexOp)) {
     jam();
     return 0;
@@ -12595,7 +13019,7 @@ Dbtc::saveINDXATTRINFO(Signal* signal,
 
 bool Dbtc::receivedAllINDXATTRINFO(TcIndexOperation* indexOp)
 {
-  return (indexOp->attrInfo.getSize() == indexOp->expectedAttrInfo);
+  return (indexOp->pendingAttrInfo == 0);
 }
 
 bool  Dbtc::saveTRANSID_AI(Signal* signal,
@@ -12603,33 +13027,121 @@ bool  Dbtc::saveTRANSID_AI(Signal* signal,
                            const Uint32 *src,
                            Uint32 len)
 {
-  Uint32 currentTransIdAILength = indexOp->transIdAI.getSize();
-    
-  if (currentTransIdAILength == 0) {
-    jam();
-    // Read first AttributeHeader to get expected size
-    // of the single key attribute expected
-    AttributeHeader* head = (AttributeHeader *) src;
-    indexOp->expectedTransIdAI = head->getHeaderSize() + head->getDataSize();
-  }
-  if (!indexOp->transIdAI.append(src, len)) {
-    jam();
+  /* TransID_AI is received as a result of looking up a
+   * unique index table
+   * The unique index table is looked up using the index
+   * key to receive a single attribute containing the 
+   * fragment holding the base table row and the base
+   * table primary key.
+   * This is later used to build a TCKEYREQ against the
+   * base table.
+   * In this method, we prepare a KEYINFO section for the
+   * TCKEYREQ as we receive TRANSID_AI words.
+   *
+   * Expected TRANSID_AI words :
+   *
+   *   Word(s)  Description           States
+   *
+   *   0        Attribute header      ITAS_WAIT_HEADER
+   *             containing length     -> ITAS_WAIT_FRAGID
+   *
+   *   1        Fragment Id           ITAS_WAIT_FRAGID
+   *                                   -> ITAS_WAIT_KEY
+   *
+   *   [2..N]   Base table primary    ITAS_WAIT_KEY
+   *            key info               -> [ ITAS_WAIT_KEY ]
+   *                                   -> ITAS_ALL_RECEIVED
+   *
+   * The outgoing KeyInfo section contains the base
+   * table primary key info, with the fragment id passed
+   * as the distribution key.
+   *
+   */
+  Uint32 remain= len;
+
+  while (remain != 0)
+  {
+    switch(indexOp->transIdAIState) {
+    case ITAS_WAIT_HEADER:
+    {
+      jam();
+      ndbassert(indexOp->transIdAISectionIVal == RNIL);
+      /* Look at the first AttributeHeader to get the
+       * expected size of the primary key attribute
+       */
+      AttributeHeader* head = (AttributeHeader *) src;
+      ndbassert(head->getHeaderSize() == 1);
+      indexOp->pendingTransIdAI = 1 + head->getDataSize();
+
+      src++;
+      remain--;
+      indexOp->transIdAIState = ITAS_WAIT_FRAGID;
+      break;
+    }
+    case ITAS_WAIT_FRAGID:
+    {
+      jam();
+      ndbassert(indexOp->transIdAISectionIVal == RNIL);
+      /* Grab the fragment Id word */
+      indexOp->fragmentId= *src;
+
+      src++;
+      remain--;
+      indexOp->transIdAIState = ITAS_WAIT_KEY; 
+      break;
+    }
+    case ITAS_WAIT_KEY:
+    {
+      jam();
+      /* Add key information to long section */
+      if (!appendToSection(indexOp->transIdAISectionIVal,
+                           src,
+                           remain))
+      {
+        jam();
 #ifdef VM_TRACE
-    ndbout_c("Dbtc::saveTRANSID_AI: Failed to seize transIdAI\n");
+        ndbout_c("Dbtc::saveTRANSID_AI: Failed to seize beffer for TRANSID_AI\n");
 #endif
-    apiConnectptr.i = indexOp->connectionIndex;
-    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
-    releaseIndexOperation(apiConnectptr.p, indexOp);
-    terrorCode = 4000;
-    abortErrorLab(signal);
-    return false;
-  }
+        apiConnectptr.i = indexOp->connectionIndex;
+        ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+        releaseIndexOperation(apiConnectptr.p, indexOp);
+        terrorCode = ZGET_DATAREC_ERROR;
+        abortErrorLab(signal);
+        return false;
+      }
+
+      remain= 0;
+      break;
+    }
+
+    case ITAS_ALL_RECEIVED:
+      jam();
+      // Fall through
+    default:
+      jam();
+      /* Bad state, or bad state to receive TransId_Ai in */
+      // Todo : Check error handling here.
+#ifdef VM_TRACE
+      ndbout_c("Dbtc::saveTRANSID_AI: Bad state when receiving\n");
+#endif
+      apiConnectptr.i = indexOp->connectionIndex;
+      ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+      releaseIndexOperation(apiConnectptr.p, indexOp);
+      terrorCode = 4349;
+      abortErrorLab(signal);
+      return false;
+    } // switch
+  } // while
+
+  if ((indexOp->pendingTransIdAI-= len) == 0)
+    indexOp->transIdAIState = ITAS_ALL_RECEIVED;
+  
   return true;
 }
 
 bool Dbtc::receivedAllTRANSID_AI(TcIndexOperation* indexOp)
 {
-  return (indexOp->transIdAI.getSize() == indexOp->expectedTransIdAI);
+  return (indexOp->transIdAIState == ITAS_ALL_RECEIVED);
 }
 
 /**
@@ -12648,7 +13160,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   Uint32 confInfo = tcKeyConf->confInfo;
 
   /**
-   * Check on TCKEYCONF wheater the the transaction was committed
+   * Check on TCKEYCONF whether the the transaction was committed
    */
   Uint32 Tcommit = TcKeyConf::getCommitFlag(confInfo);
 
@@ -12679,7 +13191,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   }
   case(IOS_INDEX_ACCESS): {
     jam();
-    // Wait for TRANSID_AI
+    // Just waiting for the TRANSID_AI now
     indexOp->indexOpState = IOS_INDEX_ACCESS_WAIT_FOR_TRANSID_AI;
     break;
   }
@@ -12826,6 +13338,15 @@ void Dbtc::execKEYINFO20_R(Signal* signal){
 }
 
 
+/** 
+ * execTRANSID_AI
+ * 
+ * TRANSID_AI are received as a result of performing a read on 
+ * the index table as part of a (unique) index operation.
+ * The data received is the primary key of the base table 
+ * which is then used to perform the index operation on the
+ * base table.
+ */
 void Dbtc::execTRANSID_AI(Signal* signal)
 {
   TransIdAI * const transIdAI =  (TransIdAI *)signal->getDataPtr();
@@ -12840,7 +13361,6 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     // Missing index operation
   }
   const UintR TconnectIndex = indexOp->connectionIndex;
-  //  ApiConnectRecord * const regApiPtr = &apiConnectRecord[TconnectIndex];
   ApiConnectRecordPtr transPtr;
   
   transPtr.i = TconnectIndex;
@@ -12879,6 +13399,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
   }
   else
   {
+    /* Short TransId_AI signal */
     if (!saveTRANSID_AI(signal,
                         indexOp,
                         transIdAI->getData(),
@@ -12886,6 +13407,8 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     save_error:
       jam();
       // Failed to allocate space for TransIdAI
+      // Todo : How will this behave when transaction already aborted
+      // in saveTRANSID_AI call?
       TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
 
       tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
@@ -12920,9 +13443,10 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     // Check if all TRANSID_AI have been received
     if (receivedAllTRANSID_AI(indexOp)) {
       jam();
-      // Wait for TRANSID_AI
+      // Just waiting for a TCKEYCONF now
       indexOp->indexOpState = IOS_INDEX_ACCESS_WAIT_FOR_TCKEYCONF;
     }
+    // else waiting for either TRANSID_AI or TCKEYCONF
     break;
     }
   case(IOS_INDEX_ACCESS_WAIT_FOR_TCKEYCONF): {
@@ -12993,14 +13517,8 @@ void Dbtc::readIndexTable(Signal* signal,
 			  ApiConnectRecord* regApiPtr,
 			  TcIndexOperation* indexOp) 
 {
-  Uint32 keyBufSize = 8; // Maximum for key in TCKEYREQ
-  Uint32 dataPos = 0;
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
-  Uint32 * dataPtr = &tcKeyReq->scanInfo;
-  Uint32 tcKeyLength = TcKeyReq::StaticLength;
   Uint32 tcKeyRequestInfo = indexOp->tcIndxReq.requestInfo; 
-  AttributeBuffer::DataBufferIterator keyIter;
-  Uint32 keyLength = TcKeyReq::getKeyLength(tcKeyRequestInfo);
   TcIndexData* indexData;
   Uint32 transId1 = indexOp->tcIndxReq.transId1;
   Uint32 transId2 = indexOp->tcIndxReq.transId2;
@@ -13010,6 +13528,8 @@ void Dbtc::readIndexTable(Signal* signal,
 
   // Find index table
   if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq.tableId)) == NULL) {
+    // TODO : Free KeyInfo and AttrInfo sections here if necessary
+    // How is this operation cleaned up?
     jam();
     // Failed to find index record
     TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
@@ -13026,11 +13546,10 @@ void Dbtc::readIndexTable(Signal* signal,
   tcKeyReq->transId1 = transId1;
   tcKeyReq->transId2 = transId2;
   tcKeyReq->tableId = indexData->indexId;
-  tcKeyLength += MIN(keyLength, keyBufSize);
   tcKeyReq->tableSchemaVersion = indexOp->tcIndxReq.tableSchemaVersion;
   TcKeyReq::setOperationType(tcKeyRequestInfo, 
 			     opType == ZREAD ? ZREAD : ZREAD_EX);
-  TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 1); // Allways send one AttrInfo
+  TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0); // No AI in long TCKEYREQ
   tcKeyReq->senderData = indexOp->indexOpId;
   indexOp->indexOpState = IOS_INDEX_ACCESS;
   regApiPtr->executingIndexOp = regApiPtr->accumulatingIndexOp;
@@ -13042,91 +13561,82 @@ void Dbtc::readIndexTable(Signal* signal,
     ndbout_c("shifting index version");
     tcKeyReq->tableSchemaVersion = ~(Uint32)indexOp->tcIndxReq.tableSchemaVersion;
   }
-  
-  Uint32 remainingKey = indexOp->keyInfo.getSize();
-  bool moreKeyData = indexOp->keyInfo.first(keyIter);
-  // *********** KEYINFO in TCKEYREQ ***********
-  while((dataPos < keyBufSize) &&
-        (remainingKey-- != 0)) {
-    *dataPtr++ = *keyIter.data;
-    dataPos++;
-    moreKeyData = indexOp->keyInfo.next(keyIter);
-  }
-  // *********** ATTRINFO in TCKEYREQ ***********  
   tcKeyReq->attrLen = 1; // Primary key is stored as one attribute
-  AttributeHeader::init(dataPtr, indexData->primaryKeyPos, 0);
-  tcKeyLength++;
   tcKeyReq->requestInfo = tcKeyRequestInfo;
 
   ndbassert(TcKeyReq::getDirtyFlag(tcKeyRequestInfo) == 0);
   ndbassert(TcKeyReq::getSimpleFlag(tcKeyRequestInfo) == 0);
-  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, tcKeyLength);
+
+  /* Long TCKEYREQ Signal sections
+   * We attach the KeyInfo section received from the user, and
+   * create a new AttrInfo section with just one AttributeHeader
+   * to retrieve the base table primary key
+   */
+  Ptr<SectionSegment> indexLookupAttrInfoSection;
+  Uint32 singleAIWord;
+  
+  AttributeHeader::init(&singleAIWord, indexData->primaryKeyPos, 0);
+  if (! import(indexLookupAttrInfoSection,
+               &singleAIWord,
+               1))
+  {
+    jam();
+    /* Error creating AttrInfo section to request primary
+     * key from index table.
+     */
+    // TODO - verify error handling
+#ifdef VM_TRACE
+    ndbout_c("Dbtc::readIndexTable: Failed to create AttrInfo section");
+#endif
+    apiConnectptr.i = indexOp->connectionIndex;
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+    releaseIndexOperation(apiConnectptr.p, indexOp);
+    terrorCode = 4000;
+    abortErrorLab(signal);
+    return;
+  }
+
+  ndbassert(signal->header.m_noOfSections == 0);
+
+  signal->m_sectionPtrI[ TcKeyReq::KeyInfoSectionNum ] 
+    = indexOp->keyInfoSectionIVal;
+  
+  /* We pass this section to TCKEYREQ next */
+  indexOp->keyInfoSectionIVal= RNIL;
+
+  signal->m_sectionPtrI[ TcKeyReq::AttrInfoSectionNum ]
+    = indexLookupAttrInfoSection.i;
+  signal->header.m_noOfSections= 2;
+  
+  /* Direct execute of long TCKEYREQ 
+   * TCKEYREQ is responsible for freeing the KeyInfo and
+   * AttrInfo sections passed to it
+   */
+  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength);
   jamEntry();
 
   if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
   {
-    goto err;
-  }
-
-  // *********** KEYINFO ***********
-  if (moreKeyData) {
     jam();
-    // Send KEYINFO sequence
-    KeyInfo * const keyInfo =  (KeyInfo *)signal->getDataPtrSend();
-    
-    keyInfo->connectPtr = indexOp->tcIndxReq.apiConnectPtr;
-    keyInfo->transId[0] = transId1;
-    keyInfo->transId[1] = transId2;
-    dataPtr = (Uint32 *) &keyInfo->keyData;
-    dataPos = 0;
-    while(remainingKey-- != 0) {// If we have not read complete key
-      *dataPtr++ = *keyIter.data;
-      dataPos++;
-      if (dataPos == KeyInfo::DataLength) {
-	// Flush KEYINFO
-	EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal, 
-		       KeyInfo::HeaderLength + KeyInfo::DataLength);
-        jamEntry();
-	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-	{
-	  goto err;
-	}
-	dataPos = 0;
-	dataPtr = (Uint32 *) &keyInfo->keyData;
-      }       
-      moreKeyData = indexOp->keyInfo.next(keyIter);
-    }
-    if (dataPos != 0) {
-      // Flush last KEYINFO
-      EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
-		     KeyInfo::HeaderLength + dataPos);
-      jamEntry();
-      if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-      {
-	goto err;
-      }
-    }
   }
-  
-  /**
-   * "Fool" TC not to start commiting transaction since it always will
-   *   have one outstanding lqhkeyreq
-   * This is later decreased when the index read is complete
-   */ 
-  regApiPtr->lqhkeyreqrec++;
+  else
+  {
+    jam();
+    /**
+     * "Fool" TC not to start commiting transaction since it always will
+     *   have one outstanding lqhkeyreq
+     * This is later decreased when the index read is complete
+     */ 
+    regApiPtr->lqhkeyreqrec++;
+    
+    /**
+     * Remember ptr to index read operation
+     *   (used to set correct save point id on index operation later)
+     */
+    indexOp->indexReadTcConnect = regApiPtr->lastTcConnect;
+  }
 
-  /**
-   * Remember ptr to index read operation
-   *   (used to set correct save point id on index operation later)
-   */
-  indexOp->indexReadTcConnect = regApiPtr->lastTcConnect;
-  
-done:  
   return;
-  
-err:
-  jam();
-  goto done;
 }
 
 /**
@@ -13137,27 +13647,16 @@ void Dbtc::executeIndexOperation(Signal* signal,
 				 ApiConnectRecord* regApiPtr,
 				 TcIndexOperation* indexOp) {
   
-  Uint32 keyBufSize = 8; // Maximum for key in TCKEYREQ
-  Uint32 attrBufSize = 5;
-  Uint32 dataPos = 0;
   TcKeyReq * const tcIndxReq = &indexOp->tcIndxReq;
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
-  /*
-    Data points to distrGroupHashValue since scanInfo is used to send
-    fragment id of receiving fragment
-  */
-  Uint32 * dataPtr = &tcKeyReq->scanInfo;
-  Uint32 tcKeyLength = TcKeyReq::StaticLength;
   Uint32 tcKeyRequestInfo = tcIndxReq->requestInfo;
   TcIndexData* indexData;
-  AttributeBuffer::DataBufferIterator attrIter;
-  AttributeBuffer::DataBufferIterator aiIter;
-  bool moreKeyData = indexOp->transIdAI.first(aiIter);
       
   // Find index table
   if ((indexData = c_theIndexes.getPtr(tcIndxReq->tableId)) == NULL) {
     jam();
     // Failed to find index record 
+    // TODO : How is this operation cleaned up?
     TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
 
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
@@ -13168,7 +13667,8 @@ void Dbtc::executeIndexOperation(Signal* signal,
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
-  }    
+  }
+
   // Find schema version of primary table
   TableRecordPtr tabPtr;
   tabPtr.i = indexData->primaryTableId;
@@ -13181,66 +13681,49 @@ void Dbtc::executeIndexOperation(Signal* signal,
   tcKeyReq->transId1 = regApiPtr->transid[0];
   tcKeyReq->transId2 = regApiPtr->transid[1];
   tcKeyReq->senderData = tcIndxReq->senderData; // Needed for TRANSID_AI to API
+  
+  if (tabPtr.p->get_user_defined_partitioning())
+  {
+    jam();
+    tcKeyReq->scanInfo = indexOp->fragmentId; // As read from Index table
+    TcKeyReq::setDistributionKeyFlag(tcKeyRequestInfo, 1U);
+  }
   indexOp->indexOpState = IOS_INDEX_OPERATION;
   regApiPtr->m_special_op_flags = TcConnectRecord::SOF_INDEX_BASE_TABLE_ACCESS;
   regApiPtr->executingIndexOp = indexOp->indexOpId;;
   regApiPtr->noIndexOp++; // Increase count
 
-  /*
-    Filter out AttributeHeader:s since this should not be in key.
-    Also filter out fragment id from primary key and handle that
-    separately by setting it as Distribution Key and set indicator.
-  */
-
-  AttributeHeader* attrHeader = (AttributeHeader *) aiIter.data;
-    
-  Uint32 headerSize = attrHeader->getHeaderSize();
-  Uint32 keySize = attrHeader->getDataSize() - 1;
-  TcKeyReq::setKeyLength(tcKeyRequestInfo, keySize);
-  // Skip header
-  if (headerSize == 1) {
-    jam();
-    moreKeyData = indexOp->transIdAI.next(aiIter);
-  } else {
-    jam();
-    moreKeyData = indexOp->transIdAI.next(aiIter, headerSize - 1);
-  }//if
-  if (tabPtr.p->get_user_defined_partitioning())
+  /* KeyInfo section
+   * Get the KeyInfo we received from the index table lookup
+   */
+  SegmentedSectionPtr keyInfoFromTransIdAI;
+  
+  ndbassert( indexOp->transIdAISectionIVal != RNIL );
+  getSection(keyInfoFromTransIdAI, indexOp->transIdAISectionIVal);
+  
+  ndbassert( signal->header.m_noOfSections == 0 );
+  signal->m_sectionPtrI[ TcKeyReq::KeyInfoSectionNum ]
+    = indexOp->transIdAISectionIVal;
+  signal->header.m_noOfSections = 1;
+  
+  indexOp->transIdAISectionIVal = RNIL;
+  
+  /* AttrInfo section
+   * Attach any AttrInfo section from original TCINDXREQ
+   */
+  if ( indexOp->attrInfoSectionIVal != RNIL )
   {
     jam();
-    * dataPtr++ = *aiIter.data; //Fragment Id
-    TcKeyReq::setDistributionKeyFlag(tcKeyRequestInfo, 1U);
-  }
-  moreKeyData = indexOp->transIdAI.next(aiIter);
-  while(// If we have not read complete key
-	(keySize != 0) &&
-	(dataPos < keyBufSize)) {
-    *dataPtr++ = *aiIter.data;
-    dataPos++;
-    keySize--;
-    moreKeyData = indexOp->transIdAI.next(aiIter);
-  }
-  tcKeyLength += dataPos;
+    SegmentedSectionPtr attrInfoFromInitialReq;
 
-  Uint32 attributesLength = indexOp->attrInfo.getSize();
-  if (attributesLength <= attrBufSize) {
-    jam();
-    // ATTRINFO fits in TCKEYREQ
-    // Pack ATTRINFO IN TCKEYREQ
-    TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, indexOp->attrInfo.getSize());
-    // Insert IndxAttrInfo
-    for(bool moreAttrData = indexOp->attrInfo.first(attrIter);
-        moreAttrData;
-        moreAttrData = indexOp->attrInfo.next(attrIter)) {      
-      *dataPtr++ = *attrIter.data;
-    }
-    tcKeyLength += attributesLength;
-  } else {
-    jam();
-    // No ATTRINFO in TCKEYREQ
-    TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
+    getSection(attrInfoFromInitialReq, indexOp->attrInfoSectionIVal);
+    signal->m_sectionPtrI[ TcKeyReq::AttrInfoSectionNum ]
+      = indexOp->attrInfoSectionIVal;
+    signal->header.m_noOfSections = 2;
+    indexOp->attrInfoSectionIVal = RNIL;
   }
-
+  TcKeyReq::setKeyLength(tcKeyRequestInfo, keyInfoFromTransIdAI.sz);
+  TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
   TcKeyReq::setCommitFlag(tcKeyRequestInfo, 0);
   TcKeyReq::setExecuteFlag(tcKeyRequestInfo, 0);
   tcKeyReq->requestInfo = tcKeyRequestInfo;
@@ -13265,107 +13748,22 @@ void Dbtc::executeIndexOperation(Signal* signal,
   ptrCheckGuard(tmp, ctcConnectFilesize, tcConnectRecord);
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   regApiPtr->currSavePointId = tmp.p->savePointId;
-  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, tcKeyLength);
+
+  /* Execute TCKEYREQ now - it is now responsible for freeing
+   * the KeyInfo and AttrInfo sections 
+   */
+  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength);
   jamEntry();
   
   if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
   {
+    // TODO : Presumably the abort cleans up the operation
     jam();
     return;
   }
 
   regApiPtr->currSavePointId = currSavePointId;
   
-  // *********** KEYINFO ***********
-  if (moreKeyData) {
-    jam();
-    // Send KEYINFO sequence
-    KeyInfo * const keyInfo =  (KeyInfo *)signal->getDataPtrSend();
-    
-    keyInfo->connectPtr = indexOp->tcIndxReq.apiConnectPtr;
-    keyInfo->transId[0] = regApiPtr->transid[0];
-    keyInfo->transId[1] = regApiPtr->transid[1];
-    dataPtr = (Uint32 *) &keyInfo->keyData;
-    dataPos = 0;
-    // Pack any part of a key attribute that did no fit TCKEYREQ
-    while(keySize-- != 0) {// If we have not read complete key
-      *dataPtr++ = *aiIter.data;
-      dataPos++;
-      if (dataPos == KeyInfo::DataLength) {
-	// Flush KEYINFO
-	EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal, 
-		       KeyInfo::HeaderLength + KeyInfo::DataLength);
-        jamEntry();
-
-	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-	{
-	  jam();
-	  return;
-	}
-
-	dataPos = 0;
-	dataPtr = (Uint32 *) &keyInfo->keyData;
-      }
-      moreKeyData = indexOp->transIdAI.next(aiIter);
-    }
-    if (dataPos != 0) {
-      // Flush last KEYINFO
-      EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
-		     KeyInfo::HeaderLength + dataPos);
-      jamEntry();
-
-      if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-      {
-	jam();
-	return;
-      }
-    }
-  }
-  
-  // *********** ATTRINFO ***********
-  if (attributesLength > attrBufSize) {
-    jam();
-    // No ATTRINFO in TcKeyReq
-    TcKeyReq::setAIInTcKeyReq(tcKeyReq->requestInfo, 0);
-    // Send ATTRINFO sequence
-    AttrInfo * const attrInfo =  (AttrInfo *)signal->getDataPtrSend();
-    Uint32 attrInfoPos = 0;
-    
-    attrInfo->connectPtr = indexOp->tcIndxReq.apiConnectPtr;
-    attrInfo->transId[0] = regApiPtr->transid[0];
-    attrInfo->transId[1] = regApiPtr->transid[1];
-    dataPtr = (Uint32 *) &attrInfo->attrData;
-
- 
-    // Insert attribute values (insert key values of primary table)
-    for(bool moreAttrData = indexOp->attrInfo.first(attrIter);
-        moreAttrData;
-        moreAttrData = indexOp->attrInfo.next(attrIter)) {      
-      *dataPtr++ = *attrIter.data;
-      attrInfoPos++;
-      if (attrInfoPos == AttrInfo::DataLength) {
-        // Flush ATTRINFO
-        EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal,
-		       AttrInfo::HeaderLength + AttrInfo::DataLength);
-        jamEntry();
-
-	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-	{
-	  jam();
-	  return;
-	}
-
-        attrInfoPos = 0;
-	dataPtr = (Uint32 *) &attrInfo->attrData;
-      }
-    }
-    if (attrInfoPos != 0) {
-      // Send last ATTRINFO
-      EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal, 
-		     AttrInfo::HeaderLength + attrInfoPos);
-      jamEntry();
-    }
-  }
 }
 
 bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
@@ -13373,12 +13771,13 @@ bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
 {
   if (regApiPtr->theSeizedIndexOperations.seize(indexOpPtr))
   {
-    ndbassert(indexOpPtr.p->expectedKeyInfo == 0);
-    ndbassert(indexOpPtr.p->keyInfo.getSize() == 0);
-    ndbassert(indexOpPtr.p->expectedAttrInfo == 0);
-    ndbassert(indexOpPtr.p->attrInfo.getSize() == 0);
-    ndbassert(indexOpPtr.p->expectedTransIdAI == 0);
-    ndbassert(indexOpPtr.p->transIdAI.getSize() == 0);
+    ndbassert(indexOpPtr.p->pendingKeyInfo == 0);
+    ndbassert(indexOpPtr.p->keyInfoSectionIVal == RNIL);
+    ndbassert(indexOpPtr.p->pendingAttrInfo == 0);
+    ndbassert(indexOpPtr.p->attrInfoSectionIVal == RNIL);
+    ndbassert(indexOpPtr.p->transIdAIState == ITAS_WAIT_HEADER);
+    ndbassert(indexOpPtr.p->pendingTransIdAI == 0);
+    ndbassert(indexOpPtr.p->transIdAISectionIVal == RNIL);
     return true;
   }
   
@@ -13389,12 +13788,16 @@ void Dbtc::releaseIndexOperation(ApiConnectRecord* regApiPtr,
 				 TcIndexOperation* indexOp)
 {
   indexOp->indexOpState = IOS_NOOP;
-  indexOp->expectedKeyInfo = 0;
-  indexOp->keyInfo.release();
-  indexOp->expectedAttrInfo = 0;
-  indexOp->attrInfo.release();
-  indexOp->expectedTransIdAI = 0;
-  indexOp->transIdAI.release();
+  indexOp->pendingKeyInfo = 0;
+  releaseSection(indexOp->keyInfoSectionIVal);
+  indexOp->keyInfoSectionIVal= RNIL;
+  indexOp->pendingAttrInfo = 0;
+  releaseSection(indexOp->attrInfoSectionIVal);
+  indexOp->attrInfoSectionIVal= RNIL;
+  indexOp->transIdAIState = ITAS_WAIT_HEADER;
+  indexOp->pendingTransIdAI = 0;
+  releaseSection(indexOp->transIdAISectionIVal);
+  indexOp->transIdAISectionIVal= RNIL;
   regApiPtr->theSeizedIndexOperations.release(indexOp->indexOpId);
 }
 
@@ -13408,12 +13811,16 @@ void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
     TcIndexOperation* indexOp = seizedIndexOpPtr.p;
 
     indexOp->indexOpState = IOS_NOOP;
-    indexOp->expectedKeyInfo = 0;
-    indexOp->keyInfo.release();
-    indexOp->expectedAttrInfo = 0;
-    indexOp->attrInfo.release();
-    indexOp->expectedTransIdAI = 0;
-    indexOp->transIdAI.release();
+    indexOp->pendingKeyInfo = 0;
+    releaseSection(indexOp->keyInfoSectionIVal);
+    indexOp->keyInfoSectionIVal = RNIL;
+    indexOp->pendingAttrInfo = 0;
+    releaseSection(indexOp->attrInfoSectionIVal);
+    indexOp->attrInfoSectionIVal = RNIL;
+    indexOp->transIdAIState = ITAS_WAIT_HEADER;
+    indexOp->pendingTransIdAI = 0;
+    releaseSection(indexOp->transIdAISectionIVal);
+    indexOp->transIdAISectionIVal = RNIL;
     regApiPtr->theSeizedIndexOperations.next(seizedIndexOpPtr);    
   }
   regApiPtr->theSeizedIndexOperations.release();

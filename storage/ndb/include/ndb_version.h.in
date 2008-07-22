@@ -265,4 +265,6 @@ ndb_scan_distributionkey(Uint32 version)
   return version >= NDBD_SCAN_DISTKEY;
 }
 
+#define NDBD_FILTER_INSTANCE_63 NDB_MAKE_VERSION(6,3,16)
+
 #endif

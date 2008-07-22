@@ -61,9 +61,15 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   ndb_mgm_get_int_parameter(p, CFG_DB_LONG_SIGNAL_BUFFER,  
 			    &long_sig_buffer_size);
 
-  long_sig_buffer_size= long_sig_buffer_size / 256;
+  /* Ensure that aligned allocation will result in 64-bit
+   * aligned offset for theData
+   */
+  STATIC_ASSERT((sizeof(SectionSegment) % 8) == 0);
+  STATIC_ASSERT((offsetof(SectionSegment, theData) % 8) == 0); 
+
+  long_sig_buffer_size= long_sig_buffer_size / sizeof(SectionSegment);
   g_sectionSegmentPool.setSize(long_sig_buffer_size,
-                               false,true,true,CFG_DB_LONG_SIGNAL_BUFFER);
+                               true,true,true,CFG_DB_LONG_SIGNAL_BUFFER);
 
   // Add received signals
   addRecSignal(GSN_CONNECT_REP, &Cmvmi::execCONNECT_REP);

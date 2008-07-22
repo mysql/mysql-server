@@ -37,6 +37,8 @@ class LqhKeyReq {
 
 public:
   STATIC_CONST( FixedSignalLength = 11 );
+  STATIC_CONST( MaxKeyInfo = 4 );
+  STATIC_CONST( MaxAttrInfo = 5);
 
 private:
 

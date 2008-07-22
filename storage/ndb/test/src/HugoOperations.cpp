@@ -532,7 +532,7 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
   }
   
   int len = attr->getSizeInBytes();
-  char buf[8000];
+  char buf[NDB_MAX_TUPLE_SIZE];
   memset(buf, 0, sizeof(buf));
   Uint32 real_len;
   const char * value = calc.calcValue(rowId, attrId, 0, buf, len, &real_len);
@@ -547,7 +547,7 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
   const NdbDictionary::Column* attr = tab.getColumn(attrId);     
   
   int len = attr->getSizeInBytes();
-  char buf[8000];
+  char buf[NDB_MAX_TUPLE_SIZE];
   memset(buf, 0, sizeof(buf));
   Uint32 real_len;
   const char * value = calc.calcValue(rowId, attrId, 

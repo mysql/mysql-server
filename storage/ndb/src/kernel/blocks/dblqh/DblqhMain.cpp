@@ -10060,7 +10060,8 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
   tcConnectptr.p->m_disk_table = tTablePtr.p->m_disk_table &&
     (!req || !ScanFragReq::getNoDiskFlag(req->requestInfo));  
-  tcConnectptr.p->m_reorg = ScanFragReq::getReorgFlag(req->requestInfo);
+  tcConnectptr.p->m_reorg = 
+    req ? ScanFragReq::getReorgFlag(req->requestInfo) : 0;
 
   tabptr.p->usageCount++;
 }//Dblqh::initScanTc()

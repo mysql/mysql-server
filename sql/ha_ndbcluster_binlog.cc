@@ -609,15 +609,10 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
    - wait for binlog thread to shutdown
 */
 
-static int ndbcluster_binlog_end(THD *thd)
+int ndbcluster_binlog_end(THD *thd)
 {
   DBUG_ENTER("ndbcluster_binlog_end");
 
-  if (!ndbcluster_binlog_inited)
-    DBUG_RETURN(0);
-  ndbcluster_binlog_inited= 0;
-
-#ifdef HAVE_NDB_BINLOG
   if (ndb_util_thread_running > 0)
   {
     /*
@@ -627,6 +622,7 @@ static int ndbcluster_binlog_end(THD *thd)
       however be a likely case as the ndbcluster_binlog_end is supposed to
       be called before ndb_cluster_end().
     */
+    sql_print_information("Stopping Cluster Utility thread");
     pthread_mutex_lock(&LOCK_ndb_util_thread);
     /* Ensure mutex are not freed if ndb_cluster_end is running at same time */
     ndb_util_thread_running++;
@@ -638,18 +634,23 @@ static int ndbcluster_binlog_end(THD *thd)
     pthread_mutex_unlock(&LOCK_ndb_util_thread);
   }
 
-  /* wait for injector thread to finish */
-  ndbcluster_binlog_terminating= 1;
-  pthread_mutex_lock(&injector_mutex);
-  pthread_cond_signal(&injector_cond);
-  while (ndb_binlog_thread_running > 0)
-    pthread_cond_wait(&injector_cond, &injector_mutex);
-  pthread_mutex_unlock(&injector_mutex);
-
-  pthread_mutex_destroy(&injector_mutex);
-  pthread_cond_destroy(&injector_cond);
-  pthread_mutex_destroy(&ndb_schema_share_mutex);
-#endif
+  if (ndbcluster_binlog_inited)
+  {
+    ndbcluster_binlog_inited= 0;
+    if (ndb_binlog_thread_running)
+    {
+      /* wait for injector thread to finish */
+      ndbcluster_binlog_terminating= 1;
+      pthread_mutex_lock(&injector_mutex);
+      pthread_cond_signal(&injector_cond);
+      while (ndb_binlog_thread_running > 0)
+        pthread_cond_wait(&injector_cond, &injector_mutex);
+      pthread_mutex_unlock(&injector_mutex);
+    }
+    pthread_mutex_destroy(&injector_mutex);
+    pthread_cond_destroy(&injector_cond);
+    pthread_mutex_destroy(&ndb_schema_share_mutex);
+  }
 
   DBUG_RETURN(0);
 }
@@ -4529,7 +4530,8 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
 static int
 ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                                     ndb_binlog_index_row **rows,
-                                    injector::transaction &trans)
+                                    injector::transaction &trans,
+                                    unsigned &trans_row_count)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   TABLE *table= event_data->table;
@@ -4626,6 +4628,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   {
   case NDBEVENT::TE_INSERT:
     row->n_inserts++;
+    trans_row_count++;
     DBUG_PRINT("info", ("INSERT INTO %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
@@ -4648,6 +4651,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     break;
   case NDBEVENT::TE_DELETE:
     row->n_deletes++;
+    trans_row_count++;
     DBUG_PRINT("info",("DELETE FROM %s.%s",
                        table->s->db.str, table->s->table_name.str));
     {
@@ -4688,6 +4692,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     break;
   case NDBEVENT::TE_UPDATE:
     row->n_updates++;
+    trans_row_count++;
     DBUG_PRINT("info", ("UPDATE %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
@@ -4926,7 +4931,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   /*
     Set up ndb binlog
   */
-  sql_print_information("Starting MySQL Cluster Binlog Thread");
+  sql_print_information("Starting Cluster Binlog Thread");
 
   pthread_detach_this_thread();
   thd->real_id= pthread_self();
@@ -5330,6 +5335,7 @@ restart:
         bzero((char*)&_row, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
         injector::transaction trans;
+        unsigned trans_row_count= 0;
         // pass table map before epoch
         {
           Uint32 iter= 0;
@@ -5496,7 +5502,7 @@ restart:
 #endif
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans);
+            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans, trans_row_count);
           else
           {
             // set injector_ndb database/schema from table internal name
@@ -5539,9 +5545,20 @@ restart:
         write_timer.stop();
 #endif
 
-        if (trans.good())
+        while (trans.good())
         {
-          //DBUG_ASSERT(row.n_inserts || row.n_updates || row.n_deletes);
+          if (trans_row_count == 0)
+          {
+            /* nothing to commit, rollback instead */
+            if (int r= trans.rollback())
+            {
+              sql_print_error("NDB Binlog: "
+                              "Error during ROLLBACK of GCI %u/%u. Error: %d",
+                              uint(gci >> 32), uint(gci), r);
+              /* TODO: Further handling? */
+            }
+            break;
+          }
           thd->proc_info= "Committing events to binlog";
           injector::transaction::binlog_pos start= trans.start_pos();
           if (int r= trans.commit())
@@ -5563,6 +5580,7 @@ restart:
             do_check_ndb_binlog_index= 0;
           }
           ndb_latest_applied_binlog_epoch= gci;
+          break;
         }
         ndb_latest_handled_binlog_epoch= gci;
 
@@ -5722,6 +5740,11 @@ err:
 
   hash_free(&ndb_schema_objects);
 
+  if (thd_ndb)
+  {
+    ha_ndbcluster::release_thd_ndb(thd_ndb);
+    set_thd_ndb(thd, NULL);
+  }
   net_end(&thd->net);
   thd->cleanup();
   delete thd;

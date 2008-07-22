@@ -1019,8 +1019,7 @@ public:
 
 
 protected:
-  int handle_distribution_key(const NdbColumnImpl*, const Uint64 *, Uint32 len);
-protected:
+
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
  *****************************************************************************/
@@ -1160,6 +1159,7 @@ protected:
  *****************************************************************************/
 
   int    doSend(int ProcessorId, Uint32 lastFlag);
+  int    doSendNdbRecord(int aNodeId);
   virtual int	 prepareSend(Uint32  TC_ConnectPtr,
                              Uint64  TransactionId,
 			     AbortOption);

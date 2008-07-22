@@ -25,7 +25,6 @@
 
 #include <time.h>
 
-// No verbose outxput
 
 NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   : m_cluster_connection(con)
@@ -36,18 +35,9 @@ NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   records = 1;
   loops = 1;
   stopped = false;
-  remote_mgm ="";
   propertyMutexPtr = NdbMutex_Create();
   propertyCondPtr = NdbCondition_Create();
 }
-
- 
-char * NDBT_Context::getRemoteMgm() const {
-  return remote_mgm;
-} 
-void NDBT_Context::setRemoteMgm(char * mgm) {
-  remote_mgm = strdup(mgm);
-} 
 
 
 NDBT_Context::~NDBT_Context(){
@@ -267,13 +257,57 @@ void NDBT_Context::setNumLoops(int _loops){
   loops = _loops;
 }
 
-NDBT_Step::NDBT_Step(NDBT_TestCase* ptest, const char* pname, 
-		     NDBT_TESTFUNC* pfunc): name(pname){
-  assert(pfunc != NULL);
-  func = pfunc;
-  testcase = ptest;
-  step_no = -1;
+NDBT_Step::NDBT_Step(NDBT_TestCase* ptest, const char* pname,
+                     NDBT_TESTFUNC* pfunc) :
+  m_ctx(NULL), name(pname), func(pfunc),
+  testcase(ptest), step_no(-1), m_ndb(NULL)
+{
 }
+
+
+int
+NDBT_Step::setUp(Ndb_cluster_connection& con){
+
+  switch(testcase->getDriverType())
+  {
+  case DummyDriver:
+    break;
+
+  case NdbApiDriver:
+  {
+    m_ndb = new Ndb(&con, "TEST_DB" );
+    m_ndb->init(1024);
+
+    int result = m_ndb->waitUntilReady(300); // 5 minutes
+    if (result != 0){
+      g_err << "Ndb was not ready" << endl;
+      return NDBT_FAILED;
+    }
+    break;
+  }
+
+  default:
+    abort();
+    break;
+
+  }
+
+  return NDBT_OK;
+}
+
+
+void
+NDBT_Step::tearDown(){
+  delete m_ndb;
+  m_ndb = NULL;
+}
+
+
+Ndb* NDBT_Step::getNdb() const {
+  assert(m_ndb != NULL);
+  return m_ndb;
+}
+
 
 int NDBT_Step::execute(NDBT_Context* ctx) {
   assert(ctx != NULL);
@@ -314,58 +348,26 @@ NDBT_Context* NDBT_Step::getContext(){
   return m_ctx;
 }
 
-NDBT_NdbApiStep::NDBT_NdbApiStep(NDBT_TestCase* ptest, 
-			   const char* pname, 
-			   NDBT_TESTFUNC* pfunc)
-  : NDBT_Step(ptest, pname, pfunc),
-    ndb(NULL) {
-}
-
-
-int
-NDBT_NdbApiStep::setUp(Ndb_cluster_connection& con){
-  ndb = new Ndb(&con, "TEST_DB" );
-  ndb->init(1024);
-  
-  int result = ndb->waitUntilReady(300); // 5 minutes
-  if (result != 0){
-    g_err << name << ": Ndb was not ready" << endl;
-    return NDBT_FAILED;
-  }
-  return NDBT_OK;
-}
-
-void 
-NDBT_NdbApiStep::tearDown(){
-  delete ndb;
-  ndb = NULL;
-}
-
-Ndb* NDBT_NdbApiStep::getNdb(){ 
-  assert(ndb != NULL);
-  return ndb;
-}
-
 
 NDBT_ParallelStep::NDBT_ParallelStep(NDBT_TestCase* ptest, 
 				     const char* pname, 
 				     NDBT_TESTFUNC* pfunc)
-  : NDBT_NdbApiStep(ptest, pname, pfunc) {
+  : NDBT_Step(ptest, pname, pfunc) {
 }
 NDBT_Verifier::NDBT_Verifier(NDBT_TestCase* ptest, 
 			     const char* pname, 
 			     NDBT_TESTFUNC* pfunc)
-  : NDBT_NdbApiStep(ptest, pname, pfunc) {
+  : NDBT_Step(ptest, pname, pfunc) {
 }
 NDBT_Initializer::NDBT_Initializer(NDBT_TestCase* ptest, 
 				   const char* pname, 
 				   NDBT_TESTFUNC* pfunc)
-  : NDBT_NdbApiStep(ptest, pname, pfunc) {
+  : NDBT_Step(ptest, pname, pfunc) {
 }
 NDBT_Finalizer::NDBT_Finalizer(NDBT_TestCase* ptest, 
 			       const char* pname, 
 			       NDBT_TESTFUNC* pfunc)
-  : NDBT_NdbApiStep(ptest, pname, pfunc) {
+  : NDBT_Step(ptest, pname, pfunc) {
 }
 
 NDBT_TestCase::NDBT_TestCase(NDBT_TestSuite* psuite, 
@@ -395,6 +397,8 @@ NDBT_TestCaseImpl1::NDBT_TestCaseImpl1(NDBT_TestSuite* psuite,
   numStepsCompleted = 0;
   waitThreadsMutexPtr = NdbMutex_Create();
   waitThreadsCondPtr = NdbCondition_Create();
+
+  m_driverType= psuite->getDriverType();
 }
 
 NDBT_TestCaseImpl1::~NDBT_TestCaseImpl1(){
@@ -438,9 +442,13 @@ int NDBT_TestCaseImpl1::addVerifier(NDBT_Verifier* pVerifier){
   return 0;
 }
 
-int NDBT_TestCaseImpl1::addInitializer(NDBT_Initializer* pInitializer){
+int NDBT_TestCaseImpl1::addInitializer(NDBT_Initializer* pInitializer,
+                                       bool first){
   assert(pInitializer != NULL);
-  initializers.push_back(pInitializer);
+  if (first)
+    initializers.push(pInitializer, 0);
+  else
+    initializers.push_back(pInitializer);
   return 0;
 }
 
@@ -731,9 +739,9 @@ int NDBT_TestCaseImpl1::runFinal(NDBT_Context* ctx){
 }
 
 
-void NDBT_TestCaseImpl1::saveTestResult(const NdbDictionary::Table* ptab, 
+void NDBT_TestCaseImpl1::saveTestResult(const char* test_name,
 					int result){
-  testResults.push_back(new NDBT_TestCaseResult(ptab->getName(), 
+  testResults.push_back(new NDBT_TestCaseResult(test_name,
 						result,
 						timer.elapsedTime()));
 }
@@ -763,18 +771,21 @@ void NDBT_TestCaseImpl1::printTestResult(){
 
 
 
-NDBT_TestSuite::NDBT_TestSuite(const char* pname):name(pname){
+NDBT_TestSuite::NDBT_TestSuite(const char* pname) :
+  name(pname),
+  m_createTable(true),
+  m_createAll(false),
+  m_logging(true),
+  m_driverType(NdbApiDriver)
+{
    numTestsOk = 0;
    numTestsFail = 0;
    numTestsExecuted = 0;
    records = 0;
    loops = 0;
-   createTable = true;
    diskbased = false;
    tsname = NULL;
-   createAllTables = false;
    temporaryTables = false;
-   nologging = false;
 }
 
 
@@ -786,14 +797,14 @@ NDBT_TestSuite::~NDBT_TestSuite(){
 }
 
 void NDBT_TestSuite::setCreateTable(bool _flag){
-  createTable = _flag;
+  m_createTable = _flag;
 }
 
 void NDBT_TestSuite::setRunAllTables(bool _flag){
   runonce = _flag;
 }
 void NDBT_TestSuite::setCreateAllTables(bool _flag){
-  createAllTables = _flag;
+  m_createAll = _flag;
 }
 
 void NDBT_TestSuite::setTemporaryTables(bool val){
@@ -802,6 +813,14 @@ void NDBT_TestSuite::setTemporaryTables(bool val){
 
 bool NDBT_TestSuite::getTemporaryTables() const {
   return temporaryTables;
+}
+
+void NDBT_TestSuite::setLogging(bool val){
+  m_logging = val;
+}
+
+bool NDBT_TestSuite::getLogging() const {
+  return m_logging;
 }
 
 bool NDBT_TestSuite::timerIsOn(){
@@ -828,17 +847,8 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
 
   if(tests.size() == 0)
     return NDBT_FAILED;
-  Ndb ndb(&con, "TEST_DB");
-  ndb.init(1024);
-
-  int result = ndb.waitUntilReady(500); // 5 minutes
-  if (result != 0){
-    g_err << name <<": Ndb was not ready" << endl;
-    return NDBT_FAILED;
-  }
 
   ndbout << name << " started [" << getDate() << "]" << endl;
-
 
   if(!runonce)
   {
@@ -846,75 +856,32 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
     for (int t=0; t < NDBT_Tables::getNumTables(); t++){
       const NdbDictionary::Table* ptab = NDBT_Tables::getTable(t);
       ndbout << "|- " << ptab->getName() << endl;
-      execute(con, &ndb, ptab, _testname);
+      execute(con, ptab, _testname);
     }
     testSuiteTimer.doStop();
   }
   else
   {
-    NdbDictionary::Dictionary* pDict= ndb.getDictionary();
     for (unsigned i = 0; i < tests.size(); i++){
       if (_testname != NULL && strcasecmp(tests[i]->getName(), _testname) != 0)
 	continue;
-      
-      
+
       tests[i]->initBeforeTest();
       ctx = new NDBT_Context(con);
 
-      Uint32 t;
-      for (t=0; t < (Uint32)NDBT_Tables::getNumTables(); t++)
-      {
-	const NdbDictionary::Table* pTab = NDBT_Tables::getTable(t);
-	const NdbDictionary::Table* pTab2 = pDict->getTable(pTab->getName());
-	
-	if(pTab2 != 0 && pDict->dropTable(pTab->getName()) != 0)
-	{
-	  numTestsFail++;
-	  numTestsExecuted++;
-	  g_err << "ERROR0: Failed to drop table " << pTab->getName() << endl;
-	  tests[i]->saveTestResult(pTab, FAILED_TO_CREATE);
-	  continue;
-	}
-      
-	if (NDBT_Tables::createTable(&ndb, pTab->getName(), 
-                                     nologging, false,
-				     g_create_hook, this) != 0) {
-	  numTestsFail++;
-	  numTestsExecuted++;
-	  g_err << "ERROR1: Failed to create table " << pTab->getName()
-		<< pDict->getNdbError() << endl;
-	  tests[i]->saveTestResult(pTab, FAILED_TO_CREATE);
-	  continue;
-	}
-	pTab2 = pDict->getTable(pTab->getName());
-
-	ctx->addTab(pTab2);
-      }
-	
       ctx->setNumRecords(records);
       ctx->setNumLoops(loops);
-      if(remote_mgm != NULL)
-	ctx->setRemoteMgm(remote_mgm);
       ctx->setSuite(this);
-      
-      const NdbDictionary::Table** tables= ctx->getTables();
 
-      result = tests[i]->execute(ctx);
-      tests[i]->saveTestResult(tables[0], result);
+      int result = tests[i]->execute(ctx);
+
+      tests[i]->saveTestResult("", result);
       if (result != NDBT_OK)
 	numTestsFail++;
       else
 	numTestsOk++;
       numTestsExecuted++;
-      
-      if(result == NDBT_OK)
-      {
-	for(t = 0; tables[t] != 0; t++)
-	{ 
-	  pDict->dropTable(tables[t]->getName());
-	}
-      }
-      
+
       delete ctx;
     }
   }
@@ -924,17 +891,9 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
 int 
 NDBT_TestSuite::executeOne(Ndb_cluster_connection& con,
 			   const char* _tabname, const char* _testname){
-  
+
   if(tests.size() == 0)
     return NDBT_FAILED;
-  Ndb ndb(&con, "TEST_DB");
-  ndb.init(1024);
-
-  int result = ndb.waitUntilReady(300); // 5 minutes
-  if (result != 0){
-    g_err << name <<": Ndb was not ready" << endl;
-    return NDBT_FAILED;
-  }
 
   ndbout << name << " started [" << getDate() << "]" << endl;
 
@@ -944,7 +903,7 @@ NDBT_TestSuite::executeOne(Ndb_cluster_connection& con,
 
   ndbout << "|- " << ptab->getName() << endl;
 
-  execute(con, &ndb, ptab, _testname);
+  execute(con, ptab, _testname);
 
   if (numTestsFail > 0){
     return NDBT_FAILED;
@@ -987,8 +946,6 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
       ctx->setTab(ptab);
       ctx->setNumRecords(records);
       ctx->setNumLoops(loops);
-      if(remote_mgm != NULL)
-        ctx->setRemoteMgm(remote_mgm);
       ctx->setSuite(this);
     
       result = tests[t]->execute(ctx);
@@ -1039,7 +996,7 @@ NDBT_TestSuite::createHook(Ndb* ndb, NdbDictionary::Table& tab, int when)
 }
 
 void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
-			     Ndb* ndb, const NdbDictionary::Table* pTab, 
+			     const NdbDictionary::Table* pTab, 
 			     const char* _testname){
   int result; 
 
@@ -1060,52 +1017,20 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
 
     tests[t]->initBeforeTest();
 
-    NdbDictionary::Dictionary* pDict = ndb->getDictionary();
-    const NdbDictionary::Table* pTab2 = pDict->getTable(pTab->getName());
-    if (createTable == true){
-
-      if(pTab2 != 0 && pDict->dropTable(pTab->getName()) != 0){
-	numTestsFail++;
-	numTestsExecuted++;
-	g_err << "ERROR0: Failed to drop table " << pTab->getName() << endl;
-	tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
-	continue;
-      }
-      
-      if (NDBT_Tables::createTable(ndb, pTab->getName(), nologging, false,
-                                   g_create_hook, this) != 0) {
-	numTestsFail++;
-	numTestsExecuted++;
-	g_err << "ERROR1: Failed to create table " << pTab->getName()
-              << pDict->getNdbError() << endl;
-	tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
-	continue;
-      }
-      pTab2 = pDict->getTable(pTab->getName());
-    } else if(!pTab2) {
-      pTab2 = pTab;
-    } 
-    
     ctx = new NDBT_Context(con);
-    ctx->setTab(pTab2);
     ctx->setNumRecords(records);
     ctx->setNumLoops(loops);
-    if(remote_mgm != NULL)
-      ctx->setRemoteMgm(remote_mgm);
     ctx->setSuite(this);
-    
+    ctx->setTab(pTab);
+
     result = tests[t]->execute(ctx);
-    tests[t]->saveTestResult(pTab, result);
+    tests[t]->saveTestResult(pTab->getName(), result);
     if (result != NDBT_OK)
       numTestsFail++;
     else
       numTestsOk++;
     numTestsExecuted++;
 
-    if (result == NDBT_OK && createTable == true && createAllTables == false){
-      pDict->dropTable(pTab->getName());
-    }
-    
     tests[t]->m_has_run = true;
 
     delete ctx;
@@ -1113,6 +1038,133 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
 }
 
 
+
+int
+NDBT_TestSuite::createTables(Ndb_cluster_connection& con) const
+{
+  Ndb ndb(&con, "TEST_DB");
+  ndb.init(1);
+
+  NdbDictionary::Dictionary* pDict = ndb.getDictionary();
+  for(unsigned i = 0; i<m_tables_in_test.size(); i++)
+  {
+    const char *tab_name=  m_tables_in_test[i].c_str();
+    if (pDict->dropTable(tab_name) != 0)
+    {
+      g_err << "runCreateTables: Failed to drop table " << tab_name
+            << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    if(NDBT_Tables::createTable(&ndb, tab_name, getLogging()) != 0)
+    {
+      g_err << "runCreateTables: Failed to create table " << tab_name
+            << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    if (i == 0){
+      // Update ctx with a pointer to the first created table
+      const NdbDictionary::Table* pTab2 = pDict->getTable(tab_name);
+      ctx->setTab(pTab2);
+    }
+    g_info << "created " << tab_name << endl;
+  }
+
+  return NDBT_OK;
+}
+
+
+static int
+runCreateTables(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_TestSuite* suite= ctx->getSuite();
+  return suite->createTables(ctx->m_cluster_connection);
+}
+
+
+static int
+runCreateTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
+  ndb.init(1);
+
+  NdbDictionary::Dictionary* pDict = ndb.getDictionary();
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  const char *tab_name=  pTab->getName();
+  if (pDict->dropTable(tab_name) > 0)
+  {
+    g_err << "runCreateTable: Failed to drop table " << tab_name
+          << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if(NDBT_Tables::createTable(&ndb, tab_name,
+                              ctx->getSuite()->getLogging()) != 0)
+  {
+    g_err << "runCreateTable: Failed to create table " << tab_name
+          << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  // Update ctx with a pointer to the created table
+  const NdbDictionary::Table* pTab2 = pDict->getTable(tab_name);
+  ctx->setTab(pTab2);
+
+  return NDBT_OK;
+}
+
+
+int
+NDBT_TestSuite::dropTables(Ndb_cluster_connection& con) const
+{
+  Ndb ndb(&con, "TEST_DB");
+  ndb.init(1);
+
+  int res= NDBT_OK;
+  NdbDictionary::Dictionary* pDict = ndb.getDictionary();
+  for(unsigned i = 0; i<m_tables_in_test.size(); i++)
+  {
+    const char *tab_name=  m_tables_in_test[i].c_str();
+    if (pDict->dropTable(tab_name) != 0)
+    {
+      g_err << "runDropTables: Failed to drop table " << tab_name
+            << pDict->getNdbError() << endl;
+      res= NDBT_FAILED;
+      // Continue, try to drop all tables...
+    }
+
+    g_info << "dropped " << tab_name << endl;
+  }
+  return NDBT_OK;
+}
+
+
+static int
+runDropTables(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_TestSuite* suite= ctx->getSuite();
+  return suite->dropTables(ctx->m_cluster_connection);
+}
+
+
+static int
+runDropTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb ndb(&ctx->m_cluster_connection, "TEST_DB");
+  ndb.init(1);
+
+  NdbDictionary::Dictionary* pDict = ndb.getDictionary();
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  const char *tab_name=  pTab->getName();
+
+  if (pDict->dropTable(tab_name) != 0)
+  {
+    g_err << "runDropTables: Failed to drop table " << tab_name
+          << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
 
 
 int 
@@ -1188,7 +1240,6 @@ static int opt_print_cases = false;
 static int opt_records;
 static int opt_loops;
 static int opt_timer;
-static char * opt_remote_mgm = NULL;
 static char * opt_testname = NULL;
 static int opt_verbose;
 static int opt_seed = 0;
@@ -1218,10 +1269,6 @@ static struct my_option my_long_options[] =
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "testname", 'n', "Name of test to run",
     (uchar **) &opt_testname, (uchar **) &opt_testname, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "remote_mgm", 'm',
-    "host:port to mgmsrv of remote cluster",
-    (uchar **) &opt_remote_mgm, (uchar **) &opt_remote_mgm, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "timer", 't', "Print execution time",
     (uchar **) &opt_timer, (uchar **) &opt_timer, 0,
@@ -1289,6 +1336,58 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
+  if (opt_verbose)
+    setOutputLevel(2); // Show g_info
+  else 
+    setOutputLevel(0); // Show only g_err ?
+
+  records = opt_records;
+  loops = opt_loops;
+  timer = opt_timer;
+  if (opt_nologging)
+    setLogging(false);
+  temporaryTables = opt_temporary;
+
+  if (opt_seed == 0)
+  {
+    opt_seed = NdbTick_CurrentMillisecond();
+  }
+  ndbout_c("random seed: %u", opt_seed);
+  srand(opt_seed);
+  srandom(opt_seed);
+
+  global_flag_skip_invalidate_cache = 1;
+
+  int num_tables= argc;
+  if (argc == 0)
+    num_tables = NDBT_Tables::getNumTables();
+
+  for(int i = 0; i<num_tables; i++)
+  {
+    if (argc == 0)
+      m_tables_in_test.push_back(NDBT_Tables::getTable(i)->getName());
+    else
+      m_tables_in_test.push_back(_argv[i]);
+  }
+
+  if (m_createTable)
+  {
+    for (unsigned t = 0; t < tests.size(); t++)
+    {
+      NDBT_TestCaseImpl1* pt= (NDBT_TestCaseImpl1*)tests[t];
+      NDBT_Initializer* pti =
+        new NDBT_Initializer(pt,
+                             m_createAll ? "runCreateTables" : "runCreateTable",
+                             m_createAll ? runCreateTables : runCreateTable);
+      pt->addInitializer(pti, true);
+      NDBT_Finalizer* ptf =
+        new NDBT_Finalizer(pt,
+                           m_createAll ? "runDropTables" : "runDropTable",
+                           m_createAll ? runDropTables : runDropTable);
+      pt->addFinalizer(ptf);
+    }
+  }
+
   if (opt_print == true){
     printExecutionTree();
     return 0;
@@ -1304,71 +1403,10 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     return 0;
   }
 
-  if (opt_verbose)
-    setOutputLevel(2); // Show g_info
-  else 
-    setOutputLevel(0); // Show only g_err ?
-
-  remote_mgm = opt_remote_mgm;
-  records = opt_records;
-  loops = opt_loops;
-  timer = opt_timer;
-  nologging = opt_nologging;
-  temporaryTables = opt_temporary;
-
   Ndb_cluster_connection con;
   if(con.connect(12, 5, 1))
   {
     return NDBT_ProgramExit(NDBT_FAILED);
-  }
-
-  if (opt_seed == 0)
-  {
-    opt_seed = NdbTick_CurrentMillisecond();
-  }
-  ndbout_c("random seed: %u", opt_seed);
-  srand(opt_seed);
-  srandom(opt_seed);
-
-  global_flag_skip_invalidate_cache = 1;
-  
-  {
-    Ndb ndb(&con, "TEST_DB");
-    ndb.init(1024);
-    if (ndb.waitUntilReady(500)){
-      g_err << "Ndb was not ready" << endl;
-      return NDBT_ProgramExit(NDBT_FAILED);
-    }
-    NdbDictionary::Dictionary* pDict = ndb.getDictionary();
-
-    int num_tables= argc;
-    if (argc == 0)
-      num_tables = NDBT_Tables::getNumTables();
-
-    for(int i = 0; i<num_tables; i++)
-    {
-      if (argc == 0)
-	m_tables_in_test.push_back(NDBT_Tables::getTable(i)->getName());
-      else
-	m_tables_in_test.push_back(_argv[i]);
-      if (createAllTables == true)
-      {
-	const char *tab_name=  m_tables_in_test[i].c_str();
-	const NdbDictionary::Table* pTab = pDict->getTable(tab_name);
-	if (pTab && pDict->dropTable(tab_name) != 0)
-	{
-	  g_err << "ERROR0: Failed to drop table " << tab_name
-		<< pDict->getNdbError() << endl;
-	  return NDBT_ProgramExit(NDBT_FAILED);
-	}
-	if(NDBT_Tables::createTable(&ndb, tab_name, nologging) != 0)
-	{
-	  g_err << "ERROR1: Failed to create table " << tab_name
-		<< pDict->getNdbError() << endl;
-	  return NDBT_ProgramExit(NDBT_FAILED);
-	}
-      }
-    }
   }
 
   if(argc == 0){
@@ -1383,24 +1421,8 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     res = report(opt_testname);
   }
 
-  if (res == NDBT_OK && createAllTables == true)
-  {
-    Ndb ndb(&con, "TEST_DB");
-    ndb.init(1024);
-    if (ndb.waitUntilReady(500)){
-      g_err << "Ndb was not ready" << endl;
-      return NDBT_ProgramExit(NDBT_FAILED);
-    }
-    NdbDictionary::Dictionary* pDict = ndb.getDictionary();
-    for(unsigned i = 0; i<m_tables_in_test.size(); i++)
-    {
-      pDict->dropTable(m_tables_in_test[i].c_str());
-    }
-  }
-
   return NDBT_ProgramExit(res);
 }
- 
 
 
 void NDBT_TestSuite::printExecutionTree(){

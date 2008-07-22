@@ -1045,7 +1045,7 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
 							  1, // JBB
 							  tDataPtr, 
 							  aNode, 
-							  0);
+							  (LinearSectionPtr*)0);
       //if (ss != SEND_OK) ndbout << ss << endl;
       return (ss == SEND_OK ? 0 : -1);
     } else {
@@ -1085,7 +1085,7 @@ TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal,
 						      prio, 
 						      tDataPtr,
 						      aNode, 
-						      0);
+						      (LinearSectionPtr*)0);
   
   return (ss == SEND_OK ? 0 : -1);
 }
@@ -1213,6 +1213,38 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
 int
 TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode, 
 			      LinearSectionPtr ptr[3], Uint32 secs){
+  aSignal->m_noOfSections = secs;
+  if(getIsNodeSendable(aNode) == true){
+#ifdef API_TRACE
+    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
+      Uint32 tmp = aSignal->theSendersBlockRef;
+      aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
+      signalLogger.sendSignal(* aSignal,
+			      1,
+			      aSignal->getDataPtrSend(),
+			      aNode,
+                              ptr, secs);
+      signalLogger.flushSignalLog();
+      aSignal->theSendersBlockRef = tmp;
+    }
+#endif
+    SendStatus ss = theTransporterRegistry->prepareSend
+      (aSignal, 
+       1, // JBB
+       aSignal->getDataPtrSend(),
+       aNode, 
+       ptr);
+    assert(ss != SEND_MESSAGE_TOO_BIG);
+    aSignal->m_noOfSections = 0;
+    return (ss == SEND_OK ? 0 : -1);
+  }
+  aSignal->m_noOfSections = 0;
+  return -1;
+}
+
+int
+TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode,
+                              GenericSectionPtr ptr[3], Uint32 secs){
   aSignal->m_noOfSections = secs;
   if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE

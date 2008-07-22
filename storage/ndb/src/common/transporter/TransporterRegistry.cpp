@@ -707,6 +707,79 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
   }
 }
 
+
+SendStatus
+TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
+                                 const SignalHeader * const signalHeader,
+				 Uint8 prio,
+				 const Uint32 * const signalData,
+				 NodeId nodeId, 
+				 GenericSectionPtr ptr[3]){
+
+
+  Transporter *t = theTransporters[nodeId];
+  if(t != NULL && 
+     (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
+      ((signalHeader->theReceiversBlockNumber == 252) ||
+       (signalHeader->theReceiversBlockNumber == 4002)))) {
+	 
+    if(t->isConnected()){
+      Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
+      if(lenBytes <= MAX_MESSAGE_SIZE){
+        Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
+        if(insertPtr != 0){
+          t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
+          sendHandle->updateWritePtr(nodeId, lenBytes, prio);
+          return SEND_OK;
+	}
+
+
+	/**
+	 * @note: on linux/i386 the granularity is 10ms
+	 *        so sleepTime = 2 generates a 10 ms sleep.
+	 */
+        int sleepTime = 2;	
+	for(int i = 0; i<50; i++){
+	  if((nSHMTransporters+nSCITransporters) == 0)
+	    NdbSleep_MilliSleep(sleepTime); 
+	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
+	  if(insertPtr != 0){
+	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
+	    sendHandle->updateWritePtr(nodeId, lenBytes, prio);
+	    break;
+	  }
+	}
+	
+	if(insertPtr != 0){
+	  /**
+	   * Send buffer full, but resend works
+	   */
+	  report_error(nodeId, TE_SEND_BUFFER_FULL);
+	  return SEND_OK;
+	}
+	
+	WARNING("Signal to " << nodeId << " lost(buffer)");
+	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
+	return SEND_BUFFER_FULL;
+      } else {
+	return SEND_MESSAGE_TOO_BIG;
+      }
+    } else {
+      DEBUG("Signal to " << nodeId << " lost(disconnect) ");
+      return SEND_DISCONNECTED;
+    }
+  } else {
+    DEBUG("Discarding message to block: " 
+	  << signalHeader->theReceiversBlockNumber 
+	  << " node: " << nodeId);
+    
+    if(t == NULL)
+      return SEND_UNKNOWN_NODE;
+    
+    return SEND_BLOCKED;
+  }
+}
+
 void
 TransporterRegistry::external_IO(Uint32 timeOutMillis) {
   //-----------------------------------------------------------
@@ -1435,6 +1508,17 @@ TransporterRegistry::start_clients_thread()
 	if(t->isConnected())
 	  t->doDisconnect();
 	break;
+      case DISCONNECTED:
+      {
+        if (t->isConnected())
+        {
+          g_eventLogger->warning("Found connection to %u in state DISCONNECTED "
+                                 " while being connected, disconnecting!",
+                                 t->getRemoteNodeId());
+          t->doDisconnect();
+        }
+        break;
+      }
       default:
 	break;
       }

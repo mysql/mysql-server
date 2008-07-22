@@ -56,6 +56,7 @@ unsigned int g_report_next;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
 NdbRecordPrintFormat g_ndbrecord_print_format;
+unsigned int opt_no_binlog;
 
 NDB_STD_OPTS_VARS;
 
@@ -91,6 +92,7 @@ enum ndb_restore_options {
   OPT_LINES_TERMINATED_BY,
   OPT_APPEND,
   OPT_PROGRESS_FREQUENCY,
+  OPT_NO_BINLOG,
   OPT_VERBOSE
 };
 static const char *opt_fields_enclosed_by= NULL;
@@ -207,6 +209,10 @@ static struct my_option my_long_options[] =
     "Print status uf restore periodically in given seconds", 
     (uchar**) &opt_progress_frequency, (uchar**) &opt_progress_frequency, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 65535, 0, 0, 0 },
+  { "no-binlog", OPT_NO_BINLOG,
+    "If a mysqld is connected and has binary log, do not log the restored data", 
+    (uchar**) &opt_no_binlog, (uchar**) &opt_no_binlog, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", OPT_VERBOSE,
     "verbosity", 
     (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,

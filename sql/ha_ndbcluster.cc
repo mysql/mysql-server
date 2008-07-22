@@ -3650,29 +3650,30 @@ ha_ndbcluster::setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
                                             bool use_active_index)
 {
   DBUG_ENTER("setup_key_ref_for_ndb_record");
-  if (table_share->primary_key != MAX_KEY)
+  if (use_active_index)
   {
-    if (use_active_index)
-    {
-      /*
-        Using unique key and getting read before write removal
-        optimisation working. Use key_rec according to this
-        unique index instead of primary key index
-      */
-      *key_rec= m_index[active_index].ndb_unique_record_row;
-    }
-    else
-      *key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
+    /* Use unique key to access table */
+    DBUG_PRINT("info", ("Using unique index (%u)", active_index));
+    *key_rec= m_index[active_index].ndb_unique_record_row;
     *key_row= record;
-    DBUG_VOID_RETURN;
+  }
+  else if (table_share->primary_key != MAX_KEY)
+  {
+    /* Use primary key to access table */
+    DBUG_PRINT("info", ("Using primary key"));
+    *key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
+    *key_row= record;
   }
   else
   {
     /* Use hidden primary key previously read into m_ref. */
+    DBUG_PRINT("info", ("Using hidden primary key (%llu)", m_ref));
+    /* Can't use hidden pk if we didn't read it first */
+    DBUG_ASSERT(m_read_before_write_removal_used == false);
     *key_rec= m_ndb_hidden_key_record;
     *key_row= (const uchar *)(&m_ref);
-    DBUG_VOID_RETURN;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -8707,13 +8708,19 @@ static int ndbcluster_init(void *p)
 
   /* allocate connection resources and connect to cluster */
   if (ndbcluster_connect(connect_callback))
+  {
+    DBUG_PRINT("error", ("Could not initiate connection to cluster"));
     goto ndbcluster_init_error;
+  }
 
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())
+  {
+    DBUG_PRINT("error", ("Could start the injector thread"));
     goto ndbcluster_init_error;
+  }
 
   ndb_cache_check_time = opt_ndb_cache_check_time;
   // Create utility thread
@@ -8761,6 +8768,8 @@ ndbcluster_init_error:
   DBUG_RETURN(TRUE);
 }
 
+int ndbcluster_binlog_end(THD *thd);
+
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 {
   DBUG_ENTER("ndbcluster_end");
@@ -8769,15 +8778,8 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
     DBUG_RETURN(0);
   ndbcluster_inited= 0;
 
-  /* wait for util thread to finish */
-  sql_print_information("Stopping Cluster Utility thread");
-  pthread_mutex_lock(&LOCK_ndb_util_thread);
-  ndbcluster_terminating= 1;
-  pthread_cond_signal(&COND_ndb_util_thread);
-  while (ndb_util_thread_running > 0)
-    pthread_cond_wait(&COND_ndb_util_ready, &LOCK_ndb_util_thread);
-  pthread_mutex_unlock(&LOCK_ndb_util_thread);
-
+  /* wait for util and binlog thread to finish */
+  ndbcluster_binlog_end(NULL);
 
   {
     pthread_mutex_lock(&ndbcluster_mutex);
@@ -10440,6 +10442,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         ppartitionId=&partitionId;
       }
 
+      DBUG_PRINT("info", ("Generating Pk/Unique key read for range %u",
+                          i));
       if (!(op= pk_unique_index_read_key(active_index,
                                          r->start_key.key,
                                          row_buf, lm,
@@ -10460,6 +10464,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     const NdbOperation* rangeOp= lastOp ? lastOp->next() : 
       trans->getFirstDefinedOperation();
     
+    DBUG_PRINT("info", ("Executing reads"));
+
     if (execute_no_commit_ie(m_thd_ndb, trans) == 0)
     {
       m_multi_range_result_ptr= buffer->buffer;
@@ -10755,7 +10761,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   struct timespec abstime;
-  Thd_ndb *thd_ndb;
+  Thd_ndb *thd_ndb= NULL;
   uint share_list_size= 0;
   NDB_SHARE **share_list= NULL;
 
@@ -11009,6 +11015,11 @@ ndb_util_thread_end:
 ndb_util_thread_fail:
   if (share_list)
     delete [] share_list;
+  if (thd_ndb)
+  {
+    ha_ndbcluster::release_thd_ndb(thd_ndb);
+    set_thd_ndb(thd, NULL);
+  }
   thd->cleanup();
   delete thd;
   

@@ -26,7 +26,7 @@ args: -n BackupBank T6
 # MGMAPI AND MGSRV
 #
 max-time: 1800
-cmd: testMgm
+cmd: testSingleUserMode
 args: -n SingleUserMode T1 
 
 #
