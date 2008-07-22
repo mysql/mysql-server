@@ -13,6 +13,13 @@
 USE test;
 --source suite/funcs_1/include/tb3.inc
 
+# This test cannot be used for the embedded server because we check here
+# privilgeges.
+--source include/not_embedded.inc
+
+USE test;
+--source suite/funcs_1/include/tb3.inc
+
 --disable_abort_on_error
 
 ###########################################
