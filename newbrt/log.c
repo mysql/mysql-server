@@ -446,7 +446,14 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 	    if (txn->oldest_logentry) {
 		// There are some entries, so link them in.
 		txn->oldest_logentry->prev = txn->parent->newest_logentry;
+		if (txn->parent->newest_logentry) {
+		    txn->parent->newest_logentry->next = txn->oldest_logentry;
+		} else {
+		    txn->parent->oldest_logentry = txn->oldest_logentry;
+		}
 		txn->parent->newest_logentry = txn->newest_logentry;
+		txn->parent->rollentry_resident_bytecount += txn->rollentry_resident_bytecount;
+		txn->rollentry_resident_bytecount = 0;
 	    }
 	    if (txn->parent->oldest_logentry==0) {
 		txn->parent->oldest_logentry = txn->oldest_logentry;
@@ -457,6 +464,9 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 
 	    // Note the open brts, the omts must be merged
 	    r = toku_omt_iterate(txn->open_brts, note_brt_used_in_parent_txn, txn->parent);
+	    assert(r==0);
+
+	    r = toku_maybe_spill_rollbacks(txn->parent);
 	    assert(r==0);
 
 	} else {
