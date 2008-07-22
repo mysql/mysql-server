@@ -23,8 +23,6 @@
 #include <NdbRestarts.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 
-#define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
-
 static int createEvent(Ndb *pNdb, 
                        const NdbDictionary::Table &tab,
                        NDBT_Context* ctx)
