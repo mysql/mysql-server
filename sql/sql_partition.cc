@@ -3767,7 +3767,7 @@ bool mysql_unpack_partition(THD *thd,
   thd->lex= &lex;
   thd->variables.character_set_client= system_charset_info;
 
-  Lex_input_stream lip(thd, part_buf, part_info_len);
+  Parser_state parser_state(thd, part_buf, part_info_len);
 
   lex_start(thd);
   *work_part_info_used= false;
@@ -3797,7 +3797,7 @@ bool mysql_unpack_partition(THD *thd,
   lex.part_info->part_state= part_state;
   lex.part_info->part_state_len= part_state_len;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
-  if (parse_sql(thd, &lip, NULL))
+  if (parse_sql(thd, & parser_state, NULL))
   {
     thd->free_items();
     goto end;
