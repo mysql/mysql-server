@@ -5323,29 +5323,35 @@ bool check_stack_overrun(THD *thd, long margin,
 
 bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 {
-  LEX	*lex= current_thd->lex;
+  Yacc_state *state= & current_thd->m_parser_state->m_yacc;
   ulong old_info=0;
+  DBUG_ASSERT(state);
   if ((uint) *yystacksize >= MY_YACC_MAX)
     return 1;
-  if (!lex->yacc_yyvs)
+  if (!state->yacc_yyvs)
     old_info= *yystacksize;
   *yystacksize= set_zone((*yystacksize)*2,MY_YACC_INIT,MY_YACC_MAX);
-  if (!(lex->yacc_yyvs= (uchar*)
-	my_realloc(lex->yacc_yyvs,
-		   *yystacksize*sizeof(**yyvs),
-		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
-      !(lex->yacc_yyss= (uchar*)
-	my_realloc(lex->yacc_yyss,
-		   *yystacksize*sizeof(**yyss),
-		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
+  if (!(state->yacc_yyvs= (uchar*)
+        my_realloc(state->yacc_yyvs,
+                   *yystacksize*sizeof(**yyvs),
+                   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
+      !(state->yacc_yyss= (uchar*)
+        my_realloc(state->yacc_yyss,
+                   *yystacksize*sizeof(**yyss),
+                   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
     return 1;
   if (old_info)
-  {						// Copy old info from stack
-    memcpy(lex->yacc_yyss, (uchar*) *yyss, old_info*sizeof(**yyss));
-    memcpy(lex->yacc_yyvs, (uchar*) *yyvs, old_info*sizeof(**yyvs));
+  {
+    /*
+      Only copy the old stack on the first call to my_yyoverflow(),
+      when replacing a static stack (YYINITDEPTH) by a dynamic stack.
+      For subsequent calls, my_realloc already did preserve the old stack.
+    */
+    memcpy(state->yacc_yyss, *yyss, old_info*sizeof(**yyss));
+    memcpy(state->yacc_yyvs, *yyvs, old_info*sizeof(**yyvs));
   }
-  *yyss=(short*) lex->yacc_yyss;
-  *yyvs=(YYSTYPE*) lex->yacc_yyvs;
+  *yyss= (short*) state->yacc_yyss;
+  *yyvs= (YYSTYPE*) state->yacc_yyvs;
   return 0;
 }
 
@@ -5609,10 +5615,10 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
 
-    Lex_input_stream lip(thd, inBuf, length);
+    Parser_state parser_state(thd, inBuf, length);
 
-    bool err= parse_sql(thd, &lip, NULL);
-    *found_semicolon= lip.found_semicolon;
+    bool err= parse_sql(thd, & parser_state, NULL);
+    *found_semicolon= parser_state.m_lip.found_semicolon;
 
     if (!err)
     {
@@ -5697,11 +5703,11 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  Lex_input_stream lip(thd, inBuf, length);
+  Parser_state parser_state(thd, inBuf, length);
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
 
-  if (!parse_sql(thd, &lip, NULL) &&
+  if (!parse_sql(thd, & parser_state, NULL) &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   thd->end_statement();
@@ -6740,7 +6746,7 @@ bool check_simple_select()
   if (lex->current_select != &lex->select_lex)
   {
     char command[80];
-    Lex_input_stream *lip= thd->m_lip;
+    Lex_input_stream *lip= & thd->m_parser_state->m_lip;
     strmake(command, lip->yylval->symbol.str,
 	    min(lip->yylval->symbol.length, sizeof(command)-1));
     my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
@@ -7417,7 +7423,7 @@ extern int MYSQLparse(void *thd); // from sql_yacc.cc
   instead of MYSQLparse().
 
   @param thd Thread context.
-  @param lip Lexer context.
+  @param parser_state Parser state.
   @param creation_ctx Object creation context.
 
   @return Error status.
@@ -7426,10 +7432,10 @@ extern int MYSQLparse(void *thd); // from sql_yacc.cc
 */
 
 bool parse_sql(THD *thd,
-               Lex_input_stream *lip,
+               Parser_state *parser_state,
                Object_creation_ctx *creation_ctx)
 {
-  DBUG_ASSERT(thd->m_lip == NULL);
+  DBUG_ASSERT(thd->m_parser_state == NULL);
 
   /* Backup creation context. */
 
@@ -7438,9 +7444,9 @@ bool parse_sql(THD *thd,
   if (creation_ctx)
     backup_ctx= creation_ctx->set_n_backup(thd);
 
-  /* Set Lex_input_stream. */
+  /* Set parser state. */
 
-  thd->m_lip= lip;
+  thd->m_parser_state= parser_state;
 
   /* Parse the query. */
 
@@ -7451,9 +7457,9 @@ bool parse_sql(THD *thd,
   DBUG_ASSERT(!mysql_parse_status ||
               mysql_parse_status && thd->is_error());
 
-  /* Reset Lex_input_stream. */
+  /* Reset parser state. */
 
-  thd->m_lip= NULL;
+  thd->m_parser_state= NULL;
 
   /* Restore creation context. */
 

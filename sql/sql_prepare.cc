@@ -3017,11 +3017,11 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
-  Lex_input_stream lip(thd, thd->query, thd->query_length);
-  lip.stmt_prepare_mode= TRUE;
+  Parser_state parser_state(thd, thd->query, thd->query_length);
+  parser_state.m_lip.stmt_prepare_mode= TRUE;
   lex_start(thd);
 
-  error= parse_sql(thd, &lip, NULL) ||
+  error= parse_sql(thd, & parser_state, NULL) ||
          thd->is_error() ||
          init_param_array(this);
 
