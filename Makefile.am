@@ -257,9 +257,14 @@ TEST_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
 #    results in messages in stderr saying that these headers
 #    were not found. Redirect the stderr output to /dev/null
 #    to prevent seeing these messages.
-# 2) sed the output to remove blank lines and lines that begin
-#    with # (The header information is retained to enable easy
-#    analysis of abi diffs at a later stage).
+# 2) sed the output to 
+#    2.1) remove blank lines and lines that begin with "# "
+#         (The header information is retained to enable easy
+#         analysis of abi diffs at a later stage).
+#    2.2) When gcc -E is run in the Mac OS it introduces a line of output 
+#         that results in showing up as a difference between the .pp and 
+#         .out files. Remove this OS specific preprocessor text inserted by
+#         the preprocessor in the MAC OS. 
 # 3) diff the generated file and the canons (.pp files already in
 #    the repository).
 # 4) delete the .out file that is generated.
@@ -298,8 +303,10 @@ do_abi_check:
 	                  -I$(top_builddir)/sql \
 	                                 $$file 2>/dev/null | \
 	                  @SED@ -e '/^# /d' \
-	                            -e '/^[ 	]*$$/d' > $(top_builddir)/abi_check.out; \
-	                  @DIFF@ -b $$file.pp $(top_builddir)/abi_check.out; \
+	                            -e '/^[ 	]*$$/d' \
+	                            -e '/^#pragma GCC set_debug_pwd/d' > \
+	                                       $(top_builddir)/abi_check.out; \
+	                  @DIFF@ -wB $$file.pp $(top_builddir)/abi_check.out; \
 	                  @RM@ $(top_builddir)/abi_check.out; \
 	done
 
