@@ -451,7 +451,7 @@ sub run_test_server {
 	      push(@$completed, $result);
 	      return $completed;
 	    }
-	    elsif ($num_failed_test > 0 and
+	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
 	      mtr_report("Too many tests($num_failed_test) failed!",
