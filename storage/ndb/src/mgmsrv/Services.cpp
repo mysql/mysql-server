@@ -38,9 +38,6 @@ extern bool g_StopServer;
 extern bool g_RestartServer;
 extern EventLogger * g_eventLogger;
 
-static const unsigned int MAX_READ_TIMEOUT = 1000 ;
-static const unsigned int MAX_WRITE_TIMEOUT = 100 ;
-
 /**
    const char * name;
    const char * realName;
