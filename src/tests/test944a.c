@@ -53,8 +53,8 @@ void run (int choice) {
 	DBC *c;
 	r=db->cursor(db, txn, &c, 0);                                 CKERR(r);
 	DBT kdbt,vdbt;
-	dbt_init_malloc(&kdbt);
-	dbt_init_malloc(&vdbt);
+	dbt_init(&kdbt, 0, 0);
+	dbt_init(&vdbt, 0, 0);
 	i=0;
 	while (0==(r=c->c_get(c, &kdbt, &vdbt, DB_NEXT))) {
 	    i++;
