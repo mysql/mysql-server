@@ -21,7 +21,7 @@ $(OBJS): ../include/db_cxx.h
 test1: test1.o dbt.o db.o dbenv.o ../lib/libdb.a
 
 $(LIBNAME).a: $(OBJS)
-	$(AR) rv $@ $(OBJS)
+	$(AR) cr $@ $(OBJS)
 clean:
 	rm -f $(OBJS) $(LIBNAME).a $(LIBNAME).so *.gcno *.gcda *.gcov
 	cd tests; $(MAKE) clean
