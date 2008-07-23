@@ -306,7 +306,7 @@ do_abi_check:
 	                            -e '/^[ 	]*$$/d' \
 	                            -e '/^#pragma GCC set_debug_pwd/d' > \
 	                                       $(top_builddir)/abi_check.out; \
-	                  @DIFF@ -wB $$file.pp $(top_builddir)/abi_check.out; \
+	                  @DIFF@ -w $$file.pp $(top_builddir)/abi_check.out; \
 	                  @RM@ $(top_builddir)/abi_check.out; \
 	done
 
