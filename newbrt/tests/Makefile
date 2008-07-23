@@ -86,6 +86,7 @@ REGRESSION_TESTS = \
 # Add in the binaries that must be run in various ways.
 BINS =  $(REGRESSION_TESTS) \
         benchmark-test \
+	cachetable-scan \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 CHECKS = \
