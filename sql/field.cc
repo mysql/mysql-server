@@ -6644,6 +6644,7 @@ struct Check_field_param {
   Field *field;
 };
 
+#ifdef HAVE_REPLICATION
 static bool
 check_field_for_37426(const void *param_arg)
 {
@@ -6655,7 +6656,7 @@ check_field_for_37426(const void *param_arg)
                        param->field->row_pack_length()));
   return param->field->row_pack_length() > 255;
 }
-
+#endif
 
 int Field_string::compatible_field_size(uint field_metadata,
                                         const Relay_log_info *rli_arg)
