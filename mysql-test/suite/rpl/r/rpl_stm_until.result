@@ -4,7 +4,10 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+[on slave]
 include/stop_slave.inc
+==== Create some events on master ====
+[on master]
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (1),(2),(3),(4);
 drop table t1;
@@ -12,6 +15,8 @@ create table t2(n int not null auto_increment primary key);
 insert into t2 values (1),(2);
 insert into t2 values (3),(4);
 drop table t2;
+==== Replicate one event at a time on slave ====
+[on slave]
 start slave until master_log_file='master-bin.000001', master_log_pos=323;
 select * from t1;
 n
@@ -149,6 +154,8 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 start slave;
+[on master]
+[on slave]
 include/stop_slave.inc
 start slave until master_log_file='master-bin.000001', master_log_pos=776;
 SHOW SLAVE STATUS;
@@ -190,6 +197,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+==== Test various error conditions ====
 start slave until master_log_file='master-bin', master_log_pos=561;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 start slave until master_log_file='master-bin.000001', master_log_pos=561, relay_log_pos=12;
