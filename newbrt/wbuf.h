@@ -3,13 +3,18 @@
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include "murmur.h"
 #include "memory.h"
 #include "toku_assert.h"
 #include <errno.h>
 #include <string.h>
 
+//#define CRC_NO
 #define CRC_INCR
+//#define CRC_ATEND
+
+#ifndef CRC_NO
+#include "crc.h"
+#endif
 
 /* When serializing a value, write it into a buffer. */
 /* This code requires that the buffer be big enough to hold whatever you put into it. */ 
@@ -19,21 +24,27 @@ struct wbuf {
     unsigned char *buf;
     unsigned int  size;
     unsigned int  ndone;
-    struct murmur murmur;    // The murmur state
+#ifdef CRC_INCR
+    u_int32_t     crc32; // A 32-bit CRC of everything written so foar.
+#endif
 };
 
 static inline void wbuf_init (struct wbuf *w, void *buf, DISKOFF size) {
     w->buf=buf;
     w->size=size;
     w->ndone=0;
-    murmur_init(&w->murmur);
+#ifdef CRC_INCR
+    w->crc32 = toku_crc32(toku_null_crc, Z_NULL, 0);
+#endif
 }
 
 /* Write a character. */
 static inline void wbuf_char (struct wbuf *w, unsigned int ch) {
     assert(w->ndone<w->size);
     w->buf[w->ndone++]=ch;
-    murmur_add(&w->murmur, &w->buf[w->ndone-1], 1);
+#ifdef CRC_INCR
+    w->crc32 = toku_crc32(w->crc32, &w->buf[w->ndone-1], 1);
+#endif
 }
 
 static void wbuf_int (struct wbuf *w, int32_t i) {
@@ -52,7 +63,9 @@ static void wbuf_int (struct wbuf *w, int32_t i) {
  #else
     *(u_int32_t*)(&w->buf[w->ndone]) = htonl(i);
  #endif
-    murmur_add(&w->murmur, &w->buf[w->ndone], 4);
+ #ifdef CRC_INCR
+    w->crc32 = toku_crc32(w->crc32, &w->buf[w->ndone], 4);
+ #endif
     w->ndone += 4;
 #endif
 }
@@ -67,7 +80,9 @@ static inline void wbuf_literal_bytes(struct wbuf *w, bytevec bytes_bv, u_int32_
 #else
     assert(w->ndone + nbytes <= w->size);
     memcpy(w->buf + w->ndone, bytes, (size_t)nbytes);
-    murmur_add(&w->murmur, &w->buf[w->ndone], nbytes);
+ #ifdef CRC_INCR
+    w->crc32 = toku_crc32(w->crc32, &w->buf[w->ndone], nbytes);
+ #endif
     w->ndone += nbytes;
 #endif
     
