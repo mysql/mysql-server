@@ -1567,17 +1567,12 @@ cleanup:
 static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * val, u_int32_t flag) {
     HANDLE_PANICKED_DB(c->dbp);
     int r           = ENOSYS;
-    int r_cursor_op = 0;
     C_GET_VARS g;
     memset(&g, 0, sizeof(g));
     /* Initialize variables. */
     g.c    = c;
     g.db   = c->dbp;
     g.flag = flag;
-    if (c->i->txn) {
-        g.txn_anc = toku_txn_ancestor(c->i->txn);
-        g.id_anc  = toku_txn_get_txnid(g.txn_anc->i->tokutxn);
-    }
     unsigned int brtflags;
     toku_brt_get_flags(g.db->i->brt, &brtflags);
     g.duplicates   = (brtflags & TOKU_DB_DUPSORT) != 0;
@@ -1589,6 +1584,11 @@ static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * val, u_int32_t flag)
     if (!g.db->i->lt || g.lock_flags) {
         r = toku_brt_cursor_get(c->i->c, key, val, g.flag, txn);
         goto cleanup;
+    }
+    int r_cursor_op = 0;
+    if (c->i->txn) {
+        g.txn_anc = toku_txn_ancestor(c->i->txn);
+        g.id_anc  = toku_txn_get_txnid(g.txn_anc->i->tokutxn);
     }
 
     /* If we know what to lock before the cursor op, lock now. */
