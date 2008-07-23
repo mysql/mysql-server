@@ -3178,6 +3178,7 @@ int toku_brt_cursor_close(BRT_CURSOR cursor) {
     if (cursor->skey) toku_free(cursor->skey);
     if (cursor->sval) toku_free(cursor->sval);
     list_remove(&cursor->cursors_link);
+    toku_omt_cursor_set_invalidate_callback(cursor->omtcursor, NULL, NULL);
     toku_omt_cursor_destroy(&cursor->omtcursor);
     toku_free_n(cursor, sizeof *cursor);
     return 0;
