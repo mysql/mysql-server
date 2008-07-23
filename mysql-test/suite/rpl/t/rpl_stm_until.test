@@ -1,18 +1,37 @@
+# ==== Purpose ====
+#
+# Verify that START SLAVE UNTIL replicates until the given binlog
+# position but not longer.  Verify that START SLAVE UNTIL with various
+# incorrect arguments gives an error.
+#
+# ==== Method ====
+#
+# On master, create a table and insert some rows.  On slave, START
+# SLAVE UNTIL so that it reads one event at a time, and check the
+# table and the slave status each time.
+#
+# Then, on slave, run START SLAVE UNTIL with incorrect arguments and
+# verify that it gives an error.
+#
+# ==== Related bugs ====
+#
+# Bug in this test: BUG#37717: rpl.rpl_stm_until 'stmt' fails sporadically on pushbuild
+
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/master-slave.inc
 
 # Test is dependent on binlog positions
 
-# prepare version for substitutions
-let $VERSION=`select version()`;
-
-# stop slave before he will start replication also sync with master
-# for avoiding undetermenistic behaviour
+# Stop slave before it starts replication.  Also sync with master
+# to avoid nondeterministic behaviour.
+--echo [on slave]
 sync_slave_with_master;
 --source include/stop_slave.inc
 
+--echo ==== Create some events on master ====
+
+--echo [on master]
 connection master;
-# create some events on master
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (1),(2),(3),(4);
 drop table t1;
@@ -21,9 +40,13 @@ insert into t2 values (1),(2);
 insert into t2 values (3),(4);
 drop table t2;
 
+--echo ==== Replicate one event at a time on slave ====
+
 # try to replicate all queries until drop of t1
+--echo [on slave]
 connection slave;
 start slave until master_log_file='master-bin.000001', master_log_pos=323;
+--source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc
 # here table should be still not deleted
 select * from t1;
@@ -31,6 +54,7 @@ source include/show_slave_status2.inc;
 
 # this should fail right after start
 start slave until master_log_file='master-no-such-bin.000001', master_log_pos=291;
+--source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc
 # again this table should be still not deleted
 select * from t1;
@@ -38,24 +62,28 @@ source include/show_slave_status2.inc;
 
 # try replicate all up to and not including the second insert to t2;
 start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=746;
+--source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc
 select * from t2;
 source include/show_slave_status2.inc;
 
 # clean up
 start slave;
+--echo [on master]
 connection master;
+--echo [on slave]
 sync_slave_with_master;
 --source include/stop_slave.inc
 
 # this should stop immediately as we are already there
 start slave until master_log_file='master-bin.000001', master_log_pos=776;
+--source include/wait_for_slave_io_to_start.inc
 --source include/wait_for_slave_sql_to_stop.inc
-# here the sql slave thread should be stopped
 --replace_result bin.000005 bin.000004 bin.000006 bin.000004 bin.000007 bin.000004
 source include/show_slave_status2.inc;
 
-#testing various error conditions
+--echo ==== Test various error conditions ====
+
 --error 1277
 start slave until master_log_file='master-bin', master_log_pos=561;
 --error 1277
@@ -70,4 +98,3 @@ start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
 start slave sql_thread;
 start slave until master_log_file='master-bin.000001', master_log_pos=776;
 
-# End of 4.1 tests
