@@ -1,6 +1,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "brttypes.h"
+#include "crc.h"
 #include "leafentry.h"
 #include "memory.h"
 #include "toku_assert.h"
@@ -13,7 +14,7 @@
 #include <string.h>
 
 u_int32_t toku_le_crc(LEAFENTRY v) {
-    return murmur_string(v, leafentry_memsize(v));
+    return toku_crc32(toku_null_crc, v, leafentry_memsize(v));
 }
 
 int le_committed (u_int32_t klen, void* kval, u_int32_t dlen, void* dval, u_int32_t *resultsize, u_int32_t *disksize, LEAFENTRY *result) {
@@ -147,27 +148,27 @@ u_int32_t toku_logsizeof_LEAFENTRY (LEAFENTRY le) {
     return leafentry_disksize(le);
 }
 
-int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, struct murmur *murmur, u_int32_t *len) {
+int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, u_int32_t *crc, u_int32_t *len) {
     assert(0);
     u_int8_t state;
-    int r = toku_fread_u_int8_t (f, &state, murmur, len); if (r!=0) return r;
+    int r = toku_fread_u_int8_t (f, &state, crc, len); if (r!=0) return r;
     TXNID xid;
     BYTESTRING a,b,c;
     u_int32_t memsize, disksize;
     switch ((enum le_state)state) {
     case LE_COMMITTED:
-	r = toku_fread_BYTESTRING(f, &a, murmur, len);  if (r!=0) return r;
-	r = toku_fread_BYTESTRING(f, &b, murmur, len);  if (r!=0) return r;
+	r = toku_fread_BYTESTRING(f, &a, crc, len);  if (r!=0) return r;
+	r = toku_fread_BYTESTRING(f, &b, crc, len);  if (r!=0) return r;
 	r = le_committed(a.len, a.data, b.len, b.data,
 			 &memsize, &disksize, le);
 	toku_free_BYTESTRING(a);
 	toku_free_BYTESTRING(b);
 	return r;
     case LE_BOTH:
-	r = toku_fread_TXNID(f, &xid, murmur, len);     if (r!=0) return r;
-	r = toku_fread_BYTESTRING(f, &a, murmur, len);  if (r!=0) return r;
-	r = toku_fread_BYTESTRING(f, &b, murmur, len);  if (r!=0) return r;
-	r = toku_fread_BYTESTRING(f, &c, murmur, len);  if (r!=0) return r;
+	r = toku_fread_TXNID(f, &xid, crc, len);     if (r!=0) return r;
+	r = toku_fread_BYTESTRING(f, &a, crc, len);  if (r!=0) return r;
+	r = toku_fread_BYTESTRING(f, &b, crc, len);  if (r!=0) return r;
+	r = toku_fread_BYTESTRING(f, &c, crc, len);  if (r!=0) return r;
 	r = le_both(xid, a.len, a.data, b.len, b.data, c.len, c.data,
 		    &memsize, &disksize, le);
 	toku_free_BYTESTRING(a);
@@ -175,18 +176,18 @@ int toku_fread_LEAFENTRY(FILE *f, LEAFENTRY *le, struct murmur *murmur, u_int32_
 	toku_free_BYTESTRING(c);
 	return r;
     case LE_PROVDEL:
-	r = toku_fread_TXNID(f, &xid, murmur, len);     if (r!=0) return r;
-	r = toku_fread_BYTESTRING(f, &a, murmur, len);  if (r!=0) return r;
-	r = toku_fread_BYTESTRING(f, &b, murmur, len);  if (r!=0) return r;
+	r = toku_fread_TXNID(f, &xid, crc, len);     if (r!=0) return r;
+	r = toku_fread_BYTESTRING(f, &a, crc, len);  if (r!=0) return r;
+	r = toku_fread_BYTESTRING(f, &b, crc, len);  if (r!=0) return r;
 	r = le_provdel(xid, a.len, a.data, b.len, b.data,
 		       &memsize, &disksize, le);
 	toku_free_BYTESTRING(a);
 	toku_free_BYTESTRING(b);
 	return r;
     case LE_PROVPAIR:
-	r = toku_fread_TXNID(f, &xid, murmur, len);     if (r!=0) return r;
-	r = toku_fread_BYTESTRING(f, &a, murmur, len);  if (r!=0) return r;
-	r = toku_fread_BYTESTRING(f, &b, murmur, len);  if (r!=0) return r;
+	r = toku_fread_TXNID(f, &xid, crc, len);     if (r!=0) return r;
+	r = toku_fread_BYTESTRING(f, &a, crc, len);  if (r!=0) return r;
+	r = toku_fread_BYTESTRING(f, &b, crc, len);  if (r!=0) return r;
 	r = le_provpair(xid, a.len, a.data, b.len, b.data,
 			&memsize, &disksize, le);
 	toku_free_BYTESTRING(a);
@@ -243,9 +244,9 @@ int print_leafentry (FILE *outf, LEAFENTRY v) {
     LESWITCHCALL(v, print, outf);
 }
 
-int toku_logprint_LEAFENTRY (FILE *outf, FILE *inf, const char *fieldname, struct murmur *murmur, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_LEAFENTRY (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
     LEAFENTRY v;
-    int r = toku_fread_LEAFENTRY(inf, &v, murmur, len);
+    int r = toku_fread_LEAFENTRY(inf, &v, crc, len);
     if (r!=0) return r;
     fprintf(outf, " %s=", fieldname);
     print_leafentry(outf, v);

@@ -36,7 +36,7 @@ SUMMARIZE_CMD =
 endif
 
 CFLAGS = -Wall -W -Wcast-align -Wbad-function-cast -Wextra -Wmissing-noreturn -Wmissing-format-attribute $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) -Wshadow -fvisibility=hidden
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS)
+LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500 -I..
 
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
@@ -89,6 +89,7 @@ BINS =  $(REGRESSION_TESTS) \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 CHECKS = \
+ load_version_6 \
  benchmarktest_256 \
  test-assertA test-assertB \
  $(REGRESSION_TESTS) \
@@ -103,6 +104,10 @@ check_fail:
 	test 0 = 1 $(SUMMARIZE_CMD)
 check_ok:
 	test 0 = 0 $(SUMMARIZE_CMD)
+
+check_load_version_6:
+	(cp bench.db.ver6 bench.db.ver6.tmp && \
+	$(VGRIND) ../brtdump bench.db.ver6.tmp > /dev/null ) $(SUMMARIZE_CMD)
 
 check_benchmarktest_256: benchmark-test
 	$(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)

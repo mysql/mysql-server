@@ -9,7 +9,6 @@
 #include "brttypes.h"
 #include "memory.h"
 #include "bread.h"
-#include "murmur.h"
 
 struct logbytes;
 struct logbytes {
@@ -50,28 +49,28 @@ int toku_logger_log_newbrtnode (TOKUTXN txn, FILENUM filenum, DISKOFF offset, u_
 
 int toku_logger_fsync (TOKULOGGER logger);
 
-int toku_fread_u_int8_t (FILE *f, u_int8_t *v, struct murmur *, u_int32_t *len);
+int toku_fread_u_int8_t (FILE *f, u_int8_t *v, u_int32_t *crc, u_int32_t *len);
 
 int toku_fread_u_int32_t_nocrclen (FILE *f, u_int32_t *v);
-int toku_fread_u_int32_t (FILE *f, u_int32_t *v, struct murmur *, u_int32_t *len);
-int toku_fread_LSN     (FILE *f, LSN *lsn, struct murmur *, u_int32_t *len);
-int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct murmur *, u_int32_t *len);
-int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, struct murmur *, u_int32_t *len);
-int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct murmur *, u_int32_t *len);
+int toku_fread_u_int32_t (FILE *f, u_int32_t *v, u_int32_t *crc, u_int32_t *len);
+int toku_fread_LSN     (FILE *f, LSN *lsn, u_int32_t *crc, u_int32_t *len);
+int toku_fread_FILENUM (FILE *f, FILENUM *filenum, u_int32_t *crc, u_int32_t *len);
+int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, u_int32_t *crc, u_int32_t *len);
+int toku_fread_TXNID   (FILE *f, TXNID *txnid, u_int32_t *crc, u_int32_t *len);
 // fills in the bs with malloced data.
-int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct murmur *, u_int32_t *len);
-int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, struct murmur *, u_int32_t *len);
-int toku_fread_INTPAIRARRAY (FILE *f, INTPAIRARRAY *v, struct murmur *, u_int32_t *len);
+int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, u_int32_t *crc, u_int32_t *len);
+int toku_fread_LOGGEDBRTHEADER(FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_int32_t *len);
+int toku_fread_INTPAIRARRAY (FILE *f, INTPAIRARRAY *v, u_int32_t *crc, u_int32_t *len);
 
-int toku_logprint_LSN             (FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *); 
-int toku_logprint_TXNID           (FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *); 
-int toku_logprint_BYTESTRING      (FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *); 
-int toku_logprint_FILENUM         (FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *); 
-int toku_logprint_DISKOFF         (FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *); 
-int toku_logprint_u_int8_t        (FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *);
-int toku_logprint_u_int32_t       (FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *); 
-int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *); 
-int toku_logprint_INTPAIRARRAY    (FILE *outf, FILE *inf, const char *fieldname, struct murmur *, u_int32_t *len, const char *); 
+int toku_logprint_LSN             (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
+int toku_logprint_TXNID           (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
+int toku_logprint_BYTESTRING      (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
+int toku_logprint_FILENUM         (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
+int toku_logprint_DISKOFF         (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
+int toku_logprint_u_int8_t        (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *);
+int toku_logprint_u_int32_t       (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
+int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
+int toku_logprint_INTPAIRARRAY    (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
 
 // Useful thing for printing a bytestring.
 void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data);

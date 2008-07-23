@@ -375,17 +375,17 @@ void generate_log_writer (void) {
 
 void generate_log_reader (void) {
     DO_LOGTYPES(lt, ({
-			fprintf(cf, "static int toku_log_fread_%s (FILE *infile, struct logtype_%s *data, struct murmur *murmur)", lt->name, lt->name);
+			fprintf(cf, "static int toku_log_fread_%s (FILE *infile, struct logtype_%s *data, u_int32_t crc)", lt->name, lt->name);
 			fprintf(cf, " {\n");
 			fprintf(cf, "  int r=0;\n");
 			fprintf(cf, "  u_int32_t actual_len=5; // 1 for the command, 4 for the first len.\n");
-			fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, murmur, &actual_len); if (r!=0) return r;\n", "LSN", "lsn");
+			fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, &crc, &actual_len); if (r!=0) return r;\n", "LSN", "lsn");
 			DO_FIELDS(ft, lt,
-				  fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, murmur, &actual_len); if (r!=0) return r;\n", ft->type, ft->name));
-			fprintf(cf, "  u_int32_t murmur_in_file, len_in_file;\n");
-			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &murmur_in_file); actual_len+=4;   if (r!=0) return r;\n");
-			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &len_in_file);    actual_len+=4;   if (r!=0) return r;\n");
-			fprintf(cf, "  if (murmur_in_file!=murmur_finish(murmur) || len_in_file!=actual_len) return DB_BADFORMAT;\n");
+				  fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, &crc, &actual_len); if (r!=0) return r;\n", ft->type, ft->name));
+			fprintf(cf, "  u_int32_t crc_in_file, len_in_file;\n");
+			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &crc_in_file);  actual_len+=4;   if (r!=0) return r;\n");
+			fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &len_in_file);  actual_len+=4;   if (r!=0) return r;\n");
+			fprintf(cf, "  if (crc_in_file!=crc || len_in_file!=actual_len) return DB_BADFORMAT;\n");
 			fprintf(cf, "  return 0;\n");
 			fprintf(cf, "}\n\n");
 		    }));
@@ -393,19 +393,17 @@ void generate_log_reader (void) {
     fprintf(hf, ";\n");
     fprintf(cf, " {\n");
     fprintf(cf, "  u_int32_t len1; int r;\n");
-    fprintf(cf, "  u_int32_t ignorelen=0;\n");
-    fprintf(cf, "  struct murmur mm;\n");
-    fprintf(cf, "  murmur_init(&mm);\n");
-    fprintf(cf, "  r = toku_fread_u_int32_t(infile, &len1,&mm,&ignorelen); if (r!=0) return r;\n"); 
+    fprintf(cf, "  u_int32_t crc=0,ignorelen=0;\n");
+    fprintf(cf, "  r = toku_fread_u_int32_t(infile, &len1,&crc,&ignorelen); if (r!=0) return r;\n"); 
     fprintf(cf, "  int cmd=fgetc(infile);\n");
     fprintf(cf, "  if (cmd==EOF) return EOF;\n");
     fprintf(cf, "  char cmdchar = cmd;\n");
-    fprintf(cf, "  murmur_add(&mm, &cmdchar, 1);\n");
+    fprintf(cf, "  crc = toku_crc32(crc, &cmdchar, 1);\n");
     fprintf(cf, "  le->cmd=cmd;\n");
     fprintf(cf, "  switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, ({
 			fprintf(cf, "  case LT_%s:\n", lt->name);
-			fprintf(cf, "    return toku_log_fread_%s (infile, &le->u.%s, &mm);\n", lt->name, lt->name);
+			fprintf(cf, "    return toku_log_fread_%s (infile, &le->u.%s, crc);\n", lt->name, lt->name);
 		    }));
     fprintf(cf, "  };\n");
     fprintf(cf, "  return DB_BADFORMAT;\n"); // Should read past the record using the len field.
@@ -419,16 +417,14 @@ void generate_logprint (void) {
     fprintf(cf, " {\n");
     fprintf(cf, "    int cmd, r;\n");
     fprintf(cf, "    u_int32_t len1, crc_in_file;\n");
-    fprintf(cf, "    u_int32_t ignorelen=0;\n");
-    fprintf(cf, "    struct murmur mm;\n");
-    fprintf(cf, "    murmur_init(&mm);\n");
-    fprintf(cf, "    r=toku_fread_u_int32_t(f, &len1, &mm, &ignorelen);\n");
+    fprintf(cf, "    u_int32_t crc = 0, ignorelen=0;\n");
+    fprintf(cf, "    r=toku_fread_u_int32_t(f, &len1, &crc, &ignorelen);\n");
     fprintf(cf, "    if (r==EOF) return EOF;\n");
     fprintf(cf, "    cmd=fgetc(f);\n");
     fprintf(cf, "    if (cmd==EOF) return DB_BADFORMAT;\n");
     fprintf(cf, "    u_int32_t len_in_file, len=1+4; // cmd + len1\n");
     fprintf(cf, "    char charcmd = cmd;\n");
-    fprintf(cf, "    murmur_add(&mm, &charcmd, 1);\n");
+    fprintf(cf, "    crc = toku_crc32(crc, &charcmd, 1);\n");
     fprintf(cf, "    switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, ({ if (strlen(lt->name)>maxnamelen) maxnamelen=strlen(lt->name); }));
     DO_LOGTYPES(lt, ({
@@ -438,23 +434,20 @@ void generate_logprint (void) {
 		fprintf(cf, "        fprintf(outf, \"%%-%ds \", \"%s\");\n", maxnamelen, lt->name);
 		if (isprint(cmd)) fprintf(cf,"        fprintf(outf, \" '%c':\");\n", cmd);
 		else                      fprintf(cf,"        fprintf(outf, \"0%03o:\");\n", cmd);
-		fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &mm, &len, 0);     if (r!=0) return r;\n", "LSN");
+		fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &crc, &len, 0);     if (r!=0) return r;\n", "LSN");
 		DO_FIELDS(ft, lt, ({
-			    fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &mm, &len,", ft->type, ft->name);
+			    fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &crc, &len,", ft->type, ft->name);
 			    if (ft->format) fprintf(cf, "\"%s\"", ft->format);
 			    else            fprintf(cf, "0");
 			    fprintf(cf, "); if (r!=0) return r;\n");
 			}));
-		fprintf(cf, "        {\n");
-		fprintf(cf, "          u_int32_t actual_murmur = murmur_finish(&mm);\n");
-		fprintf(cf, "          r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
-		fprintf(cf, "          fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
-		fprintf(cf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" actual_fingerprint=%%08x\", actual_murmur);\n");
-		fprintf(cf, "          r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
-		fprintf(cf, "          fprintf(outf, \" len=%%d\", len_in_file);\n");
-		fprintf(cf, "          if (len_in_file!=len) fprintf(outf, \" actual_len=%%d\", len);\n");
-		fprintf(cf, "          if (len_in_file!=len || crc_in_file!=actual_murmur) return DB_BADFORMAT;\n");
-		fprintf(cf, "        };\n");
+		fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
+		fprintf(cf, "        fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
+		fprintf(cf, "        if (crc_in_file!=crc) fprintf(outf, \" actual_crc=%%08x\", crc);\n");
+		fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
+		fprintf(cf, "        fprintf(outf, \" len=%%d\", len_in_file);\n");
+		fprintf(cf, "        if (len_in_file!=len) fprintf(outf, \" actual_len=%%d\", len);\n");
+		fprintf(cf, "        if (len_in_file!=len || crc_in_file!=crc) return DB_BADFORMAT;\n");
 		fprintf(cf, "        fprintf(outf, \"\\n\");\n");
 		fprintf(cf, "        return 0;;\n\n");
 	    }));
