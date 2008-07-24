@@ -3019,6 +3019,23 @@ sub start_check_warnings ($$) {
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
 
+  if ( $opt_embedded_server )
+  {
+
+    # Get the args needed for the embedded server
+    # and append them to args prefixed
+    # with --sever-arg=
+
+    my $mysqld=  $config->group('embedded')
+      or mtr_error("Could not get [embedded] section");
+
+    my $mysqld_args;
+    mtr_init_args(\$mysqld_args);
+    my $extra_opts= get_extra_opts($mysqld, $tinfo);
+    mysqld_arguments($mysqld_args, $mysqld, $extra_opts);
+    mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
+  }
+
   my $errfile= "$opt_vardir/tmp/$name.err";
   my $proc= My::SafeProcess->new
     (
