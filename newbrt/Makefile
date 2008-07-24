@@ -72,6 +72,7 @@ BRT_SOURCES = \
   roll \
   toku_assert \
   ybt \
+  trace_mem \
 # keep this line so I can ha vea \ on the previous line
 
 OFILES = newbrt.o
