@@ -76,6 +76,13 @@ void dump_header (int f, struct brt_header **header) {
     }
 }
 
+int print_le(OMTVALUE lev, u_int32_t UU(idx), void *UU(v)) {
+    LEAFENTRY le=lev;
+    print_leafentry(stdout, le);
+    printf("\n");
+    return 0;
+}
+
 void dump_node (int f, DISKOFF off) {
     BRTNODE n;
     int r = toku_deserialize_brtnode_from (f, off, 0 /*pass zero for hash, it doesn't matter*/, &n);
@@ -151,12 +158,6 @@ void dump_node (int f, DISKOFF off) {
     } else {
 	printf(" n_bytes_in_buffer=%d\n", n->u.l.n_bytes_in_buffer);
 	printf(" items_in_buffer  =%d\n", toku_omt_size(n->u.l.buffer));
-	int print_le(OMTVALUE lev, u_int32_t UU(idx), void *UU(v)) {
-	    LEAFENTRY le=lev;
-	    print_leafentry(stdout, le);
-	    printf("\n");
-	    return 0;
-	}
 	if (dump_data) toku_omt_iterate(n->u.l.buffer, print_le, 0);
     }
     toku_brtnode_free(&n);
