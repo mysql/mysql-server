@@ -25,6 +25,13 @@ static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokulea
 					    4+   // localfingerprint
 					    4);  // crc32 at the end
 
+int addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
+    LEAFENTRY le=lev;
+    unsigned int *ip=vp;
+    (*ip) += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+    return 0;
+}
+
 static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
     unsigned int size=brtnode_header_overhead;
     if (node->height>0) {
@@ -53,12 +60,6 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
 	return size+hsize+csize;
     } else {
 	unsigned int hsize=0;
-	int addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
-	    LEAFENTRY le=lev;
-	    unsigned int *ip=vp;
-	    (*ip) += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
-	    return 0;
-	}
 	toku_omt_iterate(node->u.l.buffer,
 			 addupsize,
 			 &hsize);
@@ -89,6 +90,13 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
 	}
     }
     return result;
+}
+
+int wbufwriteleafentry (OMTVALUE lev, u_int32_t UU(idx), void *v) {
+    LEAFENTRY le=lev;
+    struct wbuf *thisw=v;
+    wbuf_LEAFENTRY(thisw, le);
+    return 0;
 }
 
 void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
@@ -178,12 +186,6 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     } else {
 	//printf("%s:%d writing node %lld n_entries=%d\n", __FILE__, __LINE__, node->thisnodename, toku_gpma_n_entries(node->u.l.buffer));
 	wbuf_uint(&w, toku_omt_size(node->u.l.buffer));
-	int wbufwriteleafentry (OMTVALUE lev, u_int32_t UU(idx), void *v) {
-	    LEAFENTRY le=lev;
-	    struct wbuf *thisw=v;
-	    wbuf_LEAFENTRY(thisw, le);
-	    return 0;
-	}
 	toku_omt_iterate(node->u.l.buffer, wbufwriteleafentry, &w);
     }
     assert(w.ndone<=w.size);
@@ -451,6 +453,16 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
     return 0;
 }
 
+int sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
+    LEAFENTRY le=lev;
+    struct sum_info *si = vsi;
+    si->count++;
+    si->dsum += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+    si->msum += leafentry_memsize(le);
+    si->fp  += toku_le_crc(le);
+    return 0;
+}
+
 void toku_verify_counts (BRTNODE node) {
     /*foo*/
     if (node->height==0) {
@@ -461,15 +473,6 @@ void toku_verify_counts (BRTNODE node) {
 	    unsigned int count;
 	    u_int32_t    fp;
 	} sum_info = {0,0,0,0};
-	int sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
-	    LEAFENTRY le=lev;
-	    struct sum_info *si = vsi;
-	    si->count++;
-	    si->dsum += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
-	    si->msum += leafentry_memsize(le);
-	    si->fp  += toku_le_crc(le);
-	    return 0;
-	}
 	toku_omt_iterate(node->u.l.buffer, sum_item, &sum_info);
 	assert(sum_info.count==toku_omt_size(node->u.l.buffer));
 	assert(sum_info.dsum==node->u.l.n_bytes_in_buffer);
