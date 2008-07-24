@@ -74,7 +74,7 @@ int test_truncate_with_cursors(int n) {
     // It looks like for 4.6 there's no error code, even though the documentation says "it is an error to truncate with open cursors".
     // For 4.3 the error code is EINVAL
     // I don't know where the boundary really is:  Is it an error in 4.5 or 4.4?
-    if (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR>=6) {
+    if (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR>=4) {
 	assert(r == 0 && test_errors);
     } else { 
 	assert(r == EINVAL && test_errors);
