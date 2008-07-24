@@ -20,12 +20,23 @@ else
  endif
 endif
 
-ifeq ($(CYGWIN),cygwin)
+ifneq ($(CYGWIN),)
+FORMAT=-Wno-format
+CYG_ADD_LIBZ=/usr/lib/libz.a
 else
 FPICFLAGS = -fPIC
 # valgrind is not present on cygwin
 VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
+VISIBILITY=-fvisibility=hidden
+SHADOW=-Wshadow
+FORMAT=-Wformat=2 -Wmissing-format-attribute
 endif
+
+CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
+LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz
+CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500 -I..
+
+# Add -Wconversion
 
 HERE=newbrt/tests
 
@@ -34,10 +45,6 @@ SUMMARIZE_CMD = ;if test $$? = 0; then printf "%-60sPASS\n" $(HERE)/$@; else pri
 else
 SUMMARIZE_CMD =
 endif
-
-CFLAGS = -Wall -W -Wcast-align -Wbad-function-cast -Wextra -Wmissing-noreturn -Wmissing-format-attribute $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) -Wshadow -fvisibility=hidden
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz
-CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500 -I..
 
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
 # Also keep them sorted.
@@ -132,7 +139,7 @@ check_%: %
 	$(VGRIND)  ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 benchmark-test.o: ../brt.h ../brt-search.h ../../include/db.h
-$(BINS): ../newbrt.o
+$(BINS): ../newbrt.o $(CYG_ADD_LIBZ)
 
 test-inc-split test-del-inorder: ../brt-test-helpers.o
 

@@ -23,14 +23,19 @@ else
  endif
 endif
 
-ifeq ($(CYGWIN),cygwin)
+ifneq ($(CYGWIN),)
+FORMAT=-Wno-format
+CYG_ADD_LIBZ=/usr/lib/libz.a
 else
 FPICFLAGS = -fPIC
 # valgrind is not present on cygwin
 VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
+VISIBILITY=-fvisibility=hidden
+SHADOW=-Wshadow
+FORMAT=-Wformat=2 -Wmissing-format-attribute
 endif
 
-CFLAGS = -Wall -W -Wcast-align -Wbad-function-cast -Wextra -Wmissing-noreturn -Wmissing-format-attribute $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) -Wshadow -fvisibility=hidden
+CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
 
@@ -75,7 +80,7 @@ BRT_SOURCES = \
   trace_mem \
 # keep this line so I can ha vea \ on the previous line
 
-OFILES = newbrt.o
+OFILES = newbrt.o $(CYG_ADD_LIBZ)
 TEST_OFILES = brt-test-helpers.o
 
 HFILES = $(wildcard *.h)
