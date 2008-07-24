@@ -32,7 +32,7 @@ FPICFLAGS = -fPIC
 VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
 VISIBILITY=-fvisibility=hidden
 SHADOW=-Wshadow
-FORMAT=-Wformat=2 -Wmissing-format-attribute
+FORMAT=-Wmissing-format-attribute
 endif
 
 CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) $(SHADOW) $(VISIBILITY)

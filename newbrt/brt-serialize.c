@@ -453,6 +453,13 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
     return 0;
 }
 
+struct sum_info {
+    unsigned int dsum;
+    unsigned int msum;
+    unsigned int count;
+    u_int32_t    fp;
+};
+
 int sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
     LEAFENTRY le=lev;
     struct sum_info *si = vsi;
@@ -467,12 +474,7 @@ void toku_verify_counts (BRTNODE node) {
     /*foo*/
     if (node->height==0) {
 	assert(node->u.l.buffer);
-	struct sum_info {
-	    unsigned int dsum;
-	    unsigned int msum;
-	    unsigned int count;
-	    u_int32_t    fp;
-	} sum_info = {0,0,0,0};
+	struct sum_info sum_info = {0,0,0,0};
 	toku_omt_iterate(node->u.l.buffer, sum_item, &sum_info);
 	assert(sum_info.count==toku_omt_size(node->u.l.buffer));
 	assert(sum_info.dsum==node->u.l.n_bytes_in_buffer);
