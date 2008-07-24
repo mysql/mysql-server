@@ -2,7 +2,7 @@
 #include "../include/rdtsc.h"
 
 // customize this as required
-#define NTRACE 1000
+#define NTRACE 0
 #if NTRACE
 static struct toku_trace {
     const char *str;
