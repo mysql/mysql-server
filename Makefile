@@ -1,3 +1,9 @@
+ifneq ($(CYGWIN),)
+    CSCOPE=mlcscope
+else
+    CSCOPE=cscope
+endif
+
 default: build
 
 
@@ -14,7 +20,7 @@ cscope.files: $(CSCOPE_DIRS)
 	@echo "$(CSCOPE_FILES)" | tr " " "\n" > $@ # Very long command line quieted.
 
 cscope.out: cscope.files $(CSCOPE_FILES)
-	cscope -b
+	mlcscope -b
 
 src.dir: newbrt.dir
 cxx.dir: src.dir
