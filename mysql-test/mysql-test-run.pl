@@ -215,7 +215,7 @@ sub main {
   mtr_report("Logging: $0 ", join(" ", @ARGV));
 
   Getopt::Long::Configure("pass_through");
-  GetOptions('parallel=i' => \$opt_parallel) or usage("Can't read options");
+  GetOptions('parallel=i' => \$opt_parallel) or usage(0, "Can't read options");
 
   if ( not defined $opt_parallel ) {
     # Try to find a suitable value for number of workers
@@ -662,7 +662,7 @@ sub run_worker ($) {
 
 sub ignore_option {
   my ($opt, $value)= @_;
-  print "Ignoring option '$opt'\n";
+  mtr_report("Ignoring option '$opt'");
 }
 
 sub command_line_setup {
@@ -670,6 +670,9 @@ sub command_line_setup {
 
   my $opt_comment;
   my $opt_usage;
+
+  # Default verbosity, server ON and workers OFF
+  report_option('verbose', $thread_num ?  undef : 0);
 
   # Read the command line options
   # Note: Keep list, and the order, in sync with usage at end of this file
@@ -791,19 +794,15 @@ sub command_line_setup {
 	     'timediff'                 => \&report_option,
 
              'help|h'                   => \$opt_usage,
-            ) or usage("Can't read options");
+            ) or usage($thread_num, "Can't read options");
 
-  usage("") if $opt_usage;
+  usage($thread_num, "") if $opt_usage;
 
   # --------------------------------------------------------------------------
   # Setup verbosity
   # --------------------------------------------------------------------------
-  if ($thread_num == 0){
-    # The server should by default have verbose on
-    report_option('verbose', $opt_verbose ? $opt_verbose : 0);
-  } else {
-    # Worker should by default have verbose off
-    report_option('verbose', $opt_verbose ? $opt_verbose : undef);
+  if ($opt_verbose != 0){
+    report_option('verbose', $opt_verbose);
   }
 
   # --------------------------------------------------------------------------
@@ -900,7 +899,7 @@ sub command_line_setup {
     }
     elsif ( $arg =~ /^-/ )
     {
-      usage("Invalid option \"$arg\"");
+      usage($thread_num, "Invalid option \"$arg\"");
     }
     else
     {
@@ -4321,7 +4320,10 @@ sub valgrind_arguments {
 # Usage
 #
 sub usage ($) {
-  my $message= shift;
+  my ($thread_num, $message)= @_;
+
+  # Only main thread should print usage
+  return if $thread_num != 0;
 
   if ( $message )
   {
