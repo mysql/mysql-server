@@ -13,6 +13,9 @@
    toku_set_trace_file;
    toku_close_trace_file;
 
+   toku_add_trace_mem;
+   toku_print_trace_mem;
+
  local: *;
 };
 
