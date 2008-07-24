@@ -1369,6 +1369,8 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     DBUG_ASSERT(!table->is_children_attached());
 
     /* Free memory and reset for next loop */
+    free_field_buffers_larger_than(table,MAX_TDC_BLOB_SIZE);
+    
     table->file->ha_reset();
     table->in_use=0;
     if (unused_tables)
