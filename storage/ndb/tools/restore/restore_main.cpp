@@ -929,7 +929,8 @@ main(int argc, char** argv)
       {
         for(i=0; i < metaData.getNoOfTables(); i++)
         {
-          if (checkSysTable(metaData, i))
+          if (checkSysTable(metaData, i) && 
+             checkDbAndTableName(metaData[i]))
           {
             for(Uint32 j= 0; j < g_consumers.size(); j++)
               if (!g_consumers[j]->table_equal(* metaData[i]))
@@ -945,7 +946,8 @@ main(int argc, char** argv)
       { 
       //if want to promote attributes, compability check is done firstly
         for (i=0; i < metaData.getNoOfTables(); i++){
-          if (checkSysTable(metaData, i))
+          if (checkSysTable(metaData, i) &&
+             checkDbAndTableName(metaData[i]))
           {
             for(Uint32 j= 0; j < g_consumers.size(); j++)
             {

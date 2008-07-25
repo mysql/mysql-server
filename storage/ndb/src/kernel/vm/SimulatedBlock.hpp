@@ -56,6 +56,19 @@
 #include "ndbd_malloc_impl.hpp"
 #include <blocks/record_types.hpp>
 
+#ifdef VM_TRACE
+#define D(x) \
+  do { \
+    char buf[200]; \
+    if (!debugOutOn()) break; \
+    debugOut << debugOutTag(buf, __LINE__) << x << endl; \
+  } while (0)
+#define V(x) " " << #x << ":" << (x)
+#else
+#define D(x)
+#undef V
+#endif
+
 /**
  * Something for filesystem access
  */
@@ -108,7 +121,8 @@ protected:
    * Constructor
    */
   SimulatedBlock(BlockNumber blockNumber,
-		 struct Block_context & ctx); 
+		 struct Block_context & ctx,
+                 Uint32 instanceNumber = 0);
   
   /**********************************************************
    * Handling of execFunctions
@@ -125,12 +139,34 @@ public:
    */
   inline void executeFunction(GlobalSignalNumber gsn, Signal* signal);
 
+  /* Multiple block instances */
+  Uint32 instance() const {
+    return theInstance;
+  }
+  Uint32 getWorkerCount() const {
+    ndbrequire(theInstance == 0); // valid only on main instance
+    ndbrequire(theInstanceCount >= 1);
+    return theInstanceCount - 1;
+  }
+  SimulatedBlock* getInstance(Uint32 instanceNumber) {
+    ndbrequire(theInstance == 0);
+    if (instanceNumber == 0)
+      return this;
+    if (instanceNumber < theInstanceCount) {
+      ndbrequire(theInstanceList != 0);
+      return theInstanceList[instanceNumber];
+    }
+    return 0;
+  }
+  Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
+
   /* Setup state of a block object for executing in a particular thread. */
   void assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
                       Uint32 *watchDogCounter);
   /* For multithreaded ndbd, get the id of owning thread. */
   uint32 getThreadId() const { return m_threadId; }
-  bool isMultiThreaded() const;
+  static bool isMultiThreaded();
+
 public:
   typedef void (SimulatedBlock::* CallbackFunction)(class Signal*, 
 						    Uint32 callbackData,
@@ -210,14 +246,15 @@ protected:
 			   Uint32 length,
 			   SectionHandle* sections) const;
 
+  /*
+   * Instance defaults to instance of sender.  Using explicit
+   * instance argument asserts that the call is thread-safe.
+   */
   void EXECUTE_DIRECT(Uint32 block, 
 		      Uint32 gsn, 
 		      Signal* signal, 
-		      Uint32 len
-#ifdef VM_TRACE
-                      , bool is_thread_safe = false
-#endif
-);
+		      Uint32 len,
+                      Uint32 givenInstanceNo = ZNIL);
   
   class SectionSegmentPool& getSectionSegmentPool();
   void releaseSections(struct SectionHandle&);
@@ -398,7 +435,17 @@ private:
   void  signal_error(Uint32, Uint32, Uint32, const char*, int) const ;
   const NodeId         theNodeId;
   const BlockNumber    theNumber;
+  const Uint32 theInstance;
   const BlockReference theReference;
+  /*
+   * Instance 0 is the main instance.  It creates/owns other instances.
+   * In MT LQH main instance is the LQH proxy and the others ("workers")
+   * are real LQHs run by multiple threads.
+   */
+  enum { MaxInstances = 1 + MAX_NDBMT_WORKERS };
+  Uint32 theInstanceCount;          // set in main
+  SimulatedBlock** theInstanceList; // set in main, indexed by instance
+  SimulatedBlock* theMainInstance;  // set in all
   /*
     Thread id currently executing this block.
     Not used in singlethreaded ndbd.
@@ -416,8 +463,10 @@ protected:
   Block_context m_ctx;
   NewVARIABLE* allocateBat(int batSize);
   void freeBat();
-  static const NewVARIABLE* getBat    (BlockNumber blockNo);
-  static Uint16             getBatSize(BlockNumber blockNo);
+  static const NewVARIABLE* getBat    (BlockNumber blockNo,
+                                       Uint32 instanceNo = 0);
+  static Uint16             getBatSize(BlockNumber blockNo,
+                                       Uint32 instanceNo = 0);
   
   static BlockReference calcTcBlockRef   (NodeId aNode);
   static BlockReference calcLqhBlockRef  (NodeId aNode);
@@ -629,6 +678,12 @@ public:
   void clear_global_variables();
   void init_globals_list(void ** tmp, size_t cnt);
 #endif
+
+#ifdef VM_TRACE
+  NdbOut debugOut;
+  bool debugOutOn() const;
+  const char* debugOutTag(char* buf, int line);
+#endif
 };
 
 inline 
@@ -806,17 +861,32 @@ void
 SimulatedBlock::EXECUTE_DIRECT(Uint32 block, 
 			       Uint32 gsn, 
 			       Signal* signal, 
-			       Uint32 len
-#ifdef VM_TRACE
-                               , bool is_thread_safe
-#endif
-)
+			       Uint32 len,
+                               Uint32 givenInstanceNo)
 {
   signal->setLength(len);
+  SimulatedBlock* b = globalData.getBlock(block);
+  ndbassert(b != 0);
+  /**
+   * In multithreaded NDB, blocks run in different threads, and EXECUTE_DIRECT
+   * (unlike sendSignal) is generally not thread-safe.
+   * So only allow EXECUTE_DIRECT between blocks that run in the same thread,
+   * unless caller explicitly marks it as being thread safe (eg NDBFS),
+   * by using an explicit instance argument.
+   * By default instance of sender is used.  This is automatically thread-safe
+   * for worker instances (instance != 0).
+   */
+  Uint32 instanceNo = givenInstanceNo;
+  if (instanceNo == ZNIL)
+    instanceNo = instance();
+  if (instanceNo != 0)
+    b = b->getInstance(instanceNo);
+  ndbassert(b != 0);
+  ndbassert(givenInstanceNo != ZNIL || b->getThreadId() == getThreadId());
 #ifdef VM_TRACE
   if(globalData.testOn){
     signal->header.theVerId_signalNumber = gsn;
-    signal->header.theReceiversBlockNumber = block;
+    signal->header.theReceiversBlockNumber = numberToBlock(block, instanceNo);
     signal->header.theSendersBlockRef = reference();
     globalSignalLoggers.executeDirect(signal->header,
 				      0,        // in
@@ -824,14 +894,6 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
                                       globalData.ownId);
   }
 #endif
-  SimulatedBlock* b = globalData.getBlock(block);
-  /**
-   * In multithreaded NDB, blocks run in different threads, and EXECUTE_DIRECT
-   * (unlike sendSignal() is generally not thread-safe.
-   * So only allow EXECUTE_DIRECT between blocks that run in the same thread,
-   * unless caller explicitly marks it as being thread safe (eg NDBFS).
-   */
-  ndbassert(is_thread_safe || b->getThreadId() == getThreadId());
 #ifdef VM_TRACE_TIME
   Uint32 us1, us2;
   Uint64 ms1, ms2;
@@ -854,7 +916,7 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
 #ifdef VM_TRACE
   if(globalData.testOn){
     signal->header.theVerId_signalNumber = gsn;
-    signal->header.theReceiversBlockNumber = block;
+    signal->header.theReceiversBlockNumber = numberToBlock(block, instanceNo);
     signal->header.theSendersBlockRef = reference();
     globalSignalLoggers.executeDirect(signal->header,
 				      1,        // out
@@ -875,6 +937,8 @@ SimulatedBlock::addTime(Uint32 gsn, Uint64 time){
 inline
 void
 SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
+  // wl4391_todo got 0xf3f3f3f3 here on GSN_UPGRADE_PROTOCOL_ORD...
+  if (gsn < 0xffff)
   m_timeTrace[gsn].sub += time;
 }
 #endif

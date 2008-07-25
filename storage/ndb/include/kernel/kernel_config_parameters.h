@@ -63,4 +63,7 @@
 #define CFG_TUX_ATTRIBUTE     (PRIVATE_BASE + 42)
 #define CFG_TUX_SCAN_OP       (PRIVATE_BASE + 43)
 
+#define CFG_NDBMT_WORKERS     (PRIVATE_BASE + 44)
+#define CFG_NDBMT_THREADS     (PRIVATE_BASE + 45)
+
 #endif
