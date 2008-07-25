@@ -12,5 +12,6 @@
 
 rpl_ndb_circular         : Bug#33849 COMMIT event missing in cluster circular replication.
 rpl_ndb_circular_simplex : Bug#33849 COMMIT event missing in cluster circular replication.
+rpl_row_basic_7ndb       : Bug#38369 rpl_ndb.rpl_row_basic_7ndb fails
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
