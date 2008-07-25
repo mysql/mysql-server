@@ -15,9 +15,10 @@
 
 #include "Config.hpp"
 
-//*****************************************************************************
-//  Ctor / Dtor
-//*****************************************************************************
+#include <mgmapi_config_parameters.h>
+#include <NdbOut.hpp>
+#include "ConfigInfo.hpp"
+
 
 Config::Config(struct ndb_mgm_configuration *config_values) :
   m_configValues(config_values)
@@ -31,146 +32,51 @@ Config::~Config() {
   }
 }
 
-/*****************************************************************************/
+unsigned sections[]=
+{
+  CFG_SECTION_SYSTEM,
+  CFG_SECTION_NODE,
+  CFG_SECTION_CONNECTION
+};
+const size_t num_sections= sizeof(sections)/sizeof(unsigned);
 
-void 
-Config::printAllNameValuePairs(NdbOut &out,
-			       const Properties *prop,
-			       const char* s) const {
-#if 0
-  Properties::Iterator it(prop);
-  const Properties * section = m_info.getInfo(s);
-  for (const char* n = it.first(); n != NULL; n = it.next()) {
-    Uint32 int_value;
-    const char* str_value;
-    Uint64 int_64;
+static const ConfigInfo g_info;
 
-    if(!section->contains(n))
-      continue;
-    if (m_info.getStatus(section, n) == ConfigInfo::CI_INTERNAL) 
-      continue;
-    if (m_info.getStatus(section, n) == ConfigInfo::CI_DEPRICATED)
-      continue;
-    if (m_info.getStatus(section, n) == ConfigInfo::CI_NOTIMPLEMENTED)
+void
+Config::print() const {
+
+  for(unsigned i= 0; i < num_sections; i++) {
+    unsigned section= sections[i];
+    ndb_mgm_configuration_iterator it(*m_configValues, section);
+
+    if (it.first())
       continue;
 
-    out << n << ": ";
+    for(;it.valid();it.next()) {
 
-    switch (m_info.getType(section, n)) {
-    case ConfigInfo::CI_INT:
-      MGM_REQUIRE(prop->get(n, &int_value)); 
-      out << int_value;
-      break;
+      Uint32 section_type;
+      assert(it.get(CFG_TYPE_OF_SECTION, &section_type) == 0);
 
-    case ConfigInfo::CI_INT64:
-      MGM_REQUIRE(prop->get(n, &int_64)); 
-      out << int_64;
-      break;
-      
-    case ConfigInfo::CI_BOOL:
-      MGM_REQUIRE(prop->get(n, &int_value)); 
-      if (int_value) {
-	out << "Y";
-      } else {
-	out << "N";
+      const ConfigInfo::ParamInfo* pinfo= NULL;
+      ConfigInfo::ParamInfoIter param_iter(g_info,
+                                           section,
+                                           section_type);
+
+      ndbout_c("[%s]", g_info.sectionName(section, section_type));
+
+      /*  Loop through the section and print those values that exist */
+      Uint32 val;
+      Uint64 val64;
+      const char* val_str;
+      while((pinfo= param_iter.next())){
+
+        if (!it.get(pinfo->_paramId, &val))
+          ndbout_c("%s=%u", pinfo->_fname, val);
+        else if (!it.get(pinfo->_paramId, &val64))
+          ndbout_c("%s=%llu", pinfo->_fname, val64);
+        else if (!it.get(pinfo->_paramId, &val_str))
+          ndbout_c("%s=%s", pinfo->_fname, val_str);
       }
-      break;
-    case ConfigInfo::CI_STRING:
-      MGM_REQUIRE(prop->get(n, &str_value)); 
-      out << str_value;
-      break;
-    case ConfigInfo::CI_SECTION:
-      out << "SECTION";
-      break;
-    }      
-    out << endl;
-  }
-#endif
-}
-
-/*****************************************************************************/
-   
-void Config::printConfigFile(NdbOut &out) const {
-#if 0
-  Uint32 noOfNodes, noOfConnections, noOfComputers;
-  MGM_REQUIRE(get("NoOfNodes", &noOfNodes));
-  MGM_REQUIRE(get("NoOfConnections", &noOfConnections));
-  MGM_REQUIRE(get("NoOfComputers", &noOfComputers));
-
-  out << 
-    "######################################################################" <<
-    endl <<
-    "#" << endl <<
-    "#  NDB Cluster  System configuration" << endl <<
-    "#" << endl <<
-    "######################################################################" <<
-    endl << 
-    "# No of nodes (DB, API or MGM):  " << noOfNodes << endl <<
-    "# No of connections:             " << noOfConnections << endl <<
-    "######################################################################" <<
-    endl;
-
-  /**************************
-   * Print COMPUTER configs *
-   **************************/
-  const char * name;
-  Properties::Iterator it(this);
-  for(name = it.first(); name != NULL; name = it.next()){
-    if(strncasecmp("Computer_", name, 9) == 0){ 
-      
-      const Properties *prop;
-      out << endl << "[COMPUTER]" << endl;
-      MGM_REQUIRE(get(name, &prop));
-      printAllNameValuePairs(out, prop, "COMPUTER");
-      
-      out << endl <<
-	"###################################################################" <<
-	endl;
-
-    } else if(strncasecmp("Node_", name, 5) == 0){
-      /**********************
-       * Print NODE configs *
-       **********************/
-      const Properties *prop;
-      const char *s;
-
-      MGM_REQUIRE(get(name, &prop));
-      MGM_REQUIRE(prop->get("Type", &s));
-      out << endl << "[" << s << "]" << endl;
-      printAllNameValuePairs(out, prop, s);
-
-      out << endl <<
-	"###################################################################" <<
-	endl;
-    } else if(strncasecmp("Connection_", name, 11) == 0){
-      /****************************
-       * Print CONNECTION configs *
-       ****************************/
-      const Properties *prop;
-      const char *s;
-
-      MGM_REQUIRE(get(name, &prop));
-      MGM_REQUIRE(prop->get("Type", &s));
-      out << endl << "[" << s << "]" << endl;
-      printAllNameValuePairs(out, prop, s);
-      
-      out << endl <<
-	"###################################################################" <<
-	endl;
-    } else if(strncasecmp("SYSTEM", name, strlen("SYSTEM")) == 0) {
-      /************************
-       * Print SYSTEM configs *
-       ************************/
-      const Properties *prop;
-
-      MGM_REQUIRE(get(name, &prop));
-      out << endl << "[SYSTEM]" << endl;
-      printAllNameValuePairs(out, prop, "SYSTEM");
-      
-      out << endl <<
-	"###################################################################" <<
-	endl;
     }
   }
-#endif
 }
