@@ -81,9 +81,24 @@ public:
      * For section entries, instead the _default member gives the internal id
      * of that kind of section (CONNECTION_TYPE_TCP, NODE_TYPE_MGM, etc.)
      */
-    const char*    _default;
+    union {
+      const char*  _default;
+      Uint32       _section_type; // if _type = CI_SECTION
+    };
     const char*    _min;
     const char*    _max;
+  };
+
+  class ParamInfoIter {
+    const ConfigInfo& m_info;
+    const char* m_section_name;
+    int m_curr_param;
+  public:
+    ParamInfoIter(const ConfigInfo& info,
+                  Uint32 section,
+                  Uint32 section_type = ~0);
+
+    const ParamInfo* next(void);
   };
 
 #ifndef NDB_MGMAPI
@@ -148,6 +163,8 @@ public:
   void print() const;
   void print(const char* section) const;
   void print(const Properties * section, const char* parameter) const;
+
+  const char* sectionName(Uint32 section, Uint32 type) const;
 
 private:
   Properties               m_info;

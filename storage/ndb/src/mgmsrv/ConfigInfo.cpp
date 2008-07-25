@@ -2832,6 +2832,55 @@ ConfigInfo::getAlias(const char * section) {
   return 0;
 }
 
+
+const char*
+ConfigInfo::sectionName(Uint32 section_type, Uint32 type) const {
+
+  switch (section_type){
+  case CFG_SECTION_SYSTEM:
+    return "SYSTEM";
+    break;
+
+  case CFG_SECTION_NODE:
+    switch(type){
+    case NODE_TYPE_DB:
+      return DB_TOKEN_PRINT;
+      break;
+    case NODE_TYPE_MGM:
+      return MGM_TOKEN_PRINT;
+      break;
+    case NODE_TYPE_API:
+      return API_TOKEN_PRINT;
+      break;
+    default:
+      assert(false);
+      break;
+    }
+    break;
+
+  case CFG_SECTION_CONNECTION:
+    switch(type){
+    case CONNECTION_TYPE_TCP:
+      return "TCP";
+      break;
+    case CONNECTION_TYPE_SHM:
+      return "SHM";
+      break;
+    case CONNECTION_TYPE_SCI:
+      return "SCI";
+      break;
+    default:
+      assert(false);
+      break;
+    }
+    break;
+
+  default:
+    assert(false);
+    break;
+  }
+}
+
 bool
 ConfigInfo::verify(const Properties * section, const char* fname, 
 		   Uint64 value) const {
@@ -3819,8 +3868,6 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
   return true;
 }
 
-extern int g_print_full_config;
-
 static bool
 saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
   const Properties * sec;
@@ -3840,12 +3887,6 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
     if(id == KEY_INTERNAL || status == ConfigInfo::CI_INTERNAL){
       ndbout_c("skipping section %s", ctx.fname);
       break;
-    }
-    
-    if (g_print_full_config)
-    {
-      const char *alias= ConfigInfo::nameToAlias(ctx.fname);
-      printf("[%s]\n", alias ? alias : ctx.fname);
     }
 
     Uint32 no = 0;
@@ -3875,24 +3916,18 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
 	Uint32 val;
 	require(ctx.m_currentSection->get(n, &val));
 	ok = ctx.m_configValues.put(id, val);
-	if (g_print_full_config)
-	  printf("%s=%u\n", n, val);
 	break;
       }
       case PropertiesType_Uint64:{
 	Uint64 val;
 	require(ctx.m_currentSection->get(n, &val));
 	ok = ctx.m_configValues.put64(id, val);
-	if (g_print_full_config)
-	  printf("%s=%llu\n", n, val);
 	break;
       }
       case PropertiesType_char:{
 	const char * val;
 	require(ctx.m_currentSection->get(n, &val));
 	ok = ctx.m_configValues.put(id, val);
-	if (g_print_full_config)
-	  printf("%s=%s\n", n, val);
 	break;
       }
       default:
@@ -4269,6 +4304,44 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
   }
   return true;
 }
+
+
+ConfigInfo::ParamInfoIter::ParamInfoIter(const ConfigInfo& info,
+                                         Uint32 section,
+                                         Uint32 section_type) :
+  m_info(info),
+  m_curr_param(0)
+{
+  /* Find the section's name */
+  for (int j=0; j<info.m_NoOfParams; j++) {
+    const ConfigInfo::ParamInfo & param = info.m_ParamInfo[j];
+    if (param._type == ConfigInfo::CI_SECTION &&
+        param._paramId == section &&
+        (section_type == (Uint32)~0 || param._section_type == section_type))
+    {
+      m_section_name= param._section;
+      break;
+    }
+  }
+  assert(m_section_name);
+}
+
+
+const ConfigInfo::ParamInfo*
+ConfigInfo::ParamInfoIter::next(void) {
+  assert(m_curr_param < m_info.m_NoOfParams);
+  do {
+    /*  Loop through the parameter and return a pointer to the next found */
+    const ConfigInfo::ParamInfo* param = &m_info.m_ParamInfo[m_curr_param++];
+    if (strcmp(param->_section, m_section_name) == 0 &&
+        param->_type != ConfigInfo::CI_SECTION)
+      return param;
+  }
+  while (m_curr_param<m_info.m_NoOfParams);
+
+  return NULL;
+}
+
 
 template class Vector<ConfigInfo::ConfigRuleSection>;
 #endif /* NDB_MGMAPI */

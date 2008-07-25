@@ -137,6 +137,8 @@ public:
 
   ~MgmtSrvr();
 
+  void print_config(void) { _config->print(); };
+
   /**
    * Get status on a node.
    * address may point to a common area (e.g. from inet_addr)
@@ -157,18 +159,6 @@ public:
   // All the functions below may return any of this error codes:
   // NO_CONTACT_WITH_PROCESS, PROCESS_NOT_CONFIGURED, WRONG_PROCESS_TYPE,
   // COULD_NOT_ALLOCATE_MEMORY, SEND_OR_RECEIVE_FAILED
-
-  /**
-   * Save a configuration to permanent storage
-   */
-  int saveConfig(const Config *);
-
-  /**
-   * Save the running configuration
-   */
-  int saveConfig() {
-    return saveConfig(_config);
-  };
 
   /**
    * Read configuration from file, or from another MGM server
