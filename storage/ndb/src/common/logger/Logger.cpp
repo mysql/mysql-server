@@ -222,6 +222,7 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
       *err= handler->getErrorCode();
       if(handler->getErrorStr())
         strncpy(errStr, handler->getErrorStr(), len);
+      delete handler;
       DBUG_RETURN(false);
     }
     loghandlers.push_back(handler);
