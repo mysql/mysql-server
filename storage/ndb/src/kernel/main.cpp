@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+ /* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 
 #include <LogLevel.hpp>
 #include <EventLogger.hpp>
+#include <NdbEnv.h>
 
 #include <NdbAutoPtr.hpp>
 
@@ -285,6 +286,56 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   return 0;                     // Success
 }
 
+bool g_ndbMt = false;
+bool g_ndbMtLqh = false;
+
+static int
+get_multithreaded_config(EmulatorData& ed)
+{
+  // multithreaded is compiled in ndbd/ndbmtd
+  g_ndbMt = SimulatedBlock::isMultiThreaded();
+  if (!g_ndbMt)
+    return 0;
+
+  // mt lqh via environment during development
+  {
+    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+      g_ndbMtLqh = true;
+    if (!g_ndbMtLqh)
+      return 0;
+  }
+
+  const ndb_mgm_configuration_iterator * p =
+    ed.theConfiguration->getOwnConfigIterator();
+  if (p == 0)
+  {
+    abort();
+  }
+
+  Uint32 workers = 0;
+  Uint32 threads = 0;
+  if (ndb_mgm_get_int_parameter(p, CFG_NDBMT_WORKERS, &workers) ||
+      ndb_mgm_get_int_parameter(p, CFG_NDBMT_THREADS, &threads))
+  {
+    g_eventLogger->alert("Failed to get CFG_NDBMT parameters from "
+                        "config, exiting.");
+    return -1;
+  }
+
+  ndbout << "NDBMT: workers=" << workers
+         << " threads=" << threads << endl;
+
+  assert(workers != 0 && workers <= MAX_NDBMT_WORKERS);
+  assert(threads != 0 && threads <= MAX_NDBMT_THREADS);
+  assert(workers % threads == 0);
+
+  globalData.ndbmtWorkers = workers;
+  globalData.ndbmtThreads = threads;
+  return 0;
+}
+
+
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
@@ -480,7 +531,33 @@ int main(int argc, char** argv)
     globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
   }
 
+  if (get_multithreaded_config(globalEmulatorData))
+    return -1;
+
   globalEmulatorData.theThreadConfig->init(&globalEmulatorData);
+  
+#ifdef VM_TRACE
+  // Create a signal logger before block constructors
+  char *buf= NdbConfig_SignalLogFileName(globalData.ownId);
+  NdbAutoPtr<char> tmp_aptr(buf);
+  FILE * signalLog = fopen(buf, "a");
+  globalSignalLoggers.setOwnNodeId(globalData.ownId);
+  globalSignalLoggers.setOutputStream(signalLog);
+#if 1 // to log startup
+  { const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG", (char*)0, 0);
+    if (p != 0) {
+      char buf[200];
+      snprintf(buf, sizeof(buf), "BLOCK=%s", p);
+      for (char* q = buf; *q != 0; q++) *q = toupper(toascii(*q));
+      globalSignalLoggers.log(SignalLoggerManager::LogInOut, buf);
+      globalData.testOn = 1;
+      assert(signalLog != 0);
+      fprintf(signalLog, "START\n");
+      fflush(signalLog);
+    }
+  }
+#endif
+#endif
 
     // Load blocks
   globalEmulatorData.theSimBlockList->load(globalEmulatorData);
@@ -489,19 +566,6 @@ int main(int argc, char** argv)
   int status;
   status = NdbThread_SetConcurrencyLevel(30);
   assert(status == 0);
-  
-#ifdef VM_TRACE
-  // Create a signal logger
-  char *buf= NdbConfig_SignalLogFileName(globalData.ownId);
-  NdbAutoPtr<char> tmp_aptr(buf);
-  FILE * signalLog = fopen(buf, "a");
-  globalSignalLoggers.setOwnNodeId(globalData.ownId);
-  globalSignalLoggers.setOutputStream(signalLog);
-#if 0 // to log startup
-  globalSignalLoggers.log(SignalLoggerManager::LogInOut, "BLOCK=DBDICT,DBDIH");
-  globalData.testOn = 1;
-#endif
-#endif
   
   catchsigs(false);
    

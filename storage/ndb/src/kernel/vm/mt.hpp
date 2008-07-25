@@ -14,9 +14,13 @@
 */
 extern Uint32 receiverThreadId;
 
-void sendlocal(Uint32 self, Uint32 block, const struct SignalHeader *s,
+/* Assign block instance to thread */
+void add_thr_map(Uint32 block, Uint32 instance, Uint32 thr_no);
+void add_worker_thr_map(Uint32 block, Uint32 instance);
+
+void sendlocal(Uint32 self, const struct SignalHeader *s,
                const Uint32 *data, const Uint32 secPtr[3]);
-void sendprioa(Uint32 self, Uint32 block, const struct SignalHeader *s,
+void sendprioa(Uint32 self, const struct SignalHeader *s,
                const Uint32 *data, const Uint32 secPtr[3]);
 void senddelay(Uint32 thr_no, const struct SignalHeader*, Uint32 delay);
 void mt_execSTOP_FOR_CRASH();
