@@ -21,31 +21,6 @@
 #include <ConfigRetriever.hpp>
 #include <ndb_version.h>
 
-/**
- * Save a configuration to the running configuration file
- */
-int
-MgmtSrvr::saveConfig(const Config *conf) {
-  BaseString newfile;
-  newfile.appfmt("%s.new", m_configFilename.c_str());
-  
-  /* Open and write to the new config file */
-  FILE *f = fopen(newfile.c_str(), "w");
-  if(f == NULL) {
-    /** @todo Send something apropriate to the log */
-    return -1;
-  }
-  FileOutputStream stream(f);
-  conf->printConfigFile(stream);
-
-  fclose(f);
-
-  /* Rename file to real name */
-  rename(newfile.c_str(), m_configFilename.c_str());
-
-  return 0;
-}
-
 Config *
 MgmtSrvr::readConfig() {
   Config *conf;
