@@ -48,6 +48,9 @@ private:
 
   int m_errorInsert;
 
+  BaseString m_name;
+  const char* name() { return m_name.c_str(); }
+
   const char *get_error_text(int err_no)
   { return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str)); }
 

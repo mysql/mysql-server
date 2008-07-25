@@ -60,9 +60,11 @@ public:
   
   /**
    * Register this block for sending/receiving signals
+   * @blockNo block number to use, -1 => any blockNumber
    * @return BlockNumber or -1 for failure
    */
-  int open(void* objRef, ExecuteFunction, NodeStatusFunction);
+  int open(void* objRef, ExecuteFunction, NodeStatusFunction,
+           int blockNo = -1);
   
   // Close this block number
   int close(BlockNumber blockNumber, Uint64 trans_id);
@@ -279,7 +281,7 @@ private:
     Vector<Object_Execute> m_objectExecute;
     Vector<NodeStatusFunction> m_statusFunction;
     
-    int open(void* objRef, ExecuteFunction, NodeStatusFunction);
+    int open(void* objRef, ExecuteFunction, NodeStatusFunction, int);
     int close(int number);
     void expand(Uint32 size);
 

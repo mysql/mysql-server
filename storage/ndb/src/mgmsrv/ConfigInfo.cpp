@@ -3046,7 +3046,7 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data)
   }
   
   if(!computer->get("HostName", &hostname)){
-    ctx.reportError("HostName missing in [COMPUTER] (Id: %d) "
+    ctx.reportError("HostName missing in [COMPUTER] (Id: %s) "
 		    " - [%s] starting at line: %d",
 		    compId, ctx.fname, ctx.m_sectionLineno);
     DBUG_RETURN(false);

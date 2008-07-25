@@ -399,7 +399,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  int connect_to_self(const char* bindaddress = 0);
+  bool connect_to_self(const char* bindaddress = 0);
 
   void transporter_connect(NDB_SOCKET_TYPE sockfd);
 
@@ -495,8 +495,6 @@ private:
    */
   void eventReport(const Uint32 * theData, Uint32 len);
  
-  NdbMgmHandle m_local_mgm_handle;
-  char m_local_mgm_connect_string[20];
   class TransporterFacade * theFacade;
 
   int  sendVersionReq( int processId, Uint32 &version, Uint32& mysql_version,

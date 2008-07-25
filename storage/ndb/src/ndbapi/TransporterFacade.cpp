@@ -388,7 +388,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
      return;
   } else {
     ; // Ignore all other block numbers.
-    if(header->theVerId_signalNumber!=3) {
+    if(header->theVerId_signalNumber != GSN_API_REGREQ) {
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
       ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
 	     << header->theVerId_signalNumber  << endl;
@@ -925,10 +925,11 @@ TransporterFacade::close_local(BlockNumber blockNumber){
 int
 TransporterFacade::open(void* objRef, 
                         ExecuteFunction fun, 
-                        NodeStatusFunction statusFun)
+                        NodeStatusFunction statusFun,
+                        int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
-  int r= m_threads.open(objRef, fun, statusFun);
+  int r= m_threads.open(objRef, fun, statusFun, blockNo);
   if (r < 0)
     DBUG_RETURN(r);
 #if 1
@@ -1368,14 +1369,42 @@ TransporterFacade::ThreadData::expand(Uint32 size){
 int
 TransporterFacade::ThreadData::open(void* objRef, 
 				    ExecuteFunction fun, 
-				    NodeStatusFunction fun2)
+				    NodeStatusFunction fun2,
+                                    int blockNo)
 {
   Uint32 nextFree = m_firstFree;
 
   if(m_statusNext.size() >= MAX_NO_THREADS && nextFree == END_OF_LIST){
     return -1;
   }
-  
+
+  Object_Execute oe = { objRef , fun };
+
+  if (unlikely(blockNo >= 0)) {
+    // Open block with fixed number
+    Uint32 index= numberToIndex(blockNo);
+
+    if(index > m_statusNext.size()){
+      expand(index - m_statusNext.size());
+    }
+
+    m_use_cnt++;
+
+    // Single linked free list, relink the previous one that points to this
+    for(Uint32 i = 0; i < m_statusNext.size(); i++){
+      if (m_statusNext[i] == index){
+        m_statusNext[i]= m_statusNext[index];
+        break;
+      }
+    }
+
+    m_statusNext[index] = INACTIVE;
+    m_objectExecute[index] = oe;
+    m_statusFunction[index] = fun2;
+
+    return indexToNumber(index);
+  }
+
   if(nextFree == END_OF_LIST){
     expand(10);
     nextFree = m_firstFree;
@@ -1383,8 +1412,6 @@ TransporterFacade::ThreadData::open(void* objRef,
   
   m_use_cnt++;
   m_firstFree = m_statusNext[nextFree];
-  
-  Object_Execute oe = { objRef , fun };
 
   m_statusNext[nextFree] = INACTIVE;
   m_objectExecute[nextFree] = oe;

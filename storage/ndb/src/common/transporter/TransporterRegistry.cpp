@@ -266,12 +266,11 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
 {
   DBUG_ENTER("TransporterRegistry::connect_server");
 
-  // read node id from client
-  // read transporter type
+  // read node id and transporter type from client
   int nodeId, remote_transporter_type= -1;
   SocketInputStream s_input(sockfd);
-  char buf[256];
-  if (s_input.gets(buf, 256) == 0) {
+  char buf[11+1+11+1]; // <int> <int>
+  if (s_input.gets(buf, sizeof(buf)) == 0) {
     DBUG_PRINT("error", ("Could not get node id from client"));
     DBUG_RETURN(false);
   }
