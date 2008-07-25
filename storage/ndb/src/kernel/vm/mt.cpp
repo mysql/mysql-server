@@ -1887,9 +1887,9 @@ add_main_thr_map()
   if (done++)
     return;
 
-  static const Uint32 thr_GLOBAL = 0;
-  static const Uint32 thr_LOCAL = 1;
-  static const Uint32 thr_RECEIVER = receiver_thread_no;
+  const Uint32 thr_GLOBAL = 0;
+  const Uint32 thr_LOCAL = 1;
+  const Uint32 thr_RECEIVER = receiver_thread_no;
 
   add_thr_map(BACKUP, 0, thr_LOCAL);
   add_thr_map(DBTC, 0, thr_GLOBAL);
