@@ -16871,3 +16871,16 @@ do_send:
 }
 
 #endif
+
+// block instances
+Uint32
+Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
+{
+  TabRecordPtr tTabPtr;
+  tTabPtr.i = tabId;
+  ptrCheckGuard(tTabPtr, ctabFileSize, tabRecord);
+  FragmentstorePtr tFragPtr;
+  getFragstore(tTabPtr.p, fragId, tFragPtr);
+  Uint32 instanceKey = dihGetInstanceKey(tFragPtr);
+  return instanceKey;
+}
