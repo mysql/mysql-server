@@ -233,8 +233,10 @@ start:
 				 opt_config_filename,
 				 opt_connect_str);
 
-  if (g_print_full_config)
+  if (g_print_full_config){
+    glob->mgmObject->print_config();
     goto the_end;
+  }
 
   my_setwd(NdbConfig_get_path(0), MYF(0));
 
