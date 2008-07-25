@@ -318,7 +318,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       ctx.reportError("Illegal boolean value for parameter %s", fname);
       return false;
     }
-    assert(ctx.m_currentSection->put(pname, value_bool));
+    require(ctx.m_currentSection->put(pname, value_bool));
     break;
   }
   case ConfigInfo::CI_INT:
@@ -336,14 +336,14 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       return false;
     }
     if(type == ConfigInfo::CI_INT){
-      assert(ctx.m_currentSection->put(pname, (Uint32)value_int));
+      require(ctx.m_currentSection->put(pname, (Uint32)value_int));
     } else {
-      assert(ctx.m_currentSection->put64(pname, value_int));
+      require(ctx.m_currentSection->put64(pname, value_int));
     }
     break;
   }
   case ConfigInfo::CI_STRING:
-    assert(ctx.m_currentSection->put(pname, value));
+    require(ctx.m_currentSection->put(pname, value));
     break;
   case ConfigInfo::CI_SECTION:
     abort();
