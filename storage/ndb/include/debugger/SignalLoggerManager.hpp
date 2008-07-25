@@ -26,6 +26,7 @@
 #include <kernel_types.h>
 #include <BlockNumbers.h>
 #include <TransporterDefinitions.hpp>
+#include <RefConvert.hpp>
 
 class SignalLoggerManager
 {
@@ -187,11 +188,17 @@ private:
   
   Uint32        traceId;
   Uint8         logModes[NO_OF_BLOCKS];
+
+  NdbMutex* m_mutex;
+  void lock() { if (m_mutex != 0) NdbMutex_Lock(m_mutex); }
+  void unlock() { if (m_mutex != 0) NdbMutex_Unlock(m_mutex); }
  
 public:
   inline bool
   logMatch(BlockNumber bno, LogMode mask)
   {
+    // extract main block number
+    bno = blockToMain(bno);
     // avoid addressing outside logModes
     return
       bno < MIN_BLOCK_NO || bno > MAX_BLOCK_NO ||

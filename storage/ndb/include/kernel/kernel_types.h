@@ -22,6 +22,7 @@
 
 typedef Uint16 NodeId; 
 typedef Uint16 BlockNumber;
+typedef Uint16 BlockInstance;
 typedef Uint32 BlockReference;
 typedef Uint16 GlobalSignalNumber;
 

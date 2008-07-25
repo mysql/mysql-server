@@ -24,6 +24,7 @@
 
 #include "SimulatedBlock.hpp"
 #include <NdbOut.hpp>
+#include <OutputStream.hpp>
 #include <GlobalData.hpp>
 #include <Emulator.hpp>
 #include <WatchDog.hpp>
@@ -46,6 +47,8 @@
 #include <AttributeDescriptor.hpp>
 #include <NdbSqlUtil.hpp>
 
+#include "../blocks/dbdih/Dbdih.hpp"
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -56,10 +59,15 @@ extern EventLogger * g_eventLogger;
 // Constructor, Destructor
 //
 SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
-			       struct Block_context & ctx) 
+			       struct Block_context & ctx,
+                               Uint32 instanceNumber)
   : theNodeId(globalData.ownId),
     theNumber(blockNumber),
-    theReference(numberToRef(blockNumber, globalData.ownId)),
+    theInstance(instanceNumber),
+    theReference(numberToRef(blockNumber, instanceNumber, globalData.ownId)),
+    theInstanceCount(0),
+    theInstanceList(0),
+    theMainInstance(0),
     m_ctx(ctx),
     m_global_page_pool(globalData.m_global_page_pool),
     m_shared_page_pool(globalData.m_shared_page_pool),
@@ -68,13 +76,41 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     c_segmentedFragmentSendList(c_fragmentSendPool),
     c_mutexMgr(* this),
     c_counterMgr(* this)
+#ifdef VM_TRACE
+    ,debugOut(*new NdbOut(*new FileOutputStream(globalSignalLoggers.getOutputStream())))
+#endif
 {
   m_threadId = 0;
   m_watchDogCounter = NULL;
   m_jamBuffer = (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
   NewVarRef = 0;
   
-  globalData.setBlock(blockNumber, this);
+  SimulatedBlock* main = globalData.getBlock(blockNumber);
+
+  if (theInstance == 0) {
+    ndbrequire(main == 0);
+    main = this;
+    globalData.setBlock(blockNumber, main);
+    main->theInstanceCount = 1;
+  } else {
+    ndbrequire(main != 0);
+    ndbrequire(theInstance == main->theInstanceCount);
+    ndbrequire(theInstance < MaxInstances);
+    if (theInstance == 1) {
+      ndbrequire(main->theInstanceList == 0);
+      main->theInstanceList = new SimulatedBlock* [MaxInstances];
+      Uint32 i;
+      for (i = 0; i < MaxInstances; i++)
+        main->theInstanceList[i] = 0;
+    } else {
+      ndbrequire(main->theInstanceList != 0);
+    }
+    ndbrequire(main->theInstanceList[theInstance] == 0);
+    main->theInstanceList[theInstance] = this;
+    main->theInstanceCount = theInstance + 1;
+  }
+  theMainInstance = main;
+
   c_fragmentIdCounter = 1;
   c_fragSenderRunning = false;
   
@@ -130,6 +166,14 @@ SimulatedBlock::~SimulatedBlock()
 #ifdef VM_TRACE
   delete [] m_global_variables;
 #endif
+
+  if (theInstanceList != 0) {
+    Uint32 i;
+    for (i = 0; i < theInstanceCount; i++)
+      delete theInstanceList[i];
+    delete [] theInstanceList;
+  }
+  theInstanceList = 0;
 }
 
 void 
@@ -170,6 +214,15 @@ SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn,
     ERROR_SET(fatal, NDBD_EXIT_ILLEGAL_SIGNAL, errorMsg, errorMsg);
   }
   theExecArray[gsn] = f;
+}
+
+Uint32
+SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
+{
+  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
+  ndbrequire(dbdih != 0);
+  Uint32 instanceKey = dbdih->dihGetInstanceKey(tabId, fragId);
+  return instanceKey;
 }
 
 void
@@ -509,9 +562,9 @@ SimulatedBlock::sendSignal(BlockReference ref,
     signal->header.theSendersBlockRef = sendBRef;
 #ifdef NDBD_MULTITHREADED
     if (jobBuffer == JBB)
-      sendlocal(m_threadId, recBlock, &signal->header, signal->theData, NULL);
+      sendlocal(m_threadId, &signal->header, signal->theData, NULL);
     else
-      sendprioa(m_threadId, recBlock, &signal->header, signal->theData, NULL);
+      sendprioa(m_threadId, &signal->header, signal->theData, NULL);
 #else
     globalScheduler.execute(signal, jobBuffer, recBlock,
 			    gsn);
@@ -607,9 +660,9 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 
 #ifdef NDBD_MULTITHREADED
     if (jobBuffer == JBB)
-      sendlocal(m_threadId, recBlock, &signal->header, signal->theData, NULL);
+      sendlocal(m_threadId, &signal->header, signal->theData, NULL);
     else
-      sendprioa(m_threadId, recBlock, &signal->header, signal->theData, NULL);
+      sendprioa(m_threadId, &signal->header, signal->theData, NULL);
 #else
     globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
 #endif
@@ -716,10 +769,10 @@ SimulatedBlock::sendSignal(BlockReference ref,
     
 #ifdef NDBD_MULTITHREADED
     if (jobBuffer == JBB)
-      sendlocal(m_threadId, recBlock, &signal->header, signal->theData,
+      sendlocal(m_threadId, &signal->header, signal->theData,
                 signal->theData+length);
     else
-      sendprioa(m_threadId, recBlock, &signal->header, signal->theData,
+      sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData+length);
 #else
     globalScheduler.execute(signal, jobBuffer, recBlock,
@@ -831,10 +884,10 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 
 #ifdef NDBD_MULTITHREADED
     if (jobBuffer == JBB)
-      sendlocal(m_threadId, recBlock, &signal->header, signal->theData,
+      sendlocal(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
     else
-      sendprioa(m_threadId, recBlock, &signal->header, signal->theData,
+      sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
 #else
     globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
@@ -944,10 +997,10 @@ SimulatedBlock::sendSignal(BlockReference ref,
 
 #ifdef NDBD_MULTITHREADED
     if (jobBuffer == JBB)
-      sendlocal(m_threadId, recBlock, &signal->header, signal->theData,
+      sendlocal(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
     else
-      sendprioa(m_threadId, recBlock, &signal->header, signal->theData,
+      sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
 #else
     globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
@@ -1059,10 +1112,10 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
     * dst ++ = sections->m_ptr[2].i;
 #ifdef NDBD_MULTITHREADED
     if (jobBuffer == JBB)
-      sendlocal(m_threadId, recBlock, &signal->header, signal->theData,
+      sendlocal(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
     else
-      sendprioa(m_threadId, recBlock, &signal->header, signal->theData,
+      sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
 #else
     globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
@@ -1246,16 +1299,20 @@ SimulatedBlock::freeBat(){
 }
 
 const NewVARIABLE *
-SimulatedBlock::getBat(Uint16 blockNo){
+SimulatedBlock::getBat(Uint16 blockNo, Uint32 instanceNo){
   SimulatedBlock * sb = globalData.getBlock(blockNo);
+  if (sb != 0 && instanceNo != 0)
+    sb = sb->getInstance(instanceNo);
   if(sb == 0)
     return 0;
   return sb->NewVarRef;
 }
 
 Uint16
-SimulatedBlock::getBatSize(Uint16 blockNo){
+SimulatedBlock::getBatSize(Uint16 blockNo, Uint32 instanceNo){
   SimulatedBlock * sb = globalData.getBlock(blockNo);
+  if (sb != 0 && instanceNo != 0)
+    sb = sb->getInstance(instanceNo);
   if(sb == 0)
     return 0;
   return sb->theBATSize;
@@ -1418,7 +1475,7 @@ SimulatedBlock::infoEvent(const char * msg, ...) const {
   signalT.header.theLength               = ((len+3)/4)+1;
   
 #ifdef NDBD_MULTITHREADED
-  sendlocal(m_threadId, signalT.header.theReceiversBlockNumber,
+  sendlocal(m_threadId,
             &signalT.header, signalT.theData, signalT.m_sectionPtrI);
 #else
   globalScheduler.execute(&signalT.header, JBB, signalT.theData,
@@ -1463,7 +1520,7 @@ SimulatedBlock::warningEvent(const char * msg, ...) const {
   signalT.header.theLength               = ((len+3)/4)+1;
 
 #ifdef NDBD_MULTITHREADED
-  sendlocal(m_threadId, signalT.header.theReceiversBlockNumber,
+  sendlocal(m_threadId,
             &signalT.header, signalT.theData, signalT.m_sectionPtrI);
 #else
   globalScheduler.execute(&signalT.header, JBB, signalT.theData,
@@ -1621,7 +1678,7 @@ SimulatedBlock::printTimes(FILE * output){
     }
   }
   sum = (sum + 500)/ 1000;
-  fprintf(output, "-- %s : %d --\n", getBlockName(number()), sum);
+  fprintf(output, "-- %s : %u --\n", getBlockName(number()), (Uint32)sum);
   fprintf(output, "\n");
   fflush(output);
 }
@@ -2387,7 +2444,7 @@ SimulatedBlock::setNodeInfo(NodeId nodeId) {
 }
 
 bool
-SimulatedBlock::isMultiThreaded() const
+SimulatedBlock::isMultiThreaded()
 {
 #ifdef NDBD_MULTITHREADED
   return true;
@@ -2720,3 +2777,37 @@ SimulatedBlock::create_distr_key(Uint32 tableId,
 }
 
 CArray<KeyDescriptor> g_key_descriptor_pool;
+
+#ifdef VM_TRACE
+bool
+SimulatedBlock::debugOutOn() const
+{
+  SignalLoggerManager::LogMode mask = SignalLoggerManager::LogInOut;
+  return globalSignalLoggers.logMatch(number(), mask);
+}
+
+const char*
+SimulatedBlock::debugOutTag(char *buf, int line)
+{
+  char blockbuf[40];
+  char instancebuf[40];
+  char linebuf[40];
+  char timebuf[40];
+  sprintf(blockbuf, "%s", getBlockName(number(), "UNKNOWN"));
+  instancebuf[0] = 0;
+  if (instance() != 0)
+    sprintf(instancebuf, "/%u", instance());
+  sprintf(linebuf, " %d", line);
+  timebuf[0] = 0;
+#ifdef VM_TRACE_TIME
+  {
+    NDB_TICKS t = NdbTick_CurrentMillisecond();
+    uint s = (t / 1000) % 3600;
+    uint ms = t % 1000;
+    sprintf(timebuf, " - %u.%03u -", s, ms);
+  }
+#endif
+  sprintf(buf, "%s%s%s%s ", blockbuf, instancebuf, linebuf, timebuf);
+  return buf;
+}
+#endif

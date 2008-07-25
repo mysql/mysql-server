@@ -335,10 +335,8 @@ no_odirect:
       req->data.pageData[0] = m_page_ptr.i;
 
       m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
-			  FsReadWriteReq::FixedLength + 1
-#ifdef VM_TRACE
-                          , true     // This EXECUTE_DIRECT is thread safe
-#endif
+			  FsReadWriteReq::FixedLength + 1,
+                          0 // wl4391_todo This EXECUTE_DIRECT is thread safe
                           );
   retry:
       Uint32 size = request->par.open.page_size;
