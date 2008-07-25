@@ -17,7 +17,6 @@
 #include <my_pthread.h>
 
 #include "MgmtSrvr.hpp"
-#include "MgmtErrorReporter.hpp"
 #include "ndb_mgmd_error.h"
 #include <ConfigRetriever.hpp>
 
@@ -354,7 +353,6 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
   _blockNumber(-1),
   m_socket_server(socket_server),
   _ownReference(0),
-  m_local_mgm_handle(0),
   m_event_listner(this),
   m_master_node(0)
 {
@@ -434,7 +432,7 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
       if(iter.get(CFG_NODE_ID, &id) != 0)
 	continue;
       
-      MGM_REQUIRE(id < MAX_NODES);
+      assert(id < MAX_NODES);
       
       switch(type){
       case NODE_TYPE_DB:
@@ -538,7 +536,7 @@ MgmtSrvr::start(BaseString &error_string, const char * bindaddress)
     DBUG_RETURN(false);
   }
 
-  if((mgm_connect_result= connect_to_self(bindaddress)) < 0)
+  if(!connect_to_self(bindaddress))
   {
     ndbout_c("Unable to connect to our own ndb_mgmd (Error %d)",
              mgm_connect_result);
@@ -2994,23 +2992,28 @@ void MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
   }
 }
 
-int MgmtSrvr::connect_to_self(const char * bindaddress)
+bool MgmtSrvr::connect_to_self(const char * bindaddress)
 {
-  int r= 0;
-  m_local_mgm_handle= ndb_mgm_create_handle();
-  snprintf(m_local_mgm_connect_string,sizeof(m_local_mgm_connect_string),
-           "%s:%u", bindaddress ? bindaddress : "localhost", getPort());
-  ndb_mgm_set_connectstring(m_local_mgm_handle, m_local_mgm_connect_string);
+  BaseString buf;
+  NdbMgmHandle mgm_handle= ndb_mgm_create_handle();
 
-  if((r= ndb_mgm_connect(m_local_mgm_handle, 0, 0, 0)) < 0)
+  buf.assfmt("%s:%u",
+             bindaddress ? bindaddress : "localhost",
+             getPort());
+  ndb_mgm_set_connectstring(mgm_handle, buf.c_str());
+
+  if(ndb_mgm_connect(mgm_handle, 0, 0, 0) < 0)
   {
-    ndb_mgm_destroy_handle(&m_local_mgm_handle);
-    return r;
+    g_eventLogger->warning("%d %s",
+                           ndb_mgm_get_latest_error(mgm_handle),
+                           ndb_mgm_get_latest_error_desc(mgm_handle));
+    ndb_mgm_destroy_handle(&mgm_handle);
+    return false;
   }
-  // TransporterRegistry now owns this NdbMgmHandle and will destroy it.
-  theFacade->get_registry()->set_mgm_handle(m_local_mgm_handle);
+  // TransporterRegistry now owns the handle and will destroy it.
+  theFacade->get_registry()->set_mgm_handle(mgm_handle);
 
-  return 0;
+  return true;
 }
 
 template class MutexVector<NodeId>;
