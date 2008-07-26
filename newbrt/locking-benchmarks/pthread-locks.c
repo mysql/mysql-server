@@ -28,15 +28,17 @@ static inline void sfence (void) {
     asm volatile ("sfence":::"memory");
 }
 
-static inline void brwl_rlock (struct brwl *l) {
+static inline void brwl_rlock_fence (struct brwl *l) {
     while (xchg(&l->mutex, 1)) ;
     l->state++;
-#if 1
     sfence();
     l->mutex=0;
-#else
+}
+
+static inline void brwl_rlock_xchg (struct brwl *l) {
+    while (xchg(&l->mutex, 1)) ;
+    l->state++;
     xchg(&l->mutex, 0);
-#endif
 }
 
 
@@ -107,10 +109,23 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 	}
 	gettimeofday(&start, 0);
 	for (i=0; i<K; i++) {
-	    brwl_rlock(&blocks[i]);
+	    brwl_rlock_xchg(&blocks[i]);
 	}
 	gettimeofday(&end, 0);
-	printf("brwl_rlock               took %9.3fus for %d ops:  %9.3fus/lock (%9.3fMops/s)\n", tdiff(&start,&end), K, tdiff(&start,&end)/K, K/tdiff(&start,&end));
+	printf("brwl_rlock_xchg          took %9.3fus for %d ops:  %9.3fus/lock (%9.3fMops/s)\n", tdiff(&start,&end), K, tdiff(&start,&end)/K, K/tdiff(&start,&end));
+    }
+
+    for (j=0; j<3; j++) {
+	for (i=0; i<K; i++) {
+	    blocks[i].state=0;
+	    blocks[i].mutex=0;
+	}
+	gettimeofday(&start, 0);
+	for (i=0; i<K; i++) {
+	    brwl_rlock_fence(&blocks[i]);
+	}
+	gettimeofday(&end, 0);
+	printf("brwl_rlock_fence         took %9.3fus for %d ops:  %9.3fus/lock (%9.3fMops/s)\n", tdiff(&start,&end), K, tdiff(&start,&end)/K, K/tdiff(&start,&end));
     }
     return 0;
 }
