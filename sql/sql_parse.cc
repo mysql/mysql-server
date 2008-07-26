@@ -66,7 +66,6 @@ static bool append_file_to_dir(THD *thd, const char **filename_ptr,
              
 static TABLE_LIST* get_table_by_alias(TABLE_LIST* tl, const char* db,
   const char* alias);
-static bool test_if_data_home_dir(const char *dir);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -2535,13 +2534,13 @@ mysql_execute_command(THD *thd)
 
     if (test_if_data_home_dir(lex->create_info.data_file_name))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECORY");
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECTORY");
       res= -1;
       break;
     }
     if (test_if_data_home_dir(lex->create_info.index_file_name))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECORY");
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECTORY");
       res= -1;
       break;
     }
@@ -5951,10 +5950,12 @@ Item *negate_expression(THD *thd, Item *expr)
     1	error  
 */
 
-static bool test_if_data_home_dir(const char *dir)
+C_MODE_START
+
+int test_if_data_home_dir(const char *dir)
 {
-  char path[FN_REFLEN], conv_path[FN_REFLEN];
-  uint dir_len, home_dir_len= strlen(mysql_unpacked_real_data_home);
+  char path[FN_REFLEN];
+  uint dir_len;
   DBUG_ENTER("test_if_data_home_dir");
 
   if (!dir)
@@ -5962,20 +5963,28 @@ static bool test_if_data_home_dir(const char *dir)
 
   (void) fn_format(path, dir, "", "",
                    (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
-  dir_len= unpack_dirname(conv_path, dir);
 
-  if (home_dir_len <= dir_len)
+  dir_len= strlen(path);
+  if (mysql_unpacked_real_data_home_len<= dir_len)
   {
+    if (dir_len > mysql_unpacked_real_data_home_len &&
+        path[mysql_unpacked_real_data_home_len] != FN_LIBCHAR)
+      DBUG_RETURN(0);
+
     if (lower_case_file_system)
     {
-      if (!my_strnncoll(default_charset_info, (const uchar*) conv_path,
-                        home_dir_len,
+      if (!my_strnncoll(default_charset_info, (const uchar*) path,
+                        mysql_unpacked_real_data_home_len,
                         (const uchar*) mysql_unpacked_real_data_home,
-                        home_dir_len))
+                        mysql_unpacked_real_data_home_len))
         DBUG_RETURN(1);
     }
-    else if (!memcmp(conv_path, mysql_unpacked_real_data_home, home_dir_len))
+    else if (!memcmp(path, mysql_unpacked_real_data_home,
+                     mysql_unpacked_real_data_home_len))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
+
+C_MODE_END
+
