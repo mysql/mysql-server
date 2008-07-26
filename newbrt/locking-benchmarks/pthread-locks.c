@@ -42,7 +42,7 @@ static inline void brwl_rlock_xchg (struct brwl *l) {
 }
 
 
-enum {K=10000};
+enum {K=100000};
 pthread_rwlock_t rwlocks[K];
 struct brwl blocks[K];
 pthread_mutex_t mlocks[K];
