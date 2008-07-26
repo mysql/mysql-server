@@ -268,6 +268,8 @@ ElementHeader::clearScanBit(Uint32 header, Uint32 scanBit){
 
 
 class Dbacc: public SimulatedBlock {
+  friend class DbaccProxy;
+
 public:
 // State values
 enum State {
@@ -625,7 +627,7 @@ struct Tabrec {
   typedef Ptr<Tabrec> TabrecPtr;
 
 public:
-  Dbacc(Block_context&);
+  Dbacc(Block_context&, Uint32 instanceNumber = 0);
   virtual ~Dbacc();
 
   // pointer to TUP instance in this thread

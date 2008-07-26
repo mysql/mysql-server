@@ -165,8 +165,8 @@ void Dblqh::initRecords()
   bat[1].bits.v = 5;
 }//Dblqh::initRecords()
 
-Dblqh::Dblqh(Block_context& ctx):
-  SimulatedBlock(DBLQH, ctx),
+Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
+  SimulatedBlock(DBLQH, ctx, instanceNumber),
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),

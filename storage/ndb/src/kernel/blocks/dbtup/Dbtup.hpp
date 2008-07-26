@@ -344,6 +344,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #endif
 
 class Dbtup: public SimulatedBlock {
+friend class DbtupProxy;
 friend class Suma;
 public:
 struct KeyReqStruct;
@@ -1651,7 +1652,7 @@ struct TupHeadInfo {
   Uint32          terrorCode;
 
 public:
-  Dbtup(Block_context&, Pgman*);
+  Dbtup(Block_context&, Pgman*, Uint32 instanceNumber = 0);
   virtual ~Dbtup();
 
   /*

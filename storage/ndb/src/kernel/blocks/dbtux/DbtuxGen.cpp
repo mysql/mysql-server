@@ -18,8 +18,8 @@
 
 #include <signaldata/NodeStateSignalData.hpp>
 
-Dbtux::Dbtux(Block_context& ctx) :
-  SimulatedBlock(DBTUX, ctx),
+Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(DBTUX, ctx, instanceNumber),
   c_tup(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE

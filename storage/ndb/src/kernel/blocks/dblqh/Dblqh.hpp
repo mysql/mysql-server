@@ -400,6 +400,8 @@ class Dbtup;
  *  - LOG 
  */
 class Dblqh: public SimulatedBlock {
+  friend class DblqhProxy;
+
 public:
   enum LcpCloseState {
     LCP_IDLE = 0,
@@ -2047,7 +2049,7 @@ public:
   };
   
 public:
-  Dblqh(Block_context& ctx);
+  Dblqh(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dblqh();
 
   void receive_keyinfo(Signal*, Uint32 * data, Uint32 len);

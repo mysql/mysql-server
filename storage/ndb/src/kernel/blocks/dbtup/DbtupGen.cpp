@@ -49,8 +49,8 @@ void Dbtup::initData()
   cpackedListIndex = 0;  
 }//Dbtup::initData()
 
-Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
-  : SimulatedBlock(DBTUP, ctx),
+Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
+  : SimulatedBlock(DBTUP, ctx, instanceNumber),
     c_lqh(0),
     m_pgman(this, pgman),
     c_extent_hash(c_extent_pool),

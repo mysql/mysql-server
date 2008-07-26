@@ -36,6 +36,13 @@
 #include <pgman.hpp>
 #include <restore.hpp>
 #include <NdbEnv.h>
+#include <LocalProxy.hpp>
+#include <DblqhProxy.hpp>
+#include <DbaccProxy.hpp>
+#include <DbtupProxy.hpp>
+#include <DbtuxProxy.hpp>
+#include <BackupProxy.hpp>
+#include <RestoreProxy.hpp>
 
 #ifndef VM_TRACE
 #define NEW_BLOCK(B) new B
@@ -68,6 +75,9 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 #define NEW_BLOCK(B) new(A_VALUE) B
 #endif
 
+extern bool g_ndbMt;
+extern bool g_ndbMtLqh;
+
 void 
 SimBlockList::load(EmulatorData& data){
   noOfBlocks = NO_OF_BLOCKS;
@@ -91,26 +101,44 @@ SimBlockList::load(EmulatorData& data){
       fs = NEW_BLOCK(Ndbfs)(ctx);
     }
   }
-  
+
   theList[0]  = pg = NEW_BLOCK(Pgman)(ctx);
   theList[1]  = lg = NEW_BLOCK(Lgman)(ctx);
   theList[2]  = ts = NEW_BLOCK(Tsman)(ctx, pg, lg);
-  theList[3]  = NEW_BLOCK(Dbacc)(ctx);
+  if (!g_ndbMtLqh)
+    theList[3]  = NEW_BLOCK(Dbacc)(ctx);
+  else
+    theList[3]  = NEW_BLOCK(DbaccProxy)(ctx);
   theList[4]  = NEW_BLOCK(Cmvmi)(ctx);
   theList[5]  = fs;
   theList[6]  = dbdict = NEW_BLOCK(Dbdict)(ctx);
   theList[7]  = dbdih = NEW_BLOCK(Dbdih)(ctx);
-  theList[8]  = NEW_BLOCK(Dblqh)(ctx);
+  if (!g_ndbMtLqh)
+    theList[8]  = NEW_BLOCK(Dblqh)(ctx);
+  else
+    theList[8]  = NEW_BLOCK(DblqhProxy)(ctx);
   theList[9]  = NEW_BLOCK(Dbtc)(ctx);
-  theList[10] = NEW_BLOCK(Dbtup)(ctx, pg);
+  if (!g_ndbMtLqh)
+    theList[10] = NEW_BLOCK(Dbtup)(ctx, pg);
+  else
+    theList[10] = NEW_BLOCK(DbtupProxy)(ctx);//wl4391_todo pg
   theList[11] = NEW_BLOCK(Ndbcntr)(ctx);
   theList[12] = NEW_BLOCK(Qmgr)(ctx);
   theList[13] = NEW_BLOCK(Trix)(ctx);
-  theList[14] = NEW_BLOCK(Backup)(ctx);
+  if (!g_ndbMtLqh)
+    theList[14] = NEW_BLOCK(Backup)(ctx);
+  else
+    theList[14] = NEW_BLOCK(BackupProxy)(ctx);
   theList[15] = NEW_BLOCK(DbUtil)(ctx);
   theList[16] = NEW_BLOCK(Suma)(ctx);
-  theList[17] = NEW_BLOCK(Dbtux)(ctx);
-  theList[18] = NEW_BLOCK(Restore)(ctx);
+  if (!g_ndbMtLqh)
+    theList[17] = NEW_BLOCK(Dbtux)(ctx);
+  else
+    theList[17] = NEW_BLOCK(DbtuxProxy)(ctx);
+  if (!g_ndbMtLqh)
+    theList[18] = NEW_BLOCK(Restore)(ctx);
+  else
+    theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
   assert(NO_OF_BLOCKS == 19);
 }
 
