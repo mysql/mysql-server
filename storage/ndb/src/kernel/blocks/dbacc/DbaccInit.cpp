@@ -86,8 +86,8 @@ void Dbacc::initRecords()
 				ctablesize);
 }//Dbacc::initRecords()
 
-Dbacc::Dbacc(Block_context& ctx):
-  SimulatedBlock(DBACC, ctx),
+Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
+  SimulatedBlock(DBACC, ctx, instanceNumber),
   c_tup(0)
 {
   BLOCK_CONSTRUCTOR(Dbacc);
