@@ -1091,7 +1091,7 @@ static void measure_bandwidths (void) {
     measure_bandwidth("crc32by1 ", ({ c=0; int j; for(j=0; j<N; j++) c=crc32(c, buf+j, 1); }));
     measure_bandwidth("crc32by2 ", ({ c=0; int j; for(j=0; j<N; j+=2) c=crc32(c, buf+j, 2); }));
     measure_bandwidth("sum32    ", c=sum32(buf, N));
-    measure_bandwidth("sum64    ", c=sum32(buf, N));
+    measure_bandwidth("sum64    ", c=sum64(buf, N));
     measure_bandwidth("murmur   ", c=MurmurHash2(buf, N));
     measure_bandwidth("murmurf  ", ({ struct murmur mm; murmur_init(&mm); murmur_add(&mm, buf, N); c=murmur_finish(&mm); }));
     measure_bandwidth("sum84    ", ({ struct sum84 s; sum84_init(&s); sum84_add(&s, buf, N); c=sum84_finish(&s); }));
