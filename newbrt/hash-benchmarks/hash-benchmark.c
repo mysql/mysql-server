@@ -887,10 +887,41 @@ void l1764_init(struct l1764 *l) {
     l->input=0;
     l->n_input_bytes=0;
 }
-void l1764_add (struct l1764 *l, const void *vbuf, int len) {
+inline void l1764_add (struct l1764 *l, const void *vbuf, int len) {
     if (PRINT) printf("%d: n_input_bytes=%d len=%d\n", __LINE__, l->n_input_bytes, len);
     int n_input_bytes = l->n_input_bytes;
     const unsigned char *cbuf = vbuf;
+    // Special case short inputs
+    if (len==1) {
+	u_int64_t input = l->input | ((u_int64_t)(*cbuf))<<(8*n_input_bytes);
+	n_input_bytes++;
+	if (n_input_bytes==8) {
+	    l->sum = l->sum*17 + input;
+	    l->n_input_bytes = 0;
+	    l->input = 0;
+	} else {
+	    l->input = input;
+	    l->n_input_bytes = n_input_bytes;
+	}
+	return;
+    } else if (len==2) {
+	u_int64_t input = l->input;
+	u_int64_t thisv = ((u_int64_t)(*(u_int16_t*)cbuf));
+	if (n_input_bytes==7) {
+	    l->sum = l->sum*17 + (input | (thisv<<(8*7)));
+	    l->input = thisv>>8;
+	    l->n_input_bytes = 1;
+	} else if (n_input_bytes==6) {
+	    l->sum = l->sum*17 + (input | (thisv<<(8*6)));
+	    l->input = 0;
+	    l->n_input_bytes = 0;
+	} else {
+	    l->input = input | (thisv<<(8*n_input_bytes));
+	    l->n_input_bytes += 2;
+	}
+	return;
+    }
+
     u_int64_t sum;
     //assert(len>=0);
     if (n_input_bytes) {
