@@ -7,7 +7,6 @@
 #include "cachetable.h"
 #include "fifo.h"
 #include "brt.h"
-#include "crc.h"
 #include "list.h"
 #include "mempool.h"
 #include "kv-pair.h"
@@ -195,8 +194,8 @@ static const BRTNODE null_brtnode=0;
 
 //extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
 //extern u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp);
-extern u_int32_t toku_calccrc32_cmd (u_int32_t type, TXNID xid, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen);
-extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD cmd);
+extern u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, TXNID xid, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen);
+extern u_int32_t toku_calc_fingerprint_cmdstruct (BRT_CMD cmd);
 
 // How long is the pivot key?
 unsigned int toku_brt_pivot_key_len (BRT, struct kv_pair *); // Given the tree
@@ -250,7 +249,8 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_5 = 5,
     BRT_LAYOUT_VERSION_6 = 6, // Diff from 5 to 6:  Add leafentry_estimate
-    BRT_LAYOUT_VERSION_7 = 7, // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdataase flags #333
+    BRT_LAYOUT_VERSION_7 = 7, // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdatase flags #333
+    BRT_LAYOUT_VERSION_8 = 8, // Diff from 7 to 8:  Use murmur instead of crc32.  We are going to make a simplification and stop supporting version 7 and before.
     BRT_ANTEULTIMATE_VERSION, // the version after the most recent version
     BRT_LAYOUT_VERSION   = BRT_ANTEULTIMATE_VERSION-1 // A hack so I don't have to change this line.
 };

@@ -33,7 +33,7 @@ FORMAT=-Wmissing-format-attribute
 endif
 
 CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz
+LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS)
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500 -I..
 
 # Add -Wconversion
@@ -87,6 +87,7 @@ REGRESSION_TESTS = \
 	test-leafentry \
 	test_oexcl \
 	test_toku_malloc_plain_free \
+        x1764-test \
 	ybt-test \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
@@ -97,7 +98,6 @@ BINS =  $(REGRESSION_TESTS) \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 CHECKS = \
- load_version_6 \
  benchmarktest_256 \
  test-assertA test-assertB \
  $(REGRESSION_TESTS) \
@@ -112,10 +112,6 @@ check_fail:
 	test 0 = 1 $(SUMMARIZE_CMD)
 check_ok:
 	test 0 = 0 $(SUMMARIZE_CMD)
-
-check_load_version_6:
-	(cp bench.db.ver6 bench.db.ver6.tmp && \
-	$(VGRIND) ../brtdump bench.db.ver6.tmp > /dev/null ) $(SUMMARIZE_CMD)
 
 check_benchmarktest_256: benchmark-test
 	$(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)

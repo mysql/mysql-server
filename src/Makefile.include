@@ -21,4 +21,4 @@ $(ROOT)lib/libtokudb.a: $(SRC_OFILES)
 	$(AR) rv $@ $^
 
 $(ROOT)lib/libtokudb.$(LIBEXT): $(SRC_OFILES)
-	cc $^ $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
+	cc $^ $(SHARED) -o $@ $(CFLAGS) $(RPATHNAME)
