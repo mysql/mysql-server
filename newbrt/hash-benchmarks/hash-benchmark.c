@@ -8,6 +8,9 @@
 #include <arpa/inet.h>
 
 #define N 200000000
+#define PRINT 0
+//#define N 128
+//#define PRINT 1
 unsigned char *buf;
 
 static double tdiff (struct timeval *a, struct timeval *b) {
@@ -868,6 +871,7 @@ u_int32_t l17_fast64 (const void *buf, int len) {
     u_int64_t c=0;
     while (len>0) {
 	c = c*17 + *lbuf;
+	if (PRINT) printf("%d: c=%016lx sum=%016lx\n", __LINE__, *lbuf, c);
 	lbuf++;
 	len-=8;
     }
@@ -884,32 +888,68 @@ void l1764_init(struct l1764 *l) {
     l->n_input_bytes=0;
 }
 void l1764_add (struct l1764 *l, const void *vbuf, int len) {
+    if (PRINT) printf("%d: n_input_bytes=%d len=%d\n", __LINE__, l->n_input_bytes, len);
     int n_input_bytes = l->n_input_bytes;
     const unsigned char *cbuf = vbuf;
     u_int64_t sum;
+    //assert(len>=0);
     if (n_input_bytes) {
 	u_int64_t input = l->input;
-	if (n_input_bytes<=4 && len>=4) {
-	    input |= (u_int64_t)((*(u_int32_t*)(cbuf)))<<(8*n_input_bytes);
-	    n_input_bytes+=4;
+	if (len>=8) {
+	    sum = l->sum;
+	    while (len>=8) {
+		u_int64_t thisv = *(u_int64_t*)cbuf;
+		input |= thisv<<(8*n_input_bytes);
+		sum = sum*17 + input;
+		if (PRINT) printf("%d: input=%016lx sum=%016lx\n", __LINE__, input, sum);
+		input = thisv>>(8*(8-n_input_bytes));
+		if (PRINT) printf("%d: input=%016lx\n", __LINE__, input);
+		len-=8;
+		cbuf+=8;
+		// n_input_bytes remains unchanged
+		if (PRINT) printf("%d: n_input_bytes=%d len=%d\n", __LINE__, l->n_input_bytes, len);
+	    }
+	    l->sum = sum;
+	}
+	if (len>=4) {
+	    u_int64_t thisv = *(u_int32_t*)cbuf;
+	    if (n_input_bytes<4) {
+		input |= thisv<<(8*n_input_bytes);
+		if (PRINT) printf("%d: input=%016lx\n", __LINE__, input);
+		n_input_bytes+=4;
+	    } else {
+		input |= thisv<<(8*n_input_bytes);
+		l->sum = l->sum*17 + input;
+		if (PRINT) printf("%d: input=%016lx sum=%016lx\n", __LINE__, input, l->sum);
+		input = thisv>>(8*(8-n_input_bytes));
+		n_input_bytes-=4;
+		if (PRINT) printf("%d: input=%016lx n_input_bytes=%d\n", __LINE__, input, n_input_bytes);
+	    }
 	    len-=4;
 	    cbuf+=4;
+	    if (PRINT) printf("%d: len=%d\n", __LINE__, len);
 	}
-	while (n_input_bytes%8 && len) {
+	//assert(n_input_bytes<=8);
+	while (n_input_bytes<8 && len) {
 	    input |= ((u_int64_t)(*cbuf))<<(8*n_input_bytes);
 	    n_input_bytes++;
 	    cbuf++;
 	    len--;
 	}
-	if (n_input_bytes%8) {
+	//assert(len>=0);
+	if (n_input_bytes<8) {
+	    //assert(len==0);
 	    l->input = input;
 	    l->n_input_bytes = n_input_bytes;
+	    if (PRINT) printf("%d: n_input_bytes=%d\n", __LINE__, l->n_input_bytes);
 	    return;
 	}
 	sum = l->sum*17 + input;
     } else {
+	//assert(len>=0);
 	sum = l->sum;
     }
+    //assert(len>=0);
     while (len>=8) {
 	sum = sum*17 + *(u_int64_t*)cbuf;
 	cbuf+=8;
@@ -917,15 +957,39 @@ void l1764_add (struct l1764 *l, const void *vbuf, int len) {
     }
     l->sum = sum;
     n_input_bytes = 0;
-    u_int64_t input=0;
-    int i;
-    for (i=0; i<len; i++) {
-	input |= ((u_int64_t)(cbuf[i]))<<(8*i);
+    u_int64_t input;
+    l->n_input_bytes = len;
+    // Surprisingly, the loop is the fastest on bradley's laptop. 
+    if (1) {
+	int i;
+	input=0;
+	for (i=0; i<len; i++) {
+	    input |= ((u_int64_t)(cbuf[i]))<<(8*i);
+	}
+    } else if (0) {
+	switch (len) {
+	case 7: input = ((u_int64_t)(*(u_int32_t*)(cbuf))) | (((u_int64_t)(*(u_int16_t*)(cbuf+4)))<<32) | (((u_int64_t)(*(cbuf+4)))<<48); break;
+	case 6: input = ((u_int64_t)(*(u_int32_t*)(cbuf))) | (((u_int64_t)(*(u_int16_t*)(cbuf+4)))<<32); break;
+	case 5: input = ((u_int64_t)(*(u_int32_t*)(cbuf))) | (((u_int64_t)(*(cbuf+4)))<<32); break;
+	case 4: input = ((u_int64_t)(*(u_int32_t*)(cbuf))); break;
+	case 3: input = ((u_int64_t)(*(u_int16_t*)(cbuf))) | (((u_int64_t)(*(cbuf+2)))<<16); break;
+	case 2: input = ((u_int64_t)(*(u_int16_t*)(cbuf))); break;
+	case 1: input = ((u_int64_t)(*cbuf)); break;
+	case 0: input = 0;                      break;
+	default: abort();
+	}
+    } else {
+	input=0;
+	int i=0;
+	if (len>=4) { input  = ((u_int64_t)(*(u_int32_t*)(cbuf)));        cbuf+=4; len-=4; i=4;}
+	if (len>=2) { input |= ((u_int64_t)(*(u_int16_t*)(cbuf)))<<(i*8); cbuf+=2; len-=2; i+=2; }
+	if (len>=1) { input |= ((u_int64_t)(*(u_int8_t *)(cbuf)))<<(i*8); /*cbuf+=1; len-=1; i++;*/ }
     }
     l->input = input;
-    l->n_input_bytes = len;
+    if (PRINT) printf("%d: n_input_bytes=%d\n", __LINE__, l->n_input_bytes);
 }
 u_int32_t l1764_finish (struct l1764 *l) {
+    if (PRINT) printf("%d: n_input_bytes=%d\n", __LINE__, l->n_input_bytes);
     assert(l->n_input_bytes==0);
     return (l->sum)&0xffffffff;
 }
@@ -963,14 +1027,16 @@ void l17_add (struct l17 *l17, const void *buf, int len) {
 #define Nu N
 
 static void measure_bandwidths (void) {
+    int canon; // what is the results supposed to be.
     measure_bandwidth("l17fast  ", c=l17_fast(buf, N));
-    measure_bandwidth("l17fast64", c=l17_fast64(buf, N));
-    measure_bandwidth("l17f64i  ", ({ struct l1764 l; l1764_init(&l); l1764_add(&l, buf, Nu); c=l1764_finish(&l); }));
-    measure_bandwidth("l17f64ib1", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j<Nu; j++) l1764_add(&l, buf+j, 1); c=l1764_finish(&l); }));
-    measure_bandwidth("l17f64ib2", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j<Nu; j+=2) l1764_add(&l, buf+j, 2); c=l1764_finish(&l); }));
-    measure_bandwidth("l17f64ib4", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j<Nu; j+=4) l1764_add(&l, buf+j, 4); c=l1764_finish(&l); }));
-    measure_bandwidth("l17f64ib8", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j<Nu; j+=8) l1764_add(&l, buf+j, 8); c=l1764_finish(&l); }));
-    measure_bandwidth("l17f64ib9", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j+8<Nu; j+=9) l1764_add(&l, buf+j, 9); l1764_add(&l, buf+j, N-j); c=l1764_finish(&l); }));
+    measure_bandwidth("l17fast64", canon=c=l17_fast64(buf, N));
+    measure_bandwidth("l17f64i  ", ({ struct l1764 l; l1764_init(&l); l1764_add(&l, buf, Nu); c=l1764_finish(&l); assert(canon==c); }));
+    measure_bandwidth("l17f64ib1", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j<Nu; j++) l1764_add(&l, buf+j, 1); c=l1764_finish(&l);  assert(canon==c);}));
+    measure_bandwidth("l17f64ib2", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j<Nu; j+=2) l1764_add(&l, buf+j, 2); c=l1764_finish(&l); assert(canon==c); }));
+    measure_bandwidth("l17f64ib4", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j<Nu; j+=4) l1764_add(&l, buf+j, 4); c=l1764_finish(&l); assert(canon==c); }));
+    measure_bandwidth("l17f64ib8", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j<Nu; j+=8) l1764_add(&l, buf+j, 8); c=l1764_finish(&l); assert(canon==c); }));
+    measure_bandwidth("l17f64ib9", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j+8<Nu; j+=9) l1764_add(&l, buf+j, 9); l1764_add(&l, buf+j, N-j); c=l1764_finish(&l); assert(canon==c); }));
+    measure_bandwidth("l17f64ibc", ({ struct l1764 l; l1764_init(&l); int j; for(j=0; j+13<Nu; j+=13) l1764_add(&l, buf+j, 13); l1764_add(&l, buf+j, N-j); c=l1764_finish(&l); assert(canon==c); }));
     measure_bandwidth("x17c     ", c=x17c(0, buf, N));
     measure_bandwidth("x17s     ", c=x17s(0, buf, N));
     measure_bandwidth("x17i     ", c=x17i(0, buf, N));
