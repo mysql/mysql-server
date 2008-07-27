@@ -1,0 +1,2 @@
+LDFLAGS = -lz
+CFLAGS = -O3
