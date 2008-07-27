@@ -120,7 +120,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     wbuf_literal_bytes(&w, "toku", 4);
     if (node->height==0) wbuf_literal_bytes(&w, "leaf", 4);
     else wbuf_literal_bytes(&w, "node", 4);
-    wbuf_int(&w, BRT_LAYOUT_VERSION_7);
+    wbuf_int(&w, BRT_LAYOUT_VERSION);
     wbuf_ulonglong(&w, node->log_lsn.lsn);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_uint(&w, calculated_size);
@@ -176,7 +176,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
 				      wbuf_TXNID(&w, xid);
 				      wbuf_bytes(&w, key, keylen);
 				      wbuf_bytes(&w, data, datalen);
-				      check_local_fingerprint+=node->rand4fingerprint*toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
+				      check_local_fingerprint+=node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
 				  }));
 	    }
 	    //printf("%s:%d check_local_fingerprint=%8x\n", __FILE__, __LINE__, check_local_fingerprint);
@@ -193,7 +193,10 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     wbuf_int(&w, crc32(toku_null_crc, w.buf, w.ndone)); 
 #endif
 #ifdef CRC_INCR
-    wbuf_uint(&w, w.crc32);
+    {
+	u_int32_t checksum = x1764_finish(&w.checksum);
+	wbuf_uint(&w, checksum);
+    }
 #endif
 
     if (!node->ever_been_written)
@@ -274,9 +277,8 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
     result->layout_version    = rbuf_int(&rc);
     {
 	switch (result->layout_version) {
-	case BRT_LAYOUT_VERSION_5:
-	case BRT_LAYOUT_VERSION_6:
-	case BRT_LAYOUT_VERSION_7: goto ok_layout_version;
+	case BRT_LAYOUT_VERSION_8: goto ok_layout_version;
+	    // Don't support older versions.
 	}
 	r=DB_BADFORMAT;
 	goto died1;
@@ -311,11 +313,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
 	    u_int32_t childfp = rbuf_int(&rc);
 	    BNC_SUBTREE_FINGERPRINT(result, i)= childfp;
 	    check_subtree_fingerprint += childfp;
-	    if (result->layout_version>BRT_LAYOUT_VERSION_5) {
-		BNC_SUBTREE_LEAFENTRY_ESTIMATE(result, i)=rbuf_ulonglong(&rc);
-	    } else {
-		BNC_SUBTREE_LEAFENTRY_ESTIMATE(result, i)=0;
-	    }
+	    BNC_SUBTREE_LEAFENTRY_ESTIMATE(result, i)=rbuf_ulonglong(&rc);
 	}
 	for (i=0; i<result->u.n.n_children-1; i++) {
             if (result->flags & TOKU_DB_DUPSORT) {
@@ -364,7 +362,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
 		    TXNID xid  = rbuf_ulonglong(&rc);
 		    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 		    rbuf_bytes(&rc, &val, &vallen);
-		    check_local_fingerprint += result->rand4fingerprint * toku_calccrc32_cmd(type, xid, key, keylen, val, vallen);
+		    check_local_fingerprint += result->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, val, vallen);
 		    //printf("Found %s,%s\n", (char*)key, (char*)val);
 		    {
 			r=toku_fifo_enq(BNC_BUFFER(result, cnum), key, keylen, val, vallen, type, xid); /* Copies the data into the hash table. */
@@ -403,7 +401,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
 	    assert(rc.ndone<=rc.size);
 
 	    array[i]=(OMTVALUE)le;
-	    actual_sum += toku_crc32(toku_null_crc, le, disksize);
+	    actual_sum += x1764_memory(le, disksize);
 	}
 	u_int32_t end_of_data = rc.ndone;
 	result->u.l.n_bytes_in_buffer += end_of_data-start_of_data + n_in_buf*OMT_ITEM_OVERHEAD;
@@ -434,10 +432,11 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
 	if (n_read_so_far+4!=rc.size) {
 	    r = DB_BADFORMAT; goto died_21;
 	}
-	uint32_t crc = toku_crc32(toku_null_crc, rc.buf, n_read_so_far);
+	uint32_t crc = x1764_memory(rc.buf, n_read_so_far);
 	uint32_t storedcrc = rbuf_int(&rc);
 	if (crc!=storedcrc) {
 	    printf("Bad CRC\n");
+	    printf("%s:%d crc=%08x stored=%08x\n", __FILE__, __LINE__, crc, storedcrc);
 	    assert(0);//this is wrong!!!
 	    r = DB_BADFORMAT;
 	    goto died_21;
@@ -560,91 +559,6 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     return r;
 }
 
-static int deserialize_brtheader_6_or_earlier (int fd, DISKOFF off, struct brt_header **brth, u_int32_t fullhash) {
-    // Deserialize a brt header from version 6 or earlier.
-    struct brt_header *MALLOC(h);
-    if (h==0) return errno;
-    h->fullhash = fullhash;
-    int ret=-1;
-    if (0) { died0: toku_free(h); return ret; }
-    int size;
-    int sizeagain;
-    h->layout_version = BRT_LAYOUT_VERSION_6;
-    {
-	uint32_t size_n;
-	ssize_t r = pread(fd, &size_n, sizeof(size_n), off);
-	assert(r==sizeof(size_n)); // we already read it earlier.
-	size = ntohl(size_n);
-    }
-    struct rbuf rc;
-    rc.buf = toku_malloc(size);
-    if (rc.buf == NULL) { ret = ENOMEM; goto died0; }
-    if (0) { died1: toku_free(rc.buf); goto died0; }
-    rc.size=size;
-    if (rc.size<=0) {ret = EINVAL; goto died1;}
-    rc.ndone=0;
-    {
-	ssize_t r = pread(fd, rc.buf, size, off);
-	if (r!=size) {ret = EINVAL; goto died1;}
-    }
-    h->dirty=0;
-    sizeagain        = rbuf_int(&rc);
-    if (sizeagain!=size) {ret = EINVAL; goto died1;}
-    u_int32_t flags_for_all = rbuf_int(&rc);
-    h->nodesize      = rbuf_int(&rc);
-    h->freelist      = rbuf_diskoff(&rc);
-    h->unused_memory = rbuf_diskoff(&rc);
-    h->n_named_roots = rbuf_int(&rc);
-    if (h->n_named_roots>=0) {
-	int i;
-	MALLOC_N(h->n_named_roots, h->flags_array);
-	for (i=0; i<h->n_named_roots; i++) h->flags_array[i]=flags_for_all;
-	MALLOC_N(h->n_named_roots, h->roots);
-	MALLOC_N(h->n_named_roots, h->root_hashes);
-	if (h->n_named_roots > 0 && (h->roots == NULL || h->root_hashes==NULL)) {ret = ENOMEM; goto died1;}
-	if (0) {
-	died2:
-	    toku_free(h->roots);
-	    toku_free(h->root_hashes);
-	    goto died1;
-	}
-	MALLOC_N(h->n_named_roots, h->names);
-	if (h->n_named_roots > 0 && h->names == NULL) {ret = ENOMEM; goto died2;}
-	if (0) {
-	died3:
-	    toku_free(h->names);
-	    for (i = 0; i < h->n_named_roots; i++) {
-		if (h->names[i]) toku_free(h->names[i]);
-	    }
-	    goto died2;
-	}
-	
-	for (i=0; i<h->n_named_roots; i++) {
-	    bytevec nameptr;
-	    unsigned int len;
-	    h->root_hashes[i].valid = FALSE;
-	    h->roots[i] = rbuf_diskoff(&rc);
-	    rbuf_bytes(&rc, &nameptr, &len);
-	    if (strlen(nameptr)+1!=len) {ret = EINVAL; goto died3;}
-	    h->names[i] = toku_memdup(nameptr,len);
-	    if (len > 0 && h->names[i] == NULL) {ret = ENOMEM; goto died3;}
-	}
-	
-    } else {
-	MALLOC_N(1, h->flags_array);
-	MALLOC_N(1, h->roots);
-	MALLOC_N(1, h->root_hashes);
-	h->flags_array[0]=flags_for_all;
-	h->roots[0] = rbuf_diskoff(&rc);
-	h->root_hashes[0].valid = FALSE;
-	h->names = 0;
-    }
-    if (rc.ndone!=rc.size) {ret = EINVAL; goto died3;}
-    toku_free(rc.buf);
-    *brth = h;
-    return 0;
-}
-
 int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct brt_header **brth, u_int32_t fullhash) {
     // We already know the first 8 bytes are "tokudata", and we read in the size.
     struct brt_header *MALLOC(h);
@@ -665,7 +579,7 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
     h->dirty=0;
     h->layout_version = rbuf_int(&rc);
     h->nodesize      = rbuf_int(&rc);
-    assert(h->layout_version==BRT_LAYOUT_VERSION_7);
+    assert(h->layout_version==BRT_LAYOUT_VERSION_8);
     h->freelist      = rbuf_diskoff(&rc);
     h->unused_memory = rbuf_diskoff(&rc);
     h->n_named_roots = rbuf_int(&rc);
@@ -713,12 +627,9 @@ int toku_deserialize_brtheader_from (int fd, DISKOFF off, u_int32_t fullhash, st
     if (r==0) return -1;
     if (r<0)  return errno;
     if (r!=12) return EINVAL;
-    if (memcmp(magic,"tokudata",8)==0) {
-	// It's version 7 or later
-	return deserialize_brtheader_7_or_later(ntohl(*(int*)(&magic[8])), fd, off, brth, fullhash);
-    } else {
-	return deserialize_brtheader_6_or_earlier(fd, off, brth, fullhash);
-    }
+    assert(memcmp(magic,"tokudata",8)==0);
+    // It's version 7 or later, and the magi clooks OK
+    return deserialize_brtheader_7_or_later(ntohl(*(int*)(&magic[8])), fd, off, brth, fullhash);
 }
 
 unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {

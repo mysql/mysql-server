@@ -36,7 +36,7 @@ FORMAT=-Wmissing-format-attribute
 endif
 
 CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz
+LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS)
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
 
 # Add -Wconversion
@@ -55,9 +55,7 @@ BINS= brtdump \
 build default: bins libs tdb-recover tdb_logprint $(TEST_OFILES)
 	cd tests;$(MAKE) build
 
-# Put crc first to make -combine work right
 BRT_SOURCES = \
-  crc \
   bread \
   brt-serialize \
   brt-verify \
@@ -77,6 +75,7 @@ BRT_SOURCES = \
   roll \
   toku_assert \
   ybt \
+  x1764 \
   trace_mem \
 # keep this line so I can ha vea \ on the previous line
 
@@ -119,7 +118,7 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-search.h brttypes.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h mempool.h leafentry.h
+BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-search.h brttypes.h ybt.h log.h ../include/db.h kv-pair.h memory.h mempool.h leafentry.h
 brt-test-helpers.o: $(BRT_INTERNAL_H_INCLUDES) toku_assert.h
 logformat: logformat.c toku_assert.c
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
