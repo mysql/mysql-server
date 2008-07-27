@@ -1,2 +1,4 @@
 LDFLAGS = -lz
-CFLAGS = -O3
+CFLAGS = -O4 -Wall -W
+hash-benchmark:
+
