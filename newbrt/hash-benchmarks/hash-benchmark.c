@@ -27,13 +27,26 @@ static double tdiff (struct timeval *a, struct timeval *b) {
     printf("%s=%08x %d bytes in %8.6fs for %8.3fMB/s\n", str, c, N, diff, N*(1e-6)/diff); \
 	})
 
-int sum32 (int start, void *buf, int bytecount)  {
+int sum32 (void *buf, int bytecount)  {
     int *ibuf = buf;
+    int start = 0; 
     assert(bytecount%4==0);
     while (bytecount>0) {
 	start+=*ibuf;
 	ibuf++;
 	bytecount-=4;
+    }
+    return start;
+}
+
+u_int64_t sum64 (void *buf, int bytecount)  {
+    u_int64_t *ibuf = buf;
+    u_int64_t start = 0;
+    assert(bytecount%8==0);
+    while (bytecount>0) {
+	start+=*ibuf;
+	ibuf++;
+	bytecount-=8;
     }
     return start;
 }
@@ -1077,7 +1090,8 @@ static void measure_bandwidths (void) {
     measure_bandwidth("crc32    ", c=crc32(0, buf, N));
     measure_bandwidth("crc32by1 ", ({ c=0; int j; for(j=0; j<N; j++) c=crc32(c, buf+j, 1); }));
     measure_bandwidth("crc32by2 ", ({ c=0; int j; for(j=0; j<N; j+=2) c=crc32(c, buf+j, 2); }));
-    measure_bandwidth("sum32    ", c=sum32(0, buf, N));
+    measure_bandwidth("sum32    ", c=sum32(buf, N));
+    measure_bandwidth("sum64    ", c=sum32(buf, N));
     measure_bandwidth("murmur   ", c=MurmurHash2(buf, N));
     measure_bandwidth("murmurf  ", ({ struct murmur mm; murmur_init(&mm); murmur_add(&mm, buf, N); c=murmur_finish(&mm); }));
     measure_bandwidth("sum84    ", ({ struct sum84 s; sum84_init(&s); sum84_add(&s, buf, N); c=sum84_finish(&s); }));
