@@ -84,6 +84,7 @@ DBT *brt_cursor_peek_prev_key(BRT_CURSOR cursor);
 DBT *brt_cursor_peek_prev_val(BRT_CURSOR cursor);
 DBT *brt_cursor_peek_current_key(BRT_CURSOR cursor);
 DBT *brt_cursor_peek_current_val(BRT_CURSOR cursor);
+void brt_cursor_peek_current(BRT_CURSOR cursor, const DBT **pkey, const DBT **pval);
 void brt_cursor_restore_state_from_prev(BRT_CURSOR cursor);
 
 typedef struct brtenv *BRTENV;

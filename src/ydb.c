@@ -1801,10 +1801,7 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
                                            txn);
     if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
     int found = c_get_result==0;
-    if (found) {
-        pkey = brt_cursor_peek_current_key(c->i->c);
-        pval = brt_cursor_peek_current_val(c->i->c);
-    }
+    if (found) brt_cursor_peek_current(c->i->c, &pkey, &pval);
     if (do_locking) {
 
 	DBT *prevkey = found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c);
