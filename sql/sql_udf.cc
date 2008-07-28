@@ -214,7 +214,17 @@ void udf_init()
     void *dl = find_udf_dl(tmp->dl);
     if (dl == NULL)
     {
-      if (!(dl = dlopen(tmp->dl, RTLD_NOW)))
+      char dlpath[FN_REFLEN];
+      if (*opt_plugin_dir)
+        strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", tmp->dl,
+                 NullS);
+      else
+      {
+        strxnmov(dlpath, sizeof(dlpath)-1, tmp->dl, NullS);
+        push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                     "plugin_dir was not specified");
+      }
+      if (!(dl = dlopen(dlpath, RTLD_NOW)))
       {
 	/* Print warning to log */
 	sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl,errno,dlerror());
@@ -443,8 +453,18 @@ int mysql_create_function(THD *thd,udf_func *udf)
   }
   if (!(dl = find_udf_dl(udf->dl)))
   {
-    DBUG_PRINT("info", ("Calling dlopen, udf->dl: %s", udf->dl));
-    if (!(dl = dlopen(udf->dl, RTLD_NOW)))
+    char dlpath[FN_REFLEN];
+    if (*opt_plugin_dir)
+      strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", udf->dl,
+               NullS);
+    else
+    {
+      strxnmov(dlpath, sizeof(dlpath)-1, udf->dl, NullS);
+      push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                   "plugin_dir was not specified");
+    }
+    DBUG_PRINT("info", ("Calling dlopen, udf->dl: %s", dlpath));
+    if (!(dl = dlopen(dlpath, RTLD_NOW)))
     {
       DBUG_PRINT("error",("dlopen of %s failed, error: %d (%s)",
 			  udf->dl,errno,dlerror()));
