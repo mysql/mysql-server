@@ -3198,6 +3198,15 @@ DBT *brt_cursor_peek_prev_val(BRT_CURSOR cursor)
     return &cursor->prevval;
 }
 
+void brt_cursor_peek_current(BRT_CURSOR cursor, const DBT **pkey, const DBT **pval)
+// Effect: Retrieves a pointer to the DBTs for the current key and value.
+// Requires:  The caller may not modify the DBTs or the memory at which they points.
+{
+    if (cursor->current_in_omt) load_dbts_from_omt(cursor, &cursor->key, &cursor->val);
+    *pkey = &cursor->key;
+    *pval = &cursor->val;
+}
+
 DBT *brt_cursor_peek_current_key(BRT_CURSOR cursor)
 // Effect: Return a pointer to a DBT for the current key.  
 // Requires:  The caller may not modify that DBT or the memory at which it points.
