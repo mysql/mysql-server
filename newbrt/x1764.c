@@ -2,6 +2,7 @@
 #include "toku_assert.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #define PRINT 0
 
@@ -11,7 +12,7 @@ u_int32_t x1764_memory (const void *buf, int len)
     u_int64_t c=0;
     while (len>=8) {
 	c = c*17 + *lbuf;
-	if (PRINT) printf("%d: c=%016lx sum=%016lx\n", __LINE__, *lbuf, c);
+	if (PRINT) printf("%d: c=%016" PRIx64 " sum=%016" PRIx64 "\n", __LINE__, *lbuf, c);
 	lbuf++;
 	len-=8;
     }
@@ -77,9 +78,9 @@ inline void x1764_add (struct x1764 *l, const void *vbuf, int len) {
 		u_int64_t thisv = *(u_int64_t*)cbuf;
 		input |= thisv<<(8*n_input_bytes);
 		sum = sum*17 + input;
-		if (PRINT) printf("%d: input=%016lx sum=%016lx\n", __LINE__, input, sum);
+		if (PRINT) printf("%d: input=%016" PRIx64 " sum=%016" PRIx64 "\n", __LINE__, input, sum);
 		input = thisv>>(8*(8-n_input_bytes));
-		if (PRINT) printf("%d: input=%016lx\n", __LINE__, input);
+		if (PRINT) printf("%d: input=%016" PRIx64 "\n", __LINE__, input);
 		len-=8;
 		cbuf+=8;
 		// n_input_bytes remains unchanged
@@ -91,15 +92,15 @@ inline void x1764_add (struct x1764 *l, const void *vbuf, int len) {
 	    u_int64_t thisv = *(u_int32_t*)cbuf;
 	    if (n_input_bytes<4) {
 		input |= thisv<<(8*n_input_bytes);
-		if (PRINT) printf("%d: input=%016lx\n", __LINE__, input);
+		if (PRINT) printf("%d: input=%016" PRIx64 "\n", __LINE__, input);
 		n_input_bytes+=4;
 	    } else {
 		input |= thisv<<(8*n_input_bytes);
 		l->sum = l->sum*17 + input;
-		if (PRINT) printf("%d: input=%016lx sum=%016lx\n", __LINE__, input, l->sum);
+		if (PRINT) printf("%d: input=%016" PRIx64 " sum=%016" PRIx64 "\n", __LINE__, input, l->sum);
 		input = thisv>>(8*(8-n_input_bytes));
 		n_input_bytes-=4;
-		if (PRINT) printf("%d: input=%016lx n_input_bytes=%d\n", __LINE__, input, n_input_bytes);
+		if (PRINT) printf("%d: input=%016" PRIx64 " n_input_bytes=%d\n", __LINE__, input, n_input_bytes);
 	    }
 	    len-=4;
 	    cbuf+=4;

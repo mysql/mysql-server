@@ -14,7 +14,7 @@ void test0 (void) {
 }
 
 void test1 (void) {
-    u_int64_t v=0x123456789abcdef0;
+    u_int64_t v=0x123456789abcdef0ULL;
     u_int32_t c;
     int i;
     for (i=0; i<=8; i++) {
