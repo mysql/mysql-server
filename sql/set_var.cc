@@ -1036,6 +1036,7 @@ struct show_var_st init_vars[]= {
   {sys_optimizer_search_depth.name,(char*) &sys_optimizer_search_depth,
    SHOW_SYS},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
+  {"plugin_dir",              (char*) opt_plugin_dir,               SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
 #ifdef ENABLED_PROFILING
