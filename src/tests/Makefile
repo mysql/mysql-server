@@ -235,6 +235,6 @@ dumpit:
 
 # test on small stacks
 test_thread_stack.%run: test_thread_stack.%
-	$(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384         && \
-	$(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
+	$(UNSETTOKUENV) ./$< -a -thread_stack 16384         && \
+	$(UNSETTOKUENV) ./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 
