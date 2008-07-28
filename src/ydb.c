@@ -1785,9 +1785,8 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
     flag &= ~lock_flags;
     assert(flag==0);
     TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
-    DBT key,val;
-    memset(&key, 0, sizeof(key));
-    memset(&val, 0, sizeof(val));
+    const DBT *pkey, *pval;
+    pkey = pval = toku_lt_infinity;
     int r;
 
     DB *db=c->dbp;
@@ -1797,11 +1796,15 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
     unsigned int brtflags;
     toku_brt_get_flags(db->i->brt, &brtflags);
 
-    int c_get_result = toku_brt_cursor_get(c->i->c, &key, &val,
+    int c_get_result = toku_brt_cursor_get(c->i->c, NULL, NULL,
                                           (brtflags & TOKU_DB_DUPSORT) ? DB_NEXT : DB_NEXT_NODUP,
                                            txn);
     if (c_get_result!=0 && c_get_result!=DB_NOTFOUND) { r = c_get_result; goto cleanup; }
     int found = c_get_result==0;
+    if (found) {
+        pkey = brt_cursor_peek_current_key(c->i->c);
+        pval = brt_cursor_peek_current_val(c->i->c);
+    }
     if (do_locking) {
 
 	DBT *prevkey = found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c);
@@ -1812,12 +1815,11 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
         if (r!=0) goto cleanup;
         r = toku_lt_acquire_range_read_lock(lt, db, toku_txn_get_txnid(txn_anc->i->tokutxn),
                                             prevkey, prevval,
-                                            found ? &key : toku_lt_infinity,
-                                            found ? &val : toku_lt_infinity);
+                                            pkey, pval);
         if (r!=0) goto cleanup;
     }
     if (found) {
-	f(&key, &val, extra);
+	f(pkey, pval, extra);
     }
     r = c_get_result;
  cleanup:

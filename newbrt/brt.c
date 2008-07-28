@@ -3230,6 +3230,9 @@ static inline int compare_kv_xy(BRT brt, DBT *k, DBT *v, DBT *x, DBT *y) {
 }
 
 static inline int brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val) {
+    //Passing in NULL for both key and val is used with light weight cursors.
+    //Retrieval of key and val will use the peek functions.
+    if (!key && !val) return 0;
     int r = 0;
     void** key_staticp = cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey;
     void** val_staticp = cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval;
