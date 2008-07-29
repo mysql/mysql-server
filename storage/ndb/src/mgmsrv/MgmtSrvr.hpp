@@ -96,16 +96,6 @@ public:
   NdbMutex *m_node_id_mutex;
 
   /**
-   * Start/initate the event log.
-   */
-  void startEventLog();
-
-  /**
-   * Stop the event log.
-   */
-  void stopEventLog();
-
-  /**
    * Enable/disable eventlog log levels/severities.
    *
    * @param serverity the log level/serverity.
@@ -126,18 +116,60 @@ public:
    */
   enum LogMode {In, Out, InOut, Off};
 
-  /* Constructor */
+  /**
+     @struct MgmtOpts
+     @brief Options used to control how the management server is started
+  */
 
-  MgmtSrvr(SocketServer *socket_server,
-	   const char *config_filename,      /* Where to save config */
-	   const char *connect_string); 
-  NodeId getOwnNodeId() const {return _ownNodeId;};
+  struct MgmtOpts {
+    int daemon;
+    int non_interactive;
+    int interactive;
+    const char* config_filename;
+    int mycnf;
+    const char* bind_address;
+    int no_nodeid_checks;
+    int print_full_config;
+  };
 
-  bool start(BaseString &error_string, const char * bindaddress = 0);
+  MgmtSrvr(); // Not implemented
+  MgmtSrvr(const MgmtSrvr&); // Not implemented
+  MgmtSrvr(const MgmtOpts&, const char* connect_str);
 
   ~MgmtSrvr();
 
-  void print_config(void) { _config->print(); };
+  /*
+    To be called after constructor. Loads configuration
+    from disk or fetches it from other server
+   */
+  bool init();
+
+private:
+  /* Functions used from 'init' */
+  Config* load_init_config(void);
+  Config* load_init_mycnf(void);
+  bool fetch_config(void);
+  bool save_config(const Config* conf);
+  bool save_config(void);
+
+public:
+
+  /*
+    To be called after 'init', starts up the services
+    this server will expose
+   */
+  bool start(void);
+private:
+  /* Functions used from 'start' */
+  bool start_transporter(void);
+  bool start_mgm_service(void);
+  bool connect_to_self(void);
+
+public:
+
+  NodeId getOwnNodeId() const {return _ownNodeId;};
+
+  void print_config() { _config->print(); };
 
   /**
    * Get status on a node.
@@ -155,20 +187,6 @@ public:
 	     Uint32 * nodeGroup,
 	     Uint32 * connectCount,
 	     const char **address);
-  
-  // All the functions below may return any of this error codes:
-  // NO_CONTACT_WITH_PROCESS, PROCESS_NOT_CONFIGURED, WRONG_PROCESS_TYPE,
-  // COULD_NOT_ALLOCATE_MEMORY, SEND_OR_RECEIVE_FAILED
-
-  /**
-   * Read configuration from file, or from another MGM server
-   */
-  Config *readConfig();
-
-  /**
-   * Fetch configuration from another MGM server
-   */
-  Config *fetchConfig();
 
   /**
    *   Stop a node
@@ -376,12 +394,16 @@ public:
    *   Get configuration
    */
   const Config * getConfig() const;
+private:
+  void setConfig(Config* conf);
+  void setClusterLog(void);
+public:
 
   /**
-   * Returns the port number.
+   * Returns the port number where MgmApiService is started
    * @return port number.
    */
-  int getPort() const;
+  int getPort() const { return m_port; };
 
   int setDbParameter(int node, int parameter, const char * value, BaseString&);
   int setConnectionDbParameter(int node1, int node2, int param, int value,
@@ -389,15 +411,11 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  bool connect_to_self(const char* bindaddress = 0);
-
   void transporter_connect(NDB_SOCKET_TYPE sockfd);
-
-  ConfigRetriever *get_config_retriever() { return m_config_retriever; };
 
   const char *get_connect_address(Uint32 node_id);
   void get_connected_nodes(NodeBitmask &connected_nodes) const;
-  SocketServer *get_socket_server() { return m_socket_server; }
+  SocketServer *get_socket_server() { return &m_socket_server; }
 
   void updateStatus();
 
@@ -442,15 +460,17 @@ private:
   int check_nodes_stopping();
 
   //**************************************************************************
-  
+
+  const MgmtOpts& m_opts;
   int _blockNumber;
   NodeId _ownNodeId;
-  SocketServer *m_socket_server;
+  Uint32 m_port;
+  SocketServer m_socket_server;
+  ConfigRetriever m_config_retriever;
 
   BlockReference _ownReference; 
   NdbMutex *m_configMutex;
   const Config * _config;
-  BaseString m_configFilename;
 
   NodeBitmask m_reserved_nodes;
   struct in_addr m_connect_address[MAX_NODES];
@@ -510,8 +530,6 @@ private:
   struct NdbThread* _logLevelThread;
   static void *logLevelThread_C(void *);
   void logLevelThreadRun();
-  
-  ConfigRetriever *m_config_retriever;
 };
 
 inline

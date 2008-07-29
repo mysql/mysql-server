@@ -39,4 +39,10 @@ public:
   struct ndb_mgm_configuration * m_configValues;
 };
 
+class ConfigIter : public ndb_mgm_configuration_iterator {
+public:
+  ConfigIter(const Config* conf, unsigned type) :
+    ndb_mgm_configuration_iterator(*conf->m_configValues, type) {};
+};
+
 #endif // Config_H

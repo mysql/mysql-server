@@ -341,7 +341,6 @@ MgmApiSession::~MgmApiSession()
   DBUG_VOID_RETURN;
 }
 
-
 void
 MgmApiSession::runSession()
 {
