@@ -2879,6 +2879,8 @@ ConfigInfo::sectionName(Uint32 section_type, Uint32 type) const {
     assert(false);
     break;
   }
+
+  return "<unknown section>";
 }
 
 bool
