@@ -559,8 +559,10 @@ err_exit:
 	/* Read to the partial row the fields that occur in indexes */
 
 	if (!(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
-		ptr = trx_undo_rec_get_partial_row(ptr, clust_index,
-						   &node->row, node->heap);
+		ptr = trx_undo_rec_get_partial_row(
+			ptr, clust_index, &node->row,
+			type == TRX_UNDO_UPD_DEL_REC,
+			node->heap);
 	}
 
 	return(TRUE);
