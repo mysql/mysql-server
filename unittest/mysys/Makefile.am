@@ -16,7 +16,7 @@
 INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
 			-I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap 
 
-noinst_PROGRAMS  =    bitmap-t base64-t my_atomic-t
+noinst_PROGRAMS  =    bitmap-t base64-t my_atomic-t lf-t waiting_threads-t
 
 LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/mysys/libmysys.a \

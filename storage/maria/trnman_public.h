@@ -38,7 +38,7 @@ extern my_bool (*trnman_end_trans_hook)(TRN *trn, my_bool commit,
 
 int trnman_init(TrID);
 void trnman_destroy(void);
-TRN *trnman_new_trn(pthread_mutex_t *, pthread_cond_t *, void *);
+TRN *trnman_new_trn(pthread_mutex_t *, pthread_cond_t *);
 my_bool trnman_end_trn(TRN *trn, my_bool commit);
 #define trnman_commit_trn(T) trnman_end_trn(T, TRUE)
 #define trnman_abort_trn(T)  trnman_end_trn(T, FALSE)

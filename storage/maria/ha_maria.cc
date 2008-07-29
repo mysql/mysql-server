@@ -2246,10 +2246,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       /* Start of new statement */
       if (!trn)  /* no transaction yet - open it now */
       {
-        trn= trnman_new_trn(& thd->mysys_var->mutex,
-                            & thd->mysys_var->suspend,
-                            thd->thread_stack + STACK_DIRECTION *
-                            (my_thread_stack_size - STACK_MIN_SIZE));
+        trn= trnman_new_trn(& thd->mysys_var->mutex, & thd->mysys_var->suspend);
         if (unlikely(!trn))
           DBUG_RETURN(HA_ERR_OUT_OF_MEM);
         THD_TRN= trn;
@@ -2389,10 +2386,7 @@ int ha_maria::implicit_commit(THD *thd)
       tables may be under LOCK TABLES, and so they will start the next
       statement assuming they have a trn (see ha_maria::start_stmt()).
     */
-    trn= trnman_new_trn(& thd->mysys_var->mutex,
-                        & thd->mysys_var->suspend,
-                        thd->thread_stack + STACK_DIRECTION *
-                        (my_thread_stack_size - STACK_MIN_SIZE));
+    trn= trnman_new_trn(& thd->mysys_var->mutex, & thd->mysys_var->suspend);
     /* This is just a commit, tables stay locked if they were: */
     trnman_reset_locked_tables(trn, locked_tables);
     THD_TRN= trn;

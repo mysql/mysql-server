@@ -260,8 +260,7 @@ static void set_short_trid(TRN *trn)
     mutex and cond will be used for lock waits
 */
 
-TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
-                    void *stack_end)
+TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
 {
   TRN *trn;
   DBUG_ENTER("trnman_new_trn");
@@ -308,7 +307,7 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
     }
     trnman_allocated_transactions++;
   }
-  trn->pins= lf_hash_get_pins(&trid_to_committed_trn, stack_end);
+  trn->pins= lf_hash_get_pins(&trid_to_committed_trn);
   if (!trn->pins)
   {
     trnman_free_trn(trn);
@@ -761,7 +760,7 @@ TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid)
   TrID old_trid_generator= global_trid_generator;
   TRN *trn;
   DBUG_ASSERT(maria_in_recovery && !maria_multi_threaded);
-  if (unlikely((trn= trnman_new_trn(NULL, NULL, NULL)) == NULL))
+  if (unlikely((trn= trnman_new_trn(NULL, NULL)) == NULL))
     return NULL;
   /* deallocate excessive allocations of trnman_new_trn() */
   global_trid_generator= old_trid_generator;

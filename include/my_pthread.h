@@ -79,25 +79,27 @@ typedef void * (__cdecl *pthread_handler)(void *);
    so it can be used directly as a 64 bit value. The value
    stored is in 100ns units.
  */
- union ft64 {
+union ft64 {
   FILETIME ft;
   __int64 i64;
- };
+};
+
 struct timespec {
   union ft64 tv;
   /* The max timeout value in millisecond for pthread_cond_timedwait */
   long max_timeout_msec;
 };
-#define set_timespec(ABSTIME,SEC) { \
-  GetSystemTimeAsFileTime(&((ABSTIME).tv.ft)); \
-  (ABSTIME).tv.i64+= (__int64)(SEC)*10000000; \
-  (ABSTIME).max_timeout_msec= (long)((SEC)*1000); \
-}
-#define set_timespec_nsec(ABSTIME,NSEC) { \
-  GetSystemTimeAsFileTime(&((ABSTIME).tv.ft)); \
-  (ABSTIME).tv.i64+= (__int64)(NSEC)/100; \
-  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000); \
-}
+
+#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {          \
+  (ABSTIME).tv.i64= (TIME)+(__int64)(NSEC)/100;                 \
+  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000);           \
+} while(0)
+
+#define set_timespec_nsec(ABSTIME,NSEC) do {                    \
+  union ft64 tv;                                                \
+  GetSystemTimeAsFileTime(&tv.ft);                              \
+  set_timespec_time_nsec((ABSTIME), tv.i64, (NSEC))             \
+} while(0)
 
 void win_pthread_init(void);
 int win_pthread_setspecific(void *A,void *B,uint length);
@@ -416,43 +418,32 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
   for calculating an absolute time at which
   pthread_cond_timedwait should timeout
 */
+
+#define set_timespec(ABSTIME,SEC) set_timespec_nsec((ABSTIME),(SEC)*1000000000ULL)
+
+#ifndef set_timespec_nsec
+#define set_timespec_nsec(ABSTIME,NSEC)                                 \
+  set_timespec_time_nsec((ABSTIME),my_getsystime(),(NSEC))
+#endif /* !set_timespec_nsec */
+
+/* adapt for two different flavors of struct timespec */
 #ifdef HAVE_TIMESPEC_TS_SEC
-#ifndef set_timespec
-#define set_timespec(ABSTIME,SEC) \
-{ \
-  (ABSTIME).ts_sec=time(0) + (time_t) (SEC); \
-  (ABSTIME).ts_nsec=0; \
-}
-#endif /* !set_timespec */
-#ifndef set_timespec_nsec
-#define set_timespec_nsec(ABSTIME,NSEC) \
-{ \
-  ulonglong now= my_getsystime() + (NSEC/100); \
-  (ABSTIME).ts_sec=  (now / ULL(10000000)); \
-  (ABSTIME).ts_nsec= (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
-}
-#endif /* !set_timespec_nsec */
+#define TV_sec  ts_sec
+#define TV_nsec ts_nsec
 #else
-#ifndef set_timespec
-#define set_timespec(ABSTIME,SEC) \
-{\
-  struct timeval tv;\
-  gettimeofday(&tv,0);\
-  (ABSTIME).tv_sec=tv.tv_sec+(time_t) (SEC);\
-  (ABSTIME).tv_nsec=tv.tv_usec*1000;\
-}
-#endif /* !set_timespec */
-#ifndef set_timespec_nsec
-#define set_timespec_nsec(ABSTIME,NSEC) \
-{\
-  ulonglong now= my_getsystime() + (NSEC/100); \
-  (ABSTIME).tv_sec=  (time_t) (now / ULL(10000000));                  \
-  (ABSTIME).tv_nsec= (long) (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
-}
-#endif /* !set_timespec_nsec */
+#define TV_sec  tv_sec
+#define TV_nsec tv_nsec
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
-	/* safe_mutex adds checking to mutex for easier debugging */
+#ifndef set_timespec_time_nsec
+#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
+  ulonglong now= (TIME) + (NSEC/100);                                   \
+  (ABSTIME).TV_sec=  (now / ULL(10000000));                             \
+  (ABSTIME).TV_nsec= (now % ULL(10000000) * 100 + ((NSEC) % 100));      \
+} while(0)
+#endif /* !set_timespec_time_nsec */
+
+/* safe_mutex adds checking to mutex for easier debugging */
 
 #if defined(__NETWARE__) && !defined(SAFE_MUTEX_DETECT_DESTROY)
 #define SAFE_MUTEX_DETECT_DESTROY
@@ -692,6 +683,7 @@ struct st_my_thread_var
   struct st_my_thread_var *next,**prev;
   void *opt_info;
   uint  lock_type; /* used by conditional release the queue */
+  void  *stack_ends_here;
 #ifndef DBUG_OFF
   void *dbug;
   char name[THREAD_NAME_SIZE+1];

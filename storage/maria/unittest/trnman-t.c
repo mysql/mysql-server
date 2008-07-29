@@ -42,6 +42,8 @@ pthread_handler_t test_trnman(void *arg)
   pthread_cond_t conds[MAX_ITER];
   int    m= (*(int *)arg);
 
+  my_thread_init();
+
   for (i= 0; i < MAX_ITER; i++)
   {
     pthread_mutex_init(&mutexes[i], MY_MUTEX_INIT_FAST);
@@ -54,7 +56,7 @@ pthread_handler_t test_trnman(void *arg)
     m-= n= x % MAX_ITER;
     for (i= 0; i < n; i++)
     {
-      trn[i]= trnman_new_trn(&mutexes[i], &conds[i], &m + STACK_SIZE);
+      trn[i]= trnman_new_trn(&mutexes[i], &conds[i]);
       if (!trn[i])
       {
         diag("trnman_new_trn() failed");
@@ -75,6 +77,8 @@ pthread_handler_t test_trnman(void *arg)
   pthread_mutex_lock(&rt_mutex);
   rt_num_threads--;
   pthread_mutex_unlock(&rt_mutex);
+
+  my_thread_end();
 
   return 0;
 }
@@ -114,7 +118,7 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
   i= trnman_can_read_from(trn[T1], trid[T2]);       \
   ok(i == RES, "trn" #T1 " %s read from trn" #T2, i ? "can" : "cannot")
 #define start_transaction(T)                            \
-  trn[T]= trnman_new_trn(&mutexes[T], &conds[T], &i + STACK_SIZE); \
+  trn[T]= trnman_new_trn(&mutexes[T], &conds[T]); \
   trid[T]= trn[T]->trid
 #define commit(T)               trnman_commit_trn(trn[T])
 #define abort(T)                trnman_abort_trn(trn[T])
@@ -159,7 +163,6 @@ void test_trnman_read_from()
 int main(int argc __attribute__((unused)), char **argv)
 {
   MY_INIT(argv[0]);
-  my_init();
 
   plan(7);
 
