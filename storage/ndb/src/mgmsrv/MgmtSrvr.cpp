@@ -1369,7 +1369,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
       Uint32 mysql_version = 0;
       Uint32 connectCount = 0;
       bool system;
-      const char *address;
+      const char *address= NULL;
       status(nodeId, &s, &version, &mysql_version, &startPhase, 
              &system, &dynamicId, &nodeGroup, &connectCount, &address);
       NdbSleep_MilliSleep(100);  
