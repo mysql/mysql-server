@@ -144,6 +144,11 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     return s;
   }
 
+  /* Remove old signals from usedBuffer */
+  for (int i= 0; i < m_usedBuffer.size(); i++)
+    delete m_usedBuffer[i];
+  m_usedBuffer.clear();
+
   NDB_TICKS now = NdbTick_CurrentMillisecond();
   NDB_TICKS stop = now + timeOutMillis;
   Uint32 wait = (timeOutMillis == 0 ? 10 : timeOutMillis);

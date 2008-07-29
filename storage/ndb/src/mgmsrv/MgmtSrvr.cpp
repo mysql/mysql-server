@@ -18,7 +18,7 @@
 
 #include "MgmtSrvr.hpp"
 #include "ndb_mgmd_error.h"
-#include <ConfigRetriever.hpp>
+#include "Services.hpp"
 
 #include <NdbOut.hpp>
 #include <NdbApiSignal.hpp>
@@ -56,13 +56,6 @@
 
 #include <SignalSender.hpp>
 
-//#define MGM_SRV_DEBUG
-#ifdef MGM_SRV_DEBUG
-#define DEBUG(x) do ndbout << x << endl; while(0)
-#else
-#define DEBUG(x)
-#endif
-
 int g_errorInsert;
 #define ERROR_INSERTED(x) (g_errorInsert == x)
 
@@ -76,7 +69,6 @@ int g_errorInsert;
     }\
   }
 
-extern int g_no_nodeid_checks;
 extern my_bool opt_core;
 
 static void require(bool v)
@@ -214,56 +206,6 @@ MgmtSrvr::logLevelThreadRun()
   }
 }
 
-void
-MgmtSrvr::startEventLog() 
-{
-  NdbMutex_Lock(m_configMutex);
-
-  g_eventLogger->setCategory("MgmSrvr");
-
-  ndb_mgm_configuration_iterator 
-    iter(* _config->m_configValues, CFG_SECTION_NODE);
-
-  if(iter.find(CFG_NODE_ID, _ownNodeId) != 0){
-    NdbMutex_Unlock(m_configMutex);
-    return;
-  }
-  
-  const char * tmp;
-  char errStr[100];
-  int err= 0;
-  BaseString logdest;
-  char *clusterLog= NdbConfig_ClusterLogFileName(_ownNodeId);
-  NdbAutoPtr<char> tmp_aptr(clusterLog);
-
-  if(iter.get(CFG_LOG_DESTINATION, &tmp) == 0){
-    logdest.assign(tmp);
-  }
-  NdbMutex_Unlock(m_configMutex);
-  
-  if(logdest.length() == 0 || logdest == "") {
-    logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", 
-		   clusterLog);
-  }
-  errStr[0]='\0';
-  if(!g_eventLogger->addHandler(logdest, &err, sizeof(errStr), errStr)) {
-    ndbout << "Warning: could not add log destination \""
-           << logdest.c_str() << "\". Reason: ";
-    if(err)
-      ndbout << strerror(err);
-    if(err && errStr[0]!='\0')
-      ndbout << ", ";
-    if(errStr[0]!='\0')
-      ndbout << errStr;
-    ndbout << endl;
-  }
-}
-
-void
-MgmtSrvr::stopEventLog()
-{
-  g_eventLogger->close();
-}
 
 bool
 MgmtSrvr::setEventLogFilter(int severity, int enable)
@@ -307,182 +249,41 @@ int MgmtSrvr::translateStopRef(Uint32 errCode)
 }
 
 
-int 
-MgmtSrvr::getPort() const
-{
-  if(NdbMutex_Lock(m_configMutex))
-    return 0;
-
-  ndb_mgm_configuration_iterator 
-    iter(* _config->m_configValues, CFG_SECTION_NODE);
-
-  if(iter.find(CFG_NODE_ID, getOwnNodeId()) != 0){
-    ndbout << "Could not retrieve configuration for Node " 
-	   << getOwnNodeId() << " in config file." << endl 
-	   << "Have you set correct NodeId for this node?" << endl;
-    NdbMutex_Unlock(m_configMutex);
-    return 0;
-  }
-
-  unsigned type;
-  if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0 ||
-     type != NODE_TYPE_MGM){
-    ndbout << "Local node id " << getOwnNodeId()
-	   << " is not defined as management server" << endl
-	   << "Have you set correct NodeId for this node?" << endl;
-    NdbMutex_Unlock(m_configMutex);
-    return 0;
-  }
-  
-  Uint32 port = 0;
-  if(iter.get(CFG_MGM_PORT, &port) != 0){
-    ndbout << "Could not find PortNumber in the configuration file." << endl;
-    NdbMutex_Unlock(m_configMutex);
-    return 0;
-  }
-
-  NdbMutex_Unlock(m_configMutex);
-
-  return port;
-}
-
-
-MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
-		   const char *config_filename,
-		   const char *connect_string) :
+MgmtSrvr::MgmtSrvr(const MgmtOpts& opts,
+                   const char* connect_str) :
+  m_opts(opts),
   _blockNumber(-1),
-  m_socket_server(socket_server),
+  _ownNodeId(0),
+  m_port(0),
+  m_config_retriever(connect_str,
+                     NDB_VERSION,
+                     NDB_MGM_NODE_TYPE_MGM),
   _ownReference(0),
+  _config(NULL),
+  theFacade(NULL),
+  _isStopThread(false),
+  _logLevelThreadSleep(500),
   m_event_listner(this),
-  m_master_node(0)
+  m_master_node(0),
+  _logLevelThread(NULL)
 {
-    
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
 
-  _ownNodeId= 0;
-
-  _config     = NULL;
-
-  _isStopThread        = false;
-  _logLevelThread      = NULL;
-  _logLevelThreadSleep = 500;
-
-  theFacade = 0;
-
-  if (config_filename)
-    m_configFilename.assign(config_filename);
-
-  m_config_retriever= new ConfigRetriever(connect_string,
-					  NDB_VERSION, NDB_MGM_NODE_TYPE_MGM);
-  // if connect_string explicitly given or
-  // no config filename is given then
-  // first try to allocate nodeid from another management server
-  if ((connect_string || config_filename == NULL) &&
-      (m_config_retriever->do_connect(0,0,0) == 0))
-  {
-    int tmp_nodeid= 0;
-    tmp_nodeid= m_config_retriever->allocNodeId(0 /*retry*/,0 /*delay*/);
-    if (tmp_nodeid == 0)
-    {
-      ndbout_c(m_config_retriever->getErrorString());
-      require(false);
-    }
-    // read config from other managent server
-    _config= fetchConfig();
-    if (_config == 0)
-    {
-      ndbout << m_config_retriever->getErrorString() << endl;
-      require(false);
-    }
-    _ownNodeId= tmp_nodeid;
-  }
-
-  if (_ownNodeId == 0)
-  {
-    // read config locally
-    _config= readConfig();
-    if (_config == 0) {
-      if (config_filename != NULL)
-        ndbout << "Invalid configuration file: " << config_filename << endl;
-      else
-        ndbout << "Invalid configuration file" << endl;
-      exit(-1);
-    }
-  }
-
   m_configMutex = NdbMutex_Create();
+  m_node_id_mutex = NdbMutex_Create();
+  if (!m_configMutex || !m_node_id_mutex)
+  {
+    g_eventLogger->error("Failed to create MgmtSrvr mutexes");
+    require(false);
+  }
 
-  /**
-   * Fill the nodeTypes array
-   */
+  /* Init node arrays */
   for(Uint32 i = 0; i<MAX_NODES; i++) {
     nodeTypes[i] = (enum ndb_mgm_node_type)-1;
     m_connect_address[i].s_addr= 0;
   }
 
-  {
-    ndb_mgm_configuration_iterator
-      iter(* _config->m_configValues, CFG_SECTION_NODE);
-
-    for(iter.first(); iter.valid(); iter.next()){
-      unsigned type, id;
-      if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0)
-	continue;
-      
-      if(iter.get(CFG_NODE_ID, &id) != 0)
-	continue;
-      
-      assert(id < MAX_NODES);
-      
-      switch(type){
-      case NODE_TYPE_DB:
-	nodeTypes[id] = NDB_MGM_NODE_TYPE_NDB;
-	break;
-      case NODE_TYPE_API:
-	nodeTypes[id] = NDB_MGM_NODE_TYPE_API;
-	break;
-      case NODE_TYPE_MGM:
-	nodeTypes[id] = NDB_MGM_NODE_TYPE_MGM;
-	break;
-      default:
-	break;
-      }
-    }
-  }
-
-  BaseString error_string;
-
-  if ((m_node_id_mutex = NdbMutex_Create()) == 0)
-  {
-    ndbout << "mutex creation failed line = " << __LINE__ << endl;
-    require(false);
-  }
-
-  if (_ownNodeId == 0) // we did not get node id from other server
-  {
-    NodeId tmp= m_config_retriever->get_configuration_nodeid();
-    int error_code;
-
-    if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM,
-		       0, 0, error_code, error_string)){
-      ndbout << "Unable to obtain requested nodeid: "
-	     << error_string.c_str() << endl;
-      require(false);
-    }
-    _ownNodeId = tmp;
-  }
-
-  {
-    DBUG_PRINT("info", ("verifyConfig"));
-    if (!m_config_retriever->verifyConfig(_config->m_configValues,
-					  _ownNodeId))
-    {
-      ndbout << m_config_retriever->getErrorString() << endl;
-      require(false);
-    }
-  }
-
-  // Setup clusterlog as client[0] in m_event_listner
+  /* Setup clusterlog as client[0] in m_event_listner */
   {
     Ndb_mgmd_event_service::Event_listener se;
     se.m_socket = NDB_INVALID_SOCKET;
@@ -495,90 +296,257 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
     m_event_listner.m_clients.push_back(se);
     m_event_listner.m_logLevel = se.m_logLevel;
   }
-  
+
   DBUG_VOID_RETURN;
 }
 
 
-bool 
-MgmtSrvr::start(BaseString &error_string, const char * bindaddress)
+
+bool
+MgmtSrvr::init()
 {
-  int mgm_connect_result;
+  DBUG_ENTER("MgmtSrvr::init");
 
-  DBUG_ENTER("MgmtSrvr::start");
+  if (m_opts.mycnf || m_opts.config_filename)
+  {
+    Config* conf= NULL;
+    if (m_opts.mycnf && (conf= load_init_mycnf()) == NULL)
+    {
+      g_eventLogger->error("Could not load config from 'my.cnf'");
+      DBUG_RETURN(false);
+    }
+    else if (m_opts.config_filename && (conf= load_init_config()) == NULL)
+    {
+      g_eventLogger->error("Could not load initial config from '%s'",
+                          m_opts.config_filename);
+      DBUG_RETURN(false);
+     }
+    setConfig(conf);
+  }
+  else
+  {
+    if (fetch_config())
+    {
+      g_eventLogger->error("Could not fetch config");
+      DBUG_RETURN(false);
+    }
+  }
 
-  theFacade= new TransporterFacade(0);
-  
-  if(theFacade == 0) {
-    DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
-    error_string.append("MgmtSrvr.cpp: theFacade is NULL.");
-    DBUG_RETURN(false);
-  }  
-  if ( theFacade->start_instance
-       (_ownNodeId, (ndb_mgm_configuration*)_config->m_configValues) < 0) {
-    DEBUG("MgmtSrvr.cpp: TransporterFacade::start_instance < 0.");
+  if (m_opts.print_full_config)
+  {
+    print_config();
     DBUG_RETURN(false);
   }
 
-  assert(_blockNumber == -1);
+  if (_ownNodeId == 0)
+  {
+    _ownNodeId= m_config_retriever.get_configuration_nodeid();
 
-  // Register ourself at TransporterFacade to be able to receive signals
-  // and to be notified when a database process has died.
-  _blockNumber = theFacade->open(this,
-				 signalReceivedNotification,
-				 nodeStatusNotification);
-  
-  if(_blockNumber == -1){
-    DEBUG("MgmtSrvr.cpp: _blockNumber is -1.");
-    error_string.append("MgmtSrvr.cpp: _blockNumber is -1.");
-    theFacade->stop_instance();
+    int error_code;
+    BaseString error_string;
+    if (!alloc_node_id(&_ownNodeId, NDB_MGM_NODE_TYPE_MGM,
+                       0, 0, error_code, error_string, 0))
+    {
+      g_eventLogger->error("Unable to obtain requested nodeid, error: '%s'",
+                           error_string.c_str());
+      DBUG_RETURN(false);
+    }
+
+    if (!m_config_retriever.verifyConfig(_config->m_configValues,
+                                         _ownNodeId))
+    {
+      g_eventLogger->error(m_config_retriever.getErrorString());
+      DBUG_RETURN(false);
+    }
+  }
+
+  setClusterLog();
+
+  DBUG_RETURN(true);
+}
+
+
+bool
+MgmtSrvr::start_transporter()
+{
+  DBUG_ENTER("MgmtSrvr::start_transporter");
+
+  theFacade= new TransporterFacade(0);
+  if (theFacade == 0)
+  {
+    g_eventLogger->error("Could not create TransporterFacade.");
+    DBUG_RETURN(false);
+  }
+
+  if (theFacade->start_instance(_ownNodeId,
+                                _config->m_configValues) < 0)
+  {
+    g_eventLogger->error("Failed to start transporter");
+    delete theFacade;
     theFacade = 0;
     DBUG_RETURN(false);
   }
 
-  if(!connect_to_self(bindaddress))
+  assert(_blockNumber == -1); // Blocknumber shouldn't been allocated yet
+
+  /*
+    Register ourself at TransporterFacade to be able to receive signals
+    and to be notified when a database process has died.
+  */
+  if ((_blockNumber= theFacade->open(this,
+                                     signalReceivedNotification,
+                                     nodeStatusNotification)) == -1)
   {
-    ndbout_c("Unable to connect to our own ndb_mgmd (Error %d)",
-             mgm_connect_result);
-    ndbout_c("This is probably a bug.");
+    g_eventLogger->error("Failed to open block in TransporterFacade");
+    theFacade->stop_instance();
+    delete theFacade;
+    theFacade = 0;
+    DBUG_RETURN(false);
   }
+
+  _ownReference = numberToRef(_blockNumber, _ownNodeId);
 
   /*
     set api reg req frequency quite high:
 
     100 ms interval to make sure we have fairly up-to-date
     info from the nodes.  This to make sure that this info
-    is not dependent on heart beat settings in the
+    is not dependent on heartbeat settings in the
     configuration
   */
   theFacade->theClusterMgr->set_max_api_reg_req_interval(100);
 
-  TransporterRegistry *reg = theFacade->get_registry();
-  for(unsigned int i=0;i<reg->m_transporter_interface.size();i++) {
-    BaseString msg;
-    DBUG_PRINT("info",("Setting dynamic port %d->%d : %d",
-		       reg->get_localNodeId(),
-		       reg->m_transporter_interface[i].m_remote_nodeId,
-		       reg->m_transporter_interface[i].m_s_service_port
-		       )
-	       );
-    int res = setConnectionDbParameter((int)reg->get_localNodeId(),
-				       (int)reg->m_transporter_interface[i]
-				            .m_remote_nodeId,
-				       (int)CFG_CONNECTION_SERVER_PORT,
-				       reg->m_transporter_interface[i]
-				            .m_s_service_port,
-					 msg);
-    DBUG_PRINT("info",("Set result: %d: %s",res,msg.c_str()));
+  DBUG_RETURN(true);
+}
+
+
+bool
+MgmtSrvr::start_mgm_service()
+{
+  DBUG_ENTER("MgmtSrvr::start_mgm_service");
+
+  assert(m_port == 0);
+  {
+    // Find the portnumber to use for mgm service
+    Guard g(m_configMutex);
+    ConfigIter iter(_config, CFG_SECTION_NODE);
+
+    if(iter.find(CFG_NODE_ID, _ownNodeId) != 0){
+      g_eventLogger->error("Could not find node %d in config", _ownNodeId);
+      DBUG_RETURN(false);
+    }
+
+    unsigned type;
+    if(iter.get(CFG_TYPE_OF_SECTION, &type) != 0 ||
+       type != NODE_TYPE_MGM){
+      g_eventLogger->error("Node %d is not defined as management server",
+                           _ownNodeId);
+      return 0;
+      DBUG_RETURN(false);
+    }
+
+    if(iter.get(CFG_MGM_PORT, &m_port) != 0){
+      g_eventLogger->error("PortNumber not defined for node %d", _ownNodeId);
+      return 0;
+      DBUG_RETURN(false);
+    }
   }
 
-  _ownReference = numberToRef(_blockNumber, _ownNodeId);
-  
-  startEventLog();
-  // Set the initial confirmation count for subscribe requests confirm
-  // from NDB nodes in the cluster.
-  //
-  // Loglevel thread
+  unsigned short port= m_port;
+  DBUG_PRINT("info", ("Using port %d", port));
+  if (port == 0)
+  {
+    g_eventLogger->error("Could not find out which port to use"\
+                        " for management service");
+    DBUG_RETURN(false);
+  }
+
+  {
+    int count= 5; // no of retries for tryBind
+    while(!m_socket_server.tryBind(port, m_opts.bind_address))
+    {
+      if (--count > 0)
+      {
+	NdbSleep_SecSleep(1);
+	continue;
+      }
+      g_eventLogger->error("Unable to bind management service port: %s:%d!\n"
+                           "Please check if the port is already used,\n"
+                           "(perhaps a ndb_mgmd is already running),\n"
+                           "and if you are executing on the correct computer",
+                           (m_opts.bind_address ? m_opts.bind_address : "*"),
+                           port);
+      DBUG_RETURN(false);
+    }
+  }
+
+  {
+    MgmApiService * mapi = new MgmApiService(*this);
+    if (mapi == NULL)
+    {
+      g_eventLogger->error("Could not allocate MgmApiService");
+      DBUG_RETURN(false);
+    }
+
+    if(!m_socket_server.setup(mapi, &port, m_opts.bind_address))
+    {
+      delete mapi; // Will be deleted by SocketServer in all other cases
+      g_eventLogger->error("Unable to setup management service port: %s:%d!\n"
+                           "Please check if the port is already used,\n"
+                           "(perhaps a ndb_mgmd is already running),\n"
+                           "and if you are executing on the correct computer",
+                           (m_opts.bind_address ? m_opts.bind_address : "*"),
+                           port);
+      DBUG_RETURN(false);
+    }
+
+    if (port != m_port)
+    {
+      g_eventLogger->error("Couldn't start management service on the "\
+                           "requested port: %d. Got port: %d instead",
+                          m_port, port);
+      DBUG_RETURN(false);
+    }
+  }
+
+  m_socket_server.startServer();
+
+  g_eventLogger->info("Id: %d, Command port: %s:%d",
+                      _ownNodeId,
+                      m_opts.bind_address ? m_opts.bind_address : "*",
+                      port);
+  DBUG_RETURN(true);
+}
+
+
+bool
+MgmtSrvr::start()
+{
+  DBUG_ENTER("MgmtSrvr::start");
+
+  /* Start transporter */
+  if(!start_transporter())
+  {
+    g_eventLogger->error("Failed to start transporter!");
+    DBUG_RETURN(false);
+  }
+
+  /* Start mgm service */
+  if (!start_mgm_service())
+  {
+    g_eventLogger->error("Failed to start mangement service!");
+    DBUG_RETURN(false);
+  }
+
+  /* Use local MGM port for TransporterRegistry */
+  if(!connect_to_self())
+  {
+    g_eventLogger->error("Failed to connect to ourself!");
+    DBUG_RETURN(false);
+  }
+
+  /* Loglevel thread */
+  assert(_isStopThread == false);
   _logLevelThread = NdbThread_Create(logLevelThread_C,
 				     (void**)this,
 				     32768,
@@ -589,25 +557,100 @@ MgmtSrvr::start(BaseString &error_string, const char * bindaddress)
 }
 
 
-//****************************************************************************
-//****************************************************************************
-MgmtSrvr::~MgmtSrvr() 
+void
+MgmtSrvr::setClusterLog(void)
 {
-  if(theFacade != 0){
-    theFacade->stop_instance();
-    delete theFacade;
-    theFacade = 0;
+  BaseString logdest;
+
+  g_eventLogger->close();
+
+  // Get log destination from config
+  DBUG_ASSERT(_ownNodeId);
+  ConfigIter iter(_config, CFG_SECTION_NODE);
+  require(iter.find(CFG_NODE_ID, _ownNodeId) == 0);
+
+  const char *value;
+  if(iter.get(CFG_LOG_DESTINATION, &value) == 0){
+    logdest.assign(value);
   }
 
-  stopEventLog();
+  if(logdest.length() == 0 || logdest == "") {
+    // No LogDestination set, use default settings
+    char *clusterLog= NdbConfig_ClusterLogFileName(_ownNodeId);
+    logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6",
+		   clusterLog);
+    free(clusterLog);
+  }
 
-  NdbMutex_Destroy(m_node_id_mutex);
-  NdbMutex_Destroy(m_configMutex);
+  int err= 0;
+  char errStr[100]= {0};
+  if(!g_eventLogger->addHandler(logdest, &err, sizeof(errStr), errStr)) {
+    ndbout << "Warning: could not add log destination '"
+           << logdest.c_str() << "'. Reason: ";
+    if(err)
+      ndbout << strerror(err);
+    if(err && errStr[0]!='\0')
+      ndbout << ", ";
+    if(errStr[0]!='\0')
+      ndbout << errStr;
+    ndbout << endl;
+  }
 
-  if(_config != NULL)
-    delete _config;
+  if (m_opts.non_interactive)
+    g_eventLogger->createConsoleHandler();
+}
 
-  // End set log level thread
+
+void
+MgmtSrvr::setConfig(Config* conf)
+{
+  DBUG_ENTER("MgmtSrvr::setConfig");
+  Guard g(m_configMutex);
+
+  _config= conf;
+
+  /* Rebuild node arrays */
+  ConfigIter iter(_config, CFG_SECTION_NODE);
+  for(Uint32 i = 0; i<MAX_NODES; i++) {
+
+    m_connect_address[i].s_addr= 0;
+
+    if (iter.first())
+      continue;
+
+    if (iter.find(CFG_NODE_ID, i) == 0){
+      unsigned type;
+      require(iter.get(CFG_TYPE_OF_SECTION, &type) == 0);
+
+      switch(type){
+      case NODE_TYPE_DB:
+        nodeTypes[i] = NDB_MGM_NODE_TYPE_NDB;
+        break;
+      case NODE_TYPE_API:
+        nodeTypes[i] = NDB_MGM_NODE_TYPE_API;
+        break;
+      case NODE_TYPE_MGM:
+        nodeTypes[i] = NDB_MGM_NODE_TYPE_MGM;
+        break;
+      default:
+        break;
+      }
+    }
+    else
+    {
+      nodeTypes[i] = (enum ndb_mgm_node_type)-1;
+    }
+
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+MgmtSrvr::~MgmtSrvr()
+{
+
+  /* Stop log level thread */
   void* res = 0;
   _isStopThread = true;
 
@@ -616,9 +659,25 @@ MgmtSrvr::~MgmtSrvr()
     NdbThread_Destroy(&_logLevelThread);
   }
 
-  if (m_config_retriever)
-    delete m_config_retriever;
+  /* Stop mgm service, don't allow new connections */
+  m_socket_server.stopServer();
+
+  /* Stop all active session */
+  m_socket_server.stopSessions(true);
+
+  // Stop transporter
+  if(theFacade != 0){
+    theFacade->stop_instance();
+    delete theFacade;
+    theFacade = 0;
+  }
+
+  delete _config;
+
+  NdbMutex_Destroy(m_node_id_mutex);
+  NdbMutex_Destroy(m_configMutex);
 }
+
 
 //****************************************************************************
 //****************************************************************************
@@ -974,7 +1033,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 
       if ((getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
           &&(getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB))
-          return WRONG_PROCESS_TYPE;
+        DBUG_RETURN(WRONG_PROCESS_TYPE);
 
       if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
         nodes_to_stop.set(nodeId);
@@ -1415,7 +1474,7 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
       continue;
     int result;
     result = start(nodeId);
-    DEBUG("Starting node " << nodeId << " with result " << result);
+    g_eventLogger->debug("Started node %d with result %d", nodeId, result);
     /**
      * Errors from this call are deliberately ignored.
      * Maybe the user only wanted to restart a subset of the nodes.
@@ -2157,7 +2216,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type)
 }
 
 bool
-MgmtSrvr::alloc_node_id(NodeId * nodeId, 
+MgmtSrvr::alloc_node_id(NodeId * nodeId,
 			enum ndb_mgm_node_type type,
 			struct sockaddr *client_addr, 
 			SOCKET_SIZE_TYPE *client_addr_len,
@@ -2167,7 +2226,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   DBUG_ENTER("MgmtSrvr::alloc_node_id");
   DBUG_PRINT("enter", ("nodeid: %d  type: %d  client_addr: 0x%ld",
 		       *nodeId, type, (long) client_addr));
-  if (g_no_nodeid_checks) {
+  if (m_opts.no_nodeid_checks) {
     if (*nodeId == 0) {
       error_string.appfmt("no-nodeid-checks set in management server.\n"
 			  "node id must be set explicitly in connectstring");
@@ -2486,6 +2545,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   }
   DBUG_RETURN(false);
 }
+
 
 bool
 MgmtSrvr::getNextNodeId(NodeId * nodeId, enum ndb_mgm_node_type type) const 
@@ -2995,13 +3055,13 @@ void MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
   }
 }
 
-bool MgmtSrvr::connect_to_self(const char * bindaddress)
+bool MgmtSrvr::connect_to_self()
 {
   BaseString buf;
   NdbMgmHandle mgm_handle= ndb_mgm_create_handle();
 
   buf.assfmt("%s:%u",
-             bindaddress ? bindaddress : "localhost",
+             m_opts.bind_address ? m_opts.bind_address : "localhost",
              getPort());
   ndb_mgm_set_connectstring(mgm_handle, buf.c_str());
 
