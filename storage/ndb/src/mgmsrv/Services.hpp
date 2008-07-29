@@ -118,20 +118,15 @@ public:
 };
 
 class MgmApiService : public SocketServer::Service {
-  class MgmtSrvr * m_mgmsrv;
+  MgmtSrvr& m_mgmsrv;
   Uint64 m_next_session_id; // Protected by m_sessions mutex it SocketServer
 public:
-  MgmApiService(){
-    m_mgmsrv = 0;
-    m_next_session_id= 1;
-  }
-  
-  void setMgm(class MgmtSrvr * mgmsrv){
-    m_mgmsrv = mgmsrv;
-  }
-  
+  MgmApiService(MgmtSrvr& mgm):
+    m_mgmsrv(mgm),
+    m_next_session_id(1) {}
+
   SocketServer::Session * newSession(NDB_SOCKET_TYPE socket){
-    return new MgmApiSession(* m_mgmsrv, socket, m_next_session_id++);
+    return new MgmApiSession(m_mgmsrv, socket, m_next_session_id++);
   }
 };
 

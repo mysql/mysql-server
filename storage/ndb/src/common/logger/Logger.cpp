@@ -241,6 +241,13 @@ Logger::removeHandler(LogHandler* pHandler)
   int rc = false;
   if (pHandler != NULL)
   {
+    if (pHandler == m_pConsoleHandler)
+      m_pConsoleHandler= NULL;
+    if (pHandler == m_pFileHandler)
+      m_pFileHandler= NULL;
+    if (pHandler == m_pSyslogHandler)
+      m_pSyslogHandler= NULL;
+
     rc = m_pHandlerList->remove(pHandler);
   }
 
@@ -252,6 +259,10 @@ Logger::removeAllHandlers()
 {
   Guard g(m_mutex);
   m_pHandlerList->removeAll();
+
+  m_pConsoleHandler= NULL;
+  m_pFileHandler= NULL;
+  m_pSyslogHandler= NULL;
 }
 
 bool
