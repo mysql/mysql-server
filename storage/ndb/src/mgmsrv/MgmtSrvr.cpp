@@ -908,12 +908,14 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
     if(ndb_mgm_connect(h,1,0,0))
     {
       DBUG_PRINT("info",("failed ndb_mgm_connect"));
+      ndb_mgm_destroy_handle(&h);
       return SEND_OR_RECEIVE_FAILED;
     }
     if(!restart)
     {
       if(ndb_mgm_stop(h, 1, (const int*)&nodeId) < 0)
       {
+        ndb_mgm_destroy_handle(&h);
         return SEND_OR_RECEIVE_FAILED;
       }
     }
@@ -923,6 +925,7 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
       nodes[0]= (int)nodeId;
       if(ndb_mgm_restart2(h, 1, nodes, initialStart, nostart, abort) < 0)
       {
+        ndb_mgm_destroy_handle(&h);
         return SEND_OR_RECEIVE_FAILED;
       }
     }
