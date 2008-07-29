@@ -55,7 +55,8 @@ Config::print() const {
     for(;it.valid();it.next()) {
 
       Uint32 section_type;
-      assert(it.get(CFG_TYPE_OF_SECTION, &section_type) == 0);
+      if(it.get(CFG_TYPE_OF_SECTION, &section_type) != 0)
+        continue;
 
       const ConfigInfo::ParamInfo* pinfo= NULL;
       ConfigInfo::ParamInfoIter param_iter(g_info,
