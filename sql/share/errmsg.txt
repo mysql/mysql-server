@@ -4737,7 +4737,7 @@ ER_SLAVE_IGNORED_TABLE
 	swe "Slav SQL tråden ignorerade frågan pga en replicate-*-table regel"
 ER_INCORRECT_GLOBAL_LOCAL_VAR  
 	eng "Variable '%-.64s' is a %s variable"
-	serbian "Incorrect foreign key definition for '%-.64s': %s"
+	serbian "Promenljiva '%-.64s' je %s promenljiva"
 	ger "Variable '%-.64s' ist eine %s-Variable"
 	spa "Variable '%-.64s' es una %s variable"
 	swe "Variabel '%-.64s' är av typ %s"
