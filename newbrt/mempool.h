@@ -12,15 +12,11 @@
 
 struct mempool;
 
-typedef int (*mempool_compress_func)(struct mempool *mp, void *arg);
-
 struct mempool {
     void *base;           /* the base address of the memory */
     size_t free_offset;      /* the offset of the memory pool free space */
     size_t size;             /* the size of the memory */
     size_t frag_size;        /* the size of the fragmented memory */
-    mempool_compress_func compress_func;
-    void *compress_arg;
 };
 
 /* initialize the memory pool with the base address and size of a
@@ -29,10 +25,6 @@ void toku_mempool_init(struct mempool *mp, void *base, size_t size);
 
 /* finalize the memory pool */
 void toku_mempool_fini(struct mempool *mp);
-
-void toku_mempool_set_compress_func(struct mempool *mp, mempool_compress_func compress_func, void *compress_arg);
-
-void toku_mempool_call_compress_func(struct mempool *mp);
 
 /* get the base address of the memory pool */
 void *toku_mempool_get_base(struct mempool *mp);
@@ -51,6 +43,7 @@ void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment);
    pool does not keep track of the locations of the free chunks */
 void toku_mempool_mfree(struct mempool *mp, void *vp, int size);
 
+/* verify that a memory range is contained within a mempool */
 static inline int toku_mempool_inrange(struct mempool *mp, void *vp, int size) {
     return mp->base <= vp && vp + size <= mp->base + mp->size;
 }
