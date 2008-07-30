@@ -805,6 +805,20 @@ trx_commit_off_kernel(
 	trx->conc_state = TRX_COMMITTED_IN_MEMORY;
 	/*--------------------------------------*/
 
+	/* If we release kernel_mutex below and we are still doing
+	recovery i.e.: back ground rollback thread is still active
+	then there is a chance that the rollback thread may see
+	this trx as COMMITTED_IN_MEMORY and goes adhead to clean it
+	up calling trx_cleanup_at_db_startup(). This can happen 
+	in the case we are committing a trx here that is left in
+	PREPARED state during the crash. Note that commit of the
+	rollback of a PREPARED trx happens in the recovery thread
+	while the rollback of other transactions happen in the
+	background thread. To avoid this race we unconditionally
+	unset the is_recovered flag from the trx. */
+
+	trx->is_recovered = FALSE;
+
 	lock_release_off_kernel(trx);
 
 	if (trx->global_read_view) {
