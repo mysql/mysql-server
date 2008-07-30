@@ -12,21 +12,10 @@ void toku_mempool_init(struct mempool *mp, void *base, size_t size) {
     mp->size = size;
     mp->free_offset = 0;
     mp->frag_size = 0;
-    mp->compress_func = 0;
-    mp->compress_arg = 0;
 }
 
 void toku_mempool_fini(struct mempool *mp __attribute__((unused))) {
     // printf("mempool_fini %p %p %d %d\n", mp, mp->base, mp->size, mp->frag_size);
-}
-
-void toku_mempool_set_compress_func(struct mempool *mp, mempool_compress_func compress_func, void *compress_arg) {
-    mp->compress_func = compress_func;
-    mp->compress_arg = compress_arg;
-}
-
-void toku_mempool_call_compress_func(struct mempool *mp) {
-    mp->compress_func(mp, mp->compress_arg);
 }
 
 void *toku_mempool_get_base(struct mempool *mp) {
