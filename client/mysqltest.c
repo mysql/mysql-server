@@ -2266,7 +2266,7 @@ int open_file(const char *name)
   if (!(cur_file->file = my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
   {
     cur_file--;
-    die("Could not open '%s' for reading", buff);
+    die("Could not open '%s' for reading, errno: %d", buff, errno);
   }
   cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
   cur_file->lineno=1;
@@ -5474,7 +5474,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
     if (!(cur_file->file=
           my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
-      die("Could not open '%s' for reading: errno = %d", buff, errno);
+      die("Could not open '%s' for reading, errno: %d", buff, errno);
     cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
     cur_file->lineno= 1;
     break;
@@ -5591,11 +5591,11 @@ void str_to_file2(const char *fname, char *str, int size, my_bool append)
     flags|= O_TRUNC;
   if ((fd= my_open(buff, flags,
                    MYF(MY_WME | MY_FFNF))) < 0)
-    die("Could not open '%s' for writing: errno = %d", buff, errno);
+    die("Could not open '%s' for writing, errno: %d", buff, errno);
   if (append && my_seek(fd, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
-    die("Could not find end of file '%s': errno = %d", buff, errno);
+    die("Could not find end of file '%s', errno: %d", buff, errno);
   if (my_write(fd, (uchar*)str, size, MYF(MY_WME|MY_FNABP)))
-    die("write failed");
+    die("write failed, errno: %d", errno);
   my_close(fd, MYF(0));
 }
 
