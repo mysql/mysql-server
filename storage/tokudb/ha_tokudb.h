@@ -160,8 +160,7 @@ private:
 
     ulong max_row_length(const uchar * buf);
     int pack_row(DBT * row, const uchar * record);
-    void unpack_row(uchar * record, DBT * row, DBT* key);
-    void unpack_key(uchar * record, DBT * key, uint index);
+    void unpack_key(uchar * record, DBT const *key, uint index);
     DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length);
@@ -170,7 +169,7 @@ private:
     int restore_keys(DB_TXN * trans, key_map * changed_keys, uint primary_key, const uchar * old_row, DBT * old_key, const uchar * new_row, DBT * new_key);
     int key_cmp(uint keynr, const uchar * old_row, const uchar * new_row);
     int update_primary_key(DB_TXN * trans, bool primary_key_changed, const uchar * old_row, DBT * old_key, const uchar * new_row, DBT * prim_key, bool local_using_ignore);
-    int read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * key, bool);
+    int handle_cursor_error(int error, int err_to_return, uint keynr);
     DBT *get_pos(DBT * to, uchar * pos);
  
     int open_secondary_table(DB** ptr, KEY* key_info, const char* name, int mode, u_int32_t* key_type);
@@ -306,8 +305,14 @@ public:
     // delete all rows from the table
     // effect: all dictionaries, including the main and indexes, should be empty
     int delete_all_rows();
+    void extract_hidden_primary_key(uint keynr, DBT const *row, DBT const *found_key);
+    void read_key_only(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
+    void read_primary_key(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
+    int read_row(uchar * buf, uint keynr, DBT const *row, DBT const *found_key);
+    void unpack_row(uchar * record, DBT const *row, DBT const *key);
 
 private:
+    int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);
     int read_last();
     ulong field_offset(Field *);
