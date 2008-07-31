@@ -4279,11 +4279,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
                 goto cleanup;
             }
         }
-<<<<<<< .mine
         cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_ai_callback, &info);
-=======
-        cursor_ret_val = tmp_cursor->c_get(tmp_cursor, &current_primary_key, &row, DB_NEXT | DB_PRELOCKED);
->>>>>>> .r5430
     }
     error = txn->commit(txn, 0);
     assert(error == 0);
