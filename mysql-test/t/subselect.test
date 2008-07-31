@@ -3299,4 +3299,16 @@ SELECT * FROM t2 WHERE b NOT IN (SELECT max(t.c) FROM t1, t1 t WHERE t.c>10);
 
 DROP TABLE t1,t2;
 
---echo End of 5.0 tests.
+#
+# Bug #38191: Server crash with subquery containing DISTINCT and ORDER BY
+#
+
+CREATE TABLE t1(pk int PRIMARY KEY, a int, INDEX idx(a));
+INSERT INTO t1 VALUES (1, 10), (3, 30), (2, 20);
+CREATE TABLE t2(pk int PRIMARY KEY, a int, b int, INDEX idxa(a));
+INSERT INTO t2 VALUES (2, 20, 700), (1, 10, 200), (4, 10, 100);
+SELECT * FROM t1
+   WHERE EXISTS (SELECT DISTINCT a FROM t2 WHERE t1.a < t2.a ORDER BY b);
+DROP TABLE t1,t2;
+
+--echo End of 5.1 tests.
