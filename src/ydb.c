@@ -1886,7 +1886,7 @@ static int toku_c_getf_next(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
     if (do_locking) {
 
 	DBT *prevkey = found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c);
-	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_key(c->i->c);
+	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_val(c->i->c);
 
         DB_TXN *txn_anc = toku_txn_ancestor(c->i->txn);
         r = toku_txn_add_lt(txn_anc, lt);
@@ -1931,7 +1931,7 @@ static int toku_c_getf_prev(DBC *c, u_int32_t flag, void(*f)(DBT const *key, DBT
     if (do_locking) {
 
 	DBT *prevkey = found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c);
-	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_key(c->i->c);
+	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_val(c->i->c);
 
         DB_TXN *txn_anc = toku_txn_ancestor(c->i->txn);
         r = toku_txn_add_lt(txn_anc, lt);
@@ -1971,7 +1971,7 @@ static int toku_c_getf_next_dup(DBC *c, u_int32_t flag, void(*f)(DBT const *key,
     if (do_locking) {
 
 	DBT *prevkey = found ? brt_cursor_peek_prev_key(c->i->c) : brt_cursor_peek_current_key(c->i->c);
-	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_key(c->i->c);
+	DBT *prevval = found ? brt_cursor_peek_prev_val(c->i->c) : brt_cursor_peek_current_val(c->i->c);
 
         DB_TXN *txn_anc = toku_txn_ancestor(c->i->txn);
         r = toku_txn_add_lt(txn_anc, lt);
