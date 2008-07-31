@@ -1887,6 +1887,10 @@ mysql_execute_command(THD *thd)
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
+#ifdef HAVE_REPLICATION
+  /* have table map for update for multi-update statement (BUG#37051) */
+  bool have_table_map_for_update= FALSE;
+#endif
   /* Saved variable value */
   DBUG_ENTER("mysql_execute_command");
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -1951,6 +1955,48 @@ mysql_execute_command(THD *thd)
       
       // force searching in slave.cc:tables_ok() 
       all_tables->updating= 1;
+    }
+
+    /*
+      For fix of BUG#37051, the master stores the table map for update
+      in the Query_log_event, and the value is assigned to
+      thd->variables.table_map_for_update before executing the update
+      query.
+
+      If thd->variables.table_map_for_update is set, then we are
+      replicating from a new master, we can use this value to apply
+      filter rules without opening all the tables. However If
+      thd->variables.table_map_for_update is not set, then we are
+      replicating from an old master, so we just skip this and
+      continue with the old method. And of course, the bug would still
+      exist for old masters.
+    */
+    if (lex->sql_command == SQLCOM_UPDATE_MULTI &&
+        thd->table_map_for_update)
+    {
+      have_table_map_for_update= TRUE;
+      table_map table_map_for_update= thd->table_map_for_update;
+      uint nr= 0;
+      TABLE_LIST *table;
+      for (table=all_tables; table; table=table->next_global, nr++)
+      {
+        if (table_map_for_update & ((table_map)1 << nr))
+          table->updating= TRUE;
+        else
+          table->updating= FALSE;
+      }
+
+      if (all_tables_not_ok(thd, all_tables))
+      {
+        /* we warn the slave SQL thread */
+        my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+        if (thd->one_shot_set)
+          reset_one_shot_variables(thd);
+        DBUG_RETURN(0);
+      }
+      
+      for (table=all_tables; table; table=table->next_global)
+        table->updating= TRUE;
     }
     
     /*
@@ -2866,7 +2912,7 @@ end_with_restore_list:
 
 #ifdef HAVE_REPLICATION
     /* Check slave filtering rules */
-    if (unlikely(thd->slave_thread))
+    if (unlikely(thd->slave_thread && !have_table_map_for_update))
     {
       if (all_tables_not_ok(thd, all_tables))
       {
