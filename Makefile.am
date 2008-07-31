@@ -58,6 +58,8 @@ dist-hook:
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
 
+all-local:		abi_check
+
 tags:
 	support-files/build-tags
 
@@ -230,6 +232,83 @@ test-full-qa:
 	$(MAKE) force=--force test-pr \
 	    test-binlog-statement test-ext test-fast-view \
 	        test-fast-cursor test-unit
+
+#
+# Headers which need to be checked for abi/api compatibility.
+# API_PREPROCESSOR_HEADER will be used until mysql_priv.h stablizes
+# after which TEST_PREPROCESSOR_HEADER will be used.
+#
+
+API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
+                           $(top_srcdir)/include/mysql.h
+
+TEST_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
+                            $(top_srcdir)/sql/mysql_priv.h \
+                            $(top_srcdir)/include/mysql.h
+
+#
+# Rules for checking that the abi/api has not changed.
+#
+# The following steps are followed in the do_abi_check rule below
+#
+# 1) Generate preprocessor output for the files that need to
+#    be tested for abi/api changes. use -nostdinc to prevent
+#    generation of preprocessor output for system headers. This
+#    results in messages in stderr saying that these headers
+#    were not found. Redirect the stderr output to /dev/null
+#    to prevent seeing these messages.
+# 2) sed the output to 
+#    2.1) remove blank lines and lines that begin with "# "
+#         (The header information is retained to enable easy
+#         analysis of abi diffs at a later stage).
+#    2.2) When gcc -E is run in the Mac OS it introduces a line of output 
+#         that results in showing up as a difference between the .pp and 
+#         .out files. Remove this OS specific preprocessor text inserted by
+#         the preprocessor in the MAC OS. 
+# 3) diff the generated file and the canons (.pp files already in
+#    the repository).
+# 4) delete the .out file that is generated.
+#
+# If the diff fails, the generated file is not removed. This will
+# be useful for analysis of ABI differences (e.g. using a visual
+# diff tool).
+#
+# A ABI change that causes a build to fail will always be accompanied
+# by new canons (.out files). The .out files that are not removed will
+# be replaced as the new .pp files.
+#
+# e.g. If include/mysql/plugin.h has an ABI change then this rule would
+# leave a <build directory>/abi_check.out file.
+#
+# A developer with a justified API change will then do a
+# mv <build directory>/abi_check.out include/mysql/plugin.pp 
+# to replace the old canons with the new ones.
+#
+
+abi_check:	$(API_PREPROCESSOR_HEADER)
+	$(MAKE) abi_headers="$^" do_abi_check
+
+abi_check_all:	$(TEST_PREPROCESSOR_HEADER)
+	$(MAKE) abi_headers="$^" do_abi_check
+
+do_abi_check:
+	set -ex; \
+	for file in $(abi_headers); do \
+	         @CC@ -E -nostdinc -dI \
+	                  -I$(top_srcdir)/include \
+	                  -I$(top_srcdir)/include/mysql \
+	                  -I$(top_srcdir)/sql \
+	                  -I$(top_builddir)/include \
+	                  -I$(top_builddir)/include/mysql \
+	                  -I$(top_builddir)/sql \
+	                                 $$file 2>/dev/null | \
+	                  @SED@ -e '/^# /d' \
+	                            -e '/^[ 	]*$$/d' \
+	                            -e '/^#pragma GCC set_debug_pwd/d' > \
+	                                       $(top_builddir)/abi_check.out; \
+	                  @DIFF@ -w $$file.pp $(top_builddir)/abi_check.out; \
+	                  @RM@ $(top_builddir)/abi_check.out; \
+	done
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
