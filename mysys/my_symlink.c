@@ -2,7 +2,8 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -106,38 +107,38 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #define BUFF_LEN FN_LEN
 #endif
 
+int my_is_symlink(const char *filename __attribute__((unused)))
+{
+  struct stat stat_buff;
+  return !lstat(filename, &stat_buff) && S_ISLNK(stat_buff.st_mode);
+}
+
+
 int my_realpath(char *to, const char *filename,
 		myf MyFlags __attribute__((unused)))
 {
 #if defined(HAVE_REALPATH) && !defined(HAVE_purify) && !defined(HAVE_BROKEN_REALPATH)
   int result=0;
   char buff[BUFF_LEN];
-  struct stat stat_buff;
+  char *ptr;
   DBUG_ENTER("my_realpath");
 
-  if (!(MyFlags & MY_RESOLVE_LINK) ||
-      (!lstat(filename,&stat_buff) && S_ISLNK(stat_buff.st_mode)))
+  DBUG_PRINT("info",("executing realpath"));
+  if ((ptr=realpath(filename,buff)))
+    strmake(to,ptr,FN_REFLEN-1);
+  else
   {
-    char *ptr;
-    DBUG_PRINT("info",("executing realpath"));
-    if ((ptr=realpath(filename,buff)))
-    {
-      strmake(to,ptr,FN_REFLEN-1);
-    }
-    else
-    {
-      /*
-	Realpath didn't work;  Use my_load_path() which is a poor substitute
-	original name but will at least be able to resolve paths that starts
-	with '.'.
-      */
-      DBUG_PRINT("error",("realpath failed with errno: %d", errno));
-      my_errno=errno;
-      if (MyFlags & MY_WME)
-	my_error(EE_REALPATH, MYF(0), filename, my_errno);
-      my_load_path(to, filename, NullS);
-      result= -1;
-    }
+    /*
+      Realpath didn't work;  Use my_load_path() which is a poor substitute
+      original name but will at least be able to resolve paths that starts
+      with '.'.
+    */
+    DBUG_PRINT("error",("realpath failed with errno: %d", errno));
+    my_errno=errno;
+    if (MyFlags & MY_WME)
+      my_error(EE_REALPATH, MYF(0), filename, my_errno);
+    my_load_path(to, filename, NullS);
+    result= -1;
   }
   DBUG_RETURN(result);
 #else
@@ -145,3 +146,4 @@ int my_realpath(char *to, const char *filename,
   return 0;
 #endif
 }
+
