@@ -3182,7 +3182,7 @@ btr_estimate_number_of_different_key_vals(
 
 		/* Count the number of different key values for each prefix of
 		the key on this index page. If the prefix does not determine
-		the index record uniquely in te B-tree, then we subtract one
+		the index record uniquely in the B-tree, then we subtract one
 		because otherwise our algorithm would give a wrong estimate
 		for an index where there is just one key value. */
 
