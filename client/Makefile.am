@@ -88,11 +88,12 @@ mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 
 mysqltest_SOURCES=		mysqltest.c
 mysqltest_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
-mysqltest_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
+mysqltest_LDADD =		$(CXXLDFLAGS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
 				$(top_builddir)/mysys/libmysys.a \
-				$(top_builddir)/regex/libregex.a
+				$(top_builddir)/regex/libregex.a \
+				$(CLIENT_THREAD_LIBS)
 
 mysql_upgrade_SOURCES=          mysql_upgrade.c \
                                 $(top_srcdir)/mysys/my_getpagesize.c
