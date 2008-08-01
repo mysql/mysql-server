@@ -221,7 +221,7 @@ struct dict_index_struct{
 	unsigned	page:32;/* index tree root page number */
 	unsigned	type:4;	/* index type (DICT_CLUSTERED, DICT_UNIQUE,
 				DICT_UNIVERSAL, DICT_IBUF) */
-	unsigned	trx_id_offset:10;/* position of the the trx id column
+	unsigned	trx_id_offset:10;/* position of the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,
 				0 otherwise */
