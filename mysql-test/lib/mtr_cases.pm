@@ -120,7 +120,7 @@ sub collect_test_cases ($$) {
       }
       if ( not $found )
       {
-	mtr_error("Could not find $tname in any suite");
+	mtr_error("Could not find '$tname' in '$suites' suite(s)");
       }
     }
   }
