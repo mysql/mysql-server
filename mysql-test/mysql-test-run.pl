@@ -1044,6 +1044,13 @@ sub command_line_setup {
     {
       mtr_error("Can't use --extern with --embedded-server");
     }
+
+    if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_ddd ||
+	 $opt_manual_debug || $opt_debugger )
+    {
+      mtr_error("You need to use the client debug options for the",
+		"embedded server. Ex: --client-gdb");
+    }
   }
 
   # --------------------------------------------------------------------------
