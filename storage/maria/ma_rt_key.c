@@ -31,53 +31,47 @@
     1	Split
 */
 
-int maria_rtree_add_key(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
-                        const uchar *key,
-                        uint key_length, uchar *page_buf, my_off_t page,
-                        my_off_t *new_page)
+int maria_rtree_add_key(MARIA_HA *info, const MARIA_KEY *key,
+                        uchar *page_buf, my_off_t page, my_off_t *new_page)
 {
   MARIA_SHARE *share= info->s;
-  uint page_size= _ma_get_page_used(share, page_buf), added_len;
+  uint page_size= _ma_get_page_used(share, page_buf);
   uint nod_flag= _ma_test_if_nod(share, page_buf);
   uchar *key_pos= rt_PAGE_END(share, page_buf);
+  uint tot_key_length= key->data_length + key->ref_length + nod_flag;
   DBUG_ENTER("maria_rtree_add_key");
 
-  if (page_size + key_length + share->base.rec_reflength <=
-      (uint16)(keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
+  if (page_size + tot_key_length <=
+      (uint)(key->keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
   {
     /* split won't be necessary */
     if (nod_flag)
     {
-      /* save key */
-      DBUG_ASSERT(_ma_kpos(nod_flag, key) < info->state->key_file_length);
-      memcpy(key_pos, key - nod_flag, key_length + nod_flag);
-      added_len= key_length + nod_flag;
+      DBUG_ASSERT(_ma_kpos(nod_flag, key->data) <
+                  info->state->key_file_length);
+      /* We don't store reference to row on nod pages for rtree index */
+      tot_key_length-= key->ref_length;
     }
-    else
-    {
-      /* save key */
-      DBUG_ASSERT(_ma_dpos(info, nod_flag, key + key_length +
-                           share->base.rec_reflength) <
-                  share->state.state.data_file_length +
-                  share->base.pack_reclength);
-      memcpy(key_pos, key, key_length + share->base.rec_reflength);
-      added_len= key_length + share->base.rec_reflength;
-    }
-    page_size+= added_len;
+    /* save key */
+    memcpy(key_pos, key->data - nod_flag, tot_key_length);
+    page_size+= tot_key_length;
     _ma_store_page_used(share, page_buf, page_size);
     if (share->now_transactional &&
         _ma_log_add(info, page, page_buf, key_pos - page_buf,
-                    key_pos, added_len, added_len, 0))
+                    key_pos, tot_key_length, tot_key_length, 0))
       DBUG_RETURN(-1);
     DBUG_RETURN(0);
   }
-  DBUG_RETURN(maria_rtree_split_page(info, keyinfo, page, page_buf, key,
-                                     key_length, new_page) ? -1 : 1);
+  DBUG_RETURN(maria_rtree_split_page(info, key, page, page_buf, new_page)
+              ? -1 : 1);
 }
 
 
 /*
   Delete key from the page
+
+  Notes
+  key_length is only the data part of the key
 */
 
 int maria_rtree_delete_key(MARIA_HA *info, uchar *page_buf, uchar *key,
@@ -110,18 +104,18 @@ int maria_rtree_delete_key(MARIA_HA *info, uchar *page_buf, uchar *key,
   Calculate and store key MBR into *key.
 */
 
-int maria_rtree_set_key_mbr(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
-                            uchar *key,
-                            uint key_length, my_off_t child_page)
+int maria_rtree_set_key_mbr(MARIA_HA *info, MARIA_KEY *key,
+                            my_off_t child_page)
 {
   DBUG_ENTER("maria_rtree_set_key_mbr");
-  if (!_ma_fetch_keypage(info, keyinfo, child_page,
+  if (!_ma_fetch_keypage(info, key->keyinfo, child_page,
                          PAGECACHE_LOCK_LEFT_UNLOCKED,
                          DFLT_INIT_HITS, info->buff, 0, 0))
     DBUG_RETURN(-1);
 
-  DBUG_RETURN(maria_rtree_page_mbr(info, keyinfo->seg,
-                                   info->buff, key, key_length));
+  DBUG_RETURN(maria_rtree_page_mbr(info, key->keyinfo->seg,
+                                   info->buff, key->data,
+                                   key->data_length));
 }
 
 #endif /*HAVE_RTREE_KEYS*/

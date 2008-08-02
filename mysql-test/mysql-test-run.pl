@@ -2186,13 +2186,13 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute maria_pack and maria_chk
   # ----------------------------------------------------
-  $ENV{'MARIA_CHK'}= mtr_native_path(mtr_exe_exists(
+  $ENV{'MARIA_CHK'}= mtr_native_path(mtr_exe_maybe_exists(
                        vs_config_dirs('storage/maria', 'maria_chk'),
                        vs_config_dirs('maria', 'maria_chk'),
                        "$path_client_bindir/maria_chk",
                        "$glob_basedir/storage/maria/maria_chk",
                        "$glob_basedir/maria/maria_chk"));
-  $ENV{'MARIA_PACK'}= mtr_native_path(mtr_exe_exists(
+  $ENV{'MARIA_PACK'}= mtr_native_path(mtr_exe_maybe_exists(
                         vs_config_dirs('storage/maria', 'maria_pack'),
                         vs_config_dirs('maria', 'maria_pack'),
                         "$path_client_bindir/maria_pack",

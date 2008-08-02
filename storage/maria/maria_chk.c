@@ -1155,7 +1155,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
                                T_ZEROFILL | T_ZEROFILL_KEEP_LSN)) !=
            (T_ZEROFILL | T_ZEROFILL_KEEP_LSN)))
         share->state.create_rename_lsn= share->state.is_of_horizon=
-          share->state.skip_redo_lsn= LSN_REPAIRED_BY_MARIA_CHK;
+          share->state.skip_redo_lsn= LSN_NEEDS_NEW_STATE_LSNS;
     }
     if (!error && (param->testflag & T_REP_ANY))
     {
@@ -1409,6 +1409,18 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
       get_date(buff,1,share->state.check_time);
       printf("Recover time:        %s\n",buff);
     }
+    if (share->base.born_transactional)
+    {
+      printf("LSNs:                create_rename (%lu,0x%lx),"
+             " state_horizon (%lu,0x%lx), skip_redo (%lu,0x%lx)\n",
+             LSN_IN_PARTS(share->state.create_rename_lsn),
+             LSN_IN_PARTS(share->state.is_of_horizon),
+             LSN_IN_PARTS(share->state.skip_redo_lsn));
+    }
+    compile_time_assert((MY_UUID_STRING_LENGTH + 1) <= sizeof(buff));
+    buff[MY_UUID_STRING_LENGTH]= 0;
+    my_uuid2str(share->base.uuid, buff);
+    printf("UUID:                %s\n", buff);
     pos=buff;
     if (share->state.changed & STATE_CRASHED)
       strmov(buff,"crashed");
@@ -1677,6 +1689,17 @@ static int maria_sort_records(HA_CHECK *param,
     param->error_printed=0;
     DBUG_RETURN(0);				/* Nothing to do */
   }
+  if (keyinfo->flag & HA_BINARY_PACK_KEY)
+  {
+    _ma_check_print_warning(param,
+                            "Can't sort table '%s' on a key with prefix "
+                            "packing %d",
+                            name,sort_key+1);
+    param->error_printed=0;
+    DBUG_RETURN(0);
+  }
+
+
   if (share->data_file_type == COMPRESSED_RECORD)
   {
     _ma_check_print_warning(param,"Can't sort read-only table '%s'", name);
@@ -1822,17 +1845,21 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
 			     File new_file,my_bool update_index)
 {
   MARIA_SHARE *share= info->s;
-  uint	nod_flag,used_length,key_length;
+  uint	page_flag, nod_flag,used_length;
   uchar *temp_buff,*keypos,*endpos;
   my_off_t next_page,rec_pos;
-  uchar lastkey[HA_MAX_KEY_BUFF];
+  uchar lastkey[MARIA_MAX_KEY_BUFF];
   char llbuff[22];
   MARIA_SORT_INFO *sort_info= sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
+  MARIA_KEY tmp_key;
   DBUG_ENTER("sort_record_index");
 
-  nod_flag=_ma_test_if_nod(share, buff);
+  page_flag= _ma_get_keypage_flag(share, buff);
+  nod_flag=  _ma_test_if_nod(share, buff);
   temp_buff=0;
+  tmp_key.keyinfo= keyinfo;
+  tmp_key.data=    lastkey;
 
   if (nod_flag)
   {
@@ -1866,10 +1893,9 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
     }
     _sanity(__FILE__,__LINE__);
     if (keypos >= endpos ||
-	(key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,lastkey))
-	== 0)
+	!(*keyinfo->get_key)(&tmp_key, page_flag, nod_flag, &keypos))
       break;
-    rec_pos= _ma_dpos(info,0,lastkey+key_length);
+    rec_pos= _ma_row_pos_from_key(&tmp_key);
 
     if ((*share->read_record)(info,sort_param->record,rec_pos))
     {
@@ -1878,10 +1904,10 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
     }
     if (rec_pos != sort_param->filepos && update_index)
     {
-      _ma_dpointer(info,keypos-nod_flag-share->rec_reflength,
+      _ma_dpointer(share, keypos - nod_flag - tmp_key.ref_length,
 		   sort_param->filepos);
       if (maria_movepoint(info,sort_param->record,rec_pos,sort_param->filepos,
-		    sort_key))
+                          sort_key))
       {
 	_ma_check_print_error(param,"%d when updating key-pointers",my_errno);
 	goto err;

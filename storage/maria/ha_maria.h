@@ -45,7 +45,7 @@ class ha_maria :public handler
     UNDO_BULK_INSERT with/without repair. 
   */
   uint8 bulk_insert_single_undo;
-  int repair(THD * thd, HA_CHECK &param, bool optimize);
+  int repair(THD * thd, HA_CHECK *param, bool optimize);
   int zerofill(THD * thd, HA_CHECK_OPT *check_opt);
 
 public:
@@ -161,5 +161,5 @@ public:
   {
     return file;
   }
-  static int implicit_commit(THD *thd);
+  static int implicit_commit(THD *thd, bool new_trn);
 };

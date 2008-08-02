@@ -96,6 +96,8 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Error in initialization");
     exit(1);
   }
+  if (opt_versioning)
+    init_thr_lock();
 
   reclength=STANDARD_LENGTH+60+(use_blob ? 8 : 0);
   blob_pos=STANDARD_LENGTH+60;

@@ -53,6 +53,7 @@ CREATE TABLE test.t1 (f1 BIGINT);
 
 # Show the definition of the PROCESSLIST table
 #--------------------------------------------------------------------------
+--replace_result ENGINE=MyISAM "" ENGINE=MARIA "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE INFORMATION_SCHEMA.PROCESSLIST;
 
 

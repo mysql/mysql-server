@@ -72,15 +72,24 @@ uchar maria_zero_string[]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
   Position is , == , >= , <= , > , <
 */
 
-uint maria_read_vec[]=
+uint32 maria_read_vec[]=
 {
-  SEARCH_FIND, SEARCH_FIND | SEARCH_BIGGER, SEARCH_FIND | SEARCH_SMALLER,
-  SEARCH_NO_FIND | SEARCH_BIGGER, SEARCH_NO_FIND | SEARCH_SMALLER,
-  SEARCH_FIND | SEARCH_PREFIX, SEARCH_LAST, SEARCH_LAST | SEARCH_SMALLER,
-  MBR_CONTAIN, MBR_INTERSECT, MBR_WITHIN, MBR_DISJOINT, MBR_EQUAL
+  SEARCH_FIND,                               /* HA_READ_KEY_EXACT */
+  SEARCH_FIND | SEARCH_BIGGER,               /* HA_READ_KEY_OR_NEXT */
+  SEARCH_FIND | SEARCH_SMALLER,              /* HA_READ_KEY_OR_PREV */
+  SEARCH_NO_FIND | SEARCH_BIGGER,            /* HA_READ_AFTER_KEY */
+  SEARCH_NO_FIND | SEARCH_SMALLER,	     /* HA_READ_BEFORE_KEY */
+  SEARCH_FIND | SEARCH_PART_KEY,	     /* HA_READ_PREFIX */
+  SEARCH_LAST,                               /* HA_READ_PREFIX_LAST */
+  SEARCH_LAST | SEARCH_SMALLER,              /* HA_READ_PREFIX_LAST_OR_PREV */
+  MBR_CONTAIN,                               /* HA_READ_MBR_CONTAIN */
+  MBR_INTERSECT,                             /* HA_READ_MBR_INTERSECT */
+  MBR_WITHIN,                                /* HA_READ_MBR_WITHIN */
+  MBR_DISJOINT,                              /* HA_READ_MBR_DISJOINT */
+  MBR_EQUAL                                  /* HA_READ_MBR_EQUAL */
 };
 
-uint maria_readnext_vec[]=
+uint32 maria_readnext_vec[]=
 {
   SEARCH_BIGGER, SEARCH_BIGGER, SEARCH_SMALLER, SEARCH_BIGGER, SEARCH_SMALLER,
   SEARCH_BIGGER, SEARCH_SMALLER, SEARCH_SMALLER

@@ -1,6 +1,8 @@
 # test of cases where we can safely disable logging
 
 --source include/have_maria.inc
+# can't restart server in embedded
+--source include/not_embedded.inc
 
 set global maria_log_file_size=4294967295;
 
@@ -9,7 +11,7 @@ drop database if exists mysqltest;
 --enable_warnings
 create database mysqltest;
 
-connect (admin, 127.0.0.1, root,,mysqltest,,);
+connect (admin, localhost, root,,mysqltest,,);
 --enable_reconnect
 
 connection default;

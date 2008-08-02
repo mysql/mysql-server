@@ -43,7 +43,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.14";
+const char *VER= "14.15";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -142,7 +142,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       default_charset_used= 0, opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0;
-static my_bool debug_info_flag, debug_check_flag;
+static my_bool debug_info_flag, debug_check_flag, batch_abort_on_error;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
@@ -1308,6 +1308,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"abort-source-on-error", OPT_ABORT_SOURCE_ON_ERROR,
+   "Abort 'source filename' operations in case of errors",
+   (uchar**) &batch_abort_on_error, (uchar**) &batch_abort_on_error, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
   {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1359,7 +1363,7 @@ static struct my_option my_long_options[] =
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
    (uchar**) &vertical, (uchar**) &vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-  {"force", 'f', "Continue even if we get an sql error.",
+  {"force", 'f', "Continue even if we get an sql error. Sets abort-source-on-error to 0",
    (uchar**) &ignore_errors, (uchar**) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"named-commands", 'G',
@@ -1716,6 +1720,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
 #include <sslopt-case.h>
+  case 'f':
+    batch_abort_on_error= 0;
+    break;
   case 'V':
     usage(1);
     exit(0);
@@ -3887,6 +3894,7 @@ static int com_source(String *buffer, char *line)
   int error;
   STATUS old_status;
   FILE *sql_file;
+  my_bool save_ignore_errors;
 
   /* Skip space from file name */
   while (my_isspace(charset_info,*line))
@@ -3918,16 +3926,25 @@ static int com_source(String *buffer, char *line)
 
   /* Save old status */
   old_status=status;
+  save_ignore_errors= ignore_errors;
   bfill((char*) &status,sizeof(status),(char) 0);
 
   status.batch=old_status.batch;		// Run in batch mode
   status.line_buff=line_buff;
   status.file_name=source_name;
   glob_buffer.length(0);			// Empty command buffer
+  ignore_errors= !batch_abort_on_error;
   error= read_and_execute(false);
+  ignore_errors= save_ignore_errors;
   status=old_status;				// Continue as before
   my_fclose(sql_file,MYF(0));
   batch_readline_end(line_buff);
+  /*
+    If we got an error during source operation, don't abort the client
+    if ignore_errors is set
+  */
+  if (error && batch_abort_on_error && ignore_errors)
+    error= -1;
   return error;
 }
 
@@ -4433,12 +4450,19 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
       if (error)
       {
 	if (sqlstate)
-          (void) tee_fprintf(file, "ERROR %d (%s): ", error, sqlstate);
+          (void) tee_fprintf(file, "ERROR %d (%s)", error, sqlstate);
         else
-          (void) tee_fprintf(file, "ERROR %d: ", error);
+          (void) tee_fprintf(file, "ERROR %d", error);
       }
       else
-        tee_puts("ERROR: ", file);
+        tee_fputs("ERROR", file);
+      if (status.query_start_line && line_numbers)
+      {
+	(void) fprintf(file," at line %lu",status.query_start_line);
+	if (status.file_name)
+	  (void) fprintf(file," in file: '%s'", status.file_name);
+      }
+      tee_fputs(": ", file);
     }
     else
       vidattr(A_BOLD);
@@ -4447,7 +4471,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
   }
   if (unbuffered)
     fflush(file);
-  return info_type == INFO_ERROR ? -1 : 0;
+  return info_type == INFO_ERROR ? (ignore_errors ? -1 : 1): 0;
 }
 
 

@@ -90,7 +90,8 @@ CLEANFILES =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
-			mysqld_multi
+			mysqld_multi \
+			$(EXTRA_PROGRAMS)
 
 pkgplugindir =		$(pkglibdir)/plugin
 

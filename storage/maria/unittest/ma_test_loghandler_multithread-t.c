@@ -269,6 +269,11 @@ int main(int argc __attribute__((unused)),
   int *param, error;
   int rc;
 
+  /* Disabled until Sanja tests */
+  plan(1);
+  ok(1, "disabled");
+  exit(0);
+
   plan(WRITERS + FLUSHERS +
        ITERATIONS * WRITERS * 3 + FLUSH_ITERATIONS * FLUSHERS );
 

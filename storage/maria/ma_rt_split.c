@@ -178,11 +178,11 @@ static void mark_all_entries(SplitStruct *node, int n_entries, int n_group)
 }
 
 static int split_maria_rtree_node(SplitStruct *node, int n_entries,
-                   int all_size, /* Total key's size */
-                   int key_size,
-                   int min_size, /* Minimal group size */
-                   int size1, int size2 /* initial group sizes */,
-                   double **d_buffer, int n_dim)
+                                  int all_size, /* Total key's size */
+                                  int key_size,
+                                  int min_size, /* Minimal group size */
+                                  int size1, int size2 /* initial group sizes */,
+                                  double **d_buffer, int n_dim)
 {
   SplitStruct *cur;
   SplitStruct *a;
@@ -380,9 +380,9 @@ static my_bool _ma_log_rt_split(MARIA_HA *info,
    If new_page_offs==NULL, won't create new page (for redo phase).
 */
 
-int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
-                           my_off_t page_offs, uchar *page, const uchar *key,
-                           uint key_length, my_off_t *new_page_offs)
+int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
+                           my_off_t page_offs, uchar *page,
+                           my_off_t *new_page_offs)
 {
   MARIA_SHARE *share= info->s;
   const my_bool transactional= share->now_transactional;
@@ -400,11 +400,12 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
   int err_code= 0;
   uint nod_flag= _ma_test_if_nod(share, page);
   uint org_length= _ma_get_page_used(share, page), new_length;
-  uint full_length= key_length + (nod_flag ? nod_flag :
-                                  share->base.rec_reflength);
-  int max_keys= ((org_length - share->keypage_header) /
-                 (full_length));
+  uint full_length= key->data_length + (nod_flag ? nod_flag :
+                                        key->ref_length);
+  uint key_data_length= key->data_length;
+  int max_keys= ((org_length - share->keypage_header) / (full_length));
   MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
+  MARIA_KEYDEF *keyinfo= key->keyinfo;
   DBUG_ENTER("maria_rtree_split_page");
   DBUG_PRINT("rtree", ("splitting block"));
 
@@ -424,17 +425,17 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
 
   for (cur= task;
        cur < stop;
-       cur++, source_cur= rt_PAGE_NEXT_KEY(share, source_cur, key_length,
+       cur++, source_cur= rt_PAGE_NEXT_KEY(share, source_cur, key_data_length,
                                            nod_flag))
   {
     cur->coords= reserve_coords(&next_coord, n_dim);
     cur->key= source_cur;
-    maria_rtree_d_mbr(keyinfo->seg, source_cur, key_length, cur->coords);
+    maria_rtree_d_mbr(keyinfo->seg, source_cur, key_data_length, cur->coords);
   }
 
   cur->coords= reserve_coords(&next_coord, n_dim);
-  maria_rtree_d_mbr(keyinfo->seg, key, key_length, cur->coords);
-  cur->key= key;
+  maria_rtree_d_mbr(keyinfo->seg, key->data, key_data_length, cur->coords);
+  cur->key= key->data;
 
   old_coord= next_coord;
 
@@ -474,14 +475,14 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
     if (cur->n_node == 1)
     {
       to= cur1;
-      cur1= rt_PAGE_NEXT_KEY(share, cur1, key_length, nod_flag);
+      cur1= rt_PAGE_NEXT_KEY(share, cur1, key_data_length, nod_flag);
       n1++;
       log_this_change= transactional;
     }
     else
     {
       to= cur2;
-      cur2= rt_PAGE_NEXT_KEY(share, cur2, key_length, nod_flag);
+      cur2= rt_PAGE_NEXT_KEY(share, cur2, key_data_length, nod_flag);
       n2++;
       log_this_change= FALSE;
     }
@@ -493,7 +494,7 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
       if (log_this_change)
       {
         uint to_with_nod_flag_offs= to_with_nod_flag - page;
-        if (likely(cur_key != key))
+        if (likely(cur_key != key->data))
         {
           /* this memcpy() is internal to the page (source in the page) */
           uint cur_key_with_nod_flag_offs= cur_key_with_nod_flag - page;
@@ -536,7 +537,7 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
   {
     if (transactional &&
         ( /* log change to split page */
-         _ma_log_rt_split(info, page_offs, page, key - nod_flag,
+         _ma_log_rt_split(info, page_offs, page, key->data - nod_flag,
                           full_length, log_internal_copy,
                           log_internal_copy_ptr - log_internal_copy,
                           log_key_copy, org_length - new_length) ||

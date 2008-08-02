@@ -93,7 +93,13 @@ typedef LSN LSN_WITH_FLAGS;
 #define LSN_ERROR             ((LSN)1)
 
 /** @brief some impossible LSN serve as markers */
-#define LSN_REPAIRED_BY_MARIA_CHK ((LSN)2)
+
+/**
+   When table is modified by maria_chk, or auto-zerofilled, old REDOs don't
+   apply, table is freshly born again somehow: its state's LSNs need to be
+   updated to the new instance which receives this table.
+*/
+#define LSN_NEEDS_NEW_STATE_LSNS ((LSN)2)
 
 /**
    @brief the maximum valid LSN.

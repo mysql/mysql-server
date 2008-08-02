@@ -46,12 +46,10 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
                       enum translog_record_type undo_type,
                       my_bool store_checksum, ha_checksum checksum,
                       LSN *res_lsn, void *extra_msg);
-int _ma_write_undo_key_insert(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
-                              const uchar *key, uint key_length,
+int _ma_write_undo_key_insert(MARIA_HA *info, const MARIA_KEY *key,
                               my_off_t *root, my_off_t new_root,
                               LSN *res_lsn);
-int _ma_write_undo_key_delete(MARIA_HA *info, uint keynr,
-                              const uchar *key, uint key_length,
+int _ma_write_undo_key_delete(MARIA_HA *info, const MARIA_KEY *key,
                               my_off_t new_root, LSN *res_lsn);
 my_bool write_hook_for_clr_end(enum translog_record_type type,
                                TRN *trn, MARIA_HA *tbl_info, LSN *lsn,

@@ -210,6 +210,9 @@ typedef struct st_mi_isam_share
   enum data_file_type data_file_type;
   /* Below flag is needed to make log tables work with concurrent insert */
   my_bool is_log_table;
+  /* This is 1 if they table checksum is of old type */
+  my_bool has_null_fields;
+  my_bool has_varchar_fields;
 
   my_bool changed,                      /* If changed since lock */
     global_changed,                     /* If changed since open */

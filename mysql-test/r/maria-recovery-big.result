@@ -4,7 +4,6 @@ create database mysqltest;
 use mysqltest;
 * TEST of recovery with blobs
 * shut down mysqld, removed logs, restarted it
-use mysqltest;
 set @@max_allowed_packet=32000000;
 create table t1 (a int, b longtext) engine=maria table_checksum=1;
 * copied t1 for feeding_recovery

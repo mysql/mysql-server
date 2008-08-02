@@ -3435,7 +3435,7 @@ void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   stat_info->update_time=          stats.update_time;
   stat_info->check_time=           stats.check_time;
   stat_info->check_sum=            0;
-  if (table_flags() & (ulong) HA_HAS_CHECKSUM)
+  if (table_flags() & (HA_HAS_OLD_CHECKSUM | HA_HAS_OLD_CHECKSUM))
     stat_info->check_sum= checksum();
   return;
 }

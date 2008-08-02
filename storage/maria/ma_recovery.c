@@ -77,6 +77,7 @@ prototype_redo_exec_hook(FILE_ID);
 prototype_redo_exec_hook(INCOMPLETE_LOG);
 prototype_redo_exec_hook_dummy(INCOMPLETE_GROUP);
 prototype_redo_exec_hook(UNDO_BULK_INSERT);
+prototype_redo_exec_hook(IMPORTED_TABLE);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
@@ -951,7 +952,8 @@ prototype_redo_exec_hook(REDO_RENAME_TABLE)
     eprint(tracef, "Failed to open renamed table");
     goto end;
   }
-  if (_ma_update_state_lsns(info->s, rec->lsn, TRUE, TRUE))
+  if (_ma_update_state_lsns(info->s, rec->lsn, info->s->state.create_trid,
+                            TRUE, TRUE))
     goto end;
   if (maria_close(info))
     goto end;
@@ -1027,8 +1029,8 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
   else if (maria_repair(&param, info, name, quick_repair))
     goto end;
 
-  if (_ma_update_state_lsns(info->s, rec->lsn, TRUE,
-                            !(param.testflag & T_NO_CREATE_RENAME_LSN)))
+  if (_ma_update_state_lsns(info->s, rec->lsn, trnman_get_min_safe_trid(),
+                            TRUE, !(param.testflag & T_NO_CREATE_RENAME_LSN)))
     goto end;
   error= 0;
 
@@ -1202,11 +1204,13 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
     if (close_one_table(share->open_file_name, lsn_of_file_id))
       goto end;
   }
-  DBUG_ASSERT(share->now_transactional == share->base.born_transactional);
   if (!share->base.born_transactional)
   {
-    tprint(tracef, ", is not transactional\n");
-    ALERT_USER();
+    /*
+      This can happen if one converts a transactional table to a
+      not transactional table
+    */
+    tprint(tracef, ", is not transactional.  Ignoring open request");
     error= -1;
     goto end;
   }
@@ -1789,7 +1793,7 @@ prototype_redo_exec_hook(UNDO_KEY_INSERT)
       if (keyseg->flag & HA_SWAP_KEY)
       {
         /* We put key from log record to "data record" packing format... */
-        uchar reversed[HA_MAX_KEY_BUFF];
+        uchar reversed[MARIA_MAX_KEY_BUFF];
         uchar *key_ptr= to;
         uchar *key_end= key_ptr + keyseg->length;
         to= reversed + keyseg->length;
@@ -1854,6 +1858,24 @@ prototype_redo_exec_hook(UNDO_BULK_INSERT)
     we are going to empty the table and that will fix the state.
   */
   set_undo_lsn_for_active_trans(rec->short_trid, rec->lsn);
+  return 0;
+}
+
+
+prototype_redo_exec_hook(IMPORTED_TABLE)
+{
+  char *name;
+  enlarge_buffer(rec);
+  if (log_record_buffer.str == NULL ||
+      translog_read_record(rec->lsn, 0, rec->record_length,
+                           log_record_buffer.str, NULL) !=
+      rec->record_length)
+  {
+    eprint(tracef, "Failed to read record");
+    return 1;
+  }
+  name= (char *)log_record_buffer.str;
+  tprint(tracef, "Table '%s' was imported (auto-zerofilled) in this Maria instance\n", name);
   return 0;
 }
 
@@ -2325,6 +2347,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_redo_exec_hook_shared(REDO_NEW_ROW_TAIL, REDO_INSERT_ROW_TAIL);
   install_redo_exec_hook(UNDO_BULK_INSERT);
   install_undo_exec_hook(UNDO_BULK_INSERT);
+  install_redo_exec_hook(IMPORTED_TABLE);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
 #ifndef DBUG_OFF
@@ -3211,6 +3234,16 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
 
   /* if we disabled before writing the record, record wouldn't reach log */
   share->now_transactional= FALSE;
+
+  /*
+    Reset state pointers. This is needed as in ALTER table we may do
+    commit fllowed by _ma_renable_logging_for_table and then
+    info->state may point to a state that was deleted by
+    _ma_trnman_end_trans_hook()
+   */
+  share->state.common= *info->state;
+  info->state= &share->state.common;
+
   /*
     Some code in ma_blockrec.c assumes a trn even if !now_transactional but in
     this case it only reads trn->rec_lsn, which has to be LSN_IMPOSSIBLE and
@@ -3252,6 +3285,7 @@ my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages)
       in not transactional mode
     */
     _ma_copy_nontrans_state_information(info);
+    _ma_reset_history(info->s);
 
     if (flush_pages)
     {

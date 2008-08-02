@@ -110,6 +110,7 @@ end:
    @param all            1 if we should delete the first state if it's
                          visible for all.  For the moment this is only used
                          on close() of table.
+   @param trnman_is_locked  Set to 1 if we have already a lock on trnman.
 
    @notes
      The assumption is that items in the history list is ordered by
@@ -121,6 +122,9 @@ end:
      As long as some states exists, we keep the newest = (last commit)
      state as first state in the history.  This is to allow us to just move
      the history from the global list to the share when we open the table.
+
+     Note that if 'all' is set trnman_is_locked must be 0, becasue
+     trnman_get_min_trid() will take a lock on trnman.
 
    @return
    @retval Pointer to new history list
@@ -157,6 +161,7 @@ MARIA_STATE_HISTORY
 
   if (all && parent == &org_history->next)
   {
+    DBUG_ASSERT(trnman_is_locked == 0);
     /* There is only one state left. Delete this if it's visible for all */
     if (last_trid < trnman_get_min_trid())
     {
@@ -166,6 +171,29 @@ MARIA_STATE_HISTORY
   }
   DBUG_RETURN(org_history);
 }
+
+
+/**
+   @brief Remove not used state history
+
+   @notes
+   share and trnman are not locked.
+
+   We must first lock trnman and then share->intern_lock. This is becasue
+   _ma_trnman_end_trans_hook() has a lock on trnman and then
+   takes share->intern_lock.
+*/
+
+void _ma_remove_not_visible_states_with_lock(MARIA_SHARE *share)
+{
+  trnman_lock();
+  pthread_mutex_lock(&share->intern_lock);
+  share->state_history=  _ma_remove_not_visible_states(share->state_history, 0,
+                                                       1);
+  pthread_mutex_unlock(&share->intern_lock);
+  trnman_unlock();
+}
+
 
 /*
   Free state history information from share->history and reset information
@@ -186,6 +214,8 @@ void _ma_reset_state(MARIA_HA *info)
 
     /* Set the current history to current state */
     share->state_history->state= share->state.state;
+    /* Set current table handler to point to new history state */
+    info->state= info->state_start= &share->state_history->state;
     for (history= history->next ; history ; history= next)
     {
       next= history->next;
@@ -341,7 +371,7 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
       MARIA_STATE_HISTORY *history;
 
       pthread_mutex_lock(&share->intern_lock);
-      if (active_transactions &&
+      if (active_transactions && share->now_transactional &&
           trnman_exists_active_transactions(share->state_history->trid,
                                             trn->commit_trid, 1))
       {
@@ -383,6 +413,35 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
   trn->used_tables= 0;
   return error;
 }
+
+
+/**
+   Remove table from trnman_list
+
+   @notes
+     This is used when we unlock a table from a group of locked tables
+     just before doing a rename or drop table.
+*/
+
+void _ma_remove_table_from_trnman(MARIA_SHARE *share, TRN *trn)
+{
+  MARIA_USED_TABLES *tables, **prev;
+  
+  for (prev= (MARIA_USED_TABLES**) &trn->used_tables, tables= *prev;
+       tables;
+       tables= *prev)
+  {
+    if (tables->share == share)
+    {
+      *prev= tables->next;
+      my_free(tables, MYF(0));
+    }
+    else
+      prev= &tables->next;
+  }
+}
+
+
 
 
 /****************************************************************************
@@ -446,7 +505,8 @@ my_bool _ma_block_check_status(void *param __attribute__((unused)))
 void maria_versioning(MARIA_HA *info, my_bool versioning)
 {
   /* For now, this is a hack */
-  _ma_block_get_status((void*) info, versioning);
+  if (info->s->have_versioning)
+    _ma_block_get_status((void*) info, versioning);
 }
 
 
@@ -475,4 +535,66 @@ void _ma_copy_nontrans_state_information(MARIA_HA *info)
 {
   info->s->state.state.records=          info->state->records;
   info->s->state.state.checksum=         info->state->checksum;
+}
+
+
+void _ma_reset_history(MARIA_SHARE *share)
+{
+  MARIA_STATE_HISTORY *history, *next;
+
+  share->state_history->trid= 0;          /* Visibly by all */
+  share->state_history->state= share->state.state;
+  history= share->state_history->next;
+  share->state_history->next= 0;
+
+  for (; history; history= next)
+  {
+    next= history->next;
+    my_free(history, MYF(0));
+  }
+}
+
+
+/****************************************************************************
+  Virtual functions to check if row is visible
+****************************************************************************/
+
+/**
+   Row is always visible
+   This is for tables without concurrent insert
+*/
+
+my_bool _ma_row_visible_always(MARIA_HA *info __attribute__((unused)))
+{
+  return 1;
+}
+
+
+/**
+   Row visibility for non transactional tables with concurrent insert
+
+   @implementation
+   When we got our table lock, we saved the current
+   data_file_length. Concurrent inserts always go to the end of the
+   file. So we can test if the found key references a new record.
+*/
+
+my_bool _ma_row_visible_non_transactional_table(MARIA_HA *info)
+{
+  return info->cur_row.lastpos < info->state->data_file_length;
+}
+
+
+/**
+   Row visibility for transactional tables with versioning
+
+
+   @TODO
+   Add test if found key was marked deleted and it was deleted by
+   us. In that case we should return 0
+*/
+
+my_bool _ma_row_visible_transactional_table(MARIA_HA *info)
+{
+  return trnman_can_read_from(info->trn, info->cur_row.trid);
 }

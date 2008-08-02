@@ -755,7 +755,10 @@ static int chk_index(HA_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   }
 
   if (keyinfo->flag & HA_NOSAME)
-    comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* Not real duplicates */
+  {
+    /* Not real duplicates */
+    comp_flag= SEARCH_FIND | SEARCH_UPDATE | SEARCH_INSERT;
+  }
   else
     comp_flag=SEARCH_SAME;			/* Keys in positionorder */
   nod_flag=mi_test_if_nod(buff);
@@ -3795,7 +3798,8 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
   if (sort_info->key_block->inited)
   {
     cmp=ha_key_cmp(sort_param->seg, (uchar*) sort_info->key_block->lastkey,
-		   (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
+		   (uchar*) a, USE_WHOLE_KEY,
+                   SEARCH_FIND | SEARCH_UPDATE | SEARCH_INSERT,
 		   diff_pos);
     if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
       ha_key_cmp(sort_param->seg, (uchar*) sort_info->key_block->lastkey,

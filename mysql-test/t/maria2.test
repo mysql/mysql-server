@@ -1,5 +1,10 @@
 --source include/have_maria.inc
 
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
 # Test for BUG#36319
 # "Maria: table is not empty but DELETE and SELECT find no rows"
 
@@ -63,4 +68,43 @@ delete from t1 limit 1000;
 select count(*) from t1;
 select name from t1;
 check table t1 extended;
+drop table t1;
+
+#
+# Testing of ALTER TABLE under lock tables
+#
+
+create table t1 (i int) engine=maria;
+create table t2 (j int) engine=maria;
+lock table t1 write, t2 read;
+alter table t1 modify i int default 1;
+insert into t1 values (2);
+# This caused a core dump
+alter table t1 modify i bigint default 1;
+select count(*) from t1;
+select * from t1;
+drop table t1,t2;
+
+#
+# test INSERT ON DUPLICATE KEY UPDATE
+#
+
+create table t1(id int, s char(1), unique(s)) engine=maria;
+insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
+insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
+insert into t1 select 1,"a" on duplicate key update t1.id=t1.id+1;
+select * from t1;
+
+# test REPLACE SELECT
+replace into t1 select 1,"a";
+select * from t1;
+drop table t1;
+
+# test LOAD DATA INFILE REPLACE
+create table t1 (pk int primary key, apk int unique, data int) engine=maria;
+insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
+load data concurrent infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
 drop table t1;

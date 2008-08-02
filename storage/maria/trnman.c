@@ -149,12 +149,12 @@ int trnman_init(TrID initial_trid)
   */
 
   active_list_max.trid= active_list_min.trid= 0;
-  active_list_max.min_read_from= ~(ulong) 0;
+  active_list_max.min_read_from= ~(TrID) 0;
   active_list_max.next= active_list_min.prev= 0;
   active_list_max.prev= &active_list_min;
   active_list_min.next= &active_list_max;
 
-  committed_list_max.commit_trid= ~(ulong) 0;
+  committed_list_max.commit_trid= ~(TrID) 0;
   committed_list_max.next= committed_list_min.prev= 0;
   committed_list_max.prev= &committed_list_min;
   committed_list_min.next= &committed_list_max;
@@ -518,17 +518,24 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
 */
 void trnman_free_trn(TRN *trn)
 {
-  TRN *tmp= pool;
+  /*
+     union is to solve strict aliasing issue.
+     without it gcc 3.4.3 doesn't notice that updating *(void **)&tmp
+     modifies the value of tmp.
+  */
+  union { TRN *trn; void *v; } tmp;
+
+  tmp.trn= pool;
 
   my_atomic_rwlock_wrlock(&LOCK_pool);
   do
   {
     /*
-      without this volatile cast gcc-3.4.4 moved the assignment
+      without this volatile cast gcc-3.4.4 moves the assignment
       down after the loop at -O2
     */
-    *(TRN * volatile *)&(trn->next)= tmp;
-  } while (!my_atomic_casptr((void **)&pool, (void **)&tmp, trn));
+    *(TRN * volatile *)&(trn->next)= tmp.trn;
+  } while (!my_atomic_casptr((void **)&pool, &tmp.v, trn));
   my_atomic_rwlock_wrunlock(&LOCK_pool);
 }
 
@@ -782,7 +789,10 @@ TRN *trnman_get_any_trn()
 
 
 /**
-  Returns the minimum existing transaction id.
+  Returns the minimum existing transaction id
+
+  @notes
+    This can only be called when we have at least one running transaction.
 */
 
 TrID trnman_get_min_trid()
@@ -802,6 +812,29 @@ TrID trnman_get_min_trid()
 
 
 /**
+  Returns the minimum possible transaction id
+
+  @notes
+  If there is no transactions running, returns number for next running
+  transaction.
+  If one has an active transaction, the returned number will be less or
+  equal to this.  If one is not running in a transaction one will ge the
+  number for the next started transaction.  This is used in create table
+  to get a safe minimum trid to use.
+*/
+
+TrID trnman_get_min_safe_trid()
+{
+  TrID trid;
+  pthread_mutex_lock(&LOCK_trn_list);
+  trid= min(active_list_min.next->min_read_from,
+            global_trid_generator);
+  pthread_mutex_unlock(&LOCK_trn_list);
+  return trid;
+}
+
+
+/**
   Returns maximum transaction id given to a transaction so far.
 */
 
@@ -817,7 +850,7 @@ TrID trnman_get_max_trid()
 }
 
 /**
-  Check if there exist an active transaction between two commit_id's
+  @brief Check if there exist an active transaction between two commit_id's
 
   @todo
     Improve speed of this.
@@ -850,4 +883,23 @@ my_bool trnman_exists_active_transactions(TrID min_id, TrID max_id,
   if (!trnman_is_locked)
     pthread_mutex_unlock(&LOCK_trn_list);
   return ret;
+}
+
+
+/**
+   lock transaction list
+*/
+
+void trnman_lock()
+{
+  pthread_mutex_lock(&LOCK_trn_list);
+}
+
+/**
+   unlock transaction list
+*/
+
+void trnman_unlock()
+{
+  pthread_mutex_unlock(&LOCK_trn_list);
 }

@@ -35,12 +35,12 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
   if ((int) (inx= info->lastinx) < 0 ||
       info->cur_row.lastpos == HA_OFFSET_ERROR)
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
-  keyinfo= info->s->keyinfo+inx;
   if (fast_ma_readinfo(info))
     DBUG_RETURN(my_errno);
 
+  keyinfo= info->s->keyinfo+inx;
   if (info->s->lock_key_trees)
-    rw_rdlock(&info->s->key_root_lock[inx]);
+    rw_rdlock(&keyinfo->root_lock);
 
   switch (keyinfo->key_alg) {
 #ifdef HAVE_RTREE_KEYS
@@ -60,17 +60,19 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
       if (!(info->update & HA_STATE_RNEXT_SAME))
       {
         /* First rnext_same; Store old key */
-        memcpy(info->lastkey2,info->lastkey,info->last_rkey_length);
+        memcpy(info->lastkey_buff2, info->last_key.data,
+               info->last_rkey_length);
       }
       for (;;)
       {
-        if ((error= _ma_search_next(info,keyinfo,info->lastkey,
-                                    info->lastkey_length,SEARCH_BIGGER,
+        if ((error= _ma_search_next(info, &info->last_key,
+                                    SEARCH_BIGGER,
                                     info->s->state.key_root[inx])))
           break;
-        if (ha_key_cmp(keyinfo->seg, (uchar*) info->lastkey,
-                       (uchar*) info->lastkey2,
-                       info->last_rkey_length, SEARCH_FIND, not_used))
+        if (ha_key_cmp(keyinfo->seg, (uchar*) info->last_key.data,
+                       (uchar*) info->lastkey_buff2,
+                       info->last_rkey_length, SEARCH_FIND,
+                       not_used))
         {
           error=1;
           my_errno=HA_ERR_END_OF_FILE;
@@ -78,13 +80,12 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
           break;
         }
         /* Skip rows that are inserted by other threads since we got a lock */
-        if (!info->s->non_transactional_concurrent_insert ||
-            info->cur_row.lastpos < info->state->data_file_length)
+        if ((info->s->row_is_visible)(info))
           break;
       }
   }
   if (info->s->lock_key_trees)
-    rw_unlock(&info->s->key_root_lock[inx]);
+    rw_unlock(&keyinfo->root_lock);
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_NEXT_FOUND | HA_STATE_RNEXT_SAME;

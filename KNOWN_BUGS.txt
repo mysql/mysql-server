@@ -27,9 +27,15 @@ Known bugs that we are working on and will be fixed shortly
 - We have some instabilities in log writing that is under investigatation
   This causes mainly assert to triggers in the code and sometimes
   the log handler doesn't start up after restart.
+  Most of this should now be fixed...
 
-Known bugs that are planned to be fixed before Beta
-===================================================
+- INSERT on a duplicate key against a key inserted by another connection
+  that has not yet ended will give a duplicate key error instead of
+  waiting for the other statement to end.
+
+
+Known bugs that are planned to be fixed before Gamma/RC
+=======================================================
 
 - If we get a write failure on disk (disk full or disk error) for the
   log, we should stop all usage of transactional tables and mark all
@@ -44,18 +50,22 @@ Known bugs that are planned to be fixed before Beta
   or kill mysqld, remove logs and repair tables.
 
 
+Known bugs that are planned to be fixed later
+=============================================
+
+LOCK TABLES .. WRITE CONCURRENT is mainly done for testing MVCC.  Don't
+use this in production.
+
 Missing features that is planned to fix before Beta
 ===================================================
 
-- Multiple concurrent inserts & multiple concurrent readers at same time
-  with full MVCC control.  Note that UPDATE and DELETE will still be
-  blocking (as with MyISAM)
-- COUNT(*) and TABLE CHECKSUM under MVCC (ie, they are instant and kept up
-  to date even with multiple inserter)
-
+None
 
 Features planned for future releases
 ====================================
+
+Most notable is full transaction support and multiple reader/writers
+in Maria 2.0
 
 http://forge.mysql.com/worklog/
 (you can enter "maria" in the "quick search" field there).

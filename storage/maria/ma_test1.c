@@ -89,6 +89,8 @@ int main(int argc,char *argv[])
     fprintf(stderr, "Error in initialization\n");
     exit(1);
   }
+  if (opt_versioning)
+    init_thr_lock();
 
   exit(run_test("test1"));
 }
@@ -128,7 +130,8 @@ static int run_test(const char *filename)
     recinfo[2].type=FIELD_CHECK;
     recinfo[2].length=MARIA_UNIQUE_HASH_LENGTH;
   }
-  rec_length= recinfo[0].length+recinfo[1].length+recinfo[2].length;
+  rec_length= recinfo[0].length + recinfo[1].length + recinfo[2].length +
+    create_info.null_bytes;
 
   if (key_type == HA_KEYTYPE_VARTEXT1 &&
       key_length > 255)

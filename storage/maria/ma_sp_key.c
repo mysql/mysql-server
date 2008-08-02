@@ -14,6 +14,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "maria_def.h"
+#include "ma_blockrec.h"                        /* For ROW_FLAG_TRANSID */
+#include "trnman.h"
 
 #ifdef HAVE_SPATIAL
 
@@ -31,8 +33,14 @@ static int sp_get_geometry_mbr(uchar *(*wkb), uchar *end, uint n_dims,
                               double *mbr, int top);
 static int sp_mbr_from_wkb(uchar (*wkb), uint size, uint n_dims, double *mbr);
 
-uint _ma_sp_make_key(register MARIA_HA *info, uint keynr, uchar *key,
-                     const uchar *record, my_off_t filepos)
+
+/**
+   Create spactial key
+*/
+
+MARIA_KEY *_ma_sp_make_key(MARIA_HA *info, MARIA_KEY *ret_key, uint keynr,
+                           uchar *key, const uchar *record, my_off_t filepos,
+                           ulonglong trid)
 {
   HA_KEYSEG *keyseg;
   MARIA_KEYDEF *keyinfo = &info->s->keyinfo[keynr];
@@ -42,17 +50,20 @@ uint _ma_sp_make_key(register MARIA_HA *info, uint keynr, uchar *key,
   uchar *dptr;
   double mbr[SPDIMS * 2];
   uint i;
+  DBUG_ENTER("_ma_sp_make_key");
 
   keyseg = &keyinfo->seg[-1];
   pos = record + keyseg->start;
+  ret_key->data= key;
 
   dlen = _ma_calc_blob_length(keyseg->bit_start, pos);
   memcpy_fixed(&dptr, pos + keyseg->bit_start, sizeof(char*));
   if (!dptr)
   {
     my_errno= HA_ERR_NULL_IN_SPATIAL;
-    return 0;
+    DBUG_RETURN(0);
   }
+
   sp_mbr_from_wkb(dptr + 4, dlen - 4, SPDIMS, mbr);	/* SRID */
 
   for (i = 0, keyseg = keyinfo->seg; keyseg->type; keyseg++, i++)
@@ -60,8 +71,8 @@ uint _ma_sp_make_key(register MARIA_HA *info, uint keynr, uchar *key,
     uint length = keyseg->length, start= keyseg->start;
     double val;
 
-    DBUG_ASSERT(length == sizeof(double));
-    DBUG_ASSERT(!(start % sizeof(double)));
+    DBUG_ASSERT(length == 8);
+    DBUG_ASSERT(!(start % 8));
     DBUG_ASSERT(start < sizeof(mbr));
     DBUG_ASSERT(keyseg->type == HA_KEYTYPE_DOUBLE);
 
@@ -78,28 +89,36 @@ uint _ma_sp_make_key(register MARIA_HA *info, uint keynr, uchar *key,
 
     if (keyseg->flag & HA_SWAP_KEY)
     {
-      uchar buf[sizeof(double)];
-
-      float8store(buf, val);
-      pos= &buf[length];
-      while (pos > buf)
-      *key++ = *--pos;
+      mi_float8store(key, val);
     }
     else
     {
       float8store((uchar *)key, val);
-      key += length;
     }
+    key += length;
     len+= length;
   }
-  _ma_dpointer(info, key, filepos);
-  return len;
+  _ma_dpointer(info->s, key, filepos);
+  ret_key->keyinfo= keyinfo;
+  ret_key->data_length= len;
+  ret_key->ref_length= info->s->rec_reflength;
+  ret_key->flag= 0;
+  if (_ma_have_versioning(info) && trid)
+  {
+    ret_key->ref_length+= transid_store_packed(info,
+                                               key + ret_key->ref_length,
+                                               trid);
+  }
+  DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE, ret_key););
+  DBUG_RETURN(ret_key);
 }
 
+
 /*
-Calculate minimal bounding rectangle (mbr) of the spatial object
-stored in "well-known binary representation" (wkb) format.
+  Calculate minimal bounding rectangle (mbr) of the spatial object
+  stored in "well-known binary representation" (wkb) format.
 */
+
 static int sp_mbr_from_wkb(uchar *wkb, uint size, uint n_dims, double *mbr)
 {
   uint i;

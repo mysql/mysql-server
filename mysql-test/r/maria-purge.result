@@ -1,5 +1,4 @@
 * shut down mysqld, removed logs, restarted it
-use test;
 set global storage_engine=maria;
 set session storage_engine=maria;
 set global maria_log_file_size=4294967295;

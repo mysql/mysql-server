@@ -143,6 +143,7 @@ enum translog_record_type
   LOGREC_INCOMPLETE_GROUP,
   LOGREC_UNDO_BULK_INSERT,
   LOGREC_REDO_BITMAP_NEW_PAGE,
+  LOGREC_IMPORTED_TABLE,
   LOGREC_FIRST_FREE,
   LOGREC_RESERVED_FUTURE_EXTENSION= 63
 };
@@ -161,7 +162,9 @@ enum en_key_op
   KEY_OP_ADD_SUFFIX,    /* Insert data at end of page */
   KEY_OP_DEL_SUFFIX,    /* Delete data at end of page */
   KEY_OP_CHECK,         /* For debugging; CRC of used part of page */
-  KEY_OP_MULTI_COPY     /* List of memcpy()s with fixed-len sources in page */
+  KEY_OP_MULTI_COPY,    /* List of memcpy()s with fixed-len sources in page */
+  KEY_OP_SET_PAGEFLAG,  /* Set pageflag from next byte */
+  KEY_OP_COMPACT_PAGE   /* Compact key page */
 };
 
 /* Size of log file; One log file is restricted to 4G */

@@ -79,7 +79,7 @@ MARIA_HA *_ma_test_if_reopen(const char *filename)
     data_file   Filedescriptor of data file to use < 0 if one should open
 	        open it.
 
-  RETURN
+ RETURN
     #   Maria handler
     0   Error
 */
@@ -91,7 +91,6 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   int save_errno;
   uint errpos;
   MARIA_HA info,*m_info;
-  MARIA_STATUS_INFO *state_dummy;
   my_bitmap_map *changed_fields_bitmap;
   DBUG_ENTER("maria_clone_internal");
 
@@ -115,33 +114,32 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
 		       &info.blobs,sizeof(MARIA_BLOB)*share->base.blobs,
 		       &info.buff,(share->base.max_key_block_length*2+
 				   share->base.max_key_length),
-		       &info.lastkey,share->base.max_key_length*2+1,
+		       &info.lastkey_buff,share->base.max_key_length*2+1,
 		       &info.first_mbr_key, share->base.max_key_length,
 		       &info.maria_rtree_recursion_state,
                        share->have_rtree ? 1024 : 0,
                        &changed_fields_bitmap,
                        bitmap_buffer_size(share->base.fields),
-                       &state_dummy, sizeof(*state_dummy),
 		       NullS))
     goto err;
   errpos= 6;
 
   memcpy(info.blobs,share->blobs,sizeof(MARIA_BLOB)*share->base.blobs);
-  info.lastkey2=info.lastkey+share->base.max_key_length;
+  info.lastkey_buff2= info.lastkey_buff + share->base.max_key_length;
+  info.last_key.data= info.lastkey_buff;
 
   info.s=share;
   info.cur_row.lastpos= HA_OFFSET_ERROR;
   info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
   info.opt_flag=READ_CHECK_USED;
   info.this_unique= (ulong) info.dfile.file; /* Uniq number in process */
+#ifdef EXTERNAL_LOCKING
   if (share->data_file_type == COMPRESSED_RECORD)
     info.this_unique= share->state.unique;
   info.this_loop=0;				/* Update counter */
   info.last_unique= share->state.unique;
   info.last_loop=   share->state.update_count;
-  info.quick_mode=0;
-  info.bulk_insert=0;
-  info.ft1_to_ft2=0;
+#endif
   info.errkey= -1;
   info.page_changed=1;
   info.keyread_buff= info.buff + share->base.max_key_block_length;
@@ -185,7 +183,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   }
   else
   {
-    info.state= state_dummy;
+    info.state=  &share->state.common;
     *info.state= share->state.state;            /* Initial values */
   }
   info.state_start= info.state;                 /* Initial values */
@@ -268,6 +266,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   ulong  nulls_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
   my_off_t key_root[HA_MAX_POSSIBLE_KEY];
   ulonglong max_key_file_length, max_data_file_length;
+  my_bool versioning= 1;
   File data_file= -1;
   DBUG_ENTER("maria_open");
 
@@ -409,8 +408,9 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     */
     if ((share->state.changed & STATE_NOT_MOVABLE) &&
         share->base.born_transactional &&
-        !(open_flags & HA_OPEN_IGNORE_MOVED_STATE) &&
-        memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE))
+        ((!(open_flags & HA_OPEN_IGNORE_MOVED_STATE) &&
+          memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE)) ||
+         share->state.create_trid > trnman_get_max_trid()))
     {
       if (open_flags & HA_OPEN_FOR_REPAIR)
         share->state.changed|= STATE_MOVED;
@@ -436,6 +436,12 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       my_errno=HA_ERR_UNSUPPORTED;
       goto err;
     }
+
+    /* Ensure we have space in the key buffer for transaction id's */
+    if (share->base.born_transactional)
+      share->base.max_key_length= ALIGN_SIZE(share->base.max_key_length +
+                                             MAX_PACK_TRANSID_SIZE);
+
     /*
       If page cache is not initialized, then assume we will create the
       page_cache after the table is opened!
@@ -494,9 +500,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 			 &share->data_file_name,strlen(data_name)+1,
                          &share->open_file_name,strlen(name)+1,
 			 &share->state.key_root,keys*sizeof(my_off_t),
-#ifdef THREAD
-			 &share->key_root_lock,sizeof(rw_lock_t)*keys,
-#endif
 			 &share->mmap_lock,sizeof(rw_lock_t),
 			 NullS))
       goto err;
@@ -552,6 +555,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	  uint sp_segs=SPDIMS*2;
 	  share->keyinfo[i].seg=pos-sp_segs;
 	  share->keyinfo[i].keysegs--;
+          versioning= 0;
 #else
 	  my_errno=HA_ERR_UNSUPPORTED;
 	  goto err;
@@ -559,12 +563,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	}
         else if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
-          if (!fulltext_keys)
-          { /* 4.0 compatibility code, to be removed in 5.0 */
-            share->keyinfo[i].seg=pos-FT_SEGS;
-            share->keyinfo[i].keysegs-=FT_SEGS;
-          }
-          else
+          versioning= 0;
+          DBUG_ASSERT(fulltext_keys);
           {
             uint k;
             share->keyinfo[i].seg=pos;
@@ -582,7 +582,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           }
           if (!share->ft2_keyinfo.seg)
           {
-            memcpy(& share->ft2_keyinfo, & share->keyinfo[i], sizeof(MARIA_KEYDEF));
+            memcpy(&share->ft2_keyinfo, &share->keyinfo[i],
+                   sizeof(MARIA_KEYDEF));
             share->ft2_keyinfo.keysegs=1;
             share->ft2_keyinfo.flag=0;
             share->ft2_keyinfo.keylength=
@@ -655,10 +656,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     if (share->base.born_transactional)
     {
       share->page_type= PAGECACHE_LSN_PAGE;
-#ifdef ENABLE_WHEN_WE_HAVE_TRANS_ROW_ID         /* QQ */
-      share->base_length+= TRANS_ROW_EXTRA_HEADER_SIZE;
-#endif
-      if (share->state.create_rename_lsn == LSN_REPAIRED_BY_MARIA_CHK)
+      if (share->state.create_rename_lsn == LSN_NEEDS_NEW_STATE_LSNS)
       {
         /*
           Was repaired with maria_chk, maybe later maria_pack-ed. Some sort of
@@ -667,8 +665,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         */
         if (((open_flags & HA_OPEN_FROM_SQL_LAYER) &&
              (share->state.changed & STATE_NOT_MOVABLE)) || maria_in_recovery)
-          _ma_update_state_lsns_sub(share, translog_get_horizon(),
-                                    TRUE, TRUE);
+          _ma_update_state_lsns_sub(share, LSN_IMPOSSIBLE,
+                                    trnman_get_min_safe_trid(), TRUE, TRUE);
       }
       else if ((!LSN_VALID(share->state.create_rename_lsn) ||
                 !LSN_VALID(share->state.is_of_horizon) ||
@@ -681,7 +679,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       {
         /*
           If in Recovery, it will not work. If LSN is invalid and not
-          LSN_REPAIRED_BY_MARIA_CHK, header must be corrupted.
+          LSN_NEEDS_NEW_STATE_LSNS, header must be corrupted.
           In both cases, must repair.
         */
         my_errno=((share->state.changed & STATE_CRASHED_ON_REPAIR) ?
@@ -756,7 +754,9 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     _ma_set_index_pagecache_callbacks(&share->kfile, share);
     share->this_process=(ulong) getpid();
+#ifdef EXTERNAL_LOCKING
     share->last_process= share->state.process;
+#endif
     share->base.key_parts=key_parts;
     share->base.all_key_parts=key_parts+unique_key_parts;
     if (!(share->last_version=share->state.version))
@@ -778,7 +778,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
            hash_search(&maria_stored_state,
                        (uchar*) &share->state.create_rename_lsn, 0)))
       {
-        /* Move history from hash to share */
+        /*
+          Move history from hash to share. This is safe to do as we
+          don't have a lock on share->intern_lock.
+        */
         share->state_history=
           _ma_remove_not_visible_states(history->state_history, 0, 0);
         history->state_history= 0;
@@ -800,8 +803,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     VOID(pthread_mutex_init(&share->intern_lock, MY_MUTEX_INIT_FAST));
     VOID(pthread_cond_init(&share->intern_cond, 0));
     for (i=0; i<keys; i++)
-      VOID(my_rwlock_init(&share->key_root_lock[i], NULL));
+      VOID(my_rwlock_init(&share->keyinfo[i].root_lock, NULL));
     VOID(my_rwlock_init(&share->mmap_lock, NULL));
+
+    share->row_is_visible= _ma_row_visible_always;
     if (!thr_lock_inited)
     {
       /* Probably a single threaded program; Don't use concurrent inserts */
@@ -817,24 +822,38 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
          share->data_file_type == BLOCK_RECORD ||
 	 share->have_rtree) ? 0 : 1;
       if (share->non_transactional_concurrent_insert ||
-          (!share->temporary && share->now_transactional && !share->base.keys))
+          (!share->temporary && share->now_transactional && versioning))
       {
         share->lock_key_trees= 1;
         if (share->data_file_type == BLOCK_RECORD)
         {
+          DBUG_ASSERT(share->now_transactional);
+          share->have_versioning= 1;
+          share->row_is_visible=     _ma_row_visible_transactional_table;
           share->lock.get_status=    _ma_block_get_status;
           share->lock.update_status= _ma_block_update_status;
           share->lock.check_status=  _ma_block_check_status;
-          share->lock.allow_multiple_concurrent_insert= 1;
+          /*
+            We can for the moment only allow multiple concurrent inserts
+            only if there is no auto-increment key.  To lift this restriction
+            we have to:
+            - Extend statement base replication to support auto-increment
+            intervalls.
+            - Fix that we allocate auto-increment in intervals and that
+              it's properly reset if the interval was not used
+          */
+          share->lock.allow_multiple_concurrent_insert=
+            share->base.auto_key == 0;
           share->lock_restore_status= 0;
         }
         else
         {
-          share->lock.get_status=    _ma_get_status;
-          share->lock.copy_status=   _ma_copy_status;
-          share->lock.update_status= _ma_update_status;
-          share->lock.restore_status=_ma_restore_status;
-          share->lock.check_status=  _ma_check_status;
+          share->row_is_visible=      _ma_row_visible_non_transactional_table;
+          share->lock.get_status=     _ma_get_status;
+          share->lock.copy_status=    _ma_copy_status;
+          share->lock.update_status=  _ma_update_status;
+          share->lock.restore_status= _ma_restore_status;
+          share->lock.check_status=   _ma_check_status;
           share->lock_restore_status= _ma_restore_status;
         }
       }
@@ -1053,16 +1072,23 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
     keyinfo->ck_insert = _ma_ck_write;
     keyinfo->ck_delete = _ma_ck_delete;
   }
+  if (keyinfo->flag & HA_SPATIAL)
+    keyinfo->make_key= _ma_sp_make_key;
+  else
+    keyinfo->make_key= _ma_make_key;
+
   if (keyinfo->flag & HA_BINARY_PACK_KEY)
   {						/* Simple prefix compression */
     keyinfo->bin_search= _ma_seq_search;
     keyinfo->get_key= _ma_get_binary_pack_key;
+    keyinfo->skip_key= _ma_skip_binary_pack_key;
     keyinfo->pack_key= _ma_calc_bin_pack_key_length;
     keyinfo->store_key= _ma_store_bin_pack_key;
   }
   else if (keyinfo->flag & HA_VAR_LENGTH_KEY)
   {
-    keyinfo->get_key= _ma_get_pack_key;
+    keyinfo->get_key=  _ma_get_pack_key;
+    keyinfo->skip_key= _ma_skip_pack_key;
     if (keyinfo->seg[0].flag & HA_PACK_KEY)
     {						/* Prefix compression */
       /*
@@ -1093,6 +1119,7 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
   {
     keyinfo->bin_search= _ma_bin_search;
     keyinfo->get_key= _ma_get_static_key;
+    keyinfo->skip_key= _ma_skip_static_key;
     keyinfo->pack_key= _ma_calc_static_key_length;
     keyinfo->store_key= _ma_store_static_key;
   }
@@ -1108,6 +1135,7 @@ static void setup_key_functions(register MARIA_KEYDEF *keyinfo)
   }
   else
     keyinfo->write_comp_flag= SEARCH_SAME; /* Keys in rec-pos order */
+  keyinfo->write_comp_flag|= SEARCH_INSERT;
   return;
 }
 
@@ -1213,8 +1241,7 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   mi_sizestore(ptr,state->state.key_empty);		ptr+= 8;
   mi_int8store(ptr,state->auto_increment);		ptr+= 8;
   mi_int8store(ptr,(ulonglong) state->state.checksum);	ptr+= 8;
-  mi_int4store(ptr,state->process);			ptr+= 4;
-  mi_int4store(ptr,state->unique);			ptr+= 4;
+  mi_int8store(ptr,state->create_trid);			ptr+= 8;
   mi_int4store(ptr,state->status);			ptr+= 4;
   mi_int4store(ptr,state->update_count);		ptr+= 4;
   *ptr++= state->sortkey;
@@ -1279,10 +1306,7 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
   state->state.key_empty= mi_sizekorr(ptr);		ptr+= 8;
   state->auto_increment=mi_uint8korr(ptr);		ptr+= 8;
   state->state.checksum=(ha_checksum) mi_uint8korr(ptr);ptr+= 8;
-  /* Not used (legacy from MyISAM) */
-  state->process= mi_uint4korr(ptr);			ptr+= 4;
-  /* Not used (legacy from MyISAM) */
-  state->unique = mi_uint4korr(ptr);			ptr+= 4;
+  state->create_trid= mi_uint8korr(ptr);		ptr+= 8;
   state->status = mi_uint4korr(ptr);			ptr+= 4;
   state->update_count=mi_uint4korr(ptr);		ptr+= 4;
   state->sortkey= 					(uint) *ptr++;
@@ -1324,8 +1348,10 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
    @param  state           state which will be filled
 */
 
-uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state)
+uint _ma_state_info_read_dsk(File file __attribute__((unused)),
+                             MARIA_STATE_INFO *state __attribute__((unused)))
 {
+#ifdef EXTERNAL_LOCKING
   uchar	buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
 
   /* trick to detect transactional tables */
@@ -1336,6 +1362,7 @@ uint _ma_state_info_read_dsk(File file, MARIA_STATE_INFO *state)
       return 1;
     _ma_state_info_read(buff, state);
   }
+#endif
   return 0;
 }
 

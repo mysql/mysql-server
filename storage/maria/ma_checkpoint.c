@@ -1059,8 +1059,9 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       TODO: Only do this call if there has been # (10?) ended transactions
       since last call.
     */
-    share->state_history=  _ma_remove_not_visible_states(share->state_history,
-                                                         0, 0);
+    pthread_mutex_unlock(&share->intern_lock);
+    _ma_remove_not_visible_states_with_lock(share);
+    pthread_mutex_lock(&share->intern_lock);
 
     if (share->in_checkpoint & MARIA_CHECKPOINT_SHOULD_FREE_ME)
     {

@@ -114,7 +114,7 @@ sub main
       die("can't guess table name");
     }
     $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
-    $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" ";
+    $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\"";
     $com.= "> $tmp/maria_chk_message.good.txt 2>&1";
     my_exec($com);
     my $checksum= my_exec("$maria_exe_path/maria_chk$suffix -dss $table");
@@ -197,7 +197,7 @@ sub main
             die("can't guess table name");
           }
           $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
-          $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" ";
+          $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\" ";
           $com.= "> $tmp/maria_chk_message.good.txt 2>&1";
           $res= my_exec($com);
           print MY_LOG $res;
@@ -297,7 +297,7 @@ sub check_table_is_same
   }
 
   $com=  "$maria_exe_path/maria_chk$suffix -dvv $table | grep -v \"Creation time:\" ";
-  $com.= "| grep -v \"file length\"> $tmp/maria_chk_message.txt 2>&1";
+  $com.= "| grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\" > $tmp/maria_chk_message.txt 2>&1";
   $res= `$com`;
   print MY_LOG $res;
   $res= `$maria_exe_path/maria_chk$suffix -s -e --read-only $table`;

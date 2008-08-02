@@ -26,31 +26,21 @@
 
 #define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length - KEYPAGE_CHECKSUM_SIZE) / 3)
 
-int maria_rtree_insert(MARIA_HA *info, uint keynr, uchar *key,
-                       uint key_length);
-int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key,
-                       uint key_length);
-int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
-                             const uchar *key,
-                             uint key_length, int ins_level,
-                             my_off_t *root);
-int maria_rtree_real_delete(MARIA_HA *info, uint keynr,
-                            const uchar *key, uint key_length,
-                            my_off_t *root);
-
-int maria_rtree_find_first(MARIA_HA *info, uint keynr, uchar *key,
-                           uint key_length, uint search_flag);
-int maria_rtree_find_next(MARIA_HA *info, uint keynr, uint search_flag);
+my_bool maria_rtree_insert(MARIA_HA *info, MARIA_KEY *key);
+int maria_rtree_delete(MARIA_HA *info, MARIA_KEY *key);
+int maria_rtree_insert_level(MARIA_HA *info, MARIA_KEY *key,
+                             int ins_level, my_off_t *root);
+int maria_rtree_real_delete(MARIA_HA *info, MARIA_KEY *key, my_off_t *root);
+int maria_rtree_find_first(MARIA_HA *info, MARIA_KEY *key, uint search_flag);
+int maria_rtree_find_next(MARIA_HA *info, uint keynr, uint32 search_flag);
 
 int maria_rtree_get_first(MARIA_HA *info, uint keynr, uint key_length);
 int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length);
 
-ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
-                             uint key_length, uint flag);
+ha_rows maria_rtree_estimate(MARIA_HA *info, MARIA_KEY *key, uint32 flag);
 
-int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
+int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
                            my_off_t page_offs, uchar *page,
-                           const uchar *key, uint key_length,
                            my_off_t *new_page_offs);
 /**
   When you obtain a MARIA_PINNED_PAGE* link (by calling

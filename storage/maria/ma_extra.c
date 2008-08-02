@@ -189,12 +189,14 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_KEYREAD:			/* Read only keys to record */
   case HA_EXTRA_REMEMBER_POS:
     info->opt_flag|= REMEMBER_OLD_POS;
-    bmove((uchar*) info->lastkey+share->base.max_key_length*2,
-	  (uchar*) info->lastkey,info->lastkey_length);
+    bmove((uchar*) info->last_key.data + share->base.max_key_length*2,
+	  (uchar*) info->last_key.data,
+          info->last_key.data_length + info->last_key.ref_length);
     info->save_update=	info->update;
     info->save_lastinx= info->lastinx;
     info->save_lastpos= info->cur_row.lastpos;
-    info->save_lastkey_length= info->lastkey_length;
+    info->save_lastkey_data_length= info->last_key.data_length;
+    info->save_lastkey_ref_length= info->last_key.ref_length;
     if (function == HA_EXTRA_REMEMBER_POS)
       break;
     /* fall through */
@@ -206,13 +208,15 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
   case HA_EXTRA_RESTORE_POS:
     if (info->opt_flag & REMEMBER_OLD_POS)
     {
-      bmove((uchar*) info->lastkey,
-	    (uchar*) info->lastkey+share->base.max_key_length*2,
-	    info->save_lastkey_length);
+      bmove((uchar*) info->last_key.data,
+	    (uchar*) info->last_key.data + share->base.max_key_length*2,
+	    info->save_lastkey_data_length + info->save_lastkey_ref_length);
       info->update=	info->save_update | HA_STATE_WRITTEN;
       info->lastinx=	info->save_lastinx;
       info->cur_row.lastpos= info->save_lastpos;
-      info->lastkey_length= info->save_lastkey_length;
+      info->last_key.data_length= info->save_lastkey_data_length;
+      info->last_key.ref_length= info->save_lastkey_ref_length;
+      info->last_key.flag= 0;
     }
     info->read_record=	share->read_record;
     info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
@@ -318,6 +322,13 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (share->kfile.file >= 0)
       _ma_decrement_open_count(info);
     pthread_mutex_lock(&share->intern_lock);
+    if (info->trn)
+    {
+      _ma_remove_table_from_trnman(share, info->trn);
+      /* Ensure we don't point to the deleted data in trn */
+      info->state= &share->state.state;
+    }
+
     type= do_flush ? FLUSH_RELEASE : FLUSH_IGNORE_CHANGED;
     if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                               type, type))

@@ -95,7 +95,8 @@ int maria_rename(const char *old_name, const char *new_name)
       store LSN into file, needed for Recovery to not be confused if a
       RENAME happened (applying REDOs to the wrong table).
     */
-    if (_ma_update_state_lsns(share, lsn, TRUE, TRUE))
+    if (_ma_update_state_lsns(share, lsn, share->state.create_trid, TRUE,
+                              TRUE))
     {
       maria_close(info);
       DBUG_RETURN(1);

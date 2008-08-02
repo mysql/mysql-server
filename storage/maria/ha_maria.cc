@@ -923,7 +923,7 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     int_table_flags|= HA_CAN_INSERT_DELAYED;
   }
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
-    int_table_flags |= HA_HAS_CHECKSUM;
+    int_table_flags |= HA_HAS_NEW_CHECKSUM;
 
   for (i= 0; i < table->s->keys; i++)
   {
@@ -1226,15 +1226,20 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
                    (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
   start_records= file->state->records;
-  while ((error= repair(thd, param, 0)) && param.retry_repair)
+  while ((error= repair(thd, &param, 0)) && param.retry_repair)
   {
     param.retry_repair= 0;
     if (test_all_bits(param.testflag,
                       (uint) (T_RETRY_WITHOUT_QUICK | T_QUICK)))
     {
-      param.testflag &= ~T_RETRY_WITHOUT_QUICK;
-      sql_print_information("Retrying repair of: '%s' without quick",
-                            table->s->path.str);
+      param.testflag&= ~(T_RETRY_WITHOUT_QUICK | T_QUICK);
+      /* Ensure we don't loose any rows when retrying without quick */
+      param.testflag|= T_SAFE_REPAIR;
+      if (thd->vio_ok())
+        _ma_check_print_info(&param, "Retrying repair without quick");
+      else
+        sql_print_information("Retrying repair of: '%s' without quick",
+                              table->s->path.str);
       continue;
     }
     param.testflag &= ~T_QUICK;
@@ -1263,6 +1268,7 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
   HA_CHECK param;
+  MARIA_SHARE *share= file->s;
 
   if (!file)
     return HA_ADMIN_INTERNAL_ERROR;
@@ -1272,17 +1278,23 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
   param.op_name= "zerofill";
   param.testflag= check_opt->flags | T_SILENT | T_ZEROFILL;
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
-  error=maria_zerofill(&param, file, file->s->open_file_name);
+  error=maria_zerofill(&param, file, share->open_file_name);
 
+  if (!error)
+  {
+    pthread_mutex_lock(&share->intern_lock);
+    maria_update_state_info(&param, file, UPDATE_TIME | UPDATE_OPEN_COUNT);
+    pthread_mutex_unlock(&share->intern_lock);
+  }
   return error;
 }
 
 int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
+  HA_CHECK param;
   if (!file)
     return HA_ADMIN_INTERNAL_ERROR;
-  HA_CHECK param;
 
   maria_chk_init(&param);
   param.thd= thd;
@@ -1290,21 +1302,21 @@ int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
   param.testflag= (check_opt->flags | T_SILENT | T_FORCE_CREATE |
                    T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
-  if ((error= repair(thd, param, 1)) && param.retry_repair)
+  if ((error= repair(thd, &param, 1)) && param.retry_repair)
   {
     sql_print_warning("Warning: Optimize table got errno %d on %s.%s, retrying",
                       my_errno, param.db_name, param.table_name);
     param.testflag &= ~T_REP_BY_SORT;
-    error= repair(thd, param, 1);
+    error= repair(thd, &param, 1);
   }
   return error;
 }
 
 
-int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
+int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
 {
   int error= 0;
-  ulonglong local_testflag= param.testflag;
+  ulonglong local_testflag= param->testflag;
   bool optimize_done= !do_optimize, statistics_done= 0;
   const char *old_proc_info= thd->proc_info;
   char fixed_name[FN_REFLEN];
@@ -1336,20 +1348,20 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   if (share->base.born_transactional && !share->now_transactional)
     _ma_copy_nontrans_state_information(file);
 
-  param.db_name= table->s->db.str;
-  param.table_name= table->alias;
-  param.tmpfile_createflag= O_RDWR | O_TRUNC;
-  param.using_global_keycache= 1;
-  param.thd= thd;
-  param.tmpdir= &mysql_tmpdir_list;
-  param.out_flag= 0;
+  param->db_name= table->s->db.str;
+  param->table_name= table->alias;
+  param->tmpfile_createflag= O_RDWR | O_TRUNC;
+  param->using_global_keycache= 1;
+  param->thd= thd;
+  param->tmpdir= &mysql_tmpdir_list;
+  param->out_flag= 0;
   strmov(fixed_name, share->open_file_name);
 
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables &&
       maria_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
-    _ma_check_print_error(&param, ER(ER_CANT_LOCK), my_errno);
+    _ma_check_print_error(param, ER(ER_CANT_LOCK), my_errno);
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
@@ -1357,19 +1369,19 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       ((share->data_file_type == BLOCK_RECORD) ?
        (share->state.changed & STATE_NOT_OPTIMIZED_ROWS) :
        (file->state->del || share->state.split != file->state->records)) &&
-      (!(param.testflag & T_QUICK) ||
+      (!(param->testflag & T_QUICK) ||
        (share->state.changed & (STATE_NOT_OPTIMIZED_KEYS |
                                 STATE_NOT_OPTIMIZED_ROWS))))
   {
     ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ?
                         maria_get_mask_all_keys_active(share->base.keys) :
                         share->state.key_map);
-    ulonglong save_testflag= param.testflag;
+    ulonglong save_testflag= param->testflag;
     if (maria_test_if_sort_rep(file, file->state->records, key_map, 0) &&
         (local_testflag & T_REP_BY_SORT))
     {
       local_testflag |= T_STATISTICS;
-      param.testflag |= T_STATISTICS;           // We get this for free
+      param->testflag |= T_STATISTICS;           // We get this for free
       statistics_done= 1;
       /* TODO: Remove BLOCK_RECORD test when parallel works with blocks */
       if (THDVAR(thd,repair_threads) > 1 &&
@@ -1379,28 +1391,28 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
         /* TODO: respect maria_repair_threads variable */
         my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
         thd_proc_info(thd, buf);
-        param.testflag|= T_REP_PARALLEL;
-        error= maria_repair_parallel(&param, file, fixed_name,
-                                     test(param.testflag & T_QUICK));
+        param->testflag|= T_REP_PARALLEL;
+        error= maria_repair_parallel(param, file, fixed_name,
+                                     test(param->testflag & T_QUICK));
         /* to reset proc_info, as it was pointing to local buffer */
         thd_proc_info(thd, "Repair done");
       }
       else
       {
         thd_proc_info(thd, "Repair by sorting");
-        param.testflag|= T_REP_BY_SORT;
-        error= maria_repair_by_sort(&param, file, fixed_name,
-                                    test(param.testflag & T_QUICK));
+        param->testflag|= T_REP_BY_SORT;
+        error= maria_repair_by_sort(param, file, fixed_name,
+                                    test(param->testflag & T_QUICK));
       }
     }
     else
     {
       thd_proc_info(thd, "Repair with keycache");
-      param.testflag &= ~(T_REP_BY_SORT | T_REP_PARALLEL);
-      error= maria_repair(&param, file, fixed_name,
-                          test(param.testflag & T_QUICK));
+      param->testflag &= ~(T_REP_BY_SORT | T_REP_PARALLEL);
+      error= maria_repair(param, file, fixed_name,
+                          test(param->testflag & T_QUICK));
     }
-    param.testflag= save_testflag;
+    param->testflag= save_testflag | (param->testflag & T_RETRY_WITHOUT_QUICK);
     optimize_done= 1;
   }
   if (!error)
@@ -1410,7 +1422,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     {
       optimize_done= 1;
       thd_proc_info(thd, "Sorting index");
-      error= maria_sort_index(&param, file, fixed_name);
+      error= maria_sort_index(param, file, fixed_name);
     }
     if (!statistics_done && (local_testflag & T_STATISTICS))
     {
@@ -1418,7 +1430,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       {
         optimize_done= 1;
         thd_proc_info(thd, "Analyzing");
-        error= maria_chk_key(&param, file);
+        error= maria_chk_key(param, file);
       }
       else
         local_testflag &= ~T_STATISTICS;        // Don't update statistics
@@ -1440,18 +1452,18 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     if (file->state != &share->state.state)
       *file->state= share->state.state;
     if (share->base.auto_key)
-      _ma_update_auto_increment_key(&param, file, 1);
+      _ma_update_auto_increment_key(param, file, 1);
     if (optimize_done)
-      error= maria_update_state_info(&param, file,
+      error= maria_update_state_info(param, file,
                                      UPDATE_TIME | UPDATE_OPEN_COUNT |
                                      (local_testflag &
                                       T_STATISTICS ? UPDATE_STAT : 0));
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
          HA_STATUS_CONST);
-    if (rows != file->state->records && !(param.testflag & T_VERY_SILENT))
+    if (rows != file->state->records && !(param->testflag & T_VERY_SILENT))
     {
       char llbuff[22], llbuff2[22];
-      _ma_check_print_warning(&param, "Number of rows changed from %s to %s",
+      _ma_check_print_warning(param, "Number of rows changed from %s to %s",
                               llstr(rows, llbuff),
                               llstr(file->state->records, llbuff2));
       /* Abort if warning was converted to error */
@@ -1463,7 +1475,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   {
     maria_mark_crashed_on_repair(file);
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
-    maria_update_state_info(&param, file, 0);
+    maria_update_state_info(param, file, 0);
   }
   pthread_mutex_unlock(&share->intern_lock);
   thd_proc_info(thd, old_proc_info);
@@ -1471,7 +1483,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     maria_lock_database(file, F_UNLCK);
   error= error ? HA_ADMIN_FAILED :
     (optimize_done ?
-     (write_log_record_for_repair(&param, file) ? HA_ADMIN_FAILED :
+     (write_log_record_for_repair(param, file) ? HA_ADMIN_FAILED :
       HA_ADMIN_OK) : HA_ADMIN_ALREADY_DONE);
   DBUG_RETURN(error);
 }
@@ -1701,15 +1713,16 @@ int ha_maria::enable_indexes(uint mode)
     param.sort_buffer_length= THDVAR(thd,sort_buffer_size);
     param.stats_method= (enum_handler_stats_method)THDVAR(thd,stats_method);
     param.tmpdir= &mysql_tmpdir_list;
-    if ((error= (repair(thd, param, 0) != HA_ADMIN_OK)) && param.retry_repair)
+    if ((error= (repair(thd, &param, 0) != HA_ADMIN_OK)) && param.retry_repair)
     {
-      sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
+      sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, "
+                        "retrying",
                         my_errno, param.db_name, param.table_name);
       /* This should never fail normally */
       DBUG_ASSERT(0);
       /* Repairing by sort failed. Now try standard repair method. */
-      param.testflag &= ~(T_REP_BY_SORT | T_QUICK);
-      error= (repair(thd, param, 0) != HA_ADMIN_OK);
+      param.testflag &= ~T_REP_BY_SORT;
+      error= (repair(thd, &param, 0) != HA_ADMIN_OK);
       /*
         If the standard repair succeeded, clear all error messages which
         might have been set by the first repair. They can still be seen
@@ -1799,9 +1812,12 @@ void ha_maria::start_bulk_insert(ha_rows rows)
        a lot of rows.
        We should not do this for only a few rows as this is slower and
        we don't want to update the key statistics based of only a few rows.
+       Index file rebuild requires an exclusive lock, so if versioning is on
+       don't do it (see how ha_maria::store_lock() tries to predict repair).
     */
     if (file->state->records == 0 && can_enable_indexes &&
-        (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES))
+        (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES) &&
+        (file->lock.type == TL_WRITE))
     {
       /**
          @todo for a single-row INSERT SELECT, we will go into repair, which
@@ -1875,8 +1891,7 @@ end:
 
 bool ha_maria::check_and_repair(THD *thd)
 {
-  int error;
-  int marked_crashed;
+  int error, crashed;
   char *old_query;
   uint old_query_length;
   HA_CHECK_OPT check_opt;
@@ -1905,7 +1920,6 @@ bool ha_maria::check_and_repair(THD *thd)
   // Don't use quick if deleted rows
   if (!file->state->del && (maria_recover_options & HA_RECOVER_QUICK))
     check_opt.flags |= T_QUICK;
-  sql_print_warning("Checking table:   '%s'", table->s->path.str);
 
   old_query= thd->query;
   old_query_length= thd->query_length;
@@ -1914,12 +1928,17 @@ bool ha_maria::check_and_repair(THD *thd)
   thd->query_length= table->s->table_name.length;
   pthread_mutex_unlock(&LOCK_thread_count);
 
-  if ((marked_crashed= maria_is_crashed(file)) || check(thd, &check_opt))
+  if (!(crashed= maria_is_crashed(file)))
+  {
+    sql_print_warning("Checking table:   '%s'", table->s->path.str);
+    crashed= check(thd, &check_opt);
+  }
+
+  if (crashed)
   {
     sql_print_warning("Recovering table: '%s'", table->s->path.str);
     check_opt.flags=
       ((maria_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
-       (marked_crashed ? 0 : T_QUICK) |
        (maria_recover_options & HA_RECOVER_FORCE ? 0 : T_SAFE_REPAIR) |
        T_AUTO_REPAIR);
     if (repair(thd, &check_opt))
@@ -1942,6 +1961,7 @@ bool ha_maria::is_crashed() const
 
 int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 {
+  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -1951,6 +1971,7 @@ int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 
 int ha_maria::delete_row(const uchar * buf)
 {
+  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
   ha_statistic_increment(&SSV::ha_delete_count);
   return maria_delete(file, buf);
 }
@@ -2268,10 +2289,17 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       else
       {
         /*
-          Copy the current state. This may have been wrong if the same file
-          was used several times in the last statement. This should only
-          happen for temporary tables.
+          We come here in the following cases:
+           - The table is a temporary table
+           - It's a table which is crash safe but not yet versioned, for
+             example a table with fulltext or rtree keys
+
+          Set the current state to point to save_state so that the
+          block_format code don't count the same record twice.
+          Copy also the current state. This may have been wrong if the
+          same file was used several times in the last statement
         */
+        file->state=  file->state_start;
         *file->state= file->s->state.state;
       }
 
@@ -2302,11 +2330,23 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       if (_ma_reenable_logging_for_table(file, TRUE))
         DBUG_RETURN(1);
       /** @todo zero file->trn also in commit and rollback */
-      file->trn= 0;
+      file->trn= 0;                             // Safety
+      /*
+        Ensure that file->state points to the current number of rows. This
+        is needed if someone calls maria_info() without first doing an
+        external lock of the table
+      */
+      file->state= &file->s->state.state;
       if (trn && trnman_has_locked_tables(trn))
       {
         if (!trnman_decrement_locked_tables(trn))
         {
+          /*
+            OK should not have been sent to client yet (ACID).
+            This is a bit excessive, ACID requires this only if there are some
+            changes to commit (rollback shouldn't be tested).
+          */
+          DBUG_ASSERT(!thd->main_da.is_sent);
           /* autocommit ? rollback a transaction */
 #ifdef MARIA_CANNOT_ROLLBACK
           if (ma_commit(trn))
@@ -2338,6 +2378,8 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
     DBUG_ASSERT(trn); // this may be called only after external_lock()
     DBUG_ASSERT(trnman_has_locked_tables(trn));
     DBUG_ASSERT(lock_type != TL_UNLOCK);
+    DBUG_ASSERT(file->trn == trn);
+
     /*
       If there was an implicit commit under this LOCK TABLES by a previous
       statement (like a DDL), at least if that previous statement was about a
@@ -2366,21 +2408,50 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
   be participant in the connection's transaction and so the implicit commits
   (ha_commit()) (like in end_active_trans()) will do the implicit commit
   without need to call this function which can then be removed.
+
+  @param  thd              THD object
+  @param  new_trn          if a new transaction should be created; a new
+                           transaction is not needed when we know that the
+                           tables will be unlocked very soon.
 */
 
-int ha_maria::implicit_commit(THD *thd)
+int ha_maria::implicit_commit(THD *thd, bool new_trn)
 {
 #ifndef MARIA_CANNOT_ROLLBACK
 #error this method should be removed
 #endif
   TRN *trn;
   int error= 0;
+  TABLE *table;
   DBUG_ENTER("ha_maria::implicit_commit");
+  if (!new_trn && thd->locked_tables)
+  {
+    /*
+      "we are under LOCK TABLES" <=> "we shouldn't commit".
+      As thd->locked_tables is true, we are either under LOCK TABLES, or in
+      prelocking; prelocking can be under LOCK TABLES, or not (and in this
+      latter case only we should commit).
+      Note that we come here only at the end of the top statement
+      (dispatch_command()), we are never committing inside a sub-statement./
+    */
+    enum prelocked_mode_type prelocked_mode= thd->prelocked_mode;
+    if ((prelocked_mode == NON_PRELOCKED) ||
+        (prelocked_mode == PRELOCKED_UNDER_LOCK_TABLES))
+    {
+      DBUG_PRINT("info", ("locked_tables, skipping"));
+      DBUG_RETURN(0);
+    }
+  }
   if ((trn= THD_TRN) != NULL)
   {
     uint locked_tables= trnman_has_locked_tables(trn);
     if (unlikely(ma_commit(trn)))
       error= 1;
+    if (!new_trn)
+    {
+      THD_TRN= NULL;
+      goto end;
+    }
     /*
       We need to create a new transaction and put it in THD_TRN. Indeed,
       tables may be under LOCK TABLES, and so they will start the next
@@ -2392,7 +2463,32 @@ int ha_maria::implicit_commit(THD *thd)
     THD_TRN= trn;
     if (unlikely(trn == NULL))
       error= HA_ERR_OUT_OF_MEM;
+
+    /*
+      Move all locked tables to the new transaction
+      We must do it here as otherwise file->thd and file->state may be
+      stale pointers. We can't do this in start_stmt() as we don't know
+      when we should call _ma_setup_live_state() and in some cases, like
+      in check table, we use the table without calling start_stmt().
+     */
+    for (table=thd->open_tables; table ; table=table->next)
+    {
+      if (table->db_stat && table->file->ht == maria_hton)
+      {
+        MARIA_HA *handler= ((ha_maria*) table->file)->file;
+        if (handler->s->base.born_transactional)
+        {
+          handler->trn= trn;
+          if (handler->s->lock.get_status)
+          {
+            if (_ma_setup_live_state(handler))
+              error= HA_ERR_OUT_OF_MEM;
+          }
+        }
+      }
+    }
   }
+end:
   DBUG_RETURN(error);
 }
 
@@ -2401,8 +2497,50 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
                                      THR_LOCK_DATA **to,
                                      enum thr_lock_type lock_type)
 {
+  /* Test if we can fix test below */
+  DBUG_ASSERT(lock_type != TL_UNLOCK &&
+              (lock_type == TL_IGNORE || file->lock.type == TL_UNLOCK));
   if (lock_type != TL_IGNORE && file->lock.type == TL_UNLOCK)
+  {
+    const enum enum_sql_command sql_command= thd->lex->sql_command;
+    /*
+      We have to disable concurrent inserts for INSERT ... SELECT or
+      INSERT/UPDATE/DELETE with sub queries if we are using statement based
+      logging.  We take the safe route here and disable this for all commands
+      that only does reading that are not SELECT.
+    */
+    if (lock_type <= TL_READ_HIGH_PRIORITY &&
+        !thd->current_stmt_binlog_row_based &&
+        (sql_command != SQLCOM_SELECT &&
+         sql_command != SQLCOM_LOCK_TABLES) &&
+        (thd->options & OPTION_BIN_LOG) &&
+        mysql_bin_log.is_open())
+      lock_type= TL_READ_NO_INSERT;
+    else if (lock_type == TL_WRITE_CONCURRENT_INSERT)
+    {
+      const enum enum_duplicates duplicates= thd->lex->duplicates;
+      /*
+        Explanation for the 3 conditions below, in order:
+
+        - Bulk insert may use repair, which will cause problems if other
+        threads try to read/insert to the table: disable versioning.
+        Note that our read of file->state->records is incorrect, as such
+        variable may have changed when we come to start_bulk_insert() (worse
+        case: we see != 0 so allow versioning, start_bulk_insert() sees 0 and
+        uses repair). This is prevented because start_bulk_insert() will not
+        try repair if we enabled versioning.
+        - INSERT SELECT ON DUPLICATE KEY UPDATE comes here with
+        TL_WRITE_CONCURRENT_INSERT but shouldn't because it can do
+        update/delete of a row and versioning doesn't support that
+        - same for LOAD DATA CONCURRENT REPLACE.
+      */
+      if ((file->state->records == 0) ||
+          (sql_command == SQLCOM_INSERT_SELECT && duplicates == DUP_UPDATE) ||
+          (sql_command == SQLCOM_LOAD && duplicates == DUP_REPLACE))
+        lock_type= TL_WRITE;
+    }
     file->lock.type= lock_type;
+  }
   *to++= &file->lock;
   return to;
 }
@@ -3006,15 +3144,9 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
   actual_data_file_length= file->s->state.state.data_file_length;
   current_data_file_length= file->state->data_file_length;
 
-  if (file->s->non_transactional_concurrent_insert &&
-      current_data_file_length != actual_data_file_length)
-  {
-    /* Don't cache current statement. */
-    return FALSE;
-  }
-
-  /* It is ok to try to cache current statement. */
-  return TRUE;
+  /* Return whether is ok to try to cache current statement. */
+  DBUG_RETURN(!(file->s->non_transactional_concurrent_insert &&
+                current_data_file_length != actual_data_file_length));
 }
 #endif
 

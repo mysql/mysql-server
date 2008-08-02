@@ -19,6 +19,7 @@
 #include "sp_defs.h"
 #include "rt_index.h"
 #include <m_ctype.h>
+#include <mysql_version.h>
 
 #if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
@@ -453,13 +454,20 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       share->rec[i].pack_type=0;
       share->rec[i].huff_tree=0;
       share->rec[i].offset=offset;
-      if (share->rec[i].type == (int) FIELD_BLOB)
+      if (share->rec[i].type == FIELD_BLOB)
       {
 	share->blobs[j].pack_length=
 	  share->rec[i].length - portable_sizeof_char_ptr;
 	share->blobs[j].offset=offset;
 	j++;
       }
+#if MYSQL_VERSION_ID <= 60100
+      /* This is to detect old checksum option */
+      if (share->rec[i].null_bit)
+        share->has_null_fields= 1;
+      if (share->rec[i].type == FIELD_VARCHAR)
+        share->has_varchar_fields= 1;
+#endif
       offset+=share->rec[i].length;
     }
     share->rec[i].type=(int) FIELD_LAST;	/* End marker */
