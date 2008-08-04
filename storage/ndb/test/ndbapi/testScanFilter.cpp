@@ -918,6 +918,7 @@ int main(int argc, const char** argv)
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
+  NDBT_TESTSUITE_INSTANCE(testScanFilter);  
   return testScanFilter.executeOneCtx(con, &MYTAB1, TEST_NAME);
 }

@@ -579,6 +579,7 @@ NDBT_TESTSUITE_END(testBackup);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testBackup);
   return testBackup.execute(argc, argv);
 }
 

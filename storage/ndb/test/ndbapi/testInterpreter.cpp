@@ -482,6 +482,7 @@ NDBT_TESTSUITE_END(testInterpreter);
 int main(int argc, const char** argv){
   ndb_init();
   //  TABLE("T1");
+  NDBT_TESTSUITE_INSTANCE(testInterpreter);
   return testInterpreter.execute(argc, argv);
 }
 

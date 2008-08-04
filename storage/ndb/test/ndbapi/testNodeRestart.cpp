@@ -3644,6 +3644,7 @@ NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testNodeRestart);
 #if 0
   // It might be interesting to have longer defaults for num
   // loops in this test

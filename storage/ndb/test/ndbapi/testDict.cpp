@@ -6532,6 +6532,7 @@ NDBT_TESTSUITE_END(testDict);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testDict);
   // Tables should not be auto created
   testDict.setCreateTable(false);
   myRandom48Init(NdbTick_CurrentMillisecond());

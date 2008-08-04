@@ -556,6 +556,7 @@ NDBT_TESTSUITE_END(testTimeout);
 int main(int argc, const char** argv){
   ndb_init();
   myRandom48Init(NdbTick_CurrentMillisecond());
+  NDBT_TESTSUITE_INSTANCE(testTimeout);
   return testTimeout.execute(argc, argv);
 }
 
