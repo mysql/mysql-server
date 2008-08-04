@@ -32,8 +32,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc ../mysys/my_conio.c)
 TARGET_LINK_LIBRARIES(mysql mysqlclient_notls wsock32)
 
-ADD_EXECUTABLE(mysqltest mysqltest.c)
-SET_SOURCE_FILES_PROPERTIES(mysqltest.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
+ADD_EXECUTABLE(mysqltest mysqltest.cc)
+SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys regex wsock32 dbug)
 
 ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
