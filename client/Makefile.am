@@ -86,8 +86,8 @@ mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				$(LIBMYSQLCLIENT_LA) \
 				$(top_builddir)/mysys/libmysys.a
 
-mysqltest_SOURCES=		mysqltest.c
-mysqltest_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
+mysqltest_SOURCES=		mysqltest.cc
+mysqltest_CXXFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqltest_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \

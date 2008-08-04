@@ -101,7 +101,7 @@ drop table t1;
 # - Apparently selecting a cipher doesn't work at all
 # - Usa a cipher that both yaSSL and OpenSSL supports
 #
---exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --exec $MYSQL_TEST --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
@@ -155,18 +155,18 @@ SET GLOBAL event_scheduler=0;
 #
 # Test to connect using a list of ciphers
 #
---exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 
 # Test to connect using a specifi cipher
 #
---exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --exec $MYSQL_TEST --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 # Test to connect using an unknown cipher
 #
---exec echo "SHOW STATUS LIKE 'Ssl_cipher';" > $MYSQLTEST_VARDIR/tmp/test.sql
+--exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit" > $MYSQLTEST_VARDIR/tmp/test.sql
 --error 1
 --exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 

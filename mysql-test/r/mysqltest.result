@@ -486,8 +486,6 @@ mysqltest: At line 3: query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
-
-More results from queries before failure can be found in MYSQLTEST_VARDIR/log/bug11731.log
 drop table t1;
 Multi statement using expected error
 create table t1 (a int primary key);
@@ -730,4 +728,12 @@ col
 z
 hej
 mysqltest: At line 1: Found junk ' != 143' after $variable in expression
+select 1;
+1
+1
+select 1;
+1
+1
+-- a comment for the server;
+mysqltest: At line 1: Found line beginning with --  that didn't contain a valid mysqltest command, check your syntax or use # if you intended to write a comment
 End of tests

@@ -1225,7 +1225,7 @@ select "a" as col1, "c" as col2;
 --exec echo "replace_result a;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "replace_result a ;" | $MYSQL_TEST 2>&1
---exec echo "replace_result a b; echo OK;" | $MYSQL_TEST 2>&1
+--exec echo "replace_result a b; echo OK; exit;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "--replace_result a b c" | $MYSQL_TEST 2>&1
 --error 1
@@ -1289,7 +1289,7 @@ while ($i)
   dec $i;
 }
 EOF
---exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql; echo OK;" | $MYSQL_TEST 2>&1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql; echo OK; exit;" | $MYSQL_TEST 2>&1
 remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # Repeat connect/disconnect
@@ -1496,6 +1496,7 @@ echo Multi statement using expected error;
 --exec echo "select 'select-me';"                     >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "insertz "error query"||||"               >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "delimiter ;||||"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "exit;"                                   >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 
 # These two should work since the error is expected
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/bug11731.sql  2>&1
@@ -1688,6 +1689,7 @@ EOF
 --diff_files $MYSQLTEST_VARDIR/tmp/diff1.tmp $MYSQLTEST_VARDIR/tmp/diff4.tmp
 --error 1
 --diff_files $MYSQLTEST_VARDIR/tmp/diff4.tmp $MYSQLTEST_VARDIR/tmp/diff1.tmp
+exit;
 EOF
 
 # Execute the above diffs, and send their output to /dev/null - only
@@ -2149,6 +2151,20 @@ EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
+
+
+# ----------------------------------------------------------------------------
+# Test that -- is not allowed as comment, only as mysqltest builtin command
+# ----------------------------------------------------------------------------
+
+# valid
+select 1;
+--query select 1
+--query -- a comment for the server
+
+# Not valid, "select" is not a mysqltest command
+--error 1
+--exec echo "--select 1;" | $MYSQL_TEST 2>&1
 
 
 --echo End of tests
