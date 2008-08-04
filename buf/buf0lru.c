@@ -1484,6 +1484,11 @@ buf_LRU_block_remove_hashed_page(
 #endif /* UNIV_ZIP_DEBUG */
 				break;
 			default:
+				ut_print_timestamp(stderr);
+				fputs("  InnoDB: ERROR: The compressed page"
+				      " to be evicted seems corrupt:", stderr);
+				ut_print_buf(stderr, bpage->zip.data,
+					     page_zip_get_size(&bpage->zip));
 				ut_error;
 			}
 
