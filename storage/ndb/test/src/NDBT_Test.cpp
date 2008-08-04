@@ -1055,7 +1055,7 @@ NDBT_TestSuite::createTables(Ndb_cluster_connection& con) const
             << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    if(NDBT_Tables::createTable(&ndb, tab_name, getLogging()) != 0)
+    if(NDBT_Tables::createTable(&ndb, tab_name, !getLogging()) != 0)
     {
       g_err << "runCreateTables: Failed to create table " << tab_name
             << pDict->getNdbError() << endl;
@@ -1099,7 +1099,7 @@ runCreateTable(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   if(NDBT_Tables::createTable(&ndb, tab_name,
-                              ctx->getSuite()->getLogging()) != 0)
+                              !ctx->getSuite()->getLogging()) != 0)
   {
     g_err << "runCreateTable: Failed to create table " << tab_name
           << pDict->getNdbError() << endl;
