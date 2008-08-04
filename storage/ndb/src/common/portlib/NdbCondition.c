@@ -26,6 +26,8 @@ struct NdbCondition
   pthread_cond_t cond;
 };
 
+
+static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
 static int clock_id = CLOCK_REALTIME;
 #endif
@@ -33,6 +35,7 @@ static int clock_id = CLOCK_REALTIME;
 void
 NdbCondition_Init()
 {
+  init = 1;
 #if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
     defined CLOCK_MONOTONIC
   
@@ -78,6 +81,7 @@ NdbCondition_Create(void)
   struct NdbCondition* tmpCond;
   int result;
   
+  assert(init);
   tmpCond = (struct NdbCondition*)NdbMem_Allocate(sizeof(struct NdbCondition));
   
   if (tmpCond == NULL)
