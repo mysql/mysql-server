@@ -1826,7 +1826,7 @@ my_bool _ma_log_change(MARIA_HA *info, my_off_t page, const uchar *buff,
     log_pos[0]= KEY_OP_CHECK;
     int2store(log_pos+1, page_length);
     int4store(log_pos+3, crc);
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= (char *) log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= log_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
     extra_length+= 7;
     translog_parts++;

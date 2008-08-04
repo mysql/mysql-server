@@ -19,7 +19,6 @@
 C_MODE_START
 
 #include <lf.h>
-#include "lockman.h"
 #include "trnman_public.h"
 #include "ma_loghandler_lsn.h"
 
@@ -32,16 +31,8 @@ C_MODE_START
   transaction, is reassigned when transaction ends.
 */
 
-/*
-  short transaction id is at the same time its identifier
-  for a lock manager - its lock owner identifier (loid)
-*/
-
-#define short_id locks.loid
-
 struct st_transaction
 {
-  LOCK_OWNER           locks; /* must be the first! see short_trid_to_TRN() */
   LF_PINS              *pins;
   void                 *used_tables;  /* Tables used by transaction */
   TRN                  *next, *prev;
@@ -49,7 +40,8 @@ struct st_transaction
   LSN		       rec_lsn, undo_lsn;
   LSN_WITH_FLAGS       first_undo_lsn;
   uint                 locked_tables;
-  /* Note! if locks.loid is 0, trn is NOT initialized */
+  uint16               short_id;
+  /* Note! if short_id is 0, trn is NOT initialized */
 };
 
 #define TRANSACTION_LOGGED_LONG_ID ULL(0x8000000000000000)
