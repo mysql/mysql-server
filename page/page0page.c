@@ -693,6 +693,9 @@ page_copy_rec_list_start(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
+	/* Here, "ret" may be pointing to a user record or the
+	predefined infimum record. */
+
 	if (page_rec_is_infimum(rec)) {
 
 		return(ret);
@@ -733,6 +736,12 @@ page_copy_rec_list_start(
 			store the number of preceding records on the page. */
 			ulint	ret_pos
 				= page_rec_get_n_recs_before(ret);
+			/* Before copying, "ret" was the successor of
+			the predefined infimum record.  It must still
+			have at least one predecessor (the predefined
+			infimum record, or a freshly copied record
+			that is smaller than "ret"). */
+			ut_a(ret_pos > 0);
 
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
