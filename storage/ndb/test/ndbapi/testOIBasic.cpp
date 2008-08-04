@@ -614,6 +614,10 @@ getcs(Par par)
       uint n = urandom(maxcsnumber);
       cs = get_charset(n, MYF(0));
       if (cs != 0) {
+        // avoid dodgy internal character sets
+        // see bug# 37554
+        if (cs->state & MY_CS_HIDDEN)
+          continue;
         // prefer complex charsets
         if (cs->mbmaxlen != 1 || urandom(5) == 0)
           break;

@@ -40,8 +40,10 @@
  */
 class Backup : public SimulatedBlock
 {
+  friend class BackupProxy;
+
 public:
-  Backup(Block_context& ctx);
+  Backup(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Backup();
   BLOCK_DEFINES(Backup);
   

@@ -74,20 +74,6 @@
 #include <LockQueue.hpp>
 #include <signaldata/CopyData.hpp>
 
-// Debug Macros
-
-#ifdef VM_TRACE
-#define D(x) \
-  do { \
-    if (!debugOutOn()) break; \
-    debugOut << "DBDICT:" << __LINE__ << " " << x << endl; \
-  } while (0)
-#define V(x) " " << #x << ":" << (x)
-#else
-#define D(x)
-#undef V
-#endif
-
 #ifdef DBDICT_C
 
 /*--------------------------------------------------------------*/
@@ -3422,8 +3408,6 @@ public:
   int checkSingleUserMode(Uint32 senderRef);
 
 #ifdef VM_TRACE
-  NdbOut debugOut;
-  bool debugOutOn() const;
   friend NdbOut& operator<<(NdbOut& out, const DictObject&);
   friend NdbOut& operator<<(NdbOut& out, const ErrorInfo&);
   friend NdbOut& operator<<(NdbOut& out, const SchemaOp&);

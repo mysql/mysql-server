@@ -1642,9 +1642,6 @@ Dbdict::Dbdict(Block_context& ctx):
   c_opDropEvent(c_opRecordPool),
   c_opSignalUtil(c_opRecordPool),
   c_opRecordSequence(0)
-#ifdef VM_TRACE
-  ,debugOut(*new NullOutputStream())
-#endif
 {
   BLOCK_CONSTRUCTOR(Dbdict);
   
@@ -2394,24 +2391,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
       new (ptr.p) DictObject();
     objs.release();
   }
-
-#ifdef VM_TRACE
-  {
-    FILE* debugFile = globalSignalLoggers.getOutputStream();
-    if (debugFile != NULL)
-      debugOut = *new NdbOut(*new FileOutputStream(debugFile));
-  }
-#endif
 }//execSIZEALT_REP()
-
-#ifdef VM_TRACE
-bool
-Dbdict::debugOutOn() const
-{
-  SignalLoggerManager::LogMode mask = SignalLoggerManager::LogInOut;
-  return globalSignalLoggers.logMatch(DBDICT, mask);
-}
-#endif
 
 /* ---------------------------------------------------------------- */
 // Start phase signals sent by CNTR. We reply with NDB_STTORRY when

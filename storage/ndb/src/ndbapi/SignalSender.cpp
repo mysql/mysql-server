@@ -70,13 +70,13 @@ SimpleSignal::print(FILE * out){
   }
 }
 
-SignalSender::SignalSender(TransporterFacade *facade)
+SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
   : m_lock(0)
 {
   m_cond = NdbCondition_Create();
   theFacade = facade;
   lock();
-  m_blockNo = theFacade->open(this, execSignal, execNodeStatus);
+  m_blockNo = theFacade->open(this, execSignal, execNodeStatus, blockNo);
   unlock();
   assert(m_blockNo > 0);
 }
@@ -143,7 +143,12 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     }
     return s;
   }
-  
+
+  /* Remove old signals from usedBuffer */
+  for (int i= 0; i < m_usedBuffer.size(); i++)
+    delete m_usedBuffer[i];
+  m_usedBuffer.clear();
+
   NDB_TICKS now = NdbTick_CurrentMillisecond();
   NDB_TICKS stop = now + timeOutMillis;
   Uint32 wait = (timeOutMillis == 0 ? 10 : timeOutMillis);

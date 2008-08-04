@@ -24,7 +24,6 @@
 
 #include <NdbTCP.h>
 #include <NdbEnv.h>
-#include "MgmtErrorReporter.hpp"
 
 #include <uucode.h>
 #include <Properties.hpp>
@@ -89,9 +88,11 @@ ConfigRetriever::~ConfigRetriever()
 {
   DBUG_ENTER("ConfigRetriever::~ConfigRetriever");
   if (m_handle) {
-    if(m_end_session)
-      ndb_mgm_end_session(m_handle);
-    ndb_mgm_disconnect(m_handle);
+    if (ndb_mgm_is_connected(m_handle)) {
+      if(m_end_session)
+        ndb_mgm_end_session(m_handle);
+      ndb_mgm_disconnect(m_handle);
+    }
     ndb_mgm_destroy_handle(&m_handle);
   }
   DBUG_VOID_RETURN;
@@ -160,15 +161,15 @@ ConfigRetriever::getConfig() {
 }
 
 ndb_mgm_configuration *
-ConfigRetriever::getConfig(NdbMgmHandle m_handle_arg)
+ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
 {
-  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_handle_arg,
+  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(mgm_handle,
                                                            m_version);
   if(conf == 0)
   {
-    BaseString tmp(ndb_mgm_get_latest_error_msg(m_handle_arg));
+    BaseString tmp(ndb_mgm_get_latest_error_msg(mgm_handle));
     tmp.append(" : ");
-    tmp.append(ndb_mgm_get_latest_error_desc(m_handle_arg));
+    tmp.append(ndb_mgm_get_latest_error_desc(mgm_handle));
     setError(CR_ERROR, tmp.c_str());
     return 0;
   }

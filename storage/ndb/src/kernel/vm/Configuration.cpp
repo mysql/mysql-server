@@ -999,6 +999,17 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_TUX_SCAN_OP, noOfLocalScanRecords); 
   }
 
+  // NDBMT
+  {
+    uint workers = 4;
+    uint threads = 2;
+    assert(workers <= MAX_NDBMT_WORKERS);
+    assert(threads <= MAX_NDBMT_THREADS);
+    assert(workers % threads == 0);
+    cfg.put(CFG_NDBMT_WORKERS, workers);
+    cfg.put(CFG_NDBMT_THREADS, threads);
+  }
+
   m_ownConfig = (ndb_mgm_configuration*)cfg.getConfigValues();
   m_ownConfigIterator = ndb_mgm_create_configuration_iterator
     (m_ownConfig, 0);

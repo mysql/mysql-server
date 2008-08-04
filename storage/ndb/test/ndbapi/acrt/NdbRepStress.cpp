@@ -45,10 +45,6 @@ urandom(uint m)
   return r;
 }
 
-#define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
-/*
-*/
-
 bool
 syncSlaveWithMaster()
 {

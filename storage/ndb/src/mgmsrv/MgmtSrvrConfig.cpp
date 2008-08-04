@@ -13,62 +13,69 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <signaldata/TestOrd.hpp>
-#include <OutputStream.hpp>
-
 #include "MgmtSrvr.hpp"
 #include <InitConfigFileParser.hpp>
 #include <ConfigRetriever.hpp>
-#include <ndb_version.h>
+#include <NdbSleep.h>
 
-/**
- * Save a configuration to the running configuration file
- */
-int
-MgmtSrvr::saveConfig(const Config *conf) {
-  BaseString newfile;
-  newfile.appfmt("%s.new", m_configFilename.c_str());
-  
-  /* Open and write to the new config file */
-  FILE *f = fopen(newfile.c_str(), "w");
-  if(f == NULL) {
-    /** @todo Send something apropriate to the log */
-    return -1;
-  }
-  FileOutputStream stream(f);
-  conf->printConfigFile(stream);
 
-  fclose(f);
-
-  /* Rename file to real name */
-  rename(newfile.c_str(), m_configFilename.c_str());
-
-  return 0;
+Config*
+MgmtSrvr::load_init_config(void)
+{
+   InitConfigFileParser parser;
+   g_eventLogger->info("Reading cluster configuration from '%s'",
+                      m_opts.config_filename);
+  return parser.parseConfig(m_opts.config_filename);
 }
 
-Config *
-MgmtSrvr::readConfig() {
-  Config *conf;
+
+Config*
+MgmtSrvr::load_init_mycnf(void)
+{
   InitConfigFileParser parser;
-  if (m_configFilename.length())
-  {
-    conf = parser.parseConfig(m_configFilename.c_str());
-  }
-  else 
-  {
-    ndbout_c("Reading cluster configuration using my.cnf");
-    conf = parser.parse_mycnf();
-  }
-  return conf;
+  g_eventLogger->info("Reading cluster configuration using my.cnf");
+  return parser.parse_mycnf();
 }
 
-Config *
-MgmtSrvr::fetchConfig() {
-  struct ndb_mgm_configuration * tmp = m_config_retriever->getConfig();
-  if(tmp != 0){
-    Config * conf = new Config();
-    conf->m_configValues = tmp;
-    return conf;
+
+bool
+MgmtSrvr::fetch_config(void)
+{
+  char buf[128];
+  DBUG_ENTER("MgmtSrvr::fetch_config");
+  assert(_config == NULL);
+
+  /* Loop until config loaded from other mgmd(s) */
+  g_eventLogger->info("Trying to get configuration from other mgmd(s)"\
+                     "using '%.128s'...",
+                     m_config_retriever.get_connectstring(buf, sizeof(buf)));
+
+
+  int retry= 0, delay= 0, verbose= 1;
+  while (m_config_retriever.do_connect(retry, delay, verbose) != 0) {
+    g_eventLogger->info("Waiting for connection to other mgmd(s)...");
+    NdbSleep_SecSleep(1);
   }
-  return 0;
+  g_eventLogger->info("Connected...");
+
+  // "login" and alloc node id from the other mgmd
+  _ownNodeId= m_config_retriever.allocNodeId(retry, delay);
+  if (_ownNodeId == 0) {
+    g_eventLogger->error(m_config_retriever.getErrorString());
+    DBUG_RETURN(NULL);
+  }
+
+  // read config from other managent server
+  struct ndb_mgm_configuration * tmp = m_config_retriever.getConfig();
+  if (tmp == NULL) {
+    g_eventLogger->error(m_config_retriever.getErrorString());
+    DBUG_RETURN(NULL);
+  }
+
+  setConfig(new Config(tmp));
+
+  DBUG_RETURN(true);
 }
+
+
+

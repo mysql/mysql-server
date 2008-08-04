@@ -229,7 +229,6 @@ extern "C" {
 #include <NdbMem.h>
 #include <EventLogger.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
-#include "MgmtErrorReporter.hpp"
 #include <Parser.hpp>
 #include <SocketServer.hpp>
 #include <util/InputStream.hpp>
