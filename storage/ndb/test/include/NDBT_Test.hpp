@@ -483,7 +483,10 @@ C##suitname():NDBT_TestSuite(#suitname){ \
   pt->m_all_tables= true;
 
 #define NDBT_TESTSUITE_END(suitname) \
- } } ; C##suitname suitname
+ } } ; 
+
+#define NDBT_TESTSUITE_INSTANCE(suitname) \
+  C##suitname suitname
 
 // Helper functions for retrieving variables from NDBT_Step
 #define GETNDB(ps) ((NDBT_Step*)ps)->getNdb()

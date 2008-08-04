@@ -2883,6 +2883,7 @@ NDBT_TESTSUITE_END(test_event);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(test_event);
   test_event.setCreateAllTables(true);
   return test_event.execute(argc, argv);
 }

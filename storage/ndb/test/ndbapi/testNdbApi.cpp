@@ -1844,6 +1844,7 @@ NDBT_TESTSUITE_END(testNdbApi);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testNdbApi);
   //  TABLE("T1");
   return testNdbApi.execute(argc, argv);
 }
