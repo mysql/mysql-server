@@ -103,17 +103,24 @@ sub mtr_report_test ($) {
   my ($tinfo)= @_;
   _mtr_report_test_name($tinfo);
 
-  if ($tinfo->{'result'} eq 'MTR_RES_FAILED'){
+  my $comment=  $tinfo->{'comment'};
+  my $logfile=  $tinfo->{'logfile'};
+  my $warnings= $tinfo->{'warnings'};
+  my $result=   $tinfo->{'result'};
 
-    if ( defined $tinfo->{'warnings'} )
+  if ($result eq 'MTR_RES_FAILED'){
+
+    if ( $warnings )
     {
       mtr_report("[ fail ]  Found warnings in server log file!");
-      mtr_report($tinfo->{'warnings'});
+      mtr_report($warnings);
       return;
     }
-    if ( defined $tinfo->{'timeout'} )
+    my $timeout= $tinfo->{'timeout'};
+    if ( $timeout )
     {
-      mtr_report("[ fail ]  timeout");
+      mtr_report("[ fail ]  timeout after $timeout minutes");
+      mtr_report("\n$tinfo->{'comment'}");
       return;
     }
     else
@@ -121,43 +128,42 @@ sub mtr_report_test ($) {
       mtr_report("[ fail ]");
     }
 
-    if ( $tinfo->{'comment'} )
+    if ( $logfile )
+    {
+      # Test failure was detected by test tool and its report
+      # about what failed has been saved to file. Display the report.
+      mtr_report("\n$logfile\n");
+    }
+    if ( $comment )
     {
       # The test failure has been detected by mysql-test-run.pl
       # when starting the servers or due to other error, the reason for
       # failing the test is saved in "comment"
-      mtr_report("\nERROR: $tinfo->{'comment'}");
+      mtr_report("\n$comment\n");
     }
-    elsif ( $tinfo->{logfile} )
-    {
-      # Test failure was detected by test tool and its report
-      # about what failed has been saved to file. Display the report.
-      mtr_report("\n");
-      mtr_report($tinfo->{logfile}, "\n");
 
-    }
-    else
+    if ( !$logfile and !$comment )
     {
       # Neither this script or the test tool has recorded info
       # about why the test has failed. Should be debugged.
-      mtr_report("\nUnexpected termination, probably when starting mysqld");;
+      mtr_report("\nUnknown result, neither 'comment' or 'logfile' set");
     }
   }
-  elsif ($tinfo->{'result'} eq 'MTR_RES_SKIPPED')
+  elsif ($result eq 'MTR_RES_SKIPPED')
   {
     if ( $tinfo->{'disable'} )
     {
-      mtr_report("[ disabled ]  $tinfo->{'comment'}");
+      mtr_report("[ disabled ]  $comment");
     }
-    elsif ( $tinfo->{'comment'} )
+    elsif ( $comment )
     {
       if ( $tinfo->{skip_detected_by_test} )
       {
-	mtr_report("[ skip ]. $tinfo->{'comment'}");
+	mtr_report("[ skip ]. $comment");
       }
       else
       {
-	mtr_report("[ skip ]  $tinfo->{'comment'}");
+	mtr_report("[ skip ]  $comment");
       }
     }
     else
@@ -165,7 +171,7 @@ sub mtr_report_test ($) {
       mtr_report("[ skip ]");
     }
   }
-  elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED')
+  elsif ($result eq 'MTR_RES_PASSED')
   {
     my $timer_str= $tinfo->{timer} || "";
     $tot_real_time += ($timer_str/1000);
