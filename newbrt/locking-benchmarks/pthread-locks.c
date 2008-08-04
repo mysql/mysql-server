@@ -62,6 +62,12 @@ fetch_and_add_i (volatile int *p, int incr)
   return result;
 }
 
+static inline int
+gcc_fetch_and_add_i (volatile int *p, int incr)
+{
+  return __sync_fetch_and_add(p, incr);
+}
+
 // Something wrong with the compiler  for longs
 /* Returns nonzero if the comparison succeeded. */
 static inline long
@@ -139,6 +145,12 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     TIME("fetchadd", i,
 	 (void)0,
 	 fetch_and_add_i(&fa, i));
+    // printf("fa=%d\n", fa);
+    fa=0;
+    TIME("gcc_fetchadd", i,
+	 (void)0,
+	 gcc_fetch_and_add_i(&fa, i));
+    // printf("fa=%d\n", fa);
     TIME("compare_and_swap", i,
 	 ivals[i]=0,
 	 ({ int r=compare_and_swap_full_i(&ivals[i], 0, 1); assert(r==1); }));
