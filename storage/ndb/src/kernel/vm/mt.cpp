@@ -94,7 +94,13 @@ cpu_pause()
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#include <linux/futex.h>
+
+#define FUTEX_WAIT              0
+#define FUTEX_WAKE              1
+#define FUTEX_FD                2
+#define FUTEX_REQUEUE           3
+#define FUTEX_CMP_REQUEUE       4
+#define FUTEX_WAKE_OP           5
 
 static inline
 int
