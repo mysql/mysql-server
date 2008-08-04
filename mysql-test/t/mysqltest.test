@@ -2131,5 +2131,25 @@ rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 --replace_result c:\\a.txt z
 SELECT 'c:\\a.txt' AS col;
 
+#
+# Bug #32307  	mysqltest - does not detect illegal if syntax
+#
+
+let $test= 1;
+if ($test){
+  echo hej;
+}
+
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+if ($mysql_errno != 1436)
+{
+ echo ^ Should not be allowed!
+}
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
+
+
 --echo End of tests
 

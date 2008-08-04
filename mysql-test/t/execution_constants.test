@@ -41,12 +41,19 @@ while ($i)
   error 0,1436 //
   eval $query_head 0 $query_tail//
 
-  if ($mysql_errno != 1436)
+  if ($mysql_errno)
   {
     # We reached the place where we reported an error about the stack limit,
     # and we successfully returned the error.  That means that at the stack
     # limit, we still have enough space reserved to report an error.
     let $i = 1//
+
+    # Check that mysql_errno is 1436
+    if (`select $mysql_errno != 1436`)
+    {
+      die Wrong error triggered, expected 1436 but got $mysql_errno//
+    }
+
   }
 
   # Multiplying by three stack frames should be fine enough resolution.
