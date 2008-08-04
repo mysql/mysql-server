@@ -1883,7 +1883,6 @@ sub  check_running_as_root () {
   # the file will not return 0000
   my $file_mode= (stat($test_file))[2] & 07777;
 
-  $ENV{'MYSQL_TEST_ROOT'}= "NO";
   mtr_verbose("result: $result, file_mode: $file_mode");
   if ($result eq "MySQL" && $file_mode == 0)
   {
