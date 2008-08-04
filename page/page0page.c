@@ -736,12 +736,11 @@ page_copy_rec_list_start(
 			store the number of preceding records on the page. */
 			ulint	ret_pos
 				= page_rec_get_n_recs_before(ret);
-			/* Before copying, "ret" was the successor of
-			the predefined infimum record.  It must still
-			have at least one predecessor (the predefined
-			infimum record, or a freshly copied record
-			that is smaller than "ret"). */
-			ut_a(ret_pos > 0);
+			/* Before copying, "ret" was the predecessor
+			of the predefined supremum record.  If it was
+			the predefined infimum record, then it would
+			still be the infimum.  Thus, the assertion
+			ut_a(ret_pos > 0) would fail here. */
 
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
