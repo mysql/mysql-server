@@ -540,7 +540,7 @@ retry:
 */
 int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
 {
-  int ret= WT_OK;
+  int ret= WT_TIMEOUT;
   struct timespec timeout;
   ulonglong before, after, starttime;
   WT_RESOURCE *rc= thd->waiting_for;
@@ -565,8 +565,13 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
   GetSystemTimeAsFileTime((PFILETIME)&starttime);
 #endif
 
+  rc_wrlock(rc);
+  if (rc->owners.elements == 0 && thd->killed)
+    ret= WT_OK;
+  rc_unlock(rc);
+
   set_timespec_time_nsec(timeout, starttime, wt_timeout_short*1000);
-  if (!thd->killed)
+  if (ret == WT_TIMEOUT)
     ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
   if (ret == WT_TIMEOUT)
   {
