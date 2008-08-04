@@ -1,0 +1,64 @@
+set global event_scheduler=off;
+drop database if exists events_test;
+create database events_test;
+use events_test;
+create table execution_log(name char(10));
+create event abc1 on schedule every 1 second do
+insert into execution_log value('abc1');
+create event abc2 on schedule every 1 second do
+insert into execution_log value('abc2');
+create event abc3 on schedule every 1 second do 
+insert into execution_log value('abc3');
+create table event_like like mysql.event;
+insert into event_like select * from mysql.event;
+alter table mysql.event
+change column body  body longtext character set utf8 collate utf8_bin;
+"Now we restart the server"
+use events_test;
+select @@event_scheduler;
+@@event_scheduler
+DISABLED
+show events;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+select event_name from information_schema.events;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+show create event intact_check;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+drop event no_such_event;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+create event intact_check_1 on schedule every 5 hour do select 5;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+alter event intact_check_1 on schedule every 8 hour do select 8;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+alter event intact_check_1 rename to intact_check_2;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+drop event intact_check_1;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+drop event intact_check_2;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+drop event intact_check;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+set global event_scheduler=on;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+set global event_scheduler=off;
+ERROR HY000: Cannot proceed because system tables used by Event Scheduler were found damaged at server start
+show variables like 'event_scheduler';
+Variable_name	Value
+event_scheduler	DISABLED
+Make sure that we still can create and drop databases,
+and no warnings are produced.
+drop database if exists mysqltest_database_not_exists;
+Warnings:
+Note	1008	Can't drop database 'mysqltest_database_not_exists'; database doesn't exist
+create database mysqltest_db1;
+drop database mysqltest_db1;
+Restore the original mysql.event table
+drop table mysql.event;
+rename table event_like to mysql.event;
+Now let's restart the server again
+use events_test;
+select @@event_scheduler;
+@@event_scheduler
+ON
+drop table execution_log;
+drop database events_test;

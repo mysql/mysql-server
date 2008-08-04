@@ -669,7 +669,7 @@ word
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-load data infile 'MYSQLTEST_VARDIR/std_data_ln/words.dat' into table t1;
+load data infile 'MYSQLTEST_VARDIR/std_data/words.dat' into table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
@@ -1116,12 +1116,13 @@ create procedure `p1`()
 begin
 select a, f1() from t1;
 end//
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 call p1()//
 a	f1()
 1	2
 2	2
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET GLOBAL log_bin_trust_function_creators = @old_log_bin_trust_function_creators;
 drop procedure p1//
 drop function f1//
 drop table t1//

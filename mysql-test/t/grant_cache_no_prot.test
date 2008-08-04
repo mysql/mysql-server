@@ -18,7 +18,7 @@
 if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
             + $VIEW_PROTOCOL > 0`)
 {
-   --skip Test requires: ps-protocol/sp-protocol/cursor-protocol/view-protocol disabled
+   --skip Need normal protocol
 }
 
 # The main testing script

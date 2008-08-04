@@ -17,130 +17,90 @@
 
 ## Process this file with automake to create Makefile.in
 
-SUBDIRS = ndb
+testdir =	$(prefix)/mysql-test
 
-benchdir_root=		$(prefix)
-testdir =	        $(benchdir_root)/mysql-test
-EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh \
-			valgrind.supp $(PRESCRIPTS)
-EXTRA_DIST = 		$(EXTRA_SCRIPTS) suite
-GENSCRIPTS =		mysql-test-run-shell install_test_db mtr mysql-test-run
-PRESCRIPTS =		mysql-test-run.pl mysql-stress-test.pl
-test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
-CLEANFILES = 		$(GENSCRIPTS)
+test_SCRIPTS =	mtr \
+		mysql-test-run \
+		mysql-test-run.pl \
+		mysql-stress-test.pl
 
-INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include -I..
+nobase_test_DATA = lib/mtr_cases.pm \
+	lib/mtr_gcov.pl \
+	lib/mtr_gprof.pl \
+	lib/mtr_io.pl \
+	lib/mtr_match.pm \
+	lib/mtr_misc.pl \
+	lib/mtr_process.pl \
+	lib/mtr_report.pm \
+	lib/mtr_stress.pl \
+	lib/mtr_unique.pl \
+	lib/My/ConfigFactory.pm \
+	lib/My/Config.pm \
+	lib/My/Find.pm \
+	lib/My/Options.pm \
+	lib/My/Test.pm \
+	lib/My/Platform.pm \
+	lib/My/SafeProcess.pm \
+	lib/My/File/Path.pm \
+	lib/My/SysInfo.pm \
+	lib/My/SafeProcess/Base.pm \
+	lib/My/SafeProcess/safe_process.pl
 
+SUBDIRS =	lib/My/SafeProcess
+
+EXTRA_DIST =	README \
+		valgrind.supp \
+		$(test_SCRIPTS) \
+		$(nobase_test_DATA)
+
+# List of directories containing test + result files and the
+# related test data files that should be copied
+TEST_DIRS = t r include std_data std_data/parts \
+	std_data/ndb_backup50 std_data/ndb_backup51 \
+	std_data/ndb_backup51_data_be std_data/ndb_backup51_data_le \
+	extra/binlog_tests/ extra/rpl_tests \
+	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
+	suite/bugs/data suite/bugs/t suite/bugs/r \
+	suite/federated \
+	suite/funcs_1 suite/funcs_1/bitdata \
+	suite/funcs_1/include suite/funcs_1/lib suite/funcs_1/r \
+	suite/funcs_1/t suite/funcs_1/views suite/funcs_1/cursors \
+	suite/funcs_1/datadict suite/funcs_1/storedproc suite/funcs_1/triggers \
+	suite/funcs_2 suite/funcs_2/charset suite/funcs_2/data \
+	suite/funcs_2/include suite/funcs_2/lib suite/funcs_2/r \
+	suite/funcs_2/t \
+	suite/jp suite/jp/t suite/jp/r suite/jp/std_data \
+	suite/manual/t suite/manual/r \
+	suite/ndb_team suite/ndb_team/t suite/ndb_team/r \
+	suite/rpl suite/rpl/data suite/rpl/include suite/rpl/r \
+	suite/rpl/t \
+	suite/stress/include suite/stress/t suite/stress/r \
+	suite/ndb suite/ndb/t suite/ndb/r \
+	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
+	suite/parts suite/parts/t suite/parts/r suite/parts/inc
+
+# Used by dist-hook and install-data-local to copy all
+# test files into either dist or install directory
+install_test_files:
+	@if test -z "$(INSTALL_TO_DIR)"; then \
+	  echo "Set INSTALL_TO_DIR!" && exit 1; \
+	fi
+	@for dir in $(TEST_DIRS); do \
+	  from_dir="$(srcdir)/$$dir"; \
+	  to_dir="$(INSTALL_TO_DIR)/$$dir"; \
+	  $(mkinstalldirs) "$$to_dir"; \
+	  for f in `(cd $$from_dir && ls)`; do \
+	    if test -f "$$from_dir/$$f"; then \
+	      $(INSTALL_DATA) "$$from_dir/$$f" "$$to_dir/$$f" ; \
+	    fi; \
+	  done \
+	done
 
 dist-hook:
-	mkdir -p \
-		$(distdir)/t \
-                $(distdir)/extra/binlog_tests \
-                $(distdir)/extra/rpl_tests \
-		$(distdir)/r \
-		$(distdir)/include \
-		$(distdir)/std_data \
-		$(distdir)/std_data/ndb_backup50 \
-		$(distdir)/std_data/ndb_backup51 \
-		$(distdir)/std_data/ndb_backup51_data_be \
-		$(distdir)/std_data/ndb_backup51_data_le \
-		$(distdir)/std_data/parts \
-		$(distdir)/lib \
-                $(distdir)/std_data/funcs_1 \
-		$(distdir)/lib/My
-	-$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
-	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(distdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.sql $(distdir)/t
-	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
-	-$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.slave-mi $(distdir)/t
-	-$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(distdir)/t
-	$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.test $(distdir)/extra/binlog_tests
-	$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.test $(distdir)/extra/rpl_tests
-	-$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.opt $(distdir)/extra/binlog_tests
-	-$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.opt $(distdir)/extra/rpl_tests
-	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include
-	$(INSTALL_DATA) $(srcdir)/include/*.sql $(distdir)/include
-	$(INSTALL_DATA) $(srcdir)/include/*.test $(distdir)/include
-	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
-	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/Index.xml $(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.000001 $(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.txt $(distdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(distdir)/std_data/ndb_backup50
-	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(distdir)/std_data/ndb_backup51
-	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(distdir)/std_data/ndb_backup51_data_be
-	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(distdir)/std_data/ndb_backup51_data_le
-	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(distdir)/std_data/parts
-	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/* $(distdir)/std_data/funcs_1
-	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
-	$(INSTALL_DATA) $(srcdir)/lib/My/*.pm $(distdir)/lib/My
-	-rm -rf `find $(distdir)/suite -type d -name SCCS` $(distdir)/suite/row_lock
+	$(MAKE)	INSTALL_TO_DIR="$(distdir)" install_test_files
 
 install-data-local:
-	$(mkinstalldirs) \
-		$(DESTDIR)$(testdir)/t \
-		$(DESTDIR)$(testdir)/extra/binlog_tests \
-		$(DESTDIR)$(testdir)/extra/rpl_tests \
-		$(DESTDIR)$(testdir)/r \
-		$(DESTDIR)$(testdir)/include \
-		$(DESTDIR)$(testdir)/std_data \
-		$(DESTDIR)$(testdir)/std_data/ndb_backup50 \
-		$(DESTDIR)$(testdir)/std_data/ndb_backup51 \
-		$(DESTDIR)$(testdir)/std_data/ndb_backup51_data_be \
-		$(DESTDIR)$(testdir)/std_data/ndb_backup51_data_le \
-		$(DESTDIR)$(testdir)/std_data/parts \
-		$(DESTDIR)$(testdir)/lib \
-		$(DESTDIR)$(testdir)/std_data/funcs_1 \
-		$(DESTDIR)$(testdir)/lib/My
-	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
-	-$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.test $(DESTDIR)$(testdir)/t
-	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(DESTDIR)$(testdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.sql $(DESTDIR)$(testdir)/t
-	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(DESTDIR)$(testdir)/t
-	-$(INSTALL_DATA) $(srcdir)/t/*.opt $(DESTDIR)$(testdir)/t
-	-$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(DESTDIR)$(testdir)/t
-	-$(INSTALL_DATA) $(srcdir)/t/*.slave-mi $(DESTDIR)$(testdir)/t
-	$(INSTALL_DATA) $(srcdir)/r/*.result $(DESTDIR)$(testdir)/r
-	$(INSTALL_DATA) $(srcdir)/r/*.require $(DESTDIR)$(testdir)/r
-	$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.test $(DESTDIR)$(testdir)/extra/binlog_tests
-	$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.test $(DESTDIR)$(testdir)/extra/rpl_tests
-	-$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.opt $(DESTDIR)$(testdir)/extra/binlog_tests
-	-$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.opt $(DESTDIR)$(testdir)/extra/rpl_tests
-	$(INSTALL_DATA) $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
-	$(INSTALL_DATA) $(srcdir)/include/*.sql $(DESTDIR)$(testdir)/include
-	$(INSTALL_DATA) $(srcdir)/include/*.test $(DESTDIR)$(testdir)/include
-	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.*001 $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/Index.xml $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/*.txt $(DESTDIR)$(testdir)/std_data
-	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50
-	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51
-	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_be
-	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_le
-	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(DESTDIR)$(testdir)/std_data/parts
-	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/* $(DESTDIR)$(testdir)/std_data/funcs_1
-	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
-	$(INSTALL_DATA) $(srcdir)/lib/My/*.pm $(DESTDIR)$(testdir)/lib/My
-	for f in `(cd $(srcdir); find suite -type f | egrep -v 'SCCS|row_lock')`; \
-	do \
-	  d=$(DESTDIR)$(testdir)/`dirname $$f`; \
-	  mkdir -p $$d ; \
-	  $(INSTALL_DATA) $(srcdir)/$$f $$d ; \
-	done
+	$(MAKE)	INSTALL_TO_DIR="$(DESTDIR)$(testdir)" install_test_files
 
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(testdir)
@@ -154,32 +114,6 @@ mtr:
 mysql-test-run:
 	$(RM) -f mysql-test-run
 	$(LN_S) mysql-test-run.pl mysql-test-run
-
-SUFFIXES = .sh
-
-.sh:
-	@RM@ -f $@ $@-t
-	@SED@ \
-	  -e 's!@''testdir''@!$(testdir)!g' \
-	  -e 's!@''bindir''@!$(bindir)!g' \
-	  -e 's!@''scriptdir''@!$(bindir)!g' \
-	  -e 's!@''prefix''@!$(prefix)!g' \
-	  -e 's!@''datadir''@!$(datadir)!g' \
-	  -e 's!@''localstatedir''@!$(localstatedir)!g' \
-	  -e 's!@''libexecdir''@!$(libexecdir)!g' \
-	  -e 's!@''PERL''@!@PERL@!' \
-	  -e 's!@''VERSION''@!@VERSION@!' \
-	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
-	  -e 's!@''MYSQL_TCP_PORT_DEFAULT''@!@MYSQL_TCP_PORT_DEFAULT@!' \
-	  -e 's!@''MYSQL_BASE_VERSION''@!@MYSQL_BASE_VERSION@!' \
-	  -e 's!@''MYSQL_UNIX_ADDR''@!@MYSQL_UNIX_ADDR@!' \
-	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
-	  -e 's!@''MYSQL_NO_DASH_VERSION''@!@MYSQL_NO_DASH_VERSION@!' \
-	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
-	  -e 's!@''USE_NDBCLUSTER''@!@TEST_NDBCLUSTER@!g' \
-	  $< > $@-t
-	@CHMOD@ +x $@-t
-	@MV@ $@-t $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

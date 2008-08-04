@@ -1062,6 +1062,7 @@ EXPLAIN SELECT b from t2 GROUP BY b;
 SELECT b from t2 GROUP BY b;
 
 DROP TABLE t1;
+DROP TABLE t2;
 
 #
 # Bug #31797: error while parsing subqueries -- WHERE is parsed as HAVING

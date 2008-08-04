@@ -1,0 +1,176 @@
+#############################################################
+# Author: Serge Kozlov <skozlov@mysql.com>
+# Date:   03/21/2008
+# Purpose:
+#   WL#3734 Test: slave group execution 
+# Testing slave group execution: stop in middle of the group 
+# (of events) should be immpossible on slave.
+# Group of events means set of statements between BEGIN/COMMIT
+# for transactional engines or a statement for 
+# non-transactional engines that fires triggers and 
+# affects to another tables.
+# Implementation of slave stop in middle of the group:
+#   Delete the table on slave before start of the group 
+# on master where this table is participant of the group.
+# So sql thread will failed inside of the group.
+# Expected results:
+# 1. For non-transactional engines w/o PK slave should trying 
+# to complete executing of the group.
+# 2. For non-transactional engines slave should stop on
+# start position of the group.
+#############################################################
+--source include/have_innodb.inc
+--source include/master-slave.inc
+--echo
+
+# Create tables and data
+--echo *** Preparing data ***
+--connection master
+CREATE TABLE t1 (a INT NOT NULL, b VARCHAR(10)) ENGINE=MyISAM;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+
+DELIMITER |;
+CREATE TRIGGER tr1 BEFORE UPDATE ON t1
+  FOR EACH ROW BEGIN
+    UPDATE t2 SET b='YY' WHERE a=NEW.a;
+  END|
+CREATE TRIGGER tr2 AFTER UPDATE ON t1
+  FOR EACH ROW BEGIN
+    UPDATE t3 SET b='ZZ' WHERE a=NEW.a;
+  END|
+DELIMITER ;|
+--echo
+
+# Test non-transactional group with MyISAM tables w/o PK.
+# Data for t1,t2 should be replicated for SBR even t3 
+# doesn't exist on slave
+--echo *** Test non-transactional group w/o PK ***
+
+--connection master
+INSERT INTO t3 VALUES(1, 'AA');
+INSERT INTO t2 VALUES(1, 'AA');
+INSERT INTO t1 VALUES(1, 'AA');
+--sync_slave_with_master
+
+RENAME TABLE t3 TO t3_bak;
+
+--connection master
+UPDATE t1 SET b = 'XX' WHERE a = 1;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT * FROM t3 ORDER BY a;
+
+--connection slave
+--source include/wait_for_slave_sql_to_stop.inc
+SHOW TABLES LIKE 't%';
+if (`SELECT @@BINLOG_FORMAT = 'ROW'`) {
+--replace_regex /AA/AA_for_row_or_XX_for_stmt_mixed/
+  SELECT * FROM t1 ORDER BY a;
+--replace_regex /AA/AA_for_row_or_YY_for_stmt_mixed/
+  SELECT * FROM t2 ORDER BY a;
+}
+if (!`SELECT @@BINLOG_FORMAT = 'ROW'`) {
+--replace_regex /XX/AA_for_row_or_XX_for_stmt_mixed/
+  SELECT * FROM t1 ORDER BY a;
+--replace_regex /YY/AA_for_row_or_YY_for_stmt_mixed/
+  SELECT * FROM t2 ORDER BY a;
+}
+
+--source include/stop_slave.inc
+RENAME TABLE t3_bak TO t3;
+--source include/start_slave.inc
+
+--connection master
+TRUNCATE t1;
+TRUNCATE t2;
+TRUNCATE t3;
+--sync_slave_with_master
+--echo
+
+
+# Test non-transactional group with MyISAM tables and PK.
+# No data replicated because update based on PK
+--echo *** Test non-transactional group w/ PK ***
+
+--connection master
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+ALTER TABLE t2 ADD PRIMARY KEY (a);
+ALTER TABLE t3 ADD PRIMARY KEY (a);
+--sync_slave_with_master
+RENAME TABLE t3 TO t3_bak;
+
+--connection master
+INSERT INTO t3 VALUES(2, 'B');
+INSERT INTO t2 VALUES(2, 'B');
+INSERT INTO t1 VALUES(2, 'B');
+UPDATE t1 SET b = 'X' WHERE a = 2;
+
+--connection slave
+--source include/wait_for_slave_sql_to_stop.inc
+
+--connection master
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT * FROM t3 ORDER BY a;
+
+--connection slave
+SHOW TABLES LIKE 't%';
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+--source include/stop_slave.inc
+RENAME TABLE t3_bak TO t3;
+--source include/start_slave.inc
+
+--connection master
+TRUNCATE t1;
+TRUNCATE t2;
+TRUNCATE t3;
+--sync_slave_with_master
+--echo
+
+
+# Test transactional group with InnoDB tables with PK
+# No data replicated if errors happens inside transaction
+--echo *** Test transactional group w/ PK ***
+
+--connection master
+ALTER TABLE t1 ENGINE=InnoDB;
+ALTER TABLE t2 ENGINE=InnoDB;
+ALTER TABLE t3 ENGINE=InnoDB;
+
+--connection slave
+RENAME TABLE t3 TO t3_bak;
+
+--connection master
+BEGIN;
+INSERT INTO t1 VALUES (3, 'C'), (4, 'D');
+INSERT INTO t2 VALUES (3, 'C'), (4, 'D');
+INSERT INTO t3 VALUES (3, 'C'), (4, 'D');
+COMMIT;
+
+--connection slave
+--source include/wait_for_slave_sql_to_stop.inc
+
+--connection master
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT * FROM t3 ORDER BY a;
+
+--connection slave
+SHOW TABLES LIKE 't%';
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+source include/stop_slave.inc;
+RENAME TABLE t3_bak TO t3;
+source include/start_slave.inc;
+
+# Clean up
+--echo *** Clean up ***
+--connection master
+DROP TABLE t1,t2,t3;
+--sync_slave_with_master
+
+# End of 5.1 test

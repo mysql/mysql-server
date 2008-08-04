@@ -278,8 +278,9 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
-  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR, Q_LIST_FILES,
-  Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
+  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
+  Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
+  Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -374,6 +375,8 @@ const char *command_names[]=
   "list_files",
   "list_files_write_file",
   "list_files_append_file",
+  "send_shutdown",
+  "shutdown_server",
 
   0
 };
@@ -455,6 +458,8 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars);
 void str_to_file(const char *fname, char *str, int size);
 void str_to_file2(const char *fname, char *str, int size, my_bool append);
+
+void fix_win_paths(const char *val, int len);
 
 #ifdef __WIN__
 void free_tmp_sh_file();
@@ -623,6 +628,9 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
       break;
     }
   }
+#ifdef __WIN__
+    fix_win_paths(query_eval->str, query_eval->length);
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -1345,6 +1353,7 @@ void show_diff(DYNAMIC_STRING* ds,
                const char* filename1, const char* filename2)
 {
 
+  const char* diff_failed= 0;
   DYNAMIC_STRING ds_tmp;
 
   if (init_dynamic_string(&ds_tmp, "", 256, 256))
@@ -1370,17 +1379,36 @@ void show_diff(DYNAMIC_STRING* ds,
                  "2>&1",
                  NULL) > 1) /* Most "diff" tools return >1 if error */
     {
-      /*
-        Fallback to dump both files to result file and inform
-        about installing "diff"
-      */
       dynstr_set(&ds_tmp, "");
 
-      dynstr_append(&ds_tmp,
+      /* Fallback to plain "diff" */
+      if (run_tool("diff",
+                   &ds_tmp, /* Get output from diff in ds_tmp */
+                   filename1,
+                   filename2,
+                   "2>&1",
+                   NULL) > 1) /* Most "diff" tools return >1 if error */
+      {
+        dynstr_set(&ds_tmp, "");
+
+        diff_failed= "Could not execute 'diff -u', 'diff -c' or 'diff'";
+      }
+    }
+  }
+
+  if (diff_failed)
+  {
+    /*
+      Fallback to dump both files to result file and inform
+      about installing "diff"
+    */
+	dynstr_append(&ds_tmp, "\n");
+    dynstr_append(&ds_tmp, diff_failed);
+    dynstr_append(&ds_tmp,
 "\n"
 "The two files differ but it was not possible to execute 'diff' in\n"
-"order to show only the difference, tried both 'diff -u' or 'diff -c'.\n"
-"Instead the whole content of the two files was shown for you to diff manually. ;)\n\n"
+"order to show only the difference. Instead the whole content of the\n"
+"two files was shown for you to diff manually.\n\n"
 "To get a better report you should install 'diff' on your system, which you\n"
 "for example can get from http://www.gnu.org/software/diffutils/diffutils.html\n"
 #ifdef __WIN__
@@ -1388,16 +1416,15 @@ void show_diff(DYNAMIC_STRING* ds,
 #endif
 "\n");
 
-      dynstr_append(&ds_tmp, " --- ");
-      dynstr_append(&ds_tmp, filename1);
-      dynstr_append(&ds_tmp, " >>>\n");
-      cat_file(&ds_tmp, filename1);
-      dynstr_append(&ds_tmp, "<<<\n --- ");
-      dynstr_append(&ds_tmp, filename1);
-      dynstr_append(&ds_tmp, " >>>\n");
-      cat_file(&ds_tmp, filename2);
-      dynstr_append(&ds_tmp, "<<<<\n");
-    }
+    dynstr_append(&ds_tmp, " --- ");
+    dynstr_append(&ds_tmp, filename1);
+    dynstr_append(&ds_tmp, " >>>\n");
+    cat_file(&ds_tmp, filename1);
+    dynstr_append(&ds_tmp, "<<<\n --- ");
+    dynstr_append(&ds_tmp, filename1);
+    dynstr_append(&ds_tmp, " >>>\n");
+    cat_file(&ds_tmp, filename2);
+    dynstr_append(&ds_tmp, "<<<<\n");
   }
 
   if (ds)
@@ -2041,9 +2068,9 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   static DYNAMIC_STRING ds_col;
   static DYNAMIC_STRING ds_row;
   const struct command_arg query_get_value_args[] = {
-    "query", ARG_STRING, TRUE, &ds_query, "Query to run",
-    "column name", ARG_STRING, TRUE, &ds_col, "Name of column",
-    "row number", ARG_STRING, TRUE, &ds_row, "Number for row"
+    {"query", ARG_STRING, TRUE, &ds_query, "Query to run"},
+    {"column name", ARG_STRING, TRUE, &ds_col, "Name of column"},
+    {"row number", ARG_STRING, TRUE, &ds_row, "Number for row"}
   };
 
   DBUG_ENTER("var_set_query_get_value");
@@ -2218,8 +2245,19 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
 int open_file(const char *name)
 {
   char buff[FN_REFLEN];
+  size_t length;
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
+
+  /* Extract path from current file and try it as base first */
+  if (dirname_part(buff, cur_file->file_name, &length))
+  {
+    strxmov(buff, buff, name, NullS);
+    if (access(buff, F_OK) == 0){
+      DBUG_PRINT("info", ("The file exists"));
+      name= buff;
+    }
+  }
   if (!test_if_hard_path(name))
   {
     strxmov(buff, opt_basedir, name, NullS);
@@ -2789,7 +2827,7 @@ void do_mkdir(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_dirname;
   const struct command_arg mkdir_args[] = {
-    "dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to create"
+    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to create"}
   };
   DBUG_ENTER("do_mkdir");
 
@@ -2819,7 +2857,7 @@ void do_rmdir(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_dirname;
   const struct command_arg rmdir_args[] = {
-    "dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to remove"
+    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to remove"}
   };
   DBUG_ENTER("do_rmdir");
 
@@ -3894,6 +3932,145 @@ void do_set_charset(struct st_command *command)
   charset_info= get_charset_by_csname(charset_name,MY_CS_PRIMARY,MYF(MY_WME));
   if (!charset_info)
     abort_not_supported_test("Test requires charset '%s'", charset_name);
+}
+
+
+/*
+  Run query and return one field in the result set from the
+  first row and <column>
+*/
+
+int query_get_string(MYSQL* mysql, const char* query,
+                     int column, DYNAMIC_STRING* ds)
+{
+  MYSQL_RES *res= NULL;
+  MYSQL_ROW row;
+
+  if (mysql_query(mysql, query))
+    die("'%s' failed: %d %s", query,
+        mysql_errno(mysql), mysql_error(mysql));
+  if ((res= mysql_store_result(mysql)) == NULL)
+    die("Failed to store result: %d %s",
+        mysql_errno(mysql), mysql_error(mysql));
+
+  if ((row= mysql_fetch_row(res)) == NULL)
+  {
+    mysql_free_result(res);
+    ds= 0;
+    return 1;
+  }
+  init_dynamic_string(ds, (row[column] ? row[column] : "NULL"), ~0, 32);
+  mysql_free_result(res);
+  return 0;
+}
+
+
+static int my_kill(int pid, int sig)
+{
+#ifdef __WIN__
+  HANDLE proc;
+  if ((proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid)) == NULL)
+    return -1;
+  if (sig == 0)
+  {
+    CloseHandle(proc);
+    return 0;
+  }
+  (void)TerminateProcess(proc, 201);
+  CloseHandle(proc);
+  return 1;
+#else
+  return kill(pid, sig);
+#endif
+}
+
+
+
+/*
+  Shutdown the server of current connection and
+  make sure it goes away within <timeout> seconds
+
+  NOTE! Currently only works with local server
+
+  SYNOPSIS
+  do_shutdown_server()
+  command  called command
+
+  DESCRIPTION
+  shutdown [<timeout>]
+
+*/
+
+void do_shutdown_server(struct st_command *command)
+{
+  int timeout=60, pid;
+  DYNAMIC_STRING ds_pidfile_name;
+  MYSQL* mysql = &cur_con->mysql;
+  static DYNAMIC_STRING ds_timeout;
+  const struct command_arg shutdown_args[] = {
+    {"timeout", ARG_STRING, FALSE, &ds_timeout, "Timeout before killing server"}
+  };
+  DBUG_ENTER("do_shutdown_server");
+
+  check_command_args(command, command->first_argument, shutdown_args,
+                     sizeof(shutdown_args)/sizeof(struct command_arg),
+                     ' ');
+
+  if (ds_timeout.length)
+  {
+    timeout= atoi(ds_timeout.str);
+    if (timeout == 0)
+      die("Illegal argument for timeout: '%s'", ds_timeout.str);
+  }
+  dynstr_free(&ds_timeout);
+
+  /* Get the servers pid_file name and use it to read pid */
+  if (query_get_string(mysql, "SHOW VARIABLES LIKE 'pid_file'", 1,
+                       &ds_pidfile_name))
+    die("Failed to get pid_file from server");
+
+  /* Read the pid from the file */
+  {
+    int fd;
+    char buff[32];
+
+    if ((fd= my_open(ds_pidfile_name.str, O_RDONLY, MYF(0))) < 0)
+      die("Failed to open file '%s'", ds_pidfile_name.str);
+    dynstr_free(&ds_pidfile_name);
+
+    if (my_read(fd, (uchar*)&buff,
+                sizeof(buff), MYF(0)) <= 0){
+      my_close(fd, MYF(0));
+      die("pid file was empty");
+    }
+    my_close(fd, MYF(0));
+
+    pid= atoi(buff);
+    if (pid == 0)
+      die("Pidfile didn't contain a valid number");
+  }
+  DBUG_PRINT("info", ("Got pid %d", pid));
+
+  /* Tell server to shutdown if timeout > 0*/
+  if (timeout && mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
+    die("mysql_shutdown failed");
+
+  /* Check that server dies */
+  while(timeout--){
+    if (my_kill(0, pid) < 0){
+      DBUG_PRINT("info", ("Sleeping, timeout: %d", timeout));
+      break;
+    }
+    DBUG_PRINT("info", ("Sleeping, timeout: %d", timeout));
+    my_sleep(1);
+  }
+
+  /* Kill the server */
+  DBUG_PRINT("info", ("Killing server, pid: %d", pid));
+  (void)my_kill(9, pid);
+
+  DBUG_VOID_RETURN;
+
 }
 
 
@@ -7481,8 +7658,16 @@ int main(int argc, char **argv)
         command->last_argument= command->end;
 	break;
       case Q_PING:
-	(void) mysql_ping(&cur_con->mysql);
-	break;
+        handle_command_error(command, mysql_ping(&cur_con->mysql));
+        break;
+      case Q_SEND_SHUTDOWN:
+        handle_command_error(command,
+                             mysql_shutdown(&cur_con->mysql,
+                                            SHUTDOWN_DEFAULT));
+        break;
+      case Q_SHUTDOWN_SERVER:
+        do_shutdown_server(command);
+        break;
       case Q_EXEC:
 	do_exec(command);
 	command_executed++;
@@ -7812,6 +7997,9 @@ void do_get_replace(struct st_command *command)
     if (!*from)
       die("Wrong number of arguments to replace_result in '%s'",
           command->query);
+#ifdef __WIN__
+    fix_win_paths(to, from - to);
+#endif
     insert_pointer_name(&from_array,to);
     to= get_string(&buff, &from, command);
     insert_pointer_name(&to_array,to);

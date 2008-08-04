@@ -1,5 +1,10 @@
 -- source include/have_binlog_format_row.inc
 #
+# Reset master to cleanup binlog
+#
+reset master;
+
+#
 #  Write different events to binlog
 #
 create table t1 (a int);
@@ -10,13 +15,14 @@ update t1 set a=a+2 where a=2;
 update t1 set a=a+2 where a=3;
 
 create table t2 (word varchar(20));
-load data infile '../std_data_ln/words.dat' into table t2;
+load data infile '../../std_data/words.dat' into table t2;
 
 #
 #  Save binlog
 #
+let $MYSQLD_DATADIR=`select @@datadir`;
 flush logs;
---exec $MYSQL_BINLOG --hexdump $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+--exec $MYSQL_BINLOG --hexdump $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
 
 #
 #  Clear database and restore from binlog
@@ -38,7 +44,7 @@ select * from t2;
 flush logs;
 drop table t2;
 create table t2 (word varchar(20));
-load data infile '../std_data_ln/words.dat' into table t2;
+load data infile '../../std_data/words.dat' into table t2;
 insert into t2 select * from t2;
 insert into t2 select * from t2;
 insert into t2 select * from t2;
@@ -51,7 +57,7 @@ insert into t2 select * from t2;
 select count(*) from t2;
 
 flush logs;
---exec $MYSQL_BINLOG --hexdump $MYSQLTEST_VARDIR/log/master-bin.000003 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+--exec $MYSQL_BINLOG --hexdump $MYSQLD_DATADIR/master-bin.000003 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
 --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
 
 #
@@ -62,6 +68,6 @@ select count(*) from t2;
 #
 #  Test cleanup
 #
---exec rm $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_base64.sql
 drop table t1;
 drop table t2;

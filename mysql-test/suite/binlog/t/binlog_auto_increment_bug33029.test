@@ -17,9 +17,11 @@
 
 source include/have_log_bin.inc;
 
-copy_file $MYSQL_TEST_DIR/std_data/bug33029-slave-relay-bin.000001 $MYSQLTEST_VARDIR/master-data/slave-relay-bin.000001;
+let $MYSQLD_DATADIR= `select @@datadir`;
 
-write_file $MYSQLTEST_VARDIR/master-data/slave-relay-bin.index;
+copy_file $MYSQL_TEST_DIR/std_data/bug33029-slave-relay-bin.000001 $MYSQLD_DATADIR/slave-relay-bin.000001;
+
+write_file $MYSQLD_DATADIR/slave-relay-bin.index;
 slave-relay-bin.000001
 EOF
 
@@ -46,9 +48,9 @@ DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS tr1;
 enable_warnings;
 
-remove_file $MYSQLTEST_VARDIR/master-data/slave-relay-bin.000001;
-remove_file $MYSQLTEST_VARDIR/master-data/slave-relay-bin.index;
+remove_file $MYSQLD_DATADIR/slave-relay-bin.000001;
+remove_file $MYSQLD_DATADIR/slave-relay-bin.index;
 stop slave sql_thread;
-let $keep_connection=1;
+let $slave_keep_connection=1;
 source include/wait_for_slave_sql_to_stop.inc;
 

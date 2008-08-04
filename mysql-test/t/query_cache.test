@@ -423,7 +423,7 @@ create table t1 (word char(20) not null);
 select * from t1;
 show status like "Qcache_queries_in_cache";
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval load data infile '$MYSQLTEST_VARDIR/std_data_ln/words.dat' into table t1;
+eval load data infile '$MYSQLTEST_VARDIR/std_data/words.dat' into table t1;
 show status like "Qcache_queries_in_cache";
 select count(*) from t1;
 drop table t1;
@@ -801,9 +801,10 @@ create procedure `p1`()
 begin
  select a, f1() from t1;
 end//
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 call p1()//
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET GLOBAL log_bin_trust_function_creators = @old_log_bin_trust_function_creators;
 drop procedure p1//
 drop function f1//
 

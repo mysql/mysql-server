@@ -1,6 +1,6 @@
 drop table if exists t1, t2;
 create table t1 (a date, b date, c date not null, d date);
-load data infile '../std_data_ln/loaddata1.dat' into table t1 fields terminated by ',';
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',';
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 Warning	1265	Data truncated for column 'c' at row 1
@@ -8,7 +8,7 @@ Warning	1265	Data truncated for column 'd' at row 1
 Warning	1265	Data truncated for column 'a' at row 2
 Warning	1265	Data truncated for column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
-load data infile '../std_data_ln/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
 SELECT * from t1;
 a	b	c	d
 0000-00-00	NULL	0000-00-00	0000-00-00
@@ -16,7 +16,7 @@ a	b	c	d
 2003-03-03	2003-03-03	2003-03-03	NULL
 2003-03-03	2003-03-03	2003-03-03	NULL
 truncate table t1;
-load data infile '../std_data_ln/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
 Warning	1265	Data truncated for column 'd' at row 1
@@ -29,7 +29,7 @@ NULL	0000-00-00	0000-00-00	0000-00-00
 NULL	2003-03-03	2003-03-03	NULL
 drop table t1;
 create table t1 (a text, b text);
-load data infile '../std_data_ln/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
 Warnings:
 Warning	1261	Row 3 doesn't contain data for all columns
 select concat('|',a,'|'), concat('|',b,'|') from t1;
@@ -41,7 +41,7 @@ Field 3,'Field 4|
 |Field 6|	| 'Field 7'|
 drop table t1;
 create table t1 (a int, b char(10));
-load data infile '../std_data_ln/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+load data infile '../../std_data/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 Warnings:
 Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
 Warning	1262	Row 3 was truncated; it contained more data than there were input columns
@@ -55,7 +55,7 @@ a	b
 3	row 3
 0	1234567890
 truncate table t1;
-load data infile '../std_data_ln/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
 Warnings:
 Warning	1366	Incorrect integer value: '
 ' for column 'a' at row 4
@@ -79,7 +79,7 @@ id
 SET @@SQL_MODE=@OLD_SQL_MODE;
 drop table t1;
 create table t1 (a varchar(20), b varchar(20));
-load data infile '../std_data_ln/loaddata_dq.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
+load data infile '../../std_data/loaddata_dq.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
 select * from t1;
 a	b
 field1	field2
@@ -141,25 +141,25 @@ SELECT t1.id, c1, c2 FROM t1 RIGHT JOIN t2 ON t1.id=t2.id WHERE c1 != c2;
 id	c1	c2
 DROP TABLE t1,t2;
 create table t1 (a int default 100, b int, c varchar(60));
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
 select * from t1;
 a	b	c
 NULL	20	b=10
 NULL	25	b=15
 truncate table t1;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (a, @b) set c= if(a is null,"oops",a);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set c= if(a is null,"oops",a);
 select * from t1;
 a	b	c
 NULL	NULL	oops
 NULL	NULL	oops
 truncate table t1;
 set @c:=123;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, b) set c= if(@a is null,@c,b);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, b) set c= if(@a is null,@c,b);
 select * from t1;
 a	b	c
 100	10	123
 100	15	123
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, @b);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, @b);
 select * from t1;
 a	b	c
 100	10	123
@@ -170,7 +170,7 @@ select @a, @b;
 @a	@b
 NULL	15
 truncate table t1;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 set c=b;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 set c=b;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1261	Row 2 doesn't contain data for all columns
@@ -179,25 +179,25 @@ a	b	c
 NULL	10	10
 NULL	15	15
 truncate table t1;
-load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
 select * from t1;
 a	b	c
 1	2	Wow
 3	4	Wow
 5	6	Wow
 truncate table t1;
-load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c=concat(a,"+",b,"+",@c,"+",b,"+",if(c is null,"NIL",c));
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c=concat(a,"+",b,"+",@c,"+",b,"+",if(c is null,"NIL",c));
 select * from t1;
 a	b	c
 1	2	1+2+123+2+NIL
 3	4	3+4+123+4+NIL
 5	6	5+6+123+6+NIL
-load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
 ERROR HY000: Can't load value from file with fixed size rows to variable
 create table t2 (num int primary key, str varchar(10));
 insert into t2 values (10,'Ten'), (15,'Fifteen');
 truncate table t1;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@dummy,@n) set a= @n, c= (select str from t2 where num=@n);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@dummy,@n) set a= @n, c= (select str from t2 where num=@n);
 select * from t1;
 a	b	c
 10	NULL	Ten
@@ -212,7 +212,7 @@ set @@secure_file_priv= 0;
 ERROR HY000: Variable 'secure_file_priv' is a read only variable
 truncate table t1;
 load data infile 'MYSQL_TEST_DIR/t/loaddata.test' into table t1;
-ERROR HY000: The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
+Got one of the listed errors
 select * from t1;
 a	b	c
 select load_file("MYSQL_TEST_DIR/t/loaddata.test");
@@ -277,7 +277,7 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 CREATE VIEW v2 AS SELECT 1 + 2 AS c0, c1, c2 FROM t1;
 CREATE VIEW v3 AS SELECT 1 AS d1, 2 AS d2;
 
-LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v1
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v1
 FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -297,7 +297,7 @@ c1	c2
 
 DELETE FROM t1;
 
-LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v2
 FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -317,14 +317,14 @@ c0	c1	c2
 
 DELETE FROM t1;
 
-LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v2
 FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
   LINES TERMINATED BY '\n' (c0, c2);
 ERROR HY000: Invalid column reference (v2.c0) in LOAD DATA
 
-LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v3
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v3
 FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'

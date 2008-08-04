@@ -488,6 +488,7 @@ flush privileges;
 # BUG#13310 incorrect user parsing by SP
 #
 
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
 grant all privileges on test.* to `a@`@localhost;
@@ -512,7 +513,7 @@ connection default;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM `a@`@localhost;
 drop user `a@`@localhost;
 
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 
 
 #

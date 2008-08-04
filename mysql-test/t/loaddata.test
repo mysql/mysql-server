@@ -7,25 +7,25 @@ drop table if exists t1, t2;
 --enable_warnings
 
 create table t1 (a date, b date, c date not null, d date);
-load data infile '../std_data_ln/loaddata1.dat' into table t1 fields terminated by ',';
-load data infile '../std_data_ln/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',';
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
 SELECT * from t1;
 truncate table t1;
 
-load data infile '../std_data_ln/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
 SELECT * from t1;
 drop table t1;
 
 create table t1 (a text, b text);
-load data infile '../std_data_ln/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
 select concat('|',a,'|'), concat('|',b,'|') from t1;
 drop table t1;
 
 create table t1 (a int, b char(10));
-load data infile '../std_data_ln/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+load data infile '../../std_data/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 select * from t1;
 truncate table t1;
-load data infile '../std_data_ln/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
 
 # The empty line last comes from the end line field in the file
 select * from t1;
@@ -63,7 +63,7 @@ drop table t1;
 # ENCLOSED
 #
 create table t1 (a varchar(20), b varchar(20));
-load data infile '../std_data_ln/loaddata_dq.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
+load data infile '../../std_data/loaddata_dq.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
 select * from t1;
 drop table t1;
 
@@ -108,44 +108,44 @@ DROP TABLE t1,t2;
 #
 create table t1 (a int default 100, b int, c varchar(60));
 # we can do something like this
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
 select * from t1;
 truncate table t1;
 # we can use filled fields in expressions 
 # we also assigning NULL value to field with non-NULL default here
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (a, @b) set c= if(a is null,"oops",a);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set c= if(a is null,"oops",a);
 select * from t1;
 truncate table t1;
 # we even can use variables in set clause, and missed columns will be set
 # with default values
 set @c:=123;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, b) set c= if(@a is null,@c,b);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, b) set c= if(@a is null,@c,b);
 select * from t1;
 # let us test side-effect of such load
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, @b);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, @b);
 select * from t1;
 select @a, @b;
 truncate table t1;
 # Reading of all columns with set
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 set c=b;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 set c=b;
 select * from t1;
 truncate table t1;
 # now going to test fixed field-row file format
-load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
 select * from t1;
 truncate table t1;
 # this also should work
-load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c=concat(a,"+",b,"+",@c,"+",b,"+",if(c is null,"NIL",c));
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c=concat(a,"+",b,"+",@c,"+",b,"+",if(c is null,"NIL",c));
 select * from t1;
 # and this should bark
 --error 1409 
-load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
 
 # Now let us test LOAD DATA with subselect
 create table t2 (num int primary key, str varchar(10));
 insert into t2 values (10,'Ten'), (15,'Fifteen');
 truncate table t1;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@dummy,@n) set a= @n, c= (select str from t2 where num=@n);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@dummy,@n) set a= @n, c= (select str from t2 where num=@n);
 select * from t1;
 
 #
@@ -163,7 +163,7 @@ set @@secure_file_priv= 0;
 # Test "load data"
 truncate table t1;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT, ER_TEXTFILE_NOT_READABLE
 eval load data infile '$MYSQL_TEST_DIR/t/loaddata.test' into table t1;
 select * from t1;
 
@@ -264,7 +264,7 @@ CREATE VIEW v2 AS SELECT 1 + 2 AS c0, c1, c2 FROM t1;
 CREATE VIEW v3 AS SELECT 1 AS d1, 2 AS d2;
 
 --echo
-LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v1
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v1
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -280,7 +280,7 @@ SELECT * FROM v1;
 DELETE FROM t1;
 
 --echo
-LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v2
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -297,7 +297,7 @@ DELETE FROM t1;
 
 --echo
 --error ER_LOAD_DATA_INVALID_COLUMN
-LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v2
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -305,7 +305,7 @@ LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
 
 --echo
 --error ER_NON_UPDATABLE_TABLE
-LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v3
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v3
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -344,6 +344,7 @@ select @@character_set_filesystem;
 LOAD DATA INFILE 't@002d1' INTO TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
-remove_file $MYSQLTEST_VARDIR/master-data/test/t@002d1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/t@002d1;
 SET character_set_filesystem=default;
 select @@character_set_filesystem;

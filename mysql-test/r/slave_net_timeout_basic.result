@@ -1,7 +1,7 @@
 SET @start_global_value = @@global.slave_net_timeout;
 SELECT @start_global_value;
 @start_global_value
-3600
+120
 '#--------------------FN_DYNVARS_146_01-------------------------#'
 SET @@global.slave_net_timeout = 500000;
 SET @@global.slave_net_timeout = DEFAULT;
@@ -124,4 +124,4 @@ SET global slave_net_timeout = 99;
 SET @@global.slave_net_timeout = @start_global_value;
 SELECT @@global.slave_net_timeout;
 @@global.slave_net_timeout
-3600
+120

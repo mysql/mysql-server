@@ -73,7 +73,7 @@ CREATE TABLE ACCOUNT_TYPE ( ACCOUNT_TYPE_ID INT UNSIGNED NOT NULL,
 #
 # create "BANK" application
 #
---exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/bank/bankCreator >> $NDB_TOOLS_OUTPUT
+--exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/bank/bankCreator >> $NDB_TOOLS_OUTPUT
 
 #
 # start main loop
@@ -88,9 +88,9 @@ while ($2)
 #
 # start "BANK" application
 #
---exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/bank/bankTimer -w 5 >> $NDB_TOOLS_OUTPUT &
---exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/bank/bankMakeGL >> $NDB_TOOLS_OUTPUT &
---exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/bank/bankTransactionMaker >> $NDB_TOOLS_OUTPUT &
+--exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/bank/bankTimer -w 5 >> $NDB_TOOLS_OUTPUT &
+--exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/bank/bankMakeGL >> $NDB_TOOLS_OUTPUT &
+--exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/bank/bankTransactionMaker >> $NDB_TOOLS_OUTPUT &
 
 #
 # let the "BANK" run for a while
@@ -114,10 +114,10 @@ CREATE DATABASE BANK;
 # start by taking a backup on master
 --connection master
 RESET MASTER;
---exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "start backup" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup" >> $NDB_TOOLS_OUTPUT
 
 # there is no neat way to find the backupid, this is a hack to find it...
---exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
+--exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="$NDB_CONNECTSTRING" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > $MYSQLTEST_VARDIR/tmp.dat
 CREATE TABLE IF NOT EXISTS mysql.backup_info (id INT, backup_id INT) ENGINE = HEAP;
 DELETE FROM mysql.backup_info;
 LOAD DATA INFILE '../tmp.dat' INTO TABLE mysql.backup_info FIELDS TERMINATED BY ',';
@@ -128,8 +128,8 @@ let the_backup_id=`select @the_backup_id`;
 
 # restore on slave, first check that nothing is there
 --connection slave
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT_SLAVE" -p 8 -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT_SLAVE" -p 8 -b $the_backup_id -n 2 -r -e --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -p 8 -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -p 8 -b $the_backup_id -n 2 -r -e --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 #
 # now setup replication to continue from last epoch
@@ -150,7 +150,7 @@ while ($1)
   --replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 34 <Last_IO_Errno> 35 <Last_IO_Error>
   SHOW SLAVE STATUS;
   STOP SLAVE;
-  --exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT_SLAVE ../storage/ndb/test/ndbapi/bank/bankValidateAllGLs >> $NDB_TOOLS_OUTPUT
+  --exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING_SLAVE ../storage/ndb/test/ndbapi/bank/bankValidateAllGLs >> $NDB_TOOLS_OUTPUT
   START SLAVE;
   --dec $1
 }

@@ -9,7 +9,7 @@ drop table if exists t11;
 create table t2 (n int);
 insert into t2 values(4);
 create table t2 (s char(20));
-load data infile '../std_data_ln/words.dat' into table t2;
+load data infile '../../std_data/words.dat' into table t2;
 insert into t2 values('five');
 create table t1 (m int);
 insert into t1 values(15),(16),(17);

@@ -4,9 +4,13 @@
 --disable_result_log
 --disable_query_log
 let $counter= 500;
+let $mysql_errno= 9999;
 while ($mysql_errno)
 {
-  --error 0,2002,2006
+  # Strangely enough, the server might return "Too many connections"
+  # while being shutdown, thus 1040 is an "allowed" error
+  # See BUG#36228
+  --error 0,1040,1053,2002,2003,2006,2013
   show status;
 
   dec $counter;

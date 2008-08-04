@@ -13,10 +13,18 @@ connection master;
 reset master;
 
 connection slave;
+
+# Add supression for expected warnings in slaves error log
+call mtr.add_supression("Failed during slave.*thread initialization");
+
 --disable_warnings
 stop slave;
 --enable_warnings
 reset slave;
+
+# Set debug flags on slave to force errors to occur
+SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
+
 start slave;
 
 connection master;
@@ -33,5 +41,8 @@ source include/wait_for_slave_to_stop.inc;
 --replace_column 1 # 8 # 9 # 23 # 33 #                                          
 query_vertical show slave status;
 
-# no clean-up is needed
+#
+# Cleanup
+#
+SET GLOBAL debug="";
 

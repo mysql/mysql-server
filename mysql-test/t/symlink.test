@@ -177,14 +177,15 @@ drop table t1;
 #
 # Bug #29325: create table overwrites .MYD file of other table (datadir)
 #
+let $MYSQLD_DATADIR= `select @@datadir`;
 SET SESSION keep_files_on_create = TRUE;
---write_file $MYSQLTEST_VARDIR/master-data/test/t1.MYD
+--write_file $MYSQLD_DATADIR/test/t1.MYD
 EOF
 --disable_abort_on_error
 --error 1,1,ER_TABLE_EXISTS_ERROR
 CREATE TABLE t1 (a INT) ENGINE MYISAM;
 --error 0,1
---remove_file $MYSQLTEST_VARDIR/master-data/test/t1.MYD;
+--remove_file $MYSQLD_DATADIR/test/t1.MYD;
 --enable_abort_on_error
 SET SESSION keep_files_on_create = FALSE;
 CREATE TABLE t1 (a INT) ENGINE MYISAM;
@@ -195,22 +196,27 @@ DROP TABLE t1;
 #
 # Bug#32167: another privilege bypass with DATA/INDEX DIRECTORY
 #
---replace_result $MYSQLTEST_VARDIR TEST_DIR
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --error 1210
 eval CREATE TABLE t1(a INT)
-INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data/mysql';
---replace_result $MYSQLTEST_VARDIR TEST_DIR
+INDEX DIRECTORY='$MYSQLD_DATADIR/mysql';
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --error 1210
 eval CREATE TABLE t1(a INT)
-DATA DIRECTORY='$MYSQLTEST_VARDIR/master-data/test';
---replace_result $MYSQLTEST_VARDIR TEST_DIR
+DATA DIRECTORY='$MYSQLD_DATADIR/test';
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --error 1210
 eval CREATE TABLE t1(a INT)
-DATA DIRECTORY='$MYSQLTEST_VARDIR/master-data/';
---replace_result $MYSQLTEST_VARDIR TEST_DIR
+DATA DIRECTORY='$MYSQLD_DATADIR/';
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --error 1210
 eval CREATE TABLE t1(a INT)
-INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data';
+INDEX DIRECTORY='$MYSQLD_DATADIR';
+
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
 --error 1
 eval CREATE TABLE t1(a INT)
@@ -218,6 +224,7 @@ INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data_var';
 # BUG#25677 - With --skip-symbolic-links option on, DATA DIRECTORY clause is
 #             silently ignored
 #
+
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='NO_DIR_IN_CREATE';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1(a INT) DATA DIRECTORY='$MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY='$MYSQLTEST_VARDIR/tmp';

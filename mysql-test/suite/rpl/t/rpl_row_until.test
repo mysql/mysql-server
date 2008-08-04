@@ -9,12 +9,8 @@ let $VERSION=`select version()`;
 
 # stop slave before he will start replication also sync with master
 # for avoiding undetermenistic behaviour
-save_master_pos;
-connection slave;
-sync_with_master;
-stop slave;
-# Make sure the slave sql and io thread has stopped
---source include/wait_for_slave_to_stop.inc
+sync_slave_with_master;
+--source include/stop_slave.inc
 
 connection master;
 # create some events on master
@@ -53,12 +49,13 @@ connection master;
 save_master_pos;
 connection slave;
 sync_with_master;
-stop slave;
-# Make sure the slave sql and io thread has stopped
---source include/wait_for_slave_to_stop.inc
+--source include/stop_slave.inc
 
 # this should stop immediately as we are already there
-start slave until master_log_file='master-bin.000001', master_log_pos=740;
+start slave sql_thread until master_log_file='master-bin.000001', master_log_pos=740;
+--let $slave_param= Until_Log_Pos
+--let $slave_param_value= 740
+--source include/wait_for_slave_param.inc
 --source include/wait_for_slave_sql_to_stop.inc
 # here the sql slave thread should be stopped
 --replace_result bin.000005 bin.000004 bin.000006 bin.000004 bin.000007 bin.000004
@@ -76,5 +73,5 @@ start slave until relay_log_file='slave-relay-bin.000002';
 --error 1277
 start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
 # Warning should be given for second command
-start slave sql_thread;
+start slave;
 start slave until master_log_file='master-bin.000001', master_log_pos=740;

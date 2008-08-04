@@ -497,7 +497,7 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 --echo ********************************************
 --echo
 connection slave;
-wait_for_slave_to_stop;
+source include/wait_for_slave_sql_to_stop.inc;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
@@ -554,7 +554,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 --echo ********************************************
 --echo
 connection slave;
-wait_for_slave_to_stop;
+source include/wait_for_slave_sql_to_stop.inc;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
@@ -697,7 +697,7 @@ SELECT c1,c3,hex(c4),c5,c6 FROM t14 ORDER BY c1;
 # Remove below once fixed
 #***************************
 connection slave;
-wait_for_slave_to_stop;
+source include/wait_for_slave_sql_to_stop.inc;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
@@ -763,7 +763,7 @@ SELECT c1,hex(c4),c5,c6,c7,c2 FROM t15 ORDER BY c1;
 --echo ********************************************
 --echo
 connection slave;
-wait_for_slave_to_stop;
+source include/wait_for_slave_sql_to_stop.inc;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
@@ -840,7 +840,7 @@ SELECT c1,hex(c4),c5,c6,c7 FROM t16 ORDER BY c1;
 --echo *****************
 --echo
 connection slave;
-wait_for_slave_to_stop;
+source include/wait_for_slave_sql_to_stop.inc;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS

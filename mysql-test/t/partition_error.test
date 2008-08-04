@@ -121,7 +121,8 @@ partitions 3
  partition x2 tablespace ts2,
  partition x3 tablespace ts3);
 
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+let $MYSQLD_DATADIR= `select @@datadir`;
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 #
 # Partition by hash, invalid field in function
 #
@@ -217,7 +218,7 @@ partition by hash (a)
 partitions 2
 (partition x1 values less than (4),
  partition x2 values less than (5));
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Partition by hash, values in error
@@ -232,7 +233,7 @@ partition by hash (a)
 partitions 2
 (partition x1 values in (4),
  partition x2 values in (5));
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Partition by hash, values in error
@@ -247,7 +248,7 @@ partition by hash (a)
 partitions 2
 (partition x1 values in (4,6),
  partition x2 values in (5,7));
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Subpartition by key, no partitions defined, single field
@@ -260,7 +261,7 @@ c int not null,
 primary key (a,b))
 partition by key (a)
 subpartition by key (b);
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Subpartition by key, no partitions defined, list of fields
@@ -273,7 +274,7 @@ c int not null,
 primary key (a,b))
 partition by key (a)
 subpartition by key (a, b);
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Subpartition by hash, no partitions defined
@@ -286,7 +287,7 @@ c int not null,
 primary key (a,b))
 partition by key (a)
 subpartition by hash (a+b);
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Subpartition by key, no partitions defined, single field
@@ -299,7 +300,7 @@ c int not null,
 primary key (a,b))
 partition by key (a)
 subpartition by key (b);
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Subpartition by key, no partitions defined, list of fields
@@ -312,7 +313,7 @@ c int not null,
 primary key (a,b))
 partition by key (a)
 subpartition by key (a, b);
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Subpartition by hash, no partitions defined
@@ -325,7 +326,7 @@ c int not null,
 primary key (a,b))
 partition by key (a)
 subpartition by hash (a+b);
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Subpartition by hash, no partitions defined, wrong subpartition function
@@ -352,7 +353,7 @@ partition by key (a)
 subpartition by hash (sin(a+b))
 (partition x1 (subpartition x11, subpartition x12),
  partition x2 (subpartition x21, subpartition x22));
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Subpartition by hash, no partitions defined, wrong subpartition function
@@ -381,7 +382,7 @@ partition by range (a)
 subpartition by key (a,d)
 (partition x1 values less than (1) (subpartition x11, subpartition x12),
  partition x2 values less than (2) (subpartition x21, subpartition x22));
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Subpartition by hash, no partitions defined, wrong subpartition function
@@ -419,7 +420,7 @@ b int not null,
 c int not null,
 primary key(a,b))
 partition by range (a);
-select load_file('$MYSQLTEST_VARDIR/master-data/test/t1.par');
+select load_file('$MYSQLD_DATADIR/test/t1.par');
 
 #
 # Partition by range, invalid field in function
