@@ -145,7 +145,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
   }
 
   /* Remove old signals from usedBuffer */
-  for (int i= 0; i < m_usedBuffer.size(); i++)
+  for (unsigned i= 0; i < m_usedBuffer.size(); i++)
     delete m_usedBuffer[i];
   m_usedBuffer.clear();
 
