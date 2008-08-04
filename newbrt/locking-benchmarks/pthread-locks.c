@@ -84,7 +84,7 @@ compare_and_swap_full_i(volatile int *addr,
 			int old, int new_val) 
 {
   char result;
-  __asm__ __volatile__("lock; cmpxchgl %2, %0; setz %1"
+  __asm__ __volatile__("lock; cmpxchg %2, %0; setz %1"
 	    	       : "+m"(*(addr)), "=q"(result)
 		       : "r" (new_val), "a"(old) : "memory");
   return (int) result;
