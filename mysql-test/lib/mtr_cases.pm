@@ -537,23 +537,36 @@ sub optimize_cases {
       }
     }
 
-
     # =======================================================
     # Check that engine selected by
     # --default-storage-engine=<engine> is supported
     # =======================================================
+    my %builtin_engines = ('myisam' => 1, 'memory' => 1);
+
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
       my $default_engine=
 	mtr_match_prefix($opt, "--default-storage-engine=");
 
       if (defined $default_engine){
-	if ( ! exists $::mysqld_variables{$default_engine} )
-	{
-	 $tinfo->{'skip'}= 1;
-	 $tinfo->{'comment'}=
-	 "'$default_engine' not supported";
 
+	#print " $tinfo->{name}\n";
+	#print " - The test asked to use '$default_engine'\n";
+
+	#my $engine_value= $::mysqld_variables{$default_engine};
+	#print " - The mysqld_variables says '$engine_value'\n";
+
+	if ( ! exists $::mysqld_variables{$default_engine} and
+	     ! exists $builtin_engines{$default_engine} )
+	{
+	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'comment'}=
+	    "'$default_engine' not supported";
 	}
+
+	$tinfo->{'ndb_test'}= 1
+	  if ( $default_engine =~ /^ndb/i );
+	$tinfo->{'innodb_test'}= 1
+	  if ( $default_engine =~ /^innodb/i );
       }
     }
   }
