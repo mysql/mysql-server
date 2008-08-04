@@ -1395,6 +1395,7 @@ SHOW CREATE TABLE t2;
 --echo
 
 DROP TABLE t2;
+DROP TABLE t1;
 
 --echo
 --echo # -- End of test case for Bug#21380.

@@ -6,7 +6,7 @@ slowtest.log
 SET @@global.slow_query_log_file = DEFAULT;
 SELECT RIGHT(@@global.slow_query_log_file,15);
 RIGHT(@@global.slow_query_log_file,15)
-master-slow.log
+mysqld-slow.log
 '#--------------------FN_DYNVARS_004_02------------------------#'
 SET @@global.slow_query_log_file = mytest.log;
 SET @@global.slow_query_log_file = 12;

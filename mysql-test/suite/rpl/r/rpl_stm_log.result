@@ -4,7 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-stop slave;
+include/stop_slave.inc
 reset master;
 reset slave;
 reset master;
@@ -12,7 +12,7 @@ create table t1(n int not null auto_increment primary key)ENGINE=MyISAM;
 insert into t1 values (NULL);
 drop table t1;
 create table t1 (word char(20) not null)ENGINE=MyISAM;
-load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines;
+load data infile 'LOAD_FILE' into table t1 ignore 1 lines;
 select count(*) from t1;
 count(*)
 69
@@ -25,7 +25,7 @@ master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (NULL)
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)ENGINE=MyISAM
 master-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=581
-master-bin.000001	#	Execute_load_query	1	#	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=1
+master-bin.000001	#	Execute_load_query	1	#	use `test`; load data infile '../../std_data/words.dat' into table t1 ignore 1 lines ;file_id=1
 show binlog events from 106 limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=MyISAM
@@ -109,11 +109,7 @@ Aberdeen
 Abernathy
 aberrant
 aberration
-start slave;
-
-let $result_pattern= '%127.0.0.1%root%master-bin.000002%slave-relay-bin.000005%Yes%Yes%0%0%None%' ;
-
---source include/wait_slave_status.inc
+include/start_slave.inc
 select * from t1 order by 1 asc;
 word
 Aarhus
@@ -186,7 +182,8 @@ Abernathy
 aberrant
 aberration
 flush logs;
-stop slave;
+include/stop_slave.inc
+include/start_slave.inc
 create table t2 (n int)ENGINE=MyISAM;
 insert into t2 values (1);
 show binlog events from <binlog_start>;
@@ -197,7 +194,7 @@ master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (NULL)
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (word char(20) not null)ENGINE=MyISAM
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=581
-master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../../std_data/words.dat' into table t1 ignore 1 lines ;file_id=#
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002';
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -209,10 +206,9 @@ show binary logs;
 Log_name	File_size
 master-bin.000001	1347
 master-bin.000002	392
-start slave;
 show binary logs;
 Log_name	File_size
-slave-bin.000001	1447
+slave-bin.000001	1450
 slave-bin.000002	293
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -223,7 +219,7 @@ slave-bin.000001	#	Query	1	#	use `test`; insert into t1 values (NULL)
 slave-bin.000001	#	Query	1	#	use `test`; drop table t1
 slave-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)ENGINE=MyISAM
 slave-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=581
-slave-bin.000001	#	Execute_load_query	1	#	use `test`; load data INFILE '../tmp/SQL_LOAD-2-1-1.data' INTO table t1 ignore 1 lines ;file_id=1
+slave-bin.000001	#	Execute_load_query	1	#	use `test`; load data INFILE '../../tmp/SQL_LOAD-2-1-1.data' INTO table t1 ignore 1 lines ;file_id=1
 slave-bin.000001	#	Query	1	#	use `test`; create table t3 (a int)ENGINE=MyISAM
 slave-bin.000001	#	Rotate	2	#	slave-bin.000002;pos=4
 show binlog events in 'slave-bin.000002' from 4;

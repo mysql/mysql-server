@@ -4,7 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-stop slave;
+include/stop_slave.inc
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (1),(2),(3),(4);
 drop table t1;
@@ -149,8 +149,8 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 start slave;
-stop slave;
-start slave until master_log_file='master-bin.000001', master_log_pos=740;
+include/stop_slave.inc
+start slave sql_thread until master_log_file='master-bin.000001', master_log_pos=740;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -162,7 +162,7 @@ Read_Master_Log_Pos	1161
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
+Slave_IO_Running	No
 Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
@@ -200,7 +200,7 @@ start slave until relay_log_file='slave-relay-bin.000002';
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
-start slave sql_thread;
+start slave;
 start slave until master_log_file='master-bin.000001', master_log_pos=740;
 Warnings:
 Note	1254	Slave is already running

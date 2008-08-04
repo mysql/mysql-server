@@ -2789,8 +2789,8 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl
  cmd-line-utils/Makefile cmd-line-utils/libedit/Makefile dnl
  libmysqld/Makefile libmysqld/examples/Makefile dnl
- mysql-test/Makefile dnl
- mysql-test/ndb/Makefile netware/Makefile sql-bench/Makefile dnl
+ mysql-test/Makefile mysql-test/lib/My/SafeProcess/Makefile dnl
+ netware/Makefile sql-bench/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)

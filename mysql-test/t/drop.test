@@ -131,7 +131,8 @@ create table mysql_test.t1(f1 int);
 create table mysql_test.`#sql-347f_7` (f1 int);
 create table mysql_test.`#sql-347f_8` (f1 int);
 drop table mysql_test.`#sql-347f_8`;
-copy_file $MYSQLTEST_VARDIR/master-data/mysql_test/t1.frm $MYSQLTEST_VARDIR/master-data/mysql_test/#sql-347f_6.frm;
+let $MYSQLD_DATADIR= `select @@datadir`;
+copy_file $MYSQLD_DATADIR/mysql_test/t1.frm $MYSQLD_DATADIR/mysql_test/#sql-347f_6.frm;
 drop database mysql_test;
 
 ###########################################################################
@@ -148,17 +149,18 @@ DROP DATABASE IF EXISTS mysql_test;
 
 CREATE DATABASE mysql_test;
 
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file $MYSQLD_DATADIR/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm
+--copy_file $MYSQLD_DATADIR/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD
+--copy_file $MYSQLD_DATADIR/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI
 
 DROP TABLE mysql.proc;
 
 DROP DATABASE mysql_test;
 
---copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
---copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD
---copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI
+--copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm $MYSQLD_DATADIR/mysql/proc.frm
+--copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD $MYSQLD_DATADIR/mysql/proc.MYD
+--copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI $MYSQLD_DATADIR/mysql/proc.MYI
 
 --echo
 --echo # --

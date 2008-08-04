@@ -9,12 +9,12 @@ select last_insert_id();
 last_insert_id()
 0
 create table t1(a int not null auto_increment, b int, primary key(a) );
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 select last_insert_id();
 last_insert_id()
 1
 create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
-load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
+load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
 create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
 insert into t3 select * from t2;
 select * from t1;
@@ -31,7 +31,7 @@ drop table t2;
 drop table t3;
 create table t1(a int, b int, unique(b));
 insert into t1 values(1,10);
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 set global sql_slave_skip_counter=1;
 start slave;
 show slave status;
@@ -40,7 +40,7 @@ Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 stop slave;
 change master to master_user='test';
 change master to master_user='root';
@@ -52,7 +52,7 @@ start slave;
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 stop slave;
 reset slave;
 show slave status;
@@ -61,7 +61,7 @@ Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File
 reset master;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=MyISAM;
-load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields
+load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
@@ -76,7 +76,7 @@ day	id	category	name
 2003-03-22	2161	c	asdf
 alter table t2 drop key day;
 delete from t2;
-load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields
+load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
@@ -84,6 +84,6 @@ drop table t2;
 drop table t2;
 drop table t1;
 CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
-LOAD DATA INFILE "../std_data_ln/words.dat" INTO TABLE t1;
+LOAD DATA INFILE "../../std_data/words.dat" INTO TABLE t1;
 ERROR 23000: Duplicate entry 'Aarhus' for key 'PRIMARY'
 DROP TABLE IF EXISTS t1;

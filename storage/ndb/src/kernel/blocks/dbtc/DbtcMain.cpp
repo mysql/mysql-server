@@ -551,7 +551,7 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
   Uint32 senderRef = req->senderRef;
   Uint32 senderData = req->senderData;
   DropTabReq::RequestType rt = (DropTabReq::RequestType)req->requestType;
-  
+
   if(!tabPtr.p->get_enabled() && rt == DropTabReq::OnlineDropTab){
     jam();
     DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();

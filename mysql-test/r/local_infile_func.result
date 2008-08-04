@@ -18,7 +18,7 @@ SET @@global.local_infile = 1;
 DROP TABLE IF EXISTS t1;
 create table t1(a int);
 LOAD DATA LOCAL INFILE
-'MYSQLTEST_VARDIR/std_data_ln/numbers.txt' INTO TABLE test.t1;
+'MYSQLTEST_VARDIR/std_data/numbers.txt' INTO TABLE test.t1;
 SELECT count(*) from t1;
 count(*)
 9
@@ -27,7 +27,7 @@ SET @@global.local_infile = 0;
 DROP TABLE IF EXISTS t1;
 create table t1(a int);
 LOAD DATA LOCAL INFILE
-'MYSQLTEST_VARDIR/std_data_ln/numbers.txt' INTO TABLE test.t1;
+'MYSQLTEST_VARDIR/std_data/numbers.txt' INTO TABLE test.t1;
 ERROR 42000: The used command is not allowed with this MySQL version
 SELECT count(*) from t1;
 count(*)

@@ -59,14 +59,14 @@ USE test;
 CREATE TABLE t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=MyISAM CHARACTER SET utf8;
 'Verify with latin';
 SET @@session.character_set_database = latin1;
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data_ln/charset_utf8.txt' INTO TABLE t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t1;
 SELECT count(*) FROM t1 WHERE CHAR_LENGTH(a)>1;
 count(*)
 2433
 TRUNCATE TABLE t1;
 'Verify with utf8';
 SET @@session.character_set_database = utf8;
-LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data_ln/charset_utf8.txt' INTO TABLE t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t1;
 SELECT count(*) FROM t1 WHERE CHAR_LENGTH(a)>1;
 count(*)
 1

@@ -140,6 +140,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def			SCHEMATA	SCHEMA_NAME	Database	253	64	18	N	1	0	8
 Database
 information_schema
+mtr
 mysql
 test
 show databases like "test%";

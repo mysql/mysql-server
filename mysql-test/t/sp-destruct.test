@@ -13,9 +13,10 @@
 -- source include/not_embedded.inc
 
 # Backup proc table
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/proc.frm
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/proc.MYD
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/proc.MYI
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file $MYSQLD_DATADIR/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/proc.frm
+--copy_file $MYSQLD_DATADIR/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/proc.MYD
+--copy_file $MYSQLD_DATADIR/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/proc.MYI
 
 use test;
 
@@ -50,8 +51,8 @@ insert into t1 values (0);
 flush table mysql.proc;
 
 # Thrashing the .frm file
---remove_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
---write_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
+--remove_file $MYSQLD_DATADIR/mysql/proc.frm
+--write_file $MYSQLD_DATADIR/mysql/proc.frm
 saljdfa
 EOF
 --replace_result $MYSQLTEST_VARDIR . master-data// '' '\\' '/'
@@ -67,9 +68,9 @@ insert into t1 values (0);
 flush table mysql.proc;
 
 # Drop the mysql.proc table
---remove_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
---remove_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD
---remove_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI
+--remove_file $MYSQLD_DATADIR/mysql/proc.frm
+--remove_file $MYSQLD_DATADIR/mysql/proc.MYD
+--remove_file $MYSQLD_DATADIR/mysql/proc.MYI
 --error ER_NO_SUCH_TABLE
 call bug14233();
 --error ER_NO_SUCH_TABLE
@@ -78,9 +79,9 @@ create view v1 as select bug14233_f();
 insert into t1 values (0);
 
 # Restore mysql.proc
---copy_file $MYSQLTEST_VARDIR/tmp/proc.frm $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
---copy_file $MYSQLTEST_VARDIR/tmp/proc.MYD $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD
---copy_file $MYSQLTEST_VARDIR/tmp/proc.MYI $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI 
+--copy_file $MYSQLTEST_VARDIR/tmp/proc.frm $MYSQLD_DATADIR/mysql/proc.frm
+--copy_file $MYSQLTEST_VARDIR/tmp/proc.MYD $MYSQLD_DATADIR/mysql/proc.MYD
+--copy_file $MYSQLTEST_VARDIR/tmp/proc.MYI $MYSQLD_DATADIR/mysql/proc.MYI 
 --remove_file $MYSQLTEST_VARDIR/tmp/proc.frm
 --remove_file $MYSQLTEST_VARDIR/tmp/proc.MYD
 --remove_file $MYSQLTEST_VARDIR/tmp/proc.MYI
@@ -152,5 +153,5 @@ drop function bug14233_1;
 drop function bug14233_2;
 drop procedure bug14233_3;
 # Assert: These should show nothing.
-show procedure status;
-show function status;
+show procedure status where db=DATABASE();
+show function status where db=DATABASE();

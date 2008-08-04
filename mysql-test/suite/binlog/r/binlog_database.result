@@ -58,5 +58,6 @@ master-bin.000001	#	Query	#	#	drop database testing_1
 show databases;
 Database
 information_schema
+mtr
 mysql
 test

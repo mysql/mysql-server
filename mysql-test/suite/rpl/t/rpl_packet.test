@@ -18,10 +18,8 @@ SET @@global.net_buffer_length=1024;
 
 # Restart slave for setting to take effect
 connection slave;
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+source include/stop_slave.inc;
+source include/start_slave.inc;
 
 # Reconnect to master for new setting to take effect
 disconnect master;
@@ -65,10 +63,8 @@ SET @@global.net_buffer_length=4096;
 
 # Restart slave for new setting to take effect
 connection slave;
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+source include/stop_slave.inc;
+source include/start_slave.inc;
 
 # Reconnect to master for new setting to take effect
 disconnect master;

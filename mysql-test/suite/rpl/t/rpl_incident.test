@@ -14,7 +14,7 @@ REPLACE INTO t1 VALUES (4);
 SELECT * FROM t1;
 
 connection slave;
---wait_for_slave_to_stop
+source include/wait_for_slave_sql_to_stop.inc;
 
 # The 4 should not be inserted into the table, since the incident log
 # event should have stop the slave.

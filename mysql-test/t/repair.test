@@ -29,7 +29,8 @@ repair table t1 use_frm;
 
 create table t1 engine=myisam SELECT 1,"table 1";
 flush tables;
-system echo 1 > $MYSQLTEST_VARDIR/master-data/test/t1.MYI ;
+let $MYSQLD_DATADIR= `select @@datadir`;
+system echo 1 > $MYSQLD_DATADIR/test/t1.MYI ;
 repair table t1;
 repair table t1 use_frm;
 drop table t1;
@@ -119,9 +120,10 @@ DROP TABLE t1;
 #
 
 --echo # Test with a saved table from 4.1
---copy_file std_data/bug36055.frm $MYSQLTEST_VARDIR/master-data/test/t1.frm
---copy_file std_data/bug36055.MYD $MYSQLTEST_VARDIR/master-data/test/t1.MYD
---copy_file std_data/bug36055.MYI $MYSQLTEST_VARDIR/master-data/test/t1.MYI
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file std_data/bug36055.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/bug36055.MYD $MYSQLD_DATADIR/test/t1.MYD
+--copy_file std_data/bug36055.MYI $MYSQLD_DATADIR/test/t1.MYI
 
 --replace_column 12 # 13 #
 SHOW TABLE STATUS LIKE 't1';

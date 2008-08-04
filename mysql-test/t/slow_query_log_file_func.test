@@ -25,8 +25,9 @@
 #    Verifying log file after setting it in opt file               #
 ####################################################################
 
---echo ## --file_exists var/master-data/my_slow_test.log ##
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---file_exists $MYSQLTEST_VARDIR/master-data/my_slow_test.log
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo ## Checking if my_slow_test.log exist in servers datadir ##
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--file_exists $MYSQLD_DATADIR/my_slow_test.log
 
 --echo ## This case should pass because we have set this filename in opt file ##

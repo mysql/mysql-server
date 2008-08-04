@@ -183,6 +183,8 @@ drop table t1;
 #
 # bug#14767: INSERT in SF + concurrent SELECT with query cache
 #
+connection default;
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
 reset query cache;
@@ -224,7 +226,7 @@ disconnect con2;
 connection default;
 
 set GLOBAL query_cache_size=0;
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET @@global.log_bin_trust_function_creators = @old_log_bin_trust_function_creators;
 
 #
 # Bug #30269 Query cache eats memory

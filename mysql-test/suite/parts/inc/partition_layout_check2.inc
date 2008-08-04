@@ -7,7 +7,7 @@
 #   since the call of inc/partition_layout_check1.inc                          #
 #   This script is only usefule when sourced within the partitioning tests.    #
 #                                                                              #
-# Attention: The routine inc/partition_layout_check1.inc is very similar       #
+# Attention: The routine inc/partition_layout_check1.inc is very similar   #
 #            to this one. So if something has to be changed here it            #
 #            might be necessary to do it also there                            #
 #                                                                              #
@@ -23,26 +23,31 @@ if ($no_debug)
 # Clean the table holding the definition of t1
 DELETE FROM t0_definition WHERE state = 'new';
 
+
+# Get the MySQL Servers datadir without ending slash
+let $MYSQLD_DATADIR= `select LEFT(@@datadir, LENGTH(@@datadir)-1)`;
+#echo MYSQLD_DATADIR: $MYSQLD_DATADIR;
+
 # Dump the current definition of the table t1 to tmp1
-let $show_file= $MYSQLTEST_VARDIR/master-data/test/tmp1;
+let $show_file= $MYSQLD_DATADIR/test/tmp1;
 --exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $show_file 2>&1 || true
 
 if ($do_file_tests)
 {
-# List the files belonging to the table t1
-let $ls_file= $MYSQLTEST_VARDIR/master-data/test/tmp2;
---list_files_write_file $ls_file $MYSQLTEST_VARDIR/master-data/test t1*
---chmod 0644 $ls_file
-if ($with_directories)
-{
---list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-data-dir t1*
---list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-idx-dir t1*
-}
-eval SET @aux = load_file('$ls_file');
+  # List the files belonging to the table t1
+  let $ls_file= $MYSQLD_DATADIR/test/tmp2;
+  --list_files_write_file $ls_file $MYSQLD_DATADIR/test t1*
+  --chmod 0644 $ls_file
+  if ($with_directories)
+  {
+    --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-data-dir t1*
+    --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-idx-dir t1*
+  }
+  eval SET @aux = load_file('$ls_file');
 }
 if (!$do_file_tests)
 {
-SET @aux = '--- not determined ---';
+  SET @aux = '--- not determined ---';
 }
 
 # Insert the current definition of the table t1 into t0_definition

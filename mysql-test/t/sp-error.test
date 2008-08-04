@@ -6,6 +6,10 @@
 drop table if exists t1, t2;
 --enable_warnings
 
+# Backup the mysql.proc table
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT * FROM mysql.proc INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/proc.txt';
+
 # Make sure we don't have any procedures left.
 delete from mysql.proc;
 
@@ -2417,3 +2421,9 @@ delimiter ;$$
 #--enable_warnings
 #create procedure bugNNNN...
 #create function bugNNNN...
+
+#
+# CLEANUP and RESTORE
+#
+LOAD DATA INFILE '../../tmp/proc.txt' INTO TABLE mysql.proc;
+remove_file $MYSQLTEST_VARDIR/tmp/proc.txt;

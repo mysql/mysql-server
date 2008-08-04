@@ -35,6 +35,7 @@ drop table if exists t1;
 CREATE user tt@localhost;
 
 --echo ## Setting value of variable to 0 ##
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET @@global.log_bin_trust_function_creators = 0;
 
 --echo ## Creating new table t2 ##
@@ -119,3 +120,7 @@ drop table t1,t2;
 --echo ## Disconnecting both the connections ##
 disconnect test_con2;
 
+connection default;
+
+DROP USER tt@localhost;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

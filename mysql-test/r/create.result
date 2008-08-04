@@ -1790,6 +1790,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 
 DROP TABLE t2;
+DROP TABLE t1;
 
 # -- End of test case for Bug#21380.
 

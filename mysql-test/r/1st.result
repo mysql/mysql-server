@@ -1,6 +1,7 @@
 show databases;
 Database
 information_schema
+mtr
 mysql
 test
 show tables in mysql;

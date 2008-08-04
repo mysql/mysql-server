@@ -50,7 +50,7 @@ drop table t1;
 #
 
 create table t1(a tinyint, b int not null, c date, d char(5));
-load data infile '../std_data_ln/warnings_loaddata.dat' into table t1 fields terminated by ',';
+load data infile '../../std_data/warnings_loaddata.dat' into table t1 fields terminated by ',';
 # PS doesn't work good with @@warning_count
 --disable_ps_protocol
 select @@warning_count;

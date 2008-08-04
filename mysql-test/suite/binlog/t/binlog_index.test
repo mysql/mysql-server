@@ -1,0 +1,69 @@
+#
+# testing of purging of binary log files bug#18199/Bug#18453
+#
+source include/have_log_bin.inc;
+source include/not_embedded.inc;
+
+#
+# testing purge binary logs TO
+#
+
+flush logs;
+flush logs;
+flush logs;
+
+source include/show_binary_logs.inc;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/master-bin.000001;
+
+# there must be a warning with file names
+replace_regex /\.[\\\/]master/master/;
+purge binary logs TO 'master-bin.000004';
+
+--echo *** must show a list starting from the 'TO' argument of PURGE ***
+source include/show_binary_logs.inc;
+
+#
+# testing purge binary logs BEFORE
+#
+
+reset master;
+
+flush logs;
+flush logs;
+flush logs;
+remove_file $MYSQLD_DATADIR/master-bin.000001;
+
+--echo *** must be a warning master-bin.000001 was not found ***
+let $date=`select NOW()  +  INTERVAL 1 MINUTE`;
+--disable_query_log
+replace_regex /\.[\\\/]master/master/;
+eval purge binary logs BEFORE '$date';
+--enable_query_log
+
+--echo *** must show one record, of the active binlog, left in the index file after PURGE ***
+source include/show_binary_logs.inc;
+
+#
+# testing a fatal error
+# Turning a binlog file into a directory must be a portable setup
+# 
+
+reset master;
+
+flush logs;
+flush logs;
+flush logs;
+
+remove_file $MYSQLD_DATADIR/master-bin.000001;
+mkdir $MYSQLD_DATADIR/master-bin.000001;
+
+--error ER_BINLOG_PURGE_FATAL_ERR
+purge binary logs TO 'master-bin.000002';
+replace_regex /\.[\\\/]master/master/;
+show warnings;
+rmdir $MYSQLD_DATADIR/master-bin.000001;
+--disable_warnings
+reset master;
+--enable_warnings
+--echo End of tests

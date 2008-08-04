@@ -40,10 +40,10 @@ SET @user_num = 10;
 SET @user_text = 'Alunda';
 [on master]
 **** Resetting master and slave ****
-STOP SLAVE;
+include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
-START SLAVE;
+include/start_slave.inc
 [on slave]
 SET @@global.init_slave = 'ant';
 [on master]

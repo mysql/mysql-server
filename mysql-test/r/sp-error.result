@@ -1,4 +1,5 @@
 drop table if exists t1, t2;
+SELECT * FROM mysql.proc INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/proc.txt';
 delete from mysql.proc;
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
@@ -1651,3 +1652,4 @@ begin
 declare continue handler for sqlstate '00000' set @x=0;
 end$$
 ERROR 42000: Bad SQLSTATE: '00000'
+LOAD DATA INFILE '../../tmp/proc.txt' INTO TABLE mysql.proc;

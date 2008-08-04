@@ -243,11 +243,11 @@ disconnect con2user1;
 disconnect con3anon;
 disconnect con4user2;
 use test;
-select type,db,name from mysql.proc;
+select type,db,name from mysql.proc where db like 'db%';
 drop database db1_secret;
 drop database db2;
 # Make sure the routines are gone
-select type,db,name from mysql.proc;
+select type,db,name from mysql.proc where db like 'db%';
 # Get rid of the users
 delete from mysql.user where user='user1' or user='user2';
 delete from mysql.user where user='' and host='%';

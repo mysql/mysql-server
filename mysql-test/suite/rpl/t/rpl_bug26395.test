@@ -1,0 +1,97 @@
+# ==== Purpose ====
+#
+# Tests that an autocommitted XA transaction where the master crashes
+# just before writing the XID log event is executed correctly.  The
+# master rolls back, so the slave should not execute statement.
+#
+# This test was previously part of rpl_ndb_transaction.test
+#
+#
+# ==== Method ====
+#
+# We want master to be alive so that it can replicate the statement to
+# the slave. So in the test case, we must not crash the
+# master. Instead, we fake the crash by just not writing the XID event
+# to the binlog. This is done by the @@debug='d,do_not_write_xid'
+# flag. This, in turn, requires us to do 'source
+# include/have_debug.inc'
+#
+# So, unlike if the master had crashed, the master *will* execute the
+# statement. But the slave should not execute it. Hence, after the
+# test is executed, the expected result on master is a table with one
+# row, and on slave a table with no rows.
+#
+# To simulate the slave correctly, we wait until everything up to but
+# not including the XID is replicated. This has to be done with
+# include/sync_slave_io_with_master.inc, not sync_slave_with_master,
+# since the latter waits until the slave *SQL* thread has caught up
+# with the master's position, which it will never do.
+#
+#
+# ==== Related bugs ====
+#
+# BUG#26395: if crash during autocommit update to transactional table on master, slave fails
+
+source include/have_innodb.inc;
+# have_debug is needed since we use the @@debug variable on master
+source include/have_debug.inc;
+source include/master-slave.inc;
+
+
+--echo ==== Initialize ====
+
+--echo [on master]
+--connection master
+
+CREATE TABLE tinnodb (a INT) ENGINE = INNODB;
+SHOW CREATE TABLE tinnodb;
+
+# do_not_write_xid stops the master from writing an XID event.
+set @old_debug= @@debug;
+set @@debug= 'd,do_not_write_xid';
+
+
+--echo ==== Test ====
+
+# Save the position up to which the slave SQL thread should execute.
+save_master_pos;
+
+# Execute query and check that the row made it to the table.
+INSERT INTO tinnodb VALUES (1);
+SELECT * FROM tinnodb ORDER BY a;
+
+# Sync slave's IO thread.
+--echo [on slave]
+source include/sync_slave_io_with_master.inc;
+
+# Sync slave's SQL thread.
+sync_with_master 0;
+
+
+--echo ==== Verify results on slave ====
+
+source include/stop_slave.inc;
+let $tmp= query_get_value("SHOW SLAVE STATUS", Slave_IO_State, 1);
+eval SELECT "$tmp" AS Slave_IO_State;
+let $tmp= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+eval SELECT "$tmp" AS Last_SQL_Error;
+let $tmp= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1);
+eval SELECT "$tmp" AS Last_IO_Error;
+SELECT * FROM tinnodb ORDER BY a;
+
+
+--echo ==== Clean up ====
+
+# Easiest to clean up master and slave separately, without
+# replication, since master and slave are out of sync.
+
+--echo [on master]
+connection master;
+DROP TABLE tinnodb;
+set @@debug= @old_debug;
+
+--echo [on slave]
+connection slave;
+DROP TABLE tinnodb;
+
+# Warning: do not add more tests here. The binlog is in a bad state.

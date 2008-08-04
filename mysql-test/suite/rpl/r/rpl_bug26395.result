@@ -1,0 +1,41 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+==== Initialize ====
+[on master]
+CREATE TABLE tinnodb (a INT) ENGINE = INNODB;
+SHOW CREATE TABLE tinnodb;
+Table	Create Table
+tinnodb	CREATE TABLE `tinnodb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+set @old_debug= @@debug;
+set @@debug= 'd,do_not_write_xid';
+==== Test ====
+INSERT INTO tinnodb VALUES (1);
+SELECT * FROM tinnodb ORDER BY a;
+a
+1
+[on slave]
+==== Verify results on slave ====
+include/stop_slave.inc
+SELECT "" AS Slave_IO_State;
+Slave_IO_State
+
+SELECT "" AS Last_SQL_Error;
+Last_SQL_Error
+
+SELECT "" AS Last_IO_Error;
+Last_IO_Error
+
+SELECT * FROM tinnodb ORDER BY a;
+a
+==== Clean up ====
+[on master]
+DROP TABLE tinnodb;
+set @@debug= @old_debug;
+[on slave]
+DROP TABLE tinnodb;

@@ -6,31 +6,30 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 ==== Create new replication user ====
 [on master]
-grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
 [on slave]
-stop slave;
-change master to master_user='rpl',master_password='rpl';
-start slave;
+include/stop_slave.inc
+CHANGE MASTER TO master_user='rpl', master_password='rpl';
+include/start_slave.inc
 ==== Do replication as new user ====
 [on master]
-create table t1 (n int);
-insert into t1 values (1);
+CREATE TABLE t1 (n INT);
+INSERT INTO t1 VALUES (1);
 [on slave]
-select * from t1;
+SELECT * FROM t1;
 n
 1
 ==== Delete new replication user ====
 [on master]
-drop user rpl@127.0.0.1;
-flush privileges;
+DROP USER rpl@127.0.0.1;
+FLUSH PRIVILEGES;
 [on slave]
 ==== Restart slave without privileges =====
-stop slave;
-start slave;
+include/stop_slave.inc
+START SLAVE;
 ==== Verify that Slave_IO_Running = No ====
 Slave_IO_Running = No (should be No)
 ==== Cleanup (Note that slave IO thread is not running) ====
-drop table t1;
-delete from mysql.user where user='rpl';
+DROP TABLE t1;
 [on master]
-drop table t1;
+DROP TABLE t1;

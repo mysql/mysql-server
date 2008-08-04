@@ -2,7 +2,8 @@
 # in case of bi-directional replication
 -- source include/master-slave.inc
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/
 show variables like 'relay_log%';
 
 connection slave;
@@ -24,13 +25,8 @@ stop slave;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$SLAVE_MYPORT;
-start slave;
 
-#
-#  Wait for start of slave IO and SQL threads
-#
-let $result_pattern= '%127.0.0.1%root%slave-bin.000001%slave-bin.000001%Yes%Yes%0%0%None%';
---source include/wait_slave_status.inc
+source include/start_slave.inc;
 
 #
 #  Flush logs of slave
@@ -73,3 +69,9 @@ source include/wait_for_slave_param.inc;
 --replace_result $SLAVE_MYPORT SLAVE_PORT $slave_param_value POSITION
 --replace_column 1 # 8 # 9 # 16 # 23 # 33 # 34 # 35 #
 --query_vertical SHOW SLAVE STATUS
+
+--disable_query_log
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+--enable_query_log
