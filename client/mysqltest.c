@@ -2184,8 +2184,16 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
   if (*p == '$')
   {
     VAR *vp;
+    const char* expected_end= *p_end; // Remember var end
     if ((vp= var_get(p, p_end, 0, 0)))
       var_copy(v, vp);
+
+    /* Make sure there was just a $variable and nothing else */
+    const char* end= *p_end + 1;
+    if (end < expected_end)
+      die("Found junk '%.*s' after $variable in expression",
+          expected_end - end - 1, end);
+
     DBUG_VOID_RETURN;
   }
 
