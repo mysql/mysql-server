@@ -677,11 +677,15 @@ sub collect_one_test_case {
      name          => "$suitename.$tname",
      path          => "$testdir/$filename",
 
-     # TODO allow nonexistsing result file
-     # in that case .test must issue "exit" otherwise test
-     # should fail by default
-     result_file   => "$resdir/$tname.result",
     );
+
+  my $result_file= "$resdir/$tname.result";
+  if (-f $result_file) {
+    # Allow nonexistsing result file
+    # in that case .test must issue "exit" otherwise test
+    # should fail by default
+    $tinfo->{result_file}= $result_file;
+  }
 
   # ----------------------------------------------------------------------
   # Skip some tests but include in list, just mark them as skipped
