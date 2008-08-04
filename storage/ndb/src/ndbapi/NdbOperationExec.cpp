@@ -795,6 +795,28 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
     }
   }
 
+  if (m_use_any_value && 
+      (tOpType == DeleteRequest))
+  {
+    /* Special hack for delete and ANYVALUE pseudo-column
+     * We want to be able set the ANYVALUE pseudo-column as
+     * part of a delete, but deletes don't allow updates
+     * So we perform a 'read' of the column, passing a value.
+     * Code in TUP which handles this 'read' will set the
+     * value when the read is processed.
+     */
+    res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                     AttributeHeader::ANY_VALUE, 4,
+                                     &attrInfoPtr, &remain);
+    if(res)
+      return res;
+    res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                      (const char *)(&m_any_value), 4,
+                                      &attrInfoPtr, &remain);
+    if(res)
+      return res;
+  }
+
   /* Interpreted program main signal words */
   if (code)
   {
@@ -977,10 +999,9 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
 
   if ((tOpType == InsertRequest) ||
       (tOpType == WriteRequest) ||
-      (tOpType == UpdateRequest) ||
-      (tOpType == DeleteRequest))
+      (tOpType == UpdateRequest))
   {
-    /* Handle any setAnyValue(). */
+    /* Handle setAnyValue() for all cases except delete */
     if (m_use_any_value)
     {
       res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
