@@ -191,7 +191,14 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
 
   const Uint32 secCount = header->m_noOfSections;
   const Uint32 length = header->theLength;
+
+  /*
+   * Strip instance bits if not multithreaded.  This is also
+   * done in versions prior to MT LQH, to simplify online upgrade.
+   */
+#ifndef NDBD_MULTITHREADED
   header->theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
+#endif
 
 #ifdef TRACE_DISTRIBUTED
   ndbout_c("recv: %s(%d) from (%s, %d)",
@@ -232,10 +239,10 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
     globalScheduler.execute(header, prio, theData, secPtrI);  
 #else
     if (prio == JBB)
-      sendlocal(receiverThreadId, header->theReceiversBlockNumber,
+      sendlocal(receiverThreadId,
                 header, theData, secPtrI);
     else
-      sendprioa(receiverThreadId, header->theReceiversBlockNumber,
+      sendprioa(receiverThreadId,
                 header, theData, secPtrI);
 
 #endif
@@ -271,10 +278,10 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
   globalScheduler.execute(header, prio, theData, secPtrI);    
 #else
   if (prio == JBB)
-    sendlocal(receiverThreadId, header->theReceiversBlockNumber,
+    sendlocal(receiverThreadId,
               header, theData, NULL);
   else
-    sendprioa(receiverThreadId, header->theReceiversBlockNumber,
+    sendprioa(receiverThreadId,
               header, theData, NULL);
     
 #endif
@@ -383,7 +390,7 @@ TransporterCallbackKernel::reportError(NodeId nodeId,
 #else
   signal.header.theVerId_signalNumber = GSN_EVENT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
-  sendprioa(receiverThreadId, signal.header.theReceiversBlockNumber,
+  sendprioa(receiverThreadId,
             &signalT.header, signalT.theData, NULL);
 #endif
 
@@ -436,7 +443,7 @@ TransporterCallbackKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
 #else
   signal.header.theVerId_signalNumber = GSN_EVENT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
-  sendprioa(receiverThreadId, signal.header.theReceiversBlockNumber,
+  sendprioa(receiverThreadId,
             &signalT.header, signalT.theData, NULL);
 #endif
 }
@@ -463,7 +470,7 @@ TransporterCallbackKernel::reportConnect(NodeId nodeId)
 #else
   signal.header.theVerId_signalNumber = GSN_CONNECT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
-  sendprioa(receiverThreadId, signal.header.theReceiversBlockNumber,
+  sendprioa(receiverThreadId,
             &signalT.header, signalT.theData, NULL);
 #endif
 }
@@ -495,7 +502,7 @@ TransporterCallbackKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
 #else
   signal.header.theVerId_signalNumber = GSN_DISCONNECT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
-  sendprioa(receiverThreadId, signal.header.theReceiversBlockNumber,
+  sendprioa(receiverThreadId,
             &signalT.header, signalT.theData, NULL);
 #endif
 

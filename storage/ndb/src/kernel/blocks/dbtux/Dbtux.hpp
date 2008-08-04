@@ -101,8 +101,9 @@
 class Configuration;
 
 class Dbtux : public SimulatedBlock {
+  friend class DbtuxProxy;
 public:
-  Dbtux(Block_context& ctx);
+  Dbtux(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbtux();
 
   // pointer to TUP instance in this thread

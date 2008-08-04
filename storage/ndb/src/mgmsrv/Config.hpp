@@ -22,16 +22,10 @@
 
 /**
  * @class Config
- * @brief Cluster Configuration  (corresponds to initial configuration file)
+ * @brief Cluster Configuration Wrapper
  *
- * Contains all cluster configuration parameters.
- *
- * The information includes all configurable parameters for a NDB cluster:
- * - DB, API and MGM nodes with all their properties, 
- * - Connections between nodes and computers the nodes will execute on.
- *
- * The following categories (sections) of configuration parameters exists:
- * - COMPUTER, DB, MGM, API, TCP, SCI, SHM
+ * Adds a C++ wrapper around 'ndb_mgm_configuration' which is
+ * exposed from mgmapi_configuration
  *
  */
 
@@ -40,31 +34,15 @@ public:
   Config(struct ndb_mgm_configuration *config_values = NULL);
   virtual ~Config();
 
-  /**
-   *   Prints the configuration in configfile format
-   */
-  void printConfigFile(NdbOut &out = ndbout) const;
-  void printConfigFile(OutputStream &out) const {
-    NdbOut ndb(out);
-    printConfigFile(ndb);
-  }
+  void print() const;
 
-  /**
-   * Info
-   */
-  const ConfigInfo * getConfigInfo() const { return &m_info;}
-private:
-  ConfigInfo m_info;
-
-  void printAllNameValuePairs(NdbOut &out,
-			      const Properties *prop,
-			      const char* section) const;
-
-  /**
-   *   Information about parameters (min, max values etc)
-   */
-public:
   struct ndb_mgm_configuration * m_configValues;
+};
+
+class ConfigIter : public ndb_mgm_configuration_iterator {
+public:
+  ConfigIter(const Config* conf, unsigned type) :
+    ndb_mgm_configuration_iterator(*conf->m_configValues, type) {};
 };
 
 #endif // Config_H

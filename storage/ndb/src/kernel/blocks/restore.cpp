@@ -32,8 +32,8 @@
 
 #define PAGES LCP_RESTORE_BUFFER
 
-Restore::Restore(Block_context& ctx) :
-  SimulatedBlock(RESTORE, ctx),
+Restore::Restore(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(RESTORE, ctx, instanceNumber),
   m_file_list(m_file_pool),
   m_file_hash(m_file_pool)
 {

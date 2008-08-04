@@ -26,8 +26,8 @@
 
 //extern const unsigned Ndbcntr::g_sysTableCount;
 
-Backup::Backup(Block_context& ctx) :
-  SimulatedBlock(BACKUP, ctx),
+Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(BACKUP, ctx, instanceNumber),
   c_nodes(c_nodePool),
   c_backups(c_backupPool)
 {

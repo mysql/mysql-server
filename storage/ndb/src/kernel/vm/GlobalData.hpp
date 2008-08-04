@@ -67,11 +67,16 @@ struct GlobalData {
   
   Uint32     sendPackedActivated;
   Uint32     activateSendPacked;
+
+  Uint32     ndbmtWorkers;
+  Uint32     ndbmtThreads;
   
   GlobalData(){ 
     theSignalId = 0; 
     theStartLevel = NodeState::SL_NOTHING;
     theRestartFlag = perform_start;
+    ndbmtWorkers = 0;
+    ndbmtThreads = 0;
 #ifdef GCP_TIMER_HACK
     gcp_timer_limit = 0;
 #endif
@@ -80,6 +85,7 @@ struct GlobalData {
   
   void             setBlock(BlockNumber blockNo, SimulatedBlock * block);
   SimulatedBlock * getBlock(BlockNumber blockNo);
+  SimulatedBlock * getBlock(BlockNumber blockNo, Uint32 instanceNo);
   
   void           incrementWatchDogCounter(Uint32 place);
   Uint32 * getWatchDogPtr();

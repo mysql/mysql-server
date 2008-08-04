@@ -36,13 +36,15 @@ libkernel_a_SOURCES = \
         Rope.cpp \
         ndbd_malloc.cpp \
 	ndbd_malloc_impl.cpp \
-	Pool.cpp WOPool.cpp RWPool.cpp DynArr256.cpp LockQueue.cpp
+	Pool.cpp WOPool.cpp RWPool.cpp DynArr256.cpp LockQueue.cpp \
+	GlobalData.cpp
 
 libsched_a_SOURCES = TimeQueue.cpp		\
                      ThreadConfig.cpp \
                      FastScheduler.cpp \
                      TransporterCallback_nonmt.cpp \
-                     SimulatedBlock_nonmt.cpp
+                     SimulatedBlock_nonmt.cpp \
+		     dummy_nonmt.cpp
 
 libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
                         TransporterCallback_mt.cpp \

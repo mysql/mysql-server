@@ -38,9 +38,6 @@ extern bool g_StopServer;
 extern bool g_RestartServer;
 extern EventLogger * g_eventLogger;
 
-static const unsigned int MAX_READ_TIMEOUT = 1000 ;
-static const unsigned int MAX_WRITE_TIMEOUT = 100 ;
-
 /**
    const char * name;
    const char * realName;
@@ -308,6 +305,12 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   m_session_id= session_id;
   m_mutex= NdbMutex_Create();
   m_errorInsert= 0;
+
+  struct sockaddr_in addr;
+  SOCKET_SIZE_TYPE addrlen= sizeof(addr);
+  getpeername(sock, (struct sockaddr*)&addr, &addrlen);
+  m_name.assfmt("%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+
   DBUG_VOID_RETURN;
 }
 
@@ -340,6 +343,8 @@ MgmApiSession::runSession()
 {
   DBUG_ENTER("MgmApiSession::runSession");
 
+  g_eventLogger->debug("%s: Connected!", name());
+
   Parser_t::Context ctx;
   ctx.m_mutex= m_mutex;
   m_ctx= &ctx;
@@ -350,22 +355,53 @@ MgmApiSession::runSession()
     m_input->reset_timeout();
     m_output->reset_timeout();
 
-    m_parser->run(ctx, *this);
-
-    if(ctx.m_currentToken == 0)
+    if (m_parser->run(ctx, *this))
     {
-      NdbMutex_Unlock(m_mutex);
-      break;
+      stop= m_stop;
+      assert(ctx.m_status == Parser_t::Ok);
+    }
+    else
+    {
+      const char* msg= NULL;
+      switch(ctx.m_status) {
+      case Parser_t::Eof:    // Client disconnected
+        g_eventLogger->debug("%s: Disconnected!", name());
+        stop= true;
+        break;
+
+      case Parser_t::ExternalStop: // Stopped by other thread
+        stop= true;
+        break;
+
+      case Parser_t::NoLine: // Normal read timeout
+      case Parser_t::EmptyLine:
+        break;
+
+      case Parser_t::UnknownCommand: msg= "Unknown command"; break;
+      case Parser_t::UnknownArgument: msg= "Unknown argument"; break;
+      case Parser_t::TypeMismatch: msg= "Type mismatch"; break;
+      case Parser_t::InvalidArgumentFormat: msg= "Invalid arg. format"; break;
+      case Parser_t::UnknownArgumentType: msg= "Unknown argument type"; break;
+      case Parser_t::ArgumentGivenTwice: msg= "Argument given twice"; break;
+      case Parser_t::MissingMandatoryArgument: msg= "Missing arg."; break;
+
+      case Parser_t::Ok: // Should never happen here
+      case Parser_t::CommandWithoutFunction:
+        abort();
+        break;
+      }
+
+      if (msg){
+        g_eventLogger->debug("%s: %s, '%s'",
+                             name(), msg, ctx.m_currentToken);
+
+        // Send result to client
+        m_output->println("result: %s, '%s'",
+                          msg, ctx.m_currentToken);
+        m_output->println("");
+      }
     }
 
-    switch(ctx.m_status) {
-    case Parser_t::UnknownCommand:
-      break;
-    default:
-      break;
-    }
-
-    stop= m_stop;
     NdbMutex_Unlock(m_mutex);
   };
 
