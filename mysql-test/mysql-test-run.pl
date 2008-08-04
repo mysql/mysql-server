@@ -164,7 +164,7 @@ my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= 2;
 
-my $opt_parallel;
+my $opt_parallel= $ENV{MTR_PARALLEL};
 
 my $opt_strace_client;
 
@@ -291,8 +291,9 @@ sub main {
     my $tinfo = My::Test->new
       (
        name           => 'report_features',
-       result_file    => undef, # Prints result
+       # No result_file => Prints result
        path           => 'include/report-features.test'.
+       template_path  => "include/default_my.cnf",
        master_opt     => [],
        slave_opt      => [],
       );
@@ -615,6 +616,7 @@ sub run_worker ($) {
   }
 
   setup_vardir();
+  check_running_as_root();
   mysql_install_db($thread_num);
 
   if ( using_extern() ) {
@@ -2326,7 +2328,6 @@ sub initialize_servers {
       mysql_install_db(0);
     }
   }
-  check_running_as_root();
 }
 
 
@@ -2685,6 +2686,120 @@ sub check_testcase($$)
 }
 
 
+# Start run mysqltest on one server
+#
+# RETURN VALUE
+#  0 OK
+#  1 Check failed
+#
+sub start_run_one ($$) {
+  my ($mysqld, $run)= @_;
+
+  my $name= "$run-".$mysqld->name();
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+
+  mtr_add_arg($args, "--silent");
+  mtr_add_arg($args, "--skip-safemalloc");
+  mtr_add_arg($args, "--test-file=%s", "include/$run.test");
+
+  my $errfile= "$opt_vardir/tmp/$name.err";
+  my $proc= My::SafeProcess->new
+    (
+     name          => $name,
+     path          => $exe_mysqltest,
+     error         => $errfile,
+     output        => $errfile,
+     args          => \$args,
+     user_data     => $errfile,
+    );
+  mtr_verbose("Started $proc");
+  return $proc;
+}
+
+
+#
+# Run script on all servers, collect results
+#
+# RETURN VALUE
+#  0 ok
+#  1 Failure
+
+sub run_on_all($$)
+{
+  my ($tinfo, $run)= @_;
+  my $tname= $tinfo->{name};
+
+  # Start the mysqltest processes in parallel to save time
+  # also makes it possible to wait for any process to exit during the check
+  # and to have a timeout process
+  my %started;
+  foreach my $mysqld ( mysqlds() )
+  {
+    if ( defined $mysqld->{'proc'} )
+    {
+      my $proc= start_run_one($mysqld, $run);
+      $started{$proc->pid()}= $proc;
+    }
+  }
+
+  # Return immediately if no check proceess was started
+  return 0 unless ( keys %started );
+
+  my $timeout_proc= My::SafeProcess->timer(60); # Seconds
+
+  while (1){
+    my $result;
+    my $proc= My::SafeProcess->wait_any();
+    mtr_report("Got $proc");
+
+    if ( delete $started{$proc->pid()} ) {
+
+      # One mysqltest process returned
+      my $err_file= $proc->user_data();
+      my $res= $proc->exit_status();
+
+      # Append the report from .err file
+      $tinfo->{comment}.= " == $err_file ==\n";
+      $tinfo->{comment}.= mtr_grab_file($err_file);
+      $tinfo->{comment}.= "\n";
+
+      # Remove the .err file
+      unlink($err_file);
+
+      if ( keys(%started) == 0){
+	# All completed
+	$timeout_proc->kill();
+	return 0;
+      }
+
+      # Wait for next process to exit
+      next;
+    }
+    elsif ( $proc eq $timeout_proc ) {
+      $tinfo->{comment}.= "Timeout $timeout_proc expired for running '$run'";
+    }
+    else {
+      # Unknown process returned, most likley a crash, abort everything
+      $tinfo->{comment}.=
+	"Unexpected process $proc returned during ".
+	"execution of '$run'";
+    }
+
+    # Kill any check processes still running
+    map($_->kill(), values(%started));
+
+    $timeout_proc->kill();
+
+    return 1;
+  }
+}
+
+
 sub mark_log {
   my ($log, $tinfo)= @_;
   my $log_msg= "CURRENT_TEST: $tinfo->{name}\n";
@@ -2719,6 +2834,26 @@ sub find_testcase_skipped_reason($)
     $reason= "Detected by testcase(reason unknown) ";
   }
   $tinfo->{'comment'}= $reason;
+}
+
+
+sub find_analyze_request
+{
+  # Open the test log file
+  my $F= IO::File->new($path_current_testlog)
+    or return;
+  my $analyze;
+
+  while ( my $line= <$F> )
+  {
+    # Look for "reason: <reason for skipping test>"
+    if ( $line =~ /analyze: (.*)/ )
+    {
+      $analyze= $1;
+    }
+  }
+
+  return $analyze;
 }
 
 
@@ -2925,6 +3060,13 @@ sub run_testcase ($) {
       }
       elsif ( $res == 1 )
       {
+	# Check if the test tool requests that
+	# an analyze script should be run
+	my $analyze= find_analyze_request();
+	if ($analyze){
+	  run_on_all($tinfo, "analyze-$analyze");
+	}
+
 	# Test case failure reported by mysqltest
 	report_failure_and_restart($tinfo);
       }
@@ -2983,8 +3125,10 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     if ( $proc eq $test_timeout_proc )
     {
-      mtr_report("Test case timeout!");
-      $tinfo->{'timeout'}= 1;           # Mark as timeout
+      $tinfo->{comment}=
+	"Test case timeout after $opt_testcase_timeout minute(s)\n\n";
+      $tinfo->{'timeout'}= $opt_testcase_timeout; # Mark as timeout
+      run_on_all($tinfo, 'analyze-timeout');
       report_failure_and_restart($tinfo);
       return 1;
     }
@@ -3301,7 +3445,6 @@ sub report_failure_and_restart ($) {
   $tinfo->{'failures'}=  $test_failures + 1;
 
 
-  my $logfile= $path_current_testlog;
   if ( $tinfo->{comment} )
   {
     # The test failure has been detected by mysql-test-run.pl
@@ -3309,12 +3452,17 @@ sub report_failure_and_restart ($) {
     # failing the test is saved in "comment"
     ;
   }
-  elsif ( defined $logfile and -f $logfile )
+
+  if ( !defined $tinfo->{logfile} )
   {
-    # Test failure was detected by test tool and its report
-    # about what failed has been saved to file. Save the report
-    # in tinfo
-    $tinfo->{logfile}= mtr_fromfile($logfile);
+    my $logfile= $path_current_testlog;
+    if ( defined $logfile and -f $logfile )
+    {
+      # Test failure was detected by test tool and its report
+      # about what failed has been saved to file. Save the report
+      # in tinfo
+      $tinfo->{logfile}= mtr_fromfile($logfile);
+    }
   }
 
   after_failure($tinfo);
@@ -3892,6 +4040,16 @@ sub start_servers($) {
 				 $mysqld->{'proc'}) == 0) {
       $tinfo->{comment}=
 	"Failed to start ".$mysqld->name();
+
+      my $logfile= $mysqld->value('log-error');
+      if ( defined $logfile and -f $logfile )
+      {
+	$tinfo->{logfile}= mtr_fromfile($logfile);
+      }
+      else
+      {
+	$tinfo->{logfile}= "Could not open server logfile: '$logfile'";
+      }
       return 1;
     }
   }
@@ -4012,8 +4170,6 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--sleep=%d", $opt_sleep);
   }
 
-  client_debug_arg($args, "mysqltest");
-
   if ( $opt_ssl )
   {
     # Turn on SSL for _all_ test cases if option --ssl was used
@@ -4068,6 +4224,8 @@ sub start_mysqltest ($) {
   if ( defined $tinfo->{'result_file'} ) {
     mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});
   }
+
+  client_debug_arg($args, "mysqltest");
 
   if ( $opt_record )
   {
