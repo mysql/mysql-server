@@ -12,7 +12,7 @@ source include/have_innodb.inc;
 
 # set up "dual head"
 
-let $keep_connection= 1;
+let $slave_keep_connection= 1;
 connection slave;
 reset master;
 

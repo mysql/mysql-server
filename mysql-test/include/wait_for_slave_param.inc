@@ -1,26 +1,94 @@
-# include/wait_for_slave_param.inc
+# ==== Purpose ====
 #
-# SUMMARY
+# Waits until SHOW SLAVE STATUS has returned a specified value, or
+# until a timeout is reached.
 #
-#    Waits until SHOW SLAVE STATUS has returned a spicified value.
+# ==== Usage ====
 #
-# USAGE
+# let $slave_param= Slave_SQL_Running;
+# let $slave_param_value= No;
+# --source include/slave_wait_param.inc
 #
-#    let $slave_param= Slave_SQL_Running;
-#    let $slave_param_value= No;
-#    --source include/slave_wait_param.inc
+# Parameters:
+#
+# $slave_param, $slave_param_value
+#   This macro will wait until the column of the output of SHOW SLAVE
+#   STATUS named $slave_param gets the value $slave_param_value.  See
+#   the example above.
+#
+# $slave_param_comparison
+#   By default, this file waits until $slave_param becomes equal to
+#   $slave_param_value.  If you want to wait until $slave_param
+#   becomes *unequal* to $slave_param_value, set this parameter to the
+#   string '!=', like this:
+#     let $slave_param_comparison= !=;
+#
+# $slave_timeout
+#   The default timeout is 5 minutes. You can change the timeout by
+#   setting $slave_timeout. The unit is tenths of seconds.
+#
+# $slave_keep_connection
+#   If the timeout is reached, debug info is given by calling SHOW
+#   SLAVE STATUS, SHOW PROCESSLIST, and SHOW BINLOG EVENTS.  By
+#   default (assuming the current connection is slave), a 'connection
+#   master' is then issued, and the same information is printed again
+#   on the master host.  You can avoid switching to master (and thus
+#   suppress debug info on master too) by setting
+#   $slave_keep_connection to 1.
+#
+# $slave_error_message
+#   If set, this is printed when a timeout occurs. This is primarily
+#   intended to be used by other wait_for_slave_* macros, to indicate
+#   what the purpose of the wait was. (A very similar error message is
+#   given by default, but the wait_for_slave_* macros use this to give
+#   an error message identical to that in previous versions, so that
+#   errors are easier searchable in the pushbuild history.)
 
-let $slave_wait_param_counter= 300;
-let $slave_value= query_get_value("SHOW SLAVE STATUS", $slave_param, 1);
-while (`select "$slave_value" != "$slave_param_value"`)
+let $_slave_timeout_counter= $slave_timeout;
+if (!$_slave_timeout_counter)
 {
-  dec $slave_wait_param_counter;
-  if (!$slave_wait_param_counter)
+  let $_slave_timeout_counter= 3000;
+}
+
+let $_slave_param_comparison= $slave_param_comparison;
+if (`SELECT '$_slave_param_comparison' = ''`)
+{
+  let $_slave_param_comparison= =;
+}
+
+let $_show_slave_status_value= query_get_value("SHOW SLAVE STATUS", $slave_param, 1);
+while (`SELECT NOT('$_show_slave_status_value' $_slave_param_comparison '$slave_param_value')`)
+{
+  if (!$_slave_timeout_counter)
   {
-    --echo ERROR: failed while waiting for slave parameter $slave_param: $slave_param_value
-    query_vertical show slave status;
+    --echo **** ERROR: failed while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
+    if (`SELECT '$slave_error_message' != ''`)
+    {
+      --echo Message: $slave_error_message
+    }
+    --echo Note: the following output may have changed since the failure was detected
+    --echo **** Showing SLAVE STATUS, PROCESSLIST, and BINLOG EVENTS on slave ****
+    query_vertical SHOW SLAVE STATUS;
+    SHOW PROCESSLIST;
+    let $binlog_name= query_get_value("SHOW MASTER STATUS", File, 1);
+    eval SHOW BINLOG EVENTS IN '$binlog_name';
+    if (!$slave_keep_connection) {
+      let $master_binlog_name_io= query_get_value("SHOW SLAVE STATUS", Master_Log_File, 1);
+      let $master_binlog_name_sql= query_get_value("SHOW SLAVE STATUS", Relay_Master_Log_File, 1);
+      --echo **** Showing MASTER STATUS, PROCESSLIST, and BINLOG EVENTS on master ****
+      --echo [on master]
+      connection master;
+      query_vertical SHOW MASTER STATUS;
+      SHOW PROCESSLIST;
+      eval SHOW BINLOG EVENTS IN '$master_binlog_name_sql';
+      if (`SELECT '$master_binlog_name_io' != '$master_binlog_name_sql'`)
+      {
+        eval SHOW BINLOG EVENTS IN '$master_binlog_name_io';
+      }
+    }
     exit;
   }
+  dec $_slave_timeout_counter;
   sleep 0.1;
-  let $slave_value= query_get_value("SHOW SLAVE STATUS", $slave_param, 1);
+  let $_show_slave_status_value= query_get_value("SHOW SLAVE STATUS", $slave_param, 1);
 }

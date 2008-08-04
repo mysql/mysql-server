@@ -270,4 +270,5 @@ disconnect con1;
 
 # Remove the log files that was created in the "default location"
 # i.e var/run
---remove_file $MYSQLTEST_VARDIR/run/master.log
+--remove_file $MYSQLTEST_VARDIR/run/mysqld.log
+--remove_file $MYSQLTEST_VARDIR/run/mysqld-slow.log

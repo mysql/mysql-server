@@ -685,7 +685,7 @@ asbinary(g)
 drop table t1;
 create table t1 (a TEXT, b GEOMETRY NOT NULL, SPATIAL KEY(b));
 alter table t1 disable keys;
-load data infile '../std_data_ln/bad_gis_data.dat' into table t1;
+load data infile '../../std_data/bad_gis_data.dat' into table t1;
 ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'b' at row 1
 alter table t1 enable keys;
 drop table t1;

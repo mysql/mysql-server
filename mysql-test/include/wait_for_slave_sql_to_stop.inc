@@ -1,33 +1,18 @@
-###################################################
-#Author: Jeb
-#Date: 2007-06-11
-#Purpose: used for SQL errors on the slave. If Slave gets a sql
-#         error, the SQL trhead should stop
-#Details:
-#      1) Fill in and setup variables
-#      2) loop through looking for
-#         sql threads to stop
-#      3) If loops too long die.
-####################################################
-if (!$keep_connection)
-{
-  connection slave;
-}
-let $row_number= 1;
-let $run= 1;
-let $counter= 300;
+# ==== Purpose ====
+#
+# Waits the SQL thread of the current connection has stopped, or until
+# a timeout is reached.
+#
+# ==== Usage ====
+#
+# source include/wait_for_slave_sql_to_stop.inc;
+#
+# Parameters to this macro are $slave_timeout and
+# $slave_keep_connection. See wait_for_slave_param.inc for
+# descriptions.
 
-while ($run)
-{
-  let $sql_result= query_get_value("SHOW SLAVE STATUS", Slave_SQL_Running, $row_number);
-  if (`SELECT '$sql_result' = 'No'`){
-    let $run= 0;
-  }
-  sleep 0.1;
-  if (!$counter){
-    --echo "Failed while waiting for slave SQL thread to stop"
-    query_vertical SHOW SLAVE STATUS;
-    exit;
-  }
-  dec $counter;
-}
+let $slave_param= Slave_SQL_Running;
+let $slave_param_value= No;
+let $slave_error_message= Failed while waiting for slave SQL thread to stop;
+source include/wait_for_slave_param.inc;
+let $slave_error_message= ;

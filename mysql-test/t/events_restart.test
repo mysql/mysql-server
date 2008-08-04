@@ -1,0 +1,106 @@
+# Can't test with embedded server that doesn't support grants
+-- source include/not_embedded.inc
+
+#
+# Test that when the server is restarted, it checks mysql.event table,
+# and disables the scheduler if it's not up to date.
+#
+
+# Switch off the scheduler for now.
+set global event_scheduler=off;
+
+--disable_warnings
+drop database if exists events_test;
+--enable_warnings
+create database events_test;
+use events_test;
+create table execution_log(name char(10));
+
+create event abc1 on schedule every 1 second do
+  insert into execution_log value('abc1');
+create event abc2 on schedule every 1 second do
+  insert into execution_log value('abc2');
+create event abc3 on schedule every 1 second do 
+  insert into execution_log value('abc3');
+#
+# There are various conditions when a server would regard mysql.event
+# table as damaged:
+# - the table has more column than specified in the compiled in value, but
+# the version of the server which created the table is the same
+# - the column count in the table is less than the compiled in value
+# - some column has an incompatible type specification (for what is an
+# incompatible type specification please refer to the comments in the source
+#
+# Unfortunately, in order to test a condition, we need to restart the
+# server. Therefore, here we test only one simple case: changing the data
+# type of the 'body' field to blob.
+#
+# First, let's do a backup to not depend on actual definition of mysql.event
+create table event_like like mysql.event;
+insert into event_like select * from mysql.event;
+# Now let's alter the table and restart the server
+alter table mysql.event
+  change column body  body longtext character set utf8 collate utf8_bin;
+--echo "Now we restart the server"
+
+--source include/restart_mysqld.inc
+
+use events_test;
+# Event scheduler should be disabled: the system tables are damaged
+select @@event_scheduler;
+# Try various Event Scheduler operation and check the output.
+--error ER_EVENTS_DB_ERROR
+show events;
+--error ER_EVENTS_DB_ERROR
+select event_name from information_schema.events;
+--error ER_EVENTS_DB_ERROR
+show create event intact_check;
+--error ER_EVENTS_DB_ERROR
+drop event no_such_event;
+--error ER_EVENTS_DB_ERROR
+create event intact_check_1 on schedule every 5 hour do select 5;
+--error ER_EVENTS_DB_ERROR
+alter event intact_check_1 on schedule every 8 hour do select 8;
+--error ER_EVENTS_DB_ERROR
+alter event intact_check_1 rename to intact_check_2;
+--error ER_EVENTS_DB_ERROR
+drop event intact_check_1;
+--error ER_EVENTS_DB_ERROR
+drop event intact_check_2;
+--error ER_EVENTS_DB_ERROR
+drop event intact_check;
+--error ER_EVENTS_DB_ERROR
+set global event_scheduler=on;
+--error ER_EVENTS_DB_ERROR
+set global event_scheduler=off;
+show variables like 'event_scheduler';
+--echo Make sure that we still can create and drop databases,
+--echo and no warnings are produced.
+drop database if exists mysqltest_database_not_exists;
+create database mysqltest_db1;
+drop database mysqltest_db1;
+--echo Restore the original mysql.event table
+drop table mysql.event;
+rename table event_like to mysql.event;
+--echo Now let's restart the server again
+
+--source include/restart_mysqld.inc
+
+# We need this file primarily to make sure that the scheduler is restarted
+# and enabled after we have restored mysql.event table.
+# This is the final step of the "cleanup".
+#
+# Make sure also that events are executed OK after restart, just in case.
+use events_test;
+# Make sure the scheduler was started successfully
+select @@event_scheduler;
+let $wait_condition=select count(distinct name)=3 from execution_log;
+--source include/wait_condition.inc
+drop table execution_log;
+# Will drop all events
+drop database events_test;
+
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where db='events_test' and command = 'Connect' and user=current_user();
+--source include/wait_condition.inc

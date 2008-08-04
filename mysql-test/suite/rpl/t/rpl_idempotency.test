@@ -7,6 +7,10 @@ source include/have_innodb.inc;
 connection slave;
 source include/have_innodb.inc;
 
+# Add supression for expected warning(s) in slaves error log
+call mtr.add_supression("Slave: Can\'t find record in \'t1\' Error_code: 1032");
+call mtr.add_supression("Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
+
 connection master;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
@@ -203,9 +207,8 @@ select * from ti1 order by b /* must be (2),(3) */;
 # foreign key: row is referenced
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -236,11 +239,10 @@ delete from ti1 where b=3;
 
 connection master;
 insert into ti2 set a=3, b=3 /* offending write event */;
+
 --echo *** slave must stop
-
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -278,9 +280,8 @@ connection master;
 insert into ti1 set b=1 /* offending write event */;
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -314,9 +315,8 @@ connection master;
 DELETE FROM t1 WHERE a = -2;
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -333,9 +333,8 @@ set global slave_exec_mode='STRICT';
 connection master;
 DELETE FROM t2 WHERE a = -2;
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -356,9 +355,8 @@ connection master;
 UPDATE t1 SET a = 1 WHERE a = -1;
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -377,9 +375,8 @@ connection master;
 UPDATE t2 SET a = 1 WHERE a = -1;
 
 --echo *** slave must stop
-source include/wait_for_slave_sql_to_stop.inc;
-
 connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
 
 let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
 disable_query_log;
@@ -392,7 +389,6 @@ connection master;
 sync_slave_with_master;
 #connection slave;
 set global slave_exec_mode='STRICT';
-
 
 # cleanup for bug#31609 tests
 
@@ -400,8 +396,7 @@ connection master;
 set @@session.binlog_format= @save_binlog_format;
 drop table t1,t2,ti2,ti1;
 
-sync_slave_with_master;
-
+--source include/master-slave-end.inc
 
 --echo *** end of tests
 

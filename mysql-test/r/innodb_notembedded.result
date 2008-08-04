@@ -1,4 +1,5 @@
 drop table if exists t1;
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 create table t1 (col1 integer primary key, col2 integer) engine=innodb;
 insert t1 values (1,100);
@@ -19,4 +20,4 @@ rollback;
 rollback;
 drop table t1;
 drop function f1;
-SET GLOBAL log_bin_trust_function_creators = 0;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

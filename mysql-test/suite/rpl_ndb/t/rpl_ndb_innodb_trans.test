@@ -21,8 +21,8 @@ select count(*) from t2;
 connection master;
 
 begin;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t2;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
 rollback;
 
 select count(*) from t1;
@@ -35,8 +35,8 @@ connection master;
 delete from t1;
 delete from t2;
 begin;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t2;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
 rollback;
 
 select count(*) from t1;
@@ -51,8 +51,8 @@ delete from t2;
 begin;
 insert into t2 values(3),(4);
 insert into t1 values(3),(4);
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t2;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t2;
+load data infile '../../../std_data/rpl_loaddata.dat' into table t1;
 rollback;
 
 select count(*) from t1;

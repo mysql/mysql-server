@@ -544,7 +544,7 @@ drop procedure if exists into_outfile|
 create procedure into_outfile(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
-select * into outfile "../tmp/spout" from test.t1;
+select * into outfile "MYSQLTEST_VARDIR/tmp/spout" from test.t1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_outfile("ofile", 1)|
@@ -554,7 +554,7 @@ drop procedure if exists into_dumpfile|
 create procedure into_dumpfile(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
-select * into dumpfile "../tmp/spdump" from test.t1 limit 1;
+select * into dumpfile "MYSQLTEST_VARDIR/tmp/spdump" from test.t1 limit 1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_dumpfile("dfile", 1)|
@@ -1322,7 +1322,7 @@ end;
 end if;
 end loop;
 end	latin1	latin1_swedish_ci	latin1_swedish_ci
-show procedure status like '%p%'|
+show procedure status where name like '%p%' and db='test'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -1335,7 +1335,7 @@ i	p
 drop table t3|
 drop procedure opp|
 drop procedure ip|
-show procedure status like '%p%'|
+show procedure status where name like '%p%' and db='test'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 drop table if exists t3|
 create table t3 ( f bigint unsigned not null )|
@@ -1945,12 +1945,12 @@ drop procedure bug2260|
 drop procedure if exists bug2267_1|
 create procedure bug2267_1()
 begin
-show procedure status;
+show procedure status where db='test';
 end|
 drop procedure if exists bug2267_2|
 create procedure bug2267_2()
 begin
-show function status;
+show function status where db='test';
 end|
 drop procedure if exists bug2267_3|
 create procedure bug2267_3()
@@ -1977,7 +1977,7 @@ call bug2267_3()|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2267_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2267_1`()
 begin
-show procedure status;
+show procedure status where db='test';
 end	latin1	latin1_swedish_ci	latin1_swedish_ci
 call bug2267_4()|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
@@ -4342,9 +4342,9 @@ drop procedure if exists bug13012|
 create procedure bug13012()
 BEGIN
 REPAIR TABLE t1;
-BACKUP TABLE t1 to '../tmp';
+BACKUP TABLE t1 to '../../tmp';
 DROP TABLE t1;
-RESTORE TABLE t1 FROM '../tmp';
+RESTORE TABLE t1 FROM '../../tmp';
 END|
 call bug13012()|
 Table	Op	Msg_type	Msg_text

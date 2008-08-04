@@ -94,7 +94,7 @@ SELECT * FROM t2 ORDER BY a;
 --echo *** Start Slave ***
 connection slave;
 START SLAVE;
-wait_for_slave_to_stop;
+source include/wait_for_slave_sql_to_stop.inc;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
 --query_vertical SHOW SLAVE STATUS
@@ -429,6 +429,7 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t9 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
+connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #

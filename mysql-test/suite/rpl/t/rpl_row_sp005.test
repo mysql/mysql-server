@@ -84,6 +84,7 @@ let $message=< ---- Master selects-- >;
 --source include/show_msg.inc
 connection master;
 CALL test.p1();
+
 let $wait_condition= SELECT COUNT(*) = 4 FROM t3;
 --source include/wait_condition.inc
 save_master_pos;

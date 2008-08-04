@@ -1286,6 +1286,7 @@ mysql-test/funcs_1.log
 mysql-test/funcs_1.tar
 mysql-test/gmon.out
 mysql-test/install_test_db
+mysql-test/lib/My/SafeProcess/my_safe_process
 mysql-test/lib/init_db.sql
 mysql-test/linux_sys_vars.inc
 mysql-test/load_sysvars.inc
@@ -2094,10 +2095,13 @@ sql/.libs/udf_example.lai
 sql/.libs/udf_example.so.0
 sql/.libs/udf_example.so.0.0.0
 sql/client.c
+sql/Doxyfile
 sql/f.c
 sql/gen_lex_hash
 sql/gmon.out
 sql/handlerton.cc
+sql/html
+sql/latex
 sql/lex_hash.h
 sql/link_sources
 sql/max/*

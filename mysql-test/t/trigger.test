@@ -472,11 +472,11 @@ create trigger trg1 before insert on t1 for each row set new.k = new.i;
 create trigger trg2 after insert on t1 for each row set @b:= "Fired"; 
 set @b:="";
 # Test triggers with file with separators
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, i);
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, i);
 select *, @b from t1;
 set @b:="";
 # Test triggers with fixed size row file
-load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, j);
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, j);
 select *, @b from t1;
 # This also will drop triggers
 drop table t1;
@@ -510,7 +510,7 @@ delete from t1 where i = 2;
 select * from t1;
 # Should fail and insert only 1 row
 --error ER_BAD_FIELD_ERROR
-load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
 select * from t1;
 --error ER_BAD_FIELD_ERROR
 insert into t1 select 3, 3;
@@ -567,7 +567,7 @@ select * from t1;
 delete from t1;
 select * from t1;
 --error ER_BAD_FIELD_ERROR
-load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
 select * from t1;
 --error ER_BAD_FIELD_ERROR
 insert into t1 select 3, 3;
@@ -1141,12 +1141,13 @@ select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test';
 # Trick which makes update of second .TRN file impossible
-write_file $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+let $MYSQLD_DATADIR= `select @@datadir`;
+write_file $MYSQLD_DATADIR/test/t1_ai.TRN~;
 dummy
 EOF
-chmod 0000 $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+chmod 0000 $MYSQLD_DATADIR/test/t1_ai.TRN~;
 # Normalize the datadir path; the embedded server doesn't chdir to datadir
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 --error 1
 rename table t1 to t2;
 # 't1' should be still there and triggers should work correctly
@@ -1155,8 +1156,8 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test';
-chmod 0600 $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
-remove_file $MYSQLTEST_VARDIR/master-data/test/t1_ai.TRN~;
+chmod 0600 $MYSQLD_DATADIR/test/t1_ai.TRN~;
+remove_file $MYSQLD_DATADIR/test/t1_ai.TRN~;
 # Let us check that updates to .TRN files were rolled back too
 drop trigger t1_bi;
 drop trigger t1_ai;
@@ -1189,7 +1190,7 @@ insert into t1 (a) values
 create trigger t2_ai after insert on t2 for each row
   set @a:= (select max(a) from t2);
 insert into t2 select * from t1;
-load data infile '../std_data_ln/words.dat' into table t1 (a);
+load data infile '../../std_data/words.dat' into table t1 (a);
 drop trigger t1_ai;
 drop trigger t2_ai;
 # Test that the problem for functions is fixed as well
@@ -1199,7 +1200,7 @@ insert into t1 values
   ("And",f1()),("the",f1()),("mome", f1()),("raths",f1()),("outgrabe",f1());
 create function f2() returns int return (select max(b) from t2);
 insert into t2 select a, f2() from t1;
-load data infile '../std_data_ln/words.dat' into table t1 (a) set b:= f1();
+load data infile '../../std_data/words.dat' into table t1 (a) set b:= f1();
 drop function f1;
 drop function f2;
 drop table t1, t2;

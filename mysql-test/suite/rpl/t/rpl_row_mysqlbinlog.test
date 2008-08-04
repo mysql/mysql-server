@@ -37,11 +37,11 @@ CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT,
 
 --disable_query_log
 INSERT INTO t1 VALUES ("abirvalg");
-LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t1;
-LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t1;
-LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t1;
-LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t1;
-LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 
 # d1 length 3000
 set @d1 = 'dd1';
@@ -96,10 +96,10 @@ select "--- Test 1 Dump binlog to file --" as "";
 
 #
 #  Prepare local temporary file to recreate what we have currently.
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/master.sql
 
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/master.sql
-
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000002 >> $MYSQLTEST_VARDIR/tmp/master.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000002 >> $MYSQLTEST_VARDIR/tmp/master.sql
 
 # Now that we have our file, lets get rid of the current database.
 # Cleanup the master and the slave and try to recreate.
@@ -160,7 +160,7 @@ connection master;
 
 # We should be gold by the time, so I will get rid of our file.
 
---exec rm $MYSQLTEST_VARDIR/tmp/master.sql
+remove_file $MYSQLTEST_VARDIR/tmp/master.sql;
 
 
 # this test for position option
@@ -168,8 +168,9 @@ connection master;
 --disable_query_log
 select "--- Test 2 position test --" as "";
 --enable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=416 --stop-position=569 $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=416 --stop-position=569 $MYSQLD_DATADIR/master-bin.000001
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -263,14 +264,15 @@ select "--- Test 5 LOAD DATA --" as "";
 --disable_query_log
 select "--- Test 6 reading stdin --" as "";
 --enable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --stop-position=569 - < $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --short-form --stop-position=569 - < $MYSQLD_DATADIR/master-bin.000001
 
 --disable_query_log
 select "--- Test 7 reading stdin w/position --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --position=416 --stop-position=569 - < $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --short-form --position=416 --stop-position=569 - < $MYSQLD_DATADIR/master-bin.000001
 
 # Bug#16217 (mysql client did not know how not switch its internal charset)
 --disable_query_log
@@ -299,9 +301,10 @@ create table t4 (f text character set utf8);
 create table t5 (f text character set cp932); 
 --exec $MYSQL --default-character-set=utf8 test -e "insert into t4 values(_utf8'ã‚½')"
 --exec $MYSQL --default-character-set=cp932 test -e "insert into t5 values(_cp932'ƒ\');"
+let $MYSQLD_DATADIR= `select @@datadir;`;
 flush logs;
 rename table t4 to t04, t5 to t05;
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 | $MYSQL --default-character-set=utf8
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 | $MYSQL --default-character-set=utf8
 # original and recovered data must be equal
 select HEX(f) from t04;
 select HEX(f) from t4;
@@ -337,10 +340,12 @@ INSERT INTO t1 VALUES(1,1);
 
 SELECT * FROM t1;
 
+let $MYSQLD_DATADIR= `select @@datadir;`;
+
 FLUSH LOGS;
 
 --exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 > $MYSQLTEST_VARDIR/tmp/remote.sql
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/local.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/local.sql
 
 --diff_files $MYSQLTEST_VARDIR/tmp/local.sql $MYSQLTEST_VARDIR/tmp/remote.sql
 

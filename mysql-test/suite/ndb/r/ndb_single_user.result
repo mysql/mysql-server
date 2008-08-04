@@ -1,5 +1,4 @@
-use test;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+drop table if exists t1,t2;
 create table t1 (a int key, b int unique, c int) engine ndb;
 ERROR HY000: Can't create table 'test.t1' (errno: 299)
 CREATE LOGFILE GROUP lg1
@@ -85,6 +84,7 @@ update t1 set b=b+100 where a > 7;
 delete from t1;
 insert into t1 select * from t2;
 create unique index new_index on t1 (b,c);
+drop table t2;
 drop table t1;
 ERROR 42S02: Unknown table 't1'
 create index new_index_fail on t1 (c);

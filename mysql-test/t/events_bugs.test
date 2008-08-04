@@ -971,4 +971,7 @@ let $wait_condition=
 
 DROP DATABASE events_test;
 
+# Restore event_schedulre setting to how it was when test started
+SET GLOBAL event_scheduler= 'ON';
+
 # THIS MUST BE THE LAST LINE in this file.

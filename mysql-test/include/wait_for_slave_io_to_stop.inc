@@ -1,33 +1,18 @@
-###################################################
-#Author: Jeb
-#Date: 2007-06-11
-#Purpose: used for io errors on the slave. If Slave gets an io
-#         error, the io trhead should stop
-#Details:
-#      1) Fill in and setup variables
-#      2) loop through looking for
-#         sql threads to stop
-#      3) If loops too long die.
-####################################################
-connection slave;
-let $my_show= SHOW SLAVE STATUS;
-let $sql_running= Slave_IO_Running;
-let $row_number= 1;
-let $run= 1;
-let $counter= 300;
+# ==== Purpose ====
+#
+# Waits until the IO thread of the current connection has stopped, or
+# until a timeout is reached.
+#
+# ==== Usage ====
+#
+# source include/wait_for_slave_io_to_stop.inc;
+#
+# Parameters to this macro are $slave_timeout and
+# $slave_keep_connection. See wait_for_slave_param.inc for
+# descriptions.
 
-while ($run)
-{
-  let $io_result= query_get_value("SHOW SLAVE STATUS", Slave_IO_Running, $row_number);
-  if (`SELECT '$io_result' = 'No'`){
-    let $run= 0;
-  }
-  sleep 0.1;
-  if (!$counter){
-    --echo "Failed while waiting for slave IO thread to stop"
-    query_vertical SHOW SLAVE STATUS;
-    exit;
-  }
-  dec $counter;
-}
-
+let $slave_param= Slave_IO_Running;
+let $slave_param_value= No;
+let $slave_error_message= Failed while waiting for slave IO thread to stop;
+source include/wait_for_slave_param.inc;
+let $slave_error_message= ;

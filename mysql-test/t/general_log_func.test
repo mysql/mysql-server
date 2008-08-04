@@ -46,17 +46,17 @@ name VARCHAR(30)
 SET @@global.general_log = OFF;
 SELECT @@general_log;
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---copy_file $MYSQLTEST_VARDIR/log/master.log $MYSQLTEST_VARDIR/log/master-test.log
+
+let $MYSQLD_LOGFILE= `select @@global.general_log_file`;
+--copy_file $MYSQLD_LOGFILE $MYSQLD_LOGFILE.copy
 
 --echo ## Inserting some Records & Verifying output in log ##
 INSERT into t1(name) values('Record_1');
 INSERT into t1(name) values('Record_2');
 
 --echo ## There should be no difference, case should pass ##
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---diff_files $MYSQLTEST_VARDIR/log/master.log $MYSQLTEST_VARDIR/log/master-test.log
-
+--diff_files $MYSQLD_LOGFILE $MYSQLD_LOGFILE.copy
+--remove_file $MYSQLD_LOGFILE.copy
 
 --echo '#--------------------FN_DYNVARS_018_01-------------------------#'
 ####################################################################
@@ -68,19 +68,23 @@ INSERT into t1(name) values('Record_2');
 SET @@global.general_log = ON;
 SELECT @@general_log;
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---copy_file $MYSQLTEST_VARDIR/log/master.log $MYSQLTEST_VARDIR/log/master-test-1.log
+--copy_file $MYSQLD_LOGFILE $MYSQLD_LOGFILE.copy
+--chmod 0777 $MYSQLD_LOGFILE.copy
 
 --echo ## Inserting some Records & Verifying output in log ##
 INSERT into t1(name) values('Record_3');
 INSERT into t1(name) values('Record_4');
 
+--copy_file $MYSQLD_LOGFILE $MYSQLD_LOGFILE.orig
+--chmod 0777 $MYSQLD_LOGFILE.orig
 
---echo ## There should be no difference, case should pass ##
-#--diff_files var/log/master.log var/log/master-test-1.log
-
---echo ## This case is failing which shows that mysql is writing in general ##
---echo ## log when we set general_log to ON ##
+--echo ## There should be a difference ##
+SET @@session.max_allowed_packet= 1024*1024*1024;
+--replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE
+eval select
+  STRCMP(load_file('$MYSQLD_LOGFILE.orig'), load_file('$MYSQLD_LOGFILE.copy'));
+--remove_file $MYSQLD_LOGFILE.copy
+--remove_file $MYSQLD_LOGFILE.orig
 
 --echo ## Dropping tables ##
 DROP TABLE t1;

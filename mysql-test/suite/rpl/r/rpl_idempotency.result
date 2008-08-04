@@ -4,6 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+call mtr.add_supression("Slave: Can\'t find record in \'t1\' Error_code: 1032");
+call mtr.add_supression("Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (-1),(-2),(-3);
