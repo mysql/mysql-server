@@ -119,6 +119,7 @@ struct thr_wait
     FS_SLEEPING = 1,
   };
   thr_wait() { xcng(&m_futex_state, FS_RUNNING);}
+  void init () {}
 };
 
 /**
@@ -182,6 +183,11 @@ struct thr_wait
   NdbMutex *m_mutex;
   NdbCondition *m_cond;
   thr_wait() {
+    m_mutex = 0;
+    m_cond = 0;
+  }
+
+  void init() {
     m_mutex = NdbMutex_Create();
     m_cond = NdbCondition_Create();
   }
@@ -1976,6 +1982,7 @@ update_sched_stats(thr_data *selfptr)
 static void
 init_thread(thr_data *selfptr)
 {
+  selfptr->m_waiter.init();
   selfptr->m_jam.theEmulatedJamIndex = 0;
   selfptr->m_jam.theEmulatedJamBlockNumber = 0;
   memset(selfptr->m_jam.theEmulatedJam, 0, sizeof(selfptr->m_jam.theEmulatedJam));
