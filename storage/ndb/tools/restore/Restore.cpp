@@ -1002,13 +1002,19 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
     if (Header.SectionType == BackupFormat::EMPTY_ENTRY)
     {
       void *tmp;
-      buffer_get_ptr(&tmp, Header.SectionLength*4-8, 1);
+      if (Header.SectionLength < 2)
+      {
+        err << "getFragmentFooter:Error reading fragment footer" << endl;
+        return false;
+      }
+      if (Header.SectionLength > 2)
+        buffer_get_ptr(&tmp, Header.SectionLength*4-8, 1);
       continue;
     }
     break;
   }
   /* read rest of header */
-  if (buffer_read(((char*)&Header)+8, sizeof(Header)-8, 1) != 1)
+  if (buffer_read(((char*)&Header)+8, Header.SectionLength*4-8, 1) != 1)
   {
     ret = 0;
     return false;
