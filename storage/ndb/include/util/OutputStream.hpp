@@ -45,6 +45,7 @@ public:
 };
 
 class SocketOutputStream : public OutputStream {
+protected:
   NDB_SOCKET_TYPE m_socket;
   unsigned m_timeout_ms;
   bool m_timedout;
@@ -58,6 +59,21 @@ public:
   int print(const char * fmt, ...);
   int println(const char * fmt, ...);
 };
+
+
+class BufferedSockOutputStream : public SocketOutputStream {
+  class UtilBuffer& m_buffer;
+public:
+  BufferedSockOutputStream(NDB_SOCKET_TYPE socket,
+                           unsigned write_timeout_ms = 1000);
+  virtual ~BufferedSockOutputStream();
+
+  int print(const char * fmt, ...);
+  int println(const char * fmt, ...);
+
+  void flush();
+};
+
 
 class NullOutputStream : public OutputStream {
 public:
