@@ -28,17 +28,19 @@
 
 SocketServer::SocketServer(unsigned maxSessions) :
   m_sessions(10),
-  m_services(5)
+  m_services(5),
+  m_maxSessions(maxSessions),
+  m_stopThread(false),
+  m_thread(0)
 {
-  m_thread = 0;
-  m_stopThread = false;
-  m_maxSessions = maxSessions;
 }
 
 SocketServer::~SocketServer() {
   unsigned i;
   for(i = 0; i<m_sessions.size(); i++){
-    delete m_sessions[i].m_session;
+    Session* session= m_sessions[i].m_session;
+    assert(session->m_refCount == 0);
+    delete session;
   }
   for(i = 0; i<m_services.size(); i++){
     if(m_services[i].m_socket)
@@ -264,12 +266,33 @@ SocketServer::startSession(SessionInstance & si){
 }
 
 void
-SocketServer::foreachSession(void (*func)(SocketServer::Session*, void *), void *data)
+SocketServer::foreachSession(void (*func)(SocketServer::Session*, void *),
+                             void *data)
 {
+  // Build a list of pointers to all active sessions
+  // and increase refcount on the sessions
   m_session_mutex.lock();
-  for(int i = m_sessions.size() - 1; i >= 0; i--){
-    (*func)(m_sessions[i].m_session, data);
+  Vector<Session*> session_pointers(m_sessions.size());
+  for(unsigned i= 0; i < m_sessions.size(); i++){
+    Session* session= m_sessions[i].m_session;
+    session_pointers.push_back(session);
+    session->m_refCount++;
   }
+  m_session_mutex.unlock();
+
+  // Call the function on each session
+  for(unsigned i= 0; i < session_pointers.size(); i++){
+    (*func)(session_pointers[i], data);
+  }
+
+  // Release the sessions pointers and any stopped sessions
+  m_session_mutex.lock();
+  for(unsigned i= 0; i < session_pointers.size(); i++){
+    Session* session= session_pointers[i];
+    assert(session->m_refCount > 0);
+    session->m_refCount--;
+  }
+  checkSessionsImpl();
   m_session_mutex.unlock();
 }
 
@@ -286,14 +309,15 @@ SocketServer::checkSessionsImpl()
 {
   for(int i = m_sessions.size() - 1; i >= 0; i--)
   {
-    if(m_sessions[i].m_session->m_stopped)
+    if(m_sessions[i].m_session->m_stopped and
+       m_sessions[i].m_session->m_refCount == 0)
     {
       if(m_sessions[i].m_thread != 0)
       {
 	void* ret;
 	NdbThread_WaitFor(m_sessions[i].m_thread, &ret);
 	NdbThread_Destroy(&m_sessions[i].m_thread);
-      } 
+      }
       m_sessions[i].m_session->stopSession();
       delete m_sessions[i].m_session;
       m_sessions.erase(i);
@@ -308,7 +332,6 @@ SocketServer::stopSessions(bool wait){
   for(i = m_sessions.size() - 1; i>=0; i--)
   {
     m_sessions[i].m_session->stopSession();
-    m_sessions[i].m_session->m_stop = true; // to make sure
   }
   m_session_mutex.unlock();
   
@@ -354,3 +377,4 @@ sessionThread_C(void* _sc){
 
 template class MutexVector<SocketServer::ServiceInstance>;
 template class Vector<SocketServer::SessionInstance>;
+template class Vector<SocketServer::Session*>;
