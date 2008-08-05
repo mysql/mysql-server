@@ -25,14 +25,13 @@
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
-static int createEvent(Ndb *pNdb, 
+static int createEvent(Ndb *pNdb,
                        const NdbDictionary::Table &tab,
-                       NDBT_Context* ctx)
+                       bool merge_events,
+                       bool report)
 {
   char eventName[1024];
   sprintf(eventName,"%s_EVENT",tab.getName());
-  bool merge_events = ctx->getProperty("MergeEvents");
-  bool report = ctx->getProperty("ReportSubscribe");
 
   NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
 
@@ -87,6 +86,16 @@ static int createEvent(Ndb *pNdb,
   }
 
   return NDBT_OK;
+}
+
+static int createEvent(Ndb *pNdb, 
+                       const NdbDictionary::Table &tab,
+                       NDBT_Context* ctx)
+{
+  bool merge_events = ctx->getProperty("MergeEvents");
+  bool report = ctx->getProperty("ReportSubscribe");
+
+  return createEvent(pNdb, tab, merge_events, report);
 }
 
 static int dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
@@ -2690,6 +2699,346 @@ runBug37442(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+const NdbDictionary::Table* createBoringTable(const char* name, Ndb* pNdb)
+{
+  NdbDictionary::Table tab;
+
+  tab.setName(name);
+
+  NdbDictionary::Column pk;
+  pk.setName("Key");
+  pk.setType(NdbDictionary::Column::Unsigned);
+  pk.setLength(1); 
+  pk.setNullable(false);
+  pk.setPrimaryKey(true);
+  tab.addColumn(pk);
+
+  NdbDictionary::Column attr;
+  attr.setName("Attr");
+  attr.setType(NdbDictionary::Column::Unsigned);
+  attr.setLength(1);
+  attr.setNullable(true);
+  attr.setPrimaryKey(false);
+  tab.addColumn(attr);
+  
+  pNdb->getDictionary()->dropTable(tab.getName());
+  if(pNdb->getDictionary()->createTable(tab) == 0)
+  {
+    ndbout << (NDBT_Table&)tab << endl;
+    return pNdb->getDictionary()->getTable(tab.getName());
+  }
+  
+  ndbout << "Table create failed, err : " << 
+    pNdb->getDictionary()->getNdbError().code << endl;
+  
+  return NULL;
+}
+
+/* Types of operation which can be tagged via 'setAnyValue */
+enum OpTypes {Insert, Update, Write, Delete, EndOfOpTypes};
+
+/** 
+ * executeOps
+ * Generate a number of PK operations of the supplied type
+ * using the passed operation options and setting the
+ * anyValue tag
+ */
+int
+executeOps(Ndb* pNdb,
+           const NdbDictionary::Table* tab,
+           OpTypes op, 
+           Uint32 rowCount,
+           Uint32 keyOffset,
+           Uint32 anyValueOffset,
+           NdbOperation::OperationOptions opts)
+{
+  NdbTransaction* trans= pNdb->startTransaction();
+  const NdbRecord* record= tab->getDefaultRecord();
+
+  char RowBuf[16];
+  Uint32* keyPtr= (Uint32*) NdbDictionary::getValuePtr(record,
+                                                       RowBuf,
+                                                       0);
+  Uint32* attrPtr= (Uint32*) NdbDictionary::getValuePtr(record,
+                                                       RowBuf,
+                                                       1);
+
+  for (Uint32 i=keyOffset; i < (keyOffset + rowCount); i++)
+  {
+    *keyPtr= *attrPtr= i;
+    opts.optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+    opts.anyValue= anyValueOffset + i;
+    bool allowInterpreted= 
+      (op == Update) ||
+      (op == Delete);
+
+    if (!allowInterpreted)
+      opts.optionsPresent &= 
+        ~ (Uint64) NdbOperation::OperationOptions::OO_INTERPRETED;
+
+    switch (op) {
+    case Insert : 
+      if (trans->insertTuple(record, 
+                             RowBuf, 
+                             NULL,
+                             &opts, 
+                             sizeof(opts)) == NULL)
+      {
+        g_err << "Can't create operation : " <<
+          trans->getNdbError().code << endl;
+        return NDBT_FAILED;
+      }
+      break;
+    case Update :
+      if (trans->updateTuple(record,
+                             RowBuf,
+                             record,
+                             RowBuf,
+                             NULL,
+                             &opts,
+                             sizeof(opts)) == NULL)
+      {
+        g_err << "Can't create operation : " <<
+          trans->getNdbError().code << endl;
+        return NDBT_FAILED;
+      }
+      break;
+    case Write : 
+      if (trans->writeTuple(record,
+                            RowBuf,
+                            record,
+                            RowBuf,
+                            NULL,
+                            &opts,
+                            sizeof(opts)) == NULL)
+      {
+        g_err << "Can't create operation : " <<
+          trans->getNdbError().code << endl;
+        return NDBT_FAILED;
+      }
+      break;
+    case Delete : 
+      if (trans->deleteTuple(record,
+                             RowBuf,
+                             record,
+                             NULL,
+                             NULL,
+                             &opts,
+                             sizeof(opts)) == NULL)
+      {
+        g_err << "Can't create operation : " <<
+          trans->getNdbError().code << endl;
+        return NDBT_FAILED;
+      }
+      break;
+    default:
+      g_err << "Bad operation type : " << op << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  trans->execute(Commit);
+
+  if (trans->getNdbError().code != 0)
+  {
+    g_err << "Error executing operations :" << 
+      trans->getNdbError().code << endl;
+    return NDBT_FAILED;
+  }
+  
+  trans->close();
+
+  return NDBT_OK;
+}
+
+int
+checkAnyValueInEvent(Ndb* pNdb,
+                     NdbRecAttr* preKey,
+                     NdbRecAttr* postKey,
+                     NdbRecAttr* preAttr,
+                     NdbRecAttr* postAttr,
+                     Uint32 num,
+                     Uint32 anyValueOffset,
+                     bool checkPre)
+{
+  Uint32 received= 0;
+
+  while (received < num)
+  {
+    int pollRc;
+
+    if ((pollRc= pNdb->pollEvents(10000)) < 0)
+    {
+      g_err << "Error while polling for events : " <<
+        pNdb->getNdbError().code;
+      return NDBT_FAILED;
+    }
+
+    if (pollRc == 0)
+    {
+      printf("No event, waiting...\n");
+      continue;
+    }
+
+    NdbEventOperation* event;
+    while((event= pNdb->nextEvent()) != NULL)
+    {
+//       printf("Event is %p of type %u\n",
+//              event, event->getEventType());
+//       printf("Got event, prekey is %u predata is %u \n",
+//              preKey->u_32_value(),
+//              preAttr->u_32_value());
+//       printf("           postkey is %u postdata is %u anyvalue is %u\n",
+//              postKey->u_32_value(),
+//              postAttr->u_32_value(),
+//              event->getAnyValue());
+      
+      received ++;
+      Uint32 keyVal= (checkPre? 
+                      preKey->u_32_value() :
+                      postKey->u_32_value());
+      
+      if (event->getAnyValue() != 
+          (anyValueOffset + keyVal))
+      {
+        g_err << "Error : Got event, key is " <<
+          keyVal << " anyValue is " <<
+          event->getAnyValue() <<
+          " expected " << (anyValueOffset + keyVal) 
+              << endl;
+        return NDBT_FAILED;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+                      
+                      
+
+int
+runBug37672(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* InterpretedDelete and setAnyValue failed */
+  /* Let's create a boring, known table for this since 
+   * we don't yet have Hugo tools for NdbRecord
+   */
+  BaseString name; 
+  name.assfmt("TAB_TESTEVENT%d", rand() & 65535);
+  Ndb* pNdb= GETNDB(step);
+  
+  const NdbDictionary::Table* tab= createBoringTable(name.c_str(), pNdb);
+  
+  if (tab == NULL)
+    return NDBT_FAILED;
+  
+  /* Create an event to listen to events on the table */
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT", tab->getName());
+
+  if (createEvent(pNdb, *tab, false, true) != 0)
+    return NDBT_FAILED;
+
+  /* Now create the event operation to retrieve the events */
+  NdbEventOperation* eventOp;
+  eventOp= pNdb->createEventOperation(eventName);
+
+  if (eventOp == NULL)
+  {
+    g_err << "Failed to create event operation :" << 
+      pNdb->getNdbError().code << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbRecAttr* eventKeyData= eventOp->getValue("Key");
+  NdbRecAttr* eventOldKeyData= eventOp->getPreValue("Key");
+  NdbRecAttr* eventAttrData= eventOp->getValue("Attr");
+  NdbRecAttr* eventOldAttrData= eventOp->getPreValue("Attr");
+  
+  if ((eventKeyData == NULL) || (eventAttrData == NULL))
+  {
+    g_err << "Failed to get NdbRecAttrs for events" << endl;
+    return NDBT_FAILED;
+  };
+  
+  if (eventOp->execute() != 0)
+  {
+    g_err << "Failed to execute event operation :" <<
+      eventOp->getNdbError().code << endl;
+    return NDBT_FAILED;
+  }
+
+  /* Perform some operations on the table, and check
+   * that we get the correct AnyValues propagated
+   * through
+   */
+  NdbOperation::OperationOptions opts;
+  opts.optionsPresent= 0;
+
+  NdbInterpretedCode nonsenseProgram;
+
+  nonsenseProgram.load_const_u32(0, 0);
+  nonsenseProgram.interpret_exit_ok();
+
+  nonsenseProgram.finalise();
+
+  const Uint32 rowCount= 1500;
+  Uint32 keyOffset= 0;
+  Uint32 anyValueOffset= 100;
+
+  printf ("Testing AnyValue with no interpreted program\n");
+  for (int variants= 0; variants < 2; variants ++)
+  {
+    for (int op= Insert; op < EndOfOpTypes; op++)
+    {
+      printf("  Testing opType %d (ko=%d, ao=%d)...", 
+             op, keyOffset, anyValueOffset);
+      
+      if (executeOps(pNdb, 
+                     tab, 
+                     (OpTypes)op, 
+                     rowCount, 
+                     keyOffset, 
+                     anyValueOffset, 
+                     opts))
+        return NDBT_FAILED;
+      
+      if (checkAnyValueInEvent(pNdb, 
+                               eventOldKeyData, eventKeyData,
+                               eventOldAttrData, eventAttrData,
+                               rowCount,
+                               anyValueOffset,
+                               false // always use postKey data
+                               ) != NDBT_OK)
+        return NDBT_FAILED;
+      printf("ok\n");
+    };
+    
+    printf("Testing AnyValue with interpreted program\n");
+    opts.optionsPresent|= NdbOperation::OperationOptions::OO_INTERPRETED;
+    opts.interpretedCode= &nonsenseProgram;
+  }
+    
+  if (dropEventOperations(pNdb) != 0)
+  {
+    g_err << "Dropping event operations failed : " << 
+      pNdb->getNdbError().code << endl;
+    return NDBT_FAILED;
+  }
+  
+  if (dropEvent(pNdb, tab->getName()) != 0)
+  {
+    g_err << "Dropping event failed : " << 
+      pNdb->getDictionary()->getNdbError().code << endl;
+    return NDBT_FAILED;
+  }
+
+  pNdb->getDictionary()->dropTable(tab->getName());
+  
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -2880,6 +3229,10 @@ TESTCASE("Bug37338", "")
 TESTCASE("Bug37442", "")
 {
   INITIALIZER(runBug37442);
+}
+TESTCASE("Bug37672", "NdbRecord option OO_ANYVALUE causes interpreted delete to abort.")
+{
+  INITIALIZER(runBug37672);
 }
 NDBT_TESTSUITE_END(test_event);
 
