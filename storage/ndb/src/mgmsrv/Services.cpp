@@ -370,7 +370,7 @@ MgmApiSession::runSession()
     // Send output from command to the client
     m_output->flush();
 
-  };
+  }
 
   NdbMutex_Lock(m_mutex);
   m_ctx= NULL;
