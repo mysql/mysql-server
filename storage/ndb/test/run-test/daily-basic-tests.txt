@@ -1165,3 +1165,9 @@ cmd: testNdbApi
 args: -l 100 -n Bug37158
 
 # EOF 2008-06-03
+
+max-time: 500
+cmd: test_event
+args -n bug37672 T1
+
+#EOF 2008-07-04
