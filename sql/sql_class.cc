@@ -529,7 +529,7 @@ THD::THD()
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL),
-   m_lip(NULL)
+   m_parser_state(NULL)
 {
   ulong tmp;
 

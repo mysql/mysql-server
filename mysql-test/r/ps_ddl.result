@@ -290,7 +290,7 @@ SUCCESS
 
 # Test 7-b: dependent FUNCTION has changed
 #
-# Note, this scenario is not supported, subject of Bug#12093
+# Note, this scenario is supported, subject of Bug#12093
 #
 drop trigger t1_ai;
 create trigger t1_ai after insert on t1 for  each row
@@ -305,8 +305,7 @@ select @var;
 drop function f1;
 create function f1 (a int) returns int return 0;
 execute stmt using @var;
-ERROR 42000: FUNCTION test.f1 does not exist
-call p_verify_reprepare_count(0);
+call p_verify_reprepare_count(1);
 SUCCESS
 
 drop function f1;
@@ -359,8 +358,14 @@ a
 drop view v1;
 create view v1 as select a from t2;
 set @var=8;
+# XXX: bug, the SQL statement in the trigger is still
+# pointing at table 't3', since the view was expanded
+# at first statement execution.
+# Repreparation of the main statement doesn't cause repreparation
+# of trigger statements.
 execute stmt using @var;
-call p_verify_reprepare_count(0);
+ERROR 42S02: Table 'test.t3' doesn't exist
+call p_verify_reprepare_count(1);
 SUCCESS
 
 #
@@ -377,7 +382,6 @@ select * from t3;
 a
 6
 7
-8
 flush table t1;
 set @var=9;
 execute stmt using @var;
@@ -392,7 +396,6 @@ select * from t3;
 a
 6
 7
-8
 drop view v1;
 drop table t1,t2,t3;
 # Test 7-d: dependent TABLE has changed
@@ -798,14 +801,17 @@ SUCCESS
 
 drop function f1;
 create function f1() returns int return 2;
-# XXX: Bug#12093. We only get a different error
+# XXX: Used to be another manifestation of Bug#12093.
+# We only used to get a different error
 # message because the non-existing procedure error is masked
 # by the view.
 execute stmt;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+f1()
+2
 execute stmt;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-call p_verify_reprepare_count(0);
+f1()
+2
+call p_verify_reprepare_count(1);
 SUCCESS
 
 # Part 18b: dependent procedure has changed (referred to via a function)
@@ -831,19 +837,20 @@ SUCCESS
 
 drop procedure p1;
 create procedure p1(out x int) select max(a) from t2 into x;
-# XXX: bug. The prelocked list is not invalidated
-# and we keep opening table t1, whereas the procedure
+# XXX: used to be a bug. The prelocked list was not invalidated
+# and we kept opening table t1, whereas the procedure
 # is now referring to table t2
 execute stmt;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-call p_verify_reprepare_count(0);
+f1()
+6
+call p_verify_reprepare_count(1);
 SUCCESS
 
 flush table t1;
 execute stmt;
 f1()
 6
-call p_verify_reprepare_count(1);
+call p_verify_reprepare_count(0);
 SUCCESS
 
 execute stmt;
@@ -1528,7 +1535,6 @@ drop view v_27690_1;
 drop table v_27690_2;
 deallocate prepare stmt;
 #=====================================================================
-# TODO: fix the below two bugs and modify their tests
 #
 # Bug#21294 Executing a prepared statement that executes
 # a stored function which was recreat
@@ -1541,12 +1547,14 @@ f1()
 drop function f1;
 create function f1() returns int return 10;
 execute stmt;
-ERROR 42000: FUNCTION test.f1 does not exist
+f1()
+10
 drop function f1;
 create function f1() returns int return 20;
 execute stmt;
-ERROR 42000: FUNCTION test.f1 does not exist
-call p_verify_reprepare_count(0);
+f1()
+20
+call p_verify_reprepare_count(2);
 SUCCESS
 
 drop function f1;
@@ -1573,19 +1581,21 @@ execute stmt_sp;
 a
 drop function f_12093_unrelated;
 drop procedure p_12093_unrelated;
-# XXX: bug
+# XXX: used to be a bug
 execute stmt_sf;
-ERROR 42000: FUNCTION test.f_12093 does not exist
-# XXX: bug
+f_12093()
+0
+# XXX: used to be a bug
 execute stmt_sp;
-ERROR 42000: PROCEDURE test.p_12093 does not exist
-# XXX: bug
+a
+# XXX: used to be a bug
 execute stmt_sf;
-ERROR 42000: FUNCTION test.f_12093 does not exist
-# XXX: bug
+f_12093()
+0
+# XXX: used to be a bug
 execute stmt_sp;
-ERROR 42000: PROCEDURE test.p_12093 does not exist
-call p_verify_reprepare_count(0);
+a
+call p_verify_reprepare_count(2);
 SUCCESS
 
 drop table t_12093;
