@@ -180,15 +180,47 @@ int maria_write(MARIA_HA *info, uchar *record)
       }
       else
       {
-        if (keyinfo->ck_insert(info,
-                               (*keyinfo->make_key)(info, &int_key, i,
-                                                    buff, record, filepos,
-                                                    info->trn->trid)))
+        while (keyinfo->ck_insert(info,
+                                  (*keyinfo->make_key)(info, &int_key, i,
+                                                        buff, record, filepos,
+                                                        info->trn->trid)))
         {
+          TRN *blocker=trnman_trid_to_trn(info->trn, info->dup_key_trid);
+          DBUG_PRINT("error",("Got error: %d on write",my_errno));
+          /*
+            if blocker TRN was not found, it means that the conflicting
+            transaction was committed long time ago. It could not be
+            aborted, as it would have to wait on the key tree lock
+            to remove the conflicting key it has inserted.
+          */
           if (local_lock_tree)
             rw_unlock(&keyinfo->root_lock);
-          DBUG_PRINT("error",("Got error: %d on write",my_errno));
-          goto err;
+          if (!blocker)
+            goto err;
+          if (blocker->commit_trid != ~(TrID)0)
+          { /* committed, albeit recently */
+            pthread_mutex_unlock(& blocker->state_lock);
+            goto err;
+          }
+          { /* running. now we wait */
+            WT_RESOURCE_ID rc;
+            int res;
+
+            rc.type= &ma_rc_dup_unique;
+            rc.value.ptr= blocker; /* TODO savepoint id when we'll have them */
+            res= wt_thd_will_wait_for(& info->trn->wt, & blocker->wt, & rc);
+            if (res != WT_OK)
+            {
+              pthread_mutex_unlock(& blocker->state_lock);
+              goto err;
+            }
+            res=wt_thd_cond_timedwait(& info->trn->wt, & blocker->state_lock);
+            pthread_mutex_unlock(& blocker->state_lock);
+            if (res != WT_OK)
+              goto err;
+          }
+          if (local_lock_tree)
+            rw_wrlock(&keyinfo->root_lock);
         }
       }
 
@@ -597,9 +629,22 @@ static int w_search(register MARIA_HA *info, uint32 comp_flag, MARIA_KEY *key,
     else /* not HA_FULLTEXT, normal HA_NOSAME key */
     {
       DBUG_PRINT("warning", ("Duplicate key"));
+      /*
+        FIXME
+        When the index will support true versioning - with multiple
+        identical values in the UNIQUE index, invisible to each other -
+        the following should be changed to "continue inserting keys, at the
+        end (of the row or statement) wait". Until it's done we cannot properly
+        support deadlock timeouts.
+      */
+      /*
+        transaction that has inserted the conflicting key is in progress.
+        wait for it to be committed or aborted.
+      */
+      info->dup_key_trid= _ma_trid_from_key(&tmp_key);
       info->dup_key_pos= dup_key_pos;
       my_afree((uchar*) temp_buff);
-      my_errno=HA_ERR_FOUND_DUPP_KEY;
+      my_errno= HA_ERR_FOUND_DUPP_KEY;
       DBUG_RETURN(-1);
     }
   }

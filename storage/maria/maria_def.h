@@ -29,6 +29,7 @@
 #include "ma_loghandler.h"
 #include "ma_control_file.h"
 #include "ma_state.h"
+#include <waiting_threads.h>
 
 /* For testing recovery */
 #ifdef TO_BE_REMOVED
@@ -492,13 +493,14 @@ struct st_maria_handler
   uint32 int_keytree_version;		/* -""- */
   int (*read_record)(MARIA_HA *, uchar*, MARIA_RECORD_POS);
   invalidator_by_filename invalidator;	/* query cache invalidator */
-  ulonglong last_auto_increment;  	/* auto value at start of statement */
+  ulonglong last_auto_increment;        /* auto value at start of statement */
   ulong this_unique;			/* uniq filenumber or thread */
   ulong last_unique;			/* last unique number */
   ulong this_loop;			/* counter for this open */
   ulong last_loop;			/* last used counter */
   MARIA_RECORD_POS save_lastpos;
   MARIA_RECORD_POS dup_key_pos;
+  TrID             dup_key_trid;
   my_off_t pos;				/* Intern variable */
   my_off_t last_keypage;		/* Last key page read */
   my_off_t last_search_keypage;		/* Last keypage when searching */
@@ -759,6 +761,7 @@ extern char *maria_data_root;
 extern uchar maria_zero_string[];
 extern my_bool maria_inited, maria_in_ha_maria;
 extern HASH maria_stored_state;
+extern WT_RESOURCE_TYPE ma_rc_dup_unique;
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param
@@ -781,7 +784,6 @@ typedef struct st_pinned_page
   enum pagecache_page_lock unlock, write_lock;
   my_bool changed;
 } MARIA_PINNED_PAGE;
-
 
 /* Prototypes for intern functions */
 extern int _ma_read_dynamic_record(MARIA_HA *, uchar *, MARIA_RECORD_POS);

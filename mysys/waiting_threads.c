@@ -227,6 +227,20 @@ struct deadlock_arg {
   WT_RESOURCE *rc;
 };
 
+static void change_victim(WT_THD* found, struct deadlock_arg *arg)
+{
+  if (found->weight < arg->victim->weight)
+  {
+    if (arg->victim != arg->thd)
+    {
+      rc_unlock(arg->victim->waiting_for); /* release the previous victim */
+      DBUG_ASSERT(arg->rc == found->waiting_for);
+    }
+    arg->victim= found;
+    arg->rc= 0;
+  }
+}
+
 /*
   loop detection in a wait-for graph with a limited search depth.
 */
@@ -294,16 +308,8 @@ retry:
       break;
     case WT_DEADLOCK:
       ret= WT_DEADLOCK;
-      if (cursor->weight < arg->victim->weight)
-      {
-        if (arg->victim != arg->thd)
-        {
-          rc_unlock(arg->victim->waiting_for); /* release the previous victim */
-          DBUG_ASSERT(arg->rc == cursor->waiting_for);
-        }
-        arg->victim= cursor;
-      }
-      else if (arg->rc)
+      change_victim(cursor, arg);
+      if (arg->rc)
         rc_unlock(arg->rc);
       goto end;
     case WT_OK:
@@ -329,13 +335,15 @@ static int deadlock(WT_THD *thd, WT_THD *blocker, uint depth,
   int ret;
   DBUG_ENTER("deadlock");
   ret= deadlock_search(&arg, blocker, depth);
-  if (arg.rc)
-    rc_unlock(arg.rc);
   if (ret == WT_DEPTH_EXCEEDED)
   {
     increment_cycle_stats(WT_CYCLE_STATS, max_depth);
     ret= WT_OK;
   }
+  if (ret == WT_DEADLOCK && depth)
+    change_victim(blocker, &arg);
+  if (arg.rc)
+    rc_unlock(arg.rc);
   if (ret == WT_DEADLOCK && arg.victim != thd)
   {
     DBUG_PRINT("wt", ("killing %s", arg.victim->name));
@@ -570,7 +578,7 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
     ret= WT_OK;
   rc_unlock(rc);
 
-  set_timespec_time_nsec(timeout, starttime, wt_timeout_short*1000);
+  set_timespec_time_nsec(timeout, starttime, wt_timeout_short*ULL(1000));
   if (ret == WT_TIMEOUT)
     ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
   if (ret == WT_TIMEOUT)
@@ -579,7 +587,7 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
       ret= WT_DEADLOCK;
     else if (wt_timeout_long > wt_timeout_short)
     {
-      set_timespec_time_nsec(timeout, starttime, wt_timeout_long*1000);
+      set_timespec_time_nsec(timeout, starttime, wt_timeout_long*ULL(1000));
       if (!thd->killed)
         ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
     }

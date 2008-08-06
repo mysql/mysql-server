@@ -45,6 +45,7 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit);
 #define trnman_rollback_trn(T)  trnman_end_trn(T, FALSE)
 void trnman_free_trn(TRN *trn);
 int trnman_can_read_from(TRN *trn, TrID trid);
+TRN *trnman_trid_to_trn(TRN *trn, TrID trid);
 void trnman_new_statement(TRN *trn);
 void trnman_rollback_statement(TRN *trn);
 my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,

@@ -88,7 +88,7 @@ my_bool _ma_setup_live_state(MARIA_HA *info)
     It's enough to compare trids here (instead of calling
     tranman_can_read_from) as history->trid is a commit_trid
   */
-  while (trn->trid < history->trid)
+  while (trn->trid < history->trid && history->trid != ~(TrID)0)
     history= history->next;
   pthread_mutex_unlock(&share->intern_lock);
   /* The current item can't be deleted as it's the first one visible for us */

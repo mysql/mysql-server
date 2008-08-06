@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef _waiting_threads_h
+#define _waiting_threads_h
+
 #include <my_global.h>
 #include <my_sys.h>
 #include <lf.h>
@@ -152,3 +155,4 @@ void wt_thd_release(WT_THD *, WT_RESOURCE_ID *);
 #define wt_thd_release_all(THD) wt_thd_release((THD), 0)
 int wt_resource_id_memcmp(void *, void *);
 
+#endif

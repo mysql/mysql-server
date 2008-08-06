@@ -21,19 +21,32 @@ C_MODE_START
 #include <lf.h>
 #include "trnman_public.h"
 #include "ma_loghandler_lsn.h"
+#include <waiting_threads.h>
 
 /*
   trid - 6 uchar transaction identifier. Assigned when a transaction
   is created. Transaction can always be identified by its trid,
   even after transaction has ended.
 
-  short_trid - 2-byte transaction identifier, identifies a running
+  short_id - 2-byte transaction identifier, identifies a running
   transaction, is reassigned when transaction ends.
+
+  when short_id is 0, TRN is not initialized, for all practical purposes
+  it could be considered unused.
+
+  when commit_trid is ~(TrID)0 the transaction is running, otherwise it's
+  committed.
+
+  state_lock mutex protects the state of a TRN, that is whether a TRN
+  is committed/running/unused. Meaning that modifications of short_id and
+  commit_trid happen under this mutex.
 */
 
 struct st_transaction
 {
   LF_PINS              *pins;
+  WT_THD               wt;
+  pthread_mutex_t      state_lock;
   void                 *used_tables;  /* Tables used by transaction */
   TRN                  *next, *prev;
   TrID                 trid, min_read_from, commit_trid;
@@ -41,7 +54,6 @@ struct st_transaction
   LSN_WITH_FLAGS       first_undo_lsn;
   uint                 locked_tables;
   uint16               short_id;
-  /* Note! if short_id is 0, trn is NOT initialized */
 };
 
 #define TRANSACTION_LOGGED_LONG_ID ULL(0x8000000000000000)
