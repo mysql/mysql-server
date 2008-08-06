@@ -1489,6 +1489,7 @@ buf_LRU_block_remove_hashed_page(
 				      " to be evicted seems corrupt:", stderr);
 				ut_print_buf(stderr, bpage->zip.data,
 					     page_zip_get_size(&bpage->zip));
+				putc('\n', stderr);
 				ut_error;
 			}
 

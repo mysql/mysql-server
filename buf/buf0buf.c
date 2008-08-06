@@ -443,7 +443,7 @@ buf_page_print(
 	fprintf(stderr, "  InnoDB: Page dump in ascii and hex (%lu bytes):\n",
 		(ulong) size);
 	ut_print_buf(stderr, read_buf, size);
-	fputs("InnoDB: End of page dump\n", stderr);
+	fputs("\nInnoDB: End of page dump\n", stderr);
 
 	if (zip_size) {
 		/* Print compressed page. */
