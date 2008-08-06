@@ -2,8 +2,11 @@
 
 rm -f TAGS
 filter='\.cc$\|\.c$\|\.h$\|\.yy$'
-files=`bzr ls --kind=file | grep $filter `
-for f in $files ;
+
+list="find . -type f"
+bzr root >/dev/null 2>/dev/null && list="bzr ls --kind=file --versioned"
+
+$list |grep $filter |while read f; 
 do
 	 etags -o TAGS --append $f
 done
