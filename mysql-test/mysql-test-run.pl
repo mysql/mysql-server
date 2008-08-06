@@ -148,13 +148,14 @@ my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 
 my $opt_record;
 my $opt_report_features;
+
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
 
 my $opt_sleep;
 
 my $opt_testcase_timeout=    15; # minutes
-my $opt_suite_timeout   =   180; # minutes
+my $opt_suite_timeout   =   300; # minutes
 my $opt_shutdown_timeout=    10; # seconds
 my $opt_start_timeout   =   180; # seconds
 
@@ -215,7 +216,7 @@ sub main {
   mtr_report("Logging: $0 ", join(" ", @ARGV));
 
   Getopt::Long::Configure("pass_through");
-  GetOptions('parallel=i' => \$opt_parallel) or usage("Can't read options");
+  GetOptions('parallel=i' => \$opt_parallel) or usage(0, "Can't read options");
 
   if ( not defined $opt_parallel ) {
     # Try to find a suitable value for number of workers
@@ -451,7 +452,7 @@ sub run_test_server {
 	      push(@$completed, $result);
 	      return $completed;
 	    }
-	    elsif ($num_failed_test > 0 and
+	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      $suite_timeout_proc->kill();
 	      mtr_report("Too many tests($num_failed_test) failed!",
@@ -662,7 +663,7 @@ sub run_worker ($) {
 
 sub ignore_option {
   my ($opt, $value)= @_;
-  print "Ignoring option '$opt'\n";
+  mtr_report("Ignoring option '$opt'");
 }
 
 sub command_line_setup {
@@ -670,6 +671,9 @@ sub command_line_setup {
 
   my $opt_comment;
   my $opt_usage;
+
+  # Default verbosity, server ON and workers OFF
+  report_option('verbose', $thread_num ?  undef : 0);
 
   # Read the command line options
   # Note: Keep list, and the order, in sync with usage at end of this file
@@ -791,19 +795,15 @@ sub command_line_setup {
 	     'timediff'                 => \&report_option,
 
              'help|h'                   => \$opt_usage,
-            ) or usage("Can't read options");
+            ) or usage($thread_num, "Can't read options");
 
-  usage("") if $opt_usage;
+  usage($thread_num, "") if $opt_usage;
 
   # --------------------------------------------------------------------------
   # Setup verbosity
   # --------------------------------------------------------------------------
-  if ($thread_num == 0){
-    # The server should by default have verbose on
-    report_option('verbose', $opt_verbose ? $opt_verbose : 0);
-  } else {
-    # Worker should by default have verbose off
-    report_option('verbose', $opt_verbose ? $opt_verbose : undef);
+  if ($opt_verbose != 0){
+    report_option('verbose', $opt_verbose);
   }
 
   # --------------------------------------------------------------------------
@@ -900,7 +900,7 @@ sub command_line_setup {
     }
     elsif ( $arg =~ /^-/ )
     {
-      usage("Invalid option \"$arg\"");
+      usage($thread_num, "Invalid option \"$arg\"");
     }
     else
     {
@@ -1654,7 +1654,8 @@ sub environment_setup {
   # ----------------------------------------------------
   my $file_mysql_fix_privilege_tables=
     mtr_file_exists("$basedir/scripts/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mysql_fix_privilege_tables.sql");
+		    "$basedir/share/mysql_fix_privilege_tables.sql",
+		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql");
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
@@ -2771,6 +2772,7 @@ sub run_testcase ($) {
 	if (defined $value){
 	  mtr_verbose("Restoring $option to $value");
 	  $ENV{$option}= $value;
+
 	} else {
 	  mtr_verbose("Removing $option");
 	  delete($ENV{$option});
@@ -3018,6 +3020,23 @@ sub start_check_warnings ($$) {
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "--skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
+
+  if ( $opt_embedded_server )
+  {
+
+    # Get the args needed for the embedded server
+    # and append them to args prefixed
+    # with --sever-arg=
+
+    my $mysqld=  $config->group('embedded')
+      or mtr_error("Could not get [embedded] section");
+
+    my $mysqld_args;
+    mtr_init_args(\$mysqld_args);
+    my $extra_opts= get_extra_opts($mysqld, $tinfo);
+    mysqld_arguments($mysqld_args, $mysqld, $extra_opts);
+    mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
+  }
 
   my $errfile= "$opt_vardir/tmp/$name.err";
   my $proc= My::SafeProcess->new
@@ -4304,7 +4323,10 @@ sub valgrind_arguments {
 # Usage
 #
 sub usage ($) {
-  my $message= shift;
+  my ($thread_num, $message)= @_;
+
+  # Only main thread should print usage
+  return if $thread_num != 0;
 
   if ( $message )
   {

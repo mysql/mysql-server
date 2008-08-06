@@ -1439,10 +1439,10 @@ Event_job_data::execute(THD *thd, bool drop)
   thd->query_length= sp_sql.length();
 
   {
-    Lex_input_stream lip(thd, thd->query, thd->query_length);
+    Parser_state parser_state(thd, thd->query, thd->query_length);
     lex_start(thd);
 
-    if (parse_sql(thd, &lip, creation_ctx))
+    if (parse_sql(thd, & parser_state, creation_ctx))
     {
       sql_print_error("Event Scheduler: "
                       "%serror during compilation of %s.%s",

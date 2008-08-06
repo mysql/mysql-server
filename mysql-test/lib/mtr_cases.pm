@@ -536,6 +536,26 @@ sub optimize_cases {
 	}
       }
     }
+
+
+    # =======================================================
+    # Check that engine selected by
+    # --default-storage-engine=<engine> is supported
+    # =======================================================
+    foreach my $opt ( @{$tinfo->{master_opt}} ) {
+      my $default_engine=
+	mtr_match_prefix($opt, "--default-storage-engine=");
+
+      if (defined $default_engine){
+	if ( ! exists $::mysqld_variables{$default_engine} )
+	{
+	 $tinfo->{'skip'}= 1;
+	 $tinfo->{'comment'}=
+	 "'$default_engine' not supported";
+
+	}
+      }
+    }
   }
 }
 

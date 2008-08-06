@@ -5364,6 +5364,34 @@ ha_rows ha_partition::estimate_rows_upper_bound()
 }
 
 
+/**
+  Number of rows in table. see handler.h
+
+  SYNOPSIS
+    records()
+
+  RETURN VALUE
+    Number of total rows in a partitioned table.
+*/
+
+ha_rows ha_partition::records()
+{
+  ha_rows rows, tot_rows= 0;
+  handler **file;
+  DBUG_ENTER("ha_partition::records");
+
+  file= m_file;
+  do
+  {
+    rows= (*file)->records();
+    if (rows == HA_POS_ERROR)
+      DBUG_RETURN(HA_POS_ERROR);
+    tot_rows+= rows;
+  } while (*(++file));
+  DBUG_RETURN(tot_rows);
+}
+
+
 /*
   Is it ok to switch to a new engine for this table
 

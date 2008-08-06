@@ -115,7 +115,7 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
 Master D	a	b
 Master D	8	D
 
-* Reconfigure replication to schema A->B->C->A *
+* Reconfigure replication to schema A->B->D->A *
 STOP SLAVE;
 STOP SLAVE;
 CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',master_log_file='LOG_FILE',master_log_pos=LOG_POS;

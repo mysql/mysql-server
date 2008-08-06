@@ -259,7 +259,7 @@ DELETE FROM t1;
 query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 sync_slave_with_master;
 set @@global.slave_exec_mode= default;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
@@ -288,3 +288,150 @@ SELECT * FROM t1;
 connection master;
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
 sync_slave_with_master;
+
+#
+# BUG#37426: RBR breaks for CHAR() UTF8 fields > 85 chars
+#
+
+# We have 4 combinations to test with respect to the field length
+# (i.e., the number of bytes) of the CHAR fields:
+#
+# 1. Replicating from CHAR<256 to CHAR<256 
+# 2. Replicating from CHAR<256 to CHAR>255
+# 3. Replicating from CHAR>255 to CHAR<256
+# 4. Replicating from CHAR>255 to CHAR>255
+
+# We also make a special case of using the max size of a field on the
+# master, i.e. CHAR(255) in UTF-8, giving another three cases.
+#
+# 5. Replicating UTF-8 CHAR(255) to CHAR(<256)
+# 6. Replicating UTF-8 CHAR(255) to CHAR(>255)
+# 7. Replicating UTF-8 CHAR(255) to CHAR(255) UTF-8
+
+connection master;
+CREATE TABLE t1 (i INT NOT NULL,
+                 c CHAR(16) CHARACTER SET utf8 NOT NULL,
+                 j INT NOT NULL);
+
+CREATE TABLE t2 (i INT NOT NULL,
+                 c CHAR(16) CHARACTER SET utf8 NOT NULL,
+                 j INT NOT NULL);
+
+sync_slave_with_master;
+ALTER TABLE t2 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+
+connection master;
+CREATE TABLE t3 (i INT NOT NULL,
+                 c CHAR(128) CHARACTER SET utf8 NOT NULL,
+                 j INT NOT NULL);
+sync_slave_with_master;
+ALTER TABLE t3 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+
+connection master;
+CREATE TABLE t4 (i INT NOT NULL,
+                 c CHAR(128) CHARACTER SET utf8 NOT NULL,
+                 j INT NOT NULL);
+
+CREATE TABLE t5 (i INT NOT NULL,
+                 c CHAR(255) CHARACTER SET utf8 NOT NULL,
+                 j INT NOT NULL);
+sync_slave_with_master;
+ALTER TABLE t5 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+
+connection master;
+CREATE TABLE t6 (i INT NOT NULL,
+                 c CHAR(255) CHARACTER SET utf8 NOT NULL,
+                 j INT NOT NULL);
+sync_slave_with_master;
+ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+
+connection master;
+CREATE TABLE t7 (i INT NOT NULL,
+                 c CHAR(255) CHARACTER SET utf8 NOT NULL,
+                 j INT NOT NULL);
+
+--echo [expecting slave to replicate correctly]
+connection master;
+INSERT INTO t1 VALUES (1, "", 1);
+INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
+
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+--echo [expecting slave to replicate correctly]
+connection master;
+INSERT INTO t2 VALUES (1, "", 1);
+INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
+
+let $diff_table_1=master:test.t2;
+let $diff_table_2=slave:test.t2;
+source include/diff_tables.inc;
+
+--echo [expecting slave to stop]
+connection master;
+INSERT INTO t3 VALUES (1, "", 1);
+INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
+
+connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=8;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+
+--echo [expecting slave to replicate correctly]
+connection master;
+INSERT INTO t4 VALUES (1, "", 1);
+INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
+
+let $diff_table_1=master:test.t4;
+let $diff_table_2=slave:test.t4;
+source include/diff_tables.inc;
+
+--echo [expecting slave to stop]
+connection master;
+INSERT INTO t5 VALUES (1, "", 1);
+INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
+
+connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=8;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+
+--echo [expecting slave to stop]
+connection master;
+INSERT INTO t6 VALUES (1, "", 1);
+INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
+
+connection slave;
+source include/wait_for_slave_sql_to_stop.inc;
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=8;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+
+--echo [expecting slave to replicate correctly]
+connection master;
+INSERT INTO t7 VALUES (1, "", 1);
+INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
+
+let $diff_table_1=master:test.t7;
+let $diff_table_2=slave:test.t7;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1, t2, t3, t4, t5, t6, t7;
+sync_slave_with_master;
+
