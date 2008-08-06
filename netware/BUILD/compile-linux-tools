@@ -53,6 +53,9 @@ make
 # so the file will be linked
 (cd sql; make sql_yacc.cc)
 
+# we need initilizing SQL files.
+(cd netware; make test_db.sql init_db.sql)
+
 # copying required linux tools
 cp extra/comp_err extra/comp_err.linux
 cp libmysql/conf_to_src libmysql/conf_to_src.linux
