@@ -374,6 +374,21 @@ trx_release_savepoint_for_mysql(
 }
 
 /***********************************************************************
+Determines if this transaction is rolling back an incomplete transaction
+in crash recovery. */
+UNIV_INTERN
+ibool
+trx_is_recv(
+/*========*/
+				/* out: TRUE if trx is an incomplete
+				transaction that is being rolled back
+				in crash recovery */
+	const trx_t*	trx)	/* in: transaction */
+{
+	return(trx == trx_roll_crash_recv_trx);
+}
+
+/***********************************************************************
 Returns a transaction savepoint taken at this point in time. */
 UNIV_INTERN
 trx_savept_t
