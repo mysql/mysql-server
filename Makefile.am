@@ -259,12 +259,10 @@ TEST_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
 #    to prevent seeing these messages.
 # 2) sed the output to 
 #    2.1) remove blank lines and lines that begin with "# "
-#         (The header information is retained to enable easy
-#         analysis of abi diffs at a later stage).
-#    2.2) When gcc -E is run in the Mac OS it introduces a line of output 
-#         that results in showing up as a difference between the .pp and 
-#         .out files. Remove this OS specific preprocessor text inserted by
-#         the preprocessor in the MAC OS. 
+#    2.2) When gcc -E is run on the Mac OS  and solaris sparc platforms it
+#         introduces a line of output that shows up as a difference between
+#         the .pp and .out files. Remove these OS specific preprocessor text
+#         inserted by the preprocessor.
 # 3) diff the generated file and the canons (.pp files already in
 #    the repository).
 # 4) delete the .out file that is generated.
@@ -294,7 +292,7 @@ abi_check_all:	$(TEST_PREPROCESSOR_HEADER)
 do_abi_check:
 	set -ex; \
 	for file in $(abi_headers); do \
-	         @CC@ -E -nostdinc -dI \
+	         @CC@ -E -nostdinc \
 	                  -I$(top_srcdir)/include \
 	                  -I$(top_srcdir)/include/mysql \
 	                  -I$(top_srcdir)/sql \
@@ -304,7 +302,8 @@ do_abi_check:
 	                                 $$file 2>/dev/null | \
 	                  @SED@ -e '/^# /d' \
 	                            -e '/^[ 	]*$$/d' \
-	                            -e '/^#pragma GCC set_debug_pwd/d' > \
+	                            -e '/^#pragma GCC set_debug_pwd/d' \
+	                            -e '/^#ident/d' > \
 	                                       $(top_builddir)/abi_check.out; \
 	                  @DIFF@ -w $$file.pp $(top_builddir)/abi_check.out; \
 	                  @RM@ $(top_builddir)/abi_check.out; \
