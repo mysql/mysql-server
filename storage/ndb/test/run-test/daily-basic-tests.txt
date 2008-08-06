@@ -1171,3 +1171,9 @@ cmd: test_event
 args -n bug37672 T1
 
 #EOF 2008-07-04
+
+max-time: 500
+cmd: testScanFilter
+args: 
+
+#EOF 2008-07-09
