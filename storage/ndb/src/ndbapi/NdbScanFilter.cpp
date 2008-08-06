@@ -75,7 +75,11 @@ public:
     m_code= code;
     m_associated_op= NULL;
     
-    m_error.code = 0;
+    if (code == NULL)
+      /* NdbInterpretedCode not supported for operation type */
+      m_error.code = 4539;
+    else
+      m_error.code = 0;
   };
 
   /* This method propagates an error code from NdbInterpretedCode
@@ -136,13 +140,22 @@ NdbScanFilter::NdbScanFilter(class NdbOperation * op) :
 {
   DBUG_ENTER("NdbScanFilter::NdbScanFilter(NdbOperation)");
   
-  /* We ask the NdbScanOperation to allocate an InterpretedCode
-   * object for us.  It will look after freeing it when 
-   * necessary.  This allows the InterpretedCode object to 
-   * survive after the NdbScanFilter has gone out of scope
+  NdbInterpretedCode* code= NULL;
+  NdbOperation::Type opType= op->getType();
+
+  /* If the operation is not of the correct type then
+   * m_impl.init() will set an error on the scan filter
    */
-  NdbInterpretedCode* code= 
-    ((NdbScanOperation *)op)->allocInterpretedCodeOldApi();
+  if (likely((opType == NdbOperation::TableScan) || 
+             (opType == NdbOperation::OrderedIndexScan)))
+  {    
+    /* We ask the NdbScanOperation to allocate an InterpretedCode
+     * object for us.  It will look after freeing it when 
+     * necessary.  This allows the InterpretedCode object to 
+     * survive after the NdbScanFilter has gone out of scope
+     */
+    code= ((NdbScanOperation *)op)->allocInterpretedCodeOldApi();
+  }
 
   m_impl.init(code);
 
@@ -158,6 +171,8 @@ NdbScanFilter::~NdbScanFilter()
 
 int
 NdbScanFilter::begin(Group group){
+  if (m_impl.m_error.code != 0) return -1;
+
   if (m_impl.m_stack2.push_back(m_impl.m_negative))
   {
     /* Memory allocation problem */
@@ -244,6 +259,8 @@ NdbScanFilter::begin(Group group){
 
 int
 NdbScanFilter::end(){
+  if (m_impl.m_error.code != 0) return -1;
+
   if(m_impl.m_stack2.size() == 0){
     /* Invalid set of range scan bounds */
     m_impl.m_error.code= 4259;
@@ -353,6 +370,8 @@ NdbScanFilter::end(){
 
 int
 NdbScanFilter::istrue(){
+  if(m_impl.m_error.code != 0) return -1;
+
   if(m_impl.m_current.m_group < NdbScanFilter::AND || 
      m_impl.m_current.m_group > NdbScanFilter::NOR){
     /* Operator is not defined in NdbScanFilter::Group */
@@ -373,6 +392,7 @@ NdbScanFilter::istrue(){
 
 int
 NdbScanFilter::isfalse(){
+  if (m_impl.m_error.code != 0) return -1;
   if(m_impl.m_current.m_group < NdbScanFilter::AND || 
      m_impl.m_current.m_group > NdbScanFilter::NOR){
     /* Operator is not defined in NdbScanFilter::Group */
@@ -436,6 +456,8 @@ const int tab2_sz = sizeof(table2)/sizeof(table2[0]);
 int
 NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
   
+  if (m_error.code != 0) return -1;
+
   if(op < 0 || op >= tab2_sz){
     /* Condition is out of bounds */
     m_error.code= 4262;
@@ -458,6 +480,8 @@ NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
 
 int
 NdbScanFilter::isnull(int AttrId){
+  if (m_impl.m_error.code != 0) return -1;
+
   if(m_impl.m_negative == 1)
     return m_impl.cond_col(Interpreter::IS_NOT_NULL, AttrId);
   else
@@ -466,6 +490,8 @@ NdbScanFilter::isnull(int AttrId){
 
 int
 NdbScanFilter::isnotnull(int AttrId){
+  if (m_impl.m_error.code != 0) return -1;
+
   if(m_impl.m_negative == 1)
     return m_impl.cond_col(Interpreter::IS_NULL, AttrId);
   else
@@ -568,6 +594,8 @@ int
 NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op, 
 				  Uint32 AttrId, 
 				  const void * value, Uint32 len){
+  if (m_error.code != 0) return -1;
+
   if(op < 0 || op >= tab3_sz){
     /* Condition is out of bounds */
     m_error.code= 4262;
