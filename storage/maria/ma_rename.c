@@ -69,9 +69,9 @@ int maria_rename(const char *old_name, const char *new_name)
     LSN lsn;
     LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
     uint old_name_len= strlen(old_name)+1, new_name_len= strlen(new_name)+1;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    old_name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (uchar*)old_name;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= old_name_len;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    new_name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (uchar*)new_name;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= new_name_len;
     /*
       For this record to be of any use for Recovery, we need the upper

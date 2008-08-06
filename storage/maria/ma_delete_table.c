@@ -85,7 +85,7 @@ int maria_delete_table(const char *name)
     */
     LSN lsn;
     LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (uchar*)name;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= strlen(name) + 1;
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_DROP_TABLE,
                                        &dummy_transaction_object, NULL,

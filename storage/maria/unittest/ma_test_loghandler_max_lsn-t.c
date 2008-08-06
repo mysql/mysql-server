@@ -104,7 +104,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   /* write more then 1 file */
   int4store(long_tr_id, 0);
-  parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+  parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
   for(i= 0; i < LOG_FILE_SIZE/6; i++)
   {
