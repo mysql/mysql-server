@@ -178,9 +178,9 @@ row_undo_mod_remove_clust_low(
 
 		/* Note that since this operation is analogous to purge,
 		we can free also inherited externally stored fields:
-		hence the last FALSE in the call below */
+		hence the RB_NONE in the call below */
 
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, FALSE, mtr);
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, RB_NONE, mtr);
 
 		/* The delete operation may fail if we have little
 		file space left: TODO: easiest to crash the database
@@ -350,8 +350,14 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 
+			/* No need to distinguish RB_RECOVERY here, because we
+			are deleting a secondary index record: the distinction
+			between RB_NORMAL and RB_RECOVERY only matters when
+			deleting a record that contains externally stored
+			columns. */
+			ut_ad(!dict_index_is_clust(index));
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
-						   TRUE, &mtr);
+						   RB_NORMAL, &mtr);
 
 			/* The delete operation may fail if we have little
 			file space left: TODO: easiest to crash the database
@@ -506,7 +512,7 @@ row_undo_mod_upd_del_sec(
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
 	dict_index_t*	index;
-	ulint		err;
+	ulint		err	= DB_SUCCESS;
 
 	heap = mem_heap_create(1024);
 
@@ -515,22 +521,35 @@ row_undo_mod_upd_del_sec(
 
 		entry = row_build_index_entry(node->row, node->ext,
 					      index, heap);
-		ut_a(entry);
-		err = row_undo_mod_del_mark_or_remove_sec(node, thr, index,
-							  entry);
-		if (err != DB_SUCCESS) {
+		if (UNIV_UNLIKELY(!entry)) {
+			/* The database must have crashed after
+			inserting a clustered index record but before
+			writing all the externally stored columns of
+			that record.  Because secondary index entries
+			are inserted after the clustered index record,
+			we may assume that the secondary index record
+			does not exist.  However, this situation may
+			only occur during the rollback of incomplete
+			transactions. */
+			ut_a(trx_is_recv(thr_get_trx(thr)));
+		} else {
+			err = row_undo_mod_del_mark_or_remove_sec(
+				node, thr, index, entry);
 
-			mem_heap_free(heap);
+			if (err != DB_SUCCESS) {
 
-			return(err);
+				break;
+			}
 		}
+
+		mem_heap_empty(heap);
 
 		node->index = dict_table_get_next_index(node->index);
 	}
 
 	mem_heap_free(heap);
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /***************************************************************

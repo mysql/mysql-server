@@ -87,7 +87,10 @@ retry:
 					    &(node->pcur), &mtr);
 	ut_a(success);
 
-	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, TRUE, &mtr);
+	btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+				   trx_is_recv(node->trx)
+				   ? RB_RECOVERY
+				   : RB_NORMAL, &mtr);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -160,7 +163,14 @@ row_undo_ins_remove_sec_low(
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, TRUE, &mtr);
+		/* No need to distinguish RB_RECOVERY here, because we
+		are deleting a secondary index record: the distinction
+		between RB_NORMAL and RB_RECOVERY only matters when
+		deleting a record that contains externally stored
+		columns. */
+		ut_ad(!dict_index_is_clust(index));
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+					   RB_NORMAL, &mtr);
 	}
 
 	btr_pcur_close(&pcur);
@@ -284,12 +294,24 @@ row_undo_ins(
 
 		entry = row_build_index_entry(node->row, node->ext,
 					      node->index, node->heap);
-		ut_a(entry);
-		err = row_undo_ins_remove_sec(node->index, entry);
+		if (UNIV_UNLIKELY(!entry)) {
+			/* The database must have crashed after
+			inserting a clustered index record but before
+			writing all the externally stored columns of
+			that record.  Because secondary index entries
+			are inserted after the clustered index record,
+			we may assume that the secondary index record
+			does not exist.  However, this situation may
+			only occur during the rollback of incomplete
+			transactions. */
+			ut_a(trx_is_recv(node->trx));
+		} else {
+			err = row_undo_ins_remove_sec(node->index, entry);
 
-		if (err != DB_SUCCESS) {
+			if (err != DB_SUCCESS) {
 
-			return(err);
+				return(err);
+			}
 		}
 
 		node->index = dict_table_get_next_index(node->index);
