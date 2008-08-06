@@ -406,7 +406,7 @@ buf_page_is_corrupted(
 		}
 
 		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
-		(always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
+		(always equal to 0), to FIL_PAGE_SPACE_OR_CHKSUM */
 
 		if (checksum_field != 0
 		    && checksum_field != BUF_NO_CHECKSUM_MAGIC
