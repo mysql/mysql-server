@@ -379,7 +379,7 @@ btr_cur_pessimistic_delete(
 				if compression does not occur, the cursor
 				stays valid: it points to successor of
 				deleted record on function exit */
-	enum trx_rbmode	rbmode,	/* in: rollback mode */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr);	/* in: mtr */
 /***************************************************************
 Parses a redo log record of updating a record in-place. */
@@ -521,7 +521,7 @@ btr_free_externally_stored_field(
 					to rec, or NULL if rec == NULL */
 	ulint		i,		/* in: field number of field_ref;
 					ignored if rec == NULL */
-	enum trx_rbmode	rbmode,		/* in: rollback mode */
+	enum trx_rb_ctx	rb_ctx,		/* in: rollback context */
 	mtr_t*		local_mtr);	/* in: mtr containing the latch to
 					data an an X-latch to the index
 					tree */
