@@ -491,6 +491,7 @@ mem_heap_validate_or_print(
 
 			if (print) {
 				ut_print_buf(stderr, user_field, len);
+				putc('\n', stderr);
 			}
 
 			total_len += len;

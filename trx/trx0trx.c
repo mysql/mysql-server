@@ -264,6 +264,7 @@ trx_free(
 		trx_print(stderr, trx, 600);
 
 		ut_print_buf(stderr, trx, sizeof(trx_t));
+		putc('\n', stderr);
 	}
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);
