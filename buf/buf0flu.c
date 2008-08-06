@@ -638,6 +638,8 @@ buf_flush_init_for_writing(
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: ERROR: The compressed page to be written"
 		      " seems corrupt:", stderr);
+		ut_print_buf(stderr, page, zip_size);
+		fputs("\nInnoDB: Possibly older version of the page:", stderr);
 		ut_print_buf(stderr, page_zip->data, zip_size);
 		putc('\n', stderr);
 		ut_error;
