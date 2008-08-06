@@ -36,6 +36,14 @@ typedef struct roll_node_struct	roll_node_t;
 typedef struct commit_node_struct commit_node_t;
 typedef struct trx_named_savept_struct trx_named_savept_t;
 
+/* Rollback modes */
+enum trx_rbmode {
+	RB_NONE = 0,	/* no rollback */
+	RB_NORMAL,	/* normal rollback */
+	RB_RECOVERY,	/* rolling back an incomplete transaction,
+			in crash recovery */
+};
+
 /* Transaction savepoint */
 typedef struct trx_savept_struct trx_savept_t;
 struct trx_savept_struct{

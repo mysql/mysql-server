@@ -144,7 +144,8 @@ row_purge_remove_clust_if_poss_low(
 		success = btr_cur_optimistic_delete(btr_cur, &mtr);
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, FALSE, &mtr);
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+					   RB_NONE, &mtr);
 
 		if (err == DB_SUCCESS) {
 			success = TRUE;
@@ -265,7 +266,7 @@ row_purge_remove_sec_if_poss_low(
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
-						   FALSE, &mtr);
+						   RB_NONE, &mtr);
 			success = err == DB_SUCCESS;
 			ut_a(success || err == DB_OUT_OF_FILE_SPACE);
 		}
@@ -458,7 +459,7 @@ skip_secondaries:
 				index,
 				data_field + dfield_get_len(&ufield->new_val)
 				- BTR_EXTERN_FIELD_REF_SIZE,
-				NULL, NULL, NULL, 0, FALSE, &mtr);
+				NULL, NULL, NULL, 0, RB_NONE, &mtr);
 			mtr_commit(&mtr);
 		}
 	}
