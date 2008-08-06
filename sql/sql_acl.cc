@@ -5701,7 +5701,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   while ((tmp_user_name= user_list++))
   {
-    user_name= get_current_user(thd, tmp_user_name);
     if (!(user_name= get_current_user(thd, tmp_user_name)))
     {
       result= TRUE;
