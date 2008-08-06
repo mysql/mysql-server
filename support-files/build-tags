@@ -2,7 +2,7 @@
 
 rm -f TAGS
 filter='\.cc$\|\.c$\|\.h$\|\.yy$'
-files=`bk -r sfiles -gU | grep $filter `
+files=`bzr ls --kind=file | grep $filter `
 for f in $files ;
 do
 	 etags -o TAGS --append $f
