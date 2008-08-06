@@ -662,12 +662,12 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,2)) (PARTITION part1 VALUES IN (NULL) ENGINE = MyISAM, PARTITION part3 VALUES IN (1) ENGINE = MyISAM) */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#part1.MYD
-MYSQLD_DATADIR/test/t1#P#part1.MYI
-MYSQLD_DATADIR/test/t1#P#part3.MYD
-MYSQLD_DATADIR/test/t1#P#part3.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#part1.MYD
+t1#P#part1.MYI
+t1#P#part3.MYD
+t1#P#part3.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 #  3.5.3 Reveal that IN (...NULL) is not mapped to IN(0)
@@ -694,14 +694,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,2)) (PARTITION part1 VALUES IN (NULL) ENGINE = MyISAM, PARTITION part2 VALUES IN (0) ENGINE = MyISAM, PARTITION part3 VALUES IN (1) ENGINE = MyISAM) */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#part1.MYD
-MYSQLD_DATADIR/test/t1#P#part1.MYI
-MYSQLD_DATADIR/test/t1#P#part2.MYD
-MYSQLD_DATADIR/test/t1#P#part2.MYI
-MYSQLD_DATADIR/test/t1#P#part3.MYD
-MYSQLD_DATADIR/test/t1#P#part3.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#part1.MYD
+t1#P#part1.MYI
+t1#P#part2.MYD
+t1#P#part2.MYI
+t1#P#part3.MYD
+t1#P#part3.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 
@@ -734,10 +734,10 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1)  */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#p0.MYD
-MYSQLD_DATADIR/test/t1#P#p0.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 # 4.1.2 no partition number, named partitions
@@ -761,12 +761,12 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) (PARTITION part1 ENGINE = MyISAM, PARTITION part2 ENGINE = MyISAM) */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#part1.MYD
-MYSQLD_DATADIR/test/t1#P#part1.MYI
-MYSQLD_DATADIR/test/t1#P#part2.MYD
-MYSQLD_DATADIR/test/t1#P#part2.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#part1.MYD
+t1#P#part1.MYI
+t1#P#part2.MYD
+t1#P#part2.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 # 4.1.3 variations on no partition/subpartition number, named partitions,
@@ -852,20 +852,20 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) (PARTITION part1 VALUES LESS THAN (10) (SUBPARTITION subpart11 ENGINE = MyISAM, SUBPARTITION subpart12 ENGINE = MyISAM), PARTITION part2 VALUES LESS THAN (20) (SUBPARTITION subpart21 ENGINE = MyISAM, SUBPARTITION subpart22 ENGINE = MyISAM), PARTITION part3 VALUES LESS THAN (2147483646) (SUBPARTITION subpart31 ENGINE = MyISAM, SUBPARTITION subpart32 ENGINE = MyISAM)) */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#part1#SP#subpart11.MYD
-MYSQLD_DATADIR/test/t1#P#part1#SP#subpart11.MYI
-MYSQLD_DATADIR/test/t1#P#part1#SP#subpart12.MYD
-MYSQLD_DATADIR/test/t1#P#part1#SP#subpart12.MYI
-MYSQLD_DATADIR/test/t1#P#part2#SP#subpart21.MYD
-MYSQLD_DATADIR/test/t1#P#part2#SP#subpart21.MYI
-MYSQLD_DATADIR/test/t1#P#part2#SP#subpart22.MYD
-MYSQLD_DATADIR/test/t1#P#part2#SP#subpart22.MYI
-MYSQLD_DATADIR/test/t1#P#part3#SP#subpart31.MYD
-MYSQLD_DATADIR/test/t1#P#part3#SP#subpart31.MYI
-MYSQLD_DATADIR/test/t1#P#part3#SP#subpart32.MYD
-MYSQLD_DATADIR/test/t1#P#part3#SP#subpart32.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#part1#SP#subpart11.MYD
+t1#P#part1#SP#subpart11.MYI
+t1#P#part1#SP#subpart12.MYD
+t1#P#part1#SP#subpart12.MYI
+t1#P#part2#SP#subpart21.MYD
+t1#P#part2#SP#subpart21.MYI
+t1#P#part2#SP#subpart22.MYD
+t1#P#part2#SP#subpart22.MYI
+t1#P#part3#SP#subpart31.MYD
+t1#P#part3#SP#subpart31.MYI
+t1#P#part3#SP#subpart32.MYD
+t1#P#part3#SP#subpart32.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 #------------------------------------------------------------------------
@@ -893,12 +893,12 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) PARTITIONS 2  */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#p0.MYD
-MYSQLD_DATADIR/test/t1#P#p0.MYI
-MYSQLD_DATADIR/test/t1#P#p1.MYD
-MYSQLD_DATADIR/test/t1#P#p1.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1.MYD
+t1#P#p1.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -924,16 +924,16 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION part1 VALUES LESS THAN (10) ENGINE = MyISAM, PARTITION part2 VALUES LESS THAN (2147483646) ENGINE = MyISAM) */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#part1#SP#part1sp0.MYD
-MYSQLD_DATADIR/test/t1#P#part1#SP#part1sp0.MYI
-MYSQLD_DATADIR/test/t1#P#part1#SP#part1sp1.MYD
-MYSQLD_DATADIR/test/t1#P#part1#SP#part1sp1.MYI
-MYSQLD_DATADIR/test/t1#P#part2#SP#part2sp0.MYD
-MYSQLD_DATADIR/test/t1#P#part2#SP#part2sp0.MYI
-MYSQLD_DATADIR/test/t1#P#part2#SP#part2sp1.MYD
-MYSQLD_DATADIR/test/t1#P#part2#SP#part2sp1.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#part1#SP#part1sp0.MYD
+t1#P#part1#SP#part1sp0.MYI
+t1#P#part1#SP#part1sp1.MYD
+t1#P#part1#SP#part1sp1.MYI
+t1#P#part2#SP#part2sp0.MYD
+t1#P#part2#SP#part2sp0.MYI
+t1#P#part2#SP#part2sp1.MYD
+t1#P#part2#SP#part2sp1.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -956,10 +956,10 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) PARTITIONS 1  */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#p0.MYD
-MYSQLD_DATADIR/test/t1#P#p0.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -985,12 +985,12 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 1 (PARTITION part1 VALUES LESS THAN (10) ENGINE = MyISAM, PARTITION part2 VALUES LESS THAN (2147483646) ENGINE = MyISAM) */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#part1#SP#part1sp0.MYD
-MYSQLD_DATADIR/test/t1#P#part1#SP#part1sp0.MYI
-MYSQLD_DATADIR/test/t1#P#part2#SP#part2sp0.MYD
-MYSQLD_DATADIR/test/t1#P#part2#SP#part2sp0.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#part1#SP#part1sp0.MYD
+t1#P#part1#SP#part1sp0.MYI
+t1#P#part2#SP#part2sp0.MYD
+t1#P#part2#SP#part2sp0.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -1732,12 +1732,12 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) (PARTITION part1 ENGINE = MyISAM, PARTITION part2 ENGINE = MyISAM) */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#part1.MYD
-MYSQLD_DATADIR/test/t1#P#part1.MYI
-MYSQLD_DATADIR/test/t1#P#part2.MYD
-MYSQLD_DATADIR/test/t1#P#part2.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#part1.MYD
+t1#P#part1.MYI
+t1#P#part2.MYD
+t1#P#part2.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -1766,16 +1766,16 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int1) (PARTITION part1 VALUES LESS THAN (1000) (SUBPARTITION subpart11 ENGINE = MyISAM, SUBPARTITION subpart12 ENGINE = MyISAM), PARTITION part2 VALUES LESS THAN (2147483646) (SUBPARTITION subpart21 ENGINE = MyISAM, SUBPARTITION subpart22 ENGINE = MyISAM)) */
 
 unified filelist
-MYSQLD_DATADIR/test/t1#P#part1#SP#subpart11.MYD
-MYSQLD_DATADIR/test/t1#P#part1#SP#subpart11.MYI
-MYSQLD_DATADIR/test/t1#P#part1#SP#subpart12.MYD
-MYSQLD_DATADIR/test/t1#P#part1#SP#subpart12.MYI
-MYSQLD_DATADIR/test/t1#P#part2#SP#subpart21.MYD
-MYSQLD_DATADIR/test/t1#P#part2#SP#subpart21.MYI
-MYSQLD_DATADIR/test/t1#P#part2#SP#subpart22.MYD
-MYSQLD_DATADIR/test/t1#P#part2#SP#subpart22.MYI
-MYSQLD_DATADIR/test/t1.frm
-MYSQLD_DATADIR/test/t1.par
+t1#P#part1#SP#subpart11.MYD
+t1#P#part1#SP#subpart11.MYI
+t1#P#part1#SP#subpart12.MYD
+t1#P#part1#SP#subpart12.MYI
+t1#P#part2#SP#subpart21.MYD
+t1#P#part2#SP#subpart21.MYI
+t1#P#part2#SP#subpart22.MYD
+t1#P#part2#SP#subpart22.MYI
+t1.frm
+t1.par
 
 DROP TABLE t1;
 # 4.3.2 (positive) number of partition/subpartition ,

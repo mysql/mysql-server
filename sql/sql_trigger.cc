@@ -1287,7 +1287,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
 
-        Lex_input_stream lip(thd, trg_create_str->str, trg_create_str->length);
+        Parser_state parser_state(thd,
+                                  trg_create_str->str,
+                                  trg_create_str->length);
 
         Trigger_creation_ctx *creation_ctx=
           Trigger_creation_ctx::create(thd,
@@ -1300,7 +1302,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         lex_start(thd);
         thd->spcont= NULL;
 
-        if (parse_sql(thd, &lip, creation_ctx))
+        if (parse_sql(thd, & parser_state, creation_ctx))
         {
           /* Currently sphead is always deleted in case of a parse error */
           DBUG_ASSERT(lex.sphead == 0);

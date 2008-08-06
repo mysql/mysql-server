@@ -25,7 +25,6 @@ use constant DEFAULT_BOGO_MIPS => 2000;
 
 sub _cpuinfo {
   my ($self)= @_;
-  print "_cpuinfo\n";
 
   my $info_file= "/proc/cpuinfo";
   if ( !(  -e $info_file and -f $info_file) ) {

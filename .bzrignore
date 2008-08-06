@@ -2095,10 +2095,13 @@ sql/.libs/udf_example.lai
 sql/.libs/udf_example.so.0
 sql/.libs/udf_example.so.0.0.0
 sql/client.c
+sql/Doxyfile
 sql/f.c
 sql/gen_lex_hash
 sql/gmon.out
 sql/handlerton.cc
+sql/html
+sql/latex
 sql/lex_hash.h
 sql/link_sources
 sql/max/*
