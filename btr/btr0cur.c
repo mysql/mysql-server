@@ -113,7 +113,7 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	const upd_t*	update,	/* in: update vector */
-	enum trx_rbmode	rbmode,	/* in: rollback mode */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 /***************************************************************
@@ -128,7 +128,7 @@ btr_rec_free_externally_stored_fields(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	enum trx_rbmode	rbmode,	/* in: rollback mode */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -2812,7 +2812,7 @@ btr_cur_pessimistic_delete(
 				if compression does not occur, the cursor
 				stays valid: it points to successor of
 				deleted record on function exit */
-	enum trx_rbmode	rbmode,	/* in: rollback mode */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	buf_block_t*	block;
@@ -2866,7 +2866,7 @@ btr_cur_pessimistic_delete(
 	if (rec_offs_any_extern(offsets)) {
 		btr_rec_free_externally_stored_fields(index,
 						      rec, offsets, page_zip,
-						      rbmode, mtr);
+						      rb_ctx, mtr);
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -4085,7 +4085,7 @@ btr_free_externally_stored_field(
 					to rec, or NULL if rec == NULL */
 	ulint		i,		/* in: field number of field_ref;
 					ignored if rec == NULL */
-	enum trx_rbmode	rbmode,		/* in: rollback mode */
+	enum trx_rb_ctx	rb_ctx,		/* in: rollback context */
 	mtr_t*		local_mtr __attribute__((unused))) /* in: mtr
 					containing the latch to data an an
 					X-latch to the index tree */
@@ -4120,7 +4120,7 @@ btr_free_externally_stored_field(
 		/* In the rollback of uncommitted transactions, we may
 		encounter a clustered index record whose BLOBs have
 		not been written.  There is nothing to free then. */
-		ut_a(rbmode == RB_RECOVERY);
+		ut_a(rb_ctx == RB_RECOVERY);
 		return;
 	}
 
@@ -4168,7 +4168,7 @@ btr_free_externally_stored_field(
 		    || (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			& BTR_EXTERN_OWNER_FLAG)
 		    /* Rollback and inherited field */
-		    || (rbmode != RB_NONE
+		    || (rb_ctx != RB_NONE
 			&& (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			    & BTR_EXTERN_INHERITED_FLAG))) {
 
@@ -4270,7 +4270,7 @@ btr_rec_free_externally_stored_fields(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	enum trx_rbmode	rbmode,	/* in: rollback mode */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -4294,7 +4294,7 @@ btr_rec_free_externally_stored_fields(
 
 			btr_free_externally_stored_field(
 				index, data + len - BTR_EXTERN_FIELD_REF_SIZE,
-				rec, offsets, page_zip, i, rbmode, mtr);
+				rec, offsets, page_zip, i, rb_ctx, mtr);
 		}
 	}
 }
@@ -4313,7 +4313,7 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	const upd_t*	update,	/* in: update vector */
-	enum trx_rbmode	rbmode,	/* in: rollback mode */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 {
@@ -4339,7 +4339,7 @@ btr_rec_free_updated_extern_fields(
 			btr_free_externally_stored_field(
 				index, data + len - BTR_EXTERN_FIELD_REF_SIZE,
 				rec, offsets, page_zip,
-				ufield->field_no, rbmode, mtr);
+				ufield->field_no, rb_ctx, mtr);
 		}
 	}
 }
