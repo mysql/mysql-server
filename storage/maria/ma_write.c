@@ -185,8 +185,21 @@ int maria_write(MARIA_HA *info, uchar *record)
                                                         buff, record, filepos,
                                                         info->trn->trid)))
         {
-          TRN *blocker=trnman_trid_to_trn(info->trn, info->dup_key_trid);
+          TRN *blocker;
           DBUG_PRINT("error",("Got error: %d on write",my_errno));
+          /*
+            explicit check for our own trid, because temp tables
+            aren't transactional and don't have a proper TRN so the code
+            below doesn't work for them
+            XXX a better test perhaps ?
+          */
+          if (info->dup_key_trid == info->trn->trid)
+          {
+            if (local_lock_tree)
+              rw_unlock(&keyinfo->root_lock);
+            goto err;
+          }
+          blocker= trnman_trid_to_trn(info->trn, info->dup_key_trid);
           /*
             if blocker TRN was not found, it means that the conflicting
             transaction was committed long time ago. It could not be

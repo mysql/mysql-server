@@ -758,6 +758,7 @@ TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid)
   TrID old_trid_generator= global_trid_generator;
   TRN *trn;
   DBUG_ASSERT(maria_in_recovery && !maria_multi_threaded);
+  global_trid_generator= longid-1; /* force a correct trid in the new trn */
   if (unlikely((trn= trnman_new_trn(NULL, NULL)) == NULL))
     return NULL;
   /* deallocate excessive allocations of trnman_new_trn() */
@@ -766,7 +767,6 @@ TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid)
   short_trid_to_active_trn[trn->short_id]= 0;
   DBUG_ASSERT(short_trid_to_active_trn[shortid] == NULL);
   short_trid_to_active_trn[shortid]= trn;
-  trn->trid= longid;
   trn->short_id= shortid;
   return trn;
 }
