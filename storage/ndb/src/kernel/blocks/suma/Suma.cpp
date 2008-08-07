@@ -3823,7 +3823,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
     {
       char buf[100];
       c_subscriber_nodes.getText(buf);
-      g_eventLogger->error("c_gcp_list.seize() failed: gci: %d nodes: %s",
+      g_eventLogger->error("c_gcp_list.seize() failed: gci: %llu nodes: %s",
                            gci, buf);
     }
   }
