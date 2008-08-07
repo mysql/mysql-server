@@ -71,7 +71,7 @@ my_bool ndb_binlog_is_ready= FALSE;
   Has one sole purpose, for setting the in_use table member variable
   in get_share(...)
 */
-THD *injector_thd= 0;
+extern THD * injector_thd; // Declared in ha_ndbcluster.cc
 
 /*
   Global reference to ndb injector thd object.
@@ -1307,8 +1307,9 @@ int ndbcluster_log_schema_op(THD *thd,
       DBUG_RETURN(0);
     /* redo the drop table query as is may contain several tables */
     query= tmp_buf2;
-    query_length= (uint) (strxmov(tmp_buf2, "drop table `",
-                                  table_name, "`", NullS) - tmp_buf2);
+    query_length= (uint) (strxmov(tmp_buf2, "drop table ",
+                                  "`", db, "`", ".",
+                                  "`", table_name, "`", NullS) - tmp_buf2);
     type_str= "drop table";
     break;
   case SOT_RENAME_TABLE_PREPARE:
@@ -1318,9 +1319,11 @@ int ndbcluster_log_schema_op(THD *thd,
   case SOT_RENAME_TABLE:
     /* redo the rename table query as is may contain several tables */
     query= tmp_buf2;
-    query_length= (uint) (strxmov(tmp_buf2, "rename table `",
-                                  db, ".", table_name, "` to `",
-                                  new_db, ".", new_table_name, "`", NullS) - tmp_buf2);
+    query_length= (uint) (strxmov(tmp_buf2, "rename table ",
+                                  "`", db, "`", ".",
+                                  "`", table_name, "` to ",
+                                  "`", new_db, "`", ".",
+                                  "`", new_table_name, "`", NullS) - tmp_buf2);
     type_str= "rename table";
     break;
   case SOT_CREATE_TABLE:
@@ -1863,17 +1866,53 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       if (schema->node_id != node_id)
       {
         int log_query= 0, post_epoch_unlock= 0;
+        char errmsg[MYSQL_ERRMSG_SIZE];
+
         switch (schema_type)
         {
-        case SOT_DROP_TABLE:
-          // fall through
         case SOT_RENAME_TABLE:
           // fall through
         case SOT_RENAME_TABLE_NEW:
-          post_epoch_log_list->push_back(schema, mem_root);
-          /* acknowledge this query _after_ epoch completion */
-          post_epoch_unlock= 1;
-          break;
+        {
+          uint end= snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
+                             "NDB Binlog: Skipping renaming locally defined table '%s.%s' from binlog schema event '%s' from node %d. ",
+                             schema->db, schema->name, schema->query,
+                             schema->node_id);
+          
+          errmsg[end]= '\0';
+        }
+        // fall through
+        case SOT_DROP_TABLE:
+          if (schema_type == SOT_DROP_TABLE)
+          {
+            uint end= snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
+                               "NDB Binlog: Skipping dropping locally defined table '%s.%s' from binlog schema event '%s' from node %d. ",
+                               schema->db, schema->name, schema->query,
+                               schema->node_id);
+            errmsg[end]= '\0';
+          }
+          if (! ndbcluster_check_if_local_table(schema->db, schema->name))
+          {
+            const int no_print_error[1]=
+              {ER_BAD_TABLE_ERROR}; /* ignore missing table */
+            run_query(thd, schema->query,
+                      schema->query + schema->query_length,
+                      no_print_error, //   /* don't print error */
+                      TRUE); //  /* don't binlog the query */
+
+            /* binlog dropping table after any table operations */
+            post_epoch_log_list->push_back(schema, mem_root);
+            /* acknowledge this query _after_ epoch completion */
+            post_epoch_unlock= 1;
+          }
+          else
+          {
+            /* Tables exists as a local table, leave it */
+            DBUG_PRINT("info", ((const char *) errmsg));
+            sql_print_error((const char *) errmsg);
+            log_query= 1;
+          }
+          // Fall through
 	case SOT_TRUNCATE_TABLE:
         {
           char key[FN_REFLEN];
@@ -1909,6 +1948,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
             free_share(&share);
           }
         }
+        if (schema_type != SOT_TRUNCATE_TABLE)
+          break;
         // fall through
         case SOT_CREATE_TABLE:
           pthread_mutex_lock(&LOCK_open);

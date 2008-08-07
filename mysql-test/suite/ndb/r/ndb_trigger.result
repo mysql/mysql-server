@@ -1,4 +1,7 @@
 drop table if exists t1, t2, t3, t4, t5;
+flush status;
+drop table if exists t1, t2, t3, t4, t5;
+flush status;
 create table t1 (id int primary key, a int not null, b decimal (63,30) default 0) engine=ndb;
 create table t2 (op char(1), a int not null, b decimal (63,30)) engine=ndb;
 create table t3  engine=ndb select 1 as i;
@@ -312,4 +315,29 @@ id	xy
 DROP TRIGGER t1_delete;
 DROP TRIGGER t4_delete;
 DROP TABLE t1, t2, t3, t4, t5;
+create table t1(a int, b varchar(10), c date) engine=ndb;
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN
+SET new.c = date(now());
+End //
+select trigger_name,event_object_table from information_schema.triggers where
+trigger_name='trg1';
+trigger_name	event_object_table
+trg1	t1
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN
+SET new.c = date(now());
+End //
+select trigger_name,event_object_table from information_schema.triggers where
+trigger_name='trg1';
+trigger_name	event_object_table
+trg1	t1
+rename table t1 to t2;
+select trigger_name,event_object_table from information_schema.triggers where
+trigger_name='trg1';
+trigger_name	event_object_table
+trg1	t2
+select trigger_name,event_object_table from information_schema.triggers where
+trigger_name='trg1';
+trigger_name	event_object_table
+trg1	t2
+drop table t2;
 End of 5.1 tests
