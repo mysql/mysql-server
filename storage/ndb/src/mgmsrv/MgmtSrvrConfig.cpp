@@ -62,14 +62,14 @@ MgmtSrvr::fetch_config(void)
   _ownNodeId= m_config_retriever.allocNodeId(retry, delay);
   if (_ownNodeId == 0) {
     g_eventLogger->error(m_config_retriever.getErrorString());
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(false);
   }
 
   // read config from other managent server
   struct ndb_mgm_configuration * tmp = m_config_retriever.getConfig();
   if (tmp == NULL) {
     g_eventLogger->error(m_config_retriever.getErrorString());
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(false);
   }
 
   setConfig(new Config(tmp));

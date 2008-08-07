@@ -176,6 +176,7 @@ NDBT_TESTSUITE_END(testSingleUserMode);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testSingleUserMode);
   return testSingleUserMode.execute(argc, argv);
 }
 

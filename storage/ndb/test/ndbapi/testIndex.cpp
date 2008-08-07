@@ -1752,6 +1752,7 @@ NDBT_TESTSUITE_END(testIndex);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testIndex);
   return testIndex.execute(argc, argv);
 }
 
