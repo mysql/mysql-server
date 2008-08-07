@@ -23,12 +23,18 @@
 #define MICROSEC_PER_MILLISEC 1000
 #define MILLISEC_PER_NANOSEC 1000000
 
-
 #ifdef HAVE_CLOCK_GETTIME
+
+#ifdef CLOCK_MONOTONIC
+#define CLOCK CLOCK_MONOTONIC
+#else
+#define CLOCK CLOCK_REALTIME
+#endif
+
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
   struct timespec tick_time;
-  clock_gettime(CLOCK_REALTIME, &tick_time);
+  clock_gettime(CLOCK, &tick_time);
 
   return 
     ((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)MILLISEC_PER_SEC) +
@@ -38,7 +44,7 @@ NDB_TICKS NdbTick_CurrentMillisecond(void)
 int 
 NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
   struct timespec t;
-  int res = clock_gettime(CLOCK_REALTIME, &t);
+  int res = clock_gettime(CLOCK, &t);
   * secs   = t.tv_sec;
   * micros = t.tv_nsec / 1000;
   return res;

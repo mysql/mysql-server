@@ -733,6 +733,7 @@ void Suma::execAPI_FAILREQ(Signal* signal)
 
   c_failedApiNodes.set(failedApiNode);
   c_subscriber_nodes.clear(failedApiNode);
+  c_subscriber_per_node[failedApiNode] = 0;
   
   check_start_handover(signal);
 
@@ -1470,6 +1471,16 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     Subscription::REPORT_SUBSCRIBE : 0;
   const Uint32 tableId = req.tableId;
 
+  bool subDropped = req.subscriptionType & SubCreateReq::NR_Sub_Dropped;
+
+  /**
+   * This 2 options are only allowed during NR
+   */
+  if (subDropped)
+  {
+    ndbrequire(refToNode(senderRef) == c_startup.m_restart_server_node_id);
+  }
+
   Subscription key;
   key.m_subscriptionId  = subId;
   key.m_subscriptionKey = subKey;
@@ -1550,6 +1561,12 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
 
   subOpPtr.p->m_senderRef = senderRef;
   subOpPtr.p->m_senderData = senderData;
+
+  if (subDropped)
+  {
+    jam();
+    subPtr.p->m_options |= Subscription::MARKED_DROPPED;
+  }
 
   TablePtr tabPtr;
   if (found)
@@ -2343,11 +2360,6 @@ Suma::execSUB_START_REQ(Signal* signal){
   case Subscription::UNDEFINED:
     jam();
     ndbrequire(false);
-  case Subscription::DROPPED:
-    jam();
-    sendSubStartRef(signal,
-                    senderRef, senderData, SubStartRef::Dropped);
-    return;
   case Subscription::DEFINING:
     jam();
     sendSubStartRef(signal,
@@ -2355,6 +2367,23 @@ Suma::execSUB_START_REQ(Signal* signal){
     return;
   case Subscription::DEFINED:
     break;
+  }
+
+  if (subPtr.p->m_options & Subscription::MARKED_DROPPED)
+  {
+    jam();
+    if (c_startup.m_restart_server_node_id == 0)
+    {
+      sendSubStartRef(signal,
+                      senderRef, senderData, SubStartRef::Dropped);
+      return;
+    }
+    else
+    {
+      /**
+       * Allow SUB_START_REQ from peer node
+       */
+    }
   }
 
   if (subPtr.p->m_trigger_state == Subscription::T_ERROR)
@@ -2435,7 +2464,6 @@ Suma::execSUB_START_REQ(Signal* signal){
     break;
   case Subscription::T_DEFINED:{
     jam();
-
     report_sub_start_conf(signal, subPtr);
     return;
   }
@@ -2629,8 +2657,6 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
       Uint32 senderData = subOpPtr.p->m_senderData;
       c_subscriberPool.getPtr(ptr, subOpPtr.p->m_subscriberRef);
 
-      Uint32 nodeId = refToNode(ptr.p->m_senderRef);
-      
       if (check_sub_start(ptr.p->m_senderRef))
       {
         SubStartConf* conf = (SubStartConf*)signal->getDataPtrSend();
@@ -2654,6 +2680,7 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
         
         list.add(ptr);
         c_subscriber_nodes.set(refToNode(ptr.p->m_senderRef));
+        c_subscriber_per_node[refToNode(ptr.p->m_senderRef)]++;
       }
       else
       {
@@ -2715,27 +2742,40 @@ Suma::drop_triggers(Signal* signal, SubscriptionPtr subPtr)
   jam();
 
   subPtr.p->m_outstanding_trigger = 0;
-  for(Uint32 j = 0; j<3; j++)
+
+  Ptr<Table> tabPtr;
+  c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  if (tabPtr.p->m_state == Table::DROPPED)
   {
-    Uint32 triggerId = subPtr.p->m_triggers[j];
-    if (triggerId != ILLEGAL_TRIGGER_ID)
+    jam();
+    subPtr.p->m_triggers[0] = ILLEGAL_TRIGGER_ID;
+    subPtr.p->m_triggers[1] = ILLEGAL_TRIGGER_ID;
+    subPtr.p->m_triggers[2] = ILLEGAL_TRIGGER_ID;
+  }
+  else
+  {
+    for(Uint32 j = 0; j<3; j++)
     {
-      jam();
-      subPtr.p->m_outstanding_trigger++;
-      DropTrigReq * const req = (DropTrigReq*)signal->getDataPtrSend();
-      req->setConnectionPtr(subPtr.i);
-      req->setUserRef(SUMA_REF);
-      req->setRequestType(DropTrigReq::RT_USER);
-      req->setTriggerType(TriggerType::SUBSCRIPTION_BEFORE);
-      req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
-      req->setIndexId(RNIL);
+      Uint32 triggerId = subPtr.p->m_triggers[j];
+      if (triggerId != ILLEGAL_TRIGGER_ID)
+      {
+        jam();
+        subPtr.p->m_outstanding_trigger++;
+        DropTrigReq * const req = (DropTrigReq*)signal->getDataPtrSend();
+        req->setConnectionPtr(subPtr.i);
+        req->setUserRef(SUMA_REF);
+        req->setRequestType(DropTrigReq::RT_USER);
+        req->setTriggerType(TriggerType::SUBSCRIPTION_BEFORE);
+        req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
+        req->setIndexId(RNIL);
 
-      req->setTableId(subPtr.p->m_tableId);
-      req->setTriggerId(triggerId);
-      req->setTriggerEvent((TriggerEvent::Value)j);
+        req->setTableId(subPtr.p->m_tableId);
+        req->setTriggerId(triggerId);
+        req->setTriggerEvent((TriggerEvent::Value)j);
 
-      sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ,
-                 signal, DropTrigReq::SignalLength, JBB);
+        sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ,
+                   signal, DropTrigReq::SignalLength, JBB);
+      }
     }
   }
 
@@ -2905,9 +2945,6 @@ Suma::execSUB_STOP_REQ(Signal* signal){
     sendSubStopRef(signal,
                    senderRef, senderData, SubStopRef::Defining);
     return;
-  case Subscription::DROPPED:
-    jam();
-    break;
   case Subscription::DEFINED:
     jam();
     break;
@@ -3121,6 +3158,17 @@ Suma::report_sub_stop_conf(Signal* signal,
   conf->senderData= senderData;
   sendSignal(senderRef, GSN_SUB_STOP_CONF, signal,
 	     SubStopConf::SignalLength, JBB);
+
+  Uint32 nodeId = refToNode(ptr.p->m_senderRef);
+  if (c_subscriber_per_node[nodeId])
+  {
+    c_subscriber_per_node[nodeId]--;
+    if (c_subscriber_per_node[nodeId] == 0)
+    {
+      jam();
+      c_subscriber_nodes.clear(nodeId);
+    }
+  }
 }
 
 void
@@ -3760,7 +3808,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   if(m_gcp_complete_rep_count && !c_subscriber_nodes.isclear())
   {
     CRASH_INSERTION(13033);
-    
+
     NodeReceiverGroup rg(API_CLUSTERMGR, c_subscriber_nodes);
     sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal,
 	       SubGcpCompleteRep::SignalLength, JBB);
@@ -3783,12 +3831,13 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   /**
    * Add GCP COMPLETE REP to buffer
    */
+  bool subscribers = !c_subscriber_nodes.isclear();
   for(Uint32 i = 0; i<c_no_of_buckets; i++)
   {
     if(m_active_buckets.get(i))
       continue;
 
-    if (!c_subscriber_nodes.isclear())
+    if (subscribers || (c_buckets[i].m_state & Bucket::BUCKET_RESEND))
     {
       //Uint32* dst;
       get_buffer_ptr(signal, i, gci, 0);
@@ -3833,6 +3882,14 @@ Suma::execDROP_TAB_CONF(Signal *signal)
 
   tabPtr.p->m_state = Table::DROPPED;
   c_tables.remove(tabPtr);
+
+  if (tabPtr.p->m_subscriptions.isEmpty())
+  {
+    jam();
+    tabPtr.p->release(* this);
+    c_tablePool.release(tabPtr);
+    return;
+  }
 
   if (senderRef == 0)
   {
@@ -3984,8 +4041,10 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
     return;
   }
 
-  if (refToBlock(senderRef) == SUMA) {
+  if (refToBlock(senderRef) == SUMA) 
+  {
     jam();
+
     // Ack from other SUMA
     Uint32 nodeId= refToNode(senderRef);
     for(Uint32 i = 0; i<c_no_of_buckets; i++)
@@ -4099,18 +4158,20 @@ Suma::execSUB_REMOVE_REQ(Signal* signal)
   case Subscription::DEFINING:
     jam();
     ndbrequire(false);
-  case Subscription::DROPPED:
-    /**
-     * already dropped
-     */
-    jam();
-    sendSubRemoveRef(signal, req, SubRemoveRef::AlreadyDropped);
-    return;
   case Subscription::DEFINED:
+    if (subPtr.p->m_options & Subscription::MARKED_DROPPED)
+    {
+      /**
+       * already dropped
+       */
+      jam();
+      sendSubRemoveRef(signal, req, SubRemoveRef::AlreadyDropped);
+      return;
+    }
     break;
   }
 
-  subPtr.p->m_state = Subscription::DROPPED;
+  subPtr.p->m_options |= Subscription::MARKED_DROPPED;
   check_release_subscription(signal, subPtr);
 
   SubRemoveConf * const conf = (SubRemoveConf*)signal->getDataPtrSend();
@@ -4182,10 +4243,10 @@ do_release:
   if (tabPtr.p->m_state == Table::DROPPED)
   {
     jam();
-    subPtr.p->m_state = Subscription::DROPPED;
+    subPtr.p->m_options |= Subscription::MARKED_DROPPED;
   }
 
-  if (subPtr.p->m_state != Subscription::DROPPED)
+  if ((subPtr.p->m_options & Subscription::MARKED_DROPPED) == 0)
   {
     jam();
     return;
@@ -4376,32 +4437,35 @@ Suma::sendSubCreateReq(Signal* signal, Ptr<Subscription> subPtr)
     return;
   }
 
+  c_restart.m_waiting_on_self = 0;
+  SubCreateReq * req = (SubCreateReq *)signal->getDataPtrSend();
+  req->senderRef        = reference();
+  req->senderData       = subPtr.i;
+  req->subscriptionId   = subPtr.p->m_subscriptionId;
+  req->subscriptionKey  = subPtr.p->m_subscriptionKey;
+  req->subscriptionType = subPtr.p->m_subscriptionType;
+  req->tableId          = subPtr.p->m_tableId;
+
+  if (subPtr.p->m_options & Subscription::REPORT_ALL)
+  {
+    req->subscriptionType |= SubCreateReq::ReportAll;
+  }
+
+  if (subPtr.p->m_options & Subscription::REPORT_SUBSCRIBE)
+  {
+    req->subscriptionType |= SubCreateReq::ReportSubscribe;
+  }
+
+  if (subPtr.p->m_options & Subscription::MARKED_DROPPED)
+  {
+    req->subscriptionType |= SubCreateReq::NR_Sub_Dropped;
+    ndbout_c("copying dropped sub: %u", subPtr.i);
+  }
+
   Ptr<Table> tabPtr;
   c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
-
-  if (subPtr.p->m_state != Subscription::DROPPED &&
-      tabPtr.p->m_state != Table::DROPPED)
+  if (tabPtr.p->m_state != Table::DROPPED)
   {
-    jam();
-    c_restart.m_waiting_on_self = 0;
-    SubCreateReq * req = (SubCreateReq *)signal->getDataPtrSend();
-    req->senderRef        = reference();
-    req->senderData       = subPtr.i;
-    req->subscriptionId   = subPtr.p->m_subscriptionId;
-    req->subscriptionKey  = subPtr.p->m_subscriptionKey;
-    req->subscriptionType = subPtr.p->m_subscriptionType;
-    req->tableId          = subPtr.p->m_tableId;
-
-    if (subPtr.p->m_options & Subscription::REPORT_ALL)
-    {
-      req->subscriptionType |= SubCreateReq::ReportAll;
-    }
-
-    if (subPtr.p->m_options & Subscription::REPORT_SUBSCRIBE)
-    {
-      req->subscriptionType |= SubCreateReq::ReportSubscribe;
-    }
-
     if (!ndbd_suma_dictlock(getNodeInfo(refToNode(c_restart.m_ref)).m_version))
     {
       jam();
@@ -4414,16 +4478,17 @@ Suma::sendSubCreateReq(Signal* signal, Ptr<Subscription> subPtr)
        *   Thank you Ms. Fortuna
        */
     }
-    
+
     sendSignal(c_restart.m_ref, GSN_SUB_CREATE_REQ, signal,
                SubCreateReq::SignalLength, JBB);
   }
   else
   {
-    /**
-     * No need to copy DROPPED subscription...
-     *   but this introduces a real time break
-     */
+    jam();
+    ndbout_c("not copying sub %u with dropped table: %u/%u",
+             subPtr.i,
+             tabPtr.p->m_tableId, tabPtr.i);
+
     c_restart.m_waiting_on_self = 1;
     SubCreateConf * conf = (SubCreateConf *)signal->getDataPtrSend();
     conf->senderRef        = reference();
@@ -4476,16 +4541,23 @@ Suma::execSUB_CREATE_CONF(Signal* signal)
     abort_start_me(signal, subPtr, true);
     return;
   }
+  
+  Ptr<Table> tabPtr;
+  c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
 
   Ptr<Subscriber> ptr;
-  if (subPtr.p->m_state != Subscription::DROPPED)
+  if (tabPtr.p->m_state != Table::DROPPED)
   {
+    jam();
     LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
     list.first(ptr);
   }
   else
   {
+    jam();
     ptr.setNull();
+    ndbout_c("not copying subscribers on sub: %u with dropped table %u/%u",
+             subPtr.i, tabPtr.p->m_tableId, tabPtr.i);
   }
 
   copySubscriber(signal, subPtr, ptr);
@@ -4905,7 +4977,8 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
   if(unlikely(bucket->m_state & mask))
   {
     jam();
-    ndbout_c("release_gci(%d, %llu) -> node failure -> abort", buck, gci);
+    ndbout_c("release_gci(%d, %llu) 0x%x-> node failure -> abort", 
+             buck, gci, bucket->m_state);
     return;
   }
   
@@ -5012,7 +5085,7 @@ Suma::start_resend(Signal* signal, Uint32 buck)
   }
 
   Uint64 min= bucket->m_max_acked_gci + 1;
-  Uint64 max = pos.m_max_gci;
+  Uint64 max = m_max_seen_gci;
 
   ndbrequire(max <= m_max_seen_gci);
 
@@ -5021,7 +5094,9 @@ Suma::start_resend(Signal* signal, Uint32 buck)
     ndbrequire(pos.m_page_id == bucket->m_buffer_tail);
     m_active_buckets.set(buck);
     m_gcp_complete_rep_count ++;
-    ndbout_c("empty bucket -> active");
+    ndbout_c("empty bucket (%u/%u %u/%u) -> active", 
+             Uint32(min >> 32), Uint32(min),
+             Uint32(max >> 32), Uint32(max));
     return;
   }
 
