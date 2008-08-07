@@ -78,7 +78,7 @@ fi
 # Validate that all interesting
 #   variables where set in conf
 ###############################
-vars="src_clone_base install_dir build_dir"
+vars="src_clone_base install_dir build_dir bzr_src_base"
 for i in $vars
 do
   t=`echo echo \\$$i`
@@ -103,7 +103,8 @@ fi
 # Setup the clone source location  #
 ####################################
 
-src_clone=${src_clone_base}${clone}
+#src_clone=${src_clone_base}/${clone}
+src_clone=${bzr_src_base}/${clone}
 
 #######################################
 # Check to see if the lock file exists#
@@ -152,12 +153,7 @@ fi
 if [ "$do_clone" ]
 then
 	rm -rf $dst_place
-	if [ `echo $src_clone | grep -c 'file:\/\/'` = 1 ]
-	then
-		bk clone -l $extra_clone $src_clone $dst_place
-	else
-		bk clone $extra_clone $src_clone $dst_place
-	fi
+	bzr export $dst_place $extra_clone $src_clone
 fi
 
 ##########################################

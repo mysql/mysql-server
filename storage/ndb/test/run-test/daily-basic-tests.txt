@@ -467,10 +467,6 @@ args: -n ScanReadWhileNodeIsDown D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanRestart T1 D1 D2 
-
-max-time: 500
-cmd: testScan
 args: -l 100 -n Scan-bug8262 T6 D1 D2
 
 max-time: 500
@@ -1090,13 +1086,25 @@ max-time: 600
 cmd: test_event
 args: -l 1 -n SubscribeNR T1
 
-max-time: 300
+max-time: 600
 cmd: testNodeRestart
 args: -n Bug34702 T1
 
 max-time: 600
 cmd: test_event
 args: -n Bug35208 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug37279 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug37338 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug37442 T1
 
 # 2008-04-22
 max-time: 1500
@@ -1135,3 +1143,21 @@ cmd: testDict
 args: -l 1 -n FailAddFragment
 
 # EOF 2008-05-29
+# 2008-06-03
+max-time: 1200
+cmd: testNdbApi
+args: -l 100 -n Bug37158
+
+# EOF 2008-06-03
+
+max-time: 500
+cmd: test_event
+args -n bug37672 T1
+
+#EOF 2008-07-04
+
+max-time: 500
+cmd: testScanFilter
+args: 
+
+#EOF 2008-07-09

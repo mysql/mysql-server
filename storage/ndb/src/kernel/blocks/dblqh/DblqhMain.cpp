@@ -8955,7 +8955,7 @@ Dblqh::copy_bounds(Uint32 * dst, TcConnectionrec* tcPtrP)
     
     if(len < left)
     {
-      offset = len;
+      offset = tcPtrP->m_offset_current_keybuf + len;
     }
     else
     {

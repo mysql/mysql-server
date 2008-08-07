@@ -1165,6 +1165,17 @@ TransporterRegistry::start_clients_thread()
 	if(t->isConnected())
 	  t->doDisconnect();
 	break;
+      case DISCONNECTED:
+      {
+        if (t->isConnected())
+        {
+          g_eventLogger->warning("Found connection to %u in state DISCONNECTED "
+                                 " while being connected, disconnecting!",
+                                 t->getRemoteNodeId());
+          t->doDisconnect();
+        }
+        break;
+      }
       default:
 	break;
       }

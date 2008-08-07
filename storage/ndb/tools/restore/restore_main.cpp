@@ -55,6 +55,7 @@ unsigned int g_report_next;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
 NdbRecordPrintFormat g_ndbrecord_print_format;
+unsigned int opt_no_binlog;
 
 NDB_STD_OPTS_VARS;
 
@@ -89,6 +90,7 @@ enum ndb_restore_options {
   OPT_LINES_TERMINATED_BY,
   OPT_APPEND,
   OPT_PROGRESS_FREQUENCY,
+  OPT_NO_BINLOG,
   OPT_VERBOSE
 };
 static const char *opt_fields_enclosed_by= NULL;
@@ -197,6 +199,10 @@ static struct my_option my_long_options[] =
     "Print status uf restore periodically in given seconds", 
     (uchar**) &opt_progress_frequency, (uchar**) &opt_progress_frequency, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 65535, 0, 0, 0 },
+  { "no-binlog", OPT_NO_BINLOG,
+    "If a mysqld is connected and has binary log, do not log the restored data", 
+    (uchar**) &opt_no_binlog, (uchar**) &opt_no_binlog, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", OPT_VERBOSE,
     "verbosity", 
     (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
@@ -648,20 +654,20 @@ static void exitHandler(int code)
 
 static void init_progress()
 {
-  struct timeval the_time;
-  gettimeofday(&the_time, 0);
-  g_report_next = the_time.tv_sec + opt_progress_frequency;
+  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
+  g_report_next = now + opt_progress_frequency;
 }
 
 static int check_progress()
 {
   if (!opt_progress_frequency)
     return 0;
-  struct timeval the_time;
-  gettimeofday(&the_time, 0);
-  if (the_time.tv_sec >= g_report_next)
+
+  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
+  
+  if (now  >= g_report_next)
   {
-    g_report_next = the_time.tv_sec + opt_progress_frequency;
+    g_report_next = now + opt_progress_frequency;
     return 1;
   }
   return 0;
@@ -887,7 +893,8 @@ main(int argc, char** argv)
     {
       if (!ga_skip_table_check){
         for(i=0; i < metaData.getNoOfTables(); i++){
-          if (checkSysTable(metaData, i))
+          if (checkSysTable(metaData, i) && 
+             checkDbAndTableName(metaData[i]))
           {
             for(Uint32 j= 0; j < g_consumers.size(); j++)
               if (!g_consumers[j]->table_equal(* metaData[i]))

@@ -228,13 +228,13 @@ public:
 
     enum Options {
       REPORT_ALL       = 0x1,
-      REPORT_SUBSCRIBE = 0x2
+      REPORT_SUBSCRIBE = 0x2,
+      MARKED_DROPPED   = 0x4
     };
 
     enum State {
       UNDEFINED,
       DEFINED,
-      DROPPED,
       DEFINING
     };
 
@@ -578,7 +578,8 @@ private:
   STATIC_CONST( NO_OF_BUCKETS = 24 ); // 24 = 4*3*2*1! 
   Uint32 c_no_of_buckets;
   struct Bucket c_buckets[NO_OF_BUCKETS];
-  
+  Uint32 c_subscriber_per_node[MAX_NODES];
+
   STATIC_CONST( BUCKET_MASK_SIZE = (((NO_OF_BUCKETS+31)>> 5)) );
   typedef Bitmask<BUCKET_MASK_SIZE> Bucket_mask;
   Bucket_mask m_active_buckets;
