@@ -474,6 +474,7 @@ NDBT_TESTSUITE_END(NdbRepStress);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(NdbRepStress);
   NdbRepStress.setCreateAllTables(true);
   return NdbRepStress.execute(argc, argv);
 }

@@ -2583,6 +2583,8 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
     DBUG_RETURN(NULL);
   }
 
+  op_idx->m_scanUsingOldApi= false;
+
   /* The real work is done in NdbScanOperation */
   if (op_idx->scanTableImpl(result_record,
                             lock_mode,
@@ -2621,6 +2623,8 @@ NdbTransaction::scanIndex(const NdbRecord *key_record,
     setOperationErrorCodeAbort(4000);
     return NULL;
   }
+
+  op->m_scanUsingOldApi= false;
 
   /* Defer the rest of the work to NdbIndexScanOperation */
   if (op->scanIndexImpl(key_record,

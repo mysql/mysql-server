@@ -1049,15 +1049,16 @@ NDBT_TestSuite::createTables(Ndb_cluster_connection& con) const
   for(unsigned i = 0; i<m_tables_in_test.size(); i++)
   {
     const char *tab_name=  m_tables_in_test[i].c_str();
-    if (pDict->dropTable(tab_name) != 0)
+    if (pDict->dropTable(tab_name) != 0 &&
+        pDict->getNdbError().code != 723) // No such table
     {
-      g_err << "runCreateTables: Failed to drop table " << tab_name
+      g_err << "runCreateTables: Failed to drop table " << tab_name << endl
             << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    if(NDBT_Tables::createTable(&ndb, tab_name, getLogging()) != 0)
+    if(NDBT_Tables::createTable(&ndb, tab_name, !getLogging()) != 0)
     {
-      g_err << "runCreateTables: Failed to create table " << tab_name
+      g_err << "runCreateTables: Failed to create table " << tab_name << endl
             << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
@@ -1091,15 +1092,16 @@ runCreateTable(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* pDict = ndb.getDictionary();
   const NdbDictionary::Table* pTab = ctx->getTab();
   const char *tab_name=  pTab->getName();
-  if (pDict->dropTable(tab_name) > 0)
+  if (pDict->dropTable(tab_name) != 0 &&
+      pDict->getNdbError().code != 723) // No such table
   {
-    g_err << "runCreateTable: Failed to drop table " << tab_name
+    g_err << "runCreateTable: Failed to drop table " << tab_name << endl
           << pDict->getNdbError() << endl;
     return NDBT_FAILED;
   }
 
   if(NDBT_Tables::createTable(&ndb, tab_name,
-                              ctx->getSuite()->getLogging()) != 0)
+                              !ctx->getSuite()->getLogging()) != 0)
   {
     g_err << "runCreateTable: Failed to create table " << tab_name
           << pDict->getNdbError() << endl;

@@ -894,6 +894,132 @@ int runMaxScanFilterSize(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+int runScanFilterConstructorFail(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* We test that failures in the ScanFilter constructor can be
+   * detected by the various ScanFilter methods without
+   * issues
+   */
+  Ndb *myNdb = GETNDB(step);
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable(TABLE_NAME);
+  if(myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
+  NdbTransaction* trans=myNdb->startTransaction();
+  
+  if (trans == NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  /* Create an NdbRecord scan operation */
+  const NdbScanOperation* tabScan=
+    trans->scanTable(myTable->getDefaultRecord());
+  
+  if (tabScan==NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  /* Now we hackily try to add a ScanFilter after the operation
+   * is defined.  This will cause a failure within the 
+   * constructor
+   */
+  NdbScanFilter brokenSf((NdbScanOperation*) tabScan);
+
+  /* Scan operation should have an error */
+  if (tabScan->getNdbError().code != 4536)
+  {
+    ndbout << "Expected error 4536, had error " << 
+      tabScan->getNdbError().code << " instead" << endl;
+    return NDBT_FAILED;
+  }
+
+  /* ScanFilter should have an error */
+  if (brokenSf.getNdbError().code != 4539)
+  {
+    ndbout  << "Expected error 4539, had error " << 
+      brokenSf.getNdbError().code << " instead" << endl;
+    return NDBT_FAILED;
+  }
+  
+  if (brokenSf.begin() != -1)
+  { ndbout << "Bad rc from begin" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.istrue() != -1)
+  { ndbout << "Bad rc from istrue" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.isfalse() != -1)
+  { ndbout << "Bad rc from isfalse" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.isnull(0) != -1)
+  { ndbout << "Bad rc from isnull" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.isnotnull(0) != -1)
+  { ndbout << "Bad rc from isnotnull" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.cmp(NdbScanFilter::COND_EQ, 0, NULL, 0) != -1)
+  { ndbout << "Bad rc from cmp" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.end() != -1)
+  { ndbout << "Bad rc from begin" << endl; return NDBT_FAILED; }
+
+  trans->close();
+
+  /* Now we check that we can define a ScanFilter before 
+   * calling readTuples() for a scan operation
+   */
+  trans= myNdb->startTransaction();
+  
+  if (trans == NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  /* Get an old Api table scan operation */
+  NdbScanOperation* tabScanOp=
+    trans->getNdbScanOperation(myTable);
+
+  if (tabScanOp==NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  /* Attempt to define a ScanFilter before calling readTuples() */
+  NdbScanFilter sf(tabScanOp);
+
+  /* Should be no problem ... */
+  if (sf.getNdbError().code != 0) 
+  { APIERROR(sf.getNdbError()); return NDBT_FAILED; };
+  
+ 
+  /* Ok, now attempt to define a ScanFilter against a primary key op */
+  NdbOperation* pkOp= trans->getNdbOperation(myTable);
+
+  if (pkOp == NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  NdbScanFilter sf2(pkOp);
+  
+  if (sf2.getNdbError().code != 4539)
+  {
+    ndbout << "Error, expected 4539" << endl;
+    APIERROR(sf2.getNdbError());
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScanFilter);
 TESTCASE(TEST_NAME, 
 	 "Scan table TABLE_NAME for the records which accord with \
@@ -903,6 +1029,7 @@ TESTCASE(TEST_NAME,
   INITIALIZER(runPopulate);
   INITIALIZER(runScanRandomFilterTest);
   INITIALIZER(runMaxScanFilterSize);
+  INITIALIZER(runScanFilterConstructorFail);
   FINALIZER(runDropTables);
 }
 
@@ -918,6 +1045,7 @@ int main(int argc, const char** argv)
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
+
+  NDBT_TESTSUITE_INSTANCE(testScanFilter);  
   return testScanFilter.executeOneCtx(con, &MYTAB1, TEST_NAME);
 }

@@ -179,6 +179,7 @@ NDBT_TESTSUITE_END(testBasicAsynch);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testBasicAsynch);
   return testBasicAsynch.execute(argc, argv);
 }
 
