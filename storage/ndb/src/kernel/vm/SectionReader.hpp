@@ -22,14 +22,36 @@ class SectionReader {
 public:
   SectionReader(struct SegmentedSectionPtr &,
 		class SectionSegmentPool &);
+  SectionReader(Uint32 firstSectionIVal,
+                class SectionSegmentPool &);
 
+  /* reset : Set SectionReader to start of section */
   void reset();
+  /* step : Step over given number of words */
   bool step(Uint32 len);
+  /* getWord : Copy one word to dst + move forward */
   bool getWord(Uint32 * dst);
+  /* peekWord : Copy one word to dst */
   bool peekWord(Uint32 * dst) const ;
+  /* peekWords : Copy len words to dst */
   bool peekWords(Uint32 * dst, Uint32 len) const;
+  /* getSize : Get total size of section */
   Uint32 getSize() const;
+  /* getWords : Copy len words to dst + move forward */
   bool getWords(Uint32 * dst, Uint32 len);
+
+  /* getWordsPtr : Get const ptr to next contiguous
+   *               block of words
+   * In success case will return at least 1 word
+   */
+  bool getWordsPtr(const Uint32*& readPtr,
+                   Uint32& actualLen);
+  /* getWordsPtr : Get const ptr to at most maxLen words
+   * In success case will return at least 1 word
+   */
+  bool getWordsPtr(Uint32 maxLen,
+                   const Uint32*& readPtr,
+                   Uint32& actualLen);
 
 private:
   Uint32 m_pos;
