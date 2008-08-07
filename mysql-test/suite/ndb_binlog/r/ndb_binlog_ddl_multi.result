@@ -33,11 +33,11 @@ drop table mysqltest.t1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	102	#	ALTER DATABASE mysqltest CHARACTER SET latin1
-master-bin.000001	#	Query	102	#	use `mysqltest`; drop table `t1`
+master-bin.000001	#	Query	102	#	use `mysqltest`; drop table `mysqltest`.`t1`
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	102	#	ALTER DATABASE mysqltest CHARACTER SET latin1
-master-bin.000001	#	Query	102	#	use `mysqltest`; drop table `t1`
+master-bin.000001	#	Query	102	#	use `mysqltest`; drop table `mysqltest`.`t1`
 reset master;
 reset master;
 use test;
@@ -161,10 +161,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin1.000001	#	Query	1	#	use `test`; create table t1 (a int key) engine=ndb
 master-bin1.000001	#	Query	1	#	use `test`; create table t2 (a int key) engine=ndb
 master-bin1.000001	#	Query	1	#	use `test`; create table t3 (a int key) engine=ndb
-master-bin1.000001	#	Query	1	#	use `test`; rename table `test.t3` to `test.t4`
-master-bin1.000001	#	Query	1	#	use `test`; rename table `test.t2` to `test.t3`
-master-bin1.000001	#	Query	1	#	use `test`; rename table `test.t1` to `test.t2`
-master-bin1.000001	#	Query	1	#	use `test`; rename table `test.t4` to `test.t1`
+master-bin1.000001	#	Query	1	#	use `test`; rename table `test`.`t3` to `test`.`t4`
+master-bin1.000001	#	Query	1	#	use `test`; rename table `test`.`t2` to `test`.`t3`
+master-bin1.000001	#	Query	1	#	use `test`; rename table `test`.`t1` to `test`.`t2`
+master-bin1.000001	#	Query	1	#	use `test`; rename table `test`.`t4` to `test`.`t1`
 drop table t1;
 drop table t2;
 drop table t3;
@@ -188,7 +188,7 @@ master-bin1.000001	#	Table_map	102	#	table_id: # (mysql.ndb_apply_status)
 master-bin1.000001	#	Write_rows	102	#	table_id: #
 master-bin1.000001	#	Write_rows	102	#	table_id: # flags: STMT_END_F
 master-bin1.000001	#	Query	102	#	COMMIT
-master-bin1.000001	#	Query	1	#	use `test`; rename table `test.t1` to `test.t2`
+master-bin1.000001	#	Query	1	#	use `test`; rename table `test`.`t1` to `test`.`t2`
 master-bin1.000001	#	Query	102	#	BEGIN
 master-bin1.000001	#	Table_map	102	#	table_id: # (test.t2)
 master-bin1.000001	#	Table_map	102	#	table_id: # (mysql.ndb_apply_status)
