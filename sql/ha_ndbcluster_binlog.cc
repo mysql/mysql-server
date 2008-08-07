@@ -140,12 +140,6 @@ static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
                                    bool have_lock);
 
 /*
-  Global variables for holding the ndb_binlog_index table reference
-*/
-static TABLE *ndb_binlog_index= 0;
-static TABLE_LIST binlog_tables;
-
-/*
   Helper functions
 */
 
@@ -308,15 +302,6 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->transaction.all= save_thd_transaction_all;
   thd->transaction.stmt= save_thd_transaction_stmt;
   thd->net= save_thd_net;
-
-  if (thd == injector_thd)
-  {
-    /*
-      running the query will close all tables, including the ndb_binlog_index
-      used in injector_thd
-    */
-    ndb_binlog_index= 0;
-  }
 }
 
 static void
@@ -2572,8 +2557,8 @@ struct ndb_binlog_index_row {
 /*
   Open the ndb_binlog_index table
 */
-static int open_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
-                                 TABLE **ndb_binlog_index)
+static int open_and_lock_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
+                                          TABLE **ndb_binlog_index)
 {
   static char repdb[]= NDB_REP_DB;
   static char reptable[]= NDB_REP_TABLE;
@@ -2585,9 +2570,8 @@ static int open_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
   tables->lock_type= TL_WRITE;
   thd->proc_info= "Opening " NDB_REP_DB "." NDB_REP_TABLE;
   tables->required_type= FRMTYPE_TABLE;
-  uint counter;
   thd->clear_error();
-  if (open_tables(thd, &tables, &counter, MYSQL_LOCK_IGNORE_FLUSH))
+  if (simple_open_n_lock_tables(thd, tables))
   {
     if (thd->killed)
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: killed");
@@ -2604,32 +2588,6 @@ static int open_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
   return 0;
 }
 
-
-/*
-  Check if ndb_binlog_index is lockable, if not close, to free for
-  other threads use
-*/
-
-static void
-ndb_check_ndb_binlog_index(THD *thd)
-{
-  if (!ndb_binlog_index)
-    return;
-
-  bool need_reopen;
-  if (lock_tables(thd, &binlog_tables, 1, &need_reopen))
-  {
-    ndb_binlog_index= 0;
-    close_thread_tables(thd);
-    ndb_binlog_index= 0;
-    return;
-  }
-
-  mysql_unlock_tables(thd, thd->lock);
-  thd->lock= 0;
-  return;
-}
-
 /*
   Insert one row in the ndb_binlog_index
 */
@@ -2638,8 +2596,10 @@ static int
 ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
 {
   int error= 0;
-  bool need_reopen;
   ndb_binlog_index_row *first= row;
+  TABLE *ndb_binlog_index= 0;
+  TABLE_LIST binlog_tables;
+
   /*
     Turn of binlogging to prevent the table changes to be written to
     the binary log.
@@ -2647,28 +2607,12 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
   ulong saved_options= thd->options;
   thd->options&= ~(OPTION_BIN_LOG);
 
-  for ( ; ; ) /* loop for need_reopen */
-  {
-    if (!ndb_binlog_index && open_ndb_binlog_index(thd, &binlog_tables, &ndb_binlog_index))
-    {
-      error= -1;
-      goto add_ndb_binlog_index_err;
-    }
 
-    if (lock_tables(thd, &binlog_tables, 1, &need_reopen))
-    {
-      if (need_reopen)
-      {
-        TABLE_LIST *p_binlog_tables= &binlog_tables;
-        close_tables_for_reopen(thd, &p_binlog_tables);
-        ndb_binlog_index= 0;
-        continue;
-      }
-      sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
-      error= -1;
-      goto add_ndb_binlog_index_err;
-    }
-    break;
+  if (open_and_lock_ndb_binlog_index(thd, &binlog_tables, &ndb_binlog_index))
+  {
+    sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
+    error= -1;
+    goto add_ndb_binlog_index_err;
   }
 
   /*
@@ -2717,13 +2661,8 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
     }
   } while (row);
 
-  mysql_unlock_tables(thd, thd->lock);
-  thd->lock= 0;
-  thd->options= saved_options;
-  return 0;
 add_ndb_binlog_index_err:
   close_thread_tables(thd);
-  ndb_binlog_index= 0;
   thd->options= saved_options;
   return error;
 }
@@ -5269,15 +5208,6 @@ restart:
          !ndb_binlog_running))
       break; /* Shutting down server */
 
-    if (ndb_binlog_index && ndb_binlog_index->s->version < refresh_version)
-    {
-      if (ndb_binlog_index->s->version < refresh_version)
-      {
-        close_thread_tables(thd);
-        ndb_binlog_index= 0;
-      }
-    }
-
     MEM_ROOT **root_ptr=
       my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
     MEM_ROOT *old_root= *root_ptr;
@@ -5335,17 +5265,8 @@ restart:
       }
     }
 
-    /*
-      For each epoch atleast one check should be made to see if ndb_binlog_index
-      table is lockable.  Variable 'do_check_ndb_binlog_index' is used as a flag
-      to signal if a check is needed for current epoch.
-    */
-    int do_check_ndb_binlog_index= 1;
-
     if (res > 0)
     {
-      do_check_ndb_binlog_index= 1;
-
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
       NdbEventOperation *pOp= i_ndb->nextEvent();
@@ -5618,18 +5539,11 @@ restart:
           if (ndb_update_ndb_binlog_index)
           {
             ndb_add_ndb_binlog_index(thd, rows);
-            do_check_ndb_binlog_index= 0;
           }
           ndb_latest_applied_binlog_epoch= gci;
           break;
         }
         ndb_latest_handled_binlog_epoch= gci;
-
-        if (do_check_ndb_binlog_index)
-        {
-          ndb_check_ndb_binlog_index(thd);
-          do_check_ndb_binlog_index= 0;
-        }
 
 #ifdef RUN_NDB_BINLOG_TIMER
         gci_timer.stop();
@@ -5663,25 +5577,16 @@ restart:
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
-
-    if (do_check_ndb_binlog_index)
-    {
-      ndb_check_ndb_binlog_index(thd);
-      do_check_ndb_binlog_index= 0;
-    }
   }
   if (do_ndbcluster_binlog_close_connection == BCCC_restart)
   {
     ndb_binlog_tables_inited= FALSE;
-    close_thread_tables(thd);
-    ndb_binlog_index= 0;
     goto restart;
   }
 err:
   sql_print_information("Stopping Cluster Binlog");
   DBUG_PRINT("info",("Shutting down cluster binlog thread"));
   thd->proc_info= "Shutting down";
-  close_thread_tables(thd);
   pthread_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd= 0;
