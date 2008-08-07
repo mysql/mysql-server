@@ -303,6 +303,10 @@ UNIV_INTERN ibool	srv_innodb_status	= FALSE;
 
 UNIV_INTERN ibool	srv_stats_on_metadata	= TRUE;
 
+/* When estimating number of different key values in an index, sample
+this many index pages */
+UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
+
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
 

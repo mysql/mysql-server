@@ -56,10 +56,6 @@ can be released by page reorganize, then it is reorganized */
 
 #define BTR_CUR_PAGE_REORGANIZE_LIMIT	(UNIV_PAGE_SIZE / 32)
 
-/* When estimating number of different key values in an index, sample
-this many index pages */
-#define BTR_KEY_VAL_ESTIMATE_N_PAGES	8
-
 /* The structure of a BLOB part header */
 /*--------------------------------------*/
 #define BTR_BLOB_HDR_PART_LEN		0	/* BLOB part len on this
@@ -3175,7 +3171,7 @@ btr_estimate_number_of_different_key_vals(
 
 	/* We sample some pages in the index to get an estimate */
 
-	for (i = 0; i < BTR_KEY_VAL_ESTIMATE_N_PAGES; i++) {
+	for (i = 0; i < srv_stats_sample_pages; i++) {
 		rec_t*	supremum;
 		mtr_start(&mtr);
 
@@ -3264,7 +3260,7 @@ btr_estimate_number_of_different_key_vals(
 	}
 
 	/* If we saw k borders between different key values on
-	BTR_KEY_VAL_ESTIMATE_N_PAGES leaf pages, we can estimate how many
+	srv_stats_sample_pages leaf pages, we can estimate how many
 	there will be in index->stat_n_leaf_pages */
 
 	/* We must take into account that our sample actually represents
@@ -3275,26 +3271,26 @@ btr_estimate_number_of_different_key_vals(
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
 			    * (ib_int64_t)index->stat_n_leaf_pages
-			    + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1
+			    + srv_stats_sample_pages - 1
 			    + total_external_size
 			    + not_empty_flag)
-			   / (BTR_KEY_VAL_ESTIMATE_N_PAGES
+			   / (srv_stats_sample_pages
 			      + total_external_size));
 
 		/* If the tree is small, smaller than
-		10 * BTR_KEY_VAL_ESTIMATE_N_PAGES + total_external_size, then
+		10 * srv_stats_sample_pages + total_external_size, then
 		the above estimate is ok. For bigger trees it is common that we
 		do not see any borders between key values in the few pages
-		we pick. But still there may be BTR_KEY_VAL_ESTIMATE_N_PAGES
+		we pick. But still there may be srv_stats_sample_pages
 		different key values, or even more. Let us try to approximate
 		that: */
 
 		add_on = index->stat_n_leaf_pages
-			/ (10 * (BTR_KEY_VAL_ESTIMATE_N_PAGES
+			/ (10 * (srv_stats_sample_pages
 				 + total_external_size));
 
-		if (add_on > BTR_KEY_VAL_ESTIMATE_N_PAGES) {
-			add_on = BTR_KEY_VAL_ESTIMATE_N_PAGES;
+		if (add_on > srv_stats_sample_pages) {
+			add_on = srv_stats_sample_pages;
 		}
 
 		index->stat_n_diff_key_vals[j] += add_on;
