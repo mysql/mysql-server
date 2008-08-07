@@ -9243,6 +9243,11 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
+  PLUGIN_VAR_RQCMDARG,
+  "The number of index pages to sample when calculating statistics (default 8)",
+  NULL, NULL, 8, 1, ~0ULL, 0);
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, innobase_adaptive_hash_index,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable InnoDB adaptive hash index (enabled by default).  "
@@ -9390,6 +9395,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
+  MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
