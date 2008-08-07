@@ -18,6 +18,9 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+
+C_MODE_START
+
 #include <lf.h>
 
 typedef struct st_wt_resource_id WT_RESOURCE_ID;
@@ -154,5 +157,7 @@ int wt_thd_cond_timedwait(WT_THD *, pthread_mutex_t *);
 void wt_thd_release(WT_THD *, WT_RESOURCE_ID *);
 #define wt_thd_release_all(THD) wt_thd_release((THD), 0)
 int wt_resource_id_memcmp(void *, void *);
+
+C_MODE_END
 
 #endif

@@ -208,6 +208,9 @@ void wt_thd_destroy(WT_THD *thd)
 {
   DBUG_ENTER("wt_thd_destroy");
 
+  if (thd->my_resources.buffer == 0)
+    DBUG_VOID_RETURN; /* nothing to do */
+
   DBUG_ASSERT(thd->my_resources.elements == 0);
   delete_dynamic(&thd->my_resources);
   lf_hash_put_pins(thd->pins);
@@ -447,6 +450,9 @@ int wt_thd_will_wait_for(WT_THD *thd, WT_THD *blocker, WT_RESOURCE_ID *resid)
   DBUG_PRINT("wt", ("enter: thd=%s, blocker=%s, resid=%llu",
                     thd->name, blocker->name, resid->value.num));
 
+  if (unlikely(thd->my_resources.buffer == 0))
+    wt_thd_init(thd);
+
   if (thd->waiting_for == 0)
   {
     uint keylen;
@@ -647,8 +653,8 @@ void wt_thd_release(WT_THD *thd, WT_RESOURCE_ID *resid)
       }
     }
   }
-  DBUG_ASSERT(!resid);
-  reset_dynamic(&thd->my_resources);
+  if (!resid)
+    reset_dynamic(&thd->my_resources);
   DBUG_VOID_RETURN;
 }
 

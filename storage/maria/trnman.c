@@ -81,6 +81,16 @@ void trnman_reset_locked_tables(TRN *trn, uint locked_tables)
   trn->locked_tables= locked_tables;
 }
 
+static void wt_thd_release_self(TRN *trn)
+{
+  if (trn->wt)
+  {
+    WT_RESOURCE_ID rc;
+    rc.type= &ma_rc_dup_unique;
+    rc.value.ptr= trn;
+    wt_thd_release(trn->wt, & rc);
+  }
+}
 
 static my_bool
 default_trnman_end_trans_hook(TRN *trn __attribute__ ((unused)),
@@ -113,8 +123,6 @@ static uchar *trn_get_hash_key(const uchar *trn, size_t *len,
 int trnman_init(TrID initial_trid)
 {
   DBUG_ENTER("trnman_init");
-
-  wt_init(); /* FIXME this should be done in the server, not in the engine! */
 
   short_trid_to_active_trn= (TRN **)my_malloc(SHORT_TRID_MAX*sizeof(TRN*),
                                      MYF(MY_WME|MY_ZEROFILL));
@@ -182,7 +190,6 @@ void trnman_destroy()
     TRN *trn= pool;
     pool= pool->next;
     pthread_mutex_destroy(&trn->state_lock);
-    wt_thd_destroy(&trn->wt);
     my_free((void *)trn, MYF(0));
   }
   lf_hash_destroy(&trid_to_trn);
@@ -192,8 +199,6 @@ void trnman_destroy()
   my_atomic_rwlock_destroy(&LOCK_pool);
   my_free((void *)(short_trid_to_active_trn+1), MYF(0));
   short_trid_to_active_trn= NULL;
-
-  wt_end();
 
   DBUG_VOID_RETURN;
 }
@@ -243,7 +248,7 @@ static uint get_short_trid(TRN *trn)
     mutex and cond will be used for lock waits
 */
 
-TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
+TRN *trnman_new_trn(WT_THD *wt)
 {
   int res;
   TRN *trn;
@@ -291,7 +296,7 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
     }
     trnman_allocated_transactions++;
     pthread_mutex_init(&trn->state_lock, MY_MUTEX_INIT_FAST);
-    wt_thd_init(&trn->wt);
+    trn->wt= wt;
   }
   trn->pins= lf_hash_get_pins(&trid_to_trn);
   if (!trn->pins)
@@ -418,7 +423,7 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
   {
     pthread_mutex_lock(&trn->state_lock);
     trn->commit_trid= global_trid_generator;
-    wt_thd_release_all(& trn->wt);
+    wt_thd_release_self(trn);
     pthread_mutex_unlock(&trn->state_lock);
 
     trn->next= &committed_list_max;
@@ -457,11 +462,6 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
     /* ignore OOM. it's harmless, and we can do nothing here anyway */
     (void)lf_hash_delete(&trid_to_trn, pins, &t->trid, sizeof(TrID));
 
-    pthread_mutex_lock(&trn->state_lock);
-    trn->short_id= 0;
-    wt_thd_release_all(& trn->wt);
-    pthread_mutex_unlock(&trn->state_lock);
-
     trnman_free_trn(t);
   }
 
@@ -488,6 +488,13 @@ void trnman_free_trn(TRN *trn)
      modifies the value of tmp.
   */
   union { TRN *trn; void *v; } tmp;
+
+
+  pthread_mutex_lock(&trn->state_lock);
+  trn->short_id= 0;
+  wt_thd_release_self(trn);
+  trn->wt= 0; /* just in case */
+  pthread_mutex_unlock(&trn->state_lock);
 
   tmp.trn= pool;
 
@@ -759,7 +766,7 @@ TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid)
   TRN *trn;
   DBUG_ASSERT(maria_in_recovery && !maria_multi_threaded);
   global_trid_generator= longid-1; /* force a correct trid in the new trn */
-  if (unlikely((trn= trnman_new_trn(NULL, NULL)) == NULL))
+  if (unlikely((trn= trnman_new_trn(NULL)) == NULL))
     return NULL;
   /* deallocate excessive allocations of trnman_new_trn() */
   global_trid_generator= old_trid_generator;

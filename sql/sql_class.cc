@@ -829,6 +829,7 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
+  wt_thd_destroy(&transaction.wt);
   mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
@@ -836,7 +837,7 @@ void THD::cleanup(void)
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.datetime_format, MYF(MY_ALLOW_ZERO_PTR));
-  
+
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
@@ -874,11 +875,11 @@ THD::~THD()
 #endif
   stmt_map.reset();                     /* close all prepared statements */
   DBUG_ASSERT(lock_info.n_cursors == 0);
-  if (!cleanup_done)
-    cleanup();
-
   ha_close_connection(this);
   plugin_thdvar_cleanup(this);
+
+  if (!cleanup_done)
+    cleanup();
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();

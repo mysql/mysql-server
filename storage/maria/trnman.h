@@ -21,7 +21,6 @@ C_MODE_START
 #include <lf.h>
 #include "trnman_public.h"
 #include "ma_loghandler_lsn.h"
-#include <waiting_threads.h>
 
 /*
   trid - 6 uchar transaction identifier. Assigned when a transaction
@@ -42,10 +41,10 @@ C_MODE_START
   commit_trid happen under this mutex.
 */
 
-struct st_transaction
+struct st_ma_transaction
 {
   LF_PINS              *pins;
-  WT_THD               wt;
+  WT_THD               *wt;
   pthread_mutex_t      state_lock;
   void                 *used_tables;  /* Tables used by transaction */
   TRN                  *next, *prev;
@@ -57,6 +56,8 @@ struct st_transaction
 };
 
 #define TRANSACTION_LOGGED_LONG_ID ULL(0x8000000000000000)
+
+extern WT_RESOURCE_TYPE ma_rc_dup_unique;
 
 C_MODE_END
 

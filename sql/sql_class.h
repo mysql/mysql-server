@@ -22,6 +22,7 @@
 
 #include "log.h"
 #include "rpl_tblmap.h"
+#include <waiting_threads.h>
 
 class Relay_log_info;
 
@@ -1327,6 +1328,7 @@ public:
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
     XID_STATE xid_state;
+    WT_THD wt;
     Rows_log_event *m_pending_rows_event;
 
     /*

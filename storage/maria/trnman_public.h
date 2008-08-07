@@ -24,10 +24,11 @@
 #define _trnman_public_h
 
 #include "ma_loghandler_lsn.h"
+#include <waiting_threads.h>
 
 C_MODE_START
 typedef uint64 TrID; /* our TrID is 6 bytes */
-typedef struct st_transaction TRN;
+typedef struct st_ma_transaction TRN;
 
 #define SHORT_TRID_MAX 65535
 
@@ -38,7 +39,7 @@ extern my_bool (*trnman_end_trans_hook)(TRN *trn, my_bool commit,
 
 int trnman_init(TrID);
 void trnman_destroy(void);
-TRN *trnman_new_trn(pthread_mutex_t *, pthread_cond_t *);
+TRN *trnman_new_trn(WT_THD *wt);
 my_bool trnman_end_trn(TRN *trn, my_bool commit);
 #define trnman_commit_trn(T) trnman_end_trn(T, TRUE)
 #define trnman_abort_trn(T)  trnman_end_trn(T, FALSE)

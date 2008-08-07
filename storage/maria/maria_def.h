@@ -462,7 +462,7 @@ typedef struct st_maria_block_scan
 struct st_maria_handler
 {
   MARIA_SHARE *s;			/* Shared between open:s */
-  struct st_transaction *trn;           /* Pointer to active transaction */
+  struct st_ma_transaction *trn;           /* Pointer to active transaction */
   MARIA_STATUS_INFO *state, state_save;
   MARIA_STATUS_INFO *state_start;       /* State at start of transaction */
   MARIA_ROW cur_row;                    /* The active row that we just read */
@@ -761,7 +761,6 @@ extern char *maria_data_root;
 extern uchar maria_zero_string[];
 extern my_bool maria_inited, maria_in_ha_maria;
 extern HASH maria_stored_state;
-extern WT_RESOURCE_TYPE ma_rc_dup_unique;
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param

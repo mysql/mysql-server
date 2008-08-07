@@ -26,6 +26,7 @@
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
 #include "events.h"
+#include <waiting_threads.h>
 
 #include "../storage/myisam/ha_myisam.h"
 
@@ -1240,6 +1241,7 @@ void clean_up(bool print_message)
   if (tc_log)
     tc_log->close();
   xid_cache_free();
+  wt_end();
   delete_elements(&key_caches, (void (*)(const char*, uchar*)) free_key_cache);
   multi_keycache_free();
   free_status_vars();
@@ -3664,6 +3666,8 @@ static int init_server_components()
   */
   if (table_cache_init() | table_def_init() | hostname_cache_init())
     unireg_abort(1);
+
+  wt_init();
 
   query_cache_result_size_limit(query_cache_limit);
   query_cache_set_min_res_unit(query_cache_min_res_unit);
