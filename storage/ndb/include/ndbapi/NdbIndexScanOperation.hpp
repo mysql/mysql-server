@@ -307,16 +307,18 @@ private:
 inline
 int
 NdbIndexScanOperation::setBound(const char* attr, int type, const void* value,
-                                __attribute__((__unused__))Uint32 len)
+                                Uint32 len)
 {
+  (void)len;  // unused
   return setBound(attr, type, value);
 }
 
 inline
 int
 NdbIndexScanOperation::setBound(Uint32 anAttrId, int type, const void* value,
-                                __attribute__((__unused__))Uint32 len)
+                                Uint32 len)
 {
+  (void)len;  // unused
   return setBound(anAttrId, type, value);
 }
 

@@ -1091,8 +1091,9 @@ NdbTransaction::get_send_size()
 
 inline
 void
-NdbTransaction::set_send_size(__attribute__((__unused__))Uint32 send_size)
+NdbTransaction::set_send_size(Uint32 send_size)
 {
+  (void)send_size; //unused
   return;
 }
 
