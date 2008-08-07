@@ -159,7 +159,7 @@ libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
 libinnobase_a_CFLAGS  =	$(AM_CFLAGS)
 
 EXTRA_LTLIBRARIES =	ha_innodb.la
-pkglib_LTLIBRARIES =	@plugin_innobase_shared_target@
+pkgplugin_LTLIBRARIES=	@plugin_innobase_shared_target@
 
 ha_innodb_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
