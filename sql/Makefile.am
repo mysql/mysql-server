@@ -73,7 +73,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			sql_array.h sql_cursor.h events.h scheduler.h \
                         event_db_repository.h event_queue.h \
-			sql_plugin.h authors.h \
+			sql_plugin.h authors.h event_parse_data.h \
 			event_data_objects.h event_scheduler.h \
 			sql_partition.h partition_info.h partition_element.h \
 			contributors.h sql_servers.h
@@ -120,7 +120,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
                         event_queue.cc event_db_repository.cc events.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
-			sql_servers.cc
+			sql_servers.cc event_parse_data.cc
 
 nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
 
@@ -140,6 +140,7 @@ DEFS =			-DMYSQL_SERVER \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DPLUGINDIR="\"$(pkgplugindir)\"" \
+			-DHAVE_EVENT_SCHEDULER \
 			@DEFS@
 
 BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.h

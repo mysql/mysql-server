@@ -25,8 +25,10 @@
 #include "sql_trigger.h"
 #include "authors.h"
 #include "contributors.h"
+#ifdef HAVE_EVENT_SCHEDULER
 #include "events.h"
 #include "event_data_objects.h"
+#endif
 #include <my_dir.h>
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
@@ -287,7 +289,9 @@ static struct show_privileges_st sys_privileges[]=
   {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
+#ifdef HAVE_EVENT_SCHEDULER
   {"Event","Server Admin","To create, alter, drop and execute events"},
+#endif
   {"Execute", "Functions,Procedures", "To execute stored routines"},
   {"File", "File access on server",   "To read and write files on the server"},
   {"Grant option",  "Databases,Tables,Functions,Procedures", "To give to other users those privileges you possess"},
@@ -3894,7 +3898,6 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   DBUG_RETURN(0);
 }
 
-
 int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   return plugin_foreach(thd, iter_schema_engines,
@@ -4959,7 +4962,7 @@ static interval_type get_real_interval_type(interval_type i_type)
 
 #endif
 
-
+#ifdef HAVE_EVENT_SCHEDULER
 /*
   Loads an event from mysql.event and copies it's data to a row of
   I_S.EVENTS
@@ -5079,14 +5082,14 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   switch (et.status)
   {
-    case Event_timed::ENABLED:
+    case Event_parse_data::ENABLED:
       sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("ENABLED"), scs);
       break;
-    case Event_timed::SLAVESIDE_DISABLED:
+    case Event_parse_data::SLAVESIDE_DISABLED:
       sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("SLAVESIDE_DISABLED"),
                                           scs);
       break;
-    case Event_timed::DISABLED:
+    case Event_parse_data::DISABLED:
       sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("DISABLED"), scs);
       break;
     default:
@@ -5095,7 +5098,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[ISE_ORIGINATOR]->store(et.originator, TRUE);
 
   /* on_completion */
-  if (et.on_completion == Event_timed::ON_COMPLETION_DROP)
+  if (et.on_completion == Event_parse_data::ON_COMPLETION_DROP)
     sch_table->field[ISE_ON_COMPLETION]->
                                 store(STRING_WITH_LEN("NOT PRESERVE"), scs);
   else
@@ -5145,7 +5148,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   DBUG_RETURN(0);
 }
-
+#endif
 
 int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 {
@@ -5866,6 +5869,9 @@ bool get_schema_tables_result(JOIN *join,
       bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
                           lex->current_select->master_unit()->item);
 
+      /* A value of 0 indicates a dummy implementation */
+      if (table_list->schema_table->fill_table == 0)
+        continue;
 
       /* skip I_S optimizations specific to get_all_tables */
       if (thd->lex->describe &&
@@ -6541,8 +6547,13 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
+#ifdef HAVE_EVENT_SCHEDULER
   {"EVENTS", events_fields_info, create_schema_table,
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0, 0},
+#else
+  {"EVENTS", events_fields_info, create_schema_table,
+   0, make_old_format, 0, -1, -1, 0, 0},
+#endif
   {"FILES", files_fields_info, create_schema_table,
    fill_schema_files, 0, 0, -1, -1, 0, 0},
   {"GLOBAL_STATUS", variables_fields_info, create_schema_table,

@@ -1773,30 +1773,30 @@ ER_BLOB_USED_AS_KEY 42000 S1009
         swe "En BLOB '%-.192s' kan inte vara nyckel med den använda tabelltypen"
         ukr "BLOB ÓÔÏ×ÂÅÃØ '%-.192s' ÎÅ ÍÏÖÅ ÂÕÔÉ ×ÉËÏÒÉÓÔÁÎÉÊ Õ ×ÉÚÎÁÞÅÎÎ¦ ËÌÀÞÁ × ÃØÏÍÕ ÔÉÐ¦ ÔÁÂÌÉÃ¦"
 ER_TOO_BIG_FIELDLENGTH 42000 S1009
-        cze "P-Bøíli¹ velká délka sloupce '%-.192s' (nejvíce %d). Pou¾ijte BLOB"
-        dan "For stor feltlængde for kolonne '%-.192s' (maks = %d). Brug BLOB i stedet"
-        nla "Te grote kolomlengte voor '%-.192s' (max = %d). Maak hiervoor gebruik van het type BLOB"
-        eng "Column length too big for column '%-.192s' (max = %d); use BLOB or TEXT instead"
-        jps "column '%-.192s' ‚Í,Šm•Û‚·‚é column ‚Ì‘å‚«‚³‚ª‘½‚·‚¬‚Ü‚·. (Å‘å %d ‚Ü‚Å). BLOB ‚ð‚©‚í‚è‚ÉŽg—p‚µ‚Ä‚­‚¾‚³‚¢.",
-        est "Tulba '%-.192s' pikkus on liiga pikk (maksimaalne pikkus: %d). Kasuta BLOB väljatüüpi"
-        fre "Champ '%-.192s' trop long (max = %d). Utilisez un BLOB"
-        ger "Feldlänge für Feld '%-.192s' zu groß (maximal %d). BLOB- oder TEXT-Spaltentyp verwenden!"
-        greek "Ðïëý ìåãÜëï ìÞêïò ãéá ôï ðåäßï '%-.192s' (max = %d). Ðáñáêáëþ ÷ñçóéìïðïéåßóôå ôïí ôýðï BLOB"
-        hun "A(z) '%-.192s' oszlop tul hosszu. (maximum = %d). Hasznaljon BLOB tipust inkabb."
-        ita "La colonna '%-.192s' e` troppo grande (max=%d). Utilizza un BLOB."
-        jpn "column '%-.192s' ¤Ï,³ÎÊÝ¤¹¤ë column ¤ÎÂç¤­¤µ¤¬Â¿¤¹¤®¤Þ¤¹. (ºÇÂç %d ¤Þ¤Ç). BLOB ¤ò¤«¤ï¤ê¤Ë»ÈÍÑ¤·¤Æ¤¯¤À¤µ¤¤."
-        kor "Ä®·³ '%-.192s'ÀÇ Ä®·³ ±æÀÌ°¡ ³Ê¹« ±é´Ï´Ù (ÃÖ´ë = %d). ´ë½Å¿¡ BLOB¸¦ »ç¿ëÇÏ¼¼¿ä."
-        nor "For stor nøkkellengde for kolonne '%-.192s' (maks = %d). Bruk BLOB istedenfor"
-        norwegian-ny "For stor nykkellengde for felt '%-.192s' (maks = %d). Bruk BLOB istadenfor"
-        pol "Zbyt du¿a d³ugo?æ kolumny '%-.192s' (maks. = %d). W zamian u¿yj typu BLOB"
-        por "Comprimento da coluna '%-.192s' grande demais (max = %d); use BLOB em seu lugar"
-        rum "Lungimea coloanei '%-.192s' este prea lunga (maximum = %d). Foloseste BLOB mai bine"
-        rus "óÌÉÛËÏÍ ÂÏÌØÛÁÑ ÄÌÉÎÁ ÓÔÏÌÂÃÁ '%-.192s' (ÍÁËÓÉÍÕÍ = %d). éÓÐÏÌØÚÕÊÔÅ ÔÉÐ BLOB ÉÌÉ TEXT ×ÍÅÓÔÏ ÔÅËÕÝÅÇÏ"
-        serbian "Previše podataka za kolonu '%-.192s' (maksimum je %d). Upotrebite BLOB polje"
-        slo "Príli¹ veµká då¾ka pre pole '%-.192s' (maximum = %d). Pou¾ite BLOB"
-        spa "Longitud de columna demasiado grande para la columna '%-.192s' (maximo = %d).Usar BLOB en su lugar"
-        swe "För stor kolumnlängd angiven för '%-.192s' (max= %d). Använd en BLOB instället"
-        ukr "úÁÄÏ×ÇÁ ÄÏ×ÖÉÎÁ ÓÔÏ×ÂÃÑ '%-.192s' (max = %d). ÷ÉËÏÒÉÓÔÁÊÔÅ ÔÉÐ BLOB"
+        cze "P-Bøíli¹ velká délka sloupce '%-.192s' (nejvíce %lu). Pou¾ijte BLOB"
+        dan "For stor feltlængde for kolonne '%-.192s' (maks = %lu). Brug BLOB i stedet"
+        nla "Te grote kolomlengte voor '%-.192s' (max = %lu). Maak hiervoor gebruik van het type BLOB"
+        eng "Column length too big for column '%-.192s' (max = %lu); use BLOB or TEXT instead"
+        jps "column '%-.192s' ‚Í,Šm•Û‚·‚é column ‚Ì‘å‚«‚³‚ª‘½‚·‚¬‚Ü‚·. (Å‘å %lu ‚Ü‚Å). BLOB ‚ð‚©‚í‚è‚ÉŽg—p‚µ‚Ä‚­‚¾‚³‚¢.",
+        est "Tulba '%-.192s' pikkus on liiga pikk (maksimaalne pikkus: %lu). Kasuta BLOB väljatüüpi"
+        fre "Champ '%-.192s' trop long (max = %lu). Utilisez un BLOB"
+        ger "Feldlänge für Feld '%-.192s' zu groß (maximal %lu). BLOB- oder TEXT-Spaltentyp verwenden!"
+        greek "Ðïëý ìåãÜëï ìÞêïò ãéá ôï ðåäßï '%-.192s' (max = %lu). Ðáñáêáëþ ÷ñçóéìïðïéåßóôå ôïí ôýðï BLOB"
+        hun "A(z) '%-.192s' oszlop tul hosszu. (maximum = %lu). Hasznaljon BLOB tipust inkabb."
+        ita "La colonna '%-.192s' e` troppo grande (max=%lu). Utilizza un BLOB."
+        jpn "column '%-.192s' ¤Ï,³ÎÊÝ¤¹¤ë column ¤ÎÂç¤­¤µ¤¬Â¿¤¹¤®¤Þ¤¹. (ºÇÂç %lu ¤Þ¤Ç). BLOB ¤ò¤«¤ï¤ê¤Ë»ÈÍÑ¤·¤Æ¤¯¤À¤µ¤¤."
+        kor "Ä®·³ '%-.192s'ÀÇ Ä®·³ ±æÀÌ°¡ ³Ê¹« ±é´Ï´Ù (ÃÖ´ë = %lu). ´ë½Å¿¡ BLOB¸¦ »ç¿ëÇÏ¼¼¿ä."
+        nor "For stor nøkkellengde for kolonne '%-.192s' (maks = %lu). Bruk BLOB istedenfor"
+        norwegian-ny "For stor nykkellengde for felt '%-.192s' (maks = %lu). Bruk BLOB istadenfor"
+        pol "Zbyt du¿a d³ugo?æ kolumny '%-.192s' (maks. = %lu). W zamian u¿yj typu BLOB"
+        por "Comprimento da coluna '%-.192s' grande demais (max = %lu); use BLOB em seu lugar"
+        rum "Lungimea coloanei '%-.192s' este prea lunga (maximum = %lu). Foloseste BLOB mai bine"
+        rus "óÌÉÛËÏÍ ÂÏÌØÛÁÑ ÄÌÉÎÁ ÓÔÏÌÂÃÁ '%-.192s' (ÍÁËÓÉÍÕÍ = %lu). éÓÐÏÌØÚÕÊÔÅ ÔÉÐ BLOB ÉÌÉ TEXT ×ÍÅÓÔÏ ÔÅËÕÝÅÇÏ"
+        serbian "Previše podataka za kolonu '%-.192s' (maksimum je %lu). Upotrebite BLOB polje"
+        slo "Príli¹ veµká då¾ka pre pole '%-.192s' (maximum = %lu). Pou¾ite BLOB"
+        spa "Longitud de columna demasiado grande para la columna '%-.192s' (maximo = %lu).Usar BLOB en su lugar"
+        swe "För stor kolumnlängd angiven för '%-.192s' (max= %lu). Använd en BLOB instället"
+        ukr "úÁÄÏ×ÇÁ ÄÏ×ÖÉÎÁ ÓÔÏ×ÂÃÑ '%-.192s' (max = %lu). ÷ÉËÏÒÉÓÔÁÊÔÅ ÔÉÐ BLOB"
 ER_WRONG_AUTO_KEY 42000 S1009
         cze "M-Bù¾ete mít pouze jedno AUTO pole a to musí být definováno jako klíè"
         dan "Der kan kun specificeres eet AUTO_INCREMENT-felt, og det skal være indekseret"
@@ -5513,16 +5513,17 @@ ER_SP_NO_RECURSION
         eng "Recursive stored functions and triggers are not allowed."
         ger "Rekursive gespeicherte Routinen und Triggers sind nicht erlaubt"
 ER_TOO_BIG_SCALE 42000 S1009
-        eng "Too big scale %d specified for column '%-.192s'. Maximum is %d."
-        ger "Zu großer Skalierungsfaktor %d für Feld '%-.192s' angegeben. Maximum ist %d"
+        eng "Too big scale %d specified for column '%-.192s'. Maximum is %lu."
+        ger "Zu großer Skalierungsfaktor %d für Feld '%-.192s' angegeben. Maximum ist %lu"
 ER_TOO_BIG_PRECISION 42000 S1009
-        eng "Too big precision %d specified for column '%-.192s'. Maximum is %d."
-        ger "Zu große Genauigkeit %d für Feld '%-.192s' angegeben. Maximum ist %d"
+        eng "Too big precision %d specified for column '%-.192s'. Maximum is %lu."
+        ger "Zu große Genauigkeit %d für Feld '%-.192s' angegeben. Maximum ist %lu"
 ER_M_BIGGER_THAN_D 42000 S1009
         eng "For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '%-.192s')."
         ger "Für FLOAT(M,D), DOUBLE(M,D) oder DECIMAL(M,D) muss M >= D sein (Feld '%-.192s')"
 ER_WRONG_LOCK_OF_SYSTEM_TABLE
         eng "You can't combine write-locking of system tables with other tables or lock types"
+	ger "Sie können Schreibsperren auf der Systemtabelle nicht mit anderen Tabellen kombinieren"
 ER_CONNECT_TO_FOREIGN_DATA_SOURCE
         eng "Unable to connect to foreign data source: %.64s"
         ger "Kann nicht mit Fremddatenquelle verbinden: %.64s"
@@ -5554,8 +5555,8 @@ ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
         eng "Cannot drop default keycache"
         ger "Der vorgabemäßige Schlüssel-Cache kann nicht gelöscht werden"
 ER_TOO_BIG_DISPLAYWIDTH 42000 S1009
-        eng "Display width out of range for column '%-.192s' (max = %d)"
-        ger "Anzeigebreite außerhalb des zulässigen Bereichs für Spalte '%-.192s' (Maximum: %d)"
+        eng "Display width out of range for column '%-.192s' (max = %lu)"
+        ger "Anzeigebreite außerhalb des zulässigen Bereichs für Spalte '%-.192s' (Maximum: %lu)"
 ER_XAER_DUPID XAE08
         eng "XAER_DUPID: The XID already exists"
         ger "XAER_DUPID: Die XID existiert bereits"
@@ -6120,8 +6121,12 @@ ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
   eng "The BINLOG statement of type `%s` was not preceded by a format description BINLOG statement."
 ER_SLAVE_CORRUPT_EVENT
   eng "Corrupted replication event was detected"
+
 ER_LOAD_DATA_INVALID_COLUMN
   eng "Invalid column reference (%-.64s) in LOAD DATA"
 
 ER_LOG_PURGE_NO_FILE  
 	eng "Being purged log %s was not found"
+
+ER_NEED_REPREPARE
+  eng "Prepared statement needs to be re-prepared"

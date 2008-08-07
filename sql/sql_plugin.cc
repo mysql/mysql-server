@@ -1137,9 +1137,10 @@ int plugin_init(int *argc, char **argv, int flags)
   {
     for (plugin= *builtins; plugin->info; plugin++)
     {
-      /* by default, only ndbcluster is disabled */
+      /* by default, ndbcluster and federated are disabled */
       def_enabled=
-        my_strcasecmp(&my_charset_latin1, plugin->name, "NDBCLUSTER") != 0;
+        my_strcasecmp(&my_charset_latin1, plugin->name, "NDBCLUSTER") != 0 &&
+        my_strcasecmp(&my_charset_latin1, plugin->name, "FEDERATED") != 0;
       bzero(&tmp, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;

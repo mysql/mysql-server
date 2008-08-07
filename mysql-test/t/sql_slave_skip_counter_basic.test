@@ -1,0 +1,109 @@
+############## mysql-test\t\sql_slave_skip_counter_basic.test #################
+#                                                                             #
+# Variable Name: sql_slave_skip_counter                                       #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:                                                              #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable sql_slave_skip_counter   #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/not_embedded.inc
+--source include/load_sysvars.inc
+
+################################################################
+#           START OF sql_slave_skip_counter TESTS              #
+################################################################
+
+--echo '#--------------------FN_DYNVARS_165_01-------------------------#'
+#############################################################
+#                 Try accessing initial value               #
+#############################################################
+
+--Error ER_VAR_CANT_BE_READ
+SET @start_global_value = @@global.sql_slave_skip_counter;
+--Error ER_VAR_CANT_BE_READ
+SELECT @@global.sql_slave_skip_counter;
+
+--echo 'Info:This value is write only. Value can not be read'
+
+--echo '#--------------------FN_DYNVARS_165_02-------------------------#'
+###################################################################
+#            Try setting DEFAULT value to variable                #
+###################################################################
+
+--Error ER_NO_DEFAULT
+SET @@global.sql_slave_skip_counter = DEFAULT;
+
+
+--echo '#--------------------FN_DYNVARS_165_03-------------------------#'
+###################################################################
+#            Try setting any valid value to variable              #
+###################################################################
+
+SET @@global.sql_slave_skip_counter = 0;
+SET @@global.sql_slave_skip_counter = 5;
+SET @@global.sql_slave_skip_counter = 1024;
+SET @@global.sql_slave_skip_counter = 2147483648;
+SET @@global.sql_slave_skip_counter = 2147483648*2;
+SET @@global.sql_slave_skip_counter = 2147483648*2-1;
+SET @@global.sql_slave_skip_counter = 4294967295*4294967295;
+
+
+--echo '#--------------------FN_DYNVARS_165_03-------------------------#'
+###################################################################
+#            Checking invalid value for variable                  #
+###################################################################
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.sql_slave_skip_counter = '5';
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.sql_slave_skip_counter = 5.5;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.sql_slave_skip_counter = -.5;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.sql_slave_skip_counter = -.0;
+
+
+--echo '#--------------------FN_DYNVARS_165_03-------------------------#'
+###################################################################
+#            Try retrieving value from Information Schema         #
+###################################################################
+
+SET @@global.sql_slave_skip_counter = 1024;
+SELECT VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='sql_slave_skip_counter';
+
+
+--echo '#--------------------FN_DYNVARS_165_03-------------------------#'
+###################################################################
+#         Checking if variable is accessible with session scope   #
+###################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@sql_slave_skip_counter = 10;
+--Error ER_GLOBAL_VARIABLE
+SET @@session.sql_slave_skip_counter = 12;
+--Error ER_GLOBAL_VARIABLE
+SET @@local.sql_slave_skip_counter = 13;
+
+########################################################
+#              END OF sql_slave_skip_counter TESTS     #
+########################################################
+

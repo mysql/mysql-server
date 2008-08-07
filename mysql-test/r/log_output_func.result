@@ -1,0 +1,53 @@
+'#--------------------FN_DYNVARS_065_01-------------------------#'
+SET @@global.log_output = 'NONE';
+'connect (con1,localhost,root,,,,)'
+'connection con1'
+SELECT @@global.log_output;
+@@global.log_output
+NONE
+SET @@global.log_output = 'TABLE,FILE';
+'connect (con2,localhost,root,,,,)'
+'connection con2'
+SELECT @@global.log_output;
+@@global.log_output
+FILE,TABLE
+'#--------------------FN_DYNVARS_065_02-------------------------#'
+'connection con1'
+'---Checking general_log when log_output is NONE---'
+SET @@global.log_output = 'NONE';
+TRUNCATE TABLE mysql.general_log;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 value(1);
+SELECT 'abc';
+abc
+abc
+SELECT count(*) FROM mysql.general_log;
+count(*)
+0
+'---Checking general_log when log_output is TABLE---'
+SET @@global.log_output = 'TABLE';
+TRUNCATE TABLE mysql.general_log;
+DROP TABLE IF EXISTS t1;
+create table t1(a int);
+INSERT INTO t1 value(1);
+SELECT 'abc';
+abc
+abc
+SELECT count(*) from mysql.general_log;
+count(*)
+5
+'Bug#35371: Changing general_log file is crashing server'
+'SET @@global.general_log_file = @log_file;'
+SET @@global.log_output = 'FILE';
+TRUNCATE TABLE mysql.general_log;
+DROP TABLE IF EXISTS t1;
+create table t1(a int);
+INSERT INTO t1 value(1);
+SELECT 'abc';
+abc
+abc
+SELECT count(*) from mysql.general_log;
+count(*)
+0
+DROP TABLE t1;

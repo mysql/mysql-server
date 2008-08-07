@@ -1,18 +1,25 @@
 --source include/have_ujis.inc
+--source include/have_innodb.inc
 
 --disable_warnings
-drop table if exists `£‘£±`;
-drop table if exists `£‘£≤`;
-drop table if exists `£‘£≥`;
-drop table if exists `£‘£¥`;
-drop table if exists `£‘£µ`;
-drop table if exists `£‘£∂`;
-drop table if exists `£‘£∑`;
-drop table if exists `£‘£∏`;
-drop table if exists `£‘£π`;
-drop table if exists `£‘£±£∞`;
-drop table if exists `£‘£±£±`;
-drop table if exists `£‘£±£≤`;
+DROP TABLE IF EXISTS `£‘£±a`;
+DROP TABLE IF EXISTS `£‘£±b`;
+DROP TABLE IF EXISTS `£‘£≤a`;
+DROP TABLE IF EXISTS `£‘£≤b`;
+DROP TABLE IF EXISTS `£‘£≥a`;
+DROP TABLE IF EXISTS `£‘£≥b`;
+DROP TABLE IF EXISTS `£‘£¥a`;
+DROP TABLE IF EXISTS `£‘£¥b`;
+DROP TABLE IF EXISTS `£‘£µa`;
+DROP TABLE IF EXISTS `£‘£µb`;
+DROP TABLE IF EXISTS `£‘£∂a`;
+DROP TABLE IF EXISTS `£‘£∂b`;
+DROP TABLE IF EXISTS `£‘£∑a`;
+DROP TABLE IF EXISTS `£‘£∑b`;
+DROP TABLE IF EXISTS `£‘£∏a`;
+DROP TABLE IF EXISTS `£‘£∏b`;
+DROP TABLE IF EXISTS `£‘£πa`;
+DROP TABLE IF EXISTS `£‘£πb`;
 --enable_warnings
 
 #
@@ -28,24 +35,18 @@ CREATE TABLE `£‘£≤a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine 
 CREATE TABLE `£‘£≤b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
 CREATE TABLE `£‘£≥a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
 CREATE TABLE `£‘£≥b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£¥a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£¥b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£µa` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£µb` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£∂a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£∂b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£∑a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£∑b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£∏a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£∏b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£πa` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£πb` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£±£∞a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£±£∞b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£±£±a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£±£±b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£±£≤a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
-CREATE TABLE `£‘£±£≤b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = innodb;
+CREATE TABLE `£‘£¥a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£¥b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£µa` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£µb` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£∂a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£∂b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = myisam;
+CREATE TABLE `£‘£∑a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = memory;
+CREATE TABLE `£‘£∑b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = memory;
+CREATE TABLE `£‘£∏a` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = memory;
+CREATE TABLE `£‘£∏b` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = memory;
+CREATE TABLE `£‘£πa` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = memory;
+CREATE TABLE `£‘£πb` (`£√£±` char(1) PRIMARY KEY) DEFAULT CHARSET = ujis engine = memory;
 
 #insert the following data in each table
 # jisx0201 hankaku-katakana data
@@ -70,12 +71,6 @@ INSERT INTO `£‘£∏a` VALUES ('§¢'),('§´'),('§µ');
 INSERT INTO `£‘£∏b` VALUES ('§¢');
 INSERT INTO `£‘£πa` VALUES ('èÌ‹'),('èÌ›'),('èÌﬁ');
 INSERT INTO `£‘£πb` VALUES ('èÌ‹');
-INSERT INTO `£‘£±£∞a` VALUES ('é±'),('é∂'),('éª');
-INSERT INTO `£‘£±£∞b` VALUES ('é±');
-INSERT INTO `£‘£±£±a` VALUES ('§¢'),('§´'),('§µ');
-INSERT INTO `£‘£±£±b` VALUES ('§¢');
-INSERT INTO `£‘£±£≤a` VALUES ('èÌ‹'),('èÌ›'),('èÌﬁ');
-INSERT INTO `£‘£±£≤b` VALUES ('èÌ‹');
 
 #Test for innodb
 SELECT * FROM `£‘£±a` JOIN `£‘£±b`;
@@ -135,7 +130,7 @@ SELECT * FROM `£‘£∂a` LEFT JOIN `£‘£∂b` ON (`£‘£∂a`.`£√£±` = `£‘£∂b`.`£√£±`);
 SELECT * FROM `£‘£∂b` RIGHT JOIN `£‘£∂a` USING (`£√£±`);
 SELECT * FROM `£‘£∂b` RIGHT JOIN `£‘£∂a` ON (`£‘£∂a`.`£√£±` = `£‘£∂b`.`£√£±`);
 
-#Test for heap
+#Test for MEMORY
 SELECT * FROM `£‘£∑a` JOIN `£‘£∑b`;
 SELECT * FROM `£‘£∑a` INNER JOIN `£‘£∑b`;
 SELECT * FROM `£‘£∑a` JOIN `£‘£∑b` USING (`£√£±`);
@@ -164,35 +159,6 @@ SELECT * FROM `£‘£πa` LEFT JOIN `£‘£πb` ON (`£‘£πa`.`£√£±` = `£‘£πb`.`£√£±`);
 SELECT * FROM `£‘£πb` RIGHT JOIN `£‘£πa` USING (`£√£±`);
 SELECT * FROM `£‘£πb` RIGHT JOIN `£‘£πa` ON (`£‘£πa`.`£√£±` = `£‘£πb`.`£√£±`);
 
-#Test for heap
-SELECT * FROM `£‘£±£∞a` JOIN `£‘£±£∞b`;
-SELECT * FROM `£‘£±£∞a` INNER JOIN `£‘£±£∞b`;
-SELECT * FROM `£‘£±£∞a` JOIN `£‘£±£∞b` USING (`£√£±`);
-SELECT * FROM `£‘£±£∞a` INNER JOIN `£‘£±£∞b` USING (`£√£±`);
-SELECT * FROM `£‘£±£∞a` CROSS JOIN `£‘£±£∞b`;
-SELECT * FROM `£‘£±£∞a` LEFT JOIN `£‘£±£∞b` USING (`£√£±`);
-SELECT * FROM `£‘£±£∞a` LEFT JOIN `£‘£±£∞b` ON (`£‘£±£∞a`.`£√£±` = `£‘£±£∞b`.`£√£±`);
-SELECT * FROM `£‘£±£∞b` RIGHT JOIN `£‘£±£∞a` USING (`£√£±`);
-SELECT * FROM `£‘£±£∞b` RIGHT JOIN `£‘£±£∞a` ON (`£‘£±£∞a`.`£√£±` = `£‘£±£∞b`.`£√£±`);
-SELECT * FROM `£‘£±£±a` JOIN `£‘£±£±b`;
-SELECT * FROM `£‘£±£±a` INNER JOIN `£‘£±£±b`;
-SELECT * FROM `£‘£±£±a` JOIN `£‘£±£±b` USING (`£√£±`);
-SELECT * FROM `£‘£±£±a` INNER JOIN `£‘£±£±b` USING (`£√£±`);
-SELECT * FROM `£‘£±£±a` CROSS JOIN `£‘£±£±b`;
-SELECT * FROM `£‘£±£±a` LEFT JOIN `£‘£±£±b` USING (`£√£±`);
-SELECT * FROM `£‘£±£±a` LEFT JOIN `£‘£±£±b` ON (`£‘£±£±a`.`£√£±` = `£‘£±£±b`.`£√£±`);
-SELECT * FROM `£‘£±£±b` RIGHT JOIN `£‘£±£±a` USING (`£√£±`);
-SELECT * FROM `£‘£±£±b` RIGHT JOIN `£‘£±£±a` ON (`£‘£±£±a`.`£√£±` = `£‘£±£±b`.`£√£±`);
-SELECT * FROM `£‘£±£≤a` JOIN `£‘£±£≤b`;
-SELECT * FROM `£‘£±£≤a` INNER JOIN `£‘£±£≤b`;
-SELECT * FROM `£‘£±£≤a` JOIN `£‘£±£≤b` USING (`£√£±`);
-SELECT * FROM `£‘£±£≤a` INNER JOIN `£‘£±£≤b` USING (`£√£±`);
-SELECT * FROM `£‘£±£≤a` CROSS JOIN `£‘£±£≤b`;
-SELECT * FROM `£‘£±£≤a` LEFT JOIN `£‘£±£≤b` USING (`£√£±`);
-SELECT * FROM `£‘£±£≤a` LEFT JOIN `£‘£±£≤b` ON (`£‘£±£≤a`.`£√£±` = `£‘£±£≤b`.`£√£±`);
-SELECT * FROM `£‘£±£≤b` RIGHT JOIN `£‘£±£≤a` USING (`£√£±`);
-SELECT * FROM `£‘£±£≤b` RIGHT JOIN `£‘£±£≤a` ON (`£‘£±£≤a`.`£√£±` = `£‘£±£≤b`.`£√£±`);
-
 DROP TABLE `£‘£±a`;
 DROP TABLE `£‘£±b`;
 DROP TABLE `£‘£≤a`;
@@ -211,9 +177,3 @@ DROP TABLE `£‘£∏a`;
 DROP TABLE `£‘£∏b`;
 DROP TABLE `£‘£πa`;
 DROP TABLE `£‘£πb`;
-DROP TABLE `£‘£±£∞a`;
-DROP TABLE `£‘£±£∞b`;
-DROP TABLE `£‘£±£±a`;
-DROP TABLE `£‘£±£±b`;
-DROP TABLE `£‘£±£≤a`;
-DROP TABLE `£‘£±£≤b`;

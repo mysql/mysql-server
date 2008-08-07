@@ -1520,7 +1520,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   DBUG_ENTER("dyn_string_cmp");
   DBUG_PRINT("enter", ("fname: %s", fname));
 
-  if ((fd= create_temp_file(temp_file_path, NULL,
+  if ((fd= create_temp_file(temp_file_path, TMPDIR,
                             "tmp", O_CREAT | O_SHARE | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for ds");
@@ -5490,6 +5490,7 @@ void init_win_path_patterns()
   const char* paths[] = { "$MYSQL_TEST_DIR",
                           "$MYSQL_TMP_DIR",
                           "$MYSQLTEST_VARDIR",
+                          "$MASTER_MYSOCK",
                           "./test/" };
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
@@ -5594,8 +5595,10 @@ void fix_win_paths(const char *val, int len)
 */
 
 void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
-                  const char* val, ulonglong len, my_bool is_null)
+                  char* val, ulonglong len, my_bool is_null)
 {
+  char null[]= "NULL";
+
   if (col_idx < max_replace_column && replace_column[col_idx])
   {
     val= replace_column[col_idx];
@@ -5603,7 +5606,7 @@ void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
   }
   else if (is_null)
   {
-    val= "NULL";
+    val= null;
     len= 4;
   }
 #ifdef __WIN__
@@ -5617,9 +5620,18 @@ void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
         (start[1] == '-' || start[1] == '+') && start[2] == '0')
     {
       start+=2; /* Now points at first '0' */
-      /* Move all chars after the first '0' one step left */
-      memmove(start, start + 1, strlen(start));
-      len--;
+      if (field->flags & ZEROFILL_FLAG)
+      {
+        /* Move all chars before the first '0' one step right */
+        memmove(val + 1, val, start - val);
+        *val= '0';
+      }
+      else
+      {
+        /* Move all chars after the first '0' one step left */
+        memmove(start, start + 1, strlen(start));
+        len--;
+      }
     }
   }
 #endif
@@ -5658,7 +5670,7 @@ void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
     lengths = mysql_fetch_lengths(res);
     for (i = 0; i < num_fields; i++)
       append_field(ds, i, &fields[i],
-                   (const char*)row[i], lengths[i], !row[i]);
+                   row[i], lengths[i], !row[i]);
     if (!display_result_vertically)
       dynstr_append_mem(ds, "\n", 1);
   }
@@ -5707,7 +5719,7 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   while (mysql_stmt_fetch(stmt) == 0)
   {
     for (i= 0; i < num_fields; i++)
-      append_field(ds, i, &fields[i], (const char *) my_bind[i].buffer,
+      append_field(ds, i, &fields[i], my_bind[i].buffer,
                    *my_bind[i].length, *my_bind[i].is_null);
     if (!display_result_vertically)
       dynstr_append_mem(ds, "\n", 1);
@@ -8094,8 +8106,6 @@ uint replace_len(char * str)
   uint len=0;
   while (*str)
   {
-    if (str[0] == '\\' && str[1])
-      str++;
     str++;
     len++;
   }
@@ -8108,7 +8118,6 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
 		      char * word_end_chars)
 {
   static const int SPACE_CHAR= 256;
-  static const int START_OF_LINE= 257;
   static const int END_OF_LINE= 258;
 
   uint i,j,states,set_nr,len,result_len,max_length,found_end,bits_set,bit_nr;
@@ -8194,35 +8203,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     }
     for (pos=from[i], len=0; *pos ; pos++)
     {
-      if (*pos == '\\' && *(pos+1))
-      {
-	pos++;
-	switch (*pos) {
-	case 'b':
-	  follow_ptr->chr = SPACE_CHAR;
-	  break;
-	case '^':
-	  follow_ptr->chr = START_OF_LINE;
-	  break;
-	case '$':
-	  follow_ptr->chr = END_OF_LINE;
-	  break;
-	case 'r':
-	  follow_ptr->chr = '\r';
-	  break;
-	case 't':
-	  follow_ptr->chr = '\t';
-	  break;
-	case 'v':
-	  follow_ptr->chr = '\v';
-	  break;
-	default:
-	  follow_ptr->chr = (uchar) *pos;
-	  break;
-	}
-      }
-      else
-	follow_ptr->chr= (uchar) *pos;
+      follow_ptr->chr= (uchar) *pos;
       follow_ptr->table_offset=i;
       follow_ptr->len= ++len;
       follow_ptr++;
