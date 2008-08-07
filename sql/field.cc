@@ -27,6 +27,8 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
+#include "rpl_rli.h"                            // Pull in Relay_log_info
+#include "slave.h"                              // Pull in rpl_master_has_bug()
 #include <m_ctype.h>
 #include <errno.h>
 #ifdef HAVE_FCONVERT
@@ -1375,7 +1377,8 @@ bool Field::send_binary(Protocol *protocol)
    @retval 0 if this field's size is < the source field's size
    @retval 1 if this field's size is >= the source field's size
 */
-int Field::compatible_field_size(uint field_metadata)
+int Field::compatible_field_size(uint field_metadata,
+                                 const Relay_log_info *rli_arg __attribute__((unused)))
 {
   uint const source_size= pack_length_from_metadata(field_metadata);
   uint const destination_size= row_pack_length();
@@ -2837,7 +2840,8 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
    @retval 0 if this field's size is < the source field's size
    @retval 1 if this field's size is >= the source field's size
 */
-int Field_new_decimal::compatible_field_size(uint field_metadata)
+int Field_new_decimal::compatible_field_size(uint field_metadata,
+                                             const Relay_log_info * __attribute__((unused)))
 {
   int compatible= 0;
   uint const source_precision= (field_metadata >> 8U) & 0x00ff;
@@ -4037,7 +4041,6 @@ Field_real::pack(uchar *to, const uchar *from,
 {
   DBUG_ENTER("Field_real::pack");
   DBUG_ASSERT(max_length >= pack_length());
-  DBUG_PRINT("debug", ("pack_length(): %u", pack_length()));
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first != table->s->db_low_byte_first)
   {
@@ -4056,7 +4059,6 @@ Field_real::unpack(uchar *to, const uchar *from,
                    uint param_data, bool low_byte_first)
 {
   DBUG_ENTER("Field_real::unpack");
-  DBUG_PRINT("debug", ("pack_length(): %u", pack_length()));
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first != table->s->db_low_byte_first)
   {
@@ -6638,6 +6640,36 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
 }
 
 
+struct Check_field_param {
+  Field *field;
+};
+
+static bool
+check_field_for_37426(const void *param_arg)
+{
+  Check_field_param *param= (Check_field_param*) param_arg;
+  DBUG_ASSERT(param->field->real_type() == MYSQL_TYPE_STRING);
+  DBUG_PRINT("debug", ("Field %s - type: %d, size: %d",
+                       param->field->field_name,
+                       param->field->real_type(),
+                       param->field->row_pack_length()));
+  return param->field->row_pack_length() > 255;
+}
+
+
+int Field_string::compatible_field_size(uint field_metadata,
+                                        const Relay_log_info *rli_arg)
+{
+#ifdef HAVE_REPLICATION
+  const Check_field_param check_param = { this };
+  if (rpl_master_has_bug(rli_arg, 37426, TRUE,
+                         check_field_for_37426, &check_param))
+    return FALSE;                        // Not compatible field sizes
+#endif
+  return Field::compatible_field_size(field_metadata, rli_arg);
+}
+
+
 int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   uint a_len, b_len;
@@ -6724,6 +6756,9 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
    @c param_data argument contains the result of field->real_type() from
    the master.
 
+   @note For information about how the length is packed, see @c
+   Field_string::do_save_field_metadata
+
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Real type (upper) and length (lower) values
@@ -6736,10 +6771,24 @@ Field_string::unpack(uchar *to,
                      uint param_data,
                      bool low_byte_first __attribute__((unused)))
 {
-  uint from_length=
-    param_data ? min(param_data & 0x00ff, field_length) : field_length;
-  uint length;
+  uint from_length, length;
 
+  /*
+    Compute the declared length of the field on the master. This is
+    used to decide if one or two bytes should be read as length.
+   */
+  if (param_data)
+    from_length= (((param_data >> 4) & 0x300) ^ 0x300) + (param_data & 0x00ff);
+  else
+    from_length= field_length;
+
+  DBUG_PRINT("debug",
+             ("param_data: 0x%x, field_length: %u, from_length: %u",
+              param_data, field_length, from_length));
+  /*
+    Compute the actual length of the data by reading one or two bits
+    (depending on the declared field length on the master).
+   */
   if (from_length > 255)
   {
     length= uint2korr(from);
@@ -6762,14 +6811,37 @@ Field_string::unpack(uchar *to,
    second byte of the field metadata array at index of *metadata_ptr and
    *(metadata_ptr + 1).
 
+   @note In order to be able to handle lengths exceeding 255 and be
+   backwards-compatible with pre-5.1.26 servers, an extra two bits of
+   the length has been added to the metadata in such a way that if
+   they are set, a new unrecognized type is generated.  This will
+   cause pre-5.1-26 servers to stop due to a field type mismatch,
+   while new servers will be able to extract the extra bits. If the
+   length is <256, there will be no difference and both a new and an
+   old server will be able to handle it.
+
+   @note The extra two bits are added to bits 13 and 14 of the
+   parameter data (with 1 being the least siginficant bit and 16 the
+   most significant bit of the word) by xoring the extra length bits
+   with the real type.  Since all allowable types have 0xF as most
+   significant bits of the metadata word, lengths <256 will not affect
+   the real type at all, while all other values will result in a
+   non-existant type in the range 17-244.
+
+   @see Field_string::unpack
+
    @param   metadata_ptr   First byte of field metadata
 
    @returns number of bytes written to metadata_ptr
 */
 int Field_string::do_save_field_metadata(uchar *metadata_ptr)
 {
-  *metadata_ptr= real_type();
-  *(metadata_ptr + 1)= field_length;
+  DBUG_ASSERT(field_length < 1024);
+  DBUG_ASSERT((real_type() & 0xF0) == 0xF0);
+  DBUG_PRINT("debug", ("field_length: %u, real_type: %u",
+                       field_length, real_type()));
+  *metadata_ptr= (real_type() ^ ((field_length & 0x300) >> 4));
+  *(metadata_ptr + 1)= field_length & 0xFF;
   return 2;
 }
 
@@ -9123,7 +9195,8 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
    @retval 0 if this field's size is < the source field's size
    @retval 1 if this field's size is >= the source field's size
 */
-int Field_bit::compatible_field_size(uint field_metadata)
+int Field_bit::compatible_field_size(uint field_metadata,
+                                     const Relay_log_info * __attribute__((unused)))
 {
   int compatible= 0;
   uint const source_size= pack_length_from_metadata(field_metadata);

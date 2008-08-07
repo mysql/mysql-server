@@ -9,8 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-federated_transactions   : Bug#29523 Transactions do not work
-csv_alter_table      : Bug#33696 2008-01-21 pcrews no .result file - bug allows NULL columns in CSV tables
 user_limits     : Bug#23921 random failure of user_limits.test
 status               : Bug#32966 main.status fails
 thread_cache_size_func : Bug#36733 main.thread_cache_size_func fails randomly
