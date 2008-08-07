@@ -1023,11 +1023,11 @@ master-bin.000001	#	Xid	1	#	#
 master-bin.000001	#	Query	1	#	use `test_rpl`; ANALYZE TABLE t1
 master-bin.000001	#	Query	1	#	use `test_rpl`; OPTIMIZE TABLE t1
 master-bin.000001	#	Query	1	#	use `test_rpl`; REPAIR TABLE t1
-master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE DEFINER=`root`@`localhost` PROCEDURE p1 ()
+master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 UPDATE t1 SET b = 'test' WHERE a = 201;
 END
-master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE DEFINER=`root`@`localhost` PROCEDURE p2 ()
+master-bin.000001	#	Query	1	#	use `test_rpl`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`()
 BEGIN
 UPDATE t1 SET b = UUID() WHERE a = 202;
 END

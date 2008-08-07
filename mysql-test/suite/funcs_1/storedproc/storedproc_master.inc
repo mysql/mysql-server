@@ -6,10 +6,6 @@
 ############################################################################
 --enable_query_log
 
-# prepare a variable to be able to suppress machine dependant diffs
-#let $SERVER_NAME= `SELECT DISTINCT host FROM mysql.user WHERE host LIKE "%\%" AND host NOT In ("localhost", "127.0.0.1", "%")`;
-# can be used in: --replace_result $SERVER_NAME <SERVER_NAME>
-
 # ==============================================================================
 let $message= Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
 FUNCTION, ALTER PROCEDURE, ALTER FUNCTION, DROP PROCEDURE, DROP FUNCTION, SHOW
@@ -17235,7 +17231,6 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '00000';
@@ -17244,6 +17239,11 @@ BEGIN
     SELECT @var2;
 END//
 delimiter ;//
+
+CALL sp1();
+
+# cleanup
+DROP PROCEDURE sp1;
 
 
 # ------------------------------------------------------------------------------
@@ -17384,7 +17384,6 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare continue handler for sqlstate '00000'  set @var2 = 1;
@@ -17392,6 +17391,12 @@ BEGIN
           SELECT @var2;
 END//
 delimiter ;//
+
+CALL sp1();
+
+# cleanup
+DROP PROCEDURE sp1;
+
 
 
 # ------------------------------------------------------------------------------
@@ -18107,53 +18112,56 @@ let $message= Testcase 4.3.1:;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
-drop table IF EXISTS res_t3_itisalongname_1381742_itsaverylongname_1381742;
+DROP TABLE IF EXISTS res_t3_itisalongname_1381742_itsaverylongname_1381742;
 --enable_warnings
 
 #FIXME: change back to $engine_type for INNODB and MYISAM, but MEMORY doesn't support this
-eval CREATE TABLE res_t3_itisalongname_1381742_itsaverylongname_1381742(
-         middleinitial CHAR,
-         lastname VARCHAR(50),
-         age_averylongfieldname_averylongname_1234569 int,
-         COMMENT TEXT) ENGINE=$engine_type;
+--replace_result $engine_type <engine_to_be_tested>
+eval
+CREATE TABLE res_t3_itisalongname_1381742_itsaverylongname_1381742(
+   middleinitial CHAR, lastname VARCHAR(50),
+   age_averylongfieldname_averylongname_1234569 INT, COMMENT VARCHAR(100))
+ENGINE=$engine_type;
 
 INSERT INTO res_t3_itisalongname_1381742_itsaverylongname_1381742
-      VALUES('a', 'aaaaaaaaaabbbbbbbbc', 0, 'default');
+VALUES('a', 'aaaaaaaaaabbbbbbbbc', 0, 'default');
 
 delimiter //;
-CREATE PROCEDURE sp1(a int)
+CREATE PROCEDURE sp1(a INT)
 BEGIN
-  declare itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx char;
-  declare itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx varchar(100);
-  declare itisjustamediumsizeintintegervariablename integer;
-  set itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx = 'b';
-  set itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx = 'oldmacdonalds)(*&(^^%$&^%$&^%*^)(*^#@$@%';
-  set itisjustamediumsizeintintegervariablename = 5;
-  set @comment='a';
-  label1: loop
-    if a>100 then
-      set @comment='value of a is greater than 100';
-    elseif a<100 then
-      if a<50 then
-        set @comment='value of a is less than 50';
-      elseif a<25 then
-        set @comment='value of a is less than 25';
-    else
-      set @comment='value of a is greater than 50 and less than 100';
-    END if;
-  else
-    set @comment='value of a is 100';
-  END if;
+   DECLARE itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx CHAR;
+   DECLARE itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx VARCHAR(100);
+   DECLARE itisjustamediumsizeintintegervariablename INTEGER;
+   SET itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx = 'b';
+   SET itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx
+      = 'oldmacdonalds)(*&(^^%$&^%$&^%*^)(*^#@$@%';
+   SET itisjustamediumsizeintintegervariablename = 5;
+   SET @comment='a';
+   label1: LOOP
+      IF a > 100 THEN
+         SET @comment = 'value of a is greater than 100';
+      ELSEIF a < 100 THEN
+         IF a < 50 THEN
+            SET @comment = 'value of a is less than 50';
+         ELSEIF a < 25 THEN
+            SET @comment = 'value of a is less than 25';
+         ELSE
+            SET @comment = 'value of a is greater than 50 and less than 100';
+         END IF;
+      ELSE
+         SET @comment = 'value of a is 100';
+      END IF;
 
-  if itisjustamediumsizeintintegervariablename = 0 then leave label1;
-  END if;
-  insert into res_t3_itisalongname_1381742_itsaverylongname_1381742
-     values( itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx,
-        concat(itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx, '  ', a),
-               a, @comment );
-  set itisjustamediumsizeintintegervariablename = itisjustamediumsizeintintegervariablename - 1;
-            iterate label1;
-  END loop label1;
+      IF itisjustamediumsizeintintegervariablename = 0 THEN LEAVE label1;
+      END IF;
+      INSERT INTO res_t3_itisalongname_1381742_itsaverylongname_1381742
+      VALUES(itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx,
+             CONCAT(itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx,
+             '  ', a), a, @comment);
+      SET itisjustamediumsizeintintegervariablename
+         = itisjustamediumsizeintintegervariablename - 1;
+      ITERATE label1;
+   END LOOP label1;
 END//
 delimiter ;//
 
@@ -29236,7 +29244,6 @@ DROP PROCEDURE IF EXISTS h1;
 --enable_warnings
 
 delimiter //;
---error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE h1 ()
 BEGIN
     declare x1 int default 0;
@@ -29312,7 +29319,6 @@ DROP PROCEDURE IF EXISTS h1;
 --enable_warnings
 
 delimiter //;
---error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE h1 ()
 BEGIN
     declare x1 int default 0;

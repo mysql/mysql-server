@@ -1,0 +1,24 @@
+SET @global_slow_query_log = @@global.slow_query_log;
+SET @global_log_output = @@global.log_output;
+SET @@session.long_query_time=1;
+SET @@global.log_output = 'TABLE';
+'----When slow_query_log = OFF----'
+SET @@global.slow_query_log = OFF;
+TRUNCATE mysql.slow_log;
+SELECT sleep(2);
+sleep(2)
+0
+SELECT count(*) FROM mysql.slow_log;
+count(*)
+0
+'----When slow_query_log = ON-----'
+SET @@global.slow_query_log = ON;
+TRUNCATE mysql.slow_log;
+SELECT sleep(2);
+sleep(2)
+0
+SELECT count(*) FROM mysql.slow_log;
+count(*)
+1
+SET @@global.log_output = @global_log_output;
+SET @global.slow_query_log = @global_slow_query_log;

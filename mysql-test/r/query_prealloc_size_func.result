@@ -1,0 +1,38 @@
+** Setup **
+
+CREATE TABLE t1 (id int auto_increment primary key, val text(200));
+INSERT INTO t1 values(NULL,'a');
+INSERT INTO t1 values(NULL,'b');
+INSERT INTO t1 values(NULL,'c');
+INSERT INTO t1 values(NULL,'d');
+SELECT * FROM t1 ORDER BY val;
+id	val
+1	a
+2	b
+3	c
+4	d
+SET SESSION query_prealloc_size  = 8192;
+'#----------------------------FN_DYNVARS_137_05-----------------#'
+SET GLOBAL query_prealloc_size = 8192;
+SELECT @@SESSION.query_prealloc_size;
+@@SESSION.query_prealloc_size
+8192
+Expected Value : 8192;
+SET SESSION query_prealloc_size = 16384;
+SELECT @@SESSION.query_prealloc_size;
+@@SESSION.query_prealloc_size
+8192
+Expected Value : 8192;
+SET SESSION query_prealloc_size = 8192;
+SELECT @@SESSION.query_prealloc_size;
+@@SESSION.query_prealloc_size
+16384
+Expected Value : 16384;
+SELECT @@SESSION.query_prealloc_size;
+@@SESSION.query_prealloc_size
+8192
+Expected Value : 8192;
+SELECT @@GLOBAL.query_prealloc_size;
+@@GLOBAL.query_prealloc_size
+8192
+Expected Value : 8192;

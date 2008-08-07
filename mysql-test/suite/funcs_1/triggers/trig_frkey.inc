@@ -70,7 +70,7 @@ let $message= Testcase x.x.x.2:;
 	insert into t2 values (1,2,'Emp 1');
 	insert into t2 values (2,3,'Emp 2');
 
-	--error 1452
+	--error ER_NO_REFERENCED_ROW_2
 	insert into t2 values (3,4,'Emp 3');
 
 	create trigger tr_t2 before insert on t2 for each row

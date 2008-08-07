@@ -4022,6 +4022,13 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     - Run a normal repair using the new index file and the old data file
   */
 
+  if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
+  {
+    error= send_check_errmsg(thd, table_list, "repair",
+                             "Failed repairing incompatible .frm file");
+    goto end;
+  }
+
   /*
     Check if this is a table type that stores index and data separately,
     like ISAM or MyISAM. We assume fixed order of engine file name
@@ -4776,9 +4783,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   char ts_name[FN_LEN];
   DBUG_ENTER("mysql_create_like_table");
 
-
-  /* CREATE TABLE ... LIKE is not allowed for views. */
-  src_table->required_type= FRMTYPE_TABLE;
 
   /*
     By opening source table we guarantee that it exists and no concurrent
