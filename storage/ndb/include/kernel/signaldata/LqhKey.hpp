@@ -40,6 +40,10 @@ public:
   STATIC_CONST( MaxKeyInfo = 4 );
   STATIC_CONST( MaxAttrInfo = 5);
 
+  /* Long LQHKEYREQ definitions */
+  STATIC_CONST( KeyInfoSectionNum = 0 );
+  STATIC_CONST( AttrInfoSectionNum = 1 );
+
 private:
 
   /**
@@ -147,7 +151,8 @@ private:
 /**
  * Request Info
  *
- * k = Key len                - 10 Bits (0-9) max 1023
+ * k = Key len                - (Short LQHKEYREQ only) 
+ *                              10 Bits (0-9) max 1023
  * l = Last Replica No        - 2  Bits -> Max 3 (10-11)
 
  IF version < NDBD_ROWID_VERSION
@@ -158,7 +163,8 @@ private:
  * s = Simple indicator       - 1  Bit (18)
  * o = Operation              - 3  Bits (19-21)
  * r = Sequence replica       - 2  Bits (22-23)
- * a = Attr Info in LQHKEYREQ - 3  Bits (24-26)
+ * a = Attr Info in LQHKEYREQ - (Short LQHKEYREQ only)
+                                3  Bits (24-26)
  * c = Same client and tc     - 1  Bit (27)
  * u = Read Len Return Ind    - 1  Bit (28)
  * m = Commit ack marker      - 1  Bit (29)
@@ -167,10 +173,17 @@ private:
  * g = gci flag               - 1  Bit (12)
  * n = NR copy                - 1  Bit (13)
 
+ * Short LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
  *   kkkkkkkkkklltttpdisooorraaacumxz
  *   kkkkkkkkkkllgn pdisooorraaacumxz
+ *
+ * Long LQHKEYREQ :
+ *             1111111111222222222233
+ *   01234567890123456789012345678901
+ *             llgn pdisooorr   cumxz
+ *
  */
 
 #define RI_KEYLEN_SHIFT      (0)
@@ -200,7 +213,8 @@ private:
 /**
  * Scan Info
  *
- * a = Attr Len                 - 16 Bits -> max 65535 (0-15)
+ * a = Attr Len                 - (Short LQHKEYREQ only)
+ *                                 16 Bits -> max 65535 (0-15)
  * p = Stored Procedure Ind     -  1 Bit (16)
  * d = Distribution key         -  8 Bit  -> max 255 (17-24)
  * t = Scan take over indicator -  1 Bit (25)
@@ -208,7 +222,8 @@ private:
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * aaaaaaaaaaaaaaaapddddddddtmm
+ * aaaaaaaaaaaaaaaapddddddddtmm       (Short LQHKEYREQ)
+ *                 pddddddddtmm       (Long LQHKEYREQ)
  */
 
 #define SI_ATTR_LEN_MASK     (65535)

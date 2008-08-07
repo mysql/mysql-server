@@ -1975,7 +1975,6 @@ void Dbtc::tckeyreq020Lab(Signal* signal)
                         &signal->theData[KeyInfo::HeaderLength],
                         wordsInSignal))
   {
-    // TODO : Consider error insert
     jam();
     appendToSectionErrorLab(signal);
     return;
@@ -2991,8 +2990,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     bool ok= appendToSection(regCachePtr->keyInfoSectionI,
                              &TOptionalDataPtr[TkeyIndex],
                              keyInfoInTCKeyReq);
-    
-    // TODO : Consider error insert
     if (!ok)
     {
       jam();
@@ -3007,8 +3004,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       ok= appendToSection(regCachePtr->attrInfoSectionI,
                           &TOptionalDataPtr[TAIDataIndex],
                           titcLenAiInTckeyreq);
-
-      // TODO : Consider error insert
       if (!ok)
       {
         jam();
@@ -3532,13 +3527,27 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     reorg = 2;
   }
 
-  /* Todo : Determine whether to use a long Lqh key req based on the
-   * version of the target Lqh node
+  Uint32 inlineKeyLen= 0;
+  Uint32 inlineAttrLen= 0;
+
+  /* We normally send long LQHKEYREQ unless the
+   * destination cannot handle it or we are 
+   * testing
    */
-  regCachePtr->useLongLqhKeyReq= 0;
+  if (unlikely((version < NDBD_LONG_LQHKEYREQ) ||
+               ERROR_INSERTED(8069)))
+  {
+    /* Short LQHKEYREQ, with some key/attr data inline */
+    regCachePtr->useLongLqhKeyReq= 0;
+    inlineKeyLen= regCachePtr->keylen;
+    inlineAttrLen= regCachePtr->attrlength;
+  }
+  else
+    /* Long LQHKEYREQ, with key/attr data in long sections */
+    regCachePtr->useLongLqhKeyReq= 1;
 
   tslrAttrLen = 0;
-  LqhKeyReq::setAttrLen(tslrAttrLen, regCachePtr->attrlength);
+  LqhKeyReq::setAttrLen(tslrAttrLen, inlineAttrLen);
   /* ---------------------------------------------------------------------- */
   // Bit16 == 0 since StoredProcedures are not yet supported.
   /* ---------------------------------------------------------------------- */
@@ -3551,7 +3560,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   sig1 = regTcPtr->operation;
   sig2 = regTcPtr->dirtyOp;
   bool dirtyRead = (sig1 == ZREAD && sig2 == ZTRUE);
-  LqhKeyReq::setKeyLen(Tdata10, regCachePtr->keylen);
+  LqhKeyReq::setKeyLen(Tdata10, inlineKeyLen);
   LqhKeyReq::setLastReplicaNo(Tdata10, regTcPtr->lastReplicaNo);
   if (unlikely(version < NDBD_ROWID_VERSION))
   {
@@ -3647,9 +3656,42 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     nextPos++;
   }//if
 
+  // Reset trigger count
+  regTcPtr->accumulatingTriggerData.i = RNIL;  
+  regTcPtr->accumulatingTriggerData.p = NULL;  
+  regTcPtr->noFiredTriggers = 0;
+  regTcPtr->triggerExecutionCount = 0;
+
   if (regCachePtr->useLongLqhKeyReq)
   {
-    ndbassert(false); // TODO
+    /* Build long LQHKeyReq using Key + AttrInfo sections */
+    SectionHandle handle(this);
+    SegmentedSectionPtr keyInfoSection;
+    
+    getSection(keyInfoSection, regCachePtr->keyInfoSectionI);
+
+    handle.m_ptr[ LqhKeyReq::KeyInfoSectionNum ]= keyInfoSection;
+    handle.m_cnt= 1;
+
+    if (regCachePtr->attrlength != 0)
+    {
+      SegmentedSectionPtr attrInfoSection;
+
+      ndbassert(regCachePtr->attrInfoSectionI != RNIL);
+      getSection(attrInfoSection, regCachePtr->attrInfoSectionI);
+      
+      handle.m_ptr[ LqhKeyReq::AttrInfoSectionNum ]= attrInfoSection;
+      handle.m_cnt= 2;
+    }
+    
+    sendSignal(TBRef, GSN_LQHKEYREQ, signal, 
+               nextPos + LqhKeyReq::FixedSignalLength, JBB, 
+               &handle);
+
+    /* Long sections were freed as part of sendSignal */
+    ndbassert( handle.m_cnt == 0 );
+    regCachePtr->keyInfoSectionI= RNIL;
+    regCachePtr->attrInfoSectionI= RNIL;
   }
   else
   {
@@ -3685,17 +3727,10 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
       
       nextPos+= aiInLqhKeyReq;
     }
+
+    sendSignal(TBRef, GSN_LQHKEYREQ, signal, 
+               nextPos + LqhKeyReq::FixedSignalLength, JBB);
   }
-
-  // Reset trigger count
-  regTcPtr->accumulatingTriggerData.i = RNIL;  
-  regTcPtr->accumulatingTriggerData.p = NULL;  
-  regTcPtr->noFiredTriggers = 0;
-  regTcPtr->triggerExecutionCount = 0;
-
-  // TODO : Long LqhKeyReq variant
-  sendSignal(TBRef, GSN_LQHKEYREQ, signal, 
-             nextPos + LqhKeyReq::FixedSignalLength, JBB);
 }//Dbtc::sendlqhkeyreq()
 
 void Dbtc::packLqhkeyreq040Lab(Signal* signal,
@@ -3996,7 +4031,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
   DEBUG("SignalDroppedRep received for GSN " << originalGSN);
 
   // TODO : Add handling for long signal variants as they
-  //        are added here (TCINDXREQ, SCANTABREQ etc.)
+  //        are added here (SCANTABREQ etc.)
 
   switch(originalGSN) {
   case GSN_TCKEYREQ:

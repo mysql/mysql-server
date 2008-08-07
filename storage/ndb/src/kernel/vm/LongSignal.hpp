@@ -52,6 +52,7 @@ extern SectionSegmentPool g_sectionSegmentPool;
 void print(SegmentedSectionPtr ptr, FILE* out);
 void copy(SegmentedSectionPtr dst, Uint32 * src, Uint32 len);
 void copy(Uint32 * dst, SegmentedSectionPtr src);
+void copy(Uint32 * dst, Uint32 srcFirstIVal);
 bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
 /* appendToSection : If firstSegmentIVal == RNIL, import */
 bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
