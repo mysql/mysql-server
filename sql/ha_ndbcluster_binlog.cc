@@ -1888,10 +1888,11 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           }
           if (! ndbcluster_check_if_local_table(schema->db, schema->name))
           {
-            const int no_print_error[1]= {0};
+            const int no_print_error[1]=
+              {ER_BAD_TABLE_ERROR}; /* ignore missing table */
             run_query(thd, schema->query,
                       schema->query + schema->query_length,
-                      no_print_error, //   /* print error */
+                      no_print_error, //   /* don't print error */
                       TRUE); //  /* don't binlog the query */
 
             /* binlog dropping table after any table operations */
