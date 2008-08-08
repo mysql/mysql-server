@@ -111,7 +111,8 @@ class Select_materialize: public select_union
   select_result *result; /**< the result object of the caller (PS or SP) */
 public:
   Materialized_cursor *materialized_cursor;
-  Select_materialize(select_result *result_arg) :result(result_arg) {}
+  Select_materialize(select_result *result_arg)
+    :result(result_arg), materialized_cursor(0) {}
   virtual bool send_fields(List<Item> &list, uint flags);
 };
 

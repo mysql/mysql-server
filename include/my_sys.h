@@ -90,6 +90,9 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define ME_COLOUR1	((1 << ME_HIGHBYTE))	/* Possibly error-colours */
 #define ME_COLOUR2	((2 << ME_HIGHBYTE))
 #define ME_COLOUR3	((3 << ME_HIGHBYTE))
+#define ME_FATALERROR   1024    /* Fatal statement error */
+#define ME_NO_WARNING_FOR_ERROR 2048 /* Don't push a warning for error */
+#define ME_NO_SP_HANDLER 4096 /* Don't call stored routine error handlers */
 
 	/* Bits in last argument to fn_format */
 #define MY_REPLACE_DIR		1	/* replace dir in name with 'dir' */

@@ -66,7 +66,7 @@ tags:
   test-pl test-force-pl test-full-pl test-force-full-pl test-force-pl-mem \
   test-unit test-ps test-nr test-pr test-ns test-binlog-statement \
   test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp \
-  test-ext-stress test-ext test-embedded \
+  test-ext-stress test-ext test-embedded test-reprepare \
   test-fast test-fast-cursor test-fast-view test-fast-prepare \
   test-full-qa
 
@@ -110,6 +110,11 @@ test-embedded:
 	else \
 	  echo "no program found for 'embedded' tests - skipped testing" ; \
 	fi
+
+test-reprepare:
+	cd mysql-test ; \
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol \
+		--mysqld=--debug=+d,reprepare_each_statement
 
 test:	test-unit test-ns test-pr
 

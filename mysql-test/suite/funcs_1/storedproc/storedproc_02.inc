@@ -5,85 +5,192 @@
 # ==============================================================================
 # (numbering from requirement document TP v1.0, Last updated: 25 Jan 2005 01:00)
 #
-# 3.1.2 Syntax checks for the stored procedure-specific programming statements BEGIN/END, DECLARE, SET, SELECT/INTO, OPEN, FETCH, CLOSE:
+# 3.1.2 Syntax checks for the stored procedure-specific programming statements
+#       BEGIN/END, DECLARE, SET, SELECT/INTO, OPEN, FETCH, CLOSE:
 #
 #-  1. Ensure that all subclauses that should be supported are supported.
-#-  2. Ensure that all subclauses that should not be supported are disallowed with an appropriate error message.
-#-  3. Ensure that all supported subclauses are supported only in the correct order.
-#-  4. Ensure that an appropriate error message is returned if a subclause is out-of-order in a stored procedure definition.
-#-  5. Ensure that all subclauses that are defined to be mandatory are indeed required to be mandatory by the MySQL server and tools.
-#-  6. Ensure that any subclauses that are defined to be optional are indeed treated as optional by the MySQL server and tools.
-#-  7. Ensure that every BEGIN statement is coupled with a terminating END statement.
-##  8. Ensure that the scope of each BEGIN/END compound statement within a stored procedure definition is properly applied.
-#-  9. Ensure that the labels enclosing each BEGIN/END compound statement must match.
-#- 10. Ensure that it is possible to put a beginning label at the start of a BEGIN/END compound statement without also requiring an ending label at the end of the same statement.
-#- 11. Ensure that it is not possible to put an ending label at the end of a BEGIN/END compound statement without also requiring a matching beginning label at the start of the same statement.
+#-  2. Ensure that all subclauses that should not be supported are disallowed
+#      with an appropriate error message.
+#-  3. Ensure that all supported subclauses are supported only in the
+#      correct order.
+#-  4. Ensure that an appropriate error message is returned if a subclause is
+#      out-of-order in a stored procedure definition.
+#-  5. Ensure that all subclauses that are defined to be mandatory are indeed
+#      required to be mandatory by the MySQL server and tools.
+#-  6. Ensure that any subclauses that are defined to be optional are indeed
+#      treated as optional by the MySQL server and tools.
+#-  7. Ensure that every BEGIN statement is coupled with a terminating
+#      END statement.
+##  8. Ensure that the scope of each BEGIN/END compound statement within a
+#      stored procedure definition is properly applied.
+#-  9. Ensure that the labels enclosing each BEGIN/END compound statement
+#      must match.
+#- 10. Ensure that it is possible to put a beginning label at the start of
+#      a BEGIN/END compound statement without also requiring an ending label
+#      at the end of the same statement.
+#- 11. Ensure that it is not possible to put an ending label at the end of
+#      a BEGIN/END compound statement without also requiring a matching
+#      beginning label at the start of the same statement.
 #- 12. Ensure that every beginning label must end with a colon (:).
 #- 13. Ensure that every beginning label with the same scope must be unique.
-#- 14. Ensure that the variables, cursors, conditions, and handlers declared for a stored procedure (with the DECLARE statement) may only be properly defined.
-#- 15. Ensure that the variables, cursors, conditions, and handlers declared for a stored procedure (with the DECLARE statement) may only be defined in the correct order.
-#- 16. Ensure that every possible type of variable -- utilizing every data type definition supported by the MySQL server in combination with both no DEFAULT subclause and with DEFAULT subclauses that set the variable’s default value to a range of appropriate values -- may be declared for a stored procedure.
-#- 17. Ensure that the DECLARE statement can declare multiple variables both separately and all at once from a variable list.
-#- 18. Ensure that invalid variable declarations are rejected, with an appropriate error message.
-#- 19. Ensure that every possible type of cursor may be declared for a stored procedure.
-#- 20. Ensure that invalid cursor declarations are rejected, with an appropriate error message.
-#- 21. Ensure that every possible type of condition may be declared for a stored procedure.
-# -22. Ensure that invalid condition declarations are rejected, with an appropriate error message.
-#- 23. Ensure that every possible type of handler may be declared for a stored procedure.
-#- 24. Ensure that invalid handler declarations are rejected, with an appropriate error message.
-#- 25. Ensure that the scope of every variable, cursor, condition, and handler declared for a stored procedure (with the DECLARE statement) is properly applied.
-## 26. Ensure that the initial value of every variable declared for a stored procedure is either NULL or its DEFAULT value, as appropriate.
-#- 27. Ensure that the SET statement can assign a value to every local variable declared within a stored procedure’s definition, as well as to every appropriate global server variable.
-#- 28. Ensure that the SET statement can assign values to variables either separately or to multiple variables in a list.
-#- 29. Ensure that the SET statement may assign only those values to a variable that are appropriate for that variable’s data type definition.
-## 30. Ensure that, when a stored procedure is called/executed, every variable always uses the correct value: either the value with which it is initialized or the value to which it is subsequently SET or otherwise assigned, as appropriate.
-## 31. Ensure that the SELECT ... INTO statement properly assigns values to the variables in its variable list.
-## 32. Ensure that a SELECT ... INTO statement that retrieves multiple rows is rejected, with an appropriate error message.
-## 33. Ensure that a SELECT ... INTO statement that retrieves too many columns for the number of variables in its variable list is rejected, with an appropriate error message.
-## 34. Ensure that a SELECT ... INTO statement that retrieves too few columns for the number of variables in its variable list is rejected, with an appropriate error message.
-#- 35. Ensure that a SELECT ... INTO statement that retrieves column values with inappropriate data types for the matching variables in its variable list is rejected, with an appropriate error message.
-#- 36. Ensure that the DECLARE ... CONDITION FOR statement can declare a properly-named condition for every possible SQLSTATE and MySQL-specific error code.
-#- 37. Ensure that no two conditions declared with the same scope may have the same condition name.
+#- 14. Ensure that the variables, cursors, conditions, and handlers declared
+#      for a stored procedure (with the DECLARE statement) may only be
+#      properly defined.
+#- 15. Ensure that the variables, cursors, conditions, and handlers declared for
+#      a stored procedure (with the DECLARE statement) may only be defined in
+#      the correct order.
+#- 16. Ensure that every possible type of variable -- utilizing every data type
+#      definition supported by the MySQL server in combination with both no
+#      DEFAULT subclause and with DEFAULT subclauses that set the variableÂ’s
+#      default value to a range of appropriate values -- may be declared for
+#      a stored procedure.
+#- 17. Ensure that the DECLARE statement can declare multiple variables both
+#      separately and all at once from a variable list.
+#- 18. Ensure that invalid variable declarations are rejected, with an
+#      appropriate error message.
+#- 19. Ensure that every possible type of cursor may be declared for a
+#      stored procedure.
+#- 20. Ensure that invalid cursor declarations are rejected, with an appropriate
+#      error message.
+#- 21. Ensure that every possible type of condition may be declared for
+#      a stored procedure.
+# -22. Ensure that invalid condition declarations are rejected, with an
+#      appropriate error message.
+#- 23. Ensure that every possible type of handler may be declared for a
+#      stored procedure.
+#- 24. Ensure that invalid handler declarations are rejected, with an
+#      appropriate error message.
+#- 25. Ensure that the scope of every variable, cursor, condition, and handler
+#      declared for a stored procedure (with the DECLARE statement) is
+#      properly applied.
+## 26. Ensure that the initial value of every variable declared for a stored
+#      procedure is either NULL or its DEFAULT value, as appropriate.
+#- 27. Ensure that the SET statement can assign a value to every local variable
+#      declared within a stored procedureÂ’s definition, as well as to every
+#      appropriate global server variable.
+#- 28. Ensure that the SET statement can assign values to variables either
+#      separately or to multiple variables in a list.
+#- 29. Ensure that the SET statement may assign only those values to a variable
+#      that are appropriate for that variableÂ’s data type definition.
+## 30. Ensure that, when a stored procedure is called/executed, every variable
+#      always uses the correct value: either the value with which it is
+#      initialized or the value to which it is subsequently SET or otherwise
+#      assigned, as appropriate.
+## 31. Ensure that the SELECT ... INTO statement properly assigns values to the
+#      variables in its variable list.
+## 32. Ensure that a SELECT ... INTO statement that retrieves multiple rows is
+#      rejected, with an appropriate error message.
+## 33. Ensure that a SELECT ... INTO statement that retrieves too many columns
+#      for the number of variables in its variable list is rejected, with an
+#      appropriate error message.
+## 34. Ensure that a SELECT ... INTO statement that retrieves too few columns
+#      for the number of variables in its variable list is rejected, with an
+#      appropriate error message.
+#- 35. Ensure that a SELECT ... INTO statement that retrieves column values
+#      with inappropriate data types for the matching variables in its variable
+#      list is rejected, with an appropriate error message.
+#- 36. Ensure that the DECLARE ... CONDITION FOR statement can declare a
+#      properly-named condition for every possible SQLSTATE and MySQL-specific
+#      error code.
+#- 37. Ensure that no two conditions declared with the same scope may have the
+#      same condition name.
 ## 38. Ensure that the scope of every condition declared is properly applied.
-#- 39. Ensure that every SQLSTATE value declared with a DECLARE ... CONDITION FOR statement is a character string that is 5 characters long.
-#- 40. Ensure that the DECLARE ... CONDITION FOR statement cannot declare a condition for an invalid SQLSTATE.
-#- 41. Ensure that the DECLARE ... CONDITION FOR statement cannot declare a condition for the “successful completion SQLSTATE: “00000“.
-#- 42. Ensure that the DECLARE ... HANDLER FOR statement can declare a CONTINUE, EXIT, and UNDO handler for every condition declared (with a DECLARE ... CONDITION FOR statement), within the scope of the handler, for a stored procedure, as well as for every possible SQLSTATE and MySQL-specific error code, as well as for the predefined conditions SQLWARNING, NOT FOUND, and SQLEXCEPTION.
-## 43. Ensure that the DECLARE ... HANDLER FOR statement can not declare any handler for a condition declared outside of the scope of the handler.
-## 44. Ensure that the DECLARE ... HANDLER FOR statement cannot declare a handler for any invalid, or undeclared, condition.
+#- 39. Ensure that every SQLSTATE value declared with a DECLARE ... CONDITION
+#      FOR statement is a character string that is 5 characters long.
+#- 40. Ensure that the DECLARE ... CONDITION FOR statement cannot declare a
+#      condition for an invalid SQLSTATE.
+#- 41. Ensure that the DECLARE ... CONDITION FOR statement cannot declare a
+#      condition for the Â“successful completion SQLSTATE: Â“00000Â“.
+#- 42. Ensure that the DECLARE ... HANDLER FOR statement can declare a CONTINUE,
+#      EXIT, and UNDO handler for every condition declared (with a DECLARE ...
+#      CONDITION FOR statement), within the scope of the handler, for a stored
+#      procedure, as well as for every possible SQLSTATE and MySQL-specific
+#      error code, as well as for the predefined conditions SQLWARNING,
+#      NOT FOUND, and SQLEXCEPTION.
+## 43. Ensure that the DECLARE ... HANDLER FOR statement can not declare any
+#      handler for a condition declared outside of the scope of the handler.
+## 44. Ensure that the DECLARE ... HANDLER FOR statement cannot declare a
+#      handler for any invalid, or undeclared, condition.
 ## 45. Ensure that the scope of every handler declared is properly applied.
-#- 46. Ensure that, within the same scope, no two handlers may be declared for the same condition.
-#- 47. Ensure that every SQLSTATE value declared with a DECLARE ... HANDLER FOR statement is a character string that is 5 characters long.
-#- 48. Ensure that the DECLARE ... HANDLER FOR statement cannot declare a condition for an invalid SQLSTATE.
-#- 49. Ensure that the DECLARE ... HANDLER FOR statement cannot declare a condition for the “successful completion SQLSTATE: “00000“.
-## 50. Ensure that a CONTINUE handler allows the execution of the stored procedure to continue once the handler statement has completed its own execution (that is, once the handler action statement has been executed).
-## 51. Ensure that an EXIT handler causes the execution of the stored procedure to terminate, within its scope, once the handler action statement has been executed.
-## 52. Ensure that an EXIT handler does not cause the execution of the stored procedure to terminate outside of its scope.
-#- 53. Ensure that a handler condition of SQLWARNING takes the same action as a handler condition defined with an SQLSTATE that begins with “01“.
-## 54. Ensure that a handler with a condition defined with an SQLSTATE that begins with “01“ is always exactly equivalent in action to a handler with an SQLWARNING condition.
-#- 55. Ensure that a handler condition of NOT FOUND takes the same action as a handler condition defined with an SQLSTATE that begins with “02“.
-## 56. Ensure that a handler with a condition defined with an SQLSTATE that begins with “02“ is always exactly equivalent in action to a handler with a NOT FOUND condition.
-#- 57. Ensure that a handler condition of SQLEXCEPTION takes the same action as a handler condition defined with an SQLSTATE that begins with anything other that “01“ or “02“.
-## 58. Ensure that a handler with a condition defined with an SQLSTATE that begins with anything other that “01“ or “02“ is always exactly equivalent in action to a handler with an SQLEXCEPTION condition.
+#- 46. Ensure that, within the same scope, no two handlers may be declared for
+#      the same condition.
+#- 47. Ensure that every SQLSTATE value declared with a DECLARE ... HANDLER FOR
+#      statement is a character string that is 5 characters long.
+#- 48. Ensure that the DECLARE ... HANDLER FOR statement cannot declare a
+#      condition for an invalid SQLSTATE.
+#- 49. Ensure that the DECLARE ... HANDLER FOR statement cannot declare a
+#      condition for the Â“successful completion SQLSTATE: Â“00000Â“.
+## 50. Ensure that a CONTINUE handler allows the execution of the stored
+#      procedure to continue once the handler statement has completed its
+#      own execution (that is, once the handler action statement has been
+#      executed).
+## 51. Ensure that an EXIT handler causes the execution of the stored procedure
+#      to terminate, within its scope, once the handler action statement has
+#      been executed.
+## 52. Ensure that an EXIT handler does not cause the execution of the stored
+#      procedure to terminate outside of its scope.
+#- 53. Ensure that a handler condition of SQLWARNING takes the same action as
+#      a handler condition defined with an SQLSTATE that begins with Â“01Â“.
+## 54. Ensure that a handler with a condition defined with an SQLSTATE that
+#      begins with Â“01Â“ is always exactly equivalent in action to a
+#      handler with an SQLWARNING condition.
+#- 55. Ensure that a handler condition of NOT FOUND takes the same action as a
+#      handler condition defined with an SQLSTATE that begins with Â“02Â“.
+## 56. Ensure that a handler with a condition defined with an SQLSTATE that
+#      begins with Â“02Â“ is always exactly equivalent in action to a
+#      handler with a NOT FOUND condition.
+#- 57. Ensure that a handler condition of SQLEXCEPTION takes the same action
+#      as a handler condition defined with an SQLSTATE that begins with
+#      anything other that Â“01Â“ or Â“02Â“.
+## 58. Ensure that a handler with a condition defined with an SQLSTATE that
+#      begins with anything other that Â“01Â“ or Â“02Â“ is always
+#      exactly equivalent in action to a handler with an SQLEXCEPTION condition.
 #- 59. Ensure that no two cursors in a stored procedure can have the same name.
-#- 60. Ensure that a cursor declaration may not include a SELECT ... INTO statement.
-#- 61. Ensure that a cursor declaration that includes an ORDER BY clause may not be an updatable cursor.
-#- 62. Ensure that OPEN <cursor name> fails unless a cursor with the same name has already been declared.
-#- 63. Ensure that OPEN <cursor name> fails if the same cursor is currently already open.
-#- 64. Ensure that FETCH <cursor name> fails unless a cursor with the same name is already open.
-## 65. Ensure that FETCH <cursor name> returns the first row of the cursor’s result set the first time FETCH is executed, that it returns each subsequent row of the cursor’s result set each of the subsequent times FETCH is executed, and that it returns a NOT FOUND warning if it is executed after the last row of the cursor’s result set has already been fetched.
-#- 66. Ensure that FETCH <cursor name> fails with an appropriate error message if it is executed before the cursor has been opened.
-#- 67. Ensure that FETCH <cursor name> fails with an appropriate error message if it is executed after the cursor has been closed.
-## 68. Ensure that FETCH <cursor name> fails with an appropriate error message if the number of columns to be fetched does not match the number of variables specified by the FETCH statement.
-#- 69. Ensure that FETCH <cursor name> fails with an appropriate error message if the data type of the column values being fetched are not appropriate for the matching FETCH variables to which the data is being assigned.
-#- 70. Ensure that CLOSE <cursor name> fails unless a cursor with the same name is already open.
-#- 71. Ensure that all cursors are closed when a transaction terminates with a COMMIT statement.
-#- 72. Ensure that all cursors are closed when a transaction terminates with a ROLLBACK statement.
-#- 73. Ensure that the result set of a cursor that has been closed is not longer available to the FETCH statement.
-#- 74. Ensure that every cursor declared within a compound statement is closed when that compound statement ends.
-## 75. Ensure that, for nested compound statements, a cursor that was declared and opened during an outer level of the statement is not closed when an inner level of a compound statement ends.
-## 76. Ensure that all cursors operate asensitively, so that there is no concurrency conflict between cursors operating on the same, or similar, sets of results during execution of one or more stored procedures.
-# 77. Ensure that multiple cursors, nested within multiple compound statements within a stored procedure, always act correctly and return the expected result.
+#- 60. Ensure that a cursor declaration may not include a SELECT ... INTO
+#      statement.
+#- 61. Ensure that a cursor declaration that includes an ORDER BY clause may
+#      not be an updatable cursor.
+#- 62. Ensure that OPEN <cursor name> fails unless a cursor with the same name
+#      has already been declared.
+#- 63. Ensure that OPEN <cursor name> fails if the same cursor is currently
+#      already open.
+#- 64. Ensure that FETCH <cursor name> fails unless a cursor with the same name
+#      is already open.
+## 65. Ensure that FETCH <cursor name> returns the first row of the cursorÂ’s
+#      result set the first time FETCH is executed, that it returns each
+#      subsequent row of the cursorÂ’s result set each of the subsequent
+#      times FETCH is executed, and that it returns a NOT FOUND warning if it
+#      is executed after the last row of the cursorÂ’s result set has already
+#      been fetched.
+#- 66. Ensure that FETCH <cursor name> fails with an appropriate error message
+#      if it is executed before the cursor has been opened.
+#- 67. Ensure that FETCH <cursor name> fails with an appropriate error message
+#      if it is executed after the cursor has been closed.
+## 68. Ensure that FETCH <cursor name> fails with an appropriate error message
+#      if the number of columns to be fetched does not match the number of
+#      variables specified by the FETCH statement.
+#- 69. Ensure that FETCH <cursor name> fails with an appropriate error message
+#      if the data type of the column values being fetched are not appropriate
+#      for the matching FETCH variables to which the data is being assigned.
+#- 70. Ensure that CLOSE <cursor name> fails unless a cursor with the same name
+#      is already open.
+#- 71. Ensure that all cursors are closed when a transaction terminates with
+#      a COMMIT statement.
+#- 72. Ensure that all cursors are closed when a transaction terminates with
+#      a ROLLBACK statement.
+#- 73. Ensure that the result set of a cursor that has been closed is not
+#      longer available to the FETCH statement.
+#- 74. Ensure that every cursor declared within a compound statement is closed
+#      when that compound statement ends.
+## 75. Ensure that, for nested compound statements, a cursor that was declared
+#      and opened during an outer level of the statement is not closed when an
+#      inner level of a compound statement ends.
+## 76. Ensure that all cursors operate asensitively, so that there is no
+#      concurrency conflict between cursors operating on the same, or similar,
+#      sets of results during execution of one or more stored procedures.
+# 77.  Ensure that multiple cursors, nested within multiple compound statements
+#      within a stored procedure, always act correctly and return the
+#      expected result.
 #
 # ==============================================================================
 let $message= Section 3.1.2 - Syntax checks for the stored procedure-specific
@@ -290,8 +397,9 @@ BEGIN
 END//
 delimiter ;//
 
-#Error: 1172 SQLSTATE: 42000 (ER_TOO_MANY_ROWS) Message: Result consisted of more than one row
---error 1172
+# Error: SQLSTATE: 42000 (ER_TOO_MANY_ROWS)
+#        Message: Result consisted of more than one row
+--error ER_TOO_MANY_ROWS
 CALL sp1();
 
 # cleanup 3.1.2.32
@@ -321,7 +429,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1222
+--error ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT
 CALL sp1();
 
 # cleanup 3.1.2.33
@@ -352,7 +460,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1222
+--error ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT
 CALL sp1();
 
 # cleanup 3.1.2.34
@@ -375,8 +483,10 @@ create table res_t1(w char unique, x char);
 
 insert into res_t1 values('a', 'b');
 
-# Error: 1339 SQLSTATE: 20000 (ER_SP_CASE_NOT_FOUND) Message: Case not found for CASE statement
-# Error: 1022 SQLSTATE: 23000 (ER_DUP_KEY) Message: Can't write; duplicate key in table '%s'
+# Error: SQLSTATE: 20000 (ER_SP_CASE_NOT_FOUND)
+#        Message: Case not found for CASE statement
+# Error: SQLSTATE: 23000 (ER_DUP_KEY)
+#        Message: Can't write; duplicate key in table '%s'
 
 delimiter //;
 CREATE PROCEDURE h1 ()
@@ -472,7 +582,7 @@ create table res_t1(w char unique, x char);
 insert into res_t1 values ('a', 'b');
 
 delimiter //;
---error 1319
+--error ER_SP_COND_MISMATCH
 CREATE PROCEDURE h1 ()
 BEGIN
    declare x1, x2, x3, x4, x5, x6 int default 0;
@@ -561,8 +671,9 @@ DROP PROCEDURE IF EXISTS h1;
 --enable_warnings
 
 delimiter //;
-#Error: 1319 SQLSTATE: 42000 (ER_SP_COND_MISMATCH) Message: Undefined CONDITION: %s
---error 1319
+# Error: SQLSTATE: 42000 (ER_SP_COND_MISMATCH)
+#        Message: Undefined CONDITION: %s
+--error ER_SP_COND_MISMATCH
 CREATE PROCEDURE h1 ()
 BEGIN
    declare x1, x2, x3, x4, x5, x6 int default 0;
@@ -582,8 +693,9 @@ BEGIN
    END;
 END//
 
-#Error: 1064 SQLSTATE: 42000 (ER_PARSE_ERROR) Message: %s near '%s' at line %d
---error 1064
+# Error: SQLSTATE: 42000 (ER_PARSE_ERROR)
+#        Message: %s near '%s' at line %d
+--error ER_PARSE_ERROR
 CREATE PROCEDURE h1 ()
 BEGIN
    DECLARE x1 INT DEFAULT 0;
@@ -593,8 +705,9 @@ BEGIN
    DECLARE CONTINUE HANDLER FOR condname1 SET x1 = 1;
 END//
 
-#Error: 1407 SQLSTATE: 42000 (ER_SP_BAD_SQLSTATE) Message: Bad SQLSTATE: '%s'
---error 1407
+# Error: SQLSTATE: 42000 (ER_SP_BAD_SQLSTATE)
+#        Message: Bad SQLSTATE: '%s'
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE h1 ()
 BEGIN
    DECLARE x1 INT DEFAULT 0;
@@ -632,7 +745,7 @@ drop table IF EXISTS res_t1;
 
 --echo ==> 'UNDO' is still not supported.
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 create procedure p1undo ()
 begin
    declare undo handler for sqlexception select '1';
@@ -696,7 +809,6 @@ delimiter ;//
 CALL h1();
 
 
---error ER_SP_BAD_SQLSTATE
 delimiter //;
 CREATE PROCEDURE sp1()
    begin1_label:BEGIN
@@ -711,9 +823,12 @@ CREATE PROCEDURE sp1()
    END begin1_label//
 delimiter ;//
 
+CALL sp1();
+
 # cleanup 3.1.2.45+50
 DROP PROCEDURE p1;
 DROP PROCEDURE h1;
+DROP PROCEDURE sp1;
 DROP TABLE res_t1;
 
 
@@ -721,7 +836,7 @@ DROP TABLE res_t1;
 let $message= Testcase 3.1.2.50:;
 --source include/show_msg.inc
 
-# testcase: ensure that a continue handler allows the execution of the stored procedure
+# Testcase: Ensure that a continue handler allows the execution of the stored procedure
 #            to continue once the handler statement has completed its own execution
 #            (that is, once the handler action statement has been executed).
 
@@ -792,8 +907,9 @@ BEGIN
 END//
 delimiter ;//
 
-# Error: 1318 SQLSTATE: 42000 (ER_SP_WRONG_NO_OF_ARGS) Message: Incorrect number of arguments for %s %s; expected %u, got %u
---error 1318
+# Error: SQLSTATE: 42000 (ER_SP_WRONG_NO_OF_ARGS)
+#        Message: Incorrect number of arguments for %s %s; expected %u, got %u
+--error ER_SP_WRONG_NO_OF_ARGS
 CALL sp1(1);
 CALL sp2();
 SELECT '-3-', @x2, @x;
@@ -856,7 +972,7 @@ let $message= Testcase 3.1.2.54:;
 --source include/show_msg.inc
 let $message=
 Ensure that a handler with a condition defined with an SQLSTATE that begins with
-“01“ is always exactly equivalent in action to a handler with an SQLWARNING
+Â“01Â“ is always exactly equivalent in action to a handler with an SQLWARNING
 condition.;
 --source include/show_msg80.inc
 
@@ -957,7 +1073,7 @@ let $message= Testcase 3.1.2.56:;
 --source include/show_msg.inc
 let $message=
 Ensure that a handler with a condition defined with an SQLSTATE that begins with
-“02“ is always exactly equivalent in action to a handler with a NOT FOUND
+Â“02Â“ is always exactly equivalent in action to a handler with a NOT FOUND
 condition.;
 --source include/show_msg80.inc
 
@@ -1050,7 +1166,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1329
+--error ER_SP_FETCH_NO_DATA
 CALL sp0();
 SELECT @done, @x;
 
@@ -1079,13 +1195,16 @@ let $message= Testcase 3.1.2.58:;
 --source include/show_msg.inc
 let $message=
 Ensure that a handler with a condition defined with an SQLSTATE that begins with
-anything other that “01“ or “02“ is always exactly equivalent in action to a
+anything other that Â“01Â“ or Â“02Â“ is always exactly equivalent in action to a
 handler with an SQLEXCEPTION condition.;
 --source include/show_msg80.inc
 
-# Error: 1339 SQLSTATE: 20000 (ER_SP_CASE_NOT_FOUND) Message: Case not found for CASE statement
-# Error: 1222 SQLSTATE: 21000 (ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT) Message: The used SELECT statements have a different number of columns
-# Error: 1326 SQLSTATE: 24000 (ER_SP_CURSOR_NOT_OPEN) Message: Cursor is not open
+# Error: SQLSTATE: 20000 (ER_SP_CASE_NOT_FOUND)
+#        Message: Case not found for CASE statement
+# Error: SQLSTATE: 21000 (ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT)
+#        Message: The used SELECT statements have a different number of columns
+# Error: SQLSTATE: 24000 (ER_SP_CURSOR_NOT_OPEN)
+#        Message: Cursor is not open
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp0;
@@ -1281,7 +1400,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1329
+--error ER_SP_FETCH_NO_DATA
 CALL sp1();
 
 SELECT * FROM temp;
@@ -1337,11 +1456,11 @@ END//
 delimiter ;//
 
 --echo --> not enough columns in FETCH statement
---error 1328
+--error ER_SP_WRONG_NO_OF_FETCH_ARGS
 CALL sp1();
 
 --echo --> too many columns in FETCH statement
---error 1328
+--error ER_SP_WRONG_NO_OF_FETCH_ARGS
 CALL sp2();
 
 # cleanup 3.1.2.68
@@ -1365,7 +1484,8 @@ DROP PROCEDURE IF EXISTS sp1;
 
 create table temp1( f0 char(20), f1 char(20), f2 char(20), f3 int, f4 char(20) );
 
-#Error: 1329 SQLSTATE: 02000 (ER_SP_FETCH_NO_DATA) Message: No data to FETCH
+# Error: SQLSTATE: 02000 (ER_SP_FETCH_NO_DATA)
+#        Message: No data to FETCH
 
 SELECT f1, f2, f4, f5 from t2 order by f4;
 
@@ -1383,16 +1503,16 @@ BEGIN
    open cur1;
    open cur2;
    BEGIN
-      declare continue handler for sqlstate '02000' set count=1;
+      declare continue handler for sqlstate '02000' set count = 1;
       fetch cur1 into newf1, newf2, newf4, newf5;
       SELECT '-1-', count, newf1, newf2, newf4, newf5;
       insert into temp1 values ('cur1_out', newf1, newf2, newf4, newf5);
-      set count= 4;
+      set count = 4;
       BEGIN
-         while count> 0 do
+         while count > 0 do
             fetch cur1 into newf1, newf2, newf4, newf5;
             SELECT '-2-', count, newf1, newf2, newf4, newf5;
-            set count = count- 1;
+            set count = count - 1;
          END while;
          SELECT '-3-', count, newf1, newf2, newf4, newf4;
       END;
@@ -1529,6 +1649,7 @@ DROP TABLE temp2;
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 
 # ==============================================================================
-let $message= .                               +++ END OF SCRIPT +++;
---source include/show_msg80.inc
+--echo
+--echo .                               +++ END OF SCRIPT +++
+--echo --------------------------------------------------------------------------------
 # ==============================================================================

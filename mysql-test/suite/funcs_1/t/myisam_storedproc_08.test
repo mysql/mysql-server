@@ -1,6 +1,6 @@
 #### suite/funcs_1/t/myisam_storedproc_08.test
 #
- 
+
 let $engine_type= myisam;
- 
+
 --source suite/funcs_1/storedproc/storedproc_08.inc

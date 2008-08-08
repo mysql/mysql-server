@@ -42,7 +42,7 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
-#include "event_data_objects.h"
+#include "event_parse_data.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
@@ -1293,7 +1293,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         single_multi table_wild_list table_wild_one opt_wild
         union_clause union_list
         precision subselect_start opt_and charset
-        subselect_end select_var_list select_var_list_init help opt_len
+        subselect_end select_var_list select_var_list_init help 
+        field_length opt_field_length
         opt_extended_describe
         prepare prepare_src execute deallocate
         statement sp_suid
@@ -1837,7 +1838,6 @@ event_tail:
             LEX *lex=Lex;
 
             lex->create_info.options= $2;
-
             if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
               MYSQL_YYABORT;
             lex->event_parse_data->identifier= $3;
@@ -1894,17 +1894,17 @@ opt_ev_status:
           /* empty */ { $$= 0; }
         | ENABLE_SYM
           {
-            Lex->event_parse_data->status= Event_basic::ENABLED;
+            Lex->event_parse_data->status= Event_parse_data::ENABLED;
             $$= 1;
           }
         | DISABLE_SYM ON SLAVE
           {
-            Lex->event_parse_data->status= Event_basic::SLAVESIDE_DISABLED;
+            Lex->event_parse_data->status= Event_parse_data::SLAVESIDE_DISABLED;
             $$= 1;
           }
         | DISABLE_SYM
           {
-            Lex->event_parse_data->status= Event_basic::DISABLED;
+            Lex->event_parse_data->status= Event_parse_data::DISABLED;
             $$= 1;
           }
         ;
@@ -1937,13 +1937,13 @@ ev_on_completion:
           ON COMPLETION_SYM PRESERVE_SYM
           {
             Lex->event_parse_data->on_completion=
-                                  Event_basic::ON_COMPLETION_PRESERVE;
+                                  Event_parse_data::ON_COMPLETION_PRESERVE;
             $$= 1;
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
             Lex->event_parse_data->on_completion=
-                                  Event_basic::ON_COMPLETION_DROP;
+                                  Event_parse_data::ON_COMPLETION_DROP;
             $$= 1;
           }
         ;
@@ -3637,20 +3637,30 @@ create2:
         | LIKE table_ident
           {
             THD *thd= YYTHD;
+            TABLE_LIST *src_table;
             LEX *lex= thd->lex;
 
             lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
-            if (!lex->select_lex.add_table_to_list(thd, $2, NULL, 0, TL_READ))
+            src_table= lex->select_lex.add_table_to_list(thd, $2, NULL, 0,
+                                                         TL_READ);
+            if (! src_table)
               MYSQL_YYABORT;
+            /* CREATE TABLE ... LIKE is not allowed for views. */
+            src_table->required_type= FRMTYPE_TABLE;
           }
         | '(' LIKE table_ident ')'
           {
             THD *thd= YYTHD;
+            TABLE_LIST *src_table;
             LEX *lex= thd->lex;
 
             lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
-            if (!lex->select_lex.add_table_to_list(thd, $3, NULL, 0, TL_READ))
+            src_table= lex->select_lex.add_table_to_list(thd, $3, NULL, 0,
+                                                         TL_READ);
+            if (! src_table)
               MYSQL_YYABORT;
+            /* CREATE TABLE ... LIKE is not allowed for views. */
+            src_table->required_type= FRMTYPE_TABLE;
           }
         ;
 
@@ -4717,7 +4727,7 @@ field_spec:
         ;
 
 type:
-          int_type opt_len field_options { $$=$1; }
+          int_type opt_field_length field_options { $$=$1; }
         | real_type opt_precision field_options { $$=$1; }
         | FLOAT_SYM float_options field_options { $$=MYSQL_TYPE_FLOAT; }
         | BIT_SYM
@@ -4725,46 +4735,42 @@ type:
             Lex->length= (char*) "1";
             $$=MYSQL_TYPE_BIT;
           }
-        | BIT_SYM '(' NUM ')'
+        | BIT_SYM field_length
           {
-            Lex->length= $3.str;
             $$=MYSQL_TYPE_BIT;
           }
         | BOOL_SYM
           {
-            Lex->length=(char*) "1";
+            Lex->length= (char*) "1";
             $$=MYSQL_TYPE_TINY;
           }
         | BOOLEAN_SYM
           {
-            Lex->length=(char*) "1";
+            Lex->length= (char*) "1";
             $$=MYSQL_TYPE_TINY;
           }
-        | char '(' NUM ')' opt_binary
+        | char field_length opt_binary
           {
-            Lex->length=$3.str;
             $$=MYSQL_TYPE_STRING;
           }
         | char opt_binary
           {
-            Lex->length=(char*) "1";
+            Lex->length= (char*) "1";
             $$=MYSQL_TYPE_STRING;
           }
-        | nchar '(' NUM ')' opt_bin_mod
+        | nchar field_length opt_bin_mod
           {
-            Lex->length=$3.str;
             $$=MYSQL_TYPE_STRING;
             Lex->charset=national_charset_info;
           }
         | nchar opt_bin_mod
           {
-            Lex->length=(char*) "1";
+            Lex->length= (char*) "1";
             $$=MYSQL_TYPE_STRING;
             Lex->charset=national_charset_info;
           }
-        | BINARY '(' NUM ')'
+        | BINARY field_length
           {
-            Lex->length=$3.str;
             Lex->charset=&my_charset_bin;
             $$=MYSQL_TYPE_STRING;
           }
@@ -4774,30 +4780,27 @@ type:
             Lex->charset=&my_charset_bin;
             $$=MYSQL_TYPE_STRING;
           }
-        | varchar '(' NUM ')' opt_binary
+        | varchar field_length opt_binary
           {
-            Lex->length=$3.str;
             $$= MYSQL_TYPE_VARCHAR;
           }
-        | nvarchar '(' NUM ')' opt_bin_mod
+        | nvarchar field_length opt_bin_mod
           {
-            Lex->length=$3.str;
             $$= MYSQL_TYPE_VARCHAR;
             Lex->charset=national_charset_info;
           }
-        | VARBINARY '(' NUM ')'
+        | VARBINARY field_length
           {
-            Lex->length=$3.str;
             Lex->charset=&my_charset_bin;
             $$= MYSQL_TYPE_VARCHAR;
           }
-        | YEAR_SYM opt_len field_options
+        | YEAR_SYM opt_field_length field_options
           { $$=MYSQL_TYPE_YEAR; }
         | DATE_SYM
           { $$=MYSQL_TYPE_DATE; }
         | TIME_SYM
           { $$=MYSQL_TYPE_TIME; }
-        | TIMESTAMP opt_len
+        | TIMESTAMP opt_field_length
           {
             if (YYTHD->variables.sql_mode & MODE_MAXDB)
               $$=MYSQL_TYPE_DATETIME;
@@ -4817,7 +4820,7 @@ type:
             Lex->charset=&my_charset_bin;
             $$=MYSQL_TYPE_TINY_BLOB;
           }
-        | BLOB_SYM opt_len
+        | BLOB_SYM opt_field_length
           {
             Lex->charset=&my_charset_bin;
             $$=MYSQL_TYPE_BLOB;
@@ -4853,7 +4856,7 @@ type:
           { $$=MYSQL_TYPE_MEDIUM_BLOB; }
         | TINYTEXT opt_binary
           { $$=MYSQL_TYPE_TINY_BLOB; }
-        | TEXT_SYM opt_len opt_binary
+        | TEXT_SYM opt_field_length opt_binary
           { $$=MYSQL_TYPE_BLOB; }
         | MEDIUMTEXT opt_binary
           { $$=MYSQL_TYPE_MEDIUM_BLOB; }
@@ -4943,8 +4946,8 @@ real_type:
 float_options:
           /* empty */
           { Lex->dec=Lex->length= (char*)0; }
-        | '(' NUM ')'
-          { Lex->length=$2.str; Lex->dec= (char*)0; }
+        | field_length
+          { Lex->dec= (char*)0; }
         | precision
           {}
         ;
@@ -4974,10 +4977,15 @@ field_option:
         | ZEROFILL { Lex->type|= UNSIGNED_FLAG | ZEROFILL_FLAG; }
         ;
 
-opt_len:
-          /* empty */ { Lex->length=(char*) 0; /* use default length */ }
-        | '(' NUM ')' { Lex->length= $2.str; }
-        ;
+field_length:
+          '(' LONG_NUM ')'      { Lex->length= $2.str; }
+        | '(' ULONGLONG_NUM ')' { Lex->length= $2.str; }
+        | '(' DECIMAL_NUM ')'   { Lex->length= $2.str; }
+        | '(' NUM ')'           { Lex->length= $2.str; };
+
+opt_field_length:
+          /* empty */  { Lex->length=(char*) 0; /* use default length */ }
+        | field_length { }
 
 opt_precision:
           /* empty */ {}
@@ -7590,11 +7598,11 @@ in_sum_expr:
         ;
 
 cast_type:
-          BINARY opt_len
+          BINARY opt_field_length
           { $$=ITEM_CAST_CHAR; Lex->charset= &my_charset_bin; Lex->dec= 0; }
-        | CHAR_SYM opt_len opt_binary
+        | CHAR_SYM opt_field_length opt_binary
           { $$=ITEM_CAST_CHAR; Lex->dec= 0; }
-        | NCHAR_SYM opt_len
+        | NCHAR_SYM opt_field_length
           { $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; Lex->dec=0; }
         | SIGNED_SYM
           { $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
@@ -8508,7 +8516,8 @@ procedure_item:
 select_var_list_init:
           {
             LEX *lex=Lex;
-            if (!lex->describe && (!(lex->result= new select_dumpvar())))
+            if (!lex->describe && 
+                  (!(lex->result= new select_dumpvar(lex->nest_level))))
               MYSQL_YYABORT;
           }
           select_var_list
@@ -8582,7 +8591,7 @@ into_destination:
             LEX *lex= Lex;
             lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
             if (!(lex->exchange= new sql_exchange($2.str, 0)) ||
-                !(lex->result= new select_export(lex->exchange)))
+                !(lex->result= new select_export(lex->exchange, lex->nest_level)))
               MYSQL_YYABORT;
           }
           opt_field_term opt_line_term
@@ -8594,7 +8603,7 @@ into_destination:
               lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
               if (!(lex->exchange= new sql_exchange($2.str,1)))
                 MYSQL_YYABORT;
-              if (!(lex->result= new select_dump(lex->exchange)))
+              if (!(lex->result= new select_dump(lex->exchange, lex->nest_level)))
                 MYSQL_YYABORT;
             }
           }
@@ -11936,12 +11945,18 @@ union_list:
           UNION_SYM union_option
           {
             LEX *lex=Lex;
-            if (lex->result)
-            {
-              /* Only the last SELECT can have  INTO...... */
-              my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
-              MYSQL_YYABORT;
-            }
+            if (lex->result && 
+               (lex->result->get_nest_level() == -1 ||
+                lex->result->get_nest_level() == lex->nest_level))
+              {
+                /* 
+                   Only the last SELECT can have INTO unless the INTO and UNION
+                   are at different nest levels. In version 5.1 and above, INTO
+                   will onle be allowed at top level.
+                */
+                my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
+                MYSQL_YYABORT;
+              }
             if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));

@@ -1,0 +1,37 @@
+SET @global_slow_launch_time = @@GLOBAL.slow_launch_time;
+'#--------------------FN_DYNVARS_124_01-------------------------#'
+** Connection default **
+SET @@GLOBAL.slow_launch_time=0;
+SELECT @@GLOBAL.slow_launch_time;
+@@GLOBAL.slow_launch_time
+0
+** Connecting conn5 using username 'root' **
+** Connecting conn6 using username 'root' **
+** Connecting conn7 using username 'root' **
+** Connecting conn8 using username 'root' **
+** Connecting conn9 using username 'root' **
+** Connecting conn10 using username 'root' **
+** Connecting conn11 using username 'root' **
+** Connecting conn12 using username 'root' **
+** Connecting conn13 using username 'root' **
+** Connecting conn14 using username 'root' **
+** Connecting conn15 using username 'root' **
+** Connecting conn16 using username 'root' **
+show status like 'slow_launch_threads';
+Variable_name	Value
+Slow_launch_threads	12
+12 Expected
+** Connection default **
+** Disconnecting conn5 **
+** Disconnecting conn6 **
+** Disconnecting conn7 **
+** Disconnecting conn8 **
+** Disconnecting conn9 **
+** Disconnecting conn10 **
+** Disconnecting conn11 **
+** Disconnecting conn12 **
+** Disconnecting conn13 **
+** Disconnecting conn14 **
+** Disconnecting conn15 **
+** Disconnecting conn16 **
+SET @@GLOBAL.slow_launch_time = @global_slow_launch_time;
