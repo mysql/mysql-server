@@ -53,7 +53,7 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb, NdbOperation::Type aType) :
   theSCAN_TABREQ = 0;
   m_executed = false;
   m_scan_buffer= NULL;
-  m_scanUsingOldApi= false;
+  m_scanUsingOldApi= true;
   m_interpretedCodeOldApi= NULL;
 }
 
@@ -119,7 +119,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_descending= false;
   m_read_range_no = 0;
   m_executed = false;
-  m_scanUsingOldApi= false;
+  m_scanUsingOldApi= true;
   m_interpretedCodeOldApi= NULL;
 
   m_api_receivers_count = 0;
@@ -944,16 +944,14 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
                              Uint32 parallel,
                              Uint32 batch)
 {
-  // It is only possible to call readTuples if 
-  //  1. the scan transaction doesn't already  contain another scan operation
-  //  2. We have not already defined an old Api scan operation.
-  if (theNdbCon->theScanningOp != NULL ||
-      m_scanUsingOldApi ){
+  // It is only possible to call readTuples if the scan transaction 
+  // doesn't already contain a scan operation
+  if (theNdbCon->theScanningOp != NULL)
+  {
     setErrorCode(4605);
     return -1;
   }
-
-  m_scanUsingOldApi= true;
+  
   /* Save parameters for later */
   m_savedLockModeOldApi= lm;
   m_savedScanFlagsOldApi= scan_flags;
