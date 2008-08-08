@@ -3872,13 +3872,18 @@ int ha_reset_logs(THD *thd)
 {
   binlog_func_st bfn= {BFN_RESET_LOGS, 0};
   binlog_func_foreach(thd, &bfn);
+  if (thd->main_da.is_error())
+    return 1;
   return 0;
 }
 
-void ha_reset_slave(THD* thd)
+int ha_reset_slave(THD* thd)
 {
   binlog_func_st bfn= {BFN_RESET_SLAVE, 0};
   binlog_func_foreach(thd, &bfn);
+  if (thd->main_da.is_error())
+    return 1;
+  return 0;
 }
 
 void ha_binlog_wait(THD* thd)
@@ -3898,6 +3903,8 @@ int ha_binlog_index_purge_file(THD *thd, const char *file)
 {
   binlog_func_st bfn= {BFN_BINLOG_PURGE_FILE, (void *)file};
   binlog_func_foreach(thd, &bfn);
+  if (thd->main_da.is_error())
+    return 1;
   return 0;
 }
 
