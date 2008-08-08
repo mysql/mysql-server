@@ -1,5 +1,10 @@
 -- source include/have_binlog_format_row.inc
 #
+# Reset master to cleanup binlog
+#
+reset master;
+
+#
 #  Write different events to binlog
 #
 create table t1 (a int);

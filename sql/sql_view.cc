@@ -1147,9 +1147,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     char old_db_buf[NAME_LEN+1];
     LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
     bool dbchanged;
-    Lex_input_stream lip(thd,
-                         table->select_stmt.str,
-                         table->select_stmt.length);
+    Parser_state parser_state(thd,
+                              table->select_stmt.str,
+                              table->select_stmt.length);
 
     /* 
       Use view db name as thread default database, in order to ensure
@@ -1193,7 +1193,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
     /* Parse the query. */
 
-    parse_status= parse_sql(thd, &lip, table->view_creation_ctx);
+    parse_status= parse_sql(thd, & parser_state, table->view_creation_ctx);
 
     /* Restore environment. */
 
