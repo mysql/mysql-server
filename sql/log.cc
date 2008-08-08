@@ -2801,7 +2801,11 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   const char* save_name;
   DBUG_ENTER("reset_logs");
 
-  ha_reset_logs(thd);
+  if (ha_reset_logs(thd))
+  {
+    DBUG_RETURN(1);
+  }
+
   /*
     We need to get both locks to be sure that no one is trying to
     write to the index log file.
@@ -3151,7 +3155,11 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       }
     }
 
-    ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
+    if (ha_binlog_index_purge_file(current_thd, log_info.log_file_name))
+    {
+      error= LOG_INFO_FATAL;
+      goto err;
+    }
 
     if (find_next_log(&log_info, 0) || exit_loop)
       break;
@@ -3271,7 +3279,11 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
           goto err;
         }
       }
-      ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
+      if (ha_binlog_index_purge_file(current_thd, log_info.log_file_name))
+      {
+        error= LOG_INFO_FATAL;
+        goto err;
+      }
     }
     if (find_next_log(&log_info, 0))
       break;

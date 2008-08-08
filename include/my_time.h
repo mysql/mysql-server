@@ -95,7 +95,7 @@ long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
 uint year_2000_handling(uint year);
 
-void init_time(void);
+void my_init_time(void);
 
 
 /*

@@ -2149,7 +2149,7 @@ int
 Tablespace_client::get_tablespace_info(CreateFilegroupImplReq* rep)
 {
   Ptr<Tsman::Tablespace> ts_ptr;  
-  if(m_tsman->m_tablespace_hash.find(ts_ptr, m_tablespace_id));
+  if(m_tsman->m_tablespace_hash.find(ts_ptr, m_tablespace_id))
   {
     rep->tablespace.extent_size = ts_ptr.p->m_extent_size;
     rep->tablespace.logfile_group_id = 

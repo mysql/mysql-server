@@ -84,6 +84,7 @@ const char *client_errors[]=
   "This feature is not implemented yet",
   "Lost connection to MySQL server at '%s', system error: %d",
   "Statement closed indirectly because of a preceeding %s() call",
+  "The number of columns in the result set differs from the number of bound buffers. You must reset the statement, rebind the result set columns, and execute the statement again",
   ""
 };
 
@@ -149,6 +150,7 @@ const char *client_errors[]=
   "This feature is not implemented yet",
   "Lost connection to MySQL server at '%s', system error: %d",
   "Statement closed indirectly because of a preceeding %s() call",
+  "The number of columns in the result set differs from the number of bound buffers. You must reset the statement, rebind the result set columns, and execute the statement again",
   ""
 };
 
@@ -212,6 +214,7 @@ const char *client_errors[]=
   "This feature is not implemented yet",
   "Lost connection to MySQL server at '%s', system error: %d",
   "Statement closed indirectly because of a preceeding %s() call",
+  "The number of columns in the result set differs from the number of bound buffers. You must reset the statement, rebind the result set columns, and execute the statement again",
   ""
 };
 #endif

@@ -440,6 +440,105 @@ typedef struct st_table_share
     return table_map_id;
   }
 
+  /**
+    Convert unrelated members of TABLE_SHARE to one enum
+    representing its type.
+
+    @todo perhaps we need to have a member instead of a function.
+  */
+  enum enum_table_ref_type get_table_ref_type() const
+  {
+    if (is_view)
+      return TABLE_REF_VIEW;
+    switch (tmp_table) {
+    case NO_TMP_TABLE:
+      return TABLE_REF_BASE_TABLE;
+    case SYSTEM_TMP_TABLE:
+      return TABLE_REF_I_S_TABLE;
+    default:
+      return TABLE_REF_TMP_TABLE;
+    }
+  }
+  /**
+    Return a table metadata version.
+     * for base tables, we return table_map_id.
+       It is assigned from a global counter incremented for each
+       new table loaded into the table definition cache (TDC).
+     * for temporary tables it's table_map_id again. But for
+       temporary tables table_map_id is assigned from
+       thd->query_id. The latter is assigned from a thread local
+       counter incremented for every new SQL statement. Since
+       temporary tables are thread-local, each temporary table
+       gets a unique id.
+     * for everything else (views, information schema tables),
+       the version id is zero.
+
+   This choice of version id is a large compromise
+   to have a working prepared statement validation in 5.1. In
+   future version ids will be persistent, as described in WL#4180.
+
+   Let's try to explain why and how this limited solution allows
+   to validate prepared statements.
+
+   Firstly, sets (in mathematical sense) of version numbers
+   never intersect for different table types. Therefore,
+   version id of a temporary table is never compared with
+   a version id of a view, and vice versa.
+
+   Secondly, for base tables, we know that each DDL flushes the
+   respective share from the TDC. This ensures that whenever
+   a table is altered or dropped and recreated, it gets a new
+   version id.
+   Unfortunately, since elements of the TDC are also flushed on
+   LRU basis, this choice of version ids leads to false positives.
+   E.g. when the TDC size is too small, we may have a SELECT
+   * FROM INFORMATION_SCHEMA.TABLES flush all its elements, which
+   in turn will lead to a validation error and a subsequent
+   reprepare of all prepared statements.  This is
+   considered acceptable, since as long as prepared statements are
+   automatically reprepared, spurious invalidation is only
+   a performance hit. Besides, no better simple solution exists.
+
+   For temporary tables, using thd->query_id ensures that if
+   a temporary table was altered or recreated, a new version id is
+   assigned. This suits validation needs very well and will perhaps
+   never change.
+
+   Metadata of information schema tables never changes.
+   Thus we can safely assume 0 for a good enough version id.
+
+   Views are a special and tricky case. A view is always inlined
+   into the parse tree of a prepared statement at prepare.
+   Thus, when we execute a prepared statement, the parse tree
+   will not get modified even if the view is replaced with another
+   view.  Therefore, we can safely choose 0 for version id of
+   views and effectively never invalidate a prepared statement
+   when a view definition is altered. Note, that this leads to
+   wrong binary log in statement-based replication, since we log
+   prepared statement execution in form Query_log_events
+   containing conventional statements. But since there is no
+   metadata locking for views, the very same problem exists for
+   conventional statements alone, as reported in Bug#25144. The only
+   difference between prepared and conventional execution is,
+   effectively, that for prepared statements the race condition
+   window is much wider.
+   In 6.0 we plan to support view metadata locking (WL#3726) and
+   extend table definition cache to cache views (WL#4298).
+   When this is done, views will be handled in the same fashion
+   as the base tables.
+
+   Finally, by taking into account table type, we always
+   track that a change has taken place when a view is replaced
+   with a base table, a base table is replaced with a temporary
+   table and so on.
+
+   @sa TABLE_LIST::is_table_ref_id_equal()
+  */
+  ulong get_table_ref_version() const
+  {
+    return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
+  }
+
 } TABLE_SHARE;
 
 
@@ -1235,6 +1334,33 @@ struct TABLE_LIST
     child_def_version= ~0UL;
   }
 
+  /**
+    Compare the version of metadata from the previous execution
+    (if any) with values obtained from the current table
+    definition cache element.
+
+    @sa check_and_update_table_version()
+  */
+  inline
+  bool is_table_ref_id_equal(TABLE_SHARE *s) const
+  {
+    return (m_table_ref_type == s->get_table_ref_type() &&
+            m_table_ref_version == s->get_table_ref_version());
+  }
+
+  /**
+    Record the value of metadata version of the corresponding
+    table definition cache element in this parse tree node.
+
+    @sa check_and_update_table_version()
+  */
+  inline
+  void set_table_ref_id(TABLE_SHARE *s)
+  {
+    m_table_ref_type= s->get_table_ref_type();
+    m_table_ref_version= s->get_table_ref_version();
+  }
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
@@ -1245,6 +1371,10 @@ private:
 
   /* Remembered MERGE child def version.  See top comment in ha_myisammrg.cc */
   ulong         child_def_version;
+  /** See comments for set_metadata_id() */
+  enum enum_table_ref_type m_table_ref_type;
+  /** See comments for set_metadata_id() */
+  ulong m_table_ref_version;
 };
 
 class Item;
