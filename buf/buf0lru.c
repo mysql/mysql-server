@@ -1246,6 +1246,12 @@ alloc:
 
 				if (buf_page_is_old(b)) {
 					buf_pool->LRU_old_len++;
+					if (UNIV_UNLIKELY
+					    (buf_pool->LRU_old
+					     == UT_LIST_GET_NEXT(LRU, b))) {
+
+						buf_pool->LRU_old = b;
+					}
 				}
 
 				lru_len = UT_LIST_GET_LEN(buf_pool->LRU);

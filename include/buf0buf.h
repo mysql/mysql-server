@@ -1277,13 +1277,17 @@ struct buf_pool_struct{
 					/* base node of the LRU list */
 	buf_page_t*	LRU_old;	/* pointer to the about 3/8 oldest
 					blocks in the LRU list; NULL if LRU
-					length less than BUF_LRU_OLD_MIN_LEN */
+					length less than BUF_LRU_OLD_MIN_LEN;
+					NOTE: when LRU_old != NULL, its length
+					should always equal LRU_old_len */
 	ulint		LRU_old_len;	/* length of the LRU list from
 					the block to which LRU_old points
 					onward, including that block;
 					see buf0lru.c for the restrictions
 					on this value; not defined if
-					LRU_old == NULL */
+					LRU_old == NULL;
+					NOTE: LRU_old_len must be adjusted
+					whenever LRU_old shrinks or grows! */
 
 	UT_LIST_BASE_NODE_T(buf_block_t) unzip_LRU;
 					/* base node of the unzip_LRU list */
