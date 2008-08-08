@@ -7,9 +7,6 @@ drop table if exists `ÇsÇU`;
 drop table if exists `ÇsÇV`;
 drop table if exists `ÇsÇW`;
 drop table if exists `ÇsÇX`;
-drop table if exists `ÇsÇPÇO`;
-drop table if exists `ÇsÇPÇP`;
-drop table if exists `ÇsÇPÇQ`;
 SET NAMES sjis;
 SET character_set_database = sjis;
 CREATE TABLE `ÇsÇP` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
@@ -18,12 +15,9 @@ CREATE TABLE `ÇsÇR` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engin
 CREATE TABLE `ÇsÇS` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇT` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `ÇsÇU` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
-CREATE TABLE `ÇsÇV` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇW` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇX` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `ÇsÇPÇO` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇP` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `ÇsÇPÇQ` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(5), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = MEMORY;
 INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ');
 INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
 INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\');
@@ -33,9 +27,6 @@ INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\');
 INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ');
 INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
 INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\');
-INSERT INTO `ÇsÇPÇO` VALUES ('±≤≥¥µ');
-INSERT INTO `ÇsÇPÇP` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
-INSERT INTO `ÇsÇPÇQ` VALUES ('É\è\ï\ó\ç\');
 SELECT REVERSE(`ÇbÇP`) FROM `ÇsÇP`;
 REVERSE(`ÇbÇP`)
 µ¥≥≤±
@@ -63,15 +54,6 @@ REVERSE(`ÇbÇP`)
 SELECT REVERSE(`ÇbÇP`) FROM `ÇsÇX`;
 REVERSE(`ÇbÇP`)
 ç\ó\ï\è\É\
-SELECT REVERSE(`ÇbÇP`) FROM `ÇsÇPÇO`;
-REVERSE(`ÇbÇP`)
-µ¥≥≤±
-SELECT REVERSE(`ÇbÇP`) FROM `ÇsÇPÇP`;
-REVERSE(`ÇbÇP`)
-Ç®Ç¶Ç§Ç¢Ç†
-SELECT REVERSE(`ÇbÇP`) FROM `ÇsÇPÇQ`;
-REVERSE(`ÇbÇP`)
-ç\ó\ï\è\É\
 DROP TABLE `ÇsÇP`;
 DROP TABLE `ÇsÇQ`;
 DROP TABLE `ÇsÇR`;
@@ -81,6 +63,3 @@ DROP TABLE `ÇsÇU`;
 DROP TABLE `ÇsÇV`;
 DROP TABLE `ÇsÇW`;
 DROP TABLE `ÇsÇX`;
-DROP TABLE `ÇsÇPÇO`;
-DROP TABLE `ÇsÇPÇP`;
-DROP TABLE `ÇsÇPÇQ`;

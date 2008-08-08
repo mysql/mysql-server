@@ -1,0 +1,33 @@
+** Setup **
+
+SET @old_secure_auth = @@GLOBAL.secure_auth;
+'#--------------------FN_DYNVARS_144_01-------------------------#'
+SELECT @@GLOBAL.secure_auth;
+@@GLOBAL.secure_auth
+1
+1 / ON Expected
+'#--------------------FN_DYNVARS_144_02-------------------------#'
+SET GLOBAL secure_auth = OFF;
+CREATE USER 'testUser'@'localhost' IDENTIFIED BY 'newpass';
+** Connecting con_user1 using testUser **
+** Connection default**
+SET PASSWORD FOR 'testUser'@'localhost' = OLD_PASSWORD('newpass');
+** Connecting con_user2 using testUser **
+** Connection default**
+'#--------------------FN_DYNVARS_144_03-------------------------#'
+SET GLOBAL secure_auth = ON;
+SET PASSWORD FOR 'testUser'@'localhost' = PASSWORD('newpass');
+** Connecting con_user3 using testUser **
+** Connection default **
+SET PASSWORD FOR 'testUser'@'localhost' = OLD_PASSWORD('newpass');
+** Connecting con_user4 using testUser **
+ERROR HY000: Server is running in --secure-auth mode, but 'testUser'@'localhost' has a password in the old format; please change the password to the new format
+Expected error "Server is in secure auth mode"
+** Connection default**
+SET PASSWORD FOR 'testUser'@'localhost' = PASSWORD('newpass');
+** Connecting con_user4 using testUser **
+** Connection default **
+SET GLOBAL secure_auth = @old_secure_auth;
+Disconnecting Connections con_user1, con_user2, con_user3, con_user4
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'testUser'@'localhost';
+DROP USER 'testUser'@'localhost';

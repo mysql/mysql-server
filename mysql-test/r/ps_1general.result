@@ -143,32 +143,32 @@ b char(30)
 );
 insert into t5( a, b, c) values( 9, 'recreated table', 9);
 execute stmt2 ;
-a	b	c
-9	recreated table	9
+a	c	b
+9	9	recreated table
 drop table t5 ;
 create table t5
 (
 a int primary key,
 b char(30),
 c int,
-d timestamp default current_timestamp
+d timestamp default '2008-02-23 09:23:45'
 );
 insert into t5( a, b, c) values( 9, 'recreated table', 9);
 execute stmt2 ;
-a	b	c
-9	recreated table	9
+a	b	c	d
+9	recreated table	9	2008-02-23 09:23:45
 drop table t5 ;
 create table t5
 (
 a int primary key,
-d timestamp default current_timestamp,
+d timestamp default '2008-02-23 09:23:45',
 b char(30),
 c int
 );
 insert into t5( a, b, c) values( 9, 'recreated table', 9);
 execute stmt2 ;
-a	b	c
-9	recreated table	9
+a	d	b	c
+9	2008-02-23 09:23:45	recreated table	9
 drop table t5 ;
 create table t5
 (
@@ -189,7 +189,8 @@ f3 int
 );
 insert into t5( f1, f2, f3) values( 9, 'recreated table', 9);
 execute stmt2 ;
-ERROR 42S22: Unknown column 'test.t5.a' in 'field list'
+f1	f2	f3
+9	recreated table	9
 drop table t5 ;
 prepare stmt1 from ' select * from t1 where a <= 2 ' ;
 execute stmt1 ;

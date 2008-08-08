@@ -9,20 +9,25 @@ DROP DATABASE IF EXISTS db_storedproc_1;
 CREATE DATABASE db_storedproc;
 CREATE DATABASE db_storedproc_1;
 USE db_storedproc;
-create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t1;
-create table t2(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t2;
-create table t3(f1 char(20),f2 char(20),f3 integer) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t3.txt' into table t3;
-create table t4(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t4;
+create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t1;
+create table t2(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t2;
+create table t3(f1 char(20),f2 char(20),f3 integer) engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t3.txt' into table t3;
+create table t4(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t4;
 USE db_storedproc_1;
-create table t6(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t6;
+create table t6(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t6;
 USE db_storedproc;
-create table t7 (f1 char(20), f2 char(25), f3 date, f4 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' into table t7;
+create table t7 (f1 char(20), f2 char(25), f3 date, f4 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t7;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -34,8 +39,9 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-create table t8 (f1 char(20), f2 char(25), f3 date, f4 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' into table t8;
+create table t8 (f1 char(20), f2 char(25), f3 date, f4 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t8;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -47,12 +53,14 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-create table t9(f1 int, f2 char(25), f3 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' into table t9;
-create table t10(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t10;
-create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t11;
+create table t9(f1 int, f2 char(25), f3 int) engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t9.txt' into table t9;
+create table t10(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t10;
+create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t11;
 
 Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
 FUNCTION, ALTER PROCEDURE, ALTER FUNCTION, DROP PROCEDURE, DROP FUNCTION, SHOW
@@ -14309,7 +14317,10 @@ declare continue handler for cond1 set @var2 = 1;
 set @x=1;
 SELECT @var2;
 END//
-ERROR 42000: Bad SQLSTATE: '00000'
+CALL sp1();
+@var2
+NULL
+DROP PROCEDURE sp1;
 
 Testcase 4.2.45:
 --------------------------------------------------------------------------------
@@ -14384,7 +14395,10 @@ declare continue handler for sqlstate '00000'  set @var2 = 1;
 set @x=1;
 SELECT @var2;
 END//
-ERROR 42000: Bad SQLSTATE: '00000'
+CALL sp1();
+@var2
+NULL
+DROP PROCEDURE sp1;
 
 Testcase 4.2.52:
 --------------------------------------------------------------------------------
@@ -14943,46 +14957,47 @@ USE db_storedproc;
 Testcase 4.3.1:
 --------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp1;
-drop table IF EXISTS res_t3_itisalongname_1381742_itsaverylongname_1381742;
+DROP TABLE IF EXISTS res_t3_itisalongname_1381742_itsaverylongname_1381742;
 CREATE TABLE res_t3_itisalongname_1381742_itsaverylongname_1381742(
-middleinitial CHAR,
-lastname VARCHAR(50),
-age_averylongfieldname_averylongname_1234569 int,
-COMMENT TEXT) ENGINE=myisam;
+middleinitial CHAR, lastname VARCHAR(50),
+age_averylongfieldname_averylongname_1234569 INT, COMMENT VARCHAR(100))
+ENGINE=<engine_to_be_tested>;
 INSERT INTO res_t3_itisalongname_1381742_itsaverylongname_1381742
 VALUES('a', 'aaaaaaaaaabbbbbbbbc', 0, 'default');
-CREATE PROCEDURE sp1(a int)
+CREATE PROCEDURE sp1(a INT)
 BEGIN
-declare itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx char;
-declare itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx varchar(100);
-declare itisjustamediumsizeintintegervariablename integer;
-set itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx = 'b';
-set itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx = 'oldmacdonalds)(*&(^^%$&^%$&^%*^)(*^#@$@%';
-set itisjustamediumsizeintintegervariablename = 5;
-set @comment='a';
-label1: loop
-if a>100 then
-set @comment='value of a is greater than 100';
-elseif a<100 then
-if a<50 then
-set @comment='value of a is less than 50';
-elseif a<25 then
-set @comment='value of a is less than 25';
-else
-set @comment='value of a is greater than 50 and less than 100';
-END if;
-else
-set @comment='value of a is 100';
-END if;
-if itisjustamediumsizeintintegervariablename = 0 then leave label1;
-END if;
-insert into res_t3_itisalongname_1381742_itsaverylongname_1381742
-values( itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx,
-concat(itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx, '  ', a),
-a, @comment );
-set itisjustamediumsizeintintegervariablename = itisjustamediumsizeintintegervariablename - 1;
-iterate label1;
-END loop label1;
+DECLARE itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx CHAR;
+DECLARE itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx VARCHAR(100);
+DECLARE itisjustamediumsizeintintegervariablename INTEGER;
+SET itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx = 'b';
+SET itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx
+= 'oldmacdonalds)(*&(^^%$&^%$&^%*^)(*^#@$@%';
+SET itisjustamediumsizeintintegervariablename = 5;
+SET @comment='a';
+label1: LOOP
+IF a > 100 THEN
+SET @comment = 'value of a is greater than 100';
+ELSEIF a < 100 THEN
+IF a < 50 THEN
+SET @comment = 'value of a is less than 50';
+ELSEIF a < 25 THEN
+SET @comment = 'value of a is less than 25';
+ELSE
+SET @comment = 'value of a is greater than 50 and less than 100';
+END IF;
+ELSE
+SET @comment = 'value of a is 100';
+END IF;
+IF itisjustamediumsizeintintegervariablename = 0 THEN LEAVE label1;
+END IF;
+INSERT INTO res_t3_itisalongname_1381742_itsaverylongname_1381742
+VALUES(itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx,
+CONCAT(itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx,
+'  ', a), a, @comment);
+SET itisjustamediumsizeintintegervariablename
+= itisjustamediumsizeintintegervariablename - 1;
+ITERATE label1;
+END LOOP label1;
 END//
 CALL sp1(101);
 CALL sp1(100);
@@ -23487,7 +23502,6 @@ set x1 = 2;
 END;
 SELECT @x, x1;
 END//
-ERROR 42000: Bad SQLSTATE: '00000'
 DROP PROCEDURE IF EXISTS h1;
 
 Testcase 4.11.40:
@@ -23525,9 +23539,9 @@ set x1 = 2;
 END;
 SELECT @x, x1;
 END//
-ERROR 42000: Bad SQLSTATE: '00000'
 CALL h1();
-ERROR 42000: PROCEDURE db_storedproc.h1 does not exist
+@x	x1
+0	2
 DROP PROCEDURE IF EXISTS h1;
 
 * Testcase 3.1.2.53 (4.11.42):

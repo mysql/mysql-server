@@ -7,5 +7,5 @@
 ########################################################
 -- source include/not_ndb_default.inc
 -- source include/have_innodb.inc
-let $engine_type=innodb;
+let $engine_type=myisam;
 -- source extra/rpl_tests/rpl_insert_id.test
