@@ -91,7 +91,7 @@ SELECT 'Master C',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
 SELECT 'Master D',a,b FROM t1 WHERE c = 2 ORDER BY a,b;
 --echo
 
---echo * Reconfigure replication to schema A->B->C->A *
+--echo * Reconfigure replication to schema A->B->D->A *
 # Exclude Master C 
 --connection master_c
 STOP SLAVE;
@@ -106,6 +106,7 @@ source include/start_slave.inc;
 disconnect slave;
 --connection master_b
 --sync_slave_with_master master_d
+--sync_slave_with_master master_a
 --echo
 
 --echo * Check data inserted before failure *

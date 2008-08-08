@@ -1361,7 +1361,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     goto end;
   }
   table= tables.table;
-  init_read_record(&read_record_info, new_thd, table, NULL, 1, 0);
+  init_read_record(&read_record_info, new_thd, table, NULL, 1, 0, FALSE);
   table->use_all_columns();
   /*
     there're no other threads running yet, so we don't need a mutex.
@@ -1882,7 +1882,7 @@ static int check_func_bool(THD *thd, struct st_mysql_sys_var *var,
     }
     result= (int) tmp;
   }
-  *(int*)save= -result;
+  *(my_bool *) save= -result;
   return 0;
 err:
   my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->name, strvalue);
@@ -2063,7 +2063,7 @@ err:
 static void update_func_bool(THD *thd, struct st_mysql_sys_var *var,
                              void *tgt, const void *save)
 {
-  *(my_bool *) tgt= *(int *) save ? 1 : 0;
+  *(my_bool *) tgt= *(my_bool *) save ? TRUE : FALSE;
 }
 
 

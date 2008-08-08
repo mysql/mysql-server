@@ -8,6 +8,9 @@
 USE test;
 --source suite/funcs_1/include/tb3.inc
 
+USE test;
+--source suite/funcs_1/include/tb3.inc
+
 # General setup for Trigger tests
 let $message= Testcase: 3.5:;
 --source include/show_msg.inc

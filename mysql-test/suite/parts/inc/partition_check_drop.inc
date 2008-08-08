@@ -11,9 +11,6 @@
 #------------------------------------------------------------------------------#
 # Original Author: mleich                                                      #
 # Original Date: 2006-05-12                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
 ################################################################################
 
 if ($no_debug)
@@ -27,25 +24,29 @@ let $MYSQLD_DATADIR= `select LEFT(@@datadir, LENGTH(@@datadir)-1)`;
 
 if ($do_file_tests)
 {
-# List the files belonging to the table t1
---exec ls $MYSQLD_DATADIR/test/t1* > $MYSQLD_DATADIR/test/tmp2 || true
-if ($with_directories)
-{
---exec ls $MYSQLTEST_VARDIR/tmp/t1* >> $MYSQLD_DATADIR/test/tmp2 || true
-}
-eval SET @aux = CONCAT('load_file(''$MYSQLD_DATADIR','/test/tmp2'')');
-let $file_list= `SELECT @aux`;
+  let $ls_file= $MYSQLD_DATADIR/test/tmp2;
+  # List the files belonging to the table t1
+  --list_files_write_file $ls_file $MYSQLD_DATADIR/test t1*
+  --chmod 0644 $ls_file
+  if ($with_directories)
+  {
+    --list_files_append_file $ls_file $MYSQLTEST_VARDIR/tmp t1*
+  }
+  eval SET @aux = load_file('$ls_file');
+
+  # clean up
+  remove_file $ls_file;
 }
 if (!$do_file_tests)
 {
-let $file_list= '--- not determined ---';
+  SET @aux = '--- not determined ---';
 }
 
 # UPDATE the current filelist of the table t1 within t0_definition
 # Note: This list should be empty, because the table t1 was dropped !
-eval INSERT INTO t0_definition SET state = 'old', file_list = $file_list
-ON DUPLICATE KEY UPDATE file_list = $file_list;
-# eval UPDATE t0_definition SET file_list = $file_list WHERE state = 'old';
+eval INSERT INTO t0_definition SET state = 'old', file_list = @aux
+ON DUPLICATE KEY UPDATE file_list = @aux;
+# eval UPDATE t0_definition SET file_list = @aux WHERE state = 'old';
 
 # Check if filelist is empty.
 let $found_garbage= `SELECT file_list <> '' FROM t0_definition WHERE state = 'old'`;

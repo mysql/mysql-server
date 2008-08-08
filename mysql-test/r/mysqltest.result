@@ -14,6 +14,7 @@ select otto from (select 1 as otto) as t1;
 otto
 1
 mysqltest: At line 1: query 'select otto from (select 1 as otto) as t1' succeeded - should have failed with sqlstate 42S22...
+mysqltest: At line 1: expecting a SQL-state (00000) from query 'remove_file MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp' which cannot produce one...
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' failed with wrong sqlstate 42S22: 'Unknown column 'friedrich' in 'field list'', instead of 00000...
@@ -723,6 +724,9 @@ drop table t1;
 mysqltest: At line 1: change user failed: Unknown database 'inexistent'
 mysqltest: At line 1: change user failed: Access denied for user 'inexistent'@'localhost' (using password: NO)
 mysqltest: At line 1: change user failed: Access denied for user 'root'@'localhost' (using password: YES)
+file1.txt
+file1.txt
+file2.txt
 SELECT 'c:\\a.txt' AS col;
 col
 z
