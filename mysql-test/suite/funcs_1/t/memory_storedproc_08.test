@@ -1,6 +1,6 @@
 #### suite/funcs_1/t/memory_storedproc_08.test
 #
- 
+
 let $engine_type= memory;
- 
+
 --source suite/funcs_1/storedproc/storedproc_08.inc

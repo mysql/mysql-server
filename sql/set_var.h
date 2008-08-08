@@ -74,7 +74,8 @@ public:
   sys_var(const char *name_arg, sys_after_update_func func= NULL,
           Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
     :name(name_arg), after_update(func), no_support_one_shot(1),
-    binlog_status(binlog_status_arg)
+    binlog_status(binlog_status_arg),
+    m_allow_empty_value(TRUE)
   {}
   virtual ~sys_var() {}
   void chain_sys_var(sys_var_chain *chain_arg)
@@ -109,8 +110,16 @@ public:
   virtual bool is_readonly() const { return 0; }
   virtual sys_var_pluginvar *cast_pluginvar() { return 0; }
 
+protected:
+  void set_allow_empty_value(bool allow_empty_value)
+  {
+    m_allow_empty_value= allow_empty_value;
+  }
+
 private:
   const Binlog_status_enum binlog_status;
+
+  bool m_allow_empty_value;
 };
 
 
@@ -878,8 +887,11 @@ public:
   sys_var_log_output(sys_var_chain *chain, const char *name_arg, ulong *value_arg,
                      TYPELIB *typelib, sys_after_update_func func)
     :sys_var(name_arg,func), value(value_arg), enum_names(typelib)
-  { chain_sys_var(chain); }
-  bool check(THD *thd, set_var *var)
+  {
+    chain_sys_var(chain);
+    set_allow_empty_value(FALSE);
+  }
+  virtual bool check(THD *thd, set_var *var)
   {
     return check_set(thd, var, enum_names);
   }
@@ -1085,7 +1097,7 @@ public:
   virtual void set_default(THD *thd, enum_var_type type);
 };
 
-
+#ifdef HAVE_EVENT_SCHEDULER
 class sys_var_event_scheduler :public sys_var_long_ptr
 {
   /* We need a derived class only to have a warn_deprecated() */
@@ -1101,6 +1113,7 @@ public:
     return type != STRING_RESULT && type != INT_RESULT;
   }
 };
+#endif
 
 extern void fix_binlog_format_after_update(THD *thd, enum_var_type type);
 

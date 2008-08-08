@@ -1437,7 +1437,15 @@ sub datadir_list_setup () {
 
 sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
-  my $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
+  my $tmpdir;
+  if ( $opt_tmpdir ) {
+    # Use the requested tmpdir
+    mkpath($opt_tmpdir) if (! -d $opt_tmpdir);
+    $tmpdir= $opt_tmpdir;
+  }
+  else {
+    $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
+  }
 
   #
   # Execute "mysqld --help --verbose" to get a list
@@ -1503,7 +1511,7 @@ sub collect_mysqld_features () {
       }
     }
   }
-  rmtree($tmpdir);
+  rmtree($tmpdir) if (!$opt_tmpdir);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
@@ -1816,6 +1824,7 @@ sub mysql_upgrade_arguments()
   mtr_add_arg($args, "--socket=$master->[0]->{'path_sock'}");
   mtr_add_arg($args, "--datadir=$master->[0]->{'path_myddir'}");
   mtr_add_arg($args, "--basedir=$glob_basedir");
+  mtr_add_arg($args, "--tmpdir=$opt_tmpdir");
 
   if ( $opt_debug )
   {
@@ -2426,13 +2435,7 @@ sub setup_vardir() {
   {
     # on windows, copy all files from std_data into var/std_data_ln
     mkpath("$opt_vardir/std_data_ln");
-    opendir(DIR, "$glob_mysql_test_dir/std_data")
-      or mtr_error("Can't find the std_data directory: $!");
-    for(readdir(DIR)) {
-      next if -d "$glob_mysql_test_dir/std_data/$_";
-      copy("$glob_mysql_test_dir/std_data/$_", "$opt_vardir/std_data_ln/$_");
-    }
-    closedir(DIR);
+    mtr_copy_dir("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data_ln");
   }
 
   # Remove old log files

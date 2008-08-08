@@ -410,7 +410,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	drop database if exists mysqltest1
 master-bin.000001	#	Query	#	#	create database mysqltest1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; create table t1 (a varchar(100))
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo()
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `foo`()
 begin
 declare b int;
 set b = 8;
@@ -420,20 +420,20 @@ end
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values ( NAME_CONST('b',8))
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values (unix_timestamp())
 master-bin.000001	#	Query	#	#	use `mysqltest1`; delete from t1
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo2()
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `foo2`()
 select * from mysqltest1.t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; alter procedure foo2 contains sql
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop table t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; create table t1 (a int)
 master-bin.000001	#	Query	#	#	use `mysqltest1`; create table t2 like t1
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo3()
-deterministic
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `foo3`()
+    DETERMINISTIC
 insert into t1 values (15)
 master-bin.000001	#	Query	#	#	use `mysqltest1`; grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` procedure foo4()
-deterministic
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` PROCEDURE `foo4`()
+    DETERMINISTIC
 begin
 insert into t2 values(3);
 insert into t1 values (5);
@@ -447,8 +447,8 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values (5)
 master-bin.000001	#	Query	#	#	use `mysqltest1`; delete from t2
 master-bin.000001	#	Query	#	#	use `mysqltest1`; alter table t2 add unique (a)
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop procedure foo4
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo4()
-deterministic
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `foo4`()
+    DETERMINISTIC
 begin
 insert into t2 values(20),(20);
 end
@@ -457,9 +457,8 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; drop procedure foo4
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop procedure foo
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop procedure foo2
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop procedure foo3
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function fn1(x int)
-returns int
-deterministic
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(x int) RETURNS int(11)
+    DETERMINISTIC
 begin
 insert into t1 values (x);
 return x+2;
@@ -468,32 +467,27 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; delete t1,t2 from t1,t2
 master-bin.000001	#	Query	#	#	use `mysqltest1`; SELECT `mysqltest1`.`fn1`(20)
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t2 values(fn1(21))
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop function fn1
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function fn1()
-returns int
-no sql
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`() RETURNS int(11)
+    NO SQL
 begin
 return unix_timestamp();
 end
 master-bin.000001	#	Query	#	#	use `mysqltest1`; delete from t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values(fn1())
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` function fn2()
-returns int
-no sql
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` FUNCTION `fn2`() RETURNS int(11)
+    NO SQL
 begin
 return unix_timestamp();
 end
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function fn3()
-returns int
-not deterministic
-reads sql data
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS int(11)
+    READS SQL DATA
 begin
 return 0;
 end
 master-bin.000001	#	Query	#	#	use `mysqltest1`; delete from t2
 master-bin.000001	#	Query	#	#	use `mysqltest1`; alter table t2 add unique (a)
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop function fn1
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` function fn1(x int)
-returns int
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(x int) RETURNS int(11)
 begin
 insert into t2 values(x),(x);
 return 10;
@@ -506,15 +500,15 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values (1)
 master-bin.000001	#	Query	#	#	use `mysqltest1`; delete from t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop trigger trg
 master-bin.000001	#	Query	#	#	use `mysqltest1`; insert into t1 values (1)
-master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` procedure foo()
-not deterministic
-reads sql data
+master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `foo`()
+    READS SQL DATA
 select * from t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop procedure foo
 master-bin.000001	#	Query	#	#	use `mysqltest1`; drop function fn1
 master-bin.000001	#	Query	#	#	drop database mysqltest1
 master-bin.000001	#	Query	#	#	drop user "zedjzlcsjhd"@127.0.0.1
-master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` function f1() returns int reads sql data
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+    READS SQL DATA
 begin
 declare var integer;
 declare c cursor for select a from v1;
@@ -530,12 +524,14 @@ master-bin.000001	#	Query	#	#	use `test`; drop view v1
 master-bin.000001	#	Query	#	#	use `test`; drop function f1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t1
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(col VARCHAR(10))
-master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE p1(arg VARCHAR(10))
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(arg VARCHAR(10))
 INSERT INTO t1 VALUES(arg)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES( NAME_CONST('arg',_latin1'test'))
 master-bin.000001	#	Query	#	#	use `test`; DROP PROCEDURE p1
-master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE p1() SET @a = 1
-master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION f1() RETURNS INT RETURN 0
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SET @a = 1
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+RETURN 0
 master-bin.000001	#	Query	#	#	use `test`; DROP PROCEDURE p1
 master-bin.000001	#	Query	#	#	use `test`; DROP FUNCTION f1
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
@@ -544,9 +540,10 @@ master-bin.000001	#	Query	#	#	drop database if exists mysqltest2
 master-bin.000001	#	Query	#	#	create database mysqltest
 master-bin.000001	#	Query	#	#	create database mysqltest2
 master-bin.000001	#	Query	#	#	use `mysqltest2`; create table t ( t integer )
-master-bin.000001	#	Query	#	#	use `mysqltest2`; CREATE DEFINER=`root`@`localhost` procedure mysqltest.test() begin end
+master-bin.000001	#	Query	#	#	use `mysqltest2`; CREATE DEFINER=`root`@`localhost` PROCEDURE `mysqltest`.`test`()
+begin end
 master-bin.000001	#	Query	#	#	use `mysqltest2`; insert into t values ( 1 )
-master-bin.000001	#	Query	#	#	use `mysqltest2`; CREATE DEFINER=`root`@`localhost` function f1 () returns int
+master-bin.000001	#	Query	#	#	use `mysqltest2`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
 begin
 insert into t values (1);
 return 0;
@@ -556,5 +553,413 @@ set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=0;
 drop database mysqltest;
 drop database mysqltest2;
+use test;
+/*!50001 create procedure `mysqltestbug36570_p1`() */
+begin
+select 1;
+end|
+use mysql|
+create procedure test.` mysqltestbug36570_p2`(/*!50001 a int*/)`label`:
+begin
+select a;
+end|
+/*!50001 create function test.mysqltestbug36570_f1() */
+returns int
+/*!50001 deterministic */
+begin
+return 3;
+end|
+use test|
+show procedure status like '%mysqltestbug36570%';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	 mysqltestbug36570_p2	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	mysqltestbug36570_p1	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+show create procedure ` mysqltestbug36570_p2`;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+ mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int)
+`label`:
+begin
+select a;
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+show procedure status like '%mysqltestbug36570%';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	 mysqltestbug36570_p2	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	mysqltestbug36570_p1	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+show create procedure ` mysqltestbug36570_p2`;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+ mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int)
+`label`:
+begin
+select a;
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+call ` mysqltestbug36570_p2`(42);
+a
+42
+show function status like '%mysqltestbug36570%';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	mysqltestbug36570_f1	FUNCTION	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+flush logs;
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=t/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+drop database if exists mysqltest1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+create database mysqltest1
+/*!*/;
+use mysqltest1/*!*/;
+SET TIMESTAMP=t/*!*/;
+create table t1 (a varchar(100))
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `foo`()
+begin
+declare b int;
+set b = 8;
+insert into t1 values (b);
+insert into t1 values (unix_timestamp());
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t1 values ( NAME_CONST('b',8))
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t1 values (unix_timestamp())
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+delete from t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `foo2`()
+select * from mysqltest1.t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+alter procedure foo2 contains sql
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop table t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+create table t1 (a int)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+create table t2 like t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `foo3`()
+    DETERMINISTIC
+insert into t1 values (15)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` PROCEDURE `foo4`()
+    DETERMINISTIC
+begin
+insert into t2 values(3);
+insert into t1 values (5);
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t2 values(3)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t1 values (15)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t2 values(3)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+alter procedure foo4 sql security invoker
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t2 values(3)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t1 values (5)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+delete from t2
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+alter table t2 add unique (a)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop procedure foo4
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `foo4`()
+    DETERMINISTIC
+begin
+insert into t2 values(20),(20);
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t2 values(20),(20)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop procedure foo4
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop procedure foo
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop procedure foo2
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop procedure foo3
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(x int) RETURNS int(11)
+    DETERMINISTIC
+begin
+insert into t1 values (x);
+return x+2;
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+delete t1,t2 from t1,t2
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+SELECT `mysqltest1`.`fn1`(20)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t2 values(fn1(21))
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop function fn1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`() RETURNS int(11)
+    NO SQL
+begin
+return unix_timestamp();
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+delete from t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t1 values(fn1())
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` FUNCTION `fn2`() RETURNS int(11)
+    NO SQL
+begin
+return unix_timestamp();
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS int(11)
+    READS SQL DATA
+begin
+return 0;
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+delete from t2
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+alter table t2 add unique (a)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop function fn1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(x int) RETURNS int(11)
+begin
+insert into t2 values(x),(x);
+return 10;
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+SELECT `mysqltest1`.`fn1`(100)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+SELECT `mysqltest1`.`fn1`(20)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+delete from t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` trigger trg before insert on t1 for each row set new.a= 10
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t1 values (1)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+delete from t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop trigger trg
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t1 values (1)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `foo`()
+    READS SQL DATA
+select * from t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop procedure foo
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop function fn1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop database mysqltest1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop user "zedjzlcsjhd"@127.0.0.1
+/*!*/;
+use test/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+    READS SQL DATA
+begin
+declare var integer;
+declare c cursor for select a from v1;
+open c;
+fetch c into var;
+close c;
+return var;
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 as a
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+create table t1 (a int)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t1 (a) values (f1())
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop view v1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop function f1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+DROP TABLE IF EXISTS t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE TABLE t1(col VARCHAR(10))
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(arg VARCHAR(10))
+INSERT INTO t1 VALUES(arg)
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+INSERT INTO t1 VALUES( NAME_CONST('arg',_latin1'test'))
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+DROP PROCEDURE p1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SET @a = 1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+RETURN 0
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+DROP PROCEDURE p1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+DROP FUNCTION f1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop table t1
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop database if exists mysqltest
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop database if exists mysqltest2
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+create database mysqltest
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+create database mysqltest2
+/*!*/;
+use mysqltest2/*!*/;
+SET TIMESTAMP=t/*!*/;
+create table t ( t integer )
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `mysqltest`.`test`()
+begin end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+insert into t values ( 1 )
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+begin
+insert into t values (1);
+return 0;
+end
+/*!*/;
+use mysqltest/*!*/;
+SET TIMESTAMP=t/*!*/;
+SELECT `mysqltest2`.`f1`()
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop database mysqltest
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+drop database mysqltest2
+/*!*/;
+use test/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `mysqltestbug36570_p1`()
+begin
+select 1;
+end
+/*!*/;
+use mysql/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `test`.` mysqltestbug36570_p2`( a int)
+`label`:
+begin
+select a;
+end
+/*!*/;
+SET TIMESTAMP=t/*!*/;
+CREATE DEFINER=`root`@`localhost` FUNCTION `test`.`mysqltestbug36570_f1`() RETURNS int(11)
+    DETERMINISTIC
+begin
+return 3;
+end
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+use test;
+drop procedure mysqltestbug36570_p1;
+drop procedure ` mysqltestbug36570_p2`;
+drop function mysqltestbug36570_f1;
 End of 5.0 tests
 End of 5.1 tests

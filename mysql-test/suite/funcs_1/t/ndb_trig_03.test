@@ -10,7 +10,7 @@ let $engine_type= ndb;
 # Create some objects needed in many testcases
 USE test;
 --source suite/funcs_1/include/ndb_tb3.inc
-    
+
 --source suite/funcs_1/triggers/triggers_03.inc
 DROP TABLE test.tb3;
 

@@ -1,0 +1,102 @@
+
+
+################## mysql-test\t\innodb_open_files_basic.test ##################
+#                                                                             #
+# Variable Name: innodb_open_files                                            #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                      #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable innodb_open_files         #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/have_innodb.inc
+
+--echo '#---------------------BS_STVARS_038_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_open_files);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_038_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_open_files=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.innodb_open_files);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_038_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.innodb_open_files = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_open_files';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_open_files);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_open_files';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_038_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_open_files = @@GLOBAL.innodb_open_files;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_038_05----------------------#'
+################################################################################
+#   Check if innodb_open_files can be accessed with and without @@ sign        #
+################################################################################
+
+SELECT COUNT(@@innodb_open_files);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_open_files);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_open_files);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_open_files);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_open_files = @@SESSION.innodb_open_files;
+--echo Expected error 'Readonly variable'
+
+

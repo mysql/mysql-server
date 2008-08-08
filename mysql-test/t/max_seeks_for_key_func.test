@@ -1,0 +1,104 @@
+
+
+
+#Test for max_seeks_for_key#
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+
+#########################
+#   Creating new table  #
+#########################
+
+CREATE TABLE t1
+(a int auto_increment primary key, 
+b char(20)
+);
+
+
+
+--echo '#--------------------FN_DYNVARS_084_01-------------------------#'
+##########################################################
+#    Test behavior of variable on new connection # 01    #
+##########################################################
+
+CONNECT (test_con1,localhost,root,,);
+CONNECTION test_con1;
+
+# Value of session & global vairable here should be 10
+SELECT @@global.max_seeks_for_key = 10;
+SELECT @@session.max_seeks_for_key = 10;
+
+# Setting global value of variable and inserting data in table
+SET @@global.max_seeks_for_key = 20;
+SELECT @@global.max_seeks_for_key;
+INSERT into t1(b) values("AREc");
+explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
+
+# Setting session value of variable and inserting data in table
+SET @@session.max_seeks_for_key = 2;
+SELECT @@session.max_seeks_for_key;
+INSERT into t1(b) values("BREc");
+INSERT into t1(b) values("CRec");
+explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
+
+
+--echo '#--------------------FN_DYNVARS_084_02-------------------------#'
+##########################################################
+#    Test behavior of variable on new connection # 02    #
+##########################################################
+
+
+CONNECT (test_con2,localhost,root,,);
+connection test_con2;
+
+
+# Value of session & global vairable here should be 10
+SELECT @@global.max_seeks_for_key = 10;
+SELECT @@session.max_seeks_for_key = 10;
+
+# Setting global value of variable and inserting data in table
+SET @@global.max_seeks_for_key = 20;
+SELECT @@global.max_seeks_for_key;
+INSERT into t1(b) values("AREc");
+explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
+
+# Setting session value of variable and inserting data in table
+SET @@session.max_seeks_for_key = 2;
+SELECT @@session.max_seeks_for_key;
+INSERT into t1(b) values("BREc");
+INSERT into t1(b) values("CRec");
+explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
+
+
+
+
+
+
+#####################################################
+#   Inserting values in  table t and analyzing table #
+#####################################################
+
+INSERT INTO t1 values(null,"test");
+INSERT INTO t1 VALUES (null,"a"),(null,"a"),(null,"a"),
+                     (null,"a"),(null,"a"),(null,"a"),(null,"a"),
+                     (null,"a"),(null,"a"),(null,"a");
+explain SELECT STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
+analyze table t1;
+
+###################################################################
+#   Setting new value for max_seeks_for_key and anaylyzing table  #
+###################################################################
+
+SET MAX_SEEKS_FOR_KEY=1;
+
+
+explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
+SET MAX_SEEKS_FOR_KEY=DEFAULT;
+
+drop table t1;
+
+

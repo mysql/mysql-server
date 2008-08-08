@@ -101,4 +101,18 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 ERROR 42S01: Table 'v1' already exists
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+# create view as output from mysqldump 10.11 (5.0.62)
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) */
+/*!50002 WITH CASCADED CHECK OPTION */;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) WITH CASCADED CHECK OPTION	latin1	latin1_swedish_ci
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) WITH CASCADED CHECK OPTION	latin1	latin1_swedish_ci
+DROP VIEW v1;
+DROP TABLE t1;
 End of 5.0 tests

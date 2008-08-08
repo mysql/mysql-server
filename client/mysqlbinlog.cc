@@ -1934,7 +1934,7 @@ int main(int argc, char** argv)
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
 
-  init_time(); // for time functions
+  my_init_time(); // for time functions
 
   parse_args(&argc, (char***)&argv);
   defaults_argv=argv;

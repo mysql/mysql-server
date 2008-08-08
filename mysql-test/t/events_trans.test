@@ -2,6 +2,8 @@
 # Tests that require transactions
 #
 -- source include/have_innodb.inc
+-- source include/not_embedded.inc
+
 --disable_warnings
 drop database if exists events_test;
 drop database if exists mysqltest_no_such_database;

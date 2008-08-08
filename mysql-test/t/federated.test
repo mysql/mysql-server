@@ -2,6 +2,14 @@
 --source include/not_embedded.inc
 --source include/federated.inc
 
+connection default;
+
+# Disable concurrent inserts to avoid test failures when reading
+# data from concurrent connections (insert might return before
+# the data is actually in the table).
+SET @OLD_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
+SET @@GLOBAL.CONCURRENT_INSERT= 0;
+
 connection slave;
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
@@ -1857,3 +1865,7 @@ drop server 's1';
 
 --echo End of 5.1 tests
 source include/federated_cleanup.inc;
+
+connection default;
+
+SET @@GLOBAL.CONCURRENT_INSERT= @OLD_CONCURRENT_INSERT;
