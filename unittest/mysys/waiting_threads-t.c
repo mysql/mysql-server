@@ -26,6 +26,9 @@ struct test_wt_thd {
 uint i, cnt;
 pthread_mutex_t lock;
 
+ulong wt_timeout_short=100, wt_deadlock_search_depth_short=4;
+ulong wt_timeout_long=10000, wt_deadlock_search_depth_long=15;
+
 #define reset(ARRAY) bzero(ARRAY, sizeof(ARRAY))
 
 enum { LATEST, RANDOM, YOUNGEST, LOCKS } kill_strategy;
@@ -55,15 +58,6 @@ pthread_handler_t test_wt(void *arg)
   if (kill_strategy == LOCKS)
     thds[id].thd.weight= 0;
 
-  /*
-    wt_thd_init() is supposed to be called in the thread that will use it.
-    We didn't do that, and now need to fix the broken object.
-  */
-  thds[id].thd.pins->stack_ends_here= & my_thread_var->stack_ends_here;
-#ifndef DBUG_OFF
-  thds[id].thd.name=my_thread_name();
-#endif
-
   for (m= *(int *)arg; m ; m--)
   {
     WT_RESOURCE_ID resid;
@@ -80,11 +74,6 @@ pthread_handler_t test_wt(void *arg)
 retry:
       i= rnd() % (THREADS-1);
       if (i >= id) i++;
-
-#ifndef DBUG_OFF
-      if (thds[i].thd.name==0)
-        goto retry;
-#endif
 
       for (k=n; k >=j; k--)
         if (blockers[k] == i)
@@ -133,7 +122,7 @@ retry:
 #define DEL "(deleted)"
     char *x=malloc(strlen(thds[id].thd.name)+sizeof(DEL)+1);
     strxmov(x, thds[id].thd.name, DEL, 0);
-    thds[id].thd.name=x; /* it's a memory leak, go on, shot me */
+    thds[id].thd.name=x; /* it's a memory leak, go on, shoot me */
   }
 #endif
 
@@ -148,12 +137,6 @@ retry:
 void do_one_test()
 {
   double sum, sum0;
-
-
-#ifndef DBUG_OFF
-  for (cnt=0; cnt < THREADS; cnt++)
-    thds[cnt].thd.name=0;
-#endif
 
   reset(wt_cycle_stats);
   reset(wt_wait_stats);
@@ -195,7 +178,9 @@ void do_tests()
   wt_init();
   for (cnt=0; cnt < THREADS; cnt++)
   {
-    wt_thd_init(& thds[cnt].thd);
+    wt_thd_lazy_init(& thds[cnt].thd,
+                     & wt_deadlock_search_depth_short, & wt_timeout_short,
+                     & wt_deadlock_search_depth_long, & wt_timeout_long);
     pthread_mutex_init(& thds[cnt].lock, 0);
   }
   {
@@ -240,6 +225,14 @@ void do_tests()
     wt_thd_release_all(& thds[2].thd);
     wt_thd_release_all(& thds[3].thd);
     pthread_mutex_unlock(&lock);
+
+    for (cnt=0; cnt < 3; cnt++)
+    {
+      wt_thd_destroy(& thds[cnt].thd);
+      wt_thd_lazy_init(& thds[cnt].thd,
+                       & wt_deadlock_search_depth_short, & wt_timeout_short,
+                       & wt_deadlock_search_depth_long, & wt_timeout_long);
+    }
   }
 
   wt_deadlock_search_depth_short=6;
@@ -248,9 +241,9 @@ void do_tests()
   wt_deadlock_search_depth_long=16;
   DBUG_PRINT("wt", ("================= stress test ==================="));
 
-  diag("timeout_short=%d us, deadlock_search_depth_short=%d",
+  diag("timeout_short=%lu us, deadlock_search_depth_short=%lu",
        wt_timeout_short, wt_deadlock_search_depth_short);
-  diag("timeout_long=%d us, deadlock_search_depth_long=%d",
+  diag("timeout_long=%lu us, deadlock_search_depth_long=%lu",
        wt_timeout_long, wt_deadlock_search_depth_long);
 
 #define test_kill_strategy(X)                   \

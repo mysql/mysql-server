@@ -43,9 +43,6 @@
 #include <waiting_threads.h>
 #include <m_string.h>
 
-uint wt_timeout_short=100, wt_deadlock_search_depth_short=4;
-uint wt_timeout_long=10000, wt_deadlock_search_depth_long=15;
-
 /*
   status variables:
     distribution of cycle lengths
@@ -73,13 +70,13 @@ static my_atomic_rwlock_t cycle_stats_lock, wait_stats_lock, success_stats_lock;
     my_atomic_rwlock_wrunlock(&success_stats_lock);                     \
   } while (0)
 
-#define increment_cycle_stats(X,MAX)                                    \
+#define increment_cycle_stats(X,SLOT)                                   \
   do {                                                                  \
-    uint i= (X), j= (MAX) == wt_deadlock_search_depth_long;             \
+    uint i= (X);                                                        \
     if (i >= WT_CYCLE_STATS)                                            \
       i= WT_CYCLE_STATS;                                                \
     my_atomic_rwlock_wrlock(&cycle_stats_lock);                         \
-    my_atomic_add32(&wt_cycle_stats[j][i], 1);                          \
+    my_atomic_add32(&wt_cycle_stats[SLOT][i], 1);                       \
     my_atomic_rwlock_wrunlock(&cycle_stats_lock);                       \
   } while (0)
 
@@ -190,14 +187,29 @@ void wt_end()
   DBUG_VOID_RETURN;
 }
 
-void wt_thd_init(WT_THD *thd)
+static void fix_thd_pins(WT_THD *thd)
 {
-  DBUG_ENTER("wt_thd_init");
+  if (unlikely(thd->pins == 0))
+  {
+    thd->pins=lf_hash_get_pins(&reshash);
+#ifndef DBUG_OFF
+    thd->name=my_thread_name();
+#endif
+  }
+}
 
-  my_init_dynamic_array(&thd->my_resources, sizeof(WT_RESOURCE *), 10, 5);
-  thd->pins=lf_hash_get_pins(&reshash);
+void wt_thd_lazy_init(WT_THD *thd, ulong *ds, ulong *ts, ulong *dl, ulong *tl)
+{
+  DBUG_ENTER("wt_thd_lazy_init");
   thd->waiting_for=0;
+  thd->my_resources.buffer= 0;
+  thd->my_resources.elements= 0;
   thd->weight=0;
+  thd->deadlock_search_depth_short= ds;
+  thd->timeout_short= ts;
+  thd->deadlock_search_depth_long= dl;
+  thd->timeout_long= tl;
+  my_init_dynamic_array(&thd->my_resources, sizeof(WT_RESOURCE *), 0, 5);
 #ifndef DBUG_OFF
   thd->name=my_thread_name();
 #endif
@@ -208,12 +220,12 @@ void wt_thd_destroy(WT_THD *thd)
 {
   DBUG_ENTER("wt_thd_destroy");
 
-  if (thd->my_resources.buffer == 0)
-    DBUG_VOID_RETURN; /* nothing to do */
-
   DBUG_ASSERT(thd->my_resources.elements == 0);
+
+  if (thd->pins != 0)
+    lf_hash_put_pins(thd->pins);
+
   delete_dynamic(&thd->my_resources);
-  lf_hash_put_pins(thd->pins);
   thd->waiting_for=0;
   DBUG_VOID_RETURN;
 }
@@ -297,7 +309,8 @@ retry:
     if (cursor == arg->thd)
     {
       ret= WT_DEADLOCK;
-      increment_cycle_stats(depth, arg->max_depth);
+      increment_cycle_stats(depth, arg->max_depth ==
+                                   *arg->thd->deadlock_search_depth_long);
       arg->victim= cursor;
       goto end;
     }
@@ -340,7 +353,8 @@ static int deadlock(WT_THD *thd, WT_THD *blocker, uint depth,
   ret= deadlock_search(&arg, blocker, depth);
   if (ret == WT_DEPTH_EXCEEDED)
   {
-    increment_cycle_stats(WT_CYCLE_STATS, max_depth);
+    increment_cycle_stats(WT_CYCLE_STATS, max_depth ==
+                                          *thd->deadlock_search_depth_long);
     ret= WT_OK;
   }
   if (ret == WT_DEADLOCK && depth)
@@ -378,6 +392,8 @@ static void unlock_lock_and_free_resource(WT_THD *thd, WT_RESOURCE *rc)
     rc_unlock(rc);
     DBUG_VOID_RETURN;
   }
+
+  fix_thd_pins(thd);
 
   /* XXX if (rc->id.type->make_key) key= rc->id.type->make_key(&rc->id, &keylen); else */
   {
@@ -450,8 +466,7 @@ int wt_thd_will_wait_for(WT_THD *thd, WT_THD *blocker, WT_RESOURCE_ID *resid)
   DBUG_PRINT("wt", ("enter: thd=%s, blocker=%s, resid=%llu",
                     thd->name, blocker->name, resid->value.num));
 
-  if (unlikely(thd->my_resources.buffer == 0))
-    wt_thd_init(thd);
+  fix_thd_pins(thd);
 
   if (thd->waiting_for == 0)
   {
@@ -538,7 +553,7 @@ retry:
   }
   rc_unlock(rc);
 
-  if (deadlock(thd, blocker, 1, wt_deadlock_search_depth_short))
+  if (deadlock(thd, blocker, 1, *thd->deadlock_search_depth_short))
   {
     wt_thd_dontwait(thd);
     DBUG_RETURN(WT_DEADLOCK);
@@ -584,16 +599,16 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
     ret= WT_OK;
   rc_unlock(rc);
 
-  set_timespec_time_nsec(timeout, starttime, wt_timeout_short*ULL(1000));
+  set_timespec_time_nsec(timeout, starttime, (*thd->timeout_short)*ULL(1000));
   if (ret == WT_TIMEOUT)
     ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
   if (ret == WT_TIMEOUT)
   {
-    if (deadlock(thd, thd, 0, wt_deadlock_search_depth_long))
+    if (deadlock(thd, thd, 0, *thd->deadlock_search_depth_long))
       ret= WT_DEADLOCK;
-    else if (wt_timeout_long > wt_timeout_short)
+    else if (*thd->timeout_long > *thd->timeout_short)
     {
-      set_timespec_time_nsec(timeout, starttime, wt_timeout_long*ULL(1000));
+      set_timespec_time_nsec(timeout, starttime, (*thd->timeout_long)*ULL(1000));
       if (!thd->killed)
         ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
     }
@@ -644,7 +659,7 @@ void wt_thd_release(WT_THD *thd, WT_RESOURCE_ID *resid)
         if (rc->mutex)
           safe_mutex_assert_owner(rc->mutex);
 #endif
-        }
+      }
       unlock_lock_and_free_resource(thd, rc);
       if (resid)
       {

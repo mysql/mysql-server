@@ -38,9 +38,6 @@ struct st_wt_resource_id {
   } value;
 };
 
-extern uint wt_timeout_short, wt_deadlock_search_depth_short;
-extern uint wt_timeout_long, wt_deadlock_search_depth_long;
-
 #define WT_WAIT_STATS  24
 #define WT_CYCLE_STATS 32
 extern ulonglong wt_wait_table[WT_WAIT_STATS];
@@ -105,6 +102,11 @@ typedef struct st_wt_thd {
   */
   WT_RESOURCE    *waiting_for;
   LF_PINS        *pins;
+
+  /* pointers to values */
+  ulong *timeout_short, *deadlock_search_depth_short;
+  ulong *timeout_long, *deadlock_search_depth_long;
+
   /*
     weight relates to the desirability of a transaction being killed if it's
     part of a deadlock. In a deadlock situation transactions with lower weights
@@ -149,7 +151,7 @@ typedef struct st_wt_thd {
 
 void wt_init(void);
 void wt_end(void);
-void wt_thd_init(WT_THD *);
+void wt_thd_lazy_init(WT_THD *, ulong *, ulong *, ulong *, ulong *);
 void wt_thd_destroy(WT_THD *);
 int wt_thd_will_wait_for(WT_THD *, WT_THD *, WT_RESOURCE_ID *);
 int wt_thd_dontwait(WT_THD *);

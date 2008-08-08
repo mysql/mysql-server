@@ -353,6 +353,9 @@ struct system_variables
   DATE_TIME_FORMAT *time_format;
   my_bool sysdate_is_now;
 
+  /* deadlock detection */
+  ulong wt_timeout_short, wt_deadlock_search_depth_short;
+  ulong wt_timeout_long, wt_deadlock_search_depth_long;
 };
 
 
@@ -1349,9 +1352,14 @@ public:
     st_transactions()
     {
 #ifdef USING_TRANSACTIONS
+      THD *thd=current_thd;
       bzero((char*)this, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+      wt_thd_lazy_init(&wt, &thd->variables.wt_deadlock_search_depth_short,
+                            &thd->variables.wt_timeout_short,
+                            &thd->variables.wt_deadlock_search_depth_long,
+                            &thd->variables.wt_timeout_long);
 #else
       xid_state.xa_state= XA_NOTR;
 #endif

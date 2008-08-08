@@ -51,19 +51,14 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
     if (init_alloc > 8 && alloc_increment > init_alloc * 2)
       alloc_increment=init_alloc*2;
   }
-
-  if (!init_alloc)
-  {
-    init_alloc=alloc_increment;
-    init_buffer= 0;
-  }
   array->elements=0;
   array->max_element=init_alloc;
   array->alloc_increment=alloc_increment;
   array->size_of_element=element_size;
   if ((array->buffer= init_buffer))
     DBUG_RETURN(FALSE);
-  if (!(array->buffer=(uchar*) my_malloc_ci(element_size*init_alloc,
+  if (init_alloc &&
+      !(array->buffer=(uchar*) my_malloc_ci(element_size*init_alloc,
                                             MYF(MY_WME))))
   {
     array->max_element=0;

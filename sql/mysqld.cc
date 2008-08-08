@@ -5570,7 +5570,11 @@ enum options_mysqld
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
   OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_OLD_MODE,
-  OPT_SLAVE_EXEC_MODE
+  OPT_SLAVE_EXEC_MODE,
+  OPT_DEADLOCK_SEARCH_DEPTH_SHORT,
+  OPT_DEADLOCK_SEARCH_DEPTH_LONG,
+  OPT_DEADLOCK_TIMEOUT_SHORT,
+  OPT_DEADLOCK_TIMEOUT_LONG
 };
 
 
@@ -5693,6 +5697,26 @@ struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 'h', "Path to the database root.", (uchar**) &mysql_data_home,
    (uchar**) &mysql_data_home, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"deadlock-search-depth-short", OPT_DEADLOCK_SEARCH_DEPTH_SHORT,
+   "Short search depth for the two-step deadlock detection",
+   (uchar**) &global_system_variables.wt_deadlock_search_depth_short,
+   (uchar**) &global_system_variables.wt_deadlock_search_depth_short,
+   0, GET_ULONG, REQUIRED_ARG, 4, 0, 32, 0, 0, 0},
+  {"deadlock-search-depth-long", OPT_DEADLOCK_SEARCH_DEPTH_LONG,
+   "Long search depth for the two-step deadlock detection",
+   (uchar**) &global_system_variables.wt_deadlock_search_depth_long,
+   (uchar**) &global_system_variables.wt_deadlock_search_depth_long,
+   0, GET_ULONG, REQUIRED_ARG, 15, 0, 33, 0, 0, 0},
+  {"deadlock-timeout-short", OPT_DEADLOCK_TIMEOUT_SHORT,
+   "Short timeout for the two-step deadlock detection (in microseconds)",
+   (uchar**) &global_system_variables.wt_timeout_short,
+   (uchar**) &global_system_variables.wt_timeout_short,
+   0, GET_ULONG, REQUIRED_ARG, 100, 0, ULONG_MAX, 0, 0, 0},
+  {"deadlock-timeout-long", OPT_DEADLOCK_TIMEOUT_LONG,
+   "Long timeout for the two-step deadlock detection (in microseconds)",
+   (uchar**) &global_system_variables.wt_timeout_long,
+   (uchar**) &global_system_variables.wt_timeout_long,
+   0, GET_ULONG, REQUIRED_ARG, 10000, 0, ULONG_MAX, 0, 0, 0},
 #ifndef DBUG_OFF
   {"debug", '#', "Debug log.", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
