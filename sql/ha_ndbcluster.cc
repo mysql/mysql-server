@@ -158,6 +158,7 @@ static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
 static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*,
                                     const NdbRecord *, struct Ndb_statistics *);
 
+THD *injector_thd= 0;
 
 // Util thread variables
 pthread_t ndb_util_thread;
@@ -6860,6 +6861,17 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 
   DBUG_ENTER("ha_ndbcluster::rename_table");
   DBUG_PRINT("info", ("Renaming %s to %s", from, to));
+
+  if (thd == injector_thd)
+  {
+    /*
+      Table was renamed remotely is already
+      renamed inside ndb.
+      Just rename .ndb file.
+     */
+    DBUG_RETURN(handler::rename_table(from, to));
+  }
+
   set_dbname(from, old_dbname);
   set_dbname(to, new_dbname);
   set_tabname(from);
@@ -6930,7 +6942,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     }
     ERR_RETURN(ndb_error);
   }
-  
+
   // Rename .ndb file
   if ((result= handler::rename_table(from, to)))
   {
@@ -7228,6 +7240,17 @@ int ha_ndbcluster::delete_table(const char *name)
   int error= 0;
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
+
+  if (thd == injector_thd)
+  {
+    /*
+      Table was dropped remotely is already
+      dropped inside ndb.
+      Just drop local files.
+     */
+    DBUG_RETURN(handler::delete_table(name));
+  }
+
   set_dbname(name);
   set_tabname(name);
 
