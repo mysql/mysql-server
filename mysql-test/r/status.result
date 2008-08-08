@@ -177,10 +177,8 @@ set ret = x * 10;
 return ret;
 end //
 drop function f1;
-show status like 'Com%function%';
+show status like 'Com%function';
 Variable_name	Value
 Com_alter_function	0
 Com_create_function	1
 Com_drop_function	1
-Com_show_function_code	0
-Com_show_function_status	0
