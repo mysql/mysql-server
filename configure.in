@@ -444,6 +444,15 @@ AC_SUBST(HOSTNAME)
 AC_SUBST(PERL)
 AC_SUBST(PERL5)
 
+if expr "$CC" : ".*gcc.*"
+then
+  ABI_CHECK="abi_check"
+else
+  ABI_CHECK=""
+fi
+
+AC_SUBST(ABI_CHECK)
+
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
