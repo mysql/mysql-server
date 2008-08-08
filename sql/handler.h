@@ -2186,7 +2186,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 #ifdef HAVE_NDB_BINLOG
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
-void ha_reset_slave(THD *thd);
+int ha_reset_slave(THD *thd);
 void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command,
                          const char *query, uint query_length,
@@ -2194,9 +2194,10 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
 void ha_binlog_wait(THD *thd);
 int ha_binlog_end(THD *thd);
 #else
-#define ha_reset_logs(a) do {} while (0)
-#define ha_binlog_index_purge_file(a,b) do {} while (0)
-#define ha_reset_slave(a) do {} while (0)
+inline int ha_int_dummy() { return 0; }
+#define ha_reset_logs(a) ha_int_dummy()
+#define ha_binlog_index_purge_file(a,b) ha_int_dummy()
+#define ha_reset_slave(a) ha_int_dummy()
 #define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
 #define ha_binlog_wait(a) do {} while (0)
 #define ha_binlog_end(a)  do {} while (0)

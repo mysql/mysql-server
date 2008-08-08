@@ -45,6 +45,8 @@ extern my_bool opt_ndb_log_updated_only;
 #include "ha_ndbcluster_tables.h"
 #define NDB_APPLY_TABLE_FILE "./" NDB_REP_DB "/" NDB_APPLY_TABLE
 #define NDB_SCHEMA_TABLE_FILE "./" NDB_REP_DB "/" NDB_SCHEMA_TABLE
+static char repdb[]= NDB_REP_DB;
+static char reptable[]= NDB_REP_TABLE;
 
 /*
   Timeout for syncing schema events between
@@ -293,7 +295,10 @@ static void run_query(THD *thd, char *buf, char *end,
     is called from ndbcluster_reset_logs(), which is called from
     mysql_flush().
   */
-  thd->main_da.reset_diagnostics_area();
+  if (!thd->main_da.is_error())
+  {
+    thd->main_da.reset_diagnostics_area();
+  }
 
   thd->options= save_thd_options;
   thd->query_length= save_thd_query_length;
@@ -503,11 +508,34 @@ static int ndbcluster_reset_logs(THD *thd)
   */
   ndbcluster_binlog_wait(thd);
 
-  char buf[1024];
-  char *end= strmov(buf, "TRUNCATE " NDB_REP_DB "." NDB_REP_TABLE);
+  /*
+    Could use run_query() here, but it is actually wrong,
+    see comment in run_query()
+  */
+  TABLE_LIST table;
+  bzero((char*) &table, sizeof(table));
+  table.db= repdb;
+  table.alias= table.table_name= reptable;
+  mysql_truncate(thd, &table, 0);
 
-  run_query(thd, buf, end, NULL, TRUE);
-
+  /*
+    Calling function only expects and handles error cases,
+    so reset state if not an error as not to hit asserts
+    in upper layers
+  */
+  while (thd->main_da.is_error())
+  {
+    if (thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+    {
+      /*
+        If table does not exist ignore the error as it
+        is a consistant behavior
+      */
+      break;
+    }
+    DBUG_RETURN(1);
+  }
+  thd->main_da.reset_diagnostics_area();
   DBUG_RETURN(0);
 }
 
@@ -532,6 +560,15 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
                                   " WHERE File='"), file), "'");
 
   run_query(thd, buf, end, NULL, TRUE);
+  if (thd->main_da.is_error() &&
+      thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+  {
+    /*
+      If table does not exist ignore the error as it
+      is a consistant behavior
+    */
+    thd->main_da.reset_diagnostics_area();
+  }
 
   DBUG_RETURN(0);
 }
@@ -649,6 +686,16 @@ static void ndbcluster_reset_slave(THD *thd)
   char buf[1024];
   char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_APPLY_TABLE);
   run_query(thd, buf, end, NULL, TRUE);
+  if (thd->main_da.is_error() &&
+      thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+  {
+    /*
+      If table does not exist ignore the error as it
+      is a consistant behavior
+    */
+    thd->main_da.reset_diagnostics_area();
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -674,8 +721,7 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
   switch(fn)
   {
   case BFN_RESET_LOGS:
-    ndbcluster_reset_logs(thd);
-    break;
+    return ndbcluster_reset_logs(thd);
   case BFN_RESET_SLAVE:
     ndbcluster_reset_slave(thd);
     break;
@@ -786,6 +832,8 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
       end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_APPLY_TABLE);
       const int no_print_error[1]= {0};
       run_query(thd, buf, end, no_print_error, TRUE);
+      /* always reset here */
+      thd->main_da.reset_diagnostics_area();
     }
   }
 
@@ -808,6 +856,8 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                                 4009,
                                 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
+  /* always reset here */
+  thd->main_da.reset_diagnostics_area();
 
   DBUG_RETURN(0);
 }
@@ -859,6 +909,8 @@ static int ndbcluster_create_schema_table(THD *thd)
       end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_SCHEMA_TABLE);
       const int no_print_error[1]= {0};
       run_query(thd, buf, end, no_print_error, TRUE);
+      /* always reset here */
+      thd->main_da.reset_diagnostics_area();
     }
   }
 
@@ -885,6 +937,8 @@ static int ndbcluster_create_schema_table(THD *thd)
                                 4009,
                                 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
+  /* always reset here */
+  thd->main_da.reset_diagnostics_area();
 
   DBUG_RETURN(0);
 }
@@ -1879,6 +1933,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                       schema->query + schema->query_length,
                       no_print_error, //   /* don't print error */
                       TRUE); //  /* don't binlog the query */
+            /* always reset here */
+            thd->main_da.reset_diagnostics_area();
 
             /* binlog dropping table after any table operations */
             post_epoch_log_list->push_back(schema, mem_root);
@@ -1966,6 +2022,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                       schema->query + schema->query_length,
                       no_print_error,    /* print error */
                       TRUE);   /* don't binlog the query */
+            /* always reset here */
+            thd->main_da.reset_diagnostics_area();
             /* binlog dropping database after any table operations */
             post_epoch_log_list->push_back(schema, mem_root);
             /* acknowledge this query _after_ epoch completion */
@@ -1993,6 +2051,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                     schema->query + schema->query_length,
                     no_print_error,    /* print error */
                     TRUE);   /* don't binlog the query */
+          /* always reset here */
+          thd->main_da.reset_diagnostics_area();
           log_query= 1;
           break;
         }
@@ -2555,8 +2615,6 @@ struct ndb_binlog_index_row {
 static int open_and_lock_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
                                           TABLE **ndb_binlog_index)
 {
-  static char repdb[]= NDB_REP_DB;
-  static char reptable[]= NDB_REP_TABLE;
   const char *save_proc_info= thd->proc_info;
 
   bzero((char*) tables, sizeof(*tables));
