@@ -2945,7 +2945,8 @@ begin
   show columns from t1;
   show keys from t1;
   show open tables like 'foo';
-  show privileges;
+  # Removed because result will differ in embedded mode.
+  #show privileges;
   show status like 'foo';
   show tables like 'foo';
   show variables like 'foo';

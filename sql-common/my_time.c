@@ -701,9 +701,9 @@ int check_time_range(struct st_mysql_time *my_time, int *warning)
   Prepare offset of system time zone from UTC for my_system_gmt_sec() func.
 
   SYNOPSIS
-    init_time()
+    my_init_time()
 */
-void init_time(void)
+void my_init_time(void)
 {
   time_t seconds;
   struct tm *l_time,tm_tmp;
@@ -792,7 +792,7 @@ long calc_daynr(uint year,uint month,uint day)
   NOTES
     The idea is to cache the time zone offset from UTC (including daylight 
     saving time) for the next call to make things faster. But currently we 
-    just calculate this offset during startup (by calling init_time() 
+    just calculate this offset during startup (by calling my_init_time() 
     function) and use it all the time.
     Time value provided should be legal time value (e.g. '2003-01-01 25:00:00'
     is not allowed).

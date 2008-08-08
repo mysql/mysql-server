@@ -7,7 +7,6 @@ drop table if exists `£Τ£¶`;
 drop table if exists `£Τ£·`;
 drop table if exists `£Τ£Έ`;
 drop table if exists `£Τ£Ή`;
-drop table if exists `£Τ£±£°`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
 SET collation_connection = ucs2_general_ci;
@@ -17,12 +16,9 @@ CREATE TABLE `£Τ£³` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engin
 CREATE TABLE `£Τ£΄` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£µ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£Τ£¶` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
-CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£Τ£±£°` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£±` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£Τ£±£²` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
 INSERT INTO `£Τ£±` VALUES ('±²³΄µ');
 INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
 INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ');
@@ -32,9 +28,6 @@ INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ');
 INSERT INTO `£Τ£·` VALUES ('±²³΄µ');
 INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
 INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ');
 SELECT LOCATE('±',`£Γ£±`) from `£Τ£±`;
 LOCATE('±',`£Γ£±`)
 1
@@ -197,60 +190,6 @@ LOCATE('νΰ',`£Γ£±`)
 SELECT LOCATE('°΅',`£Γ£±`) from `£Τ£Ή`;
 LOCATE('°΅',`£Γ£±`)
 0
-SELECT LOCATE('±',`£Γ£±`) from `£Τ£±£°`;
-LOCATE('±',`£Γ£±`)
-1
-SELECT LOCATE('²',`£Γ£±`) from `£Τ£±£°`;
-LOCATE('²',`£Γ£±`)
-2
-SELECT LOCATE('³',`£Γ£±`) from `£Τ£±£°`;
-LOCATE('³',`£Γ£±`)
-3
-SELECT LOCATE('΄',`£Γ£±`) from `£Τ£±£°`;
-LOCATE('΄',`£Γ£±`)
-4
-SELECT LOCATE('µ',`£Γ£±`) from `£Τ£±£°`;
-LOCATE('µ',`£Γ£±`)
-5
-SELECT LOCATE('έ',`£Γ£±`) from `£Τ£±£°`;
-LOCATE('έ',`£Γ£±`)
-0
-SELECT LOCATE('¤Ά',`£Γ£±`) from `£Τ£±£±`;
-LOCATE('¤Ά',`£Γ£±`)
-1
-SELECT LOCATE('¤¤',`£Γ£±`) from `£Τ£±£±`;
-LOCATE('¤¤',`£Γ£±`)
-2
-SELECT LOCATE('¤¦',`£Γ£±`) from `£Τ£±£±`;
-LOCATE('¤¦',`£Γ£±`)
-3
-SELECT LOCATE('¤¨',`£Γ£±`) from `£Τ£±£±`;
-LOCATE('¤¨',`£Γ£±`)
-4
-SELECT LOCATE('¤ª',`£Γ£±`) from `£Τ£±£±`;
-LOCATE('¤ª',`£Γ£±`)
-5
-SELECT LOCATE('¤σ',`£Γ£±`) from `£Τ£±£±`;
-LOCATE('¤σ',`£Γ£±`)
-0
-SELECT LOCATE('νά',`£Γ£±`) from `£Τ£±£²`;
-LOCATE('νά',`£Γ£±`)
-1
-SELECT LOCATE('νέ',`£Γ£±`) from `£Τ£±£²`;
-LOCATE('νέ',`£Γ£±`)
-2
-SELECT LOCATE('νή',`£Γ£±`) from `£Τ£±£²`;
-LOCATE('νή',`£Γ£±`)
-3
-SELECT LOCATE('νί',`£Γ£±`) from `£Τ£±£²`;
-LOCATE('νί',`£Γ£±`)
-4
-SELECT LOCATE('νΰ',`£Γ£±`) from `£Τ£±£²`;
-LOCATE('νΰ',`£Γ£±`)
-5
-SELECT LOCATE('°΅',`£Γ£±`) from `£Τ£±£²`;
-LOCATE('°΅',`£Γ£±`)
-0
 DROP TABLE `£Τ£±`;
 DROP TABLE `£Τ£²`;
 DROP TABLE `£Τ£³`;
@@ -260,6 +199,3 @@ DROP TABLE `£Τ£¶`;
 DROP TABLE `£Τ£·`;
 DROP TABLE `£Τ£Έ`;
 DROP TABLE `£Τ£Ή`;
-DROP TABLE `£Τ£±£°`;
-DROP TABLE `£Τ£±£±`;
-DROP TABLE `£Τ£±£²`;
