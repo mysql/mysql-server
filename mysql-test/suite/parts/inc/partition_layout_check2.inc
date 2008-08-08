@@ -14,9 +14,6 @@
 #------------------------------------------------------------------------------#
 # Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
 ################################################################################
 
 if ($no_debug)
@@ -37,20 +34,20 @@ let $show_file= $MYSQLD_DATADIR/test/tmp1;
 
 if ($do_file_tests)
 {
-# List the files belonging to the table t1
-let $ls_file= $MYSQLD_DATADIR/test/tmp2;
-let $err_file= $MYSQLD_DATADIR/test/err2;
---exec ls $MYSQLD_DATADIR/test/t1* > $ls_file 2>$err_file || true
-if ($with_directories)
-{
---exec ls $MYSQLTEST_VARDIR/mysql-test-data-dir/t1* >> $ls_file 2>>$err_file || true
---exec ls $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1* >> $ls_file 2>>$err_file || true
-}
-eval SET @aux = load_file('$ls_file');
+  # List the files belonging to the table t1
+  let $ls_file= $MYSQLD_DATADIR/test/tmp2;
+  --list_files_write_file $ls_file $MYSQLD_DATADIR/test t1*
+  --chmod 0644 $ls_file
+  if ($with_directories)
+  {
+    --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-data-dir t1*
+    --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-idx-dir t1*
+  }
+  eval SET @aux = load_file('$ls_file');
 }
 if (!$do_file_tests)
 {
-SET @aux = '--- not determined ---';
+  SET @aux = '--- not determined ---';
 }
 
 # Insert the current definition of the table t1 into t0_definition

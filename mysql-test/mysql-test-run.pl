@@ -148,13 +148,14 @@ my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 
 my $opt_record;
 my $opt_report_features;
+
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
 
 my $opt_sleep;
 
 my $opt_testcase_timeout=    15; # minutes
-my $opt_suite_timeout   =   180; # minutes
+my $opt_suite_timeout   =   300; # minutes
 my $opt_shutdown_timeout=    10; # seconds
 my $opt_start_timeout   =   180; # seconds
 
@@ -1662,7 +1663,8 @@ sub environment_setup {
   # ----------------------------------------------------
   my $file_mysql_fix_privilege_tables=
     mtr_file_exists("$basedir/scripts/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mysql_fix_privilege_tables.sql");
+		    "$basedir/share/mysql_fix_privilege_tables.sql",
+		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql");
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
@@ -2911,6 +2913,7 @@ sub run_testcase ($) {
 	if (defined $value){
 	  mtr_verbose("Restoring $option to $value");
 	  $ENV{$option}= $value;
+
 	} else {
 	  mtr_verbose("Removing $option");
 	  delete($ENV{$option});

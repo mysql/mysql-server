@@ -1,32 +1,35 @@
-############## mysql-test\t\query_prealloc_size_basic.test ###############
-#                                                                             #
-# Variable Name: query_prealloc_size                                          #
-# Scope: GLOBAL | SESSION                                                     #
-# Access Type: Dynamic                                                        #
-# Data Type: numeric                                                          #
-# Default Value:  8192                                                        #
-# Range:  8192-4294967295                                                     #
-#                                                                             #
-#                                                                             #
-# Creation Date: 2008-02-07                                                   #
-# Author:  Rizwan                                                             #
-#                                                                             #
-# Description: Test Cases of Dynamic System Variable query_prealloc_size      #
-#              that checks the behavior of this variable in the following ways#
-#              * Default Value                                                #
-#              * Valid & Invalid values                                       #
-#              * Scope & Access method                                        #
-#              * Data Integrity                                               #
-#                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
-#                                                                             #
-###############################################################################
+################# mysql-test\t\query_prealloc_size_basic.test ##################
+#                                                                              #
+# Variable Name: query_prealloc_size                                           #
+# Scope: GLOBAL | SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: numeric                                                           #
+# Default Value:  8192                                                         #
+# Range:  8192-4294967295                                                      #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-07                                                    #
+# Author:  Rizwan                                                              #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable query_prealloc_size       #
+#              that checks the behavior of this variable in the following ways #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+#                                                                              #
+# Reference:                                                                   #
+#      http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html     #
+#                                                                              #
+# Last Modification:                                                           #
+# 2008-07-14 hhunger removed values for 64 bit platforms.                      #
+#                                                                              #
+################################################################################
 
 --source include/load_sysvars.inc
 
 ########################################################################
-#           START OF query_prealloc_size   TESTS                    #
+#              START OF query_prealloc_size   TESTS                    #
 ########################################################################
 
 
@@ -42,7 +45,7 @@ SELECT @start_session_value;
 
 --echo '#--------------------FN_DYNVARS_005_01-------------------------#'
 ########################################################################
-#     Display the DEFAULT value of myisam_block_size            #
+#            Display the DEFAULT value of myisam_block_size            #
 ########################################################################
 
 SET @@global.query_prealloc_size   = 100;
@@ -56,7 +59,7 @@ SELECT @@session.query_prealloc_size  ;
 
 --echo '#--------------------FN_DYNVARS_005_02-------------------------#'
 ########################################################################
-#     Check the DEFAULT value of query_prealloc_size                #
+#        Check the DEFAULT value of query_prealloc_size                #
 ########################################################################
 
 SET @@global.query_prealloc_size   = DEFAULT;
@@ -67,30 +70,32 @@ SELECT @@session.query_prealloc_size   = 8192;
 
 
 --echo '#--------------------FN_DYNVARS_005_03-------------------------#'
-##################################################################################
-# Change the value of query_prealloc_size   to a valid value for GLOBAL Scope #
-##################################################################################
+################################################################################
+# Change the value of query_prealloc_size   to a valid value for GLOBAL Scope  #
+################################################################################
 
 SET @@global.query_prealloc_size   = 8192;
 SELECT @@global.query_prealloc_size  ;
 
-SET @@global.query_prealloc_size   = 4294967295;
-SELECT @@global.query_prealloc_size  ;
+# Due to problems with 64 bit machines having less than 6 GB main memory.
+#SET @@global.query_prealloc_size   = 4294967295;
+#SELECT @@global.query_prealloc_size  ;
 
 SET @@global.query_prealloc_size   = 655354;
 SELECT @@global.query_prealloc_size  ;
 
 
 --echo '#--------------------FN_DYNVARS_005_04-------------------------#'
-###################################################################################
-# Change the value of query_prealloc_size   to a valid value for SESSION Scope #
-###################################################################################
- 
+##################################################################################
+# Change the value of query_prealloc_size   to a valid value for SESSION Scope   #
+##################################################################################
+
 SET @@session.query_prealloc_size   = 8192;
 SELECT @@session.query_prealloc_size  ;
 
-SET @@session.query_prealloc_size   = 4294967295;
-SELECT @@session.query_prealloc_size  ;
+# Due to problems with 64 bit machines having less than 6 GB main memory.
+#SET @@session.query_prealloc_size   = 4294967295;
+#SELECT @@session.query_prealloc_size  ;
 
 SET @@session.query_prealloc_size   = 655345;
 SELECT @@session.query_prealloc_size  ;
@@ -100,7 +105,7 @@ SELECT @@session.query_prealloc_size  ;
 
 --echo '#------------------FN_DYNVARS_005_05-----------------------#'
 ####################################################################
-# Change the value of query_prealloc_size   to an invalid value #
+#  Change the value of query_prealloc_size   to an invalid value   #
 ####################################################################
 
 SET @@global.query_prealloc_size   = 0;
@@ -109,8 +114,9 @@ SELECT @@global.query_prealloc_size  ;
 SET @@global.query_prealloc_size   = -1024;
 SELECT @@global.query_prealloc_size  ;
 
-SET @@global.query_prealloc_size   = 429496729533;
-SELECT @@global.query_prealloc_size  ;
+# Due to problems with 64 bit machines having less than 6 GB main memory.
+#SET @@global.query_prealloc_size   = 429496729533;
+#SELECT @@global.query_prealloc_size  ;
 
 
 --Error ER_PARSE_ERROR
@@ -161,8 +167,8 @@ SELECT @@session.query_prealloc_size  ;
 ####################################################################
 
 
-SELECT @@global.query_prealloc_size   = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+SELECT @@global.query_prealloc_size   = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='query_prealloc_size  ';
 
 --echo '#------------------FN_DYNVARS_005_07-----------------------#'
@@ -170,8 +176,8 @@ WHERE VARIABLE_NAME='query_prealloc_size  ';
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
-SELECT @@session.query_prealloc_size   = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+SELECT @@session.query_prealloc_size   = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='query_prealloc_size  ';
 
 
@@ -188,18 +194,19 @@ SELECT @@global.query_prealloc_size  ;
 
 
 --echo '#---------------------FN_DYNVARS_001_09----------------------#'
-#################################################################################### 
-#  Check if accessing variable with and without GLOBAL point to same variable   #
-#################################################################################### 
+################################################################################
+# Check if accessing variable with and without GLOBAL point to same variable   #
+################################################################################
 
 SET @@global.query_prealloc_size   = 10;
 SELECT @@query_prealloc_size   = @@global.query_prealloc_size  ;
 
 
 --echo '#---------------------FN_DYNVARS_001_10----------------------#'
-########################################################################################################
-#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
-########################################################################################################
+##############################################################################
+# Check if accessing variable with SESSION,LOCAL and without SCOPE points to #
+# to the same session variable                                               #
+##############################################################################
 
 SET @@query_prealloc_size   = 100;
 SELECT @@query_prealloc_size   = @@local.query_prealloc_size  ;
@@ -207,9 +214,9 @@ SELECT @@local.query_prealloc_size   = @@session.query_prealloc_size  ;
 
 
 --echo '#---------------------FN_DYNVARS_001_11----------------------#'
-###################################################################################  
-#   Check if query_prealloc_size   can be accessed with and without @@ sign    #
-###################################################################################
+################################################################################
+#    Check if query_prealloc_size   can be accessed with and without @@ sign   #
+################################################################################
 
 SET query_prealloc_size   = 1;
 SELECT @@query_prealloc_size  ;
@@ -235,5 +242,6 @@ SELECT @@session.query_prealloc_size  ;
 
 
 #############################################################
-#                 END OF query_prealloc_size   TESTS     #
+#                 END OF query_prealloc_size   TESTS        #
 #############################################################
+
