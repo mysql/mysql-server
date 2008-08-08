@@ -1,0 +1,96 @@
+###################### mysql-test\t\init_slave_func.test  #####################
+#                                                                             #
+# Variable Name: init_slave                                                   #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value:                                                              #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable init_slave               #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+source include/master-slave.inc;
+
+--echo '#--------------------FN_DYNVARS_037_01-------------------------#'
+##################################################################
+# Check if setting init_slave is changed in every new connection # 
+##################################################################
+
+SET @@global.init_slave = "SET @a = 10";
+
+--echo 'connect (con1,localhost,root,,)'
+connect (con1,localhost,root,,);
+--echo 'connection con1'
+connection con1;
+SELECT @@global.init_slave;
+disconnect con1;
+--echo 'connection master'
+connection master;
+
+--echo '#--------------------FN_DYNVARS_037_02-------------------------#'
+####################################################
+# Begin the functionality Testing of init_slave    #
+####################################################
+
+#====================================================
+--echo 'check if value in slave opt file is executed'
+#====================================================
+save_master_pos;
+--echo 'connection slave'
+connection slave;
+sleep 1;
+show variables like 'init_slave';
+show variables like 'max_connections';
+sync_with_master;
+reset master;
+
+#===============================================================
+--echo 'check if value in slave opt file doesnt apply to master'
+#===============================================================
+
+--echo 'connection master'
+connection master;
+show variables like 'init_slave';
+show variables like 'max_connections';
+save_master_pos;
+--echo 'connection slave'
+connection slave;
+sync_with_master;
+
+#=======================================================
+--echo 'try creating a temporary variable in init_slave'
+#=======================================================
+
+SET @@global.init_slave = "SET @a=5";
+
+stop slave;
+--wait_for_slave_to_stop
+reset slave;
+# Clean up old test tables
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+--enable_warnings
+start slave;
+
+SHOW VARIABLES LIKE 'init_slave';
+SELECT @a;
+
+--echo 'Bug#35365 SET statement in init_slave not execute if slave is restarted'
+
+# Restore value
+set global max_connections= default;
+
+##################################################
+# End of functionality Testing for init_slave    #
+##################################################
+

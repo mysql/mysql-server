@@ -1,3 +1,5 @@
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 0;
 create table t1 (
 `a&b` int,
 `a<b` int,
@@ -86,3 +88,4 @@ Empty set
 
 Bye
 drop table t1;
+set @@global.concurrent_insert= @old_concurrent_insert;

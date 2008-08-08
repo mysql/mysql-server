@@ -1,0 +1,72 @@
+################### mysql-test\t\slow_query_log_file_basic.test ################
+#                                                                              #
+# Variable Name: slow_query_log_file                                           #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: Filename                                                          #
+# Default Value: host_name-slow.log                                            #
+# Valid Values:                                                                #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-16                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "slow_query_log_file"     #
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#    server-system-variables.html#option_mysqld_slow_query_log_file            #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+###########################################################
+#           START OF slow_query_log_file TESTS            #
+###########################################################
+
+
+###########################################################################
+#   Saving initial value of slow_query_log_file in a temporary variable   #
+###########################################################################
+
+SET @start_value = @@global.slow_query_log_file;
+SELECT @start_value;
+
+
+--echo '#---------------------FN_DYNVARS_004_01-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.slow_query_log_file = DEFAULT;
+SELECT RIGHT(@@global.slow_query_log_file,15);
+
+
+--echo '#--------------------FN_DYNVARS_004_02------------------------#'
+#######################################################################
+#      Change the value of slow_query_log_file to a invalid value     #
+#######################################################################
+
+# Assumed text if no quotes or numbers.
+SET @@global.slow_query_log_file = mytest.log;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.slow_query_log_file = 12;
+
+--echo '#----------------------FN_DYNVARS_004_03------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL Tables matches values in variable             #
+##############################################################################
+
+SELECT @@global.slow_query_log_file = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='slow_query_log_file';
+
+
+#####################################################
+#       END OF slow_query_log_file TESTS            #
+#####################################################

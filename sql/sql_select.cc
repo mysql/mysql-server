@@ -846,6 +846,7 @@ JOIN::optimize()
                             "Impossible HAVING" : "Impossible WHERE"));
       zero_result_cause=  having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
+      tables= 0;
       error= 0;
       DBUG_RETURN(0);
     }
@@ -887,6 +888,7 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
+        tables= 0;
 	error=0;
 	DBUG_RETURN(0);
       }
@@ -900,6 +902,7 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
         zero_result_cause= "No matching min/max row";
+        tables= 0;
         error=0;
         DBUG_RETURN(0);
       }
@@ -2187,11 +2190,12 @@ JOIN::exec()
   /* 
     With EXPLAIN EXTENDED we have to restore original ref_array
     for a derived table which is always materialized.
-    Otherwise we would not be able to print the query  correctly.
+    We also need to do this when we have temp table(s).
+    Otherwise we would not be able to print the query correctly.
   */ 
-  if (items0 &&
-      (thd->lex->describe & DESCRIBE_EXTENDED) &&
-      select_lex->linkage == DERIVED_TABLE_TYPE)      
+  if (items0 && (thd->lex->describe & DESCRIBE_EXTENDED) &&
+      (select_lex->linkage == DERIVED_TABLE_TYPE ||
+       exec_tmp_table1 || exec_tmp_table2))
     set_items_ref_array(items0);
 
   DBUG_VOID_RETURN;
@@ -6505,13 +6509,16 @@ make_join_readinfo(JOIN *join, ulonglong options)
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
 	    /*
-	      See bug #26447: "Using the clustered index for a table scan
-	      is always faster than using a secondary index".
-	    */
+            It has turned out that the below change, while speeding things
+            up for disk-bound loads, slows them down for cases when the data
+            is in disk cache (see BUG#35850):
+	    //  See bug #26447: "Using the clustered index for a table scan
+	    //  is always faster than using a secondary index".
             if (table->s->primary_key != MAX_KEY &&
                 table->file->primary_key_is_clustered())
               tab->index= table->s->primary_key;
             else
+	    */
               tab->index=find_shortest_key(table, & table->covering_keys);
 	    tab->read_first_record= join_read_first;
 	    tab->type=JT_NEXT;		// Read with index_first / index_next
@@ -12966,6 +12973,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     uint tablenr= tab - join->join_tab;
     ha_rows table_records= table->file->stats.records;
     bool group= join->group && order == join->group_list;
+    ha_rows ref_key_quick_rows= HA_POS_ERROR;
     LINT_INIT(best_key_parts);
     LINT_INIT(best_key_direction);
     LINT_INIT(best_records); 
@@ -12998,6 +13006,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     }
     else
       keys= usable_keys;
+
+    if (ref_key >= 0 && table->covering_keys.is_set(ref_key))
+      ref_key_quick_rows= table->quick_rows[ref_key];
 
     read_time= join->best_positions[tablenr].read_time;
     for (uint i= tablenr+1; i < join->tables; i++)
@@ -13093,7 +13104,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
               index_scan_time < read_time)
           {
             ha_rows quick_records= table_records;
-            if (is_best_covering && !is_covering)
+            if (is_best_covering && !is_covering ||
+                is_covering && ref_key_quick_rows < select_limit)
               continue;
             if (table->quick_keys.is_set(nr))
               quick_records= table->quick_rows[nr];
