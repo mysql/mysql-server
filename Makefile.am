@@ -58,7 +58,7 @@ dist-hook:
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
 
-all-local:		abi_check
+all-local:		@ABI_CHECK@	
 
 tags:
 	support-files/build-tags
@@ -292,7 +292,7 @@ abi_check_all:	$(TEST_PREPROCESSOR_HEADER)
 do_abi_check:
 	set -ex; \
 	for file in $(abi_headers); do \
-	         @CC@ -E -nostdinc \
+	         @CC@ -E -nostdinc -dI \
 	                  -I$(top_srcdir)/include \
 	                  -I$(top_srcdir)/include/mysql \
 	                  -I$(top_srcdir)/sql \
