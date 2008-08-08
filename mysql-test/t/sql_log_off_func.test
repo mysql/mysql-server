@@ -1,0 +1,115 @@
+############# mysql-test\t\sql_log_off_func.test ##########################
+#                                                                         #
+# Variable Name: sql_log_off                                              #
+# Scope: SESSION                                                          #
+# Access Type: Dynamic                                                    #
+# Data Type: BOOLEAN                                                      #
+# Default Value: 0 FALSE                                                  #
+# Values:       1 TRUE, 0 FALSE                                           #
+#                                                                         #
+#                                                                         #
+# Creation Date: 2008-02-25                                               #
+# Author:  Sharique Abdullah                                              #
+#                                                                         #
+# Description: Test Cases of Dynamic System Variable "sql_log_off"        #
+#              that checks behavior of this variable in the following ways#
+#              * Functionality based on different values                  #
+#                                                                         #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html       #
+#                                                                         #
+###########################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+SET @default_sql_log_off = @@sql_log_off;
+
+#
+# Create tables
+#
+
+CREATE TEMPORARY TABLE t1(a varchar(20), b varchar(20));
+
+INSERT INTO t1 VALUES('aa1','bb');
+INSERT INTO t1 VALUES('aa2','bb');
+INSERT INTO t1 VALUES('aa3','bb');
+INSERT INTO t1 VALUES('aa4','bb');
+INSERT INTO t1 VALUES('aa5','bb');
+
+--echo '#--------------------FN_DYNVARS_158_01-------------------------#'
+#
+# Value ON
+#
+
+SET SESSION sql_log_off = ON;
+
+UPDATE t1 SET a = 'aa1-updated' WHERE a = 'aa1';
+
+--echo Checking if log contains the executed statement
+SELECT argument FROM mysql.general_log WHERE argument = 'UPDATE t1 SET a = \'aa1-updated\' WHERE a = \'aa1\'';
+
+--echo '#--------------------FN_DYNVARS_158_02-------------------------#'
+#
+# Value OFF
+#
+
+SET SESSION sql_log_off = OFF;
+
+# With ps-protocol the UPDATE is executed twice 
+--disable_ps_protocol
+UPDATE t1 SET a = 'aa1' WHERE a = 'aa1-updated';
+--enable_ps_protocol
+
+--echo Checking if log contains the executed statement
+SELECT argument FROM mysql.general_log WHERE argument = 'UPDATE t1 SET a = \'aa1\' WHERE a = \'aa1-updated\'';
+
+--echo '#--------------------FN_DYNVARS_158_03--------------------------#'
+#
+# Session data integrity check
+#
+--echo ** Connecting con_int1 using root **
+connect (con_int1,localhost,root,,);
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_log_off;
+--echo 0 / FALSE Expected
+
+SET SESSION sql_log_off = FALSE;
+--echo ** Connecting con_int2 using root **
+connect (con_int2,localhost,root,,);
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_log_off;
+--echo 0 / FALSE Expected
+
+SET SESSION sql_log_off = TRUE;
+
+--echo ** Connection con_int2 **
+connection con_int2;
+SELECT @@SESSION.sql_log_off;
+--echo 1 / TRUE Expected
+
+--echo ** Connection con_int1 **
+connection con_int1;
+SELECT @@SESSION.sql_log_off;
+--echo 0 / FALSE Expected
+
+--echo ** Connection default **
+connection default;
+--echo Disconnecting Connections con_int1, con_int2
+disconnect con_int1;
+disconnect con_int2;
+
+
+#
+# Cleanup
+#
+
+SET SESSION sql_log_off = @default_sql_log_off;
+
+DROP TABLE t1;

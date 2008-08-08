@@ -1,0 +1,95 @@
+################## mysql-test\t\max_allowed_packet_func.test ##################
+#                                                                             #
+# Variable Name: max_allowed_packet                                           #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:1048576                                                       #
+# Range:1024-1073741824                                                       #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-07                                                   #
+# Author:  Salman Rawala                                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable max_allowed_packet       #
+#              that checks the functionality of this variable                 #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+#due to lost connection on win64
+--source include/not_windows.inc
+
+let $start_global_value = `SELECT @@global.max_allowed_packet`;
+--echo $start_global_value
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+
+--echo ## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name BLOB
+);
+
+--echo '#--------------------FN_DYNVARS_070_01-------------------------#'
+###############################################################################
+#    Setting initial value of max_allowed_packet to 1024 at session level and
+#    verifying its behavior after inserting data greater than 1024 bytes     
+###############################################################################
+
+--echo ## Setting value of max_allowed packet and net_buffer_length to 1024 ## 
+SET @@session.max_allowed_packet = 1024;
+SET @@session.net_buffer_length = 1024;
+SELECT @@session.max_allowed_packet;
+SELECT @@session.net_buffer_length;
+
+--echo ## Inserting and fetching data of length greater than 1024 ##
+INSERT into t1(name) values("aaassssssssddddddddffffffgggggggg, askdlfjalsdkjfalksdjflaksdjfalkjdflaksjdflakjdflajsflajflajdfalsjfdlajfladjslfajdflajdsflajsflakjsdfla;kjflsdjkf;aljfa;lkdsfjla;sjlkajffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllakjsdffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa;;;;;;;;;;;;;;;;;;;;;;;;;;;dsklfjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjkljffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdkskkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
+
+SELECT length("aaaaaasssssssssssdddddddfffffgggg, askdlfjalsdkjfalksdjflaksdjfalkjdflaksjdflakjdflajsflajflajdfalsjfdlajfladjslfajdflajdsflajsflakjsdfla;kjflsdjkf;aljfa;lkdsfjla;sjlkajffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllakjsdffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa;;;;;;;;;;;;;;;;;;;;;;;;;;;dsklfjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjkljffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdkskkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk") as len;
+
+--echo ## Verifying record in table t1 ##
+SELECT * from t1;
+
+--echo 'Bug#35381: Error is not coming on inserting and fetching data of length'
+--echo 'greater than max_allowed_packet size at session level';
+
+--echo '#--------------------FN_DYNVARS_070_02-------------------------#'
+###############################################################################
+#    Setting value of max_allowed_packet to 1024 at global level and
+#    verifying its behavior after inserting data greater than 1024 bytes     
+###############################################################################
+
+--echo ## Setting value of max_allowed packet and net_buffer_length to 1024 ## 
+SET @@global.max_allowed_packet = 1024;
+SET @@global.net_buffer_length = 1024;
+SELECT @@global.max_allowed_packet;
+SELECT @@global.net_buffer_length;
+
+--echo ## Creating new connection test_con1 ##
+connect (test_con1,localhost,root,,);
+connection test_con1;
+
+--echo ## Inserting and fetching data of length greater than 1024 ## 
+--Error 0,ER_NET_PACKET_TOO_LARGE
+INSERT into t1(name) values("aaassssssssddddddddffffffgggggggg, askdlfjalsdkjfalksdjflaksdjfalkjdflaksjdflakjdflajsflajflajdfalsjfdlajfladjslfajdflajdsflajsflakjsdfla;kjflsdjkf;aljfa;lkdsfjla;sjlkajffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllakjsdffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa;;;;;;;;;;;;;;;;;;;;;;;;;;;dsklfjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjkljffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdkskkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
+
+disconnect test_con1;
+connection default;
+drop table t1;
+eval SET @@global.max_allowed_packet = $start_global_value;
+
+--echo ## Server disconnects after this case and error occurs that Server ##
+--echo ## has gone away ##
+
+
