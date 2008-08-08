@@ -21,10 +21,11 @@
 class SignalDroppedRep {
 
   /**
-   * Reciver(s)
+   * Receiver(s)
    */
   friend class SimulatedBlock;
   friend class Dbtc;
+  friend class Dblqh;
 
   /**
    * Sender (TransporterCallback.cpp)

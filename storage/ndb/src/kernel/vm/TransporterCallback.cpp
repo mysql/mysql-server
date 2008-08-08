@@ -142,6 +142,16 @@ copy(Uint32 * dst, SegmentedSectionPtr src){
   copy(dst, g_sectionSegmentPool, src);
 }
 
+/* Copy variant which takes an IVal */
+void
+copy(Uint32* dst, Uint32 srcFirstIVal)
+{
+  SegmentedSectionPtr p;
+  getSection(p, srcFirstIVal);
+
+  copy(dst, p);
+} 
+
 /* Calculate number of segments to release based on section size
  * Always release one segment, even if size is zero
  */

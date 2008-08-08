@@ -57,6 +57,13 @@ int runCreateInvalidTables(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
 
   char failTabName[256];
+  
+  const int expectedDictErrors[6]= {720, 
+                                    4317, 
+                                    737, 
+                                    739, 
+                                    736, 
+                                    740 };
 
   for (int i = 0; i < 10; i++){
     BaseString::snprintf(failTabName, 256, "F%d", i);
@@ -69,6 +76,19 @@ int runCreateInvalidTables(NDBT_Context* ctx, NDBT_Step* step){
       if (pFailTab->createTableInDb(pNdb) == 0){
         ndbout << failTabName << " created, this was not expected"<< endl;
         result = NDBT_FAILED;
+      }
+
+      // Ensure any error is roughly as expected
+      int errorCode=pNdb->getDictionary()->getNdbError().code;
+      bool errorOk= false;
+      for (int e=0; e < 6; e++)
+        errorOk |= (errorCode == expectedDictErrors[e]);
+
+      if (!errorOk)
+      {
+        ndbout << "Failure, got dict error : " << pNdb->getDictionary()->
+          getNdbError().code << endl;
+        return NDBT_FAILED;
       }
 
       // Verify that table is not in db    

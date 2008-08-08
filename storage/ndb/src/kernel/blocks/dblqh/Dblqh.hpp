@@ -1920,9 +1920,9 @@ public:
       LOG_CONNECTED = 3
     };
     ConnectState connectState;
-    UintR copyCountWords;    
-    UintR firstAttrinfo[5];
-    UintR tupkeyData[4];
+    UintR copyCountWords;
+    Uint32 keyInfoIVal;
+    Uint32 attrInfoIVal;
     UintR transid[2];
     AbortState abortState;
     UintR accConnectrec;
@@ -1931,15 +1931,15 @@ public:
     UintR tcTimer;
     UintR currReclenAi;
     UintR currTupAiLen;
-    UintR firstAttrinbuf;
-    UintR firstTupkeybuf;
+    UintR firstAttrinbuf;  // TODO : Remove
+    UintR firstTupkeybuf;  // TODO : Remove
     UintR fragmentid;
     UintR fragmentptr;
     UintR gci_hi;
     UintR gci_lo;
     UintR hashValue;
-    UintR lastTupkeybuf;
-    UintR lastAttrinbuf;
+    UintR lastTupkeybuf;   // TODO : Remove
+    UintR lastAttrinbuf;   // TODO : Remove
     /**
      * Each operation (TcConnectrec) can be stored in max one out of many 
      * lists.
@@ -2013,6 +2013,10 @@ public:
     Uint8 m_disk_table;
     Uint8 m_use_rowid;
     Uint8 m_dealloc;
+    enum op_flags {
+      OP_ISLONGREQ         = 0x1,
+      OP_SAVEATTRINFO      = 0x2};
+    Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
     Local_key m_row_id;
 
@@ -2079,6 +2083,7 @@ private:
   void execEXEC_SRREQ(Signal* signal);
   void execEXEC_SRCONF(Signal* signal);
   void execREAD_PSEUDO_REQ(Signal* signal);
+  void execSIGNAL_DROPPED_REP(Signal* signal);
 
   void execDUMP_STATE_ORD(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
@@ -2324,7 +2329,7 @@ private:
   void readExecSrNewMbyte(Signal* signal);
   void readExecSr(Signal* signal);
   void readKey(Signal* signal);
-  void readLogData(Signal* signal, Uint32 noOfWords, Uint32* dataPtr);
+  void readLogData(Signal* signal, Uint32 noOfWords, Uint32& sectionIVal);
   void readLogHeader(Signal* signal);
   Uint32 readLogword(Signal* signal);
   Uint32 readLogwordExec(Signal* signal);
@@ -2343,6 +2348,7 @@ private:
   void removePageRef(Signal* signal);
   Uint32 returnExecLog(Signal* signal);
   int saveTupattrbuf(Signal* signal, Uint32* dataPtr, Uint32 length);
+  int saveAttrInfoInSection(const Uint32* dataPtr, Uint32 len);
   void seizeAddfragrec(Signal* signal);
   void seizeAttrinbuf(Signal* signal);
   Uint32 seize_attrinbuf();
@@ -2370,6 +2376,7 @@ private:
   void writeKey(Signal* signal);
   void writeLogHeader(Signal* signal);
   void writeLogWord(Signal* signal, Uint32 data);
+  void writeLogWords(Signal* signal, const Uint32* data, Uint32 len);
   void writeNextLog(Signal* signal);
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
@@ -2465,7 +2472,7 @@ private:
   void nextScanConfScanLab(Signal* signal);
   void nextScanConfCopyLab(Signal* signal);
   void continueScanNextReqLab(Signal* signal);
-  void keyinfoLab(const Uint32 * src, const Uint32 * end);
+  bool keyinfoLab(const Uint32 * src, Uint32 len);
   void copySendTupkeyReqLab(Signal* signal);
   void storedProcConfScanLab(Signal* signal);
   void storedProcConfCopyLab(Signal* signal);
@@ -2576,6 +2583,8 @@ private:
   void exec_acckeyreq(Signal*, Ptr<TcConnectionrec>);
   int compare_key(const TcConnectionrec*, const Uint32 * ptr, Uint32 len);
   void nr_copy_delete_row(Signal*, Ptr<TcConnectionrec>, Local_key*, Uint32);
+  Uint32 getKeyInfoWordOrZero(const TcConnectionrec* regTcPtr, 
+                              Uint32 offset);
 public:
   struct Nr_op_info
   {
