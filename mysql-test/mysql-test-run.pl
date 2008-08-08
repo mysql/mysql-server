@@ -98,7 +98,7 @@ our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_libtool;
 
-my $opt_big_test= 0;
+our $opt_big_test= 0;
 
 our @opt_combinations;
 
