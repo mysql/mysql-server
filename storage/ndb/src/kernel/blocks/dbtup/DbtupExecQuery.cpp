@@ -80,8 +80,37 @@ int Dbtup::initStoredOperationrec(Operationrec* regOperPtr,
 }
 
 void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
-                         Uint32* inBuffer)
+                         Uint32* inBuffer,
+                         Uint32 expectedLen,
+                         Uint32 attrInfoIVal)
 {
+  if (attrInfoIVal != RNIL)
+  {
+    /* AttrInfo is in segmented section */
+    ndbassert(regOperPtr->firstAttrinbufrec == RNIL);
+    ndbassert(regOperPtr->lastAttrinbufrec == RNIL);
+
+    // TODO : Add support for Stored procedure attrinfo
+
+    /* Check length */
+    SegmentedSectionPtr sectionPtr;
+    getSection(sectionPtr, attrInfoIVal);
+
+    ndbrequire(sectionPtr.sz == expectedLen);
+    ndbrequire(sectionPtr.sz < ZATTR_BUFFER_SIZE);
+
+    /* Copy attrInfo data into linear buffer */
+    copy(inBuffer, attrInfoIVal);
+    
+    regOperPtr->storedProcedureId= RNIL;
+    regOperPtr->m_any_value= 0;
+    
+    return;
+  }
+
+  /* Todo : Unify with code above when scan processing
+   * goes long
+   */
   AttrbufrecPtr copyAttrBufPtr;
   Uint32 RnoOfAttrBufrec= cnoOfAttrbufrec;
   int RbufLen;
@@ -696,6 +725,17 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
    req_struct.m_row_id.m_page_no = sig1;
    req_struct.m_row_id.m_page_idx = sig2;
+
+   /* Get AttrInfo section if this is a long TUPKEYREQ */
+   Uint32 attrInfoIVal= tupKeyReq->attrInfoIVal;
+
+   /* If we have AttrInfo, check we expected it, and
+    * that we don't have AttrInfo by another means
+    */
+   ndbassert( (attrInfoIVal == RNIL) ||  
+              (tupKeyReq->attrBufLen > 0));
+   ndbassert( (attrInfoIVal == RNIL) || 
+              (regOperPtr->firstAttrinbufrec == RNIL ));
    
    Uint32 Roptype = regOperPtr->op_struct.op_type;
 
@@ -705,7 +745,10 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 				       Rstoredid) == ZOK);
    }
 
-   copyAttrinfo(regOperPtr, &cinBuffer[0]);
+   copyAttrinfo(regOperPtr, 
+                &cinBuffer[0], 
+                req_struct.attrinfo_len,
+                attrInfoIVal);
    
    Uint32 localkey = (pageid << MAX_TUPLES_BITS) + pageidx;
    if (Roptype == ZINSERT && localkey == ~ (Uint32) 0)
@@ -1921,7 +1964,11 @@ int Dbtup::interpreterStartLab(Signal* signal,
 
   Uint32 RattroutCounter= 0;
   Uint32 RinstructionCounter= 5;
-  Uint32 RlogSize= 0;
+
+  /* All information to be logged/propagated to replicas
+   * is generated from here on so reset the log word count
+   */
+  Uint32 RlogSize= req_struct->log_size= 0;
   if (((RtotalLen + 5) == RattrinbufLen) &&
       (RattrinbufLen >= 5) &&
       (RattrinbufLen < ZATTR_BUFFER_SIZE)) {
@@ -2027,11 +2074,16 @@ int Dbtup::interpreterStartLab(Signal* signal,
 	return -1;
       }
     }
-    req_struct->log_size= RlogSize;
+    /* Add log words explicitly generated here to existing log size
+     *  - readAttributes can generate log for ANYVALUE column
+     *    It adds the words directly to req_struct->log_size
+     *    This is used for ANYVALUE and interpreted delete.
+     */
+    req_struct->log_size+= RlogSize;
     req_struct->read_length= RattroutCounter;
     sendReadAttrinfo(signal, req_struct, RattroutCounter, regOperPtr);
     if (RlogSize > 0) {
-      sendLogAttrinfo(signal, RlogSize, regOperPtr);
+      return sendLogAttrinfo(signal, RlogSize, regOperPtr);
     }
     return 0;
   } else {
@@ -2047,25 +2099,41 @@ int Dbtup::interpreterStartLab(Signal* signal,
 /*               TLOG_START              FIRST INDEX TO LOG         */
 /*               TLOG_END                LAST INDEX + 1 TO LOG      */
 /* ---------------------------------------------------------------- */
-void Dbtup::sendLogAttrinfo(Signal* signal,
-                            Uint32 TlogSize,
-                            Operationrec *  const regOperPtr)
+int Dbtup::sendLogAttrinfo(Signal* signal,
+                           Uint32 TlogSize,
+                           Operationrec *  const regOperPtr)
 
 {
-  Uint32 TbufferIndex= 0;
-  signal->theData[0]= regOperPtr->userpointer;
-  while (TlogSize > 22) {
-    MEMCOPY_NO_WORDS(&signal->theData[3],
-                     &clogMemBuffer[TbufferIndex],
-                     22);
-    EXECUTE_DIRECT(DBLQH, GSN_TUP_ATTRINFO, signal, 25);
-    TbufferIndex += 22;
-    TlogSize -= 22;
+  /* Copy from Log buffer to segmented section,
+   * then attach to ATTRINFO and execute direct
+   * to LQH
+   */
+  ndbrequire( TlogSize > 0 );
+  Uint32 longSectionIVal= RNIL;
+  bool ok= appendToSection(longSectionIVal, 
+                           &clogMemBuffer[0],
+                           TlogSize);
+  if (unlikely(!ok))
+  {
+    /* Resource error, abort transaction */
+    terrorCode = ZSEIZE_ATTRINBUFREC_ERROR;
+    tupkeyErrorLab(signal);
+    return -1;
   }
-  MEMCOPY_NO_WORDS(&signal->theData[3],
-                   &clogMemBuffer[TbufferIndex],
-                   TlogSize);
-  EXECUTE_DIRECT(DBLQH, GSN_TUP_ATTRINFO, signal, 3 + TlogSize);
+  
+  /* Send a TUP_ATTRINFO signal to LQH, which contains
+   * the relevant user pointer and the attrinfo section's
+   * IVAL
+   */
+  signal->theData[0]= regOperPtr->userpointer;
+  signal->theData[1]= TlogSize;
+  signal->theData[2]= longSectionIVal;
+
+  EXECUTE_DIRECT(DBLQH, 
+                 GSN_TUP_ATTRINFO, 
+                 signal, 
+                 3);
+  return 0;
 }
 
 inline
