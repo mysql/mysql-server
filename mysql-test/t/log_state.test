@@ -231,6 +231,34 @@ set global slow_query_log_file= NULL;
 set global general_log_file= @old_general_log_file;
 set global slow_query_log_file= @old_slow_query_log_file;
 
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#32748: Inconsistent handling of assignments to
+--echo # -- general_log_file/slow_query_log_file.
+--echo # --
+
+--echo
+SET @general_log_file_saved = @@global.general_log_file;
+SET @slow_query_log_file_saved = @@global.slow_query_log_file;
+
+--echo
+SET GLOBAL general_log_file = 'bug32748.query.log';
+SET GLOBAL slow_query_log_file = 'bug32748.slow.log';
+
+--echo
+SHOW VARIABLES LIKE '%log_file';
+
+--echo
+SET GLOBAL general_log_file = @general_log_file_saved;
+SET GLOBAL slow_query_log_file = @slow_query_log_file_saved;
+
+--echo
+--echo # -- End of Bug#32748.
+
+###########################################################################
+
 --echo End of 5.1 tests
 
 --enable_ps_protocol

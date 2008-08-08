@@ -1,4 +1,5 @@
 --source include/have_ujis.inc
+--source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists `£‘£±`;
@@ -10,9 +11,6 @@ drop table if exists `£‘£∂`;
 drop table if exists `£‘£∑`;
 drop table if exists `£‘£∏`;
 drop table if exists `£‘£π`;
-drop table if exists `£‘£±£∞`;
-drop table if exists `£‘£±£±`;
-drop table if exists `£‘£±£≤`;
 --enable_warnings
 
 #
@@ -28,12 +26,9 @@ CREATE TABLE `£‘£≥` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engi
 CREATE TABLE `£‘£¥` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = myisam;
 CREATE TABLE `£‘£µ` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = myisam;
 CREATE TABLE `£‘£∂` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = myisam;
-CREATE TABLE `£‘£∑` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = heap;
-CREATE TABLE `£‘£∏` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = heap;
-CREATE TABLE `£‘£π` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = heap;
-CREATE TABLE `£‘£±£∞` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = bdb;
-CREATE TABLE `£‘£±£±` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = bdb;
-CREATE TABLE `£‘£±£≤` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = bdb;
+CREATE TABLE `£‘£∑` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£‘£∏` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£‘£π` (`£√£±` char(20), INDEX(`£√£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
 
 #Load the following data in each table
 # jisx0201 hankaku-katakana data
@@ -49,9 +44,6 @@ LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£‘£∂`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£‘£∑`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£‘£∏`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£‘£π`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_ujis.dat' INTO TABLE `£‘£±£∞`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_ujis.dat' INTO TABLE `£‘£±£±`;
-LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_ujis.dat' INTO TABLE `£‘£±£≤`;
 
 #InnoDB
 SELECT * FROM `£‘£±` WHERE `£√£±` = 'é∞é±é≤é≥é¥éµé∂é∑é∏éπé∫éªéºéΩéæéø';
@@ -63,15 +55,10 @@ SELECT * FROM `£‘£¥` WHERE `£√£±` = 'é∞é±é≤é≥é¥éµé∂é∑é∏éπé∫éªéºéΩéæéø';
 SELECT * FROM `£‘£µ` WHERE `£√£±` = '°¶§°§¢§£§§§•§¶§ß§®§©§™§´§¨§≠§Æ§Ø§∞§±§≤§≥';
 SELECT * FROM `£‘£∂` WHERE `£√£±` = 'èÌ¥èÌµèÌ∂èÌ∑èÌ∏èÌπèÌ∫èÌªèÌºèÌΩèÌæèÌøèÌ¿èÌ¡èÌ¬èÌ√èÌƒèÌ≈èÌ∆èÌ«';
 
-#Heap
+#MEMORY
 SELECT * FROM `£‘£∑` WHERE `£√£±` = 'é∞é±é≤é≥é¥éµé∂é∑é∏éπé∫éªéºéΩéæéø';
 SELECT * FROM `£‘£∏` WHERE `£√£±` = '°¶§°§¢§£§§§•§¶§ß§®§©§™§´§¨§≠§Æ§Ø§∞§±§≤§≥';
 SELECT * FROM `£‘£π` WHERE `£√£±` = 'èÌ¥èÌµèÌ∂èÌ∑èÌ∏èÌπèÌ∫èÌªèÌºèÌΩèÌæèÌøèÌ¿èÌ¡èÌ¬èÌ√èÌƒèÌ≈èÌ∆èÌ«';
-
-#BDB
-SELECT * FROM `£‘£±£∞` WHERE `£√£±` = 'é∞é±é≤é≥é¥éµé∂é∑é∏éπé∫éªéºéΩéæéø';
-SELECT * FROM `£‘£±£±` WHERE `£√£±` = '°¶§°§¢§£§§§•§¶§ß§®§©§™§´§¨§≠§Æ§Ø§∞§±§≤§≥';
-SELECT * FROM `£‘£±£≤` WHERE `£√£±` = 'èÌ¥èÌµèÌ∂èÌ∑èÌ∏èÌπèÌ∫èÌªèÌºèÌΩèÌæèÌøèÌ¿èÌ¡èÌ¬èÌ√èÌƒèÌ≈èÌ∆èÌ«';
 
 DROP TABLE `£‘£±`;
 DROP TABLE `£‘£≤`;
@@ -82,6 +69,3 @@ DROP TABLE `£‘£∂`;
 DROP TABLE `£‘£∑`;
 DROP TABLE `£‘£∏`;
 DROP TABLE `£‘£π`;
-DROP TABLE `£‘£±£∞`;
-DROP TABLE `£‘£±£±`;
-DROP TABLE `£‘£±£≤`;

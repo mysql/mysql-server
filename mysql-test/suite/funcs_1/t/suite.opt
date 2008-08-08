@@ -1,2 +1,2 @@
---secure-file-priv=$MYSQL_TEST_DIR
+--secure-file-priv=$MYSQLTEST_VARDIR
 

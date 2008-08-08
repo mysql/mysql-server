@@ -7,14 +7,21 @@
 #
 # 3.1.10 CALL checks:
 #
-## 1. Ensure that a properly defined procedure can always be called, assuming the appropriate privileges exist.
-#- 2. Ensure that a procedure cannot be called if the appropriate privileges do not exist.
+## 1. Ensure that a properly defined procedure can always be called, assuming
+#     the appropriate privileges exist.
+#- 2. Ensure that a procedure cannot be called if the appropriate privileges
+#     do not exist.
 ## 3. Ensure that a function can never be called.
-## 4. Ensure that a properly defined function can always be executed, assuming the appropriate privileges exist.
-#- 5. Ensure that a function cannot be executed if the appropriate privileges do not exist.
+## 4. Ensure that a properly defined function can always be executed, assuming
+#     the appropriate privileges exist.
+#- 5. Ensure that a function cannot be executed if the appropriate privileges
+#     do not exist.
 ## 6. Ensure that a procedure can never be executed.
-## 7. Ensure that the ROW_COUNT() SQL function always returns the correct number of rows affected by the execution of a stored procedure.
-## 8. Ensure that the mysql_affected_rows() C API function always returns the correct number of rows affected by the execution of a stored procedure.
+## 7. Ensure that the ROW_COUNT() SQL function always returns the correct
+#     number of rows affected by the execution of a stored procedure.
+## 8. Ensure that the mysql_affected_rows() C API function always returns
+#     the correct number of rows affected by the execution of a
+#     stored procedure.
 #
 # ==============================================================================
 let $message= Section 3.1.10 - CALL checks:;
@@ -307,7 +314,7 @@ DROP TABLE temp;
 let $message= Testcase 3.1.10.8:;
 --source include/show_msg.inc
 let $message=
-Ensure that the mysql_affected_rows() C API function always returns the correct 
+Ensure that the mysql_affected_rows() C API function always returns the correct
 number of rows affected by the execution of a stored procedure.;
 --source include/show_msg80.inc
 
@@ -318,6 +325,7 @@ number of rows affected by the execution of a stored procedure.;
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 
 # ==============================================================================
-let $message= .                               +++ END OF SCRIPT +++;
---source include/show_msg80.inc
+--echo
+--echo .                               +++ END OF SCRIPT +++
+--echo --------------------------------------------------------------------------------
 # ==============================================================================

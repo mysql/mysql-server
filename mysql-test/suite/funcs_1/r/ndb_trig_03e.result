@@ -989,7 +989,7 @@ root@localhost
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 grant  select, insert, update ,trigger
-on priv_db.t1 to test_yesprivs@localhost 
+on priv_db.t1 to test_yesprivs@localhost
 with grant option;
 grant  select
 on priv_db.t1 to test_useprivs@localhost;
@@ -1252,7 +1252,7 @@ create definer=not_ex_user@localhost trigger trg1_0
 before INSERT on t1 for each row
 set new.f1 = 'trig 1_0-yes';
 ERROR 42000: Access denied; you need the SUPER privilege for this operation
-create definer=current_user trigger trg1_1 
+create definer=current_user trigger trg1_1
 before INSERT on t1 for each row
 set new.f1 = 'trig 1_1-yes';
 insert into t1 (f1) values ('insert-no');
@@ -1318,7 +1318,7 @@ current_user
 test_yesprivs@localhost
 use priv_db;
 set autocommit=0;
-create definer=current_user trigger trg1_1 
+create definer=current_user trigger trg1_1
 before INSERT on t1 for each row
 set new.f1 = 'trig 1_1-yes';
 rollback work;
@@ -1564,7 +1564,7 @@ select current_user;
 current_user
 root@localhost
 revoke UPDATE(f1) on priv_db.t1 from test_yesprivs@localhost;
-grant TRIGGER,UPDATE(f2),UPDATE(f3) on priv_db.t1 
+grant TRIGGER,UPDATE(f2),UPDATE(f3) on priv_db.t1
 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost

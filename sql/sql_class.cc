@@ -198,6 +198,19 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
+/** Push an error to the error stack and return TRUE for now. */
+
+bool
+Reprepare_observer::report_error(THD *thd)
+{
+  my_error(ER_NEED_REPREPARE, MYF(ME_NO_WARNING_FOR_ERROR|ME_NO_SP_HANDLER));
+
+  m_invalidated= TRUE;
+
+  return TRUE;
+}
+
+
 Open_tables_state::Open_tables_state(ulong version_arg)
   :version(version_arg), state_flags(0U)
 {
@@ -1430,6 +1443,7 @@ void THD::rollback_item_tree_changes()
 select_result::select_result()
 {
   thd=current_thd;
+  nest_level= -1;
 }
 
 void select_result::send_error(uint errcode,const char *err)
@@ -2771,7 +2785,8 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
               handler_tables == 0 && derived_tables == 0 &&
               lock == 0 && locked_tables == 0 &&
-              prelocked_mode == NON_PRELOCKED);
+              prelocked_mode == NON_PRELOCKED &&
+              m_reprepare_observer == NULL);
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
 }
@@ -2869,8 +2884,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
    */
   if (rpl_master_erroneous_autoinc(this))
   {
-    backup->auto_inc_intervals_forced= auto_inc_intervals_forced;
-    auto_inc_intervals_forced.empty();
+    DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
+    auto_inc_intervals_forced.swap(&backup->auto_inc_intervals_forced);
   }
 #endif
   
@@ -2918,8 +2933,8 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
    */
   if (rpl_master_erroneous_autoinc(this))
   {
-    auto_inc_intervals_forced= backup->auto_inc_intervals_forced;
-    backup->auto_inc_intervals_forced.empty();
+    backup->auto_inc_intervals_forced.swap(&auto_inc_intervals_forced);
+    DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
   }
 #endif
 

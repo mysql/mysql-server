@@ -2314,9 +2314,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           table deletes.
         */
         if ((thd->lex->sql_command != SQLCOM_DELETE))
-#ifdef NOT_USED
-          if ((thd->lex->sql_command != SQLCOM_UPDATE))
-#endif
         {
           /*
             Get best non-covering ROR-intersection plan and prepare data for

@@ -8,11 +8,12 @@ CREATE DATABASE `日本語`;
 CREATE DATABASE `龔龖龗`;
 SHOW DATABASES;
 Database
-mysql
-test
+information_schema
 日本語
 龔龖龗
 ﾆﾎﾝｺﾞ
+mysql
+test
 USE `ﾆﾎﾝｺﾞ`;
 USE `日本語`;
 USE `龔龖龗`;
