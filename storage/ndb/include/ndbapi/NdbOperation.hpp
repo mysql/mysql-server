@@ -1447,6 +1447,9 @@ inline
 int
 NdbOperation::checkMagicNumber(bool b)
 {
+#ifndef NDB_NO_DROPPED_SIGNAL
+  (void)b;  // unused param in this context
+#endif
   if (theMagicNumber != 0xABCDEF01){
 #ifdef NDB_NO_DROPPED_SIGNAL
     if(b) abort();
@@ -1566,8 +1569,10 @@ NdbOperation::NdbCon(NdbTransaction* aNdbCon)
 
 inline
 int
-NdbOperation::equal(const char* anAttrName, const char* aValue, Uint32 len)
+NdbOperation::equal(const char* anAttrName, const char* aValue,
+                    Uint32 len)
 {
+  (void)len;   // unused
   return equal(anAttrName, aValue);
 }
 
@@ -1601,8 +1606,10 @@ NdbOperation::equal(const char* anAttrName, Uint64 aPar)
 
 inline
 int
-NdbOperation::equal(Uint32 anAttrId, const char* aValue, Uint32 len)
+NdbOperation::equal(Uint32 anAttrId, const char* aValue,
+                    Uint32 len)
 {
+  (void)len;   // unused
   return equal(anAttrId, aValue);
 }
 
@@ -1636,8 +1643,10 @@ NdbOperation::equal(Uint32 anAttrId, Uint64 aPar)
 
 inline
 int
-NdbOperation::setValue(const char* anAttrName, const char* aValue, Uint32 len)
+NdbOperation::setValue(const char* anAttrName, const char* aValue,
+                       Uint32 len)
 {
+  (void)len;   // unused
   return setValue(anAttrName, aValue);
 }
 
@@ -1685,8 +1694,10 @@ NdbOperation::setValue(const char* anAttrName, double aPar)
 
 inline
 int
-NdbOperation::setValue(Uint32 anAttrId, const char* aValue, Uint32 len)
+NdbOperation::setValue(Uint32 anAttrId, const char* aValue,
+                       Uint32 len)
 {
+  (void)len;   // unused
   return setValue(anAttrId, aValue);
 }
 
