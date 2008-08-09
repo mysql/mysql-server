@@ -1,13 +1,21 @@
 
-# Write file to make mysql-test-run.pl expect crash and restart
+# Write file to make mysql-test-run.pl expect the "crash", but don't start
+# it until it's told to
 --write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-restart
+wait
 EOF
 
 # Send shutdown to the connected server and give
 # it 10 seconds to die before zapping it
 shutdown_server 10;
 
+# Check server is gone
+--source include/wait_until_disconnected.inc
+
+# Write file to make mysql-test-run.pl start up the server again
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
 
 # Turn on reconnect
 --enable_reconnect
