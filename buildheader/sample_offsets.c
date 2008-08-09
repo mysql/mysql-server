@@ -168,6 +168,7 @@ void sample_db_txn_offsets (void) {
     STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, u_int32_t)");
     STRUCT_SETUP(DB_TXN, id,          "u_int32_t (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/");
+    STRUCT_SETUP(DB_TXN, parent,      "DB_TXN *%s");
     sort_and_dump_fields("db_txn", sizeof(DB_TXN));
 }
 
