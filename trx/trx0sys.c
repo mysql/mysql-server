@@ -1106,7 +1106,8 @@ static
 ulint
 trx_sys_file_format_max_read(void)
 /*==============================*/
-				/* out: the file format */
+				/* out: the file format or
+				ULINT_UNDEFINED if not set. */
 {
 	mtr_t			mtr;
 	const byte*		ptr;
@@ -1131,10 +1132,8 @@ trx_sys_file_format_max_read(void)
 	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
 	    || format_id >= FILE_FORMAT_NAME_N) {
 
-		/* Either it has never been tagged, or garbage in it.
-		Reset the tag in either case. */
-		format_id = DICT_TF_FORMAT_51;
-		trx_sys_file_format_max_write(format_id, NULL);
+		/* Either it has never been tagged, or garbage in it. */
+		return(ULINT_UNDEFINED);
 	}
 
 	return(format_id);
@@ -1170,6 +1169,11 @@ trx_sys_file_format_max_check(
 	recover if the file format is not supported by the engine
 	unless forced by the user. */
 	format_id = trx_sys_file_format_max_read();
+	if (format_id == ULINT_UNDEFINED) {
+		/* Format ID was not set. Set it to minimum possible
+		value. */
+		format_id = DICT_TF_FORMAT_51;
+	}
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
@@ -1212,11 +1216,11 @@ trx_sys_file_format_max_set(
 /*========================*/
 					/* out: TRUE if value updated */
 	ulint		format_id,	/* in: file format id */
-	char**		name)		/* out: max file format name */
+	char**		name)		/* out: max file format name or
+					NULL if not needed. */
 {
 	ibool		ret = FALSE;
 
-	ut_a(name);
 	ut_a(format_id <= DICT_TF_FORMAT_MAX);
 
 	mutex_enter(&file_format_max.mutex);
@@ -1230,6 +1234,26 @@ trx_sys_file_format_max_set(
 	mutex_exit(&file_format_max.mutex);
 
 	return(ret);
+}
+
+/************************************************************************
+Tags the system table space with minimum format id if it has not been
+tagged yet.
+WARNING: This function is only called during the startup and AFTER the
+redo log application during recovery has finished. */
+UNIV_INTERN
+void
+trx_sys_file_format_tag_init(void)
+/*==============================*/
+{
+	ulint	format_id;
+
+	format_id = trx_sys_file_format_max_read();
+
+	/* If format_id is not set then set it to the minimum. */
+	if (format_id == ULINT_UNDEFINED) {
+		trx_sys_file_format_max_set(DICT_TF_FORMAT_51, NULL);
+	}
 }
 
 /************************************************************************

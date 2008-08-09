@@ -131,6 +131,25 @@ INSERT INTO t1 VALUES(
 'FOXajs|.7@IR[dmv(2<FPZdnx+5?IS]gq{.8BLV`jt~1;EOYcmw*4>HR\fpz-7AKU_is}0:DNXblv)3=GQ[eoy,6@JT^hr|/9CMWaku(3>IT_ju)4?JU`kv*5@KValw+6ALWbmx,7BMXcny-8CNYdoz.9DOZep{/:EP[fq|0;FQ\gr}1<GR]hs~2=HS^it(4@LXdp|1=IUamy.:FR^jv+7CO[gs(4@LXdp|1=IUamy.:FR^jv+7CO[gs(4@LXdp|1=IUamy.:FR^jv+7CO[gs(5BO\iv,9FS`mz0=JWdq~4AN[hu+8ER_ly/<IVcp}3@MZgt*7DQ^kx.;HUbo|2?LYfs)6CP]jw-:GTan{1>KXer(6DR`n|3AO]ky0>LZhv-;IWes*8FTbp~5CQ_m{2@N\jx/=KYgu,:HVdr)7ESao}4BP^lz1?M[iw.<JXft+9GUcq(7FUds+:IXgv.=L[jy1@O^m|4CRap(7FUds+:IXgv.=L[jy1@O^m|4CRap(7FUds+:IXgv.=L[jy1@O^m|4CRap(8HXhx1AQaq*:JZjz3CScs,<L\l|5EUeu.>N^n~7GWgw0@P`p)9IYiy2BRbr+;K[k{4DTdt-=M]m}6FVfv/?O_o(9J[l}7HYj{5FWhy3DUfw1BSdu/@Qbs->O`q+<M^o):K\m~8IZk|6GXiz4EVgx2CTev0ARct.?Par,=N_p*;L]n(:L^p+=Oas.@Rdv1CUgy4FXj|7I[m(:L^p+=Oas.@Rdv1CUgy4FXj|7');
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
 drop table t1;
+create table t1( c1 int not null, c2 blob, c3 blob, c4 blob,
+primary key(c1, c2(22), c3(22)))
+engine = innodb row_format = dynamic;
+begin;
+insert into t1 values(1, repeat('A', 20000), repeat('B', 20000),
+repeat('C', 20000));
+update t1 set c3 = repeat('D', 20000) where c1 = 1;
+commit;
+select count(*) from t1 where c2 = repeat('A', 20000);
+count(*)
+1
+select count(*) from t1 where c3 = repeat('D', 20000);
+count(*)
+1
+select count(*) from t1 where c4 = repeat('C', 20000);
+count(*)
+1
+update t1 set c3 = repeat('E', 20000) where c1 = 1;
+drop table t1;
 set global innodb_file_format=`0`;
 select @@innodb_file_format;
 @@innodb_file_format
@@ -378,15 +397,6 @@ select @@innodb_file_format_check;
 @@innodb_file_format_check
 Antelope
 show table status;
-select @@innodb_file_format_check;
-@@innodb_file_format_check
-Barracuda
-set global innodb_file_format_check=`Cheetah`;
-ERROR HY000: Incorrect arguments to SET
-set global innodb_file_format_check=`on`;
-ERROR HY000: Incorrect arguments to SET
-set global innodb_file_format_check=`off`;
-ERROR HY000: Incorrect arguments to SET
 select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda

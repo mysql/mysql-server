@@ -765,7 +765,6 @@ insert into t2 values ('jejdkrun87'),('adfd72nh9k'),
 ('adfdpplkeock'),('adfdijnmnb78k'),('adfdijn0loKNHJik');
 create table t1(a int, b blob, c text, d text not null)
 engine=innodb default charset = utf8;
-insert into t1 values (null,null,null,'null');
 insert into t1
 select a,left(repeat(d,100*a),65535),repeat(d,20*a),d from t2,t3;
 drop table t2, t3;
@@ -775,7 +774,6 @@ count(*)
 select a,
 length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a),d from t1;
 a	length(b)	b=left(repeat(d,100*a),65535)	length(c)	c=repeat(d,20*a)	d
-NULL	NULL	NULL	NULL	NULL	null
 22	22000	1	4400	1	adfd72nh9k
 22	35200	1	7040	1	adfdijn0loKNHJik
 22	28600	1	5720	1	adfdijnmnb78k
@@ -801,9 +799,6 @@ NULL	NULL	NULL	NULL	NULL	null
 66	65535	1	17160	1	adfdijnmnb78k
 66	65535	1	15840	1	adfdpplkeock
 66	65535	1	13200	1	jejdkrun87
-alter table t1 add primary key (a), add key (b(20));
-ERROR 42000: All parts of a PRIMARY KEY must be NOT NULL; if you need NULL in a key, use UNIQUE instead
-delete from t1 where d='null';
 alter table t1 add primary key (a), add key (b(20));
 ERROR 23000: Duplicate entry '22' for key 'PRIMARY'
 delete from t1 where a%2;
@@ -847,7 +842,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 explain select * from t1 where b like 'adfd%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	769	NULL	11	Using where
+1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	15	Using where
 create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
 insert into t2 select a,left(b,255) from t1;
 drop table t1;

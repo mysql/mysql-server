@@ -1708,7 +1708,7 @@ trx_undo_assign_undo(
 /*=================*/
 				/* out: DB_SUCCESS if undo log assign
 				successful, possible error codes are:
-				DD_TOO_MANY_CONCURRENT_TRXS
+				DB_TOO_MANY_CONCURRENT_TRXS
 				DB_OUT_OF_FILE_SPACE DB_OUT_OF_MEMORY*/
 	trx_t*		trx,	/* in: transaction */
 	ulint		type)	/* in: TRX_UNDO_INSERT or TRX_UNDO_UPDATE */

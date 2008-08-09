@@ -533,6 +533,8 @@ trx_undo_page_report_modify(
 	ulint		type_cmpl;
 	byte*		type_cmpl_ptr;
 	ulint		i;
+	dulint		trx_id;
+	ibool		ignore_prefix = FALSE;
 	byte		ext_buf[REC_MAX_INDEX_COL_LEN
 				+ BTR_EXTERN_FIELD_REF_SIZE];
 
@@ -565,6 +567,11 @@ trx_undo_page_report_modify(
 		type_cmpl = TRX_UNDO_DEL_MARK_REC;
 	} else if (rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
 		type_cmpl = TRX_UNDO_UPD_DEL_REC;
+		/* We are about to update a delete marked record.
+		We don't typically need the prefix in this case unless
+		the delete marking is done by the same transaction
+		(which we check below). */
+		ignore_prefix = TRUE;
 	} else {
 		type_cmpl = TRX_UNDO_UPD_EXIST_REC;
 	}
@@ -588,7 +595,16 @@ trx_undo_page_report_modify(
 					  index, DATA_TRX_ID), &flen);
 	ut_ad(flen == DATA_TRX_ID_LEN);
 
-	ptr += mach_dulint_write_compressed(ptr, trx_read_trx_id(field));
+	trx_id = trx_read_trx_id(field);
+
+	/* If it is an update of a delete marked record, then we are
+	allowed to ignore blob prefixes if the delete marking was done
+	by some other trx as it must have committed by now for us to
+	allow an over-write. */
+	if (ignore_prefix) {
+		ignore_prefix = ut_dulint_cmp(trx_id, trx->id) != 0;
+	}
+	ptr += mach_dulint_write_compressed(ptr, trx_id);
 
 	field = rec_get_nth_field(rec, offsets,
 				  dict_index_get_sys_col_pos(
@@ -663,6 +679,7 @@ trx_undo_page_report_modify(
 					ptr,
 					dict_index_get_nth_col(index, pos)
 					->ord_part
+					&& !ignore_prefix
 					&& flen < REC_MAX_INDEX_COL_LEN
 					? ext_buf : NULL,
 					dict_table_zip_size(table),
@@ -746,6 +763,7 @@ trx_undo_page_report_modify(
 					ptr = trx_undo_page_report_modify_ext(
 						ptr,
 						flen < REC_MAX_INDEX_COL_LEN
+						&& !ignore_prefix
 						? ext_buf : NULL,
 						dict_table_zip_size(table),
 						&field, &flen);
@@ -996,6 +1014,9 @@ trx_undo_rec_get_partial_row(
 				record! */
 	dict_index_t*	index,	/* in: clustered index */
 	dtuple_t**	row,	/* out, own: partial row */
+	ibool		ignore_prefix, /* in: flag to indicate if we
+				expect blob prefixes in undo. Used
+				only in the assertion. */
 	mem_heap_t*	heap)	/* in: memory heap from which the memory
 				needed is allocated */
 {
@@ -1045,7 +1066,8 @@ trx_undo_rec_get_partial_row(
 			/* If the prefix of this column is indexed,
 			ensure that enough prefix is stored in the
 			undo log record. */
-			ut_a(!col->ord_part
+			ut_a(ignore_prefix
+			     || !col->ord_part
 			     || dfield_get_len(dfield)
 			     >= REC_MAX_INDEX_COL_LEN
 			     + BTR_EXTERN_FIELD_REF_SIZE);

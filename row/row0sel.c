@@ -2173,16 +2173,15 @@ row_fetch_print(
 		fprintf(stderr, " column %lu:\n", (ulong)i);
 
 		dtype_print(type);
-		fprintf(stderr, "\n");
+		putc('\n', stderr);
 
 		if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
 			ut_print_buf(stderr, dfield_get_data(dfield),
 				     dfield_get_len(dfield));
+			putc('\n', stderr);
 		} else {
-			fprintf(stderr, " <NULL>;");
+			fputs(" <NULL>;\n", stderr);
 		}
-
-		fprintf(stderr, "\n");
 
 		exp = que_node_get_next(exp);
 		i++;
@@ -2466,7 +2465,7 @@ row_sel_convert_mysql_key_to_innobase(
 				(ulong) (key_ptr - key_end));
 			fflush(stderr);
 			ut_print_buf(stderr, original_key_ptr, key_len);
-			fprintf(stderr, "\n");
+			putc('\n', stderr);
 
 			if (!is_null) {
 				ulint	len = dfield_get_len(dfield);

@@ -1,3 +1,40 @@
+2008-06-09	The InnoDB Team
+
+	* mysql-test/innodb.result:
+	Fix the failing innodb test by merging changes that MySQL made to that
+	file
+
+2008-06-06	The InnoDB Team
+
+	* buf/buf0buf.c, handler/ha_innodb.cc, include/buf0buf.h,
+	include/srv0srv.h, srv/srv0srv.c:
+	Fix Bug#36600 SHOW STATUS takes a lot of CPU in
+	buf_get_latched_pages_number
+
+	* handler/ha_innodb.cc, os/os0file.c:
+	Fix Bug#11894 innodb_file_per_table crashes w/ Windows .sym symbolic
+	link hack
+
+	* include/ut0ut.h, srv/srv0srv.c, ut/ut0ut.c:
+	Fix Bug#36819 ut_usectime does not handle errors from gettimeofday
+
+	* handler/ha_innodb.cc:
+	Fix Bug#35602 Failed to read auto-increment value from storage engine
+
+	* srv/srv0start.c:
+	Fix Bug#36149 Read buffer overflow in srv0start.c found during "make
+	test"
+
+2008-05-08	The InnoDB Team
+
+	* btr/btr0btr.c, mysql-test/innodb_bug36172.result,
+	mysql-test/innodb_bug36172.test:
+	Fix Bug#36172 insert into compressed innodb table crashes
+
+2008-05-08	The InnoDB Team
+
+	InnoDB Plugin 1.0.1 released
+
 2008-05-06	The InnoDB Team
 
 	* handler/ha_innodb.cc, include/srv0srv.h, include/sync0sync.h,

@@ -406,7 +406,7 @@ buf_page_is_corrupted(
 		}
 
 		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
-		(always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
+		(always equal to 0), to FIL_PAGE_SPACE_OR_CHKSUM */
 
 		if (checksum_field != 0
 		    && checksum_field != BUF_NO_CHECKSUM_MAGIC
@@ -443,7 +443,7 @@ buf_page_print(
 	fprintf(stderr, "  InnoDB: Page dump in ascii and hex (%lu bytes):\n",
 		(ulong) size);
 	ut_print_buf(stderr, read_buf, size);
-	fputs("InnoDB: End of page dump\n", stderr);
+	fputs("\nInnoDB: End of page dump\n", stderr);
 
 	if (zip_size) {
 		/* Print compressed page. */
@@ -3187,9 +3187,6 @@ corrupt:
 		ut_error;
 	}
 
-	mutex_exit(buf_page_get_mutex(bpage));
-	buf_pool_mutex_exit();
-
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "Has %s page space %lu page no %lu\n",
@@ -3198,6 +3195,9 @@ corrupt:
 			(ulong) buf_page_get_page_no(bpage));
 	}
 #endif /* UNIV_DEBUG */
+
+	mutex_exit(buf_page_get_mutex(bpage));
+	buf_pool_mutex_exit();
 }
 
 /*************************************************************************
@@ -3563,6 +3563,7 @@ buf_print(void)
 }
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
 UNIV_INTERN
@@ -3649,6 +3650,7 @@ buf_get_latched_pages_number(void)
 
 	return(fixed_pages_number);
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Returns the number of pending buf pool ios. */

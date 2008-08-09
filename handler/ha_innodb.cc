@@ -468,8 +468,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG},
   {"buffer_pool_pages_free",
   (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
+#ifdef UNIV_DEBUG
   {"buffer_pool_pages_latched",
   (char*) &export_vars.innodb_buffer_pool_pages_latched,  SHOW_LONG},
+#endif /* UNIV_DEBUG */
   {"buffer_pool_pages_misc",
   (char*) &export_vars.innodb_buffer_pool_pages_misc,	  SHOW_LONG},
   {"buffer_pool_pages_total",
@@ -3709,7 +3711,8 @@ ha_innobase::innobase_autoinc_lock(void)
 		old style only if another transaction has already acquired
 		the AUTOINC lock on behalf of a LOAD FILE or INSERT ... SELECT
 		etc. type of statement. */
-		if (thd_sql_command(user_thd) == SQLCOM_INSERT) {
+		if (thd_sql_command(user_thd) == SQLCOM_INSERT
+		    || thd_sql_command(user_thd) == SQLCOM_REPLACE) {
 			dict_table_t*	table = prebuilt->table;
 
 			/* Acquire the AUTOINC mutex. */
@@ -5614,6 +5617,29 @@ ha_innobase::create(
 	DBUG_ENTER("ha_innobase::create");
 
 	DBUG_ASSERT(thd != NULL);
+	DBUG_ASSERT(create_info != NULL);
+
+#ifdef __WIN__
+	/* Names passed in from server are in two formats:
+	1. <database_name>/<table_name>: for normal table creation
+	2. full path: for temp table creation, or sym link
+
+	When srv_file_per_table is on, check for full path pattern, i.e.
+	X:\dir\...,		X is a driver letter, or
+	\\dir1\dir2\...,	UNC path
+	returns error if it is in full path format, but not creating a temp.
+	table. Currently InnoDB does not support symbolic link on Windows. */
+
+	if (srv_file_per_table
+	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+
+		if ((name[1] == ':')
+		    || (name[0] == '\\' && name[1] == '\\')) {
+			sql_print_error("Cannot create table %s\n", name);
+			DBUG_RETURN(HA_ERR_GENERIC);
+		}
+	}
+#endif
 
 	if (form->s->fields > 1000) {
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
@@ -6615,6 +6641,14 @@ ha_innobase::info(
 		if (thd_sql_command(user_thd) == SQLCOM_TRUNCATE) {
 
 			n_rows = 0;
+
+			/* We need to reset the prebuilt value too, otherwise
+			checks for values greater than the last value written
+			to the table will fail and the autoinc counter will
+			not be updated. This will force write_row() into
+			attempting an update of the table's AUTOINC counter. */
+
+			prebuilt->last_value = 0;
 		}
 
 		stats.records = (ha_rows)n_rows;
@@ -9024,7 +9058,7 @@ innodb_file_format_check_validate(
 
 		if (innobase_file_format_check_on_off(file_format_input)) {
 			sql_print_warning(
-				"InnoDB: invalid innodb_file_format_check"
+				"InnoDB: invalid innodb_file_format_check "
 				"value; on/off can only be set at startup or "
 				"in the configuration file");
 		} else if (innobase_file_format_check_validate(
@@ -9209,6 +9243,11 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
+  PLUGIN_VAR_RQCMDARG,
+  "The number of index pages to sample when calculating statistics (default 8)",
+  NULL, NULL, 8, 1, ~0ULL, 0);
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, innobase_adaptive_hash_index,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable InnoDB adaptive hash index (enabled by default).  "
@@ -9286,12 +9325,6 @@ static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
   "How many files at the maximum InnoDB keeps open at the same time.",
   NULL, NULL, 300L, 10L, ~0L, 0);
 
-static MYSQL_SYSVAR_ULONG(stats_sample, srv_stats_sample,
-  PLUGIN_VAR_OPCMDARG,
-  "When estimating number of different key values in an index, sample "
-  "this many index pages",
-  NULL, NULL, SRV_STATS_SAMPLE_DEFAULT, 1, 1000, 0);
-
 static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   PLUGIN_VAR_RQCMDARG,
   "Count of spin-loop rounds in InnoDB mutexes",
@@ -9362,9 +9395,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
+  MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(replication_delay),
-  MYSQL_SYSVAR(stats_sample),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
@@ -9432,9 +9465,10 @@ innodb_plugin_init(void)
 /*====================*/
 		/* out: TRUE if the dynamic InnoDB plugin should start */
 {
-# if !MYSQL_STORAGE_ENGINE_PLUGIN
-#  error "MYSQL_STORAGE_ENGINE_PLUGIN must be nonzero."
-# endif
+#if !MYSQL_STORAGE_ENGINE_PLUGIN
+#error "MYSQL_STORAGE_ENGINE_PLUGIN must be nonzero."
+#endif
+
 	switch (builtin_innobase_plugin) {
 	case 0:
 		return(true);
@@ -9445,54 +9479,79 @@ innodb_plugin_init(void)
 	}
 
 	/* Copy the system variables. */
-	struct st_mysql_plugin* builtin
-		= (struct st_mysql_plugin*) &builtin_innobase_plugin;
-	struct st_mysql_sys_var** v = builtin->system_vars;
-	struct st_mysql_sys_var** w = innobase_system_variables;
 
-	for (; *v; v++, w++) {
-		if (!*w) {
-			fprintf(stderr, "InnoDB: unknown parameter %s,0x%x\n",
-				(*v)->name, (*v)->flags);
-			return(false);
-		} else if (!innobase_match_parameter((*v)->name, (*w)->name)) {
-			/* Skip the destination parameter, since it doesn't
-			exist in the source. */
-			v--;
-			continue;
-		/* Ignore changes that affect the READONLY flag. */
-		} else if (((*v)->flags ^ (*w)->flags) & ~PLUGIN_VAR_READONLY) {
-			fprintf(stderr,
-				"InnoDB: parameter mismatch:"
-				" %s,%s,0x%x,0x%x\n",
-				(*v)->name, (*w)->name,
-				(*v)->flags, (*w)->flags);
-			return(false);
-		} else if ((*v)->flags & PLUGIN_VAR_THDLOCAL) {
-			/* Do not copy session variables. */
+	struct st_mysql_plugin*		builtin;
+	struct st_mysql_sys_var**	sta; /* static parameters */
+	struct st_mysql_sys_var**	dyn; /* dynamic parameters */
+
+	builtin = (struct st_mysql_plugin*) &builtin_innobase_plugin;
+
+	for (sta = builtin->system_vars; *sta != NULL; sta++) {
+
+		/* do not copy session variables */
+		if ((*sta)->flags & PLUGIN_VAR_THDLOCAL) {
 			continue;
 		}
 
-		switch ((*v)->flags
-			& ~(PLUGIN_VAR_MASK | PLUGIN_VAR_UNSIGNED)) {
-# define COPY_VAR(label, type)						\
-		case label:						\
-			*(type*)(*w)->value = *(type*)(*v)->value;	\
-			break;
+		for (dyn = innobase_system_variables; *dyn != NULL; dyn++) {
 
-			COPY_VAR(PLUGIN_VAR_BOOL, char);
-			COPY_VAR(PLUGIN_VAR_INT, int);
-			COPY_VAR(PLUGIN_VAR_LONG, long);
-			COPY_VAR(PLUGIN_VAR_LONGLONG, long long);
-			COPY_VAR(PLUGIN_VAR_STR, char*);
+			if (innobase_match_parameter((*sta)->name,
+						     (*dyn)->name)) {
 
-		default:
-			fprintf(stderr, "InnoDB: unknown flags 0x%x for %s\n",
-				(*v)->flags, (*v)->name);
+				/* found the corresponding parameter */
+
+				/* check if the flags are the same,
+				ignoring differences in the READONLY flag;
+				e.g. we are not copying string variable to
+				an integer one */
+				if (((*sta)->flags & ~PLUGIN_VAR_READONLY)
+				    != ((*dyn)->flags & ~PLUGIN_VAR_READONLY)) {
+
+					fprintf(stderr,
+						"InnoDB: %s in static InnoDB "
+						"(flags=0x%x) differs from "
+						"%s in dynamic InnoDB "
+						"(flags=0x%x)\n",
+						(*sta)->name, (*sta)->flags,
+						(*dyn)->name, (*dyn)->flags);
+
+					/* we could break; here leaving this
+					parameter uncopied */
+					return(false);
+				}
+
+				/* assign the value of the static parameter
+				to the dynamic one, according to their type */
+
+#define COPY_VAR(label, type)					\
+	case label:						\
+		*(type*)(*dyn)->value = *(type*)(*sta)->value;	\
+		break;
+
+				switch ((*sta)->flags
+					& ~(PLUGIN_VAR_MASK
+					    | PLUGIN_VAR_UNSIGNED)) {
+
+				COPY_VAR(PLUGIN_VAR_BOOL, char);
+				COPY_VAR(PLUGIN_VAR_INT, int);
+				COPY_VAR(PLUGIN_VAR_LONG, long);
+				COPY_VAR(PLUGIN_VAR_LONGLONG, long long);
+				COPY_VAR(PLUGIN_VAR_STR, char*);
+
+				default:
+					fprintf(stderr,
+						"InnoDB: unknown flags "
+						"0x%x for %s\n",
+						(*sta)->flags, (*sta)->name);
+				}
+
+				/* Make the static InnoDB variable point to
+				the dynamic one */
+				(*sta)->value = (*dyn)->value;
+
+				break;
+			}
 		}
-
-		/* Make the static InnoDB variable point to the dynamic one */
-		(*v)->value = (*w)->value;
 	}
 
 	return(true);

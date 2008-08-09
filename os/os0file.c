@@ -1241,9 +1241,19 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(name,
-					     create_mode == OS_FILE_CREATE ?
-					     "create" : "open");
+		/* When srv_file_per_table is on, file creation failure may not
+		be critical to the whole instance. Do not crash the server in
+		case of unknown errors. */
+		if (srv_file_per_table) {
+			retry = os_file_handle_error_no_exit(name,
+						create_mode == OS_FILE_CREATE ?
+						"create" : "open");
+		} else {
+			retry = os_file_handle_error(name,
+						create_mode == OS_FILE_CREATE ?
+						"create" : "open");
+		}
+
 		if (retry) {
 			goto try_again;
 		}
@@ -1318,9 +1328,19 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(name,
-					     create_mode == OS_FILE_CREATE ?
-					     "create" : "open");
+		/* When srv_file_per_table is on, file creation failure may not
+		be critical to the whole instance. Do not crash the server in
+		case of unknown errors. */
+		if (srv_file_per_table) {
+			retry = os_file_handle_error_no_exit(name,
+						create_mode == OS_FILE_CREATE ?
+						"create" : "open");
+		} else {
+			retry = os_file_handle_error(name,
+						create_mode == OS_FILE_CREATE ?
+						"create" : "open");
+		}
+
 		if (retry) {
 			goto try_again;
 		} else {
