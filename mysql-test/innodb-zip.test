@@ -101,6 +101,31 @@ INSERT INTO t1 VALUES(
 drop table t1;
 
 #
+# Test blob column inheritance (mantis issue#36)
+#
+
+create table t1( c1 int not null, c2 blob, c3 blob, c4 blob,
+		primary key(c1, c2(22), c3(22)))
+		engine = innodb row_format = dynamic;
+begin;
+insert into t1 values(1, repeat('A', 20000), repeat('B', 20000),
+			repeat('C', 20000));
+
+update t1 set c3 = repeat('D', 20000) where c1 = 1;
+commit;
+
+# one blob column which is unchanged in update and part of PK
+# one blob column which is changed and part of of PK
+# one blob column which is not part of PK and is unchanged
+select count(*) from t1 where c2 = repeat('A', 20000);
+select count(*) from t1 where c3 = repeat('D', 20000);
+select count(*) from t1 where c4 = repeat('C', 20000);
+
+update t1 set c3 = repeat('E', 20000) where c1 = 1;
+drop table t1;
+
+#
+#
 # Test innodb_file_format
 #
 set global innodb_file_format=`0`;
@@ -290,13 +315,6 @@ select @@innodb_file_format_check;
 -- disable_result_log
 show table status;
 -- enable_result_log
-select @@innodb_file_format_check;
--- error ER_WRONG_ARGUMENTS
-set global innodb_file_format_check=`Cheetah`;
--- error ER_WRONG_ARGUMENTS
-set global innodb_file_format_check=`on`;
--- error ER_WRONG_ARGUMENTS
-set global innodb_file_format_check=`off`;
 select @@innodb_file_format_check;
 drop table normal_table, zip_table;
 -- disable_result_log

@@ -2215,7 +2215,7 @@ btr_node_ptr_delete(
 	/* Delete node pointer on father page */
 	btr_page_get_father(index, block, mtr, &cursor);
 
-	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor, FALSE,
+	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor, RB_NONE,
 						mtr);
 	ut_a(err == DB_SUCCESS);
 

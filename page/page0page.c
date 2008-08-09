@@ -598,6 +598,8 @@ page_copy_rec_list_end(
 	ut_ad(buf_block_get_frame(block) == page);
 	ut_ad(page_is_leaf(page) == page_is_leaf(new_page));
 	ut_ad(page_is_comp(page) == page_is_comp(new_page));
+	/* Here, "ret" may be pointing to a user record or the
+	predefined supremum record. */
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
@@ -620,6 +622,12 @@ page_copy_rec_list_end(
 			store the number of preceding records on the page. */
 			ulint	ret_pos
 				= page_rec_get_n_recs_before(ret);
+			/* Before copying, "ret" was the successor of
+			the predefined infimum record.  It must still
+			have at least one predecessor (the predefined
+			infimum record, or a freshly copied record
+			that is smaller than "ret"). */
+			ut_a(ret_pos > 0);
 
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
@@ -685,6 +693,9 @@ page_copy_rec_list_start(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
+	/* Here, "ret" may be pointing to a user record or the
+	predefined infimum record. */
+
 	if (page_rec_is_infimum(rec)) {
 
 		return(ret);
@@ -725,6 +736,11 @@ page_copy_rec_list_start(
 			store the number of preceding records on the page. */
 			ulint	ret_pos
 				= page_rec_get_n_recs_before(ret);
+			/* Before copying, "ret" was the predecessor
+			of the predefined supremum record.  If it was
+			the predefined infimum record, then it would
+			still be the infimum.  Thus, the assertion
+			ut_a(ret_pos > 0) would fail here. */
 
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {

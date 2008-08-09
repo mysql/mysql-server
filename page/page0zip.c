@@ -3203,7 +3203,15 @@ page_zip_write_rec(
 	ulint		heap_no;
 	byte*		slot;
 
+#if 0
+	/* In btr_cur_pessimistic_insert(), we allocate temp_page
+	from the buffer pool to see if a record fits on a compressed
+	page by itself.  The buf_block_align() call in
+	buf_frame_get_page_zip() only works for file pages, not
+	temporarily allocated blocks.  Thus, we must unfortunately
+	disable the following assertion. */
 	ut_ad(buf_frame_get_page_zip(rec) == page_zip);
+#endif
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip_get_size(page_zip)
 	      > PAGE_DATA + page_zip_dir_size(page_zip));

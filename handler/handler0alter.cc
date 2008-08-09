@@ -635,9 +635,6 @@ ha_innobase::add_index(
 	trx = trx_allocate_for_mysql();
 	trx_start_if_not_started(trx);
 
-	trans_register_ha(user_thd, FALSE, ht);
-	prebuilt->trx->active_trans = 1;
-
 	trx->mysql_thd = user_thd;
 	trx->mysql_query_str = thd_query(user_thd);
 
@@ -1083,9 +1080,6 @@ ha_innobase::final_drop_index(
 	the data dictionary tables. */
 	trx = trx_allocate_for_mysql();
 	trx_start_if_not_started(trx);
-
-	trans_register_ha(user_thd, FALSE, ht);
-	prebuilt->trx->active_trans = 1;
 
 	trx->mysql_thd = user_thd;
 	trx->mysql_query_str = thd_query(user_thd);

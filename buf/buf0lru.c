@@ -1246,6 +1246,12 @@ alloc:
 
 				if (buf_page_is_old(b)) {
 					buf_pool->LRU_old_len++;
+					if (UNIV_UNLIKELY
+					    (buf_pool->LRU_old
+					     == UT_LIST_GET_NEXT(LRU, b))) {
+
+						buf_pool->LRU_old = b;
+					}
 				}
 
 				lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
@@ -1455,6 +1461,8 @@ buf_LRU_block_remove_hashed_page(
 		buf_block_modify_clock_inc((buf_block_t*) bpage);
 		if (bpage->zip.data) {
 			const page_t*	page = ((buf_block_t*) bpage)->frame;
+			const ulint	zip_size
+				= page_zip_get_size(&bpage->zip);
 
 			ut_a(!zip || bpage->oldest_modification == 0);
 
@@ -1472,7 +1480,7 @@ buf_LRU_block_remove_hashed_page(
 					to the compressed page, which will
 					be preserved. */
 					memcpy(bpage->zip.data, page,
-					       page_zip_get_size(&bpage->zip));
+					       zip_size);
 				}
 				break;
 			case FIL_PAGE_TYPE_ZBLOB:
@@ -1484,6 +1492,15 @@ buf_LRU_block_remove_hashed_page(
 #endif /* UNIV_ZIP_DEBUG */
 				break;
 			default:
+				ut_print_timestamp(stderr);
+				fputs("  InnoDB: ERROR: The compressed page"
+				      " to be evicted seems corrupt:", stderr);
+				ut_print_buf(stderr, page, zip_size);
+				fputs("\nInnoDB: Possibly older version"
+				      " of the page:", stderr);
+				ut_print_buf(stderr, bpage->zip.data,
+					     zip_size);
+				putc('\n', stderr);
 				ut_error;
 			}
 

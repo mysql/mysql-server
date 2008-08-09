@@ -391,7 +391,15 @@ fill_trx_row(
 
 	row->trx_weight = (ullint) ut_conv_dulint_to_longlong(TRX_WEIGHT(trx));
 
-	row->trx_mysql_thread_id = ib_thd_get_thread_id(trx->mysql_thd);
+	if (trx->mysql_thd != NULL) {
+		row->trx_mysql_thread_id
+			= ib_thd_get_thread_id(trx->mysql_thd);
+	} else {
+		/* For internal transactions e.g., purge and transactions
+		being recovered at startup there is no associated MySQL
+		thread data structure. */
+		row->trx_mysql_thread_id = 0;
+	}
 
 	if (trx->mysql_query_str != NULL && *trx->mysql_query_str != NULL) {
 

@@ -239,16 +239,47 @@ insert into t2 values ('jejdkrun87'),('adfd72nh9k'),
 create table t1(a int, b blob, c text, d text not null)
 engine=innodb default charset = utf8;
 
-insert into t1 values (null,null,null,'null');
+# r2667 The following test is disabled because MySQL behavior changed.
+# r2667 The test was added with this comment:
+# r2667 
+# r2667 ------------------------------------------------------------------------
+# r2667 r1699 | marko | 2007-08-10 19:53:19 +0300 (Fri, 10 Aug 2007) | 5 lines
+# r2667 
+# r2667 branches/zip: Add changes that accidentally omitted from r1698:
+# r2667 
+# r2667 innodb-index.test, innodb-index.result: Add a test for creating
+# r2667 a PRIMARY KEY on a column that contains a NULL value.
+# r2667 ------------------------------------------------------------------------
+# r2667 
+# r2667 but in BZR-r2667:
+# r2667 http://bazaar.launchpad.net/~mysql/mysql-server/mysql-5.1/revision/davi%40mysql.com-20080617141221-8yre8ys9j4uw3xx5?start_revid=joerg%40mysql.com-20080630105418-7qoe5ehomgrcdb89
+# r2667 MySQL changed the behavior to do full table copy when creating PRIMARY INDEX
+# r2667 on a non-NULL column instead of calling ::add_index() which would fail (and
+# r2667 this is what we were testing here). Before r2667 the code execution path was
+# r2667 like this (when adding PRIMARY INDEX on a non-NULL column with ALTER TABLE):
+# r2667 
+# r2667 mysql_alter_table()
+# r2667   compare_tables()  // would return ALTER_TABLE_INDEX_CHANGED
+# r2667   ::add_index()  // would fail with "primary index cannot contain NULL"
+# r2667 
+# r2667 after r2667 the code execution path is the following:
+# r2667 
+# r2667 mysql_alter_table()
+# r2667   compare_tables()  // returns ALTER_TABLE_DATA_CHANGED
+# r2667   full copy is done, without calling ::add_index()
+# r2667 
+# r2667 To enable, remove "# r2667: " below.
+# r2667 
+# r2667: insert into t1 values (null,null,null,'null');
 insert into t1
 select a,left(repeat(d,100*a),65535),repeat(d,20*a),d from t2,t3;
 drop table t2, t3;
 select count(*) from t1 where a=44;
 select a,
 length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a),d from t1;
---error ER_PRIMARY_CANT_HAVE_NULL
-alter table t1 add primary key (a), add key (b(20));
-delete from t1 where d='null';
+# r2667: --error ER_PRIMARY_CANT_HAVE_NULL
+# r2667: alter table t1 add primary key (a), add key (b(20));
+# r2667: delete from t1 where d='null';
 --error ER_DUP_ENTRY
 alter table t1 add primary key (a), add key (b(20));
 delete from t1 where a%2;

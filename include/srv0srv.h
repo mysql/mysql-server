@@ -136,10 +136,7 @@ extern ibool	srv_innodb_status;
 
 extern ibool	srv_stats_on_metadata;
 
-/* When estimating number of different key values in an index, sample
-this many index pages */
-#define SRV_STATS_SAMPLE_DEFAULT	8
-extern ulong	srv_stats_sample;
+extern unsigned long long	srv_stats_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
@@ -522,7 +519,9 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_pages_dirty;
 	ulint innodb_buffer_pool_pages_misc;
 	ulint innodb_buffer_pool_pages_free;
+#ifdef UNIV_DEBUG
 	ulint innodb_buffer_pool_pages_latched;
+#endif /* UNIV_DEBUG */
 	ulint innodb_buffer_pool_read_requests;
 	ulint innodb_buffer_pool_reads;
 	ulint innodb_buffer_pool_wait_free;

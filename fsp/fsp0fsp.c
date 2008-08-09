@@ -1577,6 +1577,7 @@ fsp_alloc_free_page(
 	if (free == ULINT_UNDEFINED) {
 
 		ut_print_buf(stderr, ((byte*)descr) - 500, 1000);
+		putc('\n', stderr);
 
 		ut_error;
 	}
@@ -1760,6 +1761,7 @@ fsp_free_extent(
 	if (xdes_get_state(descr, mtr) == XDES_FREE) {
 
 		ut_print_buf(stderr, (byte*)descr - 500, 1000);
+		putc('\n', stderr);
 
 		ut_error;
 	}

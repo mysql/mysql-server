@@ -97,12 +97,6 @@ row_build_index_entry(
 	} else {
 		dtuple_set_n_fields_cmp(
 			entry, dict_index_get_n_unique_in_tree(index));
-		if (dict_index_is_clust(index)) {
-			/* Do not fetch externally stored columns to
-			the clustered index.  Such columns are handled
-			at a higher level. */
-			ext = NULL;
-		}
 	}
 
 	for (i = 0; i < entry_len; i++) {
@@ -121,8 +115,15 @@ row_build_index_entry(
 
 		dfield_copy(dfield, dfield2);
 
-		if (dfield_is_null(dfield)) {
-		} else if (UNIV_LIKELY_NULL(ext)) {
+		if (dfield_is_null(dfield) || ind_field->prefix_len == 0) {
+			continue;
+		}
+
+		/* If a column prefix index, take only the prefix.
+		Prefix-indexed columns may be externally stored. */
+		ut_ad(col->ord_part);
+
+		if (UNIV_LIKELY_NULL(ext)) {
 			/* See if the column is stored externally. */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);
@@ -139,15 +140,10 @@ row_build_index_entry(
 			     || dict_index_is_clust(index));
 		}
 
-		/* If a column prefix index, take only the prefix */
-		if (ind_field->prefix_len > 0 && !dfield_is_null(dfield)) {
-			ut_ad(col->ord_part);
-			len = dtype_get_at_most_n_mbchars(
-				col->prtype, col->mbminlen, col->mbmaxlen,
-				ind_field->prefix_len,
-				len, dfield_get_data(dfield));
-			dfield_set_len(dfield, len);
-		}
+		len = dtype_get_at_most_n_mbchars(
+			col->prtype, col->mbminlen, col->mbmaxlen,
+			ind_field->prefix_len, len, dfield_get_data(dfield));
+		dfield_set_len(dfield, len);
 	}
 
 	ut_ad(dtuple_check_typed(entry));
