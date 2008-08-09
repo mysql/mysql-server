@@ -517,7 +517,7 @@ public:
 
     DBUG_PRINT("info", ("file_name: %s", m_file_name));
 
-    if ((m_file= fopen(m_file_name, "w+")) == NULL)
+    if ((m_file= fopen(m_file_name, "wb+")) == NULL)
       die("Failed to open log file %s, errno: %d", m_file_name, errno);
 
     DBUG_VOID_RETURN;
