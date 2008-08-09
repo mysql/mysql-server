@@ -26,7 +26,7 @@ sub mtr_tonewfile($@);
 sub mtr_appendfile_to_file ($$);
 sub mtr_grab_file($);
 sub mtr_printfile($);
-
+sub mtr_lastlinefromfile ($);
 
 # Read a whole file, stripping leading and trailing whitespace.
 sub mtr_fromfile ($) {
@@ -94,5 +94,17 @@ sub mtr_printfile($) {
   return;
 }
 
+sub mtr_lastlinefromfile ($) {
+  my $file=  shift;
+  my $text;
+
+  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
+  while (my $line= <FILE>)
+  {
+    $text= $line;
+  }
+  close FILE;
+  return $text;
+}
 
 1;

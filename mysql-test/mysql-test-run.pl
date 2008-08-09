@@ -3320,10 +3320,29 @@ sub check_expected_crash_and_restart {
     my $expect_file= "$opt_vardir/tmp/".$mysqld->name().".expect";
     if ( -f $expect_file )
     {
-      mtr_report("Crash was expected, file '$expect_file' exists");
-      # Start server with same settings as last time
-      mysqld_start($mysqld, $mysqld->{'started_opts'});
-      unlink($expect_file);
+      mtr_verbose("Crash was expected, file '$expect_file' exists");
+
+      while (1){
+
+	# If last line in expect file starts with "wait"
+	# sleep a little and try again, thus allowing the
+	# test script to control when the server should start
+	# up again
+	my $last_line= mtr_lastlinefromfile($expect_file);
+	if ($last_line =~ /^wait/ )
+	{
+	  mtr_verbose("Test says wait before restart");
+	  mtr_milli_sleep(100);
+	  next;
+	}
+
+	unlink($expect_file);
+
+	# Start server with same settings as last time
+	mysqld_start($mysqld, $mysqld->{'started_opts'});
+
+	last;
+      }
     }
 
     return 1;
