@@ -546,8 +546,8 @@ public:
     DBUG_ASSERT(ds->str);
 
     if (fwrite(ds->str, 1, ds->length, m_file) != ds->length)
-      die("Failed to write %d bytes to '%s', errno: %d",
-          ds->length, m_file_name, errno);
+      die("Failed to write %lu bytes to '%s', errno: %d",
+          (unsigned long)ds->length, m_file_name, errno);
     m_bytes_written+= ds->length;
     DBUG_VOID_RETURN;
   }
@@ -585,7 +585,8 @@ public:
         DBUG_VOID_RETURN;
       }
 
-      DBUG_PRINT("info", ("Read %d bytes from file, buf: %s", bytes, buf));
+      DBUG_PRINT("info", ("Read %lu bytes from file, buf: %s",
+                          (unsigned long)bytes, buf));
 
       char* show_from= buf + bytes;
       while(show_from > buf && lines > 0 )
@@ -2291,7 +2292,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     const char* end= *p_end + 1;
     if (end < expected_end)
       die("Found junk '%.*s' after $variable in expression",
-          expected_end - end - 1, end);
+          (int)(expected_end - end - 1), end);
 
     DBUG_VOID_RETURN;
   }
