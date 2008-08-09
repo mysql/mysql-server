@@ -278,7 +278,7 @@ BEGIN
     SELECT @log_error;
     SELECT line as log_error
         FROM suspect_lines WHERE supressed=0;
-    SELECT * FROM test_supressions;
+    --SELECT * FROM test_supressions;
     -- Return 2 -> check failed
     SELECT 2 INTO result;
   ELSE
