@@ -487,7 +487,7 @@ void free_all_replace(){
 class LogFile {
   FILE* m_file;
   char m_file_name[FN_REFLEN];
-  uint m_bytes_written;
+  size_t m_bytes_written;
 public:
   LogFile() : m_file(NULL), m_bytes_written(0) {
     bzero(m_file_name, sizeof(m_file_name));
@@ -498,7 +498,7 @@ public:
   }
 
   const char* file_name() const { return m_file_name; }
-  uint bytes_written() const { return m_bytes_written; }
+  size_t bytes_written() const { return m_bytes_written; }
 
   void open(const char* dir, const char* name, const char* ext)
   {
@@ -5972,7 +5972,7 @@ void fix_win_paths(const char *val, int len)
     DBUG_PRINT("info", ("pattern: %s", *pattern));
 
     /* Search for the path in string */
-    while ((p= strstr(val, *pattern)))
+    while ((p= strstr((char*)val, *pattern)))
     {
       DBUG_PRINT("info", ("Found %s in val p: %s", *pattern, p));
 
