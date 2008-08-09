@@ -32,6 +32,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "btr0sea.h"
 #include "row0upd.h"
 #include "trx0rec.h"
+#include "trx0roll.h" /* trx_is_recv() */
 #include "que0que.h"
 #include "row0row.h"
 #include "srv0srv.h"
@@ -116,6 +117,7 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	const upd_t*	update,	/* in: update vector */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 /***************************************************************
@@ -130,9 +132,7 @@ btr_rec_free_externally_stored_fields(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-				rollback and we do not want to free
-				inherited fields */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -2279,8 +2279,9 @@ btr_cur_pessimistic_update(
 
 		ut_ad(big_rec_vec == NULL);
 
-		btr_rec_free_updated_extern_fields(index, rec, page_zip,
-						   offsets, update, mtr);
+		btr_rec_free_updated_extern_fields(
+			index, rec, page_zip, offsets, update,
+			trx_is_recv(trx) ? RB_RECOVERY : RB_NORMAL, mtr);
 	}
 
 	/* We have to set appropriate extern storage bits in the new
@@ -2951,7 +2952,7 @@ btr_cur_pessimistic_delete(
 				if compression does not occur, the cursor
 				stays valid: it points to successor of
 				deleted record on function exit */
-	ibool		in_rollback,/* in: TRUE if called in rollback */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	buf_block_t*	block;
@@ -3005,7 +3006,7 @@ btr_cur_pessimistic_delete(
 	if (rec_offs_any_extern(offsets)) {
 		btr_rec_free_externally_stored_fields(index,
 						      rec, offsets, page_zip,
-						      in_rollback, mtr);
+						      rb_ctx, mtr);
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -3314,7 +3315,7 @@ btr_estimate_number_of_different_key_vals(
 
 	/* We sample some pages in the index to get an estimate */
 
-	for (i = 0; i < srv_stats_sample; i++) {
+	for (i = 0; i < srv_stats_sample_pages; i++) {
 		rec_t*	supremum;
 		mtr_start(&mtr);
 
@@ -3322,7 +3323,7 @@ btr_estimate_number_of_different_key_vals(
 
 		/* Count the number of different key values for each prefix of
 		the key on this index page. If the prefix does not determine
-		the index record uniquely in te B-tree, then we subtract one
+		the index record uniquely in the B-tree, then we subtract one
 		because otherwise our algorithm would give a wrong estimate
 		for an index where there is just one key value. */
 
@@ -3403,7 +3404,7 @@ btr_estimate_number_of_different_key_vals(
 	}
 
 	/* If we saw k borders between different key values on
-	srv_stats_sample leaf pages, we can estimate how many
+	srv_stats_sample_pages leaf pages, we can estimate how many
 	there will be in index->stat_n_leaf_pages */
 
 	/* We must take into account that our sample actually represents
@@ -3414,26 +3415,26 @@ btr_estimate_number_of_different_key_vals(
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
 			    * (ib_int64_t)index->stat_n_leaf_pages
-			    + srv_stats_sample - 1
+			    + srv_stats_sample_pages - 1
 			    + total_external_size
 			    + not_empty_flag)
-			   / (srv_stats_sample
+			   / (srv_stats_sample_pages
 			      + total_external_size));
 
 		/* If the tree is small, smaller than
-		10 * srv_stats_sample + total_external_size, then
+		10 * srv_stats_sample_pages + total_external_size, then
 		the above estimate is ok. For bigger trees it is common that we
 		do not see any borders between key values in the few pages
-		we pick. But still there may be srv_stats_sample
+		we pick. But still there may be srv_stats_sample_pages
 		different key values, or even more. Let us try to approximate
 		that: */
 
 		add_on = index->stat_n_leaf_pages
-			/ (10 * (srv_stats_sample
+			/ (10 * (srv_stats_sample_pages
 				 + total_external_size));
 
-		if (add_on > srv_stats_sample) {
-			add_on = srv_stats_sample;
+		if (add_on > srv_stats_sample_pages) {
+			add_on = srv_stats_sample_pages;
 		}
 
 		index->stat_n_diff_key_vals[j] += add_on;
@@ -4224,9 +4225,7 @@ btr_free_externally_stored_field(
 					to rec, or NULL if rec == NULL */
 	ulint		i,		/* in: field number of field_ref;
 					ignored if rec == NULL */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-					rollback and we do not want to free
-					inherited fields */
+	enum trx_rb_ctx	rb_ctx,		/* in: rollback context */
 	mtr_t*		local_mtr __attribute__((unused))) /* in: mtr
 					containing the latch to data an an
 					X-latch to the index tree */
@@ -4255,6 +4254,15 @@ btr_free_externally_stored_field(
 		ut_ad(f == field_ref);
 	}
 #endif /* UNIV_DEBUG */
+
+	if (UNIV_UNLIKELY(!memcmp(field_ref, field_ref_zero,
+				  BTR_EXTERN_FIELD_REF_SIZE))) {
+		/* In the rollback of uncommitted transactions, we may
+		encounter a clustered index record whose BLOBs have
+		not been written.  There is nothing to free then. */
+		ut_a(rb_ctx == RB_RECOVERY);
+		return;
+	}
 
 	space_id = mach_read_from_4(field_ref + BTR_EXTERN_SPACE_ID);
 
@@ -4300,7 +4308,7 @@ btr_free_externally_stored_field(
 		    || (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			& BTR_EXTERN_OWNER_FLAG)
 		    /* Rollback and inherited field */
-		    || (do_not_free_inherited
+		    || (rb_ctx != RB_NONE
 			&& (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			    & BTR_EXTERN_INHERITED_FLAG))) {
 
@@ -4402,9 +4410,7 @@ btr_rec_free_externally_stored_fields(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-				rollback and we do not want to free
-				inherited fields */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -4428,8 +4434,7 @@ btr_rec_free_externally_stored_fields(
 
 			btr_free_externally_stored_field(
 				index, data + len - BTR_EXTERN_FIELD_REF_SIZE,
-				rec, offsets, page_zip, i,
-				do_not_free_inherited, mtr);
+				rec, offsets, page_zip, i, rb_ctx, mtr);
 		}
 	}
 }
@@ -4448,6 +4453,7 @@ btr_rec_free_updated_extern_fields(
 				part will be updated, or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	const upd_t*	update,	/* in: update vector */
+	enum trx_rb_ctx	rb_ctx,	/* in: rollback context */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 {
@@ -4473,7 +4479,7 @@ btr_rec_free_updated_extern_fields(
 			btr_free_externally_stored_field(
 				index, data + len - BTR_EXTERN_FIELD_REF_SIZE,
 				rec, offsets, page_zip,
-				ufield->field_no, TRUE, mtr);
+				ufield->field_no, rb_ctx, mtr);
 		}
 	}
 }

@@ -208,6 +208,7 @@ btr_pcur_restore_position(
 	    || UNIV_UNLIKELY(cursor->pos_state != BTR_PCUR_WAS_POSITIONED
 			     && cursor->pos_state != BTR_PCUR_IS_POSITIONED)) {
 		ut_print_buf(stderr, cursor, sizeof(btr_pcur_t));
+		putc('\n', stderr);
 		if (cursor->trx_if_known) {
 			trx_print(stderr, cursor->trx_if_known, 0);
 		}

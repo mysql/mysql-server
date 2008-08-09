@@ -1,0 +1,32 @@
+--- mysql-test/extra/binlog_tests/innodb_stat.test.orig	2008-06-10 15:12:02.000000000 +0300
++++ mysql-test/extra/binlog_tests/innodb_stat.test	2008-06-10 15:12:06.000000000 +0300
+@@ -41,6 +41,7 @@
+ 
+ # Test for testable InnoDB status variables. This test
+ # uses previous ones(pages_created, rows_deleted, ...).
++-- replace_regex /51[12]/51_/
+ show status like "Innodb_buffer_pool_pages_total";
+ show status like "Innodb_page_size";
+ show status like "Innodb_rows_deleted";
+--- mysql-test/suite/binlog/r/binlog_row_innodb_stat.result.orig	2008-06-10 15:29:44.000000000 +0300
++++ mysql-test/suite/binlog/r/binlog_row_innodb_stat.result	2008-06-10 15:30:04.000000000 +0300
+@@ -24,7 +24,7 @@
+ drop table t1;
+ show status like "Innodb_buffer_pool_pages_total";
+ Variable_name	Value
+-Innodb_buffer_pool_pages_total	512
++Innodb_buffer_pool_pages_total	51_
+ show status like "Innodb_page_size";
+ Variable_name	Value
+ Innodb_page_size	16384
+--- mysql-test/suite/binlog/r/binlog_stm_innodb_stat.result.orig	2008-06-10 15:33:43.000000000 +0300
++++ mysql-test/suite/binlog/r/binlog_stm_innodb_stat.result	2008-06-10 15:33:55.000000000 +0300
+@@ -24,7 +24,7 @@
+ drop table t1;
+ show status like "Innodb_buffer_pool_pages_total";
+ Variable_name	Value
+-Innodb_buffer_pool_pages_total	512
++Innodb_buffer_pool_pages_total	51_
+ show status like "Innodb_page_size";
+ Variable_name	Value
+ Innodb_page_size	16384

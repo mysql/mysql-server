@@ -54,6 +54,15 @@ btr_search_info_create(
 /*===================*/
 				/* out, own: search info struct */
 	mem_heap_t*	heap);	/* in: heap where created */
+/*********************************************************************
+Returns the value of ref_count. The value is protected by
+btr_search_latch. */
+UNIV_INTERN
+ulint
+btr_search_info_get_ref_count(
+/*==========================*/
+				/* out: ref_count value. */
+	btr_search_t*   info);	/* in: search info. */
 /*************************************************************************
 Updates the search info. */
 UNIV_INLINE
@@ -162,6 +171,13 @@ extern ibool btr_search_disabled;
 /* The search info struct in an index */
 
 struct btr_search_struct{
+	ulint	ref_count;	/* Number of blocks in this index tree
+				that have search index built
+				i.e. block->index points to this index.
+				Protected by btr_search_latch except
+				when during initialization in
+				btr_search_info_create(). */
+
 	/* The following fields are not protected by any latch.
 	Unfortunately, this means that they must be aligned to
 	the machine word, i.e., they cannot be turned into bit-fields. */

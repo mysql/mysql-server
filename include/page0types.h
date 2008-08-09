@@ -77,21 +77,6 @@ typedef struct page_zip_stat_struct page_zip_stat_t;
 extern page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
 
 /**************************************************************************
-Write data to the compressed page.  The data must already be written to
-the uncompressed page. */
-UNIV_INTERN
-void
-page_zip_write(
-/*===========*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	rec,	/* in: record whose data is being written */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	lint		offset,	/* in: start address of the block,
-				relative to rec */
-	ulint		length)	/* in: length of the data */
-	__attribute__((nonnull));
-
-/**************************************************************************
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
 UNIV_INTERN

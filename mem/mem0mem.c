@@ -330,40 +330,33 @@ mem_heap_create_block(
 	}
 
 	/* In dynamic allocation, calculate the size: block header + data. */
+	len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
 
-	if (type == MEM_HEAP_DYNAMIC) {
+	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
 
-		len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
+		ut_ad(type == MEM_HEAP_DYNAMIC || n <= MEM_MAX_ALLOC_IN_BUF);
+
 		block = mem_area_alloc(&len, mem_comm_pool);
 	} else {
-		ut_ad(n <= MEM_MAX_ALLOC_IN_BUF);
+		len = UNIV_PAGE_SIZE;
 
-		len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
+		if ((type & MEM_HEAP_BTR_SEARCH) && heap) {
+			/* We cannot allocate the block from the
+			buffer pool, but must get the free block from
+			the heap header free block field */
 
-		if (len < UNIV_PAGE_SIZE / 2) {
+			buf_block = heap->free_block;
+			heap->free_block = NULL;
 
-			block = mem_area_alloc(&len, mem_comm_pool);
-		} else {
-			len = UNIV_PAGE_SIZE;
+			if (UNIV_UNLIKELY(!buf_block)) {
 
-			if ((type & MEM_HEAP_BTR_SEARCH) && heap) {
-				/* We cannot allocate the block from the
-				buffer pool, but must get the free block from
-				the heap header free block field */
-
-				buf_block = heap->free_block;
-				heap->free_block = NULL;
-
-				if (UNIV_UNLIKELY(!buf_block)) {
-
-					return(NULL);
-				}
-			} else {
-				buf_block = buf_block_alloc(0);
+				return(NULL);
 			}
-
-			block = (mem_block_t*) buf_block->frame;
+		} else {
+			buf_block = buf_block_alloc(0);
 		}
+
+		block = (mem_block_t*) buf_block->frame;
 	}
 
 	ut_ad(block);
@@ -492,19 +485,14 @@ mem_heap_block_free(
 	UNIV_MEM_ASSERT_AND_FREE(block, len);
 #endif /* UNIV_MEM_DEBUG */
 
-	if (type == MEM_HEAP_DYNAMIC) {
+	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
 
 		ut_ad(!buf_block);
 		mem_area_free(block, mem_comm_pool);
 	} else {
 		ut_ad(type & MEM_HEAP_BUFFER);
 
-		if (len >= UNIV_PAGE_SIZE / 2) {
-			buf_block_free(buf_block);
-		} else {
-			ut_ad(!buf_block);
-			mem_area_free(block, mem_comm_pool);
-		}
+		buf_block_free(buf_block);
 	}
 }
 
