@@ -2214,8 +2214,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
     selfptr->m_next_buffer = seize_buffer(rep, self, false);
   }
 
-  // wl4391_todo
-  if (true || w->m_pending_signals >= MAX_SIGNALS_BEFORE_FLUSH)
+  if (w->m_pending_signals >= MAX_SIGNALS_BEFORE_FLUSH)
     flush_write_state(dst, q, w);
 }
 
