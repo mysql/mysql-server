@@ -1687,6 +1687,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   /** Item is a argument to a limit clause. */
   bool limit_clause_param;
+  void set_param_type_and_swap_value(Item_param *from);
 };
 
 

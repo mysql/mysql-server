@@ -43,6 +43,8 @@ static DYNAMIC_STRING ds_args;
 static char *opt_password= 0;
 static my_bool tty_password= 0;
 
+static char opt_tmpdir[FN_REFLEN];
+
 #ifndef DBUG_OFF
 static char *default_dbug_option= (char*) "d:t:O,/tmp/mysql_upgrade.trace";
 #endif
@@ -112,6 +114,8 @@ static struct my_option my_long_options[]=
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"socket", 'S', "Socket file to use for connection.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"tmpdir", 't', "Directory for temporary files",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login if not current user.", (uchar**) &opt_user,
    (uchar**) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -237,6 +241,11 @@ get_one_option(int optid, const struct my_option *opt,
         *argument++= 'x';                       /* Destroy argument */
       tty_password= 0;
     }
+    break;
+
+  case 't':
+    strnmov(opt_tmpdir, argument, sizeof(opt_tmpdir));
+    add_option= FALSE;
     break;
 
   case 'b': /* --basedir   */
@@ -460,7 +469,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
   char query_file_path[FN_REFLEN];
   DBUG_ENTER("run_query");
   DBUG_PRINT("enter", ("query: %s", query));
-  if ((fd= create_temp_file(query_file_path, NULL,
+  if ((fd= create_temp_file(query_file_path, opt_tmpdir,
                             "sql", O_CREAT | O_SHARE | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for defaults");

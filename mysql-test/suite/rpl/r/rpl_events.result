@@ -23,17 +23,11 @@ SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name 
 db	name	status	originator
 test	justonce	ENABLED	1
 "Checking event data on the master"
-SELECT * FROM t1 ORDER BY id;
-id	c	ts
-1	manually	TIMESTAMP
-2	from justonce	TIMESTAMP
-affected rows: 2
+ONE
+1
 "Checking event data on the slave"
-SELECT * FROM t1 ORDER BY id;
-id	c	ts
-1	manually	TIMESTAMP
-2	from justonce	TIMESTAMP
-affected rows: 2
+ZERO
+0
 "Checking event is inactive on slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 db	name	status	originator
@@ -118,17 +112,11 @@ SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name 
 db	name	status	originator
 test	justonce	ENABLED	1
 "Checking event data on the master"
-SELECT * FROM t1 ORDER BY id;
-id	c	ts
-1	manually	TIMESTAMP
-2	from justonce	TIMESTAMP
-affected rows: 2
+ONE
+1
 "Checking event data on the slave"
-SELECT * FROM t1 ORDER BY id;
-id	c	ts
-1	manually	TIMESTAMP
-2	from justonce	TIMESTAMP
-affected rows: 2
+ZERO
+0
 "Checking event is inactive on slave"
 SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
 db	name	status	originator

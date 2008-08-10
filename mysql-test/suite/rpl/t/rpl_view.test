@@ -164,4 +164,22 @@ DROP VIEW v1;
 DROP TABLE t1;
 sync_slave_with_master;
 
+#
+# Bug#32575 Parse error of stmt with extended comments on slave side
+# Verify that 'CREATE VIEW' with comments is properly logged to binlog
+connection master;
+CREATE TABLE t1 (a INT);
+--echo # create view as output from mysqldump 10.11 (5.0.62)
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` < 3) */
+/*!50002 WITH CASCADED CHECK OPTION */;
+SHOW CREATE VIEW v1;
+sync_slave_with_master;
+SHOW CREATE VIEW v1;
+connection master;
+DROP VIEW v1;
+DROP TABLE t1;
+sync_slave_with_master;
+
 --echo End of 5.0 tests
