@@ -100,17 +100,6 @@ else
 }
 
 
-sub _process_alive {
-  my ($pid)= @_;
-
-  return kill(0, $pid) unless IS_WINDOWS;
-
-  my @list= split(/,/, `tasklist /FI "PID eq $pid" /NH /FO CSV`);
-  my $ret_pid= eval($list[1]);
-  return ($ret_pid == $pid);
-}
-
-
 sub new {
   my $class= shift;
 
