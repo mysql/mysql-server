@@ -33,7 +33,7 @@ nobase_test_DATA = lib/mtr_cases.pm \
 	lib/mtr_process.pl \
 	lib/mtr_report.pm \
 	lib/mtr_stress.pl \
-	lib/mtr_unique.pl \
+	lib/mtr_unique.pm \
 	lib/My/ConfigFactory.pm \
 	lib/My/Config.pm \
 	lib/My/Find.pm \
