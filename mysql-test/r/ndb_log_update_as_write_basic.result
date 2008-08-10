@@ -1,8 +1,7 @@
 SET @global_start_value = @@global.ndb_log_update_as_write;
-ERROR HY000: Unknown system variable 'ndb_log_update_as_write'
 SELECT @@global.ndb_log_update_as_write;
-ERROR HY000: Unknown system variable 'ndb_log_update_as_write'
-'Bug: The value is not a system variable or atleast not supported in version 5.1.22'
+@@global.ndb_log_update_as_write
+1
 '#--------------------FN_DYNVARS_102_01------------------------#'
 '#---------------------FN_DYNVARS_102_02-------------------------#'
 '#--------------------FN_DYNVARS_102_03------------------------#'
