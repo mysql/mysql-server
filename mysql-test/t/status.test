@@ -246,7 +246,7 @@ eval select substring_index('$rnd_next2',0x9,-1)-substring_index('$rnd_next',0x9
 # Bug#30252 Com_create_function is not incremented.
 #
 flush status;
-show status like 'Com%function%';
+show status like 'Com%function';
 
 DELIMITER //;
 create function f1 (x INTEGER) returns integer
