@@ -50,6 +50,7 @@ dist-hook:
 		$(distdir)/std_data/ndb_backup_packed \
 		$(distdir)/std_data/parts \
 		$(distdir)/lib \
+                $(distdir)/std_data/funcs_1 \
 		$(distdir)/lib/My
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
@@ -74,6 +75,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(distdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/*.txt $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(distdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(distdir)/std_data/ndb_backup51
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_dd/BACKUP* $(distdir)/std_data/ndb_backup51_dd
@@ -83,6 +85,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_le/BACKUP* $(distdir)/std_data/ndb_backup51_d2_le
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup_packed/BACKUP* $(distdir)/std_data/ndb_backup_packed
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(distdir)/std_data/parts
+	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/* $(distdir)/std_data/funcs_1
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/My/*.pm $(distdir)/lib/My
 	-rm -rf `find $(distdir)/suite -type d -name SCCS` $(distdir)/suite/row_lock
@@ -105,6 +108,7 @@ install-data-local:
 		$(DESTDIR)$(testdir)/std_data/ndb_backup_packed \
 		$(DESTDIR)$(testdir)/std_data/parts \
 		$(DESTDIR)$(testdir)/lib \
+		$(DESTDIR)$(testdir)/std_data/funcs_1 \
 		$(DESTDIR)$(testdir)/lib/My
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
@@ -134,6 +138,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/*.txt $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_dd/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_dd
@@ -143,6 +148,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_d2_le
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup_packed/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup_packed
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(DESTDIR)$(testdir)/std_data/parts
+	$(INSTALL_DATA) $(srcdir)/std_data/funcs_1/* $(DESTDIR)$(testdir)/std_data/funcs_1
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/My/*.pm $(DESTDIR)$(testdir)/lib/My
 	for f in `(cd $(srcdir); find suite -type f | egrep -v 'SCCS|row_lock')`; \

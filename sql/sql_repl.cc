@@ -1100,7 +1100,8 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-  ha_reset_slave(thd);
+  if ((error= ha_reset_slave(thd)))
+    goto err;
 
   // delete relay logs, clear relay log coordinates
   if ((error= purge_relay_logs(&mi->rli, thd,

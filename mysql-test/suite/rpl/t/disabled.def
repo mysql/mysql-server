@@ -10,9 +10,6 @@
 #
 ##############################################################################
 
-rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
-rpl_innodb_bug28430      : Bug #32247 2007-11-27 mats Test reports wrong value of "AUTO_INCREMENT" (on a partitioned InnoDB table)
-rpl_view                   : Bug#32654: rpl_view.test fails randomly
-rpl_ndb_multi              : Bug#30751: rpl_ndb_multi missing row in output
-rpl_log_pos                : Bug#8693 Test 'rpl_log_pos' fails sometimes
 rpl_redirect               : Failure is sporadic and and the test is superfluous (mats)
+rpl_innodb_bug28430        : Failure on Solaris Bug #36793
+rpl_server_id1             : Bug #36818 rpl_server_id1 fails expecting slave has stopped (azundris)

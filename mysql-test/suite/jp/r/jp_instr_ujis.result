@@ -7,7 +7,6 @@ drop table if exists `£Τ£¶`;
 drop table if exists `£Τ£·`;
 drop table if exists `£Τ£Έ`;
 drop table if exists `£Τ£Ή`;
-drop table if exists `£Τ£±£°`;
 SET NAMES ujis;
 SET character_set_database = ujis;
 CREATE TABLE `£Τ£±` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = innodb;
@@ -16,12 +15,9 @@ CREATE TABLE `£Τ£³` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engin
 CREATE TABLE `£Τ£΄` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = myisam;
 CREATE TABLE `£Τ£µ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = myisam;
 CREATE TABLE `£Τ£¶` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = myisam;
-CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = heap;
-CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = heap;
-CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = heap;
-CREATE TABLE `£Τ£±£°` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = bdb;
-CREATE TABLE `£Τ£±£±` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = bdb;
-CREATE TABLE `£Τ£±£²` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = bdb;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
 INSERT INTO `£Τ£±` VALUES ('±²³΄µ');
 INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
 INSERT INTO `£Τ£³` VALUES ('νάνένήνίνΰ');
@@ -31,9 +27,6 @@ INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ');
 INSERT INTO `£Τ£·` VALUES ('±²³΄µ');
 INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
 INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ');
 SELECT INSTR(`£Γ£±`,'±') from `£Τ£±`;
 INSTR(`£Γ£±`,'±')
 1
@@ -196,60 +189,6 @@ INSTR(`£Γ£±`,'νΰ')
 SELECT INSTR(`£Γ£±`,'°΅') from `£Τ£Ή`;
 INSTR(`£Γ£±`,'°΅')
 0
-SELECT INSTR(`£Γ£±`,'±') from `£Τ£±£°`;
-INSTR(`£Γ£±`,'±')
-1
-SELECT INSTR(`£Γ£±`,'²') from `£Τ£±£°`;
-INSTR(`£Γ£±`,'²')
-2
-SELECT INSTR(`£Γ£±`,'³') from `£Τ£±£°`;
-INSTR(`£Γ£±`,'³')
-3
-SELECT INSTR(`£Γ£±`,'΄') from `£Τ£±£°`;
-INSTR(`£Γ£±`,'΄')
-4
-SELECT INSTR(`£Γ£±`,'µ') from `£Τ£±£°`;
-INSTR(`£Γ£±`,'µ')
-5
-SELECT INSTR(`£Γ£±`,'έ') from `£Τ£±£°`;
-INSTR(`£Γ£±`,'έ')
-0
-SELECT INSTR(`£Γ£±`,'¤Ά') from `£Τ£±£±`;
-INSTR(`£Γ£±`,'¤Ά')
-1
-SELECT INSTR(`£Γ£±`,'¤¤') from `£Τ£±£±`;
-INSTR(`£Γ£±`,'¤¤')
-2
-SELECT INSTR(`£Γ£±`,'¤¦') from `£Τ£±£±`;
-INSTR(`£Γ£±`,'¤¦')
-3
-SELECT INSTR(`£Γ£±`,'¤¨') from `£Τ£±£±`;
-INSTR(`£Γ£±`,'¤¨')
-4
-SELECT INSTR(`£Γ£±`,'¤ª') from `£Τ£±£±`;
-INSTR(`£Γ£±`,'¤ª')
-5
-SELECT INSTR(`£Γ£±`,'¤σ') from `£Τ£±£±`;
-INSTR(`£Γ£±`,'¤σ')
-0
-SELECT INSTR(`£Γ£±`,'νά') from `£Τ£±£²`;
-INSTR(`£Γ£±`,'νά')
-1
-SELECT INSTR(`£Γ£±`,'νέ') from `£Τ£±£²`;
-INSTR(`£Γ£±`,'νέ')
-2
-SELECT INSTR(`£Γ£±`,'νή') from `£Τ£±£²`;
-INSTR(`£Γ£±`,'νή')
-3
-SELECT INSTR(`£Γ£±`,'νί') from `£Τ£±£²`;
-INSTR(`£Γ£±`,'νί')
-4
-SELECT INSTR(`£Γ£±`,'νΰ') from `£Τ£±£²`;
-INSTR(`£Γ£±`,'νΰ')
-5
-SELECT INSTR(`£Γ£±`,'°΅') from `£Τ£±£²`;
-INSTR(`£Γ£±`,'°΅')
-0
 DROP TABLE `£Τ£±`;
 DROP TABLE `£Τ£²`;
 DROP TABLE `£Τ£³`;
@@ -259,6 +198,3 @@ DROP TABLE `£Τ£¶`;
 DROP TABLE `£Τ£·`;
 DROP TABLE `£Τ£Έ`;
 DROP TABLE `£Τ£Ή`;
-DROP TABLE `£Τ£±£°`;
-DROP TABLE `£Τ£±£±`;
-DROP TABLE `£Τ£±£²`;
