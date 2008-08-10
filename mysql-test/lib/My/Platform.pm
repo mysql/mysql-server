@@ -21,7 +21,7 @@ use strict;
 use base qw(Exporter);
 our @EXPORT= qw(IS_CYGWIN IS_WINDOWS IS_WIN32PERL
 		native_path posix_path mixed_path
-                check_socket_path_length);
+                check_socket_path_length process_alive);
 
 BEGIN {
   if ($^O eq "cygwin") {
@@ -120,6 +120,18 @@ sub check_socket_path_length {
   $sock= undef; # Close socket
   unlink($path); # Remove the physical file
   return $truncated;
+}
+
+
+sub process_alive {
+  my ($pid)= @_;
+  die "usage: process_alive(pid)" unless $pid;
+
+  return kill(0, $pid) unless IS_WINDOWS;
+
+  my @list= split(/,/, `tasklist /FI "PID eq $pid" /NH /FO CSV`);
+  my $ret_pid= eval($list[1]);
+  return ($ret_pid == $pid);
 }
 
 
