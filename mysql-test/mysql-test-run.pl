@@ -1181,7 +1181,7 @@ sub set_build_thread_ports($) {
 
   if ( lc($build_thread) eq 'auto' ) {
     mtr_report("Requesting build thread... ");
-    $build_thread= mtr_get_unique_id(200, 299);
+    $build_thread= mtr_get_unique_id(250, 299);
     if ( !defined $build_thread ) {
       mtr_error("Could not get a unique build thread id");
     }
