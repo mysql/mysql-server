@@ -932,10 +932,6 @@ public:
     virtual int analyze(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int check(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int repair(THD* thd, HA_CHECK_OPT *check_opt);
-    virtual int optimize_partitions(THD *thd);
-    virtual int analyze_partitions(THD *thd);
-    virtual int check_partitions(THD *thd);
-    virtual int repair_partitions(THD *thd);
 
     private:
     int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,

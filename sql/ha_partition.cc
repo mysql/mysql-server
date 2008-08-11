@@ -841,6 +841,9 @@ int ha_partition::rename_partitions(const char *path)
 #define CHECK_PARTS   3
 #define REPAIR_PARTS 4
 
+static const char *opt_op_name[]= {NULL,
+                                   "optimize", "analyze", "check", "repair" };
+
 /*
   Optimize table
 
@@ -858,8 +861,10 @@ int ha_partition::optimize(THD *thd, HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("ha_partition::optimize");
 
-  DBUG_RETURN(handle_opt_partitions(thd, &thd->lex->check_opt, 
-                                    OPTIMIZE_PARTS, TRUE));
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, 
+                                    OPTIMIZE_PARTS,
+                                    thd->lex->alter_info.flags &
+                                    ALTER_OPTIMIZE_PARTITION ? FALSE : TRUE));
 }
 
 
@@ -880,8 +885,10 @@ int ha_partition::analyze(THD *thd, HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("ha_partition::analyze");
 
-  DBUG_RETURN(handle_opt_partitions(thd, &thd->lex->check_opt, 
-                                    ANALYZE_PARTS, TRUE));
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, 
+                                    ANALYZE_PARTS,
+                                    thd->lex->alter_info.flags &
+                                    ALTER_ANALYZE_PARTITION ? FALSE : TRUE));
 }
 
 
@@ -902,8 +909,10 @@ int ha_partition::check(THD *thd, HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("ha_partition::check");
 
-  DBUG_RETURN(handle_opt_partitions(thd, &thd->lex->check_opt, 
-                                    CHECK_PARTS, TRUE));
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, 
+                                    CHECK_PARTS,
+                                    thd->lex->alter_info.flags &
+                                    ALTER_CHECK_PARTITION ? FALSE : TRUE));
 }
 
 
@@ -924,94 +933,11 @@ int ha_partition::repair(THD *thd, HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("ha_partition::repair");
 
-  DBUG_RETURN(handle_opt_partitions(thd, &thd->lex->check_opt, 
-                                    REPAIR_PARTS, TRUE));
+  DBUG_RETURN(handle_opt_partitions(thd, check_opt, 
+                                    REPAIR_PARTS,
+                                    thd->lex->alter_info.flags &
+                                    ALTER_REPAIR_PARTITION ? FALSE : TRUE));
 }
-
-/*
-  Optimize partitions
-
-  SYNOPSIS
-    optimize_partitions()
-    thd                   Thread object
-  RETURN VALUE
-    >0                        Failure
-    0                         Success
-  DESCRIPTION
-    Call optimize on each partition marked with partition state PART_CHANGED
-*/
-
-int ha_partition::optimize_partitions(THD *thd)
-{
-  DBUG_ENTER("ha_partition::optimize_partitions");
-
-  DBUG_RETURN(handle_opt_partitions(thd, &thd->lex->check_opt, 
-                                    OPTIMIZE_PARTS, FALSE));
-}
-
-/*
-  Analyze partitions
-
-  SYNOPSIS
-    analyze_partitions()
-    thd                   Thread object
-  RETURN VALUE
-    >0                        Failure
-    0                         Success
-  DESCRIPTION
-    Call analyze on each partition marked with partition state PART_CHANGED
-*/
-
-int ha_partition::analyze_partitions(THD *thd)
-{
-  DBUG_ENTER("ha_partition::analyze_partitions");
-
-  DBUG_RETURN(handle_opt_partitions(thd, &thd->lex->check_opt, 
-                                    ANALYZE_PARTS, FALSE));
-}
-
-/*
-  Check partitions
-
-  SYNOPSIS
-    check_partitions()
-    thd                   Thread object
-  RETURN VALUE
-    >0                        Failure
-    0                         Success
-  DESCRIPTION
-    Call check on each partition marked with partition state PART_CHANGED
-*/
-
-int ha_partition::check_partitions(THD *thd)
-{
-  DBUG_ENTER("ha_partition::check_partitions");
-
-  DBUG_RETURN(handle_opt_partitions(thd, &thd->lex->check_opt, 
-                                    CHECK_PARTS, FALSE));
-}
-
-/*
-  Repair partitions
-
-  SYNOPSIS
-    repair_partitions()
-    thd                   Thread object
-  RETURN VALUE
-    >0                        Failure
-    0                         Success
-  DESCRIPTION
-    Call repair on each partition marked with partition state PART_CHANGED
-*/
-
-int ha_partition::repair_partitions(THD *thd)
-{
-  DBUG_ENTER("ha_partition::repair_partitions");
-
-  DBUG_RETURN(handle_opt_partitions(thd, &thd->lex->check_opt, 
-                                    REPAIR_PARTS, FALSE));
-}
-
 
 /*
   Handle optimize/analyze/check/repair of one partition
@@ -1028,19 +954,12 @@ int ha_partition::repair_partitions(THD *thd)
     0                         Success
 */
 
-#ifdef WL4176_IS_DONE
 static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
                            handler *file, uint flag)
 {
   int error;
   DBUG_ENTER("handle_opt_part");
   DBUG_PRINT("enter", ("flag = %u", flag));
-
-  /*
-    TODO:
-    Rewrite the code for ANALYZE/CHECK/OPTIMIZE/REPAIR PARTITION WL4176
-  */
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 
   if (flag == OPTIMIZE_PARTS)
     error= file->ha_optimize(thd, check_opt);
@@ -1059,7 +978,59 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
     error= 0;
   DBUG_RETURN(error);
 }
-#endif
+
+
+/*
+   print a message row formatted for ANALYZE/CHECK/OPTIMIZE/REPAIR TABLE 
+   (modelled after mi_check_print_msg)
+   TODO: move this into the handler, or rewrite mysql_admin_table.
+*/
+static bool print_admin_msg(THD* thd, const char* msg_type,
+                            const char* db_name, const char* table_name,
+                            const char* op_name, const char *fmt, ...)
+{
+  va_list args;
+  Protocol *protocol= thd->protocol;
+  uint length, msg_length;
+  char msgbuf[MI_MAX_MSG_BUF];
+  char name[NAME_LEN*2+2];
+
+  va_start(args, fmt);
+  msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
+  va_end(args);
+  msgbuf[sizeof(msgbuf) - 1] = 0; // healthy paranoia
+
+
+  if (!thd->vio_ok())
+  {
+    sql_print_error(msgbuf);
+    return TRUE;
+  }
+
+  length=(uint) (strxmov(name, db_name, ".", table_name,NullS) - name);
+  /*
+     TODO: switch from protocol to push_warning here. The main reason we didn't
+     it yet is parallel repair. Due to following trace:
+     mi_check_print_msg/push_warning/sql_alloc/my_pthread_getspecific_ptr.
+
+     Also we likely need to lock mutex here (in both cases with protocol and
+     push_warning).
+  */
+  DBUG_PRINT("info",("print_admin_msg:  %s, %s, %s, %s", name, op_name,
+                     msg_type, msgbuf));
+  protocol->prepare_for_resend();
+  protocol->store(name, length, system_charset_info);
+  protocol->store(op_name, system_charset_info);
+  protocol->store(msg_type, system_charset_info);
+  protocol->store(msgbuf, msg_length, system_charset_info);
+  if (protocol->write())
+  {
+    sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
+                    msgbuf);
+    return TRUE;
+  }
+  return FALSE;
+}
 
 
 /*
@@ -1080,54 +1051,88 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
 int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                                         uint flag, bool all_parts)
 {
-#ifdef WL4176_IS_DONE
   List_iterator<partition_element> part_it(m_part_info->partitions);
   uint no_parts= m_part_info->no_parts;
   uint no_subparts= m_part_info->no_subparts;
   uint i= 0;
   int error;
-#endif
   DBUG_ENTER("ha_partition::handle_opt_partitions");
   DBUG_PRINT("enter", ("all_parts %u, flag= %u", all_parts, flag));
 
-  /*
-    TODO:
-    Rewrite the code for ANALYZE/CHECK/OPTIMIZE/REPAIR PARTITION WL4176
-  */
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-#ifdef WL4176_IS_DONE
   do
   {
     partition_element *part_elem= part_it++;
-    if (all_parts || part_elem->part_state == PART_CHANGED)
+    /*
+      when ALTER TABLE <CMD> PARTITION ...
+      it should only do named partitions, otherwise all partitions
+    */
+    if (all_parts ||
+        part_elem->part_state == PART_CHANGED)
     {
       if (m_is_sub_partitioned)
       {
+        List_iterator<partition_element> subpart_it(part_elem->subpartitions);
+        partition_element *sub_elem;
         uint j= 0, part;
         do
         {
+          sub_elem= subpart_it++;
           part= i * no_subparts + j;
-          DBUG_PRINT("info", ("Optimize subpartition %u",
-                     part));
+          DBUG_PRINT("info", ("Optimize subpartition %u (%s)",
+                     part, sub_elem->partition_name));
+#ifdef NOT_USED
+          if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
+                          opt_op_name[flag],
+                          "Start to operate on subpartition %s", 
+                          sub_elem->partition_name))
+            DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
+#endif
           if ((error= handle_opt_part(thd, check_opt, m_file[part], flag)))
           {
+            /* print a line which partition the error belongs to */
+            if (error != HA_ADMIN_NOT_IMPLEMENTED &&
+                error != HA_ADMIN_ALREADY_DONE &&
+                error != HA_ADMIN_TRY_ALTER)
+            {
+              print_admin_msg(thd, "error", table_share->db.str, table->alias,
+                              opt_op_name[flag],
+                              "Subpartition %s returned error", 
+                              sub_elem->partition_name);
+            }
             DBUG_RETURN(error);
           }
         } while (++j < no_subparts);
       }
       else
       {
-        DBUG_PRINT("info", ("Optimize partition %u", i));
+        DBUG_PRINT("info", ("Optimize partition %u (%s)", i,
+                            part_elem->partition_name));
+#ifdef NOT_USED
+        if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
+                        opt_op_name[flag],
+                        "Start to operate on partition %s", 
+                        part_elem->partition_name))
+          DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
+#endif
         if ((error= handle_opt_part(thd, check_opt, m_file[i], flag)))
         {
+          /* print a line which partition the error belongs to */
+          if (error != HA_ADMIN_NOT_IMPLEMENTED &&
+              error != HA_ADMIN_ALREADY_DONE &&
+              error != HA_ADMIN_TRY_ALTER)
+          {
+            print_admin_msg(thd, "error", table_share->db.str, table->alias,
+                            opt_op_name[flag], "Partition %s returned error", 
+                            part_elem->partition_name);
+          }
           DBUG_RETURN(error);
         }
       }
     }
   } while (++i < no_parts);
   DBUG_RETURN(FALSE);
-#endif
 }
+
 
 /*
   Prepare by creating a new partition

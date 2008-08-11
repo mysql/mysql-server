@@ -1338,7 +1338,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   if (splits != info->s->state.split)
   {
     mi_check_print_warning(param,
-			   "Found %10s parts                Should be: %s parts",
+			   "Found %10s key parts. Should be: %s",
 			   llstr(splits,llbuff),
 			   llstr(info->s->state.split,llbuff2));
   }
