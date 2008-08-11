@@ -22,6 +22,7 @@
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <NdbEnv.h>
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
@@ -844,6 +845,82 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
     ctx->broadcast();
   }
   
+end:
+  if(pCreate)
+  {
+    if (GETNDB(step)->dropEventOperation(pCreate)) {
+      g_err << "dropEventOperation execution failed "
+	    << GETNDB(step)->getNdbError().code << " "
+	    << GETNDB(step)->getNdbError().message << endl;
+      result = NDBT_FAILED;
+    }
+  }
+  ctx->stopTest();
+  DBUG_RETURN(result);
+}
+
+int runEventConsumer(NDBT_Context* ctx, NDBT_Step* step)
+{
+  DBUG_ENTER("runEventConsumer");
+  int result = NDBT_OK;
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp, *pCreate = 0;
+  pCreate = pOp = GETNDB(step)->createEventOperation(buf);
+  if ( pOp == NULL ) {
+    g_err << "Event operation creation failed on %s" << buf << endl;
+    DBUG_RETURN(NDBT_FAILED);
+  }
+  bool merge_events = ctx->getProperty("MergeEvents");
+  pOp->mergeEvents(merge_events);
+
+  int i;
+  int n_columns= table->getNoOfColumns();
+  NdbRecAttr* recAttr[1024];
+  NdbRecAttr* recAttrPre[1024];
+  for (i = 0; i < n_columns; i++) {
+    recAttr[i]    = pOp->getValue(table->getColumn(i)->getName());
+    recAttrPre[i] = pOp->getPreValue(table->getColumn(i)->getName());
+  }
+
+  if (pOp->execute()) { // This starts changes to "start flowing"
+    g_err << "execute operation execution failed: \n";
+    g_err << pOp->getNdbError().code << " "
+	  << pOp->getNdbError().message << endl;
+    result = NDBT_FAILED;
+    goto end;
+  }
+
+  ctx->setProperty("LastGCI_hi", ~(Uint32)0);
+  ctx->broadcast();
+
+  while(!ctx->isTestStopped())
+  {
+    int count= 0;
+    Ndb* ndb= GETNDB(step);
+
+    Uint64 last_gci = 0;
+    while(!ctx->isTestStopped())
+    {
+      Uint32 count = 0;
+      Uint64 curr_gci;
+      ndb->pollEvents(100, &curr_gci);
+      if (curr_gci != last_gci)
+      {
+        while ((pOp= ndb->nextEvent()) != 0)
+        {
+          count++;
+        }
+        last_gci = curr_gci;
+      }
+      ndbout_c("Consumed gci: %u/%u, %d events",
+               Uint32(last_gci >> 32), Uint32(last_gci), count);
+    }
+  }
+
 end:
   if(pCreate)
   {
@@ -1742,6 +1819,17 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
   
+  return NDBT_OK;
+}
+
+int
+runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int records = ctx->getNumRecords();
+  HugoTransactions hugoTrans(*ctx->getTab());
+  if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+    return NDBT_FAILED;
+  }
   return NDBT_OK;
 }
 
@@ -3039,6 +3127,83 @@ runBug37672(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int
+runBug30780(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  const int cases = 4;
+  int loops = ctx->getNumLoops();
+  if (loops <= cases)
+    loops = cases + 1;
+  for (int i = 0; i<loops; i++)
+  {
+    int master = res.getMasterNodeId();
+    int next = res.getNextMasterNodeId(master);
+
+    res.insertErrorInNode(next, 8064);
+    int val1[] = { 7213, 0 };
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (res.dumpStateOneNode(master, val2, 2))
+      return NDBT_FAILED;
+
+    int c = i % cases;
+    {
+      char buf[100];
+      const char * off = NdbEnv_GetEnv("NDB_ERR", buf, sizeof(buf));
+      if (off)
+      {
+        c = atoi(off);
+      }
+    }
+    switch(c){
+    case 0:
+      ndbout_c("stopping %u", master);
+      res.restartOneDbNode(master,
+                           /** initial */ false,
+                           /** nostart */ true,
+                           /** abort   */ true);
+      break;
+    case 1:
+      ndbout_c("stopping %u, err 7213", master);
+      val1[0] = 7213;
+      val1[1] = master;
+      res.dumpStateOneNode(next, val1, 2);
+      break;
+    case 2:
+      ndbout_c("stopping %u, err 7214", master);
+      val1[0] = 7214;
+      val1[1] = master;
+      res.dumpStateOneNode(next, val1, 2);
+      break;
+    case 3:
+      ndbout_c("stopping %u, err 7007", master);
+      res.insertErrorInNode(master, 7007);
+      break;
+    }
+    ndbout_c("waiting for %u", master);
+    res.waitNodesNoStart(&master, 1);
+    ndbout_c("starting %u", master);
+    res.startNodes(&master, 1);
+    ndbout_c("waiting for cluster started");
+    if (res.waitClusterStarted())
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -3233,6 +3398,15 @@ TESTCASE("Bug37442", "")
 TESTCASE("Bug37672", "NdbRecord option OO_ANYVALUE causes interpreted delete to abort.")
 {
   INITIALIZER(runBug37672);
+}
+TESTCASE("Bug30780", "")
+{
+  INITIALIZER(runCreateEvent);
+  INITIALIZER(runLoadTable);
+  STEP(runEventConsumer);
+  STEPS(runScanUpdateUntilStopped, 3);
+  STEP(runBug30780);
+  FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);
 
