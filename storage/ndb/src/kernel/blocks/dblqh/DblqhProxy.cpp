@@ -45,6 +45,11 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_LCP_FRAG_ORD
   addRecSignal(GSN_LCP_FRAG_ORD, &DblqhProxy::execLCP_FRAG_ORD);
   addRecSignal(GSN_LCP_COMPLETE_REP, &DblqhProxy::execLCP_COMPLETE_REP);
+
+  // GSN_GCP_SAVEREQ
+  addRecSignal(GSN_GCP_SAVEREQ, &DblqhProxy::execGCP_SAVEREQ);
+  addRecSignal(GSN_GCP_SAVECONF, &DblqhProxy::execGCP_SAVECONF);
+  addRecSignal(GSN_GCP_SAVEREF, &DblqhProxy::execGCP_SAVEREF);
 }
 
 DblqhProxy::~DblqhProxy()
@@ -489,6 +494,84 @@ DblqhProxy::sendLCP_COMPLETE_REP(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_LCP_COMPLETE_ORD>(ssId);
+}
+
+// GSN_GCP_SAVEREQ
+
+void
+DblqhProxy::execGCP_SAVEREQ(Signal* signal)
+{
+  const GCPSaveReq* req = (const GCPSaveReq*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_GCP_SAVEREQ& ss = ssSeize<Ss_GCP_SAVEREQ>(ssId);
+  ss.m_req = *req;
+  sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::sendGCP_SAVEREQ(Signal* signal, Uint32 ssId)
+{
+  Ss_GCP_SAVEREQ& ss = ssFind<Ss_GCP_SAVEREQ>(ssId);
+
+  GCPSaveReq* req = (GCPSaveReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+
+  req->dihBlockRef = reference();
+  req->dihPtr = ss.m_worker;
+  sendSignal(workerRef(ss.m_worker), GSN_GCP_SAVEREQ,
+             signal, GCPSaveReq::SignalLength, JBB);
+}
+
+void
+DblqhProxy::execGCP_SAVECONF(Signal* signal)
+{
+  const GCPSaveConf* conf = (const GCPSaveConf*)signal->getDataPtr();
+  Uint32 ssId = getSsId(conf);
+  Ss_GCP_SAVEREQ& ss = ssFind<Ss_GCP_SAVEREQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::execGCP_SAVEREF(Signal* signal)
+{
+  const GCPSaveRef* ref = (const GCPSaveRef*)signal->getDataPtr();
+  Uint32 ssId = getSsId(ref);
+  Ss_GCP_SAVEREQ& ss = ssFind<Ss_GCP_SAVEREQ>(ssId);
+
+  if (ss.m_error != 0) {
+    // wl4391_todo check
+    ndbrequire(ss.m_error == ref->errorCode);
+  }
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+DblqhProxy::sendGCP_SAVECONF(Signal* signal, Uint32 ssId)
+{
+  Ss_GCP_SAVEREQ& ss = ssFind<Ss_GCP_SAVEREQ>(ssId);
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    GCPSaveConf* conf = (GCPSaveConf*)signal->getDataPtrSend();
+    conf->dihPtr = ss.m_req.dihPtr;
+    conf->nodeId = getOwnNodeId();
+    conf->gci = ss.m_req.gci;
+    sendSignal(ss.m_req.dihBlockRef, GSN_GCP_SAVECONF,
+               signal, GCPSaveConf::SignalLength, JBB);
+  } else {
+    jam();
+    GCPSaveRef* ref = (GCPSaveRef*)signal->getDataPtrSend();
+    ref->dihPtr = ss.m_req.dihPtr;
+    ref->nodeId = getOwnNodeId();
+    ref->gci = ss.m_req.gci;
+    ref->errorCode = ss.m_error;
+    sendSignal(ss.m_req.dihBlockRef, GSN_GCP_SAVEREF,
+               signal, GCPSaveRef::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_GCP_SAVEREQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(DblqhProxy)
