@@ -68,15 +68,19 @@ struct GlobalData {
   Uint32     sendPackedActivated;
   Uint32     activateSendPacked;
 
-  Uint32     ndbmtWorkers;
-  Uint32     ndbmtThreads;
+  bool       isNdbMt;    // ndbd multithreaded, no workers
+  bool       isNdbMtLqh; // ndbd multithreaded, LQH workers
+  Uint32     ndbMtLqhWorkers;
+  Uint32     ndbMtLqhThreads;
   
   GlobalData(){ 
     theSignalId = 0; 
     theStartLevel = NodeState::SL_NOTHING;
     theRestartFlag = perform_start;
-    ndbmtWorkers = 0;
-    ndbmtThreads = 0;
+    isNdbMt = false;
+    isNdbMtLqh = false;
+    ndbMtLqhWorkers = 0;
+    ndbMtLqhThreads = 0;
 #ifdef GCP_TIMER_HACK
     gcp_timer_limit = 0;
 #endif

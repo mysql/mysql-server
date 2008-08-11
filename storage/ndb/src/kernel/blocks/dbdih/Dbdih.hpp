@@ -1779,10 +1779,11 @@ public:
   Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
-    Uint32 instanceKey = 1 + log_part_id % MAX_NDBMT_WORKERS;
+    Uint32 instanceKey = 1 + log_part_id % MAX_NDBMT_LQH_WORKERS;
     return instanceKey;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
+  Uint32 dihGetLogPartId(Uint32 tabId, Uint32 fragId);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

@@ -202,13 +202,7 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
   const Uint32 secCount = header->m_noOfSections;
   const Uint32 length = header->theLength;
 
-  /*
-   * Strip instance bits if not multithreaded.  This is also
-   * done in versions prior to MT LQH, to simplify online upgrade.
-   */
-#ifndef NDBD_MULTITHREADED
-  header->theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
-#endif
+  // if this node is not MT LQH then instance bits are stripped at execute
 
 #ifdef TRACE_DISTRIBUTED
   ndbout_c("recv: %s(%d) from (%s, %d)",

@@ -38,7 +38,7 @@ public:
   BLOCK_DEFINES(LocalProxy);
 
 protected:
-  enum { MaxWorkers = MAX_NDBMT_WORKERS };
+  enum { MaxWorkers = MAX_NDBMT_LQH_WORKERS };
   Uint32 c_workers;
   Uint32 c_threads;
   SimulatedBlock* c_worker[MaxWorkers];
