@@ -5,7 +5,7 @@ Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5051
 Next DBDICT 6008
-Next DBDIH 7211
+Next DBDIH 7215
 Next DBTC 8064
 Next CMVMI 9000
 Next BACKUP 10041
@@ -182,6 +182,9 @@ And crash when all have "not" been sent
 7191: Crash when receiving LCP_COMPLETE_REP
 7192: Crash in setLcpActiveStatusStart - when dead node missed to LCP's
 
+7213: in GCP_COMMIT Kill specified node and self, stop processing
+7214: in GCP_TCFINISHED kill specified node
+     
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
 
