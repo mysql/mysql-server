@@ -88,7 +88,8 @@ sub mtr_get_unique_id($$) {
     msg("taken: $id, $pid");
     # Check if process with given pid is alive
     if(!process_alive($pid)) {
-      msg("Removing slot $id used by missing process $pid");;
+      print "Removing slot $id used by missing process $pid\n";
+      msg("Removing slot $id used by missing process $pid");
       delete $taken{$id};
       $changed++;
     }
