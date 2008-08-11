@@ -446,7 +446,7 @@ sp_head::operator new(size_t size) throw()
   init_sql_alloc(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   sp= (sp_head *) alloc_root(&own_root, size);
   if (sp == NULL)
-    return NULL;
+    DBUG_RETURN(NULL);
   sp->main_mem_root= own_root;
   DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
   DBUG_RETURN(sp);
