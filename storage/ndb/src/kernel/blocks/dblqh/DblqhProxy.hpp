@@ -24,11 +24,14 @@ public:
   virtual ~DblqhProxy();
   BLOCK_DEFINES(DblqhProxy);
 
+protected:
+  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+
   // GSN_SEND_PACKED
   void execSEND_PACKED(Signal*);
 
-protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  // GSN_NDB_STTOR
+  virtual void callNDB_STTOR(Signal*);
 };
 
 #endif

@@ -589,7 +589,8 @@ Dblqh::define_backup(Signal* signal)
   req->nodes.set(getOwnNodeId());
   req->backupDataLen = ~0;
 
-  sendSignal(BACKUP_REF, GSN_DEFINE_BACKUP_REQ, signal, 
+  BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+  sendSignal(backupRef, GSN_DEFINE_BACKUP_REQ, signal, 
 	     DefineBackupReq::SignalLength, JBB);
 }
 
@@ -708,14 +709,15 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
 
 /* ------- INITIATE ALL RECORDS ------- */
   cownNodeid    = ownNodeId;
-  caccBlockref  = calcAccBlockRef (cownNodeid);
-  ctupBlockref  = calcTupBlockRef (cownNodeid);
-  ctuxBlockref  = calcTuxBlockRef (cownNodeid);
-  cownref       = calcLqhBlockRef (cownNodeid);
+  caccBlockref  = calcInstanceBlockRef(DBACC);
+  ctupBlockref  = calcInstanceBlockRef(DBTUP);
+  ctuxBlockref  = calcInstanceBlockRef(DBTUX);
+  cownref       = calcInstanceBlockRef(DBLQH);
+  ndbassert(cownref == reference());
   for (Ti = 0; Ti < chostFileSize; Ti++) {
     ThostPtr.i = Ti;
     ptrCheckGuard(ThostPtr, chostFileSize, hostRecord);
-    ThostPtr.p->hostLqhBlockRef = calcLqhBlockRef(ThostPtr.i);
+    ThostPtr.p->hostLqhBlockRef = calcInstanceBlockRef(DBLQH, ThostPtr.i);
     ThostPtr.p->hostTcBlockRef  = calcTcBlockRef(ThostPtr.i);
     ThostPtr.p->inPackedList = false;
     ThostPtr.p->noOfPackedWordsLqh = 0;
@@ -974,7 +976,8 @@ void Dblqh::startphase6Lab(Signal* signal)
 void Dblqh::sendNdbSttorryLab(Signal* signal) 
 {
   signal->theData[0] = cownref;
-  sendSignal(NDBCNTR_REF, GSN_NDB_STTORRY, signal, 1, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
+  sendSignal(cntrRef, GSN_NDB_STTORRY, signal, 1, JBB);
   return;
 }//Dblqh::sendNdbSttorryLab()
 
@@ -989,7 +992,8 @@ void Dblqh::sendsttorryLab(Signal* signal)
   signal->theData[3] = ZSTART_PHASE1;
   signal->theData[4] = 4;
   signal->theData[5] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
   return;
 }//Dblqh::sendsttorryLab()
 
@@ -17758,7 +17762,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
   signal->theData[2] = 0;
   signal->theData[3] = retRef;
   signal->theData[4] = retData;
-  sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 5, JBB);
+  sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);
 
   return;
 }//Dblqh::initialiseRecordsLab()

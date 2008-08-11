@@ -247,7 +247,7 @@ void Dbacc::execSTTOR(Signal* signal)
 void Dbacc::ndbrestart1Lab(Signal* signal) 
 {
   cmynodeid = globalData.ownId;
-  cownBlockref = numberToRef(DBACC, cmynodeid);
+  cownBlockref = calcInstanceBlockRef(DBACC);
   czero = 0;
   cminusOne = czero - 1;
   ctest = 0;
@@ -384,7 +384,8 @@ void Dbacc::sttorrysignalLab(Signal* signal)
   /* SIGNAL VERSION NUMBER */
   signal->theData[3] = ZSPH1;
   signal->theData[4] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBACC_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
   /* END OF START PHASES */
   return;
 }//Dbacc::sttorrysignalLab()

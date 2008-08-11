@@ -17,7 +17,8 @@
 #include "LocalProxy.hpp"
 
 LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
-  SimulatedBlock(blockNumber, ctx)
+  SimulatedBlock(blockNumber, ctx),
+  c_nodeList(c_nodePool)
 {
   BLOCK_CONSTRUCTOR(LocalProxy);
 
@@ -30,9 +31,25 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
 
   c_ssIdSeq = 0;
 
+  c_typeOfStart = NodeState::ST_ILLEGAL_TYPE;
+  c_masterNodeId = ZNIL;
+  c_nodePool.setSize(MAX_NDB_NODES);
+
   // GSN_READ_CONFIG_REQ
   addRecSignal(GSN_READ_CONFIG_REQ, &LocalProxy::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_READ_CONFIG_CONF, &LocalProxy::execREAD_CONFIG_CONF, true);
+
+  // GSN_STTOR
+  addRecSignal(GSN_STTOR, &LocalProxy::execSTTOR);
+  addRecSignal(GSN_STTORRY, &LocalProxy::execSTTORRY);
+
+  // GSN_NDB_STTOR
+  addRecSignal(GSN_NDB_STTOR, &LocalProxy::execNDB_STTOR);
+  addRecSignal(GSN_NDB_STTORRY, &LocalProxy::execNDB_STTORRY);
+
+  // GSN_READ_NODESREQ
+  addRecSignal(GSN_READ_NODESCONF, &LocalProxy::execREAD_NODESCONF);
+  addRecSignal(GSN_READ_NODESREF, &LocalProxy::execREAD_NODESREF);
 }
 
 LocalProxy::~LocalProxy()
@@ -228,6 +245,217 @@ LocalProxy::sendREAD_CONFIG_CONF(Signal* signal, Uint32 ssId)
              signal, ReadConfigConf::SignalLength, JBB);
 
   ssRelease<Ss_READ_CONFIG_REQ>(ssId);
+}
+
+// GSN_STTOR
+
+void
+LocalProxy::execSTTOR(Signal* signal)
+{
+  Ss_STTOR& ss = ssSeize<Ss_STTOR>(1);
+
+  const Uint32 startphase  = signal->theData[1];
+  const Uint32 typeOfStart = signal->theData[7];
+
+  if (startphase == 3) {
+    jam();
+    c_typeOfStart = typeOfStart;
+  }
+
+  ss.m_reqlength = signal->getLength();
+  memcpy(ss.m_reqdata, signal->getDataPtr(), ss.m_reqlength << 2);
+
+  callSTTOR(signal);
+}
+
+void
+LocalProxy::callSTTOR(Signal* signal)
+{
+  backSTTOR(signal);
+}
+
+void
+LocalProxy::backSTTOR(Signal* signal)
+{
+  Ss_STTOR& ss = ssFind<Ss_STTOR>(1);
+  sendREQ(signal, ss);
+}
+
+void
+LocalProxy::sendSTTOR(Signal* signal, Uint32 ssId)
+{
+  Ss_STTOR& ss = ssFind<Ss_STTOR>(ssId);
+
+  memcpy(signal->getDataPtrSend(), ss.m_reqdata, ss.m_reqlength << 2);
+  sendSignal(workerRef(ss.m_worker), GSN_STTOR,
+             signal, ss.m_reqlength, JBB);
+}
+
+void
+LocalProxy::execSTTORRY(Signal* signal)
+{
+  Ss_STTOR& ss = ssFind<Ss_STTOR>(1);
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::sendSTTORRY(Signal* signal, Uint32 ssId)
+{
+  Ss_STTOR& ss = ssFind<Ss_STTOR>(ssId);
+
+  const Uint32 conflength = signal->getLength();
+  const Uint32* confdata = signal->getDataPtr();
+
+  // the reply is identical from all
+  if (firstReply(ss)) {
+    ss.m_conflength = conflength;
+    memcpy(ss.m_confdata, confdata, conflength << 2);
+  } else {
+    ndbrequire(ss.m_conflength == conflength);
+    ndbrequire(memcmp(ss.m_confdata, confdata, conflength << 2) == 0);
+  }
+
+  if (!lastReply(ss))
+    return;
+
+  memcpy(signal->getDataPtrSend(), ss.m_confdata, ss.m_conflength << 2);
+  sendSignal(NDBCNTR_REF, GSN_STTORRY,
+             signal, ss.m_conflength, JBB);
+
+  ssRelease<Ss_STTOR>(ssId);
+}
+
+// GSN_NDB_STTOR
+
+void
+LocalProxy::execNDB_STTOR(Signal* signal)
+{
+  Ss_NDB_STTOR& ss = ssSeize<Ss_NDB_STTOR>(1);
+
+  const NdbSttor* req = (const NdbSttor*)signal->getDataPtr();
+  ss.m_req = *req;
+
+  callNDB_STTOR(signal);
+}
+
+void
+LocalProxy::callNDB_STTOR(Signal* signal)
+{
+  backNDB_STTOR(signal);
+}
+
+void
+LocalProxy::backNDB_STTOR(Signal* signal)
+{
+  Ss_NDB_STTOR& ss = ssFind<Ss_NDB_STTOR>(1);
+  sendREQ(signal, ss);
+}
+
+void
+LocalProxy::sendNDB_STTOR(Signal* signal, Uint32 ssId)
+{
+  Ss_NDB_STTOR& ss = ssFind<Ss_NDB_STTOR>(ssId);
+
+  NdbSttor* req = (NdbSttor*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  sendSignal(workerRef(ss.m_worker), GSN_NDB_STTOR,
+             signal, ss.m_reqlength, JBB);
+}
+
+void
+LocalProxy::execNDB_STTORRY(Signal* signal)
+{
+  Ss_NDB_STTOR& ss = ssFind<Ss_NDB_STTOR>(1);
+
+  // the reply contains only senderRef
+  const NdbSttorry* conf = (const NdbSttorry*)signal->getDataPtr();
+  ndbrequire(conf->senderRef == signal->getSendersBlockRef());
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::sendNDB_STTORRY(Signal* signal, Uint32 ssId)
+{
+  Ss_NDB_STTOR& ss = ssFind<Ss_NDB_STTOR>(ssId);
+
+  if (!lastReply(ss))
+    return;
+
+  NdbSttorry* conf = (NdbSttorry*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  sendSignal(NDBCNTR_REF, GSN_NDB_STTORRY,
+             signal, NdbSttorry::SignalLength, JBB);
+
+  ssRelease<Ss_NDB_STTOR>(ssId);
+}
+
+// GSN_READ_NODESREQ
+
+void
+LocalProxy::sendREAD_NODESREQ(Signal* signal)
+{
+  signal->theData[0] = reference();
+  sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
+}
+
+void
+LocalProxy::execREAD_NODESCONF(Signal* signal)
+{
+  Ss_READ_NODES_REQ& ss = c_ss_READ_NODESREQ;
+
+  const ReadNodesConf* conf = (const ReadNodesConf*)signal->getDataPtr();
+
+  ndbrequire(c_nodePool.getNoOfFree() == c_nodePool.getSize());
+  Uint32 count = 0;
+  Uint32 i;
+  for (i = 0; i < MAX_NDB_NODES; i++) {
+    if (NdbNodeBitmask::get(conf->allNodes, i)) {
+      jam();
+      count++;
+
+      NodePtr nodePtr;
+      bool ok = c_nodePool.seize(nodePtr);
+      ndbrequire(ok);
+      new (nodePtr.p) Node;
+
+      nodePtr.p->m_nodeId = i;
+      if (NdbNodeBitmask::get(conf->inactiveNodes, i)) {
+        jam();
+        nodePtr.p->m_alive = false;
+      } else {
+        jam();
+        nodePtr.p->m_alive = true;
+      }
+
+      c_nodeList.addLast(nodePtr);
+    }
+  }
+  ndbrequire(count != 0 && count == conf->noOfNodes);
+
+  c_masterNodeId = conf->masterNodeId;
+
+  switch (ss.m_gsn) {
+  case GSN_STTOR:
+    backSTTOR(signal);
+    break;
+  case GSN_NDB_STTOR:
+    backNDB_STTOR(signal);
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  ss.m_gsn = 0;
+}
+
+void
+LocalProxy::execREAD_NODESREF(Signal* signal)
+{
+  Ss_READ_NODES_REQ& ss = c_ss_READ_NODESREQ;
+  ndbrequire(ss.m_gsn != 0);
+  ndbrequire(false);
 }
 
 BLOCK_FUNCTIONS(LocalProxy)
