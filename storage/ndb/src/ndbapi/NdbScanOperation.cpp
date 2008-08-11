@@ -54,6 +54,7 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_executed = false;
   m_scan_buffer= NULL;
   m_scanUsingOldApi= true;
+  m_readTuplesCalled= false;
   m_interpretedCodeOldApi= NULL;
 }
 
@@ -120,6 +121,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_read_range_no = 0;
   m_executed = false;
   m_scanUsingOldApi= true;
+  m_readTuplesCalled= false;
   m_interpretedCodeOldApi= NULL;
 
   m_api_receivers_count = 0;
@@ -937,15 +939,16 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
                              Uint32 parallel,
                              Uint32 batch)
 {
-  // It is only possible to call readTuples if the scan transaction 
-  // doesn't already contain a scan operation
-  if (theNdbCon->theScanningOp != NULL)
+  // It is only possible to call readTuples if  readTuples hasn't
+  // already been called
+  if (m_readTuplesCalled)
   {
     setErrorCode(4605);
     return -1;
   }
   
   /* Save parameters for later */
+  m_readTuplesCalled= true;
   m_savedLockModeOldApi= lm;
   m_savedScanFlagsOldApi= scan_flags;
   m_savedParallelOldApi= parallel;
