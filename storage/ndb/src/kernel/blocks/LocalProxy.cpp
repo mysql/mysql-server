@@ -51,8 +51,8 @@ LocalProxy::execREAD_CONFIG_REQ(Signal* signal)
   ss.m_readConfigReq = *req;
   ndbrequire(ss.m_readConfigReq.noOfParameters == 0);
 
-  const Uint32 workers = globalData.ndbmtWorkers;
-  const Uint32 threads = globalData.ndbmtThreads;
+  const Uint32 workers = globalData.ndbMtLqhWorkers;
+  const Uint32 threads = globalData.ndbMtLqhThreads;
 
   Uint32 i;
   for (i = 0; i < workers; i++) {
@@ -62,7 +62,7 @@ LocalProxy::execREAD_CONFIG_REQ(Signal* signal)
     ndbrequire(this->getInstance(instanceNo) == worker);
     c_worker[i] = worker;
 
-    add_worker_thr_map(number(), instanceNo);
+    add_lqh_worker_thr_map(number(), instanceNo);
   }
 
   // set after instances are created (sendpacked)
