@@ -11976,7 +11976,9 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
   replicaPtr.i = info.replicaPtr;
   ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
   
-  BlockReference ref = calcLqhBlockRef(replicaPtr.p->procNode);
+  // address LQH/instance directly
+  Uint32 instanceKey = dihGetInstanceKey(info.tableId, info.fragId);
+  BlockReference ref = numberToRef(DBLQH, instanceKey, replicaPtr.p->procNode);
   
   if (ERROR_INSERTED(7193) && replicaPtr.p->procNode == getOwnNodeId())
   {

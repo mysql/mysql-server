@@ -41,6 +41,10 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   addRecSignal(GSN_TAB_COMMITREQ, &DblqhProxy::execTAB_COMMITREQ);
   addRecSignal(GSN_TAB_COMMITCONF, &DblqhProxy::execTAB_COMMITCONF);
   addRecSignal(GSN_TAB_COMMITREF, &DblqhProxy::execTAB_COMMITREF);
+
+  // GSN_LCP_FRAG_ORD
+  addRecSignal(GSN_LCP_FRAG_ORD, &DblqhProxy::execLCP_FRAG_ORD);
+  addRecSignal(GSN_LCP_COMPLETE_REP, &DblqhProxy::execLCP_COMPLETE_REP);
 }
 
 DblqhProxy::~DblqhProxy()
@@ -414,6 +418,77 @@ DblqhProxy::sendTAB_COMMITCONF(Signal* signal, Uint32 ssId)
 
   ssRelease<Ss_CREATE_TAB_REQ>(ssId);
   ssRelease<Ss_TAB_COMMITREQ>(ssId);
+}
+
+// GSN_LCP_FRAG_ORD
+
+void
+DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
+{
+  const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
+  ndbrequire(req->lastFragmentFlag);
+  execLCP_COMPLETE_ORD(signal);
+}
+
+// GSN_LCP_COMPLETE_ORD [ fictional gsn ]
+
+void
+DblqhProxy::execLCP_COMPLETE_ORD(Signal* signal)
+{
+  const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_LCP_COMPLETE_ORD& ss = ssSeize<Ss_LCP_COMPLETE_ORD>(ssId);
+  ss.m_req = *req;
+  sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::sendLCP_COMPLETE_ORD(Signal* signal, Uint32 ssId)
+{
+  Ss_LCP_COMPLETE_ORD& ss = ssFind<Ss_LCP_COMPLETE_ORD>(ssId);
+
+  LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  sendSignal(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
+             signal, LcpFragOrd::SignalLength, JBB);
+}
+
+void
+DblqhProxy::execLCP_COMPLETE_REP(Signal* signal)
+{
+  const LcpCompleteRep* conf = (const LcpCompleteRep*)signal->getDataPtr();
+  Uint32 ssId = getSsId(conf);
+  Ss_LCP_COMPLETE_ORD& ss = ssFind<Ss_LCP_COMPLETE_ORD>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::sendLCP_COMPLETE_REP(Signal* signal, Uint32 ssId)
+{
+  Ss_LCP_COMPLETE_ORD& ss = ssFind<Ss_LCP_COMPLETE_ORD>(ssId);
+
+  if (!lastReply(ss))
+    return;
+
+  NodePtr nodePtr;
+  c_nodeList.first(nodePtr);
+  ndbrequire(nodePtr.i != RNIL);
+  while (nodePtr.i != RNIL) {
+    if (nodePtr.p->m_alive) {
+      Uint32 nodeId = nodePtr.p->m_nodeId;
+      BlockReference dihRef = calcDihBlockRef(nodeId);
+
+      LcpCompleteRep* conf = (LcpCompleteRep*)signal->getDataPtrSend();
+      conf->nodeId = getOwnNodeId();
+      conf->blockNo = DBLQH;
+      conf->lcpId = ss.m_req.lcpId;
+      sendSignal(dihRef, GSN_LCP_COMPLETE_REP,
+                 signal, LcpCompleteRep::SignalLength, JBB);
+    }
+    c_nodeList.next(nodePtr);
+  }
+
+  ssRelease<Ss_LCP_COMPLETE_ORD>(ssId);
 }
 
 BLOCK_FUNCTIONS(DblqhProxy)

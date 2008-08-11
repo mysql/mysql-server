@@ -5805,6 +5805,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->variableData[nextPos + 0] = sig0;
   nextPos += LqhKeyReq::getGCIFlag(Treqinfo);
 
+  // wl4391_todo for mixed versions must recompute full instance key here
   BlockReference lqhRef = calcInstanceBlockRef(DBLQH, regTcPtr->nextReplica);
   
   if (likely(sendLongReq))
@@ -9104,7 +9105,7 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   AccScanReq::setReadCommittedFlag(req->requestInfo, scanptr.p->readCommitted);
   AccScanReq::setDescendingFlag(req->requestInfo, scanptr.p->descending);
 
-  if (refToBlock(tcConnectptr.p->clientBlockref) == BACKUP)
+  if (refToMain(tcConnectptr.p->clientBlockref) == BACKUP)
   {
     if (scanptr.p->lcpScan)
     {
@@ -9794,7 +9795,7 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   tupKeyReq->savePointId = regTcPtr->savePointId;
   tupKeyReq->disk_page= disk_page;
   tupKeyReq->attrInfoIVal= RNIL;
-  Uint32 blockNo = refToBlock(regTcPtr->tcTupBlockref);
+  Uint32 blockNo = refToMain(regTcPtr->tcTupBlockref);
   EXECUTE_DIRECT(blockNo, GSN_TUPKEYREQ, signal, 
 		 TupKeyReq::SignalLength);
 }
@@ -12104,13 +12105,17 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
       LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       lcpPtr.p->firstFragmentFlag= false;
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-      EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+      // wl4391_todo DD
+      if (!isNdbMtLqh())
+      EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length(), 0);
       jamEntry();
       
       /**
        * First fragment mean that last LCP is complete :-)
        */
-      EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+      // wl4391_todo DD
+      if (!isNdbMtLqh())
+      EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD, signal, signal->length(), 0);
       jamEntry();
     }
     
@@ -12137,7 +12142,9 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
     {
       LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-      EXECUTE_DIRECT(LGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+      // wl4391_todo DD
+      if (!isNdbMtLqh())
+      EXECUTE_DIRECT(LGMAN, GSN_LCP_FRAG_ORD, signal, signal->length(), 0);
       jamEntry();
       
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
@@ -12174,7 +12181,8 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
       }
       else
       {
-	sendSignal(BACKUP_REF, GSN_BACKUP_FRAGMENT_REQ, signal, 
+        BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+	sendSignal(backupRef, GSN_BACKUP_FRAGMENT_REQ, signal, 
 		   BackupFragmentReq::SignalLength, JBB);
       }
     }
@@ -12243,7 +12251,7 @@ Dblqh::sendLCP_FRAG_REP(Signal * signal,
       jam();
       BlockReference Tblockref = calcDihBlockRef(nodeId);
       sendSignal(Tblockref, GSN_LCP_FRAG_REP, signal, 
-		 LcpFragRep::SignalLength, JBB);
+                 LcpFragRep::SignalLength, JBB);
     }//if
   }//for
 }
@@ -12335,7 +12343,8 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   req->lcpId = lcpPtr.p->currentFragment.lcpFragOrd.lcpId % MAX_LCP_STORED;
   req->backupPtr = m_backup_ptr;
   req->backupId = lcpPtr.p->currentFragment.lcpFragOrd.lcpId;
-  sendSignal(BACKUP_REF, GSN_LCP_PREPARE_REQ, signal, 
+  BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+  sendSignal(backupRef, GSN_LCP_PREPARE_REQ, signal, 
 	     LcpPrepareReq::SignalLength, JBB);
 
 }//Dblqh::sendLCP_FRAGIDREQ()
@@ -12395,21 +12404,32 @@ void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
   req->senderRef= reference();
   req->backupPtr= m_backup_ptr;
   req->backupId= lcpId;
-  sendSignal(BACKUP_REF, GSN_END_LCP_REQ, signal, 
+
+  BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+  sendSignal(backupRef, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
-  
+  // wl4391_todo DD
+  if (!isNdbMtLqh())
   sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
 
+  // wl4391_todo DD
+  if (!isNdbMtLqh())
   sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
-  
-  EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength);
+
+  // wl4391_todo DD
+  if (!isNdbMtLqh())
+  EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength, 0);
   jamEntry();
-  
+
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
+  // wl4391_todo DD
+  if (!isNdbMtLqh())
   lcpPtr.p->m_outstanding = 3;
+  else
+  lcpPtr.p->m_outstanding = 1;
   return;
 }//Dblqh::completeLcpRoundLab()
 
@@ -12448,17 +12468,23 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   rep->lcpId = lcpId;
   rep->blockNo = DBLQH;
   
-  for (Uint32 i = 0; i < cnoOfNodes; i++) {
-    jam();
-    Uint32 nodeId = cnodeData[i];
-    if(cnodeStatus[i] == ZNODE_UP){
+  if (!isNdbMtLqh()) {
+    for (Uint32 i = 0; i < cnoOfNodes; i++) {
       jam();
-      
-      BlockReference blockref = calcDihBlockRef(nodeId);
-      sendSignal(blockref, GSN_LCP_COMPLETE_REP, signal, 
-		 LcpCompleteRep::SignalLength, JBB);
-    }//if
-  }//for
+      Uint32 nodeId = cnodeData[i];
+      if(cnodeStatus[i] == ZNODE_UP){
+        jam();
+        
+        BlockReference blockref = calcDihBlockRef(nodeId);
+        sendSignal(blockref, GSN_LCP_COMPLETE_REP, signal, 
+                   LcpCompleteRep::SignalLength, JBB);
+      }//if
+    }//for
+  } else {
+    jam();
+    sendSignal(DBLQH_REF, GSN_LCP_COMPLETE_REP, signal,
+               LcpCompleteRep::SignalLength, JBB);
+  }
 
   if(lcpPtr.p->reportEmpty){
     jam();
