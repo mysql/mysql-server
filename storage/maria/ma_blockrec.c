@@ -3073,7 +3073,7 @@ static my_bool write_block_record(MARIA_HA *info,
     }
     else
     {
-      if (my_multi_malloc(MY_WME, &log_array,
+      if (!my_multi_malloc(MY_WME, &log_array,
                           (uint) ((bitmap_blocks->count +
                                    TRANSLOG_INTERNAL_PARTS + 2) *
                                   sizeof(*log_array)),
