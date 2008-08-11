@@ -731,8 +731,8 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctablesize, tabrec);
 
-  //XXX ugly
-  if (refToBlock(tabPtr.p->tabUserRef) == DBDICT)
+  const BlockNumber dictBlock = !isNdbMtLqh() ? DBDICT : DBACC;
+  if (refToBlock(tabPtr.p->tabUserRef) == dictBlock)
   {
     jam();
     for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {

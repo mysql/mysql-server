@@ -42,6 +42,16 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   addRecSignal(GSN_TAB_COMMITCONF, &DblqhProxy::execTAB_COMMITCONF);
   addRecSignal(GSN_TAB_COMMITREF, &DblqhProxy::execTAB_COMMITREF);
 
+  // GSN_PREP_DROP_TAB_REQ
+  addRecSignal(GSN_PREP_DROP_TAB_REQ, &DblqhProxy::execPREP_DROP_TAB_REQ);
+  addRecSignal(GSN_PREP_DROP_TAB_CONF, &DblqhProxy::execPREP_DROP_TAB_CONF);
+  addRecSignal(GSN_PREP_DROP_TAB_REF, &DblqhProxy::execPREP_DROP_TAB_REF);
+
+  // GSN_DROP_TAB_REQ
+  addRecSignal(GSN_DROP_TAB_REQ, &DblqhProxy::execDROP_TAB_REQ);
+  addRecSignal(GSN_DROP_TAB_CONF, &DblqhProxy::execDROP_TAB_CONF);
+  addRecSignal(GSN_DROP_TAB_REF, &DblqhProxy::execDROP_TAB_REF);
+
   // GSN_LCP_FRAG_ORD
   addRecSignal(GSN_LCP_FRAG_ORD, &DblqhProxy::execLCP_FRAG_ORD);
   addRecSignal(GSN_LCP_COMPLETE_REP, &DblqhProxy::execLCP_COMPLETE_REP);
@@ -572,6 +582,156 @@ DblqhProxy::sendGCP_SAVECONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_GCP_SAVEREQ>(ssId);
+}
+
+// GSN_PREP_DROP_TAB_REQ
+
+void
+DblqhProxy::execPREP_DROP_TAB_REQ(Signal* signal)
+{
+  const PrepDropTabReq* req = (const PrepDropTabReq*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_PREP_DROP_TAB_REQ& ss = ssSeize<Ss_PREP_DROP_TAB_REQ>(ssId);
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == PrepDropTabReq::SignalLength);
+  sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::sendPREP_DROP_TAB_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_PREP_DROP_TAB_REQ& ss = ssFind<Ss_PREP_DROP_TAB_REQ>(ssId);
+
+  PrepDropTabReq* req = (PrepDropTabReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId; // redundant since tableId is used
+  sendSignal(workerRef(ss.m_worker), GSN_PREP_DROP_TAB_REQ,
+             signal, PrepDropTabReq::SignalLength, JBB);
+}
+
+void
+DblqhProxy::execPREP_DROP_TAB_CONF(Signal* signal)
+{
+  const PrepDropTabConf* conf = (const PrepDropTabConf*)signal->getDataPtr();
+  Uint32 ssId = getSsId(conf);
+  Ss_PREP_DROP_TAB_REQ& ss = ssFind<Ss_PREP_DROP_TAB_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::execPREP_DROP_TAB_REF(Signal* signal)
+{
+  const PrepDropTabRef* ref = (const PrepDropTabRef*)signal->getDataPtr();
+  Uint32 ssId = getSsId(ref);
+  Ss_PREP_DROP_TAB_REQ& ss = ssFind<Ss_PREP_DROP_TAB_REQ>(ssId);
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+DblqhProxy::sendPREP_DROP_TAB_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_PREP_DROP_TAB_REQ& ss = ssFind<Ss_PREP_DROP_TAB_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    jam();
+    PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+    conf->tableId = ss.m_req.tableId;
+    sendSignal(dictRef, GSN_PREP_DROP_TAB_CONF,
+               signal, PrepDropTabConf::SignalLength, JBB);
+  } else {
+    jam();
+    PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->tableId = ss.m_req.tableId;
+    ref->errorCode = ss.m_error;
+    sendSignal(dictRef, GSN_PREP_DROP_TAB_REF,
+               signal, PrepDropTabRef::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_PREP_DROP_TAB_REQ>(ssId);
+}
+
+// GSN_DROP_TAB_REQ
+
+void
+DblqhProxy::execDROP_TAB_REQ(Signal* signal)
+{
+  const DropTabReq* req = (const DropTabReq*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_DROP_TAB_REQ& ss = ssSeize<Ss_DROP_TAB_REQ>(ssId);
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == DropTabReq::SignalLength);
+  sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::sendDROP_TAB_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
+
+  DropTabReq* req = (DropTabReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId; // redundant since tableId is used
+  sendSignal(workerRef(ss.m_worker), GSN_DROP_TAB_REQ,
+             signal, DropTabReq::SignalLength, JBB);
+}
+
+void
+DblqhProxy::execDROP_TAB_CONF(Signal* signal)
+{
+  const DropTabConf* conf = (const DropTabConf*)signal->getDataPtr();
+  Uint32 ssId = getSsId(conf);
+  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::execDROP_TAB_REF(Signal* signal)
+{
+  const DropTabRef* ref = (const DropTabRef*)signal->getDataPtr();
+  Uint32 ssId = getSsId(ref);
+  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+DblqhProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    jam();
+    DropTabConf* conf = (DropTabConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+    conf->tableId = ss.m_req.tableId;
+    sendSignal(dictRef, GSN_DROP_TAB_CONF,
+               signal, DropTabConf::SignalLength, JBB);
+  } else {
+    jam();
+    DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->tableId = ss.m_req.tableId;
+    ref->errorCode = ss.m_error;
+    sendSignal(dictRef, GSN_DROP_TAB_CONF,
+               signal, DropTabConf::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_DROP_TAB_REQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(DblqhProxy)
