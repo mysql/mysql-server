@@ -932,10 +932,6 @@ public:
     virtual int analyze(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int check(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int repair(THD* thd, HA_CHECK_OPT *check_opt);
-    virtual int optimize_partitions(THD *thd);
-    virtual int analyze_partitions(THD *thd);
-    virtual int check_partitions(THD *thd);
-    virtual int repair_partitions(THD *thd);
     virtual bool check_and_repair(THD *thd);
     virtual bool auto_repair() const;
     virtual bool is_crashed() const;

@@ -3285,66 +3285,6 @@ handler::ha_rename_partitions(const char *path)
 
 
 /**
-  Optimize partitions: public interface.
-
-  @sa handler::optimize_partitions()
-*/
-
-int
-handler::ha_optimize_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return optimize_partitions(thd);
-}
-
-
-/**
-  Analyze partitions: public interface.
-
-  @sa handler::analyze_partitions()
-*/
-
-int
-handler::ha_analyze_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return analyze_partitions(thd);
-}
-
-
-/**
-  Check partitions: public interface.
-
-  @sa handler::check_partitions()
-*/
-
-int
-handler::ha_check_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return check_partitions(thd);
-}
-
-
-/**
-  Repair partitions: public interface.
-
-  @sa handler::repair_partitions()
-*/
-
-int
-handler::ha_repair_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return repair_partitions(thd);
-}
-
-
-/**
   Tell the storage engine that it is allowed to "disable transaction" in the
   handler. It is a hint that ACID is not required - it is used in NDB for
   ALTER TABLE, for example, when data are copied to temporary table.
