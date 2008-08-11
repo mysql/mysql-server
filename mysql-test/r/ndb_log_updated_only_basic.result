@@ -3,11 +3,85 @@ SELECT @@global.ndb_log_updated_only;
 @@global.ndb_log_updated_only
 1
 '#--------------------FN_DYNVARS_103_01------------------------#'
+SET @@ndb_log_updated_only = 0;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@ndb_log_updated_only = DEFAULT;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@ndb_log_updated_only;
+@@ndb_log_updated_only
+1
+SET @@ndb_log_updated_only = 1;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@ndb_log_updated_only = DEFAULT;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@ndb_log_updated_only;
+@@ndb_log_updated_only
+1
 '#---------------------FN_DYNVARS_103_02-------------------------#'
+SET ndb_log_updated_only = 1;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@ndb_log_updated_only;
+@@ndb_log_updated_only
+1
+SELECT global.ndb_log_updated_only;
+ERROR 42S02: Unknown table 'global' in field list
+SET global ndb_log_updated_only = 1;
+SELECT @@global.ndb_log_updated_only;
+@@global.ndb_log_updated_only
+1
 '#--------------------FN_DYNVARS_103_03------------------------#'
+SET @@global.ndb_log_updated_only = 0;
+SELECT @@global.ndb_log_updated_only;
+@@global.ndb_log_updated_only
+0
+SET @@global.ndb_log_updated_only = 1;
+SELECT @@global.ndb_log_updated_only;
+@@global.ndb_log_updated_only
+1
+SET @@global.ndb_log_updated_only = 2;
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of '2'
+SELECT @@global.ndb_log_updated_only;
+@@global.ndb_log_updated_only
+1
 '#--------------------FN_DYNVARS_103_04-------------------------#'
+SET @@global.ndb_log_updated_only = -1;
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of '-1'
+SET @@global.ndb_log_updated_only = TRU;
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of 'TRU'
+SET @@global.ndb_log_updated_only = TRUE_F;
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of 'TRUE_F'
+SET @@global.ndb_log_updated_only = FALS;
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of 'FALS'
+SET @@global.ndb_log_updated_only = OON;
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of 'OON'
+SET @@global.ndb_log_updated_only = ONN;
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of 'ONN'
+SET @@global.ndb_log_updated_only = OOFF;
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of 'OOFF'
+SET @@global.ndb_log_updated_only = 0FF;
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of '0FF'
+SET @@global.ndb_log_updated_only = ' 1';
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of ' 1'
+SET @@global.ndb_log_updated_only = "0 ";
+ERROR 42000: Variable 'ndb_log_updated_only' can't be set to the value of '0 '
 '#-------------------FN_DYNVARS_103_05----------------------------#'
+SET @@session.ndb_log_updated_only = 0;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@ndb_log_updated_only = 0;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@local.ndb_log_updated_only = 0;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.ndb_log_updated_only;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable
+SELECT @@local.ndb_log_updated_only;
+ERROR HY000: Variable 'ndb_log_updated_only' is a GLOBAL variable
 '#----------------------FN_DYNVARS_103_06------------------------#'
+SELECT count(VARIABLE_VALUE) AS res_is_0 FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='ndb_log_updated_only';
+res_is_0
+1
 '#----------------------FN_DYNVARS_103_07------------------------#'
+SELECT @@global.ndb_log_updated_only = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='ndb_log_updated_only';
+@@global.ndb_log_updated_only = VARIABLE_VALUE
+0
 '#---------------------FN_DYNVARS_103_08-------------------------#'
 '#---------------------FN_DYNVARS_103_09----------------------#'

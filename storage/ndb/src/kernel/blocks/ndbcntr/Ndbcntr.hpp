@@ -398,10 +398,6 @@ private:
   void execREAD_CONFIG_CONF(Signal*);
 
   friend struct UpgradeStartup;
-
-#ifdef ERROR_INSERT
-  Uint32 c_error_insert_extra;
-#endif
 };
 
 #endif
