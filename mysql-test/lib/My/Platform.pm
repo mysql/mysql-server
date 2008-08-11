@@ -66,7 +66,9 @@ sub mixed_path {
   my ($path)= @_;
   if (IS_CYGWIN){
     return unless defined $path;
-    $path= `cygpath -m $path`;
+    my $cmd= "cygpath -m $path";
+    print "$cmd\n";
+    $path= `$cmd`;
     chomp $path;
   }
   return $path;
