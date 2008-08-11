@@ -1160,7 +1160,7 @@ Dblqh::sendCreateTabReq(Signal* signal, AddFragRecordPtr addfragptr)
   req->senderRef = reference();
   req->senderData = addfragptr.i;
 
-  Uint32 ref = DBTUP_REF;
+  Uint32 ref = calcInstanceBlockRef(DBTUP);
   switch(addfragptr.p->addfragStatus){
   case AddFragRecord::WAIT_TUP:
     if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
@@ -1175,7 +1175,7 @@ Dblqh::sendCreateTabReq(Signal* signal, AddFragRecordPtr addfragptr)
     jam();
     ndbrequire(req->noOfAttributes >= 2);
     req->noOfAttributes--;
-    ref = DBTUX_REF;
+    ref = calcInstanceBlockRef(DBTUX);
     break;
   default:
     jamLine(addfragptr.p->addfragStatus);
@@ -1441,7 +1441,8 @@ Dblqh::sendAddAttrReq(Signal* signal)
       tupreq->attrId = attrId;
       tupreq->attrDescriptor = entry.attrDescriptor;
       tupreq->extTypeInfo = entry.extTypeInfo;
-      sendSignal(DBTUP_REF, GSN_TUP_ADD_ATTRREQ,
+      BlockReference tupRef = calcInstanceBlockRef(DBTUP);
+      sendSignal(tupRef, GSN_TUP_ADD_ATTRREQ,
                  signal, TupAddAttrReq::SignalLength, JBB);
       return;
     }
@@ -1471,7 +1472,8 @@ Dblqh::sendAddAttrReq(Signal* signal)
       tuxreq->attrDescriptor = entry.attrDescriptor;
       tuxreq->extTypeInfo = entry.extTypeInfo;
       tuxreq->primaryAttrId = primaryAttrId;
-      sendSignal(DBTUX_REF, GSN_TUX_ADD_ATTRREQ,
+      BlockReference tuxRef = calcInstanceBlockRef(DBTUX);
+      sendSignal(tuxRef, GSN_TUX_ADD_ATTRREQ,
 		 signal, TuxAddAttrReq::SignalLength, JBB);
       return;
     }
