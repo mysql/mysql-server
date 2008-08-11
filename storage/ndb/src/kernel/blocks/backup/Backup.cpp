@@ -111,7 +111,7 @@ Backup::execSTTOR(Signal* signal)
   }
 
   if(startphase == 7 && g_TypeOfStart == NodeState::ST_INITIAL_START &&
-     c_masterNodeId == getOwnNodeId()){
+     c_masterNodeId == getOwnNodeId() && !isNdbMtLqh()){
     jam();
     createSequence(signal);
     return;

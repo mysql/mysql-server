@@ -17,6 +17,7 @@
 #define NDB_BACKUP_PROXY_HPP
 
 #include <LocalProxy.hpp>
+#include <signaldata/UtilSequence.hpp>
 
 class BackupProxy : public LocalProxy {
 public:
@@ -29,6 +30,9 @@ protected:
 
   // GSN_STTOR
   virtual void callSTTOR(Signal*);
+  void sendUTIL_SEQUENCE_REQ(Signal*);
+  void execUTIL_SEQUENCE_CONF(Signal*);
+  void execUTIL_SEQUENCE_REF(Signal*);
 };
 
 #endif
