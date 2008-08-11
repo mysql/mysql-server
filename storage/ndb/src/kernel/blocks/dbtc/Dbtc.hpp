@@ -851,6 +851,8 @@ public:
     UintR savePointId;
 
     Uint16 tcNodedata[4];
+    /* Instance key to send to LQH.  Receiver maps it to actual instance. */
+    Uint16 lqhInstanceKey;
     
     // Trigger data
     FiredTriggerPtr accumulatingTriggerData;

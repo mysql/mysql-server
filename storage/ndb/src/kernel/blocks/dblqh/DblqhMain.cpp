@@ -539,8 +539,8 @@ void Dblqh::execSTTOR(Signal* signal)
   case ZSTART_PHASE1:
     jam();
     cstartPhase = tstartPhase;
-    c_tup = (Dbtup*)globalData.getBlock(DBTUP);
-    c_acc = (Dbacc*)globalData.getBlock(DBACC);
+    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+    c_acc = (Dbacc*)globalData.getBlock(DBACC, instance());
     ndbrequire(c_tup != 0 && c_acc != 0);
     sendsttorryLab(signal);
     
@@ -717,6 +717,7 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
   for (Ti = 0; Ti < chostFileSize; Ti++) {
     ThostPtr.i = Ti;
     ptrCheckGuard(ThostPtr, chostFileSize, hostRecord);
+    // wl4391_todo using own instance() does not work with mixed versions
     ThostPtr.p->hostLqhBlockRef = calcInstanceBlockRef(DBLQH, ThostPtr.i);
     ThostPtr.p->hostTcBlockRef  = calcTcBlockRef(ThostPtr.i);
     ThostPtr.p->inPackedList = false;
@@ -2680,7 +2681,7 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   
   CommitAckMarkerPtr removedPtr;
   m_commitAckMarkerHash.remove(removedPtr, key);
-#if defined VM_TRACE || defined ERROR_INSERT
+#if (defined VM_TRACE || defined ERROR_INSERT) && defined(wl4391_todo)
   ndbrequire(removedPtr.i != RNIL);
   m_commitAckMarkerPool.release(removedPtr);
 #else
@@ -4395,7 +4396,7 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
 
   TRACE_OP(regTcPtr.p, "ACC");
   
-  EXECUTE_DIRECT(refToBlock(regTcPtr.p->tcAccBlockref), GSN_ACCKEYREQ, 
+  EXECUTE_DIRECT(refToMain(regTcPtr.p->tcAccBlockref), GSN_ACCKEYREQ, 
 		 signal, 7 + regTcPtr.p->primKeyLen);
   if (signal->theData[0] < RNIL) {
     signal->theData[0] = regTcPtr.i;
@@ -5072,7 +5073,7 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   sig1 = regTcPtr->transid[0];
   sig2 = regTcPtr->transid[1];
   sig3 = regFragptrP->tupFragptr;
-  Uint32 tup = refToBlock(regTcPtr->tcTupBlockref);
+  Uint32 tup = refToMain(regTcPtr->tcTupBlockref);
 
   tupKeyReq->storedProcedure = sig0;
   tupKeyReq->transId1 = sig1;
@@ -5804,7 +5805,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->variableData[nextPos + 0] = sig0;
   nextPos += LqhKeyReq::getGCIFlag(Treqinfo);
 
-  BlockReference lqhRef = calcLqhBlockRef(regTcPtr->nextReplica);
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH, regTcPtr->nextReplica);
   
   if (likely(sendLongReq))
   {
@@ -6753,7 +6754,7 @@ void Dblqh::commitReqLab(Signal* signal, Uint32 gci_hi, Uint32 gci_lo)
       jam();
       regTcPtr->transactionState = TcConnectionrec::PREPARED_RECEIVED_COMMIT;
       TcConnectionrecPtr saveTcPtr = tcConnectptr;
-      Uint32 blockNo = refToBlock(regTcPtr->tcTupBlockref);
+      Uint32 blockNo = refToMain(regTcPtr->tcTupBlockref);
       signal->theData[0] = regTcPtr->tupConnectrec;
       signal->theData[1] = gci_hi;
       signal->theData[2] = gci_lo;
@@ -6934,7 +6935,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       TupCommitReq * const tupCommitReq = 
         (TupCommitReq *)signal->getDataPtrSend();
       Uint32 sig0 = regTcPtr.p->tupConnectrec;
-      Uint32 tup = refToBlock(regTcPtr.p->tcTupBlockref);
+      Uint32 tup = refToMain(regTcPtr.p->tcTupBlockref);
       jam();
       tupCommitReq->opPtr = sig0;
       tupCommitReq->gci_hi = regTcPtr.p->gci_hi;
@@ -6974,7 +6975,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
 
       TRACE_OP(regTcPtr.p, "ACC_COMMITREQ");
 
-      Uint32 acc = refToBlock(regTcPtr.p->tcAccBlockref);
+      Uint32 acc = refToMain(regTcPtr.p->tcAccBlockref);
       signal->theData[0] = regTcPtr.p->accConnectrec;
       EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
       
@@ -6982,7 +6983,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       if(!dirtyOp){
 	TRACE_OP(regTcPtr.p, "ACC_COMMITREQ");
 
-	Uint32 acc = refToBlock(regTcPtr.p->tcAccBlockref);
+	Uint32 acc = refToMain(regTcPtr.p->tcAccBlockref);
 	signal->theData[0] = regTcPtr.p->accConnectrec;
 	EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
       }
