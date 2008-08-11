@@ -5543,6 +5543,7 @@ alter_commands:
           all_or_alt_part_name_list
           {
             LEX *lex= Lex;
+            lex->sql_command = SQLCOM_OPTIMIZE;
             lex->alter_info.flags|= ALTER_OPTIMIZE_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
@@ -5552,6 +5553,7 @@ alter_commands:
           all_or_alt_part_name_list
           {
             LEX *lex= Lex;
+            lex->sql_command = SQLCOM_ANALYZE;
             lex->alter_info.flags|= ALTER_ANALYZE_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
@@ -5559,6 +5561,7 @@ alter_commands:
         | CHECK_SYM PARTITION_SYM all_or_alt_part_name_list
           {
             LEX *lex= Lex;
+            lex->sql_command = SQLCOM_CHECK;
             lex->alter_info.flags|= ALTER_CHECK_PARTITION;
             lex->check_opt.init();
           }
@@ -5567,6 +5570,7 @@ alter_commands:
           all_or_alt_part_name_list
           {
             LEX *lex= Lex;
+            lex->sql_command = SQLCOM_REPAIR;
             lex->alter_info.flags|= ALTER_REPAIR_PARTITION;
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
@@ -6009,6 +6013,7 @@ repair:
             lex->sql_command = SQLCOM_REPAIR;
             lex->no_write_to_binlog= $2;
             lex->check_opt.init();
+            lex->alter_info.reset();
           }
           table_list opt_mi_repair_type
           {}
@@ -6037,6 +6042,7 @@ analyze:
             lex->sql_command = SQLCOM_ANALYZE;
             lex->no_write_to_binlog= $2;
             lex->check_opt.init();
+            lex->alter_info.reset();
           }
           table_list
           {}
@@ -6062,6 +6068,7 @@ check:
             }
             lex->sql_command = SQLCOM_CHECK;
             lex->check_opt.init();
+            lex->alter_info.reset();
           }
           table_list opt_mi_check_type
           {}
@@ -6093,6 +6100,7 @@ optimize:
             lex->sql_command = SQLCOM_OPTIMIZE;
             lex->no_write_to_binlog= $2;
             lex->check_opt.init();
+            lex->alter_info.reset();
           }
           table_list
           {}
