@@ -50,6 +50,15 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   // GSN_READ_NODESREQ
   addRecSignal(GSN_READ_NODESCONF, &LocalProxy::execREAD_NODESCONF);
   addRecSignal(GSN_READ_NODESREF, &LocalProxy::execREAD_NODESREF);
+
+  // GSN_DUMP_STATE_ORD
+  addRecSignal(GSN_DUMP_STATE_ORD, &LocalProxy::execDUMP_STATE_ORD);
+
+  // GSN_NDB_TAMPER
+  addRecSignal(GSN_NDB_TAMPER, &LocalProxy::execNDB_TAMPER, true);
+
+  // GSN_TIME_SIGNAL
+  addRecSignal(GSN_TIME_SIGNAL, &LocalProxy::execTIME_SIGNAL);
 }
 
 LocalProxy::~LocalProxy()
@@ -456,6 +465,76 @@ LocalProxy::execREAD_NODESREF(Signal* signal)
   Ss_READ_NODES_REQ& ss = c_ss_READ_NODESREQ;
   ndbrequire(ss.m_gsn != 0);
   ndbrequire(false);
+}
+
+// GSN_DUMP_STATE_ORD
+
+void
+LocalProxy::execDUMP_STATE_ORD(Signal* signal)
+{
+  Ss_DUMP_STATE_ORD& ss = ssSeize<Ss_DUMP_STATE_ORD>();
+
+  ss.m_reqlength = signal->getLength();
+  memcpy(ss.m_reqdata, signal->getDataPtr(), ss.m_reqlength << 2);
+  sendREQ(signal, ss);
+  ssRelease<Ss_DUMP_STATE_ORD>(ss);
+}
+
+void
+LocalProxy::sendDUMP_STATE_ORD(Signal* signal, Uint32 ssId)
+{
+  Ss_DUMP_STATE_ORD& ss = ssFind<Ss_DUMP_STATE_ORD>(ssId);
+
+  memcpy(signal->getDataPtrSend(), ss.m_reqdata, ss.m_reqlength << 2);
+  sendSignal(workerRef(ss.m_worker), GSN_DUMP_STATE_ORD,
+             signal, ss.m_reqlength, JBB);
+}
+
+// GSN_NDB_TAMPER
+
+void
+LocalProxy::execNDB_TAMPER(Signal* signal)
+{
+  Ss_NDB_TAMPER& ss = ssSeize<Ss_NDB_TAMPER>();
+
+  ndbrequire(signal->getLength() == 1);
+  ss.m_errorInsert = signal->theData[0];
+
+  SimulatedBlock::execNDB_TAMPER(signal);
+  sendREQ(signal, ss);
+  ssRelease<Ss_NDB_TAMPER>(ss);
+}
+
+void
+LocalProxy::sendNDB_TAMPER(Signal* signal, Uint32 ssId)
+{
+  Ss_NDB_TAMPER& ss = ssFind<Ss_NDB_TAMPER>(ssId);
+
+  signal->theData[0] = ss.m_errorInsert;
+  sendSignal(workerRef(ss.m_worker), GSN_NDB_TAMPER,
+             signal, 1, JBB);
+}
+
+// GSN_TIME_SIGNAL
+
+void
+LocalProxy::execTIME_SIGNAL(Signal* signal)
+{
+  Ss_TIME_SIGNAL& ss = ssSeize<Ss_TIME_SIGNAL>();
+
+  // could use same for MT TC
+  ndbrequire(number() == DBLQH);
+  sendREQ(signal, ss);
+  ssRelease<Ss_TIME_SIGNAL>(ss);
+}
+
+void
+LocalProxy::sendTIME_SIGNAL(Signal* signal, Uint32 ssId)
+{
+  Ss_TIME_SIGNAL& ss = ssFind<Ss_TIME_SIGNAL>(ssId);
+  signal->theData[0] = 0;
+  sendSignal(workerRef(ss.m_worker), GSN_TIME_SIGNAL,
+             signal, 1, JBB);
 }
 
 BLOCK_FUNCTIONS(LocalProxy)

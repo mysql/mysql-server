@@ -283,6 +283,54 @@ protected:
   void sendREAD_NODESREQ(Signal*);
   void execREAD_NODESCONF(Signal*);
   void execREAD_NODESREF(Signal*);
+
+  // GSN_DUMP_STATE_ORD
+  struct Ss_DUMP_STATE_ORD : SsParallel {
+    Uint32 m_reqlength;
+    Uint32 m_reqdata[25];
+    Ss_DUMP_STATE_ORD() {
+      m_sendREQ = &LocalProxy::sendDUMP_STATE_ORD;
+      m_sendCONF = 0;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_DUMP_STATE_ORD>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_DUMP_STATE_ORD;
+    }
+  };
+  SsPool<Ss_DUMP_STATE_ORD> c_ss_DUMP_STATE_ORD;
+  void execDUMP_STATE_ORD(Signal*);
+  void sendDUMP_STATE_ORD(Signal*, Uint32 ssId);
+
+  // GSN_NDB_TAMPER
+  struct Ss_NDB_TAMPER : SsParallel {
+    Uint32 m_errorInsert;
+    Ss_NDB_TAMPER() {
+      m_sendREQ = &LocalProxy::sendNDB_TAMPER;
+      m_sendCONF = 0;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_NDB_TAMPER>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_NDB_TAMPER;
+    }
+  };
+  SsPool<Ss_NDB_TAMPER> c_ss_NDB_TAMPER;
+  void execNDB_TAMPER(Signal*);
+  void sendNDB_TAMPER(Signal*, Uint32 ssId);
+
+  // GSN_TIME_SIGNAL
+  struct Ss_TIME_SIGNAL : SsParallel {
+    Ss_TIME_SIGNAL() {
+      m_sendREQ = &LocalProxy::sendTIME_SIGNAL;
+      m_sendCONF = 0;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_TIME_SIGNAL>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_TIME_SIGNAL;
+    }
+  };
+  SsPool<Ss_TIME_SIGNAL> c_ss_TIME_SIGNAL;
+  void execTIME_SIGNAL(Signal*);
+  void sendTIME_SIGNAL(Signal*, Uint32 ssId);
 };
 
 #endif
