@@ -1129,6 +1129,70 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
 #endif
 }
 
+
+/**
+  @brief Check and repair the table if neccesary
+
+  @param thd    Thread object
+
+  @retval TRUE  Error/Not supported
+  @retval FALSE Success
+*/
+
+bool ha_partition::check_and_repair(THD *thd)
+{
+  handler **file= m_file;
+  DBUG_ENTER("ha_partition::check_and_repair");
+
+  do
+  {
+    if ((*file)->ha_check_and_repair(thd))
+      DBUG_RETURN(TRUE);
+  } while (*(++file));
+  DBUG_RETURN(FALSE);
+}
+ 
+
+/**
+  @breif Check if the table can be automatically repaired
+
+  @retval TRUE  Can be auto repaired
+  @retval FALSE Cannot be auto repaired
+*/
+
+bool ha_partition::auto_repair() const
+{
+  DBUG_ENTER("ha_partition::auto_repair");
+
+  /*
+    As long as we only support one storage engine per table,
+    we can use the first partition for this function.
+  */
+  DBUG_RETURN(m_file[0]->auto_repair());
+}
+
+
+/**
+  @breif Check if the table is crashed
+
+  @retval TRUE  Crashed
+  @retval FALSE Not crashed
+*/
+
+bool ha_partition::is_crashed() const
+{
+  handler **file= m_file;
+  DBUG_ENTER("ha_partition::is_crashed");
+
+  do
+  {
+    if ((*file)->is_crashed())
+      DBUG_RETURN(TRUE);
+  } while (*(++file));
+  DBUG_RETURN(FALSE);
+}
+ 
+
 /*
   Prepare by creating a new partition
 
