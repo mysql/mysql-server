@@ -2,7 +2,6 @@ SET @global_start_value = @@global.ndb_log_update_as_write;
 SELECT @@global.ndb_log_update_as_write;
 @@global.ndb_log_update_as_write
 1
-'Bug: The value is not a system variable or atleast not supported in version 5.1.22'
 '#--------------------FN_DYNVARS_102_01------------------------#'
 SET @@ndb_log_update_as_write = 0;
 ERROR HY000: Variable 'ndb_log_update_as_write' is a GLOBAL variable and should be set with SET GLOBAL
