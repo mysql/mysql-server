@@ -46,4 +46,24 @@ DblqhProxy::execSEND_PACKED(Signal* signal)
   }
 }
 
+// GSN_NDB_STTOR
+
+void
+DblqhProxy::callNDB_STTOR(Signal* signal)
+{
+  Ss_READ_NODES_REQ& ss = c_ss_READ_NODESREQ;
+  ndbrequire(ss.m_gsn == 0);
+
+  const Uint32 startPhase = signal->theData[2];
+  switch (startPhase) {
+  case 3:
+    ss.m_gsn = GSN_NDB_STTOR;
+    sendREAD_NODESREQ(signal);
+    break;
+  default:
+    backNDB_STTOR(signal);
+    break;
+  }
+}
+
 BLOCK_FUNCTIONS(DblqhProxy)

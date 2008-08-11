@@ -19,7 +19,10 @@
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 #include <Bitmask.hpp>
+#include <DLFifoList.hpp>
 #include <signaldata/ReadConfig.hpp>
+#include <signaldata/NdbSttor.hpp>
+#include <signaldata/ReadNodesConf.hpp>
 
 /*
  * Proxy blocks for MT LQH.
@@ -185,6 +188,28 @@ protected:
     ssRelease<Ss>(ss.m_ssId);
   }
 
+  // system info
+
+  Uint32 c_typeOfStart;
+  Uint32 c_masterNodeId;
+
+  struct Node {
+    Uint32 m_nodeId;
+    bool m_alive;
+    Node() {
+      m_nodeId = 0;
+      m_alive = false;
+    }
+    Uint32 nextList;
+    union {
+    Uint32 prevList;
+    Uint32 nextPool;
+    };
+  };
+  typedef Ptr<Node> NodePtr;
+  ArrayPool<Node> c_nodePool;
+  DLFifoList<Node> c_nodeList;
+
   // GSN_READ_CONFIG_REQ
   struct Ss_READ_CONFIG_REQ : SsSequential {
     ReadConfigReq m_req;
@@ -202,6 +227,62 @@ protected:
   void sendREAD_CONFIG_REQ(Signal*, Uint32 ssId);
   void execREAD_CONFIG_CONF(Signal*);
   void sendREAD_CONFIG_CONF(Signal*, Uint32 ssId);
+
+  // GSN_STTOR
+  struct Ss_STTOR : SsParallel {
+    Uint32 m_reqlength;
+    Uint32 m_reqdata[25];
+    Uint32 m_conflength;
+    Uint32 m_confdata[25];
+    Ss_STTOR() {
+      m_sendREQ = &LocalProxy::sendSTTOR;
+      m_sendCONF = &LocalProxy::sendSTTORRY;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_STTOR>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_STTOR;
+    }
+  };
+  SsPool<Ss_STTOR> c_ss_STTOR;
+  void execSTTOR(Signal*);
+  virtual void callSTTOR(Signal*);
+  void backSTTOR(Signal*);
+  void sendSTTOR(Signal*, Uint32 ssId);
+  void execSTTORRY(Signal*);
+  void sendSTTORRY(Signal*, Uint32 ssId);
+
+  // GSN_NDB_STTOR
+  struct Ss_NDB_STTOR : SsParallel {
+    NdbSttor m_req;
+    enum { m_reqlength = sizeof(NdbSttor) >> 2 };
+    Ss_NDB_STTOR() {
+      m_sendREQ = &LocalProxy::sendNDB_STTOR;
+      m_sendCONF = &LocalProxy::sendNDB_STTORRY;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_NDB_STTOR>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_NDB_STTOR;
+    }
+  };
+  SsPool<Ss_NDB_STTOR> c_ss_NDB_STTOR;
+  void execNDB_STTOR(Signal*);
+  virtual void callNDB_STTOR(Signal*);
+  void backNDB_STTOR(Signal*);
+  void sendNDB_STTOR(Signal*, Uint32 ssId);
+  void execNDB_STTORRY(Signal*);
+  void sendNDB_STTORRY(Signal*, Uint32 ssId);
+
+  // GSN_READ_NODESREQ
+  struct Ss_READ_NODES_REQ {
+    GlobalSignalNumber m_gsn; // STTOR or NDB_STTOR
+    Ss_READ_NODES_REQ() {
+      m_gsn = 0;
+    }
+  };
+  Ss_READ_NODES_REQ c_ss_READ_NODESREQ;
+  void sendREAD_NODESREQ(Signal*);
+  void execREAD_NODESCONF(Signal*);
+  void execREAD_NODESREF(Signal*);
 };
 
 #endif

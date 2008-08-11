@@ -26,6 +26,9 @@ public:
 
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+
+  // GSN_STTOR
+  virtual void callSTTOR(Signal*);
 };
 
 #endif

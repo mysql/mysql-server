@@ -31,4 +31,24 @@ BackupProxy::newWorker(Uint32 instanceNo)
   return new Backup(m_ctx, instanceNo);
 }
 
+// GSN_STTOR
+
+void
+BackupProxy::callSTTOR(Signal* signal)
+{
+  Ss_READ_NODES_REQ& ss = c_ss_READ_NODESREQ;
+  ndbrequire(ss.m_gsn == 0);
+
+  const Uint32 startPhase = signal->theData[1];
+  switch (startPhase) {
+  case 3:
+    ss.m_gsn = GSN_STTOR;
+    sendREAD_NODESREQ(signal);
+    break;
+  default:
+    backSTTOR(signal);
+    break;
+  }
+}
+
 BLOCK_FUNCTIONS(BackupProxy)

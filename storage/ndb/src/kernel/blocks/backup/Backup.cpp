@@ -94,7 +94,7 @@ Backup::execSTTOR(Signal* signal)
     m_reset_disk_speed_time = NdbTick_CurrentMillisecond();
     m_reset_delay_used = Backup::DISK_SPEED_CHECK_DELAY;
     signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
-    sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal,
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
                         Backup::DISK_SPEED_CHECK_DELAY, 1);
   }
   if (startphase == 3) {
@@ -163,7 +163,8 @@ Backup::sendSTTORRY(Signal* signal)
   signal->theData[4] = 3;
   signal->theData[5] = 7;
   signal->theData[6] = 255; // No more start phases from missra
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : BACKUP_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
 }
 
 void
@@ -216,7 +217,7 @@ Backup::execCONTINUEB(Signal* signal)
       delay_time = Backup::DISK_SPEED_CHECK_DELAY - (sig_delay - delay_time);
     m_reset_delay_used= delay_time;
     signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
-    sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, delay_time, 1);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay_time, 1);
 #if 0
     ndbout << "Signal delay was = " << sig_delay;
     ndbout << " Current time = " << curr_time << endl;
