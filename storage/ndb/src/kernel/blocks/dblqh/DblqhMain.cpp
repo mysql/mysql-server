@@ -4067,9 +4067,10 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     tmp = (tmp < 0 ? - tmp : tmp);
     if ((tmp <= 1) || (tfragDistKey == 0)) {
       LQHKEY_abort(signal, 0);
+      return;
     }//if
     LQHKEY_error(signal, 1);
-    return;
+    // Never get here
   }//if
 
   /*
