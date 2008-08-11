@@ -20,6 +20,8 @@
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/TabCommit.hpp>
+#include <signaldata/PrepDropTab.hpp>
+#include <signaldata/DropTab.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/GCP.hpp>
 
@@ -170,6 +172,62 @@ protected:
   void execGCP_SAVECONF(Signal*);
   void execGCP_SAVEREF(Signal*);
   void sendGCP_SAVECONF(Signal*, Uint32 ssId);
+
+  // GSN_PREP_DROP_TAB_REQ
+  struct Ss_PREP_DROP_TAB_REQ : SsParallel {
+    PrepDropTabReq m_req;
+    Ss_PREP_DROP_TAB_REQ() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendPREP_DROP_TAB_REQ;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendPREP_DROP_TAB_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_PREP_DROP_TAB_REQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_PREP_DROP_TAB_REQ;
+    }
+  };
+  SsPool<Ss_PREP_DROP_TAB_REQ> c_ss_PREP_DROP_TAB_REQ;
+  Uint32 getSsId(const PrepDropTabReq* req) {
+    return SsIdBase | req->tableId;
+  }
+  Uint32 getSsId(const PrepDropTabConf* conf) {
+    return SsIdBase | conf->tableId;
+  }
+  Uint32 getSsId(const PrepDropTabRef* ref) {
+    return SsIdBase | ref->tableId;
+  }
+  void execPREP_DROP_TAB_REQ(Signal*);
+  void sendPREP_DROP_TAB_REQ(Signal*, Uint32 ssId);
+  void execPREP_DROP_TAB_CONF(Signal*);
+  void execPREP_DROP_TAB_REF(Signal*);
+  void sendPREP_DROP_TAB_CONF(Signal*, Uint32 ssId);
+
+  // GSN_DROP_TAB_REQ
+  struct Ss_DROP_TAB_REQ : SsParallel {
+    DropTabReq m_req;
+    Ss_DROP_TAB_REQ() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendDROP_TAB_REQ;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendDROP_TAB_CONF;
+    };
+    enum { poolSize = 1 };
+    static SsPool<Ss_DROP_TAB_REQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_DROP_TAB_REQ;
+    }
+  };
+  SsPool<Ss_DROP_TAB_REQ> c_ss_DROP_TAB_REQ;
+  Uint32 getSsId(const DropTabReq* req) {
+    return SsIdBase | req->tableId;
+  }
+  Uint32 getSsId(const DropTabConf* conf) {
+    return SsIdBase | conf->tableId;
+  }
+  Uint32 getSsId(const DropTabRef* ref) {
+    return SsIdBase | ref->tableId;
+  }
+  void execDROP_TAB_REQ(Signal*);
+  void sendDROP_TAB_REQ(Signal*, Uint32 ssId);
+  void execDROP_TAB_CONF(Signal*);
+  void execDROP_TAB_REF(Signal*);
+  void sendDROP_TAB_CONF(Signal*, Uint32 ssId);
 };
 
 #endif
