@@ -76,6 +76,7 @@ struct fieldinfo db_txn_active_fields32[] = {
 };
 struct fieldinfo db_txn_fields32[] = {
   {"DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/", 0, 4},
+  {"DB_TXN *parent", 4, 4},
   {"void *api_internal", 68, 4},
   {"int (*abort) (DB_TXN *)", 76, 4},
   {"int (*commit) (DB_TXN*, u_int32_t)", 80, 4},
