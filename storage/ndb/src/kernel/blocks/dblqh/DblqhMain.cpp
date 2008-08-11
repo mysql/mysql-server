@@ -4074,9 +4074,10 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     tmp = (tmp < 0 ? - tmp : tmp);
     if ((tmp <= 1) || (tfragDistKey == 0)) {
       LQHKEY_abort(signal, 0);
+      return;
     }//if
     LQHKEY_error(signal, 1);
-    return;
+    // Never get here
   }//if
 
   /*
@@ -6570,9 +6571,8 @@ void Dblqh::execCOMPLETE(Signal* signal)
     errorReport(signal, 1);
     return;
   }//if
-  if (ERROR_INSERTED(5042)) {
-    ndbrequire(false);
-  }
+  CRASH_INSERTION(5042);
+
   if (ERROR_INSERTED(5013)) {
     CLEAR_ERROR_INSERT_VALUE;
     sendSignalWithDelay(cownref, GSN_COMPLETE, signal, 2000, 3);
