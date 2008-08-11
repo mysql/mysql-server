@@ -544,6 +544,9 @@ protected:
   /* This flag indicates whether a scan operation is using the old API */
   bool  m_scanUsingOldApi;
 
+  /* Whether readTuples has been called - only valid for old Api scans */
+  bool m_readTuplesCalled;
+
   /* Scan definition information saved by RecAttr scan API */
   LockMode m_savedLockModeOldApi;
   Uint32 m_savedScanFlagsOldApi;
