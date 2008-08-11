@@ -344,7 +344,7 @@ Backup::execCONTINUEB(Signal* signal)
       signal->theData[0] = BackupContinueB::BUFFER_FULL_META;
       signal->theData[1] = Tdata1;
       signal->theData[2] = Tdata2;
-      sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 100, 3);
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 3);
       return;
     }//if
     
@@ -376,7 +376,8 @@ Backup::execCONTINUEB(Signal* signal)
       ndbout_c("Resuming backup");
       memmove(signal->theData, signal->theData + 1, 
 	      4*ScanFragNextReq::SignalLength);
-      sendSignal(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
+      BlockReference lqhRef = calcInstanceBlockRef(DBLQH);
+      sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 		 ScanFragNextReq::SignalLength, JBB);
       return ;
     }
@@ -3233,7 +3234,7 @@ Backup::openFilesReply(Signal* signal,
   signal->theData[0] = BackupContinueB::BUFFER_FULL_META;
   signal->theData[1] = ptr.i;
   signal->theData[2] = tabPtr.i;
-  sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 100, 3);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 3);
   return;
 }
 
@@ -3434,7 +3435,7 @@ Backup::afterGetTabinfoLockTab(Signal *signal,
   signal->theData[0] = BackupContinueB::BUFFER_FULL_META;
   signal->theData[1] = ptr.i;
   signal->theData[2] = tabPtr.i;
-  sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 100, 3);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 3);
   return;
 }
 
@@ -3540,7 +3541,7 @@ Backup::parseTableDescription(Signal* signal,
 
   if (lcp)
   {
-    Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP);
+    Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     tabPtr.p->maxRecordSize = 1 + tup->get_max_lcp_record_size(tmpTab.TableId);
   }
   else
@@ -3845,7 +3846,8 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     req->clientOpPtr= filePtr.i;
     req->batch_size_rows= parallelism;
     req->batch_size_bytes= 0;
-    sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal,
+    BlockReference lqhRef = calcInstanceBlockRef(DBLQH);
+    sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal,
                ScanFragReq::SignalLength, JBB);
     
     signal->theData[0] = filePtr.i;
@@ -3863,7 +3865,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     memcpy(signal->theData + dataPos, table.attrInfo, 4*table.attrInfoLen);
     dataPos += table.attrInfoLen;
     ndbassert(dataPos < 25);
-    sendSignal(DBLQH_REF, GSN_ATTRINFO, signal, dataPos, JBB);
+    sendSignal(lqhRef, GSN_ATTRINFO, signal, dataPos, JBB);
   }
 }
 
@@ -4155,6 +4157,7 @@ void
 Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
 {  
   OperationRecord & op = filePtr.p->operation;
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH);
 
   if(filePtr.p->errorCode != 0)
   {
@@ -4169,7 +4172,7 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     req->closeFlag = 1;
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
-    sendSignal(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
+    sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 	       ScanFragNextReq::SignalLength, JBB);
     return;
   }//if
@@ -4201,12 +4204,12 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
       return;
     }
     if(ERROR_INSERTED(10032))
-      sendSignalWithDelay(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
+      sendSignalWithDelay(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 			  100, ScanFragNextReq::SignalLength);
     else if(ERROR_INSERTED(10033))
     {
       SET_ERROR_INSERT_VALUE(10032);
-      sendSignalWithDelay(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
+      sendSignalWithDelay(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 			  10000, ScanFragNextReq::SignalLength);
       
       BackupRecordPtr ptr LINT_SET_PTR;
@@ -4221,7 +4224,7 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     }
     else
     {
-      sendSignal(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
+      sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 		 ScanFragNextReq::SignalLength, JBB);
 
       /*
@@ -4395,7 +4398,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
     jam();
     signal->theData[0] = BackupContinueB::BUFFER_UNDERFLOW;
     signal->theData[1] = filePtr.i;
-    sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 20, 2);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 2);
     return;
   }
   else if (sz > 0)
@@ -5300,7 +5303,7 @@ Backup::lcp_open_file_done(Signal* signal, BackupRecordPtr ptr)
   signal->theData[0] = BackupContinueB::START_FILE_THREAD;
   signal->theData[1] = filePtr.i;
   signal->theData[2] = __LINE__;
-  sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 100, 3);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 3);
 }
 
 void

@@ -20,6 +20,7 @@
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/TabCommit.hpp>
+#include <signaldata/LCP.hpp>
 
 class DblqhProxy : public LocalProxy {
 public:
@@ -113,6 +114,33 @@ protected:
   void execTAB_COMMITCONF(Signal*);
   void execTAB_COMMITREF(Signal*);
   void sendTAB_COMMITCONF(Signal*, Uint32 ssId);
+
+  // GSN_LCP_FRAG_ORD
+  void execLCP_FRAG_ORD(Signal*);
+
+  // GSN_LCP_COMPLETE_ORD [ fictional gsn ]
+  struct Ss_LCP_COMPLETE_ORD : SsParallel {
+    LcpFragOrd m_req;
+    Ss_LCP_COMPLETE_ORD(){
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendLCP_COMPLETE_ORD;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendLCP_COMPLETE_REP;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_LCP_COMPLETE_ORD>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_LCP_COMPLETE_ORD;
+    }
+  };
+  SsPool<Ss_LCP_COMPLETE_ORD> c_ss_LCP_COMPLETE_ORD;
+  static Uint32 getSsId(const LcpFragOrd* req) {
+    return SsIdBase | (req->lcpId & 0xFFFF);
+  }
+  static Uint32 getSsId(const LcpCompleteRep* conf) {
+    return SsIdBase | (conf->lcpId & 0xFFFF);
+  }
+  void execLCP_COMPLETE_ORD(Signal*);
+  void sendLCP_COMPLETE_ORD(Signal*, Uint32 ssId);
+  void execLCP_COMPLETE_REP(Signal*);
+  void sendLCP_COMPLETE_REP(Signal*, Uint32 ssId);
 };
 
 #endif
