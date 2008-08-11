@@ -28,6 +28,8 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   for (i = 0; i < MaxWorkers; i++)
     c_worker[i] = 0;
 
+  c_ssIdSeq = 0;
+
   // GSN_READ_CONFIG_REQ
   addRecSignal(GSN_READ_CONFIG_REQ, &LocalProxy::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_READ_CONFIG_CONF, &LocalProxy::execREAD_CONFIG_CONF, true);
@@ -38,18 +40,134 @@ LocalProxy::~LocalProxy()
   // dtor of main block deletes workers
 }
 
+// support routines
+
+void
+LocalProxy::sendREQ(Signal* signal, SsSequential& ss)
+{
+  ss.m_worker = 0;
+  ndbrequire(ss.m_sendREQ != 0);
+  (this->*ss.m_sendREQ)(signal, ss.m_ssId);
+}
+
+void
+LocalProxy::recvCONF(Signal* signal, SsSequential& ss)
+{
+  ndbrequire(ss.m_sendCONF != 0);
+  (this->*ss.m_sendCONF)(signal, ss.m_ssId);
+
+  ss.m_worker++;
+  if (ss.m_worker < c_workers) {
+    jam();
+    ndbrequire(ss.m_sendREQ != 0);
+    (this->*ss.m_sendREQ)(signal, ss.m_ssId);
+    return;
+  }
+}
+
+void
+LocalProxy::recvREF(Signal* signal, SsSequential& ss, Uint32 error)
+{
+  ndbrequire(error != 0);
+  if (ss.m_error == 0)
+    ss.m_error = error;
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::skipReq(SsSequential& ss)
+{
+}
+
+bool
+LocalProxy::firstReply(const SsSequential& ss)
+{
+  return ss.m_worker == 0;
+}
+
+bool
+LocalProxy::lastReply(const SsSequential& ss)
+{
+  return ss.m_worker + 1 == c_workers;
+}
+
+void
+LocalProxy::sendREQ(Signal* signal, SsParallel& ss)
+{
+  ndbrequire(ss.m_sendREQ != 0);
+
+  ss.m_workerMask.clear();
+  ss.m_worker = 0;
+  while (ss.m_worker < c_workers) {
+    jam();
+    ss.m_workerMask.set(ss.m_worker);
+    (this->*ss.m_sendREQ)(signal, ss.m_ssId);
+    ss.m_worker++;
+  }
+}
+
+void
+LocalProxy::recvCONF(Signal* signal, SsParallel& ss)
+{
+  ndbrequire(ss.m_sendCONF != 0);
+
+  BlockReference ref = signal->getSendersBlockRef();
+  ndbrequire(refToMain(ref) == number());
+
+  ss.m_worker = refToInstance(ref) - 1;
+  ndbrequire(ref == workerRef(ss.m_worker));
+  ndbrequire(ss.m_worker < c_workers);
+  ndbrequire(ss.m_workerMask.get(ss.m_worker));
+  ss.m_workerMask.clear(ss.m_worker);
+
+  (this->*ss.m_sendCONF)(signal, ss.m_ssId);
+}
+
+void
+LocalProxy::recvREF(Signal* signal, SsParallel& ss, Uint32 error)
+{
+  ndbrequire(error != 0);
+  if (ss.m_error == 0)
+    ss.m_error = error;
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::skipReq(SsParallel& ss)
+{
+  ndbrequire(ss.m_workerMask.get(ss.m_worker));
+  ss.m_workerMask.clear(ss.m_worker);
+}
+
+bool
+LocalProxy::firstReply(const SsParallel& ss)
+{
+  const WorkerMask& mask = ss.m_workerMask;
+  const Uint32 count = mask.count();
+
+  // recvCONF has cleared current worker
+  ndbrequire(ss.m_worker < c_workers);
+  ndbrequire(!mask.get(ss.m_worker));
+  ndbrequire(count < c_workers);
+  return count + 1 == c_workers;
+}
+
+bool
+LocalProxy::lastReply(const SsParallel& ss)
+{
+  return ss.m_workerMask.isclear();
+}
+
 // GSN_READ_CONFIG_REQ
 
 void
 LocalProxy::execREAD_CONFIG_REQ(Signal* signal)
 {
-  Ss_READ_CONFIG_REQ& ss = c_ss_READ_CONFIG_REQ;
-  ndbrequire(!ss.m_active);
-  ss.m_active = true;
+  Ss_READ_CONFIG_REQ& ss = ssSeize<Ss_READ_CONFIG_REQ>();
 
   const ReadConfigReq* req = (const ReadConfigReq*)signal->getDataPtr();
-  ss.m_readConfigReq = *req;
-  ndbrequire(ss.m_readConfigReq.noOfParameters == 0);
+  ss.m_req = *req;
+  ndbrequire(ss.m_req.noOfParameters == 0);
 
   const Uint32 workers = globalData.ndbMtLqhWorkers;
   const Uint32 threads = globalData.ndbMtLqhThreads;
@@ -70,52 +188,46 @@ LocalProxy::execREAD_CONFIG_REQ(Signal* signal)
   c_threads = threads;
 
   // run sequentially due to big mallocs and initializations
-  sendREAD_CONFIG_REQ(signal, 0);
+  sendREQ(signal, ss);
 }
 
 void
-LocalProxy::sendREAD_CONFIG_REQ(Signal* signal, Uint32 i)
+LocalProxy::sendREAD_CONFIG_REQ(Signal* signal, Uint32 ssId)
 {
-  Ss_READ_CONFIG_REQ& ss = c_ss_READ_CONFIG_REQ;
+  Ss_READ_CONFIG_REQ& ss = ssFind<Ss_READ_CONFIG_REQ>(ssId);
 
   ReadConfigReq* req = (ReadConfigReq*)signal->getDataPtrSend();
   req->senderRef = reference();
-  req->senderData = i;
+  req->senderData = ssId;
   req->noOfParameters = 0;
-  sendSignal(workerRef(i), GSN_READ_CONFIG_REQ,
+  sendSignal(workerRef(ss.m_worker), GSN_READ_CONFIG_REQ,
              signal, ReadConfigReq::SignalLength, JBB);
-  // for verification only
-  ss.m_worker = i;
 }
 
 void
 LocalProxy::execREAD_CONFIG_CONF(Signal* signal)
 {
-  Ss_READ_CONFIG_REQ& ss = c_ss_READ_CONFIG_REQ;
-  ndbrequire(ss.m_active);
-
   const ReadConfigConf* conf = (const ReadConfigConf*)signal->getDataPtr();
-  ndbrequire(ss.m_worker == conf->senderData);
-  if (ss.m_worker + 1 < c_workers) {
-    jam();
-    sendREAD_CONFIG_REQ(signal, ss.m_worker + 1);
-    return;
-  }
-
-  sendREAD_CONFIG_CONF(signal);
-  ss.m_active = false;
+  Uint32 ssId = conf->senderData;
+  Ss_READ_CONFIG_REQ& ss = ssFind<Ss_READ_CONFIG_REQ>(ssId);
+  recvCONF(signal, ss);
 }
 
 void
-LocalProxy::sendREAD_CONFIG_CONF(Signal* signal)
+LocalProxy::sendREAD_CONFIG_CONF(Signal* signal, Uint32 ssId)
 {
-  Ss_READ_CONFIG_REQ& ss = c_ss_READ_CONFIG_REQ;
+  Ss_READ_CONFIG_REQ& ss = ssFind<Ss_READ_CONFIG_REQ>(ssId);
+
+  if (!lastReply(ss))
+    return;
 
   ReadConfigConf* conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
-  conf->senderData = ss.m_readConfigReq.senderData;
-  sendSignal(ss.m_readConfigReq.senderRef, GSN_READ_CONFIG_CONF,
+  conf->senderData = ss.m_req.senderData;
+  sendSignal(ss.m_req.senderRef, GSN_READ_CONFIG_CONF,
              signal, ReadConfigConf::SignalLength, JBB);
+
+  ssRelease<Ss_READ_CONFIG_REQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(LocalProxy)
