@@ -354,8 +354,6 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
                       const char *self_name)
 {
   char *last_fn_libchar;
-
-  size_t path_len;
   DYNAMIC_STRING ds_tmp;
   DBUG_ENTER("find_tool");
   DBUG_PRINT("enter", ("progname: %s", my_progname));
@@ -375,7 +373,9 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
   }
   else
   {
-    /* 
+    int len;
+
+    /*
       mysql_upgrade was run absolutely or relatively.  We can find a sibling
       by replacing our name after the LIBCHAR with the new tool name.
     */
@@ -396,10 +396,10 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
       last_fn_libchar -= 6;
     }
 
+    len= last_fn_libchar - self_name;
+
     my_snprintf(tool_executable_name, FN_REFLEN, "%.*s%c%s",
-             (last_fn_libchar - self_name), self_name, 
-             FN_LIBCHAR,
-             tool_name);
+                len, self_name, FN_LIBCHAR, tool_name);
   }
 
   verbose("Looking for '%s' as: %s", tool_name, tool_executable_name);
