@@ -5192,6 +5192,21 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
   case MicroGcp::M_GCP_COMMITTED:
     jam();
     gcpState = MasterGCPConf::GCP_COMMITTED;
+
+    /**
+     * Change state to GCP_COMMIT_RECEIVEDn and rerun GSN_GCP_NOMORETRANS
+     */
+    gcpState = MasterGCPConf::GCP_COMMIT_RECEIVED;
+    m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT;
+
+    {
+      GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
+      req2->senderData = m_micro_gcp.m_master_ref;
+      req2->gci_hi = m_micro_gcp.m_old_gci >> 32;
+      req2->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+      sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
+                 GCPNoMoreTrans::SignalLength, JBB);
+    }
     break;
   };
 
@@ -8972,6 +8987,28 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   }
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(7213))
+  {
+    ndbout_c("err 7213 killing %d", c_error_insert_extra);
+    Uint32 save = signal->theData[0];
+    signal->theData[0] = 5048;
+    sendSignal(numberToRef(DBLQH, c_error_insert_extra),
+               GSN_NDB_TAMPER, signal, 1, JBB);
+    signal->theData[0] = save;
+    CLEAR_ERROR_INSERT_VALUE;
+
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, c_error_insert_extra),
+               GSN_DUMP_STATE_ORD, signal, 1, JBB);
+
+    signal->theData[0] = save;
+    CLEAR_ERROR_INSERT_VALUE;
+
+    return;
+  }
+#endif
+
   Uint32 masterRef = calcDihBlockRef(masterNodeId);
   ndbrequire(masterNodeId = cmasterNodeId);
   if (isMaster())
@@ -9049,6 +9086,19 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 	       GSN_NDB_TAMPER, signal, 1, JBB);
     return;
   }
+
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(7214))
+  {
+    ndbout_c("err 7214 killing %d", c_error_insert_extra);
+    Uint32 save = signal->theData[0];
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, c_error_insert_extra),
+               GSN_NDB_TAMPER, signal, 1, JBB);
+    signal->theData[0] = save;
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+#endif
 
 #ifdef GCP_TIMER_HACK
   NdbTick_getMicroTimer(&globalData.gcp_timer_commit[1]);
@@ -15706,7 +15756,6 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 7901)
     globalData.gcp_timer_limit = signal->theData[1];
 #endif
-
   if (arg == 7023)
   {
     /**
@@ -15750,9 +15799,20 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
     return;
   }
+
   if (arg == DumpStateOrd::SchemaResourceCheckLeak)
   {
     RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
+  }
+
+  DECLARE_DUMP0(DBDIH, 7213, "Set error 7213 with extra arg")
+  {
+    SET_ERROR_INSERT_VALUE2(7213, signal->theData[1]);
+    return;
+  }
+  DECLARE_DUMP0(DBDIH, 7214, "Set error 7214 with extra arg")
+  {
+    SET_ERROR_INSERT_VALUE2(7214, signal->theData[1]);
     return;
   }
 }//Dbdih::execDUMP_STATE_ORD()
