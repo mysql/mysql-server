@@ -19,6 +19,9 @@
 BackupProxy::BackupProxy(Block_context& ctx) :
   LocalProxy(BACKUP, ctx)
 {
+  // GSN_STTOR
+  addRecSignal(GSN_UTIL_SEQUENCE_CONF, &BackupProxy::execUTIL_SEQUENCE_CONF);
+  addRecSignal(GSN_UTIL_SEQUENCE_REF, &BackupProxy::execUTIL_SEQUENCE_REF);
 }
 
 BackupProxy::~BackupProxy()
@@ -45,10 +48,46 @@ BackupProxy::callSTTOR(Signal* signal)
     ss.m_gsn = GSN_STTOR;
     sendREAD_NODESREQ(signal);
     break;
+  case 7:
+    if (c_typeOfStart == NodeState::ST_INITIAL_START &&
+        c_masterNodeId == getOwnNodeId()) {
+      jam();
+      sendUTIL_SEQUENCE_REQ(signal);
+      return;
+    }
+    backSTTOR(signal);
+    break;
   default:
     backSTTOR(signal);
     break;
   }
+}
+
+static const Uint32 BACKUP_SEQUENCE = 0x1F000000;
+
+void
+BackupProxy::sendUTIL_SEQUENCE_REQ(Signal* signal)
+{
+  UtilSequenceReq* req = (UtilSequenceReq*)signal->getDataPtrSend();
+
+  req->senderData  = RNIL;
+  req->sequenceId  = BACKUP_SEQUENCE;
+  req->requestType = UtilSequenceReq::Create;
+  
+  sendSignal(DBUTIL_REF, GSN_UTIL_SEQUENCE_REQ, 
+	     signal, UtilSequenceReq::SignalLength, JBB);
+}
+
+void
+BackupProxy::execUTIL_SEQUENCE_CONF(Signal* signal)
+{
+  backSTTOR(signal);
+}
+
+void
+BackupProxy::execUTIL_SEQUENCE_REF(Signal* signal)
+{
+  ndbrequire(false);
 }
 
 BLOCK_FUNCTIONS(BackupProxy)
