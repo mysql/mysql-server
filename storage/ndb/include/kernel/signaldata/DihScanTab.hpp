@@ -66,6 +66,7 @@ struct DihScanGetNodesConf
   Uint32 count;
   Uint32 tableId;
   Uint32 fragId;
+  Uint32 instanceKey;
 };
 
 /**

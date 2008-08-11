@@ -8084,6 +8084,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   conf->zero = 0;
   conf->reqinfo = sig2;
   conf->fragId = fragId;
+  conf->instanceKey = dihGetInstanceKey(fragPtr);
 
   if (unlikely(newFragId != RNIL))
   {
@@ -8337,6 +8338,7 @@ void Dbdih::execDIH_SCAN_GET_NODES_REQ(Signal* signal)
   conf->count = count;
   conf->tableId = tabPtr.i;
   conf->fragId = fragId;
+  conf->instanceKey = dihGetInstanceKey(fragPtr);
   sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_CONF, signal,
              DihScanGetNodesConf::SignalLength, JBB);
 }//Dbdih::execDIGETPRIMREQ()

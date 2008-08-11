@@ -231,8 +231,8 @@ void Dbacc::execSTTOR(Signal* signal)
   switch (tstartphase) {
   case 1:
     jam();
-    ndbrequire((c_tup = (Dbtup*)globalData.getBlock(DBTUP)) != 0);
-    ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH)) != 0);
+    ndbrequire((c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance())) != 0);
+    ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     break;
   }
   tuserblockref = signal->theData[3];
@@ -6396,7 +6396,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     if (tscanNextFlag == NextScanReq::ZSCAN_COMMIT) {
       jam();
       signal->theData[0] = scanPtr.p->scanUserptr;
-      Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
+      Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 1);
       return;
     }//if
@@ -7395,7 +7395,7 @@ bool Dbacc::searchScanContainer(Signal* signal)
 void Dbacc::sendNextScanConf(Signal* signal) 
 {
   scanPtr.p->scanTimer = scanPtr.p->scanContinuebCounter;
-  Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
+  Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
   jam();
   /** ---------------------------------------------------------------------
    * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 

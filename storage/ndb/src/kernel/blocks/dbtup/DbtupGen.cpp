@@ -290,7 +290,7 @@ void Dbtup::execSTTOR(Signal* signal)
   switch (startPhase) {
   case ZSTARTPHASE1:
     jam();
-    ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH)) != 0);
+    ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
     cownref = calcInstanceBlockRef(DBTUP);
