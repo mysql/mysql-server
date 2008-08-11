@@ -21,6 +21,7 @@
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/TabCommit.hpp>
 #include <signaldata/LCP.hpp>
+#include <signaldata/GCP.hpp>
 
 class DblqhProxy : public LocalProxy {
 public:
@@ -141,6 +142,34 @@ protected:
   void sendLCP_COMPLETE_ORD(Signal*, Uint32 ssId);
   void execLCP_COMPLETE_REP(Signal*);
   void sendLCP_COMPLETE_REP(Signal*, Uint32 ssId);
+
+  // GSN_GCP_SAVEREQ
+  struct Ss_GCP_SAVEREQ : SsParallel {
+    GCPSaveReq m_req;
+    Ss_GCP_SAVEREQ() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendGCP_SAVEREQ;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendGCP_SAVECONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_GCP_SAVEREQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_GCP_SAVEREQ;
+    }
+  };
+  SsPool<Ss_GCP_SAVEREQ> c_ss_GCP_SAVEREQ;
+  Uint32 getSsId(const GCPSaveReq* req) {
+    return SsIdBase | (req->gci & 0xFFFF);
+  }
+  Uint32 getSsId(const GCPSaveConf* conf) {
+    return SsIdBase | (conf->gci & 0xFFFF);
+  }
+  Uint32 getSsId(const GCPSaveRef* ref) {
+    return SsIdBase | (ref->gci & 0xFFFF);
+  }
+  void execGCP_SAVEREQ(Signal*);
+  void sendGCP_SAVEREQ(Signal*, Uint32 ssId);
+  void execGCP_SAVECONF(Signal*);
+  void execGCP_SAVEREF(Signal*);
+  void sendGCP_SAVECONF(Signal*, Uint32 ssId);
 };
 
 #endif
