@@ -103,6 +103,7 @@ class LqhFragReq {
    * Receiver(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   
   friend bool printLQH_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
@@ -150,6 +151,7 @@ class LqhFragConf {
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
 
   /**
    * Receiver(s)
@@ -173,6 +175,7 @@ class LqhFragRef {
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
 
   /**
    * Receiver(s)
@@ -202,6 +205,7 @@ class LqhAddAttrReq {
    * Receiver(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
 
   friend bool printLQH_ADD_ATTR_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
@@ -226,6 +230,7 @@ class LqhAddAttrRef {
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   
   /**
    * Receiver(s)
@@ -246,6 +251,7 @@ class LqhAddAttrConf {
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   
   /**
    * Receiver(s)

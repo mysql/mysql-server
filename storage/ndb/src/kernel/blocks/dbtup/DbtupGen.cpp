@@ -290,10 +290,10 @@ void Dbtup::execSTTOR(Signal* signal)
   switch (startPhase) {
   case ZSTARTPHASE1:
     jam();
-    ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH)) != 0);
+    ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
-    cownref = calcTupBlockRef(0);
+    cownref = calcInstanceBlockRef(DBTUP);
     break;
   default:
     jam();
@@ -304,7 +304,8 @@ void Dbtup::execSTTOR(Signal* signal)
   signal->theData[2] = 2;
   signal->theData[3] = ZSTARTPHASE1;
   signal->theData[4] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUP_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
   return;
 }//Dbtup::execSTTOR()
 
@@ -533,7 +534,7 @@ void Dbtup::execNDB_STTOR(Signal* signal)
   case ZSTARTPHASE1:
     jam();
     cownNodeId = ownNodeId;
-    cownref = calcTupBlockRef(ownNodeId);
+    cownref = calcInstanceBlockRef(DBTUP);
     break;
   case ZSTARTPHASE2:
     jam();
@@ -561,7 +562,8 @@ void Dbtup::execNDB_STTOR(Signal* signal)
     break;
   }//switch
   signal->theData[0] = cownref;
-  sendSignal(cndbcntrRef, GSN_NDB_STTORRY, signal, 1, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUP_REF;
+  sendSignal(cntrRef, GSN_NDB_STTORRY, signal, 1, JBB);
 }//Dbtup::execNDB_STTOR()
 
 void Dbtup::startphase3Lab(Signal* signal, Uint32 config1, Uint32 config2) 

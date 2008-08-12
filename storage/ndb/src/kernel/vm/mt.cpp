@@ -43,9 +43,9 @@ static const Uint32 MAX_SIGNALS_PER_JB = 100;
 
 //#define NDB_MT_LOCK_TO_CPU
 
-#define MAX_BLOCK_INSTANCES (1 + MAX_NDBMT_WORKERS)
+#define MAX_BLOCK_INSTANCES (1 + MAX_NDBMT_LQH_WORKERS)
 #define NUM_MAIN_THREADS 2 // except receiver
-#define MAX_THREADS (NUM_MAIN_THREADS + MAX_NDBMT_THREADS + 1)
+#define MAX_THREADS (NUM_MAIN_THREADS + MAX_NDBMT_LQH_THREADS + 1)
 
 static Uint32 ndbmt_workers = 0;
 static Uint32 ndbmt_threads = 0;
@@ -1783,10 +1783,19 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
     if(siglen>16)
       __builtin_prefetch (read_buffer->m_data + read_pos + 32, 0, 3);
     Uint32 bno = blockToMain(s->theReceiversBlockNumber);
-    Uint32 ino = blockToInstance(s->theReceiversBlockNumber);
+    SimulatedBlock* block = globalData.getBlock(bno);
+
+    if (ndbmt_workers != 0) { // MT LQH
+      Uint32 ino = blockToInstance(s->theReceiversBlockNumber);
+      if (ino != 0) {
+        // map instance key to real instance
+        ino = 1 + (ino - 1) % ndbmt_workers;
+        block = block->getInstance(ino);
+        assert(block != 0);
+      }
+    }
+
     Uint32 gsn = s->theVerId_signalNumber;
-    SimulatedBlock * main = globalData.getBlock(bno);
-    SimulatedBlock * block = main->getInstance(ino);
     *watchDogCounter = 1;
     /* Must update original buffer so signal dump will see it. */
     s->theSignalId = (*signalIdCounter)++;
@@ -1926,7 +1935,7 @@ add_main_thr_map()
 
 // workers added by LocalProxy
 void
-add_worker_thr_map(Uint32 block, Uint32 instance)
+add_lqh_worker_thr_map(Uint32 block, Uint32 instance)
 {
   assert(instance != 0);
   Uint32 i = instance - 1;
@@ -2187,11 +2196,13 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
           const Uint32 secPtr[3])
 {
   Uint32 block = blockToMain(s->theReceiversBlockNumber);
-  Uint32 instance = blockToInstance(s->theReceiversBlockNumber);
+  Uint32 instance = 0;
 
-  // map on receiver side
-  if (instance != 0)
-    instance = 1 + (instance - 1) % ndbmt_workers;
+  if (ndbmt_workers != 0) { // MT LQH
+    instance = blockToInstance(s->theReceiversBlockNumber);
+    if (instance != 0)
+      instance = 1 + (instance - 1) % ndbmt_workers;
+  }
 
   /*
    * Max number of signals to put into job buffer before flushing the buffer
@@ -2223,11 +2234,13 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
           const Uint32 secPtr[3])
 {
   Uint32 block = blockToMain(s->theReceiversBlockNumber);
-  Uint32 instance = blockToInstance(s->theReceiversBlockNumber);
+  Uint32 instance = 0;
 
-  // map on receiver side
-  if (instance != 0)
-    instance = 1 + (instance - 1) % ndbmt_workers;
+  if (ndbmt_workers != 0) { // MT LQH
+    instance = blockToInstance(s->theReceiversBlockNumber);
+    if (instance != 0)
+      instance = 1 + (instance - 1) % ndbmt_workers;
+  }
 
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = &g_thr_repository;
@@ -2615,8 +2628,8 @@ ThreadConfig::~ThreadConfig()
 void
 ThreadConfig::init(EmulatorData *emulatorData)
 {
-  ndbmt_workers = globalData.ndbmtWorkers;
-  ndbmt_threads = globalData.ndbmtThreads;
+  ndbmt_workers = globalData.ndbMtLqhWorkers;
+  ndbmt_threads = globalData.ndbMtLqhThreads;
   num_threads = NUM_MAIN_THREADS + ndbmt_threads + 1;
   assert(num_threads <= MAX_THREADS);
   receiver_thread_no = num_threads - 1;
@@ -3005,6 +3018,9 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
     if (siglen > 25)
       siglen = 25;              // Sanity check
     memcpy(&signal.header, s, 4*siglen);
+    // instance number in trace file is confusing if not MT LQH
+    if (ndbmt_workers == 0)
+      signal.header.theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
 
     const Uint32 *posptr = reinterpret_cast<const Uint32 *>(s);
     signal.m_sectionPtrI[0] = posptr[siglen + 0];

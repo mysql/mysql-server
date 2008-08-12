@@ -245,10 +245,19 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
      *
      * The UTIL/TC blocks are in another thread (in multi-threaded ndbd), so
      * must use sendSignal().
+     *
+     * In MT LQH only LQH and BACKUP are in same thread.
      */
-    if (block != DBUTIL && block != DBTC)
+    BlockNumber blockMain = blockToMain(block);
+    if (blockMain == DBLQH || blockMain == BACKUP)
     {
-      EXECUTE_DIRECT(block, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
+      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
+      jamEntry();
+    }
+    else if (blockMain == SUMA)
+    {
+      // wl4391_todo not MT safe
+      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex, 0);
       jamEntry();
     }
     else

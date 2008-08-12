@@ -190,7 +190,8 @@ Restore::sendSTTORRY(Signal* signal){
   signal->theData[3] = 1;
   signal->theData[4] = 3;
   signal->theData[5] = 255; // No more start phases from missra
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : RESTORE_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
 }
 
 void
