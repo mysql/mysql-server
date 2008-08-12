@@ -4456,19 +4456,14 @@ int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
 // flatten all DB's in this table, to do so, just do a full scan on every DB
 //
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
     int error;
-    DB_TXN* txn = NULL;
     DBC* tmp_cursor = NULL;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) {
-        goto cleanup;
-    }
-
     //
     // prelock so each scan goes faster
     //
-    error = acquire_table_lock(txn,lock_read);
+    error = acquire_table_lock(transaction,lock_read);
     if (error) {
         goto cleanup;
     }
@@ -4478,7 +4473,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     //
     for (uint i = 0; i < curr_num_DBs; i++) {
         error = 0;
-        if ((error = share->file->cursor(share->file, txn, &tmp_cursor, 0))) {
+        if ((error = share->file->cursor(share->file, transaction, &tmp_cursor, 0))) {
             tmp_cursor = NULL;
             goto cleanup;
         }
@@ -4493,10 +4488,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
 
     error = 0;
 cleanup:
-    if (txn) {
-        txn->commit(txn, 0);
-    }
-    return error;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 ulong ha_tokudb::field_offset(Field *field) {
