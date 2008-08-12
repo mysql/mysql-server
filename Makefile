@@ -22,6 +22,8 @@ cscope.files: $(CSCOPE_DIRS)
 cscope.out: cscope.files $(CSCOPE_FILES)
 	$(CSCOPE) -b
 
+tags: cscope.out TAGS
+
 src.dir: newbrt.dir
 cxx.dir: src.dir
 db-benchmark-test.dir: src.dir
