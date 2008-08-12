@@ -8099,6 +8099,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   conf->zero = 0;
   conf->reqinfo = sig2;
   conf->fragId = fragId;
+  conf->instanceKey = dihGetInstanceKey(fragPtr);
 
   if (unlikely(newFragId != RNIL))
   {
@@ -8352,6 +8353,7 @@ void Dbdih::execDIH_SCAN_GET_NODES_REQ(Signal* signal)
   conf->count = count;
   conf->tableId = tabPtr.i;
   conf->fragId = fragId;
+  conf->instanceKey = dihGetInstanceKey(fragPtr);
   sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_CONF, signal,
              DihScanGetNodesConf::SignalLength, JBB);
 }//Dbdih::execDIGETPRIMREQ()
@@ -12024,7 +12026,9 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
   replicaPtr.i = info.replicaPtr;
   ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
   
-  BlockReference ref = calcLqhBlockRef(replicaPtr.p->procNode);
+  // address LQH/instance directly
+  Uint32 instanceKey = dihGetInstanceKey(info.tableId, info.fragId);
+  BlockReference ref = numberToRef(DBLQH, instanceKey, replicaPtr.p->procNode);
   
   if (ERROR_INSERTED(7193) && replicaPtr.p->procNode == getOwnNodeId())
   {
@@ -16943,4 +16947,16 @@ Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
   getFragstore(tTabPtr.p, fragId, tFragPtr);
   Uint32 instanceKey = dihGetInstanceKey(tFragPtr);
   return instanceKey;
+}
+
+Uint32
+Dbdih::dihGetLogPartId(Uint32 tabId, Uint32 fragId)
+{
+  TabRecordPtr tTabPtr;
+  tTabPtr.i = tabId;
+  ptrCheckGuard(tTabPtr, ctabFileSize, tabRecord);
+  FragmentstorePtr tFragPtr;
+  getFragstore(tTabPtr.p, fragId, tFragPtr);
+  Uint32 logPartId = tFragPtr.p->m_log_part_id;
+  return logPartId;
 }

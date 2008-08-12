@@ -539,8 +539,8 @@ void Dblqh::execSTTOR(Signal* signal)
   case ZSTART_PHASE1:
     jam();
     cstartPhase = tstartPhase;
-    c_tup = (Dbtup*)globalData.getBlock(DBTUP);
-    c_acc = (Dbacc*)globalData.getBlock(DBACC);
+    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+    c_acc = (Dbacc*)globalData.getBlock(DBACC, instance());
     ndbrequire(c_tup != 0 && c_acc != 0);
     sendsttorryLab(signal);
     
@@ -589,7 +589,8 @@ Dblqh::define_backup(Signal* signal)
   req->nodes.set(getOwnNodeId());
   req->backupDataLen = ~0;
 
-  sendSignal(BACKUP_REF, GSN_DEFINE_BACKUP_REQ, signal, 
+  BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+  sendSignal(backupRef, GSN_DEFINE_BACKUP_REQ, signal, 
 	     DefineBackupReq::SignalLength, JBB);
 }
 
@@ -708,14 +709,16 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
 
 /* ------- INITIATE ALL RECORDS ------- */
   cownNodeid    = ownNodeId;
-  caccBlockref  = calcAccBlockRef (cownNodeid);
-  ctupBlockref  = calcTupBlockRef (cownNodeid);
-  ctuxBlockref  = calcTuxBlockRef (cownNodeid);
-  cownref       = calcLqhBlockRef (cownNodeid);
+  caccBlockref  = calcInstanceBlockRef(DBACC);
+  ctupBlockref  = calcInstanceBlockRef(DBTUP);
+  ctuxBlockref  = calcInstanceBlockRef(DBTUX);
+  cownref       = calcInstanceBlockRef(DBLQH);
+  ndbassert(cownref == reference());
   for (Ti = 0; Ti < chostFileSize; Ti++) {
     ThostPtr.i = Ti;
     ptrCheckGuard(ThostPtr, chostFileSize, hostRecord);
-    ThostPtr.p->hostLqhBlockRef = calcLqhBlockRef(ThostPtr.i);
+    // wl4391_todo using own instance() does not work with mixed versions
+    ThostPtr.p->hostLqhBlockRef = calcInstanceBlockRef(DBLQH, ThostPtr.i);
     ThostPtr.p->hostTcBlockRef  = calcTcBlockRef(ThostPtr.i);
     ThostPtr.p->inPackedList = false;
     ThostPtr.p->noOfPackedWordsLqh = 0;
@@ -974,7 +977,8 @@ void Dblqh::startphase6Lab(Signal* signal)
 void Dblqh::sendNdbSttorryLab(Signal* signal) 
 {
   signal->theData[0] = cownref;
-  sendSignal(NDBCNTR_REF, GSN_NDB_STTORRY, signal, 1, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
+  sendSignal(cntrRef, GSN_NDB_STTORRY, signal, 1, JBB);
   return;
 }//Dblqh::sendNdbSttorryLab()
 
@@ -989,7 +993,8 @@ void Dblqh::sendsttorryLab(Signal* signal)
   signal->theData[3] = ZSTART_PHASE1;
   signal->theData[4] = 4;
   signal->theData[5] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
   return;
 }//Dblqh::sendsttorryLab()
 
@@ -1156,7 +1161,7 @@ Dblqh::sendCreateTabReq(Signal* signal, AddFragRecordPtr addfragptr)
   req->senderRef = reference();
   req->senderData = addfragptr.i;
 
-  Uint32 ref = DBTUP_REF;
+  Uint32 ref = calcInstanceBlockRef(DBTUP);
   switch(addfragptr.p->addfragStatus){
   case AddFragRecord::WAIT_TUP:
     if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
@@ -1171,7 +1176,7 @@ Dblqh::sendCreateTabReq(Signal* signal, AddFragRecordPtr addfragptr)
     jam();
     ndbrequire(req->noOfAttributes >= 2);
     req->noOfAttributes--;
-    ref = DBTUX_REF;
+    ref = calcInstanceBlockRef(DBTUX);
     break;
   default:
     jamLine(addfragptr.p->addfragStatus);
@@ -1437,7 +1442,8 @@ Dblqh::sendAddAttrReq(Signal* signal)
       tupreq->attrId = attrId;
       tupreq->attrDescriptor = entry.attrDescriptor;
       tupreq->extTypeInfo = entry.extTypeInfo;
-      sendSignal(DBTUP_REF, GSN_TUP_ADD_ATTRREQ,
+      BlockReference tupRef = calcInstanceBlockRef(DBTUP);
+      sendSignal(tupRef, GSN_TUP_ADD_ATTRREQ,
                  signal, TupAddAttrReq::SignalLength, JBB);
       return;
     }
@@ -1467,7 +1473,8 @@ Dblqh::sendAddAttrReq(Signal* signal)
       tuxreq->attrDescriptor = entry.attrDescriptor;
       tuxreq->extTypeInfo = entry.extTypeInfo;
       tuxreq->primaryAttrId = primaryAttrId;
-      sendSignal(DBTUX_REF, GSN_TUX_ADD_ATTRREQ,
+      BlockReference tuxRef = calcInstanceBlockRef(DBTUX);
+      sendSignal(tuxRef, GSN_TUX_ADD_ATTRREQ,
 		 signal, TuxAddAttrReq::SignalLength, JBB);
       return;
     }
@@ -2674,7 +2681,7 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   
   CommitAckMarkerPtr removedPtr;
   m_commitAckMarkerHash.remove(removedPtr, key);
-#if defined VM_TRACE || defined ERROR_INSERT
+#if (defined VM_TRACE || defined ERROR_INSERT) && defined(wl4391_todo)
   ndbrequire(removedPtr.i != RNIL);
   m_commitAckMarkerPool.release(removedPtr);
 #else
@@ -4390,7 +4397,7 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
 
   TRACE_OP(regTcPtr.p, "ACC");
   
-  EXECUTE_DIRECT(refToBlock(regTcPtr.p->tcAccBlockref), GSN_ACCKEYREQ, 
+  EXECUTE_DIRECT(refToMain(regTcPtr.p->tcAccBlockref), GSN_ACCKEYREQ, 
 		 signal, 7 + regTcPtr.p->primKeyLen);
   if (signal->theData[0] < RNIL) {
     signal->theData[0] = regTcPtr.i;
@@ -5067,7 +5074,7 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   sig1 = regTcPtr->transid[0];
   sig2 = regTcPtr->transid[1];
   sig3 = regFragptrP->tupFragptr;
-  Uint32 tup = refToBlock(regTcPtr->tcTupBlockref);
+  Uint32 tup = refToMain(regTcPtr->tcTupBlockref);
 
   tupKeyReq->storedProcedure = sig0;
   tupKeyReq->transId1 = sig1;
@@ -5799,7 +5806,8 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->variableData[nextPos + 0] = sig0;
   nextPos += LqhKeyReq::getGCIFlag(Treqinfo);
 
-  BlockReference lqhRef = calcLqhBlockRef(regTcPtr->nextReplica);
+  // wl4391_todo for mixed versions must recompute full instance key here
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH, regTcPtr->nextReplica);
   
   if (likely(sendLongReq))
   {
@@ -6747,7 +6755,7 @@ void Dblqh::commitReqLab(Signal* signal, Uint32 gci_hi, Uint32 gci_lo)
       jam();
       regTcPtr->transactionState = TcConnectionrec::PREPARED_RECEIVED_COMMIT;
       TcConnectionrecPtr saveTcPtr = tcConnectptr;
-      Uint32 blockNo = refToBlock(regTcPtr->tcTupBlockref);
+      Uint32 blockNo = refToMain(regTcPtr->tcTupBlockref);
       signal->theData[0] = regTcPtr->tupConnectrec;
       signal->theData[1] = gci_hi;
       signal->theData[2] = gci_lo;
@@ -6928,7 +6936,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       TupCommitReq * const tupCommitReq = 
         (TupCommitReq *)signal->getDataPtrSend();
       Uint32 sig0 = regTcPtr.p->tupConnectrec;
-      Uint32 tup = refToBlock(regTcPtr.p->tcTupBlockref);
+      Uint32 tup = refToMain(regTcPtr.p->tcTupBlockref);
       jam();
       tupCommitReq->opPtr = sig0;
       tupCommitReq->gci_hi = regTcPtr.p->gci_hi;
@@ -6968,7 +6976,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
 
       TRACE_OP(regTcPtr.p, "ACC_COMMITREQ");
 
-      Uint32 acc = refToBlock(regTcPtr.p->tcAccBlockref);
+      Uint32 acc = refToMain(regTcPtr.p->tcAccBlockref);
       signal->theData[0] = regTcPtr.p->accConnectrec;
       EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
       
@@ -6976,7 +6984,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       if(!dirtyOp){
 	TRACE_OP(regTcPtr.p, "ACC_COMMITREQ");
 
-	Uint32 acc = refToBlock(regTcPtr.p->tcAccBlockref);
+	Uint32 acc = refToMain(regTcPtr.p->tcAccBlockref);
 	signal->theData[0] = regTcPtr.p->accConnectrec;
 	EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
       }
@@ -9097,7 +9105,7 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   AccScanReq::setReadCommittedFlag(req->requestInfo, scanptr.p->readCommitted);
   AccScanReq::setDescendingFlag(req->requestInfo, scanptr.p->descending);
 
-  if (refToBlock(tcConnectptr.p->clientBlockref) == BACKUP)
+  if (refToMain(tcConnectptr.p->clientBlockref) == BACKUP)
   {
     if (scanptr.p->lcpScan)
     {
@@ -9787,7 +9795,7 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   tupKeyReq->savePointId = regTcPtr->savePointId;
   tupKeyReq->disk_page= disk_page;
   tupKeyReq->attrInfoIVal= RNIL;
-  Uint32 blockNo = refToBlock(regTcPtr->tcTupBlockref);
+  Uint32 blockNo = refToMain(regTcPtr->tcTupBlockref);
   EXECUTE_DIRECT(blockNo, GSN_TUPKEYREQ, signal, 
 		 TupKeyReq::SignalLength);
 }
@@ -12097,13 +12105,17 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
       LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       lcpPtr.p->firstFragmentFlag= false;
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-      EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+      // wl4391_todo DD
+      if (!isNdbMtLqh())
+      EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length(), 0);
       jamEntry();
       
       /**
        * First fragment mean that last LCP is complete :-)
        */
-      EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+      // wl4391_todo DD
+      if (!isNdbMtLqh())
+      EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD, signal, signal->length(), 0);
       jamEntry();
     }
     
@@ -12130,7 +12142,9 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
     {
       LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-      EXECUTE_DIRECT(LGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+      // wl4391_todo DD
+      if (!isNdbMtLqh())
+      EXECUTE_DIRECT(LGMAN, GSN_LCP_FRAG_ORD, signal, signal->length(), 0);
       jamEntry();
       
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
@@ -12167,7 +12181,8 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
       }
       else
       {
-	sendSignal(BACKUP_REF, GSN_BACKUP_FRAGMENT_REQ, signal, 
+        BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+	sendSignal(backupRef, GSN_BACKUP_FRAGMENT_REQ, signal, 
 		   BackupFragmentReq::SignalLength, JBB);
       }
     }
@@ -12236,7 +12251,7 @@ Dblqh::sendLCP_FRAG_REP(Signal * signal,
       jam();
       BlockReference Tblockref = calcDihBlockRef(nodeId);
       sendSignal(Tblockref, GSN_LCP_FRAG_REP, signal, 
-		 LcpFragRep::SignalLength, JBB);
+                 LcpFragRep::SignalLength, JBB);
     }//if
   }//for
 }
@@ -12328,7 +12343,8 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   req->lcpId = lcpPtr.p->currentFragment.lcpFragOrd.lcpId % MAX_LCP_STORED;
   req->backupPtr = m_backup_ptr;
   req->backupId = lcpPtr.p->currentFragment.lcpFragOrd.lcpId;
-  sendSignal(BACKUP_REF, GSN_LCP_PREPARE_REQ, signal, 
+  BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+  sendSignal(backupRef, GSN_LCP_PREPARE_REQ, signal, 
 	     LcpPrepareReq::SignalLength, JBB);
 
 }//Dblqh::sendLCP_FRAGIDREQ()
@@ -12388,21 +12404,32 @@ void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
   req->senderRef= reference();
   req->backupPtr= m_backup_ptr;
   req->backupId= lcpId;
-  sendSignal(BACKUP_REF, GSN_END_LCP_REQ, signal, 
+
+  BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+  sendSignal(backupRef, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
-  
+  // wl4391_todo DD
+  if (!isNdbMtLqh())
   sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
 
+  // wl4391_todo DD
+  if (!isNdbMtLqh())
   sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
-  
-  EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength);
+
+  // wl4391_todo DD
+  if (!isNdbMtLqh())
+  EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength, 0);
   jamEntry();
-  
+
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
+  // wl4391_todo DD
+  if (!isNdbMtLqh())
   lcpPtr.p->m_outstanding = 3;
+  else
+  lcpPtr.p->m_outstanding = 1;
   return;
 }//Dblqh::completeLcpRoundLab()
 
@@ -12441,17 +12468,23 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   rep->lcpId = lcpId;
   rep->blockNo = DBLQH;
   
-  for (Uint32 i = 0; i < cnoOfNodes; i++) {
-    jam();
-    Uint32 nodeId = cnodeData[i];
-    if(cnodeStatus[i] == ZNODE_UP){
+  if (!isNdbMtLqh()) {
+    for (Uint32 i = 0; i < cnoOfNodes; i++) {
       jam();
-      
-      BlockReference blockref = calcDihBlockRef(nodeId);
-      sendSignal(blockref, GSN_LCP_COMPLETE_REP, signal, 
-		 LcpCompleteRep::SignalLength, JBB);
-    }//if
-  }//for
+      Uint32 nodeId = cnodeData[i];
+      if(cnodeStatus[i] == ZNODE_UP){
+        jam();
+        
+        BlockReference blockref = calcDihBlockRef(nodeId);
+        sendSignal(blockref, GSN_LCP_COMPLETE_REP, signal, 
+                   LcpCompleteRep::SignalLength, JBB);
+      }//if
+    }//for
+  } else {
+    jam();
+    sendSignal(DBLQH_REF, GSN_LCP_COMPLETE_REP, signal,
+               LcpCompleteRep::SignalLength, JBB);
+  }
 
   if(lcpPtr.p->reportEmpty){
     jam();
@@ -17758,7 +17791,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
   signal->theData[2] = 0;
   signal->theData[3] = retRef;
   signal->theData[4] = retData;
-  sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 5, JBB);
+  sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);
 
   return;
 }//Dblqh::initialiseRecordsLab()

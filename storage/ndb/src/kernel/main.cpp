@@ -286,23 +286,20 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   return 0;                     // Success
 }
 
-bool g_ndbMt = false;
-bool g_ndbMtLqh = false;
-
 static int
 get_multithreaded_config(EmulatorData& ed)
 {
-  // multithreaded is compiled in ndbd/ndbmtd
-  g_ndbMt = SimulatedBlock::isMultiThreaded();
-  if (!g_ndbMt)
+  // multithreaded is compiled in ndbd/ndbmtd for now
+  globalData.isNdbMt = SimulatedBlock::isMultiThreaded();
+  if (!globalData.isNdbMt)
     return 0;
 
   // mt lqh via environment during development
   {
     const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
     if (p != 0 && strchr("1Y", p[0]) != 0)
-      g_ndbMtLqh = true;
-    if (!g_ndbMtLqh)
+      globalData.isNdbMtLqh = true;
+    if (!globalData.isNdbMtLqh)
       return 0;
   }
 
@@ -315,8 +312,8 @@ get_multithreaded_config(EmulatorData& ed)
 
   Uint32 workers = 0;
   Uint32 threads = 0;
-  if (ndb_mgm_get_int_parameter(p, CFG_NDBMT_WORKERS, &workers) ||
-      ndb_mgm_get_int_parameter(p, CFG_NDBMT_THREADS, &threads))
+  if (ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_WORKERS, &workers) ||
+      ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_THREADS, &threads))
   {
     g_eventLogger->alert("Failed to get CFG_NDBMT parameters from "
                         "config, exiting.");
@@ -326,12 +323,12 @@ get_multithreaded_config(EmulatorData& ed)
   ndbout << "NDBMT: workers=" << workers
          << " threads=" << threads << endl;
 
-  assert(workers != 0 && workers <= MAX_NDBMT_WORKERS);
-  assert(threads != 0 && threads <= MAX_NDBMT_THREADS);
+  assert(workers != 0 && workers <= MAX_NDBMT_LQH_WORKERS);
+  assert(threads != 0 && threads <= MAX_NDBMT_LQH_THREADS);
   assert(workers % threads == 0);
 
-  globalData.ndbmtWorkers = workers;
-  globalData.ndbmtThreads = threads;
+  globalData.ndbMtLqhWorkers = workers;
+  globalData.ndbMtLqhThreads = threads;
   return 0;
 }
 

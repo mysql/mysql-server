@@ -13,26 +13,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NDB_BACKUP_PROXY_HPP
-#define NDB_BACKUP_PROXY_HPP
+#ifndef TAB_COMMIT_HPP
+#define TAB_COMMIT_HPP
 
-#include <LocalProxy.hpp>
-#include <signaldata/UtilSequence.hpp>
+struct TabCommitReq {
+  enum { SignalLength = 3 };
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 tableId;
+};
 
-class BackupProxy : public LocalProxy {
-public:
-  BackupProxy(Block_context& ctx);
-  virtual ~BackupProxy();
-  BLOCK_DEFINES(BackupProxy);
+struct TabCommitConf {
+  enum { SignalLength = 3 };
+  Uint32 senderData;
+  Uint32 nodeId;
+  Uint32 tableId;
+};
 
-protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
-
-  // GSN_STTOR
-  virtual void callSTTOR(Signal*);
-  void sendUTIL_SEQUENCE_REQ(Signal*);
-  void execUTIL_SEQUENCE_CONF(Signal*);
-  void execUTIL_SEQUENCE_REF(Signal*);
+struct TabCommitRef {
+  enum { SignalLength = 5 };
+  Uint32 senderData;
+  Uint32 nodeId;
+  Uint32 tableId;
+  Uint32 errorCode;
+  Uint32 tableStatus;
 };
 
 #endif

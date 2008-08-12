@@ -231,8 +231,8 @@ void Dbacc::execSTTOR(Signal* signal)
   switch (tstartphase) {
   case 1:
     jam();
-    ndbrequire((c_tup = (Dbtup*)globalData.getBlock(DBTUP)) != 0);
-    ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH)) != 0);
+    ndbrequire((c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance())) != 0);
+    ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
     break;
   }
   tuserblockref = signal->theData[3];
@@ -247,7 +247,7 @@ void Dbacc::execSTTOR(Signal* signal)
 void Dbacc::ndbrestart1Lab(Signal* signal) 
 {
   cmynodeid = globalData.ownId;
-  cownBlockref = numberToRef(DBACC, cmynodeid);
+  cownBlockref = calcInstanceBlockRef(DBACC);
   czero = 0;
   cminusOne = czero - 1;
   ctest = 0;
@@ -384,7 +384,8 @@ void Dbacc::sttorrysignalLab(Signal* signal)
   /* SIGNAL VERSION NUMBER */
   signal->theData[3] = ZSPH1;
   signal->theData[4] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBACC_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
   /* END OF START PHASES */
   return;
 }//Dbacc::sttorrysignalLab()
@@ -730,8 +731,8 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctablesize, tabrec);
 
-  //XXX ugly
-  if (refToBlock(tabPtr.p->tabUserRef) == DBDICT)
+  const BlockNumber dictBlock = !isNdbMtLqh() ? DBDICT : DBACC;
+  if (refToBlock(tabPtr.p->tabUserRef) == dictBlock)
   {
     jam();
     for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
@@ -6395,7 +6396,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     if (tscanNextFlag == NextScanReq::ZSCAN_COMMIT) {
       jam();
       signal->theData[0] = scanPtr.p->scanUserptr;
-      Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
+      Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 1);
       return;
     }//if
@@ -7394,7 +7395,7 @@ bool Dbacc::searchScanContainer(Signal* signal)
 void Dbacc::sendNextScanConf(Signal* signal) 
 {
   scanPtr.p->scanTimer = scanPtr.p->scanContinuebCounter;
-  Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
+  Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
   jam();
   /** ---------------------------------------------------------------------
    * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 

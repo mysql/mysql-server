@@ -99,7 +99,8 @@ FastScheduler::doJob()
       // signal->garbage_register(); 
       // To ensure we find bugs quickly
       register Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
-      register BlockNumber reg_bnr = gsnbnr & 0xFFF;
+      // also strip any instance bits since this is non-MT code
+      register BlockNumber reg_bnr = gsnbnr & NDBMT_BLOCK_MASK;
       register GlobalSignalNumber reg_gsn = gsnbnr >> 16;
       globalData.incrementWatchDogCounter(1);
       if (reg_bnr > 0) {
@@ -411,6 +412,8 @@ void FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE * output)
       ReadPtr[tLevel]--;
     
     theJobBuffers[tLevel].retrieveDump(&signal, ReadPtr[tLevel]);
+    // strip instance bits since this in non-MT code
+    signal.header.theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
     print_restart(output, &signal, tLevel);
     
     if (tJob == 0)

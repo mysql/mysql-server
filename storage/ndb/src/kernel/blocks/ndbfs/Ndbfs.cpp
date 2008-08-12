@@ -313,11 +313,13 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   Uint16 filePointer =  (Uint16)fsRWReq->filePointer;
   const UintR userPointer = fsRWReq->userPointer; 
   const BlockReference userRef = fsRWReq->userReference;
-  const BlockNumber blockNumber = refToBlock(userRef);
+  const BlockNumber blockNumber = refToMain(userRef);
+  const Uint32 instanceNumber = refToInstance(userRef);
 
   AsyncFile* openFile = theOpenFiles.find(filePointer);
 
-  const NewVARIABLE *myBaseAddrRef = &getBat(blockNumber)[fsRWReq->varIndex];
+  const NewVARIABLE *myBaseAddrRef =
+    &getBat(blockNumber, instanceNumber)[fsRWReq->varIndex];
   UintPtr tPageSize;
   UintPtr tClusterSize;
   UintPtr tNRR;
@@ -343,7 +345,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   if(format != FsReadWriteReq::fsFormatGlobalPage &&
      format != FsReadWriteReq::fsFormatSharedPage)
   {     
-    if (fsRWReq->varIndex >= getBatSize(blockNumber)) {
+    if (fsRWReq->varIndex >= getBatSize(blockNumber, instanceNumber)) {
       jam();// Ensure that a valid variable is used    
       errorCode = FsRef::fsErrInvalidParameters;
       goto error;
@@ -561,12 +563,14 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
   const Uint16 filePointer =  (Uint16)fsReq->filePointer;
   const UintR userPointer = fsReq->userPointer; 
   const BlockReference userRef = fsReq->userReference;
-  const BlockNumber blockNumber = refToBlock(userRef);
+  const BlockNumber blockNumber = refToMain(userRef);
+  const Uint32 instanceNumber = refToInstance(userRef);
 
   FsRef::NdbfsErrorCodeType errorCode;
 
   AsyncFile* openFile = theOpenFiles.find(filePointer);
-  const NewVARIABLE *myBaseAddrRef = &getBat(blockNumber)[fsReq->varIndex];
+  const NewVARIABLE *myBaseAddrRef =
+    &getBat(blockNumber, instanceNumber)[fsReq->varIndex];
 
   const Uint32* tWA   = (const Uint32*)myBaseAddrRef->WA;
   const Uint32  tSz   = myBaseAddrRef->nrr;
@@ -587,7 +591,7 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
     goto error;
   }
   
-  if (fsReq->varIndex >= getBatSize(blockNumber)) {
+  if (fsReq->varIndex >= getBatSize(blockNumber, instanceNumber)) {
     jam();// Ensure that a valid variable is used    
     errorCode = FsRef::fsErrInvalidParameters;
     goto error;

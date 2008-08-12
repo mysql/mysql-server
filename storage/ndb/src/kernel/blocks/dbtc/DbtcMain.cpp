@@ -3270,6 +3270,9 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   regTcPtr->tcNodedata[2] = Tdata5;
   regTcPtr->tcNodedata[3] = Tdata6;
 
+  UintR Tdata7 = conf->instanceKey;
+  regTcPtr->lqhInstanceKey = Tdata7;
+
   Uint8 Toperation = regTcPtr->operation;
   Uint8 Tdirty = regTcPtr->dirtyOp;
   tnoOfBackup = tnodeinfo & 3;
@@ -3392,7 +3395,9 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
   {
     jam();
     arrGuard(Tnode, MAX_NDB_NODES);
-    packLqhkeyreq(signal, calcLqhBlockRef(Tnode));
+    Uint32 instanceKey = regTcPtr->lqhInstanceKey;
+    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
+    packLqhkeyreq(signal, lqhRef);
   }
   else
   {
@@ -4989,6 +4994,29 @@ void Dbtc::sendCommitLqh(Signal* signal,
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
+
+  UintR Tdata1 = regTcPtr->lastLqhCon;
+  UintR Tdata2 = Uint32(regApiPtr->globalcheckpointid >> 32);
+  UintR Tdata3 = regApiPtr->transid[0];
+  UintR Tdata4 = regApiPtr->transid[1];
+  UintR Tdata5 = Uint32(regApiPtr->globalcheckpointid);
+
+  // wl4391_todo testing own config is wrong for mixed versions
+  bool send_unpacked = isNdbMtLqh();
+  if (send_unpacked) {
+    Uint32* data = signal->getDataPtrSend();
+    data[0] = Tdata1;
+    data[1] = Tdata2;
+    data[2] = Tdata3;
+    data[3] = Tdata4;
+    data[4] = Tdata5;
+    Uint32 Tnode = Thostptr.i;
+    Uint32 instanceKey = regTcPtr->lqhInstanceKey;
+    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
+    sendSignal(lqhRef, GSN_COMMIT, signal, 5, JBB);
+    return;
+  }
+
   if (Thostptr.p->noOfPackedWordsLqh > 25 - 5) {
     jam();
     sendPackedSignalLqh(signal, Thostptr.p);
@@ -4998,12 +5026,6 @@ void Dbtc::sendCommitLqh(Signal* signal,
   }//if
   UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
   UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
-  UintR Tdata1 = regTcPtr->lastLqhCon;
-  UintR Tdata2 = Uint32(regApiPtr->globalcheckpointid >> 32);
-  UintR Tdata3 = regApiPtr->transid[0];
-  UintR Tdata4 = regApiPtr->transid[1];
-  UintR Tdata5 = Uint32(regApiPtr->globalcheckpointid);
-
   TDataPtr[0] = Tdata1 | (ZCOMMIT << 28);
   TDataPtr[1] = Tdata2;
   TDataPtr[2] = Tdata3;
@@ -5364,8 +5386,26 @@ void Dbtc::sendCompleteLqh(Signal* signal,
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  Thostptr.i = regTcPtr->lastLqhNodeId;
+  Thostptr.i = regTcPtr->lastLqhNodeId; //last???
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
+
+  UintR Tdata1 = regTcPtr->lastLqhCon;
+  UintR Tdata2 = regApiPtr->transid[0];
+  UintR Tdata3 = regApiPtr->transid[1];
+
+  bool send_unpacked = isNdbMtLqh();
+  if (send_unpacked) {
+    Uint32* data = signal->getDataPtrSend();
+    data[0] = Tdata1;
+    data[1] = Tdata2;
+    data[2] = Tdata3;
+    Uint32 Tnode = Thostptr.i;
+    Uint32 instanceKey = regTcPtr->lqhInstanceKey;
+    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
+    sendSignal(lqhRef, GSN_COMPLETE, signal, 3, JBB);
+    return;
+  }
+  
   if (Thostptr.p->noOfPackedWordsLqh > 22) {
     jam();
     sendPackedSignalLqh(signal, Thostptr.p);
@@ -5373,14 +5413,9 @@ void Dbtc::sendCompleteLqh(Signal* signal,
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }//if
-
   UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
   UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
-  UintR Tdata1 = regTcPtr->lastLqhCon | (ZCOMPLETE << 28);
-  UintR Tdata2 = regApiPtr->transid[0];
-  UintR Tdata3 = regApiPtr->transid[1];
-  
-  TDataPtr[0] = Tdata1;
+  TDataPtr[0] = Tdata1 | (ZCOMPLETE << 28);
   TDataPtr[1] = Tdata2;
   TDataPtr[2] = Tdata3;
   Thostptr.p->noOfPackedWordsLqh = Tindex + 3;
@@ -5433,6 +5468,27 @@ Dbtc::sendRemoveMarker(Signal* signal,
   hostPtr.i = nodeId;
   ptrCheckGuard(hostPtr, ThostFilesize, hostRecord);
 
+  UintR Tdata1 = 0;
+  UintR Tdata2 = transid1;
+  UintR Tdata3 = transid2;
+
+  bool send_unpacked = isNdbMtLqh();
+  if (send_unpacked) {
+    Uint32* data = signal->getDataPtrSend();
+    data[0] = Tdata1;
+    data[1] = Tdata2;
+    data[2] = Tdata3;
+    Uint32 Tnode = hostPtr.i;
+    Uint32 i;
+    for (i = 0; i < MAX_NDBMT_LQH_WORKERS; i++) {
+      // wl4391_todo skip workers not part of tx
+      Uint32 instanceKey = 1 + i;
+      BlockReference ref = numberToRef(DBLQH, instanceKey, Tnode);
+      sendSignal(ref, GSN_REMOVE_MARKER_ORD, signal, 3, JBB);
+    }
+    return;
+  }
+
   if (hostPtr.p->noOfPackedWordsLqh > (25 - 3)){
     jam();
     sendPackedSignalLqh(signal, hostPtr.p);
@@ -5444,9 +5500,9 @@ Dbtc::sendRemoveMarker(Signal* signal,
   UintR  numWord = hostPtr.p->noOfPackedWordsLqh;
   UintR* dataPtr = &hostPtr.p->packedWordsLqh[numWord];
 
-  dataPtr[0] = (ZREMOVE_MARKER << 28);
-  dataPtr[1] = transid1;
-  dataPtr[2] = transid2;
+  dataPtr[0] = Tdata1 | (ZREMOVE_MARKER << 28);
+  dataPtr[1] = Tdata2;
+  dataPtr[2] = Tdata3;
   hostPtr.p->noOfPackedWordsLqh = numWord + 3;
 }
 
@@ -6674,7 +6730,8 @@ int Dbtc::releaseAndAbort(Signal* signal)
       /* ************< */
       /*    ABORT    < */
       /* ************< */
-      tblockref = calcLqhBlockRef(localHostptr.i);
+      Uint32 instanceKey = tcConnectptr.p->lqhInstanceKey;
+      tblockref = numberToRef(DBLQH, instanceKey, localHostptr.i);
       signal->theData[0] = tcConnectptr.i;
       signal->theData[1] = cownref;
       signal->theData[2] = apiConnectptr.p->transid[0];
@@ -8756,7 +8813,8 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
         ptrCheckGuard(hostptr, chostFilesize, hostRecord);
         if (hostptr.p->hostStatus == HS_ALIVE) {
           jam();
-          tblockref = calcLqhBlockRef(hostptr.i);
+          Uint32 instanceKey = tcConnectptr.p->lqhInstanceKey;
+          tblockref = numberToRef(DBLQH, instanceKey, hostptr.i);
           setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
           apiConnectptr.p->apiConnectstate = CS_WAIT_COMMIT_CONF;
           apiConnectptr.p->timeOutCounter = 0;
@@ -8902,7 +8960,8 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
         ptrCheckGuard(hostptr, chostFilesize, hostRecord);
         if (hostptr.p->hostStatus == HS_ALIVE) {
           jam();
-          tblockref = calcLqhBlockRef(hostptr.i);
+          Uint32 instanceKey = tcConnectptr.p->lqhInstanceKey;
+          tblockref = numberToRef(DBLQH, instanceKey, hostptr.i);
           setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
           tcConnectptr.p->tcConnectstate = OS_WAIT_COMPLETE_CONF;
           apiConnectptr.p->apiConnectstate = CS_WAIT_COMPLETE_CONF;
@@ -10269,7 +10328,8 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     /*empty*/;
     break;
   }//switch
-  Uint32 ref = calcLqhBlockRef(tnodeid);
+  Uint32 instanceKey = conf->instanceKey;
+  Uint32 ref = numberToRef(DBLQH, instanceKey, tnodeid);
   scanFragptr.p->lqhBlockref = ref;
   scanFragptr.p->m_connectCount = getNodeInfo(tnodeid).m_connectCount;
   sendScanFragReq(signal, scanptr.p, scanFragptr.p);
