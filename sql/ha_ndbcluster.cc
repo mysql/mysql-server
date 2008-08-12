@@ -8393,9 +8393,17 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
     }
   }
 
-  sql_print_warning("NDB_SHARE: %s already exists  use_count=%d."
-                    " Moving away for safety, but possible memleak.",
-                    share->key, share->use_count);
+  DBUG_PRINT("info", ("NDB_SHARE: %s already exists use_count=%d, op=0x%lx.",
+                      share->key, share->use_count, (long) share->op));
+  /* 
+     Ignore table shares only opened by util thread
+   */
+  if (!((share->use_count == 1) && share->util_thread))
+  {
+    sql_print_warning("NDB_SHARE: %s already exists use_count=%d."
+                      " Moving away for safety, but possible memleak.",
+                      share->key, share->use_count);
+  }
   dbug_print_open_tables();
 
   /*
@@ -9709,6 +9717,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 #endif /* HAVE_NDB_BINLOG */
       /* ndb_share reference temporary, free below */
       share->use_count++; /* Make sure the table can't be closed */
+      share->util_thread= true;
       DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                                share->key, share->use_count));
       DBUG_PRINT("ndb_util_thread",
@@ -9734,7 +9743,11 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
         /* ndb_share reference temporary free */
         DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                  share->key, share->use_count));
-        free_share(&share);
+        
+        pthread_mutex_lock(&ndbcluster_mutex);
+        share->util_thread= false;
+        free_share(&share, true);
+        pthread_mutex_unlock(&ndbcluster_mutex);
         continue;
       }
 #endif /* HAVE_NDB_BINLOG */
@@ -9784,7 +9797,10 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                share->key, share->use_count));
-      free_share(&share);
+      pthread_mutex_lock(&ndbcluster_mutex);
+      share->util_thread= false;
+      free_share(&share, true);
+      pthread_mutex_unlock(&ndbcluster_mutex);
     }
 next:
     /* Calculate new time to wake up */
