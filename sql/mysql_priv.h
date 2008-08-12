@@ -2227,6 +2227,8 @@ uint tablename_to_filename(const char *from, char *to, uint to_length);
 #ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table, const char *ext, uint flags);
+const char *get_canonical_filename(handler *file, const char *path,
+                                   char *tmp_path);
 
 #define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
 #define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
