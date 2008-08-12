@@ -45,3 +45,20 @@ select * from t4;
 drop table t4;
 show tables;
 connection server1;
+
+--disable_warnings
+drop table if exists t6;
+--enable_warnings
+create table t6 (a int primary key ,b int) engine=ndbcluster;
+insert into t6 values(1,12), (2,12);
+--error 1169
+alter table t6 add unique key ui_t(b);
+delete from t6;
+--disable_result_log
+insert into t6 values(1,12), (2,12);
+--enable_result_log
+--error 1169
+alter table t6 add unique key ui_t(b);
+delete from t6;
+drop table t6;
+
