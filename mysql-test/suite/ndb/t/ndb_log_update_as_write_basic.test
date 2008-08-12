@@ -65,6 +65,7 @@
 
 --source include/load_sysvars.inc
 --source include/not_embedded.inc
+--source include/have_ndb.inc
 
 ######################################################################## 
 #                    START OF ndb_log_update_as_write TESTS            #
