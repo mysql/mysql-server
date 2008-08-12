@@ -7,5 +7,3 @@ partition_syntax_ndb           : Bug#36735 Not supported
 partition_value_innodb         : Bug#30581 partition_value tests use disallowed CAST() function
 partition_value_myisam         : Bug#30581 partition_value tests use disallowed CAST() function
 partition_value_ndb            : Bug#30581 partition_value tests use disallowed CAST() function
-partition_alter4_myisam        : Bug#20129 / WL#4176
-partition_alter4_innodb        : Bug#20129 / WL#4176
