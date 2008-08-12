@@ -1028,13 +1028,13 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     result->abort = locked_txn_abort;
     result->commit = locked_txn_commit;
     result->id = locked_txn_id;
+    result->parent = stxn;
     MALLOC(result->i);
     if (!result->i) {
         toku_free(result);
         return ENOMEM;
     }
     memset(result->i, 0, sizeof *result->i);
-    result->i->parent = stxn;
 
     int r;
     if (env->i->open_flags & DB_INIT_LOCK) {
@@ -1236,7 +1236,7 @@ static inline void toku_swap_flag(u_int32_t* flag, u_int32_t* get_flag,
     a node has two non-completed txns at any time.
 */
 static inline DB_TXN* toku_txn_ancestor(DB_TXN* txn) {
-    while (txn && txn->i->parent) txn = txn->i->parent;
+    while (txn && txn->parent) txn = txn->parent;
 
     return txn;
 }
