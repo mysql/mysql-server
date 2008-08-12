@@ -4080,6 +4080,38 @@ error:
 
 
 /*
+  Sets which partitions to be used in the command
+*/
+uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
+               enum partition_state part_state)
+{
+  uint part_count= 0;
+  uint no_parts_found= 0;
+  List_iterator<partition_element> part_it(tab_part_info->partitions);
+
+  do
+  {
+    partition_element *part_elem= part_it++;
+    if ((alter_info->flags & ALTER_ALL_PARTITION) ||
+         (is_name_in_list(part_elem->partition_name,
+          alter_info->partition_names)))
+    {
+      /*
+        Mark the partition.
+        I.e mark the partition as a partition to be "changed" by
+        analyzing/optimizing/rebuilding/checking/repairing
+      */
+      no_parts_found++;
+      part_elem->part_state= part_state;
+      DBUG_PRINT("info", ("Setting part_state to %u for partition %s",
+                          part_state, part_elem->partition_name));
+    }
+  } while (++part_count < tab_part_info->no_parts);
+  return no_parts_found;
+}
+
+
+/*
   Prepare for ALTER TABLE of partition structure
 
   SYNOPSIS
@@ -4534,26 +4566,9 @@ that are reorganised.
              (alter_info->flags & ALTER_REPAIR_PARTITION) ||
              (alter_info->flags & ALTER_REBUILD_PARTITION))
     {
+      uint no_parts_found;
       uint no_parts_opt= alter_info->partition_names.elements;
-      uint part_count= 0;
-      uint no_parts_found= 0;
-      List_iterator<partition_element> part_it(tab_part_info->partitions);
-
-      do
-      {
-        partition_element *part_elem= part_it++;
-        if ((alter_info->flags & ALTER_ALL_PARTITION) ||
-            (is_name_in_list(part_elem->partition_name,
-                             alter_info->partition_names)))
-        {
-          /*
-            Mark the partition as a partition to be "changed" by
-            analyzing/optimizing/rebuilding/checking/repairing
-          */
-          no_parts_found++;
-          part_elem->part_state= PART_CHANGED;
-        }
-      } while (++part_count < tab_part_info->no_parts);
+      no_parts_found= set_part_state(alter_info, tab_part_info, PART_CHANGED);
       if (no_parts_found != no_parts_opt &&
           (!(alter_info->flags & ALTER_ALL_PARTITION)))
       {
@@ -6026,48 +6041,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   lpt->pack_frm_len= 0;
   thd->work_part_info= part_info;
 
-  if (alter_info->flags & ALTER_OPTIMIZE_PARTITION ||
-      alter_info->flags & ALTER_ANALYZE_PARTITION ||
-      alter_info->flags & ALTER_CHECK_PARTITION ||
-      alter_info->flags & ALTER_REPAIR_PARTITION)
-  {
-    /*
-      In this case the user has specified that he wants a set of partitions
-      to be optimised and the partition engine can handle optimising
-      partitions natively without requiring a full rebuild of the
-      partitions.
-
-      In this case it is enough to call optimise_partitions, there is no
-      need to change frm files or anything else.
-    */
-    int error;
-    written_bin_log= FALSE;
-    if (((alter_info->flags & ALTER_OPTIMIZE_PARTITION) &&
-         (error= table->file->ha_optimize_partitions(thd))) ||
-        ((alter_info->flags & ALTER_ANALYZE_PARTITION) &&
-         (error= table->file->ha_analyze_partitions(thd))) ||
-        ((alter_info->flags & ALTER_CHECK_PARTITION) &&
-         (error= table->file->ha_check_partitions(thd))) ||
-        ((alter_info->flags & ALTER_REPAIR_PARTITION) &&
-         (error= table->file->ha_repair_partitions(thd))))
-    {
-      if (error == HA_ADMIN_NOT_IMPLEMENTED) {
-        if (alter_info->flags & ALTER_OPTIMIZE_PARTITION)
-          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "optimize partition");
-        else if (alter_info->flags & ALTER_ANALYZE_PARTITION)
-          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "analyze partition");
-        else if (alter_info->flags & ALTER_CHECK_PARTITION)
-          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "check partition");
-        else if (alter_info->flags & ALTER_REPAIR_PARTITION)
-          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "repair partition");
-        else
-          table->file->print_error(error, MYF(0));
-      } else
-        table->file->print_error(error, MYF(0));
-      goto err;
-    }
-  }
-  else if (fast_alter_partition & HA_PARTITION_ONE_PHASE)
+  if (fast_alter_partition & HA_PARTITION_ONE_PHASE)
   {
     /*
       In the case where the engine supports one phase online partition

@@ -1571,6 +1571,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                 char *db,
                                 const char *table_name,
                                 uint fast_alter_partition);
+uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
+                    enum partition_state part_state);
 uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            handlerton *old_db_type,
@@ -2225,6 +2227,8 @@ uint tablename_to_filename(const char *from, char *to, uint to_length);
 #ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table, const char *ext, uint flags);
+const char *get_canonical_filename(handler *file, const char *path,
+                                   char *tmp_path);
 
 #define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
 #define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
