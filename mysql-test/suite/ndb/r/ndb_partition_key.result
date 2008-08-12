@@ -192,14 +192,30 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int primary key)
 ENGINE=NDB
 PARTITION BY KEY(a);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	note	The storage engine for the table doesn't support check
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	note	The storage engine for the table doesn't support repair
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
 ALTER TABLE t1 CHECK PARTITION p0;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+Table	Op	Msg_type	Msg_text
+test.t1	check	note	The storage engine for the table doesn't support check
 ALTER TABLE t1 REPAIR PARTITION p0;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+Table	Op	Msg_type	Msg_text
+test.t1	repair	note	The storage engine for the table doesn't support repair
 ALTER TABLE t1 ANALYZE PARTITION p0;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 ALTER TABLE t1 REBUILD PARTITION p0;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
