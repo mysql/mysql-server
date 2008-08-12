@@ -180,6 +180,7 @@ typedef struct st_ndbcluster_share {
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
   struct Ndb_statistics stat;
+  bool util_thread; // if opened by util thread
   uint32 connect_count;
   uint32 flags;
 #ifdef HAVE_NDB_BINLOG
