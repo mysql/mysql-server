@@ -10669,7 +10669,6 @@ int ha_ndbcluster::alter_frm(THD *thd, const char *file,
   /* ndb_share reference schema(?) free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog schema(?) free  use_count: %u",
                            m_share->key, m_share->use_count));
-  free_share(&m_share); // Decrease ref_count
 
   DBUG_RETURN(error);
 }
@@ -10709,8 +10708,8 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
     /* ndb_share reference schema free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
                              m_share->key, m_share->use_count));
-    free_share(&m_share); // Decrease ref_count
   }
+  free_share(&m_share); // Decrease ref_count
   delete alter_data;
   DBUG_RETURN(error);
 }
