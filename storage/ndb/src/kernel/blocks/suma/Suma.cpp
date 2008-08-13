@@ -474,7 +474,7 @@ Suma::execSUMA_START_ME_REF(Signal* signal)
   const SumaStartMeRef* ref= (SumaStartMeRef*)signal->getDataPtr();
 
   Uint32 error = ref->errorCode;
-  if (error != SumaStartMeRef::Busy)
+  if (error != SumaStartMeRef::Busy && error != SumaStartMeRef::NotStarted)
   {
     jam();
     // for some reason we did not manage to create a subscription
@@ -492,7 +492,6 @@ Suma::execSUMA_START_ME_REF(Signal* signal)
   infoEvent("Suma: node %d refused %d", 
 	    c_startup.m_restart_server_node_id, ref->errorCode);
 
-  c_startup.m_restart_server_node_id++;
   send_start_me_req(signal);
 }
 
@@ -4339,6 +4338,16 @@ Suma::execSUMA_START_ME_REQ(Signal* signal) {
     jam();
     SumaStartMeRef* ref= (SumaStartMeRef*)signal->getDataPtrSend();
     ref->errorCode = SumaStartMeRef::Busy;
+    sendSignal(retref, GSN_SUMA_START_ME_REF, signal,
+               SumaStartMeRef::SignalLength, JBB);
+    return;
+  }
+
+  if (getNodeState().getStarted() == false)
+  {
+    jam();
+    SumaStartMeRef* ref= (SumaStartMeRef*)signal->getDataPtrSend();
+    ref->errorCode = SumaStartMeRef::NotStarted;
     sendSignal(retref, GSN_SUMA_START_ME_REF, signal,
                SumaStartMeRef::SignalLength, JBB);
     return;
