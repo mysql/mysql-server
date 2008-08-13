@@ -2109,7 +2109,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
    */
   Uint32 infoword= 0;
   Uint32 len= 0;
-  const Uint32 *src= NULL;
+  const char *src= NULL;
 
   Uint32 idx= m_current_api_receiver;
   if (idx >= m_api_receivers_count)
@@ -2117,7 +2117,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
   const NdbReceiver *receiver= m_api_receivers[m_current_api_receiver];
 
   /* Get this row's KeyInfo data */
-  int res= receiver->get_keyinfo20(infoword, len, (const char*&) src);
+  int res= receiver->get_keyinfo20(infoword, len, src);
   if (res == -1)
     return NULL;
 
@@ -2157,11 +2157,10 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
   
   // Copy the first 8 words of key info from KEYINF20 into TCKEYREQ
   TcKeyReq * tcKeyReq = CAST_PTR(TcKeyReq,newOp->theTCREQ->getDataPtrSend());
-  Uint32 i = 0;
-  for (i = 0; i < TcKeyReq::MaxKeyInfo && i < len; i++) {
-    tcKeyReq->keyInfo[i] = * src++;
-  }
-  
+  Uint32 i = MIN(TcKeyReq::MaxKeyInfo, len);
+  memcpy(tcKeyReq->keyInfo, src, 4*i);
+  src += i * 4;
+
   if(i < len){
     NdbApiSignal* tSignal = theNdb->getSignal();
     newOp->theTCREQ->next(tSignal); 
@@ -2171,7 +2170,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
       tSignal->setSignal(GSN_KEYINFO);
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
       memcpy(keyInfo->keyData, src, 4 * KeyInfo::DataLength);
-      src += KeyInfo::DataLength;
+      src += 4 * KeyInfo::DataLength;
       left -= KeyInfo::DataLength;
       
       tSignal->next(theNdb->getSignal());
