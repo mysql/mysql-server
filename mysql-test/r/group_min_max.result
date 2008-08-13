@@ -2353,3 +2353,30 @@ a	MIN(b)	MAX(b)	AVG(b)
 2	1	3	2.0000
 1	1	3	2.0000
 DROP TABLE t1;
+create table t1 (a int, b int, primary key (a,b), key `index` (a,b)) engine=MyISAM;
+insert into  t1 (a,b) values (0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),
+(0,8),(0,9),(0,10),(0,11),(0,12),(0,13);
+insert into t1 (a,b) select a, max(b)+1 from t1 where a = 0 group by a;
+select * from t1;
+a	b
+0	0
+0	1
+0	2
+0	3
+0	4
+0	5
+0	6
+0	7
+0	8
+0	9
+0	10
+0	11
+0	12
+0	13
+0	14
+explain extended select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,index	PRIMARY	4	NULL	6	Using where; Using index for group-by; Using temporary
+Warnings:
+Note	1003	select sql_buffer_result `test`.`t1`.`a` AS `a`,(max(`test`.`t1`.`b`) + 1) AS `max(b)+1` from `test`.`t1` where (`test`.`t1`.`a` = 0) group by `test`.`t1`.`a`
+drop table t1;
