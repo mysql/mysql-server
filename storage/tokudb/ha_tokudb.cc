@@ -522,7 +522,7 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     TOKUDB_DBUG_ENTER("tokudb_savepoint");
     int error;
     DB_TXN **save_txn = (DB_TXN **) savepoint;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     if (!(error = db_env->txn_begin(db_env, trx->sp_level, save_txn, 0))) {
         trx->sp_level = *save_txn;
     }
@@ -533,7 +533,7 @@ static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *save
     TOKUDB_DBUG_ENTER("tokudb_rollback_to_savepoint");
     int error;
     DB_TXN *parent, **save_txn = (DB_TXN **) savepoint;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     parent = (*save_txn)->parent;
     if (!(error = (*save_txn)->abort(*save_txn))) {
         trx->sp_level = parent;
@@ -546,7 +546,7 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
     TOKUDB_DBUG_ENTER("tokudb_release_savepoint");
     int error;
     DB_TXN *parent, **save_txn = (DB_TXN **) savepoint;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
     parent = (*save_txn)->parent;
     if (!(error = (*save_txn)->commit(*save_txn, 0))) {
         trx->sp_level = parent;
