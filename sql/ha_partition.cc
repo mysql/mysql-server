@@ -1798,7 +1798,8 @@ uint ha_partition::del_ren_cre_table(const char *from,
   char from_buff[FN_REFLEN], to_buff[FN_REFLEN], from_lc_buff[FN_REFLEN],
        to_lc_buff[FN_REFLEN];
   char *name_buffer_ptr;
-  const char *from_path, *to_path;
+  const char *from_path;
+  const char *to_path= NULL;
   uint i;
   handler **file, **abort_file;
   DBUG_ENTER("del_ren_cre_table()");
