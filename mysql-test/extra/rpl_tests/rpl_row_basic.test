@@ -354,6 +354,7 @@ eval CREATE TABLE t7 (i INT NOT NULL,
 connection master;
 INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
+sync_slave_with_master;
 
 sync_slave_with_master;
 
@@ -365,6 +366,7 @@ source include/diff_tables.inc;
 connection master;
 INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
+sync_slave_with_master;
 
 sync_slave_with_master;
 
@@ -395,6 +397,7 @@ source include/wait_for_slave_to_start.inc;
 connection master;
 INSERT INTO t4 VALUES (1, "", 1);
 INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
+sync_slave_with_master;
 
 sync_slave_with_master;
 
@@ -444,6 +447,7 @@ source include/wait_for_slave_to_start.inc;
 connection master;
 INSERT INTO t7 VALUES (1, "", 1);
 INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
+sync_slave_with_master;
 
 sync_slave_with_master;
 
