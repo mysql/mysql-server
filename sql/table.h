@@ -935,6 +935,9 @@ typedef struct st_schema_table
 #define VIEW_CHECK_ERROR      1
 #define VIEW_CHECK_SKIP       2
 
+/** The threshold size a blob field buffer before it is freed */
+#define MAX_TDC_BLOB_SIZE 65536
+
 struct st_lex;
 class select_union;
 class TMP_TABLE_PARAM;

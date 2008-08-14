@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 /*
   Because of the function new_field() all field classes that have static
   variables must declare the size_of() member function.
@@ -51,7 +50,8 @@ class Field
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
 public:
-  static void *operator new(size_t size) {return sql_alloc(size); }
+  static void *operator new(size_t size) throw ()
+  { return sql_alloc(size); }
   static void operator delete(void *ptr_arg, size_t size) { TRASH(ptr_arg, size); }
 
   uchar		*ptr;			// Position to field in record
@@ -1669,6 +1669,7 @@ public:
   }
   int reset(void) { bzero(ptr, packlength+sizeof(uchar*)); return 0; }
   void reset_fields() { bzero((uchar*) &value,sizeof(value)); }
+  uint32 get_field_buffer_size(void) { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
   static
 #endif
