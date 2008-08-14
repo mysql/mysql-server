@@ -127,8 +127,6 @@ struct brt_header {
     unsigned int *flags_array; // an array of flags.  Element 0 holds the element if no subdatabases allowed.
     
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
-
-    u_int64_t root_put_counter;
 };
 
 struct brt {
@@ -151,6 +149,7 @@ struct brt {
 
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
     u_int64_t txn_that_created; // which txn created it.  Use  0 if no such txn.
+    u_int64_t root_put_counter;
 };
 
 /* serialization code */
