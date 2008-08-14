@@ -22,8 +22,8 @@
 # BUG#26395: if crash during autocommit update to transactional table on master, slave fails
 
 
-source include/ndb_master-slave.inc;
 source include/have_ndb.inc;
+source include/ndb_master-slave.inc;
 source include/have_innodb.inc;
 
 CREATE TABLE tmyisam (a int) ENGINE = MYISAM;
