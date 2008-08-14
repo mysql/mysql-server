@@ -309,51 +309,53 @@ sync_slave_with_master;
 # 7. Replicating UTF-8 CHAR(255) to CHAR(255) UTF-8
 
 connection master;
-CREATE TABLE t1 (i INT NOT NULL,
-                 c CHAR(16) CHARACTER SET utf8 NOT NULL,
-                 j INT NOT NULL);
+eval CREATE TABLE t1 (i INT NOT NULL,
+                      c CHAR(16) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
 
-CREATE TABLE t2 (i INT NOT NULL,
-                 c CHAR(16) CHARACTER SET utf8 NOT NULL,
-                 j INT NOT NULL);
+eval CREATE TABLE t2 (i INT NOT NULL,
+                      c CHAR(16) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
 
 sync_slave_with_master;
 ALTER TABLE t2 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
 
 connection master;
-CREATE TABLE t3 (i INT NOT NULL,
-                 c CHAR(128) CHARACTER SET utf8 NOT NULL,
-                 j INT NOT NULL);
+eval CREATE TABLE t3 (i INT NOT NULL,
+                      c CHAR(128) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
 sync_slave_with_master;
 ALTER TABLE t3 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
 
 connection master;
-CREATE TABLE t4 (i INT NOT NULL,
-                 c CHAR(128) CHARACTER SET utf8 NOT NULL,
-                 j INT NOT NULL);
+eval CREATE TABLE t4 (i INT NOT NULL,
+                      c CHAR(128) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
 
-CREATE TABLE t5 (i INT NOT NULL,
-                 c CHAR(255) CHARACTER SET utf8 NOT NULL,
-                 j INT NOT NULL);
+eval CREATE TABLE t5 (i INT NOT NULL,
+                      c CHAR(255) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
 sync_slave_with_master;
 ALTER TABLE t5 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
 
 connection master;
-CREATE TABLE t6 (i INT NOT NULL,
-                 c CHAR(255) CHARACTER SET utf8 NOT NULL,
-                 j INT NOT NULL);
+eval CREATE TABLE t6 (i INT NOT NULL,
+                      c CHAR(255) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
 sync_slave_with_master;
 ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
 
 connection master;
-CREATE TABLE t7 (i INT NOT NULL,
-                 c CHAR(255) CHARACTER SET utf8 NOT NULL,
-                 j INT NOT NULL);
+eval CREATE TABLE t7 (i INT NOT NULL,
+                      c CHAR(255) CHARACTER SET utf8 NOT NULL,
+                      j INT NOT NULL) ENGINE = $type ;
 
 --echo [expecting slave to replicate correctly]
 connection master;
 INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
+sync_slave_with_master;
+
 sync_slave_with_master;
 
 let $diff_table_1=master:test.t1;
@@ -364,6 +366,8 @@ source include/diff_tables.inc;
 connection master;
 INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
+sync_slave_with_master;
+
 sync_slave_with_master;
 
 let $diff_table_1=master:test.t2;
@@ -381,7 +385,11 @@ let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=8;
+connection master;
+RESET MASTER;
+connection slave;
+STOP SLAVE;
+RESET SLAVE;
 START SLAVE;
 source include/wait_for_slave_to_start.inc;
 
@@ -389,6 +397,8 @@ source include/wait_for_slave_to_start.inc;
 connection master;
 INSERT INTO t4 VALUES (1, "", 1);
 INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
+sync_slave_with_master;
+
 sync_slave_with_master;
 
 let $diff_table_1=master:test.t4;
@@ -406,7 +416,11 @@ let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=8;
+connection master;
+RESET MASTER;
+connection slave;
+STOP SLAVE;
+RESET SLAVE;
 START SLAVE;
 source include/wait_for_slave_to_start.inc;
 
@@ -421,7 +435,11 @@ let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=8;
+connection master;
+RESET MASTER;
+connection slave;
+STOP SLAVE;
+RESET SLAVE;
 START SLAVE;
 source include/wait_for_slave_to_start.inc;
 
@@ -429,6 +447,8 @@ source include/wait_for_slave_to_start.inc;
 connection master;
 INSERT INTO t7 VALUES (1, "", 1);
 INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
+sync_slave_with_master;
+
 sync_slave_with_master;
 
 let $diff_table_1=master:test.t7;

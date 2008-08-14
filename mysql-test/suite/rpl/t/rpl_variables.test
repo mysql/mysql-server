@@ -117,7 +117,7 @@ source include/reset_master_and_slave.inc;
 # above, but can't because it affects how the slave works.
 --echo [on slave]
 connection slave;
-SET @@global.init_slave = 'ant';
+SET @@global.init_slave = 'SELECT 1';
 
 
 --echo [on master]
@@ -154,9 +154,9 @@ SET @@global.sync_binlog = 3000000;
 INSERT INTO tstmt(num) VALUES (@@global.sync_binlog);
 
 # string
-SET @@global.init_slave = 'bison';
+SET @@global.init_slave = 'SELECT 2';
 INSERT INTO tstmt(text) VALUES (@@global.init_slave);
-SET @@global.init_slave = 'cat';
+SET @@global.init_slave = 'SELECT 3';
 INSERT INTO tstmt(text) VALUES (@@global.init_slave);
 
 # enumeration
@@ -258,9 +258,9 @@ BEGIN
   INSERT INTO tproc(num) VALUES (@@global.sync_binlog);
 
   # string
-  SET @@global.init_slave = 'bison';
+  SET @@global.init_slave = 'SELECT 2';
   INSERT INTO tproc(text) VALUES (@@global.init_slave);
-  SET @@global.init_slave = 'cat';
+  SET @@global.init_slave = 'SELECT 3';
   INSERT INTO tproc(text) VALUES (@@global.init_slave);
 
   # enumeration
@@ -367,9 +367,9 @@ BEGIN
   INSERT INTO tfunc(num) VALUES (@@global.sync_binlog);
 
   # string
-  SET @@global.init_slave = 'bison';
+  SET @@global.init_slave = 'SELECT 2';
   INSERT INTO tfunc(text) VALUES (@@global.init_slave);
-  SET @@global.init_slave = 'cat';
+  SET @@global.init_slave = 'SELECT 3';
   INSERT INTO tfunc(text) VALUES (@@global.init_slave);
 
   # enumeration
@@ -478,9 +478,9 @@ BEGIN
   INSERT INTO ttrig(num) VALUES (@@global.sync_binlog);
 
   # string
-  SET @@global.init_slave = 'bison';
+  SET @@global.init_slave = 'SELECT 2';
   INSERT INTO ttrig(text) VALUES (@@global.init_slave);
-  SET @@global.init_slave = 'cat';
+  SET @@global.init_slave = 'SELECT 3';
   INSERT INTO ttrig(text) VALUES (@@global.init_slave);
 
   # enumeration
@@ -581,9 +581,9 @@ PREPARE p7 FROM 'SET @@global.sync_binlog = 3000000';
 PREPARE p8 FROM 'INSERT INTO tprep(num) VALUES (@@global.sync_binlog)';
 
 # string
-PREPARE p9 FROM 'SET @@global.init_slave = \'bison\'';
+PREPARE p9 FROM 'SET @@global.init_slave = \'SELECT 2\'';
 PREPARE p10 FROM 'INSERT INTO tprep(text) VALUES (@@global.init_slave)';
-PREPARE p11 FROM 'SET @@global.init_slave = \'cat\'';
+PREPARE p11 FROM 'SET @@global.init_slave = \'SELECT 3\'';
 PREPARE p12 FROM 'INSERT INTO tprep(text) VALUES (@@global.init_slave)';
 
 # enumeration
