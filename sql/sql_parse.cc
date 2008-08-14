@@ -6530,15 +6530,24 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       thd->store_globals();
       lex_start(thd);
     }
+    
     if (thd)
     {
-      if (acl_reload(thd))
+      bool reload_acl_failed= acl_reload(thd);
+      bool reload_grants_failed= grant_reload(thd);
+      bool reload_servers_failed= servers_reload(thd);
+      
+      if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
+      {
         result= 1;
-      if (grant_reload(thd))
-        result= 1;
-      if (servers_reload(thd))
-        result= 1; /* purecov: inspected */
+        /*
+          When an error is returned, my_message may have not been called and
+          the client will hang waiting for a response.
+        */
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH PRIVILEGES failed");
+      }
     }
+
     if (tmp_thd)
     {
       delete tmp_thd;
@@ -6627,8 +6636,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;                               // Killed
-      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                                  FALSE : TRUE, TRUE);
+      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                              FALSE : TRUE, TRUE))
+          result= 1;
+      
       if (make_global_read_lock_block_commit(thd)) // Killed
       {
         /* Don't leave things in a half-locked state */
@@ -6637,8 +6648,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       }
     }
     else
-      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                                  FALSE : TRUE, FALSE);
+    {
+      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                              FALSE : TRUE, FALSE))
+        result= 1;
+    }
     my_dbopt_cleanup();
   }
   if (options & REFRESH_HOSTS)
@@ -6661,8 +6675,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifdef OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
-     if (des_key_file)
-       result=load_des_key_file(des_key_file);
+     if (des_key_file && load_des_key_file(des_key_file))
+         result= 1;
    }
 #endif
 #ifdef HAVE_REPLICATION
