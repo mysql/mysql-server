@@ -146,17 +146,24 @@ public:
 #endif
   int setBound(Uint32 anAttrId, int type, const void* aValue);
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
-   * This method is not required and is deprecated.
-   * To perform an Index Scan with multiple batched bounds, use the 
-   * NdbRecord scanIndex() API.
-   * For an old Api Index scan with a single set of bounds, this call 
-   * is not necessary.
-   * Range numbers greater than zero are considered an error.
+   * This method is called to separate sets of bounds (ranges) when 
+   * defining an Index Scan with multiple ranges
+   * It can only be used with scans defined using the SF_MultiRange
+   * scan flag.
+   * For NdbRecord, ranges are specified using the IndexBound structure
+   * and the setBound() API.
+   * If an index scan has more than one range then end_of_bound must be 
+   * called after every range, including the last.
+   * If the SF_ReadRangeNo flag is set then the range_no supplied when
+   * the range is defined will be associated with each row returned from
+   * that range.  This can be obtained by calling get_range_no().
+   * If SF_ReadRangeNo and SF_OrderBy flags are provided then range_no
+   * values must be strictly increasing (i.e. starting at zero and 
+   * getting larger by 1 for each range specified).  This is to ensure 
+   * that rows are returned in order.
    */
   int end_of_bound(Uint32 range_no= 0);
-#endif
 
   /**
    * Return range number for current row, as defined in the IndexBound
@@ -223,8 +230,6 @@ private:
   NdbIndexScanOperation(Ndb* aNdb);
   virtual ~NdbIndexScanOperation();
   
-  void initScanBoundStorageOldApi();
-
   int processIndexScanDefs(LockMode lm,
                            Uint32 scan_flags,
                            Uint32 parallel,
@@ -240,15 +245,37 @@ private:
   /* Structure used to collect information about an IndexBound
    * as it is provided by the old Api setBound() calls
    */
-  struct OldApiScanBoundInfo
+  struct OldApiBoundInfo
   {
     Uint32 highestKey;
     bool highestSoFarIsStrict;
     Uint32 keysPresentBitmap;
-    NdbRecAttr *keyRecAttr;
+    char* key;
   };
 
-  int setBoundHelperOldApi(OldApiScanBoundInfo& boundInfo,
+  struct OldApiScanRangeDefinition
+  {
+    /* OldApiBoundInfo used during definition
+     * IndexBound used once bound defined
+     * Todo : For heavy old Api use, consider splitting
+     * to allow NdbRecAttr use without malloc
+     */
+    union {
+      struct {
+        OldApiBoundInfo lowBound;
+        OldApiBoundInfo highBound;
+      };
+
+      IndexBound ib;
+    };
+    /* Space for key bounds 
+     *   Low bound from offset 0
+     *   High bound from offset key_record->m_row_size
+     */
+    char space[1];
+  };
+
+  int setBoundHelperOldApi(OldApiBoundInfo& boundInfo,
                            Uint32 maxKeyRecordBytes,
                            Uint32 index_attrId,
                            Uint32 valueLen,
@@ -259,8 +286,9 @@ private:
                            const void *aValue);
 
   int setBound(const NdbColumnImpl*, int type, const void* aValue);
-  int buildIndexBoundOldApi(IndexBound& ib);
-  void releaseIndexBoundOldApi();
+  int buildIndexBoundOldApi(int range_no);
+  const IndexBound* getIndexBoundFromRecAttr(NdbRecAttr* recAttr);
+  void releaseIndexBoundsOldApi();
   int insertBOUNDS(Uint32 * data, Uint32 sz);
   int ndbrecord_insert_bound(const NdbRecord *key_record,
                              Uint32 column_index,
@@ -294,12 +322,16 @@ private:
   /* Most recently added IndexBound's range number */
   Uint32 m_previous_range_num;
   
-  /* Old Scan API bound information */
-  bool oldApiBoundDefined;
-  OldApiScanBoundInfo lowBound;
-  OldApiScanBoundInfo highBound;
-
-  
+  /* Old Scan API range information 
+   * List of RecAttr structures containing OldApiScanRangeDefinition
+   * structures
+   * currentRangeOldApi is range currently being defined (if any)
+   * Once defined (end_of_bound() / execute()) they are added to 
+   * the list between first/lastRangeOldApi
+   */
+  NdbRecAttr* firstRangeOldApi;
+  NdbRecAttr* lastRangeOldApi;
+  NdbRecAttr* currentRangeOldApi;
 
   friend struct Ndb_free_list_t<NdbIndexScanOperation>;
 };

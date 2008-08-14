@@ -120,15 +120,10 @@ rand_lock_mode:
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
 
-    // TODO : 
-    // Multi-read range functionality is disabled for
-    // old style scans, so we can't use it here
-    // Longer term, Hugo* should be changed to use
-    // NdbRecord in this area.
-    //if(pIndexScanOp)
-    //  pIndexScanOp->end_of_bound(r);
+    if(pIndexScanOp)
+      pIndexScanOp->end_of_bound(r);
     
-    // if(r == 0 || pIndexScanOp == 0)
+    if(r == 0 || pIndexScanOp == 0)
     {
       // Define attributes to read  
       for(a = 0; a<tab.getNoOfColumns(); a++){

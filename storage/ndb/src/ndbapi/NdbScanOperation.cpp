@@ -1762,23 +1762,13 @@ int NdbScanOperation::finaliseScanOldApi()
     NdbIndexScanOperation *isop = 
       static_cast<NdbIndexScanOperation*>(this);
 
-    /* Prepare a single bound if necessary */
-    NdbIndexScanOperation::IndexBound ib;
-    NdbIndexScanOperation::IndexBound* ib_ptr= NULL;
-
-    switch (isop->buildIndexBoundOldApi(ib)) {
-    case 0:
-      /* Bound was specified */
-      ib_ptr= &ib;
-      break;
-    case 1:
-      /* No bound was specified */
-      ib_ptr= NULL; 
-      break;
-    default:
-      return -1;
+    if (isop->currentRangeOldApi != NULL)
+    {
+      /* Add current bound to bound list */
+      if (isop->buildIndexBoundOldApi(0) != 0)
+        return -1;
     }
-
+    
     /* If this is an ordered scan, then we need
      * the pk columns in the mask, otherwise we
      * don't
@@ -1792,11 +1782,25 @@ int NdbScanOperation::finaliseScanOldApi()
                                 m_currentTable->m_ndbrecord,
                                 m_savedLockModeOldApi,
                                 resultMask,
-                                ib_ptr,
+                                NULL, // All bounds added below
                                 &options,
                                 sizeof(ScanOptions));
 
-    isop->releaseIndexBoundOldApi();
+    /* Add any bounds that were specified */
+    if (isop->firstRangeOldApi != NULL)
+    {
+      NdbRecAttr* bound= isop->firstRangeOldApi;
+      while (bound != NULL)
+      {
+        if (isop->setBound( m_accessTable->m_ndbrecord,
+                            *isop->getIndexBoundFromRecAttr(bound) ) != 0)
+          return -1;
+        
+        bound= bound->next();
+      }
+    }
+
+    isop->releaseIndexBoundsOldApi();
   }
 
   /* Free any scan-owned ScanFilter generated InterpretedCode
@@ -2469,33 +2473,13 @@ NdbScanOperation::getValue_impl(const NdbColumnImpl *attrInfo, char *aValue)
 NdbIndexScanOperation::NdbIndexScanOperation(Ndb* aNdb)
   : NdbScanOperation(aNdb, NdbOperation::OrderedIndexScan)
 {
-  lowBound.keyRecAttr= highBound.keyRecAttr= NULL;
-  initScanBoundStorageOldApi();
+  firstRangeOldApi= NULL;
+  lastRangeOldApi= NULL;
+  currentRangeOldApi= NULL;
+
 }
 
 NdbIndexScanOperation::~NdbIndexScanOperation(){
-}
-
-/* This method initialises the old scan bound storage space.
- * It is called from the NdbIndexScanOperation constructor and
- * from NdbTransaction::scanIndex()
- */
-void
-NdbIndexScanOperation::initScanBoundStorageOldApi()
-{
-  assert(lowBound.keyRecAttr == NULL);
-  assert(highBound.keyRecAttr == NULL);
-
-  oldApiBoundDefined=false;
-  lowBound.highestKey= 0;
-  lowBound.highestSoFarIsStrict= false;
-  /* Need to modify old Api scan bound handling code
-   * if max attributes in key becomes > 32
-   */
-  assert(NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY == 32);
-  lowBound.keysPresentBitmap= 0;
-
-  highBound= lowBound;
 }
 
 int
@@ -2535,7 +2519,7 @@ NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo,
  * processing using the normal NdbRecord setBound interface.
  */
 int
-NdbIndexScanOperation::setBoundHelperOldApi(OldApiScanBoundInfo& boundInfo,
+NdbIndexScanOperation::setBoundHelperOldApi(OldApiBoundInfo& boundInfo,
                                             Uint32 maxKeyRecordBytes,
                                             Uint32 index_attrId,
                                             Uint32 valueLen,
@@ -2545,22 +2529,6 @@ NdbIndexScanOperation::setBoundHelperOldApi(OldApiScanBoundInfo& boundInfo,
                                             Uint32 nullbit_bit_in_byte,
                                             const void *aValue)
 {
-  /* Grab RecAttr if necessary */
-  if (boundInfo.keyRecAttr == NULL)
-  {
-    boundInfo.keyRecAttr= theNdb->getRecAttr();
-    if (boundInfo.keyRecAttr != NULL)
-    {
-      boundInfo.keyRecAttr->setup(maxKeyRecordBytes, NULL);
-    }
-    else
-    {
-      /* Memory allocation error */
-      setErrorCodeAbort(4000);
-      return -1;
-    }
-  }
-  
   Uint32 presentBitMask= (1 << (index_attrId & 0x1f));
 
   if ((boundInfo.keysPresentBitmap & presentBitMask) != 0)
@@ -2599,16 +2567,15 @@ NdbIndexScanOperation::setBoundHelperOldApi(OldApiScanBoundInfo& boundInfo,
 
   /* Copy data into correct part of RecAttr */
   assert(byteOffset + valueLen <= maxKeyRecordBytes);
-  char *startOfRecord= boundInfo.keyRecAttr->aRef();
 
-  memcpy(startOfRecord+byteOffset,
+  memcpy(boundInfo.key + byteOffset,
          aValue, 
          valueLen);
 
   /* Set Null bit */
   bool nullBit=(aValue == NULL);
 
-  startOfRecord[nullbit_byte_offset]|= 
+  boundInfo.key[nullbit_byte_offset]|= 
     (nullBit) << nullbit_bit_in_byte;
 
   return 0;
@@ -2624,12 +2591,6 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
   if (!tAttrInfo)
   {
     setErrorCodeAbort(4318);    // Invalid attribute
-    return -1;
-  }
-  if (oldApiBoundDefined)
-  {
-    /* Only one scan bound allowed for non-NdbRecord setBound() API */
-    setErrorCodeAbort(4513);
     return -1;
   }
   if (theOperationType == OpenRangeScanRequest &&
@@ -2673,12 +2634,52 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
     
     bool inclusive= ! ((type == BoundLT) || (type == BoundGT));
 
+    if (currentRangeOldApi == NULL)
+    {
+      /* Current bound is undefined, allocate space for definition */
+      NdbRecAttr* boundSpace= theNdb->getRecAttr();
+      if (boundSpace == NULL)
+      {
+        /* Memory allocation error */
+        setErrorCodeAbort(4000);
+        return -1;
+      }
+      if (boundSpace->setup(sizeof(OldApiScanRangeDefinition) + 
+                            (2 * maxKeyRecordBytes) - 1, NULL) != 0)
+      {
+        theNdb->releaseRecAttr(boundSpace);
+        /* Memory allocation error */
+        setErrorCodeAbort(4000);
+        return -1;
+      }
+      
+      /* Initialise bounds definition info */
+      OldApiScanRangeDefinition* boundsDef= 
+        (OldApiScanRangeDefinition*) boundSpace->aRef();
+
+      boundsDef->lowBound.highestKey = 0;
+      boundsDef->lowBound.highestSoFarIsStrict = false;
+      /* Should be STATIC_ASSERT */
+      assert(NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY == 32);
+      boundsDef->lowBound.keysPresentBitmap = 0;
+      
+      boundsDef->highBound= boundsDef->lowBound;
+      boundsDef->lowBound.key= &boundsDef->space[ 0 ];
+      boundsDef->highBound.key= &boundsDef->space[ maxKeyRecordBytes ];
+      
+      currentRangeOldApi= boundSpace;
+    }
+
+    OldApiScanRangeDefinition* bounds=
+      (OldApiScanRangeDefinition*) currentRangeOldApi->aRef();
+
+
     /* Add to lower bound if required */
     if (type == BoundEQ ||
         type == BoundLE ||
         type == BoundLT )
     {
-      if (setBoundHelperOldApi(lowBound,
+      if (setBoundHelperOldApi(bounds->lowBound,
                                maxKeyRecordBytes,
                                tAttrInfo->m_attrId,
                                valueLen,
@@ -2695,7 +2696,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
         type == BoundGE ||
         type == BoundGT)
     {
-      if (setBoundHelperOldApi(highBound,
+      if (setBoundHelperOldApi(bounds->highBound,
                                maxKeyRecordBytes,
                                tAttrInfo->m_attrId,
                                valueLen,
@@ -2725,28 +2726,32 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
  * -1 == error
  */
 int
-NdbIndexScanOperation::buildIndexBoundOldApi(IndexBound& ib)
+NdbIndexScanOperation::buildIndexBoundOldApi(int range_no)
 {
-  int result= 1;
+  IndexBound ib;
+  OldApiScanRangeDefinition* boundDef=
+    (OldApiScanRangeDefinition*) currentRangeOldApi->aRef();
 
-  if (lowBound.highestKey != 0)
+  int result = 1;
+  
+  if (boundDef->lowBound.highestKey != 0)
   {
     /* Have a low bound 
      * Check that a contiguous set of keys are supplied.
      * Setup low part of IndexBound
      */
-    Uint32 expectedValue= (~(Uint32) 0) >> (32 - lowBound.highestKey);
+    Uint32 expectedValue= (~(Uint32) 0) >> (32 - boundDef->lowBound.highestKey);
     
-    if (lowBound.keysPresentBitmap != expectedValue)
+    if (boundDef->lowBound.keysPresentBitmap != expectedValue)
     {
       /* Invalid set of range scan bounds */
       setErrorCodeAbort(4259);
       return -1;
     }
 
-    ib.low_key= lowBound.keyRecAttr->aRef();
-    ib.low_key_count= lowBound.highestKey;
-    ib.low_inclusive= !lowBound.highestSoFarIsStrict;
+    ib.low_key= boundDef->lowBound.key;
+    ib.low_key_count= boundDef->lowBound.highestKey;
+    ib.low_inclusive= !boundDef->lowBound.highestSoFarIsStrict;
     result= 0;
   }
   else
@@ -2756,23 +2761,23 @@ NdbIndexScanOperation::buildIndexBoundOldApi(IndexBound& ib)
     ib.low_inclusive= false;
   }
 
-  if (highBound.highestKey != 0)
+  if (boundDef->highBound.highestKey != 0)
   {
     /* Have a high bound 
      * Check that a contiguous set of keys are supplied.
      */
-    Uint32 expectedValue= (~(Uint32) 0) >> (32 - highBound.highestKey);
+    Uint32 expectedValue= (~(Uint32) 0) >> (32 - boundDef->highBound.highestKey);
     
-    if (highBound.keysPresentBitmap != expectedValue)
+    if (boundDef->highBound.keysPresentBitmap != expectedValue)
     {
       /* Invalid set of range scan bounds */
       setErrorCodeAbort(4259);
       return -1;
     }
 
-    ib.high_key= highBound.keyRecAttr->aRef();
-    ib.high_key_count= highBound.highestKey;
-    ib.high_inclusive= !highBound.highestSoFarIsStrict;
+    ib.high_key= boundDef->highBound.key;
+    ib.high_key_count= boundDef->highBound.highestKey;
+    ib.high_inclusive= !boundDef->highBound.highestSoFarIsStrict;
     result= 0;
   }
   else
@@ -2781,33 +2786,58 @@ NdbIndexScanOperation::buildIndexBoundOldApi(IndexBound& ib)
     ib.high_key_count= 0;
     ib.high_inclusive= false;
   }
+  
+  ib.range_no= range_no;
 
-  ib.range_no= 0;
+  boundDef->ib= ib;
+
+  assert( currentRangeOldApi->next() == NULL );
+
+  if (lastRangeOldApi == NULL)
+  {
+    /* First bound */
+    assert( firstRangeOldApi == NULL );
+    firstRangeOldApi= lastRangeOldApi= currentRangeOldApi;
+  }
+  else 
+  {
+    /* Other bounds exist, add this to the end of the bounds list */
+    assert( firstRangeOldApi != NULL );
+    assert( lastRangeOldApi->next() == NULL );
+    lastRangeOldApi->next(currentRangeOldApi);
+    lastRangeOldApi= currentRangeOldApi;
+  }
+  
+  currentRangeOldApi= NULL;
 
   return result;
 }
+
+const NdbIndexScanOperation::IndexBound* 
+NdbIndexScanOperation::getIndexBoundFromRecAttr(NdbRecAttr* recAttr)
+{
+  return &((OldApiScanRangeDefinition*)recAttr->aRef())->ib;
+};
+
 
 /* Method called to release any resources allocated by the old 
  * Index Scan bound API
  */
 void
-NdbIndexScanOperation::releaseIndexBoundOldApi()
+NdbIndexScanOperation::releaseIndexBoundsOldApi()
 {
-  if (lowBound.keyRecAttr != NULL)
+  NdbRecAttr* bound= firstRangeOldApi;
+  while (bound != NULL)
   {
-    theNdb->releaseRecAttr(lowBound.keyRecAttr);
-    lowBound.keyRecAttr= NULL;
+    NdbRecAttr* release= bound;
+    bound= bound->next();
+    theNdb->releaseRecAttr(release);
   }
-  if (highBound.keyRecAttr != NULL)
-  {
-    theNdb->releaseRecAttr(highBound.keyRecAttr);
-    highBound.keyRecAttr= NULL;
-  }
-  
-  /* Re-initialise scan bound storage for the next
-   * use of this NdbIndexScanOperation object
-   */
-  initScanBoundStorageOldApi();
+
+  if (currentRangeOldApi != NULL)
+    theNdb->releaseRecAttr(currentRangeOldApi);
+
+  firstRangeOldApi= lastRangeOldApi= currentRangeOldApi= NULL;
 }
 
 
@@ -3428,7 +3458,7 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
       reinterpret_cast<NdbIndexScanOperation*> (this);
 
     /* Release any Index Bound resources */
-    isop->releaseIndexBoundOldApi();
+    isop->releaseIndexBoundsOldApi();
   }
 
   /* Free any scan-owned ScanFilter generated InterpretedCode
@@ -3462,11 +3492,47 @@ NdbIndexScanOperation::end_of_bound(Uint32 no)
   DBUG_ENTER("end_of_bound");
   DBUG_PRINT("info", ("Range number %u", no));
 
-  /* Multirange no longer supported from old scan API */
-  if (no > 0 || oldApiBoundDefined)
-    DBUG_RETURN(-1);
+  if (! (m_savedScanFlagsOldApi & SF_MultiRange))
+  {
+    setErrorCodeAbort(4509);
+    /* Non SF_MultiRange scan cannot have more than one bound */
+    return -1;
+  }
+
+  if (currentRangeOldApi == NULL)
+  {
+    setErrorCodeAbort(4259);
+    /* Invalid set of range scan bounds */
+    return -1;
+  }
+
+  /* If it's an ordered scan and we're reading range numbers
+   * back then check that range numbers are strictly 
+   * increasing
+   */
+  if ((m_savedScanFlagsOldApi & SF_OrderBy) &&
+      (m_savedScanFlagsOldApi & SF_ReadRangeNo))
+  {
+    Uint32 expectedNum= 0;
+    
+    if (lastRangeOldApi != NULL)
+    {
+      assert( firstRangeOldApi != NULL );
+      expectedNum = 
+        getIndexBoundFromRecAttr(lastRangeOldApi)->range_no + 1;
+    }
+    
+    if (no != expectedNum)
+    {
+      setErrorCodeAbort(4282);
+      /* range_no not strictly increasing in ordered multi-range index scan */
+      return -1;
+    }
+  }
   
-  oldApiBoundDefined= true;
+  if (buildIndexBoundOldApi(no) != 0)
+    return -1;
+      
   DBUG_RETURN(0);
 }
 
