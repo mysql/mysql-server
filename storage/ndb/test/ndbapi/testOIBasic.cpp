@@ -51,9 +51,11 @@ struct Opt {
   NdbDictionary::Object::FragmentType m_fragtype;
   const char* m_index;
   uint m_loop;
+  uint m_mrrmaxrng;
   bool m_msglock;
   bool m_nologging;
   bool m_noverify;
+  uint m_pctmrr;
   uint m_pctnull;
   uint m_rows;
   uint m_samples;
@@ -81,9 +83,11 @@ struct Opt {
     m_fragtype(NdbDictionary::Object::FragUndefined),
     m_index(0),
     m_loop(1),
+    m_mrrmaxrng(10),
     m_msglock(true),
     m_nologging(false),
     m_noverify(false),
+    m_pctmrr(50),
     m_pctnull(10),
     m_rows(1000),
     m_samples(0),
@@ -123,8 +127,10 @@ printhelp()
     << "  -fragtype T   fragment type single/small/medium/large" << endl
     << "  -index xyz    only given index numbers (digits 0-9)" << endl
     << "  -loop N       loop count full suite 0=forever [" << d.m_loop << "]" << endl
+    << "  -mrrmaxrng N  max ranges to supply for MRR scan [" << d.m_mrrmaxrng << "]" << endl
     << "  -nologging    create tables in no-logging mode" << endl
     << "  -noverify     skip index verifications" << endl
+    << "  -pctmrr N     pct of index scans to use MRR [" << d.m_pctmrr << "]" << endl
     << "  -pctnull N    pct NULL values in nullable column [" << d.m_pctnull << "]" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
     << "  -samples N    samples for some timings (0=all) [" << d.m_samples << "]" << endl
@@ -319,6 +325,7 @@ struct Par : public Opt {
   bool m_tupscan;
   bool m_ordered;
   bool m_descending;
+  bool m_multiRange;
   // threads used by current test case
   uint m_usedthreads;
   Par(const Opt& opt) :
@@ -345,6 +352,7 @@ struct Par : public Opt {
     m_tupscan(false),
     m_ordered(false),
     m_descending(false),
+    m_multiRange(false),
     m_usedthreads(0)
   {
     m_currcase[0] = 0;
@@ -536,7 +544,7 @@ Chs::Chs(CHARSET_INFO* cs) :
     int xlen = (*cs->coll->strnxfrm)(cs, xbytes, m_xmul * size, bytes, size);
     // check we got something
     ok = false;
-    for (uint j = 0; j < xlen; j++) {
+    for (uint j = 0; j < (uint)xlen; j++) {
       if (xbytes[j] != 0) {
         ok = true;
         break;
@@ -1460,6 +1468,11 @@ Con::readIndexTuples(Par par)
     scan_flags |= NdbScanOperation::SF_OrderBy;
   if (par.m_descending)
     scan_flags |= NdbScanOperation::SF_Descending;
+  if (par.m_multiRange)
+  {
+    scan_flags |= NdbScanOperation::SF_MultiRange;
+    scan_flags |= NdbScanOperation::SF_ReadRangeNo;
+  }
   CHKCON(m_indexscanop->readTuples(par.m_lockmode, scan_flags, par.m_scanpar, par.m_scanbatch) == 0, *this);
   return 0;
 }
@@ -1602,7 +1615,6 @@ invalidateindex(Par par, const ITab& itab)
 static int
 invalidateindex(Par par)
 {
-  Con& con = par.con();
   const Tab& tab = par.tab();
   for (uint i = 0; i < tab.m_itabs; i++) {
     if (tab.m_itab[i] == 0)
@@ -1939,7 +1951,6 @@ Val::calckeychars(Par par, uint i, uint& n, uchar* buf)
 {
   const Col& col = m_col;
   const Chs* chs = col.m_chs;
-  CHARSET_INFO* cs = chs->m_cs;
   n = 0;
   uint len = 0;
   while (len < col.m_length) {
@@ -2013,7 +2024,6 @@ Val::calcnokeychars(Par par, uint& n, uchar* buf)
 {
   const Col& col = m_col;
   const Chs* chs = col.m_chs;
-  CHARSET_INFO* cs = chs->m_cs;
   n = 0;
   uint len = 0;
   while (len < col.m_length) {
@@ -2363,7 +2373,6 @@ Row::setval(Par par, uint colmask)
 int
 Row::setval(Par par, const ITab& itab)
 {
-  Con& con = par.con();
   Rsq rsq(itab.m_icols);
   for (uint k = 0; k < itab.m_icols; k++) {
     uint k2 = rsq.next();
@@ -2634,6 +2643,7 @@ struct Set {
   void calc(Par par, uint i, uint colmask = ~0);
   uint count() const;
   const Row* getrow(uint i, bool dirty = false) const;
+  int setrow(uint i, const Row* src, bool force=false);
   // transaction
   void post(Par par, ExecType et);
   // operations
@@ -2830,6 +2840,20 @@ Set::getrow(uint i, bool dirty) const
   return rowp;
 }
 
+int
+Set::setrow(uint i, const Row* src, bool force)
+{
+  assert(i < m_rows);
+  if (m_row[i] != 0)
+    if (!force)
+      return -1;
+  
+  Row* newRow= new Row(src->m_tab);
+  newRow->copy(*src, true);
+  return 0;
+}
+
+
 // transaction
 
 void
@@ -2946,7 +2970,6 @@ Set::delrow(Par par, const ITab& itab, uint i)
 int
 Set::selrow(Par par, const Row& keyrow)
 {
-  Con& con = par.con();
   const Tab& tab = par.tab();
   LL5("selrow " << tab.m_name << " keyrow " << keyrow);
   m_keyrow->copyval(keyrow, tab.m_pkmask);
@@ -2958,7 +2981,6 @@ Set::selrow(Par par, const Row& keyrow)
 int
 Set::selrow(Par par, const ITab& itab, const Row& keyrow)
 {
-  Con& con = par.con();
   LL5("selrow " << itab.m_name << " keyrow " << keyrow);
   m_keyrow->copyval(keyrow, itab.m_keymask);
   CHK(m_keyrow->selrow(par, itab) == 0);
@@ -2969,7 +2991,6 @@ Set::selrow(Par par, const ITab& itab, const Row& keyrow)
 int
 Set::setrow(Par par, uint i)
 {
-  Con& con = par.con();
   assert(m_row[i] != 0);
   CHK(m_row[i]->setrow(par) == 0);
   return 0;
@@ -3007,6 +3028,7 @@ Set::putval(uint i, bool force, uint n)
 {
   const Tab& tab = m_tab;
   LL4("putval key=" << i << " row=" << n << " old=" << m_row[i]);
+  CHK( i<m_rows );
   if (m_row[i] != 0) {
     assert(force);
     delete m_row[i];
@@ -3026,8 +3048,11 @@ Set::putval(uint i, bool force, uint n)
     val.copy(aRef);
     val.m_null = false;
   }
-  if (n != ~0)
+  if (n != (uint) ~0)
+  {
+    CHK(n < m_rows);
     m_rowkey[n] = i;
+  }
   return 0;
 }
 
@@ -3118,10 +3143,9 @@ Set::verify(Par par, const Set& set2, bool pkonly, bool dirty) const
 int
 Set::verifyorder(Par par, const ITab& itab, bool descending) const
 {
-  const Tab& tab = m_tab;
   for (uint n = 0; n < m_rows; n++) {
     uint i2 = m_rowkey[n];
-    if (i2 == ~0)
+    if (i2 == (uint) ~0)
       break;
     if (n == 0)
       continue;
@@ -3129,10 +3153,19 @@ Set::verifyorder(Par par, const ITab& itab, bool descending) const
     assert(m_row[i1] != 0 && m_row[i2] != 0);
     const Row& row1 = *m_row[i1];
     const Row& row2 = *m_row[i2];
+    bool ok;
     if (!descending)
-      CHK(row1.cmp(par, row2, itab) <= 0);
+      ok= (row1.cmp(par, row2, itab) <= 0);
     else
-      CHK(row1.cmp(par, row2, itab) >= 0);
+      ok= (row1.cmp(par, row2, itab) >= 0);
+
+    if (!ok)
+    {
+      LL1("verifyorder " << n << " failed");
+      LL1("row1 " << row1);
+      LL1("row2 " << row2);
+      CHK(false);
+    }
   }
   return 0;
 }
@@ -3265,7 +3298,6 @@ BSet::calc(Par par)
   reset();
   for (uint k = 0; k < itab.m_icols; k++) {
     const ICol& icol = *itab.m_icol[k];
-    const Col& col = icol.m_col;
     for (uint i = 0; i <= 1; i++) {
       if (m_bvals == 0 && urandom(100) == 0)
         return;
@@ -3819,7 +3851,6 @@ scanreadtablefast(Par par, uint countcheck)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
-  const Set& set = par.set();
   LL3("scanfast " << tab.m_name);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(tab) == 0);
@@ -3905,12 +3936,138 @@ scanreadindex(Par par, const ITab& itab, BSet& bset, bool calc)
   return 0;
 }
 
+
+static int
+scanreadindexmrr(Par par, const ITab& itab, int numBsets)
+{
+  Con& con = par.con();
+  const Tab& tab = par.tab();
+  const Set& set = par.set();
+
+  /* Create space for different sets of bounds, expected results and
+   * results
+   * Calculate bounds and the sets of rows which would result
+   */
+  BSet** boundSets;
+  Set** expectedResults;
+  Set** actualResults;
+  uint* setSizes;
+
+  CHK((boundSets= (BSet**) malloc(numBsets * sizeof(BSet*))) != 0);
+  CHK((expectedResults= (Set**) malloc(numBsets * sizeof(Set*))) != 0);
+  CHK((actualResults= (Set**) malloc(numBsets * sizeof(Set*))) != 0);
+  CHK((setSizes= (uint*) malloc(numBsets * sizeof(uint))) != 0);
+
+  for (int n=0; n < numBsets; n++)
+  {
+    CHK((boundSets[n]= new BSet(tab, itab)) != NULL );
+    CHK((expectedResults[n]= new Set(tab, set.m_rows)) != NULL);
+    CHK((actualResults[n]= new Set(tab, set.m_rows)) != NULL);
+    setSizes[n]= 0;
+
+    Set& results= *expectedResults[n];
+    /* Calculate some scan bounds which are selective */
+    do {
+      results.reset();
+      calcscanbounds(par, itab, *boundSets[n], set, results);
+    } while ((*boundSets[n]).m_bvals == 0);
+  } 
+
+  /* Define scan with bounds */
+  LL3("scanreadindexmrr " << itab.m_name << " ranges= " << numBsets << " lockmode=" << par.m_lockmode << " ordered=" << par.m_ordered << " descending=" << par.m_descending << " verify=" << par.m_verify);
+  Set set2(tab, set.m_rows);
+  /* Multirange + Read range number for this scan */
+  par.m_multiRange= true;
+  CHK(con.startTransaction() == 0);
+  CHK(con.getNdbIndexScanOperation(itab, tab) == 0);
+  CHK(con.readIndexTuples(par) == 0);
+  /* Set the bounds */
+  for (int n=0; n < numBsets; n++)
+  {
+    CHK(boundSets[n]->setbnd(par) == 0);
+    int res= con.m_indexscanop->end_of_bound(n);
+    if (res != 0)
+    {
+      LL1("end_of_bound error : " << con.m_indexscanop->getNdbError().code);
+      CHK (false);
+    }
+  }
+  set2.getval(par);
+  CHK(con.executeScan() == 0);
+  int rows_received= 0;
+  while (1) {
+    int ret;
+    uint err = par.m_catcherr;
+    CHK((ret = con.nextScanResult(true, err)) == 0 || ret == 1);
+    if (ret == 1)
+      break;
+    if (err) {
+      LL1("scanreadindexmrr stop on " << con.errname(err));
+      break;
+    }
+    uint i = (uint)-1;
+    /* Put value into set2 temporarily */
+    CHK(set2.getkey(par, &i) == 0);
+    CHK(set2.putval(i, false, -1) == 0);
+    
+    /* Now move it to the correct set, based on the range no */
+    int rangeNum= con.m_indexscanop->get_range_no();
+    CHK(rangeNum < numBsets);
+    CHK(set2.m_row[i] != NULL);
+    /* Get rowNum based on what's in the set already (slow) */
+    CHK(setSizes[rangeNum] == actualResults[rangeNum]->count());
+    int rowNum= setSizes[rangeNum];
+    setSizes[rangeNum] ++;
+    CHK((uint) rowNum < set2.m_rows);
+    actualResults[rangeNum]->m_row[i]= set2.m_row[i];
+    actualResults[rangeNum]->m_rowkey[rowNum]= i;
+    set2.m_row[i]= 0;
+    LL4("range " << rangeNum << " key " << i << " row " << rowNum << " " << *set2.m_row[i]);
+    rows_received++;
+  }
+  con.closeTransaction();
+
+  /* Verify that each set has the expected rows, and optionally, that
+   * they're ordered
+   */
+  if (par.m_verify) 
+  {
+    LL4("Verifying " << numBsets << " sets, " << rows_received << " rows");
+    for (int n=0; n < numBsets; n++)
+    {
+      LL5("Set " << n << " of " << expectedResults[n]->count() << " rows");
+      CHK(expectedResults[n]->verify(par, *actualResults[n], false) == 0);
+      if (par.m_ordered)
+      {
+        LL5("Verifying ordering");
+        CHK(actualResults[n]->verifyorder(par, itab, par.m_descending) == 0);
+      }
+    }
+  }
+  
+  /* Cleanup */
+  for (int n=0; n < numBsets; n++)
+  {
+    boundSets[n]->reset();
+    delete boundSets[n];
+    delete expectedResults[n];
+    delete actualResults[n];
+  }
+
+  free(boundSets);
+  free(expectedResults);
+  free(actualResults);
+  free(setSizes);
+
+  LL3("scanreadindexmrr " << itab.m_name << " done rows=" << rows_received);
+  return 0;
+}
+
 static int
 scanreadindexfast(Par par, const ITab& itab, const BSet& bset, uint countcheck)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
-  const Set& set = par.set();
   LL3("scanfast " << itab.m_name << " " << bset);
   LL4(bset);
   CHK(con.startTransaction() == 0);
@@ -3987,7 +4144,13 @@ scanreadindex(Par par, const ITab& itab)
     if (itab.m_type == ITab::OrderedIndex) {
       BSet bset(tab, itab);
       CHK(scanreadfilter(par, itab, bset, true) == 0);
-      CHK(scanreadindex(par, itab, bset, true) == 0);
+      /* Single range or Multi range scan */
+      if (randompct(g_opt.m_pctmrr))
+        CHK(scanreadindexmrr(par, 
+                             itab, 
+                             1+urandom(g_opt.m_mrrmaxrng-1)) == 0);
+      else
+        CHK(scanreadindex(par, itab, bset, true) == 0);
     }
   }
   return 0;
@@ -5645,7 +5808,7 @@ main(int argc,  char** argv)
   ndb_init();
   uint i;
   ndbout << g_progname;
-  for (i = 1; i < argc; i++)
+  for (i = 1; i < (uint) argc; i++)
     ndbout << " " << argv[i];
   ndbout << endl;
   ndbout_mutex = NdbMutex_Create();
@@ -5736,6 +5899,12 @@ main(int argc,  char** argv)
         continue;
       }
     }
+    if (strcmp(arg, "-mrrmaxrng") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_mrrmaxrng = atoi(argv[0]);
+        continue;
+      }
+    }
     if (strcmp(arg, "-nologging") == 0) {
       g_opt.m_nologging = true;
       continue;
@@ -5743,6 +5912,12 @@ main(int argc,  char** argv)
     if (strcmp(arg, "-noverify") == 0) {
       g_opt.m_noverify = true;
       continue;
+    }
+    if (strcmp(arg, "-pctmrr") ==0 ) {
+      if (++argc, --argc > 0) {
+        g_opt.m_pctmrr = atoi(argv[0]);
+        continue;
+      }
     }
     if (strcmp(arg, "-pctnull") == 0) {
       if (++argv, --argc > 0) {
@@ -5836,7 +6011,7 @@ main(int argc,  char** argv)
     delete g_ncc;
     g_ncc = 0;
   }
-ok:
+// ok
   return NDBT_ProgramExit(NDBT_OK);
 failed:
   return NDBT_ProgramExit(NDBT_FAILED);
