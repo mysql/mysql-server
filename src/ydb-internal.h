@@ -73,6 +73,7 @@ struct __toku_db_txn_internal {
     //TXNID txnid64; /* A sixty-four bit txn id. */
     TOKUTXN tokutxn;
     toku_lth* lth;
+    DB_TXN *child, *next, *prev;
 };
 
 struct __toku_dbc_internal {
