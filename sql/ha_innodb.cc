@@ -244,8 +244,10 @@ struct show_var_st innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG},
   {"buffer_pool_pages_free",
   (char*) &export_vars.innodb_buffer_pool_pages_free,     SHOW_LONG},
+#ifdef UNIV_DEBUG
   {"buffer_pool_pages_latched",
   (char*) &export_vars.innodb_buffer_pool_pages_latched,  SHOW_LONG},
+#endif /* UNIV_DEBUG */
   {"buffer_pool_pages_misc",
   (char*) &export_vars.innodb_buffer_pool_pages_misc,     SHOW_LONG},
   {"buffer_pool_pages_total",
@@ -4250,7 +4252,7 @@ ha_innobase::rnd_pos(
 	int		error;
 	uint		keynr	= active_index;
 	DBUG_ENTER("rnd_pos");
-	DBUG_DUMP("key", (uchar *)pos, ref_length);
+	DBUG_DUMP("key", (uchar*) pos, ref_length);
 
 	statistic_increment(current_thd->status_var.ha_read_rnd_count,
 			    &LOCK_status);
@@ -6881,6 +6883,12 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	/* Eliminate an InnoDB error print that happens when we try to SELECT
 	from a table when no table has been locked in ::external_lock(). */
 	prebuilt->trx->n_mysql_tables_in_use++;
+
+	/* Since we will perform a MySQL SELECT query to determine the
+	auto-inc value, set prebuilt->sql_stat_start = TRUE so that it
+	is performed like any normal SELECT, regardless of the context
+	we come here. */
+        prebuilt->sql_stat_start = TRUE;
 
 	error = index_last(table->record[1]);
 
