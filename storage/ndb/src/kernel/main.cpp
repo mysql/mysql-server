@@ -320,6 +320,17 @@ get_multithreaded_config(EmulatorData& ed)
     return -1;
   }
 
+  // testing
+  {
+    const char* p;
+    p = NdbEnv_GetEnv("NDBMT_LQH_WORKERS", (char*)0, 0);
+    if (p != 0)
+      workers = atoi(p);
+    p = NdbEnv_GetEnv("NDBMT_LQH_THREADS", (char*)0, 0);
+    if (p != 0)
+      threads = atoi(p);
+  }
+
   ndbout << "NDBMT: workers=" << workers
          << " threads=" << threads << endl;
 
@@ -556,7 +567,7 @@ int main(int argc, char** argv)
 #endif
 #endif
 
-    // Load blocks
+  // Load blocks (both main and workers)
   globalEmulatorData.theSimBlockList->load(globalEmulatorData);
     
   // Set thread concurrency for Solaris' light weight processes

@@ -208,7 +208,7 @@ Dbtc::Dbtc(Block_context& ctx):
   // Received signals
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtc::execDUMP_STATE_ORD);
-  addRecSignal(GSN_SEND_PACKED, &Dbtc::execSEND_PACKED);
+  addRecSignal(GSN_SEND_PACKED, &Dbtc::execSEND_PACKED, true);
   addRecSignal(GSN_SCAN_HBREP, &Dbtc::execSCAN_HBREP);
   addRecSignal(GSN_COMPLETED, &Dbtc::execCOMPLETED);
   addRecSignal(GSN_COMMITTED, &Dbtc::execCOMMITTED);

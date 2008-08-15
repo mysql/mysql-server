@@ -214,7 +214,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
   addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
-  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED);
+  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED, true);
   addRecSignal(GSN_TUP_ATTRINFO, &Dblqh::execTUP_ATTRINFO);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dblqh::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_LQHFRAGREQ, &Dblqh::execLQHFRAGREQ);
