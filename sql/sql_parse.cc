@@ -329,6 +329,12 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   Vio* save_vio;
   ulong save_client_capabilities;
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.start_new_query();
+  thd->profiling.set_query_source(init_command_var->value,
+                                  init_command_var->value_length);
+#endif
+
   thd_proc_info(thd, "Execution of init_command");
   /*
     We need to lock init_command_var because
@@ -350,6 +356,10 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   rw_unlock(var_mutex);
   thd->client_capabilities= save_client_capabilities;
   thd->net.vio= save_vio;
+
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.finish_current_query();
+#endif
 }
 
 
@@ -441,6 +451,7 @@ pthread_handler_t handle_bootstrap(void *arg)
     thd->query[length] = '\0';
     DBUG_PRINT("query",("%-.4096s",thd->query));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.start_new_query();
     thd->profiling.set_query_source(thd->query, length);
 #endif
 
@@ -455,6 +466,10 @@ pthread_handler_t handle_bootstrap(void *arg)
 
     bootstrap_error= thd->is_error();
     net_end_statement(thd);
+
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.finish_current_query();
+#endif
 
     if (bootstrap_error)
       break;
