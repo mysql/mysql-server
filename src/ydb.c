@@ -957,6 +957,22 @@ static int toku_txn_release_locks(DB_TXN* txn) {
 static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     if (!txn) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
+    //Recursively kill off children
+    while (txn->i->child) {
+        int r_child = toku_txn_commit(txn->i->child, flags);
+        assert(r_child==0);
+    }
+    //Remove from parent
+    if (txn->parent) {
+        if (txn->parent->i->child==txn) txn->parent->i->child=txn->i->next;
+        if (txn->parent->i->child==txn) {
+            txn->parent->i->child=NULL;
+        }
+        else {
+            txn->i->next->i->prev = txn->i->prev;
+            txn->i->prev->i->next = txn->i->next;
+        }
+    }
     //toku_ydb_notef("flags=%d\n", flags);
     int nosync = (flags & DB_TXN_NOSYNC)!=0;
     flags &= ~DB_TXN_NOSYNC;
@@ -988,6 +1004,22 @@ static u_int32_t toku_txn_id(DB_TXN * txn) {
 
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
+    //Recursively kill off children
+    while (txn->i->child) {
+        int r_child = toku_txn_abort(txn->i->child);
+        assert(r_child==0);
+    }
+    //Remove from parent
+    if (txn->parent) {
+        if (txn->parent->i->child==txn) txn->parent->i->child=txn->i->next;
+        if (txn->parent->i->child==txn) {
+            txn->parent->i->child=NULL;
+        }
+        else {
+            txn->i->next->i->prev = txn->i->prev;
+            txn->i->prev->i->next = txn->i->next;
+        }
+    }
     int r2 = toku_txn_release_locks(txn);
     int r = toku_logger_abort(txn->i->tokutxn);
 
@@ -1050,6 +1082,20 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     r = toku_logger_txn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, env->i->logger);
     if (r != 0)
         return r;
+    //Add to the list of children for the parent.
+    if (result->parent) {
+        if (!result->parent->i->child) {
+            result->parent->i->child = result;
+            result->i->next = result;
+            result->i->prev = result;
+        }
+        else {
+            result->i->prev = result->parent->i->child->i->prev;
+            result->i->next = result->parent->i->child;
+            result->parent->i->child->i->prev->i->next = result;
+            result->parent->i->child->i->prev = result;
+        }
+    }
     *txn = result;
     return 0;
 }
