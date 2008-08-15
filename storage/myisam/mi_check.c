@@ -1211,6 +1211,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	param->glob_crc+= mi_checksum(info,record);
       link_used+= (block_info.filepos - start_recpos);
       used+= (pos-start_recpos);
+      break;
     case BLOCK_RECORD:
       assert(0);                                /* Impossible */
     } /* switch */
