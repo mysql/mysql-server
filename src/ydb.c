@@ -1037,7 +1037,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     memset(result->i, 0, sizeof *result->i);
 
     int r;
-    if (env->i->open_flags & DB_INIT_LOCK) {
+    if (env->i->open_flags & DB_INIT_LOCK && !stxn) {
         r = toku_lth_create(&result->i->lth,
                             toku_malloc, toku_free, toku_realloc);
         if (r!=0) {
