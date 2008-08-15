@@ -1761,4 +1761,34 @@ while ($n)
 --enable_query_log
 show create table t1;
 drop table t1;
+
+#
+# Bug #38272 timestamps fields incorrectly defaulted on update accross partitions.
+#
+
+CREATE TABLE  t1 (
+  `ID` bigint(20) NOT NULL AUTO_INCREMENT,
+  `createdDate` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `number` int,
+  PRIMARY KEY (`ID`, number)
+)
+PARTITION BY RANGE (number) (
+    PARTITION p0 VALUES LESS THAN (6),
+    PARTITION p1 VALUES LESS THAN (11)
+);
+
+create table t2 (
+  `ID` bigint(20),
+  `createdDate` TIMESTAMP,
+  `number` int
+);
+
+INSERT INTO t1 SET number=1;
+insert into t2 select * from t1;
+SELECT SLEEP(1);
+UPDATE t1 SET number=6;
+select count(*) from t1, t2 where t1.createdDate = t2.createdDate;
+
+drop table t1, t2;
+
 --echo End of 5.1 tests
