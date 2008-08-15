@@ -1156,9 +1156,10 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
 void Item_func_additive_op::result_precision()
 {
   decimals= max(args[0]->decimals, args[1]->decimals);
-  int max_int_part= max(args[0]->decimal_precision() - args[0]->decimals,
-                        args[1]->decimal_precision() - args[1]->decimals);
-  int precision= min(max_int_part + 1 + decimals, DECIMAL_MAX_PRECISION);
+  int arg1_int= args[0]->decimal_precision() - args[0]->decimals;
+  int arg2_int= args[1]->decimal_precision() - args[1]->decimals;
+  int est_prec= max(arg1_int, arg2_int) + 1 + decimals;
+  int precision= min(est_prec, DECIMAL_MAX_PRECISION);
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
@@ -1267,8 +1268,8 @@ void Item_func_mul::result_precision()
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
   decimals= min(args[0]->decimals + args[1]->decimals, DECIMAL_MAX_SCALE);
-  int precision= min(args[0]->decimal_precision() + args[1]->decimal_precision(),
-                     DECIMAL_MAX_PRECISION);
+  uint est_prec = args[0]->decimal_precision() + args[1]->decimal_precision();
+  uint precision= min(est_prec, DECIMAL_MAX_PRECISION);
   max_length= my_decimal_precision_to_length(precision, decimals,unsigned_flag);
 }
 
@@ -1315,8 +1316,8 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 
 void Item_func_div::result_precision()
 {
-  uint precision=min(args[0]->decimal_precision() + prec_increment,
-                     DECIMAL_MAX_PRECISION);
+  uint arg_prec= args[0]->decimal_precision() + prec_increment;
+  uint precision=min(arg_prec, DECIMAL_MAX_PRECISION);
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;

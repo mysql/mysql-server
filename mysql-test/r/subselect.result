@@ -4396,4 +4396,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select 1 AS `1` from `test`.`t1` where <in_optimizer>(1,<exists>(select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a` having (<cache>(1) = <ref_null_helper>(1))))
 DROP TABLE t1;
+CREATE TABLE t1(pk int PRIMARY KEY, a int, INDEX idx(a));
+INSERT INTO t1 VALUES (1, 10), (3, 30), (2, 20);
+CREATE TABLE t2(pk int PRIMARY KEY, a int, b int, INDEX idxa(a));
+INSERT INTO t2 VALUES (2, 20, 700), (1, 10, 200), (4, 10, 100);
+SELECT * FROM t1
+WHERE EXISTS (SELECT DISTINCT a FROM t2 WHERE t1.a < t2.a ORDER BY b);
+pk	a
+1	10
+3	30
+2	20
+DROP TABLE t1,t2;
 End of 5.0 tests.
