@@ -19,8 +19,6 @@
 DbtupProxy::DbtupProxy(Block_context& ctx) :
   LocalProxy(DBTUP, ctx)
 {
-  addRecSignal(GSN_SEND_PACKED, &DbtupProxy::execSEND_PACKED);
-
   // GSN_DROP_TAB_REQ
   addRecSignal(GSN_DROP_TAB_REQ, &DbtupProxy::execDROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_CONF, &DbtupProxy::execDROP_TAB_CONF);
@@ -34,18 +32,6 @@ SimulatedBlock*
 DbtupProxy::newWorker(Uint32 instanceNo)
 {
   return new Dbtup(m_ctx, 0, instanceNo);
-}
-
-// GSN_SEND_PACKED
-
-void
-DbtupProxy::execSEND_PACKED(Signal* signal)
-{
-  Uint32 i;
-  for (i = 0; i < c_workers; i++) {
-    Dbtup* dbtup = static_cast<Dbtup*>(c_worker[i]);
-    dbtup->execSEND_PACKED(signal);
-  }
 }
 
 // GSN_DROP_TAB_REQ

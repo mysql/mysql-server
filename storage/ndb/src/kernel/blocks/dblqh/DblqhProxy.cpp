@@ -19,9 +19,6 @@
 DblqhProxy::DblqhProxy(Block_context& ctx) :
   LocalProxy(DBLQH, ctx)
 {
-  // GSN_SEND_PACKED
-  addRecSignal(GSN_SEND_PACKED, &DblqhProxy::execSEND_PACKED);
-
   // GSN_CREATE_TAB_REQ
   addRecSignal(GSN_CREATE_TAB_REQ, &DblqhProxy::execCREATE_TAB_REQ);
   addRecSignal(GSN_CREATE_TAB_CONF, &DblqhProxy::execCREATE_TAB_CONF);
@@ -70,19 +67,6 @@ SimulatedBlock*
 DblqhProxy::newWorker(Uint32 instanceNo)
 {
   return new Dblqh(m_ctx, instanceNo);
-}
-
-// GSN_SEND_PACKED
-
-void
-DblqhProxy::execSEND_PACKED(Signal* signal)
-{
-  Uint32 i;
-  for (i = 0; i < c_workers; i++) {
-    ndbrequire(c_worker[i] != 0);
-    Dblqh* dblqh = static_cast<Dblqh*>(c_worker[i]);
-    dblqh->execSEND_PACKED(signal);
-  }
 }
 
 // GSN_NDB_STTOR

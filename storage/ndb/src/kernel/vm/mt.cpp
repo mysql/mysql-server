@@ -47,6 +47,9 @@ static const Uint32 MAX_SIGNALS_PER_JB = 100;
 #define NUM_MAIN_THREADS 2 // except receiver
 #define MAX_THREADS (NUM_MAIN_THREADS + MAX_NDBMT_LQH_THREADS + 1)
 
+/* If this is too small it crashes before first signal. */
+#define MAX_INSTANCES_PER_THREAD 16
+
 static Uint32 ndbmt_workers = 0;
 static Uint32 ndbmt_threads = 0;
 static Uint32 num_threads = 0;
@@ -520,6 +523,11 @@ struct thr_data
    * Used to quickly check if a node id is already in m_pending_send_nodes.
    */
   Bitmask<(MAX_NTRANSPORTERS+31)/32> m_pending_send_mask;
+
+  /* Block instances (main and worker) handled by this thread. */
+  /* Used for sendpacked (send-at-job-buffer-end). */
+  Uint32 m_instance_count;
+  BlockNumber m_instance_list[MAX_INSTANCES_PER_THREAD];
 };
 
 template<typename T>
@@ -1577,20 +1585,20 @@ thr_send_buf::forceSend(NodeId nodeId)
   return true;
 }
 
-static
-inline
-void
-sendpacked(struct thr_data* selfptr, Signal* signal, Uint32 thr_no)
+static void
+sendpacked(struct thr_data* thr_ptr, Signal* signal)
 {
-  SimulatedBlock* b_lqh = globalData.getBlock(DBLQH);
-  SimulatedBlock* b_tc = globalData.getBlock(DBTC);
-  SimulatedBlock* b_tup = globalData.getBlock(DBTUP);
-  if (thr_no == 1)
-    b_lqh->executeFunction(GSN_SEND_PACKED, signal);
-  if (thr_no == 0)
-    b_tc->executeFunction(GSN_SEND_PACKED, signal);
-  if (thr_no == 1)
-    b_tup->executeFunction(GSN_SEND_PACKED, signal);
+  Uint32 i;
+  for (i = 0; i < thr_ptr->m_instance_count; i++) {
+    BlockReference block = thr_ptr->m_instance_list[i];
+    Uint32 main = blockToMain(block);
+    Uint32 instance = blockToInstance(block);
+    SimulatedBlock* b = globalData.getBlock(main, instance);
+    // wl4391_todo remove useless assert
+    assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
+    /* b->send_at_job_buffer_end(); */
+    b->executeFunction(GSN_SEND_PACKED, signal);
+  }
 }
 
 /*
@@ -1870,44 +1878,51 @@ run_job_buffers(thr_data *selfptr, Signal *sig,
 struct thr_map_entry {
   enum { NULL_THR_NO = 0xFFFF };
   Uint32 thr_no;
-  SimulatedBlock* block;
-  thr_map_entry() : thr_no(NULL_THR_NO), block(0) {}
+  thr_map_entry() : thr_no(NULL_THR_NO) {}
 };
 
 static struct thr_map_entry thr_map[NO_OF_BLOCKS][MAX_BLOCK_INSTANCES];
 
 void
-add_thr_map(Uint32 block, Uint32 instance, Uint32 thr_no)
+add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
 {
-  Uint32 index = block - MIN_BLOCK_NO;
+  assert(main == blockToMain(main));
+  Uint32 index = main - MIN_BLOCK_NO;
   assert(index < NO_OF_BLOCKS);
   assert(instance < MAX_BLOCK_INSTANCES);
 
-  SimulatedBlock* main = globalData.getBlock(block);
-  assert(main != 0);
-  SimulatedBlock* b = main->getInstance(instance);
+  SimulatedBlock* b = globalData.getBlock(main, instance);
   assert(b != 0);
+
+  /* Block number including instance. */
+  Uint32 block = numberToBlock(main, instance);
 
   assert(thr_no < num_threads);
   struct thr_repository* rep = &g_thr_repository;
   thr_data* thr_ptr = rep->m_thread + thr_no;
 
+  /* Add to list. */
+  {
+    Uint32 i;
+    for (i = 0; i < thr_ptr->m_instance_count; i++)
+      assert(thr_ptr->m_instance_list[i] != block);
+  }
+  assert(thr_ptr->m_instance_count < MAX_INSTANCES_PER_THREAD);
+  thr_ptr->m_instance_list[thr_ptr->m_instance_count++] = block;
+
   b->assignToThread(thr_no, &thr_ptr->m_jam, &thr_ptr->m_watchdog_counter);
 
+  /* Create entry mapping block to thread. */
   thr_map_entry& entry = thr_map[index][instance];
   assert(entry.thr_no == thr_map_entry::NULL_THR_NO);
   entry.thr_no = thr_no;
-  entry.block = b;
 }
 
-// static assignment of main instances before first signal
-static void
+/* Static assignment of main instances (before first signal). */
+void
 add_main_thr_map()
 {
-  static int done = 0;
-  if (done++)
-    return;
-
+  /* Keep mt-classic assignments in MT LQH. */
   const Uint32 thr_GLOBAL = 0;
   const Uint32 thr_LOCAL = 1;
   const Uint32 thr_RECEIVER = receiver_thread_no;
@@ -1933,7 +1948,7 @@ add_main_thr_map()
   add_thr_map(RESTORE, 0, thr_LOCAL);
 }
 
-// workers added by LocalProxy
+/* Workers added by LocalProxy (before first signal). */
 void
 add_lqh_worker_thr_map(Uint32 block, Uint32 instance)
 {
@@ -2091,9 +2106,6 @@ mt_receiver_thread_main(void *thr_arg)
     Uint32 sum = run_job_buffers(selfptr, signal,
                                  &watchDogCounter, &thrSignalId);
 
-    watchDogCounter = 1;
-    sendpacked(selfptr, signal, thr_no);
-
     if (sum)
     {
       watchDogCounter = 6;
@@ -2155,7 +2167,7 @@ mt_job_thread_main(void *thr_arg)
     
     watchDogCounter = 1;
     signal->header.m_noOfSections = 0; /* valgrind */
-    sendpacked(selfptr, signal, thr_no);
+    sendpacked(selfptr, signal);
     
     if (sum)
     {
@@ -2558,6 +2570,10 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
 
   selfptr->m_pending_send_count = 0;
   selfptr->m_pending_send_mask.clear();
+
+  selfptr->m_instance_count = 0;
+  for (i = 0; i < MAX_INSTANCES_PER_THREAD; i++)
+    selfptr->m_instance_list[i] = 0;
 }
 
 /* Have to do this after init of all m_in_queues is done. */
@@ -2646,8 +2662,6 @@ void ThreadConfig::ipControlLoop(Uint32 thread_index)
   struct thr_repository* rep = &g_thr_repository;
   NdbThread *threads[MAX_THREADS];
 
-  add_main_thr_map();
-
   /*
    * Start threads for all execution threads, except for the receiver
    * thread, which runs in the main thread.
@@ -2687,8 +2701,6 @@ void ThreadConfig::ipControlLoop(Uint32 thread_index)
 int
 ThreadConfig::doStart(NodeState::StartLevel startLevel)
 {
-  add_main_thr_map();
-
   SignalT<3> signalT;
   memset(&signalT.header, 0, sizeof(SignalHeader));
   
