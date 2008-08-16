@@ -116,7 +116,8 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
 	((keyinfo->flag & (HA_NOSAME | HA_NULL_PART)) != HA_NOSAME ||
 	 (key->flag & SEARCH_PART_KEY) || info->s->base.born_transactional))
     {
-      if ((error= _ma_search(info, key, nextflag,
+      if ((error= _ma_search(info, key, (nextflag | SEARCH_FIND) &
+                             ~(SEARCH_BIGGER | SEARCH_SMALLER | SEARCH_LAST),
                              _ma_kpos(nod_flag,keypos))) >= 0 ||
           my_errno != HA_ERR_KEY_NOT_FOUND)
         DBUG_RETURN(error);
@@ -338,10 +339,8 @@ int _ma_seq_search(const MARIA_KEY *key, uchar *page,
                           comp_flag | tmp_key.flag,
                           not_used)) >= 0)
       break;
-#ifdef EXTRA_DEBUG
-    DBUG_PRINT("loop",("page: 0x%lx  key: '%s'  flag: %d", (long) page, t_buff,
-                       flag));
-#endif
+    DBUG_PRINT("loop_extra",("page: 0x%lx  key: '%s'  flag: %d",
+                             (long) page, t_buff, flag));
     memcpy(buff,t_buff,length);
     *ret_pos=page;
   }

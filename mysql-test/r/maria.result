@@ -1900,9 +1900,6 @@ check table t2 extended;
 Table	Op	Msg_type	Msg_text
 test.t2	check	status	OK
 drop table t2;
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
 CREATE TABLE t1 (
 col0 float DEFAULT NULL,
 col1 date DEFAULT NULL,   
@@ -2080,7 +2077,7 @@ col172 tinyint(1) DEFAULT NULL,
 col173 tinytext,
 col174 decimal(10,0) DEFAULT NULL,
 col175 double DEFAULT NULL
-) engine=maria DEFAULT CHARSET=latin1 COMMENT='generated';
+) engine=maria;
 insert ignore into t1 set 
 col10=abs(28449) % 2,
 col11='1973',
@@ -2204,4 +2201,24 @@ update ignore t1 set col165=repeat('a',7000);
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+drop table t1;
+create table t1 (a char(200) primary key, b int default 12345) engine=maria;
+insert t1 (a) values (repeat('0', 200));
+insert t1 (a) values (repeat('1', 200)), (repeat('2', 200)), (repeat('3', 200)),
+(repeat('4', 200)), (repeat('5', 200)), (repeat('6', 200)), (repeat('7', 200)),
+(repeat('8', 200)), (repeat('9', 200)), (repeat('a', 200)), (repeat('b', 200)),
+(repeat('c', 200)), (repeat('d', 200)), (repeat('e', 200)), (repeat('f', 200)),
+(repeat('g', 200)), (repeat('h', 200)), (repeat('i', 200)), (repeat('j', 200)),
+(repeat('k', 200)), (repeat('l', 200)), (repeat('m', 200)), (repeat('n', 200)),
+(repeat('o', 200)), (repeat('p', 200)), (repeat('q', 200)), (repeat('r', 200)),
+(repeat('s', 200)), (repeat('t', 200)), (repeat('u', 200)), (repeat('v', 200)),
+(repeat('w', 200)), (repeat('x', 200)), (repeat('y', 200)), (repeat('z', 200)),
+(repeat('+', 200)), (repeat('-', 200)), (repeat('=', 200)), (repeat('*', 200));
+select b from t1 where a >= repeat('f', 200) and a < 'k';
+b
+12345
+12345
+12345
+12345
+12345
 drop table t1;
