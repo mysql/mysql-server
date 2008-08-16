@@ -158,6 +158,7 @@ public:
     }
     return 0;
   }
+  virtual void loadWorkers() {}
 
   /* Setup state of a block object for executing in a particular thread. */
   void assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
@@ -169,6 +170,7 @@ public:
   /* Configuration based alternative.  Applies only to this node */
   static bool isNdbMt() { return globalData.isNdbMt; }
   static bool isNdbMtLqh() { return globalData.isNdbMtLqh; }
+  static Uint32 getLqhWorkers() { return globalData.ndbMtLqhWorkers; }
 
   /*
    * Instance key (1-4, even if not MT LQH) is set in receiver block ref.
@@ -577,6 +579,7 @@ protected:
   void execSTOP_FOR_CRASH(Signal* signal);
   void execAPI_START_REP(Signal* signal);
   void execNODE_START_REP(Signal* signal);
+  void execSEND_PACKED(Signal* signal);
 private:
   /**
    * Node state

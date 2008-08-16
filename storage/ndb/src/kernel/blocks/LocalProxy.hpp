@@ -45,10 +45,10 @@ protected:
   enum { MaxWorkers = MAX_NDBMT_LQH_WORKERS };
   typedef Bitmask<MaxWorkers> WorkerMask;
   Uint32 c_workers;
-  Uint32 c_threads;
   SimulatedBlock* c_worker[MaxWorkers];
 
   virtual SimulatedBlock* newWorker(Uint32 instanceNo) = 0;
+  virtual void loadWorkers();
 
   // worker index to worker ref
   BlockReference workerRef(Uint32 i) {

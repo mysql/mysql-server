@@ -202,6 +202,7 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_FSAPPENDREF]  = &SimulatedBlock::execFSAPPENDREF;
   a[GSN_NODE_START_REP] = &SimulatedBlock::execNODE_START_REP;
   a[GSN_API_START_REP] = &SimulatedBlock::execAPI_START_REP;
+  a[GSN_SEND_PACKED] = &SimulatedBlock::execSEND_PACKED;
 }
 
 void
@@ -1668,6 +1669,11 @@ SimulatedBlock::execNODE_START_REP(Signal* signal)
 
 void
 SimulatedBlock::execAPI_START_REP(Signal* signal)
+{
+}
+
+void
+SimulatedBlock::execSEND_PACKED(Signal* signal)
 {
 }
 

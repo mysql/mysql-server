@@ -24,7 +24,6 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
 
   ndbrequire(instance() == 0); // this is main block
   c_workers = 0;
-  c_threads = 0;
   Uint32 i;
   for (i = 0; i < MaxWorkers; i++)
     c_worker[i] = 0;
@@ -184,6 +183,25 @@ LocalProxy::lastReply(const SsParallel& ss)
   return ss.m_workerMask.isclear();
 }
 
+// load workers (before first signal)
+
+void
+LocalProxy::loadWorkers()
+{
+  c_workers = getLqhWorkers();
+
+  Uint32 i;
+  for (i = 0; i < c_workers; i++) {
+    const Uint32 instanceNo = 1 + i;
+    SimulatedBlock* worker = newWorker(instanceNo);
+    ndbrequire(worker->instance() == instanceNo);
+    ndbrequire(this->getInstance(instanceNo) == worker);
+    c_worker[i] = worker;
+
+    add_lqh_worker_thr_map(number(), instanceNo);
+  }
+}
+
 // GSN_READ_CONFIG_REQ
 
 void
@@ -194,24 +212,6 @@ LocalProxy::execREAD_CONFIG_REQ(Signal* signal)
   const ReadConfigReq* req = (const ReadConfigReq*)signal->getDataPtr();
   ss.m_req = *req;
   ndbrequire(ss.m_req.noOfParameters == 0);
-
-  const Uint32 workers = globalData.ndbMtLqhWorkers;
-  const Uint32 threads = globalData.ndbMtLqhThreads;
-
-  Uint32 i;
-  for (i = 0; i < workers; i++) {
-    const Uint32 instanceNo = 1 + i;
-    SimulatedBlock* worker = newWorker(instanceNo);
-    ndbrequire(worker->instance() == instanceNo);
-    ndbrequire(this->getInstance(instanceNo) == worker);
-    c_worker[i] = worker;
-
-    add_lqh_worker_thr_map(number(), instanceNo);
-  }
-
-  // set after instances are created (sendpacked)
-  c_workers = workers;
-  c_threads = threads;
 
   // run sequentially due to big mallocs and initializations
   sendREQ(signal, ss);
