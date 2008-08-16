@@ -2651,15 +2651,15 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
       OldApiScanRangeDefinition* boundsDef= 
         (OldApiScanRangeDefinition*) boundSpace->aRef();
 
-      boundsDef->lowBound.highestKey = 0;
-      boundsDef->lowBound.highestSoFarIsStrict = false;
+      boundsDef->oldBound.lowBound.highestKey = 0;
+      boundsDef->oldBound.lowBound.highestSoFarIsStrict = false;
       /* Should be STATIC_ASSERT */
       assert(NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY == 32);
-      boundsDef->lowBound.keysPresentBitmap = 0;
+      boundsDef->oldBound.lowBound.keysPresentBitmap = 0;
       
-      boundsDef->highBound= boundsDef->lowBound;
-      boundsDef->lowBound.key= &boundsDef->space[ 0 ];
-      boundsDef->highBound.key= &boundsDef->space[ maxKeyRecordBytes ];
+      boundsDef->oldBound.highBound= boundsDef->oldBound.lowBound;
+      boundsDef->oldBound.lowBound.key= &boundsDef->space[ 0 ];
+      boundsDef->oldBound.highBound.key= &boundsDef->space[ maxKeyRecordBytes ];
       
       currentRangeOldApi= boundSpace;
     }
@@ -2673,7 +2673,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
         type == BoundLE ||
         type == BoundLT )
     {
-      if (setBoundHelperOldApi(bounds->lowBound,
+      if (setBoundHelperOldApi(bounds->oldBound.lowBound,
                                maxKeyRecordBytes,
                                tAttrInfo->m_attrId,
                                valueLen,
@@ -2690,7 +2690,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
         type == BoundGE ||
         type == BoundGT)
     {
-      if (setBoundHelperOldApi(bounds->highBound,
+      if (setBoundHelperOldApi(bounds->oldBound.highBound,
                                maxKeyRecordBytes,
                                tAttrInfo->m_attrId,
                                valueLen,
@@ -2728,24 +2728,24 @@ NdbIndexScanOperation::buildIndexBoundOldApi(int range_no)
 
   int result = 1;
   
-  if (boundDef->lowBound.highestKey != 0)
+  if (boundDef->oldBound.lowBound.highestKey != 0)
   {
     /* Have a low bound 
      * Check that a contiguous set of keys are supplied.
      * Setup low part of IndexBound
      */
-    Uint32 expectedValue= (~(Uint32) 0) >> (32 - boundDef->lowBound.highestKey);
+    Uint32 expectedValue= (~(Uint32) 0) >> (32 - boundDef->oldBound.lowBound.highestKey);
     
-    if (boundDef->lowBound.keysPresentBitmap != expectedValue)
+    if (boundDef->oldBound.lowBound.keysPresentBitmap != expectedValue)
     {
       /* Invalid set of range scan bounds */
       setErrorCodeAbort(4259);
       return -1;
     }
 
-    ib.low_key= boundDef->lowBound.key;
-    ib.low_key_count= boundDef->lowBound.highestKey;
-    ib.low_inclusive= !boundDef->lowBound.highestSoFarIsStrict;
+    ib.low_key= boundDef->oldBound.lowBound.key;
+    ib.low_key_count= boundDef->oldBound.lowBound.highestKey;
+    ib.low_inclusive= !boundDef->oldBound.lowBound.highestSoFarIsStrict;
     result= 0;
   }
   else
@@ -2755,23 +2755,23 @@ NdbIndexScanOperation::buildIndexBoundOldApi(int range_no)
     ib.low_inclusive= false;
   }
 
-  if (boundDef->highBound.highestKey != 0)
+  if (boundDef->oldBound.highBound.highestKey != 0)
   {
     /* Have a high bound 
      * Check that a contiguous set of keys are supplied.
      */
-    Uint32 expectedValue= (~(Uint32) 0) >> (32 - boundDef->highBound.highestKey);
+    Uint32 expectedValue= (~(Uint32) 0) >> (32 - boundDef->oldBound.highBound.highestKey);
     
-    if (boundDef->highBound.keysPresentBitmap != expectedValue)
+    if (boundDef->oldBound.highBound.keysPresentBitmap != expectedValue)
     {
       /* Invalid set of range scan bounds */
       setErrorCodeAbort(4259);
       return -1;
     }
 
-    ib.high_key= boundDef->highBound.key;
-    ib.high_key_count= boundDef->highBound.highestKey;
-    ib.high_inclusive= !boundDef->highBound.highestSoFarIsStrict;
+    ib.high_key= boundDef->oldBound.highBound.key;
+    ib.high_key_count= boundDef->oldBound.highBound.highestKey;
+    ib.high_inclusive= !boundDef->oldBound.highBound.highestSoFarIsStrict;
     result= 0;
   }
   else
