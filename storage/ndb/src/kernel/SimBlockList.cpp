@@ -43,6 +43,7 @@
 #include <DbtuxProxy.hpp>
 #include <BackupProxy.hpp>
 #include <RestoreProxy.hpp>
+#include <mt.hpp>
 
 #ifndef VM_TRACE
 #define NEW_BLOCK(B) new B
@@ -139,6 +140,15 @@ SimBlockList::load(EmulatorData& data){
   else
     theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
   assert(NO_OF_BLOCKS == 19);
+
+  if (globalData.isNdbMt) {
+    add_main_thr_map();
+    if (globalData.isNdbMtLqh) {
+      Uint32 i;
+      for (i = 0; i < NO_OF_BLOCKS; i++)
+        theList[i]->loadWorkers();
+    }
+  }
 }
 
 void

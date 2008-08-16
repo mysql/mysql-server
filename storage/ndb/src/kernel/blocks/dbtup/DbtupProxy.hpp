@@ -28,9 +28,6 @@ public:
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
-  // GSN_SEND_PACKED
-  void execSEND_PACKED(Signal*);
-
   // GSN_DROP_TAB_REQ
   struct Ss_DROP_TAB_REQ : SsParallel {
     DropTabReq m_req;
