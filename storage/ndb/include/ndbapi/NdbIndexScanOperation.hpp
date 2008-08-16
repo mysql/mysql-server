@@ -264,7 +264,7 @@ private:
       struct {
         OldApiBoundInfo lowBound;
         OldApiBoundInfo highBound;
-      };
+      } oldBound;
 
       IndexBound ib;
     };
