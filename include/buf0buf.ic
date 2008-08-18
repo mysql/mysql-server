@@ -444,6 +444,7 @@ buf_page_set_old(
 {
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(buf_pool_mutex_own());
+	ut_ad(bpage->in_LRU_list);
 
 	bpage->old = old;
 }

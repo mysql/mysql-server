@@ -974,8 +974,6 @@ buf_LRU_add_block_to_end_low(
 
 	ut_a(buf_page_in_file(bpage));
 
-	buf_page_set_old(bpage, TRUE);
-
 	last_bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	if (last_bpage) {
@@ -987,6 +985,8 @@ buf_LRU_add_block_to_end_low(
 	ut_ad(!bpage->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = TRUE);
+
+	buf_page_set_old(bpage, TRUE);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
 
@@ -1035,8 +1035,6 @@ buf_LRU_add_block_low(
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(!bpage->in_LRU_list);
 
-	buf_page_set_old(bpage, old);
-
 	if (!old || (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN)) {
 
 		UT_LIST_ADD_FIRST(LRU, buf_pool->LRU, bpage);
@@ -1055,6 +1053,8 @@ buf_LRU_add_block_low(
 	}
 
 	ut_d(bpage->in_LRU_list = TRUE);
+
+	buf_page_set_old(bpage, old);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
