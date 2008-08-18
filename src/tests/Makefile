@@ -134,7 +134,7 @@ test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 
 
 libs:
-	cd ..;make
+	cd ..;$(MAKE)
 
 %.bdb: %.c
 	$(UNSETTOKUENV) $(CC) -DENVDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@

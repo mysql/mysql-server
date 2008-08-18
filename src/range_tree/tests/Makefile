@@ -93,7 +93,7 @@ LOG_BINS    = ../log.o           ../../../newbrt/newbrt.o
 HEADERS=../rangetree.h ../rangetree-internal.h test.h
 
 ../../../newbrt/newbrt.o:
-	cd ../../../newbrt && make
+	cd ../../../newbrt && $(MAKE)
 
 %.lin: %.c  $(HEADERS) $(LINEAR_BINS)
 	$(CC) -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)

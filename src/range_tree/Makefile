@@ -37,7 +37,7 @@ install: $(BINS)
 
 clean:
 	rm -rf *.o *.gcno *.gcda *.gcov
-	cd tests && make clean
+	cd tests && $(MAKE) clean
 
 rangetree.o: log_nooverlap.o
 	cp $< $@
