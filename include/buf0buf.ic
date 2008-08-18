@@ -446,6 +446,14 @@ buf_page_set_old(
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(bpage->in_LRU_list);
 
+#ifdef UNIV_LRU_DEBUG
+	if (UT_LIST_GET_PREV(LRU, bpage) && UT_LIST_GET_NEXT(LRU, bpage)
+	    && UT_LIST_GET_PREV(LRU, bpage)->old
+	    == UT_LIST_GET_NEXT(LRU, bpage)->old) {
+		ut_a(UT_LIST_GET_PREV(LRU, bpage)->old == old);
+	}
+#endif /* UNIV_LRU_DEBUG */
+
 	bpage->old = old;
 }
 

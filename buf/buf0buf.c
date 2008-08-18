@@ -1053,6 +1053,14 @@ buf_relocate(
 
 	if (UNIV_UNLIKELY(buf_pool->LRU_old == bpage)) {
 		buf_pool->LRU_old = dpage;
+#ifdef UNIV_LRU_DEBUG
+		/* buf_pool->LRU_old must be the first item in the LRU list
+		whose "old" flag is set. */
+		ut_a(!UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)
+		     || !UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)->old);
+		ut_a(!UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)
+		     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
+#endif /* UNIV_LRU_DEBUG */
 	}
 
 	ut_d(UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU));
