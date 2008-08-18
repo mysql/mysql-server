@@ -64,7 +64,7 @@ coverage: $(UTILS)
 %.bdb: %.c
 	$(CC) $(BDB_CPPFLAGS) $(CFLAGS) -o $@ $< $(BDB_LDFLAGS)
 
-%_static: %.c
+%_static: %.c ../lib/libtokudb.a
 	$(CC) $(STATIC_CPPFLAGS) $(CFLAGS) -o $@ $< $(STATIC_LDFLAGS)
 
 strip: $(STATIC_UTILS) 
