@@ -1477,7 +1477,7 @@ int ha_tokudb::write_metadata(DB* db, HA_METADATA_KEY curr_key_data, void* data,
     key.data = &curr_key_data;
     key.size = sizeof(curr_key_data);
     value.data = data;
-    value.size = sizeof(size);
+    value.size = size;
     error = db->put(db, txn, &key, &value, 0);
     if (error) { 
         goto cleanup; 
@@ -3946,16 +3946,8 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     int error;
     char dirname[get_name_length(name) + 32];
     char newname[get_name_length(name) + 32];
-    DB_TXN* txn = NULL;
 
     uint i;
-
-    //
-    // transaction to be used for putting metadata into status.tokudb
-    //
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) { TOKUDB_DBUG_RETURN(error); }
-
 
     //
     // tracing information about what type of table we are creating
@@ -4025,42 +4017,19 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
         if (!(error = (status_block->open(status_block, NULL, name_buff, NULL, DB_BTREE, DB_CREATE, 0)))) {
-            DBT key;
-            DBT value;
-            HA_METADATA_KEY curr_key_data;
             uint version = HA_TOKU_VERSION;
             uint capabilities = HA_TOKU_CAP;
-            bzero(&key, sizeof(key));
-            bzero(&value, sizeof(value));
-            key.data = &curr_key_data;
-            key.size = sizeof(curr_key_data);
-            //
-            // insert metadata into status.tokudb
-            //
-
-            //
-            // insert version
-            //
-            curr_key_data = hatoku_version;
-            value.data = &version;
-            value.size = sizeof(version);
-            error = status_block->put(status_block, txn, &key, &value, 0);
+            
+            error = write_metadata(status_block, hatoku_version,&version,sizeof(version));
             if (error) { goto quit_status; }
-            //
-            // insert capabilities
-            //
-            curr_key_data = hatoku_capabilities;
-            value.data = &capabilities;
-            value.size = sizeof(capabilities);
-            error = status_block->put(status_block, txn, &key, &value, 0);
+
+            error = write_metadata(status_block, hatoku_capabilities,&capabilities,sizeof(capabilities));
             if (error) { goto quit_status; }
 
             error = write_auto_inc_create(status_block, create_info->auto_increment_value);
             if (error) { goto quit_status; }
 
         quit_status:
-            if (!error) { txn->commit(txn, 0); }
-            else { txn->abort(txn); }
             status_block->close(status_block, 0);
         }
         if (tokudb_debug & TOKUDB_DEBUG_OPEN)
