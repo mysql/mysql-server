@@ -372,6 +372,15 @@ int mysql_install_db(int argc, char *argv[])
     exit(-1);
   }
 
+  if ((err = stat(sql_file, &info)) != 0)
+  {
+    printf("ERROR - %s:\n", strerror(errno));
+    printf("\t%s\n\n", sql_file);
+    // free args
+    free_args(&al);
+    exit(-1);
+  }
+
   // spawn mysqld
   err = spawn(mysqld, &al, TRUE, sql_file, out_log, err_log);
 
