@@ -2606,7 +2606,7 @@ static int toku_db_delboth_noassociate(DB *db, DB_TXN *txn, DBT *key, DBT *val, 
         }
         return r;
     }
-    r = toku_c_del_noassociate(dbc, 0);
+    r = toku_c_del_noassociate(dbc, lock_flags);
 cursor_cleanup:;
     int r2 = toku_c_close(dbc);
     return r ? r : r2;
