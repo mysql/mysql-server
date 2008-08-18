@@ -69,6 +69,10 @@ int maria_close(register MARIA_HA *info)
   if (flag)
   {
     /* Last close of file; Flush everything */
+
+    /* Check that we don't have any dangling pointers from the transaction */
+    DBUG_ASSERT(share->in_trans == 0);
+
     if (share->kfile.file >= 0)
     {
       if ((*share->once_end)(share))

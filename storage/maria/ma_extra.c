@@ -326,7 +326,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     {
       _ma_remove_table_from_trnman(share, info->trn);
       /* Ensure we don't point to the deleted data in trn */
-      info->state= &share->state.state;
+      info->state= info->state_start= &share->state.state;
     }
 
     type= do_flush ? FLUSH_RELEASE : FLUSH_IGNORE_CHANGED;
@@ -347,7 +347,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
       if (do_flush)
       {
         /* Save the state so that others can find it from disk. */
-        if (_ma_state_info_write(share, 1 | 2) ||
+        if ((share->changed && _ma_state_info_write(share, 1 | 2)) ||
             my_sync(share->kfile.file, MYF(0)))
           error= my_errno;
         else

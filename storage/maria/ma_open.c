@@ -1186,6 +1186,7 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
   res= _ma_state_info_write_sub(share->kfile.file, &share->state, pWrite);
   if (pWrite & 4)
     pthread_mutex_unlock(&share->intern_lock);
+  share->changed= 0;
   return res;
 }
 

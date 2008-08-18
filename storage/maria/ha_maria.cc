@@ -44,6 +44,7 @@ C_MODE_END
 #ifdef MARIA_CANNOT_ROLLBACK
 #define trans_register_ha(A, B, C)  do { /* nothing */ } while(0)
 #endif
+#define THD_TRN (*(TRN **)thd_ha_data(thd, maria_hton))
 
 ulong pagecache_division_limit, pagecache_age_threshold;
 ulonglong pagecache_buffer_size;
@@ -2201,6 +2202,21 @@ int ha_maria::extra(enum ha_extra_function operation)
 {
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
     return 0;
+
+  /*
+    We have to set file->trn here because in some cases we call
+    extern_lock(F_UNLOCK) (which resets file->trn) followed by maria_close()
+    without calling commit/rollback in between.  If file->trn is not set
+    we can't remove file->share from the transaction list in the extra() call.
+  */
+
+  if (!file->trn &&
+      (operation == HA_EXTRA_PREPARE_FOR_DROP ||
+       operation == HA_EXTRA_PREPARE_FOR_RENAME))
+  {
+    THD *thd= table->in_use;
+    file->trn= THD_TRN;
+  }
   return maria_extra(file, operation, 0);
 }
 
@@ -2239,8 +2255,6 @@ int ha_maria::delete_table(const char *name)
 {
   return maria_delete_table(name);
 }
-
-#define THD_TRN (*(TRN **)thd_ha_data(thd, maria_hton))
 
 int ha_maria::external_lock(THD *thd, int lock_type)
 {
