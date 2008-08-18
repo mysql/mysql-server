@@ -189,7 +189,8 @@ struct __toku_db {
   DB_ENV *dbenv; /* 32-bit offset=20 size=4, 64=bit offset=40 size=8 */
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
-  void* __toku_dummy0[32];
+  int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */;
+  void* __toku_dummy0[31];
   char __toku_dummy1[96];
   void *api_internal; /* 32-bit offset=256 size=4, 64=bit offset=416 size=8 */
   void* __toku_dummy2[4];

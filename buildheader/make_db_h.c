@@ -308,6 +308,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
 			     "int (*pre_acquire_table_lock)(DB*, DB_TXN*)",
 			     "const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/",
 			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
+                             "int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */",
 			     NULL};
 	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
     }
