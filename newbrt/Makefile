@@ -114,7 +114,7 @@ check: bins
 check-fanout:
 	let BRT_FANOUT=4; \
 	while [ $$BRT_FANOUT -le 16 ] ;do \
-		make clean; make check BRT_FANOUT=$$BRT_FANOUT; \
+		$(MAKE) clean; $(MAKE) check BRT_FANOUT=$$BRT_FANOUT; \
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 

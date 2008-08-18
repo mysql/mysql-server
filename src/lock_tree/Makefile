@@ -44,7 +44,7 @@ check:
 clean:
 	rm -rf $(BINS) $(LT_BINS)
 	rm -rf *.gcno *.gcda *.gcov
-	cd tests && make clean
+	cd tests && $(MAKE) clean
 
 locktree.o: $(LT_TLOG)
 	cp $< $@
