@@ -328,4 +328,81 @@ create event
 очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66
 on schedule every 2 year do select 1;
 ERROR 42000: Identifier name 'очень_очень_очень_очень_очень_очень_очень_очень_длинна' is too long
+create event event_35981 on schedule every 6 month on completion preserve
+disable
+do
+select 1;
+The following SELECTs should all give 1
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'PRESERVE';
+count(*)
+1
+alter   event event_35981 enable;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'PRESERVE';
+count(*)
+1
+alter   event event_35981 on completion not preserve;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'NOT PRESERVE';
+count(*)
+1
+alter   event event_35981 disable;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'NOT PRESERVE';
+count(*)
+1
+alter   event event_35981 on completion preserve;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'PRESERVE';
+count(*)
+1
+drop event event_35981;
+create event event_35981 on schedule every 6 month disable
+do
+select 1;
+select  count(*) from information_schema.events
+where   event_schema = database() and event_name = 'event_35981' and
+on_completion = 'NOT PRESERVE';
+count(*)
+1
+drop event event_35981;
+create event event_35981 on schedule every 1 hour starts current_timestamp
+on completion not preserve
+do
+select 1;
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00';
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
+drop event event_35981;
+create event event_35981 on schedule every 1 hour starts current_timestamp
+on completion not preserve
+do
+select 1;
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00' on completion preserve;
+Warnings:
+Note	1544	Event execution time is in the past. Event has been disabled
+drop event event_35981;
+create event event_35981 on schedule every 1 hour starts current_timestamp
+on completion preserve
+do
+select 1;
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00';
+Warnings:
+Note	1544	Event execution time is in the past. Event has been disabled
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00' on completion not preserve;
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
+alter event event_35981 on schedule every 1 hour starts '1999-01-01 00:00:00'
+  ends '1999-01-02 00:00:00' on completion preserve;
+Warnings:
+Note	1544	Event execution time is in the past. Event has been disabled
+drop event event_35981;
 drop database events_test;
