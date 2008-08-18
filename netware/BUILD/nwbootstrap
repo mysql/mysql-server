@@ -91,8 +91,8 @@ done
 echo "starting build..."
 
 # check for bk and repo_dir
-bk help > /dev/null
-repo_dir=`bk root $repo_dir`
+bzr help > /dev/null
+repo_dir=`bzr root $repo_dir`
 cd $repo_dir
 doc_dir="$repo_dir/../mysqldoc"
 
@@ -100,7 +100,7 @@ doc_dir="$repo_dir/../mysqldoc"
 temp_dir="$build_dir/mysql-$$.tmp"
 
 # export the bk tree
-command="bk export";
+command="bzr export";
 if test $revision; then command="$command -r$revision"; fi
 command="$command $temp_dir"
 echo "exporting $repo_dir..."
@@ -178,6 +178,8 @@ awk 'BEGIN{x=0;}  END{printf("\n");} x==1 {printf(" %s",$1); x++; next} x>1 {pri
 # build linux tools
 echo "compiling linux tools..."
 ./netware/BUILD/compile-linux-tools
+test -f ./netware/init_db.sql  # this must exist
+test -f ./netware/test_db.sql  # this must exist
 
 # compile
 if test $build
