@@ -243,6 +243,7 @@ static int toku_c_getf_heavi(DBC *c, u_int32_t flags,
 /* cursor methods */
 static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag);
 static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag);
+static int toku_db_delboth_noassociate(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags);
 static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag);
 static int toku_c_del(DBC *c, u_int32_t flags);
 static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags);
@@ -2272,17 +2273,9 @@ static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary
     }
 #endif
     toku_brt_get_flags(secondary->i->brt, &brtflags);
-    if (brtflags & TOKU_DB_DUPSORT) {
-        //If the secondary has duplicates we need to use cursor deletes.
-        DBC *dbc;
-        r = toku_db_cursor(secondary, txn, &dbc, 0, 0);
-        if (r!=0) goto cursor_cleanup;
-        r = toku_c_get_noassociate(dbc, &idx, key, DB_GET_BOTH);
-        if (r!=0) goto cursor_cleanup;
-        r = toku_c_del_noassociate(dbc, 0);
-    cursor_cleanup:
-        r2 = toku_c_close(dbc);
-    } else 
+    if (brtflags & TOKU_DB_DUPSORT)
+        r = toku_db_delboth_noassociate(secondary, txn, &idx, key, DB_DELETE_ANY);
+    else 
         r = toku_db_del_noassociate(secondary, txn, &idx, DB_DELETE_ANY);
     clean_up:
     if (idx.flags & DB_DBT_APPMALLOC) {
@@ -2588,6 +2581,48 @@ static int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     }
     r = toku_db_del_noassociate(db, txn, key, flags);
     return r;
+}
+
+static int toku_db_delboth_noassociate(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
+    HANDLE_PANICKED_DB(db);
+    int r;
+
+    u_int32_t lock_flags = get_prelocked_flags(flags);
+    flags &= ~lock_flags;
+    u_int32_t suppress_missing = flags&DB_DELETE_ANY;
+    flags &= ~DB_DELETE_ANY;
+    if (flags!=0) return EINVAL;
+    //DB_DELETE_ANY supresses the DB_NOTFOUND return value indicating that the key was not found prior to the delete
+
+    //TODO: Speed up the DB_DELETE_ANY version by implementing it at the BRT layer.
+
+    DBC *dbc;
+    if ((r = toku_db_cursor(db, txn, &dbc, 0, 0))) goto cursor_cleanup;
+    r = toku_c_get_noassociate(dbc, key, val, DB_GET_BOTH);
+    if (r!=0) {
+        if (suppress_missing) {
+            r = 0;
+            goto cursor_cleanup;
+        }
+        return r;
+    }
+    r = toku_c_del_noassociate(dbc, 0);
+cursor_cleanup:;
+    int r2 = toku_c_close(dbc);
+    return r ? r : r2;
+}
+
+static int toku_db_delboth(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
+    HANDLE_PANICKED_DB(db);
+
+    //It is a primary with secondaries, or is a secondary.
+    if (db->i->primary != 0 || !list_empty(&db->i->associated)) {
+        //Not yet supported.
+        return ENOSYS;
+    }
+    else {
+        return toku_db_delboth_noassociate(db, txn, key, val, flags);
+    }
 }
 
 static inline int db_thread_need_flags(DBT *dbt) {
@@ -3240,6 +3275,19 @@ static int locked_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
     toku_ydb_lock(); int r = autotxn_db_del(db, txn, key, flags); toku_ydb_unlock(); return r;
 }
 
+static inline int autotxn_db_delboth(DB* db, DB_TXN* txn, DBT* key, DBT* val,
+                                 u_int32_t flags) {
+    BOOL changed; int r;
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+    if (r!=0) return r;
+    r = toku_db_delboth(db, txn, key, val, flags);
+    return toku_db_destruct_autotxn(txn, r, changed);
+}
+
+static int locked_db_delboth(DB *db, DB_TXN *txn, DBT *key,  DBT *val, u_int32_t flags) {
+    toku_ydb_lock(); int r = autotxn_db_delboth(db, txn, key, val, flags); toku_ydb_unlock(); return r;
+}
+
 static inline int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data,
                                  u_int32_t flags) {
     BOOL changed; int r;
@@ -3443,6 +3491,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(close);
     SDB(cursor);
     SDB(del);
+    SDB(delboth);
     SDB(get);
     //    SDB(key_range);
     SDB(open);
