@@ -25,11 +25,11 @@ void test_txn_abort() {
     r = env->open(env, 0, DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN | DB_PRIVATE | DB_CREATE, 0777); 
     CKERR(r);
 
+    DB *db = NULL;
     {
         DB_TXN *txn = 0;
         r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
 
-        DB *db;
         r = db_create(&db, env, 0); CKERR(r);
         r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);
         r = txn->commit(txn, 0); CKERR(r);
@@ -60,16 +60,19 @@ void test_txn_abort() {
     CKERR(r);
 
 
-    /* walk the db, should be empty */
-    r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
-    DBC *cursor;
-    r = db->cursor(db, txn, &cursor, 0); CKERR(r);
-    memset(&key, 0, sizeof key);
-    memset(&val, 0, sizeof val);
-    r = cursor->c_get(cursor, &key, &val, DB_FIRST); 
-    CKERR2(r, DB_NOTFOUND);
-    r = cursor->c_close(cursor); CKERR(r);
-    r = txn->commit(txn, 0);
+    {
+        /* walk the db, should be empty */
+        DB_TXN *txn = 0;
+        r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
+        DBC *cursor;
+        r = db->cursor(db, txn, &cursor, 0); CKERR(r);
+        memset(&key, 0, sizeof key);
+        memset(&val, 0, sizeof val);
+        r = cursor->c_get(cursor, &key, &val, DB_FIRST); 
+        CKERR2(r, DB_NOTFOUND);
+        r = cursor->c_close(cursor); CKERR(r);
+        r = txn->commit(txn, 0);
+    }
 
     r = db->close(db, 0); CKERR(r);
     r = env->close(env, 0); CKERR(r);
