@@ -959,9 +959,12 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     if (!txn) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
+    int r_child_first = 0;
     while (txn->i->child) {
         int r_child = toku_txn_commit(txn->i->child, flags);
-        assert(r_child==0);
+        if (!r_child_first) r_child_first = r_child;
+        //In a panicked env, the child may not be removed from the list.
+        HANDLE_PANICKED_ENV(txn->mgrp);
     }
     //Remove from parent
     if (txn->parent) {
@@ -977,23 +980,21 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     //toku_ydb_notef("flags=%d\n", flags);
     int nosync = (flags & DB_TXN_NOSYNC)!=0;
     flags &= ~DB_TXN_NOSYNC;
-    if (flags!=0) {
-        //TODO: Release locks perhaps?
-	if (txn->i) {
-	    if (txn->i->tokutxn)
-		toku_logger_abort(txn->i->tokutxn);
-	    toku_free(txn->i);
-	}
-	toku_free(txn);
-	return EINVAL;
-    }
+
     int r2 = toku_txn_release_locks(txn);
-    int r = toku_logger_commit(txn->i->tokutxn, nosync); // frees the tokutxn
+    int r;
+    if (r_child_first || flags!=0)
+        r = toku_logger_abort(txn->i->tokutxn); // frees the tokutxn
+    else
+        r = toku_logger_commit(txn->i->tokutxn, nosync); // frees the tokutxn
     // the toxutxn is freed, and we must free the rest. */
+
+    // The txn is no good after the commit even if the commit fails.
     if (txn->i)
         toku_free(txn->i);
     toku_free(txn);
-    return r2 ? r2 : r; // The txn is no good after the commit even if the commit fails.
+    if (flags!=0) return EINVAL;
+    return r ? r : (r2 ? r2 : r_child_first);
 }
 
 static u_int32_t toku_txn_id(DB_TXN * txn) {
@@ -1006,9 +1007,12 @@ static u_int32_t toku_txn_id(DB_TXN * txn) {
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
+    int r_child_first = 0;
     while (txn->i->child) {
         int r_child = toku_txn_abort(txn->i->child);
-        assert(r_child==0);
+        if (!r_child_first) r_child_first = r_child;
+        //In a panicked env, the child may not be removed from the list.
+        HANDLE_PANICKED_ENV(txn->mgrp);
     }
     //Remove from parent
     if (txn->parent) {
@@ -1026,7 +1030,7 @@ static int toku_txn_abort(DB_TXN * txn) {
 
     toku_free(txn->i);
     toku_free(txn);
-    return r ? r : r2;
+    return r ? r : (r2 ? r2 : r_child_first);
 }
 
 static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
