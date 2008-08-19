@@ -501,7 +501,8 @@ static int ndbcluster_reset_logs(THD *thd)
     return 0;
 
   /* only reset master should reset logs */
-  if (!(thd->lex->type & REFRESH_MASTER))
+  if (!((thd->lex->sql_command == SQLCOM_RESET) &&
+        (thd->lex->type & REFRESH_MASTER)))
     return 0;
 
   DBUG_ENTER("ndbcluster_reset_logs");
