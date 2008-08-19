@@ -430,4 +430,25 @@ a
 1
 2
 DROP TABLE t1;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE DATABASE mysqltest1;
+CREATE TABLE mysqltest1.without_select (f1 BIGINT);
+CREATE TABLE mysqltest1.with_select AS SELECT 1 AS f1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	CREATE DATABASE mysqltest1
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE mysqltest1.without_select (f1 BIGINT)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `mysqltest1`.`with_select` (
+  `f1` int(1) NOT NULL DEFAULT '0'
+)
+master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.with_select)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+DROP DATABASE mysqltest1;
 end of the tests
