@@ -92,7 +92,8 @@ mysqltest_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
 				$(top_builddir)/mysys/libmysys.a \
-				$(top_builddir)/regex/libregex.a
+				$(top_builddir)/regex/libregex.a \
+				$(CLIENT_THREAD_LIBS)
 
 mysql_upgrade_SOURCES=          mysql_upgrade.c \
                                 $(top_srcdir)/mysys/my_getpagesize.c
