@@ -259,5 +259,22 @@ connection master;
 DROP TABLE t1;
 sync_slave_with_master;
 
+#
+# BUG#34707: Row based replication: slave creates table within wrong database
+#
+
+source include/master-slave-reset.inc;
+
+connection master;
+CREATE DATABASE mysqltest1;
+
+CREATE TABLE mysqltest1.without_select (f1 BIGINT);
+CREATE TABLE mysqltest1.with_select AS SELECT 1 AS f1;
+source include/show_binlog_events.inc;
+sync_slave_with_master;
+
+connection master;
+DROP DATABASE mysqltest1;
+sync_slave_with_master;
 
 --echo end of the tests

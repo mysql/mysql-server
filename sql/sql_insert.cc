@@ -3616,7 +3616,8 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   tmp_table_list.table = *tables;
   query.length(0);      // Have to zero it since constructor doesn't
 
-  result= store_create_info(thd, &tmp_table_list, &query, create_info);
+  result= store_create_info(thd, &tmp_table_list, &query, create_info,
+                            /* show_database */ TRUE);
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
 
   thd->binlog_query(THD::STMT_QUERY_TYPE,
