@@ -942,15 +942,3 @@ SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 
 DROP TABLE t1;
-
-#
-# Bug#38195: Incorrect handling of aggregate functions when loose index scan is
-#            used causes server crash.
-#
-create table t1 (a int, b int, primary key (a,b), key `index` (a,b)) engine=MyISAM;
-insert into  t1 (a,b) values (0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),
-(0,8),(0,9),(0,10),(0,11);
-insert into t1 (a,b) select a, max(b)+1 from t1 where a = 0 group by a;
-select * from t1;
-explain extended select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
-drop table t1;
