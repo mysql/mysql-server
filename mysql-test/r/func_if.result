@@ -131,3 +131,49 @@ drop table t1;
 select if(0, 18446744073709551610, 18446744073709551610);
 if(0, 18446744073709551610, 18446744073709551610)
 18446744073709551610
+CREATE TABLE t1(a DECIMAL(10,3));
+SELECT t1.a,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,0)))))))))))))))))))))))))))))) + 1
+FROM t1;
+a	IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((ROUND(t1.a,2)=1), 2,
+IF((R
+DROP TABLE t1;
+End of 5.0 tests
