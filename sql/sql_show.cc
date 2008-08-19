@@ -6644,17 +6644,15 @@ int initialize_schema_table(st_plugin_int *plugin)
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
-      goto err;
+      plugin->data= NULL;
+      my_free(schema_table, MYF(0));
+      DBUG_RETURN(1);
     }
     
     /* Make sure the plugin name is not set inside the init() function. */
     schema_table->table_name= plugin->name.str;
   }
-
   DBUG_RETURN(0);
-err:
-  my_free(schema_table, MYF(0));
-  DBUG_RETURN(1);
 }
 
 int finalize_schema_table(st_plugin_int *plugin)
