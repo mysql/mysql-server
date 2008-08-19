@@ -500,6 +500,10 @@ static int ndbcluster_reset_logs(THD *thd)
   if (!ndb_binlog_running)
     return 0;
 
+  /* only reset master should reset logs */
+  if (!(thd->lex->type & REFRESH_MASTER))
+    return 0;
+
   DBUG_ENTER("ndbcluster_reset_logs");
 
   /*
