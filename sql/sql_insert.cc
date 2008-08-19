@@ -695,7 +695,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (thd->slave_thread &&
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
-      rpl_master_has_bug(&active_mi->rli, 24432))
+      rpl_master_has_bug(&active_mi->rli, 24432, TRUE, NULL, NULL))
     goto abort;
 #endif
 
@@ -2967,7 +2967,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (thd->slave_thread &&
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
-      rpl_master_has_bug(&active_mi->rli, 24432))
+      rpl_master_has_bug(&active_mi->rli, 24432, TRUE, NULL, NULL))
     DBUG_RETURN(1);
 #endif
 

@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 /*
   Because of the function new_field() all field classes that have static
   variables must declare the size_of() member function.
@@ -30,6 +29,8 @@ const uint32 max_field_size= (uint32) 4294967295U;
 class Send_field;
 class Protocol;
 class Create_field;
+class Relay_log_info;
+
 struct st_cache_field;
 int field_conv(Field *to,Field *from);
 
@@ -49,7 +50,8 @@ class Field
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
 public:
-  static void *operator new(size_t size) {return sql_alloc(size); }
+  static void *operator new(size_t size) throw ()
+  { return sql_alloc(size); }
   static void operator delete(void *ptr_arg, size_t size) { TRASH(ptr_arg, size); }
 
   uchar		*ptr;			// Position to field in record
@@ -162,7 +164,8 @@ public:
     table, which is located on disk).
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
-  virtual int compatible_field_size(uint field_metadata);
+  virtual int compatible_field_size(uint field_metadata,
+                                    const Relay_log_info *);
   virtual uint pack_length_from_metadata(uint field_metadata)
   { return field_metadata; }
   /*
@@ -787,7 +790,8 @@ public:
   uint32 pack_length() const { return (uint32) bin_size; }
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length() { return pack_length(); }
-  int compatible_field_size(uint field_metadata);
+  int compatible_field_size(uint field_metadata,
+                            const Relay_log_info *rli);
   uint is_equal(Create_field *new_field);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
@@ -1475,7 +1479,14 @@ public:
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
   uint pack_length_from_metadata(uint field_metadata)
-  { return (field_metadata & 0x00ff); }
+  {
+    DBUG_PRINT("debug", ("field_metadata: 0x%04x", field_metadata));
+    if (field_metadata == 0)
+      return row_pack_length();
+    return (((field_metadata >> 4) & 0x300) ^ 0x300) + (field_metadata & 0x00ff);
+  }
+  int compatible_field_size(uint field_metadata,
+                            const Relay_log_info *rli);
   uint row_pack_length() { return (field_length + 1); }
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                my_bool insert_or_update);
@@ -1658,6 +1669,7 @@ public:
   }
   int reset(void) { bzero(ptr, packlength+sizeof(uchar*)); return 0; }
   void reset_fields() { bzero((uchar*) &value,sizeof(value)); }
+  uint32 get_field_buffer_size(void) { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
   static
 #endif
@@ -1928,7 +1940,8 @@ public:
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length()
   { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
-  int compatible_field_size(uint field_metadata);
+  int compatible_field_size(uint field_metadata,
+                            const Relay_log_info *rli);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);

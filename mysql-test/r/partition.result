@@ -538,7 +538,7 @@ PARTITION BY LIST (a)
 (PARTITION x1 VALUES IN (10), PARTITION x2 VALUES IN (20));
 analyze table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 drop table t1;
 create table t1
 (a int)
@@ -1239,7 +1239,11 @@ SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	1	14	14	0	0	7	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
-ERROR 42000: The storage engine for the table doesn't support optimize partition
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+SHOW TABLE STATUS;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	7	7	0	1024	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DROP TABLE t1;
 CREATE TABLE t1 (a int, index(a)) PARTITION BY KEY(a);
 ALTER TABLE t1 DISABLE KEYS;
@@ -1499,13 +1503,17 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTENDED' at line 1
 ALTER TABLE t1 ANALYZE PARTITION p1;
-ERROR 42000: The storage engine for the table doesn't support analyze partition
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 ALTER TABLE t1 CHECK PARTITION p1;
-ERROR 42000: The storage engine for the table doesn't support check partition
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 ALTER TABLE t1 REPAIR PARTITION p1;
-ERROR 42000: The storage engine for the table doesn't support repair partition
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
 ALTER TABLE t1 OPTIMIZE PARTITION p1;
-ERROR 42000: The storage engine for the table doesn't support optimize partition
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (s1 BIGINT UNSIGNED)
 PARTITION BY RANGE (s1) (
@@ -1604,4 +1612,29 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=16 DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (id) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION pa1 VALUES LESS THAN (10) ENGINE = MyISAM, PARTITION pa2 VALUES LESS THAN (20) ENGINE = MyISAM, PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
 drop table t1;
+CREATE TABLE  t1 (
+`ID` bigint(20) NOT NULL AUTO_INCREMENT,
+`createdDate` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+`number` int,
+PRIMARY KEY (`ID`, number)
+)
+PARTITION BY RANGE (number) (
+PARTITION p0 VALUES LESS THAN (6),
+PARTITION p1 VALUES LESS THAN (11)
+);
+create table t2 (
+`ID` bigint(20),
+`createdDate` TIMESTAMP,
+`number` int
+);
+INSERT INTO t1 SET number=1;
+insert into t2 select * from t1;
+SELECT SLEEP(1);
+SLEEP(1)
+0
+UPDATE t1 SET number=6;
+select count(*) from t1, t2 where t1.createdDate = t2.createdDate;
+count(*)
+1
+drop table t1, t2;
 End of 5.1 tests
