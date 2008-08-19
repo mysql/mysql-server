@@ -1795,6 +1795,7 @@ lock tables t1 read;
 connect (con1,localhost,root,,);
 --connection con1
 --remove_file $MYSQLTEST_VARDIR/master-data/test/t1.CSV
+--replace_result $MYSQLTEST_VARDIR . master-data/ '' 13 2
 # EE_FILENOTFOUND 29
 --error 29
 select * from t1;
