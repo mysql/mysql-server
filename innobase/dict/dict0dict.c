@@ -3554,7 +3554,7 @@ loop:
 
 	ptr = dict_accept(ptr, "FOREIGN", &success);
 	
-	if (!success) {
+	if (!success || !ib_isspace(*ptr)) {
 
 	        goto loop;
 	}
