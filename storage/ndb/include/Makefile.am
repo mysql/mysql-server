@@ -58,7 +58,7 @@ ndb_global.h \
 ndb_net.h
 
 EXTRA_DIST = debugger editline kernel logger mgmcommon \
-portlib transporter util
+portlib transporter util CMakeLists.txt
 
 dist-hook:
 	-rm -rf `find $(distdir) -type d -name SCCS`

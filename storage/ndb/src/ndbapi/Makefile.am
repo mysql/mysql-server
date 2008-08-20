@@ -14,6 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #SUBDIRS = signal-sender
+EXTRA_DIST = CMakeLists.txt
 
 noinst_PROGRAMS = ndberror_check
 

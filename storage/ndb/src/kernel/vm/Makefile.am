@@ -51,9 +51,11 @@ libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
                         mt.cpp \
                         dummy_mt.cpp
 
-EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp
+EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
+
+LDADD_LOC = $(top_builddir)/ndb/src/common/util/libgeneral.la
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am

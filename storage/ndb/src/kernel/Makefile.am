@@ -14,6 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SUBDIRS = vm error blocks
+EXTRA_DIST = CMakeLists.txt
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 
