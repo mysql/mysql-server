@@ -3277,7 +3277,8 @@ ha_innobase::innobase_autoinc_lock(void)
 		old style only if another transaction has already acquired
 		the AUTOINC lock on behalf of a LOAD FILE or INSERT ... SELECT
 		etc. type of statement. */
-		if (thd_sql_command(user_thd) == SQLCOM_INSERT) {
+		if (thd_sql_command(user_thd) == SQLCOM_INSERT
+		    || thd_sql_command(user_thd) == SQLCOM_REPLACE) {
 			dict_table_t*	table = prebuilt->table;
 
 			/* Acquire the AUTOINC mutex. */
