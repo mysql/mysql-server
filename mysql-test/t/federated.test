@@ -1882,5 +1882,6 @@ connection default;
 
 create server 's1' foreign data wrapper 'mysql' options (port 3306);
 drop server 's1';
+
 --echo End of 5.1 tests
 source include/federated_cleanup.inc;
