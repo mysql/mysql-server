@@ -1068,17 +1068,6 @@ dict_tables_have_same_db(
 	const char*	name2);	/* in: table name in the form
 				dbname '/' tablename */
 /*************************************************************************
-Scans from pointer onwards. Stops if is at the start of a copy of
-'string' where characters are compared without case sensitivity. Stops
-also at '\0'. */
-
-const char*
-dict_scan_to(
-/*=========*/
-				/* out: scanned up to this */
-	const char*	ptr,	/* in: scan from */
-	const char*	string);/* in: look for this */
-/*************************************************************************
 Removes an index from the cache */
 UNIV_INTERN
 void
