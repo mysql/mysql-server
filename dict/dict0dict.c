@@ -2409,7 +2409,7 @@ dict_foreign_add_to_cache(
 Scans from pointer onwards. Stops if is at the start of a copy of
 'string' where characters are compared without case sensitivity, and
 only outside `` or "" quotes. Stops also at '\0'. */
-UNIV_INTERN
+static
 const char*
 dict_scan_to(
 /*=========*/
