@@ -83,6 +83,8 @@ static const char* user = 0;
 static char* pass = 0;
 static char *charset= 0;
 
+static uint verbose= 0;
+
 static ulonglong start_position, stop_position;
 #define start_position_mot ((my_off_t)start_position)
 #define stop_position_mot  ((my_off_t)stop_position)
@@ -1063,6 +1065,9 @@ that may lead to an endless loop.",
   {"user", 'u', "Connect to the remote server as username.",
    (uchar**) &user, (uchar**) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
+  {"verbose", 'v', "Reconstruct SQL statements out of row events. "
+                   "-v -v adds comments on column data types",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
@@ -1258,6 +1263,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
         (find_type_or_exit(argument, &base64_output_mode_typelib, opt->name)-1);
     }
     break;
+  case 'v':
+    if (argument == disabled_my_option)
+      verbose= 0;
+    else
+      verbose++;
+    break;
   case 'V':
     print_version();
     exit(0);
@@ -1343,6 +1354,8 @@ static Exit_status dump_log_entries(const char* logname)
   */
   fprintf(result_file, "DELIMITER /*!*/;\n");
   strmov(print_event_info.delimiter, "/*!*/;");
+  
+  print_event_info.verbose= short_form ? 0 : verbose;
 
   rc= (remote_opt ? dump_remote_log_entries(&print_event_info, logname) :
        dump_local_log_entries(&print_event_info, logname));
