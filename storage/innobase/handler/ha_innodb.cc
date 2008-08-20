@@ -5792,7 +5792,7 @@ ha_innobase::info(
 					* UNIV_PAGE_SIZE;
 		stats.delete_length =
 			fsp_get_available_space_in_free_extents(
-				ib_table->space);
+				ib_table->space) * 1024;
 		stats.check_time = 0;
 
 		if (stats.records == 0) {
