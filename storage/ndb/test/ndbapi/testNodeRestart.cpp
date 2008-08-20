@@ -2180,21 +2180,33 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
 
-    int rows = 10;
+    int rows = 25;
+    if (rows > records)
+      rows = records;
+
     int batch = 1;
     int row = (records - rows) ? rand() % (records - rows) : 0;
+    if (row + rows > records)
+      row = records - row;
 
-    if(hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0)
-      goto err;
-
-    for (int l = 1; l<5; l++)
+    /**
+     * We should really somehow check that one of the 25 rows
+     *   resides in the node we're targeting
+     */
+    for (int r = row; r < row + rows; r++)
     {
-      if (hugoOps.execute_NoCommit(pNdb) != 0)
+      if(hugoOps.pkUpdateRecord(pNdb, r, batch, rand()) != 0)
         goto err;
-
-      if(hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0)
-        goto err;
-    }
+      
+      for (int l = 1; l<5; l++)
+      {
+        if (hugoOps.execute_NoCommit(pNdb) != 0)
+          goto err;
+        
+        if(hugoOps.pkUpdateRecord(pNdb, r, batch, rand()) != 0)
+          goto err;
+      }
+    }      
 
     hugoOps.execute_Commit(pNdb);
     hugoOps.closeTransaction(pNdb);
