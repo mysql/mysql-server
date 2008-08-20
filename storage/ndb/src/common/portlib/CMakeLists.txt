@@ -19,18 +19,19 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
                    )
 
+IF(WIN32)
+ SET(EXTRA_SRC win32/NdbTick.c
+     # win32/NdbDaemon.c ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc
+ )
+ SET(EXTRA_LIB wsock32 ws2_32)
+ENDIF(WIN32)
 ADD_LIBRARY(ndbportlib STATIC
-            NdbCondition.c NdbMutex.c NdbTick.c
+            NdbCondition.c NdbMutex.c
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
-            NdbDaemon.c
-            NdbMem.c NdbConfig.c
-            ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc
-            )
-
-#            win32/NdbCondition.c win32/NdbDaemon.c win32/NdbEnv.c
-#            win32/NdbHost.c win32/NdbMem.c  win32/NdbMutex.c
-#            win32/NdbSleep.c win32/NdbTCP.c win32/NdbThread.c
-#            )
+            NdbMem.c NdbConfig.c NdbTick.c
+            ${EXTRA_SRC}
+)
+TARGET_LINK_LIBRARIES(ndbportlib mysys ${EXTRA_LIB})
 
 #ADD_EXECUTABLE(memtest memtest.c)
 #TARGET_LINK_LIBRARIES(memtest ndbportlib wsock32)

@@ -20,11 +20,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger
 )
 
-#SET(NDBTOOLS_COMMON_SOURCES
-#    ${CMAKE_SOURCE_DIR}/storage/ndb/test/src/NDBT_ReturnCodes.cpp
-#    ${CMAKE_SOURCE_DIR}/storage/ndb/test/src/NDBT_Table.cpp
-#    ${CMAKE_SOURCE_DIR}/storage/ndb/test/src/NDBT_Output.cpp)
-
 ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
 ADD_EXECUTABLE(ndb_waiter waiter.cpp)
 TARGET_LINK_LIBRARIES(ndb_waiter ndbportlib ndbNDBT)

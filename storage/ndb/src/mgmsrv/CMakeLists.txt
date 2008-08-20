@@ -28,17 +28,14 @@ LINK_LIBRARIES(ndbmgmclient
                mysys
                strings
                ndbgeneral
-	       ndbportlib
+               ndbportlib
                ${NDB_SCI_LIBS})
-IF(WIN32)
-LINK_LIBRARIES(wsock32 ws2_32)
-ENDIF(WIN32)
 
-# ndbconf also used by ndb_config tool.
 ADD_LIBRARY(ndbconf
-	    Config.cpp
-	    ConfigInfo.cpp
-	    InitConfigFileParser.cpp)
+               Config.cpp
+               ConfigInfo.cpp
+               InitConfigFileParser.cpp
+)
 
 ADD_EXECUTABLE(ndb_mgmd
                MgmtSrvr.cpp
@@ -46,5 +43,4 @@ ADD_EXECUTABLE(ndb_mgmd
                Services.cpp
                MgmtSrvrConfig.cpp
                ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
-
 TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf)
