@@ -883,13 +883,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  /*
-    This statement will be replicated as a statement, even when using
-    row-based replication. The flag will be reset at the end of the
-    statement.
-  */
-  thd->clear_current_stmt_binlog_row_based();
-
   length= build_table_filename(path, sizeof(path), db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
@@ -914,8 +907,21 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
 
-    
     error= -1;
+    /*
+      We temporarily disable the binary log while dropping the objects
+      in the database. Since the DROP DATABASE statement is always
+      replicated as a statement, execution of it will drop all objects
+      in the database on the slave as well, so there is no need to
+      replicate the removal of the individual objects in the database
+      as well.
+
+      This is more of a safety precaution, since normally no objects
+      should be dropped while the database is being cleaned, but in
+      the event that a change in the code to remove other objects is
+      made, these drops should still not be logged.
+     */
+    tmp_disable_binlog(thd);
     if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0,
                                        &dropped_tables)) >= 0)
     {
@@ -927,6 +933,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 #endif
       error = 0;
     }
+    reenable_binlog(thd);
   }
   if (!silent && deleted>=0)
   {
