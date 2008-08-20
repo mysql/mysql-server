@@ -80,6 +80,19 @@ IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
   ADD_DEFINITIONS(-DHAVE_NDBCLUSTER_DB)
   ADD_DEFINITIONS(-DWITH_NDBCLUSTER_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_ndbcluster_plugin")
+  SET (NDB_CLIENT_INCLUDES
+          ${CMAKE_SOURCE_DIR}/storage/ndb/include
+          ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
+          ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
+          ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
+  )
+  SET (NDB_HANDLER_SRC
+               ha_ndbcluster.cc ha_ndbcluster_cond.cc
+               ha_ndbcluster_connection.cc ha_ndbcluster_binlog.cc
+  )
+ELSE(WITH_NDBCLUSTER_STORAGE_ENGINE)
+  SET (NDB_CLIENT_INCLUDES "")
+  SET (NDB_HANDLER_SRC "")
 ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in

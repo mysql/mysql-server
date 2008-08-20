@@ -69,11 +69,8 @@ LINK_LIBRARIES(ndbcmvmi
                dbug
                mysys
                strings
+               ndbconf
                ${NDB_SCI_LIBS})
-IF(WIN32)
-LINK_LIBRARIES(wsock32 ws2_32 ndbwin32portlib)
-ENDIF(WIN32)
-
 ADD_EXECUTABLE(ndbd
                main.cpp
                SimBlockList.cpp
