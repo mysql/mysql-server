@@ -57,7 +57,7 @@ dist-hook:
 		--builddir=$(top_builddir) \
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
-	myisam/myisamchk --silent --fast $(distdir)/win/data/mysql/*.MYI
+	storage/myisam/myisamchk --silent --fast $(distdir)/win/data/mysql/*.MYI
 
 tags:
 	support-files/build-tags
