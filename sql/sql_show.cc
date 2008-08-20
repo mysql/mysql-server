@@ -3549,8 +3549,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     if(file)
     {
-      file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO |
-                 HA_STATUS_NO_LOCK);
+      file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO);
       enum row_type row_type = file->get_row_type();
       switch (row_type) {
       case ROW_TYPE_NOT_USED:
