@@ -15,7 +15,7 @@
 
 SUBDIRS = src tools ndbapi run-test
 
-EXTRA_DIST = include
+EXTRA_DIST = include CMakeLists.txt
 
 dist-hook:
 	-rm -rf `find $(distdir) -type d -name SCCS`

@@ -1,0 +1,110 @@
+# Copyright (C) 2007 MySQL AB
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+FILE(READ "configure.in" CONFIGURE_IN)
+
+STRING(REGEX REPLACE ".*AM_INIT_AUTOMAKE\\(mysql, ([^)]+)\\).*"
+        "\\1" PARSE_VERSION "${CONFIGURE_IN}")
+
+STRING(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-?(.*)"
+        "\\1.\\2" PARSE_BASE_VERSION "${PARSE_VERSION}")
+STRING(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-?(.*)"
+        "\\1" PARSE_VERSION_MAJOR "${PARSE_VERSION}")
+STRING(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-?(.*)"
+        "\\2" PARSE_VERSION_MINOR "${PARSE_VERSION}")
+STRING(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-?(.*)"
+        "\\3" PARSE_VERSION_BUILD "${PARSE_VERSION}")
+IF(PARSE_VERSION_MINOR LESS 10)
+  SET(PARSE_VERSION_ID "${PARSE_VERSION_MAJOR}0${PARSE_VERSION_MINOR}")
+ELSE(PARSE_VERSION_MINOR LESS 10)
+  SET(PARSE_VERSION_ID "${PARSE_VERSION_MAJOR}${PARSE_VERSION_MINOR}")
+ENDIF(PARSE_VERSION_MINOR LESS 10)
+IF(PARSE_VERSION_BUILD LESS 10)
+  SET(PARSE_VERSION_ID "${PARSE_VERSION_ID}0${PARSE_VERSION_BUILD}")
+ELSE(PARSE_VERSION_BUILD LESS 10)
+  SET(PARSE_VERSION_ID "${PARSE_VERSION_ID}${PARSE_VERSION_BUILD}")
+ENDIF(PARSE_VERSION_BUILD LESS 10)
+
+STRING(REGEX REPLACE "[^-]+-[^-]+-(.+)"
+        "\\1" PARSE_NDB_VERSION "${PARSE_VERSION}")
+STRING(REGEX REPLACE "(.+\\..+).+"
+        "\\1" PARSE_NDB_BASE_VERSION "${PARSE_NDB_VERSION}")
+STRING(REGEX REPLACE "([0-9]+).+"
+        "\\1" PARSE_NDB_VERSION_MAJOR "${PARSE_NDB_VERSION}")
+STRING(REGEX REPLACE "[0-9]+\\.([0-9]+).*"
+        "\\1" PARSE_NDB_VERSION_MINOR "${PARSE_NDB_VERSION}")
+STRING(REGEX REPLACE ".+\\..+\\.([0-9]+).*"
+        "\\1" PARSE_NDB_VERSION_BUILD "${PARSE_NDB_VERSION}")
+
+STRING(REGEX REPLACE ".*PROTOCOL_VERSION=([0-9]+).*"
+        "\\1" PARSE_PROTOCOL "${CONFIGURE_IN}")
+STRING(REGEX REPLACE ".*DOT_FRM_VERSION=([0-9]+).*"
+        "\\1" PARSE_FRM_VERSION "${CONFIGURE_IN}")
+STRING(REGEX REPLACE ".*MYSQL_TCP_PORT_DEFAULT=([0-9]+).*"
+        "\\1" PARSE_TCP_PORT "${CONFIGURE_IN}")
+STRING(REGEX REPLACE ".*MYSQL_UNIX_ADDR_DEFAULT=\"([^\"]+)\".*"
+        "\\1" PARSE_UNIX_ADDR "${CONFIGURE_IN}")
+
+# Set some constant values
+SET(PROTOCOL_VERSION "${PARSE_PROTOCOL}" CACHE STRING
+        "MySQL Protocol Version" FORCE)
+SET(DOT_FRM_VERSION "${PARSE_FRM_VERSION}" CACHE STRING
+        "MySQL FRM Version" FORCE)
+SET(MYSQL_TCP_PORT_DEFAULT "${PARSE_TCP_PORT}" CACHE STRING
+        "Default port for TCP connections" FORCE)
+SET(MYSQL_UNIX_ADDR_DEFAULT "${PARSE_UNIX_ADDR}" CACHE STRING
+        "Default path for PIPE connections" FORCE)
+SET(VERSION "${PARSE_VERSION}" CACHE STRING
+        "MySQL version" FORCE)
+SET(MYSQL_BASE_VERSION "${PARSE_BASE_VERSION}" CACHE STRING
+        "Base MySQL version" FORCE)
+SET(MYSQL_VERSION_ID "${PARSE_VERSION_ID}" CACHE STRING
+        "MySQL version identifier" FORCE)
+
+
+# Set some default configuration values
+SET(MYSQL_SERVER_SUFFIX "" CACHE STRING
+        "MySQL Server suffix")
+SET(COMPILATION_COMMENT "Source distribution" CACHE STRING
+        "Source compilation comment")
+SET(MYSQL_TCP_PORT "${MYSQL_TCP_PORT_DEFAULT}" CACHE STRING
+        "Port for TCP connections")
+SET(MYSQL_UNIX_ADDR "${MYSQL_UNIX_ADDR_DEFAULT}" CACHE STRING
+        "Path for PIPE connections")
+
+SET(__NT__ TRUE CACHE BOOL "Target for Windows NT operating systems")
+
+SET(EMBED_MANIFESTS FALSE CACHE BOOL "Embed manifests")
+SET(DISABLE_GRANT_OPTIONS FALSE CACHE BOOL "Disable grant options")
+
+SET(WITH_ARCHIVE_STORAGE_ENGINE FALSE CACHE BOOL "Include Archive engine")
+SET(WITH_BERKELEY_STORAGE_ENGINE FALSE CACHE BOOL "Include Berkeley engine")
+SET(WITH_BLACKHOLE_STORAGE_ENGINE FALSE CACHE BOOL "Include Blackhole engine")
+SET(WITH_EXAMPLE_STORAGE_ENGINE FALSE CACHE BOOL "Include Example engine")
+SET(WITH_FEDERATED_STORAGE_ENGINE FALSE CACHE BOOL "Include Federated")
+SET(WITH_INNOBASE_STORAGE_ENGINE FALSE CACHE BOOL "Include InnoDB engine")
+SET(WITH_NDBCLUSTER_STORAGE_ENGINE FALSE CACHE BOOL "Include NDB Cluster")
+
+SET(NDB_SCI_INCLUDES "" CACHE STRING "")
+SET(NDB_SCI_LIBS "" CACHE STRING "")
+SET(NDB_TEST TRUE CACHE BOOL "Include the NDB Cluster ndbapi test programs")
+SET(ndb_port "1186" CACHE STRING "Port for NDB Cluster management server")
+SET(ndb_port_base "default" CACHE STRING "Base port for NDB Cluster transporters")
+SET(NDB_MYSQL_VERSION_MAJOR "${PARSE_VERSION_MAJOR}" CACHE STRING "NDB MySQL Major Version" FORCE)
+SET(NDB_MYSQL_VERSION_MINOR "${PARSE_VERSION_MINOR}" CACHE STRING "NDB MySQL Minor Version" FORCE)
+SET(NDB_MYSQL_VERSION_BUILD "${PARSE_VERSION_BUILD}" CACHE STRING "NDB MySQL Build Version" FORCE)
+SET(NDB_VERSION_MAJOR "${PARSE_NDB_VERSION_MAJOR}" CACHE STRING "NDB Major Version" FORCE)
+SET(NDB_VERSION_MINOR "${PARSE_NDB_VERSION_MINOR}" CACHE STRING "NDB Minor Version" FORCE)
+SET(NDB_VERSION_BUILD "${PARSE_NDB_VERSION_BUILD}" CACHE STRING "NDB Build Version" FORCE)

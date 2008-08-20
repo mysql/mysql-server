@@ -45,4 +45,5 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(mysys ${MYSYS_SOURCES})
+  TARGET_LINK_LIBRARIES(mysys dbug strings zlib)
 ENDIF(NOT SOURCE_SUBLIBS)

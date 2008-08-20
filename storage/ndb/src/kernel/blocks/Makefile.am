@@ -77,6 +77,8 @@ include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
+EXTRA_DIST = CMakeLists.txt
+
 windoze-dsp:
 
 # Don't update the files from bitkeeper
