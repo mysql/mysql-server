@@ -41,8 +41,6 @@
 #include <NdbOut.hpp>
 #include <Configuration.hpp>
 
-#define DEBUG(x) { ndbout << "FS::" << x << endl; }
-
 inline
 int pageSize( const NewVARIABLE* baseAddrRef )
 {
