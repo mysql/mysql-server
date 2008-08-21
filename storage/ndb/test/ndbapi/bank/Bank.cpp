@@ -32,7 +32,7 @@ int Bank::init(){
   if (m_initialized == true)
     return NDBT_OK;
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
   m_ndb.init();   
   if (m_ndb.waitUntilReady(30) != 0)
