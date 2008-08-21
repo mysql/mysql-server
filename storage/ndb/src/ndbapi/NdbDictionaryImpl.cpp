@@ -6582,7 +6582,7 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
   DBUG_ENTER("NdbDictInterface::create_file"); 
   UtilBufferWriter w(m_buffer);
   DictFilegroupInfo::File f; f.init();
-  snprintf(f.FileName, sizeof(f.FileName), "%s", file.m_path.c_str());
+  BaseString::snprintf(f.FileName, sizeof(f.FileName), "%s", file.m_path.c_str());
   f.FileType = file.m_type;
   f.FilegroupId = group.m_id;
   f.FilegroupVersion = group.m_version;
@@ -6716,7 +6716,7 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
   DBUG_ENTER("NdbDictInterface::create_filegroup");
   UtilBufferWriter w(m_buffer);
   DictFilegroupInfo::Filegroup fg; fg.init();
-  snprintf(fg.FilegroupName, sizeof(fg.FilegroupName),
+  BaseString::snprintf(fg.FilegroupName, sizeof(fg.FilegroupName),
            "%s", group.m_name.c_str());
   switch(group.m_type){
   case NdbDictionary::Object::Tablespace:
@@ -7310,7 +7310,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
                                  NdbDictObjectImpl* obj)
 {
   DictHashMapInfo::HashMap hm; hm.init();
-  snprintf(hm.HashMapName, sizeof(hm.HashMapName), src.getName());
+  BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName), src.getName());
   hm.HashMapBuckets = src.getMapLen();
   for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
   {
