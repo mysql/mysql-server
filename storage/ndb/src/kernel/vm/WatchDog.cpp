@@ -16,7 +16,7 @@
 
 #include <ndb_global.h>
 #include <my_pthread.h>
-#include <sys/times.h>
+#include <my_times.h>
 
 #include "WatchDog.hpp"
 #include "GlobalData.hpp"
