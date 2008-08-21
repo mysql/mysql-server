@@ -16,6 +16,9 @@
 
 #include <ndb_global.h>
 #include <util/version.h>
+#include <my_global.h>
+#include <my_sys.h>
+#include <my_dir.h>
 
 #include <NdbMain.h>
 #include <NdbOut.hpp>
@@ -231,10 +234,10 @@ NDB_COMMAND(printSchemafile,
     const char * filename = argv[1];
     argc--, argv++;
 
-    struct stat sbuf;
-    const int res = stat(filename, &sbuf);
-    if (res != 0) {
-      ndbout << filename << ": not found errno=" << errno << endl;
+    MY_STAT sbuf,*st;
+    if(!(st=my_stat(filename, &sbuf,0)))
+    {
+      ndbout << filename << ": not found my_errno=" << my_errno << endl;
       exitcode = 1;
       continue;
     }

@@ -343,7 +343,7 @@ TransporterCallbackKernel::reportError(NodeId nodeId,
   case TE_SIGNAL_LOST_SEND_BUFFER_FULL:
   {
     char msg[64];
-    snprintf(msg, sizeof(msg), "Remote note id %d.%s%s", nodeId,
+    BaseString::snprintf(msg, sizeof(msg), "Remote note id %d.%s%s", nodeId,
 	     info ? " " : "", info ? info : "");
     ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL,
 			       msg, __FILE__, NST_ErrorHandler);
@@ -351,7 +351,7 @@ TransporterCallbackKernel::reportError(NodeId nodeId,
   case TE_SIGNAL_LOST:
   {
     char msg[64];
-    snprintf(msg, sizeof(msg), "Remote node id %d,%s%s", nodeId,
+    BaseString::snprintf(msg, sizeof(msg), "Remote node id %d,%s%s", nodeId,
 	     info ? " " : "", info ? info : "");
     ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST,
 			       msg, __FILE__, NST_ErrorHandler);
@@ -359,7 +359,7 @@ TransporterCallbackKernel::reportError(NodeId nodeId,
   case TE_SHM_IPC_PERMANENT:
   {
     char msg[128];
-    snprintf(msg, sizeof(msg),
+    BaseString::snprintf(msg, sizeof(msg),
 	     "Remote node id %d.%s%s",
 	     nodeId, info ? " " : "", info ? info : "");
     ErrorReporter::handleError(NDBD_EXIT_CONNECTION_SETUP_FAILED,

@@ -250,13 +250,16 @@ NdbShutdown(NdbShutdownType type,
 #endif
     if(UNLOAD){
       globalEmulatorData.theSimBlockList->unload();    
+      NdbMutex_Unlock(theShutdownMutex);
       globalEmulatorData.destroy();
     }
     
     if(type != NST_Normal && type != NST_Restart){
       // Signal parent that error occured during startup
+#ifndef NDB_WIN
       if (type == NST_ErrorHandlerStartup)
 	kill(getppid(), SIGUSR1);
+#endif
       g_eventLogger->info("Error handler shutdown completed - %s", exitAbort);
       if (opt_core)
       {

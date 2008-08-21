@@ -1498,7 +1498,7 @@ void Dbdict::readSchemaConf(Signal* signal,
     if (!ok)
     {
       char reason_msg[128];
-      snprintf(reason_msg, sizeof(reason_msg),
+      BaseString::snprintf(reason_msg, sizeof(reason_msg),
                "schema file corrupt, page %u (%s, "
                "sz=%u sz0=%u pn=%u)",
                n, reason, sf->FileSize, sf0->FileSize, sf->PageNumber);

@@ -101,7 +101,9 @@ void childAbort(int code, Uint32 currentStartPhase)
   fprintf(child_info_file_w, "\n");
   fclose(child_info_file_r);
   fclose(child_info_file_w);
-  signal(6, SIG_DFL);
+#ifndef NDB_WIN32
+  signal(SIGABRT, SIG_DFL);
+#endif
   abort();
 }
 
@@ -381,10 +383,13 @@ int main(int argc, char** argv)
     char *logfile=  NdbConfig_StdoutFileName(globalData.ownId);
     NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
 
-    if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
+#ifndef NDB_WIN32
+    if (NdbDaemon_Make(lockfile, logfile, 0) == -1)
+    {
       ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
       return 1;
     }
+#endif
   }
 
 #ifndef NDB_WIN32
