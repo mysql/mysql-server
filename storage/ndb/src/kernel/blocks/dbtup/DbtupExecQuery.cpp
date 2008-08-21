@@ -15,7 +15,7 @@
 
 
 #define DBTUP_C
-#include <Dblqh.hpp>
+#include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>

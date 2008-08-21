@@ -15,7 +15,7 @@
 
 #define DBTUP_C
 #define DBTUP_INDEX_CPP
-#include <Dblqh.hpp>
+#include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>

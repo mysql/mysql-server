@@ -20,6 +20,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error
+                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/transporter
