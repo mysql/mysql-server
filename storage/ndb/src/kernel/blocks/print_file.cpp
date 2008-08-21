@@ -20,6 +20,7 @@
 #include "diskpage.hpp"
 #include <ndb_limits.h>
 #include <dbtup/tuppage.hpp>
+#include <my_dir.h>
 
 static void print_usage(const char*);
 static int print_zero_page(int, void *, Uint32 sz);
@@ -65,9 +66,8 @@ int main(int argc, char ** argv)
     
     const char * filename = argv[i];
     
-    struct stat sbuf;
-    const int res = stat(filename, &sbuf);
-    if(res != 0){
+    MY_STAT sbuf;
+    if(my_stat(filename, &sbuf, MYF(0))){
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;
     }
