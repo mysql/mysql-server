@@ -22,7 +22,6 @@
 
 #define NDB_SOCKET_TYPE my_socket
 #define _NDB_CLOSE_SOCKET(x) my_socket_close(x)
-#define InetErrno my_socket_errno()
 
 #define NDB_SOCKLEN_T SOCKET_SIZE_TYPE
 

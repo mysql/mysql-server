@@ -274,12 +274,12 @@ TCP_Transporter::doSend() {
     g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
                          "nBytesSent = %d "
                          "errno = %d strerror = %s",
-                         DISCONNECT_ERRNO(InetErrno, nBytesSent),
-                         remoteNodeId, nBytesSent, InetErrno,
-                         (char*)ndbstrerror(InetErrno));
+                         DISCONNECT_ERRNO(my_socket_errno(), nBytesSent),
+                         remoteNodeId, nBytesSent, my_socket_errno(),
+                         (char*)ndbstrerror(my_socket_errno()));
 #endif
-    if(DISCONNECT_ERRNO(InetErrno, nBytesSent)){
-      do_disconnect(InetErrno);
+    if(DISCONNECT_ERRNO(my_socket_errno(), nBytesSent)){
+      do_disconnect(my_socket_errno());
     }
 
     return false;
@@ -328,12 +328,12 @@ TCP_Transporter::doReceive() {
 #if defined DEBUG_TRANSPORTER
       g_eventLogger->error("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
                            "errno = %d strerror = %s",
-                           DISCONNECT_ERRNO(InetErrno, nBytesRead),
-                           remoteNodeId, nBytesRead, InetErrno,
-                           (char*)ndbstrerror(InetErrno));
+                           DISCONNECT_ERRNO(my_socket_errno(), nBytesRead),
+                           remoteNodeId, nBytesRead, my_socket_errno(),
+                           (char*)ndbstrerror(my_socket_errno()));
 #endif   
-      if(DISCONNECT_ERRNO(InetErrno, nBytesRead)){
-	do_disconnect(InetErrno);
+      if(DISCONNECT_ERRNO(my_socket_errno(), nBytesRead)){
+	do_disconnect(my_socket_errno());
       } 
     }
     return nBytesRead;
