@@ -36,6 +36,7 @@ typedef struct thread_attr {
     DWORD dwStackSize ;
     DWORD dwCreatingFlag ;
     int priority ;
+    BOOL detached;
 } pthread_attr_t ;
 
 typedef struct { int dummy; } pthread_condattr_t;
@@ -114,6 +115,7 @@ int pthread_attr_init(pthread_attr_t *connect_att);
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
 int pthread_attr_setprio(pthread_attr_t *connect_att,int priority);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
+int pthread_join(pthread_t thread, void **value_ptr);
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
 struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
