@@ -409,3 +409,9 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_CHARSET_utf8 1
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1
+
+/* Windows doesn't define ENOTSUP, define it as the same as Solaris */
+#ifndef ENOTSUP
+#define ENOTSUP 48
+#endif
+
