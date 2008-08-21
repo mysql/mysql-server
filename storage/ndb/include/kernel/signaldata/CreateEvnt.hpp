@@ -20,7 +20,7 @@
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
 #include <signaldata/DictTabInfo.hpp>
-
+#include <AttributeList.hpp>
 /**
  * DropEvntReq.
  */
