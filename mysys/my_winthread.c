@@ -26,6 +26,8 @@
 #undef getpid
 #include <process.h>
 
+#include <Windows.h>
+
 static pthread_mutex_t THR_LOCK_thread;
 
 struct pthread_map
@@ -73,7 +75,29 @@ win_pthread_mutex_trylock(pthread_mutex_t *mutex)
 ** in the new thread.
 */
 
-pthread_handler_t pthread_start(void *param)
+pthread_handler_t pstart(void *param);
+
+pthread_key(BOOL,detached);
+
+unsigned int __stdcall joinable_pstart(void*p)
+{
+  BOOL detached_=0;
+  pthread_key_create(&detached,0);
+  pthread_setspecific(detached,&detached_);
+
+  return (unsigned int)pstart(p);
+}
+
+void __cdecl detached_pstart(void*p)
+{
+  BOOL detached_=1;
+  pthread_key_create(&detached,0);
+  pthread_setspecific(detached,&detached_);
+
+  pstart(p);
+}
+
+pthread_handler_t pstart(void *param)
 {
   pthread_handler func=((struct pthread_map *) param)->func;
   void *func_param=((struct pthread_map *) param)->param;
@@ -85,7 +109,6 @@ pthread_handler_t pthread_start(void *param)
   pthread_exit((void*) (*func)(func_param));
   return 0;				  /* Safety */
 }
-
 
 int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
 		   pthread_handler func, void *param)
@@ -99,15 +122,18 @@ int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
   map->func=func;
   map->param=param;
   pthread_mutex_lock(&THR_LOCK_thread);
-#ifdef __BORLANDC__
-  hThread=(HANDLE)_beginthread((void(_USERENTRY *)(void *)) pthread_start,
-			       attr->dwStackSize ? attr->dwStackSize :
-			       65535, (void*) map);
+#ifdef  __BORLANDC__
+#define BC_CAST (void(_USERENTRY *)(void *))
 #else
-  hThread=(HANDLE)_beginthread((void( __cdecl *)(void *)) pthread_start,
-			       attr->dwStackSize ? attr->dwStackSize :
-			       65535, (void*) map);
+#define BC_CAST
 #endif
+  {
+    unsigned ss=attr->dwStackSize ? attr->dwStackSize : 65535;
+    if (attr->detached)
+     hThread=(HANDLE)_beginthread(BC_CAST detached_pstart,ss,(void*)map);
+    else
+     hThread=(HANDLE)_beginthreadex(NULL,ss,joinable_pstart,(void*)map,0,0);
+  }
   DBUG_PRINT("info", ("hThread=%lu",(long) hThread));
   *thread_id=map->pthreadself=hThread;
   pthread_mutex_unlock(&THR_LOCK_thread);
@@ -126,7 +152,25 @@ int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
 
 void pthread_exit(void *a)
 {
-  _endthread();
+  BOOL *detachedval= (BOOL*)pthread_getspecific(detached);
+
+  if(*detachedval)
+    _endthread();
+  else
+    _endthreadex((unsigned)a);
+}
+
+int pthread_join(pthread_t thread, void **value_ptr)
+{
+  DWORD dw=0;
+  if(WaitForSingleObject(thread, INFINITE) == WAIT_OBJECT_0
+       && GetExitCodeThread(thread, &dw))
+  {
+    if(value_ptr)*value_ptr=(void*)dw;
+    CloseHandle(thread);
+    return 0;
+  }
+  return -1;
 }
 
 /* This is neaded to get the macro pthread_setspecific to work */
