@@ -26,6 +26,10 @@ int ndb_rand(void);
 
 void ndb_srand(unsigned seed);
 
+#ifdef NDB_WIN
+#define srandom(s) srand(s)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
