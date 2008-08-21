@@ -21,12 +21,6 @@
 
 #if defined NDB_WIN32
 
-/**
- * Include files needed
- */
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
 #define InetErrno WSAGetLastError()
 #define EWOULDBLOCK WSAEWOULDBLOCK
 #define NDB_SOCKET_TYPE SOCKET
@@ -75,6 +69,14 @@ int NDB_CLOSE_SOCKET(int fd);
 #endif
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);
+
+int setsocknonblock(int socket);
+#ifdef NDB_WIN
+#define NONBLOCKERR(E) (E!=SOCKET_EAGAIN && E!=SOCKET_EWOULDBLOCK)
+#else
+#define NONBLOCKERR(E) (E!=EINPROGRESS)
+#endif
+
 
 #ifdef	__cplusplus
 }
