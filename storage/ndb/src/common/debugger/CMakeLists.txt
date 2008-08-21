@@ -22,6 +22,5 @@ ADD_LIBRARY(ndbtrace STATIC
             SignalLoggerManager.cpp
             DebuggerNames.cpp
             BlockNames.cpp
-            EventLogger.cpp
-            GrepError.cpp)
+            EventLogger.cpp)
 

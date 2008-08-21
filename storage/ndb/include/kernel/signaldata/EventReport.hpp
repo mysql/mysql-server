@@ -38,7 +38,7 @@ class EventReport {
   friend class Dbdih;
   friend class Dbdict;
   friend class MgmtSrvr;
-  friend class Grep;
+
 public:
   /* 
      EventType defines what event reports to send. 
