@@ -113,6 +113,10 @@ int pthread_cond_destroy(pthread_cond_t *cond);
 int pthread_attr_init(pthread_attr_t *connect_att);
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
 int pthread_attr_setprio(pthread_attr_t *connect_att,int priority);
+#define PTHREAD_CREATE_JOINABLE 1
+#define PTHREAD_CREATE_DETACHED 2
+int pthread_attr_setdetachstate(pthread_attr_t *connect_att,int state);
+int pthread_attr_getdetachstate(pthread_attr_t *connect_att,int*state);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 int pthread_join(pthread_t thread, void **value_ptr);
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
@@ -129,6 +133,7 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
 
 #undef SAFE_MUTEX				/* This will cause conflicts */
+typedef DWORD pthread_key_t;
 #define pthread_key(T,V)  DWORD V
 #define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
 #define pthread_key_delete(A) TlsFree(A)
@@ -159,7 +164,6 @@ static inline int pthread_mutex_destroy(pthread_mutex_t *mutex)
 #define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 
 /* Dummy defines for easier code */
-#define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define my_pthread_attr_setprio(A,B) pthread_attr_setprio(A,B)
 #define pthread_attr_setscope(A,B)
 #define pthread_detach_this_thread()

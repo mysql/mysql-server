@@ -188,6 +188,18 @@ int pthread_attr_init(pthread_attr_t *connect_att)
   return 0;
 }
 
+int pthread_attr_setdetachstate(pthread_attr_t *connect_att,int state)
+{
+  connect_att->detached= state==PTHREAD_CREATE_DETACHED;
+  return 0;
+}
+
+int pthread_attr_getdetachstate(pthread_attr_t *connect_att,int*state)
+{
+  *state=connect_att->detached?PTHREAD_CREATE_DETACHED:PTHREAD_CREATE_JOINABLE;
+  return 0;
+}
+
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack)
 {
   connect_att->dwStackSize=stack;
