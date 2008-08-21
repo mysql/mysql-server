@@ -15,42 +15,15 @@
 
 #include <ndb_global.h>
 #include "NdbTick.h"
-//#include <windows.h>
-
-/*
-#define FILETIME_PER_MICROSEC 10
-#define FILETIME_PER_MILLISEC 10000
-#define FILETIME_PER_SEC 10000000
-
 
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
-    ULONGLONG ullTime;
-    GetSystemTimeAsFileTime((LPFILETIME)&ullTime);
-    return (ullTime / FILETIME_PER_MILLISEC);
+  NDB_TICKS sec;Uint32 usec;
+  NdbTick_CurrentMicrosecond(&sec,&usec);
+  return sec*1000+usec/1000;
 }
 
-int 
-NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros)
-{
-    ULONGLONG ullTime;
-    GetSystemTimeAsFileTime((LPFILETIME)&ullTime);
-    *secs   = (ullTime / FILETIME_PER_SEC);
-    *micros = (Uint32)((ullTime % FILETIME_PER_SEC) / FILETIME_PER_MICROSEC);
-    return 0;
-}
-*/
-
-
-NDB_TICKS NdbTick_CurrentMillisecond(void)
-{
-  LARGE_INTEGER liCount, liFreq;
-  QueryPerformanceCounter(&liCount);
-  QueryPerformanceFrequency(&liFreq);
-  return (liCount.QuadPart*1000) / liFreq.QuadPart;
-}
-
-int 
+int
 NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros)
 {
   LARGE_INTEGER liCount, liFreq;

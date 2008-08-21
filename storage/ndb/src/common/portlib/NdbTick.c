@@ -23,6 +23,7 @@
 #define MICROSEC_PER_MILLISEC 1000
 #define MILLISEC_PER_NANOSEC 1000000
 
+#ifndef NDB_WIN
 #ifdef HAVE_CLOCK_GETTIME
 
 #ifdef CLOCK_MONOTONIC
@@ -77,6 +78,7 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
 }
 
 #endif
+#endif /*NDB_WIN*/
 int
 NdbTick_getMicroTimer(struct MicroSecondTimer* input_timer)
 {

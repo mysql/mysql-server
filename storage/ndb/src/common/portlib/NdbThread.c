@@ -90,6 +90,7 @@ ndb_thread_wrapper(void* _ss){
 #ifdef NDB_SHM_TRANSPORTER
     NdbThread_set_shm_sigmask(TRUE);
 #endif
+#ifndef NDB_WIN32
     {
       /**
        * Block all signals to thread by default
@@ -99,6 +100,7 @@ ndb_thread_wrapper(void* _ss){
       sigfillset(&mask);
       pthread_sigmask(SIG_BLOCK, &mask, 0);
     }      
+#endif
     
     {
       void *ret;
