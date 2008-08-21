@@ -158,5 +158,15 @@ innobase_strcasecmp(
 				/* out: 0 if a=b, <0 if a<b, >1 if a>b */
 	const char*	a,	/* in: first string to compare */
 	const char*	b);	/* in: second string to compare */
+
+/**********************************************************************
+Returns true if the thread is executing a SELECT statement. */
+
+ibool
+thd_is_select(
+/*==========*/
+				/* out: true if thd is executing SELECT */
+	const void*	thd);	/* in: thread handle (THD*) */
+
 #endif
 #endif
