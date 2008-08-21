@@ -641,6 +641,18 @@ thd_has_edited_nontrans_tables(
 	return((ibool) thd_non_transactional_update((THD*) thd));
 }
 
+/**********************************************************************
+Returns true if the thread is executing a SELECT statement. */
+extern "C"
+ibool
+thd_is_select(
+/*==========*/
+				/* out: true if thd is executing SELECT */
+	const void*	thd)	/* in: thread handle (THD*) */
+{
+	return(thd_sql_command((const THD*) thd) == SQLCOM_SELECT);
+}
+
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
 inline
@@ -6659,9 +6671,21 @@ ha_innobase::info(
 		stats.index_file_length = ((ulonglong)
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
-		stats.delete_length =
-			fsp_get_available_space_in_free_extents(
-				ib_table->space) * 1024;
+
+		/* Since fsp_get_available_space_in_free_extents() is
+		acquiring latches inside InnoDB, we do not call it if we
+		are asked by MySQL to avoid locking. Another reason to
+		avoid the call is that it uses quite a lot of CPU.
+		See Bug#38185.
+		We do not update delete_length if no locking is requested
+		so the "old" value can remain. delete_length is initialized
+		to 0 in the ha_statistics' constructor. */
+		if (!(flag & HA_STATUS_NO_LOCK)) {
+			stats.delete_length =
+				fsp_get_available_space_in_free_extents(
+					ib_table->space) * 1024;
+		}
+
 		stats.check_time = 0;
 
 		if (stats.records == 0) {
