@@ -17,6 +17,7 @@
 #include <NdbConfig.h>
 #include <NdbEnv.h>
 #include <NdbMem.h>
+#include <NdbHost.h>
 #include <basestring_vsnprintf.h>
 
 static const char *datadir_path= 0;
