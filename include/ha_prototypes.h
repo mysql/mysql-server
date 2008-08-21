@@ -63,5 +63,14 @@ thd_has_edited_nontrans_tables(
 			been edited */
 	void*	thd);	/* in: thread handle (THD*) */
 
+/**********************************************************************
+Returns true if the thread is executing a SELECT statement. */
+
+ibool
+thd_is_select(
+/*==========*/
+				/* out: true if thd is executing SELECT */
+	const void*	thd);	/* in: thread handle (THD*) */
+
 #endif
 #endif
