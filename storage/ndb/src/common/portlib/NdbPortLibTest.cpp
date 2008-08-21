@@ -53,7 +53,7 @@ extern "C"  void* thread1func(void* arg)
   if (arg1 != 7)
     fail("TEST1", "Wrong arg");
 
-  return returnvalue;
+  return (void*) returnvalue;
 }
 
 // test 2 variables and funcs
@@ -76,7 +76,7 @@ extern "C" void* test2func(void* arg)
     fail("TEST2", "Failed to unlock mutex");
 
   int returnvalue = arg1;
-  return returnvalue;
+  return (void*) returnvalue;
 }
 
 

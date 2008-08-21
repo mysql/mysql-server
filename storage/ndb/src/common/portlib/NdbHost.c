@@ -19,13 +19,15 @@
 
 int NdbHost_GetHostName(char* buf)
 {
-  if (gethostname(buf, MAXHOSTNAMELEN) != 0)
-  {     
-     return -1;
-   }
+  if(gethostname(buf, MAXHOSTNAMELEN))
+    return -1;
   return 0;
 }
 
+#ifdef NDB_WIN
+#include <process.h>
+#define getpid _getpid
+#endif
 int NdbHost_GetProcessId(void)
 {
   return getpid();
