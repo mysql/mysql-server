@@ -30,6 +30,7 @@ class FsOpenReq {
   friend class Ndbfs;         // Reciver
   friend class AsyncFile;     // Uses FsOpenReq to decode file open flags
   friend class PosixAsyncFile; // FIXME
+  friend class Win32AsyncFile; // FIXME
   friend class Filename;
   friend class VoidFs;
 

@@ -28,7 +28,7 @@
 #include <signaldata/FsReadWriteReq.hpp>
 
 Win32AsyncFile::Win32AsyncFile(SimulatedBlock& fs) :
-  hFile(INVALID_HANDLE_VALUE),
+  AsyncFile(fs),hFile(INVALID_HANDLE_VALUE)
 {
 }
 
@@ -110,17 +110,6 @@ Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
   DWORD dwSFP = SetFilePointer(hFile, offset, 0, FILE_BEGIN);
   if(dwSFP != offset) {
     return GetLastError();
-  }
-
-  off_t seek_val;
-  if(use_gz)
-  {
-    while((seek_val= azseek(&azf, offset, SEEK_SET)) == (off_t)-1
-          && errno == EINTR);
-    if(seek_val == (off_t)-1)
-    {
-      return errno;
-    }
   }
 
   int error;

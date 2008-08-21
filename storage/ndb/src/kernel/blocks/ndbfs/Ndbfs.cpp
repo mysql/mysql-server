@@ -17,7 +17,13 @@
 
 #include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
+
+#ifdef NDB_WIN
+#include "Win32AsyncFile.hpp"
+#else
 #include "PosixAsyncFile.hpp"
+#endif
+
 #include "Filename.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
@@ -668,7 +674,12 @@ Ndbfs::createAsyncFile(){
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
 
+#ifdef NDB_WIN
+  AsyncFile* file = new Win32AsyncFile(* this);
+#else
   AsyncFile* file = new PosixAsyncFile(* this);
+#endif
+
   file->doStart();
 
   // Put the file in list of all files
