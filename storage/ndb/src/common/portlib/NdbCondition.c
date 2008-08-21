@@ -20,7 +20,9 @@
 #include <NdbThread.h>
 #include <NdbMutex.h>
 #include <NdbMem.h>
-
+#ifdef NDB_WIN
+#include <my_pthread.h>
+#endif
 struct NdbCondition
 {
   pthread_cond_t cond;
@@ -135,7 +137,7 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
   
   if (p_cond == NULL || p_mutex == NULL)
     return 1;
-  
+#ifndef NDB_WIN
 #ifdef HAVE_CLOCK_GETTIME
   clock_gettime(clock_id, &abstime);
 #else
@@ -158,7 +160,9 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
     abstime.tv_sec  += 1;
     abstime.tv_nsec -= 1000000000;
   }
-    
+#else
+  set_timespec_nsec(abstime,msecs*1000000ULL);
+#endif
   result = pthread_cond_timedwait(&p_cond->cond, p_mutex, &abstime);
   
   return result;
