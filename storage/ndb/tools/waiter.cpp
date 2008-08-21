@@ -188,8 +188,10 @@ waitClusterStatus(const char* _addr,
 {
   int _startphase = -1;
 
+#ifndef NDB_WIN
   /* Ignore SIGPIPE */
   signal(SIGPIPE, SIG_IGN);
+#endif
 
   handle = ndb_mgm_create_handle();
   if (handle == NULL){
