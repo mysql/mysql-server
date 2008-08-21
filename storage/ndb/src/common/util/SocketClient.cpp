@@ -108,7 +108,6 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
   int r;
   bool use_timeout;
   SOCKOPT_OPTLEN_TYPE len;
-  int flags;
 
   if (!my_socket_valid(m_sockfd))
   {
