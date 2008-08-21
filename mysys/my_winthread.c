@@ -26,8 +26,6 @@
 #undef getpid
 #include <process.h>
 
-#include <Windows.h>
-
 static pthread_mutex_t THR_LOCK_thread;
 
 struct pthread_map
@@ -77,22 +75,18 @@ win_pthread_mutex_trylock(pthread_mutex_t *mutex)
 
 pthread_handler_t pstart(void *param);
 
-pthread_key(BOOL,detached);
+pthread_key_t detached;
 
 unsigned int __stdcall joinable_pstart(void*p)
 {
-  BOOL detached_=0;
-  pthread_key_create(&detached,0);
-  pthread_setspecific(detached,&detached_);
+  pthread_setspecific(detached,0);
 
   return (unsigned int)pstart(p);
 }
 
 void __cdecl detached_pstart(void*p)
 {
-  BOOL detached_=1;
-  pthread_key_create(&detached,0);
-  pthread_setspecific(detached,&detached_);
+  pthread_setspecific(detached,1);
 
   pstart(p);
 }
@@ -103,7 +97,7 @@ pthread_handler_t pstart(void *param)
   void *func_param=((struct pthread_map *) param)->param;
   my_thread_init();			/* Will always succeed in windows */
   pthread_mutex_lock(&THR_LOCK_thread);	  /* Wait for beginthread to return */
-  win_pthread_self=((struct pthread_map *) param)->pthreadself;
+  my_thread_var->pthread_self=((struct pthread_map *) param)->pthreadself;
   pthread_mutex_unlock(&THR_LOCK_thread);
   free((char*) param);			  /* Free param from create */
   pthread_exit((void*) (*func)(func_param));
@@ -129,6 +123,7 @@ int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
 #endif
   {
     unsigned ss=attr->dwStackSize ? attr->dwStackSize : 65535;
+    pthread_key_create(&detached,0);
     if (attr->detached)
      hThread=(HANDLE)_beginthread(BC_CAST detached_pstart,ss,(void*)map);
     else
@@ -152,9 +147,7 @@ int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
 
 void pthread_exit(void *a)
 {
-  BOOL *detachedval= (BOOL*)pthread_getspecific(detached);
-
-  if(*detachedval)
+  if(pthread_getspecific(detached))
     _endthread();
   else
     _endthreadex((unsigned)a);
@@ -162,16 +155,23 @@ void pthread_exit(void *a)
 
 int pthread_join(pthread_t thread, void **value_ptr)
 {
-  DWORD dw=0;
-  if(WaitForSingleObject(thread, INFINITE) == WAIT_OBJECT_0
-       && GetExitCodeThread(thread, &dw))
+  DWORD dw=0,
+  wfso=WaitForSingleObject(thread, INFINITE);
+  if(wfso == WAIT_OBJECT_0)
   {
-    if(value_ptr)*value_ptr=(void*)dw;
-    CloseHandle(thread);
-    return 0;
+    if(!GetExitCodeThread(thread, &dw))
+    {
+      DWORD e=GetLastError();
+      return -2;
+    }
+    else
+    {
+      if(value_ptr)*value_ptr=(void*)dw;
+      CloseHandle(thread);
+      return 0;
+    }
   }
   return -1;
 }
-
 
 #endif

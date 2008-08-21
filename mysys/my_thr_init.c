@@ -268,11 +268,7 @@ my_bool my_thread_init(void)
     goto end;
   }
   pthread_setspecific(THR_KEY_mysys,tmp);
-#if defined(__WIN__) && defined(EMBEDDED_LIBRARY)
-  tmp->pthread_self= (pthread_t) getpid();
-#else
   tmp->pthread_self= pthread_self();
-#endif
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
   tmp->init= 1;
