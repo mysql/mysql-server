@@ -185,7 +185,8 @@ Filename::set(Filename::NameSpec& spec,
   }
   else 
   {
-    snprintf(theName, sizeof(theName), "%s%s", spec.fs_path.c_str(), buf);
+    BaseString::snprintf(theName, sizeof(theName), "%s%s",
+                         spec.fs_path.c_str(), buf);
     m_base_name = theName + spec.fs_path.length();
   }
 }
