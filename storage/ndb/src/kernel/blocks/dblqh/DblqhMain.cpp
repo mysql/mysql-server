@@ -827,7 +827,11 @@ void Dblqh::startphase3Lab(Signal* signal)
 /* ***************<< */
   cinitialStartOngoing = ZTRUE;
   ndbrequire(cnoLogFiles != 0);
-
+  if ((cstartType == NodeState::ST_INITIAL_START) ||
+      (cstartType == NodeState::ST_INITIAL_NODE_RESTART)) {
+    reportStatus(signal); 
+  }
+  initReportStatus(signal);
   for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
@@ -1069,6 +1073,12 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     clogFileSize = (clogFileSize + 1024*1024 - 1) / (1024 * 1024);
     ndbrequire(clogFileSize >= 4 && clogFileSize <= 1024);
   }
+
+  m_startup_report_frequency = 0;
+  ndb_mgm_get_int_parameter(p,CFG_DB_STARTUP_REPORT_FREQUENCY,
+                            &m_startup_report_frequency);
+  totalLogFiles = 4 * cnoLogFiles;
+  totallogMBytes = totalLogFiles * clogFileSize;
 
   cmaxLogFilesInPageZero = (ZPAGE_SIZE - ZPAGE_HEADER_SIZE - 128) /
     (ZFD_MBYTE_SIZE * clogFileSize);
@@ -13093,6 +13103,7 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
     return;
   case LogFileRecord::CLOSING_INIT:
     jam();
+    logFileInitDone++ ;
     closingInitLab(signal);
     return;
   case LogFileRecord::CLOSING_SR:
@@ -13350,6 +13361,7 @@ void Dblqh::execFSWRITECONF(Signal* signal)
     return;
   case LogFileOperationRecord::INIT_FIRST_PAGE:
     jam();
+    logMBytesInitDone++;
     initFirstPageLab(signal);
     return;
   case LogFileOperationRecord::WRITE_GCI_ZERO:
@@ -13362,6 +13374,7 @@ void Dblqh::execFSWRITECONF(Signal* signal)
     return;
   case LogFileOperationRecord::WRITE_INIT_MBYTE:
     jam();
+    logMBytesInitDone++;
     writeInitMbyteLab(signal);
     return;
   case LogFileOperationRecord::ACTIVE_WRITE_LOG:
@@ -13996,6 +14009,7 @@ CHECK_LOG_PARTS_LOOP:
       signal->theData[1] = logPartPtr.i;
       sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
     }//for
+    logfileInitCompleteReport(signal);
     return;
   } else {
     jam();
@@ -14421,6 +14435,7 @@ void Dblqh::writeInitMbyte(Signal* signal)
   writeSinglePage(signal, logFilePtr.p->currentMbyte * ZPAGES_IN_MBYTE,
                   ZPAGE_SIZE - 1, __LINE__);
   lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_INIT_MBYTE;
+  checkReportStatus(signal);
 }//Dblqh::writeInitMbyte()
 
 /* ------------------------------------------------------------------------- */
@@ -19832,6 +19847,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     
     return;
   }
+  if (dumpState->args[0] == DumpStateOrd::LQHLogFileInitStatus){
+     reportStatus(signal);
+     return;
+  }
 
 #ifdef ERROR_INSERT
 #ifdef NDB_DEBUG_FULL
@@ -20424,6 +20443,53 @@ void Dblqh::writeDbgInfoPageHeader(LogPageRecordPtr logP, Uint32 place,
   logP.p->logPageWord[ZPOS_IN_WRITING]= 1;
 }
 
+void Dblqh::initReportStatus(Signal* signal){
+  struct timeval the_time;
+  gettimeofday(&the_time,0);
+  m_next_report_time = the_time.tv_sec + m_startup_report_frequency;
+}
+
+void Dblqh::checkReportStatus(Signal* signal){
+  if (m_startup_report_frequency == 0)
+    return;
+
+  struct timeval the_time;
+  gettimeofday(&the_time, 0);
+  if (the_time.tv_sec > m_next_report_time)
+  {
+    reportStatus(signal);
+    m_next_report_time = the_time.tv_sec + m_startup_report_frequency;
+  }
+}
+
+void Dblqh::reportStatus(Signal* signal){
+  const int signal_length = 6;
+
+  signal->theData[0] = NDB_LE_LogFileInitStatus;
+  signal->theData[1] = reference();
+  for (int i = 2; i < signal_length; i++)
+    signal->theData[i] = 0;
+  if (getNodeState().startLevel < NodeState::SL_STARTED){
+    signal->theData[2] = totalLogFiles;
+    signal->theData[3] = logFileInitDone;
+    signal->theData[4] = totallogMBytes;
+    signal->theData[5] = logMBytesInitDone;
+  }
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, signal_length, JBB);
+}
+
+void Dblqh::logfileInitCompleteReport(Signal* signal){
+  const int signal_length = 6;
+
+  signal->theData[0] = NDB_LE_LogFileInitCompStatus;
+  signal->theData[1] = reference();
+  signal->theData[2] = totalLogFiles;
+  signal->theData[3] = logFileInitDone;
+  signal->theData[4] = totallogMBytes;
+  signal->theData[5] = logMBytesInitDone;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, signal_length, JBB);
+}
+
 #if defined ERROR_INSERT
 void
 Dblqh::TRACE_OP_DUMP(const Dblqh::TcConnectionrec* regTcPtr, const char * pos)
@@ -20456,3 +20522,5 @@ Dblqh::TRACE_OP_DUMP(const Dblqh::TcConnectionrec* regTcPtr, const char * pos)
   (* traceopout) << endl;
 }
 #endif
+
+

@@ -64,6 +64,13 @@ void Dblqh::initData()
   m_backup_ptr = RNIL;
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
+
+   totalLogFiles = 0;
+   logFileInitDone = 0;
+   totallogMBytes = 0;
+   logMBytesInitDone = 0;
+   m_startup_report_frequency = 0;
+
   c_active_add_frag_ptr_i = RNIL;
 }//Dblqh::initData()
 
