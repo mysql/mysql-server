@@ -173,12 +173,5 @@ int pthread_join(pthread_t thread, void **value_ptr)
   return -1;
 }
 
-/* This is neaded to get the macro pthread_setspecific to work */
-
-int win_pthread_setspecific(void *a,void *b,uint length)
-{
-  memcpy(a,b,length);
-  return 0;
-}
 
 #endif
