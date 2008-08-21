@@ -16,28 +16,36 @@
 #ifndef _NDB_OPTS_H
 #define _NDB_OPTS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <ndb_global.h>
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
 #include <ndb_version.h>
-#include <ndb_opt_defaults.h>
+#include <ndbapi/ndb_opt_defaults.h>
 
-#define NDB_STD_OPTS_VARS \
-my_bool	opt_ndb_optimized_node_selection
+#ifdef OPTEXPORT
+#define OPT_EXTERN(T,V,I) T V I
+#else
+#define OPT_EXTERN(T,V,I) extern T V
+#endif
 
-int opt_ndb_nodeid;
-bool opt_endinfo= 0;
-my_bool opt_ndb_shm;
-my_bool opt_core;
-const char *opt_ndb_connectstring= 0;
-const char *opt_connect_str= 0;
-const char *opt_ndb_mgmd= 0;
-char opt_ndb_constrbuf[1024];
-unsigned opt_ndb_constrbuf_len= 0;
+#define NONE
+OPT_EXTERN(int,opt_ndb_nodeid,NONE);
+OPT_EXTERN(my_bool,opt_endinfo,=0);
+OPT_EXTERN(my_bool,opt_ndb_shm,NONE);
+OPT_EXTERN(my_bool,opt_core,NONE);
+OPT_EXTERN(my_bool,opt_ndb_optimized_node_selection,NONE);
+OPT_EXTERN(char *,opt_ndb_connectstring,=0);
+OPT_EXTERN(const char *,opt_connect_str,=0);
+OPT_EXTERN(const char *,opt_ndb_mgmd,=0);
+OPT_EXTERN(char,opt_ndb_constrbuf[1024],NONE);
+OPT_EXTERN(unsigned,opt_ndb_constrbuf_len,=0);
 
 #ifndef DBUG_OFF
-const char *opt_debug= 0;
+OPT_EXTERN(const char *,opt_debug,= 0);
 #endif
 
 #define OPT_NDB_CONNECTSTRING 'c'
@@ -98,11 +106,7 @@ const char *opt_debug= 0;
 #define NDB_STD_OPTS(prog_name) NDB_STD_OPTS_COMMON
 #endif
 
-static void ndb_std_print_version()
-{
-  printf("MySQL distrib %s, for %s (%s)\n",
-	 NDB_VERSION_STRING,SYSTEM_TYPE,MACHINE_TYPE);
-}
+void ndb_std_print_version();
 
 static void usage();
 
@@ -117,59 +121,19 @@ enum ndb_std_options {
   NDB_STD_OPTIONS_LAST /* should always be last in this enum */
 };
 
-static my_bool
+my_bool
 ndb_std_get_one_option(int optid,
 		       const struct my_option *opt __attribute__((unused)),
-		       char *argument)
-{
-  switch (optid) {
-#ifndef DBUG_OFF
-  case '#':
-    DBUG_SET_INITIAL(opt_debug ? opt_debug : "d:t");
-    opt_endinfo= 1;
-    break;
-#endif
-  case 'V':
-    ndb_std_print_version();
-    exit(0);
-  case '?':
-    usage();
-    exit(0);
-  case OPT_NDB_SHM:
-    if (opt_ndb_shm)
-    {
-#ifndef NDB_SHM_TRANSPORTER
-      printf("Warning: binary not compiled with shared memory support,\n"
-	     "Tcp connections will now be used instead\n");
-      opt_ndb_shm= 0;
-#endif
-    }
-    break;
-  case OPT_NDB_MGMD:
-  case OPT_NDB_NODEID:
-  {
-    int len= my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-			 sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-			 "%s%s%s",opt_ndb_constrbuf_len > 0 ? ",":"",
-			 optid == OPT_NDB_NODEID ? "nodeid=" : "",
-			 argument);
-    opt_ndb_constrbuf_len+= len;
-  }
-  /* fall through to add the connectstring to the end
-   * and set opt_ndbcluster_connectstring
-   */
-  case OPT_NDB_CONNECTSTRING:
-    if (opt_ndb_connectstring && opt_ndb_connectstring[0])
-      my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-		  sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-		  "%s%s", opt_ndb_constrbuf_len > 0 ? ",":"",
-		  opt_ndb_connectstring);
-    else
-      opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
-    opt_connect_str= opt_ndb_constrbuf;
-    break;
-  }
-  return 0;
-}
+                       char *argument);
 
+void ndb_usage();
+void ndb_short_usage_sub();
+#ifdef PROVIDE_USAGE
+inline void usage(){ndb_usage();}
+inline void short_usage_sub(){ndb_short_usage_sub();}
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 #endif /*_NDB_OPTS_H */
