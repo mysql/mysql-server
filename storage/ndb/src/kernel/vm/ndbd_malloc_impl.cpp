@@ -19,6 +19,13 @@
 #include <ndb_global.h>
 #include <EventLogger.hpp>
 
+#ifdef NDB_WIN
+void *sbrk(int increment)
+{
+  return (void*)-1;
+}
+#endif
+
 extern EventLogger * g_eventLogger;
 
 static int f_method_idx = 0;
