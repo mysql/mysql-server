@@ -151,7 +151,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
 
   NDB_TICKS now = NdbTick_CurrentMillisecond();
   NDB_TICKS stop = now + timeOutMillis;
-  Uint32 wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
+  NDB_TICKS wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
   do {
     NdbCondition_WaitTimeout(m_cond,
 			     theFacade->theMutexPtr, 
@@ -224,7 +224,7 @@ SignalSender::waitFor(Uint16 nodeId, Uint32 timeOutMillis){
 void
 SignalSender::execSignal(void* signalSender, 
 			 NdbApiSignal* signal, 
-			 class LinearSectionPtr ptr[3]){
+			 struct LinearSectionPtr ptr[3]){
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
   memcpy(&s->theData[0], signal->getDataPtr(), 4 * s->header.theLength);

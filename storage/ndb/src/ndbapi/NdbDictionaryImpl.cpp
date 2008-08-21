@@ -1916,7 +1916,7 @@ NdbDictInterface::~NdbDictInterface()
 void 
 NdbDictInterface::execSignal(void* dictImpl, 
 			     class NdbApiSignal* signal, 
-			     class LinearSectionPtr ptr[3])
+			     struct LinearSectionPtr ptr[3])
 {
   NdbDictInterface * tmp = (NdbDictInterface*)dictImpl;
   

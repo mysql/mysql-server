@@ -26,8 +26,8 @@ extern NdbMutex *g_ndb_connection_mutex;
 
 class TransporterFacade;
 class ConfigRetriever;
-class NdbThread;
-class ndb_mgm_configuration;
+struct NdbThread;
+struct ndb_mgm_configuration;
 class Ndb;
 
 extern "C" {

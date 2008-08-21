@@ -281,7 +281,7 @@ void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
 #include <rtcapi.h>
 
 /* Turn off runtime checks for 'handle_rtc_failure' */
-#pragma runtime_checks("", off)
+#pragma runtime_checks("", restore)
 
 /*
   handle_rtc_failure

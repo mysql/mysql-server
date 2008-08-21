@@ -20,7 +20,7 @@
 #include <NdbMutex.h>
 
 template<class T>
-struct Vector {
+class Vector {
 public:
   Vector(int sz = 10);
   ~Vector();
@@ -215,7 +215,8 @@ Vector<T>::equal(const Vector<T>& obj) const
 }
 
 template<class T>
-struct MutexVector : public NdbLockable {
+class MutexVector : public NdbLockable {
+public:
   MutexVector(int sz = 10);
   ~MutexVector();
 

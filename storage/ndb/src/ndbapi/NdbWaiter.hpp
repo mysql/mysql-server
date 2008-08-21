@@ -51,7 +51,7 @@ public:
   NdbWaiter();
   ~NdbWaiter();
 
-  void wait(int waitTime);
+  void wait(NDB_TICKS waitTime);
   void nodeFail(Uint32 node);
   void signal(Uint32 state);
   void cond_signal();
@@ -72,10 +72,10 @@ public:
 
 inline
 void
-NdbWaiter::wait(int waitTime)
+NdbWaiter::wait(NDB_TICKS waitTime)
 {
   assert(!m_poll_owner);
-  NdbCondition_WaitTimeout(m_condition, m_mutex, waitTime);
+  NdbCondition_WaitTimeout(m_condition, m_mutex, (int)waitTime);
 }
 
 inline
