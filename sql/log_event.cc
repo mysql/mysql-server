@@ -1910,14 +1910,17 @@ void Log_event::print_base64(IO_CACHE* file,
     DBUG_ASSERT(0);
   }
 
-  if (my_b_tell(file) == 0)
-    my_b_printf(file, "\nBINLOG '\n");
+  if (print_event_info->base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
+  {
+    if (my_b_tell(file) == 0)
+      my_b_printf(file, "\nBINLOG '\n");
 
-  my_b_printf(file, "%s\n", tmp_str);
+    my_b_printf(file, "%s\n", tmp_str);
 
-  if (!more)
-    my_b_printf(file, "'%s\n", print_event_info->delimiter);
-
+    if (!more)
+      my_b_printf(file, "'%s\n", print_event_info->delimiter);
+  }
+  
   if (print_event_info->verbose)
   {
     Rows_log_event *ev= NULL;
@@ -3249,7 +3252,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       print_event_info->base64_output_mode != BASE64_OUTPUT_NEVER &&
       !print_event_info->short_form)
   {
-    my_b_printf(&cache, "BINLOG '\n");
+    if (print_event_info->base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
+      my_b_printf(&cache, "BINLOG '\n");
     print_base64(&cache, print_event_info, FALSE);
     print_event_info->printed_fd_event= TRUE;
   }
