@@ -24,8 +24,6 @@
 #include <my_getopt.h>
 #include <mysql_version.h>
 
-#include <netdb.h>
-
 #include <NdbOut.hpp>
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
