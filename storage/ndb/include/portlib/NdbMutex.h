@@ -28,11 +28,11 @@ extern "C" {
 #endif
 
 #if defined NDB_WIN32
-typedef CRITICAL_SECTION NdbMutex;
+#include <my_pthread.h>
 #else
 #include <pthread.h>
-typedef pthread_mutex_t NdbMutex;
 #endif
+typedef pthread_mutex_t NdbMutex;
 
 /**
  * Create a mutex
