@@ -130,10 +130,6 @@ DELIMITER /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v 5.1.28-debug-log created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
-BINLOG '
-AMqaOw8BAAAAZgAAAGoAAAAAAAQANS4xLjI4LWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAypo7EzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
-'/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 use test/*!*/;
@@ -166,14 +162,8 @@ BEGIN
 /*!*/;
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number 0
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id 0 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAPYBAAAAAAAAAAAAAAAABHRlc3QAAnQxAAIDDwIUAAM=
-AMqaOxcBAAAASgAAAEACAAAQAAAAAAAAAAEAAv/8AQAAAAl2YXJjaGFyLTH8AgAAAAl2YXJjaGFy
-LTL8AwAAAAl2YXJjaGFyLTM=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -188,15 +178,8 @@ LTL8AwAAAAl2YXJjaGFyLTM=
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number 0
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id 0 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAGwCAAAAAAAAAAAAAAAABHRlc3QAAnQxAAIDDwIUAAM=
-AMqaOxgBAAAAeAAAAOQCAAAQAAAAAAAAAAEAAv///AEAAAAJdmFyY2hhci0x/AsAAAAJdmFyY2hh
-ci0x/AIAAAAJdmFyY2hhci0y/AwAAAAJdmFyY2hhci0y/AMAAAAJdmFyY2hhci0z/A0AAAAJdmFy
-Y2hhci0z
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -220,13 +203,8 @@ Y2hhci0z
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number 0
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id 0 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAABADAAAAAAAAAAAAAAAABHRlc3QAAnQxAAIDDwIUAAM=
-AMqaOxkBAAAALAAAADwDAAAQAAAAAAAAAAEAAv/8DAAAAAl2YXJjaGFyLTI=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
 ###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
@@ -267,14 +245,8 @@ BEGIN
 /*!*/;
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number 0
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id 0 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAACUFAAAAAAAAAAAAAAAABHRlc3QAAnQxAAIDDwIUAAM=
-AMqaOxcBAAAASgAAAG8FAAAQAAAAAAAAAAEAAv/8AQAAAAl2YXJjaGFyLTH8AgAAAAl2YXJjaGFy
-LTL8AwAAAAl2YXJjaGFyLTM=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -289,15 +261,8 @@ LTL8AwAAAAl2YXJjaGFyLTM=
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number 0
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id 0 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAJsFAAAAAAAAAAAAAAAABHRlc3QAAnQxAAIDDwIUAAM=
-AMqaOxgBAAAAeAAAABMGAAAQAAAAAAAAAAEAAv///AEAAAAJdmFyY2hhci0x/AsAAAAJdmFyY2hh
-ci0x/AIAAAAJdmFyY2hhci0y/AwAAAAJdmFyY2hhci0y/AMAAAAJdmFyY2hhci0z/A0AAAAJdmFy
-Y2hhci0z
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -321,27 +286,16 @@ Y2hhci0z
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number 0
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id 0 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAD8GAAAAAAAAAAAAAAAABHRlc3QAAnQxAAIDDwIUAAM=
-AMqaOxkBAAAALAAAAGsGAAAQAAAAAAAAAAEAAv/8DAAAAAl2YXJjaGFyLTI=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
 ###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number 1
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id 1 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAJcGAAAAAAEAAAAAAAAABHRlc3QAAnQyAAIDDwIUAAM=
-AMqaOxcBAAAASgAAAOEGAAAQAAEAAAAAAAEAAv/8AQAAAAl2YXJjaGFyLTH8AgAAAAl2YXJjaGFy
-LTL8AwAAAAl2YXJjaGFyLTM=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t2
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -356,15 +310,8 @@ LTL8AwAAAAl2YXJjaGFyLTM=
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number 1
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id 1 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAA0HAAAAAAEAAAAAAAAABHRlc3QAAnQyAAIDDwIUAAM=
-AMqaOxgBAAAAeAAAAIUHAAAQAAEAAAAAAAEAAv///AEAAAAJdmFyY2hhci0x/AsAAAAJdmFyY2hh
-ci0x/AIAAAAJdmFyY2hhci0y/AwAAAAJdmFyY2hhci0y/AMAAAAJdmFyY2hhci0z/A0AAAAJdmFy
-Y2hhci0z
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t2
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -388,13 +335,8 @@ Y2hhci0z
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number 1
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id 1 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAALEHAAAAAAEAAAAAAAAABHRlc3QAAnQyAAIDDwIUAAM=
-AMqaOxkBAAAALAAAAN0HAAAQAAEAAAAAAAEAAv/8DAAAAAl2YXJjaGFyLTI=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t2
 ### WHERE
 ###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
@@ -427,14 +369,8 @@ BEGIN
 /*!*/;
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number 0
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id 0 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAGcJAAAAAAAAAAAAAAAABHRlc3QAAnQxAAIDDwIUAAM=
-AMqaOxcBAAAASgAAALEJAAAQAAAAAAAAAAEAAv/8AQAAAAl2YXJjaGFyLTH8AgAAAAl2YXJjaGFy
-LTL8AwAAAAl2YXJjaGFyLTM=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -449,15 +385,8 @@ LTL8AwAAAAl2YXJjaGFyLTM=
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number 0
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id 0 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAN0JAAAAAAAAAAAAAAAABHRlc3QAAnQxAAIDDwIUAAM=
-AMqaOxgBAAAAeAAAAFUKAAAQAAAAAAAAAAEAAv///AEAAAAJdmFyY2hhci0x/AsAAAAJdmFyY2hh
-ci0x/AIAAAAJdmFyY2hhci0y/AwAAAAJdmFyY2hhci0y/AMAAAAJdmFyY2hhci0z/A0AAAAJdmFy
-Y2hhci0z
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -481,27 +410,16 @@ Y2hhci0z
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number 0
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id 0 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAIEKAAAAAAAAAAAAAAAABHRlc3QAAnQxAAIDDwIUAAM=
-AMqaOxkBAAAALAAAAK0KAAAQAAAAAAAAAAEAAv/8DAAAAAl2YXJjaGFyLTI=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
 ###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number 2
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id 2 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAANkKAAAAAAIAAAAAAAAABHRlc3QAAnQyAAIDDwIUAAM=
-AMqaOxcBAAAASgAAACMLAAAQAAIAAAAAAAEAAv/8AQAAAAl2YXJjaGFyLTH8AgAAAAl2YXJjaGFy
-LTL8AwAAAAl2YXJjaGFyLTM=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t2
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -516,15 +434,8 @@ LTL8AwAAAAl2YXJjaGFyLTM=
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number 2
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id 2 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAE8LAAAAAAIAAAAAAAAABHRlc3QAAnQyAAIDDwIUAAM=
-AMqaOxgBAAAAeAAAAMcLAAAQAAIAAAAAAAEAAv///AEAAAAJdmFyY2hhci0x/AsAAAAJdmFyY2hh
-ci0x/AIAAAAJdmFyY2hhci0y/AwAAAAJdmFyY2hhci0y/AMAAAAJdmFyY2hhci0z/A0AAAAJdmFy
-Y2hhci0z
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t2
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -548,13 +459,8 @@ Y2hhci0z
 ###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
 # at #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number 2
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id 2 flags: STMT_END_F
-
-BINLOG '
-AMqaOxMBAAAALAAAAPMLAAAAAAIAAAAAAAAABHRlc3QAAnQyAAIDDwIUAAM=
-AMqaOxkBAAAALAAAAB8MAAAQAAIAAAAAAAEAAv/8DAAAAAl2YXJjaGFyLTI=
-'/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t2
 ### WHERE
 ###   @1=12 /* INT meta=0 nullable=1 is_null=0 */

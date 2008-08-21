@@ -3720,13 +3720,6 @@ void assign_new_table_id(TABLE_SHARE *share)
   DBUG_VOID_RETURN;
 }
 
-void reset_table_id_sequence()
-{
-  pthread_mutex_lock(&LOCK_open);
-  last_table_id= ~0UL;
-  pthread_mutex_unlock(&LOCK_open);
-}
-
 /**
   Compare metadata versions of an element obtained from the table
   definition cache and its corresponding node in the parse tree.

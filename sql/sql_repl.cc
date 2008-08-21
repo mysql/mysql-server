@@ -1285,16 +1285,13 @@ bool change_master(THD* thd, Master_info* mi)
 
 int reset_master(THD* thd)
 {
-  int rc;
   if (!mysql_bin_log.is_open())
   {
     my_message(ER_FLUSH_MASTER_BINLOG_CLOSED,
                ER(ER_FLUSH_MASTER_BINLOG_CLOSED), MYF(ME_BELL+ME_WAITTANG));
     return 1;
   }
-  if (!(rc= mysql_bin_log.reset_logs(thd)))
-    reset_table_id_sequence();
-  return rc;
+  return mysql_bin_log.reset_logs(thd);
 }
 
 int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
