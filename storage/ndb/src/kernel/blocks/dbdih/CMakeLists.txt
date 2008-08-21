@@ -27,5 +27,5 @@ ADD_LIBRARY(ndbdbdih STATIC
             DbdihMain.cpp)
 
 ADD_EXECUTABLE(ndbd_sysfile_reader
-               printSysfile/printSysfile.cpp)
+               printSysfile.cpp)
 TARGET_LINK_LIBRARIES(ndbd_sysfile_reader dbug mysys strings)
