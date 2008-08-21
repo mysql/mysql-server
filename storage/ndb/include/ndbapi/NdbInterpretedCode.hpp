@@ -471,7 +471,7 @@ public:
    * This method returns the most recent error associated
    * with this NdbInterpretedCode object.
    */
-  const class NdbError & getNdbError() const;
+  const struct NdbError & getNdbError() const;
 
 
   /**

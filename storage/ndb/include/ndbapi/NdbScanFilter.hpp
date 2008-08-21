@@ -211,7 +211,7 @@ public:
    * to any involved NdbOperation object.  This method gives access
    * to error information.
    */
-  const class NdbError & getNdbError() const;
+  const struct NdbError & getNdbError() const;
 
   /**
    * Get filter's associated InterpretedCode object.  For
