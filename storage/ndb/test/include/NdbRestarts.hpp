@@ -43,7 +43,7 @@ public:
   NdbRestarts(const char* _addr = 0): 
     m_restarter(_addr)
   {
-    myRandom48Init(NdbTick_CurrentMillisecond());
+    myRandom48Init((long)NdbTick_CurrentMillisecond());
   }
 
   enum NdbRestartType{

@@ -57,8 +57,8 @@ private:
   Uint32 m_pos;
   Uint32 m_len;
   class SectionSegmentPool & m_pool;
-  class SectionSegment * m_head;
-  class SectionSegment * m_currentSegment;
+  struct SectionSegment * m_head;
+  struct SectionSegment * m_currentSegment;
 };
 
 inline

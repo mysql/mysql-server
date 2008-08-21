@@ -176,7 +176,7 @@ void
 FastScheduler::reportJob(Priority aPriority)
 {
   Uint32 tJobCounter = globalData.JobCounter;
-  Uint32 tJobLap = globalData.JobLap;
+  Uint64 tJobLap = globalData.JobLap;
   theJobPriority[tJobCounter] = (Uint8)aPriority;
   globalData.JobCounter = (tJobCounter + 1) & 4095;
   globalData.JobLap = tJobLap + 1;
