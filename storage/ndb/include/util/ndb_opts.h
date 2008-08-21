@@ -129,7 +129,7 @@ ndb_std_get_one_option(int optid,
 
 void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
                struct my_option *my_long_options);
-void ndb_short_usage_sub(const char* my_progname, char* extra);
+void ndb_short_usage_sub(const char* my_progname, const char* extra);
 
 
 #ifdef __cplusplus

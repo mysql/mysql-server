@@ -1473,7 +1473,9 @@ Ndb_mgmd_event_service::check_listeners()
 
     SocketOutputStream out(m_clients[i].m_socket);
 
-    DBUG_PRINT("info",("%d %d",i,m_clients[i].m_socket));
+    DBUG_PRINT("info",("%d " MY_SOCKET_FORMAT,
+                       i,
+                       MY_SOCKET_FORMAT_VALUE(m_clients[i].m_socket)));
 
     if(out.println("<PING>") < 0)
     {
