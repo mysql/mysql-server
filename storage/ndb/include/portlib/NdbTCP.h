@@ -51,7 +51,6 @@ int NDB_CLOSE_SOCKET(my_socket fd);
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);
 
-int setsocknonblock(int socket);
 #ifdef NDB_WIN
 #define NONBLOCKERR(E) (E!=SOCKET_EAGAIN && E!=SOCKET_EWOULDBLOCK)
 #else
