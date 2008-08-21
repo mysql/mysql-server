@@ -213,8 +213,8 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
     
     if(handler == NULL)
     {
-      snprintf(errStr,len,"Could not create log destination: %s",
-               logdest[i].c_str());
+      BaseString::snprintf(errStr,len,"Could not create log destination: %s",
+                           logdest[i].c_str());
       DBUG_RETURN(false);
     }
     if(!handler->parseParams(params))
