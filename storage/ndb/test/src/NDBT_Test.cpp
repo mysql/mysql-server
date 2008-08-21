@@ -17,6 +17,7 @@
 //#define NDB_OPTS_SKIP_USAGE
 #include <ndb_opts.h>
 #include <my_pthread.h>
+#include <ndb_rand.h>
 
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
