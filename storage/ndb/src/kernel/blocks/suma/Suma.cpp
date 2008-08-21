@@ -477,7 +477,7 @@ Suma::createSequenceReply(Signal* signal,
       case UtilSequenceRef::TCError:
       {
         char buf[128];
-        snprintf(buf, sizeof(buf),
+        BaseString::snprintf(buf, sizeof(buf),
                  "Startup failed during sequence creation. TC error %d",
                  ref->TCErrorCode);
         progError(__LINE__, NDBD_EXIT_RESOURCE_ALLOC_ERROR, buf);
