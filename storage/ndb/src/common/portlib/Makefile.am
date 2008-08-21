@@ -18,7 +18,7 @@ EXTRA_DIST = CMakeLists.txt win32/NdbTick.c
 noinst_LTLIBRARIES = libportlib.la
 
 libportlib_la_SOURCES = \
-	NdbCondition.c NdbMutex.c NdbTick.c NdbSleep.c \
+	NdbCondition.c NdbMutex.c NdbTick.c \
 	NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp	    \
 	NdbDaemon.c NdbMem.c \
 	NdbConfig.c
