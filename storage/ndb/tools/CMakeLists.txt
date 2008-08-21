@@ -43,7 +43,7 @@ ADD_EXECUTABLE(ndb_restore
                restore/consumer_restore.cpp
                restore/consumer_printer.cpp
                restore/Restore.cpp)
-TARGET_LINK_LIBRARIES(ndb_restore ndbbackup ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_restore ndbbackup ndbNDBT ndbgeneral)
 ADD_EXECUTABLE(ndb_config ndb_config.cpp)
 TARGET_LINK_LIBRARIES(ndb_config ndbmgmclient ndbconf)
 
