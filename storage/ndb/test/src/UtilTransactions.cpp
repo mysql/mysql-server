@@ -896,8 +896,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
 #endif
       for(a = 0; a<(int)pIndex->getNoOfColumns(); a++){
 	const NdbDictionary::Column *  col = pIndex->getColumn(a);
-	
-	int r;
+
 	if ( !row.attributeStore(col->getName())->isNULL() ) {
 	  if(pIOp->equal(col->getName(), 
 			 row.attributeStore(col->getName())->aRef()) != 0){
@@ -1200,7 +1199,7 @@ int
 UtilTransactions::equal(const NdbDictionary::Table* pTable, 
 			NdbOperation* op, const NDBT_ResultRow& src)
 {
-  for(Uint32 a = 0; a<tab.getNoOfColumns(); a++){
+  for(int a = 0; a<tab.getNoOfColumns(); a++){
     const NdbDictionary::Column* attr = tab.getColumn(a);
     if (attr->getPrimaryKey() == true){
       if (op->equal(attr->getName(), src.attributeStore(a)->aRef()) != 0){

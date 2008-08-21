@@ -220,7 +220,6 @@ int HugoOperations::pkWriteRecord(Ndb* pNdb,
 				  int recordNo,
 				  int numRecords,
 				  int updatesValue){
-  
   int a, check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = pTrans->getNdbOperation(tab.getName());	

@@ -356,7 +356,7 @@ const NdbRestarts::NdbErrorInsert* NdbRestarts::getRandomError(){
 int restartRandomNodeGraceful(NdbRestarter& _restarter, 
 			      const NdbRestarts::NdbRestart* _restart){
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
   int nodeId = _restarter.getDbNodeId(randomId);
   
@@ -371,7 +371,7 @@ int restartRandomNodeGraceful(NdbRestarter& _restarter,
 int restartRandomNodeAbort(NdbRestarter& _restarter, 
 			      const NdbRestarts::NdbRestart* _restart){
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
   int nodeId = _restarter.getDbNodeId(randomId);
   
@@ -386,7 +386,7 @@ int restartRandomNodeAbort(NdbRestarter& _restarter,
 int restartRandomNodeError(NdbRestarter& _restarter, 
 			   const NdbRestarts::NdbRestart* _restart){
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
   int nodeId = _restarter.getDbNodeId(randomId);
   
@@ -414,7 +414,7 @@ int restartMasterNodeError(NdbRestarter& _restarter,
 int restartRandomNodeInitial(NdbRestarter& _restarter, 
 			     const NdbRestarts::NdbRestart* _restart){
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
   int nodeId = _restarter.getDbNodeId(randomId);
   
@@ -429,7 +429,7 @@ int restartRandomNodeInitial(NdbRestarter& _restarter,
 int twoNodeFailure(NdbRestarter& _restarter, 
 		   const NdbRestarts::NdbRestart* _restart){
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
   int nodeId = _restarter.getDbNodeId(randomId);  
   g_info << _restart->m_name << ": node = "<< nodeId << endl;
@@ -626,7 +626,7 @@ NFDuringNR_codes[] = {
 int restartNFDuringNR(NdbRestarter& _restarter, 
 			   const NdbRestarts::NdbRestart* _restart){
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   int i;
   const int sz = sizeof(NFDuringNR_codes)/sizeof(NFDuringNR_codes[0]);
   for(i = 0; i<sz; i++){
@@ -842,7 +842,7 @@ int restartNodeDuringLCP(NdbRestarter& _restarter,
 int stopOnError(NdbRestarter& _restarter, 
 		const NdbRestarts::NdbRestart* _restart){
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
   int randomId = myRandom48(_restarter.getNumDbNodes());
   int nodeId = _restarter.getDbNodeId(randomId);
@@ -868,7 +868,7 @@ int stopOnError(NdbRestarter& _restarter,
 }
 
 int getRandomNodeId(NdbRestarter& _restarter) {
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
   int nodeId = _restarter.getDbNodeId(randomId);
 
