@@ -41,7 +41,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c my_wincond.c
 				my_windac.c my_winthread.c my_write.c ptr_cmp.c queues.c
 				rijndael.c safemalloc.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
-				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c)
+				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c my_times.c)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(mysys ${MYSYS_SOURCES})
