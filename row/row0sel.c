@@ -32,6 +32,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "read0read.h"
 #include "buf0lru.h"
+#include "ha_prototypes.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -3699,19 +3700,11 @@ shortcut_fails_too_big_rec:
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
 	    && trx->mysql_thd != NULL
-	    && trx->mysql_query_str != NULL
-	    && *trx->mysql_query_str != NULL) {
+	    && thd_is_select(trx->mysql_thd)) {
+		/* It is a plain locking SELECT and the isolation
+		level is low: do not lock gaps */
 
-		/* Scan the MySQL query string; check if SELECT is the first
-		word there */
-
-		if (dict_str_starts_with_keyword(
-			    trx->mysql_thd, *trx->mysql_query_str, "SELECT")) {
-			/* It is a plain locking SELECT and the isolation
-			level is low: do not lock gaps */
-
-			set_also_gap_locks = FALSE;
-		}
+		set_also_gap_locks = FALSE;
 	}
 
 	/* Note that if the search mode was GE or G, then the cursor
