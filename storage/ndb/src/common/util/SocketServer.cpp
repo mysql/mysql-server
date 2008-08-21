@@ -320,8 +320,8 @@ SocketServer::checkSessionsImpl()
 {
   for(int i = m_sessions.size() - 1; i >= 0; i--)
   {
-    if(m_sessions[i].m_session->m_stopped and
-       m_sessions[i].m_session->m_refCount == 0)
+    if(m_sessions[i].m_session->m_stopped &&
+       (m_sessions[i].m_session->m_refCount == 0))
     {
       if(m_sessions[i].m_thread != 0)
       {
