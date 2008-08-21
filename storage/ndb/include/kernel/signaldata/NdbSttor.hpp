@@ -36,7 +36,6 @@ class NdbSttor {
   friend class Trix;
   friend class Backup;
   friend class Suma;
-  friend class Grep;
   friend class LocalProxy;
 
   friend bool printNDB_STTOR(FILE *, const Uint32 *, Uint32, Uint16);
@@ -72,7 +71,6 @@ class NdbSttorry {
   friend class Trix;
   friend class Backup;
   friend class Suma;
-  friend class Grep;
   friend class LocalProxy;
 
   friend bool printNDB_STTORRY(FILE *, const Uint32 *, Uint32, Uint16);

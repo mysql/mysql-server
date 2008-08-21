@@ -24,7 +24,6 @@ struct SubCreateReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Grep;
   friend struct SumaParticipant;
   
   friend bool printSUB_CREATE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
@@ -56,7 +55,6 @@ struct SubCreateRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Grep;
   friend struct SumaParticipant;
   
   friend bool printSUB_CREATE_REF(FILE *, const Uint32 *, Uint32, Uint16);

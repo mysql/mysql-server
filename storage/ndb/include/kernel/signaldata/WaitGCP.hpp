@@ -36,7 +36,6 @@ class WaitGCPReq {
   friend class Ndbcntr;
   friend class Dbdict;
   friend class Backup;
-  //friend class Grep::PSCoord;
 
 public:
   STATIC_CONST( SignalLength = 3 );
@@ -68,7 +67,6 @@ class WaitGCPConf {
   friend class Ndbcntr;
   friend class Dbdict;
   friend class Backup;
-  //friend class Grep::PSCoord;
 
 public:
   STATIC_CONST( SignalLength = 3 );
@@ -92,7 +90,6 @@ class WaitGCPRef {
   friend class Ndbcntr;
   friend class Dbdict;
   friend class Backup;
-  friend class Grep;
 
 public:
   STATIC_CONST( SignalLength = 2 );
