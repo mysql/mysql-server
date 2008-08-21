@@ -1137,12 +1137,12 @@ Restore::reorder_key(const KeyDescriptor* desc,
       src += sz;
       break;
     case NDB_ARRAYTYPE_SHORT_VAR:
-      sz = (1 + ((char*)var)[0] + 3) >> 2;
+      sz = (1 + ((Uint8*)var)[0] + 3) >> 2;
       memcpy(dst, var, 4 * sz);
       var += sz;
       break;
     case NDB_ARRAYTYPE_MEDIUM_VAR:
-      sz = (2 + ((char*)var)[0] +  256*((char*)var)[1] + 3) >> 2;
+      sz = (2 + ((Uint8*)var)[0] +  256*((Uint8*)var)[1] + 3) >> 2;
       memcpy(dst, var, 4 * sz);
       var += sz;
       break;
