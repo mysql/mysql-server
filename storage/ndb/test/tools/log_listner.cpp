@@ -3,8 +3,6 @@
 #include <ndb_opts.h>
 #include <NDBT.hpp>
 
-NDB_STD_OPTS_VARS;
-
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_logevent_listen"),
