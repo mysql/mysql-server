@@ -35,8 +35,8 @@
 #include "Undo_buffer.hpp"
 #include "tuppage.hpp"
 #include <DynArr256.hpp>
-#include <../pgman.hpp>
-#include <../tsman.hpp>
+#include "../pgman.hpp"
+#include "../tsman.hpp"
 
 // jams
 #undef jam
