@@ -184,6 +184,7 @@ int pthread_attr_init(pthread_attr_t *connect_att)
   connect_att->dwStackSize	= 0;
   connect_att->dwCreatingFlag	= 0;
   connect_att->priority		= 0;
+  connect_att->detached         = 0;
   return 0;
 }
 
