@@ -125,7 +125,6 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
 
 #define CHECK_HANDLE(handle, ret) \
   if(handle == 0) { \
-    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_HANDLE, ""); \
     return ret; \
   } 
 
