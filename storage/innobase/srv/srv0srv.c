@@ -1825,8 +1825,10 @@ srv_export_innodb_status(void)
 		= UT_LIST_GET_LEN(buf_pool->flush_list);
 	export_vars.innodb_buffer_pool_pages_free
 		= UT_LIST_GET_LEN(buf_pool->free);
+#ifdef UNIV_DEBUG
 	export_vars.innodb_buffer_pool_pages_latched
 		= buf_get_latched_pages_number();
+#endif /* UNIV_DEBUG */
 	export_vars.innodb_buffer_pool_pages_total = buf_pool->curr_size;
 
 	export_vars.innodb_buffer_pool_pages_misc = buf_pool->max_size
