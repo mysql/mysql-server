@@ -643,7 +643,7 @@ thd_has_edited_nontrans_tables(
 
 /**********************************************************************
 Returns true if the thread is executing a SELECT statement. */
-extern "C"
+extern "C" UNIV_INTERN
 ibool
 thd_is_select(
 /*==========*/
