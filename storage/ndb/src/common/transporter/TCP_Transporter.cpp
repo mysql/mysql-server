@@ -193,7 +193,9 @@ TCP_Transporter::pre_connect_options(NDB_SOCKET_TYPE sockfd)
 {
   if (sockOptTcpMaxSeg)
   {
+#ifdef TCP_MAXSEG
     set_get(sockfd, IPPROTO_TCP, TCP_MAXSEG, "TCP_MAXSEG", sockOptTcpMaxSeg);
+#endif
   }
   return 0;
 }
@@ -208,7 +210,9 @@ TCP_Transporter::setSocketOptions(NDB_SOCKET_TYPE socket)
 
   if (sockOptTcpMaxSeg)
   {
+#ifdef TCP_MAXSEG
     set_get(socket, IPPROTO_TCP, TCP_MAXSEG, "TCP_MAXSEG", sockOptTcpMaxSeg);
+#endif
   }
 }
 
