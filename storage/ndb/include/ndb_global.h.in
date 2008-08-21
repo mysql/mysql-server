@@ -29,8 +29,6 @@
 #define DIR_SEPARATOR "\\"
 #define MYSQLCLUSTERDIR "c:\\mysql\\mysql-cluster"
 #define HAVE_STRCASECMP
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
 #pragma warning(disable: 4503 4786)
 #else
 #undef NDB_WIN32
