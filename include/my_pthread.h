@@ -176,8 +176,6 @@ static inline int pthread_mutex_destroy(pthread_mutex_t *mutex)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
 #define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 
-#define pthread_join(A,B) (WaitForSingleObject((A), INFINITE) != WAIT_OBJECT_0)
-
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define my_pthread_attr_setprio(A,B) pthread_attr_setprio(A,B)
