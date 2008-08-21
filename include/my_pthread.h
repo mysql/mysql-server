@@ -160,8 +160,19 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
 #define pthread_mutex_trylock(A) win_pthread_mutex_trylock((A))
-#define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
-#define pthread_mutex_destroy(A) DeleteCriticalSection(A)
+
+static inline int pthread_mutex_unlock(pthread_mutex_t *mutex)
+{
+  LeaveCriticalSection(mutex);
+  return 0;
+}
+
+static inline int pthread_mutex_destroy(pthread_mutex_t *mutex)
+{
+  DeleteCriticalSection(mutex);
+  return 0;
+}
+
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
 #define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 
