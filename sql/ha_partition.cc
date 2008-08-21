@@ -3389,6 +3389,8 @@ int ha_partition::rnd_next(uchar *buf)
       result= HA_ERR_END_OF_FILE;
       break;
     }
+    m_last_part= part_id;
+    m_part_spec.start_part= part_id;
     file= m_file[part_id];
     DBUG_PRINT("info", ("rnd_init on partition %d", part_id));
     if ((result= file->ha_rnd_init(1)))
