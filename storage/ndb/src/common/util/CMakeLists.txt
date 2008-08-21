@@ -19,6 +19,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_BINARY_DIR}/storage/ndb/include
                     ${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/mysys
+                    ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
@@ -26,6 +27,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
 
 ADD_DEFINITIONS(-DNO_DUMMY_DECL)
 ADD_LIBRARY(ndbgeneral STATIC
+            azio.c
             File.cpp
             md5_hash.cpp
             Properties.cpp

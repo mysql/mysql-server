@@ -23,8 +23,6 @@
 
 #define NDB_ANYVALUE_FOR_NOLOGGING 0xFFFFFFFF
 
-extern my_bool opt_core;
-
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
@@ -1646,10 +1644,7 @@ void BackupRestore::exitHandler()
 {
   release();
   NDBT_ProgramExit(NDBT_FAILED);
-  if (opt_core)
-    abort();
-  else
-    exit(NDBT_FAILED);
+  exit(NDBT_FAILED);
 }
 
 
