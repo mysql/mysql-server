@@ -20,6 +20,7 @@
 
 #include <ndb_types.h>
 #include <util/BaseString.hpp>
+#include <ndb_global.h>
 
 /**
  * Class used for outputting logging messages to screen.
@@ -81,8 +82,14 @@ public:
   
   OutputStream * m_out;
 private:
+  void choose(const char * fmt,...);
   int isHex;
 };
+
+#ifdef NDB_WIN
+typedef int(*NdbOutF)(char*);
+extern NdbOutF ndbout_svc;
+#endif
 
 inline NdbOut& NdbOut::operator<<(NdbOut& (* _f)(NdbOut&)) {
   (* _f)(*this); 

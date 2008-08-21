@@ -18,6 +18,7 @@
 #include <my_net.h>
 #include <NdbTCP.h>
 
+
 extern "C"
 int 
 Ndb_getInAddr(struct in_addr * dst, const char *address) {
@@ -52,6 +53,16 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
   //		      address, errno, strerror(errno)));
   return -1; //DBUG_RETURN(-1);
 }
+extern "C"
+#ifndef NDB_WIN
+int setsocknonblock(int s)
+{
+  int _fs= fcntl(s, F_GETFL, 0);
+  return fcntl(s, F_SETFL, _fs | O_NONBLOCK);
+}
+#else
+#include "win32/NdbTCP.cpp"
+#endif
 
 #ifndef DBUG_OFF
 extern "C"
@@ -111,14 +122,14 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   FD_SET(sock, &writefds);
   FD_SET(sock, &errorfds);
 
-  if(select(1, &readfds, &writefds, &errorfds, &tv)<0)
+  if(select(sock+1, &readfds, &writefds, &errorfds, &tv)<0)
     return 1;
 
   if(FD_ISSET(sock,&errorfds))
     return 1;
 
   s_err=0;
-  if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
+  if (my_getsockopt(sock, SOL_SOCKET, SO_ERROR, &s_err, &s_err_size) != 0)
     return(1);
 
   if (s_err)
