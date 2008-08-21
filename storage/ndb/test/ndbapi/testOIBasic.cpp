@@ -158,6 +158,10 @@ static const bool g_compare_null = true;
 static const char* hexstr = "0123456789abcdef";
 
 // random ints
+#ifdef NDB_WIN
+#define random() rand()
+#define srandom(SEED) srand(SEED)
+#endif
 
 static uint
 urandom(uint n)

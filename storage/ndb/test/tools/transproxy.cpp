@@ -217,7 +217,7 @@ Conn::conn0()
     int fd;
     while (1) {
 	if ((fd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
-	    fatal("%s: create client socket failed: %s", info, strerror(errno));
+	    fatal("%s: create client socket failed: %s", info, strerror(socket_errno));
 	}
 	struct sockaddr_in servaddr;
 	memset(&servaddr, 0, sizeof(servaddr));
@@ -231,8 +231,8 @@ Conn::conn0()
 #endif
 	if (connect(fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) == 0)
 	    break;
-	if (errno != ECONNREFUSED) {
-	    fatal("%s: connect failed: %s", info, strerror(errno));
+	if (socket_errno != SOCKET_ECONNREFUSED) {
+	    fatal("%s: connect failed: %s", info, strerror(socket_errno));
 	}
 	close(fd);
 	NdbSleep_MilliSleep(100);
@@ -246,7 +246,7 @@ Conn::conn1()
 {
     int servfd;
     if ((servfd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
-	fatal("%s: create server socket failed: %s", info, strerror(errno));
+	fatal("%s: create server socket failed: %s", info, strerror(socket_errno));
     }
     struct sockaddr_in servaddr;
     memset(&servaddr, 0, sizeof(servaddr));
@@ -256,14 +256,14 @@ Conn::conn1()
     const int on = 1;
     setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on));
     if (bind(servfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) == -1) {
-	fatal("%s: bind %d failed: %s", info, proxy, strerror(errno));
+	fatal("%s: bind %d failed: %s", info, proxy, strerror(socket_errno));
     }
     if (listen(servfd, 1) == -1) {
-	fatal("%s: listen %d failed: %s", info, proxy, strerror(errno));
+	fatal("%s: listen %d failed: %s", info, proxy, strerror(socket_errno));
     }
     int fd;
     if ((fd = accept(servfd, 0, 0)) == -1) {
-	fatal("%s: accept failed: %s", info, strerror(errno));
+	fatal("%s: accept failed: %s", info, strerror(socket_errno));
     }
     sockfd[1] = fd;
     close(servfd);

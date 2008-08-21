@@ -297,7 +297,7 @@ int get_rand_col_str(char *str)
   srand(num*time(NULL));
   len = rand() % col_len + 1;
   change_col_order();
-  snprintf(str, len+1, "%s", col_string);  //len+1, including '\0'
+  BaseString::snprintf(str, len+1, "%s", col_string);  //len+1, including '\0'
   return len;
 }
 
@@ -313,7 +313,7 @@ int get_rand_op_str(char *str)
   len2 = get_rand_col_str(temp+len1);
   len = len1 + len2;
   temp[len] = 'x';
-  snprintf(str, len+1+1, "%s", temp);  //len+1, including '\0'
+  BaseString::snprintf(str, len+1+1, "%s", temp);  //len+1, including '\0'
   return len+1;
 }
 
@@ -327,10 +327,10 @@ int get_rand_op_str(char *str)
 int replace_a_to_str(char *source, int pos, char *newstr)
 {
   char temp[MAX_STR_LEN];
-  snprintf(temp, pos+1, "%s", source);
-  snprintf(temp+pos, strlen(newstr)+1, "%s", newstr);
-  snprintf(temp+pos+strlen(newstr), strlen(source)-pos, "%s", source+pos+1);
-  snprintf(source, strlen(temp)+1, "%s", temp); 
+  BaseString::snprintf(temp, pos+1, "%s", source);
+  BaseString::snprintf(temp+pos, strlen(newstr)+1, "%s", newstr);
+  BaseString::snprintf(temp+pos+strlen(newstr), strlen(source)-pos, "%s", source+pos+1);
+  BaseString::snprintf(source, strlen(temp)+1, "%s", temp);
   return strlen(source);
 }
 
@@ -715,7 +715,7 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
     col[i] = table->getColumn(COL_NAME[i]);
 	  if(!col[i]) 
     {
-      snprintf(tmp, 128, "Can't get column %s", COL_NAME[i]);
+      BaseString::snprintf(tmp, 128, "Can't get column %s", COL_NAME[i]);
       ERR_EXIT(dict, tmp);
     }
   }
@@ -742,7 +742,7 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
     rec[i] = scan->getValue(COL_NAME[i]);
 	  if(!rec[i]) 
     {
-      snprintf(tmp, 128, "Can't get rec of %s", COL_NAME[i]);
+      BaseString::snprintf(tmp, 128, "Can't get rec of %s", COL_NAME[i]);
       ERR_EXIT(scan, tmp);
     }
   }

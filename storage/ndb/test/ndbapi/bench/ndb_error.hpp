@@ -36,7 +36,7 @@ CHECK_ALLOWED_ERROR(const char * str,
 		    const struct NdbError & error){
   
   char buf[100];
-  snprintf(buf, sizeof(buf), "subscriber = %.*s ", 
+  BaseString::snprintf(buf, sizeof(buf), "subscriber = %.*s ",
 	  SUBSCRIBER_NUMBER_LENGTH, 
 	  td->transactionData.number);
   ndbout << str << " " << error << endl
