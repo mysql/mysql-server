@@ -18,8 +18,6 @@
 #include <my_pthread.h>
 
 #include "AsyncFile.hpp"
-#include "PosixAsyncFile.hpp"
-
 #include <ErrorHandlingMacros.hpp>
 #include <kernel_types.h>
 #include <ndbd_malloc.hpp>
@@ -46,7 +44,7 @@ static int numAsyncFiles = 0;
 
 extern "C" void * runAsyncFile(void* arg)
 {
-  ((PosixAsyncFile*)arg)->run();
+  ((AsyncFile*)arg)->run();
   return (NULL);
 }
 

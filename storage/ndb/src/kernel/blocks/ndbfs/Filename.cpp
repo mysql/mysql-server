@@ -149,7 +149,7 @@ Filename::set(Filename::NameSpec& spec,
     Uint32 tableId = FsOpenReq::v5_getTableId(filenumber);
     Uint32 lcpNo = FsOpenReq::v5_getLcpNo(filenumber);
     Uint32 fragId = FsOpenReq::v5_getFragmentId(filenumber);
-    BaseString::snprintf(buf, sizeof(buf), "LCP/%d/T%dF%d", lcpNo, tableId, fragId);
+    BaseString::snprintf(buf, sizeof(buf), "LCP%s%d%sT%dF%d", DIR_SEPARATOR, lcpNo, DIR_SEPARATOR, tableId, fragId);
     strcat(theName, buf);
     break;
   }
