@@ -61,6 +61,10 @@ public:
     _TCMin       = 101000,
     _TCMax       = 101999,
 
+    _LQHMin = 102000,
+    LQHLogFileInitStatus = 102000,
+    _LQHMax = 102999,
+
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information
