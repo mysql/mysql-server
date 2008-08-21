@@ -860,13 +860,13 @@ NDBT_Table* createMaxKeyMaxColsHugoTabDef(const char* name)
     /* Keys */
     for (;attrNum < (NDB_MAX_ATTRIBUTES_IN_INDEX - 1); attrNum ++)
     {
-      snprintf(namebuff, buffsize, "K%d", attrNum);
+      BaseString::snprintf(namebuff, buffsize, "K%d", attrNum);
       attrs[attrNum]= new NDBT_Attribute(namebuff,
                                          NdbDictionary::Column::Unsigned,
                                          1, true);
     }
     /* Last key uses remaining key space */
-    snprintf(namebuff, buffsize, "K%d", attrNum);
+    BaseString::snprintf(namebuff, buffsize, "K%d", attrNum);
     attrs[attrNum]= new NDBT_Attribute(namebuff,
                                        NdbDictionary::Column::Char,
                                        (NDB_MAX_KEYSIZE_IN_WORDS -
@@ -878,14 +878,14 @@ NDBT_Table* createMaxKeyMaxColsHugoTabDef(const char* name)
     /* Attributes */
     for (;attrNum < (NDB_MAX_ATTRIBUTES_IN_TABLE - 1); attrNum ++)
     {
-      snprintf(namebuff, buffsize, "A%d", attrNum);
+      BaseString::snprintf(namebuff, buffsize, "A%d", attrNum);
       attrs[attrNum]= new NDBT_Attribute(namebuff,
                                          NdbDictionary::Column::Unsigned,
                                          1, false);
     }
 
     /* Last attr uses remaining attr space */
-    snprintf(namebuff, buffsize, "A%d", attrNum);
+    BaseString::snprintf(namebuff, buffsize, "A%d", attrNum);
     attrs[attrNum]= new NDBT_Attribute(namebuff,
                                        NdbDictionary::Column::Char,
                                        (NDB_MAX_TUPLE_SIZE_IN_WORDS -
@@ -928,14 +928,14 @@ NDBT_Table* createMinKeyMaxColsHugoTabDef(const char* name)
     /* Attributes */
     for (;attrNum < (NDB_MAX_ATTRIBUTES_IN_TABLE - 1); attrNum ++)
     {
-      snprintf(namebuff, buffsize, "A%d", attrNum);
+      BaseString::snprintf(namebuff, buffsize, "A%d", attrNum);
       attrs[attrNum]= new NDBT_Attribute(namebuff,
                                          NdbDictionary::Column::Unsigned,
                                          1, false);
     }
     
     /* Last attr uses remaining attr space */
-    snprintf(namebuff, buffsize, "A%d", attrNum);
+    BaseString::snprintf(namebuff, buffsize, "A%d", attrNum);
     attrs[attrNum]= new NDBT_Attribute(namebuff,
                                        NdbDictionary::Column::Char,
                                        (NDB_MAX_TUPLE_SIZE_IN_WORDS -
