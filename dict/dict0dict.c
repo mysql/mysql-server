@@ -1948,27 +1948,19 @@ dict_table_get_referenced_constraint(
 	dict_table_t*	table,	/* in: InnoDB table */
 	dict_index_t*	index)	/* in: InnoDB index */
 {
-	dict_foreign_t*	foreign  = NULL;
+	dict_foreign_t*	foreign;
 
-	ut_ad(index && table);
+	ut_ad(index != NULL)
+	ut_ad(table != NULL);
 
-	/* If the referenced list is empty, nothing to do */
+	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
 
-	if (UT_LIST_GET_LEN(table->referenced_list) == 0) {
-
-		return(NULL);
-	}
-
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
-
-	while (foreign) {
-		if (foreign->referenced_index == index
-		    || foreign->referenced_index == index) {
+		if (foreign->referenced_index == index) {
 
 			return(foreign);
 		}
-
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
 	return(NULL);
@@ -1987,29 +1979,20 @@ dict_table_get_foreign_constraint(
 	dict_table_t*	table,	/* in: InnoDB table */
 	dict_index_t*	index)	/* in: InnoDB index */
 {
-	dict_foreign_t*	foreign  = NULL;
+	dict_foreign_t*	foreign;
 
-	ut_ad(index && table);
+	ut_ad(index != NULL);
+	ut_ad(table != NULL);
 
-	/* If list empty then nothgin to do */
+	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-	if (UT_LIST_GET_LEN(table->foreign_list) == 0) {
-
-		return(NULL);
-	}
-
-	/* Check whether this index is defined for a foreign key */
-
-	foreign = UT_LIST_GET_FIRST(table->foreign_list);
-
-	while (foreign) {
 		if (foreign->foreign_index == index
 		    || foreign->referenced_index == index) {
 
 			return(foreign);
 		}
-
-		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
 
 	return(NULL);
@@ -4503,12 +4486,14 @@ dict_table_get_index_on_name(
 }
 
 /**************************************************************************
-Find and index that is equivalent to the one passed in. */
+Find an index that is equivalent to the one passed in and is not marked
+for deletion. */
 UNIV_INTERN
 dict_index_t*
 dict_table_find_equivalent_index(
 /*=============================*/
-	dict_table_t*	table,  /* in/out: table */
+				/* out: equivalent index, or NULL */
+	dict_table_t*	table,  /* in: table */
 	dict_index_t*	index)	/* in: index to match */
 {
 	ulint		i;
