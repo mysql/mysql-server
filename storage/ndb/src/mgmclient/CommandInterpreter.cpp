@@ -1132,8 +1132,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   }
   else if (strcasecmp(firstToken, "SLEEP") == 0) {
     if (allAfterFirstToken)
-      if (sleep(atoi(allAfterFirstToken)) != 0 )
-        m_error = -1;
+      NdbSleep_SecSleep(atoi(allAfterFirstToken));
     DBUG_RETURN(true);
   }
   else if((strcasecmp(firstToken, "QUIT") == 0 ||

@@ -186,7 +186,7 @@ LocalConfig::parseHostName(const char * buf){
     if (buf == tempString2)
       break;
     // try to add default port to see if it works
-    snprintf(tempString2, sizeof(tempString2),"%s:%s", buf, NDB_PORT);
+    BaseString::snprintf(tempString2, sizeof(tempString2),"%s:%s", buf, NDB_PORT);
     buf= tempString2;
   } while(1);
   return false;
