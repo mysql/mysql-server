@@ -29,6 +29,7 @@
 #include <mgmapi_config_parameters.h>
 #include <NdbAutoPtr.hpp>
 #include <ndb_mgmclient.hpp>
+#include <my_dir.h>
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 
@@ -165,8 +166,8 @@ int main(int argc, char** argv)
 
   if (opts.mycnf == 0 && opts.config_filename == 0)
   {
-    struct stat buf;
-    if (stat("config.ini", &buf) != -1)
+    MY_STAT buf;
+    if (my_stat("config.ini", &buf, MYF(0)) != NULL)
       opts.config_filename = "config.ini";
   }
 start:
