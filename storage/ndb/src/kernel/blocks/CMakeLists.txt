@@ -41,3 +41,14 @@ ADD_LIBRARY(ndbblocks  STATIC
             tsman.cpp
            )
 
+INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
+
+ADD_LIBRARY(ndbblocks  STATIC
+            diskpage.cpp
+            lgman.cpp
+            pgman.cpp
+            print_file.cpp
+            restore.cpp
+            tsman.cpp
+           )
+
