@@ -23,7 +23,7 @@ libgeneral_la_SOURCES = \
             SocketServer.cpp SocketClient.cpp SocketAuthenticator.cpp\
 	    OutputStream.cpp NdbOut.cpp BaseString.cpp \
 	    NdbSqlUtil.cpp new.cpp \
-            uucode.c random.c version.c \
+            uucode.c random.c version.c ndb_opts.c \
             strdup.c \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp \

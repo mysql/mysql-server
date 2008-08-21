@@ -31,8 +31,6 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int* count_rows,
 	     NdbOperation::LockMode lock);
 
-NDB_STD_OPTS_VARS;
-
 static const char* _dbname = "TEST_DB";
 static int _parallelism = 240;
 static int _lock = 0;
@@ -53,22 +51,20 @@ static struct my_option my_long_options[] =
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(my_progname, NULL);
+}
+
 static void usage()
 {
-#ifdef NOT_USED
-  char desc[] = 
-    "tabname1 ... tabnameN\n"\
-    "This program will count the number of records in tables\n";
-#endif
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF

@@ -35,8 +35,6 @@ int scanReadRecords(Ndb*,
 		    bool orderby,
                     bool descending);
 
-NDB_STD_OPTS_VARS;
-
 static const char* _dbname = "TEST_DB";
 static const char* _delimiter = "\t";
 static int _header, _parallelism, _useHexFormat, _lock,
@@ -94,26 +92,21 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(my_progname, NULL);
+}
+
 static void usage()
 {
-#ifdef NOT_USED
-  char desc[] = 
-    "tabname\n"\
-    "This program reads all records from one table in NDB Cluster\n"\
-    "and print them to stdout.  This is performed using a scan read.\n"\
-    "(It only print error messages if it encounters a permanent error.)\n"\
-    "It can also be used to dump the content of a table to file \n"\
-    "  ex: select_all --no-header --delimiter=';' T4 > T4.data\n";
-#endif
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   const char* _tabname;
   int ho_error;

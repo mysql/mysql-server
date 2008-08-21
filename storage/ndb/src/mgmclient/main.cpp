@@ -44,6 +44,7 @@ const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
 static Ndb_mgmclient* com;
 
+#ifndef NDB_WIN32
 extern "C"
 void 
 handler(int sig)
@@ -60,8 +61,7 @@ handler(int sig)
   }
   DBUG_VOID_RETURN;
 }
-
-NDB_STD_OPTS_VARS;
+#endif
 
 static const char default_prompt[]= "ndb_mgm> ";
 static unsigned _try_reconnect;
@@ -81,18 +81,15 @@ static struct my_option my_long_options[] =
     GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 static void short_usage_sub(void)
 {
-  printf("Usage: %s [OPTIONS] [hostname [port]]\n", my_progname);
+  ndb_short_usage_sub(my_progname,"[hostname [port]]");
 }
+
 static void usage()
 {
-  short_usage_sub();
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 static int 
@@ -131,6 +128,7 @@ read_and_execute(int _try_reconnect)
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
 
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
@@ -154,7 +152,9 @@ int main(int argc, char** argv){
     prompt= 0;
   }
 
+#ifndef NDB_WIN32
   signal(SIGPIPE, handler);
+#endif
   com = new Ndb_mgmclient(opt_connect_str,1);
   int ret= 0;
   BaseString histfile;

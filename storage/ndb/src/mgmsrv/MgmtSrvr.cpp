@@ -69,7 +69,7 @@ int g_errorInsert;
     }\
   }
 
-extern my_bool opt_core;
+extern "C" my_bool opt_core;
 
 static void require(bool v)
 {

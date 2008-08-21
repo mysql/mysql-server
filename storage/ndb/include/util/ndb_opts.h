@@ -108,8 +108,6 @@ OPT_EXTERN(const char *,opt_debug,= 0);
 
 void ndb_std_print_version();
 
-static void usage();
-
 enum ndb_std_options {
   OPT_NDB_SHM= 256,
   OPT_NDB_SHM_SIGNUM,
@@ -121,17 +119,18 @@ enum ndb_std_options {
   NDB_STD_OPTIONS_LAST /* should always be last in this enum */
 };
 
+void ndb_opt_set_usage_funcs(const char* my_progname,
+                             void (*short_usage)(void),
+                             void (*usage)(void));
 my_bool
 ndb_std_get_one_option(int optid,
 		       const struct my_option *opt __attribute__((unused)),
                        char *argument);
 
-void ndb_usage();
-void ndb_short_usage_sub();
-#ifdef PROVIDE_USAGE
-inline void usage(){ndb_usage();}
-inline void short_usage_sub(){ndb_short_usage_sub();}
-#endif
+void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
+               struct my_option *my_long_options);
+void ndb_short_usage_sub(const char* my_progname, char* extra);
+
 
 #ifdef __cplusplus
 }

@@ -249,8 +249,6 @@ list(const char * tabname,
       exit(0);
 }
 
-NDB_STD_OPTS_VARS;
-
 static const char* _dbname = "TEST_DB";
 static int _loops;
 static int _type;
@@ -258,6 +256,7 @@ enum options_ndb_show_tables
 {
   OPT_SHOW_TMP_STATUS=256
 };
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_show_tables"),
@@ -281,27 +280,21 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(my_progname, NULL);
+}
+
 static void usage()
 {
-#ifdef NOT_USED
-  char desc[] = 
-    "tabname\n"\
-    "This program list all system objects in  NDB Cluster.\n"\
-    "Type of objects to display can be limited with -t option\n"\
-    " ex: ndb_show_tables -t 2 would show all UserTables\n"\
-    "To show all indexes for a table write table name as final argument\n"\
-    "  ex: ndb_show_tables T1\n";
-#endif
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char* _tabname;
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF

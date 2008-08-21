@@ -58,8 +58,6 @@ Vector<BaseString> g_tables;
 NdbRecordPrintFormat g_ndbrecord_print_format;
 unsigned int opt_no_binlog;
 
-NDB_STD_OPTS_VARS;
-
 /**
  * print and restore flags
  */
@@ -331,17 +329,13 @@ static bool analyse_nodegroup_map(const char *ng_map_str,
 
 static void short_usage_sub(void)
 {
-  printf("Usage: %s [OPTIONS] [<path to backup files>]\n", my_progname);
+  ndb_short_usage_sub(my_progname,"[<path to backup files>]");
 }
 static void usage()
 {
-  short_usage_sub();
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
+
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
@@ -400,6 +394,9 @@ readArguments(int *pargc, char*** pargv)
   init_nodegroup_map();
   load_defaults("my",load_default_groups,pargc,pargv);
   debug << "handle_options" << endl;
+
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
+
   if (handle_options(pargc, pargv, my_long_options, get_one_option))
   {
     exit(NDBT_ProgramExit(NDBT_WRONGARGS));

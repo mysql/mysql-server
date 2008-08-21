@@ -48,8 +48,6 @@ static int g_mycnf = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
-NDB_STD_OPTS_VARS;
-
 int g_print_full_config;
 
 typedef ndb_mgm_configuration_iterator Iter;
@@ -93,16 +91,17 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(my_progname, NULL);
+}
+
 static void usage()
 {
-  char desc[] = 
+  char desc[] =
     "This program will retreive config options for a ndb cluster\n";
   puts(desc);
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 /**
@@ -154,6 +153,7 @@ static ndb_mgm_configuration* load_configuration();
 int
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
