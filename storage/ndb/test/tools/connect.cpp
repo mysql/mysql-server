@@ -20,8 +20,6 @@
 #include <NdbApi.hpp>
 #include <NdbSleep.h>
 
-NDB_STD_OPTS_VARS;
-
 static int _loop = 25;
 static int _sleep = 25;
 static int _drop = 1;
