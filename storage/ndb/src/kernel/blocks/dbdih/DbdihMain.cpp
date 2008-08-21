@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define DBDIH_C
+#include <ndb_global.h>
 #include <ndb_limits.h>
 #include <ndb_version.h>
 #include <NdbOut.hpp>
@@ -7145,6 +7146,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     Uint16 fragments[2 + MAX_FRAG_PER_NODE*MAX_REPLICAS*MAX_NDB_NODES];
     Uint32 align;
   };
+  (void)align;
   SectionHandle handle(this, signal);
   SegmentedSectionPtr fragDataPtr;
   ndbrequire(handle.getSection(fragDataPtr, DiAddTabReq::FRAGMENTATION));
@@ -15569,8 +15571,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     buf2[0]= 0;
     for(Uint32 i = 0; i<length; i++)
     {
-      snprintf(buf, 100, "%s %.8x", buf2, signal->theData[i]);
-      snprintf(buf2, 100, "%s", buf);
+      BaseString::snprintf(buf, 100, "%s %.8x", buf2, signal->theData[i]);
+      BaseString::snprintf(buf2, 100, "%s", buf);
     }
     warningEvent("gsn: %d block: %s, length: %d theData: %s", 
 		 gsn, getBlockName(block, "UNKNOWN"), length, buf);

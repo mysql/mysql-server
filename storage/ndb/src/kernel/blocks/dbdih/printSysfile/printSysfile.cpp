@@ -125,9 +125,10 @@ NDB_COMMAND(printSysfile,
   for(int i = 1; i<argc; i++){
     const char * filename = argv[i];
     
-    struct stat sbuf;
-    const int res = stat(filename, &sbuf);
-    if(res != 0){
+    MY_STAT sbuf,*st;
+
+    if(!st=my_stat(filename, &sbuf,0))
+    {
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;
     }

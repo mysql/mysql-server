@@ -1594,7 +1594,7 @@ void
 SimulatedBlock::execSIGNAL_DROPPED_REP(Signal * signal){
   char msg[64];
   const SignalDroppedRep * const rep = (SignalDroppedRep *)&signal->theData[0];
-  snprintf(msg, sizeof(msg), "%s GSN: %u (%u,%u)", getBlockName(number()),
+  BaseString::snprintf(msg, sizeof(msg), "%s GSN: %u (%u,%u)", getBlockName(number()),
 	   rep->originalGsn, rep->originalLength,rep->originalSectionCount);
   ErrorReporter::handleError(NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,
 			     msg,
