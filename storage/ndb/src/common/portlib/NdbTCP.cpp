@@ -19,6 +19,7 @@
 #include <NdbTCP.h>
 
 
+
 extern "C"
 int 
 Ndb_getInAddr(struct in_addr * dst, const char *address) {

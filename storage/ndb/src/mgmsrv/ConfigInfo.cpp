@@ -24,9 +24,7 @@
 #include "InitConfigFileParser.hpp"
 #include <m_string.h>
 #include <Bitmask.hpp>
-
-extern my_bool opt_ndb_shm;
-extern my_bool opt_core;
+#include <ndb_opts.h>
 
 #else
 #include "ConfigInfo.hpp"

@@ -54,7 +54,6 @@ enum ndbd_options {
   OPT_INITIAL_START
 };
 
-NDB_STD_OPTS_VARS;
 // XXX should be my_bool ???
 static int _daemon, _no_daemon, _foreground,  _initial, _no_start;
 static int _initialstart;
@@ -68,7 +67,7 @@ const char *load_default_groups[]= { "mysql_cluster","ndbd",0 };
 
 /**
  * Arguments to NDB process
- */ 
+ */
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndbd"),
@@ -107,23 +106,21 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 static void short_usage_sub(void)
 {
-  printf("Usage: %s [OPTIONS]\n", my_progname);
+  ndb_short_usage_sub(my_progname, NULL);
 }
+
 static void usage()
 {
-  short_usage_sub();
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 bool
 Configuration::init(int argc, char** argv)
-{  
+{
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
 
   int ho_error;

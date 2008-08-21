@@ -32,7 +32,6 @@ enum ndb_waiter_options {
   OPT_WAIT_STATUS_NOT_STARTED = NDB_STD_OPTIONS_LAST,
   OPT_WAIT_STATUS_SINGLE_USER
 };
-NDB_STD_OPTS_VARS;
 
 static int _no_contact = 0;
 static int _not_started = 0;
@@ -60,19 +59,19 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(my_progname, NULL);
+}
 
 static void usage()
 {
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
-
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   const char* _hostName = NULL;
 

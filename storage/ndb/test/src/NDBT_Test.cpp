@@ -1234,7 +1234,6 @@ enum test_options {
   OPT_PRINT_CASES
   
 };
-NDB_STD_OPTS_VARS;
 
 static int opt_print = false;
 static int opt_print_html = false;
@@ -1289,12 +1288,15 @@ static struct my_option my_long_options[] =
 
 extern int global_flag_skip_invalidate_cache;
 
+const char *load_default_groups[]= { "mysql_cluster",0 };
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(my_progname, "[tabname1 tabname2 ... tabnameN]");
+}
 static void usage()
 {
-  ndb_std_print_version();
-  printf("Usage: %s [OPTIONS] [tabname1 tabname2 ... tabnameN]\n", my_progname);
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int NDBT_TestSuite::execute(int argc, const char** argv){
@@ -1324,7 +1326,8 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   if (!my_progname)
     my_progname= _argv[0];
 
-  const char *load_default_groups[]= { "mysql_cluster",0 };
+  ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
+
   load_defaults("my",load_default_groups,&argc,&_argv);
 
   int ho_error;
