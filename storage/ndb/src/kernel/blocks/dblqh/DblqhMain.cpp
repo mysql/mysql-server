@@ -20444,21 +20444,21 @@ void Dblqh::writeDbgInfoPageHeader(LogPageRecordPtr logP, Uint32 place,
 }
 
 void Dblqh::initReportStatus(Signal* signal){
-  struct timeval the_time;
-  gettimeofday(&the_time,0);
-  m_next_report_time = the_time.tv_sec + m_startup_report_frequency;
+  NDB_TICKS current_time = NdbTick_CurrentMillisecond();
+  m_next_report_time = current_time + 
+                       ((NDB_TICKS)m_startup_report_frequency) * ((NDB_TICKS)1000);
 }
 
 void Dblqh::checkReportStatus(Signal* signal){
   if (m_startup_report_frequency == 0)
     return;
 
-  struct timeval the_time;
-  gettimeofday(&the_time, 0);
-  if (the_time.tv_sec > m_next_report_time)
+  NDB_TICKS current_time = NdbTick_CurrentMillisecond();
+  if (current_time > m_next_report_time)
   {
     reportStatus(signal);
-    m_next_report_time = the_time.tv_sec + m_startup_report_frequency;
+    m_next_report_time = current_time +
+                         ((NDB_TICKS)m_startup_report_frequency) * ((NDB_TICKS)1000);
   }
 }
 
