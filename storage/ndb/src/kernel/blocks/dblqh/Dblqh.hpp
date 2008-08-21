@@ -2058,7 +2058,7 @@ public:
   Uint32 logMBytesInitDone;
 
   Uint32 m_startup_report_frequency;
-  Uint32 m_next_report_time;
+  NDB_TICKS m_next_report_time;
  
 public:
   Dblqh(Block_context& ctx, Uint32 instanceNumber = 0);
