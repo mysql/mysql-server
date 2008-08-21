@@ -911,6 +911,10 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     else if (check_block(TC, val))
     {
     }
+    else if (check_block(LQH, val))
+    {
+      sendSignal(DBLQH_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
+    }
     return;
   }
 
