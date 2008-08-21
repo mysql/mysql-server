@@ -1085,13 +1085,14 @@ dict_table_get_index_on_name(
 	dict_table_t*	table,	/* in: table */
 	const char*	name);	/* in: name of the index to find */
 /**************************************************************************
-Find and index that is equivalent to the one passed in and is not marked
+Find an index that is equivalent to the one passed in and is not marked
 for deletion. */
 UNIV_INTERN
 dict_index_t*
 dict_table_find_equivalent_index(
 /*=============================*/
-	dict_table_t*	table,  /* in/out: table */
+				/* out: equivalent index, or NULL */
+	dict_table_t*	table,  /* in: table */
 	dict_index_t*	index);	/* in: index to match */
 /**************************************************************************
 In case there is more than one index with the same name return the index
