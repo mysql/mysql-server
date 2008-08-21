@@ -16,7 +16,7 @@
 #ifndef NdbScanOperation_H
 #define NdbScanOperation_H
 
-#include <strings.h>
+#include <ndb_global.h>
 #include <NdbOperation.hpp>
 
 class NdbBlob;
