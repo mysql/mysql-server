@@ -2452,7 +2452,7 @@ public:
 private:
 
   /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
-  static inline uint32_t count_bits(uint32_t x)
+  static inline Uint32 count_bits(Uint32 x)
   {
     x= x - ((x>>1) & 0x55555555);
     x= (x & 0x33333333) + ((x>>2) & 0x33333333);
