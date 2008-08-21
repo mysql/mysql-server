@@ -16,7 +16,7 @@
 #ifndef NDB_GLOBAL_H
 #define NDB_GLOBAL_H
 
-#include <my_config.h>
+#include <my_global.h>
 #include <ndb_types.h>
 
 #define NDB_PORT "@ndb_port@"

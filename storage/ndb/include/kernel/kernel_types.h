@@ -16,7 +16,7 @@
 #ifndef NDB_KERNEL_TYPES_H
 #define NDB_KERNEL_TYPES_H
 
-#include <my_config.h>
+#include <my_global.h>
 #include <ndb_types.h>
 #include "ndb_limits.h"
 
