@@ -15,8 +15,8 @@
 
 #ifndef NDB_LIMITS_H
 #define NDB_LIMITS_H
-
-#include <mysql.h>
+#include <my_global.h>
+#include <mysql_com.h>
 
 #define RNIL    0xffffff00
 
