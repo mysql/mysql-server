@@ -26,7 +26,7 @@
 #include <signaldata/LqhKey.hpp>
 #include <AttributeHeader.hpp>
 #include <md5_hash.hpp>
-#include <Dblqh.hpp>
+#include <dblqh/Dblqh.hpp>
 #include <dbtup/Dbtup.hpp>
 #include <KeyDescriptor.hpp>
 
