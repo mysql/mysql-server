@@ -657,8 +657,10 @@ int userDbInsertSubscriber(UserHandle      *uh,
   int check;
   uint32 activeSessions = 0;
   Location l = 0;
-  ChangedBy changedBy; snprintf(changedBy, sizeof(changedBy), "ChangedBy");
-  ChangedTime changedTime; snprintf(changedTime, sizeof(changedTime), "ChangedTime"); 
+  ChangedBy changedBy;
+  ChangedTime changedTime;
+  BaseString::snprintf(changedBy, sizeof(changedBy), "ChangedBy");
+  BaseString::snprintf(changedTime, sizeof(changedTime), "ChangedTime");
 
   NdbConnection * MyTransaction = 0;
   if(uh->pCurrTrans != 0){

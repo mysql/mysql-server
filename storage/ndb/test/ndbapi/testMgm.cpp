@@ -41,7 +41,7 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
   int s= ndb_mgm_get_fd(h);
   session_id= ndb_mgm_get_session_id(h);
   ndbout << "MGM Session id: " << session_id << endl;
-  write(s,"get",3);
+  send(s,"get",3,0);
   ndb_mgm_disconnect(h);
   ndb_mgm_destroy_handle(&h);
 

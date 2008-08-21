@@ -163,7 +163,7 @@ statReport(enum StartType st, int ops)
     nodeid = p == 0 ? 0 : atoi(p);
     if ((statSock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
       if (statState != statError) {
-	ndbout_c("stat: create socket failed: %s", strerror(errno));
+	ndbout_c("stat: create socket failed: %s", strerror(socket_errno));
 	statState = statError;
       }
       (void)NdbMutex_Unlock(&statMutex);
@@ -184,7 +184,7 @@ statReport(enum StartType st, int ops)
     }
     if (connect(statSock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
       if (statState != statError) {
-	ndbout_c("stat: connect failed: %s", strerror(errno));
+	ndbout_c("stat: connect failed: %s", strerror(socket_errno));
 	statState = statError;
       }
       (void)close(statSock);
@@ -222,9 +222,9 @@ statReport(enum StartType st, int ops)
   sprintf(buf, "%d %s %d\n", nodeid, text, ops);
   int len = strlen(buf);
   // assume SIGPIPE already ignored
-  if (write(statSock, buf, len) != len) {
+  if (send(statSock, buf, len, 0) != len) {
     if (statState != statError) {
-      ndbout_c("stat: write failed: %s", strerror(errno));
+      ndbout_c("stat: write failed: %s", strerror(socket_errno));
       statState = statError;
     }
     (void)close(statSock);

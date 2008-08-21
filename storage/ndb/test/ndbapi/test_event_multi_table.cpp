@@ -254,7 +254,7 @@ static int verify_copy(Ndb *ndb,
 NDB_STD_OPTS_VARS;
 
 static const char* _dbname = "TEST_DB";
-static struct my_option my_long_options[] =
+struct my_option my_long_options[] =
 {
   NDB_STD_OPTS(""),
   { "database", 'd', "Name of database table is in",
