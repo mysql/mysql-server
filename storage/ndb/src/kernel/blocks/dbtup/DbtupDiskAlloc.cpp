@@ -139,7 +139,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   }
 }
 
-#if defined VM_TRACE || true
+#if defined VM_TRACE || 1
 #define ddassert(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbrequire(false); } } while(0)
 #else
 #define ddassert(x)
