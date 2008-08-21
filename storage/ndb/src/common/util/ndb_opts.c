@@ -2,7 +2,7 @@
 #define OPTEXPORT
 #include <ndb_opts.h>
 
-static char* g_ndb_opt_progname= "ndbapi_program";
+static const char* g_ndb_opt_progname= "ndbapi_program";
 
 static void default_ndb_opt_short(void)
 {
