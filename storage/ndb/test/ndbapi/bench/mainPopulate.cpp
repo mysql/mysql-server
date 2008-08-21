@@ -48,8 +48,6 @@ void usage(const char *prog)
   exit(1);
 }
 
-NDB_STD_OPTS_VARS;
-
 NDB_COMMAND(DbCreate, "DbCreate", "DbCreate", "DbCreate", 16384)
 {
   ndb_init();
