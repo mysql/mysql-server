@@ -109,12 +109,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
   
   get_callback_obj()->reset_send_buffer(remoteNodeId);
 
-  {
-    struct sockaddr_in addr;
-    SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-    getpeername(sockfd, (struct sockaddr*)&addr, &addrlen);
-    m_connect_address= (&addr)->sin_addr;
-  }
+  my_socket_connect_address(sockfd, &m_connect_address);
 
   bool res = connect_server_impl(sockfd);
   if(res){
@@ -163,7 +158,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   if(m_connected)
     return true;
 
-  if (sockfd == NDB_INVALID_SOCKET)
+  if (!my_socket_valid(sockfd))
     return false;
 
   DBUG_ENTER("Transporter::connect_client");
@@ -221,12 +216,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     g_eventLogger->warning("Unable to verify transporter compatability with node %d", nodeId);
   }
 
-  {
-    struct sockaddr_in addr;
-    SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-    getpeername(sockfd, (struct sockaddr*)&addr, &addrlen);
-    m_connect_address= (&addr)->sin_addr;
-  }
+  my_socket_connect_address(sockfd, &m_connect_address);
 
   bool res = connect_client_impl(sockfd);
   if(res){

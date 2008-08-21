@@ -340,10 +340,10 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
       {
 	fd_set a_set;
 	FD_ZERO(&a_set);
-	FD_SET(sockfd, &a_set);
+	my_FD_SET(sockfd, &a_set);
 	struct timeval timeout;
 	timeout.tv_sec  = 1; timeout.tv_usec = 0;
-	select(sockfd+1, &a_set, 0, 0, &timeout);
+	select(my_socket_nfds(sockfd,0)+1, &a_set, 0, 0, &timeout);
       }
       DBUG_RETURN(false);
     }
@@ -934,12 +934,12 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     tcpReadSelectReply = 0;
     return 0;
   }
-  
-  NDB_SOCKET_TYPE maxSocketValue = -1;
-  
+
+  int maxSocketValue = 0;
+
   // Needed for TCP/IP connections
   // The read- and writeset are used by select
-  
+
   FD_ZERO(&tcpReadset);
 
   // Prepare for sending and receiving
@@ -951,14 +951,13 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
     if (is_connected(node_id) && t->isConnected()) {
       
       const NDB_SOCKET_TYPE socket = t->getSocket();
-      if (socket == NDB_INVALID_SOCKET)
+      if (!my_socket_valid(socket))
         continue;
-      // Find the highest socket value. It will be used by select
-      if (socket > maxSocketValue)
-	maxSocketValue = socket;
-      
+
+      maxSocketValue = my_socket_nfds(socket, maxSocketValue);
+
       // Put the connected transporters in the socket read-set 
-      FD_SET(socket, &tcpReadset);
+      my_FD_SET(socket, &tcpReadset);
     }
     hasdata |= t->hasReceiveData();
   }
@@ -969,10 +968,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
   timeout.tv_sec  = timeOutMillis / 1000;
   timeout.tv_usec = (timeOutMillis % 1000) * 1000;
 
-  // The highest socket value plus one
-  maxSocketValue++; 
-  
-  tcpReadSelectReply = select(maxSocketValue, &tcpReadset, 0, 0, &timeout);  
+  tcpReadSelectReply = select(maxSocketValue+1, &tcpReadset, 0, 0, &timeout);
   if(false && tcpReadSelectReply == -1 && errno == EINTR)
     g_eventLogger->info("woke-up by signal");
 
@@ -993,17 +989,17 @@ TransporterRegistry::change_epoll(TCP_Transporter *t, bool add)
 {
   struct epoll_event event_poll;
   bzero(&event_poll, sizeof(event_poll));
-  int sock_fd = t->getSocket();
+  my_socket sock_fd = t->getSocket();
   int node_id = t->getRemoteNodeId();
   int op = add ? EPOLL_CTL_ADD : EPOLL_CTL_DEL;
   int ret_val, error;
 
-  if (sock_fd == NDB_INVALID_SOCKET)
+  if (!my_socket_valid(sock_fd))
     return FALSE;
 
   event_poll.data.u32 = t->getRemoteNodeId();
   event_poll.events = EPOLLIN;
-  ret_val = epoll_ctl(m_epoll_fd, op, sock_fd, &event_poll);
+  ret_val = epoll_ctl(m_epoll_fd, op, sock_fd.fd, &event_poll);
   if (!ret_val)
     goto ok;
   error= errno;
@@ -1022,11 +1018,12 @@ TransporterRegistry::change_epoll(TCP_Transporter *t, bool add)
      * have permission problems or the socket doesn't support
      * epoll!!
      */
-    ndbout_c("Failed to %s epollfd: %u fd %u node %u to epoll-set,"
+    ndbout_c("Failed to %s epollfd: %u fd " MY_SOCKET_FORMAT
+             " node %u to epoll-set,"
              " errno: %u %s",
              add ? "ADD" : "DEL",
              m_epoll_fd,
-             sock_fd,
+             MY_SOCKET_FORMAT_VALUE(sock_fd),
              node_id,
              error,
              strerror(error));
@@ -1105,7 +1102,7 @@ TransporterRegistry::performReceive()
       if(is_connected(nodeId)){
         if(t->isConnected())
         {
-          if (FD_ISSET(socket, &tcpReadset))
+          if (my_FD_ISSET(socket, &tcpReadset))
           {
             t->doReceive();
           }
@@ -1766,11 +1763,14 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 {
   struct ndb_mgm_reply mgm_reply;
+  my_socket sockfd;
+
+  my_socket_invalidate(&sockfd);
 
   if ( h==NULL || *h == NULL )
   {
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
-    return NDB_INVALID_SOCKET;
+    return sockfd;
   }
 
   for(unsigned int i=0;i < m_transporter_interface.size();i++)
@@ -1787,15 +1787,15 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
                            ndb_mgm_get_latest_error(*h));
       g_eventLogger->error("%s: %d", __FILE__, __LINE__);
       ndb_mgm_destroy_handle(h);
-      return NDB_INVALID_SOCKET;
+      return sockfd;
     }
 
   /**
    * convert_to_transporter also disposes of the handle (i.e. we don't leak
    * memory here.
    */
-  NDB_SOCKET_TYPE sockfd= ndb_mgm_convert_to_transporter(h);
-  if ( sockfd == NDB_INVALID_SOCKET)
+  sockfd= ndb_mgm_convert_to_transporter(h);
+  if (!my_socket_valid(sockfd))
   {
     g_eventLogger->error("Error: %s: %d",
                          ndb_mgm_get_latest_error_desc(*h),
@@ -1813,10 +1813,12 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
 {
   NdbMgmHandle h= ndb_mgm_create_handle();
+  my_socket s;
+  my_socket_invalidate(&s);
 
   if ( h == NULL )
   {
-    return NDB_INVALID_SOCKET;
+    return s;
   }
 
   /**
@@ -1831,7 +1833,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
   if(ndb_mgm_connect(h, 0, 0, 0)<0)
   {
     ndb_mgm_destroy_handle(&h);
-    return NDB_INVALID_SOCKET;
+    return s;
   }
 
   return connect_ndb_mgmd(&h);

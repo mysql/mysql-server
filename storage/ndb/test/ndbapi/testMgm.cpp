@@ -473,7 +473,7 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
                      0 };
     int fd= ndb_mgm_listen_event(h, filter);
 
-    if(fd==NDB_INVALID_SOCKET)
+    if(!my_socket_valid(fd))
     {
       ndbout << "FAILED: could not listen to event" << endl;
       result= NDBT_FAILED;

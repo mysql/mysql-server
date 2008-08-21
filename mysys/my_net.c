@@ -41,11 +41,3 @@ void my_inet_ntoa(struct in_addr in, char *buf)
   strmov(buf,ptr);
   pthread_mutex_unlock(&THR_LOCK_net);
 }
-int my_getsockopt(int s,int level,int optname,void *optval,socklen_t*optlen)
-{
-  return getsockopt(s,level,optname,
-#ifdef __WIN__
-    (char*)
-#endif
-    optval,optlen);
-}

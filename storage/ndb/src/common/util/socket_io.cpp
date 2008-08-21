@@ -29,21 +29,23 @@ read_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   
   fd_set readset;
   FD_ZERO(&readset);
-  FD_SET(socket, &readset);
-  
+  my_FD_SET(socket, &readset);
+
   struct timeval timeout;
   timeout.tv_sec  = (timeout_millis / 1000);
   timeout.tv_usec = (timeout_millis % 1000) * 1000;
 
-  const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
+  const int selectRes = select(my_socket_nfds(socket,0) + 1,
+                               &readset, 0, 0, &timeout);
+
   if(selectRes == 0)
     return 0;
-  
+
   if(selectRes == -1){
     return -1;
   }
 
-  return recv(socket, &buf[0], buflen, 0);
+  return my_recv(socket, &buf[0], buflen, 0);
 }
 
 extern "C"
@@ -55,7 +57,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 
   fd_set readset;
   FD_ZERO(&readset);
-  FD_SET(socket, &readset);
+  my_FD_SET(socket, &readset);
 
   struct timeval timeout;
   timeout.tv_sec  = (timeout_millis / 1000);
@@ -64,7 +66,8 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   if(mutex)
     NdbMutex_Unlock(mutex);
   Uint64 tick= NdbTick_CurrentMillisecond();
-  const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
+  const int selectRes = select(my_socket_nfds(socket,0) + 1,
+                               &readset, 0, 0, &timeout);
 
   *time= NdbTick_CurrentMillisecond() - tick;
   if(mutex)
@@ -83,7 +86,8 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   do
   {
     int t;
-    while((t = recv(socket, ptr, len, MSG_PEEK)) == -1 && errno == EINTR);
+    while((t = my_recv(socket, ptr, len, MSG_PEEK)) == -1
+          && socket_errno == EINTR);
     
     if(t < 1)
     {
@@ -100,15 +104,17 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	 */
 	for (len = 1 + i; len; )
 	{
-	  while ((t = recv(socket, ptr, len, 0)) == -1 && errno == EINTR);
+	  while ((t = my_recv(socket, ptr, len, 0)) == -1
+                 && socket_errno == EINTR);
 	  if (t < 1)
 	    return -1;
 	  ptr += t;
 	  len -= t;
 	}
-	if (i > 0 && buf[i-1] == '\r')
+	if (t > 1 && ptr[-2] == '\r')
 	{
-	  buf[i-1] = '\n';
+	  ptr[-2] = '\n';
+          ptr[-1] = '\0';
 	  ptr--;
 	}
 	ptr[0]= 0;
@@ -118,7 +124,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
     
     for (int tmp = t; tmp; )
     {
-      while ((t = recv(socket, ptr, tmp, 0)) == -1 && errno == EINTR);
+      while ((t = my_recv(socket, ptr, tmp, 0)) == -1 && socket_errno == EINTR);
       if (t < 1)
       {
 	return -1;
@@ -126,15 +132,21 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
       ptr += t;
       len -= t;
       tmp -= t;
+      if (t > 0 && buf[t-1] == '\r')
+      {
+        buf[t-1] = '\n';
+        ptr--;
+      }
     }
 
     FD_ZERO(&readset);
-    FD_SET(socket, &readset);
+    my_FD_SET(socket, &readset);
     timeout.tv_sec  = ((timeout_millis - *time) / 1000);
     timeout.tv_usec = ((timeout_millis - *time) % 1000) * 1000;
 
     tick= NdbTick_CurrentMillisecond();
-    const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
+    const int selectRes = select(my_socket_nfds(socket,0) + 1,
+                                 &readset, 0, 0, &timeout);
     *time= NdbTick_CurrentMillisecond() - tick;
 
     if(selectRes != 1){
@@ -151,14 +163,15 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	     const char buf[], int len){
   fd_set writeset;
   FD_ZERO(&writeset);
-  FD_SET(socket, &writeset);
+  my_FD_SET(socket, &writeset);
   struct timeval timeout;
   timeout.tv_sec  = (timeout_millis / 1000);
   timeout.tv_usec = (timeout_millis % 1000) * 1000;
 
 
   Uint64 tick= NdbTick_CurrentMillisecond();
-  const int selectRes = select(socket + 1, 0, &writeset, 0, &timeout);
+  const int selectRes = select(my_socket_nfds(socket,0) + 1,
+                               0, &writeset, 0, &timeout);
   *time= NdbTick_CurrentMillisecond() - tick;
 
   if(selectRes != 1){
@@ -167,7 +180,7 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 
   const char * tmp = &buf[0];
   while(len > 0){
-    const int w = send(socket, tmp, len, 0);
+    const int w = my_send(socket, tmp, len, 0);
     if(w == -1){
       return -1;
     }
@@ -178,12 +191,13 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
       break;
     
     FD_ZERO(&writeset);
-    FD_SET(socket, &writeset);
+    my_FD_SET(socket, &writeset);
     timeout.tv_sec  = ((timeout_millis - *time) / 1000);
     timeout.tv_usec = ((timeout_millis - *time) % 1000) * 1000;
 
     Uint64 tick= NdbTick_CurrentMillisecond();
-    const int selectRes2 = select(socket + 1, 0, &writeset, 0, &timeout);
+    const int selectRes2 = select(my_socket_nfds(socket,0) + 1,
+                                  0, &writeset, 0, &timeout);
     *time= NdbTick_CurrentMillisecond() - tick;
 
     if(selectRes2 != 1){

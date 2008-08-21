@@ -28,7 +28,7 @@
 #include "ndb_logevent.hpp"
 
 extern
-int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[], int);
+int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[], int, my_socket*);
 
 struct ndb_logevent_error_msg {
   enum ndb_logevent_handle_error code;
@@ -54,25 +54,32 @@ NdbLogEventHandle
 ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
 			       const int filter[])
 {
-  int fd= ndb_mgm_listen_event_internal(mh, filter, 1);
-
-  if (fd == -1)
+  my_socket sock;
+  if(ndb_mgm_listen_event_internal(mh, filter, 1, &sock) < 0)
     return 0;
 
   NdbLogEventHandle h=
     (NdbLogEventHandle)my_malloc(sizeof(ndb_logevent_handle),MYF(MY_WME));
 
-  h->socket= fd;
+  h->socket= sock;
 
   return h;
 }
 
 extern "C"
+#ifdef NDB_WIN
+SOCKET
+ndb_logevent_get_fd(const NdbLogEventHandle h)
+{
+  return h->socket.s;
+}
+#else
 int
 ndb_logevent_get_fd(const NdbLogEventHandle h)
 {
-  return h->socket;
+  return h->socket.fd;
 }
+#endif
 
 extern "C"
 void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
@@ -81,7 +88,7 @@ void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
     return;
 
   if ( *h )
-    close((*h)->socket);
+    my_socket_close((*h)->socket);
 
   my_free((char*)* h,MYF(MY_ALLOW_ZERO_PTR));
   * h = 0;

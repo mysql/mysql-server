@@ -31,10 +31,6 @@
 typedef unsigned __int64 Uint64;
 typedef   signed __int64 Int64;
 #define ssize_t SSIZE_T
-#ifndef my_socket_defined
-#define my_socket SOCKET
-#define my_socket_defined
-#endif
 #else
 typedef unsigned long long Uint64;
 typedef   signed long long Int64;
