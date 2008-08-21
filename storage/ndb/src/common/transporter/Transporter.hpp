@@ -28,7 +28,7 @@
 #include <NdbMutex.h>
 #include <NdbThread.h>
 
-#include <sys/uio.h>
+#include <my_socket.h>
 
 class Transporter {
   friend class TransporterRegistry;

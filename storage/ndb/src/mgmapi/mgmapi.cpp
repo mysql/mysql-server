@@ -108,7 +108,7 @@ struct ndb_mgm_handle {
   char * m_bindaddress;
 };
 
-#define SET_ERROR(h, e, s) setError(h, e, __LINE__, s)
+#define SET_ERROR(h, e, s) setError((h), (e), __LINE__, (s))
 
 static
 void
@@ -184,7 +184,7 @@ ndb_mgm_create_handle()
   h->connected       = 0;
   h->last_error      = 0;
   h->last_error_line = 0;
-  h->socket          = NDB_INVALID_SOCKET;
+  my_socket_invalidate(&(h->socket));
   h->timeout         = 60000;
   h->cfg_i           = -1;
   h->errstream       = stdout;
@@ -341,8 +341,8 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 	     const char *cmd, const Properties *cmd_args) 
 {
   DBUG_ENTER("ndb_mgm_call");
-  DBUG_PRINT("enter",("handle->socket: %d, cmd: %s",
-		      handle->socket, cmd));
+  DBUG_PRINT("enter",("handle->socket: " MY_SOCKET_FORMAT ", cmd: %s",
+		      MY_SOCKET_FORMAT_VALUE(handle->socket), cmd));
   SocketOutputStream out(handle->socket, handle->timeout);
   SocketInputStream in(handle->socket, handle->timeout);
 
@@ -522,7 +522,8 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
    * Do connect
    */
   LocalConfig &cfg= handle->cfg;
-  NDB_SOCKET_TYPE sockfd= NDB_INVALID_SOCKET;
+  my_socket sockfd;
+  my_socket_invalidate(&sockfd);
   Uint32 i;
   SocketClient s(0, 0);
   s.set_connect_timeout((handle->timeout+999)/1000);
@@ -567,8 +568,8 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       DBUG_RETURN(-1);
     }
   }
-  
-  while (sockfd == NDB_INVALID_SOCKET)
+
+  while (!my_socket_valid(sockfd))
   {
     // do all the mgmt servers
     for (i = 0; i < cfg.ids.size(); i++)
@@ -576,10 +577,10 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       if (cfg.ids[i].type != MgmId_TCP)
 	continue;
       sockfd = s.connect(cfg.ids[i].name.c_str(), cfg.ids[i].port);
-      if (sockfd != NDB_INVALID_SOCKET)
+      if (my_socket_valid(sockfd))
 	break;
     }
-    if (sockfd != NDB_INVALID_SOCKET)
+    if (my_socket_valid(sockfd))
       break;
 #ifndef DBUG_OFF
     {
@@ -638,12 +639,20 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
  * Never to be used by end user.
  * Or anybody who doesn't know exactly what they're doing.
  */
+#ifdef NDB_WIN
+SOCKET
+ndb_mgm_get_fd(NdbMgmHandle handle)
+{
+  return handle->socket.s;
+}
+#else
 extern "C"
 int
 ndb_mgm_get_fd(NdbMgmHandle handle)
 {
-  return handle->socket;
+  return handle->socket.fd;
 }
+#endif
 
 /**
  * Disconnect from mgm server without error checking
@@ -655,7 +664,7 @@ int
 ndb_mgm_disconnect_quiet(NdbMgmHandle handle)
 {
   NDB_CLOSE_SOCKET(handle->socket);
-  handle->socket = NDB_INVALID_SOCKET;
+  my_socket_invalidate(&(handle->socket));
   handle->connected = 0;
 
   return 0;
@@ -1701,7 +1710,7 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 
 int
 ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
-			      int parsable)
+			      int parsable, my_socket *sock)
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_listen_event");
   const ParserRow<ParserDummy> stat_reply[] = {
@@ -1716,10 +1725,11 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   int port= ndb_mgm_get_connected_port(handle);
   SocketClient s(hostname, port);
   const NDB_SOCKET_TYPE sockfd = s.connect();
-  if (sockfd == NDB_INVALID_SOCKET) {
+  if (!my_socket_valid(sockfd))
+  {
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
 	     "Unable to connect to");
-    return -1;
+    return -2;
   }
 
   Properties args;
@@ -1734,7 +1744,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     args.put("filter", tmp.c_str());
   }
 
-  int tmp = handle->socket;
+  my_socket tmp = handle->socket;
   handle->socket = sockfd;
 
   const Properties *reply;
@@ -1743,18 +1753,36 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   handle->socket = tmp;
 
   if(reply == NULL) {
-    close(sockfd);
+    my_socket_close(sockfd);
     CHECK_REPLY(handle, reply, -1);
   }
   delete reply;
-  return sockfd;
+
+  *sock= sockfd;
+  return 1;
 }
 
+/*
+  This API function causes ugly code in mgmapi - it returns native socket
+  type as we can't force everybody to use our abstraction or break current
+  applications.
+ */
 extern "C"
+#ifdef NDB_WIN
+SOCKET
+#else
 int
+#endif
 ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 {
-  return ndb_mgm_listen_event_internal(handle,filter,0);
+  my_socket s;
+  if(ndb_mgm_listen_event_internal(handle,filter,0,&s)<0)
+    my_socket_invalidate(&s);
+#ifdef NDB_WIN
+  return s.s;
+#else
+  return s.fd;
+#endif
 }
 
 extern "C"
@@ -2685,8 +2713,19 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
 {
   NDB_SOCKET_TYPE s;
 
-  CHECK_HANDLE((*handle), NDB_INVALID_SOCKET);
-  CHECK_CONNECTED((*handle), NDB_INVALID_SOCKET);
+  if(handle == 0)
+  {
+    SET_ERROR(*handle, NDB_MGM_ILLEGAL_SERVER_HANDLE, "");
+    my_socket_invalidate(&s);
+    return s;
+  }
+
+  if ((*handle)->connected != 1)
+  {
+    SET_ERROR(*handle, NDB_MGM_SERVER_NOT_CONNECTED , "");
+    my_socket_invalidate(&s);
+    return s;
+  }
 
   (*handle)->connected= 0;   // we pretend we're disconnected
   s= (*handle)->socket;

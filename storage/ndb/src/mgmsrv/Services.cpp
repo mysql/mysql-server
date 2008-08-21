@@ -308,7 +308,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
 
   struct sockaddr_in addr;
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-  getpeername(sock, (struct sockaddr*)&addr, &addrlen);
+  my_getpeername(sock, (struct sockaddr*)&addr, &addrlen);
   m_name.assfmt("%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
   DBUG_VOID_RETURN;
@@ -325,10 +325,10 @@ MgmApiSession::~MgmApiSession()
     delete m_parser;
   if (m_allocated_resources)
     delete m_allocated_resources;
-  if(m_socket != NDB_INVALID_SOCKET)
+  if(my_socket_valid(m_socket))
   {
     NDB_CLOSE_SOCKET(m_socket);
-    m_socket= NDB_INVALID_SOCKET;
+    my_socket_invalidate(&m_socket);
   }
   if(m_stopSelf < 0)
     g_RestartServer= true;
@@ -411,10 +411,10 @@ MgmApiSession::runSession()
 
   NdbMutex_Lock(m_mutex);
   m_ctx= NULL;
-  if(m_socket != NDB_INVALID_SOCKET)
+  if(my_socket_valid(m_socket))
   {
-    NDB_CLOSE_SOCKET(m_socket);
-    m_socket= NDB_INVALID_SOCKET;
+    my_socket_close(m_socket);
+    my_socket_invalidate(&m_socket);
   }
   NdbMutex_Unlock(m_mutex);
   DBUG_VOID_RETURN;
@@ -523,7 +523,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   struct sockaddr_in addr;
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-  int r = getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
+  int r = my_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
   if (r != 0 ) {
     m_output->println(cmd);
     m_output->println("result: getpeername(%d) failed, err= %d", m_socket, r);
@@ -1403,7 +1403,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
   {
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat))
     {
-      if(m_clients[i].m_socket==NDB_INVALID_SOCKET)
+      if(!my_socket_valid(m_clients[i].m_socket))
         continue;
 
       SocketOutputStream out(m_clients[i].m_socket);
@@ -1468,7 +1468,7 @@ Ndb_mgmd_event_service::check_listeners()
   m_clients.lock();
   for(i= m_clients.size() - 1; i >= 0; i--)
   {
-    if(m_clients[i].m_socket==NDB_INVALID_SOCKET)
+    if(!my_socket_valid(m_clients[i].m_socket))
       continue;
 
     SocketOutputStream out(m_clients[i].m_socket);
@@ -1497,7 +1497,8 @@ void
 Ndb_mgmd_event_service::add_listener(const Event_listener& client)
 {
   DBUG_ENTER("Ndb_mgmd_event_service::add_listener");
-  DBUG_PRINT("enter",("client.m_socket: %d", client.m_socket));
+  DBUG_PRINT("enter",("client.m_socket: " MY_SOCKET_FORMAT,
+                      MY_SOCKET_FORMAT_VALUE(client.m_socket)));
 
   check_listeners();
 
@@ -1511,7 +1512,8 @@ void
 Ndb_mgmd_event_service::stop_sessions(){
   m_clients.lock();
   for(int i = m_clients.size() - 1; i >= 0; i--){
-    if(m_clients[i].m_socket != NDB_INVALID_SOCKET){
+    if(my_socket_valid(m_clients[i].m_socket))
+    {
       NDB_CLOSE_SOCKET(m_clients[i].m_socket);
       m_clients.erase(i);
     }
@@ -1653,7 +1655,7 @@ done:
   {
     m_mgmsrv.m_event_listner.add_listener(le);
     m_stop = true;
-    m_socket = NDB_INVALID_SOCKET;
+    my_socket_invalidate(&m_socket);
   }
 }
 
@@ -1723,7 +1725,7 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 
   m_stop= true;
   m_stopped= true; // force a stop (no closing socket)
-  m_socket= NDB_INVALID_SOCKET;   // so nobody closes it
+  my_socket_invalidate(&m_socket);   // so nobody closes it
 }
 
 void
@@ -1881,3 +1883,4 @@ MgmApiSession::getSession(Parser_t::Context &ctx,
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;
+template class Vector<NDB_SOCKET_TYPE>;

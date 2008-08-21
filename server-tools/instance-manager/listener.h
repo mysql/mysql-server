@@ -48,7 +48,7 @@ private:
 
   ulong total_connection_count;
 
-  int sockets[2];
+  my_socket sockets[2];
   int num_sockets;
   fd_set read_fds;
 

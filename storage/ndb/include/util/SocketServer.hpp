@@ -47,7 +47,8 @@ public:
       m_refCount(0)
       {
 	DBUG_ENTER("SocketServer::Session");
-	DBUG_PRINT("enter",("NDB_SOCKET: %d", m_socket));
+	DBUG_PRINT("enter",("NDB_SOCKET: " MY_SOCKET_FORMAT,
+                            MY_SOCKET_FORMAT_VALUE(m_socket)));
 	DBUG_VOID_RETURN;
       }
     

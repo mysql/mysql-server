@@ -916,7 +916,11 @@ extern "C" {
    *
    * @return fd    filedescriptor to read events from
    */
+#ifdef NDB_WIN
+  SOCKET ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
+#else
   int ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
@@ -962,7 +966,11 @@ extern "C" {
    *
    * @return       filedescriptor, -1 on failure.
    */
+#ifdef NDB_WIN
+  SOCKET ndb_logevent_get_fd(const NdbLogEventHandle);
+#else
   int ndb_logevent_get_fd(const NdbLogEventHandle);
+#endif
 
   /**
    * Attempt to retrieve next log event and will fill in the supplied
@@ -1121,6 +1129,7 @@ extern "C" {
    * ndb_mgm_get_fd
    *
    * get the file descriptor of the handle.
+   * On Win32, returns SOCKET.
    * INTERNAL ONLY.
    * USE FOR TESTING. OTHER USES ARE NOT A GOOD IDEA.
    *
@@ -1128,7 +1137,11 @@ extern "C" {
    * @return handle->socket
    *
    */
+#ifdef NDB_WIN
+  SOCKET ndb_mgm_get_fd(NdbMgmHandle handle);
+#else
   int ndb_mgm_get_fd(NdbMgmHandle handle);
+#endif
 
   /**
    * Get the node id of the mgm server we're connected to

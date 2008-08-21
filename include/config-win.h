@@ -28,6 +28,7 @@
 
 #include <sys/locking.h>
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #include <math.h>			/* Because of rint() */
 #include <fcntl.h>
 #include <io.h>
@@ -148,11 +149,11 @@ typedef UINT_PTR rf_SetTimer;
 #ifndef HAVE_SIZE_T
 typedef unsigned int size_t;
 #endif
+#define ssize_t SSIZE_T
 typedef uint rf_SetTimer;
 #endif
 
 #define Socket_defined
-#define my_socket SOCKET
 #ifndef __cplusplus
 #define bool BOOL
 #define true ((BOOL)1)

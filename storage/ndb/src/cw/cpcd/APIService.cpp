@@ -151,7 +151,7 @@ CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock,
 }
 
 CPCDAPISession::CPCDAPISession(FILE * f, CPCD & cpcd)
-  : SocketServer::Session(1)
+  : SocketServer::Session::Session(my_socket_create_invalid())
   , m_cpcd(cpcd)
 {
   m_input = new FileInputStream(f);

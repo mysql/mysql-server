@@ -64,7 +64,7 @@ SocketOutputStream::print(const char * fmt, ...){
 
   if(ret >= 0)
     m_timeout_remain-=time;
-  if((ret < 0 && errno==ETIMEDOUT) || m_timeout_remain<=0)
+  if((ret < 0 && errno==SOCKET_ETIMEDOUT) || m_timeout_remain<=0)
   {
     m_timedout= true;
     ret= -1;
@@ -86,7 +86,7 @@ SocketOutputStream::println(const char * fmt, ...){
 
   if(ret >= 0)
     m_timeout_remain-=time;
-  if ((ret < 0 && errno==ETIMEDOUT) || m_timeout_remain<=0)
+  if ((ret < 0 && errno==SOCKET_ETIMEDOUT) || m_timeout_remain<=0)
   {
     m_timedout= true;
     ret= -1;

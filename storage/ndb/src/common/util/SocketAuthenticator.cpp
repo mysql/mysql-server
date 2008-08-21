@@ -41,7 +41,7 @@ SocketAuthSimple::~SocketAuthSimple()
     free((void*)m_username);
 }
 
-bool SocketAuthSimple::client_authenticate(int sockfd)
+bool SocketAuthSimple::client_authenticate(my_socket sockfd)
 {
   SocketOutputStream s_output(sockfd);
   SocketInputStream  s_input(sockfd);
@@ -64,7 +64,7 @@ bool SocketAuthSimple::client_authenticate(int sockfd)
   return false;
 }
 
-bool SocketAuthSimple::server_authenticate(int sockfd)
+bool SocketAuthSimple::server_authenticate(my_socket sockfd)
 {
 
   SocketOutputStream s_output(sockfd);

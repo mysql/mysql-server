@@ -58,13 +58,7 @@ typedef char my_bool;
 #define STDCALL __stdcall
 #endif
 
-#ifndef my_socket_defined
-#ifdef __WIN__
-#define my_socket SOCKET
-#else
-typedef int my_socket;
-#endif /* __WIN__ */
-#endif /* my_socket_defined */
+#include <my_socket.h>
 #endif /* _global_h */
 
 #include "mysql_version.h"

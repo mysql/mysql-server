@@ -84,7 +84,6 @@ void my_inet_ntoa(struct in_addr in, char *buf);
 #ifdef __WIN__
 typedef int socklen_t;
 #endif
-int my_getsockopt(int s,int level,int optname,void *optval,socklen_t*optlen);
 
 /*
   Handling of gethostbyname_r()

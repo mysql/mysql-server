@@ -86,8 +86,10 @@ size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
 {
   size_t r;
   DBUG_ENTER("vio_ssl_read");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u  ssl: 0x%lx",
-		       vio->sd, (long) buf, (uint) size, (long) vio->ssl_arg));
+  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT "  buf: 0x%lx  size: %u  "
+                       "ssl: 0x%lx",
+		       MY_SOCKET_FORMAT_VALUE(vio->sd), (long) buf,
+                       (uint) size, (long) vio->ssl_arg));
 
   r= SSL_read((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
@@ -103,7 +105,8 @@ size_t vio_ssl_write(Vio *vio, const uchar* buf, size_t size)
 {
   size_t r;
   DBUG_ENTER("vio_ssl_write");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd,
+  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT "  buf: 0x%lx  size: %u",
+                       MY_SOCKET_FORMAT_VALUE(vio->sd),
                        (long) buf, (uint) size));
 
   r= SSL_write((SSL*) vio->ssl_arg, buf, size);
@@ -181,8 +184,9 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   my_bool was_blocking;
 
   DBUG_ENTER("ssl_do");
-  DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
-                       (long) ptr, vio->sd, (long) ptr->ssl_context));
+  DBUG_PRINT("enter", ("ptr: 0x%lx, sd: " MY_SOCKET_FORMAT "  ctx: 0x%lx",
+                       (long) ptr, MY_SOCKET_FORMAT_VALUE(vio->sd),
+                       (long) ptr->ssl_context));
 
   /* Set socket to blocking if not already set */
   vio_blocking(vio, 1, &was_blocking);

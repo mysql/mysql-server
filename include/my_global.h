@@ -645,9 +645,9 @@ C_MODE_END
 /* Some types that is different between systems */
 
 typedef int	File;		/* File descriptor */
+#include <my_socket.h>
 #ifndef Socket_defined
-typedef int	my_socket;	/* File descriptor for sockets */
-#define INVALID_SOCKET -1
+#define INVALID_SOCKET MY_INVALID_SOCKET
 #endif
 /* Type for fuctions that handles signals */
 #define sig_handler RETSIGTYPE
@@ -784,7 +784,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 #undef remove		/* Crashes MySQL on SCO 5.0.0 */
 #ifndef __WIN__
-#define closesocket(A)	close(A)
+#define closesocket(A)	my_socket_close(A)
 #ifndef ulonglong2double
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
@@ -1047,7 +1047,7 @@ typedef off_t os_off_t;
 #endif
 
 #if defined(__WIN__)
-#define socket_errno	WSAGetLastError()
+#define socket_errno	my_socket_errno()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
 #define SOCKET_ETIMEDOUT WSAETIMEDOUT
@@ -1057,8 +1057,8 @@ typedef off_t os_off_t;
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #else /* Unix */
-#define socket_errno	errno
-#define closesocket(A)	close(A)
+#define socket_errno	my_socket_errno()
+#define closesocket(A)	my_socket_close(A)
 #define SOCKET_EINTR	EINTR
 #define SOCKET_EAGAIN	EAGAIN
 #define SOCKET_ETIMEDOUT SOCKET_EINTR

@@ -88,8 +88,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
   // Initialize member variables
-  theSocket     = NDB_INVALID_SOCKET;
-  
+  my_socket_invalidate(&theSocket);
+
   sendCount      = receiveCount = 0;
   sendSize       = receiveSize  = 0;
   reportFreq     = 4096; 
@@ -106,7 +106,7 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 TCP_Transporter::~TCP_Transporter() {
   
   // Disconnect
-  if (theSocket != NDB_INVALID_SOCKET)
+  if (my_socket_valid(theSocket))
     doDisconnect();
   
   // Delete receive buffer!!
@@ -165,10 +165,10 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
   int actual = 0, defval = 0;
   socklen_t len = sizeof(actual);
 
-  getsockopt(fd, level, optval, (char*)&defval, &len);
-  
-  if (setsockopt(fd, level, optval,
-		 (char*)&val, sizeof(val)) < 0)
+  my_getsockopt(fd, level, optval, (char*)&defval, &len);
+
+  if (my_setsockopt(fd, level, optval,
+                    (char*)&val, sizeof(val)) < 0)
   {
 #ifdef DEBUG_TRANSPORTER
     g_eventLogger->error("setsockopt(%s, %d) errno: %d %s",
@@ -177,8 +177,8 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
   }
   
   len = sizeof(actual);
-  if ((getsockopt(fd, level, optval,
-		  (char*)&actual, &len) == 0) &&
+  if ((my_getsockopt(fd, level, optval,
+                     (char*)&actual, &len) == 0) &&
       actual != val)
   {
 #ifdef DEBUG_TRANSPORTER
@@ -212,52 +212,25 @@ TCP_Transporter::setSocketOptions(NDB_SOCKET_TYPE socket)
   }
 }
 
-#ifdef NDB_WIN32
-
-bool
-TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket){
-  unsigned long  ul = 1;
-  if(ioctlsocket(socket, FIONBIO, &ul))
-  {
-#ifdef DEBUG_TRANSPORTER
-    g_eventLogger->error("Set non-blocking server error3: %d", InetErrno);
-#endif
-  }//if
-  return true;
+bool TCP_Transporter::setSocketNonBlocking(my_socket socket)
+{
+  if(my_socket_nonblock(socket, true)==0)
+    return true;
+  return false;
 }
-
-#else
-
-bool
-TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket){
-  int flags;
-  flags = fcntl(socket, F_GETFL, 0);
-  if (flags < 0) {
-#ifdef DEBUG_TRANSPORTER
-    g_eventLogger->error("Set non-blocking server error1: %s", strerror(InetErrno));
-#endif
-  }//if
-  flags |= NDB_NONBLOCK;
-  if (fcntl(socket, F_SETFL, flags) == -1) {
-#ifdef DEBUG_TRANSPORTER
-    g_eventLogger->error("Set non-blocking server error2: %s", strerror(InetErrno));
-#endif
-  }//if
-  return true;
-}
-
-#endif
 
 bool
 TCP_Transporter::sendIsPossible(struct timeval * timeout) {
-  if(theSocket != NDB_INVALID_SOCKET){
+  if(my_socket_valid(theSocket))
+  {
     fd_set   writeset;
     FD_ZERO(&writeset);
-    FD_SET(theSocket, &writeset);
-    
-    int selectReply = select(theSocket + 1, NULL, &writeset, NULL, timeout);
+    my_FD_SET(theSocket, &writeset);
 
-    if ((selectReply > 0) && FD_ISSET(theSocket, &writeset)) 
+    int selectReply = select(my_socket_nfds(theSocket,0) + 1,
+                             NULL, &writeset, NULL, timeout);
+
+    if ((selectReply > 0) && my_FD_ISSET(theSocket, &writeset))
       return true;
     else
       return false;
@@ -266,7 +239,7 @@ TCP_Transporter::sendIsPossible(struct timeval * timeout) {
 }
 
 #define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
-               (!((sz == -1) && (e == EAGAIN) || (e == EWOULDBLOCK) || (e == EINTR))))
+               (!((sz == -1) && (e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR))))
 
 
 bool
@@ -278,7 +251,7 @@ TCP_Transporter::doSend() {
   if (used == 0)
     return true;                                // Nothing to send
 
-  int nBytesSent = writev(theSocket, m_send_iovec, used);
+  int nBytesSent = my_socket_writev(theSocket, m_send_iovec, used);
 
   if (nBytesSent > 0)
   {
@@ -320,11 +293,11 @@ TCP_Transporter::doReceive() {
   // It reads the external TCP/IP interface once
   Uint32 size = receiveBuffer.sizeOfBuffer - receiveBuffer.sizeOfData;
   if(size > 0){
-    const int nBytesRead = recv(theSocket, 
-				receiveBuffer.insertPtr, 
-				size < maxReceiveSize ? size : maxReceiveSize, 
+    const int nBytesRead = my_recv(theSocket,
+				receiveBuffer.insertPtr,
+				size < maxReceiveSize ? size : maxReceiveSize,
 				0);
-    
+
     if (nBytesRead > 0) {
       receiveBuffer.sizeOfData += nBytesRead;
       receiveBuffer.insertPtr  += nBytesRead;
@@ -375,12 +348,13 @@ TCP_Transporter::disconnectImpl() {
 
   NDB_SOCKET_TYPE sock = theSocket;
   receiveBuffer.clear();
-  theSocket = NDB_INVALID_SOCKET;
+  my_socket_invalidate(&theSocket);
 
   get_callback_obj()->unlock_transporter(remoteNodeId);
 
-  if(sock != NDB_INVALID_SOCKET){
-    if(NDB_CLOSE_SOCKET(sock) < 0){
+  if(my_socket_valid(sock))
+  {
+    if(my_socket_close(sock) < 0){
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
   }

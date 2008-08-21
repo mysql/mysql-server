@@ -427,7 +427,7 @@ SimpleCpcClient::cmd_help(char *arg) {
 SimpleCpcClient::SimpleCpcClient(const char *_host, int _port) {
   host = strdup(_host);
   port = _port;
-  cpc_sock = -1;
+  my_socket_invalidate(&cpc_sock);
 }
 
 SimpleCpcClient::~SimpleCpcClient() {
@@ -438,9 +438,9 @@ SimpleCpcClient::~SimpleCpcClient() {
 
   port = 0;
 
-  if(cpc_sock == -1) {
-    close(cpc_sock);
-    cpc_sock = -1;
+  if(my_socket_valid(cpc_sock)) {
+    my_socket_close(cpc_sock);
+    my_socket_invalidate(&cpc_sock);
   }
 }
 
@@ -450,8 +450,8 @@ SimpleCpcClient::connect() {
   struct hostent *hp;
 
   /* Create socket */
-  cpc_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if(cpc_sock < 0)
+  cpc_sock = my_socket_create(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if(!my_socket_valid(cpc_sock))
     return -1;
 
   /* Connect socket */
@@ -464,7 +464,7 @@ SimpleCpcClient::connect() {
 
   memcpy(&sa.sin_addr, hp->h_addr, hp->h_length);
   sa.sin_port = htons(port);
-  if (::connect(cpc_sock, (struct sockaddr*) &sa, sizeof(sa)) < 0)
+  if (my_connect_inet(cpc_sock, &sa) < 0)
     return -1;
 
   return 0;

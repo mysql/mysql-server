@@ -144,7 +144,7 @@ int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
 	       uint timeout)
 {
 #if defined(__WIN__) || defined(__NETWARE__)
-  return connect(fd, (struct sockaddr*) name, namelen);
+  return connect(fd.s, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
 
@@ -154,16 +154,16 @@ int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
   */
 
   if (timeout == 0)
-    return connect(fd, (struct sockaddr*) name, namelen);
+    return connect(fd.fd, (struct sockaddr*) name, namelen);
 
-  flags = fcntl(fd, F_GETFL, 0);	  /* Set socket to not block */
+  flags = fcntl(fd.fd, F_GETFL, 0);	  /* Set socket to not block */
 #ifdef O_NONBLOCK
-  fcntl(fd, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
+  fcntl(fd.fd, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
 #endif
 
-  res= connect(fd, (struct sockaddr*) name, namelen);
+  res= connect(fd.fd, (struct sockaddr*) name, namelen);
   s_err= errno;			/* Save the error... */
-  fcntl(fd, F_SETFL, flags);
+  fcntl(fd.fd, F_SETFL, flags);
   if ((res != 0) && (s_err != EINPROGRESS))
   {
     errno= s_err;			/* Restore it */
@@ -191,7 +191,7 @@ static int wait_for_data(my_socket fd, uint timeout)
   struct pollfd ufds;
   int res;
 
-  ufds.fd= fd;
+  ufds.fd= fd.fd;
   ufds.events= POLLIN | POLLPRI;
   if (!(res= poll(&ufds, 1, (int) timeout*1000)))
   {
@@ -228,7 +228,7 @@ static int wait_for_data(my_socket fd, uint timeout)
   */
 
   FD_ZERO(&sfds);
-  FD_SET(fd, &sfds);
+  my_FD_SET(fd, &sfds);
   /*
     select could be interrupted by a signal, and if it is, 
     the timeout should be adjusted and the select restarted
@@ -242,10 +242,10 @@ static int wait_for_data(my_socket fd, uint timeout)
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
 #if defined(HPUX10) && defined(THREAD)
-    if ((res = select(fd+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
+    if ((res = select(my_socket_nfds(fd,0)+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
       break;
 #else
-    if ((res = select(fd+1, NULL, &sfds, NULL, &tv)) > 0)
+    if ((res = select(my_socket_nfds(fd,0)+1, NULL, &sfds, NULL, &tv)) > 0)
       break;
 #endif
     if (res == 0)					/* timeout */
@@ -263,7 +263,7 @@ static int wait_for_data(my_socket fd, uint timeout)
   */
 
   s_err=0;
-  if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
+  if (my_getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
     return(-1);
 
   if (s_err)
@@ -1933,8 +1933,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     else
     {
       mysql->options.protocol=MYSQL_PROTOCOL_MEMORY;
-      sock=0;
-      unix_socket = 0;
+      my_socket_invalidate(&sock);
+      unix_socket=0;
       host=mysql->options.shared_memory_base_name;
       my_snprintf(host_info=buff, sizeof(buff)-1,
                   ER(CR_SHARED_MEMORY_CONNECTION), host);
@@ -1953,7 +1953,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       unix_socket=mysql_unix_port;
     host_info=(char*) ER(CR_LOCALHOST_CONNECTION);
     DBUG_PRINT("info",("Using UNIX sock '%s'",unix_socket));
-    if ((sock = socket(AF_UNIX,SOCK_STREAM,0)) == SOCKET_ERROR)
+    sock = my_socket_create(AF_UNIX,SOCK_STREAM,0);
+    if (!my_socket_valid(sock))
     {
       set_mysql_extended_error(mysql, CR_SOCKET_CREATE_ERROR,
                                unknown_sqlstate,
@@ -1985,7 +1986,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
        (host && !strcmp(host,LOCAL_HOST_NAMEDPIPE)) ||
        (! have_tcpip && (unix_socket || !host && is_NT()))))
   {
-    sock=0;
+    sock.s= 0;
     if ((hPipe= create_named_pipe(mysql, mysql->options.connect_timeout,
                                   (char**) &host, (char**) &unix_socket)) ==
 	INVALID_HANDLE_VALUE)
@@ -2025,11 +2026,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     thr_alarm(&alarmed, mysql->options.connect_timeout, &alarm_buff);
 #endif
     /* _WIN64 ;  Assume that the (int) range is enough for socket() */
-    sock = (my_socket) socket(AF_INET,SOCK_STREAM,0);
+    sock = my_socket_create(AF_INET,SOCK_STREAM,0);
 #ifdef MYSQL_SERVER
     thr_end_alarm(&alarmed);
 #endif
-    if (sock == SOCKET_ERROR)
+    if (!my_socket_valid(sock))
     {
       set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
                                ER(CR_IPSOCK_ERROR), socket_errno);
@@ -2069,7 +2070,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
         IPaddr.sin_family = AF_INET;
         IPaddr.sin_addr.s_addr = bind_addr;
         IPaddr.sin_port = 0;
-        if (bind(sock, (struct sockaddr *) &IPaddr, sizeof(IPaddr))) {
+        if (my_bind(sock, (struct sockaddr *) &IPaddr, sizeof(IPaddr))) {
           net->last_errno=CR_IPSOCK_ERROR;
           strmov(net->sqlstate, unknown_sqlstate);
           my_snprintf(net->last_error, sizeof(net->last_error)-1,

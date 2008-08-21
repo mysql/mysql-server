@@ -43,8 +43,8 @@ SocketServer::~SocketServer() {
     delete session;
   }
   for(i = 0; i<m_services.size(); i++){
-    if(m_services[i].m_socket)
-      NDB_CLOSE_SOCKET(m_services[i].m_socket);
+    if(my_socket_valid(m_services[i].m_socket))
+      my_socket_close(m_services[i].m_socket);
     delete m_services[i].m_service;
   }
 }
@@ -61,22 +61,21 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
     if(Ndb_getInAddr(&servaddr.sin_addr, intface))
       return false;
   }
-  
-  const NDB_SOCKET_TYPE sock  = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock == NDB_INVALID_SOCKET) {
-    return false;
-  }
-  
-  DBUG_PRINT("info",("NDB_SOCKET: %d", sock));
 
-  const int on = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, 
-		 (const char*)&on, sizeof(on)) == -1) {
+  const NDB_SOCKET_TYPE sock  = my_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!my_socket_valid(sock))
+    return false;
+
+  DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT,
+                     MY_SOCKET_FORMAT_VALUE(sock)));
+
+  if (my_socket_reuseaddr(sock, true) == -1)
+  {
     NDB_CLOSE_SOCKET(sock);
     return false;
   }
   
-  if (bind(sock, (struct sockaddr*) &servaddr, sizeof(servaddr)) == -1) {
+  if (my_bind_inet(sock, &servaddr) == -1) {
     NDB_CLOSE_SOCKET(sock);
     return false;
   }
@@ -102,54 +101,56 @@ SocketServer::setup(SocketServer::Service * service,
       DBUG_RETURN(false);
   }
   
-  const NDB_SOCKET_TYPE sock  = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock == NDB_INVALID_SOCKET) {
+  const my_socket sock  = my_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!my_socket_valid(sock))
+  {
     DBUG_PRINT("error",("socket() - %d - %s",
-			errno, strerror(errno)));
+			socket_errno, strerror(socket_errno)));
     DBUG_RETURN(false);
   }
-  
-  DBUG_PRINT("info",("NDB_SOCKET: %d", sock));
- 
-  const int on = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, 
-		 (const char*)&on, sizeof(on)) == -1) {
+
+  DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT,
+                     MY_SOCKET_FORMAT_VALUE(sock)));
+
+  if (my_socket_reuseaddr(sock, true) == -1)
+  {
     DBUG_PRINT("error",("setsockopt() - %d - %s",
 			errno, strerror(errno)));
     NDB_CLOSE_SOCKET(sock);
     DBUG_RETURN(false);
   }
-  
-  if (bind(sock, (struct sockaddr*) &servaddr, sizeof(servaddr)) == -1) {
+
+  if (my_bind_inet(sock, &servaddr) == -1) {
     DBUG_PRINT("error",("bind() - %d - %s",
-			errno, strerror(errno)));
+			socket_errno, strerror(socket_errno)));
     NDB_CLOSE_SOCKET(sock);
     DBUG_RETURN(false);
   }
 
   /* Get the port we bound to */
-  SOCKET_SIZE_TYPE sock_len = sizeof(servaddr);
-  if(getsockname(sock,(struct sockaddr*)&servaddr,&sock_len)<0) {
+  if(my_socket_get_port(sock, port))
+  {
     ndbout_c("An error occurred while trying to find out what"
-	     " port we bound to. Error: %s",strerror(errno));
-    NDB_CLOSE_SOCKET(sock);
+	     " port we bound to. Error: %d - %s",
+             socket_errno, strerror(socket_errno));
+    my_socket_close(sock);
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info",("bound to %u",ntohs(servaddr.sin_port)));
-  if (listen(sock, m_maxSessions > 32 ? 32 : m_maxSessions) == -1){
+  DBUG_PRINT("info",("bound to %u", *port));
+
+  if (my_listen(sock, m_maxSessions > 32 ? 32 : m_maxSessions) == -1)
+  {
     DBUG_PRINT("error",("listen() - %d - %s",
-			errno, strerror(errno)));
-    NDB_CLOSE_SOCKET(sock);
+			socket_errno, strerror(socket_errno)));
+    my_socket_close(sock);
     DBUG_RETURN(false);
   }
-  
+
   ServiceInstance i;
   i.m_socket = sock;
   i.m_service = service;
   m_services.push_back(i);
-
-  *port = ntohs(servaddr.sin_port);
 
   DBUG_RETURN(true);
 }
@@ -164,24 +165,23 @@ SocketServer::doAccept(){
   int maxSock = 0;
   for (unsigned i = 0; i < m_services.size(); i++){
     const NDB_SOCKET_TYPE s = m_services[i].m_socket;
-    FD_SET(s, &readSet);
-    FD_SET(s, &exceptionSet);
-    maxSock = (maxSock > s ? maxSock : s);
+    my_FD_SET(s, &readSet);
+    my_FD_SET(s, &exceptionSet);
+    maxSock = my_socket_nfds(s, maxSock);
   }
   struct timeval timeout;
   timeout.tv_sec  = 1;
   timeout.tv_usec = 0;
-  
+
   if(select(maxSock + 1, &readSet, 0, &exceptionSet, &timeout) > 0){
     for (unsigned i = 0; i < m_services.size(); i++){
       ServiceInstance & si = m_services[i];
-      
-      if(FD_ISSET(si.m_socket, &readSet)){
-	NDB_SOCKET_TYPE childSock = accept(si.m_socket, 0, 0);
-	if(childSock == NDB_INVALID_SOCKET){
+
+      if(my_FD_ISSET(si.m_socket, &readSet)){
+	my_socket childSock = my_accept(si.m_socket, 0, 0);
+	if(!my_socket_valid(childSock))
 	  continue;
-	}
-	
+
 	SessionInstance s;
 	s.m_service = si.m_service;
 	s.m_session = si.m_service->newSession(childSock);
@@ -196,7 +196,7 @@ SocketServer::doAccept(){
 	continue;
       }      
       
-      if(FD_ISSET(si.m_socket, &exceptionSet)){
+      if(my_FD_ISSET(si.m_socket, &exceptionSet)){
 	DEBUG("socket in the exceptionSet");
 	continue;
       }
