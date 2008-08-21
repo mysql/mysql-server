@@ -230,8 +230,8 @@ ClusterMgr::threadMain( ){
   req->version = NDB_VERSION;
   req->mysql_version = NDB_MYSQL_VERSION_D;
   
-  Uint32 timeSlept = 100;
-  Uint64 now = NdbTick_CurrentMillisecond();
+  NDB_TICKS timeSlept = 100;
+  NDB_TICKS now = NdbTick_CurrentMillisecond();
 
   while(!theStop){
     /**
@@ -298,7 +298,7 @@ ClusterMgr::threadMain( ){
     
 next:
     // Sleep for 100 ms between each Registration Heartbeat
-    Uint64 before = now;
+    NDB_TICKS before = now;
     NdbSleep_MilliSleep(100); 
     now = NdbTick_CurrentMillisecond();
     timeSlept = (now - before);

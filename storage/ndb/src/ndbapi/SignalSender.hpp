@@ -65,7 +65,7 @@ private:
   
   static void execSignal(void* signalSender, 
 			 NdbApiSignal* signal, 
-			 class LinearSectionPtr ptr[3]);
+			 struct LinearSectionPtr ptr[3]);
   
   static void execNodeStatus(void* signalSender, Uint32 nodeId, 
 			     bool alive, bool nfCompleted);

@@ -167,7 +167,7 @@ put(PropertiesImpl * impl, const char * name, T value, bool replace){
       return false;
     }
   }
-  return tmp->put(new PropertyImpl(short_name, value));  
+  return (tmp->put(new PropertyImpl(short_name, value)) != 0);
 }
 
 

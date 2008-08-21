@@ -2133,7 +2133,7 @@ ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
     args.put("backupid", input_backupId);
   const Properties *reply;
   { // start backup can take some time, set timeout high
-    Uint64 old_timeout= handle->timeout;
+    int old_timeout= handle->timeout;
     if (wait_completed == 2)
       handle->timeout= 48*60*60*1000; // 48 hours
     else if (wait_completed == 1)
@@ -2427,7 +2427,7 @@ ndb_mgm_set_int_parameter(NdbMgmHandle handle,
   Properties args;
   args.put("node", node);
   args.put("param", param);
-  args.put("value", value);
+  args.put64("value", value);
   
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("set parameter reply", NULL, ""),

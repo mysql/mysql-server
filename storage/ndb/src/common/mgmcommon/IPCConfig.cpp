@@ -163,7 +163,7 @@ IPCConfig::getNodeType(NodeId id) const {
 #include <mgmapi.h>
 Uint32
 IPCConfig::configureTransporters(Uint32 nodeId,
-				 const class ndb_mgm_configuration & config,
+				 const struct ndb_mgm_configuration & config,
 				 class TransporterRegistry & tr){
   TransporterConfiguration conf;
 
