@@ -189,11 +189,11 @@ inline
 int
 ndbd_suma_dictlock(Uint32 x)
 {
-  if (x >= NDB_VERSION_D)
-    return 1;
-  
   const Uint32 major = (x >> 16) & 0xFF;
   const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (x >= NDB_VERSION_D)
+    return 1;
   
   if (major >= 6)
   {
@@ -212,11 +212,11 @@ inline
 int
 ndbd_LIST_TABLES_CONF_long_signal(Uint32 x)
 {
-  if (x >= NDB_VERSION_D)
-    return 1;
-
   const Uint32 major = (x >> 16) & 0xFF;
   const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (x >= NDB_VERSION_D)
+    return 1;
 
   if (major >= 6)
   {
