@@ -2051,7 +2051,15 @@ public:
     Uint32 stopPageNo;
     Uint32 fileNo;
   };
-  
+  //for statistic information about redo log initialization
+  Uint32 totalLogFiles;
+  Uint32 logFileInitDone;
+  Uint32 totallogMBytes;
+  Uint32 logMBytesInitDone;
+
+  Uint32 m_startup_report_frequency;
+  Uint32 m_next_report_time;
+ 
 public:
   Dblqh(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dblqh();
@@ -2560,7 +2568,19 @@ private:
   void send_restore_lcp(Signal * signal);
   void execRESTORE_LCP_REF(Signal* signal);
   void execRESTORE_LCP_CONF(Signal* signal);
-  
+  /**
+   * For periodic redo log file initialization status reporting 
+   * and explicit redo log file status reporting
+   */
+  /* Init at start of redo log file initialization, timers etc... */
+  void initReportStatus(Signal* signal);
+  /* Check timers for reporting at certain points */
+  void checkReportStatus(Signal* signal);
+  /* Send redo log file initialization status, invoked either periodically, or explicitly */
+  void reportStatus(Signal* signal);
+  /* redo log file initialization completed report*/
+  void logfileInitCompleteReport(Signal* signal);
+ 
   Dbtup* c_tup;
   Dbacc* c_acc;
 
