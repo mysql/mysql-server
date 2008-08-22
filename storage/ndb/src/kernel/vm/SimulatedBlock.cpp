@@ -217,34 +217,6 @@ SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn,
   theExecArray[gsn] = f;
 }
 
-Uint32
-SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
-{
-  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
-  ndbrequire(dbdih != 0);
-  Uint32 instanceKey = dbdih->dihGetInstanceKey(tabId, fragId);
-  return instanceKey;
-}
-
-Uint32
-SimulatedBlock::getLogPartId(Uint32 tabId, Uint32 fragId)
-{
-  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
-  ndbrequire(dbdih != 0);
-  Uint32 logPartId = dbdih->dihGetLogPartId(tabId, fragId);
-  return logPartId;
-}
-
-bool
-SimulatedBlock::isLogPartOwner(Uint32 worker, Uint32 logPartId)
-{
-  if (!globalData.isNdbMtLqh)
-    return true;
-  Uint32 workers = globalData.ndbMtLqhWorkers;
-  ndbrequire(workers != 0 && worker < workers);
-  return worker == logPartId % workers;
-}
-
 void
 SimulatedBlock::assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
                                Uint32 *watchDogCounter)
@@ -252,6 +224,14 @@ SimulatedBlock::assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
   m_threadId = threadId;
   m_jamBuffer = jamBuffer;
   m_watchDogCounter = watchDogCounter;
+}
+
+Uint32
+SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
+{
+  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
+  Uint32 instanceKey = dbdih->dihGetInstanceKey(tabId, fragId);
+  return instanceKey;
 }
 
 void

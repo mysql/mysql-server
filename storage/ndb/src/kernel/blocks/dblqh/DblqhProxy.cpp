@@ -15,6 +15,7 @@
 
 #include "DblqhProxy.hpp"
 #include "Dblqh.hpp"
+#include "DblqhCommon.hpp"
 
 DblqhProxy::DblqhProxy(Block_context& ctx) :
   LocalProxy(DBLQH, ctx)
@@ -275,7 +276,9 @@ DblqhProxy::sendLQHFRAGREQ(Signal* signal, Uint32 ssId)
   LqhFragReq* req = (LqhFragReq*)signal->getDataPtrSend();
   *req = ss.m_req;
 
-  if (!isLogPartOwner(ss.m_worker, req->logPartId)) {
+  NdbLogPartInfo lpinfo(workerInstance(ss.m_worker));
+  Uint32 logPartNo = lpinfo.partNoFromId(req->logPartId);
+  if (!lpinfo.partNoOwner(logPartNo)) {
     jam();
     skipReq(ss);
     return;

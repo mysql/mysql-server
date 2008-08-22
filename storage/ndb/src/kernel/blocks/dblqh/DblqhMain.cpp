@@ -71,6 +71,7 @@
 #include <signaldata/SignalDroppedRep.hpp>
 
 #include "../suma/Suma.hpp"
+#include "DblqhCommon.hpp"
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -832,7 +833,7 @@ void Dblqh::startphase3Lab(Signal* signal)
     reportStatus(signal); 
   }
   initReportStatus(signal);
-  for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
     initLogpart(signal);
@@ -879,7 +880,7 @@ void Dblqh::startphase3Lab(Signal* signal)
      * THE RESTART BY FINDING THE END OF THE LOG AND FROM THERE FINDING THE 
      * INFO ABOUT THE GLOBAL CHECKPOINTS IN THE FRAGMENT LOG. 
      --------------------------------------------------------------------- */
-    for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
       jam();
       LogFileRecordPtr locLogFilePtr;
       ptrAss(logPartPtr, logPartRecord);
@@ -1540,7 +1541,19 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   fragptr.p->startGci = req->startGci;
   fragptr.p->newestGci = req->startGci;
   fragptr.p->tableType = tabptr.p->tableType;
-  fragptr.p->m_log_part_ptr_i = (req->logPartId & 3); // assumes array
+
+  {
+    NdbLogPartInfo lpinfo(instance());
+    Uint32 logPartNo = lpinfo.partNoFromId(req->logPartId);
+    ndbrequire(lpinfo.partNoOwner(logPartNo));
+
+    LogPartRecordPtr ptr;
+    ptr.i = lpinfo.partNoIndex(logPartNo);
+    ptrCheckGuard(ptr, clogPartFileSize, logPartRecord);
+    ndbrequire(ptr.p->logPartNo == logPartNo);
+
+    fragptr.p->m_log_part_ptr_i = ptr.i;
+  }
 
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
     jam();
@@ -12559,7 +12572,7 @@ void Dblqh::setLogTail(Signal* signal, Uint32 keepGci)
   UintR tsltIndex;
   UintR tsltFlag;
 
-  for (sltLogPartPtr.i = 0; sltLogPartPtr.i < 4; sltLogPartPtr.i++) {
+  for (sltLogPartPtr.i = 0; sltLogPartPtr.i < clogPartFileSize; sltLogPartPtr.i++) {
     jam();
     ptrAss(sltLogPartPtr, logPartRecord);
     findLogfile(signal, sltLogPartPtr.p->logTailFileNo,
@@ -12842,7 +12855,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   gcpPtr.p->gcpUserptr = dihPtr;
   gcpPtr.p->gcpId = gci;
   bool tlogActive = false;
-  for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
     if (logPartPtr.p->logPartState == LogPartRecord::ACTIVE) {
       jam();
@@ -12872,7 +12885,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dblqh::startTimeSupervision(Signal* signal) 
 {
-  for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -12899,7 +12912,7 @@ void Dblqh::initGcpRecLab(Signal* signal)
 /*                                                                          */
 /*       SUBROUTINE SHORT NAME = IGR                                        */
 /* ======================================================================== */
-  for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
 /*--------------------------------------------------*/
@@ -12935,6 +12948,14 @@ void Dblqh::initGcpRecLab(Signal* signal)
 	logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] - 1;
     }//if
   }//for
+  // initialize un-used part
+  Uint32 Ti;
+  for (Ti = clogPartFileSize; Ti < ZLOG_PART_FILE_SIZE; Ti++) {
+    gcpPtr.p->gcpFilePtr[Ti] = ZNIL;
+    gcpPtr.p->gcpPageNo[Ti] = ZNIL;
+    gcpPtr.p->gcpSyncReady[Ti] = FALSE;
+    gcpPtr.p->gcpWordNo[Ti] = ZNIL;
+  }
   return;
 }//Dblqh::initGcpRecLab()
 
@@ -12987,7 +13008,7 @@ void Dblqh::checkGcpCompleted(Signal* signal,
       logPartPtr.p->gcprec = RNIL;
       gcpPtr.p->gcpLogPartState[logPartPtr.i] = ZON_DISK;
       tcgcFlag = ZTRUE;
-      for (tcgcJ = 0; tcgcJ <= 3; tcgcJ++) {
+      for (tcgcJ = 0; tcgcJ < clogPartFileSize; tcgcJ++) {
         jam();
         if (gcpPtr.p->gcpLogPartState[tcgcJ] != ZON_DISK) {
           jam();
@@ -13008,7 +13029,7 @@ void Dblqh::checkGcpCompleted(Signal* signal,
 // log files where the last log word resided first before proceeding.
 /* ------------------------------------------------------------------------- */
         UintR Ti;
-        for (Ti = 0; Ti < 4; Ti++) {
+        for (Ti = 0; Ti < clogPartFileSize; Ti++) {
           LogFileRecordPtr loopLogFilePtr;
           loopLogFilePtr.i = gcpPtr.p->gcpFilePtr[Ti];
           ptrCheckGuard(loopLogFilePtr, clogFileFileSize, logFileRecord);
@@ -13048,7 +13069,7 @@ Dblqh::execFSSYNCCONF(Signal* signal)
   ptrCheckGuard(localGcpPtr, cgcprecFileSize, gcpRecord);
   localGcpPtr.p->gcpSyncReady[localLogPartPtr.i] = ZTRUE;
   UintR Ti;
-  for (Ti = 0; Ti < 4; Ti++) {
+  for (Ti = 0; Ti < clogPartFileSize; Ti++) {
     jam();
     if (localGcpPtr.p->gcpSyncReady[Ti] == ZFALSE) {
       jam();
@@ -13995,7 +14016,7 @@ CHECK_LOG_PARTS_LOOP:
 /*---------------------------------------------------------------------------*/
     return;
   }//if
-  if (logPartPtr.i == 3) {
+  if (logPartPtr.i + 1 == clogPartFileSize) {
     jam();
 /*---------------------------------------------------------------------------*/
 /* ALL LOG PARTS ARE COMPLETED. NOW WE CAN CONTINUE WITH THE RESTART         */
@@ -14003,7 +14024,7 @@ CHECK_LOG_PARTS_LOOP:
 /* NEED TO INITIALISE ALL NEEDED DATA AND TO OPEN FILE ZERO AND THE NEXT AND */
 /* TO SET THE CURRENT LOG PAGE TO BE PAGE 1 IN FILE ZERO.                    */
 /*---------------------------------------------------------------------------*/
-    for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
       ptrAss(logPartPtr, logPartRecord);
       signal->theData[0] = ZINIT_FOURTH;
       signal->theData[1] = logPartPtr.i;
@@ -14050,7 +14071,7 @@ void Dblqh::initLogfile(Signal* signal, Uint32 fileNo)
   logFilePtr.p->fileName[2] = fileNo;	        /* Sfile_no */
   tilTmp = 1;	                        /* VERSION 1 OF FILE NAME */
   tilTmp = (tilTmp << 8) + 1;	    /* FRAGMENT LOG => .FRAGLOG AS EXTENSION */
-  tilTmp = (tilTmp << 8) + (8 + logPartPtr.i); /* DIRECTORY = D(8+Part)/DBLQH */
+  tilTmp = (tilTmp << 8) + (8 + logPartPtr.p->logPartNo); /* DIRECTORY = D(8+Part)/DBLQH */
   tilTmp = (tilTmp << 8) + 255;	              /* IGNORE Pxx PART OF FILE NAME */
   logFilePtr.p->fileName[3] = tilTmp;
 /* ========================================================================= */
@@ -14723,7 +14744,7 @@ void Dblqh::closingSrLab(Signal* signal)
    *  CHECK IF ALL OTHER LOG PARTS ARE ALSO COMPLETED.
    * ------------------------------------------------------------------------ */
   logPartPtr.p->logPartState = LogPartRecord::SR_FIRST_PHASE_COMPLETED;
-  for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
     if (logPartPtr.p->logPartState != LogPartRecord::SR_FIRST_PHASE_COMPLETED) {
@@ -14981,7 +15002,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     cstartRecReqData = RNIL;
   }
   
-  for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
   }//for
@@ -15265,7 +15286,7 @@ void Dblqh::execSrCompletedLab(Signal* signal)
      * HAVE TO FIND THE ACTUAL PAGE NUMBER AND PAGE INDEX WHERE TO 
      * CONTINUE WRITING THE LOG AFTER THE SYSTEM RESTART.
      * --------------------------------------------------------------------- */
-    for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
       jam();
       ptrAss(logPartPtr, logPartRecord);
       logPartPtr.p->logPartState = LogPartRecord::SR_FOURTH_PHASE_STARTED;
@@ -15380,7 +15401,7 @@ void Dblqh::srPhase3Start(Signal* signal)
   ndbrequire(csrPhaseStarted != ZSR_BOTH_PHASES_STARTED);
 
   csrPhaseStarted = ZSR_BOTH_PHASES_STARTED;
-  for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->logPartState = LogPartRecord::SR_THIRD_PHASE_STARTED;
@@ -15445,7 +15466,7 @@ void Dblqh::srGciLimits(Signal* signal)
     }//if
   }
 
-  for(Uint32 i = 1; i<4; i++)
+  for(Uint32 i = 1; i < clogPartFileSize; i++)
   {
     LogPartRecordPtr tmp;
     tmp.i = i;
@@ -15464,7 +15485,7 @@ void Dblqh::srGciLimits(Signal* signal)
     logPartPtr.p->logStartGci = logPartPtr.p->logLastGci;
   }//if
   
-  for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->logExecState = LogPartRecord::LES_SEARCH_STOP;
@@ -16497,7 +16518,7 @@ void Dblqh::execLogComp(Signal* signal)
   tcConnectptr.i = logPartPtr.p->logTcConrec;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   releaseTcrecLog(signal, tcConnectptr);
-  for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
     if (logPartPtr.p->logPartState != LogPartRecord::SR_THIRD_PHASE_COMPLETED) {
@@ -16774,7 +16795,7 @@ void Dblqh::srFourthComp(Signal* signal)
   logPartPtr.i = signal->theData[0];
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
   logPartPtr.p->logPartState = LogPartRecord::SR_FOURTH_PHASE_COMPLETED;
-  for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
     ptrAss(logPartPtr, logPartRecord);
     if (logPartPtr.p->logPartState != LogPartRecord::SR_FOURTH_PHASE_COMPLETED) {
@@ -16799,7 +16820,7 @@ void Dblqh::srFourthComp(Signal* signal)
    *  SET LOG PART STATE TO IDLE TO
    *  INDICATE THAT NOTHING IS GOING ON IN THE LOG PART.
    * ----------------------------------------------------------------------- */
-  for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->logPartState = LogPartRecord::IDLE;
   }//for
@@ -17554,7 +17575,7 @@ void Dblqh::initialiseGcprec(Signal* signal)
   if (cgcprecFileSize != 0) {
     for (gcpPtr.i = 0; gcpPtr.i < cgcprecFileSize; gcpPtr.i++) {
       ptrAss(gcpPtr, gcpRecord);
-      for (tigpIndex = 0; tigpIndex <= 3; tigpIndex++) {
+      for (tigpIndex = 0; tigpIndex < ZLOG_PART_FILE_SIZE; tigpIndex++) {
         gcpPtr.p->gcpLogPartState[tigpIndex] = ZIDLE;
         gcpPtr.p->gcpSyncReady[tigpIndex] = ZFALSE;
       }//for
@@ -17672,7 +17693,7 @@ void Dblqh::initialiseLogPage(Signal* signal)
  * ========================================================================= */
 void Dblqh::initialiseLogPart(Signal* signal) 
 {
-  for (logPartPtr.i = 0; logPartPtr.i <= 3; logPartPtr.i++) {
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->waitWriteGciLog = LogPartRecord::WWGL_FALSE;
     logPartPtr.p->LogLqhKeyReqSent = ZFALSE;
@@ -18034,6 +18055,10 @@ void Dblqh::initLogpart(Signal* signal)
   logPartPtr.p->headFileNo = ZNIL;
   logPartPtr.p->headPageNo = ZNIL;
   logPartPtr.p->headPageIndex = ZNIL;
+
+  NdbLogPartInfo lpinfo(instance());
+  ndbrequire(lpinfo.partCount == clogPartFileSize);
+  logPartPtr.p->logPartNo = lpinfo.partNo[logPartPtr.i];
 }//Dblqh::initLogpart()
 
 /* ========================================================================== 
@@ -18249,7 +18274,7 @@ void Dblqh::logNextStart(Signal* signal)
     writeCompletedGciLog(signal);
     logPartPtr.p->waitWriteGciLog = LogPartRecord::WWGL_FALSE;
     tlnsStillWaiting = ZFALSE;
-    for (lnsLogPartPtr.i = 0; lnsLogPartPtr.i < 4; lnsLogPartPtr.i++) {
+    for (lnsLogPartPtr.i = 0; lnsLogPartPtr.i < clogPartFileSize; lnsLogPartPtr.i++) {
       jam();
       ptrAss(lnsLogPartPtr, logPartRecord);
       if (lnsLogPartPtr.p->waitWriteGciLog == LogPartRecord::WWGL_TRUE) {
@@ -19872,12 +19897,14 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     jam();
     Uint32 i;
     GcpRecordPtr gcp; gcp.i = RNIL;
-    for(i = 0; i<4; i++)
+    for(i = 0; i < clogPartFileSize; i++)
     {
       logPartPtr.i = i;
       ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
-      ndbout_c("LP %d state: %d WW_Gci: %d gcprec: %d flq: %d currfile: %d tailFileNo: %d logTailMbyte: %d", 
+      ndbout_c("LP %d blockInstance: %d partNo: %d state: %d WW_Gci: %d gcprec: %d flq: %d currfile: %d tailFileNo: %d logTailMbyte: %d", 
 	       i,
+               instance(),
+               logPartPtr.p->logPartNo,
 	       logPartPtr.p->logPartState,
 	       logPartPtr.p->waitWriteGciLog,
 	       logPartPtr.p->gcprec,
