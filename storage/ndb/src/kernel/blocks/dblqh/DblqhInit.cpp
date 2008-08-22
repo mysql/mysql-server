@@ -18,6 +18,7 @@
 #define DBLQH_C
 #include "Dblqh.hpp"
 #include <ndb_limits.h>
+#include "DblqhCommon.hpp"
 
 #define DEBUG(x) { ndbout << "LQH::" << x << endl; }
 
@@ -32,7 +33,10 @@ void Dblqh::initData()
   clcpFileSize = ZNO_CONCURRENT_LCP;
   clfoFileSize = 0;
   clogFileFileSize = 0;
-  clogPartFileSize = ZLOG_PART_FILE_SIZE;
+
+  NdbLogPartInfo lpinfo(instance());
+  clogPartFileSize = lpinfo.partCount;
+
   cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
   cscanrecFileSize = 0;
   ctabrecFileSize = 0;

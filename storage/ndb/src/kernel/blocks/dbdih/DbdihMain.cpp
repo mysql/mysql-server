@@ -16936,7 +16936,8 @@ do_send:
 
 #endif
 
-// block instances
+// MT LQH
+
 Uint32
 Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
 {
@@ -16947,16 +16948,4 @@ Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
   getFragstore(tTabPtr.p, fragId, tFragPtr);
   Uint32 instanceKey = dihGetInstanceKey(tFragPtr);
   return instanceKey;
-}
-
-Uint32
-Dbdih::dihGetLogPartId(Uint32 tabId, Uint32 fragId)
-{
-  TabRecordPtr tTabPtr;
-  tTabPtr.i = tabId;
-  ptrCheckGuard(tTabPtr, ctabFileSize, tabRecord);
-  FragmentstorePtr tFragPtr;
-  getFragstore(tTabPtr.p, fragId, tFragPtr);
-  Uint32 logPartId = tFragPtr.p->m_log_part_id;
-  return logPartId;
 }

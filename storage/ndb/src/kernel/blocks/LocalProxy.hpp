@@ -50,6 +50,12 @@ protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo) = 0;
   virtual void loadWorkers();
 
+  // worker index to worker instance
+  Uint32 workerInstance(Uint32 i) {
+    ndbrequire(i < c_workers);
+    return 1 + i;
+  }
+
   // worker index to worker ref
   BlockReference workerRef(Uint32 i) {
     ndbrequire(i < c_workers);
