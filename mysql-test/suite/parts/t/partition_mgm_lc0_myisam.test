@@ -1,0 +1,41 @@
+################################################################################
+# t/partition_mgm_lc0_myisam.test                                              #
+#                                                                              #
+# Purpose:                                                                     #
+#  Test of partitioning management functions (incl upper/lower case names):    #
+#        MyISAM branch + lower_case_table_names = 0                            #
+#        (usually Unix like, apart from Mac OS X)                              #
+#        Also requires lower_case_file_system OFF                              #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: mattiasj                                                    #
+# Original Date: 2008-06-27                                                    #
+################################################################################
+
+# The server must support partitioning.
+--source include/have_partition.inc
+
+#
+# NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+# Please read the README at the end of inc/partition.pre before changing
+# any of the variables.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+--source include/have_lowercase0.inc
+--source include/have_case_sensitive_file_system.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+#--source include/have_myisam.inc
+let $engine= 'MyISAM';
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/parts/inc/partition_mgm.inc
