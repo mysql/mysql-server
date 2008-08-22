@@ -969,11 +969,11 @@ static void close_server_sock()
   DBUG_ENTER("close_server_sock");
   my_socket tmp_sock;
   tmp_sock=ip_sock;
-  if (tmp_sock != INVALID_SOCKET)
+  if (my_socket_valid(tmp_sock))
   {
-    ip_sock=INVALID_SOCKET;
+    my_socket_invalidate(&ip_sock);
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    VOID(my_shutdown(tmp_sock, SHUT_RDWR));
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it causes MySQL
@@ -984,11 +984,11 @@ static void close_server_sock()
 #endif
   }
   tmp_sock=unix_sock;
-  if (tmp_sock != INVALID_SOCKET)
+  if (my_socket_valid(tmp_sock))
   {
     unix_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on unix socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    VOID(my_shutdown(tmp_sock, SHUT_RDWR));
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it may cause MySQL
