@@ -477,6 +477,7 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      mysql_unpacked_real_data_home[FN_REFLEN],
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+int mysql_unpacked_real_data_home_len;
 char *mysql_data_home= mysql_real_data_home;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -6696,6 +6697,7 @@ static void mysql_init_variables(void)
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
+  myisam_test_invalid_symlink= test_if_data_home_dir;
   opt_log= opt_slow_log= 0;
   opt_update_log= 0;
   opt_bin_log= 0;
@@ -7746,9 +7748,12 @@ static void fix_paths(void)
     pos[1]= 0;
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
-  (void) fn_format(buff, mysql_real_data_home, "", "",
-                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
-  (void) unpack_dirname(mysql_unpacked_real_data_home, buff);
+  my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
+  mysql_unpacked_real_data_home_len= strlen(mysql_unpacked_real_data_home);
+  if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
+    --mysql_unpacked_real_data_home_len;
+
+
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
