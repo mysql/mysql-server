@@ -627,7 +627,7 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
 	}
     }
     note_hash_count(count);
-    return 0;
+    return -1;
 }
 
 // effect:   Move an object from one key to another key.

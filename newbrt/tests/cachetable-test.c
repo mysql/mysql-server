@@ -6,11 +6,70 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <malloc.h>
+#include <errno.h>
+#include <pthread.h>
 
 #include "toku_assert.h"
 #include "memory.h"
 #include "cachetable.h"
 #include "test.h"
+
+// this mutex is used by some of the tests to serialize access to some
+// global data, especially between the test thread and the cachetable
+// writeback threads
+
+pthread_mutex_t  test_mutex;
+
+static inline void test_mutex_init() {
+    int r = pthread_mutex_init(&test_mutex, 0); assert(r == 0);
+}
+
+static inline void test_mutex_destroy() {
+    int r = pthread_mutex_destroy(&test_mutex); assert(r == 0);
+}
+
+static inline void test_mutex_lock() {
+    int r = pthread_mutex_lock(&test_mutex); assert(r == 0);
+}
+
+static inline void test_mutex_unlock() {
+    int r = pthread_mutex_unlock(&test_mutex); assert(r == 0);
+}
+
+// hook my_malloc_always_fails into malloc to control malloc and verify
+// the correct recovery from malloc failures
+
+#define DO_MALLOC_HOOK 1
+#if DO_MALLOC_HOOK
+static void *my_malloc_always_fails(size_t n, const __malloc_ptr_t p) {
+    n = n; p = p;
+    return 0;
+}
+#endif
+
+// verify that cachetable creation and close works
+
+void test_cachetable_create() {
+    CACHETABLE ct = 0;
+    int r;
+    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    assert(r == 0);
+    r = toku_cachetable_close(&ct);
+    assert(r == 0 && ct == 0);
+}
+
+// verify that cachetable create with no memory returns ENOMEM
+
+void test_cachetable_create_no_memory() {
+    void *(*orig_malloc_hook)(size_t, const __malloc_ptr_t) = __malloc_hook;
+    __malloc_hook = my_malloc_always_fails;
+    CACHETABLE ct = 0;
+    int r;
+    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    assert(r == ENOMEM);
+    __malloc_hook = orig_malloc_hook;
+}
 
 static const int test_object_size = 1;
 
@@ -19,14 +78,16 @@ struct item {
     char *something;
 };
 
-static int expect_n_flushes=0;
-static CACHEKEY flushes[100];
+static volatile int expect_n_flushes=0;
+static volatile CACHEKEY flushes[100];
 
 static void expect1(CACHEKEY key) {
     expect_n_flushes=1;
     flushes[0]=key;
+    if (verbose) printf("%s:%d %lld\n", __FUNCTION__, 0, key);
 }
 static void expectN(CACHEKEY key) {
+    if (verbose) printf("%s:%d %lld\n", __FUNCTION__, expect_n_flushes, key);
     flushes[expect_n_flushes++]=key;
 }
 
@@ -35,6 +96,8 @@ static CACHEFILE expect_f;
 static void flush (CACHEFILE f, CACHEKEY key, void*value, long size __attribute__((__unused__)), BOOL write_me __attribute__((__unused__)), BOOL keep_me __attribute__((__unused__)), LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
     struct item *it = value;
     int i;
+
+    if (keep_me) return;
 
     if (verbose) printf("Flushing %lld (it=>key=%lld)\n", key, it->key);
 
@@ -74,6 +137,8 @@ static int fetch (CACHEFILE f, CACHEKEY key, u_int32_t fullhash __attribute__((_
     return 0;
 }
 
+// verify that a sequence of cachetable operations causes a particular sequence of
+// callbacks
 
 static void test0 (void) {
     void* t3=(void*)23;
@@ -128,12 +193,14 @@ static void test0 (void) {
     expect1(2); /* 2 is the oldest unpinned item. */
     r=toku_cachetable_put(f, 6, h6, make_item(6), test_object_size, flush, fetch, t3);   /* 6P 5U 4P 3U 1P */
     assert(r==0);
+    while (expect_n_flushes != 0) pthread_yield();
     assert(expect_n_flushes==0);
 
 
     expect1(3);
     r=toku_cachetable_put(f, 7, h7, make_item(7), test_object_size, flush, fetch, t3);
     assert(r==0);
+    while (expect_n_flushes != 0) pthread_yield();
     assert(expect_n_flushes==0);
     r=toku_cachetable_unpin(f, 7, h7, CACHETABLE_DIRTY, test_object_size);           /* 7U 6P 5U 4P 1P */
     assert(r==0);
@@ -159,6 +226,7 @@ static void test0 (void) {
 	assert(did_fetch==2); /* Expect that 2 is fetched in. */
 	assert(((struct item *)item_v)->key==2);
 	assert(strcmp(((struct item *)item_v)->something,"something")==0);
+        while (expect_n_flushes != 0) pthread_yield();
         assert(expect_n_flushes==0);
     }
 	
@@ -184,7 +252,7 @@ static void test0 (void) {
     r=toku_cachetable_close(&t);
     assert(r==0);
     assert(expect_n_flushes==0);
-    expect_f = 0; 
+    expect_f = 0;
     toku_memory_check_all_free();
 }
 
@@ -195,7 +263,7 @@ static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __att
     int *v = value;
     assert(*v==0);
 }
-static int fetch_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)), 
+static int fetch_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)),
 		    u_int32_t fullhash  __attribute__((__unused__)),
                     void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert((long)extraargs==42);
@@ -234,26 +302,30 @@ static void test_nested_pin (void) {
     assert(r==0);
     assert(vv2==vv);
     r = toku_cachetable_unpin(f, 1, f1hash, 0, test_object_size);
-    r = toku_cachetable_put(f, 2, toku_cachetable_hash(f, 2), &i1, test_object_size, flush_n, fetch_n, f2);
+    assert(r==0);
+    u_int32_t f2hash = toku_cachetable_hash(f, 2);
+    r = toku_cachetable_put(f, 2, f2hash, &i1, test_object_size, flush_n, fetch_n, f2);
     assert(r==0); // The other one is pinned, but now the cachetable fails gracefully:  It allows the pin to happen
     r = toku_cachetable_unpin(f, 1, f1hash, 0, test_object_size);
     assert(r==0);
-
+    r = toku_cachetable_unpin(f, 2, f2hash, 0, test_object_size);
+    assert(r==0);
+    //    sleep(1);
     r = toku_cachefile_close(&f, 0); assert(r==0);
     r = toku_cachetable_close(&t); assert(r==0);
-    
 }
 
 
 static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
-		 CACHEKEY k       __attribute__((__unused__)),
-		 void *v          __attribute__((__unused__)),		 
-                 long size        __attribute__((__unused__)),
-		 BOOL write_me    __attribute__((__unused__)),
-		 BOOL keep_me     __attribute__((__unused__)),
-		 LSN modified_lsn __attribute__((__unused__)),
-		 BOOL rename_p    __attribute__((__unused__))) {
+                        CACHEKEY k       __attribute__((__unused__)),
+                        void *v          __attribute__((__unused__)),
+                        long size        __attribute__((__unused__)),
+                        BOOL write_me    __attribute__((__unused__)),
+                        BOOL keep_me     __attribute__((__unused__)),
+                        LSN modified_lsn __attribute__((__unused__)),
+                        BOOL rename_p    __attribute__((__unused__))) {
 }
+
 static int add123_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert(fullhash==toku_cachetable_hash(cf,key));
     assert((long)extraargs==123);
@@ -261,6 +333,7 @@ static int add123_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **
     written_lsn->lsn = 0;
     return 0;
 }
+
 static int add222_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert(fullhash==toku_cachetable_hash(cf,key));
     assert((long)extraargs==222);
@@ -268,7 +341,6 @@ static int add222_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **
     written_lsn->lsn = 0;
     return 0;
 }
-
 
 static void test_multi_filehandles (void) {
     CACHETABLE t;
@@ -299,10 +371,18 @@ static void test_multi_filehandles (void) {
     assert((unsigned long)v==224);
     r = toku_cachetable_maybe_get_and_pin(f1, 2, toku_cachetable_hash(f1, 2), &v); assert(r==0);
     assert((unsigned long)v==125);
-    
+
+    r = toku_cachetable_unpin(f1, 1, toku_cachetable_hash(f1, 1), CACHETABLE_CLEAN, 0); assert(r==0);
+    r = toku_cachetable_unpin(f1, 2, toku_cachetable_hash(f1, 2), CACHETABLE_CLEAN, 0); assert(r==0);
     r = toku_cachefile_close(&f1, 0); assert(r==0);
+
+    r = toku_cachetable_unpin(f2, 1, toku_cachetable_hash(f2, 1), CACHETABLE_CLEAN, 0); assert(r==0);
+    r = toku_cachetable_unpin(f2, 2, toku_cachetable_hash(f2, 2), CACHETABLE_CLEAN, 0); assert(r==0);
     r = toku_cachefile_close(&f2, 0); assert(r==0);
+
+    r = toku_cachetable_unpin(f3, 2, toku_cachetable_hash(f3, 2), CACHETABLE_CLEAN, 0); assert(r==0);
     r = toku_cachefile_close(&f3, 0); assert(r==0);
+
     r = toku_cachetable_close(&t); assert(r==0);
 }
 
@@ -332,7 +412,7 @@ static void test_dirty() {
 
     char *fname = __FILE__ "test.dat";
     unlink(fname);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);   
+    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
     assert(r == 0);
 
     key = 1; value = (void*)1;
@@ -425,8 +505,10 @@ static CACHEKEY test_size_flush_key;
 
 static void test_size_flush_callback(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
     if (test_size_debug && verbose) printf("test_size_flush %p %lld %p %ld %d %d\n", f, key, value, size, do_write, keep);
-    assert(do_write != 0);
-    test_size_flush_key = key;
+    if (keep) {
+        assert(do_write != 0);
+        test_size_flush_key = key;
+    }
 }
 
 static void test_size_resize() {
@@ -513,9 +595,13 @@ static void test_size_flush() {
         r = toku_cachetable_put(f, key, hkey, value, size, test_size_flush_callback, 0, 0);
         assert(r == 0);
 
-        int n_entries;
-        toku_cachetable_get_state(t, &n_entries, 0, 0, 0);
+        int n_entries, hash_size; long size_current, size_limit;
+        toku_cachetable_get_state(t, &n_entries, &hash_size, &size_current, &size_limit);
         int min2(int a, int b) { return a < b ? a : b; }
+        while (n_entries != min2(i+1, n)) {
+            pthread_yield();
+            toku_cachetable_get_state(t, &n_entries, 0, 0, 0);
+        }
         assert(n_entries == min2(i+1, n));
 
         void *entry_value; int dirty; long long pinned; long entry_size;
@@ -542,109 +628,37 @@ static void test_size_flush() {
     assert(r == 0);
 }
 
-enum { KEYLIMIT = 4, TRIALLIMIT=64 };
-static CACHEKEY  keys[KEYLIMIT];
-static void*     vals[KEYLIMIT];
-static int       n_keys=0;
-
-static void r_flush (CACHEFILE f __attribute__((__unused__)),
-		     CACHEKEY k, void *value,
-		     long size __attribute__((__unused__)),
-		     BOOL write_me  __attribute__((__unused__)),
-		     BOOL keep_me,
-		     LSN modified_lsn __attribute__((__unused__)),
-		     BOOL rename_p    __attribute__((__unused__))) {
-    int i;
-    //printf("Flush\n");
-    for (i=0; i<n_keys; i++) {
-	if (keys[i]==k) {
-	    assert(vals[i]==value);
-	    if (!keep_me) {
-		keys[i]=keys[n_keys-1];
-		vals[i]=vals[n_keys-1];
-		n_keys--;
-		return;
-	    }
-	}
-    }
-    fprintf(stderr, "Whoops\n");
-    abort();
-}
-
-static int r_fetch (CACHEFILE f        __attribute__((__unused__)),
-		    CACHEKEY key       __attribute__((__unused__)),
-		    u_int32_t fullhash __attribute__((__unused__)),
-		    void**value        __attribute__((__unused__)),
-		    long *sizep        __attribute__((__unused__)),
-		    void*extraargs     __attribute__((__unused__)),
-		    LSN *modified_lsn  __attribute__((__unused__))) {
-    fprintf(stderr, "Whoops, this should never be called");
-    return 0;
-}
-
-static void test_rename (void) {
-    CACHETABLE t;
-    CACHEFILE f;
-    int i;
-    int r;
-    const char fname[] = __FILE__ "rename.dat";
-    r=toku_create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    unlink(fname);
-    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
-    assert(r==0);
-  
-    for (i=0; i<TRIALLIMIT; i++) {
-	int ra = random()%3;
-	if (ra<=1) {
-	    // Insert something
-	    CACHEKEY nkey = random();
-	    long     nval = random();
-	    //printf("n_keys=%d Insert %08llx\n", n_keys, nkey);
-	    u_int32_t hnkey = toku_cachetable_hash(f, nkey);
-	    r = toku_cachetable_put(f, nkey, hnkey, 
-				    (void*)nval, 1,
-				    r_flush, r_fetch, 0);
-	    assert(r==0);
-	    assert(n_keys<KEYLIMIT);
-	    keys[n_keys] = nkey;
-	    vals[n_keys] = (void*)nval;
-	    n_keys++;
-	    r = toku_cachetable_unpin(f, nkey, hnkey, CACHETABLE_DIRTY, 1);
-	    assert(r==0);
-	} else if (ra==2 && n_keys>0) {
-	    // Rename something
-	    int objnum = random()%n_keys;
-	    CACHEKEY okey = keys[objnum];
-	    CACHEKEY nkey = random();
-	    void *current_value;
-	    long current_size;
-	    keys[objnum]=nkey;
-	    //printf("Rename %llx to %llx\n", okey, nkey);
-	    r = toku_cachetable_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &current_value, &current_size, r_flush, r_fetch, 0);
-	    assert(r==0);
-	    r = toku_cachetable_rename(f, okey, nkey);
-	    assert(r==0);
-	    r = toku_cachetable_unpin(f, nkey, toku_cachetable_hash(f, nkey), CACHETABLE_DIRTY, 1);
-	}
-    }
-
-    r = toku_cachefile_close(&f, 0);
-    assert(r == 0);
-    r = toku_cachetable_close(&t);
-    assert(r == 0);
-
-    assert(n_keys == 0);
-}
-
 int main (int argc, const char *argv[]) {
-    default_parse_args(argc, argv);
-    test_rename();
-    test0();
-    test_nested_pin();
-    test_multi_filehandles ();
-    test_dirty();
-    test_size_resize();
-    test_size_flush();
+    // defaults
+    int do_malloc_fail = 0;
+
+    // parse args
+    int i;
+    for (i=1; i<argc; i++) {
+        const char *arg = argv[i];
+        if (strcmp(arg, "-v") == 0) {
+            verbose++;
+            continue;
+        }
+        if (strcmp(arg, "-malloc-fail") == 0) {
+            do_malloc_fail = 1;
+            continue;
+        }
+    }
+
+    // run tests
+    test_multi_filehandles();
+    test_cachetable_create();
+    if (do_malloc_fail)
+        test_cachetable_create_no_memory();    // fails with valgrind
+    for (i=0; i<1; i++) {
+        test0();
+        test_nested_pin();
+        test_multi_filehandles ();
+        test_dirty();
+        test_size_resize();
+        test_size_flush();
+    }
     toku_malloc_cleanup();
     if (verbose) printf("ok\n");
     return 0;

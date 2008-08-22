@@ -33,8 +33,8 @@ FORMAT=-Wmissing-format-attribute
 endif
 
 CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS)
-CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500 -I..
+LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lpthread
+CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500 -D_GNU_SOURCE -I..
 
 # Add -Wconversion
 
@@ -63,6 +63,12 @@ REGRESSION_TESTS = \
 	brt-test5 \
 	cachetable-test \
 	cachetable-test2 \
+	cachetable-put-test \
+	cachetable-unpin-test \
+	cachetable-rename-test \
+	cachetable-fd-test \
+	cachetable-count-pinned-test \
+	cachetable-checkpoint-test \
 	fifo-test \
 	list-test \
 	keyrange \
