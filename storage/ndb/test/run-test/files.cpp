@@ -300,7 +300,7 @@ setup_files(atrt_config& config, int setup, int sshx)
         fprintf(fenv, ". ./env.sh                            \n");
         fprintf(fenv, "BIN=`echo $CMD | awk '{ print $1;}'`  \n");
         fprintf(fenv, "cores=`find . -name 'core*'`          \n");
-        fprintf(fenv, "if [ "$cores" ]                       \n");
+        fprintf(fenv, "if [ \"$cores\" ]                     \n");
         fprintf(fenv, "then                                  \n");
         fprintf(fenv, "echo \"thread apply all bt\" > bt.gdb \n");
         fprintf(fenv, "echo \"quit\" >> bt.gdb               \n");
