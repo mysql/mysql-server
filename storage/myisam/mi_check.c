@@ -1211,6 +1211,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	param->glob_crc+= mi_checksum(info,record);
       link_used+= (block_info.filepos - start_recpos);
       used+= (pos-start_recpos);
+      break;
     case BLOCK_RECORD:
       assert(0);                                /* Impossible */
     } /* switch */
@@ -1338,7 +1339,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   if (splits != info->s->state.split)
   {
     mi_check_print_warning(param,
-			   "Found %10s parts                Should be: %s parts",
+			   "Found %10s key parts. Should be: %s",
 			   llstr(splits,llbuff),
 			   llstr(info->s->state.split,llbuff2));
   }
