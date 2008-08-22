@@ -1448,8 +1448,6 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
   return 0;
 }
 
-#define YESNO(X) ((X) ? "yes" : "no")
-
 /**
   This function is called once after each statement.
 
