@@ -3486,7 +3486,7 @@ NdbIndexScanOperation::end_of_bound(Uint32 no)
   DBUG_ENTER("end_of_bound");
   DBUG_PRINT("info", ("Range number %u", no));
 
-  if (! (m_savedScanFlagsOldApi & SF_MultiRange))
+  if (! (m_savedScanFlagsOldApi & SF_MultiRange || no == 0))
   {
     setErrorCodeAbort(4509);
     /* Non SF_MultiRange scan cannot have more than one bound */
