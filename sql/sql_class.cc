@@ -3528,22 +3528,24 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 }
 
 
+#ifndef DBUG_OFF
 static const char *
 show_query_type(THD::enum_binlog_query_type qtype)
 {
   switch (qtype) {
+    static char buf[64];
   case THD::ROW_QUERY_TYPE:
     return "ROW";
   case THD::STMT_QUERY_TYPE:
     return "STMT";
   case THD::MYSQL_QUERY_TYPE:
     return "MYSQL";
+  default:
+    sprintf(buf, "UNKNOWN#%d", qtype);
+    return buf;
   }
-
-  static char buf[64];
-  sprintf(buf, "UNKNOWN#%d", qtype);
-  return buf;
 }
+#endif
 
 
 /*

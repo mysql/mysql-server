@@ -1130,6 +1130,9 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define dbug_volatile
 #endif
 
+/* Some helper macros */
+#define YESNO(X) ((X) ? "yes" : "no")
+
 /* Defines for time function */
 #define SCALE_SEC	100
 #define SCALE_USEC	10000
