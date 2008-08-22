@@ -354,7 +354,10 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   
   Uint32 pages = 0;
   pages += page_buffer / GLOBAL_PAGE_SIZE; // in pages
-  pages += LCP_RESTORE_BUFFER;
+  Uint32 restore_instances = 1;
+  if (isNdbMtLqh())
+    restore_instances = getLqhWorkers();
+  pages += LCP_RESTORE_BUFFER * restore_instances;
   m_global_page_pool.setSize(pages + 64, true);
 
   {

@@ -14820,7 +14820,11 @@ void Dbdih::sendStartFragreq(Signal* signal,
   for (replicaPtr.i = 0; replicaPtr.i < cnoOfCreateReplicas; replicaPtr.i++) {
     jam();
     ptrAss(replicaPtr, createReplicaRecord);
-    BlockReference ref = calcLqhBlockRef(replicaPtr.p->dataNodeId);
+
+    Uint32 instanceKey = dihGetInstanceKey(tabPtr.i, fragId);
+    BlockReference ref = numberToRef(DBLQH, instanceKey,
+                                     replicaPtr.p->dataNodeId);
+
     StartFragReq * const startFragReq = (StartFragReq *)&signal->theData[0];
     startFragReq->userPtr = replicaPtr.p->replicaRec;
     startFragReq->userRef = reference();

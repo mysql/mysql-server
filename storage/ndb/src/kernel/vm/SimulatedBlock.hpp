@@ -566,7 +566,7 @@ private:
   Uint16       theBATSize;     /* # entries in BAT */
 
 protected:  
-  ArrayPool<GlobalPage>& m_global_page_pool;
+  SafeArrayPool<GlobalPage>& m_global_page_pool;
   ArrayPool<GlobalPage>& m_shared_page_pool;
   
   void execNDB_TAMPER(Signal * signal);
@@ -889,6 +889,21 @@ SimulatedBlock::setNodeVersionInfo() {
   return globalData.m_versionInfo;
 }
 
+#ifdef VM_TRACE_TIME
+inline
+void
+SimulatedBlock::addTime(Uint32 gsn, Uint64 time){
+  m_timeTrace[gsn].cnt ++;
+  m_timeTrace[gsn].sum += time;
+}
+
+inline
+void
+SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
+  m_timeTrace[gsn].sub += time;
+}
+#endif
+
 inline
 void
 SimulatedBlock::EXECUTE_DIRECT(Uint32 block, 
@@ -958,23 +973,6 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   }
 #endif
 }
-
-#ifdef VM_TRACE_TIME
-inline
-void
-SimulatedBlock::addTime(Uint32 gsn, Uint64 time){
-  m_timeTrace[gsn].cnt ++;
-  m_timeTrace[gsn].sum += time;
-}
-
-inline
-void
-SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
-  // wl4391_todo got 0xf3f3f3f3 here on GSN_UPGRADE_PROTOCOL_ORD...
-  if (gsn < 0xffff)
-  m_timeTrace[gsn].sub += time;
-}
-#endif
 
 /**
  * Defines for backward compatiblility

@@ -40,6 +40,15 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   addRecSignal(GSN_TAB_COMMITCONF, &DblqhProxy::execTAB_COMMITCONF);
   addRecSignal(GSN_TAB_COMMITREF, &DblqhProxy::execTAB_COMMITREF);
 
+  // GSN_LCP_FRAG_ORD
+  addRecSignal(GSN_LCP_FRAG_ORD, &DblqhProxy::execLCP_FRAG_ORD);
+  addRecSignal(GSN_LCP_COMPLETE_REP, &DblqhProxy::execLCP_COMPLETE_REP);
+
+  // GSN_GCP_SAVEREQ
+  addRecSignal(GSN_GCP_SAVEREQ, &DblqhProxy::execGCP_SAVEREQ);
+  addRecSignal(GSN_GCP_SAVECONF, &DblqhProxy::execGCP_SAVECONF);
+  addRecSignal(GSN_GCP_SAVEREF, &DblqhProxy::execGCP_SAVEREF);
+
   // GSN_PREP_DROP_TAB_REQ
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &DblqhProxy::execPREP_DROP_TAB_REQ);
   addRecSignal(GSN_PREP_DROP_TAB_CONF, &DblqhProxy::execPREP_DROP_TAB_CONF);
@@ -50,14 +59,9 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   addRecSignal(GSN_DROP_TAB_CONF, &DblqhProxy::execDROP_TAB_CONF);
   addRecSignal(GSN_DROP_TAB_REF, &DblqhProxy::execDROP_TAB_REF);
 
-  // GSN_LCP_FRAG_ORD
-  addRecSignal(GSN_LCP_FRAG_ORD, &DblqhProxy::execLCP_FRAG_ORD);
-  addRecSignal(GSN_LCP_COMPLETE_REP, &DblqhProxy::execLCP_COMPLETE_REP);
-
-  // GSN_GCP_SAVEREQ
-  addRecSignal(GSN_GCP_SAVEREQ, &DblqhProxy::execGCP_SAVEREQ);
-  addRecSignal(GSN_GCP_SAVECONF, &DblqhProxy::execGCP_SAVECONF);
-  addRecSignal(GSN_GCP_SAVEREF, &DblqhProxy::execGCP_SAVEREF);
+  // GSN_START_RECREQ
+  addRecSignal(GSN_START_RECREQ, &DblqhProxy::execSTART_RECREQ);
+  addRecSignal(GSN_START_RECCONF, &DblqhProxy::execSTART_RECCONF);
 }
 
 DblqhProxy::~DblqhProxy()
@@ -719,6 +723,63 @@ DblqhProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_DROP_TAB_REQ>(ssId);
+}
+
+// GSN_START_RECREQ
+
+void
+DblqhProxy::execSTART_RECREQ(Signal* signal)
+{
+  const StartRecReq* req = (const StartRecReq*)signal->getDataPtr();
+  Ss_START_RECREQ& ss = ssSeize<Ss_START_RECREQ>();
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == StartRecReq::SignalLength);
+  sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::sendSTART_RECREQ(Signal* signal, Uint32 ssId)
+{
+  Ss_START_RECREQ& ss = ssFind<Ss_START_RECREQ>(ssId);
+
+  StartRecReq* req = (StartRecReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+
+  req->senderRef = reference();
+  req->senderData = ssId;
+  sendSignal(workerRef(ss.m_worker), GSN_START_RECREQ,
+             signal, StartRecReq::SignalLength, JBB);
+}
+
+void
+DblqhProxy::execSTART_RECCONF(Signal* signal)
+{
+  const StartRecConf* conf = (const StartRecConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_START_RECREQ& ss = ssFind<Ss_START_RECREQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::sendSTART_RECCONF(Signal* signal, Uint32 ssId)
+{
+  Ss_START_RECREQ& ss = ssFind<Ss_START_RECREQ>(ssId);
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    jam();
+    StartRecConf* conf = (StartRecConf*)signal->getDataPtrSend();
+    conf->startingNodeId = getOwnNodeId();
+    conf->senderData = ss.m_req.senderData;
+    sendSignal(ss.m_req.senderRef, GSN_START_RECCONF,
+               signal, StartRecConf::SignalLength, JBB);
+  } else {
+    ndbrequire(false);
+  }
+
+  ssRelease<Ss_START_RECREQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(DblqhProxy)

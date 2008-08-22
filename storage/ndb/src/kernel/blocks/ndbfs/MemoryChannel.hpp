@@ -75,7 +75,8 @@ template <class T>
 class MemoryChannel
 {
 public:
-  MemoryChannel( int size= 512);
+  // wl4391_todo. adds 4*.  could set per ndb version.  why 512 ?
+  MemoryChannel( int size= 4* 512);
   virtual ~MemoryChannel( );
 
   void writeChannel( T *t);
