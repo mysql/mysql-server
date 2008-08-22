@@ -20,10 +20,11 @@
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/TabCommit.hpp>
-#include <signaldata/PrepDropTab.hpp>
-#include <signaldata/DropTab.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/GCP.hpp>
+#include <signaldata/PrepDropTab.hpp>
+#include <signaldata/DropTab.hpp>
+#include <signaldata/StartRec.hpp>
 
 class DblqhProxy : public LocalProxy {
 public:
@@ -204,7 +205,7 @@ protected:
     Ss_DROP_TAB_REQ() {
       m_sendREQ = (SsFUNC)&DblqhProxy::sendDROP_TAB_REQ;
       m_sendCONF = (SsFUNC)&DblqhProxy::sendDROP_TAB_CONF;
-    };
+    }
     enum { poolSize = 1 };
     static SsPool<Ss_DROP_TAB_REQ>& pool(LocalProxy* proxy) {
       return ((DblqhProxy*)proxy)->c_ss_DROP_TAB_REQ;
@@ -225,6 +226,24 @@ protected:
   void execDROP_TAB_CONF(Signal*);
   void execDROP_TAB_REF(Signal*);
   void sendDROP_TAB_CONF(Signal*, Uint32 ssId);
+
+  // GSN_START_RECREQ
+  struct Ss_START_RECREQ : SsParallel {
+    StartRecReq m_req;
+    Ss_START_RECREQ() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendSTART_RECREQ;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendSTART_RECCONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_START_RECREQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_START_RECREQ;
+    }
+  };
+  SsPool<Ss_START_RECREQ> c_ss_START_RECREQ;
+  void execSTART_RECREQ(Signal*);
+  void sendSTART_RECREQ(Signal*, Uint32 ssId);
+  void execSTART_RECCONF(Signal*);
+  void sendSTART_RECCONF(Signal*, Uint32 ssId);
 };
 
 #endif

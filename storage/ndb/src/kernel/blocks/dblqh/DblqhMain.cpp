@@ -434,13 +434,14 @@ void Dblqh::execCONTINUEB(Signal* signal)
       c_lcp_complete_fragments.getPtr(fragptr);
       signal->theData[0] = fragptr.p->tabRef;
       signal->theData[1] = fragptr.p->fragId;
-      sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+      BlockReference accRef = calcInstanceBlockRef(DBACC);
+      sendSignal(accRef, GSN_EXPANDCHECK2, signal, 2, JBB);
       Ptr<Fragrecord> save = fragptr;
 
       c_lcp_complete_fragments.next(fragptr);
       signal->theData[0] = ZENABLE_EXPAND_CHECK;
       signal->theData[1] = fragptr.i;
-      sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 2, JBB);	
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);	
 
       c_lcp_complete_fragments.remove(save);
       return;
@@ -3086,6 +3087,7 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
       &Thostptr.p->packedWordsTc[Thostptr.p->noOfPackedWordsTc];
     Thostptr.p->noOfPackedWordsTc += LqhKeyConf::SignalLength;
   } else if(refToBlock(atcBlockref) == DBLQH){
+    // wl4391_todo check this routine again..
     jam();
 /*******************************************************************
 // This signal was intended for DBLQH as part of log execution or
@@ -3129,7 +3131,7 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
        * This EXECUTE_DIRECT is multi-thread safe, as we only get here
        * for RESTORE block.
        */
-      EXECUTE_DIRECT(refToBlock(atcBlockref), GSN_LQHKEYCONF,
+      EXECUTE_DIRECT(refToMain(atcBlockref), GSN_LQHKEYCONF,
 		     signal, LqhKeyConf::SignalLength);
     }
     else
@@ -9501,6 +9503,7 @@ void Dblqh::storedProcConfScanLab(Signal* signal)
     jamLine(fragptr.p->fragStatus);
     ndbout_c("fragptr.p->fragStatus: %u",
              fragptr.p->fragStatus);
+    // wl4391_todo SR 2-node CRASH_RECOVERING from BACKUP
     ndbrequire(false);
     break;
   }//switch
@@ -10707,7 +10710,8 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
       jam();
       signal->theData[0] = fragptr.p->tabRef;
       signal->theData[1] = fragptr.p->fragId;
-      sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+      BlockReference accRef = calcInstanceBlockRef(DBACC);
+      sendSignal(accRef, GSN_EXPANDCHECK2, signal, 2, JBB);
     }
     
     
@@ -12755,9 +12759,11 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   const Uint32 gci = saveReq->gci;
 
 #if defined VM_TRACE || defined ERROR_INSERT
+  if (!isNdbMtLqh()) { // wl4391_todo mt-safe
   ndbrequire(m_gcp_monitor == 0 || 
              (m_gcp_monitor == gci) || 
              (m_gcp_monitor + 1) == gci);
+  }
   m_gcp_monitor = gci;
 #endif
   
@@ -14852,7 +14858,8 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
 
     signal->theData[0] = tabptr.i;
     signal->theData[1] = fragId;
-    sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+    BlockReference accRef = calcInstanceBlockRef(DBACC);
+    sendSignal(accRef, GSN_EXPANDCHECK2, signal, 2, JBB);
     c_tup->disk_restart_lcp_id(tabptr.i, fragId, RNIL);
     jamEntry();
     return;
@@ -14886,7 +14893,8 @@ Dblqh::send_restore_lcp(Signal * signal)
   req->lcpNo = fragptr.p->srChkpnr;
   req->lcpId = fragptr.p->lcpId[fragptr.p->srChkpnr];
   
-  sendSignal(RESTORE_REF, GSN_RESTORE_LCP_REQ, signal, 
+  BlockReference restoreRef = calcInstanceBlockRef(RESTORE);
+  sendSignal(restoreRef, GSN_RESTORE_LCP_REQ, signal, 
 	     RestoreLcpReq::SignalLength, JBB);
 }
 
@@ -14928,7 +14936,8 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
 
   signal->theData[0] = fragptr.p->tabRef;
   signal->theData[1] = fragptr.p->fragId;
-  sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+  BlockReference accRef = calcInstanceBlockRef(DBACC);
+  sendSignal(accRef, GSN_EXPANDCHECK2, signal, 2, JBB);
   
   if (!c_lcp_waiting_fragments.isEmpty())
   {
@@ -14955,7 +14964,12 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
     lcpPtr.p->m_outstanding = 1;
     
     signal->theData[0] = c_lcpId;
+    if (!isNdbMtLqh()) // wl4391_todo DD
     sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    else {
+    signal->theData[0] = LGMAN_REF;
+    sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+    }
     return;
   }
 }
@@ -15024,7 +15038,12 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     lcpPtr.p->m_outstanding = 1;
     
     signal->theData[0] = c_lcpId;
+    if (!isNdbMtLqh()) // wl4391_todo DD
     sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    else {
+    signal->theData[0] = LGMAN_REF;
+    sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+    }
   }//if
 }//Dblqh::execSTART_RECREQ()
 
@@ -15056,7 +15075,12 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
     jam();
     lcpPtr.p->m_outstanding++;
     signal->theData[0] = c_lcpId;
+    if (!isNdbMtLqh()) // wl4391_todo DD
     sendSignal(TSMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    else {
+    signal->theData[0] = TSMAN_REF;
+    sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+    }
     return;
     break;
   default:
@@ -15111,7 +15135,8 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
      *    WE NEED TO SEND THOSE SIGNALS EVEN IF WE HAVE NOT REQUESTED 
      *    ANY FRAGMENTS PARTICIPATE IN THIS PHASE.
      * --------------------------------------------------------------------- */
-    NodeReceiverGroup rg(DBLQH, m_sr_nodes);
+    BlockNumber lqhBlockNo = numberToBlock(DBLQH, instance());
+    NodeReceiverGroup rg(lqhBlockNo, m_sr_nodes);
     signal->theData[0] = cownNodeid;
     sendSignal(rg, GSN_EXEC_SRREQ, signal, 1, JBB);
     return;
@@ -15127,7 +15152,7 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
       
       Uint32 index = csrPhasesCompleted;
       arrGuard(index, MAX_LOG_EXEC);
-      BlockReference ref = calcLqhBlockRef(fragptr.p->srLqhLognode[index]);
+      BlockReference ref = calcInstanceBlockRef(DBLQH, fragptr.p->srLqhLognode[index]);
       fragptr.p->srStatus = Fragrecord::SS_STARTED;
 
       /* --------------------------------------------------------------------
@@ -16598,7 +16623,8 @@ void Dblqh::srPhase3Comp(Signal* signal)
   jamEntry();
 
   signal->theData[0] = cownNodeid;
-  NodeReceiverGroup rg(DBLQH, m_sr_nodes);
+  BlockNumber lqhBlockNo = numberToBlock(DBLQH, instance());
+  NodeReceiverGroup rg(lqhBlockNo, m_sr_nodes);
   sendSignal(rg, GSN_EXEC_SRCONF, signal, 1, JBB);
   return;
 }//Dblqh::srPhase3Comp()
@@ -16846,7 +16872,7 @@ void Dblqh::srFourthComp(Signal* signal)
 	jam();
         signal->theData[0] = ZENABLE_EXPAND_CHECK;
         signal->theData[1] = fragptr.i;
-        sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 2, JBB);
+        sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 	return;
       }
     }

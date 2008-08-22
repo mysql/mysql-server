@@ -26,6 +26,8 @@
 #include <Bitmask.hpp>
 #include <mgmapi.h>
 
+#include <NdbMutex.h>
+
 template <class T> class Array;
 
 /**
@@ -982,5 +984,98 @@ UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const{
   }
 }
 
+// SafeArrayPool
+
+template <class T>
+class SafeArrayPool : public ArrayPool<T> {
+public:
+  SafeArrayPool(NdbMutex* mutex = 0);
+  ~SafeArrayPool();
+  int lock();
+  int unlock();
+  bool seize(Ptr<T>&);
+  void release(Uint32 i);
+  void release(Ptr<T>&);
+
+private:
+  NdbMutex* m_mutex;
+  bool m_mutex_owner;
+
+  bool seizeId(Ptr<T>&);
+  bool findId(Uint32) const;
+};
+
+template <class T>
+inline
+SafeArrayPool<T>::SafeArrayPool(NdbMutex* mutex)
+{
+  if (mutex != 0) {
+    m_mutex = mutex;
+    m_mutex_owner = false;
+  } else {
+    m_mutex = NdbMutex_Create();
+    assert(m_mutex != 0);
+    m_mutex_owner = true;
+  }
+}
+
+template <class T>
+inline
+SafeArrayPool<T>::~SafeArrayPool()
+{
+  if (m_mutex_owner)
+    NdbMutex_Destroy(m_mutex);
+}
+
+template <class T>
+inline
+int
+SafeArrayPool<T>::lock()
+{
+  return NdbMutex_Lock(m_mutex);
+}
+
+template <class T>
+inline
+int
+SafeArrayPool<T>::unlock()
+{
+  return NdbMutex_Unlock(m_mutex);
+}
+
+template <class T>
+inline
+bool
+SafeArrayPool<T>::seize(Ptr<T>& ptr)
+{
+  bool ok = false;
+  if (lock() == 0) {
+    ok = ArrayPool<T>::seize(ptr);
+    unlock();
+  }
+  return ok;
+}
+
+template <class T>
+inline
+void
+SafeArrayPool<T>::release(Uint32 i)
+{
+  int ret = lock();
+  assert(ret == 0);
+  ArrayPool<T>::release(i);
+  unlock();
+}
+
+template <class T>
+inline
+void
+SafeArrayPool<T>::release(Ptr<T>& ptr)
+{
+  int ret = lock();
+  assert(ret == 0);
+  ArrayPool<T>::release(ptr);
+  unlock();
+}
 
 #endif

@@ -79,6 +79,9 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
 #ifdef VM_TRACE
     ,debugOut(*new NdbOut(*new FileOutputStream(globalSignalLoggers.getOutputStream())))
 #endif
+#ifdef VM_TRACE_TIME
+    ,m_currentGsn(0)
+#endif
 {
   m_threadId = 0;
   m_watchDogCounter = NULL;
