@@ -1308,7 +1308,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
-###   @1=123.223              /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @1=123.223...              /* FLOAT meta=4 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1325,7 +1325,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
-###   @1=123.223              /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @1=123.223...              /* FLOAT meta=4 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1352,7 +1352,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
-###   @1=123434.22344544999942 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @1=123434.223... /* DOUBLE meta=8 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1369,7 +1369,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
-###   @1=123434.22344544999942 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @1=123434.223... /* DOUBLE meta=8 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
