@@ -68,6 +68,12 @@ gcc_fetch_and_add_i (volatile int *p, int incr)
   return __sync_fetch_and_add(p, incr);
 }
 
+static inline long
+gcc_fetch_and_add_l (volatile long *p, long incr)
+{
+  return __sync_fetch_and_add(p, incr);
+}
+
 // Something wrong with the compiler  for longs
 /* Returns nonzero if the comparison succeeded. */
 static inline long
@@ -123,6 +129,8 @@ int ivals[K];
 	})
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+    printf("sizeof (pthread_mutex_t) %lu\n", sizeof (pthread_mutex_t));
+    printf("sizeof (pthread_cond_t) %lu\n", sizeof (pthread_cond_t));
     TIME("pthread_mutex_lock", i,
 	 ({ int r = pthread_mutex_init(&mlocks[i], NULL); assert(r==0); }),
 	 ({ int r = pthread_mutex_lock(&mlocks[i]);       assert(r==0); }));
@@ -150,6 +158,11 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     TIME("gcc_fetchadd", i,
 	 (void)0,
 	 gcc_fetch_and_add_i(&fa, i));
+    // printf("fa=%d\n", fa);
+    long fal = 0;
+    TIME("gcc_fetchaddlong", i,
+	 (void)0,
+	 gcc_fetch_and_add_l(&fal, i));
     // printf("fa=%d\n", fa);
     TIME("compare_and_swap", i,
 	 ivals[i]=0,
