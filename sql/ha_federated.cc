@@ -731,7 +731,10 @@ uint ha_federated::convert_row_to_internal_format(byte *record,
     old_ptr= (my_ptrdiff_t) (record - table->record[0]);
     (*field)->move_field(old_ptr);
     if (!row[x])
+    {
       (*field)->set_null();
+      (*field)->reset();
+    }
     else
     {
       (*field)->set_notnull();
