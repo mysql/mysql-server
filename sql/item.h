@@ -1817,7 +1817,7 @@ class Item_empty_string :public Item_string
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
     Item_string("",0, cs ? cs : &my_charset_utf8_general_ci)
-    { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
+    { name=(char*) header; max_length= length * collation.collation->mbmaxlen; }
   void make_field(Send_field *field);
 };
 

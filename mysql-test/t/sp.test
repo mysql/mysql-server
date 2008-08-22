@@ -7794,6 +7794,30 @@ drop function func30787;
 drop table t1;
 
 
+#
+# Bug#38291 memory corruption and server crash with view/sp/function
+#
+
+create table t1(c1 INT);
+create function f1(p1 int) returns varchar(32)
+  return 'aaa';
+create view v1 as select f1(c1) as parent_control_name from t1;
+
+delimiter //;
+create procedure p1()
+begin
+    select parent_control_name as c1 from v1;
+end //
+delimiter ;//
+
+call p1();
+call p1();
+
+drop procedure p1;
+drop function f1;
+drop view v1;
+drop table t1;
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.0 tests
 --echo # ------------------------------------------------------------------
