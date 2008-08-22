@@ -986,7 +986,7 @@ static void close_server_sock()
   tmp_sock=unix_sock;
   if (my_socket_valid(tmp_sock))
   {
-    unix_sock=INVALID_SOCKET;
+    my_socket_invalidate(&unix_sock);
     DBUG_PRINT("info",("calling shutdown on unix socket"));
     VOID(my_shutdown(tmp_sock, SHUT_RDWR));
 #if defined(__NETWARE__)
