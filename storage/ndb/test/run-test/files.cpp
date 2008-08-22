@@ -304,7 +304,7 @@ setup_files(atrt_config& config, int setup, int sshx)
         fprintf(fenv, "then                                    \n");
         fprintf(fenv, "  echo \"thread apply all bt\" > bt.gdb \n");
         fprintf(fenv, "  echo \"quit\" >> bt.gdb               \n");
-        fprintf(fenc, "  rm -f bt.txt                          \n"
+        fprintf(fenv, "  rm -f bt.txt                          \n");
         fprintf(fenv, "  for i in \"$cores\"                   \n");
         fprintf(fenv, "  do                                    \n");
         fprintf(fenv, "    echo \"*** $i\" >> bt.txt           \n");
