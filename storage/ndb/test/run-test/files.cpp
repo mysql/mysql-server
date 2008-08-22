@@ -296,20 +296,21 @@ setup_files(atrt_config& config, int setup, int sshx)
           g_logger.error("Failed to open %s for writing", tmp.c_str());
           return false;
         }
-        fprintf(fenv, "#!/bin/sh                             \n");
-        fprintf(fenv, ". ./env.sh                            \n");
-        fprintf(fenv, "BIN=`echo $CMD | awk '{ print $1;}'`  \n");
-        fprintf(fenv, "cores=`find . -name 'core*'`          \n");
-        fprintf(fenv, "if [ \"$cores\" ]                     \n");
-        fprintf(fenv, "then                                  \n");
-        fprintf(fenv, "echo \"thread apply all bt\" > bt.gdb \n");
-        fprintf(fenv, "echo \"quit\" >> bt.gdb               \n");
-        fprintf(fenv, "echo for i in $cores                  \n");
-        fprintf(fenv, "do                                    \n");
-        fprintf(fenv, "echo \"*** $i\" >> bt.txt             \n");
-        fprintf(fenv, "echo gdb -q -batch -x bt.gdb -c $i $BIN >> bt.txt 2> /dev/null \n");
-        fprintf(fenv, "done                                  \n");
-        fprintf(fenv, "fi                                    \n");
+        fprintf(fenv, "#!/bin/sh                               \n");
+        fprintf(fenv, ". ./env.sh                              \n");
+        fprintf(fenv, "BIN=`echo $CMD | awk '{ print $1;}'`    \n");
+        fprintf(fenv, "cores=`find . -name 'core*'`            \n");
+        fprintf(fenv, "if [ \"$cores\" ]                       \n");
+        fprintf(fenv, "then                                    \n");
+        fprintf(fenv, "  echo \"thread apply all bt\" > bt.gdb \n");
+        fprintf(fenv, "  echo \"quit\" >> bt.gdb               \n");
+        fprintf(fenc, "  rm -f bt.txt                          \n"
+        fprintf(fenv, "  for i in \"$cores\"                   \n");
+        fprintf(fenv, "  do                                    \n");
+        fprintf(fenv, "    echo \"*** $i\" >> bt.txt           \n");
+        fprintf(fenv, "    gdb -q -batch -x bt.gdb -c $i $BIN >> bt.txt 2> /dev/null \n");
+        fprintf(fenv, "  done                                  \n");
+        fprintf(fenv, "fi                                      \n");
         fflush(fenv);
         fclose(fenv);
       }
