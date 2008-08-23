@@ -1,14 +1,11 @@
 #!/bin/sh
 
-p="`pwd`"
-bt=`find result -name bt.sh`
+cores=`find result -name 'core*'`
 if [ "$bt" ]
 then
-    for i in $bt
+    for i in $cores
     do
-	cd `dirname $i`
-	sh ./bt.sh || true
-	cd "$p"
+	atrt-backtrace.sh $i
     done
 fi
 
