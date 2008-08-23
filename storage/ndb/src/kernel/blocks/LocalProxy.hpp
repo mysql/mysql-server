@@ -23,6 +23,8 @@
 #include <signaldata/ReadConfig.hpp>
 #include <signaldata/NdbSttor.hpp>
 #include <signaldata/ReadNodesConf.hpp>
+#include <signaldata/NodeFailRep.hpp>
+#include <signaldata/NFCompleteRep.hpp>
 
 /*
  * Proxy blocks for MT LQH.
@@ -89,6 +91,7 @@ protected:
   void recvREF(Signal*, SsSequential& ss, Uint32 error);
   // for use in sendREQ
   void skipReq(SsSequential& ss);
+  void skipConf(SsSequential& ss);
   // for use in sendCONF
   bool firstReply(const SsSequential& ss);
   bool lastReply(const SsSequential& ss);
@@ -105,6 +108,7 @@ protected:
   void recvREF(Signal*, SsParallel& ss, Uint32 error);
   // for use in sendREQ
   void skipReq(SsParallel& ss);
+  void skipConf(SsParallel& ss);
   // for use in sendCONF
   bool firstReply(const SsParallel& ss);
   bool lastReply(const SsParallel& ss);
@@ -289,6 +293,60 @@ protected:
   void sendREAD_NODESREQ(Signal*);
   void execREAD_NODESCONF(Signal*);
   void execREAD_NODESREF(Signal*);
+
+  // GSN_NODE_FAILREP
+  struct Ss_NODE_FAILREP : SsParallel {
+    NodeFailRep m_req;
+    // REQ sends NdbNodeBitmask but CONF sends nodeId at a time
+    NdbNodeBitmask m_waitFor[MaxWorkers];
+    Ss_NODE_FAILREP() {
+      m_sendREQ = &LocalProxy::sendNODE_FAILREP;
+      m_sendCONF = &LocalProxy::sendNF_COMPLETEREP;
+    }
+    // some blocks do not reply
+    static bool noReply(BlockNumber blockNo) {
+      return
+        blockNo == BACKUP;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_NODE_FAILREP>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_NODE_FAILREP;
+    }
+  };
+  SsPool<Ss_NODE_FAILREP> c_ss_NODE_FAILREP;
+  void execNODE_FAILREP(Signal*);
+  void sendNODE_FAILREP(Signal*, Uint32 ssId);
+  void execNF_COMPLETEREP(Signal*);
+  void sendNF_COMPLETEREP(Signal*, Uint32 ssId);
+
+  // GSN_INCL_NODEREQ
+  struct Ss_INCL_NODEREQ : SsParallel {
+    // future-proof by allocating max length
+    struct Req {
+      Uint32 senderRef;
+      Uint32 inclNodeId;
+      Uint32 word[23];
+    };
+    struct Conf {
+      Uint32 inclNodeId;
+      Uint32 senderRef;
+    };
+    Uint32 m_reqlength;
+    Req m_req;
+    Ss_INCL_NODEREQ() {
+      m_sendREQ = &LocalProxy::sendINCL_NODEREQ;
+      m_sendCONF = &LocalProxy::sendINCL_NODECONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_INCL_NODEREQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_INCL_NODEREQ;
+    }
+  };
+  SsPool<Ss_INCL_NODEREQ> c_ss_INCL_NODEREQ;
+  void execINCL_NODEREQ(Signal*);
+  void sendINCL_NODEREQ(Signal*, Uint32 ssId);
+  void execINCL_NODECONF(Signal*);
+  void sendINCL_NODECONF(Signal*, Uint32 ssId);
 
   // GSN_DUMP_STATE_ORD
   struct Ss_DUMP_STATE_ORD : SsParallel {
