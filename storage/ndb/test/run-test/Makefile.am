@@ -26,7 +26,7 @@ test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-dl145a.cnf test-tests.txt conf-test.cnf db.sql
 
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
-          atrt-clear-result.sh autotest-run.sh
+          atrt-clear-result.sh autotest-run.sh atrt-backtrace.sh
 
 atrt_SOURCES = main.cpp setup.cpp files.cpp db.cpp command.cpp
 
