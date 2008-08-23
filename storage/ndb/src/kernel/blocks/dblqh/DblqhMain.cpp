@@ -4689,7 +4689,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
      */
     sendKeyinfoAcc(signal, 7);
   }
-  const Uint32 ref = refToBlock(regTcPtr.p->tcAccBlockref);
+  const Uint32 ref = refToMain(regTcPtr.p->tcAccBlockref);
   EXECUTE_DIRECT(ref, GSN_ACCKEYREQ, signal, 7 + keylen);
   jamEntry();
 
@@ -10829,7 +10829,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   scanptr.p->scanApiOpPtr = tcConnectptr.i;
   scanptr.p->scanApiBlockref = reference();
   fragptr.p->m_scanNumberMask.clear(NR_ScanNo);
-  scanptr.p->scanBlockref = DBTUP_REF;
+  scanptr.p->scanBlockref = ctupBlockref;
   scanptr.p->scanLockHold = ZFALSE;
   scanptr.p->m_curr_batch_size_rows = 0;
   scanptr.p->m_curr_batch_size_bytes= 0;
@@ -12409,7 +12409,8 @@ void Dblqh::sendEMPTY_LCP_CONF(Signal* signal, bool idle)
     if (lcpPtr.p->m_EMPTY_LCP_REQ.get(nodeId)) {
       jam();
       
-      BlockReference blockref = calcDihBlockRef(nodeId);
+      BlockReference blockref =
+        !isNdbMtLqh() ? calcDihBlockRef(nodeId) : calcLqhBlockRef(nodeId);
       sendSignal(blockref, GSN_EMPTY_LCP_CONF, signal, 
 		 EmptyLcpConf::SignalLength, JBB);
     }//if
