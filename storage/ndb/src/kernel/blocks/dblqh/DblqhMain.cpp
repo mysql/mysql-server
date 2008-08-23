@@ -8045,7 +8045,8 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
     nfCompRep->blockNo      = DBLQH;
     nfCompRep->nodeId       = cownNodeid;
     nfCompRep->failedNodeId = Tdata[i];
-    sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
+    BlockReference dihRef = !isNdbMtLqh() ? DBDIH_REF : DBLQH_REF;
+    sendSignal(dihRef, GSN_NF_COMPLETEREP, signal, 
 	       NFCompleteRep::SignalLength, JBB);
   }//for
   ndbrequire(TnoOfNodes == TfoundNodes);
