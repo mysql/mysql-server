@@ -62,6 +62,9 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_START_RECREQ
   addRecSignal(GSN_START_RECREQ, &DblqhProxy::execSTART_RECREQ);
   addRecSignal(GSN_START_RECCONF, &DblqhProxy::execSTART_RECCONF);
+
+  // GSN_LQH_TRANSREQ
+  addRecSignal(GSN_LQH_TRANSREQ, &DblqhProxy::execLQH_TRANSREQ);
 }
 
 DblqhProxy::~DblqhProxy()
@@ -780,6 +783,17 @@ DblqhProxy::sendSTART_RECCONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_START_RECREQ>(ssId);
+}
+
+// GSN_LQH_TRANSREQ
+
+void
+DblqhProxy::execLQH_TRANSREQ(Signal* signal)
+{
+  // long enough to see NF complete on worker blocks
+  signal->theData[0] = 0xfacade;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB,
+                      signal, 100, 1);
 }
 
 BLOCK_FUNCTIONS(DblqhProxy)

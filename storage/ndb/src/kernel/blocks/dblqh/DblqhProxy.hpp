@@ -244,6 +244,9 @@ protected:
   void sendSTART_RECREQ(Signal*, Uint32 ssId);
   void execSTART_RECCONF(Signal*);
   void sendSTART_RECCONF(Signal*, Uint32 ssId);
+
+  // GSN_LQH_TRANSREQ
+  void execLQH_TRANSREQ(Signal*);
 };
 
 #endif
