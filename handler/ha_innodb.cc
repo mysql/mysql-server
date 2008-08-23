@@ -6429,15 +6429,26 @@ ha_innobase::extra(
 	return(0);
 }
 
+/**********************************************************************
+Reset state of file to after 'open'.
+This function is called after every statement for all tables used
+by that statement.  */
 int ha_innobase::reset()
 {
-  if (prebuilt->blob_heap) {
-    row_mysql_prebuilt_free_blob_heap(prebuilt);
-  }
-  reset_template(prebuilt);
-  return 0;
-}
+	if (prebuilt->blob_heap) {
+		row_mysql_prebuilt_free_blob_heap(prebuilt);
+	}
 
+	reset_template(prebuilt);
+
+	/* TODO: This should really be reset in reset_template() but for now
+	it's safer to do it explicitly here. */
+
+	/* This is a statement level counter. */
+	prebuilt->last_value = 0;
+
+	return(0);
+}
 
 /**********************************************************************
 MySQL calls this function at the start of each SQL statement inside LOCK
