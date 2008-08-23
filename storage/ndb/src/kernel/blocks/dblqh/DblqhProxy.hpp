@@ -25,6 +25,9 @@
 #include <signaldata/PrepDropTab.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/StartRec.hpp>
+#include <signaldata/LqhTransReq.hpp>
+#include <signaldata/LqhTransConf.hpp>
+#include <signaldata/EmptyLcp.hpp>
 
 class DblqhProxy : public LocalProxy {
 public:
@@ -244,6 +247,46 @@ protected:
   void sendSTART_RECREQ(Signal*, Uint32 ssId);
   void execSTART_RECCONF(Signal*);
   void sendSTART_RECCONF(Signal*, Uint32 ssId);
+
+  // GSN_LQH_TRANSREQ
+  struct Ss_LQH_TRANSREQ : SsParallel {
+    LqhTransReq m_req;
+    LqhTransConf m_conf; // latest conf
+    Ss_LQH_TRANSREQ() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendLQH_TRANSREQ;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendLQH_TRANSCONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_LQH_TRANSREQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_LQH_TRANSREQ;
+    }
+  };
+  SsPool<Ss_LQH_TRANSREQ> c_ss_LQH_TRANSREQ;
+  void execLQH_TRANSREQ(Signal*);
+  void sendLQH_TRANSREQ(Signal*, Uint32 ssId);
+  void execLQH_TRANSCONF(Signal*);
+  void sendLQH_TRANSCONF(Signal*, Uint32 ssId);
+
+  // GSN_EMPTY_LCP_REQ
+  struct Ss_EMPTY_LCP_REQ : SsParallel {
+    EmptyLcpReq m_req;
+    EmptyLcpConf m_conf; // build final conf here
+    Ss_EMPTY_LCP_REQ() {
+      m_conf.idle = 1;
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendEMPTY_LCP_REQ;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendEMPTY_LCP_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_EMPTY_LCP_REQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_EMPTY_LCP_REQ;
+    }
+  };
+  SsPool<Ss_EMPTY_LCP_REQ> c_ss_EMPTY_LCP_REQ;
+  void execEMPTY_LCP_REQ(Signal*);
+  void sendEMPTY_LCP_REQ(Signal*, Uint32 ssId);
+  void execEMPTY_LCP_CONF(Signal*);
+  void execEMPTY_LCP_REF(Signal*);
+  void sendEMPTY_LCP_CONF(Signal*, Uint32 ssId);
 };
 
 #endif

@@ -3512,7 +3512,6 @@ done:
 	     takeOverPtr.p->toCurrentTabref,
 	     takeOverPtr.p->toCurrentFragid);
 
-    BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
     StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
     req->userPtr = 0;
     req->userRef = reference();
@@ -3521,6 +3520,10 @@ done:
     req->tableId = takeOverPtr.p->toCurrentTabref;
     req->fragId = takeOverPtr.p->toCurrentFragid;
     req->noOfLogNodes = 0;
+
+    Uint32 instanceKey = dihGetInstanceKey(req->tableId, req->fragId);
+    BlockReference ref = numberToRef(DBLQH, instanceKey,
+                                     takeOverPtr.p->toStartingNode);
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
   }
@@ -3549,7 +3552,6 @@ done:
 	     SYSFILE->lastCompletedGCI[takeOverPtr.p->toStartingNode],
 	     SYSFILE->newestRestorableGCI);
 
-    BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
     StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
     req->userPtr = 0;
     req->userRef = reference();
@@ -3561,6 +3563,10 @@ done:
     req->lqhLogNode[0] = takeOverPtr.p->toStartingNode;
     req->startGci[0] = replicaPtr.p->maxGciCompleted[maxLcpIndex];
     req->lastGci[0] = gci;
+
+    Uint32 instanceKey = dihGetInstanceKey(req->tableId, req->fragId);
+    BlockReference ref = numberToRef(DBLQH, instanceKey,
+                                     takeOverPtr.p->toStartingNode);
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
   }
@@ -3725,7 +3731,9 @@ void Dbdih::toCopyFragLab(Signal* signal,
   req->fragId = takeOverPtr.p->toCurrentFragid;
   req->copyNodeId = takeOverPtr.p->toCopyNode;
   req->startingNodeId = takeOverPtr.p->toStartingNode; // Dst
-  Uint32 ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
+
+  Uint32 instanceKey = dihGetInstanceKey(req->tableId, req->fragId);
+  Uint32 ref = numberToRef(DBLQH, instanceKey, takeOverPtr.p->toStartingNode);
   
   sendSignal(ref, GSN_PREPARE_COPY_FRAG_REQ, signal, 
              PrepareCopyFragReq::SignalLength, JBB);
@@ -3898,7 +3906,9 @@ Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
   Uint32 gci = replicaPtr.p->m_restorable_gci;
   replicaPtr.p->m_restorable_gci = 0; // used in union...
   
-  BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toCopyNode);
+  Uint32 instanceKey = dihGetInstanceKey(tabPtr.i, fragId);
+  BlockReference ref = numberToRef(DBLQH, instanceKey,
+                                   takeOverPtr.p->toCopyNode);
   CopyFragReq * const copyFragReq = (CopyFragReq *)&signal->theData[0];
   copyFragReq->userPtr = takeOverPtr.i;
   copyFragReq->userRef = reference();
@@ -4033,7 +4043,9 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
 
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
-  BlockReference lqhRef = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
+  Uint32 instanceKey = dihGetInstanceKey(fragPtr);
+  BlockReference lqhRef = numberToRef(DBLQH, instanceKey,
+                                      takeOverPtr.p->toStartingNode);
   CopyActiveReq * const req = (CopyActiveReq *)&signal->theData[0];
   req->userPtr = takeOverPtr.i;
   req->userRef = reference();

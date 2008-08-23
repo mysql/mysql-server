@@ -50,6 +50,14 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   addRecSignal(GSN_READ_NODESCONF, &LocalProxy::execREAD_NODESCONF);
   addRecSignal(GSN_READ_NODESREF, &LocalProxy::execREAD_NODESREF);
 
+  // GSN_NODE_FAILREP
+  addRecSignal(GSN_NODE_FAILREP, &LocalProxy::execNODE_FAILREP);
+  addRecSignal(GSN_NF_COMPLETEREP, &LocalProxy::execNF_COMPLETEREP);
+
+  // GSN_INCL_NODEREQ
+  addRecSignal(GSN_INCL_NODEREQ, &LocalProxy::execINCL_NODEREQ);
+  addRecSignal(GSN_INCL_NODECONF, &LocalProxy::execINCL_NODECONF);
+
   // GSN_DUMP_STATE_ORD
   addRecSignal(GSN_DUMP_STATE_ORD, &LocalProxy::execDUMP_STATE_ORD);
 
@@ -101,6 +109,11 @@ LocalProxy::recvREF(Signal* signal, SsSequential& ss, Uint32 error)
 
 void
 LocalProxy::skipReq(SsSequential& ss)
+{
+}
+
+void
+LocalProxy::skipConf(SsSequential& ss)
 {
 }
 
@@ -162,6 +175,14 @@ LocalProxy::skipReq(SsParallel& ss)
 {
   ndbrequire(ss.m_workerMask.get(ss.m_worker));
   ss.m_workerMask.clear(ss.m_worker);
+}
+
+// more replies expected from this worker
+void
+LocalProxy::skipConf(SsParallel& ss)
+{
+  ndbrequire(!ss.m_workerMask.get(ss.m_worker));
+  ss.m_workerMask.set(ss.m_worker);
 }
 
 bool
@@ -465,6 +486,178 @@ LocalProxy::execREAD_NODESREF(Signal* signal)
   Ss_READ_NODES_REQ& ss = c_ss_READ_NODESREQ;
   ndbrequire(ss.m_gsn != 0);
   ndbrequire(false);
+}
+
+// GSN_NODE_FAILREP
+
+void
+LocalProxy::execNODE_FAILREP(Signal* signal)
+{
+  Ss_NODE_FAILREP& ss = ssSeize<Ss_NODE_FAILREP>(1);
+  const NodeFailRep* req = (const NodeFailRep*)signal->getDataPtr();
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == NodeFailRep::SignalLength);
+
+  // proxy itself
+  NodePtr nodePtr;
+  c_nodeList.first(nodePtr);
+  ndbrequire(nodePtr.i != RNIL);
+  while (nodePtr.i != RNIL) {
+    if (NdbNodeBitmask::get(req->theNodes, nodePtr.p->m_nodeId)) {
+      jam();
+      ndbrequire(nodePtr.p->m_alive);
+      nodePtr.p->m_alive = false;
+    }
+    c_nodeList.next(nodePtr);
+  }
+
+  // from each worker wait for ack for each failed node
+  Uint32 i;
+  for (i = 0; i < c_workers; i++) {
+    jam();
+    NdbNodeBitmask& waitFor = ss.m_waitFor[i];
+    waitFor.assign(NdbNodeBitmask::Size, req->theNodes);
+  }
+
+  sendREQ(signal, ss);
+  if (ss.noReply(number())) {
+    jam();
+    ssRelease<Ss_NODE_FAILREP>(ss);
+  }
+}
+
+void
+LocalProxy::sendNODE_FAILREP(Signal* signal, Uint32 ssId)
+{
+  Ss_NODE_FAILREP& ss = ssFind<Ss_NODE_FAILREP>(ssId);
+
+  NodeFailRep* req = (NodeFailRep*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  sendSignal(workerRef(ss.m_worker), GSN_NODE_FAILREP,
+             signal, NodeFailRep::SignalLength, JBB);
+}
+
+void
+LocalProxy::execNF_COMPLETEREP(Signal* signal)
+{
+  Ss_NODE_FAILREP& ss = ssFind<Ss_NODE_FAILREP>(1);
+  ndbrequire(!ss.noReply(number()));
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::sendNF_COMPLETEREP(Signal* signal, Uint32 ssId)
+{
+  Ss_NODE_FAILREP& ss = ssFind<Ss_NODE_FAILREP>(ssId);
+
+  {
+    const NFCompleteRep* conf = (const NFCompleteRep*)signal->getDataPtr();
+
+    NdbNodeBitmask& waitFor = ss.m_waitFor[ss.m_worker];
+    ndbrequire(waitFor.get(conf->failedNodeId));
+    waitFor.clear(conf->failedNodeId);
+    
+    if (!waitFor.isclear()) {
+      // worker has not replied for all failed nodes
+      skipConf(ss);
+    }
+  }
+
+  if (!lastReply(ss))
+    return;
+
+  NdbNodeBitmask theNodes;
+  theNodes.assign(NdbNodeBitmask::Size, ss.m_req.theNodes);
+
+  NodePtr nodePtr;
+  c_nodeList.first(nodePtr);
+  ndbrequire(nodePtr.i != RNIL);
+  while (nodePtr.i != RNIL) {
+    if (theNodes.get(nodePtr.p->m_nodeId)) {
+      jam();
+      NFCompleteRep* conf = (NFCompleteRep*)signal->getDataPtrSend();
+      conf->blockNo = number();
+      conf->nodeId = getOwnNodeId();
+      conf->failedNodeId = nodePtr.p->m_nodeId;
+      conf->unused = 0;
+      conf->from = __LINE__;
+
+      sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP,
+                 signal, NFCompleteRep::SignalLength, JBB);
+    }
+
+    c_nodeList.next(nodePtr);
+  }
+
+  ssRelease<Ss_NODE_FAILREP>(ssId);
+}
+
+// GSN_INCL_NODEREQ
+
+void
+LocalProxy::execINCL_NODEREQ(Signal* signal)
+{
+  Ss_INCL_NODEREQ& ss = ssSeize<Ss_INCL_NODEREQ>(1);
+
+  ss.m_reqlength = signal->getLength();
+  ndbrequire(sizeof(ss.m_req) >= (ss.m_reqlength << 2));
+  memcpy(&ss.m_req, signal->getDataPtr(), ss.m_reqlength << 2);
+
+  // proxy itself
+  NodePtr nodePtr;
+  c_nodeList.first(nodePtr);
+  ndbrequire(nodePtr.i != RNIL);
+  while (nodePtr.i != RNIL) {
+    jam();
+    if (ss.m_req.inclNodeId == nodePtr.p->m_nodeId) {
+      jam();
+      ndbrequire(!nodePtr.p->m_alive);
+      nodePtr.p->m_alive = true;
+    }
+    c_nodeList.next(nodePtr);
+  }
+
+  sendREQ(signal, ss);
+}
+
+void
+LocalProxy::sendINCL_NODEREQ(Signal* signal, Uint32 ssId)
+{
+  Ss_INCL_NODEREQ& ss = ssFind<Ss_INCL_NODEREQ>(ssId);
+
+  Ss_INCL_NODEREQ::Req* req =
+    (Ss_INCL_NODEREQ::Req*)signal->getDataPtrSend();
+
+  memcpy(req, &ss.m_req, ss.m_reqlength << 2);
+  req->senderRef = reference();
+  sendSignal(workerRef(ss.m_worker), GSN_INCL_NODEREQ,
+             signal, ss.m_reqlength, JBB);
+}
+
+void
+LocalProxy::execINCL_NODECONF(Signal* signal)
+{
+  Ss_INCL_NODEREQ& ss = ssFind<Ss_INCL_NODEREQ>(1);
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::sendINCL_NODECONF(Signal* signal, Uint32 ssId)
+{
+  Ss_INCL_NODEREQ& ss = ssFind<Ss_INCL_NODEREQ>(ssId);
+
+  if (!lastReply(ss))
+    return;
+
+  Ss_INCL_NODEREQ::Conf* conf =
+    (Ss_INCL_NODEREQ::Conf*)signal->getDataPtrSend();
+
+  conf->inclNodeId = ss.m_req.inclNodeId;
+  conf->senderRef = reference();
+  sendSignal(ss.m_req.senderRef, GSN_INCL_NODECONF,
+             signal, 2, JBB);
+
+  ssRelease<Ss_INCL_NODEREQ>(ssId);
 }
 
 // GSN_DUMP_STATE_ORD
