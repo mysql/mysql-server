@@ -34,6 +34,7 @@ class EmptyLcpReq {
    * Receiver(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   
 public:
   STATIC_CONST( SignalLength = 1 );
@@ -51,6 +52,7 @@ class EmptyLcpConf {
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   
   /**
    * Sender(s) / Receiver(s)
