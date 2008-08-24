@@ -2363,7 +2363,9 @@ int ha_maria::external_lock(THD *thd, int lock_type)
             This is a bit excessive, ACID requires this only if there are some
             changes to commit (rollback shouldn't be tested).
           */
+#ifdef WAITING_FOR_PATCH_FROM_SANJA
           DBUG_ASSERT(!thd->main_da.is_sent);
+#endif
           /* autocommit ? rollback a transaction */
 #ifdef MARIA_CANNOT_ROLLBACK
           if (ma_commit(trn))

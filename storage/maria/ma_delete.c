@@ -780,6 +780,7 @@ static int underflow(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       first_key)
   {
     size_t tmp_length;
+    uint next_page_flag;
     /* Use page right of anc-page */
     DBUG_PRINT("test",("use right page"));
 
@@ -805,6 +806,7 @@ static int underflow(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                            DFLT_INIT_HITS, buff, 0, &next_page_link))
       goto err;
     next_buff_length= _ma_get_page_used(share, buff);
+    next_page_flag=   _ma_get_keypage_flag(share,buff);
     DBUG_DUMP("next", buff, next_buff_length);
 
     /* find keys to make a big key-page */
@@ -829,7 +831,7 @@ static int underflow(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     _ma_store_page_used(share, buff, buff_length);
 
     /* Set page flag from combination of both key pages and parting key */
-    page_flag= (_ma_get_keypage_flag(share, buff) |
+    page_flag= (next_page_flag |
                 _ma_get_keypage_flag(share, leaf_buff));
     if (anc_key.flag & (SEARCH_USER_KEY_HAS_TRANSID |
                         SEARCH_PAGE_KEY_HAS_TRANSID))

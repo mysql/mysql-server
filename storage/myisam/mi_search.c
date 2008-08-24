@@ -1802,13 +1802,13 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
     }
     /* Check how many characters are identical to next key */
     key= s_temp->key+next_length;
+    s_temp->prev_length= 0;
     while (*key++ == *next_key++) ;
     if ((ref_length= (uint) (key - s_temp->key)-1) == next_length)
     {
       s_temp->next_key_pos=0;
       return length;                            /* can't pack next key */
     }
-    s_temp->prev_length=0;
     s_temp->n_ref_length=ref_length;
     return (int) (length-(ref_length - next_length) - next_length_pack +
                   get_pack_length(ref_length));

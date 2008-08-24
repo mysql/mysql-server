@@ -2194,9 +2194,10 @@ int _ma_calc_bin_pack_key_length(const MARIA_KEY *int_key,
 
     if (next_length > ref_length)
     {
-      /* We put a key with different case between two keys with the same prefix
-         Extend next key to have same prefix as
-         this key */
+      /*
+        We put a key with different case between two keys with the same prefix
+        Extend next key to have same prefix as this key
+      */
       s_temp->n_ref_length= ref_length;
       s_temp->prev_length=  next_length-ref_length;
       s_temp->prev_key+=    ref_length;
@@ -2206,13 +2207,13 @@ int _ma_calc_bin_pack_key_length(const MARIA_KEY *int_key,
     }
     /* Check how many characters are identical to next key */
     key= s_temp->key+next_length;
+    s_temp->prev_length= 0;
     while (*key++ == *next_key++) ;
     if ((ref_length= (uint) (key - s_temp->key)-1) == next_length)
     {
       s_temp->next_key_pos=0;
       return (s_temp->move_length= length);  /* Can't pack next key */
     }
-    s_temp->prev_length=0;
     s_temp->n_ref_length=ref_length;
     return s_temp->move_length= (int) (length-(ref_length - next_length) -
                                        next_length_pack +
