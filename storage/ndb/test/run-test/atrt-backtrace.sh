@@ -41,6 +41,7 @@ then
     echo "*** $core" >> $out
     eval "gdb -q -batch -x bt.gdb -c $core $exe $outarg"
 elif [ -x "`which $exe 2> /dev/null`" ]
+then
     exe=`which exe`
     echo "*** $core" >> $out
     eval "gdb -q -batch -x bt.gdb -c $core $exe $outarg"
