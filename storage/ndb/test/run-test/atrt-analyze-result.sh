@@ -1,9 +1,9 @@
 #!/bin/sh
 
 cores=`find result -name 'core*'`
-if [ "$bt" ]
+if [ "$cores" ]
 then
-    for i in $cores
+    for i in "$cores"
     do
 	atrt-backtrace.sh $i
     done
