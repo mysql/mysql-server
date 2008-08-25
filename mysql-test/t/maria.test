@@ -1498,6 +1498,17 @@ insert t1 (a) values (repeat('1', 200)), (repeat('2', 200)), (repeat('3', 200)),
 select b from t1 where a >= repeat('f', 200) and a < 'k';
 drop table t1;
 
+#
+# BUG#38606  test suite
+#
+create table t1 (a int) engine=maria transactional=1;
+insert into t1 values (1);
+lock table t1 write concurrent;
+# should be fixed with fully implemented versioning
+--error ER_CHECK_NOT_IMPLEMENTED
+delete from t1;
+drop table t1;
+
 --disable_result_log
 --disable_query_log
 eval set global storage_engine=$default_engine, maria_page_checksum=$default_checksum;

@@ -1959,10 +1959,18 @@ bool ha_maria::is_crashed() const
           (my_disable_locking && file->s->state.open_count));
 }
 
+#define CHECK_UNTIL_WE_FULLY_IMPLEMENTED_VERSIONING(msg) \
+  do { \
+    if (file->lock.type == TL_WRITE_CONCURRENT_INSERT) \
+    { \
+      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), msg); \
+      return 1; \
+    } \
+  } while(0)
 
 int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 {
-  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
+  CHECK_UNTIL_WE_FULLY_IMPLEMENTED_VERSIONING("UPDATE in WRITE CONCURRENT");
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -1972,7 +1980,7 @@ int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 
 int ha_maria::delete_row(const uchar * buf)
 {
-  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
+  CHECK_UNTIL_WE_FULLY_IMPLEMENTED_VERSIONING("DELETE in WRITE CONCURRENT");
   ha_statistic_increment(&SSV::ha_delete_count);
   return maria_delete(file, buf);
 }
