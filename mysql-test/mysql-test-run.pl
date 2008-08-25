@@ -1048,6 +1048,28 @@ sub command_line_setup {
       mtr_error("Can't use --extern with --embedded-server");
     }
 
+
+    if ($opt_gdb)
+    {
+      mtr_warning("Silently converting --gdb to --client-gdb in embedded mode");
+      $opt_client_gdb= $opt_gdb;
+      $opt_gdb= undef;
+    }
+
+    if ($opt_ddd)
+    {
+      mtr_warning("Silently converting --ddd to --client-ddd in embedded mode");
+      $opt_client_ddd= $opt_ddd;
+      $opt_ddd= undef;
+    }
+
+    if ($opt_debugger)
+    {
+      mtr_warning("Silently converting --debugger to --client-debugger in embedded mode");
+      $opt_client_debugger= $opt_debugger;
+      $opt_debugger= undef;
+    }
+
     if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_ddd ||
 	 $opt_manual_debug || $opt_debugger )
     {
