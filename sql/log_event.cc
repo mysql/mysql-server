@@ -1599,7 +1599,7 @@ beg:
   case MYSQL_TYPE_DOUBLE:
     {
       double dbl;
-      doubleget(dbl, ptr);
+      float8get(dbl, ptr);
       char tmp[320];
       sprintf(tmp, "%-.20g", dbl); /* my_snprintf doesn't support %-20g */
       my_b_printf(file, "%s", tmp);

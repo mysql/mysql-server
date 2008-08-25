@@ -2383,10 +2383,10 @@ BEGIN
 ###   @16=-9223372036854775808 (9223372036854775808) /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @17=0 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @18=0 /* LONGINT meta=0 nullable=1 is_null=0 */
-###   @19=-3.40282e+38         /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @19=-3.402...         /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @20=1.175...          /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @21=0                    /* FLOAT meta=4 nullable=1 is_null=0 */
-###   @22=-1.797693134862299941e+308 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
@@ -2652,10 +2652,10 @@ BEGIN
 ###   @16=9223372036854775807 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @17=0 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @18=1 /* LONGINT meta=0 nullable=1 is_null=0 */
-###   @19=-1.17549e-38         /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @19=-1.175...         /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @20=1.175...          /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @21=1                    /* FLOAT meta=4 nullable=1 is_null=0 */
-###   @22=-2.2250738585071999009e-308 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
@@ -2745,10 +2745,10 @@ BEGIN
 ###   @16=-9223372036854775808 (9223372036854775808) /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @17=0 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @18=0 /* LONGINT meta=0 nullable=1 is_null=0 */
-###   @19=-3.40282e+38         /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @19=-3.402...         /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @20=1.175...          /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @21=0                    /* FLOAT meta=4 nullable=1 is_null=0 */
-###   @22=-1.797693134862299941e+308 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
@@ -2998,10 +2998,10 @@ BEGIN
 ###   @16=-9223372036854775808 (9223372036854775808) /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @17=0 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @18=0 /* LONGINT meta=0 nullable=1 is_null=0 */
-###   @19=-3.40282e+38         /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @19=-3.402...         /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @20=1.175...          /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @21=0                    /* FLOAT meta=4 nullable=1 is_null=0 */
-###   @22=-1.797693134862299941e+308 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
@@ -3171,10 +3171,10 @@ BEGIN
 ###   @16=9223372036854775807 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @17=0 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @18=1 /* LONGINT meta=0 nullable=1 is_null=0 */
-###   @19=-1.17549e-38         /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @19=-1.175...         /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @20=1.175...          /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @21=1                    /* FLOAT meta=4 nullable=1 is_null=0 */
-###   @22=-2.2250738585071999009e-308 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
@@ -3264,10 +3264,10 @@ BEGIN
 ###   @16=9223372036854775807 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @17=0 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @18=1 /* LONGINT meta=0 nullable=1 is_null=0 */
-###   @19=-1.17549e-38         /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @19=-1.175...         /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @20=1.175...          /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @21=1                    /* FLOAT meta=4 nullable=1 is_null=0 */
-###   @22=-2.2250738585071999009e-308 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
@@ -3530,10 +3530,10 @@ BEGIN
 ###   @16=-9223372036854775808 (9223372036854775808) /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @17=0 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @18=0 /* LONGINT meta=0 nullable=1 is_null=0 */
-###   @19=-3.40282e+38         /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @19=-3.402...         /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @20=1.175...          /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @21=0                    /* FLOAT meta=4 nullable=1 is_null=0 */
-###   @22=-1.797693134862299941e+308 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
@@ -3623,10 +3623,10 @@ BEGIN
 ###   @16=9223372036854775807 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @17=0 /* LONGINT meta=0 nullable=1 is_null=0 */
 ###   @18=1 /* LONGINT meta=0 nullable=1 is_null=0 */
-###   @19=-1.17549e-38         /* FLOAT meta=4 nullable=1 is_null=0 */
+###   @19=-1.175...         /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @20=1.175...          /* FLOAT meta=4 nullable=1 is_null=0 */
 ###   @21=1                    /* FLOAT meta=4 nullable=1 is_null=0 */
-###   @22=-2.2250738585071999009e-308 /* DOUBLE meta=8 nullable=1 is_null=0 */
+###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
