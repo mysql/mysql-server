@@ -154,7 +154,8 @@ set @@sql_mode=@org_mode;
 #
 # Bug 21350: Data Directory problems
 #
--- error ER_WRONG_ARGUMENTS
+# Added ER_WRONG_TABLE_NAME and reported bug#39045
+-- error ER_WRONG_ARGUMENTS, ER_WRONG_TABLE_NAME
 create table t1 (a int)
 partition by key (a)
 (partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
@@ -163,7 +164,8 @@ partition by key (a)
 # Insert a test that manages to create the first partition and fails with
 # the second, ensure that we clean up afterwards in a proper manner.
 #
---error ER_WRONG_ARGUMENTS
+# Added ER_WRONG_TABLE_NAME and reported bug#39045
+--error ER_WRONG_ARGUMENTS, ER_WRONG_TABLE_NAME
 create table t1 (a int)
 partition by key (a)
 (partition p0,
