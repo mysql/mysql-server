@@ -1342,6 +1342,9 @@ extern char *default_tz_name;
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
 
+extern char *opt_plugin_dir_ptr;
+extern char opt_plugin_dir[FN_REFLEN];
+
 extern MYSQL_LOG mysql_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
 extern int bootstrap_error;
