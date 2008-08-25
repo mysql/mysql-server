@@ -3335,6 +3335,14 @@ void do_diff_files(struct st_command *command)
                      sizeof(diff_file_args)/sizeof(struct command_arg),
                      ' ');
 
+  if (access(ds_filename.str, F_OK) != 0)
+    die("command \"diff_files\" failed, file '%s' does not exist",
+        ds_filename.str);
+
+  if (access(ds_filename2.str, F_OK) != 0)
+    die("command \"diff_files\" failed, file '%s' does not exist",
+        ds_filename2.str);
+
   if ((error= compare_files(ds_filename.str, ds_filename2.str)))
   {
     /* Compare of the two files failed, append them to output
