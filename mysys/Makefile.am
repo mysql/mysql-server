@@ -72,7 +72,7 @@ libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			thr_mutex.c thr_rwlock.c \
 			mf_soundex.c \
 			my_conio.c my_wincond.c my_winthread.c
-EXTRA_DIST =  		CMakeLists.txt 
+EXTRA_DIST =  		CMakeLists.txt my_times.c
 
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
