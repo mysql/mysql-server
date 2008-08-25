@@ -2222,3 +2222,9 @@ b
 12345
 12345
 drop table t1;
+create table t1 (a int) engine=maria transactional=1;
+insert into t1 values (1);
+lock table t1 write concurrent;
+delete from t1;
+ERROR 42000: The storage engine for the table doesn't support DELETE in WRITE CONCURRENT
+drop table t1;
