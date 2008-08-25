@@ -22,6 +22,7 @@
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include <ndbapi/NdbApi.hpp>
+#include <portlib/NdbTick.h>
 #include "ha_ndbcluster_connection.h"
 
 /* options from from mysqld.cc */
@@ -37,6 +38,8 @@ static pthread_mutex_t g_ndb_cluster_connection_pool_mutex;
 
 int ndbcluster_connect(int (*connect_callback)(void))
 {
+  NDB_TICKS end_time;
+
 #ifndef EMBEDDED_LIBRARY
   const char mysqld_name[]= "mysqld";
 #else
@@ -84,17 +87,12 @@ int ndbcluster_connect(int (*connect_callback)(void))
 
   /* Connect to management server */
 
-  struct timeval end_time;
-  gettimeofday(&end_time, 0);
-  end_time.tv_sec+= opt_ndb_wait_connected;
+  end_time= NdbTick_CurrentMillisecond();
+  end_time+= opt_ndb_wait_connected;
 
   while ((res= g_ndb_cluster_connection->connect(0,0,0)) == 1)
   {
-    struct timeval now_time;
-    gettimeofday(&now_time, 0);
-    if (now_time.tv_sec > end_time.tv_sec ||
-        (now_time.tv_sec == end_time.tv_sec &&
-         now_time.tv_usec >= end_time.tv_usec))
+    if (NdbTick_CurrentMillisecond() > end_time)
       break;
     sleep(1);
   }
@@ -152,12 +150,12 @@ int ndbcluster_connect(int (*connect_callback)(void))
                   g_ndb_cluster_connection_pool[i]->get_connected_host(),
                   g_ndb_cluster_connection_pool[i]->get_connected_port()));
 
-      struct timeval now_time;
+      NDB_TICKS now_time;
       do
       {
         res= g_ndb_cluster_connection_pool[i]->wait_until_ready(1, 1);
-        gettimeofday(&now_time, 0);
-      } while (res != 0 && end_time.tv_sec > now_time.tv_sec);
+        now_time= NdbTick_CurrentMillisecond();
+      } while (res != 0 && now_time < end_time);
 
       if (res == 0)
       {
