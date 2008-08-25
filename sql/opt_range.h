@@ -345,14 +345,7 @@ public:
   void dbug_dump(int indent, bool verbose);
 #endif
 private:
-  /* Used only by QUICK_SELECT_DESC */
-  QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT& org) : QUICK_SELECT_I()
-  {
-    bcopy(&org, this, sizeof(*this));
-    multi_range_length= 0;
-    multi_range= NULL;
-    multi_range_buff= NULL;
-  }
+  /* Default copy ctor used by QUICK_SELECT_DESC */
 };
 
 
