@@ -184,7 +184,7 @@ my_bool _ma_check_table_is_closed(const char *name, const char *where)
   {
     MARIA_HA *info=(MARIA_HA*) pos->data;
     MARIA_SHARE *share= info->s;
-    if (!strcmp(share->unique_file_name,filename))
+    if (!strcmp(share->unique_file_name.str, filename))
     {
       if (share->last_version)
       {

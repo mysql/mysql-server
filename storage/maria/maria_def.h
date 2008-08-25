@@ -274,10 +274,10 @@ typedef struct st_maria_share
   MARIA_PACK pack;			/* Data about packed records */
   MARIA_BLOB *blobs;			/* Pointer to blobs */
   uint16 *column_nr;			/* Original column order */
-  char *unique_file_name;		/* realpath() of index file */
-  char *data_file_name;			/* Resolved path names from symlinks */
-  char *index_file_name;
-  char *open_file_name;			/* parameter to open filename */
+  LEX_STRING unique_file_name;		/* realpath() of index file */
+  LEX_STRING data_file_name;		/* Resolved path names from symlinks */
+  LEX_STRING index_file_name;
+  LEX_STRING open_file_name;		/* parameter to open filename */
   uchar *file_map;			/* mem-map of file if possible */
   PAGECACHE *pagecache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
@@ -345,7 +345,6 @@ typedef struct st_maria_share
   ulong max_pack_length;
   ulong state_diff_length;
   uint rec_reflength;			/* rec_reflength in use now */
-  uint unique_name_length;
   uint keypage_header;
   uint32 ftparsers;			/* Number of distinct ftparsers
 						   + 1 */
@@ -661,7 +660,7 @@ struct st_maria_handler
 */
 #define maria_print_error(SHARE, ERRNO)                         \
   do{ if (!maria_in_ha_maria)                                   \
-      _ma_report_error((ERRNO), (SHARE)->index_file_name); }    \
+      _ma_report_error((ERRNO), &(SHARE)->index_file_name); }    \
   while(0)
 #else
 #define maria_print_error(SHARE, ERRNO) while (0)
@@ -1029,7 +1028,7 @@ extern uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
                                     size_t *rec_buff_size,
                                     File file, my_off_t filepos);
 extern void _ma_store_blob_length(uchar *pos, uint pack_length, uint length);
-extern void _ma_report_error(int errcode, const char *file_name);
+extern void _ma_report_error(int errcode, const LEX_STRING *file_name);
 extern my_bool _ma_memmap_file(MARIA_HA *info);
 extern void _ma_unmap_file(MARIA_HA *info);
 extern uint _ma_save_pack_length(uint version, uchar * block_buff,

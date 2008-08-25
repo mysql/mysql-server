@@ -60,7 +60,7 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
 #endif
   for (;;)
   {
-    errno=0;					/* Linux, Windows don't reset this on EOF/success */
+    errno= 0;    /* Linux, Windows don't reset this on EOF/success */
 #ifndef HAVE_PREAD
     pthread_mutex_lock(&my_file_info[Filedes].mutex);
     readbytes= (uint) -1;

@@ -188,8 +188,9 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
-    DBUG_PRINT("info", ("invalidator... '%s' (update)", share->open_file_name));
-    (*info->invalidator)(share->open_file_name);
+    DBUG_PRINT("info", ("invalidator... '%s' (update)",
+                        share->open_file_name.str));
+    (*info->invalidator)(share->open_file_name.str);
     info->invalidator=0;
   }
   DBUG_RETURN(0);

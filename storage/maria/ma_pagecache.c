@@ -305,12 +305,13 @@ struct st_pagecache_block_link
   ulonglong last_hit_time; /* timestamp of the last hit                      */
   WQUEUE
     wqueue[COND_SIZE];    /* queues on waiting requests for new/old pages    */
-  uint requests;          /* number of requests for the block                */
-  uint status;            /* state of the block                              */
-  uint pins;              /* pin counter                                     */
-  uint wlocks;            /* write locks counter                             */
-  uint rlocks;            /* read locks counter                              */
-  uint rlocks_queue;      /* rd. locks waiting wr. lock of this thread       */
+  uint32 requests;        /* number of requests for the block                */
+  uint32 pins;            /* pin counter                                     */
+  uint32 wlocks;          /* write locks counter                             */
+  uint32 rlocks;          /* read locks counter                              */
+  uint32 rlocks_queue;    /* rd. locks waiting wr. lock of this thread       */
+  uint16 status;          /* state of the block                              */
+  int16  error;           /* error code for block in case of error */
   enum PCBLOCK_TEMPERATURE temperature; /* block temperature: cold, warm, hot*/
   enum pagecache_page_type type; /* type of the block                        */
   uint hits_left;         /* number of hits left until promotion             */
@@ -2068,6 +2069,7 @@ restart:
                             (my_bool)(block->hash_link ? 1 : 0));
           PCBLOCK_INFO(block);
           block->status= error ? PCBLOCK_ERROR : 0;
+          block->error=  error;
 #ifndef DBUG_OFF
           block->type= PAGECACHE_EMPTY_PAGE;
           if (error)
@@ -2606,6 +2608,7 @@ static void read_block(PAGECACHE *pagecache,
     if (error)
     {
       block->status|= PCBLOCK_ERROR;
+      block->error=   error;
       my_debug_put_break_here();
     }
     else
@@ -2618,6 +2621,7 @@ static void read_block(PAGECACHE *pagecache,
       {
         DBUG_PRINT("error", ("read callback problem"));
         block->status|= PCBLOCK_ERROR;
+        block->error=  my_errno;
         my_debug_put_break_here();
       }
     }
@@ -3229,6 +3233,8 @@ restart:
         pagecache_pthread_mutex_lock(&pagecache->cache_lock);
 #endif
       }
+      else
+        my_errno= block->error;
     }
 
     remove_reader(block);
@@ -3313,6 +3319,7 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
       if (error)
       {
         block->status|= PCBLOCK_ERROR;
+        block->error=   error;
         my_debug_put_break_here();
         goto err;
       }
@@ -3771,6 +3778,7 @@ restart:
         {
           DBUG_PRINT("error", ("read callback problem"));
           block->status|= PCBLOCK_ERROR;
+          block->error= my_errno;
           my_debug_put_break_here();
         }
         KEYCACHE_DBUG_PRINT("key_cache_insert",
@@ -4067,6 +4075,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     if (error)
     {
       block->status|= PCBLOCK_ERROR;
+      block->error=   error;
       my_debug_put_break_here();
       if (!*first_errno)
         *first_errno= my_errno ? my_errno : -1;

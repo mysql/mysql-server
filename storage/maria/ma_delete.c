@@ -122,8 +122,9 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   allow_break();			/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
-    DBUG_PRINT("info", ("invalidator... '%s' (delete)", share->open_file_name));
-    (*info->invalidator)(share->open_file_name);
+    DBUG_PRINT("info", ("invalidator... '%s' (delete)",
+                        share->open_file_name.str));
+    (*info->invalidator)(share->open_file_name.str);
     info->invalidator=0;
   }
   DBUG_RETURN(0);

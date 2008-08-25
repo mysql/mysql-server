@@ -1279,7 +1279,7 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
   param.op_name= "zerofill";
   param.testflag= check_opt->flags | T_SILENT | T_ZEROFILL;
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
-  error=maria_zerofill(&param, file, share->open_file_name);
+  error=maria_zerofill(&param, file, share->open_file_name.str);
 
   if (!error)
   {
@@ -1356,7 +1356,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   param->thd= thd;
   param->tmpdir= &mysql_tmpdir_list;
   param->out_flag= 0;
-  strmov(fixed_name, share->open_file_name);
+  strmov(fixed_name, share->open_file_name.str);
 
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables &&
@@ -2176,11 +2176,11 @@ int ha_maria::info(uint flag)
        if table is symlinked (Ie;  Real name is not same as generated name)
     */
     data_file_name= index_file_name= 0;
-    fn_format(name_buff, file->s->open_file_name, "", MARIA_NAME_DEXT,
+    fn_format(name_buff, file->s->open_file_name.str, "", MARIA_NAME_DEXT,
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
     if (strcmp(name_buff, maria_info.data_file_name))
-      data_file_name=maria_info.data_file_name;
-    fn_format(name_buff, file->s->open_file_name, "", MARIA_NAME_IEXT,
+      data_file_name =maria_info.data_file_name;
+    fn_format(name_buff, file->s->open_file_name.str, "", MARIA_NAME_IEXT,
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
     if (strcmp(name_buff, maria_info.index_file_name))
       index_file_name=maria_info.index_file_name;

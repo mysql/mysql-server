@@ -820,7 +820,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       */
       share->in_checkpoint= MARIA_CHECKPOINT_LOOKS_AT_ME;
       /** @todo avoid strlen() */
-      total_names_length+= strlen(share->open_file_name);
+      total_names_length+= share->open_file_name.length;
     }
   }
 
@@ -894,7 +894,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
        @todo We should not look at tables which didn't change since last
        checkpoint.
     */
-    DBUG_PRINT("info",("looking at table '%s'", share->open_file_name));
+    DBUG_PRINT("info",("looking at table '%s'", share->open_file_name.str));
     if (state_copy == state_copies_end) /* we have no more cached states */
     {
       /*
@@ -978,8 +978,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
     DBUG_PRINT("info", ("ignore_share: %d", ignore_share));
     if (!ignore_share)
     {
-      /** @todo avoid strlen */
-      uint open_file_name_len= strlen(share->open_file_name) + 1;
+      uint open_file_name_len= share->open_file_name.length + 1;
       /* remember the descriptors for background flush */
       *(dfiles_end++)= dfile;
       *(kfiles_end++)= kfile;
@@ -1000,7 +999,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
         If no crash, maria_close() will write the exact value.
       */
       state_copy->state.first_bitmap_with_space= ~(ulonglong)0;
-      memcpy(ptr, share->open_file_name, open_file_name_len);
+      memcpy(ptr, share->open_file_name.str, open_file_name_len);
       ptr+= open_file_name_len;
       if (cmp_translog_addr(share->state.is_of_horizon,
                             checkpoint_start_log_horizon) >= 0)

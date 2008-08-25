@@ -227,8 +227,8 @@ int maria_write(MARIA_HA *info, uchar *record)
   if (info->invalidator != 0)
   {
     DBUG_PRINT("info", ("invalidator... '%s' (update)",
-                        share->open_file_name));
-    (*info->invalidator)(share->open_file_name);
+                        share->open_file_name.str));
+    (*info->invalidator)(share->open_file_name.str);
     info->invalidator=0;
   }
 

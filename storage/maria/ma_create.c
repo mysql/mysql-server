@@ -1349,9 +1349,9 @@ int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, TrID create_trid,
     int res;
     LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     /* table name is logged only for information */
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    share->open_file_name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    share->open_file_name.str;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
-      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 0].str) + 1;
+      share->open_file_name.length + 1;
     if ((res= translog_write_record(&lsn, LOGREC_IMPORTED_TABLE,
                                     &dummy_transaction_object, NULL,
                                     (translog_size_t)
