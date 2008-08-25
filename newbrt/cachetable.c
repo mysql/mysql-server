@@ -14,6 +14,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <pthread.h>
+
+#define DO_CACHETABLE_LOCK 0
 
 //#define TRACE_CACHETABLE
 #ifdef TRACE_CACHETABLE
@@ -53,7 +56,26 @@ struct cachetable {
     long size_current, size_limit;
     LSN lsn_of_checkpoint;  // the most recent checkpoint in the log.
     TOKULOGGER logger;
+#if DO_CACHETABLE_LOCK
+    pthread_mutex_t mutex;
+#endif
 };
+
+// lock the cachetable mutex
+
+static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
+#if DO_CACHETABLE_LOCK
+    int r = pthread_mutex_lock(&ct->mutex); assert(r == 0);
+#endif
+}
+
+// unlock the cachetable mutex
+
+static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
+#if DO_CACHETABLE_LOCK
+    int r = pthread_mutex_unlock(&ct->mutex); assert(r == 0);
+#endif
+}
 
 struct fileid {
     dev_t st_dev; /* device and inode are enough to uniquely identify a file in unix. */
@@ -99,6 +121,9 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
     t->size_limit = size_limit;
     t->lsn_of_checkpoint = initial_lsn;
     t->logger = logger; 
+#if DO_CACHTABLE_LOCK
+    int r = pthread_mutex_init(&t->mutex, 0); assert(r == 0);
+#endif
     *result = t;
     return 0;
 }
@@ -515,6 +540,8 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
 			cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     WHEN_TRACE_CT(printf("%s:%d CT cachetable_put(%lld)=%p\n", __FILE__, __LINE__, key, value));
     int count=0;
+    CACHETABLE ct = cachefile->cachetable;
+    cachetable_lock(ct);
     {
 	PAIR p;
 	for (p=cachefile->cachetable->table[fullhash&(cachefile->cachetable->table_size-1)]; p; p=p->hash_chain) {
@@ -527,21 +554,27 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
 		assert(p->flush_callback==flush_callback);
 		assert(p->fetch_callback==fetch_callback);
 		p->pinned++; /* Already present.  But increment the pin count. */
+                cachetable_unlock(ct);
 		return -1; /* Already present. */
 	    }
 	}
     }
     int r;
     note_hash_count(count);
-    if ((r=maybe_flush_some(cachefile->cachetable, size))) return r;
+    if ((r=maybe_flush_some(cachefile->cachetable, size))) {
+        cachetable_unlock(ct);
+        return r;
+    }
     // flushing could change the table size, but wont' change the fullhash
     r = cachetable_insert_at(cachefile, fullhash, key, value, size, flush_callback, fetch_callback, extraargs, 1, ZERO_LSN);
+    cachetable_unlock(ct);
     return r;
 }
 
 int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 				cachetable_flush_func_t flush_callback, cachetable_fetch_func_t fetch_callback, void *extraargs) {
     CACHETABLE t = cachefile->cachetable;
+    cachetable_lock(t);
     int tsize __attribute__((__unused__)) = t->table_size;
     PAIR p;
     int count=0;
@@ -553,6 +586,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
             if (sizep) *sizep = p->size;
 	    p->pinned++;
 	    lru_touch(t,p);
+            cachetable_unlock(t);
 	    WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
 	    return 0;
 	}
@@ -566,6 +600,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
 	LSN written_lsn;
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
 	if ((r=fetch_callback(cachefile, key, fullhash, &toku_value, &size, extraargs, &written_lsn))) {
+            cachetable_unlock(t);
             return r;
 	}
 	cachetable_insert_at(cachefile, fullhash, key, toku_value, size, flush_callback, fetch_callback, extraargs, 0, written_lsn);
@@ -574,7 +609,11 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
             *sizep = size;
         // maybe_flush_some(t, size);
     }
-    if ((r=maybe_flush_some(t, 0))) return r;
+    if ((r=maybe_flush_some(t, 0))) {
+        cachetable_unlock(t);
+        return r;
+    }
+    cachetable_unlock(t);
     WHEN_TRACE_CT(printf("%s:%d did fetch: cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
     return 0;
 }
@@ -583,6 +622,7 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     CACHETABLE t = cachefile->cachetable;
     PAIR p;
     int count = 0;
+    cachetable_lock(t);
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key==key && p->cachefile==cachefile) {
@@ -590,10 +630,12 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
 	    *value = p->value;
 	    p->pinned++;
 	    lru_touch(t,p);
+            cachetable_unlock(t);
 	    //printf("%s:%d cachetable_maybe_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value);
 	    return 0;
 	}
     }
+    cachetable_unlock(t);
     note_hash_count(count);
     return -1;
 }
@@ -606,6 +648,7 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
     //printf("%s:%d is dirty now=%d\n", __FILE__, __LINE__, dirty);
     int count = 0;
     //assert(fullhash == toku_cachetable_hash(cachefile, key));
+    cachetable_lock(t);
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
 	if (p->key==key && p->cachefile==cachefile) {
@@ -621,11 +664,15 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
 	    WHEN_TRACE_CT(printf("[count=%lld]\n", p->pinned));
 	    {
 		int r;
-		if ((r=maybe_flush_some(t, 0))) return r;
+		if ((r=maybe_flush_some(t, 0))) {
+                    cachetable_unlock(t); return r;
+                }
 	    }
+            cachetable_unlock(t);
 	    return 0;
 	}
     }
+    cachetable_unlock(t);
     note_hash_count(count);
     return -1;
 }
@@ -768,6 +815,9 @@ int toku_cachetable_close (CACHETABLE *tp) {
     for (i=0; i<t->table_size; i++) {
 	if (t->table[i]) return -1;
     }
+#if DO_CACHETABLE_LOCK
+    r = pthread_mutex_destroy(&t->mutex); assert(r == 0);
+#endif
     toku_free(t->table);
     toku_free(t);
     *tp = 0;
