@@ -3508,12 +3508,21 @@ sub report_failure_and_restart ($) {
   if ( !defined $tinfo->{logfile} )
   {
     my $logfile= $path_current_testlog;
-    if ( defined $logfile and -f $logfile )
+    if ( defined $logfile )
     {
-      # Test failure was detected by test tool and its report
-      # about what failed has been saved to file. Save the report
-      # in tinfo
-      $tinfo->{logfile}= mtr_fromfile($logfile);
+      if ( -f $logfile )
+      {
+	# Test failure was detected by test tool and its report
+	# about what failed has been saved to file. Save the report
+	# in tinfo
+	$tinfo->{logfile}= mtr_fromfile($logfile);
+      }
+      else
+      {
+	# The test tool report didn't exist, display an
+	# error message
+	$tinfo->{logfile}= "Could not open test tool report '$logfile'";
+      }
     }
   }
 
