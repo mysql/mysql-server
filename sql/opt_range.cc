@@ -7103,6 +7103,13 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
   used_key_parts (used_key_parts_arg)
 {
   QUICK_RANGE *r;
+  /* 
+    Use default MRR implementation for reverse scans. No table engine
+    currently can do an MRR scan with output in reverse index order.
+  */
+  multi_range_length= 0;
+  multi_range= NULL;
+  multi_range_buff= NULL;
 
   QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
   QUICK_RANGE **end_range= pr + ranges.elements;
