@@ -560,7 +560,7 @@ int main(int argc, char** argv)
   { const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG", (char*)0, 0);
     if (p != 0) {
       char buf[200];
-      snprintf(buf, sizeof(buf), "BLOCK=%s", p);
+      BaseString::snprintf(buf, sizeof(buf), "BLOCK=%s", p);
       for (char* q = buf; *q != 0; q++) *q = toupper(toascii(*q));
       globalSignalLoggers.log(SignalLoggerManager::LogInOut, buf);
       globalData.testOn = 1;
