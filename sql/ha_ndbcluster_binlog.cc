@@ -1918,7 +1918,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           // fall through
         case SOT_RENAME_TABLE_NEW:
         {
-          uint end= snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
+          uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
                              "NDB Binlog: Skipping renaming locally defined table '%s.%s' from binlog schema event '%s' from node %d. ",
                              schema->db, schema->name, schema->query,
                              schema->node_id);
@@ -1929,7 +1929,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         case SOT_DROP_TABLE:
           if (schema_type == SOT_DROP_TABLE)
           {
-            uint end= snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
+            uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
                                "NDB Binlog: Skipping dropping locally defined table '%s.%s' from binlog schema event '%s' from node %d. ",
                                schema->db, schema->name, schema->query,
                                schema->node_id);
@@ -3160,7 +3160,7 @@ set_conflict_fn(THD *thd, NDB_SHARE *share,
                                fn.type, table))
       {
         /* wrong data type */
-        snprintf(msg, msg_len,
+        my_snprintf(msg, msg_len,
                  "column '%s' has wrong datatype",
                  table->s->field[args[0].fieldno]->field_name);
         DBUG_PRINT("info", (msg));
@@ -3179,7 +3179,7 @@ set_conflict_fn(THD *thd, NDB_SHARE *share,
     DBUG_RETURN(0);
   }
   /* parse error */
-  snprintf(msg, msg_len, "%s, %s at '%s'",
+  my_snprintf(msg, msg_len, "%s, %s at '%s'",
            conflict_fn, error_str, ptr);
   DBUG_PRINT("info", (msg));
   DBUG_RETURN(-1);
@@ -3392,11 +3392,11 @@ err:
     switch (error)
     {
       case -1:
-        snprintf(msg, sizeof(msg),
+        my_snprintf(msg, sizeof(msg),
                  "Missing or wrong type for column '%s'", error_str);
         break;
       case -2:
-        snprintf(msg, sizeof(msg), error_str);
+        my_snprintf(msg, sizeof(msg), error_str);
         break;
       default:
         abort();
@@ -3409,8 +3409,8 @@ err:
   else
   {
     char msg[FN_REFLEN];
-    snprintf(tmp_buf, sizeof(tmp_buf), "ndberror %u", ndberror.code);
-    snprintf(msg, sizeof(msg), "Unable to retrieve %s.%s, logging and "
+    my_snprintf(tmp_buf, sizeof(tmp_buf), "ndberror %u", ndberror.code);
+    my_snprintf(msg, sizeof(msg), "Unable to retrieve %s.%s, logging and "
              "conflict resolution may not function as intended (%s)",
              ndb_rep_db, ndb_replication_table, tmp_buf);
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -5786,7 +5786,7 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
     pthread_mutex_unlock(&injector_mutex);
 
     buflen=
-      snprintf(buf, sizeof(buf),
+      my_snprintf(buf, sizeof(buf),
                "latest_epoch=%s, "
                "latest_trans_epoch=%s, "
                "latest_received_binlog_epoch=%s, "
