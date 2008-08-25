@@ -324,6 +324,9 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 
 /* static variables */
 
+char opt_plugin_dir[FN_REFLEN];
+char *opt_plugin_dir_ptr;
+
 static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
@@ -4984,6 +4987,7 @@ enum options_mysqld
   OPT_OLD_STYLE_USER_LIMITS,
   OPT_LOG_SLOW_ADMIN_STATEMENTS,
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
+  OPT_PLUGIN_DIR,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_MERGE,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
@@ -6216,6 +6220,10 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.optimizer_search_depth,
    (gptr*) &max_system_variables.optimizer_search_depth,
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR,
+   "Directory for plugins.",
+   (gptr*) &opt_plugin_dir_ptr, (gptr*) &opt_plugin_dir_ptr, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
    {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
     "The size of the buffer that is allocated when preloading indexes",
     (gptr*) &global_system_variables.preload_buff_size,
@@ -7753,6 +7761,9 @@ static void fix_paths(void)
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
+  (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
+                                      "", "");
+  opt_plugin_dir_ptr= opt_plugin_dir;
 
   char *sharedir=get_relative_path(SHAREDIR);
   if (test_if_hard_path(sharedir))
