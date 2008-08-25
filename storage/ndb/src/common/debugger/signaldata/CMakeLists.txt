@@ -17,7 +17,7 @@
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 ADD_LIBRARY(ndbsignaldata STATIC
         AlterIndxImpl.cpp BuildIndxImpl.cpp BuildIndx.cpp
-        CreateEvnt.cpp CreateIndxImpl.cpp CreateTab.cpp
+        CreateIndxImpl.cpp CreateTab.cpp
         CreateTable.cpp CreateTrigImpl.cpp #DihSwitchReplicaReq.cpp
         DropIndxImpl.cpp DropTable.cpp DropTrigImpl.cpp
         GetTabInfo.cpp
