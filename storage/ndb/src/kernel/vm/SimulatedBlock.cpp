@@ -309,6 +309,20 @@ linkSegments(Uint32 head, Uint32 tail){
   Ptr<SectionSegment> oldTailPtr;
   g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment);
   
+  /* Can only efficiently link segments if linking to the end of a 
+   * multiple-of-segment-size sized chunk
+   */
+  if ((headPtr.p->m_sz % NDB_SECTION_SEGMENT_SZ) != 0)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
+                               "Bad head segment size",
+                               "");
+#else
+    infoEvent("linkSegments : Bad head segment size");
+#endif
+  }
+
   headPtr.p->m_lastSegment = tailPtr.p->m_lastSegment;
   headPtr.p->m_sz += tailPtr.p->m_sz;
   

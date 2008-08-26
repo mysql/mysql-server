@@ -808,6 +808,117 @@ int testSegmentedSectionIx(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
+int testSegmentedSectionScan(NDBT_Context* ctx, NDBT_Step* step){
+  /* Test that TC handling of segmented section exhaustion is
+   * correct
+   * Since NDBAPI always send long requests, that is all that
+   * we test
+   */
+    /* We just run on one table */
+  if (strcmp(ctx->getTab()->getName(), "WIDE_2COL") != 0)
+    return NDBT_OK;
+
+  const Uint32 maxRowBytes= NDB_MAX_TUPLE_SIZE_IN_WORDS * sizeof(Uint32);
+  char smallKey[50];
+  char smallRowBuf[maxRowBytes];
+
+  Uint32 smallKeySize= setLongVarchar(&smallKey[0],
+                                      "ShortKey",
+                                      8);
+
+  const NdbRecord* record= ctx->getTab()->getDefaultRecord();
+
+  /* Setup buffers
+   * Small row buffer with small key and small data
+   */ 
+  setLongVarchar(NdbDictionary::getValuePtr(record,
+                                            smallRowBuf,
+                                            0),
+                 "ShortKey",
+                 8);
+  NdbDictionary::setNull(record, smallRowBuf, 0, false);
+
+  setLongVarchar(NdbDictionary::getValuePtr(record,
+                                            smallRowBuf,
+                                            1),
+                 "ShortData",
+                 9);
+  NdbDictionary::setNull(record, smallRowBuf, 1, false);
+
+  NdbRestarter restarter;
+  Ndb* pNdb= GETNDB(step);
+
+  /* Start a transaction on a specific node */
+  NdbTransaction* trans= pNdb->startTransaction(ctx->getTab(),
+                                                &smallKey[0],
+                                                smallKeySize);
+  CHECKNOTNULL(trans);
+
+  /* Activate error insert 8065 in this transaction, consumes
+   * all but 10 SectionSegments
+   */
+  CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
+                                          record, 
+                                          ctx->getTab(),
+                                          smallRowBuf, 
+                                          &restarter, 
+                                          8065));
+
+  /* Ok, now the chosen TC's node should have only 10 
+   * SegmentedSection buffers = ~ 60 words * 10 = 2400 bytes
+   * A scan will always send 2 long sections (Receiver Ids
+   * + AttrInfo), so let's start a scan with > 2400 bytes of
+   * ATTRINFO and see what happens
+   */
+  NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
+
+  CHECKNOTNULL(scan);
+
+  CHECKEQUAL(0, scan->readTuples());
+
+  /* Create a particularly useless program */
+  NdbInterpretedCode prog;
+
+  for (Uint32 w=0; w < 2500; w++)
+    CHECKEQUAL(0, prog.load_const_null(1));
+
+  CHECKEQUAL(0, prog.interpret_exit_ok());
+  CHECKEQUAL(0, prog.finalise());
+
+  CHECKEQUAL(0, scan->setInterpretedCode(&prog));
+
+  /* Api doesn't seem to wait for result of scan request */
+  CHECKEQUAL(0, trans->execute(NdbTransaction::NoCommit));
+
+  CHECKEQUAL(0, trans->getNdbError().code);
+
+  CHECKEQUAL(-1, scan->nextResult());
+  
+  CHECKEQUAL(217, scan->getNdbError().code);
+
+  trans->close();
+
+  /* Finished with error insert, cleanup the error insertion */
+  CHECKNOTNULL(trans= pNdb->startTransaction(ctx->getTab(),
+                                             &smallKey[0],
+                                             smallKeySize));
+
+  CHECKEQUAL(NDBT_OK, activateErrorInsert(trans, 
+                                          record, 
+                                          ctx->getTab(),
+                                          smallRowBuf, 
+                                          &restarter, 
+                                          8068));
+
+  CHECKEQUAL(0, trans->execute(NdbTransaction::Rollback));
+  
+  CHECKEQUAL(0, trans->getNdbError().code);
+
+  trans->close();
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testLimits);
 
 TESTCASE("ExhaustSegmentedSectionPk",
@@ -816,8 +927,12 @@ TESTCASE("ExhaustSegmentedSectionPk",
 }
 
 TESTCASE("ExhaustSegmentedSectionIX",
-         "Test behaviour at Segmented Section exhaustion for PK"){
+         "Test behaviour at Segmented Section exhaustion for Unique index"){
   INITIALIZER(testSegmentedSectionIx);
+}
+TESTCASE("ExhaustSegmentedSectionScan",
+         "Test behaviour at Segmented Section exhaustion for Scan"){
+  INITIALIZER(testSegmentedSectionScan);
 }
 
 NDBT_TESTSUITE_END(testLimits);

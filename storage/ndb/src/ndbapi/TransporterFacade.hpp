@@ -78,6 +78,8 @@ public:
                  GenericSectionPtr ptr[3], Uint32 secs);
   int sendFragmentedSignal(NdbApiSignal*, NodeId, 
 			   LinearSectionPtr ptr[3], Uint32 secs);
+  int sendFragmentedSignal(NdbApiSignal*, NodeId,
+                           GenericSectionPtr ptr[3], Uint32 secs);
 
   // Is node available for running transactions
   bool   get_node_alive(NodeId nodeId) const;
@@ -441,6 +443,83 @@ TransporterFacade::get_batch_size() {
   return m_batch_size;
 }
 
+/** 
+ * LinearSectionIterator
+ *
+ * This is an implementation of GenericSectionIterator 
+ * that iterates over one linear section of memory.
+ * The iterator is used by the transporter at signal
+ * send time to obtain all of the relevant words for the
+ * signal section
+ */
+class LinearSectionIterator: public GenericSectionIterator
+{
+private :
+  Uint32* data;
+  Uint32 len;
+  bool read;
+public :
+  LinearSectionIterator(Uint32* _data, Uint32 _len)
+  {
+    data= (_len == 0)? NULL:_data;
+    len= _len;
+    read= false;
+  }
 
+  ~LinearSectionIterator()
+  {};
+  
+  void reset()
+  {
+    /* Reset iterator */
+    read= false;
+  }
+
+  Uint32* getNextWords(Uint32& sz)
+  {
+    if (likely(!read))
+    {
+      read= true;
+      sz= len;
+      return data;
+    }
+    sz= 0;
+    return NULL;
+  }
+};
+
+
+/** 
+ * SignalSectionIterator
+ *
+ * This is an implementation of GenericSectionIterator 
+ * that uses chained NdbApiSignal objects to store a 
+ * signal section.
+ * The iterator is used by the transporter at signal
+ * send time to obtain all of the relevant words for the
+ * signal section
+ */
+class SignalSectionIterator: public GenericSectionIterator
+{
+private :
+  NdbApiSignal* firstSignal;
+  NdbApiSignal* currentSignal;
+public :
+  SignalSectionIterator(NdbApiSignal* signal)
+  {
+    firstSignal= currentSignal= signal;
+  }
+
+  ~SignalSectionIterator()
+  {};
+  
+  void reset()
+  {
+    /* Reset iterator */
+    currentSignal= firstSignal;
+  }
+
+  Uint32* getNextWords(Uint32& sz);
+};
 
 #endif // TransporterFacade_H
