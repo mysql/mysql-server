@@ -7418,7 +7418,7 @@ C_MODE_START
 int test_if_data_home_dir(const char *dir)
 {
   char path[FN_REFLEN];
-  uint dir_len;
+  int dir_len;
   DBUG_ENTER("test_if_data_home_dir");
 
   if (!dir)
