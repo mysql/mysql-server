@@ -69,19 +69,5 @@ LIBS= \
 ndbd_LDADD = $(LIBS) vm/libsched.a
 ndbmtd_LDADD = $(LIBS) vm/libsched_mt.a
 
-windoze-dsp: ndbd.dsp
-
-storage/ndbd.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-prg.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(ndbbin_PROGRAMS)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndbd_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
-
 # Don't update the files from bitkeeper
 %::SCCS/s.%

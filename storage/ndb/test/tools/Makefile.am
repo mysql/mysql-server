@@ -47,5 +47,3 @@ ndb_cpcc_LDFLAGS = -static
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
-
-windoze-dsp:

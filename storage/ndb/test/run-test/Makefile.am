@@ -54,5 +54,3 @@ EXTRA_DIST = $(test_DATA) $(test_SCRIPTS) $(wrappers_SCRIPTS) README.ATRT atrt.h
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
-
-windoze-dsp:
