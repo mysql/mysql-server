@@ -163,7 +163,7 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
 	int val)
 {
   int actual = 0, defval = 0;
-  socklen_t len = sizeof(actual);
+  SOCKET_SIZE_TYPE len = sizeof(actual);
 
   getsockopt(fd, level, optval, (char*)&defval, &len);
   
