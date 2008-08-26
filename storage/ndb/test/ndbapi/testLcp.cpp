@@ -362,15 +362,24 @@ static int pause_lcp(int error)
   int nodes = g_restarter.getNumDbNodes();
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
+
+  my_socket my_fd;
+#ifdef NDB_WIN
+  SOCKET fd= ndb_mgm_listen_event(g_restarter.handle, filter);
+  my_fd.s= fd;
+#else
   int fd = ndb_mgm_listen_event(g_restarter.handle, filter);
-  require(fd >= 0);
+  my_fd.fd= fd;
+#endif
+
+  require(my_socket_valid(my_fd));
   require(!g_restarter.insertErrorInAllNodes(error));
   int dump[] = { DumpStateOrd::DihStartLcpImmediately };
   require(!g_restarter.dumpStateAllNodes(dump, 1));
   
   char *tmp;
   char buf[1024];
-  SocketInputStream in(fd, 1000);
+  SocketInputStream in(my_fd, 1000);
   int count = 0;
   do {
     tmp = in.gets(buf, 1024);
@@ -453,10 +462,22 @@ static int do_op(int row)
 static int continue_lcp(int error)
 {
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
-  int fd = -1;
+  my_socket my_fd;
+  my_socket_invalidate(&my_fd);
+#ifdef NDB_WIN
+  SOCKET fd;
+#else
+  int fd;
+#endif
+
   if(error){
     fd = ndb_mgm_listen_event(g_restarter.handle, filter);
-    require(fd >= 0);
+#ifdef NDB_WIN
+    my_fd.s= fd;
+#else
+    my_fd.fd= fd;
+#endif
+    require(my_socket_valid(my_fd));
   }
 
   int args[] = { DumpStateOrd::LCPContinue };
@@ -466,7 +487,7 @@ static int continue_lcp(int error)
   if(error){
     char *tmp;
     char buf[1024];
-    SocketInputStream in(fd, 1000);
+    SocketInputStream in(my_fd, 1000);
     int count = 0;
     int nodes = g_restarter.getNumDbNodes();
     do {
