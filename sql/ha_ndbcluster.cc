@@ -11026,25 +11026,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     }
 next:
     /* Calculate new time to wake up */
-    int secs= 0;
-    int msecs= ndb_cache_check_time;
-
-    struct timeval tick_time;
-    gettimeofday(&tick_time, 0);
-    abstime.tv_sec=  tick_time.tv_sec;
-    abstime.tv_nsec= tick_time.tv_usec * 1000;
-
-    if (msecs >= 1000){
-      secs=  msecs / 1000;
-      msecs= msecs % 1000;
-    }
-
-    abstime.tv_sec+=  secs;
-    abstime.tv_nsec+= msecs * 1000000;
-    if (abstime.tv_nsec >= 1000000000) {
-      abstime.tv_sec+=  1;
-      abstime.tv_nsec-= 1000000000;
-    }
+    set_timespec_nsec(abstime, ndb_cache_check_time * 1000000ULL);
   }
 
   pthread_mutex_lock(&LOCK_ndb_util_thread);
