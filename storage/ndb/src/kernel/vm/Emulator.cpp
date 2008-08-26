@@ -42,7 +42,9 @@ extern "C" {
   extern void (* ndb_new_handler)();
 }
 extern EventLogger * g_eventLogger;
+#ifndef NDB_WIN
 extern my_bool opt_core;
+#endif
 // instantiated and updated in NdbcntrMain.cpp
 extern Uint32 g_currentStartPhase;
 
@@ -189,9 +191,11 @@ NdbShutdown(NdbShutdownType type,
     }
     
     const char * exitAbort = 0;
+#ifndef NDB_WIN
     if (opt_core)
       exitAbort = "aborting";
     else
+#endif
       exitAbort = "exiting";
     
     if(type == NST_Watchdog){
@@ -199,11 +203,13 @@ NdbShutdown(NdbShutdownType type,
        * Very serious, don't attempt to free, just die!!
        */
       g_eventLogger->info("Watchdog shutdown completed - %s", exitAbort);
+#ifndef NDB_WIN
       if (opt_core)
       {
 	childAbort(-1,g_currentStartPhase);
       }
       else
+#endif
       {
 	childExit(-1,g_currentStartPhase);
       }
@@ -261,11 +267,13 @@ NdbShutdown(NdbShutdownType type,
 	kill(getppid(), SIGUSR1);
 #endif
       g_eventLogger->info("Error handler shutdown completed - %s", exitAbort);
+#ifndef NDB_WIN
       if (opt_core)
       {
 	childAbort(-1,g_currentStartPhase);
       }
       else
+#endif
       {
 	childExit(-1,g_currentStartPhase);
       }
