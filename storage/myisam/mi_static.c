@@ -42,7 +42,7 @@ ulong    myisam_bulk_insert_tree_size=8192*1024;
 ulong    myisam_data_pointer_size=4;
 
 
-static int always_valid(const char *filename)
+static int always_valid(const char *filename __attribute__((unused)))
 {
   return 0;
 }
