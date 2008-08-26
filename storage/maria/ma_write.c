@@ -1757,11 +1757,11 @@ my_bool _ma_log_new(MARIA_HA *info, my_off_t page, const uchar *buff,
   page_store(log_data + FILEID_STORE_SIZE, page);
 
   /* Store link to next unused page */
-  if (info->used_key_del == 2)
+  if (info->key_del_used == 2)
     page= 0;                                    /* key_del not changed */
   else
-    page= ((share->current_key_del == HA_OFFSET_ERROR) ? IMPOSSIBLE_PAGE_NO :
-           share->current_key_del / share->block_size);
+    page= ((share->key_del_current == HA_OFFSET_ERROR) ? IMPOSSIBLE_PAGE_NO :
+           share->key_del_current / share->block_size);
 
   page_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE, page);
   key_nr_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE*2, key_nr);

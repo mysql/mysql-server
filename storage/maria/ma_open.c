@@ -807,8 +807,9 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
 #ifdef THREAD
     thr_lock_init(&share->lock);
-    VOID(pthread_mutex_init(&share->intern_lock, MY_MUTEX_INIT_FAST));
-    VOID(pthread_cond_init(&share->intern_cond, 0));
+    pthread_mutex_init(&share->intern_lock, MY_MUTEX_INIT_FAST);
+    pthread_mutex_init(&share->key_del_lock, MY_MUTEX_INIT_FAST);
+    pthread_cond_init(&share->key_del_cond, 0);
     for (i=0; i<keys; i++)
       VOID(my_rwlock_init(&share->keyinfo[i].root_lock, NULL));
     VOID(my_rwlock_init(&share->mmap_lock, NULL));
@@ -1214,6 +1215,13 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
                            my_write(); if 2 is set, info about keys is written
                            (should only be needed after ALTER TABLE
                            ENABLE/DISABLE KEYS, and REPAIR/OPTIMIZE).
+
+   @notes
+     For transactional multiuser tables, this function is called
+     with intern_lock & translog_lock or when the last thread who
+     is using the table is closing it.
+     Because of the translog_lock we don't need to have a lock on
+     key_del_lock.
 
    @return Operation status
      @retval 0      OK

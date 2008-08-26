@@ -223,8 +223,8 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
 
   (void) _ma_lock_key_del(info, 0);
 
-  old_link= share->current_key_del;
-  share->current_key_del= pos;
+  old_link= share->key_del_current;
+  share->key_del_current= pos;
   page_no= pos / block_size;
   bzero(buff, share->keypage_header);
   _ma_store_keynr(share, buff, (uchar) MARIA_DELETE_KEY_NR);
@@ -347,7 +347,7 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
   else
   {
     uchar *buff;
-    pos= share->current_key_del;                /* Protected */
+    pos= share->key_del_current;                /* Protected */
     DBUG_ASSERT(share->pagecache->block_size == block_size);
     if (!(buff= pagecache_read(share->pagecache,
                                &share->kfile,
@@ -362,15 +362,15 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
         (single linked list):
       */
 #ifndef DBUG_OFF
-      my_off_t current_key_del;
+      my_off_t key_del_current;
 #endif
-      share->current_key_del= mi_sizekorr(buff+share->keypage_header);
+      share->key_del_current= mi_sizekorr(buff+share->keypage_header);
 #ifndef DBUG_OFF
-      current_key_del= share->current_key_del;
-      DBUG_ASSERT(current_key_del != share->state.key_del &&
-                  (current_key_del != 0) &&
-                  ((current_key_del == HA_OFFSET_ERROR) ||
-                   (current_key_del <=
+      key_del_current= share->key_del_current;
+      DBUG_ASSERT(key_del_current != share->state.key_del &&
+                  (key_del_current != 0) &&
+                  ((key_del_current == HA_OFFSET_ERROR) ||
+                   (key_del_current <=
                     (share->state.state.key_file_length - block_size))));
 #endif
     }
