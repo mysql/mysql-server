@@ -1662,11 +1662,18 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
     goto deinit;
   }
 
+  /*
+    We do not replicate the INSTALL PLUGIN statement. Disable binlogging
+    of the insert into the plugin table, so that it is not replicated in
+    row based mode.
+  */
+  tmp_disable_binlog(thd);
   table->use_all_columns();
   restore_record(table, s->default_values);
   table->field[0]->store(name->str, name->length, system_charset_info);
   table->field[1]->store(dl->str, dl->length, files_charset_info);
   error= table->file->ha_write_row(table->record[0]);
+  reenable_binlog(thd);
   if (error)
   {
     table->file->print_error(error, MYF(0));
@@ -1731,7 +1738,15 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
                                         HA_READ_KEY_EXACT))
   {
     int error;
-    if ((error= table->file->ha_delete_row(table->record[0])))
+    /*
+      We do not replicate the UNINSTALL PLUGIN statement. Disable binlogging
+      of the delete from the plugin table, so that it is not replicated in
+      row based mode.
+    */
+    tmp_disable_binlog(thd);
+    error= table->file->ha_delete_row(table->record[0]);
+    reenable_binlog(thd);
+    if (error)
     {
       table->file->print_error(error, MYF(0));
       DBUG_RETURN(TRUE);

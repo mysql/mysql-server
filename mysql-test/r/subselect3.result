@@ -1,4 +1,4 @@
-drop table if exists t0, t1, t2, t3, t4;
+drop table if exists t0, t1, t2, t3, t4, t5;
 create table t1 (oref int, grp int, ie int) ;
 insert into t1 (oref, grp, ie) values
 (1, 1, 1),
@@ -780,3 +780,29 @@ SELECT 1 FROM t1 WHERE t1.a NOT IN (SELECT 1 FROM t1, t2 WHERE 0);
 1
 DROP TABLE t1, t2;
 End of 5.0 tests
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (
+a int(11) default null,
+b int(11) default null,
+key (a)
+);
+insert into t1 select A.a+10*(B.a+10*C.a),A.a+10*(B.a+10*C.a) from t0 A, t0 B, t0 C;
+create table t2 (a int(11) default null);
+insert into t2 values (0),(1);
+create table t3 (a int(11) default null);
+insert into t3 values (0),(1);
+create table t4 (a int(11) default null);
+insert into t4 values (0),(1);
+create table t5 (a int(11) default null);
+insert into t5 values (0),(1),(0),(1);
+select * from t2, t3 
+where
+t2.a < 10 and
+t3.a+1 = 2 and
+t3.a in (select t1.b from t1
+where t1.a+1=t1.a+1 and
+t1.a < (select t4.a+10                                  
+from t4, t5 limit 2));
+ERROR 21000: Subquery returns more than 1 row
+drop table t0, t1, t2, t3, t4, t5;
