@@ -7127,7 +7127,7 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
 /* ------------------------------------------------------------------------- */
     ndbrequire(regTcPtr->abortState == TcConnectionrec::NEW_FROM_TC);
     sendLqhTransconf(signal, LqhTransConf::Prepared);
-    break;
+    return;
   case TcConnectionrec::WAIT_TUPKEYINFO:
   case TcConnectionrec::WAIT_ATTR:
     jam();

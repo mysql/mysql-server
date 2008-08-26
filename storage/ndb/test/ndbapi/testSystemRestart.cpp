@@ -1551,6 +1551,7 @@ int runBug22696(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 i = 0;
   while(i<=loops && result != NDBT_FAILED)
   {
+    ndbout_c("loop %u", i);
     for (Uint32 j = 0; j<10 && result != NDBT_FAILED; j++)
       CHECK(hugoTrans.scanUpdateRecords(pNdb, rows) == 0);
     
