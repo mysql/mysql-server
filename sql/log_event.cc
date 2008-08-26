@@ -1474,6 +1474,11 @@ void Query_log_event::pack_info(Protocol *protocol)
 static void write_str_with_code_and_len(char **dst, const char *src,
                                         int len, uint code)
 {
+  /*
+    only 1 byte to store the length of catalog, so it should not
+    surpass 255
+  */
+  DBUG_ASSERT(len <= 255);
   DBUG_ASSERT(src);
   *((*dst)++)= code;
   *((*dst)++)= (uchar) len;
@@ -1493,21 +1498,8 @@ static void write_str_with_code_and_len(char **dst, const char *src,
 
 bool Query_log_event::write(IO_CACHE* file)
 {
-  /**
-    @todo if catalog can be of length FN_REFLEN==512, then we are not
-    replicating it correctly, since the length is stored in a byte
-    /sven
-  */
-  uchar buf[QUERY_HEADER_LEN+
-            1+4+           // code of flags2 and flags2
-            1+8+           // code of sql_mode and sql_mode
-            1+1+FN_REFLEN+ // code of catalog and catalog length and catalog
-            1+4+           // code of autoinc and the 2 autoinc variables
-            1+6+           // code of charset and charset
-            1+1+MAX_TIME_ZONE_NAME_LENGTH+ // code of tz and tz length and tz name
-            1+2+           // code of lc_time_names and lc_time_names_number
-            1+2            // code of charset_database and charset_database_number
-            ], *start, *start_of_status;
+  uchar buf[QUERY_HEADER_LEN + MAX_SIZE_LOG_EVENT_STATUS];
+  uchar *start, *start_of_status;
   ulong event_length;
 
   if (!query)
@@ -1613,10 +1605,8 @@ bool Query_log_event::write(IO_CACHE* file)
   {
     /* In the TZ sys table, column Name is of length 64 so this should be ok */
     DBUG_ASSERT(time_zone_len <= MAX_TIME_ZONE_NAME_LENGTH);
-    *start++= Q_TIME_ZONE_CODE;
-    *start++= time_zone_len;
-    memcpy(start, time_zone_str, time_zone_len);
-    start+= time_zone_len;
+    write_str_with_code_and_len((char **)(&start),
+                                time_zone_str, time_zone_len, Q_TIME_ZONE_CODE);
   }
   if (lc_time_names_number)
   {
@@ -1632,7 +1622,17 @@ bool Query_log_event::write(IO_CACHE* file)
     int2store(start, charset_database_number);
     start+= 2;
   }
+  if (table_map_for_update)
+  {
+    *start++= Q_TABLE_MAP_FOR_UPDATE_CODE;
+    int8store(start, table_map_for_update);
+    start+= 8;
+  }
   /*
+    NOTE: When adding new status vars, please don't forget to update
+    the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update function
+    code_name in this file.
+   
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)
     {
@@ -1709,7 +1709,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    auto_increment_increment(thd_arg->variables.auto_increment_increment),
    auto_increment_offset(thd_arg->variables.auto_increment_offset),
    lc_time_names_number(thd_arg->variables.lc_time_names->number),
-   charset_database_number(0)
+   charset_database_number(0),
+   table_map_for_update((ulonglong)thd_arg->table_map_for_update)
 {
   time_t end_time;
 
@@ -1838,6 +1839,7 @@ code_name(int code)
   case Q_CATALOG_NZ_CODE: return "Q_CATALOG_NZ_CODE";
   case Q_LC_TIME_NAMES_CODE: return "Q_LC_TIME_NAMES_CODE";
   case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
+  case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -1874,7 +1876,8 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    db(NullS), catalog_len(0), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
-   time_zone_len(0), lc_time_names_number(0), charset_database_number(0)
+   time_zone_len(0), lc_time_names_number(0), charset_database_number(0),
+   table_map_for_update(0)
 {
   ulong data_len;
   uint32 tmp;
@@ -2015,6 +2018,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       CHECK_SPACE(pos, end, 2);
       charset_database_number= uint2korr(pos);
       pos+= 2;
+      break;
+    case Q_TABLE_MAP_FOR_UPDATE_CODE:
+      CHECK_SPACE(pos, end, 8);
+      table_map_for_update= uint8korr(pos);
+      pos+= 8;
       break;
     default:
       /* That's why you must write status vars in growing order of code */
@@ -2422,6 +2430,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       }
       else
         thd->variables.collation_database= thd->db_charset;
+      
+      thd->table_map_for_update= (table_map)table_map_for_update;
       
       /* Execute the query (note that we bypass dispatch_command()) */
       const char* found_semicolon= NULL;
