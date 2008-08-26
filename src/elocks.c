@@ -15,6 +15,25 @@
 #include <pthread.h>
 #include <sys/types.h>
 
+#ifdef __CYGWIN__
+#include <windows.h>
+#include <winbase.h>
+CRITICAL_SECTION ydb_big_lock;
+
+void toku_ydb_lock(void) {
+    static int initialized = 0;
+    if (!initialized) {
+        initialized=1;
+        InitializeCriticalSection(&ydb_big_lock);
+    }
+    EnterCriticalSection(&ydb_big_lock);
+}
+
+void toku_ydb_unlock(void) {
+    LeaveCriticalSection(&ydb_big_lock);
+}
+
+#else //Not Cygwin
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
 static pthread_mutex_t ydb_big_lock = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
 #else
@@ -28,4 +47,5 @@ void toku_ydb_lock(void) {
 void toku_ydb_unlock(void) {
     int r = pthread_mutex_unlock(&ydb_big_lock); assert(r == 0);
 }
+#endif
 
