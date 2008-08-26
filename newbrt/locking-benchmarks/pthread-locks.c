@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <pthread.h>
 
 float tdiff (struct timeval *start, struct timeval *end) {
     return 1e6*(end->tv_sec-start->tv_sec) +(end->tv_usec - start->tv_usec);
@@ -129,8 +130,17 @@ int ivals[K];
 	})
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+
     printf("sizeof (pthread_mutex_t) %lu\n", sizeof (pthread_mutex_t));
     printf("sizeof (pthread_cond_t) %lu\n", sizeof (pthread_cond_t));
+
+    TIME("pthread_mutex_lock_errorcheck", i,
+	 ({ int r; pthread_mutexattr_t mattr; 
+	   r = pthread_mutexattr_init(&mattr); assert(r == 0);
+	   r = pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ERRORCHECK_NP); assert(r == 0);
+	   r = pthread_mutex_init(&mlocks[i], &mattr); assert(r==0); 
+	   r = pthread_mutexattr_destroy(&mattr); assert(r == 0); }),
+	 ({ int r = pthread_mutex_lock(&mlocks[i]);       assert(r==0); }));
     TIME("pthread_mutex_lock", i,
 	 ({ int r = pthread_mutex_init(&mlocks[i], NULL); assert(r==0); }),
 	 ({ int r = pthread_mutex_lock(&mlocks[i]);       assert(r==0); }));
