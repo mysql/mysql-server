@@ -132,6 +132,8 @@ NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
 
   Hm, there are some magic overhead numbers (4 bytes/attr, 32 bytes/row) here,
   would be nice with some explanation on how these numbers were derived.
+
+  TODO : Check whether these numbers need to be revised w.r.t. read packed
 */
 void
 NdbReceiver::calculate_batch_size(Uint32 key_size,

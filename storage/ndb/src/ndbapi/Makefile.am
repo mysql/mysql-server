@@ -89,3 +89,11 @@ libndbapi.dsp: Makefile \
 	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libndbapi_la_SOURCES)
 	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)
+
+EXTRA_PROGRAMS = testSectionIterators
+
+testSectionIterators_CXXFLAGS = -DUNIT_TEST
+testSectionIterators_SOURCES = TransporterFacade.cpp
+testSectionIterators_LDFLAGS = @ndb_bin_am_ldflags@	 \
+  $(top_builddir)/storage/ndb/src/libndbclient.la
+

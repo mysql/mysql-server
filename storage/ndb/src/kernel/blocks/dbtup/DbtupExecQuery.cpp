@@ -965,7 +965,7 @@ Dbtup::setup_fixed_part(KeyReqStruct* req_struct,
 }
 
 
-#define MAX_READ (sizeof(signal->theData) > MAX_MESSAGE_SIZE ? MAX_MESSAGE_SIZE : sizeof(signal->theData))
+#define MAX_READ (MIN(sizeof(signal->theData), MAX_RECV_MESSAGE_BYTESIZE))
 
 /* ---------------------------------------------------------------- */
 /* ----------------------------- READ  ---------------------------- */

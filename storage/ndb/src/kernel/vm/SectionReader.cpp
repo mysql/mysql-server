@@ -131,34 +131,23 @@ SectionReader::getWords(Uint32 * dst, Uint32 len){
   if(m_pos + len > m_len)
     return false;
 
-  Uint32 ind = (m_pos % SectionSegment::DataLength);
-  Uint32 left = SectionSegment::DataLength - ind;
-  SectionSegment * p = m_currentSegment;
+  /* Use getWordsPtr to correctly traverse segments */
 
-  while(len > left){
-    memcpy(dst, &p->theData[ind], 4 * left);
-    dst += left;
-    len -= left;
-    m_pos += left;
-    ind = 0;
-    left = SectionSegment::DataLength;
-    p = m_pool.getPtr(p->m_nextSegment);
+  while (len > 0)
+  {
+    const Uint32* readPtr;
+    Uint32 readLen;
+
+    if (!getWordsPtr(len,
+                     readPtr,
+                     readLen))
+      return false;
+    
+    memcpy(dst, readPtr, readLen << 2);
+    len-= readLen;
+    dst+= readLen;
   }
 
-  memcpy(dst, &p->theData[ind], 4 * len);
-
-  m_pos += len;
-
-  /* If we read everything in the current
-   * segment, and there's another segment,
-   * move onto it for next time
-   */
-  if (unlikely((len == left) &&
-               (p->m_nextSegment != RNIL)))
-    p= m_pool.getPtr(p->m_nextSegment);
-  else
-    m_currentSegment = p;
-  
   return true;
 }
 

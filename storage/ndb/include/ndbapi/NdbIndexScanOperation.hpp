@@ -289,11 +289,11 @@ private:
   int buildIndexBoundOldApi(int range_no);
   const IndexBound* getIndexBoundFromRecAttr(NdbRecAttr* recAttr);
   void releaseIndexBoundsOldApi();
-  int insertBOUNDS(Uint32 * data, Uint32 sz);
   int ndbrecord_insert_bound(const NdbRecord *key_record,
                              Uint32 column_index,
                              const char *row,
-                             Uint32 bound_type);
+                             Uint32 bound_type,
+                             Uint32*& firstWordOfBound);
 
   virtual int equal_impl(const NdbColumnImpl*, const char*);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);
@@ -314,8 +314,6 @@ private:
   int compare_ndbrecord(const NdbReceiver *r1,
                         const NdbReceiver *r2) const;
   Uint32 m_sort_columns;
-  Uint32 m_this_bound_start;
-  Uint32 * m_first_bound_word;
 
   /* Number of IndexBounds for this scan (NdbRecord only) */
   Uint32 m_num_bounds;

@@ -1216,3 +1216,10 @@ cmd: test_event
 args -r 5000 -n Bug30780 T1
 
 #EOF 2008-08-11
+
+# Test data buffering for SCANTABREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionScan WIDE_2COL
+
+#EOF 2008-08-20
