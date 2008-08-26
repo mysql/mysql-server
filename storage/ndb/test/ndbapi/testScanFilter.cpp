@@ -49,7 +49,7 @@ const char COL_LEN = 7;
 * there are six columns, 'i', 'j', 'k', 'l', 'm', 'n', and each on is equal to 1 or 1,
 * Since each tuple should be unique in this case, then TUPLE_NUM = 2 power 6 = 64 
 */
-#ifdef _AIX || NDB_WIN
+#if _AIX || NDB_WIN
 /*
   IBM xlC_r breaks on the initialization with pow():
   "The expression must be an integral constant expression."
