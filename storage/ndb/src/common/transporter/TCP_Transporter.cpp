@@ -143,11 +143,11 @@ TCP_Transporter::initTransporter() {
   // Let it be the maximum size we receive plus 8 kB for any earlier received
   // incomplete messages (slack)
   Uint32 recBufSize = maxReceiveSize;
-  if(recBufSize < MAX_MESSAGE_SIZE){
-    recBufSize = MAX_MESSAGE_SIZE;
+  if(recBufSize < MAX_RECV_MESSAGE_BYTESIZE){
+    recBufSize = MAX_RECV_MESSAGE_BYTESIZE;
   }
   
-  if(!receiveBuffer.init(recBufSize+MAX_MESSAGE_SIZE)){
+  if(!receiveBuffer.init(recBufSize+MAX_RECV_MESSAGE_BYTESIZE)){
     return false;
   }
   

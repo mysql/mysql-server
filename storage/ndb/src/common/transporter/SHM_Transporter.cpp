@@ -80,7 +80,8 @@ SHM_Transporter::setupBuffers(){
   sharedSize += 28; //SHM_Reader::getSharedSize();
   sharedSize += 28; //SHM_Writer::getSharedSize();
 
-  const Uint32 slack = MAX_MESSAGE_SIZE;
+  const Uint32 slack = MAX(MAX_RECV_MESSAGE_BYTESIZE,
+                           MAX_SEND_MESSAGE_BYTESIZE);
 
   /**
    *  NOTE: There is 7th shared variable in Win2k (sharedCountAttached).
