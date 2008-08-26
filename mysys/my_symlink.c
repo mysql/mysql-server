@@ -111,8 +111,16 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 
 int my_is_symlink(const char *filename __attribute__((unused)))
 {
+#if defined (HAVE_LSTAT) && defined (S_ISLNK)
   struct stat stat_buff;
   return !lstat(filename, &stat_buff) && S_ISLNK(stat_buff.st_mode);
+#elif defined (_WIN32)
+  DWORD dwAttr = GetFileAttributes(filename);
+  return (dwAttr != INVALID_FILE_ATTRIBUTES) &&
+    (dwAttr & FILE_ATTRIBUTE_REPARSE_POINT);
+#else  /* No symlinks */
+  return 0;
+#endif
 }
 
 
