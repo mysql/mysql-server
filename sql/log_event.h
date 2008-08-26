@@ -34,6 +34,14 @@
 
 #include <my_bitmap.h>
 #include "rpl_constants.h"
+
+#ifdef MYSQL_CLIENT
+#include "rpl_utility.h"
+#include "hash.h"
+#include "rpl_tblmap.h"
+#include "rpl_tblmap.cc"
+#endif
+
 #ifndef MYSQL_CLIENT
 #include "rpl_record.h"
 #include "rpl_reporting.h"
@@ -572,6 +580,7 @@ enum enum_base64_output_mode {
   BASE64_OUTPUT_AUTO= 1,
   BASE64_OUTPUT_ALWAYS= 2,
   BASE64_OUTPUT_UNSPEC= 3,
+  BASE64_OUTPUT_DECODE_ROWS= 4,
   /* insert new output modes here */
   BASE64_OUTPUT_MODE_COUNT
 };
@@ -633,6 +642,11 @@ typedef struct st_print_event_info
   my_off_t hexdump_from;
   uint8 common_header_len;
   char delimiter[16];
+
+#ifdef MYSQL_CLIENT
+  uint verbose;
+  table_mapping m_table_map;
+#endif
 
   /*
      These two caches are used by the row-based replication events to
@@ -3235,6 +3249,17 @@ public:
 
   ~Table_map_log_event();
 
+#ifdef MYSQL_CLIENT
+  table_def *create_table_def()
+  {
+    return new table_def(m_coltype, m_colcnt, m_field_metadata,
+                         m_field_metadata_size, m_null_bits);
+  }
+  ulong get_table_id() const        { return m_table_id; }
+  const char *get_table_name() const { return m_tblnam; }
+  const char *get_db_name() const    { return m_dbnam; }
+#endif
+
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
 
@@ -3365,6 +3390,12 @@ public:
 #ifdef MYSQL_CLIENT
   /* not for direct call, each derived has its own ::print() */
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info)= 0;
+  void print_verbose(IO_CACHE *file,
+                     PRINT_EVENT_INFO *print_event_info);
+  size_t print_verbose_one_row(IO_CACHE *file, table_def *td,
+                               PRINT_EVENT_INFO *print_event_info,
+                               MY_BITMAP *cols_bitmap,
+                               const uchar *ptr, const uchar *prefix);
 #endif
 
 #ifndef MYSQL_CLIENT
