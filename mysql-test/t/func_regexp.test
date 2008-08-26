@@ -65,3 +65,20 @@ drop table t1;
 SELECT 1 REGEXP NULL;
 
 --echo End of 5.0 tests
+
+
+#
+# Bug #37337: Function returns different results
+#
+CREATE TABLE t1(a INT, b CHAR(4));
+INSERT INTO t1 VALUES (1, '6.1'), (1, '7.0'), (1, '8.0');
+PREPARE stmt1 FROM "SELECT a FROM t1 WHERE a=1 AND '7.0' REGEXP b LIMIT 1";
+EXECUTE stmt1;
+EXECUTE stmt1;
+EXECUTE stmt1;
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+DROP TABLE t1;
+
+
+--echo End of 5.1 tests

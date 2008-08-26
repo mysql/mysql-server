@@ -1247,10 +1247,6 @@ public:
                            size_t pack_frm_len);
   int ha_drop_partitions(const char *path);
   int ha_rename_partitions(const char *path);
-  int ha_optimize_partitions(THD *thd);
-  int ha_analyze_partitions(THD *thd);
-  int ha_check_partitions(THD *thd);
-  int ha_repair_partitions(THD *thd);
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -1910,14 +1906,6 @@ private:
   virtual int drop_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int optimize_partitions(THD *thd)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int analyze_partitions(THD *thd)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int check_partitions(THD *thd)
-  { return HA_ERR_WRONG_COMMAND; }
-  virtual int repair_partitions(THD *thd)
   { return HA_ERR_WRONG_COMMAND; }
 };
 
