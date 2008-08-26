@@ -19,5 +19,6 @@ if ($show_sql_error)
 
 # skip the erroneous statement
 set global sql_slave_skip_counter=1;
-source include/start_slave.inc;
+start slave;
+source include/wait_for_slave_to_start.inc;
 connection master;
