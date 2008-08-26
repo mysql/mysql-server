@@ -1,5 +1,7 @@
 drop table if exists t1;
 CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+Warnings:
+Warning	1105	plugin_dir was not specified
 CREATE FUNCTION myfunc_double RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
 CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
 ERROR HY000: Can't find symbol 'myfunc_nonexist' in library
@@ -235,6 +237,8 @@ DROP FUNCTION avgcost;
 select * from mysql.func;
 name	ret	dl	type
 CREATE FUNCTION is_const RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+Warnings:
+Warning	1105	plugin_dir was not specified
 select IS_const(3);
 IS_const(3)
 const
@@ -244,6 +248,8 @@ name	ret	dl	type
 select is_const(3);
 ERROR 42000: FUNCTION test.is_const does not exist
 CREATE FUNCTION is_const RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+Warnings:
+Warning	1105	plugin_dir was not specified
 select
 is_const(3) as const,
 is_const(3.14) as const,
