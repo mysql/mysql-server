@@ -27,6 +27,7 @@
 #include <NdbMixRestarter.hpp>
 #include <NdbSqlUtil.hpp>
 #include <NdbEnv.h>
+#include <ndb_rand.h>
 
 char f_tablename[256];
  
@@ -3500,7 +3501,7 @@ static uint
 urandom(uint m)
 {
   assert(m != 0);
-  uint n = (uint)random();
+  uint n = (uint)ndb_rand();
   return n % m;
 }
 
@@ -6021,7 +6022,7 @@ runSchemaTrans(NDBT_Context* ctx, NDBT_Step* step)
     st_random_seed = (short)getpid();
   if (st_random_seed != 0) {
     g_err << "random seed: " << st_random_seed << endl;
-    srandom(st_random_seed);
+    ndb_srand(st_random_seed);
   } else {
     g_err << "random seed: loop number" << endl;
   }
@@ -6040,7 +6041,7 @@ runSchemaTrans(NDBT_Context* ctx, NDBT_Step* step)
   for (c.loop = 0; numloops == 0 || c.loop < numloops; c.loop++) {
     g_err << "LOOP " << c.loop << endl;
     if (st_random_seed == 0)
-      srandom(c.loop);
+      ndb_srand(c.loop);
     int i;
     for (i = 0; i < st_test_count; i++) {
       const ST_Test& test = st_test_list[i];
