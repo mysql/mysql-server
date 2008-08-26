@@ -2233,8 +2233,6 @@ runtest()
   return 0;
 }
 
-NDB_STD_OPTS_VARS;
-
 static struct my_option
 my_long_options[] =
 {
