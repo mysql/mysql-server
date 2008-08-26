@@ -37,18 +37,8 @@ ADD_LIBRARY(ndbblocks  STATIC
             lgman.cpp
             pgman.cpp
             print_file.cpp
+	    RestoreProxy.cpp
             restore.cpp
             tsman.cpp
+	    LocalProxy.cpp
            )
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
-
-ADD_LIBRARY(ndbblocks  STATIC
-            diskpage.cpp
-            lgman.cpp
-            pgman.cpp
-            print_file.cpp
-            restore.cpp
-            tsman.cpp
-           )
-
