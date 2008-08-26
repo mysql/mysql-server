@@ -41,4 +41,5 @@ ADD_LIBRARY(ndbsched STATIC
             FastScheduler.cpp
             TransporterCallback_nonmt.cpp
             SimulatedBlock_nonmt.cpp
+	    dummy_nonmt.cpp
 )
