@@ -18,4 +18,4 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dbtup)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
 ADD_LIBRARY(ndbdbacc STATIC
-            DbaccInit.cpp DbaccMain.cpp)
+            DbaccInit.cpp DbaccMain.cpp DbaccProxy.cpp)

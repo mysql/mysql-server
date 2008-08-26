@@ -17,4 +17,4 @@
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
 ADD_LIBRARY(ndbbackup STATIC
-            Backup.cpp BackupInit.cpp)
+            Backup.cpp BackupInit.cpp BackupProxy.cpp)

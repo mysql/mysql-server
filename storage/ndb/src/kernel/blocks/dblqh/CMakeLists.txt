@@ -23,7 +23,7 @@ LINK_LIBRARIES(wsock32)
 ENDIF(WIN32)
 
 ADD_LIBRARY(ndbdblqh STATIC
-            DblqhInit.cpp DblqhMain.cpp)
+            DblqhInit.cpp DblqhMain.cpp DblqhProxy.cpp)
 
 ADD_EXECUTABLE(ndbd_redo_log_reader
                redoLogReader/records.cpp
