@@ -21,7 +21,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql
 
 IF(WIN32)
  SET(EXTRA_SRC win32/NdbTick.c
-     # win32/NdbDaemon.c ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc
+     win32/NdbDaemon.c
  )
  SET(EXTRA_LIB wsock32 ws2_32)
 ENDIF(WIN32)
