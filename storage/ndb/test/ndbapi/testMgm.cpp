@@ -83,18 +83,17 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
 
   ndb_mgm_set_timeout(h, 3000);
 
-  struct timeval tstart, tend;
+  NDB_TICKS  tstart, tend;
   int secs;
-  timerclear(&tstart);
-  timerclear(&tend);
-  gettimeofday(&tstart,NULL);
+
+  tstart= NdbTick_CurrentMillisecond();
 
   ndb_mgm_connect(h,0,0,0);
 
-  gettimeofday(&tend,NULL);
+  tend= NdbTick_CurrentMillisecond();
 
-  secs= tend.tv_sec - tstart.tv_sec;
-  ndbout << "Took about: " << secs <<" seconds"<<endl;
+  secs= tend - tstart;
+  ndbout << "Took about: " << secs <<" milliseconds"<<endl;
 
   if(secs < 4)
     result= NDBT_OK;
@@ -114,16 +113,14 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
 
   ndb_mgm_set_timeout(h, 3000);
 
-  timerclear(&tstart);
-  timerclear(&tend);
-  gettimeofday(&tstart,NULL);
+  tstart= NdbTick_CurrentMillisecond();
 
   ndb_mgm_connect(h,0,0,0);
 
-  gettimeofday(&tend,NULL);
+  tend= NdbTick_CurrentMillisecond();
 
-  secs= tend.tv_sec - tstart.tv_sec;
-  ndbout << "Took about: " << secs <<" seconds"<<endl;
+  secs= tend - tstart;
+  ndbout << "Took about: " << secs <<" milliseconds"<<endl;
 
   if(secs < 4)
     result= NDBT_OK;
@@ -471,9 +468,17 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
     int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
                      1, NDB_MGM_EVENT_CATEGORY_STARTUP,
                      0 };
-    int fd= ndb_mgm_listen_event(h, filter);
 
-    if(!my_socket_valid(fd))
+    my_socket my_fd;
+#ifdef NDB_WIN
+    SOCKET fd= ndb_mgm_listen_event(h, filter);
+    my_fd.s= fd;
+#else
+    int fd= ndb_mgm_listen_event(h, filter);
+    my_fd.fd= fd;
+#endif
+
+    if(!my_socket_valid(my_fd))
     {
       ndbout << "FAILED: could not listen to event" << endl;
       result= NDBT_FAILED;
@@ -492,7 +497,8 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
 
     char *tmp= 0;
     char buf[512];
-    SocketInputStream in(fd,2000);
+
+    SocketInputStream in(my_fd,2000);
     for(int i=0; i<20; i++)
     {
       if((tmp = in.gets(buf, sizeof(buf))))
