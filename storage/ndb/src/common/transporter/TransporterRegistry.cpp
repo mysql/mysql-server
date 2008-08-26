@@ -554,7 +554,7 @@ TransporterRegistry::prepareSend(const SignalHeader * const signalHeader,
 	 
     if(t->isConnected()){
       Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_MESSAGE_SIZE){
+      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
 	Uint32 * insertPtr = t->getWritePtr(lenBytes, prio);
 	if(insertPtr != 0){
 	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
@@ -626,7 +626,7 @@ TransporterRegistry::prepareSend(const SignalHeader * const signalHeader,
     
     if(t->isConnected()){
       Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_MESSAGE_SIZE){
+      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
 	Uint32 * insertPtr = t->getWritePtr(lenBytes, prio);
 	if(insertPtr != 0){
 	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, thePool, ptr);
