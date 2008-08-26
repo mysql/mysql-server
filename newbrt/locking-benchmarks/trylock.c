@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 float tdiff (struct timeval *start, struct timeval *end) {
     return 1e6*(end->tv_sec-start->tv_sec) +(end->tv_usec - start->tv_usec);
@@ -24,7 +25,7 @@ static void compResults(char *string, int rc) {
 
 pthread_rwlock_t       rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
-void *rdlockThread(void *arg)
+void *rdlockThread(void *arg __attribute__((unused)))
 {
   int             rc;
   int             count=0;
@@ -58,13 +59,13 @@ void *rdlockThread(void *arg)
   rc = pthread_rwlock_unlock(&rwlock);
   gettimeofday(&end, 0);
   compResults("pthread_rwlock_unlock()\n", rc);
-  printf("%d.%6d to %d.%6d is %9.2f\n", start.tv_sec, start.tv_usec, end.tv_sec, end.tv_usec, tdiff(&start, &end));
+  printf("%lu.%6lu to %lu.%6lu is %9.2f\n", start.tv_sec, start.tv_usec, end.tv_sec, end.tv_usec, tdiff(&start, &end));
 
   printf("Secondary thread complete\n");
   return NULL;
 }
 
-int main(int argc, char **argv)
+int main(int argc __attribute__((unused)), char **argv)
 {
   int                   rc=0;
   pthread_t             thread;
