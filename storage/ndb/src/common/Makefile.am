@@ -28,7 +28,5 @@ libcommon_la_LIBADD = \
               logger/liblogger.la       \
               util/libgeneral.la 
 
-windoze-dsp:
-
 # Don't update the files from bitkeeper
 %::SCCS/s.%
