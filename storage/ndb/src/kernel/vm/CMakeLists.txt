@@ -34,6 +34,7 @@ ADD_LIBRARY(ndbkernel STATIC
             RWPool.cpp
             Rope.cpp
             WOPool.cpp
+	    GloablData.cpp
 )
 ADD_LIBRARY(ndbsched STATIC
             TimeQueue.cpp
