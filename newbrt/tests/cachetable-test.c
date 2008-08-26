@@ -151,6 +151,10 @@ static void test0 (void) {
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
     assert(r==0);
+
+    TOKULOGGER logger = toku_cachefile_logger(f);
+    assert(logger == NULL_LOGGER);
+
     expect_f = f;
 
     expect_n_flushes=0;

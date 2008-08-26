@@ -86,8 +86,9 @@ static void readit (void) {
     int i, r;
     void *block;
     long  current_size;
+    CACHEKEY key;
     for (i=0; i<N; i++) {
-	CACHEKEY key = i*BLOCKSIZE;
+	key = i*BLOCKSIZE;
 	u_int32_t fullhash = toku_cachetable_hash(f, key);
 	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, f_flush, f_fetch, 0); assert(r==0);
 	r=toku_cachetable_unpin(f, key, fullhash, 0, BLOCKSIZE);                                      assert(r==0);

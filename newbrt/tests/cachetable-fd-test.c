@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "test.h"
 #include "cachetable.h"
@@ -29,6 +30,17 @@ void cachetable_fd_test() {
     r = close(fd3); assert(r == 0);
     r = toku_cachefile_set_fd(cf, fd3, "/dev/null"); assert(r != 0);
     assert(toku_cachefile_fd(cf) == fd2);
+
+    // test the filenum functions
+    FILENUM fn = toku_cachefile_filenum(cf);
+    CACHEFILE newcf = 0;
+    r = toku_cachefile_of_filenum(ct, fn, &newcf);
+    assert(r == 0 && cf == newcf);
+
+    // test a bogus filenum
+    fn.fileid++;
+    r = toku_cachefile_of_filenum(ct, fn, &newcf);
+    assert(r == ENOENT);
 
     r = toku_cachefile_close(&cf, NULL_LOGGER); assert(r == 0 && cf == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
