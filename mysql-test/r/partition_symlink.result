@@ -113,9 +113,9 @@ set @@sql_mode=@org_mode;
 create table t1 (a int)
 partition by key (a)
 (partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
-ERROR HY000: Incorrect arguments to DATA DIRECTORY
+Got one of the listed errors
 create table t1 (a int)
 partition by key (a)
 (partition p0,
 partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
-ERROR HY000: Incorrect arguments to DATA DIRECTORY
+Got one of the listed errors
