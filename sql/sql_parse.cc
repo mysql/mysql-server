@@ -329,6 +329,12 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   Vio* save_vio;
   ulong save_client_capabilities;
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.start_new_query();
+  thd->profiling.set_query_source(init_command_var->value,
+                                  init_command_var->value_length);
+#endif
+
   thd_proc_info(thd, "Execution of init_command");
   /*
     We need to lock init_command_var because
@@ -350,6 +356,10 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   rw_unlock(var_mutex);
   thd->client_capabilities= save_client_capabilities;
   thd->net.vio= save_vio;
+
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.finish_current_query();
+#endif
 }
 
 
@@ -441,6 +451,7 @@ pthread_handler_t handle_bootstrap(void *arg)
     thd->query[length] = '\0';
     DBUG_PRINT("query",("%-.4096s",thd->query));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.start_new_query();
     thd->profiling.set_query_source(thd->query, length);
 #endif
 
@@ -455,6 +466,10 @@ pthread_handler_t handle_bootstrap(void *arg)
 
     bootstrap_error= thd->is_error();
     net_end_statement(thd);
+
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.finish_current_query();
+#endif
 
     if (bootstrap_error)
       break;
@@ -6484,15 +6499,24 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       thd->store_globals();
       lex_start(thd);
     }
+    
     if (thd)
     {
-      if (acl_reload(thd))
+      bool reload_acl_failed= acl_reload(thd);
+      bool reload_grants_failed= grant_reload(thd);
+      bool reload_servers_failed= servers_reload(thd);
+      
+      if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
+      {
         result= 1;
-      if (grant_reload(thd))
-        result= 1;
-      if (servers_reload(thd))
-        result= 1; /* purecov: inspected */
+        /*
+          When an error is returned, my_message may have not been called and
+          the client will hang waiting for a response.
+        */
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH PRIVILEGES failed");
+      }
     }
+
     if (tmp_thd)
     {
       delete tmp_thd;
@@ -6581,8 +6605,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;                               // Killed
-      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                                  FALSE : TRUE, TRUE);
+      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                              FALSE : TRUE, TRUE))
+          result= 1;
+      
       if (make_global_read_lock_block_commit(thd)) // Killed
       {
         /* Don't leave things in a half-locked state */
@@ -6591,8 +6617,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       }
     }
     else
-      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                                  FALSE : TRUE, FALSE);
+    {
+      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                              FALSE : TRUE, FALSE))
+        result= 1;
+    }
     my_dbopt_cleanup();
   }
   if (options & REFRESH_HOSTS)
@@ -6615,8 +6644,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifdef OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
-     if (des_key_file)
-       result=load_des_key_file(des_key_file);
+     if (des_key_file && load_des_key_file(des_key_file))
+         result= 1;
    }
 #endif
 #ifdef HAVE_REPLICATION
@@ -7384,11 +7413,12 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
     0	ok
     1	error  
 */
+C_MODE_START
 
-bool test_if_data_home_dir(const char *dir)
+int test_if_data_home_dir(const char *dir)
 {
-  char path[FN_REFLEN], conv_path[FN_REFLEN];
-  uint dir_len, home_dir_len= strlen(mysql_unpacked_real_data_home);
+  char path[FN_REFLEN];
+  uint dir_len;
   DBUG_ENTER("test_if_data_home_dir");
 
   if (!dir)
@@ -7396,23 +7426,29 @@ bool test_if_data_home_dir(const char *dir)
 
   (void) fn_format(path, dir, "", "",
                    (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
-  dir_len= unpack_dirname(conv_path, dir);
-
-  if (home_dir_len < dir_len)
+  dir_len= strlen(path);
+  if (mysql_unpacked_real_data_home_len<= dir_len)
   {
+    if (dir_len > mysql_unpacked_real_data_home_len &&
+        path[mysql_unpacked_real_data_home_len] != FN_LIBCHAR)
+      DBUG_RETURN(0);
+
     if (lower_case_file_system)
     {
-      if (!my_strnncoll(character_set_filesystem,
-                        (const uchar*) conv_path, home_dir_len,
+      if (!my_strnncoll(default_charset_info, (const uchar*) path,
+                        mysql_unpacked_real_data_home_len,
                         (const uchar*) mysql_unpacked_real_data_home,
-                        home_dir_len))
+                        mysql_unpacked_real_data_home_len))
         DBUG_RETURN(1);
     }
-    else if (!memcmp(conv_path, mysql_unpacked_real_data_home, home_dir_len))
+    else if (!memcmp(path, mysql_unpacked_real_data_home,
+                     mysql_unpacked_real_data_home_len))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
+
+C_MODE_END
 
 
 extern int MYSQLparse(void *thd); // from sql_yacc.cc

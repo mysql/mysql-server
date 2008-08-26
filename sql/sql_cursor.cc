@@ -155,6 +155,7 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
   if (! (sensitive_cursor= new (thd->mem_root) Sensitive_cursor(thd, result)))
   {
     delete result_materialize;
+    result_materialize= NULL;
     return 1;
   }
 
@@ -212,6 +213,7 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
     if ((rc= materialized_cursor->open(0)))
     {
       delete materialized_cursor;
+      materialized_cursor= NULL;
       goto err_open;
     }
 

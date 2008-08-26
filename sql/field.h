@@ -50,7 +50,8 @@ class Field
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
 public:
-  static void *operator new(size_t size) {return sql_alloc(size); }
+  static void *operator new(size_t size) throw ()
+  { return sql_alloc(size); }
   static void operator delete(void *ptr_arg, size_t size) { TRASH(ptr_arg, size); }
 
   uchar		*ptr;			// Position to field in record
