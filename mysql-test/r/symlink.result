@@ -57,8 +57,6 @@ t9	CREATE TABLE `t9` (
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
-Got one of the listed errors
-Got one of the listed errors
 alter table t9 rename mysqltest.t9;
 select count(*) from mysqltest.t9;
 count(*)
