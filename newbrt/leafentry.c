@@ -275,155 +275,155 @@ void toku_free_LEAFENTRY(LEAFENTRY le) {
 }
 
 
-int le_is_provdel(LEAFENTRY le) {
+inline int le_is_provdel(LEAFENTRY le) {
     return get_le_state(le)==LE_PROVDEL;
 }
 
-void* latest_key_le_committed (u_int32_t UU(keylen), void *key, u_int32_t UU(vallen), void *UU(val)) {
+inline void* latest_key_le_committed (u_int32_t UU(keylen), void *key, u_int32_t UU(vallen), void *UU(val)) {
     return key;
 }
-void* latest_key_le_both (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
+inline void* latest_key_le_both (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
     return kval;
 }
-void* latest_key_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
+inline void* latest_key_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
     return 0; // for provisional delete, there is no *latest* key, so return NULL
 }
-void* latest_key_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(plen), void *UU(pval)) {
+inline void* latest_key_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(plen), void *UU(pval)) {
     return kval;
 }
-void* le_latest_key (LEAFENTRY le) {
+inline void* le_latest_key (LEAFENTRY le) {
     LESWITCHCALL(le, latest_key);
 }
 
-u_int32_t latest_keylen_le_committed (u_int32_t keylen, void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
+inline u_int32_t latest_keylen_le_committed (u_int32_t keylen, void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
     return keylen;
 }
-u_int32_t latest_keylen_le_both (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
+inline u_int32_t latest_keylen_le_both (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
     return klen;
 }
-u_int32_t latest_keylen_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
+inline u_int32_t latest_keylen_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
     return 0; // for provisional delete, there is no *latest* key, so return 0.  What else can we do?
 }
-u_int32_t latest_keylen_le_provpair (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(plen), void *UU(pval)) {
+inline u_int32_t latest_keylen_le_provpair (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(plen), void *UU(pval)) {
     return klen;
 }
-u_int32_t le_latest_keylen (LEAFENTRY le) {
+inline u_int32_t le_latest_keylen (LEAFENTRY le) {
     LESWITCHCALL(le, latest_keylen);
 }
 
-void* latest_val_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
+inline void* latest_val_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
     return val;
 }
-void* latest_val_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *pval) {
+inline void* latest_val_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *pval) {
     return pval;
 }
-void* latest_val_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
+inline void* latest_val_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
     return 0; // for provisional delete, there is no *latest* key, so return NULL
 }
-void* latest_val_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(plen), void *pval) {
+inline void* latest_val_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(plen), void *pval) {
     return pval;
 }
-void* le_latest_val (LEAFENTRY le) {
+inline void* le_latest_val (LEAFENTRY le) {
     LESWITCHCALL(le, latest_val);
 }
 
-u_int32_t latest_vallen_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t vallen, void *UU(val)) {
+inline u_int32_t latest_vallen_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t vallen, void *UU(val)) {
     return vallen;
 }
-u_int32_t latest_vallen_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t plen, void *UU(pval)) {
+inline u_int32_t latest_vallen_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t plen, void *UU(pval)) {
     return plen;
 }
-u_int32_t latest_vallen_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
+inline u_int32_t latest_vallen_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
     return 0; // for provisional delete, there is no *latest* key, so return 0.  What else can we do?
 }
-u_int32_t latest_vallen_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t plen, void *UU(pval)) {
+inline u_int32_t latest_vallen_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t plen, void *UU(pval)) {
     return plen;
 }
-u_int32_t le_latest_vallen (LEAFENTRY le) {
+inline u_int32_t le_latest_vallen (LEAFENTRY le) {
     LESWITCHCALL(le, latest_vallen);
 }
 
-void* any_key_le_committed (u_int32_t UU(keylen), void *key, u_int32_t UU(vallen), void *UU(val)) {
+inline void* any_key_le_committed (u_int32_t UU(keylen), void *key, u_int32_t UU(vallen), void *UU(val)) {
     return key;
 }
-void* any_key_le_both (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
+inline void* any_key_le_both (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
     return kval;
 }
-void* any_key_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(clen), void *UU(cval)) {
+inline void* any_key_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(clen), void *UU(cval)) {
     return kval;
 }
-void* any_key_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(plen), void *UU(pval)) {
+inline void* any_key_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *kval, u_int32_t UU(plen), void *UU(pval)) {
     return kval;
 }
-void* le_any_key (LEAFENTRY le) {
+inline void* le_any_key (LEAFENTRY le) {
     LESWITCHCALL(le, any_key);
 }
 
-u_int32_t any_keylen_le_committed (u_int32_t keylen, void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
+inline u_int32_t any_keylen_le_committed (u_int32_t keylen, void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
     return keylen;
 }
-u_int32_t any_keylen_le_both (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
+inline u_int32_t any_keylen_le_both (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
     return klen;
 }
-u_int32_t any_keylen_le_provdel (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
+inline u_int32_t any_keylen_le_provdel (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
     return klen;
 }
-u_int32_t any_keylen_le_provpair (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(plen), void *UU(pval)) {
+inline u_int32_t any_keylen_le_provpair (TXNID UU(xid), u_int32_t klen, void *UU(kval), u_int32_t UU(plen), void *UU(pval)) {
     return klen;
 }
-u_int32_t le_any_keylen (LEAFENTRY le) {
+inline u_int32_t le_any_keylen (LEAFENTRY le) {
     LESWITCHCALL(le, any_keylen);
 }
 
-void* any_val_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
+inline void* any_val_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
     return val;
 }
-void* any_val_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *cval, u_int32_t UU(plen), void *UU(pval)) {
+inline void* any_val_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *cval, u_int32_t UU(plen), void *UU(pval)) {
     return cval;
 }
-void* any_val_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *cval) {
+inline void* any_val_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *cval) {
     return cval;
 }
-void* any_val_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(plen), void *pval) {
+inline void* any_val_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(plen), void *pval) {
     return pval;
 }
-void* le_any_val (LEAFENTRY le) {
+inline void* le_any_val (LEAFENTRY le) {
     LESWITCHCALL(le, any_val);
 }
 
-u_int32_t any_vallen_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t vallen, void *UU(val)) {
+inline u_int32_t any_vallen_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t vallen, void *UU(val)) {
     return vallen;
 }
-u_int32_t any_vallen_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t plen, void *UU(pval)) {
+inline u_int32_t any_vallen_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t plen, void *UU(pval)) {
     return plen;
 }
-u_int32_t any_vallen_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t clen, void *UU(cval)) {
+inline u_int32_t any_vallen_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t clen, void *UU(cval)) {
     return clen; // for provisional delete, there is no *any* key, so return 0.  What else can we do?
 }
-u_int32_t any_vallen_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t plen, void *UU(pval)) {
+inline u_int32_t any_vallen_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t plen, void *UU(pval)) {
     return plen;
 }
-u_int32_t le_any_vallen (LEAFENTRY le) {
+inline u_int32_t le_any_vallen (LEAFENTRY le) {
     LESWITCHCALL(le, any_vallen);
 }
 
 
-u_int64_t any_xid_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
+inline u_int64_t any_xid_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
     return 0;
 }
 
-u_int64_t any_xid_le_both (TXNID xid, u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
+inline u_int64_t any_xid_le_both (TXNID xid, u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *UU(pval)) {
     return xid;
 }
 
-u_int64_t any_xid_le_provdel (TXNID xid, u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
+inline u_int64_t any_xid_le_provdel (TXNID xid, u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
     return xid;
 }
 
-u_int64_t any_xid_le_provpair (TXNID xid, u_int32_t UU(klen), void *UU(kval), u_int32_t UU(plen), void *UU(pval)) {
+inline u_int64_t any_xid_le_provpair (TXNID xid, u_int32_t UU(klen), void *UU(kval), u_int32_t UU(plen), void *UU(pval)) {
     return xid;
 }
 
-u_int64_t le_any_xid (LEAFENTRY le) {
+inline u_int64_t le_any_xid (LEAFENTRY le) {
     LESWITCHCALL(le, any_xid);
 }
