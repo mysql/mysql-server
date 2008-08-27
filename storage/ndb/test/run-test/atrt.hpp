@@ -32,6 +32,7 @@ enum ErrorCodes
   ERR_SERVERS_FAILED = 102,
   ERR_MAX_TIME_ELAPSED = 103,
   ERR_COMMAND_FAILED = 104,
+  ERR_FAILED_TO_START = 105
 };
 
 struct atrt_host 
