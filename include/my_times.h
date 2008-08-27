@@ -16,6 +16,10 @@
 #ifndef _MY_TIMES_H_
 #define _MY_TIMES_H_
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 #ifdef __WIN__
 struct tms {
   clock_t tms_utime;  /* user time */
@@ -27,6 +31,10 @@ clock_t times(struct tms *buf);
 
 #else
 #include <sys/times.h>
+#endif
+
+#ifdef __cplusplus
+} // extern C
 #endif
 
 #endif
