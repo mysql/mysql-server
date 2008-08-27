@@ -437,8 +437,11 @@ uint Item::decimal_precision() const
   Item_result restype= result_type();
 
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    return min(my_decimal_length_to_precision(max_length, decimals, unsigned_flag),
-               DECIMAL_MAX_PRECISION);
+  {
+    uint prec= 
+      my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
+    return min(prec, DECIMAL_MAX_PRECISION);
+  }
   return min(max_length, DECIMAL_MAX_PRECISION);
 }
 
@@ -5172,21 +5175,28 @@ Item_bin_string::Item_bin_string(const char *str, uint str_length)
   if (!ptr)
     return;
   str_value.set(ptr, max_length, &my_charset_bin);
-  ptr+= max_length - 1;
-  ptr[1]= 0;                     // Set end null for string
-  for (; end >= str; end--)
+
+  if (max_length > 0)
   {
-    if (power == 256)
+    ptr+= max_length - 1;
+    ptr[1]= 0;                     // Set end null for string
+    for (; end >= str; end--)
     {
-      power= 1;
-      *ptr--= bits;
-      bits= 0;     
+      if (power == 256)
+      {
+        power= 1;
+        *ptr--= bits;
+        bits= 0;
+      }
+      if (*end == '1')
+        bits|= power;
+      power<<= 1;
     }
-    if (*end == '1')
-      bits|= power; 
-    power<<= 1;
+    *ptr= (char) bits;
   }
-  *ptr= (char) bits;
+  else
+    ptr[0]= 0;
+
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   fixed= 1;
 }
@@ -5920,6 +5930,10 @@ void Item_ref::make_field(Send_field *field)
     field->table_name= table_name;
   if (db_name)
     field->db_name= db_name;
+  if (orig_field_name)
+    field->org_col_name= orig_field_name;
+  if (orig_table_name)
+    field->org_table_name= orig_table_name;
 }
 
 
@@ -6988,8 +7002,9 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
     decimals= min(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
-    int precision= min(max(prev_decimal_int_part, item->decimal_int_part())
-                       + decimals, DECIMAL_MAX_PRECISION);
+    int item_int_part= item->decimal_int_part();
+    int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
+    int precision= min(item_prec, DECIMAL_MAX_PRECISION);
     unsigned_flag&= item->unsigned_flag;
     max_length= my_decimal_precision_to_length(precision, decimals,
                                                unsigned_flag);

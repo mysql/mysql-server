@@ -371,13 +371,6 @@ void lex_end(LEX *lex)
 {
   DBUG_ENTER("lex_end");
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
-  if (lex->yacc_yyss)
-  {
-    my_free(lex->yacc_yyss, MYF(0));
-    my_free(lex->yacc_yyvs, MYF(0));
-    lex->yacc_yyss= 0;
-    lex->yacc_yyvs= 0;
-  }
 
   /* release used plugins */
   plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
@@ -387,6 +380,14 @@ void lex_end(LEX *lex)
   DBUG_VOID_RETURN;
 }
 
+Yacc_state::~Yacc_state()
+{
+  if (yacc_yyss)
+  {
+    my_free(yacc_yyss, MYF(0));
+    my_free(yacc_yyvs, MYF(0));
+  }
+}
 
 static int find_keyword(Lex_input_stream *lip, uint len, bool function)
 {
@@ -726,7 +727,7 @@ int MYSQLlex(void *arg, void *yythd)
   uint length;
   enum my_lex_states state;
   THD *thd= (THD *)yythd;
-  Lex_input_stream *lip= thd->m_lip;
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
   CHARSET_INFO *cs= thd->charset();
@@ -1317,23 +1318,8 @@ int MYSQLlex(void *arg, void *yythd)
       lip->yySkip();
       return (SET_VAR);
     case MY_LEX_SEMICOLON:			// optional line terminator
-      if (lip->yyPeek())
-      {
-        if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
-            !lip->stmt_prepare_mode)
-        {
-	  lex->safe_to_cache_query= 0;
-          lip->found_semicolon= lip->get_ptr();
-          thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
-          lip->next_state= MY_LEX_END;
-          lip->set_echo(TRUE);
-          return (END_OF_INPUT);
-        }
-        state= MY_LEX_CHAR;		// Return ';'
-	break;
-      }
-      lip->next_state=MY_LEX_END;       // Mark for next loop
-      return(END_OF_INPUT);
+      state= MY_LEX_CHAR;               // Return ';'
+      break;
     case MY_LEX_EOL:
       if (lip->eof())
       {
@@ -1352,7 +1338,7 @@ int MYSQLlex(void *arg, void *yythd)
     case MY_LEX_END:
       lip->next_state=MY_LEX_END;
       return(0);			// We found end of input last time
-      
+
       /* Actually real shouldn't start with . but allow them anyhow */
     case MY_LEX_REAL_OR_POINT:
       if (my_isdigit(cs,lip->yyPeek()))
@@ -2143,7 +2129,7 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 st_lex::st_lex()
-  :result(0), yacc_yyss(0), yacc_yyvs(0),
+  :result(0),
    sql_command(SQLCOM_END), option_type(OPT_DEFAULT), is_lex_started(0)
 {
 

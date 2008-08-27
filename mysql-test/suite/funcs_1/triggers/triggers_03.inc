@@ -13,6 +13,8 @@
 USE test;
 --source suite/funcs_1/include/tb3.inc
 
+
+
 --disable_abort_on_error
 
 ###########################################

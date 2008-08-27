@@ -1353,6 +1353,542 @@ void Log_event::print_header(IO_CACHE* file,
 }
 
 
+/**
+  Prints a quoted string to io cache.
+  Control characters are displayed as hex sequence, e.g. \x00
+  
+  @param[in] file              IO cache
+  @param[in] prt               Pointer to string
+  @param[in] length            String length
+*/
+
+static void
+my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
+{
+  const uchar *s;
+  my_b_printf(file, "'");
+  for (s= ptr; length > 0 ; s++, length--)
+  {
+    if (*s > 0x1F)
+      my_b_write(file, s, 1);
+    else
+    {
+      uchar hex[10];
+      size_t len= my_snprintf((char*) hex, sizeof(hex), "%s%02x", "\\x", *s);
+      my_b_write(file, hex, len);
+    }
+  }
+  my_b_printf(file, "'");
+}
+
+
+/**
+  Prints a bit string to io cache in format  b'1010'.
+  
+  @param[in] file              IO cache
+  @param[in] ptr               Pointer to string
+  @param[in] nbits             Number of bits
+*/
+static void
+my_b_write_bit(IO_CACHE *file, const uchar *ptr, uint nbits)
+{
+  uint bitnum, nbits8= ((nbits + 7) / 8) * 8, skip_bits= nbits8 - nbits;
+  my_b_printf(file, "b'");
+  for (bitnum= skip_bits ; bitnum < nbits8; bitnum++)
+  {
+    int is_set= (ptr[(bitnum) / 8] >> (7 - bitnum % 8))  & 0x01;
+    my_b_write(file, (const uchar*) (is_set ? "1" : "0"), 1);
+  }
+  my_b_printf(file, "'");
+}
+
+
+/**
+  Prints a packed string to io cache.
+  The string consists of length packed to 1 or 2 bytes,
+  followed by string data itself.
+  
+  @param[in] file              IO cache
+  @param[in] ptr               Pointer to string
+  @param[in] length            String size
+  
+  @retval   - number of bytes scanned.
+*/
+static size_t
+my_b_write_quoted_with_length(IO_CACHE *file, const uchar *ptr, uint length)
+{
+  if (length < 256)
+  {
+    length= *ptr;
+    my_b_write_quoted(file, ptr + 1, length);
+    return length + 1;
+  }
+  else
+  {
+    length= uint2korr(ptr);
+    my_b_write_quoted(file, ptr + 2, length);
+    return length + 2;
+  }
+}
+
+
+/**
+  Prints a 32-bit number in both signed and unsigned representation
+  
+  @param[in] file              IO cache
+  @param[in] sl                Signed number
+  @param[in] ul                Unsigned number
+*/
+static void
+my_b_write_sint32_and_uint32(IO_CACHE *file, int32 si, uint32 ui)
+{
+  my_b_printf(file, "%d", si);
+  if (si < 0)
+    my_b_printf(file, " (%u)", ui);
+}
+
+
+/**
+  Print a packed value of the given SQL type into IO cache
+  
+  @param[in] file              IO cache
+  @param[in] ptr               Pointer to string
+  @param[in] type              Column type
+  @param[in] meta              Column meta information
+  @param[out] typestr          SQL type string buffer (for verbose output)
+  @param[out] typestr_length   Size of typestr
+  
+  @retval   - number of bytes scanned from ptr.
+*/
+
+static size_t
+log_event_print_value(IO_CACHE *file, const uchar *ptr,
+                      uint type, uint meta,
+                      char *typestr, size_t typestr_length)
+{
+  uint32 length= 0;
+
+  if (type == MYSQL_TYPE_STRING)
+  {
+    if (meta >= 256)
+    {
+      uint byte0= meta >> 8;
+      uint byte1= meta & 0xFF;
+      
+      if ((byte0 & 0x30) != 0x30)
+      {
+        /* a long CHAR() field: see #37426 */
+        length= byte1 | (((byte0 & 0x30) ^ 0x30) << 4);
+        type= byte0 | 0x30;
+        goto beg;
+      }
+
+      switch (byte0)
+      {
+        case MYSQL_TYPE_SET:
+        case MYSQL_TYPE_ENUM:
+        case MYSQL_TYPE_STRING:
+          type= byte0;
+          length= byte1;
+          break;
+
+        default:
+
+        {
+          char tmp[5];
+          my_snprintf(tmp, sizeof(tmp), "%04X", meta);
+          my_b_printf(file,
+                      "!! Don't know how to handle column type=%d meta=%d (%s)",
+                      type, meta, tmp);
+          return 0;
+        }
+      }
+    }
+    else
+      length= meta;
+  }
+
+
+beg:
+  
+  switch (type) {
+  case MYSQL_TYPE_LONG:
+    {
+      int32 si= sint4korr(ptr);
+      uint32 ui= uint4korr(ptr);
+      my_b_write_sint32_and_uint32(file, si, ui);
+      my_snprintf(typestr, typestr_length, "INT");
+      return 4;
+    }
+
+  case MYSQL_TYPE_TINY:
+    {
+      my_b_write_sint32_and_uint32(file, (int) (signed char) *ptr,
+                                  (uint) (unsigned char) *ptr);
+      my_snprintf(typestr, typestr_length, "TINYINT");
+      return 1;
+    }
+
+  case MYSQL_TYPE_SHORT:
+    {
+      int32 si= (int32) sint2korr(ptr);
+      uint32 ui= (uint32) uint2korr(ptr);
+      my_b_write_sint32_and_uint32(file, si, ui);
+      my_snprintf(typestr, typestr_length, "SHORTINT");
+      return 2;
+    }
+  
+  case MYSQL_TYPE_INT24:
+    {
+      int32 si= sint3korr(ptr);
+      uint32 ui= uint3korr(ptr);
+      my_b_write_sint32_and_uint32(file, si, ui);
+      my_snprintf(typestr, typestr_length, "MEDIUMINT");
+      return 3;
+    }
+
+  case MYSQL_TYPE_LONGLONG:
+    {
+      char tmp[64];
+      longlong si= sint8korr(ptr);
+      longlong10_to_str(si, tmp, -10);
+      my_b_printf(file, "%s", tmp);
+      if (si < 0)
+      {
+        ulonglong ui= uint8korr(ptr);
+        longlong10_to_str((longlong) ui, tmp, 10);
+        my_b_printf(file, " (%s)", tmp);        
+      }
+      my_snprintf(typestr, typestr_length, "LONGINT");
+      return 8;
+    }
+
+  case MYSQL_TYPE_NEWDECIMAL:
+    {
+      uint precision= meta >> 8;
+      uint decimals= meta & 0xFF;
+      uint bin_size= my_decimal_get_binary_size(precision, decimals);
+      my_decimal dec;
+      binary2my_decimal(E_DEC_FATAL_ERROR, (uchar*) ptr, &dec,
+                        precision, decimals);
+      int i, end;
+      char buff[512], *pos;
+      pos= buff;
+      pos+= my_sprintf(buff, (buff, "%s", dec.sign() ? "-" : ""));
+      end= ROUND_UP(dec.frac) + ROUND_UP(dec.intg)-1;
+      for (i=0; i < end; i++)
+        pos+= my_sprintf(pos, (pos, "%09d.", dec.buf[i]));
+      pos+= my_sprintf(pos, (pos, "%09d", dec.buf[i]));
+      my_b_printf(file, "%s", buff);
+      my_snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
+                  precision, decimals);
+      return bin_size;
+    }
+    
+  case MYSQL_TYPE_FLOAT:
+    {
+      float fl;
+      float4get(fl, ptr);
+      char tmp[320];
+      sprintf(tmp, "%-20g", (double) fl);
+      my_b_printf(file, "%s", tmp); /* my_snprintf doesn't support %-20g */
+      my_snprintf(typestr, typestr_length, "FLOAT");
+      return 4;
+    }
+
+  case MYSQL_TYPE_DOUBLE:
+    {
+      double dbl;
+      float8get(dbl, ptr);
+      char tmp[320];
+      sprintf(tmp, "%-.20g", dbl); /* my_snprintf doesn't support %-20g */
+      my_b_printf(file, "%s", tmp);
+      strcpy(typestr, "DOUBLE");
+      return 8;
+    }
+  
+  case MYSQL_TYPE_BIT:
+    {
+      /* Meta-data: bit_len, bytes_in_rec, 2 bytes */
+      uint nbits= ((meta >> 8) * 8) + (meta & 0xFF);
+      length= (nbits + 7) / 8;
+      my_b_write_bit(file, ptr, nbits);
+      my_snprintf(typestr, typestr_length, "BIT(%d)", nbits);
+      return length;
+    }
+
+  case MYSQL_TYPE_TIMESTAMP:
+    {
+      uint32 i32= uint4korr(ptr);
+      my_b_printf(file, "%d", i32);
+      my_snprintf(typestr, typestr_length, "TIMESTAMP");
+      return 4;
+    }
+
+  case MYSQL_TYPE_DATETIME:
+    {
+      uint d, t;
+      uint64 i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
+      d= i64 / 1000000;
+      t= i64 % 1000000;
+      my_b_printf(file, "%04d-%02d-%02d %02d:%02d:%02d",
+                  d / 10000, (d % 10000) / 100, d % 100,
+                  t / 10000, (t % 10000) / 100, t % 100);
+      my_snprintf(typestr, typestr_length, "DATETIME");
+      return 8;
+    }
+
+  case MYSQL_TYPE_TIME:
+    {
+      uint32 i32= uint3korr(ptr);
+      my_b_printf(file, "'%02d:%02d:%02d'",
+                  i32 / 10000, (i32 % 10000) / 100, i32 % 100);
+      my_snprintf(typestr,  typestr_length, "TIME");
+      return 3;
+    }
+    
+  case MYSQL_TYPE_DATE:
+    {
+      uint i32= uint3korr(ptr);
+      my_b_printf(file , "'%04d:%02d:%02d'",
+                  (i32 / (16L * 32L)), (i32 / 32L % 16L), (i32 % 32L));
+      my_snprintf(typestr, typestr_length, "DATE");
+      return 3;
+    }
+  
+  case MYSQL_TYPE_YEAR:
+    {
+      uint32 i32= *ptr;
+      my_b_printf(file, "%04d", i32+ 1900);
+      my_snprintf(typestr, typestr_length, "YEAR");
+      return 1;
+    }
+  
+  case MYSQL_TYPE_ENUM:
+    switch (length) { 
+    case 1:
+      my_b_printf(file, "%d", (int) *ptr);
+      my_snprintf(typestr, typestr_length, "ENUM(1 byte)");
+      return 1;
+    case 2:
+      {
+        int32 i32= uint2korr(ptr);
+        my_b_printf(file, "%d", i32);
+        my_snprintf(typestr, typestr_length, "ENUM(2 bytes)");
+        return 2;
+      }
+    default:
+      my_b_printf(file, "!! Unknown ENUM packlen=%d", length); 
+      return 0;
+    }
+    break;
+    
+  case MYSQL_TYPE_SET:
+    my_b_write_bit(file, ptr , length * 8);
+    my_snprintf(typestr, typestr_length, "SET(%d bytes)", length);
+    return length;
+  
+  case MYSQL_TYPE_BLOB:
+    switch (meta) {
+    case 1:
+      length= *ptr;
+      my_b_write_quoted(file, ptr + 1, length);
+      my_snprintf(typestr, typestr_length, "TINYBLOB/TINYTEXT");
+      return length + 1;
+    case 2:
+      length= uint2korr(ptr);
+      my_b_write_quoted(file, ptr + 2, length);
+      my_snprintf(typestr, typestr_length, "BLOB/TEXT");
+      return length + 2;
+    case 3:
+      length= uint3korr(ptr);
+      my_b_write_quoted(file, ptr + 3, length);
+      my_snprintf(typestr, typestr_length, "MEDIUMBLOB/MEDIUMTEXT");
+      return length + 3;
+    case 4:
+      length= uint4korr(ptr);
+      my_b_write_quoted(file, ptr + 4, length);
+      my_snprintf(typestr, typestr_length, "LONGBLOB/LONGTEXT");
+      return length + 4;
+    default:
+      my_b_printf(file, "!! Unknown BLOB packlen=%d", length);
+      return 0;
+    }
+
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+    length= meta;
+    my_snprintf(typestr, typestr_length, "VARSTRING(%d)", length);
+    return my_b_write_quoted_with_length(file, ptr, length);
+
+  case MYSQL_TYPE_STRING:
+    my_snprintf(typestr, typestr_length, "STRING(%d)", length);
+    return my_b_write_quoted_with_length(file, ptr, length);
+
+  default:
+    {
+      char tmp[5];
+      my_snprintf(tmp, sizeof(tmp), "%04x", meta);
+      my_b_printf(file,
+                  "!! Don't know how to handle column type=%d meta=%d (%s)",
+                  type, meta, tmp);
+    }
+    break;
+  }
+  *typestr= 0;
+  return 0;
+}
+
+
+/**
+  Print a packed row into IO cache
+  
+  @param[in] file              IO cache
+  @param[in] td                Table definition
+  @param[in] print_event_into  Print parameters
+  @param[in] cols_bitmap       Column bitmaps.
+  @param[in] value             Pointer to packed row
+  @param[in] prefix            Row's SQL clause ("SET", "WHERE", etc)
+  
+  @retval   - number of bytes scanned.
+*/
+
+
+size_t
+Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
+                                      PRINT_EVENT_INFO *print_event_info,
+                                      MY_BITMAP *cols_bitmap,
+                                      const uchar *value, const uchar *prefix)
+{
+  const uchar *value0= value;
+  const uchar *null_bits= value;
+  char typestr[64]= "";
+  
+  value+= (m_width + 7) / 8;
+  
+  my_b_printf(file, "%s", prefix);
+  
+  for (size_t i= 0; i < td->size(); i ++)
+  {
+    int is_null= (null_bits[i / 8] >> (i % 8))  & 0x01;
+
+    if (bitmap_is_set(cols_bitmap, i) == 0)
+      continue;
+    
+    if (is_null)
+    {
+      my_b_printf(file, "###   @%d=NULL", i + 1);
+    }
+    else
+    {
+      my_b_printf(file, "###   @%d=", i + 1);
+      size_t size= log_event_print_value(file, value,
+                                         td->type(i), td->field_metadata(i),
+                                         typestr, sizeof(typestr));
+      if (!size)
+        return 0;
+
+      value+= size;
+    }
+
+    if (print_event_info->verbose > 1)
+    {
+      my_b_printf(file, " /* ");
+
+      if (typestr[0])
+        my_b_printf(file, "%s ", typestr);
+      else
+        my_b_printf(file, "type=%d ", td->type(i));
+      
+      my_b_printf(file, "meta=%d nullable=%d is_null=%d ",
+                  td->field_metadata(i),
+                  td->maybe_null(i), is_null);
+      my_b_printf(file, "*/");
+    }
+    
+    my_b_printf(file, "\n");
+  }
+  return value - value0;
+}
+
+
+/**
+  Print a row event into IO cache in human readable form (in SQL format)
+  
+  @param[in] file              IO cache
+  @param[in] print_event_into  Print parameters
+*/
+void Rows_log_event::print_verbose(IO_CACHE *file,
+                                   PRINT_EVENT_INFO *print_event_info)
+{
+  Table_map_log_event *map;
+  table_def *td;
+  const char *sql_command, *sql_clause1, *sql_clause2;
+  Log_event_type type_code= get_type_code();
+  
+  switch (type_code) {
+  case WRITE_ROWS_EVENT:
+    sql_command= "INSERT INTO";
+    sql_clause1= "### SET\n";
+    sql_clause2= NULL;
+    break;
+  case DELETE_ROWS_EVENT:
+    sql_command= "DELETE FROM";
+    sql_clause1= "### WHERE\n";
+    sql_clause2= NULL;
+    break;
+  case UPDATE_ROWS_EVENT:
+    sql_command= "UPDATE";
+    sql_clause1= "### WHERE\n";
+    sql_clause2= "### SET\n";
+    break;
+  default:
+    sql_command= sql_clause1= sql_clause2= NULL;
+    DBUG_ASSERT(0); /* Not possible */
+  }
+  
+  if (!(map= print_event_info->m_table_map.get_table(m_table_id)) ||
+      !(td= map->create_table_def()))
+  {
+    my_b_printf(file, "### Row event for unknown table #%d", m_table_id);
+    return;
+  }
+
+  for (const uchar *value= m_rows_buf; value < m_rows_end; )
+  {
+    size_t length;
+    my_b_printf(file, "### %s %s.%s\n",
+                      sql_command,
+                      map->get_db_name(), map->get_table_name());
+    /* Print the first image */
+    if (!(length= print_verbose_one_row(file, td, print_event_info,
+                                  &m_cols, value,
+                                  (const uchar*) sql_clause1)))
+      goto end;
+    value+= length;
+
+    /* Print the second image (for UPDATE only) */
+    if (sql_clause2)
+    {
+      if (!(length= print_verbose_one_row(file, td, print_event_info,
+                                      &m_cols_ai, value,
+                                      (const uchar*) sql_clause2)))
+        goto end;
+      value+= length;
+    }
+  }
+
+end:
+  delete td;
+}
+
+#ifdef MYSQL_CLIENT
+void free_table_map_log_event(Table_map_log_event *event)
+{
+  delete event;
+}
+#endif
+
 void Log_event::print_base64(IO_CACHE* file,
                              PRINT_EVENT_INFO* print_event_info,
                              bool more)
@@ -1374,14 +1910,51 @@ void Log_event::print_base64(IO_CACHE* file,
     DBUG_ASSERT(0);
   }
 
-  if (my_b_tell(file) == 0)
-    my_b_printf(file, "\nBINLOG '\n");
+  if (print_event_info->base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
+  {
+    if (my_b_tell(file) == 0)
+      my_b_printf(file, "\nBINLOG '\n");
 
-  my_b_printf(file, "%s\n", tmp_str);
+    my_b_printf(file, "%s\n", tmp_str);
 
-  if (!more)
-    my_b_printf(file, "'%s\n", print_event_info->delimiter);
-
+    if (!more)
+      my_b_printf(file, "'%s\n", print_event_info->delimiter);
+  }
+  
+  if (print_event_info->verbose)
+  {
+    Rows_log_event *ev= NULL;
+    
+    if (ptr[4] == TABLE_MAP_EVENT)
+    {
+      Table_map_log_event *map; 
+      map= new Table_map_log_event((const char*) ptr, size, 
+                                   glob_description_event);
+      print_event_info->m_table_map.set_table(map->get_table_id(), map);
+    }
+    else if (ptr[4] == WRITE_ROWS_EVENT)
+    {
+      ev= new Write_rows_log_event((const char*) ptr, size,
+                                   glob_description_event);
+    }
+    else if (ptr[4] == DELETE_ROWS_EVENT)
+    {
+      ev= new Delete_rows_log_event((const char*) ptr, size,
+                                    glob_description_event);
+    }
+    else if (ptr[4] == UPDATE_ROWS_EVENT)
+    {
+      ev= new Update_rows_log_event((const char*) ptr, size,
+                                    glob_description_event);
+    }
+    
+    if (ev)
+    {
+      ev->print_verbose(file, print_event_info);
+      delete ev;
+    }
+  }
+    
   my_free(tmp_str, MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -2679,7 +3252,8 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       print_event_info->base64_output_mode != BASE64_OUTPUT_NEVER &&
       !print_event_info->short_form)
   {
-    my_b_printf(&cache, "BINLOG '\n");
+    if (print_event_info->base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
+      my_b_printf(&cache, "BINLOG '\n");
     print_base64(&cache, print_event_info, FALSE);
     print_event_info->printed_fd_event= TRUE;
   }
@@ -4869,8 +5443,14 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
+
+    Fix_fields() can fail, in which case a call of update_hash() might
+    crash the server, so if fix fields fails, we just return with an
+    error.
   */
-  e.fix_fields(thd, 0);
+  if (e.fix_fields(thd, 0))
+    return 1;
+
   /*
     A variable can just be considered as a table with
     a single record and with a single column. Thus, like
