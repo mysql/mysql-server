@@ -44,12 +44,6 @@ FOREACH(rpath ${ZLIB_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../zlib/${rpath})
 ENDFOREACH(rpath)
 
-# FIXME only needed if build type is "Debug", but CMAKE_BUILD_TYPE is
-# not set during configure time.
-INCLUDE(${CMAKE_SOURCE_DIR}/dbug/CMakeLists.txt)
-FOREACH(rpath ${DBUG_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../dbug/${rpath})
-ENDFOREACH(rpath)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/CMakeLists.txt)
 FOREACH(rpath ${TAOCRYPT_SOURCES})
@@ -61,19 +55,9 @@ FOREACH(rpath ${YASSL_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../extra/yassl/${rpath})
 ENDFOREACH(rpath)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/strings/CMakeLists.txt)
-FOREACH(rpath ${STRINGS_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../strings/${rpath})
-ENDFOREACH(rpath)
-
 INCLUDE(${CMAKE_SOURCE_DIR}/regex/CMakeLists.txt)
 FOREACH(rpath ${REGEX_SOURCES})
   SET(LIB_SOURCES ${LIB_SOURCES} ../regex/${rpath})
-ENDFOREACH(rpath)
-
-INCLUDE(${CMAKE_SOURCE_DIR}/mysys/CMakeLists.txt)
-FOREACH(rpath ${MYSYS_SOURCES})
-  SET(LIB_SOURCES ${LIB_SOURCES} ../mysys/${rpath})
 ENDFOREACH(rpath)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/vio/CMakeLists.txt)
@@ -139,6 +123,12 @@ IF(WITH_CSV_STORAGE_ENGINE)
   ENDFOREACH(rpath)
 ENDIF(WITH_CSV_STORAGE_ENGINE)
 
+IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+  FOREACH(rpath ${NDB_HANDLER_SRC})
+    SET(LIB_SOURCES ${LIB_SOURCES} ../sql/${rpath})
+  ENDFOREACH(rpath)
+ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+
 SET(SOURCE_SUBLIBS FALSE)
                             
 SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc 
@@ -199,3 +189,12 @@ TARGET_LINK_LIBRARIES(mysqlserver)
 ADD_LIBRARY(libmysqld MODULE cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
 TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
+
+ADD_DEPENDENCIES(libmysqld dbug mysys strings)
+TARGET_LINK_LIBRARIES(libmysqld dbug mysys strings)
+
+IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+  ADD_DEPENDENCIES(libmysqld ndbclient)
+  TARGET_LINK_LIBRARIES(libmysqld ndbclient)
+  INCLUDE_DIRECTORIES(${NDB_CLIENT_INCLUDES})
+ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)
