@@ -3709,6 +3709,9 @@ static int init_server_components()
 
   /* set up the hook before initializing plugins which may use it */
   error_handler_hook= my_message_sql;
+  proc_info_hook= (const char *(*)(void *, const char *, const char *,
+                                   const char *, const unsigned int))
+                  set_thd_proc_info;
 
   if (xid_cache_init())
   {

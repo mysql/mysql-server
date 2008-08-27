@@ -92,6 +92,15 @@ int (*error_handler_hook)(uint error,const char *str,myf MyFlags)=
 int (*fatal_error_handler_hook)(uint error,const char *str,myf MyFlags)=
   my_message_no_curses;
 
+static const char *proc_info_dummy(void *a, const char *b, const char *c,
+                                    const char *d, const unsigned int e)
+{
+  return 0;
+}
+
+const char *(*proc_info_hook)(void *, const char *, const char *, const char *,
+                              const unsigned int)= proc_info_dummy;
+
 #ifdef __WIN__
 /* from my_getsystime.c */
 ulonglong query_performance_frequency, query_performance_offset;
