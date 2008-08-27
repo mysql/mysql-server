@@ -151,9 +151,10 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
       my_errno=errno;
       sprintf(buff,"Out of memory at line %d, '%s'", lineno, filename);
       my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));
-      sprintf(buff,"needed %u byte (%ldk), memory in use: %ld bytes (%ldk)",
-	      (uint) size, (uint) (size + 1023L) / 1024L,
-	      sf_malloc_max_memory, (sf_malloc_max_memory + 1023L) / 1024L);
+      sprintf(buff,"needed %lu byte (%luk), memory in use: %lu bytes (%luk)",
+	      (ulong) size, (ulong) (size + 1023L) / 1024L,
+	      (ulong) sf_malloc_max_memory,
+	      (ulong) (sf_malloc_max_memory + 1023L) / 1024L);
       my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));
     }
     DBUG_PRINT("error",("Out of memory, in use: %ld at line %d, '%s'",
@@ -193,7 +194,7 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
   if ((MyFlags & MY_ZEROFILL) || !sf_malloc_quick)
     bfill(data, size, (char) (MyFlags & MY_ZEROFILL ? 0 : ALLOC_VAL));
   /* Return a pointer to the real data */
-  DBUG_PRINT("exit",("ptr: 0x%lx", (long) data));
+  DBUG_PRINT("exit",("ptr: %p", data));
   if (sf_min_adress > data)
     sf_min_adress= data;
   if (sf_max_adress < data)
@@ -258,7 +259,7 @@ void _myfree(void *ptr, const char *filename, uint lineno, myf myflags)
 {
   struct st_irem *irem;
   DBUG_ENTER("_myfree");
-  DBUG_PRINT("enter",("ptr: 0x%lx", (long) ptr));
+  DBUG_PRINT("enter",("ptr: %p", ptr));
 
   if (!sf_malloc_quick)
     (void) _sanity (filename, lineno);
@@ -391,12 +392,12 @@ void TERMINATE(FILE *file, uint flag)
   {
     if (file)
     {
-      fprintf(file, "Warning: Memory that was not free'ed (%ld bytes):\n",
-	      sf_malloc_cur_memory);
+      fprintf(file, "Warning: Memory that was not free'ed (%lu bytes):\n",
+	      (ulong) sf_malloc_cur_memory);
       (void) fflush(file);
     }
-    DBUG_PRINT("safe",("Memory that was not free'ed (%ld bytes):",
-		       sf_malloc_cur_memory));
+    DBUG_PRINT("safe",("Memory that was not free'ed (%lu bytes):",
+		       (ulong) sf_malloc_cur_memory));
     while (irem)
     {
       char *data= (((char*) irem) + ALIGN_SIZE(sizeof(struct st_irem)) +
@@ -404,27 +405,29 @@ void TERMINATE(FILE *file, uint flag)
       if (file)
       {
 	fprintf(file,
-		"\t%6u bytes at 0x%09lx, allocated at line %4u in '%s'",
-		irem->datasize, (long) data, irem->linenum, irem->filename);
+		"\t%6lu bytes at %p, allocated at line %4u in '%s'",
+		(ulong) irem->datasize, data, irem->linenum, irem->filename);
 	fprintf(file, "\n");
 	(void) fflush(file);
       }
       DBUG_PRINT("safe",
-		 ("%6u bytes at 0x%09lx, allocated at line %4d in '%s'",
-		  irem->datasize, (long) data, irem->linenum, irem->filename));
+		 ("%6lu bytes at %p, allocated at line %4d in '%s'",
+		  (ulong) irem->datasize,
+		  data, irem->linenum, irem->filename));
       irem= irem->next;
     }
   }
   /* Report the memory usage statistics */
   if (file && flag)
   {
-    fprintf(file, "Maximum memory usage: %ld bytes (%ldk)\n",
-	    sf_malloc_max_memory, (sf_malloc_max_memory + 1023L) / 1024L);
+    fprintf(file, "Maximum memory usage: %lu bytes (%luk)\n",
+	    (ulong) sf_malloc_max_memory,
+	    (ulong) (sf_malloc_max_memory + 1023L) / 1024L);
     (void) fflush(file);
   }
-  DBUG_PRINT("safe",("Maximum memory usage: %ld bytes (%ldk)",
-		     sf_malloc_max_memory, (sf_malloc_max_memory + 1023L) /
-		     1024L));
+  DBUG_PRINT("safe",("Maximum memory usage: %lu bytes (%luk)",
+		     (ulong) sf_malloc_max_memory,
+		     (ulong) (sf_malloc_max_memory + 1023L) /1024L));
   pthread_mutex_unlock(&THR_LOCK_malloc);
   DBUG_VOID_RETURN;
 }
@@ -446,8 +449,8 @@ void sf_malloc_report_allocated(void *memory)
                  sf_malloc_prehunc);
     if (data <= (char*) memory && (char*) memory <= data + irem->datasize)
     {
-      printf("%u bytes at 0x%lx, allocated at line %u in '%s'\n",
-             irem->datasize, (long) data, irem->linenum, irem->filename);
+      printf("%lu bytes at %p, allocated at line %u in '%s'\n",
+             (ulong) irem->datasize, data, irem->linenum, irem->filename);
       break;
     }
   }
@@ -470,8 +473,8 @@ static int _checkchunk(register struct st_irem *irem, const char *filename,
 	    irem->filename, irem->linenum);
     fprintf(stderr, " discovered at %s:%d\n", filename, lineno);
     (void) fflush(stderr);
-    DBUG_PRINT("safe",("Underrun at 0x%lx, allocated at %s:%d",
-		       (long) data, irem->filename, irem->linenum));
+    DBUG_PRINT("safe",("Underrun at %p, allocated at %s:%d",
+		       data, irem->filename, irem->linenum));
     flag=1;
   }
 
@@ -486,10 +489,8 @@ static int _checkchunk(register struct st_irem *irem, const char *filename,
 	    irem->filename, irem->linenum);
     fprintf(stderr, " discovered at '%s:%d'\n", filename, lineno);
     (void) fflush(stderr);
-    DBUG_PRINT("safe",("Overrun at 0x%lx, allocated at %s:%d",
-		       (long) data,
-		       irem->filename,
-		       irem->linenum));
+    DBUG_PRINT("safe",("Overrun at %p, allocated at %s:%d",
+		       data, irem->filename, irem->linenum));
     flag=1;
   }
   return(flag);
