@@ -233,7 +233,9 @@ Suma::execSTTOR(Signal* signal) {
   if(m_startphase == 3)
   {
     jam();
-    ndbrequire((m_tup = (Dbtup*)globalData.getBlock(DBTUP)) != 0);
+    // wl4391_todo something
+    Uint32 instanceNo = !isNdbMtLqh() ? 0 : 1;
+    ndbrequire((m_tup = (Dbtup*)globalData.getBlock(DBTUP, instanceNo)) != 0);
   }
 
   if(m_startphase == 5)
