@@ -134,7 +134,6 @@ INSERT INTO global_supressions VALUES
  ("Slave: According to the master's version"),
  ("Slave: Column [0-9]* type mismatch"),
  ("Slave: Error .* doesn't exist"),
- ("Slave: Error .*Deadlock found"),
  ("Slave: Error .*Unknown table"),
  ("Slave: Error in Write_rows event: "),
  ("Slave: Field .* of table .* has no default value"),
