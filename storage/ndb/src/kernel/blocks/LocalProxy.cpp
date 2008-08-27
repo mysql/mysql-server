@@ -745,6 +745,8 @@ LocalProxy::sendTIME_SIGNAL(Signal* signal, Uint32 ssId)
 void
 LocalProxy::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
+  if (ssQueue<Ss_CREATE_TRIG_IMPL_REQ>(signal))
+    return;
   const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
   Ss_CREATE_TRIG_IMPL_REQ& ss = ssSeize<Ss_CREATE_TRIG_IMPL_REQ>();
   ss.m_req = *req;
@@ -822,6 +824,8 @@ LocalProxy::sendCREATE_TRIG_IMPL_CONF(Signal* signal, Uint32 ssId)
 void
 LocalProxy::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
+  if (ssQueue<Ss_DROP_TRIG_IMPL_REQ>(signal))
+    return;
   const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
   Ss_DROP_TRIG_IMPL_REQ& ss = ssSeize<Ss_DROP_TRIG_IMPL_REQ>();
   ss.m_req = *req;
