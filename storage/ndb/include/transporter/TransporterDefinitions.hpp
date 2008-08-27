@@ -48,11 +48,11 @@ enum SendStatus {
  * the maximum receive message size to support online
  * upgrade
  * Maximum received size increased in :
- *   mysql-5.1-telco-6.3.17 from 16516 bytes to 32768
+ *   mysql-5.1-telco-6.3.18 from 16516 bytes to 32768
  * The maximum send size can be increased in a future
  * release to match the maximum receive size.  That
  * release will be unable to send messages to a release
- * lower than mysql-5.1-telco-6.3.17.
+ * lower than mysql-5.1-telco-6.3.18.
  * 
  */
 const Uint32 MAX_RECV_MESSAGE_BYTESIZE = 32768;
