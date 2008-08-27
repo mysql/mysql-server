@@ -80,6 +80,9 @@ void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
 void release(SegmentedSectionPtr & ptr);
 void releaseSection(Uint32 firstSegmentIVal);
 
+/* Internal verification */
+bool verifySection(Uint32 firstIVal, 
+                   SectionSegmentPool& thePool= g_sectionSegmentPool);
 
 #include "DataBuffer.hpp"
 
