@@ -460,3 +460,7 @@ setup_repl(atrt_config& config)
   }
   return true;
 }
+
+template static int find(atrt_host* obj, Vector<atrt_host*>& arr);
+template static int find(atrt_cluster* obj, Vector<atrt_cluster*>& arr);
+
