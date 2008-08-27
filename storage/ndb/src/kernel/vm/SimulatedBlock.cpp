@@ -319,7 +319,7 @@ linkSegments(Uint32 head, Uint32 tail){
                                "Bad head segment size",
                                "");
 #else
-    infoEvent("linkSegments : Bad head segment size");
+    ndbout_c("linkSegments : Bad head segment size");
 #endif
   }
 
