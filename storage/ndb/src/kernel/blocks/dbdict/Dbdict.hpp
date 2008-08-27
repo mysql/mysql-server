@@ -1516,9 +1516,14 @@ private:
   template <class T>
   inline bool
   seizeSchemaOp(SchemaOpPtr& op_ptr) {
-    Uint32 op_key = c_opRecordSequence + 1;
+    /*
+      Store node id in high 16 bits to make op_key globally unique
+     */
+    Uint32 op_key = 
+      (getOwnNodeId() << 24) +
+      (c_opRecordSequence + 1) & 0x00FFFFFF;
     if (seizeSchemaOp<T>(op_ptr, op_key)) {
-      c_opRecordSequence = op_key;
+      c_opRecordSequence++;
       return true;
     }
     return false;
