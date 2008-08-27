@@ -268,12 +268,9 @@ Qmgr::execSTART_ORD(Signal* signal)
     case NodeInfo::MGM:
       jam();
       /**
-       * Enable communication to MGM direcly
-       *   by setting ZFAIL_CLOSING (picked up in checkStartInterface)
+       * cmvmi allows ndb_mgmd to connect directly
        */
-      cnt = 3;
-      nodePtr.p->phase = ZFAIL_CLOSING;
-      nodePtr.p->failState = NORMAL;
+      nodePtr.p->phase = ZAPI_INACTIVE;
       break;
     default:
       jam();
