@@ -45,7 +45,12 @@ $(top_builddir)/include/mysqld_ername.h: $(top_builddir)/include/mysqld_error.h
 $(top_builddir)/include/sql_state.h: $(top_builddir)/include/mysqld_error.h
 
 bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
-			resolve_stack_dump mysql_waitpid innochecksum
+			resolve_stack_dump mysql_waitpid 
+# "innochecksum" should be switched
+if BUILD_INNODB_TOOLS
+bin_PROGRAMS += innochecksum
+endif
+
 noinst_PROGRAMS =	charset2html
 EXTRA_DIST =	CMakeLists.txt
 
