@@ -437,7 +437,7 @@ SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
 set @@global.slave_exec_mode= default;
 Last_SQL_Error
-0
+
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
 **** Test for BUG#37076 ****
@@ -451,3 +451,72 @@ SELECT * FROM t1;
 a	b	c
 2005-11-14 01:01:01	2005-11-14 01:01:02	2005-11-14
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8;
+CREATE TABLE t1 (i INT NOT NULL,
+c CHAR(16) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'MYISAM'  ;
+CREATE TABLE t2 (i INT NOT NULL,
+c CHAR(16) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'MYISAM'  ;
+ALTER TABLE t2 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+CREATE TABLE t3 (i INT NOT NULL,
+c CHAR(128) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'MYISAM'  ;
+ALTER TABLE t3 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+CREATE TABLE t4 (i INT NOT NULL,
+c CHAR(128) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'MYISAM'  ;
+CREATE TABLE t5 (i INT NOT NULL,
+c CHAR(255) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'MYISAM'  ;
+ALTER TABLE t5 MODIFY c CHAR(16) CHARACTER SET utf8 NOT NULL;
+CREATE TABLE t6 (i INT NOT NULL,
+c CHAR(255) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'MYISAM'  ;
+ALTER TABLE t6 MODIFY c CHAR(128) CHARACTER SET utf8 NOT NULL;
+CREATE TABLE t7 (i INT NOT NULL,
+c CHAR(255) CHARACTER SET utf8 NOT NULL,
+j INT NOT NULL) ENGINE = 'MYISAM'  ;
+[expecting slave to replicate correctly]
+INSERT INTO t1 VALUES (1, "", 1);
+INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
+Comparing tables master:test.t1 and slave:test.t1
+[expecting slave to replicate correctly]
+INSERT INTO t2 VALUES (1, "", 1);
+INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
+Comparing tables master:test.t2 and slave:test.t2
+[expecting slave to stop]
+INSERT INTO t3 VALUES (1, "", 1);
+INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
+Last_SQL_Error
+Table definition on master and slave does not match: Column 1 size mismatch - master has size 384, test.t3 on slave has size 49. Master's column size should be <= the slave's column size.
+RESET MASTER;
+STOP SLAVE;
+RESET SLAVE;
+START SLAVE;
+[expecting slave to replicate correctly]
+INSERT INTO t4 VALUES (1, "", 1);
+INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
+Comparing tables master:test.t4 and slave:test.t4
+[expecting slave to stop]
+INSERT INTO t5 VALUES (1, "", 1);
+INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
+Last_SQL_Error
+Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t5 on slave has size 49. Master's column size should be <= the slave's column size.
+RESET MASTER;
+STOP SLAVE;
+RESET SLAVE;
+START SLAVE;
+[expecting slave to stop]
+INSERT INTO t6 VALUES (1, "", 1);
+INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
+Last_SQL_Error
+Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t6 on slave has size 385. Master's column size should be <= the slave's column size.
+RESET MASTER;
+STOP SLAVE;
+RESET SLAVE;
+START SLAVE;
+[expecting slave to replicate correctly]
+INSERT INTO t7 VALUES (1, "", 1);
+INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
+Comparing tables master:test.t7 and slave:test.t7
+drop table t1, t2, t3, t4, t5, t6, t7;
