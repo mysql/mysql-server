@@ -1569,7 +1569,13 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     return false;
   }
-  DBUG_RETURN(t->connect_client(connect_ndb_mgmd(h)));
+
+  bool res = t->connect_client(connect_ndb_mgmd(h));
+  if (res == true)
+  {
+    performStates[mgm_nodeid] = TransporterRegistry::CONNECTED;
+  }
+  DBUG_RETURN(res);
 }
 
 /**
