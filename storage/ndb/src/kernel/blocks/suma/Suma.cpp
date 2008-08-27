@@ -1890,6 +1890,7 @@ Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     FragmentDescriptor fd;
     fd.m_fragDesc.m_nodeId = conf->nodes[0];
     fd.m_fragDesc.m_fragmentNo = fragNo;
+    fd.m_fragDesc.m_lqhInstanceKey = conf->instanceKey;
     signal->theData[2] = fd.m_dummy;
     fragBuf.append(&signal->theData[2], 1);
   }
@@ -2139,6 +2140,9 @@ Suma::SyncRecord::nextScan(Signal* signal)
  
   DataBuffer<15>::Head head = m_attributeList;
   LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, head);
+
+  Uint32 instanceKey = fd.m_fragDesc.m_lqhInstanceKey;
+  BlockReference lqhRef = numberToRef(DBLQH, instanceKey, suma.getOwnNodeId());
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
   const Uint32 parallelism = 16;
@@ -2173,7 +2177,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   req->batch_size_rows= parallelism;
 
   req->batch_size_bytes= 0;
-  suma.sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal, 
+  suma.sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal, 
 		  ScanFragReq::SignalLength, JBB);
   
   signal->theData[0] = ptrI;
@@ -2192,12 +2196,12 @@ Suma::SyncRecord::nextScan(Signal* signal)
   for(attrBuf.first(it); !it.curr.isNull(); attrBuf.next(it)){
     AttributeHeader::init(&signal->theData[dataPos++], * it.data, 0);
     if(dataPos == 25){
-      suma.sendSignal(DBLQH_REF, GSN_ATTRINFO, signal, 25, JBB);
+      suma.sendSignal(lqhRef, GSN_ATTRINFO, signal, 25, JBB);
       dataPos = 3;
     }
   }
   if(dataPos != 3){
-    suma.sendSignal(DBLQH_REF, GSN_ATTRINFO, signal, dataPos, JBB);
+    suma.sendSignal(lqhRef, GSN_ATTRINFO, signal, dataPos, JBB);
   }
   
   m_currentNoOfAttributes = attrBuf.getSize();        
@@ -2230,7 +2234,7 @@ Suma::execSCAN_FRAGCONF(Signal* signal){
   Ptr<SyncRecord> syncPtr;
   c_syncPool.getPtr(syncPtr, senderData);
   
-  if(completed != 2){
+  if(completed != 2){ // 2==ZSCAN_FRAG_CLOSED
     jam();
     
 #if PRINT_ONLY
@@ -2275,6 +2279,20 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
 
   ndbrequire(c_subscriptions.find(subPtr, key));
 
+  Uint32 instanceKey;
+  {
+    Ptr<SyncRecord> syncPtr;
+    c_syncPool.getPtr(syncPtr, syncPtrI);
+    LocalDataBuffer<15> fragBuf(c_dataBufferPool, syncPtr.p->m_fragments);
+    DataBuffer<15>::DataBufferIterator fragIt;
+    bool ok = fragBuf.position(fragIt, syncPtr.p->m_currentFragment);
+    ndbrequire(ok);
+    FragmentDescriptor tmp;
+    tmp.m_dummy = * fragIt.data;
+    instanceKey = tmp.m_fragDesc.m_lqhInstanceKey;
+  }
+  BlockReference lqhRef = numberToRef(DBLQH, instanceKey, getOwnNodeId());
+
   ScanFragNextReq * req = (ScanFragNextReq *)signal->getDataPtrSend();
   req->senderData = syncPtrI;
   req->closeFlag = 0;
@@ -2282,7 +2300,7 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
   req->transId2 = (SUMA << 20) + (getOwnNodeId() << 8);
   req->batch_size_rows = 16;
   req->batch_size_bytes = 0;
-  sendSignal(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
+  sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 	     ScanFragNextReq::SignalLength, JBB);
 }
 

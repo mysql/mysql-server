@@ -66,6 +66,16 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
 
   // GSN_TIME_SIGNAL
   addRecSignal(GSN_TIME_SIGNAL, &LocalProxy::execTIME_SIGNAL);
+
+  // GSN_CREATE_TRIG_IMPL_REQ
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &LocalProxy::execCREATE_TRIG_IMPL_REQ);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &LocalProxy::execCREATE_TRIG_IMPL_CONF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &LocalProxy::execCREATE_TRIG_IMPL_REF);
+
+  // GSN_DROP_TRIG_IMPL_REQ
+  addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &LocalProxy::execDROP_TRIG_IMPL_REQ);
+  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &LocalProxy::execDROP_TRIG_IMPL_CONF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &LocalProxy::execDROP_TRIG_IMPL_REF);
 }
 
 LocalProxy::~LocalProxy()
@@ -728,6 +738,158 @@ LocalProxy::sendTIME_SIGNAL(Signal* signal, Uint32 ssId)
   signal->theData[0] = 0;
   sendSignal(workerRef(ss.m_worker), GSN_TIME_SIGNAL,
              signal, 1, JBB);
+}
+
+// GSN_CREATE_TRIG_IMPL_REQ
+
+void
+LocalProxy::execCREATE_TRIG_IMPL_REQ(Signal* signal)
+{
+  const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
+  Ss_CREATE_TRIG_IMPL_REQ& ss = ssSeize<Ss_CREATE_TRIG_IMPL_REQ>();
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == CreateTrigImplReq::SignalLength);
+  sendREQ(signal, ss);
+}
+
+void
+LocalProxy::sendCREATE_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_CREATE_TRIG_IMPL_REQ& ss = ssFind<Ss_CREATE_TRIG_IMPL_REQ>(ssId);
+
+  CreateTrigImplReq* req = (CreateTrigImplReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId;
+  sendSignal(workerRef(ss.m_worker), GSN_CREATE_TRIG_IMPL_REQ,
+             signal, CreateTrigImplReq::SignalLength, JBB);
+}
+
+void
+LocalProxy::execCREATE_TRIG_IMPL_CONF(Signal* signal)
+{
+  const CreateTrigImplConf* conf = (const CreateTrigImplConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_CREATE_TRIG_IMPL_REQ& ss = ssFind<Ss_CREATE_TRIG_IMPL_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::execCREATE_TRIG_IMPL_REF(Signal* signal)
+{
+  const CreateTrigImplRef* ref = (const CreateTrigImplRef*)signal->getDataPtr();
+  Uint32 ssId = ref->senderData;
+  Ss_CREATE_TRIG_IMPL_REQ& ss = ssFind<Ss_CREATE_TRIG_IMPL_REQ>(ssId);
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+LocalProxy::sendCREATE_TRIG_IMPL_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_CREATE_TRIG_IMPL_REQ& ss = ssFind<Ss_CREATE_TRIG_IMPL_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    jam();
+    CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+    conf->tableId = ss.m_req.tableId;
+    conf->triggerId = ss.m_req.triggerId;
+    conf->triggerInfo = ss.m_req.triggerInfo;
+    sendSignal(dictRef, GSN_CREATE_TRIG_IMPL_CONF,
+               signal, CreateTrigImplConf::SignalLength, JBB);
+  } else {
+    CreateTrigImplRef* ref = (CreateTrigImplRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->tableId = ss.m_req.tableId;
+    ref->triggerId = ss.m_req.triggerId;
+    ref->triggerInfo = ss.m_req.triggerInfo;
+    ref->errorCode = ss.m_error;
+    sendSignal(dictRef, GSN_CREATE_TRIG_IMPL_REF,
+               signal, CreateTrigImplRef::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_CREATE_TRIG_IMPL_REQ>(ssId);
+}
+
+// GSN_DROP_TRIG_IMPL_REQ
+
+void
+LocalProxy::execDROP_TRIG_IMPL_REQ(Signal* signal)
+{
+  const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
+  Ss_DROP_TRIG_IMPL_REQ& ss = ssSeize<Ss_DROP_TRIG_IMPL_REQ>();
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == DropTrigImplReq::SignalLength);
+  sendREQ(signal, ss);
+}
+
+void
+LocalProxy::sendDROP_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_DROP_TRIG_IMPL_REQ& ss = ssFind<Ss_DROP_TRIG_IMPL_REQ>(ssId);
+
+  DropTrigImplReq* req = (DropTrigImplReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId;
+  sendSignal(workerRef(ss.m_worker), GSN_DROP_TRIG_IMPL_REQ,
+             signal, DropTrigImplReq::SignalLength, JBB);
+}
+
+void
+LocalProxy::execDROP_TRIG_IMPL_CONF(Signal* signal)
+{
+  const DropTrigImplConf* conf = (const DropTrigImplConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_DROP_TRIG_IMPL_REQ& ss = ssFind<Ss_DROP_TRIG_IMPL_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::execDROP_TRIG_IMPL_REF(Signal* signal)
+{
+  const DropTrigImplRef* ref = (const DropTrigImplRef*)signal->getDataPtr();
+  Uint32 ssId = ref->senderData;
+  Ss_DROP_TRIG_IMPL_REQ& ss = ssFind<Ss_DROP_TRIG_IMPL_REQ>(ssId);
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+LocalProxy::sendDROP_TRIG_IMPL_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_DROP_TRIG_IMPL_REQ& ss = ssFind<Ss_DROP_TRIG_IMPL_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    jam();
+    DropTrigImplConf* conf = (DropTrigImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+    conf->tableId = ss.m_req.tableId;
+    conf->triggerId = ss.m_req.triggerId;
+    sendSignal(dictRef, GSN_DROP_TRIG_IMPL_CONF,
+               signal, DropTrigImplConf::SignalLength, JBB);
+  } else {
+    DropTrigImplRef* ref = (DropTrigImplRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->tableId = ss.m_req.tableId;
+    ref->triggerId = ss.m_req.triggerId;
+    ref->errorCode = ss.m_error;
+    sendSignal(dictRef, GSN_DROP_TRIG_IMPL_REF,
+               signal, DropTrigImplRef::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_DROP_TRIG_IMPL_REQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(LocalProxy)
