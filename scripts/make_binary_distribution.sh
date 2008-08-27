@@ -272,6 +272,8 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   if [ -d man ] ; then
     $CP man/*.1 $BASE/man/man1
     $CP man/*.8 $BASE/man/man8
+    # In a Unix binary package, these tools and their manuals are not useful
+    rm -f $BASE/man/man1/make_win_*
   fi
 fi
 
@@ -331,6 +333,7 @@ fi
 
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh \
     $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution \
+    $BASE/bin/make_win_* \
     $BASE/bin/setsomevars $BASE/support-files/Makefile* \
     $BASE/support-files/*.sh
 

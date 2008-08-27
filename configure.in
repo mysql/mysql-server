@@ -2810,6 +2810,9 @@ EOF
     AC_CONFIG_SUBDIRS(innobase)
   fi
 
+  # "innochecksum" is not in the "innobase/" subdirectory, but should be switched
+  AM_CONDITIONAL([BUILD_INNODB_TOOLS], [test X"$have_innodb" = Xyes])
+
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
   *solaris*-i?86-no-yes)
   if $CC -xildon 2>&1 | grep "illegal option" >/dev/null
