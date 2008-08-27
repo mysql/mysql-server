@@ -245,6 +245,7 @@ private:
   /* Structure used to collect information about an IndexBound
    * as it is provided by the old Api setBound() calls
    */
+public:
   struct OldApiBoundInfo
   {
     Uint32 highestKey;
@@ -253,6 +254,7 @@ private:
     char* key;
   };
 
+private:
   struct OldApiScanRangeDefinition
   {
     /* OldApiBoundInfo used during definition

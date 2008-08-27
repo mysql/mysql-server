@@ -318,7 +318,7 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigImplReq* req)
 
     tptr.p->monitorAllAttributes = TriggerInfo::getMonitorAllAttributes(tinfo);
     tptr.p->monitorReplicas = TriggerInfo::getMonitorReplicas(tinfo);
-    tptr.p->m_receiverBlock = refToBlock(req->receiverRef);
+    tptr.p->m_receiverRef = req->receiverRef;
 
     if (tptr.p->monitorAllAttributes)
     {
@@ -420,7 +420,7 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber send
       if (ptr.p->triggerId == triggerId)
       {
 	if(ttype==TriggerType::SUBSCRIPTION &&
-	   sender != ptr.p->m_receiverBlock)
+	   sender != refToBlock(ptr.p->m_receiverRef))
 	{
 	  /**
 	   * You can only drop your own triggers for subscription triggers.
@@ -874,7 +874,7 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
       }
   */
   Signal* signal= req_struct->signal;
-  BlockReference ref = trigPtr->m_receiverBlock;
+  BlockReference ref = trigPtr->m_receiverRef;
   Uint32* const keyBuffer = &cinBuffer[0];
   Uint32* const afterBuffer = &coutBuffer[0];
   Uint32* const beforeBuffer = &clogMemBuffer[0];
@@ -886,7 +886,7 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
   Fragrecord::FragState fragstatus = regFragPtr.p->fragStatus;
 
-  if (ref == BACKUP) {
+  if (refToMain(ref) == BACKUP) {
     jam();
     /*
     In order for the implementation of BACKUP to work even when changing
@@ -953,8 +953,9 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   case (TriggerType::SUBSCRIPTION_BEFORE):
     jam();
     // Since only backup uses subscription triggers we send to backup directly for now
-    ref = trigPtr->m_receiverBlock;
-    executeDirect = true;
+    ref = trigPtr->m_receiverRef;
+    // executeDirect = !isNdbMtLqh() || (refToMain(ref) != SUMA);
+    executeDirect = refToInstance(ref) == instance();
     break;
   case (TriggerType::READ_ONLY_CONSTRAINT):
     terrorCode = ZREAD_ONLY_CONSTRAINT_VIOLATION;
@@ -1174,7 +1175,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     req_struct->m_tuple_ptr= save;
     ndbrequire(ret != -1);
     noBeforeWords = ret;
-    if (trigPtr->m_receiverBlock != SUMA &&
+    if (refToMain(trigPtr->m_receiverRef) != SUMA &&
         (noAfterWords == noBeforeWords) &&
         (memcmp(afterBuffer, beforeBuffer, noAfterWords << 2) == 0)) {
 //--------------------------------------------------------------------
@@ -1209,7 +1210,7 @@ void Dbtup::sendTrigAttrInfo(Signal* signal,
                      sigLen);
     if (executeDirect) {
       jam();
-      EXECUTE_DIRECT(receiverReference, 
+      EXECUTE_DIRECT(refToMain(receiverReference), 
                      GSN_TRIG_ATTRINFO,
                      signal,
 		     TrigAttrInfo::StaticLength + sigLen);
@@ -1275,23 +1276,25 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
     break;
   case (TriggerType::SUBSCRIPTION_BEFORE): // Only Suma
     jam();
-    // Since only backup uses subscription triggers we 
-    // send to backup directly for now
     fireTrigOrd->setGCI(req_struct->gci_hi);
     fireTrigOrd->setHashValue(req_struct->hash_value);
     fireTrigOrd->m_any_value = regOperPtr->m_any_value;
     fireTrigOrd->m_gci_lo = req_struct->gci_lo;
-    EXECUTE_DIRECT(trigPtr->m_receiverBlock,
-                   GSN_FIRE_TRIG_ORD,
-                   signal,
-		   FireTrigOrd::SignalLengthSuma);
+    if (refToInstance(trigPtr->m_receiverRef) == instance())
+      EXECUTE_DIRECT(refToMain(trigPtr->m_receiverRef),
+                     GSN_FIRE_TRIG_ORD,
+                     signal,
+                     FireTrigOrd::SignalLengthSuma);
+    else
+      sendSignal(trigPtr->m_receiverRef, GSN_FIRE_TRIG_ORD,
+                 signal, FireTrigOrd::SignalLengthSuma, JBB);
     break;
   case (TriggerType::SUBSCRIPTION):
     jam();
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
     fireTrigOrd->setGCI(req_struct->gci_hi);
-    EXECUTE_DIRECT(trigPtr->m_receiverBlock,
+    EXECUTE_DIRECT(refToMain(trigPtr->m_receiverRef),
                    GSN_FIRE_TRIG_ORD,
                    signal,
 		   FireTrigOrd::SignalWithGCILength);

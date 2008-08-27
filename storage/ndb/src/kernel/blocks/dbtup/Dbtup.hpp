@@ -897,9 +897,9 @@ struct TupTriggerData {
   TriggerActionTime::Value triggerActionTime;
   TriggerEvent::Value triggerEvent;
   /**
-   * Receiver block
+   * Receiver block reference
    */
-  Uint32 m_receiverBlock;
+  Uint32 m_receiverRef;
   
   /**
    * Monitor all replicas, i.e. trigger will fire on all nodes where tuples
