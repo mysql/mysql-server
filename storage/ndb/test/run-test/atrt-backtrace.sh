@@ -8,6 +8,11 @@ then
     exit
 fi
 
+if [ -f `dirname $core`/env.sh ]
+then
+    . `dirname $core`/env.sh
+fi
+
 #
 # gdb command file
 #
