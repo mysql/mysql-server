@@ -70,7 +70,6 @@ REGRESSION_TESTS = \
 	cachetable-flush-test \
 	cachetable-count-pinned-test \
 	cachetable-checkpoint-test \
-	cachetable-debug-test \
 	fifo-test \
 	list-test \
 	keyrange \
