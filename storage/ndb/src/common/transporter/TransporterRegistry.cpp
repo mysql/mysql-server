@@ -1388,7 +1388,7 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
   bool res = t->connect_client(connect_ndb_mgmd(h));
   if (res == true)
   {
-    performStates[mgm_nodeid] = TransporterRegistry::CONNECTED;
+    performStates[mgm_nodeid] = TransporterRegistry::CONNECTING;
   }
   DBUG_RETURN(res);
 }
