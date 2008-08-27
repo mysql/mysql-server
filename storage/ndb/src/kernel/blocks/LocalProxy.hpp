@@ -25,6 +25,8 @@
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 
 /*
  * Proxy blocks for MT LQH.
@@ -395,6 +397,44 @@ protected:
   SsPool<Ss_TIME_SIGNAL> c_ss_TIME_SIGNAL;
   void execTIME_SIGNAL(Signal*);
   void sendTIME_SIGNAL(Signal*, Uint32 ssId);
+
+  // GSN_CREATE_TRIG_IMPL_REQ
+  struct Ss_CREATE_TRIG_IMPL_REQ : SsParallel {
+    CreateTrigImplReq m_req;
+    Ss_CREATE_TRIG_IMPL_REQ() {
+      m_sendREQ = &LocalProxy::sendCREATE_TRIG_IMPL_REQ;
+      m_sendCONF = &LocalProxy::sendCREATE_TRIG_IMPL_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_CREATE_TRIG_IMPL_REQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_CREATE_TRIG_IMPL_REQ;
+    }
+  };
+  SsPool<Ss_CREATE_TRIG_IMPL_REQ> c_ss_CREATE_TRIG_IMPL_REQ;
+  void execCREATE_TRIG_IMPL_REQ(Signal*);
+  void sendCREATE_TRIG_IMPL_REQ(Signal*, Uint32 ssId);
+  void execCREATE_TRIG_IMPL_CONF(Signal*);
+  void execCREATE_TRIG_IMPL_REF(Signal*);
+  void sendCREATE_TRIG_IMPL_CONF(Signal*, Uint32 ssId);
+
+  // GSN_DROP_TRIG_IMPL_REQ
+  struct Ss_DROP_TRIG_IMPL_REQ : SsParallel {
+    DropTrigImplReq m_req;
+    Ss_DROP_TRIG_IMPL_REQ() {
+      m_sendREQ = &LocalProxy::sendDROP_TRIG_IMPL_REQ;
+      m_sendCONF = &LocalProxy::sendDROP_TRIG_IMPL_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_DROP_TRIG_IMPL_REQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_DROP_TRIG_IMPL_REQ;
+    }
+  };
+  SsPool<Ss_DROP_TRIG_IMPL_REQ> c_ss_DROP_TRIG_IMPL_REQ;
+  void execDROP_TRIG_IMPL_REQ(Signal*);
+  void sendDROP_TRIG_IMPL_REQ(Signal*, Uint32 ssId);
+  void execDROP_TRIG_IMPL_CONF(Signal*);
+  void execDROP_TRIG_IMPL_REF(Signal*);
+  void sendDROP_TRIG_IMPL_CONF(Signal*, Uint32 ssId);
 };
 
 #endif
