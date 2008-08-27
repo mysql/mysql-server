@@ -81,7 +81,7 @@ public:
      * in a later start phase (for non-logged index).  On NR, the build
      * on this node takes place automatically during data copy.
      */
-    RF_NO_BUILD = (1 << 17),
+    RF_NO_BUILD = (1 << 17)
 
   };
 

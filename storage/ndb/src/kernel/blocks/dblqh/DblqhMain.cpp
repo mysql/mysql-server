@@ -20376,7 +20376,10 @@ Dblqh::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ, signal,
+  CreateTrigImplReq* req = (CreateTrigImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  BlockReference tupRef = calcInstanceBlockRef(DBTUP);
+  sendSignal(tupRef, GSN_CREATE_TRIG_IMPL_REQ, signal,
              CreateTrigImplReq::SignalLength, JBB);
 }
 
@@ -20385,7 +20388,8 @@ Dblqh::execCREATE_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_IMPL_CONF, signal,
+  BlockReference dictRef = !isNdbMtLqh() ? DBDICT_REF : DBLQH_REF;
+  sendSignal(dictRef, GSN_CREATE_TRIG_IMPL_CONF, signal,
              CreateTrigImplConf::SignalLength, JBB);
 }
 
@@ -20394,7 +20398,8 @@ Dblqh::execCREATE_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_IMPL_REF, signal,
+  BlockReference dictRef = !isNdbMtLqh() ? DBDICT_REF : DBLQH_REF;
+  sendSignal(dictRef, GSN_CREATE_TRIG_IMPL_REF, signal,
              CreateTrigImplRef::SignalLength, JBB);
 }
 
@@ -20403,7 +20408,10 @@ Dblqh::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ, signal,
+  DropTrigImplReq* req = (DropTrigImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  BlockReference tupRef = calcInstanceBlockRef(DBTUP);
+  sendSignal(tupRef, GSN_DROP_TRIG_IMPL_REQ, signal,
              DropTrigImplReq::SignalLength, JBB);
 }
 
@@ -20412,7 +20420,8 @@ Dblqh::execDROP_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_DROP_TRIG_IMPL_CONF, signal,
+  BlockReference dictRef = !isNdbMtLqh() ? DBDICT_REF : DBLQH_REF;
+  sendSignal(dictRef, GSN_DROP_TRIG_IMPL_CONF, signal,
              DropTrigImplConf::SignalLength, JBB);
 }
 
@@ -20421,7 +20430,8 @@ Dblqh::execDROP_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_DROP_TRIG_IMPL_REF, signal,
+  BlockReference dictRef = !isNdbMtLqh() ? DBDICT_REF : DBLQH_REF;
+  sendSignal(dictRef, GSN_DROP_TRIG_IMPL_REF, signal,
              DropTrigImplRef::SignalLength, JBB);
 }
 
