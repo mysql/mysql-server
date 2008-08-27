@@ -61,6 +61,9 @@ void linkSegments(Uint32 head, Uint32 tail);
 void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
 void releaseSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
 
+/* Internal verification */
+bool verifySection(Uint32 firstIVal, 
+                   SectionSegmentPool& thePool= g_sectionSegmentPool);
 
 #include "DataBuffer.hpp"
 
