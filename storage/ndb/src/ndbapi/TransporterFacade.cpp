@@ -1501,14 +1501,23 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
 {
   /* Use the GenericSection variant of sendFragmentedSignal */
   GenericSectionPtr tmpPtr[3];
-  LinearSectionIterator zero (ptr[0].p, ptr[0].sz);
-  LinearSectionIterator one  (ptr[1].p, ptr[1].sz);
-  LinearSectionIterator two  (ptr[2].p, ptr[2].sz);
-  tmpPtr[0].sz= ptr[0].sz;
+  LinearSectionPtr linCopy[3];
+  const LinearSectionPtr empty= {0, NULL};
+  
+  /* Make sure all of linCopy is initialised */
+  for (Uint32 j=0; j<3; j++)
+    linCopy[j]= (j < secs)? ptr[j] : empty;
+  
+  LinearSectionIterator zero (linCopy[0].p, linCopy[0].sz);
+  LinearSectionIterator one  (linCopy[1].p, linCopy[1].sz);
+  LinearSectionIterator two  (linCopy[2].p, linCopy[2].sz);
+
+  /* Build GenericSectionPtr array using iterators */
+  tmpPtr[0].sz= linCopy[0].sz;
   tmpPtr[0].sectionIter= &zero;
-  tmpPtr[1].sz= ptr[1].sz;
+  tmpPtr[1].sz= linCopy[1].sz;
   tmpPtr[1].sectionIter= &one;
-  tmpPtr[2].sz= ptr[2].sz;
+  tmpPtr[2].sz= linCopy[2].sz;
   tmpPtr[2].sectionIter= &two;
 
   return sendFragmentedSignal(aSignal, aNode, tmpPtr, secs);
