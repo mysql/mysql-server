@@ -17,8 +17,15 @@
 #define TABLE_MAPPING_H
 
 /* Forward declarations */
+#ifndef MYSQL_CLIENT
 struct st_table;
 typedef st_table TABLE;
+#else
+class Table_map_log_event;
+typedef Table_map_log_event TABLE;
+void free_table_map_log_event(TABLE *table);
+#endif
+
 
 /*
   CLASS table_mapping
