@@ -89,6 +89,7 @@ static void wt_thd_release_self(TRN *trn)
     rc.type= &ma_rc_dup_unique;
     rc.value.ptr= trn;
     wt_thd_release(trn->wt, & rc);
+    trn->wt= 0;
   }
 }
 
@@ -296,8 +297,8 @@ TRN *trnman_new_trn(WT_THD *wt)
     }
     trnman_allocated_transactions++;
     pthread_mutex_init(&trn->state_lock, MY_MUTEX_INIT_FAST);
-    trn->wt= wt;
   }
+  trn->wt= wt;
   trn->pins= lf_hash_get_pins(&trid_to_trn);
   if (!trn->pins)
   {
@@ -415,17 +416,17 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
     }
   }
 
+  pthread_mutex_lock(&trn->state_lock);
+  trn->commit_trid= global_trid_generator;
+  wt_thd_release_self(trn);
+  pthread_mutex_unlock(&trn->state_lock);
+
   /*
     if transaction is committed and it was not the only active transaction -
     add it to the committed list
   */
   if (commit && active_list_min.next != &active_list_max)
   {
-    pthread_mutex_lock(&trn->state_lock);
-    trn->commit_trid= global_trid_generator;
-    wt_thd_release_self(trn);
-    pthread_mutex_unlock(&trn->state_lock);
-
     trn->next= &committed_list_max;
     trn->prev= committed_list_max.prev;
     trnman_committed_transactions++;
@@ -440,6 +441,7 @@ my_bool trnman_end_trn(TRN *trn, my_bool commit)
                                active_list_min.next != &active_list_max))
     res= -1;
   trnman_active_transactions--;
+
   pthread_mutex_unlock(&LOCK_trn_list);
 
   /* the rest is done outside of a critical section */
@@ -492,8 +494,6 @@ void trnman_free_trn(TRN *trn)
 
   pthread_mutex_lock(&trn->state_lock);
   trn->short_id= 0;
-  wt_thd_release_self(trn);
-  trn->wt= 0; /* just in case */
   pthread_mutex_unlock(&trn->state_lock);
 
   tmp.trn= pool;

@@ -214,12 +214,9 @@ void do_tests()
     ok_wait(1,2,1);
     ok_deadlock(2,0,2);
 
-    // FIXME remove wt_thd_dontwait calls below
-    wt_thd_dontwait(& thds[0].thd);
-    wt_thd_dontwait(& thds[1].thd);
-    wt_thd_dontwait(& thds[2].thd);
-    wt_thd_dontwait(& thds[3].thd);
     pthread_mutex_lock(&lock);
+    wt_thd_cond_timedwait(& thds[0].thd, &lock);
+    wt_thd_cond_timedwait(& thds[1].thd, &lock);
     wt_thd_release_all(& thds[0].thd);
     wt_thd_release_all(& thds[1].thd);
     wt_thd_release_all(& thds[2].thd);
@@ -252,7 +249,10 @@ void do_tests()
   do_one_test();
 
   test_kill_strategy(LATEST);
-  test_kill_strategy(RANDOM);
+  SKIP_BIG_TESTS(1)
+  {
+    test_kill_strategy(RANDOM);
+  }
   test_kill_strategy(YOUNGEST);
   test_kill_strategy(LOCKS);
 

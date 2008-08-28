@@ -182,23 +182,20 @@ int maria_write(MARIA_HA *info, uchar *record)
       {
         while (keyinfo->ck_insert(info,
                                   (*keyinfo->make_key)(info, &int_key, i,
-                                                        buff, record, filepos,
-                                                        info->trn->trid)))
+                                                       buff, record, filepos,
+                                                       info->trn->trid)))
         {
           TRN *blocker;
           DBUG_PRINT("error",("Got error: %d on write",my_errno));
           /*
-            explicit check for our own trid, because temp tables
-            aren't transactional and don't have a proper TRN so the code
-            below doesn't work for them
-            XXX a better test perhaps ?
+            explicit check to filter out temp tables, they aren't
+            transactional and don't have a proper TRN so the code
+            below doesn't work for them.
+            Also, filter out non-thread maria use, and table modified in
+            the same transaction.
           */
-          if (info->dup_key_trid == info->trn->trid)
-          {
-            if (local_lock_tree)
-              rw_unlock(&keyinfo->root_lock);
+          if (!local_lock_tree || info->dup_key_trid == info->trn->trid)
             goto err;
-          }
           blocker= trnman_trid_to_trn(info->trn, info->dup_key_trid);
           /*
             if blocker TRN was not found, it means that the conflicting
@@ -206,16 +203,16 @@ int maria_write(MARIA_HA *info, uchar *record)
             aborted, as it would have to wait on the key tree lock
             to remove the conflicting key it has inserted.
           */
-          if (local_lock_tree)
+          if (!blocker || blocker->commit_trid != ~(TrID)0)
+          { /* committed */
+            if (blocker)
+              pthread_mutex_unlock(& blocker->state_lock);
             rw_unlock(&keyinfo->root_lock);
-          if (!blocker)
-            goto err;
-          if (blocker->commit_trid != ~(TrID)0)
-          { /* committed, albeit recently */
-            pthread_mutex_unlock(& blocker->state_lock);
             goto err;
           }
-          { /* running. now we wait */
+          rw_unlock(&keyinfo->root_lock);
+          {
+            /* running. now we wait */
             WT_RESOURCE_ID rc;
             int res;
 
@@ -225,15 +222,26 @@ int maria_write(MARIA_HA *info, uchar *record)
             if (res != WT_OK)
             {
               pthread_mutex_unlock(& blocker->state_lock);
+              my_errno= HA_ERR_LOCK_DEADLOCK;
               goto err;
             }
-            res=wt_thd_cond_timedwait(info->trn->wt, & blocker->state_lock);
+            {
+              const char *old_proc_info= proc_info_hook(0,
+                    "waiting for a resource", __func__, __FILE__, __LINE__);
+
+              res= wt_thd_cond_timedwait(info->trn->wt, & blocker->state_lock);
+
+              proc_info_hook(0, old_proc_info, __func__, __FILE__, __LINE__);
+            }
             pthread_mutex_unlock(& blocker->state_lock);
             if (res != WT_OK)
+            {
+              my_errno= res == WT_TIMEOUT ? HA_ERR_LOCK_WAIT_TIMEOUT
+                                          : HA_ERR_LOCK_DEADLOCK;
               goto err;
+            }
           }
-          if (local_lock_tree)
-            rw_wrlock(&keyinfo->root_lock);
+          rw_wrlock(&keyinfo->root_lock);
         }
       }
 
@@ -643,7 +651,7 @@ static int w_search(register MARIA_HA *info, uint32 comp_flag, MARIA_KEY *key,
     {
       DBUG_PRINT("warning", ("Duplicate key"));
       /*
-        FIXME
+        TODO
         When the index will support true versioning - with multiple
         identical values in the UNIQUE index, invisible to each other -
         the following should be changed to "continue inserting keys, at the

@@ -586,6 +586,10 @@ THD::THD()
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.on= 1;
+  wt_thd_lazy_init(&transaction.wt, &variables.wt_deadlock_search_depth_short,
+                                    &variables.wt_timeout_short,
+                                    &variables.wt_deadlock_search_depth_long,
+                                    &variables.wt_timeout_long);
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif

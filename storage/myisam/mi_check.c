@@ -803,9 +803,9 @@ static int chk_index(HA_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 	(flag=ha_key_cmp(keyinfo->seg,info->lastkey,key,key_length,
 			 comp_flag, diff_pos)) >=0)
     {
-      DBUG_DUMP("old",(uchar*) info->lastkey, info->lastkey_length);
-      DBUG_DUMP("new",(uchar*) key, key_length);
-      DBUG_DUMP("new_in_page",(char*) old_keypos,(uint) (keypos-old_keypos));
+      DBUG_DUMP("old",info->lastkey, info->lastkey_length);
+      DBUG_DUMP("new",key, key_length);
+      DBUG_DUMP("new_in_page",old_keypos,(uint) (keypos-old_keypos));
 
       if (comp_flag & SEARCH_FIND && flag == 0)
 	mi_check_print_error(param,"Found duplicated key at page %s",llstr(page,llbuff));
@@ -874,8 +874,8 @@ static int chk_index(HA_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
       DBUG_PRINT("test",("page: %s  record: %s  filelength: %s",
 			 llstr(page,llbuff),llstr(record,llbuff2),
 			 llstr(info->state->data_file_length,llbuff3)));
-      DBUG_DUMP("key",(uchar*) key,key_length);
-      DBUG_DUMP("new_in_page",(char*) old_keypos,(uint) (keypos-old_keypos));
+      DBUG_DUMP("key",key,key_length);
+      DBUG_DUMP("new_in_page",old_keypos,(uint) (keypos-old_keypos));
       goto err;
     }
     param->record_checksum+=(ha_checksum) record;
@@ -4026,7 +4026,7 @@ static int sort_insert_key(MI_SORT_PARAM *sort_param,
       DBUG_RETURN(1);
     }
     a_length=2+nod_flag;
-    key_block->end_pos= (char*) anc_buff+2;
+    key_block->end_pos= anc_buff+2;
     lastkey=0;					/* No previous key in block */
   }
   else

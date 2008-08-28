@@ -1186,6 +1186,33 @@ insert into t2 values (repeat('x',28)), (repeat('p',21)), (repeat('k',241)),
 check table t2 extended;
 drop table t2;
 
+#
+# an example of a deadlock
+#
+set session  deadlock_timeout_long=60000000;
+create table t1 (a int unique) transactional=1;
+insert t1 values (1);
+lock table t1 write concurrent;
+insert t1 values (2);
+connect(con_d,localhost,root,,);
+set session  deadlock_timeout_long=60000000;
+lock table t1 write concurrent;
+insert t1 values (3);
+send insert t1 values (2);
+connection default;
+let $wait_condition=select count(*) = 1 from information_schema.processlist where state="waiting for a resource";
+--source include/wait_condition.inc
+--error ER_LOCK_DEADLOCK
+insert t1 values (3);
+unlock tables;
+connection con_d;
+--error ER_DUP_ENTRY
+reap;
+unlock tables;
+disconnect con_d;
+connection default;
+drop table t1;
+
 --disable_result_log
 --disable_query_log
 eval set global storage_engine=$default_engine, maria_page_checksum=$default_checksum;
