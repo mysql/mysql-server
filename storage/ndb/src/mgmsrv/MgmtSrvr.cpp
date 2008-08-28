@@ -1167,7 +1167,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       NdbNodeBitmask mask;
       mask.assign(NdbNodeBitmask::Size, rep->theNodes);
-      mask.bitAND(notstarted);
+      mask.bitANDC(notstarted);
       nodes.bitANDC(mask);
       
       if (singleUserNodeId == 0)

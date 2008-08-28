@@ -1235,7 +1235,7 @@ trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
   signal.theData[2] = (bytes/count);
   signal.header.theVerId_signalNumber = GSN_EVENT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
-  sendprioa(m_send_thr[nodeId],
+  sendlocal(m_send_thr[nodeId],
             &signalT.header, signalT.theData, NULL);
 }
 
@@ -2078,7 +2078,6 @@ mt_receiver_thread_main(void *thr_arg)
   struct thr_repository* rep = &g_thr_repository;
   struct thr_data* selfptr = (struct thr_data *)thr_arg;
   unsigned thr_no = selfptr->m_thr_no;
-  EmulatedJamBuffer thread_jam;
   Uint32& watchDogCounter = selfptr->m_watchdog_counter;
   Uint32 thrSignalId = 0;
 
@@ -2144,7 +2143,6 @@ mt_job_thread_main(void *thr_arg)
   struct thr_repository* rep = &g_thr_repository;
   struct thr_data* selfptr = (struct thr_data *)thr_arg;
   init_thread(selfptr);
-  EmulatedJamBuffer& thread_jam = selfptr->m_jam;
   Uint32& watchDogCounter = selfptr->m_watchdog_counter;
 
   unsigned thr_no = selfptr->m_thr_no;
@@ -2656,7 +2654,6 @@ ThreadConfig::init(EmulatorData *emulatorData)
 
 void ThreadConfig::ipControlLoop(Uint32 thread_index)
 {
-  unsigned int i;
   unsigned int thr_no;
   struct thr_repository* rep = &g_thr_repository;
   NdbThread *threads[MAX_THREADS];
@@ -2713,7 +2710,7 @@ ThreadConfig::doStart(NodeState::StartLevel startLevel)
   StartOrd * const  startOrd = (StartOrd *)&signalT.theData[0];
   startOrd->restartInfo = 0;
   
-  senddelay(block2ThreadId(CMVMI, 0), &signalT.header, 1);
+  sendprioa(block2ThreadId(CMVMI, 0), &signalT.header, signalT.theData, 0);
   return 0;
 }
 

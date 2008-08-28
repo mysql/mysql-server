@@ -54,7 +54,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
       const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
       const Uint32 messageLenBytes = ((Uint32)messageLen32) << 2;
 
-      if(messageLen32 == 0 || messageLen32 > MAX_MESSAGE_SIZE){
+      if(messageLenBytes == 0 || messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE){
         DEBUG("Message Size = " << messageLenBytes);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         return usedData;
@@ -136,7 +136,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
       
       const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
       const Uint32 messageLenBytes = ((Uint32)messageLen32) << 2;
-      if(messageLen32 == 0 || messageLen32 > MAX_MESSAGE_SIZE){
+      if(messageLenBytes == 0 || messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE){
 	DEBUG("Message Size = " << messageLenBytes);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         return usedData;
@@ -234,7 +234,9 @@ TransporterRegistry::unpack(Uint32 * readPtr,
       
       const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
       
-      if(messageLen32 == 0 || messageLen32 > MAX_MESSAGE_SIZE){
+      if(messageLen32 == 0 || 
+         messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2))
+      {
         DEBUG("Message Size(words) = " << messageLen32);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         return readPtr;
@@ -304,7 +306,9 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 #endif
       
       const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
-      if(messageLen32 == 0 || messageLen32 > MAX_MESSAGE_SIZE){
+      if(messageLen32 == 0 || 
+         messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2))
+      {
 	DEBUG("Message Size(words) = " << messageLen32);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         return readPtr;
@@ -400,13 +404,12 @@ importGeneric(Uint32 * & insertPtr, GenericSectionPtr & ptr){
   /* Use the section iterator to obtain the words in this section */
   Uint32 remain= ptr.sz;
 
-  ptr.sectionIter->reset();
-
   while (remain > 0)
   {
     Uint32 len= 0;
     Uint32* next= ptr.sectionIter->getNextWords(len);
 
+    assert(len <= remain);
     assert(next != NULL);
 
     memcpy(insertPtr, next, 4 * len);

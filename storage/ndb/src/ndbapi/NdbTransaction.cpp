@@ -639,6 +639,8 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
       if (tReturnCode == -1) {
         DBUG_VOID_RETURN;
       }//if
+      tcOp->postExecuteRelease(); // Release unneeded resources
+                                  // outside TP mutex
       tcOp = (NdbScanOperation*)tcOp->next();
     } // while
     m_theLastScanOperation->next(m_firstExecutedScanOp);

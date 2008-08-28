@@ -173,14 +173,13 @@ public:
   static Uint32 getLqhWorkers() { return globalData.ndbMtLqhWorkers; }
 
   /*
-   * Instance key (1-4, even if not MT LQH) is set in receiver block ref.
-   * The receiver maps it to a real instance (0, if not MT LQH).
+   * Instance key (1-4) is used only when sending a signal.  Receiver
+   * maps it to actual instance (0, if receiver is not MT LQH).
+   *
+   * For performance reason, DBTC gets instance key directly from DBDIH
+   * via DI*GET*NODES*REQ signals.
    */
-  Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
-
-  /* MT LQH log parts info for use by this node */
-  Uint32 getLogPartId(Uint32 tabId, Uint32 fragId);
-  bool isLogPartOwner(Uint32 worker, Uint32 logPartId);
+  static Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
 
 public:
   typedef void (SimulatedBlock::* CallbackFunction)(class Signal*, 
@@ -567,7 +566,7 @@ private:
   Uint16       theBATSize;     /* # entries in BAT */
 
 protected:  
-  ArrayPool<GlobalPage>& m_global_page_pool;
+  SafeArrayPool<GlobalPage>& m_global_page_pool;
   ArrayPool<GlobalPage>& m_shared_page_pool;
   
   void execNDB_TAMPER(Signal * signal);
@@ -890,6 +889,21 @@ SimulatedBlock::setNodeVersionInfo() {
   return globalData.m_versionInfo;
 }
 
+#ifdef VM_TRACE_TIME
+inline
+void
+SimulatedBlock::addTime(Uint32 gsn, Uint64 time){
+  m_timeTrace[gsn].cnt ++;
+  m_timeTrace[gsn].sum += time;
+}
+
+inline
+void
+SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
+  m_timeTrace[gsn].sub += time;
+}
+#endif
+
 inline
 void
 SimulatedBlock::EXECUTE_DIRECT(Uint32 block, 
@@ -959,23 +973,6 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   }
 #endif
 }
-
-#ifdef VM_TRACE_TIME
-inline
-void
-SimulatedBlock::addTime(Uint32 gsn, Uint64 time){
-  m_timeTrace[gsn].cnt ++;
-  m_timeTrace[gsn].sum += time;
-}
-
-inline
-void
-SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
-  // wl4391_todo got 0xf3f3f3f3 here on GSN_UPGRADE_PROTOCOL_ORD...
-  if (gsn < 0xffff)
-  m_timeTrace[gsn].sub += time;
-}
-#endif
 
 /**
  * Defines for backward compatiblility

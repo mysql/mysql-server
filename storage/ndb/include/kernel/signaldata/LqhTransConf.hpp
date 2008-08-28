@@ -32,6 +32,7 @@ class LqhTransConf {
    * Sender(s)
    */
   friend class Dblqh;      
+  friend class DblqhProxy;      
 
   friend bool printLQH_TRANSCONF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:

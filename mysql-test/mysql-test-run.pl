@@ -797,11 +797,11 @@ sub command_line_setup () {
 				       "$glob_basedir/bin");
 
   # Look for language files and charsetsdir, use same share
-  $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
-                                    "$glob_basedir/sql/share",
-                                    "$glob_basedir/share");
+  $path_language=   mtr_path_exists("$glob_basedir/share/mysql/english",
+                                    "$glob_basedir/sql/share/english",
+                                    "$glob_basedir/share/english");
 
-  $path_language=      mtr_path_exists("$path_share/english");
+  $path_share= dirname($path_language);
   $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
 
 

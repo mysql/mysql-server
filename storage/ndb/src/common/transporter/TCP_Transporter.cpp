@@ -146,11 +146,11 @@ TCP_Transporter::initTransporter() {
   // Let it be the maximum size we receive plus 8 kB for any earlier received
   // incomplete messages (slack)
   Uint32 recBufSize = maxReceiveSize;
-  if(recBufSize < MAX_MESSAGE_SIZE){
-    recBufSize = MAX_MESSAGE_SIZE;
+  if(recBufSize < MAX_RECV_MESSAGE_BYTESIZE){
+    recBufSize = MAX_RECV_MESSAGE_BYTESIZE;
   }
   
-  if(!receiveBuffer.init(recBufSize+MAX_MESSAGE_SIZE)){
+  if(!receiveBuffer.init(recBufSize+MAX_RECV_MESSAGE_BYTESIZE)){
     return false;
   }
   
@@ -163,7 +163,7 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
 	int val)
 {
   int actual = 0, defval = 0;
-  socklen_t len = sizeof(actual);
+  SOCKET_SIZE_TYPE len = sizeof(actual);
 
   my_getsockopt(fd, level, optval, (char*)&defval, &len);
 

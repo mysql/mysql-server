@@ -593,7 +593,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	 
     if(t->isConnected()){
       Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_MESSAGE_SIZE){
+      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
 	Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	if(insertPtr != 0){
 	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
@@ -666,7 +666,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
     
     if(t->isConnected()){
       Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_MESSAGE_SIZE){
+      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
 	Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	if(insertPtr != 0){
 	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, thePool, ptr);
@@ -739,7 +739,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	 
     if(t->isConnected()){
       Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
-      if(lenBytes <= MAX_MESSAGE_SIZE){
+      if(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE){
         Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
         if(insertPtr != 0){
           t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
@@ -1753,7 +1753,13 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     return false;
   }
-  DBUG_RETURN(t->connect_client(connect_ndb_mgmd(h)));
+
+  bool res = t->connect_client(connect_ndb_mgmd(h));
+  if (res == true)
+  {
+    performStates[mgm_nodeid] = TransporterRegistry::CONNECTING;
+  }
+  DBUG_RETURN(res);
 }
 
 /**

@@ -1342,6 +1342,10 @@ public:
      *       occuring during system/node restart.
      */
     Uint16 invalidatePageNo;
+    /**
+     *       For MT LQH the log part (0-3).
+     */
+    Uint16 logPartNo;
   }; // Size 164 Bytes
   typedef Ptr<LogPartRecord> LogPartRecordPtr;
   

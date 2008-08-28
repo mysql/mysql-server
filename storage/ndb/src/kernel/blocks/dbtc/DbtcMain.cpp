@@ -1822,125 +1822,45 @@ void Dbtc::execKEYINFO(Signal* signal)
     tckeyreq020Lab(signal);
     return;
   case OS_WAIT_SCAN:
-    break;
+    jam();
+    scanKeyinfoLab(signal);
+    return;
   default:
     jam();
     terrorCode = ZSTATE_ERROR;
     abortErrorLab(signal);
     return;
   }//switch
-
-  UintR TdataPos = 0;
-  UintR TkeyLen = regCachePtr->keylen;
-  UintR Tlen = regCachePtr->save1;
-
-  do {
-    if (cfirstfreeDatabuf == RNIL) {
-      jam();
-      seizeDatabuferrorLab(signal);
-      return;
-    }//if
-    linkKeybuf(signal);
-    arrGuard(TdataPos, 19);
-    databufptr.p->data[0] = signal->theData[TdataPos + 3];
-    databufptr.p->data[1] = signal->theData[TdataPos + 4];
-    databufptr.p->data[2] = signal->theData[TdataPos + 5];
-    databufptr.p->data[3] = signal->theData[TdataPos + 6];
-    Tlen = Tlen + 4;
-    TdataPos = TdataPos + 4;
-    if (Tlen < TkeyLen) {
-      jam();
-      if (TdataPos >= tmaxData) {
-        jam();
-	/*----------------------------------------------------*/
-	/** EXIT AND WAIT FOR SIGNAL KEYINFO OR KEYINFO9     **/
-	/** WHEN EITHER OF THE SIGNALS IS RECEIVED A JUMP    **/
-	/** TO LABEL "KEYINFO_LABEL" IS DONE. THEN THE       **/
-	/** PROGRAM RETURNS TO LABEL TCKEYREQ020             **/
-	/*----------------------------------------------------*/
-        setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
-        regCachePtr->save1 = Tlen;
-        return;
-      }//if
-    } else {
-      jam();
-      return;
-    }//if
-  } while (1);
-  return;
 }//Dbtc::execKEYINFO()
 
-/*---------------------------------------------------------------------------*/
-/*                                                                           */
-/* MORE THAN FOUR WORDS OF KEY DATA. WE NEED TO PACK THIS IN KEYINFO SIGNALS.*/
-/* WE WILL ALWAYS PACK 4 WORDS AT A TIME.                                    */
-/*---------------------------------------------------------------------------*/
-void Dbtc::packKeyData000Lab(Signal* signal,
-                             BlockReference TBRef,
-			     Uint32 totalLen) 
-{
-  CacheRecord * const regCachePtr = cachePtr.p;
-
-  jam();
-  Uint32 len = 0;
-  databufptr.i = regCachePtr->firstKeybuf;
-  signal->theData[0] = tcConnectptr.i;
-  signal->theData[1] = apiConnectptr.p->transid[0];
-  signal->theData[2] = apiConnectptr.p->transid[1];
-  Uint32 * dst = signal->theData+3;
-  ptrCheckGuard(databufptr, cdatabufFilesize, databufRecord);
-  
-  do {
-    jam();
-    databufptr.i = databufptr.p->nextDatabuf;
-    dst[len + 0] = databufptr.p->data[0];
-    dst[len + 1] = databufptr.p->data[1];
-    dst[len + 2] = databufptr.p->data[2];
-    dst[len + 3] = databufptr.p->data[3];
-    len += 4;
-    if (totalLen <= 4) {
-      jam();
-      /*---------------------------------------------------------------------*/
-      /*       LAST PACK OF KEY DATA HAVE BEEN SENT                          */
-      /*---------------------------------------------------------------------*/
-      /*       THERE WERE UNSENT INFORMATION, SEND IT.                       */
-      /*---------------------------------------------------------------------*/
-      sendSignal(TBRef, GSN_KEYINFO, signal, 3 + len, JBB);
-      return;
-    } else if(len == KeyInfo::DataLength){
-      jam();
-      len = 0;
-      sendSignal(TBRef, GSN_KEYINFO, signal, 3 + KeyInfo::DataLength, JBB);
-    }
-    totalLen -= 4;
-    ptrCheckGuard(databufptr, cdatabufFilesize, databufRecord);
-  } while (1);
-}//Dbtc::packKeyData000Lab()
 
 /**
- * packKeyDataFromSection
- * Method to pack a KeyInfo signal train from KeyInfo in the supplied
+ * sendKeyInfoTrain
+ * Method to send a KeyInfo signal train from KeyInfo in the supplied
  * Section
  * KeyInfo will be taken from the section, starting at the supplied
  * offset
  */
-void Dbtc::packKeyDataFromSection(Signal* signal,
-                                  BlockReference TBRef,
-                                  Uint32 offset,
-                                  SegmentedSectionPtr& section)
+void Dbtc::sendKeyInfoTrain(Signal* signal,
+                            BlockReference TBRef,
+                            Uint32 connectPtr,
+                            Uint32 offset,
+                            Uint32 sectionIVal)
 {
   jam();
 
-  Uint32 totalLen= section.sz;
-
-  ndbassert( offset < totalLen );
-
-  signal->theData[0] = tcConnectptr.i;
+  signal->theData[0] = connectPtr;
   signal->theData[1] = apiConnectptr.p->transid[0];
   signal->theData[2] = apiConnectptr.p->transid[1];
   Uint32 * dst = signal->theData + KeyInfo::HeaderLength;
+
+  ndbassert( sectionIVal != RNIL );
+  SectionReader keyInfoReader(sectionIVal, getSectionSegmentPool());
+
+  Uint32 totalLen= keyInfoReader.getSize();
+
+  ndbassert( offset < totalLen );
   
-  SectionReader keyInfoReader(section, getSectionSegmentPool());
   keyInfoReader.step(offset);
   totalLen-= offset;
 
@@ -1953,7 +1873,7 @@ void Dbtc::packKeyDataFromSection(Signal* signal,
     sendSignal(TBRef, GSN_KEYINFO, signal, 
                KeyInfo::HeaderLength + dataInSignal, JBB);
   } 
-}//Dbtc::packKeyDataFromSection()
+}//Dbtc::sendKeyInfoTrain()
 
 /**
  * tckeyreq020Lab
@@ -2002,103 +1922,6 @@ void Dbtc::tckeyreq020Lab(Signal* signal)
     return;
   }
 }//Dbtc::tckeyreq020Lab()
-
-/* ------------------------------------------------------------------------- */
-/* -------        SAVE ATTRIBUTE INFORMATION IN OPERATION RECORD     ------- */
-/* ------------------------------------------------------------------------- */
-void Dbtc::saveAttrbuf(Signal* signal) 
-{
-  CacheRecord * const regCachePtr = cachePtr.p;
-  UintR TfirstfreeAttrbuf = cfirstfreeAttrbuf;
-  UintR TattrbufFilesize = cattrbufFilesize;
-  UintR TTcfirstAttrbuf = regCachePtr->firstAttrbuf;
-  UintR Tlen = signal->length() - 3;
-  AttrbufRecord *localAttrbufRecord = attrbufRecord;
-
-  AttrbufRecord * const regAttrPtr = &localAttrbufRecord[TfirstfreeAttrbuf];
-  if (TfirstfreeAttrbuf >= TattrbufFilesize) {
-    TCKEY_abort(signal, 21);
-    return;
-  }//if
-  UintR Tnext = regAttrPtr->attrbuf[ZINBUF_NEXT];
-  if (TTcfirstAttrbuf == RNIL) {
-    jam();
-    regCachePtr->firstAttrbuf = TfirstfreeAttrbuf;
-  } else {
-    AttrbufRecordPtr saAttrbufptr;
-
-    saAttrbufptr.i = regCachePtr->lastAttrbuf;
-    jam();
-    if (saAttrbufptr.i >= TattrbufFilesize) {
-      TCKEY_abort(signal, 22);
-      return;
-    }//if
-    saAttrbufptr.p = &localAttrbufRecord[saAttrbufptr.i];
-    saAttrbufptr.p->attrbuf[ZINBUF_NEXT] = TfirstfreeAttrbuf;
-  }//if
-
-  cfirstfreeAttrbuf = Tnext;
-  regAttrPtr->attrbuf[ZINBUF_NEXT] = RNIL;
-  regCachePtr->lastAttrbuf = TfirstfreeAttrbuf;
-  regAttrPtr->attrbuf[ZINBUF_DATA_LEN] = Tlen;
-
-  UintR Tdata1 = signal->theData[3];
-  UintR Tdata2 = signal->theData[4];
-  UintR Tdata3 = signal->theData[5];
-  UintR Tdata4 = signal->theData[6];
-  UintR Tdata5 = signal->theData[7];
-  UintR Tdata6 = signal->theData[8];
-  UintR Tdata7 = signal->theData[9];
-  UintR Tdata8 = signal->theData[10];
-
-  regAttrPtr->attrbuf[0] = Tdata1;
-  regAttrPtr->attrbuf[1] = Tdata2;
-  regAttrPtr->attrbuf[2] = Tdata3;
-  regAttrPtr->attrbuf[3] = Tdata4;
-  regAttrPtr->attrbuf[4] = Tdata5;
-  regAttrPtr->attrbuf[5] = Tdata6;
-  regAttrPtr->attrbuf[6] = Tdata7;
-  regAttrPtr->attrbuf[7] = Tdata8;
-
-  if (Tlen > 8) {
-
-    Tdata1 = signal->theData[11];
-    Tdata2 = signal->theData[12];
-    Tdata3 = signal->theData[13];
-    Tdata4 = signal->theData[14];
-    Tdata5 = signal->theData[15];
-    Tdata6 = signal->theData[16];
-    Tdata7 = signal->theData[17];
-
-    regAttrPtr->attrbuf[8] = Tdata1;
-    regAttrPtr->attrbuf[9] = Tdata2;
-    regAttrPtr->attrbuf[10] = Tdata3;
-    regAttrPtr->attrbuf[11] = Tdata4;
-    regAttrPtr->attrbuf[12] = Tdata5;
-    regAttrPtr->attrbuf[13] = Tdata6;
-    regAttrPtr->attrbuf[14] = Tdata7;
-    jam();
-    if (Tlen > 15) {
-
-      Tdata1 = signal->theData[18];
-      Tdata2 = signal->theData[19];
-      Tdata3 = signal->theData[20];
-      Tdata4 = signal->theData[21];
-      Tdata5 = signal->theData[22];
-      Tdata6 = signal->theData[23];
-      Tdata7 = signal->theData[24];
-
-      jam();
-      regAttrPtr->attrbuf[15] = Tdata1;
-      regAttrPtr->attrbuf[16] = Tdata2;
-      regAttrPtr->attrbuf[17] = Tdata3;
-      regAttrPtr->attrbuf[18] = Tdata4;
-      regAttrPtr->attrbuf[19] = Tdata5;
-      regAttrPtr->attrbuf[20] = Tdata6;
-      regAttrPtr->attrbuf[21] = Tdata7;
-    }//if
-  }//if
-}//Dbtc::saveAttrbuf()
 
 void Dbtc::execATTRINFO(Signal* signal) 
 {
@@ -2508,16 +2331,6 @@ Dbtc::seizeCacheRecord(Signal* signal)
   cachePtr.i = TfirstfreeCacheRec;
   cachePtr.p = regCachePtr;
 
-#ifdef VM_TRACE
-  // This is a good place to check that resources have 
-  // been properly released from CacheRecord
-  ndbrequire(regCachePtr->firstKeybuf == RNIL);
-  ndbrequire(regCachePtr->lastKeybuf == RNIL);
-#endif
-  regCachePtr->firstKeybuf = RNIL;
-  regCachePtr->lastKeybuf = RNIL;
-  regCachePtr->firstAttrbuf = RNIL;
-  regCachePtr->lastAttrbuf = RNIL;
   regCachePtr->currReclenAi = 0;
   regCachePtr->keyInfoSectionI = RNIL;
   regCachePtr->attrInfoSectionI = RNIL;
@@ -3463,14 +3276,11 @@ void Dbtc::packLqhkeyreq(Signal* signal,
       (Tkeylen > LqhKeyReq::MaxKeyInfo)) 
   {
     /* Build KeyInfo train from KeyInfo long signal section */
-    SegmentedSectionPtr keyInfoSection;
-
-    getSection(keyInfoSection, regCachePtr->keyInfoSectionI);
-
-    packKeyDataFromSection(signal, 
-                           TBRef, 
-                           LqhKeyReq::MaxKeyInfo,
-                           keyInfoSection);
+    sendKeyInfoTrain(signal, 
+                     TBRef,
+                     tcConnectptr.i,
+                     LqhKeyReq::MaxKeyInfo,
+                     regCachePtr->keyInfoSectionI);
   }//if
 
   /* Release key storage */ 
@@ -3748,14 +3558,12 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
 
   if (ERROR_INSERTED(8009)) {
     if (regApiPtr->apiConnectstate == CS_STARTED) {
-      attrbufptr.i = RNIL;
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
   }//if
   if (ERROR_INSERTED(8010)) {
     if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
-      attrbufptr.i = RNIL;
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
@@ -3768,14 +3576,11 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
     /* Short LqhKeyReq */
     if (regCachePtr->attrlength > LqhKeyReq::MaxAttrInfo)
     {
-      SegmentedSectionPtr attrInfoSection;
-
-      getSection(attrInfoSection, regCachePtr->attrInfoSectionI);
-
       if (unlikely( !sendAttrInfoTrain(signal,
                                        TBRef,
+                                       tcConnectptr.i,
                                        LqhKeyReq::MaxAttrInfo,
-                                       attrInfoSection)))
+                                       regCachePtr->attrInfoSectionI)))
       {
         jam();
         TCKEY_abort(signal, 17);
@@ -3810,27 +3615,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
 /* ========================================================================= */
 void Dbtc::releaseAttrinfo() 
 {
-  UintR Tmp;
-  AttrbufRecordPtr Tattrbufptr;
   CacheRecord * const regCachePtr = cachePtr.p;
-  UintR TattrbufFilesize = cattrbufFilesize;
-  UintR TfirstfreeAttrbuf = cfirstfreeAttrbuf;
-  Tattrbufptr.i = regCachePtr->firstAttrbuf;
-  AttrbufRecord *localAttrbufRecord = attrbufRecord;
-
-  while (Tattrbufptr.i < TattrbufFilesize) {
-    Tattrbufptr.p = &localAttrbufRecord[Tattrbufptr.i];
-    Tmp = Tattrbufptr.p->attrbuf[ZINBUF_NEXT];
-    Tattrbufptr.p->attrbuf[ZINBUF_NEXT] = TfirstfreeAttrbuf;
-    TfirstfreeAttrbuf = Tattrbufptr.i;
-    Tattrbufptr.i = Tmp;
-    jam();
-  }//while
-  if (Tattrbufptr.i != RNIL) {
-    systemErrorLab(0, __LINE__);
-    return;
-  }
-
   Uint32 attrInfoSectionI= cachePtr.p->attrInfoSectionI;
 
   /* Release AttrInfo section if there is one */
@@ -3844,7 +3629,6 @@ void Dbtc::releaseAttrinfo()
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   UintR TfirstfreeCacheRec = cfirstfreeCacheRec;
   UintR TCacheIndex = cachePtr.i;
-  cfirstfreeAttrbuf = TfirstfreeAttrbuf;
   regCachePtr->nextCacheRec = TfirstfreeCacheRec;
   cfirstfreeCacheRec = TCacheIndex;
   regApiPtr->cachePtr = RNIL;
@@ -4035,9 +3819,6 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
 
   DEBUG("SignalDroppedRep received for GSN " << originalGSN);
 
-  // TODO : Add handling for long signal variants as they
-  //        are added here (SCANTABREQ etc.)
-
   switch(originalGSN) {
   case GSN_TCKEYREQ:
     jam(); 
@@ -4091,6 +3872,40 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
 
     abortErrorLab(signal);
 
+    break;
+  }
+  case GSN_SCAN_TABREQ:
+  {
+    jam();
+    /* Get information necessary to send SCAN_TABREF back to client */
+    const ScanTabReq * const truncatedScanTabReq = 
+      (ScanTabReq *) &rep->originalData[0];
+
+    Uint32 apiConnectPtr= truncatedScanTabReq->apiConnectPtr;
+    Uint32 transId1= truncatedScanTabReq->transId1;
+    Uint32 transId2= truncatedScanTabReq->transId2;
+    
+    if (apiConnectPtr >= capiConnectFilesize)
+    {
+      jam();
+      warningHandlerLab(signal, __LINE__);
+      return;
+    }//if
+    
+    apiConnectptr.i = apiConnectPtr;
+    ptrAss(apiConnectptr, apiConnectRecord);
+    ApiConnectRecord * transP = apiConnectptr.p;
+    
+    /* Now send the SCAN_TABREF */
+    ScanTabRef* ref= (ScanTabRef*)&signal->theData[0];
+    ref->apiConnectPtr = transP->ndbapiConnect;
+    ref->transId1= transId1;
+    ref->transId2= transId2;
+    ref->errorCode= ZGET_ATTRBUF_ERROR;
+    ref->closeNeeded= 0;
+
+    sendSignal(transP->ndbapiBlockref, GSN_SCAN_TABREF,
+               signal, ScanTabRef::SignalLength, JBB);
     break;
   }
   default:
@@ -5188,10 +5003,7 @@ Dbtc::sendApiCommit(Signal* signal)
 
     SET_ERROR_INSERT_VALUE(8056);
 
-    Ptr<ApiConnectRecord> copyPtr;
-    copyPtr.i = regApiPtr.p->apiCopyRecord;
-    ptrCheckGuard(copyPtr, capiConnectFilesize, apiConnectRecord);
-    return copyPtr;
+    goto err8055;
   }
 
   if (regApiPtr.p->returnsignal == RS_TCKEYCONF)
@@ -5238,6 +5050,8 @@ Dbtc::sendApiCommit(Signal* signal)
     TCKEY_abort(signal, 37);
     return regApiPtr;
   }//if
+
+err8055:
   Ptr<ApiConnectRecord> copyPtr;
   UintR TapiConnectFilesize = capiConnectFilesize;
   UintR TcommitCount = c_counters.ccommitCount;
@@ -5720,7 +5534,6 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	return;
       }//if
 
-      const ConnectionState state = regApiPtr->apiConnectstate;
       const Uint32 triggeringOp = regTcPtr->triggeringOperation;
       if (triggeringOp != RNIL) {
         jam();
@@ -9511,12 +9324,6 @@ void Dbtc::aiErrorLab(Signal* signal)
   abortErrorLab(signal);
 }//Dbtc::aiErrorLab()
 
-void Dbtc::seizeAttrbuferrorLab(Signal* signal) 
-{
-  terrorCode = ZGET_ATTRBUF_ERROR;
-  abortErrorLab(signal);
-}//Dbtc::seizeAttrbuferrorLab()
-
 void Dbtc::seizeDatabuferrorLab(Signal* signal) 
 {
   terrorCode = ZGET_DATAREC_ERROR;
@@ -9525,7 +9332,7 @@ void Dbtc::seizeDatabuferrorLab(Signal* signal)
 
 void Dbtc::appendToSectionErrorLab(Signal* signal)
 {
-  terrorCode = ZGET_DATAREC_ERROR; // TODO : New error?
+  terrorCode = ZGET_DATAREC_ERROR;
   releaseAtErrorLab(signal);
 }//Dbtc::appendToSectionErrorLab
 
@@ -9651,10 +9458,16 @@ void Dbtc::systemErrorLab(Signal* signal, int line)
   * ######################################################################## */
 void Dbtc::execSCAN_TABREQ(Signal* signal) 
 {
+  jamEntry();
+
+  /* Reassemble if the request was fragmented */
+  if (!assembleFragments(signal)){
+    jam();
+    return;
+  }
+
   const ScanTabReq * const scanTabReq = (ScanTabReq *)&signal->theData[0];
   const Uint32 ri = scanTabReq->requestInfo;
-  const Uint32 aiLength = (scanTabReq->attrLenKeyLen & 0xFFFF);
-  const Uint32 keyLen = scanTabReq->attrLenKeyLen >> 16;
   const Uint32 schemaVersion = scanTabReq->tableSchemaVersion;
   const Uint32 transid1 = scanTabReq->transId1;
   const Uint32 transid2 = scanTabReq->transId2;
@@ -9668,14 +9481,42 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   Uint32 errCode;
   ScanRecordPtr scanptr;
 
-  jamEntry();
+  /* Short SCANTABREQ has 1 section, Long has 2 or 3.
+   * Section 0 : NDBAPI receiver ids (Mandatory)
+   * Section 1 : ATTRINFO section (Mandatory for long SCAN_TABREQ
+   * Section 2 : KEYINFO section (Optional for long SCAN_TABREQ
+   */
+  Uint32 numSections= signal->getNoOfSections();
+  ndbassert( numSections >= 1 );
+  bool isLongReq= numSections >= 2;
 
-  ndbassert( signal->getNoOfSections() == 1 );
   SectionHandle handle(this, signal);
   SegmentedSectionPtr api_op_ptr;
   handle.getSection(api_op_ptr, 0);
   copy(&cdata[0], api_op_ptr);
-  releaseSections(handle);
+
+  Uint32 aiLength= 0;
+  Uint32 keyLen= 0;
+
+  if (likely(isLongReq))
+  {
+    SegmentedSectionPtr attrInfoPtr, keyInfoPtr;
+    /* Long SCANTABREQ, determine Ai and Key length from sections */
+    handle.getSection(attrInfoPtr, ScanTabReq::AttrInfoSectionNum);
+    aiLength= attrInfoPtr.sz;
+    if (numSections == 3)
+    {
+      handle.getSection(keyInfoPtr, ScanTabReq::KeyInfoSectionNum);
+      keyLen= keyInfoPtr.sz;
+    }
+  }
+  else
+  {
+    /* Short SCANTABREQ, get Ai and Key length from signal */
+    aiLength = (scanTabReq->attrLenKeyLen & 0xFFFF);
+    keyLen = scanTabReq->attrLenKeyLen >> 16;
+  }
+
 
   apiConnectptr.i = scanTabReq->apiConnectPtr;
   tabptr.i = scanTabReq->tableId;
@@ -9683,6 +9524,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if (apiConnectptr.i >= capiConnectFilesize)
   {
     jam();
+    releaseSections(handle);
     warningHandlerLab(signal, __LINE__);
     return;
   }//if
@@ -9756,6 +9598,18 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   apiConnectptr.p->lastTcConnect = tcConnectptr.i;
 
   seizeCacheRecord(signal);
+
+  if (likely(isLongReq))
+  {
+    /* We keep the AttrInfo and KeyInfo sections */
+    cachePtr.p->attrInfoSectionI= handle.m_ptr[ScanTabReq::AttrInfoSectionNum].i;
+    if (keyLen)
+      cachePtr.p->keyInfoSectionI= handle.m_ptr[ScanTabReq::KeyInfoSectionNum].i;
+  }
+
+  releaseSection(handle.m_ptr[ScanTabReq::ReceiverIdSectionNum].i);
+  handle.clear();
+
   cachePtr.p->keylen = keyLen;
   cachePtr.p->save1 = 0;
   cachePtr.p->distributionKey = scanTabReq->distributionKey;
@@ -9765,7 +9619,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   ndbrequire(transP->apiScanRec == RNIL);
   ndbrequire(scanptr.p->scanApiRec == RNIL);
 
-  initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag);
+  initScanrec(scanptr, scanTabReq, scanParallel, 
+              noOprecPerFrag, aiLength, keyLen);
 
   transP->apiScanRec = scanptr.i;
   transP->returncode = 0;
@@ -9790,7 +9645,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
    * IF ANY TO RECEIVE.
    **********************************************************/
   scanptr.p->scanState = ScanRecord::WAIT_AI;
-  
+
   if (ERROR_INSERTED(8038))
   {
     /**
@@ -9802,6 +9657,14 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     
     sendSignal(CMVMI_REF, GSN_DISCONNECT_REP, signal, 2, JBA);
     CLEAR_ERROR_INSERT_VALUE;
+  }
+
+  if (isLongReq)
+  {
+    /* All AttrInfo (and KeyInfo) has been received, continue
+     * processing
+     */
+    diFcountReqLab(signal, scanptr);
   }
   
   return;
@@ -9844,6 +9707,8 @@ SCAN_TAB_error:
  
 SCAN_TAB_error_no_state_change:
   
+  releaseSections(handle);
+
   ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
   ref->apiConnectPtr = transP->ndbapiConnect;
   ref->transId1 = transid1;
@@ -9858,13 +9723,15 @@ SCAN_TAB_error_no_state_change:
 void Dbtc::initScanrec(ScanRecordPtr scanptr,
 		       const ScanTabReq * scanTabReq,
 		       UintR scanParallel,
-		       UintR noOprecPerFrag) 
+		       UintR noOprecPerFrag,
+                       Uint32 aiLength,
+                       Uint32 keyLength) 
 {
   const UintR ri = scanTabReq->requestInfo;
   scanptr.p->scanTcrec = tcConnectptr.i;
   scanptr.p->scanApiRec = apiConnectptr.i;
-  scanptr.p->scanAiLength = scanTabReq->attrLenKeyLen & 0xFFFF;
-  scanptr.p->scanKeyLen = scanTabReq->attrLenKeyLen >> 16;
+  scanptr.p->scanAiLength = aiLength;
+  scanptr.p->scanKeyLen = keyLength;
   scanptr.p->scanTableref = tabptr.i;
   scanptr.p->scanSchemaVersion = scanTabReq->tableSchemaVersion;
   scanptr.p->scanParallel = scanParallel;
@@ -9880,7 +9747,7 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   ScanFragReq::setRangeScanFlag(tmp, ScanTabReq::getRangeScanFlag(ri));
   ScanFragReq::setDescendingFlag(tmp, ScanTabReq::getDescendingFlag(ri));
   ScanFragReq::setTupScanFlag(tmp, ScanTabReq::getTupScanFlag(ri));
-  ScanFragReq::setAttrLen(tmp, scanTabReq->attrLenKeyLen & 0xFFFF);
+  ScanFragReq::setAttrLen(tmp, aiLength);
   ScanFragReq::setNoDiskFlag(tmp, ScanTabReq::getNoDiskFlag(ri));
   
   scanptr.p->scanRequestInfo = tmp;
@@ -9919,6 +9786,53 @@ void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode)
 	     signal, ScanTabRef::SignalLength, JBB);
 }//Dbtc::scanTabRefLab()
 
+/**
+ * scanKeyinfoLab
+ * Handle reception of KeyInfo for a Scan
+ */
+void Dbtc::scanKeyinfoLab(Signal* signal)
+{
+  /* Receive KEYINFO for a SCAN operation 
+   * Note that old NDBAPI nodes sometimes send header-only KEYINFO signals
+   */
+  CacheRecord * const regCachePtr = cachePtr.p;
+  UintR TkeyLen = regCachePtr->keylen;
+  UintR Tlen = regCachePtr->save1;
+
+  Uint32 wordsInSignal= MIN(KeyInfo::DataLength,
+                            (TkeyLen - Tlen));
+
+  ndbassert( signal->getLength() == 
+             (KeyInfo::HeaderLength + wordsInSignal) );
+
+  if (unlikely (! appendToSection(regCachePtr->keyInfoSectionI,
+                                  &signal->theData[KeyInfo::HeaderLength],
+                                  wordsInSignal)))
+  {
+    jam();
+    seizeDatabuferrorLab(signal);
+    return;
+  }
+
+  Tlen+= wordsInSignal;
+  regCachePtr->save1 = Tlen;
+  
+  if (Tlen < TkeyLen)
+  {
+    jam();
+    /* More KeyInfo still to come - continue waiting */
+    setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+    return;
+  }
+
+  /* All KeyInfo has been received, we will now start receiving
+   * ATTRINFO
+   */
+  jam();
+  ndbassert(Tlen == TkeyLen);
+  return;
+} // scanKeyinfoLab
+
 /*---------------------------------------------------------------------------*/
 /*                                                                           */
 /*       RECEPTION OF ATTRINFO FOR SCAN TABLE REQUEST.                       */
@@ -9936,44 +9850,32 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_AI);
 
   regCachePtr->currReclenAi = regCachePtr->currReclenAi + Tlen;
-  if (regCachePtr->currReclenAi < scanptr.p->scanAiLength) {
-    if (cfirstfreeAttrbuf == RNIL) {
-      goto scanAttrinfo_attrbuf_error;
-    }//if
-    saveAttrbuf(signal);
-  } else {
-    if (regCachePtr->currReclenAi > scanptr.p->scanAiLength) {
-      goto scanAttrinfo_len_error;
-    } else {
-      /* CURR_RECLEN_AI = SCAN_AI_LENGTH */
-      if (cfirstfreeAttrbuf == RNIL) {
-        goto scanAttrinfo_attrbuf2_error;
-      }//if
-      saveAttrbuf(signal);
-      /**************************************************
-       * WE HAVE NOW RECEIVED ALL INFORMATION CONCERNING 
-       * THIS SCAN. WE ARE READY TO START THE ACTUAL 
-       * EXECUTION OF THE SCAN QUERY
-       **************************************************/
-      diFcountReqLab(signal, scanptr);
-      return;
-    }//if
-  }//if
-  return;
 
-scanAttrinfo_attrbuf_error:
-  jam();
-  abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR, true);
-  return;
-
-scanAttrinfo_attrbuf2_error:
-  jam();
-  abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR, true);
-  return;
-
-scanAttrinfo_len_error:
-  jam();
-  abortScanLab(signal, scanptr, ZLENGTH_ERROR, true);
+  if (unlikely(! appendToSection(regCachePtr->attrInfoSectionI,
+                                 &signal->theData[AttrInfo::HeaderLength],
+                                 Tlen)))
+  {
+    jam();
+    abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR, true);
+    return;
+  }
+  
+  if (regCachePtr->currReclenAi == scanptr.p->scanAiLength)
+  {
+    /* We have now received all the signals defining this
+     * scan.  We are ready to start executing the scan
+     */
+    diFcountReqLab(signal, scanptr);
+    return;
+  }
+  else if (unlikely (regCachePtr->currReclenAi > scanptr.p->scanAiLength))
+  {
+    jam();
+    abortScanLab(signal, scanptr, ZLENGTH_ERROR, true);
+    return;
+  }
+  
+  /* Still some ATTRINFO to arrive...*/
   return;
 }//Dbtc::scanAttrinfoLab()
 
@@ -10328,25 +10230,34 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     /*empty*/;
     break;
   }//switch
+  
+  /* Send SCANFRAGREQ to LQH block
+   * SCANFRAGREQ with optional KEYINFO and mandatory ATTRINFO are
+   * now sent to LQH
+   * This starts the scan on the given fragment.
+   */
   Uint32 instanceKey = conf->instanceKey;
   Uint32 ref = numberToRef(DBLQH, instanceKey, tnodeid);
   scanFragptr.p->lqhBlockref = ref;
   scanFragptr.p->m_connectCount = getNodeInfo(tnodeid).m_connectCount;
+
   sendScanFragReq(signal, scanptr.p, scanFragptr.p);
+
   if(ERROR_INSERTED(8035))
     globalTransporterRegistry.performSend();
-  attrbufptr.i = cachePtr.p->firstAttrbuf;
-  while (attrbufptr.i != RNIL) {
-    jam();
-    ptrCheckGuard(attrbufptr, cattrbufFilesize, attrbufRecord);
-    sendAttrinfo(signal,
-                 scanFragptr.i,
-                 attrbufptr.p,
-                 ref);
-    attrbufptr.i = attrbufptr.p->attrbuf[ZINBUF_NEXT];
-    if(ERROR_INSERTED(8035))
-      globalTransporterRegistry.performSend();
-  }//while
+   
+  ndbrequire(sendAttrInfoTrain(signal,
+                               ref,
+                               scanFragptr.i,
+                               0, // Offset 0
+                               cachePtr.p->attrInfoSectionI));
+
+  // TODO : Consider determining whether KEYINFO and ATTRINFO can be
+  //        freed here
+
+  if(ERROR_INSERTED(8035))
+    globalTransporterRegistry.performSend();
+
   scanFragptr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
   scanFragptr.p->startFragTimer(ctcTimer);
   updateBuddyTimer(apiConnectptr);
@@ -10935,6 +10846,8 @@ void Dbtc::sendScanFragReq(Signal* signal,
 			   ScanRecord* scanP, 
 			   ScanFragRec* scanFragP)
 {
+  cachePtr.i = apiConnectptr.p->cachePtr;
+  ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
   ScanFragReq * const req = (ScanFragReq *)&signal->theData[0];
   Uint32 requestInfo = scanP->scanRequestInfo;
   ScanFragReq::setScanPrio(requestInfo, 1);
@@ -10957,7 +10870,12 @@ void Dbtc::sendScanFragReq(Signal* signal,
   if(scanP->scanKeyLen > 0)
   {
     tcConnectptr.i = scanFragptr.i;
-    packKeyData000Lab(signal, scanFragP->lqhBlockref, scanP->scanKeyLen);
+    /* Build KeyInfo train from KeyInfo long signal section */
+    sendKeyInfoTrain(signal,
+                     scanFragP->lqhBlockref,
+                     scanFragptr.i,
+                     0, // Offset 0
+                     cachePtr.p->keyInfoSectionI);
   }
   updateBuddyTimer(apiConnectptr);
   scanFragP->startFragTimer(ctcTimer);
@@ -11076,10 +10994,6 @@ void Dbtc::initApiConnect(Signal* signal)
   for (cachePtr.i = 0; cachePtr.i < guard4; cachePtr.i++) {
     refresh_watch_dog();
     ptrAss(cachePtr, cacheRecord);
-    cachePtr.p->firstAttrbuf = RNIL;
-    cachePtr.p->lastAttrbuf = RNIL;
-    cachePtr.p->firstKeybuf = RNIL;
-    cachePtr.p->lastKeybuf = RNIL;
     cachePtr.p->nextCacheRec = cachePtr.i + 1;
   }//for
   cachePtr.i = tiacTmp;
@@ -11175,35 +11089,6 @@ void Dbtc::initApiConnect(Signal* signal)
   cfirstfreeApiConnectFail = 2 * tiacTmp;
 }//Dbtc::initApiConnect()
 
-void Dbtc::initattrbuf(Signal* signal) 
-{
-  ndbrequire(cattrbufFilesize > 0);
-  for (attrbufptr.i = 0; attrbufptr.i < cattrbufFilesize; attrbufptr.i++) {
-    refresh_watch_dog();
-    jam();
-    ptrAss(attrbufptr, attrbufRecord);
-    attrbufptr.p->attrbuf[ZINBUF_NEXT] = attrbufptr.i + 1;  /* NEXT ATTRBUF */
-  }//for
-  attrbufptr.i = cattrbufFilesize - 1;
-  ptrAss(attrbufptr, attrbufRecord);
-  attrbufptr.p->attrbuf[ZINBUF_NEXT] = RNIL;    /* NEXT ATTRBUF */
-  cfirstfreeAttrbuf = 0;
-}//Dbtc::initattrbuf()
-
-void Dbtc::initdatabuf(Signal* signal) 
-{
-  ndbrequire(cdatabufFilesize > 0);
-  for (databufptr.i = 0; databufptr.i < cdatabufFilesize; databufptr.i++) {
-    refresh_watch_dog();
-    ptrAss(databufptr, databufRecord);
-    databufptr.p->nextDatabuf = databufptr.i + 1;
-  }//for
-  databufptr.i = cdatabufFilesize - 1;
-  ptrCheckGuard(databufptr, cdatabufFilesize, databufRecord);
-  databufptr.p->nextDatabuf = RNIL;
-  cfirstfreeDatabuf = 0;
-}//Dbtc::initdatabuf()
-
 void Dbtc::initgcp(Signal* signal) 
 {
   Ptr<GcpRecord> gcpPtr;
@@ -11249,11 +11134,11 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0,
     break;
   case 1:
     jam();
-    initattrbuf(signal);
+    // UNUSED Free to initialise something
     break;
   case 2:
     jam();
-    initdatabuf(signal);
+    // UNUSED Free to initialise something
     break;
   case 3:
     jam();
@@ -11424,24 +11309,6 @@ void Dbtc::linkGciInGcilist(Ptr<GcpRecord> gcpPtr)
 }//Dbtc::linkGciInGcilist()
 
 /* ------------------------------------------------------------------------- */
-/* -------        LINK SECONDARY KEY BUFFER IN OPERATION RECORD      ------- */
-/* ------------------------------------------------------------------------- */
-void Dbtc::linkKeybuf(Signal* signal) 
-{
-  seizeDatabuf(signal);
-  tmpDatabufptr.i = cachePtr.p->lastKeybuf;
-  cachePtr.p->lastKeybuf = databufptr.i;
-  if (tmpDatabufptr.i == RNIL) {
-    jam();
-    cachePtr.p->firstKeybuf = databufptr.i;
-  } else {
-    jam();
-    ptrCheckGuard(tmpDatabufptr, cdatabufFilesize, databufRecord);
-    tmpDatabufptr.p->nextDatabuf = databufptr.i;
-  }//if
-}//Dbtc::linkKeybuf()
-
-/* ------------------------------------------------------------------------- */
 /* ------- LINK A TC CONNECT RECORD INTO THE API LIST OF TC CONNECTIONS  --- */
 /* ------------------------------------------------------------------------- */
 void Dbtc::linkTcInConnectionlist(Signal* signal) 
@@ -11584,19 +11451,6 @@ void Dbtc::releaseApiConnectFail(Signal* signal)
 
 void Dbtc::releaseKeys() 
 {
-  UintR Tmp;
-  databufptr.i = cachePtr.p->firstKeybuf;
-  while (databufptr.i != RNIL) {
-    jam();
-    ptrCheckGuard(databufptr, cdatabufFilesize, databufRecord);
-    Tmp = databufptr.p->nextDatabuf;
-    databufptr.p->nextDatabuf = cfirstfreeDatabuf;
-    cfirstfreeDatabuf = databufptr.i;
-    databufptr.i = Tmp;
-  }//while
-  cachePtr.p->firstKeybuf = RNIL;
-  cachePtr.p->lastKeybuf = RNIL;
-  
   Uint32 keyInfoSectionI= cachePtr.p->keyInfoSectionI;
 
   /* Release KeyInfo section if there is one */
@@ -11638,14 +11492,6 @@ void Dbtc::seizeApiConnectFail(Signal* signal)
   cfirstfreeApiConnectFail = apiConnectptr.p->nextApiConnect;
 }//Dbtc::seizeApiConnectFail()
 
-void Dbtc::seizeDatabuf(Signal* signal) 
-{
-  databufptr.i = cfirstfreeDatabuf;
-  ptrCheckGuard(databufptr, cdatabufFilesize, databufRecord);
-  cfirstfreeDatabuf = databufptr.p->nextDatabuf;
-  databufptr.p->nextDatabuf = RNIL;
-}//Dbtc::seizeDatabuf()
-
 void Dbtc::seizeTcConnect(Signal* signal) 
 {
   tcConnectptr.i = cfirstfreeTcConnect;
@@ -11662,82 +11508,6 @@ void Dbtc::seizeTcConnectFail(Signal* signal)
   cfirstfreeTcConnectFail = tcConnectptr.p->nextTcConnect;
 }//Dbtc::seizeTcConnectFail()
 
-void Dbtc::sendAttrinfo(Signal* signal,
-                        UintR TattrinfoPtr,
-                        AttrbufRecord * const regAttrPtr,
-                        UintR TBref) 
-{
-  UintR TdataPos;
-  UintR sig0, sig1, sig2, sig3, sig4, sig5, sig6, sig7;
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  TdataPos = regAttrPtr->attrbuf[ZINBUF_DATA_LEN];
-  sig0 = TattrinfoPtr;
-  sig1 = regApiPtr->transid[0];
-  sig2 = regApiPtr->transid[1];
-
-  signal->theData[0] = sig0;
-  signal->theData[1] = sig1;
-  signal->theData[2] = sig2;
-
-  sig0 = regAttrPtr->attrbuf[0];
-  sig1 = regAttrPtr->attrbuf[1];
-  sig2 = regAttrPtr->attrbuf[2];
-  sig3 = regAttrPtr->attrbuf[3];
-  sig4 = regAttrPtr->attrbuf[4];
-  sig5 = regAttrPtr->attrbuf[5];
-  sig6 = regAttrPtr->attrbuf[6];
-  sig7 = regAttrPtr->attrbuf[7];
-
-  signal->theData[3] = sig0;
-  signal->theData[4] = sig1;
-  signal->theData[5] = sig2;
-  signal->theData[6] = sig3;
-  signal->theData[7] = sig4;
-  signal->theData[8] = sig5;
-  signal->theData[9] = sig6;
-  signal->theData[10] = sig7;
-
-  if (TdataPos > 8) {
-    sig0 = regAttrPtr->attrbuf[8];
-    sig1 = regAttrPtr->attrbuf[9];
-    sig2 = regAttrPtr->attrbuf[10];
-    sig3 = regAttrPtr->attrbuf[11];
-    sig4 = regAttrPtr->attrbuf[12];
-    sig5 = regAttrPtr->attrbuf[13];
-    sig6 = regAttrPtr->attrbuf[14];
-
-    jam();
-    signal->theData[11] = sig0;
-    signal->theData[12] = sig1;
-    signal->theData[13] = sig2;
-    signal->theData[14] = sig3;
-    signal->theData[15] = sig4;
-    signal->theData[16] = sig5;
-    signal->theData[17] = sig6;
-
-    if (TdataPos > 15) {
-
-      sig0 = regAttrPtr->attrbuf[15];
-      sig1 = regAttrPtr->attrbuf[16];
-      sig2 = regAttrPtr->attrbuf[17];
-      sig3 = regAttrPtr->attrbuf[18];
-      sig4 = regAttrPtr->attrbuf[19];
-      sig5 = regAttrPtr->attrbuf[20];
-      sig6 = regAttrPtr->attrbuf[21];
-
-      jam();
-      signal->theData[18] = sig0;
-      signal->theData[19] = sig1;
-      signal->theData[20] = sig2;
-      signal->theData[21] = sig3;
-      signal->theData[22] = sig4;
-      signal->theData[23] = sig5;
-      signal->theData[24] = sig6;
-    }//if
-  }//if
-  sendSignal(TBref, GSN_ATTRINFO, signal, TdataPos + 3, JBB);
-}//Dbtc::sendAttrinfo()
-
 /**
  * sendAttrInfoTrain
  * This method sends an ATTRINFO signal train using AttrInfo
@@ -11745,20 +11515,22 @@ void Dbtc::sendAttrinfo(Signal* signal,
  */
 bool Dbtc::sendAttrInfoTrain(Signal* signal,
                              UintR TBRef,
+                             Uint32 connectPtr,
                              Uint32 offset,
-                             SegmentedSectionPtr& section)
+                             Uint32 attrInfoIVal)
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+
+  ndbassert( attrInfoIVal != RNIL );
+  SectionReader attrInfoReader(attrInfoIVal, getSectionSegmentPool());  
+  Uint32 attrInfoLength= attrInfoReader.getSize();
   
-  Uint32 attrInfoLength= section.sz;
-  SectionReader attrInfoReader(section, getSectionSegmentPool());
-    
   ndbassert( offset < attrInfoLength );
   if (unlikely(! attrInfoReader.step( offset )))
     return false;
   attrInfoLength-= offset;
 
-  signal->theData[0] = tcConnectptr.i;
+  signal->theData[0] = connectPtr;
   signal->theData[1] = regApiPtr->transid[0];
   signal->theData[2] = regApiPtr->transid[1];
 
@@ -11776,7 +11548,7 @@ bool Dbtc::sendAttrInfoTrain(Signal* signal,
     attrInfoLength-= dataInSignal;
   }
   return true;
-} //Dbtc::sendAttrInfosFromSection()
+} //Dbtc::sendAttrInfoTrain()
 
 void Dbtc::sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr) 
 {
@@ -12618,7 +12390,6 @@ void Dbtc::execALTER_INDX_IMPL_REQ(Signal* signal)
   const Uint32 senderData = req->senderData;
   TcIndexData* indexData;
   const Uint32 requestType = req->requestType;
-  const Uint32 tableId = req->tableId;
   const Uint32 indexId = req->indexId;
 
   if ((indexData = c_theIndexes.getPtr(indexId)) == NULL) {
@@ -12794,7 +12565,6 @@ void Dbtc::execDROP_INDX_IMPL_REQ(Signal* signal)
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
   TcIndexData* indexData;
-  BlockReference sender = signal->senderBlockRef();
   
   if (ERROR_INSERTED(8036) ||
       (indexData = c_theIndexes.getPtr(req->indexId)) == NULL) {

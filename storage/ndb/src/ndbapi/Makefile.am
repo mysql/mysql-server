@@ -76,3 +76,10 @@ ndberror_check_LDFLAGS = \
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
+EXTRA_PROGRAMS = testSectionIterators
+
+testSectionIterators_CXXFLAGS = -DUNIT_TEST
+testSectionIterators_SOURCES = TransporterFacade.cpp
+testSectionIterators_LDFLAGS = @ndb_bin_am_ldflags@	 \
+  $(top_builddir)/storage/ndb/src/libndbclient.la

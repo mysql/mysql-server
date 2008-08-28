@@ -79,6 +79,9 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
 #ifdef VM_TRACE
     ,debugOut(*new NdbOut(*new FileOutputStream(globalSignalLoggers.getOutputStream())))
 #endif
+#ifdef VM_TRACE_TIME
+    ,m_currentGsn(0)
+#endif
 {
   m_threadId = 0;
   m_watchDogCounter = NULL;
@@ -217,34 +220,6 @@ SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn,
   theExecArray[gsn] = f;
 }
 
-Uint32
-SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
-{
-  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
-  ndbrequire(dbdih != 0);
-  Uint32 instanceKey = dbdih->dihGetInstanceKey(tabId, fragId);
-  return instanceKey;
-}
-
-Uint32
-SimulatedBlock::getLogPartId(Uint32 tabId, Uint32 fragId)
-{
-  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
-  ndbrequire(dbdih != 0);
-  Uint32 logPartId = dbdih->dihGetLogPartId(tabId, fragId);
-  return logPartId;
-}
-
-bool
-SimulatedBlock::isLogPartOwner(Uint32 worker, Uint32 logPartId)
-{
-  if (!globalData.isNdbMtLqh)
-    return true;
-  Uint32 workers = globalData.ndbMtLqhWorkers;
-  ndbrequire(workers != 0 && worker < workers);
-  return worker == logPartId % workers;
-}
-
 void
 SimulatedBlock::assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
                                Uint32 *watchDogCounter)
@@ -252,6 +227,14 @@ SimulatedBlock::assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
   m_threadId = threadId;
   m_jamBuffer = jamBuffer;
   m_watchDogCounter = watchDogCounter;
+}
+
+Uint32
+SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
+{
+  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
+  Uint32 instanceKey = dbdih->dihGetInstanceKey(tabId, fragId);
+  return instanceKey;
 }
 
 void
@@ -326,6 +309,20 @@ linkSegments(Uint32 head, Uint32 tail){
   Ptr<SectionSegment> oldTailPtr;
   g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment);
   
+  /* Can only efficiently link segments if linking to the end of a 
+   * multiple-of-segment-size sized chunk
+   */
+  if ((headPtr.p->m_sz % NDB_SECTION_SEGMENT_SZ) != 0)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
+                               "Bad head segment size",
+                               "");
+#else
+    ndbout_c("linkSegments : Bad head segment size");
+#endif
+  }
+
   headPtr.p->m_lastSegment = tailPtr.p->m_lastSegment;
   headPtr.p->m_sz += tailPtr.p->m_sz;
   

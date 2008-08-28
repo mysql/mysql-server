@@ -98,7 +98,7 @@ private:
   Uint32     watchDog;
   SimulatedBlock* blockTable[NO_OF_BLOCKS]; // Owned by Dispatcher::
 public:
-  ArrayPool<GlobalPage> m_global_page_pool;
+  SafeArrayPool<GlobalPage> m_global_page_pool;
   ArrayPool<GlobalPage> m_shared_page_pool;
 
 #ifdef GCP_TIMER_HACK

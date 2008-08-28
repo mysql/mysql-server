@@ -41,11 +41,23 @@ enum SendStatus {
 };
 
 /**
- * Protocol6 Header + 
- *  (optional signal id) + (optional checksum) + (signal data)
+ * Maximum message sizes
+ * ---------------------
+ * Maximum byte sizes for sent and received messages.
+ * The maximum send message size is temporarily smaller than 
+ * the maximum receive message size to support online
+ * upgrade
+ * Maximum received size increased in :
+ *   mysql-5.1-telco-6.3.18 from 16516 bytes to 32768
+ * Maximum send size increased in :
+ *   mysql-5.1-telco-6.4.0 from 16516 bytes to 32768
+ *
+ * Therefore mysql-5.1-telco-6.4.0 cannot safely communicate 
+ * with nodes at versions lower than mysql-5.1-telco-6.3.18 
+ * 
  */
-//const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25));
-const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25)+(3*4)+4*4096);
+const Uint32 MAX_RECV_MESSAGE_BYTESIZE = 32768;
+const Uint32 MAX_SEND_MESSAGE_BYTESIZE = 32768;
 
 /**
  * TransporterConfiguration
