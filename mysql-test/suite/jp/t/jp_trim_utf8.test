@@ -1,3 +1,5 @@
+--source include/have_utf8.inc
+--source include/have_innodb.inc
 --disable_warnings
 drop table if exists `Ｔ１`;
 drop table if exists `Ｔ２`;
@@ -8,7 +10,6 @@ drop table if exists `Ｔ６`;
 drop table if exists `Ｔ７`;
 drop table if exists `Ｔ８`;
 drop table if exists `Ｔ９`;
-drop table if exists `Ｔ１０`;
 --enable_warnings
 
 #
@@ -24,12 +25,9 @@ CREATE TABLE `Ｔ３` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf
 CREATE TABLE `Ｔ４` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
 CREATE TABLE `Ｔ５` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
 CREATE TABLE `Ｔ６` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
-CREATE TABLE `Ｔ７` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ８` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ９` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ１０` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
-CREATE TABLE `Ｔ１１` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
-CREATE TABLE `Ｔ１２` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
+CREATE TABLE `Ｔ７` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ８` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ９` (`Ｃ１` char(12), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = MEMORY;
 
 # Nothing to trim
 INSERT INTO `Ｔ１` VALUES ('ｱｲｳｴｵ');
@@ -120,34 +118,6 @@ INSERT INTO `Ｔ９` VALUES ('丂丂丂龔龖龗龞龡');
 INSERT INTO `Ｔ９` VALUES ('丂丂丂龔龖龗龞龡丂丂丂');
 INSERT INTO `Ｔ９` VALUES ('   龔龖龗龞龡   ');
 
-INSERT INTO `Ｔ１０` VALUES ('ｱｲｳｴｵ');
-INSERT INTO `Ｔ１０` VALUES ('ｱｲｳｴｵｶ');
-INSERT INTO `Ｔ１０` VALUES ('ｱｲｳｴｵｶｶ');
-INSERT INTO `Ｔ１０` VALUES ('ｱｲｳｴｵｶｶｶ');
-INSERT INTO `Ｔ１０` VALUES ('ｶｱｲｳｴｵ');
-INSERT INTO `Ｔ１０` VALUES ('ｶｶｱｲｳｴｵ');
-INSERT INTO `Ｔ１０` VALUES ('ｶｶｶｱｲｳｴｵ');
-INSERT INTO `Ｔ１０` VALUES ('ｶｶｶｱｲｳｴｵｶｶｶ');
-INSERT INTO `Ｔ１０` VALUES ('   ｱｲｳｴｵ   ');
-INSERT INTO `Ｔ１１` VALUES ('あいうえお');
-INSERT INTO `Ｔ１１` VALUES ('あいうえおか');
-INSERT INTO `Ｔ１１` VALUES ('あいうえおかか');
-INSERT INTO `Ｔ１１` VALUES ('あいうえおかかか');
-INSERT INTO `Ｔ１１` VALUES ('かあいうえお');
-INSERT INTO `Ｔ１１` VALUES ('かかあいうえお');
-INSERT INTO `Ｔ１１` VALUES ('かかかあいうえお');
-INSERT INTO `Ｔ１１` VALUES ('かかかあいうえおかかか');
-INSERT INTO `Ｔ１１` VALUES ('   あいうえお   ');
-INSERT INTO `Ｔ１２` VALUES ('龔龖龗龞龡');
-INSERT INTO `Ｔ１２` VALUES ('龔龖龗龞龡丂');
-INSERT INTO `Ｔ１２` VALUES ('龔龖龗龞龡丂丂');
-INSERT INTO `Ｔ１２` VALUES ('龔龖龗龞龡丂丂丂');
-INSERT INTO `Ｔ１２` VALUES ('丂龔龖龗龞龡');
-INSERT INTO `Ｔ１２` VALUES ('丂丂龔龖龗龞龡');
-INSERT INTO `Ｔ１２` VALUES ('丂丂丂龔龖龗龞龡');
-INSERT INTO `Ｔ１２` VALUES ('丂丂丂龔龖龗龞龡丂丂丂');
-INSERT INTO `Ｔ１２` VALUES ('   龔龖龗龞龡   ');
-
 #InnoDB
 SELECT `Ｃ１`,TRIM(TRAILING 'ｶ' FROM `Ｃ１`) FROM `Ｔ１`;
 SELECT `Ｃ１`,TRIM(LEADING 'ｶ' FROM `Ｃ１`) FROM `Ｔ１`;
@@ -176,7 +146,7 @@ SELECT `Ｃ１`,TRIM(LEADING '丂' FROM `Ｃ１`) FROM `Ｔ６`;
 SELECT `Ｃ１`,TRIM(BOTH '丂' FROM `Ｃ１`) FROM `Ｔ６`;
 SELECT `Ｃ１`,TRIM(`Ｃ１`) FROM `Ｔ６`;
 
-#HEAP
+#MEMORY
 SELECT `Ｃ１`,TRIM(TRAILING 'ｶ' FROM `Ｃ１`) FROM `Ｔ７`;
 SELECT `Ｃ１`,TRIM(LEADING 'ｶ' FROM `Ｃ１`) FROM `Ｔ７`;
 SELECT `Ｃ１`,TRIM(BOTH 'ｶ' FROM `Ｃ１`) FROM `Ｔ７`;
@@ -190,20 +160,6 @@ SELECT `Ｃ１`,TRIM(LEADING '丂' FROM `Ｃ１`) FROM `Ｔ９`;
 SELECT `Ｃ１`,TRIM(BOTH '丂' FROM `Ｃ１`) FROM `Ｔ９`;
 SELECT `Ｃ１`,TRIM(`Ｃ１`) FROM `Ｔ９`;
 
-#BDB
-SELECT `Ｃ１`,TRIM(TRAILING 'ｶ' FROM `Ｃ１`) FROM `Ｔ１０`;
-SELECT `Ｃ１`,TRIM(LEADING 'ｶ' FROM `Ｃ１`) FROM `Ｔ１０`;
-SELECT `Ｃ１`,TRIM(BOTH 'ｶ' FROM `Ｃ１`) FROM `Ｔ１０`;
-SELECT `Ｃ１`,TRIM(`Ｃ１`) FROM `Ｔ１０`;
-SELECT `Ｃ１`,TRIM(TRAILING 'か' FROM `Ｃ１`) FROM `Ｔ１１`;
-SELECT `Ｃ１`,TRIM(LEADING 'か' FROM `Ｃ１`) FROM `Ｔ１１`;
-SELECT `Ｃ１`,TRIM(BOTH 'か' FROM `Ｃ１`) FROM `Ｔ１１`;
-SELECT `Ｃ１`,TRIM(`Ｃ１`) FROM `Ｔ１１`;
-SELECT `Ｃ１`,TRIM(TRAILING '丂' FROM `Ｃ１`) FROM `Ｔ１２`;
-SELECT `Ｃ１`,TRIM(LEADING '丂' FROM `Ｃ１`) FROM `Ｔ１２`;
-SELECT `Ｃ１`,TRIM(BOTH '丂' FROM `Ｃ１`) FROM `Ｔ１２`;
-SELECT `Ｃ１`,TRIM(`Ｃ１`) FROM `Ｔ１２`;
-
 DROP TABLE `Ｔ１`;
 DROP TABLE `Ｔ２`;
 DROP TABLE `Ｔ３`;
@@ -213,6 +169,3 @@ DROP TABLE `Ｔ６`;
 DROP TABLE `Ｔ７`;
 DROP TABLE `Ｔ８`;
 DROP TABLE `Ｔ９`;
-DROP TABLE `Ｔ１０`;
-DROP TABLE `Ｔ１１`;
-DROP TABLE `Ｔ１２`;

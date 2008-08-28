@@ -18,6 +18,7 @@
 #define DBLQH_C
 #include "Dblqh.hpp"
 #include <ndb_limits.h>
+#include "DblqhCommon.hpp"
 
 #define DEBUG(x) { ndbout << "LQH::" << x << endl; }
 
@@ -32,7 +33,10 @@ void Dblqh::initData()
   clcpFileSize = ZNO_CONCURRENT_LCP;
   clfoFileSize = 0;
   clogFileFileSize = 0;
-  clogPartFileSize = ZLOG_PART_FILE_SIZE;
+
+  NdbLogPartInfo lpinfo(instance());
+  clogPartFileSize = lpinfo.partCount;
+
   cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
   cscanrecFileSize = 0;
   ctabrecFileSize = 0;
@@ -64,6 +68,13 @@ void Dblqh::initData()
   m_backup_ptr = RNIL;
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
+
+   totalLogFiles = 0;
+   logFileInitDone = 0;
+   totallogMBytes = 0;
+   logMBytesInitDone = 0;
+   m_startup_report_frequency = 0;
+
   c_active_add_frag_ptr_i = RNIL;
 }//Dblqh::initData()
 
@@ -200,6 +211,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
 
   addRecSignal(GSN_ALTER_TAB_REQ, &Dblqh::execALTER_TAB_REQ);
 
+  addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dblqh::execSIGNAL_DROPPED_REP, true);
+
   // Trigger signals, transit to from TUP
   addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dblqh::execCREATE_TRIG_IMPL_REQ);
   addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Dblqh::execCREATE_TRIG_IMPL_CONF);
@@ -212,7 +225,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
   addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
-  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED);
+  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED, true);
   addRecSignal(GSN_TUP_ATTRINFO, &Dblqh::execTUP_ATTRINFO);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dblqh::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_LQHFRAGREQ, &Dblqh::execLQHFRAGREQ);

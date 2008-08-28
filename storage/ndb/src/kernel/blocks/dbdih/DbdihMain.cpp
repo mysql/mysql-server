@@ -3512,7 +3512,6 @@ done:
 	     takeOverPtr.p->toCurrentTabref,
 	     takeOverPtr.p->toCurrentFragid);
 
-    BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
     StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
     req->userPtr = 0;
     req->userRef = reference();
@@ -3521,6 +3520,10 @@ done:
     req->tableId = takeOverPtr.p->toCurrentTabref;
     req->fragId = takeOverPtr.p->toCurrentFragid;
     req->noOfLogNodes = 0;
+
+    Uint32 instanceKey = dihGetInstanceKey(req->tableId, req->fragId);
+    BlockReference ref = numberToRef(DBLQH, instanceKey,
+                                     takeOverPtr.p->toStartingNode);
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
   }
@@ -3549,7 +3552,6 @@ done:
 	     SYSFILE->lastCompletedGCI[takeOverPtr.p->toStartingNode],
 	     SYSFILE->newestRestorableGCI);
 
-    BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
     StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
     req->userPtr = 0;
     req->userRef = reference();
@@ -3561,6 +3563,10 @@ done:
     req->lqhLogNode[0] = takeOverPtr.p->toStartingNode;
     req->startGci[0] = replicaPtr.p->maxGciCompleted[maxLcpIndex];
     req->lastGci[0] = gci;
+
+    Uint32 instanceKey = dihGetInstanceKey(req->tableId, req->fragId);
+    BlockReference ref = numberToRef(DBLQH, instanceKey,
+                                     takeOverPtr.p->toStartingNode);
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
   }
@@ -3725,7 +3731,9 @@ void Dbdih::toCopyFragLab(Signal* signal,
   req->fragId = takeOverPtr.p->toCurrentFragid;
   req->copyNodeId = takeOverPtr.p->toCopyNode;
   req->startingNodeId = takeOverPtr.p->toStartingNode; // Dst
-  Uint32 ref = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
+
+  Uint32 instanceKey = dihGetInstanceKey(req->tableId, req->fragId);
+  Uint32 ref = numberToRef(DBLQH, instanceKey, takeOverPtr.p->toStartingNode);
   
   sendSignal(ref, GSN_PREPARE_COPY_FRAG_REQ, signal, 
              PrepareCopyFragReq::SignalLength, JBB);
@@ -3898,7 +3906,9 @@ Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
   Uint32 gci = replicaPtr.p->m_restorable_gci;
   replicaPtr.p->m_restorable_gci = 0; // used in union...
   
-  BlockReference ref = calcLqhBlockRef(takeOverPtr.p->toCopyNode);
+  Uint32 instanceKey = dihGetInstanceKey(tabPtr.i, fragId);
+  BlockReference ref = numberToRef(DBLQH, instanceKey,
+                                   takeOverPtr.p->toCopyNode);
   CopyFragReq * const copyFragReq = (CopyFragReq *)&signal->theData[0];
   copyFragReq->userPtr = takeOverPtr.i;
   copyFragReq->userRef = reference();
@@ -4033,7 +4043,9 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
 
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
-  BlockReference lqhRef = calcLqhBlockRef(takeOverPtr.p->toStartingNode);
+  Uint32 instanceKey = dihGetInstanceKey(fragPtr);
+  BlockReference lqhRef = numberToRef(DBLQH, instanceKey,
+                                      takeOverPtr.p->toStartingNode);
   CopyActiveReq * const req = (CopyActiveReq *)&signal->theData[0];
   req->userPtr = takeOverPtr.i;
   req->userRef = reference();
@@ -5192,6 +5204,21 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
   case MicroGcp::M_GCP_COMMITTED:
     jam();
     gcpState = MasterGCPConf::GCP_COMMITTED;
+
+    /**
+     * Change state to GCP_COMMIT_RECEIVEDn and rerun GSN_GCP_NOMORETRANS
+     */
+    gcpState = MasterGCPConf::GCP_COMMIT_RECEIVED;
+    m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT;
+
+    {
+      GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
+      req2->senderData = m_micro_gcp.m_master_ref;
+      req2->gci_hi = m_micro_gcp.m_old_gci >> 32;
+      req2->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+      sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
+                 GCPNoMoreTrans::SignalLength, JBB);
+    }
     break;
   };
 
@@ -8084,6 +8111,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   conf->zero = 0;
   conf->reqinfo = sig2;
   conf->fragId = fragId;
+  conf->instanceKey = dihGetInstanceKey(fragPtr);
 
   if (unlikely(newFragId != RNIL))
   {
@@ -8337,6 +8365,7 @@ void Dbdih::execDIH_SCAN_GET_NODES_REQ(Signal* signal)
   conf->count = count;
   conf->tableId = tabPtr.i;
   conf->fragId = fragId;
+  conf->instanceKey = dihGetInstanceKey(fragPtr);
   sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_CONF, signal,
              DihScanGetNodesConf::SignalLength, JBB);
 }//Dbdih::execDIGETPRIMREQ()
@@ -8972,6 +9001,28 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   }
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(7213))
+  {
+    ndbout_c("err 7213 killing %d", c_error_insert_extra);
+    Uint32 save = signal->theData[0];
+    signal->theData[0] = 5048;
+    sendSignal(numberToRef(DBLQH, c_error_insert_extra),
+               GSN_NDB_TAMPER, signal, 1, JBB);
+    signal->theData[0] = save;
+    CLEAR_ERROR_INSERT_VALUE;
+
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, c_error_insert_extra),
+               GSN_DUMP_STATE_ORD, signal, 1, JBB);
+
+    signal->theData[0] = save;
+    CLEAR_ERROR_INSERT_VALUE;
+
+    return;
+  }
+#endif
+
   Uint32 masterRef = calcDihBlockRef(masterNodeId);
   ndbrequire(masterNodeId = cmasterNodeId);
   if (isMaster())
@@ -9049,6 +9100,19 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 	       GSN_NDB_TAMPER, signal, 1, JBB);
     return;
   }
+
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(7214))
+  {
+    ndbout_c("err 7214 killing %d", c_error_insert_extra);
+    Uint32 save = signal->theData[0];
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, c_error_insert_extra),
+               GSN_NDB_TAMPER, signal, 1, JBB);
+    signal->theData[0] = save;
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+#endif
 
 #ifdef GCP_TIMER_HACK
   NdbTick_getMicroTimer(&globalData.gcp_timer_commit[1]);
@@ -11974,7 +12038,9 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
   replicaPtr.i = info.replicaPtr;
   ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
   
-  BlockReference ref = calcLqhBlockRef(replicaPtr.p->procNode);
+  // address LQH/instance directly
+  Uint32 instanceKey = dihGetInstanceKey(info.tableId, info.fragId);
+  BlockReference ref = numberToRef(DBLQH, instanceKey, replicaPtr.p->procNode);
   
   if (ERROR_INSERTED(7193) && replicaPtr.p->procNode == getOwnNodeId())
   {
@@ -14766,7 +14832,11 @@ void Dbdih::sendStartFragreq(Signal* signal,
   for (replicaPtr.i = 0; replicaPtr.i < cnoOfCreateReplicas; replicaPtr.i++) {
     jam();
     ptrAss(replicaPtr, createReplicaRecord);
-    BlockReference ref = calcLqhBlockRef(replicaPtr.p->dataNodeId);
+
+    Uint32 instanceKey = dihGetInstanceKey(tabPtr.i, fragId);
+    BlockReference ref = numberToRef(DBLQH, instanceKey,
+                                     replicaPtr.p->dataNodeId);
+
     StartFragReq * const startFragReq = (StartFragReq *)&signal->theData[0];
     startFragReq->userPtr = replicaPtr.p->replicaRec;
     startFragReq->userRef = reference();
@@ -15706,7 +15776,6 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 7901)
     globalData.gcp_timer_limit = signal->theData[1];
 #endif
-
   if (arg == 7023)
   {
     /**
@@ -15750,9 +15819,20 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
     return;
   }
+
   if (arg == DumpStateOrd::SchemaResourceCheckLeak)
   {
     RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
+  }
+
+  DECLARE_DUMP0(DBDIH, 7213, "Set error 7213 with extra arg")
+  {
+    SET_ERROR_INSERT_VALUE2(7213, signal->theData[1]);
+    return;
+  }
+  DECLARE_DUMP0(DBDIH, 7214, "Set error 7214 with extra arg")
+  {
+    SET_ERROR_INSERT_VALUE2(7214, signal->theData[1]);
     return;
   }
 }//Dbdih::execDUMP_STATE_ORD()
@@ -16872,7 +16952,8 @@ do_send:
 
 #endif
 
-// block instances
+// MT LQH
+
 Uint32
 Dbdih::dihGetInstanceKey(Uint32 tabId, Uint32 fragId)
 {

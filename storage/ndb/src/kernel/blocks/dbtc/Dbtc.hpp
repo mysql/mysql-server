@@ -43,28 +43,21 @@
  */
 #define Z8NIL 255
 #define ZAPI_CONNECT_FILESIZE 20
-#define ZATTRBUF_FILESIZE 4000
 #define ZCLOSED 2
 #define ZCOMMITING 0			 /* VALUE FOR TRANSTATUS        */
 #define ZCOMMIT_SETUP 2
 #define ZCONTINUE_ABORT_080 4
-#define ZDATABUF_FILESIZE 4000
 #define ZGCP_FILESIZE 10
-#define ZINBUF_DATA_LEN 24	 /* POSITION OF 'DATA LENGHT'-VARIABLE. */
-#define ZINBUF_NEXT 27 		 /* POSITION OF 'NEXT'-VARIABLE.        */
-#define ZINBUF_PREV 26 		 /* POSITION OF 'PREVIOUS'-VARIABLE.    */
 #define ZINTSPH1 1
 #define ZINTSPH2 2
 #define ZINTSPH3 3
 #define ZINTSPH6 6
 #define ZLASTPHASE 255
-#define ZMAX_DATA_IN_LQHKEYREQ 12
 #define ZNODEBUF_FILESIZE 2000
 #define ZNR_OF_SEIZE 10
 #define ZSCANREC_FILE_SIZE 100
 #define ZSCAN_FRAGREC_FILE_SIZE 400
 #define ZSCAN_OPREC_FILE_SIZE 400
-#define ZSEND_ATTRINFO 0
 #define ZSPH1 1
 #define ZTABREC_FILESIZE 16
 #define ZTAKE_OVER_ACTIVE 1
@@ -851,6 +844,8 @@ public:
     UintR savePointId;
 
     Uint16 tcNodedata[4];
+    /* Instance key to send to LQH.  Receiver maps it to actual instance. */
+    Uint16 lqhInstanceKey;
     
     // Trigger data
     FiredTriggerPtr accumulatingTriggerData;
@@ -878,89 +873,53 @@ public:
   //---------------------------------------------------------------------------
 
   struct CacheRecord {
-    //---------------------------------------------------
-    // First 16 byte cache line. Variables used by
-    // ATTRINFO processing.
-    //---------------------------------------------------
-    UintR  firstAttrbuf;      /* POINTER TO LINKED LIST OF ATTRIBUTE BUFFERS */
-    UintR  lastAttrbuf;       /* POINTER TO LINKED LIST OF ATTRIBUTE BUFFERS */
-    UintR  currReclenAi;
-    Uint16 attrlength;        /* ATTRIBUTE INFORMATION LENGTH                */
-    Uint16 save1;
-    
-    //---------------------------------------------------
-    // Second 16 byte cache line. Variables initiated by
-    // TCKEYREQ and used in LQHKEYREQ.
-    //---------------------------------------------------
-    UintR  attrinfo15[4];
-    
-    //---------------------------------------------------
-    // Third 16 byte cache line. Variables initiated by
-    // TCKEYREQ and used in LQHKEYREQ.
-    //---------------------------------------------------
-    UintR  attrinfo0;
-    UintR  schemaVersion;/* SCHEMA VERSION USED IN TRANSACTION         */
-    UintR  tableref;     /* POINTER TO THE TABLE IN WHICH THE FRAGMENT EXISTS*/
-    Uint16 apiVersionNo;
-    Uint16 keylen;       /* KEY LENGTH SENT BY REQUEST SIGNAL                */
-    
-    //---------------------------------------------------
-    // Fourth 16 byte cache line. Variables initiated by
-    // TCKEYREQ and used in LQHKEYREQ.
-    //---------------------------------------------------
-    UintR  keydata[4];   /* RECEIVES FIRST 16 BYTES OF TUPLE KEY         */
-    
-    //---------------------------------------------------
-    // First 16 byte cache line in second 64 byte cache
-    // line. Diverse use.
-    //---------------------------------------------------
-    UintR  fragmentid;   /* THE COMPUTED FRAGMENT ID                     */
-    UintR  hashValue;    /* THE HASH VALUE USED TO LOCATE FRAGMENT       */
-    
-    Uint8  distributionKeyIndicator;
-    Uint8  m_special_hash; // collation or distribution key
-    Uint8  m_no_disk_flag;
-    Uint8  lenAiInTckeyreq;  /* LENGTH OF ATTRIBUTE INFORMATION IN TCKEYREQ */
+    /* Fields used by TCKEYREQ/TCINDXREQ/SCANTABREQ */
+      Uint32 keyInfoSectionI;   /* KeyInfo section I-val */
+      Uint32 attrInfoSectionI;  /* AttrInfo section I-val */
 
-    Uint8  fragmentDistributionKey;  /* DIH generation no */
-
-    /**
-     * EXECUTION MODE OF OPERATION                    
-     * 0 = NORMAL EXECUTION, 1 = INTERPRETED EXECUTION
-     */
-    Uint8  opExec;     
-
-    /* Use of Long signals */
-    Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
-    Uint8  useLongLqhKeyReq; /* Outgoing LqhKeyReq should be long */
-
-    //---------------------------------------------------
-    // Second 16 byte cache line in second 64 byte cache
-    // line. Diverse use.
-    //---------------------------------------------------
-    UintR  distributionKey;
-    UintR  nextCacheRec;
-    UintR  unused3;
-    Uint32 scanInfo;
+      // TODO : Consider using section length + other vars for this 
+      UintR  currReclenAi;      /* AttrInfo words received so far */
+      Uint16 attrlength;        /* Total AttrInfo length */
+      Uint16 save1;             /* KeyInfo words received so far */
+      Uint16 keylen;            /* KEY LENGTH SENT BY REQUEST SIGNAL */
     
-    //---------------------------------------------------
-    // Third 16 byte cache line in second 64
-    // byte cache line. Diverse use.
-    //---------------------------------------------------
-    Uint32 unused4;
-    Uint32 scanTakeOverInd;
-    UintR  firstKeybuf;   /* POINTER THE LINKED LIST OF KEY BUFFERS       */
-    UintR  lastKeybuf;    /* VARIABLE POINTING TO THE LAST KEY BUFFER     */
+      /* Distribution information */
+      // TODO : Consider placing this info into other records
+      Uint8  distributionKeyIndicator;
+      UintR  distributionKey;
+    /* End of fields used by TCKEYREQ/TCINDXREQ/SCANTABREQ */
+    
 
-    //---------------------------------------------------
-    // Fourth 16 byte cache line in second 64
-    // byte cache line. Diverse use.
-    // Second 8 bytes not used currently
-    //---------------------------------------------------
-    /* I-values for KeyInfo and AttrInfo sections */ 
-    Uint32 keyInfoSectionI;
-    Uint32 attrInfoSectionI;
-    UintR  packedCacheVar[2];
+    /* TCKEYREQ/TCINDXREQ only fields */
+      UintR  schemaVersion;/* SCHEMA VERSION USED IN TRANSACTION         */
+      UintR  tableref;     /* POINTER TO THE TABLE IN WHICH THE FRAGMENT EXISTS*/
+      Uint16 apiVersionNo;
+    
+      UintR  fragmentid;   /* THE COMPUTED FRAGMENT ID                     */
+      UintR  hashValue;    /* THE HASH VALUE USED TO LOCATE FRAGMENT       */
+    
+      Uint8  m_special_hash; // collation or distribution key
+      Uint8  m_no_disk_flag; 
+      Uint8  lenAiInTckeyreq;  /* LENGTH OF ATTRIBUTE INFORMATION IN TCKEYREQ */
+    
+      Uint8  fragmentDistributionKey;  /* DIH generation no */
+    
+      /**
+       * EXECUTION MODE OF OPERATION                    
+       * 0 = NORMAL EXECUTION, 1 = INTERPRETED EXECUTION
+       */
+      Uint8  opExec;     
+    
+      /* Use of Long signals */
+      Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
+      Uint8  useLongLqhKeyReq; /* Outgoing LqhKeyReq should be long */
+    
+      UintR  nextCacheRec;
+      Uint32 scanInfo;
+    
+      Uint32 scanTakeOverInd;
+    /* End of TCKEYREQ/TCINDXREQ only fields */
+
   };
   
   typedef Ptr<CacheRecord> CacheRecordPtr;
@@ -1265,38 +1224,6 @@ public:
   };   
   typedef Ptr<ScanRecord> ScanRecordPtr;
   
-  /* **********************************************************************$ */
-  /* ******$                        DATA BUFFER                      ******$ */
-  /*                                                                         */
-  /*       THIS BUFFER IS USED AS A GENERAL DATA STORAGE.                    */
-  /* **********************************************************************$ */
-  struct DatabufRecord {
-    UintR data[4];
-    /* 4 * 1 WORD = 4 WORD   */
-    UintR nextDatabuf;
-  }; /* p2c: size = 20 bytes */
-  
-  typedef Ptr<DatabufRecord> DatabufRecordPtr;
-
-  /* **********************************************************************$ */
-  /* ******$                 ATTRIBUTE INFORMATION RECORD            ******$ */
-  /*
-   * CAN CONTAIN ONE (1) ATTRINFO SIGNAL. ONE SIGNAL CONTAINS 24 ATTR.      
-   * INFO WORDS. BUT 32 ELEMENTS ARE USED TO MAKE PLEX HAPPY.
-   * SOME OF THE ELEMENTS ARE USED TO THE FOLLOWING THINGS:                 
-   * DATA LENGHT IN THIS RECORD IS STORED IN THE ELEMENT INDEXED BY          
-   * ZINBUF_DATA_LEN.                                                         
-   * NEXT FREE ATTRBUF IS POINTED OUT BY THE ELEMENT INDEXED BY               
-   * PREVIOUS ATTRBUF IS POINTED OUT BY THE ELEMENT INDEXED BY ZINBUF_PREV     
-   * (NOT USED YET).                                                          
-   * NEXT ATTRBUF IS POINTED OUT BY THE ELEMENT INDEXED BY ZINBUF_NEXT.   */
-  /* ******************************************************************** */
-  struct AttrbufRecord {
-    UintR attrbuf[32];
-  }; /* p2c: size = 128 bytes */
-  
-  typedef Ptr<AttrbufRecord> AttrbufRecordPtr;
-
   /*************************************************************************>*/
   /*                     GLOBAL CHECKPOINT INFORMATION RECORD                */
   /*                                                                         */
@@ -1483,7 +1410,9 @@ private:
   void initScanTcrec(Signal* signal);
   void initScanrec(ScanRecordPtr,  const class ScanTabReq*,
 		   const UintR scanParallel, 
-		   const UintR noOprecPerFrag);
+		   const UintR noOprecPerFrag,
+                   const Uint32 aiLength,
+                   const Uint32 keyLength);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
@@ -1494,10 +1423,10 @@ private:
   
   void checkGcp(Signal* signal);
   void commitGciHandling(Signal* signal, Uint64 Tgci);
-  void copyApi(Signal* signal);
+  void copyApi(Ptr<ApiConnectRecord> dst, Ptr<ApiConnectRecord> src);
   void DIVER_node_fail_handling(Signal* signal, Uint64 Tgci);
-  void gcpTcfinished(Signal* signal);
-  void handleGcp(Signal* signal);
+  void gcpTcfinished(Signal* signal, Uint64 gci);
+  void handleGcp(Signal* signal, Ptr<ApiConnectRecord>);
   void hash(Signal* signal);
   bool handle_special_hash(Uint32 dstHash[4], 
                            const Uint32* src, Uint32 srcLen, 
@@ -1507,8 +1436,6 @@ private:
   void initApiConnectRec(Signal* signal, 
 			 ApiConnectRecord * const regApiPtr,
 			 bool releaseIndexOperations = false);
-  void initattrbuf(Signal* signal);
-  void initdatabuf(Signal* signal);
   void initgcp(Signal* signal);
   void inithost(Signal* signal);
   void initialiseScanrec(Signal* signal);
@@ -1516,47 +1443,40 @@ private:
   void initialiseScanOprec(Signal* signal);
   void initTable(Signal* signal);
   void initialiseTcConnect(Signal* signal);
-  void linkApiToGcp(Signal* signal);
-  void linkGciInGcilist(Signal* signal);
-  void linkKeybuf(Signal* signal);
+  void linkApiToGcp(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
+  void linkGciInGcilist(Ptr<GcpRecord>);
   void linkTcInConnectionlist(Signal* signal);
   void releaseAbortResources(Signal* signal);
   void releaseApiCon(Signal* signal, UintR aApiConnectPtr);
   void releaseApiConCopy(Signal* signal);
   void releaseApiConnectFail(Signal* signal);
   void releaseAttrinfo();
-  void releaseGcp(Signal* signal);
   void releaseKeys();
   void releaseDirtyRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
   void releaseDirtyWrite(Signal* signal);
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal);
-  void saveAttrbuf(Signal* signal);
   void seizeApiConnect(Signal* signal);
   void seizeApiConnectCopy(Signal* signal);
   void seizeApiConnectFail(Signal* signal);
-  void seizeDatabuf(Signal* signal);
-  void seizeGcp(Signal* signal);
+  void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnect(Signal* signal);
   void seizeTcConnectFail(Signal* signal);
-  void sendApiCommit(Signal* signal);
-  void sendAttrinfo(Signal* signal,
-                    UintR TattrinfoPtr,
-                    AttrbufRecord * const regAttrPtr,
-                    UintR TBref);
+  Ptr<ApiConnectRecord> sendApiCommit(Signal* signal);
   bool sendAttrInfoTrain(Signal* signal,
                          UintR TBRef,
+                         Uint32 connectPtr,
                          Uint32 offset,
-                         SegmentedSectionPtr& section);
+                         Uint32 attrInfoIVal);
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
   void sendlqhkeyreq(Signal* signal, 
                      BlockReference TBRef);
   void sendSystemError(Signal* signal, int line);
   void sendtckeyconf(Signal* signal, UintR TcommitFlag);
   void sendTcIndxConf(Signal* signal, UintR TcommitFlag);
-  void unlinkApiConnect(Signal* signal);
-  void unlinkGcp(Signal* signal);
+  void unlinkApiConnect(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
+  void unlinkGcp(Ptr<GcpRecord>);
   void unlinkReadyTcCon(Signal* signal);
   void handleFailedOperation(Signal* signal,
 			     const LqhKeyRef * const lqhKeyRef, 
@@ -1642,13 +1562,11 @@ private:
   void diFcountReqLab(Signal* signal, ScanRecordPtr);
   void signalErrorRefuseLab(Signal* signal);
   void abort080Lab(Signal* signal);
-  void packKeyData000Lab(Signal* signal, 
-                         BlockReference TBRef, 
-                         Uint32 len);
-  void packKeyDataFromSection(Signal* signal,
-                              BlockReference TBRef,
-                              Uint32 offset,
-                              SegmentedSectionPtr& keyInfoSection);
+  void sendKeyInfoTrain(Signal* signal,
+                        BlockReference TBRef,
+                        Uint32 connectPtr,
+                        Uint32 offset,
+                        Uint32 keyInfoIVal);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode, 
 		    bool not_started = false);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
@@ -1671,8 +1589,8 @@ private:
   void releaseAtErrorLab(Signal* signal);
   void seizeDatabuferrorLab(Signal* signal);
   void appendToSectionErrorLab(Signal* signal);
+  void scanKeyinfoLab(Signal* signal);
   void scanAttrinfoLab(Signal* signal, UintR Tlen);
-  void seizeAttrbuferrorLab(Signal* signal);
   void attrinfoDihReceivedLab(Signal* signal);
   void aiErrorLab(Signal* signal);
   void scanReleaseResourcesLab(Signal* signal);
@@ -1731,18 +1649,13 @@ private:
   CacheRecordPtr cachePtr;
   UintR ccacheFilesize;
 
-  // TODO : Remove when SCANTABREQ uses SegmentedSection
-  AttrbufRecord *attrbufRecord;
-  AttrbufRecordPtr attrbufptr;
-  UintR cattrbufFilesize;
-
   HostRecord *hostRecord;
   HostRecordPtr hostptr;
   UintR chostFilesize;
   NdbNodeBitmask c_alive_nodes;
 
+  Uint32 c_ongoing_take_over_cnt;
   GcpRecord *gcpRecord;
-  GcpRecordPtr gcpPtr;
   UintR cgcpFilesize;
 
   TableRecord *tableRecord;
@@ -1757,7 +1670,6 @@ private:
   UintR ctcTimer;
   UintR cDbHbInterval;
 
-  ApiConnectRecordPtr tmpApiConnectptr;
   Uint64 tcheckGcpId;
 
   struct TransCounters {
@@ -1797,7 +1709,6 @@ private:
   Uint16 cownNodeid;
   Uint16 terrorCode;
 
-  UintR cfirstfreeAttrbuf;
   UintR cfirstfreeTcConnect;
   UintR cfirstfreeApiConnectCopy;
   UintR cfirstfreeCacheRec;
@@ -1811,7 +1722,6 @@ private:
   UintR cfirstfreeApiConnectFail;
   UintR cfirstfreeApiConnect;
 
-  UintR cfirstfreeDatabuf;
   BlockReference cdihblockref;
   BlockReference cownref;                   /* OWN BLOCK REFERENCE */
 
@@ -1824,7 +1734,6 @@ private:
   ScanFragRecPtr scanFragptr;
 
   UintR cscanFragrecFileSize;
-  UintR cdatabufFilesize;
 
   BlockReference cdictblockref;
   BlockReference cerrorBlockref;
@@ -1855,11 +1764,6 @@ private:
   Uint16 cpackedList[MAX_NODES];
   UintR capiConnectClosing[MAX_NODES];
   UintR con_lineNodes;
-
-  // TODO : Remove when ScanTabReq uses Segmented Sections
-  DatabufRecord *databufRecord;
-  DatabufRecordPtr databufptr;
-  DatabufRecordPtr tmpDatabufptr;
 
   UintR treqinfo;
   UintR ttransid1;

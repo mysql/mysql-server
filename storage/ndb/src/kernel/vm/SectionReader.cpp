@@ -41,6 +41,17 @@ SectionReader::SectionReader
   }
 }
 
+SectionReader::SectionReader
+(Uint32 firstSectionIVal, class SectionSegmentPool& pool)
+  : m_pool(pool)
+{
+  SectionSegment* firstSeg= m_pool.getPtr(firstSectionIVal);
+  
+  m_pos = 0;
+  m_len = firstSeg->m_sz;
+  m_head = m_currentSegment = firstSeg;
+}
+
 void
 SectionReader::reset(){
   m_pos = 0;
@@ -120,24 +131,69 @@ SectionReader::getWords(Uint32 * dst, Uint32 len){
   if(m_pos + len > m_len)
     return false;
 
-  Uint32 ind = (m_pos % SectionSegment::DataLength);
-  Uint32 left = SectionSegment::DataLength - ind;
-  SectionSegment * p = m_currentSegment;
+  /* Use getWordsPtr to correctly traverse segments */
 
-  while(len > left){
-    memcpy(dst, &p->theData[ind], 4 * left);
-    dst += left;
-    len -= left;
-    m_pos += left;
-    ind = 0;
-    left = SectionSegment::DataLength;
-    p = m_pool.getPtr(p->m_nextSegment);
+  while (len > 0)
+  {
+    const Uint32* readPtr;
+    Uint32 readLen;
+
+    if (!getWordsPtr(len,
+                     readPtr,
+                     readLen))
+      return false;
+    
+    memcpy(dst, readPtr, readLen << 2);
+    len-= readLen;
+    dst+= readLen;
   }
 
-  memcpy(dst, &p->theData[ind], 4 * len);
-
-  m_pos += len;
-  m_currentSegment = p;
   return true;
 }
 
+bool
+SectionReader::getWordsPtr(Uint32 maxLen,
+                           const Uint32*& readPtr,
+                           Uint32& actualLen)
+{
+  if(m_pos >= m_len)
+    return false;
+
+  /* We return a pointer to the current position,
+   * with length the minimum of
+   *  - significant words remaining in the whole section
+   *  - space remaining in the current segment
+   *  - maxLen from caller
+   */
+  const Uint32 sectionRemain= m_len - m_pos;
+  const Uint32 startInd = (m_pos % SectionSegment::DataLength);
+  const Uint32 segmentSpace = SectionSegment::DataLength - startInd;
+  SectionSegment * p = m_currentSegment;
+
+  const Uint32 remain= MIN(sectionRemain, segmentSpace);
+  actualLen= MIN(remain, maxLen);
+  readPtr= &p->theData[startInd];
+
+  /* If we've read everything in this segment, and
+   * there's another one, move onto it ready for 
+   * next time
+   */
+  if (((startInd + actualLen) == SectionSegment::DataLength) &&
+      (p->m_nextSegment != RNIL))
+    m_currentSegment= m_pool.getPtr(p->m_nextSegment);
+
+  m_pos += actualLen;
+  return true;
+};
+
+bool
+SectionReader::getWordsPtr(const Uint32*& readPtr,
+                           Uint32& actualLen)
+{
+  /* Cannot have more than SectionSegment::DataLength
+   * contiguous words
+   */
+  return getWordsPtr(SectionSegment::DataLength,
+                     readPtr,
+                     actualLen);
+}

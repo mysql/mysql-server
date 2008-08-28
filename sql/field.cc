@@ -27,6 +27,8 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
+#include "rpl_rli.h"                            // Pull in Relay_log_info
+#include "slave.h"                              // Pull in rpl_master_has_bug()
 #include <m_ctype.h>
 #include <errno.h>
 #ifdef HAVE_FCONVERT
@@ -1375,7 +1377,8 @@ bool Field::send_binary(Protocol *protocol)
    @retval 0 if this field's size is < the source field's size
    @retval 1 if this field's size is >= the source field's size
 */
-int Field::compatible_field_size(uint field_metadata)
+int Field::compatible_field_size(uint field_metadata,
+                                 const Relay_log_info *rli_arg __attribute__((unused)))
 {
   uint const source_size= pack_length_from_metadata(field_metadata);
   uint const destination_size= row_pack_length();
@@ -2837,7 +2840,8 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
    @retval 0 if this field's size is < the source field's size
    @retval 1 if this field's size is >= the source field's size
 */
-int Field_new_decimal::compatible_field_size(uint field_metadata)
+int Field_new_decimal::compatible_field_size(uint field_metadata,
+                                             const Relay_log_info * __attribute__((unused)))
 {
   int compatible= 0;
   uint const source_precision= (field_metadata >> 8U) & 0x00ff;
@@ -4037,7 +4041,6 @@ Field_real::pack(uchar *to, const uchar *from,
 {
   DBUG_ENTER("Field_real::pack");
   DBUG_ASSERT(max_length >= pack_length());
-  DBUG_PRINT("debug", ("pack_length(): %u", pack_length()));
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first != table->s->db_low_byte_first)
   {
@@ -4056,7 +4059,6 @@ Field_real::unpack(uchar *to, const uchar *from,
                    uint param_data, bool low_byte_first)
 {
   DBUG_ENTER("Field_real::unpack");
-  DBUG_PRINT("debug", ("pack_length(): %u", pack_length()));
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first != table->s->db_low_byte_first)
   {
@@ -6328,6 +6330,7 @@ check_string_copy_error(Field_str *field,
     Field_longstr::report_if_important_data()
     ptr                      - Truncated rest of string
     end                      - End of truncated string
+    count_spaces             - Treat traling spaces as important data
 
   RETURN VALUES
     0   - None was truncated (or we don't count cut fields)
@@ -6337,10 +6340,12 @@ check_string_copy_error(Field_str *field,
     Check if we lost any important data (anything in a binary string,
     or any non-space in others). If only trailing spaces was lost,
     send a truncation note, otherwise send a truncation error.
+    Silently ignore traling spaces if the count_space parameter is FALSE.
 */
 
 int
-Field_longstr::report_if_important_data(const char *ptr, const char *end)
+Field_longstr::report_if_important_data(const char *ptr, const char *end,
+                                        bool count_spaces)
 {
   if ((ptr < end) && table->in_use->count_cuted_fields)
   {
@@ -6350,10 +6355,13 @@ Field_longstr::report_if_important_data(const char *ptr, const char *end)
         set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
       else
         set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+      return 2;
     }
-    else /* If we lost only spaces then produce a NOTE, not a WARNING */
+    else if (count_spaces)
+    { /* If we lost only spaces then produce a NOTE, not a WARNING */
       set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
-    return 2;
+      return 2;
+    }
   }
   return 0;
 }
@@ -6390,7 +6398,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length, cs))
     return 2;
 
-  return report_if_important_data(from_end_pos, from + length);
+  return report_if_important_data(from_end_pos, from + length, FALSE);
 }
 
 
@@ -6632,6 +6640,37 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
 }
 
 
+struct Check_field_param {
+  Field *field;
+};
+
+#ifdef HAVE_REPLICATION
+static bool
+check_field_for_37426(const void *param_arg)
+{
+  Check_field_param *param= (Check_field_param*) param_arg;
+  DBUG_ASSERT(param->field->real_type() == MYSQL_TYPE_STRING);
+  DBUG_PRINT("debug", ("Field %s - type: %d, size: %d",
+                       param->field->field_name,
+                       param->field->real_type(),
+                       param->field->row_pack_length()));
+  return param->field->row_pack_length() > 255;
+}
+#endif
+
+int Field_string::compatible_field_size(uint field_metadata,
+                                        const Relay_log_info *rli_arg)
+{
+#ifdef HAVE_REPLICATION
+  const Check_field_param check_param = { this };
+  if (rpl_master_has_bug(rli_arg, 37426, TRUE,
+                         check_field_for_37426, &check_param))
+    return FALSE;                        // Not compatible field sizes
+#endif
+  return Field::compatible_field_size(field_metadata, rli_arg);
+}
+
+
 int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   uint a_len, b_len;
@@ -6718,6 +6757,9 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
    @c param_data argument contains the result of field->real_type() from
    the master.
 
+   @note For information about how the length is packed, see @c
+   Field_string::do_save_field_metadata
+
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Real type (upper) and length (lower) values
@@ -6730,10 +6772,24 @@ Field_string::unpack(uchar *to,
                      uint param_data,
                      bool low_byte_first __attribute__((unused)))
 {
-  uint from_length=
-    param_data ? min(param_data & 0x00ff, field_length) : field_length;
-  uint length;
+  uint from_length, length;
 
+  /*
+    Compute the declared length of the field on the master. This is
+    used to decide if one or two bytes should be read as length.
+   */
+  if (param_data)
+    from_length= (((param_data >> 4) & 0x300) ^ 0x300) + (param_data & 0x00ff);
+  else
+    from_length= field_length;
+
+  DBUG_PRINT("debug",
+             ("param_data: 0x%x, field_length: %u, from_length: %u",
+              param_data, field_length, from_length));
+  /*
+    Compute the actual length of the data by reading one or two bits
+    (depending on the declared field length on the master).
+   */
   if (from_length > 255)
   {
     length= uint2korr(from);
@@ -6756,14 +6812,37 @@ Field_string::unpack(uchar *to,
    second byte of the field metadata array at index of *metadata_ptr and
    *(metadata_ptr + 1).
 
+   @note In order to be able to handle lengths exceeding 255 and be
+   backwards-compatible with pre-5.1.26 servers, an extra two bits of
+   the length has been added to the metadata in such a way that if
+   they are set, a new unrecognized type is generated.  This will
+   cause pre-5.1-26 servers to stop due to a field type mismatch,
+   while new servers will be able to extract the extra bits. If the
+   length is <256, there will be no difference and both a new and an
+   old server will be able to handle it.
+
+   @note The extra two bits are added to bits 13 and 14 of the
+   parameter data (with 1 being the least siginficant bit and 16 the
+   most significant bit of the word) by xoring the extra length bits
+   with the real type.  Since all allowable types have 0xF as most
+   significant bits of the metadata word, lengths <256 will not affect
+   the real type at all, while all other values will result in a
+   non-existant type in the range 17-244.
+
+   @see Field_string::unpack
+
    @param   metadata_ptr   First byte of field metadata
 
    @returns number of bytes written to metadata_ptr
 */
 int Field_string::do_save_field_metadata(uchar *metadata_ptr)
 {
-  *metadata_ptr= real_type();
-  *(metadata_ptr + 1)= field_length;
+  DBUG_ASSERT(field_length < 1024);
+  DBUG_ASSERT((real_type() & 0xF0) == 0xF0);
+  DBUG_PRINT("debug", ("field_length: %u, real_type: %u",
+                       field_length, real_type()));
+  *metadata_ptr= (real_type() ^ ((field_length & 0x300) >> 4));
+  *(metadata_ptr + 1)= field_length & 0xFF;
   return 2;
 }
 
@@ -6965,7 +7044,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length, cs))
     return 2;
 
-  return report_if_important_data(from_end_pos, from + length);
+  return report_if_important_data(from_end_pos, from + length, TRUE);
 }
 
 
@@ -7573,6 +7652,7 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg, bool low_by
       return (uint32) tmp;
     }
   }
+  /* When expanding this, see also MAX_FIELD_BLOBLENGTH. */
   return 0;					// Impossible
 }
 
@@ -7673,7 +7753,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
                               cannot_convert_error_pos, from + length, cs))
     return 2;
 
-  return report_if_important_data(from_end_pos, from + length);
+  return report_if_important_data(from_end_pos, from + length, TRUE);
 
 oom_error:
   /* Fatal OOM error */
@@ -9116,7 +9196,8 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
    @retval 0 if this field's size is < the source field's size
    @retval 1 if this field's size is >= the source field's size
 */
-int Field_bit::compatible_field_size(uint field_metadata)
+int Field_bit::compatible_field_size(uint field_metadata,
+                                     const Relay_log_info * __attribute__((unused)))
 {
   int compatible= 0;
   uint const source_size= pack_length_from_metadata(field_metadata);
@@ -9458,8 +9539,20 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       (fld_type_modifier & NOT_NULL_FLAG) && fld_type != MYSQL_TYPE_TIMESTAMP)
     flags|= NO_DEFAULT_VALUE_FLAG;
 
-  if (fld_length && !(length= (uint) atoi(fld_length)))
-    fld_length= 0; /* purecov: inspected */
+  if (fld_length != NULL)
+  {
+    errno= 0;
+    length= strtoul(fld_length, NULL, 10);
+    if ((errno != 0) || (length > MAX_FIELD_BLOBLENGTH))
+    {
+      my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
+      DBUG_RETURN(TRUE);
+    }
+
+    if (length == 0)
+      fld_length= 0; /* purecov: inspected */
+  }
+
   sign_len= fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
 
   switch (fld_type) {
@@ -9607,7 +9700,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
     break;
   case MYSQL_TYPE_TIMESTAMP:
-    if (!fld_length)
+    if (fld_length == NULL)
     {
       /* Compressed date YYYYMMDDHHMMSS */
       length= MAX_DATETIME_COMPRESSED_WIDTH;
@@ -9616,12 +9709,21 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     {
       /*
         We support only even TIMESTAMP lengths less or equal than 14
-        and 19 as length of 4.1 compatible representation.
+        and 19 as length of 4.1 compatible representation.  Silently 
+        shrink it to MAX_DATETIME_COMPRESSED_WIDTH.
       */
-      length= ((length+1)/2)*2; /* purecov: inspected */
-      length= min(length, MAX_DATETIME_COMPRESSED_WIDTH); /* purecov: inspected */
+      DBUG_ASSERT(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
+      if (length != UINT_MAX)  /* avoid overflow; is safe because of min() */
+        length= ((length+1)/2)*2;
+      length= min(length, MAX_DATETIME_COMPRESSED_WIDTH);
     }
     flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+    /*
+      Since we silently rewrite down to MAX_DATETIME_COMPRESSED_WIDTH bytes,
+      the parser should not raise errors unless bizzarely large. 
+     */
+    max_field_charlength= UINT_MAX;
+
     if (fld_default_value)
     {
       /* Grammar allows only NOW() value for ON UPDATE clause */
@@ -9730,7 +9832,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       ((length > max_field_charlength && fld_type != MYSQL_TYPE_SET &&
         fld_type != MYSQL_TYPE_ENUM &&
         (fld_type != MYSQL_TYPE_VARCHAR || fld_default_value)) ||
-       (!length &&
+       ((length == 0) &&
         fld_type != MYSQL_TYPE_STRING &&
         fld_type != MYSQL_TYPE_VARCHAR && fld_type != MYSQL_TYPE_GEOMETRY)))
   {

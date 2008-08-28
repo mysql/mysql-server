@@ -38,7 +38,7 @@ let $message= #########      Testcase for definer:   ########;
                 before INSERT on t1 for each row
                 set new.f1 = 'trig 1_0-yes';
 	drop trigger trg1_0;
-# create trigger with definer test_yesprivs@localhost->succeed: 
+# create trigger with definer test_yesprivs@localhost->succeed:
         create definer=test_yesprivs@localhost trigger trg1_0
                 before INSERT on t1 for each row
                 set new.f1 = 'trig 1_0-yes';
@@ -49,13 +49,15 @@ let $message= #########      Testcase for definer:   ########;
 	select current_user;
 	use priv_db;
 # user hasn't trigger privilege->fail:
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         insert into t1 (f1) values ('insert-no');
         select f1 from t1 order by f1;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         drop trigger trg1_0;
 
-        connection default;                                                             select current_user;                                                    	grant  select, insert, update ,trigger
+        connection default;
+        select current_user;
+        grant  select, insert, update ,trigger
 	        on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
@@ -66,12 +68,12 @@ let $message= #########      Testcase for definer:   ########;
         select f1 from t1 order by f1;
         drop trigger trg1_0;
 # user has not super privilege->fail:
-	--error 1227
+	--error ER_SPECIFIC_ACCESS_DENIED_ERROR
         create definer=not_ex_user@localhost trigger trg1_0
                 before INSERT on t1 for each row
                 set new.f1 = 'trig 1_0-yes';
 # shall always succeed:
-	create definer=current_user trigger trg1_1 
+	create definer=current_user trigger trg1_1
 		before INSERT on t1 for each row
 		set new.f1 = 'trig 1_1-yes';
 	insert into t1 (f1) values ('insert-no');
@@ -92,7 +94,7 @@ let $message= #########      Testcase for definer:   ########;
         connection yes_privs;
 	select current_user;
 	show grants;
-	--error 1227
+	--error ER_SPECIFIC_ACCESS_DENIED_ERROR
         create definer=not_ex_user@localhost trigger trg1_3
                 after UPDATE on t1 for each row
                 set @var1 = 'trig 1_3-yes';
@@ -109,7 +111,7 @@ let $message= #########      Testcase for definer:   ########;
 	--enable_warnings
 
 
-# general Cleanup 
+# general Cleanup
 	--disable_warnings
 	drop database if exists priv_db;
 	drop user test_yesprivs@localhost;

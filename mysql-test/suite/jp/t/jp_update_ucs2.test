@@ -1,4 +1,5 @@
 --source include/have_ucs2.inc
+--source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists `£‘£±`;
@@ -10,9 +11,6 @@ drop table if exists `£‘£∂`;
 drop table if exists `£‘£∑`;
 drop table if exists `£‘£∏`;
 drop table if exists `£‘£π`;
-drop table if exists `£‘£±£∞`;
-drop table if exists `£‘£±£±`;
-drop table if exists `£‘£±£≤`;
 --enable_warnings
 
 #
@@ -29,12 +27,9 @@ CREATE TABLE `£‘£≥` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engin
 CREATE TABLE `£‘£¥` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£‘£µ` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
 CREATE TABLE `£‘£∂` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
-CREATE TABLE `£‘£∑` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£‘£∏` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£‘£π` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = heap;
-CREATE TABLE `£‘£±£∞` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£‘£±£±` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
-CREATE TABLE `£‘£±£≤` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£‘£∑` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£‘£∏` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+CREATE TABLE `£‘£π` (`£√£±` char(5), INDEX(`£√£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
 
 INSERT INTO `£‘£±` VALUES ('é±é≤é≥é¥éµ');
 INSERT INTO `£‘£≤` VALUES ('§¢§§§¶§®§™');
@@ -45,9 +40,6 @@ INSERT INTO `£‘£∂` VALUES ('èÌ‹èÌ›èÌﬁèÌﬂèÌ‡');
 INSERT INTO `£‘£∑` VALUES ('é±é≤é≥é¥éµ');
 INSERT INTO `£‘£∏` VALUES ('§¢§§§¶§®§™');
 INSERT INTO `£‘£π` VALUES ('èÌ‹èÌ›èÌﬁèÌﬂèÌ‡');
-INSERT INTO `£‘£±£∞` VALUES ('é±é≤é≥é¥éµ');
-INSERT INTO `£‘£±£±` VALUES ('§¢§§§¶§®§™');
-INSERT INTO `£‘£±£≤` VALUES ('èÌ‹èÌ›èÌﬁèÌﬂèÌ‡');
 
 UPDATE `£‘£±` SET `£√£±` = ('é∂é∑é∏éπé∫');
 UPDATE `£‘£≤` SET `£√£±` = ('§´§≠§Ø§±§≥');
@@ -58,9 +50,6 @@ UPDATE `£‘£∂` SET `£√£±` = ('èÌ»èÌ…èÌ èÌÀèÌÃ');
 UPDATE `£‘£∑` SET `£√£±` = ('é∂é∑é∏éπé∫');
 UPDATE `£‘£∏` SET `£√£±` = ('§´§≠§Ø§±§≥');
 UPDATE `£‘£π` SET `£√£±` = ('èÌ»èÌ…èÌ èÌÀèÌÃ');
-UPDATE `£‘£±£∞` SET `£√£±` = ('é∂é∑é∏éπé∫');
-UPDATE `£‘£±£±` SET `£√£±` = ('§´§≠§Ø§±§≥');
-UPDATE `£‘£±£≤` SET `£√£±` = ('èÌ»èÌ…èÌ èÌÀèÌÃ');
 
 #InnoDB
 SELECT * FROM `£‘£±`;
@@ -72,15 +61,10 @@ SELECT * FROM `£‘£¥`;
 SELECT * FROM `£‘£µ`;
 SELECT * FROM `£‘£∂`;
 
-#HEAP
+#MEMORY
 SELECT * FROM `£‘£∑`;
 SELECT * FROM `£‘£∏`;
 SELECT * FROM `£‘£π`;
-
-#BDB
-SELECT * FROM `£‘£±£∞`;
-SELECT * FROM `£‘£±£±`;
-SELECT * FROM `£‘£±£≤`;
 
 DROP TABLE `£‘£±`;
 DROP TABLE `£‘£≤`;
@@ -91,6 +75,3 @@ DROP TABLE `£‘£∂`;
 DROP TABLE `£‘£∑`;
 DROP TABLE `£‘£∏`;
 DROP TABLE `£‘£π`;
-DROP TABLE `£‘£±£∞`;
-DROP TABLE `£‘£±£±`;
-DROP TABLE `£‘£±£≤`;

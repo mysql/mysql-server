@@ -79,6 +79,9 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
 #ifdef VM_TRACE
     ,debugOut(*new NdbOut(*new FileOutputStream(globalSignalLoggers.getOutputStream())))
 #endif
+#ifdef VM_TRACE_TIME
+    ,m_currentGsn(0)
+#endif
 {
   m_threadId = 0;
   m_watchDogCounter = NULL;
@@ -202,6 +205,7 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_FSAPPENDREF]  = &SimulatedBlock::execFSAPPENDREF;
   a[GSN_NODE_START_REP] = &SimulatedBlock::execNODE_START_REP;
   a[GSN_API_START_REP] = &SimulatedBlock::execAPI_START_REP;
+  a[GSN_SEND_PACKED] = &SimulatedBlock::execSEND_PACKED;
 }
 
 void
@@ -216,15 +220,6 @@ SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn,
   theExecArray[gsn] = f;
 }
 
-Uint32
-SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
-{
-  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
-  ndbrequire(dbdih != 0);
-  Uint32 instanceKey = dbdih->dihGetInstanceKey(tabId, fragId);
-  return instanceKey;
-}
-
 void
 SimulatedBlock::assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
                                Uint32 *watchDogCounter)
@@ -232,6 +227,14 @@ SimulatedBlock::assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
   m_threadId = threadId;
   m_jamBuffer = jamBuffer;
   m_watchDogCounter = watchDogCounter;
+}
+
+Uint32
+SimulatedBlock::getInstanceKey(Uint32 tabId, Uint32 fragId)
+{
+  Dbdih* dbdih = (Dbdih*)globalData.getBlock(DBDIH);
+  Uint32 instanceKey = dbdih->dihGetInstanceKey(tabId, fragId);
+  return instanceKey;
 }
 
 void
@@ -306,6 +309,20 @@ linkSegments(Uint32 head, Uint32 tail){
   Ptr<SectionSegment> oldTailPtr;
   g_sectionSegmentPool.getPtr(oldTailPtr, headPtr.p->m_lastSegment);
   
+  /* Can only efficiently link segments if linking to the end of a 
+   * multiple-of-segment-size sized chunk
+   */
+  if ((headPtr.p->m_sz % NDB_SECTION_SEGMENT_SZ) != 0)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
+                               "Bad head segment size",
+                               "");
+#else
+    ndbout_c("linkSegments : Bad head segment size");
+#endif
+  }
+
   headPtr.p->m_lastSegment = tailPtr.p->m_lastSegment;
   headPtr.p->m_sz += tailPtr.p->m_sz;
   
@@ -1300,6 +1317,7 @@ SimulatedBlock::freeBat(){
 
 const NewVARIABLE *
 SimulatedBlock::getBat(Uint16 blockNo, Uint32 instanceNo){
+  assert(blockNo == blockToMain(blockNo));
   SimulatedBlock * sb = globalData.getBlock(blockNo);
   if (sb != 0 && instanceNo != 0)
     sb = sb->getInstance(instanceNo);
@@ -1310,6 +1328,7 @@ SimulatedBlock::getBat(Uint16 blockNo, Uint32 instanceNo){
 
 Uint16
 SimulatedBlock::getBatSize(Uint16 blockNo, Uint32 instanceNo){
+  assert(blockNo == blockToMain(blockNo));
   SimulatedBlock * sb = globalData.getBlock(blockNo);
   if (sb != 0 && instanceNo != 0)
     sb = sb->getInstance(instanceNo);
@@ -1558,7 +1577,14 @@ SimulatedBlock::execCHANGE_NODE_STATE_REQ(Signal* signal){
 
 void
 SimulatedBlock::execNDB_TAMPER(Signal * signal){
-  SET_ERROR_INSERT_VALUE(signal->theData[0]);
+  if (signal->getLength() == 1)
+  {
+    SET_ERROR_INSERT_VALUE(signal->theData[0]);
+  }
+  else
+  {
+    SET_ERROR_INSERT_VALUE2(signal->theData[0], signal->theData[1]);
+  }
 }
 
 void
@@ -1640,6 +1666,11 @@ SimulatedBlock::execNODE_START_REP(Signal* signal)
 
 void
 SimulatedBlock::execAPI_START_REP(Signal* signal)
+{
+}
+
+void
+SimulatedBlock::execSEND_PACKED(Signal* signal)
 {
 }
 

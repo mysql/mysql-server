@@ -784,15 +784,16 @@ struct Operationrec {
 
   Uint32 m_undo_buffer_space; // In words
   union {
-    Uint32 firstAttrinbufrec; //Used until copyAttrinfo
+    Uint32 firstAttrinbufrec; //Used until copyAttrinfo TODO Remove
   };
+
   Uint32 m_any_value;
   union {
-    Uint32 lastAttrinbufrec; //Used until copyAttrinfo
+    Uint32 lastAttrinbufrec; //Used until copyAttrinfo TODO Remove
     Uint32 nextPool;
   };
-  Uint32 attrinbufLen; //only used during STORED_PROCDEF phase
-  Uint32 storedProcPtr; //only used during STORED_PROCDEF phase
+  Uint32 attrinbufLen; //only used during STORED_PROCDEF phase TODO Remove
+  Uint32 storedProcPtr; //only used during STORED_PROCDEF phase TODO Remove
   
   /*
    * From fragment i-value we can find fragment and table record
@@ -896,9 +897,9 @@ struct TupTriggerData {
   TriggerActionTime::Value triggerActionTime;
   TriggerEvent::Value triggerEvent;
   /**
-   * Receiver block
+   * Receiver block reference
    */
-  Uint32 m_receiverBlock;
+  Uint32 m_receiverRef;
   
   /**
    * Monitor all replicas, i.e. trigger will fire on all nodes where tuples
@@ -2055,9 +2056,9 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void sendLogAttrinfo(Signal* signal,
-                       Uint32 TlogSize,
-                       Operationrec * regOperPtr);
+  int sendLogAttrinfo(Signal* signal,
+                      Uint32 TlogSize,
+                      Operationrec * regOperPtr);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2485,7 +2486,8 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void copyAttrinfo(Operationrec * regOperPtr, Uint32*  inBuffer);
+  void copyAttrinfo(Operationrec * regOperPtr, Uint32*  inBuffer, 
+                    Uint32 expectedLen, Uint32 attrInfoIVal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------

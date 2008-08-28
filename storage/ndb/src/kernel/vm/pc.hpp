@@ -110,18 +110,22 @@
 
 // -------- ERROR INSERT MACROS -------
 #ifdef ERROR_INSERT
-#define ERROR_INSERT_VARIABLE UintR cerrorInsert
+#define ERROR_INSERT_VARIABLE UintR cerrorInsert, c_error_insert_extra
 #define ERROR_INSERTED(x) (cerrorInsert == (x))
 #define ERROR_INSERTED_CLEAR(x) (cerrorInsert == (x) ? (cerrorInsert = 0, true) : false)
 #define SET_ERROR_INSERT_VALUE(x) cerrorInsert = x
+#define SET_ERROR_INSERT_VALUE2(x,y) cerrorInsert = x; c_error_insert_extra = y
 #define CLEAR_ERROR_INSERT_VALUE cerrorInsert = 0
 #else
 #define ERROR_INSERT_VARIABLE typedef void * cerrorInsert // Will generate compiler error if used
 #define ERROR_INSERTED(x) false
 #define ERROR_INSERTED_CLEAR(x) false
 #define SET_ERROR_INSERT_VALUE(x)
+#define SET_ERROR_INSERT_VALUE2(x,y)
 #define CLEAR_ERROR_INSERT_VALUE
 #endif
+
+#define DECLARE_DUMP0(BLOCK, CODE, DESC) if (arg == CODE)
 
 /* ------------------------------------------------------------------------- */
 /*       COMMONLY USED CONSTANTS.                                            */

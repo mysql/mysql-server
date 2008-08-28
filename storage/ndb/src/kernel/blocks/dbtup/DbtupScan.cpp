@@ -412,7 +412,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
           signal, signalLength, JBB);
     } else {
-      Uint32 blockNo = refToBlock(scan.m_userRef);
+      Uint32 blockNo = refToMain(scan.m_userRef);
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
       jamEntry();
     }
@@ -996,7 +996,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	conf->localKey[1] = 0;
 	conf->localKeyLength = 1;
 	conf->gci = foundGCI;
-	Uint32 blockNo = refToBlock(scan.m_userRef);
+	Uint32 blockNo = refToMain(scan.m_userRef);
 	EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
 	jamEntry();
 
@@ -1049,7 +1049,7 @@ found_lcp_keep:
   conf->localKey[1] = 0;
   conf->localKeyLength = 1;
   conf->gci = 0;
-  Uint32 blockNo = refToBlock(scan.m_userRef);
+  Uint32 blockNo = refToMain(scan.m_userRef);
   EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
   
   fragPtr.p->m_lcp_keep_list = next;

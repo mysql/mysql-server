@@ -17,6 +17,7 @@
 #define NDB_DBACC_PROXY_HPP
 
 #include <LocalProxy.hpp>
+#include <signaldata/DropTab.hpp>
 
 class DbaccProxy : public LocalProxy {
 public:
@@ -26,6 +27,30 @@ public:
 
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+
+  // GSN_DROP_TAB_REQ
+  struct Ss_DROP_TAB_REQ : SsParallel {
+    DropTabReq m_req;
+    Ss_DROP_TAB_REQ() {
+      m_sendREQ = (SsFUNC)&DbaccProxy::sendDROP_TAB_REQ;
+      m_sendCONF = (SsFUNC)&DbaccProxy::sendDROP_TAB_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_DROP_TAB_REQ>& pool(LocalProxy* proxy) {
+      return ((DbaccProxy*)proxy)->c_ss_DROP_TAB_REQ;
+    }
+  };
+  SsPool<Ss_DROP_TAB_REQ> c_ss_DROP_TAB_REQ;
+  Uint32 getSsId(const DropTabReq* req) {
+    return SsIdBase | req->tableId;
+  }
+  Uint32 getSsId(const DropTabConf* conf) {
+    return SsIdBase | conf->tableId;
+  }
+  void execDROP_TAB_REQ(Signal*);
+  void sendDROP_TAB_REQ(Signal*, Uint32 ssId);
+  void execDROP_TAB_CONF(Signal*);
+  void sendDROP_TAB_CONF(Signal*, Uint32 ssId);
 };
 
 #endif

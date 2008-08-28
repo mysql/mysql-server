@@ -1003,11 +1003,11 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   {
     uint workers = 4;
     uint threads = 2;
-    assert(workers <= MAX_NDBMT_WORKERS);
-    assert(threads <= MAX_NDBMT_THREADS);
+    assert(workers <= MAX_NDBMT_LQH_WORKERS);
+    assert(threads <= MAX_NDBMT_LQH_THREADS);
     assert(workers % threads == 0);
-    cfg.put(CFG_NDBMT_WORKERS, workers);
-    cfg.put(CFG_NDBMT_THREADS, threads);
+    cfg.put(CFG_NDBMT_LQH_WORKERS, workers);
+    cfg.put(CFG_NDBMT_LQH_THREADS, threads);
   }
 
   m_ownConfig = (ndb_mgm_configuration*)cfg.getConfigValues();

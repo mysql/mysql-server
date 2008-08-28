@@ -1,4 +1,5 @@
 --source include/have_ujis.inc
+--source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists `£Τ£±`;
@@ -10,9 +11,6 @@ drop table if exists `£Τ£¶`;
 drop table if exists `£Τ£·`;
 drop table if exists `£Τ£Έ`;
 drop table if exists `£Τ£Ή`;
-drop table if exists `£Τ£±£°`;
-drop table if exists `£Τ£±£±`;
-drop table if exists `£Τ£±£²`;
 --enable_warnings
 
 #
@@ -28,12 +26,9 @@ CREATE TABLE `£Τ£³` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engin
 CREATE TABLE `£Τ£΄` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = myisam;
 CREATE TABLE `£Τ£µ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = myisam;
 CREATE TABLE `£Τ£¶` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = myisam;
-CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = heap;
-CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = heap;
-CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = heap;
-CREATE TABLE `£Τ£±£°` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = bdb;
-CREATE TABLE `£Τ£±£±` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = bdb;
-CREATE TABLE `£Τ£±£²` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = bdb;
+CREATE TABLE `£Τ£·` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Έ` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
+CREATE TABLE `£Τ£Ή` (`£Γ£±` char(5), INDEX(`£Γ£±`)) DEFAULT CHARSET = ujis engine = MEMORY;
 
 INSERT INTO `£Τ£±` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
 INSERT INTO `£Τ£²` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
@@ -44,9 +39,6 @@ INSERT INTO `£Τ£¶` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('
 INSERT INTO `£Τ£·` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
 INSERT INTO `£Τ£Έ` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
 INSERT INTO `£Τ£Ή` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
-INSERT INTO `£Τ£±£°` VALUES ('±²³΄µ'),('±²³΄'),('±²³'),('±²'),('±'),('');
-INSERT INTO `£Τ£±£±` VALUES ('¤Ά¤¤¤¦¤¨¤ª'),('¤Ά¤¤¤¦¤¨'),('¤Ά¤¤¤¦'),('¤Ά¤¤'),('¤Ά'),('');
-INSERT INTO `£Τ£±£²` VALUES ('νάνένήνίνΰ'),('νάνένήνί'),('νάνένή'),('νάνέ'),('νά'),('');
 
 #InnoDB
 SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,0) FROM `£Τ£±`;
@@ -224,7 +216,7 @@ SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 4) FROM `£Τ£¶`;
 SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 5) FROM `£Τ£¶`;
 SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 6) FROM `£Τ£¶`;
 
-#HEAP
+#MEMORY
 SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,0) FROM `£Τ£·`;
 SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1) FROM `£Τ£·`;
 SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,2) FROM `£Τ£·`;
@@ -312,94 +304,6 @@ SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 4) FROM `£Τ£Ή`;
 SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 5) FROM `£Τ£Ή`;
 SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 6) FROM `£Τ£Ή`;
 
-#BDB
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,0) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,2) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,3) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,4) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,5) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,6) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 0) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 2) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 3) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 4) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 5) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 6) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,0) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,1) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,2) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,3) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,4) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,5) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,6) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 0) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 1) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 2) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 3) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 4) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 5) FROM `£Τ£±£°`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 6) FROM `£Τ£±£°`;
-
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,0) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,2) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,3) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,4) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,5) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,6) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 0) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 2) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 3) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 4) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 5) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 6) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,0) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,1) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,2) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,3) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,4) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,5) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,6) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 0) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 1) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 2) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 3) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 4) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 5) FROM `£Τ£±£±`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 6) FROM `£Τ£±£±`;
-
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,0) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,2) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,3) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,4) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,5) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,6) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 0) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 2) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 3) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 4) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 5) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 6) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,0) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,1) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,2) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,3) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,4) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,5) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±`,1,6) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 0) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 1) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 2) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 3) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 4) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 5) FROM `£Τ£±£²`;
-SELECT `£Γ£±`, SUBSTRING(`£Γ£±` FROM 1 FOR 6) FROM `£Τ£±£²`;
-
 DROP TABLE `£Τ£±`;
 DROP TABLE `£Τ£²`;
 DROP TABLE `£Τ£³`;
@@ -409,6 +313,3 @@ DROP TABLE `£Τ£¶`;
 DROP TABLE `£Τ£·`;
 DROP TABLE `£Τ£Έ`;
 DROP TABLE `£Τ£Ή`;
-DROP TABLE `£Τ£±£°`;
-DROP TABLE `£Τ£±£±`;
-DROP TABLE `£Τ£±£²`;

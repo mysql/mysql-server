@@ -1,0 +1,398 @@
+#
+# Testing the behavior of 'PREPARE', 'DDL', 'EXECUTE' scenarios
+#
+# There are several subtests which are probably "superfluous" because a DDL
+# statement before the EXECUTE <prepared stmt handle> contained a keyword
+# or action (Example: Alter) which causes that all prepared statements using
+# the modified object are reprepared before execution.
+# Please do not delete these subtests if they disturb. Just disable them by
+# if (0)
+# {
+#    <tests to disable>
+# }.
+# There might be future optimisations of the server which decrease the amount
+# of unneeded reprepares or skip unneeded prepare steps and than these subtests
+# might become valuable.
+#    Example:
+#    Every preceding ALTER TABLE seems to cause a reprepare.
+#    But if the ALTER only changed the table comment ...
+#
+# Created: 2008-04-18 mleich
+#
+
+--disable_warnings
+drop temporary table if exists t1;
+drop table if exists t1, t2;
+drop procedure if exists p_verify_reprepare_count;
+drop procedure if exists p1;
+drop function if exists f1;
+drop view if exists t1;
+drop schema if exists mysqltest;
+--enable_warnings
+
+delimiter |;
+create procedure p_verify_reprepare_count(expected int)
+begin
+  declare old_reprepare_count int default @reprepare_count;
+
+  select variable_value from
+  information_schema.session_status where
+  variable_name='com_stmt_reprepare'
+  into @reprepare_count;
+
+  if old_reprepare_count + expected <> @reprepare_count then
+    select concat("Expected: ", expected,
+                   ", actual: ", @reprepare_count - old_reprepare_count)
+    as "ERROR";
+  else
+    select '' as "SUCCESS";
+  end if;
+end|
+delimiter ;|
+set @reprepare_count= 0;
+flush status;
+
+--disable_warnings
+drop table if exists t1;
+--disable_warnings
+
+--echo # Column added or dropped is not within the list of selected columns
+--echo # or table comment has changed.
+--echo # A reprepare is probably not needed.
+create table t1 (a int, b int);
+prepare stmt from "select a from t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+alter table t1 add column c int;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+alter table t1 drop column b;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+alter table t1 comment "My best table";
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+drop table t1;
+deallocate prepare stmt;
+
+--echo # Selects using the table at various positions, inser,update ...
+--echo # + the table disappears
+create table t1 (a int);
+# Attention:
+#   "truncate" must have the first position (= executed as last prepared
+#   statement), because it recreates the table which has leads to reprepare
+#   (is this really needed) of all statements.
+prepare stmt1 from "truncate t1";
+prepare stmt2 from "select 1 as my_column from t1";
+prepare stmt3 from "select 1 as my_column from (select * from t1) as t2";
+prepare stmt4 from
+"select 1 as my_column from (select 1) as t2 where exists (select 1 from t1)";
+prepare stmt5 from "select * from (select 1 as b) as t2, t1";
+prepare stmt6 from "select * from t1 union all select 1.5";
+prepare stmt7 from "select 1 as my_column union all select 1 from t1";
+prepare stmt8 from "insert into t1 values(1),(2)";
+prepare stmt9 from "update t1 set a = 3 where a = 2";
+prepare stmt10 from "delete from t1 where a = 1";
+let ps_stmt_count= 10;
+--echo # Attention: Result logging is disabled.
+# Checks of correct results of statements are not the goal of this test.
+let $num= $ps_stmt_count;
+while ($num)
+{
+   --disable_result_log
+   eval execute stmt$num;
+   --enable_result_log
+   dec $num;
+}
+# There was no reprepare needed, because none of the objects has changed.
+call p_verify_reprepare_count(0);
+drop table t1;
+let $num= $ps_stmt_count;
+while ($num)
+{
+   --error ER_NO_SUCH_TABLE
+   eval execute stmt$num;
+   dec $num;
+}
+# There was no reprepare needed, because the statement is no more applicable.
+call p_verify_reprepare_count(0);
+let $num= $ps_stmt_count;
+while ($num)
+{
+   eval deallocate prepare stmt$num;
+   dec $num;
+}
+
+--echo # Selects using the table at various positions, inser,update ...
+--echo # + layout change (drop column) which must cause a reprepare
+create table t1 (a int, b int);
+insert into t1 values(1,1),(2,2),(3,3);
+create table t2 like t1;
+insert into t1 values(2,2);
+prepare stmt1 from "select a,b from t1";
+prepare stmt2 from "select a,b from (select * from t1) as t1";
+prepare stmt3 from "select * from t1 where a = 2 and b = 2";
+prepare stmt4 from "select * from t2 where (a,b) in (select * from t1)";
+prepare stmt5 from "select * from t1 union select * from t2";
+prepare stmt6 from "select * from t1 union all select * from t2";
+prepare stmt7 from "insert into t1 set a = 4, b = 4";
+prepare stmt8 from "insert into t1 select * from t2";
+let ps_stmt_count= 8;
+--echo # Attention: Result logging is disabled.
+# Checks of correct results of statements are not the goal of this test.
+let $num= $ps_stmt_count;
+while ($num)
+{
+   --disable_result_log
+   eval execute stmt$num;
+   --enable_result_log
+   dec $num;
+}
+call p_verify_reprepare_count(0);
+alter table t1 drop column b;
+--disable_abort_on_error
+let $num= $ps_stmt_count;
+while ($num)
+{
+   eval execute stmt$num;
+   # A reprepare is needed, because layout change of t1 affects statement.
+   call p_verify_reprepare_count(1);
+   dec $num;
+}
+let $num= $ps_stmt_count;
+while ($num)
+{
+   eval execute stmt$num;
+   call p_verify_reprepare_count(1);
+   dec $num;
+}
+--echo # Why does the INSERT ... SELECT does not get a reprepare or is
+--echo # only the counter not incremented?
+eval execute stmt8;
+call p_verify_reprepare_count(1);
+--enable_abort_on_error
+alter table t2 add column c int;
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+eval execute stmt8;
+call p_verify_reprepare_count(1);
+let $num= $ps_stmt_count;
+while ($num)
+{
+   eval deallocate prepare stmt$num;
+   dec $num;
+}
+drop table t1;
+drop table t2;
+
+
+--echo # select AVG(<col>) + optimizer uses index meets loss of the index
+create table t1 (a int, b int, primary key(b),unique index t1_unq_idx(a));
+# We need an index which is not converted to PRIMARY KEY (becomes in
+# case of InnoDB the key used for table clustering).
+insert into t1 set a = 0, b = 0;
+insert into t1 select a + 1, b + 1 from t1;
+insert into t1 select a + 2, b + 2 from t1;
+insert into t1 select a + 4, b + 4 from t1;
+insert into t1 select a + 8, b + 8 from t1;
+# "using index" optimizer strategy is intended
+let $possible_keys=
+    query_get_value(explain select avg(a) from t1, possible_keys, 1);
+let $extra=
+    query_get_value(explain select avg(a) from t1, Extra, 1);
+--echo # Optimizer strategy: Possible keys = $possible_keys , Extra = $extra
+prepare stmt from "select avg(a) from t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+alter table t1 drop index t1_unq_idx;
+let $possible_keys=
+    query_get_value(explain select avg(a) from t1, possible_keys, 1);
+let $extra=
+    query_get_value(explain select avg(a) from t1, Extra, 1);
+--echo # Optimizer strategy: Possible keys = $possible_keys , Extra = $extra
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+
+--echo # select AVG(<col>) + optimizer uses table scan meets a new index
+alter table t1 add unique index t1_unq_idx(a);
+let $possible_keys=
+    query_get_value(explain select avg(a) from t1, possible_keys, 1);
+let $extra=
+    query_get_value(explain select avg(a) from t1, Extra, 1);
+--echo # Optimizer strategy: Possible keys = $possible_keys , Extra = $extra
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+deallocate prepare stmt;
+drop table t1;
+
+
+--echo # table replaced by not updatable view - Insert
+create table t1 (a int);
+prepare stmt from "insert into t1 values(1)";
+execute stmt;
+call p_verify_reprepare_count(0);
+
+drop table t1;
+create view t1 as select 1;
+--error ER_NON_INSERTABLE_TABLE
+execute stmt;
+call p_verify_reprepare_count(1);
+
+drop view t1;
+create table t2 (a int);
+create view t1 as select * from t2 with check option;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+select * from t1;
+
+deallocate prepare stmt;
+drop view t1;
+drop table t2;
+
+
+--echo =====================================================================
+--echo Some freestyle tests
+--echo =====================================================================
+
+create temporary table t1 as select 1 as a;
+delimiter |;
+create procedure p1()
+begin
+  drop temporary table t1;
+end|
+create function f1() returns int
+begin
+  call p1();
+  return 1;
+end|
+delimiter ;|
+
+prepare stmt from "select f1() as my_column, a from t1";
+--error ER_CANT_REOPEN_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+select * from t1;
+
+prepare stmt from "select a, f1() as my_column from t1";
+--error ER_CANT_REOPEN_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+select * from t1;
+
+prepare stmt from "select f1() as my_column, count(*) from t1";
+--error ER_CANT_REOPEN_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+select * from t1;
+
+prepare stmt from "select count(*), f1() as my_column from t1";
+--error ER_CANT_REOPEN_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+select * from t1;
+
+
+--echo # Execute fails, no drop of temporary table
+prepare stmt from "select 1 as my_column from (select 1) as t2
+                   where exists (select f1() from t1)";
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+select * from t1;
+
+--echo # Execute drops temporary table
+prepare stmt from "select f1()";
+execute stmt;
+call p_verify_reprepare_count(0);
+--error ER_BAD_TABLE_ERROR
+execute stmt;
+call p_verify_reprepare_count(0);
+
+drop function f1;
+drop procedure p1;
+deallocate prepare stmt;
+
+--echo # Execute fails, temporary table is not replaced by another
+create temporary table t1 as select 1 as a;
+delimiter |;
+create procedure p1()
+begin
+  drop temporary table t1;
+  create temporary table t1 as select 'abc' as a;
+end|
+create function f1() returns int
+begin
+  call p1();
+  return 1;
+end|
+delimiter ;|
+prepare stmt from "select count(*), f1() as my_column from t1";
+--error ER_CANT_REOPEN_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+select * from t1;
+deallocate prepare stmt;
+
+prepare stmt from "call p1";
+execute stmt;
+drop procedure p1;
+create schema mysqltest;
+delimiter |;
+create procedure mysqltest.p1()
+begin
+   drop schema mysqltest;
+   create schema mysqltest;
+end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+call p_verify_reprepare_count(0);
+--error ER_SP_DOES_NOT_EXIST
+execute stmt;
+call p_verify_reprepare_count(0);
+deallocate prepare stmt;
+drop schema mysqltest;
+drop temporary table t1;
+
+
+# Bug#36089 drop temp table in SP called by function, crash
+# Note: A non prepared "select 1 from t1 having count(*) = f1();" is sufficient. 
+if (0)
+{
+create temporary table t1 as select 1 as a;
+prepare stmt from "select 1 from t1 having count(*) = f1()";
+execute stmt;
+call p_verify_reprepare_count(0);
+deallocate prepare stmt;
+drop temporary table t1;
+}
+
+
+--echo # Cleanup
+--echo #
+--disable_warnings
+drop temporary table if exists t1;
+drop table if exists t1, t2;
+drop procedure if exists p_verify_reprepare_count;
+drop procedure if exists p1;
+drop function if exists f1;
+drop view if exists t1;
+drop schema if exists mysqltest;
+--enable_warnings

@@ -46,6 +46,7 @@ class ReadNodesConf {
   friend class Backup;
   friend class Suma;
   friend class Grep;
+  friend class LocalProxy;
 
   friend bool printREAD_NODES_CONF(FILE*, const Uint32 *, Uint32, Uint16);
 public:

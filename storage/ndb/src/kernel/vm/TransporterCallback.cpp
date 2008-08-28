@@ -70,13 +70,71 @@ const char *lookupConnectionError(Uint32 err)
 #define MT_SECTION_UNLOCK
 #endif
 
+/**
+ * verifySection
+ * Assertion method to check that a segmented section is constructed 
+ * 'properly' where 'properly' is loosly defined. 
+ */
+bool
+verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
+{
+  if (firstIVal == RNIL)
+    return true;
+
+  /* Get first section ptr (With assertions in getPtr) */
+  SectionSegment* first= thePool.getPtr(firstIVal);
+
+  assert(first != NULL);
+  Uint32 totalSize= first->m_sz;
+  Uint32 lastSegIVal= first->m_lastSegment;
+
+  /* Hmm, need to be careful of length == 0 
+   * Nature abhors a segmented section with length 0
+   */
+  //assert(totalSize != 0);
+  assert(lastSegIVal != RNIL); /* Should never be == RNIL */
+  /* We ignore m_ownerRef */
+
+  if (totalSize <= SectionSegment::DataLength)
+  {
+    /* 1 segment */
+    assert(first->m_lastSegment == firstIVal);
+    // m_nextSegment not always set to RNIL on last segment
+    //assert(first->m_nextSegment == RNIL);
+  }
+  else
+  {
+    /* > 1 segment */
+    assert(first->m_nextSegment != RNIL);
+    assert(first->m_lastSegment != firstIVal);
+    Uint32 currIVal= firstIVal;
+    SectionSegment* curr= first;
+
+    /* Traverse segments to where we think the end should be */
+    while (totalSize > SectionSegment::DataLength)
+    {
+      currIVal= curr->m_nextSegment;
+      curr= thePool.getPtr(currIVal);
+      totalSize-= SectionSegment::DataLength;
+      /* Ignore m_ownerRef, m_sz, m_lastSegment of intermediate
+       * Segments
+       */
+    }
+    
+    /* Once we are here, we are on the last Segment of this Section
+     * Check that last segment is as stated in the first segment
+     */
+    assert(currIVal == lastSegIVal);
+    // m_nextSegment not always set properly on last segment
+    //assert(curr->m_nextSegment == RNIL);
+    /* Ignore m_ownerRef, m_sz, m_lastSegment of last segment */
+  }
+
+  return true;
+}
+
 bool
 import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
-  /**
-   * Dummy data used when setting prev.m_nextSegment for first segment of a
-   *   section
-   */
-  Uint32 dummyPrev[4]; 
 
   first.p = 0;
   MT_SECTION_LOCK
@@ -91,16 +149,15 @@ import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   first.p->m_sz = len;
   first.p->m_ownerRef = 0;
   
-  Ptr<SectionSegment> prevPtr = { (SectionSegment *)&dummyPrev[0], 0 };
   Ptr<SectionSegment> currPtr = first;
   
   while(len > SectionSegment::DataLength){
-    prevPtr.p->m_nextSegment = currPtr.i;
     memcpy(&currPtr.p->theData[0], src, 4 * SectionSegment::DataLength);
     src += SectionSegment::DataLength;
     len -= SectionSegment::DataLength;
-    prevPtr = currPtr;
+    Ptr<SectionSegment> prevPtr = currPtr;
     if(g_sectionSegmentPool.seize(currPtr)){
+      prevPtr.p->m_nextSegment = currPtr.i;
       ;
     } else {
       /* Leave segment chain in ok condition for release */
@@ -117,6 +174,8 @@ import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   first.p->m_lastSegment = currPtr.i;
   currPtr.p->m_nextSegment = RNIL;
   memcpy(&currPtr.p->theData[0], src, 4 * len);
+
+  assert(verifySection(first.i));
   return true;
 }
 
@@ -126,6 +185,8 @@ copy(Uint32 * & insertPtr,
 
   Uint32 len = _ptr.sz;
   SectionSegment * ptrP = _ptr.p;
+
+  assert(verifySection(_ptr.i, thePool));
   
   while(len > 60){
     memcpy(insertPtr, &ptrP->theData[0], 4 * 60);
@@ -141,6 +202,16 @@ void
 copy(Uint32 * dst, SegmentedSectionPtr src){
   copy(dst, g_sectionSegmentPool, src);
 }
+
+/* Copy variant which takes an IVal */
+void
+copy(Uint32* dst, Uint32 srcFirstIVal)
+{
+  SegmentedSectionPtr p;
+  getSection(p, srcFirstIVal);
+
+  copy(dst, p);
+} 
 
 /* Calculate number of segments to release based on section size
  * Always release one segment, even if size is zero
@@ -192,13 +263,7 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
   const Uint32 secCount = header->m_noOfSections;
   const Uint32 length = header->theLength;
 
-  /*
-   * Strip instance bits if not multithreaded.  This is also
-   * done in versions prior to MT LQH, to simplify online upgrade.
-   */
-#ifndef NDBD_MULTITHREADED
-  header->theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
-#endif
+  // if this node is not MT LQH then instance bits are stripped at execute
 
 #ifdef TRACE_DISTRIBUTED
   ndbout_c("recv: %s(%d) from (%s, %d)",
