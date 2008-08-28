@@ -1137,7 +1137,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
 const Uint32 EventLoggerBase::matrixSize=
 sizeof(EventLoggerBase::matrix)/sizeof(EventRepLogLevelMatrix);
 
-EventLogger::EventLogger() : m_filterLevel(15)
+EventLogger::EventLogger()
 {
   setCategory("EventLogger");
   enable(Logger::LL_INFO, Logger::LL_ALERT); 
@@ -1259,19 +1259,6 @@ EventLogger::log(int eventType, const Uint32* theData, Uint32 len,
   } // if (..
   DBUG_VOID_RETURN;
 }
-
-int
-EventLogger::getFilterLevel() const
-{
-  return m_filterLevel;
-}
-
-void 
-EventLogger::setFilterLevel(int filterLevel)
-{
-  m_filterLevel = filterLevel;
-}
-
 
 EventLogger*
 create_event_logger()
