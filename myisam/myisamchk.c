@@ -1039,7 +1039,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
 				   raid_chunks,
 				   MYF(0));
-	  if (mi_open_datafile(info,info->s, -1))
+	  if (mi_open_datafile(info,info->s, NULL, -1))
 	    error=1;
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
 	  param->read_cache.file=info->dfile;
