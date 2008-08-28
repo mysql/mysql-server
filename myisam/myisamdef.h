@@ -739,7 +739,9 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
 
 extern MI_INFO *test_if_reopen(char *filename);
 my_bool check_table_is_closed(const char *name, const char *where);
-int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup);
+int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *orn_name,
+                     File file_to_dup);
+
 int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
 

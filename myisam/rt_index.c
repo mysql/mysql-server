@@ -389,7 +389,7 @@ int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
   info->rtree_recursion_depth = -1;
   info->buff_used = 1;
   
-  return rtree_get_req(info, &keyinfo[keynr], key_length, root, 0);
+  return rtree_get_req(info, keyinfo, key_length, root, 0);
 }
 
 
@@ -436,7 +436,7 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
       return -1;
     }
   
-    return rtree_get_req(info, &keyinfo[keynr], key_length, root, 0);
+    return rtree_get_req(info, keyinfo, key_length, root, 0);
   }
 }
 
