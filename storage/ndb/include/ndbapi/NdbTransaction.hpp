@@ -1093,6 +1093,7 @@ inline
 void
 NdbTransaction::set_send_size(Uint32 send_size)
 {
+  (void)send_size; //unused
   return;
 }
 

@@ -17,6 +17,8 @@
 #define NDB_DBTUP_PROXY
 
 #include <LocalProxy.hpp>
+#include <signaldata/DropTab.hpp>
+#include <signaldata/BuildIndxImpl.hpp>
 
 class DbtupProxy : public LocalProxy {
 public:
@@ -27,8 +29,48 @@ public:
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
-  // GSN_SEND_PACKED
-  void execSEND_PACKED(Signal*);
+  // GSN_DROP_TAB_REQ
+  struct Ss_DROP_TAB_REQ : SsParallel {
+    DropTabReq m_req;
+    Ss_DROP_TAB_REQ() {
+      m_sendREQ = (SsFUNC)&DbtupProxy::sendDROP_TAB_REQ;
+      m_sendCONF = (SsFUNC)&DbtupProxy::sendDROP_TAB_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_DROP_TAB_REQ>& pool(LocalProxy* proxy) {
+      return ((DbtupProxy*)proxy)->c_ss_DROP_TAB_REQ;
+    }
+  };
+  SsPool<Ss_DROP_TAB_REQ> c_ss_DROP_TAB_REQ;
+  Uint32 getSsId(const DropTabReq* req) {
+    return SsIdBase | req->tableId;
+  }
+  Uint32 getSsId(const DropTabConf* conf) {
+    return SsIdBase | conf->tableId;
+  }
+  void execDROP_TAB_REQ(Signal*);
+  void sendDROP_TAB_REQ(Signal*, Uint32 ssId);
+  void execDROP_TAB_CONF(Signal*);
+  void sendDROP_TAB_CONF(Signal*, Uint32 ssId);
+
+  // GSN_BUILD_INDX_IMPL_REQ
+  struct Ss_BUILD_INDX_IMPL_REQ : SsParallel {
+    BuildIndxImplReq m_req;
+    Ss_BUILD_INDX_IMPL_REQ() {
+      m_sendREQ = (SsFUNC)&DbtupProxy::sendBUILD_INDX_IMPL_REQ;
+      m_sendCONF = (SsFUNC)&DbtupProxy::sendBUILD_INDX_IMPL_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_BUILD_INDX_IMPL_REQ>& pool(LocalProxy* proxy) {
+      return ((DbtupProxy*)proxy)->c_ss_BUILD_INDX_IMPL_REQ;
+    }
+  };
+  SsPool<Ss_BUILD_INDX_IMPL_REQ> c_ss_BUILD_INDX_IMPL_REQ;
+  void execBUILD_INDX_IMPL_REQ(Signal*);
+  void sendBUILD_INDX_IMPL_REQ(Signal*, Uint32 ssId);
+  void execBUILD_INDX_IMPL_CONF(Signal*);
+  void execBUILD_INDX_IMPL_REF(Signal*);
+  void sendBUILD_INDX_IMPL_CONF(Signal*, Uint32 ssId);
 };
 
 #endif

@@ -893,7 +893,29 @@ void getTextRestoreCompleted(QQQQ)
                        "Restore completed: backup %u from node %u",
                        theData[1], theData[2]);
 }
-
+void getTextLogFileInitStatus(QQQQ) {
+  if (theData[2])
+    BaseString::snprintf(m_text, m_text_len,
+                         "Local redo log file initialization status:\n"
+                         "#Total files: %lu, Completed: %lu\n"
+                         "#Total MBytes: %lu, Completed: %lu",
+//                         refToNode(theData[1]),
+                         theData[2], theData[3],
+                         theData[4], theData[5]);
+  else
+    BaseString::snprintf(m_text, m_text_len,
+                         "Node %u: Log file initializtion completed",
+                          refToNode(theData[1]));
+}
+void getTextLogFileInitCompStatus(QQQQ) {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Local redo log file initialization completed:\n"
+                         "#Total files: %lu, Completed: %lu\n"
+                         "#Total MBytes: %lu, Completed: %lu",
+//                         refToNode(theData[1]),
+                         theData[2], theData[3],
+                         theData[4], theData[5]);
+}
 void getTextSingleUser(QQQQ) {
   switch (theData[1])
   {
@@ -1077,6 +1099,8 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(UNDORecordsExecuted,     LogLevel::llStartUp,    15, Logger::LL_INFO ),
   ROW(StartReport,             LogLevel::llStartUp,     4, Logger::LL_INFO ),
+  ROW(LogFileInitStatus,       LogLevel::llStartUp,     7, Logger::LL_INFO),
+  ROW(LogFileInitCompStatus,   LogLevel::llStartUp,     7, Logger::LL_INFO),
   
   // NODERESTART
   ROW(NR_CopyDict,             LogLevel::llNodeRestart, 8, Logger::LL_INFO ),

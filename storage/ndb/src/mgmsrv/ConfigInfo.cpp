@@ -1501,7 +1501,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
-  
+
+   {
+    CFG_DB_STARTUP_REPORT_FREQUENCY,
+    "StartupStatusReportFrequency",
+    DB_TOKEN,
+    "Frequency of various status reports during startup in seconds",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+ 
   {
     CFG_DB_O_DIRECT,
     "ODirect",

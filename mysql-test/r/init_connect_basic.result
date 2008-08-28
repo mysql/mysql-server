@@ -1,0 +1,98 @@
+SET @global_start_value = @@global.init_connect;
+SELECT @global_start_value AS INIT_VALUE;
+INIT_VALUE
+
+'#--------------------FN_DYNVARS_036_01------------------#'
+SELECT init_connect;
+ERROR 42S22: Unknown column 'init_connect' in 'field list'
+SELECT @@init_connect;
+@@init_connect
+
+SET @@global.init_connect='SET autocomit=0';
+SELECT @@global.init_connect;
+@@global.init_connect
+SET autocomit=0
+SET global init_connect='SET autocomit=0';
+SELECT global init_connect;
+ERROR 42S22: Unknown column 'global' in 'field list'
+SELECT @@global init_connect;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'init_connect' at line 1
+'#--------------------FN_DYNVARS_036_02-------------------------#'
+SET @@global.init_connect = 'SET join_buffer_size=8200';
+SET @@global.init_connect = DEFAULT;
+SELECT @@global.init_connect;
+@@global.init_connect
+
+'#--------------------FN_DYNVARS_036_03-------------------------#'
+SET @@session.init_connect = '';
+ERROR HY000: Variable 'init_connect' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@init_connect = '';
+ERROR HY000: Variable 'init_connect' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.init_connect;
+ERROR HY000: Variable 'init_connect' is a GLOBAL variable
+SELECT @@local.init_connect;
+ERROR HY000: Variable 'init_connect' is a GLOBAL variable
+'#--------------------FN_DYNVARS_036_04-------------------------#'
+SET @@global.init_connect="";
+SELECT @@global.init_connect;
+@@global.init_connect
+
+SET @@global.init_connect='SELECT 1,"abc"';
+SELECT @@global.init_connect;
+@@global.init_connect
+SELECT 1,"abc"
+SET @@global.init_connect='SET @yoursql="mysql"';
+SELECT @@global.init_connect;
+@@global.init_connect
+SET @yoursql="mysql"
+SET @@global.init_connect="SET autocomit=0;REVOKE ALL ON INFORMATION_SCHEMA.*";
+SELECT @@global.init_connect;
+@@global.init_connect
+SET autocomit=0;REVOKE ALL ON INFORMATION_SCHEMA.*
+SET @@global.init_connect='SHOW VARIABLES';
+SELECT @@global.init_connect;
+@@global.init_connect
+SHOW VARIABLES
+SET @@global.init_connect = NULL;
+SELECT @@global.init_connect;
+@@global.init_connect
+
+SET @@global.init_connect='abc 123 +-*/';
+SELECT @@global.init_connect;
+@@global.init_connect
+abc 123 +-*/
+SET @@global.init_connect=this_will_give_syntax_error;
+SELECT @@global.init_connect;
+@@global.init_connect
+this_will_give_syntax_error
+SET @@global.init_connect = init_slave;
+SELECT @@global.init_connect;
+@@global.init_connect
+init_slave
+'#--------------------FN_DYNVARS_036_05-------------------------#'
+SET @@global.init_connect = true;
+ERROR 42000: Incorrect argument type to variable 'init_connect'
+SET @@global.init_connect = false;
+ERROR 42000: Incorrect argument type to variable 'init_connect'
+SET @@global.init_connect = 1.1;
+ERROR 42000: Incorrect argument type to variable 'init_connect'
+SET @@global.init_connect = 0;
+ERROR 42000: Incorrect argument type to variable 'init_connect'
+SET @@global.init_connect = 1;
+ERROR 42000: Incorrect argument type to variable 'init_connect'
+SET @@global.init_connect = -1;
+ERROR 42000: Incorrect argument type to variable 'init_connect'
+SET @@global.init_connect = ON;
+SELECT @@global.init_connect;
+@@global.init_connect
+ON
+'#--------------------FN_DYNVARS_036_06-------------------------#'
+SELECT @@global.init_connect = (SELECT VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='init_connect') AS res;
+res
+1
+SET @@global.init_connect = @global_start_value;
+SELECT @@global.init_connect;
+@@global.init_connect
+

@@ -145,12 +145,16 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
       fprintf(output, "H\'%.8x ", sig->variableData[nextPos]);
     fprintf(output, "\n");
   } else {
-    fprintf(output, " InitialReadSize: %d InterpretedSize: %d "
-            "FinalUpdateSize: %d FinalReadSize: %d SubroutineSize: %d\n",
-            sig->variableData[nextPos+0], sig->variableData[nextPos+1], 
-            sig->variableData[nextPos+2], sig->variableData[nextPos+3],
-            sig->variableData[nextPos+4]);
-    nextPos += 5;
+    /* Only have section sizes if it's a short LQHKEYREQ */
+    if (LqhKeyReq::getAIInLqhKeyReq(reqInfo) == LqhKeyReq::MaxAttrInfo)
+    {
+      fprintf(output, " InitialReadSize: %d InterpretedSize: %d "
+              "FinalUpdateSize: %d FinalReadSize: %d SubroutineSize: %d\n",
+              sig->variableData[nextPos+0], sig->variableData[nextPos+1], 
+              sig->variableData[nextPos+2], sig->variableData[nextPos+3],
+              sig->variableData[nextPos+4]);
+      nextPos += 5;
+    }
   }
   return true;
 }

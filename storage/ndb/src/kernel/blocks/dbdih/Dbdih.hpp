@@ -635,6 +635,7 @@ public:
   };
   
 private:
+  friend class SimulatedBlock;
   BLOCK_DEFINES(Dbdih);
   
   void execDUMP_STATE_ORD(Signal *);
@@ -1774,12 +1775,12 @@ private:
   NdbNodeBitmask m_sr_nodes;
   NdbNodeBitmask m_to_nodes;
 
-  // block instances
-public:
+  // MT LQH
+
   Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
-    Uint32 instanceKey = 1 + log_part_id % MAX_NDBMT_WORKERS;
+    Uint32 instanceKey = 1 + log_part_id % MAX_NDBMT_LQH_WORKERS;
     return instanceKey;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);

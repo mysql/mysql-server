@@ -19,8 +19,8 @@
 SendBuffer::SendBuffer(Uint32 bufSize) {
 
   sizeOfBuffer = bufSize;
-  if(sizeOfBuffer < MAX_MESSAGE_SIZE)
-    sizeOfBuffer = 2 * MAX_MESSAGE_SIZE; 
+  if(sizeOfBuffer < MAX_SEND_MESSAGE_BYTESIZE)
+    sizeOfBuffer = 2 * MAX_SEND_MESSAGE_BYTESIZE; 
   startOfBuffer = NULL;
 
   // Initalise pointers 

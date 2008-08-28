@@ -113,9 +113,11 @@ public:
 
   void suma_ndbrequire(bool v);
 
+  // wl4391_todo big enough for now
   union FragmentDescriptor { 
     struct  {
-      Uint16 m_fragmentNo;
+      Uint8 m_fragmentNo;
+      Uint8 m_lqhInstanceKey;
       Uint16 m_nodeId;
     } m_fragDesc;
     Uint32 m_dummy;

@@ -636,7 +636,6 @@ SignalLoggerManager::printGenericSection(FILE * output,
   Uint32 pos = 0;
   Uint32 chunksz = 0;
   fprintf(output, " size=%u\n", (unsigned)len);
-  ptr[i].sectionIter->reset();
   while (pos < len) {
     Uint32* data= ptr[i].sectionIter->getNextWords(chunksz);
     Uint32 i=0;

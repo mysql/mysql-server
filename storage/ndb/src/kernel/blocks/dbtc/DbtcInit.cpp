@@ -25,11 +25,9 @@
 
 void Dbtc::initData() 
 {
-  cattrbufFilesize = ZATTRBUF_FILESIZE;
   capiConnectFilesize = ZAPI_CONNECT_FILESIZE;
   ccacheFilesize = ZAPI_CONNECT_FILESIZE;
   chostFilesize = MAX_NODES;
-  cdatabufFilesize = ZDATABUF_FILESIZE;
   cgcpFilesize = ZGCP_FILESIZE;
   cscanrecFileSize = ZSCANREC_FILE_SIZE;
   cscanFragrecFileSize = ZSCAN_FRAGREC_FILE_SIZE;
@@ -141,14 +139,6 @@ void Dbtc::initRecords()
 
   indexOps.release();
   
-  databufRecord = (DatabufRecord*)allocRecord("DatabufRecord",
-					      sizeof(DatabufRecord),
-					      cdatabufFilesize);
-
-  attrbufRecord = (AttrbufRecord*)allocRecord("AttrbufRecord",
-					      sizeof(AttrbufRecord),
-					      cattrbufFilesize);
-
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
 				      cgcpFilesize);
@@ -208,7 +198,7 @@ Dbtc::Dbtc(Block_context& ctx):
   // Received signals
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtc::execDUMP_STATE_ORD);
-  addRecSignal(GSN_SEND_PACKED, &Dbtc::execSEND_PACKED);
+  addRecSignal(GSN_SEND_PACKED, &Dbtc::execSEND_PACKED, true);
   addRecSignal(GSN_SCAN_HBREP, &Dbtc::execSCAN_HBREP);
   addRecSignal(GSN_COMPLETED, &Dbtc::execCOMPLETED);
   addRecSignal(GSN_COMMITTED, &Dbtc::execCOMMITTED);
@@ -286,27 +276,21 @@ Dbtc::Dbtc(Block_context& ctx):
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
-  databufRecord = 0;
-  attrbufRecord = 0;
   gcpRecord = 0;
   tcFailRecord = 0;
   c_apiConTimer = 0;
   c_apiConTimer_line = 0;
   cpackedListIndex = 0;
+  c_ongoing_take_over_cnt = 0;
 
 #ifdef VM_TRACE
   {
     void* tmp[] = { &apiConnectptr, 
 		    &tcConnectptr,
 		    &cachePtr,
-		    &attrbufptr,
 		    &hostptr,
-		    &gcpPtr,
-		    &tmpApiConnectptr,
 		    &timeOutptr,
-		    &scanFragptr,
-		    &databufptr,
-		    &tmpDatabufptr }; 
+		    &scanFragptr }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }
 #endif
@@ -316,8 +300,6 @@ Dbtc::Dbtc(Block_context& ctx):
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
-  databufRecord = 0;
-  attrbufRecord = 0;
   gcpRecord = 0;
   tcFailRecord = 0;
   c_apiConTimer = 0;
@@ -353,14 +335,6 @@ Dbtc::~Dbtc()
 		sizeof(ScanRecord),
 		cscanrecFileSize);
     
-  deallocRecord((void **)&databufRecord, "DatabufRecord",
-		sizeof(DatabufRecord),
-		cdatabufFilesize);
-  
-  deallocRecord((void **)&attrbufRecord, "AttrbufRecord",
-		sizeof(AttrbufRecord),
-		cattrbufFilesize);
-  
   deallocRecord((void **)&gcpRecord, "GcpRecord",
 		sizeof(GcpRecord), 
 		cgcpFilesize);

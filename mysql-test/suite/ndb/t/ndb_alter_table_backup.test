@@ -19,8 +19,8 @@ DROP TABLE IF EXISTS t1;
 --echo *********************************
 --echo * restore tables w/ new column from little endian
 --echo *********************************
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51_d2_le >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/std_data/ndb_backup51_d2_le >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/std_data/ndb_backup51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
 SHOW TABLES;
 SHOW CREATE TABLE t1;
 SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
@@ -32,8 +32,8 @@ DROP TABLE t1;
 --echo *********************************
 --echo * restore tables w/ new column from big endian
 --echo *********************************
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51_d2_be >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/std_data/ndb_backup51_d2_be >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/std_data/ndb_backup51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
 SHOW TABLES;
 SHOW CREATE TABLE t1;
 SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;

@@ -158,6 +158,7 @@ static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
 static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*,
                                     const NdbRecord *, struct Ndb_statistics *);
 
+THD *injector_thd= 0;
 
 // Util thread variables
 pthread_t ndb_util_thread;
@@ -6955,6 +6956,17 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 
   DBUG_ENTER("ha_ndbcluster::rename_table");
   DBUG_PRINT("info", ("Renaming %s to %s", from, to));
+
+  if (thd == injector_thd)
+  {
+    /*
+      Table was renamed remotely is already
+      renamed inside ndb.
+      Just rename .ndb file.
+     */
+    DBUG_RETURN(handler::rename_table(from, to));
+  }
+
   set_dbname(from, old_dbname);
   set_dbname(to, new_dbname);
   set_tabname(from);
@@ -7025,7 +7037,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     }
     ERR_RETURN(ndb_error);
   }
-  
+
   // Rename .ndb file
   if ((result= handler::rename_table(from, to)))
   {
@@ -7323,6 +7335,17 @@ int ha_ndbcluster::delete_table(const char *name)
   int error= 0;
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
+
+  if (thd == injector_thd)
+  {
+    /*
+      Table was dropped remotely is already
+      dropped inside ndb.
+      Just drop local files.
+     */
+    DBUG_RETURN(handler::delete_table(name));
+  }
+
   set_dbname(name);
   set_tabname(name);
 
@@ -9537,9 +9560,17 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
     }
   }
 
-  sql_print_warning("NDB_SHARE: %s already exists  use_count=%d."
-                    " Moving away for safety, but possible memleak.",
-                    share->key, share->use_count);
+  DBUG_PRINT("info", ("NDB_SHARE: %s already exists use_count=%d, op=0x%lx.",
+                      share->key, share->use_count, (long) share->op));
+  /* 
+     Ignore table shares only opened by util thread
+   */
+  if (!((share->use_count == 1) && share->util_thread))
+  {
+    sql_print_warning("NDB_SHARE: %s already exists use_count=%d."
+                      " Moving away for safety, but possible memleak.",
+                      share->key, share->use_count);
+  }
   dbug_print_open_tables();
 
   /*
@@ -10909,6 +10940,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
         continue; // injector thread is the only user, skip statistics
       /* ndb_share reference temporary, free below */
       share->use_count++; /* Make sure the table can't be closed */
+      share->util_thread= true;
       DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                                share->key, share->use_count));
       DBUG_PRINT("ndb_util_thread",
@@ -10933,7 +10965,11 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
         /* ndb_share reference temporary free */
         DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                  share->key, share->use_count));
-        free_share(&share);
+        
+        pthread_mutex_lock(&ndbcluster_mutex);
+        share->util_thread= false;
+        free_share(&share, true);
+        pthread_mutex_unlock(&ndbcluster_mutex);
         continue;
       }
       DBUG_PRINT("ndb_util_thread",
@@ -10983,7 +11019,10 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                share->key, share->use_count));
-      free_share(&share);
+      pthread_mutex_lock(&ndbcluster_mutex);
+      share->util_thread= false;
+      free_share(&share, true);
+      pthread_mutex_unlock(&ndbcluster_mutex);
     }
 next:
     /* Calculate new time to wake up */
@@ -11907,7 +11946,6 @@ int ha_ndbcluster::alter_frm(THD *thd, const char *file,
   /* ndb_share reference schema(?) free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog schema(?) free  use_count: %u",
                            m_share->key, m_share->use_count));
-  free_share(&m_share); // Decrease ref_count
 
   DBUG_RETURN(error);
 }
@@ -11969,8 +12007,8 @@ err:
     /* ndb_share reference schema free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
                              m_share->key, m_share->use_count));
-    free_share(&m_share); // Decrease ref_count
   }
+  free_share(&m_share); // Decrease ref_count
   delete alter_data;
   DBUG_RETURN(error);
 }

@@ -158,7 +158,7 @@ public:
     }
     return 0;
   }
-  Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
+  virtual void loadWorkers() {}
 
   /* Setup state of a block object for executing in a particular thread. */
   void assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
@@ -166,6 +166,20 @@ public:
   /* For multithreaded ndbd, get the id of owning thread. */
   uint32 getThreadId() const { return m_threadId; }
   static bool isMultiThreaded();
+
+  /* Configuration based alternative.  Applies only to this node */
+  static bool isNdbMt() { return globalData.isNdbMt; }
+  static bool isNdbMtLqh() { return globalData.isNdbMtLqh; }
+  static Uint32 getLqhWorkers() { return globalData.ndbMtLqhWorkers; }
+
+  /*
+   * Instance key (1-4) is used only when sending a signal.  Receiver
+   * maps it to actual instance (0, if receiver is not MT LQH).
+   *
+   * For performance reason, DBTC gets instance key directly from DBDIH
+   * via DI*GET*NODES*REQ signals.
+   */
+  static Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
 
 public:
   typedef void (SimulatedBlock::* CallbackFunction)(class Signal*, 
@@ -442,7 +456,7 @@ private:
    * In MT LQH main instance is the LQH proxy and the others ("workers")
    * are real LQHs run by multiple threads.
    */
-  enum { MaxInstances = 1 + MAX_NDBMT_WORKERS };
+  enum { MaxInstances = 1 + MAX_NDBMT_LQH_WORKERS };
   Uint32 theInstanceCount;          // set in main
   SimulatedBlock** theInstanceList; // set in main, indexed by instance
   SimulatedBlock* theMainInstance;  // set in all
@@ -464,9 +478,9 @@ protected:
   NewVARIABLE* allocateBat(int batSize);
   void freeBat();
   static const NewVARIABLE* getBat    (BlockNumber blockNo,
-                                       Uint32 instanceNo = 0);
+                                       Uint32 instanceNo);
   static Uint16             getBatSize(BlockNumber blockNo,
-                                       Uint32 instanceNo = 0);
+                                       Uint32 instanceNo);
   
   static BlockReference calcTcBlockRef   (NodeId aNode);
   static BlockReference calcLqhBlockRef  (NodeId aNode);
@@ -482,6 +496,12 @@ protected:
   static BlockReference calcSumaBlockRef (NodeId aNode);
 
   static BlockReference calcApiClusterMgrBlockRef (NodeId aNode);
+
+  // matching instance on same node e.g. LQH-ACC-TUP
+  BlockReference calcInstanceBlockRef(BlockNumber aBlock);
+
+  // matching instance on another node e.g. LQH-LQH
+  BlockReference calcInstanceBlockRef(BlockNumber aBlock, NodeId aNode);
 
   /** 
    * allocRecord
@@ -546,7 +566,7 @@ private:
   Uint16       theBATSize;     /* # entries in BAT */
 
 protected:  
-  ArrayPool<GlobalPage>& m_global_page_pool;
+  SafeArrayPool<GlobalPage>& m_global_page_pool;
   ArrayPool<GlobalPage>& m_shared_page_pool;
   
   void execNDB_TAMPER(Signal * signal);
@@ -558,6 +578,7 @@ protected:
   void execSTOP_FOR_CRASH(Signal* signal);
   void execAPI_START_REP(Signal* signal);
   void execNODE_START_REP(Signal* signal);
+  void execSEND_PACKED(Signal* signal);
 private:
   /**
    * Node state
@@ -832,6 +853,18 @@ SimulatedBlock::calcApiClusterMgrBlockRef (NodeId aNodeId){
 }
 
 inline
+BlockReference
+SimulatedBlock::calcInstanceBlockRef(BlockNumber aBlock){
+  return numberToRef(aBlock, instance(), getOwnNodeId());
+}
+
+inline
+BlockReference
+SimulatedBlock::calcInstanceBlockRef(BlockNumber aBlock, NodeId aNodeId){
+  return numberToRef(aBlock, instance(), aNodeId);
+}
+
+inline
 const NodeState &
 SimulatedBlock::getNodeState() const {
   return theNodeState;
@@ -855,6 +888,21 @@ NodeVersionInfo &
 SimulatedBlock::setNodeVersionInfo() {
   return globalData.m_versionInfo;
 }
+
+#ifdef VM_TRACE_TIME
+inline
+void
+SimulatedBlock::addTime(Uint32 gsn, Uint64 time){
+  m_timeTrace[gsn].cnt ++;
+  m_timeTrace[gsn].sum += time;
+}
+
+inline
+void
+SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
+  m_timeTrace[gsn].sub += time;
+}
+#endif
 
 inline
 void
@@ -925,23 +973,6 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   }
 #endif
 }
-
-#ifdef VM_TRACE_TIME
-inline
-void
-SimulatedBlock::addTime(Uint32 gsn, Uint64 time){
-  m_timeTrace[gsn].cnt ++;
-  m_timeTrace[gsn].sum += time;
-}
-
-inline
-void
-SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
-  // wl4391_todo got 0xf3f3f3f3 here on GSN_UPGRADE_PROTOCOL_ORD...
-  if (gsn < 0xffff)
-  m_timeTrace[gsn].sub += time;
-}
-#endif
 
 /**
  * Defines for backward compatiblility

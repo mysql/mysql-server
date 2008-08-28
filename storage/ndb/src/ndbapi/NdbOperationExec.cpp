@@ -102,54 +102,15 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
     }//while
   }
 
+  /* Todo : Consider calling NdbOperation::postExecuteRelease()
+   * Ideally it should be called outside TP mutex, so not added
+   * here yet
+   */
+
   theNdbCon->OpSent();
   return tSignalCount;
 }//NdbOperation::doSend()
 
-
-/** 
- * SignalSectionIterator
- *
- * This is an implementation of GenericSectionIterator 
- * that uses chained NdbApiSignal objects to store a 
- * signal section.
- * The iterator is used by the transporter at signal
- * send time to obtain all of the relevant words for the
- * signal section
- */
-class SignalSectionIterator: public GenericSectionIterator
-{
-private :
-  NdbApiSignal* firstSignal;
-  NdbApiSignal* currentSignal;
-public :
-  SignalSectionIterator(NdbApiSignal* signal)
-  {
-    firstSignal= currentSignal= signal;
-  }
-
-  ~SignalSectionIterator()
-  {};
-  
-  void reset()
-  {
-    /* Reset iterator */
-    currentSignal= firstSignal;
-  }
-
-  Uint32* getNextWords(Uint32& sz)
-  {
-    if (likely(currentSignal != NULL))
-    {
-      NdbApiSignal* signal= currentSignal;
-      currentSignal= currentSignal->next();
-      sz= signal->getLength();
-      return signal->getDataPtrSend();
-    }
-    sz= 0;
-    return NULL;
-  }
-};
 
 int
 NdbOperation::doSendNdbRecord(int aNodeId)
@@ -710,8 +671,6 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
                                     Uint64 aTransId)
 {
   char buf[NdbRecord::Attr::SHRINK_VARCHAR_BUFFSIZE];
-  Uint32 *keyInfoPtr, *attrInfoPtr;
-  Uint32 remain;
   int res;
   Uint32 no_disk_flag;
   Uint32 *attrinfo_section_sizes_ptr= NULL;
@@ -732,8 +691,9 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
   /* No KeyInfo goes in the TCKEYREQ signal - it all goes into 
    * a separate KeyInfo section
    */
-  keyInfoPtr= NULL;
-  remain= 0;
+  assert(theTCREQ->next() == NULL);
+  theKEYINFOptr= NULL;
+  keyInfoRemain= 0;
 
   /* Fill in keyinfo */
   if (!key_rec)
@@ -742,8 +702,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
     /* i.e. lock takeover */
     tcKeyReq->tableId= attr_rec->tableId;
     tcKeyReq->tableSchemaVersion= attr_rec->tableVersion;
-    res= insertKEYINFO_NdbRecord(aTC_ConnectPtr, aTransId, key_row,
-                                 m_keyinfo_length*4, &keyInfoPtr, &remain);
+    res= insertKEYINFO_NdbRecord(key_row, m_keyinfo_length*4);
     if (res)
       return res;
   }
@@ -790,8 +749,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
         setErrorCodeAbort(4209);
         return -1;
       }
-      res= insertKEYINFO_NdbRecord(aTC_ConnectPtr, aTransId,
-                                   src, length, &keyInfoPtr, &remain);
+      res= insertKEYINFO_NdbRecord(src, length);
       if (res)
         return res;
     }
@@ -810,8 +768,9 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
   /* All ATTRINFO goes into a separate ATTRINFO section - none is placed
    * into the TCKEYREQ signal
    */
-  remain= 0;
-  attrInfoPtr= NULL;
+  assert(theFirstATTRINFO == NULL);
+  attrInfoRemain= 0;
+  theATTRINFOptr= NULL;
 
   no_disk_flag= m_no_disk_flag;
 
@@ -833,15 +792,13 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
     sizes[3] = 0;               // Final read size
     sizes[4] = 0;               // Subroutine size
 
-    res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       (const char *)sizes,
-                                       sizeof(sizes),
-                                       &attrInfoPtr, &remain);
+    res = insertATTRINFOData_NdbRecord((const char *)sizes,
+                                       sizeof(sizes));
     if (res)
       return res;
 
     /* So that we can go back to set the actual sizes later... */
-    attrinfo_section_sizes_ptr= (attrInfoPtr - 
+    attrinfo_section_sizes_ptr= (theATTRINFOptr - 
                                  AttrInfo::SectionSizeInfoLength);
 
   }
@@ -894,11 +851,8 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
 
       if (all)
       {
-        res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                         AttributeHeader::READ_ALL,
-                                         requestedCols,
-                                         &attrInfoPtr,
-                                         &remain);
+        res= insertATTRINFOHdr_NdbRecord(AttributeHeader::READ_ALL,
+                                         requestedCols);
         if (res)
           return res;
       }
@@ -907,19 +861,13 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
         /* How many bitmask words are significant? */
         Uint32 sigBitmaskWords= (maxAttrId>>5) + 1;
         
-        res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                         AttributeHeader::READ_PACKED,
-                                         sigBitmaskWords << 2,
-                                         &attrInfoPtr,
-                                         &remain);
+        res= insertATTRINFOHdr_NdbRecord(AttributeHeader::READ_PACKED,
+                                         sigBitmaskWords << 2);
         if (res)
           return res;
         
-        res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                          (const char*) &readMask.rep.data[0],
-                                          sigBitmaskWords << 2,
-                                          &attrInfoPtr,
-                                          &remain);
+        res= insertATTRINFOData_NdbRecord((const char*) &readMask.rep.data[0],
+                                          sigBitmaskWords << 2);
         if (res)
           return res;
       }
@@ -933,13 +881,29 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
     const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
     while (ra)
     {
-      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       ra->attrId(), 0,
-                                       &attrInfoPtr, &remain);
+      res= insertATTRINFOHdr_NdbRecord(ra->attrId(), 0);
       if(res)
         return res;
       ra= ra->next();
     }
+  }
+
+  if (m_use_any_value && 
+      (tOpType == DeleteRequest))
+  {
+    /* Special hack for delete and ANYVALUE pseudo-column
+     * We want to be able set the ANYVALUE pseudo-column as
+     * part of a delete, but deletes don't allow updates
+     * So we perform a 'read' of the column, passing a value.
+     * Code in TUP which handles this 'read' will set the
+     * value when the read is processed.
+     */
+    res= insertATTRINFOHdr_NdbRecord(AttributeHeader::ANY_VALUE, 4);
+    if(res)
+      return res;
+    res= insertATTRINFOData_NdbRecord((const char *)(&m_any_value), 4);
+    if(res)
+      return res;
   }
 
   /* Interpreted program main signal words */
@@ -953,10 +917,8 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
       code->m_first_sub_instruction_pos :
       code->m_instructions_length;
 
-    res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       (const char *)code->m_buffer,
-                                       mainProgramWords << 2,
-                                       &attrInfoPtr, &remain);
+    res = insertATTRINFOData_NdbRecord((const char *)code->m_buffer,
+                                       mainProgramWords << 2);
 
     if (res)
       return res;
@@ -1052,16 +1014,12 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
         }
       } // if Blob or Bitfield
 
-      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       attrId, length,
-                                       &attrInfoPtr, &remain);
+      res= insertATTRINFOHdr_NdbRecord(attrId, length);
       if(res)
         return res;
       if (length > 0)
       {
-        res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                          data, length,
-                                          &attrInfoPtr, &remain);
+        res= insertATTRINFOData_NdbRecord(data, length);
         if(res)
           return res;
       }
@@ -1102,17 +1060,13 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
         }       
 
         // Add ATTRINFO
-        res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                         extraCol->getAttrId(), length,
-                                         &attrInfoPtr, &remain);
+        res= insertATTRINFOHdr_NdbRecord(extraCol->getAttrId(), length);
         if(res)
           return res;
 
         if(length>0)
         {
-          res=insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                           (char*)pvalue, length,
-                                           &attrInfoPtr, &remain);
+          res=insertATTRINFOData_NdbRecord((char*)pvalue, length);
           if(res)
             return res;
         }
@@ -1126,20 +1080,15 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
 
   if ((tOpType == InsertRequest) ||
       (tOpType == WriteRequest) ||
-      (tOpType == UpdateRequest) ||
-      (tOpType == DeleteRequest))
+      (tOpType == UpdateRequest))
   {
-    /* Handle any setAnyValue(). */
+    /* Handle setAnyValue() for all cases except delete */
     if (m_use_any_value)
     {
-      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       AttributeHeader::ANY_VALUE, 4,
-                                       &attrInfoPtr, &remain);
+      res= insertATTRINFOHdr_NdbRecord(AttributeHeader::ANY_VALUE, 4);
       if(res)
         return res;
-      res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                        (const char *)(&m_any_value), 4,
-                                        &attrInfoPtr, &remain);
+      res= insertATTRINFOData_NdbRecord((const char *)(&m_any_value), 4);
       if(res)
         return res;
     }
@@ -1172,10 +1121,8 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
 
       assert(subroutineWords > 0);
 
-      res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                         (const char *)subroutineStart,
-                                         subroutineWords << 2,
-                                         &attrInfoPtr, &remain);
+      res = insertATTRINFOData_NdbRecord((const char *)subroutineStart,
+                                         subroutineWords << 2);
 
       if (res)
         return res;
@@ -1296,8 +1243,7 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   Return 0 on success, -1 on error.
 */
 int
-NdbOperation::allocKeyInfo(Uint32 connectPtr, Uint64 transId,
-                           Uint32 **dstPtr, Uint32 *remain)
+NdbOperation::allocKeyInfo()
 {
   NdbApiSignal *tSignal;
 
@@ -1308,18 +1254,18 @@ NdbOperation::allocKeyInfo(Uint32 connectPtr, Uint64 transId,
     return -1;
   }
   tSignal->next(NULL);
-  if (theTCREQ->next() != NULL)
+  if (theRequest->next() != NULL)
   {
     theLastKEYINFO->setLength(NdbApiSignal::MaxSignalWords);
     theLastKEYINFO->next(tSignal);
   }
   else
   {
-    theTCREQ->next(tSignal);
+    theRequest->next(tSignal);
   }
   theLastKEYINFO= tSignal;
-  *remain= NdbApiSignal::MaxSignalWords;
-  *dstPtr= tSignal->getDataPtrSend();
+  keyInfoRemain= NdbApiSignal::MaxSignalWords;
+  theKEYINFOptr= tSignal->getDataPtrSend();
 
   return 0;
 }
@@ -1331,8 +1277,7 @@ NdbOperation::allocKeyInfo(Uint32 connectPtr, Uint64 transId,
   Return 0 on success, -1 on error.
 */
 int
-NdbOperation::allocAttrInfo(Uint32 connectPtr, Uint64 transId,
-                            Uint32 **dstPtr, Uint32 *remain)
+NdbOperation::allocAttrInfo()
 {
   NdbApiSignal *tSignal;
 
@@ -1353,87 +1298,79 @@ NdbOperation::allocAttrInfo(Uint32 connectPtr, Uint64 transId,
     theFirstATTRINFO= tSignal;
   }
   theCurrentATTRINFO= tSignal;
-  *remain= NdbApiSignal::MaxSignalWords;
-  *dstPtr= tSignal->getDataPtrSend();
+  attrInfoRemain= NdbApiSignal::MaxSignalWords;
+  theATTRINFOptr= tSignal->getDataPtrSend();
 
   return 0;
 }
 
 int
-NdbOperation::insertKEYINFO_NdbRecord(Uint32 connectPtr,
-                                      Uint64 transId,
-                                      const char *value,
-                                      Uint32 size,
-                                      Uint32 **dstPtr,
-                                      Uint32 *remain)
+NdbOperation::insertKEYINFO_NdbRecord(const char *value,
+                                      Uint32 byteSize)
 {
   /* Words are added to a list of signal objects linked from 
-   * theTCREQ->next()
+   * theRequest->next()
    * The list of objects is then used to form the KeyInfo
-   * section of the TCKEYREQ long signal
+   * section of the TCKEYREQ/TCINDXREQ/SCANTABREQ long signal
    * No separate KeyInfo signal train is sent.
    */
-  theTupKeyLen+= (size+3)/4;
+  theTupKeyLen+= (byteSize+3)/4;
 
-  while (size > *remain*4)
+  while (byteSize > keyInfoRemain*4)
   {
     /* Need to link in extra objects */
-    if (*remain)
+    if (keyInfoRemain)
     {
       /* Fill remaining words in this object */
-      assert(*dstPtr != NULL);
-      memcpy(*dstPtr, value, *remain*4);
-      value+= *remain*4;
-      size-= *remain*4;
+      assert(theKEYINFOptr != NULL);
+      memcpy(theKEYINFOptr, value, keyInfoRemain*4);
+      value+= keyInfoRemain*4;
+      byteSize-= keyInfoRemain*4;
     }
 
     /* Link new object in */
-    int res= allocKeyInfo(connectPtr, transId, dstPtr, remain);
+    int res= allocKeyInfo();
     if(res)
       return res;
   }
 
-  assert(theTCREQ->next() != NULL);
+  assert(theRequest->next() != NULL);
   assert(theLastKEYINFO != NULL);
 
   /* Remaining words fit in this object */
-  assert(*dstPtr != NULL);
-  memcpy(*dstPtr, value, size);
-  if((size%4) != 0)
-    memset(((char *)*dstPtr)+size, 0, 4-(size%4));
-  Uint32 sizeInWords= (size+3)/4;
-  *dstPtr+= sizeInWords;
-  *remain-= sizeInWords;
+  assert(theKEYINFOptr != NULL);
+  memcpy(theKEYINFOptr, value, byteSize);
+  if((byteSize%4) != 0)
+    memset(((char *)theKEYINFOptr)+byteSize, 0, 4-(byteSize%4));
+  Uint32 sizeInWords= (byteSize+3)/4;
+  theKEYINFOptr+= sizeInWords;
+  keyInfoRemain-= sizeInWords;
 
   theLastKEYINFO->setLength(NdbApiSignal::MaxSignalWords 
-                            - *remain);
+                            - keyInfoRemain);
 
   return 0;
 }
 
 int
-NdbOperation::insertATTRINFOHdr_NdbRecord(Uint32 connectPtr,
-                                          Uint64 transId,
-                                          Uint32 attrId,
-                                          Uint32 attrLen,
-                                          Uint32 **dstPtr,
-                                          Uint32 *remain)
+NdbOperation::insertATTRINFOHdr_NdbRecord(Uint32 attrId,
+                                          Uint32 attrLen)
 {
   /* Words are added to a list of Signal objects pointed to
    * by theFirstATTRINFO
    * This list is then used to form the ATTRINFO
-   * section of the TCKEYREQ long signal
+   * section of the TCKEYREQ/TCINDXREQ/SCANTABREQ long signal
    * No ATTRINFO signal train is sent.
    */
 
   theTotalCurrAI_Len++;
 
-  if (! *remain)
+  if (! attrInfoRemain)
   {
     /* Need to link in an extra object to store this
      * word
      */
-    int res= allocAttrInfo(connectPtr, transId, dstPtr, remain);
+    int res= allocAttrInfo();
     if (res)
       return res;
   }
@@ -1443,24 +1380,20 @@ NdbOperation::insertATTRINFOHdr_NdbRecord(Uint32 connectPtr,
   AttributeHeader::init(&ah, attrId, attrLen);
   assert(theFirstATTRINFO != NULL);
   assert(theCurrentATTRINFO != NULL);
-  assert(dstPtr != NULL);
+  assert(theATTRINFOptr != NULL);
 
-  *(*dstPtr)++= ah;
-  (*remain)--;
+  *(theATTRINFOptr++)= ah;
+  attrInfoRemain--;
 
   theCurrentATTRINFO->setLength(NdbApiSignal::MaxSignalWords
-                                - *remain);
+                                - attrInfoRemain);
 
   return 0;
 }
 
 int
-NdbOperation::insertATTRINFOData_NdbRecord(Uint32 connectPtr,
-                                           Uint64 transId,
-                                           const char *value,
-                                           Uint32 size,
-                                           Uint32 **dstPtr,
-                                           Uint32 *remain)
+NdbOperation::insertATTRINFOData_NdbRecord(const char *value,
+                                           Uint32 byteSize)
 {
   /* Words are added to a list of Signal objects pointed to
    * by theFirstATTRINFO
@@ -1468,20 +1401,20 @@ NdbOperation::insertATTRINFOData_NdbRecord(Uint32 connectPtr,
    * section of the TCKEYREQ long signal
    * No ATTRINFO signal train is sent.
    */
-  theTotalCurrAI_Len+= (size+3)/4;
+  theTotalCurrAI_Len+= (byteSize+3)/4;
 
-  while (size > *remain*4)
+  while (byteSize > attrInfoRemain*4)
   {
     /* Need to link in extra objects */
-    if (*remain)
+    if (attrInfoRemain)
     {
       /* Fill remaining space in current object */
-      memcpy(*dstPtr, value, *remain*4);
-      value+= *remain*4;
-      size-= *remain*4;
+      memcpy(theATTRINFOptr, value, attrInfoRemain*4);
+      value+= attrInfoRemain*4;
+      byteSize-= attrInfoRemain*4;
     }
 
-    int res= allocAttrInfo(connectPtr, transId, dstPtr, remain);
+    int res= allocAttrInfo();
     if (res)
       return res;
   }
@@ -1489,17 +1422,17 @@ NdbOperation::insertATTRINFOData_NdbRecord(Uint32 connectPtr,
   /* Remaining words fit in current signal */
   assert(theFirstATTRINFO != NULL);
   assert(theCurrentATTRINFO != NULL);
-  assert(*dstPtr != NULL);
+  assert(theATTRINFOptr != NULL);
 
-  memcpy(*dstPtr, value, size);
-  if((size%4) != 0)
-    memset(((char *)*dstPtr)+size, 0, 4-(size%4));
-  Uint32 sizeInWords= (size+3)/4;
-  *dstPtr+= sizeInWords;
-  *remain-= sizeInWords;
+  memcpy(theATTRINFOptr, value, byteSize);
+  if((byteSize%4) != 0)
+    memset(((char *)theATTRINFOptr)+byteSize, 0, 4-(byteSize%4));
+  Uint32 sizeInWords= (byteSize+3)/4;
+  theATTRINFOptr+= sizeInWords;
+  attrInfoRemain-= sizeInWords;
 
   theCurrentATTRINFO->setLength(NdbApiSignal::MaxSignalWords 
-                                - *remain);
+                                - attrInfoRemain);
 
   return 0;
 }

@@ -132,7 +132,7 @@ Dbtux::execSTTOR(Signal* signal)
   case 1:
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    c_tup = (Dbtup*)globalData.getBlock(DBTUP);
+    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     ndbrequire(c_tup != 0);
     break;
   case 3:
@@ -152,7 +152,8 @@ Dbtux::execSTTOR(Signal* signal)
   signal->theData[4] = 3;       // for c_typeOfStart
   signal->theData[5] = 7;       // for c_internalStartPhase
   signal->theData[6] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUX_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
 }
 
 void

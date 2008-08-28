@@ -1030,6 +1030,7 @@ static void do_indexScan(Ndb &myNdb, ApiType accessType)
        */
       Uint32 scanFlags= 
         NdbScanOperation::SF_OrderBy |
+        NdbScanOperation::SF_MultiRange |
         NdbScanOperation::SF_ReadRangeNo;
 
       if (psop->readTuples(NdbOperation::LM_Read, 
@@ -1038,14 +1039,34 @@ static void do_indexScan(Ndb &myNdb, ApiType accessType)
                            (Uint32) 0) != 0)    // parallel
         APIERROR (myTransaction->getNdbError());
 
+      /* Add a bound
+       * Tuples where ATTR1 >=2 and < 4 
+       * 2,[3 deleted] 
+       */
       Uint32 low=2;
-      Uint32 high=7;
+      Uint32 high=4;
 
-      /* Return tuples where ATTR1 >=2 and < 7 */
       if (psop->setBound("ATTR1", NdbIndexScanOperation::BoundLE, (char*)&low))
         APIERROR(myTransaction->getNdbError());
       if (psop->setBound("ATTR1", NdbIndexScanOperation::BoundGT, (char*)&high))
         APIERROR(myTransaction->getNdbError());
+      
+      if (psop->end_of_bound(0))
+        APIERROR(psop->getNdbError());
+
+      /* Second bound
+       * Tuples where ATTR1 > 5 and <=9
+       * 6,7,8,9 
+       */
+      low=5;
+      high=9;
+      if (psop->setBound("ATTR1", NdbIndexScanOperation::BoundLT, (char*)&low))
+        APIERROR(myTransaction->getNdbError());
+      if (psop->setBound("ATTR1", NdbIndexScanOperation::BoundGE, (char*)&high))
+        APIERROR(myTransaction->getNdbError());
+
+      if (psop->end_of_bound(1))
+        APIERROR(psop->getNdbError());
 
       /* Read all columns */
       recAttrAttr1=psop->getValue("ATTR1");
@@ -1126,7 +1147,10 @@ static void do_indexScan(Ndb &myNdb, ApiType accessType)
 
   if(myTransaction->execute( NdbTransaction::NoCommit ) != 0)
     APIERROR(myTransaction->getNdbError());
-    
+  
+  if (myTransaction->getNdbError().code != 0)
+    APIERROR(myTransaction->getNdbError());
+
   switch (accessType)
   {
     case api_attr :

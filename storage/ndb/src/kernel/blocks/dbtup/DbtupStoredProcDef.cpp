@@ -81,7 +81,8 @@ void Dbtup::deleteScanProcedure(Signal* signal,
   set_trans_state(regOperPtr, TRANS_IDLE);
   signal->theData[0] = regOperPtr->userpointer;
   signal->theData[1] = storedProcId;
-  sendSignal(DBLQH_REF, GSN_STORED_PROCCONF, signal, 2, JBB);
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH);
+  sendSignal(lqhRef, GSN_STORED_PROCCONF, signal, 2, JBB);
 }//Dbtup::deleteScanProcedure()
 
 void Dbtup::scanProcedure(Signal* signal,
@@ -212,7 +213,8 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
   set_trans_state(regOperPtr, TRANS_IDLE);
   signal->theData[0] = regOperPtr->userpointer;
   signal->theData[1] = storedPtr.i;
-  sendSignal(DBLQH_REF, GSN_STORED_PROCCONF, signal, 2, JBB);
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH);
+  sendSignal(lqhRef, GSN_STORED_PROCCONF, signal, 2, JBB);
   return true;
 }//Dbtup::storedProcedureAttrInfo()
 
@@ -232,6 +234,7 @@ void Dbtup::storedSeizeAttrinbufrecErrorLab(Signal* signal,
   signal->theData[0] = regOperPtr->userpointer;
   signal->theData[1] = errorCode;
   signal->theData[2] = regOperPtr->storedProcPtr;
-  sendSignal(DBLQH_REF, GSN_STORED_PROCREF, signal, 3, JBB);
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH);
+  sendSignal(lqhRef, GSN_STORED_PROCREF, signal, 3, JBB);
 }//Dbtup::storedSeizeAttrinbufrecErrorLab()
 

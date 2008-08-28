@@ -354,7 +354,10 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   
   Uint32 pages = 0;
   pages += page_buffer / GLOBAL_PAGE_SIZE; // in pages
-  pages += LCP_RESTORE_BUFFER;
+  Uint32 restore_instances = 1;
+  if (isNdbMtLqh())
+    restore_instances = getLqhWorkers();
+  pages += LCP_RESTORE_BUFFER * restore_instances;
   m_global_page_pool.setSize(pages + 64, true);
 
   {
@@ -798,6 +801,16 @@ Cmvmi::execSTART_ORD(Signal* signal) {
   if(globalData.theStartLevel == NodeState::SL_NOTHING)
   {
     jam();
+
+    for(unsigned int i = 1; i < MAX_NODES; i++ )
+    {
+      if (getNodeInfo(i).m_type == NodeInfo::MGM)
+      {
+        jam();
+        globalTransporterRegistry.do_connect(i);
+      }
+    }
+
     globalData.theStartLevel = NodeState::SL_CMVMI;
     sendSignal(QMGR_REF, GSN_START_ORD, signal, 1, JBA);
     return ;
@@ -910,6 +923,10 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     }
     else if (check_block(TC, val))
     {
+    }
+    else if (check_block(LQH, val))
+    {
+      sendSignal(DBLQH_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
     }
     return;
   }

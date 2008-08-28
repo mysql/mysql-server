@@ -364,6 +364,13 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
 
   ROW( SingleUser,          "type",	     1, type),
   ROW( SingleUser,          "node_id",	     2, node_id),
+
+  ROW( LogFileInitStatus,   "node_id",       1, node_id ),
+  ROW( LogFileInitStatus,   "total_files",   2, total_files),
+  ROW( LogFileInitStatus,   "file_done",     3, file_done),
+  ROW( LogFileInitStatus,   "total_mbytes",  4, total_mbytes),
+  ROW( LogFileInitStatus,   "mbytes_done",   5, mbytes_done),
+
   { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0, 0}
 };
 
