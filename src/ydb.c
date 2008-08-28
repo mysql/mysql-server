@@ -2604,11 +2604,8 @@ static int toku_db_delboth_noassociate(DB *db, DB_TXN *txn, DBT *key, DBT *val, 
     if ((r = toku_db_cursor(db, txn, &dbc, 0, 0))) goto cursor_cleanup;
     r = toku_c_get_noassociate(dbc, key, val, DB_GET_BOTH);
     if (r!=0) {
-        if (suppress_missing) {
-            r = 0;
-            goto cursor_cleanup;
-        }
-        return r;
+        if (suppress_missing && r==DB_NOTFOUND) r = 0;
+        goto cursor_cleanup;
     }
     r = toku_c_del_noassociate(dbc, lock_flags);
 cursor_cleanup:;
