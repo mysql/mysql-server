@@ -190,8 +190,8 @@ ADD_LIBRARY(libmysqld MODULE cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
 TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
 
-ADD_DEPENDENCIES(libmysqld dbug mysys strings)
-TARGET_LINK_LIBRARIES(libmysqld dbug mysys strings)
+ADD_DEPENDENCIES(libmysqld mysys)
+TARGET_LINK_LIBRARIES(libmysqld mysys)
 
 IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
   ADD_DEPENDENCIES(libmysqld ndbclient)
