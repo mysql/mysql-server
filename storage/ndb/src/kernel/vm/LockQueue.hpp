@@ -39,7 +39,7 @@ public:
     Uint32 prevList;
   };
 
-  typedef class ArrayPool<LockQueueElement> Pool;
+  typedef ArrayPool<LockQueueElement> Pool;
   
   Uint32 lock(Pool&, const UtilLockReq * req, const UtilLockReq** lockOwner= 0);
   Uint32 unlock(Pool&, const UtilUnlockReq* req);
