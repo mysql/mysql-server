@@ -169,6 +169,29 @@ int create_index(NDBT_Context* ctx, int indxNum,
     ndbout << pTab->getColumn(attrNo)->getName()<<" ";
   }
   
+  if (!orderedIndex)
+  {
+    /**
+     * For unique indexes we must add PK, otherwise it's not guaranteed
+     *  to be unique
+     */
+    for (int i = 0; i<pTab->getNoOfColumns(); i++)
+    {
+      if (pTab->getColumn(i)->getPrimaryKey())
+      {
+        for (int j = 0; j<attr->numAttribs; j++)
+        {
+          if (attr->attribs[j] == i)
+            goto next;
+        }
+        pIdx.addIndexColumn(pTab->getColumn(i)->getName());
+        ndbout << pTab->getColumn(i)->getName() << " ";
+      }
+  next:
+      (void)i;
+    }
+  }
+
   pIdx.setStoredIndex(logged);
   ndbout << ") ";
   if (pNdb->getDictionary()->createIndex(pIdx) != 0){

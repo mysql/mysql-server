@@ -162,7 +162,8 @@ ErrorReporter::formatMessage(Uint32 num_threads, int faultID,
     strcat(messptr, " ");
   }
   
-  strcat(messptr, "\n");
+  messptr[MESSAGE_LENGTH -2]='\n';
+  messptr[MESSAGE_LENGTH -1]=0;
   
   return;
 }

@@ -22,6 +22,11 @@ DbtupProxy::DbtupProxy(Block_context& ctx) :
   // GSN_DROP_TAB_REQ
   addRecSignal(GSN_DROP_TAB_REQ, &DbtupProxy::execDROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_CONF, &DbtupProxy::execDROP_TAB_CONF);
+
+  // GSN_BUILD_INDX_IMPL_REQ
+  addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &DbtupProxy::execBUILD_INDX_IMPL_REQ);
+  addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &DbtupProxy::execBUILD_INDX_IMPL_CONF);
+  addRecSignal(GSN_BUILD_INDX_IMPL_REF, &DbtupProxy::execBUILD_INDX_IMPL_REF);
 }
 
 DbtupProxy::~DbtupProxy()
@@ -91,6 +96,77 @@ DbtupProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_DROP_TAB_REQ>(ssId);
+}
+
+// GSN_BUILD_INDX_IMPL_REQ
+
+void
+DbtupProxy::execBUILD_INDX_IMPL_REQ(Signal* signal)
+{
+  const BuildIndxImplReq* req = (const BuildIndxImplReq*)signal->getDataPtr();
+  Ss_BUILD_INDX_IMPL_REQ& ss = ssSeize<Ss_BUILD_INDX_IMPL_REQ>();
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == BuildIndxImplReq::SignalLength);
+  sendREQ(signal, ss);
+}
+
+void
+DbtupProxy::sendBUILD_INDX_IMPL_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_BUILD_INDX_IMPL_REQ& ss = ssFind<Ss_BUILD_INDX_IMPL_REQ>(ssId);
+
+  BuildIndxImplReq* req = (BuildIndxImplReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId;
+  sendSignal(workerRef(ss.m_worker), GSN_BUILD_INDX_IMPL_REQ,
+             signal, BuildIndxImplReq::SignalLength, JBB);
+}
+
+void
+DbtupProxy::execBUILD_INDX_IMPL_CONF(Signal* signal)
+{
+  const BuildIndxImplConf* conf = (const BuildIndxImplConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_BUILD_INDX_IMPL_REQ& ss = ssFind<Ss_BUILD_INDX_IMPL_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DbtupProxy::execBUILD_INDX_IMPL_REF(Signal* signal)
+{
+  const BuildIndxImplRef* ref = (const BuildIndxImplRef*)signal->getDataPtr();
+  Uint32 ssId = ref->senderData;
+  Ss_BUILD_INDX_IMPL_REQ& ss = ssFind<Ss_BUILD_INDX_IMPL_REQ>(ssId);
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+DbtupProxy::sendBUILD_INDX_IMPL_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_BUILD_INDX_IMPL_REQ& ss = ssFind<Ss_BUILD_INDX_IMPL_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    jam();
+    BuildIndxImplConf* conf = (BuildIndxImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+    sendSignal(dictRef, GSN_BUILD_INDX_IMPL_CONF,
+               signal, BuildIndxImplConf::SignalLength, JBB);
+  } else {
+    BuildIndxImplRef* ref = (BuildIndxImplRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->errorCode = ss.m_error;
+    sendSignal(dictRef, GSN_BUILD_INDX_IMPL_REF,
+               signal, BuildIndxImplRef::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_BUILD_INDX_IMPL_REQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(DbtupProxy)

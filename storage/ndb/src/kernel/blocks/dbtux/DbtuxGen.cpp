@@ -132,7 +132,7 @@ Dbtux::execSTTOR(Signal* signal)
   case 1:
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    c_tup = (Dbtup*)globalData.getBlock(DBTUP);
+    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     ndbrequire(c_tup != 0);
     break;
   case 3:

@@ -42,7 +42,8 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   Transporter(t_reg, tt_SHM_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection_arg,
 	      lNodeId, rNodeId, serverNodeId,
-	      0, false, checksum, signalId, 4096 + MAX_MESSAGE_SIZE),
+	      0, false, checksum, signalId, 
+              4096 + MAX_SEND_MESSAGE_BYTESIZE),
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
@@ -80,7 +81,8 @@ SHM_Transporter::setupBuffers(){
   sharedSize += 28; //SHM_Reader::getSharedSize();
   sharedSize += 28; //SHM_Writer::getSharedSize();
 
-  const Uint32 slack = MAX_MESSAGE_SIZE;
+  const Uint32 slack = MAX(MAX_RECV_MESSAGE_BYTESIZE,
+                           MAX_SEND_MESSAGE_BYTESIZE);
 
   /**
    *  NOTE: There is 7th shared variable in Win2k (sharedCountAttached).

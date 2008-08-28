@@ -1962,5 +1962,124 @@ a	b
 2	Aberdeen
 show warnings;
 Level	Code	Message
+create table balerno (a int primary key, 
+b varchar(2000), 
+c varchar(2000)) engine=ndb;
+alter table balerno add index (b);
+show warnings;
+Level	Code	Message
+insert into balerno values (1, repeat('BA', 1000), repeat('CA', 1000));
+insert into balerno values (2, repeat('BB', 1000), repeat('CB', 1000));
+insert into balerno values (3, repeat('BC', 1000), repeat('CC', 1000));
+insert into balerno values (4, repeat('BD', 1000), repeat('CD', 1000));
+insert into balerno values (5, repeat('BE', 1000), repeat('CE', 1000));
+set engine_condition_pushdown = on;
+select a from balerno where b in (
+repeat('10', 1000),
+repeat('11', 1000),
+repeat('12', 1000),
+repeat('13', 1000),
+repeat('14', 1000),
+repeat('15', 1000),
+repeat('16', 1000),
+repeat('17', 1000),
+repeat('18', 1000),
+repeat('19', 1000),
+repeat('20', 1000),
+repeat('21', 1000),
+repeat('22', 1000),
+repeat('23', 1000),
+repeat('24', 1000),
+repeat('25', 1000),
+repeat('26', 1000),
+repeat('27', 1000),
+repeat('28', 1000),
+repeat('29', 1000),
+repeat('30', 1000),
+repeat('31', 1000),
+repeat('32', 1000),
+repeat('33', 1000),
+repeat('34', 1000),
+repeat('35', 1000),
+repeat('36', 1000),
+repeat('37', 1000),
+repeat('38', 1000),
+repeat('BA', 1000));
+a
+1
+show warnings;
+Level	Code	Message
+select a from balerno ignore index(b) where b in (
+repeat('10', 1000),
+repeat('11', 1000),
+repeat('12', 1000),
+repeat('13', 1000),
+repeat('14', 1000),
+repeat('15', 1000),
+repeat('16', 1000),
+repeat('17', 1000),
+repeat('18', 1000),
+repeat('19', 1000),
+repeat('20', 1000),
+repeat('21', 1000),
+repeat('22', 1000),
+repeat('23', 1000),
+repeat('24', 1000),
+repeat('25', 1000),
+repeat('26', 1000),
+repeat('27', 1000),
+repeat('28', 1000),
+repeat('29', 1000),
+repeat('30', 1000),
+repeat('31', 1000),
+repeat('32', 1000),
+repeat('33', 1000),
+repeat('34', 1000),
+repeat('35', 1000),
+repeat('36', 1000),
+repeat('37', 1000),
+repeat('38', 1000),
+repeat('BA', 1000));
+a
+1
+show warnings;
+Level	Code	Message
+set engine_condition_pushdown = off;
+select a from balerno where b in (
+repeat('10', 1000),
+repeat('11', 1000),
+repeat('12', 1000),
+repeat('13', 1000),
+repeat('14', 1000),
+repeat('15', 1000),
+repeat('16', 1000),
+repeat('17', 1000),
+repeat('18', 1000),
+repeat('19', 1000),
+repeat('20', 1000),
+repeat('21', 1000),
+repeat('22', 1000),
+repeat('23', 1000),
+repeat('24', 1000),
+repeat('25', 1000),
+repeat('26', 1000),
+repeat('27', 1000),
+repeat('28', 1000),
+repeat('29', 1000),
+repeat('30', 1000),
+repeat('31', 1000),
+repeat('32', 1000),
+repeat('33', 1000),
+repeat('34', 1000),
+repeat('35', 1000),
+repeat('36', 1000),
+repeat('37', 1000),
+repeat('38', 1000),
+repeat('BA', 1000));
+a
+1
+show warnings;
+Level	Code	Message
+drop table balerno;
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

@@ -20,7 +20,7 @@
  * This signals is sent by Dbdih-Master to Dblqh
  * as part of master take over after node crash
  */
-class EmptyLcpReq {
+struct EmptyLcpReq {
   /**
    * Sender(s)
    */
@@ -34,10 +34,9 @@ class EmptyLcpReq {
    * Receiver(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   
-public:
   STATIC_CONST( SignalLength = 1 );
-private:
   
   Uint32 senderRef;
 };
@@ -46,11 +45,12 @@ private:
  * This signals is sent by Dblqh to Dbdih
  * as part of master take over after node crash
  */
-class EmptyLcpConf {
+struct EmptyLcpConf {
   /**
    * Sender(s)
    */
   friend class Dblqh;
+  friend class DblqhProxy;
   
   /**
    * Sender(s) / Receiver(s)
@@ -61,9 +61,7 @@ class EmptyLcpConf {
    */
   friend class Dbdih;
   
-public:
   STATIC_CONST( SignalLength = 6 );
-private:
 
   Uint32 senderNodeId;
   Uint32 tableId;

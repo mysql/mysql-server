@@ -23,6 +23,10 @@
 #include <signaldata/ReadConfig.hpp>
 #include <signaldata/NdbSttor.hpp>
 #include <signaldata/ReadNodesConf.hpp>
+#include <signaldata/NodeFailRep.hpp>
+#include <signaldata/NFCompleteRep.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 
 /*
  * Proxy blocks for MT LQH.
@@ -49,6 +53,12 @@ protected:
 
   virtual SimulatedBlock* newWorker(Uint32 instanceNo) = 0;
   virtual void loadWorkers();
+
+  // worker index to worker instance
+  Uint32 workerInstance(Uint32 i) {
+    ndbrequire(i < c_workers);
+    return 1 + i;
+  }
 
   // worker index to worker ref
   BlockReference workerRef(Uint32 i) {
@@ -83,6 +93,7 @@ protected:
   void recvREF(Signal*, SsSequential& ss, Uint32 error);
   // for use in sendREQ
   void skipReq(SsSequential& ss);
+  void skipConf(SsSequential& ss);
   // for use in sendCONF
   bool firstReply(const SsSequential& ss);
   bool lastReply(const SsSequential& ss);
@@ -99,6 +110,7 @@ protected:
   void recvREF(Signal*, SsParallel& ss, Uint32 error);
   // for use in sendREQ
   void skipReq(SsParallel& ss);
+  void skipConf(SsParallel& ss);
   // for use in sendCONF
   bool firstReply(const SsParallel& ss);
   bool lastReply(const SsParallel& ss);
@@ -116,6 +128,10 @@ protected:
   template <class Ss>
   struct SsPool {
     Ss m_pool[Ss::poolSize];
+    Uint32 m_usage;
+    SsPool() {
+      m_usage = 0;
+    }
   };
 
   Uint32 c_ssIdSeq;
@@ -136,6 +152,7 @@ protected:
   Ss& ssSeize(Uint32 ssId) {
     SsPool<Ss>& sp = Ss::pool(this);
     ndbrequire(ssId != 0);
+    ndbrequire(sp.m_usage < Ss::poolSize);
     Ss* ssptr = 0;
     for (Uint32 i = 0; i < Ss::poolSize; i++) {
       Ss& ss = sp.m_pool[i];
@@ -148,6 +165,7 @@ protected:
       }
     }
     ndbrequire(ssptr != 0);
+    sp.m_usage++;
     return *ssptr;
   }
 
@@ -170,6 +188,7 @@ protected:
   template <class Ss>
   void ssRelease(Uint32 ssId) {
     SsPool<Ss>& sp = Ss::pool(this);
+    ndbrequire(sp.m_usage != 0);
     ndbrequire(ssId != 0);
     Ss* ssptr = 0;
     for (Uint32 i = 0; i < Ss::poolSize; i++) {
@@ -181,11 +200,28 @@ protected:
       }
     }
     ndbrequire(ssptr != 0);
+    sp.m_usage--;
   }
 
   template <class Ss>
   void ssRelease(Ss& ss) {
     ssRelease<Ss>(ss.m_ssId);
+  }
+
+  /*
+   * In some cases handle pool full via delayed signal.
+   * wl4391_todo maybe use CONTINUEB and guard against infinite loop.
+   */
+  template <class Ss>
+  bool ssQueue(Signal* signal) {
+    SsPool<Ss>& sp = Ss::pool(this);
+    if (sp.m_usage < Ss::poolSize)
+      return false;
+    ndbrequire(signal->getNoOfSections() == 0);
+    GlobalSignalNumber gsn = signal->header.theVerId_signalNumber & 0xFFFF;
+    sendSignalWithDelay(reference(), gsn,
+                        signal, 10, signal->length());
+    return true;
   }
 
   // system info
@@ -284,6 +320,60 @@ protected:
   void execREAD_NODESCONF(Signal*);
   void execREAD_NODESREF(Signal*);
 
+  // GSN_NODE_FAILREP
+  struct Ss_NODE_FAILREP : SsParallel {
+    NodeFailRep m_req;
+    // REQ sends NdbNodeBitmask but CONF sends nodeId at a time
+    NdbNodeBitmask m_waitFor[MaxWorkers];
+    Ss_NODE_FAILREP() {
+      m_sendREQ = &LocalProxy::sendNODE_FAILREP;
+      m_sendCONF = &LocalProxy::sendNF_COMPLETEREP;
+    }
+    // some blocks do not reply
+    static bool noReply(BlockNumber blockNo) {
+      return
+        blockNo == BACKUP;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_NODE_FAILREP>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_NODE_FAILREP;
+    }
+  };
+  SsPool<Ss_NODE_FAILREP> c_ss_NODE_FAILREP;
+  void execNODE_FAILREP(Signal*);
+  void sendNODE_FAILREP(Signal*, Uint32 ssId);
+  void execNF_COMPLETEREP(Signal*);
+  void sendNF_COMPLETEREP(Signal*, Uint32 ssId);
+
+  // GSN_INCL_NODEREQ
+  struct Ss_INCL_NODEREQ : SsParallel {
+    // future-proof by allocating max length
+    struct Req {
+      Uint32 senderRef;
+      Uint32 inclNodeId;
+      Uint32 word[23];
+    };
+    struct Conf {
+      Uint32 inclNodeId;
+      Uint32 senderRef;
+    };
+    Uint32 m_reqlength;
+    Req m_req;
+    Ss_INCL_NODEREQ() {
+      m_sendREQ = &LocalProxy::sendINCL_NODEREQ;
+      m_sendCONF = &LocalProxy::sendINCL_NODECONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_INCL_NODEREQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_INCL_NODEREQ;
+    }
+  };
+  SsPool<Ss_INCL_NODEREQ> c_ss_INCL_NODEREQ;
+  void execINCL_NODEREQ(Signal*);
+  void sendINCL_NODEREQ(Signal*, Uint32 ssId);
+  void execINCL_NODECONF(Signal*);
+  void sendINCL_NODECONF(Signal*, Uint32 ssId);
+
   // GSN_DUMP_STATE_ORD
   struct Ss_DUMP_STATE_ORD : SsParallel {
     Uint32 m_reqlength;
@@ -331,6 +421,44 @@ protected:
   SsPool<Ss_TIME_SIGNAL> c_ss_TIME_SIGNAL;
   void execTIME_SIGNAL(Signal*);
   void sendTIME_SIGNAL(Signal*, Uint32 ssId);
+
+  // GSN_CREATE_TRIG_IMPL_REQ
+  struct Ss_CREATE_TRIG_IMPL_REQ : SsParallel {
+    CreateTrigImplReq m_req;
+    Ss_CREATE_TRIG_IMPL_REQ() {
+      m_sendREQ = &LocalProxy::sendCREATE_TRIG_IMPL_REQ;
+      m_sendCONF = &LocalProxy::sendCREATE_TRIG_IMPL_CONF;
+    }
+    enum { poolSize = 3 };
+    static SsPool<Ss_CREATE_TRIG_IMPL_REQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_CREATE_TRIG_IMPL_REQ;
+    }
+  };
+  SsPool<Ss_CREATE_TRIG_IMPL_REQ> c_ss_CREATE_TRIG_IMPL_REQ;
+  void execCREATE_TRIG_IMPL_REQ(Signal*);
+  void sendCREATE_TRIG_IMPL_REQ(Signal*, Uint32 ssId);
+  void execCREATE_TRIG_IMPL_CONF(Signal*);
+  void execCREATE_TRIG_IMPL_REF(Signal*);
+  void sendCREATE_TRIG_IMPL_CONF(Signal*, Uint32 ssId);
+
+  // GSN_DROP_TRIG_IMPL_REQ
+  struct Ss_DROP_TRIG_IMPL_REQ : SsParallel {
+    DropTrigImplReq m_req;
+    Ss_DROP_TRIG_IMPL_REQ() {
+      m_sendREQ = &LocalProxy::sendDROP_TRIG_IMPL_REQ;
+      m_sendCONF = &LocalProxy::sendDROP_TRIG_IMPL_CONF;
+    }
+    enum { poolSize = 3 };
+    static SsPool<Ss_DROP_TRIG_IMPL_REQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_DROP_TRIG_IMPL_REQ;
+    }
+  };
+  SsPool<Ss_DROP_TRIG_IMPL_REQ> c_ss_DROP_TRIG_IMPL_REQ;
+  void execDROP_TRIG_IMPL_REQ(Signal*);
+  void sendDROP_TRIG_IMPL_REQ(Signal*, Uint32 ssId);
+  void execDROP_TRIG_IMPL_CONF(Signal*);
+  void execDROP_TRIG_IMPL_REF(Signal*);
+  void sendDROP_TRIG_IMPL_CONF(Signal*, Uint32 ssId);
 };
 
 #endif
