@@ -275,10 +275,10 @@ typedef struct st_maria_share
   MARIA_PACK pack;			/* Data about packed records */
   MARIA_BLOB *blobs;			/* Pointer to blobs */
   uint16 *column_nr;			/* Original column order */
-  char *unique_file_name;		/* realpath() of index file */
-  char *data_file_name;			/* Resolved path names from symlinks */
-  char *index_file_name;
-  char *open_file_name;			/* parameter to open filename */
+  LEX_STRING unique_file_name;		/* realpath() of index file */
+  LEX_STRING data_file_name;		/* Resolved path names from symlinks */
+  LEX_STRING index_file_name;
+  LEX_STRING open_file_name;		/* parameter to open filename */
   uchar *file_map;			/* mem-map of file if possible */
   PAGECACHE *pagecache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
@@ -337,7 +337,7 @@ typedef struct st_maria_share
   size_t (*file_read)(MARIA_HA *, uchar *, size_t, my_off_t, myf);
   size_t (*file_write)(MARIA_HA *, const uchar *, size_t, my_off_t, myf);
   invalidator_by_filename invalidator;	/* query cache invalidator */
-  my_off_t current_key_del;		/* delete links for index pages */
+  my_off_t key_del_current;		/* delete links for index pages */
   ulong this_process;			/* processid */
   ulong last_process;			/* For table-change-check */
   ulong last_version;			/* Version on start */
@@ -346,7 +346,6 @@ typedef struct st_maria_share
   ulong max_pack_length;
   ulong state_diff_length;
   uint rec_reflength;			/* rec_reflength in use now */
-  uint unique_name_length;
   uint keypage_header;
   uint32 ftparsers;			/* Number of distinct ftparsers
 						   + 1 */
@@ -382,12 +381,13 @@ typedef struct st_maria_share
   */
   my_bool now_transactional;
   my_bool have_versioning;
-  my_bool used_key_del;                         /* != 0 if key_del is locked */
+  my_bool key_del_used;                         /* != 0 if key_del is locked */
 #ifdef THREAD
   THR_LOCK lock;
   void (*lock_restore_status)(void *);
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
-  pthread_cond_t intern_cond;
+  pthread_mutex_t key_del_lock;
+  pthread_cond_t  key_del_cond;
 #endif
   my_off_t mmaped_length;
   uint nonmmaped_inserts;		/* counter of writing in
@@ -537,7 +537,7 @@ struct st_maria_handler
   int save_lastinx;
   uint preload_buff_size;		/* When preloading indexes */
   uint16 last_used_keyseg;              /* For MARIAMRG */
-  uint8 used_key_del;                   /* != 0 if key_del is used */
+  uint8 key_del_used;                   /* != 0 if key_del is used */
   my_bool was_locked;			/* Was locked in panic */
   my_bool append_insert_at_end;		/* Set if concurrent insert */
   my_bool quick_mode;
@@ -663,7 +663,7 @@ struct st_maria_handler
 */
 #define maria_print_error(SHARE, ERRNO)                         \
   do{ if (!maria_in_ha_maria)                                   \
-      _ma_report_error((ERRNO), (SHARE)->index_file_name); }    \
+      _ma_report_error((ERRNO), &(SHARE)->index_file_name); }    \
   while(0)
 #else
 #define maria_print_error(SHARE, ERRNO) while (0)
@@ -1030,7 +1030,7 @@ extern uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
                                     size_t *rec_buff_size,
                                     File file, my_off_t filepos);
 extern void _ma_store_blob_length(uchar *pos, uint pack_length, uint length);
-extern void _ma_report_error(int errcode, const char *file_name);
+extern void _ma_report_error(int errcode, const LEX_STRING *file_name);
 extern my_bool _ma_memmap_file(MARIA_HA *info);
 extern void _ma_unmap_file(MARIA_HA *info);
 extern uint _ma_save_pack_length(uint version, uchar * block_buff,

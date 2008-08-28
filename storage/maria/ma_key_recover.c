@@ -203,16 +203,6 @@ my_bool write_hook_for_undo_key(enum translog_record_type type,
     (struct st_msg_to_write_hook_for_undo_key *) hook_arg;
 
   *msg->root= msg->value;
-  /**
-    @todo BUG
-    so we have log mutex and then intern_lock.
-    While in checkpoint we have intern_lock and then log mutex, like when we
-    flush bitmap (flushing bitmap pages can call hook which takes log mutex);
-    and in _ma_update_state_lsns_sub() this is the same.
-    So we can deadlock.
-    Another one is that in translog_assign_id_to_share() we have intern_lock
-    and then log mutex.
-  */
   _ma_fast_unlock_key_del(tbl_info);
   return write_hook_for_undo(type, trn, tbl_info, lsn, 0);
 }
@@ -1209,14 +1199,14 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
   @note
     To allow higher concurrency in the common case where we do inserts
     and we don't have any linked blocks we do the following:
-    - Mark in info->used_key_del that we are not using key_del
+    - Mark in info->key_del_used that we are not using key_del
     - Return at once (without marking key_del as used)
 
-    This is safe as we in this case don't write current_key_del into
+    This is safe as we in this case don't write key_del_current into
     the redo log and during recover we are not updating key_del.
 
   @retval 1  Use page at end of file
-  @retval 0  Use page at share->current_key_del
+  @retval 0  Use page at share->key_del_current
 */
 
 my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end)
@@ -1224,68 +1214,72 @@ my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end)
   MARIA_SHARE *share= info->s;
 
   /*
-    info->used_key_del is 0 initially.
+    info->key_del_used is 0 initially.
     If the caller needs a block (_ma_new()), we look at the free list:
     - looks empty? then caller will create a new block at end of file and
-    remember (through info->used_key_del==2) that it will not change
+    remember (through info->key_del_used==2) that it will not change
     state.key_del and does not need to wake up waiters as nobody will wait for
     it.
     - non-empty? then we wait for other users of the state.key_del list to
-    have finished, then we lock this list (through share->used_key_del==1)
+    have finished, then we lock this list (through share->key_del_used==1)
     because we need to prevent some other thread to also read state.key_del
-    and use the same page as ours. We remember through info->used_key_del==1
+    and use the same page as ours. We remember through info->key_del_used==1
     that we will have to set state.key_del at unlock time and wake up
     waiters.
     If the caller wants to free a block (_ma_dispose()), "empty" and
     "non-empty" are treated as "non-empty" is treated above.
-    When we are ready to unlock, we copy share->current_key_del into
+    When we are ready to unlock, we copy share->key_del_current into
     state.key_del. Unlocking happens when writing the UNDO log record, that
     can make a long lock time.
     Why we wrote "*looks* empty": because we are looking at state.key_del
-    which may be slightly old (share->current_key_del may be more recent and
+    which may be slightly old (share->key_del_current may be more recent and
     exact): when we want a new page, we tolerate to treat "there was no free
     page 1 millisecond ago"  as "there is no free page". It's ok to non-pop
     (_ma_new(), page will be found later anyway) but it's not ok to non-push
     (_ma_dispose(), page would be lost).
-    When we leave this function, info->used_key_del is always 1 or 2.
+    When we leave this function, info->key_del_used is always 1 or 2.
   */
-  if (info->used_key_del != 1)
+  if (info->key_del_used != 1)
   {
-    pthread_mutex_lock(&share->intern_lock);
+    pthread_mutex_lock(&share->key_del_lock);
     if (share->state.key_del == HA_OFFSET_ERROR && insert_at_end)
     {
-      pthread_mutex_unlock(&share->intern_lock);
-      info->used_key_del= 2;                  /* insert-with-append */
+      pthread_mutex_unlock(&share->key_del_lock);
+      info->key_del_used= 2;                  /* insert-with-append */
       return 1;
     }
 #ifdef THREAD
-    while (share->used_key_del)
-      pthread_cond_wait(&share->intern_cond, &share->intern_lock);
+    while (share->key_del_used)
+      pthread_cond_wait(&share->key_del_cond, &share->key_del_lock);
 #endif
-    info->used_key_del= 1;
-    share->used_key_del= 1;
-    share->current_key_del= share->state.key_del;
-    pthread_mutex_unlock(&share->intern_lock);
+    info->key_del_used= 1;
+    share->key_del_used= 1;
+    share->key_del_current= share->state.key_del;
+    pthread_mutex_unlock(&share->key_del_lock);
   }
-  return share->current_key_del == HA_OFFSET_ERROR;
+  return share->key_del_current == HA_OFFSET_ERROR;
 }
 
 
 /**
   @brief copy changes to key_del and unlock it
+
+  @notes
+  In case of many threads using the maria table, we always have a lock
+  on the translog when comming here.
 */
 
 void _ma_unlock_key_del(MARIA_HA *info)
 {
-  DBUG_ASSERT(info->used_key_del);
-  if (info->used_key_del == 1)                  /* Ignore insert-with-append */
+  DBUG_ASSERT(info->key_del_used);
+  if (info->key_del_used == 1)                  /* Ignore insert-with-append */
   {
     MARIA_SHARE *share= info->s;
-    pthread_mutex_lock(&share->intern_lock);
-    share->used_key_del= 0;
-    share->state.key_del= share->current_key_del;
-    pthread_mutex_unlock(&share->intern_lock);
-    pthread_cond_signal(&share->intern_cond);
+    pthread_mutex_lock(&share->key_del_lock);
+    share->key_del_used= 0;
+    share->state.key_del= share->key_del_current;
+    pthread_mutex_unlock(&share->key_del_lock);
+    pthread_cond_signal(&share->key_del_cond);
   }
-  info->used_key_del= 0;
+  info->key_del_used= 0;
 }

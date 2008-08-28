@@ -44,6 +44,7 @@ C_MODE_END
 #ifdef MARIA_CANNOT_ROLLBACK
 #define trans_register_ha(A, B, C)  do { /* nothing */ } while(0)
 #endif
+#define THD_TRN (*(TRN **)thd_ha_data(thd, maria_hton))
 
 ulong pagecache_division_limit, pagecache_age_threshold;
 ulonglong pagecache_buffer_size;
@@ -1278,7 +1279,7 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
   param.op_name= "zerofill";
   param.testflag= check_opt->flags | T_SILENT | T_ZEROFILL;
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
-  error=maria_zerofill(&param, file, share->open_file_name);
+  error=maria_zerofill(&param, file, share->open_file_name.str);
 
   if (!error)
   {
@@ -1355,7 +1356,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   param->thd= thd;
   param->tmpdir= &mysql_tmpdir_list;
   param->out_flag= 0;
-  strmov(fixed_name, share->open_file_name);
+  strmov(fixed_name, share->open_file_name.str);
 
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables &&
@@ -1958,10 +1959,18 @@ bool ha_maria::is_crashed() const
           (my_disable_locking && file->s->state.open_count));
 }
 
+#define CHECK_UNTIL_WE_FULLY_IMPLEMENTED_VERSIONING(msg) \
+  do { \
+    if (file->lock.type == TL_WRITE_CONCURRENT_INSERT) \
+    { \
+      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), msg); \
+      return 1; \
+    } \
+  } while(0)
 
 int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 {
-  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
+  CHECK_UNTIL_WE_FULLY_IMPLEMENTED_VERSIONING("UPDATE in WRITE CONCURRENT");
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -1971,7 +1980,7 @@ int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 
 int ha_maria::delete_row(const uchar * buf)
 {
-  DBUG_ASSERT(file->lock.type != TL_WRITE_CONCURRENT_INSERT);
+  CHECK_UNTIL_WE_FULLY_IMPLEMENTED_VERSIONING("DELETE in WRITE CONCURRENT");
   ha_statistic_increment(&SSV::ha_delete_count);
   return maria_delete(file, buf);
 }
@@ -2175,11 +2184,11 @@ int ha_maria::info(uint flag)
        if table is symlinked (Ie;  Real name is not same as generated name)
     */
     data_file_name= index_file_name= 0;
-    fn_format(name_buff, file->s->open_file_name, "", MARIA_NAME_DEXT,
+    fn_format(name_buff, file->s->open_file_name.str, "", MARIA_NAME_DEXT,
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
     if (strcmp(name_buff, maria_info.data_file_name))
-      data_file_name=maria_info.data_file_name;
-    fn_format(name_buff, file->s->open_file_name, "", MARIA_NAME_IEXT,
+      data_file_name =maria_info.data_file_name;
+    fn_format(name_buff, file->s->open_file_name.str, "", MARIA_NAME_IEXT,
               MY_APPEND_EXT | MY_UNPACK_FILENAME);
     if (strcmp(name_buff, maria_info.index_file_name))
       index_file_name=maria_info.index_file_name;
@@ -2201,6 +2210,21 @@ int ha_maria::extra(enum ha_extra_function operation)
 {
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
     return 0;
+
+  /*
+    We have to set file->trn here because in some cases we call
+    extern_lock(F_UNLOCK) (which resets file->trn) followed by maria_close()
+    without calling commit/rollback in between.  If file->trn is not set
+    we can't remove file->share from the transaction list in the extra() call.
+  */
+
+  if (!file->trn &&
+      (operation == HA_EXTRA_PREPARE_FOR_DROP ||
+       operation == HA_EXTRA_PREPARE_FOR_RENAME))
+  {
+    THD *thd= table->in_use;
+    file->trn= THD_TRN;
+  }
   return maria_extra(file, operation, 0);
 }
 
@@ -2239,8 +2263,6 @@ int ha_maria::delete_table(const char *name)
 {
   return maria_delete_table(name);
 }
-
-#define THD_TRN (*(TRN **)thd_ha_data(thd, maria_hton))
 
 int ha_maria::external_lock(THD *thd, int lock_type)
 {

@@ -510,11 +510,11 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 
   /* Create temporary or join file */
   if (backup)
-    VOID(fn_format(org_name,isam_file->s->open_file_name,"",MARIA_NAME_DEXT,
-                   2));
+    VOID(fn_format(org_name,isam_file->s->open_file_name.str,
+                   "",MARIA_NAME_DEXT, 2));
   else
-    VOID(fn_format(org_name,isam_file->s->open_file_name,"",MARIA_NAME_DEXT,
-                   2+4+16));
+    VOID(fn_format(org_name,isam_file->s->open_file_name.str,
+                   "",MARIA_NAME_DEXT, 2+4+16));
 
   if (init_pagecache(maria_pagecache, MARIA_MIN_PAGE_CACHE_SIZE, 0, 0,
                      maria_block_size, MY_WME) == 0)
@@ -709,7 +709,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
       if (backup)
       {
 	if (my_rename(org_name,make_old_name(temp_name,
-                                             isam_file->s->open_file_name),
+                                             isam_file->s->open_file_name.str),
 		      MYF(MY_WME)))
 	  error=1;
 	else

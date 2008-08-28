@@ -33,7 +33,7 @@ int maria_close(register MARIA_HA *info)
                       (uint) share->tot_locks));
 
   /* Check that we have unlocked key delete-links properly */
-  DBUG_ASSERT(info->used_key_del == 0);
+  DBUG_ASSERT(info->key_del_used == 0);
 
   pthread_mutex_lock(&THR_LOCK_maria);
   if (info->lock_type == F_EXTRA_LCK)
@@ -69,6 +69,10 @@ int maria_close(register MARIA_HA *info)
   if (flag)
   {
     /* Last close of file; Flush everything */
+
+    /* Check that we don't have any dangling pointers from the transaction */
+    DBUG_ASSERT(share->in_trans == 0);
+
     if (share->kfile.file >= 0)
     {
       if ((*share->once_end)(share))

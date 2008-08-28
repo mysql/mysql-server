@@ -114,6 +114,6 @@ extern my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end);
 extern void _ma_unlock_key_del(MARIA_HA *info);
 static inline void _ma_fast_unlock_key_del(MARIA_HA *info)
 {
-  if (info->used_key_del)
+  if (info->key_del_used)
     _ma_unlock_key_del(info);
 }

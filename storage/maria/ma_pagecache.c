@@ -305,12 +305,13 @@ struct st_pagecache_block_link
   ulonglong last_hit_time; /* timestamp of the last hit                      */
   WQUEUE
     wqueue[COND_SIZE];    /* queues on waiting requests for new/old pages    */
-  uint requests;          /* number of requests for the block                */
-  uint status;            /* state of the block                              */
-  uint pins;              /* pin counter                                     */
-  uint wlocks;            /* write locks counter                             */
-  uint rlocks;            /* read locks counter                              */
-  uint rlocks_queue;      /* rd. locks waiting wr. lock of this thread       */
+  uint32 requests;        /* number of requests for the block                */
+  uint32 pins;            /* pin counter                                     */
+  uint32 wlocks;          /* write locks counter                             */
+  uint32 rlocks;          /* read locks counter                              */
+  uint32 rlocks_queue;    /* rd. locks waiting wr. lock of this thread       */
+  uint16 status;          /* state of the block                              */
+  int16  error;           /* error code for block in case of error */
   enum PCBLOCK_TEMPERATURE temperature; /* block temperature: cold, warm, hot*/
   enum pagecache_page_type type; /* type of the block                        */
   uint hits_left;         /* number of hits left until promotion             */
@@ -592,16 +593,16 @@ extern my_bool translog_flush(TRANSLOG_ADDRESS lsn);
 
   RETURN
     0   - OK
-    !=0 - Error
+    1   - Error
 */
 
-static uint pagecache_fwrite(PAGECACHE *pagecache,
-                             PAGECACHE_FILE *filedesc,
-                             uchar *buffer,
-                             pgcache_page_no_t pageno,
-                             enum pagecache_page_type type
-                             __attribute__((unused)),
-                             myf flags)
+static my_bool pagecache_fwrite(PAGECACHE *pagecache,
+                                PAGECACHE_FILE *filedesc,
+                                uchar *buffer,
+                                pgcache_page_no_t pageno,
+                                enum pagecache_page_type type
+                                __attribute__((unused)),
+                                myf flags)
 {
   DBUG_ENTER("pagecache_fwrite");
   DBUG_ASSERT(type != PAGECACHE_READ_UNKNOWN_PAGE);
@@ -2068,6 +2069,7 @@ restart:
                             (my_bool)(block->hash_link ? 1 : 0));
           PCBLOCK_INFO(block);
           block->status= error ? PCBLOCK_ERROR : 0;
+          block->error=  (int16) my_errno;
 #ifndef DBUG_OFF
           block->type= PAGECACHE_EMPTY_PAGE;
           if (error)
@@ -2606,6 +2608,7 @@ static void read_block(PAGECACHE *pagecache,
     if (error)
     {
       block->status|= PCBLOCK_ERROR;
+      block->error=   (int16) my_errno;
       my_debug_put_break_here();
     }
     else
@@ -2618,6 +2621,7 @@ static void read_block(PAGECACHE *pagecache,
       {
         DBUG_PRINT("error", ("read callback problem"));
         block->status|= PCBLOCK_ERROR;
+        block->error=  (int16) my_errno;
         my_debug_put_break_here();
       }
     }
@@ -3107,7 +3111,7 @@ uchar *pagecache_read(PAGECACHE *pagecache,
                       enum pagecache_page_lock lock,
                       PAGECACHE_BLOCK_LINK **page_link)
 {
-  int error= 0;
+  my_bool error= 0;
   enum pagecache_page_pin pin= lock_to_pin[test(buff==0)][lock];
   PAGECACHE_BLOCK_LINK *fake_link;
   my_bool reg_request;
@@ -3229,6 +3233,8 @@ restart:
         pagecache_pthread_mutex_lock(&pagecache->cache_lock);
 #endif
       }
+      else
+        my_errno= block->error;
     }
 
     remove_reader(block);
@@ -3286,7 +3292,7 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
                                          PAGECACHE_HASH_LINK *page_link,
                                          my_bool flush)
 {
-  int error= 0;
+  my_bool error= 0;
   if (block->status & PCBLOCK_CHANGED)
   {
     if (flush)
@@ -3313,6 +3319,7 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
       if (error)
       {
         block->status|= PCBLOCK_ERROR;
+        block->error=   (int16) my_errno;
         my_debug_put_break_here();
         goto err;
       }
@@ -3361,7 +3368,7 @@ my_bool pagecache_delete_by_link(PAGECACHE *pagecache,
                                  enum pagecache_page_lock lock,
                                  my_bool flush)
 {
-  int error= 0;
+  my_bool error= 0;
   enum pagecache_page_pin pin= PAGECACHE_PIN_LEFT_PINNED;
   DBUG_ENTER("pagecache_delete_by_link");
   DBUG_PRINT("enter", ("fd: %d block 0x%lx  %s  %s",
@@ -3460,7 +3467,7 @@ my_bool pagecache_delete(PAGECACHE *pagecache,
                          enum pagecache_page_lock lock,
                          my_bool flush)
 {
-  int error= 0;
+  my_bool error= 0;
   enum pagecache_page_pin pin= lock_to_pin[0][lock];
   DBUG_ENTER("pagecache_delete");
   DBUG_PRINT("enter", ("fd: %u  page: %lu  %s  %s",
@@ -3648,7 +3655,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
 {
   PAGECACHE_BLOCK_LINK *block= NULL;
   PAGECACHE_BLOCK_LINK *fake_link;
-  int error= 0;
+  my_bool error= 0;
   int need_lock_change= write_lock_change_table[lock].need_lock_change;
   my_bool reg_request;
 #ifndef DBUG_OFF
@@ -3771,6 +3778,7 @@ restart:
         {
           DBUG_PRINT("error", ("read callback problem"));
           block->status|= PCBLOCK_ERROR;
+          block->error= (int16) my_errno;
           my_debug_put_break_here();
         }
         KEYCACHE_DBUG_PRINT("key_cache_insert",
@@ -3860,10 +3868,10 @@ no_key_cache:
       uchar *page_buffer= (uchar *) alloca(pagecache->block_size);
 
       pagecache->global_cache_read++;
-      if ((error= pagecache_fread(pagecache, file,
-                                  page_buffer,
-                                  pageno,
-                                  pagecache->readwrite_flags)))
+      if ((error= (pagecache_fread(pagecache, file,
+                                   page_buffer,
+                                   pageno,
+                                   pagecache->readwrite_flags) != 0)))
         goto end;
       if ((file->read_callback)(page_buffer, pageno, file->callback_data))
       {
@@ -3987,7 +3995,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
                                int *first_errno)
 {
   int rc= PCFLUSH_OK;
-  int error;
+  my_bool error;
   uint count= (uint) (end-cache);
   DBUG_ENTER("flush_cached_blocks");
   *first_errno= 0;
@@ -4067,6 +4075,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     if (error)
     {
       block->status|= PCBLOCK_ERROR;
+      block->error=   (int16) my_errno;
       my_debug_put_break_here();
       if (!*first_errno)
         *first_errno= my_errno ? my_errno : -1;

@@ -125,8 +125,7 @@ static COND *optimize_cond(JOIN *join, COND *conds,
 			   Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
-static bool create_internal_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    ulonglong options);
+static bool create_internal_tmp_table(TABLE *,TMP_TABLE_PARAM *, ulonglong);
 static bool create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
                                                  TMP_TABLE_PARAM *param,
                                                  int error,

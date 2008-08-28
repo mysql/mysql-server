@@ -2476,7 +2476,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   {
     /* Get real path for data file */
     if ((new_file= my_create(fn_format(param->temp_filename,
-                                       share->data_file_name, "",
+                                       share->data_file_name.str, "",
                                        DATA_TMP_EXT, 2+4),
                              0,param->tmpfile_createflag,
                              MYF(0))) < 0)
@@ -2680,7 +2680,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
       my_close(new_file, MYF(MY_WME));
     new_file= -1;
     change_data_file_descriptor(info, -1);
-    if (maria_change_to_newfile(share->data_file_name,MARIA_NAME_DEXT,
+    if (maria_change_to_newfile(share->data_file_name.str, MARIA_NAME_DEXT,
                                 DATA_TMP_EXT,
                                 (param->testflag & T_BACKUP_DATA ?
                                  MYF(MY_REDEL_MAKE_BACKUP): MYF(0)) |
@@ -2993,7 +2993,7 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
   share->kfile.file = -1;
   pthread_mutex_unlock(&share->intern_lock);
   VOID(my_close(new_file,MYF(MY_WME)));
-  if (maria_change_to_newfile(share->index_file_name, MARIA_NAME_IEXT,
+  if (maria_change_to_newfile(share->index_file_name.str, MARIA_NAME_IEXT,
                               INDEX_TMP_EXT, sync_dir) ||
       _ma_open_keyfile(share))
     goto err2;
@@ -3524,7 +3524,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   {
     /* Get real path for data file */
     if ((new_file=my_create(fn_format(param->temp_filename,
-                                      share->data_file_name, "",
+                                      share->data_file_name.str, "",
                                       DATA_TMP_EXT, 2+4),
                             0,param->tmpfile_createflag,
                             MYF(0))) < 0)
@@ -3789,7 +3789,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
         new_file= -1;
       }
       change_data_file_descriptor(info, -1);
-      if (maria_change_to_newfile(share->data_file_name,MARIA_NAME_DEXT,
+      if (maria_change_to_newfile(share->data_file_name.str, MARIA_NAME_DEXT,
                                   DATA_TMP_EXT,
                                   (param->testflag & T_BACKUP_DATA ?
                                    MYF(MY_REDEL_MAKE_BACKUP): MYF(0)) |
@@ -4070,7 +4070,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   {
     /* Get real path for data file */
     if ((new_file= my_create(fn_format(param->temp_filename,
-                                       share->data_file_name, "",
+                                       share->data_file_name.str, "",
                                        DATA_TMP_EXT,
                                        2+4),
                              0,param->tmpfile_createflag,
@@ -4397,7 +4397,7 @@ err:
     {
       my_close(new_file,MYF(0));
       info->dfile.file= new_file= -1;
-      if (maria_change_to_newfile(share->data_file_name,MARIA_NAME_DEXT,
+      if (maria_change_to_newfile(share->data_file_name.str, MARIA_NAME_DEXT,
                                   DATA_TMP_EXT,
                                   MYF((param->testflag & T_BACKUP_DATA ?
                                        MY_REDEL_MAKE_BACKUP : 0) |
@@ -6236,7 +6236,7 @@ static my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file)
   MARIA_HA *new_info;
   DBUG_ENTER("create_new_data_handle");
 
-  if (!(sort_info->new_info= maria_open(info->s->open_file_name, O_RDWR,
+  if (!(sort_info->new_info= maria_open(info->s->open_file_name.str, O_RDWR,
                                         HA_OPEN_COPY | HA_OPEN_FOR_REPAIR)))
     DBUG_RETURN(1);
 

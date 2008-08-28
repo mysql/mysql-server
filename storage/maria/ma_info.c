@@ -81,8 +81,8 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
     x->sortkey= -1;				/* No clustering */
     x->rec_per_key	= share->state.rec_per_key_part;
     x->key_map	 	= share->state.key_map;
-    x->data_file_name   = share->data_file_name;
-    x->index_file_name  = share->index_file_name;
+    x->data_file_name   = share->data_file_name.str;
+    x->index_file_name  = share->index_file_name.str;
     x->data_file_type   = share->data_file_type;
   }
   if ((flag & HA_STATUS_TIME) && !my_fstat(info->dfile.file, &state, MYF(0)))
@@ -118,13 +118,14 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
     void
 */
 
-void _ma_report_error(int errcode, const char *file_name)
+void _ma_report_error(int errcode, const LEX_STRING *name)
 {
-  size_t  length;
+  size_t length;
+  const char *file_name= name->str;
   DBUG_ENTER("_ma_report_error");
   DBUG_PRINT("enter",("errcode %d, table '%s'", errcode, file_name));
 
-  if ((length= strlen(file_name)) > 64)
+  if ((length= name->length) > 64)
   {
     /* we first remove the directory */
     size_t dir_length= dirname_length(file_name);

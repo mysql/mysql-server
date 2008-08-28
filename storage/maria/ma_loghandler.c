@@ -7686,7 +7686,7 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
   DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
   /* re-check under mutex to avoid having 2 ids for the same share */
   pthread_mutex_lock(&share->intern_lock);
-  if (likely(share->id == 0))
+  if (unlikely(share->id == 0))
   {
     LSN lsn;
     LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
@@ -7717,13 +7717,13 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
       is not realpath-ed, etc) which is good: the log can be moved to another
       directory and continue working.
     */
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (uchar*)share->open_file_name;
-    /**
-       @todo if we had the name's length in MARIA_SHARE we could avoid this
-       strlen()
-    */
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= share->open_file_name.str;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length=
-      strlen(share->open_file_name) + 1;
+      share->open_file_name.length + 1;
+    /*
+      We can't unlock share->intern_lock before the log entry is written to
+      ensure no one uses the id before it's logged.
+    */
     if (unlikely(translog_write_record(&lsn, LOGREC_FILE_ID, trn, tbl_info,
                                        (translog_size_t)
                                        (sizeof(log_data) +
