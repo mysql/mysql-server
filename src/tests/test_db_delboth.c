@@ -13,23 +13,29 @@
 
 #include "test.h"
 
-
 #if USE_TDB
+enum {INFLATE=128};
 void db_put(DB *db, int k, int v) {
     DBT key, val;
-    int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
+    static int vv[INFLATE];
+    vv[0] = v;
+    int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, vv, sizeof vv), DB_YESOVERWRITE);
     CKERR(r);
 }
 
 void expect_db_delboth(DB *db, int k, int v, u_int32_t flags, int expectr) {
     DBT key, val;
-    int r = db->delboth(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), flags);
+    static int vv[INFLATE];
+    vv[0] = v;
+    int r = db->delboth(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, vv, sizeof vv), flags);
     CKERR2(r, expectr);
 }
 
 void expect_db_getboth(DB *db, int k, int v, int expectr) {
     DBT key, val;
-    int r = db->get(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_GET_BOTH);
+    static int vv[INFLATE];
+    vv[0] = v;
+    int r = db->get(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, vv, sizeof vv), DB_GET_BOTH);
     CKERR2(r, expectr);
 }
 
@@ -50,8 +56,6 @@ void test_db_delboth(int n, int dup_mode) {
     CKERR(r);
     r = db->set_flags(db, dup_mode);
     CKERR(r);
-    r = db->set_pagesize(db, 4096);
-    CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     CKERR(r);
 
@@ -68,8 +72,6 @@ void test_db_delboth(int n, int dup_mode) {
     r = db_create(&db, null_env, 0);
     CKERR(r);
     r = db->set_flags(db, dup_mode);
-    CKERR(r);
-    r = db->set_pagesize(db, 4096);
     CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
     CKERR(r);
@@ -164,7 +166,7 @@ int main(int argc, const char *argv[]) {
     test_db_delboth(0, 0);
 
     int i;
-    for (i = 1; i <= (1<<16); i *= 2) {
+    for (i = 1; i <= (1<<10); i *= 2) {
         test_db_delboth(i, 0);
         test_db_delboth(i, DB_DUP|DB_DUPSORT);
     }
