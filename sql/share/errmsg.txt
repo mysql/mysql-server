@@ -4718,7 +4718,7 @@ ER_SLAVE_IGNORED_TABLE
         swe "Slav SQL tråden ignorerade frågan pga en replicate-*-table regel"
 ER_INCORRECT_GLOBAL_LOCAL_VAR  
         eng "Variable '%-.192s' is a %s variable"
-        serbian "Incorrect foreign key definition for '%-.192s': %s"
+        serbian "Promenljiva '%-.192s' je %s promenljiva"
         ger "Variable '%-.192s' ist eine %s-Variable"
         nla "Variabele '%-.192s' is geen %s variabele"
         spa "Variable '%-.192s' es una %s variable"
@@ -6130,3 +6130,6 @@ ER_LOG_PURGE_NO_FILE
 
 ER_NEED_REPREPARE
   eng "Prepared statement needs to be re-prepared"
+
+ER_DELAYED_NOT_SUPPORTED  
+  eng "DELAYED option not supported for table '%-.192s'"
