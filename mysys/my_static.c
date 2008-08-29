@@ -92,8 +92,11 @@ int (*error_handler_hook)(uint error,const char *str,myf MyFlags)=
 int (*fatal_error_handler_hook)(uint error,const char *str,myf MyFlags)=
   my_message_no_curses;
 
-static const char *proc_info_dummy(void *a, const char *b, const char *c,
-                                    const char *d, const unsigned int e)
+static const char *proc_info_dummy(void *a __attribute__((unused)),
+                                   const char *b __attribute__((unused)),
+                                   const char *c __attribute__((unused)),
+                                   const char *d __attribute__((unused)),
+                                   const unsigned int e __attribute__((unused)))
 {
   return 0;
 }

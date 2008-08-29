@@ -51,7 +51,7 @@ void test_concurrently(const char *test, pthread_handler handler, int n, int m)
   ok(!bad, "tested %s in %g secs (%d)", test, ((double)now)/1e7, bad);
 }
 
-int main(int argc, char **argv)
+int main(int argc __attribute__((unused)), char **argv)
 {
   MY_INIT("thd_template");
 
