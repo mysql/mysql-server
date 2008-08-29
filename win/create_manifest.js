@@ -31,7 +31,17 @@ try
            var end= supp_version.indexOf("-");
            if (end == -1) end= supp_version.length;
            var app_version= supp_version.substring(0, end);
-           app_version+= ".0";
+           var fourth_element= 0;
+           if(app_version.match(/[a-z]$/)) {
+               fourth_element+= (1 + app_version.charCodeAt(end-1) - "a".charCodeAt(0));
+               app_version= app_version.substring(0,--end);
+           }
+           if(app_version.match(/sp[1-9]$/)) {
+               fourth_element+= 100*(app_version.charCodeAt(end-1) - "0".charCodeAt(0));
+               app_version= app_version.substring(0, end-3);
+               end-= 3;
+           }
+           app_version+= "." + fourth_element;
            break;
       case "arch":
            var app_arch= parts[1];
