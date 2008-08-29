@@ -3623,6 +3623,11 @@ sub mysqld_arguments ($$$) {
     {
       ; # Dont add --binlog-format when running without binlog
     }
+    elsif ($arg eq "--loose-skip-log-bin" and
+           $mysqld->option("log-slave-updates"))
+    {
+      ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config
+    }
     else
     {
       mtr_add_arg($args, "%s", $arg);
