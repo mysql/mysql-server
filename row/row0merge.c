@@ -2160,14 +2160,6 @@ row_merge_create_index(
 
 	ut_a(index);
 
-	/* Create the index id, as it will be required when we build
-	the index. We assign the id here because we want to write an
-	UNDO record before we insert the entry into SYS_INDEXES. */
-	ut_a(ut_dulint_is_zero(index->id));
-
-	index->id = dict_hdr_get_new_id(DICT_HDR_INDEX_ID);
-	index->table = table;
-
 	for (i = 0; i < n_fields; i++) {
 		merge_index_field_t*	ifield = &index_def->fields[i];
 
@@ -2175,8 +2167,7 @@ row_merge_create_index(
 					 ifield->prefix_len);
 	}
 
-	/* Add the index to SYS_INDEXES, this will use the prototype
-	to create an entry in SYS_INDEXES. */
+	/* Add the index to SYS_INDEXES, using the index prototype. */
 	err = row_merge_create_index_graph(trx, table, index);
 
 	if (err == DB_SUCCESS) {
