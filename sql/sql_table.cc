@@ -4195,6 +4195,46 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_global= save_next_global;
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      if (table->table && table->table->part_info)
+      {
+        /*
+          Set up which partitions that should be processed
+          if ALTER TABLE t ANALYZE/CHECK/OPTIMIZE/REPAIR PARTITION ..
+        */
+        Alter_info *alter_info= &lex->alter_info;
+
+        if (alter_info->flags & ALTER_ANALYZE_PARTITION ||
+            alter_info->flags & ALTER_CHECK_PARTITION ||
+            alter_info->flags & ALTER_OPTIMIZE_PARTITION ||
+            alter_info->flags & ALTER_REPAIR_PARTITION)
+        {
+          uint no_parts_found;
+          uint no_parts_opt= alter_info->partition_names.elements;
+          no_parts_found= set_part_state(alter_info, table->table->part_info,
+                                         PART_CHANGED);
+          if (no_parts_found != no_parts_opt &&
+              (!(alter_info->flags & ALTER_ALL_PARTITION)))
+          {
+            char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
+            uint length;
+            DBUG_PRINT("admin", ("sending non existent partition error"));
+            protocol->prepare_for_resend();
+            protocol->store(table_name, system_charset_info);
+            protocol->store(operator_name, system_charset_info);
+            protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+            length= my_snprintf(buff, sizeof(buff),
+                                ER(ER_DROP_PARTITION_NON_EXISTENT),
+                                table_name);
+            protocol->store(buff, length, system_charset_info);
+            if(protocol->write())
+              goto err;
+            my_eof(thd);
+            goto err;
+          }
+        }
+      }
+#endif
     }
     DBUG_PRINT("admin", ("table: 0x%lx", (long) table->table));
 
@@ -4429,9 +4469,17 @@ send_result_message:
         This is currently used only by InnoDB. ha_innobase::optimize() answers
         "try with alter", so here we close the table, do an ALTER TABLE,
         reopen the table and do ha_innobase::analyze() on it.
+        We have to end the row, so analyze could return more rows.
       */
+      protocol->store(STRING_WITH_LEN("note"), system_charset_info);
+      protocol->store(STRING_WITH_LEN(
+          "Table does not support optimize, doing recreate + analyze instead"),
+                      system_charset_info);
+      if (protocol->write())
+        goto err;
       ha_autocommit_or_rollback(thd, 0);
       close_thread_tables(thd);
+      DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
@@ -4454,6 +4502,10 @@ send_result_message:
             ((result_code= table->table->file->ha_analyze(thd, check_opt)) > 0))
           result_code= 0; // analyze went ok
       }
+      /* Start a new row for the final status row */
+      protocol->prepare_for_resend();
+      protocol->store(table_name, system_charset_info);
+      protocol->store(operator_name, system_charset_info);
       if (result_code) // either mysql_recreate_table or analyze failed
       {
         DBUG_ASSERT(thd->is_error());
@@ -4469,7 +4521,8 @@ send_result_message:
             /* Hijack the row already in-progress. */
             protocol->store(STRING_WITH_LEN("error"), system_charset_info);
             protocol->store(err_msg, system_charset_info);
-            (void)protocol->write();
+            if (protocol->write())
+              goto err;
             /* Start off another row for HA_ADMIN_FAILED */
             protocol->prepare_for_resend();
             protocol->store(table_name, system_charset_info);
@@ -5148,52 +5201,52 @@ compare_tables(TABLE *table,
   Field **f_ptr, *field;
   uint changes= 0, tmp;
   uint key_count;
-  List_iterator_fast<Create_field> new_field_it(alter_info->create_list);
-  Create_field *new_field;
+  List_iterator_fast<Create_field> new_field_it, tmp_new_field_it;
+  Create_field *new_field, *tmp_new_field;
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *end;
+  THD *thd= table->in_use;
   /*
     Remember if the new definition has new VARCHAR column;
     create_info->varchar will be reset in mysql_prepare_create_table.
   */
   bool varchar= create_info->varchar;
   bool not_nullable= true;
+  /*
+    Create a copy of alter_info.
+    To compare the new and old table definitions, we need to "prepare"
+    the new definition - transform it from parser output to a format
+    that describes the final table layout (all column defaults are
+    initialized, duplicate columns are removed). This is done by
+    mysql_prepare_create_table.  Unfortunately,
+    mysql_prepare_create_table performs its transformations
+    "in-place", that is, modifies the argument.  Since we would
+    like to keep compare_tables() idempotent (not altering any
+    of the arguments) we create a copy of alter_info here and
+    pass it to mysql_prepare_create_table, then use the result
+    to evaluate possibility of fast ALTER TABLE, and then
+    destroy the copy.
+  */
+  Alter_info tmp_alter_info(*alter_info, thd->mem_root);
+  uint db_options= 0; /* not used */
+
   DBUG_ENTER("compare_tables");
 
-  {
-    THD *thd= table->in_use;
-    /*
-      Create a copy of alter_info.
-      To compare the new and old table definitions, we need to "prepare"
-      the new definition - transform it from parser output to a format
-      that describes the final table layout (all column defaults are
-      initialized, duplicate columns are removed). This is done by
-      mysql_prepare_create_table.  Unfortunately,
-      mysql_prepare_create_table performs its transformations
-      "in-place", that is, modifies the argument.  Since we would
-      like to keep compare_tables() idempotent (not altering any
-      of the arguments) we create a copy of alter_info here and
-      pass it to mysql_prepare_create_table, then use the result
-      to evaluate possibility of fast ALTER TABLE, and then
-      destroy the copy.
-    */
-    Alter_info tmp_alter_info(*alter_info, thd->mem_root);
-    uint db_options= 0; /* not used */
-    /* Create the prepared information. */
-    if (mysql_prepare_create_table(thd, create_info,
-                                   &tmp_alter_info,
-                                   (table->s->tmp_table != NO_TMP_TABLE),
-                                   &db_options,
-                                   table->file, key_info_buffer,
-                                   &key_count, 0))
-      DBUG_RETURN(1);
-    /* Allocate result buffers. */
-    if (! (*index_drop_buffer=
-           (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
-        ! (*index_add_buffer=
-           (uint*) thd->alloc(sizeof(uint) * tmp_alter_info.key_list.elements)))
-      DBUG_RETURN(1);
-  }
+  /* Create the prepared information. */
+  if (mysql_prepare_create_table(thd, create_info,
+                                  &tmp_alter_info,
+                                  (table->s->tmp_table != NO_TMP_TABLE),
+                                  &db_options,
+                                  table->file, key_info_buffer,
+                                  &key_count, 0))
+    DBUG_RETURN(1);
+  /* Allocate result buffers. */
+  if (! (*index_drop_buffer=
+          (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
+      ! (*index_add_buffer=
+          (uint*) thd->alloc(sizeof(uint) * tmp_alter_info.key_list.elements)))
+    DBUG_RETURN(1);
+
   /*
     Some very basic checks. If number of fields changes, or the
     handler, we need to run full ALTER TABLE. In the future
@@ -5237,18 +5290,28 @@ compare_tables(TABLE *table,
   }
 
   /*
+    Use transformed info to evaluate possibility of fast ALTER TABLE
+    but use the preserved field to persist modifications.
+  */
+  new_field_it.init(alter_info->create_list);
+  tmp_new_field_it.init(tmp_alter_info.create_list);
+
+  /*
     Go through fields and check if the original ones are compatible
     with new table.
   */
-  for (f_ptr= table->field, new_field= new_field_it++;
-       (field= *f_ptr); f_ptr++, new_field= new_field_it++)
+  for (f_ptr= table->field, new_field= new_field_it++,
+       tmp_new_field= tmp_new_field_it++;
+       (field= *f_ptr);
+       f_ptr++, new_field= new_field_it++,
+       tmp_new_field= tmp_new_field_it++)
   {
     /* Make sure we have at least the default charset in use. */
     if (!new_field->charset)
       new_field->charset= create_info->default_table_charset;
 
     /* Check that NULL behavior is same for old and new fields */
-    if ((new_field->flags & NOT_NULL_FLAG) !=
+    if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
 	(uint) (field->flags & NOT_NULL_FLAG))
     {
       *need_copy_table= ALTER_TABLE_DATA_CHANGED;
@@ -5257,8 +5320,8 @@ compare_tables(TABLE *table,
 
     /* Don't pack rows in old tables if the user has requested this. */
     if (create_info->row_type == ROW_TYPE_DYNAMIC ||
-	(new_field->flags & BLOB_FLAG) ||
-	new_field->sql_type == MYSQL_TYPE_VARCHAR &&
+	(tmp_new_field->flags & BLOB_FLAG) ||
+	tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
 	create_info->row_type != ROW_TYPE_FIXED)
       create_info->table_options|= HA_OPTION_PACK_RECORD;
 
@@ -5266,11 +5329,11 @@ compare_tables(TABLE *table,
     field->flags&= ~FIELD_IS_RENAMED;
     if (my_strcasecmp(system_charset_info,
 		      field->field_name,
-		      new_field->field_name))
+		      tmp_new_field->field_name))
       field->flags|= FIELD_IS_RENAMED;      
 
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
-    if (!(tmp= field->is_equal(new_field)))
+    if (!(tmp= field->is_equal(tmp_new_field)))
     {
       *need_copy_table= ALTER_TABLE_DATA_CHANGED;
       DBUG_RETURN(0);
@@ -7190,7 +7253,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
+  init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->row_count= 0;

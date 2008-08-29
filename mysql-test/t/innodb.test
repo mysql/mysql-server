@@ -2458,7 +2458,22 @@ SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 DROP TABLE t2;
 DROP TABLE t1;
 # End 34920 test
+# Bug #29507 TRUNCATE shows to many rows effected
+#
+CONNECTION default;
+CREATE TABLE t1 (c1 int default NULL,
+		 c2 int default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+--enable_info
+TRUNCATE TABLE t1;
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+TRUNCATE TABLE t1;
+
+--disable_info
+DROP TABLE t1;
+#
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #
