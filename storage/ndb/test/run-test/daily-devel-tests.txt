@@ -3,7 +3,7 @@
 #
 max-time: 1500
 cmd: testIndex
-args: -n CreateAll T1 T6 T13
+args: -n CreateAll T1 T13 T14
 
 #-m 7200 1: testIndex -n InsertDeleteGentle T6
 max-time: 3600
