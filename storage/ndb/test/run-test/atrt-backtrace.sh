@@ -44,13 +44,13 @@ rm -f $tmp
 if [ -x $exe ]
 then
     echo "*** $exe - $core" >> $out
-    eval "gdb -q -batch -x bt.gdb -c $core $exe $outarg"
+    gdb -q -batch -x bt.gdb -c $core $exe >> $out 2>&1
 elif [ -x "`which $exe 2> /dev/null`" ]
 then
     exe=`which $exe`
     echo "*** $exe - $core" >> $out
-    eval "gdb -q -batch -x bt.gdb -c $core $exe $outarg"
+    gdb -q -batch -x bt.gdb -c $core $exe >> $out 2>&1
 else
-    eval "echo \"*** $core : cant find exe: $exe\" $outarg"
+    echo "*** $core : cant find exe: $exe" >> $out
 fi
 rm -f $bt
