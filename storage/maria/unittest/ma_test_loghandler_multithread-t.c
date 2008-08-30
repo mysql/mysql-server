@@ -17,7 +17,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <tap.h>
-#include "../trnman_public.h"
 #include "../trnman.h"
 
 extern my_bool maria_log_remove();

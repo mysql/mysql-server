@@ -20,7 +20,6 @@
 #include <my_atomic.h>
 #include <lf.h>
 #include <m_string.h>
-#include "../trnman_public.h"
 #include "../trnman.h"
 
 pthread_mutex_t rt_mutex;
