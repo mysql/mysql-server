@@ -64,7 +64,7 @@ pthread_handler_t test_wt(void *arg)
     int blockers[THREADS/10], j, k;
     bzero(&resid, sizeof(resid));
 
-    resid.value.num= id; //rnd() % THREADS;
+    resid.value.num= id;
     resid.type= &restype;
 
     res= 0;
