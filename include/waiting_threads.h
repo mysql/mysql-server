@@ -80,7 +80,7 @@ typedef struct st_wt_resource {
     in the sense that lf_hash_insert() won't memcpy() over them.
     See wt_init().
   */
-  pthread_rwlock_t lock;
+  rw_lock_t lock;
   pthread_cond_t   cond;
   DYNAMIC_ARRAY    owners;
 } WT_RESOURCE;

@@ -98,7 +98,7 @@ struct timespec {
 #define set_timespec_nsec(ABSTIME,NSEC) do {                    \
   union ft64 tv;                                                \
   GetSystemTimeAsFileTime(&tv.ft);                              \
-  set_timespec_time_nsec((ABSTIME), tv.i64, (NSEC))             \
+  set_timespec_time_nsec((ABSTIME), tv.i64, (NSEC));            \
 } while(0)
 
 void win_pthread_init(void);

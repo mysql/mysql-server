@@ -170,19 +170,19 @@ static my_atomic_rwlock_t cycle_stats_lock, wait_stats_lock, success_stats_lock;
   do {                                                                  \
     WT_RESOURCE *R=(X);                                                 \
     DBUG_PRINT("wt", ("LOCK resid=%lld for READ", R->id.value.num));    \
-    pthread_rwlock_rdlock(&R->lock);                                    \
+    rw_rdlock(&R->lock);                                    \
   } while (0)
 #define rc_wrlock(X)                                                    \
   do {                                                                  \
     WT_RESOURCE *R=(X);                                                 \
     DBUG_PRINT("wt", ("LOCK resid=%lld for WRITE", R->id.value.num));   \
-    pthread_rwlock_wrlock(&R->lock);                                    \
+    rw_wrlock(&R->lock);                                    \
   } while (0)
 #define rc_unlock(X)                                                    \
   do {                                                                  \
     WT_RESOURCE *R=(X);                                                 \
     DBUG_PRINT("wt", ("UNLOCK resid=%lld", R->id.value.num));           \
-    pthread_rwlock_unlock(&R->lock);                                    \
+    rw_unlock(&R->lock);                                    \
   } while (0)
 
 /*
@@ -203,7 +203,7 @@ static void wt_resource_init(uchar *arg)
   DBUG_ENTER("wt_resource_init");
 
   bzero(rc, sizeof(*rc));
-  pthread_rwlock_init(&rc->lock, 0);
+  my_rwlock_init(&rc->lock, 0);
   pthread_cond_init(&rc->cond, 0);
   my_init_dynamic_array(&rc->owners, sizeof(WT_THD *), 0, 5);
   DBUG_VOID_RETURN;
@@ -221,7 +221,7 @@ static void wt_resource_destroy(uchar *arg)
   DBUG_ENTER("wt_resource_destroy");
 
   DBUG_ASSERT(rc->owners.elements == 0);
-  pthread_rwlock_destroy(&rc->lock);
+  rwlock_destroy(&rc->lock);
   pthread_cond_destroy(&rc->cond);
   delete_dynamic(&rc->owners);
   DBUG_VOID_RETURN;
