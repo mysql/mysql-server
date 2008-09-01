@@ -2,34 +2,6 @@ LIBRARY		LIBMYSQLD
 DESCRIPTION	'MySQL 5.1 Embedded Server Library'
 VERSION		5.1
 EXPORTS
-	_dig_vec_upper
-	_dig_vec_lower
-	bmove_upp
-	delete_dynamic
-	free_defaults
-	getopt_compare_strings
-	getopt_ull_limit_value
-	handle_options
-	init_dynamic_array
-	insert_dynamic
-	int2str
-	is_prefix
-	list_add
-	list_delete
-	load_defaults
-	max_allowed_packet
-	my_cgets
-	my_end
-	my_getopt_print_errors
-	my_init
-	my_malloc
-	my_memdup
-	my_no_flags_free
-	my_path
-	my_print_help
-	my_print_variables
-	my_realloc
-	my_strdup
 	mysql_thread_end
 	mysql_thread_init
 	myodbc_remove_escape
@@ -102,15 +74,6 @@ EXPORTS
 	mysql_thread_safe
 	mysql_use_result
 	mysql_warning_count
-	set_dynamic
-	strcend
-	strcont
-	strdup_root
-	strfill
-	strinstr
-	strmake
-	strmov
-	strxmov
 	mysql_server_end
 	mysql_server_init
 	get_tty_password
@@ -118,28 +81,6 @@ EXPORTS
 	mysql_get_server_version
 	mysql_set_character_set
 	mysql_sqlstate
-	charsets_dir
-	disabled_my_option
-	my_charset_latin1
-	init_alloc_root
-	my_progname
-	get_charset_name
-	get_charset_by_csname
-	print_defaults
-	find_type
-	strxnmov
-	strend
-	my_fopen
-	my_fclose
-	unpack_filename
-	str2int
-	int10_to_str
-	longlong10_to_str
-	my_snprintf_8bit
-	alloc_root
-	free_root
-	my_read
-	llstr
 	mysql_get_parameters
 	mysql_thread_init
 	mysql_thread_end
@@ -170,7 +111,4 @@ EXPORTS
 	mysql_stmt_attr_get
 	mysql_stmt_attr_set
 	mysql_stmt_field_count
-	get_defaults_options
-	my_charset_bin
-	my_charset_same
-	modify_defaults_file
+
