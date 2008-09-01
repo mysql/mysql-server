@@ -1575,33 +1575,33 @@ sub executable_setup_ndb () {
 
   # Look for single threaded ndb
   $exe_ndbd=
-    mtr_exe_maybe_exists(vs_config_dirs("$ndb_path/src/kernel","ndbd"),
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/kernel","ndbd"),
 			 "$ndb_path/src/kernel/ndbd",
 			 "$ndb_path/ndbd");
 
   # Look for multi threaded ndb
   $exe_ndbmtd=
-    mtr_exe_maybe_exists(vs_config_dirs("$ndb_path/src/kernel","ndbmtd"),
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/kernel","ndbmtd"),
 			 "$ndb_path/src/kernel/ndbmtd",
 			 "$ndb_path/ndbmtd");
   mtr_report("Found multi threaded ndbd, will be used \"round robin\"")
     if ($exe_ndbmtd);
 
   $exe_ndb_mgm=
-    mtr_exe_maybe_exists(vs_config_dirs("$ndb_path/src/mgmclient","ndb_mgm"),
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/mgmclient","ndb_mgm"),
 			 "$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
   $exe_ndb_mgmd=
-    mtr_exe_maybe_exists(vs_config_dirs("$ndb_path/src/mgmsrv","ndb_mgmd"),
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/mgmsrv","ndb_mgmd"),
 			 "$ndb_path/src/mgmsrv/ndb_mgmd",
 			 "$ndb_path/ndb_mgmd");
   $exe_ndb_waiter=
-    mtr_exe_maybe_exists(vs_config_dirs("$ndb_path/tools","ndb_waiter"),
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools","ndb_waiter"),
 			 "$ndb_path/tools/ndb_waiter",
 			 "$ndb_path/ndb_waiter");
 
   # May not exist
-  $path_ndb_tools_dir= mtr_path_exists(vs_config_dirs("$ndb_path/tools",''),
+  $path_ndb_tools_dir= mtr_path_exists(vs_config_dirs("storage/ndb/tools",''),
 				       "$ndb_path/tools",
 				       "$ndb_path");
   # May not exist
