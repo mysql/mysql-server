@@ -30,8 +30,7 @@
       A resource is represented by a WT_RESOURCE structure. 
 
     a resource identifier - a pair of {resource type, value}. A value is
-      either a ulonglong number or a pointer (it's a union).
-      WT_RESOURCE_ID structure.
+      an ulonglong number. Represented by a WT_RESOURCE_ID structure.
 
     a resource type - a pointer to a statically defined instance of
     WT_RESOURCE_TYPE structure. This structure contains a pointer to
@@ -169,20 +168,20 @@ static my_atomic_rwlock_t cycle_stats_lock, wait_stats_lock, success_stats_lock;
 #define rc_rdlock(X)                                                    \
   do {                                                                  \
     WT_RESOURCE *R=(X);                                                 \
-    DBUG_PRINT("wt", ("LOCK resid=%lld for READ", R->id.value.num));    \
-    rw_rdlock(&R->lock);                                    \
+    DBUG_PRINT("wt", ("LOCK resid=%lld for READ", R->id.value));        \
+    rw_rdlock(&R->lock);                                                \
   } while (0)
 #define rc_wrlock(X)                                                    \
   do {                                                                  \
     WT_RESOURCE *R=(X);                                                 \
-    DBUG_PRINT("wt", ("LOCK resid=%lld for WRITE", R->id.value.num));   \
-    rw_wrlock(&R->lock);                                    \
+    DBUG_PRINT("wt", ("LOCK resid=%lld for WRITE", R->id.value));       \
+    rw_wrlock(&R->lock);                                                \
   } while (0)
 #define rc_unlock(X)                                                    \
   do {                                                                  \
     WT_RESOURCE *R=(X);                                                 \
-    DBUG_PRINT("wt", ("UNLOCK resid=%lld", R->id.value.num));           \
-    rw_unlock(&R->lock);                                    \
+    DBUG_PRINT("wt", ("UNLOCK resid=%lld", R->id.value));               \
+    rw_unlock(&R->lock);                                                \
   } while (0)
 
 /*
@@ -688,7 +687,7 @@ int wt_thd_will_wait_for(WT_THD *thd, WT_THD *blocker, WT_RESOURCE_ID *resid)
   LF_REQUIRE_PINS(3);
 
   DBUG_PRINT("wt", ("enter: thd=%s, blocker=%s, resid=%llu",
-                    thd->name, blocker->name, resid->value.num));
+                    thd->name, blocker->name, resid->value));
 
   if (fix_thd_pins(thd))
     DBUG_RETURN(WT_DEADLOCK);

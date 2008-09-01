@@ -87,7 +87,7 @@ static void wt_thd_release_self(TRN *trn)
   {
     WT_RESOURCE_ID rc;
     rc.type= &ma_rc_dup_unique;
-    rc.value.ptr= trn;
+    rc.value= (intptr)trn;
     wt_thd_release(trn->wt, & rc);
     trn->wt= 0;
   }

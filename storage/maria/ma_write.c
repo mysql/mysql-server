@@ -217,7 +217,7 @@ int maria_write(MARIA_HA *info, uchar *record)
             int res;
 
             rc.type= &ma_rc_dup_unique;
-            rc.value.ptr= blocker; /* TODO savepoint id when we'll have them */
+            rc.value= (intptr)blocker; /* TODO savepoint id when we'll have them */
             res= wt_thd_will_wait_for(info->trn->wt, blocker->wt, & rc);
             if (res != WT_OK)
             {

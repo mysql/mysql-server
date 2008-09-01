@@ -62,9 +62,8 @@ pthread_handler_t test_wt(void *arg)
   {
     WT_RESOURCE_ID resid;
     int blockers[THREADS/10], j, k;
-    bzero(&resid, sizeof(resid));
 
-    resid.value.num= id;
+    resid.value= id;
     resid.type= &restype;
 
     res= 0;
@@ -187,8 +186,7 @@ void do_tests()
     WT_RESOURCE_ID resid[3];
     for (i=0; i < 3; i++)
     {
-      bzero(&resid[i], sizeof(resid[i]));
-      resid[i].value.num= i+1;
+      resid[i].value= i+1;
       resid[i].type= &restype;
     }
 

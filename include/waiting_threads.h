@@ -32,10 +32,7 @@ typedef struct st_wt_resource_type {
 
 struct st_wt_resource_id {
   WT_RESOURCE_TYPE *type;
-  union {
-    void     *ptr;
-    ulonglong num;
-  } value;
+  ulonglong value;
 };
 
 #define WT_WAIT_STATS  24
