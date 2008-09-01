@@ -324,6 +324,9 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 
 /* static variables */
 
+char opt_plugin_dir[FN_REFLEN];
+char *opt_plugin_dir_ptr;
+
 static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
@@ -477,6 +480,7 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      mysql_unpacked_real_data_home[FN_REFLEN],
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+int mysql_unpacked_real_data_home_len;
 char *mysql_data_home= mysql_real_data_home;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -4984,6 +4988,7 @@ enum options_mysqld
   OPT_OLD_STYLE_USER_LIMITS,
   OPT_LOG_SLOW_ADMIN_STATEMENTS,
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
+  OPT_PLUGIN_DIR,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_MERGE,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
@@ -6216,6 +6221,10 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.optimizer_search_depth,
    (gptr*) &max_system_variables.optimizer_search_depth,
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR,
+   "Directory for plugins.",
+   (gptr*) &opt_plugin_dir_ptr, (gptr*) &opt_plugin_dir_ptr, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
    {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
     "The size of the buffer that is allocated when preloading indexes",
     (gptr*) &global_system_variables.preload_buff_size,
@@ -6696,6 +6705,7 @@ static void mysql_init_variables(void)
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
+  myisam_test_invalid_symlink= test_if_data_home_dir;
   opt_log= opt_slow_log= 0;
   opt_update_log= 0;
   opt_bin_log= 0;
@@ -7746,13 +7756,19 @@ static void fix_paths(void)
     pos[1]= 0;
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
-  (void) fn_format(buff, mysql_real_data_home, "", "",
-                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
-  (void) unpack_dirname(mysql_unpacked_real_data_home, buff);
+  my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
+  mysql_unpacked_real_data_home_len= strlen(mysql_unpacked_real_data_home);
+  if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
+    --mysql_unpacked_real_data_home_len;
+
+
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
+  (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
+                                      "", "");
+  opt_plugin_dir_ptr= opt_plugin_dir;
 
   char *sharedir=get_relative_path(SHAREDIR);
   if (test_if_hard_path(sharedir))
