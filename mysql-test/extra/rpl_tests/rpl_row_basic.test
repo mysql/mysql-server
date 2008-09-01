@@ -265,6 +265,22 @@ eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
 query_vertical SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 
+# BUG#37076: TIMESTAMP/DATETIME values are not replicated correctly
+#            between machines with mixed endiannes
+#            (regression test)
+
+--echo **** Test for BUG#37076 ****
+--echo **** On Master ****
+connection master;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a TIMESTAMP, b DATETIME, c DATE);
+INSERT INTO t1 VALUES(
+  '2005-11-14 01:01:01', '2005-11-14 01:01:02', '2005-11-14');
+
+--echo **** On Slave ****
+sync_slave_with_master slave;
+SELECT * FROM t1;
+
 #
 # cleanup
 #
@@ -338,6 +354,7 @@ eval CREATE TABLE t7 (i INT NOT NULL,
 connection master;
 INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
+sync_slave_with_master;
 
 sync_slave_with_master;
 
@@ -349,6 +366,7 @@ source include/diff_tables.inc;
 connection master;
 INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
+sync_slave_with_master;
 
 sync_slave_with_master;
 
@@ -379,6 +397,7 @@ source include/wait_for_slave_to_start.inc;
 connection master;
 INSERT INTO t4 VALUES (1, "", 1);
 INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
+sync_slave_with_master;
 
 sync_slave_with_master;
 
@@ -428,6 +447,7 @@ source include/wait_for_slave_to_start.inc;
 connection master;
 INSERT INTO t7 VALUES (1, "", 1);
 INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
+sync_slave_with_master;
 
 sync_slave_with_master;
 
