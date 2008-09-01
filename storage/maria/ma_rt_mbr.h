@@ -34,8 +34,7 @@ double maria_rtree_area_increase(const HA_KEYSEG *keyseg, const uchar *a,
                                  uint key_length, double *ab_area);
 double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
                                       uint key_length, double *ab_perim);
-int maria_rtree_page_mbr(const MARIA_HA *info, const HA_KEYSEG *keyseg,
-                         const uchar *page_buf,
-                         uchar* c, uint key_length);
+int maria_rtree_page_mbr(const HA_KEYSEG *keyseg, MARIA_PAGE *page,
+                         uchar *key, uint key_length);
 #endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_mbr_h */

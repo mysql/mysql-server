@@ -295,9 +295,7 @@ static int split_maria_rtree_node(SplitStruct *node, int n_entries,
   @param  length_diff      by how much the page has shrunk during split
 */
 
-static my_bool _ma_log_rt_split(MARIA_HA *info,
-                                my_off_t page,
-                                const uchar *buff __attribute__((unused)),
+static my_bool _ma_log_rt_split(MARIA_PAGE *page,
                                 const uchar *key_with_nod_flag,
                                 uint full_length,
                                 const uchar *log_internal_copy,
@@ -305,18 +303,20 @@ static my_bool _ma_log_rt_split(MARIA_HA *info,
                                 const uchar *log_key_copy,
                                 uint length_diff)
 {
+  MARIA_HA    *info=  page->info;
   MARIA_SHARE *share= info->s;
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 1 + 2 + 1 + 2 + 2 + 7],
     *log_pos;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 5];
   uint translog_parts, extra_length= 0;
+  my_off_t page_pos;
   DBUG_ENTER("_ma_log_rt_split");
   DBUG_PRINT("enter", ("page: %lu", (ulong) page));
 
   DBUG_ASSERT(share->now_transactional);
-  page/= share->block_size;
-  page_store(log_data + FILEID_STORE_SIZE, page);
+  page_pos= page->pos / share->block_size;
+  page_store(log_data + FILEID_STORE_SIZE, page_pos);
   log_pos= log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE;
   log_pos[0]= KEY_OP_DEL_SUFFIX;
   log_pos++;
@@ -346,10 +346,11 @@ static my_bool _ma_log_rt_split(MARIA_HA *info,
 
 #ifdef EXTRA_DEBUG_KEY_CHANGES
   {
-    int page_length= _ma_get_page_used(share, buff);
+    int page_length= page->size;
     ha_checksum crc;
     uchar *check_start= log_pos;
-    crc= my_checksum(0, buff + LSN_STORE_SIZE, page_length - LSN_STORE_SIZE);
+    crc= my_checksum(0, page->buff + LSN_STORE_SIZE,
+                     page_length - LSN_STORE_SIZE);
     log_pos[0]= KEY_OP_CHECK;
     log_pos++;
     int2store(log_pos, page_length);
@@ -380,10 +381,10 @@ static my_bool _ma_log_rt_split(MARIA_HA *info,
    If new_page_offs==NULL, won't create new page (for redo phase).
 */
 
-int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
-                           my_off_t page_offs, uchar *page,
+int maria_rtree_split_page(const MARIA_KEY *key, MARIA_PAGE *page,
                            my_off_t *new_page_offs)
 {
+  MARIA_HA   *info= page->info;
   MARIA_SHARE *share= info->s;
   const my_bool transactional= share->now_transactional;
   int n1, n2; /* Number of items in groups */
@@ -395,11 +396,12 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
   double *old_coord;
   int n_dim;
   uchar *source_cur, *cur1, *cur2;
-  uchar *new_page, *log_internal_copy, *log_internal_copy_ptr,
+  uchar *new_page_buff, *log_internal_copy, *log_internal_copy_ptr,
     *log_key_copy= NULL;
   int err_code= 0;
-  uint nod_flag= _ma_test_if_nod(share, page);
-  uint org_length= _ma_get_page_used(share, page), new_length;
+  uint new_page_length;
+  uint nod_flag= page->node;
+  uint org_length= page->size;
   uint full_length= key->data_length + (nod_flag ? nod_flag :
                                         key->ref_length);
   uint key_data_length= key->data_length;
@@ -421,7 +423,7 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
   next_coord= coord_buf;
 
   stop= task + max_keys;
-  source_cur= rt_PAGE_FIRST_KEY(share, page, nod_flag);
+  source_cur= rt_PAGE_FIRST_KEY(share, page->buff, nod_flag);
 
   for (cur= task;
        cur < stop;
@@ -440,7 +442,7 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
   old_coord= next_coord;
 
   if (split_maria_rtree_node(task, max_keys + 1,
-                             _ma_get_page_used(share, page) + full_length + 2,
+                             page->size + full_length + 2,
                              full_length,
        rt_PAGE_MIN_SIZE(keyinfo->block_length),
        2, 2, &next_coord, n_dim))
@@ -450,20 +452,21 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
   }
 
   /* Allocate buffer for new page and piece of log record */
-  if (!(new_page= (uchar*) my_alloca((uint)keyinfo->block_length +
-                                     (transactional ?
-                                      (max_keys * (2 + 2) +
-                                       1 + 2 + 1 + 2) : 0))))
+  if (!(new_page_buff= (uchar*) my_alloca((uint)keyinfo->block_length +
+                                          (transactional ?
+                                           (max_keys * (2 + 2) +
+                                            1 + 2 + 1 + 2) : 0))))
   {
     err_code= -1;
     goto split_err;
   }
-  log_internal_copy= log_internal_copy_ptr= new_page + keyinfo->block_length;
-  bzero(new_page, share->block_size);
+  log_internal_copy= log_internal_copy_ptr= new_page_buff +
+    keyinfo->block_length;
+  bzero(new_page_buff, share->block_size);
 
   stop= task + (max_keys + 1);
-  cur1= rt_PAGE_FIRST_KEY(share, page, nod_flag);
-  cur2= rt_PAGE_FIRST_KEY(share, new_page, nod_flag);
+  cur1= rt_PAGE_FIRST_KEY(share, page->buff, nod_flag);
+  cur2= rt_PAGE_FIRST_KEY(share, new_page_buff, nod_flag);
 
   n1= n2= 0;
   for (cur= task; cur < stop; cur++)
@@ -493,11 +496,11 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
       memcpy(to_with_nod_flag, cur_key_with_nod_flag, full_length);
       if (log_this_change)
       {
-        uint to_with_nod_flag_offs= to_with_nod_flag - page;
+        uint to_with_nod_flag_offs= to_with_nod_flag - page->buff;
         if (likely(cur_key != key->data))
         {
           /* this memcpy() is internal to the page (source in the page) */
-          uint cur_key_with_nod_flag_offs= cur_key_with_nod_flag - page;
+          uint cur_key_with_nod_flag_offs= cur_key_with_nod_flag - page->buff;
           int2store(log_internal_copy_ptr, to_with_nod_flag_offs);
           log_internal_copy_ptr+= 2;
           int2store(log_internal_copy_ptr, cur_key_with_nod_flag_offs);
@@ -519,36 +522,37 @@ int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEY *key,
   { /* verify that above loop didn't touch header bytes */
     uint i;
     for (i= 0; i < share->keypage_header; i++)
-      DBUG_ASSERT(new_page[i]==0);
+      DBUG_ASSERT(new_page_buff[i]==0);
   }
 
   if (nod_flag)
-    _ma_store_keypage_flag(share, new_page, KEYPAGE_FLAG_ISNOD);
-  _ma_store_keynr(share, new_page, keyinfo->key_nr);
-  _ma_store_page_used(share, new_page, share->keypage_header +
-                      n2 * full_length);
-  new_length= share->keypage_header + n1 * full_length;
-  _ma_store_page_used(share, page, new_length);
+    _ma_store_keypage_flag(share, new_page_buff, KEYPAGE_FLAG_ISNOD);
+  _ma_store_keynr(share, new_page_buff, keyinfo->key_nr);
+  new_page_length= share->keypage_header + n2 * full_length;
+  _ma_store_page_used(share, new_page_buff, new_page_length);
+  page->size= share->keypage_header + n1 * full_length;
+  page_store_size(share, page);
 
   if ((*new_page_offs= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
       HA_OFFSET_ERROR)
     err_code= -1;
   else
   {
+    MARIA_PAGE new_page;
+    _ma_page_setup(&new_page, info, keyinfo, *new_page_offs, new_page_buff);
+
     if (transactional &&
         ( /* log change to split page */
-         _ma_log_rt_split(info, page_offs, page, key->data - nod_flag,
+         _ma_log_rt_split(page, key->data - nod_flag,
                           full_length, log_internal_copy,
                           log_internal_copy_ptr - log_internal_copy,
-                          log_key_copy, org_length - new_length) ||
+                          log_key_copy, org_length - page->size) ||
          /* and to new page */
-         _ma_log_new(info, *new_page_offs, new_page,
-                     share->keypage_header + n2 * full_length,
-                     keyinfo->key_nr, 0)))
+         _ma_log_new(&new_page, 0)))
       err_code= -1;
-    if ( _ma_write_keypage(info, keyinfo, *new_page_offs,
-                           page_link->write_lock,
-                           DFLT_INIT_HITS, new_page))
+
+    if (_ma_write_keypage(&new_page, page_link->write_lock,
+                          DFLT_INIT_HITS))
       err_code= -1;
   }
   DBUG_PRINT("rtree", ("split new block: %lu", (ulong) *new_page_offs));

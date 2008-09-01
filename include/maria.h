@@ -161,6 +161,7 @@ struct st_maria_handler;			/* For referense */
 typedef struct st_maria_handler MARIA_HA;
 struct st_maria_s_param;
 struct st_maria_keydef;
+struct st_maria_page;
 
 typedef struct st_maria_key                 /* Internal info about a key */
 {
@@ -194,7 +195,7 @@ typedef struct st_maria_keydef          /* Key definition with open & info */
 
   HA_KEYSEG *seg, *end;
   struct st_mysql_ftparser *parser;     /* Fulltext [pre]parser */
-  int (*bin_search)(const MARIA_KEY *key, uchar *page,
+  int (*bin_search)(const MARIA_KEY *key, const struct st_maria_page *page,
                     uint32 comp_flag, uchar **ret_pos, uchar *buff,
                     my_bool *was_last_key);
   uint (*get_key)(MARIA_KEY *key, uint page_flag, uint nod_flag,
@@ -207,7 +208,7 @@ typedef struct st_maria_keydef          /* Key definition with open & info */
   void (*store_key)(struct st_maria_keydef *keyinfo, uchar *key_pos,
 		    struct st_maria_s_param *s_temp);
   my_bool (*ck_insert)(MARIA_HA *inf, MARIA_KEY *key);
-  int (*ck_delete)(MARIA_HA *inf, MARIA_KEY *klen);
+  my_bool (*ck_delete)(MARIA_HA *inf, MARIA_KEY *klen);
   MARIA_KEY *(*make_key)(MARIA_HA *info, MARIA_KEY *int_key, uint keynr,
                          uchar *key, const uchar *record,
                          MARIA_RECORD_POS filepos, ulonglong trid);

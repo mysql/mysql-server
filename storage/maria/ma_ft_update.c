@@ -220,8 +220,11 @@ int _ma_ft_update(MARIA_HA *info, uint keynr, uchar *keybuf,
     {
       MARIA_KEY key;
       _ma_ft_make_key(info, &key, keynr, keybuf, old_word, pos);
-      if ((error= _ma_ck_delete(info, &key)))
+      if (_ma_ck_delete(info, &key))
+      {
+        error= -1;
         goto err;
+      }
     }
     if (cmp > 0 || cmp2)
     {
@@ -317,6 +320,7 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
   uint length, key_length;
   MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
   MARIA_KEY tmp_key;
+  MARIA_PAGE page;
   DBUG_ENTER("_ma_ft_convert_to_ft2");
 
   /* we'll generate one pageful at once, and insert the rest one-by-one */
@@ -344,9 +348,11 @@ uint _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
     @todo RECOVERY BUG this is not logged yet. Ok as this code is never
     called, but soon it will be.
   */
-  if ((root= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR ||
-      _ma_write_keypage(info, keyinfo, root, page_link->write_lock,
-                        DFLT_INIT_HITS, info->buff))
+  if ((root= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR)
+    DBUG_RETURN(-1);
+
+  _ma_page_setup(&page, info, keyinfo, root, info->buff);
+  if (_ma_write_keypage(&page, page_link->write_lock, DFLT_INIT_HITS))
     DBUG_RETURN(-1);
 
   /* inserting the rest of key values */

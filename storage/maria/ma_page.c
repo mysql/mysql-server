@@ -44,14 +44,50 @@
 #include "trnman.h"
 #include "ma_key_recover.h"
 
-/* Fetch a key-page in memory */
+/**
+   Fill MARIA_PAGE structure for usage with _ma_write_keypage
+*/
 
-uchar *_ma_fetch_keypage(register MARIA_HA *info,
-                         const MARIA_KEYDEF *keyinfo __attribute__ ((unused)),
-                         my_off_t pos, enum pagecache_page_lock lock,
-                         int level, uchar *buff,
-                         int return_buffer __attribute__ ((unused)),
-                         MARIA_PINNED_PAGE **page_link_res)
+void _ma_page_setup(MARIA_PAGE *page, MARIA_HA *info,
+                    const MARIA_KEYDEF *keyinfo, my_off_t pos,
+                    uchar *buff)
+{
+  MARIA_SHARE *share= info->s;
+
+  page->info=    info;
+  page->keyinfo= keyinfo;
+  page->buff=    buff;
+  page->pos=     pos;
+  page->size=    _ma_get_page_used(share, buff);
+  page->flag=    _ma_get_keypage_flag(share, buff);
+  page->node=    ((page->flag & KEYPAGE_FLAG_ISNOD) ?
+                  share->base.key_reflength : 0);
+}
+
+
+/**
+  Fetch a key-page in memory
+
+  @fn _ma_fetch_keypage()
+  @param page		Fill this struct with information about read page
+  @param info		Maria handler
+  @param keyinfo        Key definition for used key
+  @param pos		Position for page (in bytes)
+  @param lock		Lock type for page
+  @param level		Importance of page; Priority for page cache
+  @param buff	        Buffer to use for page
+  @param return_buffer  Set to 1 if we want to force useage of buff
+
+  @return
+  @retval 0  ok
+  @retval 1  error
+*/
+
+my_bool _ma_fetch_keypage(MARIA_PAGE *page, MARIA_HA *info,
+                          const MARIA_KEYDEF *keyinfo,
+                          my_off_t pos, enum pagecache_page_lock lock,
+                          int level, uchar *buff,
+                          my_bool return_buffer __attribute__ ((unused)))
 {
   uchar *tmp;
   MARIA_PINNED_PAGE page_link;
@@ -70,9 +106,7 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
     page_link.unlock=  PAGECACHE_LOCK_WRITE_UNLOCK;
     page_link.changed= 0;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
-    *page_link_res= dynamic_element(&info->pinned_pages,
-                                    info->pinned_pages.elements-1,
-                                    MARIA_PINNED_PAGE *);
+    page->link_offset= info->pinned_pages.elements-1;
   }
 
   if (tmp == info->buff)
@@ -83,12 +117,27 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
     info->last_keypage=HA_OFFSET_ERROR;
     maria_print_error(share, HA_ERR_CRASHED);
     my_errno=HA_ERR_CRASHED;
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
   }
   info->last_keypage= pos;
+
+  /*
+    Setup page structure to make pages easy to use
+    This is same as page_fill_info, but here inlined as this si used
+    so often.
+  */
+  page->info=    info;
+  page->keyinfo= keyinfo;
+  page->buff=    tmp;
+  page->pos=     pos;
+  page->size=    _ma_get_page_used(share, tmp);
+  page->flag=    _ma_get_keypage_flag(share, tmp);
+  page->node=   ((page->flag & KEYPAGE_FLAG_ISNOD) ?
+                 share->base.key_reflength : 0);
+
 #ifdef EXTRA_DEBUG
   {
-    uint page_size= _ma_get_page_used(share, tmp);
+    uint page_size= page->size;
     if (page_size < 4 || page_size > block_size ||
         _ma_get_keynr(share, tmp) != keyinfo->key_nr)
     {
@@ -103,55 +152,58 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
     }
   }
 #endif
-  DBUG_RETURN(tmp);
+  DBUG_RETURN(0);
 } /* _ma_fetch_keypage */
 
 
 /* Write a key-page on disk */
 
-int _ma_write_keypage(register MARIA_HA *info,
-                      register const MARIA_KEYDEF *keyinfo
-                      __attribute__((unused)),
-		      my_off_t pos, enum pagecache_page_lock lock,
-                      int level, uchar *buff)
+my_bool _ma_write_keypage(MARIA_PAGE *page, enum pagecache_page_lock lock,
+                          int level)
 {
-  MARIA_SHARE *share= info->s;
-  MARIA_PINNED_PAGE page_link;
+  MARIA_SHARE *share= page->info->s;
   uint block_size= share->block_size;
-  int res;
+  uchar *buff= page->buff;
+  my_bool res;
+  MARIA_PINNED_PAGE page_link;
   DBUG_ENTER("_ma_write_keypage");
 
 #ifdef EXTRA_DEBUG				/* Safety check */
   {
-    uint page_length, nod;
-    _ma_get_used_and_nod(share, buff, page_length, nod);
-    if (pos < share->base.keystart ||
-        pos+block_size > share->state.state.key_file_length ||
-        (pos & (maria_block_size-1)))
+    uint page_length, nod_flag;
+    page_length= _ma_get_page_used(share, buff);
+    nod_flag=    _ma_test_if_nod(share, buff);
+
+    DBUG_ASSERT(page->size == page_length);
+    DBUG_ASSERT(page->flag == _ma_get_keypage_flag(share, buff));
+
+    if (page->pos < share->base.keystart ||
+        page->pos+block_size > share->state.state.key_file_length ||
+        (page->pos & (maria_block_size-1)))
     {
       DBUG_PRINT("error",("Trying to write inside key status region: "
                           "key_start: %lu  length: %lu  page: %lu",
                           (long) share->base.keystart,
                           (long) share->state.state.key_file_length,
-                          (long) pos));
+                          (long) page->pos));
       my_errno=EINVAL;
       DBUG_ASSERT(0);
-      DBUG_RETURN((-1));
+      DBUG_RETURN(1);
     }
-    DBUG_PRINT("page",("write page at: %lu",(long) pos));
+    DBUG_PRINT("page",("write page at: %lu",(long) page->pos));
     DBUG_DUMP("buff", buff, page_length);
-    DBUG_ASSERT(page_length >= share->keypage_header + nod +
-                keyinfo->minlength || maria_in_recovery);
+    DBUG_ASSERT(page_length >= share->keypage_header + nod_flag +
+                page->keyinfo->minlength || maria_in_recovery);
   }
 #endif
 
   /* Verify that keynr is correct */
-  DBUG_ASSERT(_ma_get_keynr(share, buff) == keyinfo->key_nr);
+  DBUG_ASSERT(_ma_get_keynr(share, buff) == page->keyinfo->key_nr);
 
 #if defined(EXTRA_DEBUG) && defined(HAVE_purify) && defined(NOT_ANYMORE)
   {
     /* This is here to catch uninitialized bytes */
-    uint length= _ma_get_page_used(share, buff);
+    uint length= page->size;
     ulong crc= my_checksum(0, buff, length);
     int4store(buff + block_size - KEYPAGE_CHECKSUM_SIZE, crc);
   }
@@ -159,15 +211,15 @@ int _ma_write_keypage(register MARIA_HA *info,
 
 #ifdef IDENTICAL_PAGES_AFTER_RECOVERY
   {
-    uint length= _ma_get_page_used(share, buff);
+    uint length= page->size;
     DBUG_ASSERT(length <= block_size - KEYPAGE_CHECKSUM_SIZE);
     bzero(buff + length, block_size - length);
   }
 #endif
-  DBUG_ASSERT(share->pagecache->block_size == block_size);
 
   res= pagecache_write(share->pagecache,
-                       &share->kfile, (pgcache_page_no_t) (pos / block_size),
+                       &share->kfile,
+                       (pgcache_page_no_t) (page->pos / block_size),
                        level, buff, share->page_type,
                        lock,
                        lock == PAGECACHE_LOCK_LEFT_WRITELOCKED ?
@@ -182,7 +234,7 @@ int _ma_write_keypage(register MARIA_HA *info,
     /* It was not locked before, we have to unlock it when we unpin pages */
     page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
     page_link.changed= 1;
-    push_dynamic(&info->pinned_pages, (void*) &page_link);
+    push_dynamic(&page->info->pinned_pages, (void*) &page_link);
   }
   DBUG_RETURN(res);
 }
@@ -441,26 +493,26 @@ static my_bool _ma_log_compact_keypage(MARIA_HA *info, my_off_t page,
    ®retval 1             Error;  my_errno contains the error
 */
 
-my_bool _ma_compact_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                            my_off_t page_pos, uchar *page, TrID min_read_from)
+my_bool _ma_compact_keypage(MARIA_PAGE *ma_page, TrID min_read_from)
 {
-  MARIA_SHARE *share= keyinfo->share;
+  MARIA_HA *info= ma_page->info;
+  MARIA_SHARE *share= info->s;
   MARIA_KEY key;
-  uchar *start_of_page, *endpos, *start_of_empty_space;
+  uchar *page, *endpos, *start_of_empty_space;
   uint page_flag, nod_flag, saved_space;
   my_bool page_has_transid;
   DBUG_ENTER("_ma_compact_keypage");
 
-  page_flag= _ma_get_keypage_flag(share, page);
+  page_flag= ma_page->flag;
   if (!(page_flag & KEYPAGE_FLAG_HAS_TRANSID))
     DBUG_RETURN(0);                    /* No transaction id on page */
 
-  nod_flag= _ma_test_if_nod(share, page);
-  endpos= page + _ma_get_page_used(share, page);
+  nod_flag= ma_page->node;
+  page=    ma_page->buff;
+  endpos= page + ma_page->size;
   key.data= info->lastkey_buff;
-  key.keyinfo= keyinfo;
+  key.keyinfo= (MARIA_KEYDEF*) ma_page->keyinfo;
 
-  start_of_page= page;
   page_has_transid= 0;
   page+= share->keypage_header + nod_flag;
   key.data[0]= 0;                             /* safety */
@@ -468,7 +520,7 @@ my_bool _ma_compact_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   saved_space= 0;
   do
   {
-    if (!(page= (*keyinfo->skip_key)(&key, 0, 0, page)))
+    if (!(page= (*ma_page->keyinfo->skip_key)(&key, 0, 0, page)))
     {
       DBUG_PRINT("error",("Couldn't find last key:  page: 0x%lx",
                           (long) page));
@@ -514,26 +566,25 @@ my_bool _ma_compact_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       This is always true if any transid was removed
     */
     uint copy_length= (uint) (endpos - start_of_empty_space) - saved_space;
-    uint page_length;
 
     if (copy_length)
       memmove(start_of_empty_space, start_of_empty_space + saved_space,
               copy_length);
-    page_length= (uint) (start_of_empty_space + copy_length - start_of_page);
-    _ma_store_page_used(share, start_of_page, page_length);
+    ma_page->size= (uint) (start_of_empty_space + copy_length - ma_page->buff);
+    page_store_size(share, ma_page);
   }
 
   if (!page_has_transid)
   {
-    page_flag&= ~KEYPAGE_FLAG_HAS_TRANSID;
-    _ma_store_keypage_flag(share, start_of_page, page_flag);
+    ma_page->flag&= ~KEYPAGE_FLAG_HAS_TRANSID;
+    _ma_store_keypage_flag(share, ma_page->buff, ma_page->flag);
     /* Clear packed transid (in case of zerofill) */
-    bzero(start_of_page + LSN_STORE_SIZE, TRANSID_SIZE);
+    bzero(ma_page->buff + LSN_STORE_SIZE, TRANSID_SIZE);
   }
 
   if (share->now_transactional)
   {
-    if (_ma_log_compact_keypage(info, page_pos, min_read_from))
+    if (_ma_log_compact_keypage(info, ma_page->pos, min_read_from))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

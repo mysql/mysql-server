@@ -295,19 +295,21 @@ my_bool write_hook_for_undo_key_delete(enum translog_record_type type,
    Write log entry for page that has got data added or deleted at start of page
 */
 
-my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
-                       uchar *buff, uint changed_length,
+my_bool _ma_log_prefix(MARIA_PAGE *ma_page, uint changed_length,
                        int move_length)
 {
   uint translog_parts;
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 7 + 7 + 2], *log_pos;
+  uchar *buff= ma_page->buff;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
+  pgcache_page_no_t page;
+  MARIA_HA *info= ma_page->info;
   DBUG_ENTER("_ma_log_prefix");
   DBUG_PRINT("enter", ("page: %lu  changed_length: %u  move_length: %d",
-                        (ulong) page, changed_length, move_length));
+                        (ulong) ma_page->pos, changed_length, move_length));
 
-  page/= info->s->block_size;
+  page= ma_page->pos / info->s->block_size;
   log_pos= log_data + FILEID_STORE_SIZE;
   page_store(log_pos, page);
   log_pos+= PAGE_STORE_SIZE;
@@ -357,7 +359,7 @@ my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
 
 #ifdef EXTRA_DEBUG_KEY_CHANGES
   {
-    int page_length= _ma_get_page_used(info->s, buff);
+    int page_length= ma_page->size;
     ha_checksum crc;
     crc= my_checksum(0, buff + LSN_STORE_SIZE, page_length - LSN_STORE_SIZE);
     log_pos[0]= KEY_OP_CHECK;
@@ -386,19 +388,21 @@ my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
    Write log entry for page that has got data added or deleted at end of page
 */
 
-my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
-                       uchar *buff, uint org_length, uint new_length)
+my_bool _ma_log_suffix(MARIA_PAGE *ma_page, uint org_length, uint new_length)
 {
   LSN lsn;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 10 + 7 + 2], *log_pos;
+  uchar *buff= ma_page->buff;
   int diff;
   uint translog_parts, extra_length;
+  MARIA_HA *info= ma_page->info;
+  pgcache_page_no_t page;
   DBUG_ENTER("_ma_log_suffix");
   DBUG_PRINT("enter", ("page: %lu  org_length: %u  new_length: %u",
-                       (ulong) page, org_length, new_length));
+                       (ulong) ma_page->pos, org_length, new_length));
 
-  page/= info->s->block_size;
+  page= ma_page->pos / info->s->block_size;
 
   log_pos= log_data + FILEID_STORE_SIZE;
   page_store(log_pos, page);
@@ -459,8 +463,8 @@ my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
 /**
    @brief Log that a key was added to the page
 
-   @param buff         Page buffer
-   @param buff_length  Original length of buff (before key was added)
+   @param ma_page          Changed page
+   @param org_page_length  Length of data in page before key was added
 
    @note
      If handle_overflow is set, then we have to protect against
@@ -469,22 +473,25 @@ my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
      in memory temporary contains more data than block_size
 */
 
-my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
-                    uint buff_length, uchar *key_pos,
+my_bool _ma_log_add(MARIA_PAGE *ma_page,
+                    uint org_page_length, uchar *key_pos,
                     uint changed_length, int move_length,
                     my_bool handle_overflow __attribute__ ((unused)))
 {
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3 + 3 + 3 + 3 + 7 + 2];
   uchar *log_pos;
+  uchar *buff= ma_page->buff;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
+  MARIA_HA *info= ma_page->info;
   uint offset= (uint) (key_pos - buff);
   uint page_length= info->s->block_size - KEYPAGE_CHECKSUM_SIZE;
   uint translog_parts;
+  pgcache_page_no_t page_pos;
   DBUG_ENTER("_ma_log_add");
   DBUG_PRINT("enter", ("page: %lu  org_page_length: %u  changed_length: %u  "
                        "move_length: %d",
-                       (ulong) page, buff_length, changed_length,
+                       (ulong) ma_page->pos, org_page_length, changed_length,
                        move_length));
   DBUG_ASSERT(info->s->now_transactional);
 
@@ -493,20 +500,20 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
     to do the page
   */
   log_pos= log_data + FILEID_STORE_SIZE;
-  page/= info->s->block_size;
-  page_store(log_pos, page);
+  page_pos= ma_page->pos / info->s->block_size;
+  page_store(log_pos, page_pos);
   log_pos+= PAGE_STORE_SIZE;
 
   /* Store keypage_flag */
   *log_pos++= KEY_OP_SET_PAGEFLAG;
   *log_pos++= buff[KEYPAGE_TRANSFLAG_OFFSET];
 
-  if (buff_length + move_length > page_length)
+  if (org_page_length + move_length > page_length)
   {
     /*
       Overflow. Cut either key or data from page end so that key fits
       The code that splits the too big page will ignore logging any
-      data over page_length
+      data over org_page_length
     */
     DBUG_ASSERT(handle_overflow);
     if (offset + changed_length > page_length)
@@ -516,15 +523,15 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
     }
     else
     {
-      uint diff= buff_length + move_length - page_length;
+      uint diff= org_page_length + move_length - page_length;
       log_pos[0]= KEY_OP_DEL_SUFFIX;
       int2store(log_pos+1, diff);
       log_pos+= 3;
-      buff_length= page_length - move_length;
+      org_page_length= page_length - move_length;
     }
   }
 
-  if (offset == buff_length)
+  if (offset == org_page_length)
     log_pos[0]= KEY_OP_ADD_SUFFIX;
   else
   {
@@ -553,8 +560,8 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
   {
     MARIA_SHARE *share= info->s;
     ha_checksum crc;
-    uint save_page_length= _ma_get_page_used(share, buff);
-    uint new_length= buff_length + move_length;
+    uint save_page_length= ma_page->size;
+    uint new_length= org_page_length + move_length;
     _ma_store_page_used(share, buff, new_length);
     crc= my_checksum(0, buff + LSN_STORE_SIZE, new_length - LSN_STORE_SIZE);
     log_pos[0]= KEY_OP_CHECK;
@@ -822,22 +829,22 @@ uint _ma_apply_redo_index(MARIA_HA *info,
                           LSN lsn, const uchar *header, uint head_length)
 {
   MARIA_SHARE *share= info->s;
-  pgcache_page_no_t page= page_korr(header);
+  pgcache_page_no_t page_pos= page_korr(header);
   MARIA_PINNED_PAGE page_link;
   uchar *buff;
   const uchar *header_end= header + head_length;
-  uint page_offset= 0;
-  uint nod_flag, page_length, keypage_header;
+  uint page_offset= 0, org_page_length;
+  uint nod_flag, page_length, keypage_header, keynr;
   int result;
-  uint org_page_length;
+  MARIA_PAGE page;
   DBUG_ENTER("_ma_apply_redo_index");
-  DBUG_PRINT("enter", ("page: %lu", (ulong) page));
+  DBUG_PRINT("enter", ("page: %lu", (ulong) page_pos));
 
   /* Set header to point at key data */
   header+= PAGE_STORE_SIZE;
 
   if (!(buff= pagecache_read(share->pagecache, &share->kfile,
-                             page, 0, 0,
+                             page_pos, 0, 0,
                              PAGECACHE_PLAIN_PAGE, PAGECACHE_LOCK_WRITE,
                              &page_link.link)))
   {
@@ -852,9 +859,12 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     goto err;
   }
 
-  _ma_get_used_and_nod(share, buff, page_length, nod_flag);
+  keynr= _ma_get_keynr(share, buff);
+  _ma_page_setup(&page, info, share->keyinfo + keynr, page_pos, buff);
+  nod_flag=    page.node;
+  org_page_length= page_length= page.size;
+
   keypage_header= share->keypage_header;
-  org_page_length= page_length;
   DBUG_PRINT("redo", ("page_length: %u", page_length));
 
   /* Apply modifications to page */
@@ -1007,16 +1017,15 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     case KEY_OP_COMPACT_PAGE:
     {
       TrID transid= transid_korr(header);
-      uint keynr= _ma_get_keynr(share, buff);
 
       DBUG_PRINT("redo", ("key_op_compact_page"));
       header+= TRANSID_SIZE;
-      if (_ma_compact_keypage(info, share->keyinfo + keynr, (my_off_t) 0,
-                              buff, transid))
+      if (_ma_compact_keypage(&page, transid))
       {
         result= 1;
         goto err;
       }
+      page_length= page.size;
     }
     case KEY_OP_NONE:
     default:
@@ -1028,6 +1037,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   DBUG_ASSERT(header == header_end);
 
   /* Write modified page */
+  page.size= page_length;
   _ma_store_page_used(share, buff, page_length);
 
   /*

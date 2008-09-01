@@ -24,7 +24,7 @@
 static ha_rows _ma_record_pos(MARIA_HA *,const uchar *, key_part_map,
 			      enum ha_rkey_function);
 static double _ma_search_pos(MARIA_HA *, MARIA_KEY *, uint32, my_off_t);
-static uint _ma_keynr(MARIA_HA *, MARIA_KEYDEF *, uchar *, uchar *, uint *);
+static uint _ma_keynr(MARIA_PAGE *page, uchar *keypos, uint *ret_max_key);
 
 
 /**
@@ -205,25 +205,25 @@ static double _ma_search_pos(MARIA_HA *info, MARIA_KEY *key,
 			     uint32 nextflag, my_off_t pos)
 {
   int flag;
-  uint nod_flag,keynr,max_keynr;
+  uint keynr, max_keynr;
   my_bool after_key;
-  uchar *keypos, *buff;
+  uchar *keypos;
   double offset;
   MARIA_KEYDEF *keyinfo= key->keyinfo;
+  MARIA_PAGE page;
   DBUG_ENTER("_ma_search_pos");
   LINT_INIT(max_keynr);
 
   if (pos == HA_OFFSET_ERROR)
     DBUG_RETURN(0.5);
 
-  if (!(buff= _ma_fetch_keypage(info,keyinfo, pos,
-                                PAGECACHE_LOCK_LEFT_UNLOCKED, DFLT_INIT_HITS,
-                                info->buff, 1, 0)))
+  if (_ma_fetch_keypage(&page, info, keyinfo, pos,
+                        PAGECACHE_LOCK_LEFT_UNLOCKED, DFLT_INIT_HITS,
+                        info->buff, 1))
     goto err;
-  flag= (*keyinfo->bin_search)(key, buff, nextflag, &keypos,
+  flag= (*keyinfo->bin_search)(key, &page, nextflag, &keypos,
                                info->lastkey_buff, &after_key);
-  nod_flag=_ma_test_if_nod(info->s, buff);
-  keynr= _ma_keynr(info,keyinfo,buff,keypos,&max_keynr);
+  keynr= _ma_keynr(&page, keypos, &max_keynr);
 
   if (flag)
   {
@@ -234,10 +234,10 @@ static double _ma_search_pos(MARIA_HA *info, MARIA_KEY *key,
       Try to find a smaller, better matching key.
       Matches keynr + [0-1]
     */
-    if (flag > 0 && ! nod_flag)
+    if (flag > 0 && ! page.node)
       offset= 1.0;
     else if ((offset= _ma_search_pos(info, key, nextflag,
-                                     _ma_kpos(nod_flag,keypos))) < 0)
+                                     _ma_kpos(page.node,keypos))) < 0)
       DBUG_RETURN(offset);
   }
   else
@@ -247,7 +247,7 @@ static double _ma_search_pos(MARIA_HA *info, MARIA_KEY *key,
       Matches keynr+1
     */
     offset=1.0;					/* Matches keynr+1 */
-    if ((nextflag & SEARCH_FIND) && nod_flag &&
+    if ((nextflag & SEARCH_FIND) && page.node &&
 	((keyinfo->flag & (HA_NOSAME | HA_NULL_PART)) != HA_NOSAME ||
          (nextflag & (SEARCH_PREFIX | SEARCH_NO_FIND | SEARCH_LAST |
                       SEARCH_PART_KEY))))
@@ -257,12 +257,12 @@ static double _ma_search_pos(MARIA_HA *info, MARIA_KEY *key,
         Matches keynr + [0-1]
       */
       if ((offset= _ma_search_pos(info, key, SEARCH_FIND,
-                                  _ma_kpos(nod_flag,keypos))) < 0)
+                                  _ma_kpos(page.node,keypos))) < 0)
 	DBUG_RETURN(offset);			/* Read error */
     }
   }
   DBUG_PRINT("info",("keynr: %d  offset: %g  max_keynr: %d  nod: %d  flag: %d",
-		     keynr,offset,max_keynr,nod_flag,flag));
+		     keynr,offset,max_keynr,page.node,flag));
   DBUG_RETURN((keynr+offset)/(max_keynr+1));
 err:
   DBUG_PRINT("exit",("Error: %d",my_errno));
@@ -272,40 +272,39 @@ err:
 
 /* Get keynummer of current key and max number of keys in nod */
 
-static uint _ma_keynr(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
-                      uchar *page, uchar *keypos, uint *ret_max_key)
+static uint _ma_keynr(MARIA_PAGE *page, uchar *keypos, uint *ret_max_key)
 {
-  uint page_flag, nod_flag, used_length, keynr, max_key;
-  uchar t_buff[MARIA_MAX_KEY_BUFF],*end;
+  uint page_flag, nod_flag, keynr, max_key;
+  uchar t_buff[MARIA_MAX_KEY_BUFF], *pos, *end;
+  const MARIA_KEYDEF *keyinfo= page->keyinfo;
   MARIA_KEY key;
 
-  page_flag= _ma_get_keypage_flag(info->s, page);
-  _ma_get_used_and_nod_with_flag(info->s, page_flag, page, used_length,
-                                 nod_flag);
-  end= page+ used_length;
-  page+= info->s->keypage_header + nod_flag;
+  page_flag= page->flag;
+  nod_flag=  page->node;
+  pos= page->buff + page->info->s->keypage_header + nod_flag;
+  end= page->buff + page->size;
 
   if (!(keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)) &&
       ! (page_flag & KEYPAGE_FLAG_HAS_TRANSID))
   {
-    *ret_max_key= (uint) (end-page)/(keyinfo->keylength+nod_flag);
-    return (uint) (keypos-page)/(keyinfo->keylength+nod_flag);
+    *ret_max_key= (uint) (end - pos)/(keyinfo->keylength+nod_flag);
+    return (uint) (keypos - pos)/(keyinfo->keylength+nod_flag);
   }
 
   max_key=keynr=0;
   t_buff[0]=0;					/* Safety */
   key.data= t_buff;
-  key.keyinfo= keyinfo;
+  key.keyinfo= (MARIA_KEYDEF*) keyinfo;
 
-  while (page < end)
+  while (pos < end)
   {
-    if (!(page= (*keyinfo->skip_key)(&key, page_flag, nod_flag, page)))
+    if (!(pos= (*keyinfo->skip_key)(&key, page_flag, nod_flag, pos)))
     {
       DBUG_ASSERT(0);
       return 0;					/* Error */
     }
     max_key++;
-    if (page == keypos)
+    if (pos == keypos)
       keynr= max_key;
   }
   *ret_max_key=max_key;

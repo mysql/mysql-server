@@ -82,10 +82,9 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name);
 static int maria_sort_records(HA_CHECK *param, register MARIA_HA *info,
                               char *name, uint sort_key,
                               my_bool write_info, my_bool update_index);
-static int sort_record_index(MARIA_SORT_PARAM *sort_param, MARIA_HA *info,
-                             MARIA_KEYDEF *keyinfo,
-			     my_off_t page, uchar *buff,uint sortkey,
-			     File new_file, my_bool update_index);
+static int sort_record_index(MARIA_SORT_PARAM *sort_param, MARIA_PAGE *page,
+			     uint sortkey, File new_file,
+                             my_bool update_index);
 static my_bool write_log_record(HA_CHECK *param);
 
 HA_CHECK check_param;
@@ -1663,6 +1662,7 @@ static int maria_sort_records(HA_CHECK *param,
   char llbuff[22],llbuff2[22];
   MARIA_SORT_INFO sort_info;
   MARIA_SORT_PARAM sort_param;
+  MARIA_PAGE page;
   DBUG_ENTER("sort_records");
 
   bzero((char*)&sort_info,sizeof(sort_info));
@@ -1781,9 +1781,9 @@ static int maria_sort_records(HA_CHECK *param,
   if (sort_info.new_data_file_type != COMPRESSED_RECORD)
     info->state->checksum=0;
 
-  if (sort_record_index(&sort_param,info,keyinfo,
-                        share->state.key_root[sort_key],
-			temp_buff, sort_key,new_file,update_index) ||
+  _ma_page_setup(&page, info, keyinfo, share->state.key_root[sort_key],
+                 temp_buff);
+  if (sort_record_index(&sort_param, &page, sort_key,new_file,update_index) ||
       maria_write_data_suffix(&sort_info,1) ||
       flush_io_cache(&info->rec_cache))
     goto err;
@@ -1839,11 +1839,11 @@ err:
 
 /* Sort records recursive using one index */
 
-static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
-                             MARIA_KEYDEF *keyinfo,
-			     my_off_t page, uchar *buff, uint sort_key,
+static int sort_record_index(MARIA_SORT_PARAM *sort_param,
+                             MARIA_PAGE *ma_page, uint sort_key,
 			     File new_file,my_bool update_index)
 {
+  MARIA_HA *info= ma_page->info;
   MARIA_SHARE *share= info->s;
   uint	page_flag, nod_flag,used_length;
   uchar *temp_buff,*keypos,*endpos;
@@ -1853,41 +1853,44 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
   MARIA_SORT_INFO *sort_info= sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
   MARIA_KEY tmp_key;
+  MARIA_PAGE new_page;
+  const MARIA_KEYDEF *keyinfo= ma_page->keyinfo;
   DBUG_ENTER("sort_record_index");
 
-  page_flag= _ma_get_keypage_flag(share, buff);
-  nod_flag=  _ma_test_if_nod(share, buff);
+  page_flag= ma_page->flag;
+  nod_flag=  ma_page->node;
   temp_buff=0;
-  tmp_key.keyinfo= keyinfo;
+  tmp_key.keyinfo= (MARIA_KEYDEF*) keyinfo;
   tmp_key.data=    lastkey;
 
   if (nod_flag)
   {
-    if (!(temp_buff= (uchar*) my_alloca((uint) keyinfo->block_length)))
+    if (!(temp_buff= (uchar*) my_alloca(tmp_key.keyinfo->block_length)))
     {
       _ma_check_print_error(param,"Not Enough memory");
       DBUG_RETURN(-1);
     }
   }
-  used_length= _ma_get_page_used(share, buff);
-  keypos= buff + share->keypage_header + nod_flag;
-  endpos= buff + used_length;
+  used_length= ma_page->size;
+  keypos= ma_page->buff + share->keypage_header + nod_flag;
+  endpos= ma_page->buff + used_length;
   for ( ;; )
   {
     _sanity(__FILE__,__LINE__);
     if (nod_flag)
     {
       next_page= _ma_kpos(nod_flag, keypos);
-      if (my_pread(share->kfile.file, (uchar*)temp_buff,
-		  (uint) keyinfo->block_length, next_page,
+      if (my_pread(share->kfile.file, temp_buff,
+		  (uint) tmp_key.keyinfo->block_length, next_page,
 		   MYF(MY_NABP+MY_WME)))
       {
 	_ma_check_print_error(param,"Can't read keys from filepos: %s",
 		    llstr(next_page,llbuff));
 	goto err;
       }
-      if (sort_record_index(sort_param, info,keyinfo,next_page,temp_buff,
-                            sort_key,
+      _ma_page_setup(&new_page, info, ma_page->keyinfo, next_page, temp_buff);
+
+      if (sort_record_index(sort_param, &new_page, sort_key,
 			    new_file, update_index))
 	goto err;
     }
@@ -1917,9 +1920,9 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,MARIA_HA *info,
       goto err;
   }
   /* Clear end of block to get better compression if the table is backuped */
-  bzero((uchar*) buff+used_length,keyinfo->block_length-used_length);
-  if (my_pwrite(share->kfile.file, (uchar*)buff, (uint)keyinfo->block_length,
-		page,param->myf_rw))
+  bzero(ma_page->buff + used_length, keyinfo->block_length - used_length);
+  if (my_pwrite(share->kfile.file, ma_page->buff, (uint)keyinfo->block_length,
+		ma_page->pos, param->myf_rw))
   {
     _ma_check_print_error(param,"%d when updating keyblock",my_errno);
     goto err;

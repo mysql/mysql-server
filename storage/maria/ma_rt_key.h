@@ -21,10 +21,9 @@
 
 #ifdef HAVE_RTREE_KEYS
 
-int maria_rtree_add_key(MARIA_HA *info, const MARIA_KEY *key, uchar *page_buf,
-                        my_off_t page, my_off_t *new_page);
-int maria_rtree_delete_key(MARIA_HA *info, uchar *page_buf, uchar *key,
-                           uint key_length, uint nod_flag, my_off_t page);
+int maria_rtree_add_key(const MARIA_KEY *key, MARIA_PAGE *page,
+                        my_off_t *new_page);
+int maria_rtree_delete_key(MARIA_PAGE *page, uchar *key, uint key_length);
 int maria_rtree_set_key_mbr(MARIA_HA *info, MARIA_KEY *key,
                             my_off_t child_page);
 

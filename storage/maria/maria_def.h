@@ -607,28 +607,20 @@ struct st_maria_handler
   ((uint) mi_uint2korr((x) + (share)->keypage_header - KEYPAGE_USED_SIZE))
 #define _ma_store_page_used(share,x,y) \
   mi_int2store((x) + (share)->keypage_header - KEYPAGE_USED_SIZE, (y))
+#define _ma_get_keypage_flag(share,x) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]
 #define _ma_test_if_nod(share,x) \
   ((_ma_get_keypage_flag(share,x) & KEYPAGE_FLAG_ISNOD) ? (share)->base.key_reflength : 0)
 
-#define _ma_get_used_and_nod(share,buff,length,nod)                     \
-{                                                                      \
-  (nod)=    _ma_test_if_nod((share),(buff));                            \
-  (length)= _ma_get_page_used((share),(buff));                          \
-}
-#define _ma_get_used_and_nod_with_flag(share,flag,buff,length,nod)     \
-{                                                                      \
-  (nod)= (((flag) & KEYPAGE_FLAG_ISNOD) ? (share)->base.key_reflength : 0); \
-  (length)= _ma_get_page_used((share),(buff));                          \
-}
 #define _ma_store_keynr(share, x, nr) x[(share)->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE]= (nr)
 #define _ma_get_keynr(share, x) ((uchar) x[(share)->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE])
 #define _ma_store_transid(buff, transid) \
   transid_store((buff) + LSN_STORE_SIZE, (transid))
 #define _ma_korr_transid(buff) \
   transid_korr((buff) + LSN_STORE_SIZE)
-#define _ma_get_keypage_flag(share,x) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]
 #define _ma_store_keypage_flag(share,x,flag) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]= (flag)
-#define _ma_mark_page_with_transid(share, x) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]|= KEYPAGE_FLAG_HAS_TRANSID
+#define _ma_mark_page_with_transid(share, page) \
+  (page)->flag|= KEYPAGE_FLAG_HAS_TRANSID;                              \
+  (page)->buff[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]= (page)->flag;
 
 
 /*
@@ -783,6 +775,21 @@ typedef struct st_pinned_page
 } MARIA_PINNED_PAGE;
 
 
+/* Keeps all information about a page and related to a page */
+
+typedef struct st_maria_page
+{
+  MARIA_HA *info;
+  const MARIA_KEYDEF *keyinfo;
+  uchar *buff;				/* Data for page */
+  my_off_t pos;                         /* Disk address to page */
+  uint     size;                        /* Size of data on page */
+  uint     node;      			/* 0 or share->base.key_reflength */
+  uint     flag;			/* Page flag */
+  uint     link_offset;
+} MARIA_PAGE;
+
+
 /* Prototypes for intern functions */
 extern int _ma_read_dynamic_record(MARIA_HA *, uchar *, MARIA_RECORD_POS);
 extern int _ma_read_rnd_dynamic_record(MARIA_HA *, uchar *, MARIA_RECORD_POS,
@@ -804,22 +811,22 @@ extern my_bool _ma_update_static_record(MARIA_HA *, MARIA_RECORD_POS,
 extern my_bool _ma_delete_static_record(MARIA_HA *info, const uchar *record);
 extern my_bool _ma_cmp_static_record(MARIA_HA *info, const uchar *record);
 extern my_bool _ma_ck_write(MARIA_HA *info, MARIA_KEY *key);
-extern int _ma_enlarge_root(MARIA_HA *info, MARIA_KEY *key,
-                            MARIA_RECORD_POS *root);
-extern int _ma_insert(MARIA_HA *info, MARIA_KEY *key, uchar *anc_buff,
-                      uchar *key_pos, my_off_t anc_page, uchar *key_buff,
-                      my_off_t father_page, uchar *father_buff,
-                      MARIA_PINNED_PAGE *father_page_link,
-                      uchar *father_key_pos, my_bool insert_last);
-extern int _ma_ck_real_write_btree(MARIA_HA *info, MARIA_KEY *key,
+extern my_bool _ma_enlarge_root(MARIA_HA *info, MARIA_KEY *key,
+                                MARIA_RECORD_POS *root);
+int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
+               MARIA_PAGE *anc_page, uchar *key_pos, uchar *key_buff,
+               MARIA_PAGE *father_page, uchar *father_key_pos,
+               my_bool insert_last);
+extern my_bool _ma_ck_real_write_btree(MARIA_HA *info, MARIA_KEY *key,
                                    MARIA_RECORD_POS *root, uint32 comp_flag);
-extern int _ma_split_page(MARIA_HA *info, MARIA_KEY *key, my_off_t split_page,
-                          uchar *split_buff, uint org_split_length,
+extern int _ma_split_page(MARIA_HA *info, MARIA_KEY *key,
+                          MARIA_PAGE *split_page,
+                          uint org_split_length,
                           uchar *inserted_key_pos, uint changed_length,
                           int move_length,
                           uchar *key_buff, my_bool insert_last_key);
-extern uchar *_ma_find_half_pos(MARIA_HA *info, MARIA_KEY *key, uint nod_flag,
-                                uchar *page, uchar ** after_key);
+extern uchar *_ma_find_half_pos(MARIA_KEY *key, MARIA_PAGE *page,
+                                uchar ** after_key);
 extern int _ma_calc_static_key_length(const MARIA_KEY *key, uint nod_flag,
                                       uchar *key_pos, uchar *org_key,
                                       uchar *key_buff,
@@ -847,9 +854,9 @@ extern void _ma_store_pack_key(MARIA_KEYDEF *keyinfo, uchar *key_pos,
 extern void _ma_store_bin_pack_key(MARIA_KEYDEF *keyinfo, uchar *key_pos,
                                    MARIA_KEY_PARAM *s_temp);
 
-extern int _ma_ck_delete(MARIA_HA *info, MARIA_KEY *key);
-extern int _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
-                              my_off_t *root);
+extern my_bool _ma_ck_delete(MARIA_HA *info, MARIA_KEY *key);
+extern my_bool _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
+                                  my_off_t *root);
 extern int _ma_readinfo(MARIA_HA *info, int lock_flag, int check_keybuffer);
 extern int _ma_writeinfo(MARIA_HA *info, uint options);
 extern int _ma_test_if_changed(MARIA_HA *info);
@@ -861,13 +868,13 @@ extern int _ma_decrement_open_count(MARIA_HA *info);
 extern int _ma_check_index(MARIA_HA *info, int inx);
 extern int _ma_search(MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
                       my_off_t pos);
-extern int _ma_bin_search( const MARIA_KEY *key, uchar *page,
+extern int _ma_bin_search(const MARIA_KEY *key, const MARIA_PAGE *page,
                           uint32 comp_flag, uchar **ret_pos, uchar *buff,
                           my_bool *was_last_key);
-extern int _ma_seq_search(const MARIA_KEY *key, uchar *page,
+extern int _ma_seq_search(const MARIA_KEY *key, const MARIA_PAGE *page,
                           uint comp_flag, uchar ** ret_pos, uchar *buff,
                           my_bool *was_last_key);
-extern int _ma_prefix_search(const MARIA_KEY *key, uchar *page,
+extern int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *page,
                              uint32 comp_flag, uchar ** ret_pos, uchar *buff,
                              my_bool *was_last_key);
 extern my_off_t _ma_kpos(uint nod_flag, const uchar *after_key);
@@ -889,14 +896,12 @@ extern uint _ma_get_binary_pack_key(MARIA_KEY *key, uint page_flag,
                                     uint nod_flag, uchar **page_pos);
 uchar *_ma_skip_binary_pack_key(MARIA_KEY *key, uint page_flag,
                                 uint nod_flag, uchar *page);
-extern uchar *_ma_get_last_key(MARIA_KEY *key, uchar *keypos, uchar *endpos);
-extern uchar *_ma_get_key(MARIA_KEY *key, uchar *page, uchar *keypos);
+extern uchar *_ma_get_last_key(MARIA_KEY *key, MARIA_PAGE *page,
+                               uchar *endpos);
+extern uchar *_ma_get_key(MARIA_KEY *key, MARIA_PAGE *page, uchar *keypos);
 extern uint _ma_keylength(MARIA_KEYDEF *keyinfo, const uchar *key);
 extern uint _ma_keylength_part(MARIA_KEYDEF *keyinfo, const uchar *key,
                                HA_KEYSEG *end);
-extern uchar *_qq_move_key(MARIA_KEYDEF *keyinfo, uchar *to,
-                           const uchar *from);
-
 extern int _ma_search_next(MARIA_HA *info, MARIA_KEY *key,
                            uint32 nextflag, my_off_t pos);
 extern int _ma_search_first(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
@@ -909,27 +914,35 @@ extern my_off_t _ma_transparent_recpos(MARIA_SHARE *share, my_off_t pos);
 extern my_off_t _ma_transaction_keypos_to_recpos(MARIA_SHARE *, my_off_t pos);
 extern my_off_t _ma_transaction_recpos_to_keypos(MARIA_SHARE *, my_off_t pos);
 
-extern uchar *_ma_fetch_keypage(MARIA_HA *info,
-                                const MARIA_KEYDEF *keyinfo,
-                                my_off_t page, enum pagecache_page_lock lock,
-                                int level, uchar *buff, int return_buffer,
-                                MARIA_PINNED_PAGE **page_link);
-extern int _ma_write_keypage(MARIA_HA *info,
-                             const MARIA_KEYDEF *keyinfo,
-                             my_off_t page, enum pagecache_page_lock lock,
-                             int level, uchar *buff);
+extern void _ma_page_setup(MARIA_PAGE *page, MARIA_HA *info,
+                           const MARIA_KEYDEF *keyinfo, my_off_t pos,
+                           uchar *buff);
+extern my_bool _ma_fetch_keypage(MARIA_PAGE *page, MARIA_HA *info,
+                                 const MARIA_KEYDEF *keyinfo,
+                                 my_off_t pos, enum pagecache_page_lock lock,
+                                 int level, uchar *buff,
+                                 my_bool return_buffer);
+extern my_bool _ma_write_keypage(MARIA_PAGE *page,
+                                 enum pagecache_page_lock lock, int level);
 extern int _ma_dispose(MARIA_HA *info, my_off_t pos, my_bool page_not_read);
 extern my_off_t _ma_new(register MARIA_HA *info, int level,
                         MARIA_PINNED_PAGE **page_link);
-extern my_bool _ma_compact_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                   my_off_t page_pos, uchar *page,
-                                   TrID min_read_from);
+extern my_bool _ma_compact_keypage(MARIA_PAGE *page, TrID min_read_from);
 extern uint transid_store_packed(MARIA_HA *info, uchar *to, ulonglong trid);
 extern ulonglong transid_get_packed(MARIA_SHARE *share, const uchar *from);
 #define transid_packed_length(data) \
   ((data)[0] < MIN_TRANSID_PACK_PREFIX ? 1 : \
    (uint) (257 - (uchar) (data)[0]))
 #define key_has_transid(key) (*(key) & 1)
+
+#define page_mark_changed(info, page) \
+  dynamic_element(&(info)->pinned_pages, (page)->link_offset,            \
+                  MARIA_PINNED_PAGE*)->changed= 1;
+#define page_store_size(share, page)                           \
+  _ma_store_page_used((share), (page)->buff, (page)->size);
+#define page_store_info(share, page)                           \
+  _ma_store_keypage_flag((share), (page)->buff, (page)->flag); \
+  _ma_store_page_used((share), (page)->buff, (page)->size);
 
 extern MARIA_KEY *_ma_make_key(MARIA_HA *info, MARIA_KEY *int_key, uint keynr,
                                uchar *key, const uchar *record,
