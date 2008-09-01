@@ -92,7 +92,7 @@ mysqltest_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqltest_LDADD =		$(CXXLDFLAGS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a \
+				$(top_builddir)/mysys/libmysyslt.la \
 				$(top_builddir)/regex/libregex.a \
 				$(CLIENT_THREAD_LIBS)
 
