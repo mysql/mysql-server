@@ -7650,6 +7650,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
     connectPtr.p->userpointer = senderData;
     connectPtr.p->userblockref = senderRef;
+    ndbrequire(connectPtr.p->connectState == ConnectRecord::ALTER_TABLE);
 
     tabPtr.p->totalfragments = connectPtr.p->m_alter.m_totalfragments;
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))

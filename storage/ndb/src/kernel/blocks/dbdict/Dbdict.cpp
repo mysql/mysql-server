@@ -7264,9 +7264,16 @@ Dbdict::check_supported_add_fragment(Uint16* newdata, const Uint16* olddata)
     return AlterTableRef::UnsupportedChange;
   }
 
+  Uint32 oldFragments = olddata[1];
+#ifdef TODO_XXX
+  /**
+   * This doesnt work after a add-nodegroup
+   *   dont't know why, so we instead just ignore what the API
+   *   for the already existing partitions
+   */
+
   // Check that all the old has the same properties...
   // Only compare prefered primary, as replicas come in any order
-  Uint32 oldFragments = olddata[1];
   for (Uint32 i = 0; i<oldFragments; i++)
   {
     Uint32 idx = 2 + (1 + replicas) * i + 1;
@@ -7276,6 +7283,7 @@ Dbdict::check_supported_add_fragment(Uint16* newdata, const Uint16* olddata)
       return AlterTableRef::UnsupportedChange;
     }
   }
+#endif
 
   memmove(newdata + 2,
           newdata + 2 + (1 + replicas) * oldFragments,
@@ -11448,6 +11456,12 @@ Dbdict::alterIndex_fromAddPartitions(Signal* signal, Uint32 op_key, Uint32 ret)
 
   if (ret == 0) {
     jam();
+
+    const AlterTabConf* conf =
+      (const AlterTabConf*)signal->getDataPtr();
+    
+    alterIndexPtr.p->m_dihAddFragPtr = conf->connectPtr;
+    
     sendTransConf(signal, op_ptr);
   } else {
     jam();
