@@ -13,22 +13,15 @@ save_master_pos;
 connection slave;
 sync_with_master;
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
-# We are going to read the slave's binlog which contains file_id (for some LOAD
-# DATA INFILE); to make it repeatable (not influenced by other tests), we need
-# to stop and start the slave, to be sure file_id will start from 1.
-#  This can be done with 'server_stop slave', but
-# this would require the manager, so most of the time the test will be skipped
-# :(
-# To workaround this, I (Guilhem) add a (empty) rpl_log-slave.opt (because when
-# mysql-test-run finds such a file it restarts the slave before doing the
-# test). That's not very elegant but I could find no better way, sorry.
+start slave;
+--source include/wait_for_slave_to_start.inc
 
 let $VERSION=`select version()`;
 
 connection master;
-reset master;
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL);
 drop table t1;
@@ -37,6 +30,7 @@ load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines;
 select count(*) from t1;
 drop table t1;
 --replace_result $VERSION VERSION
+--replace_regex /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /infile '.+'/infile 'words.dat'/
 show binlog events;
 show binlog events from 98 limit 1;
 show binlog events from 98 limit 2;
@@ -69,10 +63,10 @@ connection slave;
 # Note that the above 'slave start' will cause a 3rd rotate event (a fake one)
 # to go into the relay log (the master always sends a fake one when replication
 # starts). 
-start slave;
 sync_with_master;
 flush logs;
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 connection master;
 
 # Create some entries for second log
@@ -81,6 +75,7 @@ create table t1 (n int);
 insert into t1 values (1);
 drop table t1;
 --replace_result $VERSION VERSION
+--replace_regex /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /infile '.+'/infile 'words.dat'/
 show binlog events;
 --replace_result $VERSION VERSION
 show binlog events in 'master-bin.000002';
@@ -88,9 +83,11 @@ show binary logs;
 save_master_pos;
 connection slave;
 start slave;
+--source include/wait_for_slave_to_start.inc
 sync_with_master;
 show binary logs;
 --replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
+--replace_regex /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /INFILE '.+'/INFILE 'words.dat'/
 show binlog events in 'slave-bin.000001' from 4;
 --replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
 show binlog events in 'slave-bin.000002' from 4;
