@@ -356,8 +356,6 @@ INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
 sync_slave_with_master;
 
-sync_slave_with_master;
-
 let $diff_table_1=master:test.t1;
 let $diff_table_2=slave:test.t1;
 source include/diff_tables.inc;
@@ -366,8 +364,6 @@ source include/diff_tables.inc;
 connection master;
 INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
-sync_slave_with_master;
-
 sync_slave_with_master;
 
 let $diff_table_1=master:test.t2;
@@ -397,8 +393,6 @@ source include/wait_for_slave_to_start.inc;
 connection master;
 INSERT INTO t4 VALUES (1, "", 1);
 INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
-sync_slave_with_master;
-
 sync_slave_with_master;
 
 let $diff_table_1=master:test.t4;
@@ -447,8 +441,6 @@ source include/wait_for_slave_to_start.inc;
 connection master;
 INSERT INTO t7 VALUES (1, "", 1);
 INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
-sync_slave_with_master;
-
 sync_slave_with_master;
 
 let $diff_table_1=master:test.t7;
