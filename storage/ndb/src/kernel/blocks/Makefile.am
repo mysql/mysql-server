@@ -93,7 +93,9 @@ EXTRA_DIST = CMakeLists.txt    \
 	ndbfs/CMakeLists.txt   \
 	qmgr/CMakeLists.txt    \
 	suma/CMakeLists.txt    \
-	trix/CMakeLists.txt
+	trix/CMakeLists.txt    \
+	ndbfs/Win32AsyncFile.cpp \
+	ndbfs/Win32AsyncFile.hpp
 
 
 # Don't update the files from bitkeeper
