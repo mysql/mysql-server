@@ -1369,6 +1369,8 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     DBUG_ASSERT(!table->is_children_attached());
 
     /* Free memory and reset for next loop */
+    free_field_buffers_larger_than(table,MAX_TDC_BLOB_SIZE);
+    
     table->file->ha_reset();
     table->in_use=0;
     if (unused_tables)
@@ -3696,9 +3698,10 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 
     share->table_map_id is not ~0UL.
  */
+static ulong last_table_id= ~0UL;
+
 void assign_new_table_id(TABLE_SHARE *share)
 {
-  static ulong last_table_id= ~0UL;
 
   DBUG_ENTER("assign_new_table_id");
 
@@ -3721,7 +3724,6 @@ void assign_new_table_id(TABLE_SHARE *share)
 
   DBUG_VOID_RETURN;
 }
-
 
 /**
   Compare metadata versions of an element obtained from the table
