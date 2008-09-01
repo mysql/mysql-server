@@ -4732,10 +4732,7 @@ Dbtc::sendApiCommit(Signal* signal)
 
     SET_ERROR_INSERT_VALUE(8056);
 
-    Ptr<ApiConnectRecord> copyPtr;
-    copyPtr.i = regApiPtr.p->apiCopyRecord;
-    ptrCheckGuard(copyPtr, capiConnectFilesize, apiConnectRecord);
-    return copyPtr;
+    goto err8055;
   }
   
   if (regApiPtr.p->returnsignal == RS_TCKEYCONF) {
@@ -4763,6 +4760,8 @@ Dbtc::sendApiCommit(Signal* signal)
     TCKEY_abort(signal, 37);
     return regApiPtr;
   }//if
+
+err8055:
   Ptr<ApiConnectRecord> copyPtr;
   UintR TapiConnectFilesize = capiConnectFilesize;
   UintR TcommitCount = c_counters.ccommitCount;
