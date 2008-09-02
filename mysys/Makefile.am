@@ -66,13 +66,13 @@ libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			charset.c charset-def.c my_bitmap.c my_bit.c md5.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
 			my_handler.c my_netware.c my_largepage.c \
-			my_memmem.c \
-			my_windac.c my_access.c base64.c \
+			my_memmem.c stacktrace.c \
+			my_windac.c my_access.c base64.c my_libwrap.c \
 			thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c \
 			mf_soundex.c \
 			my_conio.c my_wincond.c my_winthread.c
-EXTRA_DIST =  		CMakeLists.txt 
+EXTRA_DIST =		CMakeLists.txt
 
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \

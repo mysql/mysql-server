@@ -48,7 +48,15 @@
 #ifdef __WIN__
 #include <direct.h>
 #endif
+#include <signal.h>
+#include <my_stacktrace.h>
 
+#ifdef __WIN__
+#include <crtdbg.h>
+#define SIGNAL_FMT "exception 0x%x"
+#else
+#define SIGNAL_FMT "signal %d"
+#endif
 
 /* Use cygwin for --exec and --system before 5.0 */
 #if MYSQL_VERSION_ID < 50000
@@ -165,6 +173,8 @@ static ulonglong timer_now(void);
 
 static ulonglong progress_start= 0;
 
+static ulong connection_retry_sleep= 100000; /* Microseconds */
+
 /* Precompiled re's */
 static my_regex_t ps_re;     /* the query can be run using PS protocol */
 static my_regex_t sp_re;     /* the query can be run as a SP */
@@ -216,6 +226,7 @@ struct st_connection
   /* Used when creating views and sp, to avoid implicit commit */
   MYSQL* util_mysql;
   char *name;
+  size_t name_len;
   MYSQL_STMT* stmt;
 
 #ifdef EMBEDDED_LIBRARY
@@ -269,7 +280,8 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
-  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
+  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR, Q_LIST_FILES,
+  Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_RESULT_FORMAT_VERSION,
 
   Q_UNKNOWN,			       /* Unknown command.   */
@@ -363,6 +375,9 @@ const char *command_names[]=
   "change_user",
   "mkdir",
   "rmdir",
+  "list_files",
+  "list_files_write_file",
+  "list_files_append_file",
   "result_format",
 
   0
@@ -487,6 +502,9 @@ void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
 void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING* ds_input);
 
+static int match_expected_error(struct st_command *command,
+                                unsigned int err_errno,
+                                const char *err_sqlstate);
 void handle_error(struct st_command*,
                   unsigned int err_errno, const char *err_error,
                   const char *err_sqlstate, DYNAMIC_STRING *ds);
@@ -840,29 +858,25 @@ void check_command_args(struct st_command *command,
   DBUG_VOID_RETURN;
 }
 
-
 void handle_command_error(struct st_command *command, uint error)
 {
   DBUG_ENTER("handle_command_error");
   DBUG_PRINT("enter", ("error: %d", error));
   if (error != 0)
   {
-    uint i;
+    int i;
 
     if (command->abort_on_error)
       die("command \"%.*s\" failed with error %d",
           command->first_word_len, command->query, error);
-    for (i= 0; i < command->expected_errors.count; i++)
+
+    i= match_expected_error(command, error, NULL);
+
+    if (i >= 0)
     {
-      DBUG_PRINT("info", ("expected error: %d",
-                          command->expected_errors.err[i].code.errnum));
-      if ((command->expected_errors.err[i].type == ERR_ERRNO) &&
-          (command->expected_errors.err[i].code.errnum == error))
-      {
-        DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
-                            command->first_word_len, command->query, error));
-        DBUG_VOID_RETURN;
-      }
+      DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
+                          command->first_word_len, command->query, error));
+      DBUG_VOID_RETURN;
     }
     die("command \"%.*s\" failed with wrong error: %d",
         command->first_word_len, command->query, error);
@@ -2510,8 +2524,8 @@ void do_exec(struct st_command *command)
   error= pclose(res_file);
   if (error > 0)
   {
-    uint status= WEXITSTATUS(error), i;
-    my_bool ok= 0;
+    uint status= WEXITSTATUS(error);
+    int i;
 
     if (command->abort_on_error)
     {
@@ -2523,19 +2537,13 @@ void do_exec(struct st_command *command)
 
     DBUG_PRINT("info",
                ("error: %d, status: %d", error, status));
-    for (i= 0; i < command->expected_errors.count; i++)
-    {
-      DBUG_PRINT("info", ("expected error: %d",
-                          command->expected_errors.err[i].code.errnum));
-      if ((command->expected_errors.err[i].type == ERR_ERRNO) &&
-          (command->expected_errors.err[i].code.errnum == status))
-      {
-        ok= 1;
-        DBUG_PRINT("info", ("command \"%s\" failed with expected error: %d",
-                            command->first_argument, status));
-      }
-    }
-    if (!ok)
+
+    i= match_expected_error(command, status, NULL);
+
+    if (i >= 0)
+      DBUG_PRINT("info", ("command \"%s\" failed with expected error: %d",
+                          command->first_argument, status));
+    else
     {
       dynstr_free(&ds_cmd);
       die("command \"%s\" failed with wrong error: %d",
@@ -2881,6 +2889,126 @@ void do_rmdir(struct st_command *command)
   error= rmdir(ds_dirname.str) != 0;
   handle_command_error(command, error);
   dynstr_free(&ds_dirname);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  get_list_files
+  ds          output
+  ds_dirname  dir to list
+  ds_wild     wild-card file pattern (can be empty)
+
+  DESCRIPTION
+  list all entries in directory (matching ds_wild if given)
+*/
+
+static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
+                          const DYNAMIC_STRING *ds_wild)
+{
+  uint i;
+  MY_DIR *dir_info;
+  FILEINFO *file;
+  DBUG_ENTER("get_list_files");
+
+  DBUG_PRINT("info", ("listing directory: %s", ds_dirname->str));
+  /* Note that my_dir sorts the list if not given any flags */
+  if (!(dir_info= my_dir(ds_dirname->str, MYF(0))))
+    DBUG_RETURN(1);
+  for (i= 0; i < (uint) dir_info->number_off_files; i++)
+  {
+    file= dir_info->dir_entry + i;
+    if (file->name[0] == '.' &&
+        (file->name[1] == '\0' ||
+         (file->name[1] == '.' && file->name[2] == '\0')))
+      continue;                               /* . or .. */
+    if (ds_wild && ds_wild->length &&
+        wild_compare(file->name, ds_wild->str, 0))
+      continue;
+    dynstr_append(ds, file->name);
+    dynstr_append(ds, "\n");
+  }
+  my_dirend(dir_info);
+  DBUG_RETURN(0);
+}
+
+
+/*
+  SYNOPSIS
+  do_list_files
+  command	called command
+
+  DESCRIPTION
+  list_files <dir_name> [<file_name>]
+  List files and directories in directory <dir_name> (like `ls`)
+  [Matching <file_name>, where wild-cards are allowed]
+*/
+
+static void do_list_files(struct st_command *command)
+{
+  int error;
+  static DYNAMIC_STRING ds_dirname;
+  static DYNAMIC_STRING ds_wild;
+  const struct command_arg list_files_args[] = {
+    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to list"},
+    {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
+  };
+  DBUG_ENTER("do_list_files");
+
+  check_command_args(command, command->first_argument,
+                     list_files_args,
+                     sizeof(list_files_args)/sizeof(struct command_arg), ' ');
+
+  error= get_list_files(&ds_res, &ds_dirname, &ds_wild);
+  handle_command_error(command, error);
+  dynstr_free(&ds_dirname);
+  dynstr_free(&ds_wild);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_list_files_write_file_command
+  command       called command
+  append        append file, or create new
+
+  DESCRIPTION
+  list_files_{write|append}_file <filename> <dir_name> [<match_file>]
+  List files and directories in directory <dir_name> (like `ls`)
+  [Matching <match_file>, where wild-cards are allowed]
+
+  Note: File will be truncated if exists and append is not true.
+*/
+
+static void do_list_files_write_file_command(struct st_command *command,
+                                             my_bool append)
+{
+  int error;
+  static DYNAMIC_STRING ds_content;
+  static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_dirname;
+  static DYNAMIC_STRING ds_wild;
+  const struct command_arg list_files_args[] = {
+    {"filename", ARG_STRING, TRUE, &ds_filename, "Filename for write"},
+    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to list"},
+    {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
+  };
+  DBUG_ENTER("do_list_files_write_file");
+
+  check_command_args(command, command->first_argument,
+                     list_files_args,
+                     sizeof(list_files_args)/sizeof(struct command_arg), ' ');
+
+  init_dynamic_string(&ds_content, "", 1024, 1024);
+  error= get_list_files(&ds_content, &ds_dirname, &ds_wild);
+  handle_command_error(command, error);
+  str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
+  dynstr_free(&ds_content);
+  dynstr_free(&ds_filename);
+  dynstr_free(&ds_dirname);
+  dynstr_free(&ds_wild);
   DBUG_VOID_RETURN;
 }
 
@@ -4215,7 +4343,6 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
                   int port, const char *sock)
 {
   int failed_attempts= 0;
-  static ulong connection_retry_sleep= 100000; /* Microseconds */
 
   DBUG_ENTER("safe_connect");
   while(!mysql_real_connect(mysql, host,user, pass, db, port, sock,
@@ -4282,6 +4409,7 @@ int connect_n_handle_errors(struct st_command *command,
                             const char* db, int port, const char* sock)
 {
   DYNAMIC_STRING *ds;
+  int failed_attempts= 0;
 
   ds= &ds_res;
 
@@ -4310,9 +4438,41 @@ int connect_n_handle_errors(struct st_command *command,
     dynstr_append_mem(ds, delimiter, delimiter_length);
     dynstr_append_mem(ds, "\n", 1);
   }
-  if (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
+  while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
                           CLIENT_MULTI_STATEMENTS))
   {
+    /*
+      If we have used up all our connections check whether this
+      is expected (by --error). If so, handle the error right away.
+      Otherwise, give it some extra time to rule out race-conditions.
+      If extra-time doesn't help, we have an unexpected error and
+      must abort -- just proceeding to handle_error() when second
+      and third chances are used up will handle that for us.
+
+      There are various user-limits of which only max_user_connections
+      and max_connections_per_hour apply at connect time. For the
+      the second to create a race in our logic, we'd need a limits
+      test that runs without a FLUSH for longer than an hour, so we'll
+      stay clear of trying to work out which exact user-limit was
+      exceeded.
+    */
+
+    if (((mysql_errno(con) == ER_TOO_MANY_USER_CONNECTIONS) ||
+         (mysql_errno(con) == ER_USER_LIMIT_REACHED)) &&
+        (failed_attempts++ < opt_max_connect_retries))
+    {
+      int i;
+
+      i= match_expected_error(command, mysql_errno(con), mysql_sqlstate(con));
+
+      if (i >= 0)
+        goto do_handle_error;                 /* expected error, handle */
+
+      my_sleep(connection_retry_sleep);       /* unexpected error, wait */
+      continue;                               /* and give it 1 more chance */
+    }
+
+do_handle_error:
     var_set_errno(mysql_errno(con));
     handle_error(command, mysql_errno(con), mysql_error(con),
 		 mysql_sqlstate(con), ds);
@@ -4494,6 +4654,7 @@ void do_connect(struct st_command *command)
                         ds_connection_name.str));
     if (!(con_slot->name= my_strdup(ds_connection_name.str, MYF(MY_WME))))
       die("Out of memory");
+    con_slot->name_len= strlen(con_slot->name);
     cur_con= con_slot;
     
     if (con_slot == next_con)
@@ -6099,6 +6260,56 @@ end:
 
 
 /*
+  Check whether given error is in list of expected errors
+
+  SYNOPSIS
+    match_expected_error()
+
+  PARAMETERS
+    command        the current command (and its expect-list)
+    err_errno      error number of the error that actually occurred
+    err_sqlstate   SQL-state that was thrown, or NULL for impossible
+                   (file-ops, diff, etc.)
+
+  RETURNS
+    -1 for not in list, index in list of expected errors otherwise
+
+  NOTE
+    If caller needs to know whether the list was empty, they should
+    check command->expected_errors.count.
+*/
+
+static int match_expected_error(struct st_command *command,
+                                unsigned int err_errno,
+                                const char *err_sqlstate)
+{
+  uint i;
+
+  for (i= 0 ; (uint) i < command->expected_errors.count ; i++)
+  {
+    if ((command->expected_errors.err[i].type == ERR_ERRNO) &&
+        (command->expected_errors.err[i].code.errnum == err_errno))
+      return i;
+
+    if (command->expected_errors.err[i].type == ERR_SQLSTATE)
+    {
+      /*
+        NULL is quite likely, but not in conjunction with a SQL-state expect!
+      */
+      if (unlikely(err_sqlstate == NULL))
+        die("expecting a SQL-state (%s) from query '%s' which cannot produce one...",
+            command->expected_errors.err[i].code.sqlstate, command->query);
+
+      if (strncmp(command->expected_errors.err[i].code.sqlstate,
+                  err_sqlstate, SQLSTATE_LENGTH) == 0)
+        return i;
+    }
+  }
+  return -1;
+}
+
+
+/*
   Handle errors which occurred during execution
 
   SYNOPSIS
@@ -6118,7 +6329,7 @@ void handle_error(struct st_command *command,
                   unsigned int err_errno, const char *err_error,
                   const char *err_sqlstate, DYNAMIC_STRING *ds)
 {
-  uint i;
+  int i;
 
   DBUG_ENTER("handle_error");
 
@@ -6144,34 +6355,30 @@ void handle_error(struct st_command *command,
 
   DBUG_PRINT("info", ("expected_errors.count: %d",
                       command->expected_errors.count));
-  for (i= 0 ; (uint) i < command->expected_errors.count ; i++)
+
+  i= match_expected_error(command, err_errno, err_sqlstate);
+
+  if (i >= 0)
   {
-    if (((command->expected_errors.err[i].type == ERR_ERRNO) &&
-         (command->expected_errors.err[i].code.errnum == err_errno)) ||
-        ((command->expected_errors.err[i].type == ERR_SQLSTATE) &&
-         (strncmp(command->expected_errors.err[i].code.sqlstate,
-                  err_sqlstate, SQLSTATE_LENGTH) == 0)))
+    if (!disable_result_log)
     {
-      if (!disable_result_log)
+      if (command->expected_errors.count == 1)
       {
-        if (command->expected_errors.count == 1)
-        {
-          /* Only log error if there is one possible error */
-          dynstr_append_mem(ds, "ERROR ", 6);
-          replace_dynstr_append(ds, err_sqlstate);
-          dynstr_append_mem(ds, ": ", 2);
-          replace_dynstr_append(ds, err_error);
-          dynstr_append_mem(ds,"\n",1);
-        }
-        /* Don't log error if we may not get an error */
-        else if (command->expected_errors.err[0].type == ERR_SQLSTATE ||
-                 (command->expected_errors.err[0].type == ERR_ERRNO &&
-                  command->expected_errors.err[0].code.errnum != 0))
-          dynstr_append(ds,"Got one of the listed errors\n");
+        /* Only log error if there is one possible error */
+        dynstr_append_mem(ds, "ERROR ", 6);
+        replace_dynstr_append(ds, err_sqlstate);
+        dynstr_append_mem(ds, ": ", 2);
+        replace_dynstr_append(ds, err_error);
+        dynstr_append_mem(ds,"\n",1);
       }
-      /* OK */
-      DBUG_VOID_RETURN;
+      /* Don't log error if we may not get an error */
+      else if (command->expected_errors.err[0].type == ERR_SQLSTATE ||
+               (command->expected_errors.err[0].type == ERR_ERRNO &&
+                command->expected_errors.err[0].code.errnum != 0))
+        dynstr_append(ds,"Got one of the listed errors\n");
     }
+    /* OK */
+    DBUG_VOID_RETURN;
   }
 
   DBUG_PRINT("info",("i: %d  expected_errors: %d", i,
@@ -6186,7 +6393,7 @@ void handle_error(struct st_command *command,
     dynstr_append_mem(ds, "\n", 1);
   }
 
-  if (i)
+  if (command->expected_errors.count > 0)
   {
     if (command->expected_errors.err[0].type == ERR_ERRNO)
       die("query '%s' failed with wrong errno %d: '%s', instead of %d...",
@@ -6921,6 +7128,104 @@ void mark_progress(struct st_command* command __attribute__((unused)),
 
 }
 
+#ifdef HAVE_STACKTRACE
+
+static void dump_backtrace(void)
+{
+  struct st_connection *conn= cur_con;
+
+  my_safe_print_str("read_command_buf", read_command_buf,
+                    sizeof(read_command_buf));
+  if (conn)
+  {
+    my_safe_print_str("conn->name", conn->name, conn->name_len);
+#ifdef EMBEDDED_LIBRARY
+    my_safe_print_str("conn->cur_query", conn->cur_query, conn->cur_query_len);
+#endif
+  }
+  fputs("Attempting backtrace...\n", stderr);
+  my_print_stacktrace(NULL, my_thread_stack_size);
+}
+
+#else
+
+static void dump_backtrace(void)
+{
+  fputs("Backtrace not available.\n", stderr);
+}
+
+#endif
+
+static sig_handler signal_handler(int sig)
+{
+  fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
+  dump_backtrace();
+}
+
+#ifdef __WIN__
+
+LONG WINAPI exception_filter(EXCEPTION_POINTERS *exp)
+{
+  __try
+  {
+    my_set_exception_pointers(exp);
+    signal_handler(exp->ExceptionRecord->ExceptionCode);
+  }
+  __except(EXCEPTION_EXECUTE_HANDLER)
+  {
+    fputs("Got exception in exception handler!\n", stderr);
+  }
+
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+
+static void init_signal_handling(void)
+{
+  UINT mode;
+
+  /* Set output destination of messages to the standard error stream. */
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+
+  /* Do not not display the a error message box. */
+  mode= SetErrorMode(0) | SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX;
+  SetErrorMode(mode);
+
+  SetUnhandledExceptionFilter(exception_filter);
+}
+
+#else /* __WIN__ */
+
+static void init_signal_handling(void)
+{
+  struct sigaction sa;
+  DBUG_ENTER("init_signal_handling");
+
+#ifdef HAVE_STACKTRACE
+  my_init_stacktrace();
+#endif
+
+  sa.sa_flags = SA_RESETHAND | SA_NODEFER;
+  sigemptyset(&sa.sa_mask);
+  sigprocmask(SIG_SETMASK, &sa.sa_mask, NULL);
+
+  sa.sa_handler= signal_handler;
+
+  sigaction(SIGSEGV, &sa, NULL);
+  sigaction(SIGABRT, &sa, NULL);
+#ifdef SIGBUS
+  sigaction(SIGBUS, &sa, NULL);
+#endif
+  sigaction(SIGILL, &sa, NULL);
+  sigaction(SIGFPE, &sa, NULL);
+}
+
+#endif /* !__WIN__ */
 
 int main(int argc, char **argv)
 {
@@ -6933,6 +7238,8 @@ int main(int argc, char **argv)
 
   save_file[0]= 0;
   TMPDIR[0]= 0;
+
+  init_signal_handling();
 
   /* Init expected errors */
   memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
@@ -7120,6 +7427,13 @@ int main(int argc, char **argv)
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_MKDIR: do_mkdir(command); break;
       case Q_RMDIR: do_rmdir(command); break;
+      case Q_LIST_FILES: do_list_files(command); break;
+      case Q_LIST_FILES_WRITE_FILE:
+        do_list_files_write_file_command(command, FALSE);
+        break;
+      case Q_LIST_FILES_APPEND_FILE:
+        do_list_files_write_file_command(command, TRUE);
+        break;
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_APPEND_FILE: do_append_file(command); break;

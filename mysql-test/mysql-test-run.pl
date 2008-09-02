@@ -112,6 +112,7 @@ our $glob_basedir;
 
 our $path_charsetsdir;
 our $path_client_bindir;
+our $path_client_libdir;
 our $path_share;
 our $path_language;
 our $path_timefile;
@@ -251,7 +252,7 @@ our $opt_sleep;
 our $opt_testcase_timeout;
 our $opt_suite_timeout;
 my  $default_testcase_timeout=     15; # 15 min max
-my  $default_suite_timeout=       180; # 3 hours max
+my  $default_suite_timeout=       300; # 5 hours max
 
 our $opt_start_and_exit;
 our $opt_start_dirty;
@@ -410,12 +411,13 @@ sub main () {
       # Check for any extra suites to enable based on the path name
       my %extra_suites=
 	(
-	 "mysql-5.1-new-ndb"              => "ndb_team",
-	 "mysql-5.1-new-ndb-merge"        => "ndb_team",
-	 "mysql-5.1-telco-6.2"            => "ndb_team",
-	 "mysql-5.1-telco-6.2-merge"      => "ndb_team",
-	 "mysql-5.1-telco-6.3"            => "ndb_team",
-	 "mysql-6.0-ndb"                  => "ndb_team",
+	 "bzr_mysql-5.1-ndb"                  => "ndb_team",
+	 "bzr_mysql-5.1-ndb-merge"            => "ndb_team",
+	 "bzr_mysql-5.1-telco-6.2"            => "ndb_team",
+	 "bzr_mysql-5.1-telco-6.2-merge"      => "ndb_team",
+	 "bzr_mysql-5.1-telco-6.3"            => "ndb_team",
+	 "bzr_mysql-5.1-telco-6.4"            => "ndb_team",
+	 "bzr_mysql-6.0-ndb"                  => "ndb_team,rpl_ndb_big",
 	);
 
       foreach my $dir ( reverse splitdir($glob_basedir) )
@@ -659,6 +661,8 @@ sub command_line_setup () {
              'vardir=s'                 => \$opt_vardir,
              'benchdir=s'               => \$glob_mysql_bench_dir,
              'mem'                      => \$opt_mem,
+             'client-bindir=s'          => \$path_client_bindir,
+             'client-libdir=s'          => \$path_client_libdir,
 
              # Misc
              'report-features'          => \$opt_report_features,
@@ -789,12 +793,20 @@ sub command_line_setup () {
   #
 
   # Look for the client binaries directory
-  $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
-				       "$glob_basedir/client_debug",
-				       vs_config_dirs('client', ''),
-				       "$glob_basedir/client",
-				       "$glob_basedir/bin");
-
+  if ($path_client_bindir)
+  {
+    # --client-bindir=path set on command line, check that the path exists
+    $path_client_bindir= mtr_path_exists($path_client_bindir);
+  }
+  else
+  {
+    $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
+					 "$glob_basedir/client_debug",
+					 vs_config_dirs('client', ''),
+					 "$glob_basedir/client",
+					 "$glob_basedir/bin");
+  }
+  
   # Look for language files and charsetsdir, use same share
   $path_language=   mtr_path_exists("$glob_basedir/share/mysql/english",
                                     "$glob_basedir/sql/share/english",
@@ -1574,13 +1586,15 @@ sub executable_setup_ndb () {
 
   $exe_ndbd=
     mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
-			 "$ndb_path/ndbd");
+			 "$ndb_path/ndbd",
+			 "$glob_basedir/libexec/ndbd");
   $exe_ndb_mgm=
     mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-			 "$ndb_path/ndb_mgmd");
+			 "$ndb_path/ndb_mgmd",
+			 "$glob_basedir/libexec/ndb_mgmd");
   $exe_ndb_waiter=
     mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
 			 "$ndb_path/ndb_waiter");
@@ -1677,7 +1691,8 @@ sub executable_setup () {
     # Look for mysql_fix_privilege_tables.sql script
     $file_mysql_fix_privilege_tables=
       mtr_file_exists("$glob_basedir/scripts/mysql_fix_privilege_tables.sql",
-  		    "$glob_basedir/share/mysql_fix_privilege_tables.sql");
+  		    "$glob_basedir/share/mysql_fix_privilege_tables.sql",
+  		    "$glob_basedir/share/mysql/mysql_fix_privilege_tables.sql");
 
     if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
     {
@@ -1843,19 +1858,25 @@ sub environment_setup () {
 
   my @ld_library_paths;
 
-  # --------------------------------------------------------------------------
-  # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
-  # are used in favor of the system installed ones
-  # --------------------------------------------------------------------------
-  if ( $source_dist )
+  if ($path_client_libdir)
   {
-    push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
-                            "$glob_basedir/libmysql_r/.libs/",
-                            "$glob_basedir/zlib.libs/");
+    # Use the --client-libdir passed on commandline
+    push(@ld_library_paths, "$path_client_libdir");
   }
   else
   {
-    push(@ld_library_paths, "$glob_basedir/lib");
+    # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
+    # are used in favor of the system installed ones
+    if ( $source_dist )
+    {
+      push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
+	   "$glob_basedir/libmysql_r/.libs/",
+	   "$glob_basedir/zlib.libs/");
+    }
+    else
+    {
+      push(@ld_library_paths, "$glob_basedir/lib");
+    }
   }
 
  # --------------------------------------------------------------------------
@@ -2097,6 +2118,9 @@ sub environment_setup () {
   {
     $cmdline_mysqlbinlog .=" --character-sets-dir=$path_charsetsdir";
   }
+  # Always use the given tmpdir for the LOAD files created
+  # by mysqlbinlog
+  $cmdline_mysqlbinlog .=" --local-load=$opt_tmpdir";
 
   if ( $opt_debug )
   {
@@ -5370,6 +5394,8 @@ Misc options
   warnings | log-warnings Pass --log-warnings to mysqld
 
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
+  client-bindir=PATH    Path to the directory where client binaries are located
+  client-libdir=PATH    Path to the directory where client libraries are located
 
 Deprecated options
   with-openssl          Deprecated option for ssl
