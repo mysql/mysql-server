@@ -4822,9 +4822,9 @@ inline void kill_broken_server()
   /* hack to get around signals ignored in syscalls for problem OS's */
   if (
 #if !defined(__NETWARE__)
-      unix_sock == INVALID_SOCKET ||
+      !my_socket_valid(unix_sock) ||
 #endif
-      (!opt_disable_networking && ip_sock == INVALID_SOCKET))
+      (!opt_disable_networking && !my_socket_valid(ip_sock)))
   {
     select_thread_in_use = 0;
     /* The following call will never return */
