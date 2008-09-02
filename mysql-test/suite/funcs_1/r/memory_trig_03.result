@@ -1,3 +1,4 @@
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 USE test;
 drop table if exists tb3;
 create table tb3 (
@@ -53,20 +54,18 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = memory;
+) engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/memory_tb3.txt'
-into table tb3;
 
 Testcase 3.5.3:
 ---------------
 drop database if exists priv_db;
 create database priv_db;
 use priv_db;
-create table t1 (f1 char(20)) engine= memory;
+create table t1 (f1 char(20)) engine= <engine_to_be_used>;
 create User test_noprivs@localhost;
 set password for test_noprivs@localhost = password('PWD');
 create User test_yesprivs@localhost;
@@ -602,8 +601,8 @@ Testcase: 3.5.3.x:
 use priv_db;
 drop table if exists t1;
 drop table if exists t2;
-create table t1 (f1 int) engine= memory;
-create table t2 (f2 int) engine= memory;
+create table t1 (f1 int) engine= <engine_to_be_used>;
+create table t2 (f2 int) engine= <engine_to_be_used>;
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT, UPDATE on priv_db.t1 to test_yesprivs@localhost;
@@ -692,4 +691,5 @@ drop database if exists priv_db;
 drop user test_yesprivs@localhost;
 drop user test_noprivs@localhost;
 drop user test_noprivs;
-DROP TABLE test.tb3;
+use test;
+drop table tb3;
