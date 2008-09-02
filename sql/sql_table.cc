@@ -5377,14 +5377,14 @@ compare_tables(THD *thd,
     if (alter_info->flags & ALTER_CHANGE_COLUMN)
     {
       /* Evaluate changes bitmap and send to check_if_incompatible_data() */
-      if (!(table_changes_local= field->is_equal(new_field)))
+      if (!(table_changes_local= field->is_equal(tmp_new_field)))
         *alter_flags|= HA_ALTER_COLUMN_TYPE;
 
       /* Check if field was renamed */
       field->flags&= ~FIELD_IS_RENAMED;
       if (my_strcasecmp(system_charset_info,
                         field->field_name,
-                        new_field->field_name))
+                        tmp_new_field->field_name))
       {
         field->flags|= FIELD_IS_RENAMED;
         *alter_flags|= HA_ALTER_COLUMN_NAME;
@@ -5395,7 +5395,7 @@ compare_tables(THD *thd,
         *alter_flags|= HA_ALTER_COLUMN_TYPE;
 
       /* Check that NULL behavior is same for old and new fields */
-      if ((new_field->flags & NOT_NULL_FLAG) !=
+      if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
           (uint) (field->flags & NOT_NULL_FLAG))
       {
         *table_changes= IS_EQUAL_NO;
