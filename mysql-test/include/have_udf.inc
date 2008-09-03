@@ -4,7 +4,7 @@
 #
 --require r/have_dynamic_loading.require
 disable_query_log;
-show variables like "have_dynamic_loading";
+show variables like 'have_dynamic_loading';
 enable_query_log;
 
 #
@@ -12,5 +12,5 @@ enable_query_log;
 #
 --require r/have_udf_example.require
 disable_query_log;
-eval select LENGTH("$UDF_EXAMPLE_LIB") > 0 as "have_udf_example_lib";
+eval select LENGTH('$UDF_EXAMPLE_LIB') > 0 as 'have_udf_example_lib';
 enable_query_log;
