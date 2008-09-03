@@ -29,7 +29,7 @@ public:
   {
     return sql_alloc(size);
   }
-  static void *operator new[](size_t size)
+  static void *operator new[](size_t size) throw ()
   {
     return sql_alloc(size);
   }
@@ -450,7 +450,7 @@ public:
 struct ilink
 {
   struct ilink **prev,*next;
-  static void *operator new(size_t size)
+  static void *operator new(size_t size) throw ()
   {
     return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE));
   }

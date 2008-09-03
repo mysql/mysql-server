@@ -475,7 +475,7 @@ sp_head::operator new(size_t size) throw()
   init_sql_alloc(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   sp= (sp_head *) alloc_root(&own_root, size);
   if (sp == NULL)
-    return NULL;
+    DBUG_RETURN(NULL);
   sp->main_mem_root= own_root;
   DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
   DBUG_RETURN(sp);
@@ -627,14 +627,14 @@ void
 sp_head::set_body_start(THD *thd, const char *begin_ptr)
 {
   m_body_begin= begin_ptr;
-  thd->m_lip->body_utf8_start(thd, begin_ptr);
+  thd->m_parser_state->m_lip.body_utf8_start(thd, begin_ptr);
 }
 
 
 void
 sp_head::set_stmt_end(THD *thd)
 {
-  Lex_input_stream *lip= thd->m_lip; /* shortcut */
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip; /* shortcut */
   const char *end_ptr= lip->get_cpp_ptr(); /* shortcut */
 
   /* Make the string of parameters. */

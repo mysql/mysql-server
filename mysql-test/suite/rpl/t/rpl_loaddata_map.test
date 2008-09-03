@@ -1,6 +1,15 @@
+# ==== Purpose ====
 #
 #  check replication of load data with the server parameters subjected to
 #  read_buffer_size > max_allowed_packet
+#
+# ==== Implementation ====
+#
+# Insert many rows into t1, write t1 to file.
+# Load the file into t2.
+# See that t2 came out as expected on slave.
+#
+# ==== Related Bugs ====
 #
 #  BUG#30435 loading large LOAD DATA INFILE breaks slave with 
 #            read_buffer_size set on master
@@ -9,10 +18,17 @@
 
 source include/have_binlog_format_mixed_or_statement.inc;
 source include/master-slave.inc;
-source include/have_innodb.inc;
-source include/have_binlog_format_mixed_or_statement.inc;
+
+
+--echo ==== Create a big file ====
+
+# We turn off binlogging to avoid too much noise in the binlog. t1 is
+# just an auxiliary construction anyways, it is not needed on the
+# slave.
 
 --disable_query_log
+SET @@sql_log_bin= 0;
+
 let $rows= 5000;
 create table t1 (id int not null primary key auto_increment);
 
@@ -22,10 +38,13 @@ while($rows)
   dec $rows;
 }
 eval select * into outfile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' from t1;
-flush logs;
+
+DROP TABLE t1;
+SET @@sql_log_bin= 1;
 --enable_query_log
 
-connection master;
+
+--echo ==== Load our big file into a table ====
 create table t2 (id int not null primary key auto_increment);
 
 select @@session.read_buffer_size - @@session.max_allowed_packet > 0 ;
@@ -34,21 +53,21 @@ select @@session.read_buffer_size - @@session.max_allowed_packet > 0 ;
 eval load data infile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
 select count(*) from t2 /* 5 000 */;
 
-# the binglog will show fragmented Append_block events
---let $binlog_start=107
---replace_column 2 # 4 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $binlog_start <binlog_start>
---eval show binlog events in 'master-bin.000002' from $binlog_start
+# the binlog will show fragmented Append_block events
+source include/show_binlog_events.inc;
 
 
+--echo ==== Verify results on slave ====
+
+--echo [on slave]
 sync_slave_with_master;
-#connection slave;
 select count(*) from t2 /* 5 000 */;
 
+
+--echo ==== Clean up ====
+
+--echo [on master]
 connection master;
-drop table t1, t2;
+drop table t2;
 sync_slave_with_master;
 remove_file $MYSQLTEST_VARDIR/tmp/bug30435_5k.txt;
-
---echo end of the tests

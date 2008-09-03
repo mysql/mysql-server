@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.27-ndb-6.4.0)
+AM_INIT_AUTOMAKE(mysql, 5.1.28-ndb-6.4.0)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 NDB_VERSION_MAJOR=6
@@ -623,19 +623,19 @@ fi
 AC_MSG_CHECKING(whether features provided by the user community should be included.)
 AC_ARG_ENABLE(community-features,
     AC_HELP_STRING(
-        [--enable-community-features], 
-        [Enable additional features provided by the user community.]),
+        [--disable-community-features], 
+        [Disable additional features provided by the user community.]),
     [ ENABLE_COMMUNITY_FEATURES=$enableval ],
-    [ ENABLE_COMMUNITY_FEATURES=no ]
+    [ ENABLE_COMMUNITY_FEATURES=yes ]
     )
 
 if test "$ENABLE_COMMUNITY_FEATURES" = "yes"
 then
   AC_DEFINE([COMMUNITY_SERVER], [1],
             [Whether features provided by the user community should be included])
-  AC_MSG_RESULT([yes, community server])
+  AC_MSG_RESULT([yes])
 else
-  AC_MSG_RESULT([no, enterprise server])
+  AC_MSG_RESULT([no])
 fi
 
 AC_ARG_WITH(server-suffix,
@@ -2430,10 +2430,31 @@ AC_TRY_LINK(
   AC_DEFINE(NDBMTD_X86, [1], [ndbmtd x86 support]),
   AC_MSG_RESULT(no))
 
+AC_CACHE_CHECK([support for weak symbols], mysql_cv_weak_symbol,
+[AC_TRY_LINK([],[
+  extern void __attribute__((weak)) foo(void);
+], [mysql_cv_weak_symbol=yes], [mysql_cv_weak_symbol=no])])
+
+if test "x$mysql_cv_weak_symbol" = xyes; then
+  AC_DEFINE(HAVE_WEAK_SYMBOL, 1,
+            [Define to 1 if compiler supports weak symbol attribute.])
+fi
+
+AC_CACHE_CHECK([whether __bss_start is defined], mysql_cv_bss_start,
+[AC_TRY_LINK([],[
+  extern char *__bss_start;
+  return __bss_start ? 1 : 0;
+], [mysql_cv_bss_start=yes], [mysql_cv_bss_start=no])])
+
+if test "x$mysql_cv_bss_start" = xyes; then
+  AC_DEFINE(HAVE_BSS_START, 1,
+            [Define to 1 if compiler defines __bss_start.])
+fi
+
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
 AC_CHECK_HEADERS(cxxabi.h)
-AC_CACHE_CHECK([checking for abi::__cxa_demangle], mysql_cv_cxa_demangle,
+AC_CACHE_CHECK([for abi::__cxa_demangle], mysql_cv_cxa_demangle,
 [AC_TRY_LINK([#include <cxxabi.h>], [
   char *foo= 0; int bar= 0;
   foo= abi::__cxa_demangle(foo, foo, 0, &bar);
