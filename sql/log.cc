@@ -1421,6 +1421,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       If rolling back a statement in a transaction, we truncate the
       transaction cache to remove the statement.
      */
+    thd->binlog_remove_pending_rows_event(TRUE);
     if (all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT)))
       trx_data->reset();
     else                                        // ...statement
@@ -3768,6 +3769,31 @@ THD::binlog_set_pending_rows_event(Rows_log_event* ev)
   trx_data->set_pending(ev);
 }
 
+
+/**
+  Remove the pending rows event, discarding any outstanding rows.
+
+  If there is no pending rows event available, this is effectively a
+  no-op.
+ */
+int
+MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd)
+{
+  DBUG_ENTER(__FUNCTION__);
+
+  binlog_trx_data *const trx_data=
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
+
+  DBUG_ASSERT(trx_data);
+
+  if (Rows_log_event* pending= trx_data->pending())
+  {
+    delete pending;
+    trx_data->set_pending(NULL);
+  }
+
+  DBUG_RETURN(0);
+}
 
 /*
   Moves the last bunch of rows from the pending Rows event to the binlog
