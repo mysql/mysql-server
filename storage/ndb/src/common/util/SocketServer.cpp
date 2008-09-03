@@ -162,6 +162,17 @@ SocketServer::doAccept(){
   FD_ZERO(&exceptionSet);
   
   m_services.lock();
+
+#ifdef NDB_WIN
+  /* Win32 doesn't sleep on select with 0 sockets */
+  if(!m_services.size())
+  {
+    m_services.unlock();
+    my_sleep(1000);
+    return;
+  }
+#endif
+
   int maxSock = 0;
   for (unsigned i = 0; i < m_services.size(); i++){
     const NDB_SOCKET_TYPE s = m_services[i].m_socket;
