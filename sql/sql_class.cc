@@ -3502,6 +3502,21 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 }
 
 
+int THD::binlog_remove_pending_rows_event(bool clear_maps)
+{
+  DBUG_ENTER(__FUNCTION__);
+
+  if (!mysql_bin_log.is_open())
+    DBUG_RETURN(0);
+
+  mysql_bin_log.remove_pending_rows_event(this);
+
+  if (clear_maps)
+    binlog_table_maps= 0;
+
+  DBUG_RETURN(0);
+}
+
 int THD::binlog_flush_pending_rows_event(bool stmt_end)
 {
   DBUG_ENTER("THD::binlog_flush_pending_rows_event");
