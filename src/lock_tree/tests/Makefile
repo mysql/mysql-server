@@ -21,6 +21,7 @@ CFLAGS += -Wbad-function-cast -Wcast-align -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute 
 CPPFLAGS += -L../ -L../../range_tree 
 CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -I../../../include
+LDFLAGS += -lz
 
 
 SRCS = $(wildcard *.c)
@@ -118,13 +119,13 @@ foo:
 	echo ../locktree.h test.h $(LT_LINEAR)
 
 %.lin: %.c ../locktree.h test.h $(LT_LINEAR)
-	$(CC) -DDIR=\"dir.$<.lin\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)  $(NEWBRT_BINS)
+	$(CC) -DDIR=\"dir.$<.lin\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)  $(NEWBRT_BINS) $(LDFLAGS)
 %.tlin: %.c ../locktree.h test.h $(LT_TLINEAR)
-	$(CC) -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR) $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS
+	$(CC) -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR) $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS $(LDFLAGS)
 %.tlog: %.c ../locktree.h test.h $(LT_TLOG)
-	$(CC) -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)    $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS
+	$(CC) -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)    $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS $(LDFLAGS)
 %.log: %.c ../locktree.h test.h  $(LT_LOG)
-	$(CC) -DDIR=\"dir.$<.log\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LOG)     $(NEWBRT_BINS)
+	$(CC) -DDIR=\"dir.$<.log\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LOG)     $(NEWBRT_BINS) $(LDFLAGS)
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov

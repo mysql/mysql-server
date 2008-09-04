@@ -26,7 +26,7 @@ else
  SETTOKUENV=
  UNSETTOKUENV=
 endif
-LDFLAGS = -L../lib -ltokudb -lpthread $(TDB_LOADLIBES)
+LDFLAGS = -L../lib -ltokudb -lpthread $(TDB_LOADLIBES) -lz
 
 # vars to compile bins that handle tokudb using libtokudb.a
 STATIC_CPPFLAGS = -I../include 
