@@ -18,7 +18,6 @@ CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
 CPPFLAGS += -I../ -I../../../newbrt -I../../../include
 
-
 SRCS = $(wildcard *.c)
 
 LOG_TESTS = $(patsubst %.c,%.log,$(SRCS))
@@ -95,12 +94,14 @@ HEADERS=../rangetree.h ../rangetree-internal.h test.h
 ../../../newbrt/newbrt.o:
 	cd ../../../newbrt && $(MAKE)
 
+LDFLAGS = -lz
+
 %.lin: %.c  $(HEADERS) $(LINEAR_BINS)
-	$(CC) -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)
+	$(CC) -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS) $(LDFLAGS)
 %.tlog: %.c $(HEADERS) $(TLOG_BINS)
-	$(CC) -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS
+	$(CC) -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS  $(LDFLAGS)
 %.log: %.c  $(HEADERS) $(LOG_BINS)
-	$(CC) -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
+	$(CC) -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS) $(LDFLAGS)
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov
