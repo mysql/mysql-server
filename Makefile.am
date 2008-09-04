@@ -49,7 +49,7 @@ bin-dist:		all
 	$(top_builddir)/scripts/make_binary_distribution @MAKE_BINARY_DISTRIBUTION_OPTIONS@
 
 # Remove BK's "SCCS" subdirectories from source distribution
-# Create initial database files for Windows installations.
+# Create initial database files for Windows installations and check them.
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	mkdir -p $(distdir)/win
@@ -57,6 +57,7 @@ dist-hook:
 		--builddir=$(top_builddir) \
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
+	storage/myisam/myisamchk --silent --fast $(distdir)/win/data/mysql/*.MYI
 
 all-local:		@ABI_CHECK@	
 
