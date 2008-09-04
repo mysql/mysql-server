@@ -56,6 +56,9 @@ void copy(Uint32 * dst, Uint32 srcFirstIVal);
 bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
 /* appendToSection : If firstSegmentIVal == RNIL, import */
 bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
+/* dupSection : Create new section as copy of src section */
+bool dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal);
+
 
 inline
 bool

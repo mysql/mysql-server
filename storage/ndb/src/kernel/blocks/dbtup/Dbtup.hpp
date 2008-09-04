@@ -124,7 +124,6 @@ inline const char* dbgmask(const Uint32 bm[2]) {
 #endif
 
 #define ZWORDS_ON_PAGE 8192          /* NUMBER OF WORDS ON A PAGE.      */
-#define ZATTRBUF_SIZE 32             /* SIZE OF ATTRIBUTE RECORD BUFFER */
 #define ZMIN_PAGE_LIMIT_TUPKEYREQ 5
 #define ZTUP_VERSION_BITS 15
 #define ZTUP_VERSION_MASK ((1 << ZTUP_VERSION_BITS) - 1)
@@ -178,7 +177,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 /* ---------------------------------------------------------------- */
 /*       S I Z E              O F               R E C O R D S       */
 /* ---------------------------------------------------------------- */
-#define ZNO_OF_ATTRBUFREC 10000             /* SIZE   OF ATTRIBUTE INFO FILE   */
 #define ZNO_OF_CONCURRENT_OPEN_OP 40        /* NUMBER OF CONCURRENT OPENS      */
 #define ZNO_OF_CONCURRENT_WRITE_OP 80       /* NUMBER OF CONCURRENT DISK WRITES*/
 #define ZNO_OF_FRAGOPREC 20                 /* NUMBER OF CONCURRENT ADD FRAG.  */
@@ -302,13 +300,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZLEAF 1
 #define ZNON_LEAF 2
 
-          /* ATTRINBUFREC VARIABLE POSITIONS. */
-#define ZBUF_PREV 29                      /* POSITION OF 'PREV'-VARIABLE (USED BY INTERPRETED EXEC) */
-#define ZBUF_DATA_LEN 30                  /* POSITION OF 'DATA LENGTH'-VARIABLE. */
-#define ZBUF_NEXT 31                      /* POSITION OF 'NEXT'-VARIABLE.        */
-#define ZSAVE_BUF_NEXT 28
-#define ZSAVE_BUF_DATA_LEN 27
-
           /* RETURN POINTS. */
           /* RESTART PHASES */
 #define ZSTARTPHASE1 1
@@ -370,7 +361,7 @@ public:
 enum TransState {
   TRANS_IDLE = 0,
   TRANS_STARTED = 1,
-  TRANS_WAIT_STORED_PROCEDURE_ATTR_INFO = 2,
+  TRANS_NOT_USED_STATE = 2, // No longer used.
   TRANS_ERROR_WAIT_STORED_PROCREQ = 3,
   TRANS_ERROR_WAIT_TUPKEYREQ = 4,
   TRANS_TOO_MUCH_AI = 5,
@@ -394,17 +385,6 @@ enum State {
   DEFINING = 65,
   DROPPING = 68
 };
-
-// Records
-/* ************** ATTRIBUTE INFO BUFFER RECORD ****************** */
-/* THIS RECORD IS USED AS A BUFFER FOR INCOMING AND OUTGOING DATA */
-/* ************************************************************** */
-struct Attrbufrec {
-  Uint32 attrbuf[ZATTRBUF_SIZE];
-}; /* p2c: size = 128 bytes */
-
-typedef Ptr<Attrbufrec> AttrbufrecPtr;
-
 
 
 struct Fragoperrec {
@@ -747,53 +727,21 @@ typedef Ptr<Fragrecord> FragrecordPtr;
 
 struct Operationrec {
   /*
-   * To handle Attrinfo signals and buffer them up we need to
-   * a simple list with first and last and we also need to keep track
-   * of how much we received for security check.
-   * Will most likely disappear with introduction of long signals.
-   * These variables are used before TUPKEYREQ is received and not
-   * thereafter and is disposed with after calling copyAttrinfo
-   * which is called before putting the operation into its lists.
-   * Thus we can use union declarations for these variables.
-   */
-
-  /*
-   * Used by scans to find the Attrinfo buffers.
-   * This is only until returning from copyAttrinfo and
-   * can thus reuse the same memory as needed by the
-   * active operation list variables.
-   */
-
-  /*
    * Doubly linked list with anchor on tuple.
    * This is to handle multiple updates on the same tuple
    * by the same transaction.
    */
-  union {
-    Uint32 prevActiveOp;
-    Uint32 storedProcedureId; //Used until copyAttrinfo
-  };
-  union {
-    Uint32 nextActiveOp;
-    Uint32 currentAttrinbufLen; //Used until copyAttrinfo
-  };
+  Uint32 prevActiveOp;
+  Uint32 nextActiveOp;
 
   Operationrec() {}
   bool is_first_operation() const { return prevActiveOp == RNIL;}
   bool is_last_operation() const { return nextActiveOp == RNIL;}
 
   Uint32 m_undo_buffer_space; // In words
-  union {
-    Uint32 firstAttrinbufrec; //Used until copyAttrinfo TODO Remove
-  };
 
   Uint32 m_any_value;
-  union {
-    Uint32 lastAttrinbufrec; //Used until copyAttrinfo TODO Remove
-    Uint32 nextPool;
-  };
-  Uint32 attrinbufLen; //only used during STORED_PROCDEF phase TODO Remove
-  Uint32 storedProcPtr; //only used during STORED_PROCDEF phase TODO Remove
+  Uint32 nextPool;
   
   /*
    * From fragment i-value we can find fragment and table record
@@ -1208,13 +1156,10 @@ ArrayPool<TupTriggerData> c_triggerPool;
   typedef Ptr<Tablerec> TablerecPtr;
 
   struct storedProc {
-    Uint32 storedLinkFirst;
-    Uint32 storedLinkLast;
-    Uint32 storedCounter;
+    Uint32 storedProcIVal;
     Uint32 nextPool;
     Uint16 storedCode;
-    Uint16 storedProcLength;
-};
+  };
 
 typedef Ptr<storedProc> StoredProcPtr;
 
@@ -1808,16 +1753,12 @@ private:
 // In Signals:
 // -----------
 //
-// Logically there is one request TUPKEYREQ which requests to read/write data
-// of one tuple in the database. Since the definition of what to read and write
-// can be bigger than the maximum signal size we segment the signal. The definition
-// of what to read/write/interpreted program is sent before the TUPKEYREQ signal.
-//
-// ---> ATTRINFO
-// ...
-// ---> ATTRINFO
 // ---> TUPKEYREQ
-// The number of ATTRINFO signals can be anything between 0 and upwards.
+// A single TUPKEYREQ is received.  The TUPKEYREQ can contain an I-value
+// for a long section containing AttrInfo words.  Delete requests usually
+// contain no AttrInfo, and requests referencing a stored procedure (e.g.
+// scan originated requests) do not contain AttrInfo.
+// 
 // The total size of the ATTRINFO is not allowed to be more than 16384 words.
 // There is always one and only one TUPKEYREQ.
 //
@@ -1952,11 +1893,6 @@ private:
   void disk_page_load_callback(Signal*, Uint32 op, Uint32 page);
   void disk_page_load_scan_callback(Signal*, Uint32 op, Uint32 page);
 
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void execATTRINFO(Signal* signal);
-public:
-  void receive_attrinfo(Signal*, Uint32 op, const Uint32* data, Uint32 len);
 private:
 
 // Trigger signals
@@ -1967,16 +1903,6 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void execDROP_TRIG_IMPL_REQ(Signal* signal);
-
-// *****************************************************************
-// Support methods for ATTRINFO.
-// *****************************************************************
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void handleATTRINFOforTUPKEYREQ(Signal* signal,
-				  const Uint32* data,
-                                  Uint32 length,
-                                  Operationrec * regOperPtr);
 
 // *****************************************************************
 // Setting up the environment for reads, inserts, updates and deletes.
@@ -2499,9 +2425,9 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  int initStoredOperationrec(Operationrec* regOperPtr,
-                             KeyReqStruct* req_struct,
-                             Uint32 storedId);
+  int getStoredProcAttrInfo(Uint32 storedId,
+                            KeyReqStruct* req_struct,
+                            Uint32& attrInfoIVal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2799,8 +2725,6 @@ private:
   void setTupleStateOnPreviousOps(Uint32 prevOpIndex);
   void copyMem(Signal* signal, Uint32 sourceIndex, Uint32 destIndex);
 
-  void freeAllAttrBuffers(Operationrec*  const regOperPtr);
-  void freeAttrinbufrec(Uint32 anAttrBufRec);
   void removeActiveOpList(Operationrec*  const regOperPtr, Tuple_header*);
 
   void updatePackedList(Signal* signal, Uint16 ahostIndex);
@@ -2819,7 +2743,6 @@ private:
   void getFragmentrec(FragrecordPtr& regFragPtr, Uint32 fragId, Tablerec* regTabPtr);
 
   void initialiseRecordsLab(Signal* signal, Uint32 switchData, Uint32, Uint32);
-  void initializeAttrbufrec();
   void initializeCheckpointInfoRec();
   void initializeDiskBufferSegmentRecord();
   void initializeFragoperrec();
@@ -2872,20 +2795,21 @@ private:
   void initRecords();
 
   void deleteScanProcedure(Signal* signal, Operationrec* regOperPtr);
+  void allocCopyProcedure();
+  void freeCopyProcedure();
+  void prepareCopyProcedure(Uint32 numAttrs);
+  void releaseCopyProcedure();
   void copyProcedure(Signal* signal,
                      TablerecPtr regTabPtr,
                      Operationrec* regOperPtr);
   void scanProcedure(Signal* signal,
                      Operationrec* regOperPtr,
-                     Uint32 lenAttrInfo);
-  void storedSeizeAttrinbufrecErrorLab(Signal* signal,
-                                       Operationrec* regOperPtr,
-                                       Uint32 errorCode);
-  bool storedProcedureAttrInfo(Signal* signal,
-                               Operationrec* regOperPtr,
-			       const Uint32* data,
-                               Uint32 length,
-                               bool copyProc);
+                     SectionHandle* handle,
+                     bool isCopy);
+  void storedProcBufferSeizeErrorLab(Signal* signal,
+                                     Operationrec* regOperPtr,
+                                     Uint32 storedProcPtr,
+                                     Uint32 errorCode);
 
 //-----------------------------------------------------------------------------
 // Table Descriptor Memory Manager
@@ -3022,11 +2946,6 @@ private:
 //------------------------------------------------------------------------------------------------------
 // Common stored variables. Variables that have a valid value always.
 //------------------------------------------------------------------------------------------------------
-  Attrbufrec *attrbufrec;
-  Uint32 cfirstfreeAttrbufrec;
-  Uint32 cnoOfAttrbufrec;
-  Uint32 cnoFreeAttrbufrec;
-
   Fragoperrec *fragoperrec;
   Uint32 cfirstfreeFragopr;
   Uint32 cnoOfFragoprec;
@@ -3079,6 +2998,8 @@ private:
   BlockReference cownref;
   Uint32 cownNodeId;
   Uint32 czero;
+  Uint32 cCopyProcedure;
+  Uint32 cCopyLastSeg;
 
  // A little bit bigger to cover overwrites in copy algorithms (16384 real size).
 #define ZATTR_BUFFER_SIZE 16384

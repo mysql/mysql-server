@@ -876,7 +876,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "1M",
+    "4M",
     "512k",
     STR_VALUE(MAX_INT_RNIL)},
 

@@ -20,42 +20,6 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 
-void Dbtup::freeAllAttrBuffers(Operationrec*  const regOperPtr)
-{
-  if (regOperPtr->storedProcedureId == RNIL) {
-    jam();
-    freeAttrinbufrec(regOperPtr->firstAttrinbufrec);
-  } else {
-    jam();
-    StoredProcPtr storedPtr;
-    c_storedProcPool.getPtr(storedPtr, (Uint32)regOperPtr->storedProcedureId);
-    ndbrequire(storedPtr.p->storedCode == ZSCAN_PROCEDURE);
-    storedPtr.p->storedCounter--;
-    regOperPtr->storedProcedureId = ZNIL;
-  }//if
-  regOperPtr->firstAttrinbufrec = RNIL;
-  regOperPtr->lastAttrinbufrec = RNIL;
-  regOperPtr->m_any_value = 0;
-}//Dbtup::freeAllAttrBuffers()
-
-void Dbtup::freeAttrinbufrec(Uint32 anAttrBuf) 
-{
-  Uint32 Ttemp;
-  AttrbufrecPtr localAttrBufPtr;
-  Uint32 RnoFree = cnoFreeAttrbufrec;
-  localAttrBufPtr.i = anAttrBuf;
-  while (localAttrBufPtr.i != RNIL) {
-    jam();
-    ptrCheckGuard(localAttrBufPtr, cnoOfAttrbufrec, attrbufrec);
-    Ttemp = localAttrBufPtr.p->attrbuf[ZBUF_NEXT];
-    localAttrBufPtr.p->attrbuf[ZBUF_NEXT] = cfirstfreeAttrbufrec;
-    cfirstfreeAttrbufrec = localAttrBufPtr.i;
-    localAttrBufPtr.i = Ttemp;
-    RnoFree++;
-  }//if
-  cnoFreeAttrbufrec = RnoFree;
-}//Dbtup::freeAttrinbufrec()
-
 /**
  * Abort abort this operation and all after (nextActiveOp's)
  */
@@ -80,7 +44,6 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
              (trans_state == TRANS_IDLE));
   if (regOperPtr.p->op_struct.op_type == ZREAD) {
     jam();
-    freeAllAttrBuffers(regOperPtr.p);
     initOpConnection(regOperPtr.p);
     return;
   }//if

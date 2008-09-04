@@ -3878,6 +3878,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
   {
     jam();
     /* Get information necessary to send SCAN_TABREF back to client */
+    // TODO : Handle dropped signal fragments
     const ScanTabReq * const truncatedScanTabReq = 
       (ScanTabReq *) &rep->originalData[0];
 
@@ -10235,28 +10236,27 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
    * SCANFRAGREQ with optional KEYINFO and mandatory ATTRINFO are
    * now sent to LQH
    * This starts the scan on the given fragment.
+   * If this is the last SCANFRAGREQ, sendScanFragReq will release
+   * the KeyInfo and AttrInfo sections when sending.
    */
   Uint32 instanceKey = conf->instanceKey;
-  Uint32 ref = numberToRef(DBLQH, instanceKey, tnodeid);
-  scanFragptr.p->lqhBlockref = ref;
+  scanFragptr.p->lqhBlockref = numberToRef(DBLQH, instanceKey, tnodeid);
   scanFragptr.p->m_connectCount = getNodeInfo(tnodeid).m_connectCount;
 
-  sendScanFragReq(signal, scanptr.p, scanFragptr.p);
+  /* Determine whether this is the last scanFragReq
+   * Handle normal scan-all-fragments and partition pruned
+   * scan-one-fragment cases.
+   * 
+   * (Note that this assumes that fragments are processed in order,
+   * and that DIH_SCAN_GET_NODES_CONF signals are received in the
+   * order that the DIH_SCAN_GET_NODES_REQs were sent)
+   */
+  bool isLastScanFragReq= ((scanptr.p->scanNextFragId >=
+                            scanptr.p->scanNoFrag) &&
+                           (scanFragptr.p->scanFragId ==
+                            (scanptr.p->scanNextFragId - 1)));
 
-  if(ERROR_INSERTED(8035))
-    globalTransporterRegistry.performSend();
-   
-  ndbrequire(sendAttrInfoTrain(signal,
-                               ref,
-                               scanFragptr.i,
-                               0, // Offset 0
-                               cachePtr.p->attrInfoSectionI));
-
-  // TODO : Consider determining whether KEYINFO and ATTRINFO can be
-  //        freed here
-
-  if(ERROR_INSERTED(8035))
-    globalTransporterRegistry.performSend();
+  sendScanFragReq(signal, scanptr.p, scanFragptr.p, isLastScanFragReq);
 
   scanFragptr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
   scanFragptr.p->startFragTimer(ctcTimer);
@@ -10844,20 +10844,32 @@ Dbtc::seizeScanrec(Signal* signal) {
 
 void Dbtc::sendScanFragReq(Signal* signal, 
 			   ScanRecord* scanP, 
-			   ScanFragRec* scanFragP)
+			   ScanFragRec* scanFragP,
+                           bool isLastReq)
 {
+  Uint32 version= getNodeInfo(refToNode(scanFragP->lqhBlockref)).m_version;
+  bool longFragReq= ((version >= NDBD_LONG_SCANFRAGREQ) &&
+                     (! ERROR_INSERTED(8070)));
+  Uint32 reqKeyLen= 0;
+  Uint32 reqAttrLen= 0;
+  if (unlikely(! longFragReq))
+  {
+    reqKeyLen= scanP->scanKeyLen;
+    reqAttrLen= scanP->scanAiLength;
+  }
   cachePtr.i = apiConnectptr.p->cachePtr;
   ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
   ScanFragReq * const req = (ScanFragReq *)&signal->theData[0];
   Uint32 requestInfo = scanP->scanRequestInfo;
   ScanFragReq::setScanPrio(requestInfo, 1);
+  ScanFragReq::setAttrLen(requestInfo, reqAttrLen);
   apiConnectptr.i = scanP->scanApiRec;
   req->tableId = scanP->scanTableref;
   req->schemaVersion = scanP->scanSchemaVersion;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   req->senderData = scanFragptr.i;
   req->requestInfo = requestInfo;
-  req->fragmentNoKeyLen = scanFragP->scanFragId | (scanP->scanKeyLen << 16);
+  req->fragmentNoKeyLen = scanFragP->scanFragId | reqKeyLen;
   req->resultRef = apiConnectptr.p->ndbapiBlockref;
   req->savePointId = apiConnectptr.p->currSavePointId;
   req->transId1 = apiConnectptr.p->transid[0];
@@ -10865,20 +10877,116 @@ void Dbtc::sendScanFragReq(Signal* signal,
   req->clientOpPtr = scanFragP->m_apiPtr;
   req->batch_size_rows= scanP->batch_size_rows;
   req->batch_size_bytes= scanP->batch_byte_size;
-  sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
-             ScanFragReq::SignalLength, JBB);
-  if(scanP->scanKeyLen > 0)
+
+  if (likely(longFragReq))
   {
-    tcConnectptr.i = scanFragptr.i;
-    /* Build KeyInfo train from KeyInfo long signal section */
-    sendKeyInfoTrain(signal,
-                     scanFragP->lqhBlockref,
-                     scanFragptr.i,
-                     0, // Offset 0
-                     cachePtr.p->keyInfoSectionI);
+    jam();
+    /* Send long, possibly fragmented SCAN_FRAGREQ */
+    /* Create SectionHandle */
+    SectionHandle sections(this);
+    sections.m_ptr[0].i= cachePtr.p->attrInfoSectionI;
+    sections.m_cnt= 1;
+    
+    if (scanP->scanKeyLen > 0)
+    {
+      jam();
+      ndbassert(cachePtr.p->keyInfoSectionI != RNIL);
+      sections.m_ptr[1].i= cachePtr.p->keyInfoSectionI;
+      sections.m_cnt= 2;
+    }
+
+    if (isLastReq)
+    {
+      /* This send will release these sections, remove our
+       * references to them
+       */
+      cachePtr.p->attrInfoSectionI= RNIL;
+      cachePtr.p->keyInfoSectionI= RNIL;
+    }
+    
+    getSections(sections.m_cnt, sections.m_ptr);
+
+    // TODO : 
+    //   1) Consider whether to adjust fragmentation threshold
+    //      a) When to fragment signal vs fragment size
+    //      b) Fragment size
+    /* To reduce the copy burden we want to keep hold of the
+     * AttrInfo and KeyInfo sections after sending them to 
+     * LQH.  To do this we perform the fragmented send inline, 
+     * so that all fragments are sent *now*.  This avoids any 
+     * problems with the fragmented send CONTINUE 'thread' using 
+     * the section while we hold or even release it.  The
+     * signal receiver can still take realtime breaks when 
+     * receiving.
+     * 
+     * Indicate to sendFirstFragment that we want to keep the
+     * fragments, so it must not free them, unless this is the
+     * last request in which case they can be freed.  If the
+     * last request is a local send then a copy is avoided.
+     */
+    FragmentSendInfo fragSendInfo;
+
+    sendFirstFragment(fragSendInfo,
+                      NodeReceiverGroup(scanFragP->lqhBlockref),
+                      GSN_SCAN_FRAGREQ,
+                      signal,
+                      ScanFragReq::SignalLength,
+                      JBB,
+                      &sections,
+                      !isLastReq); // Keep sent sections unless
+                                   // last send
+
+    while (fragSendInfo.m_status != FragmentSendInfo::SendComplete)
+    {
+      jam();
+      /* Send remaining fragments */
+      sendNextSegmentedFragment(signal, fragSendInfo);
+    }
+
+    /* Clear handle, section deallocation handled elsewhere. */
+    sections.clear();
   }
-  updateBuddyTimer(apiConnectptr);
-  scanFragP->startFragTimer(ctcTimer);
+  else
+  {
+    jam();
+    /* Short SCANFRAGREQ with separate KeyInfo and AttrInfo trains 
+     * Sent to older NDBD nodes during upgrade
+     */
+    sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
+               ScanFragReq::SignalLength, JBB);
+    if(scanP->scanKeyLen > 0)
+    {
+      jam();
+      tcConnectptr.i = scanFragptr.i;
+      /* Build KeyInfo train from KeyInfo long signal section */
+      sendKeyInfoTrain(signal,
+                       scanFragP->lqhBlockref,
+                       scanFragptr.i,
+                       0, // Offset 0
+                       cachePtr.p->keyInfoSectionI);
+    }
+    
+    if(ERROR_INSERTED(8035))
+      globalTransporterRegistry.performSend();
+    
+    ndbrequire(sendAttrInfoTrain(signal,
+                                 scanFragP->lqhBlockref,
+                                 scanFragptr.i,
+                                 0, // Offset 0
+                                 cachePtr.p->attrInfoSectionI));
+
+    if(ERROR_INSERTED(8035))
+      globalTransporterRegistry.performSend();
+
+    if (isLastReq)
+    {
+      /* Free the sections here */
+      releaseSection(cachePtr.p->attrInfoSectionI);
+      releaseSection(cachePtr.p->keyInfoSectionI);
+      cachePtr.p->attrInfoSectionI= RNIL;
+      cachePtr.p->keyInfoSectionI= RNIL;
+    }
+  }
 }//Dbtc::sendScanFragReq()
 
 

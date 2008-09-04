@@ -37,7 +37,6 @@
 
 void Dbtup::initData() 
 {
-  cnoOfAttrbufrec = ZNO_OF_ATTRBUFREC;
   cnoOfFragrec = MAX_FRAG_PER_NODE;
   cnoOfFragoprec = MAX_FRAG_PER_NODE;
   cnoOfAlterTabOps = MAX_FRAG_PER_NODE;
@@ -46,7 +45,7 @@ void Dbtup::initData()
 
   // Records with constant sizes
   init_list_sizes();
-  cpackedListIndex = 0;  
+  cpackedListIndex = 0;
 }//Dbtup::initData()
 
 Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
@@ -66,7 +65,6 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtup::execDUMP_STATE_ORD);
   addRecSignal(GSN_SEND_PACKED, &Dbtup::execSEND_PACKED, true);
-  addRecSignal(GSN_ATTRINFO, &Dbtup::execATTRINFO);
   addRecSignal(GSN_STTOR, &Dbtup::execSTTOR);
   addRecSignal(GSN_MEMCHECKREQ, &Dbtup::execMEMCHECKREQ);
   addRecSignal(GSN_TUPKEYREQ, &Dbtup::execTUPKEYREQ);
@@ -109,7 +107,6 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
 
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbtup::execDROP_FRAG_REQ);
 
-  attrbufrec = 0;
   fragoperrec = 0;
   fragrecord = 0;
   alterTabOperRec = 0;
@@ -130,11 +127,11 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
 
 Dbtup::~Dbtup() 
 {
+  /* Free Fragment Copy Procedure info */
+  freeCopyProcedure();
+
   // Records with dynamic sizes
   c_page_pool.clear();
-  deallocRecord((void **)&attrbufrec,"Attrbufrec", 
-		sizeof(Attrbufrec), 
-		cnoOfAttrbufrec);
   
   deallocRecord((void **)&fragoperrec,"Fragoperrec",
 		sizeof(Fragoperrec),
@@ -344,6 +341,10 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   initRecords();
 
   c_storedProcPool.setSize(noOfStoredProc);
+
+  // Allocate fragment copy procedure
+  allocCopyProcedure();
+
   c_buildIndexPool.setSize(c_noOfBuildIndexRec);
   c_triggerPool.setSize(noOfTriggers, false, true, true, CFG_DB_NO_TRIGGERS);
 
@@ -406,10 +407,6 @@ void Dbtup::initRecords()
   void* ptr = m_ctx.m_mm.get_memroot();
   c_page_pool.set((Page*)ptr, (Uint32)~0);
   c_no_of_pages = tmp;
-
-  attrbufrec = (Attrbufrec*)allocRecord("Attrbufrec", 
-					sizeof(Attrbufrec), 
-					cnoOfAttrbufrec);
 
   fragoperrec = (Fragoperrec*)allocRecord("Fragoperrec",
 					  sizeof(Fragoperrec),
@@ -496,7 +493,6 @@ void Dbtup::initialiseRecordsLab(Signal* signal, Uint32 switchData,
     break;
   case 12:
     jam();
-    initializeAttrbufrec();
     break;
   case 13:
     jam();
@@ -569,22 +565,6 @@ void Dbtup::execNDB_STTOR(Signal* signal)
 void Dbtup::startphase3Lab(Signal* signal, Uint32 config1, Uint32 config2) 
 {
 }//Dbtup::startphase3Lab()
-
-void Dbtup::initializeAttrbufrec() 
-{
-  AttrbufrecPtr attrBufPtr;
-  for (attrBufPtr.i = 0;
-       attrBufPtr.i < cnoOfAttrbufrec; attrBufPtr.i++) {
-    refresh_watch_dog();
-    ptrAss(attrBufPtr, attrbufrec);
-    attrBufPtr.p->attrbuf[ZBUF_NEXT] = attrBufPtr.i + 1;
-  }//for
-  attrBufPtr.i = cnoOfAttrbufrec - 1;
-  ptrAss(attrBufPtr, attrbufrec);
-  attrBufPtr.p->attrbuf[ZBUF_NEXT] = RNIL;
-  cfirstfreeAttrbufrec = 0;
-  cnoFreeAttrbufrec = cnoOfAttrbufrec;
-}//Dbtup::initializeAttrbufrec()
 
 void Dbtup::initializeFragoperrec() 
 {
@@ -738,13 +718,10 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
   }//if
 
   new (regOperPtr.p) Operationrec();
-  regOperPtr.p->firstAttrinbufrec = RNIL;
-  regOperPtr.p->lastAttrinbufrec = RNIL;
   regOperPtr.p->m_any_value = 0;
   regOperPtr.p->op_struct.op_type = ZREAD;
   regOperPtr.p->op_struct.in_active_list = false;
   set_trans_state(regOperPtr.p, TRANS_DISCONNECTED);
-  regOperPtr.p->storedProcedureId = ZNIL;
   regOperPtr.p->prevActiveOp = RNIL;
   regOperPtr.p->nextActiveOp = RNIL;
   regOperPtr.p->tupVersion = ZNIL;

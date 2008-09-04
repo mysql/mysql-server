@@ -53,12 +53,30 @@ public:
                    const Uint32*& readPtr,
                    Uint32& actualLen);
 
+  /* PosInfo
+   * Structure for efficiently saving/restoring a SectionReader
+   * to a position
+   * Must be treated as opaque and never 'mippled' with!
+   */
+  struct PosInfo
+  {
+    Uint32 currPos;
+    Uint32 currIVal;
+  };
+
+  PosInfo getPos();
+  bool setPos(PosInfo posinfo);
+
 private:
   Uint32 m_pos;
   Uint32 m_len;
   class SectionSegmentPool & m_pool;
+  Uint32 m_headI;
   class SectionSegment * m_head;
+  Uint32 m_currI;
   class SectionSegment * m_currentSegment;
+
+  bool segmentContainsPos(PosInfo posInfo);
 };
 
 inline

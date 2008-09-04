@@ -31,12 +31,16 @@ SectionReader::SectionReader
   if(ptr.p == 0){
     m_pos = 0;
     m_len = 0;
+    m_headI= RNIL;
     m_head = 0;
+    m_currI= RNIL;
     m_currentSegment = 0;
   } else {
     m_pos = 0;
     m_len = ptr.p->m_sz;
+    m_headI= ptr.i;
     m_head = ptr.p;
+    m_currI= ptr.i;
     m_currentSegment = ptr.p;
   }
 }
@@ -49,12 +53,14 @@ SectionReader::SectionReader
   
   m_pos = 0;
   m_len = firstSeg->m_sz;
+  m_headI= m_currI= firstSectionIVal;
   m_head = m_currentSegment = firstSeg;
 }
 
 void
 SectionReader::reset(){
   m_pos = 0;
+  m_currI= m_headI;
   m_currentSegment = m_head;
 }
 
@@ -65,7 +71,8 @@ SectionReader::step(Uint32 len){
     return false;
   }
   while(len > SectionSegment::DataLength){
-    m_currentSegment = m_pool.getPtr(m_currentSegment->m_nextSegment);
+    m_currI= m_currentSegment->m_nextSegment;
+    m_currentSegment = m_pool.getPtr(m_currI);
 
     len -= SectionSegment::DataLength;
     m_pos += SectionSegment::DataLength;
@@ -79,7 +86,8 @@ SectionReader::step(Uint32 len){
     ind++;
     if(ind == SectionSegment::DataLength){
       ind = 0;
-      m_currentSegment = m_pool.getPtr(m_currentSegment->m_nextSegment);
+      m_currI= m_currentSegment->m_nextSegment;
+      m_currentSegment = m_pool.getPtr(m_currI);
     }
   }
   return true;
@@ -180,7 +188,10 @@ SectionReader::getWordsPtr(Uint32 maxLen,
    */
   if (((startInd + actualLen) == SectionSegment::DataLength) &&
       (p->m_nextSegment != RNIL))
-    m_currentSegment= m_pool.getPtr(p->m_nextSegment);
+  {
+    m_currI= p->m_nextSegment;
+    m_currentSegment= m_pool.getPtr(m_currI);
+  }
 
   m_pos += actualLen;
   return true;
@@ -196,4 +207,63 @@ SectionReader::getWordsPtr(const Uint32*& readPtr,
   return getWordsPtr(SectionSegment::DataLength,
                      readPtr,
                      actualLen);
+}
+
+
+SectionReader::PosInfo
+SectionReader::getPos()
+{
+  PosInfo pi;
+  pi.currPos= m_pos;
+  pi.currIVal= m_currI;
+  
+  return pi;
+}
+
+bool
+SectionReader::setPos(PosInfo posInfo)
+{
+  if (posInfo.currPos > m_len)
+    return false;
+  
+  if (posInfo.currIVal == RNIL)
+  {
+    if (posInfo.currPos > 0)
+      return false;
+    m_currentSegment= 0;
+  }
+  else
+  {
+    assert(segmentContainsPos(posInfo));
+    
+    m_currentSegment= m_pool.getPtr(posInfo.currIVal);
+  }
+
+  m_pos= posInfo.currPos;
+  m_currI= posInfo.currIVal;
+
+  return true;
+}
+
+bool
+SectionReader::segmentContainsPos(PosInfo posInfo)
+{
+  /* This is a check that the section referenced 
+   * by this SectionReader contains the position 
+   * given at the section given.
+   * It should not be run in-production
+   */
+  Uint32 IVal= m_headI;
+  Uint32 pos= posInfo.currPos;
+
+  while (pos >= SectionSegment::DataLength)
+  {
+    /* Get next segment */
+    SectionSegment* seg= m_pool.getPtr(IVal);
+
+    IVal= seg->m_nextSegment;
+    pos-= SectionSegment::DataLength;
+  }
+
+  return (IVal == posInfo.currIVal);
 }

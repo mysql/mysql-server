@@ -213,6 +213,45 @@ copy(Uint32* dst, Uint32 srcFirstIVal)
   copy(dst, p);
 } 
 
+bool
+dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal)
+{
+  assert(verifySection(srcFirstIVal));
+
+  SectionSegment* p= g_sectionSegmentPool.getPtr(srcFirstIVal);
+  Uint32 sz= p->m_sz;
+  copyFirstIVal= RNIL;
+  bool ok= true;
+  
+  /* Duplicate bulk of section */
+  while (sz > SectionSegment::DataLength)
+  {
+    ok= appendToSection(copyFirstIVal, &p->theData[0], 
+                        SectionSegment::DataLength);
+    if (!ok)
+      break;
+
+    sz-= SectionSegment::DataLength;
+    srcFirstIVal= p->m_nextSegment;
+    p= g_sectionSegmentPool.getPtr(srcFirstIVal);
+  }
+  
+  /* Duplicate last segment */
+  if (ok && (sz > 0))
+    ok= appendToSection(copyFirstIVal, &p->theData[0], sz);
+
+  if (unlikely(!ok))
+  {
+    releaseSection(copyFirstIVal);
+    copyFirstIVal= RNIL;
+    return false;
+  }
+  
+  assert(verifySection(copyFirstIVal));
+  return true;
+}
+
+
 /* Calculate number of segments to release based on section size
  * Always release one segment, even if size is zero
  */
