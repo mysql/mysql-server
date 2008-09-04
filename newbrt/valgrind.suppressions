@@ -6,3 +6,12 @@
    fun:deflate
    fun:compress2
 }
+
+{
+   compress_is_not_valgrind_clean2
+   Memcheck:Cond
+   obj:/usr/lib64/libz.so.1.2.3
+   obj:/usr/lib64/libz.so.1.2.3
+   fun:deflate
+   fun:compress2
+}
