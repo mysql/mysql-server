@@ -508,6 +508,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
   CreateFilegroupImplReq rep;
+  bzero(&rep,sizeof(rep));
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
     Tablespace_client tsman(0, c_tsman, 0, 0,
