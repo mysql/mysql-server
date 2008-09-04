@@ -279,6 +279,11 @@ static int malloc_diskblock_header_is_in_memory (DISKOFF *res, BRT brt, int size
     brt->h->dirty = 1;
     int r = toku_log_changeunusedmemory(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), result, brt->h->unused_memory);
     *res = result;
+    char *MALLOC_N(size, buf);
+    memset(buf, 0, size);
+    int r2 = pwrite(toku_cachefile_fd(brt->cf), buf, size, *res);
+    assert(r2==size);
+    toku_free(buf);
     return r;
 }
 

@@ -46,7 +46,7 @@ int do_transactions = 0;
 int n_insertions_since_txn_began=0;
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 u_int32_t put_flags = DB_YESOVERWRITE;
-
+int compressibility = -1; // -1 means make it very compressible.  1 means use random bits everywhere.  2 means half the bits are random.
 
 static void do_prelock(DB* db, DB_TXN* txn) {
     if (prelock) {
@@ -124,7 +124,11 @@ void setup (void) {
     if (r!=0) fprintf(stderr, "errno=%d, %s\n", errno, strerror(errno));
     assert(r == 0);
     if (do_transactions && !singlex) {
-	r=tid->commit(tid, 0);    assert(r==0);
+	if (singlex) do_prelock(db, tid);
+        else {
+            r=tid->commit(tid, 0);
+            assert(r==0);
+        }
     }
 
 }
@@ -142,9 +146,9 @@ void shutdown (void) {
     assert(r == 0);
 }
 
-void long_long_to_array (unsigned char *a, unsigned long long l) {
+void long_long_to_array (unsigned char *a, int array_size, unsigned long long l) {
     int i;
-    for (i=0; i<8; i++)
+    for (i=0; i<8 && i<array_size; i++)
 	a[i] = (l>>(56-8*i))&0xff;
 }
 
@@ -155,13 +159,24 @@ DBT *fill_dbt(DBT *dbt, const void *data, int size) {
     return dbt;
 }
 
+// Fill array with 0's if compressibilty==-1, otherwise fill array with data that is likely to compress by a factor of compressibility.
+void fill_array (unsigned char *data, int size) {
+    memset(data, 0, size);
+    if (compressibility>0) {
+	int i;
+	for (i=0; i<size/compressibility; i++) {
+	    data[i] = random();
+	}
+    }
+}
+
 void insert (long long v) {
     unsigned char kc[keysize], vc[valsize];
     DBT  kt, vt;
-    memset(kc, 0, sizeof kc);
-    long_long_to_array(kc, v);
-    memset(vc, 0, sizeof vc);
-    long_long_to_array(vc, v);
+    fill_array(kc, sizeof kc);
+    long_long_to_array(kc, keysize, v); // Fill in the array first, then write the long long in.
+    fill_array(vc, sizeof vc);
+    long_long_to_array(vc, valsize, v);
     int r = db->put(db, tid, fill_dbt(&kt, kc, keysize), fill_dbt(&vt, vc, valsize), put_flags);
     CKERR(r);
     if (do_transactions) {
@@ -257,12 +272,13 @@ int print_usage (const char *argv0) {
     fprintf(stderr, "    --pagesize PAGESIZE sets the database page size\n");
     fprintf(stderr, "    --noserial         causes the serial insertions to be skipped\n");
     fprintf(stderr, "    --norandom         causes the random insertions to be skipped\n");
-    fprintf(stderr, "    --xcount N         how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
-    fprintf(stderr, "    --singlex          Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
-    fprintf(stderr, "    --periter N      how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
-    fprintf(stderr, "    --DB_INIT_TXN (1|0) turn on or turn off the DB_INIT_TXN env_open_flag\n");
-    fprintf(stderr, "    --DB_INIT_LOG (1|0) turn on or turn off the DB_INIT_LOG env_open_flag\n");
-    fprintf(stderr, "    --DB_INIT_LOCK (1|0) turn on or turn off the DB_INIT_LOCK env_open_flag\n");
+    fprintf(stderr, "    --compressibility C   creates data that should compress by about a factor C.   Default C is large.   C is an integer.\n");
+    fprintf(stderr, "    --xcount N            how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
+    fprintf(stderr, "    --singlex             Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
+    fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
+    fprintf(stderr, "    --DB_INIT_TXN (1|0)   turn on or off the DB_INIT_TXN env_open_flag\n");
+    fprintf(stderr, "    --DB_INIT_LOG (1|0)   turn on or off the DB_INIT_LOG env_open_flag\n");
+    fprintf(stderr, "    --DB_INIT_LOCK (1|0)  turn on or off the DB_INIT_LOCK env_open_flag\n");
     fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
@@ -301,6 +317,8 @@ int main (int argc, const char *argv[]) {
 	    noserial=1;
 	} else if (strcmp(arg, "--norandom") == 0) {
 	    norandom=1;
+	} else if (strcmp(arg, "--compressibility") == 0) {
+	    compressibility = atoi(argv[++i]);
 	} else if (strcmp(arg, "--singlex") == 0) {
 	    do_transactions = 1;
 	    singlex = 1;
@@ -383,4 +401,3 @@ int main (int argc, const char *argv[]) {
 #endif
     return 0;
 }
-
