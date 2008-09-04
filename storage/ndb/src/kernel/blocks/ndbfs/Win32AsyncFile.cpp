@@ -47,7 +47,15 @@ void Win32AsyncFile::openReq(Request* request)
   DWORD dwCreationDisposition;
   DWORD dwDesiredAccess = 0;
   DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE;
-  DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS | FILE_FLAG_NO_BUFFERING;
+  /**
+   * FIXME:
+   * Previously we had FILE_FLAG_NO_BUFFERING also set here.
+   * This has similar alignment rules to O_DIRECT on 2.4 kernels.
+   * which means we should obey the directio req as we can't do it
+   * everywhere (this seemingly "worked" in 5.0 though), e.g. by default
+   * LCP isn't aligned IO.
+   */
+  DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
   Uint32 flags = request->par.open.flags;
 
     // Convert file open flags from Solaris to Windows
