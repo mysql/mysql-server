@@ -1,17 +1,19 @@
 /* Scan the bench.tokudb/bench.db over and over. */
 
-#include <db.h>
 #include <assert.h>
-#include <string.h>
-#include <sys/time.h>
-#include <sys/resource.h>
+#include <db.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 const char *pname;
 enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY } run_mode = RUN_HWC;
 int do_txns=1, prelock=0, prelockflag=0;
 u_int32_t lock_flag = 0;
+long limitcount=-1;
 
 void parse_args (int argc, const char *argv[]) {
     pname=argv[0];
@@ -32,7 +34,12 @@ void parse_args (int argc, const char *argv[]) {
         else if (strcmp(*argv, "--prelockflag")==0)      { prelockflag=1; lock_flag = DB_PRELOCKED; }
         else if (strcmp(*argv, "--prelockwriteflag")==0) { prelockflag=1; lock_flag = DB_PRELOCKED_WRITE; }
 	else if (strcmp(*argv, "--nox")==0)              { do_txns=0; }
-	else {
+	else if (strcmp(*argv, "--count")==0)            {
+	    char *end;
+	    argv++; argc--;
+	    errno=0; limitcount=strtol(*argv, &end, 10); assert(errno==0);
+	    printf("Limiting count to %ld\n", limitcount);
+	} else {
 	    fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag]\n", pname);
 	    fprintf(stderr, "  --hwc               run heavy weight cursors (this is the default)\n");
 	    fprintf(stderr, "  --verify-lwc        means to run the light weight cursor and the heavyweight cursor to verify that they get the same answer.\n");
@@ -41,6 +48,7 @@ void parse_args (int argc, const char *argv[]) {
 	    fprintf(stderr, "  --prelockflag       pass DB_PRELOCKED to the the cursor get operation whenever the locks have been acquired\n");
 	    fprintf(stderr, "  --prelockwriteflag  pass DB_PRELOCKED_WRITE to the cursor get operation\n");
 	    fprintf(stderr, "  --nox               no transactions\n");
+	    fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
 	    exit(1);
 	}
 	argc--;
@@ -118,6 +126,7 @@ void scanscan_hwc (void) {
 	while (0 == (r = dbc->c_get(dbc, &k, &v, c_get_flags))) {
 	    totalbytes += k.size + v.size;
 	    rowcounter++;
+	    if (limitcount>0 && rowcounter>=limitcount) break;
 	}
 	r = dbc->c_close(dbc);                                      assert(r==0);
 	double thistime = gettime();
@@ -148,7 +157,11 @@ void scanscan_lwc (void) {
         if (prelockflag && (counter || prelock)) {
             f_flags |= lock_flag;
         }
-	while (0 == (r = dbc->c_getf_next(dbc, f_flags, counttotalbytes, &e)));
+	long rowcounter=0;
+	while (0 == (r = dbc->c_getf_next(dbc, f_flags, counttotalbytes, &e))) {
+	    rowcounter++;
+	    if (limitcount>0 && rowcounter>=limitcount) break;
+	}
 	r = dbc->c_close(dbc);                                      assert(r==0);
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
