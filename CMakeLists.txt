@@ -90,6 +90,9 @@ IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
                ha_ndbcluster.cc ha_ndbcluster_cond.cc
                ha_ndbcluster_connection.cc ha_ndbcluster_binlog.cc
   )
+  IF(WITH_NDB_BINLOG)
+    ADD_DEFINITIONS(-DWITH_NDB_BINLOG)
+  ENDIF(WITH_NDB_BINLOG)
 ELSE(WITH_NDBCLUSTER_STORAGE_ENGINE)
   SET (NDB_CLIENT_INCLUDES "")
   SET (NDB_HANDLER_SRC "")
