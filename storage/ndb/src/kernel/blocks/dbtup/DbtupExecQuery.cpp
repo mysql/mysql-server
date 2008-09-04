@@ -55,23 +55,31 @@ dump_hex(const Uint32 *p, Uint32 len)
   }
 }
 
-/* ----------------------------------------------------------------- */
-/* -----------       INIT_STORED_OPERATIONREC         -------------- */
-/* ----------------------------------------------------------------- */
-int Dbtup::initStoredOperationrec(Operationrec* regOperPtr,
-                                  KeyReqStruct* req_struct,
-                                  Uint32 storedId) 
+/**
+ * getStoredProcAttrInfo
+ *
+ * Get the I-Val of the supplied stored procedure's 
+ * AttrInfo section
+ * Initialise the AttrInfo length in the request
+ */
+int Dbtup::getStoredProcAttrInfo(Uint32 storedId,
+                                 KeyReqStruct* req_struct,
+                                 Uint32& attrInfoIVal) 
 {
   jam();
   StoredProcPtr storedPtr;
   c_storedProcPool.getPtr(storedPtr, storedId);
   if (storedPtr.i != RNIL) {
-    if (storedPtr.p->storedCode == ZSCAN_PROCEDURE) {
-      storedPtr.p->storedCounter++;
-      regOperPtr->firstAttrinbufrec= storedPtr.p->storedLinkFirst;
-      regOperPtr->lastAttrinbufrec= storedPtr.p->storedLinkLast;
-      regOperPtr->currentAttrinbufLen= storedPtr.p->storedProcLength;
-      req_struct->attrinfo_len= storedPtr.p->storedProcLength;
+    if ((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
+        (storedPtr.p->storedCode == ZCOPY_PROCEDURE)) {
+      /* Setup OperationRec with stored procedure AttrInfo section */
+      SegmentedSectionPtr sectionPtr;
+      getSection(sectionPtr, storedPtr.p->storedProcIVal);
+      Uint32 storedProcLen= sectionPtr.sz;
+
+      ndbassert( attrInfoIVal == RNIL );
+      attrInfoIVal= storedPtr.p->storedProcIVal;
+      req_struct->attrinfo_len= storedProcLen;
       return ZOK;
     }
   }
@@ -84,185 +92,28 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
                          Uint32 expectedLen,
                          Uint32 attrInfoIVal)
 {
-  if (attrInfoIVal != RNIL)
+  ndbassert( expectedLen > 0 || attrInfoIVal == RNIL );
+
+  if (expectedLen > 0)
   {
-    /* AttrInfo is in segmented section */
-    ndbassert(regOperPtr->firstAttrinbufrec == RNIL);
-    ndbassert(regOperPtr->lastAttrinbufrec == RNIL);
-
-    // TODO : Add support for Stored procedure attrinfo
-
-    /* Check length */
+    ndbassert( attrInfoIVal != RNIL );
+    
+    /* Check length in section is as we expect */
     SegmentedSectionPtr sectionPtr;
     getSection(sectionPtr, attrInfoIVal);
-
+    
     ndbrequire(sectionPtr.sz == expectedLen);
     ndbrequire(sectionPtr.sz < ZATTR_BUFFER_SIZE);
-
+    
     /* Copy attrInfo data into linear buffer */
+    // TODO : Consider operating TUP out of first segment where
+    // appropriate
     copy(inBuffer, attrInfoIVal);
-    
-    regOperPtr->storedProcedureId= RNIL;
-    regOperPtr->m_any_value= 0;
-    
-    return;
   }
 
-  /* Todo : Unify with code above when scan processing
-   * goes long
-   */
-  AttrbufrecPtr copyAttrBufPtr;
-  Uint32 RnoOfAttrBufrec= cnoOfAttrbufrec;
-  int RbufLen;
-  Uint32 RinBufIndex= 0;
-  Uint32 Rnext;
-  Uint32 Rfirst;
-  Uint32 TstoredProcedure= (regOperPtr->storedProcedureId != ZNIL);
-  Uint32 RnoFree= cnoFreeAttrbufrec;
-
-//-------------------------------------------------------------------------
-// As a prelude to the execution of the TUPKEYREQ we will copy the program
-// into the inBuffer to enable easy execution without any complex jumping
-// between the buffers. In particular this will make the interpreter less
-// complex. Hopefully it does also improve performance.
-//-------------------------------------------------------------------------
-  copyAttrBufPtr.i= regOperPtr->firstAttrinbufrec;
-  while (copyAttrBufPtr.i != RNIL) {
-    jam();
-    ndbrequire(copyAttrBufPtr.i < RnoOfAttrBufrec);
-    ptrAss(copyAttrBufPtr, attrbufrec);
-    RbufLen = copyAttrBufPtr.p->attrbuf[ZBUF_DATA_LEN];
-    Rnext = copyAttrBufPtr.p->attrbuf[ZBUF_NEXT];
-    Rfirst = cfirstfreeAttrbufrec;
-    /*
-     * ATTRINFO comes from 2 mutually exclusive places:
-     * 1) TUPKEYREQ (also interpreted part)
-     * 2) STORED_PROCREQ before scan start
-     * Assert here that both have a check for overflow.
-     * The "<" instead of "<=" is intentional.
-     */
-    ndbrequire(RinBufIndex + RbufLen < ZATTR_BUFFER_SIZE);
-    MEMCOPY_NO_WORDS(&inBuffer[RinBufIndex],
-                     &copyAttrBufPtr.p->attrbuf[0],
-                     RbufLen);
-    RinBufIndex += RbufLen;
-    if (!TstoredProcedure) {
-      copyAttrBufPtr.p->attrbuf[ZBUF_NEXT]= Rfirst;
-      cfirstfreeAttrbufrec= copyAttrBufPtr.i;
-      RnoFree++;
-    }
-    copyAttrBufPtr.i= Rnext;
-  }
-  cnoFreeAttrbufrec= RnoFree;
-  if (TstoredProcedure) {
-    jam();
-    StoredProcPtr storedPtr;
-    c_storedProcPool.getPtr(storedPtr, (Uint32)regOperPtr->storedProcedureId);
-    ndbrequire(storedPtr.p->storedCode == ZSCAN_PROCEDURE);
-    storedPtr.p->storedCounter--;
-  }
-  // Release the ATTRINFO buffers
-  regOperPtr->storedProcedureId= RNIL;
-  regOperPtr->firstAttrinbufrec= RNIL;
-  regOperPtr->lastAttrinbufrec= RNIL;
   regOperPtr->m_any_value= 0;
-}
-
-void Dbtup::handleATTRINFOforTUPKEYREQ(Signal* signal,
-                                       const Uint32 *data,
-				       Uint32 len,
-                                       Operationrec * regOperPtr) 
-{
-  while(len)
-  {
-    Uint32 length = len > AttrInfo::DataLength ? AttrInfo::DataLength : len;
-
-    AttrbufrecPtr TAttrinbufptr;
-    TAttrinbufptr.i= cfirstfreeAttrbufrec;
-    if ((cfirstfreeAttrbufrec < cnoOfAttrbufrec) &&
-	(cnoFreeAttrbufrec > MIN_ATTRBUF)) {
-      ptrAss(TAttrinbufptr, attrbufrec);
-      MEMCOPY_NO_WORDS(&TAttrinbufptr.p->attrbuf[0],
-		       data,
-		       length);
-      Uint32 RnoFree= cnoFreeAttrbufrec;
-      Uint32 Rnext= TAttrinbufptr.p->attrbuf[ZBUF_NEXT];
-      TAttrinbufptr.p->attrbuf[ZBUF_DATA_LEN]= length;
-      TAttrinbufptr.p->attrbuf[ZBUF_NEXT]= RNIL;
-      
-      AttrbufrecPtr locAttrinbufptr;
-      Uint32 RnewLen= regOperPtr->currentAttrinbufLen;
-      
-      locAttrinbufptr.i= regOperPtr->lastAttrinbufrec;
-      cfirstfreeAttrbufrec= Rnext;
-      cnoFreeAttrbufrec= RnoFree - 1;
-      RnewLen += length;
-      regOperPtr->lastAttrinbufrec= TAttrinbufptr.i;
-      regOperPtr->currentAttrinbufLen= RnewLen;
-      if (locAttrinbufptr.i == RNIL) {
-	regOperPtr->firstAttrinbufrec= TAttrinbufptr.i;
-      } else {
-	jam();
-	ptrCheckGuard(locAttrinbufptr, cnoOfAttrbufrec, attrbufrec);
-	locAttrinbufptr.p->attrbuf[ZBUF_NEXT]= TAttrinbufptr.i;
-      }
-      if (RnewLen < ZATTR_BUFFER_SIZE) {
-      } else {
-	jam();
-	set_trans_state(regOperPtr, TRANS_TOO_MUCH_AI);
-	return;
-      }
-    } else if (cnoFreeAttrbufrec <= MIN_ATTRBUF) {
-      jam();
-      set_trans_state(regOperPtr, TRANS_ERROR_WAIT_TUPKEYREQ);
-    } else {
-      ndbrequire(false);
-    }
-    
-    len -= length;
-    data += length;    
-  }
-}
-
-void Dbtup::execATTRINFO(Signal* signal) 
-{
-  Uint32 Rsig0= signal->theData[0];
-  Uint32 Rlen= signal->length();
-  jamEntry();
-
-  receive_attrinfo(signal, Rsig0, signal->theData+3, Rlen-3);
-}
- 
-void
-Dbtup::receive_attrinfo(Signal* signal, Uint32 op, 
-			const Uint32* data, Uint32 Rlen)
-{ 
-  OperationrecPtr regOpPtr;
-  regOpPtr.i= op;
-  c_operation_pool.getPtr(regOpPtr, op);
-  TransState trans_state= get_trans_state(regOpPtr.p);
-  if (trans_state == TRANS_IDLE) {
-    handleATTRINFOforTUPKEYREQ(signal, data, Rlen, regOpPtr.p);
-    return;
-  } else if (trans_state == TRANS_WAIT_STORED_PROCEDURE_ATTR_INFO) {
-    storedProcedureAttrInfo(signal, regOpPtr.p, data, Rlen, false);
-    return;
-  }
-  switch (trans_state) {
-  case TRANS_ERROR_WAIT_STORED_PROCREQ:
-    jam();
-  case TRANS_TOO_MUCH_AI:
-    jam();
-  case TRANS_ERROR_WAIT_TUPKEYREQ:
-    jam();
-    return;	/* IGNORE ATTRINFO IN THOSE STATES, WAITING FOR ABORT SIGNAL */
-  case TRANS_DISCONNECTED:
-    jam();
-  case TRANS_STARTED:
-    jam();
-  default:
-    ndbrequire(false);
-  }
+  
+  return;
 }
 
 void
@@ -681,7 +532,6 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0xf;
    regOperPtr->op_struct.delete_insert_flag = false;
    regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
-   regOperPtr->storedProcedureId= Rstoredid;
 
    regOperPtr->m_copy_tuple_location.setNull();
    regOperPtr->tupVersion= ZNIL;
@@ -734,17 +584,19 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
     */
    ndbassert( (attrInfoIVal == RNIL) ||  
               (tupKeyReq->attrBufLen > 0));
-   ndbassert( (attrInfoIVal == RNIL) || 
-              (regOperPtr->firstAttrinbufrec == RNIL ));
    
    Uint32 Roptype = regOperPtr->op_struct.op_type;
 
    if (Rstoredid != ZNIL) {
-     ndbrequire(initStoredOperationrec(regOperPtr,
-				       &req_struct,
-				       Rstoredid) == ZOK);
+     /* This is part of a scan, get attrInfoIVal for 
+      * given stored procedure
+      */
+     ndbrequire(getStoredProcAttrInfo(Rstoredid,
+                                      &req_struct,
+                                      attrInfoIVal) == ZOK);
    }
 
+   /* Copy AttrInfo from section into linear in-buffer */
    copyAttrinfo(regOperPtr, 
                 &cinBuffer[0], 
                 req_struct.attrinfo_len,
@@ -787,7 +639,6 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 	 // that they are waiting for the Commit or Abort decision.
 	 /* ---------------------------------------------------------------- */
 	 set_trans_state(regOperPtr, TRANS_IDLE);
-	 regOperPtr->currentAttrinbufLen= 0;
        }
        return;
      }

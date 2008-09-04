@@ -19,6 +19,7 @@
 #include <pc.hpp>
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
+#include <SectionReader.hpp>
 #include <SLList.hpp>
 #include <DLList.hpp>
 #include <DLFifoList.hpp>
@@ -447,36 +448,6 @@ public:
   };
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   
-  /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
-  /* $$$$$$$               ATTRIBUTE INFORMATION RECORD              $$$$$$$ */
-  /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
-  /**
-   *       Can contain one (1) attrinfo signal. 
-   *       One signal contains 24 attr. info words. 
-   *       But 32 elements are used to make plex happy.  
-   *       Some of the elements are used to the following things:
-   *       - Data length in this record is stored in the
-   *         element indexed by ZINBUF_DATA_LEN.  
-   *       - Next attrinbuf is pointed out by the element 
-   *         indexed by ZINBUF_NEXT.
-   */
-  struct Attrbuf {
-    UintR attrbuf[32];
-  }; // Size 128 bytes
-  typedef Ptr<Attrbuf> AttrbufPtr;
-
-  /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
-  /* $$$$$$$                         DATA BUFFER                     $$$$$$$ */
-  /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
-  /**
-   *       This buffer is used as a general data storage.                     
-   */
-  struct Databuf {
-    UintR data[4];
-    UintR nextDatabuf;
-  }; // size 20 bytes
-  typedef Ptr<Databuf> DatabufPtr;
-
   struct ScanRecord {
     ScanRecord() {}
     enum ScanState {
@@ -503,9 +474,21 @@ public:
       COPY = 2
     };
 
-    UintR scan_acc_op_ptr[32];
+    /* A single scan of each fragment can have MAX_PARALLEL_OP_PER_SCAN
+     * read operations in progress at one time
+     * We must store ACC ptrs for each read operation.  They are stored
+     * in SegmentedSections linked in the array below.
+     * The main oddity is that the first element of scan_acc_op_ptr is
+     * an ACC ptr, but all others are refs to SectionSegments containing
+     * ACC ptrs.
+     */
+    STATIC_CONST( MaxScanAccSegments= 
+                 (MAX_PARALLEL_OP_PER_SCAN + SectionSegment::DataLength - 1) /
+                 SectionSegment::DataLength) + 1;
+
+    UintR scan_acc_op_ptr[ MaxScanAccSegments ];
     Uint32 scan_acc_index;
-    Uint32 scan_acc_attr_recs;
+    Uint32 scan_acc_segments;
     UintR scanApiOpPtr;
     Local_key m_row_id;
     
@@ -1935,15 +1918,11 @@ public:
     UintR tcTimer;
     UintR currReclenAi;
     UintR currTupAiLen;
-    UintR firstAttrinbuf;  // TODO : Remove
-    UintR firstTupkeybuf;  // TODO : Remove
     UintR fragmentid;
     UintR fragmentptr;
     UintR gci_hi;
     UintR gci_lo;
     UintR hashValue;
-    UintR lastTupkeybuf;   // TODO : Remove
-    UintR lastAttrinbuf;   // TODO : Remove
     /**
      * Each operation (TcConnectrec) can be stored in max one out of many 
      * lists.
@@ -2010,7 +1989,6 @@ public:
     Uint8 operation;
     Uint8 m_reorg;
     Uint8 reclenAiLqhkey;
-    Uint8 m_offset_current_keybuf;
     Uint8 replicaType;
     Uint8 seqNoReplica;
     Uint8 tcNodeFailrec;
@@ -2018,10 +1996,13 @@ public:
     Uint8 m_use_rowid;
     Uint8 m_dealloc;
     enum op_flags {
-      OP_ISLONGREQ         = 0x1,
-      OP_SAVEATTRINFO      = 0x2};
+      OP_ISLONGREQ              = 0x1,
+      OP_SAVEATTRINFO           = 0x2,
+      OP_SCANKEYINFOPOSSAVED    = 0x4
+    };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
+    SectionReader::PosInfo scanKeyInfoPos;
     Local_key m_row_id;
 
     struct {
@@ -2233,7 +2214,8 @@ private:
   void sendAttrinfoSignal(Signal* signal);
   void sendLqhAttrinfoSignal(Signal* signal);
   void sendKeyinfoAcc(Signal* signal, Uint32 pos);
-  Uint32 initScanrec(const class ScanFragReq *);
+  Uint32 initScanrec(const class ScanFragReq *,
+                     Uint32 aiLen);
   void initScanTc(const class ScanFragReq *,
                   Uint32 transid1,
                   Uint32 transid2,
@@ -2301,8 +2283,6 @@ private:
   void getFirstInLogQueue(Signal* signal);
   bool getFragmentrec(Signal* signal, Uint32 fragId);
   void initialiseAddfragrec(Signal* signal);
-  void initialiseAttrbuf(Signal* signal);
-  void initialiseDatabuf(Signal* signal);
   void initialiseFragrec(Signal* signal);
   void initialiseGcprec(Signal* signal);
   void initialiseLcpRec(Signal* signal);
@@ -2359,18 +2339,14 @@ private:
   void removeLogTcrec(Signal* signal);
   void removePageRef(Signal* signal);
   Uint32 returnExecLog(Signal* signal);
-  int saveTupattrbuf(Signal* signal, Uint32* dataPtr, Uint32 length);
   int saveAttrInfoInSection(const Uint32* dataPtr, Uint32 len);
   void seizeAddfragrec(Signal* signal);
-  void seizeAttrinbuf(Signal* signal);
-  Uint32 seize_attrinbuf();
-  Uint32 release_attrinbuf(Uint32);
-  Uint32 copy_bounds(Uint32 * dst, TcConnectionrec*);
+  Uint32 seizeSegment();
+  Uint32 copyNextRange(Uint32 * dst, TcConnectionrec*);
 
   void seizeFragmentrec(Signal* signal);
   void seizePageRef(Signal* signal);
   void seizeTcrec();
-  void seizeTupkeybuf(Signal* signal);
   void sendAborted(Signal* signal);
   void sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus);
   void sendTupkey(Signal* signal);
@@ -2554,6 +2530,11 @@ private:
   // Initialisation
   void initData();
   void initRecords();
+protected:
+  virtual bool getParam(const char* name, Uint32* count);
+  
+private:
+  
 
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, Ptr<TcConnectionrec>);
@@ -2663,21 +2644,6 @@ private:
   UintR cfirstfreeAddfragrec;
   UintR caddfragrecFileSize;
   Uint32 c_active_add_frag_ptr_i;
-
-#define ZATTRINBUF_FILE_SIZE 12288  // 1.5 MByte
-#define ZINBUF_DATA_LEN 24            /* POSITION OF 'DATA LENGHT'-VARIABLE. */
-#define ZINBUF_NEXT 25                /* POSITION OF 'NEXT'-VARIABLE.        */
-  Attrbuf *attrbuf;
-  AttrbufPtr attrinbufptr;
-  UintR cfirstfreeAttrinbuf;
-  UintR cattrinbufFileSize;
-  Uint32 c_no_attrinbuf_recs;
-
-#define ZDATABUF_FILE_SIZE 10000    // 200 kByte
-  Databuf *databuf;
-  DatabufPtr databufptr;
-  UintR cfirstfreeDatabuf;
-  UintR cdatabufFileSize;
 
 // Configurable
   FragrecordPtr fragptr;
@@ -3013,18 +2979,29 @@ inline
 void
 Dblqh::i_get_acc_ptr(ScanRecord* scanP, Uint32* &acc_ptr, Uint32 index)
 {
+  /* Return ptr to place where acc ptr for operation with given
+   * index is stored.
+   * If index == 0, it's stored in the ScanRecord, otherwise it's 
+   * stored in a segment linked from the ScanRecord.
+   */
   if (index == 0) {
     acc_ptr= (Uint32*)&scanP->scan_acc_op_ptr[0];
   } else {
-    Uint32 attr_buf_index, attr_buf_rec;
-    
-    AttrbufPtr regAttrPtr;
     jam();
-    attr_buf_rec= (index + 31) / 32;
-    attr_buf_index= (index - 1) & 31;
-    regAttrPtr.i= scanP->scan_acc_op_ptr[attr_buf_rec];
-    ptrCheckGuard(regAttrPtr, cattrinbufFileSize, attrbuf);
-    acc_ptr= (Uint32*)&regAttrPtr.p->attrbuf[attr_buf_index];
+    
+    Uint32 segmentIVal, segment, segmentOffset;
+    SegmentedSectionPtr segPtr;
+
+    segment= (index + SectionSegment::DataLength -1) / 
+      SectionSegment::DataLength;
+    segmentOffset= (index - 1) % SectionSegment::DataLength;
+
+    ndbassert( segment < ScanRecord::MaxScanAccSegments );
+
+    segmentIVal= scanP->scan_acc_op_ptr[ segment ];
+    getSection(segPtr, segmentIVal);
+
+    acc_ptr= &segPtr.p->theData[ segmentOffset ];
   }
 }
 

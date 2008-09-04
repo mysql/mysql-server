@@ -1376,7 +1376,8 @@ Cmvmi::execTESTSIG(Signal* signal){
 		      signal->length(),
 		      JBB,
 		      &handle,
-		      fragmentLength);
+		      false, // Release sections on send
+                      fragmentLength);
 
     int count = 1;
     while(fragSend.m_status != FragmentSendInfo::SendComplete){
