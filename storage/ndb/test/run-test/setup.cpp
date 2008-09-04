@@ -724,12 +724,8 @@ generate(atrt_process& proc, const char * name, Properties& props)
   }
   else if (strcmp(name, "--FileSystemPath=") == 0)
   {
-    BaseString dir;
-    dir.append(proc.m_host->m_basedir);
-    dir.append("/");
-    dir.append(proc.m_cluster->m_dir);
-    opts.m_loaded.put(name, dir.c_str());
-    opts.m_generated.put(name, dir.c_str());
+    opts.m_loaded.put(name, proc.m_proc.m_cwd.c_str());
+    opts.m_generated.put(name, proc.m_proc.m_cwd.c_str());
     return true;
   }
   else if (strcmp(name, "--socket=") == 0)
