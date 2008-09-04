@@ -275,6 +275,7 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
 
   bool ok = true;
   Ptr<SectionSegment> secPtr[3];
+  bzero(secPtr, sizeof(secPtr));
   secPtr[0].p = secPtr[1].p = secPtr[2].p = 0;
 
   switch(secCount){
