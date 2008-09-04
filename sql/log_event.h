@@ -34,6 +34,14 @@
 
 #include <my_bitmap.h>
 #include "rpl_constants.h"
+
+#ifdef MYSQL_CLIENT
+#include "rpl_utility.h"
+#include "hash.h"
+#include "rpl_tblmap.h"
+#include "rpl_tblmap.cc"
+#endif
+
 #ifndef MYSQL_CLIENT
 #include "rpl_record.h"
 #include "rpl_reporting.h"
@@ -237,12 +245,15 @@ struct sql_ex_info
   packet (i.e. a query) sent from client to master;
   First, an auxiliary log_event status vars estimation:
 */
-#define MAX_SIZE_LOG_EVENT_STATUS (4 /* flags2 */   + \
-                                   8 /* sql mode */ + \
-                                   1 + 1 + 255 /* catalog */ + \
-                                   4 /* autoinc */ + \
-                                   6 /* charset */ + \
-                                   MAX_TIME_ZONE_NAME_LENGTH)
+#define MAX_SIZE_LOG_EVENT_STATUS (1 + 4          /* type, flags2 */   + \
+                                   1 + 8          /* type, sql_mode */ + \
+                                   1 + 1 + 255    /* type, length, catalog */ + \
+                                   1 + 4          /* type, auto_increment */ + \
+                                   1 + 6          /* type, charset */ + \
+                                   1 + 1 + 255    /* type, length, time_zone */ + \
+                                   1 + 2          /* type, lc_time_names_number */ + \
+                                   1 + 2          /* type, charset_database_number */ + \
+                                   1 + 8          /* type, table_map_for_update */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
   QUERY_HEADER_LEN     + /* write_data */   \
@@ -306,6 +317,8 @@ struct sql_ex_info
 #define Q_LC_TIME_NAMES_CODE    7
 
 #define Q_CHARSET_DATABASE_CODE 8
+
+#define Q_TABLE_MAP_FOR_UPDATE_CODE 9
 /* Intvar event post-header */
 
 #define I_TYPE_OFFSET        0
@@ -572,6 +585,7 @@ enum enum_base64_output_mode {
   BASE64_OUTPUT_AUTO= 1,
   BASE64_OUTPUT_ALWAYS= 2,
   BASE64_OUTPUT_UNSPEC= 3,
+  BASE64_OUTPUT_DECODE_ROWS= 4,
   /* insert new output modes here */
   BASE64_OUTPUT_MODE_COUNT
 };
@@ -633,6 +647,11 @@ typedef struct st_print_event_info
   my_off_t hexdump_from;
   uint8 common_header_len;
   char delimiter[16];
+
+#ifdef MYSQL_CLIENT
+  uint verbose;
+  table_mapping m_table_map;
+#endif
 
   /*
      These two caches are used by the row-based replication events to
@@ -1455,6 +1474,22 @@ protected:
     This field is written if it is not 0.
     </td>
   </tr>
+  <tr>
+    <td>table_map_for_update</td>
+    <td>Q_TABLE_MAP_FOR_UPDATE_CODE == 9</td>
+    <td>8 byte integer</td>
+
+    <td>The value of the table map that is to be updated by the
+    multi-table update query statement. Every bit of this variable
+    represents a table, and is set to 1 if the corresponding table is
+    to be updated by this statement.
+
+    The value of this variable is set when executing a multi-table update
+    statement and used by slave to apply filter rules without opening
+    all the tables on slave. This is required because some tables may
+    not exist on slave because of the filter rules.
+    </td>
+  </tr>
   </table>
 
   @subsection Query_log_event_notes_on_previous_versions Notes on Previous Versions
@@ -1470,6 +1505,9 @@ protected:
   be understood by a new slave.
 
   * See Q_CHARSET_DATABASE_CODE in the table above.
+
+  * When adding new status vars, please don't forget to update the
+  MAX_SIZE_LOG_EVENT_STATUS, and update function code_name
 
 */
 class Query_log_event: public Log_event
@@ -1548,6 +1586,11 @@ public:
   const char *time_zone_str;
   uint lc_time_names_number; /* 0 means en_US */
   uint charset_database_number;
+  /*
+    map for tables that will be updated for a multi-table update query
+    statement, for other query statements, this will be zero.
+  */
+  ulonglong table_map_for_update;
 
 #ifndef MYSQL_CLIENT
 
@@ -3235,6 +3278,17 @@ public:
 
   ~Table_map_log_event();
 
+#ifdef MYSQL_CLIENT
+  table_def *create_table_def()
+  {
+    return new table_def(m_coltype, m_colcnt, m_field_metadata,
+                         m_field_metadata_size, m_null_bits);
+  }
+  ulong get_table_id() const        { return m_table_id; }
+  const char *get_table_name() const { return m_tblnam; }
+  const char *get_db_name() const    { return m_dbnam; }
+#endif
+
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
 
@@ -3365,6 +3419,12 @@ public:
 #ifdef MYSQL_CLIENT
   /* not for direct call, each derived has its own ::print() */
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info)= 0;
+  void print_verbose(IO_CACHE *file,
+                     PRINT_EVENT_INFO *print_event_info);
+  size_t print_verbose_one_row(IO_CACHE *file, table_def *td,
+                               PRINT_EVENT_INFO *print_event_info,
+                               MY_BITMAP *cols_bitmap,
+                               const uchar *ptr, const uchar *prefix);
 #endif
 
 #ifndef MYSQL_CLIENT

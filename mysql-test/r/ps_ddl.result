@@ -1567,11 +1567,13 @@ drop table if exists t_12093;
 drop function if exists f_12093;
 drop function if exists f_12093_unrelated;
 drop procedure if exists p_12093;
+drop view if exists v_12093_unrelated;
 create table t_12093 (a int);
 create function f_12093() returns int return (select count(*) from t_12093);
 create procedure p_12093(a int) select * from t_12093;
 create function f_12093_unrelated() returns int return 2;
 create procedure p_12093_unrelated() begin end;
+create view v_12093_unrelated as select * from t_12093;
 prepare stmt_sf from 'select f_12093();';
 prepare stmt_sp from 'call p_12093(f_12093())';
 execute stmt_sf;
@@ -1580,6 +1582,27 @@ f_12093()
 execute stmt_sp;
 a
 drop function f_12093_unrelated;
+# XXX: used to be a bug
+execute stmt_sf;
+f_12093()
+0
+# XXX: used to be a bug
+execute stmt_sp;
+a
+# XXX: used to be a bug
+execute stmt_sf;
+f_12093()
+0
+# XXX: used to be a bug
+execute stmt_sp;
+a
+prepare stmt_sf from 'select f_12093();';
+prepare stmt_sp from 'call p_12093(f_12093())';
+execute stmt_sf;
+f_12093()
+0
+execute stmt_sp;
+a
 drop procedure p_12093_unrelated;
 # XXX: used to be a bug
 execute stmt_sf;
@@ -1595,7 +1618,29 @@ f_12093()
 # XXX: used to be a bug
 execute stmt_sp;
 a
-call p_verify_reprepare_count(2);
+prepare stmt_sf from 'select f_12093();';
+prepare stmt_sp from 'call p_12093(f_12093())';
+execute stmt_sf;
+f_12093()
+0
+execute stmt_sp;
+a
+drop view v_12093_unrelated;
+# XXX: used to be a bug
+execute stmt_sf;
+f_12093()
+0
+# XXX: used to be a bug
+execute stmt_sp;
+a
+# XXX: used to be a bug
+execute stmt_sf;
+f_12093()
+0
+# XXX: used to be a bug
+execute stmt_sp;
+a
+call p_verify_reprepare_count(6);
 SUCCESS
 
 drop table t_12093;
