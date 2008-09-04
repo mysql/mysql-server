@@ -1,109 +1,22 @@
-SET SESSION STORAGE_ENGINE = InnoDB;
+SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT @@global.tx_isolation;
+@@global.tx_isolation
+REPEATABLE-READ
+SELECT @@global.innodb_locks_unsafe_for_binlog;
+@@global.innodb_locks_unsafe_for_binlog
+1
+# keep_locks == 0
+GRANT USAGE ON test.* TO mysqltest@localhost;
+DO release_lock("hello");
+DO release_lock("hello2");
 drop table if exists t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+
+**
+** two UPDATE's running and both changing distinct result sets
+**
+** connection thread1
+** Set up table
 SET SESSION STORAGE_ENGINE = InnoDB;
-insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
-insert into t1 values (20,2,"ddddddddddddddddddddddddddddddddddddddddddd");
-insert into t1 values (30,1,"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-insert into t1 values (40,2,"fffffffffffffffffffffffffffffffffffffffffff");
-insert into t1 values (50,1,"ggggggggggggggggggggggggggggggggggggggggggg");
-insert into t1 values (60,2,"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
-insert into t1 values (70,1,"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
-insert into t1 values (80,22,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
-insert into t1 values (90,11,"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
-select get_lock("hello",1);
-get_lock("hello",1)
-1
-begin;
- update t1 set eta=1+get_lock("hello",1)*0 where tipo=11;
-begin;
-update t1 set eta=2 where tipo=22;
-select release_lock("hello");
-release_lock("hello")
-1
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
- commit;
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
-commit;
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
-drop table t1;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
@@ -116,16 +29,173 @@ insert into t1 values (60,2,"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
 insert into t1 values (70,1,"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
 insert into t1 values (80,22,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
 insert into t1 values (90,11,"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
+** Get user level lock (ULL) for thread 1
 select get_lock("hello",10);
 get_lock("hello",10)
-0
+1
+** connection thread2
+** Start transaction for thread 2
 begin;
- update t1 set eta=1+get_lock("hello",10)*0 where tipo=1;
+** Update will cause a table scan and a new ULL  will 
+** be created and blocked on the first row where tipo=11.
+update t1 set eta=1+get_lock("hello",10)*0 where tipo=11;
+** connection thread1
+** Start new transaction for thread 1
 begin;
-update t1 set tipo=1 where tipo=2;
+** Update on t1 will cause a table scan which will be blocked because
+** the previously initiated table scan applied exclusive key locks on 
+** all primary keys.
+** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
+** do not match the WHERE condition are released.
+update t1 set eta=2 where tipo=22;
+** Release user level name lock from thread 1. This will cause the ULL
+** on thread 2 to end its wait.
 select release_lock("hello");
 release_lock("hello")
-0
+1
+** Table is now updated with a new eta on tipo=22 for thread 1.
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread2
+** Release the lock and collect result from update on thread 2
+select release_lock("hello");
+release_lock("hello")
+1
+** Table should have eta updates where tipo=11 but updates made by
+** thread 1 shouldn't be visible yet.
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** Sending commit on thread 2.
+commit;
+** connection thread1
+** Make sure table reads didn't change yet on thread 1.
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** And send final commit on thread 1.
+commit;
+** Table should now be updated by both updates in the order of
+** thread 1,2.
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread2
+** Make sure the output is similar for t1.
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread1
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection default
+drop table t1;
+
+**
+** two UPDATE's running and one changing result set
+**
+** connection thread1
+** Set up table
+SET SESSION STORAGE_ENGINE = InnoDB;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
+insert into t1 values (20,2,"ddddddddddddddddddddddddddddddddddddddddddd");
+insert into t1 values (30,1,"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+insert into t1 values (40,2,"fffffffffffffffffffffffffffffffffffffffffff");
+insert into t1 values (50,1,"ggggggggggggggggggggggggggggggggggggggggggg");
+insert into t1 values (60,2,"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
+insert into t1 values (70,1,"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
+insert into t1 values (80,22,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
+insert into t1 values (90,11,"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
+** Get ULL "hello" on thread 1
+select get_lock("hello",10);
+get_lock("hello",10)
+1
+** connection thread2
+** Start transaction on thread 2
+begin;
+** Update will cause a table scan.
+** This will cause a hang on the first row where tipo=1 until the
+** blocking ULL is released.
+update t1 set eta=1+get_lock("hello",10)*0 where tipo=1;
+** connection thread1
+** Start transaction on thread 1
+begin;
+** Update on t1 will cause a table scan which will be blocked because
+** the previously initiated table scan applied exclusive key locks on 
+** all primary keys.
+** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
+** do not match the WHERE condition are released.
+update t1 set tipo=1 where tipo=2;
+** Release ULL. This will release the next waiting ULL on thread 2.
+select release_lock("hello");
+release_lock("hello")
+1
+** The table should still be updated with updates for thread 1 only:
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -139,6 +209,13 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread2
+** Release the lock and collect result from thread 2:
+select release_lock("hello");
+release_lock("hello")
+1
+** Seen from thread 2 the table should have been updated on four
+** places.
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -152,7 +229,10 @@ eta	tipo	c
 1	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
- commit;
+commit;
+** connection thread1
+** Thread 2 has committed but the result should remain the same for
+** thread 1 (updated on three places):
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -167,19 +247,9 @@ eta	tipo	c
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 commit;
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	1	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	1	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	1	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** After a commit the table should be merged with the previous 
+** commit.
+** This select should show both updates:
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -193,6 +263,7 @@ eta	tipo	c
 1	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread2
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -206,19 +277,50 @@ eta	tipo	c
 1	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread1
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+1	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	1	ddddddddddddddddddddddddddddddddddddddddddd
+1	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	1	fffffffffffffffffffffffffffffffffffffffffff
+1	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	1	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+1	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection default
 drop table t1;
+
+**
+** One UPDATE and one INSERT .... Monty's test
+**
+** connection thread1
+** Set up table
+SET SESSION STORAGE_ENGINE = InnoDB;
 create table t1 (a int not null, b int not null);
 insert into t1 values (1,1),(2,1),(3,1),(4,1);
-select get_lock("hello2",1000);
-get_lock("hello2",1000)
+** Create ULL 'hello2'
+select get_lock("hello2",10);
+get_lock("hello2",10)
 1
+** connection thread2
+** Begin a new transaction on thread 2
 begin;
- update t1 set b=10+get_lock(concat("hello",a),1000)*0 where
-a=2;
+** Update will create a table scan which creates a ULL where a=2;
+** this will hang waiting on thread 1.
+update t1 set b=10+get_lock(concat("hello",a),10)*0 where a=2;
+** connection thread1
+** Insert new values to t1 from thread 1; this created an implicit
+** commit since there are no on-going transactions.
 insert into t1 values (1,1);
+** Release the ULL (thread 2 updates will finish).
 select release_lock("hello2");
 release_lock("hello2")
 1
+** ..but thread 1 will still see t1 as if nothing has happend:
 select * from t1;
 a	b
 1	1
@@ -226,6 +328,13 @@ a	b
 3	1
 4	1
 1	1
+** connection thread2
+** Collect results from thread 2 and release the lock.
+select release_lock("hello2");
+release_lock("hello2")
+1
+** The table should look like the original+updates for thread 2,
+** and consist of new rows:
 select * from t1;
 a	b
 1	1
@@ -233,90 +342,17 @@ a	b
 3	1
 4	1
 1	1
- commit;
-drop table t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255));
-insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
-insert into t1 values (20,2,"ddddddddddddddddddddddddddddddddddddddddddd");
-insert into t1 values (30,1,"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-insert into t1 values (40,2,"fffffffffffffffffffffffffffffffffffffffffff");
-insert into t1 values (50,1,"ggggggggggggggggggggggggggggggggggggggggggg");
-insert into t1 values (60,2,"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
-insert into t1 values (70,1,"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
-insert into t1 values (80,22,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
-insert into t1 values (90,11,"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
-select get_lock("hello",10);
-get_lock("hello",10)
-1
-begin;
- select * from t1 where tipo=2 FOR UPDATE;
-begin;
-select release_lock("hello");
-release_lock("hello")
-1
-update t1 set tipo=1+get_lock("hello",10)*0 where tipo=2;
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
-eta	tipo	c
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
- commit;
+** Commit changes from thread 2
 commit;
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
-select * from t1;
-eta	tipo	c
-7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-10	1	ccccccccccccccccccccccccccccccccccccccccccc
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-50	1	ggggggggggggggggggggggggggggggggggggggggggg
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
-90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection default
 drop table t1;
+
+**
+** one UPDATE changing result set and SELECT ... FOR UPDATE
+**
+** connection thread1
+** Set up table
+SET SESSION STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
@@ -329,17 +365,24 @@ insert into t1 values (60,2,"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
 insert into t1 values (70,1,"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
 insert into t1 values (80,22,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
 insert into t1 values (90,11,"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
-select get_lock("hello",10);
-get_lock("hello",10)
-1
+** connection thread2
+** Begin a new transaction on thread 2
 begin;
- select * from t1 where tipo=2 FOR UPDATE;
+** Select a range for update.
+select * from t1 where tipo=2 FOR UPDATE;
+eta	tipo	c
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+** connection thread1
+** Begin a new transaction on thread 1 
 begin;
-select release_lock("hello");
-release_lock("hello")
-1
-update t1 set tipo=11+get_lock("hello",10)*0 where tipo=22;
+** Update the same range which is marked for update on thread 2; this
+** will hang because of row locks.
+update t1 set tipo=1 where tipo=2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+** After the update the table will be unmodified because the previous
+** transaction failed and was rolled back.
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -353,10 +396,8 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
-eta	tipo	c
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+** connection thread2
+** The table should look unmodified from thread 2.
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -370,8 +411,14 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
- commit;
+** Sending a commit should release the row locks and enable
+** thread 1 to complete the transaction.
 commit;
+** connection thread1
+** Commit on thread 1.
+commit;
+** connection thread2
+** The table should not have been changed.
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -385,6 +432,8 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread1
+** Even on thread 1:
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -398,7 +447,15 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection default
 drop table t1;
+
+**
+** one UPDATE not changing result set and SELECT ... FOR UPDATE
+**
+** connection thread1
+** Set up table
+SET SESSION STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
@@ -411,21 +468,127 @@ insert into t1 values (60,2,"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
 insert into t1 values (70,1,"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
 insert into t1 values (80,22,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
 insert into t1 values (90,11,"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
-select get_lock("hello",10);
-get_lock("hello",10)
-1
+** connection thread2
+** Starting new transaction on thread 2.
 begin;
- select * from t1 where tipo=2 FOR UPDATE;
+** Starting SELECT .. FOR UPDATE
+select * from t1 where tipo=2 FOR UPDATE;
+eta	tipo	c
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+** connection thread1
+
+** Starting new transaction on thread 1
 begin;
-select release_lock("hello");
-release_lock("hello")
-1
+** Updating single row using a table scan. This will time out
+** because of ongoing transaction on thread 1 holding lock on
+** all primary keys in the scan.
+** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
+** do not match the WHERE condition are released.
+update t1 set tipo=11 where tipo=22;
+** After the time out the transaction is aborted; no rows should
+** have changed.
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+80	11	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread2
+** The same thing should hold true for the transaction on
+** thread 2
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+commit;
+** connection thread1
+commit;
+** connection thread2
+** Even after committing:
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+80	11	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread1
+select * from t1;
+eta	tipo	c
+7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+8	8	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+10	1	ccccccccccccccccccccccccccccccccccccccccccc
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+30	1	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+50	1	ggggggggggggggggggggggggggggggggggggggggggg
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+80	11	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection default
+drop table t1;
+
+**
+** two SELECT ... FOR UPDATE
+**
+** connection thread1
+** Set up table
+SET SESSION STORAGE_ENGINE = InnoDB;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
+insert into t1 values (20,2,"ddddddddddddddddddddddddddddddddddddddddddd");
+insert into t1 values (30,1,"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+insert into t1 values (40,2,"fffffffffffffffffffffffffffffffffffffffffff");
+insert into t1 values (50,1,"ggggggggggggggggggggggggggggggggggggggggggg");
+insert into t1 values (60,2,"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
+insert into t1 values (70,1,"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
+insert into t1 values (80,22,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
+insert into t1 values (90,11,"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
+** connection thread2
+** Begin a new transaction on thread 2
+begin;
+select * from t1 where tipo=2 FOR UPDATE;
+eta	tipo	c
+20	2	ddddddddddddddddddddddddddddddddddddddddddd
+40	2	fffffffffffffffffffffffffffffffffffffffffff
+60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+** connection thread1
+** Begin a new transaction on thread 1
+begin;
+** Selecting a range for update by table scan will be blocked
+** because of on-going transaction on thread 2.
 select * from t1 where tipo=1 FOR UPDATE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-eta	tipo	c
-20	2	ddddddddddddddddddddddddddddddddddddddddddd
-40	2	fffffffffffffffffffffffffffffffffffffffffff
-60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+** connection thread2
+** Table will be unchanged and the select command will not be
+** blocked:
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -439,8 +602,13 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
- commit;
+** Commit transacton on thread 2.
 commit;
+** connection thread1
+** Commit transaction on thread 1.
+commit;
+** connection thread2
+** Make sure table isn't blocked on thread 2:
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -454,6 +622,8 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread1
+** Make sure table isn't blocked on thread 1:
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -467,7 +637,15 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection default
 drop table t1;
+
+**
+** one UPDATE changing result set and DELETE
+**
+** connection thread1
+** Set up table
+SET SESSION STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
@@ -480,16 +658,12 @@ insert into t1 values (60,2,"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
 insert into t1 values (70,1,"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
 insert into t1 values (80,22,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
 insert into t1 values (90,11,"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
-select get_lock("hello",10);
-get_lock("hello",10)
-1
+** connection thread2
 begin;
- delete from t1 where tipo=2;
+delete from t1 where tipo=2;
+** connection thread1
 begin;
-select release_lock("hello");
-release_lock("hello")
-1
-update t1 set tipo=1+get_lock("hello",10)*0 where tipo=2;
+update t1 set tipo=1 where tipo=2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t1;
 eta	tipo	c
@@ -504,6 +678,7 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread2
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -514,8 +689,10 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
- commit;
 commit;
+** connection thread1
+commit;
+** connection thread2
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -526,6 +703,7 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread1
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -536,7 +714,15 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection default
 drop table t1;
+
+**
+** one UPDATE not changing result set and DELETE
+**
+** connection thread1
+** Set up table
+SET SESSION STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
@@ -549,16 +735,17 @@ insert into t1 values (60,2,"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
 insert into t1 values (70,1,"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii");
 insert into t1 values (80,22,"jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj");
 insert into t1 values (90,11,"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
-select get_lock("hello",10);
-get_lock("hello",10)
-1
+** connection thread2
 begin;
- delete from t1 where tipo=2;
+delete from t1 where tipo=2;
+** connection thread1
 begin;
-select release_lock("hello");
-release_lock("hello")
-1
-update t1 set tipo=1+get_lock("hello",10)*0 where tipo=22;
+** Update on t1 will cause a table scan which will be blocked because
+** the previously initiated table scan applied exclusive key locks on 
+** all primary keys.
+** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
+** do not match the WHERE condition are released.
+update t1 set tipo=1 where tipo=22;
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -572,6 +759,7 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	1	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread2
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -582,8 +770,10 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
- commit;
 commit;
+** connection thread1
+commit;
+** connection thread2
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -594,6 +784,7 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	1	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection thread1
 select * from t1;
 eta	tipo	c
 7	7	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -604,4 +795,5 @@ eta	tipo	c
 70	1	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 80	1	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+** connection default
 drop table t1;

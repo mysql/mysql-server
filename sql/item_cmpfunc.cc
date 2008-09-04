@@ -4592,6 +4592,7 @@ void Item_func_regex::cleanup()
   {
     my_regfree(&preg);
     regex_compiled=0;
+    prev_regexp.length(0);
   }
   DBUG_VOID_RETURN;
 }
