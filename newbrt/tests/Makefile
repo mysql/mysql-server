@@ -26,7 +26,7 @@ CYG_ADD_LIBZ=/usr/lib/libz.a
 else
 FPICFLAGS = -fPIC
 # valgrind is not present on cygwin
-VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
+VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes --suppressions=../valgrind.suppressions
 VISIBILITY=-fvisibility=hidden
 SHADOW=-Wshadow
 FORMAT=-Wmissing-format-attribute
