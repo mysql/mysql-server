@@ -248,7 +248,7 @@ const long long default_n_items = 1LL<<22;
 
 int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n");
-    fprintf(stderr, " %s [-x] [--keysize KEYSIZE] [--valsize VALSIZE] [--noserial] [ n_iterations ]\n", argv0);
+    fprintf(stderr, " %s [-x] [--keysize KEYSIZE] [--valsize VALSIZE] [--noserial] [--norandom] [ n_iterations ]\n", argv0);
     fprintf(stderr, "   where\n");
     fprintf(stderr, "    -x              do transactions (XCOUNT transactions per iteration) (default: no transactions at all)\n");
     fprintf(stderr, "    --keysize KEYSIZE sets the key size (default 8)\n");
@@ -256,6 +256,7 @@ int print_usage (const char *argv0) {
     fprintf(stderr, "    --cachesize CACHESIZE set the database cache size\n");
     fprintf(stderr, "    --pagesize PAGESIZE sets the database page size\n");
     fprintf(stderr, "    --noserial         causes the serial insertions to be skipped\n");
+    fprintf(stderr, "    --norandom         causes the random insertions to be skipped\n");
     fprintf(stderr, "    --xcount N         how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
     fprintf(stderr, "    --singlex          Run the whole job as a single transaction.  (Default don't run as a single transaction.)\n");
     fprintf(stderr, "    --periter N      how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
