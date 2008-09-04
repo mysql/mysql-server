@@ -14,19 +14,30 @@ set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 select count(*) from t1;
 count(*)
 10000
-delete from t1 where pk < 1000 order by pk;
-delete from t1 where pk < 2000 order by pk;
-delete from t1 where pk < 3000 order by pk;
-delete from t1 where pk < 4000 order by pk;
-delete from t1 where pk < 5000 order by pk;
-delete from t1 where pk < 6000 order by pk;
-delete from t1 where pk < 7000 order by pk;
-delete from t1 where pk < 7500 order by pk;
+flush tables;
+select data_length from information_schema.tables where table_name like 't1' into @data_length0;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
+select count(*) from t1;
+count(*)
+2500
+select count(*) from t1 where mod(pk, 100) < 75;
+count(*)
+0
+flush tables;
 select data_length from information_schema.tables where table_name like 't1' into @data_length;
 set ndb_optimization_delay = 0;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+flush tables;
 select data_length from information_schema.tables where table_name like 't1' into @data_length2;
 select 100*(@data_length-@data_length2)/@data_length into @opt_level;
 select @opt_level > 30;
