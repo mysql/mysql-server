@@ -210,6 +210,19 @@ void sp_cache_flush_obsolete(sp_cache **cp)
 }
 
 
+/**
+  Return the current version of the cache.
+*/
+
+ulong sp_cache_version(sp_cache **cp)
+{
+  sp_cache *c= *cp;
+  if (c)
+    return c->version;
+  return 0;
+}
+
+
 /*************************************************************************
   Internal functions 
  *************************************************************************/

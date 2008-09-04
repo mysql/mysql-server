@@ -2055,6 +2055,28 @@ void free_blobs(register TABLE *table)
 }
 
 
+/**
+  Reclaim temporary blob storage which is bigger than 
+  a threshold.
+ 
+  @param table A handle to the TABLE object containing blob fields
+  @param size The threshold value.
+ 
+*/
+
+void free_field_buffers_larger_than(TABLE *table, uint32 size)
+{
+  uint *ptr, *end;
+  for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
+       ptr != end ;
+       ptr++)
+  {
+    Field_blob *blob= (Field_blob*) table->field[*ptr];
+    if (blob->get_field_buffer_size() > size)
+        blob->free();
+  }
+}
+
 	/* Find where a form starts */
 	/* if formname is NullS then only formnames is read */
 
