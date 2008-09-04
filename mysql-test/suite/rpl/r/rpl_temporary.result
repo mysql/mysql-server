@@ -76,9 +76,9 @@ drop table t1,t2;
 create temporary table t3 (f int);
 create temporary table t4 (f int);
 create table t5 (f int);
-select id from information_schema.processlist where command='Binlog Dump' into @id;
-kill @id;
+stop slave;
 insert into t5 select * from t4;
+start slave;
 select * from t5 /* must be 1 after reconnection */;
 f
 drop temporary table t4;

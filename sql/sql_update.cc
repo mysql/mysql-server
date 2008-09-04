@@ -459,7 +459,7 @@ int mysql_update(THD *thd,
       */
 
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info,thd,table,select,0,1);
+        init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
@@ -528,7 +528,7 @@ int mysql_update(THD *thd,
   if (select && select->quick && select->quick->reset())
     goto err;
   table->file->try_semi_consistent_read(1);
-  init_read_record(&info,thd,table,select,0,1);
+  init_read_record(&info, thd, table, select, 0, 1, FALSE);
 
   if (!table->triggers &&
       info.using_quick &&
@@ -1041,7 +1041,7 @@ reopen_tables:
     DBUG_RETURN(TRUE);
   }
 
-  tables_for_update= get_table_map(fields);
+  thd->table_map_for_update= tables_for_update= get_table_map(fields);
 
   /*
     Setup timestamp handling and locking mode
