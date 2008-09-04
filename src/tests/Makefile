@@ -24,7 +24,7 @@ else
 # SETTOKUENV=
 # UNSETTOKUENV=
  LIBEXT=so
- VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=full --show-reachable=yes
+ VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=full --show-reachable=yes --suppressions=../../newbrt/valgrind.suppressions
  HGRIND=valgrind --quiet --tool=helgrind
 endif
 
