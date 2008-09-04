@@ -253,10 +253,17 @@ ibuf_index_page_calc_free(
 
 /****************************************************************************
 Updates the free bits of an uncompressed page in the ibuf bitmap if
-there is not enough free on the page any more. This is done in a
+there is not enough free on the page any more.  This is done in a
 separate mini-transaction, hence this operation does not restrict
 further work to only ibuf bitmap operations, which would result if the
-latch to the bitmap page were kept. */
+latch to the bitmap page were kept.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is
+unsafe to increment the bits in a separately committed
+mini-transaction, because in crash recovery, the free bits could
+momentarily be set too high.  It is only safe to use this function for
+decrementing the free bits.  Should more free space become available,
+we must not update the free bits here, because that would break crash
+recovery. */
 UNIV_INLINE
 void
 ibuf_update_free_bits_if_full(
