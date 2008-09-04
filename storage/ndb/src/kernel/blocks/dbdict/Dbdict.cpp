@@ -2026,6 +2026,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->indexState = TableRecord::IS_UNDEFINED;
   tablePtr.p->triggerId = RNIL;
   tablePtr.p->buildTriggerId = RNIL;
+  tablePtr.p->m_read_locked= 0;
 }//Dbdict::initialiseTableRecord()
 
 void Dbdict::initTriggerRecords()
