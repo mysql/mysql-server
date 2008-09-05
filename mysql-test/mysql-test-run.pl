@@ -167,7 +167,7 @@ my $opt_retry_failure= 2;
 
 my $opt_strace_client;
 
-our $opt_user;
+our $opt_user = "root";
 
 my $opt_valgrind= 0;
 my $opt_valgrind_mysqld= 0;
@@ -906,8 +906,16 @@ sub command_line_setup {
 				   "$basedir/scripts");
   }
 
-  # Run the mysqld to find out what features are available
-  collect_mysqld_features();
+  if (using_extern())
+  {
+    # Connect to the running mysqld and find out what it supports
+    collect_mysqld_features_from_running_server();
+  }
+  else
+  {
+    # Run the mysqld to find out what features are available
+    collect_mysqld_features();
+  }
 
   if ( $opt_comment )
   {
@@ -1170,11 +1178,6 @@ sub command_line_setup {
 	       join(" ", @valgrind_args), "\"");
   }
 
-  if ( ! $opt_user )
-  {
-    $opt_user= "root"; # We want to do FLUSH xxx commands
-  }
-
   mtr_report("Checking supported features...");
 
   check_ndbcluster_support(\%mysqld_variables);
@@ -1321,6 +1324,50 @@ sub collect_mysqld_features {
 
 }
 
+
+
+sub collect_mysqld_features_from_running_server ()
+{
+  my $mysql= mtr_exe_exists("$path_client_bindir/mysql");
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--user=%s", $opt_user);
+
+  while (my ($option, $value)= each( %opts_extern )) {
+    mtr_add_arg($args, "--$option=$value");
+  }
+
+  mtr_add_arg($args, "--silent"); # Tab separated output
+  mtr_add_arg($args, "-e '%s'", "use mysql; SHOW VARIABLES");
+  my $cmd= "$mysql " . join(' ', @$args);
+  mtr_verbose("cmd: $cmd");
+
+  my $list = `$cmd` or
+    mtr_error("Could not connect to extern server using command: '$cmd'");
+  foreach my $line (split('\n', $list ))
+  {
+    # Put variables into hash
+    if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
+    {
+      # print "$1=\"$2\"\n";
+      $mysqld_variables{$1}= $2;
+    }
+  }
+
+  # Parse version
+  my $version_str= $mysqld_variables{'version'};
+  if ( $version_str =~ /^([0-9]*)\.([0-9]*)\.([0-9]*)/ )
+  {
+    #print "Major: $1 Minor: $2 Build: $3\n";
+    $mysql_version_id= $1*10000 + $2*100 + $3;
+    #print "mysql_version_id: $mysql_version_id\n";
+    mtr_report("MySQL Version $1.$2.$3");
+  }
+  mtr_error("Could not find version of MySQL") unless $mysql_version_id;
+}
 
 sub find_mysqld {
   my ($mysqld_basedir)= @_;
@@ -2218,7 +2265,7 @@ sub create_config_file_for_extern {
     (
      socket     => '/tmp/mysqld.sock',
      port       => 3306,
-     user       => 'test',
+     user       => $opt_user,
      password   => '',
      @_
     );
@@ -4626,9 +4673,6 @@ Options to run test on running server
                         For example:
                          ./$0 --extern socket=/tmp/mysqld.sock
 
-  user=USER             User for connection to extern server
-  socket=PATH           Socket for connection to extern server
-
 Options for debugging the product
 
   client-ddd            Start mysqltest client in ddd
@@ -4675,7 +4719,7 @@ Options for valgrind
   callgrind             Instruct valgrind to use callgrind
 
 Misc options
-
+  user=USER             User for connecting to mysqld(default: $opt_user)
   comment=STR           Write STR to the output
   notimer               Don't show test case execution time
   verbose               More verbose output(use multiple times for even more)
