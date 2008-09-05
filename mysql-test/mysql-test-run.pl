@@ -3682,7 +3682,7 @@ sub mysqld_start ($$) {
   }
   elsif ( $opt_manual_debug )
   {
-     print "\nStart $mysqld->name() in your debugger\n" .
+     print "\nStart " .$mysqld->name()." in your debugger\n" .
            "dir: $glob_mysql_test_dir\n" .
            "exe: $exe\n" .
 	   "args:  " . join(" ", @$args)  . "\n\n" .
@@ -4599,8 +4599,7 @@ Options to control what test suites or cases to run
                         list of suite names.
                         The default is: "$DEFAULT_SUITES"
   skip-rpl              Skip the replication test cases.
-  big-test              Set the environment variable BIG_TEST, which can be
-                        checked from test cases.
+  big-test              Also run tests marked as "big"
 
 Options that specify ports
 
