@@ -95,7 +95,7 @@ HEADERS=../rangetree.h ../rangetree-internal.h test.h
 ../../../newbrt/newbrt.o:
 	cd ../../../newbrt && $(MAKE)
 
-LDFLAGS = -lz
+LDFLAGS = -lz -lpthread
 
 %.lin: %.c  $(HEADERS) $(LINEAR_BINS)
 	$(CC) -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS) $(LDFLAGS)
