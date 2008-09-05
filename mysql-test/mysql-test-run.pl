@@ -544,7 +544,7 @@ sub run_test_server ($$$) {
 	    # Move the test to completed list
 	    #mtr_report("skip - Moving test $i to completed");
 	    push(@$completed, splice(@$tests, $i, 1));
-	    redo; # Start over again
+	    next;
 	  }
 
 	  # Limit number of parallell NDB tests
