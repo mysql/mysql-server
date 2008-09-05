@@ -165,8 +165,6 @@ my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= 2;
 
-my $opt_parallel= $ENV{MTR_PARALLEL};
-
 my $opt_strace_client;
 
 our $opt_user;
@@ -208,6 +206,7 @@ main();
 
 
 sub main {
+  # Default, verbosity on
   report_option('verbose', 0);
 
   # This is needed for test log evaluation in "gen-build-status-page"
@@ -215,46 +214,11 @@ sub main {
   # directly before it executes them, like "make test-force-pl" in RPM builds.
   mtr_report("Logging: $0 ", join(" ", @ARGV));
 
+  my $opt_parallel= $ENV{MTR_PARALLEL};
   Getopt::Long::Configure("pass_through");
   GetOptions('parallel=i' => \$opt_parallel) or usage(0, "Can't read options");
 
-  if ( not defined $opt_parallel ) {
-    # Try to find a suitable value for number of workers
-    my $sys_info= My::SysInfo->new();
-
-    $opt_parallel= $sys_info->num_cpus();
-    for my $limit (2000, 1500, 1000, 500){
-      $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
-    }
-    $opt_parallel= 1 if ($opt_parallel < 1);
-    mtr_report("Using parallel: $opt_parallel");
-  }
-
-  # Create server socket on any free port
-  my $server = new IO::Socket::INET
-    (
-     LocalAddr => 'localhost',
-     Proto => 'tcp',
-     Listen => $opt_parallel,
-    );
-  mtr_error("Could not create testcase server port: $!") unless $server;
-  my $server_port = $server->sockport();
-  mtr_report("Using server port $server_port");
-
-  # Create child processes
-  my %children;
-  for my $child_num (1..$opt_parallel){
-    my $child_pid= My::SafeProcess::Base::_safe_fork();
-    if ($child_pid == 0){
-      $server= undef; # Close the server port in child
-      run_worker($server_port, $child_num);
-      exit(1);
-    }
-
-    $children{$child_pid}= 1;
-  }
-
-  command_line_setup(0);
+  command_line_setup();
 
   if ( $opt_gcov ) {
     gcov_prepare($basedir);
@@ -301,13 +265,61 @@ sub main {
     unshift(@$tests, $tinfo);
   }
 
+  print "vardir: $opt_vardir\n";
   initialize_servers();
+
+  #######################################################################
+  my $num_tests= @$tests;
+  if ( not defined $opt_parallel ) {
+    # Try to find a suitable value for number of workers
+    my $sys_info= My::SysInfo->new();
+
+    $opt_parallel= $sys_info->num_cpus();
+    for my $limit (2000, 1500, 1000, 500){
+      $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
+    }
+    $opt_parallel= $num_tests if ($opt_parallel > $num_tests);
+    $opt_parallel= 1 if ($opt_parallel < 1);
+    mtr_report("Using parallel: $opt_parallel");
+  }
+
+  # Create server socket on any free port
+  my $server = new IO::Socket::INET
+    (
+     LocalAddr => 'localhost',
+     Proto => 'tcp',
+     Listen => $opt_parallel,
+    );
+  mtr_error("Could not create testcase server port: $!") unless $server;
+  my $server_port = $server->sockport();
+  mtr_report("Using server port $server_port");
+
+  # Create child processes
+  my %children;
+  for my $child_num (1..$opt_parallel){
+    my $child_pid= My::SafeProcess::Base::_safe_fork();
+    if ($child_pid == 0){
+      $server= undef; # Close the server port in child
+      $tests= {}; # Don't need the tests list in child
+
+      # Use subdir of var and tmp unless only one worker
+      if ($opt_parallel > 1) {
+	set_vardir("$opt_vardir/$child_num");
+	$opt_tmpdir= "$opt_tmpdir/$child_num";
+      }
+
+      run_worker($server_port, $child_num);
+      exit(1);
+    }
+
+    $children{$child_pid}= 1;
+  }
+  #######################################################################
 
   mtr_report();
   mtr_print_thick_line();
   mtr_print_header();
 
-  my $num_tests= @$tests;
   my $completed= run_test_server($server, $tests, $opt_parallel);
 
   # Send Ctrl-C to any children still running
@@ -357,7 +369,7 @@ sub main {
 }
 
 
-sub run_test_server {
+sub run_test_server ($$$) {
   my ($server, $tests, $childs) = @_;
 
   my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
@@ -365,7 +377,7 @@ sub run_test_server {
   my $num_failed_test= 0; # Number of tests failed so far
 
   # Scheduler variables
-  my $max_ndb= $opt_parallel / 2;
+  my $max_ndb= $childs / 2;
   $max_ndb = 4 if $max_ndb > 4;
   $max_ndb = 1 if $max_ndb < 1;
   my $num_ndb_tests= 0;
@@ -598,7 +610,27 @@ sub run_worker ($) {
 
   $SIG{INT}= sub { exit(1); };
 
+  # --------------------------------------------------------------------------
+  # Set worker name
+  # --------------------------------------------------------------------------
   report_option('name',"worker[$thread_num]");
+
+  # --------------------------------------------------------------------------
+  # Use auto build thread in all but first worker
+  # --------------------------------------------------------------------------
+  set_build_thread_ports($thread_num > 1 ? 'auto' : $opt_build_thread);
+
+  if (check_ports_free()){
+    # Some port was not free(which one has already been printed)
+    mtr_error("Some port(s) was not free")
+  }
+
+  # --------------------------------------------------------------------------
+  # Turn off verbosity in workers, unless explicitly specified
+  # --------------------------------------------------------------------------
+  report_option('verbose', undef) if ($opt_verbose == 0);
+
+  environment_setup();
 
   # Connect to server
   my $server = new IO::Socket::INET
@@ -613,8 +645,6 @@ sub run_worker ($) {
   # Read hello from server which it will send when shared
   # resources have been setup
   my $hello= <$server>;
-
-  command_line_setup($thread_num);
 
   setup_vardir();
   check_running_as_root();
@@ -658,14 +688,29 @@ sub ignore_option {
   mtr_report("Ignoring option '$opt'");
 }
 
-sub command_line_setup {
-  my ($thread_num)= @_;
 
+
+# Setup any paths that are $opt_vardir related
+sub set_vardir {
+  my ($vardir)= @_;
+
+  $opt_vardir= $vardir;
+
+  $path_vardir_trace= $opt_vardir;
+  # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
+  $path_vardir_trace=~ s/^\w://;
+
+  # Location of my.cnf that all clients use
+  $path_config_file= "$opt_vardir/my.cnf";
+
+  $path_testlog=         "$opt_vardir/log/mysqltest.log";
+  $path_current_testlog= "$opt_vardir/log/current_test";
+
+}
+
+sub command_line_setup {
   my $opt_comment;
   my $opt_usage;
-
-  # Default verbosity, server ON and workers OFF
-  report_option('verbose', $thread_num ?  undef : 0);
 
   # Read the command line options
   # Note: Keep list, and the order, in sync with usage at end of this file
@@ -787,9 +832,9 @@ sub command_line_setup {
 	     'timediff'                 => \&report_option,
 
              'help|h'                   => \$opt_usage,
-            ) or usage($thread_num, "Can't read options");
+            ) or usage("Can't read options");
 
-  usage($thread_num, "") if $opt_usage;
+  usage("") if $opt_usage;
 
   # --------------------------------------------------------------------------
   # Setup verbosity
@@ -797,12 +842,6 @@ sub command_line_setup {
   if ($opt_verbose != 0){
     report_option('verbose', $opt_verbose);
   }
-
-  # --------------------------------------------------------------------------
-  # Check build_thread and calculate baseport
-  # Use auto build thread in all but first worker
-  # --------------------------------------------------------------------------
-  set_build_thread_ports($thread_num > 1 ? 'auto' : $opt_build_thread);
 
   if ( -d "../sql" )
   {
@@ -892,7 +931,7 @@ sub command_line_setup {
     }
     elsif ( $arg =~ /^-/ )
     {
-      usage($thread_num, "Invalid option \"$arg\"");
+      usage("Invalid option \"$arg\"");
     }
     else
     {
@@ -929,9 +968,8 @@ sub command_line_setup {
 
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
-  # - Dont check in workers
   # --------------------------------------------------------------------------
-  if ( defined $opt_mem and $thread_num == 0)
+  if ( defined $opt_mem)
   {
     mtr_error("Can't use --mem and --vardir at the same time ")
       if $opt_vardir;
@@ -955,22 +993,13 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
-  # Set the "var/" directory, as it is the base for everything else
+  # Set the "var/" directory, the base for everything else
   # --------------------------------------------------------------------------
   $default_vardir= "$glob_mysql_test_dir/var";
   if ( ! $opt_vardir )
   {
     $opt_vardir= $default_vardir;
   }
-
-  # If more than one parallel run, use a subdir of the selected var
-  if ($thread_num && $opt_parallel > 1) {
-    $opt_vardir.= "/".$thread_num;
-   }
-
-  $path_vardir_trace= $opt_vardir;
-  # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
-  $path_vardir_trace=~ s/^\w://;
 
   # We make the path absolute, as the server will do a chdir() before usage
   unless ( $opt_vardir =~ m,^/, or
@@ -980,19 +1009,13 @@ sub command_line_setup {
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
   }
 
-  # Location of my.cnf that all clients use
-  $path_config_file= "$opt_vardir/my.cnf";
+  set_vardir($opt_vardir);
 
   # --------------------------------------------------------------------------
-  # Set tmpdir
+  # Set the "tmp" directory
   # --------------------------------------------------------------------------
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
-
-  # If more than one parallel run, use a subdir of the selected tmpdir
-  if ($thread_num && $opt_parallel > 1 and $opt_tmpdir ne "$opt_vardir/tmp") {
-    $opt_tmpdir.= "/".$thread_num;
-   }
 
   # --------------------------------------------------------------------------
   # fast option
@@ -1099,11 +1122,6 @@ sub command_line_setup {
     }
   }
 
-  # --------------------------------------------------------------------------
-  # Set timeout values
-  # --------------------------------------------------------------------------
-  $opt_start_timeout*= $opt_parallel;
-
   #
   # Check valgrind arguments
   # --------------------------------------------------------------------------
@@ -1157,9 +1175,6 @@ sub command_line_setup {
     $opt_user= "root"; # We want to do FLUSH xxx commands
   }
 
-  $path_testlog=         "$opt_vardir/log/mysqltest.log";
-  $path_current_testlog= "$opt_vardir/log/current_test";
-
   mtr_report("Checking supported features...");
 
   check_ndbcluster_support(\%mysqld_variables);
@@ -1167,8 +1182,6 @@ sub command_line_setup {
   check_debug_support(\%mysqld_variables);
 
   executable_setup();
-
-  environment_setup();
 
 }
 
@@ -1192,12 +1205,12 @@ sub set_build_thread_ports($) {
   my $build_thread= shift || 0;
 
   if ( lc($build_thread) eq 'auto' ) {
-    mtr_report("Requesting build thread... ");
+    #mtr_report("Requesting build thread... ");
     $build_thread= mtr_get_unique_id(250, 299);
     if ( !defined $build_thread ) {
       mtr_error("Could not get a unique build thread id");
     }
-    mtr_report(" - got $build_thread");
+    #mtr_report(" - got $build_thread");
   }
   $ENV{MTR_BUILD_THREAD}= $build_thread;
   $opt_build_thread= $build_thread;
@@ -1614,9 +1627,9 @@ sub environment_setup {
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= using_extern();
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
-  $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'master-port'} || 3306;
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
+  $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
 
   # ----------------------------------------------------
   # Setup env for NDB
@@ -2303,7 +2316,7 @@ sub check_ports_free
   for ($baseport..$baseport+9){
     push(@ports_to_check, $_);
   }
-  mtr_report("Checking ports...");
+  #mtr_report("Checking ports...");
   # print "@ports_to_check\n";
   foreach my $port (@ports_to_check){
     if (mtr_ping_port($port)){
@@ -2336,11 +2349,6 @@ sub initialize_servers {
     # Kill leftovers from previous run
     # using any pidfiles found in var/run
     kill_leftovers("$opt_vardir/run");
-
-    if (check_ports_free()){
-      # Some port was not free(which one has already been printed)
-      mtr_error("Some port(s) was not free")
-    }
 
     if ( ! $opt_start_dirty )
     {
@@ -4534,10 +4542,7 @@ sub valgrind_arguments {
 # Usage
 #
 sub usage ($) {
-  my ($thread_num, $message)= @_;
-
-  # Only main thread should print usage
-  return if $thread_num != 0;
+  my ($message)= @_;
 
   if ( $message )
   {
