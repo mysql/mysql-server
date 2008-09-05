@@ -4015,29 +4015,14 @@ sub start_servers($) {
     }
 
     my $datadir= $mysqld->value('datadir');
-
-    # Don't delete anything if starting dirty
     if (!$opt_start_dirty)
     {
-      my @options= ('log-bin', 'relay-log');
+      # Don't delete anything if starting dirty
 
-      foreach my $option_name ( @options )  {
-	next unless $mysqld->option($option_name);
-
-	my $value= $mysqld->value($option_name);
-
-	foreach my $file ( glob("$datadir/$value*") )
-	{
-	  #print "removing: $file\n";
-	  mtr_debug("Removing '$file'");
-	  unlink($file);
-	}
+      if (-d $datadir ) {
+	mtr_verbose(" - removing '$datadir'");
+	rmtree($datadir);
       }
-
-      # Remove old master.info and relay-log.info files
-      # from the servers datadir
-      unlink("$datadir/master.info");
-      unlink("$datadir/relay-log.info");
     }
 
     # Copy datadir from installed system db
