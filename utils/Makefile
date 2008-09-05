@@ -30,7 +30,7 @@ LDFLAGS = -L../lib -ltokudb -lpthread $(TDB_LOADLIBES) -lz
 
 # vars to compile bins that handle tokudb using libtokudb.a
 STATIC_CPPFLAGS = -I../include 
-STATIC_LDFLAGS = ../lib/libtokudb.a -lz
+STATIC_LDFLAGS = ../lib/libtokudb.a -lz -lpthread
 
 # vars to compile bins that handle bdb
 BDB_CPPFLAGS = -I$(BDBDIR)/include

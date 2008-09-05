@@ -17,6 +17,7 @@ CFLAGS = -W -Wall -Wextra -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
 CPPFLAGS += -I../ -I../../../newbrt -I../../../include
+LDFLAGS = -lpthread
 
 SRCS = $(wildcard *.c)
 
@@ -99,7 +100,7 @@ LDFLAGS = -lz
 %.lin: %.c  $(HEADERS) $(LINEAR_BINS)
 	$(CC) -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS) $(LDFLAGS)
 %.tlog: %.c $(HEADERS) $(TLOG_BINS)
-	$(CC) -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS  $(LDFLAGS)
+	$(CC) -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS $(LDFLAGS)
 %.log: %.c  $(HEADERS) $(LOG_BINS)
 	$(CC) -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS) $(LDFLAGS)
 

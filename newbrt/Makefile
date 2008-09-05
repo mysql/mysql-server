@@ -36,7 +36,7 @@ FORMAT=-Wmissing-format-attribute
 endif
 
 CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
-LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz
+LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz -lpthread
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
 
 # Add -Wconversion
@@ -77,6 +77,7 @@ BRT_SOURCES = \
   ybt \
   x1764 \
   trace_mem \
+  threadpool \
 # keep this line so I can ha vea \ on the previous line
 
 OFILES = newbrt.o $(CYG_ADD_LIBZ)

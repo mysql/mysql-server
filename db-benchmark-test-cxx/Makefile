@@ -12,7 +12,7 @@ CXXFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS)
 
 ifdef BDBDIR
 BDB_CPPFLAGS = -I$(BDBDIR)/include
-BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb_cxx -lpthread -Wl,-rpath,$(BDBDIR)/lib
+BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb_cxx -Wl,-rpath,$(BDBDIR)/lib -lpthread
 else
 BDB_CPPFLAGS =
 BDB_LDFLAGS = -ldb_cxx -lpthread
@@ -47,7 +47,7 @@ clean:
 
 db-benchmark-test-tokudb: ../lib/libtokudb_cxx.a
 db-benchmark-test-tokudb: db-benchmark-test.cpp
-	$(CXX) $(CXXFLAGS) -I../include -L../lib -Wl,-rpath,$(PWD)/../lib $< -o $@ -ltokudb -ltokudb_cxx -lz -DDIRSUF=tokudb
+	$(CXX) $(CXXFLAGS) -I../include -L../lib -Wl,-rpath,$(PWD)/../lib $< -o $@ -ltokudb -ltokudb_cxx -DDIRSUF=tokudb -lz -lpthread
 
 db-benchmark-test-bdb: db-benchmark-test.cpp
 	$(CXX) $(CXXFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS)                      $< -o $@ -DDIRSUF=bdb

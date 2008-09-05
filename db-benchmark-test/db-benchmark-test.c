@@ -123,7 +123,7 @@ void setup (void) {
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, 0644);
     if (r!=0) fprintf(stderr, "errno=%d, %s\n", errno, strerror(errno));
     assert(r == 0);
-    if (do_transactions && !singlex) {
+    if (do_transactions) {
 	if (singlex) do_prelock(db, tid);
         else {
             r=tid->commit(tid, 0);
