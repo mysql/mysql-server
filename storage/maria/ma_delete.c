@@ -1112,7 +1112,7 @@ static int underflow(register MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     MARIA_KEY_PARAM anc_key_inserted;
     size_t tmp_length;
 
-    if (first_key)
+    if (keypos == anc_buff + share->keypage_header + key_reflength)
       anc_pos= 0;				/* First key */
     else
     {

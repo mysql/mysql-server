@@ -443,6 +443,8 @@ static void usage(void)
 #endif
                       printf(", they will be used\n\
                       in a round-robin fashion.\n\
+  --require-control-file  Abort if we can't find/read the maria_log_control\n\
+                          file\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
 		      maria_chk very silent.\n\
   -v, --verbose       Print more information. This can be used with\n\
