@@ -4244,6 +4244,12 @@ sub start_mysqltest ($) {
     my $extra_opts= get_extra_opts($mysqld, $tinfo);
     mysqld_arguments($mysqld_args, $mysqld, $extra_opts);
     mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
+
+    if (IS_WINDOWS)
+    {
+      # Trick the server to send output to stderr, with --console
+      mtr_add_arg($args, "--server-arg=--console");
+    }
   }
 
   # ----------------------------------------------------------------------
