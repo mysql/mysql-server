@@ -271,6 +271,11 @@ public:
   virtual void debug(const char* pMsg, ...) const;
   virtual void debug(BaseString &pMsg) const { debug(pMsg.c_str()); };
 
+  /*
+   * Set repeat frequency, 0 means disable special repeated message handling
+   */
+  virtual void setRepeatFrequency(unsigned val);
+
 protected:
 
   NdbMutex *m_mutex;
