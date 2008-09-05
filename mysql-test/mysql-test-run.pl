@@ -2762,7 +2762,6 @@ sub start_run_one ($$) {
 sub run_on_all($$)
 {
   my ($tinfo, $run)= @_;
-  my $tname= $tinfo->{name};
 
   # Start the mysqltest processes in parallel to save time
   # also makes it possible to wait for any process to exit during the check
@@ -3181,7 +3180,6 @@ sub start_check_warnings ($$) {
   my $mysqld=   shift;
 
   my $name= "warnings-".$mysqld->name();
-  my $tname= $tinfo->{name};
 
   my $args;
   mtr_init_args(\$args);
@@ -4120,7 +4118,9 @@ sub start_check_testcase ($$$) {
   my $mysqld=   shift;
 
   my $name= "check-".$mysqld->name();
-  my $tname= $tinfo->{name};
+  # Replace dots in name with underscore to avoid that mysqltest
+  # misinterpret's what the filename extension is :(
+  $name=~ s/\./_/g;
 
   my $args;
   mtr_init_args(\$args);
