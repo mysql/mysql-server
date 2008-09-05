@@ -257,7 +257,7 @@ sub main {
   command_line_setup(0);
 
   if ( $opt_gcov ) {
-    gcov_prepare();
+    gcov_prepare($basedir);
   }
 
   if (!$opt_suites) {
@@ -345,6 +345,11 @@ sub main {
   }
 
   mtr_print_line();
+
+  if ( $opt_gcov ) {
+    gcov_collect($basedir, $opt_gcov,
+		 $opt_gcov_msg, $opt_gcov_err);
+  }
 
   mtr_report_stats($completed);
 
@@ -611,11 +616,6 @@ sub run_worker ($) {
 
   command_line_setup($thread_num);
 
-  if ( $opt_gcov )
-  {
-    gcov_prepare();
-  }
-
   setup_vardir();
   check_running_as_root();
   mysql_install_db($thread_num);
@@ -648,16 +648,6 @@ sub run_worker ($) {
   }
 
   stop_all_servers();
-
-  if ( $opt_gcov )
-  {
-    gcov_collect(); # collect coverage information
-  }
-
-  if ( $opt_gcov )
-  {
-    gcov_collect(); # collect coverage information
-  }
 
   exit(1);
 }
