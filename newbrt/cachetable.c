@@ -20,16 +20,16 @@
 #include <malloc.h>
 
 // execute the cachetable callbacks using a writer thread 0->no 1->yes
-#define DO_WRITER_THREAD 0
+#define DO_WRITER_THREAD 1
 #if DO_WRITER_THREAD
 static void *cachetable_writer(void *);
 #endif
 
 // use cachetable locks 0->no 1->yes
-#define DO_CACHETABLE_LOCK 0
+#define DO_CACHETABLE_LOCK 1
 
 // unlock the cachetable while executing callbacks 0->no 1->yes
-#define DO_CALLBACK_UNLOCK 0
+#define DO_CALLBACK_UNLOCK 1
 
 // simulate long latency write operations with usleep. time in milliseconds.
 #define DO_CALLBACK_USLEEP 0
