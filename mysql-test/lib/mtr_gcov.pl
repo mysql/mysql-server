@@ -20,25 +20,14 @@
 
 use strict;
 
-# These are not to be prefixed with "mtr_"
+sub gcov_prepare ($) {
+  my ($dir)= @_;
 
-sub gcov_prepare ();
-sub gcov_collect ();
-
-##############################################################################
-#
-#  
-#
-##############################################################################
-
-sub gcov_prepare () {
-
-  `find $::glob_basedir -name \*.gcov \
+  `find $dir -name \*.gcov \
     -or -name \*.da | xargs rm`;
 }
 
-# Used by gcov
-our @mysqld_src_dirs=
+my @mysqld_src_dirs=
   (
    "strings",
    "mysys",
@@ -53,21 +42,24 @@ our @mysqld_src_dirs=
    "sql",
   );
 
-sub gcov_collect () {
+sub gcov_collect ($$$) {
+  my ($dir, $gcov, $gcov_msg, $err)= @_;
+
+  my $start_dir= cwd();
 
   print "Collecting source coverage info...\n";
-  -f $::opt_gcov_msg and unlink($::opt_gcov_msg);
-  -f $::opt_gcov_err and unlink($::opt_gcov_err);
+  -f $gcov_msg and unlink($gcov_msg);
+  -f $gcov_err and unlink($gcov_err);
   foreach my $d ( @mysqld_src_dirs )
   {
-    chdir("$::glob_basedir/$d");
+    chdir("$dir/$d");
     foreach my $f ( (glob("*.h"), glob("*.cc"), glob("*.c")) )
     {
-      `$::opt_gcov $f 2>>$::opt_gcov_err  >>$::opt_gcov_msg`;
+      `$gcov $f 2>>$gcov_err  >>$gcov_msg`;
     }
-    chdir($::glob_mysql_test_dir);
+    chdir($start_dir);
   }
-  print "gcov info in $::opt_gcov_msg, errors in $::opt_gcov_err\n";
+  print "gcov info in $gcov_msg, errors in $gcov_err\n";
 }
 
 
