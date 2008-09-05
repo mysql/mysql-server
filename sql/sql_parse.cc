@@ -2083,13 +2083,15 @@ mysql_execute_command(THD *thd)
 #endif
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
-    res= execute_sqlcom_select(thd, all_tables);
+    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
+      res= execute_sqlcom_select(thd, all_tables);
     break;
   case SQLCOM_SHOW_STATUS:
   {
     system_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
-    res= execute_sqlcom_select(thd, all_tables);
+    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
+      res= execute_sqlcom_select(thd, all_tables);
     /* Don't log SHOW STATUS commands to slow query log */
     thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
                            SERVER_QUERY_NO_GOOD_INDEX_USED);
