@@ -4460,8 +4460,20 @@ void Item_func_like::cleanup()
 
 #ifdef USE_REGEX
 
-bool
-Item_func_regex::regcomp(bool send_error)
+/**
+  @brief Compile regular expression.
+
+  @param[in]    send_error     send error message if any.
+
+  @details Make necessary character set conversion then 
+  compile regular expression passed in the args[1].
+
+  @retval    0     success.
+  @retval    1     error occurred.
+  @retval   -1     given null regular expression.
+ */
+
+int Item_func_regex::regcomp(bool send_error)
 {
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),&my_charset_bin);
@@ -4469,12 +4481,12 @@ Item_func_regex::regcomp(bool send_error)
   int error;
 
   if (args[1]->null_value)
-    return TRUE;
+    return -1;
 
   if (regex_compiled)
   {
     if (!stringcmp(res, &prev_regexp))
-      return FALSE;
+      return 0;
     prev_regexp.copy(*res);
     my_regfree(&preg);
     regex_compiled= 0;
@@ -4486,7 +4498,7 @@ Item_func_regex::regcomp(bool send_error)
     uint dummy_errors;
     if (conv.copy(res->ptr(), res->length(), res->charset(),
                   regex_lib_charset, &dummy_errors))
-      return TRUE;
+      return 1;
     res= &conv;
   }
 
@@ -4498,10 +4510,10 @@ Item_func_regex::regcomp(bool send_error)
       (void) my_regerror(error, &preg, buff, sizeof(buff));
       my_error(ER_REGEXP_ERROR, MYF(0), buff);
     }
-    return TRUE;
+    return 1;
   }
   regex_compiled= 1;
-  return FALSE;
+  return 0;
 }
 
 
@@ -4539,13 +4551,14 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
   const_item_cache=args[0]->const_item() && args[1]->const_item();
   if (!regex_compiled && args[1]->const_item())
   {
-    if (args[1]->null_value)
+    int comp_res= regcomp(TRUE);
+    if (comp_res == -1)
     {						// Will always return NULL
       maybe_null=1;
       fixed= 1;
       return FALSE;
     }
-    if (regcomp(TRUE))
+    else if (comp_res)
       return TRUE;
     regex_is_const= 1;
     maybe_null= args[0]->maybe_null;
