@@ -256,7 +256,7 @@ my_bool my_thread_init(void)
 #ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_init(): thread_id: 0x%lx\n",
           (ulong) pthread_self());
-#endif  
+#endif
 
 #if !defined(__WIN__) || defined(USE_TLS)
   if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
@@ -264,7 +264,7 @@ my_bool my_thread_init(void)
 #ifdef EXTRA_DEBUG_THREADS
     fprintf(stderr,"my_thread_init() called more than once in thread 0x%lx\n",
             (long) pthread_self());
-#endif    
+#endif
     goto end;
   }
   if (!(tmp= (struct st_my_thread_var *) calloc(1, sizeof(*tmp))))
@@ -289,6 +289,8 @@ my_bool my_thread_init(void)
 #endif
   pthread_mutex_init(&tmp->mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&tmp->suspend, NULL);
+
+  tmp->stack_ends_here= &tmp + STACK_DIRECTION * my_thread_stack_size;
 
   pthread_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;
@@ -325,7 +327,7 @@ void my_thread_end(void)
 #ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_end(): tmp: 0x%lx  pthread_self: 0x%lx  thread_id: %ld\n",
 	  (long) tmp, (long) pthread_self(), tmp ? (long) tmp->id : 0L);
-#endif  
+#endif
   if (tmp && tmp->init)
   {
 #if !defined(DBUG_OFF)

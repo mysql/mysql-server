@@ -106,11 +106,7 @@ int maria_begin(MARIA_HA *info)
 
   if (info->s->now_transactional)
   {
-    TRN *trn;
-    struct st_my_thread_var *mysys_var= my_thread_var;
-    trn= trnman_new_trn(&mysys_var->mutex,
-                        &mysys_var->suspend,
-                        (char*) &mysys_var + STACK_DIRECTION *1024*128);
+    TRN *trn= trnman_new_trn(0);
     if (unlikely(!trn))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 

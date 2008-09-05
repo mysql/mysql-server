@@ -59,7 +59,7 @@
 #include <thr_alarm.h>
 #include <myisam.h>
 #include <my_dir.h>
-
+#include <waiting_threads.h>
 #include "events.h"
 
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
@@ -227,6 +227,19 @@ static sys_var_long_ptr	sys_concurrent_insert(&vars, "concurrent_insert",
 static sys_var_long_ptr	sys_connect_timeout(&vars, "connect_timeout",
 					    &connect_timeout);
 static sys_var_const_str       sys_datadir(&vars, "datadir", mysql_real_data_home);
+
+static sys_var_thd_ulong sys_deadlock_search_depth_short(&vars,
+                                "deadlock_search_depth_short",
+                                 &SV::wt_deadlock_search_depth_short);
+static sys_var_thd_ulong sys_deadlock_search_depth_long(&vars,
+                                "deadlock_search_depth_long",
+                                 &SV::wt_deadlock_search_depth_long);
+static sys_var_thd_ulong sys_deadlock_timeout_short(&vars,
+                                "deadlock_timeout_short",
+                                 &SV::wt_timeout_short);
+static sys_var_thd_ulong sys_deadlock_timeout_long(&vars,
+                                "deadlock_timeout_long",
+                                 &SV::wt_timeout_long);
 #ifndef DBUG_OFF
 static sys_var_thd_dbug        sys_dbug(&vars, "debug");
 #endif

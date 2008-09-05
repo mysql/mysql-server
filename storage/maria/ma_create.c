@@ -1008,20 +1008,19 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     log_data[0]= test(flags & HA_DONT_TOUCH_DATA);
     int2store(log_data + 1, kfile_size_before_extension);
     int2store(log_data + 1 + 2, share.base.keystart);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (uchar *)name;
     /* we store the end-zero, for Recovery to just pass it to my_create() */
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
-      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 0].str) + 1;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= strlen(name) + 1;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str= log_data;
     /* symlink description is also needed for re-creation by Recovery: */
-    log_array[TRANSLOG_INTERNAL_PARTS + 2].str=
-      (ci->data_file_name ? ci->data_file_name : empty_string);
-    log_array[TRANSLOG_INTERNAL_PARTS + 2].length=
-      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 2].str) + 1;
-    log_array[TRANSLOG_INTERNAL_PARTS + 3].str=
-      (ci->index_file_name ? ci->index_file_name : empty_string);
-    log_array[TRANSLOG_INTERNAL_PARTS + 3].length=
-      strlen(log_array[TRANSLOG_INTERNAL_PARTS + 3].str) + 1;
+    {
+      const char *s= ci->data_file_name ? ci->data_file_name : empty_string;
+      log_array[TRANSLOG_INTERNAL_PARTS + 2].str= (uchar*)s;
+      log_array[TRANSLOG_INTERNAL_PARTS + 2].length= strlen(s) + 1;
+      s= ci->index_file_name ? ci->index_file_name : empty_string;
+      log_array[TRANSLOG_INTERNAL_PARTS + 3].str= (uchar*)s;
+      log_array[TRANSLOG_INTERNAL_PARTS + 3].length= strlen(s) + 1;
+    }
     for (k= TRANSLOG_INTERNAL_PARTS;
          k < (sizeof(log_array)/sizeof(log_array[0])); k++)
       total_rec_length+= (translog_size_t) log_array[k].length;

@@ -3094,7 +3094,7 @@ static my_bool write_block_record(MARIA_HA *info,
                                                        info->rec_buff);
       log_pos= store_page_range(log_pos, head_block+1, block_size,
                                 (ulong) block_length, &extents);
-      log_array_pos->str=    (char*) info->rec_buff;
+      log_array_pos->str= info->rec_buff;
       log_array_pos->length= block_length;
       log_entry_length+= block_length;
       log_array_pos++;
@@ -5408,7 +5408,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
   log_parts++;
 
   /* Stored bitmap over packed (zero length or all-zero fields) */
-  log_parts->str=    (char *) info->cur_row.empty_bits;
+  log_parts->str= info->cur_row.empty_bits;
   log_parts->length= share->base.pack_bytes;
   row_length+=       log_parts->length;
   log_parts++;
@@ -5416,7 +5416,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
   if (share->base.max_field_lengths)
   {
     /* Store length of all not empty char, varchar and blob fields */
-    log_parts->str=      (char *) field_lengths - 2;
+    log_parts->str= field_lengths - 2;
     log_parts->length=   info->cur_row.field_lengths_length+2;
     int2store(log_parts->str, info->cur_row.field_lengths_length);
     row_length+= log_parts->length;
@@ -5428,8 +5428,8 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     /*
       Store total blob length to make buffer allocation easier during UNDO
      */
-    log_parts->str=      (char *) info->length_buff;
-    log_parts->length=   (uint) (ma_store_length((uchar *) log_parts->str,
+    log_parts->str=  info->length_buff;
+    log_parts->length= (uint) (ma_store_length((uchar *) log_parts->str,
                                                  info->cur_row.blob_length) -
                                  (uchar*) log_parts->str);
     row_length+=          log_parts->length;
@@ -5442,7 +5442,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
        column < end_column;
        column++)
   {
-    log_parts->str= (char*) record + column->offset;
+    log_parts->str= record + column->offset;
     log_parts->length= column->length;
     row_length+= log_parts->length;
     log_parts++;
@@ -5493,7 +5493,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     default:
       DBUG_ASSERT(0);
     }
-    log_parts->str= (char*) column_pos;
+    log_parts->str= column_pos;
     log_parts->length= column_length;
     row_length+= log_parts->length;
     log_parts++;
@@ -5512,8 +5512,8 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     */
     if (blob_length)
     {
-      char *blob_pos;
-      memcpy_fixed((uchar*) &blob_pos, record + column->offset + size_length,
+      uchar *blob_pos;
+      memcpy_fixed(&blob_pos, record + column->offset + size_length,
                    sizeof(blob_pos));
       log_parts->str= blob_pos;
       log_parts->length= blob_length;
@@ -5612,7 +5612,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
     {
       field_data= ma_store_length(field_data,
                                   (uint) (column - share->columndef));
-      log_parts->str= (char*) oldrec + column->offset;
+      log_parts->str= oldrec + column->offset;
       log_parts->length= column->length;
       row_length+=       column->length;
       log_parts++;
@@ -5719,7 +5719,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
                                   (ulong) (column - share->columndef));
       field_data= ma_store_length(field_data, (ulong) old_column_length);
 
-      log_parts->str=     (char*) old_column_pos;
+      log_parts->str=     old_column_pos;
       log_parts->length=  old_column_length;
       row_length+=        old_column_length;
       log_parts++;
@@ -5730,10 +5730,9 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
 
   /* Store length of field length data before the field/field_lengths */
   field_lengths= (uint) (field_data - start_field_data);
-  start_log_parts->str=  ((char*)
-                          (start_field_data -
+  start_log_parts->str=  ((start_field_data -
                            ma_calc_length_for_store_length(field_lengths)));
-  ma_store_length((uchar *) start_log_parts->str, field_lengths);
+  ma_store_length((uchar*)start_log_parts->str, field_lengths);
   start_log_parts->length= (size_t) (field_data - start_log_parts->str);
   row_length+= start_log_parts->length;
   DBUG_RETURN(row_length);

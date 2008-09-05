@@ -5172,9 +5172,9 @@ static void  translog_relative_LSN_encode(struct st_translog_parts *parts,
 {
   LEX_CUSTRING *part;
   uint lsns_len= lsns * LSN_STORE_SIZE;
-  char buffer_src[MAX_NUMBER_OF_LSNS_PER_RECORD * LSN_STORE_SIZE];
-  char *buffer= buffer_src;
-  const char *cbuffer;
+  uchar buffer_src[MAX_NUMBER_OF_LSNS_PER_RECORD * LSN_STORE_SIZE];
+  uchar *buffer= buffer_src;
+  const uchar *cbuffer;
 
   DBUG_ENTER("translog_relative_LSN_encode");
 
@@ -5249,7 +5249,7 @@ static void  translog_relative_LSN_encode(struct st_translog_parts *parts,
     DBUG_PRINT("info", ("new length of LSNs: %lu  economy: %d",
                         (ulong)part->length, economy));
     parts->total_record_length-= economy;
-    part->str= (char*)dst_ptr;
+    part->str= dst_ptr;
   }
   DBUG_VOID_RETURN;
 }
@@ -5959,7 +5959,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
   DBUG_ASSERT(parts->current != 0);       /* first part is left for header */
   part= parts->parts + (--parts->current);
   parts->total_record_length+= (translog_size_t) (part->length= 1 + 2);
-  part->str= (char*)chunk1_header;
+  part->str= chunk1_header;
   *chunk1_header= (uchar) (type | TRANSLOG_CHUNK_FIXED);
   int2store(chunk1_header + 1, short_trid);
 

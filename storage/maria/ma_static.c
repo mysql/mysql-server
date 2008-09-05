@@ -64,6 +64,9 @@ HASH maria_stored_state;
 */
 TRN dummy_transaction_object;
 
+/* a WT_RESOURCE_TYPE for transactions waiting on a unique key conflict */
+WT_RESOURCE_TYPE ma_rc_dup_unique={ wt_resource_id_memcmp, 0};
+
 /* Enough for comparing if number is zero */
 uchar maria_zero_string[]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 

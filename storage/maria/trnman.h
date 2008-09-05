@@ -19,7 +19,6 @@
 C_MODE_START
 
 #include <lf.h>
-#include "lockman.h"
 #include "trnman_public.h"
 #include "ma_loghandler_lsn.h"
 
@@ -28,31 +27,37 @@ C_MODE_START
   is created. Transaction can always be identified by its trid,
   even after transaction has ended.
 
-  short_trid - 2-byte transaction identifier, identifies a running
+  short_id - 2-byte transaction identifier, identifies a running
   transaction, is reassigned when transaction ends.
+
+  when short_id is 0, TRN is not initialized, for all practical purposes
+  it could be considered unused.
+
+  when commit_trid is ~(TrID)0 the transaction is running, otherwise it's
+  committed.
+
+  state_lock mutex protects the state of a TRN, that is whether a TRN
+  is committed/running/unused. Meaning that modifications of short_id and
+  commit_trid happen under this mutex.
 */
 
-/*
-  short transaction id is at the same time its identifier
-  for a lock manager - its lock owner identifier (loid)
-*/
-
-#define short_id locks.loid
-
-struct st_transaction
+struct st_ma_transaction
 {
-  LOCK_OWNER           locks; /* must be the first! see short_trid_to_TRN() */
   LF_PINS              *pins;
+  WT_THD               *wt;
+  pthread_mutex_t      state_lock;
   void                 *used_tables;  /* Tables used by transaction */
   TRN                  *next, *prev;
   TrID                 trid, min_read_from, commit_trid;
   LSN		       rec_lsn, undo_lsn;
   LSN_WITH_FLAGS       first_undo_lsn;
   uint                 locked_tables;
-  /* Note! if locks.loid is 0, trn is NOT initialized */
+  uint16               short_id;
 };
 
 #define TRANSACTION_LOGGED_LONG_ID ULL(0x8000000000000000)
+
+extern WT_RESOURCE_TYPE ma_rc_dup_unique;
 
 C_MODE_END
 

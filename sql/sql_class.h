@@ -22,6 +22,7 @@
 
 #include "log.h"
 #include "rpl_tblmap.h"
+#include <waiting_threads.h>
 
 class Relay_log_info;
 
@@ -352,6 +353,9 @@ struct system_variables
   DATE_TIME_FORMAT *time_format;
   my_bool sysdate_is_now;
 
+  /* deadlock detection */
+  ulong wt_timeout_short, wt_deadlock_search_depth_short;
+  ulong wt_timeout_long, wt_deadlock_search_depth_long;
 };
 
 
@@ -1327,6 +1331,7 @@ public:
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
     XID_STATE xid_state;
+    WT_THD wt;
     Rows_log_event *m_pending_rows_event;
 
     /*

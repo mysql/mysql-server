@@ -222,7 +222,7 @@ static int really_execute_checkpoint(void)
     */
     LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 5];
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=
-      checkpoint_start_log_horizon_char;
+      (uchar*) checkpoint_start_log_horizon_char;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= total_rec_length=
       sizeof(checkpoint_start_log_horizon_char);
     for (i= 0; i < (sizeof(record_pieces)/sizeof(record_pieces[0])); i++)

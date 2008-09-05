@@ -96,11 +96,10 @@
   versioning a pointer - because we use an array, a pointer to pins is 16 bit,
   upper 16 bits are used for a version.
 
-  It is assumed that pins belong to a thread and are not transferable
-  between threads (LF_PINS::stack_ends_here being a primary reason
+  It is assumed that pins belong to a THD and are not transferable
+  between THD's (LF_PINS::stack_ends_here being a primary reason
   for this limitation).
 */
-
 #include <my_global.h>
 #include <my_sys.h>
 #include <lf.h>
@@ -137,10 +136,6 @@ void lf_pinbox_destroy(LF_PINBOX *pinbox)
 
   SYNOPSYS
     pinbox      -
-    stack_end   - a pointer to the end (top/bottom, depending on the
-                  STACK_DIRECTION) of stack. Used for safe alloca. There's
-                  no safety margin deducted, a caller should take care of it,
-                  if necessary.
 
   DESCRIPTION
     get a new LF_PINS structure from a stack of unused pins,
@@ -150,7 +145,7 @@ void lf_pinbox_destroy(LF_PINBOX *pinbox)
     It is assumed that pins belong to a thread and are not transferable
     between threads.
 */
-LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox, void *stack_end)
+LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
 {
   uint32 pins, next, top_ver;
   LF_PINS *el;
@@ -194,7 +189,7 @@ LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox, void *stack_end)
   el->link= pins;
   el->purgatory_count= 0;
   el->pinbox= pinbox;
-  el->stack_ends_here= stack_end;
+  el->stack_ends_here= & my_thread_var->stack_ends_here;
   return el;
 }
 
@@ -325,6 +320,9 @@ static int match_pins(LF_PINS *el, void *addr)
 #define available_stack_size(CUR,END) (long) ((char*)(END) - (char*)(CUR))
 #endif
 
+#define next_node(P, X) (*((uchar **)(((uchar *)(X)) + (P)->free_ptr_offset)))
+#define anext_node(X) next_node(&allocator->pinbox, (X))
+
 /*
   Scan the purgatory and free everything that can be freed
 */
@@ -332,7 +330,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
 {
   int npins, alloca_size;
   void *list, **addr;
-  struct st_lf_alloc_node *first, *last= NULL;
+  uchar *first, *last= NULL;
   LF_PINBOX *pinbox= pins->pinbox;
 
   LINT_INIT(first);
@@ -341,7 +339,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
 #ifdef HAVE_ALLOCA
   alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
   /* create a sorted list of pinned addresses, to speed up searches */
-  if (available_stack_size(&pinbox, pins->stack_ends_here) > alloca_size)
+  if (available_stack_size(&pinbox, *pins->stack_ends_here) > alloca_size)
   {
     struct st_harvester hv;
     addr= (void **) alloca(alloca_size);
@@ -391,9 +389,9 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
     }
     /* not pinned - freeing */
     if (last)
-      last= last->next= (struct st_lf_alloc_node *)cur;
+      last= next_node(pinbox, last)= (uchar *)cur;
     else
-      first= last= (struct st_lf_alloc_node *)cur;
+      first= last= (uchar *)cur;
     continue;
 found:
     /* pinned - keeping */
@@ -412,22 +410,22 @@ LF_REQUIRE_PINS(1)
   add it back to the allocator stack
 
   DESCRIPTION
-    'first' and 'last' are the ends of the linked list of st_lf_alloc_node's:
+    'first' and 'last' are the ends of the linked list of nodes:
     first->el->el->....->el->last. Use first==last to free only one element.
 */
-static void alloc_free(struct st_lf_alloc_node *first,
-                       struct st_lf_alloc_node volatile *last,
+static void alloc_free(uchar *first,
+                       uchar volatile *last,
                        LF_ALLOCATOR *allocator)
 {
   /*
     we need a union here to access type-punned pointer reliably.
     otherwise gcc -fstrict-aliasing will not see 'tmp' changed in the loop
   */
-  union { struct st_lf_alloc_node * node; void *ptr; } tmp;
+  union { uchar * node; void *ptr; } tmp;
   tmp.node= allocator->top;
   do
   {
-    last->next= tmp.node;
+    anext_node(last)= tmp.node;
   } while (!my_atomic_casptr((void **)(char *)&allocator->top,
                              (void **)&tmp.ptr, first) && LF_BACKOFF);
 }
@@ -452,6 +450,8 @@ void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
   allocator->top= 0;
   allocator->mallocs= 0;
   allocator->element_size= size;
+  allocator->constructor= 0;
+  allocator->destructor= 0;
   DBUG_ASSERT(size >= sizeof(void*) + free_ptr_offset);
 }
 
@@ -468,10 +468,12 @@ void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
 */
 void lf_alloc_destroy(LF_ALLOCATOR *allocator)
 {
-  struct st_lf_alloc_node *node= allocator->top;
+  uchar *node= allocator->top;
   while (node)
   {
-    struct st_lf_alloc_node *tmp= node->next;
+    uchar *tmp= anext_node(node);
+    if (allocator->destructor)
+      allocator->destructor(node);
     my_free((void *)node, MYF(0));
     node= tmp;
   }
@@ -489,7 +491,7 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator)
 void *_lf_alloc_new(LF_PINS *pins)
 {
   LF_ALLOCATOR *allocator= (LF_ALLOCATOR *)(pins->pinbox->free_func_arg);
-  struct st_lf_alloc_node *node;
+  uchar *node;
   for (;;)
   {
     do
@@ -500,6 +502,8 @@ void *_lf_alloc_new(LF_PINS *pins)
     if (!node)
     {
       node= (void *)my_malloc(allocator->element_size, MYF(MY_WME));
+      if (allocator->constructor)
+        allocator->constructor(node);
 #ifdef MY_LF_EXTRA_DEBUG
       if (likely(node != 0))
         my_atomic_add32(&allocator->mallocs, 1);
@@ -507,7 +511,7 @@ void *_lf_alloc_new(LF_PINS *pins)
       break;
     }
     if (my_atomic_casptr((void **)(char *)&allocator->top,
-                         (void *)&node, node->next))
+                         (void *)&node, anext_node(node)))
       break;
   }
   _lf_unpin(pins, 0);
@@ -523,8 +527,8 @@ void *_lf_alloc_new(LF_PINS *pins)
 uint lf_alloc_pool_count(LF_ALLOCATOR *allocator)
 {
   uint i;
-  struct st_lf_alloc_node *node;
-  for (node= allocator->top, i= 0; node; node= node->next, i++)
+  uchar *node;
+  for (node= allocator->top, i= 0; node; node= anext_node(node), i++)
     /* no op */;
   return i;
 }

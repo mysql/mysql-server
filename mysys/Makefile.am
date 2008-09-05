@@ -58,7 +58,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_windac.c my_access.c base64.c my_libwrap.c \
 		        wqueue.c
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
-			thr_mutex.c thr_rwlock.c \
+			thr_mutex.c thr_rwlock.c waiting_threads.c \
 			CMakeLists.txt mf_soundex.c \
 			my_conio.c my_wincond.c my_winthread.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@

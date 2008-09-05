@@ -299,11 +299,22 @@ static int initialize_bucket(LF_HASH *, LF_SLIST * volatile*, uint, LF_PINS *);
 
 /*
   Initializes lf_hash, the arguments are compatible with hash_init
+
+  @@note element_size sets both the size of allocated memory block for
+  lf_alloc and a size of memcpy'ed block size in lf_hash_insert. Typically
+  they are the same, indeed. But LF_HASH::element_size can be decreased
+  after lf_hash_init, and then lf_alloc will allocate larger block that
+  lf_hash_insert will copy over. It is desireable if part of the element
+  is expensive to initialize - for example if there is a mutex or
+  DYNAMIC_ARRAY. In this case they should be initialize in the
+  LF_ALLOCATOR::constructor, and lf_hash_insert should not overwrite them.
+  See wt_init() for example.
 */
 void lf_hash_init(LF_HASH *hash, uint element_size, uint flags,
                   uint key_offset, uint key_length, hash_get_key get_key,
                   CHARSET_INFO *charset)
 {
+  compile_time_assert(sizeof(LF_SLIST) == LF_HASH_OVERHEAD);
   lf_alloc_init(&hash->alloc, sizeof(LF_SLIST)+element_size,
                 offsetof(LF_SLIST, key));
   lf_dynarray_init(&hash->array, sizeof(LF_SLIST *));
@@ -453,7 +464,7 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   return found ? found+1 : 0;
 }
 
-static const uchar *dummy_key= "";
+static const uchar *dummy_key= (uchar*)"";
 
 /*
   RETURN
@@ -473,7 +484,7 @@ static int initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
       unlikely(initialize_bucket(hash, el, parent, pins)))
     return -1;
   dummy->hashnr= my_reverse_bits(bucket) | 0; /* dummy node */
-  dummy->key= (char*) dummy_key;
+  dummy->key= dummy_key;
   dummy->keylen= 0;
   if ((cur= linsert(el, hash->charset, dummy, pins, LF_HASH_UNIQUE)))
   {

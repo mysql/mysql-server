@@ -167,7 +167,7 @@ void writer(int num)
 
     int2store(long_tr_id, num);
     int4store(long_tr_id + 2, i);
-    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     if (translog_write_record(&lsn,
                               LOGREC_FIXED_RECORD_0LSN_EXAMPLE,
@@ -183,7 +183,7 @@ void writer(int num)
       return;
     }
     lsns1[num][i]= lsn;
-    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_buffer;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_buffer;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= len;
     if (translog_write_record(&lsn,
                               LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE,
@@ -368,7 +368,7 @@ int main(int argc __attribute__((unused)),
       0x11, 0x22, 0x33, 0x44, 0x55, 0x66
     };
 
-    parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
+    parts[TRANSLOG_INTERNAL_PARTS + 0].str= long_tr_id;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
     dummy_transaction_object.first_undo_lsn= TRANSACTION_LOGGED_LONG_ID;
     if (translog_write_record(&first_lsn,
