@@ -27,6 +27,16 @@ sub value {
   return $self->{value};
 }
 
+sub option {
+  my ($self)= @_;
+  my $name=  $self->{name};
+  my $value= $self->{value};
+
+  my $opt= $name;
+  $opt= "$name=$value" if ($value);
+  $opt= "--$opt" unless ($opt =~ /^--/);
+  return $opt;
+}
 
 package My::Config::Group;
 
