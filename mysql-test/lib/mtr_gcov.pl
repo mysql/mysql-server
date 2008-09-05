@@ -43,7 +43,7 @@ my @mysqld_src_dirs=
   );
 
 sub gcov_collect ($$$) {
-  my ($dir, $gcov, $gcov_msg, $err)= @_;
+  my ($dir, $gcov, $gcov_msg, $gcov_err)= @_;
 
   my $start_dir= cwd();
 
