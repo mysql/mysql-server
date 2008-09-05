@@ -53,7 +53,7 @@ sub NOT_REQUIRED { return 0; }
 #    binary is not found
 #    my $mysql_exe= my_find_bin($basedir,
 #                               ["client", "bin"],
-#                               "mysql", 0);
+#                               "mysql", NOT_REQUIRED);
 #
 # NOTE: The function honours MTR_VS_CONFIG environment variable
 #
