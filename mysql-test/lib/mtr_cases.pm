@@ -397,7 +397,7 @@ sub collect_one_suite($)
 	my $comb= {};
 	$comb->{name}= $group->name();
         foreach my $option ( $group->options() ) {
-	  push(@{$comb->{comb_opt}}, $option->name()."=".$option->value());
+	  push(@{$comb->{comb_opt}}, $option->option());
 	}
 	push(@combinations, $comb);
       }
