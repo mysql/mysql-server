@@ -5391,7 +5391,7 @@ drop table t1;
 create table t1 (a int not null) engine=csv;
 lock tables t1 read;
 select * from t1;
-ERROR HY000: File './test/t1.CSV' not found (Errcode: 2)
+ERROR HY000: File 'MYSQLD_DATADIR/test/t1.CSV' not found (Errcode: 2)
 unlock tables;
 drop table t1;
 End of 5.1 tests
