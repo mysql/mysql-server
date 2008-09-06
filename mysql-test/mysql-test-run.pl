@@ -50,6 +50,7 @@ use My::ConfigFactory;
 use My::Options;
 use My::Find;
 use My::SysInfo;
+use My::CoreDump;
 use mtr_cases;
 use mtr_report;
 use mtr_match;
@@ -446,14 +447,15 @@ sub run_test_server ($$$) {
 			 my $core_name= basename($core_file);
 
 			 if ($core_name =~ "core*"){
+			   mtr_report(" - found '$core_name'",
+				      "($num_saved_cores/$opt_max_save_core)");
+
+			   My::CoreDump->show($core_file);
+
 			   if ($num_saved_cores >= $opt_max_save_core) {
-			     mtr_report(" - deleting '$core_name'",
-				      "($num_saved_cores/$opt_max_save_core)");
+			     mtr_report(" - deleting it, already saved",
+					"$opt_max_save_core");
 			     unlink("$core_file");
-			   }
-			   else {
-			     mtr_report(" - found '$core_name'",
-				      "($num_saved_cores/$opt_max_save_core)");
 			   }
 			   ++$num_saved_cores;
 			 }
