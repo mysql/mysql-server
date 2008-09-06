@@ -3693,9 +3693,10 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 
     share->table_map_id is not ~0UL.
  */
+static ulong last_table_id= ~0UL;
+
 void assign_new_table_id(TABLE_SHARE *share)
 {
-  static ulong last_table_id= ~0UL;
 
   DBUG_ENTER("assign_new_table_id");
 
@@ -3718,7 +3719,6 @@ void assign_new_table_id(TABLE_SHARE *share)
 
   DBUG_VOID_RETURN;
 }
-
 
 /**
   Compare metadata versions of an element obtained from the table

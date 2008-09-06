@@ -8,7 +8,7 @@ use mtr||
 --
 CREATE TABLE suspicious_patterns (
   pattern VARCHAR(255)
-)||
+) ENGINE=MyISAM||
 
 
 --
@@ -46,7 +46,7 @@ INSERT INTO suspicious_patterns VALUES
 --
 CREATE TABLE test_supressions (
   pattern VARCHAR(255)
-)||
+) ENGINE=MyISAM||
 
 
 --
@@ -69,7 +69,7 @@ END
 --
 CREATE TABLE global_supressions (
   pattern VARCHAR(255)
-)||
+) ENGINE=MyISAM||
 
 
 -- Declare a trigger that makes sure
@@ -227,7 +227,7 @@ BEGIN
   CREATE TEMPORARY TABLE error_log (
     row INT AUTO_INCREMENT PRIMARY KEY,
     line mediumtext NULL
-  );
+  ) ENGINE=MyISAM;
 
   SELECT variable_value INTO @log_error
     FROM information_schema.global_variables
@@ -255,7 +255,7 @@ BEGIN
       WHERE line REGEXP "^CURRENT_TEST:";
   DELETE FROM error_log WHERE row < @max_row;
 
-  CREATE TEMPORARY TABLE suspect_lines AS
+  CREATE TEMPORARY TABLE suspect_lines ENGINE=MyISAM AS
    SELECT DISTINCT el.line, 0 as "supressed"
      FROM error_log el, suspicious_patterns ep
        WHERE el.line REGEXP ep.pattern;

@@ -7849,7 +7849,7 @@ static void test_explain_bug()
   else
   {
     verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING, "", 
-                         "", "", NAME_CHAR_LEN*MAX_KEY/ my_charset_utf8_general_ci.mbmaxlen, 0);
+                         "", "", NAME_CHAR_LEN*MAX_KEY, 0);
   }
 
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
@@ -16233,7 +16233,7 @@ static void test_bug32265()
   metadata= mysql_stmt_result_metadata(stmt);
   field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "v1") == 0);
-  DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
+  DIE_UNLESS(strcmp(field->org_table, "v1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
   mysql_free_result(metadata);
   mysql_stmt_close(stmt);
@@ -16245,7 +16245,7 @@ static void test_bug32265()
   metadata= mysql_stmt_result_metadata(stmt);
   field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "v1") == 0);
-  DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
+  DIE_UNLESS(strcmp(field->org_table, "v1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
   mysql_free_result(metadata);
   mysql_stmt_close(stmt);

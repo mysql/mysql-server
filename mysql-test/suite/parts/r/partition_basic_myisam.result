@@ -488,20 +488,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -952,20 +952,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -1430,20 +1430,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -1900,20 +1900,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -2374,20 +2374,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -2850,20 +2850,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -3332,20 +3332,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -3808,20 +3808,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -4268,20 +4268,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -4732,20 +4732,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -5210,20 +5210,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -5680,20 +5680,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -6152,20 +6152,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -6628,20 +6628,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -7106,20 +7106,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -7582,20 +7582,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -8099,20 +8099,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -8616,20 +8616,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -9147,20 +9147,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -9670,20 +9670,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -10197,20 +10197,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -10726,20 +10726,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -11261,20 +11261,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -11790,20 +11790,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -12307,20 +12307,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -12824,20 +12824,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -13355,20 +13355,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -13878,20 +13878,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -14403,20 +14403,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -14932,20 +14932,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -15463,20 +15463,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -15992,20 +15992,20 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
