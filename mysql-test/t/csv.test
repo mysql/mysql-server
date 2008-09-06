@@ -1386,6 +1386,9 @@ UNLOCK TABLES;
 
 # cleanup
 DROP TABLE test_concurrent_insert;
+connection default;                                                                     
+--disconnect con1                                                                       
+--disconnect con2
 
 #
 # Test REPAIR/CHECK TABLE (5.1)
@@ -1784,5 +1787,22 @@ update t1 set c1="That" where c1="This";
 --disable_info
 select * from t1;
 drop table t1;
+
+#
+# Bug#36638 mysqld crashes when open file limit is passed and general query log enabled
+#
+create table t1 (a int not null) engine=csv;
+lock tables t1 read;
+connect (con1,localhost,root,,);
+--connection con1
+--remove_file $MYSQLD_DATADIR/test/t1.CSV
+--replace_result $MYSQLD_DATADIR '' 13 2
+# EE_FILENOTFOUND 29
+--error 29
+select * from t1;
+connection default;
+unlock tables;
+drop table t1;
+--disconnect con1
 
 --echo End of 5.1 tests
