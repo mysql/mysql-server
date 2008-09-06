@@ -1,0 +1,4137 @@
+#
+# Preparatory cleanup.
+#
+DROP TABLE IF EXISTS t1;
+#
+# We need a fixed timestamp to avoid varying results.
+#
+SET timestamp=1000000000;
+#
+# Delete all existing binary logs.
+#
+RESET MASTER;
+CREATE TABLE t1 (c01 BIT);
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+CREATE TABLE t1 (c01 BIT(7));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (8);
+INSERT INTO t1 VALUES (16);
+INSERT INTO t1 VALUES (32);
+INSERT INTO t1 VALUES (64);
+INSERT INTO t1 VALUES (127);
+DELETE FROM t1 WHERE c01=127;
+UPDATE t1 SET c01=15 WHERE c01=16;
+DROP TABLE t1;
+CREATE TABLE t1 (a BIT(20), b CHAR(2));
+INSERT INTO t1 VALUES (b'00010010010010001001', 'ab');
+DROP TABLE t1;
+CREATE TABLE t1 (c02 BIT(64));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (128);
+INSERT INTO t1 VALUES (b'1111111111111111111111111111111111111111111111111111111111111111');
+DROP TABLE t1;
+CREATE TABLE t1 (c03 TINYINT);
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t1 VALUES (-128);
+UPDATE t1 SET c03=2 WHERE c03=1;
+DELETE FROM t1 WHERE c03=-128;
+DROP TABLE t1;
+CREATE TABLE t1 (c04 TINYINT UNSIGNED);
+INSERT INTO t1 VALUES (128), (255);
+UPDATE t1 SET c04=2 WHERE c04=1;
+DELETE FROM t1 WHERE c04=255;
+DROP TABLE t1;
+CREATE TABLE t1 (c06 BOOL);
+INSERT INTO t1 VALUES (TRUE);
+DELETE FROM t1 WHERE c06=TRUE;
+DROP TABLE t1;
+CREATE TABLE t1 (c07 SMALLINT);
+INSERT INTO t1 VALUES (1234);
+DELETE FROM t1 WHERE c07=1234;
+DROP TABLE t1;
+CREATE TABLE t1 (c08 SMALLINT UNSIGNED);
+INSERT INTO t1 VALUES (32768), (65535);
+UPDATE t1 SET c08=2 WHERE c08=32768;
+DELETE FROM t1 WHERE c08=65535;
+DROP TABLE t1;
+CREATE TABLE t1 (c10 MEDIUMINT);
+INSERT INTO t1 VALUES (12345);
+DELETE FROM t1 WHERE c10=12345;
+DROP TABLE t1;
+CREATE TABLE t1 (c11 MEDIUMINT UNSIGNED);
+INSERT INTO t1 VALUES (8388608), (16777215);
+UPDATE t1 SET c11=2 WHERE c11=8388608;
+DELETE FROM t1 WHERE c11=16777215;
+DROP TABLE t1;
+CREATE TABLE t1 (c13 INT);
+INSERT INTO t1 VALUES (123456);
+DELETE FROM t1 WHERE c13=123456;
+DROP TABLE t1;
+CREATE TABLE t1 (c14 INT UNSIGNED);
+INSERT INTO t1 VALUES (2147483648), (4294967295);
+UPDATE t1 SET c14=2 WHERE c14=2147483648;
+DELETE FROM t1 WHERE c14=4294967295;
+DROP TABLE t1;
+CREATE TABLE t1 (c16 BIGINT);
+INSERT INTO t1 VALUES (1234567890);
+DELETE FROM t1 WHERE c16=1234567890;
+DROP TABLE t1;
+CREATE TABLE t1 (c17 BIGINT UNSIGNED);
+INSERT INTO t1 VALUES (9223372036854775808), (18446744073709551615);
+UPDATE t1 SET c17=2 WHERE c17=9223372036854775808;
+DELETE FROM t1 WHERE c17=18446744073709551615;
+DROP TABLE t1;
+CREATE TABLE t1 (c19 FLOAT);
+INSERT INTO t1 VALUES (123.2234);
+DELETE FROM t1 WHERE c19>123;
+DROP TABLE t1;
+CREATE TABLE t1 (c22 DOUBLE);
+INSERT INTO t1 VALUES (123434.22344545);
+DELETE FROM t1 WHERE c22>123434;
+DROP TABLE t1;
+CREATE TABLE t1 (c25 DECIMAL(10,5));
+INSERT INTO t1 VALUES (124.45);
+INSERT INTO t1 VALUES (-543.21);
+DELETE FROM t1 WHERE c25=124.45;
+DROP TABLE t1;
+CREATE TABLE t1 (c28 DATE);
+INSERT INTO t1 VALUES ('2001-02-03');
+DELETE FROM t1 WHERE c28='2001-02-03';
+DROP TABLE t1;
+CREATE TABLE t1 (c29 DATETIME);
+INSERT INTO t1 VALUES ('2001-02-03 10:20:30');
+DELETE FROM t1 WHERE c29='2001-02-03 10:20:30';
+DROP TABLE t1;
+CREATE TABLE t1 (c30 TIMESTAMP);
+INSERT INTO t1 VALUES ('2001-02-03 10:20:30');
+DELETE FROM t1 WHERE c30='2001-02-03 10:20:30';
+DROP TABLE t1;
+CREATE TABLE t1 (c31 TIME);
+INSERT INTO t1 VALUES ('11:22:33');
+DELETE FROM t1 WHERE c31='11:22:33';
+DROP TABLE t1;
+CREATE TABLE t1 (c32 YEAR);
+INSERT INTO t1 VALUES ('2001');
+DELETE FROM t1 WHERE c32=2001;
+DROP TABLE t1;
+CREATE TABLE t1 (c33 CHAR);
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c33='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c34 CHAR(0));
+INSERT INTO t1 VALUES ('');
+DELETE FROM t1 WHERE c34='';
+DROP TABLE t1;
+CREATE TABLE t1 (c35 CHAR(1));
+INSERT INTO t1 VALUES ('b');
+DELETE FROM t1 WHERE c35='b';
+DROP TABLE t1;
+CREATE TABLE t1 (c36 CHAR(255));
+INSERT INTO t1 VALUES (repeat('c',255));
+DELETE FROM t1 WHERE c36>'c';
+DROP TABLE t1;
+CREATE TABLE t1 (c37 NATIONAL CHAR);
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c37='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c38 NATIONAL CHAR(0));
+INSERT INTO t1 VALUES ('');
+DELETE FROM t1 WHERE c38='';
+DROP TABLE t1;
+CREATE TABLE t1 (c39 NATIONAL CHAR(1));
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c39='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c40 NATIONAL CHAR(255));
+INSERT INTO t1 VALUES (repeat('a', 255));
+INSERT INTO t1 VALUES (repeat(_latin1 0xDF, 255));
+DELETE FROM t1 WHERE c40>'a';
+DROP TABLE t1;
+CREATE TABLE t1 (c41 CHAR CHARACTER SET UCS2);
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c41='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c42 CHAR(0) CHARACTER SET UCS2);
+INSERT INTO t1 VALUES ('');
+DELETE FROM t1 WHERE c42='';
+DROP TABLE t1;
+CREATE TABLE t1 (c43 CHAR(1) CHARACTER SET UCS2);
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c43='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c44 CHAR(255) CHARACTER SET UCS2);
+INSERT INTO t1 VALUES (repeat('a', 255));
+INSERT INTO t1 VALUES (repeat(_latin1 0xDF, 255));
+DELETE FROM t1 WHERE c44>'a';
+DROP TABLE t1;
+CREATE TABLE t1 (c45 VARCHAR(0));
+INSERT INTO t1 VALUES ('');
+DELETE FROM t1 WHERE c45='';
+DROP TABLE t1;
+CREATE TABLE t1 (c46 VARCHAR(1));
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c46='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c47 VARCHAR(255));
+INSERT INTO t1 VALUES (repeat('a',255));
+DELETE FROM t1 WHERE c47>'a';
+DROP TABLE t1;
+CREATE TABLE t1 (c48 VARCHAR(261));
+INSERT INTO t1 VALUES (repeat('a',261));
+DELETE FROM t1 WHERE c48>'a';
+DROP TABLE t1;
+CREATE TABLE t1 (c49 NATIONAL VARCHAR(0));
+INSERT INTO t1 VALUES ('');
+DELETE FROM t1 WHERE c49='';
+DROP TABLE t1;
+CREATE TABLE t1 (c50 NATIONAL VARCHAR(1));
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c50='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c51 NATIONAL VARCHAR(255));
+INSERT INTO t1 VALUES (repeat('a',255));
+INSERT INTO t1 VALUES (repeat(_latin1 0xDF, 255));
+DELETE FROM t1 WHERE c51>'a';
+DROP TABLE t1;
+CREATE TABLE t1 (c52 NATIONAL VARCHAR(261));
+INSERT INTO t1 VALUES (repeat('a',261));
+INSERT INTO t1 VALUES (repeat(_latin1 0xDF, 261));
+DELETE FROM t1 WHERE c52>'a';
+DROP TABLE t1;
+CREATE TABLE t1 (c53 VARCHAR(0) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES ('');
+DELETE FROM t1 WHERE c53='';
+DROP TABLE t1;
+CREATE TABLE t1 (c54 VARCHAR(1) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c54='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c55 VARCHAR(255) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES (repeat('ab', 127));
+DELETE FROM t1 WHERE c55>'a';
+DROP TABLE t1;
+CREATE TABLE t1 (c56 VARCHAR(261) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES (repeat('ab', 130));
+DELETE FROM t1 WHERE c56>'a';
+DROP TABLE t1;
+CREATE TABLE t1 (c57 BINARY);
+INSERT INTO t1 VALUES (0x00);
+INSERT INTO t1 VALUES (0x02);
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c57='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c58 BINARY(0));
+INSERT INTO t1 VALUES ('');
+DELETE FROM t1 WHERE c58='';
+DROP TABLE t1;
+CREATE TABLE t1 (c59 BINARY(1));
+INSERT INTO t1 VALUES (0x00);
+INSERT INTO t1 VALUES (0x02);
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c59='a';
+DROP TABLE t1;
+CREATE TABLE t1 (c60 BINARY(255));
+INSERT INTO t1 VALUES (0x00);
+INSERT INTO t1 VALUES (0x02);
+INSERT INTO t1 VALUES (repeat('a\0',120));
+DELETE FROM t1 WHERE c60<0x02;
+DROP TABLE t1;
+CREATE TABLE t1 (c61 VARBINARY(0));
+INSERT INTO t1 VALUES ('');
+DELETE FROM t1 WHERE c61='';
+DROP TABLE t1;
+CREATE TABLE t1 (c62 VARBINARY(1));
+INSERT INTO t1 VALUES (0x00);
+INSERT INTO t1 VALUES (0x02);
+INSERT INTO t1 VALUES ('a');
+DELETE FROM t1 WHERE c62=0x02;
+DROP TABLE t1;
+CREATE TABLE t1 (c63 VARBINARY(255));
+INSERT INTO t1 VALUES (0x00);
+INSERT INTO t1 VALUES (0x02);
+INSERT INTO t1 VALUES (repeat('a\0',120));
+DELETE FROM t1 WHERE c63=0x02;
+DROP TABLE t1;
+CREATE TABLE t1 (c65 TINYBLOB);
+INSERT INTO t1 VALUES ('tinyblob1');
+DELETE FROM t1 WHERE c65='tinyblob1';
+DROP TABLE t1;
+CREATE TABLE t1 (c68 BLOB);
+INSERT INTO t1 VALUES ('blob1');
+DELETE FROM t1 WHERE c68='blob1';
+DROP TABLE t1;
+CREATE TABLE t1 (c71 MEDIUMBLOB);
+INSERT INTO t1 VALUES ('mediumblob1');
+DELETE FROM t1 WHERE c71='mediumblob1';
+DROP TABLE t1;
+CREATE TABLE t1 (c74 LONGBLOB);
+INSERT INTO t1 VALUES ('longblob1');
+DELETE FROM t1 WHERE c74='longblob1';
+DROP TABLE t1;
+CREATE TABLE t1 (c66 TINYTEXT);
+INSERT INTO t1 VALUES ('tinytext1');
+DELETE FROM t1 WHERE c66='tinytext1';
+DROP TABLE t1;
+CREATE TABLE t1 (c69 TEXT);
+INSERT INTO t1 VALUES ('text1');
+DELETE FROM t1 WHERE c69='text1';
+DROP TABLE t1;
+CREATE TABLE t1 (c72 MEDIUMTEXT);
+INSERT INTO t1 VALUES ('mediumtext1');
+DELETE FROM t1 WHERE c72='mediumtext1';
+DROP TABLE t1;
+CREATE TABLE t1 (c75 LONGTEXT);
+INSERT INTO t1 VALUES ('longtext1');
+DELETE FROM t1 WHERE c75='longtext1';
+DROP TABLE t1;
+CREATE TABLE t1 (c67 TINYTEXT CHARACTER SET UCS2);
+INSERT INTO t1 VALUES ('tinytext1');
+DELETE FROM t1 WHERE c67='tinytext1';
+DROP TABLE t1;
+CREATE TABLE t1 (c70 TEXT CHARACTER SET UCS2);
+INSERT INTO t1 VALUES ('text1');
+DELETE FROM t1 WHERE c70='text1';
+DROP TABLE t1;
+CREATE TABLE t1 (c73 MEDIUMTEXT CHARACTER SET UCS2);
+INSERT INTO t1 VALUES ('mediumtext1');
+DELETE FROM t1 WHERE c73='mediumtext1';
+DROP TABLE t1;
+CREATE TABLE t1 (c76 LONGTEXT CHARACTER SET UCS2);
+INSERT INTO t1 VALUES ('longtext1');
+DELETE FROM t1 WHERE c76='longtext1';
+DROP TABLE t1;
+CREATE TABLE t1 (c77 ENUM('a','b','c'));
+INSERT INTO t1 VALUES ('b');
+DELETE FROM t1 WHERE c77='b';
+DROP TABLE t1;
+CREATE TABLE t1 (c78 SET('a','b','c','d','e','f'));
+INSERT INTO t1 VALUES ('a,b');
+INSERT INTO t1 VALUES ('a,c');
+INSERT INTO t1 VALUES ('b,c');
+INSERT INTO t1 VALUES ('a,b,c');
+INSERT INTO t1 VALUES ('a,b,c,d');
+INSERT INTO t1 VALUES ('a,b,c,d,e');
+INSERT INTO t1 VALUES ('a,b,c,d,e,f');
+DELETE FROM t1 WHERE c78='a,b';
+DROP TABLE t1;
+CREATE TABLE t1 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
+CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
+INSERT INTO t1 SET a=1;
+INSERT INTO t1 SET b=1;
+INSERT INTO t2 SET a=1;
+INSERT INTO t2 SET b=1;
+UPDATE t1, t2 SET t1.a=10, t2.a=20;
+DROP TABLE t1,t2;
+flush logs;
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
+ROLLBACK/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+CREATE TABLE t1 (c01 BIT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c01 BIT(7))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0000001' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0000010' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0000100' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0001000' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0010000' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0100000' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'1000000' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'1111111' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=b'1111111' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t1
+### WHERE
+###   @1=b'0010000' /* BIT(7) meta=7 nullable=1 is_null=0 */
+### SET
+###   @1=b'0001111' /* BIT(7) meta=7 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (a BIT(20), b CHAR(2))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'00010010010010001001' /* BIT(20) meta=516 nullable=1 is_null=0 */
+###   @2='ab' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c02 BIT(64))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0000000000000000000000000000000000000000000000000000000000000001' /* BIT(64) meta=2048 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0000000000000000000000000000000000000000000000000000000000000010' /* BIT(64) meta=2048 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'0000000000000000000000000000000000000000000000000000000010000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c03 TINYINT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=2 /* TINYINT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=3 /* TINYINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t1
+### WHERE
+###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=2 /* TINYINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c04 TINYINT UNSIGNED)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c06 BOOL)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c07 SMALLINT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=1234 /* SHORTINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=1234 /* SHORTINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c08 SMALLINT UNSIGNED)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=-32768 (32768) /* SHORTINT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t1
+### WHERE
+###   @1=-32768 (32768) /* SHORTINT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=2 /* SHORTINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c10 MEDIUMINT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=12345 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=12345 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c11 MEDIUMINT UNSIGNED)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=-8388608 (8388608) /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=-1 (16777215) /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t1
+### WHERE
+###   @1=-8388608 (8388608) /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=2 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=-1 (16777215) /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c13 INT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=123456 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=123456 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c14 INT UNSIGNED)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=-2147483648 (2147483648) /* INT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=-1 (4294967295) /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t1
+### WHERE
+###   @1=-2147483648 (2147483648) /* INT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=-1 (4294967295) /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c16 BIGINT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=1234567890 /* LONGINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=1234567890 /* LONGINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c17 BIGINT UNSIGNED)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=-9223372036854775808 (9223372036854775808) /* LONGINT meta=0 nullable=1 is_null=0 */
+### INSERT INTO test.t1
+### SET
+###   @1=-1 (18446744073709551615) /* LONGINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t1
+### WHERE
+###   @1=-9223372036854775808 (9223372036854775808) /* LONGINT meta=0 nullable=1 is_null=0 */
+### SET
+###   @1=2 /* LONGINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=-1 (18446744073709551615) /* LONGINT meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c19 FLOAT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=123.223...              /* FLOAT meta=4 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=123.223...              /* FLOAT meta=4 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c22 DOUBLE)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=123434.223... /* DOUBLE meta=8 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=123434.223... /* DOUBLE meta=8 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c25 DECIMAL(10,5))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=000000124.450000000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=-000000543.210000000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=000000124.450000000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c28 DATE)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='2001:02:03' /* DATE meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='2001:02:03' /* DATE meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c29 DATETIME)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=2001-02-03 10:20:30 /* DATETIME meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=2001-02-03 10:20:30 /* DATETIME meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c30 TIMESTAMP)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.time_zone='SYSTEM'/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=981184830 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=981184830 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c31 TIME)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='11:22:33' /* TIME meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='11:22:33' /* TIME meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c32 YEAR)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=2001 /* YEAR meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=2001 /* YEAR meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c33 CHAR)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c34 CHAR(0))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c35 CHAR(1))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='b' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='b' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c36 CHAR(255))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' /* STRING(255) meta=65279 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' /* STRING(255) meta=65279 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c37 NATIONAL CHAR)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a' /* STRING(3) meta=65027 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='a' /* STRING(3) meta=65027 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c38 NATIONAL CHAR(0))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c39 NATIONAL CHAR(1))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a' /* STRING(3) meta=65027 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='a' /* STRING(3) meta=65027 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c40 NATIONAL CHAR(255))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* STRING(765) meta=57085 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* STRING(765) meta=57085 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* STRING(765) meta=57085 nullable=1 is_null=0 */
+### DELETE FROM test.t1
+### WHERE
+###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* STRING(765) meta=57085 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c41 CHAR CHARACTER SET UCS2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00a' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00a' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c42 CHAR(0) CHARACTER SET UCS2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c43 CHAR(1) CHARACTER SET UCS2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00a' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00a' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c44 CHAR(255) CHARACTER SET UCS2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a' /* STRING(510) meta=61182 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�' /* STRING(510) meta=61182 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a' /* STRING(510) meta=61182 nullable=1 is_null=0 */
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�' /* STRING(510) meta=61182 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c45 VARCHAR(0))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c46 VARCHAR(1))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='a' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c47 VARCHAR(255))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c48 VARCHAR(261))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(261) meta=261 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(261) meta=261 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c49 NATIONAL VARCHAR(0))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c50 NATIONAL VARCHAR(1))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a' /* VARSTRING(3) meta=3 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='a' /* VARSTRING(3) meta=3 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c51 NATIONAL VARCHAR(255))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(765) meta=765 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* VARSTRING(765) meta=765 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(765) meta=765 nullable=1 is_null=0 */
+### DELETE FROM test.t1
+### WHERE
+###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* VARSTRING(765) meta=765 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c52 NATIONAL VARCHAR(261))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(783) meta=783 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* VARSTRING(783) meta=783 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(783) meta=783 nullable=1 is_null=0 */
+### DELETE FROM test.t1
+### WHERE
+###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* VARSTRING(783) meta=783 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c53 VARCHAR(0) CHARACTER SET ucs2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c54 VARCHAR(1) CHARACTER SET ucs2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00a' /* VARSTRING(2) meta=2 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00a' /* VARSTRING(2) meta=2 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c55 VARCHAR(255) CHARACTER SET ucs2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b' /* VARSTRING(510) meta=510 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b' /* VARSTRING(510) meta=510 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c56 VARCHAR(261) CHARACTER SET ucs2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b' /* VARSTRING(522) meta=522 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b' /* VARSTRING(522) meta=522 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c57 BINARY)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x02' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c58 BINARY(0))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c59 BINARY(1))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x02' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c60 BINARY(255))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* STRING(255) meta=65279 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x02' /* STRING(255) meta=65279 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a' /* STRING(255) meta=65279 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='' /* STRING(255) meta=65279 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c61 VARBINARY(0))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c62 VARBINARY(1))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x02' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x02' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c63 VARBINARY(255))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c65 TINYBLOB)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='tinyblob1' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='tinyblob1' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c68 BLOB)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='blob1' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='blob1' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c71 MEDIUMBLOB)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='mediumblob1' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='mediumblob1' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c74 LONGBLOB)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='longblob1' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='longblob1' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c66 TINYTEXT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='tinytext1' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='tinytext1' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c69 TEXT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='text1' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='text1' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c72 MEDIUMTEXT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='mediumtext1' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='mediumtext1' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c75 LONGTEXT)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='longtext1' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='longtext1' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c67 TINYTEXT CHARACTER SET UCS2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00t\x00i\x00n\x00y\x00t\x00e\x00x\x00t\x001' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00t\x00i\x00n\x00y\x00t\x00e\x00x\x00t\x001' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c70 TEXT CHARACTER SET UCS2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00t\x00e\x00x\x00t\x001' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00t\x00e\x00x\x00t\x001' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c73 MEDIUMTEXT CHARACTER SET UCS2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00m\x00e\x00d\x00i\x00u\x00m\x00t\x00e\x00x\x00t\x001' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00m\x00e\x00d\x00i\x00u\x00m\x00t\x00e\x00x\x00t\x001' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c76 LONGTEXT CHARACTER SET UCS2)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1='\x00l\x00o\x00n\x00g\x00t\x00e\x00x\x00t\x001' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1='\x00l\x00o\x00n\x00g\x00t\x00e\x00x\x00t\x001' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c77 ENUM('a','b','c'))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=2 /* ENUM(1 byte) meta=63233 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=2 /* ENUM(1 byte) meta=63233 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (c78 SET('a','b','c','d','e','f'))
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'00000011' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'00000101' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'00001111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'00011111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=b'00111111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM test.t1
+### WHERE
+###   @1=b'00000011' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t1 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0)
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t1
+### SET
+###   @1=0 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t2
+### SET
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO test.t2
+### SET
+###   @1=0 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+# at #
+# at #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id #
+#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE test.t1
+### WHERE
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
+### SET
+###   @1=10 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
+### UPDATE test.t1
+### WHERE
+###   @1=0 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
+### SET
+###   @1=10 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
+### UPDATE test.t2
+### WHERE
+###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
+### SET
+###   @1=20 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
+### UPDATE test.t2
+### WHERE
+###   @1=0 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
+### SET
+###   @1=20 /* INT meta=0 nullable=0 is_null=0 */
+###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+DROP TABLE t1,t2
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # 	Rotate to master-bin.000002  pos: 4
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
