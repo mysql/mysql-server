@@ -2256,7 +2256,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -3879,7 +3879,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -4246,7 +4246,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -4772,7 +4772,7 @@ c3 VARCHAR(60)
 #
 # Load data.
 #
-LOAD DATA INFILE '../std_data_ln/loaddata5.dat'
+LOAD DATA INFILE '../../std_data/loaddata5.dat'
   INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (c1,c2)
 SET c3 = 'Wow';
 affected rows: 3
@@ -4807,7 +4807,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
