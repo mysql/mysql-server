@@ -39,12 +39,14 @@ try
         var parts = args.Item(i).split('=');
         switch (parts[0])
         {
+            case "WITH_NDBCLUSTER_STORAGE_ENGINE":
+                    configfile.WriteLine("SET (WITH_PARTITION_STORAGE_ENGINE TRUE)");
+                    configfile.WriteLine("SET (WITH_NDB_BINLOG TRUE)");
             case "WITH_ARCHIVE_STORAGE_ENGINE":
             case "WITH_BLACKHOLE_STORAGE_ENGINE":
             case "WITH_EXAMPLE_STORAGE_ENGINE":
             case "WITH_FEDERATED_STORAGE_ENGINE":
             case "WITH_INNOBASE_STORAGE_ENGINE":
-            case "WITH_NDBCLUSTER_STORAGE_ENGINE":
             case "WITH_PARTITION_STORAGE_ENGINE":
             case "__NT__":
             case "CYBOZU":
