@@ -4615,7 +4615,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   {
     DBUG_PRINT("info", ("lock_type == F_UNLCK"));
 
-    if (m_rows_changed)
+    if (m_rows_changed && global_system_variables.query_cache_type)
     {
       DBUG_PRINT("info", ("Rows has changed"));
 
@@ -4623,7 +4623,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       {
         DBUG_PRINT("info", ("Add share to list of changed tables"));
         /* NOTE push_back allocates memory using transactions mem_root! */
-        thd_ndb->changed_tables.push_back(m_share,
+        thd_ndb->changed_tables.push_back(get_share(m_share),
                                           &thd->transaction.mem_root);
       }
 
@@ -4818,6 +4818,7 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     share->commit_count= 0;
     share->commit_count_lock++;
     pthread_mutex_unlock(&share->mutex);
+    free_share(&share);
   }
   thd_ndb->changed_tables.empty();
 
@@ -4860,6 +4861,12 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   thd_ndb->trans= NULL;
 
   /* Clear list of tables changed by transaction */
+  NDB_SHARE* share;
+  List_iterator_fast<NDB_SHARE> it(thd_ndb->changed_tables);
+  while ((share= it++))
+  {
+    free_share(&share);
+  }
   thd_ndb->changed_tables.empty();
 
   DBUG_RETURN(res);
