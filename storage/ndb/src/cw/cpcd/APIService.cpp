@@ -156,11 +156,14 @@ CPCDAPISession::CPCDAPISession(FILE * f, CPCD & cpcd)
 {
   m_input = new FileInputStream(f);
   m_parser = new Parser<CPCDAPISession>(commands, *m_input, true, true, true);
+  m_output = 0;
 }
   
 CPCDAPISession::~CPCDAPISession() {
   delete m_input;
   delete m_parser;
+  if (m_output)
+    delete m_output;
 }
 
 void
@@ -170,6 +173,9 @@ CPCDAPISession::runSession(){
     m_parser->run(ctx, * this); 
     if(ctx.m_currentToken == 0)
       break;
+
+    m_input->reset_timeout();
+    m_output->reset_timeout();
 
     switch(ctx.m_status){
     case Parser_t::Ok:
