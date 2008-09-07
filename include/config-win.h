@@ -315,6 +315,11 @@ inline double ulonglong2double(ulonglong value)
 #define _snprintf snprintf
 #endif
 
+#if _MSC_VER >= 1500   /* VS9 (2008) has vsnprintf)
+#define HAVE_VSNPRINTF
+#define HAVE_STRTOUL
+#endif
+
 #ifdef _MSC_VER
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */
 #define HAVE_ANSI_INCLUDE
