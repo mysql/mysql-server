@@ -373,7 +373,14 @@ sub mtr_report_stats ($) {
                 /setrlimit could not change the size of core files to 'infinity'/ or
 
                 # rpl_ndb_basic expects this error
-                /Slave: Got error 146 during COMMIT Error_code: 1180/ or
+                ($testname eq 'rpl_ndb.rpl_ndb_basic'
+                 and (/Slave: Got error 146 during COMMIT Error_code: 1180/)
+                ) or
+
+                # ndb_autodiscover3 expects this error
+                ($testname eq 'ndb_team.ndb_autodiscover3'
+                 and (/NDB_SHARE: \.\/test\/t1 already exists/)
+                ) or
 
 		# rpl_extrColmaster_*.test, the slave thread produces warnings
 		# when it get updates to a table that has more columns on the
