@@ -3065,9 +3065,10 @@ bool select_insert::send_data(List<Item> &values)
       DBUG_RETURN(1);
     }
   }
-
+  
   error= write_record(thd, table, &info);
-    
+  table->auto_increment_field_not_null= FALSE;
+  
   if (!error)
   {
     if (table->triggers || info.handle_duplicates == DUP_UPDATE)
