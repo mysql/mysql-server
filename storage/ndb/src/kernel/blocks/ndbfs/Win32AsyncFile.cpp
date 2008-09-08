@@ -63,7 +63,7 @@ void Win32AsyncFile::openReq(Request* request)
     dwCreationDisposition = CREATE_ALWAYS;
   } else if (flags & FsOpenReq::OM_TRUNCATE){
     dwCreationDisposition = TRUNCATE_EXISTING;
-  } else if (flags & FsOpenReq::OM_CREATE){
+  } else if (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE)){
     dwCreationDisposition = CREATE_NEW;
   } else {
     dwCreationDisposition = OPEN_EXISTING;
@@ -91,7 +91,7 @@ void Win32AsyncFile::openReq(Request* request)
   if(INVALID_HANDLE_VALUE == hFile) {
     request->error = GetLastError();
     if(((ERROR_PATH_NOT_FOUND == request->error) || (ERROR_INVALID_NAME == request->error))
-       && (flags & FsOpenReq::OM_CREATE)) {
+		&& (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE))) {
       createDirectories();
       hFile = CreateFile(theFileName.c_str(), dwDesiredAccess, dwShareMode,
                          0, dwCreationDisposition, dwFlagsAndAttributes, 0);
@@ -100,14 +100,37 @@ void Win32AsyncFile::openReq(Request* request)
         request->error = GetLastError();
       else
         request->error = 0;
-
-      return;
     }
   }
   else {
     request->error = 0;
-    return;
   }
+
+  if (flags & FsOpenReq::OM_INIT)
+  {
+    off_t off = 0;
+    const off_t sz = request->par.open.file_size;
+    char buf[4096];
+    bzero(buf,sizeof(buf));
+    while(off < sz)
+    {
+      DWORD dwSFP= SetFilePointer(hFile, off, NULL, FILE_BEGIN);
+      if(dwSFP != off)
+      {
+        request->error= GetLastError();
+        return;
+      }
+      DWORD dwWritten;
+      BOOL bWrite= WriteFile(hFile, buf, sizeof(buf), &dwWritten, 0);
+      if(!bWrite || dwWritten!=sizeof(buf))
+      {
+        request->error= GetLastError();
+      }
+      off+=sizeof(buf);
+    }
+  }
+
+  return;
 }
 
 int
