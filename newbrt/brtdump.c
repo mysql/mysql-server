@@ -26,30 +26,30 @@ void print_item (bytevec val, ITEMLEN len) {
 void dump_header (int f, struct brt_header **header) {
     struct brt_header *h;
     int r;
-    r = toku_deserialize_brtheader_from (f, 0, 0/*pass 0 for hash.  It doesn't matter.*/, &h); assert(r==0);
+    r = toku_deserialize_brtheader_from (f, header_blocknum, 0/*pass 0 for hash.  It doesn't matter.*/, &h); assert(r==0);
     printf("brtheader:\n");
     if (h->layout_version==BRT_LAYOUT_VERSION_6) printf(" layout_version<=6\n");
     else printf(" layout_version=%d\n", h->layout_version);
     printf(" dirty=%d\n", h->dirty);
     printf(" nodesize=%d\n", h->nodesize);
-    printf(" freelist=%lld\n", h->freelist);
-    printf(" unused_memory=%lld\n", h->unused_memory);
+    printf(" free_blocks=%" PRId64 "\n", h->free_blocks.b);
+    printf(" unused_memory=%" PRId64 "\n", h->unused_blocks.b);
     if (h->n_named_roots==-1) {
-	printf(" unnamed_root=%lld\n", h->roots[0]);
+	printf(" unnamed_root=%" PRId64 "\n", h->roots[0].b);
 	printf(" flags=%d\n", h->flags_array[0]);
     } else {
 	printf(" n_named_roots=%d\n", h->n_named_roots);
 	if (h->n_named_roots>=0) {
 	    int i;
 	    for (i=0; i<h->n_named_roots; i++) {
-		printf("  %s -> %lld\n", h->names[i], h->roots[i]);
+		printf("  %s -> %" PRId64 "\n", h->names[i], h->roots[i].b);
 		printf(" flags=%d\n", h->flags_array[i]);
 	    }
 	}
     }
     *header = h;
     printf("Fifo:\n");
-    r = toku_deserialize_fifo_at(f, h->unused_memory, &h->fifo);
+    r = toku_deserialize_fifo_at(f, h->unused_blocks.b*h->nodesize, &h->fifo);
     printf(" fifo has %d entries\n", toku_fifo_n_entries(h->fifo));
     if (dump_data) {
 	FIFO_ITERATE(h->fifo, key, keylen, data, datalen, type, xid,
@@ -83,16 +83,16 @@ int print_le(OMTVALUE lev, u_int32_t UU(idx), void *UU(v)) {
     return 0;
 }
 
-void dump_node (int f, DISKOFF off) {
+void dump_node (int f, BLOCKNUM blocknum, int tree_node_size) {
     BRTNODE n;
-    int r = toku_deserialize_brtnode_from (f, off, 0 /*pass zero for hash, it doesn't matter*/, &n);
+    int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, tree_node_size);
     assert(r==0);
     assert(n!=0);
     printf("brtnode\n");
     printf(" nodesize    =%u\n", n->nodesize);
     printf(" sizeonddisk =%d\n", toku_serialize_brtnode_size(n));
     printf(" flags       =%u\n", n->flags);
-    printf(" thisnodename=%lld\n", n->thisnodename);
+    printf(" thisnodename=%" PRId64 "\n", n->thisnodename.b);
     printf(" disk_lsn    =%" PRId64 "\n", n->disk_lsn.lsn);
     //printf(" log_lsn     =%lld\n", n->log_lsn.lsn); // The log_lsn is a memory-only value.
     printf(" height      =%d\n",   n->height);
@@ -126,7 +126,7 @@ void dump_node (int f, DISKOFF off) {
 	}
 	printf(" children:\n");
 	for (i=0; i<n->u.n.n_children; i++) {
-	    printf("   child %d: %lld\n", i, BNC_DISKOFF(n, i));
+	    printf("   child %d: %" PRId64 "\n", i, BNC_BLOCKNUM(n, i).b);
 	    printf("   buffer contains %d bytes (%d items)\n", BNC_NBYTESINBUF(n, i), toku_fifo_n_entries(BNC_BUFFER(n,i)));
 	    if (dump_data) {
 		FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xid,
@@ -180,9 +180,9 @@ int main (int argc, const char *argv[]) {
     int f = open(n, O_RDONLY);  assert(f>=0);
     struct brt_header *h;
     dump_header(f, &h);
-    DISKOFF off;
-    for (off=h->nodesize; off<h->unused_memory; off+=h->nodesize) {
-	dump_node(f, off);
+    BLOCKNUM blocknum;
+    for (blocknum.b=1; blocknum.b<h->unused_blocks.b; blocknum.b++) {
+	dump_node(f, blocknum, h->nodesize);
     }
     toku_brtheader_free(h);
     toku_malloc_cleanup();

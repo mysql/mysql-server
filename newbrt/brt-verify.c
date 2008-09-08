@@ -59,13 +59,13 @@ static int compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
     return cmp;
 }
 
-int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) {
+int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) {
     int result=0;
     BRTNODE node;
     void *node_v;
     int r;
-    u_int32_t fullhash = toku_cachetable_hash(brt->cf, off);
-    if ((r = toku_cachetable_get_and_pin(brt->cf, off, fullhash, &node_v, NULL,
+    u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
+    if ((r = toku_cachetable_get_and_pin(brt->cf, blocknum, fullhash, &node_v, NULL,
 					 toku_brtnode_flush_callback, toku_brtnode_fetch_callback, (void*)(long)brt->h->nodesize)))
 	return r;
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
@@ -128,7 +128,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 		if (hirange) assert(brt->compare_fun(brt->db, &k2, toku_fill_dbt(&k3, hirange, hilen)) <=0);
 	    }
 	    if (recurse) {
-		result|=toku_verify_brtnode(brt, BNC_DISKOFF(node, i),
+		result|=toku_verify_brtnode(brt, BNC_BLOCKNUM(node, i),
                                             (i==0) ? lorange : kv_pair_key(node->u.n.childkeys[i-1]),
                                             (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
                                             (i==node->u.n.n_children-1) ? hirange : kv_pair_key(node->u.n.childkeys[i]),
@@ -149,7 +149,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 	LEAFENTRY prev=0;
 	toku_omt_iterate(node->u.l.buffer, check_increasing, &prev);
     }
-    if ((r = toku_cachetable_unpin(brt->cf, off, fullhash, 0, 0))) return r;
+    if ((r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, 0, 0))) return r;
     return result;
 }
 

@@ -57,6 +57,7 @@ int toku_fread_u_int32_t (FILE *f, u_int32_t *v, struct x1764 *, u_int32_t *len)
 int toku_fread_LSN     (FILE *f, LSN *lsn, struct x1764 *, u_int32_t *len);
 int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct x1764 *, u_int32_t *len);
 int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, struct x1764 *, u_int32_t *len);
+int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *, struct x1764 *, u_int32_t *len);
 int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *, u_int32_t *len);
 // fills in the bs with malloced data.
 int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *, u_int32_t *len);
@@ -68,6 +69,7 @@ int toku_logprint_TXNID           (FILE *outf, FILE *inf, const char *fieldname,
 int toku_logprint_BYTESTRING      (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
 int toku_logprint_FILENUM         (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
 int toku_logprint_DISKOFF         (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
+int toku_logprint_BLOCKNUM        (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
 int toku_logprint_u_int8_t        (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *);
 int toku_logprint_u_int32_t       (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 
 int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *, u_int32_t *len, const char *); 

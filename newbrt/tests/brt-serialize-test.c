@@ -25,7 +25,7 @@ static void test_serialize(void) {
     sn.nodesize = nodesize;
     sn.ever_been_written = 0;
     sn.flags = 0x11223344;
-    sn.thisnodename = sn.nodesize*20;
+    sn.thisnodename.b = 20;
     sn.disk_lsn.lsn = 789;
     sn.log_lsn.lsn  = 123456;
     sn.layout_version = BRT_LAYOUT_VERSION;
@@ -38,8 +38,8 @@ static void test_serialize(void) {
     MALLOC_N(1, sn.u.n.childkeys);
     sn.u.n.childkeys[0] = kv_pair_malloc(hello_string, 6, 0, 0); 
     sn.u.n.totalchildkeylens = 6;
-    BNC_DISKOFF(&sn, 0) = sn.nodesize*30;
-    BNC_DISKOFF(&sn, 1) = sn.nodesize*35;
+    BNC_BLOCKNUM(&sn, 0).b = 30;
+    BNC_BLOCKNUM(&sn, 1).b = 35;
     BNC_SUBTREE_FINGERPRINT(&sn, 0) = random();
     BNC_SUBTREE_FINGERPRINT(&sn, 1) = random();
     BNC_SUBTREE_LEAFENTRY_ESTIMATE(&sn, 0) = random() + (((long long)random())<<32);
@@ -53,12 +53,13 @@ static void test_serialize(void) {
     BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
     sn.u.n.n_bytes_in_buffers = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
 
-    toku_serialize_brtnode_to(fd, sn.nodesize*(DISKOFF)20, &sn);  assert(r==0);
-
-    r = toku_deserialize_brtnode_from(fd, nodesize*(DISKOFF)20, 0/*pass zero for hash*/, &dn);
+    toku_serialize_brtnode_to(fd, make_blocknum(20), &sn);  assert(r==0);
+    
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, nodesize);
     assert(r==0);
 
-    assert(dn->thisnodename==nodesize*20);
+    assert(dn->thisnodename.b==20);
+
     assert(dn->disk_lsn.lsn==123456);
     assert(dn->layout_version ==BRT_LAYOUT_VERSION);
     assert(dn->height == 1);
@@ -67,8 +68,8 @@ static void test_serialize(void) {
     assert(strcmp(kv_pair_key(dn->u.n.childkeys[0]), "hello")==0);
     assert(toku_brtnode_pivot_key_len(dn, dn->u.n.childkeys[0])==6);
     assert(dn->u.n.totalchildkeylens==6);
-    assert(BNC_DISKOFF(dn,0)==nodesize*30);
-    assert(BNC_DISKOFF(dn,1)==nodesize*35);
+    assert(BNC_BLOCKNUM(dn,0).b==30);
+    assert(BNC_BLOCKNUM(dn,1).b==35);
     {
 	int i;
 	for (i=0; i<2; i++) {

@@ -39,7 +39,7 @@ enum { BUFFER_HEADER_SIZE = (4 // height//
 struct brtnode_nonleaf_childinfo {
     u_int32_t    subtree_fingerprint;
     u_int64_t    leafentry_estimate; // estimate how many leafentries are below us.
-    DISKOFF      diskoff;
+    BLOCKNUM     blocknum;
     BOOL         have_fullhash;     // do we have the full hash?
     u_int32_t    fullhash;          // the fullhash of the child
     FIFO         buffer;
@@ -53,7 +53,7 @@ struct brtnode {
     unsigned int nodesize;
     int ever_been_written;
     unsigned int flags;
-    DISKOFF thisnodename;   // The size of the node allocated on disk.  Not all is necessarily in use.
+    BLOCKNUM thisnodename;   // Which block number is this node?
     //  These two LSNs are used to decide when to make a copy of a node instead of overwriting it.
     //  In the TOKULOGGER is a field called checkpoint_lsn which is the lsn of the most recent checkpoint
     LSN     disk_lsn;       // The LSN as of the most recent version on disk.  (Updated by brt-serialize)  This lsn is saved in the node.
@@ -80,7 +80,7 @@ struct brtnode {
 
 #define BNC_SUBTREE_FINGERPRINT(node,i) ((node)->u.n.childinfos[i].subtree_fingerprint)
 #define BNC_SUBTREE_LEAFENTRY_ESTIMATE(node,i) ((node)->u.n.childinfos[i].leafentry_estimate)
-#define BNC_DISKOFF(node,i) ((node)->u.n.childinfos[i].diskoff)
+#define BNC_BLOCKNUM(node,i) ((node)->u.n.childinfos[i].blocknum)
 #define BNC_BUFFER(node,i) ((node)->u.n.childinfos[i].buffer)
 #define BNC_NBYTESINBUF(node,i) ((node)->u.n.childinfos[i].n_bytes_in_buffer)
 #define BNC_HAVE_FULLHASH(node,i) ((node)->u.n.childinfos[i].have_fullhash)
@@ -109,7 +109,7 @@ enum {
 struct remembered_hash {
     BOOL    valid;      // set to FALSE if the fullhash is invalid
     FILENUM fnum; 
-    DISKOFF root;
+    BLOCKNUM root;
     u_int32_t fullhash; // fullhash is the hashed value of fnum and root.
 };
 
@@ -118,15 +118,19 @@ struct brt_header {
     u_int32_t fullhash;
     int layout_version;
     unsigned int nodesize;
-    DISKOFF freelist;
-    DISKOFF unused_memory;
     int n_named_roots; /* -1 if the only one is unnamed */
     char  **names;             // an array of names.  NULL if subdatabases are not allowed.
-    DISKOFF *roots;            // an array of DISKOFFs.  Element 0 holds the element if no subdatabases allowed.
+    BLOCKNUM *roots;            // An array of the roots of the various dictionaries.  Element 0 holds the element if no subdatabases allowed.
     struct remembered_hash *root_hashes;     // an array of hashes of the root offsets.
     unsigned int *flags_array; // an array of flags.  Element 0 holds the element if no subdatabases allowed.
     
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
+
+    // This is the map from block numbers to offsets
+    //int n_blocks, n_blocks_array_size;
+    //struct block_descriptor *blocks;
+    BLOCKNUM free_blocks; // free list for blocks.  Use -1 to indicate that there are no free blocks
+    BLOCKNUM unused_blocks; // first unused block
 };
 
 struct brt {
@@ -153,8 +157,8 @@ struct brt {
 };
 
 /* serialization code */
-void toku_serialize_brtnode_to(int fd, DISKOFF off, BRTNODE node);
-int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t /*fullhash*/, BRTNODE *brtnode);
+void toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node);
+int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, int tree_node_size);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
@@ -163,7 +167,7 @@ void toku_verify_counts(BRTNODE);
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h);
-int toku_deserialize_brtheader_from (int fd, DISKOFF off, u_int32_t fullhash, struct brt_header **brth);
+int toku_deserialize_brtheader_from (int fd, BLOCKNUM off, u_int32_t fullhash, struct brt_header **brth);
 
 int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo); // Write a fifo into a disk, without worrying about fitting it into a block.  This write is done at the end of the file.
 int toku_deserialize_fifo_at (int fd, off_t at, FIFO *fifo);
@@ -219,12 +223,12 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node);
 unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t);
 
 /* Stuff for testing */
-int toku_testsetup_leaf(BRT brt, DISKOFF *diskoff);
-int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_children, DISKOFF *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens);
-int toku_testsetup_root(BRT brt, DISKOFF diskoff);
-int toku_testsetup_get_sersize(BRT brt, DISKOFF diskoff); // Return the size on disk.
-int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keylen, char *val, int vallen, u_int32_t *leaf_fingerprint);
-int toku_testsetup_insert_to_nonleaf (BRT brt, DISKOFF diskoff, enum brt_cmd_type, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint);
+int toku_testsetup_leaf(BRT brt, BLOCKNUM *);
+int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *diskoff, int n_children, BLOCKNUM *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens);
+int toku_testsetup_root(BRT brt, BLOCKNUM);
+int toku_testsetup_get_sersize(BRT brt, BLOCKNUM); // Return the size on disk.
+int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM, char *key, int keylen, char *val, int vallen, u_int32_t *leaf_fingerprint);
+int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_cmd_type, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint);
 
 int toku_set_func_fsync (int (*fsync_function)(int));
 
@@ -243,13 +247,14 @@ void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size);
 
 void toku_verify_all_in_mempool(BRTNODE node);
 
-int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) ;
+int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) ;
 
 enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_5 = 5,
     BRT_LAYOUT_VERSION_6 = 6, // Diff from 5 to 6:  Add leafentry_estimate
     BRT_LAYOUT_VERSION_7 = 7, // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdatase flags #333
     BRT_LAYOUT_VERSION_8 = 8, // Diff from 7 to 8:  Use murmur instead of crc32.  We are going to make a simplification and stop supporting version 7 and before.  Current As of Beta 1.0.6
+    BRT_LAYOUT_VERSION_9 = 9, // Diff from 8 to 9:  Variable-sized blocks and compression.
     BRT_ANTEULTIMATE_VERSION, // the version after the most recent version
     BRT_LAYOUT_VERSION   = BRT_ANTEULTIMATE_VERSION-1 // A hack so I don't have to change this line.
 };

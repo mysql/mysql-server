@@ -2,12 +2,13 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include <errno.h>
+#include <malloc.h>
+#include <pthread.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <pthread.h>
+#include <unistd.h>
 
 #include "cachetable.h"
 #include "hashfun.h"
@@ -17,7 +18,6 @@
 #include "log_header.h"
 #include "threadpool.h"
 #include "cachetable-rwlock.h"
-#include <malloc.h>
 
 // execute the cachetable callbacks using a writer thread 0->no 1->yes
 #define DO_WRITER_THREAD 1
@@ -233,7 +233,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fna
         newcf->filenum.fileid = next_filenum_to_use.fileid++;
         cachefile_init_filenum(newcf, fd, fname, fileid);
 	newcf->refcount = 1;
-	newcf->header_fullhash = toku_cachetable_hash(newcf, 0);
+	newcf->header_fullhash = toku_cachetable_hash(newcf, header_blocknum);
 	newcf->next = t->cachefiles;
 	t->cachefiles = newcf;
 	*cf = newcf;
@@ -340,7 +340,7 @@ int toku_cachetable_assert_all_unpinned (CACHETABLE t) {
 	for (p=t->table[i]; p; p=p->hash_chain) {
 	    assert(ctpair_pinned(&p->rwlock)>=0);
 	    if (ctpair_pinned(&p->rwlock)) {
-		printf("%s:%d pinned: %lld (%p)\n", __FILE__, __LINE__, p->key, p->value);
+		printf("%s:%d pinned: %" PRId64 " (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
 		some_pinned=1;
 	    }
 	}
@@ -359,7 +359,7 @@ int toku_cachefile_count_pinned (CACHEFILE cf, int print_them) {
 	for (p=t->table[i]; p; p=p->hash_chain) {
 	    assert(ctpair_pinned(&p->rwlock)>=0);
 	    if (ctpair_pinned(&p->rwlock) && (cf==0 || p->cachefile==cf)) {
-		if (print_them) printf("%s:%d pinned: %lld (%p)\n", __FILE__, __LINE__, p->key, p->value);
+		if (print_them) printf("%s:%d pinned: %"PRId64" (%p)\n", __FILE__, __LINE__, p->key.b, p->value);
 		n_pinned++;
 	    }
 	}
@@ -386,10 +386,10 @@ static inline u_int32_t final (u_int32_t a, u_int32_t b, u_int32_t c) {
     return c;
 }
 
-u_int32_t toku_cachetable_hash (CACHEFILE cachefile, CACHEKEY key)
+u_int32_t toku_cachetable_hash (CACHEFILE cachefile, BLOCKNUM key)
 // Effect: Return a 32-bit hash key.  The hash key shall be suitable for using with bitmasking for a table of size power-of-two.
 {
-    return final(cachefile->filenum.fileid, (u_int32_t)(key>>32), (u_int32_t)key);
+    return final(cachefile->filenum.fileid, (u_int32_t)(key.b>>32), (u_int32_t)key.b);
 }
 
 #if 0
@@ -708,7 +708,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
 	PAIR p;
 	for (p=ct->table[fullhash&(cachefile->cachetable->table_size-1)]; p; p=p->hash_chain) {
 	    count++;
-	    if (p->key==key && p->cachefile==cachefile) {
+	    if (p->key.b==key.b && p->cachefile==cachefile) {
 		// Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
 		// In practice, the functions better be the same.
 		assert(p->flush_callback==flush_callback);
@@ -742,7 +742,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
     cachetable_wait_write(t);
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
-	if (p->key==key && p->cachefile==cachefile) {
+	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    *value = p->value;
             if (sizep) *sizep = p->size;
             ctpair_read_lock(&p->rwlock, &t->mutex);
@@ -783,7 +783,8 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
     cachetable_lock(t);
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
-	if (p->key==key && p->cachefile==cachefile && !p->writing) {
+	if (p->key.b==key.b && p->cachefile==cachefile && !p->writing) {
+	    note_hash_count(count);
 	    *value = p->value;
 	    ctpair_read_lock(&p->rwlock, &t->mutex);
 	    lru_touch(t,p);
@@ -809,7 +810,7 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
     cachetable_lock(t);
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
-	if (p->key==key && p->cachefile==cachefile) {
+	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    assert(p->rwlock.pinned>0);
             ctpair_read_unlock(&p->rwlock);
 	    p->dirty |= dirty;
@@ -848,7 +849,7 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
          p;
          ptr_to_p = &p->hash_chain,                p = *ptr_to_p) {
         count++;
-        if (p->key==oldkey && p->cachefile==cachefile) {
+        if (p->key.b==oldkey.b && p->cachefile==cachefile) {
             note_hash_count(count);
             *ptr_to_p = p->hash_chain;
             p->key = newkey;
@@ -1005,7 +1006,7 @@ int toku_cachetable_remove (CACHEFILE cachefile, CACHEKEY key, int write_me) {
     cachetable_lock(t);
     for (p=t->table[fullhash&(t->table_size-1)]; p; p=p->hash_chain) {
 	count++;
-	if (p->key==key && p->cachefile==cachefile) {
+	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    flush_and_remove(t, p, write_me);
             if ((4 * t->n_in_table < t->table_size) && (t->table_size>4))
                 cachetable_rehash(t, t->table_size/2);
@@ -1156,7 +1157,7 @@ void toku_cachetable_print_state (CACHETABLE ct) {
          if (p != 0) {
              printf("t[%d]=", i);
              for (p=ct->table[i]; p; p=p->hash_chain) {
-                 printf(" {%lld, %p, dirty=%d, pin=%d, size=%ld}", p->key, p->cachefile, p->dirty, p->rwlock.pinned, p->size);
+                 printf(" {%"PRId64", %p, dirty=%d, pin=%d, size=%ld}", p->key.b, p->cachefile, p->dirty, p->rwlock.pinned, p->size);
              }
              printf("\n");
          }
@@ -1186,7 +1187,8 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
     cachetable_lock(ct);
     for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
 	count++;
-        if (p->key == key && p->cachefile == cf) {
+        if (p->key.b == key.b && p->cachefile == cf) {
+	    note_hash_count(count);
             if (value_ptr)
                 *value_ptr = p->value;
             if (dirty_ptr)

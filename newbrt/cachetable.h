@@ -20,7 +20,7 @@
  * size limit is the upper bound of the sum of size of the entries in the cache table (total number of bytes)
  */
 
-typedef long long CACHEKEY;
+typedef BLOCKNUM CACHEKEY;
 
 // create a new cachetable
 // returns: if success, 0 is returned and result points to the new cachetable 

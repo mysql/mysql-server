@@ -56,10 +56,17 @@ static inline unsigned long long rbuf_ulonglong (struct rbuf *r) {
     return ((unsigned long long)(i0)<<32) | ((unsigned long long)(i1));
 }
 
+static inline signed long long rbuf_longlong (struct rbuf *r) {
+    return (signed long long)rbuf_ulonglong(r);
+}
+
 static inline DISKOFF rbuf_diskoff (struct rbuf *r) {
-    unsigned i0 = rbuf_int(r);  
-    unsigned i1 = rbuf_int(r);
-    return ((unsigned long long)(i0)<<32) | ((unsigned long long)(i1));
+    return rbuf_ulonglong(r);
+}
+
+static inline BLOCKNUM rbuf_blocknum (struct rbuf *r) {
+    BLOCKNUM result = make_blocknum(rbuf_longlong(r));
+    return result;
 }
 
 static inline void rbuf_TXNID (struct rbuf *r, TXNID *txnid) {

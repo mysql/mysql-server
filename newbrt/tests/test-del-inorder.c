@@ -22,7 +22,7 @@ int fnamelen;
 char *fname;
 
 void doit (void) {
-    DISKOFF nodea,nodeb;
+    BLOCKNUM nodea,nodeb;
     u_int32_t fingerprinta=0;
 
     int r;

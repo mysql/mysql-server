@@ -1,15 +1,16 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "memory.h"
-#include "cachetable.h"
-#include "toku_assert.h"
-
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+
+#include "memory.h"
+#include "cachetable.h"
+#include "toku_assert.h"
 
 #include "test.h"
 
@@ -51,7 +52,7 @@ static void print_ints(void) {
     int i;
     for (i=0; i<n_present; i++) {
 	if (i==0) printf("{"); else printf(",");
-	printf("{%lld,%p}", present_items[i].key, present_items[i].cf);
+	printf("{%" PRId64 ",%p}", present_items[i].key.b, present_items[i].cf);
     }
     printf("}\n");
 }
@@ -72,7 +73,7 @@ static void item_becomes_not_present(CACHEFILE cf, CACHEKEY key) {
     test_mutex_lock();
     assert(n_present<=N_PRESENT_LIMIT);
     for (i=0; i<n_present; i++) {
-	if (present_items[i].cf==cf && present_items[i].key==key) {
+	if (present_items[i].cf==cf && present_items[i].key.b==key.b) {
 	    present_items[i]=present_items[n_present-1];
 	    n_present--;
             test_mutex_unlock();
@@ -80,7 +81,7 @@ static void item_becomes_not_present(CACHEFILE cf, CACHEKEY key) {
 	    return;
 	}
     }
-    printf("Whoops, %p,%lld was already not present\n", cf ,key);
+    printf("Whoops, %p,%" PRId64 " was already not present\n", cf ,key.b);
     abort();
     test_mutex_unlock();
 }
@@ -107,15 +108,15 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
     int *v = value;
     //toku_cachetable_print_state(ct);
     //printf("Flush %lld %d\n", key, (int)value);
-    assert((long)v==(long)key);
+    assert((long)v==(long)key.b);
     item_becomes_not_present(f, key);
     //print_ints();
 }
 
 static int fetch_forchain (CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep __attribute__((__unused__)), void*extraargs, LSN *written_lsn) {
     assert(toku_cachetable_hash(f, key)==fullhash);
-    assert((long)extraargs==(long)key);
-    *value = (void*)(long)key;
+    assert((long)extraargs==(long)key.b);
+    *value = (void*)(long)key.b;
     written_lsn->lsn = 0;
     return 0;
 }
@@ -162,12 +163,12 @@ static void test_chaining (void) {
     for (i=0; i<N_PRESENT_LIMIT; i++) {
 	int fnum = i%N_FILES;
 	//printf("%s:%d Add %d\n", __FILE__, __LINE__, i);
-	u_int32_t fhash = toku_cachetable_hash(f[fnum], i);
-	r = toku_cachetable_put(f[fnum], i, fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i); 
-        assert(r==0);
-	item_becomes_present(f[fnum], i);
-	r = toku_cachetable_unpin(f[fnum], i, fhash, CACHETABLE_CLEAN, test_object_size);                                 
-        assert(r==0);
+	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i);
+	assert(r==0);
+	item_becomes_present(f[fnum], make_blocknum(i));
+	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
+	assert(r==0);
 	//print_ints();
     }
     test_mutex_init();
@@ -189,7 +190,7 @@ static void test_chaining (void) {
 					    NULL,
 					    flush_forchain,
 					    fetch_forchain,
-					    (void*)(long)whichkey
+					    (void*)(long)whichkey.b
 					    );
 	    assert(r==0);
 	    r = toku_cachetable_unpin(whichcf,
@@ -204,18 +205,19 @@ static void test_chaining (void) {
 	// i is always incrementing, so we need not worry about inserting a duplicate
         // if i is a duplicate, cachetable_put will return -1
 	// printf("%s:%d Add {%ld,%p}\n", __FILE__, __LINE__, i, f[fnum]);
-	u_int32_t fhash = toku_cachetable_hash(f[fnum], i);
-	r = toku_cachetable_put(f[fnum], i, fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i);
+	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
+	r = toku_cachetable_put(f[fnum], make_blocknum(i), fhash, (void*)i, test_object_size, flush_forchain, fetch_forchain, (void*)i);
         assert(r==0 || r==-1);
         if (r==0) {
-            item_becomes_present(f[fnum], i);
+            item_becomes_present(f[fnum], make_blocknum(i));
             //print_ints();
             //cachetable_print_state(ct);
         }
-	r = toku_cachetable_unpin(f[fnum], i, fhash, CACHETABLE_CLEAN, test_object_size);                                                
-        assert(r==0);
+	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
+	assert(r==0);
+
         long long pinned;
-        r = toku_cachetable_get_key_state(ct, i, f[fnum], 0, 0, &pinned, 0);
+        r = toku_cachetable_get_key_state(ct, make_blocknum(i), f[fnum], 0, 0, &pinned, 0);
         assert(r==0);
         assert(pinned == 0);
 	verify_cachetable_against_present();

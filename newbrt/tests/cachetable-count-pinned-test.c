@@ -25,24 +25,24 @@ void cachetable_count_pinned_test(int n) {
     int i;
     for (i=1; i<=n; i++) {
         u_int32_t hi;
-        hi = toku_cachetable_hash(f1, i);
-        r = toku_cachetable_put(f1, i, hi, (void *)(long)i, 1, flush, fetch, 0);
+        hi = toku_cachetable_hash(f1, make_blocknum(i));
+        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, 1, flush, fetch, 0);
         assert(r == 0);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
 
         void *v;
-        r = toku_cachetable_maybe_get_and_pin(f1, i, hi, &v);
+        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, &v);
         assert(r == 0);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
 
-        r = toku_cachetable_unpin(f1, i, hi, CACHETABLE_CLEAN, 1);
+        r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
     }
     for (i=n; i>0; i--) {
         u_int32_t hi;
-        hi = toku_cachetable_hash(f1, i);
-        r = toku_cachetable_unpin(f1, i, hi, CACHETABLE_CLEAN, 1);
+        hi = toku_cachetable_hash(f1, make_blocknum(i));
+        r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, 1);
         assert(r == 0);
         if (i-1) assert(toku_cachetable_assert_all_unpinned(ct));
         assert(toku_cachefile_count_pinned(f1, 0) == i-1);

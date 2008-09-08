@@ -26,7 +26,7 @@ static void f_flush (CACHEFILE f,
 		     BOOL rename_p    __attribute__((__unused__))) {
     assert(size==BLOCKSIZE);
     if (write_me) {
-	int r = pwrite(toku_cachefile_fd(f), value, BLOCKSIZE, key);
+	int r = pwrite(toku_cachefile_fd(f), value, BLOCKSIZE, key.b);
 	assert(r==BLOCKSIZE);
     }
     if (!keep_me) {
@@ -42,7 +42,7 @@ static int f_fetch (CACHEFILE f,
 		    void*extraargs     __attribute__((__unused__)),
 		    LSN *modified_lsn  __attribute__((__unused__))) {
     void *buf = malloc(BLOCKSIZE);
-    int r = pread(toku_cachefile_fd(f), buf, BLOCKSIZE, key);
+    int r = pread(toku_cachefile_fd(f), buf, BLOCKSIZE, key.b);
     assert(r==BLOCKSIZE);
     *value = buf;
     *sizep = BLOCKSIZE;
@@ -66,7 +66,7 @@ static void writeit (void) {
     int i, r;
     for (i=0; i<N; i++) {
 	void *buf = malloc(BLOCKSIZE);
-	CACHEKEY key = i*BLOCKSIZE;
+	CACHEKEY key = make_blocknum(i*BLOCKSIZE);
 	u_int32_t fullhash = toku_cachetable_hash(f, key);
 	int j;
 	for (j=0; j<BLOCKSIZE; j++) ((char*)buf)[j]=(i+j)%256;
@@ -86,9 +86,8 @@ static void readit (void) {
     int i, r;
     void *block;
     long  current_size;
-    CACHEKEY key;
     for (i=0; i<N; i++) {
-	key = i*BLOCKSIZE;
+	CACHEKEY key = make_blocknum(i*BLOCKSIZE);
 	u_int32_t fullhash = toku_cachetable_hash(f, key);
 	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, f_flush, f_fetch, 0); assert(r==0);
 	r=toku_cachetable_unpin(f, key, fullhash, 0, BLOCKSIZE);                                      assert(r==0);

@@ -1,13 +1,13 @@
 #include "brt-internal.h"
 #include "toku_assert.h"
 
-int toku_testsetup_leaf(BRT brt, DISKOFF *diskoff) {
+int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
     BRTNODE node;
     int r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, 0, (TOKULOGGER)0);
 
-    *diskoff = node->thisnodename;
+    *blocknum = node->thisnodename;
     r = toku_unpin_brtnode(brt, node);
     if (r!=0) return r;
     r = toku_unpin_brt_header(brt);
@@ -16,7 +16,7 @@ int toku_testsetup_leaf(BRT brt, DISKOFF *diskoff) {
 }
 
 // Don't bother to clean up carefully if something goes wrong.  (E.g., it's OK to have malloced stuff that hasn't been freed.)
-int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_children, DISKOFF *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens) {
+int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_children, BLOCKNUM *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens) {
     BRTNODE node;
     assert(n_children<=BRT_FANOUT);
     int r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
@@ -31,7 +31,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_childre
     for (i=0; i<n_children; i++) {
 	node->u.n.childinfos[i] = (struct brtnode_nonleaf_childinfo){ .subtree_fingerprint = subtree_fingerprints[i],
 								      .leafentry_estimate  = 0,
-								      .diskoff             = children[i],
+								      .blocknum            = children[i],
 								      .n_bytes_in_buffer   = 0 };
 	r = toku_fifo_create(&BNC_BUFFER(node,i)); if (r!=0) return r;
     }
@@ -39,7 +39,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_childre
 	node->u.n.childkeys[i] = kv_pair_malloc(keys[i], keylens[i], 0, 0);
 	node->u.n.totalchildkeylens += keylens[i];
     }
-    *diskoff = node->thisnodename;
+    *blocknum = node->thisnodename;
     r = toku_unpin_brtnode(brt, node);
     if (r!=0) return r;
     r = toku_unpin_brt_header(brt);
@@ -47,16 +47,16 @@ int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_childre
     return 0;
 }
 
-int toku_testsetup_root(BRT brt, DISKOFF diskoff) {
+int toku_testsetup_root(BRT brt, BLOCKNUM blocknum) {
     int r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
     if (r!=0) return r;
-    brt->h->roots[0] = diskoff;
+    brt->h->roots[0] = blocknum;
     brt->h->root_hashes[0].valid = FALSE;
     r = toku_unpin_brt_header(brt);
     return r;
 }
 
-int toku_testsetup_get_sersize(BRT brt, DISKOFF diskoff) // Return the size on disk
+int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on disk
 {
     void *node_v;
     int r  = toku_cachetable_get_and_pin(brt->cf, diskoff, toku_cachetable_hash(brt->cf, diskoff), &node_v, NULL,
@@ -68,10 +68,10 @@ int toku_testsetup_get_sersize(BRT brt, DISKOFF diskoff) // Return the size on d
     return size;
 }
 
-int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
+int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
     void *node_v;
     int r;
-    r = toku_cachetable_get_and_pin(brt->cf, diskoff, toku_cachetable_hash(brt->cf, diskoff), &node_v, NULL,
+    r = toku_cachetable_get_and_pin(brt->cf, blocknum, toku_cachetable_hash(brt->cf, blocknum), &node_v, NULL,
 				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) return r;
     BRTNODE node=node_v;
@@ -120,10 +120,10 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
     return r;
 }
 
-int toku_testsetup_insert_to_nonleaf (BRT brt, DISKOFF diskoff, enum brt_cmd_type cmdtype, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
+int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_cmd_type cmdtype, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
     void *node_v;
     int r;
-    r = toku_cachetable_get_and_pin(brt->cf, diskoff, toku_cachetable_hash(brt->cf, diskoff), &node_v, NULL,
+    r = toku_cachetable_get_and_pin(brt->cf, blocknum, toku_cachetable_hash(brt->cf, blocknum), &node_v, NULL,
 				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) return r;
     BRTNODE node=node_v;

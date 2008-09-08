@@ -9,6 +9,7 @@
 #include "kv-pair.h"
 #include "mempool.h"
 
+#include <inttypes.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <arpa/inet.h>
@@ -111,8 +112,9 @@ const int uncompressed_magic_len = (8 // tokuleaf or tokunode
 const int compression_header_len = (4 // compressed_len
 				    +4); // uncompressed_len
 
-void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
+void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node) {
     //printf("%s:%d serializing\n", __FILE__, __LINE__);
+    DISKOFF offset = blocknum.b * node->nodesize;
     struct wbuf w;
     int i;
     unsigned int calculated_size = toku_serialize_brtnode_size(node) - 8; // don't include the compressed or uncompressed sizes
@@ -165,7 +167,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
 	    //printf("%s:%d w.ndone=%d (childkeylen[%d]=%d\n", __FILE__, __LINE__, w.ndone, i, node->childkeylens[i]);
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
-	    wbuf_DISKOFF(&w, BNC_DISKOFF(node,i));
+	    wbuf_BLOCKNUM(&w, BNC_BLOCKNUM(node,i));
 	    //printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
 	}
 
@@ -185,7 +187,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
 				  }));
 	    }
 	    //printf("%s:%d check_local_fingerprint=%8x\n", __FILE__, __LINE__, check_local_fingerprint);
-	    if (check_local_fingerprint!=node->local_fingerprint) printf("%s:%d node=%lld fingerprint expected=%08x actual=%08x\n", __FILE__, __LINE__, (long long)node->thisnodename, check_local_fingerprint, node->local_fingerprint);
+	    if (check_local_fingerprint!=node->local_fingerprint) printf("%s:%d node=%" PRId64 " fingerprint expected=%08x actual=%08x\n", __FILE__, __LINE__, node->thisnodename.b, check_local_fingerprint, node->local_fingerprint);
 	    assert(check_local_fingerprint==node->local_fingerprint);
 	}
     } else {
@@ -240,7 +242,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     {
 	// If the node has never been written, then write the whole buffer, including the zeros
 	size_t n_to_write = uncompressed_magic_len + compression_header_len + compressed_len;
-	ssize_t r=pwrite(fd, compressed_buf, n_to_write, off);
+	ssize_t r=pwrite(fd, compressed_buf, n_to_write, offset);
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
 	assert(r==(ssize_t)n_to_write);
     }
@@ -251,7 +253,8 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     toku_free(compressed_buf);
 }
 
-int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTNODE *brtnode) {
+int toku_deserialize_brtnode_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, int tree_node_size) {
+    DISKOFF offset = blocknum.b * tree_node_size;
     TAGMALLOC(BRTNODE, result);
     struct rbuf rc;
     int i;
@@ -267,7 +270,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
     u_int32_t uncompressed_size;
     {
 	// get the compressed size
-	r = pread(fd, uncompressed_header, sizeof(uncompressed_header), off);
+	r = pread(fd, uncompressed_header, sizeof(uncompressed_header), offset);
 	//printf("%s:%d r=%d the datasize=%d\n", __FILE__, __LINE__, r, ntohl(datasize_n));
 	if (r!=(int)sizeof(uncompressed_header)) {
 	    if (r==-1) r=errno;
@@ -285,7 +288,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
     assert(compressed_data);
 
     {
-	ssize_t rlen=pread(fd, compressed_data, compressed_size, off+uncompressed_magic_len + compression_header_len);
+	ssize_t rlen=pread(fd, compressed_data, compressed_size, offset+uncompressed_magic_len + compression_header_len);
 	//printf("%s:%d pread->%d datasize=%d\n", __FILE__, __LINE__, r, datasize);
 	assert((size_t)rlen==compressed_size);
 	//printf("Got %d %d %d %d\n", rc.buf[0], rc.buf[1], rc.buf[2], rc.buf[3]);
@@ -324,7 +327,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
     result->layout_version    = rbuf_int(&rc);
     {
 	switch (result->layout_version) {
-	case BRT_LAYOUT_VERSION_8: goto ok_layout_version;
+	case BRT_LAYOUT_VERSION_9: goto ok_layout_version;
 	    // Don't support older versions.
 	}
 	r=DB_BADFORMAT;
@@ -335,7 +338,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
     result->nodesize = rbuf_int(&rc);
     result->log_lsn = result->disk_lsn;
 
-    result->thisnodename = off;
+    result->thisnodename = blocknum;
     result->flags = rbuf_int(&rc);
     result->height = rbuf_int(&rc);
     result->rand4fingerprint = rbuf_int(&rc);
@@ -376,7 +379,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, u_int32_t fullhash, BRTN
 	    result->u.n.totalchildkeylens+=toku_brtnode_pivot_key_len(result, result->u.n.childkeys[i]);
 	}
 	for (i=0; i<result->u.n.n_children; i++) {
-	    BNC_DISKOFF(result,i) = rbuf_diskoff(&rc);
+	    BNC_BLOCKNUM(result,i) = rbuf_blocknum(&rc);
 	    BNC_HAVE_FULLHASH(result, i) = FALSE;
 	    BNC_NBYTESINBUF(result,i) = 0;
 	    //printf("Child %d at %lld\n", i, result->children[i]);
@@ -567,21 +570,21 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
     wbuf_int    (wbuf, size);
     wbuf_int    (wbuf, BRT_LAYOUT_VERSION);
     wbuf_int    (wbuf, h->nodesize);
-    wbuf_DISKOFF(wbuf, h->freelist);
-    wbuf_DISKOFF(wbuf, h->unused_memory);
+    wbuf_BLOCKNUM(wbuf, h->free_blocks);
+    wbuf_BLOCKNUM(wbuf, h->unused_blocks);
     wbuf_int    (wbuf, h->n_named_roots);
     if (h->n_named_roots>=0) {
 	int i;
 	for (i=0; i<h->n_named_roots; i++) {
 	    char *s = h->names[i];
 	    unsigned int l = 1+strlen(s);
-	    wbuf_DISKOFF(wbuf, h->roots[i]);
+	    wbuf_BLOCKNUM(wbuf, h->roots[i]);
 	    wbuf_int    (wbuf, h->flags_array[i]);
 	    wbuf_bytes  (wbuf,  s, l);
 	    assert(l>0 && s[l-1]==0);
 	}
     } else {
-	wbuf_DISKOFF(wbuf, h->roots[0]);
+	wbuf_BLOCKNUM(wbuf, h->roots[0]);
 	wbuf_int    (wbuf, h->flags_array[0]);
     }
     assert(wbuf->ndone<=wbuf->size);
@@ -623,10 +626,11 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
     h->dirty=0;
     h->layout_version = rbuf_int(&rc);
     h->nodesize      = rbuf_int(&rc);
-    assert(h->layout_version==BRT_LAYOUT_VERSION_8);
-    h->freelist      = rbuf_diskoff(&rc);
-    h->unused_memory = rbuf_diskoff(&rc);
+    assert(h->layout_version==BRT_LAYOUT_VERSION_9);
+    h->free_blocks   = rbuf_blocknum(&rc);
+    h->unused_blocks = rbuf_blocknum(&rc);
     h->n_named_roots = rbuf_int(&rc);
+    h->free_blocks   = make_blocknum(-1);
     if (h->n_named_roots>=0) {
 	int i;
 	int n_to_malloc = (h->n_named_roots == 0) ? 1 : h->n_named_roots;
@@ -636,7 +640,7 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
 	MALLOC_N(n_to_malloc, h->names);       if (h->names==0)       { ret=errno; if (0) { died5: if (h->n_named_roots>=0) free(h->names); } goto died4; }
 	for (i=0; i<h->n_named_roots; i++) {
 	    h->root_hashes[i].valid = FALSE;
-	    h->roots[i]       = rbuf_diskoff(&rc);
+	    h->roots[i]       = rbuf_blocknum(&rc);
 	    h->flags_array[i] = rbuf_int(&rc);
 	    bytevec nameptr;
 	    unsigned int len;
@@ -651,7 +655,7 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
 	MALLOC_N(n_to_malloc, h->roots);       if (h->roots==0) { ret=errno; goto died2; }
 	MALLOC_N(n_to_malloc, h->root_hashes); if (h->root_hashes==0) { ret=errno; goto died3; }
 	h->names = 0;
-	h->roots[0] = rbuf_diskoff(&rc);
+	h->roots[0] = rbuf_blocknum(&rc);
 	h->root_hashes[0].valid = FALSE;
 	h->flags_array[0] = rbuf_int(&rc);
     }
@@ -661,19 +665,20 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
     return 0;
 }
 
-int toku_deserialize_brtheader_from (int fd, DISKOFF off, u_int32_t fullhash, struct brt_header **brth) {
+int toku_deserialize_brtheader_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, struct brt_header **brth) {
     //printf("%s:%d calling MALLOC\n", __FILE__, __LINE__);
-    assert(off==0);
+    assert(blocknum.b==0);
+    DISKOFF offset = 0;
     //printf("%s:%d malloced %p\n", __FILE__, __LINE__, h);
 
     char     magic[12];
-    ssize_t r = pread(fd, magic,  12, off);
+    ssize_t r = pread(fd, magic,  12, offset);
     if (r==0) return -1;
     if (r<0)  return errno;
     if (r!=12) return EINVAL;
     assert(memcmp(magic,"tokudata",8)==0);
     // It's version 7 or later, and the magi clooks OK
-    return deserialize_brtheader_7_or_later(ntohl(*(int*)(&magic[8])), fd, off, brth, fullhash);
+    return deserialize_brtheader_7_or_later(ntohl(*(int*)(&magic[8])), fd, offset, brth, fullhash);
 }
 
 unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {
