@@ -360,6 +360,7 @@ typedef struct st_table_share
   int cached_row_logging_check;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+  /** @todo: Move into *ha_data for partitioning */
   bool auto_partitioned;
   const char *partition_info;
   uint  partition_info_len;
@@ -368,6 +369,9 @@ typedef struct st_table_share
   uint part_state_len;
   handlerton *default_part_db_type;
 #endif
+
+  /** place to store storage engine specific data */
+  void *ha_data;
 
 
   /*
