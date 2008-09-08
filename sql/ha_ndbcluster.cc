@@ -7631,14 +7631,12 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     local_close(thd, TRUE);
     DBUG_RETURN(res);
   }
-#ifdef HAVE_NDB_BINLOG
   if (!ndb_binlog_tables_inited ||
       (ndb_binlog_running && !ndb_binlog_is_ready))
   {
     table->db_stat|= HA_READ_ONLY;
     sql_print_information("table '%s' opened read only", name);
   }
-#endif
   DBUG_RETURN(0);
 }
 
