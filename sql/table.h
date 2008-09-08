@@ -66,13 +66,63 @@ typedef struct st_order {
   table_map used, depend_map;
 } ORDER;
 
+/**
+   @brief The current state of the privilege checking process for the current
+   user, SQL statement and SQL object.
+
+   @details The privilege checking process is divided into phases depending on
+   the level of the privilege to be checked and the type of object to be
+   accessed. Due to the mentioned scattering of privilege checking
+   functionality, it is necessary to keep track of the state of the
+   process. This information is stored in privilege, want_privilege, and
+   orig_want_privilege.
+
+   A GRANT_INFO also serves as a cache of the privilege hash tables. Relevant
+   members are grant_table and version.
+ */
 typedef struct st_grant_info
 {
+  /**
+     @brief A copy of the privilege information regarding the current host,
+     database, object and user.
+
+     @details The version of this copy is found in GRANT_INFO::version.
+   */
   GRANT_TABLE *grant_table;
+  /**
+     @brief Used for cache invalidation when caching privilege information.
+
+     @details The privilege information is stored on disk, with dedicated
+     caches residing in memory: table-level and column-level privileges,
+     respectively, have their own dedicated caches.
+
+     The GRANT_INFO works as a level 1 cache with this member updated to the
+     current value of the global variable @c grant_version (@c static variable
+     in sql_acl.cc). It is updated Whenever the GRANT_INFO is refreshed from
+     the level 2 cache. The level 2 cache is the @c column_priv_hash structure
+     (@c static variable in sql_acl.cc)
+
+     @see grant_version
+   */
   uint version;
+  /**
+     @brief The set of privileges that the current user has fulfilled for a
+     certain host, database, and object.
+     
+     @details This field is continually updated throughout the access checking
+     process. In each step the "wanted privilege" is checked against the
+     fulfilled privileges. When/if the intersection of these sets is empty,
+     access is granted.
+
+     The set is implemented as a bitmap, with the bits defined in sql_acl.h.
+   */
   ulong privilege;
+  /**
+     @brief the set of privileges that the current user needs to fulfil in
+     order to carry out the requested operation.
+   */
   ulong want_privilege;
-  /*
+  /**
     Stores the requested access acl of top level tables list. Is used to
     check access rights to the underlying tables of a view.
   */
@@ -1104,6 +1154,27 @@ struct TABLE_LIST
     can see this lists can't be merged)
   */
   TABLE_LIST	*correspondent_table;
+  /**
+     @brief Normally, this field is non-null for anonymous derived tables only.
+
+     @details This field is set to non-null for 
+     
+     - Anonymous derived tables, In this case it points to the SELECT_LEX_UNIT
+     representing the derived table. E.g. for a query
+     
+     @verbatim SELECT * FROM (SELECT a FROM t1) b @endverbatim
+     
+     For the @c TABLE_LIST representing the derived table @c b, @c derived
+     points to the SELECT_LEX_UNIT representing the result of the query within
+     parenteses.
+     
+     - Views. This is set for views with @verbatim ALGORITHM = TEMPTABLE
+     @endverbatim by mysql_make_view().
+     
+     @note Inside views, a subquery in the @c FROM clause is not allowed.
+     @note Do not use this field to separate views/base tables/anonymous
+     derived tables. Use TABLE_LIST::is_anonymous_derived_table().
+  */
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
@@ -1169,7 +1240,15 @@ struct TABLE_LIST
   ulonglong	file_version;		/* version of file's field set */
   ulonglong     updatable_view;         /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
-  ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
+  /** 
+      @brief The declared algorithm, if this is a view.
+      @details One of
+      - VIEW_ALGORITHM_UNDEFINED
+      - VIEW_ALGORITHM_TMPTABLE
+      - VIEW_ALGORITHM_MERGE
+      @to do Replace with an enum 
+  */
+  ulonglong	algorithm;
   ulonglong     view_suid;              /* view is suid (TRUE dy default) */
   ulonglong     with_check;             /* WITH CHECK OPTION */
   /*
@@ -1177,7 +1256,15 @@ struct TABLE_LIST
     algorithm)
   */
   uint8         effective_with_check;
-  uint8         effective_algorithm;    /* which algorithm was really used */
+  /** 
+      @brief The view algorithm that is actually used, if this is a view.
+      @details One of
+      - VIEW_ALGORITHM_UNDEFINED
+      - VIEW_ALGORITHM_TMPTABLE
+      - VIEW_ALGORITHM_MERGE
+      @to do Replace with an enum 
+  */
+  uint8         effective_algorithm;
   GRANT_INFO	grant;
   /* data need by some engines in query cache*/
   ulonglong     engine_data;
@@ -1362,6 +1449,26 @@ struct TABLE_LIST
     m_table_ref_version= s->get_table_ref_version();
   }
 
+  /**
+     @brief True if this TABLE_LIST represents an anonymous derived table,
+     i.e.  the result of a subquery.
+  */
+  bool is_anonymous_derived_table() const { return derived && !view; }
+
+  /**
+     @brief Returns the name of the database that the referenced table belongs
+     to.
+  */
+  char *get_db_name() { return view != NULL ? view_db.str : db; }
+
+  /**
+     @brief Returns the name of the table that this TABLE_LIST represents.
+
+     @details The unqualified table name or view name for a table or view,
+     respectively.
+   */
+  char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
@@ -1491,8 +1598,8 @@ public:
   bool end_of_fields()
   { return (table_ref == last_leaf && field_it->end_of_fields()); }
   const char *name() { return field_it->name(); }
-  const char *table_name();
-  const char *db_name();
+  const char *get_table_name();
+  const char *get_db_name();
   GRANT_INFO *grant();
   Item *create_item(THD *thd) { return field_it->create_item(thd); }
   Field *field() { return field_it->field(); }
