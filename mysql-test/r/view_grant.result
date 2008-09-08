@@ -957,3 +957,35 @@ Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function
 DROP VIEW v1;
 DROP TABLE t1;
 End of 5.1 tests.
+CREATE USER mysqluser1@localhost;
+CREATE DATABASE mysqltest1;
+USE mysqltest1;
+CREATE TABLE t1 ( a INT, b INT );
+CREATE TABLE t2 ( a INT, b INT );
+CREATE VIEW v1 AS SELECT a, b FROM t1;
+GRANT SELECT( a ) ON v1 TO mysqluser1@localhost;
+GRANT UPDATE( b ) ON t2 TO mysqluser1@localhost;
+SELECT * FROM mysqltest1.v1;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 'v1'
+CREATE VIEW v1 AS SELECT * FROM mysqltest1.t2;
+ERROR 42000: ANY command denied to user 'mysqluser1'@'localhost' for table 't2'
+DROP TABLE t1, t2;
+DROP VIEW v1;
+DROP DATABASE mysqltest1;
+DROP USER mysqluser1@localhost;
+CREATE USER mysqluser1@localhost;
+CREATE DATABASE mysqltest1;
+USE mysqltest1;
+CREATE VIEW v1 AS SELECT * FROM information_schema.tables LIMIT 1;
+CREATE ALGORITHM = TEMPTABLE VIEW v2 AS SELECT 1 AS A;
+GRANT SELECT ON mysqltest1.* to mysqluser1@localhost;
+PREPARE stmt_v1     FROM "SELECT * FROM mysqltest1.v1";
+PREPARE stmt_v2 FROM "SELECT * FROM mysqltest1.v2";
+REVOKE SELECT ON mysqltest1.* FROM mysqluser1@localhost;
+EXECUTE stmt_v1;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 'v1'
+EXECUTE stmt_v2;
+ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 'v2'
+DROP VIEW v1, v2;
+DROP DATABASE mysqltest1;
+DROP USER mysqluser1@localhost;
