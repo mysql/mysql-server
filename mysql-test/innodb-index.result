@@ -960,3 +960,167 @@ t1	CREATE TABLE `t1` (
   KEY `t1st` (`s`(1),`t`(1))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
+SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+CREATE TABLE t1(
+c1	BIGINT(12) NOT NULL,
+PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t2(
+c1	BIGINT(16) NOT NULL,
+c2	BIGINT(12) NOT NULL,
+c3	BIGINT(12) NOT NULL,
+PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3) REFERENCES t1(c1);
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `fk_t2_ca` (`c3`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `i_t2_c3_c2` (`c3`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+INSERT INTO t2 VALUES(0,0,0);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`))
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(0,0,0);
+DROP TABLE t2;
+CREATE TABLE t2(
+c1	BIGINT(16) NOT NULL,
+c2	BIGINT(12) NOT NULL,
+c3	BIGINT(12) NOT NULL,
+PRIMARY KEY (c1,c2,c3)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3) REFERENCES t1(c1);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`),
+  KEY `fk_t2_ca` (`c3`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`),
+  KEY `i_t2_c3_c2` (`c3`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t2 VALUES(0,0,1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`))
+INSERT INTO t2 VALUES(0,0,0);
+DELETE FROM t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`))
+DELETE FROM t2;
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1(
+c1	BIGINT(12) NOT NULL,
+c2	INT(4) NOT NULL,
+PRIMARY KEY (c2,c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t2(
+c1	BIGINT(16) NOT NULL,
+c2	BIGINT(12) NOT NULL,
+c3	BIGINT(12) NOT NULL,
+PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(12) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  PRIMARY KEY (`c2`,`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `fk_t2_ca` (`c3`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c2_c1 ON t2(c2, c1);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `fk_t2_ca` (`c3`,`c2`),
+  KEY `i_t2_c2_c1` (`c2`,`c1`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c3_c1_c2 ON t2(c3, c1, c2);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `fk_t2_ca` (`c3`,`c2`),
+  KEY `i_t2_c2_c1` (`c2`,`c1`),
+  KEY `i_t2_c3_c1_c2` (`c3`,`c1`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` bigint(16) NOT NULL,
+  `c2` bigint(12) NOT NULL,
+  `c3` bigint(12) NOT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `i_t2_c2_c1` (`c2`,`c1`),
+  KEY `i_t2_c3_c1_c2` (`c3`,`c1`,`c2`),
+  KEY `i_t2_c3_c2` (`c3`,`c2`),
+  CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t2;
+DROP TABLE t1;
