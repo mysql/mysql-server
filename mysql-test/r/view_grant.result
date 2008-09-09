@@ -978,7 +978,9 @@ CREATE DATABASE mysqltest1;
 USE mysqltest1;
 CREATE VIEW v1 AS SELECT * FROM information_schema.tables LIMIT 1;
 CREATE ALGORITHM = TEMPTABLE VIEW v2 AS SELECT 1 AS A;
+CREATE VIEW test.v3 AS SELECT 1 AS a;
 GRANT SELECT ON mysqltest1.* to mysqluser1@localhost;
+GRANT ALL ON test.* TO mysqluser1@localhost;
 PREPARE stmt_v1     FROM "SELECT * FROM mysqltest1.v1";
 PREPARE stmt_v2 FROM "SELECT * FROM mysqltest1.v2";
 REVOKE SELECT ON mysqltest1.* FROM mysqluser1@localhost;
@@ -986,6 +988,11 @@ EXECUTE stmt_v1;
 ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 'v1'
 EXECUTE stmt_v2;
 ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 'v2'
+PREPARE stmt FROM "SELECT a FROM v3";
+EXECUTE stmt;
+a
+1
 DROP VIEW v1, v2;
 DROP DATABASE mysqltest1;
+DROP VIEW test.v3;
 DROP USER mysqluser1@localhost;

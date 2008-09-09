@@ -5196,12 +5196,14 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       tables->grant.privilege= want_access;
     else if (tables->db && thd->db && strcmp(tables->db, thd->db) == 0)
     {
-      if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			 0, no_errors, test(tables->schema_table)))
+      if (check_access(thd, want_access, tables->get_db_name(),
+                       &tables->grant.privilege, 0, no_errors, 
+                       test(tables->schema_table)))
         goto deny;                            // Access denied
     }
-    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			  0, no_errors, test(tables->schema_table)))
+    else if (check_access(thd, want_access, tables->get_db_name(),
+                          &tables->grant.privilege, 0, no_errors, 
+                          test(tables->schema_table)))
       goto deny;
   }
   thd->security_ctx= backup_ctx;
