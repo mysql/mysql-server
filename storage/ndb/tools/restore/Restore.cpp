@@ -1270,7 +1270,14 @@ BackupFile::readHeader(){
   }
   
   // Convert from network to host byte order for platform compatibility
-  m_fileHeader.BackupVersion  = ntohl(m_fileHeader.BackupVersion);
+  /*
+    Due to some optimization going on when using gcc 4.2.3 we
+    have to read 'backup_version' into tmp variable. If
+    'm_fileHeader.BackupVersion' is used directly in the if statement
+    below it will have the wrong value.
+  */
+  Uint32 backup_version = ntohl(m_fileHeader.BackupVersion);
+  m_fileHeader.BackupVersion = backup_version;
   m_fileHeader.SectionType = ntohl(m_fileHeader.SectionType);
   m_fileHeader.SectionLength = ntohl(m_fileHeader.SectionLength);
   m_fileHeader.FileType = ntohl(m_fileHeader.FileType);
@@ -1278,7 +1285,7 @@ BackupFile::readHeader(){
   m_fileHeader.BackupKey_0 = ntohl(m_fileHeader.BackupKey_0);
   m_fileHeader.BackupKey_1 = ntohl(m_fileHeader.BackupKey_1);
 
-  if (m_fileHeader.BackupVersion >= NDBD_RAW_LCP)
+  if (backup_version >= NDBD_RAW_LCP)
   {
     if (buffer_read(&m_fileHeader.NdbVersion, 
                     sizeof(m_fileHeader) - oldsz, 1) != 1)
