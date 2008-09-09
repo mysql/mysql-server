@@ -281,6 +281,7 @@ int allocate_diskblocknumber (BLOCKNUM *res, BRT brt, TOKULOGGER logger __attrib
     assert(brt->h->free_blocks.b == -1); // no blocks in the free list
     BLOCKNUM result = brt->h->unused_blocks;
     brt->h->unused_blocks.b++;
+    brt->h->dirty = 1;
     *res = result;
     return 0;
 }
