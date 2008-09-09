@@ -2163,6 +2163,30 @@ next_rec:
 }
 
 /**************************************************************************
+Find an index that is equivalent to the one passed in and is not marked
+for deletion. */
+UNIV_INTERN
+dict_index_t*
+dict_foreign_find_equiv_index(
+/*==========================*/
+				/* out: index equivalent to
+				foreign->foreign_index, or NULL */
+	dict_foreign_t*	foreign)/* in: foreign key */
+{
+	ut_a(foreign != NULL);
+
+	/* Try to find an index which contains the columns as the
+	first fields and in the right order, and the types are the
+	same as in foreign->foreign_index */
+
+	return(dict_foreign_find_index(
+		       foreign->foreign_table,
+		       foreign->foreign_col_names, foreign->n_fields,
+		       foreign->foreign_index, TRUE, /* check types */
+		       FALSE/* allow columns to be NULL */));
+}
+
+/**************************************************************************
 Returns an index object by matching on the name and column names and
 if more than one index matches return the index with the max id */
 UNIV_INTERN
@@ -4486,43 +4510,6 @@ dict_table_get_index_on_name(
 }
 
 /**************************************************************************
-Find an index that is equivalent to the one passed in and is not marked
-for deletion. */
-UNIV_INTERN
-dict_index_t*
-dict_table_find_equivalent_index(
-/*=============================*/
-				/* out: equivalent index, or NULL */
-	dict_table_t*	table,  /* in: table */
-	dict_index_t*	index)	/* in: index to match */
-{
-	ulint		i;
-	const char**	column_names;
-	dict_index_t*	equiv_index;
-
-	if (UT_LIST_GET_LEN(table->foreign_list) == 0) {
-
-		return(NULL);
-	}
-
-	column_names = mem_alloc(index->n_fields * sizeof *column_names);
-
-	/* Convert the column names to the format & type accepted by the find
-	index function */
-	for (i = 0; i < index->n_fields; i++) {
-		column_names[i] = index->fields[i].name;
-	}
-
-	equiv_index = dict_foreign_find_index(
-		table, column_names, index->n_fields,
-		index, TRUE, FALSE);
-
-	mem_free((void*) column_names);
-
-	return(equiv_index);
-}
-
-/**************************************************************************
 Replace the index passed in with another equivalent index in the tables
 foreign key list. */
 UNIV_INTERN
@@ -4532,30 +4519,18 @@ dict_table_replace_index_in_foreign_list(
 	dict_table_t*	table,  /* in/out: table */
 	dict_index_t*	index)	/* in: index to be replaced */
 {
-	dict_index_t*	new_index;
+	dict_foreign_t*	foreign;
 
-	new_index = dict_table_find_equivalent_index(table, index);
+	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-	/* If match found */
-	if (new_index) {
-		dict_foreign_t*	foreign;
+		if (foreign->foreign_index == index) {
+			dict_index_t*	new_index
+				= dict_foreign_find_equiv_index(foreign);
+			ut_a(new_index);
 
-		ut_a(new_index != index);
-
-		foreign = UT_LIST_GET_FIRST(table->foreign_list);
-
-		/* If the list is not empty then this should hold */
-		ut_a(foreign);
-
-		/* Iterate over the foreign index list and replace the index
-		passed in with the new index */
-		while (foreign) {
-
-			if (foreign->foreign_index == index) {
-				foreign->foreign_index = new_index;
-			}
-
-			foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+			foreign->foreign_index = new_index;
 		}
 	}
 }
