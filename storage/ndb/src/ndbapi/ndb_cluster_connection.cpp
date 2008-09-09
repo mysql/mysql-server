@@ -319,7 +319,12 @@ Ndb_cluster_connection_impl(const char *
     g_eventLogger->createConsoleHandler();
     g_eventLogger->setCategory("NdbApi");
     g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
-
+    /*
+      Disable repeated message handling as it interfers
+      with mysqld logging, in which case messages come out
+      of order.  Same applies for regular ndbapi user.
+    */
+    g_eventLogger->setRepeatFrequency(0);
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
