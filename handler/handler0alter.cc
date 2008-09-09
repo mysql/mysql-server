@@ -983,15 +983,16 @@ ha_innobase::prepare_drop_index(
 
 	if (trx->check_foreigns
 	    && thd_sql_command(user_thd) != SQLCOM_CREATE_INDEX) {
-		dict_index_t*	index
-			= dict_table_get_first_index(prebuilt->table);
+		dict_index_t*	index;
 
-		do {
+		for (index = dict_table_get_first_index(prebuilt->table);
+		     index;
+		     index = dict_table_get_next_index(index)) {
 			dict_foreign_t*	foreign;
 
 			if (!index->to_be_dropped) {
 
-				goto next_index;
+				continue;
 			}
 
 			/* Check if the index is referenced. */
@@ -1019,20 +1020,61 @@ index_needed:
 					ut_a(foreign->foreign_index == index);
 
 					/* Search for an equivalent index that
-					the foreign key contraint could use
+					the foreign key constraint could use
 					if this index were to be deleted. */
-					if (!dict_table_find_equivalent_index(
-						prebuilt->table,
-						foreign->foreign_index)) {
+					if (!dict_foreign_find_equiv_index(
+						foreign)) {
 
 						goto index_needed;
 					}
 				}
 			}
+		}
+	} else if (thd_sql_command(user_thd) == SQLCOM_CREATE_INDEX) {
+		/* This is a drop of a foreign key constraint index that
+		was created by MySQL when the constraint was added.  MySQL
+		does this when the user creates an index explicitly which
+		can be used in place of the automatically generated index. */
 
-next_index:
-			index = dict_table_get_next_index(index);
-		} while (index);
+		dict_index_t*	index;
+
+		for (index = dict_table_get_first_index(prebuilt->table);
+		     index;
+		     index = dict_table_get_next_index(index)) {
+			dict_foreign_t*	foreign;
+
+			if (!index->to_be_dropped) {
+
+				continue;
+			}
+
+			/* Check if this index references some other table */
+			foreign = dict_table_get_foreign_constraint(
+				prebuilt->table, index);
+
+			if (foreign == NULL) {
+
+				continue;
+			}
+
+			ut_a(foreign->foreign_index == index);
+
+			/* Search for an equivalent index that the
+			foreign key constraint could use if this index
+			were to be deleted. */
+
+			if (!dict_foreign_find_equiv_index(foreign)) {
+				trx_set_detailed_error(
+					trx,
+					"Index needed in foreign key "
+					"constraint");
+
+				trx->error_info = foreign->foreign_index;
+
+				err = HA_ERR_DROP_INDEX_FK;
+				break;
+			}
+		}
 	}
 
 func_exit:
