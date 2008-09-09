@@ -1,0 +1,28 @@
+reset master;
+set @saved_binlog_format = @@global.binlog_format;
+create user mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+**** Variable SQL_LOG_BIN ****
+[root]
+set global sql_log_bin = 1;
+ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
+set session sql_log_bin = 1;
+[plain]
+set global sql_log_bin = 1;
+ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
+set session sql_log_bin = 1;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+**** Variable BINLOG_FORMAT ****
+[root]
+set global binlog_format = row;
+set session binlog_format = row;
+[plain]
+set global binlog_format = row;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+set session binlog_format = row;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+**** Clean up ****
+set global binlog_format = @saved_binlog_format;
+drop user mysqltest_1@localhost;
