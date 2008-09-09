@@ -1029,19 +1029,24 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
        1    if items are equal or both are null
        0    otherwise
     If is_nulls_eq is FALSE:
-      -1   a < b or one of items is null
+      -1   a < b or at least one item is null
        0   a == b
        1   a > b
+    See the table:
+    is_nulls_eq | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
+    a_is_null   | 1 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |
+    b_is_null   | 1 | 1 | 0 | 0 | 1 | 1 | 0 | 0 |
+    result      | 1 | 0 | 0 |0/1|-1 |-1 |-1 |-1/0/1|
 */
 
 int Arg_comparator::compare_datetime()
 {
-  bool is_null= FALSE;
+  bool a_is_null, b_is_null;
   ulonglong a_value, b_value;
 
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
-  a_value= (*get_value_func)(thd, &a, &a_cache, *b, &is_null);
-  if (!is_nulls_eq && is_null)
+  a_value= (*get_value_func)(thd, &a, &a_cache, *b, &a_is_null);
+  if (!is_nulls_eq && a_is_null)
   {
     if (owner)
       owner->null_value= 1;
@@ -1049,14 +1054,15 @@ int Arg_comparator::compare_datetime()
   }
 
   /* Get DATE/DATETIME/TIME value of the 'b' item. */
-  b_value= (*get_value_func)(thd, &b, &b_cache, *a, &is_null);
-  if (is_null)
+  b_value= (*get_value_func)(thd, &b, &b_cache, *a, &b_is_null);
+  if (a_is_null || b_is_null)
   {
     if (owner)
       owner->null_value= is_nulls_eq ? 0 : 1;
-    return is_nulls_eq ? 1 : -1;
+    return is_nulls_eq ? (a_is_null == b_is_null) : -1;
   }
 
+  /* Here we have two not-NULL values. */
   if (owner)
     owner->null_value= 0;
 
