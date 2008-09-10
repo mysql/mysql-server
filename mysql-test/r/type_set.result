@@ -93,4 +93,14 @@ c
 1,2,3
 64
 DROP TABLE t1;
+CREATE TABLE t1 (
+set_unique_utf8 set ('a','b','c','d','e','f','g','h','i','j','k','l',
+'m','n','o','p','q','r','s','t','u','v','w','x',
+'y','z') CHARACTER SET utf8,
+unique (set_unique_utf8)
+);
+INSERT INTO t1 ( set_unique_utf8 ) VALUES ( '' );
+INSERT INTO t1 ( set_unique_utf8 ) VALUES ( '' );
+ERROR 23000: Duplicate entry '' for key 'set_unique_utf8'
+DROP TABLE t1;
 End of 5.0 tests

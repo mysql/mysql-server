@@ -2496,7 +2496,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
       str.append(STRING_WITH_LEN("..."));
     }
     my_printf_error(ER_DUP_ENTRY, msg,
-		    MYF(0), str.c_ptr(), table->key_info[key_nr].name);
+		    MYF(0), str.c_ptr_safe(), table->key_info[key_nr].name);
   }
 }
 
@@ -2564,7 +2564,7 @@ void handler::print_error(int error, myf errflag)
         str.append(STRING_WITH_LEN("..."));
       }
       my_error(ER_FOREIGN_DUPLICATE_KEY, MYF(0), table_share->table_name.str,
-        str.c_ptr(), key_nr+1);
+        str.c_ptr_safe(), key_nr+1);
       DBUG_VOID_RETURN;
     }
     textno= ER_DUP_KEY;
