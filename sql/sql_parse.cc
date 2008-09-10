@@ -4874,6 +4874,8 @@ bool check_single_table_access(THD *thd, ulong privilege,
   /* Show only 1 table for check_grant */
   if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
+      !(all_tables->view &&
+        all_tables->effective_algorithm == VIEW_ALGORITHM_TMPTABLE) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
@@ -5186,7 +5188,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       continue;
     }
 
-    if (tables->derived ||
+    if (tables->is_anonymous_derived_table() ||
         (tables->table && (int)tables->table->s->tmp_table))
       continue;
     thd->security_ctx= sctx;
@@ -5196,12 +5198,14 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       tables->grant.privilege= want_access;
     else if (tables->db && thd->db && strcmp(tables->db, thd->db) == 0)
     {
-      if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			 0, no_errors, test(tables->schema_table)))
+      if (check_access(thd, want_access, tables->get_db_name(),
+                       &tables->grant.privilege, 0, no_errors, 
+                       test(tables->schema_table)))
         goto deny;                            // Access denied
     }
-    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			  0, no_errors, test(tables->schema_table)))
+    else if (check_access(thd, want_access, tables->get_db_name(),
+                          &tables->grant.privilege, 0, no_errors, 
+                          test(tables->schema_table)))
       goto deny;
   }
   thd->security_ctx= backup_ctx;

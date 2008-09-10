@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.28)
+AM_INIT_AUTOMAKE(mysql, 5.1.29)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -419,6 +419,7 @@ AC_PATH_PROG(SED, sed, sed)
 AC_PATH_PROG(CMP, cmp, cmp)
 AC_PATH_PROG(CHMOD, chmod, chmod)
 AC_PATH_PROG(HOSTNAME, hostname, hostname)
+AC_PATH_PROG(DIFF, diff, diff)
 # Check for a GNU tar named 'gtar', or 'gnutar' (MacOS X) and
 # fall back to 'tar' otherwise and hope that it's a GNU tar as well
 AC_CHECK_PROGS(TAR, gnutar gtar tar)
@@ -443,25 +444,16 @@ AC_SUBST(HOSTNAME)
 AC_SUBST(PERL)
 AC_SUBST(PERL5)
 
-# icheck, used for ABI check
-AC_PATH_PROG(ICHECK, icheck, no)
-# "icheck" is also the name of a file system check program on Tru64.
-# Verify the program found is really the interface checker.
-if test "x$ICHECK" != "xno"
+# Enable the abi_check rule only if gcc is available
+
+if expr "$CC" : ".*gcc.*"
 then
-  AC_MSG_CHECKING(if $ICHECK works as expected)
-  echo "int foo;" > conftest.h
-  $ICHECK --canonify -o conftest.ic conftest.h 2>/dev/null
-  if test -f "conftest.ic"
-  then
-    AC_MSG_RESULT(yes)
-  else
-    AC_MSG_RESULT(no)
-    ICHECK=no
-  fi
-  rm -f conftest.ic conftest.h
+  ABI_CHECK="abi_check"
+else
+  ABI_CHECK=""
 fi
-AC_SUBST(ICHECK)
+
+AC_SUBST(ABI_CHECK)
 
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
