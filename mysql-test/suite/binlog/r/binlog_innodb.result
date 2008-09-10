@@ -115,14 +115,14 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 DROP TABLE t1;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	13
+Binlog_cache_use	15
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	0
 create table t1 (a int) engine=innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	14
+Binlog_cache_use	16
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
@@ -131,7 +131,7 @@ delete from t1;
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	15
+Binlog_cache_use	17
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1

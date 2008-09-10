@@ -1736,7 +1736,7 @@ err:
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,-1))
+	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
     }
   }
@@ -2549,7 +2549,7 @@ err:
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,-1))
+	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
     }
   }
@@ -3081,7 +3081,7 @@ err:
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,-1))
+	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
     }
   }
