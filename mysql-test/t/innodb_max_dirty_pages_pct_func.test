@@ -11,33 +11,31 @@
 # Creation Date: 2008-03-08                                                   #
 # Author:  Rizwan                                                             #
 #                                                                             #
-#Description: Test Cases of Dynamic System Variable innodb_max_dirty_pages_pct#
-#             that checks the behavior of this variable                       #
+# Description:                                                                #
+#    Test cases of Dynamic System Variable innodb_max_dirty_pages_pct that    #
+#    checks the behavior of this variable                                     #
 #                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
 #                                                                             #
 ###############################################################################
 
 --source include/have_innodb.inc
---echo '#--------------------FN_DYNVARS_044_02-------------------------#'
-###########################################################################
-# Check if setting innodb_max_dirty_pages_pct is changed in new connection# 
-###########################################################################
 
-SET @old_innodb_max_dirty_pages_pct= @@global.innodb_max_dirty_pages_pct;
+SET @start_value= @@global.innodb_max_dirty_pages_pct;
+
+--echo '#--------------------FN_DYNVARS_044_02-------------------------#'
+############################################################################
+# Check if setting innodb_max_dirty_pages_pct is changed in new connection #
+############################################################################
 
 SET @@global.innodb_max_dirty_pages_pct = 80;
 --echo 'connect (con1,localhost,root,,,,)'
 connect (con1,localhost,root,,,,);
---echo 'connection con1'
-connection con1;
 SELECT @@global.innodb_max_dirty_pages_pct;
 SET @@global.innodb_max_dirty_pages_pct = 70;
 --echo 'connect (con2,localhost,root,,,,)'
 connect (con2,localhost,root,,,,);
---echo 'connection con2'
-connection con2;
 SELECT @@global.innodb_max_dirty_pages_pct;
 disconnect con2;
 disconnect con1;
@@ -60,6 +58,11 @@ DROP FUNCTION IF EXISTS dirty_pct;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
+CREATE TABLE t1(
+a INT AUTO_INCREMENT PRIMARY KEY,
+b CHAR(200)
+)ENGINE=INNODB;
+
 DELIMITER //;
 CREATE PROCEDURE add_records(IN NUM INT)
 BEGIN
@@ -76,21 +79,21 @@ BEGIN
   DECLARE res DECIMAL(20,17);
   DECLARE a1,b1 VARCHAR(256);
   DECLARE a2,b2 VARCHAR(256);
-  DECLARE dirty CURSOR FOR SELECT * FROM information_schema.global_status 
+  DECLARE dirty CURSOR FOR SELECT * FROM information_schema.global_status
                 WHERE variable_name LIKE 'Innodb_buffer_pool_pages_dirty'
-                     UNION SELECT * FROM information_schema.session_status 
+                     UNION SELECT * FROM information_schema.session_status
                 WHERE variable_name LIKE 'Innodb_buffer_pool_pages_dirty';
   DECLARE total CURSOR FOR SELECT * FROM information_schema.global_status
                 WHERE variable_name LIKE 'Innodb_buffer_pool_pages_total'
                      UNION SELECT * FROM information_schema.session_status
                 WHERE variable_name LIKE 'Innodb_buffer_pool_pages_total';
- 
+
   OPEN dirty;
   OPEN total;
 
   FETCH dirty INTO a1, b1;
   FETCH total INTO a2, b2;
-  
+
   SET res = ( CONVERT(b1,DECIMAL)*100)/CONVERT(b2,DECIMAL);
 
   CLOSE dirty;
@@ -104,7 +107,7 @@ BEGIN
 
    SET pct = dirty_pct();
    SET last = 0;
-   WHILE (pct<NUM and pct<100) DO
+   WHILE (pct>NUM and pct<100) DO
       CALL add_records(500);
       SET pct = dirty_pct();
       IF (pct<last) THEN
@@ -126,11 +129,6 @@ END//
 
 DELIMITER ;//
 
-CREATE TABLE t1(
-a INT AUTO_INCREMENT PRIMARY KEY,
-b CHAR(200)
-)ENGINE=INNODB;
-
 --enable_query_log
 
 #==========================================================
@@ -141,26 +139,28 @@ SET @@global.innodb_max_dirty_pages_pct = 10;
 
 FLUSH STATUS;
 
-# add rows until dirty pages pct is less than this value
+# Add rows until dirty pages pct is less than this value
 CALL add_until(10);
 
-# give server some time to flush dirty pages
+# Give the server some time to flush dirty pages
 FLUSH TABLES;
 CALL add_records(500);
---echo '--sleep 5'
---sleep 5
+
+# Execute dirty_pct (wait) until dirty pages < 10%
+# Use polling to execute dirty_pct ina loop
+let $wait_condition= SELECT dirty_pct() < 10;
+--source include/wait_condition.inc
 
 --echo 'We expect dirty pages pct to be BELOW_MAX'
 CALL check_pct(10);
-
-#SHOW STATUS LIKE 'innodb%';
 
 DROP PROCEDURE add_records;
 DROP PROCEDURE add_until;
 DROP PROCEDURE check_pct;
 DROP FUNCTION dirty_pct;
 DROP TABLE t1;
-SET @@global.innodb_max_dirty_pages_pct = @old_innodb_max_dirty_pages_pct;
+
+SET @@global.innodb_max_dirty_pages_pct= @start_value;
 
 ##################################################################
 # End of functionality Testing for innodb_max_dirty_pages_pct    #

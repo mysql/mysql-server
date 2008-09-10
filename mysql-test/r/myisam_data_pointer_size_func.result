@@ -1,4 +1,5 @@
 '#--------------------FN_DYNVARS_093_01-------------------------#'
+SET @start_value= @@global.myisam_data_pointer_size;
 SET @@global.myisam_data_pointer_size = 2;
 'connect (con1,localhost,root,,,,)'
 'connection con1'
@@ -40,3 +41,4 @@ count(*)
 65536
 DROP PROCEDURE  sp_addRec;
 DROP TABLE t1;
+SET @@global.myisam_data_pointer_size= @start_value;

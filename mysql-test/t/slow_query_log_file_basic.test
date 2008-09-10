@@ -10,6 +10,7 @@
 #                                                                              #
 # Creation Date: 2008-03-16                                                    #
 # Author:  Salman Rawala                                                       #
+# Modified: HHunger 2008-09-11 set system var back to start value              #
 #                                                                              #
 # Description: Test Cases of Dynamic System Variable "slow_query_log_file"     #
 #              that checks behavior of this variable in the following ways     #
@@ -18,8 +19,8 @@
 #              * Scope & Access method                                         #
 #              * Data Integrity                                                #
 #                                                                              #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
-#    server-system-variables.html#option_mysqld_slow_query_log_file            #
+# Reference:                                                                   #
+# http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html          
 #                                                                              #
 ################################################################################
 
@@ -35,8 +36,6 @@
 ###########################################################################
 
 SET @start_value = @@global.slow_query_log_file;
-SELECT @start_value;
-
 
 --echo '#---------------------FN_DYNVARS_004_01-------------------------#'
 ############################################### 
@@ -66,7 +65,8 @@ SELECT @@global.slow_query_log_file = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='slow_query_log_file';
 
-
+SET @@global.slow_query_log_file= @start_value;
 #####################################################
 #       END OF slow_query_log_file TESTS            #
 #####################################################
+

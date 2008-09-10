@@ -1,12 +1,12 @@
 drop table if exists t1;
 '#--------------------FN_DYNVARS_063_01-------------------------#'
+SET @start_value= @@global.log_bin_trust_function_creators;
 ## Creating new user tt ##
-CREATE user tt@localhost;
+CREATE USER tt@localhost;
 ## Setting value of variable to 0 ##
-SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET @@global.log_bin_trust_function_creators = 0;
 ## Creating new table t2 ##
-create table t2 (a INT);
+CREATE TABLE t2 (a INT);
 ## Creating & connecting with new connection test_con1 ##
 SELECT @@log_bin_trust_function_creators;
 @@log_bin_trust_function_creators
@@ -17,7 +17,7 @@ SELECT @@sql_log_bin;
 ## Creating new function f1 ##
 CREATE FUNCTION f1(a INT) RETURNS INT
 BEGIN
-IF (a < 3) THEN 
+IF (a < 3) THEN
 INSERT INTO t2 VALUES (a);
 END IF;
 RETURN 1;
@@ -34,8 +34,8 @@ f1(a)
 1
 1
 ## Dropping function f1 & table t1 ##
-drop function f1;
-drop table t1;
+DROP FUNCTION f1;
+DROP TABLE t1;
 '#--------------------FN_DYNVARS_063_02-------------------------#'
 ## Switching to default connection ##
 ## Setting value of variable to 1 ##
@@ -51,7 +51,7 @@ SELECT @@sql_log_bin;
 ## Creating new function f1 ##
 CREATE FUNCTION f1(a INT) RETURNS INT
 BEGIN
-IF (a < 3) THEN 
+IF (a < 3) THEN
 INSERT INTO t2 VALUES (a);
 END IF;
 RETURN 1;
@@ -66,9 +66,9 @@ f1(a)
 1
 1
 ## Dropping function f1 ##
-drop function f1;
+DROP FUNCTION f1;
 ## Dropping table t1 & t2 ##
-drop table t1,t2;
-## Disconnecting both the connections ##
+DROP TABLE t1,t2;
+## Disconnecting test_con2##
 DROP USER tt@localhost;
-SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+SET @@global.log_bin_trust_function_creators= @start_value;

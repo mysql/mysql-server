@@ -1,5 +1,3 @@
-
-
 ################## mysql-test\t\log_queries_not_using_indexes_basic.test ######
 #                                                                             #
 # Variable Name: log_queries_not_using_indexes                                #
@@ -9,95 +7,126 @@
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-07                                                   #
-# Author : Sharique Abdullah                                                      #
+# Author : Sharique Abdullah                                                  #
 #                                                                             #
-#                                                                             #
-# Description:Test Cases of Dynamic System Variable log_queries_not_using_indexes#
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_queries_not_using_indexes                                   #
 #             that checks the behavior of this variable in the following ways #
 #              * Value Check                                                  #
 #              * Scope Check                                                  #
 #                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html        #
 #                                                                             #
 ###############################################################################
 
---echo '#---------------------BS_STVARS_041_01----------------------#'
+SET @start_value= @@global.log_queries_not_using_indexes;
+
 ####################################################################
-#   Displaying default value                                       #
+#   Valid values for boolean                                       #
 ####################################################################
-SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
---echo 1 Expected
+SET @@global.log_queries_not_using_indexes= DEFAULT;
+SELECT @@global.log_queries_not_using_indexes;
 
+SET @@global.log_queries_not_using_indexes= TRUE;
+SELECT @@global.log_queries_not_using_indexes;
 
---echo '#---------------------BS_STVARS_041_02----------------------#'
-#
-# Test case for Bug #35433
-#
-####################################################################
-#   Check if Value can set                                         #
-####################################################################
+SET @@global.log_queries_not_using_indexes= true;
+SELECT @@global.log_queries_not_using_indexes;
 
-#--error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.log_queries_not_using_indexes=1;
---echo Expected error 'Read only variable'
---ECHO "BUG:It should give error on setting this variable as it is readonly variable"
-SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
---echo 1 Expected
+SET @@global.log_queries_not_using_indexes= 0;
+SELECT @@global.log_queries_not_using_indexes;
 
+SET @@global.log_queries_not_using_indexes= 1;
+SELECT @@global.log_queries_not_using_indexes;
 
+SET @goodvar= TRUE;
+SET @@global.log_queries_not_using_indexes= @goodvar;
+SELECT @@global.log_queries_not_using_indexes;
 
+SET GLOBAL log_queries_not_using_indexes= DEFAULT;
+SELECT @@global.log_queries_not_using_indexes;
 
---echo '#---------------------BS_STVARS_041_03----------------------#'
+SET GLOBAL log_queries_not_using_indexes= ON;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= OFF;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= -0;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= 0.00;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= -0.0;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= 001.00;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= +1.0;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= +0;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= +0.000000;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= 0000.00000;
+SELECT @@global.log_queries_not_using_indexes;
+
+SET GLOBAL log_queries_not_using_indexes= .0;
+SELECT @@global.log_queries_not_using_indexes;
+
 #################################################################
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 
-SELECT @@GLOBAL.log_queries_not_using_indexes = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-WHERE VARIABLE_NAME='log_queries_not_using_indexes';
---echo 1 Expected
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_queries_not_using_indexes= 'DEFAULT';
 
-SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
---echo 1 Expected
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_queries_not_using_indexes= 'true';
 
-SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='log_queries_not_using_indexes';
---echo 1 Expected
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_queries_not_using_indexes= BLABLA;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_queries_not_using_indexes= 25;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_queries_not_using_indexes= 12.34;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_queries_not_using_indexes= -1;
+
+SET @badvar= 'true';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_queries_not_using_indexes= @badvar;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_queries_not_using_indexes= 'DEFAULT';
+
+--error ER_GLOBAL_VARIABLE
+SET log_queries_not_using_indexes= TRUE;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_queries_not_using_indexes= TRUE;
+
+--error ER_GLOBAL_VARIABLE
+SET @@session.log_queries_not_using_indexes= TRUE;
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_queries_not_using_indexes= TRUE;
+
+--error ER_PARSE_ERROR
+SET @@global log_queries_not_using_indexes= TRUE;
+
+--error ER_PARSE_ERROR
+SET @@SESSION log_queries_not_using_indexes= TRUE;
 
 
-
---echo '#---------------------BS_STVARS_041_04----------------------#'
-################################################################################
-#  Check if accessing variable with and without GLOBAL point to same variable  #
-################################################################################
-SELECT @@log_queries_not_using_indexes = @@GLOBAL.log_queries_not_using_indexes;
---echo 1 Expected
-
-
-
---echo '#---------------------BS_STVARS_041_05----------------------#'
-################################################################################
-#   Check if log_queries_not_using_indexes can be accessed with and without @@ sign #
-################################################################################
-
-SELECT COUNT(@@log_queries_not_using_indexes);
---echo 1 Expected
-
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SELECT COUNT(@@local.log_queries_not_using_indexes);
---echo Expected error 'Variable is a GLOBAL variable'
-
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SELECT COUNT(@@SESSION.log_queries_not_using_indexes);
---echo Expected error 'Variable is a GLOBAL variable'
-
-SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
---echo 1 Expected
-
---Error ER_BAD_FIELD_ERROR
-SELECT log_queries_not_using_indexes = @@SESSION.log_queries_not_using_indexes;
---echo Expected error 'Readonly variable'
-
+SET @@global.log_queries_not_using_indexes= @start_value;
 
