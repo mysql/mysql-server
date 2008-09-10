@@ -434,7 +434,7 @@ USE db1;
 SELECT c FROM t2;
 ERROR 42000: SELECT command denied to user 'mysqltest1'@'localhost' for column 'c' in table 't2'
 SELECT * FROM t2;
-ERROR 42000: SELECT command denied to user 'mysqltest1'@'localhost' for column 'c' in table 't2'
+ERROR 42000: SELECT command denied to user 'mysqltest1'@'localhost' for table 't2'
 SELECT * FROM t1 JOIN t2 USING (b);
 ERROR 42000: SELECT command denied to user 'mysqltest1'@'localhost' for column 'c' in table 't2'
 DROP TABLE db1.t1, db1.t2;

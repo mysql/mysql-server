@@ -388,6 +388,22 @@ where id in (select id from t2 as x1 where (t2.cur_date is null));
 
 drop table t1,t2;
 
+
+#
+# Bug #37526: asymertic operator <=> in trigger
+#
+SELECT 
+  CAST('NULL' AS DATE) <=> CAST('2008-01-01' AS DATE) n1, 
+  CAST('2008-01-01' AS DATE) <=> CAST('NULL' AS DATE) n2,
+  CAST('NULL' AS DATE) <=> CAST('NULL' AS DATE) n3,
+  CAST('NULL' AS DATE) <> CAST('2008-01-01' AS DATE) n4, 
+  CAST('2008-01-01' AS DATE) <> CAST('NULL' AS DATE) n5,
+  CAST('NULL' AS DATE) <> CAST('NULL' AS DATE) n6,
+  CAST('NULL' AS DATE) < CAST('2008-01-01' AS DATE) n7, 
+  CAST('2008-01-01' AS DATE) < CAST('NULL' AS DATE) n8,
+  CAST('NULL' AS DATE) < CAST('NULL' AS DATE) n9;
+
+
 --echo End of 5.0 tests
 #
 # Test of storing datetime into date fields
