@@ -44,6 +44,7 @@ private:
 class SignalSender {
 public:
   SignalSender(TransporterFacade *facade, int blockNo = -1);
+  SignalSender(Ndb_cluster_connection* connection);
   virtual ~SignalSender();
   
   int lock();

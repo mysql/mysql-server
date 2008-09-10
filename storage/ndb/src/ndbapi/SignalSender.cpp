@@ -81,6 +81,16 @@ SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
   assert(m_blockNo > 0);
 }
 
+SignalSender::SignalSender(Ndb_cluster_connection* connection)
+{
+  m_cond = NdbCondition_Create();
+  theFacade = connection->m_impl.m_transporter_facade;
+  lock();
+  m_blockNo = theFacade->open(this, execSignal, execNodeStatus, -1);
+  unlock();
+  assert(m_blockNo > 0);
+}
+
 SignalSender::~SignalSender(){
   int i;
   if (m_lock)
