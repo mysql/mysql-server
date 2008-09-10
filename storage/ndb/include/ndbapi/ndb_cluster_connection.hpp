@@ -166,6 +166,7 @@ private:
   friend class Ndb;
   friend class NdbImpl;
   friend class Ndb_cluster_connection_impl;
+  friend class SignalSender;
   class Ndb_cluster_connection_impl & m_impl;
   Ndb_cluster_connection(Ndb_cluster_connection_impl&);
 };
