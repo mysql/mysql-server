@@ -10,6 +10,7 @@
 #                                                                              #
 # Creation Date: 2008-03-16                                                    #
 # Author:  Salman Rawala                                                       #
+# Modified: HHunger 2008-09-11 Set system variable back to the start value     #
 #                                                                              #
 # Description: Test Cases of Dynamic System Variable "general_log_file"        #
 #              that checks behavior of this variable in the following ways     #
@@ -18,8 +19,8 @@
 #              * Scope & Access method                                         #
 #              * Data Integrity                                                #
 #                                                                              #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
-#    server-system-variables.html#option_mysqld_general_log_file               #
+# Reference:                                                                   #
+# http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html          #
 #                                                                              #
 ################################################################################
 
@@ -67,7 +68,9 @@ SELECT @@global.general_log_file = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='general_log_file';
 
+SET @@global.general_log_file= @start_value;
 
 #####################################################
 #       END OF general_log_file TESTS               #
 #####################################################
+

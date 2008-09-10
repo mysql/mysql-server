@@ -14,6 +14,7 @@ select @@profiling;
 set global profiling = ON;
 
 # But size is okay
+set @start_value= @@global.profiling_history_size;
 set global profiling_history_size=100;
 show global variables like 'profil%';
 
@@ -261,6 +262,6 @@ drop function if exists f1;
 
 ## last thing in the file
 set session profiling = OFF;
-
+set global profiling_history_size= @start_value;
 ##
 --echo End of 5.0 tests

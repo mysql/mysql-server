@@ -1,8 +1,8 @@
-drop table if exists t1;
+DROP TABLE IF EXISTS t1;
 ## Creating new table ##
 CREATE TABLE t1
 (
-id INT NOT NULL auto_increment,
+id INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (id),
 name VARCHAR(30)
 );
@@ -10,10 +10,10 @@ name VARCHAR(30)
 SELECT @@general_log_file;
 @@general_log_file
 mysql-test.log
-INSERT into t1(name) values('Record_1');
-INSERT into t1(name) values('Record_2');
-INSERT into t1(name) values('Record_3');
-INSERT into t1(name) values('Record_4');
+INSERT INTO t1(name) VALUES('Record_1');
+INSERT INTO t1(name) VALUES('Record_2');
+INSERT INTO t1(name) VALUES('Record_3');
+INSERT INTO t1(name) VALUES('Record_4');
 ## Verifying general log file ##
 ## Dropping table ##
 DROP TABLE t1;
