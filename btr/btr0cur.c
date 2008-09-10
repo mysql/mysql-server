@@ -850,7 +850,7 @@ btr_cur_open_at_rnd_pos(
 
 /*****************************************************************
 Inserts a record if there is enough space, or if enough space can
-be freed by reorganizing. Differs from _optimistic_insert because
+be freed by reorganizing. Differs from btr_cur_optimistic_insert because
 no heuristics is applied to whether it pays to use CPU time for
 reorganizing the page or not. */
 static
