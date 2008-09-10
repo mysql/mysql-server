@@ -1,3 +1,6 @@
+set @start_general_log= @@global.general_log;
+set @start_slow_query_log= @@global.slow_query_log;
+set @start_general_log_file= @@global.general_log_file;
 set global general_log= OFF;
 truncate table mysql.general_log;
 truncate table mysql.slow_log;
@@ -271,3 +274,6 @@ SET GLOBAL slow_query_log_file = @slow_query_log_file_saved;
 
 # -- End of Bug#32748.
 End of 5.1 tests
+set @@global.general_log= @start_general_log;
+set @@global.slow_query_log= @start_slow_query_log;
+set @@global.general_log_file= @start_general_log_file;

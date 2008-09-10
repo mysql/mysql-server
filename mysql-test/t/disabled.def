@@ -16,7 +16,6 @@ log_tables.test                       : Bug #37798: main.log_tables fails random
 wait_timeout_func                     : BUG#36873 2008-07-06 sven wait_timeout_func.test fails randomly
 delayed_insert_limit_func             : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 event_scheduler_func                  : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
-innodb_max_dirty_pages_pct_func       : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 interactive_timeout_func              : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 query_cache_wlock_invalidate_func     : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 rpl_init_slave_func                   : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
@@ -25,3 +24,4 @@ slow_query_log_func                   : BUG#37962 2008-07-08 sven *_func tests c
 sql_low_priority_updates_func         : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 timestamp_func                        : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 log_output_func                       : BUG#37766 2008-07-10 sven main.log_output_func randomly fails in pushbuild
+
