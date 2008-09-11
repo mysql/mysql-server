@@ -17,6 +17,9 @@ if ($show_sql_error)
   echo Last_SQL_Error = $error;
 }
 
+# wait for SQL thread to stop after the error
+source include/wait_for_slave_sql_to_stop.inc;
+
 # skip the erroneous statement
 set global sql_slave_skip_counter=1;
 start slave;
