@@ -1900,12 +1900,10 @@ check table t2 extended;
 Table	Op	Msg_type	Msg_text
 test.t2	check	status	OK
 drop table t2;
-set session  deadlock_timeout_long=60000000;
 create table t1 (a int unique) transactional=1;
 insert t1 values (1);
 lock table t1 write concurrent;
 insert t1 values (2);
-set session  deadlock_timeout_long=60000000;
 lock table t1 write concurrent;
 insert t1 values (3);
 insert t1 values (2);

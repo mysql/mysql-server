@@ -1189,13 +1189,11 @@ drop table t2;
 #
 # an example of a deadlock
 #
-set session  deadlock_timeout_long=60000000;
 create table t1 (a int unique) transactional=1;
 insert t1 values (1);
 lock table t1 write concurrent;
 insert t1 values (2);
 connect(con_d,localhost,root,,);
-set session  deadlock_timeout_long=60000000;
 lock table t1 write concurrent;
 insert t1 values (3);
 send insert t1 values (2);
