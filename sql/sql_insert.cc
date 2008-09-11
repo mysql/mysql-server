@@ -2532,8 +2532,13 @@ bool Delayed_insert::handle_inserts(void)
   thd_proc_info(&thd, "upgrading lock");
   if (thr_upgrade_write_delay_lock(*thd.lock->locks))
   {
-    /* This can only happen if thread is killed by shutdown */
-    sql_print_error(ER(ER_DELAYED_CANT_CHANGE_LOCK),table->s->table_name.str);
+    /*
+      This can happen if thread is killed either by a shutdown
+      or if another thread is removing the current table definition
+      from the table cache.
+    */
+    my_error(ER_DELAYED_CANT_CHANGE_LOCK,MYF(ME_FATALERROR),
+             table->s->table_name.str);
     goto err;
   }
 
@@ -2688,9 +2693,10 @@ bool Delayed_insert::handle_inserts(void)
 	query_cache_invalidate3(&thd, table, 1);
 	if (thr_reschedule_write_lock(*thd.lock->locks))
 	{
-	  /* This should never happen */
-	  sql_print_error(ER(ER_DELAYED_CANT_CHANGE_LOCK),
-                          table->s->table_name.str);
+    /* This is not known to happen. */
+    my_error(ER_DELAYED_CANT_CHANGE_LOCK,MYF(ME_FATALERROR),
+             table->s->table_name.str);
+    goto err;
 	}
 	if (!using_bin_log)
 	  table->file->extra(HA_EXTRA_WRITE_CACHE);
