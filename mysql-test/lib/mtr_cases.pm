@@ -699,6 +699,12 @@ sub collect_one_test_case {
     # should fail by default
     $tinfo->{result_file}= $result_file;
   }
+  else {
+    # No .result file exist
+    # Remember the path  where it should be
+    # saved in case of --record
+    $tinfo->{record_file}= $result_file;
+  }
 
   # ----------------------------------------------------------------------
   # Skip some tests but include in list, just mark them as skipped
