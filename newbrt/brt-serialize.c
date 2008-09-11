@@ -29,6 +29,8 @@ static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokulea
 					    4+   // localfingerprint
 					    4);  // crc32 at the end
 
+static int deserialize_fifo_at (int fd, off_t at, FIFO *fifo);
+
 int addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
     LEAFENTRY le=lev;
     unsigned int *ip=vp;
@@ -606,7 +608,7 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     return r;
 }
 
-int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct brt_header **brth, u_int32_t fullhash) {
+int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_header **brth, u_int32_t fullhash) {
     // We already know the first 8 bytes are "tokudata", and we read in the size.
     struct brt_header *MALLOC(h);
     if (h==0) return errno;
@@ -660,6 +662,10 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
     }
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died5;}
     toku_free(rc.buf);
+    {
+	int r;
+	if ((r = deserialize_fifo_at(fd, h->unused_blocks.b*h->nodesize, &h->fifo))) return r;
+    }
     *brth = h;
     return 0;
 }
@@ -677,7 +683,7 @@ int toku_deserialize_brtheader_from (int fd, BLOCKNUM blocknum, u_int32_t fullha
     if (r!=12) return EINVAL;
     assert(memcmp(magic,"tokudata",8)==0);
     // It's version 7 or later, and the magi clooks OK
-    return deserialize_brtheader_7_or_later(ntohl(*(int*)(&magic[8])), fd, offset, brth, fullhash);
+    return deserialize_brtheader(ntohl(*(int*)(&magic[8])), fd, offset, brth, fullhash);
 }
 
 unsigned int toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {
@@ -773,7 +779,7 @@ int read_nbytes (int fd, off_t *at, char **data, u_int32_t len) {
     return 0;
 }
 
-int toku_deserialize_fifo_at (int fd, off_t at, FIFO *fifo) {
+static int deserialize_fifo_at (int fd, off_t at, FIFO *fifo) {
     FIFO result;
     int r = toku_fifo_create(&result);
     if (r) return r;

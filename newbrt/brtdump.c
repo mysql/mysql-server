@@ -49,7 +49,6 @@ void dump_header (int f, struct brt_header **header) {
     }
     *header = h;
     printf("Fifo:\n");
-    r = toku_deserialize_fifo_at(f, h->unused_blocks.b*h->nodesize, &h->fifo);
     printf(" fifo has %d entries\n", toku_fifo_n_entries(h->fifo));
     if (dump_data) {
 	FIFO_ITERATE(h->fifo, key, keylen, data, datalen, type, xid,
