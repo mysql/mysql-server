@@ -373,14 +373,10 @@ NDBT_Finalizer::NDBT_Finalizer(NDBT_TestCase* ptest,
 NDBT_TestCase::NDBT_TestCase(NDBT_TestSuite* psuite, 
 			     const char* pname, 
 			     const char* pcomment) : 
-  name(strdup(pname)) ,
-  comment(strdup(pcomment)),
+  _name(pname) ,
+  _comment(pcomment),
   suite(psuite)
 {
-  _name.assign(pname);
-  _comment.assign(pcomment);
-  name= _name.c_str();
-  comment= _comment.c_str();
   assert(suite != NULL);
 
   m_all_tables = false;
@@ -610,7 +606,7 @@ void NDBT_TestCaseImpl1::reportStepResult(const NDBT_Step* pStep, int result){
 int NDBT_TestCase::execute(NDBT_Context* ctx){
   int res;
 
-  ndbout << "- " << name << " started [" << ctx->suite->getDate()
+  ndbout << "- " << _name << " started [" << ctx->suite->getDate()
 	 << "]" << endl;
 
   ctx->setCase(this);
@@ -662,11 +658,11 @@ int NDBT_TestCase::execute(NDBT_Context* ctx){
   runFinal(ctx); 
 
   if (res == NDBT_OK) {
-    ndbout << "- " << name << " PASSED [" << ctx->suite->getDate() << "]" 
+    ndbout << "- " << _name << " PASSED [" << ctx->suite->getDate() << "]"
 	   << endl;
   }
   else {
-    ndbout << "- " << name << " FAILED [" << ctx->suite->getDate() << "]" 
+    ndbout << "- " << _name << " FAILED [" << ctx->suite->getDate() << "]"
 	   << endl;
   }
   return res;
@@ -749,7 +745,7 @@ void NDBT_TestCaseImpl1::saveTestResult(const char* test_name,
 void NDBT_TestCaseImpl1::printTestResult(){
 
   char buf[255];
-  ndbout << name<<endl;
+  ndbout << _name<<endl;
 
   for (unsigned i = 0; i < testResults.size(); i++){
     NDBT_TestCaseResult* tcr = testResults[i];
@@ -762,8 +758,9 @@ void NDBT_TestCaseImpl1::printTestResult(){
       res = "FAILED TO CREATE TABLE";
     else if (tcr->getResult() == FAILED_TO_DISCOVER)
       res = "FAILED TO DISCOVER TABLE";
-    BaseString::snprintf(buf, 255," %-10s %-5s %-20s", tcr->getName(), res, tcr->getTimeStr());
-    ndbout << buf<<endl;    
+    BaseString::snprintf(buf, 255," %-10s %-5s %-20s",
+                         tcr->getName(), res, tcr->getTimeStr());
+    ndbout << buf<<endl;
   }
 }
 
@@ -1480,13 +1477,13 @@ const char* NDBT_TestSuite::getDate(){
 void NDBT_TestCaseImpl1::printHTML(){
 
   ndbout << "<tr><td>&nbsp;</td>" << endl;
-  ndbout << "<td name=tc>" << endl << name << "</td><td width=70%>" 
-	 << comment << "</td></tr>" << endl;  
+  ndbout << "<td name=tc>" << endl << _name << "</td><td width=70%>" 
+	 << _comment << "</td></tr>" << endl;  
 }
 
 void NDBT_TestCaseImpl1::print(){
-  ndbout << "Test case: " << name << endl;
-  ndbout << "Description: "<< comment << endl;
+  ndbout << "Test case: " << _name << endl;
+  ndbout << "Description: "<< _comment << endl;
 
   ndbout << "Parameters: " << endl;
 
