@@ -183,6 +183,14 @@ IF(WIN32)
   ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
 ENDIF(WIN32)
 
+IF(CMAKE_GENERATOR MATCHES "Visual Studio 9")
+  # Fool zlib on Win32 with VS9
+  # It just includes config.h, which we don't have on win32.. so we have to
+  # do it here alongside config-win.h.
+  ADD_DEFINITIONS("-DHAVE_VSNPRINTF")
+ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 9")
+
+
 # This definition is necessary to work around a bug with Intellisense described
 # here: http://tinyurl.com/2cb428.  Syntax highlighting is important for proper
 # debugger functionality.
