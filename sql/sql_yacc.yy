@@ -1817,6 +1817,8 @@ event_tail:
             if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
               MYSQL_YYABORT;
             lex->event_parse_data->identifier= $3;
+            lex->event_parse_data->on_completion=
+                                  Event_parse_data::ON_COMPLETION_DROP;
 
             lex->sql_command= SQLCOM_CREATE_EVENT;
             /* We need that for disallowing subqueries */
