@@ -2638,12 +2638,14 @@ sub do_before_run_mysqltest($)
   my $tinfo= shift;
 
   # Remove old files produced by mysqltest
-  my $base_file= mtr_match_extension($tinfo->{'result_file'},
-				    "result"); # Trim extension
-  unlink("$base_file.reject");
-  unlink("$base_file.progress");
-  unlink("$base_file.log");
-  unlink("$base_file.warnings");
+  my $base_file= mtr_match_extension($tinfo->{result_file},
+				     "result"); # Trim extension
+  if (defined $base_file ){
+    unlink("$base_file.reject");
+    unlink("$base_file.progress");
+    unlink("$base_file.log");
+    unlink("$base_file.warnings");
+  }
 
   if ( $mysql_version_id < 50000 ) {
     # Set environment variable NDB_STATUS_OK to 1
@@ -4332,6 +4334,7 @@ sub start_mysqltest ($) {
   if ( $opt_record )
   {
     mtr_add_arg($args, "--record");
+    mtr_add_arg($args, "--result-file=%s", $tinfo->{record_file});
   }
 
   if ( $opt_client_gdb )
