@@ -11,6 +11,7 @@ select @@profiling;
 0
 set global profiling = ON;
 ERROR HY000: Variable 'profiling' is a SESSION variable and can't be used with SET GLOBAL
+set @start_value= @@global.profiling_history_size;
 set global profiling_history_size=100;
 show global variables like 'profil%';
 Variable_name	Value
@@ -412,4 +413,5 @@ Warnings:
 Note	1051	Unknown table 'test.v1'
 drop function if exists f1;
 set session profiling = OFF;
+set global profiling_history_size= @start_value;
 End of 5.0 tests

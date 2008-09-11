@@ -30,16 +30,16 @@ drop table if exists t1;
 #    Setting initial value of variable to 0 and verifying whether user
 #    is allowed to create function or not.
 ########################################################################
+SET @start_value= @@global.log_bin_trust_function_creators;
 
 --echo ## Creating new user tt ##
-CREATE user tt@localhost;
+CREATE USER tt@localhost;
 
 --echo ## Setting value of variable to 0 ##
-SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET @@global.log_bin_trust_function_creators = 0;
 
 --echo ## Creating new table t2 ##
-create table t2 (a INT);
+CREATE TABLE t2 (a INT);
 
 --echo ## Creating & connecting with new connection test_con1 ##
 connect (test_con1,localhost,tt,,);
@@ -52,7 +52,7 @@ SELECT @@sql_log_bin;
 delimiter |;
 CREATE FUNCTION f1(a INT) RETURNS INT
 BEGIN
-   IF (a < 3) THEN 
+   IF (a < 3) THEN
     INSERT INTO t2 VALUES (a);
   END IF;
   RETURN 1;
@@ -70,8 +70,8 @@ INSERT INTO t1 VALUES (1),(2),(3);
 SELECT f1(a) FROM t1;
 
 --echo ## Dropping function f1 & table t1 ##
-drop function f1;
-drop table t1;
+DROP FUNCTION f1;
+DROP TABLE t1;
 
 --echo '#--------------------FN_DYNVARS_063_02-------------------------#'
 ########################################################################
@@ -97,7 +97,7 @@ SELECT @@sql_log_bin;
 delimiter |;
 CREATE FUNCTION f1(a INT) RETURNS INT
 BEGIN
-   IF (a < 3) THEN 
+   IF (a < 3) THEN
     INSERT INTO t2 VALUES (a);
   END IF;
   RETURN 1;
@@ -112,15 +112,16 @@ INSERT INTO t1 VALUES (1),(2),(3);
 SELECT f1(a) FROM t1;
 
 --echo ## Dropping function f1 ##
-drop function f1;
+DROP FUNCTION f1;
 
 --echo ## Dropping table t1 & t2 ##
-drop table t1,t2;
+DROP TABLE t1,t2;
 
---echo ## Disconnecting both the connections ##
+--echo ## Disconnecting test_con2##
 disconnect test_con2;
 
 connection default;
 
 DROP USER tt@localhost;
-SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+SET @@global.log_bin_trust_function_creators= @start_value;
+
