@@ -9,14 +9,14 @@
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-03-02                                                   #
-# Author:  Sharique Abdullah                                                      #
+# Author:  Sharique Abdullah                                                  #
 #                                                                             #
 # Description: Test Cases of Dynamic System Variable "Query_cache_limit"      #
 #              that checks behavior of this variable in the following ways    #
 #              * Functionality based on different values                      #
 #                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en                           #
-#               /server-system-variables.html#option_mysqld_Query_cache_limit #
+# Reference:                                                                  #
+#   http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html       #
 #                                                                             #
 ###############################################################################
 
@@ -28,6 +28,8 @@
 #
 
 SET @global_query_cache_limit = @@global.query_cache_limit;
+SET @global_query_cache_size = @@global.query_cache_size;
+SET @global_query_cache_type = @@global.query_cache_type;
 
 --echo ** warnings **
 --disable_warnings
@@ -105,7 +107,7 @@ RESET QUERY CACHE;
 
 #set cache limit
 --echo ** set cache limit **
-SET @@GLOBAL.query_cache_limit=0;
+SET @@GLOBAL.query_cache_limit = 0;
 
 #fetching results#
 --echo ** fetching results **
@@ -113,7 +115,6 @@ SELECT * FROM t;
 
 # Check status after setting value#
 --echo ** Check status after setting value **
-#let $newcachevalue1= query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
 SHOW STATUS LIKE 'Qcache_not_cached';
 --echo 1 Expected
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
@@ -127,7 +128,7 @@ SHOW STATUS LIKE 'Qcache_queries_in_cache';
 
 #set cache limit to default
 --echo ** set cache limit **
-SET @@GLOBAL.query_cache_limit=DEFAULT;
+SET @@GLOBAL.query_cache_limit = DEFAULT;
 
 # Reset cache & flush status
 --echo ** Reset cache values **
@@ -143,7 +144,7 @@ SHOW STATUS LIKE 'Qcache_not_cached';
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 --echo 1 Expected
 
-SET @@GLOBAL.query_cache_limit=0;
+SET @@GLOBAL.query_cache_limit = 0;
 
 SHOW STATUS LIKE 'Qcache_not_cached';
 --echo 0 Expected
@@ -167,7 +168,10 @@ SHOW STATUS LIKE 'Qcache_queries_in_cache';
 #
 
 SET @@GLOBAL.query_cache_limit = @global_query_cache_limit;
+SET GLOBAL query_cache_size = @global_query_cache_size;
+SET GLOBAL query_cache_type = @global_query_cache_type;
 
 --disable_warnings
 DROP TABLE IF EXISTS t;
 --enable_warnings
+

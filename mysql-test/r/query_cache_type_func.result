@@ -4,6 +4,7 @@
 ** Connection con0 **
 SET @start_global_value = @@GLOBAL.query_cache_type;
 SET @start_session_value = @@SESSION.query_cache_type;
+SET @start_query_cache_size= @@global.query_cache_size;
 CREATE TABLE t1(id int, value varchar(10));
 INSERT INTO t1 VALUES(1, 'val1');
 INSERT INTO t1 VALUES(2, 'val2');
@@ -216,6 +217,7 @@ Disconnecting con1,con2,con3
 ** Connection con0 **
 SET @@GLOBAL.query_cache_type = @start_global_value;
 SET @@SESSION.query_cache_type = @start_session_value;
+SET GLOBAL query_cache_size = @start_query_cache_size;
 DROP TABLE t1;
 DROP PROCEDURE testProcHit;
 Disconnecting con0

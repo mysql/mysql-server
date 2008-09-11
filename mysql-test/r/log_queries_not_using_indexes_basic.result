@@ -1,53 +1,104 @@
-'#---------------------BS_STVARS_041_01----------------------#'
-SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
-COUNT(@@GLOBAL.log_queries_not_using_indexes)
-1
-1 Expected
-'#---------------------BS_STVARS_041_02----------------------#'
-SET @@GLOBAL.log_queries_not_using_indexes=1;
-Expected error 'Read only variable'
-"BUG:It should give error on setting this variable as it is readonly variable"
-SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
-COUNT(@@GLOBAL.log_queries_not_using_indexes)
-1
-1 Expected
-'#---------------------BS_STVARS_041_03----------------------#'
-SELECT @@GLOBAL.log_queries_not_using_indexes = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-WHERE VARIABLE_NAME='log_queries_not_using_indexes';
-@@GLOBAL.log_queries_not_using_indexes = VARIABLE_VALUE
+SET @start_value= @@global.log_queries_not_using_indexes;
+SET @@global.log_queries_not_using_indexes= DEFAULT;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
 0
-1 Expected
-SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
-COUNT(@@GLOBAL.log_queries_not_using_indexes)
+SET @@global.log_queries_not_using_indexes= TRUE;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
 1
-1 Expected
-SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='log_queries_not_using_indexes';
-COUNT(VARIABLE_VALUE)
+SET @@global.log_queries_not_using_indexes= true;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
 1
-1 Expected
-'#---------------------BS_STVARS_041_04----------------------#'
-SELECT @@log_queries_not_using_indexes = @@GLOBAL.log_queries_not_using_indexes;
-@@log_queries_not_using_indexes = @@GLOBAL.log_queries_not_using_indexes
+SET @@global.log_queries_not_using_indexes= 0;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET @@global.log_queries_not_using_indexes= 1;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
 1
-1 Expected
-'#---------------------BS_STVARS_041_05----------------------#'
-SELECT COUNT(@@log_queries_not_using_indexes);
-COUNT(@@log_queries_not_using_indexes)
+SET @goodvar= TRUE;
+SET @@global.log_queries_not_using_indexes= @goodvar;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
 1
-1 Expected
-SELECT COUNT(@@local.log_queries_not_using_indexes);
-ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable
-Expected error 'Variable is a GLOBAL variable'
-SELECT COUNT(@@SESSION.log_queries_not_using_indexes);
-ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable
-Expected error 'Variable is a GLOBAL variable'
-SELECT COUNT(@@GLOBAL.log_queries_not_using_indexes);
-COUNT(@@GLOBAL.log_queries_not_using_indexes)
+SET GLOBAL log_queries_not_using_indexes= DEFAULT;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET GLOBAL log_queries_not_using_indexes= ON;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
 1
-1 Expected
-SELECT log_queries_not_using_indexes = @@SESSION.log_queries_not_using_indexes;
-ERROR 42S22: Unknown column 'log_queries_not_using_indexes' in 'field list'
-Expected error 'Readonly variable'
+SET GLOBAL log_queries_not_using_indexes= OFF;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET GLOBAL log_queries_not_using_indexes= -0;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET GLOBAL log_queries_not_using_indexes= 0.00;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET GLOBAL log_queries_not_using_indexes= -0.0;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET GLOBAL log_queries_not_using_indexes= 001.00;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+1
+SET GLOBAL log_queries_not_using_indexes= +1.0;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+1
+SET GLOBAL log_queries_not_using_indexes= +0;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET GLOBAL log_queries_not_using_indexes= +0.000000;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET GLOBAL log_queries_not_using_indexes= 0000.00000;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET GLOBAL log_queries_not_using_indexes= .0;
+SELECT @@global.log_queries_not_using_indexes;
+@@global.log_queries_not_using_indexes
+0
+SET @@global.log_queries_not_using_indexes= 'DEFAULT';
+ERROR 42000: Variable 'log_queries_not_using_indexes' can't be set to the value of 'DEFAULT'
+SET @@global.log_queries_not_using_indexes= 'true';
+ERROR 42000: Variable 'log_queries_not_using_indexes' can't be set to the value of 'true'
+SET @@global.log_queries_not_using_indexes= BLABLA;
+ERROR 42000: Variable 'log_queries_not_using_indexes' can't be set to the value of 'BLABLA'
+SET @@global.log_queries_not_using_indexes= 25;
+ERROR 42000: Variable 'log_queries_not_using_indexes' can't be set to the value of '25'
+SET @@global.log_queries_not_using_indexes= 12.34;
+ERROR 42000: Variable 'log_queries_not_using_indexes' can't be set to the value of '12'
+SET GLOBAL log_queries_not_using_indexes= -1;
+ERROR 42000: Variable 'log_queries_not_using_indexes' can't be set to the value of '-1'
+SET @badvar= 'true';
+SET @@global.log_queries_not_using_indexes= @badvar;
+ERROR 42000: Variable 'log_queries_not_using_indexes' can't be set to the value of 'true'
+SET GLOBAL log_queries_not_using_indexes= 'DEFAULT';
+ERROR 42000: Variable 'log_queries_not_using_indexes' can't be set to the value of 'DEFAULT'
+SET log_queries_not_using_indexes= TRUE;
+ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION log_queries_not_using_indexes= TRUE;
+ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.log_queries_not_using_indexes= TRUE;
+ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable and should be set with SET GLOBAL
+SET LOCAL log_queries_not_using_indexes= TRUE;
+ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global log_queries_not_using_indexes= TRUE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'log_queries_not_using_indexes= TRUE' at line 1
+SET @@SESSION log_queries_not_using_indexes= TRUE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'log_queries_not_using_indexes= TRUE' at line 1
+SET @@global.log_queries_not_using_indexes= @start_value;

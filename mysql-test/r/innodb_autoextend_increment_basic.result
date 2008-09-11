@@ -1,7 +1,4 @@
 SET @global_start_value = @@global.innodb_autoextend_increment ;
-SELECT @global_start_value;
-@global_start_value
-8
 '#--------------------FN_DYNVARS_046_01------------------------#'
 SET @@global.innodb_autoextend_increment  = 0;
 Warnings:
@@ -57,16 +54,16 @@ SELECT @@global.innodb_autoextend_increment;
 @@global.innodb_autoextend_increment
 1000
 '#----------------------FN_DYNVARS_046_05------------------------#'
-SELECT @@global.innodb_autoextend_increment  = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+SELECT @@global.innodb_autoextend_increment  = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_autoextend_increment ';
 @@global.innodb_autoextend_increment  = VARIABLE_VALUE
 1
 SELECT @@global.innodb_autoextend_increment ;
 @@global.innodb_autoextend_increment
 1000
-SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_autoextend_increment ';
 VARIABLE_VALUE
 1000
@@ -92,3 +89,4 @@ Warning	1292	Truncated incorrect autoextend_increment value: '0'
 SELECT @@global.innodb_autoextend_increment ;
 @@global.innodb_autoextend_increment
 1
+SET @@global.innodb_autoextend_increment  = @global_start_value;

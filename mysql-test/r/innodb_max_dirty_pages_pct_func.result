@@ -1,14 +1,12 @@
+SET @start_value= @@global.innodb_max_dirty_pages_pct;
 '#--------------------FN_DYNVARS_044_02-------------------------#'
-SET @old_innodb_max_dirty_pages_pct= @@global.innodb_max_dirty_pages_pct;
 SET @@global.innodb_max_dirty_pages_pct = 80;
 'connect (con1,localhost,root,,,,)'
-'connection con1'
 SELECT @@global.innodb_max_dirty_pages_pct;
 @@global.innodb_max_dirty_pages_pct
 80
 SET @@global.innodb_max_dirty_pages_pct = 70;
 'connect (con2,localhost,root,,,,)'
-'connection con2'
 SELECT @@global.innodb_max_dirty_pages_pct;
 @@global.innodb_max_dirty_pages_pct
 70
@@ -20,7 +18,6 @@ FLUSH STATUS;
 CALL add_until(10);
 FLUSH TABLES;
 CALL add_records(500);
-'--sleep 5'
 'We expect dirty pages pct to be BELOW_MAX'
 CALL check_pct(10);
 PCT_VALUE
@@ -30,4 +27,4 @@ DROP PROCEDURE add_until;
 DROP PROCEDURE check_pct;
 DROP FUNCTION dirty_pct;
 DROP TABLE t1;
-SET @@global.innodb_max_dirty_pages_pct = @old_innodb_max_dirty_pages_pct;
+SET @@global.innodb_max_dirty_pages_pct= @start_value;

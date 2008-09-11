@@ -26,7 +26,7 @@
 ####################################################################
 
 let $MYSQLD_DATADIR= `select @@datadir`;
---echo ## Checking if my_slow_test.log exist in servers datadir ##
+--echo ## Checking if my_slow_test.log exists in servers datadir ##
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --file_exists $MYSQLD_DATADIR/my_slow_test.log
 

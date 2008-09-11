@@ -9,20 +9,22 @@
 #                                                                              #
 #                                                                              #
 # Creation Date: 2008-03-02                                                    #
-# Author:  Sharique Abdullah                                                       #
+# Author:  Sharique Abdullah                                                   #
 #                                                                              #
-# Description: Test Cases of Dynamic System Variable max_prepared_stmt_count_fn#
+# Description: Test Cases of Dynamic System Variable max_sort_length           #
 #              that checks behavior of this variable in the following ways     #
 #              * Functionality based on different values                       #
 #                                                                              #
-#Reference: http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html#
-#  option_mysqld_max_sort_length                                               #
+# Reference:                                                                   #
+#   http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html        #
 #                                                                              #
 ################################################################################
 
 #
 # Setup
 #
+
+SET @start_value= @@global.max_sort_length;
 
 SET @session_max_sort_length = @@Session.max_sort_length;
 
@@ -186,7 +188,7 @@ SELECT c from t ORDER BY c, id;
 #Check if sorting is applied on BLOB type #
 ###########################################
 --echo Testing type BLOB
-## Setting global value of variable and inserting data in table
+# Setting global value of variable and inserting data in table
 SET @@global.max_sort_length = 30;
 SELECT @@global.max_sort_length;
 INSERT INTO t1 set c = repeat('x',29);
@@ -211,7 +213,7 @@ SELECT c from t1 ORDER BY c, id;
 #Check if sorting is applied on CHAR type #
 ###########################################
 --echo Testing type CHAR
-## Setting global value of variable and inserting data in table
+# Setting global value of variable and inserting data in table
 SET @@global.max_sort_length = 30;
 SELECT @@global.max_sort_length;
 INSERT INTO t2 set c = repeat('x',29);
@@ -250,4 +252,6 @@ DROP TABLE IF EXISTS t;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 --enable_warnings
+
+SET @@global.max_sort_length= @start_value;
 

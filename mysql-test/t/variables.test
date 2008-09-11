@@ -24,6 +24,7 @@ set @my_max_heap_table_size       =@@global.max_heap_table_size;
 set @my_max_insert_delayed_threads=@@global.max_insert_delayed_threads;
 set @my_max_join_size             =@@global.max_join_size;
 set @my_myisam_data_pointer_size  =@@global.myisam_data_pointer_size;
+set @my_myisam_max_sort_file_size =@@global.myisam_max_sort_file_size;
 set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
@@ -34,7 +35,6 @@ set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
-
 # case insensitivity tests (new in 5.0)
 set @`test`=1;
 select @test, @`test`, @TEST, @`TEST`, @"teSt";
@@ -750,7 +750,7 @@ set global delayed_queue_size        =@my_delayed_queue_size;
 set global flush                     =@my_flush;
 set global flush_time                =@my_flush_time;
 set global key_buffer_size           =@my_key_buffer_size;
-set global max_binlog_cache_size     =default;                #@my_max_binlog_cache_size;
+set global max_binlog_cache_size     =@my_max_binlog_cache_size;
 set global max_binlog_size           =@my_max_binlog_size;
 set global max_connect_errors        =@my_max_connect_errors;
 set global max_connections           =@my_max_connections;
@@ -761,6 +761,7 @@ set global max_join_size             =@my_max_join_size;
 set global max_user_connections      =default;
 set global max_write_lock_count      =default;
 set global myisam_data_pointer_size  =@my_myisam_data_pointer_size;
+set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
@@ -771,7 +772,6 @@ set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
-
 #
 # Bug#28580 Repeatation of status variables
 #

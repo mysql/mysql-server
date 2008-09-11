@@ -1,4 +1,8 @@
 '#--------------------FN_DYNVARS_048_01-------------------------#'
+SET @start_value= @@global.innodb_table_locks;
+SELECT @start_value;
+@start_value
+1
 SET @@global.innodb_table_locks = OFF;
 'connect (con1,localhost,root,,,,)'
 'connection con1'
@@ -30,3 +34,7 @@ COMMIT;
 'CONNECTION con2'
 UNLOCK tables;
 DROP TABLE t1;
+SET @@global.innodb_table_locks= @start_value;
+SELECT @@global.innodb_table_locks;
+@@global.innodb_table_locks
+1
