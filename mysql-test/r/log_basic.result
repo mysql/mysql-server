@@ -1,4 +1,5 @@
 '#--------------------FN_DYNVARS_062_01------------------#'
+SET @start_log= @@global.log;
 SELECT @@global.log AS INIT_VALUE;
 INIT_VALUE
 1
@@ -10,8 +11,9 @@ SET global log = 0;
 'Bug# 34832: log is a system but it is not accessible using SET @@global.log;'
 'SET GLOBAL log; and SELECT @@global.log. SHOW VARIABLES shows the value of log.'
 '#--------------------FN_DYNVARS_062_02-------------------------#'
-SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='log';
 VARIABLE_VALUE
 OFF
+SET @@global.log= @start_log;
