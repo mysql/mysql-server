@@ -4237,15 +4237,17 @@ NdbDictInterface::createEvent(class Ndb & ndb,
 }
 
 int
-NdbDictionaryImpl::executeSubscribeEvent(NdbEventOperationImpl & ev_op)
+NdbDictionaryImpl::executeSubscribeEvent(NdbEventOperationImpl & ev_op,
+                                         Uint32 & buckets)
 {
   // NdbDictInterface m_receiver;
-  return m_receiver.executeSubscribeEvent(m_ndb, ev_op);
+  return m_receiver.executeSubscribeEvent(m_ndb, ev_op, buckets);
 }
 
 int
 NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
-					NdbEventOperationImpl & ev_op)
+					NdbEventOperationImpl & ev_op,
+                                        Uint32 & buckets)
 {
   DBUG_ENTER("NdbDictInterface::executeSubscribeEvent");
   NdbApiSignal tSignal(m_reference);
@@ -4269,11 +4271,17 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
                      SubStartRef::BusyWithNR,
                      SubStartRef::NotMaster,
                      0 };
-  DBUG_RETURN(dictSignal(&tSignal,NULL,0,
-			 0 /*use masternode id*/,
-			 WAIT_CREATE_INDX_REQ /*WAIT_CREATE_EVNT_REQ*/,
-			 -1, 100,
-			 errCodes, -1));
+  int ret = dictSignal(&tSignal,NULL,0,
+                       0 /*use masternode id*/,
+                       WAIT_CREATE_INDX_REQ /*WAIT_CREATE_EVNT_REQ*/,
+                       -1, 100,
+                       errCodes, -1);
+  if (ret == 0)
+  {
+    buckets =m_sub_start_conf.m_buckets;
+  }
+
+  DBUG_RETURN(ret);
 }
 
 int
@@ -4564,6 +4572,8 @@ NdbDictInterface::execSUB_START_CONF(NdbApiSignal * signal,
     break;
   }
   }
+
+  m_sub_start_conf.m_buckets = subStartConf->bucketCount;
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subscriptionId,subscriptionKey,subscriberData));
   m_waiter.signal(NO_WAIT);

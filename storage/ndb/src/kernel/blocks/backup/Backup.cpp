@@ -1880,7 +1880,7 @@ Backup::execWAIT_GCP_CONF(Signal* signal){
 
   WaitGCPConf * conf = (WaitGCPConf*)signal->getDataPtr();
   const Uint32 ptrI = conf->senderData;
-  const Uint32 gcp = conf->gcp;
+  const Uint32 gcp = conf->gci_hi;
   
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, ptrI);

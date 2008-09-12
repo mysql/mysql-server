@@ -280,6 +280,12 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("Content-Type", String, Mandatory, "Type of config"),
     MGM_ARG("Content-Transfer-Encoding", String, Mandatory, "encoding"),
 
+  MGM_CMD("create nodegroup", &MgmApiSession::create_nodegroup, ""),
+    MGM_ARG("nodes", String, Mandatory, "Nodes"),
+
+  MGM_CMD("drop nodegroup", &MgmApiSession::drop_nodegroup, ""),
+    MGM_ARG("ng", Int, Mandatory, "Nodegroup"),
+
   MGM_END()
 };
 
@@ -1764,6 +1770,71 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
   m_mgmsrv.eventReport(data, length);
   m_output->println("report event reply");
   m_output->println("result: ok");
+  m_output->println("");
+}
+
+void
+MgmApiSession::create_nodegroup(Parser_t::Context &ctx,
+                                Properties const &args)
+{
+  BaseString nodestr;
+  BaseString retval;
+  int ng = -1;
+  Vector<int> nodes;
+  BaseString result("Ok");
+
+  args.get("nodes", nodestr);
+  Vector<BaseString> list;
+  nodestr.split(list, " ");
+  for (Uint32 i = 0; i < list.size() ; i++)
+  {
+    int res;
+    int node;
+    if ((res = sscanf(list[i].c_str(), "%u", &node)) != 1)
+    {
+      result = "FAIL: Invalid format for nodes";
+      goto end;
+    }
+    nodes.push_back(node);
+  }
+
+  if(nodes.size() == 0)
+  {
+    result= "FAIL: Must have at least 1 node in the node group";
+    goto end;
+  }
+
+  int res;
+  if((res = m_mgmsrv.createNodegroup(nodes.getBase(), nodes.size(), &ng)) != 0)
+  {
+    result.assfmt("error: %d", res);
+  }
+
+end:
+  m_output->println("create nodegroup reply");
+  m_output->println("ng: %d", ng);
+  m_output->println("result: %s", result.c_str());
+  m_output->println("");
+}
+
+void
+MgmApiSession::drop_nodegroup(Parser_t::Context &ctx,
+                              Properties const &args)
+{
+  BaseString result("Ok");
+
+  unsigned ng;
+  args.get("ng", &ng);
+
+  int res;
+  if((res = m_mgmsrv.dropNodegroup(ng)) != 0)
+  {
+    result.assfmt("error: %d", res);
+  }
+
+end:
+  m_output->println("drop nodegroup reply");
+  m_output->println("result: %s", result.c_str());
   m_output->println("");
 }
 

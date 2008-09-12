@@ -26,8 +26,6 @@
 #include <signaldata/CntrStart.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
 
-#include <signaldata/UpgradeStartup.hpp>
-
 #include <NodeState.hpp>
 #include <NdbTick.h>
 
@@ -276,6 +274,9 @@ private:
   void execSTART_COPYREF(Signal*);
   void execSTART_COPYCONF(Signal*);
 
+  void execCREATE_NODEGROUP_IMPL_REQ(Signal*);
+  void execDROP_NODEGROUP_IMPL_REQ(Signal*);
+
   void updateNodeState(Signal* signal, const NodeState & newState) const ;
   void getNodeGroup(Signal* signal);
 
@@ -396,8 +397,6 @@ private:
   void execSTTORRY(Signal* signal);
   void execSTART_ORD(Signal* signal);
   void execREAD_CONFIG_CONF(Signal*);
-
-  friend struct UpgradeStartup;
 };
 
 #endif

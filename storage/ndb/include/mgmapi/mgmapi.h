@@ -1180,6 +1180,15 @@ extern "C" {
              size_t * size);
 #endif
 
+  int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
+                               int * nodes,
+                               int * ng,
+                               struct ndb_mgm_reply* mgmreply);
+
+  int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
+                             int ng,
+                             struct ndb_mgm_reply* mgmreply);
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   enum ndb_mgm_clusterlog_level {
      NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL = -1,

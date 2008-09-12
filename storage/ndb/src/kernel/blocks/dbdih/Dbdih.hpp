@@ -171,7 +171,6 @@ public:
     Uint16 logNodeId[MAX_LOG_EXEC];
     Uint32 createLcpId;
 
-    bool hotSpareUse;
     Uint32 replicaRec;
     Uint16 dataNodeId;
     Uint16 lcpNo;
@@ -261,6 +260,8 @@ public:
     Uint32 nextReplicaNode;
     Uint32 nodeCount;
     Uint32 activeTakeOver; // Which node...
+    Uint32 nodegroupIndex;
+    Uint32 m_ref_count;
   };
   typedef Ptr<NodeGroupRecord> NodeGroupRecordPtr;
   /*いいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいいい*/
@@ -793,6 +794,9 @@ private:
 
   void execUPGRADE_PROTOCOL_ORD(Signal* signal);
 
+  void execCREATE_NODEGROUP_IMPL_REQ(Signal*);
+  void execDROP_NODEGROUP_IMPL_REQ(Signal*);
+
   // Statement blocks
 //------------------------------------
 // Methods that send signals
@@ -837,7 +841,6 @@ private:
   void sendStartFragreq(Signal *,
                         TabRecordPtr regTabPtr,
                         Uint32 fragId);
-  void sendHOT_SPAREREP(Signal *);
   void sendAddFragreq(Signal *,
                       TabRecordPtr regTabPtr,
                       Uint32 fragId,
@@ -907,7 +910,6 @@ private:
   void writeInitGcpErrorLab(Signal *, FileRecordPtr regFilePtr);
 
 
-  void calculateHotSpare();
   void checkEscalation();
   void clearRestartInfoBits(Signal *);
   void invalidateLcpInfoAfterSr();
@@ -916,11 +918,14 @@ private:
   bool isActiveMaster();
 
   void emptyverificbuffer(Signal *, bool aContintueB);
-  Uint32 findHotSpare();
   void handleGcpStateInMaster(Signal *, NodeRecordPtr failedNodeptr);
   void initRestartInfo(Signal*);
   void initRestorableGciFiles();
   void makeNodeGroups(Uint32 nodeArray[]);
+  void add_nodegroup(NodeGroupRecordPtr);
+  void inc_ng_refcount(Uint32 ng);
+  void dec_ng_refcount(Uint32 ng);
+
   void makePrnList(class ReadNodesConf * readNodes, Uint32 nodeArray[]);
   void nodeResetStart(Signal* signal);
   void releaseTabPages(Uint32 tableId);
@@ -928,7 +933,6 @@ private:
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
   void selectMasterCandidateAndSend(Signal *);
-  void setInitialActiveStatus();
   void setLcpActiveStatusEnd(Signal*);
   void setLcpActiveStatusStart(Signal *);
   void setNodeActiveStatus();
@@ -1209,6 +1213,7 @@ private:
   void setAllowNodeStart(Uint32 nodeId, bool newState);
   bool getNodeCopyCompleted(Uint32 nodeId);
   void setNodeCopyCompleted(Uint32 nodeId, bool newState);
+  Uint32 getNodeGroup(Uint32 nodeId) const;
   bool checkNodeAlive(Uint32 nodeId);
 
   void nr_start_fragments(Signal*, TakeOverRecordPtr);
@@ -1548,7 +1553,6 @@ private:
   } c_lcpMasterTakeOverState;
   
   Uint16 cmasterNodeId;
-  Uint8 cnoHotSpare;
 
   struct NodeStartMasterRecord {
     NodeStartMasterRecord() {}
@@ -1577,9 +1581,13 @@ private:
   Uint32 cnoReplicas;
 
   bool cwaitLcpSr;
+  /**
+   * Available nodegroups (ids) (length == cnoOfNodeGroups)
+   *   use to support nodegroups 2,4,6 (not just consequtive nodegroup ids)
+   */
+  Uint32 c_node_groups[MAX_NDB_NODES];
   Uint32 cnoOfNodeGroups;
   Uint32 crestartGci;      /* VALUE OF GCI WHEN SYSTEM RESTARTED OR STARTED */
-  Uint32 cminHotSpareNodes;
   
   /**
    * Counter variables keeping track of the number of outstanding signals
@@ -1691,11 +1699,13 @@ private:
    * Pool/list of WaitGCPMasterRecord record
    */
   ArrayPool<WaitGCPMasterRecord> waitGCPMasterPool;
-  DLList<WaitGCPMasterRecord> c_waitGCPMasterList;
+  typedef DLList<WaitGCPMasterRecord> WaitGCPList;
+  WaitGCPList c_waitGCPMasterList;
+  WaitGCPList c_waitEpochMasterList;
 
   void checkWaitGCPProxy(Signal*, NodeId failedNodeId);
   void checkWaitGCPMaster(Signal*, NodeId failedNodeId);
-  void emptyWaitGCPMasterQueue(Signal*);
+  void emptyWaitGCPMasterQueue(Signal*, Uint64, WaitGCPList&);
   
   /**
    * Stop me

@@ -78,7 +78,6 @@ ConfigInfo::m_sectionNames[]={
 const int ConfigInfo::m_noOfSectionNames = 
 sizeof(m_sectionNames)/sizeof(char*);
 
-
 /****************************************************************************
  * Section Rules declarations
  ****************************************************************************/
@@ -173,15 +172,21 @@ ConfigInfo::m_SectionRules[] = {
   { "SHM",  checkTCPConstraints, "HostName1" },
   { "SHM",  checkTCPConstraints, "HostName2" },
   
-  { "*",    checkMandatory, 0 },
+  { "*",    checkMandatory, 0 }
   
-  { DB_TOKEN,   saveInConfigValues, 0 },
+#if 0
+  /**
+   * Moved to saveSectionsInConfigValues
+   *   Which is run *after* all sections are parsed
+   */
+  ,{ DB_TOKEN,   saveInConfigValues, 0 },
   { API_TOKEN,  saveInConfigValues, 0 },
   { MGM_TOKEN,  saveInConfigValues, 0 },
 
   { "TCP",  saveInConfigValues, 0 },
   { "SHM",  saveInConfigValues, 0 },
   { "SCI",  saveInConfigValues, 0 }
+#endif
 };
 const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 
@@ -201,12 +206,18 @@ static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&section
 			    struct InitConfigFileParser::Context &ctx, 
 			    const char * rule_data);
 
+
+static bool saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>&,
+                                       struct InitConfigFileParser::Context &,
+                                       const char * rule_data);
+
 const ConfigInfo::ConfigRule 
 ConfigInfo::m_ConfigRules[] = {
   { sanity_checks, 0 },
   { add_node_connections, 0 },
   { set_connection_priorities, 0 },
   { check_node_vs_replicas, 0 },
+  { saveSectionsInConfigValues, "Node,Connection" },
   { 0, 0 }
 };
 	  
@@ -1574,6 +1585,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "256K",
     STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_NODEGROUP,
+    "Nodegroup",
+    DB_TOKEN,
+    "Nodegroup for node, only used during initial cluster start",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    UNDEFINED,
+    "0",
+    STR_VALUE(NDB_NO_NODEGROUP)
   },
 
   /***************************************************************************
@@ -4188,26 +4212,98 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
 		       struct InitConfigFileParser::Context &ctx, 
 		       const char * rule_data)
 {
-  Uint32 db_nodes= 0;
+  Uint32 i, n;
+  Uint32 n_nodes;
   Uint32 replicas= 0;
   Uint32 db_host_count= 0;
   bool  with_arbitration_rank= false;
-  ctx.m_userProperties.get(DB_TOKEN, &db_nodes);
+  ctx.m_userProperties.get("NoOfNodes", &n_nodes);
   ctx.m_userProperties.get("NoOfReplicas", &replicas);
-  if((db_nodes % replicas) != 0){
-    ctx.reportError("Invalid no of db nodes wrt no of replicas.\n"
-		    "No of nodes must be dividable with no or replicas");
-    return false;
+
+  /**
+   * Register user supplied values
+   */
+  Uint8 ng_cnt[MAX_NDB_NODES];
+  Bitmask<(MAX_NDB_NODES+31)/32> nodes_wo_ng;
+  bzero(ng_cnt, sizeof(ng_cnt));
+
+  for (i= 0, n= 0; n < n_nodes; i++)
+  {
+    const Properties * tmp;
+    if(!ctx.m_config->get("Node", i, &tmp)) continue;
+    n++;
+
+    const char * type;
+    if(!tmp->get("Type", &type)) continue;
+
+    if (strcmp(type,DB_TOKEN) == 0)
+    {
+      Uint32 id;
+      tmp->get("NodeId", &id);
+
+      Uint32 ng;
+      if (tmp->get("Nodegroup", &ng))
+      {
+        if (ng == NDB_NO_NODEGROUP)
+        {
+          break;
+        }
+        else if (ng >= MAX_NDB_NODES)
+        {
+          ctx.reportError("Invalid nodegroup %u for node %u",
+                          ng, id);
+          return false;
+        }
+        ng_cnt[ng]++;
+      }
+      else
+      {
+        nodes_wo_ng.set(i);
+      }
+    }
   }
+
+  /**
+   * Auto-assign nodegroups if user didnt
+   */
+  Uint32 next_ng = 0;
+  for (;ng_cnt[next_ng] >= replicas; next_ng++);
+  for (i = nodes_wo_ng.find(0); i!=BitmaskImpl::NotFound;
+       i = nodes_wo_ng.find(i + 1))
+  {
+    Properties* tmp = 0;
+    ctx.m_config->getCopy("Node", i, &tmp);
+
+    tmp->put("Nodegroup", next_ng, true);
+    ctx.m_config->put("Node", i, tmp, true);
+    ng_cnt[next_ng]++;
+
+    Uint32 id;
+    tmp->get("NodeId", &id);
+
+    for (;ng_cnt[next_ng] >= replicas; next_ng++);
+  }
+
+  /**
+   * Check node vs replicas
+   */
+  for (i = 0; i<MAX_NDB_NODES; i++)
+  {
+    if (ng_cnt[i] != 0 && ng_cnt[i] != (Uint8)replicas)
+    {
+      ctx.reportError("Nodegroup %u has %u members, NoOfReplicas=%u",
+                      i, ng_cnt[i], replicas);
+      return false;
+    }
+  }
+
   // check that node groups and arbitrators are ok
   // just issue warning if not
   if(replicas > 1){
-    Properties * props= ctx.m_config;
     Properties p_db_hosts(true); // store hosts which db nodes run on
     Properties p_arbitrators(true); // store hosts which arbitrators run on
     // arbitrator should not run together with db node on same host
-    Uint32 i, n, group= 0, i_group= 0;
-    Uint32 n_nodes;
+    Uint32 group= 0, i_group= 0;
     BaseString node_group_warning, arbitration_warning;
     const char *arbit_warn_fmt=
       "\n  arbitrator with id %d and db node with id %d on same host %s";
@@ -4217,7 +4313,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
     ctx.m_userProperties.get("NoOfNodes", &n_nodes);
     for (i= 0, n= 0; n < n_nodes; i++){
       const Properties * tmp;
-      if(!props->get("Node", i, &tmp)) continue;
+      if(!ctx.m_config->get("Node", i, &tmp)) continue;
       n++;
 
       const char * type;
@@ -4354,6 +4450,50 @@ ConfigInfo::ParamInfoIter::next(void) {
   while (m_curr_param<m_info.m_NoOfParams);
 
   return NULL;
+}
+
+
+static
+bool
+saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
+                           struct InitConfigFileParser::Context &ctx,
+                           const char * rule_data)
+{
+  if (rule_data == 0)
+    return true;
+
+  BaseString sections(rule_data);
+  Vector<BaseString> list;
+  sections.split(list, ",");
+
+  Properties::Iterator it(ctx.m_config);
+  for (const char * name = it.first(); name != 0; name = it.next())
+  {
+    PropertiesType pt;
+    bool match = false;
+    for (Uint32 i = 0; i<list.size(); i++)
+    {
+      if (strstr(name, list[i].c_str()))
+      {
+        match = true;
+        break;
+      }
+    }
+    if (match &&
+        ctx.m_config->getTypeOf(name, &pt) &&
+        pt == PropertiesType_Properties)
+    {
+      const char * type;
+      const Properties* tmp;
+      require(ctx.m_config->get(name, &tmp) != 0);
+      require(tmp->get("Type", &type) != 0);
+      require((ctx.m_currentInfo = ctx.m_info->getInfo(type)) != 0);
+      ctx.m_currentSection = const_cast<Properties*>(tmp);
+      BaseString::snprintf(ctx.fname, sizeof(ctx.fname), type);
+      saveInConfigValues(ctx, 0);
+    }
+  }
+  return true;
 }
 
 

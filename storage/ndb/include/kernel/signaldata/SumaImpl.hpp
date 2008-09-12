@@ -164,8 +164,7 @@ struct SubStartConf {
   friend struct Grep;
   
   friend bool printSUB_START_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 7 );
-  STATIC_CONST( SignalLength2 = SignalLength+1 );
+  STATIC_CONST( SignalLength = 9 );
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -174,8 +173,8 @@ struct SubStartConf {
   Uint32 firstGCI;
   Uint32 part;  // SubscriptionData::Part
   Uint32 subscriberData;
-  // with SignalLength2
-  Uint32 subscriberRef;
+  Uint32 bucketCount;
+  Uint32 nodegroup;
 };
 
 struct SubStopReq {
@@ -433,6 +432,8 @@ struct SubGcpCompleteRep {
   STATIC_CONST( ON_DISK = 1 );
   STATIC_CONST( IN_MEMORY = 2 );
   STATIC_CONST( MISSING_DATA = 4 );
+  STATIC_CONST( ADD_CNT = 8 );  // Uses hi 16-bit for delta
+  STATIC_CONST( SUB_CNT = 16);  // Uses hi 16-bit for delta
 
   Uint32 gci_hi;
   Uint32 senderRef;

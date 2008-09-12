@@ -20,6 +20,8 @@
 #include <NdbOut.hpp>
 #include <Sysfile.hpp>
 
+static int g_all = 0;
+
 void 
 usage(const char * prg){
   ndbout << "Usage " << prg 
@@ -37,12 +39,11 @@ NSString NodeStatusStrings[] = {
   { Sysfile::NS_ActiveMissed_1,         "Active missed 1" },
   { Sysfile::NS_ActiveMissed_2,         "Active missed 2" },
   { Sysfile::NS_ActiveMissed_3,         "Active missed 3" },
-  { Sysfile::NS_HotSpare,               "Hot spare      " },
   { Sysfile::NS_NotActive_NotTakenOver, "Not active     " },
   { Sysfile::NS_TakeOver,               "Take over      " },
   { Sysfile::NS_NotActive_TakenOver,    "Taken over     " },
-  { Sysfile::NS_NotDefined,             "Not defined    " },
-  { Sysfile::NS_Standby,                "Stand by       " }
+  { Sysfile::NS_NotDefined,             "Not defined    " }
+  ,{ Sysfile::NS_Configured,            "Configured     " }
 };
 
 const
@@ -101,7 +102,7 @@ print(const char * filename, const Sysfile * sysfile){
 
   ndbout << "-- Node status: --" << endl;
   for(int i = 1; i < MAX_NDB_NODES; i++){
-    if(Sysfile::getNodeStatus(i, sysfile->nodeStatus) !=Sysfile::NS_NotDefined){
+    if(g_all || Sysfile::getNodeStatus(i, sysfile->nodeStatus) !=Sysfile::NS_NotDefined){
       sprintf(buf, 
 	      "Node %.2d -- %s GCP: %d, NodeGroup: %d, TakeOverNode: %d, "
 	      "LCP Ongoing: %s",
@@ -126,6 +127,12 @@ NDB_COMMAND(printSysfile,
 
   for(int i = 1; i<argc; i++){
     const char * filename = argv[i];
+
+    if (strcmp(filename, "--all") == 0)
+    {
+      g_all = 1;
+      continue;
+    }
     
     struct stat sbuf;
     const int res = stat(filename, &sbuf);
