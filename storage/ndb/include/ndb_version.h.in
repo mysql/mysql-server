@@ -270,5 +270,6 @@ ndb_scan_distributionkey(Uint32 version)
 }
 
 #define NDBD_FILTER_INSTANCE_63 NDB_MAKE_VERSION(6,3,16)
+#define NDBD_COPY_GCI_RESTART_NR NDB_MAKE_VERSION(6,3,18)
 
 #endif
