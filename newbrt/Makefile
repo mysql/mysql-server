@@ -56,6 +56,7 @@ build default: bins libs tdb-recover tdb_logprint $(TEST_OFILES)
 	cd tests;$(MAKE) build
 
 BRT_SOURCES = \
+  block_allocator \
   bread \
   brt-serialize \
   brt-verify \

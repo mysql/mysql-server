@@ -20,7 +20,7 @@ typedef unsigned int ITEMLEN;
 typedef const void *bytevec;
 //typedef const void *bytevec;
 
-typedef long long DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
+typedef int64_t DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef u_int64_t TXNID;
 typedef struct s_blocknum { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
 

@@ -2,6 +2,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "toku_assert.h"
+#include "block_allocator.h"
 #include "brt-internal.h"
 #include "key.h"
 #include "rbuf.h"
@@ -14,6 +15,16 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <zlib.h>
+
+static u_int64_t ntohll(u_int64_t v) {
+    union u {
+	u_int32_t l[2];
+	u_int64_t ll;
+    } uv;
+    uv.ll = v;
+    return (((u_int64_t)uv.l[0])<<32) + uv.l[1];
+}
+
 
 // Don't include the compressed data size or the uncompressed data size.
 
@@ -575,6 +586,18 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
     wbuf_BLOCKNUM(wbuf, h->free_blocks);
     wbuf_BLOCKNUM(wbuf, h->unused_blocks);
     wbuf_int    (wbuf, h->n_named_roots);
+    if (h->block_allocation_vector_length.b != 0) {
+	block_allocator_free_block(h->block_allocator, h->block_allocation_vector_location);
+    }
+#if 0
+    h->block_allocation_vector_length.b = block_allocator_get_vector_length(h->block_allocator);
+    {
+	int r = block_allocator_alloc_block(h->block_allocator, 0, h->block_allocation_vector_length.b, (u_int64_t*)&h->block_allocation_vector_location);
+	assert(r==0);
+    }
+#endif
+    wbuf_BLOCKNUM(wbuf, h->block_allocation_vector_length);
+    wbuf_DISKOFF(wbuf, h->block_allocation_vector_location);
     if (h->n_named_roots>=0) {
 	int i;
 	for (i=0; i<h->n_named_roots; i++) {
@@ -632,6 +655,29 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
     h->free_blocks   = rbuf_blocknum(&rc);
     h->unused_blocks = rbuf_blocknum(&rc);
     h->n_named_roots = rbuf_int(&rc);
+    h->block_allocation_vector_length   = rbuf_blocknum(&rc);
+    h->block_allocation_vector_location = rbuf_diskoff(&rc);
+    {
+	u_int64_t *block_locations_and_lengths = 0;
+	if (h->block_allocation_vector_length.b > 0) {
+	    MALLOC_N(h->block_allocation_vector_length.b * 2, block_locations_and_lengths);
+	    assert(block_locations_and_lengths);
+	    u_int64_t len = h->block_allocation_vector_length.b * 16 + 4;
+	    ssize_t r = pread(fd, block_locations_and_lengths, len, h->block_allocation_vector_location);
+	    assert(r==(ssize_t)len);
+	    u_int32_t x1764 = x1764_memory(block_locations_and_lengths, len-4); // compute a checksum
+	    assert(x1764 == *(u_int32_t*)(block_locations_and_lengths+h->block_allocation_vector_length.b*2));
+	    int i;
+	    for (i=0; i<h->block_allocation_vector_length.b * 2; i++) {
+		block_locations_and_lengths[i] = ntohll(block_locations_and_lengths[i]);
+	    }
+	}
+#if 0
+	int r = create_block_allocator(&h->block_allocator, h->block_allocation_vector_length.b, block_locations_and_lengths, h->nodesize);
+	assert(r==0);
+#endif
+	if (block_locations_and_lengths) free(block_locations_and_lengths);
+    }
     if (h->n_named_roots>=0) {
 	int i;
 	int n_to_malloc = (h->n_named_roots == 0) ? 1 : h->n_named_roots;
