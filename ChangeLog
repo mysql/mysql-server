@@ -1,3 +1,166 @@
+2008-09-09	The InnoDB Team
+
+	* mysql-test/innodb.result:
+	Fix the failing innodb test by merging changes that MySQL made to
+	that file (r2646.12.1 in MySQL BZR repository)
+
+2008-09-09	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#38839 auto increment does not work properly with InnoDB after
+	update
+
+2008-09-09	The InnoDB Team
+
+	* dict/dict0dict.c, handler/handler0alter.cc, include/dict0dict.h,
+	mysql-test/innodb-index.result, mysql-test/innodb-index.test:
+	Fix Bug#38786 InnoDB plugin crashes on drop table/create table with FK
+
+2008-08-21	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/ha_prototypes.h, row/row0sel.c:
+	Fix Bug#37885 row_search_for_mysql may gap lock unnecessarily with SQL
+	comments in query
+
+2008-08-21	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#38185 ha_innobase::info can hold locks even when called with
+	HA_STATUS_NO_LOCK
+
+2008-08-18	The InnoDB Team
+
+	* buf/buf0buf.c, buf/buf0lru.c, include/buf0buf.ic, include/univ.i:
+	Introduce UNIV_LRU_DEBUG for debugging the LRU buffer pool cache
+
+2008-08-08	The InnoDB Team
+
+	* buf/buf0lru.c, include/buf0buf.h:
+	Fix two recovery bugs that could lead to a crash in debug builds with
+	small buffer size
+
+2008-08-07	The InnoDB Team
+
+	* btr/btr0cur.c, handler/ha_innodb.cc, include/srv0srv.h,
+	srv/srv0srv.c:
+	Add a parameter innodb_stats_sample_pages to allow users to control
+	the number of index dives when InnoDB estimates the cardinality of
+	an index (ANALYZE TABLE, SHOW TABLE STATUS etc)
+
+2008-08-07	The InnoDB Team
+
+	* trx/trx0i_s.c:
+	Fix a bug that would lead to a crash if a SELECT was issued from the
+	INFORMATION_SCHEMA tables and there are rolling back transactions at
+	the same time
+
+2008-08-06	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, ibuf/ibuf0ibuf.c, include/btr0cur.h,
+	include/trx0roll.h, include/trx0types.h, row/row0purge.c,
+	row/row0uins.c, row/row0umod.c, trx/trx0roll.c:
+	In the rollback of incomplete transactions after crash recovery,
+	tolerate clustered index records whose externally stored columns
+	have not been written.
+
+2008-07-30	The InnoDB Team
+
+	* trx/trx0trx.c:
+	Fixes a race in recovery where the recovery thread recovering a
+	PREPARED trx and the background rollback thread can both try
+	to free the trx after its status is set to COMMITTED_IN_MEMORY.
+
+2008-07-29	The InnoDB Team
+
+	* include/trx0rec.h, row/row0purge.c, row/row0vers.c, trx/trx0rec.c:
+	Fix a BLOB corruption bug
+
+2008-07-15	The InnoDB Team
+
+	* btr/btr0sea.c, dict/dict0dict.c, include/btr0sea.h:
+	Fixed a timing hole where a thread dropping an index can free the
+	in-memory index struct while another thread is still using that
+	structure to remove entries from adaptive hash index belonging
+	to one of the pages that belongs to the index being dropped.
+
+2008-07-04	The InnoDB Team
+
+	* mysql-test/innodb-index.result:
+	Fix the failing innodb-index test by adjusting the result to a new
+	MySQL behavior (the change occured in BZR-r2667)
+
+2008-07-03	The InnoDB Team
+
+	* mysql-test/innodb-zip.result, mysql-test/innodb-zip.test:
+	Remove the negative test cases that produce warnings
+
+2008-07-02	The InnoDB Team
+
+	* mysql-test/innodb-replace.result, mysql-test/innodb-index.test:
+	Disable part of innodb-index test because MySQL changed its behavior
+	and is not calling ::add_index() anymore when adding primary index on
+	non-NULL column
+
+2008-07-01	The InnoDB Team
+
+	* mysql-test/innodb-replace.result, mysql-test/innodb-replace.test:
+	Fix the failing innodb-replace test by merging changes that MySQL
+	made to that file (r2659 in MySQL BZR repository)
+
+2008-07-01	The InnoDB Team
+
+	* lock/lock0lock.c:
+	Fix Bug#36942 Performance problem in lock_get_n_rec_locks (SHOW INNODB
+	STATUS)
+
+2008-07-01	The InnoDB Team
+
+	* ha/ha0ha.c:
+	Fix Bug#36941 Performance problem in ha_print_info (SHOW INNODB
+	STATUS)
+
+2008-07-01	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.result,
+	mysql-test/innodb-autoinc.test:
+	Fix Bug#37531 After truncate, auto_increment behaves incorrectly for
+	InnoDB
+
+2008-06-19	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Rewrite the function innodb_plugin_init() to support parameters in
+	different order (in static and dynamic InnoDB) and to support more
+	parameters in the static InnoDB
+
+2008-06-19	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Fix a bug in ::add_index() which set the transaction state to "active"
+	but never restored it to the original value. This bug caused warnings
+	to be printed by the rpl.rpl_ddl mysql-test.
+
+2008-06-19	The InnoDB Team
+
+	* mysql-test/patches:
+	Add a directory which contains patches, which need to be applied to
+	MySQL source in order to get some mysql-tests to succeed. The patches
+	cannot be committed in MySQL repository because they are specific to
+	the InnoDB plugin.
+
+2008-06-19	The InnoDB Team
+
+	* mysql-test/innodb-zip.result, mysql-test/innodb-zip.test,
+	row/row0row.c:
+	Fix an anomaly when updating a record with BLOB prefix
+
+2008-06-18	The InnoDB Team
+
+	* include/trx0sys.h, srv/srv0start.c, trx/trx0sys.c:
+	Fix a bug in recovery which was a side effect of the file_format_check
+	changes
+
 2008-06-09	The InnoDB Team
 
 	* mysql-test/innodb.result:
