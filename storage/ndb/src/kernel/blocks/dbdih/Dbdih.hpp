@@ -1361,7 +1361,11 @@ private:
   /* NODE IS TAKING OVER AS MASTER */
 
   struct CopyGCIMaster {
-    CopyGCIMaster(){ m_copyReason = m_waiting = CopyGCIReq::IDLE;}
+    CopyGCIMaster(){
+      m_copyReason = CopyGCIReq::IDLE;
+      for (Uint32 i = 0; i<WAIT_CNT; i++)
+        m_waiting[i] = CopyGCIReq::IDLE;
+    }
     /*------------------------------------------------------------------------*/
     /*       THIS STATE VARIABLE IS USED TO INDICATE IF COPYING OF RESTART    */
     /*       INFO WAS STARTED BY A LOCAL CHECKPOINT OR AS PART OF A SYSTEM    */
@@ -1371,10 +1375,11 @@ private:
     
     /*------------------------------------------------------------------------*/
     /*       COPYING RESTART INFO CAN BE STARTED BY LOCAL CHECKPOINTS AND BY  */
-    /*       GLOBAL CHECKPOINTS. WE CAN HOWEVER ONLY HANDLE ONE SUCH COPY AT  */
+    /*       GLOBAL CHECKPOINTS. WE CAN HOWEVER ONLY HANDLE TWO SUCH COPY AT  */
     /*       THE TIME. THUS WE HAVE TO KEEP WAIT INFORMATION IN THIS VARIABLE.*/
     /*------------------------------------------------------------------------*/
-    CopyGCIReq::CopyReason m_waiting;
+    STATIC_CONST( WAIT_CNT = 2 );
+    CopyGCIReq::CopyReason m_waiting[WAIT_CNT];
   } c_copyGCIMaster;
   
   struct CopyGCISlave {
@@ -1774,6 +1779,8 @@ private:
   bool c_sr_wait_to;
   NdbNodeBitmask m_sr_nodes;
   NdbNodeBitmask m_to_nodes;
+
+  void startme_copygci_conf(Signal*);
 
   // MT LQH
 
