@@ -441,13 +441,11 @@ MgmtSrvr::start_mgm_service()
        type != NODE_TYPE_MGM){
       g_eventLogger->error("Node %d is not defined as management server",
                            _ownNodeId);
-      return 0;
       DBUG_RETURN(false);
     }
 
     if(iter.get(CFG_MGM_PORT, &m_port) != 0){
       g_eventLogger->error("PortNumber not defined for node %d", _ownNodeId);
-      return 0;
       DBUG_RETURN(false);
     }
   }
