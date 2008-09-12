@@ -118,6 +118,9 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
 
   addRecSignal(GSN_START_COPYREF, &Ndbcntr::execSTART_COPYREF);
   addRecSignal(GSN_START_COPYCONF, &Ndbcntr::execSTART_COPYCONF);
+
+  addRecSignal(GSN_CREATE_NODEGROUP_IMPL_REQ, &Ndbcntr::execCREATE_NODEGROUP_IMPL_REQ);
+  addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ, &Ndbcntr::execDROP_NODEGROUP_IMPL_REQ);
   
   initData();
   ctypeOfStart = NodeState::ST_ILLEGAL_TYPE;

@@ -52,7 +52,6 @@
 #include <Configuration.hpp>
 
 #include <signaldata/ReadConfig.hpp>
-#include <signaldata/UpgradeStartup.hpp>
 #include "ndbd_malloc_impl.hpp"
 #include <blocks/record_types.hpp>
 
@@ -102,7 +101,6 @@ class SimulatedBlock {
   friend class TraceLCP;
   friend class SafeCounter;
   friend class SafeCounterManager;
-  friend struct UpgradeStartup;
   friend class AsyncFile;
   friend class PosixAsyncFile; // FIXME
   friend class Pgman;
@@ -697,7 +695,6 @@ private:
   void execUTIL_UNLOCK_CONF(Signal* signal);
 
 protected:
-  void execUPGRADE(Signal* signal);
 
   void fsRefError(Signal* signal, Uint32 line, const char *msg);
   void execFSWRITEREF(Signal* signal);

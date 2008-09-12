@@ -170,6 +170,7 @@ InitConfigFileParser::run_config_rules(Context& ctx)
 {
   for(size_t i = 0; ConfigInfo::m_ConfigRules[i].m_configRule != 0; i++){
     ctx.type             = InitConfigFileParser::Undefined;
+    ctx.m_info           = m_info;
     ctx.m_currentSection = 0;
     ctx.m_userDefaults   = 0;
     ctx.m_currentInfo    = 0;
@@ -725,7 +726,7 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
 
   char ** tmp = (char**)argv;
   int ret = load_defaults("my", groups, &argc, &tmp);
-  
+
   my_defaults_file = save_file;
   my_defaults_extra_file = save_extra_file;
   my_defaults_group_suffix = save_group_suffix;

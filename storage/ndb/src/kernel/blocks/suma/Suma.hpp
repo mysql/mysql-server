@@ -109,6 +109,8 @@ public:
    */
   void execCONTINUEB(Signal* signal);
 
+  void execCREATE_NODEGROUP_IMPL_REQ(Signal*);
+  void execDROP_NODEGROUP_IMPL_REQ(Signal*);
 public:
 
   void suma_ndbrequire(bool v);
@@ -535,6 +537,8 @@ private:
   Uint32 get_responsible_node(Uint32 B, const NdbNodeBitmask& mask) const;
   bool check_switchover(Uint32 bucket, Uint64 gci);
 
+  void fix_nodegroup();
+
 public:  
   struct Page_pos
   {
@@ -552,6 +556,8 @@ private:
       ,BUCKET_HANDOVER = 0x2 // On running node
       ,BUCKET_TAKEOVER = 0x4 // On takeing over node
       ,BUCKET_RESEND   = 0x8 // On takeing over node
+      ,BUCKET_CREATED  = 0x10 // New nodegroup (me)
+      ,BUCKET_DROPPED  = 0x20 // New nodegroup (me) uses hi 8 bit for cnt
     };
     Uint16 m_state;
     Uint16 m_switchover_node;

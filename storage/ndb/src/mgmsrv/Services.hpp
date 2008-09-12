@@ -116,6 +116,9 @@ public:
 
   void getSessionId(Parser_t::Context &ctx, Properties const &args);
   void getSession(Parser_t::Context &ctx, Properties const &args);
+
+  void create_nodegroup(Parser_t::Context &ctx, Properties const &args);
+  void drop_nodegroup(Parser_t::Context &ctx, Properties const &args);
 };
 
 class MgmApiService : public SocketServer::Service {

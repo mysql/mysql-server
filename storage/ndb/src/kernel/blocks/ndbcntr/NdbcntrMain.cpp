@@ -53,6 +53,8 @@
 #include <NdbTick.h>
 
 #include <signaldata/TakeOver.hpp>
+#include <signaldata/CreateNodegroupImpl.hpp>
+#include <signaldata/DropNodegroupImpl.hpp>
 
 // used during shutdown for reporting current startphase
 // accessed from Emulator.cpp, NdbShutdown()
@@ -322,7 +324,7 @@ void Ndbcntr::execSTTOR(Signal* signal)
   case 6:
     jam();
     getNodeGroup(signal);
-    // Fall through
+    sendSttorry(signal);
     break;
   case ZSTART_PHASE_8:
     jam();
@@ -348,7 +350,6 @@ Ndbcntr::getNodeGroup(Signal* signal){
 		 CheckNodeGroups::SignalLength);
   jamEntry();
   c_nodeGroup = sd->output;
-  sendSttorry(signal);
 }
 
 /*******************************/
@@ -548,8 +549,6 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
   c_start.m_startPartitionedTimeout = setTimeout(c_start.m_startTime, to_2);
   c_start.m_startFailureTimeout = setTimeout(c_start.m_startTime, to_3);
   
-  UpgradeStartup::sendCmAppChg(* this, signal, 0); // ADD
-  
   sendCntrStartReq(signal);
 
   signal->theData[0] = ZSTARTUP;
@@ -624,8 +623,6 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal){
   c_startedNodes.bitOR(tmp);
   c_start.m_starting.assign(NdbNodeBitmask::Size, conf->startingNodes);
   ph2GLab(signal);
-
-  UpgradeStartup::sendCmAppChg(* this, signal, 2); //START
 }
 
 /**
@@ -1861,7 +1858,7 @@ Ndbcntr::createHashMap(Signal* signal, Uint32 idx)
   req->transId = c_schemaTransId;
   req->transKey = c_schemaTransKey;
   req->buckets = 240;
-  req->fragments = (1 + idx) * c_allDefinedNodes.count();
+  req->fragments = 0;
   sendSignal(DBDICT_REF, GSN_CREATE_HASH_MAP_REQ, signal,
 	     CreateHashMapReq::SignalLength, JBB);
 }
@@ -3228,148 +3225,65 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
   NodeState newState(NodeState::SL_STARTED);
   cntr.updateNodeState(signal, newState);
 
-  /**
-   * Backward
-   */
-  UpgradeStartup::sendCmAppChg(cntr, signal, 3); //RUN
-
-  NdbNodeBitmask nodes = cntr.c_clusterNodes;
-  Uint32 node = 0;
-  while((node = nodes.find(node+1)) != NdbNodeBitmask::NotFound){
-    if(cntr.getNodeInfo(node).m_version < MAKE_VERSION(3,5,0)){
-      nodes.clear(node);
-    }
-  }
-  
-  NodeReceiverGroup rg(NDBCNTR, nodes);
+  NodeReceiverGroup rg(NDBCNTR, cntr.c_clusterNodes);
   signal->theData[0] = cntr.getOwnNodeId();
   cntr.sendSignal(rg, GSN_CNTR_START_REP, signal, 1, JBB);
 }
 
-/**
- * Backward compatible code
- */
 void
-UpgradeStartup::sendCmAppChg(Ndbcntr& cntr, Signal* signal, Uint32 startLevel){
-  
-  if(cntr.getNodeInfo(cntr.cmasterNodeId).m_version >= MAKE_VERSION(3,5,0)){
-    jamNoBlock();
-    return;
+Ndbcntr::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
+{
+  jamEntry();
+
+  CreateNodegroupImplReq reqCopy = *(CreateNodegroupImplReq*)signal->getDataPtr();
+  CreateNodegroupImplReq *req = &reqCopy;
+
+  if (req->requestType == CreateNodegroupImplReq::RT_COMMIT)
+  {
+    jam();
+    Uint32 save = c_nodeGroup;
+    getNodeGroup(signal);
+    if (save != c_nodeGroup)
+    {
+      jam();
+      updateNodeState(signal, getNodeState());
+    }
   }
 
-  /**
-   * Old NDB running
-   */
-  
-  signal->theData[0] = startLevel;
-  signal->theData[1] = cntr.getOwnNodeId();
-  signal->theData[2] = 3 | ('N' << 8);
-  signal->theData[3] = 'D' | ('B' << 8);
-  signal->theData[4] = 0;
-  signal->theData[5] = 0;
-  signal->theData[6] = 0;
-  signal->theData[7] = 0;
-  signal->theData[8] = 0;
-  signal->theData[9] = 0;
-  signal->theData[10] = 0;
-  signal->theData[11] = 0;
-  
-  NdbNodeBitmask nodes = cntr.c_clusterNodes;
-  nodes.clear(cntr.getOwnNodeId());
-  Uint32 node = 0;
-  while((node = nodes.find(node+1)) != NdbNodeBitmask::NotFound){
-    if(cntr.getNodeInfo(node).m_version < MAKE_VERSION(3,5,0)){
-      cntr.sendSignal(cntr.calcQmgrBlockRef(node),
-		      GSN_CM_APPCHG, signal, 12, JBB);
-    } else {
-      cntr.c_startedNodes.set(node); // Fake started
-    }
+  {
+    CreateNodegroupImplConf* conf = (CreateNodegroupImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = req->senderData;
+    sendSignal(req->senderRef, GSN_CREATE_NODEGROUP_IMPL_CONF, signal,
+               CreateNodegroupImplConf::SignalLength, JBB);
   }
 }
 
 void
-UpgradeStartup::execCM_APPCHG(SimulatedBlock & block, Signal* signal){
-  Uint32 state = signal->theData[0];
-  Uint32 nodeId = signal->theData[1];
-  if(block.number() == QMGR){
-    Ndbcntr& cntr = * (Ndbcntr*)globalData.getBlock(CNTR);
-    switch(state){
-    case 0: // ZADD
-      break;
-    case 2: // ZSTART
-      break;
-    case 3: // ZRUN{
-      cntr.c_startedNodes.set(nodeId);
+Ndbcntr::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
+{
+  jamEntry();
 
-      Uint32 recv = cntr.c_startedNodes.count();
-      Uint32 cnt = cntr.c_clusterNodes.count();
-      if(recv + 1 == cnt){ //+1 == own node
-	/**
-	 * Check master
-	 */
-	sendCntrMasterReq(cntr, signal, 0);
-      }
-      return;
+  DropNodegroupImplReq reqCopy = *(DropNodegroupImplReq*)signal->getDataPtr();
+  DropNodegroupImplReq *req = &reqCopy;
+
+  if (req->requestType == DropNodegroupImplReq::RT_COMMIT)
+  {
+    jam();
+    Uint32 save = c_nodeGroup;
+    getNodeGroup(signal);
+    if (save != c_nodeGroup)
+    {
+      jam();
+      updateNodeState(signal, getNodeState());
     }
   }
-  block.progError(__LINE__,NDBD_EXIT_NDBREQUIRE,
-		  "UpgradeStartup::execCM_APPCHG");
-}
 
-void
-UpgradeStartup::sendCntrMasterReq(Ndbcntr& cntr, Signal* signal, Uint32 n){
-  Uint32 node = cntr.c_startedNodes.find(n);
-  if(node != NdbNodeBitmask::NotFound && 
-     (node == cntr.getOwnNodeId() || 
-      cntr.getNodeInfo(node).m_version >= MAKE_VERSION(3,5,0))){
-    node = cntr.c_startedNodes.find(node+1);
+  {
+    DropNodegroupImplConf* conf = (DropNodegroupImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = req->senderData;
+    sendSignal(req->senderRef, GSN_DROP_NODEGROUP_IMPL_CONF, signal,
+               DropNodegroupImplConf::SignalLength, JBB);
   }
-  
-  if(node == NdbNodeBitmask::NotFound){
-    cntr.progError(__LINE__,NDBD_EXIT_NDBREQUIRE,
-		   "UpgradeStartup::sendCntrMasterReq "
-		   "NdbNodeBitmask::NotFound");
-  }
-
-  CntrMasterReq * const cntrMasterReq = (CntrMasterReq*)&signal->theData[0];
-  cntr.c_clusterNodes.copyto(NdbNodeBitmask::Size, cntrMasterReq->theNodes);
-  NdbNodeBitmask::clear(cntrMasterReq->theNodes, cntr.getOwnNodeId());
-  cntrMasterReq->userBlockRef = 0;
-  cntrMasterReq->userNodeId = cntr.getOwnNodeId();
-  cntrMasterReq->typeOfStart = NodeState::ST_INITIAL_NODE_RESTART;
-  cntrMasterReq->noRestartNodes = cntr.c_clusterNodes.count() - 1;
-  cntr.sendSignal(cntr.calcNdbCntrBlockRef(node), GSN_CNTR_MASTERREQ,
-		  signal, CntrMasterReq::SignalLength, JBB);
-}
-
-void
-UpgradeStartup::execCNTR_MASTER_REPLY(SimulatedBlock & block, Signal* signal){
-  Uint32 gsn = signal->header.theVerId_signalNumber;
-  Uint32 node = refToNode(signal->getSendersBlockRef());
-  if(block.number() == CNTR){
-    Ndbcntr& cntr = (Ndbcntr&)block;
-    switch(gsn){
-    case GSN_CNTR_MASTERREF:
-      sendCntrMasterReq(cntr, signal, node + 1);
-      return;
-      break;
-    case GSN_CNTR_MASTERCONF:{
-      CntrStartConf* conf = (CntrStartConf*)signal->getDataPtrSend();
-      conf->startGci = 0;
-      conf->masterNodeId = node;
-      conf->noStartNodes = 1;
-      conf->startType = NodeState::ST_INITIAL_NODE_RESTART;
-      NdbNodeBitmask mask;
-      mask.clear();
-      mask.copyto(NdbNodeBitmask::Size, conf->startedNodes);
-      mask.clear();
-      mask.set(cntr.getOwnNodeId());
-      mask.copyto(NdbNodeBitmask::Size, conf->startingNodes);
-      cntr.execCNTR_START_CONF(signal);
-      return;
-    }
-    }
-  }
-  block.progError(__LINE__,NDBD_EXIT_NDBREQUIRE,
-		  "UpgradeStartup::execCNTR_MASTER_REPLY");
 }

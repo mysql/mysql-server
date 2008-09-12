@@ -134,6 +134,9 @@ public:
 
   void executeCpc(char * parameters);
 
+  int executeCreateNodeGroup(char* parameters);
+  int executeDropNodeGroup(char* parameters);
+
 public:
   bool connect(bool interactive);
   bool disconnect();
@@ -263,6 +266,9 @@ static const char* helpText =
 "SHOW CONFIG                            Print configuration\n"
 "SHOW PARAMETERS                        Print configuration parameters\n"
 #endif
+"CREATE NODEGROUP <id>,<id>...          Add a Nodegroup containing nodes\n"
+"DROP NODEGROUP <NG>                    Drop nodegroup with id NG\n"
+"START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "START BACKUP [<backup id>] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                                       Start backup (default WAIT COMPLETED)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
@@ -1198,6 +1204,20 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
     m_error = executeExitSingleUser(allAfterFirstToken);
     DBUG_RETURN(true);
   }
+  else if(strcasecmp(firstToken, "CREATE") == 0 &&
+	  allAfterFirstToken != NULL &&
+	  strncasecmp(allAfterFirstToken, "NODEGROUP",
+                      sizeof("NODEGROUP") - 1) == 0){
+    m_error = executeCreateNodeGroup(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if(strcasecmp(firstToken, "DROP") == 0 &&
+	  allAfterFirstToken != NULL &&
+	  strncasecmp(allAfterFirstToken, "NODEGROUP",
+                      sizeof("NODEGROUP") - 1) == 0){
+    m_error = executeDropNodeGroup(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
   else if (strcasecmp(firstToken, "ALL") == 0) {
     m_error = analyseAfterFirstToken(-1, allAfterFirstToken);
   } else {
@@ -1623,12 +1643,17 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	  if (node_state->node_status != NDB_MGM_NODE_STATUS_STARTED) {
 	    ndbout << ", " << status_string(node_state->node_status);
 	  }
-	  if (node_state->node_group >= 0) {
+	  if (node_state->node_group >= 0 && node_state->node_group != (int)RNIL) {
 	    ndbout << ", Nodegroup: " << node_state->node_group;
+          }
+          else if (node_state->node_group == (int)RNIL)
+          {
+            ndbout << ", no nodegroup";
+          }
+          if (node_state->node_group >= 0 || node_state->node_group == (int)RNIL)
 	    if (master_id && node_state->dynamic_id == master_id)
 	      ndbout << ", Master";
-	  }
-	}
+        }
 	ndbout << ")" << endl;
       } else {
 	ndb_mgm_first(it);
@@ -2980,6 +3005,73 @@ CommandInterpreter::executeAbortBackup(char* parameters)
   return 0;
  executeAbortBackupError1:
   ndbout << "Invalid arguments: expected <BackupId>" << endl;
+  return -1;
+}
+
+int
+CommandInterpreter::executeCreateNodeGroup(char* parameters)
+{
+  int result;
+  int ng;
+  struct ndb_mgm_reply reply;
+  if (emptyString(parameters))
+    goto err;
+
+  {
+    Vector<int> nodes;
+    BaseString args(strchr(parameters, ' '));
+    Vector<BaseString> nodelist;
+    args.split(nodelist, ",");
+
+    for (Uint32 i = 0; i<nodelist.size(); i++)
+    {
+      nodes.push_back(atoi(nodelist[i].c_str()));
+    }
+    nodes.push_back(0);
+
+    result= ndb_mgm_create_nodegroup(m_mgmsrv, nodes.getBase(), &ng, &reply);
+
+    if (result != 0) {
+      printError();
+      return -1;
+    } else {
+      ndbout << "Nodegroup " << ng << " created" << endl;
+    }
+
+  }
+
+  return 0;
+err:
+  ndbout << "Invalid arguments: expected <id>,<id>..." << endl;
+  return -1;
+}
+
+int
+CommandInterpreter::executeDropNodeGroup(char* parameters)
+{
+  int ng = -1;
+  struct ndb_mgm_reply reply;
+  if (emptyString(parameters))
+    goto err;
+
+  {
+    char* id = strchr(parameters, ' ');
+    if(id == 0 || sscanf(id, "%d", &ng) != 1)
+      goto err;
+  }
+
+  {
+    int result= ndb_mgm_drop_nodegroup(m_mgmsrv, ng, &reply);
+    if (result != 0) {
+      printError();
+      return -1;
+    } else {
+      ndbout << "Drop Node Group " << ng << " done" << endl;
+    }
+  }
+  return 0;
+err:
+  ndbout << "Invalid arguments: expected <NG>" << endl;
   return -1;
 }
 

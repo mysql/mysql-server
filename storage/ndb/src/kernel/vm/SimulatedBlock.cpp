@@ -125,7 +125,6 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     theExecArray[i] = 0;
 
   installSimulatedBlockFunctions();
-  UpgradeStartup::installEXEC(this);
 
   CLEAR_ERROR_INSERT_VALUE;
 
@@ -2855,36 +2854,6 @@ void
 SimulatedBlock::ignoreMutexUnlockCallback(Signal* signal, 
 					  Uint32 ptrI, Uint32 retVal){
   c_mutexMgr.release(ptrI);
-}
-
-void 
-UpgradeStartup::installEXEC(SimulatedBlock* block){
-  SimulatedBlock::ExecFunction * a = block->theExecArray;
-  switch(block->number()){
-  case QMGR:
-    a[UpgradeStartup::GSN_CM_APPCHG] = &SimulatedBlock::execUPGRADE;
-    break;
-  case CNTR:
-    a[UpgradeStartup::GSN_CNTR_MASTERREF] = &SimulatedBlock::execUPGRADE;
-    a[UpgradeStartup::GSN_CNTR_MASTERCONF] = &SimulatedBlock::execUPGRADE;
-    break;
-  }
-}
-
-void
-SimulatedBlock::execUPGRADE(Signal* signal){
-  Uint32 gsn = signal->header.theVerId_signalNumber;
-  switch(gsn){
-  case UpgradeStartup::GSN_CM_APPCHG:
-    UpgradeStartup::execCM_APPCHG(* this, signal);
-    break;
-  case UpgradeStartup::GSN_CNTR_MASTERREF:
-    UpgradeStartup::execCNTR_MASTER_REPLY(* this, signal);
-    break;
-  case UpgradeStartup::GSN_CNTR_MASTERCONF:
-    UpgradeStartup::execCNTR_MASTER_REPLY(* this, signal);
-    break;
-  }
 }
 
 void

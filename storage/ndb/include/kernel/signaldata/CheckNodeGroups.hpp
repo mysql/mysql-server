@@ -47,7 +47,8 @@ public:
     Direct              = 0x1,
     ArbitCheck          = 0x2,
     GetNodeGroup        = 0x4,
-    GetNodeGroupMembers = 0x8
+    GetNodeGroupMembers = 0x8,
+    GetDefaultFragments = 0x10
   };
 
   enum Output {
