@@ -275,6 +275,11 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("get session", &MgmApiSession::getSession, ""),
     MGM_ARG("id", Int, Mandatory, "SessionID"),
 
+  MGM_CMD("set config", &MgmApiSession::setConfig, ""),
+    MGM_ARG("Content-Length", Int, Mandatory, "Length of config"),
+    MGM_ARG("Content-Type", String, Mandatory, "Type of config"),
+    MGM_ARG("Content-Transfer-Encoding", String, Mandatory, "encoding"),
+
   MGM_END()
 };
 
@@ -1878,6 +1883,75 @@ MgmApiSession::getSession(Parser_t::Context &ctx,
 
   m_output->println("");
 }
+
+
+void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
+{
+  BaseString result("Ok");
+  Uint32 len64 = 0;
+
+  {
+    const char* buf;
+    args.get("Content-Type", &buf);
+    if(strcmp(buf, "ndbconfig/octet-stream")) {
+      result.assfmt("Unhandled content type '%s'", buf);
+      goto done;
+    }
+
+    args.get("Content-Transfer-Encoding", &buf);
+    if(strcmp(buf, "base64")) {
+      result.assfmt("Unhandled content encoding '%s'", buf);
+      goto done;
+    }
+  }
+
+  args.get("Content-Length", &len64);
+  if(len64 ==0 || len64 > (1024*1024)) {
+    result.assfmt("Illegal config length size %d", len64);
+    goto done;
+  }
+  len64 += 1; // Trailing \n
+
+  {
+    char* buf64 = new char[len64];
+    int r = 0;
+    size_t start = 0;
+    do {
+      if((r= read_socket(m_socket,30000,
+                         &buf64[start],
+                         len64-start)) < 1)
+      {
+        delete buf64;
+        result.assfmt("read_socket failed, errno: %d", errno);
+        goto done;
+      }
+      start += r;
+    } while(start < len64);
+
+    char* decoded = new char[base64_needed_decoded_length((size_t)len64 - 1)];
+    int decoded_len= base64_decode(buf64, len64-1, decoded, NULL);
+    delete buf64;
+
+    ConfigValuesFactory cvf;
+    if(!cvf.unpack(decoded, decoded_len))
+    {
+      delete decoded;
+      result.assfmt("Failed to unpack config");
+      goto done;
+    }
+    delete decoded;
+
+    //m_mgmsrv.setConfig(new Config(cvf.getConfigValues()));
+
+  }
+
+done:
+
+  m_output->println("set config reply");
+  m_output->println("result: %s", result.c_str());
+  m_output->println("");
+}
+
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;
