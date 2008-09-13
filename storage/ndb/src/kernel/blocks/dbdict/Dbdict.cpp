@@ -4969,8 +4969,18 @@ Dbdict::createTable_parse(Signal* signal, bool master,
 
     // create fragmentation via DIH (no changes in DIH)
     Uint16* frag_data = (Uint16*)(signal->getDataPtr()+25);
-    Uint32 err = create_fragmentation(signal, tabPtr,
-                                      c_fragData, c_fragDataLen / 2);
+    Uint32 err = 0;
+    if (tabPtr.p->primaryTableId == RNIL)
+    {
+      jam();
+      err = create_fragmentation(signal, tabPtr,
+                                 c_fragData, c_fragDataLen / 2);
+    }
+    else
+    {
+      jam();
+      err = get_fragmentation(signal, tabPtr.p->primaryTableId);
+    }
 
     if (err)
     {

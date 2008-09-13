@@ -1634,6 +1634,11 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
     return 0;
   }
 
+  if (unlikely(m_total_buckets == 0))
+  {
+    return 0;
+  }
+
   Uint32 pos = (gci & ACTIVE_GCI_MASK);
   Uint32 size = m_active_gci.size();
   Gci_container *buckets = (Gci_container*)(m_active_gci.getBase());
