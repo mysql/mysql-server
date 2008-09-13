@@ -1950,7 +1950,7 @@ dict_table_get_referenced_constraint(
 {
 	dict_foreign_t*	foreign;
 
-	ut_ad(index != NULL)
+	ut_ad(index != NULL);
 	ut_ad(table != NULL);
 
 	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
