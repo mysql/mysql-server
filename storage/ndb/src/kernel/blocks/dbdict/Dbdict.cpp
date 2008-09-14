@@ -640,7 +640,6 @@ Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
 
   if (req->primaryTableId == RNIL) {
     jam();
-    req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
     EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
                    CreateFragmentationReq::SignalLength);
     return;
@@ -653,7 +652,11 @@ Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
   if (te->m_tableState != SchemaFile::SF_CREATE)
   {
     jam();
-    req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
+    if (req->requestInfo == 0)
+    {
+      jam();
+      req->requestInfo |= CreateFragmentationReq::RI_GET_FRAGMENTATION;
+    }
     EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
                    CreateFragmentationReq::SignalLength);
     return;
