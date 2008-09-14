@@ -611,8 +611,9 @@ NdbEventOperationImpl::execute_nolock()
   Uint32 buckets = 0;
   int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this,
                                                                    buckets);
-  if (r == 0) {
-    m_ndb->theEventBuffer->m_total_buckets = buckets;
+  if (r == 0) 
+  {
+    m_ndb->theEventBuffer->set_total_buckets(buckets);
 
     if (theMainOp == NULL) {
       DBUG_PRINT("info", ("execute blob ops"));
@@ -1042,10 +1043,10 @@ NdbEventOperationImpl::printAll()
  * Class NdbEventBuffer
  * Each Ndb object has a Object.
  */
-
+#define TOTAL_BUCKETS_INIT (1 << 15)
 
 NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
-  m_total_buckets(0),
+  m_total_buckets(TOTAL_BUCKETS_INIT), 
   m_min_gci_index(0),
   m_max_gci_index(0),
   m_ndb(ndb),
@@ -2191,6 +2192,42 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
       ndbout_c(" - decreasing cnt on %u/%u by %u",
                Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci), cnt);
     }
+  }
+}
+
+void
+NdbEventBuffer::set_total_buckets(Uint32 cnt)
+{
+  if (m_total_buckets == cnt)
+    return;
+
+  assert(m_total_buckets == TOTAL_BUCKETS_INIT);
+  m_total_buckets = cnt;
+
+  Uint64 * array = m_known_gci.getBase();
+  Uint32 mask = m_known_gci.size() - 1;
+  Uint32 minpos = m_min_gci_index;
+  Uint32 maxpos = m_max_gci_index;
+
+  bool found = false;
+  Uint32 pos = minpos;
+  for (; pos != maxpos; pos = (pos + 1) & mask)
+  {
+    Gci_container* tmp = find_bucket(array[pos]);
+    assert(tmp->m_gcp_complete_rep_count >= TOTAL_BUCKETS_INIT);
+    tmp->m_gcp_complete_rep_count -= TOTAL_BUCKETS_INIT;
+    if (tmp->m_gcp_complete_rep_count == 0)
+    {
+      found = true;
+      if (0)
+        ndbout_c("set_total_buckets(%u) complete %u/%u",
+                 cnt, Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci));
+      complete_bucket(tmp);
+    }
+  }
+  if (found)
+  {
+    NdbCondition_Signal(p_cond);
   }
 }
 
