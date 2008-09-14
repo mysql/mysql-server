@@ -142,7 +142,9 @@ struct brt_header {
     struct block_translation_pair *block_translation;
 
     // Where and how big is the block translation vector stored on disk.
-    u_int64_t block_translation_size_on_disk;
+    // The size of the on_disk buffer may no longer match the max_blocknum_translated field, since blocks may have been allocated or freed.
+    // We need to remember this old information so we can free it properly.
+    u_int64_t block_translation_size_on_disk;    // the size of the block (i.e. 8 times the number of entries)
     u_int64_t block_translation_address_on_disk; // 0 if there is no memory allocated
     
     // The in-memory data structure  for block allocation
