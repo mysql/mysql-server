@@ -666,6 +666,9 @@ private:
   void resize_known_gci();
 
   void handle_change_nodegroup(const SubGcpCompleteRep*);
+
+public:
+  void set_total_buckets(Uint32);
 };
 
 inline
