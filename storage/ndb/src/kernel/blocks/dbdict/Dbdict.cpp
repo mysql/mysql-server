@@ -636,11 +636,11 @@ Dbdict::packFileIntoPages(SimpleProperties::Writer & w,
 void
 Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
 {
-  const CreateFragmentationReq* req =
-    (const CreateFragmentationReq*)signal->getDataPtr();
+  CreateFragmentationReq* req = (CreateFragmentationReq*)signal->getDataPtr();
 
   if (req->primaryTableId == RNIL) {
     jam();
+    req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
     EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
                    CreateFragmentationReq::SignalLength);
     return;
@@ -653,6 +653,7 @@ Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
   if (te->m_tableState != SchemaFile::SF_CREATE)
   {
     jam();
+    req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
     EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
                    CreateFragmentationReq::SignalLength);
     return;
@@ -4969,19 +4970,8 @@ Dbdict::createTable_parse(Signal* signal, bool master,
 
     // create fragmentation via DIH (no changes in DIH)
     Uint16* frag_data = (Uint16*)(signal->getDataPtr()+25);
-    Uint32 err = 0;
-    if (tabPtr.p->primaryTableId == RNIL)
-    {
-      jam();
-      err = create_fragmentation(signal, tabPtr,
-                                 c_fragData, c_fragDataLen / 2);
-    }
-    else
-    {
-      jam();
-      err = get_fragmentation(signal, tabPtr.p->primaryTableId);
-    }
-
+    Uint32 err = create_fragmentation(signal, tabPtr,
+                                      c_fragData, c_fragDataLen / 2);
     if (err)
     {
       jam();
