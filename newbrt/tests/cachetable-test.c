@@ -94,7 +94,15 @@ static void expectN(int64_t blocknum_n) {
 
 static CACHEFILE expect_f;
 
-static void flush (CACHEFILE f, CACHEKEY key, void*value, long size __attribute__((__unused__)), BOOL write_me __attribute__((__unused__)), BOOL keep_me __attribute__((__unused__)), LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
+static void flush (CACHEFILE f,
+		   CACHEKEY key,
+		   void*value,
+		   void *extra __attribute__((__unused__)),
+		   long size __attribute__((__unused__)),
+		   BOOL write_me __attribute__((__unused__)),
+		   BOOL keep_me __attribute__((__unused__)),
+		   LSN modified_lsn __attribute__((__unused__)),
+		   BOOL rename_p __attribute__((__unused__))) {
     struct item *it = value;
     int i;
 
@@ -261,7 +269,9 @@ static void test0 (void) {
     toku_memory_check_all_free();
 }
 
-static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)), void *value,
+static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __attribute__((__unused__)),
+		     void *value,
+		     void *extra  __attribute__((__unused__)),
                      long size __attribute__((__unused__)),
 		     BOOL write_me __attribute__((__unused__)),    BOOL keep_me __attribute__((__unused__)),
 		     LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute ((__unused__))) {
@@ -324,6 +334,7 @@ static void test_nested_pin (void) {
 static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
                         CACHEKEY k       __attribute__((__unused__)),
                         void *v          __attribute__((__unused__)),
+                        void *extra      __attribute__((__unused__)),
                         long size        __attribute__((__unused__)),
                         BOOL write_me    __attribute__((__unused__)),
                         BOOL keep_me     __attribute__((__unused__)),
@@ -391,7 +402,15 @@ static void test_multi_filehandles (void) {
     r = toku_cachetable_close(&t); assert(r==0);
 }
 
-static void test_dirty_flush(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
+static void test_dirty_flush(CACHEFILE f,
+			     CACHEKEY key,
+			     void *value,
+			     void *extra __attribute__((__unused__)),
+			     long size,
+			     BOOL do_write,
+			     BOOL keep,
+			     LSN modified_lsn __attribute__((__unused__)),
+			     BOOL rename_p __attribute__((__unused__))) {
     if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %d %d\n", f, key.b, value, size, do_write, keep);
 }
 
@@ -508,7 +527,15 @@ static void test_dirty() {
 static int test_size_debug;
 static CACHEKEY test_size_flush_key;
 
-static void test_size_flush_callback(CACHEFILE f, CACHEKEY key, void *value, long size, BOOL do_write, BOOL keep, LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
+static void test_size_flush_callback(CACHEFILE f,
+				     CACHEKEY key,
+				     void *value,
+				     void *extra __attribute__((__unused__)),
+				     long size,
+				     BOOL do_write,
+				     BOOL keep,
+				     LSN modified_lsn __attribute__((__unused__)),
+				     BOOL rename_p __attribute__((__unused__))) {
     if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %d %d\n", f, key.b, value, size, do_write, keep);
     if (keep) {
         assert(do_write != 0);

@@ -53,7 +53,23 @@ static void test_serialize(void) {
     BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
     sn.u.n.n_bytes_in_buffers = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
 
-    toku_serialize_brtnode_to(fd, make_blocknum(20), &sn);  assert(r==0);
+    struct brt *XMALLOC(brt);
+    struct brt_header *XMALLOC(brt_h);
+    struct block_translation_pair *XMALLOC_N(21, btps);
+    memset(btps, 0, sizeof(btps));
+    brt->h = brt_h;
+    brt_h->translated_blocknum_limit = 1;
+    brt_h->block_translation = btps;
+    brt_h->block_translation[20].diskoff = 4096;
+    brt_h->block_translation[20].size    = 100;
+    create_block_allocator(&brt_h->block_allocator, 4096);
+    {
+	u_int64_t b;
+	block_allocator_alloc_block(brt_h->block_allocator, 100, &b);
+	assert(b==4096);
+    }
+    
+    toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt);  assert(r==0);
     
     r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, nodesize);
     assert(r==0);
@@ -108,6 +124,12 @@ static void test_serialize(void) {
     toku_fifo_free(&BNC_BUFFER(&sn,1));
     toku_free(sn.u.n.childinfos);
     toku_free(sn.u.n.childkeys);
+
+    block_allocator_free_block(brt_h->block_allocator, 4096);
+    destroy_block_allocator(&brt_h->block_allocator);
+    toku_free(btps);
+    toku_free(brt_h);
+    toku_free(brt);
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {

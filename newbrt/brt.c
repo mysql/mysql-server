@@ -161,7 +161,8 @@ static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck) {
     return cmp;
 }
 
-void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__))) {
+void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__))) {
+    BRT brt = extraargs;
     BRTNODE brtnode = brtnode_v;
 //    if ((write_me || keep_me) && (brtnode->height==0)) {
 //	toku_pma_verify_fingerprint(brtnode->u.l.buffer, brtnode->rand4fingerprint, brtnode->subtree_fingerprint);
@@ -175,7 +176,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *
     assert(brtnode->thisnodename.b==nodename.b);
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
-	toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode);
+	toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode, brt);
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
@@ -213,7 +214,15 @@ void toku_brtheader_free (struct brt_header *h) {
     toku_free(h);
 }
 
-void toku_brtheader_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *header_v, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN lsn __attribute__((__unused__)), BOOL rename_p __attribute__((__unused__))) {
+void toku_brtheader_flush_callback (CACHEFILE cachefile,
+				    BLOCKNUM nodename,
+				    void *header_v,
+				    void *extra_args __attribute__((__unused__)),
+				    long size __attribute__((unused)),
+				    BOOL write_me,
+				    BOOL keep_me,
+				    LSN lsn __attribute__((__unused__)),
+				    BOOL rename_p __attribute__((__unused__))) {
     struct brt_header *h = header_v;
     assert(nodename.b==0);
     assert(!h->dirty); // shouldn't be dirty once it is unpinned.
@@ -2156,7 +2165,7 @@ static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
     t->h->nodesize=t->nodesize;
     t->h->free_blocks = make_blocknum(-1);
     t->h->unused_blocks=make_blocknum(2);
-    t->h->max_blocknum_translated = 0;
+    t->h->translated_blocknum_limit = 0;
     t->h->block_translation = 0;
     t->h->block_translation_size_on_disk = 0;
     t->h->block_translation_address_on_disk = 0;

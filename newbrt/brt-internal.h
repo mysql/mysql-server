@@ -138,13 +138,13 @@ struct brt_header {
     BLOCKNUM free_blocks; // free list for blocks.  Use -1 to indicate that there are no free blocks
     BLOCKNUM unused_blocks; // first unused block
 
-    u_int64_t max_blocknum_translated;
+    u_int64_t translated_blocknum_limit;
     struct block_translation_pair *block_translation;
 
     // Where and how big is the block translation vector stored on disk.
     // The size of the on_disk buffer may no longer match the max_blocknum_translated field, since blocks may have been allocated or freed.
     // We need to remember this old information so we can free it properly.
-    u_int64_t block_translation_size_on_disk;    // the size of the block (i.e. 8 times the number of entries)
+    u_int64_t block_translation_size_on_disk;    // the size of the block containing the translation (i.e. 8 times the number of entries)
     u_int64_t block_translation_address_on_disk; // 0 if there is no memory allocated
     
     // The in-memory data structure  for block allocation
@@ -175,7 +175,7 @@ struct brt {
 };
 
 /* serialization code */
-void toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node);
+void toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, BRT brt);
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, int tree_node_size);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
