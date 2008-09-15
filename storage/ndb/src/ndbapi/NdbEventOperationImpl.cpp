@@ -2214,15 +2214,19 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
   for (; pos != maxpos; pos = (pos + 1) & mask)
   {
     Gci_container* tmp = find_bucket(array[pos]);
-    assert(tmp->m_gcp_complete_rep_count >= TOTAL_BUCKETS_INIT);
-    tmp->m_gcp_complete_rep_count -= TOTAL_BUCKETS_INIT;
-    if (tmp->m_gcp_complete_rep_count == 0)
+    if (TOTAL_BUCKETS_INIT >= tmp->m_gcp_complete_rep_count)
     {
       found = true;
       if (0)
         ndbout_c("set_total_buckets(%u) complete %u/%u",
                  cnt, Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci));
+      tmp->m_gcp_complete_rep_count = 0;
       complete_bucket(tmp);
+    }
+    else
+    {
+      assert(tmp->m_gcp_complete_rep_count > TOTAL_BUCKETS_INIT);
+      tmp->m_gcp_complete_rep_count -= TOTAL_BUCKETS_INIT;
     }
   }
   if (found)
