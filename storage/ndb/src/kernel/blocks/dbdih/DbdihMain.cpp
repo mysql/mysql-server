@@ -505,18 +505,9 @@ void Dbdih::execCONTINUEB(Signal* signal)
     CopyGCIReq::CopyReason reason = (CopyGCIReq::CopyReason)signal->theData[1];
     ndbrequire(c_copyGCIMaster.m_copyReason == reason);
 
-#ifdef ERROR_INSERT
-    if (reason == CopyGCIReq::GLOBAL_CHECKPOINT && ERROR_INSERTED(7189))
-    {
-      sendToRandomNodes("COPY_GCI", signal, &c_COPY_GCIREQ_Counter,
-                        &Dbdih::sendCOPY_GCIREQ);
-      signal->theData[0] = 9999;
-      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
-      return;
-    }
-#endif
-    
-    sendLoopMacro(COPY_GCIREQ, sendCOPY_GCIREQ, RNIL);
+    // set to idle, to be able to reuse method
+    c_copyGCIMaster.m_copyReason = CopyGCIReq::IDLE;
+    copyGciLab(signal, reason);
     return;
   }
     break;
@@ -804,6 +795,16 @@ done:
     ok = true;
     jam();
     break;
+  case CopyGCIReq::RESTART_NR:
+    jam();
+    setNodeInfo(signal);
+    /**
+     * We dont really need to make anything durable here...skip it
+     */
+    c_copyGCISlave.m_copyReason = CopyGCIReq::IDLE;
+    signal->theData[0] = c_copyGCISlave.m_senderData;
+    sendSignal(c_copyGCISlave.m_senderRef, GSN_COPY_GCICONF, signal, 1, JBB);
+    return;
   }
   ndbrequire(ok);
   
@@ -2241,11 +2242,37 @@ void Dbdih::execSTART_MEREQ(Signal* signal)
   ndbrequire(c_nodeStartMaster.startNode == Tnodeid);
   ndbrequire(getNodeStatus(Tnodeid) == NodeRecord::STARTING);
   
+  if (getNodeInfo(Tnodeid).m_version >= NDBD_COPY_GCI_RESTART_NR)
+  {
+    jam();
+    /**
+     * COPY sysfile to starting node here directly
+     *   to that it gets nodegroups early on
+     */
+
+    /**
+     * Note: only one node can be starting now, so we can use
+     *       c_nodeStartMaster.startNode for determening where to send
+     */
+    c_nodeStartMaster.m_outstandingGsn = GSN_COPY_GCIREQ;
+    copyGciLab(signal, CopyGCIReq::RESTART_NR);
+  }
+  else
+  {
+    jam();
+    startme_copygci_conf(signal);
+  }
+}//Dbdih::nodeRestartStartRecConfLab()
+
+void
+Dbdih::startme_copygci_conf(Signal* signal)
+{
+  jam();
   Callback c = { safe_cast(&Dbdih::lcpBlockedLab), 
                  c_nodeStartMaster.startNode };
   Mutex mutex(signal, c_mutexMgr, c_nodeStartMaster.m_fragmentInfoMutex);
   mutex.lock(c, true, true);
-}//Dbdih::nodeRestartStartRecConfLab()
+}
 
 void Dbdih::lcpBlockedLab(Signal* signal, Uint32 nodeId, Uint32 retVal)
 {
@@ -4555,6 +4582,7 @@ void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
   case GSN_START_PERMCONF:
   case GSN_DICTSTARTREQ:
   case GSN_START_MECONF:
+  case GSN_COPY_GCIREQ:
     jam();
     break;
   default:
@@ -8840,13 +8868,27 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
 /*****************************************************************************/
 void Dbdih::copyGciLab(Signal* signal, CopyGCIReq::CopyReason reason) 
 {
-  if(c_copyGCIMaster.m_copyReason != CopyGCIReq::IDLE){
+  if(c_copyGCIMaster.m_copyReason != CopyGCIReq::IDLE)
+  {
     /**
-     * There can currently only be one waiting
+     * There can currently only be two waiting
      */
-    ndbrequire(c_copyGCIMaster.m_waiting == CopyGCIReq::IDLE);
-    c_copyGCIMaster.m_waiting = reason;
-    return;
+    for (Uint32 i = 0; i<CopyGCIMaster::WAIT_CNT; i++)
+    {
+      if (c_copyGCIMaster.m_waiting[i] == CopyGCIReq::IDLE)
+      {
+        jam();
+        c_copyGCIMaster.m_waiting[i] = reason;
+        return;
+      }
+
+      /**
+       * Code should *not* request more than WAIT_CNT copy-gci's
+       *   so this is an internal error
+       */
+      ndbrequire(false);
+      return;
+    }
   }
   c_copyGCIMaster.m_copyReason = reason;
 
@@ -8860,6 +8902,38 @@ void Dbdih::copyGciLab(Signal* signal, CopyGCIReq::CopyReason reason)
     return;
   }
 #endif
+
+  if (reason == CopyGCIReq::RESTART_NR)
+  {
+    jam();
+    if (c_nodeStartMaster.startNode != RNIL)
+    {
+      jam();
+      c_COPY_GCIREQ_Counter.clearWaitingFor();
+      c_COPY_GCIREQ_Counter.setWaitingFor(c_nodeStartMaster.startNode);
+      sendCOPY_GCIREQ(signal, c_nodeStartMaster.startNode, RNIL);
+      return;
+    }
+    else
+    {
+      jam();
+      reason = c_copyGCIMaster.m_copyReason = c_copyGCIMaster.m_waiting[0];
+      for (Uint32 i = 1; i<CopyGCIMaster::WAIT_CNT; i++)
+      {
+        jam();
+        c_copyGCIMaster.m_waiting[i-1] = c_copyGCIMaster.m_waiting[i];
+      }
+      c_copyGCIMaster.m_waiting[CopyGCIMaster::WAIT_CNT-1] =
+        CopyGCIReq::CopyGCIReq::IDLE;
+
+      if (reason == CopyGCIReq::IDLE)
+      {
+        jam();
+        return;
+      }
+      // fall-through
+    }
+  }
 
   sendLoopMacro(COPY_GCIREQ, sendCOPY_GCIREQ, RNIL);
 
@@ -8875,11 +8949,8 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
   senderNodePtr.i = signal->theData[0];
   receiveLoopMacro(COPY_GCIREQ, senderNodePtr.i);
 
-  CopyGCIReq::CopyReason waiting = c_copyGCIMaster.m_waiting;
   CopyGCIReq::CopyReason current = c_copyGCIMaster.m_copyReason;
-
   c_copyGCIMaster.m_copyReason = CopyGCIReq::IDLE;
-  c_copyGCIMaster.m_waiting = CopyGCIReq::IDLE;
 
   bool ok = false;
   switch(current){
@@ -8937,16 +9008,33 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
   case CopyGCIReq::IDLE:
     ok = false;
     jam();
+    break;
+  case CopyGCIReq::RESTART_NR:
+    ok = true;
+    jam();
+    startme_copygci_conf(signal);
+    break;
   }
   ndbrequire(ok);
+
+
+  c_copyGCIMaster.m_copyReason = c_copyGCIMaster.m_waiting[0];
+  for (Uint32 i = 1; i<CopyGCIMaster::WAIT_CNT; i++)
+  {
+    jam();
+    c_copyGCIMaster.m_waiting[i-1] = c_copyGCIMaster.m_waiting[i];
+  }
+  c_copyGCIMaster.m_waiting[CopyGCIMaster::WAIT_CNT-1] = CopyGCIReq::IDLE;
 
   /**
    * Pop queue
    */
-  if(waiting != CopyGCIReq::IDLE){
-    c_copyGCIMaster.m_copyReason = waiting;
+  if(c_copyGCIMaster.m_copyReason != CopyGCIReq::IDLE)
+  {
+    jam();
+
     signal->theData[0] = DihContinueB::ZCOPY_GCI;
-    signal->theData[1] = waiting;
+    signal->theData[1] = c_copyGCIMaster.m_copyReason;
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
 }//Dbdih::execCOPY_GCICONF()
@@ -12182,7 +12270,7 @@ void Dbdih::crashSystemAtGcpStop(Signal* signal, bool local)
 dolocal:  
   ndbout_c("m_copyReason: %d m_waiting: %d",
            c_copyGCIMaster.m_copyReason,
-           c_copyGCIMaster.m_waiting);
+           c_copyGCIMaster.m_waiting[0]);
   
   ndbout_c("c_copyGCISlave: sender{Data, Ref} %d %x reason: %d nextWord: %d",
 	   c_copyGCISlave.m_senderData,
