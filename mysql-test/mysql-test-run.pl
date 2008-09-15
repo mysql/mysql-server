@@ -1024,7 +1024,20 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Set the "tmp" directory
   # --------------------------------------------------------------------------
-  $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
+  if ( ! $opt_tmpdir )
+  {
+    $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
+
+    if (check_socket_path_length("$opt_tmpdir/testsocket.sock"))
+    {
+      mtr_report("Too long tmpdir path '$opt_tmpdir'",
+		 " creating a shorter one...");
+
+      # Create temporary directory in standard location for temporary files
+      $opt_tmpdir= tempdir( TMPDIR => 1, CLEANUP => 1 );
+      mtr_report(" - using tmpdir: '$opt_tmpdir'\n");
+    }
+  }
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
 
   # --------------------------------------------------------------------------
