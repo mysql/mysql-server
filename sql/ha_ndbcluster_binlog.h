@@ -94,7 +94,6 @@ enum SCHEMA_OP_TYPE
 const uint max_ndb_nodes= 256; /* multiple of 32 */
 
 static const char *ha_ndb_ext=".ndb";
-static const char share_prefix[]= "./";
 
 #ifdef HAVE_NDB_BINLOG
 #define NDB_EXCEPTIONS_TABLE_SUFFIX "$EX"
