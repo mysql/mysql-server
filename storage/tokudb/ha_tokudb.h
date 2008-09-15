@@ -301,6 +301,7 @@ public:
         pthread_mutex_unlock(&share->mutex);
     }
     virtual void get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values);
+    bool is_auto_inc_singleton();
     void print_error(int error, myf errflag);
     uint8 table_cache_type() {
         return HA_CACHE_TBL_TRANSACT;
