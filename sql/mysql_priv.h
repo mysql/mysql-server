@@ -2240,6 +2240,7 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
 #define FN_TO_IS_TMP    (1 << 1)
 #define FN_IS_TMP       (FN_FROM_IS_TMP | FN_TO_IS_TMP)
 #define NO_FRM_RENAME   (1 << 2)
+#define FRM_ONLY        (1 << 3)
 
 /* from hostname.cc */
 struct in_addr;
