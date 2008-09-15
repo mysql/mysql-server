@@ -612,6 +612,16 @@ sub run_worker ($) {
 
   $SIG{INT}= sub { exit(1); };
 
+  # Connect to server
+  my $server = new IO::Socket::INET
+    (
+     PeerAddr => 'localhost',
+     PeerPort => $server_port,
+     Proto    => 'tcp'
+    );
+  mtr_error("Could not connect to server at port $server_port: $!")
+    unless $server;
+
   # --------------------------------------------------------------------------
   # Set worker name
   # --------------------------------------------------------------------------
@@ -633,16 +643,6 @@ sub run_worker ($) {
   report_option('verbose', undef) if ($opt_verbose == 0);
 
   environment_setup();
-
-  # Connect to server
-  my $server = new IO::Socket::INET
-    (
-     PeerAddr => 'localhost',
-     PeerPort => $server_port,
-     Proto    => 'tcp'
-    );
-  mtr_error("Could not connect to server at port $server_port: $!")
-    unless $server;
 
   # Read hello from server which it will send when shared
   # resources have been setup
