@@ -2714,6 +2714,9 @@ then
   sql_server="vio sql"
 fi
 
+# "innochecksum" is not in the "innobase/" subdirectory, but should be switched
+AM_CONDITIONAL([BUILD_INNODB_TOOLS], [test X"$with_plugin_innobase" = Xyes])
+
 # IMPORTANT - do not modify LIBS past this line - this hack is the only way
 # I know to add the static NSS magic if we have static NSS libraries with
 # glibc - Sasha
