@@ -411,13 +411,32 @@ select * from t1 where a = 12;
 drop table t1;
 
 # some other ALTER combinations
-# add/drop pk
-create table t1 (a int not null, b varchar(10)) engine=ndb;
-show index from t1;
+# Check add/drop primary key (not supported on-line)
+create table t1(a int not null) engine=ndb;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+insert into t1 values (1),(2),(3);
 alter table t1 add primary key (a);
-show index from t1;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+update t1 set a = 17 where a = 1;
+select * from t1 order by a;
 alter table t1 drop primary key;
-show index from t1;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+update t1 set a = 1 where a = 17;
+select * from t1 order by a;
+drop table t1;
+
+# bug#31233 mysql_alter_table() fails to drop UNIQUE KEY
+create table t1(a int not null) engine=ndb;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+insert into t1 values (1),(2),(3);
+create unique index pk on t1(a);
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+update t1 set a = 17 where a = 1;
+select * from t1 order by a;
+alter table t1 drop index pk;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+update t1 set a = 1 where a = 17;
+select * from t1 order by a;
 drop table t1;
 
 # alter .. alter
