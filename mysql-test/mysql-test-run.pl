@@ -1523,8 +1523,9 @@ sub mysql_client_test_arguments(){
   # mysql_client_test executable may _not_ exist
   if ( $opt_embedded_server ) {
     $exe= mtr_exe_maybe_exists(
-	    vs_config_dirs('libmysqld/examples','mysql_client_test_embedded'),
-	    "$basedir/libmysqld/examples/mysql_client_test_embedded");
+            vs_config_dirs('libmysqld/examples','mysql_client_test_embedded'),
+	      "$basedir/libmysqld/examples/mysql_client_test_embedded",
+		"$basedir/bin/mysql_client_test_embedded");
   } else {
     $exe= mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
 			       "$basedir/tests/mysql_client_test",
