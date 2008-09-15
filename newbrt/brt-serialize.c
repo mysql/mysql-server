@@ -556,11 +556,14 @@ void toku_verify_counts (BRTNODE node) {
 int toku_serialize_brt_header_size (struct brt_header *h) {
     unsigned int size = (+8 // "tokudata"  
 			 +4 // size
-			 +4 // tree's nodesize
 			 +4 // version
-			 +8 // freelist
-			 +8 // unused memory
-			 +4); // n_named_roots
+			 +4 // tree's nodesize
+			 +8 // free blocks
+			 +8 // unused blocks
+			 +4 // n_named_roots
+			 +8 // max_blocknum_translated
+			 +8 // block_translation_address_on_disk
+			 );
     if (h->n_named_roots<0) {
 	size+=(+8 // diskoff
 	       +4 // flags
@@ -587,7 +590,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
     wbuf_BLOCKNUM(wbuf, h->free_blocks);
     wbuf_BLOCKNUM(wbuf, h->unused_blocks);
     wbuf_int    (wbuf, h->n_named_roots);
-    if (h->block_translation_address_on_disk !=0 ) {
+    if (h->block_translation_address_on_disk != 0) {
 	block_allocator_free_block(h->block_allocator, h->block_translation_address_on_disk);
     }
     block_allocator_alloc_block(h->block_allocator, 4 + 8*h->max_blocknum_translated, &h->block_translation_address_on_disk);
@@ -627,13 +630,16 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     {
 	struct wbuf w;
 	u_int64_t size = 4 + h->max_blocknum_translated * 8; // 4 for the checksum
+	printf("%s:%d writing translation table of size %ld\n", __FILE__, __LINE__, size);
 	wbuf_init(&w, toku_malloc(size), size);
 	u_int64_t i;
 	for (i=0; i<h->max_blocknum_translated; i++) {
 	    wbuf_ulonglong(&w, h->block_translation[i].diskoff);
 	    wbuf_ulonglong(&w, h->block_translation[i].size);
 	}
-	wbuf_int(&w, x1764_finish(&w.checksum));
+	u_int32_t checksum = x1764_finish(&w.checksum);
+	printf("%s:%d writing to %ld,  checksum=%d offset=%d size=%ld\n", __FILE__, __LINE__, h->block_translation_address_on_disk, checksum, w.ndone, size);
+	wbuf_int(&w, checksum);
 	ssize_t nwrote = pwrite(fd, w.buf, size, h->block_translation_address_on_disk);
 	assert(nwrote==(ssize_t)size);
 	toku_free(w.buf);
@@ -670,10 +676,9 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
     h->block_translation_address_on_disk = rbuf_diskoff(&rc);
     // Set up the the block translation buffer.
     create_block_allocator(&h->block_allocator, h->nodesize);
-    if (h->max_blocknum_translated == 0) {
+    if (h->block_translation_address_on_disk == 0) {
 	h->block_translation = 0;
     } else {
-	// 
 	block_allocator_alloc_block_at(h->block_allocator, h->block_translation_address_on_disk, h->block_translation_size_on_disk);
 	XMALLOC_N(h->max_blocknum_translated, h->block_translation);
 	unsigned char *XMALLOC_N(h->block_translation_size_on_disk, tbuf);
@@ -684,7 +689,9 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
 	{
 	    // check the checksum
 	    u_int32_t x1764 = x1764_memory(tbuf, h->block_translation_size_on_disk - 4);
-	    u_int32_t stored_x1764 = ntohl(*(int*)(tbuf + h->block_translation_size_on_disk - 4));
+	    u_int64_t offset = h->block_translation_size_on_disk - 4;
+	    printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, h->block_translation_address_on_disk, offset, h->block_translation_size_on_disk);
+	    u_int32_t stored_x1764 = ntohl(*(int*)(tbuf + offset));
 	    assert(x1764 == stored_x1764);
 	}
 	// now read all that data.

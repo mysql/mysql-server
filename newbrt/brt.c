@@ -33,6 +33,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "block_allocator.h"
 #include "toku_assert.h"
 #include "brt-internal.h"
 #include "key.h"
@@ -2155,6 +2156,11 @@ static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
     t->h->nodesize=t->nodesize;
     t->h->free_blocks = make_blocknum(-1);
     t->h->unused_blocks=make_blocknum(2);
+    t->h->max_blocknum_translated = 0;
+    t->h->block_translation = 0;
+    t->h->block_translation_size_on_disk = 0;
+    t->h->block_translation_address_on_disk = 0;
+    create_block_allocator(&t->h->block_allocator, t->nodesize);
     toku_fifo_create(&t->h->fifo);
     t->root_put_counter = global_root_put_counter++; 
     if (dbname) {
