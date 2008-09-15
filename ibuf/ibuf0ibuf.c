@@ -404,12 +404,10 @@ static
 void
 ibuf_size_update(
 /*=============*/
-	page_t*		root,	/* in: ibuf tree root */
+	const page_t*	root,	/* in: ibuf tree root */
 	mtr_t*		mtr)	/* in: mtr */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&ibuf_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ibuf->free_list_len = flst_get_len(root + PAGE_HEADER
 					   + PAGE_BTR_IBUF_FREE_LIST, mtr);
@@ -1006,9 +1004,8 @@ ibuf_page(
 			transaction is created. */
 {
 	ibool	ret;
-	mtr_t	mtr_local;
+	mtr_t	local_mtr;
 	page_t*	bitmap_page;
-	ibool	use_local_mtr = (mtr == NULL);
 
 	if (ibuf_fixed_addr_page(space, zip_size, page_no)) {
 
@@ -1020,8 +1017,8 @@ ibuf_page(
 
 	ut_ad(fil_space_get_type(IBUF_SPACE_ID) == FIL_TABLESPACE);
 
-	if (use_local_mtr) {
-		mtr = &mtr_local;
+	if (mtr == NULL) {
+		mtr = &local_mtr;
 		mtr_start(mtr);
 	}
 
@@ -1030,7 +1027,7 @@ ibuf_page(
 	ret = ibuf_bitmap_page_get_bits(bitmap_page, page_no, zip_size,
 					IBUF_BITMAP_IBUF, mtr);
 
-	if (use_local_mtr) {
+	if (mtr == &local_mtr) {
 		mtr_commit(mtr);
 	}
 
@@ -1266,8 +1263,8 @@ static
 void
 ibuf_print_ops(
 /*===========*/
-	const ulint*	ops,	/* in: operation counts */
-	FILE*		file)	/* in: file where to print */
+	ulint*	ops,	/* in: operation counts */
+	FILE*	file)	/* in: file where to print */
 {
 	static const char* op_names[] = {
 		"insert",
@@ -1300,11 +1297,12 @@ ibuf_dummy_index_create(
 	dict_table_t*	table;
 	dict_index_t*	index;
 
-	table = dict_mem_table_create(
-		"IBUF_DUMMY", DICT_HDR_SPACE, n, comp ? DICT_TF_COMPACT : 0);
+	table = dict_mem_table_create("IBUF_DUMMY",
+				      DICT_HDR_SPACE, n,
+				      comp ? DICT_TF_COMPACT : 0);
 
-	index = dict_mem_index_create(
-		"IBUF_DUMMY", "IBUF_DUMMY", DICT_HDR_SPACE, 0, n);
+	index = dict_mem_index_create("IBUF_DUMMY", "IBUF_DUMMY",
+				      DICT_HDR_SPACE, 0, n);
 
 	index->table = table;
 
@@ -1324,14 +1322,12 @@ ibuf_dummy_index_add_col(
 	ulint		len)	/* in: length of the column */
 {
 	ulint	i	= index->table->n_def;
-
-	dict_mem_table_add_col(
-		index->table, NULL, NULL, dtype_get_mtype(type),
-		dtype_get_prtype(type), dtype_get_len(type));
-
-	dict_index_add_col(
-		index, index->table,
-		dict_table_get_nth_col(index->table, i), len);
+	dict_mem_table_add_col(index->table, NULL, NULL,
+			       dtype_get_mtype(type),
+			       dtype_get_prtype(type),
+			       dtype_get_len(type));
+	dict_index_add_col(index, index->table,
+			   dict_table_get_nth_col(index->table, i), len);
 }
 /************************************************************************
 Deallocates a dummy index for inserting a record to a non-clustered index.
@@ -2235,9 +2231,10 @@ ibuf_get_merge_page_nos(
 		    != (first_page_no / IBUF_MERGE_AREA)) {
 
 			break;
-		} else if (rec_page_no != prev_page_no
-			   || rec_space_id != prev_space_id) {
+		}
 
+		if (rec_page_no != prev_page_no
+		    || rec_space_id != prev_space_id) {
 			n_pages++;
 		}
 
@@ -2395,10 +2392,9 @@ ibuf_contract_ext(
 
 	mutex_exit(&ibuf_mutex);
 
-	sum_sizes = ibuf_get_merge_page_nos(
-		TRUE, btr_pcur_get_rec(&pcur),
-		space_ids, space_versions, page_nos, &n_stored);
-
+	sum_sizes = ibuf_get_merge_page_nos(TRUE, btr_pcur_get_rec(&pcur),
+					    space_ids, space_versions,
+					    page_nos, &n_stored);
 #if 0 /* defined UNIV_IBUF_DEBUG */
 	fprintf(stderr, "Ibuf contract sync %lu pages %lu volume %lu\n",
 		sync, n_stored, sum_sizes);
@@ -3041,8 +3037,8 @@ ibuf_insert_low(
 #endif
 	mtr_start(&bitmap_mtr);
 
-	bitmap_page = ibuf_bitmap_get_map_page(
-		space, page_no, zip_size, &bitmap_mtr);
+	bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
+					       zip_size, &bitmap_mtr);
 
 	/* We check if the index page is suitable for buffered entries */
 
@@ -3055,16 +3051,15 @@ ibuf_insert_low(
 		goto function_exit;
 	}
 
-	bits = ibuf_bitmap_page_get_bits(
-		bitmap_page, page_no, zip_size, IBUF_BITMAP_FREE, &bitmap_mtr);
+	bits = ibuf_bitmap_page_get_bits(bitmap_page, page_no, zip_size,
+					 IBUF_BITMAP_FREE, &bitmap_mtr);
 
 	if (buffered + entry_size + page_dir_calc_reserved_space(1)
 	    > ibuf_index_page_calc_free_from_bits(zip_size, bits)) {
+		mtr_commit(&bitmap_mtr);
 
 		/* It may not fit */
 		err = DB_STRONG_FAIL;
-
-		mtr_commit(&bitmap_mtr);
 
 		do_merge = TRUE;
 
