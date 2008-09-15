@@ -37,9 +37,6 @@ struct ibuf_struct{
 	ulint		height;		/* tree height */
 	dict_index_t*	index;		/* insert buffer index */
 
-	ulint		n_ops[IBUF_OP_COUNT];
-					/* number of operations of each type
-					done */
 	ulint		n_merges;	/* number of pages merged */
 	ulint		n_merged_ops[IBUF_OP_COUNT];
 					/* number of operations of each type
