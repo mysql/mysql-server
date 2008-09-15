@@ -322,7 +322,7 @@ row_purge_remove_sec_if_poss_low(
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 	leaf_in_buf_pool = btr_cur->leaf_in_buf_pool;
 
-	ut_a(!(found && !leaf_in_buf_pool));
+	ut_a(!found || leaf_in_buf_pool);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
