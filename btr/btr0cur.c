@@ -3151,6 +3151,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		matched_fields;
 	ulint		matched_bytes;
 	ib_int64_t*	n_diff;
+	ullint		n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
 	ulint		i;
@@ -3169,9 +3170,21 @@ btr_estimate_number_of_different_key_vals(
 
 	n_diff = mem_zalloc((n_cols + 1) * sizeof(ib_int64_t));
 
+	/* It makes no sense to test more pages than are contained
+	in the index, thus we lower the number if it is too high */
+	if (srv_stats_sample_pages > index->stat_index_size) {
+		if (index->stat_index_size > 0) {
+			n_sample_pages = index->stat_index_size;
+		} else {
+			n_sample_pages = 1;
+		}
+	} else {
+		n_sample_pages = srv_stats_sample_pages;
+	}
+
 	/* We sample some pages in the index to get an estimate */
 
-	for (i = 0; i < srv_stats_sample_pages; i++) {
+	for (i = 0; i < n_sample_pages; i++) {
 		rec_t*	supremum;
 		mtr_start(&mtr);
 
@@ -3260,7 +3273,7 @@ btr_estimate_number_of_different_key_vals(
 	}
 
 	/* If we saw k borders between different key values on
-	srv_stats_sample_pages leaf pages, we can estimate how many
+	n_sample_pages leaf pages, we can estimate how many
 	there will be in index->stat_n_leaf_pages */
 
 	/* We must take into account that our sample actually represents
@@ -3271,26 +3284,26 @@ btr_estimate_number_of_different_key_vals(
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
 			    * (ib_int64_t)index->stat_n_leaf_pages
-			    + srv_stats_sample_pages - 1
+			    + n_sample_pages - 1
 			    + total_external_size
 			    + not_empty_flag)
-			   / (srv_stats_sample_pages
+			   / (n_sample_pages
 			      + total_external_size));
 
 		/* If the tree is small, smaller than
-		10 * srv_stats_sample_pages + total_external_size, then
+		10 * n_sample_pages + total_external_size, then
 		the above estimate is ok. For bigger trees it is common that we
 		do not see any borders between key values in the few pages
-		we pick. But still there may be srv_stats_sample_pages
+		we pick. But still there may be n_sample_pages
 		different key values, or even more. Let us try to approximate
 		that: */
 
 		add_on = index->stat_n_leaf_pages
-			/ (10 * (srv_stats_sample_pages
+			/ (10 * (n_sample_pages
 				 + total_external_size));
 
-		if (add_on > srv_stats_sample_pages) {
-			add_on = srv_stats_sample_pages;
+		if (add_on > n_sample_pages) {
+			add_on = n_sample_pages;
 		}
 
 		index->stat_n_diff_key_vals[j] += add_on;
