@@ -1265,9 +1265,9 @@ Print operation counts. The array must be of size IBUF_OP_COUNT. */
 static
 void
 ibuf_print_ops(
-/*=========*/
-	ulint*	ops,	/* in: operation counts */
-	FILE*	file)	/* in: file where to print */
+/*===========*/
+	const ulint*	ops,	/* in: operation counts */
+	FILE*		file)	/* in: file where to print */
 {
 	static const char* op_names[] = {
 		"insert",
@@ -1282,6 +1282,8 @@ ibuf_print_ops(
 		fprintf(file, "%s %lu%s", op_names[i],
 			(ulong) ops[i], (i < (IBUF_OP_COUNT - 1)) ? ", " : "");
 	}
+
+	putc('\n', file);
 }
 
 /************************************************************************
@@ -4082,20 +4084,18 @@ ibuf_print(
 	mutex_enter(&ibuf_mutex);
 
 	fprintf(file,
-		"Ibuf: size %lu, free list len %lu, seg size %lu, %lu merges\n"
-		"total operations:\n ",
+		"Ibuf: size %lu, free list len %lu,"
+		" seg size %lu, %lu merges\n",
 		(ulong) ibuf->size,
 		(ulong) ibuf->free_list_len,
 		(ulong) ibuf->seg_size,
 		(ulong) ibuf->n_merges);
-	ibuf_print_ops(ibuf->n_ops, file);
 
-	fprintf(file, "\nmerged operations:\n ");
+	fputs("merged operations:\n ", file);
 	ibuf_print_ops(ibuf->n_merged_ops, file);
 
-	fprintf(file, "\ndiscarded operations:\n ");
+	fputs("discarded operations:\n ", file);
 	ibuf_print_ops(ibuf->n_discarded_ops, file);
-	fputs("\n", file);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	for (i = 0; i < IBUF_COUNT_N_SPACES; i++) {
