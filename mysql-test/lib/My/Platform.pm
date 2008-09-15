@@ -102,14 +102,22 @@ sub check_socket_path_length {
 
   require IO::Socket::UNIX;
 
-  my $sock = new IO::Socket::UNIX
-  (
-   Local => $path,
-   Listen => 1,
-  );
+  my $sock;
+  eval {
+    $sock= new IO::Socket::UNIX
+      (
+       Local => $path,
+       Listen => 1,
+      );
+  };
+  if ($@)
+  {
+    print $@, '\n';
+    return 2;
+  }
   if (!defined $sock){
     # Could not create a UNIX domain socket
-    return 0; # Ok, will not be used by mysqld either    
+    return 3;
   }
   if ($path ne $sock->hostpath()){
     # Path was truncated
