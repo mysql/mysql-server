@@ -244,21 +244,25 @@ page_header_reset_last_insert(
 				uncompressed part will be updated, or NULL */
 	mtr_t*		mtr);	/* in: mtr */
 /****************************************************************
-Gets the first record on the page. */
+Gets the offset of the first record on the page. */
 UNIV_INLINE
-rec_t*
-page_get_infimum_rec(
-/*=================*/
-			/* out: the first record in record list */
-	page_t*	page);	/* in: page which must have record(s) */
+ulint
+page_get_infimum_offset(
+/*====================*/
+				/* out: offset of the first record
+				in record list, relative from page */
+	const page_t*	page);	/* in: page which must have record(s) */
 /****************************************************************
-Gets the last record on the page. */
+Gets the offset of the last record on the page. */
 UNIV_INLINE
-rec_t*
-page_get_supremum_rec(
-/*==================*/
-			/* out: the last record in record list */
-	page_t*	page);	/* in: page which must have record(s) */
+ulint
+page_get_supremum_offset(
+/*=====================*/
+				/* out: offset of the last record in
+				record list, relative from page */
+	const page_t*	page);	/* in: page which must have record(s) */
+#define page_get_infimum_rec(page) ((page) + page_get_infimum_offset(page))
+#define page_get_supremum_rec(page) ((page) + page_get_supremum_offset(page))
 /****************************************************************
 Returns the middle record of record list. If there are an even number
 of records in the list, returns the first record of upper half-list. */
