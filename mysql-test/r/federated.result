@@ -9,7 +9,9 @@ DROP DATABASE IF EXISTS federated;
 CREATE DATABASE federated;
 DROP DATABASE IF EXISTS federated;
 CREATE DATABASE federated;
-SET @OLD_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
+SET @OLD_MASTER_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
+SET @@GLOBAL.CONCURRENT_INSERT= 0;
+SET @OLD_SLAVE_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
 SET @@GLOBAL.CONCURRENT_INSERT= 0;
 DROP TABLE IF EXISTS federated.t1;
 Warnings:
@@ -186,6 +188,7 @@ INSERT INTO federated.t1 (name, other) VALUES ('Tenth Name', 101010);
 SELECT * FROM federated.t1;
 id	name	other	created
 1	First Name	11111	2004-04-04 04:04:04
+10	Tenth Name	101010	2004-04-04 04:04:04
 2	Second Name	22222	2004-04-04 04:04:04
 3	Third Name	33333	2004-04-04 04:04:04
 4	Fourth Name	44444	2004-04-04 04:04:04
@@ -194,7 +197,6 @@ id	name	other	created
 7	Seventh Name	77777	2004-04-04 04:04:04
 8	Eigth Name	88888	2004-04-04 04:04:04
 9	Ninth Name	99999	2004-04-04 04:04:04
-10	Tenth Name	101010	2004-04-04 04:04:04
 SELECT * FROM federated.t1 WHERE id = 5;
 id	name	other	created
 5	Fifth Name	55555	2004-04-04 04:04:04
@@ -208,6 +210,7 @@ SELECT * FROM federated.t1 WHERE name = 'Sixth Name' AND other = 44444;
 id	name	other	created
 SELECT * FROM federated.t1 WHERE name like '%th%';
 id	name	other	created
+10	Tenth Name	101010	2004-04-04 04:04:04
 3	Third Name	33333	2004-04-04 04:04:04
 4	Fourth Name	44444	2004-04-04 04:04:04
 5	Fifth Name	55555	2004-04-04 04:04:04
@@ -215,7 +218,6 @@ id	name	other	created
 7	Seventh Name	77777	2004-04-04 04:04:04
 8	Eigth Name	88888	2004-04-04 04:04:04
 9	Ninth Name	99999	2004-04-04 04:04:04
-10	Tenth Name	101010	2004-04-04 04:04:04
 UPDATE federated.t1 SET name = '3rd name' WHERE id = 3;
 SELECT * FROM federated.t1 WHERE name = '3rd name';
 id	name	other	created
@@ -336,6 +338,7 @@ VALUES ('Tenth Name', 101010, '2005-03-12 12:00:01');
 SELECT * FROM federated.t1;
 id	name	other	created
 1	First Name	11111	2004-01-01 01:01:01
+10	Tenth Name	101010	2005-03-12 12:00:01
 2	Second Name	22222	2004-01-23 02:43:00
 3	Third Name	33333	2004-02-14 02:14:00
 4	Fourth Name	44444	2003-04-05 00:00:00
@@ -344,7 +347,6 @@ id	name	other	created
 7	Seventh Name	77777	2003-12-12 18:32:00
 8	Eigth Name	88888	2005-03-12 11:00:00
 9	Ninth Name	99999	2005-03-12 11:00:01
-10	Tenth Name	101010	2005-03-12 12:00:01
 SELECT * FROM federated.t1 WHERE id = 5;
 id	name	other	created
 5	Fifth Name	55555	2001-02-02 02:02:02
@@ -356,6 +358,7 @@ id	name	other	created
 4	Fourth Name	44444	2003-04-05 00:00:00
 SELECT * FROM federated.t1 WHERE name like '%th%';
 id	name	other	created
+10	Tenth Name	101010	2005-03-12 12:00:01
 3	Third Name	33333	2004-02-14 02:14:00
 4	Fourth Name	44444	2003-04-05 00:00:00
 5	Fifth Name	55555	2001-02-02 02:02:02
@@ -363,7 +366,6 @@ id	name	other	created
 7	Seventh Name	77777	2003-12-12 18:32:00
 8	Eigth Name	88888	2005-03-12 11:00:00
 9	Ninth Name	99999	2005-03-12 11:00:01
-10	Tenth Name	101010	2005-03-12 12:00:01
 UPDATE federated.t1 SET name = '3rd name' WHERE id = 3;
 SELECT * FROM federated.t1 WHERE name = '3rd name';
 id	name	other	created
@@ -470,17 +472,17 @@ id	name	other
 7	Seventh Name	NULL
 SELECT * FROM federated.t1 WHERE name IS NULL;
 id	name	other
-4	NULL	NULL
 10	NULL	fee fie foe fum
+4	NULL	NULL
 SELECT * FROM federated.t1 WHERE name IS NULL and other IS NULL;
 id	name	other
 4	NULL	NULL
 SELECT * FROM federated.t1 WHERE name IS NULL or other IS NULL;
 id	name	other
+10	NULL	fee fie foe fum
 2	Second Name	NULL
 4	NULL	NULL
 7	Seventh Name	NULL
-10	NULL	fee fie foe fum
 UPDATE federated.t1
 SET name = 'Fourth Name', other = 'four four four'
 WHERE name IS NULL AND other IS NULL;
@@ -492,6 +494,7 @@ id	name	other
 SELECT * FROM federated.t1;
 id	name	other
 1	First Name	11111
+10	Tenth Name	fee fie foe fum
 2	Second Name	two two two two
 3	Third Name	33333
 4	Fourth Name	four four four
@@ -500,7 +503,6 @@ id	name	other
 7	Seventh Name	seven seven
 8	Eigth Name	88888
 9	Ninth Name	99999
-10	Tenth Name	fee fie foe fum
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL auto_increment,
@@ -681,8 +683,8 @@ id	col1	col2	col3	col4
 SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'five 5 five five 5')
 OR (col2 = 'three Three' AND col3 = 33);
 id	col1	col2	col3	col4
-5	5	five 5 five five 5	5	55555
 3	3	three Three	33	33333
+5	5	five 5 five five 5	5	55555
 SELECT * FROM federated.t1 WHERE (id = 5 AND col2 = 'Two two')
 OR (col2 = 444 AND col3 = 4444444);
 id	col1	col2	col3	col4
@@ -693,25 +695,25 @@ OR col3 = 33
 OR col4 = 4444444;
 id	col1	col2	col3	col4
 1	1	one One	11	1111
+10	10	Tenth ten TEN	1010101	1010
 2	2	Two two	22	2222
 3	3	three Three	33	33333
 4	4	fourfourfour	444	4444444
-10	10	Tenth ten TEN	1010101	1010
 SELECT * FROM federated.t1 WHERE id > 5;
 id	col1	col2	col3	col4
+10	10	Tenth ten TEN	1010101	1010
 6	6	six six Sixsix	6666	6
 7	7	seven Sevenseven	77777	7777
 8	8	eight eight eight	88888	88
 9	9	nine Nine	999999	999999
-10	10	Tenth ten TEN	1010101	1010
 SELECT * FROM federated.t1 WHERE id >= 5;
 id	col1	col2	col3	col4
+10	10	Tenth ten TEN	1010101	1010
 5	5	five 5 five five 5	5	55555
 6	6	six six Sixsix	6666	6
 7	7	seven Sevenseven	77777	7777
 8	8	eight eight eight	88888	88
 9	9	nine Nine	999999	999999
-10	10	Tenth ten TEN	1010101	1010
 SELECT * FROM federated.t1 WHERE id < 5;
 id	col1	col2	col3	col4
 1	1	one One	11	1111
@@ -728,6 +730,7 @@ id	col1	col2	col3	col4
 SELECT * FROM federated.t1 WHERE id != 5;
 id	col1	col2	col3	col4
 1	1	one One	11	1111
+10	10	Tenth ten TEN	1010101	1010
 2	2	Two two	22	2222
 3	3	three Three	33	33333
 4	4	fourfourfour	444	4444444
@@ -735,7 +738,6 @@ id	col1	col2	col3	col4
 7	7	seven Sevenseven	77777	7777
 8	8	eight eight eight	88888	88
 9	9	nine Nine	999999	999999
-10	10	Tenth ten TEN	1010101	1010
 SELECT * FROM federated.t1 WHERE id > 3 AND id < 7;
 id	col1	col2	col3	col4
 4	4	fourfourfour	444	4444444
@@ -763,25 +765,25 @@ id	col1	col2	col3	col4
 SELECT * FROM federated.t1 WHERE id < 3 OR id > 7;
 id	col1	col2	col3	col4
 1	1	one One	11	1111
+10	10	Tenth ten TEN	1010101	1010
 2	2	Two two	22	2222
 8	8	eight eight eight	88888	88
 9	9	nine Nine	999999	999999
-10	10	Tenth ten TEN	1010101	1010
 SELECT * FROM federated.t1 WHERE col2 = 'three Three';
 id	col1	col2	col3	col4
 3	3	three Three	33	33333
 SELECT * FROM federated.t1 WHERE col2 > 'one';
 id	col1	col2	col3	col4
 1	1	one One	11	1111
+10	10	Tenth ten TEN	1010101	1010
 2	2	Two two	22	2222
 3	3	three Three	33	33333
 6	6	six six Sixsix	6666	6
 7	7	seven Sevenseven	77777	7777
-10	10	Tenth ten TEN	1010101	1010
 SELECT * FROM federated.t1 WHERE col2 LIKE 's%';
 id	col1	col2	col3	col4
-7	7	seven Sevenseven	77777	7777
 6	6	six six Sixsix	6666	6
+7	7	seven Sevenseven	77777	7777
 SELECT * FROM federated.t1 WHERE col2 LIKE 'si%';
 id	col1	col2	col3	col4
 6	6	six six Sixsix	6666	6
@@ -791,6 +793,7 @@ id	col1	col2	col3	col4
 SELECT * FROM federated.t1 WHERE col2 NOT LIKE 'e%';
 id	col1	col2	col3	col4
 1	1	one One	11	1111
+10	10	Tenth ten TEN	1010101	1010
 2	2	Two two	22	2222
 3	3	three Three	33	33333
 4	4	fourfourfour	444	4444444
@@ -798,18 +801,17 @@ id	col1	col2	col3	col4
 6	6	six six Sixsix	6666	6
 7	7	seven Sevenseven	77777	7777
 9	9	nine Nine	999999	999999
-10	10	Tenth ten TEN	1010101	1010
 SELECT * FROM federated.t1 WHERE col2 <> 'one One';
 id	col1	col2	col3	col4
-4	4	fourfourfour	444	4444444
-5	5	five 5 five five 5	5	55555
-8	8	eight eight eight	88888	88
-9	9	nine Nine	999999	999999
+10	10	Tenth ten TEN	1010101	1010
 2	2	Two two	22	2222
 3	3	three Three	33	33333
+4	4	fourfourfour	444	4444444
+5	5	five 5 five five 5	5	55555
 6	6	six six Sixsix	6666	6
 7	7	seven Sevenseven	77777	7777
-10	10	Tenth ten TEN	1010101	1010
+8	8	eight eight eight	88888	88
+9	9	nine Nine	999999	999999
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `col1` varchar(8) NOT NULL DEFAULT '',
@@ -976,11 +978,11 @@ INSERT INTO federated.t1 (name, floatval, other)
 VALUES (0, 00.3333, NULL);
 SELECT * FROM federated.t1;
 id	name	floatval	other
-NULL	NULL	NULL	NULL
-NULL	NULL	NULL	NULL
 1	NULL	NULL	NULL
-NULL	foo	33.3333	NULL
 NULL	0	0.3333	NULL
+NULL	NULL	NULL	NULL
+NULL	NULL	NULL	NULL
+NULL	foo	33.3333	NULL
 SELECT count(*) FROM federated.t1 
 WHERE id IS NULL 
 AND name IS NULL 
@@ -2132,6 +2134,8 @@ End of 5.0 tests
 create server 's1' foreign data wrapper 'mysql' options (port 3306);
 drop server 's1';
 End of 5.1 tests
+SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
+SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
