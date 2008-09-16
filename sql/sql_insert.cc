@@ -1545,6 +1545,17 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         }
       }
     }
+    
+    /*
+        If more than one iteration of the above while loop is done, from the second 
+        one the row being inserted will have an explicit value in the autoinc field, 
+        which was set at the first call of handler::update_auto_increment(). This 
+        value is saved to avoid thd->insert_id_for_cur_row becoming 0. Use this saved
+        autoinc value.
+     */
+    if (table->file->insert_id_for_cur_row == 0)
+      table->file->insert_id_for_cur_row= insert_id_for_cur_row;
+      
     thd->record_first_successful_insert_id_in_cur_stmt(table->file->insert_id_for_cur_row);
     /*
       Restore column maps if they where replaced during an duplicate key
