@@ -149,9 +149,7 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     } else {
 	assert(0);
     }
-    u_int32_t fullhash = toku_cachetable_hash(pair->cf, header_blocknum);
-    h->fullhash = fullhash;
-    toku_cachetable_put(pair->cf, header_blocknum, fullhash, h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+    //toku_cachetable_put(pair->cf, header_blocknum, fullhash, h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
     if (pair->brt) {
 	toku_free(pair->brt->h);
     }  else {
@@ -168,8 +166,7 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     pair->brt->h = h;
     pair->brt->nodesize = h->nodesize;
     pair->brt->flags    = h->nodesize;
-    r = toku_unpin_brt_header(pair->brt);
-    assert(r==0);
+    toku_cachefile_set_userdata(pair->cf, pair->brt->h, toku_brtheader_close);
 }
 
 void toku_recover_newbrtnode (LSN lsn, FILENUM filenum, BLOCKNUM blocknum,u_int32_t height,u_int32_t nodesize,u_int8_t is_dup_sort,u_int32_t rand4fingerprint) {
@@ -238,12 +235,10 @@ static void toku_recover_deqrootentry (LSN lsn __attribute__((__unused__)), FILE
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
-    void *h_v;
-    u_int32_t fullhash = toku_cachetable_hash(pair->cf, header_blocknum);
-    r = toku_cachetable_get_and_pin(pair->cf, header_blocknum, fullhash,
-				    &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
-    assert(r==0);
-    struct brt_header *h=h_v;
+    //void *h_v;
+    //r = toku_cachetable_get_and_pin(pair->cf, header_blocknum, fullhash,
+    //				    &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+    struct brt_header *h=0;
     bytevec storedkey,storeddata;
     ITEMLEN storedkeylen, storeddatalen;
     TXNID storedxid;
@@ -252,8 +247,8 @@ static void toku_recover_deqrootentry (LSN lsn __attribute__((__unused__)), FILE
     assert(r==0);
     r = toku_fifo_deq(h->fifo);
     assert(r==0);
-    r = toku_cachetable_unpin(pair->cf, header_blocknum, fullhash, 1, 0);
-    assert(r==0);
+    //r = toku_cachetable_unpin(pair->cf, header_blocknum, fullhash, 1, 0);
+    //assert(r==0);
 }
 
 void toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
@@ -262,7 +257,12 @@ void toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM fil
     assert(r==0);
     void *h_v;
     u_int32_t fullhash = toku_cachetable_hash(pair->cf, header_blocknum);
-    r = toku_cachetable_get_and_pin(pair->cf, header_blocknum, fullhash, &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+    if (0) {
+	//r = toku_cachetable_get_and_pin(pair->cf, header_blocknum, fullhash, &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+    } else {
+	h_v=0;
+	assert(0);
+    }
     assert(r==0);
     struct brt_header *h=h_v;
     r = toku_fifo_enq(h->fifo, key.data, key.len, val.data, val.len, typ, xid); 
@@ -655,11 +655,9 @@ void toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(o
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     assert(pair->brt);
-    r = toku_read_and_pin_brt_header(pair->cf, &pair->brt->h);
-    assert(r==0);
+    assert(pair->brt->h);
     pair->brt->h->roots[0] = newroot;
     pair->brt->h->root_hashes[0].valid = FALSE;
-    r = toku_unpin_brt_header(pair->brt);
 }
 void toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), BLOCKNUM UU(oldroot), BLOCKNUM UU(newroot)) { assert(0); }
 
@@ -668,10 +666,8 @@ void toku_recover_changeunusedmemory (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     assert(pair->brt);
-    r = toku_read_and_pin_brt_header(pair->cf, &pair->brt->h);
-    assert(r==0);
+    assert(pair->brt->h);
     pair->brt->h->unused_blocks = newunused;
-    r = toku_unpin_brt_header(pair->brt);
 }
 
 static int toku_recover_checkpoint (LSN UU(lsn)) {

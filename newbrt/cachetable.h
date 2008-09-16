@@ -46,14 +46,18 @@ typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, CACHEKEY key, void *value, 
 // the fetch callback 
 typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs, LSN *written_lsn);
 
-// Put a key and value pair into the cachetable
-// effects: if the key,cachefile is not in the cachetable, then insert the pair and pin it.
-// returns: 0 if success, otherwise an error 
+void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata, int (*close_userdata)(CACHEFILE, void*));
+// Effect: Store some cachefile-specific data.  When the last reference to a cachefile is closed, we call close_userdata.
+// If userdata is already non-NULL, then we simply overwrite it.
+void *toku_cachefile_get_userdata(CACHEFILE);
 
 int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 			void *value, long size,
 			CACHETABLE_FLUSH_CALLBACK flush_callback, 
                         CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
+// Effect: Put a key and value pair into the cachetable
+//  If the key,cachefile is not in the cachetable, then insert the pair and pin it.
+// returns: 0 if success, otherwise an error 
 
 int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
 				void **/*value*/, long *sizep,
