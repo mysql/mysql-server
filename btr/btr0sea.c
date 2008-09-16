@@ -971,21 +971,21 @@ btr_search_drop_page_hash_index(
 				for which we know that
 				block->buf_fix_count == 0 */
 {
-	hash_table_t*	table;
-	ulint		n_fields;
-	ulint		n_bytes;
-	page_t*		page;
-	rec_t*		rec;
-	ulint		fold;
-	ulint		prev_fold;
-	dulint		index_id;
-	ulint		n_cached;
-	ulint		n_recs;
-	ulint*		folds;
-	ulint		i;
-	mem_heap_t*	heap;
-	dict_index_t*	index;
-	ulint*		offsets;
+	hash_table_t*		table;
+	ulint			n_fields;
+	ulint			n_bytes;
+	const page_t*		page;
+	const rec_t*		rec;
+	ulint			fold;
+	ulint			prev_fold;
+	dulint			index_id;
+	ulint			n_cached;
+	ulint			n_recs;
+	ulint*			folds;
+	ulint			i;
+	mem_heap_t*		heap;
+	const dict_index_t*	index;
+	ulint*			offsets;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
@@ -1034,7 +1034,7 @@ retry:
 	n_cached = 0;
 
 	rec = page_get_infimum_rec(page);
-	rec = page_rec_get_next(rec);
+	rec = page_rec_get_next_low(rec, page_is_comp(page));
 
 	index_id = btr_page_get_index_id(page);
 
@@ -1062,7 +1062,7 @@ retry:
 		folds[n_cached] = fold;
 		n_cached++;
 next_rec:
-		rec = page_rec_get_next(rec);
+		rec = page_rec_get_next_low(rec, page_rec_is_comp(rec));
 		prev_fold = fold;
 	}
 
