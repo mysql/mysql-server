@@ -17,8 +17,6 @@ im_options_set       : Bug#20294: Instance manager tests fail randomly
 im_options_unset     : Bug#20294: Instance manager tests fail randomly
 im_utils             : Bug#20294: Instance manager tests fail randomly
 grant_cache          : Bug#32651: grant_cache.test fails
-rpl_log              : Bug#32653: rpl_log.test fails randomly
-rpl_view             : Bug#32654: rpl_view.test fails randomly
 ndb_backup_print     : Bug#32357: ndb_backup_print test fails sometimes in pushbuild
 rpl_log_pos          : Bug#8693 Test 'rpl_log_pos' fails sometimes
 kill                 : Bug#29149 Test "kill" fails on Windows
