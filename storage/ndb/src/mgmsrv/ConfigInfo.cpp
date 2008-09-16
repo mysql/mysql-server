@@ -4282,6 +4282,8 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
     tmp->get("NodeId", &id);
 
     for (;ng_cnt[next_ng] >= replicas; next_ng++);
+
+    delete tmp;
   }
 
   /**
@@ -4420,6 +4422,7 @@ ConfigInfo::ParamInfoIter::ParamInfoIter(const ConfigInfo& info,
                                          Uint32 section,
                                          Uint32 section_type) :
   m_info(info),
+  m_section_name(NULL),
   m_curr_param(0)
 {
   /* Find the section's name */
