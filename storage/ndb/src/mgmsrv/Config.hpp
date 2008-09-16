@@ -32,11 +32,59 @@
 class Config {
 public:
   Config(struct ndb_mgm_configuration *config_values = NULL);
+  Config(ConfigValues* config_values);
   virtual ~Config();
 
   void print() const;
 
+  /*
+    Returns generation of the config
+    0 => not set(yet), ie. config has never been committed
+   */
+  Uint32 getGeneration() const;
+  bool setGeneration(Uint32);
+
+  /*
+   Pack the config into a UtilBuffer and return it's size in bytes
+  */
+  Uint32 pack(UtilBuffer&) const;
+
+  /*
+    Compare against another config and return a list of
+    differences in a Properties object
+  */
+  void diff(const Config* other, Properties& diff_list,
+            const unsigned* exclude=NULL) const;
+
+  /*
+    Print the difference against another config
+   */
+  void print_diff(const Config* other) const;
+
+  /*
+    Print the difference to string buffer
+  */
+  const char* diff2str(const Config* other, BaseString& str) const;
+
+  /*
+    Determine if changing to the other config is illegal
+  */
+  bool illegal_change(const Config* other) const;
+
+  /*
+    Check if the config is equal to another config
+  */
+  bool equal(const Config*, const unsigned* exclude = NULL) const;
+
   struct ndb_mgm_configuration * m_configValues;
+
+private:
+  bool setValue(Uint32 section, Uint32 section_no,
+                Uint32 id, Uint32 new_gen);
+
+  bool illegal_change(const Properties&) const;
+  bool equal(const Properties&) const;
+  const char* diff2str(const Properties&, BaseString& str) const;
 };
 
 class ConfigIter : public ndb_mgm_configuration_iterator {
