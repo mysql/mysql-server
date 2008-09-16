@@ -180,6 +180,7 @@ public:
     Uint32 tableId;
     Uint16 node;
     Uint16 fragmentId;
+    Uint8 lqhInstanceKey;
     Uint8 scanned;  // 0 = not scanned x = scanned by node x
     Uint8 scanning; // 0 = not scanning x = scanning on node x
     Uint8 lcp_no;
