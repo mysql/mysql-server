@@ -76,6 +76,7 @@ grow_blocks_array (BLOCK_ALLOCATOR ba) {
 void
 block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t offset) {
     u_int64_t i;
+    assert(offset >= ba->reserve_at_beginning);
     grow_blocks_array(ba);
     // Just do a linear search for the block
     for (i=0; i<ba->n_blocks; i++) {

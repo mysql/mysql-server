@@ -664,7 +664,6 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
 	    wbuf_ulonglong(&w, h->block_translation[i].size);
 	}
 	u_int32_t checksum = x1764_finish(&w.checksum);
-	printf("%s:%d writing to %d\n", __FILE__, __LINE__, checksum);
 	wbuf_int(&w, checksum);
 	ssize_t nwrote = pwrite(fd, w.buf, size, h->block_translation_address_on_disk);
 	assert(nwrote==(ssize_t)size);
@@ -706,7 +705,7 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
     if (h->block_translation_address_on_disk == 0) {
 	h->block_translation = 0;
     } else {
-	block_allocator_alloc_block_at(h->block_allocator, h->block_translation_address_on_disk, h->block_translation_size_on_disk);
+	block_allocator_alloc_block_at(h->block_allocator, h->block_translation_size_on_disk, h->block_translation_address_on_disk);
 	XMALLOC_N(h->translated_blocknum_limit, h->block_translation);
 	unsigned char *XMALLOC_N(h->block_translation_size_on_disk, tbuf);
 	{
@@ -731,7 +730,8 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
 	for (i=0; i<h->translated_blocknum_limit; i++) {
 	    h->block_translation[i].diskoff = rbuf_diskoff(&rt);
 	    h->block_translation[i].size    = rbuf_diskoff(&rt);
-	    block_allocator_alloc_block_at(h->block_allocator, h->block_translation[i].diskoff, h->block_translation[i].size);
+	    if (h->block_translation[i].size > 0)
+		block_allocator_alloc_block_at(h->block_allocator, h->block_translation[i].size, h->block_translation[i].diskoff);
 	}
 	toku_free(tbuf);
     }
