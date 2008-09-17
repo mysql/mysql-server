@@ -304,8 +304,7 @@ static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
   /* check_func */ NULL, /* update_func */ NULL,
   /* default */ TRUE);
 
-static MYSQL_THDVAR_BOOL(strict_mode,
-  PLUGIN_VAR_NOCMDARG,
+static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
   NULL, NULL, FALSE);
 
@@ -641,6 +640,18 @@ thd_has_edited_nontrans_tables(
 	return((ibool) thd_non_transactional_update((THD*) thd));
 }
 
+/**********************************************************************
+Returns true if the thread is executing a SELECT statement. */
+extern "C" UNIV_INTERN
+ibool
+thd_is_select(
+/*==========*/
+				/* out: true if thd is executing SELECT */
+	const void*	thd)	/* in: thread handle (THD*) */
+{
+	return(thd_sql_command((const THD*) thd) == SQLCOM_SELECT);
+}
+
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
 inline
@@ -894,41 +905,35 @@ innobase_get_cset_width(
 }
 
 /**********************************************************************
-Converts an identifier to a table name.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
+Converts an identifier to a table name. */
 extern "C" UNIV_INTERN
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len)	/* in: length of 'to', in bytes */
+	struct charset_info_st*	cs,	/* in: the 'from' character set */
+	char*			to,	/* out: converted identifier */
+	const char*		from,	/* in: identifier to convert */
+	ulint			len)	/* in: length of 'to', in bytes */
 {
 	uint	errors;
 
-	strconvert(thd_charset(current_thd), from,
-		   &my_charset_filename, to, (uint) len, &errors);
+	strconvert(cs, from, &my_charset_filename, to, (uint) len, &errors);
 }
 
 /**********************************************************************
-Converts an identifier to UTF-8.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
+Converts an identifier to UTF-8. */
 extern "C" UNIV_INTERN
 void
 innobase_convert_from_id(
 /*=====================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len)	/* in: length of 'to', in bytes */
+	struct charset_info_st*	cs,	/* in: the 'from' character set */
+	char*			to,	/* out: converted identifier */
+	const char*		from,	/* in: identifier to convert */
+	ulint			len)	/* in: length of 'to', in bytes */
 {
 	uint	errors;
 
-	strconvert(thd_charset(current_thd), from,
-		   system_charset_info, to, (uint) len, &errors);
+	strconvert(cs, from, system_charset_info, to, (uint) len, &errors);
 }
 
 /**********************************************************************
@@ -945,10 +950,7 @@ innobase_strcasecmp(
 }
 
 /**********************************************************************
-Makes all characters in a NUL-terminated UTF-8 string lower case.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
+Makes all characters in a NUL-terminated UTF-8 string lower case. */
 extern "C" UNIV_INTERN
 void
 innobase_casedn_str(
@@ -959,10 +961,7 @@ innobase_casedn_str(
 }
 
 /**************************************************************************
-Determines the connection character set.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
+Determines the connection character set. */
 extern "C" UNIV_INTERN
 struct charset_info_st*
 innobase_get_charset(
@@ -2709,6 +2708,14 @@ ha_innobase::open(
 	UT_NOT_USED(test_if_locked);
 
 	thd = ha_thd();
+
+	/* Under some cases MySQL seems to call this function while
+	holding btr_search_latch. This breaks the latching order as
+	we acquire dict_sys->mutex below and leads to a deadlock. */
+	if (thd != NULL) {
+		innobase_release_temporary_latches(ht, thd);
+	}
+
 	normalize_table_name(norm_name, name);
 
 	user_thd = NULL;
@@ -6659,9 +6666,21 @@ ha_innobase::info(
 		stats.index_file_length = ((ulonglong)
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
-		stats.delete_length =
-			fsp_get_available_space_in_free_extents(
-				ib_table->space) * 1024;
+
+		/* Since fsp_get_available_space_in_free_extents() is
+		acquiring latches inside InnoDB, we do not call it if we
+		are asked by MySQL to avoid locking. Another reason to
+		avoid the call is that it uses quite a lot of CPU.
+		See Bug#38185.
+		We do not update delete_length if no locking is requested
+		so the "old" value can remain. delete_length is initialized
+		to 0 in the ha_statistics' constructor. */
+		if (!(flag & HA_STATUS_NO_LOCK)) {
+			stats.delete_length =
+				fsp_get_available_space_in_free_extents(
+					ib_table->space) * 1024;
+		}
+
 		stats.check_time = 0;
 
 		if (stats.records == 0) {
@@ -7242,13 +7261,20 @@ UNIV_INTERN
 int
 ha_innobase::reset()
 {
-  if (prebuilt->blob_heap) {
-    row_mysql_prebuilt_free_blob_heap(prebuilt);
-  }
-  reset_template(prebuilt);
-  return 0;
-}
+	if (prebuilt->blob_heap) {
+		row_mysql_prebuilt_free_blob_heap(prebuilt);
+	}
 
+	reset_template(prebuilt);
+
+	/* TODO: This should really be reset in reset_template() but for now
+	it's safer to do it explicitly here. */
+
+	/* This is a statement level counter. */
+	prebuilt->last_value = 0;
+
+	return(0);
+}
 
 /**********************************************************************
 MySQL calls this function at the start of each SQL statement inside LOCK

@@ -712,7 +712,7 @@ loop:
 	if (n_iterations > 30) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Warning: difficult to find free blocks from\n"
+			"  InnoDB: Warning: difficult to find free blocks in\n"
 			"InnoDB: the buffer pool (%lu search iterations)!"
 			" Consider\n"
 			"InnoDB: increasing the buffer pool size.\n"
@@ -790,12 +790,25 @@ buf_LRU_old_adjust_len(void)
 #if 3 * (BUF_LRU_OLD_MIN_LEN / 8) <= BUF_LRU_OLD_TOLERANCE + 5
 # error "3 * (BUF_LRU_OLD_MIN_LEN / 8) <= BUF_LRU_OLD_TOLERANCE + 5"
 #endif
+#ifdef UNIV_LRU_DEBUG
+	/* buf_pool->LRU_old must be the first item in the LRU list
+	whose "old" flag is set. */
+	ut_a(buf_pool->LRU_old->old);
+	ut_a(!UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)
+	     || !UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)->old);
+	ut_a(!UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)
+	     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
+#endif /* UNIV_LRU_DEBUG */
 
 	for (;;) {
 		old_len = buf_pool->LRU_old_len;
 		new_len = 3 * (UT_LIST_GET_LEN(buf_pool->LRU) / 8);
 
 		ut_ad(buf_pool->LRU_old->in_LRU_list);
+		ut_a(buf_pool->LRU_old);
+#ifdef UNIV_LRU_DEBUG
+		ut_a(buf_pool->LRU_old->old);
+#endif /* UNIV_LRU_DEBUG */
 
 		/* Update the LRU_old pointer if necessary */
 
@@ -803,6 +816,9 @@ buf_LRU_old_adjust_len(void)
 
 			buf_pool->LRU_old = UT_LIST_GET_PREV(
 				LRU, buf_pool->LRU_old);
+#ifdef UNIV_LRU_DEBUG
+			ut_a(!buf_pool->LRU_old->old);
+#endif /* UNIV_LRU_DEBUG */
 			buf_page_set_old(buf_pool->LRU_old, TRUE);
 			buf_pool->LRU_old_len++;
 
@@ -813,8 +829,6 @@ buf_LRU_old_adjust_len(void)
 				LRU, buf_pool->LRU_old);
 			buf_pool->LRU_old_len--;
 		} else {
-			ut_a(buf_pool->LRU_old); /* Check that we did not
-						 fall out of the LRU list */
 			return;
 		}
 	}
@@ -901,6 +915,9 @@ buf_LRU_remove_block(
 
 		buf_pool->LRU_old = UT_LIST_GET_PREV(LRU, bpage);
 		ut_a(buf_pool->LRU_old);
+#ifdef UNIV_LRU_DEBUG
+		ut_a(!buf_pool->LRU_old->old);
+#endif /* UNIV_LRU_DEBUG */
 		buf_page_set_old(buf_pool->LRU_old, TRUE);
 
 		buf_pool->LRU_old_len++;
@@ -974,8 +991,6 @@ buf_LRU_add_block_to_end_low(
 
 	ut_a(buf_page_in_file(bpage));
 
-	buf_page_set_old(bpage, TRUE);
-
 	last_bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	if (last_bpage) {
@@ -987,6 +1002,8 @@ buf_LRU_add_block_to_end_low(
 	ut_ad(!bpage->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = TRUE);
+
+	buf_page_set_old(bpage, TRUE);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
 
@@ -1035,8 +1052,6 @@ buf_LRU_add_block_low(
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(!bpage->in_LRU_list);
 
-	buf_page_set_old(bpage, old);
-
 	if (!old || (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN)) {
 
 		UT_LIST_ADD_FIRST(LRU, buf_pool->LRU, bpage);
@@ -1044,6 +1059,15 @@ buf_LRU_add_block_low(
 		bpage->LRU_position = buf_pool_clock_tic();
 		bpage->freed_page_clock = buf_pool->freed_page_clock;
 	} else {
+#ifdef UNIV_LRU_DEBUG
+		/* buf_pool->LRU_old must be the first item in the LRU list
+		whose "old" flag is set. */
+		ut_a(buf_pool->LRU_old->old);
+		ut_a(!UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)
+		     || !UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)->old);
+		ut_a(!UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)
+		     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
+#endif /* UNIV_LRU_DEBUG */
 		UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU, buf_pool->LRU_old,
 				     bpage);
 		buf_pool->LRU_old_len++;
@@ -1055,6 +1079,8 @@ buf_LRU_add_block_low(
 	}
 
 	ut_d(bpage->in_LRU_list = TRUE);
+
+	buf_page_set_old(bpage, old);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
@@ -1252,6 +1278,15 @@ alloc:
 
 						buf_pool->LRU_old = b;
 					}
+#ifdef UNIV_LRU_DEBUG
+					ut_a(prev_b->old
+					     || !UT_LIST_GET_NEXT(LRU, b)
+					     || UT_LIST_GET_NEXT(LRU, b)->old);
+				} else {
+					ut_a(!prev_b->old
+					     || !UT_LIST_GET_NEXT(LRU, b)
+					     || !UT_LIST_GET_NEXT(LRU, b)->old);
+#endif /* UNIV_LRU_DEBUG */
 				}
 
 				lru_len = UT_LIST_GET_LEN(buf_pool->LRU);

@@ -55,56 +55,6 @@ UNIV_INTERN rw_lock_t	dict_operation_lock;
 /* Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
-#ifndef UNIV_HOTBACKUP
-/**********************************************************************
-Converts an identifier to a table name.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-void
-innobase_convert_from_table_id(
-/*===========================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len);	/* in: length of 'to', in bytes;
-				should be at least 5 * strlen(to) + 1 */
-/**********************************************************************
-Converts an identifier to UTF-8.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-void
-innobase_convert_from_id(
-/*=====================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len);	/* in: length of 'to', in bytes;
-				should be at least 3 * strlen(to) + 1 */
-/**********************************************************************
-Makes all characters in a NUL-terminated UTF-8 string lower case.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-void
-innobase_casedn_str(
-/*================*/
-	char*	a);	/* in/out: string to put in lower case */
-
-/**************************************************************************
-Determines the connection character set.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-struct charset_info_st*
-innobase_get_charset(
-/*=================*/
-				/* out: connection character set */
-	void*	mysql_thd);	/* in: MySQL thread handle */
-#endif /* !UNIV_HOTBACKUP */
-
 /***********************************************************************
 Tries to find column names for the index and sets the col field of the
 index. */
@@ -1948,27 +1898,19 @@ dict_table_get_referenced_constraint(
 	dict_table_t*	table,	/* in: InnoDB table */
 	dict_index_t*	index)	/* in: InnoDB index */
 {
-	dict_foreign_t*	foreign  = NULL;
+	dict_foreign_t*	foreign;
 
-	ut_ad(index && table);
+	ut_ad(index != NULL);
+	ut_ad(table != NULL);
 
-	/* If the referenced list is empty, nothing to do */
+	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
 
-	if (UT_LIST_GET_LEN(table->referenced_list) == 0) {
-
-		return(NULL);
-	}
-
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
-
-	while (foreign) {
-		if (foreign->referenced_index == index
-		    || foreign->referenced_index == index) {
+		if (foreign->referenced_index == index) {
 
 			return(foreign);
 		}
-
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
 	return(NULL);
@@ -1987,29 +1929,20 @@ dict_table_get_foreign_constraint(
 	dict_table_t*	table,	/* in: InnoDB table */
 	dict_index_t*	index)	/* in: InnoDB index */
 {
-	dict_foreign_t*	foreign  = NULL;
+	dict_foreign_t*	foreign;
 
-	ut_ad(index && table);
+	ut_ad(index != NULL);
+	ut_ad(table != NULL);
 
-	/* If list empty then nothgin to do */
+	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-	if (UT_LIST_GET_LEN(table->foreign_list) == 0) {
-
-		return(NULL);
-	}
-
-	/* Check whether this index is defined for a foreign key */
-
-	foreign = UT_LIST_GET_FIRST(table->foreign_list);
-
-	while (foreign) {
 		if (foreign->foreign_index == index
 		    || foreign->referenced_index == index) {
 
 			return(foreign);
 		}
-
-		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
 
 	return(NULL);
@@ -2177,6 +2110,30 @@ next_rec:
 	}
 
 	return(NULL);
+}
+
+/**************************************************************************
+Find an index that is equivalent to the one passed in and is not marked
+for deletion. */
+UNIV_INTERN
+dict_index_t*
+dict_foreign_find_equiv_index(
+/*==========================*/
+				/* out: index equivalent to
+				foreign->foreign_index, or NULL */
+	dict_foreign_t*	foreign)/* in: foreign key */
+{
+	ut_a(foreign != NULL);
+
+	/* Try to find an index which contains the columns as the
+	first fields and in the right order, and the types are the
+	same as in foreign->foreign_index */
+
+	return(dict_foreign_find_index(
+		       foreign->foreign_table,
+		       foreign->foreign_col_names, foreign->n_fields,
+		       foreign->foreign_index, TRUE, /* check types */
+		       FALSE/* allow columns to be NULL */));
 }
 
 /**************************************************************************
@@ -2409,7 +2366,7 @@ dict_foreign_add_to_cache(
 Scans from pointer onwards. Stops if is at the start of a copy of
 'string' where characters are compared without case sensitivity, and
 only outside `` or "" quotes. Stops also at '\0'. */
-UNIV_INTERN
+static
 const char*
 dict_scan_to(
 /*=========*/
@@ -2584,7 +2541,7 @@ convert_id:
 		len = 3 * len + 1;
 		*id = dst = mem_heap_alloc(heap, len);
 
-		innobase_convert_from_id(dst, str, len);
+		innobase_convert_from_id(cs, dst, str, len);
 	} else if (!strncmp(str, srv_mysql50_table_name_prefix,
 			    sizeof srv_mysql50_table_name_prefix)) {
 		/* This is a pre-5.1 table name
@@ -2598,7 +2555,7 @@ convert_id:
 		len = 5 * len + 1;
 		*id = dst = mem_heap_alloc(heap, len);
 
-		innobase_convert_from_table_id(dst, str, len);
+		innobase_convert_from_table_id(cs, dst, str, len);
 	}
 
 	return(ptr);
@@ -4503,41 +4460,6 @@ dict_table_get_index_on_name(
 }
 
 /**************************************************************************
-Find and index that is equivalent to the one passed in. */
-UNIV_INTERN
-dict_index_t*
-dict_table_find_equivalent_index(
-/*=============================*/
-	dict_table_t*	table,  /* in/out: table */
-	dict_index_t*	index)	/* in: index to match */
-{
-	ulint		i;
-	const char**	column_names;
-	dict_index_t*	equiv_index;
-
-	if (UT_LIST_GET_LEN(table->foreign_list) == 0) {
-
-		return(NULL);
-	}
-
-	column_names = mem_alloc(index->n_fields * sizeof *column_names);
-
-	/* Convert the column names to the format & type accepted by the find
-	index function */
-	for (i = 0; i < index->n_fields; i++) {
-		column_names[i] = index->fields[i].name;
-	}
-
-	equiv_index = dict_foreign_find_index(
-		table, column_names, index->n_fields,
-		index, TRUE, FALSE);
-
-	mem_free((void*) column_names);
-
-	return(equiv_index);
-}
-
-/**************************************************************************
 Replace the index passed in with another equivalent index in the tables
 foreign key list. */
 UNIV_INTERN
@@ -4547,30 +4469,18 @@ dict_table_replace_index_in_foreign_list(
 	dict_table_t*	table,  /* in/out: table */
 	dict_index_t*	index)	/* in: index to be replaced */
 {
-	dict_index_t*	new_index;
+	dict_foreign_t*	foreign;
 
-	new_index = dict_table_find_equivalent_index(table, index);
+	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-	/* If match found */
-	if (new_index) {
-		dict_foreign_t*	foreign;
+		if (foreign->foreign_index == index) {
+			dict_index_t*	new_index
+				= dict_foreign_find_equiv_index(foreign);
+			ut_a(new_index);
 
-		ut_a(new_index != index);
-
-		foreign = UT_LIST_GET_FIRST(table->foreign_list);
-
-		/* If the list is not empty then this should hold */
-		ut_a(foreign);
-
-		/* Iterate over the foreign index list and replace the index
-		passed in with the new index */
-		while (foreign) {
-
-			if (foreign->foreign_index == index) {
-				foreign->foreign_index = new_index;
-			}
-
-			foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+			foreign->foreign_index = new_index;
 		}
 	}
 }

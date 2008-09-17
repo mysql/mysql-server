@@ -166,6 +166,7 @@ level	id	parent_id
 1	1007	101
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -190,6 +191,7 @@ create table t1 (a int) engine=innodb;
 insert into t1 values (1), (2);
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 delete from t1 where a = 1;
 select * from t1;
@@ -738,6 +740,7 @@ world	2
 hello	1
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -3111,6 +3114,7 @@ BEGIN;
 INSERT INTO t1 VALUES (1);
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (id int PRIMARY KEY, f int NOT NULL, INDEX(f)) ENGINE=InnoDB;

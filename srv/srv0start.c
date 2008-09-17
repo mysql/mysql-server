@@ -1470,7 +1470,7 @@ innobase_start_or_create_for_mysql(void)
 		ensure that we return the system to a state where normal
 		recovery is guaranteed to work. We do this by
 		invalidating the buffer cache, this will force the
-		reread of the page and restoration to it's last known
+		reread of the page and restoration to its last known
 		consistent state, this is REQUIRED for the recovery
 		process to work. */
 		err = trx_sys_file_format_max_check(

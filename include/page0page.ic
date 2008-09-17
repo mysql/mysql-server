@@ -246,38 +246,42 @@ page_is_leaf(
 }
 
 /****************************************************************
-Gets the first record on the page. */
+Gets the offset of the first record on the page. */
 UNIV_INLINE
-rec_t*
-page_get_infimum_rec(
-/*=================*/
-			/* out: the first record in record list */
-	page_t*	page)	/* in: page which must have record(s) */
+ulint
+page_get_infimum_offset(
+/*====================*/
+				/* out: offset of the first record
+				in record list, relative from page */
+	const page_t*	page)	/* in: page which must have record(s) */
 {
 	ut_ad(page);
+	ut_ad(!page_offset(page));
 
 	if (page_is_comp(page)) {
-		return(page + PAGE_NEW_INFIMUM);
+		return(PAGE_NEW_INFIMUM);
 	} else {
-		return(page + PAGE_OLD_INFIMUM);
+		return(PAGE_OLD_INFIMUM);
 	}
 }
 
 /****************************************************************
-Gets the last record on the page. */
+Gets the offset of the last record on the page. */
 UNIV_INLINE
-rec_t*
-page_get_supremum_rec(
-/*==================*/
-			/* out: the last record in record list */
-	page_t*	page)	/* in: page which must have record(s) */
+ulint
+page_get_supremum_offset(
+/*=====================*/
+				/* out: offset of the last record in
+				record list, relative from page */
+	const page_t*	page)	/* in: page which must have record(s) */
 {
 	ut_ad(page);
+	ut_ad(!page_offset(page));
 
 	if (page_is_comp(page)) {
-		return(page + PAGE_NEW_SUPREMUM);
+		return(PAGE_NEW_SUPREMUM);
 	} else {
-		return(page + PAGE_OLD_SUPREMUM);
+		return(PAGE_OLD_SUPREMUM);
 	}
 }
 
