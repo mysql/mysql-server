@@ -97,4 +97,9 @@
 #define NDB_SUM_READONLY     1
 #define NDB_SUM_READ_WRITE   2
 
+/**
+ * *No* nodegroup
+ */
+#define NDB_NO_NODEGROUP     65536
+
 #endif

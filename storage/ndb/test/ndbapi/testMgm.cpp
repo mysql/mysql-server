@@ -647,6 +647,55 @@ done:
   return result;
 }
 
+
+#include <mgmapi_internal.h>
+
+int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int loops= ctx->getNumLoops();
+  for (int l= 0; l < loops; l++){
+    g_info << l << ": ";
+
+    struct ndb_mgm_configuration* conf=
+      ndb_mgm_get_configuration(mgmd.handle(), 0);
+    if (!conf)
+      return NDBT_FAILED;
+
+    int r= ndb_mgm_set_configuration(mgmd.handle(), conf);
+    free(conf);
+
+    if (r != 0)
+      return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+
+int runGetConfig(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int loops= ctx->getNumLoops();
+  for (int l= 0; l < loops; l++){
+    g_info << l << ": ";
+    struct ndb_mgm_configuration* conf=
+      ndb_mgm_get_configuration(mgmd.handle(), 0);
+    if (!conf)
+      return NDBT_FAILED;
+    free(conf);
+  }
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -683,6 +732,14 @@ TESTCASE("ApiMgmStructEventTimeout",
 	 "Test timeouts for mgmapi get_configuration"){
   INITIALIZER(runTestMgmApiStructEventTimeout);
 
+}
+TESTCASE("SetConfig",
+	 "Tests the ndb_mgm_set_configuration function"){
+  INITIALIZER(runSetConfig);
+
+}
+TESTCASE("GetConfig", "Run ndb_mgm_get_configuration in parallel"){
+  STEPS(runGetConfig, 100);
 }
 NDBT_TESTSUITE_END(testMgm);
 

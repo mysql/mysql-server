@@ -275,6 +275,17 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("get session", &MgmApiSession::getSession, ""),
     MGM_ARG("id", Int, Mandatory, "SessionID"),
 
+  MGM_CMD("set config", &MgmApiSession::setConfig, ""),
+    MGM_ARG("Content-Length", Int, Mandatory, "Length of config"),
+    MGM_ARG("Content-Type", String, Mandatory, "Type of config"),
+    MGM_ARG("Content-Transfer-Encoding", String, Mandatory, "encoding"),
+
+  MGM_CMD("create nodegroup", &MgmApiSession::create_nodegroup, ""),
+    MGM_ARG("nodes", String, Mandatory, "Nodes"),
+
+  MGM_CMD("drop nodegroup", &MgmApiSession::drop_nodegroup, ""),
+    MGM_ARG("ng", Int, Mandatory, "Nodegroup"),
+
   MGM_END()
 };
 
@@ -1767,6 +1778,71 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
 }
 
 void
+MgmApiSession::create_nodegroup(Parser_t::Context &ctx,
+                                Properties const &args)
+{
+  BaseString nodestr;
+  BaseString retval;
+  int ng = -1;
+  Vector<int> nodes;
+  BaseString result("Ok");
+
+  args.get("nodes", nodestr);
+  Vector<BaseString> list;
+  nodestr.split(list, " ");
+  for (Uint32 i = 0; i < list.size() ; i++)
+  {
+    int res;
+    int node;
+    if ((res = sscanf(list[i].c_str(), "%u", &node)) != 1)
+    {
+      result = "FAIL: Invalid format for nodes";
+      goto end;
+    }
+    nodes.push_back(node);
+  }
+
+  if(nodes.size() == 0)
+  {
+    result= "FAIL: Must have at least 1 node in the node group";
+    goto end;
+  }
+
+  int res;
+  if((res = m_mgmsrv.createNodegroup(nodes.getBase(), nodes.size(), &ng)) != 0)
+  {
+    result.assfmt("error: %d", res);
+  }
+
+end:
+  m_output->println("create nodegroup reply");
+  m_output->println("ng: %d", ng);
+  m_output->println("result: %s", result.c_str());
+  m_output->println("");
+}
+
+void
+MgmApiSession::drop_nodegroup(Parser_t::Context &ctx,
+                              Properties const &args)
+{
+  BaseString result("Ok");
+
+  unsigned ng;
+  args.get("ng", &ng);
+
+  int res;
+  if((res = m_mgmsrv.dropNodegroup(ng)) != 0)
+  {
+    result.assfmt("error: %d", res);
+  }
+
+end:
+  m_output->println("drop nodegroup reply");
+  m_output->println("result: %s", result.c_str());
+  m_output->println("");
+}
+
+void
 MgmApiSession::list_session(SocketServer::Session *_s, void *data)
 {
   MgmApiSession *s= (MgmApiSession *)_s;
@@ -1882,6 +1958,75 @@ MgmApiSession::getSession(Parser_t::Context &ctx,
 
   m_output->println("");
 }
+
+
+void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
+{
+  BaseString result("Ok");
+  Uint32 len64 = 0;
+
+  {
+    const char* buf;
+    args.get("Content-Type", &buf);
+    if(strcmp(buf, "ndbconfig/octet-stream")) {
+      result.assfmt("Unhandled content type '%s'", buf);
+      goto done;
+    }
+
+    args.get("Content-Transfer-Encoding", &buf);
+    if(strcmp(buf, "base64")) {
+      result.assfmt("Unhandled content encoding '%s'", buf);
+      goto done;
+    }
+  }
+
+  args.get("Content-Length", &len64);
+  if(len64 ==0 || len64 > (1024*1024)) {
+    result.assfmt("Illegal config length size %d", len64);
+    goto done;
+  }
+  len64 += 1; // Trailing \n
+
+  {
+    char* buf64 = new char[len64];
+    int r = 0;
+    size_t start = 0;
+    do {
+      if((r= read_socket(m_socket,30000,
+                         &buf64[start],
+                         len64-start)) < 1)
+      {
+        delete buf64;
+        result.assfmt("read_socket failed, errno: %d", errno);
+        goto done;
+      }
+      start += r;
+    } while(start < len64);
+
+    char* decoded = new char[base64_needed_decoded_length((size_t)len64 - 1)];
+    int decoded_len= base64_decode(buf64, len64-1, decoded, NULL);
+    delete buf64;
+
+    ConfigValuesFactory cvf;
+    if(!cvf.unpack(decoded, decoded_len))
+    {
+      delete decoded;
+      result.assfmt("Failed to unpack config");
+      goto done;
+    }
+    delete decoded;
+
+    //m_mgmsrv.setConfig(new Config(cvf.getConfigValues()));
+
+  }
+
+done:
+
+  m_output->println("set config reply");
+  m_output->println("result: %s", result.c_str());
+  m_output->println("");
+}
+
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;

@@ -52,6 +52,12 @@
 #include <../dbtup/Dbtup.hpp>
 #include <../dbdih/Dbdih.hpp>
 
+#include <signaldata/CreateNodegroup.hpp>
+#include <signaldata/CreateNodegroupImpl.hpp>
+
+#include <signaldata/DropNodegroup.hpp>
+#include <signaldata/DropNodegroupImpl.hpp>
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -533,40 +539,57 @@ Suma::getNodeGroupMembers(Signal* signal)
 }
 
 void
-Suma::execCHECKNODEGROUPSCONF(Signal *signal)
+Suma::fix_nodegroup()
 {
-  const CheckNodeGroups *sd = (const CheckNodeGroups *)signal->getDataPtrSend();
-  DBUG_ENTER("Suma::execCHECKNODEGROUPSCONF");
-  jamEntry();
-  c_nodeGroup = sd->output;
-  c_nodes_in_nodegroup_mask.assign(sd->mask);
-  c_noNodesInGroup = c_nodes_in_nodegroup_mask.count();
   Uint32 i, pos= 0;
   
-  for (i = 0; i < MAX_NDB_NODES; i++) {
-    if (sd->mask.get(i)) 
+  for (i = 0; i < MAX_NDB_NODES; i++)
+  {
+    if (c_nodes_in_nodegroup_mask.get(i))
     {
       c_nodesInGroup[pos++] = i;
     }
   }
   
-  const Uint32 replicas= c_noNodesInGroup;
+  const Uint32 replicas= c_noNodesInGroup = pos;
 
-  Uint32 buckets= 1;
-  for(i = 1; i <= replicas; i++)
-    buckets *= i;
-  
-  for(i = 0; i<buckets; i++)
+  if (replicas)
   {
-    Bucket* ptr= c_buckets+i;
-    for(Uint32 j= 0; j< replicas; j++)
+    Uint32 buckets= 1;
+    for(i = 1; i <= replicas; i++)
+      buckets *= i;
+
+    for(i = 0; i<buckets; i++)
     {
-      ptr->m_nodes[j] = c_nodesInGroup[(i + j) % replicas];
+      Bucket* ptr= c_buckets+i;
+      for(Uint32 j= 0; j< replicas; j++)
+      {
+        ptr->m_nodes[j] = c_nodesInGroup[(i + j) % replicas];
+      }
     }
+
+    c_no_of_buckets= buckets;
   }
-  
-  c_no_of_buckets= buckets;
-  ndbrequire(c_noNodesInGroup > 0); // at least 1 node in the nodegroup
+  else
+  {
+    jam();
+    c_no_of_buckets = 0;
+  }
+}
+
+
+void
+Suma::execCHECKNODEGROUPSCONF(Signal *signal)
+{
+  const CheckNodeGroups *sd = (const CheckNodeGroups *)signal->getDataPtrSend();
+  DBUG_ENTER("Suma::execCHECKNODEGROUPSCONF");
+  jamEntry();
+
+  c_nodeGroup = sd->output;
+  c_nodes_in_nodegroup_mask.assign(sd->mask);
+  c_noNodesInGroup = c_nodes_in_nodegroup_mask.count();
+
+  fix_nodegroup();
 
 #ifndef DBUG_OFF
   for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
@@ -617,13 +640,24 @@ Suma::check_start_handover(Signal* signal)
     }
     
     c_startup.m_wait_handover= false;
-    send_handover_req(signal);
+
+    if (c_no_of_buckets)
+    {
+      jam();
+      send_handover_req(signal);
+    }
+    else
+    {
+      jam();
+      sendSTTORRY(signal);
+    }
   }
 }
 
 void
 Suma::send_handover_req(Signal* signal)
 {
+  jam();
   c_startup.m_handover_nodes.assign(c_alive_nodes);
   c_startup.m_handover_nodes.bitAND(c_nodes_in_nodegroup_mask);
   c_startup.m_handover_nodes.clear(getOwnNodeId());
@@ -633,14 +667,14 @@ Suma::send_handover_req(Signal* signal)
   char buf[255];
   c_startup.m_handover_nodes.getText(buf);
   infoEvent("Suma: initiate handover with nodes %s GCI: %d",
-	    buf, gci);
+            buf, gci);
 
   req->gci = gci;
   req->nodeId = getOwnNodeId();
   
   NodeReceiverGroup rg(SUMA, c_startup.m_handover_nodes);
   sendSignal(rg, GSN_SUMA_HANDOVER_REQ, signal, 
-	     SumaHandoverReq::SignalLength, JBB);
+             SumaHandoverReq::SignalLength, JBB);
 }
 
 void
@@ -2738,7 +2772,8 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
         conf->subscriptionKey = subPtr.p->m_subscriptionKey;
         conf->firstGCI        = Uint32(gci >> 32);
         conf->part            = SubscriptionData::TableData;
-
+        conf->bucketCount     = c_no_of_buckets;
+        conf->nodegroup       = c_nodeGroup;
         sendSignal(senderRef, GSN_SUB_START_CONF, signal,
                    SubStartConf::SignalLength, JBB);
 
@@ -3786,6 +3821,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   jamEntry();
   ndbassert(signal->getNoOfSections() == 0);
 
+  bool drop = false;
   SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
   Uint32 gci_hi = rep->gci_hi;
   Uint32 gci_lo = rep->gci_lo;
@@ -3848,6 +3884,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 	  /**
 	   * NR case
 	   */
+          jam();
 	  m_active_buckets.set(i);
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_STARTING;
 	  ndbout_c("starting");
@@ -3858,6 +3895,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 	  /**
 	   * NF case
 	   */
+          jam();
 	  Bucket* bucket= c_buckets + i;
 	  Page_pos pos= bucket->m_buffer_head;
 	  ndbrequire(pos.m_max_gci < gci);
@@ -3878,16 +3916,42 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_TAKEOVER;
 	  takeover_nodes.set(c_buckets[i].m_switchover_node);
 	}
-	else
+	else if (state & Bucket::BUCKET_HANDOVER)
 	{
 	  /**
 	   * NR, living node
 	   */
-	  ndbrequire(state & Bucket::BUCKET_HANDOVER);
+          jam();
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_HANDOVER;
 	  handover_nodes.set(c_buckets[i].m_switchover_node);
 	  ndbout_c("handover");
 	}
+        else if (state & Bucket::BUCKET_CREATED)
+        {
+          jam();
+          Uint32 cnt = state >> 8;
+	  c_buckets[i].m_state &= ~(Uint32(Bucket::BUCKET_CREATED) |(cnt << 8));
+          flags |= SubGcpCompleteRep::ADD_CNT;
+          flags |= (cnt << 16);
+          ndbout_c("add %u", cnt);
+          if (get_responsible_node(i) == getOwnNodeId())
+          {
+            jam();
+            m_active_buckets.set(i);
+            m_gcp_complete_rep_count++;
+          }
+        }
+        else if (state & Bucket::BUCKET_DROPPED)
+        {
+          jam();
+          Uint32 cnt = state >> 8;
+	  c_buckets[i].m_state &= ~(Uint32(Bucket::BUCKET_DROPPED) |(cnt << 8));
+          flags |= SubGcpCompleteRep::SUB_CNT;
+          flags |= (cnt << 16);
+          ndbout_c("sub %u", cnt);
+          m_active_buckets.clear(i);
+          drop = true;
+        }
       }
     }
     ndbassert(handover_nodes.count() == 0 || 
@@ -3899,6 +3963,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
        m_switchover_buckets.isclear() && 
        c_startup.m_handover_nodes.isclear())
     {
+      jam();
       sendSTTORRY(signal);
     }
   }
@@ -3960,9 +4025,19 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 
   if(m_out_of_buffer_gci && gci > m_out_of_buffer_gci)
   {
+    jam();
     infoEvent("Reenable event buffer");
     m_out_of_buffer_gci = 0;
     m_missing_data = false;
+  }
+
+  if (unlikely(drop))
+  {
+    jam();
+    m_gcp_complete_rep_count = 0;
+    c_nodeGroup = RNIL;
+    c_nodes_in_nodegroup_mask.clear();
+    fix_nodegroup();
   }
 }
 
@@ -5470,6 +5545,169 @@ Uint64
 Suma::get_current_gci(Signal*)
 {
   return m_current_gci;
+}
+
+void
+Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
+{
+  CreateNodegroupImplReq reqCopy = *(CreateNodegroupImplReq*)
+    signal->getDataPtr();
+  CreateNodegroupImplReq *req = &reqCopy;
+
+  Uint32 err = 0;
+  Uint32 rt = req->requestType;
+
+  NdbNodeBitmask tmp;
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(req->nodes) && req->nodes[i]; i++)
+  {
+    tmp.set(req->nodes[i]);
+  }
+  Uint32 cnt = tmp.count();
+  Uint32 group = req->nodegroupId;
+
+  switch(rt){
+  case CreateNodegroupImplReq::RT_ABORT:
+    jam();
+    break;
+  case CreateNodegroupImplReq::RT_PARSE:
+    jam();
+    break;
+  case CreateNodegroupImplReq::RT_PREPARE:
+    jam();
+    break;
+  case CreateNodegroupImplReq::RT_COMMIT:
+    jam();
+    break;
+  case CreateNodegroupImplReq::RT_COMPLETE:
+    jam();
+    CRASH_INSERTION(13043);
+
+    Uint64 gci = (Uint64(req->gci_hi) << 32) | req->gci_lo;
+    ndbrequire(gci > m_last_complete_gci);
+
+    if (c_nodeGroup != RNIL)
+    {
+      jam();
+      NdbNodeBitmask check = tmp;
+      check.bitAND(c_nodes_in_nodegroup_mask);
+      ndbrequire(check.isclear());
+      ndbrequire(c_nodeGroup != group);
+      ndbrequire(cnt == c_nodes_in_nodegroup_mask.count());
+      break;
+    }
+    else
+    {
+      jam();
+      c_nodeGroup = group;
+      c_nodes_in_nodegroup_mask.assign(tmp);
+      fix_nodegroup();
+      for (Uint32 i = 0; i<c_no_of_buckets; i++)
+      {
+        jam();
+        m_switchover_buckets.set(i);
+        c_buckets[i].m_switchover_gci = gci - 1; // start from gci
+        c_buckets[i].m_state = Bucket::BUCKET_CREATED | (c_no_of_buckets << 8);
+      }
+    }
+    break;
+  }
+
+  {
+    CreateNodegroupImplConf* conf =
+      (CreateNodegroupImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = req->senderData;
+    sendSignal(req->senderRef, GSN_CREATE_NODEGROUP_IMPL_CONF, signal,
+               CreateNodegroupImplConf::SignalLength, JBB);
+  }
+  return;
+
+error:
+  CreateNodegroupImplRef *ref =
+    (CreateNodegroupImplRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->senderData = req->senderData;
+  ref->errorCode = err;
+  sendSignal(req->senderRef, GSN_CREATE_NODEGROUP_IMPL_REF, signal,
+             CreateNodegroupImplRef::SignalLength, JBB);
+  return;
+}
+
+void
+Suma::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
+{
+  DropNodegroupImplReq reqCopy = *(DropNodegroupImplReq*)
+    signal->getDataPtr();
+  DropNodegroupImplReq *req = &reqCopy;
+
+  Uint32 err = 0;
+  Uint32 rt = req->requestType;
+  Uint32 group = req->nodegroupId;
+
+  switch(rt){
+  case DropNodegroupImplReq::RT_ABORT:
+    jam();
+    break;
+  case DropNodegroupImplReq::RT_PARSE:
+    jam();
+    break;
+  case DropNodegroupImplReq::RT_PREPARE:
+    jam();
+    break;
+  case DropNodegroupImplReq::RT_COMMIT:
+    jam();
+    break;
+  case DropNodegroupImplReq::RT_COMPLETE:
+    jam();
+    CRASH_INSERTION(13043);
+
+    Uint64 gci = (Uint64(req->gci_hi) << 32) | req->gci_lo;
+    ndbrequire(gci > m_last_complete_gci);
+
+    if (c_nodeGroup != group)
+    {
+      jam();
+      break;
+    }
+    else
+    {
+      jam();
+      for (Uint32 i = 0; i<c_no_of_buckets; i++)
+      {
+        jam();
+        m_switchover_buckets.set(i);
+        if (c_buckets[i].m_state != 0)
+        {
+          jamLine(c_buckets[i].m_state);
+          ndbout_c("c_buckets[%u].m_state: %u", i, c_buckets[i].m_state);
+        }
+        ndbrequire(c_buckets[i].m_state == 0); // XXX todo
+        c_buckets[i].m_switchover_gci = gci - 1; // start from gci
+        c_buckets[i].m_state = Bucket::BUCKET_DROPPED | (c_no_of_buckets << 8);
+      }
+    }
+    break;
+  }
+
+  {
+    DropNodegroupImplConf* conf =
+      (DropNodegroupImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = req->senderData;
+    sendSignal(req->senderRef, GSN_DROP_NODEGROUP_IMPL_CONF, signal,
+               DropNodegroupImplConf::SignalLength, JBB);
+  }
+  return;
+
+error:
+  DropNodegroupImplRef *ref =
+    (DropNodegroupImplRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->senderData = req->senderData;
+  ref->errorCode = err;
+  sendSignal(req->senderRef, GSN_DROP_NODEGROUP_IMPL_REF, signal,
+             DropNodegroupImplRef::SignalLength, JBB);
+  return;
 }
 
 template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);

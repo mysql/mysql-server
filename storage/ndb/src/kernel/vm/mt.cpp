@@ -1822,11 +1822,16 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
 
 #ifdef VM_TRACE
     if (globalData.testOn) { //wl4391_todo segments
+      SegmentedSectionPtr ptr[3];
+      ptr[0].i = sig->m_sectionPtrI[0];
+      ptr[1].i = sig->m_sectionPtrI[1];
+      ptr[2].i = sig->m_sectionPtrI[2];
+      ::getSections(seccnt, ptr);
       globalSignalLoggers.executeSignal(*s,
                                         0,
                                         &sig->theData[0], 
-                                        globalData.ownId);
-
+                                        globalData.ownId,
+                                        ptr, seccnt);
     }
 #endif
 

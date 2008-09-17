@@ -70,6 +70,16 @@ extern "C" {
 
   int ndb_mgm_disconnect_quiet(NdbMgmHandle handle);
 
+  /**
+   * Set configuration
+   *
+   * @param   handle    NDB management handle.
+   * @param   config    The new configuration to set
+   */
+  int ndb_mgm_set_configuration(NdbMgmHandle handle,
+                                struct ndb_mgm_configuration* config);
+
+
 #ifdef __cplusplus
 }
 #endif

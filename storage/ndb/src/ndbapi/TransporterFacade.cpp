@@ -1983,6 +1983,7 @@ SignalSectionIterator::getNextWords(Uint32& sz)
   return NULL;
 }
 
+#ifdef UNIT_TEST
 
 // Unit test code starts
 #include <random.h>
@@ -2214,9 +2215,6 @@ testSignalSectionIterator()
   return 0;
 }
 
-//#define WANT_TESTSECTIONITERATORS 1
-
-#ifdef WANT_TESTSECTIONITERATORS
 int main(int arg, char** argv)
 {
   /* Test Section Iterators

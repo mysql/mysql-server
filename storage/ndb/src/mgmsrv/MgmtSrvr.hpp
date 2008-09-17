@@ -419,6 +419,14 @@ public:
 
   void updateStatus();
 
+  int createNodegroup(int *nodes, int count, int *ng);
+  int dropNodegroup(int ng);
+
+  int startSchemaTrans(SignalSender& ss, NodeId & out_nodeId,
+                       Uint32 transId, Uint32 & out_transKey);
+  int endSchemaTrans(SignalSender& ss, NodeId nodeId,
+                     Uint32 transId, Uint32 transKey, Uint32 flags);
+
 private:
 
   int sendStopMgmd(NodeId nodeId,

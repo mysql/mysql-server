@@ -2163,8 +2163,11 @@ Item_func_ifnull::fix_length_and_dec()
 
 uint Item_func_ifnull::decimal_precision() const
 {
-  int max_int_part=max(args[0]->decimal_int_part(),args[1]->decimal_int_part());
-  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
+  int arg0_int_part= args[0]->decimal_int_part();
+  int arg1_int_part= args[1]->decimal_int_part();
+  int max_int_part= max(arg0_int_part, arg1_int_part);
+  int precision= max_int_part + decimals;
+  return min(precision, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -2345,8 +2348,9 @@ Item_func_if::fix_length_and_dec()
 
 uint Item_func_if::decimal_precision() const
 {
-  int precision=(max(args[1]->decimal_int_part(),args[2]->decimal_int_part())+
-                 decimals);
+  int arg1_prec= args[1]->decimal_int_part();
+  int arg2_prec= args[2]->decimal_int_part();
+  int precision=max(arg1_prec,arg2_prec) + decimals;
   return min(precision, DECIMAL_MAX_PRECISION);
 }
 
@@ -3758,6 +3762,7 @@ longlong Item_func_in::val_int()
     return (longlong) (!null_value && tmp != negated);
   }
 
+  have_null= 0;
   for (uint i= 1 ; i < arg_count ; i++)
   {
     Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
@@ -3766,9 +3771,8 @@ longlong Item_func_in::val_int()
     if (!(value_added_map & (1 << (uint)cmp_type)))
     {
       in_item->store_value(args[0]);
-      if ((null_value=args[0]->null_value))
+      if ((null_value= args[0]->null_value))
         return 0;
-      have_null= 0;
       value_added_map|= 1 << (uint)cmp_type;
     }
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
@@ -4588,6 +4592,7 @@ void Item_func_regex::cleanup()
   {
     my_regfree(&preg);
     regex_compiled=0;
+    prev_regexp.length(0);
   }
   DBUG_VOID_RETURN;
 }

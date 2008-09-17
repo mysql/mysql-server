@@ -145,6 +145,31 @@ void Dbtc::initRecords()
   
 }//Dbtc::initRecords()
 
+bool
+Dbtc::getParam(const char* name, Uint32* count)
+{
+  if (name != NULL && count != NULL)
+  {
+    /* FragmentInfoPool
+     * We increase the size of the fragment info pool
+     * to handle fragmented SCANTABREQ signals from 
+     * the API
+     */
+    if (strcmp(name, "FragmentInfoPool") == 0)
+    {
+      /* Worst case is each API node sending a 
+       * single fragmented request concurrently
+       * This could change in future if APIs can
+       * interleave fragments from different 
+       * requests
+       */
+      *count= MAX_NODES + 10;
+      return true;
+    }
+  }
+  return false;
+}
+
 Dbtc::Dbtc(Block_context& ctx):
   SimulatedBlock(DBTC, ctx),
   c_theDefinedTriggers(c_theDefinedTriggerPool),

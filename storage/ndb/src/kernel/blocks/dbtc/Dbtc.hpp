@@ -1416,7 +1416,7 @@ private:
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
-  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*);
+  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*, bool);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);
@@ -1634,6 +1634,11 @@ private:
   void initData();
   void initRecords();
 
+protected:
+  virtual bool getParam(const char* name, Uint32* count);
+  
+private:
+
   // Transit signals
 
 
@@ -1822,6 +1827,7 @@ public:
       return transid1;
     }
   };
+
 private:
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
   typedef DLHashTable<CommitAckMarker>::Iterator CommitAckMarkerIterator;

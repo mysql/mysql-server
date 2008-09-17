@@ -207,13 +207,13 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CM_REGCONF                  141 /* distr. */
 #define GSN_CM_REGREF                   142 /* distr. */
 #define GSN_CM_REGREQ                   143 /* distr. */
-/* 144 unused */
-/* 145 unused */
-/* 146 unused */
+/* 144 not unused */
+/* 145 not unused */
+/* 146 not unused */
 #define GSN_CM_ADD_REP                  147 /* local */
-/* 148 unused  */
-/* 149 unused  */
-/* 150 unused  */
+/* 148 not unused  */
+/* 149 not unused  */
+/* 150 not unused  */
 #define GSN_CNTR_WAITREP                151 /* distr. */
 #define GSN_COMMIT                      152
 #define GSN_COMMIT_FAILCONF             153
@@ -563,16 +563,16 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_ABORT_ALL_REF               446
 #define GSN_ABORT_ALL_CONF              447
 
-/* 448 unused - formerly GSN_STATISTICS_REQ */
+/* 448 not unused - formerly GSN_STATISTICS_REQ */
 #define GSN_STOP_ORD                    449
 #define GSN_TAMPER_ORD                  450
-/* 451 unused - formerly GSN_SET_VAR_REQ  */
-/* 452 unused - formerly GSN_SET_VAR_CONF */
-/* 453 unused - formerly GSN_SET_VAR_REF  */
-/* 454 unused - formerly GSN_STATISTICS_CONF */
+/* 451 not unused - formerly GSN_SET_VAR_REQ  */
+/* 452 not unused - formerly GSN_SET_VAR_CONF */
+/* 453 not unused - formerly GSN_SET_VAR_REF  */
+/* 454 not unused - formerly GSN_STATISTICS_CONF */
 
 #define GSN_START_ORD                   455
-/* 457 unused */
+/* 457 not unused */
 
 #define GSN_EVENT_SUBSCRIBE_REQ         458
 #define GSN_EVENT_SUBSCRIBE_CONF        459
@@ -1040,5 +1040,21 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_BUILD_INDX_IMPL_REQ         758
 #define GSN_BUILD_INDX_IMPL_CONF        759
 #define GSN_BUILD_INDX_IMPL_REF         760
+
+#define GSN_CREATE_NODEGROUP_REQ        144
+#define GSN_CREATE_NODEGROUP_REF        145
+#define GSN_CREATE_NODEGROUP_CONF       146
+
+#define GSN_CREATE_NODEGROUP_IMPL_REQ   148
+#define GSN_CREATE_NODEGROUP_IMPL_REF   149
+#define GSN_CREATE_NODEGROUP_IMPL_CONF  150
+
+#define GSN_DROP_NODEGROUP_REQ          451
+#define GSN_DROP_NODEGROUP_REF          452
+#define GSN_DROP_NODEGROUP_CONF         453
+
+#define GSN_DROP_NODEGROUP_IMPL_REQ     454
+#define GSN_DROP_NODEGROUP_IMPL_REF     457
+#define GSN_DROP_NODEGROUP_IMPL_CONF    448
 
 #endif

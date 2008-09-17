@@ -107,7 +107,6 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
 {
   set_tuple_state(regOperPtr, TUPLE_ALREADY_ABORTED);
   set_trans_state(regOperPtr, TRANS_IDLE);
-  regOperPtr->currentAttrinbufLen= 0;
   regOperPtr->op_struct.op_type= ZREAD;
   regOperPtr->op_struct.m_disk_preallocated= 0;
   regOperPtr->op_struct.m_load_diskpage_on_commit= 0;

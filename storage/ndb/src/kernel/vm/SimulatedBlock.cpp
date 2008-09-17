@@ -125,7 +125,6 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     theExecArray[i] = 0;
 
   installSimulatedBlockFunctions();
-  UpgradeStartup::installEXEC(this);
 
   CLEAR_ERROR_INSERT_VALUE;
 
@@ -1193,6 +1192,255 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 }
 
 void
+SimulatedBlock::sendSignalNoRelease(BlockReference ref,
+                                    GlobalSignalNumber gsn,
+                                    Signal* signal,
+                                    Uint32 length,
+                                    JobBufferLevel jobBuffer,
+                                    SectionHandle* sections) const {
+
+  /**
+   * Implementation the same as sendSignal(), except that
+   * the sections are duplicated when sending locally, and
+   * not released
+   */
+
+  Uint32 noOfSections = sections->m_cnt;
+  BlockNumber sendBnr = number();
+  BlockReference sendBRef = reference();
+
+  Uint32 recBlock = refToBlock(ref);
+  Uint32 recNode   = refToNode(ref);
+  Uint32 ourProcessor         = globalData.ownId;
+
+  check_sections(signal, signal->header.m_noOfSections);
+
+  signal->header.theLength = length;
+  signal->header.theVerId_signalNumber = gsn;
+  signal->header.theReceiversBlockNumber = recBlock;
+  signal->header.m_noOfSections = noOfSections;
+
+  Uint32 tSignalId = signal->header.theSignalId;
+  Uint32 tFragInfo = signal->header.m_fragmentInfo;
+
+  if ((length == 0) || (length + noOfSections > 25) || (recBlock == 0)) {
+    signal_error(gsn, length, recBlock, __FILE__, __LINE__);
+    return;
+  }//if
+#ifdef VM_TRACE
+  if(globalData.testOn){
+    Uint16 proc =
+      (recNode == 0 ? globalData.ownId : recNode);
+    signal->header.theSendersBlockRef = sendBRef;
+    globalSignalLoggers.sendSignal(signal->header,
+				   jobBuffer,
+				   &signal->theData[0],
+				   proc,
+                                   sections->m_ptr, noOfSections);
+  }
+#endif
+
+  if(recNode == ourProcessor || recNode == 0) {
+    signal->header.theSendersSignalId = tSignalId;
+    signal->header.theSendersBlockRef = sendBRef;
+
+    Uint32 * dst = signal->theData + length;
+
+    /* We need to copy the segmented section data into separate
+     * sections when sending locally and keeping a copy ourselves
+     */
+    for (Uint32 sec=0; sec < noOfSections; sec++)
+    {
+      Uint32 secCopy;
+      bool ok= dupSection(secCopy, sections->m_ptr[sec].i);
+      ndbrequire (ok);
+      * dst ++ = secCopy;
+    }
+
+#ifdef NDBD_MULTITHREADED
+    if (jobBuffer == JBB)
+      sendlocal(m_threadId, &signal->header, signal->theData,
+                signal->theData + length);
+    else
+      sendprioa(m_threadId, &signal->header, signal->theData,
+                signal->theData + length);
+#else
+    globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+#endif
+  } else {
+    // send distributed Signal
+    SignalHeader sh;
+
+    Uint32 tTrace = signal->getTrace();
+
+    sh.theVerId_signalNumber   = gsn;
+    sh.theReceiversBlockNumber = recBlock;
+    sh.theSendersBlockRef      = sendBnr;
+    sh.theLength               = length;
+    sh.theTrace                = tTrace;
+    sh.theSignalId             = tSignalId;
+    sh.m_noOfSections          = noOfSections;
+    sh.m_fragmentInfo          = tFragInfo;
+
+#ifdef TRACE_DISTRIBUTED
+    ndbout_c("send: %s(%d) to (%s, %d)",
+	     getSignalName(gsn), gsn, getBlockName(recBlock),
+	     recNode);
+#endif
+
+    SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+    ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
+                        recNode, &g_sectionSegmentPool, sections->m_ptr);
+#else
+    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
+                                               &signal->theData[0], recNode,
+                                               g_sectionSegmentPool,
+                                               sections->m_ptr);
+#endif
+
+    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+  }
+
+  signal->header.m_noOfSections = 0;
+  signal->header.m_fragmentInfo = 0;
+  return;
+}
+
+void
+SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
+                                    GlobalSignalNumber gsn,
+                                    Signal* signal,
+                                    Uint32 length,
+                                    JobBufferLevel jobBuffer,
+                                    SectionHandle * sections) const {
+  /**
+   * Implementation the same as sendSignal(), except that
+   * the sections are duplicated when sending locally, and
+   * not released
+   */
+
+  Uint32 noOfSections = sections->m_cnt;
+  Uint32 tSignalId = signal->header.theSignalId;
+  Uint32 tTrace    = signal->getTrace();
+  Uint32 tFragInfo = signal->header.m_fragmentInfo;
+
+  Uint32 ourProcessor = globalData.ownId;
+  Uint32 recBlock = rg.m_block;
+
+  check_sections(signal, signal->header.m_noOfSections);
+
+  signal->header.theLength = length;
+  signal->header.theVerId_signalNumber = gsn;
+  signal->header.theReceiversBlockNumber = recBlock;
+  signal->header.theSendersSignalId = tSignalId;
+  signal->header.theSendersBlockRef = reference();
+  signal->header.m_noOfSections = noOfSections;
+
+  if ((length == 0) || (length + noOfSections > 25) || (recBlock == 0)) {
+    signal_error(gsn, length, recBlock, __FILE__, __LINE__);
+    return;
+  }//if
+
+  SignalHeader sh;
+  sh.theVerId_signalNumber   = gsn;
+  sh.theReceiversBlockNumber = recBlock;
+  sh.theSendersBlockRef      = number();
+  sh.theLength               = length;
+  sh.theTrace                = tTrace;
+  sh.theSignalId             = tSignalId;
+  sh.m_noOfSections          = noOfSections;
+  sh.m_fragmentInfo          = tFragInfo;
+
+  /**
+   * Check own node
+   */
+  if(rg.m_nodes.get(0) || rg.m_nodes.get(ourProcessor))
+  {
+#ifdef VM_TRACE
+    if(globalData.testOn){
+      globalSignalLoggers.sendSignal(signal->header,
+				     jobBuffer,
+				     &signal->theData[0],
+				     ourProcessor,
+                                     sections->m_ptr, noOfSections);
+    }
+#endif
+
+    Uint32 * dst = signal->theData + length;
+
+    /* We need to copy the segmented section data into separate
+     * sections when sending locally and keeping a copy ourselves
+     */
+    for (Uint32 sec=0; sec < noOfSections; sec++)
+    {
+      Uint32 secCopy;
+      bool ok= dupSection(secCopy, sections->m_ptr[sec].i);
+      ndbrequire (ok);
+      * dst ++ = secCopy;
+    }
+
+#ifdef NDBD_MULTITHREADED
+    if (jobBuffer == JBB)
+      sendlocal(m_threadId, &signal->header, signal->theData,
+                signal->theData + length);
+    else
+      sendprioa(m_threadId, &signal->header, signal->theData,
+                signal->theData + length);
+#else
+    globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+#endif
+
+    rg.m_nodes.clear((Uint32)0);
+    rg.m_nodes.clear(ourProcessor);
+  }
+
+  /**
+   * Do the big loop
+   */
+  Uint32 recNode = 0;
+  while(!rg.m_nodes.isclear()){
+    recNode = rg.m_nodes.find(recNode + 1);
+    rg.m_nodes.clear(recNode);
+
+#ifdef VM_TRACE
+    if(globalData.testOn){
+      globalSignalLoggers.sendSignal(signal->header,
+				     jobBuffer,
+				     &signal->theData[0],
+				     recNode,
+                                     sections->m_ptr, noOfSections);
+    }
+#endif
+
+#ifdef TRACE_DISTRIBUTED
+    ndbout_c("send: %s(%d) to (%s, %d)",
+	     getSignalName(gsn), gsn, getBlockName(recBlock),
+	     recNode);
+#endif
+
+    SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+    ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
+                        recNode, &g_sectionSegmentPool, sections->m_ptr);
+#else
+    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
+                                               &signal->theData[0], recNode,
+                                               g_sectionSegmentPool,
+                                               sections->m_ptr);
+#endif
+
+    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+  }
+
+  signal->header.m_noOfSections = 0;
+  signal->header.m_fragmentInfo = 0;
+
+  return;
+}
+
+
+void
 SimulatedBlock::sendSignalWithDelay(BlockReference ref, 
 				    GlobalSignalNumber gsn,
 				    Signal* signal,
@@ -1834,7 +2082,8 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
 				  Uint32 length, 
 				  JobBufferLevel jbuf,
 				  SectionHandle* sections,
-				  Uint32 messageSize){
+                                  bool noRelease,
+                                  Uint32 messageSize) {
   
   Uint32 noSections = sections->m_cnt;
   SegmentedSectionPtr * ptr = sections->m_ptr;
@@ -1863,15 +2112,14 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     /**
      * Send signal directly
      */
-    sendSignal(rg, gsn, signal, length, jbuf, sections);
+    if (noRelease)
+      sendSignalNoRelease(rg, gsn, signal, length, jbuf, sections);
+    else
+      sendSignal(rg, gsn, signal, length, jbuf, sections);
+      
     info.m_status = FragmentSendInfo::SendComplete;
     return true;
   }
-
-  /**
-   * Consume sections
-   */
-  sections->m_cnt = 0;
     
   /**
    * Setup info object
@@ -1880,11 +2128,27 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
   info.m_prio = (Uint8)jbuf;
   info.m_gsn = gsn;
   info.m_fragInfo = 1;
+  info.m_flags = 0;
   info.m_messageSize = messageSize;
   info.m_fragmentId = c_fragmentIdCounter++;
   info.m_nodeReceiverGroup = rg;
   info.m_callback.m_callbackFunction = 0;
+
+  if (noRelease)
+  {
+    /* Record info that we are not releasing segments */
+    info.m_flags|= FragmentSendInfo::SendNoReleaseSeg;
+  }
+  else
+  {
+    /**
+     * Clear sections in caller's handle.  Actual send
+     * will consume them
+     */
+    sections->m_cnt = 0;
+  } 
   
+  /* Store main signal data in a segment for sending later */
   Ptr<SectionSegment> tmp;
   if(!import(tmp, &signal->theData[0], length)){
     ndbrequire(false);
@@ -1917,7 +2181,7 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
 					  FragmentSendInfo & info){
   
   /**
-   * Store "theData"
+   * Setup main signal data from stored copy
    */
   const Uint32 sigLen = info.m_theDataSection.sz;
   memcpy(&signal->theData[0], info.m_theDataSection.p, 4 * sigLen);
@@ -1931,6 +2195,12 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
   
   SectionHandle sections(this);
   SegmentedSectionPtr *ptr = sections.m_ptr;
+
+  bool split= false;
+  Uint32 splitSectionStartI= RNIL;
+  SectionSegment* splitSectionStartP= NULL;
+  Uint32 splitSectionLastSegment= RNIL;
+  Uint32 splitSectionSz= 0;
 
   enum { Unknown = 0, Full = 1 } loop = Unknown;
   for(; secNo >= 0 && secCount < 3; secNo--){
@@ -2003,20 +2273,32 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
       sum += SectionSegment::DataLength;
     }
     
+    Uint32 prev = secCount - 1;
+    /**
+     * Record details of the section pre-split
+     * This allows the split to be 'healed' afterwards in the
+     * no release case.
+     */
+    split= true;
+    splitSectionStartI= ptr[prev].i;
+    splitSectionStartP= ptr[prev].p;
+    splitSectionLastSegment= splitSectionStartP->m_lastSegment;
+    splitSectionSz= splitSectionStartP->m_sz;
+
     /**
      * Rewrite header w.r.t size and last
+     * This is what will be sent in this fragment.
      */
-    Uint32 prev = secCount - 1;
-    const Uint32 last = ptr[prev].p->m_lastSegment;
-    ptr[prev].p->m_lastSegment = prevPtrI;
-    ptr[prev].p->m_sz = sum;
+    splitSectionStartP->m_lastSegment = prevPtrI;
+    splitSectionStartP->m_sz = sum;
     ptr[prev].sz = sum;
       
     /**
      * Write "new" list header
+     * This is what remains to be sent in this section
      */
     ptrP = g_sectionSegmentPool.getPtr(ptrI);
-    ptrP->m_lastSegment = last;
+    ptrP->m_lastSegment = splitSectionLastSegment;
     ptrP->m_sz = size - sum;
     
     /**
@@ -2061,17 +2343,56 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
   signal->header.m_fragmentInfo = fragInfo;
   signal->header.m_noOfSections = 0;
   sections.m_cnt = secCount;
-  
-  sendSignal(info.m_nodeReceiverGroup,
-	     info.m_gsn,
-	     signal, 
-	     sigLen + secCount + 1,
-	     (JobBufferLevel)info.m_prio,
-	     &sections);
+
+  if (info.m_flags & FragmentSendInfo::SendNoReleaseSeg)
+  {
+    sendSignalNoRelease(info.m_nodeReceiverGroup,
+                        info.m_gsn,
+                        signal, 
+                        sigLen + secCount + 1,
+                        (JobBufferLevel)info.m_prio,
+                        &sections);
+    /* NoRelease leaves SectionHandle populated, we'll
+     * clear it here.  The actual sections themselves 
+     * remain allocated.
+     */
+    sections.m_cnt = 0;
+
+    if (split)
+    {
+      /* There was a split section, which required us to modify the
+       * segment list.
+       * Now restore the split section's segment list back to
+       * its previous state
+       * (Only really required for first segment, but we do
+       *  it for all of them, to be a good citizen)
+       */
+      ndbrequire( splitSectionStartI != RNIL );
+      ndbrequire( splitSectionStartP != NULL );
+      ndbrequire( splitSectionLastSegment != RNIL );
+
+      splitSectionStartP->m_lastSegment= splitSectionLastSegment;
+      splitSectionStartP->m_sz= splitSectionSz;
+
+      /* Check our handiwork */
+      assert(verifySection(splitSectionStartI));
+    }
+  }
+  else
+  {
+    /* Normal, release sections case */
+    sendSignal(info.m_nodeReceiverGroup,
+               info.m_gsn,
+               signal, 
+               sigLen + secCount + 1,
+               (JobBufferLevel)info.m_prio,
+               &sections);
+  }
   
   if(fragInfo == 3){
     /**
      * This is the last signal
+     * Release saved 'main signal' words segment
      */
     g_sectionSegmentPool.release(info.m_theDataSection.p[sigLen]);
   }
@@ -2129,6 +2450,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
   info.m_gsn = gsn;
   info.m_messageSize = messageSize;
   info.m_fragInfo = 1;
+  info.m_flags = 0;
   info.m_fragmentId = c_fragmentIdCounter++;
   info.m_nodeReceiverGroup = rg;
   info.m_callback.m_callbackFunction = 0;
@@ -2318,6 +2640,7 @@ SimulatedBlock::sendFragmentedSignal(BlockReference ref,
 			  length,
 			  jbuf,
 			  sections,
+                          false, // Release sections on send
 			  messageSize);
   ndbrequire(res);
   
@@ -2358,7 +2681,8 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
 			  length,
 			  jbuf,
 			  sections,
-			  messageSize);
+			  false, // Release sections on send
+                          messageSize);
   ndbrequire(res);
   
   if(tmp.p->m_status == FragmentSendInfo::SendComplete){
@@ -2530,36 +2854,6 @@ void
 SimulatedBlock::ignoreMutexUnlockCallback(Signal* signal, 
 					  Uint32 ptrI, Uint32 retVal){
   c_mutexMgr.release(ptrI);
-}
-
-void 
-UpgradeStartup::installEXEC(SimulatedBlock* block){
-  SimulatedBlock::ExecFunction * a = block->theExecArray;
-  switch(block->number()){
-  case QMGR:
-    a[UpgradeStartup::GSN_CM_APPCHG] = &SimulatedBlock::execUPGRADE;
-    break;
-  case CNTR:
-    a[UpgradeStartup::GSN_CNTR_MASTERREF] = &SimulatedBlock::execUPGRADE;
-    a[UpgradeStartup::GSN_CNTR_MASTERCONF] = &SimulatedBlock::execUPGRADE;
-    break;
-  }
-}
-
-void
-SimulatedBlock::execUPGRADE(Signal* signal){
-  Uint32 gsn = signal->header.theVerId_signalNumber;
-  switch(gsn){
-  case UpgradeStartup::GSN_CM_APPCHG:
-    UpgradeStartup::execCM_APPCHG(* this, signal);
-    break;
-  case UpgradeStartup::GSN_CNTR_MASTERREF:
-    UpgradeStartup::execCNTR_MASTER_REPLY(* this, signal);
-    break;
-  case UpgradeStartup::GSN_CNTR_MASTERCONF:
-    UpgradeStartup::execCNTR_MASTER_REPLY(* this, signal);
-    break;
-  }
 }
 
 void

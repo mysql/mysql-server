@@ -1101,7 +1101,9 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 
   if (arg == DumpStateOrd::CmvmiTestLongSigWithDelay) {
     unsigned i;
-    Uint32 loopCount = dumpState->args[1];
+    Uint32 testType = dumpState->args[1];
+    Uint32 loopCount = dumpState->args[2];
+    Uint32 print = dumpState->args[3];
     const unsigned len0 = 11;
     const unsigned len1 = 123;
     Uint32 sec0[len0];
@@ -1112,9 +1114,9 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       sec1[i] = 16 * i;
     Uint32* sig = signal->getDataPtrSend();
     sig[0] = reference();
-    sig[1] = 20; // test type
+    sig[1] = testType;
     sig[2] = 0;
-    sig[3] = 0;
+    sig[3] = print;
     sig[4] = loopCount;
     sig[5] = len0;
     sig[6] = len1;
@@ -1243,6 +1245,15 @@ BLOCK_FUNCTIONS(Cmvmi)
 static Uint32 g_print;
 static LinearSectionPtr g_test[3];
 
+/* See above for how to generate TESTSIG using DUMP 2603
+ * (e.g. : <All/NodeId> DUMP 2603 <TestId> <LoopCount> <Print>
+ *   LoopCount : How many times test should loop (0-n)
+ *   Print : Whether signals should be printed : 0=no 1=yes
+ * 
+ * TestIds
+ *   20 : Test sendDelayed with 1 milli delay, LoopCount times
+ *   1-16 : See vm/testLongSig.cpp
+ */
 void
 Cmvmi::execTESTSIG(Signal* signal){
   Uint32 i;
@@ -1308,10 +1319,14 @@ Cmvmi::execTESTSIG(Signal* signal){
       return;
     }
     signal->theData[4]--;
-    sendSignalWithDelay(reference(), GSN_TESTSIG, signal, 100, 8);
+    sendSignalWithDelay(reference(), GSN_TESTSIG, signal, 100, 8, &handle);
     return;
   }
-  
+
+  if (g_print)
+    ndbout_c("TestType=%u signal->theData[4]=%u, sendersBlockRef=%u ref=%u\n",
+             testType, signal->theData[4], signal->getSendersBlockRef(), ref);
+
   NodeReceiverGroup rg(CMVMI, c_dbNodes);
 
   if(signal->getSendersBlockRef() == ref){
@@ -1319,19 +1334,23 @@ Cmvmi::execTESTSIG(Signal* signal){
      * Signal from API (not via NodeReceiverGroup)
      */
     if((testType % 2) == 1){
-      signal->theData[4] = 1;
+      signal->theData[4] = 1; // No further signals after this
     } else {
+      // Change testType to UniCast, and set loopCount to the
+      // number of nodes.
       signal->theData[1] --;
       signal->theData[4] = rg.m_nodes.count();
     }
-  } 
+  }
   
   switch(testType){
   case 1:
+    /* Unicast to self */
     sendSignal(ref, GSN_TESTSIG,  signal, signal->length(), JBB,
 	       &handle);
     break;
   case 2:
+    /* Multicast to all nodes */
     sendSignal(rg, GSN_TESTSIG,  signal, signal->length(), JBB,
 	       &handle);
     break;
@@ -1348,8 +1367,10 @@ Cmvmi::execTESTSIG(Signal* signal){
     }
     
     if(testType == 3){
+      /* Unicast linear sections to self */
       sendSignal(ref, GSN_TESTSIG, signal, signal->length(), JBB, ptr, secs);
     } else {
+      /* Boradcast linear sections to all nodes */
       sendSignal(rg, GSN_TESTSIG, signal, signal->length(), JBB, ptr, secs);
     }
     for(Uint32 i = 0; i<secs; i++){
@@ -1358,13 +1379,16 @@ Cmvmi::execTESTSIG(Signal* signal){
     releaseSections(handle);
     break;
   }
+  /* Send fragmented segmented sections direct send */
   case 5:
   case 6:{
     
     NodeReceiverGroup tmp;
     if(testType == 5){
+      /* Unicast */
       tmp  = ref;
     } else {
+      /* Multicast */
       tmp = rg;
     }
     
@@ -1376,7 +1400,8 @@ Cmvmi::execTESTSIG(Signal* signal){
 		      signal->length(),
 		      JBB,
 		      &handle,
-		      fragmentLength);
+		      false, // Release sections on send
+                      fragmentLength);
 
     int count = 1;
     while(fragSend.m_status != FragmentSendInfo::SendComplete){
@@ -1387,6 +1412,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     }
     break;
   }
+  /* Send fragmented linear sections direct send */
   case 7:
   case 8:{
     LinearSectionPtr ptr[3];
@@ -1401,8 +1427,10 @@ Cmvmi::execTESTSIG(Signal* signal){
 
     NodeReceiverGroup tmp;
     if(testType == 7){
+      /* Unicast */
       tmp  = ref;
     } else {
+      /* Multicast */
       tmp = rg;
     }
 
@@ -1431,6 +1459,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     releaseSections(handle);
     break;
   }
+  /* Test fragmented segmented send with callback */
   case 9:
   case 10:{
 
@@ -1439,6 +1468,7 @@ Cmvmi::execTESTSIG(Signal* signal){
       safe_cast(&Cmvmi::sendFragmentedComplete);
     
     if(testType == 9){
+      /* Unicast */
       m_callBack.m_callbackData = 9;
       sendFragmentedSignal(ref,
 			   GSN_TESTSIG, signal, signal->length(), JBB, 
@@ -1446,6 +1476,7 @@ Cmvmi::execTESTSIG(Signal* signal){
 			   m_callBack,
 			   fragmentLength);
     } else {
+      /* Multicast */
       m_callBack.m_callbackData = 10;
       sendFragmentedSignal(rg,
 			   GSN_TESTSIG, signal, signal->length(), JBB, 
@@ -1455,6 +1486,7 @@ Cmvmi::execTESTSIG(Signal* signal){
     }
     break;
   }
+  /* Test fragmented linear send with callback */
   case 11:
   case 12:{
 
@@ -1468,12 +1500,14 @@ Cmvmi::execTESTSIG(Signal* signal){
       copy(g_test[i].p, sptr);
     }
     
+    releaseSections(handle);
     
     Callback m_callBack;
     m_callBack.m_callbackFunction = 
       safe_cast(&Cmvmi::sendFragmentedComplete);
     
     if(testType == 11){
+      /* Unicast */
       m_callBack.m_callbackData = 11;
       sendFragmentedSignal(ref,
 			   GSN_TESTSIG, signal, signal->length(), JBB, 
@@ -1481,6 +1515,7 @@ Cmvmi::execTESTSIG(Signal* signal){
 			   m_callBack,
 			   fragmentLength);
     } else {
+      /* Multicast */
       m_callBack.m_callbackData = 12;
       sendFragmentedSignal(rg,
 			   GSN_TESTSIG, signal, signal->length(), JBB, 
@@ -1490,7 +1525,46 @@ Cmvmi::execTESTSIG(Signal* signal){
     }
     break;
   }
-  case 13:{
+  /* Send fragmented segmented sections direct send no-release */
+  case 13:
+  case 14:{
+    NodeReceiverGroup tmp;
+    if(testType == 13){
+      /* Unicast */
+      tmp  = ref;
+    } else {
+      /* Multicast */
+      tmp = rg;
+    }
+    
+    FragmentSendInfo fragSend;
+    sendFirstFragment(fragSend,
+		      tmp,
+		      GSN_TESTSIG,
+		      signal,
+		      signal->length(),
+		      JBB,
+		      &handle,
+		      true, // Don't release sections
+                      fragmentLength);
+
+    int count = 1;
+    while(fragSend.m_status != FragmentSendInfo::SendComplete){
+      count++;
+      if(g_print)
+	ndbout_c("Sending fragment %d", count);
+      sendNextSegmentedFragment(signal, fragSend);
+    }
+
+    if (g_print)
+      ndbout_c("Free sections : %u\n", g_sectionSegmentPool.getNoOfFree());
+    releaseSections(handle);
+    //handle.clear(); // Use instead of releaseSections to Leak sections 
+    break;
+  }
+  /* Loop decrementing signal->theData[9] */
+  case 15:{
+    releaseSections(handle);
     ndbrequire(signal->getNoOfSections() == 0);
     Uint32 loop = signal->theData[9];
     if(loop > 0){
@@ -1501,7 +1575,8 @@ Cmvmi::execTESTSIG(Signal* signal){
     sendSignal(ref, GSN_TESTSIG, signal, signal->length(), JBB);
     return;
   }
-  case 14:{
+  case 16:{
+    releaseSections(handle);
     Uint32 count = signal->theData[8];
     signal->theData[10] = count * rg.m_nodes.count();
     for(i = 0; i<count; i++){

@@ -218,6 +218,7 @@ private:
   /**
    * Unlikely to need to implement these. readvReq for iovec
    */
+protected:
   virtual void readReq(Request *request);
   virtual void readvReq(Request *request);
 

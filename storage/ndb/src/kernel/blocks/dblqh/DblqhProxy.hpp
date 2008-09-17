@@ -24,6 +24,7 @@
 #include <signaldata/GCP.hpp>
 #include <signaldata/PrepDropTab.hpp>
 #include <signaldata/DropTab.hpp>
+#include <signaldata/AlterTab.hpp>
 #include <signaldata/StartRec.hpp>
 #include <signaldata/LqhTransReq.hpp>
 #include <signaldata/LqhTransConf.hpp>
@@ -229,6 +230,41 @@ protected:
   void execDROP_TAB_CONF(Signal*);
   void execDROP_TAB_REF(Signal*);
   void sendDROP_TAB_CONF(Signal*, Uint32 ssId);
+
+  // GSN_ALTER_TAB_REQ
+  struct Ss_ALTER_TAB_REQ : SsParallel {
+    AlterTabReq m_req;
+    Uint32 m_sections;
+    // wl4391_todo check max length in various cases
+    enum { MaxSection0 = 2 * MAX_ATTRIBUTES_IN_TABLE };
+    Uint32 m_sz0;
+    Uint32 m_section0[MaxSection0];
+    Ss_ALTER_TAB_REQ() {
+      m_sendREQ = (SsFUNC)&DblqhProxy::sendALTER_TAB_REQ;
+      m_sendCONF = (SsFUNC)&DblqhProxy::sendALTER_TAB_CONF;
+      m_sections = 0;
+      m_sz0 = 0;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_ALTER_TAB_REQ>& pool(LocalProxy* proxy) {
+      return ((DblqhProxy*)proxy)->c_ss_ALTER_TAB_REQ;
+    }
+  };
+  SsPool<Ss_ALTER_TAB_REQ> c_ss_ALTER_TAB_REQ;
+  Uint32 getSsId(const AlterTabReq* req) {
+    return SsIdBase | req->tableId;
+  }
+  Uint32 getSsId(const AlterTabConf* conf) {
+    return conf->senderData;
+  }
+  Uint32 getSsId(const AlterTabRef* ref) {
+    return ref->senderData;
+  }
+  void execALTER_TAB_REQ(Signal*);
+  void sendALTER_TAB_REQ(Signal*, Uint32 ssId);
+  void execALTER_TAB_CONF(Signal*);
+  void execALTER_TAB_REF(Signal*);
+  void sendALTER_TAB_CONF(Signal*, Uint32 ssId);
 
   // GSN_START_RECREQ
   struct Ss_START_RECREQ : SsParallel {

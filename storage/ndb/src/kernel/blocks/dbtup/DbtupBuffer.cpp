@@ -246,10 +246,11 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
      * The UTIL/TC blocks are in another thread (in multi-threaded ndbd), so
      * must use sendSignal().
      *
-     * In MT LQH only LQH and BACKUP are in same thread.
+     * In MT LQH only LQH and BACKUP are in same thread, and BACKUP only
+     * in LCP case since user-backup uses single worker.
      */
     BlockNumber blockMain = blockToMain(block);
-    if (blockMain == DBLQH || blockMain == BACKUP)
+    if (blockMain == DBLQH)
     {
       EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
       jamEntry();
@@ -258,6 +259,13 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     {
       // wl4391_todo not MT safe
       EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex, 0);
+      jamEntry();
+    }
+    else if (blockMain == BACKUP)
+    {
+      Uint32 iNo = blockToInstance(block);
+      // wl4391_todo maybe not MT safe in non-LCP case
+      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex, iNo);
       jamEntry();
     }
     else

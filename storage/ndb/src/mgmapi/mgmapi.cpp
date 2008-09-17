@@ -332,12 +332,26 @@ ndb_mgm_get_latest_error_msg(const NdbMgmHandle h)
   return "Error"; // Unknown Error message
 }
 
+
 /*
- * Call an operation, and return the reply
+  ndb_mgm_call
+
+  Send command, command arguments and any command bulk data to
+  ndb_mgmd.
+  Read and return result
+
+  @param The mgmapi handle
+  @param List describing the expected reply
+  @param Name of the command to call
+  @param Arguments for the command
+  @param Any bulk data to send after the command
+
  */
 static const Properties *
-ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
-	     const char *cmd, const Properties *cmd_args) 
+ndb_mgm_call(NdbMgmHandle handle,
+             const ParserRow<ParserDummy> *command_reply,
+             const char *cmd, const Properties *cmd_args,
+             const char* cmd_bulk= NULL)
 {
   DBUG_ENTER("ndb_mgm_call");
   DBUG_PRINT("enter",("handle->socket: " MY_SOCKET_FORMAT ", cmd: %s",
@@ -393,6 +407,9 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 #endif
   }
   out.println("");
+
+  if (cmd_bulk)
+    out.println("%s", cmd_bulk);
 
   DBUG_CHECK_TIMEDOUT_RET(handle, in, out, NULL);
 
@@ -2972,6 +2989,141 @@ ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,
 err:
   delete prop;
   DBUG_RETURN(retval);
+}
+
+
+extern "C"
+int
+ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
+{
+  const ConfigValues * cfg = (ConfigValues*)c;
+
+  UtilBuffer buf;
+  if (!cfg->pack(buf))
+  {
+    SET_ERROR(h, NDB_MGM_OUT_OF_MEMORY, "Packing config");
+    return -1;
+  }
+
+  BaseString encoded;
+  encoded.assfmt("%*s", base64_needed_encoded_length(buf.length()), "Z");
+  (void) base64_encode(buf.get_data(), buf.length(), (char*)encoded.c_str());
+
+  Properties args;
+  args.put("Content-Length", strlen(encoded.c_str()));
+  args.put("Content-Type",  "ndbconfig/octet-stream");
+  args.put("Content-Transfer-Encoding", "base64");
+
+  const ParserRow<ParserDummy> set_config_reply[]= {
+    MGM_CMD("set config reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Result"),
+    MGM_END()
+  };
+
+  const Properties *reply;
+  reply= ndb_mgm_call(h, set_config_reply, "set config", &args,
+                      encoded.c_str());
+  CHECK_REPLY(h, reply, -1);
+
+  BaseString result;
+  reply->get("result",result);
+
+  delete reply;
+
+  if(strcmp(result.c_str(), "Ok") != 0) {
+    fprintf(h->errstream, "ERROR Message: %s\n", result.c_str());
+    return -1;
+  }
+
+  return 0;
+}
+
+
+extern "C"
+int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
+                             int *nodes,
+                             int *ng,
+                             struct ndb_mgm_reply* mgmreply)
+{
+  DBUG_ENTER("ndb_mgm_create_nodegroup");
+  CHECK_HANDLE(handle, -1);
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_create_nodegroup");
+  CHECK_CONNECTED(handle, -2);
+
+  BaseString nodestr;
+  for (int i = 0; nodes[i] != 0; i++)
+    nodestr.appfmt("%u ", nodes[i]);
+
+  Properties args;
+  args.put("nodes", nodestr.c_str());
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("create nodegroup reply", NULL, ""),
+    MGM_ARG("ng", Int, Mandatory, "NG Id"),
+    MGM_ARG("error_code", Int, Optional, "error_code"),
+    MGM_ARG("result", String, Mandatory, "Result"),
+    MGM_END()
+  };
+
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "create nodegroup", &args);
+  CHECK_REPLY(handle, prop, -3);
+
+  int res = 0;
+  const char * buf = 0;
+  if (!prop->get("result", &buf) || strcmp(buf, "Ok") != 0)
+  {
+    res = -1;
+    Uint32 err = NDB_MGM_ILLEGAL_SERVER_REPLY;
+    prop->get("error_code", &err);
+    setError(handle, err, __LINE__, buf ? buf : "Illegal reply");
+  }
+  else if (!prop->get("ng",(Uint32*)ng))
+  {
+    res = -1;
+    setError(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, __LINE__,
+             "Nodegroup not sent back in reply");
+  }
+
+  delete prop;
+  DBUG_RETURN(res);
+}
+
+int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
+                           int ng,
+                           struct ndb_mgm_reply* mgmreply)
+{
+  DBUG_ENTER("ndb_mgm_drop_nodegroup");
+  CHECK_HANDLE(handle, -1);
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_create_nodegroup");
+  CHECK_CONNECTED(handle, -2);
+
+  Properties args;
+  args.put("ng", ng);
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("drop nodegroup reply", NULL, ""),
+    MGM_ARG("error_code", Int, Optional, "error_code"),
+    MGM_ARG("result", String, Mandatory, "Result"),
+    MGM_END()
+  };
+
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "drop nodegroup", &args);
+  DBUG_CHECK_REPLY(handle, prop, -3);
+
+  int res= 0;
+  const char * buf = 0;
+  if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0)
+  {
+    res = -1;
+    Uint32 err = NDB_MGM_ILLEGAL_SERVER_REPLY;
+    prop->get("error_code", &err);
+    setError(handle, err, __LINE__, buf ? buf : "Illegal reply");
+  }
+
+  delete prop;
+  DBUG_RETURN(res);
 }
 
 template class Vector<const ParserRow<ParserDummy>*>;

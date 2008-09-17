@@ -73,6 +73,11 @@
 #include <signaldata/SchemaTransImpl.hpp>
 #include <LockQueue.hpp>
 #include <signaldata/CopyData.hpp>
+#include <signaldata/CreateNodegroup.hpp>
+#include <signaldata/DropNodegroup.hpp>
+#include <signaldata/CreateNodegroupImpl.hpp>
+#include <signaldata/DropNodegroupImpl.hpp>
+
 
 #ifdef DBDICT_C
 
@@ -81,6 +86,7 @@
 /*--------------------------------------------------------------*/
 #define ZPACK_TABLE_INTO_PAGES 0
 #define ZSEND_GET_TAB_RESPONSE 3
+#define ZWAIT_SUBSTARTSTOP 4
 
 
 /*--------------------------------------------------------------*/
@@ -801,7 +807,8 @@ private:
 
   Uint32 get_fragmentation(Signal*, Uint32 tableId);
   Uint32 create_fragmentation(Signal* signal, TableRecordPtr,
-                              const Uint16*, Uint32 cnt);
+                              const Uint16*, Uint32 cnt,
+                              Uint32 flags = 0);
   void execCREATE_FRAGMENTATION_REQ(Signal*);
   void execCREATE_FRAGMENTATION_REF(Signal*);
   void execCREATE_FRAGMENTATION_CONF(Signal*);
@@ -2694,6 +2701,7 @@ private:
     Uint32 m_subscriptionKey;
     Uint32 m_subscriberRef;
     Uint32 m_subscriberData;
+    Uint8 m_buckets_per_ng[256]; // For SUB_START_REQ
     union {
       SubStartConf m_sub_start_conf;
       SubStopConf m_sub_stop_conf;
@@ -3079,6 +3087,136 @@ private:
 
   void dropFile_fromLocal(Signal*, Uint32, Uint32);
 
+  // MODULE: CreateNodegroup
+
+  struct CreateNodegroupRec : public OpRec {
+    bool m_map_created;
+    CreateNodegroupImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::CreateNodegroupRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_createNodegroupRecPool;
+    }
+
+    CreateNodegroupRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_map_created = false;
+      m_blockIndex = RNIL;
+      m_blockCnt = RNIL;
+      m_cnt_waitGCP = RNIL;
+      m_wait_gcp_type = RNIL;
+      m_substartstop_blocked = false;
+      m_gcp_blocked = false;
+    }
+
+    enum { BlockCount = 3 };
+    Uint32 m_blockNo[BlockCount];
+    Uint32 m_blockIndex;
+    Uint32 m_blockCnt;
+    Uint32 m_cnt_waitGCP;
+    Uint32 m_wait_gcp_type;
+    bool m_gcp_blocked;
+    bool m_substartstop_blocked;
+  };
+
+  typedef Ptr<CreateNodegroupRec> CreateNodegroupRecPtr;
+  ArrayPool<CreateNodegroupRec> c_createNodegroupRecPool;
+
+  // OpInfo
+  void execCREATE_NODEGROUP_REQ(Signal*);
+  void execCREATE_NODEGROUP_IMPL_REF(Signal*);
+  void execCREATE_NODEGROUP_IMPL_CONF(Signal*);
+
+  bool createNodegroup_seize(SchemaOpPtr);
+  void createNodegroup_release(SchemaOpPtr);
+  //
+  void createNodegroup_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool createNodegroup_subOps(Signal*, SchemaOpPtr);
+  void createNodegroup_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void createNodegroup_prepare(Signal*, SchemaOpPtr);
+  void createNodegroup_commit(Signal*, SchemaOpPtr);
+  void createNodegroup_complete(Signal*, SchemaOpPtr);
+  //
+  void createNodegroup_abortParse(Signal*, SchemaOpPtr);
+  void createNodegroup_abortPrepare(Signal*, SchemaOpPtr);
+
+  void createNodegroup_toLocal(Signal*, SchemaOpPtr);
+  void createNodegroup_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+  void createNodegroup_fromCreateHashMap(Signal*, Uint32 op_key, Uint32 ret);
+  void createNodegroup_fromWaitGCP(Signal*, Uint32 op_key, Uint32 ret);
+  void createNodegroup_fromBlockSubStartStop(Signal*, Uint32 op_key, Uint32);
+
+  void execCREATE_HASH_MAP_REF(Signal* signal);
+  void execCREATE_HASH_MAP_CONF(Signal* signal);
+
+  // MODULE: DropNodegroup
+
+  struct DropNodegroupRec : public OpRec {
+    DropNodegroupImplReq m_request;
+
+    // reflection
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::DropNodegroupRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_dropNodegroupRecPool;
+    }
+
+    DropNodegroupRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_blockIndex = RNIL;
+      m_blockCnt = RNIL;
+      m_cnt_waitGCP = RNIL;
+      m_wait_gcp_type = RNIL;
+      m_gcp_blocked = false;
+      m_substartstop_blocked = false;
+    }
+
+    enum { BlockCount = 3 };
+    Uint32 m_blockNo[BlockCount];
+    Uint32 m_blockIndex;
+    Uint32 m_blockCnt;
+    Uint32 m_cnt_waitGCP;
+    Uint32 m_wait_gcp_type;
+    bool m_gcp_blocked;
+    bool m_substartstop_blocked;
+  };
+
+  typedef Ptr<DropNodegroupRec> DropNodegroupRecPtr;
+  ArrayPool<DropNodegroupRec> c_dropNodegroupRecPool;
+
+  // OpInfo
+  void execDROP_NODEGROUP_REQ(Signal*);
+  void execDROP_NODEGROUP_IMPL_REF(Signal*);
+  void execDROP_NODEGROUP_IMPL_CONF(Signal*);
+
+  bool dropNodegroup_seize(SchemaOpPtr);
+  void dropNodegroup_release(SchemaOpPtr);
+  //
+  void dropNodegroup_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool dropNodegroup_subOps(Signal*, SchemaOpPtr);
+  void dropNodegroup_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void dropNodegroup_prepare(Signal*, SchemaOpPtr);
+  void dropNodegroup_commit(Signal*, SchemaOpPtr);
+  void dropNodegroup_complete(Signal*, SchemaOpPtr);
+  //
+  void dropNodegroup_abortParse(Signal*, SchemaOpPtr);
+  void dropNodegroup_abortPrepare(Signal*, SchemaOpPtr);
+
+  void dropNodegroup_toLocal(Signal*, SchemaOpPtr);
+  void dropNodegroup_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+  void dropNodegroup_fromWaitGCP(Signal*, Uint32 op_key, Uint32 ret);
+  void dropNodegroup_fromBlockSubStartStop(Signal*, Uint32 op_key, Uint32);
+
   /**
    * Only used at coordinator/master
    */
@@ -3461,6 +3599,13 @@ public:
 
   Uint32 c_outstanding_sub_startstop;
   NdbNodeBitmask c_sub_startstop_lock;
+
+  Uint32 get_default_fragments();
+  void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
+
+  void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);
+  void unblock_substartstop();
+  void wait_substartstop(Signal* signal, Uint32 opPtrI);
 
 protected:
   virtual bool getParam(const char * param, Uint32 * retVal);
