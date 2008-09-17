@@ -1095,6 +1095,29 @@ ulonglong retrieve_auto_increment(uint16 type, uint32 offset,const uchar *record
 }
 
 
+
+inline uint get_field_offset(TABLE* table, Field* field) {
+    return (uint) ((uchar*) field->null_ptr - (uchar*) table->record[0]);
+}
+
+inline bool
+is_null_field( TABLE* table, Field* field, const uchar* record) {
+	uint null_offset;
+    bool ret_val;
+	if (!field->null_ptr) {
+		ret_val = false;
+        goto exitpt;
+	}
+	null_offset = get_field_offset(table,field);
+    ret_val = (record[null_offset] & field->null_bit) ? true: false;
+
+exitpt:
+	return ret_val;
+}
+
+
+
+
 //
 // Open a secondary table, the key will be a secondary index, the data will be a primary key
 //
@@ -1681,6 +1704,9 @@ int ha_tokudb::pack_row(DBT * row, const uchar * record) {
                 }
             }
         }
+        if (is_null_field(table, *field, record)) {
+            continue;
+        }
         ptr = (*field)->pack(ptr, (const uchar *)
                              (record + curr_field_offset));
     }
@@ -1776,6 +1802,12 @@ void ha_tokudb::unpack_row(uchar * record, DBT const *row, DBT const *key) {
                     }
                 }
             }
+            //
+            // null bytes MUST have been copied before doing this
+            //
+            if (is_null_field(table, *field, record)) {
+                continue;
+            }
             ptr = (*field)->unpack(record + field_offset(*field), ptr);
         }
         dbug_tmp_restore_column_map(table->write_set, old_map);
@@ -1798,7 +1830,7 @@ void ha_tokudb::unpack_key(uchar * record, DBT const *key, uint index) {
 
     for (; key_part != end; key_part++) {
         if (key_part->null_bit) {
-            if (!*pos++) {        // Null value
+            if (*pos++ == NULL_COL_VAL) { // Null value
                 /*
                    We don't need to reset the record data as we will not access it
                    if the null data is set
