@@ -20,6 +20,8 @@
 #include <my_sys.h>
 #include <ndb_version.h>
 
+#include <ndb_rand.h>
+
 // version >= 5.1 required
 
 #if !defined(min) || !defined(max)
@@ -113,7 +115,7 @@ static NdbBlob* g_bh = 0;
 static uint
 urandom()
 {
-  uint r = (uint)random();
+  uint r = (uint)ndb_rand();
   return r;
 }
 
@@ -2193,7 +2195,7 @@ setseed(int n)
     seed = n;
   }
   ll0("seed=" << seed);
-  srandom(seed);
+  ndb_srand(seed);
 }
 
 static int

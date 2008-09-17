@@ -25,6 +25,8 @@
 #include <NdbTick.h>
 #include <my_sys.h>
 
+#include <ndb_rand.h>
+
 struct Chr {
   NdbDictionary::Column::Type m_type;
   bool m_fixed;
@@ -618,7 +620,7 @@ createTable(int storageType)
 static unsigned
 urandom(unsigned n)
 {
-  return n == 0 ? 0 : random() % n;
+  return n == 0 ? 0 : ndb_rand() % n;
 }
 
 struct Bval {
@@ -2543,7 +2545,7 @@ testmain()
     g_opt.m_seed = getpid();
   if (g_opt.m_seed != 0) {
     DBG("random seed = " << g_opt.m_seed);
-    srandom(g_opt.m_seed);
+    ndb_srand(g_opt.m_seed);
   }
   for (g_loop = 0; g_opt.m_loop == 0 || g_loop < g_opt.m_loop; g_loop++) {
         for (int storage= 0; storage < 2; storage++) {
@@ -2594,7 +2596,7 @@ testmain()
       int api;
       DBG("=== loop " << g_loop << " ===");
       if (g_opt.m_seed == 0)
-        srandom(g_loop);
+        ndb_srand(g_loop);
       if (g_opt.m_bugtest != 0) {
         // test some bug# instead
         CHK((*g_opt.m_bugtest)() == 0);

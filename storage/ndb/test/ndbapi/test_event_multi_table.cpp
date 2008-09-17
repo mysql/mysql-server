@@ -73,7 +73,7 @@ static int copy_events(Ndb *ndb)
     }
     int error= 0;
     NdbEventOperation *pOp;
-    while ((pOp= ndb->nextEvent(&error)))
+    while ((pOp= ndb->nextEvent()))
     {
       char buf[1024];
       sprintf(buf, "%s_SHADOW", pOp->getTable()->getName());
@@ -251,14 +251,12 @@ static int verify_copy(Ndb *ndb,
   return 0;
 }
 
-NDB_STD_OPTS_VARS;
-
 static const char* _dbname = "TEST_DB";
 struct my_option my_long_options[] =
 {
   NDB_STD_OPTS(""),
   { "database", 'd', "Name of database table is in",
-    (gptr*) &_dbname, (gptr*) &_dbname, 0,
+    (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
