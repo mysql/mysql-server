@@ -38,7 +38,7 @@ typedef struct st_tokudb_share {
     uint ai_field_index;
 } TOKUDB_SHARE;
 
-#define HA_TOKU_VERSION 1
+#define HA_TOKU_VERSION 2
 //
 // no capabilities yet
 //
@@ -56,6 +56,19 @@ typedef enum {
     hatoku_max_ai, //maximum auto increment value found so far
     hatoku_ai_create_value
 } HA_METADATA_KEY ;
+
+
+//
+// for storing NULL byte in keys
+//
+#define NULL_COL_VAL 0
+#define NONNULL_COL_VAL 1
+
+//
+// for storing if rest of key is +/- infinity
+//
+#define COL_NEG_INF 0 
+#define COL_POS_INF 1
 
 typedef struct st_prim_key_part_info {
     uint offset;
@@ -172,7 +185,7 @@ private:
     void unpack_key(uchar * record, DBT const *key, uint index);
     DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
-    DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length);
+    DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, uchar inf_byte);
     int remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key);
     int remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key, key_map * keys);
     int key_cmp(uint keynr, const uchar * old_row, const uchar * new_row);
