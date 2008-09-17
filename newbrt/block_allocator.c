@@ -35,6 +35,12 @@ block_allocator_validate (BLOCK_ALLOCATOR ba) {
 }
 
 #if 0
+#define VALIDATE(b) block_allocator_validate(b)
+#else
+#define VALIDATE(b) ((void)0)
+#endif
+
+#if 0
 void
 block_allocator_print (BLOCK_ALLOCATOR ba) {
     u_int64_t i;
@@ -42,7 +48,7 @@ block_allocator_print (BLOCK_ALLOCATOR ba) {
 	printf("%" PRId64 ":%" PRId64 " ", ba->blocks_array[i].offset, ba->blocks_array[i].size);
     }
     printf("\n");
-    block_allocator_validate(ba);
+    VALIDATE(ba);
 }
 #endif
 
@@ -55,6 +61,7 @@ create_block_allocator (BLOCK_ALLOCATOR *ba, u_int64_t reserve_at_beginning) {
     XMALLOC_N(result->blocks_array_size, result->blocks_array);
     result->next_fit_counter = 0;
     *ba = result;
+    VALIDATE(result);
 }
 
 void
@@ -76,6 +83,7 @@ grow_blocks_array (BLOCK_ALLOCATOR ba) {
 void
 block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t offset) {
     u_int64_t i;
+    VALIDATE(ba);
     assert(offset >= ba->reserve_at_beginning);
     grow_blocks_array(ba);
     // Just do a linear search for the block
@@ -84,10 +92,11 @@ block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t of
 	    // allocate it in that slot
 	    // Don't do error checking, since we require that the blocks don't overlap.
 	    // Slide everything over
-	    memmove(ba->blocks_array+i, ba->blocks_array+i-1, (ba->n_blocks - i)*sizeof(struct blockpair));
+	    memmove(ba->blocks_array+i+1, ba->blocks_array+i, (ba->n_blocks - i)*sizeof(struct blockpair));
 	    ba->blocks_array[i].offset = offset;
 	    ba->blocks_array[i].size   = size;
 	    ba->n_blocks++;
+	    VALIDATE(ba);
 	    return;
 	}
     }
@@ -95,6 +104,7 @@ block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t of
     ba->blocks_array[ba->n_blocks].offset = offset;
     ba->blocks_array[ba->n_blocks].size   = size;
     ba->n_blocks++;
+    VALIDATE(ba);
 }
     
 void
@@ -126,6 +136,7 @@ block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offs
 	ba->n_blocks++;
 	ba->next_fit_counter = blocknum;
 	*offset = answer_offset;
+	VALIDATE(ba);
 	return;
     }
     // It didn't fit anywhere, so fit it on the end.
@@ -135,6 +146,7 @@ block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offs
     bp->size   = size;
     ba->n_blocks++;
     *offset = answer_offset;
+    VALIDATE(ba);
 }
 
 static int64_t
@@ -142,6 +154,7 @@ find_block (BLOCK_ALLOCATOR ba, u_int64_t offset)
 // Find the index in the blocks array that has a particular offset.  Requires that the block exist.
 // Use binary search so it runs fast.
 {
+    VALIDATE(ba);
     if (ba->n_blocks==1) {
 	assert(ba->blocks_array[0].offset == offset);
 	return 0;
@@ -165,10 +178,12 @@ find_block (BLOCK_ALLOCATOR ba, u_int64_t offset)
 
 void
 block_allocator_free_block (BLOCK_ALLOCATOR ba, u_int64_t offset) {
+    VALIDATE(ba);
     int64_t bn = find_block(ba, offset);
     assert(bn>=0); // we require that there is a block with that offset.  Might as well abort if no such block exists.
     memmove(&ba->blocks_array[bn], &ba->blocks_array[bn+1], (ba->n_blocks-bn-1) * sizeof(struct blockpair));
     ba->n_blocks--;
+    VALIDATE(ba);
 }
 
 u_int64_t
