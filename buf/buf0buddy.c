@@ -201,7 +201,6 @@ buf_buddy_block_register(
 	buf_block_t*	block)	/* in: buffer frame to allocate */
 {
 	const ulint	fold = BUF_POOL_ZIP_FOLD(block);
-
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
 
@@ -213,7 +212,6 @@ buf_buddy_block_register(
 	ut_ad(!block->page.in_page_hash);
 	ut_ad(!block->page.in_zip_hash);
 	ut_d(block->page.in_zip_hash = TRUE);
-
 	HASH_INSERT(buf_page_t, hash, buf_pool->zip_hash, fold, &block->page);
 
 	ut_d(buf_buddy_n_frames++);
@@ -306,7 +304,6 @@ buf_buddy_alloc_low(
 	block = buf_LRU_get_free_block(0);
 	*lru = TRUE;
 	buf_pool_mutex_enter();
-
 
 alloc_big:
 	buf_buddy_block_register(block);
