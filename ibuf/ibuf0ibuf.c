@@ -852,9 +852,13 @@ ibuf_set_free_bits_func(
 
 /****************************************************************************
 Resets the free bits of the page in the ibuf bitmap. This is done in a
-separate mini-transaction, hence this operation does not restrict further
-work to only ibuf bitmap operations, which would result if the latch to the
-bitmap page were kept. */
+separate mini-transaction, hence this operation does not restrict
+further work to only ibuf bitmap operations, which would result if the
+latch to the bitmap page were kept.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is safe
+to decrement or reset the bits in the bitmap in a mini-transaction
+that is committed before the mini-transaction that affects the free
+space. */
 UNIV_INTERN
 void
 ibuf_reset_free_bits(
@@ -867,9 +871,13 @@ ibuf_reset_free_bits(
 }
 
 /**************************************************************************
-Updates the free bits for an uncompressed page to reflect the present state.
-Does this in the mtr given, which means that the latching order rules virtually
-prevent any further operations for this OS thread until mtr is committed. */
+Updates the free bits for an uncompressed page to reflect the present
+state.  Does this in the mtr given, which means that the latching
+order rules virtually prevent any further operations for this OS
+thread until mtr is committed.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is safe
+to set the free bits in the same mini-transaction that updated the
+page. */
 UNIV_INTERN
 void
 ibuf_update_free_bits_low(
@@ -899,9 +907,13 @@ ibuf_update_free_bits_low(
 }
 
 /**************************************************************************
-Updates the free bits for a compressed page to reflect the present state.
-Does this in the mtr given, which means that the latching order rules virtually
-prevent any further operations for this OS thread until mtr is committed. */
+Updates the free bits for a compressed page to reflect the present
+state.  Does this in the mtr given, which means that the latching
+order rules virtually prevent any further operations for this OS
+thread until mtr is committed.  NOTE: The free bits in the insert
+buffer bitmap must never exceed the free space on a page.  It is safe
+to set the free bits in the same mini-transaction that updated the
+page. */
 UNIV_INTERN
 void
 ibuf_update_free_bits_zip(
@@ -940,9 +952,12 @@ ibuf_update_free_bits_zip(
 }
 
 /**************************************************************************
-Updates the free bits for the two pages to reflect the present state. Does
-this in the mtr given, which means that the latching order rules virtually
-prevent any further operations until mtr is committed. */
+Updates the free bits for the two pages to reflect the present state.
+Does this in the mtr given, which means that the latching order rules
+virtually prevent any further operations until mtr is committed.
+NOTE: The free bits in the insert buffer bitmap must never exceed the
+free space on a page.  It is safe to set the free bits in the same
+mini-transaction that updated the pages. */
 UNIV_INTERN
 void
 ibuf_update_free_bits_for_two_pages_low(

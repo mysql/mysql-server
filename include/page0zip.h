@@ -48,6 +48,8 @@ page_zip_rec_needs_ext(
 				can be stored locally on the page */
 	ulint	rec_size,	/* in: length of the record in bytes */
 	ulint	comp,		/* in: nonzero=compact format */
+	ulint	n_fields,	/* in: number of fields in the record;
+				ignored if zip_size == 0 */
 	ulint	zip_size)	/* in: compressed page size in bytes, or 0 */
 	__attribute__((const));
 

@@ -158,5 +158,53 @@ innobase_strcasecmp(
 				/* out: 0 if a=b, <0 if a<b, >1 if a>b */
 	const char*	a,	/* in: first string to compare */
 	const char*	b);	/* in: second string to compare */
+
+/**********************************************************************
+Returns true if the thread is executing a SELECT statement. */
+
+ibool
+thd_is_select(
+/*==========*/
+				/* out: true if thd is executing SELECT */
+	const void*	thd);	/* in: thread handle (THD*) */
+
+/**********************************************************************
+Converts an identifier to a table name. */
+UNIV_INTERN
+void
+innobase_convert_from_table_id(
+/*===========================*/
+	struct charset_info_st*	cs,	/* in: the 'from' character set */
+	char*			to,	/* out: converted identifier */
+	const char*		from,	/* in: identifier to convert */
+	ulint			len);	/* in: length of 'to', in bytes; should
+					be at least 5 * strlen(to) + 1 */
+/**********************************************************************
+Converts an identifier to UTF-8. */
+UNIV_INTERN
+void
+innobase_convert_from_id(
+/*=====================*/
+	struct charset_info_st*	cs,	/* in: the 'from' character set */
+	char*			to,	/* out: converted identifier */
+	const char*		from,	/* in: identifier to convert */
+	ulint			len);	/* in: length of 'to', in bytes; should
+					be at least 3 * strlen(to) + 1 */
+/**********************************************************************
+Makes all characters in a NUL-terminated UTF-8 string lower case. */
+UNIV_INTERN
+void
+innobase_casedn_str(
+/*================*/
+	char*	a);	/* in/out: string to put in lower case */
+
+/**************************************************************************
+Determines the connection character set. */
+struct charset_info_st*
+innobase_get_charset(
+/*=================*/
+				/* out: connection character set */
+	void*	mysql_thd);	/* in: MySQL thread handle */
+
 #endif
 #endif

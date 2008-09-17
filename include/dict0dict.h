@@ -420,6 +420,16 @@ dict_table_get_on_id_low(
 				/* out: table, NULL if does not exist */
 	dulint	table_id);	/* in: table id */
 /**************************************************************************
+Find an index that is equivalent to the one passed in and is not marked
+for deletion. */
+UNIV_INTERN
+dict_index_t*
+dict_foreign_find_equiv_index(
+/*==========================*/
+				/* out: index equivalent to
+				foreign->foreign_index, or NULL */
+	dict_foreign_t*	foreign);/* in: foreign key */
+/**************************************************************************
 Returns an index object by matching on the name and column names and if
 more than index is found return the index with the higher id.*/
 UNIV_INTERN
@@ -1068,17 +1078,6 @@ dict_tables_have_same_db(
 	const char*	name2);	/* in: table name in the form
 				dbname '/' tablename */
 /*************************************************************************
-Scans from pointer onwards. Stops if is at the start of a copy of
-'string' where characters are compared without case sensitivity. Stops
-also at '\0'. */
-
-const char*
-dict_scan_to(
-/*=========*/
-				/* out: scanned up to this */
-	const char*	ptr,	/* in: scan from */
-	const char*	string);/* in: look for this */
-/*************************************************************************
 Removes an index from the cache */
 UNIV_INTERN
 void
@@ -1095,15 +1094,6 @@ dict_table_get_index_on_name(
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
 	const char*	name);	/* in: name of the index to find */
-/**************************************************************************
-Find and index that is equivalent to the one passed in and is not marked
-for deletion. */
-UNIV_INTERN
-dict_index_t*
-dict_table_find_equivalent_index(
-/*=============================*/
-	dict_table_t*	table,  /* in/out: table */
-	dict_index_t*	index);	/* in: index to match */
 /**************************************************************************
 In case there is more than one index with the same name return the index
 with the min(id). */

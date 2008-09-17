@@ -969,7 +969,7 @@ btr_cur_open_at_rnd_pos(
 
 /*****************************************************************
 Inserts a record if there is enough space, or if enough space can
-be freed by reorganizing. Differs from _optimistic_insert because
+be freed by reorganizing. Differs from btr_cur_optimistic_insert because
 no heuristics is applied to whether it pays to use CPU time for
 reorganizing the page or not. */
 static
@@ -1173,7 +1173,8 @@ btr_cur_optimistic_insert(
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry, n_ext);
 
-	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page), zip_size)) {
+	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
+				   dtuple_get_n_fields(entry), zip_size)) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1185,6 +1186,46 @@ btr_cur_optimistic_insert(
 		}
 
 		rec_size = rec_get_converted_size(index, entry, n_ext);
+	}
+
+	if (UNIV_UNLIKELY(zip_size)) {
+		/* Estimate the free space of an empty compressed page.
+		Subtract one byte for the encoded heap_no in the
+		modification log. */
+		ulint	free_space_zip = page_zip_empty_size(
+			cursor->index->n_fields, zip_size) - 1;
+		ulint	extra;
+		ulint	n_uniq = dict_index_get_n_unique_in_tree(index);
+
+		ut_ad(dict_table_is_comp(index->table));
+
+		/* There should be enough room for two node pointer
+		records on an empty non-leaf page.  This prevents
+		infinite page splits. */
+
+		if (UNIV_LIKELY(entry->n_fields >= n_uniq)
+		    && UNIV_UNLIKELY(rec_get_converted_size_comp(
+					     index, REC_STATUS_NODE_PTR,
+					     entry->fields, n_uniq,
+					     &extra)
+				     /* On a compressed page, there is
+				     a two-byte entry in the dense
+				     page directory for every record.
+				     But there is no record header. */
+				     - (REC_N_NEW_EXTRA_BYTES - 2)
+				     > free_space_zip / 2)) {
+
+			if (big_rec_vec) {
+				dtuple_convert_back_big_rec(
+					index, entry, big_rec_vec);
+			}
+
+			if (heap) {
+				mem_heap_free(heap);
+			}
+
+			return(DB_TOO_BIG_RECORD);
+		}
 	}
 
 	/* If there have been many consecutive inserts, and we are on the leaf
@@ -1418,6 +1459,7 @@ btr_cur_pessimistic_insert(
 
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry, n_ext),
 				   dict_table_is_comp(index->table),
+				   dict_index_get_n_fields(index),
 				   zip_size)) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1438,45 +1480,6 @@ btr_cur_pessimistic_insert(
 							       n_reserved);
 			}
 			return(DB_TOO_BIG_RECORD);
-		}
-	}
-
-	if (UNIV_UNLIKELY(zip_size)) {
-		/* Estimate the free space of an empty compressed page. */
-		ulint	free_space_zip = page_zip_empty_size(
-			cursor->index->n_fields, zip_size);
-
-		if (UNIV_UNLIKELY(rec_get_converted_size(index, entry, n_ext)
-				  > free_space_zip)) {
-			/* Try to insert the record by itself on a new page.
-			If it fails, no amount of splitting will help. */
-			buf_block_t*	temp_block
-				= buf_block_alloc(zip_size);
-			page_t*		temp_page
-				= page_create_zip(temp_block, index, 0, NULL);
-			page_cur_t	temp_cursor;
-			rec_t*		temp_rec;
-
-			page_cur_position(temp_page + PAGE_NEW_INFIMUM,
-					  temp_block, &temp_cursor);
-
-			temp_rec = page_cur_tuple_insert(&temp_cursor,
-							 entry, index,
-							 n_ext, NULL);
-			buf_block_free(temp_block);
-
-			if (UNIV_UNLIKELY(!temp_rec)) {
-				if (big_rec_vec) {
-					dtuple_convert_back_big_rec(
-						index, entry, big_rec_vec);
-				}
-
-				if (heap) {
-					mem_heap_free(heap);
-				}
-
-				return(DB_TOO_BIG_RECORD);
-			}
 		}
 	}
 
@@ -2289,10 +2292,20 @@ btr_cur_pessimistic_update(
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
 	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
 
-	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry,
-							  n_ext),
-				   page_is_comp(page), page_zip
-				   ? page_zip_get_size(page_zip) : 0)) {
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		ut_ad(page_is_comp(page));
+		if (page_zip_rec_needs_ext(
+			    rec_get_converted_size(index, new_entry, n_ext),
+			    TRUE,
+			    dict_index_get_n_fields(index),
+			    page_zip_get_size(page_zip))) {
+
+			goto make_external;
+		}
+	} else if (page_zip_rec_needs_ext(
+			   rec_get_converted_size(index, new_entry, n_ext),
+			   page_is_comp(page), 0, 0)) {
+make_external:
 		big_rec_vec = dtuple_convert_big_rec(index, new_entry, &n_ext);
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
 
@@ -3270,6 +3283,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		matched_fields;
 	ulint		matched_bytes;
 	ib_int64_t*	n_diff;
+	ullint		n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
 	ulint		i;
@@ -3288,9 +3302,21 @@ btr_estimate_number_of_different_key_vals(
 
 	n_diff = mem_zalloc((n_cols + 1) * sizeof(ib_int64_t));
 
+	/* It makes no sense to test more pages than are contained
+	in the index, thus we lower the number if it is too high */
+	if (srv_stats_sample_pages > index->stat_index_size) {
+		if (index->stat_index_size > 0) {
+			n_sample_pages = index->stat_index_size;
+		} else {
+			n_sample_pages = 1;
+		}
+	} else {
+		n_sample_pages = srv_stats_sample_pages;
+	}
+
 	/* We sample some pages in the index to get an estimate */
 
-	for (i = 0; i < srv_stats_sample_pages; i++) {
+	for (i = 0; i < n_sample_pages; i++) {
 		rec_t*	supremum;
 		mtr_start(&mtr);
 
@@ -3379,7 +3405,7 @@ btr_estimate_number_of_different_key_vals(
 	}
 
 	/* If we saw k borders between different key values on
-	srv_stats_sample_pages leaf pages, we can estimate how many
+	n_sample_pages leaf pages, we can estimate how many
 	there will be in index->stat_n_leaf_pages */
 
 	/* We must take into account that our sample actually represents
@@ -3390,26 +3416,26 @@ btr_estimate_number_of_different_key_vals(
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
 			    * (ib_int64_t)index->stat_n_leaf_pages
-			    + srv_stats_sample_pages - 1
+			    + n_sample_pages - 1
 			    + total_external_size
 			    + not_empty_flag)
-			   / (srv_stats_sample_pages
+			   / (n_sample_pages
 			      + total_external_size));
 
 		/* If the tree is small, smaller than
-		10 * srv_stats_sample_pages + total_external_size, then
+		10 * n_sample_pages + total_external_size, then
 		the above estimate is ok. For bigger trees it is common that we
 		do not see any borders between key values in the few pages
-		we pick. But still there may be srv_stats_sample_pages
+		we pick. But still there may be n_sample_pages
 		different key values, or even more. Let us try to approximate
 		that: */
 
 		add_on = index->stat_n_leaf_pages
-			/ (10 * (srv_stats_sample_pages
+			/ (10 * (n_sample_pages
 				 + total_external_size));
 
-		if (add_on > srv_stats_sample_pages) {
-			add_on = srv_stats_sample_pages;
+		if (add_on > n_sample_pages) {
+			add_on = n_sample_pages;
 		}
 
 		index->stat_n_diff_key_vals[j] += add_on;
