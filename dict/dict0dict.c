@@ -2541,7 +2541,7 @@ convert_id:
 		len = 3 * len + 1;
 		*id = dst = mem_heap_alloc(heap, len);
 
-		innobase_convert_from_id(dst, str, len);
+		innobase_convert_from_id(cs, dst, str, len);
 	} else if (!strncmp(str, srv_mysql50_table_name_prefix,
 			    sizeof srv_mysql50_table_name_prefix)) {
 		/* This is a pre-5.1 table name
@@ -2555,7 +2555,7 @@ convert_id:
 		len = 5 * len + 1;
 		*id = dst = mem_heap_alloc(heap, len);
 
-		innobase_convert_from_table_id(dst, str, len);
+		innobase_convert_from_table_id(cs, dst, str, len);
 	}
 
 	return(ptr);
