@@ -141,6 +141,8 @@
 
 #define CFG_DB_STARTUP_REPORT_FREQUENCY 184
 
+#define CFG_DB_NODEGROUP              185
+
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
 

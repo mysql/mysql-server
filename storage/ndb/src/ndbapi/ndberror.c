@@ -443,6 +443,7 @@ ErrorBundle ErrorCodes[] = {
   { 776,  DMEC, AE, "Index created on temporary table must itself be temporary" },
   { 777,  DMEC, AE, "Cannot create a temporary index on a non-temporary table" },
   { 778,  DMEC, AE, "A temporary table or index must be specified as not logging" },
+  { 786,  DMEC, NR, "Schema transaction aborted due to node-failure" },
   
   /**
    * FunctionNotImplemented

@@ -117,6 +117,9 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
           ptr[-1] = '\0';
 	  ptr--;
 	}
+
+        *time = 0;
+
 	ptr[0]= 0;
 	return ptr - buf;
       }

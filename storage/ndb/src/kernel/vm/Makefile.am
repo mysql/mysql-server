@@ -60,10 +60,9 @@ LDADD_LOC = $(top_builddir)/ndb/src/common/util/libgeneral.la
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
+EXTRA_PROGRAMS = ndbd_malloc_impl_test bench_pool testDynArr256 \
+                 testSectionReader testLongSignals
 
-EXTRA_PROGRAMS = ndbd_malloc_impl_test bench_pool testDynArr256
 ndbd_malloc_impl_test_CXXFLAGS = -DUNIT_TEST
 ndbd_malloc_impl_test_SOURCES = ndbd_malloc_impl.cpp
 ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@ \
@@ -88,4 +87,21 @@ testDynArr256_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/mysys/libmysyslt.la \
   $(top_builddir)/dbug/libdbuglt.la \
   $(top_builddir)/strings/libmystringslt.la
+
+testSectionReader_CXXFLAGS = -DUNIT_TEST
+testSectionReader_SOURCES = SectionReader.cpp
+testSectionReader_LDFLAGS = @ndb_bin_am_ldflags@ \
+  $(top_builddir)/storage/ndb/src/libndbclient.la \
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la
+
+testLongSignals_CXXFLAGS = -DUNIT_TEST
+testLongSignals_SOURCES = testLongSig/testLongSig.cpp
+testLongSignals_LDFLAGS = @ndb_bin_am_ldflags@ \
+  $(top_builddir)/storage/ndb/src/libndbclient.la \
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la \
+  @readline_link@ @TERMCAP_LIB@
 

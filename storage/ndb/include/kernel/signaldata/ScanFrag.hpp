@@ -33,6 +33,9 @@ class ScanFragReq {
   friend class Dblqh;
 public:
   STATIC_CONST( SignalLength = 12 );
+
+  STATIC_CONST( AttrInfoSectionNum = 0 );
+  STATIC_CONST( KeyInfoSectionNum = 1 );
   
   friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
   
@@ -231,9 +234,9 @@ public:
 };
 
 /**
- * Request Info
+ * Request Info (SCANFRAGREQ)
  *
- * a = Length of attrinfo    - 16 Bits (16-31)
+ * a = Length of attrinfo    - 16 Bits (16-31) (Short only)
  * c = LCP scan              - 1  Bit 3
  * d = No disk               - 1  Bit 4
  * l = Lock Mode             - 1  Bit 5
@@ -248,7 +251,8 @@ public:
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa
+ *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa   Short variant ( < 6.4.0)
+ *  rrcdlxhkrztpppp                   Long variant (6.4.0 +)
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)

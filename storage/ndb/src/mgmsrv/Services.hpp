@@ -60,6 +60,7 @@ public:
   void runSession();
 
   void getConfig(Parser_t::Context &ctx, const class Properties &args);
+  void setConfig(Parser_t::Context &ctx, const class Properties &args);
 
   void get_nodeid(Parser_t::Context &ctx, const class Properties &args);
   void getVersion(Parser_t::Context &ctx, const class Properties &args);
@@ -115,6 +116,9 @@ public:
 
   void getSessionId(Parser_t::Context &ctx, Properties const &args);
   void getSession(Parser_t::Context &ctx, Properties const &args);
+
+  void create_nodegroup(Parser_t::Context &ctx, Properties const &args);
+  void drop_nodegroup(Parser_t::Context &ctx, Properties const &args);
 };
 
 class MgmApiService : public SocketServer::Service {

@@ -86,6 +86,7 @@
 #include <SLList.hpp>
 
 #include <signaldata/DumpStateOrd.hpp>
+#include <signaldata/CheckNodeGroups.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -289,7 +290,10 @@ void Dbdict::execCONTINUEB(Signal* signal)
     }
     break;
 #endif
-
+  case ZWAIT_SUBSTARTSTOP:
+    jam();
+    wait_substartstop(signal, signal->theData[1]);
+    return;
   default :
     ndbrequire(false);
     break;
@@ -632,8 +636,7 @@ Dbdict::packFileIntoPages(SimpleProperties::Writer & w,
 void
 Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
 {
-  const CreateFragmentationReq* req =
-    (const CreateFragmentationReq*)signal->getDataPtr();
+  CreateFragmentationReq* req = (CreateFragmentationReq*)signal->getDataPtr();
 
   if (req->primaryTableId == RNIL) {
     jam();
@@ -649,6 +652,11 @@ Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
   if (te->m_tableState != SchemaFile::SF_CREATE)
   {
     jam();
+    if (req->requestInfo == 0)
+    {
+      jam();
+      req->requestInfo |= CreateFragmentationReq::RI_GET_FRAGMENTATION;
+    }
     EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
                    CreateFragmentationReq::SignalLength);
     return;
@@ -1746,7 +1754,6 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Dbdict::execDROP_TRIG_IMPL_REF);
 
   // Received signals
-  addRecSignal(GSN_HOT_SPAREREP, &Dbdict::execHOT_SPAREREP);
   addRecSignal(GSN_GET_SCHEMA_INFOREQ, &Dbdict::execGET_SCHEMA_INFOREQ);
   addRecSignal(GSN_SCHEMA_INFO, &Dbdict::execSCHEMA_INFO);
   addRecSignal(GSN_SCHEMA_INFOCONF, &Dbdict::execSCHEMA_INFOCONF);
@@ -1828,6 +1835,17 @@ Dbdict::Dbdict(Block_context& ctx):
 
   addRecSignal(GSN_COPY_DATA_IMPL_REF, &Dbdict::execCOPY_DATA_IMPL_REF);
   addRecSignal(GSN_COPY_DATA_IMPL_CONF, &Dbdict::execCOPY_DATA_IMPL_CONF);
+
+  addRecSignal(GSN_CREATE_NODEGROUP_REQ, &Dbdict::execCREATE_NODEGROUP_REQ);
+  addRecSignal(GSN_CREATE_NODEGROUP_IMPL_REF, &Dbdict::execCREATE_NODEGROUP_IMPL_REF);
+  addRecSignal(GSN_CREATE_NODEGROUP_IMPL_CONF, &Dbdict::execCREATE_NODEGROUP_IMPL_CONF);
+
+  addRecSignal(GSN_CREATE_HASH_MAP_REF, &Dbdict::execCREATE_HASH_MAP_REF);
+  addRecSignal(GSN_CREATE_HASH_MAP_CONF, &Dbdict::execCREATE_HASH_MAP_CONF);
+
+  addRecSignal(GSN_DROP_NODEGROUP_REQ, &Dbdict::execDROP_NODEGROUP_REQ);
+  addRecSignal(GSN_DROP_NODEGROUP_IMPL_REF, &Dbdict::execDROP_NODEGROUP_IMPL_REF);
+  addRecSignal(GSN_DROP_NODEGROUP_IMPL_CONF, &Dbdict::execDROP_NODEGROUP_IMPL_CONF);
 }//Dbdict::Dbdict()
 
 Dbdict::~Dbdict() 
@@ -2326,6 +2344,9 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_hash_map_pool.setSize(32);
   g_hash_map.setSize(32);
 
+  c_createNodegroupRecPool.setSize(2);
+  c_dropNodegroupRecPool.setSize(2);
+
   c_opRecordPool.setSize(256);   // XXX need config params
   c_opCreateEvent.setSize(2);
   c_opSubEvent.setSize(2);
@@ -2498,28 +2519,6 @@ void Dbdict::execREAD_NODESCONF(Signal* signal)
   }//for
   sendNDB_STTORRY(signal);
 }//execREAD_NODESCONF()
-
-/* ---------------------------------------------------------------- */
-// HOT_SPAREREP informs DBDICT about which nodes that have become
-// hot spare nodes.
-/* ---------------------------------------------------------------- */
-void Dbdict::execHOT_SPAREREP(Signal* signal) 
-{
-  Uint32 hotSpareNodes = 0;
-  jamEntry();
-  HotSpareRep * const hotSpare = (HotSpareRep*)&signal->theData[0];
-  for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
-    if (NdbNodeBitmask::get(hotSpare->theHotSpareNodes, i)) {
-      NodeRecordPtr nodePtr;
-      c_nodes.getPtr(nodePtr, i);
-      nodePtr.p->hotSpare = true;
-      hotSpareNodes++;
-    }//if
-  }//for
-  ndbrequire(hotSpareNodes == hotSpare->noHotSpareNodes);
-  c_noHotSpareNodes = hotSpareNodes;
-  return;
-}//execHOT_SPAREREP()
 
 void Dbdict::initSchemaFile(Signal* signal) 
 {
@@ -4278,7 +4277,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     if (fragments == 0)
     {
       jam();
-      fragments = c_numberNode;
+      fragments = get_default_fragments();
     }
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
@@ -4618,23 +4617,63 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   }
 }//handleTabInfo()
 
+// MODULE: block/unblock substartstop
+void
+Dbdict::block_substartstop(Signal* signal, SchemaOpPtr op_ptr)
+{
+  ndbrequire(c_sub_startstop_lock.get(getOwnNodeId()) == false);
+  c_sub_startstop_lock.set(getOwnNodeId());
+  signal->theData[0] = ZWAIT_SUBSTARTSTOP;
+  signal->theData[1] = op_ptr.p->op_key;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+}
+
+void
+Dbdict::unblock_substartstop()
+{
+  ndbrequire(c_sub_startstop_lock.get(getOwnNodeId()));
+  c_sub_startstop_lock.clear(getOwnNodeId());
+}
+
+void
+Dbdict::wait_substartstop(Signal* signal, Uint32 opkey)
+{
+  if (c_outstanding_sub_startstop == 0)
+  {
+    jam();
+    Callback callback;
+    bool ok = findCallback(callback, opkey);
+    ndbrequire(ok);
+    execute(signal, callback, 0);
+    return;
+  }
+
+  signal->theData[0] = ZWAIT_SUBSTARTSTOP;
+  signal->theData[1] = opkey;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100,
+                      signal->length());
+}
+
 /* ---------------------------------------------------------------- */
 // New global checkpoint created.
 /* ---------------------------------------------------------------- */
+void
+Dbdict::wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags)
+{
+  WaitGCPReq* req = (WaitGCPReq*)signal->getDataPtrSend();
+
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->requestType = flags;
+
+  sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal,
+             WaitGCPReq::SignalLength, JBB);
+}
+
 void Dbdict::execWAIT_GCP_CONF(Signal* signal) 
 {
-#if 0
-  TableRecordPtr tablePtr;
-  jamEntry();
-  WaitGCPConf* const conf = (WaitGCPConf*)&signal->theData[0];
-  c_tableRecordPool.getPtr(tablePtr, c_connRecord.connTableId);
-  tablePtr.p->gciTableCreated = conf->gcp;
-  sendUpdateSchemaState(signal,
-                        tablePtr.i,
-                        SchemaFile::TABLE_ADD_COMMITTED,
-                        c_connRecord.noOfPagesForTable,
-                        conf->gcp);
-#endif
+  WaitGCPConf* conf = (WaitGCPConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
 }//execWAIT_GCP_CONF()
 
 /* ---------------------------------------------------------------- */
@@ -4643,14 +4682,8 @@ void Dbdict::execWAIT_GCP_CONF(Signal* signal)
 void Dbdict::execWAIT_GCP_REF(Signal* signal) 
 {
   jamEntry();
-  WaitGCPRef* const ref = (WaitGCPRef*)&signal->theData[0];
-/* ---------------------------------------------------------------- */
-// Error Handling code needed
-/* ---------------------------------------------------------------- */
-  char buf[32];
-  BaseString::snprintf(buf, sizeof(buf), "WAIT_GCP_REF ErrorCode=%d",
-		       ref->errorCode);
-  progError(__LINE__, NDBD_EXIT_NDBREQUIRE, buf);
+  WaitGCPRef* ref = (WaitGCPRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
 }//execWAIT_GCP_REF()
 
 // MODULE: CreateTable
@@ -4764,6 +4797,7 @@ Dbdict::get_fragmentation(Signal* signal, Uint32 tableId)
   req->fragmentationType = 0;
   req->noOfFragments = 0;
   req->primaryTableId = tableId;
+  req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
   EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
                  CreateFragmentationReq::SignalLength);
 
@@ -4774,7 +4808,8 @@ Uint32
 Dbdict::create_fragmentation(Signal* signal,
                              TableRecordPtr tabPtr,
                              const Uint16 *src,
-                             Uint32 cnt)
+                             Uint32 cnt,
+                             Uint32 flags)
 {
   CreateFragmentationReq* frag_req =
     (CreateFragmentationReq*)signal->getDataPtrSend();
@@ -4783,6 +4818,7 @@ Dbdict::create_fragmentation(Signal* signal,
   frag_req->primaryTableId = tabPtr.p->primaryTableId;
   frag_req->noOfFragments = tabPtr.p->fragmentCount;
   frag_req->fragmentationType = tabPtr.p->fragmentType;
+  frag_req->requestInfo = flags;
 
   if (tabPtr.p->hashMapObjectId != RNIL)
   {
@@ -4940,7 +4976,6 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     Uint16* frag_data = (Uint16*)(signal->getDataPtr()+25);
     Uint32 err = create_fragmentation(signal, tabPtr,
                                       c_fragData, c_fragDataLen / 2);
-
     if (err)
     {
       jam();
@@ -7101,6 +7136,12 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       jam();
       Uint32 save0 = newTablePtr.p->fragmentType;
       newTablePtr.p->fragmentType = DictTabInfo::DistrKeyHash;
+
+      /**
+       * Here we reset all the NODEGROUPS for the new partitions
+       *   i.e they can't be specified...this should change later
+       *   once we got our act together
+       */
       Uint32 cnt = c_fragDataLen / 2;
       for (Uint32 i = cnt; i<newTablePtr.p->fragmentCount; i++)
       {
@@ -7108,9 +7149,23 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
         c_fragData[i] = UNDEF_NODEGROUP;
       }
       c_fragDataLen = 2 * newTablePtr.p->fragmentCount;
+      Uint32 save1 = newTablePtr.p->primaryTableId;
+      Uint32 flags = 0;
+      if (save1 == RNIL)
+      {
+        /**
+         * This is a "base" table
+         *   signal that this is a add-partitions
+         *   by setting primaryTableId to "original" table and setting flag
+         */
+        flags = CreateFragmentationReq::RI_ADD_PARTITION;
+        newTablePtr.p->primaryTableId = tablePtr.p->tableId;
+      }
       err = create_fragmentation(signal, newTablePtr,
-                                 c_fragData, c_fragDataLen / 2);
+                                 c_fragData, c_fragDataLen / 2,
+                                 flags);
       newTablePtr.p->fragmentType = (DictTabInfo::FragmentType)save0;
+      newTablePtr.p->primaryTableId = save1;
 
       if (err)
       {
@@ -7265,9 +7320,16 @@ Dbdict::check_supported_add_fragment(Uint16* newdata, const Uint16* olddata)
     return AlterTableRef::UnsupportedChange;
   }
 
+  Uint32 oldFragments = olddata[1];
+#ifdef TODO_XXX
+  /**
+   * This doesnt work after a add-nodegroup
+   *   dont't know why, so we instead just ignore what the API
+   *   for the already existing partitions
+   */
+
   // Check that all the old has the same properties...
   // Only compare prefered primary, as replicas come in any order
-  Uint32 oldFragments = olddata[1];
   for (Uint32 i = 0; i<oldFragments; i++)
   {
     Uint32 idx = 2 + (1 + replicas) * i + 1;
@@ -7277,6 +7339,7 @@ Dbdict::check_supported_add_fragment(Uint16* newdata, const Uint16* olddata)
       return AlterTableRef::UnsupportedChange;
     }
   }
+#endif
 
   memmove(newdata + 2,
           newdata + 2 + (1 + replicas) * oldFragments,
@@ -11449,6 +11512,12 @@ Dbdict::alterIndex_fromAddPartitions(Signal* signal, Uint32 op_key, Uint32 ret)
 
   if (ret == 0) {
     jam();
+
+    const AlterTabConf* conf =
+      (const AlterTabConf*)signal->getDataPtr();
+    
+    alterIndexPtr.p->m_dihAddFragPtr = conf->connectPtr;
+    
     sendTransConf(signal, op_ptr);
   } else {
     jam();
@@ -14125,6 +14194,7 @@ busy:
     subbPtr.p->m_subscriptionKey = req->subscriptionKey;
     subbPtr.p->m_subscriberRef = req->subscriberRef;
     subbPtr.p->m_subscriberData = req->subscriberData;
+    bzero(subbPtr.p->m_buckets_per_ng, sizeof(subbPtr.p->m_buckets_per_ng));
   }
   
   if (refToBlock(origSenderRef) != DBDICT) {
@@ -14248,17 +14318,17 @@ void Dbdict::execSUB_START_REF(Signal* signal)
 #ifdef EVENT_PH3_DEBUG
   ndbout_c("DBDICT(Coordinator) got GSN_SUB_START_REF = (%d)", subbPtr.i);
 #endif
-  if (err == SubStartRef::NF_FakeErrorREF){
+  if (err == SubStartRef::NF_FakeErrorREF)
+  {
     jam();
-    subbPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(senderRef));
-  } else {
-    jam();
-    if (subbPtr.p->m_errorCode == 0)
-    {
-      subbPtr.p->m_errorCode= err ? err : 1;
-    }
-    subbPtr.p->m_reqTracker.reportRef(c_counterMgr, refToNode(senderRef));
+    err = SubStartRef::NodeDied;
   }
+
+  if (subbPtr.p->m_errorCode == 0)
+  {
+    subbPtr.p->m_errorCode= err ? err : 1;
+  }
+  subbPtr.p->m_reqTracker.reportRef(c_counterMgr, refToNode(senderRef));
   completeSubStartReq(signal,subbPtr.i,0);
 }
 
@@ -14268,6 +14338,8 @@ void Dbdict::execSUB_START_CONF(Signal* signal)
 
   const SubStartConf* conf = (SubStartConf*) signal->getDataPtr();
   Uint32 senderRef  = conf->senderRef;
+  Uint32 buckets = conf->bucketCount;
+  Uint32 nodegroup = conf->nodegroup;
 
   OpSubEventPtr subbPtr;
   c_opSubEvent.getPtr(subbPtr, conf->senderData);
@@ -14285,9 +14357,11 @@ void Dbdict::execSUB_START_CONF(Signal* signal)
 
     conf->senderRef = reference();
     conf->senderData = subbPtr.p->m_senderData;
+    conf->bucketCount = buckets;
+    conf->nodegroup = nodegroup;
 
     sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_CONF,
-	       signal, SubStartConf::SignalLength2, JBB);
+	       signal, SubStartConf::SignalLength, JBB);
     c_opSubEvent.release(subbPtr);
     return;
   }
@@ -14298,6 +14372,16 @@ void Dbdict::execSUB_START_CONF(Signal* signal)
 #ifdef EVENT_PH3_DEBUG
   ndbout_c("DBDICT(Coordinator) got GSN_SUB_START_CONF = (%d)", subbPtr.i);
 #endif
+#define ARRAY_SIZE(x) (sizeof(x)/(sizeof(x[0])))
+
+  if (buckets)
+  {
+    jam();
+    ndbrequire(nodegroup < ARRAY_SIZE(subbPtr.p->m_buckets_per_ng));
+    ndbrequire(subbPtr.p->m_buckets_per_ng[nodegroup] == 0 ||
+               subbPtr.p->m_buckets_per_ng[nodegroup] == buckets);
+    subbPtr.p->m_buckets_per_ng[nodegroup] = buckets;
+  }
   subbPtr.p->m_sub_start_conf = *conf;
   subbPtr.p->m_reqTracker.reportConf(c_counterMgr, refToNode(senderRef));
   completeSubStartReq(signal,subbPtr.i,0);
@@ -14351,6 +14435,12 @@ void Dbdict::completeSubStartReq(Signal* signal,
   c_outstanding_sub_startstop--;
   SubStartConf* conf = (SubStartConf*)signal->getDataPtrSend();
   * conf = subbPtr.p->m_sub_start_conf;
+
+  Uint32 cnt = 0;
+  for (Uint32 i = 0; i<ARRAY_SIZE(subbPtr.p->m_buckets_per_ng); i++)
+    cnt += subbPtr.p->m_buckets_per_ng[i];
+  conf->bucketCount = cnt;
+
   sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_CONF,
 	     signal, SubStartConf::SignalLength, JBB);
   c_opSubEvent.release(subbPtr);
@@ -19118,6 +19208,1090 @@ Dbdict::send_drop_fg(Signal* signal, Uint32 op_key, Uint32 filegroupId,
 
 // DropFilegroup: END
 
+// MODULE: CreateNodegroup
+
+const Dbdict::OpInfo
+Dbdict::CreateNodegroupRec::g_opInfo = {
+  { 'C', 'N', 'G', 0 },
+  GSN_CREATE_NODEGROUP_IMPL_REQ,
+  CreateNodegroupImplReq::SignalLength,
+  //
+  &Dbdict::createNodegroup_seize,
+  &Dbdict::createNodegroup_release,
+  //
+  &Dbdict::createNodegroup_parse,
+  &Dbdict::createNodegroup_subOps,
+  &Dbdict::createNodegroup_reply,
+  //
+  &Dbdict::createNodegroup_prepare,
+  &Dbdict::createNodegroup_commit,
+  &Dbdict::createNodegroup_complete,
+  //
+  &Dbdict::createNodegroup_abortParse,
+  &Dbdict::createNodegroup_abortPrepare
+};
+
+void
+Dbdict::execCREATE_NODEGROUP_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const CreateNodegroupReq req_copy =
+    *(const CreateNodegroupReq*)signal->getDataPtr();
+  const CreateNodegroupReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    CreateNodegroupRecPtr createNodegroupRecPtr;
+    CreateNodegroupImplReq* impl_req;
+
+    startClientReq(op_ptr, createNodegroupRecPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->nodegroupId = req->nodegroupId;
+    for (Uint32 i = 0; i<NDB_ARRAY_SIZE(req->nodes) && i<NDB_ARRAY_SIZE(impl_req->nodes); i++)
+    {
+      impl_req->nodes[i] = req->nodes[i];
+    }
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  CreateNodegroupRef* ref = (CreateNodegroupRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_CREATE_NODEGROUP_REF, signal,
+	     CreateNodegroupRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::createNodegroup_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<CreateNodegroupRec>(op_ptr);
+}
+
+void
+Dbdict::createNodegroup_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<CreateNodegroupRec>(op_ptr);
+}
+
+// CreateNodegroup: PARSE
+
+void
+Dbdict::createNodegroup_parse(Signal* signal, bool master,
+                              SchemaOpPtr op_ptr,
+                              SectionHandle& handle, ErrorInfo& error)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  getOpRec(op_ptr, createNodegroupRecPtr);
+  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  jam();
+
+  Uint32 save = impl_req->requestType;
+  impl_req->requestType = CreateNodegroupImplReq::RT_PARSE;
+  memcpy(signal->theData, impl_req, 4*CreateNodegroupImplReq::SignalLength);
+  impl_req->requestType = save;
+
+  EXECUTE_DIRECT(DBDIH, GSN_CREATE_NODEGROUP_IMPL_REQ, signal,
+                 CreateNodegroupImplReq::SignalLength);
+  jamEntry();
+
+  Uint32 ret = signal->theData[0];
+  if (ret)
+  {
+    jam();
+    setError(error, ret, __LINE__);
+    return ;
+  }
+
+  impl_req->senderRef = reference();
+  impl_req->senderData = op_ptr.p->op_key;
+  impl_req->nodegroupId = signal->theData[1];
+}
+
+void
+Dbdict::createNodegroup_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+static
+Uint32
+cnt_nodes(const Uint32 * nodes, Uint32 bound)
+{
+  for (Uint32 i = 0; i<bound; i++)
+    if (nodes[i] == 0)
+      return i;
+  return bound;
+}
+
+bool
+Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  getOpRec(op_ptr, createNodegroupRecPtr);
+  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  if (createNodegroupRecPtr.p->m_map_created == false)
+  {
+    jam();
+    createNodegroupRecPtr.p->m_map_created = true;
+
+    /**
+     * This is a bit cheating...
+     *   it would be better to handle "object-exists"
+     *   and still continue transaction
+     *   but that i dont know how
+     */
+    Uint32 buckets = 240;
+    Uint32 fragments = (1 + impl_req->nodegroupId) * cnt_nodes(impl_req->nodes, NDB_ARRAY_SIZE(impl_req->nodes));
+    char buf[MAX_TAB_NAME_SIZE+1];
+    BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
+                         buckets,
+                         fragments);
+
+    if (get_object(buf) != 0)
+    {
+      jam();
+      return false;
+    }
+
+
+    Callback c = {
+      safe_cast(&Dbdict::createNodegroup_fromCreateHashMap),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+
+    CreateHashMapReq* const req = (CreateHashMapReq*)signal->getDataPtrSend();
+    req->clientRef = reference();
+    req->clientData = op_ptr.p->op_key;
+    req->requestInfo = 0;
+    req->transId = trans_ptr.p->m_transId;
+    req->transKey = trans_ptr.p->trans_key;
+    req->buckets = buckets;
+    req->fragments = fragments;
+    sendSignal(DBDICT_REF, GSN_CREATE_HASH_MAP_REQ, signal,
+               CreateHashMapReq::SignalLength, JBB);
+    return true;
+  }
+
+  return false;
+}
+
+void
+Dbdict::createNodegroup_fromCreateHashMap(Signal* signal,
+                                          Uint32 op_key,
+                                          Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  findSchemaOp(op_ptr, createNodegroupRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  if (ret == 0)
+  {
+    jam();
+    createSubOps(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    const CreateHashMapRef* ref = (const CreateHashMapRef*)signal->getDataPtr();
+
+    ErrorInfo error;
+    setError(error, ref);
+    abortSubOps(signal, op_ptr, error);
+  }
+}
+
+void
+Dbdict::createNodegroup_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  getOpRec(op_ptr, createNodegroupRecPtr);
+  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    CreateNodegroupConf* conf = (CreateNodegroupConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->nodegroupId = impl_req->nodegroupId;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_NODEGROUP_CONF, signal,
+               CreateNodegroupConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    CreateNodegroupRef* ref = (CreateNodegroupRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_NODEGROUP_REF, signal,
+               CreateNodegroupRef::SignalLength, JBB);
+  }
+}
+
+// CreateNodegroup: PREPARE
+
+void
+Dbdict::createNodegroup_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  getOpRec(op_ptr, createNodegroupRecPtr);
+  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  impl_req->requestType = CreateNodegroupImplReq::RT_PREPARE;
+  createNodegroupRecPtr.p->m_blockCnt = 2;
+  createNodegroupRecPtr.p->m_blockIndex = 0;
+  createNodegroupRecPtr.p->m_blockNo[0] = DBDIH_REF;
+  createNodegroupRecPtr.p->m_blockNo[1] = SUMA_REF;
+
+  Callback c = {
+    safe_cast(&Dbdict::createNodegroup_fromBlockSubStartStop),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  block_substartstop(signal, op_ptr);
+}
+
+void
+Dbdict::createNodegroup_fromBlockSubStartStop(Signal* signal,
+                                              Uint32 op_key,
+                                              Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  findSchemaOp(op_ptr, createNodegroupRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  //CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  if (ret == 0)
+  {
+    jam();
+    createNodegroupRecPtr.p->m_substartstop_blocked = true;
+    createNodegroup_toLocal(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+void
+Dbdict::createNodegroup_toLocal(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  getOpRec(op_ptr, createNodegroupRecPtr);
+  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  const Uint32 blockIndex = createNodegroupRecPtr.p->m_blockIndex;
+  if (blockIndex == createNodegroupRecPtr.p->m_blockCnt)
+  {
+    jam();
+
+    if (op_ptr.p->m_state == SchemaOp::OS_PREPARING)
+    {
+      jam();
+
+      /**
+       * Block GCP as last part of prepare
+       */
+      Callback c = {
+        safe_cast(&Dbdict::createNodegroup_fromWaitGCP),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      createNodegroupRecPtr.p->m_cnt_waitGCP = 0;
+      createNodegroupRecPtr.p->m_wait_gcp_type = WaitGCPReq::BlockStartGcp;
+      wait_gcp(signal, op_ptr, WaitGCPReq::BlockStartGcp);
+      return;
+    }
+
+    if (op_ptr.p->m_state == SchemaOp::OS_COMPLETING)
+    {
+      jam();
+      /**
+       * Unblock GCP as last step of complete
+       */
+      Callback c = {
+        safe_cast(&Dbdict::createNodegroup_fromWaitGCP),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      createNodegroupRecPtr.p->m_cnt_waitGCP = 0;
+      createNodegroupRecPtr.p->m_wait_gcp_type = WaitGCPReq::UnblockStartGcp;
+      wait_gcp(signal, op_ptr, WaitGCPReq::UnblockStartGcp);
+      return;
+    }
+
+    sendTransConf(signal, op_ptr);
+    return;
+  }
+
+  Callback c = {
+    safe_cast(&Dbdict::createNodegroup_fromLocal),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  Uint32 ref = createNodegroupRecPtr.p->m_blockNo[blockIndex];
+  CreateNodegroupImplReq * req = (CreateNodegroupImplReq*)signal->getDataPtrSend();
+  memcpy(req, impl_req, 4*CreateNodegroupImplReq::SignalLength);
+  sendSignal(ref, GSN_CREATE_NODEGROUP_IMPL_REQ, signal,
+             CreateNodegroupImplReq::SignalLength, JBB);
+}
+
+void
+Dbdict::createNodegroup_fromLocal(Signal* signal,
+                                  Uint32 op_key,
+                                  Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  findSchemaOp(op_ptr, createNodegroupRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  Uint32 blockIndex = createNodegroupRecPtr.p->m_blockIndex;
+  ndbrequire(blockIndex < createNodegroupRecPtr.p->m_blockCnt);
+  if (ret)
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+    return;
+  }
+
+  Uint32 idx = createNodegroupRecPtr.p->m_blockIndex;
+  if (op_ptr.p->m_state == SchemaOp::OS_COMPLETING &&
+      createNodegroupRecPtr.p->m_blockNo[idx] == DBDIH_REF)
+  {
+    jam();
+
+    CreateNodegroupImplConf * conf =
+      (CreateNodegroupImplConf*)signal->getDataPtr();
+    impl_req->gci_hi = conf->gci_hi;
+    impl_req->gci_lo = conf->gci_lo;
+  }
+
+  createNodegroupRecPtr.p->m_blockIndex++;
+  createNodegroup_toLocal(signal, op_ptr);
+}
+
+void
+Dbdict::createNodegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  getOpRec(op_ptr, createNodegroupRecPtr);
+  //CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  if (createNodegroupRecPtr.p->m_substartstop_blocked)
+  {
+    jam();
+    unblock_substartstop();
+  }
+
+  if (createNodegroupRecPtr.p->m_gcp_blocked)
+  {
+    jam();
+
+    Callback c = {
+      safe_cast(&Dbdict::createNodegroup_fromWaitGCP),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+
+    createNodegroupRecPtr.p->m_cnt_waitGCP = 0;
+    createNodegroupRecPtr.p->m_wait_gcp_type = WaitGCPReq::UnblockStartGcp;
+    wait_gcp(signal, op_ptr, WaitGCPReq::UnblockStartGcp);
+    return;
+  }
+
+  sendTransConf(signal, op_ptr);
+}
+
+// CreateNodegroup: COMMIT
+
+void
+Dbdict::createNodegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  getOpRec(op_ptr, createNodegroupRecPtr);
+  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  impl_req->requestType = CreateNodegroupImplReq::RT_COMMIT;
+  createNodegroupRecPtr.p->m_blockCnt = 2;
+  createNodegroupRecPtr.p->m_blockIndex = 0;
+  createNodegroupRecPtr.p->m_blockNo[0] = DBDIH_REF;
+  createNodegroupRecPtr.p->m_blockNo[1] = NDBCNTR_REF;
+
+  Callback c = {
+    safe_cast(&Dbdict::createNodegroup_fromWaitGCP),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  createNodegroupRecPtr.p->m_cnt_waitGCP = 0;
+  createNodegroupRecPtr.p->m_wait_gcp_type = WaitGCPReq::WaitEpoch;
+  wait_gcp(signal, op_ptr, WaitGCPReq::WaitEpoch);
+}
+
+void
+Dbdict::createNodegroup_fromWaitGCP(Signal* signal,
+                                    Uint32 op_key,
+                                    Uint32 ret)
+{
+  jam();
+  SchemaOpPtr op_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  findSchemaOp(op_ptr, createNodegroupRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  //CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  if (ret == 0)
+  {
+    jam();
+
+    Uint32 wait_type = createNodegroupRecPtr.p->m_wait_gcp_type;
+    if (op_ptr.p->m_state == SchemaOp::OS_ABORTED_PREPARE)
+    {
+      jam();
+      ndbrequire(wait_type == WaitGCPReq::UnblockStartGcp);
+      sendTransConf(signal, op_ptr);
+      return;
+    }
+    else if (op_ptr.p->m_state == SchemaOp::OS_PREPARING)
+    {
+      jam();
+      ndbrequire(wait_type == WaitGCPReq::BlockStartGcp);
+      createNodegroupRecPtr.p->m_gcp_blocked = true;
+      sendTransConf(signal, op_ptr);
+      return;
+    }
+    else if (op_ptr.p->m_state == SchemaOp::OS_COMMITTING)
+    {
+      jam();
+      ndbrequire(wait_type == WaitGCPReq::WaitEpoch);
+      createNodegroup_toLocal(signal, op_ptr);
+      return;
+    }
+    else
+    {
+      jam();
+      ndbrequire(op_ptr.p->m_state == SchemaOp::OS_COMPLETING);
+
+      if (wait_type == WaitGCPReq::UnblockStartGcp)
+      {
+        jam();
+        wait_type = WaitGCPReq::CompleteForceStart;
+        createNodegroupRecPtr.p->m_wait_gcp_type = wait_type;
+        goto retry;
+      }
+      else
+      {
+        jam();
+        ndbrequire(wait_type == WaitGCPReq::CompleteForceStart);
+        unblock_substartstop();
+      }
+
+      sendTransConf(signal, op_ptr);
+      return;
+    }
+  }
+
+  createNodegroupRecPtr.p->m_cnt_waitGCP++;
+  switch(ret){
+  case WaitGCPRef::NoWaitGCPRecords:
+    jam();
+  case WaitGCPRef::NF_CausedAbortOfProcedure:
+    jam();
+  case WaitGCPRef::NF_MasterTakeOverInProgress:
+    jam();
+  }
+
+retry:
+  wait_gcp(signal, op_ptr, createNodegroupRecPtr.p->m_wait_gcp_type);
+}
+
+// CreateNodegroup: COMPLETE
+
+void
+Dbdict::createNodegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateNodegroupRecPtr createNodegroupRecPtr;
+  getOpRec(op_ptr, createNodegroupRecPtr);
+  CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
+
+  impl_req->requestType = CreateNodegroupImplReq::RT_COMPLETE;
+  createNodegroupRecPtr.p->m_blockCnt = 2;
+  createNodegroupRecPtr.p->m_blockIndex = 0;
+  createNodegroupRecPtr.p->m_blockNo[0] = DBDIH_REF;
+  createNodegroupRecPtr.p->m_blockNo[1] = SUMA_REF;
+
+  createNodegroup_toLocal(signal, op_ptr);
+}
+
+void
+Dbdict::execCREATE_NODEGROUP_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  CreateNodegroupImplRef * ref = (CreateNodegroupImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCREATE_NODEGROUP_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateNodegroupImplConf * conf = (CreateNodegroupImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execCREATE_HASH_MAP_REF(Signal* signal)
+{
+  jamEntry();
+  CreateHashMapRef * ref = (CreateHashMapRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCREATE_HASH_MAP_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateHashMapConf * conf = (CreateHashMapConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// CreateNodegroup: END
+
+// MODULE: DropNodegroup
+
+const Dbdict::OpInfo
+Dbdict::DropNodegroupRec::g_opInfo = {
+  { 'D', 'N', 'G', 0 },
+  GSN_DROP_NODEGROUP_IMPL_REQ,
+  DropNodegroupImplReq::SignalLength,
+  //
+  &Dbdict::dropNodegroup_seize,
+  &Dbdict::dropNodegroup_release,
+  //
+  &Dbdict::dropNodegroup_parse,
+  &Dbdict::dropNodegroup_subOps,
+  &Dbdict::dropNodegroup_reply,
+  //
+  &Dbdict::dropNodegroup_prepare,
+  &Dbdict::dropNodegroup_commit,
+  &Dbdict::dropNodegroup_complete,
+  //
+  &Dbdict::dropNodegroup_abortParse,
+  &Dbdict::dropNodegroup_abortPrepare
+};
+
+void
+Dbdict::execDROP_NODEGROUP_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const DropNodegroupReq req_copy =
+    *(const DropNodegroupReq*)signal->getDataPtr();
+  const DropNodegroupReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    DropNodegroupRecPtr dropNodegroupRecPtr;
+    DropNodegroupImplReq* impl_req;
+
+    startClientReq(op_ptr, dropNodegroupRecPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->nodegroupId = req->nodegroupId;
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  DropNodegroupRef* ref = (DropNodegroupRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_DROP_NODEGROUP_REF, signal,
+	     DropNodegroupRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::dropNodegroup_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<DropNodegroupRec>(op_ptr);
+}
+
+void
+Dbdict::dropNodegroup_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<DropNodegroupRec>(op_ptr);
+}
+
+// DropNodegroup: PARSE
+
+void
+Dbdict::dropNodegroup_parse(Signal* signal, bool master,
+                          SchemaOpPtr op_ptr,
+                          SectionHandle& handle, ErrorInfo& error)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  getOpRec(op_ptr, dropNodegroupRecPtr);
+  DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  impl_req->senderRef = reference();
+  impl_req->senderData = op_ptr.p->op_key;
+}
+
+void
+Dbdict::dropNodegroup_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::dropNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  return false;
+}
+
+void
+Dbdict::dropNodegroup_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  getOpRec(op_ptr, dropNodegroupRecPtr);
+  //DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    DropNodegroupConf* conf = (DropNodegroupConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_NODEGROUP_CONF, signal,
+               DropNodegroupConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    DropNodegroupRef* ref = (DropNodegroupRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_NODEGROUP_REF, signal,
+               DropNodegroupRef::SignalLength, JBB);
+  }
+}
+
+// DropNodegroup: PREPARE
+
+void
+Dbdict::dropNodegroup_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  getOpRec(op_ptr, dropNodegroupRecPtr);
+  DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  impl_req->requestType = DropNodegroupImplReq::RT_PREPARE;
+  dropNodegroupRecPtr.p->m_blockCnt = 2;
+  dropNodegroupRecPtr.p->m_blockIndex = 0;
+  dropNodegroupRecPtr.p->m_blockNo[0] = DBDIH_REF;
+  dropNodegroupRecPtr.p->m_blockNo[1] = SUMA_REF;
+
+  Callback c = {
+    safe_cast(&Dbdict::dropNodegroup_fromBlockSubStartStop),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  block_substartstop(signal, op_ptr);
+}
+
+void
+Dbdict::dropNodegroup_fromBlockSubStartStop(Signal* signal,
+                                              Uint32 op_key,
+                                              Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  findSchemaOp(op_ptr, dropNodegroupRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  //DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  if (ret == 0)
+  {
+    jam();
+    dropNodegroupRecPtr.p->m_substartstop_blocked = true;
+    dropNodegroup_toLocal(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+void
+Dbdict::dropNodegroup_toLocal(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  getOpRec(op_ptr, dropNodegroupRecPtr);
+  DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  const Uint32 blockIndex = dropNodegroupRecPtr.p->m_blockIndex;
+  if (blockIndex == dropNodegroupRecPtr.p->m_blockCnt)
+  {
+    jam();
+
+    if (op_ptr.p->m_state == SchemaOp::OS_PREPARING)
+    {
+      jam();
+
+      /**
+       * Block GCP as last part of prepare
+       */
+      Callback c = {
+        safe_cast(&Dbdict::dropNodegroup_fromWaitGCP),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      dropNodegroupRecPtr.p->m_cnt_waitGCP = 0;
+      dropNodegroupRecPtr.p->m_wait_gcp_type = WaitGCPReq::BlockStartGcp;
+      wait_gcp(signal, op_ptr, WaitGCPReq::BlockStartGcp);
+      return;
+    }
+
+    if (op_ptr.p->m_state == SchemaOp::OS_COMPLETING)
+    {
+      jam();
+      /**
+       * Unblock GCP as last step of complete
+       */
+      Callback c = {
+        safe_cast(&Dbdict::dropNodegroup_fromWaitGCP),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      dropNodegroupRecPtr.p->m_cnt_waitGCP = 0;
+      dropNodegroupRecPtr.p->m_wait_gcp_type = WaitGCPReq::UnblockStartGcp;
+      wait_gcp(signal, op_ptr, WaitGCPReq::UnblockStartGcp);
+      return;
+    }
+
+    sendTransConf(signal, op_ptr);
+    return;
+  }
+
+  Callback c = {
+    safe_cast(&Dbdict::dropNodegroup_fromLocal),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  Uint32 ref = dropNodegroupRecPtr.p->m_blockNo[blockIndex];
+  DropNodegroupImplReq * req = (DropNodegroupImplReq*)signal->getDataPtrSend();
+  memcpy(req, impl_req, 4*DropNodegroupImplReq::SignalLength);
+  sendSignal(ref, GSN_DROP_NODEGROUP_IMPL_REQ, signal,
+             DropNodegroupImplReq::SignalLength, JBB);
+}
+
+void
+Dbdict::dropNodegroup_fromLocal(Signal* signal,
+                                  Uint32 op_key,
+                                  Uint32 ret)
+{
+  SchemaOpPtr op_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  findSchemaOp(op_ptr, dropNodegroupRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  Uint32 blockIndex = dropNodegroupRecPtr.p->m_blockIndex;
+  ndbrequire(blockIndex < dropNodegroupRecPtr.p->m_blockCnt);
+
+  if (ret)
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+    return;
+  }
+
+  Uint32 idx = dropNodegroupRecPtr.p->m_blockIndex;
+  if (op_ptr.p->m_state == SchemaOp::OS_COMMITTING &&
+      dropNodegroupRecPtr.p->m_blockNo[idx] == DBDIH_REF)
+  {
+    jam();
+
+    DropNodegroupImplConf * conf =
+      (DropNodegroupImplConf*)signal->getDataPtr();
+    impl_req->gci_hi = conf->gci_hi;
+    impl_req->gci_lo = conf->gci_lo;
+  }
+
+
+  dropNodegroupRecPtr.p->m_blockIndex++;
+  dropNodegroup_toLocal(signal, op_ptr);
+}
+
+
+void
+Dbdict::dropNodegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  getOpRec(op_ptr, dropNodegroupRecPtr);
+  //DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  if (dropNodegroupRecPtr.p->m_substartstop_blocked)
+  {
+    jam();
+    unblock_substartstop();
+  }
+
+  if (dropNodegroupRecPtr.p->m_gcp_blocked)
+  {
+    jam();
+
+    Callback c = {
+      safe_cast(&Dbdict::dropNodegroup_fromWaitGCP),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+
+    dropNodegroupRecPtr.p->m_cnt_waitGCP = 0;
+    dropNodegroupRecPtr.p->m_wait_gcp_type = WaitGCPReq::UnblockStartGcp;
+    wait_gcp(signal, op_ptr, WaitGCPReq::UnblockStartGcp);
+    return;
+  }
+
+  sendTransConf(signal, op_ptr);
+}
+
+// DropNodegroup: COMMIT
+
+void
+Dbdict::dropNodegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  getOpRec(op_ptr, dropNodegroupRecPtr);
+  DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  impl_req->requestType = DropNodegroupImplReq::RT_COMMIT;
+
+  dropNodegroupRecPtr.p->m_blockIndex = 0;
+  dropNodegroupRecPtr.p->m_blockCnt = 1;
+  dropNodegroupRecPtr.p->m_blockNo[0] = DBDIH_REF;
+
+  Callback c = {
+    safe_cast(&Dbdict::dropNodegroup_fromWaitGCP),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  dropNodegroupRecPtr.p->m_cnt_waitGCP = 0;
+  dropNodegroupRecPtr.p->m_wait_gcp_type = WaitGCPReq::WaitEpoch;
+  wait_gcp(signal, op_ptr, WaitGCPReq::WaitEpoch);
+}
+
+void
+Dbdict::dropNodegroup_fromWaitGCP(Signal* signal,
+                                  Uint32 op_key,
+                                  Uint32 ret)
+{
+  jam();
+  SchemaOpPtr op_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  findSchemaOp(op_ptr, dropNodegroupRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  //DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  if (ret == 0)
+  {
+    jam();
+
+    Uint32 wait_type = dropNodegroupRecPtr.p->m_wait_gcp_type;
+    if (op_ptr.p->m_state == SchemaOp::OS_ABORTING_PREPARE)
+    {
+      jam();
+      ndbrequire(wait_type == WaitGCPReq::UnblockStartGcp);
+      sendTransConf(signal, op_ptr);
+      return;
+    }
+    else if (op_ptr.p->m_state == SchemaOp::OS_PREPARING)
+    {
+      jam();
+      ndbrequire(wait_type == WaitGCPReq::BlockStartGcp);
+      dropNodegroupRecPtr.p->m_gcp_blocked = true;
+      sendTransConf(signal, op_ptr);
+      return;
+    }
+    else if (op_ptr.p->m_state == SchemaOp::OS_COMMITTING)
+    {
+      jam();
+      ndbrequire(wait_type == WaitGCPReq::WaitEpoch);
+      dropNodegroup_toLocal(signal, op_ptr);
+      return;
+    }
+    else
+    {
+      jam();
+
+      ndbrequire(op_ptr.p->m_state == SchemaOp::OS_COMPLETING);
+      if (wait_type == WaitGCPReq::UnblockStartGcp)
+      {
+        /**
+         * Also wait for the epoch to complete
+         */
+        jam();
+        dropNodegroupRecPtr.p->m_wait_gcp_type = WaitGCPReq::CompleteForceStart;
+        goto retry;
+      }
+      else
+      {
+        jam();
+        ndbrequire(wait_type == WaitGCPReq::CompleteForceStart);
+        unblock_substartstop();
+      }
+      sendTransConf(signal, op_ptr);
+      return;
+    }
+  }
+
+  dropNodegroupRecPtr.p->m_cnt_waitGCP++;
+  switch(ret){
+  case WaitGCPRef::NoWaitGCPRecords:
+    jam();
+  case WaitGCPRef::NF_CausedAbortOfProcedure:
+    jam();
+  case WaitGCPRef::NF_MasterTakeOverInProgress:
+    jam();
+  }
+
+retry:
+  wait_gcp(signal, op_ptr, dropNodegroupRecPtr.p->m_wait_gcp_type);
+}
+
+// DropNodegroup: COMPLETE
+
+void
+Dbdict::dropNodegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropNodegroupRecPtr dropNodegroupRecPtr;
+  getOpRec(op_ptr, dropNodegroupRecPtr);
+  DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
+
+  impl_req->requestType = DropNodegroupImplReq::RT_COMPLETE;
+  dropNodegroupRecPtr.p->m_blockIndex = 0;
+  dropNodegroupRecPtr.p->m_blockCnt = 2;
+  dropNodegroupRecPtr.p->m_blockNo[0] = SUMA_REF;
+  dropNodegroupRecPtr.p->m_blockNo[1] = DBDIH_REF;
+
+  dropNodegroup_toLocal(signal, op_ptr);
+}
+
+void
+Dbdict::execDROP_NODEGROUP_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  DropNodegroupImplRef * ref = (DropNodegroupImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execDROP_NODEGROUP_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  DropNodegroupImplConf * conf = (DropNodegroupImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// DropNodegroup: END
+
 /*
   return 1 if all of the below is true
   a) node in single user mode
@@ -19276,6 +20450,8 @@ Dbdict::g_opInfoList[] = {
   &Dbdict::DropFileRec::g_opInfo,
   &Dbdict::CreateHashMapRec::g_opInfo,
   &Dbdict::CopyDataRec::g_opInfo,
+  &Dbdict::CreateNodegroupRec::g_opInfo,
+  &Dbdict::DropNodegroupRec::g_opInfo,
   0
 };
 
@@ -19283,7 +20459,7 @@ const Dbdict::OpInfo*
 Dbdict::findOpInfo(Uint32 gsn)
 {
   Uint32 i = 0;
-  while (1) {
+  while (g_opInfoList[i]) {
     const OpInfo* info = g_opInfoList[i];
     if (info->m_impl_req_gsn == 0)
       break;
@@ -19291,6 +20467,7 @@ Dbdict::findOpInfo(Uint32 gsn)
       return info;
     i++;
   }
+  ndbrequire(false);
   return 0;
 }
 
@@ -22484,6 +23661,23 @@ Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
 
 // CreateHashMap: PARSE
 
+Uint32
+Dbdict::get_default_fragments()
+{
+  jam();
+
+  SignalT<25> signalT;
+  bzero(&signalT, sizeof(signalT));
+  Signal* signal = (Signal*)&signalT;
+
+  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
+  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
+		 CheckNodeGroups::SignalLength);
+  jamEntry();
+  return sd->output;
+}
+
 void
 Dbdict::createHashMap_parse(Signal* signal, bool master,
                             SchemaOpPtr op_ptr,
@@ -22543,7 +23737,8 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     if (fragments == 0)
     {
       jam();
-      fragments = c_numberNode;
+
+      fragments = get_default_fragments();
     }
     BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName),
                          "DEFAULT-HASHMAP-%u-%u",

@@ -37,6 +37,9 @@
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/AllocNodeId.hpp>
+#include <signaldata/SchemaTrans.hpp>
+#include <signaldata/CreateNodegroup.hpp>
+#include <signaldata/DropNodegroup.hpp>
 #include <NdbSleep.h>
 #include <EventLogger.hpp>
 #include <DebuggerNames.hpp>
@@ -441,13 +444,11 @@ MgmtSrvr::start_mgm_service()
        type != NODE_TYPE_MGM){
       g_eventLogger->error("Node %d is not defined as management server",
                            _ownNodeId);
-      return 0;
       DBUG_RETURN(false);
     }
 
     if(iter.get(CFG_MGM_PORT, &m_port) != 0){
       g_eventLogger->error("PortNumber not defined for node %d", _ownNodeId);
-      return 0;
       DBUG_RETURN(false);
     }
   }
@@ -1798,6 +1799,302 @@ MgmtSrvr::insertError(int nodeId, int errorNo)
   return ss.sendSignal(nodeId, &ssig) == SEND_OK ? 0 : SEND_OR_RECEIVE_FAILED;
 }
 
+int
+MgmtSrvr::startSchemaTrans(SignalSender& ss, NodeId & out_nodeId,
+                           Uint32 transId, Uint32 & out_transKey)
+{
+  SimpleSignal ssig;
+
+  ssig.set(ss, 0, DBDICT, GSN_SCHEMA_TRANS_BEGIN_REQ,
+           SchemaTransBeginReq::SignalLength);
+
+  SchemaTransBeginReq* req =
+    CAST_PTR(SchemaTransBeginReq, ssig.getDataPtrSend());
+
+  req->clientRef =  ss.getOwnRef();
+  req->transId = transId;
+  req->requestInfo = 0;
+
+  NodeId nodeId = ss.get_an_alive_node();
+
+retry:
+  if (ss.get_node_alive(nodeId) == false)
+  {
+    nodeId = ss.get_an_alive_node();
+  }
+
+  if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
+  {
+    return SEND_OR_RECEIVE_FAILED;
+  }
+
+  while (true)
+  {
+    SimpleSignal *signal = ss.waitFor();
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_SCHEMA_TRANS_BEGIN_CONF: {
+      const SchemaTransBeginConf * conf =
+        CAST_CONSTPTR(SchemaTransBeginConf, signal->getDataPtr());
+      out_transKey = conf->transKey;
+      out_nodeId = nodeId;
+      return 0;
+    }
+    case GSN_SCHEMA_TRANS_BEGIN_REF: {
+      const SchemaTransBeginRef * ref =
+        CAST_CONSTPTR(SchemaTransBeginRef, signal->getDataPtr());
+
+      switch(ref->errorCode){
+      case SchemaTransBeginRef::NotMaster:
+        nodeId = ref->masterNodeId;
+        // Fall-through
+      case SchemaTransBeginRef::Busy:
+      case SchemaTransBeginRef::BusyWithNR:
+        goto retry;
+      default:
+        return ref->errorCode;
+      }
+    }
+    case GSN_NF_COMPLETEREP:
+      // ignore
+      break;
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+        CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      if (NdbNodeBitmask::get(rep->theNodes, nodeId))
+      {
+        nodeId++;
+        goto retry;
+      }
+      break;
+    }
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+    }
+  }
+}
+
+int
+MgmtSrvr::endSchemaTrans(SignalSender& ss, NodeId nodeId,
+                         Uint32 transId, Uint32 transKey,
+                         Uint32 flags)
+{
+  SimpleSignal ssig;
+
+  ssig.set(ss, 0, DBDICT, GSN_SCHEMA_TRANS_END_REQ,
+           SchemaTransEndReq::SignalLength);
+
+  SchemaTransEndReq* req =
+    CAST_PTR(SchemaTransEndReq, ssig.getDataPtrSend());
+
+  req->clientRef =  ss.getOwnRef();
+  req->transId = transId;
+  req->requestInfo = 0;
+  req->transKey = transKey;
+  req->flags = flags;
+
+  if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
+  {
+    return SEND_OR_RECEIVE_FAILED;
+  }
+
+  while (true)
+  {
+    SimpleSignal *signal = ss.waitFor();
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_SCHEMA_TRANS_END_CONF: {
+      return 0;
+    }
+    case GSN_SCHEMA_TRANS_END_REF: {
+      const SchemaTransEndRef * ref =
+        CAST_CONSTPTR(SchemaTransEndRef, signal->getDataPtr());
+      return ref->errorCode;
+    }
+    case GSN_NF_COMPLETEREP:
+      // ignore
+      break;
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+        CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      if (NdbNodeBitmask::get(rep->theNodes, nodeId))
+      {
+        return -1;
+      }
+      break;
+    }
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+    }
+  }
+}
+
+int
+MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
+{
+  int res;
+  SignalSender ss(theFacade);
+  ss.lock();
+
+  Uint32 transId = rand();
+  Uint32 transKey;
+  NodeId nodeId;
+
+  if ((res = startSchemaTrans(ss, nodeId, transId, transKey)))
+  {
+    return res;
+  }
+
+  SimpleSignal ssig;
+  ssig.set(ss, 0, DBDICT, GSN_CREATE_NODEGROUP_REQ,
+           CreateNodegroupReq::SignalLength);
+
+  CreateNodegroupReq* req =
+    CAST_PTR(CreateNodegroupReq, ssig.getDataPtrSend());
+
+  req->transId = transId;
+  req->transKey = transKey;
+  req->nodegroupId = RNIL;
+  req->senderData = 77;
+  req->senderRef = ss.getOwnRef();
+  bzero(req->nodes, sizeof(req->nodes));
+
+  if (ng)
+  {
+    if (* ng != -1)
+    {
+      req->nodegroupId = * ng;
+    }
+  }
+  for (int i = 0; i<count && i<(int)NDB_ARRAY_SIZE(req->nodes); i++)
+  {
+    req->nodes[i] = nodes[i];
+  }
+
+  if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
+  {
+    return SEND_OR_RECEIVE_FAILED;
+  }
+
+  bool wait = true;
+  while (wait)
+  {
+    SimpleSignal *signal = ss.waitFor();
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_CREATE_NODEGROUP_CONF: {
+      const CreateNodegroupConf * conf =
+        CAST_CONSTPTR(CreateNodegroupConf, signal->getDataPtr());
+
+      if (ng)
+      {
+        * ng = conf->nodegroupId;
+      }
+
+      wait = false;
+      break;
+    }
+    case GSN_CREATE_NODEGROUP_REF:{
+      const CreateNodegroupRef * ref =
+        CAST_CONSTPTR(CreateNodegroupRef, signal->getDataPtr());
+      endSchemaTrans(ss, nodeId, transId, transKey,
+                     SchemaTransEndReq::SchemaTransAbort);
+      return ref->errorCode;
+    }
+    case GSN_NF_COMPLETEREP:
+      // ignore
+      break;
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+        CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      if (NdbNodeBitmask::get(rep->theNodes, nodeId))
+      {
+        return SchemaTransBeginRef::Nodefailure;
+      }
+      break;
+    }
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+    }
+  }
+
+  return endSchemaTrans(ss, nodeId, transId, transKey, 0);
+}
+
+int
+MgmtSrvr::dropNodegroup(int ng)
+{
+  int res;
+  SignalSender ss(theFacade);
+  ss.lock();
+
+  Uint32 transId = rand();
+  Uint32 transKey;
+  NodeId nodeId;
+
+  if ((res = startSchemaTrans(ss, nodeId, transId, transKey)))
+  {
+    return res;
+  }
+
+  SimpleSignal ssig;
+  ssig.set(ss, 0, DBDICT, GSN_DROP_NODEGROUP_REQ, DropNodegroupReq::SignalLength);
+
+  DropNodegroupReq* req =
+    CAST_PTR(DropNodegroupReq, ssig.getDataPtrSend());
+
+  req->transId = transId;
+  req->transKey = transKey;
+  req->nodegroupId = ng;
+  req->senderData = 77;
+  req->senderRef = ss.getOwnRef();
+
+  if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
+  {
+    return SEND_OR_RECEIVE_FAILED;
+  }
+
+  bool wait = true;
+  while (wait)
+  {
+    SimpleSignal *signal = ss.waitFor();
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_DROP_NODEGROUP_CONF: {
+      wait = false;
+      break;
+    }
+    case GSN_DROP_NODEGROUP_REF:
+    {
+      const DropNodegroupRef * ref =
+        CAST_CONSTPTR(DropNodegroupRef, signal->getDataPtr());
+      endSchemaTrans(ss, nodeId, transId, transKey,
+                     SchemaTransEndReq::SchemaTransAbort);
+      return ref->errorCode;
+    }
+    case GSN_NF_COMPLETEREP:
+      // ignore
+      break;
+    case GSN_NODE_FAILREP:{
+      const NodeFailRep * const rep =
+        CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
+      if (NdbNodeBitmask::get(rep->theNodes, nodeId))
+      {
+        return SchemaTransBeginRef::Nodefailure;
+      }
+      break;
+    }
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+    }
+  }
+
+  return endSchemaTrans(ss, nodeId, transId, transKey, 0);
+}
 
 
 //****************************************************************************
@@ -2338,6 +2635,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 			  "or specifying unique host names in config file,\n"
 			  "or specifying just one mgmt server in config file.",
 			  tmp);
+      NdbMutex_Unlock(m_configMutex);
       error_code = NDB_MGM_ALLOCID_CONFIG_MISMATCH;
       DBUG_RETURN(false);
     }
@@ -2602,14 +2900,19 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 
   SimpleSignal ssig;
   BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
+  /*
+   * Single-threaded backup.  Set instance key 1.  In the kernel
+   * this maps to main instance 0 or worker instance 1 (if MT LQH).
+   */
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, 1);
   if(input_backupId > 0)
   {
-    ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
+    ssig.set(ss, TestOrd::TraceAPI, backupBlockNo, GSN_BACKUP_REQ, 
 	     BackupReq::SignalLength);
     req->inputBackupId = input_backupId;
   }
   else
-    ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
+    ssig.set(ss, TestOrd::TraceAPI, backupBlockNo, GSN_BACKUP_REQ, 
 	     BackupReq::SignalLength - 1);
   
   req->senderData = 19;

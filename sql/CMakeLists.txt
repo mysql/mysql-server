@@ -47,7 +47,7 @@ ENDIF(WITH_NDBCLUSTER_STORAGE_ENGINE)
 
 ADD_EXECUTABLE(mysqld
                ../sql-common/client.c derror.cc des_key_file.cc
-               discover.cc ../libmysql/errmsg.c field.cc  stacktrace.c stacktrace.h field_conv.cc 
+               discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc
                ha_partition.cc
                ${NDB_HANDLER_SRC}

@@ -2180,7 +2180,14 @@ static bool add_line(String &buffer,char *line,char *in_string,
     }
     else if (!*ml_comment && (!*in_string && (inchar == '#' ||
 			      inchar == '-' && pos[1] == '-' &&
-			      my_isspace(charset_info,pos[2]))))
+                              /*
+                                The third byte is either whitespace or is the
+                                end of the line -- which would occur only
+                                because of the user sending newline -- which is
+                                itself whitespace and should also match.
+                              */
+			      (my_isspace(charset_info,pos[2]) ||
+                               !pos[2]))))
     {
       // Flush previously accepted characters
       if (out != line)

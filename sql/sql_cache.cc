@@ -2746,7 +2746,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 	 tmp++)
       unlink_table(tmp);
   }
-  return (n);
+  return test(n);
 }
 
 

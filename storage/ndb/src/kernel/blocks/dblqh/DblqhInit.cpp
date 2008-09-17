@@ -25,9 +25,6 @@
 void Dblqh::initData() 
 {
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
-  cattrinbufFileSize = ZATTRINBUF_FILE_SIZE;
-  c_no_attrinbuf_recs= ZATTRINBUF_FILE_SIZE;
-  cdatabufFileSize = ZDATABUF_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
   chostFileSize = MAX_NDB_NODES;
   clcpFileSize = ZNO_CONCURRENT_LCP;
@@ -44,8 +41,6 @@ void Dblqh::initData()
   ctcNodeFailrecFileSize = MAX_NDB_NODES;
 
   addFragRecord = 0;
-  attrbuf = 0;
-  databuf = 0;
   gcpRecord = 0;
   hostRecord = 0;
   lcpRecord = 0;
@@ -84,13 +79,6 @@ void Dblqh::initRecords()
   addFragRecord = (AddFragRecord*)allocRecord("AddFragRecord",
 					      sizeof(AddFragRecord), 
 					      caddfragrecFileSize);
-  attrbuf = (Attrbuf*)allocRecord("Attrbuf",
-				  sizeof(Attrbuf), 
-				  cattrinbufFileSize);
-
-  databuf = (Databuf*)allocRecord("Databuf",
-				  sizeof(Databuf), 
-				  cdatabufFileSize);
 
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
@@ -175,6 +163,32 @@ void Dblqh::initRecords()
   bat[1].bits.q = ZTWOLOG_PAGE_SIZE;
   bat[1].bits.v = 5;
 }//Dblqh::initRecords()
+
+bool
+Dblqh::getParam(const char* name, Uint32* count)
+{
+  if (name != NULL && count != NULL)
+  {
+    /* FragmentInfoPool
+     * We increase the size of the fragment info pool
+     * to handle fragmented SCANFRAGREQ signals from 
+     * TC
+     */
+    if (strcmp(name, "FragmentInfoPool") == 0)
+    {
+      /* Worst case is every TC block sending
+       * a single fragmented request concurrently
+       * This could change in future if TCs can
+       * interleave fragments from different 
+       * requests
+       */
+      const Uint32 TC_BLOCKS_PER_NODE = 1;
+      *count= ((MAX_NDB_NODES -1) * TC_BLOCKS_PER_NODE) + 10;
+      return true;
+    }
+  }
+  return false;
+}
 
 Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   SimulatedBlock(DBLQH, ctx, instanceNumber),
@@ -336,8 +350,6 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   {
     void* tmp[] = { 
       &addfragptr,
-      &attrinbufptr,
-      &databufptr,
       &fragptr,
       &gcpPtr,
       &lcpPtr,
@@ -363,16 +375,6 @@ Dblqh::~Dblqh()
   deallocRecord((void **)&addFragRecord, "AddFragRecord",
 		sizeof(AddFragRecord), 
 		caddfragrecFileSize);
-
-  deallocRecord((void**)&attrbuf,
-		"Attrbuf",
-		sizeof(Attrbuf), 
-		cattrinbufFileSize);
-
-  deallocRecord((void**)&databuf,
-		"Databuf",
-		sizeof(Databuf), 
-		cdatabufFileSize);
 
   deallocRecord((void**)&gcpRecord,
 		"GcpRecord",

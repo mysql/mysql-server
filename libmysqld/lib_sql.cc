@@ -79,6 +79,15 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   my_bool result= 1;
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
+  my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
+
+  if (!thd)
+  {
+    /* Do "reconnect" if possible */
+    if (mysql_reconnect(mysql) || stmt_skip)
+      return 1;
+    thd= (THD *) mysql->thd;
+  }
 
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.start_new_query();
@@ -1100,6 +1109,9 @@ void Protocol_text::prepare_for_resend()
   data->embedded_info->prev_ptr= &cur->next;
   next_field=cur->data;
   next_mysql_field= data->embedded_info->fields_list;
+#ifndef DBUG_OFF
+  field_pos= 0;
+#endif
 
   DBUG_VOID_RETURN;
 }

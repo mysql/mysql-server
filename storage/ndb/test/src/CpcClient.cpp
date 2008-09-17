@@ -137,7 +137,7 @@ SimpleCpcClient::stop_process(Uint32 id, Properties& reply){
     ret->get("errormessage", msg);
     reply.put("errormessage", msg.c_str());
   }
-
+  delete ret;
   return status;
 }
 
@@ -199,6 +199,8 @@ SimpleCpcClient::start_process(Uint32 id, Properties& reply){
     reply.put("errormessage", msg.c_str());
   }
 
+  delete ret;
+
   return status;
 }
 
@@ -231,6 +233,8 @@ SimpleCpcClient::undefine_process(Uint32 id, Properties& reply){
     ret->get("errormessage", msg);
     reply.put("errormessage", msg.c_str());
   }
+
+  delete ret;
 
   return status;
 }
@@ -346,13 +350,13 @@ SimpleCpcClient::define_process(Process & p, Properties& reply){
   }
 
   p.m_id = id;
-  
+  delete ret;
   return status;
 }
 
 int
 SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
-  int start, end, entry; 
+  int start = 0, end = 0, entry; 
   const ParserRow_t list_reply[] = {
     CPC_CMD("start processes", &start, ""),
     CPC_CMD("end processes", &end, ""),
@@ -390,8 +394,10 @@ SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
     void *p;
     cpc_recv(list_reply, &proc, &p);
 
+    end++;
     if(p == &start)
     {
+      start = 1;
       /* do nothing */
     }
     else if(p == &end)
@@ -400,16 +406,26 @@ SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
     }
     else if(p == &entry)
     {
-      if(proc != NULL){
+      if(proc != NULL)
+      {
 	Process p;
 	convert(* proc, p);
 	procs.push_back(p);
+      }
+      else
+      {
+        ndbout_c("JONAS: start: %d loop: %d cnt: %u got p == &entry with proc == NULL",
+                 start, end, procs.size());
       }
     }
     else
     {
       ndbout_c("internal error: %d", __LINE__);
       return -1;
+    }
+    if (proc)
+    {
+      delete proc;
     }
   }
   return 0;

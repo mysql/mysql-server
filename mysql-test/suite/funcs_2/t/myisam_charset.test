@@ -1,8 +1,10 @@
-#################################################################################
-# Author:  Serge Kozlov								#
-# Date:    09/21/2005								#
-# Purpose: Testing the charsets for MyISAM engine				#
-#################################################################################
+################################################################################
+# Author:  Serge Kozlov                                                        #
+# Date:    2005-09-21                                                          #
+# Purpose: Testing the charsets for MyISAM engine                              #
+#                                                                              #
+# Checking of other prerequisites is in charset_master.test                    #
+################################################################################
 
 let $engine_type= MyISAM;
 --source suite/funcs_2/charset/charset_master.test

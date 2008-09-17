@@ -25,6 +25,7 @@ int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 int desc_tablespace(Ndb *myndb,char* name);
 int desc_table(Ndb *myndb,char* name);
+int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 
 static const char* _dbname = "TEST_DB";
 static int _unqualified = 0;
@@ -107,6 +108,8 @@ int main(int argc, char** argv){
     else if(desc_datafile(con, &MyNdb, argv[i]))
       ;
     else if(desc_undofile(con, &MyNdb, argv[i]))
+      ;
+    else if (desc_hashmap(con, &MyNdb, argv[i]))
       ;
     else
       ndbout << "No such object: " << argv[i] << endl << endl;
@@ -358,4 +361,30 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
   } while(0);
   
   pTrans->close();
+}
+
+int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name)
+{
+  NdbDictionary::Dictionary *dict= myndb->getDictionary();
+  assert(dict);
+
+  NdbDictionary::HashMap hm;
+  if (dict->getHashMap(hm, name) == 0)
+  {
+    Uint32 len = hm.getMapLen();
+    Uint32 * tmp = new Uint32[len];
+    hm.getMapValues(tmp, len);
+    for (Uint32 i = 0; i<len; i++)
+    {
+      printf("%.2u ", tmp[i]);
+      if (((i+1) % 25) == 0)
+        printf("\n");
+    }
+    if (((len + 1) % 25) != 0)
+      printf("\n");
+    delete [] tmp;
+    return 1;
+  }
+
+  return 0;
 }

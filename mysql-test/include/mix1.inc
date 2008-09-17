@@ -1103,6 +1103,24 @@ set @my_innodb_commit_concurrency=@@global.innodb_commit_concurrency;
 set global innodb_commit_concurrency=0;
 set global innodb_commit_concurrency=@my_innodb_commit_concurrency;
 
+#
+# Bug #37830: ORDER BY ASC/DESC - no difference
+#
+
+CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY (a), KEY t1_b (b))
+ ENGINE=InnoDB;
+
+INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,1,1), (3,1,1), (4,1,1);
+INSERT INTO t1 (a,b,c) SELECT a+4,b,c FROM t1;
+
+# should be range access
+EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
+
+# should produce '8 7 6 5 4' for a
+SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
@@ -1428,29 +1446,31 @@ DROP TABLE t1;
 # Bug#21704: Renaming column does not update FK definition.
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
---enable_warnings
-
-CREATE TABLE t1(id INT PRIMARY KEY)
-  ENGINE=innodb;
-
-CREATE TABLE t2(
-  t1_id INT PRIMARY KEY,
-  CONSTRAINT fk1 FOREIGN KEY (t1_id) REFERENCES t1(id))
-  ENGINE=innodb;
-
---echo
-
---disable_result_log
---error ER_ERROR_ON_RENAME
-ALTER TABLE t1 CHANGE id id2 INT;
---enable_result_log
-
---echo
-
-DROP TABLE t2;
-DROP TABLE t1;
+#
+# --disable_warnings
+# DROP TABLE IF EXISTS t1;
+# DROP TABLE IF EXISTS t2;
+# --enable_warnings
+#
+# CREATE TABLE t1(id INT PRIMARY KEY)
+#   ENGINE=innodb;
+#
+# CREATE TABLE t2(
+#   t1_id INT PRIMARY KEY,
+#   CONSTRAINT fk1 FOREIGN KEY (t1_id) REFERENCES t1(id))
+#   ENGINE=innodb;
+#
+# --echo
+#
+# --disable_result_log
+# --error ER_ERROR_ON_RENAME
+# ALTER TABLE t1 CHANGE id id2 INT;
+# --enable_result_log
+#
+# --echo
+#
+# DROP TABLE t2;
+# DROP TABLE t1;
+#
 
 --echo End of 5.1 tests

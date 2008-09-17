@@ -42,7 +42,8 @@ public:
     LOCAL_CHECKPOINT        = 1,
     RESTART                 = 2,
     GLOBAL_CHECKPOINT       = 3,
-    INITIAL_START_COMPLETED = 4
+    INITIAL_START_COMPLETED = 4,
+    RESTART_NR              = 5
   };
   
 private:

@@ -88,6 +88,7 @@ testDict_SOURCES = testDict.cpp
 testIndex_SOURCES = testIndex.cpp
 testLimits_SOURCES = testLimits.cpp
 testMgm_SOURCES = testMgm.cpp
+testMgm_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi
 testSingleUserMode_SOURCES = testSingleUserMode.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNodeRestart_SOURCES = testNodeRestart.cpp
@@ -135,11 +136,6 @@ INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/kernel
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am
 
-##testDict_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-##testIndex_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-##testSystemRestart_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-##testTransactions_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-NdbRepStress_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/test/include -I$(top_srcdir)/include
 testBackup_LDADD = $(LDADD) bank/libbank.a
 testSRBank_LDADD = bank/libbank.a $(LDADD) 
 NdbRepStress_LDADD = $(LDADD) $(top_builddir)/libmysql_r/libmysqlclient_r.la

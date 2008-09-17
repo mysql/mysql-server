@@ -52,7 +52,6 @@
 #include <Configuration.hpp>
 
 #include <signaldata/ReadConfig.hpp>
-#include <signaldata/UpgradeStartup.hpp>
 #include "ndbd_malloc_impl.hpp"
 #include <blocks/record_types.hpp>
 
@@ -102,7 +101,6 @@ class SimulatedBlock {
   friend class TraceLCP;
   friend class SafeCounter;
   friend class SafeCounterManager;
-  friend struct UpgradeStartup;
   friend class AsyncFile;
   friend class PosixAsyncFile; // FIXME
   friend class Pgman;
@@ -244,6 +242,24 @@ protected:
 		  LinearSectionPtr ptr[3],
 		  Uint32 noOfSections) const ;
 
+  /* NoRelease sendSignal variants do not release sections as
+   * a side-effect of sending.  This requires extra
+   * copying for local sends
+   */
+  void sendSignalNoRelease(BlockReference ref, 
+                           GlobalSignalNumber gsn, 
+                           Signal* signal, 
+                           Uint32 length, 
+                           JobBufferLevel jbuf,
+                           SectionHandle* sections) const;
+
+  void sendSignalNoRelease(NodeReceiverGroup rg,
+                           GlobalSignalNumber gsn,
+                           Signal* signal,
+                           Uint32 length,
+                           JobBufferLevel jbuf,
+                           SectionHandle* sections) const;
+
   // Send multiple signal with delay. In this VM the jobbufffer level has 
   // no effect on on delayed signals
   //
@@ -289,6 +305,11 @@ protected:
    */
   bool assembleFragments(Signal * signal);
   
+  /* If send size is > FRAGMENT_WORD_SIZE, fragments of this size
+   * will be sent by the sendFragmentedSignal variants
+   */
+  STATIC_CONST( FRAGMENT_WORD_SIZE = 240 );
+
   void sendFragmentedSignal(BlockReference ref, 
 			    GlobalSignalNumber gsn, 
 			    Signal* signal, 
@@ -296,7 +317,7 @@ protected:
 			    JobBufferLevel jbuf,
 			    SectionHandle * sections,
 			    Callback & = TheEmptyCallback,
-			    Uint32 messageSize = 240);
+			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
 
   void sendFragmentedSignal(NodeReceiverGroup rg, 
 			    GlobalSignalNumber gsn, 
@@ -305,7 +326,7 @@ protected:
 			    JobBufferLevel jbuf,
 			    SectionHandle * sections,
 			    Callback & = TheEmptyCallback,
-			    Uint32 messageSize = 240);
+			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
 
   void sendFragmentedSignal(BlockReference ref, 
 			    GlobalSignalNumber gsn, 
@@ -315,7 +336,7 @@ protected:
 			    LinearSectionPtr ptr[3],
 			    Uint32 noOfSections,
 			    Callback & = TheEmptyCallback,
-			    Uint32 messageSize = 240);
+			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
 
   void sendFragmentedSignal(NodeReceiverGroup rg, 
 			    GlobalSignalNumber gsn, 
@@ -325,7 +346,7 @@ protected:
 			    LinearSectionPtr ptr[3],
 			    Uint32 noOfSections,
 			    Callback & = TheEmptyCallback,
-			    Uint32 messageSize = 240);
+			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
 
   /**********************************************************
    * Fragmented signals structures
@@ -367,7 +388,11 @@ protected:
     };
     Uint8  m_status;
     Uint8  m_prio;
-    Uint16 m_fragInfo;
+    Uint8  m_fragInfo;
+    enum Flags {
+      SendNoReleaseSeg = 0x1
+    };
+    Uint8  m_flags;
     Uint16 m_gsn;
     Uint16 m_messageSize; // Size of each fragment
     Uint32 m_fragmentId;
@@ -386,9 +411,11 @@ protected:
   };
   
   /**
-   * setupFragmentSendInfo
-   *   Setup a struct to be used with sendSignalFragment
+   * sendFirstFragment
    *   Used by sendFragmentedSignal
+   *   noRelease can only be used if the caller can guarantee
+   *   not to free the supplied sections until all fragments 
+   *   have been sent.
    */
   bool sendFirstFragment(FragmentSendInfo & info,
 			 NodeReceiverGroup rg, 
@@ -397,7 +424,8 @@ protected:
 			 Uint32 length, 
 			 JobBufferLevel jbuf,
 			 SectionHandle * sections,
-			 Uint32 messageSize = 240);
+                         bool noRelease,
+			 Uint32 messageSize = FRAGMENT_WORD_SIZE);
   
   bool sendFirstFragment(FragmentSendInfo & info,
 			 NodeReceiverGroup rg, 
@@ -407,7 +435,7 @@ protected:
 			 JobBufferLevel jbuf,
 			 LinearSectionPtr ptr[3],
 			 Uint32 noOfSections,
-			 Uint32 messageSize = 240);
+			 Uint32 messageSize = FRAGMENT_WORD_SIZE);
   
   /**
    * Send signal fragment
@@ -667,7 +695,6 @@ private:
   void execUTIL_UNLOCK_CONF(Signal* signal);
 
 protected:
-  void execUPGRADE(Signal* signal);
 
   void fsRefError(Signal* signal, Uint32 line, const char *msg);
   void execFSWRITEREF(Signal* signal);

@@ -124,7 +124,8 @@ Dbdih::Dbdih(Block_context& ctx):
   SimulatedBlock(DBDIH, ctx),
   c_activeTakeOverList(c_takeOverPool),
   c_waitGCPProxyList(waitGCPProxyPool),
-  c_waitGCPMasterList(waitGCPMasterPool)
+  c_waitGCPMasterList(waitGCPMasterPool),
+  c_waitEpochMasterList(waitGCPMasterPool)
 {
   BLOCK_CONSTRUCTOR(Dbdih);
 
@@ -284,6 +285,12 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_UPGRADE_PROTOCOL_ORD,
 	       &Dbdih::execUPGRADE_PROTOCOL_ORD);
 
+  addRecSignal(GSN_CREATE_NODEGROUP_IMPL_REQ,
+               &Dbdih::execCREATE_NODEGROUP_IMPL_REQ);
+
+  addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
+               &Dbdih::execDROP_NODEGROUP_IMPL_REQ);
+
   apiConnectRecord = 0;
   connectRecord = 0;
   fileRecord = 0;
@@ -295,6 +302,8 @@ Dbdih::Dbdih(Block_context& ctx):
   nodeGroupRecord = 0;
   nodeRecord = 0;
   c_nextNodeGroup = 0;
+  bzero(c_node_groups, sizeof(c_node_groups));
+
 }//Dbdih::Dbdih()
 
 Dbdih::~Dbdih() 

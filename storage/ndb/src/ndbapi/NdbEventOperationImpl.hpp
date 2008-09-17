@@ -332,6 +332,7 @@ struct Gci_container
   {
     GC_COMPLETE     = 0x1, // GCI is complete, but waiting for out of order
     GC_INCONSISTENT = 0x2  // GCI might be missing event data
+    ,GC_CHANGE_CNT  = 0x4  // Change m_total_buckets
   };
 
   
@@ -499,8 +500,7 @@ public:
   NdbEventBuffer(Ndb*);
   ~NdbEventBuffer();
 
-  const Uint32 &m_system_nodes;
-
+  Uint32 m_total_buckets;
   Uint16 m_min_gci_index;
   Uint16 m_max_gci_index;
   Vector<Uint64> m_known_gci;
@@ -664,6 +664,11 @@ private:
   void complete_bucket(Gci_container*);
   bool find_max_known_gci(Uint64 * res) const;
   void resize_known_gci();
+
+  void handle_change_nodegroup(const SubGcpCompleteRep*);
+
+public:
+  void set_total_buckets(Uint32);
 };
 
 inline

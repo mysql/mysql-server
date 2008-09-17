@@ -32,6 +32,15 @@ ndb_mgmd_SOURCES = \
 	InitConfigFileParser.cpp \
 	Config.cpp
 
+
+noinst_PROGRAMS = testConfig
+
+testConfig_SOURCES = \
+	testConfig.cpp \
+	InitConfigFileParser.cpp \
+	ConfigInfo.cpp \
+	Config.cpp
+
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/ndbapi \
                -I$(top_srcdir)/storage/ndb/src/mgmapi \
                -I$(top_srcdir)/storage/ndb/src/common/mgmcommon \

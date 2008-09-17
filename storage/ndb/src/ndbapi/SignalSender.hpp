@@ -44,6 +44,7 @@ private:
 class SignalSender {
 public:
   SignalSender(TransporterFacade *facade, int blockNo = -1);
+  SignalSender(Ndb_cluster_connection* connection);
   virtual ~SignalSender();
   
   int lock();
@@ -59,6 +60,10 @@ public:
   SimpleSignal * waitFor(Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint16 gsn, Uint32 timeOutMillis = 0);  
+
+  Uint32 get_an_alive_node() { return theFacade->get_an_alive_node(); }
+  bool get_node_alive(NodeId n) const { return theFacade->get_node_alive(n); }
+
 private:
   int m_blockNo;
   TransporterFacade * theFacade;

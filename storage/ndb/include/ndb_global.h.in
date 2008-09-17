@@ -157,4 +157,6 @@ extern "C" {
 #endif
 #endif
 
+#define NDB_ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
 #endif

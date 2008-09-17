@@ -133,12 +133,12 @@ public:
   ConfigRetriever* get_config_retriever() { return m_config_retriever; };
 
   class LogLevel * m_logLevel;
+  ndb_mgm_configuration_iterator * getClusterConfigIterator() const;
+
 private:
   friend class Cmvmi;
   friend class Qmgr;
   friend int reportShutdown(class Configuration *config, int error, int restart);
-
-  ndb_mgm_configuration_iterator * getClusterConfigIterator() const;
 
   Uint32 _stopOnError;
   Uint32 m_restartOnErrorInsert;

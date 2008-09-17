@@ -59,6 +59,11 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   addRecSignal(GSN_DROP_TAB_CONF, &DblqhProxy::execDROP_TAB_CONF);
   addRecSignal(GSN_DROP_TAB_REF, &DblqhProxy::execDROP_TAB_REF);
 
+  // GSN_ALTER_TAB_REQ
+  addRecSignal(GSN_ALTER_TAB_REQ, &DblqhProxy::execALTER_TAB_REQ);
+  addRecSignal(GSN_ALTER_TAB_CONF, &DblqhProxy::execALTER_TAB_CONF);
+  addRecSignal(GSN_ALTER_TAB_REF, &DblqhProxy::execALTER_TAB_REF);
+
   // GSN_START_RECREQ
   addRecSignal(GSN_START_RECREQ, &DblqhProxy::execSTART_RECREQ);
   addRecSignal(GSN_START_RECCONF, &DblqhProxy::execSTART_RECCONF);
@@ -726,11 +731,107 @@ DblqhProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
     ref->senderData = ss.m_req.senderData;
     ref->tableId = ss.m_req.tableId;
     ref->errorCode = ss.m_error;
-    sendSignal(dictRef, GSN_DROP_TAB_CONF,
+    sendSignal(dictRef, GSN_DROP_TAB_REF,
                signal, DropTabConf::SignalLength, JBB);
   }
 
   ssRelease<Ss_DROP_TAB_REQ>(ssId);
+}
+
+// GSN_ALTER_TAB_REQ
+
+void
+DblqhProxy::execALTER_TAB_REQ(Signal* signal)
+{
+  const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
+  Uint32 ssId = getSsId(req);
+  Ss_ALTER_TAB_REQ& ss = ssSeize<Ss_ALTER_TAB_REQ>(ssId);
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == AlterTabReq::SignalLength);
+
+  {
+    SectionHandle handle(this, signal);
+    ss.m_sections = handle.m_cnt;
+    ndbrequire(ss.m_sections <= 1);
+    if (ss.m_sections >= 1) {
+      ss.m_sz0 = handle.m_ptr[0].p->m_sz;
+      ndbrequire(ss.m_sz0 <= ss.MaxSection0);
+      ::copy(ss.m_section0, handle.m_ptr[0]);
+    }
+    releaseSections(handle);
+  }
+
+  sendREQ(signal, ss);
+}
+
+void
+DblqhProxy::sendALTER_TAB_REQ(Signal* signal, Uint32 ssId)
+{
+  Ss_ALTER_TAB_REQ& ss = ssFind<Ss_ALTER_TAB_REQ>(ssId);
+
+  AlterTabReq* req = (AlterTabReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId;
+  if (ss.m_sections == 0) {
+    jam();
+    sendSignal(workerRef(ss.m_worker), GSN_ALTER_TAB_REQ,
+               signal, AlterTabReq::SignalLength, JBB);
+  } else {
+    jam();
+    LinearSectionPtr ptr[3];
+    ptr[0].sz = ss.m_sz0;
+    ptr[0].p = ss.m_section0;
+    sendSignal(workerRef(ss.m_worker), GSN_ALTER_TAB_REQ,
+               signal, AlterTabReq::SignalLength, JBB, ptr, 1);
+  }
+}
+
+void
+DblqhProxy::execALTER_TAB_CONF(Signal* signal)
+{
+  const AlterTabConf* conf = (const AlterTabConf*)signal->getDataPtr();
+  Uint32 ssId = getSsId(conf);
+  Ss_ALTER_TAB_REQ& ss = ssFind<Ss_ALTER_TAB_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DblqhProxy::execALTER_TAB_REF(Signal* signal)
+{
+  const AlterTabRef* ref = (const AlterTabRef*)signal->getDataPtr();
+  Uint32 ssId = getSsId(ref);
+  Ss_ALTER_TAB_REQ& ss = ssFind<Ss_ALTER_TAB_REQ>(ssId);
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+DblqhProxy::sendALTER_TAB_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_ALTER_TAB_REQ& ss = ssFind<Ss_ALTER_TAB_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    jam();
+    AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = ss.m_req.senderData;
+    sendSignal(dictRef, GSN_ALTER_TAB_CONF,
+               signal, AlterTabConf::SignalLength, JBB);
+  } else {
+    jam();
+    AlterTabRef* ref = (AlterTabRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = ss.m_req.senderData;
+    ref->errorCode = ss.m_error;
+    sendSignal(dictRef, GSN_ALTER_TAB_REF,
+               signal, AlterTabConf::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_ALTER_TAB_REQ>(ssId);
 }
 
 // GSN_START_RECREQ
