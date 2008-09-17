@@ -211,6 +211,8 @@ void toku_brtheader_free (struct brt_header *h) {
     toku_free(h->roots);
     toku_free(h->root_hashes);
     toku_free(h->flags_array);
+    toku_free(h->block_translation);
+    destroy_block_allocator(&h->block_allocator);
     toku_free(h);
 }
 
