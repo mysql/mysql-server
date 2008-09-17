@@ -905,10 +905,7 @@ innobase_get_cset_width(
 }
 
 /**********************************************************************
-Converts an identifier to a table name.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
+Converts an identifier to a table name. */
 extern "C" UNIV_INTERN
 void
 innobase_convert_from_table_id(
@@ -924,10 +921,7 @@ innobase_convert_from_table_id(
 }
 
 /**********************************************************************
-Converts an identifier to UTF-8.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
+Converts an identifier to UTF-8. */
 extern "C" UNIV_INTERN
 void
 innobase_convert_from_id(
@@ -956,10 +950,7 @@ innobase_strcasecmp(
 }
 
 /**********************************************************************
-Makes all characters in a NUL-terminated UTF-8 string lower case.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
+Makes all characters in a NUL-terminated UTF-8 string lower case. */
 extern "C" UNIV_INTERN
 void
 innobase_casedn_str(
@@ -970,10 +961,7 @@ innobase_casedn_str(
 }
 
 /**************************************************************************
-Determines the connection character set.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
+Determines the connection character set. */
 extern "C" UNIV_INTERN
 struct charset_info_st*
 innobase_get_charset(
