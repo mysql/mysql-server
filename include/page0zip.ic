@@ -148,10 +148,13 @@ page_zip_rec_needs_ext(
 				can be stored locally on the page */
 	ulint	rec_size,	/* in: length of the record in bytes */
 	ulint	comp,		/* in: nonzero=compact format */
+	ulint	n_fields,	/* in: number of fields in the record;
+				ignored if zip_size == 0 */
 	ulint	zip_size)	/* in: compressed page size in bytes, or 0 */
 {
 	ut_ad(rec_size > comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES);
 	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(comp || !zip_size);
 
 #if UNIV_PAGE_SIZE > REC_MAX_DATA_SIZE
 	if (UNIV_UNLIKELY(rec_size >= REC_MAX_DATA_SIZE)) {
@@ -159,21 +162,18 @@ page_zip_rec_needs_ext(
 	}
 #endif
 
-	if (UNIV_UNLIKELY(!comp)) {
-		ut_ad(!zip_size);
-		return(rec_size >= page_get_free_space_of_empty(FALSE) / 2);
+	if (UNIV_UNLIKELY(zip_size)) {
+		ut_ad(comp);
+		/* On a compressed page, there is a two-byte entry in
+		the dense page directory for every record.  But there
+		is no record header.  There should be enough room for
+		one record on an empty leaf page.  Subtract 1 byte for
+		the encoded heap number. */
+		return(rec_size - (REC_N_NEW_EXTRA_BYTES - 2)
+		       >= (page_zip_empty_size(n_fields, zip_size) - 1));
 	}
 
-	/* If zip_size != 0, the record should fit on the compressed page.
-	If not, the right-hand-side of the comparison will overwrap
-	and the condition will not hold.  Thus, we do not need to test
-	for zip_size != 0.  We subtract the size of the page header and
-	assume that compressing the index information takes 50 bytes. */
-	if (rec_size >= zip_size - (PAGE_DATA + 50)) {
-		return(TRUE);
-	}
-
-	return(rec_size >= page_get_free_space_of_empty(TRUE) / 2);
+	return(rec_size >= page_get_free_space_of_empty(comp) / 2);
 }
 
 #ifdef UNIV_DEBUG
@@ -355,15 +355,7 @@ page_zip_write_header(
 {
 	ulint	pos;
 
-#if 0
-	/* In btr_cur_pessimistic_insert(), we allocate temp_page
-	from the buffer pool to see if a record fits on a compressed
-	page by itself.  The buf_block_align() call in
-	buf_frame_get_page_zip() only works for file pages, not
-	temporarily allocated blocks.  Thus, we must unfortunately
-	disable the following assertion. */
 	ut_ad(buf_frame_get_page_zip(str) == page_zip);
-#endif
 	ut_ad(page_zip_simple_validate(page_zip));
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
