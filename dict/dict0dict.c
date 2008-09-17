@@ -55,56 +55,6 @@ UNIV_INTERN rw_lock_t	dict_operation_lock;
 /* Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
-#ifndef UNIV_HOTBACKUP
-/**********************************************************************
-Converts an identifier to a table name.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-void
-innobase_convert_from_table_id(
-/*===========================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len);	/* in: length of 'to', in bytes;
-				should be at least 5 * strlen(to) + 1 */
-/**********************************************************************
-Converts an identifier to UTF-8.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-void
-innobase_convert_from_id(
-/*=====================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len);	/* in: length of 'to', in bytes;
-				should be at least 3 * strlen(to) + 1 */
-/**********************************************************************
-Makes all characters in a NUL-terminated UTF-8 string lower case.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-void
-innobase_casedn_str(
-/*================*/
-	char*	a);	/* in/out: string to put in lower case */
-
-/**************************************************************************
-Determines the connection character set.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-struct charset_info_st*
-innobase_get_charset(
-/*=================*/
-				/* out: connection character set */
-	void*	mysql_thd);	/* in: MySQL thread handle */
-#endif /* !UNIV_HOTBACKUP */
-
 /***********************************************************************
 Tries to find column names for the index and sets the col field of the
 index. */
