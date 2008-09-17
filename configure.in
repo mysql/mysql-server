@@ -2415,6 +2415,8 @@ AC_TRY_LINK(
 
 #checking for asm-needed for ndbmtd
 AC_MSG_CHECKING(for x86-assembler needed for ndbmtd)
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
 AC_TRY_LINK(
   [],
   [
@@ -2430,8 +2432,6 @@ AC_TRY_LINK(
   AC_DEFINE(NDBMTD_X86, [1], [ndbmtd x86 support]),
   AC_MSG_RESULT(no))
 
-AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
 AC_CHECK_HEADERS(cxxabi.h)
 AC_CACHE_CHECK([checking for abi::__cxa_demangle], mysql_cv_cxa_demangle,
 [AC_TRY_LINK([#include <cxxabi.h>], [
