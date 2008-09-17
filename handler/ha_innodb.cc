@@ -910,14 +910,14 @@ extern "C" UNIV_INTERN
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len)	/* in: length of 'to', in bytes */
+	struct charset_info_st*	cs,	/* in: the 'from' character set */
+	char*			to,	/* out: converted identifier */
+	const char*		from,	/* in: identifier to convert */
+	ulint			len)	/* in: length of 'to', in bytes */
 {
 	uint	errors;
 
-	strconvert(thd_charset(current_thd), from,
-		   &my_charset_filename, to, (uint) len, &errors);
+	strconvert(cs, from, &my_charset_filename, to, (uint) len, &errors);
 }
 
 /**********************************************************************
@@ -926,14 +926,14 @@ extern "C" UNIV_INTERN
 void
 innobase_convert_from_id(
 /*=====================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len)	/* in: length of 'to', in bytes */
+	struct charset_info_st*	cs,	/* in: the 'from' character set */
+	char*			to,	/* out: converted identifier */
+	const char*		from,	/* in: identifier to convert */
+	ulint			len)	/* in: length of 'to', in bytes */
 {
 	uint	errors;
 
-	strconvert(thd_charset(current_thd), from,
-		   system_charset_info, to, (uint) len, &errors);
+	strconvert(cs, from, system_charset_info, to, (uint) len, &errors);
 }
 
 /**********************************************************************

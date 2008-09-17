@@ -174,20 +174,22 @@ UNIV_INTERN
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len);	/* in: length of 'to', in bytes; should
-				be at least 5 * strlen(to) + 1 */
+	struct charset_info_st*	cs,	/* in: the 'from' character set */
+	char*			to,	/* out: converted identifier */
+	const char*		from,	/* in: identifier to convert */
+	ulint			len);	/* in: length of 'to', in bytes; should
+					be at least 5 * strlen(to) + 1 */
 /**********************************************************************
 Converts an identifier to UTF-8. */
 UNIV_INTERN
 void
 innobase_convert_from_id(
 /*=====================*/
-	char*		to,	/* out: converted identifier */
-	const char*	from,	/* in: identifier to convert */
-	ulint		len);	/* in: length of 'to', in bytes; should
-				be at least 3 * strlen(to) + 1 */
+	struct charset_info_st*	cs,	/* in: the 'from' character set */
+	char*			to,	/* out: converted identifier */
+	const char*		from,	/* in: identifier to convert */
+	ulint			len);	/* in: length of 'to', in bytes; should
+					be at least 3 * strlen(to) + 1 */
 /**********************************************************************
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 UNIV_INTERN
