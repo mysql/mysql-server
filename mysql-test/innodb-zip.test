@@ -2,7 +2,6 @@
 
 let $per_table=`select @@innodb_file_per_table`;
 let $format=`select @@innodb_file_format`;
-let $mode=`select @@innodb_strict_mode`;
 set global innodb_file_per_table=off;
 set global innodb_file_format=`0`;
 
@@ -152,6 +151,10 @@ set global innodb_file_format=``;
 set global innodb_file_per_table = on;
 set global innodb_file_format = `1`;
 
+set innodb_strict_mode = off;
+create table t1 (id int primary key) engine = innodb key_block_size = 0;
+drop table t1;
+
 #set strict_mode
 set innodb_strict_mode = on;
 
@@ -294,7 +297,6 @@ drop table t8, t9;
 
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
-eval set innodb_strict_mode=$mode;
 #
 # Testing of tablespace tagging
 #
