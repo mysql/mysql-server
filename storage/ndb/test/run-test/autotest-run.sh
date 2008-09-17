@@ -258,7 +258,8 @@ tar cfz $tar_dir/$tarfile `basename $p2`/$DATE
 
 if [ "$report" ]
 then
-    scp $tar_dir/$tarfile $result_host:$result_path/
+    scp $tar_dir/$tarfile $result_host:$result_path/${tarfile}.upload
+    ssh $result_host mv $result_path/${tarfile}.upload $result_path/${tarfile}
 fi
 
 cd $p
