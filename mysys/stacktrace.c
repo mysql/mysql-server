@@ -451,7 +451,12 @@ static void get_symbol_path(char *path, size_t size)
 
       if (!strstr(path, module_dir))
       {
-        strncat(path, module_dir, size);
+        size_t dir_len = strlen(module_dir);
+        if (size > dir_len)
+        {
+          strncat(path, module_dir, size-1);
+          size -= dir_len;
+        }
       }
     }
     CloseHandle(hSnap);
@@ -459,9 +464,9 @@ static void get_symbol_path(char *path, size_t size)
 
   /* Add _NT_SYMBOL_PATH, if present. */
   envvar= getenv("_NT_SYMBOL_PATH");
-  if(envvar)
+  if(envvar && size)
   {
-    strncat(path, envvar, size);
+    strncat(path, envvar, size-1);
   }
 }
 
@@ -483,7 +488,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
   int     i;
   CONTEXT context;
   STACKFRAME64 frame={0};
-  static char symbol_path[MAX_SYMBOL_PATH+1];
+  static char symbol_path[MAX_SYMBOL_PATH];
 
   if(!exception_ptrs || !init_dbghelp_functions())
     return;
@@ -492,7 +497,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
   context = *(exception_ptrs->ContextRecord);
   /*Initialize symbols.*/
   pSymSetOptions(SYMOPT_LOAD_LINES|SYMOPT_NO_PROMPTS|SYMOPT_DEFERRED_LOADS|SYMOPT_DEBUG);
-  get_symbol_path(symbol_path, MAX_SYMBOL_PATH);
+  get_symbol_path(symbol_path, sizeof(symbol_path));
   pSymInitialize(hProcess, symbol_path, TRUE);
 
   /*Prepare stackframe for the first StackWalk64 call*/
