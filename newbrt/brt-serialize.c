@@ -770,7 +770,7 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
     toku_free(rc.buf);
     {
 	int r;
-	if ((r = deserialize_fifo_at(fd, h->unused_blocks.b*h->nodesize, &h->fifo))) return r;
+	if ((r = deserialize_fifo_at(fd, block_allocator_allocated_limit(h->block_allocator), &h->fifo))) return r;
     }
     *brth = h;
     return 0;
