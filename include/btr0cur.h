@@ -311,20 +311,6 @@ btr_cur_del_mark_set_sec_rec(
 	ibool		val,	/* in: value to set */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr);	/* in: mtr */
-/***************************************************************
-Sets a secondary index record delete mark to the given value. This
-function is only used by the insert buffer insert merge mechanism. */
-UNIV_INTERN
-void
-btr_cur_del_unmark_for_ibuf(
-/*========================*/
-	rec_t*		rec,		/* in/out: record to delete unmark */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page
-					corresponding to rec, or NULL
-					when the tablespace is
-					uncompressed */
-	ibool		val,		/* value to set */
-	mtr_t*		mtr);		/* in: mtr */
 /*****************************************************************
 Tries to compress a page of the tree if it seems useful. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid
@@ -574,11 +560,11 @@ btr_push_update_extern_fields(
 /***************************************************************
 Sets a secondary index record's delete mark to the given value. This
 function is only used by the insert buffer merge mechanism. */
-
+UNIV_INTERN
 void
 btr_cur_set_deleted_flag_for_ibuf(
 /*==============================*/
-	rec_t*		rec,		/* in: record */
+	rec_t*		rec,		/* in/out: record */
 	page_zip_des_t*	page_zip,	/* in/out: compressed page
 					corresponding to rec, or NULL
 					when the tablespace is

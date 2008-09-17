@@ -147,8 +147,6 @@ btr_rec_get_externally_stored_len(
 	rec_t*		rec,	/* in: record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 
-
-
 /**********************************************************
 The following function is used to set the deleted bit of a record. */
 UNIV_INLINE
@@ -158,7 +156,7 @@ btr_rec_set_deleted_flag(
 				/* out: TRUE on success;
 				FALSE on page_zip overflow */
 	rec_t*		rec,	/* in/out: physical record */
-	page_zip_des_t* page_zip,/* in/out: compressed page (or NULL) */
+	page_zip_des_t*	page_zip,/* in/out: compressed page (or NULL) */
 	ulint		flag)	/* in: nonzero if delete marked */
 {
 	if (page_rec_is_comp(rec)) {
@@ -2773,13 +2771,13 @@ btr_cur_del_mark_set_sec_rec(
 }
 
 /***************************************************************
-Sets a secondary index record'd delete mark to value. This function is only
-used by the insert buffer insert merge mechanism. */
+Sets a secondary index record's delete mark to the given value. This
+function is only used by the insert buffer merge mechanism. */
 UNIV_INTERN
 void
-btr_cur_del_unmark_for_ibuf(
-/*========================*/
-	rec_t*		rec,		/* in/out: record to delete unmark */
+btr_cur_set_deleted_flag_for_ibuf(
+/*==============================*/
+	rec_t*		rec,		/* in/out: record */
 	page_zip_des_t*	page_zip,	/* in/out: compressed page
 					corresponding to rec, or NULL
 					when the tablespace is
@@ -2791,29 +2789,6 @@ btr_cur_del_unmark_for_ibuf(
 	been read to the buffer pool and there cannot be a hash index to it. */
 
 	btr_rec_set_deleted_flag(rec, page_zip, val);
-
-	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
-}
-
-/***************************************************************
-Sets a secondary index record's delete mark to the given value. This
-function is only used by the insert buffer merge mechanism. */
-
-void
-btr_cur_set_deleted_flag_for_ibuf(
-/*==============================*/
-	rec_t*		rec,		/* in: record */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page
-					corresponding to rec, or NULL
-					when the tablespace is
-					uncompressed */
-	ibool		val,		/* in: value to set */
-	mtr_t*		mtr)		/* in: mtr */
-{
-	/* We do not need to reserve btr_search_latch, as the page has just
-	been read to the buffer pool and there cannot be a hash index to it. */
-
-	rec_set_deleted_flag_new(rec, page_zip, val);
 
 	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
 }
