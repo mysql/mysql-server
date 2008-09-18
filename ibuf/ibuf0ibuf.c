@@ -549,7 +549,7 @@ ibuf_data_init_for_space(
 	index->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
 	error = dict_index_add_to_cache(table, index,
-					FSP_IBUF_TREE_ROOT_PAGE_NO);
+					FSP_IBUF_TREE_ROOT_PAGE_NO, FALSE);
 	ut_a(error == DB_SUCCESS);
 
 	data->index = dict_table_get_first_index(table);
