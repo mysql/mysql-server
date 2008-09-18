@@ -29,10 +29,10 @@ printALTER_TAB_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   fprintf(output, " gci: %u", sig->gci);
   fprintf(output, " changeMask: 0x%x", sig->changeMask);
   fprintf(output, "\n");
-  fprintf(output, "connectPtr: %u", sig->connectPtr);
-  fprintf(output, "noOfNewAttr: %u", sig->noOfNewAttr);
-  fprintf(output, "newNoOfCharsets: %u", sig->newNoOfCharsets);
-  fprintf(output, "newNoOfKeyAttrs: %u", sig->newNoOfKeyAttrs);
+  fprintf(output, " connectPtr: %u", sig->connectPtr);
+  fprintf(output, " noOfNewAttr: %u", sig->noOfNewAttr);
+  fprintf(output, " newNoOfCharsets: %u", sig->newNoOfCharsets);
+  fprintf(output, " newNoOfKeyAttrs: %u", sig->newNoOfKeyAttrs);
   fprintf(output, "\n");
   return true;
 }
@@ -43,7 +43,7 @@ printALTER_TAB_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   const AlterTabConf* sig = (const AlterTabConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " senderData: %u", sig->senderData);
-  fprintf(output, "connectPtr: %u", sig->connectPtr);
+  fprintf(output, " connectPtr: %u", sig->connectPtr);
   fprintf(output, "\n");
   return true;
 }
