@@ -2161,15 +2161,19 @@ ha_rows ha_tokudb::estimate_rows_upper_bound() {
 }
 
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
-    if (hidden_primary_key)
+    if (hidden_primary_key) {
         return memcmp(ref1, ref2, TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
-
+    }    
     int result;
     Field *field;
     KEY *key_info = table->key_info + table_share->primary_key;
     KEY_PART_INFO *key_part = key_info->key_part;
     KEY_PART_INFO *end = key_part + key_info->key_parts;
-
+    //
+    // HACK until we get refactoring in. manually move up by infinity byte
+    //
+    ref1++;
+    ref2++;
     for (; key_part != end; key_part++) {
         field = key_part->field;
         result = field->pack_cmp((const uchar *) ref1, (const uchar *) ref2, key_part->length, 0);
@@ -3385,8 +3389,9 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
         KEY_PART_INFO *key_part = table->key_info[primary_key].key_part;
         KEY_PART_INFO *end = key_part + table->key_info[primary_key].key_parts;
 
-        for (; key_part != end; key_part++)
+        for (; key_part != end; key_part++) {
             pos += key_part->field->packed_col_length(pos, key_part->length);
+        }
         to->size = (uint) (pos - (uchar *) to->data);
     }
     DBUG_DUMP("key", (const uchar *) to->data, to->size);
@@ -3544,8 +3549,9 @@ void ha_tokudb::position(const uchar * record) {
     else {
         bool has_null;    
         create_dbt_key_from_table(&key, primary_key, ref, record, &has_null);
-        if (key.size < ref_length)
+        if (key.size < ref_length) {
             bzero(ref + key.size, ref_length - key.size);
+        }
     }
     DBUG_VOID_RETURN;
 }
