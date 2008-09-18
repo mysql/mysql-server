@@ -541,7 +541,11 @@ void Trix::execUTIL_PREPARE_REF(Signal* signal)
     return;
   }
   subRecPtr.p = subRec;
-  subRec->errorCode = BuildIndxRef::InternalError;
+  subRec->errorCode = (BuildIndxRef::ErrorCode)utilPrepareRef->errorCode;
+
+  UtilReleaseConf* conf = (UtilReleaseConf*)signal->getDataPtrSend();
+  conf->senderData = subRecPtr.i;
+  execUTIL_RELEASE_CONF(signal);
 }
 
 void Trix::execUTIL_EXECUTE_CONF(Signal* signal)
@@ -611,20 +615,27 @@ void Trix::execSUB_CREATE_REF(Signal* signal)
 {
   jamEntry();
   DBUG_ENTER("Trix::execSUB_CREATE_REF");
-  // THIS SIGNAL IS NEVER SENT FROM SUMA?
-  /*
+
   SubCreateRef * subCreateRef = (SubCreateRef *)signal->getDataPtr();
   SubscriptionRecPtr subRecPtr;
   SubscriptionRecord* subRec;
 
-  subRecPtr.i = subCreateRef->subscriberData;
-  if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL) {
+  subRecPtr.i = subCreateRef->senderData;
+  if ((subRec = c_theSubscriptions.getPtr(subRecPtr.i)) == NULL)
+  {
     printf("Trix::execSUB_CREATE_REF: Failed to find subscription data %u\n", subRecPtr.i);
     return;
   }
   subRecPtr.p = subRec;
-  buildFailed(signal, subRecPtr, BuildIndxRef::InternalError);
-  */
+  subRecPtr.p->errorCode = (BuildIndxRef::ErrorCode)subCreateRef->errorCode;
+
+  UtilReleaseReq * const req = (UtilReleaseReq*)signal->getDataPtrSend();
+  req->prepareId = subRecPtr.p->prepareId;
+  req->senderData = subRecPtr.i;
+
+  sendSignal(DBUTIL_REF, GSN_UTIL_RELEASE_REQ, signal,
+	     UtilReleaseReq::SignalLength, JBB);
+
   DBUG_VOID_RETURN;
 }
 
@@ -731,6 +742,7 @@ void Trix::setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr)
 
   sendSignal(SUMA_REF, GSN_SUB_CREATE_REQ, 
 	     signal, SubCreateReq::SignalLength, JBB);
+
   DBUG_VOID_RETURN;
 }
 
