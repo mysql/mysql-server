@@ -597,7 +597,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	if(insertPtr != 0){
 	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-	  sendHandle->updateWritePtr(nodeId, lenBytes, prio);
+	  updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  return SEND_OK;
 	}
 
@@ -613,7 +613,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  if(insertPtr != 0){
 	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-	    sendHandle->updateWritePtr(nodeId, lenBytes, prio);
+	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	    break;
 	  }
 	}
@@ -670,7 +670,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	if(insertPtr != 0){
 	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, thePool, ptr);
-	  sendHandle->updateWritePtr(nodeId, lenBytes, prio);
+	  updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  return SEND_OK;
 	}
 	
@@ -686,7 +686,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  if(insertPtr != 0){
 	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, thePool, ptr);
-	    sendHandle->updateWritePtr(nodeId, lenBytes, prio);
+	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	    break;
 	  }
 	}
@@ -743,7 +743,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
         Uint32 * insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
         if(insertPtr != 0){
           t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-          sendHandle->updateWritePtr(nodeId, lenBytes, prio);
+          updateWritePtr(sendHandle, nodeId, lenBytes, prio);
           return SEND_OK;
 	}
 
@@ -759,7 +759,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  if(insertPtr != 0){
 	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
-	    sendHandle->updateWritePtr(nodeId, lenBytes, prio);
+	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	    break;
 	  }
 	}
