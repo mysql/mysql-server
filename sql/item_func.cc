@@ -3809,7 +3809,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
   if (thd == entry_thd && entry)
-    return FALSE;
+    goto end; // update entry->update_query_id for PS
   entry_thd= thd;
   if (!(entry= get_variable(&thd->user_vars, name, create_if_not_exists)))
     return TRUE;
@@ -3818,6 +3818,7 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
      if this variable is a constant item in the query (it is if update_query_id
      is different from query_id).
   */
+end:
   entry->update_query_id= thd->query_id;
   return FALSE;
 }
