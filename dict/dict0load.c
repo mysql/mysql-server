@@ -765,7 +765,8 @@ dict_load_indexes(
 			index->id = id;
 
 			dict_load_fields(index, heap);
-			error = dict_index_add_to_cache(table, index, page_no);
+			error = dict_index_add_to_cache(table, index, page_no,
+							FALSE);
 			/* The data dictionary tables should never contain
 			invalid index definitions.  If we ignored this error
 			and simply did not load this index definition, the

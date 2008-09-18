@@ -1,5 +1,22 @@
 2008-09-17	The InnoDB Team
 
+	* mysql-test/innodb.result, mysql-test/innodb-zip.result,
+	mysql-test/innodb-zip.test, mysql-test/innodb.test,
+	ibuf/ibuf0ibuf.c, dict/dict0crea.c, dict/dict0load.c, dict/dict0boot.c,
+	include/dict0dict.h, include/trx0trx.h,
+	dict/dict0dict.c, trx/trx0trx.c,
+	include/ha_prototypes.h, handler/ha_innodb.cc:
+	When creating an index in innodb_strict_mode, check that the
+	maximum record size will never exceed the B-tree page size limit.
+	For uncompressed tables, there should always be enough space for
+	two records in an empty B-tree page.  For compressed tables, there
+	should be enough space for storing two node pointer records or one
+	data record in an empty page in uncompressed format.
+	The purpose of this check is to guarantee that INSERT or UPDATE
+	will never fail due to too big record size.
+
+2008-09-17	The InnoDB Team
+
 	* btr/btr0cur.c, data/data0data.c, include/page0zip.h,
 	include/page0zip.ic, page/page0zip.c,
 	mysql-test/innodb_bug36172.test:
