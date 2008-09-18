@@ -20,7 +20,7 @@
 #include "cachetable-rwlock.h"
 
 // execute the cachetable callbacks using a writer thread 0->no 1->yes
-#define DO_WRITER_THREAD 0
+#define DO_WRITER_THREAD 1
 #if DO_WRITER_THREAD
 static void *cachetable_writer(void *);
 #endif
