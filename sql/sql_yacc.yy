@@ -8064,11 +8064,13 @@ variable:
 variable_aux:
           ident_or_text SET_VAR expr
           {
-            $$= new (YYTHD->mem_root) Item_func_set_user_var($1, $3);
+            Item_func_set_user_var *item;
+            $$= item= new (YYTHD->mem_root) Item_func_set_user_var($1, $3);
             if ($$ == NULL)
               MYSQL_YYABORT;
             LEX *lex= Lex;
             lex->uncacheable(UNCACHEABLE_RAND);
+            lex->set_var_list.push_back(item);
           }
         | ident_or_text
           {
