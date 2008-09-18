@@ -135,15 +135,12 @@ void Win32AsyncFile::openReq(Request* request)
 
 int
 Win32AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
-  int return_value;
   req->par.readWrite.pages[0].size = 0;
 
   DWORD dwSFP = SetFilePointer(hFile, offset, 0, FILE_BEGIN);
   if(dwSFP != offset) {
     return GetLastError();
   }
-
-  int error;
 
   while (size > 0) {
     size_t bytes_read = 0;
@@ -187,7 +184,6 @@ Win32AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
 		       size_t chunk_size)
 {
   size_t bytes_to_write = chunk_size;
-  int return_value;
 
   m_write_wo_sync += size;
 
