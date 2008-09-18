@@ -334,7 +334,7 @@ ibuf_print(
 /********************************************************************
 Read the first two bytes from a record's fourth field (counter field in new
 records; something else in older records). */
-
+UNIV_INTERN
 ulint
 ibuf_rec_get_fake_counter(
 /*======================*/
