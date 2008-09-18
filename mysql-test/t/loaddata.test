@@ -357,16 +357,17 @@ SET @OLD_SQL_MODE=@@SESSION.SQL_MODE;
 --let $file=$MYSQLTEST_VARDIR/tmp/bug37114.txt
 --let $file2=$MYSQLTEST_VARDIR/tmp/bug37114_out.txt
 
---write_file $file
-1 \aa
-EOF
+SET sql_mode = '';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT '1 \\\\aa\n' INTO DUMPFILE '$file'
 
 CREATE TABLE t1 (id INT, val1 CHAR(3)) ENGINE=MyISAM;
 
 SET sql_mode = 'NO_BACKSLASH_ESCAPES';
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA LOCAL INFILE '$file' REPLACE INTO TABLE t1 FIELDS TERMINATED BY ' '
+--eval LOAD DATA INFILE '$file' REPLACE INTO TABLE t1 FIELDS TERMINATED BY ' '
 SELECT * FROM t1;
 
 # show we can write this with OUTFILE, forcing the parameters for now
