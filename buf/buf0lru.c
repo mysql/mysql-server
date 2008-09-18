@@ -632,7 +632,7 @@ loop:
 
 		if (!buf_lru_switched_on_innodb_mon) {
 
-	   		/* Over 67 % of the buffer pool is occupied by lock
+			/* Over 67 % of the buffer pool is occupied by lock
 			heaps or the adaptive hash index. This may be a memory
 			leak! */
 
