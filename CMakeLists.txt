@@ -190,6 +190,10 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio 9")
   ADD_DEFINITIONS("-DHAVE_VSNPRINTF")
 ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 9")
 
+# I Have no idea why this is needed, but it seems to be to build on pb
+# hosts, but not on other machines. Welcome to the 'joy' of Windows....
+ADD_DEFINITIONS("-DHAVE_STRTOUL")
+
 
 # This definition is necessary to work around a bug with Intellisense described
 # here: http://tinyurl.com/2cb428.  Syntax highlighting is important for proper
