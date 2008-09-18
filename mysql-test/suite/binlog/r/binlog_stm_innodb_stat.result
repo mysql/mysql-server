@@ -24,7 +24,7 @@ Binlog_cache_disk_use	1
 drop table t1;
 show status like "Innodb_buffer_pool_pages_total";
 Variable_name	Value
-Innodb_buffer_pool_pages_total	512
+Innodb_buffer_pool_pages_total	51_
 show status like "Innodb_page_size";
 Variable_name	Value
 Innodb_page_size	16384
