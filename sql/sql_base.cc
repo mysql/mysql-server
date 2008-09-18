@@ -7296,6 +7296,22 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   if (ref_pointer_array)
     bzero(ref_pointer_array, sizeof(Item *) * fields.elements);
 
+  /*
+    We call set_entry() there (before fix_fields() of the whole list of field
+    items) because:
+    1) the list of field items has same order as in the query, and the
+       Item_func_get_user_var item may go before the Item_func_set_user_var:
+          SELECT @a, @a := 10 FROM t;
+    2) The entry->update_query_id value controls constantness of
+       Item_func_get_user_var items, so in presence of Item_func_set_user_var
+       items we have to refresh their entries before fixing of
+       Item_func_get_user_var items.
+  */
+  List_iterator<Item_func_set_user_var> li(thd->lex->set_var_list);
+  Item_func_set_user_var *var;
+  while ((var= li++))
+    var->set_entry(thd, FALSE);
+
   Item **ref= ref_pointer_array;
   thd->lex->current_select->cur_pos_in_select_list= 0;
   while ((item= it++))
