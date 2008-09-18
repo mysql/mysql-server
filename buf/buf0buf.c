@@ -3715,7 +3715,7 @@ buf_print_io(
 
 	fprintf(file,
 		"Buffer pool size   %lu\n"
-		"Free buffers	    %lu\n"
+		"Free buffers       %lu\n"
 		"Database pages     %lu\n"
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
