@@ -118,7 +118,7 @@ btr_page_get_level(
 /*===============*/
 				/* out: level, leaf level == 0 */
 	const page_t*	page,	/* in: index page */
-	mtr_t*		mtr UNIV_UNUSED)
+	mtr_t*		mtr __attribute__((unused)))
 				/* in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
@@ -160,7 +160,7 @@ btr_page_get_next(
 /*==============*/
 				/* out: next page number */
 	const page_t*	page,	/* in: index page */
-	mtr_t*		mtr UNIV_UNUSED)
+	mtr_t*		mtr __attribute__((unused)))
 				/* in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
@@ -200,7 +200,7 @@ btr_page_get_prev(
 /*==============*/
 				/* out: prev page number */
 	const page_t*	page,	/* in: index page */
-	mtr_t*	mtr     UNIV_UNUSED) /* in: mini-transaction handle */
+	mtr_t*	mtr __attribute__((unused))) /* in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
 
