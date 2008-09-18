@@ -206,5 +206,14 @@ innobase_get_charset(
 				/* out: connection character set */
 	void*	mysql_thd);	/* in: MySQL thread handle */
 
+/**********************************************************************
+Returns true if the thread is executing in innodb_strict_mode. */
+
+ibool
+thd_is_strict(
+/*==========*/
+			/* out: true if thd is in strict mode */
+	void*	thd);	/* in: thread handle (THD*) */
+
 #endif
 #endif

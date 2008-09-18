@@ -716,7 +716,10 @@ dict_index_add_to_cache(
 	dict_table_t*	table,	/* in: table on which the index is */
 	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
-	ulint		page_no);/* in: root page number of the index */
+	ulint		page_no,/* in: root page number of the index */
+	ibool		strict);/* in: TRUE=refuse to create the index
+				if records could be too big to fit in
+				an B-tree page */
 /**************************************************************************
 Removes an index from the dictionary cache. */
 UNIV_INTERN

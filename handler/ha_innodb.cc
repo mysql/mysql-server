@@ -652,6 +652,18 @@ thd_is_select(
 	return(thd_sql_command((const THD*) thd) == SQLCOM_SELECT);
 }
 
+/**********************************************************************
+Returns true if the thread is executing in innodb_strict_mode. */
+
+ibool
+thd_is_strict(
+/*==========*/
+			/* out: true if thd is in strict mode */
+	void*	thd)	/* in: thread handle (THD*) */
+{
+	return(THDVAR((THD*) thd, strict_mode));
+}
+
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
 inline
