@@ -558,7 +558,7 @@ ibuf_parse_bitmap_init(
 /*===================*/
 				/* out: end of log record or NULL */
 	byte*		ptr,	/* in: buffer */
-	byte*		end_ptr UNIV_UNUSED, /* in: buffer end */
+	byte*		end_ptr __attribute__((unused)), /* in: buffer end */
 	buf_block_t*	block,	/* in: block or NULL */
 	mtr_t*		mtr)	/* in: mtr or NULL */
 {
@@ -584,7 +584,7 @@ ibuf_bitmap_page_get_bits(
 				0 for uncompressed pages */
 	ulint		bit,	/* in: IBUF_BITMAP_FREE,
 				IBUF_BITMAP_BUFFERED, ... */
-	mtr_t*		mtr UNIV_UNUSED)
+	mtr_t*		mtr __attribute__((unused)))
 				/* in: mtr containing an
 				x-latch to the bitmap page */
 {
