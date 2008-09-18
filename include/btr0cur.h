@@ -312,8 +312,8 @@ btr_cur_del_mark_set_sec_rec(
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr);	/* in: mtr */
 /***************************************************************
-Sets a secondary index record delete mark to FALSE. This function is
-only used by the insert buffer insert merge mechanism. */
+Clear a secondary index record's delete mark.  This function is only
+used by the insert buffer insert merge mechanism. */
 UNIV_INTERN
 void
 btr_cur_del_unmark_for_ibuf(

@@ -2662,7 +2662,7 @@ btr_cur_del_mark_set_sec_rec(
 }
 
 /***************************************************************
-Sets a secondary index record delete mark to FALSE. This function is only
+Clear a secondary index record's delete mark.  This function is only
 used by the insert buffer insert merge mechanism. */
 UNIV_INTERN
 void
