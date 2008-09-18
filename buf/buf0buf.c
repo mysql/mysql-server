@@ -1862,7 +1862,7 @@ buf_page_get_gen(
 	buf_block_t*	guess,	/* in: guessed block or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
 				BUF_GET_NO_LATCH, BUF_GET_NOWAIT or
-				BUF_GET_IF_IN_POOL_OR_WATCH*/
+				BUF_GET_IF_IN_POOL_OR_WATCH */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr)	/* in: mini-transaction */
@@ -3715,7 +3715,7 @@ buf_print_io(
 
 	fprintf(file,
 		"Buffer pool size   %lu\n"
-		"Free buffers	   %lu\n"
+		"Free buffers	    %lu\n"
 		"Database pages     %lu\n"
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"

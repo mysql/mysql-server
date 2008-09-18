@@ -172,22 +172,20 @@ read the contents of the page unless you know it is safe. Do not modify
 the contents of the page! We have separated this case, because it is
 error-prone programming not to set a latch, and it should be used
 with care. */
-#define buf_page_get_with_no_latch(SP, ZS, OF, MTR)  buf_page_get_gen(\
+#define buf_page_get_with_no_latch(SP, ZS, OF, MTR)	   buf_page_get_gen(\
 				SP, ZS, OF, RW_NO_LATCH, NULL,\
-				BUF_GET_NO_LATCH, \
-				__FILE__, __LINE__, MTR)
+				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen, to
 improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
 #define buf_page_get_nowait(SP, ZS, OF, LA, MTR)	buf_page_get_gen(\
 				SP, ZS, OF, LA, NULL,\
-				BUF_GET_NOWAIT, \
-				__FILE__, __LINE__, MTR)
+				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
 RW_X_LATCH are allowed as LA! */
-#define buf_page_optimistic_get(LA, BL, MC, MTR)			\
+#define buf_page_optimistic_get(LA, BL, MC, MTR)			     \
 	buf_page_optimistic_get_func(LA, BL, MC, __FILE__, __LINE__, MTR)
 /************************************************************************
 This is the general function used to get optimistic access to a database
@@ -268,7 +266,7 @@ buf_page_get_gen(
 	buf_block_t*	guess,	/* in: guessed block or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
 				BUF_GET_NO_LATCH, BUF_GET_NOWAIT or
-				BUF_GET_IF_IN_POOL_WATCH*/
+				BUF_GET_IF_IN_POOL_WATCH */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
