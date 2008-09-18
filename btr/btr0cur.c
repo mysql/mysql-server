@@ -390,8 +390,8 @@ btr_cur_search_to_nth_level(
 
 		return;
 	}
-#endif
-#endif
+#endif /* BTR_CUR_HASH_ADAPT */
+#endif /* BTR_CUR_ADAPT */
 	btr_cur_n_non_sea++;
 
 	/* If the hash search did not succeed, do binary search down the
@@ -464,8 +464,7 @@ retry_page_get:
 
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 rw_latch, guess, buf_mode,
-					 __FILE__, __LINE__,
-					 mtr);
+					 __FILE__, __LINE__, mtr);
 		if (block == NULL) {
 			/* This must be a search to perform an insert;
 			try insert to the insert buffer */
@@ -686,8 +685,7 @@ btr_cur_open_at_index_side(
 		page_t*		page;
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 RW_NO_LATCH, NULL, BUF_GET,
-					 __FILE__, __LINE__,
-					 mtr);
+					 __FILE__, __LINE__, mtr);
 		page = buf_block_get_frame(block);
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
@@ -806,8 +804,7 @@ btr_cur_open_at_rnd_pos(
 
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 RW_NO_LATCH, NULL, BUF_GET,
-					 __FILE__, __LINE__,
-					 mtr);
+					 __FILE__, __LINE__, mtr);
 		page = buf_block_get_frame(block);
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
