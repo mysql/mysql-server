@@ -337,6 +337,126 @@ DROP VIEW v2;
 DROP VIEW v3;
 
 # -- End of Bug#35469.
+Bug#37114
+SET SESSION character_set_client=latin1;
+SET SESSION character_set_server=latin1;
+SET SESSION character_set_connection=latin1;
+SET @OLD_SQL_MODE=@@SESSION.SQL_MODE;
+test LOAD DATA INFILE
+SET sql_mode = '';
+SELECT '1 \\aa\n' INTO DUMPFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt';
+CREATE TABLE t1 (id INT, val1 CHAR(3)) ENGINE=MyISAM;
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt' REPLACE INTO TABLE t1 FIELDS TERMINATED BY ' ';
+SELECT * FROM t1;
+id	val1
+1	\aa
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug37114_out.txt' FIELDS ESCAPED BY '' TERMINATED BY ' ' FROM t1;
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug37114_out.txt' FIELDS               TERMINATED BY ' ' FROM t1;
+INSERT INTO t1 (id, val1) VALUES (1, '\aa');
+SELECT * FROM t1;
+id	val1
+1	\aa
+1	\aa
+SET sql_mode='';
+INSERT INTO t1 (id, val1) VALUES (1, '\aa');
+SELECT * FROM t1;
+id	val1
+1	\aa
+1	\aa
+1	aa
+DROP TABLE t1;
+test SELECT INTO OUTFILE
+CREATE TABLE t1 (id INT PRIMARY KEY, val1 CHAR(4));
+CREATE TABLE t2 LIKE t1;
+SET sql_mode = '';
+INSERT INTO t1 (id, val1) VALUES (5, '\ttab');
+INSERT INTO t1 (id, val1) VALUES (4, '\\r');
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+INSERT INTO t1 (id, val1) VALUES (3, '\tx');
+1.1 NO_BACKSLASH_ESCAPES, use defaults for ESCAPED BY
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt' FIELDS TERMINATED BY ' ' FROM t1 ORDER BY id;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt' INTO TABLE t2 FIELDS TERMINATED BY ' ';
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+t	id	val1	hex(val1)
+before	3	\tx	5C7478
+after	3	\tx	5C7478
+before	4	\r	5C72
+after	4	\r	5C72
+before	5		tab	09746162
+after	5		tab	09746162
+TRUNCATE t2;
+SELECT LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt");
+LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt")
+3 \tx
+4 \r
+5 	tab
+
+1.2 NO_BACKSLASH_ESCAPES, override defaults for ESCAPED BY
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt' FIELDS ESCAPED BY '\' TERMINATED BY ' ' FROM t1 ORDER BY id;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt' INTO TABLE t2 FIELDS ESCAPED BY '\' TERMINATED BY ' ';
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+t	id	val1	hex(val1)
+before	3	\tx	5C7478
+after	3	\tx	5C7478
+before	4	\r	5C72
+after	4	\r	5C72
+before	5		tab	09746162
+after	5		tab	09746162
+TRUNCATE t2;
+SELECT LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt");
+LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt")
+3 \\tx
+4 \\r
+5 	tab
+
+SET sql_mode = '';
+2.1 !NO_BACKSLASH_ESCAPES, use defaults for ESCAPED BY
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt' FIELDS TERMINATED BY ' ' FROM t1 ORDER BY id;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt' INTO TABLE t2 FIELDS TERMINATED BY ' ';
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+t	id	val1	hex(val1)
+before	3	\tx	5C7478
+after	3	\tx	5C7478
+before	4	\r	5C72
+after	4	\r	5C72
+before	5		tab	09746162
+after	5		tab	09746162
+TRUNCATE t2;
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+SELECT LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt");
+LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt")
+3 \\tx
+4 \\r
+5 	tab
+
+SET sql_mode = '';
+2.2 !NO_BACKSLASH_ESCAPES, override defaults for ESCAPED BY
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt' FIELDS ESCAPED BY '' TERMINATED BY ' ' FROM t1 ORDER BY id;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt' INTO TABLE t2 FIELDS ESCAPED BY '' TERMINATED BY ' ';
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+t	id	val1	hex(val1)
+before	3	\tx	5C7478
+after	3	\tx	5C7478
+before	4	\r	5C72
+after	4	\r	5C72
+before	5		tab	09746162
+after	5		tab	09746162
+TRUNCATE t2;
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+SELECT LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt");
+LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt")
+3 \tx
+4 \r
+5 	tab
+
+set session sql_mode=@OLD_SQL_MODE;
+DROP TABLE t1,t2;
+End of 5.0 tests
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1);
 SET NAMES latin1;
@@ -364,3 +484,4 @@ SET character_set_filesystem=default;
 select @@character_set_filesystem;
 @@character_set_filesystem
 binary
+End of 5.1 tests
