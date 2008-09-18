@@ -293,6 +293,7 @@ void lex_start(THD *thd)
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->update_list.empty();
+  lex->set_var_list.empty();
   lex->param_list.empty();
   lex->view_list.empty();
   lex->prepared_stmt_params.empty();

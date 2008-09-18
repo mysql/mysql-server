@@ -3805,6 +3805,24 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
   return entry;
 }
 
+
+bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
+{
+  if (thd == entry_thd && entry)
+    return FALSE;
+  entry_thd= thd;
+  if (!(entry= get_variable(&thd->user_vars, name, create_if_not_exists)))
+    return TRUE;
+  /* 
+     Remember the last query which updated it, this way a query can later know
+     if this variable is a constant item in the query (it is if update_query_id
+     is different from query_id).
+  */
+  entry->update_query_id= thd->query_id;
+  return FALSE;
+}
+
+
 /*
   When a user variable is updated (in a SET command or a query like
   SELECT @a:= ).
@@ -3814,15 +3832,8 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   /* fix_fields will call Item_func_set_user_var::fix_length_and_dec */
-  if (Item_func::fix_fields(thd, ref) ||
-      !(entry= get_variable(&thd->user_vars, name, 1)))
+  if (Item_func::fix_fields(thd, ref) || set_entry(thd, TRUE))
     return TRUE;
-  /* 
-     Remember the last query which updated it, this way a query can later know
-     if this variable is a constant item in the query (it is if update_query_id
-     is different from query_id).
-  */
-  entry->update_query_id= thd->query_id;
   /*
     As it is wrong and confusing to associate any 
     character set with NULL, @a should be latin2
