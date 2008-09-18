@@ -1096,7 +1096,7 @@ ulonglong retrieve_auto_increment(uint16 type, uint32 offset,const uchar *record
 
 
 
-inline uint get_field_offset(TABLE* table, Field* field) {
+inline uint get_null_offset(TABLE* table, Field* field) {
     return (uint) ((uchar*) field->null_ptr - (uchar*) table->record[0]);
 }
 
@@ -1108,7 +1108,7 @@ is_null_field( TABLE* table, Field* field, const uchar* record) {
 		ret_val = false;
         goto exitpt;
 	}
-	null_offset = get_field_offset(table,field);
+	null_offset = get_null_offset(table,field);
     ret_val = (record[null_offset] & field->null_bit) ? true: false;
 
 exitpt:
