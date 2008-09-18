@@ -2900,14 +2900,19 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 
   SimpleSignal ssig;
   BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
+  /*
+   * Single-threaded backup.  Set instance key 1.  In the kernel
+   * this maps to main instance 0 or worker instance 1 (if MT LQH).
+   */
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, 1);
   if(input_backupId > 0)
   {
-    ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
+    ssig.set(ss, TestOrd::TraceAPI, backupBlockNo, GSN_BACKUP_REQ, 
 	     BackupReq::SignalLength);
     req->inputBackupId = input_backupId;
   }
   else
-    ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
+    ssig.set(ss, TestOrd::TraceAPI, backupBlockNo, GSN_BACKUP_REQ, 
 	     BackupReq::SignalLength - 1);
   
   req->senderData = 19;
