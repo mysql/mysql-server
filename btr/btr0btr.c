@@ -609,6 +609,9 @@ btr_page_get_father_node_ptr(
 		The first record from the free list can be used to find the
 		father node. */
 		user_rec = page_header_get_ptr(page, PAGE_FREE);
+		/* TODO: make sure that delete buffering never zeroes out
+		the data bytes.  TODO: make sure that empty pages are
+		never recompressed. */
 		ut_a(user_rec);
 	} else {
 		user_rec = btr_cur_get_rec(cursor);
