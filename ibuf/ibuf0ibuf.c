@@ -890,8 +890,10 @@ ibuf_update_free_bits_low(
 						performed to the page */
 	mtr_t*			mtr)		/* in/out: mtr */
 {
-	ulint	after;
 	ulint	before;
+	ulint	after;
+
+	ut_a(!buf_block_get_page_zip(block));
 
 	before = ibuf_index_page_calc_free_bits(0, max_ins_size);
 
@@ -3306,8 +3308,8 @@ dump:
 		return;
 	}
 
-	low_match = page_cur_search(
-		block, index, entry, PAGE_CUR_LE, &page_cur);
+	low_match = page_cur_search(block, index, entry,
+				    PAGE_CUR_LE, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
 		buf_block_t*	block;

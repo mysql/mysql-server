@@ -160,9 +160,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						for compressed pages */
 #endif
 
-//#define UNIV_DEBUG
-//#define UNIV_SYNC_DEBUG
-//#define UNIV_IBUF_DEBUG
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
 

@@ -2897,7 +2897,8 @@ btr_cur_optimistic_delete(
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-		if (dict_index_is_clust(cursor->index) || !page_is_leaf(page)) {
+		if (dict_index_is_clust(cursor->index)
+		    || !page_is_leaf(page)) {
 			/* The insert buffer does not handle
 			inserts to clustered indexes or to non-leaf
 			pages of secondary index B-trees. */
