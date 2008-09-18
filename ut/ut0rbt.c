@@ -726,7 +726,7 @@ rbt_free_node(
 
 /************************************************************************
 Free all the nodes and free the tree. */
-
+UNIV_INTERN
 void
 rbt_free(
 /*=====*/
@@ -739,7 +739,7 @@ rbt_free(
 
 /************************************************************************
 Create an instance of a red black tree. */
-
+UNIV_INTERN
 ib_rbt_t*
 rbt_create(
 /*=======*/
@@ -777,7 +777,7 @@ rbt_create(
 
 /************************************************************************
 Generic insert of a value in the rb tree. */
-
+UNIV_INTERN
 const ib_rbt_node_t*
 rbt_insert(
 /*=======*/
@@ -806,7 +806,7 @@ rbt_insert(
 
 /************************************************************************
 Add a new node to the tree, useful for data that is pre-sorted. */
-
+UNIV_INTERN
 const ib_rbt_node_t*
 rbt_add_node(
 /*=========*/
@@ -844,7 +844,7 @@ rbt_add_node(
 
 /************************************************************************
 Find a matching node in the rb tree. */
-
+UNIV_INTERN
 const ib_rbt_node_t*
 rbt_lookup(
 /*=======*/
@@ -873,7 +873,7 @@ rbt_lookup(
 
 /************************************************************************
 Delete a node indentified by key. */
-
+UNIV_INTERN
 ibool
 rbt_delete(
 /*=======*/
@@ -898,7 +898,7 @@ rbt_delete(
 /************************************************************************
 Remove a node from the rb tree, the node is not free'd, that is the
 callers responsibility. */
-
+UNIV_INTERN
 ib_rbt_node_t*
 rbt_remove_node(
 /*============*/
@@ -922,7 +922,7 @@ rbt_remove_node(
 
 /************************************************************************
 Find the node that has the lowest key that is >= key. */
-
+UNIV_INTERN
 const ib_rbt_node_t*
 rbt_lower_bound(
 /*============*/
@@ -958,7 +958,7 @@ rbt_lower_bound(
 
 /************************************************************************
 Find the node that has the greatest key that is <= key. */
-
+UNIV_INTERN
 const ib_rbt_node_t*
 rbt_upper_bound(
 /*============*/
@@ -994,7 +994,7 @@ rbt_upper_bound(
 
 /************************************************************************
 Find the node that has the greatest key that is <= key. */
-
+UNIV_INTERN
 int
 rbt_search(
 /*=======*/
@@ -1029,7 +1029,7 @@ rbt_search(
 /************************************************************************
 Find the node that has the greatest key that is <= key. But use the
 supplied comparison function. */
-
+UNIV_INTERN
 int
 rbt_search_cmp(
 /*===========*/
@@ -1064,7 +1064,7 @@ rbt_search_cmp(
 
 /************************************************************************
 Return the left most node in the tree. */
-
+UNIV_INTERN
 const ib_rbt_node_t*
 rbt_first(
 /*======*/
@@ -1084,7 +1084,7 @@ rbt_first(
 
 /************************************************************************
 Return the right most node in the tree. */
-
+UNIV_INTERN
 const ib_rbt_node_t*
 rbt_last(
 /*=====*/
@@ -1105,7 +1105,7 @@ rbt_last(
 
 /************************************************************************
 Return the next node. */
-
+UNIV_INTERN
 const ib_rbt_node_t*
 rbt_next(
 /*=====*/
@@ -1119,7 +1119,7 @@ rbt_next(
 
 /************************************************************************
 Return the previous node. */
-
+UNIV_INTERN
 const ib_rbt_node_t*
 rbt_prev(
 /*=====*/
@@ -1133,7 +1133,7 @@ rbt_prev(
 
 /************************************************************************
 Reset the tree. Delete all the nodes. */
-
+UNIV_INTERN
 void
 rbt_clear(
 /*======*/
@@ -1147,7 +1147,7 @@ rbt_clear(
 
 /************************************************************************
 Merge the node from dst into src. Return the number of nodes merged. */
-
+UNIV_INTERN
 ulint
 rbt_merge_uniq(
 /*===========*/
@@ -1178,7 +1178,7 @@ rbt_merge_uniq(
 Merge the node from dst into src. Return the number of nodes merged.
 Delete the nodes from src after copying node to dst. As a side effect
 the duplicates will be left untouched in the src. */
-
+UNIV_INTERN
 ulint
 rbt_merge_uniq_destructive(
 /*=======================*/
@@ -1225,7 +1225,7 @@ rbt_merge_uniq_destructive(
 /************************************************************************
 Check that every path from the root to the leaves has the same count and
 the tree nodes are in order. */
-
+UNIV_INTERN
 ibool
 rbt_validate(
 /*=========*/
@@ -1241,7 +1241,7 @@ rbt_validate(
 
 /************************************************************************
 Iterate over the tree in depth first order. */
-
+UNIV_INTERN
 void
 rbt_print(
 /*======*/
@@ -1250,4 +1250,3 @@ rbt_print(
 {
 	rbt_print_subtree(tree, ROOT(tree), print);
 }
-
