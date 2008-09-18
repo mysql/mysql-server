@@ -8,7 +8,6 @@
 	pointer records in an empty B-tree page.  Also, require that at
 	least one data record will fit in an empty compressed page.  This
 	will reduce the maximum size of records in compressed tables.
-	This was reported as Mantis issue #73.
 
 2008-09-09	The InnoDB Team
 
