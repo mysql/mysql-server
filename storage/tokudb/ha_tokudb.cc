@@ -3375,7 +3375,9 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
     // this should really be done through pack_key functions
     //
     to->data = pos;
-    *pos++ = COL_NEG_INF;
+    if (!hidden_primary_key) {
+        *pos++ = COL_NEG_INF;
+    }
     if (share->fixed_length_primary_key)
         to->size = ref_length;
     else {
