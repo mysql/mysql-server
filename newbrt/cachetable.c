@@ -260,6 +260,12 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname) {
     if (r != 0) { 
         r=errno; close(fd); return r; 
     }
+    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata))) {
+        return r;
+    }
+    cf->close_userdata = NULL;
+    cf->userdata = NULL;
+
     close(cf->fd);
     cf->fd = -1;
     if (cf->fname) {
