@@ -317,8 +317,8 @@ inline double ulonglong2double(ulonglong value)
 
 #if _MSC_VER >= 1500   /* VS9 (2008) has vsnprintf)
 #define HAVE_VSNPRINTF
-#define HAVE_STRTOUL
 #endif
+#define HAVE_STRTOUL
 
 #ifdef _MSC_VER
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */
