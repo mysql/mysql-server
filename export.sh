@@ -28,18 +28,11 @@ mkdir to-mysql{,/storage,/patches,/mysql-test{,/t,/r,/include}}
 svn log -v -r "$START_REV:BASE" > to-mysql/log
 svn export -q . to-mysql/storage/innobase
 
-REV=$START_REV
-while [ $REV -le $END_REV ]
+for REV in $(svn log -q -r$START_REV:$END_REV |grep ^r |cut -f 1 -d ' ' |cut -b 2-)
 do
   PATCH=to-mysql/patches/r$REV.patch
   svn log -v -r$REV > $PATCH
-  if [ $(wc -c < $PATCH) -gt 73 ]
-  then
-    svn diff -r$(($REV-1)):$REV >> $PATCH
-  else
-    rm $PATCH
-  fi
-  REV=$(($REV + 1))
+  svn diff -r$(($REV-1)):$REV >> $PATCH
 done
 
 cd to-mysql/storage/innobase
