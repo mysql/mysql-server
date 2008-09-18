@@ -222,7 +222,9 @@ int toku_brtheader_close (CACHEFILE cachefile, void *header_v) {
     //       block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
     if (h->dirty) {
 	toku_serialize_brt_header_to(toku_cachefile_fd(cachefile), h);
-	toku_serialize_fifo_at(toku_cachefile_fd(cachefile), block_allocator_allocated_limit(h->block_allocator), h->fifo);
+	u_int64_t write_to = block_allocator_allocated_limit(h->block_allocator); // Must compute this after writing the header.
+	//printf("%s:%d fifo written to %lu\n", __FILE__, __LINE__, write_to);
+	toku_serialize_fifo_at(toku_cachefile_fd(cachefile), write_to, h->fifo);
     }
     toku_brtheader_free(h);
     return 0;
@@ -2162,7 +2164,7 @@ static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
     t->h->block_translation_size_on_disk = 0;
     t->h->block_translation_address_on_disk = 0;
     // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, t->h->translated_blocknum_limit, t->h->block_translation_address_on_disk);
-    create_block_allocator(&t->h->block_allocator, t->nodesize);
+    create_block_allocator(&t->h->block_allocator, t->nodesize, BLOCK_ALLOCATOR_ALIGNMENT);
     toku_fifo_create(&t->h->fifo);
     t->root_put_counter = global_root_put_counter++; 
     if (dbname) {

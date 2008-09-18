@@ -620,7 +620,8 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h) 
     if (h->block_translation_address_on_disk != 0) {
 	block_allocator_free_block(h->block_allocator, h->block_translation_address_on_disk);
     }
-    block_allocator_alloc_block(h->block_allocator, 4 + 8*h->translated_blocknum_limit, &h->block_translation_address_on_disk);
+    block_allocator_alloc_block(h->block_allocator, 4 + 16*h->translated_blocknum_limit, &h->block_translation_address_on_disk);
+    //printf("%s:%d bta=%lu size=%lu\n", __FILE__, __LINE__, h->block_translation_address_on_disk, 4 + 16*h->translated_blocknum_limit);
     wbuf_ulonglong(wbuf, h->translated_blocknum_limit);
     wbuf_DISKOFF(wbuf, h->block_translation_address_on_disk);
     if (h->n_named_roots>=0) {
@@ -702,7 +703,7 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
     h->block_translation_size_on_disk    = 4 + 16 * h->translated_blocknum_limit;
     h->block_translation_address_on_disk = rbuf_diskoff(&rc);
     // Set up the the block translation buffer.
-    create_block_allocator(&h->block_allocator, h->nodesize);
+    create_block_allocator(&h->block_allocator, h->nodesize, BLOCK_ALLOCATOR_ALIGNMENT);
     // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, h->translated_blocknum_limit, h->block_translation_address_on_disk);
     if (h->block_translation_address_on_disk == 0) {
 	h->block_translation = 0;
@@ -718,7 +719,7 @@ int deserialize_brtheader (u_int32_t size, int fd, DISKOFF off, struct brt_heade
 	    // check the checksum
 	    u_int32_t x1764 = x1764_memory(tbuf, h->block_translation_size_on_disk - 4);
 	    u_int64_t offset = h->block_translation_size_on_disk - 4;
-	    // printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, h->block_translation_address_on_disk, offset, h->block_translation_size_on_disk);
+	    //printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, h->block_translation_address_on_disk, offset, h->block_translation_size_on_disk);
 	    u_int32_t stored_x1764 = ntohl(*(int*)(tbuf + offset));
 	    assert(x1764 == stored_x1764);
 	}

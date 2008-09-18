@@ -281,4 +281,6 @@ enum brt_layout_version_e {
 void toku_brtheader_free (struct brt_header *h);
 int toku_brtheader_close (CACHEFILE cachefile, void *header_v);
 
+#define BLOCK_ALLOCATOR_ALIGNMENT 4096
+
 #endif

@@ -27,7 +27,7 @@ static void
 test_ba0 (void) {
     BLOCK_ALLOCATOR ba;
     u_int64_t b0, b1;
-    create_block_allocator(&ba, 100);
+    create_block_allocator(&ba, 100, 1);
     ba_alloc_at(ba, 50, 100);
     ba_alloc_at(ba, 25, 150);
     ba_alloc   (ba, 10, &b0);
@@ -75,7 +75,7 @@ test_ba0 (void) {
 static void
 test_ba1 (int n_initial) {
     BLOCK_ALLOCATOR ba;
-    create_block_allocator(&ba, 0);
+    create_block_allocator(&ba, 0, 1);
     int i;
     int n_blocks=0;
     u_int64_t blocks[1000];

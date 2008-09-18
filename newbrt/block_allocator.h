@@ -23,12 +23,14 @@
 typedef struct block_allocator *BLOCK_ALLOCATOR;
 
 void
-create_block_allocator (BLOCK_ALLOCATOR * ba, u_int64_t reserve_at_beginning);
+create_block_allocator (BLOCK_ALLOCATOR * ba, u_int64_t reserve_at_beginning, u_int64_t alignment);
 // Effect: Create a block allocator, in which the first RESERVE_AT_BEGINNING bytes are not put into a block.
+//  All blocks be start on a multiple of ALIGNMENT.
 //  Aborts if we run out of memory.
 // Parameters
 //  ba (OUT):                        Result stored here.
 //  reserve_at_beginning (IN)        Size of reserved block at beginning.
+//  alignment (IN)                   Block alignment.
 
 void
 destroy_block_allocator (BLOCK_ALLOCATOR *ba);
@@ -44,6 +46,7 @@ block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t of
 // Effect: Allocate a block of the specified size at a particular offset.
 //  Aborts if anything goes wrong.
 // Requires: The resulting block may not overlap any other allocated block.
+//  And the offset must be a multiple of the block alignment.
 // Parameters:
 //  ba (IN/OUT): The block allocator.  (Modifies ba.)
 //  size (IN):   The size of the block.
@@ -54,6 +57,7 @@ void
 block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offset);
 // Effect: Allocate a block of the specified size at an address chosen by the allocator.
 //  Aborts if anything goes wrong.
+//  The block address will be a multiple of the alignment.
 // Parameters:
 //  ba (IN/OUT):  The block allocator.   (Modifies ba.)
 //  size (IN):    The size of the block.

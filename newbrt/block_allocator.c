@@ -17,6 +17,7 @@ struct blockpair {
 
 struct block_allocator {
     u_int64_t reserve_at_beginning; // How much to reserve at the beginning
+    u_int64_t alignment;            // Block alignment
     u_int64_t n_blocks; // How many blocks
     u_int64_t blocks_array_size; // How big is the blocks_array.  Must be >= n_blocks. 
     struct blockpair *blocks_array; // These blocks are sorted by address.
@@ -53,9 +54,10 @@ block_allocator_print (BLOCK_ALLOCATOR ba) {
 #endif
 
 void
-create_block_allocator (BLOCK_ALLOCATOR *ba, u_int64_t reserve_at_beginning) {
+create_block_allocator (BLOCK_ALLOCATOR *ba, u_int64_t reserve_at_beginning, u_int64_t alignment) {
     BLOCK_ALLOCATOR XMALLOC(result);    
     result->reserve_at_beginning = reserve_at_beginning;
+    result->alignment = alignment;
     result->n_blocks = 0;
     result->blocks_array_size = 1;
     XMALLOC_N(result->blocks_array_size, result->blocks_array);
@@ -82,6 +84,7 @@ grow_blocks_array (BLOCK_ALLOCATOR ba) {
 
 void
 block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t offset) {
+    assert(offset%ba->alignment == 0);
     u_int64_t i;
     VALIDATE(ba);
     assert(offset >= ba->reserve_at_beginning);
@@ -107,6 +110,10 @@ block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t of
     VALIDATE(ba);
 }
     
+static u_int64_t align (u_int64_t value, BLOCK_ALLOCATOR ba) {
+    return ((value+ba->alignment-1)/ba->alignment)*ba->alignment;
+}
+
 void
 block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offset) {
     grow_blocks_array(ba);
@@ -123,11 +130,11 @@ block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offs
     for (i=0; i<ba->n_blocks; i++, blocknum++) {
 	if (blocknum>=ba->n_blocks) blocknum=0;
 	// Consider the space after blocknum
-	if (blocknum+1 ==ba->n_blocks) continue; // Can't use the space after the last block, since that would be new space.
+	if (blocknum+1 == ba->n_blocks) continue; // Can't use the space after the last block, since that would be new space.
 	struct blockpair *bp = &ba->blocks_array[blocknum];
 	u_int64_t this_offset = bp[0].offset;
 	u_int64_t this_size   = bp[0].size;
-	u_int64_t answer_offset = this_offset + this_size;
+	u_int64_t answer_offset = align(this_offset + this_size, ba);
 	if (answer_offset + size > bp[1].offset) continue; // The block we want doesn't fit after this block.
 	// It fits, so allocate it here.
 	memmove(bp+2, bp+1, (ba->n_blocks - blocknum -1)*sizeof(struct blockpair));
@@ -141,7 +148,7 @@ block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offs
     }
     // It didn't fit anywhere, so fit it on the end.
     struct blockpair *bp = &ba->blocks_array[ba->n_blocks];
-    u_int64_t answer_offset = bp[-1].offset+bp[-1].size;
+    u_int64_t answer_offset = align(bp[-1].offset+bp[-1].size, ba);
     bp->offset = answer_offset;
     bp->size   = size;
     ba->n_blocks++;
