@@ -482,9 +482,9 @@ public:
      * an ACC ptr, but all others are refs to SectionSegments containing
      * ACC ptrs.
      */
-    STATIC_CONST( MaxScanAccSegments= 
+    STATIC_CONST( MaxScanAccSegments= (
                  (MAX_PARALLEL_OP_PER_SCAN + SectionSegment::DataLength - 1) /
-                 SectionSegment::DataLength) + 1;
+                 SectionSegment::DataLength) + 1);
 
     UintR scan_acc_op_ptr[ MaxScanAccSegments ];
     Uint32 scan_acc_index;

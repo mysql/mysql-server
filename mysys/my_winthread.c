@@ -86,7 +86,7 @@ unsigned int __stdcall joinable_pstart(void*p)
 
 void __cdecl detached_pstart(void*p)
 {
-  pthread_setspecific(detached,1);
+  pthread_setspecific(detached,(void*)1);
 
   pstart(p);
 }
