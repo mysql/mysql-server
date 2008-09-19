@@ -1877,18 +1877,14 @@ buf_page_get_gen(
 	      || (rw_latch == RW_X_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode != BUF_GET_NO_LATCH) || (rw_latch == RW_NO_LATCH));
-
-	/* Check for acceptable modes. */
 	ut_ad(mode == BUF_GET
 	      || mode == BUF_GET_IF_IN_POOL
 	      || mode == BUF_GET_NO_LATCH
 	      || mode == BUF_GET_NOWAIT
 	      || mode == BUF_GET_IF_IN_POOL_OR_WATCH);
-
-	/* zip_size can be zero if called from ibuf. */
-	ut_ad(zip_size == 0 || zip_size == fil_space_get_zip_size(space));
+	ut_ad(zip_size == fil_space_get_zip_size(space));
 #ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, mtr));
+	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, NULL));
 #endif
 	buf_pool->n_page_gets++;
 loop:
