@@ -1029,69 +1029,89 @@ static void smart_dbt_callback_ror_heavi(DBT const *key, DBT  const *row, void *
 //
 ulonglong retrieve_auto_increment(uint16 type, uint32 offset,const uchar *record)
 {
-  ulonglong value= 0;			/* Store unsigned values here */
-  longlong s_value= 0;			/* Store signed values here */
-  const uchar *key= (uchar*) record + offset;
+    const uchar *key;     /* Key */
+    ulonglong   unsigned_autoinc;  /* Unsigned auto-increment */
+    longlong      signed_autoinc;  /* Signed auto-increment */
+    enum { unsigned_type, signed_type } autoinc_type;
+    float float_tmp;   /* Temporary variable */
+    double double_tmp; /* Temporary variable */
 
-  switch (type) {
-  case HA_KEYTYPE_INT8:
-    s_value= (longlong) *(char*)key;
-    break;
-  case HA_KEYTYPE_BINARY:
-    value=(ulonglong)  *(uchar*) key;
-    break;
-  case HA_KEYTYPE_SHORT_INT:
-    s_value= (longlong) sint2korr(key);
-    break;
-  case HA_KEYTYPE_USHORT_INT:
-    value=(ulonglong) uint2korr(key);
-    break;
-  case HA_KEYTYPE_LONG_INT:
-    s_value= (longlong) sint4korr(key);
-    break;
-  case HA_KEYTYPE_ULONG_INT:
-    value=(ulonglong) uint4korr(key);
-    break;
-  case HA_KEYTYPE_INT24:
-    s_value= (longlong) sint3korr(key);
-    break;
-  case HA_KEYTYPE_UINT24:
-    value=(ulonglong) uint3korr(key);
-    break;
-  case HA_KEYTYPE_FLOAT:                        /* This shouldn't be used */
-  {
-    float f_1;
-    float4get(f_1,key);
-    /* Ignore negative values */
-    value = (f_1 < (float) 0.0) ? 0 : (ulonglong) f_1;
-    break;
-  }
-  case HA_KEYTYPE_DOUBLE:                       /* This shouldn't be used */
-  {
-    double f_1;
-    float8get(f_1,key);
-    /* Ignore negative values */
-    value = (f_1 < 0.0) ? 0 : (ulonglong) f_1;
-    break;
-  }
-  case HA_KEYTYPE_LONGLONG:
-    s_value= sint8korr(key);
-    break;
-  case HA_KEYTYPE_ULONGLONG:
-    value= uint8korr(key);
-    break;
-  default:
-    DBUG_ASSERT(0);
-    value=0;                                    /* Error */
-    break;
-  }
+    key = ((uchar *) record) + offset;
 
-  /*
-    The following code works becasue if s_value < 0 then value is 0
-    and if s_value == 0 then value will contain either s_value or the
-    correct value.
-  */
-  return (s_value > 0) ? (ulonglong) s_value : value;
+    /* Set default autoincrement type */
+    autoinc_type = unsigned_type;
+
+    switch (type) {
+    case HA_KEYTYPE_INT8:
+        signed_autoinc   = (longlong) *(char*)key;
+        autoinc_type     = signed_type;
+        break;
+
+    case HA_KEYTYPE_BINARY:
+        unsigned_autoinc = (ulonglong) *(uchar*) key;
+        break;
+
+    case HA_KEYTYPE_SHORT_INT:
+        signed_autoinc   = (longlong) sint2korr(key);
+        autoinc_type     = signed_type;
+        break;
+
+    case HA_KEYTYPE_USHORT_INT:
+        unsigned_autoinc = (ulonglong) uint2korr(key);
+        break;
+
+    case HA_KEYTYPE_LONG_INT:
+        signed_autoinc   = (longlong) sint4korr(key);
+        autoinc_type     = signed_type;
+        break;
+
+    case HA_KEYTYPE_ULONG_INT:
+        unsigned_autoinc = (ulonglong) uint4korr(key);
+        break;
+
+    case HA_KEYTYPE_INT24:
+        signed_autoinc   = (longlong) sint3korr(key);
+        autoinc_type     = signed_type;
+        break;
+
+    case HA_KEYTYPE_UINT24:
+        unsigned_autoinc = (ulonglong) uint3korr(key);
+    break;
+
+    case HA_KEYTYPE_LONGLONG:
+        signed_autoinc   = sint8korr(key);
+        autoinc_type     = signed_type;
+        break;
+
+    case HA_KEYTYPE_ULONGLONG:
+        unsigned_autoinc = uint8korr(key);
+        break;
+
+    /* The remaining two cases should not be used but are included for 
+       compatibility */
+    case HA_KEYTYPE_FLOAT:                      
+        float4get(float_tmp, key);  /* Note: float4get is a macro */
+        signed_autoinc   = (longlong) float_tmp;
+        autoinc_type     = signed_type;
+        break;
+
+    case HA_KEYTYPE_DOUBLE:
+        float8get(double_tmp, key); /* Note: float8get is a macro */
+        signed_autoinc   = (longlong) double_tmp;
+        autoinc_type     = signed_type;
+        break;
+
+    default:
+        DBUG_ASSERT(0);
+        unsigned_autoinc = 0;
+    }
+
+    if (signed_autoinc < 0) {
+        signed_autoinc = 0;
+    }
+
+    return autoinc_type == unsigned_type ?  
+           unsigned_autoinc : (ulonglong) signed_autoinc;
 }
 
 
