@@ -926,7 +926,7 @@ btr_cur_open_at_rnd_pos(
 
 		block = buf_page_get_gen(space, zip_size, page_no,
 					 RW_NO_LATCH, NULL, BUF_GET,
-					  __FILE__, __LINE__, mtr);
+					 __FILE__, __LINE__, mtr);
 		page = buf_block_get_frame(block);
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
