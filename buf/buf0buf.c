@@ -1940,9 +1940,7 @@ loop2:
 		goto loop;
 	}
 
-	/* zip_size can be 0 if called from ibuf */
-	ut_ad(zip_size == 0
-	      || page_zip_get_size(&block->page.zip) == zip_size);
+	ut_ad(page_zip_get_size(&block->page.zip) == zip_size);
 
 	must_read = buf_block_get_io_fix(block) == BUF_IO_READ;
 
@@ -1950,8 +1948,8 @@ loop2:
 	    && (mode == BUF_GET_IF_IN_POOL
 		|| mode == BUF_GET_IF_IN_POOL_OR_WATCH)) {
 
-		/* The page is being read to bufer pool,
-		but we can't wait around for the read to
+		/* The page is being read to buffer pool,
+		but we cannot wait around for the read to
 		complete. */
 
 		if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
@@ -2265,7 +2263,7 @@ buf_page_optimistic_get_func(
 	ut_ad(!ibuf_inside()
 	      || ibuf_page(buf_block_get_space(block),
 			   buf_block_get_zip_size(block),
-			   buf_block_get_page_no(block), mtr));
+			   buf_block_get_page_no(block), NULL));
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_func_nowait(&(block->lock),
