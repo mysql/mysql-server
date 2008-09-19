@@ -22,11 +22,11 @@ void *toku_mempool_get_base(struct mempool *mp) {
     return mp->base;
 }
 
-int toku_mempool_get_size(struct mempool *mp) {
+size_t toku_mempool_get_size(struct mempool *mp) {
     return mp->size;
 }
 
-int toku_mempool_get_frag_size(struct mempool *mp) {
+size_t toku_mempool_get_frag_size(struct mempool *mp) {
     return mp->frag_size;
 }
 
@@ -49,13 +49,10 @@ void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
 }
 
 // if vp is null then we are freeing something, but not specifying what.  The data won't be freed until compression is done.
-void toku_mempool_mfree(struct mempool *mp, void *vp, int size) {
-    assert(size >= 0);
+void toku_mempool_mfree(struct mempool *mp, void *vp, size_t size) {
     if (vp) assert(toku_mempool_inrange(mp, vp, size));
     mp->frag_size += size;
     assert(mp->frag_size <= mp->size);
 }
 
-unsigned long toku_mempool_memory_size(struct mempool *mp) {
-    return mp->size; 
-}
+

@@ -7,12 +7,12 @@
 #include "memory.h"
 #include "mempool.h"
 
-void test_mempool_limits(int size) {
+void test_mempool_limits(size_t size) {
     void *base = malloc(size);
     struct mempool mempool;
     toku_mempool_init(&mempool, base, size);
 
-    int i;
+    size_t i;
     for (i=0;; i++) {
         void *vp = toku_mempool_malloc(&mempool, 1, 1);
         if (vp == 0) 
@@ -24,13 +24,13 @@ void test_mempool_limits(int size) {
     free(base);
 }
 
-void test_mempool_malloc_mfree(int size) {
+void test_mempool_malloc_mfree(size_t size) {
     void *base = malloc(size);
     struct mempool mempool;
     toku_mempool_init(&mempool, base, size);
 
     void *vp[size];
-    int i;
+    size_t i;
     for (i=0;; i++) {
         vp[i] = toku_mempool_malloc(&mempool, 1, 1);
         if (vp[i] == 0) 

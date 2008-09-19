@@ -1,24 +1,20 @@
-// When objects are evicted from the cachetable, they are written to storage by a 
-// thread in a thread pool.  The objects are placed onto a write queue that feeds 
-// the thread pool.  The write queue expects that an external mutex is used to 
-// protect it.
 
-typedef struct writequeue *WRITEQUEUE;
-struct writequeue {
-    PAIR head, tail;            // head and tail of the linked list of pair's
+typedef struct workqueue *WORKQUEUE;
+struct workqueue {
+    WORKITEM head, tail;        // head and tail of the linked list of work items
     pthread_cond_t wait_read;   // wait for read
     int want_read;              // number of threads waiting to read
     pthread_cond_t wait_write;  // wait for write
     int want_write;             // number of threads waiting to write
-    int ninq;                   // number of pairs in the queue
+    int ninq;                   // number of work items in the queue
     char closed;                // kicks waiting threads off of the write queue
 };
 
-// initialize a writequeue
-// expects: the writequeue is not initialized
-// effects: the writequeue is set to empty and the condition variable is initialized
+// initialize a workqueue
+// expects: the workqueue is not initialized
+// effects: the workqueue is set to empty and the condition variable is initialized
 
-static void writequeue_init(WRITEQUEUE wq) {
+static void workqueue_init(WORKQUEUE wq) {
     wq->head = wq->tail = 0;
     int r;
     r = pthread_cond_init(&wq->wait_read, 0); assert(r == 0);
@@ -29,20 +25,20 @@ static void writequeue_init(WRITEQUEUE wq) {
     wq->closed = 0;
 }
 
-// destroy a writequeue
-// expects: the writequeue must be initialized and empty
+// destroy a workqueue
+// expects: the workqueue must be initialized and empty
 
-static void writequeue_destroy(WRITEQUEUE wq) {
+static void workqueue_destroy(WORKQUEUE wq) {
     assert(wq->head == 0 && wq->tail == 0);
     int r;
     r = pthread_cond_destroy(&wq->wait_read); assert(r == 0);
     r = pthread_cond_destroy(&wq->wait_write); assert(r == 0);
 }
 
-// close the writequeue
-// effects: signal any threads blocked in the writequeue
+// close the workqueue
+// effects: signal any threads blocked in the workqueue
 
-static void writequeue_set_closed(WRITEQUEUE wq) {
+static void workqueue_set_closed(WORKQUEUE wq) {
     wq->closed = 1;
     int r;
     r = pthread_cond_broadcast(&wq->wait_read); assert(r == 0);
@@ -52,56 +48,58 @@ static void writequeue_set_closed(WRITEQUEUE wq) {
 // determine whether or not the write queue is empty
 // return: 1 if the write queue is empty, otherwise 0
 
-static int writequeue_empty(WRITEQUEUE wq) {
+static int workqueue_empty(WORKQUEUE wq) {
     return wq->head == 0;
 }
 
-// put a pair at the tail of the write queue
+// put a work item at the tail of the write queue
 // expects: the mutex is locked
-// effects: append the pair to the end of the write queue and signal
-// any readers.
+// effects: append the workitem to the end of the write queue and signal
+// any readers
 
-static void writequeue_enq(WRITEQUEUE wq, PAIR pair) {
-    pair->next_wq = 0;
+static void workqueue_enq(WORKQUEUE wq, WORKITEM workitem) {
+    workitem->next_wq = 0;
     if (wq->tail)
-        wq->tail->next_wq = pair;
+        wq->tail->next_wq = workitem;
     else
-        wq->head = pair;
-    wq->tail = pair;
+        wq->head = workitem;
+    wq->tail = workitem;
     wq->ninq++;
     if (wq->want_read) {
         int r = pthread_cond_signal(&wq->wait_read); assert(r == 0);
     }
 }
 
-// get a pair from the head of the write queue
+// get a workitem from the head of the write queue
 // expects: the mutex is locked
-// effects: wait until the writequeue is not empty, remove the first pair from the
+// effects: wait until the workqueue is not empty, remove the first workitem from the
 // write queue and return it
 // returns: 0 if success, otherwise an error 
 
-static int writequeue_deq(WRITEQUEUE wq, pthread_mutex_t *mutex, PAIR *pairptr) {
-    while (writequeue_empty(wq)) {
+static int workqueue_deq(WORKQUEUE wq, pthread_mutex_t *mutex, WORKITEM *workitemptr) {
+    while (workqueue_empty(wq)) {
         if (wq->closed)
             return EINVAL;
         wq->want_read++;
         int r = pthread_cond_wait(&wq->wait_read, mutex); assert(r == 0);
         wq->want_read--;
     }
-    PAIR pair = wq->head;
-    wq->head = pair->next_wq;
+    WORKITEM workitem = wq->head;
+    wq->head = workitem->next_wq;
     if (wq->head == 0)
         wq->tail = 0;
     wq->ninq--;
-    pair->next_wq = 0;
-    *pairptr = pair;
+    workitem->next_wq = 0;
+    *workitemptr = workitem;
     return 0;
 }
+
+#if 0
 
 // suspend the writer thread
 // expects: the mutex is locked
 
-static void writequeue_wait_write(WRITEQUEUE wq, pthread_mutex_t *mutex) {
+static void workqueue_wait_write(WORKQUEUE wq, pthread_mutex_t *mutex) {
     wq->want_write++;
     int r = pthread_cond_wait(&wq->wait_write, mutex); assert(r == 0);
     wq->want_write--;
@@ -110,9 +108,10 @@ static void writequeue_wait_write(WRITEQUEUE wq, pthread_mutex_t *mutex) {
 // wakeup the writer threads
 // expects: the mutex is locked
 
-static void writequeue_wakeup_write(WRITEQUEUE wq) {
+static void workqueue_wakeup_write(WORKQUEUE wq) {
     if (wq->want_write) {
         int r = pthread_cond_broadcast(&wq->wait_write); assert(r == 0);
     }
 }
-   
+        
+#endif

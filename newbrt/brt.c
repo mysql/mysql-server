@@ -109,7 +109,7 @@ static long brtnode_memory_size(BRTNODE node) {
 	    +fifo_sum;
 #endif
     } else {
-	return sizeof(*node)+toku_omt_memory_size(node->u.l.buffer)+toku_mempool_memory_size(&node->u.l.buffer_mempool);
+	return sizeof(*node)+toku_omt_memory_size(node->u.l.buffer)+toku_mempool_get_size(&node->u.l.buffer_mempool);
     }
 }
 
@@ -3806,8 +3806,10 @@ int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN txn) {
     int r = 0;
     if (!(flags & DB_DELETE_ANY))
         r = brt_cursor_current(cursor, DB_CURRENT, 0, 0, toku_txn_logger(txn));
-    if (r == 0)
+    if (r == 0) {
+        if (cursor->current_in_omt) load_dbts_from_omt(cursor, &cursor->key, &cursor->val);
         r = toku_brt_delete_both(cursor->brt, &cursor->key, &cursor->val, txn);
+    }
     return r;
 }
 
