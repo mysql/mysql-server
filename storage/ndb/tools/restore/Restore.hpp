@@ -27,7 +27,13 @@
 
 #include <ndb_version.h>
 #include <version.h>
-#define DROP6_VERSION MAKE_VERSION(5,2,1)
+
+inline
+bool
+isDrop6(Uint32 version)
+{
+  return (getMajor(version) == 5 && getMinor(version) == 2);
+}
 
 const int FileNameLenC = 256;
 const int TableNameLenC = 256;
