@@ -4342,7 +4342,12 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
     item= this;
   else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
   {
-    if (item && cmp_context != INT_RESULT)
+    /*
+      We don't need to zero-fill timestamp columns here because they will be 
+      first converted to a string (in date/time format) and compared as such if
+      compared with another string.
+    */
+    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT)
       convert_zerofill_number_to_string(&item, (Field_num *)field);
     else
       item= this;
