@@ -191,6 +191,7 @@ ErrorBundle ErrorCodes[] = {
   { 1501, DMEC, TR, "Out of undo space" },
   {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
   {  289, DMEC, TR, "Out of transaction buffer memory in TC (increase TransactionBufferMemory)" },
+  {  291, DMEC, TR, "Out of scanfrag records in TC (increase MaxNoOfLocalScans)" },
 
   /**
    * InsufficientSpace
