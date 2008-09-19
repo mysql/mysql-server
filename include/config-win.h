@@ -326,7 +326,9 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */
 #define HAVE_ANSI_INCLUDE
 #define HAVE_SYS_UTIME_H
+#ifndef HAVE_STRTOUL
 #define HAVE_STRTOUL
+#endif
 #endif
 #define my_reinterpret_cast(A) reinterpret_cast <A>
 #define my_const_cast(A) const_cast<A>
