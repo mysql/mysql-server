@@ -427,8 +427,8 @@ COUNT(*)
 INSERT INTO t1 VALUES (1,1,1);
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 INSERT INTO t1 VALUES 
-(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
-(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+(-1,-1,-1),(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),(9999,9999,9999);
 ERROR 23000: Can't write; duplicate key in table 't1'
 select count(*) from t1;
 count(*)
