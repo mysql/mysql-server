@@ -756,7 +756,7 @@ main(int argc, char** argv)
   info.setLevel(254);
   info << "Backup version in files: " 
        <<  ndbGetVersionString(version, 0, 
-                               version == DROP6_VERSION ? "-drop6" : 0, 
+                               isDrop6(version) ? "-drop6" : 0, 
                                buf, sizeof(buf));
   if (version >= NDBD_RAW_LCP)
   {

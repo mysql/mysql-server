@@ -194,6 +194,7 @@ ErrorBundle ErrorCodes[] = {
   {  780, DMEC, TR, "Too many schema transactions" },
   {  783, DMEC, TR, "Too many schema operations" },
   {  785, DMEC, TR, "Schema object is busy with another schema transaction" },
+  {  291, DMEC, TR, "Out of scanfrag records in TC (increase MaxNoOfLocalScans)" },
 
   /**
    * InsufficientSpace
@@ -258,7 +259,7 @@ ErrorBundle ErrorCodes[] = {
   { 278,  DMEC, IE, "278" },
   { 287,  DMEC, IE, "Index corrupted" },
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
-  { 291,  DMEC, IE, "Inconsistent trigger state in TC block" },
+  { 293,  DMEC, IE, "Inconsistent trigger state in TC block" },
   { 292,  DMEC, IE, "Inconsistent index state in TC block" },
   { 631,  DMEC, IE, "631" },
   { 632,  DMEC, IE, "632" },

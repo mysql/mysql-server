@@ -50,7 +50,7 @@ struct DropTrigImplRef {
     TriggerNotFound = 4238,
     BadRequestType = 4247,
     InvalidName = 4248,
-    InconsistentTC = 291
+    InconsistentTC = 293
   };
 
   STATIC_CONST( SignalLength = 8 );
