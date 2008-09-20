@@ -9603,7 +9603,7 @@ void Dbdih::copyGciLab(Signal* signal, CopyGCIReq::CopyReason reason)
         c_copyGCIMaster.m_waiting[i-1] = c_copyGCIMaster.m_waiting[i];
       }
       c_copyGCIMaster.m_waiting[CopyGCIMaster::WAIT_CNT-1] =
-        CopyGCIReq::CopyGCIReq::IDLE;
+        CopyGCIReq::IDLE;
 
       if (reason == CopyGCIReq::IDLE)
       {
