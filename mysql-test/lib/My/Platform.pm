@@ -17,6 +17,8 @@
 package My::Platform;
 
 use strict;
+use File::Basename;
+use My::File::Path; # Patched version of File::Path
 
 use base qw(Exporter);
 our @EXPORT= qw(IS_CYGWIN IS_WINDOWS IS_WIN32PERL
@@ -104,11 +106,16 @@ sub check_socket_path_length {
 
   my $sock;
   eval {
+    # Create the directories where the
+    # socket till be created
+    mkpath(dirname($path));
+
     $sock= new IO::Socket::UNIX
       (
        Local => $path,
        Listen => 1,
       );
+
   };
   if ($@)
   {
@@ -116,7 +123,7 @@ sub check_socket_path_length {
     return 2;
   }
   if (!defined $sock){
-    # Could not create a UNIX domain socket
+    #print "Could not create UNIX domain socket: $!\n";
     return 3;
   }
   if ($path ne $sock->hostpath()){
