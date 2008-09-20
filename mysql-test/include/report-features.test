@@ -9,3 +9,4 @@ show engines;
 show variables; 
 --echo ===== STOP =====
 --enable_query_log
+exit;
