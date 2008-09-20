@@ -256,7 +256,7 @@ sub main {
       (
        name           => 'report_features',
        # No result_file => Prints result
-       path           => 'include/report-features.test'.
+       path           => 'include/report-features.test',
        template_path  => "include/default_my.cnf",
        master_opt     => [],
        slave_opt      => [],
