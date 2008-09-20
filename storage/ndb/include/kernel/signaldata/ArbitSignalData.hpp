@@ -44,7 +44,7 @@ public:
     Uint16 cnt = data[0] & 0xFFFF;              // previous count
     Uint16 pid = NdbHost_GetProcessId();
     data[0] = (pid << 16) | (cnt + 1);
-    data[1] = NdbTick_CurrentMillisecond();
+    data[1] = (Uint32)NdbTick_CurrentMillisecond();
   }
 
   inline bool match(ArbitTicket& aTicket) const {
