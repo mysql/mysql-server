@@ -1114,9 +1114,9 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 INSERT INTO t1 VALUES();
 SELECT COUNT(*) FROM v1;
 
---exec $MYSQL_DUMP --allow-keywords --single-transaction --quick --verbose test --result-file $MYSQL_TEST_DIR/var/tmp/bug31434.sql
---exec $MYSQL test < $MYSQL_TEST_DIR/var/tmp/bug31434.sql
---remove_file $MYSQL_TEST_DIR/var/tmp/bug31434.sql
+--exec $MYSQL_DUMP --allow-keywords --single-transaction --quick --verbose test --result-file $MYSQLTEST_VARDIR/tmp/bug31434.sql
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug31434.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug31434.sql
 
 SELECT COUNT(*) FROM v1;
 
