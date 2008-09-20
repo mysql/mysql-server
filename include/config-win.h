@@ -426,3 +426,5 @@ inline double ulonglong2double(ulonglong value)
 #define ENOTSUP 48
 #endif
 
+#define HAVE_STRTOK_R
+#define strtok_r(A, B, C) strtok_s((A), (B), (C))
