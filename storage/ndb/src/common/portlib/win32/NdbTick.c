@@ -16,6 +16,11 @@
 #include <ndb_global.h>
 #include "NdbTick.h"
 
+void NdbTick_Init()
+{
+  return;
+}
+
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
   NDB_TICKS sec;Uint32 usec;
