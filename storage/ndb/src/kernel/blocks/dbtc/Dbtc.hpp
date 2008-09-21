@@ -116,6 +116,7 @@
 #define ZUNKNOWN_TABLE_ERROR 285
 #define ZNODEFAIL_BEFORE_COMMIT 286
 #define ZINDEX_CORRUPT_ERROR 287
+#define ZSCAN_FRAGREC_ERROR 291
 
 // ----------------------------------------
 // Seize error
@@ -1408,7 +1409,7 @@ private:
                            UintR anApiConnectPtr);
   void handleScanStop(Signal* signal, UintR aFailedNode);
   void initScanTcrec(Signal* signal);
-  void initScanrec(ScanRecordPtr,  const class ScanTabReq*,
+  Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
 		   const UintR scanParallel, 
 		   const UintR noOprecPerFrag,
                    const Uint32 aiLength,

@@ -1,122 +1,170 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="7.10"
+	Version="9.00"
 	Name="taocrypt"
-	SccProjectName=""
-	SccLocalPath="">
+	ProjectGUID="{E53FA295-DAC1-4D49-8957-9CA5098FD2B1}"
+	TargetFrameworkVersion="131072"
+	>
 	<Platforms>
 		<Platform
-			Name="Win32"/>
+			Name="Win32"
+		/>
 	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
 			OutputDirectory=".\debug_obj"
 			IntermediateDirectory=".\debug_obj"
 			ConfigurationType="4"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE"
-			CharacterSet="2">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="include,mySTL"
 				PreprocessorDefinitions="WIN32;_DEBUG;_LIB"
-				ExceptionHandling="FALSE"
+				ExceptionHandling="0"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\debug_obj/taocrypt.pch"
 				AssemblerListingLocation=".\debug_obj/"
 				ObjectFile=".\debug_obj/"
 				ProgramDataBaseFileName=".\debug_obj/"
 				BrowseInformation="1"
 				WarningLevel="3"
-				SuppressStartupBanner="TRUE"
+				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
-				CompileAs="0"/>
+				CompileAs="0"
+			/>
 			<Tool
-				Name="VCCustomBuildTool"/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\debug_obj\taocrypt.lib"
-				SuppressStartupBanner="TRUE"/>
-			<Tool
-				Name="VCMIDLTool"/>
-			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
-			<Tool
-				Name="VCPreLinkEventTool"/>
+				Name="VCManagedResourceCompilerTool"
+			/>
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="_DEBUG"
-				Culture="1033"/>
+				Culture="1033"
+			/>
 			<Tool
-				Name="VCWebServiceProxyGeneratorTool"/>
+				Name="VCPreLinkEventTool"
+			/>
 			<Tool
-				Name="VCXMLDataGeneratorTool"/>
+				Name="VCLibrarianTool"
+				OutputFile=".\debug_obj\taocrypt.lib"
+				SuppressStartupBanner="true"
+			/>
 			<Tool
-				Name="VCManagedWrapperGeneratorTool"/>
+				Name="VCALinkTool"
+			/>
 			<Tool
-				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
 			OutputDirectory=".\release_obj"
 			IntermediateDirectory=".\release_obj"
 			ConfigurationType="4"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE"
-			CharacterSet="2">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="include,mySTL"
 				PreprocessorDefinitions="WIN32;NDEBUG;_LIB"
-				StringPooling="TRUE"
-				ExceptionHandling="FALSE"
+				StringPooling="true"
+				ExceptionHandling="0"
 				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="TRUE"
-				UsePrecompiledHeader="2"
+				EnableFunctionLevelLinking="true"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\release_obj/taocrypt.pch"
 				AssemblerListingLocation=".\release_obj/"
 				ObjectFile=".\release_obj/"
 				ProgramDataBaseFileName=".\release_obj/"
 				WarningLevel="3"
-				SuppressStartupBanner="TRUE"
-				CompileAs="0"/>
+				SuppressStartupBanner="true"
+				CompileAs="0"
+			/>
 			<Tool
-				Name="VCCustomBuildTool"/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\release_obj\taocrypt.lib"
-				SuppressStartupBanner="TRUE"/>
-			<Tool
-				Name="VCMIDLTool"/>
-			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
-			<Tool
-				Name="VCPreLinkEventTool"/>
+				Name="VCManagedResourceCompilerTool"
+			/>
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="NDEBUG"
-				Culture="1033"/>
+				Culture="1033"
+			/>
 			<Tool
-				Name="VCWebServiceProxyGeneratorTool"/>
+				Name="VCPreLinkEventTool"
+			/>
 			<Tool
-				Name="VCXMLDataGeneratorTool"/>
+				Name="VCLibrarianTool"
+				OutputFile=".\release_obj\taocrypt.lib"
+				SuppressStartupBanner="true"
+			/>
 			<Tool
-				Name="VCManagedWrapperGeneratorTool"/>
+				Name="VCALinkTool"
+			/>
 			<Tool
-				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 	</Configurations>
 	<References>
@@ -124,142 +172,188 @@
 	<Files>
 		<Filter
 			Name="Source Files"
-			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
+			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
+			>
 			<File
-				RelativePath="src\aes.cpp">
+				RelativePath="src\aes.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\aestables.cpp">
+				RelativePath="src\aestables.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\algebra.cpp">
+				RelativePath="src\algebra.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\arc4.cpp">
+				RelativePath="src\arc4.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\asn.cpp">
+				RelativePath="src\asn.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\coding.cpp">
+				RelativePath="src\coding.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\des.cpp">
+				RelativePath="src\des.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\dh.cpp">
+				RelativePath="src\dh.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\dsa.cpp">
+				RelativePath="src\dsa.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\file.cpp">
+				RelativePath="src\file.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\hash.cpp">
+				RelativePath="src\hash.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\integer.cpp">
+				RelativePath="src\integer.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\md2.cpp">
+				RelativePath="src\md2.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\md4.cpp">
+				RelativePath="src\md4.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\md5.cpp">
+				RelativePath="src\md5.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\misc.cpp">
+				RelativePath="src\misc.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\random.cpp">
+				RelativePath="src\random.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\ripemd.cpp">
+				RelativePath="src\ripemd.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\rsa.cpp">
+				RelativePath="src\rsa.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\sha.cpp">
+				RelativePath="src\sha.cpp"
+				>
 			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
-			Filter="h;hpp;hxx;hm;inl">
+			Filter="h;hpp;hxx;hm;inl"
+			>
 			<File
-				RelativePath="include\aes.hpp">
+				RelativePath="include\aes.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\algebra.hpp">
+				RelativePath="include\algebra.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\arc4.hpp">
+				RelativePath="include\arc4.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\asn.hpp">
+				RelativePath="include\asn.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\block.hpp">
+				RelativePath="include\block.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\coding.hpp">
+				RelativePath="include\coding.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\des.hpp">
+				RelativePath="include\des.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\dh.hpp">
+				RelativePath="include\dh.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\dsa.hpp">
+				RelativePath="include\dsa.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\error.hpp">
+				RelativePath="include\error.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\file.hpp">
+				RelativePath="include\file.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\hash.hpp">
+				RelativePath="include\hash.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\hmac.hpp">
+				RelativePath="include\hmac.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\integer.hpp">
+				RelativePath="include\integer.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\md2.hpp">
+				RelativePath="include\md2.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\md4.hpp">
+				RelativePath="include\md4.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\md5.hpp">
+				RelativePath="include\md5.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\misc.hpp">
+				RelativePath="include\misc.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\modarith.hpp">
+				RelativePath="include\modarith.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\modes.hpp">
+				RelativePath="include\modes.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\random.hpp">
+				RelativePath="include\random.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\ripemd.hpp">
+				RelativePath="include\ripemd.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\rsa.hpp">
+				RelativePath="include\rsa.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\sha.hpp">
+				RelativePath="include\sha.hpp"
+				>
 			</File>
 		</Filter>
 	</Files>

@@ -27,15 +27,34 @@
 #ifdef HAVE_CLOCK_GETTIME
 
 #ifdef CLOCK_MONOTONIC
-#define CLOCK CLOCK_MONOTONIC
+static clockid_t NdbTick_clk_id = CLOCK_MONOTONIC;
 #else
-#define CLOCK CLOCK_REALTIME
+static clockid_t NdbTick_clk_id = CLOCK_REALTIME;
 #endif
+
+void NdbTick_Init()
+{
+  struct timespec tick_time;
+  if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
+    return;
+#ifdef CLOCK_MONOTONIC
+  fprintf(stderr, "Failed to use CLOCK_MONOTONIC for clock_realtime,"
+          " errno= %u\n", errno);
+  fflush(stderr);
+  NdbTick_clk_id = CLOCK_REALTIME;
+  if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
+    return;
+#endif
+  fprintf(stderr, "Failed to use CLOCK_REALTIME for clock_realtime,"
+          " errno=%u.  Aborting\n", errno);
+  fflush(stderr);
+  abort();
+}
 
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
   struct timespec tick_time;
-  clock_gettime(CLOCK, &tick_time);
+  clock_gettime(NdbTick_clk_id, &tick_time);
 
   return 
     ((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)MILLISEC_PER_SEC) +
@@ -45,12 +64,16 @@ NDB_TICKS NdbTick_CurrentMillisecond(void)
 int 
 NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
   struct timespec t;
-  int res = clock_gettime(CLOCK, &t);
+  int res = clock_gettime(NdbTick_clk_id, &t);
   * secs   = t.tv_sec;
   * micros = t.tv_nsec / 1000;
   return res;
 }
 #else
+void NdbTick_Init()
+{
+}
+
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
   struct timeval tick_time;
