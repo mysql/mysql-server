@@ -315,7 +315,7 @@ inline double ulonglong2double(ulonglong value)
 #define _snprintf snprintf
 #endif
 
-#if _MSC_VER >= 1500   /* VS9 (2008) has vsnprintf)
+#if _MSC_VER >= 1500   /* VS9 (2008) has vsnprintf */
 #define HAVE_VSNPRINTF
 #endif
 #ifndef HAVE_STRTOUL
@@ -426,5 +426,7 @@ inline double ulonglong2double(ulonglong value)
 #define ENOTSUP 48
 #endif
 
+#if _MSC_VER >= 1500   /* strtok_s is like strtok_r, but is new */
 #define HAVE_STRTOK_R
 #define strtok_r(A, B, C) strtok_s((A), (B), (C))
+#endif
