@@ -316,7 +316,9 @@ inline double ulonglong2double(ulonglong value)
 #endif
 
 #if _MSC_VER >= 1500   /* VS9 (2008) has vsnprintf */
+#ifndef HAVE_VSNPRINTF
 #define HAVE_VSNPRINTF
+#endif
 #endif
 #ifndef HAVE_STRTOUL
 #define HAVE_STRTOUL
