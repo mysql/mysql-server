@@ -9620,8 +9620,12 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   ndbrequire(transP->apiScanRec == RNIL);
   ndbrequire(scanptr.p->scanApiRec == RNIL);
 
-  initScanrec(scanptr, scanTabReq, scanParallel, 
-              noOprecPerFrag, aiLength, keyLen);
+  errCode = initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag, aiLength, keyLen);
+  if (unlikely(errCode))
+  {
+    jam();
+    goto SCAN_TAB_error;
+  }
 
   transP->apiScanRec = scanptr.i;
   transP->returncode = 0;
@@ -9721,12 +9725,13 @@ SCAN_TAB_error_no_state_change:
   return;
 }//Dbtc::execSCAN_TABREQ()
 
-void Dbtc::initScanrec(ScanRecordPtr scanptr,
-		       const ScanTabReq * scanTabReq,
-		       UintR scanParallel,
-		       UintR noOprecPerFrag,
-                       Uint32 aiLength,
-                       Uint32 keyLength) 
+Uint32
+Dbtc::initScanrec(ScanRecordPtr scanptr,
+		  const ScanTabReq * scanTabReq,
+		  UintR scanParallel,
+		  UintR noOprecPerFrag,
+		  Uint32 aiLength,
+		  Uint32 keyLength)
 {
   const UintR ri = scanTabReq->requestInfo;
   scanptr.p->scanTcrec = tcConnectptr.i;
@@ -9763,7 +9768,11 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   for (Uint32 i = 0; i < scanParallel; i++) {
     jam();
     ScanFragRecPtr ptr;
-    ndbrequire(list.seize(ptr));
+    if (unlikely(list.seize(ptr) == false))
+    {
+      jam();
+      goto errout;
+    }
     ptr.p->scanFragState = ScanFragRec::IDLE;
     ptr.p->scanRec = scanptr.i;
     ptr.p->scanFragId = 0;
@@ -9773,6 +9782,10 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   (* (ScanTabReq::getRangeScanFlag(ri) ? 
       &c_counters.c_range_scan_count : 
       &c_counters.c_scan_count))++;
+  return 0;
+errout:
+  list.release();
+  return ZSCAN_FRAGREC_ERROR;
 }//Dbtc::initScanrec()
 
 void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode) 

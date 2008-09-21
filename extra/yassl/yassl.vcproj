@@ -1,122 +1,170 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="7.10"
+	Version="9.00"
 	Name="yassl"
-	SccProjectName=""
-	SccLocalPath="">
+	ProjectGUID="{BC7CCA62-0E62-445B-BEDE-28CE560DCC8C}"
+	TargetFrameworkVersion="131072"
+	>
 	<Platforms>
 		<Platform
-			Name="Win32"/>
+			Name="Win32"
+		/>
 	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
 			OutputDirectory=".\debug_obj"
 			IntermediateDirectory=".\debug_obj"
 			ConfigurationType="4"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE"
-			CharacterSet="2">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="include,taocrypt\include,taocrypt\mySTL"
 				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;YASSL_PREFIX"
-				ExceptionHandling="FALSE"
+				ExceptionHandling="0"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\debug_obj/yassl.pch"
 				AssemblerListingLocation=".\debug_obj/"
 				ObjectFile=".\debug_obj/"
 				ProgramDataBaseFileName=".\debug_obj/"
 				BrowseInformation="1"
 				WarningLevel="3"
-				SuppressStartupBanner="TRUE"
+				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
-				CompileAs="0"/>
+				CompileAs="0"
+			/>
 			<Tool
-				Name="VCCustomBuildTool"/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\debug_obj\yassl.lib"
-				SuppressStartupBanner="TRUE"/>
-			<Tool
-				Name="VCMIDLTool"/>
-			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
-			<Tool
-				Name="VCPreLinkEventTool"/>
+				Name="VCManagedResourceCompilerTool"
+			/>
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="_DEBUG"
-				Culture="1033"/>
+				Culture="1033"
+			/>
 			<Tool
-				Name="VCWebServiceProxyGeneratorTool"/>
+				Name="VCPreLinkEventTool"
+			/>
 			<Tool
-				Name="VCXMLDataGeneratorTool"/>
+				Name="VCLibrarianTool"
+				OutputFile=".\debug_obj\yassl.lib"
+				SuppressStartupBanner="true"
+			/>
 			<Tool
-				Name="VCManagedWrapperGeneratorTool"/>
+				Name="VCALinkTool"
+			/>
 			<Tool
-				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
 			OutputDirectory=".\release_obj"
 			IntermediateDirectory=".\release_obj"
 			ConfigurationType="4"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE"
-			CharacterSet="2">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="include,taocrypt\include,taocrypt\mySTL"
 				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;YASSL_PREFIX"
-				StringPooling="TRUE"
-				ExceptionHandling="FALSE"
+				StringPooling="true"
+				ExceptionHandling="0"
 				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="TRUE"
-				UsePrecompiledHeader="2"
+				EnableFunctionLevelLinking="true"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\release_obj/yassl.pch"
 				AssemblerListingLocation=".\release_obj/"
 				ObjectFile=".\release_obj/"
 				ProgramDataBaseFileName=".\release_obj/"
 				WarningLevel="3"
-				SuppressStartupBanner="TRUE"
-				CompileAs="0"/>
+				SuppressStartupBanner="true"
+				CompileAs="0"
+			/>
 			<Tool
-				Name="VCCustomBuildTool"/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\release_obj\yassl.lib"
-				SuppressStartupBanner="TRUE"/>
-			<Tool
-				Name="VCMIDLTool"/>
-			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
-			<Tool
-				Name="VCPreLinkEventTool"/>
+				Name="VCManagedResourceCompilerTool"
+			/>
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="NDEBUG"
-				Culture="1033"/>
+				Culture="1033"
+			/>
 			<Tool
-				Name="VCWebServiceProxyGeneratorTool"/>
+				Name="VCPreLinkEventTool"
+			/>
 			<Tool
-				Name="VCXMLDataGeneratorTool"/>
+				Name="VCLibrarianTool"
+				OutputFile=".\release_obj\yassl.lib"
+				SuppressStartupBanner="true"
+			/>
 			<Tool
-				Name="VCManagedWrapperGeneratorTool"/>
+				Name="VCALinkTool"
+			/>
 			<Tool
-				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 	</Configurations>
 	<References>
@@ -124,85 +172,112 @@
 	<Files>
 		<Filter
 			Name="Source Files"
-			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
+			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
+			>
 			<File
-				RelativePath="src\buffer.cpp">
+				RelativePath="src\buffer.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\cert_wrapper.cpp">
+				RelativePath="src\cert_wrapper.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\crypto_wrapper.cpp">
+				RelativePath="src\crypto_wrapper.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\handshake.cpp">
+				RelativePath="src\handshake.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\lock.cpp">
+				RelativePath="src\lock.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\log.cpp">
+				RelativePath="src\log.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\socket_wrapper.cpp">
+				RelativePath="src\socket_wrapper.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\ssl.cpp">
+				RelativePath="src\ssl.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\timer.cpp">
+				RelativePath="src\timer.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\yassl_error.cpp">
+				RelativePath="src\yassl_error.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\yassl_imp.cpp">
+				RelativePath="src\yassl_imp.cpp"
+				>
 			</File>
 			<File
-				RelativePath="src\yassl_int.cpp">
+				RelativePath="src\yassl_int.cpp"
+				>
 			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
-			Filter="h;hpp;hxx;hm;inl">
+			Filter="h;hpp;hxx;hm;inl"
+			>
 			<File
-				RelativePath="include\buffer.hpp">
+				RelativePath="include\buffer.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\cert_wrapper.hpp">
+				RelativePath="include\cert_wrapper.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\crypto_wrapper.hpp">
+				RelativePath="include\crypto_wrapper.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\factory.hpp">
+				RelativePath="include\factory.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\handshake.hpp">
+				RelativePath="include\handshake.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\lock.hpp">
+				RelativePath="include\lock.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\log.hpp">
+				RelativePath="include\log.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\socket_wrapper.hpp">
+				RelativePath="include\socket_wrapper.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\timer.hpp">
+				RelativePath="include\timer.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\yassl_error.hpp">
+				RelativePath="include\yassl_error.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\yassl_imp.hpp">
+				RelativePath="include\yassl_imp.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\yassl_int.hpp">
+				RelativePath="include\yassl_int.hpp"
+				>
 			</File>
 			<File
-				RelativePath="include\yassl_types.hpp">
+				RelativePath="include\yassl_types.hpp"
+				>
 			</File>
 		</Filter>
 	</Files>
