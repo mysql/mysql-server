@@ -4081,6 +4081,7 @@ ibuf_print(
 {
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ulint		i;
+	ulint		j;
 #endif
 
 	mutex_enter(&ibuf_mutex);
