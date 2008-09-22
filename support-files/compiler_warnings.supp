@@ -63,13 +63,6 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 .* : conversion from '.*size_t' to 'uint16'.*
 
 #
-# The following should be fixed by the ndb team
-#
-.*/ndb/.* : .*used uninitialized in this function.*
-.*/ndb/.* : .*unused variable.*
-.*/ndb/.* : .*defined but not used.*
-
-#
 # Unexplanable (?) stuff
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
