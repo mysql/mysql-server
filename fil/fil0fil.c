@@ -4270,6 +4270,7 @@ fil_io(
 	} else if (is_log) {
 		mode = OS_AIO_LOG;
 	} else if (type == OS_FILE_READ
+		   && !recv_no_ibuf_operations
 		   && ibuf_page(space_id, zip_size, block_offset, NULL)) {
 		mode = OS_AIO_IBUF;
 	} else {
