@@ -197,7 +197,8 @@ ibuf_bitmap_page(
 			0 for uncompressed pages */
 	ulint	page_no);/* in: page number */
 /***************************************************************************
-Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages. */
+Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
+Must not be called when recv_no_ibuf_operations==TRUE. */
 UNIV_INTERN
 ibool
 ibuf_page(
