@@ -235,7 +235,7 @@ ibuf_index_page_calc_free(
 					0 for uncompressed pages */
 	const buf_block_t*	block)	/* in: buffer block */
 {
-	ut_ad(zip_size == 0 || zip_size == buf_block_get_zip_size(block));
+	ut_ad(zip_size == buf_block_get_zip_size(block));
 
 	if (!zip_size) {
 		ulint	max_ins_size;
