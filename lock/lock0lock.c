@@ -4699,9 +4699,8 @@ lock_rec_validate_page(
 
 	block = buf_page_get(space, fil_space_get_zip_size(space),
 			     page_no, RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 	page = block->frame;
 
 	lock_mutex_enter_kernel();

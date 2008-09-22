@@ -304,10 +304,7 @@ ibuf_header_page_get(
 
 	block = buf_page_get(space, 0, FSP_IBUF_HEADER_PAGE_NO,
 			     RW_X_LATCH, mtr);
-
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_IBUF_HEADER);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(buf_block_get_frame(block));
 }
@@ -332,9 +329,7 @@ ibuf_tree_root_get(
 
 	block = buf_page_get(space, 0, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
 			     mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(buf_block_get_frame(block));
 }
@@ -497,9 +492,8 @@ ibuf_data_init_for_space(
 		buf_block_t*	block = buf_page_get(
 			space, 0, FSP_IBUF_TREE_ROOT_PAGE_NO,
 			RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		root = buf_block_get_frame(block);
 	}
 
@@ -777,9 +771,7 @@ ibuf_bitmap_get_map_page(
 	block = buf_page_get(space, zip_size,
 			     ibuf_bitmap_page_no_calc(zip_size, page_no),
 			     RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_IBUF_BITMAP);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(buf_block_get_frame(block));
 }
@@ -1773,9 +1765,8 @@ ibuf_add_free_page(
 	{
 		buf_block_t*	block = buf_page_get(
 			space, 0, page_no, RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
-#endif /* UNIV_SYNC_DEBUG */
+
 		page = buf_block_get_frame(block);
 	}
 
@@ -1903,9 +1894,8 @@ ibuf_remove_free_page(
 	{
 		buf_block_t*	block = buf_page_get(
 			space, 0, page_no, RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		page = buf_block_get_frame(block);
 	}
 
@@ -2462,9 +2452,8 @@ ibuf_get_volume_buffered(
 	{
 		buf_block_t*	block = buf_page_get(
 			0, 0, prev_page_no, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		prev_page = buf_block_get_frame(block);
 	}
 #ifdef UNIV_BTR_DEBUG
@@ -2532,9 +2521,8 @@ count_later:
 	{
 		buf_block_t*	block = buf_page_get(
 			0, 0, next_page_no, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		next_page = buf_block_get_frame(block);
 	}
 #ifdef UNIV_BTR_DEBUG
@@ -3366,9 +3354,8 @@ loop:
 							  __FILE__, __LINE__,
 							  &mtr);
 		ut_a(success);
-#ifdef UNIV_SYNC_DEBUG
+
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
 	}
 
 	/* Position pcur in the insert buffer at the first entry for this

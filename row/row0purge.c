@@ -447,9 +447,8 @@ skip_secondaries:
 			that the space id of the undo log record is 0! */
 
 			block = buf_page_get(0, 0, page_no, RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 			buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 			data_field = buf_block_get_frame(block)
 				+ offset + internal_offset;
 

@@ -1231,9 +1231,8 @@ trx_undo_report_row_operation(
 					      page_no, RW_X_LATCH,
 					      undo->guess_block, BUF_GET,
 					      __FILE__, __LINE__, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		undo_page = buf_block_get_frame(undo_block);
 
 		if (op_type == TRX_UNDO_INSERT_OP) {
