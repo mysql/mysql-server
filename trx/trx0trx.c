@@ -34,6 +34,22 @@ UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 the kernel mutex */
 UNIV_INTERN ulint	trx_n_mysql_transactions = 0;
 
+/**************************************************************************
+Determines if the currently running transaction is in innodb_strict_mode. */
+UNIV_INTERN
+ibool
+trx_is_strict(
+/*==========*/
+			/* out: TRUE if strict */
+	trx_t*	trx)	/* in: transaction */
+{
+#ifndef UNIV_HOTBACKUP
+	return(trx && trx->mysql_thd && thd_is_strict(trx->mysql_thd));
+#else /* UNIV_HOTBACKUP */
+	return(FALSE);
+#endif /* UNIV_HOTBACKUP */
+}
+
 /*****************************************************************
 Set detailed error message for the transaction. */
 UNIV_INTERN

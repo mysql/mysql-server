@@ -313,9 +313,7 @@ btr_page_alloc_for_ibuf(
 				 dict_table_zip_size(index->table),
 				 node_addr.page, RW_X_LATCH, mtr);
 	new_page = buf_block_get_frame(new_block);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(new_block, SYNC_TREE_NODE_NEW);
-#endif /* UNIV_SYNC_DEBUG */
 
 	flst_remove(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 		    new_page + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE,
@@ -375,9 +373,7 @@ btr_page_alloc(
 	new_block = buf_page_get(dict_index_get_space(index),
 				 dict_table_zip_size(index->table),
 				 new_page_no, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(new_block, SYNC_TREE_NODE_NEW);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(new_block);
 }
@@ -751,9 +747,8 @@ btr_create(
 			space, 0,
 			IBUF_HEADER + IBUF_TREE_SEG_HEADER, mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(ibuf_hdr_block, SYNC_TREE_NODE_NEW);
-#endif /* UNIV_SYNC_DEBUG */
+
 		ut_ad(buf_block_get_page_no(ibuf_hdr_block)
 		      == IBUF_HEADER_PAGE_NO);
 		/* Allocate then the next page to the segment: it will be the
@@ -782,9 +777,7 @@ btr_create(
 	page_no = buf_block_get_page_no(block);
 	frame = buf_block_get_frame(block);
 
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (type & DICT_IBUF) {
 		/* It is an insert buffer tree: initialize the free list */
@@ -799,9 +792,7 @@ btr_create(
 			    PAGE_HEADER + PAGE_BTR_SEG_LEAF, mtr);
 		/* The fseg create acquires a second latch on the page,
 		therefore we must declare it: */
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
-#endif /* UNIV_SYNC_DEBUG */
 	}
 
 	/* Create a new index page on the the allocated segment page */

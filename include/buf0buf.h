@@ -608,6 +608,8 @@ buf_block_dbg_add_level(
 	buf_block_t*	block,	/* in: buffer page
 				where we have acquired latch */
 	ulint		level);	/* in: latching order level */
+#else /* UNIV_SYNC_DEBUG */
+# define buf_block_dbg_add_level(block, level) /* nothing */
 #endif /* UNIV_SYNC_DEBUG */
 /*************************************************************************
 Gets the state of a block. */

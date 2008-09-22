@@ -2284,9 +2284,8 @@ buf_page_optimistic_get_func(
 	}
 
 	if (UNIV_UNLIKELY(modify_clock != block->modify_clock)) {
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 		if (rw_latch == RW_S_LATCH) {
 			rw_lock_s_unlock(&(block->lock));
 		} else {
@@ -2486,9 +2485,8 @@ buf_page_try_get_func(
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 	buf_pool->n_page_gets++;
 
 	return(block);
