@@ -976,16 +976,16 @@ buf_get_free_list_len(void);
 /*=======================*/
 /********************************************************************
 Stop watching if the marked page is read in. */
-
+UNIV_INTERN
 void
-buf_pool_remove_watch(void);
-/*=======================*/
+buf_pool_watch_clear(void);
+/*======================*/
 /********************************************************************
 Check if the given page is being watched and has been read to the buffer
 pool. */
-
+UNIV_INTERN
 ibool
-buf_pool_watch_happened(
+buf_pool_watch_occurred(
 /*====================*/
 				/* out: TRUE if the given page is being
 				watched and it has been read in */
@@ -1234,12 +1234,12 @@ struct buf_pool_struct{
 					buf_page_in_file() == TRUE,
 					indexed by (space_id, offset) */
 	/*--------------------------*/	/* Delete buffering data */
-	ibool		watch_active;	/* if TRUE, set watch_happened to
-					TRUE when page watch_space/
-					watch_page_no is read in. */
+	ibool		watch_active;	/* if TRUE, set watch_occurred
+					when watch_space, watch_page_no
+					is read in. */
 	ulint		watch_space;	/* space id of watched page */
 	ulint		watch_page_no;	/* page number of watched page */
-	ibool		watch_happened;	/* has watched page been read in */
+	ibool		watch_occurred;	/* has watched page been read in */
 	/*--------------------------*/
 
 

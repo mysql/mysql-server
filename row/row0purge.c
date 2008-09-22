@@ -361,7 +361,7 @@ row_purge_remove_sec_if_poss_low(
 	if (success && old_has) {
 		/* Can't remove the index record yet. */
 
-		buf_pool_remove_watch();
+		buf_pool_watch_clear();
 
 		return(TRUE);
 	}
@@ -377,7 +377,7 @@ row_purge_remove_sec_if_poss_low(
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	buf_pool_remove_watch();
+	buf_pool_watch_clear();
 
 	if (!was_buffered) {
 		/* Page read into buffer pool or delete-buffering failed. */
