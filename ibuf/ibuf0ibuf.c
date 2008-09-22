@@ -3031,7 +3031,7 @@ ibuf_insert_low(
 
 	/* Don't buffer deletes if the page has been read in to the buffer
 	pool. */
-	if (op == IBUF_OP_DELETE && buf_pool_watch_happened(space, page_no)) {
+	if (op == IBUF_OP_DELETE && buf_pool_watch_occurred(space, page_no)) {
 		err = DB_STRONG_FAIL;
 
 		goto function_exit;
