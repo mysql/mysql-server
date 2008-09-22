@@ -84,9 +84,7 @@ trx_rseg_header_create(
 		return(FIL_NULL);
 	}
 
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
-#endif /* UNIV_SYNC_DEBUG */
 
 	page_no = buf_block_get_page_no(block);
 
