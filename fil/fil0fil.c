@@ -4317,11 +4317,11 @@ fil_io(
 #endif
 	if (sync) {
 		mode = OS_AIO_SYNC;
-	} else if (type == OS_FILE_READ && !is_log
-		   && ibuf_page(space_id, zip_size, block_offset)) {
-		mode = OS_AIO_IBUF;
 	} else if (is_log) {
 		mode = OS_AIO_LOG;
+	} else if (type == OS_FILE_READ
+		   && ibuf_page(space_id, zip_size, block_offset)) {
+		mode = OS_AIO_IBUF;
 	} else {
 		mode = OS_AIO_NORMAL;
 	}
