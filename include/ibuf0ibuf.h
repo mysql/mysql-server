@@ -337,11 +337,12 @@ Read the first two bytes from a record's fourth field (counter field in new
 records; something else in older records). */
 UNIV_INTERN
 ulint
-ibuf_rec_get_fake_counter(
-/*======================*/
-			/* out: "counter" field, or ULINT_UNDEFINED if for
-			some reason it can't be read*/
-	rec_t*	rec);	/* in: ibuf record */
+ibuf_rec_get_counter(
+/*=================*/
+				/* out: "counter" field,
+				or ULINT_UNDEFINED if for
+				some reason it can't be read */
+	const rec_t*	rec);	/* in: ibuf record */
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
