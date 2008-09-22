@@ -343,12 +343,12 @@ sub main {
 
   if ( @$completed != $num_tests){
 
-    if ($opt_force){
-      # All test should have been run, print any that are still in $tests
-      foreach my $test ( @$tests ){
-	$test->print_test();
-      }
-    }
+    #if ($opt_force){
+    #  # All test should have been run, print any that are still in $tests
+    #  foreach my $test ( @$tests ){
+    #    $test->print_test();
+    #  }
+    #}
 
     # Not all tests completed, failure
     mtr_report();
@@ -537,15 +537,20 @@ sub run_test_server ($$$) {
 
 	my $next;
 	my $second_best;
-	for(my $i= 0; $i <= $#$tests; $i++)
+	for(my $i= 0; $i <= @$tests; $i++)
 	{
 	  my $t= $tests->[$i];
+
+	  last unless defined $t;
 
 	  if (run_testcase_check_skip_test($t)){
 	    # Move the test to completed list
 	    #mtr_report("skip - Moving test $i to completed");
 	    push(@$completed, splice(@$tests, $i, 1));
-	    next;
+
+	    # Since the test at pos $i was taken away, next
+	    # test will also be at $i -> redo
+	    redo;
 	  }
 
 	  # Limit number of parallell NDB tests
@@ -575,7 +580,7 @@ sub run_test_server ($$$) {
 	# Use second best choice if no other test has been found
 	if (!$next and defined $second_best){
 	  #mtr_report("Take second best choice $second_best");
-	  mtr_error("Internal error, second best too large")
+	  mtr_error("Internal error, second best too large($second_best)")
 	    if $second_best >  $#$tests;
 	  $next= splice(@$tests, $second_best, 1);
 	}
