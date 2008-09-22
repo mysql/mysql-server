@@ -845,9 +845,7 @@ btr_search_guess_on_hash(
 
 		rw_lock_s_unlock(&btr_search_latch);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
-#endif /* UNIV_SYNC_DEBUG */
 	}
 
 	if (UNIV_UNLIKELY(buf_block_get_state(block)
@@ -1158,9 +1156,7 @@ btr_search_drop_page_hash_when_freed(
 				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
 				&mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
-#endif /* UNIV_SYNC_DEBUG */
 
 	btr_search_drop_page_hash_index(block);
 

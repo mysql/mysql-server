@@ -33,9 +33,7 @@ fut_get_ptr(
 	block = buf_page_get(space, zip_size, addr.page, rw_latch, mtr);
 	ptr = buf_block_get_frame(block) + addr.boffset;
 
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(ptr);
 }

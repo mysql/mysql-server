@@ -39,9 +39,9 @@ dict_hdr_get(
 	block = buf_page_get(DICT_HDR_SPACE, 0, DICT_HDR_PAGE_NO,
 			     RW_X_LATCH, mtr);
 	header = DICT_HDR + buf_block_get_frame(block);
-#ifdef UNIV_SYNC_DEBUG
+
 	buf_block_dbg_add_level(block, SYNC_DICT_HEADER);
-#endif /* UNIV_SYNC_DEBUG */
+
 	return(header);
 }
 
