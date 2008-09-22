@@ -43,7 +43,7 @@ clock_t times(struct tms *buf)
 
   ulint.LowPart= kernel.dwLowDateTime;
   ulint.HighPart= kernel.dwHighDateTime;
-  buf->tms_stime= ulint.QuadPart;
+  buf->tms_stime= (clock_t)ulint.QuadPart;
   buf->tms_cstime= ulint.QuadPart;
 
   ulint.LowPart= user.dwLowDateTime;
