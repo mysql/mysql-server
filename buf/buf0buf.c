@@ -1385,7 +1385,7 @@ Add watch for the given page to be read in. Caller must have the buffer pool
 mutex reserved. */
 static
 void
-buf_pool_add_watch(
+buf_pool_watch_set(
 /*===============*/
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
@@ -1397,7 +1397,7 @@ buf_pool_add_watch(
 
 	buf_pool->watch_active = TRUE;
 	buf_pool->watch_space = space;
-	buf_pool->watch_happened = FALSE;
+	buf_pool->watch_occurred = FALSE;
 	buf_pool->watch_page_no = page_no;
 }
 
@@ -1405,8 +1405,8 @@ buf_pool_add_watch(
 Stop watching if the marked page is read in. */
 UNIV_INTERN
 void
-buf_pool_remove_watch(void)
-/*=======================*/
+buf_pool_watch_clear(void)
+/*======================*/
 {
 	buf_pool_mutex_enter();
 
@@ -1422,7 +1422,7 @@ Check if the given page is being watched and has been read to the buffer
 pool. */
 UNIV_INTERN
 ibool
-buf_pool_watch_happened(
+buf_pool_watch_occurred(
 /*====================*/
 				/* out: TRUE if the given page is being
 				watched and it has been read in */
@@ -1436,7 +1436,7 @@ buf_pool_watch_happened(
 	ret = buf_pool->watch_active
 		&& space == buf_pool->watch_space
 		&& page_no == buf_pool->watch_page_no
-		&& buf_pool->watch_happened;
+		&& buf_pool->watch_occurred;
 
 	buf_pool_mutex_exit();
 
@@ -1921,7 +1921,7 @@ loop2:
 		/* Page not in buf_pool: needs to be read from file */
 
 		if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
-			buf_pool_add_watch(space, offset);
+			buf_pool_watch_set(space, offset);
 		}
 
 		buf_pool_mutex_exit();
@@ -1953,7 +1953,7 @@ loop2:
 		complete. */
 
 		if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
-			buf_pool_add_watch(space, offset);
+			buf_pool_watch_set(space, offset);
 		}
 
 		/* The page is only being read to buffer */
@@ -2517,7 +2517,7 @@ buf_page_init_low(
 Set watch happened flag. */
 UNIV_INLINE
 void
-buf_page_notify_watch(
+buf_pool_watch_notify(
 /*==================*/
 	ulint		space,	/* in: space id of page read in */
 	ulint		offset)	/* in: offset of page read in */
@@ -2528,7 +2528,7 @@ buf_page_notify_watch(
 	    && space == buf_pool->watch_space
 	    && offset == buf_pool->watch_page_no) {
 
-		buf_pool->watch_happened = TRUE;
+		buf_pool->watch_occurred = TRUE;
 	}
 }
 
@@ -2621,7 +2621,7 @@ buf_page_init(
 	}
 
 	buf_page_init_low(&block->page);
-	buf_page_notify_watch(space, offset);
+	buf_pool_watch_notify(space, offset);
 
 	ut_ad(!block->page.in_zip_hash);
 	ut_ad(!block->page.in_page_hash);
@@ -2727,7 +2727,7 @@ err_exit2:
 		mutex_enter(&block->mutex);
 
 		buf_page_init(space, offset, block);
-		buf_page_notify_watch(space, offset);
+		buf_pool_watch_notify(space, offset);
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
@@ -2804,7 +2804,7 @@ err_exit2:
 			      page_zip_get_size(&bpage->zip), bpage);
 
 		buf_page_init_low(bpage);
-		buf_page_notify_watch(space, offset);
+		buf_pool_watch_notify(space, offset);
 
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
 		bpage->space	= space;
@@ -2904,7 +2904,7 @@ buf_page_create(
 	mutex_enter(&block->mutex);
 
 	buf_page_init(space, offset, block);
-	buf_page_notify_watch(space, offset);
+	buf_pool_watch_notify(space, offset);
 
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(&block->page, FALSE);
