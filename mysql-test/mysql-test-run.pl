@@ -343,12 +343,12 @@ sub main {
 
   if ( @$completed != $num_tests){
 
-    #if ($opt_force){
-    #  # All test should have been run, print any that are still in $tests
-    #  foreach my $test ( @$tests ){
-    #    $test->print_test();
-    #  }
-    #}
+    if ($opt_force){
+      # All test should have been run, print any that are still in $tests
+      foreach my $test ( @$tests ){
+        $test->print_test();
+      }
+    }
 
     # Not all tests completed, failure
     mtr_report();
