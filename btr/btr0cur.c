@@ -708,7 +708,7 @@ retry_page_get:
 			& REC_INFO_MIN_REC_FLAG;
 
 		if (!is_min_rec) {
-			cursor->ibuf_cnt = ibuf_rec_get_fake_counter(node_ptr);
+			cursor->ibuf_cnt = ibuf_rec_get_counter(node_ptr);
 
 			ut_a(cursor->ibuf_cnt <= 0xFFFF
 			     || cursor->ibuf_cnt == ULINT_UNDEFINED);
