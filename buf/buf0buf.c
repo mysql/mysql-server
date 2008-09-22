@@ -1390,7 +1390,7 @@ buf_pool_watch_set(
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
 {
-	ut_ad(mutex_own(&buf_pool_mutex));
+	ut_ad(buf_pool_mutex_own());
 
 	/* There can't be multiple watches at the same time. */
 	ut_a(!buf_pool->watch_active);
