@@ -697,7 +697,7 @@ retry_page_get:
 	/* Go to the child node */
 	page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 
-	if (index->type & DICT_IBUF && height == level) {
+	if (dict_index_is_ibuf(index) && height == level) {
 		/* We're doing a search on an ibuf tree and we're one level
 		above the leaf page. (Assuming level == 0, which it should
 		be.) */
