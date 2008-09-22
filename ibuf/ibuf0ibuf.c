@@ -330,10 +330,7 @@ ibuf_header_page_get(
 
 	block = buf_page_get(
 		IBUF_SPACE_ID, 0, FSP_IBUF_HEADER_PAGE_NO, RW_X_LATCH, mtr);
-
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_IBUF_HEADER);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(buf_block_get_frame(block));
 }
@@ -356,9 +353,7 @@ ibuf_tree_root_get(
 	block = buf_page_get(
 		IBUF_SPACE_ID, 0, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH, mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(buf_block_get_frame(block));
 }
@@ -435,6 +430,7 @@ ibuf_init_at_db_start(void)
 	dict_index_t*	index;
 	ulint		n_used;
 	page_t*		header_page;
+	ulint		error;
 
 	ibuf = mem_alloc(sizeof(ibuf_t));
 
@@ -476,10 +472,7 @@ ibuf_init_at_db_start(void)
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, FSP_IBUF_TREE_ROOT_PAGE_NO,
 			RW_X_LATCH, &mtr);
-
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
 
 		root = buf_block_get_frame(block);
 	}
@@ -511,7 +504,9 @@ ibuf_init_at_db_start(void)
 
 	index->id = ut_dulint_add(DICT_IBUF_ID_MIN, IBUF_SPACE_ID);
 
-	dict_index_add_to_cache(table, index, FSP_IBUF_TREE_ROOT_PAGE_NO);
+	error = dict_index_add_to_cache(table, index,
+					FSP_IBUF_TREE_ROOT_PAGE_NO, FALSE);
+	ut_a(error == DB_SUCCESS);
 
 	ibuf->index = dict_table_get_first_index(table);
 }
@@ -730,9 +725,7 @@ ibuf_bitmap_get_map_page(
 	block = buf_page_get(space, zip_size,
 			     ibuf_bitmap_page_no_calc(zip_size, page_no),
 			     RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_IBUF_BITMAP);
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(buf_block_get_frame(block));
 }
@@ -1953,9 +1946,8 @@ ibuf_add_free_page(void)
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, page_no, RW_X_LATCH, &mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
-#endif /* UNIV_SYNC_DEBUG */
+
 
 		page = buf_block_get_frame(block);
 	}
@@ -2085,9 +2077,8 @@ ibuf_remove_free_page(void)
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, page_no, RW_X_LATCH, &mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 
 		page = buf_block_get_frame(block);
 	}
@@ -2600,9 +2591,8 @@ ibuf_get_volume_buffered(
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, prev_page_no, RW_X_LATCH, mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 
 		prev_page = buf_block_get_frame(block);
 	}
@@ -2675,9 +2665,8 @@ count_later:
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, next_page_no, RW_X_LATCH, mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
+
 
 		next_page = buf_block_get_frame(block);
 	}
@@ -3775,9 +3764,7 @@ loop:
 
 		ut_a(success);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
 	}
 
 	/* Position pcur in the insert buffer at the first entry for this

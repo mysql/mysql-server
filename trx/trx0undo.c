@@ -457,9 +457,8 @@ trx_undo_seg_create(
 		return(DB_OUT_OF_FILE_SPACE);
 	}
 
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 	*undo_page = buf_block_get_frame(block);
 
 	page_hdr = *undo_page + TRX_UNDO_PAGE_HDR;

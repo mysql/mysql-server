@@ -187,9 +187,7 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 
 	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
 			     RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 
 	doublewrite = buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE;
 
@@ -233,9 +231,7 @@ start_again:
 
 	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
 			     RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 
 	doublewrite = buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE;
 
@@ -272,9 +268,7 @@ start_again:
 		/* fseg_create acquires a second latch on the page,
 		therefore we must declare it: */
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block2, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 
 		if (block2 == NULL) {
 			fprintf(stderr,
@@ -321,10 +315,8 @@ start_again:
 
 			new_block = buf_page_get(TRX_SYS_SPACE, 0, page_no,
 						 RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 			buf_block_dbg_add_level(new_block,
 						SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 
 			/* Make a dummy change to the page to ensure it will
 			be written to disk in a flush */
@@ -902,9 +894,8 @@ trx_sysf_create(
 	/* Create the trx sys file block in a new allocated file segment */
 	block = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
 			    mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
-#endif /* UNIV_SYNC_DEBUG */
+
 	ut_a(buf_block_get_page_no(block) == TRX_SYS_PAGE_NO);
 
 	page = buf_block_get_frame(block);

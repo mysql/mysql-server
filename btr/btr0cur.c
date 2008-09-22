@@ -433,7 +433,6 @@ btr_cur_search_to_nth_level(
 	}
 #endif /* BTR_CUR_HASH_ADAPT */
 #endif /* BTR_CUR_ADAPT */
-
 	btr_cur_n_non_sea++;
 
 	/* If the hash search did not succeed, do binary search down the
@@ -614,11 +613,10 @@ retry_page_get:
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
-#ifdef UNIV_SYNC_DEBUG
 	if (rw_latch != RW_NO_LATCH) {
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 	}
-#endif
+
 	ut_ad(0 == ut_dulint_cmp(index->id, btr_page_get_index_id(page)));
 
 	if (UNIV_UNLIKELY(height == ULINT_UNDEFINED)) {
@@ -3975,10 +3973,8 @@ btr_store_big_rec_extern_fields(
 				prev_block = buf_page_get(space_id, zip_size,
 							  prev_page_no,
 							  RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 				buf_block_dbg_add_level(prev_block,
 							SYNC_EXTERN_STORAGE);
-#endif /* UNIV_SYNC_DEBUG */
 				prev_page = buf_block_get_frame(prev_block);
 
 				if (UNIV_LIKELY_NULL(page_zip)) {
@@ -4073,10 +4069,9 @@ btr_store_big_rec_extern_fields(
 				rec_block = buf_page_get(space_id, zip_size,
 							 rec_page_no,
 							 RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 				buf_block_dbg_add_level(rec_block,
 							SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 				if (err == Z_STREAM_END) {
 					mach_write_to_4(field_ref
 							+ BTR_EXTERN_LEN, 0);
@@ -4152,10 +4147,8 @@ next_zip_page:
 				rec_block = buf_page_get(space_id, zip_size,
 							 rec_page_no,
 							 RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 				buf_block_dbg_add_level(rec_block,
 							SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 
 				mlog_write_ulint(field_ref + BTR_EXTERN_LEN, 0,
 						 MLOG_4BYTES, &mtr);
@@ -4299,9 +4292,7 @@ btr_free_externally_stored_field(
 					 page_get_page_no(
 						 page_align(field_ref)),
 					 RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(rec_block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 		page_no = mach_read_from_4(field_ref + BTR_EXTERN_PAGE_NO);
 
 		if (/* There is no external storage data */
@@ -4322,9 +4313,7 @@ btr_free_externally_stored_field(
 
 		ext_block = buf_page_get(space_id, ext_zip_size, page_no,
 					 RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(ext_block, SYNC_EXTERN_STORAGE);
-#endif /* UNIV_SYNC_DEBUG */
 		page = buf_block_get_frame(ext_block);
 
 		if (ext_zip_size) {
@@ -4514,9 +4503,7 @@ btr_copy_blob_prefix(
 		mtr_start(&mtr);
 
 		block = buf_page_get(space_id, 0, page_no, RW_S_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
-#endif /* UNIV_SYNC_DEBUG */
 		page = buf_block_get_frame(block);
 
 		/* Unfortunately, FIL_PAGE_TYPE was uninitialized for
