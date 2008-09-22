@@ -999,7 +999,8 @@ ibuf_fixed_addr_page(
 }
 
 /***************************************************************************
-Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages. */
+Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
+Must not be called when recv_no_ibuf_operations==TRUE. */
 UNIV_INTERN
 ibool
 ibuf_page(
@@ -1016,6 +1017,8 @@ ibuf_page(
 	ibool	ret;
 	mtr_t	local_mtr;
 	page_t*	bitmap_page;
+
+	ut_ad(!recv_no_ibuf_operations);
 
 	if (ibuf_fixed_addr_page(space, zip_size, page_no)) {
 
