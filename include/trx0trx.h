@@ -406,6 +406,15 @@ trx_is_interrupted(
 #define trx_is_interrupted(trx) FALSE
 #endif /* !UNIV_HOTBACKUP */
 
+/**************************************************************************
+Determines if the currently running transaction is in innodb_strict_mode. */
+UNIV_INTERN
+ibool
+trx_is_strict(
+/*==========*/
+			/* out: TRUE if strict */
+	trx_t*	trx);	/* in: transaction */
+
 /***********************************************************************
 Calculates the "weight" of a transaction. The weight of one transaction
 is estimated as the number of altered rows + the number of locked rows.

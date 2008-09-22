@@ -216,8 +216,6 @@ dict_build_table_def_step(
 	const char*	path_or_name;
 	ibool		is_path;
 	mtr_t		mtr;
-	ulint		i;
-	ulint		row_len;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -226,14 +224,6 @@ dict_build_table_def_step(
 	table->id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
 	thr_get_trx(thr)->table_id = table->id;
-
-	row_len = 0;
-	for (i = 0; i < table->n_def; i++) {
-		row_len += dict_col_get_min_size(&table->cols[i]);
-	}
-	if (row_len > BTR_PAGE_MAX_REC_SIZE) {
-		return(DB_TOO_BIG_RECORD);
-	}
 
 	if (srv_file_per_table) {
 		/* We create a new single-table tablespace for the table.
@@ -1089,7 +1079,7 @@ dict_create_index_step(
 		dulint	index_id = node->index->id;
 
 		err = dict_index_add_to_cache(node->table, node->index,
-					      FIL_NULL);
+					      FIL_NULL, trx_is_strict(trx));
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
 		ut_a(!node->index == (err != DB_SUCCESS));

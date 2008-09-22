@@ -1253,9 +1253,7 @@ recv_recover_page(
 						    &mtr);
 		ut_a(success);
 
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
 	}
 
 	/* Read the newest modification lsn from the page */
@@ -1491,10 +1489,9 @@ loop:
 					block = buf_page_get(
 						space, zip_size, page_no,
 						RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
 					buf_block_dbg_add_level(
 						block, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
+
 					recv_recover_page(FALSE, FALSE, block);
 					mtr_commit(&mtr);
 				} else {

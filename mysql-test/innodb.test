@@ -2343,6 +2343,7 @@ DROP TABLE t1,t2;
 #
 # Bug #21101 (Prints wrong error message if max row size is too large)
 #
+set innodb_strict_mode=on;
 --error 1118
 CREATE TABLE t1 (
 	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),

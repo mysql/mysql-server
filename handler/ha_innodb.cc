@@ -94,6 +94,16 @@ static bool innodb_inited = 0;
 
 #define INSIDE_HA_INNOBASE_CC
 
+/* In the Windows plugin, the return value of current_thd is
+undefined.  Map it to NULL. */
+#if defined MYSQL_DYNAMIC_PLUGIN && defined __WIN__
+# undef current_thd
+# define current_thd NULL
+# define EQ_CURRENT_THD(thd) TRUE
+#else /* MYSQL_DYNAMIC_PLUGIN && __WIN__ */
+# define EQ_CURRENT_THD(thd) ((thd) == current_thd)
+#endif /* MYSQL_DYNAMIC_PLUGIN && __WIN__ */
+
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* These must be weak global variables in the dynamic plugin. */
 struct handlerton* innodb_hton_ptr;
@@ -652,6 +662,18 @@ thd_is_select(
 	return(thd_sql_command((const THD*) thd) == SQLCOM_SELECT);
 }
 
+/**********************************************************************
+Returns true if the thread is executing in innodb_strict_mode. */
+
+ibool
+thd_is_strict(
+/*==========*/
+			/* out: true if thd is in strict mode */
+	void*	thd)	/* in: thread handle (THD*) */
+{
+	return(THDVAR((THD*) thd, strict_mode));
+}
+
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
 inline
@@ -1076,7 +1098,7 @@ check_trx_exists(
 {
 	trx_t*&	trx = thd_to_trx(thd);
 
-	ut_ad(thd == current_thd);
+	ut_ad(EQ_CURRENT_THD(thd));
 
 	if (trx == NULL) {
 		DBUG_ASSERT(thd != NULL);
@@ -1169,7 +1191,7 @@ ha_innobase::update_thd()
 /*=====================*/
 {
 	THD*	thd = ha_thd();
-	ut_ad(thd == current_thd);
+	ut_ad(EQ_CURRENT_THD(thd));
 	update_thd(thd);
 }
 
@@ -2550,7 +2572,7 @@ ha_innobase::table_flags() const
 {
        /* Need to use tx_isolation here since table flags is (also)
           called before prebuilt is inited. */
-        ulong const tx_isolation = thd_tx_isolation(current_thd);
+        ulong const tx_isolation = thd_tx_isolation(ha_thd());
         if (tx_isolation <= ISO_READ_COMMITTED)
                 return int_table_flags;
         return int_table_flags | HA_BINLOG_STMT_CAPABLE;
@@ -2905,7 +2927,7 @@ ha_innobase::close(void)
 
 	DBUG_ENTER("ha_innobase::close");
 
-	thd = current_thd;  // avoid calling current_thd twice, it may be slow
+	thd = ha_thd();
 	if (thd != NULL) {
 		innobase_release_temporary_latches(ht, thd);
 	}
@@ -6155,7 +6177,6 @@ innobase_drop_database(
 			the database name is 'test' */
 {
 	ulint	len		= 0;
-	trx_t*	parent_trx;
 	trx_t*	trx;
 	char*	ptr;
 	int	error;
@@ -6167,12 +6188,16 @@ innobase_drop_database(
 
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	parent_trx = check_trx_exists(thd);
+	/* In the Windows plugin, thd = current_thd is always NULL */
+	if (thd) {
+		trx_t*	parent_trx = check_trx_exists(thd);
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
+		/* In case MySQL calls this in the middle of a SELECT
+		query, release possible adaptive hash latch to avoid
+		deadlocks of threads */
 
-	trx_search_latch_release_if_reserved(parent_trx);
+		trx_search_latch_release_if_reserved(parent_trx);
+	}
 
 	ptr = strend(path) - 2;
 
@@ -6192,10 +6217,15 @@ innobase_drop_database(
 #endif
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = thd;
-	trx->mysql_query_str = thd_query(thd);
+	if (thd) {
+		trx->mysql_query_str = thd_query(thd);
 
-	if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-		trx->check_foreigns = FALSE;
+		if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
+			trx->check_foreigns = FALSE;
+		}
+	} else {
+		/* In the Windows plugin, thd = current_thd is always NULL */
+		trx->mysql_query_str = NULL;
 	}
 
 	error = row_drop_database_for_mysql(namebuf, trx);
@@ -7409,7 +7439,7 @@ ha_innobase::external_lock(
 	if (lock_type == F_WRLCK)
 	{
 		ulong const binlog_format= thd_binlog_format(thd);
-		ulong const tx_isolation = thd_tx_isolation(current_thd);
+		ulong const tx_isolation = thd_tx_isolation(ha_thd());
 		if (tx_isolation <= ISO_READ_COMMITTED &&
 		    binlog_format == BINLOG_FORMAT_STMT)
 		{
@@ -7978,7 +8008,7 @@ ha_innobase::store_lock(
 		}
 	}
 
-	DBUG_ASSERT(thd == current_thd);
+	DBUG_ASSERT(EQ_CURRENT_THD(thd));
 	const bool in_lock_tables = thd_in_lock_tables(thd);
 	const uint sql_command = thd_sql_command(thd);
 

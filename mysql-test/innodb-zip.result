@@ -122,15 +122,29 @@ table_schema	table_name	row_format
 test	t1	Compressed
 test	t2	Compact
 drop table t1,t2;
+SET SESSION innodb_strict_mode = on;
 CREATE TABLE t1(
 c TEXT NOT NULL, d TEXT NOT NULL,
 PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-INSERT INTO t1 VALUES(
-'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~(*,.02468:<>@BDFHJLNPRTVXZ\^`bdfhjlnprtvxz|~)+-/13579;=?ACEGIKMOQSUWY[]_acegikmoqsuwy{}(+.147:=@CFILORUX[^adgjmpsvy|(+.147:=@CFILORUX[^adgjmpsvy|(+.147:=@CFILORUX[^adgjmpsvy|(,048<@DHLPTX\`dhlptx|)-159=AEIMQUY]aeimquy}*.26:>BFJNRVZ^bfjnrvz~+/37;?CGKOSW[_cgkosw{(-27<AFKPUZ_dinsx}+05:?DINSX]bglqv{).38=BGLQV[`ejoty~,16;@EJOTY^chmrw|*/49>CHMRW\afkpuz(.4:@FLRX^djpv|+17=CIOU[agmsy(.4:@FLRX^djpv|+17=CIOU[agmsy(.4:@FLRX^djpv|+17=CIOU[agmsy(/6=DKRY`gnu|,3:AHOV]dkry)07>ELSZahov}-4;BIPW^elsz*18?FMT[bipw~.5<CJQX_fmt{+29@GNU\cjqx(08@HPX`hpx)19AIQYaiqy*2:BJRZbjrz+3;CKS[cks{,4<DLT\dlt|-5=EMU]emu}.6>FNV^fnv~/7?GOW_gow(1:CLU^gpy+4=FOXajs|.7@IR[dmv(1:CLU^gpy+4=FOXajs|.7@IR[dmv(1:CLU^gpy+4=',
-'FOXajs|.7@IR[dmv(2<FPZdnx+5?IS]gq{.8BLV`jt~1;EOYcmw*4>HR\fpz-7AKU_is}0:DNXblv)3=GQ[eoy,6@JT^hr|/9CMWaku(3>IT_ju)4?JU`kv*5@KValw+6ALWbmx,7BMXcny-8CNYdoz.9DOZep{/:EP[fq|0;FQ\gr}1<GR]hs~2=HS^it(4@LXdp|1=IUamy.:FR^jv+7CO[gs(4@LXdp|1=IUamy.:FR^jv+7CO[gs(4@LXdp|1=IUamy.:FR^jv+7CO[gs(5BO\iv,9FS`mz0=JWdq~4AN[hu+8ER_ly/<IVcp}3@MZgt*7DQ^kx.;HUbo|2?LYfs)6CP]jw-:GTan{1>KXer(6DR`n|3AO]ky0>LZhv-;IWes*8FTbp~5CQ_m{2@N\jx/=KYgu,:HVdr)7ESao}4BP^lz1?M[iw.<JXft+9GUcq(7FUds+:IXgv.=L[jy1@O^m|4CRap(7FUds+:IXgv.=L[jy1@O^m|4CRap(7FUds+:IXgv.=L[jy1@O^m|4CRap(8HXhx1AQaq*:JZjz3CScs,<L\l|5EUeu.>N^n~7GWgw0@P`p)9IYiy2BRbr+;K[k{4DTdt-=M]m}6FVfv/?O_o(9J[l}7HYj{5FWhy3DUfw1BSdu/@Qbs->O`q+<M^o):K\m~8IZk|6GXiz4EVgx2CTev0ARct.?Par,=N_p*;L]n(:L^p+=Oas.@Rdv1CUgy4FXj|7I[m(:L^p+=Oas.@Rdv1CUgy4FXj|7');
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1(
+c TEXT NOT NULL, d TEXT NOT NULL,
+PRIMARY KEY (c(767),d(767)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=ASCII;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1(
+c TEXT NOT NULL, d TEXT NOT NULL,
+PRIMARY KEY (c(767),d(767)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
 drop table t1;
+CREATE TABLE t1(c TEXT, PRIMARY KEY (c(440)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+CREATE TABLE t1(c TEXT, PRIMARY KEY (c(439)))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
+DROP TABLE t1;
 create table t1( c1 int not null, c2 blob, c3 blob, c4 blob,
 primary key(c1, c2(22), c3(22)))
 engine = innodb row_format = dynamic;

@@ -345,9 +345,8 @@ fsp_get_space_header(
 
 	block = buf_page_get(id, zip_size, 0, RW_X_LATCH, mtr);
 	header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 	ut_ad(id == mach_read_from_4(FSP_SPACE_ID + header));
 	ut_ad(zip_size == dict_table_flags_to_zip_size(
 		      mach_read_from_4(FSP_SPACE_FLAGS + header)));
@@ -730,9 +729,8 @@ xdes_get_descriptor_with_space_hdr(
 
 		block = buf_page_get(space, zip_size, descr_page_no,
 				     RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		descr_page = buf_block_get_frame(block);
 	}
 
@@ -765,9 +763,8 @@ xdes_get_descriptor(
 	fsp_header_t*	sp_header;
 
 	block = buf_page_get(space, zip_size, 0, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 	sp_header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
 	return(xdes_get_descriptor_with_space_hdr(sp_header, space, offset,
 						  mtr));
@@ -948,9 +945,7 @@ fsp_header_init(
 	zip_size = dict_table_flags_to_zip_size(flags);
 	block = buf_page_create(space, 0, zip_size, mtr);
 	buf_page_get(space, zip_size, 0, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* The prior contents of the file page should be ignored */
 
@@ -1380,10 +1375,9 @@ fsp_fill_free_list(
 					space, i, zip_size, mtr);
 				buf_page_get(space, zip_size, i,
 					     RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 				buf_block_dbg_add_level(block,
 							SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 				fsp_init_file_page(block, mtr);
 				mlog_write_ulint(buf_block_get_frame(block)
 						 + FIL_PAGE_TYPE,
@@ -1404,9 +1398,8 @@ fsp_fill_free_list(
 			buf_page_get(space, zip_size,
 				     i + FSP_IBUF_BITMAP_OFFSET,
 				     RW_X_LATCH, &ibuf_mtr);
-#ifdef UNIV_SYNC_DEBUG
 			buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 			fsp_init_file_page(block, &ibuf_mtr);
 
 			ibuf_bitmap_page_init(block, &ibuf_mtr);
@@ -1637,9 +1630,7 @@ fsp_alloc_free_page(
 	buf_page_create(space, page_no, zip_size, mtr);
 
 	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* Prior contents of the page should be ignored */
 	fsp_init_file_page(block, mtr);
@@ -1881,9 +1872,7 @@ fsp_alloc_seg_inode_page(
 	}
 
 	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
 
 	block->check_index_page_at_flush = FALSE;
 
@@ -1941,9 +1930,8 @@ fsp_alloc_seg_inode(
 		mach_read_from_4(FSP_SPACE_FLAGS + space_header));
 	block = buf_page_get(page_get_space_id(page_align(space_header)),
 			     zip_size, page_no, RW_X_LATCH, mtr);
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 	page = buf_block_get_frame(block);
 
 	n = fsp_seg_inode_page_find_free(page, 0, zip_size, mtr);
@@ -2714,9 +2702,8 @@ fseg_alloc_free_page_low(
 			mach_read_from_4(FSP_SPACE_FLAGS + space_header));
 
 		block = buf_page_create(space, ret_page, zip_size, mtr);
-#ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
+
 		if (UNIV_UNLIKELY(block != buf_page_get(space, zip_size,
 							ret_page, RW_X_LATCH,
 							mtr))) {
