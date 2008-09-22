@@ -64,6 +64,11 @@ BEGIN {
 #  in cygwin perl (that uses unix paths)
 #
 
+use Memoize;
+memoize('mixed_path');
+memoize('native_path');
+memoize('posix_path');
+
 sub mixed_path {
   my ($path)= @_;
   if (IS_CYGWIN){
@@ -76,14 +81,12 @@ sub mixed_path {
   return $path;
 }
 
-
 sub native_path {
   my ($path)= @_;
   $path=~ s/\//\\/g
     if (IS_CYGWIN or IS_WIN32PERL);
   return $path;
 }
-
 
 sub posix_path {
   my ($path)= @_;
