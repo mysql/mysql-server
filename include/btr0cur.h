@@ -673,10 +673,10 @@ struct btr_cur_struct {
 					record' flag set), this is
 					ULINT_UNDEFINED. */
 	ibool		leaf_in_buf_pool;
-					/* in: in searches done with
-					BTR_CHECK_LEAF, this is TRUE if the
-					leaf page is in the buffer pool,
-					FALSE otherwise. */
+					/* TRUE if the leaf page is in
+					the buffer pool while searching
+					with BTR_WATCH_LEAF; FALSE
+					otherwise. */
 	/*------------------------------*/
 	btr_path_t*	path_arr;	/* in estimating the number of
 					rows in range, we store in this array
