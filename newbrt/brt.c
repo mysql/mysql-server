@@ -257,6 +257,7 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
     struct brt_header *h;
     int r = toku_deserialize_brtheader_from(toku_cachefile_fd(cf), make_blocknum(0), &h);
     if (r!=0) return r;
+    h->root_put_counter = global_root_put_counter++; 
     toku_cachefile_set_userdata(cf, (void*)h, toku_brtheader_close);
     *header = h;
     return 0;
