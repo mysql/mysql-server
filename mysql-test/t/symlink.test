@@ -80,7 +80,7 @@ create database mysqltest;
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="/this-dir-does-not-exist";
 
 # temporarily disabled as it returns different result in the embedded server
-# --error 1210, 1210
+# --error ER_WRONG_ARGUMENTS,ER_WRONG_ARGUMENTS
 # create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="not-hard-path";
 
 # Should fail becasue the file t9.MYI already exist in 'run'
@@ -204,19 +204,19 @@ deallocate prepare stmt;
 # Bug#32167 another privilege bypass with DATA/INDEX DIRECORY
 #
 --replace_result $MYSQL_TEST_DIR TEST_DIR
---error 1,1210
+--error 1,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQL_TEST_DIR/var/master-data/test';
 --replace_result $MYSQL_TEST_DIR TEST_DIR
---error 1,1210
+--error 1,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQL_TEST_DIR/var/master-data/';
 --replace_result $MYSQL_TEST_DIR TEST_DIR
---error 1,1210
+--error 1,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQL_TEST_DIR/var/master-data';
 --replace_result $MYSQL_TEST_DIR TEST_DIR
---error 1,1210
+--error 1,ER_WRONG_ARGUMENTS
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQL_TEST_DIR/var/master-data_var';
 
