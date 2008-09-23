@@ -183,7 +183,7 @@ const int uncompressed_magic_len = (8 // tokuleaf or tokunode
 const int compression_header_len = (4 // compressed_len
 				    +4); // uncompressed_len
 
-void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, BRT brt) {
+void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h) {
     //printf("%s:%d serializing\n", __FILE__, __LINE__);
     struct wbuf w;
     int i;
@@ -313,33 +313,33 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, BRT brt
 	lock_for_pwrite();
 	// If the node has never been written, then write the whole buffer, including the zeros
 	assert(blocknum.b>=0);
-	//printf("%s:%d brt=%p\n", __FILE__, __LINE__, brt);
-	//printf("%s:%d translated_blocknum_limit=%lu blocknum.b=%lu\n", __FILE__, __LINE__, brt->h->translated_blocknum_limit, blocknum.b);
-	//printf("%s:%d allocator=%p\n", __FILE__, __LINE__, brt->h->block_allocator);
-	//printf("%s:%d bt=%p\n", __FILE__, __LINE__, brt->h->block_translation);
-	if (brt->h->translated_blocknum_limit <= (u_int64_t)blocknum.b) {
-	    if (brt->h->block_translation == 0) assert(brt->h->translated_blocknum_limit==0);
+	//printf("%s:%d h=%p\n", __FILE__, __LINE__, h);
+	//printf("%s:%d translated_blocknum_limit=%lu blocknum.b=%lu\n", __FILE__, __LINE__, h->translated_blocknum_limit, blocknum.b);
+	//printf("%s:%d allocator=%p\n", __FILE__, __LINE__, h->block_allocator);
+	//printf("%s:%d bt=%p\n", __FILE__, __LINE__, h->block_translation);
+	if (h->translated_blocknum_limit <= (u_int64_t)blocknum.b) {
+	    if (h->block_translation == 0) assert(h->translated_blocknum_limit==0);
 	    u_int64_t new_limit = blocknum.b + 1;
-	    u_int64_t old_limit = brt->h->translated_blocknum_limit;
+	    u_int64_t old_limit = h->translated_blocknum_limit;
 	    u_int64_t j;
-	    XREALLOC_N(new_limit, brt->h->block_translation);
+	    XREALLOC_N(new_limit, h->block_translation);
 	    for (j=old_limit; j<new_limit; j++) {
-		brt->h->block_translation[j].diskoff = 0;
-		brt->h->block_translation[j].size    = 0;
+		h->block_translation[j].diskoff = 0;
+		h->block_translation[j].size    = 0;
 	    }
-	    brt->h->translated_blocknum_limit = new_limit;
+	    h->translated_blocknum_limit = new_limit;
 	}
-	if (brt->h->block_translation[blocknum.b].size > 0) {
-	    block_allocator_free_block(brt->h->block_allocator, brt->h->block_translation[blocknum.b].diskoff);
-	    brt->h->block_translation[blocknum.b].diskoff = 0;
-	    brt->h->block_translation[blocknum.b].size    = 0;
+	if (h->block_translation[blocknum.b].size > 0) {
+	    block_allocator_free_block(h->block_allocator, h->block_translation[blocknum.b].diskoff);
+	    h->block_translation[blocknum.b].diskoff = 0;
+	    h->block_translation[blocknum.b].size    = 0;
 	}
-	brt->h->dirty = 1; // Allocating a block dirties the header.
+	h->dirty = 1; // Allocating a block dirties the header.
 	size_t n_to_write = uncompressed_magic_len + compression_header_len + compressed_len;
 	u_int64_t offset;
-	block_allocator_alloc_block(brt->h->block_allocator, n_to_write, &offset);
-	brt->h->block_translation[blocknum.b].diskoff = offset;
-	brt->h->block_translation[blocknum.b].size = n_to_write;
+	block_allocator_alloc_block(h->block_allocator, n_to_write, &offset);
+	h->block_translation[blocknum.b].diskoff = offset;
+	h->block_translation[blocknum.b].size = n_to_write;
 	ssize_t r=toku_pwrite(fd, compressed_buf, n_to_write, offset);
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
 	assert(r==(ssize_t)n_to_write);
