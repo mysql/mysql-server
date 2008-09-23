@@ -127,12 +127,14 @@ struct brt_header {
     int layout_version;
     unsigned int nodesize;
     int n_named_roots; /* -1 if the only one is unnamed */
-    char  **names;             // an array of names.  NULL if subdatabases are not allowed.
+    char  **names;              // an array of names.  NULL if subdatabases are not allowed.
     BLOCKNUM *roots;            // An array of the roots of the various dictionaries.  Element 0 holds the element if no subdatabases allowed.
     struct remembered_hash *root_hashes;     // an array of hashes of the root offsets.
-    unsigned int *flags_array; // an array of flags.  Element 0 holds the element if no subdatabases allowed.
+    unsigned int *flags_array;  // an array of flags.  Element 0 holds the element if no subdatabases allowed.
     
     FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
+
+    u_int64_t root_put_counter; // the generation number of the brt
 
     // This is the map from block numbers to offsets
     //int n_blocks, n_blocks_array_size;
@@ -173,7 +175,6 @@ struct brt {
 
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
     u_int64_t txn_that_created; // which txn created it.  Use  0 if no such txn.
-    u_int64_t root_put_counter;
 
 };
 

@@ -2166,7 +2166,7 @@ static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
     // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, t->h->translated_blocknum_limit, t->h->block_translation_address_on_disk);
     create_block_allocator(&t->h->block_allocator, t->nodesize, BLOCK_ALLOCATOR_ALIGNMENT);
     toku_fifo_create(&t->h->fifo);
-    t->root_put_counter = global_root_put_counter++; 
+    t->h->root_put_counter = global_root_put_counter++; 
     if (dbname) {
         t->h->n_named_roots = 1;
         if ((MALLOC_N(1, t->h->names))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: if (dbname) toku_free(t->h->names); } goto died3; }
@@ -2589,7 +2589,7 @@ int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger) {
     //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
     assert(brt->h);
 
-    brt->root_put_counter = global_root_put_counter++;
+    brt->h->root_put_counter = global_root_put_counter++;
     u_int32_t fullhash;
     rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
     //assert(fullhash==toku_cachetable_hash(brt->cf, *rootp));
@@ -3005,7 +3005,7 @@ int toku_brt_search(BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOK
 
     assert(brt->h);
 
-    *root_put_counter = brt->root_put_counter;
+    *root_put_counter = brt->h->root_put_counter;
 
     u_int32_t fullhash;
     CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
@@ -3368,7 +3368,7 @@ static int brt_cursor_next_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
 {
     if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
 	{
-	    u_int64_t h_counter = cursor->brt->root_put_counter;
+	    u_int64_t h_counter = cursor->brt->h->root_put_counter;
 	    if (h_counter != cursor->root_put_counter) return -1;
 	}
 	OMTVALUE le;
@@ -3406,7 +3406,7 @@ int toku_brt_cursor_peek_prev(BRT_CURSOR cursor, DBT *outkey, DBT *outval) {
     if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
 	{
 	    assert(cursor->brt->h);
-	    u_int64_t h_counter = cursor->brt->root_put_counter;
+	    u_int64_t h_counter = cursor->brt->h->root_put_counter;
 	    if (h_counter != cursor->root_put_counter) return -1;
 	}
 	OMTVALUE le;
@@ -3432,7 +3432,7 @@ int toku_brt_cursor_peek_next(BRT_CURSOR cursor, DBT *outkey, DBT *outval) {
     if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
 	{
 	    assert(cursor->brt->h);
-	    u_int64_t h_counter = cursor->brt->root_put_counter;
+	    u_int64_t h_counter = cursor->brt->h->root_put_counter;
 	    if (h_counter != cursor->root_put_counter) return -1;
 	}
 	OMTVALUE le;
@@ -3521,7 +3521,7 @@ static int brt_cursor_prev_shortcut (BRT_CURSOR cursor, DBT *outkey, DBT *outval
 {
     if (toku_omt_cursor_is_valid(cursor->omtcursor)) {
 	{
-	    u_int64_t h_counter = cursor->brt->root_put_counter;
+	    u_int64_t h_counter = cursor->brt->h->root_put_counter;
 	    if (h_counter != cursor->root_put_counter) return -1;
 	}
 	OMTVALUE le;
