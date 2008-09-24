@@ -368,6 +368,10 @@ row_purge_remove_sec_if_poss_low(
 
 	mtr_start(&mtr);
 
+	/* Set the query thread, so that ibuf_insert_low() will be
+	able to invoke thd_get_trx(). */
+	btr_cur->thr = que_node_get_parent(node);
+
 	row_search_index_entry(&was_buffered, index, entry,
 			       BTR_MODIFY_LEAF | BTR_DELETE, &pcur,
 			       &mtr);
