@@ -3430,8 +3430,9 @@ ibuf_delete(
 		block, index, entry, PAGE_CUR_LE, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
-		page_t*		page;
-		rec_t*		rec = page_cur_get_rec(&page_cur);
+		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
+		page_t*		page	= buf_block_get_frame(block);
+		rec_t*		rec	= page_cur_get_rec(&page_cur);
 
 		/* TODO: the below should probably be a separate function,
 		it's a bastardized version of btr_cur_optimistic_delete. */
@@ -3448,14 +3449,24 @@ ibuf_delete(
 
 		lock_update_delete(block, rec);
 
-		page = buf_block_get_frame(block);
-
-		max_ins_size = page_get_max_insert_size_after_reorganize(
-			page, 1);
-
+		if (!page_zip) {
+			max_ins_size
+				= page_get_max_insert_size_after_reorganize(
+					page, 1);
+		}
+#ifdef UNIV_ZIP_DEBUG
+		ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
 		page_cur_delete_rec(&page_cur, index, offsets, mtr);
+#ifdef UNIV_ZIP_DEBUG
+		ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
 
-		ibuf_update_free_bits_low(block, max_ins_size, mtr);
+		if (page_zip) {
+			ibuf_update_free_bits_zip(block, mtr);
+		} else {
+			ibuf_update_free_bits_low(block, max_ins_size, mtr);
+		}
 
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
