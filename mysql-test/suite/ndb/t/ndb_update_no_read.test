@@ -196,3 +196,135 @@ select * from t1 where b = 6 order by a;
 
 drop table t1;
 
+#Bug 37153 Ndb cluster reports affected rows incorrectly
+create table t1 (a int primary key,
+                 b varchar(4))
+engine=ndb;
+# Show warning and count info
+--enable_info 
+
+insert into t1 values (1, '1'), (2, '2'), (3, '3');
+
+# Autocommit, successful update
+--echo
+--echo # expected result 1 roundtrip
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 0 - update the row
+--echo # 1 - update+commit the row
+--echo # Rows matched=changed=affected=1
+--echo 
+--source include/ndb_init_execute_count.inc
+update t1 set b='two' where a=2;
+--source include/ndb_execute_count.inc
+
+
+# Autocommit, unsuccessful update
+--echo
+--echo # expected result 1 roundtrip
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 0 - update the row
+--echo # 1 - update+commit the row
+--echo # Rows matched=changed=affected=0
+--echo 
+--source include/ndb_init_execute_count.inc
+update t1 set b='lots' where a=2000;
+--source include/ndb_execute_count.inc
+
+# Autocommit, successful update + warning
+--echo
+--echo # expected result 1 roundtrip
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 0 - update the row
+--echo # 1 - update+commit the row
+--echo # Rows matched=changed=affected=1
+--echo # 1 warning
+--echo 
+--source include/ndb_init_execute_count.inc
+update t1 set b='one plus one' where a=2;
+--source include/ndb_execute_count.inc
+
+
+# Autocommit, unsuccessful update + warning
+--echo
+--echo # expected result 1 roundtrip
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 0 - update the row
+--echo # 1 - update+commit the row
+--echo # Rows matched=changed=affected=0
+--echo # 1 warning
+--echo 
+--source include/ndb_init_execute_count.inc
+update t1 set b='two thousand' where a=2000;
+--source include/ndb_execute_count.inc
+
+
+# No autocommit, successful update
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 1 - update the row
+--echo # 1 - commit
+--echo # Rows matched=changed=affected=1
+--echo 
+--source include/ndb_init_execute_count.inc
+begin;
+update t1 set b='two' where a=2;
+commit;
+--source include/ndb_execute_count.inc
+
+
+# No autocommit, unsuccessful update
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 1 - update the row
+--echo # 1 - commit
+--echo # Rows matched=changed=affected=0
+--echo 
+--source include/ndb_init_execute_count.inc
+begin;
+update t1 set b='lots' where a=2000;
+commit;
+--source include/ndb_execute_count.inc
+
+
+# No autocommit, successful update + warning
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 1 - update the row
+--echo # 1 - commit
+--echo # Rows matched=changed=affected=1
+--echo 1 warning
+--echo 
+--source include/ndb_init_execute_count.inc
+begin;
+update t1 set b='one plus one' where a=2;
+commit;
+--source include/ndb_execute_count.inc
+
+
+# No autocommit, unsuccessful update + warning
+--echo
+--echo # expected result 2 roundtrips
+--echo # 0 - info call
+--echo # 0 - read the row
+--echo # 1 - update the row
+--echo # 1 - commit
+--echo # Rows matched=changed=affected=0
+--echo # 1 warning
+--echo 
+--source include/ndb_init_execute_count.inc
+begin;
+update t1 set b='two thousand' where a=2000;
+commit;
+--source include/ndb_execute_count.inc
+
+drop table t1;
