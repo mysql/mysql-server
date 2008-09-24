@@ -1,3 +1,10 @@
+2008-09-19	The InnoDB Team
+
+	* os/os0proc.c:
+	Fix a memory leak on Windows. The memory leak was due to wrong
+	parameters passed into VirtualFree() call. As the result, the
+	call fails with Windows error 87.
+
 2008-09-17	The InnoDB Team
 
 	* mysql-test/innodb.result, mysql-test/innodb-zip.result,

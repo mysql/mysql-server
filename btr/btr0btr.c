@@ -121,10 +121,14 @@ btr_root_block_get(
 	ut_a((ibool)!!page_is_comp(buf_block_get_frame(block))
 	     == dict_table_is_comp(index->table));
 #ifdef UNIV_BTR_DEBUG
-	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
-				    + buf_block_get_frame(block), space));
-	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
-				    + buf_block_get_frame(block), space));
+	if (!dict_index_is_ibuf(index)) {
+		const page_t*	root = buf_block_get_frame(block);
+
+		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
+					    + root, space));
+		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
+					    + root, space));
+	}
 #endif /* UNIV_BTR_DEBUG */
 
 	return(block);
@@ -1151,10 +1155,15 @@ btr_root_raise_and_insert(
 #endif /* UNIV_ZIP_DEBUG */
 	index = btr_cur_get_index(cursor);
 #ifdef UNIV_BTR_DEBUG
-	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
-				    + root, dict_index_get_space(index)));
-	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
-				    + root, dict_index_get_space(index)));
+	if (!dict_index_is_ibuf(index)) {
+		ulint	space = dict_index_get_space(index);
+
+		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
+					    + root, space));
+		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
+					    + root, space));
+	}
+
 	ut_a(dict_index_get_page(index) == page_get_page_no(root));
 #endif /* UNIV_BTR_DEBUG */
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
@@ -2703,12 +2712,18 @@ btr_discard_only_page_on_level(
 		/* The father is the root page */
 
 #ifdef UNIV_BTR_DEBUG
-		const page_t*	root = buf_block_get_frame(father_block);
-		const ulint	space = dict_index_get_space(index);
-		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
-					    + root, space));
-		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
-					    + root, space));
+		if (!dict_index_is_ibuf(index)) {
+			const page_t*	root
+				= buf_block_get_frame(father_block);
+			const ulint	space
+				= dict_index_get_space(index);
+			ut_a(btr_root_fseg_validate(
+				     FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
+				     + root, space));
+			ut_a(btr_root_fseg_validate(
+				     FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
+				     + root, space));
+		}
 #endif /* UNIV_BTR_DEBUG */
 		btr_page_empty(father_block, father_page_zip, mtr, index);
 
