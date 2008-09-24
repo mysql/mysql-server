@@ -429,14 +429,14 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	mtr_t		mtr;
 	trx_t*		trx		= thr_get_trx(thr);
 
-	log_free_check();
-	mtr_start(&mtr);
-
 	/* Ignore indexes that are being created. */
 	if (UNIV_UNLIKELY(*index->name == TEMP_INDEX_PREFIX)) {
 
 		return(DB_SUCCESS);
 	}
+
+	log_free_check();
+	mtr_start(&mtr);
 
 	if (UNIV_UNLIKELY(!row_search_index_entry(NULL, index, entry,
 						  mode, &pcur, &mtr))) {
