@@ -1444,7 +1444,7 @@ row_upd_sec_index_entry(
 	}
 
 	found = row_search_index_entry(
-		&was_buffered, index, entry, BTR_MODIFY_LEAF, &pcur, &mtr);
+		&was_buffered, index, entry, mode, &pcur, &mtr);
 
 	if (was_buffered) {
 		/* Entry was delete marked already. */
