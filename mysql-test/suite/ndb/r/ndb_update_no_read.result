@@ -232,3 +232,148 @@ a	b	c
 affected rows: 0
 drop table t1;
 affected rows: 0
+create table t1 (a int primary key,
+b varchar(4))
+engine=ndb;
+affected rows: 0
+insert into t1 values (1, '1'), (2, '2'), (3, '3');
+affected rows: 3
+info: Records: 3  Duplicates: 0  Warnings: 0
+
+# expected result 1 roundtrip
+# 0 - info call
+# 0 - read the row
+# 0 - update the row
+# 1 - update+commit the row
+# Rows matched=changed=affected=1
+
+update t1 set b='two' where a=2;
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+affected rows: 1
+
+# expected result 1 roundtrip
+# 0 - info call
+# 0 - read the row
+# 0 - update the row
+# 1 - update+commit the row
+# Rows matched=changed=affected=0
+
+update t1 set b='lots' where a=2000;
+affected rows: 0
+info: Rows matched: 0  Changed: 0  Warnings: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+affected rows: 1
+
+# expected result 1 roundtrip
+# 0 - info call
+# 0 - read the row
+# 0 - update the row
+# 1 - update+commit the row
+# Rows matched=changed=affected=1
+# 1 warning
+
+update t1 set b='one plus one' where a=2;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+affected rows: 1
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+affected rows: 1
+
+# expected result 1 roundtrip
+# 0 - info call
+# 0 - read the row
+# 0 - update the row
+# 1 - update+commit the row
+# Rows matched=changed=affected=0
+# 1 warning
+
+update t1 set b='two thousand' where a=2000;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+affected rows: 1
+
+# expected result 2 roundtrips
+# 0 - info call
+# 0 - read the row
+# 1 - update the row
+# 1 - commit
+# Rows matched=changed=affected=1
+
+begin;
+affected rows: 0
+update t1 set b='two' where a=2;
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
+commit;
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+2
+affected rows: 1
+
+# expected result 2 roundtrips
+# 0 - info call
+# 0 - read the row
+# 1 - update the row
+# 1 - commit
+# Rows matched=changed=affected=0
+
+begin;
+affected rows: 0
+update t1 set b='lots' where a=2000;
+affected rows: 0
+info: Rows matched: 0  Changed: 0  Warnings: 0
+commit;
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+2
+affected rows: 1
+
+# expected result 2 roundtrips
+# 0 - info call
+# 0 - read the row
+# 1 - update the row
+# 1 - commit
+# Rows matched=changed=affected=1
+1 warning
+
+begin;
+affected rows: 0
+update t1 set b='one plus one' where a=2;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+affected rows: 1
+commit;
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+2
+affected rows: 1
+
+# expected result 2 roundtrips
+# 0 - info call
+# 0 - read the row
+# 1 - update the row
+# 1 - commit
+# Rows matched=changed=affected=0
+# 1 warning
+
+begin;
+affected rows: 0
+update t1 set b='two thousand' where a=2000;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+affected rows: 0
+commit;
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+2
+affected rows: 1
+drop table t1;
+affected rows: 0

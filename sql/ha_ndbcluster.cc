@@ -5652,14 +5652,50 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible)
     {
+      /* Autocommit with read-before-write removal
+       * Some operations in this autocommitted statement have not
+       * yet been executed
+       * They will be executed here as part of commit, and the results
+       * (rowcount, message) sent back to the client will then be modified 
+       * according to how the execution went.
+       * This saves a single roundtrip in the autocommit case
+       */
       uint ignore_count= 0;
       res= execute_commit(thd_ndb, trans, thd->variables.ndb_force_send,
                           TRUE, &ignore_count);
       if (!res && ignore_count)
+      {
+        DBUG_PRINT("info", ("AutoCommit + RBW removal, ignore_count=%u",
+                            ignore_count));
+        /* We have some rows to ignore, modify recorded results,
+         * regenerate result message as required.
+         */
+        thd->row_count_func-= ignore_count;
+
+        ha_rows affected= 0;
+        char buff[ STRING_BUFFER_USUAL_SIZE ];
+        const char* msg= NULL;
         if (thd->lex->sql_command == SQLCOM_DELETE)
-          thd_ndb->m_handler->m_rows_deleted-= ignore_count;
+          affected= (thd_ndb->m_handler->m_rows_deleted-= ignore_count);
         else
-          thd_ndb->m_handler->m_rows_updated-= ignore_count;
+        {
+          DBUG_PRINT("info", ("Update : message was %s", 
+                              thd->main_da.message()));
+          affected= (thd_ndb->m_handler->m_rows_updated-= ignore_count);
+          /* For update in this scenario, we set found and changed to be 
+           * the same as affected
+           * Regenerate the update message
+           */
+          sprintf(buff, ER(ER_UPDATE_INFO), (ulong)affected, (ulong)affected,
+                  (ulong) thd->cuted_fields);
+          msg= buff;
+          DBUG_PRINT("info", ("Update : message changed to %s",
+                              msg));
+        }
+
+        /* Modify execution result + optionally message */
+        thd->main_da.modify_affected_rows(affected, msg);
+      }
     }
     else
       res= execute_commit(thd_ndb, trans, thd->variables.ndb_force_send, FALSE);
