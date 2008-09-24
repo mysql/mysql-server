@@ -3299,7 +3299,8 @@ ibuf_merge_or_delete_for_page(
 		page_zip = buf_block_get_page_zip(block);
 
 		if (UNIV_UNLIKELY(fil_page_get_type(block->frame)
-				  != FIL_PAGE_INDEX)) {
+				  != FIL_PAGE_INDEX)
+		    || UNIV_UNLIKELY(!page_is_leaf(block->frame))) {
 
 			corruption_noticed = TRUE;
 
@@ -3326,7 +3327,7 @@ ibuf_merge_or_delete_for_page(
 				"InnoDB: buffer records to page n:o %lu"
 				" though the page\n"
 				"InnoDB: type is %lu, which is"
-				" not an index page!\n"
+				" not an index leaf page!\n"
 				"InnoDB: We try to resolve the problem"
 				" by skipping the insert buffer\n"
 				"InnoDB: merge for this page."
