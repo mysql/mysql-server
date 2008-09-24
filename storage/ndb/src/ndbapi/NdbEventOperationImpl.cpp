@@ -1326,7 +1326,9 @@ NdbEventBuffer::nextEvent()
          {
            // moved to next gci, check if any references have been
            // released when completing the last gci
+           NdbMutex_Lock(m_mutex);
            deleteUsedEventOperations();
+           NdbMutex_Unlock(m_mutex);
            gci_ops = m_available_data.delete_next_gci_ops();
          }
          if (!gci_ops->m_consistent)
@@ -1357,12 +1359,14 @@ NdbEventBuffer::nextEvent()
   // free all "per gci unique" collected operations
   // completed gci, check if any references have been
   // released when completing the gci
+  NdbMutex_Lock(m_mutex);
   EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
   while (gci_ops)
   {
     deleteUsedEventOperations();
     gci_ops = m_available_data.delete_next_gci_ops();
   }
+  NdbMutex_Unlock(m_mutex);
   DBUG_RETURN_EVENT(0);
 }
 
