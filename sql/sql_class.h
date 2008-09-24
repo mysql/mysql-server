@@ -1081,6 +1081,9 @@ public:
   void set_eof_status(THD *thd);
   void set_error_status(THD *thd, uint sql_errno_arg, const char *message_arg);
 
+  /* Modify affected rows count and optionally message */
+  void modify_affected_rows(ha_rows new_affected_rows, const char *new_message= 0);
+
   void disable_status();
 
   void reset_diagnostics_area();
