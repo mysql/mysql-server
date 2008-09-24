@@ -206,7 +206,7 @@ row_purge_remove_sec_if_poss_low(
 				/* out: TRUE if success or if not found */
 	purge_node_t*	node,	/* in: row purge node */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry */
+	const dtuple_t*	entry,	/* in: index entry */
 	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
 				BTR_MODIFY_TREE */
 {
