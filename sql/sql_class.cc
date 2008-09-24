@@ -490,6 +490,24 @@ Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
   m_status= DA_ERROR;
 }
 
+/**
+ * modify_affected_rows
+ * Modify the number of affected rows, and optionally the 
+ * message in the Diagnostics area
+ */
+void
+Diagnostics_area::modify_affected_rows(ha_rows new_affected_rows,
+                                       const char* new_message)
+{
+  DBUG_ASSERT(is_set());
+  DBUG_ASSERT(m_status == DA_OK);
+  DBUG_ASSERT(can_overwrite_status);
+
+  m_affected_rows= new_affected_rows;
+  if (new_message)
+    strmake(m_message, new_message, sizeof(m_message) - 1);
+}
+
 
 /**
   Mark the diagnostics area as 'DISABLED'.

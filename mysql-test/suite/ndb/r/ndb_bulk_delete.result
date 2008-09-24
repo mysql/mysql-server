@@ -18,6 +18,33 @@ insert into t1 select a+128 from t1;
 # 1 - delete the row + commit the transaction
 
 delete from t1 where a in (1,7, 90, 100, 130);
+affected rows: 5
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
+affected rows: 1
+# expected result 1 roundtrips
+# 0 - info call
+# 0 - read the rows 
+# 0 - delete the rows 
+# 1 - commit
+# affected = 0
+
+delete from t1 where a=1000;
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+affected rows: 1
+# expected result 1 roundtrips
+# 0 - info call
+# 0 - read the rows 
+# 0 - delete the rows 
+# 1 - commit
+# affected = 0
+
+delete from t1 where a in (1000, 1001, 1002, 1003, 1004);
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+affected rows: 1
 drop table t1;
+affected rows: 0
