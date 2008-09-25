@@ -23,6 +23,17 @@ static bool setup_repl(atrt_config&);
 
 static atrt_process* f_mysqld = 0;
 
+static
+int
+run_query(atrt_process* src, const char * query)
+{
+  g_logger.debug("%s:%s - %s",
+		 src->m_cluster->m_name.c_str(),
+		 src->m_host->m_hostname.c_str(),
+		 query);
+  return mysql_query(&src->m_mysql, query);
+}
+
 bool
 setup_db(atrt_config& config)
 {
@@ -398,16 +409,16 @@ populate_db(atrt_config& config, atrt_process* mysqld)
 
 static
 bool
-setup_repl(atrt_process* src, atrt_process* dst)
+setup_repl(atrt_process* dst, atrt_process* src)
 {
-  if (mysql_query(&src->m_mysql, "STOP SLAVE"))
+  if (run_query(src, "STOP SLAVE"))
   {
     g_logger.error("Failed to stop slave: %s",
 		   mysql_error(&src->m_mysql));
     return false;
   }
 
-  if (mysql_query(&src->m_mysql, "RESET SLAVE"))
+  if (run_query(src, "RESET SLAVE"))
   {
     g_logger.error("Failed to reset slave: %s",
 		   mysql_error(&src->m_mysql));
@@ -421,7 +432,7 @@ setup_repl(atrt_process* src, atrt_process* dst)
 	     dst->m_host->m_hostname.c_str(),
 	     atoi(find(dst, "--port=")));
   
-  if (mysql_query(&src->m_mysql, tmp.c_str()))
+  if (run_query(src, tmp.c_str()))
   {
     g_logger.error("Failed to setup repl from %s to %s: %s",
 		   src->m_host->m_hostname.c_str(),
@@ -430,7 +441,7 @@ setup_repl(atrt_process* src, atrt_process* dst)
     return false;
   }
 
-  if (mysql_query(&src->m_mysql, "START SLAVE"))
+  if (run_query(src, "START SLAVE"))
   {
     g_logger.error("Failed to start slave: %s",
 		   mysql_error(&src->m_mysql));
