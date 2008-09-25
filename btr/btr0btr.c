@@ -1184,8 +1184,8 @@ btr_root_raise_and_insert(
 		ut_a(new_page_zip);
 
 		/* Copy the page byte for byte. */
-		page_zip_copy(new_page_zip, new_page,
-			      root_page_zip, root, index, mtr);
+		page_zip_copy_recs(new_page_zip, new_page,
+				   root_page_zip, root, index, mtr);
 	}
 
 	/* If this is a pessimistic insert which is actually done to
@@ -1949,8 +1949,8 @@ insert_right:
 			as appropriate.  Deleting will always succeed. */
 			ut_a(new_page_zip);
 
-			page_zip_copy(new_page_zip, new_page,
-				      page_zip, page, cursor->index, mtr);
+			page_zip_copy_recs(new_page_zip, new_page,
+					   page_zip, page, cursor->index, mtr);
 			page_delete_rec_list_end(move_limit - page + new_page,
 						 new_block, cursor->index,
 						 ULINT_UNDEFINED,
@@ -1976,8 +1976,8 @@ insert_right:
 			as appropriate.  Deleting will always succeed. */
 			ut_a(new_page_zip);
 
-			page_zip_copy(new_page_zip, new_page,
-				      page_zip, page, cursor->index, mtr);
+			page_zip_copy_recs(new_page_zip, new_page,
+					   page_zip, page, cursor->index, mtr);
 			page_delete_rec_list_start(move_limit - page
 						   + new_page, new_block,
 						   cursor->index, mtr);
@@ -2339,8 +2339,8 @@ btr_lift_page_up(
 		ut_a(page_zip);
 
 		/* Copy the page byte for byte. */
-		page_zip_copy(father_page_zip, father_page,
-			      page_zip, page, index, mtr);
+		page_zip_copy_recs(father_page_zip, father_page,
+				   page_zip, page, index, mtr);
 	}
 
 	lock_update_copy_and_discard(father_block, block);
