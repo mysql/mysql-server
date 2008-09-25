@@ -4316,14 +4316,20 @@ page_zip_copy(
 	UNIV_MEM_ASSERT_RW(src, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(src_zip->data, page_zip_get_size(page_zip));
 
-	/* Skip the file page header and trailer. */
-	memcpy(page + FIL_PAGE_DATA, src + FIL_PAGE_DATA,
-	       UNIV_PAGE_SIZE - FIL_PAGE_DATA
-	       - FIL_PAGE_DATA_END);
-	memcpy(page_zip->data + FIL_PAGE_DATA,
-	       src_zip->data + FIL_PAGE_DATA,
-	       page_zip_get_size(page_zip) - FIL_PAGE_DATA);
+	/* Copy those B-tree page header fields that are related to the
+	records stored in the page.  Skip the rest of the page header
+	and trailer.  On the compressed page, there is no trailer. */
+	memcpy(PAGE_HEADER + page, PAGE_HEADER + src,
+	       PAGE_HEADER_PRIV_END);
+	memcpy(PAGE_DATA + page, PAGE_DATA + src,
+	       UNIV_PAGE_SIZE - PAGE_DATA - FIL_PAGE_DATA_END);
+	memcpy(PAGE_HEADER + page_zip->data, PAGE_HEADER + src_zip->data,
+	       PAGE_HEADER_PRIV_END);
+	memcpy(PAGE_DATA + page_zip->data, PAGE_DATA + src_zip->data,
+	       page_zip_get_size(page_zip) - PAGE_DATA);
 
+	/* Copy all fields of src_zip to page_zip, except the pointer
+	to the compressed data page. */
 	{
 		page_zip_t*	data = page_zip->data;
 		memcpy(page_zip, src_zip, sizeof *page_zip);
