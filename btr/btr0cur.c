@@ -688,6 +688,7 @@ retry_page_get:
 	ut_ad(height > 0);
 
 	height--;
+	guess = NULL;
 
 	node_ptr = page_cur_get_rec(page_cursor);
 
