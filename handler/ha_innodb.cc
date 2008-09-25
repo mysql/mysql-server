@@ -664,7 +664,7 @@ thd_is_select(
 
 /**********************************************************************
 Returns true if the thread is executing in innodb_strict_mode. */
-
+extern "C"
 ibool
 thd_is_strict(
 /*==========*/
