@@ -4316,15 +4316,19 @@ page_zip_copy(
 	UNIV_MEM_ASSERT_RW(src, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(src_zip->data, page_zip_get_size(page_zip));
 
-	/* Copy those B-tree page header fields that are related to the
-	records stored in the page.  Skip the rest of the page header
-	and trailer.  On the compressed page, there is no trailer. */
+	/* Copy those B-tree page header fields that are related to
+	the records stored in the page.  Do not copy the field
+	PAGE_MAX_TRX_ID.  Skip the rest of the page header and
+	trailer.  On the compressed page, there is no trailer. */
+#if PAGE_MAX_TRX_ID + 8 != PAGE_HEADER_PRIV_END
+# error "PAGE_MAX_TRX_ID + 8 != PAGE_HEADER_PRIV_END"
+#endif
 	memcpy(PAGE_HEADER + page, PAGE_HEADER + src,
-	       PAGE_HEADER_PRIV_END);
+	       PAGE_MAX_TRX_ID);
 	memcpy(PAGE_DATA + page, PAGE_DATA + src,
 	       UNIV_PAGE_SIZE - PAGE_DATA - FIL_PAGE_DATA_END);
 	memcpy(PAGE_HEADER + page_zip->data, PAGE_HEADER + src_zip->data,
-	       PAGE_HEADER_PRIV_END);
+	       PAGE_MAX_TRX_ID);
 	memcpy(PAGE_DATA + page_zip->data, PAGE_DATA + src_zip->data,
 	       page_zip_get_size(page_zip) - PAGE_DATA);
 
