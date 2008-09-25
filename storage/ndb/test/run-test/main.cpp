@@ -767,8 +767,7 @@ wait_ndb(atrt_config& config, int goal){
     }
 
     if(handle == 0){
-      g_logger.critical("Unable to find mgm handle");
-      return false;
+      return true;
     }
     
     if(goal == NDB_MGM_NODE_STATUS_STARTED){
