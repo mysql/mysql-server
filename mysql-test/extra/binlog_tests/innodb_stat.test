@@ -7,6 +7,7 @@
 # Actually this test has nothing to do with innodb per se, it just requires
 # transactional table. 
 #
+flush status;
 show status like "binlog_cache_use";
 show status like "binlog_cache_disk_use";
 --disable_warnings
@@ -38,13 +39,3 @@ commit;
 show status like "binlog_cache_use";
 show status like "binlog_cache_disk_use";
 drop table t1;
-
-# Test for testable InnoDB status variables. This test
-# uses previous ones(pages_created, rows_deleted, ...).
--- replace_regex /51[12]/51_/
-show status like "Innodb_buffer_pool_pages_total";
-show status like "Innodb_page_size";
-show status like "Innodb_rows_deleted";
-show status like "Innodb_rows_inserted";
-show status like "Innodb_rows_updated";
-
