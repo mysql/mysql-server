@@ -1434,6 +1434,8 @@ row_upd_sec_index_entry(
 	log_free_check();
 	mtr_start(&mtr);
 
+	/* Set the query thread, so that ibuf_insert_low() will be
+	able to invoke thd_get_trx(). */
 	btr_pcur_get_btr_cur(&pcur)->thr = thr;
 
 	/* We can only try to use the insert/delete buffer to buffer
