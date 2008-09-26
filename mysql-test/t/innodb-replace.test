@@ -11,10 +11,10 @@ drop table if exists t1;
 #
 create table t1 (c1 char(5) unique not null, c2 int, stamp timestamp) engine=innodb;
 select * from t1;
---error 1031
+--error ER_DELAYED_NOT_SUPPORTED
 replace delayed into t1 (c1, c2)  values ( "text1","11");
 select * from t1;
---error 1031
+--error ER_DELAYED_NOT_SUPPORTED
 replace delayed into t1 (c1, c2)  values ( "text1","12");
 select * from t1;
 drop table t1;

@@ -5427,7 +5427,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
                          (long) this, (long) thd, (long) thd_ndb,
                          thd_ndb->lock_count));
 
-    if (m_rows_changed)
+    if (m_rows_changed && global_system_variables.query_cache_type)
     {
       DBUG_PRINT("info", ("Rows has changed"));
 
@@ -5435,7 +5435,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       {
         DBUG_PRINT("info", ("Add share to list of changed tables"));
         /* NOTE push_back allocates memory using transactions mem_root! */
-        thd_ndb->changed_tables.push_back(m_share,
+        thd_ndb->changed_tables.push_back(get_share(m_share),
                                           &thd->transaction.mem_root);
       }
 
@@ -5652,14 +5652,50 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible)
     {
+      /* Autocommit with read-before-write removal
+       * Some operations in this autocommitted statement have not
+       * yet been executed
+       * They will be executed here as part of commit, and the results
+       * (rowcount, message) sent back to the client will then be modified 
+       * according to how the execution went.
+       * This saves a single roundtrip in the autocommit case
+       */
       uint ignore_count= 0;
       res= execute_commit(thd_ndb, trans, thd->variables.ndb_force_send,
                           TRUE, &ignore_count);
       if (!res && ignore_count)
+      {
+        DBUG_PRINT("info", ("AutoCommit + RBW removal, ignore_count=%u",
+                            ignore_count));
+        /* We have some rows to ignore, modify recorded results,
+         * regenerate result message as required.
+         */
+        thd->row_count_func-= ignore_count;
+
+        ha_rows affected= 0;
+        char buff[ STRING_BUFFER_USUAL_SIZE ];
+        const char* msg= NULL;
         if (thd->lex->sql_command == SQLCOM_DELETE)
-          thd_ndb->m_handler->m_rows_deleted-= ignore_count;
+          affected= (thd_ndb->m_handler->m_rows_deleted-= ignore_count);
         else
-          thd_ndb->m_handler->m_rows_updated-= ignore_count;
+        {
+          DBUG_PRINT("info", ("Update : message was %s", 
+                              thd->main_da.message()));
+          affected= (thd_ndb->m_handler->m_rows_updated-= ignore_count);
+          /* For update in this scenario, we set found and changed to be 
+           * the same as affected
+           * Regenerate the update message
+           */
+          sprintf(buff, ER(ER_UPDATE_INFO), (ulong)affected, (ulong)affected,
+                  (ulong) thd->cuted_fields);
+          msg= buff;
+          DBUG_PRINT("info", ("Update : message changed to %s",
+                              msg));
+        }
+
+        /* Modify execution result + optionally message */
+        thd->main_da.modify_affected_rows(affected, msg);
+      }
     }
     else
       res= execute_commit(thd_ndb, trans, thd->variables.ndb_force_send, FALSE);
@@ -5689,6 +5725,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     share->commit_count= 0;
     share->commit_count_lock++;
     pthread_mutex_unlock(&share->mutex);
+    free_share(&share);
   }
   thd_ndb->changed_tables.empty();
 
@@ -5743,6 +5780,12 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   thd_ndb->m_handler= NULL;
 
   /* Clear list of tables changed by transaction */
+  NDB_SHARE* share;
+  List_iterator_fast<NDB_SHARE> it(thd_ndb->changed_tables);
+  while ((share= it++))
+  {
+    free_share(&share);
+  }
   thd_ndb->changed_tables.empty();
 
   DBUG_RETURN(res);
@@ -6843,6 +6886,17 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
   DBUG_RETURN(error);
 }
 
+/*
+  Find the base name in the format "<database>/<table>"
+*/
+static const char *get_base_name(const char *ptr)
+{
+  ptr+= strlen(ptr);
+  while (*(--ptr) != '/');
+  while (*(--ptr) != '/');
+  return ptr+1;
+}
+
 /**
   Rename a table in NDB Cluster.
 */
@@ -6960,8 +7014,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   /* handle old table */
   if (!is_old_table_tmpfile)
   {
-    ndbcluster_drop_event(thd, ndb, share, "rename table",
-                          from + sizeof(share_prefix) - 1);
+    const char *ptr= get_base_name(from);
+    ndbcluster_drop_event(thd, ndb, share, "rename table", ptr);
   }
 
   if (!result && !is_new_table_tmpfile)
@@ -6975,8 +7029,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 #endif
     /* always create an event for the table */
     String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, to + sizeof(share_prefix) - 1, 0,
-                       get_binlog_full(share));
+    const char *ptr= get_base_name(to);
+    ndb_rep_event_name(&event_name, ptr, 0, get_binlog_full(share));
 
     if (!ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share,
                                  share && ndb_binlog_running ? 2 : 1/* push warning */))
@@ -7195,9 +7249,9 @@ retry_temporary_error1:
   int table_dropped= dict->getNdbError().code != 709;
 
   {
+    const char *ptr= get_base_name(path);
     ndbcluster_handle_drop_table(thd, ndb, share, "delete table",
-                                 table_dropped ?
-                                 (path + sizeof(share_prefix) - 1) : 0);
+                                 table_dropped ? ptr : 0);
   }
 
   if (!IS_TMP_PREFIX(table_name) && share &&
@@ -7624,14 +7678,12 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     local_close(thd, TRUE);
     DBUG_RETURN(res);
   }
-#ifdef HAVE_NDB_BINLOG
   if (!ndb_binlog_tables_inited ||
       (ndb_binlog_running && !ndb_binlog_is_ready))
   {
     table->db_stat|= HA_READ_ONLY;
     sql_print_information("table '%s' opened read only", name);
   }
-#endif
   DBUG_RETURN(0);
 }
 
