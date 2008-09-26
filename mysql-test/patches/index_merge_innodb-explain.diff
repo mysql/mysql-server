@@ -1,0 +1,29 @@
+InnoDB's estimate for the index cardinality depends on a pseudo random
+number generator (it picks up random pages to sample). After an
+optimization that was made in r2625 the following EXPLAINs started
+returning a different number of rows (3 instead of 4).
+
+This patch replaces whatever is returned for number of rows with 4 so
+that the test does not fail.
+
+This patch cannot be proposed to MySQL because the failures occur only
+in this tree and do not occur in the standard InnoDB 5.1. Furthermore,
+the file index_merge2.inc is used by other engines too.
+
+--- mysql-test/include/index_merge2.inc.orig	2008-09-26 13:41:50.000000000 +0300
++++ mysql-test/include/index_merge2.inc	2008-09-26 14:32:58.000000000 +0300
+@@ -122,12 +122,14 @@
+ analyze table t1;
+ select count(*) from t1;
+ 
++-- replace_column 9 4
+ explain select count(*) from t1 where
+   key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
+ 
+ select count(*) from t1 where
+   key1a = 2 and key1b is null and key2a = 2 and key2b is null;
+ 
++-- replace_column 9 4
+ explain select count(*) from t1 where
+   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+ 
