@@ -17,6 +17,7 @@ set global maria_log_file_size=4294967295;
 # Initialise
 --disable_warnings
 drop table if exists t1,t2;
+drop view if exists v1;
 --enable_warnings
 SET SQL_WARNINGS=1;
 
@@ -1559,3 +1560,18 @@ select * from t1 where a is NULL;
 select * from t1;
 check table t1;
 drop table t1;
+
+#
+# Bug39248 INSERT ON DUPLICATE KEY UPDATE gives error if using a view
+# Note that this only crashes when using
+# --mysqld=--binlog-format=row --ps-protocol
+#
+
+create table t1 (f1 int unique, f2 int) engine=maria;
+create table t2 (f3 int, f4 int) engine=maria;
+create view v1 as select * from t1, t2 where f1= f3;
+insert into t1 values (1,11), (2,22);
+insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
+insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
+drop table t1,t2;
+drop view v1;
