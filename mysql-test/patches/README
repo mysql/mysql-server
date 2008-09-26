@@ -8,7 +8,7 @@ in mind when adding new patches here:
 * The patch filename must end in ".diff".
 
 * All patches here are expected to apply cleanly to the latest MySQL 5.1
-  tree with storage/innobase is replaced with this InnoDB branch. If
+  tree when storage/innobase is replaced with this InnoDB branch. If
   changes to either of those cause the patch to fail, then please check
   whether the patch is still needed and, if yes, adjust it so it applies
   cleanly.
@@ -19,7 +19,7 @@ in mind when adding new patches here:
 
 * If the patch cannot be proposed for inclusion in the MySQL source tree
   (via http://bugs.mysql.com) then add a comment at the beginning of the
-  patch explaining the problem it is solving, how it does solve it and
+  patch, explaining the problem it is solving, how it does solve it and
   why it is not applicable for inclusion in the MySQL source tree.
   Obviously this is a very bad situation and should be avoided at all
   costs, especially for files that are in the MySQL source repository
