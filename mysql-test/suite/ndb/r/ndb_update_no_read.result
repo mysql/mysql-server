@@ -293,9 +293,12 @@ affected rows: 1
 # 1 warning
 
 update t1 set b='two thousand' where a=2000;
-Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
 affected rows: 0
+info: Rows matched: 0  Changed: 0  Warnings: 1
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'b' at row 1
+affected rows: 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 affected rows: 1
@@ -367,11 +370,14 @@ affected rows: 1
 begin;
 affected rows: 0
 update t1 set b='two thousand' where a=2000;
-Warnings:
-Warning	1265	Data truncated for column 'b' at row 1
 affected rows: 0
+info: Rows matched: 0  Changed: 0  Warnings: 1
 commit;
 affected rows: 0
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'b' at row 1
+affected rows: 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
 affected rows: 1
