@@ -59,6 +59,56 @@ static int compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
     return cmp;
 }
 
+// all this because we dont have nested functions
+struct verify_pair_arg {
+    BRT brt;
+    int i;
+    bytevec thislorange;
+    ITEMLEN thislolen;
+    bytevec thishirange;
+    ITEMLEN thishilen;
+    int *resultp;
+};
+
+static void verify_pair (bytevec key, unsigned int keylen,
+                         bytevec data __attribute__((__unused__)), 
+                         unsigned int datalen __attribute__((__unused__)),
+                         int type __attribute__((__unused__)),
+                         TXNID xid __attribute__((__unused__)),
+                         void *arg) {
+    struct verify_pair_arg *vparg = (struct verify_pair_arg *)arg;
+    BRT brt = vparg->brt;
+    int i = vparg->i;
+    bytevec thislorange = vparg->thislorange; ITEMLEN thislolen = vparg->thislolen;
+    bytevec thishirange = vparg->thishirange; ITEMLEN thishilen = vparg->thishilen;
+    DBT k1,k2;
+    if (thislorange) assert(brt->compare_fun(brt->db,
+                                             toku_fill_dbt(&k1,thislorange,thislolen),
+                                             toku_fill_dbt(&k2,key,keylen)) < 0);
+    if (thishirange && (brt->compare_fun(brt->db,
+                                         toku_fill_dbt(&k1,key,keylen),
+                                         toku_fill_dbt(&k2,thishirange,thishilen)) > 0)) {
+        printf("%s:%d in buffer %d key %s is bigger than %s\n", __FILE__, __LINE__, i, (char*)key, (char*)thishirange);
+        *vparg->resultp = 1;
+    }
+}
+
+struct check_increasing_arg {
+    BRT brt;
+    LEAFENTRY prev;
+};
+
+// Make sure that they are in increasing order.
+static int check_increasing (OMTVALUE lev, u_int32_t idx, void *arg) {
+    struct check_increasing_arg *ciarg = (struct check_increasing_arg *)arg;
+    LEAFENTRY v=lev;
+    LEAFENTRY prev = ciarg->prev;
+    if (idx>0) 
+        assert(compare_leafentries(ciarg->brt, prev, v)<0);
+    ciarg->prev=v;
+    return 0;
+}
+
 int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) {
     int result=0;
     BRTNODE node;
@@ -91,28 +141,8 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lo
 		thishirange=kv_pair_key(node->u.n.childkeys[i]);
 		thishilen  =toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]);
 	    }
-	    {
-		void verify_pair (bytevec key, unsigned int keylen,
-				  bytevec data __attribute__((__unused__)), 
-                                  unsigned int datalen __attribute__((__unused__)),
-                                  int type __attribute__((__unused__)),
-				  TXNID xid __attribute__((__unused__)),
-				  void *ignore __attribute__((__unused__))) {
-		    DBT k1,k2;
-		    if (thislorange) assert(brt->compare_fun(brt->db,
-							     toku_fill_dbt(&k1,thislorange,thislolen),
-							     toku_fill_dbt(&k2,key,keylen))
-					    <0);
-		    if (thishirange && (brt->compare_fun(brt->db,
-							 toku_fill_dbt(&k1,key,keylen),
-							 toku_fill_dbt(&k2,thishirange,thishilen))
-					>0)) {
-			printf("%s:%d in buffer %d key %s is bigger than %s\n", __FILE__, __LINE__, i, (char*)key, (char*)thishirange);
-			result=1;
-		    }
-		}
-		toku_fifo_iterate(BNC_BUFFER(node,i), verify_pair, 0);
-	    }
+            struct verify_pair_arg vparg = { brt, i, thislorange, thislolen, thishirange, thishilen, &result };
+            toku_fifo_iterate(BNC_BUFFER(node,i), verify_pair, &vparg);
 	}
 	//if (lorange) printf("%s:%d lorange=%s\n", __FILE__, __LINE__, (char*)lorange);
 	//if (hirange) printf("%s:%d lorange=%s\n", __FILE__, __LINE__, (char*)hirange);
@@ -137,17 +167,8 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lo
 	    }
 	}
     } else {
-	// Make sure that they are in increasing order.
-	int check_increasing (OMTVALUE lev, u_int32_t idx, void *vprevp) {
-	    LEAFENTRY v=lev;
-	    LEAFENTRY *prevp = vprevp;
-	    if (idx>0) 
-		assert(compare_leafentries(brt, *prevp, v)<0);
-	    *prevp=v;
-	    return 0;
-	}
-	LEAFENTRY prev=0;
-	toku_omt_iterate(node->u.l.buffer, check_increasing, &prev);
+        struct check_increasing_arg ciarg = { brt , 0 };
+	toku_omt_iterate(node->u.l.buffer, check_increasing, &ciarg);
     }
     if ((r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, 0, 0))) return r;
     return result;
