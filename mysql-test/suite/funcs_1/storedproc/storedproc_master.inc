@@ -2862,8 +2862,20 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 # missing BEGIN
+# PLEASE NOTE:
+# this test client has the MULTI_QUERY capability,
+# so that the following request (starting at 'CREATE' and ending at the //
+# delimiter) is interpreted as follows:
+# 1) it's a multi query
+# 2) the first query is a valid CREATE PROCEDURE statement, and the
+# procedure consist of only one SELECT statement
+# 3) the second query is a SET statement, which is broken since it's
+# referencing an unknown column 'cnt'
+# 4) the next query (SELECT @count) is not parsed or executed, since 3)
+# failed
+
 delimiter //;
---error ER_PARSE_ERROR
+--error ER_BAD_FIELD_ERROR
 CREATE PROCEDURE sp1( cnt int(20) )
     SELECT count(*) into cnt from t2;
     set @count = cnt;
@@ -2871,11 +2883,10 @@ CREATE PROCEDURE sp1( cnt int(20) )
 END//
 delimiter ;//
 
---error ER_SP_DOES_NOT_EXIST
 CALL sp1( 10 );
 
 --disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
+DROP PROCEDURE sp1;
 --enable_warnings
 
 # wrong order of BEGIN and END
@@ -17230,7 +17241,10 @@ let $message= Testcase 4.2.43:;
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
+--echo expect failure, SQLSTATE 00000 is not an acceptable value
+--echo for an SP's handler
 delimiter //;
+--ERROR ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '00000';
@@ -17240,11 +17254,14 @@ BEGIN
 END//
 delimiter ;//
 
+--echo ensure SP doesn't exist
+--ERROR ER_SP_DOES_NOT_EXIST
 CALL sp1();
 
 # cleanup
-DROP PROCEDURE sp1;
-
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.2.45:;
@@ -17383,6 +17400,8 @@ let $message= Testcase 4.2.48:;
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
+--echo This creation should fail, SQLSTATE 00000 is unacceptable
+--ERROR ER_SP_BAD_SQLSTATE
 delimiter //;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -17392,11 +17411,14 @@ BEGIN
 END//
 delimiter ;//
 
+--echo Verify SP wasn't created
+--ERROR ER_SP_DOES_NOT_EXIST
 CALL sp1();
 
 # cleanup
-DROP PROCEDURE sp1;
-
+--disable_warnings
+DROP PROCEDURE IF EXISTSsp1;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------

@@ -391,6 +391,15 @@ Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
   }
 }
 
+void Logger::setRepeatFrequency(unsigned val)
+{
+  LogHandler* pHandler;
+  while ((pHandler = m_pHandlerList->next()) != NULL)
+  {
+    pHandler->setRepeatFrequency(val);
+  }
+}
+
 //
 // PRIVATE
 //

@@ -166,6 +166,7 @@ level	id	parent_id
 1	1007	101
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -190,6 +191,7 @@ create table t1 (a int) engine=innodb;
 insert into t1 values (1), (2);
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 delete from t1 where a = 1;
 select * from t1;
@@ -738,6 +740,7 @@ world	2
 hello	1
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -3109,6 +3112,7 @@ BEGIN;
 INSERT INTO t1 VALUES (1);
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (id int PRIMARY KEY, f int NOT NULL, INDEX(f)) ENGINE=InnoDB;
@@ -3262,4 +3266,15 @@ SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 AUTO_INCREMENT
 200
 DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 int default NULL,
+c2 int default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+TRUNCATE TABLE t1;
+affected rows: 0
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+affected rows: 5
+info: Records: 5  Duplicates: 0  Warnings: 0
+TRUNCATE TABLE t1;
+affected rows: 0
 DROP TABLE t1;

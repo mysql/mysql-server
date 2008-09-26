@@ -1794,7 +1794,8 @@ JOIN::exec()
     if (!items1)
     {
       items1= items0 + all_fields.elements;
-      if (sort_and_group || curr_tmp_table->group)
+      if (sort_and_group || curr_tmp_table->group ||
+          tmp_table_param.precomputed_group_by)
       {
 	if (change_to_use_tmp_fields(thd, items1,
 				     tmp_fields_list1, tmp_all_fields1,
@@ -6754,6 +6755,12 @@ void JOIN::cleanup(bool full)
     if (tmp_join)
       tmp_table_param.copy_field= 0;
     group_fields.delete_elements();
+    /* 
+      Ensure that the above delete_elements() would not be called
+      twice for the same list.
+    */
+    if (tmp_join && tmp_join != this)
+      tmp_join->group_fields= group_fields;
     /*
       We can't call delete_elements() on copy_funcs as this will cause
       problems in free_elements() as some of the elements are then deleted.
@@ -9622,6 +9629,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   MI_COLUMNDEF *recinfo;
   uint total_uneven_bit_length= 0;
   bool force_copy_fields= param->force_copy_fields;
+  /* Treat sum functions as normal ones when loose index scan is used. */
+  save_sum_fields|= param->precomputed_group_by;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",
              ("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
@@ -11713,7 +11722,7 @@ join_init_read_record(JOIN_TAB *tab)
   if (tab->select && tab->select->quick && tab->select->quick->reset())
     return 1;
   init_read_record(&tab->read_record, tab->join->thd, tab->table,
-		   tab->select,1,1);
+		   tab->select,1,1, FALSE);
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 
@@ -12508,6 +12517,9 @@ part_of_refkey(TABLE *table,Field *field)
   @note
     used_key_parts is set to correct key parts used if return value != 0
     (On other cases, used_key_part may be changed)
+    Note that the value may actually be greater than the number of index 
+    key parts. This can happen for storage engines that have the primary 
+    key parts as a suffix for every secondary key.
 
   @retval
     1   key is ok.
@@ -12580,11 +12592,27 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     reverse=flag;				// Remember if reverse
     key_part++;
   }
-  *used_key_parts= on_primary_key ? table->key_info[idx].key_parts :
-    (uint) (key_part - table->key_info[idx].key_part);
-  if (reverse == -1 && !(table->file->index_flags(idx, *used_key_parts-1, 1) &
-                         HA_READ_PREV))
-    reverse= 0;                                 // Index can't be used
+  if (on_primary_key)
+  {
+    uint used_key_parts_secondary= table->key_info[idx].key_parts;
+    uint used_key_parts_pk=
+      (uint) (key_part - table->key_info[table->s->primary_key].key_part);
+    *used_key_parts= used_key_parts_pk + used_key_parts_secondary;
+
+    if (reverse == -1 &&
+        (!(table->file->index_flags(idx, used_key_parts_secondary - 1, 1) &
+           HA_READ_PREV) ||
+         !(table->file->index_flags(table->s->primary_key,
+                                    used_key_parts_pk - 1, 1) & HA_READ_PREV)))
+      reverse= 0;                               // Index can't be used
+  }
+  else
+  {
+    *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
+    if (reverse == -1 && 
+        !(table->file->index_flags(idx, *used_key_parts-1, 1) & HA_READ_PREV))
+      reverse= 0;                               // Index can't be used
+  }
   DBUG_RETURN(reverse);
 }
 
@@ -13157,6 +13185,16 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->key_read=1;
             table->file->extra(HA_EXTRA_KEYREAD);
           }
+          else if (table->key_read)
+          {
+            /*
+              Clear the covering key read flags that might have been
+              previously set for some key other than the current best_key.
+            */
+            table->key_read= 0;
+            table->file->extra(HA_EXTRA_NO_KEYREAD);
+          }
+
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {
@@ -13179,6 +13217,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           tab->ref.key= -1;
           tab->ref.key_parts=0;		// Don't use ref key.
           tab->read_first_record= join_init_read_record;
+          if (tab->is_using_loose_index_scan())
+            join->tmp_table_param.precomputed_group_by= TRUE;
           /*
             TODO: update the number of records in join->best_positions[tablenr]
           */

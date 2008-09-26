@@ -1,3 +1,7 @@
+# query cache is local to each mysqld, so counting hits
+# will not be the same when using one and several mysqld's
+# hence disable test for embedded
+-- source include/not_embedded.inc
 -- source include/have_query_cache.inc
 -- source include/have_multi_ndb.inc
 

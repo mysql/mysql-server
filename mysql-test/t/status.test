@@ -258,7 +258,7 @@ create function f1 (x INTEGER) returns integer
 DELIMITER ;//
 
 drop function f1;
-show status like 'Com%function';
 
+show status like 'Com%function';
 
 # End of 5.1 tests

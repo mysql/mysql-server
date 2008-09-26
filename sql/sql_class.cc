@@ -490,6 +490,24 @@ Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
   m_status= DA_ERROR;
 }
 
+/**
+ * modify_affected_rows
+ * Modify the number of affected rows, and optionally the 
+ * message in the Diagnostics area
+ */
+void
+Diagnostics_area::modify_affected_rows(ha_rows new_affected_rows,
+                                       const char* new_message)
+{
+  DBUG_ASSERT(is_set());
+  DBUG_ASSERT(m_status == DA_OK);
+  DBUG_ASSERT(can_overwrite_status);
+
+  m_affected_rows= new_affected_rows;
+  if (new_message)
+    strmake(m_message, new_message, sizeof(m_message) - 1);
+}
+
 
 /**
   Mark the diagnostics area as 'DISABLED'.
@@ -514,6 +532,7 @@ THD::THD()
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    binlog_table_maps(0), binlog_flags(0UL),
+   table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
@@ -529,7 +548,7 @@ THD::THD()
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL),
-   m_lip(NULL)
+   m_parser_state(NULL)
 {
   ulong tmp;
 
@@ -1113,6 +1132,8 @@ void THD::cleanup_after_query()
   free_items();
   /* Reset where. */
   where= THD::DEFAULT_WHERE;
+  /* reset table map for multi-table update */
+  table_map_for_update= 0;
 }
 
 
@@ -1580,6 +1601,12 @@ bool select_send::send_eof()
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  /* 
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return TRUE;
   ::my_eof(thd);
   is_result_set_started= 0;
   return FALSE;

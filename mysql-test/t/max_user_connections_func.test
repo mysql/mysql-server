@@ -9,14 +9,17 @@
 #                                                                            #
 #                                                                            #
 # Creation Date: 2008-03-02                                                  #
-# Author:  Sharique Abdullah                                                     #
+# Author:  Sharique Abdullah                                                 #
 #                                                                            #
 # Description: Test Cases of Dynamic System Variable "max_user_connections   #
 #              that checks behavior of this variable in the following ways   #
 #              * Functionality based on different values                     #
 #                                                                            #
-#Reference:http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html
+# Reference:                                                                 #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html     #
 # option_mysqld_max_user_connections                                         #
+#                                                                            #
+# Modified: 2008-07-10 HHUNGER: Inserted wait condition                      #
 #                                                                            #
 ##############################################################################
 
@@ -28,8 +31,7 @@
 
 --source include/not_embedded.inc
 
-SET @default_max_user_connections = @@max_user_connections;
-
+SET @default_max_user_connections = @@global.max_user_connections;
 
 ###################################
 #Setting value max_user_connection#
@@ -37,13 +39,10 @@ SET @default_max_user_connections = @@max_user_connections;
 
 Set Global max_user_connections=2;
 
-
-
 --echo '#--------------------FN_DYNVARS_114_01-------------------------#'
-#######################################
-#should not make more then 2 connection#
-#######################################
-
+########################################
+#Should not make more then 2 connection#
+########################################
 
 --echo ** Connecting conn1 using username 'root' **
 CONNECT (conn1,localhost,root,,);
@@ -61,21 +60,21 @@ CONNECT (conn3,localhost,root,,);
 --echo ** Disconnecting conn1 **
 DISCONNECT conn1;
 
-
-
+--echo ** Poll till disconnected conn1 disappears from processlist
+let $wait_condition= SELECT count(id) <= 2
+   FROM information_schema.processlist WHERE user = 'root';
+--source include/wait_condition.inc
 
 --echo '#--------------------FN_DYNVARS_114_02-------------------------#'
 #####################################################
-#set value to 3 and see if 3 connections can be made#
+#Set value to 3 and see if 3 connections can be made#
 #####################################################
-
 
 Set Global max_user_connections=3;
 --echo ** Connecting conn5 using username 'root' **
 CONNECT (conn5,localhost,root,,);
 --echo ** Connecting conn6 using username 'root' **
 CONNECT (conn6,localhost,root,,);
-
 
 #
 # Cleanup
@@ -89,7 +88,5 @@ DISCONNECT conn2;
 DISCONNECT conn5;
 DISCONNECT conn6;
 
-SET GLOBAL max_user_connections = @default_max_user_connections;
+SET @@global.max_user_connections = @default_max_user_connections;
 
---disable_info
---enable_warnings

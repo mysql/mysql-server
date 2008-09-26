@@ -273,7 +273,33 @@ main(int argc, char ** argv)
         goto end;
       
       if (!start(g_config, p_ndb | p_servers))
-	goto end;
+      {
+        g_logger.info("Failed to start server processes");
+        g_logger.info("Gathering logs and saving them as test %u", test_no);
+
+        int tmp;
+        if(!gather_result(g_config, &tmp))
+          goto end;
+        
+        if(g_report_file != 0)
+        {
+          fprintf(g_report_file, "%s ; %d ; %d ; %d\n",
+                  "start servers", test_no, ERR_FAILED_TO_START, 0);
+          fflush(g_report_file);
+        }
+
+        BaseString resdir;
+        resdir.assfmt("result.%d", test_no);
+        remove_dir(resdir.c_str(), true);
+        
+        if(rename("result", resdir.c_str()) != 0)
+        {
+          g_logger.critical("Failed to rename %s as %s",
+                            "result", resdir.c_str());
+          goto end;
+        }
+        goto end;
+      }
 
       if (!setup_db(g_config))
 	goto end;
@@ -741,8 +767,7 @@ wait_ndb(atrt_config& config, int goal){
     }
 
     if(handle == 0){
-      g_logger.critical("Unable to find mgm handle");
-      return false;
+      return true;
     }
     
     if(goal == NDB_MGM_NODE_STATUS_STARTED){

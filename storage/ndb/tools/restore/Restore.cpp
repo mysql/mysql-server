@@ -193,7 +193,7 @@ RestoreMetaData::readMetaTableDesc() {
   // Read section header 
   Uint32 sz = sizeof(sectionInfo) >> 2;
   if (m_fileHeader.NdbVersion < NDBD_ROWID_VERSION ||
-      m_fileHeader.NdbVersion == DROP6_VERSION)
+      isDrop6(m_fileHeader.NdbVersion))
   {
     sz = 2;
     sectionInfo[2] = htonl(DictTabInfo::UserTable);
@@ -532,7 +532,7 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
   NdbTableImpl* tableImpl = 0;
   int ret = NdbDictInterface::parseTableInfo
     (&tableImpl, data, len, false,
-     m_fileHeader.NdbVersion == DROP6_VERSION ? MAKE_VERSION(5,1,2) :
+     isDrop6(m_fileHeader.NdbVersion) ? MAKE_VERSION(5,1,2) :
      m_fileHeader.NdbVersion);
   
   if (ret != 0) {
@@ -967,7 +967,7 @@ RestoreDataIterator::readTupleData_old(Uint32 *buf_ptr,
   }
 
   int res;
-  if (m_currentTable->backupVersion != DROP6_VERSION)
+  if (!isDrop6(m_currentTable->backupVersion))
   {
     if ((res = readVarData(buf_ptr, ptr, dataLength)))
       return res;
@@ -1270,7 +1270,14 @@ BackupFile::readHeader(){
   }
   
   // Convert from network to host byte order for platform compatibility
-  m_fileHeader.BackupVersion  = ntohl(m_fileHeader.BackupVersion);
+  /*
+    Due to some optimization going on when using gcc 4.2.3 we
+    have to read 'backup_version' into tmp variable. If
+    'm_fileHeader.BackupVersion' is used directly in the if statement
+    below it will have the wrong value.
+  */
+  Uint32 backup_version = ntohl(m_fileHeader.BackupVersion);
+  m_fileHeader.BackupVersion = backup_version;
   m_fileHeader.SectionType = ntohl(m_fileHeader.SectionType);
   m_fileHeader.SectionLength = ntohl(m_fileHeader.SectionLength);
   m_fileHeader.FileType = ntohl(m_fileHeader.FileType);
@@ -1278,7 +1285,7 @@ BackupFile::readHeader(){
   m_fileHeader.BackupKey_0 = ntohl(m_fileHeader.BackupKey_0);
   m_fileHeader.BackupKey_1 = ntohl(m_fileHeader.BackupKey_1);
 
-  if (m_fileHeader.BackupVersion >= NDBD_RAW_LCP)
+  if (backup_version >= NDBD_RAW_LCP)
   {
     if (buffer_read(&m_fileHeader.NdbVersion, 
                     sizeof(m_fileHeader) - oldsz, 1) != 1)
@@ -1463,7 +1470,7 @@ void TableS::createAttr(NdbDictionary::Column *column)
   }
 
   // just a reminder - does not solve backwards compat
-  if (backupVersion < MAKE_VERSION(5,1,3) || backupVersion == DROP6_VERSION)
+  if (backupVersion < MAKE_VERSION(5,1,3) || isDrop6(backupVersion))
   {
     d->m_nullBitIndex = m_noOfNullable; 
     m_noOfNullable++;
@@ -1552,7 +1559,7 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     }
 
     if (unlikely(m_metaData.getFileHeader().NdbVersion < NDBD_FRAGID_VERSION ||
-                 m_metaData.getFileHeader().NdbVersion == DROP6_VERSION))
+                 isDrop6(m_metaData.getFileHeader().NdbVersion)))
     {
       /*
         FragId was introduced in LogEntry in version
