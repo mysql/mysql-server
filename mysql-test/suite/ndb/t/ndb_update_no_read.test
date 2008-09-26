@@ -257,9 +257,12 @@ update t1 set b='one plus one' where a=2;
 --echo # Rows matched=changed=affected=0
 --echo # 1 warning
 --echo 
+--disable_warnings # Workaround to bug#39663
 --source include/ndb_init_execute_count.inc
 update t1 set b='two thousand' where a=2000;
+show warnings; # Workaround to bug#39663
 --source include/ndb_execute_count.inc
+--enable_warnings # Workaround to bug#39663
 
 
 # No autocommit, successful update
@@ -321,10 +324,13 @@ commit;
 --echo # Rows matched=changed=affected=0
 --echo # 1 warning
 --echo 
+--disable_warnings # Workaround to bug#39663
 --source include/ndb_init_execute_count.inc
 begin;
 update t1 set b='two thousand' where a=2000;
 commit;
+show warnings; # Workaround to bug#39663
 --source include/ndb_execute_count.inc
+--enable_warnings # Workaround to bug#39663
 
 drop table t1;
