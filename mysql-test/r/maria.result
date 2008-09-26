@@ -2243,3 +2243,35 @@ lock table t1 write concurrent;
 delete from t1;
 ERROR 42000: The storage engine for the table doesn't support DELETE in WRITE CONCURRENT
 drop table t1;
+create table t1 (p int primary key, i int, a char(10), key k1(i), key k2(a))
+engine maria;
+insert into t1 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
+(3, 1, 'yyyy'), (4, 3, 'zzzz');
+insert into t1 values (5, 3, 'yyyy'), (6, 3, 'yyyy'), (7, 0, NULL),
+(8, 0, NULL);
+select * from t1 where a='zzzz';
+p	i	a
+4	3	zzzz
+select * from t1 where a='yyyy';
+p	i	a
+3	1	yyyy
+5	3	yyyy
+6	3	yyyy
+select * from t1 where a is NULL;
+p	i	a
+7	0	NULL
+8	0	NULL
+select * from t1;
+p	i	a
+1	1	qqqq
+2	1	pppp
+3	1	yyyy
+4	3	zzzz
+5	3	yyyy
+6	3	yyyy
+7	0	NULL
+8	0	NULL
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

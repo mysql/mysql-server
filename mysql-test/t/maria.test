@@ -1542,3 +1542,20 @@ eval set global storage_engine=$default_engine, maria_page_checksum=$default_che
 --enable_result_log
 --enable_query_log
 
+#
+# Bug#39243 SELECT WHERE does not find row
+# (Problem with skip_row)
+#
+
+create table t1 (p int primary key, i int, a char(10), key k1(i), key k2(a))
+engine maria;
+insert into t1 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
+                      (3, 1, 'yyyy'), (4, 3, 'zzzz');
+insert into t1 values (5, 3, 'yyyy'), (6, 3, 'yyyy'), (7, 0, NULL),
+                      (8, 0, NULL);
+select * from t1 where a='zzzz';
+select * from t1 where a='yyyy';
+select * from t1 where a is NULL;
+select * from t1;
+check table t1;
+drop table t1;
