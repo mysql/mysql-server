@@ -1132,7 +1132,6 @@ ibuf_rec_get_info(
 	const byte*	types;
 	ulint		fields;
 	ulint		len;
-	ulint		mod;
 
 	/* Local variables to shadow arguments. */
 	ibuf_op_t	op_local;
@@ -1146,28 +1145,25 @@ ibuf_rec_get_info(
 
 	types = rec_get_nth_field_old(rec, 3, &len);
 
-	mod = len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
+	info_len_local = len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
 
-	if (mod == 0) {
+	switch (info_len_local) {
+	case 0:
+	case 1:
 		op_local = IBUF_OP_INSERT;
-		comp_local = FALSE;
-		info_len_local = 0;
+		comp_local = info_len_local;
 		ut_ad(!counter);
+		counter_local = ULINT_UNDEFINED;
+		break;
 
-	} else if (mod == 1) {
-		op_local = IBUF_OP_INSERT;
-		comp_local = TRUE;
-		info_len_local = 1;
-		ut_ad(!counter);
-
-	} else if (mod == IBUF_REC_INFO_SIZE) {
+	case IBUF_REC_INFO_SIZE:
 		op_local = (ibuf_op_t)types[IBUF_REC_OFFSET_TYPE];
 		comp_local = types[IBUF_REC_OFFSET_FLAGS] & IBUF_REC_COMPACT;
-		info_len_local = IBUF_REC_INFO_SIZE;
 		counter_local = mach_read_from_2(
 			types + IBUF_REC_OFFSET_COUNTER);
+		break;
 
-	} else {
+	default:
 		ut_error;
 	}
 
@@ -1198,8 +1194,8 @@ static
 ibuf_op_t
 ibuf_rec_get_op_type(
 /*=================*/
-			/* out: operation type */
-	rec_t*	rec)	/* in: ibuf record */
+				/* out: operation type */
+	const rec_t*	rec)	/* in: ibuf record */
 {
 	ulint		len;
 	const byte*	field;
@@ -1260,8 +1256,8 @@ static
 void
 ibuf_add_ops(
 /*=========*/
-	ulint*	arr,	/* in/out: array to modify */
-	ulint*	ops)	/* in: operation counts */
+	ulint*		arr,	/* in/out: array to modify */
+	const ulint*	ops)	/* in: operation counts */
 
 {
 	ulint	i;
@@ -1277,8 +1273,8 @@ static
 void
 ibuf_print_ops(
 /*===========*/
-	ulint*	ops,	/* in: operation counts */
-	FILE*	file)	/* in: file where to print */
+	const ulint*	ops,	/* in: operation counts */
+	FILE*		file)	/* in: file where to print */
 {
 	static const char* op_names[] = {
 		"insert",
@@ -1579,7 +1575,6 @@ ibuf_rec_get_volume(
 		types = rec_get_nth_field_old(ibuf_rec, 1, &len);
 
 		ut_ad(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
-
 	} else {
 		/* >= 4.1.x format record */
 		ibuf_op_t	op;
