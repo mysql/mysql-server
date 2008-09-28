@@ -155,6 +155,7 @@ int init_relay_log_info(Relay_log_info* rli,
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
       DBUG_RETURN(1);
     }
+    rli->relay_log.is_relay_log= TRUE;
   }
 
   /* if file does not exist */
