@@ -35,7 +35,7 @@ SHADOW=-Wshadow
 FORMAT=-Wmissing-format-attribute
 endif
 
-CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) -Werror $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
+CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz -lpthread
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
 
@@ -88,11 +88,13 @@ HFILES = $(wildcard *.h)
 
 BRT_C_FILES = $(patsubst %,%.c,$(BRT_SOURCES))
 
+ifeq ($(CC),icc)
+newbrt.o: $(BRT_C_FILES) $(HFILES)
+	$(CC) -ipo-c $(CFLAGS) $(CPPFLAGS) $(BRT_C_FILES) -o $@
+else
 newbrt.o: $(BRT_C_FILES) $(HFILES)
 	$(CC) -combine $(CFLAGS) $(CPPFLAGS) $(BRT_C_FILES) -c -o $@
-
-rfp: $(BRT_C_FILES) 
-	$(CC) $(CPPFLAGS) -Wall -g -O3 -ipo-c $(BRT_C_FILES) -o newbrt.o 
+endif
 
 tdb_logprint.o: log-internal.h brttypes.h log.h kv-pair.h log_header.h
 tdb_logprint: $(OFILES)
