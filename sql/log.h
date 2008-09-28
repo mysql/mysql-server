@@ -274,6 +274,10 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 public:
   MYSQL_LOG::generate_name;
   MYSQL_LOG::is_open;
+
+  /* This is relay log */
+  bool is_relay_log;
+
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
