@@ -810,9 +810,8 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
   if (is_artificial_event())
   {
     /*
-      We should not do any cleanup on slave when reading this. We
-      mark this by setting log_pos to 0.  Start_log_event_v3() will
-      detect this on reading and set artificial_event=1 for the event.
+      Artificial events are automatically generated and do not exist
+      in master's binary log, so log_pos should be set to 0.
     */
     log_pos= 0;
   }
@@ -2625,7 +2624,7 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 Start_log_event_v3::Start_log_event_v3()
   :Log_event(), created(0), binlog_version(BINLOG_VERSION),
-   artificial_event(0), dont_set_created(0)
+   dont_set_created(0)
 {
   memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
 }
@@ -2673,7 +2672,7 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       my_b_printf(&cache, "# Warning: this binlog was not closed properly. "
                   "Most probably mysqld crashed writing it.\n");
   }
-  if (!artificial_event && created)
+  if (!is_artificial_event() && created)
   {
 #ifdef WHEN_WE_HAVE_THE_RESET_CONNECTION_SQL_COMMAND
     /*
@@ -2715,8 +2714,6 @@ Start_log_event_v3::Start_log_event_v3(const char* buf,
   // prevent overrun if log is corrupted on disk
   server_version[ST_SERVER_VER_LEN-1]= 0;
   created= uint4korr(buf+ST_CREATED_OFFSET);
-  /* We use log_pos to mark if this was an artificial event or not */
-  artificial_event= (log_pos == 0);
   dont_set_created= 1;
 }
 
@@ -3117,7 +3114,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
     original place when it comes to us; we'll know this by checking
     log_pos ("artificial" events have log_pos == 0).
   */
-  if (!artificial_event && created && thd->transaction.all.ha_list)
+  if (!is_artificial_event() && created && thd->transaction.all.ha_list)
   {
     /* This is not an error (XA is safe), just an information */
     rli->report(INFORMATION_LEVEL, 0,
@@ -4054,6 +4051,8 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
 #endif
   if (flags & DUP_NAME)
     new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
+  if (flags & RELAY_LOG)
+    set_relay_log_event();
   DBUG_VOID_RETURN;
 }
 #endif
@@ -4125,8 +4124,6 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
   DBUG_PRINT("info", ("new_log_ident: %s", this->new_log_ident));
   DBUG_PRINT("info", ("pos: %s", llstr(this->pos, buf)));
 
-  pthread_mutex_lock(&rli->data_lock);
-  rli->event_relay_log_pos= my_b_tell(rli->cur_log);
   /*
     If we are in a transaction or in a group: the only normal case is
     when the I/O thread was copying a big transaction, then it was
@@ -4144,23 +4141,24 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     relay log, which shall not change the group positions.
   */
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
+      !is_relay_log_event() &&
       !rli->is_in_group())
   {
+    pthread_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
     memcpy(rli->group_master_log_name, new_log_ident, ident_len+1);
     rli->notify_group_master_log_name_update();
-    rli->group_master_log_pos= pos;
-    strmake(rli->group_relay_log_name, rli->event_relay_log_name,
-            sizeof(rli->group_relay_log_name) - 1);
-    rli->notify_group_relay_log_name_update();
-    rli->group_relay_log_pos= rli->event_relay_log_pos;
+    rli->inc_group_relay_log_pos(pos, TRUE /* skip_lock */);
     DBUG_PRINT("info", ("new group_master_log_name: '%s'  "
                         "new group_master_log_pos: %lu",
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
+    pthread_mutex_unlock(&rli->data_lock);
+    flush_relay_log_info(rli);
+    
     /*
       Reset thd->options and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.
@@ -4174,9 +4172,9 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     thd->variables.auto_increment_increment=
       thd->variables.auto_increment_offset= 1;
   }
-  pthread_mutex_unlock(&rli->data_lock);
-  pthread_cond_broadcast(&rli->data_cond);
-  flush_relay_log_info(rli);
+  else
+    rli->inc_event_relay_log_pos();
+
 
   DBUG_RETURN(0);
 }
