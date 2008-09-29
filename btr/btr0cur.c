@@ -1071,7 +1071,6 @@ btr_cur_optimistic_insert(
 		modification log. */
 		ulint	free_space_zip = page_zip_empty_size(
 			cursor->index->n_fields, zip_size) - 1;
-		ulint	extra;
 		ulint	n_uniq = dict_index_get_n_unique_in_tree(index);
 
 		ut_ad(dict_table_is_comp(index->table));
@@ -1081,10 +1080,10 @@ btr_cur_optimistic_insert(
 		infinite page splits. */
 
 		if (UNIV_LIKELY(entry->n_fields >= n_uniq)
-		    && UNIV_UNLIKELY(rec_get_converted_size_comp(
-					     index, REC_STATUS_NODE_PTR,
-					     entry->fields, n_uniq,
-					     &extra)
+		    && UNIV_UNLIKELY(REC_NODE_PTR_SIZE
+				     + rec_get_converted_size_comp_prefix(
+					     index, entry->fields, n_uniq,
+					     NULL)
 				     /* On a compressed page, there is
 				     a two-byte entry in the dense
 				     page directory for every record.
