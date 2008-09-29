@@ -536,12 +536,20 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                    int force_send, int ignore_error, uint *ignore_count)
 {
   DBUG_ENTER("execute_commit");
+  NdbOperation::AbortOption ao= NdbOperation::AO_IgnoreError;
+  if (thd_ndb->m_unsent_bytes && !ignore_error)
+  {
+    /*
+      We have unsent bytes and cannot ignore error.  Calling execute
+      with NdbOperation::AO_IgnoreError will result in possible commit
+      of a transaction although there is an error.
+    */
+    ao= NdbOperation::AbortOnError;
+  }
   const NdbOperation *first= trans->getFirstDefinedOperation();
   thd_ndb->m_execute_count++;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
-  if (trans->execute(NdbTransaction::Commit,
-                     NdbOperation::AO_IgnoreError,
-                     force_send))
+  if (trans->execute(NdbTransaction::Commit, ao, force_send))
   {
     thd_ndb->m_max_violation_count= 0;
     thd_ndb->m_old_violation_count= 0;
