@@ -2951,6 +2951,39 @@ err_exit:
 }
 
 #ifdef UNIV_ZIP_DEBUG
+/**************************************************************************
+Dump a block of memory on the standard error stream. */
+static
+void
+page_zip_hexdump_func(
+/*==================*/
+	const char*	name,	/* in: name of the data structure */
+	const void*	buf,	/* in: data */
+	ulint		size)	/* in: length of the data, in bytes */
+{
+	const byte*	s	= buf;
+	ulint		addr;
+	const ulint	width	= 32; /* bytes per line */
+
+	fprintf(stderr, "%s:\n", name);
+
+	for (addr = 0; addr < size; addr += width) {
+		ulint	i;
+
+		fprintf(stderr, "%04lx ", (ulong) addr);
+
+		i = ut_min(width, size - addr);
+
+		while (i--) {
+			fprintf(stderr, "%02x", *s++);
+		}
+
+		putc('\n', stderr);
+	}
+}
+
+#define page_zip_hexdump(buf, size) page_zip_hexdump_func(#buf, buf, size)
+
 /* Flag: make page_zip_validate() compare page headers only */
 UNIV_INTERN ibool	page_zip_validate_header_only = FALSE;
 
@@ -3037,6 +3070,12 @@ page_zip_validate(
 	}
 
 func_exit:
+	if (!valid) {
+		page_zip_hexdump(page_zip, sizeof *page_zip);
+		page_zip_hexdump(page_zip->data, page_zip_get_size(page_zip));
+		page_zip_hexdump(page, UNIV_PAGE_SIZE);
+		page_zip_hexdump(temp_page, UNIV_PAGE_SIZE);
+	}
 	ut_free(temp_page_buf);
 	return(valid);
 }
