@@ -501,10 +501,10 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     r = toku_open_brt(fname, 0, 1, &brt, 1<<20, ct, null_txn, wrong_p ? wrong_compare_fun : toku_default_compare_fun, &nonce_db);  assert(r==0);
     for (i=1; i<257; i+=255) {
 	unsigned char a[4],b[4];
-	b[3] = a[0] = i&255;
-	b[2] = a[1] = (i>>8)&255;
-	b[1] = a[2] = (i>>16)&255;
-	b[0] = a[3] = (i>>24)&255;
+	b[3] = a[0] = (unsigned char)(i&255);
+	b[2] = a[1] = (unsigned char)((i>>8)&255);
+	b[1] = a[2] = (unsigned char)((i>>16)&255);
+	b[0] = a[3] = (unsigned char)((i>>24)&255);
 	toku_fill_dbt(&kbt, a, sizeof(a));
 	toku_fill_dbt(&vbt, b, sizeof(b));
 	if (verbose)
@@ -538,10 +538,10 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 
 	for (i=0; i<N; i++) {
 	    unsigned char a[4],b[4];
-	    b[3] = a[0] = i&255;
-	    b[2] = a[1] = (i>>8)&255;
-	    b[1] = a[2] = (i>>16)&255;
-	    b[0] = a[3] = (i>>24)&255;
+	    b[3] = a[0] = (unsigned char)(i&255);
+	    b[2] = a[1] = (unsigned char)((i>>8)&255);
+	    b[1] = a[2] = (unsigned char)((i>>16)&255);
+	    b[0] = a[3] = (unsigned char)((i>>24)&255);
 	    toku_fill_dbt(&kbt, a, sizeof(a));
 	    toku_fill_dbt(&vbt, b, sizeof(b));
 	    if (0) printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
@@ -986,7 +986,7 @@ static void test_brt_delete() {
     test_insert_delete_lookup(512); toku_memory_check_all_free();
 }
 
-static void test_new_brt_cursor_create_close() {
+static void test_new_brt_cursor_create_close (void) {
     int r;
     BRT brt=0;
     int n = 8;
@@ -1420,7 +1420,7 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
 }
 
 static void test_new_brt_cursors(int dup_mode) {
-    test_new_brt_cursor_create_close(dup_mode);   toku_memory_check_all_free();
+    test_new_brt_cursor_create_close();           toku_memory_check_all_free();
     test_new_brt_cursor_first(8, dup_mode);       toku_memory_check_all_free();
     test_new_brt_cursor_last(8, dup_mode);        toku_memory_check_all_free();
     test_new_brt_cursor_last(512, dup_mode);      toku_memory_check_all_free();
@@ -1430,7 +1430,7 @@ static void test_new_brt_cursors(int dup_mode) {
     test_new_brt_cursor_next(512, dup_mode);      toku_memory_check_all_free();
     test_new_brt_cursor_set_range(512, dup_mode); toku_memory_check_all_free();
     test_new_brt_cursor_set(512, DB_SET, 0);      toku_memory_check_all_free();
-};
+}
 
 static void brt_blackbox_test (void) {
     toku_memory_check = 1;
