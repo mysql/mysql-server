@@ -439,6 +439,7 @@ toku_recover_setpivot (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t ch
     toku_free(pivotkey.data);
 }
 
+#if 0
 static void
 toku_recover_changechildfingerprint (LSN lsn, FILENUM filenum, BLOCKNUM blocknum, u_int32_t childnum, u_int32_t UU(oldfingerprint), u_int32_t newfingerprint) {
     struct cf_pair *pair = NULL;
@@ -457,8 +458,8 @@ toku_recover_changechildfingerprint (LSN lsn, FILENUM filenum, BLOCKNUM blocknum
     node->log_lsn = lsn;
     r = toku_cachetable_unpin(pair->cf, blocknum, node->fullhash, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
-    
 }
+#endif
 
 static void
 toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM filenum) {

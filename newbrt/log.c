@@ -822,11 +822,13 @@ TOKULOGGER toku_txn_logger (TOKUTXN txn) {
     return txn ? txn->logger : 0;
 }
 
+#if 0
 static int
 toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unused__)), TOKUTXN txn) {
     toku_logger_panic(txn->logger, EINVAL);
     return EINVAL;
 }
+#endif
 
 int toku_logger_abort(TOKUTXN txn) {
     //printf("%s:%d aborting\n", __FILE__, __LINE__);

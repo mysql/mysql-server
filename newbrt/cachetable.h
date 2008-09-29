@@ -182,6 +182,6 @@ void toku_cachetable_verify (CACHETABLE t);
 void print_hash_histogram (void) __attribute__((__visibility__("default")));
 
 // Useful for debugging.
-static unsigned long toku_get_maxrss(void) __attribute__((__visibility__("default")));
+unsigned long toku_get_maxrss(void) __attribute__((__visibility__("default")));
 
 #endif

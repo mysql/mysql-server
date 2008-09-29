@@ -4,7 +4,7 @@
 
 int verbose=0;
 
-static void
+static inline void
 default_parse_args (int argc, const char *argv[]) {
     const char *progname=argv[0];
     argc--; argv++;

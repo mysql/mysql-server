@@ -3068,12 +3068,14 @@ static inline void dbt_cleanup(DBT *dbt) {
     }
 }
 
-static inline int brt_cursor_not_set(BRT_CURSOR cursor) {
-    return cursor->key.data == 0 || cursor->val.data == 0;
+static BOOL brt_cursor_not_set(BRT_CURSOR cursor) {
+    return (BOOL)((cursor->key.data == 0)
+		  ||
+		  (cursor->val.data == 0));
 }
 
 BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c) {
-    return (BOOL)(brt_cursor_not_set(c));
+    return brt_cursor_not_set(c);
 }
 
 static inline void load_dbts_from_omt(BRT_CURSOR c, DBT *key, DBT *val) {
