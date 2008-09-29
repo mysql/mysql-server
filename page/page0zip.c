@@ -3024,7 +3024,9 @@ page_zip_validate(
 
 #ifdef UNIV_DEBUG_VALGRIND
 	/* Get detailed information on the valid bits in case the
-	UNIV_MEM_ASSERT_RW() checks fail. */
+	UNIV_MEM_ASSERT_RW() checks fail.  The v-bits of page[],
+	page_zip->data[] or page_zip could be viewed at temp_page[] or
+	temp_page_zip in a debugger when running valgrind --db-attach. */
 	VALGRIND_GET_VBITS(page, temp_page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 	VALGRIND_GET_VBITS(page_zip, &temp_page_zip, sizeof temp_page_zip);
