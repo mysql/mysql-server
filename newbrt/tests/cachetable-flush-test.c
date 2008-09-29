@@ -104,13 +104,7 @@ test_cachetable_flush (int n) {
 }
 
 int main(int argc, const char *argv[]) {
-    int i;
-    for (i=1; i<argc; i++) {
-        if (strcmp(argv[i], "-v") == 0) {
-            verbose++;
-            continue;
-        }
-    }
+    default_parse_args(argc, argv);
     test_cachetable_flush(8);
     return 0;
 }

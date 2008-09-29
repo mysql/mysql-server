@@ -178,6 +178,7 @@ int main (int argc, const char *argv[]) {
     int do_malloc_fail = 0;
 
     // parse args
+    default_parse_args(argc, argv);
     int i;
     for (i=1; i<argc; i++) {
         const char *arg = argv[i];
