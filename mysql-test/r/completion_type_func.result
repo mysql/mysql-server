@@ -1,67 +1,67 @@
-drop table if exists t1;
+DROP TABLE IF EXISTS t1;
 ## Creating new table ##
 CREATE TABLE t1
 (
-id INT NOT NULL auto_increment,
+id INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (id),
-name varchar(30)
+name VARCHAR(30)
 ) ENGINE = INNODB;
 '#--------------------FN_DYNVARS_017_01-------------------------#'
 ## Creating new connection ##
-INSERT into t1(name) values('Record_1');
+INSERT INTO t1(name) VALUES('Record_1');
 SET @@autocommit = 0;
-SELECT * from t1;
+SELECT * FROM t1;
 id	name
 1	Record_1
 ## Setting value of variable to 0 ##
 SET @@session.completion_type = 0;
 ## Here commit & rollback should work normally ##
 START TRANSACTION;
-SELECT * from t1;
+SELECT * FROM t1;
 id	name
 1	Record_1
-INSERT into t1(name) values('Record_2');
-INSERT into t1(name) values('Record_3');
-SELECT * from t1;
+INSERT INTO t1(name) VALUES('Record_2');
+INSERT INTO t1(name) VALUES('Record_3');
+SELECT * FROM t1;
 id	name
 1	Record_1
 2	Record_2
 3	Record_3
-DELETE FROM t1 where id = 2;
-SELECT * from t1;
+DELETE FROM t1 WHERE id = 2;
+SELECT * FROM t1;
 id	name
 1	Record_1
 3	Record_3
 START TRANSACTION;
-SELECT * from t1;
+SELECT * FROM t1;
 id	name
 1	Record_1
 3	Record_3
-INSERT into t1(name) values('Record_4');
-INSERT into t1(name) values('Record_5');
+INSERT INTO t1(name) VALUES('Record_4');
+INSERT INTO t1(name) VALUES('Record_5');
 COMMIT;
 '#--------------------FN_DYNVARS_017_02-------------------------#'
 SET @@session.completion_type = 2;
 ## Here commit should work as COMMIT RELEASE ##
 START TRANSACTION;
-SELECT * from t1;
+SELECT * FROM t1;
 id	name
 1	Record_1
 3	Record_3
 4	Record_4
 5	Record_5
-INSERT into t1(name) values('Record_6');
-INSERT into t1(name) values('Record_7');
+INSERT INTO t1(name) VALUES('Record_6');
+INSERT INTO t1(name) VALUES('Record_7');
 COMMIT;
 ## Inserting rows should give error here because connection should ##
 ## disconnect after using COMMIT ##
-INSERT into t1(name) values('Record_4');
+INSERT INTO t1(name) VALUES('Record_4');
 Got one of the listed errors
 ## Creating new connection test_con2 ##
 SET @@session.completion_type = 2;
 ## Inserting rows and using Rollback which should Rollback & release ##
 START TRANSACTION;
-SELECT * from t1;
+SELECT * FROM t1;
 id	name
 1	Record_1
 3	Record_3
@@ -69,8 +69,9 @@ id	name
 5	Record_5
 6	Record_6
 7	Record_7
-INSERT into t1(name) values('Record_8');
-INSERT into t1(name) values('Record_9');
+INSERT INTO t1(name) VALUES('Record_8');
+INSERT INTO t1(name) VALUES('Record_9');
 ROLLBACK;
-INSERT into t1(name) values('Record_4');
+INSERT INTO t1(name) VALUES('Record_4');
 Got one of the listed errors
+DROP TABLE t1;

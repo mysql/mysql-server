@@ -28,3 +28,5 @@ set global slave_net_timeout=default;
 # sql_slave_skip_counter is write-only, so we can't save previous
 # value and restore it here.  That's ok, because it's normally 0.
 set global sql_slave_skip_counter= 0;
+set @@global.slave_net_timeout= @my_slave_net_timeout;
+

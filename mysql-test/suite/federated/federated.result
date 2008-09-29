@@ -1002,13 +1002,13 @@ Warning	1101	BLOB/TEXT column 'blurb' can't have a default value
 INSERT INTO federated.t1 VALUES (1, " MySQL supports a number of column types in several categories: numeric types, date and time types, and string (character) types.  This chapter first gives an overview of these column types, and then provides a more detailed description of the properties of the types in each category, and a summary of the column type storage requirements.  The overview is intentionally brief.  The more detailed descriptions should be consulted for additional information about particular column types, such as the allowable formats in which you can specify values.");
 INSERT INTO federated.t1 VALUES (2, "All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.");
 INSERT INTO federated.t1 VALUES (3, " A floating-point number.  p represents the precision. It can be from 0 to 24 for a single-precision floating-point number and from 25 to 53 for a double-precision floating-point number. These types are like the FLOAT and DOUBLE types described immediately following.  FLOAT(p) has the same range as the corresponding FLOAT and DOUBLE types, but the display size and number of decimals are undefined.  ");
-INSERT INTO federated.t1 VALUES(4, "Die Übersetzung einer so umfangreichen technischen Dokumentation wie des MySQL-Referenzhandbuchs ist schon eine besondere Herausforderung.  Zumindest für jemanden, der seine Zielsprache ernst nimmt:");
+INSERT INTO federated.t1 VALUES(4, "Die ï¿½bersetzung einer so umfangreichen technischen Dokumentation wie des MySQL-Referenzhandbuchs ist schon eine besondere Herausforderung.  Zumindest fï¿½r jemanden, der seine Zielsprache ernst nimmt:");
 SELECT * FROM federated.t1;
 blurb_id	blurb
 1	 MySQL supports a number of column types in several categories: numeric types, date and time types, and string (character) types.  This chapter first gives an overview of these column types, and then provides a more detailed description of the properties of the types in each category, and a summary of the column type storage requirements.  The overview is intentionally brief.  The more detailed descriptions should be consulted for additional information about particular column types, such as the allowable formats in which you can specify values.
 2	All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.
 3	 A floating-point number.  p represents the precision. It can be from 0 to 24 for a single-precision floating-point number and from 25 to 53 for a double-precision floating-point number. These types are like the FLOAT and DOUBLE types described immediately following.  FLOAT(p) has the same range as the corresponding FLOAT and DOUBLE types, but the display size and number of decimals are undefined.  
-4	Die Übersetzung einer so umfangreichen technischen Dokumentation wie des MySQL-Referenzhandbuchs ist schon eine besondere Herausforderung.  Zumindest für jemanden, der seine Zielsprache ernst nimmt:
+4	Die ï¿½bersetzung einer so umfangreichen technischen Dokumentation wie des MySQL-Referenzhandbuchs ist schon eine besondere Herausforderung.  Zumindest fï¿½r jemanden, der seine Zielsprache ernst nimmt:
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `a` int NOT NULL,
@@ -2111,6 +2111,17 @@ DROP TABLE t1;
 DROP TABLE t1;
 CREATE TABLE t1 (a INT) ENGINE=federated CONNECTION='mysql://@:://';
 DROP TABLE t1;
+CREATE TABLE t1 (a LONGBLOB, b LONGBLOB);
+INSERT INTO t1 VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaa', NULL);
+CREATE TABLE t1
+(a LONGBLOB, b LONGBLOB) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2465757603
+DROP TABLE t1;
+DROP TABLE t1;
+End of 5.0 tests
 create server 's1' foreign data wrapper 'mysql' options (port 3306);
 drop server 's1';
 End of 5.1 tests

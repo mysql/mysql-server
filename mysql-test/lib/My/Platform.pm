@@ -17,6 +17,8 @@
 package My::Platform;
 
 use strict;
+use File::Basename;
+use My::File::Path; # Patched version of File::Path
 
 use base qw(Exporter);
 our @EXPORT= qw(IS_CYGWIN IS_WINDOWS IS_WIN32PERL
@@ -62,18 +64,22 @@ BEGIN {
 #  in cygwin perl (that uses unix paths)
 #
 
+use Memoize;
+memoize('mixed_path');
+memoize('native_path');
+memoize('posix_path');
+
 sub mixed_path {
   my ($path)= @_;
   if (IS_CYGWIN){
     return unless defined $path;
     my $cmd= "cygpath -m $path";
-    print "$cmd\n";
-    $path= `$cmd`;
+    $path= `$cmd` or
+      print "Failed to run: '$cmd', $!\n";
     chomp $path;
   }
   return $path;
 }
-
 
 sub native_path {
   my ($path)= @_;
@@ -81,7 +87,6 @@ sub native_path {
     if (IS_CYGWIN or IS_WIN32PERL);
   return $path;
 }
-
 
 sub posix_path {
   my ($path)= @_;
@@ -102,14 +107,27 @@ sub check_socket_path_length {
 
   require IO::Socket::UNIX;
 
-  my $sock = new IO::Socket::UNIX
-  (
-   Local => $path,
-   Listen => 1,
-  );
+  my $sock;
+  eval {
+    # Create the directories where the
+    # socket till be created
+    mkpath(dirname($path));
+
+    $sock= new IO::Socket::UNIX
+      (
+       Local => $path,
+       Listen => 1,
+      );
+
+  };
+  if ($@)
+  {
+    print $@, '\n';
+    return 2;
+  }
   if (!defined $sock){
-    # Could not create a UNIX domain socket
-    return 0; # Ok, will not be used by mysqld either    
+    #print "Could not create UNIX domain socket: $!\n";
+    return 3;
   }
   if ($path ne $sock->hostpath()){
     # Path was truncated

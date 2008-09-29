@@ -15,3 +15,4 @@ slave_skip_errors	3,100,137,643,1752
 ---- Clean Up ----
 set global slave_net_timeout=default;
 set global sql_slave_skip_counter= 0;
+set @@global.slave_net_timeout= @my_slave_net_timeout;

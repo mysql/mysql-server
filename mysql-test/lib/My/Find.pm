@@ -26,7 +26,7 @@ use Carp;
 use My::Platform;
 
 use base qw(Exporter);
-our @EXPORT= qw(my_find_bin my_find_dir NOT_REQUIRED);
+our @EXPORT= qw(my_find_bin my_find_dir my_find_file NOT_REQUIRED);
 
 our $vs_config_dir;
 
@@ -53,7 +53,7 @@ sub NOT_REQUIRED { return 0; }
 #    binary is not found
 #    my $mysql_exe= my_find_bin($basedir,
 #                               ["client", "bin"],
-#                               "mysql", 0);
+#                               "mysql", NOT_REQUIRED);
 #
 # NOTE: The function honours MTR_VS_CONFIG environment variable
 #
@@ -68,6 +68,40 @@ sub my_find_bin {
   # -------------------------------------------------------
   foreach my $path (my_find_paths($base, $paths, $names, $bin_extension)) {
     return $path if ( -x $path or (IS_WINDOWS and -f $path) );
+  }
+  if (defined $required and $required == NOT_REQUIRED){
+    # Return empty string to indicate not found
+    return "";
+  }
+  find_error($base, $paths, $names);
+}
+
+
+#
+# my_find_file - find a file with "name_1...name_n" in
+# paths "path_1...path_n" and return the full path
+#
+# Example:
+#    my $mysqld_exe= my_find_file($basedir.
+#                                ["sql", "bin"],
+#                                "filename");
+#
+#
+# Also supports NOT_REQUIRED flag
+#
+# NOTE: The function honours MTR_VS_CONFIG environment variable
+#
+#
+sub my_find_file {
+  my ($base, $paths, $names, $required)= @_;
+  croak "usage: my_find_file(<base>, <paths>, <names>, [<required>])"
+    unless @_ == 4 or @_ == 3;
+
+  # -------------------------------------------------------
+  # Find and return the first executable
+  # -------------------------------------------------------
+  foreach my $path (my_find_paths($base, $paths, $names, $bin_extension)) {
+    return $path if ( -f $path );
   }
   if (defined $required and $required == NOT_REQUIRED){
     # Return empty string to indicate not found

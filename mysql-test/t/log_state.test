@@ -1,7 +1,15 @@
+# hhunger 08.22.2008: with check-testcases differences due to bug#38889 using 
+# slow_query_log_file or general_log_file
+
 -- source include/not_embedded.inc
 --source include/have_csv.inc
 
 --disable_ps_protocol
+# save default value to set them back at the end of the test
+set @start_general_log= @@global.general_log;
+set @start_slow_query_log= @@global.slow_query_log;
+set @start_general_log_file= @@global.general_log_file;
+
 set global general_log= OFF;
 truncate table mysql.general_log;
 truncate table mysql.slow_log;
@@ -71,16 +79,16 @@ show variables like 'slow_query_log_file';
 show variables like 'log_output';
 
 # Can't set general_log_file to a non existing file
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set global general_log_file='/not exiting path/log.master';
 
 # Can't set general_log_file to a directory
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 eval set global general_log_file='$MYSQLTEST_VARDIR';
 
 # Can't set general_log_file to empty string
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set global general_log_file='';
 
 --replace_column 2 #
@@ -219,13 +227,13 @@ SET GLOBAL slow_query_log = @old_slow_log_state;
 set @old_general_log_file= @@global.general_log_file;
 set @old_slow_query_log_file= @@global.slow_query_log_file;
 
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set global general_log_file= concat('/not exiting path/log.maste', 'r');
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set global general_log_file= NULL;
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set global slow_query_log_file= concat('/not exiting path/log.maste', 'r');
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 set global slow_query_log_file= NULL;
 
 set global general_log_file= @old_general_log_file;
@@ -267,8 +275,14 @@ SET GLOBAL slow_query_log_file = @slow_query_log_file_saved;
 # Cleanup (must be done last to avoid delayed 'Quit' message in general log)
 #
 disconnect con1;
+# set back the saved default values
+connection default;
+set @@global.general_log= @start_general_log;
+set @@global.slow_query_log= @start_slow_query_log;
+set @@global.general_log_file= @start_general_log_file;
 
 # Remove the log files that was created in the "default location"
 # i.e var/run
 --remove_file $MYSQLTEST_VARDIR/run/mysqld.log
 --remove_file $MYSQLTEST_VARDIR/run/mysqld-slow.log
+
