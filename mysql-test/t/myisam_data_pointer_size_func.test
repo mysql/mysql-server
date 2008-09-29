@@ -14,16 +14,17 @@
 # Description: Test Cases of Dynamic System Variable myisam_data_pointer_size  #
 #              that checks the behavior of this variable                       #
 #                                                                              #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
-#  server-system-variables.html                                                #
+# Reference:                                                                   #
+#  http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html         #
 #                                                                              #
 ################################################################################
 
 --echo '#--------------------FN_DYNVARS_093_01-------------------------#'
 ###############################################################################
-# Check if setting myisam_data_pointer_size is changed in every new connection# 
+# Check if setting myisam_data_pointer_size is changed in every new connection#
 ###############################################################################
 
+SET @start_value= @@global.myisam_data_pointer_size;
 SET @@global.myisam_data_pointer_size = 2;
 # con1 will be default connection from now on
 --echo 'connect (con1,localhost,root,,,,)'
@@ -48,7 +49,6 @@ disconnect con2;
 --echo 'connection con1'
 connection con1;
 
-
 #===========================================================
 # Checking myisam_data_pointer_size is 2
 #===========================================================
@@ -59,10 +59,7 @@ DROP PROCEDURE IF EXISTS sp_addRec;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-
-
 DELIMITER //;
-
 CREATE PROCEDURE sp_addRec(IN count INT)
 BEGIN
    WHILE (count>0) DO
@@ -70,7 +67,6 @@ BEGIN
       SET count = count -1;
    END WHILE;
 END //
-
 DELIMITER ;//
 
 # setting 2 will allow data pointer to access files with size < 65536
@@ -104,6 +100,9 @@ SELECT count(*) from t1;
 
 DROP PROCEDURE  sp_addRec;
 DROP TABLE t1;
+
+connection default;
+SET @@global.myisam_data_pointer_size= @start_value;
 
 ################################################################
 # End of functionality Testing for myisam_data_pointer_size    #

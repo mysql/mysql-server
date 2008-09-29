@@ -1794,7 +1794,8 @@ JOIN::exec()
     if (!items1)
     {
       items1= items0 + all_fields.elements;
-      if (sort_and_group || curr_tmp_table->group)
+      if (sort_and_group || curr_tmp_table->group ||
+          tmp_table_param.precomputed_group_by)
       {
 	if (change_to_use_tmp_fields(thd, items1,
 				     tmp_fields_list1, tmp_all_fields1,
@@ -9628,6 +9629,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   MI_COLUMNDEF *recinfo;
   uint total_uneven_bit_length= 0;
   bool force_copy_fields= param->force_copy_fields;
+  /* Treat sum functions as normal ones when loose index scan is used. */
+  save_sum_fields|= param->precomputed_group_by;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",
              ("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
@@ -13182,6 +13185,16 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->key_read=1;
             table->file->extra(HA_EXTRA_KEYREAD);
           }
+          else if (table->key_read)
+          {
+            /*
+              Clear the covering key read flags that might have been
+              previously set for some key other than the current best_key.
+            */
+            table->key_read= 0;
+            table->file->extra(HA_EXTRA_NO_KEYREAD);
+          }
+
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {

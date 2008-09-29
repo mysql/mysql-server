@@ -397,7 +397,7 @@ sub collect_one_suite($)
 	my $comb= {};
 	$comb->{name}= $group->name();
         foreach my $option ( $group->options() ) {
-	  push(@{$comb->{comb_opt}}, $option->name()."=".$option->value());
+	  push(@{$comb->{comb_opt}}, $option->option());
 	}
 	push(@combinations, $comb);
       }
@@ -698,6 +698,12 @@ sub collect_one_test_case {
     # in that case .test must issue "exit" otherwise test
     # should fail by default
     $tinfo->{result_file}= $result_file;
+  }
+  else {
+    # No .result file exist
+    # Remember the path  where it should be
+    # saved in case of --record
+    $tinfo->{record_file}= $result_file;
   }
 
   # ----------------------------------------------------------------------

@@ -14,8 +14,8 @@
 # Description: Test Cases of Dynamic System Variable "query_cache_type"       #
 #              that checks behavior of this variable in the following ways    #
 #                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#            server-system-variables.html#option_mysqld_query_cache_type      #
+# Reference:                                                                  #
+#   http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html       #
 #                                                                             #
 ###############################################################################
 
@@ -36,6 +36,7 @@ connection con0;
 
 SET @start_global_value = @@GLOBAL.query_cache_type;
 SET @start_session_value = @@SESSION.query_cache_type;
+SET @start_query_cache_size= @@global.query_cache_size;
 
 #
 # Creating test table
@@ -305,6 +306,7 @@ connection con0;
 
 SET @@GLOBAL.query_cache_type = @start_global_value;
 SET @@SESSION.query_cache_type = @start_session_value;
+SET GLOBAL query_cache_size = @start_query_cache_size;
 
 DROP TABLE t1;
 
@@ -312,3 +314,4 @@ DROP PROCEDURE testProcHit;
 
 --echo Disconnecting con0
 disconnect con0;
+
