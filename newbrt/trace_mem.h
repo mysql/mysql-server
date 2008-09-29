@@ -11,5 +11,5 @@ void toku_add_trace_mem(const char *str, int n);
 // add an entry to the end of the trace which consists of a string
 // pointer, a number, and the processor timestamp
 
-void toku_print_trace_mem();
+void toku_print_trace_mem(void) __attribute__((__visibility__("default")));
 // print the trace 

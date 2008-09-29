@@ -50,7 +50,7 @@
 #define VERIFY_NODE(n) ((void)0)
 #endif
 
-extern long long n_items_malloced;
+long long n_items_malloced;
 
 static void verify_local_fingerprint_nonleaf (BRTNODE node);
 
@@ -168,7 +168,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *
 //	toku_pma_verify_fingerprint(brtnode->u.l.buffer, brtnode->rand4fingerprint, brtnode->subtree_fingerprint);
 //    }
     if (0) {
-	printf("%s:%d toku_brtnode_flush_callback %p thisnodename=%" PRId64 " keep_me=%d height=%d", __FILE__, __LINE__, brtnode, brtnode->thisnodename.b, keep_me, brtnode->height);
+	printf("%s:%d toku_brtnode_flush_callback %p thisnodename=%" PRId64 " keep_me=%u height=%d", __FILE__, __LINE__, brtnode, brtnode->thisnodename.b, keep_me, brtnode->height);
 	if (brtnode->height==0) printf(" buf=%p mempool-base=%p", brtnode->u.l.buffer, brtnode->u.l.buffer_mempool.base);
 	printf("\n");
     }
@@ -280,7 +280,8 @@ typedef struct kvpair {
     unsigned int vallen;
 } *KVPAIR;
 
-int allocate_diskblocknumber (BLOCKNUM *res, BRT brt, TOKULOGGER logger __attribute__((__unused__))) {
+static int
+allocate_diskblocknumber (BLOCKNUM *res, BRT brt, TOKULOGGER logger __attribute__((__unused__))) {
     assert(brt->h->free_blocks.b == -1); // no blocks in the free list
     BLOCKNUM result = brt->h->unused_blocks;
     brt->h->unused_blocks.b++;
@@ -289,7 +290,8 @@ int allocate_diskblocknumber (BLOCKNUM *res, BRT brt, TOKULOGGER logger __attrib
     return 0;
 }
 
-u_int32_t mp_pool_size_for_nodesize (u_int32_t nodesize) {
+static u_int32_t
+mp_pool_size_for_nodesize (u_int32_t nodesize) {
 #if 1
     return nodesize+nodesize/4;
 #else
@@ -515,7 +517,7 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     }
 
     LSN lsn={0};
-    r = toku_log_leafsplit(logger, &lsn, 0, filenum, node->thisnodename, B->thisnodename, n_leafentries, break_at, node->nodesize, B->rand4fingerprint, (t->flags&TOKU_DB_DUPSORT)!=0);
+    r = toku_log_leafsplit(logger, &lsn, 0, filenum, node->thisnodename, B->thisnodename, n_leafentries, break_at, node->nodesize, B->rand4fingerprint, (u_int8_t)((t->flags&TOKU_DB_DUPSORT)!=0));
     if (logger) {
 	node->log_lsn = lsn;
 	B->log_lsn    = lsn;
@@ -776,10 +778,10 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
 	r=insert_to_buffer_in_nonleaf(node, childnum_of_node, k, v, cmd->type, cmd->xid);
     }
     if (newsize_bounded < toku_serialize_brtnode_size(child)) {
-	fprintf(stderr, "%s:%d size estimate is messed up. newsize_bounded=%d actual_size=%d child_height=%d to_child=%d\n",
+	fprintf(stderr, "%s:%d size estimate is messed up. newsize_bounded=%u actual_size=%u child_height=%d to_child=%d\n",
 		__FILE__, __LINE__, newsize_bounded, toku_serialize_brtnode_size(child), child->height, to_child);
-	fprintf(stderr, "  cmd->type=%s cmd->xid=%lld\n", unparse_cmd_type(cmd->type), (unsigned long long)cmd->xid);
-	fprintf(stderr, "  oldsize=%d k->size=%d v->size=%d\n", oldsize, k->size, v->size);
+	fprintf(stderr, "  cmd->type=%s cmd->xid=%llu\n", unparse_cmd_type(cmd->type), (unsigned long long)cmd->xid);
+	fprintf(stderr, "  oldsize=%u k->size=%u v->size=%u\n", oldsize, k->size, v->size);
 	assert(toku_serialize_brtnode_size(child)<=child->nodesize);
 	//assert(newsize_bounded >= toku_serialize_brtnode_size(child)); // Don't abort on this
     }
