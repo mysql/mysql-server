@@ -4301,7 +4301,7 @@ create_select:
           SELECT_SYM
           {
             LEX *lex=Lex;
-            lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
+            lex->lock_option= TL_READ_DEFAULT;
             if (lex->sql_command == SQLCOM_INSERT)
               lex->sql_command= SQLCOM_INSERT_SELECT;
             else if (lex->sql_command == SQLCOM_REPLACE)
@@ -9398,7 +9398,7 @@ insert:
             lex->duplicates= DUP_ERROR; 
             mysql_init_select(lex);
             /* for subselects */
-            lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+            lex->lock_option= TL_READ_DEFAULT;
           }
           insert_lock_option
           opt_ignore insert2
