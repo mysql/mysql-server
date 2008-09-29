@@ -251,7 +251,7 @@ void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct 
 		wbuf_int(&w, toku_fifo_n_entries(BNC_BUFFER(node,i)));
 		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 				  ({
-				      assert(type>0 && type<256);
+				      assert(type>=0 && type<256);
 				      wbuf_char(&w, (unsigned char)type);
 				      wbuf_TXNID(&w, xid);
 				      wbuf_bytes(&w, key, keylen);
