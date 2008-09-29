@@ -1,3 +1,5 @@
+SET @old_general_log_state = @@global.general_log;
+SET @old_slow_log_state = @@global.slow_query_log;
 use mysql;
 truncate table general_log;
 select * from general_log;
@@ -354,6 +356,7 @@ slow_log
 slow_log_new
 drop table slow_log_new, general_log_new;
 use test;
+SET @my_log_output= @@global.log_output;
 SET GLOBAL LOG_OUTPUT = 'TABLE';
 SET GLOBAL general_log = 0;
 FLUSH LOGS;
@@ -422,6 +425,8 @@ SET SESSION long_query_time =@old_long_query_time;
 FLUSH LOGS;
 ALTER TABLE mysql.slow_log DROP COLUMN seq;
 ALTER TABLE mysql.slow_log ENGINE = CSV;
+SET GLOBAL general_log = @old_general_log_state;
+SET GLOBAL slow_query_log = @old_slow_log_state;
 drop procedure if exists proc25422_truncate_slow;
 drop procedure if exists proc25422_truncate_general;
 drop procedure if exists proc25422_alter_slow;
@@ -725,6 +730,8 @@ execute long_query using @lparam;
 set global general_log = off;
 select command_type, argument from mysql.general_log where thread_id = @thread_id;
 command_type	argument
+Query	set @old_general_log_state = @@global.general_log
+Query	set global general_log = on
 Query	set @lparam = "000 001 002 003 004 005 006 007 008 009"
               "010 011 012 013 014 015 016 017 018 019"
               "020 021 022 023 024 025 026 027 028 029"
@@ -858,5 +865,6 @@ TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3,SLEEP(1.1) FROM t1
 TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f1=2
 DROP TABLE t1;
 TRUNCATE TABLE mysql.slow_log;
+SET GLOBAL log_output= @my_log_output;
 SET GLOBAL slow_query_log = @old_slow_log_state;
 SET SESSION long_query_time =@old_long_query_time;

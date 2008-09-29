@@ -9,14 +9,15 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(
 a INT AUTO_INCREMENT PRIMARY KEY,
 b CHAR
-)ENGINE=INNODB, AUTO_INCREMENT=100;
+) ENGINE=INNODB, AUTO_INCREMENT=100;
 INSERT INTO t1 (a,b) VALUES (5,'a'), (NULL,'b'), (1,'c'), (NULL,'d');
 INSERT INTO t1 (a,b) VALUES (NULL,'e');
 'the new auto incremented value should be 104'
-SELECT * from t1;
+SELECT * FROM t1;
 a	b
 1	c
 5	a
 100	b
 101	d
 104	e
+DROP TABLE t1;

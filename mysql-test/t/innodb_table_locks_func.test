@@ -14,8 +14,8 @@
 # Description: Test Cases of Dynamic System Variable innodb_table_locks       #
 #              that checks the behavior of this variable                      #
 #                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
 #                                                                             #
 ###############################################################################
 
@@ -24,8 +24,11 @@
 
 --echo '#--------------------FN_DYNVARS_048_01-------------------------#'
 ####################################################################
-# Check if setting innodb_table_locks is changed in new connection # 
+# Check if setting innodb_table_locks is changed in new connection #
 ####################################################################
+
+SET @start_value= @@global.innodb_table_locks;
+SELECT @start_value;
 
 SET @@global.innodb_table_locks = OFF;
 --echo 'connect (con1,localhost,root,,,,)'
@@ -80,6 +83,9 @@ UNLOCK tables;
 DROP TABLE t1;
 disconnect con2;
 
+connection default;
+SET @@global.innodb_table_locks= @start_value;
+SELECT @@global.innodb_table_locks;
 
 ##########################################################
 # End of functionality Testing for innodb_table_locks    #

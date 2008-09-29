@@ -920,20 +920,25 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       should be dropped while the database is being cleaned, but in
       the event that a change in the code to remove other objects is
       made, these drops should still not be logged.
+
+      Notice that the binary log have to be enabled over the call to
+      ha_drop_database(), since NDB otherwise detects the binary log
+      as disabled and will not log the drop database statement on any
+      other connected server.
      */
-    tmp_disable_binlog(thd);
     if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0,
                                        &dropped_tables)) >= 0)
     {
       ha_drop_database(path);
+      tmp_disable_binlog(thd);
       query_cache_invalidate1(db);
       (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
 #ifdef HAVE_EVENT_SCHEDULER
       Events::drop_schema_events(thd, db);
 #endif
       error = 0;
+      reenable_binlog(thd);
     }
-    reenable_binlog(thd);
   }
   if (!silent && deleted>=0)
   {

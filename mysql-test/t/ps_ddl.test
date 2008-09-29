@@ -1363,44 +1363,34 @@ drop table if exists t_12093;
 drop function if exists f_12093;
 drop function if exists f_12093_unrelated;
 drop procedure if exists p_12093;
+drop view if exists v_12093_unrelated;
 --enable_warnings
 
 create table t_12093 (a int);
-
 create function f_12093() returns int return (select count(*) from t_12093);
-
 create procedure p_12093(a int) select * from t_12093;
 
 create function f_12093_unrelated() returns int return 2;
 create procedure p_12093_unrelated() begin end;
-
-prepare stmt_sf from 'select f_12093();';
-prepare stmt_sp from 'call p_12093(f_12093())';
-
-execute stmt_sf;
-execute stmt_sp;
+create view v_12093_unrelated as select * from t_12093;
 
 connect (con1,localhost,root,,);
-connection con1;
-
-drop function f_12093_unrelated;
-drop procedure p_12093_unrelated;
-
 connection default;
 
---echo # XXX: used to be a bug
-execute stmt_sf;
---echo # XXX: used to be a bug
-execute stmt_sp;
+let $my_drop = drop function f_12093_unrelated;
+--source include/ps_ddl_1.inc
+#
+let $my_drop = drop procedure p_12093_unrelated;
+--source include/ps_ddl_1.inc
+#
+# A reprepare of stmt_sf and stmt_sp is necessary because there is no
+# information about views within the table definition cache.
+let $my_drop = drop view v_12093_unrelated;
+--source include/ps_ddl_1.inc
 
---echo # XXX: used to be a bug
-execute stmt_sf;
---echo # XXX: used to be a bug
-execute stmt_sp;
-call p_verify_reprepare_count(2);
+call p_verify_reprepare_count(6);
 
 disconnect con1;
-
 drop table t_12093;
 drop function f_12093;
 drop procedure p_12093;

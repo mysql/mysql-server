@@ -7,6 +7,9 @@
 # check that CSV engine was compiled in
 --source include/have_csv.inc
 
+SET @old_general_log_state = @@global.general_log;
+SET @old_slow_log_state = @@global.slow_query_log;
+
 --disable_ps_protocol
 use mysql;
 
@@ -444,6 +447,7 @@ use test;
 #            AUTO_INCREMENT numbers)
 #
 
+SET @my_log_output= @@global.log_output;
 SET GLOBAL LOG_OUTPUT = 'TABLE';
 
 ## test the general log
@@ -508,6 +512,9 @@ FLUSH LOGS;
 
 ALTER TABLE mysql.slow_log DROP COLUMN seq;
 ALTER TABLE mysql.slow_log ENGINE = CSV;
+
+SET GLOBAL general_log = @old_general_log_state;
+SET GLOBAL slow_query_log = @old_slow_log_state;
 
 #
 # Bug#25422 (Hang with log tables)
@@ -964,5 +971,7 @@ DROP TABLE t1;
 
 TRUNCATE TABLE mysql.slow_log;
 
+SET GLOBAL log_output= @my_log_output;
 SET GLOBAL slow_query_log = @old_slow_log_state;
 SET SESSION long_query_time =@old_long_query_time;
+

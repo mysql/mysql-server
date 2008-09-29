@@ -570,6 +570,7 @@ test_rpl.t1	1837058639
 ******************** OPTIMIZE TABLE ********************
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
+test_rpl.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test_rpl.t1	optimize	status	OK
 
 ******************** REPAIR TABLE ********************

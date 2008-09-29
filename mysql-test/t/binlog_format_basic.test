@@ -1,5 +1,3 @@
-
-
 ################## mysql-test\t\binlog_format_basic.test ######################
 #                                                                             #
 # Variable Name: binlog_format                                                #
@@ -17,8 +15,8 @@
 #              * Value Check                                                  #
 #              * Scope Check                                                  #
 #                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html      #
 #                                                                             #
 ###############################################################################
 
@@ -26,6 +24,8 @@
 ####################################################################
 #   Displaying default value                                       #
 ####################################################################
+SET @start_value= @@global.binlog_format;
+
 SELECT COUNT(@@GLOBAL.binlog_format);
 --echo 1 Expected
 
@@ -36,24 +36,11 @@ SELECT COUNT(@@SESSION.binlog_format);
 ####################################################################
 #   Check if Value can set                                         #
 ####################################################################
-
-#--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@GLOBAL.binlog_format=1;
---echo Expected error 'Read only variable'
---echo Bug: Writeable static variable
-SELECT COUNT(@@GLOBAL.binlog_format);
---echo 1 Expected
+SELECT @@GLOBAL.binlog_format;
 
-
-
-#--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@SESSION.binlog_format=1;
---echo Expected error 'Read only variable'
---echo Bug: Writeable static variable
-SELECT COUNT(@@SESSION.binlog_format);
---echo 1 Expected
-
-
+SELECT @@SESSION.binlog_format;
 
 --echo '#---------------------BS_STVARS_002_03----------------------#'
 #################################################################
@@ -69,7 +56,7 @@ SELECT COUNT(@@GLOBAL.binlog_format);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='binlog_format';
 --echo 1 Expected
 
@@ -79,8 +66,8 @@ WHERE VARIABLE_NAME='binlog_format';
 # Check if the value in SESSION Table matches value in variable #
 #################################################################
 
-SELECT @@SESSION.binlog_format = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+SELECT @@SESSION.binlog_format = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='binlog_format';
 --echo 1 Expected
 
@@ -88,11 +75,9 @@ SELECT COUNT(@@SESSION.binlog_format);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='binlog_format';
 --echo 1 Expected
-
-
 
 
 --echo '#---------------------BS_STVARS_002_05----------------------#'
@@ -109,5 +94,5 @@ SELECT COUNT(@@SESSION.binlog_format);
 SELECT COUNT(@@GLOBAL.binlog_format);
 --echo 1 Expected
 
-
+SET @@global.binlog_format= @start_value;
 

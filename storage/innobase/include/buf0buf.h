@@ -495,7 +495,15 @@ Prints info of the buffer pool data structure. */
 void
 buf_print(void);
 /*============*/
+
+/*************************************************************************
+Returns the number of latched pages in the buffer pool. */
+
+ulint
+buf_get_latched_pages_number(void);
+/*==============================*/
 #endif /* UNIV_DEBUG */
+
 /************************************************************************
 Prints a page to stderr. */
 
@@ -503,12 +511,7 @@ void
 buf_page_print(
 /*===========*/
 	byte*	read_buf);	/* in: a database page */
-/*************************************************************************
-Returns the number of latched pages in the buffer pool. */
 
-ulint
-buf_get_latched_pages_number(void);
-/*==============================*/
 /*************************************************************************
 Returns the number of pending buf pool ios. */
 
