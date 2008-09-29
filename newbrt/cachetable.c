@@ -458,9 +458,9 @@ static PAIR remove_from_hash_chain (PAIR remove_me, PAIR list) {
 //    if it has been modified within the current checkpoint regime (hence non-strict inequality)
 //    and the last time it was written was in a previous checkpoint regime (strict inequality)
 static BOOL need_to_rename_p (CACHETABLE t, PAIR p) {
-    return (p->dirty
-	    && p->modified_lsn.lsn>=t->lsn_of_checkpoint.lsn   // nonstrict
-	    && p->written_lsn.lsn < t->lsn_of_checkpoint.lsn); // strict
+    return (BOOL)(p->dirty
+		  && p->modified_lsn.lsn>=t->lsn_of_checkpoint.lsn   // nonstrict
+		  && p->written_lsn.lsn < t->lsn_of_checkpoint.lsn); // strict
 }
 
 // Remove a pair from the cachetable
@@ -514,7 +514,7 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
     cachetable_unlock(ct);
 #endif
     // write callback
-    p->flush_callback(p->cachefile, p->key, p->value, p->extraargs, p->size, p->dirty && p->write_me, TRUE,
+    p->flush_callback(p->cachefile, p->key, p->value, p->extraargs, p->size, (BOOL)(p->dirty && p->write_me), TRUE,
                       ct->lsn_of_checkpoint, need_to_rename_p(ct, p));
 #if DO_CALLBACK_USLEEP
     usleep(DO_CALLBACK_USLEEP);
@@ -573,7 +573,7 @@ static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remov
 static void flush_and_remove (CACHETABLE ct, PAIR p, int write_me) {
     p->writing = 1;
     ct->size_writing += p->size; assert(ct->size_writing >= 0);
-    p->write_me = write_me;
+    p->write_me = (char)(write_me?1:0);
 #if DO_WRITER_THREAD
     if (!p->dirty || !p->write_me) {
         // evictions without a write can be run in the current thread
@@ -588,7 +588,7 @@ static void flush_and_remove (CACHETABLE ct, PAIR p, int write_me) {
 }
 
 static unsigned long toku_maxrss=0;
-unsigned long toku_get_maxrss(void) __attribute__((__visibility__("default")));
+
 unsigned long toku_get_maxrss(void) {
     return toku_maxrss;
 }
@@ -597,7 +597,7 @@ static unsigned long check_maxrss (void) __attribute__((__unused__));
 static unsigned long check_maxrss (void) {
     pid_t pid = getpid();
     char fname[100];
-    snprintf(fname, sizeof(fname), "/proc/%u/statm", pid);
+    snprintf(fname, sizeof(fname), "/proc/%d/statm", pid);
     FILE *f = fopen(fname, "r");
     unsigned long ignore, rss;
     fscanf(f, "%lu %lu", &ignore, &rss);
@@ -645,7 +645,7 @@ static int cachetable_insert_at(CACHEFILE cachefile, u_int32_t fullhash, CACHEKE
     memset(p, 0, sizeof *p);
     ctpair_rwlock_init(&p->rwlock);
     p->fullhash = fullhash;
-    p->dirty = dirty;           //printf("%s:%d p=%p dirty=%d\n", __FILE__, __LINE__, p, p->dirty);
+    p->dirty = (char)(dirty ? 1 : 0);           //printf("%s:%d p=%p dirty=%d\n", __FILE__, __LINE__, p, p->dirty);
     p->size = size;
     p->writing = 0;
     p->key = key;
@@ -678,10 +678,12 @@ static unsigned long long hash_histogram[hash_histogram_max];
 void print_hash_histogram (void) {
     int i;
     for (i=0; i<hash_histogram_max; i++)
-	if (hash_histogram[i]) printf("%d:%lld ", i, hash_histogram[i]);
+	if (hash_histogram[i]) printf("%d:%llu ", i, hash_histogram[i]);
     printf("\n");
 }
-void note_hash_count (int count) {
+
+static void
+note_hash_count (int count) {
     if (count>=hash_histogram_max) count=hash_histogram_max-1;
     hash_histogram[count]++;
 }
@@ -806,7 +808,7 @@ int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
 	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    assert(p->rwlock.pinned>0);
             ctpair_read_unlock(&p->rwlock);
-	    p->dirty |= dirty;
+	    if (dirty) p->dirty = TRUE;
             if (size != 0) {
                 t->size_current -= p->size; if (p->writing) t->size_writing -= p->size;
                 p->size = size;
@@ -1187,7 +1189,7 @@ void toku_cachetable_print_state (CACHETABLE ct) {
     for (i=0; i<ct->table_size; i++) {
         PAIR p = ct->table[i];
         if (p != 0) {
-            printf("t[%d]=", i);
+            printf("t[%u]=", i);
             for (p=ct->table[i]; p; p=p->hash_chain) {
                 printf(" {%"PRId64", %p, dirty=%d, pin=%d, size=%ld}", p->key.b, p->cachefile, p->dirty, p->rwlock.pinned, p->size);
             }

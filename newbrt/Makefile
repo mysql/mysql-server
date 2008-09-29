@@ -37,18 +37,20 @@ VISIBILITY=-fvisibility=hidden
  endif
 endif
 
-CFLAGS = -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
+CFLAGS =  -Werror -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
 ifneq ($(CC),icc)
-CFLAGS += -Werror -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
+CFLAGS += -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
 else
 CFLAGS += -g
  CFLAGS += -diag-disable  177     # Don't complain about static variables that are not used.
+ #CFLAGS += -diag-disable  188     # Don't complain about enumerated type mixed with another type.
  CFLAGS += -diag-disable  589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
  CFLAGS += -diag-disable  981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
  CFLAGS += -diag-disable 1324    # Don't complain about rdtsc clobbering its registers more than once.
 endif
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz -lpthread
-CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
+# Need XOPEN_SOURCE=600 to get strtoll()
+CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=600
 
 # Add -Wconversion
 

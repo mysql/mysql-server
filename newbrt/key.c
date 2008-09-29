@@ -3,6 +3,7 @@
 
 #include "brt-internal.h"
 #include "toku_assert.h"
+#include "key.h"
 #include <string.h>
 
 #if 0
@@ -90,7 +91,8 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 
 #endif
 
-void toku_test_keycompare (void) {
+void
+toku_test_keycompare (void) {
     assert(toku_keycompare("a",1, "a",1)==0);
     assert(toku_keycompare("aa",2, "a",1)>0);
     assert(toku_keycompare("a",1, "aa",2)<0);
@@ -102,11 +104,13 @@ void toku_test_keycompare (void) {
     assert(toku_keycompare("aaaaa",3, "aaaba",3)==0);
 }
 
-int toku_default_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
+int
+toku_default_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 
-int toku_dont_call_this_compare_fun (DB *db __attribute__((__unused__)), const DBT *a __attribute__((__unused__)), const DBT*b __attribute__((__unused__))) {
+int
+toku_dont_call_this_compare_fun (DB *db __attribute__((__unused__)), const DBT *a __attribute__((__unused__)), const DBT*b __attribute__((__unused__))) {
     assert(0);
     return 0;
 }

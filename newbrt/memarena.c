@@ -34,7 +34,8 @@ void memarena_clear (MEMARENA ma) {
     ma->buf_used = 0;
 }
 
-size_t round_to_page (size_t size) {
+static size_t
+round_to_page (size_t size) {
     const size_t PAGE_SIZE = 4096;
     const size_t result = PAGE_SIZE+((size-1)&~(PAGE_SIZE-1));
     assert(0==(result&(PAGE_SIZE-1))); // make sure it's aligned

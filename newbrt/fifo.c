@@ -90,7 +90,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
 	}
     }
     struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_start + fifo->memory_used);
-    entry->type = type;
+    entry->type = (unsigned char)type;
     entry->xid  = xid;
     entry->keylen = keylen;
     memcpy(entry->key, key, keylen);
@@ -125,7 +125,7 @@ int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_CMD cmd, DBT*key, DBT*data) {
     unsigned int keylen,datalen;
     int r = toku_fifo_peek(fifo, &keyb, &keylen, &datab, &datalen, &type, &cmd->xid);
     if (r!=0) return r;
-    cmd->type=type;
+    cmd->type=(enum brt_cmd_type)type;
     toku_fill_dbt(key, keyb, keylen);
     toku_fill_dbt(data, datab, datalen);
     cmd->u.id.key=key;

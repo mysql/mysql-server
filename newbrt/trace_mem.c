@@ -14,9 +14,8 @@ static struct toku_trace {
 static int toku_next_trace = 0;
 #endif
 
-void toku_add_trace_mem(const char *str, int n) __attribute__((__visibility__("default")));
-void toku_add_trace_mem(const char *str __attribute__((unused)), 
-                        int n __attribute__((unused))) {
+void toku_add_trace_mem (const char *str __attribute__((unused)), 
+			 int n __attribute__((unused))) {
 #if USE_RDTSC && NTRACE
     int i = toku_next_trace++;
     if (toku_next_trace >= NTRACE) toku_next_trace = 0;
