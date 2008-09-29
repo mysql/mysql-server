@@ -50,7 +50,7 @@ enum le_state { LE_COMMITTED=1, // A committed pair.
 u_int32_t leafentry_memsize (LEAFENTRY);
 
 static inline enum le_state get_le_state(LEAFENTRY le) {
-    return *(unsigned char *)le;
+    return (enum le_state)*(unsigned char *)le;
 }
 
 static inline void putint (unsigned char *p, u_int32_t i) {
@@ -75,7 +75,9 @@ static inline u_int32_t getint (unsigned char *p) {
 #endif
 }
 static inline u_int64_t getint64 (unsigned char *p) {
-    return (((u_int64_t)getint(p))<<32) + getint(p+4);
+    u_int64_t H = getint(p);
+    u_int64_t L = getint(p+4);
+    return (H<<32) + L;
 }
 
 #define LESWITCHCALL(le,funname, ...) ({	                                                                     \

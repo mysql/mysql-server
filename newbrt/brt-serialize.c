@@ -38,7 +38,6 @@ static inline u_int64_t alignup (u_int64_t a, u_int64_t b) {
 }
 
 static void maybe_preallocate_in_file (int fd, u_int64_t size) {
-    return;
     struct stat sbuf;
     {
 	int r = fstat(fd, &sbuf);

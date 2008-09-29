@@ -30,7 +30,7 @@ static inline void wbuf_init (struct wbuf *w, void *buf, DISKOFF size) {
 }
 
 /* Write a character. */
-static inline void wbuf_char (struct wbuf *w, unsigned int ch) {
+static inline void wbuf_char (struct wbuf *w, unsigned char ch) {
     assert(w->ndone<w->size);
     w->buf[w->ndone++]=ch;
     x1764_add(&w->checksum, &w->buf[w->ndone-1], 1);
