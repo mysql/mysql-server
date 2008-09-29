@@ -21,7 +21,8 @@ int verbose=0;
 #define CKERR2s(r,r2,r3) ({ if (r!=r2 && r!=r3) fprintf(stderr, "%s:%d error %d %s, expected %d or %d\n", __FILE__, __LINE__, r, strerror(r), r2,r3); assert(r==r2||r==r3); })
 
 #include <string.h>
-void parse_args (int argc, const char *argv[]) {
+static void
+parse_args (int argc, const char *argv[]) {
     const char *argv0=argv[0];
     while (argc>1) {
         int resultcode=0;
@@ -68,7 +69,8 @@ TESTVALUE*       values = NULL;
 struct value*   nums   = NULL;
 u_int32_t       length;
 
-void cleanup_globals(void) {
+static void
+cleanup_globals (void) {
     assert(values);
     toku_free(values);
     values = NULL;
@@ -79,7 +81,8 @@ void cleanup_globals(void) {
 
 const unsigned int random_seed = 0xFEADACBA;
 
-void init_init_values(unsigned int seed, u_int32_t num_elements) {
+static void
+init_init_values (unsigned int seed, u_int32_t num_elements) {
     srandom(seed);
 
     cleanup_globals();
@@ -91,7 +94,8 @@ void init_init_values(unsigned int seed, u_int32_t num_elements) {
     length = num_elements;
 }
 
-void init_identity_values(unsigned int seed, u_int32_t num_elements) {
+static void
+init_identity_values (unsigned int seed, u_int32_t num_elements) {
     u_int32_t   i;
 
     init_init_values(seed, num_elements);
@@ -102,7 +106,8 @@ void init_identity_values(unsigned int seed, u_int32_t num_elements) {
     }
 }
 
-void init_distinct_sorted_values(unsigned int seed, u_int32_t num_elements) {
+static void
+init_distinct_sorted_values (unsigned int seed, u_int32_t num_elements) {
     u_int32_t   i;
 
     init_init_values(seed, num_elements);
@@ -116,7 +121,8 @@ void init_distinct_sorted_values(unsigned int seed, u_int32_t num_elements) {
     }
 }
 
-void init_distinct_random_values(unsigned int seed, u_int32_t num_elements) {
+static void
+init_distinct_random_values (unsigned int seed, u_int32_t num_elements) {
     init_distinct_sorted_values(seed, num_elements);
 
     u_int32_t   i;
@@ -134,7 +140,8 @@ void init_distinct_random_values(unsigned int seed, u_int32_t num_elements) {
     }
 }
 
-void init_globals(void) {
+static void
+init_globals (void) {
     MALLOC_N(1, values);
     assert(values);
     MALLOC_N(1, nums);
@@ -142,14 +149,16 @@ void init_globals(void) {
     length = 1;
 }
 
-void test_close(enum close_when_done close) {
+static void
+test_close (enum close_when_done close) {
     if (close == KEEP_WHEN_DONE) return;
     assert(close == CLOSE_WHEN_DONE);
     toku_omt_destroy(&omt);
     assert(omt==NULL);
 }
 
-void test_create(enum close_when_done close) {
+static void
+test_create (enum close_when_done close) {
     int r;
     omt = NULL;
 
@@ -159,13 +168,15 @@ void test_create(enum close_when_done close) {
     test_close(close);
 }
 
-void test_create_size(enum close_when_done close) {
+static void
+test_create_size (enum close_when_done close) {
     test_create(KEEP_WHEN_DONE);
     assert(toku_omt_size(omt) == 0);
     test_close(close);
 }
 
-void test_create_insert_at_almost_random(enum close_when_done close) {
+static void
+test_create_insert_at_almost_random (enum close_when_done close) {
     u_int32_t i;
     int r;
     u_int32_t size = 0;
@@ -192,7 +203,8 @@ void test_create_insert_at_almost_random(enum close_when_done close) {
     test_close(close);
 }
 
-void test_create_insert_at_sequential(enum close_when_done close) {
+static void
+test_create_insert_at_sequential (enum close_when_done close) {
     u_int32_t i;
     int r;
     u_int32_t size = 0;
@@ -216,7 +228,8 @@ void test_create_insert_at_sequential(enum close_when_done close) {
     test_close(close);
 }
 
-void test_create_from_sorted_array(enum create_type create_choice, enum close_when_done close) {
+static void
+test_create_from_sorted_array (enum create_type create_choice, enum close_when_done close) {
     int r;
     omt = NULL;
 
@@ -236,13 +249,15 @@ void test_create_from_sorted_array(enum create_type create_choice, enum close_wh
     test_close(close);
 }
 
-void test_create_from_sorted_array_size(enum create_type create_choice, enum close_when_done close) {
+static void
+test_create_from_sorted_array_size (enum create_type create_choice, enum close_when_done close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
     assert(toku_omt_size(omt)==length);
     test_close(close);
 }    
 
-void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
+static void
+test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
     u_int32_t i;
     int j;
     int r;
@@ -335,7 +350,8 @@ void test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
     toku_omt_cursor_destroy(&c);
 }
 
-void test_create_fetch_verify(enum create_type create_choice, enum close_when_done close) {
+static void
+test_create_fetch_verify (enum create_type create_choice, enum close_when_done close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
     test_fetch_verify(omt, values, length);
     test_close(close);
@@ -343,7 +359,8 @@ void test_create_fetch_verify(enum create_type create_choice, enum close_when_do
 
 static int iterate_helper_error_return = 1;
 
-int iterate_helper(TESTVALUE v, u_int32_t idx, void* extra) {
+static int
+iterate_helper (TESTVALUE v, u_int32_t idx, void* extra) {
     if (extra == NULL) return iterate_helper_error_return;
     TESTVALUE* vals = (TESTVALUE *)extra;
     assert(v != NULL);
@@ -352,7 +369,8 @@ int iterate_helper(TESTVALUE v, u_int32_t idx, void* extra) {
     return 0;
 }
 
-void test_iterate_verify(OMT omtree, TESTVALUE* vals, u_int32_t len) {
+static void
+test_iterate_verify (OMT omtree, TESTVALUE* vals, u_int32_t len) {
     int r;
     iterate_helper_error_return = 0;
     r = toku_omt_iterate(omtree, iterate_helper, (void*)vals);
@@ -367,14 +385,16 @@ void test_iterate_verify(OMT omtree, TESTVALUE* vals, u_int32_t len) {
     }
 }
 
-void test_create_iterate_verify(enum create_type create_choice, enum close_when_done close) {
+static void
+test_create_iterate_verify (enum create_type create_choice, enum close_when_done close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
     test_iterate_verify(omt, values, length);
     test_close(close);
 }
 
 
-void permute_array(u_int32_t* arr, u_int32_t len) {
+static void
+permute_array (u_int32_t* arr, u_int32_t len) {
     //
     // create a permutation of 0...size-1
     //
@@ -393,7 +413,8 @@ void permute_array(u_int32_t* arr, u_int32_t len) {
     }
 }
 
-void test_create_set_at(enum create_type create_choice, enum close_when_done close) {
+static void
+test_create_set_at (enum create_type create_choice, enum close_when_done close) {
     u_int32_t i = 0;
 
     struct value*   old_nums   = NULL;
@@ -445,7 +466,8 @@ void test_create_set_at(enum create_type create_choice, enum close_when_done clo
     test_close(close);
 }
 
-int insert_helper(TESTVALUE value, void* extra_insert) {
+static int
+insert_helper (TESTVALUE value, void* extra_insert) {
     TESTVALUE to_insert = (OMTVALUE)extra_insert;
     assert(to_insert);
 
@@ -454,7 +476,8 @@ int insert_helper(TESTVALUE value, void* extra_insert) {
     return 0;
 }
 
-void test_create_insert(enum close_when_done close) {
+static void
+test_create_insert (enum close_when_done close) {
     u_int32_t i = 0;
 
     u_int32_t* perm = NULL;
@@ -508,7 +531,8 @@ void test_create_insert(enum close_when_done close) {
     test_close(close);
 }
 
-void test_create_delete_at(enum create_type create_choice, enum close_when_done close) {
+static void
+test_create_delete_at (enum create_type create_choice, enum close_when_done close) {
     u_int32_t i = 0;
     int r = ENOSYS;
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
@@ -541,7 +565,8 @@ void test_create_delete_at(enum create_type create_choice, enum close_when_done 
     test_close(close);
 }
 
-void test_split_merge(enum create_type create_choice, enum close_when_done close) {
+static void
+test_split_merge (enum create_type create_choice, enum close_when_done close) {
     int r = ENOSYS;
     u_int32_t i = 0;
     OMT left_split = NULL;
@@ -602,7 +627,8 @@ void test_split_merge(enum create_type create_choice, enum close_when_done close
 }
 
 
-void init_values(enum rand_type rand_choice) {
+static void
+init_values (enum rand_type rand_choice) {
     const u_int32_t test_size = 100;
     if (rand_choice == TEST_RANDOM) {
         init_distinct_random_values(random_seed, test_size);
@@ -616,7 +642,8 @@ void init_values(enum rand_type rand_choice) {
     else assert(FALSE);
 }
 
-void test_create_array(enum create_type create_choice, enum rand_type rand_choice) {
+static void
+test_create_array (enum create_type create_choice, enum rand_type rand_choice) {
     /* ********************************************************************** */
     init_values(rand_choice);
     test_create_from_sorted_array(     create_choice, CLOSE_WHEN_DONE);
@@ -646,7 +673,9 @@ typedef struct {
     u_int32_t first_pos;
 } h_extra;
 
-int test_heaviside(OMTVALUE v_omt, void* x) {
+
+static int
+test_heaviside (OMTVALUE v_omt, void* x) {
     TESTVALUE v = (OMTVALUE) v_omt;
     h_extra* extra = (h_extra*)x;
     assert(v && x);
@@ -658,14 +687,16 @@ int test_heaviside(OMTVALUE v_omt, void* x) {
     return 1;
 }
 
-void heavy_extra(h_extra* extra, u_int32_t first_zero, u_int32_t first_pos) {
+static void
+heavy_extra (h_extra* extra, u_int32_t first_zero, u_int32_t first_pos) {
     extra->first_zero = first_zero;
     extra->first_pos  = first_pos;
 }
 
-void test_find_dir(int dir, void* extra, int (*h)(OMTVALUE, void*),
-                   int r_expect, BOOL idx_will_change, u_int32_t idx_expect,
-                   u_int32_t number_expect, BOOL cursor_valid) {
+static void
+test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
+	       int r_expect, BOOL idx_will_change, u_int32_t idx_expect,
+	       u_int32_t number_expect, BOOL cursor_valid) {
     u_int32_t idx     = UINT32_MAX;
     u_int32_t old_idx = idx;
     TESTVALUE omt_val, omt_val_curs;
@@ -770,7 +801,8 @@ void test_find_dir(int dir, void* extra, int (*h)(OMTVALUE, void*),
     assert(omt_val == NULL);
 }
 
-void test_find(enum create_type create_choice, enum close_when_done close) {
+static void
+test_find (enum create_type create_choice, enum close_when_done close) {
     h_extra extra;
     init_identity_values(random_seed, 100);
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
@@ -843,17 +875,20 @@ void test_find(enum create_type create_choice, enum close_when_done close) {
     test_close(close);
 }
 
-void invalidate_callback_null(OMTCURSOR c, void *extra) {
+static void
+invalidate_callback_null (OMTCURSOR c, void *extra) {
     assert(c && !extra);
 }
 
-void invalidate_callback_inc(OMTCURSOR c, void *extra) {
+static void
+invalidate_callback_inc (OMTCURSOR c, void *extra) {
     assert(c);
     int *num = extra;
     (*num)++;
 }
 
-void test_invalidate(enum create_type create_choice, BOOL set_callback, BOOL invalidate_callback) {
+static void
+test_invalidate (enum create_type create_choice, BOOL set_callback, BOOL invalidate_callback) {
     init_identity_values(random_seed, 100);
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
 
@@ -924,7 +959,8 @@ void test_invalidate(enum create_type create_choice, BOOL set_callback, BOOL inv
     else                                      assert(invalidate_count==0);
 }
 
-void runtests_create_choice(enum create_type create_choice) {
+static void
+runtests_create_choice (enum create_type create_choice) {
     test_create_array(create_choice, TEST_SORTED);
     test_create_array(create_choice, TEST_RANDOM);
     test_create_array(create_choice, TEST_IDENTITY);

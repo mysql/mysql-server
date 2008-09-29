@@ -9,11 +9,13 @@ struct testlist {
     int tag;
 };
 
-void testlist_init(struct testlist *tl, int tag) {
+static void
+testlist_init (struct testlist *tl, int tag) {
     tl->tag = tag;
 }
 
-void test_push_pop(int n) {
+static void
+test_push_pop (int n) {
     int i;
     struct list head;
 
@@ -43,7 +45,8 @@ void test_push_pop(int n) {
     assert(list_empty(&head));
 }
 
-void test_push_pop_head(int n) {
+static void
+test_push_pop_head (int n) {
     int i;
     struct list head;
 
@@ -74,7 +77,8 @@ void test_push_pop_head(int n) {
     assert(list_empty(&head));
 }
 
-void test_push_head_pop(int n) {
+static void
+test_push_head_pop (int n) {
     int i;
     struct list head;
 
@@ -106,7 +110,8 @@ void test_push_head_pop(int n) {
 }
 
 // cant move an empty list
-void test_move_empty() {
+static void
+test_move_empty (void) {
     struct list h1, h2;
 
     list_init(&h1);
@@ -116,7 +121,8 @@ void test_move_empty() {
     assert(list_empty(&h1));
 }
 
-void test_move(int n) {
+static void
+test_move (int n) {
     struct list h1, h2;
     int i;
 

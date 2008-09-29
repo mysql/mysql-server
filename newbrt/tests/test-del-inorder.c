@@ -21,7 +21,8 @@ BRT t;
 int fnamelen;
 char *fname;
 
-void doit (void) {
+static void
+doit (void) {
     BLOCKNUM nodea,nodeb;
     u_int32_t fingerprinta=0;
 

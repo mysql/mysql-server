@@ -47,7 +47,8 @@ BRT t;
 int fnamelen;
 char *fname;
 
-void doit (int ksize __attribute__((__unused__))) {
+static void
+doit (int ksize __attribute__((__unused__))) {
     BLOCKNUM cnodes[BRT_FANOUT], bnode, anode;
     u_int32_t fingerprints[BRT_FANOUT];
 

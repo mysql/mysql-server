@@ -70,7 +70,7 @@ static void writeit (void) {
 	CACHEKEY key = make_blocknum(i*BLOCKSIZE);
 	u_int32_t fullhash = toku_cachetable_hash(f, key);
 	int j;
-	for (j=0; j<BLOCKSIZE; j++) ((char*)buf)[j]=(i+j)%256;
+	for (j=0; j<BLOCKSIZE; j++) ((char*)buf)[j]=(char)((i+j)%256);
 	r = toku_cachetable_put(f, key, fullhash, buf, BLOCKSIZE, f_flush, f_fetch, 0);	assert(r==0);
 	r = toku_cachetable_unpin(f, key, fullhash, 0, BLOCKSIZE);                      assert(r==0);
     }

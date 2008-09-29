@@ -55,19 +55,21 @@ static void test4 (int nodesize, int count, int memcheck) {
 
 static void brt_blackbox_test (void) {
     test4(2048, 1<<14, 1);
-    return;
 
-    if (verbose) printf("test4 slow\n");
-    test4(2048, 1<<15, 1);
+    if (0) {
 
-    //if (verbose) toku_pma_show_stats();
+	if (verbose) printf("test4 slow\n");
+	test4(2048, 1<<15, 1);
 
-    test4(1<<15, 1024, 1);
+	//if (verbose) toku_pma_show_stats();
 
-    test4(1<<18, 1<<20, 0);
+	test4(1<<15, 1024, 1);
 
-    // Once upon a time srandom(8) caused this test to fail.
-    srandom(8); test4(2048, 1<<15, 1);
+	test4(1<<18, 1<<20, 0);
+
+	// Once upon a time srandom(8) caused this test to fail.
+	srandom(8); test4(2048, 1<<15, 1);
+    }
 }
 
 int main (int argc , const char *argv[]) {

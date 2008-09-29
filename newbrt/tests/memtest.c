@@ -7,7 +7,8 @@
 #include "memory.h"
 #include "mempool.h"
 
-void test_mempool_limits(size_t size) {
+static void
+test_mempool_limits (size_t size) {
     void *base = malloc(size);
     struct mempool mempool;
     toku_mempool_init(&mempool, base, size);
@@ -24,7 +25,8 @@ void test_mempool_limits(size_t size) {
     free(base);
 }
 
-void test_mempool_malloc_mfree(size_t size) {
+static void
+test_mempool_malloc_mfree (size_t size) {
     void *base = malloc(size);
     struct mempool mempool;
     toku_mempool_init(&mempool, base, size);

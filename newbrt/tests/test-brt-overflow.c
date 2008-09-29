@@ -13,7 +13,8 @@ static const char fname[]= __FILE__ ".brt";
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-void test_overflow (void) {
+static void
+test_overflow (void) {
     BRT t;
     CACHETABLE ct;
     u_int32_t nodesize = 1<<20; 
@@ -28,7 +29,7 @@ void test_overflow (void) {
     memset(buf, 'a', vsize);
     int i;
     for (i=0; i<8; i++) {
-	char key[]={'a'+i, 0};
+	char key[]={(char)('a'+i), 0};
 	toku_brt_insert(t, toku_fill_dbt(&k, key, 2), toku_fill_dbt(&v,buf,sizeof(buf)), null_txn);
     }
     r = toku_close_brt(t, 0);           assert(r==0);

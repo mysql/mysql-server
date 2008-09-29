@@ -53,7 +53,8 @@ static void *my_malloc_always_fails(size_t n, const __malloc_ptr_t p) {
 
 // verify that cachetable creation and close works
 
-void test_cachetable_create() {
+static void
+test_cachetable_create(void) {
     CACHETABLE ct = 0;
     int r;
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
@@ -64,7 +65,8 @@ void test_cachetable_create() {
 
 // verify that cachetable create with no memory returns ENOMEM
 
-void test_cachetable_create_no_memory() {
+static void
+test_cachetable_create_no_memory (void) {
     void *(*orig_malloc_hook)(size_t, const __malloc_ptr_t) = __malloc_hook;
     __malloc_hook = my_malloc_always_fails;
     CACHETABLE ct = 0;
@@ -413,7 +415,7 @@ static void test_dirty_flush(CACHEFILE f,
 			     BOOL keep,
 			     LSN modified_lsn __attribute__((__unused__)),
 			     BOOL rename_p __attribute__((__unused__))) {
-    if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %d %d\n", f, key.b, value, size, do_write, keep);
+    if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, do_write, keep);
 }
 
 static int test_dirty_fetch(CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void **value_ptr, long *size_ptr, void *arg, LSN *written_lsn) {
@@ -538,7 +540,7 @@ static void test_size_flush_callback(CACHEFILE f,
 				     BOOL keep,
 				     LSN modified_lsn __attribute__((__unused__)),
 				     BOOL rename_p __attribute__((__unused__))) {
-    if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %d %d\n", f, key.b, value, size, do_write, keep);
+    if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size, do_write, keep);
     if (keep) {
         assert(do_write != 0);
         test_size_flush_key = key;

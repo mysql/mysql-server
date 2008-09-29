@@ -240,7 +240,8 @@ static void test_chaining (void) {
     test_mutex_destroy();
 }
 
-void __attribute__((__noreturn__)) usage (const char *progname) {
+static void __attribute__((__noreturn__))
+usage (const char *progname) {
     fprintf(stderr, "Usage:\n %s [-v] [-q]\n", progname);
     exit(1);
 }

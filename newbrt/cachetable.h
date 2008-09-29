@@ -178,4 +178,7 @@ void toku_cachefile_verify (CACHEFILE cf);
 // Verify the cachetable. Slow.
 void toku_cachetable_verify (CACHETABLE t); 
 
+// Not for use in production, but useful for testing.
+void print_hash_histogram (void) __attribute__((__visibility__("default")));
+
 #endif

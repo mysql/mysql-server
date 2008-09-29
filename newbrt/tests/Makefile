@@ -34,7 +34,7 @@ VISIBILITY=-fvisibility=hidden
  endif
 endif
 
-CFLAGS = -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
+CFLAGS = -Werror -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
 ifneq ($(CC),icc)
  CFLAGS += -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
 else

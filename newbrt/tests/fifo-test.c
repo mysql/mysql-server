@@ -7,7 +7,8 @@
 
 int verbose;
 
-void test_fifo_create() {
+static void
+test_fifo_create (void) {
     int r;
     FIFO f;
 
@@ -19,7 +20,8 @@ void test_fifo_create() {
     assert(f == 0);
 }
 
-void test_fifo_enq(int n) {
+static void
+test_fifo_enq (int n) {
     int r;
     FIFO f;
 

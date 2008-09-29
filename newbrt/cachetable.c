@@ -675,7 +675,6 @@ static int cachetable_insert_at(CACHEFILE cachefile, u_int32_t fullhash, CACHEKE
 
 enum { hash_histogram_max = 100 };
 static unsigned long long hash_histogram[hash_histogram_max];
-void print_hash_histogram (void) __attribute__((__visibility__("default")));
 void print_hash_histogram (void) {
     int i;
     for (i=0; i<hash_histogram_max; i++)
