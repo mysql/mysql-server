@@ -32,12 +32,16 @@ FPICFLAGS = -fPIC
 VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
 VISIBILITY=-fvisibility=hidden
 SHADOW=-Wshadow
-FORMAT=-Wmissing-format-attribute
+ ifneq ($(CC),icc)
+  FORMAT=-Wmissing-format-attribute
+ endif
 endif
 
-CFLAGS = -Wall -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn $(FORMAT) $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
+CFLAGS = -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(SHADOW) $(VISIBILITY)
 ifneq ($(CC),icc)
-CFLAGS += -Werror
+CFLAGS += -Werror -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
+else
+CFLAGS += -g
 endif
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lz -lpthread
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
