@@ -13,7 +13,7 @@ else
  GCOV_FLAGS =
 endif
 
-CFLAGS = -W -Wall -Wextra -Werror -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
+CFLAGS = -W -Wall -Wextra -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
 CPPFLAGS = -I. -I../../include -I../../newbrt

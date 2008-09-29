@@ -16,7 +16,7 @@ ifeq ($(GCOV),GCOV)
 else
  GCOV_FLAGS =
 endif
-CFLAGS = -W -Wall -Wextra -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
+CFLAGS = -W -Wall -Wextra $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute 
 CPPFLAGS += -L../ -L../../range_tree 

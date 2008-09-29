@@ -11,7 +11,7 @@ endif
 
 VISIBILITY = -fvisibility=hidden
 
-CFLAGS = -W -Wall -Wextra -Werror -fPIC $(OPTFLAGS)  -g3 -ggdb3 $(GCOV_FLAGS)
+CFLAGS = -W -Wall -Wextra -fPIC $(OPTFLAGS)  -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
 CFLAGS += $(VISIBILITY) $(PROF_FLAGS)

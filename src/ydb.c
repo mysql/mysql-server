@@ -2539,10 +2539,10 @@ static int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
             return r2;
         }
 
-        inline void cleanup() {
-            if (data.data) toku_free(data.data);
-            if (pkey.data) toku_free(pkey.data);
-        }
+#define cleanup() ({ \
+            if (data.data) toku_free(data.data); \
+            if (pkey.data) toku_free(pkey.data); \
+        })
 
         memset(&data, 0, sizeof data); data.flags = DB_DBT_REALLOC;
         memset(&pkey, 0, sizeof pkey); pkey.flags = DB_DBT_REALLOC;

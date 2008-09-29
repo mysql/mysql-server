@@ -13,7 +13,7 @@ endif
 OPTFLAGS=-O0
 
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS = -W -Wall -Wextra -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
+CFLAGS = -W -Wall -Wextra $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
 CPPFLAGS += -I../ -I../../../newbrt -I../../../include
