@@ -32,6 +32,10 @@ void expect_cursor_get(DBC *cursor, int op, int expectr) {
     assert(r == expectr);
 }
 
+static int mycmp(const void *a, const void *b) {
+    return memcmp(a, b, sizeof (int));
+}
+
 void test_dupsort_delete(int n) {
     if (verbose) printf("test_dupsort_delete:%d\n", n);
 
@@ -56,9 +60,6 @@ void test_dupsort_delete(int n) {
     int sortvalues[n];
     for (i=0; i<n; i++)
         sortvalues[i] = values[i];
-    int mycmp(const void *a, const void *b) {
-        return memcmp(a, b, sizeof (int));
-    }
     qsort(sortvalues, n, sizeof sortvalues[0], mycmp);
 
     for (i=0; i<n; i++) {

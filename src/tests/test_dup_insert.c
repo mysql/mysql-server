@@ -37,6 +37,10 @@ void expect(DBC *cursor, int k, int v) {
     free(val.data);
 }
 
+static int mycmp(const void *a, const void *b) {
+    return memcmp(a, b, sizeof (int));
+}
+
 /* verify that key insertions are stored in insert order */
 void test_insert(int n, int dup_mode) {
     if (verbose) printf("test_insert:%d %d\n", n, dup_mode);
@@ -66,9 +70,6 @@ void test_insert(int n, int dup_mode) {
     int sortvalues[n];
     for (i=0; i<n; i++)
         sortvalues[i] = values[i];
-    int mycmp(const void *a, const void *b) {
-        return memcmp(a, b, sizeof (int));
-    }
     qsort(sortvalues, n, sizeof sortvalues[0], mycmp);
 
     /* insert n-1 unique keys {0, 1,  n-1} - {n/2} */
@@ -165,9 +166,6 @@ void test_nonleaf_insert(int n, int dup_mode) {
     int sortvalues[n];
     for (i=0; i<n; i++)
         sortvalues[i] = values[i];
-    int mycmp(const void *a, const void *b) {
-        return memcmp(a, b, sizeof (int));
-    }
     qsort(sortvalues, n, sizeof sortvalues[0], mycmp);
 
     /* insert n-1 unique keys {0, 1,  n-1} - {n/2} */
