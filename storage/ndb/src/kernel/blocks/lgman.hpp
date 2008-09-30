@@ -84,7 +84,7 @@ public:
       Uint32 m_size;
       Uint64 m_sync_lsn;
     };
-    Uint32 m_block;
+    Uint32 m_block; // includes instance
     Uint32 nextList;
     Uint32 m_magic;
   };
@@ -306,7 +306,7 @@ private:
 };
 
 class Logfile_client {
-  Uint32 m_block;
+  Uint32 m_block; // includes instance
   Lgman * m_lgman;
   DEBUG_OUT_DEFINES(LGMAN);
 public:

@@ -373,7 +373,8 @@ void Dbtup::send_TUPKEYREF(Signal* signal,
   TupKeyRef * const tupKeyRef = (TupKeyRef *)signal->getDataPtrSend();  
   tupKeyRef->userRef = regOperPtr->userpointer;
   tupKeyRef->errorCode = terrorCode;
-  sendSignal(DBLQH_REF, GSN_TUPKEYREF, signal, 
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH);
+  sendSignal(lqhRef, GSN_TUPKEYREF, signal, 
              TupKeyRef::SignalLength, JBB);
 }
 
