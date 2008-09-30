@@ -1407,19 +1407,18 @@ row_upd_sec_index_entry(
 	upd_node_t*	node,	/* in: row update node */
 	que_thr_t*	thr)	/* in: query thread */
 {
-	mtr_t		mtr;
-	rec_t*		rec;
-	btr_pcur_t	pcur;
-	mem_heap_t*	heap;
-	dtuple_t*	entry;
-	dict_index_t*	index;
-	ibool		found;
-	btr_cur_t*	btr_cur;
-	ibool		referenced;
-	ibool		was_buffered;
-	ulint		err = DB_SUCCESS;
-	trx_t*		trx = thr_get_trx(thr);
-	ulint		mode = BTR_MODIFY_LEAF;
+	mtr_t			mtr;
+	const rec_t*		rec;
+	btr_pcur_t		pcur;
+	mem_heap_t*		heap;
+	dtuple_t*		entry;
+	dict_index_t*		index;
+	btr_cur_t*		btr_cur;
+	ibool			referenced;
+	ulint			err	= DB_SUCCESS;
+	trx_t*			trx	= thr_get_trx(thr);
+	ulint			mode	= BTR_MODIFY_LEAF;
+	enum row_search_result	search_result;
 
 	index = node->index;
 
@@ -1445,10 +1444,9 @@ row_upd_sec_index_entry(
 		mode |= BTR_DELETE_MARK;
 	}
 
-	found = row_search_index_entry(
-		&was_buffered, index, entry, mode, &pcur, &mtr);
-
-	if (was_buffered) {
+	search_result = row_search_index_entry(index, entry, mode,
+					       &pcur, &mtr);
+	if (search_result == ROW_BUFFERED) {
 		/* Entry was delete marked already. */
 
 		goto close_cur;
@@ -1458,7 +1456,12 @@ row_upd_sec_index_entry(
 
 	rec = btr_cur_get_rec(btr_cur);
 
-	if (UNIV_UNLIKELY(!found)) {
+	switch (search_result) {
+	case ROW_BUFFERED:	/* already handled above */
+	case ROW_NOT_IN_POOL:	/* should only occur for BTR_WATCH_LEAF */
+		ut_error;
+		break;
+	case ROW_NOT_FOUND:
 		fputs("InnoDB: error in sec index entry update in\n"
 		      "InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
@@ -1475,7 +1478,8 @@ row_upd_sec_index_entry(
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);
-	} else {
+		break;
+	case ROW_FOUND:
 		/* Delete mark the old index record; it can already be
 		delete marked if we return after a lock wait in
 		row_ins_index_entry below */
@@ -1501,6 +1505,7 @@ row_upd_sec_index_entry(
 					index, offsets, thr, &mtr);
 			}
 		}
+		break;
 	}
 
 close_cur:

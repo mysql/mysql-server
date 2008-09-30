@@ -261,16 +261,28 @@ row_get_clust_rec(
 	dict_index_t*	index,	/* in: secondary index */
 	dict_index_t**	clust_index,/* out: clustered index */
 	mtr_t*		mtr);	/* in: mtr */
+
+/* Result of row_search_index_entry */
+enum row_search_result {
+	ROW_FOUND = 0,		/* the record was found */
+	ROW_NOT_FOUND,		/* record not found */
+	ROW_BUFFERED,		/* one of BTR_INSERT, BTR_DELETE, or
+				BTR_DELETE_MARK was specified, the
+				secondary index leaf page was not in
+				the buffer pool, and the operation was
+				enqueued in the insert/delete buffer */
+	ROW_NOT_IN_POOL		/* BTR_WATCH_LEAF was specified and the
+				record was not in the buffer pool */
+};
+
 /*******************************************************************
 Searches an index record. */
 UNIV_INTERN
-ibool
+enum row_search_result
 row_search_index_entry(
 /*===================*/
-				/* out: TRUE if found */
-	ibool*		was_buffered,
-				/* out: TRUE if the operation was buffered
-				in the insert/delete buffer. Can be NULL. */
+				/* out: whether the record was found
+				or buffered */
 	dict_index_t*	index,	/* in: index */
 	const dtuple_t*	entry,	/* in: index entry */
 	ulint		mode,	/* in: BTR_MODIFY_LEAF, ... */
