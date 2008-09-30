@@ -1154,7 +1154,7 @@ ndbcluster_update_slock(THD *thd,
   const NDBTAB *ndbtab= ndbtab_g.get_table();
   NdbTransaction *trans= 0;
   int retries= 100;
-  int retry_sleep= 10; /* 10 milliseconds, transaction */
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
   const NDBCOL *col[SCHEMA_SIZE];
   unsigned sz[SCHEMA_SIZE];
 
@@ -1255,7 +1255,7 @@ ndbcluster_update_slock(THD *thd,
       {
         if (trans)
           ndb->closeTransaction(trans);
-        my_sleep(retry_sleep);
+        do_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -1491,7 +1491,7 @@ int ndbcluster_log_schema_op(THD *thd,
   const NDBTAB *ndbtab= ndbtab_g.get_table();
   NdbTransaction *trans= 0;
   int retries= 100;
-  int retry_sleep= 10; /* 10 milliseconds, transaction */
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
   const NDBCOL *col[SCHEMA_SIZE];
   unsigned sz[SCHEMA_SIZE];
 
@@ -1604,7 +1604,7 @@ err:
       {
         if (trans)
           ndb->closeTransaction(trans);
-        my_sleep(retry_sleep);
+        do_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -3398,7 +3398,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       pthread_mutex_unlock(&injector_mutex);
       if (retries)
       {
-        my_sleep(retry_sleep);
+        do_retry_sleep(retry_sleep);
         continue;
       }
       DBUG_RETURN(-1);
