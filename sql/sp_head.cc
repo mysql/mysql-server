@@ -1940,7 +1940,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       we'll leave it here.
     */
     if (!thd->in_sub_stmt)
-      close_thread_tables(thd);
+    {
+      thd->lex->unit.cleanup();
+      close_thread_tables(thd);            
+      thd->rollback_item_tree_changes();
+    }
 
     DBUG_PRINT("info",(" %.*s: eval args done",
                        (int) m_name.length, m_name.str));
