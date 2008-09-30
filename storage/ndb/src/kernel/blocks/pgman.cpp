@@ -982,7 +982,9 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
       }
 #endif
       
-      b = globalData.getBlock(req_ptr.p->m_block);
+      Uint32 blockNo = blockToMain(req_ptr.p->m_block);
+      Uint32 instanceNo = blockToInstance(req_ptr.p->m_block);
+      b = globalData.getBlock(blockNo, instanceNo);
       callback = req_ptr.p->m_callback;
       
       if (req_ptr.p->m_flags & DIRTY_FLAGS)
@@ -2353,6 +2355,6 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
 
 Page_cache_client::Page_cache_client(SimulatedBlock* block, Pgman* pgman)
 {
-  m_block = block->number();
+  m_block = numberToBlock(block->number(), block->instance());
   m_pgman = pgman;
 }

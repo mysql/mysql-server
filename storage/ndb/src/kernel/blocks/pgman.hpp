@@ -260,7 +260,7 @@ private:
 #endif
     };
     
-    Uint16 m_block;
+    Uint16 m_block; // includes instance
     Uint16 m_flags;
     SimulatedBlock::Callback m_callback;
 
@@ -503,7 +503,7 @@ class NdbOut& operator<<(NdbOut&, Ptr<Pgman::Page_entry>);
 
 class Page_cache_client
 {
-  Uint32 m_block;
+  Uint32 m_block; // includes instance
   Pgman* m_pgman;
   DEBUG_OUT_DEFINES(PGMAN);
 
