@@ -18,9 +18,7 @@ test_txn_close_open_commit (void) {
 #if DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==3
     if (verbose) fprintf(stderr, "%s does not work for BDB %d.%d.   Not running\n", __FILE__, DB_VERSION_MAJOR, DB_VERSION_MINOR);
     return;
-#endif
-#endif
-
+#else
     system("rm -rf " ENVDIR);
     mkdir(ENVDIR, 0777);
 
@@ -69,6 +67,8 @@ test_txn_close_open_commit (void) {
 	r = stat(ENVDIR "/test.db", &statbuf);
 	assert(r==0);
     }
+#endif
+#endif
 }
 
 int main(int UU(argc), char UU(*argv[])) {
