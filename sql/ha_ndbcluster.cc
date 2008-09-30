@@ -71,9 +71,12 @@ enum ndb_distribution opt_ndb_distribution_id= ND_KEYHASH;
 // Default value for parallelism
 static const int parallelism= 0;
 
-// Default value for max number of transactions
-// createable against NDB from this handler
-static const int max_transactions= 3; // should really be 2 but there is a transaction to much allocated when loch table is used
+/*
+  Default value for max number of transactions createable against NDB from
+  the handler. Should really be 2 but there is a transaction to much allocated
+  when lock table is used, and one extra to used for global schema lock.
+*/
+static const int max_transactions= 4;
 
 static uint ndbcluster_partition_flags();
 static int ndbcluster_init(void *);
@@ -617,6 +620,8 @@ Thd_ndb::Thd_ndb()
   m_max_violation_count= 0;
   m_old_violation_count= 0;
   m_conflict_fn_usage_count= 0;
+  global_schema_lock_trans= NULL;
+  global_schema_lock_count= 0;
   init_alloc_root(&m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
 }
 
@@ -6278,18 +6283,6 @@ int ha_ndbcluster::create(const char *name,
   NDBDICT *dict= ndb->getDictionary();
 
   DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
-  if (is_truncate)
-  {
-    {
-      Ndb_table_guard ndbtab_g(dict, m_tabname);
-      if (!(m_table= ndbtab_g.get_table()))
-	ERR_RETURN(dict->getNdbError());
-      m_table= NULL;
-    }
-    DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
-    if ((my_errno= delete_table(name)))
-      DBUG_RETURN(my_errno);
-  }
   table= form;
   if (create_from_engine)
   {
@@ -6305,6 +6298,12 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(my_errno);
   }
 
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+
+  if (!((thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP) ||
+        ndbcluster_has_global_schema_lock(thd_ndb)))
+    ndbcluster_no_global_schema_lock_abort
+      (thd, "ha_ndbcluster::create");
   /*
     Don't allow table creation unless
     schema distribution table is setup
@@ -6328,6 +6327,19 @@ int ha_ndbcluster::create(const char *name,
     {
       ndb_sys_table= TRUE;
     }
+  }
+
+  if (is_truncate)
+  {
+    {
+      Ndb_table_guard ndbtab_g(dict, m_tabname);
+      if (!(m_table= ndbtab_g.get_table()))
+	ERR_RETURN(dict->getNdbError());
+      m_table= NULL;
+    }
+    DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
+    if ((my_errno= delete_table(name)))
+      DBUG_RETURN(my_errno);
   }
 
   DBUG_PRINT("table", ("name: %s", m_tabname));  
@@ -6942,6 +6954,12 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   if (check_ndb_connection(thd))
     DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
 
+#ifdef HAVE_NDB_BINLOG
+  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+    ndbcluster_no_global_schema_lock_abort
+      (thd, "ha_ndbcluster::rename_table");
+#endif
+
   Ndb *ndb= get_ndb(thd);
   ndb->setDatabaseName(old_dbname);
   dict= ndb->getDictionary();
@@ -7335,6 +7353,13 @@ int ha_ndbcluster::delete_table(const char *name)
   }
 
   ndb= get_ndb(thd);
+
+#ifdef HAVE_NDB_BINLOG
+  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+    ndbcluster_no_global_schema_lock_abort
+      (thd, "ha_ndbcluster::delete_table");
+#endif
+
   /*
     Drop table in ndb.
     If it was already gone it might have been dropped
@@ -8395,6 +8420,12 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
 
   if (dir)
     DBUG_RETURN(0); // Discover of databases not yet supported
+
+#ifdef HAVE_NDB_BINLOG
+  Ndbcluster_global_schema_lock_guard ndbcluster_global_schema_lock_guard(thd);
+  if (ndbcluster_global_schema_lock_guard.lock())
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+#endif
 
   // List tables in NDB
   NDBDICT *dict= ndb->getDictionary();

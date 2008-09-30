@@ -3852,6 +3852,24 @@ int ha_binlog_index_purge_file(THD *thd, const char *file)
   return 0;
 }
 
+int ha_global_schema_lock(THD *thd)
+{
+  binlog_func_st bfn= {BFN_GLOBAL_SCHEMA_LOCK, 0};
+  binlog_func_foreach(thd, &bfn);
+  if (thd->main_da.is_error())
+    return 1;
+  return 0;
+}
+
+int ha_global_schema_unlock(THD *thd)
+{
+  binlog_func_st bfn= {BFN_GLOBAL_SCHEMA_UNLOCK, 0};
+  binlog_func_foreach(thd, &bfn);
+  if (thd->main_da.is_error())
+    return 1;
+  return 0;
+}
+
 struct binlog_log_query_st
 {
   enum_binlog_command binlog_command;

@@ -1474,12 +1474,14 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
   bool error= FALSE, need_start_waiters= FALSE;
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
 
   if (!drop_temporary)
   {
+    global_schema_lock_guard.lock();
     if ((error= wait_if_global_read_lock(thd, 0, 1)))
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->table_name);
@@ -6595,6 +6597,8 @@ view_err:
     DBUG_RETURN(error);
   }
 
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
+  global_schema_lock_guard.lock();
   if (!(table= open_n_lock_single_table(thd, table_list, TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(TRUE);
   table->use_all_columns();
