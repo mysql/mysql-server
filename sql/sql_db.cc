@@ -35,7 +35,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path, uint level, 
                                  TABLE_LIST **dropped_tables);
          
-static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
+long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
 /* Database options hash */
 static HASH dboptions;
@@ -906,7 +906,11 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     else if (file->name[0] == 'a' && file->name[1] == 'r' &&
              file->name[2] == 'c' && file->name[3] == '\0')
     {
-      /* .frm archive */
+      /* .frm archive:
+        Those archives are obsolete, but following code should
+        exist to remove existent "arc" directories.
+        See #ifdef FRM_ARCHIVE directives for obsolete code.
+      */
       char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
       strxmov(newpath, org_path, "/", "arc", NullS);
@@ -1061,9 +1065,13 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
   RETURN
     > 0 number of removed files
     -1  error
+
+  NOTE
+    A support of "arc" directories is obsolete, however this
+    function should exist to remove existent "arc" directories.
+    See #ifdef FRM_ARCHIVE directives for obsolete code.
 */
-static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp,
-				 const char *org_path)
+long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path)
 {
   long deleted= 0;
   ulong found_other_files= 0;
@@ -1105,6 +1113,7 @@ static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp,
     {
       goto err;
     }
+    deleted++;
   }
   if (thd->killed)
     goto err;
