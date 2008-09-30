@@ -345,8 +345,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       Uint32 sz= sizeof(Disk_undo::Create) >> 2;
       
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-      if((terrorCode = 
-          c_lgman->alloc_log_space(regFragPtr.p->m_logfile_group_id, sz)))
+      if((terrorCode = lgman.alloc_log_space(sz)))
       {
         addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
         return;
@@ -1615,7 +1614,8 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     cb.m_callbackFunction = 
       safe_cast(&Dbtup::drop_table_log_buffer_callback);
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
-    int r0 = c_lgman->alloc_log_space(logfile_group_id, sz);
+    Logfile_client lgman(this, c_lgman, logfile_group_id);
+    int r0 = lgman.alloc_log_space(sz);
     if (r0)
     {
       jam();
@@ -1624,7 +1624,6 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
       goto done;
     }
 
-    Logfile_client lgman(this, c_lgman, logfile_group_id);
     int res= lgman.get_log_buffer(signal, sz, &cb);
     switch(res){
     case 0:
@@ -1633,7 +1632,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     case -1:
       warningEvent("Failed to get log buffer for drop table: %u",
 		   tabPtr.i);
-      c_lgman->free_log_space(logfile_group_id, sz);
+      lgman.free_log_space(sz);
       goto done;
       break;
     default:
@@ -1704,7 +1703,9 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
       safe_cast(&Dbtup::drop_fragment_unmap_page_callback);
     
     int flags= Page_cache_client::COMMIT_REQ;
-    int res= m_pgman.get_page(signal, req, flags);
+    Page_cache_client pgman(this, c_pgman);
+    int res= pgman.get_page(signal, req, flags);
+    m_pgman_ptr = pgman.m_ptr;
     switch(res)
     {
     case 0:
@@ -1732,7 +1733,8 @@ Dbtup::drop_fragment_unmap_page_callback(Signal* signal,
 
   Uint32 fragId = ((Page*)page.p)->m_fragment_id;
   Uint32 tableId = ((Page*)page.p)->m_table_id;
-  m_pgman.drop_page(key, page_id);
+  Page_cache_client pgman(this, c_pgman);
+  pgman.drop_page(key, page_id);
 
   TablerecPtr tabPtr;
   tabPtr.i= tableId;

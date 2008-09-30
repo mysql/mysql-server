@@ -366,8 +366,8 @@ private:
   typedef DLCFifoList<Page_entry, Page_entry_queue_ptr> Page_queue;
   typedef DLCFifoList<Page_entry, Page_entry_sublist_ptr> Page_sublist;
 
+  class Lgman *c_lgman;
   class Dbtup *c_tup;
-  Logfile_client m_lgman;
 
   // loop status
   bool m_stats_loop_on;
@@ -584,6 +584,10 @@ Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
   Uint32 page_no = req.m_page.m_page_no;
 
   D("get_page" << V(file_no) << V(page_no) << hex << V(flags));
+
+  // make sure TUP does not peek at obsolete data
+  m_ptr.i = RNIL;
+  m_ptr.p = 0;
 
   // find or seize
   bool ok = m_pgman->get_page_entry(entry_ptr, file_no, page_no);
