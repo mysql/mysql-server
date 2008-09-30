@@ -269,3 +269,9 @@ set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
 { thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
 
 Ndb* check_ndb_in_thd(THD* thd);
+
+/* perform random sleep in the range milli_sleep to 2*milli_sleep */
+inline void do_retry_sleep(unsigned milli_sleep)
+{
+  my_sleep(1000*(milli_sleep + 5*(rand()%(milli_sleep/5))));
+}
