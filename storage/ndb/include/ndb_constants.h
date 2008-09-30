@@ -97,4 +97,9 @@
 #define NDB_SUM_READONLY     1
 #define NDB_SUM_READ_WRITE   2
 
+/*
+ * SYSTAB_0 reserved keys
+ */
+#define NDB_BACKUP_SEQUENCE 0x1F000000
+
 #endif
