@@ -274,6 +274,7 @@ public:
   Uint32 m_table_id;
   Uint32 m_fragment_id;
   Uint32 m_tablespace_id;
+  DEBUG_OUT_DEFINES(TSMAN);
 
 public:
   Tablespace_client(Signal* signal, Tsman* tsman, 

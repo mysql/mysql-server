@@ -488,13 +488,10 @@ private:
   int drop_page(Ptr<Page_entry>);
   
 #ifdef VM_TRACE
-  NdbOut debugOut;
-  bool debugFlag;
   void verify_page_entry(Ptr<Page_entry> ptr);
   void verify_page_lists();
   void verify_all();
   bool dump_page_lists(Uint32 ptrI = RNIL);
-  void open_debug_file(Uint32 flag);
 #endif
   static const char* get_sublist_name(Uint32 list_no);
   friend class NdbOut& operator<<(NdbOut&, Ptr<Page_request>);
@@ -508,6 +505,7 @@ class Page_cache_client
 {
   Uint32 m_block;
   Pgman* m_pgman;
+  DEBUG_OUT_DEFINES(PGMAN);
 
 public:
   Page_cache_client(SimulatedBlock* block, Pgman*);
@@ -585,11 +583,7 @@ Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
   Uint32 file_no = req.m_page.m_file_no;
   Uint32 page_no = req.m_page.m_page_no;
 
-#ifdef VM_TRACE
-  m_pgman->debugOut
-    << "PGCLI: get_page " << file_no << "," << page_no
-    << " flags=" << hex << flags << endl;
-#endif
+  D("get_page" << V(file_no) << V(page_no) << hex << V(flags));
 
   // find or seize
   bool ok = m_pgman->get_page_entry(entry_ptr, file_no, page_no);
@@ -622,11 +616,7 @@ Page_cache_client::update_lsn(Local_key key, Uint64 lsn)
   Uint32 file_no = key.m_file_no;
   Uint32 page_no = key.m_page_no;
 
-#ifdef VM_TRACE
-  m_pgman->debugOut
-    << "PGCLI: update_lsn " << file_no << "," << page_no
-    << " lsn=" << lsn << endl;
-#endif
+  D("update_lsn" << V(file_no) << V(page_no) << V(lsn));
 
   bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
   assert(found);
@@ -642,10 +632,7 @@ Page_cache_client::drop_page(Local_key key, Uint32 page_id)
   Uint32 file_no = key.m_file_no;
   Uint32 page_no = key.m_page_no;
 
-#ifdef VM_TRACE
-  m_pgman->debugOut
-    << "PGCLI: drop_page " << file_no << "," << page_no << endl;
-#endif
+  D("drop_page" << V(file_no) << V(page_no));
 
   bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
   assert(found);

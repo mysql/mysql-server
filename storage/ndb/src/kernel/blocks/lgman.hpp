@@ -308,6 +308,7 @@ private:
 class Logfile_client {
   Uint32 m_block;
   Lgman * m_lgman;
+  DEBUG_OUT_DEFINES(LGMAN);
 public:
   Uint32 m_logfile_group_id;
 
