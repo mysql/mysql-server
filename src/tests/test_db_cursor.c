@@ -46,10 +46,10 @@ static void write_uchar_to_dbt (DBT *dbt, const unsigned char c) {
 }
 
 static void write_uint_to_dbt (DBT *dbt, const unsigned int v) {
-    write_uchar_to_dbt(dbt, (v>>24)&0xff);
-    write_uchar_to_dbt(dbt, (v>>16)&0xff);
-    write_uchar_to_dbt(dbt, (v>> 8)&0xff);
-    write_uchar_to_dbt(dbt, (v>> 0)&0xff);
+    write_uchar_to_dbt(dbt, (unsigned char)((v>>24)&0xff));
+    write_uchar_to_dbt(dbt, (unsigned char)((v>>16)&0xff));
+    write_uchar_to_dbt(dbt, (unsigned char)((v>> 8)&0xff));
+    write_uchar_to_dbt(dbt, (unsigned char)((v>> 0)&0xff));
 }
 
 static void write_timestamp_to_dbt (DBT *dbt, timestamp ts) {
@@ -123,18 +123,6 @@ static int name_callback (DB *secondary __attribute__((__unused__)), const DBT *
     write_name_to_dbt(result,  &pd->name);
     free_pd(pd);
     return 0;
-}
-
-int expire_callback (DB *UU(secondary), const DBT * UU(key), const DBT *data, DBT *result) {
-    struct primary_data *d = data->data;
-    if (d->doesexpire) {
-	result->flags=0;
-	result->size=sizeof(timestamp);
-	result->data=&d->expiretime;
-	return 0;
-    } else {
-	return DB_DONOTINDEX;
-    }
 }
 
 // The expire_key is simply a timestamp.
@@ -242,7 +230,7 @@ static void delete_oldest_expired (void) {
     assert(count==0);
     count++;
     int r;
-    printf("%s:%d deleting %d\n", __FILE__, __LINE__, pkey_0);
+    printf("%s:%d deleting %u\n", __FILE__, __LINE__, pkey_0);
     DBT pkey;
     memset(&pkey, 0, sizeof(pkey));
     {

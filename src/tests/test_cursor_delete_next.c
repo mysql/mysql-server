@@ -19,7 +19,8 @@ DBT value;
 DBC *dbc;
 DB_TXN *const null_txn = 0;
 
-void setup_db(char* name) {
+static void
+setup_db (char* name) {
     int r;
 
     system("rm -rf " ENVDIR);
@@ -33,14 +34,16 @@ void setup_db(char* name) {
     r = db->open(db, null_txn, name, "main", DB_BTREE, DB_CREATE, 0666);    CKERR(r);
 }
 
-void close_db() {
+static void
+close_db (void) {
     int r;
 
     r = db->close(db, 0);                           CKERR(r);
     r = env->close(env, 0);                         CKERR(r);
 }
 
-void insert() {
+static void
+insert (void) {
     int r;
 
     dbt_init(&key, "key", sizeof("key"));
@@ -52,7 +55,8 @@ void insert() {
     r = db->put(db, null_txn, &key, &value, DB_YESOVERWRITE);     CKERR(r);
 }
 
-void cursor_range_with_delete(u_int32_t flag) {
+static void
+cursor_range_with_delete (u_int32_t flag) {
     int r;
 
     r = db->cursor(db, null_txn, &dbc, 0);          CKERR(r);

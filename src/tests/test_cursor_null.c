@@ -11,19 +11,13 @@
 
 // ENVDIR is defined in the Makefile
 
-int dbtcmp(DBT *dbt1, DBT *dbt2) {
-    int r;
-    
-    r = dbt1->size - dbt2->size;  if (r) return r;
-    return memcmp(dbt1->data, dbt2->data, dbt1->size);
-}
-
 DB *db;
 DB_ENV* dbenv;
 DBC*    cursors[(int)256];
 DB_TXN* null_txn = NULL;
 
-void put(int _key, int _data) {
+static void
+put (int _key, int _data) {
     int r;
     DBT key;
     DBT data;
@@ -42,7 +36,8 @@ void put(int _key, int _data) {
     CKERR(r);
 }
 
-void cget(u_int32_t flag, BOOL find, char txn, int _key, int _data) {
+static void
+cget (u_int32_t flag, BOOL find, char txn, int _key, int _data) {
     assert(cursors[(int)txn]);
 
     int r;
@@ -90,7 +85,8 @@ void cget(u_int32_t flag, BOOL find, char txn, int _key, int _data) {
     else        CKERR2(r, DB_NOTFOUND);
 }
 
-void init_dbc(char name) {
+static void
+init_dbc (char name) {
     int r;
 
     assert(!cursors[(int)name]);
@@ -99,7 +95,8 @@ void init_dbc(char name) {
     assert(cursors[(int)name]);
 }
 
-void close_dbc(char name) {
+static void
+close_dbc (char name) {
     int r;
 
     assert(cursors[(int)name]);
@@ -108,7 +105,8 @@ void close_dbc(char name) {
     cursors[(int)name] = NULL;
 }
 
-void setup_dbs(u_int32_t dup_flags) {
+static void
+setup_dbs (u_int32_t dup_flags) {
     int r;
 
     system("rm -rf " ENVDIR);
@@ -136,7 +134,8 @@ void setup_dbs(u_int32_t dup_flags) {
     for (a = 'a'; a <= 'z'; a++) init_dbc(a);
 }
 
-void close_dbs(void) {
+static void
+close_dbs (void) {
     char a;
     for (a = 'a'; a <= 'z'; a++) {
         if (cursors[(int)a]) close_dbc(a);
@@ -151,7 +150,8 @@ void close_dbs(void) {
     dbenv   = NULL;
 }
 
-void test(u_int32_t dup_flags) {
+static void
+test (u_int32_t dup_flags) {
     /* ********************************************************************** */
     int key;
     int data;
