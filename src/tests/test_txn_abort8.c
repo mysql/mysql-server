@@ -9,7 +9,8 @@
 #include "test.h"
 
 // 
-void test_abort_close(void) {
+static void
+test_abort_close (void) {
 
 #ifndef USE_TDB
 #if DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==3

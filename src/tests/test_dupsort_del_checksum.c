@@ -68,7 +68,8 @@ static void lookup (int i, int expect, int expectj) {
     }
 }
 
-void test_abort3 (void) {
+static void
+test_abort3 (void) {
     int r;
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);       assert(r==0);

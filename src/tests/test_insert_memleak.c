@@ -12,9 +12,8 @@
 
 #include "test.h"
 
-
-
-void test_insert(int n, int dup_mode) {
+static void
+test_insert (int n, int dup_mode) {
     if (verbose) printf("test_insert:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;

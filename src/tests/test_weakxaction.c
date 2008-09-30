@@ -10,7 +10,8 @@
 #include <sys/stat.h>
 #include "test.h"
 
-void test_autotxn(u_int32_t env_flags, u_int32_t db_flags) {
+static void
+test_autotxn (u_int32_t env_flags, u_int32_t db_flags) {
     DB_ENV *env;
     DB *db;
     int r;

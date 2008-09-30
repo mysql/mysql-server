@@ -9,7 +9,8 @@
 #include "test.h"
 
 // like test_txn_abort8.c except commit
-void test_abort_close(void) {
+static void
+test_abort_close (void) {
 
 #ifndef USE_TDB
 #if DB_VERSION_MAJOR==4 && DB_VERSION_MINOR==3

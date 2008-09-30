@@ -10,7 +10,8 @@
 #include <db.h>
 #include "test.h"
 
-int test_truncate_txn_commit(int n) {
+static int
+test_truncate_txn_commit (int n) {
     int r;
     
     DB_ENV *env;

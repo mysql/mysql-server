@@ -10,7 +10,8 @@
 #include <db.h>
 #include "test.h"
 
-int test_truncate(int n) {
+static int
+test_truncate (int n) {
     int r;
     
     DB_ENV *env;

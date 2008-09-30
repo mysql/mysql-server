@@ -13,12 +13,8 @@
 
 #include "test.h"
 
-int db_put(DB *db, DB_TXN *txn, int k, int v) {
-    DBT key, val;
-    return db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_NOOVERWRITE);
-}
-
-void test_txn_recover3(int nrows) {
+static void
+test_txn_recover3 (int nrows) {
     if (verbose) printf("test_txn_recover1:%d\n", nrows);
 
     system("rm -rf " ENVDIR);

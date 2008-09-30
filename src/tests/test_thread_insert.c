@@ -27,13 +27,15 @@ struct db_inserter {
     int do_exit;
 };
 
-int db_put(DB *db, my_t k, my_t v) {
+static int
+db_put (DB *db, my_t k, my_t v) {
     DBT key, val;
     int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
     return r;
 }
 
-void *do_inserts(void *arg) {
+static void *
+do_inserts (void *arg) {
     struct db_inserter *mywork = (struct db_inserter *) arg;
     if (verbose) printf("%lu:%u:do_inserts:start:%u-%u\n", (unsigned long)pthread_self(), getmyid(), mywork->startno, mywork->endno);
     my_t i;
@@ -47,7 +49,8 @@ void *do_inserts(void *arg) {
     return 0;
 }
 
-int usage() {
+static int
+usage (void) {
     fprintf(stderr, "test [-n NTUPLES] [-p NTHREADS]\n");
     fprintf(stderr, "default NTUPLES=1000000\n");
     fprintf(stderr, "default NTHREADS=2\n");
@@ -108,7 +111,7 @@ int main(int argc, char *argv[]) {
             work[i].endno = n;
     }
 
-    if (verbose) printf("pid:%u\n", getpid());
+    if (verbose) printf("pid:%d\n", getpid());
 
     for (i=1; i<nthreads; i++) {
         r = pthread_create(&work[i].tid, 0, do_inserts, &work[i]); assert(r == 0);

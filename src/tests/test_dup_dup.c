@@ -15,7 +15,8 @@
 
 int errors;
 
-void db_put(DB *db, int k, int v, u_int32_t put_flags, int rexpect) {
+static void
+db_put (DB *db, int k, int v, u_int32_t put_flags, int rexpect) {
     DBT key, val;
     // Turn off error messages if we expect there to be an error.
     if (rexpect!=0) {
@@ -25,35 +26,38 @@ void db_put(DB *db, int k, int v, u_int32_t put_flags, int rexpect) {
     }
     int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), put_flags);
     if (r != rexpect) {
-#if USE_TDB
-        if (r == EINVAL && put_flags == DB_NODUPDATA) {
-	    static int did_warn = 0;
-	    if (!did_warn) {
-		if (verbose) printf("%s:%d:WARNING:tokdub does not support DB_NODUPDATA yet\n", __FILE__, __LINE__);
-		did_warn=1;
+	if (IS_TDB) {
+	    if (r == EINVAL && put_flags == DB_NODUPDATA) {
+		static int did_warn = 0;
+		if (!did_warn) {
+		    if (verbose) printf("%s:%d:WARNING:tokdub does not support DB_NODUPDATA yet\n", __FILE__, __LINE__);
+		    did_warn=1;
+		}
+		return;
 	    }
-            return;
-        }
-#endif
+	}
         printf("Expected %d, got %d\n", rexpect, r);
         if (r != rexpect) errors = 1;
     }
 }
 
-int maybe_do_db_dup_warning (int r, int dup_mode) {
-#if USE_TDB
-    static int did_warn=0;
-    if (r != 0 && dup_mode == DB_DUP) {
-	if (did_warn==0) {
-	    did_warn=1;
-	    if (verbose) printf("%s:%d:WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+static int
+maybe_do_db_dup_warning (int r, int dup_mode) {
+    if (IS_TDB) {
+	static int did_warn=0;
+	if (r != 0 && dup_mode == DB_DUP) {
+	    if (did_warn==0) {
+		did_warn=1;
+		if (verbose) printf("%s:%d:WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+	    }
+	    return 1;
 	}
-        return 1;
     }
-#endif
     return 0;
 }
-void test_dup_key(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup) {
+
+static void
+test_dup_key (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup) {
     if (verbose) printf("test_dup_key: %d, %u, %d, %d\n", dup_mode, put_flags, rexpect, rexpectdupdup);
 
     DB_ENV * const null_env = 0;
@@ -104,7 +108,8 @@ void test_dup_key(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdup
     r = db->close(db, 0); assert(r == 0);
 }
 
-void test_dup_dup(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup) {
+static void
+test_dup_dup (int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdupdup) {
     if (verbose) printf("test_dup_dup: %d, %u, %d, %d\n", dup_mode, put_flags, rexpect, rexpectdupdup);
 
     DB_ENV * const null_env = 0;
@@ -155,7 +160,8 @@ void test_dup_dup(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdup
     r = db->close(db, 0); assert(r == 0);
 }
 
-void test_put_00_01_01(int dup_mode, u_int32_t put_flags) {
+static void
+test_put_00_01_01 (int dup_mode, u_int32_t put_flags) {
     if (verbose) printf("test_put_00_01_01: %d, %u\n", dup_mode, put_flags);
 
     DB_ENV * const null_env = 0;
@@ -185,9 +191,9 @@ void test_put_00_01_01(int dup_mode, u_int32_t put_flags) {
     db_put(db, 0, 1, put_flags, expectr);
 
     expectr = (put_flags == DB_NOOVERWRITE || dup_mode & DB_DUPSORT) ? DB_KEYEXIST : 0;
-#if USE_TDB
-    if (put_flags == DB_YESOVERWRITE) expectr = 0;
-#endif
+    if (IS_TDB) {
+	if (put_flags == DB_YESOVERWRITE) expectr = 0;
+    }
     db_put(db, 0, 1, put_flags, expectr);
 
     DBC *cursor;
@@ -215,9 +221,8 @@ void test_put_00_01_01(int dup_mode, u_int32_t put_flags) {
 int main(int argc, const char *argv[]) {
 
     int yes_overwrite=0;
-#ifdef USE_TDB
-    yes_overwrite = DB_YESOVERWRITE;
-#endif
+    if (IS_TDB)
+	yes_overwrite = DB_YESOVERWRITE;
 
     parse_args(argc, argv);
   
@@ -239,13 +244,13 @@ int main(int argc, const char *argv[]) {
     test_dup_key(DB_DUP,              DB_NODUPDATA,    EINVAL,   EINVAL);
     test_dup_key(DB_DUP,              DB_NOOVERWRITE,  0,        DB_KEYEXIST);
 
-#if USE_TDB
-    test_dup_key(DB_DUP | DB_DUPSORT, 0,               EINVAL,   EINVAL);
-    //test_dup_key(DB_DUP | DB_DUPSORT, 0,               0,        0);
-    test_dup_key(DB_DUP | DB_DUPSORT, DB_YESOVERWRITE, 0,        0);
-#else
-    test_dup_key(DB_DUP | DB_DUPSORT, 0,               0,        0);
-#endif
+    if (IS_TDB) {
+	test_dup_key(DB_DUP | DB_DUPSORT, 0,               EINVAL,   EINVAL);
+	//test_dup_key(DB_DUP | DB_DUPSORT, 0,               0,        0);
+	test_dup_key(DB_DUP | DB_DUPSORT, DB_YESOVERWRITE, 0,        0);
+    } else {
+	test_dup_key(DB_DUP | DB_DUPSORT, 0,               0,        0);
+    }
     test_dup_key(DB_DUP | DB_DUPSORT, DB_NODUPDATA,    0,        0);
     test_dup_key(DB_DUP | DB_DUPSORT, DB_NOOVERWRITE,  0,        DB_KEYEXIST);
 
@@ -258,13 +263,13 @@ int main(int argc, const char *argv[]) {
     test_dup_dup(DB_DUP,              DB_NODUPDATA,    EINVAL,   EINVAL);
     test_dup_dup(DB_DUP,              DB_NOOVERWRITE,  0,        DB_KEYEXIST);
 
-#if USE_TDB
-    //    test_dup_dup(DB_DUP | DB_DUPSORT, 0,               EINVAL,   EINVAL);
-    //test_dup_dup(DB_DUP | DB_DUPSORT, 0,               0,        DB_KEYEXIST);
-    test_dup_dup(DB_DUP | DB_DUPSORT, DB_YESOVERWRITE, 0,        0);
-#else
-    test_dup_dup(DB_DUP | DB_DUPSORT, 0              , 0,        DB_KEYEXIST);
-#endif
+    if (IS_TDB) {
+	//    test_dup_dup(DB_DUP | DB_DUPSORT, 0,               EINVAL,   EINVAL);
+	//test_dup_dup(DB_DUP | DB_DUPSORT, 0,               0,        DB_KEYEXIST);
+	test_dup_dup(DB_DUP | DB_DUPSORT, DB_YESOVERWRITE, 0,        0);
+    } else {
+	test_dup_dup(DB_DUP | DB_DUPSORT, 0              , 0,        DB_KEYEXIST);
+    }
     test_dup_dup(DB_DUP | DB_DUPSORT, DB_NODUPDATA,    0,        DB_KEYEXIST);
     test_dup_dup(DB_DUP | DB_DUPSORT, DB_NOOVERWRITE,  0,        DB_KEYEXIST);
 

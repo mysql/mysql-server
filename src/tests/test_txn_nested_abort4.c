@@ -7,9 +7,11 @@
 #include <db.h>
 #include "test.h"
 
-DB *db;
-DB_ENV *env;
-void setup_db(void) {
+static DB *db;
+static DB_ENV *env;
+
+static void
+setup_db (void) {
     system("rm -rf " ENVDIR);
     mkdir(ENVDIR, 0777);
 
@@ -30,13 +32,17 @@ void setup_db(void) {
     }
 }
 
-void close_db(void) {
+#if 0
+static void
+close_db (void) {
     int r;
     r = db->close(db, 0); CKERR(r);
     r = env->close(env, 0); CKERR(r);
 }
+#endif
 
-void test_txn_abort(int insert, int secondnum) {
+static void
+test_txn_abort (int insert, int secondnum) {
     setup_db();
 
     DBT key, val;
@@ -66,11 +72,11 @@ void test_txn_abort(int insert, int secondnum) {
     }
     else { // delete
         r = db->del(db, child, dbt_init(&key, &i, sizeof i), DB_DELETE_ANY); 
-#if USE_TDB
-        CKERR(r);
-#else
-        CKERR2(r, (secondnum==1 ? 0 : DB_NOTFOUND));
-#endif
+	if (IS_TDB) {
+	    CKERR(r);
+	} else {
+	    CKERR2(r, (secondnum==1 ? 0 : DB_NOTFOUND));
+	}
     }
     r = child->commit(child,DB_TXN_NOSYNC); 
     child = NULL;

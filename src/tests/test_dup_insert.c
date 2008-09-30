@@ -12,14 +12,16 @@
 
 #include "test.h"
 
-void db_put(DB *db, int k, int v) {
+static void
+db_put (DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
     int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
     assert(r == 0);
 }
 
-void expect(DBC *cursor, int k, int v) {
+static void
+expect (DBC *cursor, int k, int v) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT);
     assert(r == 0);
@@ -29,7 +31,7 @@ void expect(DBC *cursor, int k, int v) {
     assert(val.size == sizeof v);
     int vv;
     memcpy(&vv, val.data, val.size);
-    if (kk != k || vv != v) printf("expect key %d got %d - %d %d\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
+    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
     assert(kk == k);
     assert(vv == v);
 
@@ -42,7 +44,8 @@ static int mycmp(const void *a, const void *b) {
 }
 
 /* verify that key insertions are stored in insert order */
-void test_insert(int n, int dup_mode) {
+static void
+test_insert (int n, int dup_mode) {
     if (verbose) printf("test_insert:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -138,7 +141,8 @@ void test_insert(int n, int dup_mode) {
 }
 
 /* verify dup keys are buffered in order in non-leaf nodes */
-void test_nonleaf_insert(int n, int dup_mode) {
+static void
+test_nonleaf_insert (int n, int dup_mode) {
     if (verbose) printf("test_nonleaf_insert:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -260,14 +264,14 @@ int main(int argc, const char *argv[]) {
     }
 
     /* dup tests */
-#if USE_TDB
-//    printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);
-#else
-    for (i = 1; i <= (1<<16); i *= 2) {
-        test_insert(i, DB_DUP);
-        test_nonleaf_insert(i, DB_DUP);
+    if (IS_TDB) {
+	//    printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+    } else {
+	for (i = 1; i <= (1<<16); i *= 2) {
+	    test_insert(i, DB_DUP);
+	    test_nonleaf_insert(i, DB_DUP);
+	}
     }
-#endif
 
     /* dupsort tests */
     for (i = 1; i <= (1<<16); i *= 2) {

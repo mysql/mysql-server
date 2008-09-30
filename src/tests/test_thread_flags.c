@@ -11,13 +11,15 @@
 const char *dbfile = ENVDIR "/" "test.db";
 const char *dbname = 0;
 
-int db_put(DB *db, int k, int v) {
+static int
+db_put (DB *db, int k, int v) {
     DBT key, val;
     int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
     return r;
 }
 
-int db_get(DB *db, int k, int expectv, int val_flags) {
+static int
+db_get (DB *db, int k, int expectv, int val_flags) {
     int v;
     DBT key, val;
     memset(&val, 0, sizeof val); val.flags = val_flags;
@@ -37,7 +39,8 @@ int db_get(DB *db, int k, int expectv, int val_flags) {
     return r;
 }
 
-void test_db_create() {
+static void
+test_db_create (void) {
     int r;
     DB *db;
 
@@ -51,7 +54,8 @@ void test_db_create() {
     r = db->close(db, 0); assert(r == 0);
 }
 
-void test_db_thread() {
+static void
+test_db_thread (void) {
     int r;
     DB *db;
 

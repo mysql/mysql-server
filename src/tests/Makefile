@@ -45,13 +45,13 @@ endif
 
 LIBNAME=libdb.$(LIBEXT)
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS += -Wall $(OPTFLAGS) $(GCOV_FLAGS)
+CFLAGS += -Werror -Wall $(OPTFLAGS) $(GCOV_FLAGS)
 ifneq ($(CC),icc)
- CFLAGS += -Werror -g3 -ggdb3
+ CFLAGS += -g3 -ggdb3
 else
  CFLAGS += -g
+ CFLAGS += -diag-disable  128    # Don't complain that loops are not reachable from preceeding code.
  CFLAGS += -diag-disable  981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
-
 endif
 TDB_CPPFLAGS = -I../../include
 

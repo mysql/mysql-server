@@ -18,26 +18,28 @@ typedef struct {
     char waste[10240];
 } DATA;
 
-int callback_set_malloc;
-DB* db;
-DB* sdb;
-DB_TXN *const null_txn = 0;
-DB_ENV *dbenv;
+static int callback_set_malloc;
+static DB* db;
+static DB* sdb;
+static DB_TXN *const null_txn = 0;
+static DB_ENV *dbenv;
 
+static __attribute__((__unused__)) void* lastmalloced;
 
-
-void* lastmalloced;
-
-void* my_malloc(size_t size) {
+static void* my_malloc(size_t size) {
     void* p = malloc(size);
     return p;
 }
 
-void* my_realloc(void *p, size_t size) {
+static __attribute__((__unused__))
+void*
+my_realloc (void *p, size_t size) {
     return realloc(p, size);
 }
 
-void my_free(void * p) {
+static __attribute__((__unused__))
+void
+my_free(void * p) {
     if (lastmalloced == p) {
         if (verbose) printf("Freeing %p.\n", p);
         lastmalloced = NULL;
@@ -49,7 +51,8 @@ void my_free(void * p) {
  * getname -- extracts a secondary key (the last name) from a primary
  * 	key/data pair
  */
-int getskey(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
+static int
+getskey (DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
 {
     DATA* entry;
 
@@ -72,7 +75,8 @@ int getskey(DB *UU(secondary), const DBT *UU(pkey), const DBT *pdata, DBT *skey)
     return 0;
 }
 
-void second_setup() {
+static void
+second_setup (void) {
     int r;
 
     dbenv = 0;
@@ -93,7 +97,8 @@ void second_setup() {
     r = db->associate(db, null_txn, sdb, getskey, 0);                           CKERR(r);
 }
 
-void insert_test() {
+static void
+insert_test (void) {
     int r;
     static DATA entry;
     DBT data;
@@ -108,7 +113,8 @@ void insert_test() {
     r = db->put(db, null_txn, &key, &data, 0);  CKERR(r);
 }
 
-void delete_test() {
+static void
+delete_test (void) {
     int r;
     static DATA entry;
     DBT key;
@@ -121,7 +127,8 @@ void delete_test() {
     r = db->del(db, null_txn, &key, 0);  CKERR(r);
 }
 
-void close_dbs() {
+static void
+close_dbs(void) {
     int r;
 
     r = db->close(db, 0);       CKERR(r);

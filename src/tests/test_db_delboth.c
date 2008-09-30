@@ -13,9 +13,10 @@
 
 #include "test.h"
 
-#if USE_TDB
+#ifdef USE_TDB
 enum {INFLATE=128};
-void db_put(DB *db, int k, int v) {
+static void
+db_put (DB *db, int k, int v) {
     DBT key, val;
     static int vv[INFLATE];
     vv[0] = v;
@@ -23,7 +24,8 @@ void db_put(DB *db, int k, int v) {
     CKERR(r);
 }
 
-void expect_db_delboth(DB *db, int k, int v, u_int32_t flags, int expectr) {
+static void
+expect_db_delboth (DB *db, int k, int v, u_int32_t flags, int expectr) {
     DBT key, val;
     static int vv[INFLATE];
     vv[0] = v;
@@ -31,7 +33,8 @@ void expect_db_delboth(DB *db, int k, int v, u_int32_t flags, int expectr) {
     CKERR2(r, expectr);
 }
 
-void expect_db_getboth(DB *db, int k, int v, int expectr) {
+static void
+expect_db_getboth (DB *db, int k, int v, int expectr) {
     DBT key, val;
     static int vv[INFLATE];
     vv[0] = v;
@@ -39,7 +42,8 @@ void expect_db_getboth(DB *db, int k, int v, int expectr) {
     CKERR2(r, expectr);
 }
 
-void test_db_delboth(int n, int dup_mode) {
+static void
+test_db_delboth (int n, int dup_mode) {
     if (verbose) printf("test_db_delboth:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -162,7 +166,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
 
-#if USE_TDB
+#ifdef USE_TDB
     test_db_delboth(0, 0);
 
     int i;

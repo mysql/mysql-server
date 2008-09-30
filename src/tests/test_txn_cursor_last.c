@@ -13,7 +13,8 @@
 
 #include "test.h"
 
-int db_put(DB *db, DB_TXN *txn, int k, int v) {
+static int
+db_put (DB *db, DB_TXN *txn, int k, int v) {
     DBT key, val;
     return db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_NOOVERWRITE);
 }
@@ -32,7 +33,8 @@ static char *db_error(int error) {
 }
 
 /* t1 t2 l1 l2 p1 p2 c1 c2 */
-void test_txn_cursor_last_1(int nrows) {
+static void
+test_txn_cursor_last_1 (int nrows) {
     if (verbose) printf("test_txn_cursor_last_1:%d\n", nrows);
 
     system("rm -rf " ENVDIR);
@@ -115,7 +117,8 @@ void test_txn_cursor_last_1(int nrows) {
 }
 
 /* t1 t2 l1 p1 l2 c1 p2 c2 */
-void test_txn_cursor_last_2(int nrows) {
+static void
+test_txn_cursor_last_2 (int nrows) {
     if (verbose) printf("test_txn_cursor_last_2:%d\n", nrows);
 
     system("rm -rf " ENVDIR);
@@ -201,12 +204,12 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-#if USE_TDB
-    test_txn_cursor_last_1(0);
-    test_txn_cursor_last_1(1);
-    test_txn_cursor_last_2(0);
-    test_txn_cursor_last_2(1);
-#endif
+    if (IS_TDB) {
+	test_txn_cursor_last_1(0);
+	test_txn_cursor_last_1(1);
+	test_txn_cursor_last_2(0);
+	test_txn_cursor_last_2(1);
+    }
 
     return 0;
 }

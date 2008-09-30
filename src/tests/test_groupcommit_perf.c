@@ -14,7 +14,8 @@ DB *db;
 
 #define NITER 100
 
-void *start_a_thread (void *i_p) {
+static void *
+start_a_thread (void *i_p) {
     int *which_thread_p = i_p;
     int i,r;
     for (i=0; i<NITER; i++) {
@@ -32,7 +33,8 @@ void *start_a_thread (void *i_p) {
     return 0;
 }
 
-void test_groupcommit (int nthreads) {
+static void
+test_groupcommit (int nthreads) {
     int r;
     DB_TXN *tid;
 
@@ -82,8 +84,10 @@ void test_groupcommit (int nthreads) {
 
 }
 
-struct timeval prevtime;
-void printtdiff (char *str) {
+static struct timeval prevtime;
+
+static void
+printtdiff (char *str) {
     struct timeval thistime;
     gettimeofday(&thistime, 0);
     if (verbose) printf("%10.6f %s\n", thistime.tv_sec-prevtime.tv_sec+1e-6*(thistime.tv_usec-prevtime.tv_usec), str);

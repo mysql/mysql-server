@@ -13,7 +13,8 @@
 
 #include "test.h"
 
-int db_put(DB *db, DB_TXN *txn, int k, int v) {
+static int
+db_put (DB *db, DB_TXN *txn, int k, int v) {
     DBT key, val;
     return db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_NOOVERWRITE);
 }
@@ -31,7 +32,8 @@ static char *db_error(int error) {
     }
 }
 
-void test_txn_nested(int do_commit) {
+static void
+test_txn_nested(int do_commit) {
     if (verbose) printf("test_txn_nested:%d\n", do_commit);
 
     system("rm -rf " ENVDIR);

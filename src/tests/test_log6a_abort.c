@@ -23,19 +23,21 @@
 // How many iterations are we going to do insertions and deletions.  This is a bound to the number of distinct keys in the DB.
 #define N 1000
 
-int n_keys_mentioned=0;
-int random_keys_mentioned[N];
+static int n_keys_mentioned=0;
+static int random_keys_mentioned[N];
 
-DB *pending_i, *pending_d, *committed;
+static DB *pending_i, *pending_d, *committed;
 
 // Keep track of what's in the committed database separately
 struct pair {int x,y;};
 
-void insert_in_mem (int x, int y, int *count, struct pair *pairs) {
+static void
+insert_in_mem (int x, int y, int *count, struct pair *pairs) {
     assert(*count<N);
     pairs[(*count)++]=(struct pair){x,y};
 }
-void delete_in_mem (int x, int *count, struct pair *pairs) {
+static void
+delete_in_mem (int x, int *count, struct pair *pairs) {
     int i;
     for (i=0; i<*count; i++) {
 	if (pairs[i].x==x) {
@@ -48,7 +50,8 @@ void delete_in_mem (int x, int *count, struct pair *pairs) {
 static int         com_count=0, pend_count=0, peni_count=0;
 static struct pair com_data[N], pend_data[N], peni_data[N];
 
-void insert_pending(int key, int val, DB_TXN *bookx) {
+static void
+insert_pending (int key, int val, DB_TXN *bookx) {
     DBT keyd,datad;
     //printf("IP %u,%u\n", key,val);
 
@@ -182,7 +185,8 @@ static void abort_items (DB_ENV *env) {
     r=txn->commit(txn, 0); assert(r==0);
 }
 
-int compare_pairs (const void *a, const void *b) {
+static int
+compare_pairs (const void *a, const void *b) {
     return memcmp(a,b,4);
 }
 

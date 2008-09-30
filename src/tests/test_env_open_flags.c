@@ -13,7 +13,8 @@
 
 #include "test.h"
 
-void test_env_open_flags(int env_open_flags, int expectr) {
+static void
+test_env_open_flags (int env_open_flags, int expectr) {
     if (verbose) printf("test_env_open_flags:%d\n", env_open_flags);
 
     DB_ENV *env;

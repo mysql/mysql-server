@@ -7,7 +7,8 @@
 #include <db.h>
 #include "test.h"
 
-void test_txn_abort() {
+static void
+test_txn_abort (void) {
 
     system("rm -rf " ENVDIR);
     mkdir(ENVDIR, 0777);

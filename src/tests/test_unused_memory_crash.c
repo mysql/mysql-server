@@ -12,9 +12,8 @@
 
 #include "test.h"
 
-
-
-void expect_cursor_get(DBC *cursor, int k, int v, int op) {
+static void
+expect_cursor_get (DBC *cursor, int k, int v, int op) {
     int kk, vv;
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
@@ -23,7 +22,8 @@ void expect_cursor_get(DBC *cursor, int k, int v, int op) {
     assert(val.size == sizeof vv); memcpy(&vv, val.data, val.size); assert(vv == v); free(val.data);
 }
 
-DBC *new_cursor(DB *db, int k, int v, int op) {
+static DBC *
+new_cursor (DB *db, int k, int v, int op) {
     DBC *cursor;
     int r;
     r = db->cursor(db, 0, &cursor, 0); assert(r == 0);
@@ -31,13 +31,15 @@ DBC *new_cursor(DB *db, int k, int v, int op) {
     return cursor;
 }
 
-int db_put(DB *db, int k, int v) {
+static int
+db_put (DB *db, int k, int v) {
     DBT key, val;
     int r = db->put(db, 0, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
     return r;
 }
 
-void test_cursor_nonleaf_expand(int n, int reverse) {
+static void
+test_cursor_nonleaf_expand (int n, int reverse) {
     if (verbose) printf("test_cursor_nonleaf_expand:%d %d\n", n, reverse);
 
     DB_ENV * const null_env = 0;

@@ -15,7 +15,8 @@
 u_int64_t lorange = 0;
 u_int64_t hirange = 1<<24;
 
-void test_key_size_limit(int dup_mode) {
+static void
+test_key_size_limit (int dup_mode) {
     if (verbose > 1) printf("%s:%d\n", __FUNCTION__, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -64,13 +65,14 @@ void test_key_size_limit(int dup_mode) {
     free(k);
     free(v);
     assert(bigest > 0);
-    if (verbose && bigest >= 0) printf("%s bigest %d\n", __FUNCTION__, bigest);
+    if (verbose) printf("%s bigest %u\n", __FUNCTION__, bigest);
 
     r = db->close(db, 0);
     assert(r == 0);
 }
 
-void test_data_size_limit(int dup_mode) {
+static void
+test_data_size_limit (int dup_mode) {
     if (verbose > 1) printf("%s:%d\n", __FUNCTION__, dup_mode);
 
     DB_ENV * const null_env = 0;
@@ -118,7 +120,7 @@ void test_data_size_limit(int dup_mode) {
     }
     free(k);
     free(v);
-    if (verbose && bigest > 0) printf("%s bigest %d\n", __FUNCTION__, bigest);
+    if (verbose && bigest > 0) printf("%s bigest %u\n", __FUNCTION__, bigest);
 
     r = db->close(db, 0);
     assert(r == 0);

@@ -7,7 +7,8 @@
 #include <db.h>
 #include "test.h"
 
-void test_txn_abort(int n) {
+static void
+test_txn_abort (int n) {
     if (verbose) printf("test_txn_abort:%d\n", n);
 
     system("rm -rf " ENVDIR);

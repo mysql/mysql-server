@@ -16,7 +16,7 @@
 int main(int argc, char** argv) {
     DB_ENV *dbenv;
     int r;
-    int verbose = 0;
+    int __attribute__((__unused__)) verbose = 0;
     if (argc == 2 && !strcmp(argv[1], "-v")) verbose = 1;
     
     system("rm -rf " ENVDIR);

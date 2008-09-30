@@ -11,10 +11,11 @@
 #include <db.h>
 #include "test.h"
 
-#if USE_BDB
+#ifdef USE_BDB
 int test_errors = 0;
 
-void test_errcall(const DB_ENV *emv, const char *errpfx, const char *msg) {
+static void
+test_errcall (const DB_ENV *env __attribute__((__unused__)), const char *errpfx, const char *msg) {
     if (verbose) fprintf(stderr, "%s %s\n", errpfx, msg);
     test_errors++;
 }
@@ -22,7 +23,8 @@ void test_errcall(const DB_ENV *emv, const char *errpfx, const char *msg) {
 #endif
 
 // try to truncate with cursors active
-int test_truncate_with_cursors(int n) {
+static int
+test_truncate_with_cursors (int n) {
     int r;
     
     DB_ENV *env;
@@ -64,13 +66,13 @@ int test_truncate_with_cursors(int n) {
     assert(i == n);
 
     // try to truncate with an active cursor
-#if USE_BDB
+#ifdef USE_BDB
     db->set_errcall(db, test_errcall);
     assert(test_errors == 0);
 #endif
     u_int32_t row_count = 0;
     r = db->truncate(db, 0, &row_count, 0); 
-#if USE_BDB
+#ifdef USE_BDB
     // It looks like for 4.6 there's no error code, even though the documentation says "it is an error to truncate with open cursors".
     // For 4.3 the error code is EINVAL
     // I don't know where the boundary really is:  Is it an error in 4.5 or 4.4?

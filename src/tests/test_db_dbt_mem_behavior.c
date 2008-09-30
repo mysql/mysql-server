@@ -22,7 +22,8 @@ DB_ENV *dbenv;
 u_int32_t set_ulen;
 int32_t key_1 = 1;
 
-void setup(void) {
+static void
+setup(void) {
     int r;
 
     system("rm -rf " ENVDIR);
@@ -33,7 +34,8 @@ void setup(void) {
     r = db->open(db, null_txn, ENVDIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);  CKERR(r);
 }
 
-void insert_test(void) {
+static void
+insert_test (void) {
     int r;
     DATA entry;
     DBT data;
@@ -47,7 +49,8 @@ void insert_test(void) {
     r = db->put(db, null_txn, &key, &data, 0);  CKERR(r);
 }
 
-void close_dbs() {
+static void
+close_dbs (void) {
     int r;
 
     r = db->close(db, 0);       CKERR(r);
@@ -132,7 +135,7 @@ int main(int argc, const char *argv[]) {
             BOOL ulen_should_change = FALSE;
 #if defined(USE_TDB)
             if (flags[j] == DB_DBT_REALLOC) {
-                ulen_should_change = old_ulen < sizeof(DATA);
+                ulen_should_change = (BOOL)(old_ulen < sizeof(DATA));
             }
 #endif
             assert(ulen_should_change == ulen_changed);

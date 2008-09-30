@@ -16,9 +16,8 @@
 
 #include "test.h"
 
-
-
-int keycompare (const void *key1, unsigned int key1len, const void *key2, unsigned int key2len) {
+static int
+keycompare (const void *key1, unsigned int key1len, const void *key2, unsigned int key2len) {
     if (key1len==key2len) {
 	return memcmp(key1,key2,key1len);
     } else if (key1len<key2len) {
@@ -30,11 +29,13 @@ int keycompare (const void *key1, unsigned int key1len, const void *key2, unsign
     }
 }
 
-int reverse_compare(DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
+static int
+reverse_compare (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return -keycompare(a->data, a->size, b->data, b->size);
 }
 
-void expect(DBC *cursor, int k, int v) {
+static void
+expect (DBC *cursor, int k, int v) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT);
     CKERR(r);
@@ -44,7 +45,7 @@ void expect(DBC *cursor, int k, int v) {
     assert(val.size == sizeof v);
     int vv;
     memcpy(&vv, val.data, val.size);
-    if (kk != k || vv != v) printf("expect key %d got %d - %d %d\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
+    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
     assert(kk == k);
     assert(vv == v);
 
@@ -52,7 +53,8 @@ void expect(DBC *cursor, int k, int v) {
     free(val.data);
 }
 
-void test_reverse_compare(int n, int dup_flags) {
+static void
+test_reverse_compare (int n, int dup_flags) {
     if (verbose) printf("test_reverse_compare:%d %d\n", n, dup_flags);
 
     DB_ENV * const null_env = 0;

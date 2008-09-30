@@ -48,12 +48,13 @@ typedef struct {
     TEST      tests[4];
 } STEST;
 
-DB *dbp;
-DB *sdbp;
-DB_TXN *const null_txn = 0;
-DB_ENV *dbenv;
+static DB *dbp;
+static DB *sdbp;
+static DB_TXN *const null_txn = 0;
+static DB_ENV *dbenv;
 
-void setup(u_int32_t flags) {
+static void
+setup (u_int32_t flags) {
     int r;
 
     system("rm -rf " ENVDIR);
@@ -67,17 +68,20 @@ void setup(u_int32_t flags) {
     r = dbp->open(dbp, NULL, ENVDIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
 }
 
-void close_dbs() {
+static void
+close_dbs (void) {
     int r;
     r = dbp->close(dbp, 0);                             CKERR(r);
 }
 
-void close_secondary() {
+static void
+close_secondary (void) {
     int r;
     r = sdbp->close(sdbp, 0);                           CKERR(r);
 }
 
-void insert_bad_flags(DB* db, u_int32_t flags, int r_expect, int keyint, int dataint) {
+static void
+insert_bad_flags (DB* db, u_int32_t flags, int r_expect, int keyint, int dataint) {
     DBT key;
     DBT data;
     int r;
@@ -88,7 +92,8 @@ void insert_bad_flags(DB* db, u_int32_t flags, int r_expect, int keyint, int dat
     CKERR2(r, r_expect);
 }
 
-void cinsert_bad_flags(DBC* dbc, u_int32_t flags, int r_expect, int keyint, int dataint) {
+static void
+cinsert_bad_flags (DBC* dbc, u_int32_t flags, int r_expect, int keyint, int dataint) {
     DBT key;
     DBT data;
     int r;
@@ -99,7 +104,8 @@ void cinsert_bad_flags(DBC* dbc, u_int32_t flags, int r_expect, int keyint, int 
     CKERR2(r, r_expect);
 }
 
-void get_bad_flags(DB* db, u_int32_t flags, int r_expect, int keyint, int dataint) {
+static void
+get_bad_flags (DB* db, u_int32_t flags, int r_expect, int keyint, int dataint) {
     DBT key;
     DBT data;
     int r;
@@ -113,7 +119,8 @@ void get_bad_flags(DB* db, u_int32_t flags, int r_expect, int keyint, int datain
     assert(*(int*)data.data == dataint);
 }
 
-void cinsert_test(TEST tests[4]) {
+static void
+cinsert_test (TEST tests[4]) {
     int r;
     int i;
     DBC *dbc;
@@ -134,7 +141,8 @@ void cinsert_test(TEST tests[4]) {
     r = dbc->c_close(dbc);                      CKERR(r);
 }
 
-void stest(TEST tests[4]) {
+static void
+stest (TEST tests[4]) {
     int i;
     
     for (i = 0; i < 4; i++) {
@@ -206,16 +214,18 @@ const int num_get = sizeof(get_tests) / sizeof(get_tests[0]);
 STEST stests[] = {
     {0,                 0,                 {{SGET, DB_GET_BOTH, EINVAL, 0, 1}, {NONE, 0, 0, 0, 0}, }},
 };
-const int num_stests = sizeof(stests) / sizeof(stests[0]);
+static const int num_stests = sizeof(stests) / sizeof(stests[0]);
 
-int identity_callback(DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *UU(data), DBT *result) {
+static int
+identity_callback (DB *secondary __attribute__((__unused__)), const DBT *key, const DBT *UU(data), DBT *result) {
     memset(result, 0, sizeof(result));
     result->size = key->size;
     result->data = key->data;
     return 0;
 }
     
-void setup_secondary(u_int32_t flags) {
+static void
+setup_secondary (u_int32_t flags) {
     int r;
 
     /* Open/create primary */
