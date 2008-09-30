@@ -625,6 +625,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
   }
 
+  ha_global_schema_lock(thd);
+
   /*
     Do not create database if another thread is holding read lock.
     Wait for global read lock before acquiring LOCK_mysql_create_db.
@@ -756,6 +758,7 @@ exit:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
 exit2:
+  ha_global_schema_unlock(thd);
   DBUG_RETURN(error);
 }
 
@@ -768,6 +771,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   long result=1;
   int error= 0;
   DBUG_ENTER("mysql_alter_db");
+
+  ha_global_schema_lock(thd);
 
   /*
     Do not alter database if another thread is holding read lock.
@@ -832,6 +837,7 @@ exit:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
 exit2:
+  ha_global_schema_unlock(thd);
   DBUG_RETURN(error);
 }
 
@@ -862,6 +868,8 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   uint length;
   TABLE_LIST* dropped_tables= 0;
   DBUG_ENTER("mysql_rm_db");
+
+  ha_global_schema_lock(thd);
 
   /*
     Do not drop database if another thread is holding read lock.
@@ -1028,6 +1036,7 @@ exit:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
 exit2:
+  ha_global_schema_unlock(thd);
   DBUG_RETURN(error);
 }
 

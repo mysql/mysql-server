@@ -37,6 +37,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   TABLE_LIST *ren_table= 0;
   int to_table;
   char *rename_log_table[2]= {NULL, NULL};
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_rename_tables");
 
   /*
@@ -52,6 +53,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   }
 
   mysql_ha_rm_tables(thd, table_list, FALSE);
+
+  global_schema_lock_guard.lock();
 
   if (wait_if_global_read_lock(thd,0,1))
     DBUG_RETURN(1);
