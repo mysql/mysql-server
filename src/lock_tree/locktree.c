@@ -293,7 +293,7 @@ static inline BOOL toku__lt_lock_test_incr_per_db(toku_lock_tree* tree,
                                                   u_int32_t replace_locks) {
     assert(tree);
     assert(replace_locks <= tree->curr_locks);
-    return tree->curr_locks - replace_locks < tree->max_locks;
+    return (BOOL)(tree->curr_locks - replace_locks < tree->max_locks);
 }
 
 static inline void toku__lt_lock_incr_per_db(toku_lock_tree* tree, u_int32_t replace_locks) {
@@ -380,8 +380,7 @@ toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn) {
 
 /* Provides access to a selfwrite tree for a particular transaction.
    Returns NULL if it does not exist yet. */
-toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree,
-                                             TXNID txn) {
+static toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn) {
     assert(tree);
     rt_forest* forest = toku_rth_find(tree->rth, txn);
     return forest ? forest->self_write : NULL;
@@ -462,8 +461,8 @@ cleanup:
 
 static inline BOOL toku__dominated(toku_interval* query, toku_interval* by) {
     assert(query && by);
-    return (toku__lt_point_cmp(query->left,  by->left) >= 0 &&
-            toku__lt_point_cmp(query->right, by->right) <= 0);
+    return (BOOL)(toku__lt_point_cmp(query->left,  by->left) >= 0 &&
+                  toku__lt_point_cmp(query->right, by->right) <= 0);
 }
 
 /*
@@ -567,7 +566,7 @@ static inline int toku__lt_meets(toku_lock_tree* tree, toku_interval* query,
     r = toku_rt_find(rt, query, query_size, &buf, &buflen, &numfound);
     if (r!=0) return r;
     assert(numfound <= query_size);
-    *met = numfound != 0;
+    *met = (BOOL)(numfound != 0);
     return 0;
 }
 
@@ -594,7 +593,7 @@ static inline int toku__lt_meets_peer(toku_lock_tree* tree, toku_interval* query
     r = toku_rt_find(rt, query, query_size, &buf, &buflen, &numfound);
     if (r!=0) return r;
     assert(numfound <= query_size);
-    *met = numfound == 2 || (numfound == 1 && toku__lt_txn_cmp(buf[0].data, self));
+    *met = (BOOL) (numfound == 2 || (numfound == 1 && toku__lt_txn_cmp(buf[0].data, self)));
     return 0;
 }
 
@@ -690,7 +689,7 @@ static inline void toku__init_insert(toku_range* to_insert,
    as an endpoint of the given range. */
 static inline BOOL toku__lt_p_independent(toku_point* point, toku_interval* range) {
     assert(point && range);
-    return point != range->left && point != range->right;
+    return (BOOL)(point != range->left && point != range->right);
 }
 
 static inline int toku__lt_determine_extreme(toku_lock_tree* tree,
@@ -745,7 +744,6 @@ static inline int toku__lt_find_extreme(toku_lock_tree* tree,
     BOOL ignore_right = TRUE;
     return toku__lt_determine_extreme(tree, to_insert, &ignore_left,
                                       &ignore_right, numfound, 1);
-    return 0;
 }
 
 static inline int toku__lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert,
@@ -982,9 +980,10 @@ static inline BOOL toku__r_backwards(toku_interval* range) {
     toku_point* right = (toku_point*)range->right;
 
     /* Optimization: if all the pointers are equal, clearly left == right. */
-    return (left->key_payload  != right->key_payload ||
-            left->data_payload != right->data_payload) &&
-            toku__lt_point_cmp(left, right) > 0;
+    return (BOOL)
+        ((left->key_payload  != right->key_payload ||
+          left->data_payload != right->data_payload) &&
+         toku__lt_point_cmp(left, right) > 0);
 }
 
 static inline int toku__lt_unlock_deferred_txns(toku_lock_tree* tree);
@@ -1171,7 +1170,7 @@ static inline int toku__lt_borderwrite_insert(toku_lock_tree* tree,
     BOOL found_p = FALSE;
     BOOL found_s = FALSE;
 
-    r = toku__lt_get_border(tree, numfound == 0, &pred, &succ, 
+    r = toku__lt_get_border(tree, (BOOL)(numfound == 0), &pred, &succ, 
                              &found_p, &found_s, to_insert);
     if (r!=0) return toku__lt_panic(tree, r);
     

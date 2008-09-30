@@ -85,7 +85,7 @@ static inline toku_rth_elt* toku__rth_next(toku_rth* rth) {
     assert(rth->iter_is_valid);
 
     rth->iter_curr     = rth->iter_curr->next_in_iteration;
-    rth->iter_is_valid = rth->iter_curr != &rth->iter_head;
+    rth->iter_is_valid = (BOOL)(rth->iter_curr != &rth->iter_head);
     return rth->iter_curr;
 }
 
@@ -192,5 +192,5 @@ BOOL toku_rth_is_empty(toku_rth* rth) {
            (rth->iter_head.next_in_iteration == &rth->iter_head));
     assert((rth->num_keys == 0) ==
            (rth->iter_head.prev_in_iteration == &rth->iter_head));
-    return rth->num_keys == 0;
+    return (BOOL)(rth->num_keys == 0);
 }

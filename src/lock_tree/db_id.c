@@ -14,10 +14,11 @@
 
 BOOL toku_db_id_equals(const toku_db_id* a, const toku_db_id* b) {
     assert(a && b);
-    return a == b || 
-           (a->saved_hash == b->saved_hash &&
-            !strcmp(a->absolute_path, b->absolute_path) &&
-            !strcmp(a->sub_database_name, b->sub_database_name));
+    return (BOOL)
+        (a == b || 
+         (a->saved_hash == b->saved_hash &&
+          !strcmp(a->absolute_path, b->absolute_path) &&
+          !strcmp(a->sub_database_name, b->sub_database_name)));
 }
 
 void toku_db_id_add_ref(toku_db_id* db_id) {
