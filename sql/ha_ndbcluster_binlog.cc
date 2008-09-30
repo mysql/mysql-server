@@ -145,6 +145,9 @@ static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
   Helper functions
 */
 
+static bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
+static bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
+
 #ifndef DBUG_OFF
 /* purecov: begin deadcode */
 static void print_records(TABLE *table, const uchar *record)
@@ -1157,7 +1160,7 @@ ndbcluster_update_slock(THD *thd,
   const NDBTAB *ndbtab= ndbtab_g.get_table();
   NdbTransaction *trans= 0;
   int retries= 100;
-  int retry_sleep= 10; /* 10 milliseconds, transaction */
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
   const NDBCOL *col[SCHEMA_SIZE];
   unsigned sz[SCHEMA_SIZE];
 
@@ -1258,7 +1261,7 @@ ndbcluster_update_slock(THD *thd,
       {
         if (trans)
           ndb->closeTransaction(trans);
-        my_sleep(retry_sleep);
+        do_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -1494,7 +1497,7 @@ int ndbcluster_log_schema_op(THD *thd,
   const NDBTAB *ndbtab= ndbtab_g.get_table();
   NdbTransaction *trans= 0;
   int retries= 100;
-  int retry_sleep= 10; /* 10 milliseconds, transaction */
+  int retry_sleep= 30; /* 30 milliseconds, transaction */
   const NDBCOL *col[SCHEMA_SIZE];
   unsigned sz[SCHEMA_SIZE];
 
@@ -1607,7 +1610,7 @@ err:
       {
         if (trans)
           ndb->closeTransaction(trans);
-        my_sleep(retry_sleep);
+        do_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
@@ -3314,7 +3317,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
         {
           if (trans)
             ndb->closeTransaction(trans);
-          my_sleep(retry_sleep);
+          do_retry_sleep(retry_sleep);
           continue;
         }
       }
@@ -3432,7 +3435,7 @@ err:
 }
 #endif /* HAVE_NDB_BINLOG */
 
-bool
+static bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
 {
   char key[FN_REFLEN];
@@ -3454,7 +3457,7 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   DBUG_RETURN(false);
 }
 
-bool
+static bool
 ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
 {
   DBUG_ENTER("ndbcluster_check_if_local_tables_in_db");
@@ -4043,7 +4046,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       pthread_mutex_unlock(&injector_mutex);
       if (retries)
       {
-        my_sleep(retry_sleep);
+        do_retry_sleep(retry_sleep);
         continue;
       }
       DBUG_RETURN(-1);

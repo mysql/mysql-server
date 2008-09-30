@@ -63,8 +63,6 @@
 
 static NDB_TICKS startTime;
 
-static const Uint32 BACKUP_SEQUENCE = 0x1F000000;
-
 #ifdef VM_TRACE
 #define DEBUG_OUT(x) ndbout << x << endl
 #else
@@ -172,7 +170,7 @@ Backup::createSequence(Signal* signal)
   UtilSequenceReq * req = (UtilSequenceReq*)signal->getDataPtrSend();
   
   req->senderData  = RNIL;
-  req->sequenceId  = BACKUP_SEQUENCE;
+  req->sequenceId  = NDB_BACKUP_SEQUENCE;
   req->requestType = UtilSequenceReq::Create;
   
   sendSignal(DBUTIL_REF, GSN_UTIL_SEQUENCE_REQ, 
@@ -1154,7 +1152,7 @@ Backup::execBACKUP_REQ(Signal* signal)
     
   ptr.p->masterData.gsn = GSN_UTIL_SEQUENCE_REQ;
   utilReq->senderData  = ptr.i;
-  utilReq->sequenceId  = BACKUP_SEQUENCE;
+  utilReq->sequenceId  = NDB_BACKUP_SEQUENCE;
   if(input_backupId) {
     utilReq->requestType = UtilSequenceReq::SetVal;
     utilReq->value = input_backupId;
