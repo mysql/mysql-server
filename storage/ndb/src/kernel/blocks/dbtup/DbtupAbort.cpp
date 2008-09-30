@@ -182,8 +182,11 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   if(regOperPtr.p->is_first_operation() && regOperPtr.p->is_last_operation())
   {
     if (regOperPtr.p->m_undo_buffer_space)
-      c_lgman->free_log_space(regFragPtr.p->m_logfile_group_id, 
-			      regOperPtr.p->m_undo_buffer_space);
+    {
+      jam();
+      Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
+      lgman.free_log_space(regOperPtr.p->m_undo_buffer_space);
+    }
   }
 
   removeActiveOpList(regOperPtr.p, tuple_ptr);
@@ -346,8 +349,9 @@ void Dbtup::tupkeyErrorLab(Signal* signal)
   if (regOperPtr->m_undo_buffer_space &&
       (regOperPtr->is_first_operation() && regOperPtr->is_last_operation()))
   {
-    c_lgman->free_log_space(fragPtr.p->m_logfile_group_id, 
-			    regOperPtr->m_undo_buffer_space);
+    jam();
+    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
+    lgman.free_log_space(regOperPtr->m_undo_buffer_space);
   }
 
   Uint32 *ptr = 0;

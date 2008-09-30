@@ -147,7 +147,7 @@ public:
   struct Tablespace
   {
     Tablespace(){}
-    Tablespace(Tsman*, Lgman*, const struct CreateFilegroupImplReq*);
+    Tablespace(Tsman*, const struct CreateFilegroupImplReq*);
     
     Uint32 m_magic;
     union {
@@ -166,7 +166,8 @@ public:
 
     Uint32 m_extent_size;       // In pages
     Datafile_list::Head m_free_files; // Files w/ free space
-    Logfile_client m_logfile_client;
+    Tsman* m_tsman;
+    Uint32 m_logfile_group_id;
 
     Datafile_list::Head m_full_files; // Files wo/ free space
     Datafile_list::Head m_meta_files; // Files being created/dropped
@@ -201,7 +202,7 @@ private:
   Datafile_hash m_file_hash;
   Tablespace_list m_tablespace_list;
   Tablespace_hash m_tablespace_hash;
-  Page_cache_client m_page_cache_client;
+  Pgman * const m_pgman;
   Lgman * const m_lgman;
   
   int open_file(Signal*, Ptr<Tablespace>, Ptr<Datafile>, CreateFileImplReq*,

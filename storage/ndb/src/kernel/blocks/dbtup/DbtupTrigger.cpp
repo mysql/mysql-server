@@ -703,7 +703,7 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
   /**
    * Set disk page
    */
-  req_struct->m_disk_page_ptr.i = m_pgman.m_ptr.i;
+  req_struct->m_disk_page_ptr.i = m_pgman_ptr.i;
   
   ndbrequire(regOperPtr->is_first_operation());
   triggerList.first(trigPtr);

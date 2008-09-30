@@ -157,8 +157,7 @@ Pgman::execSTTOR(Signal* signal)
   switch (startPhase) {
   case 1:
     {
-      Lgman* lgman = (Lgman*)globalData.getBlock(LGMAN);
-      new (&m_lgman) Logfile_client(this, lgman, 0);
+      c_lgman = (Lgman*)globalData.getBlock(LGMAN);
       c_tup = (Dbtup*)globalData.getBlock(DBTUP);
     }
     break;
@@ -1362,7 +1361,8 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
   Logfile_client::Request req;
   req.m_callback.m_callbackData = ptr.i;
   req.m_callback.m_callbackFunction = safe_cast(&Pgman::logsync_callback);
-  int ret = m_lgman.sync_lsn(signal, ptr.p->m_lsn, &req, 0);
+  Logfile_client lgman(this, c_lgman, RNIL);
+  int ret = lgman.sync_lsn(signal, ptr.p->m_lsn, &req, 0);
   if (ret > 0)
   {
     fswritereq(signal, ptr);
