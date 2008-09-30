@@ -1116,7 +1116,7 @@ ibuf_rec_get_space(
 }
 
 /********************************************************************
-Get various information about an ibuf record. */
+Get various information about an ibuf record in >= 4.1.x format. */
 static
 void
 ibuf_rec_get_info(
@@ -1509,32 +1509,41 @@ ibuf_rec_get_size(
 	const rec_t*	rec,			/* in: ibuf record */
 	const byte*	types,			/* in: fields */
 	ulint		n_fields,		/* in: number of fields */
-	ibool		new_format)		/* in: TRUE or FALSE */
+	ibool		pre_4_1)		/* in: TRUE=pre-4.1 format,
+						FALSE=newer */
 {
-	ulint		i;
-	ulint		offset;
-	ulint		size = 0;
+	ulint	i;
+	ulint	field_offset;
+	ulint	types_offset;
+	ulint	size = 0;
 
-	/* 4 for compact record and 2 for old style. */
-	offset = new_format ? 4 : 2;
+	if (pre_4_1) {
+		field_offset = 2;
+		types_offset = DATA_ORDER_NULL_TYPE_BUF_SIZE;
+	} else {
+		field_offset = 4;
+		types_offset = DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE;
+	}
 
 	for (i = 0; i < n_fields; i++) {
 		ulint		len;
-		const byte*	field;
+		dtype_t		dtype;
 
-		field = rec_get_nth_field_old(rec, i + offset, &len);
+		rec_get_nth_field_offs_old(rec, i + field_offset, &len);
 
-		if (len == UNIV_SQL_NULL) {
-			dtype_t	dtype;
-
-			dtype_read_for_order_and_null_size(
-				&dtype, types + i
-				* DATA_ORDER_NULL_TYPE_BUF_SIZE);
+		if (len != UNIV_SQL_NULL) {
+			size += len;
+		} else if (pre_4_1) {
+			dtype_read_for_order_and_null_size(&dtype, types);
 
 			size += dtype_get_sql_null_size(&dtype);
 		} else {
-			size += len;
+			dtype_new_read_for_order_and_null_size(&dtype, types);
+
+			size += dtype_get_sql_null_size(&dtype);
 		}
+
+		types += types_offset;
 	}
 
 	return(size);
@@ -1556,8 +1565,8 @@ ibuf_rec_get_volume(
 	const byte*	data;
 	const byte*	types;
 	ulint		n_fields;
-	ulint		data_size	= 0;
-	ibool		new_format	= FALSE;
+	ulint		data_size;
+	ibool		pre_4_1;
 
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(ibuf_rec) > 2);
@@ -1569,6 +1578,8 @@ ibuf_rec_get_volume(
 
 		ut_a(trx_doublewrite_must_reset_space_ids);
 		ut_a(!trx_sys_multiple_tablespace_format);
+
+		pre_4_1 = TRUE;
 
 		n_fields = rec_get_n_fields_old(ibuf_rec) - 2;
 
@@ -1583,6 +1594,8 @@ ibuf_rec_get_volume(
 
 		ut_a(trx_sys_multiple_tablespace_format);
 		ut_a(*data == 0);
+
+		pre_4_1 = FALSE;
 
 		types = rec_get_nth_field_old(ibuf_rec, 3, &len);
 
@@ -1615,11 +1628,9 @@ ibuf_rec_get_volume(
 
 		types += info_len;
 		n_fields = rec_get_n_fields_old(ibuf_rec) - 4;
-
-		new_format = TRUE;
 	}
 
-	data_size = ibuf_rec_get_size(ibuf_rec, types, n_fields, new_format);
+	data_size = ibuf_rec_get_size(ibuf_rec, types, n_fields, pre_4_1);
 
 	return(data_size + rec_get_converted_extra_size(data_size, n_fields, 0)
 	       + page_dir_calc_reserved_space(1));
