@@ -2829,7 +2829,7 @@ ibuf_set_entry_counter(
 			counter = 0;
 		} else {
 			rec_t*		rec;
-			page_t*		page;
+			const page_t*	page;
 			buf_block_t*	block;
 			page_t*		prev_page;
 			ulint		prev_page_no;
@@ -2839,8 +2839,7 @@ ibuf_set_entry_counter(
 			page = btr_pcur_get_page(pcur);
 			prev_page_no = btr_page_get_prev(page, mtr);
 
-			ut_ad(prev_page_no != FIL_NULL);
-
+			ut_a(prev_page_no != FIL_NULL);
 
 			block = buf_page_get(
 				IBUF_SPACE_ID, 0, prev_page_no,
@@ -3374,10 +3373,10 @@ static
 void
 ibuf_set_del_mark(
 /*==============*/
-	dtuple_t*	entry,	/* in: entry */
-	buf_block_t*	block,	/* in: block */
-	dict_index_t*	index,	/* in: record descriptor */
-	mtr_t*		mtr)	/* in: mtr */
+	const dtuple_t*		entry,	/* in: entry */
+	buf_block_t*		block,	/* in/out: block */
+	const dict_index_t*	index,	/* in: record descriptor */
+	mtr_t*			mtr)	/* in: mtr */
 {
 	page_cur_t	page_cur;
 	ulint		low_match;
@@ -3393,8 +3392,7 @@ ibuf_set_del_mark(
 		page_zip_des_t*	page_zip;
 
 		rec = page_cur_get_rec(&page_cur);
-		block = page_cur_get_block(&page_cur);
-		page_zip = buf_block_get_page_zip(block);
+		page_zip = page_cur_get_page_zip(&page_cur);
 
 		btr_cur_set_deleted_flag_for_ibuf(rec, page_zip, TRUE, mtr);
 	} else {
@@ -3408,8 +3406,8 @@ static
 void
 ibuf_delete(
 /*========*/
-	dtuple_t*	entry,	/* in: entry */
-	buf_block_t*	block,	/* in: block */
+	const dtuple_t*	entry,	/* in: entry */
+	buf_block_t*	block,	/* in/out: block */
 	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr)	/* in: mtr */
 {
