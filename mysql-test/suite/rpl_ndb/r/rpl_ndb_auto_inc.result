@@ -104,7 +104,7 @@ a
 600
 set @@insert_id=600;
 insert into t1 values(600),(NULL),(NULL);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 set @@insert_id=600;
 insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
 ******* Select from Master *************
@@ -120,7 +120,6 @@ a
 502
 503
 600
-601
 610
 611
 ******* Select from Slave *************
@@ -136,7 +135,6 @@ a
 502
 503
 600
-601
 610
 611
 drop table t1;
