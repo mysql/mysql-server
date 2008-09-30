@@ -16,9 +16,13 @@ ifeq ($(GCOV),GCOV)
 else
  GCOV_FLAGS =
 endif
+ifeq ($(CC),icc)
+CFLAGS = -Wall $(OPTFLAGS) $(GCOV_FLAGS)
+else
 CFLAGS = -W -Wall -Wextra $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute 
+endif
 CPPFLAGS += -L../ -L../../range_tree 
 CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -I../../../include
 LDFLAGS = -lpthread -lz

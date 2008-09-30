@@ -27,7 +27,7 @@ static void do_range_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
     DBT* data_r;
     DBT* reverse_data_l;
     DBT* reverse_data_r;
-    for (duplicates = 0; duplicates < 2; duplicates++) {
+    for (duplicates = FALSE; duplicates < TRUE; duplicates++) {
         if (duplicates) {
             data_l         = &_data_l;
             data_r         = &_data_r;
@@ -134,7 +134,7 @@ static void do_point_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
 
     /* Point read tests. */
     key  = &_key;
-    for (duplicates = 0; duplicates < 2; duplicates++) {
+    for (duplicates = FALSE; duplicates < TRUE; duplicates++) {
         if (duplicates) {
             data         = &_data;
             reverse_data = NULL;
@@ -242,7 +242,7 @@ int main(int argc, const char *argv[]) {
         assert(get_max == max_locks);
 
     /* create tests. */
-    for (duplicates = 0; duplicates < 2; duplicates++) {
+    for (duplicates = FALSE; duplicates < TRUE; duplicates++) {
         r = toku_lt_create(NULL, duplicates, dbpanic, ltm,
                            get_compare_fun_from_db, get_dup_compare_from_db,
                            toku_malloc, toku_free, toku_realloc);
