@@ -3105,7 +3105,7 @@ CArray<KeyDescriptor> g_key_descriptor_pool;
 
 #ifdef VM_TRACE
 bool
-SimulatedBlock::debugOutOn() const
+SimulatedBlock::debugOutOn()
 {
   SignalLoggerManager::LogMode mask = SignalLoggerManager::LogInOut;
   return globalSignalLoggers.logMatch(number(), mask);

@@ -31,14 +31,6 @@
                      Page_request::DIRTY_REQ | \
                      Page_request::ALLOC_REQ)
 
-// todo use this
-#ifdef VM_TRACE
-#define dbg(x) \
-  do { if (! debugFlag) break; debugOut << "PGMAN: " << x << endl; } while (0)
-#else
-#define dbg(x)
-#endif
-
 static bool g_dbg_lcp = false;
 #if 1
 #define DBG_LCP(x)
@@ -52,10 +44,6 @@ Pgman::Pgman(Block_context& ctx) :
   m_page_hashlist(m_page_entry_pool),
   m_page_stack(m_page_entry_pool),
   m_page_queue(m_page_entry_pool)
-#ifdef VM_TRACE
-  ,debugOut(* new NullOutputStream())
-  ,debugFlag(false)
-#endif
 {
   BLOCK_CONSTRUCTOR(Pgman);
 
@@ -318,10 +306,8 @@ Pgman::get_sublist_no(Page_state state)
 void
 Pgman::set_page_state(Ptr<Page_entry> ptr, Page_state new_state)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: >set_page_state: state=" << hex << new_state << endl;
-  debugOut << "PGMAN: " << ptr << ": before" << endl;
-#endif
+  D(">set_page_state: state=" << hex << new_state);
+  D(ptr << ": before");
 
   Page_state old_state = ptr.p->m_state;
   if (old_state != new_state)
@@ -349,10 +335,8 @@ Pgman::set_page_state(Ptr<Page_entry> ptr, Page_state new_state)
     ptr.p->m_state = new_state;
   }
 
-#ifdef VM_TRACE
-  debugOut << "PGMAN: " << ptr << ": after" << endl;
-  debugOut << "PGMAN: <set_page_state" << endl;
-#endif
+  D(ptr << ": after");
+  D("<set_page_state");
 }
 
 // seize/release pages and entries
@@ -393,10 +377,8 @@ Pgman::find_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
   
   if (m_page_hashlist.find(ptr, key))
   {
-#ifdef VM_TRACE
-    debugOut << "PGMAN: find_page_entry" << endl;
-    debugOut << "PGMAN: " << ptr << endl;
-#endif
+    D("find_page_entry");
+    D(ptr);
     return true;
   }
   return false;
@@ -410,11 +392,9 @@ Pgman::seize_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
     new (ptr.p) Page_entry(file_no, page_no);
     m_page_hashlist.add(ptr);
 
-#ifdef VM_TRACE
     ptr.p->m_this = this;
-    debugOut << "PGMAN: seize_page_entry" << endl;
-    debugOut << "PGMAN: " << ptr << endl;
-#endif
+    D("seize_page_entry");
+    D(ptr);
 
     return true;
   }
@@ -430,10 +410,8 @@ Pgman::get_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
     ndbrequire(ptr.p->m_state != 0);
     m_stats.m_page_hits++;
 
-#ifdef VM_TRACE
-  debugOut << "PGMAN: get_page_entry: found" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D("get_page_entry: found");
+  D(ptr);
     return true;
   }
 
@@ -446,10 +424,8 @@ Pgman::get_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
     {
       jam();
 
-#ifdef VM_TRACE
-    debugOut << "PGMAN: get_page_entry: re-use idle entry" << endl;
-    debugOut << "PGMAN: " << idle_ptr << endl;
-#endif
+      D("get_page_entry: re-use idle entry");
+      D(idle_ptr);
 
       Page_state state = idle_ptr.p->m_state;
       ndbrequire(state == Page_entry::ONSTACK);
@@ -471,10 +447,8 @@ Pgman::get_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
     ndbrequire(ptr.p->m_state == 0);
     m_stats.m_page_faults++;
 
-#ifdef VM_TRACE
-  debugOut << "PGMAN: get_page_entry: seize" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+    D("get_page_entry: seize");
+    D(ptr);
     return true;
   }
 
@@ -486,10 +460,8 @@ Pgman::get_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
 void
 Pgman::release_page_entry(Ptr<Page_entry>& ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: release_page_entry" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D("release_page_entry");
+  D(ptr);
   Page_state state = ptr.p->m_state;
 
   ndbrequire(ptr.p->m_requests.isEmpty());
@@ -523,9 +495,7 @@ Pgman::release_page_entry(Ptr<Page_entry>& ptr)
 void
 Pgman::lirs_stack_prune()
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: >lirs_stack_prune" << endl;
-#endif
+  D(">lirs_stack_prune");
   Page_stack& pl_stack = m_page_stack;
   Ptr<Page_entry> ptr;
 
@@ -538,9 +508,7 @@ Pgman::lirs_stack_prune()
       break;
     }
 
-#ifdef VM_TRACE
-  debugOut << "PGMAN: " << ptr << ": prune from stack" << endl;
-#endif
+    D(ptr << ": prune from stack");
 
     pl_stack.remove(ptr);
     state &= ~ Page_entry::ONSTACK;
@@ -563,9 +531,7 @@ Pgman::lirs_stack_prune()
       release_page_entry(ptr);
     }
   }
-#ifdef VM_TRACE
-  debugOut << "PGMAN: <lirs_stack_prune" << endl;
-#endif
+  D("<lirs_stack_prune");
 }
 
 /*
@@ -577,9 +543,7 @@ Pgman::lirs_stack_prune()
 void
 Pgman::lirs_stack_pop()
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: lirs_stack_pop" << endl;
-#endif
+  D("lirs_stack_pop");
   Page_stack& pl_stack = m_page_stack;
   Page_queue& pl_queue = m_page_queue;
 
@@ -588,9 +552,7 @@ Pgman::lirs_stack_pop()
   ndbrequire(ok);
   Page_state state = ptr.p->m_state;
 
-#ifdef VM_TRACE
-  debugOut << "PGMAN: " << ptr << ": pop from stack" << endl;
-#endif
+  D(ptr << ": pop from stack");
 
   ndbrequire(state & Page_entry::HOT);
   ndbrequire(state & Page_entry::ONSTACK);
@@ -622,10 +584,8 @@ Pgman::lirs_stack_pop()
 void
 Pgman::lirs_reference(Ptr<Page_entry> ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: >lirs_reference" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D(">lirs_reference");
+  D(ptr);
   Page_stack& pl_stack = m_page_stack;
   Page_queue& pl_queue = m_page_queue;
 
@@ -697,11 +657,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
   }
   else
   {
-#ifdef VM_TRACE
-    debugOut << "PGMAN: filling up initial hot pages: "
-             << m_stats.m_num_pages << " of "
-             << m_param.m_max_hot_pages << endl;
-#endif
+    D("hot: " << m_stats.m_num_pages << " of " << m_param.m_max_hot_pages);
     jam();
     if (state & Page_entry::ONSTACK)
     {
@@ -727,9 +683,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
   }
 
   set_page_state(ptr, state);
-#ifdef VM_TRACE
-  debugOut << "PGMAN: <lirs_reference" << endl;
-#endif
+  D("<lirs_reference");
 }
 
 // continueB loops
@@ -737,10 +691,8 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
 void
 Pgman::do_stats_loop(Signal* signal)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: do_stats_loop" << endl;
+  D("do_stats_loop");
   verify_all();
-#endif
   Uint32 delay = m_param.m_stats_loop_delay;
   signal->theData[0] = PgmanContinueB::STATS_LOOP;
   sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
@@ -749,10 +701,7 @@ Pgman::do_stats_loop(Signal* signal)
 void
 Pgman::do_busy_loop(Signal* signal, bool direct)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: >do_busy_loop on=" << m_busy_loop_on
-           << " direct=" << direct << endl;
-#endif
+  D(">do_busy_loop on=" << m_busy_loop_on << " direct=" << direct);
   Uint32 restart = false;
   if (direct)
   {
@@ -782,18 +731,13 @@ Pgman::do_busy_loop(Signal* signal, bool direct)
     signal->theData[0] = PgmanContinueB::BUSY_LOOP;
     sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
   }
-#ifdef VM_TRACE
-  debugOut << "PGMAN: <do_busy_loop on=" << m_busy_loop_on
-           << " restart=" << restart << endl;
-#endif
+  D("<do_busy_loop on=" << m_busy_loop_on << " restart=" << restart);
 }
 
 void
 Pgman::do_cleanup_loop(Signal* signal)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: do_cleanup_loop" << endl;
-#endif
+  D("do_cleanup_loop");
   process_cleanup(signal);
 
   Uint32 delay = m_param.m_cleanup_loop_delay;
@@ -804,10 +748,7 @@ Pgman::do_cleanup_loop(Signal* signal)
 void
 Pgman::do_lcp_loop(Signal* signal, bool direct)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: >do_lcp_loop on=" << m_lcp_loop_on
-           << " direct=" << direct << endl;
-#endif
+  D(">do_lcp_loop on=" << m_lcp_loop_on << " direct=" << direct);
   Uint32 restart = false;
   if (direct)
   {
@@ -833,10 +774,7 @@ Pgman::do_lcp_loop(Signal* signal, bool direct)
     else
       sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
   }
-#ifdef VM_TRACE
-  debugOut << "PGMAN: <do_lcp_loop on=" << m_lcp_loop_on
-           << " restart=" << restart << endl;
-#endif
+  D("<do_lcp_loop on=" << m_lcp_loop_on << " restart=" << restart);
 }
 
 // busy loop
@@ -844,9 +782,7 @@ Pgman::do_lcp_loop(Signal* signal, bool direct)
 bool
 Pgman::process_bind(Signal* signal)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: >process_bind" << endl;
-#endif
+  D(">process_bind");
   int max_count = 32;
   Page_sublist& pl_bind = *m_page_sublist[Page_entry::SL_BIND];
 
@@ -861,18 +797,14 @@ Pgman::process_bind(Signal* signal)
       break;
     }
   }
-#ifdef VM_TRACE
-  debugOut << "PGMAN: <process_bind" << endl;
-#endif
+  D("<process_bind");
   return ! pl_bind.isEmpty();
 }
 
 bool
 Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: " << ptr << " : process_bind" << endl;
-#endif
+  D(ptr << " : process_bind");
   Page_queue& pl_queue = m_page_queue;
   Ptr<GlobalPage> gptr;
 
@@ -890,9 +822,7 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
     if (! pl_queue.first(clean_ptr))
     {
       jam();
-#ifdef VM_TRACE
-      debugOut << "PGMAN: bind failed: queue empty" << endl;
-#endif
+      D("bind failed: queue empty");
       // XXX busy loop
       return false;
     }
@@ -903,17 +833,13 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
         clean_state & Page_entry::REQUEST)
     {
       jam();
-#ifdef VM_TRACE
-      debugOut << "PGMAN: bind failed: queue front not evictable" << endl;
-      debugOut << "PGMAN: " << clean_ptr << endl;
-#endif
+      D("bind failed: queue front not evictable");
+      D(clean_ptr);
       // XXX busy loop
       return false;
     }
 
-#ifdef VM_TRACE
-    debugOut << "PGMAN: " << clean_ptr << " : evict" << endl;
-#endif
+    D(clean_ptr << " : evict");
 
     ndbassert(clean_ptr.p->m_dirty_count == 0);
     ndbrequire(clean_state & Page_entry::ONQUEUE);
@@ -954,10 +880,7 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
   {
     jam();
 
-#ifdef VM_TRACE
-    debugOut << "PGMAN: " << ptr << " : add to queue at bind" << endl;
-#endif
-
+    D(ptr << " : add to queue at bind");
     pl_queue.add(ptr);
     state |= Page_entry::ONQUEUE;
   }
@@ -969,9 +892,7 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
 bool
 Pgman::process_map(Signal* signal)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: >process_map" << endl;
-#endif
+  D(">process_map");
   int max_count = 0;
   if (m_param.m_max_io_waits > m_stats.m_current_io_waits) {
     max_count = m_param.m_max_io_waits - m_stats.m_current_io_waits;
@@ -990,18 +911,14 @@ Pgman::process_map(Signal* signal)
       break;
     }
   }
-#ifdef VM_TRACE
-  debugOut << "PGMAN: <process_map" << endl;
-#endif
+  D("<process_map");
   return ! pl_map.isEmpty();
 }
 
 bool
 Pgman::process_map(Signal* signal, Ptr<Page_entry> ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: " << ptr << " : process_map" << endl;
-#endif
+  D(ptr << " : process_map");
   pagein(signal, ptr);
   return true;
 }
@@ -1009,9 +926,7 @@ Pgman::process_map(Signal* signal, Ptr<Page_entry> ptr)
 bool
 Pgman::process_callback(Signal* signal)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: >process_callback" << endl;
-#endif
+  D(">process_callback");
   int max_count = 1;
   Page_sublist& pl_callback = *m_page_sublist[Page_entry::SL_CALLBACK];
 
@@ -1030,18 +945,14 @@ Pgman::process_callback(Signal* signal)
       break;
     }
   }
-#ifdef VM_TRACE
-  debugOut << "PGMAN: <process_callback" << endl;
-#endif
+  D("<process_callback");
   return ! pl_callback.isEmpty();
 }
 
 bool
 Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: " << ptr << " : process_callback" << endl;
-#endif
+  D(ptr << " : process_callback");
   int max_count = 1;
   Page_state state = ptr.p->m_state;
 
@@ -1059,9 +970,7 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
       Ptr<Page_request> req_ptr;
 
       req_list.first(req_ptr);
-#ifdef VM_TRACE
-      debugOut << "PGMAN: " << req_ptr << " : process_callback" << endl;
-#endif
+      D(req_ptr << " : process_callback");
 
 #ifdef ERROR_INSERT
       if (req_ptr.p->m_flags & Page_request::DELAY_REQ)
@@ -1110,9 +1019,7 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
 bool
 Pgman::process_cleanup(Signal* signal)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: >process_cleanup" << endl;
-#endif
+  D(">process_cleanup");
   Page_queue& pl_queue = m_page_queue;
 
   // XXX for now start always from beginning
@@ -1121,9 +1028,7 @@ Pgman::process_cleanup(Signal* signal)
   if (m_cleanup_ptr.i == RNIL && ! pl_queue.first(m_cleanup_ptr))
   {
     jam();
-#ifdef VM_TRACE
-    debugOut << "PGMAN: <process_cleanup: empty queue" << endl;
-#endif
+    D("<process_cleanup: empty queue");
     return false;
   }
 
@@ -1141,19 +1046,15 @@ Pgman::process_cleanup(Signal* signal)
     ndbrequire(! (state & Page_entry::LOCKED));
     if (state & Page_entry::BUSY)
     {
-#ifdef VM_TRACE
-      debugOut << "PGMAN: process_cleanup: break on busy page" << endl;
-      debugOut << "PGMAN: " << ptr << endl;
-#endif
+      D("process_cleanup: break on busy page");
+      D(ptr);
       break;
     }
     if (state & Page_entry::DIRTY &&
         ! (state & Page_entry::PAGEIN) &&
         ! (state & Page_entry::PAGEOUT))
     {
-#ifdef VM_TRACE
-      debugOut << "PGMAN: " << ptr << " : process_cleanup" << endl;
-#endif
+      D(ptr << " : process_cleanup");
       c_tup->disk_page_unmap_callback(0, 
 				      ptr.p->m_real_page_i, 
 				      ptr.p->m_dirty_count);
@@ -1166,9 +1067,7 @@ Pgman::process_cleanup(Signal* signal)
     max_loop_count--;
   }
   m_cleanup_ptr = ptr;
-#ifdef VM_TRACE
-  debugOut << "PGMAN: <process_cleanup" << endl;
-#endif
+  D("<process_cleanup");
   return true;
 }
 
@@ -1203,12 +1102,10 @@ Pgman::execLCP_FRAG_ORD(Signal* signal)
   m_last_lcp = ord->lcpId;
   DBG_LCP("Pgman::execLCP_FRAG_ORD lcp: " << m_last_lcp << endl);
   
-#ifdef VM_TRACE
-  debugOut
-    << "PGMAN: execLCP_FRAG_ORD"
-    << " this=" << m_last_lcp << " last_complete=" << m_last_lcp_complete
-    << " bucket=" << m_lcp_curr_bucket << endl;
-#endif
+  D("execLCP_FRAG_ORD"
+    << " this=" << m_last_lcp
+    << " last_complete=" << m_last_lcp_complete
+    << " bucket=" << m_lcp_curr_bucket);
 }
 
 void
@@ -1228,13 +1125,11 @@ Pgman::execEND_LCP_REQ(Signal* signal)
   ndbrequire(!m_lcp_outstanding);
   m_lcp_curr_bucket = 0;
   
-#ifdef VM_TRACE
-  debugOut
-    << "PGMAN: execEND_LCP_REQ"
-    << " this=" << m_last_lcp << " last_complete=" << m_last_lcp_complete
+  D("execEND_LCP_REQ"
+    << " this=" << m_last_lcp
+    << " last_complete=" << m_last_lcp_complete
     << " bucket=" << m_lcp_curr_bucket
-    << " outstanding=" << m_lcp_outstanding << endl;
-#endif
+    << " outstanding=" << m_lcp_outstanding);
 
   m_last_lcp_complete = m_last_lcp;
   
@@ -1252,13 +1147,11 @@ Pgman::process_lcp(Signal* signal)
     max_count = max_count / 2 + 1;
   }
 
-#ifdef VM_TRACE
-  debugOut
-    << "PGMAN: process_lcp"
-    << " this=" << m_last_lcp << " last_complete=" << m_last_lcp_complete
+  D("process_lcp"
+    << " this=" << m_last_lcp
+    << " last_complete=" << m_last_lcp_complete
     << " bucket=" << m_lcp_curr_bucket
-    << " outstanding=" << m_lcp_outstanding << endl;
-#endif
+    << " outstanding=" << m_lcp_outstanding);
 
   // start or re-start from beginning of current hash bucket
   if (m_lcp_curr_bucket != ~(Uint32)0)
@@ -1394,10 +1287,8 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 void
 Pgman::pagein(Signal* signal, Ptr<Page_entry> ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: pagein" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D("pagein");
+  D(ptr);
 
   ndbrequire(! (ptr.p->m_state & Page_entry::PAGEIN));
   set_page_state(ptr, ptr.p->m_state | Page_entry::PAGEIN);
@@ -1409,10 +1300,9 @@ Pgman::pagein(Signal* signal, Ptr<Page_entry> ptr)
 void
 Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: fsreadconf" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D("fsreadconf");
+  D(ptr);
+
   ndbrequire(ptr.p->m_state & Page_entry::PAGEIN);
   Page_state state = ptr.p->m_state;
 
@@ -1449,10 +1339,8 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
 void
 Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: pageout" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D("pageout");
+  D(ptr);
   
   Page_state state = ptr.p->m_state;
   ndbrequire(state & Page_entry::BOUND);
@@ -1494,10 +1382,8 @@ Pgman::logsync_callback(Signal* signal, Uint32 ptrI, Uint32 res)
   Ptr<Page_entry> ptr;
   m_page_entry_pool.getPtr(ptr, ptrI);
 
-#ifdef VM_TRACE
-  debugOut << "PGMAN: logsync_callback" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D("logsync_callback");
+  D(ptr);
 
   // it is OK to be "busy" at this point (the commit is queued)
   Page_state state = ptr.p->m_state;
@@ -1513,10 +1399,8 @@ Pgman::logsync_callback(Signal* signal, Uint32 ptrI, Uint32 res)
 void
 Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: fswriteconf" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D("fswriteconf");
+  D(ptr);
 
   Page_state state = ptr.p->m_state;
   ndbrequire(state & Page_entry::PAGEOUT);
@@ -1657,12 +1541,12 @@ int
 Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
 {
   jamEntry();
-#ifdef VM_TRACE
   Ptr<Page_request> tmp = { &page_req, RNIL};
-  debugOut << "PGMAN: >get_page" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-  debugOut << "PGMAN: " << tmp << endl;
-#endif
+
+  D(">get_page");
+  D(ptr);
+  D(tmp);
+
   Uint32 req_flags = page_req.m_flags;
 
   if (req_flags & Page_request::EMPTY_PAGE)
@@ -1737,9 +1621,7 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
       ptr.p->m_busy_count += busy_count;
       set_page_state(ptr, state);
       
-#ifdef VM_TRACE
-      debugOut << "PGMAN: <get_page: immediate" << endl;
-#endif
+      D("<get_page: immediate");
 
       ndbrequire(ptr.p->m_real_page_i != RNIL);
       return ptr.p->m_real_page_i;
@@ -1794,10 +1676,8 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
   
   do_busy_loop(signal, true);
 
-#ifdef VM_TRACE
-  debugOut << "PGMAN: " << req_ptr << endl;
-  debugOut << "PGMAN: <get_page: queued" << endl;
-#endif
+  D(req_ptr);
+  D("<get_page: queued");
   return 0;
 }
 
@@ -1805,11 +1685,8 @@ void
 Pgman::update_lsn(Ptr<Page_entry> ptr, Uint32 block, Uint64 lsn)
 {
   jamEntry();
-#ifdef VM_TRACE
-  const char* bname = getBlockName(block, "?");
-  debugOut << "PGMAN: >update_lsn: block=" << bname << " lsn=" << lsn << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D(">update_lsn: block=" << hex << block << dec << " lsn=" << lsn);
+  D(ptr);
 
   Page_state state = ptr.p->m_state;
   ptr.p->m_lsn = lsn;
@@ -1826,10 +1703,8 @@ Pgman::update_lsn(Ptr<Page_entry> ptr, Uint32 block, Uint64 lsn)
   state |= Page_entry::DIRTY;
   set_page_state(ptr, state);
   
-#ifdef VM_TRACE
-  debugOut << "PGMAN: " << ptr << endl;
-  debugOut << "PGMAN: <update_lsn" << endl;
-#endif
+  D(ptr);
+  D("<update_lsn");
 }
 
 Uint32
@@ -1915,10 +1790,8 @@ Pgman::free_data_file(Uint32 file_no, Uint32 fd)
 int
 Pgman::drop_page(Ptr<Page_entry> ptr)
 {
-#ifdef VM_TRACE
-  debugOut << "PGMAN: drop_page" << endl;
-  debugOut << "PGMAN: " << ptr << endl;
-#endif
+  D("drop_page");
+  D(ptr);
 
   Page_stack& pl_stack = m_page_stack;
   Page_queue& pl_queue = m_page_queue;
@@ -2141,31 +2014,33 @@ Pgman::verify_page_lists()
 
   ndbrequire(entry_count == pl_hash.count() || dump_page_lists());
 
-  debugOut << "PGMAN: loop"
-           << " stats=" << m_stats_loop_on
-           << " busy=" << m_busy_loop_on
-           << " cleanup=" << m_cleanup_loop_on
-           << " lcp=" << m_lcp_loop_on << endl;
+  D("loop"
+    << " stats=" << m_stats_loop_on
+    << " busy=" << m_busy_loop_on
+    << " cleanup=" << m_cleanup_loop_on
+    << " lcp=" << m_lcp_loop_on);
 
-  debugOut << "PGMAN:"
-           << " entry:" << pl_hash.count()
-           << " cache:" << m_stats.m_num_pages
-           << "(" << locked_bound_count << "L)"
-           << " stack:" << pl_stack.count()
-           << " hot:" << hot_count
-           << " hot_bound:" << hot_bound_count
-           << " stack_request:" << stack_request_count
-           << " queue:" << pl_queue.count()
-           << " queue_request:" << queue_request_count
-           << " queuewait:" << queuewait_count << endl;
+  D("stat"
+    << " entry:" << pl_hash.count()
+    << " cache:" << m_stats.m_num_pages
+    << "(" << locked_bound_count << "L)"
+    << " stack:" << pl_stack.count()
+    << " hot:" << hot_count
+    << " hot_bound:" << hot_bound_count
+    << " stack_request:" << stack_request_count
+    << " queue:" << pl_queue.count()
+    << " queue_request:" << queue_request_count
+    << " queuewait:" << queuewait_count);
 
-  debugOut << "PGMAN:";
+  char countbuf[200];
+  countbuf[0] = 0;
   for (k = 0; k < Page_entry::SUBLIST_COUNT; k++)
   {
     const Page_sublist& pl = *m_page_sublist[k];
-    debugOut << " " << get_sublist_name(k) << ":" << pl.count();
+    sprintf(countbuf + strlen(countbuf), "%s%s:%u",
+        k == 0 ? "" : " ", get_sublist_name(k), pl.count());
   }
-  debugOut << endl;
+  D("list" << countbuf);
 }
 
 void
@@ -2185,9 +2060,7 @@ Pgman::verify_all()
 bool
 Pgman::dump_page_lists(Uint32 ptrI)
 {
-  if (! debugFlag)
-    open_debug_file(1);
-
+  // use debugOut directly
   debugOut << "PGMAN: page list dump" << endl;
   if (ptrI != RNIL)
     debugOut << "PGMAN: error on PE [" << ptrI << "]" << endl;
@@ -2238,9 +2111,6 @@ Pgman::dump_page_lists(Uint32 ptrI)
     }
   }
 
-  if (! debugFlag)
-    open_debug_file(0);
-
   return false;
 }
 
@@ -2276,11 +2146,10 @@ NdbOut&
 operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
 {
   const Pgman::Page_request& pr = *ptr.p;
-  const char* bname = getBlockName(pr.m_block, "?");
   out << "PR";
   if (ptr.i != RNIL)
     out << " [" << dec << ptr.i << "]";
-  out << " block=" << bname;
+  out << " block=" << hex << pr.m_block;
   out << " flags=" << hex << pr.m_flags;
   out << "," << dec << (pr.m_flags & Pgman::Page_request::OP_MASK);
   {
@@ -2379,35 +2248,11 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
   return out;
 }
 
-#ifdef VM_TRACE
-void
-Pgman::open_debug_file(Uint32 flag)
-{
-  if (flag)
-  {
-    FILE* f = globalSignalLoggers.getOutputStream();
-    debugOut = *new NdbOut(*new FileOutputStream(f));
-  }
-  else
-  {
-    debugOut = *new NdbOut(*new NullOutputStream());
-  }
-}
-#endif
-
 void
 Pgman::execDUMP_STATE_ORD(Signal* signal)
 {
   jamEntry();
   Page_hashlist& pl_hash = m_page_hashlist;
-#ifdef VM_TRACE
-  if (signal->theData[0] == 11000 && signal->getLength() == 2)
-  {
-    Uint32 flag = signal->theData[1];
-    open_debug_file(flag);
-    debugFlag = flag;
-  }
-#endif
 
   if (signal->theData[0] == 11001)
   {
