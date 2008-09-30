@@ -13,9 +13,15 @@ else
  GCOV_FLAGS =
 endif
 
-CFLAGS = -W -Wall -Wextra -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
-CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
-CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
+CFLAGS = -Werror -Wall -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
+ifneq ($(CC),icc)
+ CFLAGS += -W -Wextra -g3 -ggdb3
+ CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
+ CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
+else
+ CFLAGS += -g
+ CFLAGS += -diag-disable  589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.
+endif
 CPPFLAGS = -I. -I../../include -I../../newbrt
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 CFLAGS += $(VISIBILITY) $(PROF_FLAGS)

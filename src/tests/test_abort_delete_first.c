@@ -15,7 +15,8 @@ static DB_ENV *env;
 static DB *db;
 static DB_TXN *txn;
 
-void insert (int i) {
+static void
+insert (int i) {
     char hello[30], there[30];
     DBT key,data;
     snprintf(hello, sizeof(hello), "hello%d", i);
@@ -27,7 +28,8 @@ void insert (int i) {
     CKERR(r);
 }
 
-void delete (int i) {
+static void
+delete (int i) {
     char hello[30];
     DBT key;
     snprintf(hello, sizeof(hello), "hello%d", i);
@@ -37,7 +39,8 @@ void delete (int i) {
     CKERR(r);
 }
 
-void find (int i) {
+static void
+find (int i) {
     char hello[30];
     DBT key, val;
     memset(&val,0,sizeof(val));
@@ -49,7 +52,8 @@ void find (int i) {
     CKERR(r);
 }
 
-void find_first_or_last (int i, int cflag) {
+static void
+find_first_or_last (int i, int cflag) {
     int r;
     DBC *cursor;
     DBT key, val;
@@ -71,9 +75,10 @@ void find_first_or_last (int i, int cflag) {
     r = cursor->c_close(cursor);
 }
 
-void do_abort_delete_first_or_last(int N,
-				   int first // 1 for first, 0 for last
-				   ) {
+static void
+do_abort_delete_first_or_last(int N,
+			      int first // 1 for first, 0 for last
+			      ) {
     int r,i;
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);       assert(r==0);

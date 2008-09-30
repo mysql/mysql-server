@@ -5,21 +5,18 @@
 #include <arpa/inet.h>
 
 unsigned char N=5;
-int fact(int n) {
+
+static int
+fact (int n) {
     if (n<=2) return n;
     else return n*fact(n-1);
-}
-
-void swapc (unsigned char *a, unsigned char *b) {
-    unsigned char tmp=*a;
-    *a=*b;
-    *b=tmp;
 }
 
 DB_ENV *env;
 DB *db;
 
-void run (void) {
+static void
+run (void) {
     int r;
     DB_TXN *txn, *txn2;
     char v101=101, v102=102, v1=1, v2=1;

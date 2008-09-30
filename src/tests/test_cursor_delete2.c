@@ -17,7 +17,8 @@ static DB_ENV *dbenv;
 static DB *db;
 static DB_TXN * txn;
 
-void test_cursor_delete2 () {
+static void
+test_cursor_delete2 (void) {
     int r;
     DBT key,val;
 

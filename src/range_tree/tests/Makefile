@@ -13,9 +13,15 @@ endif
 OPTFLAGS=-O0
 
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS = -W -Wall -Wextra $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
+CFLAGS = -Werror -Wall $(OPTFLAGS) $(GCOV_FLAGS)
+ifneq ($(CC),icc)
+CFLAGS += -W -Wextra -g3 -ggdb3 
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
+else
+ CFLAGS += -g
+ CFLAGS += -diag-disable  981    # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
+endif
 CPPFLAGS += -I../ -I../../../newbrt -I../../../include
 LDFLAGS = -lpthread
 

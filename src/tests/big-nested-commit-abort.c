@@ -49,7 +49,8 @@ static void lookup (int i, int expect, int expectj) {
     }
 }
 
-void test_commit_abort (void) {
+static void
+test_commit_abort (void) {
     int i, r;
     r=env->txn_begin(env, 0, &xparent, 0);  CKERR(r);
     r=env->txn_begin(env, xparent, &xchild, 0); CKERR(r);
@@ -70,7 +71,8 @@ void test_commit_abort (void) {
     r=xchild->commit(xchild, 0); CKERR(r);
 }
 
-void setup (void) {
+static void
+setup (void) {
     DB_TXN *txn;
     int r;
     system("rm -rf " ENVDIR);
@@ -91,7 +93,8 @@ void setup (void) {
     r=txn->commit(txn, 0);    assert(r==0);
 }
 
-void shutdown (void) {
+static void
+shutdown (void) {
     int r;
     r=db->close(db, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);

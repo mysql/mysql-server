@@ -9,12 +9,8 @@
 #include <db.h>
 #include "test.h"
 
-DBT *dbt_init_static(DBT *dbt) {
-    memset(dbt, 0, sizeof *dbt);
-    return dbt;
-}
-
-void test_789(void) {
+static void
+test_789(void) {
     int r;
 
     /* setup test directory */

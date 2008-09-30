@@ -11,7 +11,8 @@ int verbose=0;
 #define CKERR(r) ({ if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); })
 #define CKERR2(r,r2) ({ if (r!=r2) fprintf(stderr, "%s:%d error %d %s, expected %d\n", __FILE__, __LINE__, r, strerror(r), r2); assert(r==r2); })
 
-void parse_args (int argc, const char *argv[]) {
+static inline void
+parse_args (int argc, const char *argv[]) {
     const char *argv0=argv[0];
     while (argc>1) {
 	int resultcode=0;
@@ -41,22 +42,26 @@ static inline u_int32_t myrandom (void) {
 }
 
 
-int dummy_cmp(const toku_point *a __attribute__((__unused__)),  
-              const toku_point *b __attribute__((__unused__))) {
+static inline int
+dummy_cmp (const toku_point *a __attribute__((__unused__)),  
+	   const toku_point *b __attribute__((__unused__))) {
     return 0;
 }
 
-int TXNID_cmp(const TXNID a, const TXNID b) {
+static inline int
+TXNID_cmp (const TXNID a, const TXNID b) {
     return a < b ? -1 : (a != b); /* \marginpar{!?} */
 }
 
-int int_cmp(const toku_point* a, const toku_point*b) {
+static inline int
+int_cmp (const toku_point* a, const toku_point*b) {
     int x = *(int*)a;
     int y = *(int*)b;
     return x -y;
 }
 
-int char_cmp(const TXNID a, const TXNID b) {
+static inline int
+char_cmp (const TXNID a, const TXNID b) {
     int x = (char)a;
     int y = (char)b;
     return x -y;
@@ -65,7 +70,8 @@ int char_cmp(const TXNID a, const TXNID b) {
 int mallocced = 0;
 int failon    = -1;
 
-void* fail_malloc(size_t size) {
+static inline void*
+fail_malloc (size_t size) {
     if (++mallocced == failon) {
         errno = ENOMEM;
         return NULL;
@@ -73,7 +79,8 @@ void* fail_malloc(size_t size) {
     return malloc(size);
 }
 
-void verify_all_overlap(toku_interval* query, toku_range* list, unsigned listlen) {
+static inline void
+verify_all_overlap (toku_interval* query, toku_range* list, unsigned listlen) {
     unsigned i;
     
     for (i = 0; i < listlen; i++) {

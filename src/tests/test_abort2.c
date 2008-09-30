@@ -12,7 +12,8 @@ static DB_ENV *env;
 static DB *db;
 static DB_TXN *txn;
 
-void insert (int i, int j) {
+static void
+insert (int i, int j) {
     char hello[30], there[230];
     DBT key,data;
     snprintf(hello, sizeof(hello), "hello%d", i);
@@ -24,7 +25,8 @@ void insert (int i, int j) {
     CKERR(r);
 }
 
-void do_test_abort2 (void) {
+static void
+do_test_abort2 (void) {
     int r;
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);       assert(r==0);

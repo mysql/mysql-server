@@ -10,7 +10,8 @@
 #include <db.h>
 #include "test.h"
 
-void testit(const int klen, const int vlen, const int n, const int lastvlen) {
+static void
+testit (const int klen, const int vlen, const int n, const int lastvlen) {
     if (verbose) printf("testit %d %d %d %d\n", klen, vlen, n, lastvlen);
 
     int r;

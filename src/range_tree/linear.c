@@ -66,8 +66,8 @@ static inline BOOL toku__rt_overlap(toku_range_tree* tree,
     assert(a);
     assert(b);
     //a->left <= b->right && b->left <= a->right
-    return (tree->end_cmp(a->left, b->right) <= 0 &&
-            tree->end_cmp(b->left, a->right) <= 0);
+    return (BOOL)((tree->end_cmp(a->left, b->right) <= 0) &&
+		  (tree->end_cmp(b->left, a->right) <= 0));
 }
 
 static inline BOOL toku__rt_exact(toku_range_tree* tree,
@@ -76,9 +76,9 @@ static inline BOOL toku__rt_exact(toku_range_tree* tree,
     assert(a);
     assert(b);
 
-    return (tree->end_cmp (a->ends.left,  b->ends.left)  == 0 &&
-            tree->end_cmp (a->ends.right, b->ends.right) == 0 &&
-            tree->data_cmp(a->data,  b->data)  == 0);
+    return (BOOL)((tree->end_cmp (a->ends.left,  b->ends.left)  == 0) &&
+		  (tree->end_cmp (a->ends.right, b->ends.right) == 0) &&
+		  (tree->data_cmp(a->data,  b->data)  == 0));
 }
 
 static inline int toku__rt_cmp(toku_range_tree* tree,
@@ -231,7 +231,7 @@ int toku_rt_predecessor (toku_range_tree* tree, toku_point* point,
             best = &tree->i.ranges[i];
         }
     }
-    *wasfound = best != NULL;
+    *wasfound = (BOOL)(best != NULL);
     if (best) *pred = *best;
     return 0;
 }
@@ -249,7 +249,7 @@ int toku_rt_successor (toku_range_tree* tree, toku_point* point,
             best = &tree->i.ranges[i];
         }
     }
-    *wasfound = best != NULL;
+    *wasfound = (BOOL)(best != NULL);
     if (best) *succ = *best;
     return 0;
 }

@@ -13,7 +13,8 @@
 
 #include "test.h"
 
-void cursor_expect(DBC *cursor, int k, int v, int op) {
+static void
+cursor_expect (DBC *cursor, int k, int v, int op) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
     assert(r == 0);
@@ -23,7 +24,7 @@ void cursor_expect(DBC *cursor, int k, int v, int op) {
     assert(val.size == sizeof v);
     int vv;
     memcpy(&vv, val.data, val.size);
-    if (kk != k || vv != v) printf("expect key %d got %d - %d %d\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
+    if (kk != k || vv != v) printf("expect key %u got %u - %u %u\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
     assert(kk == k);
     assert(vv == v);
 
@@ -31,7 +32,8 @@ void cursor_expect(DBC *cursor, int k, int v, int op) {
     free(val.data);
 }
 
-void cursor_expect_fail(DBC *cursor, int op, int expectr) {
+static void
+cursor_expect_fail (DBC *cursor, int op, int expectr) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
     assert(r == expectr);
@@ -40,7 +42,8 @@ void cursor_expect_fail(DBC *cursor, int op, int expectr) {
 /* generate a multi-level tree and delete all entries with a cursor
    verify that the pivot flags are toggled (currently by inspection) */
 
-void test_cursor_delete(int dup_mode) {
+static void
+test_cursor_delete (int dup_mode) {
     if (verbose) printf("test_cursor_delete:%d\n", dup_mode);
 
     int pagesize = 4096;
@@ -87,7 +90,8 @@ void test_cursor_delete(int dup_mode) {
 }
 
 /* insert duplicate duplicates into a sorted duplicate tree */
-void test_cursor_delete_dupsort() {
+static void
+test_cursor_delete_dupsort (void) {
     if (verbose) printf("test_cursor_delete_dupsort\n");
 
     int pagesize = 4096;
@@ -115,14 +119,14 @@ void test_cursor_delete_dupsort() {
         int k = htonl(1);
         int v = htonl(1);
         DBT key, val;
-#if USE_BDB
+#ifdef USE_BDB
         r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
         if (i == 0) 
             assert(r == 0); 
         else 
             assert(r == DB_KEYEXIST);
 #endif
-#if USE_TDB
+#ifdef USE_TDB
         r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
         assert(r == EINVAL);
         r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
@@ -153,7 +157,7 @@ int main(int argc, const char *argv[]) {
     mkdir(ENVDIR, 0777);
     
     test_cursor_delete(0);
-#if USE_BDB
+#ifdef USE_BDB
     test_cursor_delete(DB_DUP);
 #endif
     test_cursor_delete(DB_DUP + DB_DUPSORT);

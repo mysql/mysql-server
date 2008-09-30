@@ -27,7 +27,8 @@ int verbose=0;
 #define CKERR_depending(r,tdbexpect,bdbexpect) CKERR2(r,bdbexpect)
 #endif
 
-void parse_args (int argc, const char *argv[]) {
+static __attribute__((__unused__)) void
+parse_args (int argc, const char *argv[]) {
     const char *argv0=argv[0];
     while (argc>1) {
 	int resultcode=0;
@@ -49,14 +50,16 @@ void parse_args (int argc, const char *argv[]) {
     }
 }
 
-DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
+static __attribute__((__unused__)) DBT *
+dbt_init(DBT *dbt, void *data, u_int32_t size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->data = data;
     dbt->size = size;
     return dbt;
 }
 
-DBT *dbt_init_malloc(DBT *dbt) {
+static __attribute__((__unused__)) DBT *
+dbt_init_malloc (DBT *dbt) {
     memset(dbt, 0, sizeof *dbt);
     dbt->flags = DB_DBT_MALLOC;
     return dbt;
@@ -72,7 +75,8 @@ static inline u_int32_t myrandom (void) {
     return rstate;
 }
 
-int int_dbt_cmp(DB *db, const DBT *a, const DBT *b) {
+static __attribute__((__unused__)) int
+int_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
   assert(db && a && b);
   assert(a->size == sizeof(int));
   assert(b->size == sizeof(int));
