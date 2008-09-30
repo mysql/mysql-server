@@ -4017,9 +4017,29 @@ page_zip_dir_delete(
 	The "owned" and "deleted" flags will be cleared. */
 	mach_write_to_2(slot_free, page_offset(rec));
 
-	if (!page_is_leaf(page) || !dict_index_is_clust(index)) {
+	/* The compression algorithm expects info_bits and n_owned
+	to be 0 for deleted records. */
+	rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
+
+	if (!page_is_leaf(page)) {
 		ut_ad(!rec_offs_any_extern(offsets));
-		goto skip_blobs;
+		goto clear_rec;
+	}
+
+	if (!dict_index_is_clust(index)) {
+		ut_ad(!rec_offs_any_extern(offsets));
+
+		/* Do not clear the last record on a secondary index
+		leaf page, because that could break delete
+		buffering. */
+		if (!page_get_n_recs(page)) {
+#ifdef UNIV_ZIP_DEBUG
+			ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
+			return;
+		}
+
+		goto clear_rec;
 	}
 
 	n_ext = rec_offs_n_extern(offsets);
@@ -4049,11 +4069,7 @@ page_zip_dir_delete(
 		memset(ext_end, 0, n_ext * BTR_EXTERN_FIELD_REF_SIZE);
 	}
 
-skip_blobs:
-	/* The compression algorithm expects info_bits and n_owned
-	to be 0 for deleted records. */
-	rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
-
+clear_rec:
 	page_zip_clear_rec(page_zip, rec, index, offsets);
 }
 
