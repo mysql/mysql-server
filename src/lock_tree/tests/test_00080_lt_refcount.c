@@ -3,10 +3,7 @@
 
 #include "test.h"
 
-toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, DB_TXN* txn);
-toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, DB_TXN* txn);
-
-void initial_setup(void);
+static void initial_setup(void);
 
 static int r;
 static u_int32_t       lt_refs[100];
@@ -17,7 +14,7 @@ static char            subdb [100][5];
 static u_int32_t max_locks = 10;
 int  nums[10000];
 
-void setup_ltm(void) {
+static void setup_ltm(void) {
     assert(!ltm);
     r = toku_ltm_create(&ltm, max_locks, dbpanic,
                         get_compare_fun_from_db, get_dup_compare_from_db,
@@ -26,7 +23,7 @@ void setup_ltm(void) {
     assert(ltm);
 }
 
-void db_open_tree(BOOL dups, size_t index, size_t db_id_index) {
+static void db_open_tree(BOOL dups, size_t index, size_t db_id_index) {
     assert((lt_refs[index] == 0 && !lts[index]) ||
            (lt_refs[index] > 0 && lts[index]));
     assert(ltm);
@@ -36,27 +33,27 @@ void db_open_tree(BOOL dups, size_t index, size_t db_id_index) {
     assert(lts[index]);
 }
 
-void db_close_tree(size_t index) {
+static void db_close_tree(size_t index) {
     assert(lts[index] && ltm && lt_refs[index] > 0);
     r = toku_lt_remove_ref(lts[index]); CKERR(r);
     lt_refs[index]--;
     if (lt_refs[index] == 0) { lts[index] = NULL; }
 }
 
-void txn_open_tree(size_t index) {
+static void txn_open_tree(size_t index) {
     assert(lts[index] && ltm && lt_refs[index] > 0);
     toku_lt_add_ref(lts[index]);
     lt_refs[index]++;
 }
 
-void txn_close_tree(size_t index) {
+static void txn_close_tree(size_t index) {
     assert(lts[index] && ltm && lt_refs[index] > 0);
     r = toku_lt_remove_ref(lts[index]); CKERR(r);
     lt_refs[index]--;
     if (lt_refs[index] == 0) { lts[index] = NULL; }
 }
 
-void close_ltm(void) {
+static void close_ltm(void) {
     assert(ltm);
     r = toku_ltm_close(ltm);
     CKERR(r);
@@ -64,7 +61,7 @@ void close_ltm(void) {
     ltm = NULL;
 }
 
-void run_test(BOOL dups) {
+static void run_test(BOOL dups) {
     setup_ltm();
     //Start:
 
@@ -112,7 +109,7 @@ void run_test(BOOL dups) {
     close_ltm();
 }
 
-void initial_setup(void) {
+static void initial_setup(void) {
     u_int32_t i;
 
     ltm = NULL;

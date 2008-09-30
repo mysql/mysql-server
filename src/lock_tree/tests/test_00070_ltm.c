@@ -4,7 +4,6 @@
 #include "test.h"
 
 toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, DB_TXN* txn);
-toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, DB_TXN* txn);
 
 int r;
 toku_lock_tree* lt [10] = {0};
