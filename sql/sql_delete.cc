@@ -965,6 +965,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   TABLE *table;
   bool error;
   uint path_length;
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -1015,6 +1016,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                                       HTON_CAN_RECREATE))
       goto trunc_by_del;
 
+    if (table_type == DB_TYPE_NDBCLUSTER)
+      global_schema_lock_guard.lock();
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(TRUE);
   }

@@ -236,7 +236,12 @@ typedef enum ndb_query_state_bits {
 
 enum THD_NDB_OPTIONS
 {
-  TNO_NO_LOG_SCHEMA_OP= 1 << 0
+  TNO_NO_LOG_SCHEMA_OP=  1 << 0,
+  /*
+    In participating mysqld, do not try to acquire global schema
+    lock, as one other mysqld already has the lock.
+  */
+  TNO_NO_LOCK_SCHEMA_OP= 1 << 1
 };
 
 enum THD_NDB_TRANS_OPTIONS
@@ -285,6 +290,8 @@ class Thd_ndb
     we execute() to flush the rows buffered in m_batch_mem_root.
   */
   uint m_unsent_bytes;
+  NdbTransaction *global_schema_lock_trans;
+  uint global_schema_lock_count;
 };
 
 class ha_ndbcluster: public handler
