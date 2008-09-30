@@ -38,6 +38,7 @@ CFLAGS = -Wall $(FORMAT) $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS) $(FPICFLAGS) $(
 ifneq ($(CC),icc)
  CFLAGS += -Werror -Wextra -Wcast-align -Wbad-function-cast -Wmissing-noreturn -g3 -ggdb3
 else
+ CFLAGS += -Werror
  CFLAGS += -g 
  CFLAGS += -diag-disable 177     # Don't complain about static variables that are not used.
  CFLAGS += -diag-disable 981     # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
