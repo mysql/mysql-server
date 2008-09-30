@@ -756,6 +756,9 @@ static void debugOutUnlock() \
 static const char* debugOutTag(char* buf, int line) \
   { return debugOutBlock()->debugOutTag(buf, line); } \
 static void debugOutDefines()
+#else
+#define DEBUG_OUT_DEFINES(blockNo) \
+static void debugOutDefines()
 #endif
 
 inline 
