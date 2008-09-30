@@ -2419,6 +2419,7 @@ mysql_execute_command(THD *thd)
       copy.
     */
     Alter_info alter_info(lex->alter_info, thd->mem_root);
+    Ha_global_schema_lock_guard global_schema_lock_guard(thd);
 
     if (thd->is_fatal_error)
     {
@@ -2454,6 +2455,8 @@ mysql_execute_command(THD *thd)
       create_info.default_table_charset= create_info.table_charset;
       create_info.table_charset= 0;
     }
+    if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
+      global_schema_lock_guard.lock();
     /*
       The create-select command will open and read-lock the select table
       and then create, open and write-lock the new table. If a global

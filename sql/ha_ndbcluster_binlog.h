@@ -271,3 +271,17 @@ inline void do_retry_sleep(unsigned milli_sleep)
 {
   my_sleep(1000*(milli_sleep + 5*(rand()%(milli_sleep/5))));
 }
+
+int ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
+void ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
+
+class Ndbcluster_global_schema_lock_guard
+{
+public:
+  Ndbcluster_global_schema_lock_guard(THD *thd);
+  ~Ndbcluster_global_schema_lock_guard();
+  int lock();
+private:
+  THD *m_thd;
+  int m_lock;
+};
