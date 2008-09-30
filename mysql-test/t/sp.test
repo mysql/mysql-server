@@ -7818,6 +7818,24 @@ drop function f1;
 drop view v1;
 drop table t1;
 
+#
+# Bug#38469 invalid memory read and/or crash with utf8 text field, stored procedure, uservar 
+#
+delimiter $;
+--disable_warnings
+drop procedure if exists `p2` $
+--enable_warnings
+create procedure `p2`(in `a` text charset utf8)
+begin
+        declare `pos` int default 1;
+        declare `str` text charset utf8;
+        set `str` := `a`;
+        select substr(`str`, `pos`+ 1 ) into `str`;
+end $
+delimiter ;$
+call `p2`('s s s s s s');
+drop procedure `p2`;
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.0 tests
 --echo # ------------------------------------------------------------------
