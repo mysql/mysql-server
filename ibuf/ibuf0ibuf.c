@@ -2751,12 +2751,12 @@ page_no), and if so, reads counter value from it and returns that + 1.
 Otherwise, returns 0. */
 static
 ulint
-ibuf_set_entry_counter_low(
+ibuf_get_entry_counter_low(
 /*=======================*/
-				/* out: new counter value */
-	rec_t*	rec,		/* in: record */
-	ulint	space,		/* in: space id */
-	ulint	page_no)	/* in: page number */
+					/* out: new counter value */
+	const rec_t*	rec,		/* in: insert buffer record */
+	ulint		space,		/* in: space id */
+	ulint		page_no)	/* in: page number */
 {
 	ulint	counter;
 
@@ -2784,7 +2784,7 @@ ibuf_set_entry_counter(
 /*===================*/
 					/* out: FALSE if we should abort
 					this insertion to ibuf */
-	dtuple_t*	entry,		/* in: entry to patch */
+	dtuple_t*	entry,		/* in/out: entry to patch */
 	ulint		space,		/* in: space id of entry */
 	ulint		page_no,	/* in: page number of entry */
 	btr_pcur_t*	pcur,		/* in: pcur positioned on the record
@@ -2805,7 +2805,7 @@ ibuf_set_entry_counter(
 
 	if (btr_pcur_is_on_user_rec(pcur)) {
 
-		counter = ibuf_set_entry_counter_low(
+		counter = ibuf_get_entry_counter_low(
 			btr_pcur_get_rec(pcur), space, page_no);
 
 	} else if (btr_pcur_is_before_first_in_tree(pcur, mtr)) {
@@ -2855,7 +2855,7 @@ ibuf_set_entry_counter(
 
 			ut_ad(page_rec_is_user_rec(rec));
 
-			counter = ibuf_set_entry_counter_low(
+			counter = ibuf_get_entry_counter_low(
 				rec, space, page_no);
 
 			if (counter < cursor->ibuf_cnt) {
