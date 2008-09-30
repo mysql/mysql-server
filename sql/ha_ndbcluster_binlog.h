@@ -159,10 +159,6 @@ void ndbcluster_binlog_init_handlerton();
   Initialize the binlog part of the NDB_SHARE
 */
 int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *table);
-
-bool ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-bool ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-
 int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    uint key_len,
                                    const char *db,
