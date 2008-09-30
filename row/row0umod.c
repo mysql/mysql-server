@@ -295,29 +295,38 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
 				BTR_MODIFY_TREE */
 {
-	ibool		found;
-	btr_pcur_t	pcur;
-	btr_cur_t*	btr_cur;
-	ibool		success;
-	ibool		old_has;
-	ulint		err;
-	mtr_t		mtr;
-	mtr_t		mtr_vers;
+	btr_pcur_t		pcur;
+	btr_cur_t*		btr_cur;
+	ibool			success;
+	ibool			old_has;
+	ulint			err;
+	mtr_t			mtr;
+	mtr_t			mtr_vers;
+	enum row_search_result	search_result;
 
 	log_free_check();
 	mtr_start(&mtr);
 
-	found = row_search_index_entry(NULL, index, entry, mode, &pcur, &mtr);
-
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
-	if (!found) {
-		/* Not found */
+	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
 
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
+	search_result = row_search_index_entry(index, entry, mode,
+					       &pcur, &mtr);
 
-		return(DB_SUCCESS);
+	switch (search_result) {
+	case ROW_NOT_FOUND:
+		err = DB_SUCCESS;
+		goto func_exit;
+	case ROW_FOUND:
+		break;
+	case ROW_BUFFERED:
+	case ROW_NOT_IN_POOL:
+		/* These are invalid outcomes, because the mode passed
+		to row_search_index_entry() did not include any of the
+		flags BTR_INSERT, BTR_DELETE, BTR_DELETE_MARK, or
+		BTR_WATCH_LEAF. */
+		ut_error;
 	}
 
 	/* We should remove the index record if no prior version of the row,
@@ -366,6 +375,8 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	}
 
 	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr_vers);
+
+func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
@@ -421,13 +432,15 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry)	/* in: index entry */
 {
-	mem_heap_t*	heap;
-	btr_pcur_t	pcur;
-	upd_t*		update;
-	ulint		err		= DB_SUCCESS;
-	big_rec_t*	dummy_big_rec;
-	mtr_t		mtr;
-	trx_t*		trx		= thr_get_trx(thr);
+	mem_heap_t*		heap;
+	btr_pcur_t		pcur;
+	btr_cur_t*		btr_cur;
+	upd_t*			update;
+	ulint			err		= DB_SUCCESS;
+	big_rec_t*		dummy_big_rec;
+	mtr_t			mtr;
+	trx_t*			trx		= thr_get_trx(thr);
+	enum row_search_result	search_result;
 
 	/* Ignore indexes that are being created. */
 	if (UNIV_UNLIKELY(*index->name == TEMP_INDEX_PREFIX)) {
@@ -438,8 +451,20 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	log_free_check();
 	mtr_start(&mtr);
 
-	if (UNIV_UNLIKELY(!row_search_index_entry(NULL, index, entry,
-						  mode, &pcur, &mtr))) {
+	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
+
+	search_result = row_search_index_entry(index, entry, mode,
+					       &pcur, &mtr);
+
+	switch (search_result) {
+	case ROW_BUFFERED:
+	case ROW_NOT_IN_POOL:
+		/* These are invalid outcomes, because the mode passed
+		to row_search_index_entry() did not include any of the
+		flags BTR_INSERT, BTR_DELETE, BTR_DELETE_MARK, or
+		BTR_WATCH_LEAF. */
+		ut_error;
+	case ROW_NOT_FOUND:
 		fputs("InnoDB: error in sec index entry del undo in\n"
 		      "InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
@@ -454,9 +479,9 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);
-	} else {
-		btr_cur_t*	btr_cur = btr_pcur_get_btr_cur(&pcur);
-
+		break;
+	case ROW_FOUND:
+		btr_cur = btr_pcur_get_btr_cur(&pcur);
 		err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
 						   btr_cur, FALSE, thr, &mtr);
 		ut_a(err == DB_SUCCESS);

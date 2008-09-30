@@ -211,30 +211,41 @@ row_purge_remove_sec_if_poss_low_nonbuffered(
 	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
 				BTR_MODIFY_TREE */
 {
-	btr_pcur_t	pcur;
-	btr_cur_t*	btr_cur;
-	ibool		success;
-	ibool		old_has = FALSE; /* remove warning */
-	ibool		found;
-	ulint		err;
-	mtr_t		mtr;
-	mtr_t*		mtr_vers;
+	btr_pcur_t		pcur;
+	btr_cur_t*		btr_cur;
+	ibool			success;
+	ibool			old_has = FALSE;
+	ulint			err;
+	mtr_t			mtr;
+	mtr_t*			mtr_vers;
+	enum row_search_result	search_result;
 
 	log_free_check();
 	mtr_start(&mtr);
 
-	found = row_search_index_entry(NULL, index, entry, mode, &pcur, &mtr);
+	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
 
-	if (!found) {
+	search_result = row_search_index_entry(index, entry, mode,
+					       &pcur, &mtr);
+
+	switch (search_result) {
+	case ROW_NOT_FOUND:
 		/* Not found */
 
 		/* fputs("PURGE:........sec entry not found\n", stderr); */
-		/* dtuple_print(entry); */
+		/* dtuple_print(stderr, entry); */
 
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-
-		return(TRUE);
+		success = TRUE;
+		goto func_exit;
+	case ROW_FOUND:
+		break;
+	case ROW_BUFFERED:
+	case ROW_NOT_IN_POOL:
+		/* These are invalid outcomes, because the mode passed
+		to row_search_index_entry() did not include any of the
+		flags BTR_INSERT, BTR_DELETE, BTR_DELETE_MARK, or
+		BTR_WATCH_LEAF. */
+		ut_error;
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
@@ -259,7 +270,7 @@ row_purge_remove_sec_if_poss_low_nonbuffered(
 
 	mem_free(mtr_vers);
 
-	if (!success || !old_has) {
+	if (!old_has) {
 		/* Remove the index record */
 
 		if (mode == BTR_MODIFY_LEAF) {
@@ -273,6 +284,7 @@ row_purge_remove_sec_if_poss_low_nonbuffered(
 		}
 	}
 
+func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
@@ -292,65 +304,64 @@ row_purge_remove_sec_if_poss_low(
 	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
 				BTR_MODIFY_TREE */
 {
-	mtr_t		mtr;
-	btr_pcur_t	pcur;
-	btr_cur_t*	btr_cur;
-	ibool		found;
-	ibool		success;
-	ibool		was_buffered;
-	ibool		old_has = FALSE;
-	ibool		leaf_in_buf_pool;
-
-	ut_a((mode == BTR_MODIFY_TREE) || (mode == BTR_MODIFY_LEAF));
+	mtr_t			mtr;
+	btr_pcur_t		pcur;
+#ifdef UNIV_DEBUG
+	ibool			leaf_in_buf_pool;
+#endif /* UNIV_DEBUG */
+	ibool			old_has	= FALSE;
+	enum row_search_result	search_result;
 
 	if (mode == BTR_MODIFY_TREE) {
 		/* Can't use the insert/delete buffer if we potentially
 		need to split pages. */
-
-		return(row_purge_remove_sec_if_poss_low_nonbuffered(
-			       node, index, entry, mode));
+		goto unbuffered;
 	}
+
+	ut_ad(mode == BTR_MODIFY_LEAF);
 
 	log_free_check();
 
 	mtr_start(&mtr);
 
-	found = row_search_index_entry(
-		NULL, index, entry,
-		BTR_SEARCH_LEAF | BTR_WATCH_LEAF, &pcur, &mtr);
+	search_result = row_search_index_entry(
+		index, entry, BTR_SEARCH_LEAF | BTR_WATCH_LEAF, &pcur, &mtr);
 
-	btr_cur = btr_pcur_get_btr_cur(&pcur);
-	leaf_in_buf_pool = btr_cur->leaf_in_buf_pool;
-
-	ut_a(!found || leaf_in_buf_pool);
+	ut_d(leaf_in_buf_pool = btr_pcur_get_btr_cur(&pcur)->leaf_in_buf_pool);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	if (leaf_in_buf_pool) {
+	switch (search_result) {
+	case ROW_NOT_FOUND:
+		/* Index entry does not exist, nothing to do. */
+		ut_ad(leaf_in_buf_pool);
+		return(TRUE);
 
-		if (found) {
-			/* Index entry exists and is in the buffer pool, no
-			need to use the insert/delete buffer. */
+	case ROW_FOUND:
+		/* The index entry exists and is in the buffer pool;
+		no need to use the insert/delete buffer. */
+		ut_ad(leaf_in_buf_pool);
+		goto unbuffered;
 
-			return(row_purge_remove_sec_if_poss_low_nonbuffered(
-				       node, index, entry, BTR_MODIFY_LEAF));
-		} else {
-			/* Index entry does not exist, nothing to do. */
+	case ROW_BUFFERED:
+		/* We did not pass any BTR_INSERT, BTR_DELETE, or
+		BTR_DELETE_MARK flag.  Therefore, the operation must
+		not have been buffered yet. */
+		ut_error;
 
-			return(TRUE);
-		}
+	case ROW_NOT_IN_POOL:
+		ut_ad(!leaf_in_buf_pool);
+		break;
 	}
 
-	/* We should remove the index record if no later version of the row,
-	which cannot be purged yet, requires its existence. If some
-	requires, we should do nothing. */
+	/* We should remove the index record if no later version of
+	the row, which cannot be purged yet, requires its existence.
+	If some requires, we should do nothing. */
 
 	mtr_start(&mtr);
 
-	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr);
-
-	if (success) {
+	if (row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr)) {
 		old_has = row_vers_old_has_index_entry(
 			TRUE, btr_pcur_get_rec(&node->pcur),
 			&mtr, index, entry);
@@ -358,7 +369,7 @@ row_purge_remove_sec_if_poss_low(
 
 	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
 
-	if (success && old_has) {
+	if (old_has) {
 		/* Can't remove the index record yet. */
 
 		buf_pool_watch_clear();
@@ -370,26 +381,35 @@ row_purge_remove_sec_if_poss_low(
 
 	/* Set the query thread, so that ibuf_insert_low() will be
 	able to invoke thd_get_trx(). */
-	btr_cur->thr = que_node_get_parent(node);
+	btr_pcur_get_btr_cur(&pcur)->thr = que_node_get_parent(node);
 
-	row_search_index_entry(&was_buffered, index, entry,
-			       BTR_MODIFY_LEAF | BTR_DELETE, &pcur,
-			       &mtr);
+	search_result = row_search_index_entry(
+		index, entry, BTR_MODIFY_LEAF | BTR_DELETE, &pcur, &mtr);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
 	buf_pool_watch_clear();
 
-	if (!was_buffered) {
-		/* Page read into buffer pool or delete-buffering failed. */
+	switch (search_result) {
+	case ROW_NOT_FOUND:
+	case ROW_FOUND:
+		break;
 
-		return(row_purge_remove_sec_if_poss_low_nonbuffered(
-			       node, index, entry, BTR_MODIFY_LEAF));
+	case ROW_BUFFERED:
+		return(TRUE);
+
+	case ROW_NOT_IN_POOL:
+		/* BTR_WATCH_LEAF was not specified,
+		so this should not occur! */
+		ut_error;
 	}
 
-	return(TRUE);
+	/* Page read into buffer pool or delete-buffering failed. */
 
+unbuffered:
+	return(row_purge_remove_sec_if_poss_low_nonbuffered(node, index,
+							    entry, mode));
 }
 
 /***************************************************************
