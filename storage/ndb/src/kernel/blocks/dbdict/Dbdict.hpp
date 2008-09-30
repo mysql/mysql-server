@@ -1528,7 +1528,7 @@ private:
      */
     Uint32 op_key = 
       (getOwnNodeId() << 24) +
-      (c_opRecordSequence + 1) & 0x00FFFFFF;
+      ((c_opRecordSequence + 1) & 0x00FFFFFF);
     if (seizeSchemaOp<T>(op_ptr, op_key)) {
       c_opRecordSequence++;
       return true;
