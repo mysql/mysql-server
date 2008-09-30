@@ -390,8 +390,9 @@ Pgman::seize_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
   {
     new (ptr.p) Page_entry(file_no, page_no);
     m_page_hashlist.add(ptr);
-
+#ifdef VM_TRACE
     ptr.p->m_this = this;
+#endif
     D("seize_page_entry");
     D(ptr);
 
@@ -691,7 +692,9 @@ void
 Pgman::do_stats_loop(Signal* signal)
 {
   D("do_stats_loop");
+#ifdef VM_TRACE
   verify_all();
+#endif
   Uint32 delay = m_param.m_stats_loop_delay;
   signal->theData[0] = PgmanContinueB::STATS_LOOP;
   sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
