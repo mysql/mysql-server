@@ -186,7 +186,11 @@ drop table t1;
 # Protect ourselves from data left in tmp/ by a previos possibly failed
 # test
 --error 0,1
---remove_file $MYSQLTEST_VARDIR/tmp/t1.*
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.frm
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.MYD
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.MYI
 --disable_query_log
 eval prepare stmt from "create table t1 (c char(10)) data directory='$MYSQLTEST_VARDIR/tmp'";
 --enable_query_log
