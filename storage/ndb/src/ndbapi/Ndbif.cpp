@@ -1090,7 +1090,7 @@ Ndb::check_send_timeout()
       {
 #ifdef VM_TRACE
         a_con->printState();
-	Uint32 t1 = a_con->theTransactionId;
+	Uint32 t1 = (Uint32) a_con->theTransactionId;
 	Uint32 t2 = a_con->theTransactionId >> 32;
 	ndbout_c("4012 [%.8x %.8x]", t1, t2);
 	//abort();
