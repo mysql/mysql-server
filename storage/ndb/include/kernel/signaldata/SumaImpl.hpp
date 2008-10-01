@@ -78,7 +78,6 @@ struct SubCreateConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Grep;
   friend struct SumaParticipant;
   
   friend bool printSUB_CREATE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
@@ -99,7 +98,7 @@ struct SubStartReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Suma;
+  friend class Suma;
   
   friend bool printSUB_START_REQ(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 7 );
@@ -117,7 +116,7 @@ struct SubStartRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Suma;
+  friend class Suma;
   
   friend bool printSUB_START_REF(FILE *, const Uint32 *, Uint32, Uint16);
   enum ErrorCode {
@@ -159,8 +158,7 @@ struct SubStartConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Grep;
-  
+
   friend bool printSUB_START_CONF(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 9 );
 
@@ -179,7 +177,7 @@ struct SubStopReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Suma;
+  friend class Suma;
   
   enum RequestInfo
   {
@@ -202,7 +200,7 @@ struct SubStopRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Suma;
+  friend class Suma;
   
   friend bool printSUB_STOP_REF(FILE *, const Uint32 *, Uint32, Uint16);
   enum ErrorCode {
@@ -236,8 +234,7 @@ struct SubStopConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Grep;
-  
+
   friend bool printSUB_STOP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 7 );
 
@@ -254,9 +251,8 @@ struct SubSyncReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Suma;
-  friend struct Grep;
-  
+  friend class Suma;
+
   friend bool printSUB_SYNC_REQ(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 7 );
   
@@ -281,9 +277,8 @@ struct SubSyncRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Suma;
-  friend struct Grep;
-  
+  friend class Suma;
+
   friend bool printSUB_SYNC_REF(FILE *, const Uint32 *, Uint32, Uint16);
   enum ErrorCode {
     Undefined = 1
@@ -301,9 +296,8 @@ struct SubSyncConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Suma;
-  friend struct Grep;
-  
+  friend class Suma;
+
   friend bool printSUB_SYNC_CONF(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 2 );
   
@@ -316,8 +310,7 @@ struct SubTableData {
    * Sender(s)/Reciver(s)
    */
   friend struct SumaParticipant;
-  friend struct Grep;
-  
+
   friend bool printSUB_TABLE_DATA(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 8 );
   SECTION( DICT_TAB_INFO = 0 );
@@ -372,8 +365,7 @@ struct SubSyncContinueReq {
    * Sender(s)/Reciver(s)
    */
   friend struct SumaParticipant;
-  friend struct Grep;
-  friend struct Trix;
+  friend class Trix;
   
   friend bool printSUB_SYNC_CONTINUE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 3 );
@@ -388,8 +380,7 @@ struct SubSyncContinueRef {
    * Sender(s)/Reciver(s)
    */
   friend struct SumaParticipant;
-  friend struct Grep;
-  friend struct Trix;
+  friend class Trix;
   
   friend bool printSUB_SYNC_CONTINUE_REF(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 3 );
@@ -404,8 +395,7 @@ struct SubSyncContinueConf {
    * Sender(s)/Reciver(s)
    */
   friend struct SumaParticipant;
-  friend struct Grep;
-  friend struct Trix;
+  friend class Trix;
   
   friend bool printSUB_SYNC_CONTINUE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 3 );
@@ -420,10 +410,9 @@ struct SubGcpCompleteRep {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Dbdih;
+  friend class Dbdih;
   friend struct SumaParticipant;
-  friend struct Grep;
-  friend struct Trix;
+  friend class Trix;
   
   friend bool printSUB_GCP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 5 );
@@ -453,7 +442,6 @@ struct SubRemoveReq {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Grep;
   friend struct SumaParticipant;
   
   friend bool printSUB_REMOVE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
@@ -469,7 +457,6 @@ struct SubRemoveRef {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Grep;
   friend struct SumaParticipant;
   
   friend bool printSUB_REMOVE_REF(FILE *, const Uint32 *, Uint32, Uint16);
@@ -494,7 +481,6 @@ struct SubRemoveConf {
   /**
    * Sender(s)/Reciver(s)
    */
-  friend struct Grep;
   friend struct SumaParticipant;
   
   friend bool printSUB_REMOVE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
@@ -509,7 +495,6 @@ struct SubRemoveConf {
 
 
 struct CreateSubscriptionIdReq {
-  friend struct Grep;
   friend struct SumaParticipant;
   
   friend bool printCREATE_SUBSCRIPTION_ID_REQ(FILE *, const Uint32 *, 
@@ -522,7 +507,6 @@ struct CreateSubscriptionIdReq {
 
 
 struct CreateSubscriptionIdConf {
-  friend struct Grep;
   friend struct SumaParticipant;
   
   friend bool printCREATE_SUBSCRIPTION_ID_CONF(FILE *, const Uint32 *, 
@@ -537,7 +521,6 @@ struct CreateSubscriptionIdConf {
 
 
 struct CreateSubscriptionIdRef {
-  friend struct Grep;
   friend struct SumaParticipant;
   
   friend bool printCREATE_SUBSCRIPTION_ID_REF(FILE *, const Uint32 *, 
