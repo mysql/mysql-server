@@ -388,6 +388,7 @@ NdbReceiver::receive_packed_recattr(NdbRecAttr** recAttr,
 
 err:
   abort();
+  return 0;
 }
 
 
