@@ -2769,21 +2769,58 @@ ibuf_get_entry_counter_low(
 	ulint		space,		/* in: space id */
 	ulint		page_no)	/* in: page number */
 {
-	ulint	counter;
+	ulint		counter;
+	const byte*	field;
+	ulint		len;
 
-	if (ibuf_rec_get_space(rec) == space
-	    && ibuf_rec_get_page_no(rec) == page_no) {
+	ut_ad(ibuf_inside());
+	ut_ad(rec_get_n_fields_old(rec) > 2);
 
-		ibuf_rec_get_info(rec, NULL, NULL, NULL, &counter);
-		ut_a(counter < 0xFFFF);
-		counter++;
-	} else {
-		/* No entries in ibuf tree for (space, page_no). */
+	field = rec_get_nth_field_old(rec, 1, &len);
 
-		counter = 0;
+	if (UNIV_UNLIKELY(len != 1)) {
+		/* pre-4.1 format */
+		ut_a(trx_doublewrite_must_reset_space_ids);
+		ut_a(!trx_sys_multiple_tablespace_format);
+
+		return(ULINT_UNDEFINED);
 	}
 
-	return(counter);
+	ut_a(trx_sys_multiple_tablespace_format);
+
+	/* Check the tablespace identifier. */
+	field = rec_get_nth_field_old(rec, 0, &len);
+	ut_a(len == 4);
+
+	if (mach_read_from_4(field) != space) {
+
+		return(ULINT_UNDEFINED);
+	}
+
+	/* Check the page offset. */
+	field = rec_get_nth_field_old(rec, 2, &len);
+	ut_a(len == 4);
+
+	if (mach_read_from_4(field) != page_no) {
+
+		return(ULINT_UNDEFINED);
+	}
+
+	/* Check if the record contains a counter field. */
+	field = rec_get_nth_field_old(rec, 3, &len);
+
+	switch (len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE) {
+	default:
+		ut_error;
+	case 0: /* ROW_FORMAT=REDUNDANT */
+	case 1: /* ROW_FORMAT=COMPACT */
+		return(ULINT_UNDEFINED);
+
+	case IBUF_REC_INFO_SIZE:
+		counter = mach_read_from_2(field + IBUF_REC_OFFSET_COUNTER);
+		ut_a(counter < 0xFFFF);
+		return(counter + 1);
+	}
 }
 
 /********************************************************************
@@ -2804,13 +2841,9 @@ ibuf_set_entry_counter(
 	ibool		is_optimistic,	/* in: is this an optimistic insert */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	ulint		counter = 0xFFFF + 1;
+	ulint		counter;
 	dfield_t*	field;
-	void*		data;
-
-	/* FIXME: if pcur (or the previous rec if we're on infimum) points
-	to a record that has no counter field, return FALSE since we can't
-	mix records with counters with records without counters. */
+	byte*		data;
 
 	/* pcur points to either a user rec or to a page's infimum record. */
 
@@ -2819,6 +2852,13 @@ ibuf_set_entry_counter(
 		counter = ibuf_get_entry_counter_low(
 			btr_pcur_get_rec(pcur), space, page_no);
 
+		if (UNIV_UNLIKELY(counter == ULINT_UNDEFINED)) {
+			/* The record lacks a counter field.
+			Such old records must be merged before
+			new records can be buffered. */
+
+			return(FALSE);
+		}
 	} else if (btr_pcur_is_before_first_in_tree(pcur, mtr)) {
 		/* Ibuf tree is either completely empty, or the insert
 		position is at the very first record of a non-empty tree. In
@@ -2868,6 +2908,14 @@ ibuf_set_entry_counter(
 			counter = ibuf_get_entry_counter_low(
 				rec, space, page_no);
 
+			if (UNIV_UNLIKELY(counter == ULINT_UNDEFINED)) {
+				/* The record lacks a counter field.
+				Such old records must be merged before
+				new records can be buffered. */
+
+				return(FALSE);
+			}
+
 			if (counter < cursor->ibuf_cnt) {
 				/* Search ended on the wrong page. */
 
@@ -2907,7 +2955,7 @@ ibuf_set_entry_counter(
 	field = dtuple_get_nth_field(entry, 3);
 	data = dfield_get_data(field);
 
-	mach_write_to_2((byte*) data + IBUF_REC_OFFSET_COUNTER, counter);
+	mach_write_to_2(data + IBUF_REC_OFFSET_COUNTER, counter);
 
 	return(TRUE);
 }
