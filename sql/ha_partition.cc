@@ -2502,7 +2502,8 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
                                               sizeof(HA_DATA_PARTITION));
     if (!ha_data)
     {
-      pthread_mutex_unlock(&table_share->mutex);
+      if (is_not_tmp_table)
+        pthread_mutex_unlock(&table_share->mutex);
       goto err_handler;
     }
     DBUG_PRINT("info", ("table_share->ha_data 0x%p", ha_data));
