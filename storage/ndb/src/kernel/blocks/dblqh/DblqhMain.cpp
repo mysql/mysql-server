@@ -3086,8 +3086,7 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
     lqhKeyConf = (LqhKeyConf *)
       &Thostptr.p->packedWordsTc[Thostptr.p->noOfPackedWordsTc];
     Thostptr.p->noOfPackedWordsTc += LqhKeyConf::SignalLength;
-  } else if(refToBlock(atcBlockref) == DBLQH){
-    // wl4391_todo check this routine again..
+  } else if(refToMain(atcBlockref) == DBLQH){
     jam();
 /*******************************************************************
 // This signal was intended for DBLQH as part of log execution or
@@ -3950,7 +3949,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   
   regTcPtr->tableref = tabptr.i;
   regTcPtr->m_disk_table = tabptr.p->m_disk_table;
-  if(refToBlock(signal->senderBlockRef()) == RESTORE)
+  if(refToMain(signal->senderBlockRef()) == RESTORE)
     regTcPtr->m_disk_table &= !LqhKeyReq::getNoDiskFlag(Treqinfo);
   else if(op == ZREAD || op == ZREAD_EX || op == ZUPDATE)
     regTcPtr->m_disk_table &= !LqhKeyReq::getNoDiskFlag(Treqinfo);
@@ -3964,7 +3963,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   if (LqhKeyReq::getNrCopyFlag(Treqinfo))
   {
-    ndbassert(refToBlock(senderRef) == DBLQH);
+    ndbassert(refToMain(senderRef) == DBLQH);
     ndbassert(LqhKeyReq::getRowidFlag(Treqinfo));
     if (! (fragptr.p->fragStatus == Fragrecord::ACTIVE_CREATION))
     {
@@ -4225,7 +4224,7 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
     signal->theData[1] = accOpPtr;
     signal->theData[2] = regTcPtr->transid[0];
     signal->theData[3] = regTcPtr->transid[1];
-    EXECUTE_DIRECT(refToBlock(regTcPtr->tcAccBlockref), GSN_ACC_TO_REQ, 
+    EXECUTE_DIRECT(refToMain(regTcPtr->tcAccBlockref), GSN_ACC_TO_REQ, 
 		   signal, 4);
     if (signal->theData[0] == (UintR)-1) {
       execACC_TO_REF(signal);
@@ -4836,7 +4835,7 @@ void Dblqh::execLQH_ALLOCREQ(Signal* signal)
   signal->theData[0] = regTcPtr.p->tupConnectrec;
   signal->theData[1] = regFragptr.p->tupFragptr;
   signal->theData[2] = regTcPtr.p->tableref;
-  Uint32 tup = refToBlock(regTcPtr.p->tcTupBlockref);
+  Uint32 tup = refToMain(regTcPtr.p->tcTupBlockref);
   EXECUTE_DIRECT(tup, GSN_TUP_ALLOCREQ, signal, 3);
 }//Dblqh::execTUP_ALLOCREQ()
 
@@ -6068,7 +6067,7 @@ void Dblqh::writeAttrinfoLab(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dblqh::sendTupkey(Signal* signal) 
 {
-  BlockReference lqhRef = calcLqhBlockRef(tcConnectptr.p->nextReplica);
+  BlockReference lqhRef = calcInstanceBlockRef(DBLQH, tcConnectptr.p->nextReplica);
   signal->theData[0] = tcConnectptr.p->tcOprec;
   signal->theData[1] = tcConnectptr.p->transid[0];
   signal->theData[2] = tcConnectptr.p->transid[1];
@@ -7242,7 +7241,7 @@ void Dblqh::execABORT(Signal* signal)
 /* ------------------------------------------------------------------------- */
 // We will immediately send the ABORT message also to the next LQH node in line.
 /* ------------------------------------------------------------------------- */
-    BlockReference TLqhRef = calcLqhBlockRef(regTcPtr->nextReplica);
+    BlockReference TLqhRef = calcInstanceBlockRef(DBLQH, regTcPtr->nextReplica);
     signal->theData[0] = regTcPtr->tcOprec;
     signal->theData[1] = regTcPtr->tcBlockref;
     signal->theData[2] = regTcPtr->transid[0];
@@ -9439,7 +9438,7 @@ void Dblqh::continueAfterCheckLcpStopBlocked(Signal* signal)
   c_scanRecordPool.getPtr(scanptr);
   signal->theData[0] = scanptr.p->scanAccPtr;
   signal->theData[1] = AccCheckScan::ZNOT_CHECK_LCP_STOP;
-  EXECUTE_DIRECT(refToBlock(scanptr.p->scanBlockref), GSN_ACC_CHECK_SCAN,
+  EXECUTE_DIRECT(refToMain(scanptr.p->scanBlockref), GSN_ACC_CHECK_SCAN,
       signal, 2);
 }//Dblqh::continueAfterCheckLcpStopBlocked()
 
@@ -11925,7 +11924,7 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
   /**
    * Only BACKUP is allowed to ref LCP_PREPARE
    */
-  ndbrequire(refToBlock(signal->getSendersBlockRef()) == BACKUP);
+  ndbrequire(refToMain(signal->getSendersBlockRef()) == BACKUP);
   lcpPtr.p->m_error = ref->errorCode;
   
   if (lcpPtr.p->m_outstanding == 0)
@@ -16400,6 +16399,7 @@ void Dblqh::execLogComp(Signal* signal)
    * ----------------------------------------------------------------------- */
   tcConnectptr.i = logPartPtr.p->logTcConrec;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+  logPartPtr.p->logTcConrec = RNIL;
   releaseTcrecLog(signal, tcConnectptr);
   for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++) {
     jam();
@@ -17525,6 +17525,7 @@ void Dblqh::initialiseLogPart(Signal* signal)
     logPartPtr.p->waitWriteGciLog = LogPartRecord::WWGL_FALSE;
     logPartPtr.p->LogLqhKeyReqSent = ZFALSE;
     logPartPtr.p->logPartNewestCompletedGCI = (UintR)-1;
+    logPartPtr.p->logTcConrec = RNIL;
   }//for
 }//Dblqh::initialiseLogPart()
 
@@ -18824,6 +18825,9 @@ void Dblqh::sendAborted(Signal* signal)
  * ------------------------------------------------------------------------- */
 void Dblqh::sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus stat)
 {
+  /**
+   * wl4391_todo need to send instance key to take-over TC
+   */
   tcNodeFailptr.i = tcConnectptr.p->tcNodeFailrec;
   ptrCheckGuard(tcNodeFailptr, ctcNodeFailrecFileSize, tcNodeFailRecord);
 
