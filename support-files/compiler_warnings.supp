@@ -1,4 +1,4 @@
-#
+'#
 # This file contains compiler warnings that can
 # be ignored for various reasons.
 #
@@ -61,6 +61,13 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 .* : conversion from '.*size_t' to 'UINT'.*
 .* : conversion from '.*size_t' to 'uInt'.*
 .* : conversion from '.*size_t' to 'uint16'.*
+
+#
+# Ignore a few specific warnings in ndb
+#
+.*/storage/ndb/.* : .*may be used uninitialized in this function.*
+.*/storage/ndb/.* : .*is used uninitialized in this function.*
+.*/storage/ndb/.* : .*unused variable.*
 
 #
 # Unexplanable (?) stuff
