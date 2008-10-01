@@ -520,8 +520,9 @@ public:
   NdbDictionary::Undofile * m_facade;
 };
 
-struct NdbHashMapImpl : public NdbDictionary::HashMap, public NdbDictObjectImpl
+class NdbHashMapImpl : public NdbDictionary::HashMap, public NdbDictObjectImpl
 {
+public:
   NdbHashMapImpl();
   NdbHashMapImpl(NdbDictionary::HashMap &);
   ~NdbHashMapImpl();
