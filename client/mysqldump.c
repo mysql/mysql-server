@@ -1836,7 +1836,13 @@ static uint get_table_structure(char *table, char *db, char *table_type,
               fprintf(sql_file, ",\n  %s %s",
                       quote_name(row[0], name_buff, 0), row[1]);
             }
-            fprintf(sql_file, "\n) */;\n");
+            /*
+              Stand-in tables are always MyISAM tables as the default
+              engine might have a column-limit that's lower than the
+              number of columns in the view, and MyISAM support is
+              guaranteed to be in the server anyway.
+            */
+            fprintf(sql_file, "\n) ENGINE=MyISAM */;\n");
             check_io(sql_file);
           }
         }
