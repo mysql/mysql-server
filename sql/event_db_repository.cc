@@ -756,7 +756,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   */
 
   if (parse_data->check_dates(thd,
-                              table->field[ET_FIELD_ON_COMPLETION]->val_int()))
+                              (int) table->field[ET_FIELD_ON_COMPLETION]->val_int()))
     goto end;
 
   /* Don't update create on row update. */
