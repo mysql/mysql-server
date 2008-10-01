@@ -373,7 +373,7 @@ Tablespace_client::alloc_extent(Local_key* key)
     * key = req->reply.page_id;
     return req->reply.page_count;
   } else {
-    return -req->reply.errorCode; 
+    return -(int)req->reply.errorCode;
   }
 }
 
@@ -393,7 +393,7 @@ Tablespace_client::alloc_page_from_extent(Local_key* key, Uint32 bits)
     *key = req->key;
     return req->bits;
   } else {
-    return -req->reply.errorCode; 
+    return -(int)req->reply.errorCode;
   }
 }
 
@@ -412,7 +412,7 @@ Tablespace_client::free_extent(Local_key* key, Uint64 lsn)
   if(req->reply.errorCode == 0){
     return 0;
   } else {
-    return -req->reply.errorCode; 
+    return -(int)req->reply.errorCode;
   }
 }
 
