@@ -1221,6 +1221,16 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 		NDBD_EXIT_INVALID_CONFIG);
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
+
+  Uint32 workers = 1;
+  if (isNdbMtLqh())
+  {
+    jam();
+    ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_THREADS, &workers);
+    c_fragments_per_node = workers;
+  }
+  ndbout_c("Using %u fragments per node", workers);
+
   cfileFileSize = (2 * ctabFileSize) + 2;
   initRecords();
   initialiseRecordsLab(signal, 0, ref, senderData);
@@ -14376,7 +14386,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetDefaultFragments:
     jam();
     ok = true;
-    sd->output = cnoOfNodeGroups * cnoReplicas;
+    sd->output = c_fragments_per_node * cnoOfNodeGroups * cnoReplicas;
     break;
   }
   ndbrequire(ok);
