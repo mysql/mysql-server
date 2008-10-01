@@ -263,4 +263,26 @@ from t1 order by score desc;
 --enable_result_log
 drop table t1;
 
+#
+# Bug#26020: User-Defined Variables are not consistent with columns data types
+#
+
+create table t1(b bigint);
+insert into t1 (b) values (10), (30), (10);
+set @var := 0;
+select if(b=@var, 999, b) , @var := b from t1  order by b;
+drop table t1;
+
+create temporary table t1 (id int);
+insert into t1 values (2), (3), (3), (4);
+set @lastid=-1;
+select @lastid != id, @lastid, @lastid := id from t1;
+drop table t1;
+
+create temporary table t1 (id bigint);
+insert into t1 values (2), (3), (3), (4);
+set @lastid=-1;
+select @lastid != id, @lastid, @lastid := id from t1;
+drop table t1;
+
 --echo End of 5.1 tests
