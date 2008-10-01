@@ -4356,6 +4356,38 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
 
 
 /*
+  Return a appropriate read lock type given a table object.
+
+  @param thd Thread context
+  @param table TABLE object for table to be locked
+
+  @remark Due to a statement-based replication limitation, statements such as
+          INSERT INTO .. SELECT FROM .. and CREATE TABLE .. SELECT FROM need
+          to grab a TL_READ_NO_INSERT lock on the source table in order to
+          prevent the replication of a concurrent statement that modifies the
+          source table. If such a statement gets applied on the slave before
+          the INSERT .. SELECT statement finishes, data on the master could
+          differ from data on the slave and end-up with a discrepancy between
+          the binary log and table state. Furthermore, this does not apply to
+          I_S and log tables as it's always unsafe to replicate such tables
+          under statement-based replication as the table on the slave might
+          contain other data (ie: general_log is enabled on the slave). The
+          statement will be marked as unsafe for SBR in decide_logging_format().
+*/
+
+thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
+{
+  bool log_on= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
+  ulong binlog_format= thd->variables.binlog_format;
+  if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
+      (table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
+    return TL_READ;
+  else
+    return TL_READ_NO_INSERT;
+}
+
+
+/*
   Open all tables in list
 
   SYNOPSIS
@@ -4629,6 +4661,9 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     {
       if (tables->lock_type == TL_WRITE_DEFAULT)
         tables->table->reginfo.lock_type= thd->update_lock_default;
+      else if (tables->lock_type == TL_READ_DEFAULT)
+        tables->table->reginfo.lock_type=
+          read_lock_type_for_table(thd, tables->table);
       else if (tables->table->s->tmp_table == NO_TMP_TABLE)
         tables->table->reginfo.lock_type= tables->lock_type;
     }
@@ -5036,7 +5071,11 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     void* prev_ht= NULL;
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
-      if (!table->placeholder() && table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      if (table->placeholder())
+        continue;
+      if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
+        thd->lex->set_stmt_unsafe();
+      if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
         ulonglong const flags= table->table->file->ha_table_flags();
         DBUG_PRINT("info", ("table: %s; ha_table_flags: %s%s",
@@ -7295,6 +7334,22 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   */
   if (ref_pointer_array)
     bzero(ref_pointer_array, sizeof(Item *) * fields.elements);
+
+  /*
+    We call set_entry() there (before fix_fields() of the whole list of field
+    items) because:
+    1) the list of field items has same order as in the query, and the
+       Item_func_get_user_var item may go before the Item_func_set_user_var:
+          SELECT @a, @a := 10 FROM t;
+    2) The entry->update_query_id value controls constantness of
+       Item_func_get_user_var items, so in presence of Item_func_set_user_var
+       items we have to refresh their entries before fixing of
+       Item_func_get_user_var items.
+  */
+  List_iterator<Item_func_set_user_var> li(thd->lex->set_var_list);
+  Item_func_set_user_var *var;
+  while ((var= li++))
+    var->set_entry(thd, FALSE);
 
   Item **ref= ref_pointer_array;
   thd->lex->current_select->cur_pos_in_select_list= 0;
