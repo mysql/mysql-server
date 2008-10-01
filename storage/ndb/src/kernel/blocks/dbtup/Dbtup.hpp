@@ -1573,7 +1573,7 @@ struct KeyReqStruct {
   OperationrecPtr prevOpPtr;
 };
 
-  friend class Undo_buffer;
+  friend struct Undo_buffer;
   Undo_buffer c_undo_buffer;
   
 /*
