@@ -108,7 +108,7 @@ static uint ndbcluster_alter_partition_flags()
   return HA_PARTITION_FUNCTION_SUPPORTED;
 }
 
-#define NDB_AUTO_INCREMENT_RETRIES 10
+#define NDB_AUTO_INCREMENT_RETRIES 100
 #define BATCH_FLUSH_SIZE (32768)
 
 #define ERR_PRINT(err) \
@@ -2890,7 +2890,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 	if (--retries &&
 	    ndb->getNdbError().status == NdbError::TemporaryError)
 	{
-	  my_sleep(retry_sleep);
+	  do_retry_sleep(retry_sleep);
 	  continue;
 	}
 	ERR_RETURN(ndb->getNdbError());
@@ -6444,7 +6444,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
       if (--retries &&
           ndb->getNdbError().status == NdbError::TemporaryError)
       {
-        my_sleep(retry_sleep);
+        do_retry_sleep(retry_sleep);
         continue;
       }
       const NdbError err= ndb->getNdbError();
@@ -8805,9 +8805,9 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
 {
   NdbTransaction* pTrans;
   NdbError error;
-  int retries= 10;
+  int retries= 100;
   int reterr= 0;
-  int retry_sleep= 30 * 1000; /* 30 milliseconds */
+  int retry_sleep= 30; /* 30 milliseconds */
   const char *row;
 #ifndef DBUG_OFF
   char buff[22], buff2[22], buff3[22], buff4[22];
@@ -8933,7 +8933,7 @@ retry:
     }
     if (error.status == NdbError::TemporaryError && retries--)
     {
-      my_sleep(retry_sleep);
+      do_retry_sleep(retry_sleep);
       continue;
     }
     break;
