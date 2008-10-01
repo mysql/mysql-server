@@ -356,7 +356,9 @@ public:
   class Dblqh *c_lqh;
   Tsman* c_tsman;
   Lgman* c_lgman;
-  Page_cache_client m_pgman;
+  Pgman* c_pgman;
+  // copy of pgman.m_ptr set after each get_page
+  Ptr<GlobalPage> m_pgman_ptr;
 
 enum TransState {
   TRANS_IDLE = 0,

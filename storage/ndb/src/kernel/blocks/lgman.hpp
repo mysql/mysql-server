@@ -84,7 +84,7 @@ public:
       Uint32 m_size;
       Uint64 m_sync_lsn;
     };
-    Uint32 m_block;
+    Uint32 m_block; // includes instance
     Uint32 nextList;
     Uint32 m_magic;
   };
@@ -235,6 +235,9 @@ public:
   typedef DLFifoListImpl<Logfile_group_pool, Logfile_group> Logfile_group_list;
   typedef LocalDLFifoListImpl<Logfile_group_pool, Logfile_group> Local_logfile_group_list;
   typedef KeyTableImpl<Logfile_group_pool, Logfile_group> Logfile_group_hash;
+  
+private:
+  friend class Logfile_client;
 
   /**
    * Alloc/free space in log
@@ -244,9 +247,6 @@ public:
    */
   int alloc_log_space(Uint32 logfile_ref, Uint32 words);
   int free_log_space(Uint32 logfile_ref, Uint32 words);
-  
-private:
-  friend class Logfile_client;
   
   Undofile_pool m_file_pool;
   Logfile_group_pool m_logfile_group_pool;
@@ -306,8 +306,9 @@ private:
 };
 
 class Logfile_client {
-  Uint32 m_block;
+  Uint32 m_block; // includes instance
   Lgman * m_lgman;
+  DEBUG_OUT_DEFINES(LGMAN);
 public:
   Uint32 m_logfile_group_id;
 
@@ -357,6 +358,14 @@ public:
    *          -1 on error
    */
   int get_log_buffer(Signal*, Uint32 sz, SimulatedBlock::Callback* m_callback);
+
+  int alloc_log_space(Uint32 words) {
+    return m_lgman->alloc_log_space(m_logfile_group_id, words);
+  }
+
+  int free_log_space(Uint32 words) {
+    return m_lgman->free_log_space(m_logfile_group_id, words);
+  }
   
 private:
   Uint32* get_log_buffer(Uint32 sz);
