@@ -1,12 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "memory.h"
-#include "toku_assert.h"
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <stdio.h>
+#include "includes.h"
 
 int toku_memory_check=0;
 

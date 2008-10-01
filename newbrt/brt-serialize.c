@@ -1,21 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "toku_assert.h"
-#include "block_allocator.h"
-#include "brt-internal.h"
-#include "key.h"
-#include "rbuf.h"
-#include "wbuf.h"
-#include "kv-pair.h"
-#include "mempool.h"
-
-#include <arpa/inet.h>
-#include <inttypes.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <zlib.h>
+#include "includes.h"
 
 #if 0
 static u_int64_t ntohll(u_int64_t v) {
@@ -177,13 +163,14 @@ wbufwriteleafentry (OMTVALUE lev, u_int32_t UU(idx), void *v) {
     return 0;
 }
 
-const int uncompressed_magic_len = (8 // tokuleaf or tokunode
-				    +4 // version
-				    +8 // lsn
-				    );
+enum { uncompressed_magic_len = (8 // tokuleaf or tokunode
+				 +4 // version
+				 +8 // lsn
+				 ) };
 
-const int compression_header_len = (4 // compressed_len
-				    +4); // uncompressed_len
+enum { compression_header_len = (4   // compressed_len
+				 +4 // uncompressed_len
+				 ) };
 
 void toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h) {
     //printf("%s:%d serializing\n", __FILE__, __LINE__);
@@ -885,7 +872,7 @@ int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo) {
     //printf("%s:%d Serializing fifo at %" PRId64 " (count=%d)\n", __FILE__, __LINE__, freeoff, toku_fifo_n_entries(fifo));
     lock_for_pwrite();
     {
-	int size=4;
+	enum { size=4 };
 	char buf[size];
 	struct wbuf w;
 	wbuf_init(&w, buf, size);

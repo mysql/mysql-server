@@ -7,20 +7,7 @@
 //    cd ../src/tests/tmpdir
 //    ../../../newbrt/recover ../dir.test_log2.c.tdb
 
-#include "cachetable.h"
-#include "key.h"
-#include "brt-internal.h"
-#include "log-internal.h"
-#include "log_header.h"
-#include "toku_assert.h"
-#include "kv-pair.h"
-
-
-#include <fcntl.h>
-#include <stdlib.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include "includes.h"
 
 //#define DO_VERIFY_COUNTS
 #ifdef DO_VERIFY_COUNTS

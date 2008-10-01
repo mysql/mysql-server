@@ -73,14 +73,14 @@ static inline void rbuf_TXNID (struct rbuf *r, TXNID *txnid) {
     *txnid = rbuf_ulonglong(r);
 }
 static inline void rbuf_ma_TXNID (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), TXNID *txnid) {
-    return rbuf_TXNID(r, txnid);
+    rbuf_TXNID(r, txnid);
 }
 
 static inline void rbuf_FILENUM (struct rbuf *r, FILENUM *filenum) {
     filenum->fileid = rbuf_int(r);
 }
 static inline void rbuf_ma_FILENUM (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), FILENUM *filenum) {
-    return rbuf_FILENUM(r, filenum);
+    rbuf_FILENUM(r, filenum);
 }
 
 // Don't try to use the same space, malloc it

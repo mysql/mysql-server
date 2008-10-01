@@ -1,3 +1,6 @@
+#ifndef THREADPOOL_H
+#define THREADPOOL_H
+
 // A threadpool is a limited set of threads that can be used to apply a 
 // function to work contained in a work queue.  The work queue is outside
 // of the scope of the threadpool; the threadpool merely provides 
@@ -44,3 +47,5 @@ void threadpool_set_thread_idle(THREADPOOL);
 // get the current number of threads
 
 int threadpool_get_current_threads(THREADPOOL);
+
+#endif

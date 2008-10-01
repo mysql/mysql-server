@@ -1,11 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <malloc.h>
-#include <pthread.h>
-#include <errno.h>
-
-#include "threadpool.h"
+#include "includes.h"
 
 // use gcc builtin fetch_and_add 0->no 1->yes
 #define DO_ATOMIC_FETCH_AND_ADD 0

@@ -3,16 +3,7 @@
 
 /* rollback and rollforward routines. */
 
-#include <stdlib.h>
-#include <inttypes.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include "log_header.h"
-#include "log-internal.h"
-#include "cachetable.h"
-#include "key.h"
-#include "bread.h"
+#include "includes.h"
 
 // these flags control whether or not we send commit messages for
 // various operations

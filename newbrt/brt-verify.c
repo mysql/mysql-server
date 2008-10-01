@@ -15,9 +15,7 @@
  * Note: We don't yet have DUP trees, so thee checks on duplicate trees are unimplemented. (Nov 1 2007)
  */
 
-#include "brt-internal.h"
-#include "toku_assert.h"
-#include "kv-pair.h"
+#include "includes.h"
 
 static void verify_local_fingerprint (BRTNODE node) {
     u_int32_t fp=0;

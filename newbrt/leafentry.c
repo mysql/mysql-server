@@ -1,16 +1,6 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "brttypes.h"
-#include "leafentry.h"
-#include "memory.h"
-#include "toku_assert.h"
-#include "log.h"
-#include "wbuf.h"
-
-#include <arpa/inet.h>
-#include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
+#include "includes.h"
 
 u_int32_t toku_le_crc(LEAFENTRY v) {
     return x1764_memory(v, leafentry_memsize(v));

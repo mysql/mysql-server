@@ -158,7 +158,37 @@ check_%: %
 	$(VGRIND)  ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 benchmark-test.o: ../brt.h ../brt-search.h ../../include/db.h
+ifeq ($(CIL),1)
+
+BRT_SOURCES = \
+  block_allocator \
+  bread \
+  brt-serialize \
+  brt-verify \
+  brt \
+  cachetable \
+  fifo \
+  fingerprint \
+  key \
+  leafentry \
+  log \
+  log_code \
+  memory \
+  memarena \
+  mempool \
+  omt \
+  recover \
+  roll \
+  toku_assert \
+  ybt \
+  x1764 \
+  trace_mem \
+  threadpool \
+# keep this line so I can ha vea \ on the previous line
+$(BINS): $(patsubst %,../%.o,$(BRT_SOURCES)) $(CYG_ADD_LIBZ)
+else
 $(BINS): ../newbrt.o $(CYG_ADD_LIBZ)
+endif
 
 test-inc-split test-del-inorder: ../brt-test-helpers.o
 

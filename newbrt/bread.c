@@ -1,11 +1,6 @@
 /* Buffered read. */
-#include <assert.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
 
-#include "bread.h"
-#include "memory.h"
+#include "includes.h"
 
 struct bread {
     off_t current_offset;   // The current offset to be read (in the file).  That offset includes anything that is unread in the buffer.

@@ -1,10 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#include "block_allocator.h"
-#include "memory.h"
-#include "toku_assert.h"
 
-#include <errno.h>
-#include <string.h>
+#include "includes.h"
 
 // Here's a very simple implementation.
 // It's not very fast at allocating or freeing.

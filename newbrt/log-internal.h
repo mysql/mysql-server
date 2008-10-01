@@ -1,3 +1,6 @@
+#ifndef LOG_INTERNAL_H
+#define LOG_INTERNAL_H
+
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include "brt-internal.h"
@@ -156,3 +159,4 @@ static inline char *fixup_fname(BYTESTRING *f) {
 }
 
 int toku_read_rollback_backwards(BREAD, struct roll_entry **item, MEMARENA);
+#endif

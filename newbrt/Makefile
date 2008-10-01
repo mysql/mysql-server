@@ -6,6 +6,9 @@
 # For very verbose output do 
 #   make VERBOSE=2
 
+# For CIL do
+#   make CIL=1
+
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 # PROF_FLAGS = -pg
 OPTFLAGS = -O3
@@ -58,6 +61,9 @@ ifdef BRT_FANOUT
 CPPFLAGS += -DBRT_FANOUT=$(BRT_FANOUT)
 endif
 
+ifeq ($(CIL),1)
+	CC=../../cil/cil-1.3.6/bin/cilly --merge --keepmerged
+endif
 
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
@@ -94,14 +100,19 @@ BRT_SOURCES = \
   threadpool \
 # keep this line so I can ha vea \ on the previous line
 
-OFILES = newbrt.o $(CYG_ADD_LIBZ)
+ifeq ($(CIL),1)
+ OFILES = $(patsubst %,%.o,$(BRT_SOURCES))
+else
+ OFILES = newbrt.o
+endif
 TEST_OFILES = brt-test-helpers.o
 
 HFILES = $(wildcard *.h)
 
 BRT_C_FILES = $(patsubst %,%.c,$(BRT_SOURCES))
 
-ifeq ($(CC),icc)
+ifeq ($(CIL),1)
+else ifeq ($(CC),icc)
 newbrt.o: $(BRT_C_FILES) $(HFILES)
 	$(CC) -ipo-c $(CFLAGS) $(CPPFLAGS) $(BRT_C_FILES) -o $@
 else
@@ -110,10 +121,10 @@ newbrt.o: $(BRT_C_FILES) $(HFILES)
 endif
 
 tdb_logprint.o: log-internal.h brttypes.h log.h kv-pair.h log_header.h
-tdb_logprint: $(OFILES)
+tdb_logprint: $(OFILES) $(CYG_ADD_LIBZ)
 
 recover.o: log_header.h log-internal.h log.h brttypes.h kv-pair.h memory.h key.h cachetable.h
-tdb-recover: $(OFILES)
+tdb-recover: $(OFILES) $(CYG_ADD_LIBZ)
 
 roll.o: log_header.h log-internal.h log.h brttypes.h kv-pair.h memory.h key.h cachetable.h omt.h bread.h
 
@@ -123,7 +134,7 @@ log_header.h: log_code.c
 log_code.c: logformat
 	./logformat
 
-libs: newbrt.o
+libs: $(OFILES) $(CYG_ADD_LIBZ)
 bins: $(BINS)
 # Put the benchmarktest_256 first since it takes the longest (and we want to use parallelism in the make)
 
@@ -142,23 +153,19 @@ BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-sea
 brt-test-helpers.o: $(BRT_INTERNAL_H_INCLUDES) toku_assert.h
 logformat: logformat.c toku_assert.c
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
-fifo-test: newbrt.o
-log-test6 log-test5 log-test4 log-test3 log-test2 log-test: $(OFILES)
-omt-test.o: toku_assert.h memory.h toku_assert.h ../include/db.h brttypes.h
-omt-test: omt-test.o newbrt.o
 
 test_toku_malloc_plain_free: newbrt.o
 
 
 cachetable-test.o: cachetable.h memory.h 
-cachetable-test: $(OFILES)
+cachetable-test: $(OFILES) $(CYG_ADD_LIBZ)
 
 cachetable-test2.o: cachetable.h memory.h
-cachetable-test2: $(OFILES)
+cachetable-test2: $(OFILES) $(CYG_ADD_LIBZ)
 
 test-assert: newbrt.o
 
-brtdump: $(OFILES)
+brtdump: $(OFILES) $(CYG_ADD_LIBZ)
 
 test_oexcl: test_oexcl.o newbrt.o
 

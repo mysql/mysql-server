@@ -1,10 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "brt-internal.h"
-#include "toku_assert.h"
-#include "key.h"
-#include <string.h>
+#include "includes.h"
 
 #if 0
 int toku_keycompare (bytevec key1b, ITEMLEN key1len, bytevec key2b, ITEMLEN key2len) {

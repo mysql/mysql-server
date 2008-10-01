@@ -24,23 +24,7 @@
  *     
  */
 
-#include <arpa/inet.h>
-#include <errno.h>
-#include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <unistd.h>
-
-#include "block_allocator.h"
-#include "toku_assert.h"
-#include "brt-internal.h"
-#include "key.h"
-#include "log_header.h"
-#include "kv-pair.h"
-#include "mempool.h"
-#include "leafentry.h"
+#include "includes.h"
 
 //#define SLOW
 #ifdef SLOW

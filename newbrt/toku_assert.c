@@ -1,6 +1,4 @@
-#include "toku_assert.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "includes.h"
 
 int toku_continue_on_assert_failure=0;
 
