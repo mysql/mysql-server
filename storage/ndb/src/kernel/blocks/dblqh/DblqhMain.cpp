@@ -2716,7 +2716,7 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   }
 #endif
 #ifdef MARKER_TRACE
-  ndbout_c("Rem marker[%.8x %.8x]", key.transid1, key.transid2);
+  ndbout_c("%u Rem marker[%.8x %.8x]", instance(), key.transid1, key.transid2);
 #endif
 }
 
@@ -3736,7 +3736,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     }
     
 #ifdef MARKER_TRACE
-    ndbout_c("Add marker[%.8x %.8x]", markerPtr.p->transid1, markerPtr.p->transid2);
+    ndbout_c("%u Add marker[%.8x %.8x]", instance(), markerPtr.p->transid1, markerPtr.p->transid2);
 #endif
     regTcPtr->commitAckMarker = markerPtr.i;
   } 
@@ -7163,7 +7163,7 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
   jam();
   tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
 #ifdef MARKER_TRACE
-  ndbout_c("Ab2 marker[%.8x %.8x]", tmp->transid1, tmp->transid2);
+  ndbout_c("%u Ab2 marker[%.8x %.8x]", instance(), tmp->transid1, tmp->transid2);
 #endif
   ndbrequire(tmp->reference_count > 0);
   tmp->reference_count--;
