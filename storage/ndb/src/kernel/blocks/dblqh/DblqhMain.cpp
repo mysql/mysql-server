@@ -6937,7 +6937,7 @@ Dblqh::tupcommit_conf_callback(Signal* signal, Uint32 tcPtrI)
 
   TRACE_OP(tcPtr, "ACC_COMMITREQ");
   
-  Uint32 acc = refToBlock(tcPtr->tcAccBlockref);
+  Uint32 acc = refToMain(tcPtr->tcAccBlockref);
   signal->theData[0] = tcPtr->accConnectrec;
   EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
   jamEntry();

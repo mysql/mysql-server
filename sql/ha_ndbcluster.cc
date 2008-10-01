@@ -109,7 +109,7 @@ static uint ndbcluster_alter_partition_flags()
   return HA_PARTITION_FUNCTION_SUPPORTED;
 }
 
-#define NDB_AUTO_INCREMENT_RETRIES 10
+#define NDB_AUTO_INCREMENT_RETRIES 100
 #define BATCH_FLUSH_SIZE (32768)
 
 static void set_ndb_err(THD *thd, const NdbError &err);
@@ -536,12 +536,20 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                    int force_send, int ignore_error, uint *ignore_count)
 {
   DBUG_ENTER("execute_commit");
+  NdbOperation::AbortOption ao= NdbOperation::AO_IgnoreError;
+  if (thd_ndb->m_unsent_bytes && !ignore_error)
+  {
+    /*
+      We have unsent bytes and cannot ignore error.  Calling execute
+      with NdbOperation::AO_IgnoreError will result in possible commit
+      of a transaction although there is an error.
+    */
+    ao= NdbOperation::AbortOnError;
+  }
   const NdbOperation *first= trans->getFirstDefinedOperation();
   thd_ndb->m_execute_count++;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
-  if (trans->execute(NdbTransaction::Commit,
-                     NdbOperation::AO_IgnoreError,
-                     force_send))
+  if (trans->execute(NdbTransaction::Commit, ao, force_send))
   {
     thd_ndb->m_max_violation_count= 0;
     thd_ndb->m_old_violation_count= 0;
@@ -3178,7 +3186,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 	if (--retries &&
 	    ndb->getNdbError().status == NdbError::TemporaryError)
 	{
-	  my_sleep(retry_sleep);
+	  do_retry_sleep(retry_sleep);
 	  continue;
 	}
 	ERR_RETURN(ndb->getNdbError());
@@ -5652,14 +5660,50 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible)
     {
+      /* Autocommit with read-before-write removal
+       * Some operations in this autocommitted statement have not
+       * yet been executed
+       * They will be executed here as part of commit, and the results
+       * (rowcount, message) sent back to the client will then be modified 
+       * according to how the execution went.
+       * This saves a single roundtrip in the autocommit case
+       */
       uint ignore_count= 0;
       res= execute_commit(thd_ndb, trans, thd->variables.ndb_force_send,
                           TRUE, &ignore_count);
       if (!res && ignore_count)
+      {
+        DBUG_PRINT("info", ("AutoCommit + RBW removal, ignore_count=%u",
+                            ignore_count));
+        /* We have some rows to ignore, modify recorded results,
+         * regenerate result message as required.
+         */
+        thd->row_count_func-= ignore_count;
+
+        ha_rows affected= 0;
+        char buff[ STRING_BUFFER_USUAL_SIZE ];
+        const char* msg= NULL;
         if (thd->lex->sql_command == SQLCOM_DELETE)
-          thd_ndb->m_handler->m_rows_deleted-= ignore_count;
+          affected= (thd_ndb->m_handler->m_rows_deleted-= ignore_count);
         else
-          thd_ndb->m_handler->m_rows_updated-= ignore_count;
+        {
+          DBUG_PRINT("info", ("Update : message was %s", 
+                              thd->main_da.message()));
+          affected= (thd_ndb->m_handler->m_rows_updated-= ignore_count);
+          /* For update in this scenario, we set found and changed to be 
+           * the same as affected
+           * Regenerate the update message
+           */
+          sprintf(buff, ER(ER_UPDATE_INFO), (ulong)affected, (ulong)affected,
+                  (ulong) thd->cuted_fields);
+          msg= buff;
+          DBUG_PRINT("info", ("Update : message changed to %s",
+                              msg));
+        }
+
+        /* Modify execution result + optionally message */
+        thd->main_da.modify_affected_rows(affected, msg);
+      }
     }
     else
       res= execute_commit(thd_ndb, trans, thd->variables.ndb_force_send, FALSE);
@@ -7443,7 +7487,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
       if (--retries &&
           ndb->getNdbError().status == NdbError::TemporaryError)
       {
-        my_sleep(retry_sleep);
+        do_retry_sleep(retry_sleep);
         continue;
       }
       const NdbError err= ndb->getNdbError();
@@ -7782,7 +7826,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   {
     if (thd->killed)
       DBUG_RETURN(-1);
-    my_sleep(delay);
+    my_sleep(1000*delay);
   }
   if (result == -1 || th.close() == -1)
   {
@@ -7813,7 +7857,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
         {
           if (thd->killed)
             DBUG_RETURN(-1);
-          my_sleep(delay);        
+          my_sleep(1000*delay);        
         }
         if (result == -1 || ih.close() == -1)
         {
@@ -7835,7 +7879,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
         {
           if (thd->killed)
             DBUG_RETURN(-1);
-          my_sleep(delay);
+          my_sleep(1000*delay);
         }
         if (result == -1 || ih.close() == -1)
         {
@@ -9955,9 +9999,9 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   NdbTransaction* pTrans;
   NdbError error;
-  int retries= 10;
+  int retries= 100;
   int reterr= 0;
-  int retry_sleep= 30 * 1000; /* 30 milliseconds */
+  int retry_sleep= 30; /* 30 milliseconds */
   const char *dummyRowPtr;
   const Uint32 extraCols= 5;
   NdbOperation::GetValueSpec extraGets[extraCols];
@@ -10105,7 +10149,7 @@ retry:
     }
     if (error.status == NdbError::TemporaryError && retries--)
     {
-      my_sleep(retry_sleep);
+      do_retry_sleep(retry_sleep);
       continue;
     }
     break;

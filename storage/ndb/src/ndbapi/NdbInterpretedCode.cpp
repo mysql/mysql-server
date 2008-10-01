@@ -666,17 +666,21 @@ NdbInterpretedCode::add_val(Uint32 attrId, Uint32 aValue)
   int res= 0;
   if ((res= read_attr(6, attrId) != 0))
     return res;
-  
+
   /* Load constant into register 7 */
   /* We attempt to use the smallest constant load
    * instruction
    */
   if (aValue < (1 << 16))
+  {
     if ((res= load_const_u16(7, aValue)) != 0)
       return res;   
+  }
   else
+  {
     if ((res= load_const_u32(7, aValue)) != 0)
       return res;
+  }
 
   /* Add registers 6 and 7 -> 7*/
   if ((res= add_reg(7, 6, 7)) != 0)
@@ -700,6 +704,7 @@ NdbInterpretedCode::add_val(Uint32 attrId, Uint64 aValue)
    * instruction
    */
   if ((aValue >> 32) == 0)
+  {
     if (aValue < (1 << 16))
     {
       if ((res= load_const_u16(7, aValue)) != 0)
@@ -710,6 +715,7 @@ NdbInterpretedCode::add_val(Uint32 attrId, Uint64 aValue)
       if ((res= load_const_u32(7, aValue)) != 0)
         return res;
     }
+  }
   else
     if ((res= load_const_u64(7, aValue)) != 0)
       return res;
@@ -717,7 +723,7 @@ NdbInterpretedCode::add_val(Uint32 attrId, Uint64 aValue)
   /* Add registers 6 and 7 -> 7*/
   if ((res= add_reg(7, 6, 7)) != 0)
     return res;
-
+  
   /* Write back */
   return write_attr(attrId, 7);
 }
@@ -736,11 +742,15 @@ NdbInterpretedCode::sub_val(Uint32 attrId, Uint32 aValue)
    * instruction
    */
   if (aValue < (1 << 16))
+  {
     if ((res= load_const_u16(7, aValue)) != 0)
-      return res;   
+      return res;
+  }   
   else
+  {
     if ((res= load_const_u32(7, aValue)) != 0)
       return res;
+  }
 
   /* Subtract register (R7=R6-R7)*/
   if ((res= sub_reg(7, 6, 7)) != 0)
@@ -764,6 +774,7 @@ NdbInterpretedCode::sub_val(Uint32 attrId, Uint64 aValue)
    * instruction
    */
   if ((aValue >> 32) == 0)
+  {
     if (aValue < (1 << 16))
     {
       if ((res= load_const_u16(7, aValue)) != 0)
@@ -774,9 +785,12 @@ NdbInterpretedCode::sub_val(Uint32 attrId, Uint64 aValue)
       if ((res= load_const_u32(7, aValue)) != 0)
         return res;
     }
+  }
   else
+  {
     if ((res= load_const_u64(7, aValue)) != 0)
       return res;
+  }
 
   /* Subtract register (R7=R6-R7)*/
   if ((res= sub_reg(7, 6, 7)) != 0)

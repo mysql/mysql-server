@@ -613,7 +613,9 @@ Dbtup::disk_page_prealloc(Signal* signal,
       safe_cast(&Dbtup::disk_page_prealloc_initial_callback);
   }
   
-  int res= m_pgman.get_page(signal, preq, flags);
+  Page_cache_client pgman(this, c_pgman);
+  int res= pgman.get_page(signal, preq, flags);
+  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -1163,7 +1165,9 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
   int flags= Page_cache_client::DIRTY_REQ;
   memcpy(&req.m_page, key, sizeof(Local_key));
 
-  int res= m_pgman.get_page(signal, req, flags);
+  Page_cache_client pgman(this, c_pgman);
+  int res= pgman.get_page(signal, req, flags);
+  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -1319,7 +1323,8 @@ Dbtup::disk_page_undo_alloc(Page* page, const Local_key* key,
   Logfile_client::Change c[1] = {{ &alloc, sizeof(alloc) >> 2 } };
   
   Uint64 lsn= lgman.add_entry(c, 1);
-  m_pgman.update_lsn(* key, lsn);
+  Page_cache_client pgman(this, c_pgman);
+  pgman.update_lsn(* key, lsn);
   jamEntry();
 
   return lsn;
@@ -1350,7 +1355,8 @@ Dbtup::disk_page_undo_update(Page* page, const Local_key* key,
   ndbassert(4*(3 + sz + 1) == (sizeof(update) + 4*sz - 4));
     
   Uint64 lsn= lgman.add_entry(c, 3);
-  m_pgman.update_lsn(* key, lsn);
+  Page_cache_client pgman(this, c_pgman);
+  pgman.update_lsn(* key, lsn);
   jamEntry();
 
   return lsn;
@@ -1381,7 +1387,8 @@ Dbtup::disk_page_undo_free(Page* page, const Local_key* key,
   ndbassert(4*(3 + sz + 1) == (sizeof(free) + 4*sz - 4));
   
   Uint64 lsn= lgman.add_entry(c, 3);
-  m_pgman.update_lsn(* key, lsn);
+  Page_cache_client pgman(this, c_pgman);
+  pgman.update_lsn(* key, lsn);
   jamEntry();
 
   return lsn;
@@ -1510,7 +1517,9 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
     safe_cast(&Dbtup::disk_restart_undo_callback);
   
   int flags = 0;
-  int res= m_pgman.get_page(signal, preq, flags);
+  Page_cache_client pgman(this, c_pgman);
+  int res= pgman.get_page(signal, preq, flags);
+  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -1721,7 +1730,8 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     
     lsn = undo->m_lsn - 1; // make sure undo isn't run again...
     
-    m_pgman.update_lsn(undo->m_key, lsn);
+    Page_cache_client pgman(this, c_pgman);
+    pgman.update_lsn(undo->m_key, lsn);
     jamEntry();
 
     disk_restart_undo_page_bits(signal, undo);

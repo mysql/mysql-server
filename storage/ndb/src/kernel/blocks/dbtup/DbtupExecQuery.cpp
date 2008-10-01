@@ -373,7 +373,10 @@ Dbtup::load_diskpage(Signal* signal,
     }
 #endif
     
-    if((res= m_pgman.get_page(signal, req, flags)) > 0)
+    Page_cache_client pgman(this, c_pgman);
+    res= pgman.get_page(signal, req, flags);
+    m_pgman_ptr = pgman.m_ptr;
+    if(res > 0)
     {
       //ndbout_c("in cache");
       // In cache
@@ -449,7 +452,10 @@ Dbtup::load_diskpage_scan(Signal* signal,
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_scan_callback);
     
-    if((res= m_pgman.get_page(signal, req, flags)) > 0)
+    Page_cache_client pgman(this, c_pgman);
+    res= pgman.get_page(signal, req, flags);
+    m_pgman_ptr = pgman.m_ptr;
+    if(res > 0)
     {
       // ndbout_c("in cache");
       // In cache
@@ -974,8 +980,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
       Uint32 sz= operPtrP->m_undo_buffer_space= 
 	(sizeof(Dbtup::Disk_undo::Update) >> 2) + sizes[DD] - 1;
       
-      terrorCode= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
-					   sz);
+      Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+      terrorCode= lgman.alloc_log_space(sz);
       if(unlikely(terrorCode))
       {
 	operPtrP->m_undo_buffer_space= 0;
@@ -1372,8 +1378,8 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto log_space_error;
     }
 
-    res= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
-				  regOperPtr.p->m_undo_buffer_space);
+    Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+    res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space);
     if(unlikely(res))
     {
       terrorCode= res;
@@ -1672,8 +1678,8 @@ int Dbtup::handleDeleteReq(Signal* signal,
       (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
       regTabPtr->m_offsets[DD].m_fix_header_size - 1;
     
-    terrorCode= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
-                                         sz);
+    Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+    terrorCode= lgman.alloc_log_space(sz);
     if(unlikely(terrorCode))
     {
       regOperPtr->m_undo_buffer_space= 0;
@@ -3673,7 +3679,8 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     Uint32 sz = (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
       tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
     
-    int res = c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
+    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
+    int res = lgman.alloc_log_space(sz);
     ndbrequire(res == 0);
     
     /**
@@ -3717,7 +3724,9 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     }
 #endif
     
-    res = m_pgman.get_page(signal, preq, flags);
+    Page_cache_client pgman(this, c_pgman);
+    res = pgman.get_page(signal, preq, flags);
+    m_pgman_ptr = pgman.m_ptr;
     if (res == 0)
     {
       goto timeslice;
@@ -3727,12 +3736,11 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       return -1;
     }
 
-    PagePtr disk_page = *(PagePtr*)&m_pgman.m_ptr;
+    PagePtr disk_page = *(PagePtr*)&m_pgman_ptr;
     disk_page_set_dirty(disk_page);
 
     preq.m_callback.m_callbackFunction =
       safe_cast(&Dbtup::nr_delete_log_buffer_callback);      
-    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
     res= lgman.get_log_buffer(signal, sz, &preq.m_callback);
     switch(res){
     case 0:

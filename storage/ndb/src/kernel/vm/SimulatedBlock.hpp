@@ -60,7 +60,9 @@
   do { \
     char buf[200]; \
     if (!debugOutOn()) break; \
-    debugOut << debugOutTag(buf, __LINE__) << x << endl; \
+    debugOutLock(); \
+    debugOutStream() << debugOutTag(buf, __LINE__) << x << dec << "\n"; \
+    debugOutUnlock(); \
   } while (0)
 #define V(x) " " << #x << ":" << (x)
 #else
@@ -728,11 +730,36 @@ public:
 #endif
 
 #ifdef VM_TRACE
+public:
   NdbOut debugOut;
-  bool debugOutOn() const;
+  NdbOut& debugOutStream() { return debugOut; };
+  bool debugOutOn();
+  void debugOutLock() { globalSignalLoggers.lock(); }
+  void debugOutUnlock() { globalSignalLoggers.unlock(); }
   const char* debugOutTag(char* buf, int line);
 #endif
 };
+
+// outside blocks e.g. within a struct
+#ifdef VM_TRACE
+#define DEBUG_OUT_DEFINES(blockNo) \
+static SimulatedBlock* debugOutBlock() \
+  { return globalData.getBlock(blockNo); } \
+static NdbOut& debugOutStream() \
+  { return debugOutBlock()->debugOutStream(); } \
+static bool debugOutOn() \
+  { return debugOutBlock()->debugOutOn(); } \
+static void debugOutLock() \
+  { debugOutBlock()->debugOutLock(); } \
+static void debugOutUnlock() \
+  { debugOutBlock()->debugOutUnlock(); } \
+static const char* debugOutTag(char* buf, int line) \
+  { return debugOutBlock()->debugOutTag(buf, line); } \
+static void debugOutDefines()
+#else
+#define DEBUG_OUT_DEFINES(blockNo) \
+static void debugOutDefines()
+#endif
 
 inline 
 void 
