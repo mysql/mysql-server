@@ -12,5 +12,5 @@
 
 rpl_redirect               : Failure is sporadic and and the test is superfluous (mats)
 rpl_innodb_bug28430        : Failure on Solaris Bug #36793
-rpl_temporary              : BUG#38269 2008-07-21 Sven valgrind error in pushbuild
+#rpl_temporary              : BUG#38269 2008-07-21 Sven valgrind error in pushbuild
 rpl_flushlog_loop          : BUG#37733 2008-07-23 Sven disabled in 5.1-bugteam. the bug has been fixed in 5.1-rpl: please re-enable when that gets pushed to main
