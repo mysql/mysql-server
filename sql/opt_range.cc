@@ -492,6 +492,7 @@ public:
     keys_map.clear_all();
     bzero((char*) keys,sizeof(keys));
   }
+  SEL_TREE(SEL_TREE *arg, struct st_qsel_param *param);
   SEL_ARG *keys[MAX_KEY];
   key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
@@ -648,6 +649,7 @@ public:
     trees_next(trees),
     trees_end(trees + PREALLOCED_TREES)
   {}
+  SEL_IMERGE (SEL_IMERGE *arg, PARAM *param);
   int or_sel_tree(PARAM *param, SEL_TREE *tree);
   int or_sel_tree_with_checks(PARAM *param, SEL_TREE *new_tree);
   int or_sel_imerge_with_checks(PARAM *param, SEL_IMERGE* imerge);
@@ -764,6 +766,61 @@ int SEL_IMERGE::or_sel_imerge_with_checks(PARAM *param, SEL_IMERGE* imerge)
 }
 
 
+SEL_TREE::SEL_TREE(SEL_TREE *arg, PARAM *param): Sql_alloc()
+{
+  keys_map= arg->keys_map;
+  type= arg->type;
+  for (int idx= 0; idx < MAX_KEY; idx++)
+  {
+    if ((keys[idx]= arg->keys[idx]))
+      keys[idx]->increment_use_count(1);
+  }
+
+  List_iterator<SEL_IMERGE> it(arg->merges);
+  for (SEL_IMERGE *el= it++; el; el= it++)
+  {
+    SEL_IMERGE *merge= new SEL_IMERGE(el, param);
+    if (!merge || merge->trees == merge->trees_next)
+    {
+      merges.empty();
+      return;
+    }
+    merges.push_back (merge);
+  }
+}
+
+
+SEL_IMERGE::SEL_IMERGE (SEL_IMERGE *arg, PARAM *param) : Sql_alloc()
+{
+  uint elements= (arg->trees_end - arg->trees);
+  if (elements > PREALLOCED_TREES)
+  {
+    uint size= elements * sizeof (SEL_TREE **);
+    if (!(trees= (SEL_TREE **)alloc_root(param->mem_root, size)))
+      goto mem_err;
+  }
+  else
+    trees= &trees_prealloced[0];
+
+  trees_next= trees;
+  trees_end= trees + elements;
+
+  for (SEL_TREE **tree = trees, **arg_tree= arg->trees; tree < trees_end; 
+       tree++, arg_tree++)
+  {
+    if (!(*tree= new SEL_TREE(*arg_tree, param)))
+      goto mem_err;
+  }
+
+  return;
+
+mem_err:
+  trees= &trees_prealloced[0];
+  trees_next= trees;
+  trees_end= trees;
+}
+
+
 /*
   Perform AND operation on two index_merge lists and store result in *im1.
 */
@@ -823,10 +880,23 @@ int imerge_list_or_tree(PARAM *param,
 {
   SEL_IMERGE *imerge;
   List_iterator<SEL_IMERGE> it(*im1);
+  bool tree_used= FALSE;
   while ((imerge= it++))
   {
-    if (imerge->or_sel_tree_with_checks(param, tree))
+    SEL_TREE *or_tree;
+    if (tree_used)
+    {
+      or_tree= new SEL_TREE (tree, param);
+      if (!or_tree ||
+          (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty()))
+        return FALSE;
+    }
+    else
+      or_tree= tree;
+
+    if (imerge->or_sel_tree_with_checks(param, or_tree))
       it.remove();
+    tree_used= TRUE;
   }
   return im1->is_empty();
 }
@@ -4238,6 +4308,8 @@ get_mm_parts(PARAM *param, COND *cond_func, Field *field,
     }
   }
 
+  if (tree && tree->merges.is_empty() && tree->keys_map.is_clear_all())
+    tree= NULL;
   DBUG_RETURN(tree);
 }
 
