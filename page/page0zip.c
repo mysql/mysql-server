@@ -3008,6 +3008,9 @@ page_zip_validate(
 	    || memcmp(page_zip->data + FIL_PAGE_DATA, page + FIL_PAGE_DATA,
 		      PAGE_DATA - FIL_PAGE_DATA)) {
 		page_zip_fail(("page_zip_validate: page header\n"));
+		page_zip_hexdump(page_zip, sizeof *page_zip);
+		page_zip_hexdump(page_zip->data, page_zip_get_size(page_zip));
+		page_zip_hexdump(page, UNIV_PAGE_SIZE);
 		return(FALSE);
 	}
 
