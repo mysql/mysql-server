@@ -463,14 +463,21 @@ void
 lock_cancel_waiting_and_release(
 /*============================*/
 	lock_t*	lock);	/* in: waiting lock request */
+
 /*************************************************************************
-Resets all locks, both table and record locks, on a table to be dropped.
-No lock is allowed to be a wait lock. */
+Removes locks on a table to be dropped or truncated.
+If remove_also_table_sx_locks is TRUE then table-level S and X locks are
+also removed in addition to other table-level and record-level locks.
+No lock, that is going to be removed, is allowed to be a wait lock. */
 
 void
-lock_reset_all_on_table(
-/*====================*/
-	dict_table_t*	table);	/* in: table to be dropped */
+lock_remove_all_on_table(
+/*=====================*/
+	dict_table_t*	table,			/* in: table to be dropped
+						or truncated */
+	ibool		remove_also_table_sx_locks);/* in: also removes
+						table S and X locks */
+
 /*************************************************************************
 Calculates the fold value of a page file address: used in inserting or
 searching for a lock in the hash table. */
