@@ -1241,8 +1241,8 @@ public:
 
   int ha_change_partitions(HA_CREATE_INFO *create_info,
                            const char *path,
-                           ulonglong *copied,
-                           ulonglong *deleted,
+                           ulonglong * const copied,
+                           ulonglong * const deleted,
                            const uchar *pack_frm_data,
                            size_t pack_frm_len);
   int ha_drop_partitions(const char *path);
@@ -1859,7 +1859,8 @@ private:
     This is called to delete all rows in a table
     If the handler don't support this, then this function will
     return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-    by one.
+    by one. It should reset auto_increment if
+    thd->lex->sql_command == SQLCOM_TRUNCATE.
   */
   virtual int delete_all_rows()
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
@@ -1898,8 +1899,8 @@ private:
 
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
-                                ulonglong *copied,
-                                ulonglong *deleted,
+                                ulonglong * const copied,
+                                ulonglong * const deleted,
                                 const uchar *pack_frm_data,
                                 size_t pack_frm_len)
   { return HA_ERR_WRONG_COMMAND; }
