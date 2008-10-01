@@ -547,8 +547,7 @@ SignalLoggerManager::printSignalHeader(FILE * output,
     sprintf(rInstanceText, "/%u", (uint)receiverInstanceNo);
   if (senderInstanceNo != 0)
     sprintf(sInstanceText, "/%u", (uint)senderInstanceNo);
-// wl4391_todo senders instance missing
-// assert(gsn != GSN_LQHKEYREQ || receiverProcessor == senderProcessor || senderInstanceNo != 0);
+
   if (printReceiversSignalId)
     fprintf(output, 
 	    "r.bn: %d%s \"%s\", r.proc: %d, r.sigId: %d gsn: %d \"%s\" prio: %d\n"
