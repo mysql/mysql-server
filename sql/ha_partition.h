@@ -49,7 +49,8 @@ private:
     partition_index_first_unordered= 2,
     partition_index_last= 3,
     partition_index_read_last= 4,
-    partition_no_index_scan= 5
+    partition_read_range = 5,
+    partition_no_index_scan= 6
   };
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
@@ -63,8 +64,6 @@ private:
   handler **m_reorged_file;             // Reorganised partitions
   handler **m_added_file;               // Added parts kept for errors
   partition_info *m_part_info;          // local reference to partition
-  uchar *m_start_key_ref;                // Reference of start key in current
-                                        // index scan info
   Field **m_part_field_array;           // Part field array locally to save acc
   uchar *m_ordered_rec_buffer;           // Row and key buffer for ord. idx scan
   KEY *m_curr_key_info;                 // Current index
@@ -429,9 +428,7 @@ public:
   virtual int read_range_next();
 
 private:
-  int common_index_read(uchar * buf, const uchar * key,
-                        key_part_map keypart_map,
-                        enum ha_rkey_function find_flag);
+  int common_index_read(uchar * buf, bool have_start_key);
   int common_first_last(uchar * buf);
   int partition_scan_set_up(uchar * buf, bool idx_read_flag);
   int handle_unordered_next(uchar * buf, bool next_same);
