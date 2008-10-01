@@ -373,6 +373,10 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   handlerton *hton= (handlerton *)plugin->data;
   DBUG_ENTER("ha_finalize_handlerton");
 
+  /* hton can be NULL here, if ha_initialize_handlerton() failed. */
+  if (!hton)
+    goto end;
+
   switch (hton->state)
   {
   case SHOW_OPTION_NO:
@@ -401,8 +405,16 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     }
   }
 
+  /*
+    In case a plugin is uninstalled and re-installed later, it should
+    reuse an array slot. Otherwise the number of uninstall/install
+    cycles would be limited.
+  */
+  hton2plugin[hton->slot]= NULL;
+
   my_free((uchar*)hton, MYF(0));
 
+ end:
   DBUG_RETURN(0);
 }
 
@@ -437,6 +449,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   case SHOW_OPTION_YES:
     {
       uint tmp;
+      ulong fslot;
       /* now check the db_type for conflict */
       if (hton->db_type <= DB_TYPE_UNKNOWN ||
           hton->db_type >= DB_TYPE_DEFAULT ||
@@ -461,7 +474,31 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
       tmp= hton->savepoint_offset;
       hton->savepoint_offset= savepoint_alloc_size;
       savepoint_alloc_size+= tmp;
-      hton->slot= total_ha++;
+
+      /*
+        In case a plugin is uninstalled and re-installed later, it should
+        reuse an array slot. Otherwise the number of uninstall/install
+        cycles would be limited. So look for a free slot.
+      */
+      DBUG_PRINT("plugin", ("total_ha: %lu", total_ha));
+      for (fslot= 0; fslot < total_ha; fslot++)
+      {
+        if (!hton2plugin[fslot])
+          break;
+      }
+      if (fslot < total_ha)
+        hton->slot= fslot;
+      else
+      {
+        if (total_ha >= MAX_HA)
+        {
+          sql_print_error("Too many plugins loaded. Limit is %lu. "
+                          "Failed on '%s'", (ulong) MAX_HA, plugin->name.str);
+          goto err;
+        }
+        hton->slot= total_ha++;
+      }
+
       hton2plugin[hton->slot]=plugin;
       if (hton->prepare)
         total_ha_2pc++;
