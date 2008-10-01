@@ -20,9 +20,7 @@
 #include <GlobalSignalNumbers.h>
 #include <DebuggerNames.hpp>
 #include <NdbTick.h>
-
-// avoids MT log mixups but has some serializing effect
-static const bool g_use_mutex = true;
+#include <NdbEnv.h>
 
 static char* mytime()
 {
@@ -42,8 +40,11 @@ SignalLoggerManager::SignalLoggerManager()
   outputStream = 0;
   m_ownNodeId = 0;
   m_logDistributed = false;
+
+  // using mutex avoids MT log mixups but has some serializing effect
   m_mutex = 0;
-  if (g_use_mutex)
+  const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG_MUTEX", (char*)0, 0);
+  if (p != 0 && strchr("1Y", p[0]) != 0)
     m_mutex = NdbMutex_Create();
 }
 

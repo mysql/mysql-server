@@ -51,7 +51,7 @@ void Dbtup::initData()
 Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
   : SimulatedBlock(DBTUP, ctx, instanceNumber),
     c_lqh(0),
-    m_pgman(this, pgman),
+    c_pgman(pgman),
     c_extent_hash(c_extent_pool),
     c_storedProcPool(),
     c_buildIndexList(c_buildIndexPool),

@@ -121,7 +121,7 @@ SimBlockList::load(EmulatorData& data){
   if (!mtLqh)
     theList[10] = NEW_BLOCK(Dbtup)(ctx, pg);
   else
-    theList[10] = NEW_BLOCK(DbtupProxy)(ctx);//wl4391_todo pg
+    theList[10] = NEW_BLOCK(DbtupProxy)(ctx, pg);
   theList[11] = NEW_BLOCK(Ndbcntr)(ctx);
   theList[12] = NEW_BLOCK(Qmgr)(ctx);
   theList[13] = NEW_BLOCK(Trix)(ctx);

@@ -16,9 +16,12 @@
 #include "DbtupProxy.hpp"
 #include "Dbtup.hpp"
 
-DbtupProxy::DbtupProxy(Block_context& ctx) :
-  LocalProxy(DBTUP, ctx)
+DbtupProxy::DbtupProxy(Block_context& ctx, Pgman* pgman) :
+  LocalProxy(DBTUP, ctx),
+  m_pgman(pgman)
 {
+  ndbrequire(m_pgman != 0);
+
   // GSN_DROP_TAB_REQ
   addRecSignal(GSN_DROP_TAB_REQ, &DbtupProxy::execDROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_CONF, &DbtupProxy::execDROP_TAB_CONF);
@@ -36,7 +39,7 @@ DbtupProxy::~DbtupProxy()
 SimulatedBlock*
 DbtupProxy::newWorker(Uint32 instanceNo)
 {
-  return new Dbtup(m_ctx, 0, instanceNo);
+  return new Dbtup(m_ctx, m_pgman, instanceNo);
 }
 
 // GSN_DROP_TAB_REQ
