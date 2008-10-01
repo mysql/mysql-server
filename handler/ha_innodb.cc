@@ -8308,13 +8308,23 @@ ha_innobase::innobase_get_auto_increment(
 			} else {
 				*value = autoinc;
 			}
-		/* A deadlock error during normal processing is OK
-		and can be ignored. */
-		} else if (error != DB_DEADLOCK) {
+		/* We need to print this message here because the
+		handler::get_auto_increment() doesn't allow a way
+		to return the specific error for why it failed. */
+		} else if (error == DB_DEADLOCK) {
+			sql_print_warning(
+				"Deadlock in "
+				"innobase_get_auto_increment()");
+		} else if (error == DB_LOCK_WAIT_TIMEOUT) {
+			sql_print_warning(
+				"Lock wait timeout in "
+				"innobase_get_auto_increment()");
+		} else {
 
-			sql_print_error("InnoDB: Error: %lu in "
-					"::innobase_get_auto_increment()",
-					error);
+			sql_print_error(
+				"InnoDB: Error: %lu in "
+				"innobase_get_auto_increment()",
+				error);
 		}
 
 	} while (*value == 0 && error == DB_SUCCESS);
