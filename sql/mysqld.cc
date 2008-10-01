@@ -6223,7 +6223,7 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Deprecated option.  Use --skip-symbolic-links instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-thread-priority", OPT_SKIP_PRIOR,
-   "Don't give threads different priorities.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   "Don't give threads different priorities. Deprecated option.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    DEFAULT_SKIP_THREAD_PRIORITY, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
   {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR,
@@ -7865,6 +7865,9 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;
+    sql_print_warning("The --skip-thread-priority startup option is deprecated "
+                      "and will be removed in MySQL 7.0. MySQL 6.0 and up do not "
+                      "give threads different priorities.");
     break;
   case (int) OPT_SKIP_LOCK:
     opt_external_locking=0;
