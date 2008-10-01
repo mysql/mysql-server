@@ -5290,16 +5290,15 @@ Dbtc::sendRemoveMarker(Signal* signal,
   bool send_unpacked = isNdbMtLqh();
   if (send_unpacked) {
     Uint32* data = signal->getDataPtrSend();
-    data[0] = Tdata1;
-    data[1] = Tdata2;
-    data[2] = Tdata3;
+    data[0] = Tdata2;
+    data[1] = Tdata3;
     Uint32 Tnode = hostPtr.i;
     Uint32 i;
     for (i = 0; i < MAX_NDBMT_LQH_WORKERS; i++) {
       // wl4391_todo skip workers not part of tx
       Uint32 instanceKey = 1 + i;
       BlockReference ref = numberToRef(DBLQH, instanceKey, Tnode);
-      sendSignal(ref, GSN_REMOVE_MARKER_ORD, signal, 3, JBB);
+      sendSignal(ref, GSN_REMOVE_MARKER_ORD, signal, 2, JBB);
     }
     return;
   }

@@ -540,7 +540,6 @@ SimulatedBlock::sendSignal(BlockReference ref,
 			   Uint32 length, 
 			   JobBufferLevel jobBuffer) const {
 
-  BlockNumber sendBnr = number();
   BlockReference sendBRef = reference();
   
   Uint32 noOfSections = signal->header.m_noOfSections;
@@ -594,7 +593,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
     
     sh.theVerId_signalNumber   = gsn;
     sh.theReceiversBlockNumber = recBlock;
-    sh.theSendersBlockRef      = sendBnr;
+    sh.theSendersBlockRef      = refToBlock(sendBRef);
     sh.theLength               = length;
     sh.theTrace                = tTrace;
     sh.theSignalId             = tSignalId;
@@ -654,7 +653,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   
   sh.theVerId_signalNumber   = gsn;
   sh.theReceiversBlockNumber = recBlock;
-  sh.theSendersBlockRef      = number();
+  sh.theSendersBlockRef      = refToBlock(reference());
   sh.theLength               = length;
   sh.theTrace                = tTrace;
   sh.theSignalId             = tSignalId;
@@ -736,7 +735,6 @@ SimulatedBlock::sendSignal(BlockReference ref,
 			   LinearSectionPtr ptr[3],
 			   Uint32 noOfSections) const {
   
-  BlockNumber sendBnr = number();
   BlockReference sendBRef = reference();
   
   Uint32 recBlock = refToBlock(ref);
@@ -805,7 +803,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
     
     sh.theVerId_signalNumber   = gsn;
     sh.theReceiversBlockNumber = recBlock;
-    sh.theSendersBlockRef      = sendBnr;
+    sh.theSendersBlockRef      = refToBlock(sendBRef);
     sh.theLength               = length;
     sh.theTrace                = tTrace;
     sh.theSignalId             = tSignalId;
@@ -869,7 +867,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   SignalHeader sh;
   sh.theVerId_signalNumber   = gsn;
   sh.theReceiversBlockNumber = recBlock;
-  sh.theSendersBlockRef      = number();
+  sh.theSendersBlockRef      = refToBlock(reference());
   sh.theLength               = length;
   sh.theTrace                = tTrace;
   sh.theSignalId             = tSignalId;
@@ -965,7 +963,6 @@ SimulatedBlock::sendSignal(BlockReference ref,
 			   SectionHandle* sections) const {
 
   Uint32 noOfSections = sections->m_cnt;
-  BlockNumber sendBnr = number();
   BlockReference sendBRef = reference();
 
   Uint32 recBlock = refToBlock(ref);
@@ -1029,7 +1026,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
 
     sh.theVerId_signalNumber   = gsn;
     sh.theReceiversBlockNumber = recBlock;
-    sh.theSendersBlockRef      = sendBnr;
+    sh.theSendersBlockRef      = refToBlock(sendBRef);
     sh.theLength               = length;
     sh.theTrace                = tTrace;
     sh.theSignalId             = tSignalId;
@@ -1096,7 +1093,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
   SignalHeader sh;
   sh.theVerId_signalNumber   = gsn;
   sh.theReceiversBlockNumber = recBlock;
-  sh.theSendersBlockRef      = number();
+  sh.theSendersBlockRef      = refToBlock(reference());
   sh.theLength               = length;
   sh.theTrace                = tTrace;
   sh.theSignalId             = tSignalId;
@@ -1206,7 +1203,6 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
    */
 
   Uint32 noOfSections = sections->m_cnt;
-  BlockNumber sendBnr = number();
   BlockReference sendBRef = reference();
 
   Uint32 recBlock = refToBlock(ref);
@@ -1275,7 +1271,7 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
 
     sh.theVerId_signalNumber   = gsn;
     sh.theReceiversBlockNumber = recBlock;
-    sh.theSendersBlockRef      = sendBnr;
+    sh.theSendersBlockRef      = refToBlock(sendBRef);
     sh.theLength               = length;
     sh.theTrace                = tTrace;
     sh.theSignalId             = tSignalId;
@@ -1345,7 +1341,7 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
   SignalHeader sh;
   sh.theVerId_signalNumber   = gsn;
   sh.theReceiversBlockNumber = recBlock;
-  sh.theSendersBlockRef      = number();
+  sh.theSendersBlockRef      = refToBlock(reference());
   sh.theLength               = length;
   sh.theTrace                = tTrace;
   sh.theSignalId             = tSignalId;
@@ -1490,7 +1486,6 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   Uint32 noOfSections = sections->m_cnt;
   BlockNumber bnr = refToBlock(ref);
 
-  //BlockNumber sendBnr = number();
   BlockReference sendBRef = reference();
 
   if (bnr == 0) {
