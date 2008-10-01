@@ -3679,10 +3679,12 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
                                  enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_partition::index_read_map");
-
   end_range= 0;
   m_index_scan_type= partition_index_read;
-  DBUG_RETURN(common_index_read(buf, key, keypart_map, find_flag));
+  m_start_key.key= key;
+  m_start_key.keypart_map= keypart_map;
+  m_start_key.flag= find_flag;
+  DBUG_RETURN(common_index_read(buf, TRUE));
 }
 
 
@@ -3690,41 +3692,63 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
   Common routine for a number of index_read variants
 
   SYNOPSIS
-    common_index_read
-  
-  see index_read for rest
+    ha_partition::common_index_read()
+      buf             Buffer where the record should be returned
+      have_start_key  TRUE <=> the left endpoint is available, i.e. 
+                      we're in index_read call or in read_range_first
+                      call and the range has left endpoint
+
+                      FALSE <=> there is no left endpoint (we're in
+                      read_range_first() call and the range has no left
+                      endpoint)
+ 
+  DESCRIPTION
+    Start scanning the range (when invoked from read_range_first()) or doing 
+    an index lookup (when invoked from index_read_XXX):
+     - If possible, perform partition selection
+     - Find the set of partitions we're going to use
+     - Depending on whether we need ordering:
+        NO:  Get the first record from first used partition (see 
+             handle_unordered_scan_next_partition)
+        YES: Fill the priority queue and get the record that is the first in
+             the ordering
+
+  RETURN
+    0      OK 
+    other  HA_ERR_END_OF_FILE or other error code.
 */
 
-int ha_partition::common_index_read(uchar *buf, const uchar *key,
-                                    key_part_map keypart_map,
-				    enum ha_rkey_function find_flag)
+int ha_partition::common_index_read(uchar *buf, bool have_start_key)
 {
   int error;
+  uint key_len;
   bool reverse_order= FALSE;
-  uint key_len= calculate_key_len(table, active_index, key, keypart_map);
   DBUG_ENTER("ha_partition::common_index_read");
+  LINT_INIT(key_len); /* used if have_start_key==TRUE */
 
-  memcpy((void*)m_start_key.key, key, key_len);
-  m_start_key.keypart_map= keypart_map;
-  m_start_key.length= key_len;
-  m_start_key.flag= find_flag;
-
-  if ((error= partition_scan_set_up(buf, TRUE)))
+  if (have_start_key)
+  {
+    m_start_key.length= key_len= calculate_key_len(table, active_index, 
+                                                   m_start_key.key,
+                                                   m_start_key.keypart_map);
+  }
+  if ((error= partition_scan_set_up(buf, have_start_key)))
   {
     DBUG_RETURN(error);
   }
-  if (find_flag == HA_READ_PREFIX_LAST ||
-      find_flag == HA_READ_PREFIX_LAST_OR_PREV ||
-      find_flag == HA_READ_BEFORE_KEY)
+
+  if (have_start_key && 
+      (m_start_key.flag == HA_READ_PREFIX_LAST ||
+       m_start_key.flag == HA_READ_PREFIX_LAST_OR_PREV ||
+       m_start_key.flag == HA_READ_BEFORE_KEY))
   {
     reverse_order= TRUE;
     m_ordered_scan_ongoing= TRUE;
   }
   if (!m_ordered_scan_ongoing ||
-      (find_flag == HA_READ_KEY_EXACT &&
-       (key_len >= m_curr_key_info->key_length ||
-	key_len == 0)))
-  {
+      (have_start_key && m_start_key.flag == HA_READ_KEY_EXACT &&
+       (key_len >= m_curr_key_info->key_length || key_len == 0)))
+   {
     /*
       We use unordered index scan either when read_range is used and flag
       is set to not use ordered or when an exact key is used and in this
@@ -3815,7 +3839,7 @@ int ha_partition::index_last(uchar * buf)
   Common routine for index_first/index_last
 
   SYNOPSIS
-    common_index_first_last
+    ha_partition::common_first_last()
   
   see index_first for rest
 */
@@ -3859,7 +3883,10 @@ int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
   m_ordered= TRUE;				// Safety measure
   end_range= 0;
   m_index_scan_type= partition_index_read_last;
-  DBUG_RETURN(common_index_read(buf, key, keypart_map, HA_READ_PREFIX_LAST));
+  m_start_key.key= key;
+  m_start_key.keypart_map= keypart_map;
+  m_start_key.flag= HA_READ_PREFIX_LAST;
+  DBUG_RETURN(common_index_read(buf, TRUE));
 }
 
 
@@ -3990,23 +4017,15 @@ int ha_partition::read_range_first(const key_range *start_key,
       ((end_key->flag == HA_READ_BEFORE_KEY) ? 1 :
        (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
   }
-  range_key_part= m_curr_key_info->key_part;
 
-  if (!start_key)				// Read first record
-  {
-    if (m_ordered)
-      m_index_scan_type= partition_index_first;
-    else
-      m_index_scan_type= partition_index_first_unordered;
-    error= common_first_last(m_rec0);
-  }
+  range_key_part= m_curr_key_info->key_part;
+  if (start_key)
+    m_start_key= *start_key;
   else
-  {
-    m_index_scan_type= partition_index_read;
-    error= common_index_read(m_rec0,
-			     start_key->key,
-                             start_key->keypart_map, start_key->flag);
-  }
+    m_start_key.key= NULL;
+
+  m_index_scan_type= partition_read_range;
+  error= common_index_read(m_rec0, test(start_key));
   DBUG_RETURN(error);
 }
 
@@ -4028,26 +4047,36 @@ int ha_partition::read_range_next()
 
   if (m_ordered)
   {
-    DBUG_RETURN(handler::read_range_next());
+    DBUG_RETURN(handle_ordered_next(table->record[0], eq_range));
   }
-  DBUG_RETURN(handle_unordered_next(m_rec0, eq_range));
+  DBUG_RETURN(handle_unordered_next(table->record[0], eq_range));
 }
 
 
 /*
-  Common routine to set up scans
+  Common routine to set up index scans
 
   SYNOPSIS
-    buf                  Buffer to later return record in
-    idx_read_flag        Is it index scan
+    ha_partition::partition_scan_set_up()
+      buf            Buffer to later return record in (this function
+                     needs it to calculcate partitioning function
+                     values)
+
+      idx_read_flag  TRUE <=> m_start_key has range start endpoint which 
+                     probably can be used to determine the set of partitions
+                     to scan.
+                     FALSE <=> there is no start endpoint.
+
+  DESCRIPTION
+    Find out which partitions we'll need to read when scanning the specified
+    range.
+
+    If we need to scan only one partition, set m_ordered_scan_ongoing=FALSE
+    as we will not need to do merge ordering.
 
   RETURN VALUE
     >0                    Error code
     0                     Success
-
-  DESCRIPTION
-    This is where we check which partitions to actually scan if not all
-    of them
 */
 
 int ha_partition::partition_scan_set_up(uchar * buf, bool idx_read_flag)
@@ -4138,10 +4167,19 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
   DBUG_ENTER("ha_partition::handle_unordered_next");
 
   /*
-    We should consider if this should be split into two functions as
-    next_same is alwas a local constant
+    We should consider if this should be split into three functions as
+    partition_read_range is_next_same are always local constants
   */
-  if (is_next_same)
+
+  if (m_index_scan_type == partition_read_range)
+  {
+    if (!(error= file->read_range_next()))
+    {
+      m_last_part= m_part_spec.start_part;
+      DBUG_RETURN(0);
+    }
+  }
+  else if (is_next_same)
   {
     if (!(error= file->index_next_same(buf, m_start_key.key,
                                        m_start_key.length)))
@@ -4150,15 +4188,13 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
       DBUG_RETURN(0);
     }
   }
-  else if (!(error= file->index_next(buf)))
+  else 
   {
-    if (!(file->index_flags(active_index, 0, 1) & HA_READ_ORDER) ||
-        compare_key(end_range) <= 0)
+    if (!(error= file->index_next(buf)))
     {
       m_last_part= m_part_spec.start_part;
       DBUG_RETURN(0);                           // Row was in range
     }
-    error= HA_ERR_END_OF_FILE;
   }
 
   if (error == HA_ERR_END_OF_FILE)
@@ -4202,6 +4238,11 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
     file= m_file[i];
     m_part_spec.start_part= i;
     switch (m_index_scan_type) {
+    case partition_read_range:
+      DBUG_PRINT("info", ("read_range_first on partition %d", i));
+      error= file->read_range_first(m_start_key.key? &m_start_key: NULL,
+                                    end_range, eq_range, FALSE);
+      break;
     case partition_index_read:
       DBUG_PRINT("info", ("index_read on partition %d", i));
       error= file->index_read_map(buf, m_start_key.key,
@@ -4230,13 +4271,8 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
     }
     if (!error)
     {
-      if (!(file->index_flags(active_index, 0, 1) & HA_READ_ORDER) ||
-          compare_key(end_range) <= 0)
-      {
-        m_last_part= i;
-        DBUG_RETURN(0);
-      }
-      error= HA_ERR_END_OF_FILE;
+      m_last_part= i;
+      DBUG_RETURN(0);
     }
     if ((error != HA_ERR_END_OF_FILE) && (error != HA_ERR_KEY_NOT_FOUND))
       DBUG_RETURN(error);
@@ -4315,6 +4351,17 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
                                        m_start_key.keypart_map);
       reverse_order= TRUE;
       break;
+    case partition_read_range:
+    {
+      /* 
+        This can only read record to table->record[0], as it was set when
+        the table was being opened. We have to memcpy data ourselves.
+      */
+      error= file->read_range_first(&m_start_key, end_range, eq_range, TRUE);
+      memcpy(rec_buf_ptr, table->record[0], m_rec_length);
+      reverse_order= FALSE;
+      break;
+    }
     default:
       DBUG_ASSERT(FALSE);
       DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -4395,8 +4442,13 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
   uint part_id= m_top_entry;
   handler *file= m_file[part_id];
   DBUG_ENTER("ha_partition::handle_ordered_next");
-
-  if (!is_next_same)
+  
+  if (m_index_scan_type == partition_read_range)
+  {
+    error= file->read_range_next();
+    memcpy(rec_buf(part_id), table->record[0], m_rec_length);
+  }
+  else if (!is_next_same)
     error= file->index_next(rec_buf(part_id));
   else
     error= file->index_next_same(rec_buf(part_id), m_start_key.key,
