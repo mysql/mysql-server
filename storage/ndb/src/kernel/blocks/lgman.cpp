@@ -1073,7 +1073,7 @@ Lgman::Undofile::Undofile(const struct CreateFileImplReq* req, Uint32 ptrI)
 Logfile_client::Logfile_client(SimulatedBlock* block, 
 			       Lgman* lgman, Uint32 logfile_group_id)
 {
-  m_block= block->number();
+  m_block= numberToBlock(block->number(), block->instance());
   m_lgman= lgman;
   m_logfile_group_id= logfile_group_id;
 }
@@ -1205,8 +1205,9 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   if(waiter.p->m_sync_lsn <= ptr.p->m_last_synced_lsn)
   {
     removed= true;
-    Uint32 block = waiter.p->m_block;
-    SimulatedBlock* b = globalData.getBlock(block);
+    Uint32 blockNo = blockToMain(waiter.p->m_block);
+    Uint32 instanceNo = blockToInstance(waiter.p->m_block);
+    SimulatedBlock* b = globalData.getBlock(blockNo, instanceNo);
     b->execute(signal, waiter.p->m_callback, logfile_group_id);
     
     list.releaseFirst(waiter);
@@ -1567,8 +1568,9 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   if(waiter.p->m_size + 2*File_formats::UNDO_PAGE_WORDS < free_buffer)
   {
     removed= true;
-    Uint32 block = waiter.p->m_block;
-    SimulatedBlock* b = globalData.getBlock(block);
+    Uint32 blockNo = blockToMain(waiter.p->m_block);
+    Uint32 instanceNo = blockToInstance(waiter.p->m_block);
+    SimulatedBlock* b = globalData.getBlock(blockNo, instanceNo);
     b->execute(signal, waiter.p->m_callback, logfile_group_id);
 
     list.releaseFirst(waiter);

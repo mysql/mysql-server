@@ -20,14 +20,18 @@
 #include <signaldata/DropTab.hpp>
 #include <signaldata/BuildIndxImpl.hpp>
 
+class Pgman;
+
 class DbtupProxy : public LocalProxy {
 public:
-  DbtupProxy(Block_context& ctx);
+  DbtupProxy(Block_context& ctx, Pgman* pgman);
   virtual ~DbtupProxy();
   BLOCK_DEFINES(DbtupProxy);
 
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+
+  Pgman* const m_pgman;
 
   // GSN_DROP_TAB_REQ
   struct Ss_DROP_TAB_REQ : SsParallel {
