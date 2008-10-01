@@ -83,20 +83,22 @@ CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934('aaaa
 ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934' is too long
 DROP PROCEDURE IF EXISTS sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde;
 ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde' is too long
-CREATE PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( f1 tinytext ) language sql deterministic sql security definer comment 'this is simple'
-  BEGIN
-set @v1 = f1;
+CREATE PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( f1 TINYTEXT )
+LANGUAGE SQL DETERMINISTIC SQL SECURITY DEFINER COMMENT 'this is simple'
+BEGIN
+SET @v1 = f1;
 SELECT @v1, @v1;
 END//
 ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde' is too long
 CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( 'abc' );
 ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde' is too long
-SHOW PROCEDURE status;
+SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 binary ) language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-set @v1 = f1;
+CREATE PROCEDURE sp1( f1 BINARY )
+LANGUAGE SQL DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+SET @v1 = f1;
 SELECT @v1;
 END//
 CALL sp1( 34 );
@@ -104,23 +106,12 @@ CALL sp1( 34 );
 3
 Warnings:
 Warning	1265	Data truncated for column 'f1' at row 1
-SHOW PROCEDURE status;
+SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 blob ) language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-set @v1 = f1;
-SELECT @v1;
-END//
-CALL sp1( 34 );
-@v1
-34
-SHOW PROCEDURE status;
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
-DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 int )  language sql not deterministic sql security invoker comment 'this is simple'
+CREATE PROCEDURE sp1( f1 BLOB )
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
 set @v1 = f1;
 SELECT @v1;
@@ -128,1057 +119,2506 @@ END//
 CALL sp1( 34 );
 @v1
 34
-SHOW PROCEDURE status;
+SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 decimal(256, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
+CREATE PROCEDURE sp1( f1 INT )
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-set @v1 = f1;
+SET @v1 = f1;
+SELECT @v1;
+END//
+CALL sp1( 34 );
+@v1
+34
+SHOW PROCEDURE STATUS;
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP PROCEDURE IF EXISTS sp1;
+CREATE PROCEDURE sp1( f1 DECIMAL(256, 30) )
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+SET @v1 = f1;
 SELECT @v1;
 END//
 ERROR 42000: Too big precision 256 specified for column ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
 Warnings:
 Note	1305	PROCEDURE sp1 does not exist
-CREATE PROCEDURE sp1( f1 decimal(66, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
+CREATE PROCEDURE sp1( f1 DECIMAL(66, 30) )
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-set @v1 = f1;
+SET @v1 = f1;
 SELECT @v1;
 END//
 ERROR 42000: Too big precision 66 specified for column ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
 Warnings:
 Note	1305	PROCEDURE sp1 does not exist
-CREATE PROCEDURE sp1( f1 decimal(60, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
+DROP TABLE IF EXISTS t1_aux;
+DROP PROCEDURE IF EXISTS sproc_1;
+DROP FUNCTION IF EXISTS func_1;
+CREATE TABLE t1_aux ( f1 DECIMAL(65, 30) );
+INSERT INTO t1_aux SET f1 = NULL;
+CREATE PROCEDURE sproc_1(f1 DECIMAL(65, 30), OUT f2 DECIMAL(65, 30))
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-set @v1 = f1;
-SELECT @v1;
+SET f2 = NULL;
+SET f2 = f1;
+SET @v2_proc = f1;
 END//
-CALL sp1( 17976931340000 );
-@v1
-17976931340000.000000000000000000000000000000
-CALL sp1( 1.797693134e+13 );
-@v1
-17976931340000.000000000000000000000000000000
-CALL sp1( 1.7976931348623157493578e+308 );
-ERROR 22007: Illegal double '1.7976931348623157493578e+308' value found during parsing
-CALL sp1( 0.1234567890987654321e+100 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-100 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+99 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-99 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+98 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-98 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+97 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-97 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+96 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-96 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+95 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-95 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+94 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-94 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+93 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-93 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+92 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-92 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+91 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-91 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+90 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-90 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+89 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-89 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+88 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-88 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+87 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-87 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+86 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-86 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+85 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-85 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+84 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-84 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+83 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-83 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+82 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-82 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+81 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-81 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+80 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-80 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+79 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-79 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+78 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-78 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+77 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-77 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+76 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-76 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+75 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-75 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+74 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-74 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+73 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-73 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+72 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-72 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+71 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-71 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+70 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-70 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+69 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-69 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+68 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-68 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+67 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-67 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+66 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-66 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+65 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-65 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+64 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-64 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+63 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-63 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+62 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-62 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+61 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-61 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+60 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-60 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+59 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-59 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+58 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-58 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+57 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-57 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+56 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-56 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+55 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-55 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+54 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-54 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+53 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-53 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+52 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-52 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+51 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-51 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+50 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-50 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+49 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-49 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+48 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-48 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+47 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-47 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+46 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-46 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+45 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-45 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+44 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-44 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+43 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-43 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+42 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-42 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+41 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-41 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+40 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-40 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+39 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-39 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+38 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-38 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+37 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-37 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+36 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-36 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+35 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-35 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+34 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-34 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+33 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-33 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+32 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-32 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+31 );
-@v1
-999999999999999999999999999999.999999999999999999999999999999
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-31 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+30 );
-@v1
-123456789098765400000000000000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-30 );
-@v1
-0.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+29 );
-@v1
-12345678909876540000000000000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-29 );
-@v1
-0.000000000000000000000000000001
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+28 );
-@v1
-1234567890987654000000000000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-28 );
-@v1
-0.000000000000000000000000000012
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+27 );
-@v1
-123456789098765400000000000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-27 );
-@v1
-0.000000000000000000000000000123
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+26 );
-@v1
-12345678909876540000000000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-26 );
-@v1
-0.000000000000000000000000001235
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+25 );
-@v1
-1234567890987654000000000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-25 );
-@v1
-0.000000000000000000000000012346
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+24 );
-@v1
-123456789098765400000000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-24 );
-@v1
-0.000000000000000000000000123457
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+23 );
-@v1
-12345678909876540000000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-23 );
-@v1
-0.000000000000000000000001234568
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+22 );
-@v1
-1234567890987654000000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-22 );
-@v1
-0.000000000000000000000012345679
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+21 );
-@v1
-123456789098765400000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-21 );
-@v1
-0.000000000000000000000123456789
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+20 );
-@v1
-12345678909876540000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-20 );
-@v1
-0.000000000000000000001234567891
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+19 );
-@v1
-1234567890987654000.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-19 );
-@v1
-0.000000000000000000012345678910
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+18 );
-@v1
-123456789098765400.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-18 );
-@v1
-0.000000000000000000123456789099
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+17 );
-@v1
-12345678909876540.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-17 );
-@v1
-0.000000000000000001234567890988
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+16 );
-@v1
-1234567890987654.000000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-16 );
-@v1
-0.000000000000000012345678909877
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+15 );
-@v1
-123456789098765.400000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-15 );
-@v1
-0.000000000000000123456789098765
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+14 );
-@v1
-12345678909876.540000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-14 );
-@v1
-0.000000000000001234567890987654
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+13 );
-@v1
-1234567890987.654000000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-13 );
-@v1
-0.000000000000012345678909876540
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+12 );
-@v1
-123456789098.765400000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-12 );
-@v1
-0.000000000000123456789098765400
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+11 );
-@v1
-12345678909.876540000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-11 );
-@v1
-0.000000000001234567890987654000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+10 );
-@v1
-1234567890.987654000000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-10 );
-@v1
-0.000000000012345678909876540000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+9 );
-@v1
-123456789.098765400000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-9 );
-@v1
-0.000000000123456789098765400000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+8 );
-@v1
-12345678.909876540000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-8 );
-@v1
-0.000000001234567890987654000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+7 );
-@v1
-1234567.890987654000000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-7 );
-@v1
-0.000000012345678909876540000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+6 );
-@v1
-123456.789098765400000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-6 );
-@v1
-0.000000123456789098765400000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+5 );
-@v1
-12345.678909876540000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-5 );
-@v1
-0.000001234567890987654000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+4 );
-@v1
-1234.567890987654000000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-4 );
-@v1
-0.000012345678909876550000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+3 );
-@v1
-123.456789098765400000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-3 );
-@v1
-0.000123456789098765400000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+2 );
-@v1
-12.345678909876540000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-2 );
-@v1
-0.001234567890987654000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+1 );
-@v1
-1.234567890987654000000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-1 );
-@v1
-0.012345678909876540000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e+0 );
-@v1
-0.123456789098765400000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-CALL sp1( 0.1234567890987654321e-0 );
-@v1
-0.123456789098765400000000000000
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-SHOW PROCEDURE status;
+CREATE FUNCTION func_1(f1 DECIMAL(65, 30)) RETURNS DECIMAL(65,30)
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+RETURN f1;
+END//
+SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sproc_1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW FUNCTION STATUS;
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	func_1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 1.7976931348623157493578e+308;
+ERROR 22007: Illegal double '1.7976931348623157493578e+308' value found during parsing
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(1.7976931348623157493578e+308, @v1_proc);
+ERROR 22007: Illegal double '1.7976931348623157493578e+308' value found during parsing
+SET @v1_func = func_1(1.7976931348623157493578e+308);
+ERROR 22007: Illegal double '1.7976931348623157493578e+308' value found during parsing
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+100;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+100, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+100);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+99;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+99, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+99);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+98;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+98, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+98);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+97;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+97, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+97);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+96;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+96, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+96);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+95;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+95, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+95);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+94;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+94, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+94);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+93;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+93, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+93);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+92;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+92, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+92);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+91;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+91, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+91);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+90;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+90, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+90);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+89;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+89, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+89);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+88;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+88, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+88);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+87;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+87, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+87);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+86;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+86, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+86);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+85;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+85, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+85);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+84;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+84, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+84);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+83;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+83, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+83);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+82;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+82, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+82);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+81;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+81, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+81);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+80;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+80, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+80);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+79;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+79, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+79);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+78;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+78, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+78);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+77;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+77, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+77);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+76;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+76, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+76);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+75;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+75, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+75);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+74;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+74, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+74);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+73;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+73, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+73);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+72;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+72, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+72);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+71;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+71, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+71);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+70;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+70, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+70);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+69;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+69, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+69);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+68;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+68, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+68);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+67;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+67, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+67);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+66;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+66, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+66);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+65;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+65, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+65);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+64;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+64, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+64);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+63;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+63, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+63);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+62;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+62, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+62);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+61;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+61, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+61);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+60;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+60, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+60);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+59;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+59, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+59);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+58;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+58, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+58);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+57;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+57, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+57);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+56;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+56, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+56);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+55;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+55, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+55);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+54;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+54, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+54);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+53;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+53, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+53);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+52;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+52, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+52);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+51;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+51, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+51);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+50;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+50, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+50);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+49;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+49, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+49);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+48;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+48, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+48);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+47;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+47, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+47);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+46;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+46, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+46);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+45;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+45, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+45);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+44;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+44, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+44);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+43;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+43, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+43);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+42;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+42, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+42);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+41;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+41, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+41);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+40;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+40, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+40);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+39;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+39, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+39);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+38;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+38, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+38);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+37;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+37, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+37);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+36;
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+36, @v1_proc);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+36);
+Warnings:
+Warning	1264	Out of range value for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+35;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+35, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+35);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+34;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+34, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+34);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+33;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+33, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+33);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+32;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+32, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+32);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+31;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+31, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+31);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+30;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+30, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+30);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+29;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+29, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+29);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+28;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+28, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+28);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+27;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+27, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+27);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+26;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+26, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+26);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+25;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+25, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+25);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+24;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+24, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+24);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+23;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+23, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+23);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+22;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+22, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+22);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+21;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+21, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+21);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+20;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+20, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+20);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+19;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+19, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+19);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+18;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+18, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+18);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+17;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+17, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+17);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+16;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+16, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+16);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+15;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+15, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+15);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+14;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+14, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+14);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+13;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+13, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+13);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+12;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+12, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+12);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+11;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+11, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+11);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+10;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+10, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+10);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+9;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+9, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+9);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+8;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+8, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+8);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+7;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+7, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+7);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+6;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+6, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+6);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+5;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+5, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+5);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+4;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+4, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+4);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+3;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+3, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+3);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+2;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+2, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+2);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+1;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+1, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+1);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e+0;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e+0, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e+0);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-100;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-100, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-100);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-99;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-99, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-99);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-98;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-98, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-98);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-97;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-97, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-97);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-96;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-96, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-96);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-95;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-95, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-95);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-94;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-94, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-94);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-93;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-93, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-93);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-92;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-92, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-92);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-91;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-91, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-91);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-90;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-90, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-90);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-89;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-89, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-89);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-88;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-88, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-88);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-87;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-87, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-87);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-86;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-86, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-86);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-85;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-85, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-85);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-84;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-84, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-84);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-83;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-83, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-83);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-82;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-82, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-82);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-81;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-81, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-81);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-80;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-80, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-80);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-79;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-79, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-79);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-78;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-78, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-78);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-77;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-77, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-77);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-76;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-76, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-76);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-75;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-75, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-75);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-74;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-74, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-74);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-73;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-73, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-73);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-72;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-72, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-72);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-71;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-71, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-71);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-70;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-70, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-70);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-69;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-69, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-69);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-68;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-68, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-68);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-67;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-67, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-67);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-66;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-66, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-66);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-65;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-65, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-65);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-64;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-64, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-64);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-63;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-63, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-63);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-62;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-62, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-62);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-61;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-61, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-61);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-60;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-60, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-60);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-59;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-59, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-59);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-58;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-58, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-58);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-57;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-57, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-57);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-56;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-56, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-56);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-55;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-55, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-55);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-54;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-54, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-54);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-53;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-53, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-53);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-52;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-52, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-52);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-51;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-51, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-51);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-50;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-50, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-50);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-49;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-49, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-49);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-48;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-48, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-48);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-47;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-47, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-47);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-46;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-46, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-46);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-45;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-45, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-45);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-44;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-44, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-44);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-43;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-43, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-43);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-42;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-42, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-42);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-41;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-41, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-41);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-40;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-40, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-40);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-39;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-39, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-39);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-38;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-38, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-38);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-37;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-37, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-37);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-36;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-36, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-36);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-35;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-35, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-35);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-34;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-34, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-34);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-33;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-33, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-33);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-32;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-32, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-32);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-31;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-31, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-31);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-30;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-30, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-30);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-29;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-29, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-29);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-28;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-28, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-28);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-27;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-27, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-27);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-26;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-26, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-26);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-25;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-25, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-25);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-24;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-24, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-24);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-23;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-23, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-23);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-22;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-22, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-22);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-21;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-21, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-21);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-20;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-20, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-20);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-19;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-19, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-19);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-18;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-18, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-18);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-17;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-17, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-17);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-16;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-16, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-16);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-15;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-15, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-15);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-14;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-14, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-14);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-13;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-13, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-13);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-12;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-12, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-12);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-11;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-11, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-11);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-10;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-10, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-10);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-9;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-9, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-9);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-8;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-8, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-8);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-7;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-7, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-7);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-6;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-6, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-6);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-5;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-5, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-5);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-4;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-4, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-4);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-3;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-3, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-3);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-2;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-2, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-2);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-1;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-1, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-1);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+UPDATE t1_aux SET f1 = NULL;
+SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
+UPDATE t1_aux SET f1 = 0.1234567890987654321e-0;
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SELECT f1 INTO @v1_tab FROM t1_aux;
+CALL sproc_1(0.1234567890987654321e-0, @v1_proc);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+SET @v1_func = func_1(0.1234567890987654321e-0);
+Warnings:
+Note	1265	Data truncated for column 'f1' at row 1
+DROP PROCEDURE sproc_1;
+DROP FUNCTION  func_1;
+DROP TABLE     t1_aux;
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 enum("value1", "value1") )  language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
+CREATE PROCEDURE sp1( f1 ENUM("value1", "value1") )
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
 SELECT f1;
 END//
 Warnings:
@@ -1188,12 +2628,13 @@ f1
 value1
 Warnings:
 Note	1291	Column '' has duplicated value 'value1' in ENUM
-SHOW PROCEDURE status;
+SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 set("value1", "value1") ) language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
+CREATE PROCEDURE sp1( f1 SET("value1", "value1") )
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
 SELECT f1;
 END//
 Warnings:
@@ -1204,12 +2645,13 @@ value1
 Warnings:
 Note	1291	Column '' has duplicated value 'value1' in SET
 Warning	1265	Data truncated for column 'f1' at row 1
-SHOW PROCEDURE status;
+SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 enum("value1", "value1") )  language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
+CREATE PROCEDURE sp1( f1 ENUM("value1", "value1") )
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
 SELECT f1;
 END//
 Warnings:
@@ -1219,57 +2661,57 @@ f1
 value1
 Warnings:
 Note	1291	Column '' has duplicated value 'value1' in ENUM
-SHOW PROCEDURE status;
+SHOW PROCEDURE STATUS;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 text ) language sql SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) LANGUAGE SQL SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
-SHOW PROCEDURE status like 'sp1';
+SHOW PROCEDURE STATUS LIKE 'sp1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 text ) deterministic SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
-SHOW PROCEDURE status like 'sp1';
+SHOW PROCEDURE STATUS LIKE 'sp1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 text ) not deterministic SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) NOT DETERMINISTIC SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
-SHOW PROCEDURE status like 'sp1';
+SHOW PROCEDURE STATUS LIKE 'sp1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 text ) sql security definer SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) SQL SECURITY DEFINER SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
-SHOW PROCEDURE status like 'sp1';
+SHOW PROCEDURE STATUS LIKE 'sp1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 text ) sql security invoker SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) SQL SECURITY INVOKER SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
-SHOW PROCEDURE status like 'sp1';
+SHOW PROCEDURE STATUS LIKE 'sp1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	INVOKER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1( f1 text ) comment 'this is simple' SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) COMMENT 'this is simple' SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
-SHOW PROCEDURE status like 'sp1';
+SHOW PROCEDURE STATUS LIKE 'sp1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	modified	created	DEFINER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934;
 ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934' is too long
 DROP PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde;
@@ -1282,60 +2724,65 @@ Ensure that all clauses that should be supported are supported
 CREATE FUNCTION
 --------------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1 (s char(20)) returns char(50)
-return concat('hello, ', s, '!');
+CREATE FUNCTION fn1 (s CHAR(20)) RETURNS CHAR(50)
+RETURN CONCAT('hello, ', s, '!');
 SELECT fn1('world');
 fn1('world')
 hello, world!
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 mediumtext ) returns mediumtext   language sql deterministic sql security definer comment 'this is simple'
-  BEGIN
-set @v1 = 'hello';
-set f1 = concat( @v1, f1 );
-return f1;
+CREATE FUNCTION fn1( f1 MEDIUMTEXT ) RETURNS MEDIUMTEXT
+LANGUAGE SQL DETERMINISTIC SQL SECURITY DEFINER COMMENT 'this is simple'
+BEGIN
+SET @v1 = 'hello';
+SET f1 = CONCAT( @v1, f1 );
+RETURN f1;
 END//
 SELECT fn1( ' world');
 fn1( ' world')
 hello world
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	DEFINER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint language sql not deterministic sql security invoker comment 'this is simple'
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-set f1 = 1 + f1;
-return f1;
+SET f1 = 1 + f1;
+RETURN f1;
 END//
 SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 decimal(63, 31) ) returns decimal(63, 31) language sql not deterministic sql security invoker comment 'this is simple'
+CREATE FUNCTION fn1( f1 DECIMAL(63, 31) ) RETURNS DECIMAL(63, 31)
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-set f1 = 1000000 + f1;
-return f1;
+SET f1 = 1000000 + f1;
+RETURN f1;
 END//
 ERROR 42000: Too big scale 31 specified for column ''. Maximum is 30.
 SELECT fn1( 1.3326e+8 );
 ERROR 42000: FUNCTION db_storedproc.fn1 does not exist
-CREATE FUNCTION fn1( f1 decimal(63, 30) ) returns decimal(63, 30) language sql not deterministic sql security invoker comment 'this is simple'
+CREATE FUNCTION fn1( f1 DECIMAL(63, 30) ) RETURNS DECIMAL(63, 30)
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-set f1 = 1000000 + f1;
-return f1;
+SET f1 = 1000000 + f1;
+RETURN f1;
 END//
 SELECT fn1( 1.3326e+8 );
 fn1( 1.3326e+8 )
 134260000.000000000000000000000000000000
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 enum("value1", "value1") ) returns decimal(63, 30)  language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-return f1;
+CREATE FUNCTION fn1( f1 ENUM("value1", "value1") ) RETURNS DECIMAL(63, 30)
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+RETURN f1;
 END//
 Warnings:
 Note	1291	Column '' has duplicated value 'value1' in ENUM
@@ -1344,11 +2791,12 @@ fn1( "value1" )
 1.000000000000000000000000000000
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 set("value1", "value1") ) returns decimal(63, 30) language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-return f1;
+CREATE FUNCTION fn1( f1 SET("value1", "value1") ) RETURNS DECIMAL(63, 30)
+LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+RETURN f1;
 END//
 Warnings:
 Note	1291	Column '' has duplicated value 'value1' in SET
@@ -1357,82 +2805,79 @@ fn1( "value1, value1" )
 1.000000000000000000000000000000
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint language sql
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT LANGUAGE SQL
 BEGIN
-set f1 = 1 + f1;
-return f1;
+SET f1 = 1 + f1;
+RETURN f1;
 END//
 SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint deterministic
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT DETERMINISTIC
 BEGIN
-set f1 = 1 + f1;
-return f1;
+SET f1 = 1 + f1;
+RETURN f1;
 END//
 SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint not deterministic
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT NOT DETERMINISTIC
 BEGIN
-set f1 = 1 + f1;
-return f1;
+SET f1 = 1 + f1;
+RETURN f1;
 END//
 SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint
-sql security definer
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT SQL SECURITY DEFINER
 BEGIN
-set f1 = 1 + f1;
-return f1;
+SET f1 = 1 + f1;
+RETURN f1;
 END//
 SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint
-sql security invoker
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT SQL SECURITY INVOKER
 BEGIN
-set f1 = 1 + f1;
-return f1;
+SET f1 = 1 + f1;
+RETURN f1;
 END//
 SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	INVOKER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn1;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint
-comment 'this is simple'
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT COMMENT 'this is simple'
 BEGIN
-set f1 = 1 + f1;
-return f1;
+SET f1 = 1 + f1;
+RETURN f1;
 END//
 SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	DEFINER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER	this is simple	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION fn1;
 
 Testcase 4.1.3:
@@ -1446,7 +2891,7 @@ SELECT * from t1 where f2 = f1;
 show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sp1		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(f1 char(20) )
-SELECT * from t1 where f2 = f1	latin1	modified	created
+SELECT * from t1 where f2 = f1	latin1	<modified>	<created>
 DROP PROCEDURE sp1;
 
 Testcase 4.1.4:
@@ -1459,7 +2904,7 @@ return concat('hello, ', s, '!');
 show CREATE FUNCTION fn1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 fn1		CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(s char(20)) RETURNS char(50) CHARSET latin1
-return concat('hello, ', s, '!')	latin1	modified	created
+return concat('hello, ', s, '!')	latin1	<modified>	<created>
 DROP FUNCTION fn1;
 
 Testcase 4.1.5:
@@ -1470,7 +2915,7 @@ CREATE PROCEDURE sp5()
 SELECT * from t1;
 SHOW PROCEDURE status like 'sp5';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp5	PROCEDURE	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp5	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE sp5;
 
 Testcase 4.1.6:
@@ -1484,7 +2929,7 @@ return @b;
 END//
 SHOW FUNCTION STATUS LIKE 'fn5';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn5	FUNCTION	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn5	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION fn5;
 
 Testcase 4.1.7:
@@ -1620,7 +3065,7 @@ ERROR 42000: INSERT command denied to user 'user_1'@'localhost' for table 't1'
 commit work;
 	
 root@localhost	db_storedproc
-alter procedure sp11 sql security definer;
+alter procedure sp11 sql security DEFINER;
 SELECT security_type from mysql.proc where specific_name='sp11';
 security_type
 DEFINER
@@ -1648,7 +3093,7 @@ INVOKER
 SELECT fn12();
 fn12()
 100
-alter function fn12 sql security definer;
+alter function fn12 sql security DEFINER;
 SELECT security_type from mysql.proc where specific_name='fn12';
 security_type
 DEFINER
@@ -3291,14 +4736,14 @@ SELECT db_storedproc.sp1();
 db_storedproc.sp1()
 2
 USE db_storedproc;
-alter procedure sp1 sql security definer;
+alter procedure sp1 sql security DEFINER;
 CALL db_storedproc.sp1();
 @x
 1
 SELECT db_storedproc.sp1();
 db_storedproc.sp1()
 2
-alter function sp1 sql security definer;
+alter function sp1 sql security DEFINER;
 SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
 name	type	security_type
 sp1	FUNCTION	DEFINER
@@ -3323,8 +4768,8 @@ database.
 DROP DATABASE IF EXISTS db_storedproc_3122;
 CREATE DATABASE db_storedproc_3122;
 USE db_storedproc;
-set @x=null;
-set @y=null;
+SET @x = NULL;
+SET @y = NULL;
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
 Note	1305	PROCEDURE sp1 does not exist
@@ -3339,10 +4784,10 @@ Warnings:
 Note	1305	FUNCTION sp1 does not exist
 CREATE PROCEDURE sp1()
 BEGIN
-set @x= 1;
+SET @x = 1;
 SELECT @x;
 END//
-CREATE FUNCTION db_storedproc_3122.sp1() returns double return 2.2;
+CREATE FUNCTION db_storedproc_3122.sp1() RETURNS DOUBLE RETURN 2.2;
 CALL sp1();
 @x
 1
@@ -3352,19 +4797,19 @@ db_storedproc_3122.sp1()
 USE db_storedproc_3122;
 CREATE PROCEDURE sp1 ()
 BEGIN
-set @x= 3;
+SET @x = 3;
 SELECT @x;
 END//
-CREATE FUNCTION db_storedproc.sp1() returns double return 4.4;
+CREATE FUNCTION db_storedproc.sp1() RETURNS DOUBLE RETURN 4.4;
 CALL sp1();
 @x
 3
 SELECT db_storedproc.sp1();
 db_storedproc.sp1()
 4.4
-alter procedure db_storedproc_3122.sp1 sql security invoker;
-alter function sp1 sql security invoker;
-SELECT db, name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
+ALTER PROCEDURE db_storedproc_3122.sp1 SQL SECURITY INVOKER;
+ALTER FUNCTION sp1 SQL SECURITY INVOKER;
+SELECT db, name, type, security_type FROM mysql.proc WHERE db LIKE 'db_storedproc%' AND specific_name='sp1';
 db	name	type	security_type
 db_storedproc	sp1	FUNCTION	DEFINER
 db_storedproc	sp1	PROCEDURE	DEFINER
@@ -3407,18 +4852,18 @@ CREATE PROCEDURE sp1 () set @x= 3;
 CREATE FUNCTION sp1 () returns int return 4;
 alter procedure sp1 sql security invoker comment 'this is a procedure';
 alter function sp1 sql security invoker comment 'this is a function';
-alter procedure sp1 sql security definer;
-alter function sp1 sql security definer;
+alter procedure sp1 sql security DEFINER;
+alter function sp1 sql security DEFINER;
 show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sp1		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
     COMMENT 'this is a procedure'
-set @x= 3	latin1	modified	created
+set @x= 3	latin1	<modified>	<created>
 show CREATE FUNCTION sp1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 sp1		CREATE DEFINER=`root`@`localhost` FUNCTION `sp1`() RETURNS int(11)
     COMMENT 'this is a function'
-return 4	latin1	modified	created
+return 4	latin1	<modified>	<created>
 USE db_storedproc;
 DROP DATABASE db_storedproc_3122;
 DROP FUNCTION db_storedproc.sp1;
@@ -13559,21 +15004,22 @@ DROP PROCEDURE sp1;
 
 Testcase 4.2.28:
 --------------------------------------------------------------------------------
-set @x=0;
-set @y=0;
+SET @x = 0;
+SET @y = 0;
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
 Note	1305	PROCEDURE sp1 does not exist
+SET @start_global_value = @@GLOBAL.sort_buffer_size;
 CREATE PROCEDURE sp1()
 BEGIN
-declare continue handler for sqlstate '42000' set @x2 = 1;
-set session sort_buffer_size = 10 * 1024 * 1024;
+DECLARE CONTINUE HANDLER FOR SQLSTATE '42000' SET @x2 = 1;
+SET SESSION SORT_BUFFER_SIZE = 10 * 1024 * 1024;
 SELECT @@sort_buffer_size;
-set @x = 4;
-set @y = 3;
-set global sort_buffer_size = 2 * 1024 * 1024;
+SET @x = 4;
+SET @y = 3;
+SET GLOBAL SORT_BUFFER_SIZE = 2 * 1024 * 1024;
 SELECT @@sort_buffer_size;
-set @@sort_buffer_size = 10 * 1024 * 1024;
+SET @@sort_buffer_size = 10 * 1024 * 1024;
 SELECT @@sort_buffer_size;
 END//
 CALL sp1();
@@ -13586,6 +15032,7 @@ CALL sp1();
 SELECT @x, @y;
 @x	@y
 4	3
+SET @@GLOBAL.sort_buffer_size = @start_global_value;
 
 Testcase 4.2.29:
 --------------------------------------------------------------------------------
@@ -16019,10 +17466,10 @@ DROP DATABASE IF EXISTS d2;
 CREATE DATABASE d1;
 CREATE DATABASE d2;
 USE d1;
-CREATE PROCEDURE sp8 ( n char(20) ) sql security definer comment 'initial'
+CREATE PROCEDURE sp8 ( n char(20) ) sql security DEFINER comment 'initial'
   SELECT * from t1 where t1.f1 = n;
 USE d2;
-alter procedure d1.sp8 sql security definer comment 'updated';
+alter procedure d1.sp8 sql security DEFINER comment 'updated';
 SELECT * from mysql.proc where specific_name='sp8' and db='d1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
 d1	sp8	PROCEDURE	sp8	SQL	CONTAINS_SQL	NO	DEFINER	 n char(20) 		SELECT * from t1 where t1.f1 = n	root@localhost	modified	created		updated	latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1 where t1.f1 = n
@@ -16039,7 +17486,7 @@ set a = 0.9 * n;
 return a;
 END//
 USE d2;
-alter function d1.fn2 sql security definer comment 'updated';
+alter function d1.fn2 sql security DEFINER comment 'updated';
 SELECT * from mysql.proc where specific_name='fn2' and db='d1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
 d1	fn2	FUNCTION	fn2	SQL	CONTAINS_SQL	NO	DEFINER	n int	int(11)	BEGIN
@@ -22094,13 +23541,13 @@ set @y=@x;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW PROCEDURE status like 'sp6a';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6a	PROCEDURE	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp6a	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW PROCEDURE status like 'sp6b';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6b	PROCEDURE	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp6b	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW PROCEDURE status like 'sp6c';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6c	PROCEDURE	root@localhost	modified	created	DEFINER	this is a comment	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp6c	PROCEDURE	root@localhost	<modified>	<created>	DEFINER	this is a comment	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE sp6a;
 DROP PROCEDURE sp6b;
 DROP PROCEDURE sp6c;
@@ -22115,7 +23562,7 @@ set @y=@x;
 END//
 SHOW PROCEDURE status like 'sp6';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6	PROCEDURE	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp6	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE sp6;
 
 Testcase 4.8.3:
@@ -22141,7 +23588,7 @@ return 0;
 END//
 show  function status like 'sp6';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6	FUNCTION	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp6	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION sp6;
 
 Testcase 4.8.5:
@@ -22190,7 +23637,7 @@ return i1;
 END//
 SHOW FUNCTION STATUS LIKE 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION fn1;
 
 Testcase 4.8.11:
@@ -22259,7 +23706,7 @@ alter procedure sp6 sql security invoker;
 alter procedure sp6 comment  'this is a new comment';
 SHOW PROCEDURE status like 'sp6';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6	PROCEDURE	root@localhost	modified	created	INVOKER	this is a new comment	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	sp6	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is a new comment	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE sp6;
 
 Testcase 4.8.18:
@@ -22290,7 +23737,7 @@ alter function fn1 sql security invoker;
 alter function fn1 comment 'this is a function 3242#@%$#@';
 show  function status like 'fn1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	modified	created	INVOKER	this is a function 3242#@%$#@	latin1	latin1_swedish_ci	latin1_swedish_ci
+db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is a function 3242#@%$#@	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION fn1;
 
 Testcase 4.8.20:
@@ -23510,19 +24957,19 @@ DROP PROCEDURE IF EXISTS h1;
 Testcase 4.11.40:
 --------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS h1;
-drop table IF EXISTS res_t1;
-create table res_t1(w char unique, x char);
-insert into res_t1 values ('a', 'b');
+DROP TABLE IF EXISTS res_t1;
+CREATE TABLE res_t1(w CHAR UNIQUE, x CHAR);
+INSERT INTO res_t1 VALUES ('a', 'b');
 CREATE PROCEDURE h1 ()
 BEGIN
-declare x1, x2, x3, x4, x5 int default 0;
-declare condname1 condition for sqlstate '42000';
-declare condname2 condition for sqlstate '42000';
-declare continue handler for condname1 set x1 = 1;
-declare continue handler for condname1 set x2 = 1;
-declare exit handler for condname1 set x3 = 1;
-declare continue handler for condname2 set x4 = 1;
-declare exit handler for condname2 set x5 = 1;
+DECLARE x1, x2, x3, x4, x5 int default 0;
+DECLARE condname1 CONDITION FOR SQLSTATE '42000';
+DECLARE condname2 CONDITION FOR SQLSTATE '42000';
+DECLARE CONTINUE HANDLER FOR condname1 set x1 = 1;
+DECLARE CONTINUE HANDLER FOR condname1 set x2 = 1;
+DECLARE EXIT HANDLER FOR condname1 SET x3 = 1;
+DECLARE CONTINUE HANDLER FOR condname2 SET x4 = 1;
+DECLARE EXIT HANDLER FOR condname2 SET x5 = 1;
 END//
 ERROR 42000: Duplicate handler declared in the same block
 DROP PROCEDURE IF EXISTS h1;
@@ -23533,12 +24980,12 @@ Testcase 4.11.41:
 DROP PROCEDURE IF EXISTS h1;
 CREATE PROCEDURE h1 ()
 BEGIN
-declare x1 int default 0;
+DECLARE x1 INT DEFAULT 0;
 BEGIN
-declare condname1 condition for sqlstate '00000';
-declare exit handler for sqlstate '00000' set @x = 1;
-set x1 = 1;
-set x1 = 2;
+DECLARE condname1 CONDITION FOR SQLSTATE '00000';
+DECLARE EXIT HANDLER FOR SQLSTATE '00000' SET @x = 1;
+SET x1 = 1;
+SET x1 = 2;
 END;
 SELECT @x, x1;
 END//
@@ -23556,10 +25003,10 @@ DROP TABLE IF EXISTS res_t1;
 CREATE PROCEDURE h1()
 BEGIN
 DECLARE EXIT HANDLER FOR SQLWARNING SET @done = 1;
-set @done=0;
-set @x=1;
-insert into res_t1 values('xxx', 'yy');
-set @x=0;
+SET @done=0;
+SET @x=1;
+INSERT INTO res_t1 VALUES('xxx', 'yy');
+SET @x=0;
 END//
 CALL h1();
 ERROR 42S02: Table 'db_storedproc.res_t1' doesn't exist
@@ -23578,10 +25025,10 @@ DROP TABLE IF EXISTS res_t1;
 CREATE PROCEDURE h1()
 BEGIN
 DECLARE CONTINUE HANDLER FOR SQLWARNING SET @done = 1;
-set @done=0;
-set @x=0;
-insert into res_t1 values('xxx', 'yy');
-set @x=1;
+SET @done=0;
+SET @x=0;
+INSERT INTO res_t1 VALUES('xxx', 'yy');
+SET @x=1;
 END//
 CALL h1();
 ERROR 42S02: Table 'db_storedproc.res_t1' doesn't exist
