@@ -1068,6 +1068,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   if (insert_precheck(thd, table_list))
     goto error;
 
+  upgrade_lock_type_for_insert(thd, &table_list->lock_type, duplic,
+                               values_list.elements > 1);
   /*
     open temporary memory pool for temporary data allocated by derived
     tables & preparation procedure

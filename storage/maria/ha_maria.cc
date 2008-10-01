@@ -2605,10 +2605,9 @@ enum row_type ha_maria::get_row_type() const
 }
 
 
-static enum data_file_type maria_row_type(HA_CREATE_INFO *info,
-                                          my_bool ignore_transactional)
+static enum data_file_type maria_row_type(HA_CREATE_INFO *info)
 {
-  if (info->transactional == HA_CHOICE_YES && ! ignore_transactional)
+  if (info->transactional == HA_CHOICE_YES)
     return BLOCK_RECORD;
   switch (info->row_type) {
   case ROW_TYPE_FIXED:   return STATIC_RECORD;
@@ -2641,7 +2640,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     }
   }
   /* Note: BLOCK_RECORD is used if table is transactional */
-  row_type= maria_row_type(ha_create_info, 0);
+  row_type= maria_row_type(ha_create_info);
   if (ha_create_info->transactional == HA_CHOICE_YES &&
       ha_create_info->row_type != ROW_TYPE_PAGE &&
       ha_create_info->row_type != ROW_TYPE_NOT_USED &&
@@ -2825,15 +2824,15 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   if (create_info->auto_increment_value != stats.auto_increment_value ||
       create_info->data_file_name != data_file_name ||
       create_info->index_file_name != index_file_name ||
-      (maria_row_type(create_info,  1) != data_file_type &&
+      (maria_row_type(create_info) != data_file_type &&
        create_info->row_type != ROW_TYPE_DEFAULT) ||
       table_changes == IS_EQUAL_NO ||
       table_changes & IS_EQUAL_PACK_LENGTH) // Not implemented yet
     return COMPATIBLE_DATA_NO;
 
-  if ((options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
+  if ((options & (HA_OPTION_CHECKSUM |
                   HA_OPTION_DELAY_KEY_WRITE)) !=
-      (create_info->table_options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
+      (create_info->table_options & (HA_OPTION_CHECKSUM |
                               HA_OPTION_DELAY_KEY_WRITE)))
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;

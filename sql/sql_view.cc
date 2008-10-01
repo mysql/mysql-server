@@ -1021,7 +1021,6 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   bool parse_status;
   bool result, view_is_mergeable;
   TABLE_LIST *view_main_select_tables;
-
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
 

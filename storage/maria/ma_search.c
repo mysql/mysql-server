@@ -931,7 +931,7 @@ uint _ma_get_static_key(MARIA_KEY *key, uint page_flag, uint nod_flag,
 /**
    Skip over static length key from key-block
 
-  @fn _ma_skip_pack_key()
+  @fn _ma_skip_static_key()
   @param key       Keyinfo and buffer that can be used
   @param nod_flag  If nod: Length of node pointer, else zero.
   @param key       Points at key
@@ -1049,6 +1049,7 @@ uint _ma_get_pack_key(MARIA_KEY *int_key, uint page_flag,
       }
       else
       {
+        /* Key that is not packed against previous key */
         if (keyseg->flag & HA_NULL_PART)
         {
           if (!length--)                        /* Null part */
@@ -1121,6 +1122,9 @@ uint _ma_get_pack_key(MARIA_KEY *int_key, uint page_flag,
   @param nod_flag  If nod: Length of node pointer, else zero.
   @param key       Points at key
 
+  @note
+  This is in principle a simpler version of _ma_get_pack_key()
+
   @retval pointer to next key
 */
 
@@ -1149,6 +1153,14 @@ uchar *_ma_skip_pack_key(MARIA_KEY *key, uint page_flag,
 	get_key_length(length,page);
 	page+= length;
 	continue;
+      }
+      if ((keyseg->flag & HA_NULL_PART) && length)
+      {
+        /*
+          Keys that can have null use length+1 as the length for date as the
+          number 0 is reserved for keys that have a NULL value
+        */
+        length--;
       }
       page+= length;
     }
@@ -1846,11 +1858,14 @@ _ma_calc_var_key_length(const MARIA_KEY *key, uint nod_flag,
 
     prefix byte(s) The high bit is set if this is a prefix for the prev key
     length         Packed length if the previous was a prefix byte
-    [length]       data bytes ('length' bytes)
+    [data_length]  data bytes ('length' bytes)
     next-key-seg   Next key segments
 
     If the first segment can have NULL:
-    The length is 0 for NULLS and 1+length for not null columns.
+       If key was packed
+         data_length is length of rest of key
+       If key was not packed
+         The data_length is 0 for NULLS and 1+data_length for not null columns
 */
 
 int
