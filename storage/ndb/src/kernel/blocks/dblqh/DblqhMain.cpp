@@ -3576,6 +3576,7 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
     
     sendSignal(signal->senderBlockRef(), GSN_SCAN_FRAGREF, signal,
                ScanFragRef::SignalLength, JBB);
+    break;
   }
   default:
     jam();
