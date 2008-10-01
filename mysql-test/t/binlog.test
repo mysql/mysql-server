@@ -123,4 +123,42 @@ drop table t1;
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /Server ver: [^,]*,/Server version,/
 show binlog events from 0;
 
+
+#
+# Bug #39182: Binary log producing incompatible character set query from 
+# stored procedure.
+#
+CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+USE bug39182;
+CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8_unicode_ci)
+  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+DELIMITER //;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE s1 VARCHAR(255);
+  SET s1= "test";
+  CREATE TEMPORARY TABLE tmp1
+    SELECT * FROM t1 WHERE a LIKE CONCAT("%", s1, "%");
+  SELECT 
+    COLLATION(NAME_CONST('s1', _utf8'test')) c1,
+    COLLATION(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) c2,
+    COLLATION(s1) c3,
+    COERCIBILITY(NAME_CONST('s1', _utf8'test')) d1,
+    COERCIBILITY(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) d2,
+    COERCIBILITY(s1) d3;
+  DROP TEMPORARY TABLE tmp1;
+END//
+
+DELIMITER ;//
+
+CALL p1();
+SHOW BINLOG EVENTS FROM 1285;
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP DATABASE bug39182;
+USE test;
+
 --echo End of 5.0 tests
