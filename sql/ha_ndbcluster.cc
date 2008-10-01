@@ -109,7 +109,7 @@ static uint ndbcluster_alter_partition_flags()
   return HA_PARTITION_FUNCTION_SUPPORTED;
 }
 
-#define NDB_AUTO_INCREMENT_RETRIES 10
+#define NDB_AUTO_INCREMENT_RETRIES 100
 #define BATCH_FLUSH_SIZE (32768)
 
 static void set_ndb_err(THD *thd, const NdbError &err);
@@ -3186,7 +3186,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 	if (--retries &&
 	    ndb->getNdbError().status == NdbError::TemporaryError)
 	{
-	  my_sleep(retry_sleep);
+	  do_retry_sleep(retry_sleep);
 	  continue;
 	}
 	ERR_RETURN(ndb->getNdbError());
@@ -7392,7 +7392,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
       if (--retries &&
           ndb->getNdbError().status == NdbError::TemporaryError)
       {
-        my_sleep(retry_sleep);
+        do_retry_sleep(retry_sleep);
         continue;
       }
       const NdbError err= ndb->getNdbError();
@@ -7731,7 +7731,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   {
     if (thd->killed)
       DBUG_RETURN(-1);
-    my_sleep(delay);
+    my_sleep(1000*delay);
   }
   if (result == -1 || th.close() == -1)
   {
@@ -7762,7 +7762,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
         {
           if (thd->killed)
             DBUG_RETURN(-1);
-          my_sleep(delay);        
+          my_sleep(1000*delay);        
         }
         if (result == -1 || ih.close() == -1)
         {
@@ -7784,7 +7784,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
         {
           if (thd->killed)
             DBUG_RETURN(-1);
-          my_sleep(delay);
+          my_sleep(1000*delay);
         }
         if (result == -1 || ih.close() == -1)
         {
@@ -9903,9 +9903,9 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   NdbTransaction* pTrans;
   NdbError error;
-  int retries= 10;
+  int retries= 100;
   int reterr= 0;
-  int retry_sleep= 30 * 1000; /* 30 milliseconds */
+  int retry_sleep= 30; /* 30 milliseconds */
   const char *dummyRowPtr;
   const Uint32 extraCols= 5;
   NdbOperation::GetValueSpec extraGets[extraCols];
@@ -10053,7 +10053,7 @@ retry:
     }
     if (error.status == NdbError::TemporaryError && retries--)
     {
-      my_sleep(retry_sleep);
+      do_retry_sleep(retry_sleep);
       continue;
     }
     break;
