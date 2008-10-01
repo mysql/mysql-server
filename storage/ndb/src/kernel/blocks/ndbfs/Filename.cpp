@@ -83,7 +83,7 @@ Filename::set(Filename::NameSpec& spec,
     }
     
     {
-      const char* blockName = getBlockName( refToBlock(blockReference) );
+      const char* blockName = getBlockName( refToMain(blockReference) );
       if (blockName == NULL){
 	ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"","No Block Name");
 	return;
