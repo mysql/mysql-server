@@ -803,7 +803,7 @@ defineNdbRecordOperation(ThreadNdb* pThread,
   if (op == NULL)
   {
     ndbout << "Operation is null " << pTrans->getNdbError() << endl;
-    int a = 5/0;
+    abort();
   }
     
   assert(op != 0);
