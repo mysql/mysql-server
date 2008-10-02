@@ -6618,7 +6618,8 @@ view_err:
   }
 
   Ha_global_schema_lock_guard global_schema_lock_guard(thd);
-  if (table_type == DB_TYPE_NDBCLUSTER)
+  if (table_type == DB_TYPE_NDBCLUSTER ||
+      (create_info->db_type && create_info->db_type->db_type == DB_TYPE_NDBCLUSTER))
   {
     /*
       To avoid deadlock in this situation
