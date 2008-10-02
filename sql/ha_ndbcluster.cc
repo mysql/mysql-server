@@ -2885,7 +2885,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     for (;;)
     {
       Ndb_tuple_id_range_guard g(m_share);
-      if (ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1) == -1)
+      if (ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1000) == -1)
       {
 	if (--retries && !thd->killed &&
 	    ndb->getNdbError().status == NdbError::TemporaryError)
