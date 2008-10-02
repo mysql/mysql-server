@@ -165,7 +165,7 @@ HASH ndbcluster_open_tables;
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
                                 my_bool not_used __attribute__((unused)));
 
-static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*,
+static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
                                     const NdbRecord *, struct Ndb_statistics *);
 
 THD *injector_thd= 0;
@@ -3183,7 +3183,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       Ndb_tuple_id_range_guard g(m_share);
       if (ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1000) == -1)
       {
-	if (--retries &&
+	if (--retries && !thd->killed &&
 	    ndb->getNdbError().status == NdbError::TemporaryError)
 	{
 	  do_retry_sleep(retry_sleep);
@@ -7409,7 +7409,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
         ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
         ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
     {
-      if (--retries &&
+      if (--retries && !thd->killed &&
           ndb->getNdbError().status == NdbError::TemporaryError)
       {
         do_retry_sleep(retry_sleep);
@@ -9184,7 +9184,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   {
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), tabname);
     if (ndbtab_g.get_table() == 0
-        || ndb_get_table_statistics(NULL, 
+        || ndb_get_table_statistics(thd, NULL, 
                                     FALSE, 
                                     ndb, 
                                     ndbtab_g.get_table()->getDefaultRecord(),
@@ -9874,7 +9874,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
     {
       DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
     }
-    if (int err= ndb_get_table_statistics(this, TRUE, ndb,
+    if (int err= ndb_get_table_statistics(thd, this, TRUE, ndb,
                                           m_ndb_record, &stat))
     {
       DBUG_RETURN(err);
@@ -9912,7 +9912,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
 
 static 
 int
-ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
+ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* ndb,
                          const NdbRecord *record,
                          struct Ndb_statistics * ndbstat)
 {
@@ -10067,7 +10067,8 @@ retry:
       ndb->closeTransaction(pTrans);
       pTrans= NULL;
     }
-    if (error.status == NdbError::TemporaryError && retries--)
+    if (error.status == NdbError::TemporaryError &&
+        retries-- && !thd->killed)
     {
       do_retry_sleep(retry_sleep);
       continue;
@@ -10969,7 +10970,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
         }
         Ndb_table_guard ndbtab_g(ndb->getDictionary(), share->table_name);
         if (ndbtab_g.get_table() &&
-            ndb_get_table_statistics(NULL, FALSE, ndb,
+            ndb_get_table_statistics(thd, NULL, FALSE, ndb,
                                      ndbtab_g.get_table()->getDefaultRecord(), 
                                      &stat) == 0)
         {

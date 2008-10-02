@@ -1271,7 +1271,7 @@ static int ndbcluster_find_all_databases(THD *thd)
       ndb->closeTransaction(trans);
       trans= NULL;
     }
-    if (ndb_error.status == NdbError::TemporaryError)
+    if (ndb_error.status == NdbError::TemporaryError && !thd->killed)
     {
       if (retries--)
       {
@@ -1593,7 +1593,7 @@ ndbcluster_update_slock(THD *thd,
   err:
     const NdbError *this_error= trans ?
       &trans->getNdbError() : &ndb->getNdbError();
-    if (this_error->status == NdbError::TemporaryError)
+    if (this_error->status == NdbError::TemporaryError && !thd->killed)
     {
       if (retries--)
       {
@@ -1942,7 +1942,7 @@ int ndbcluster_log_schema_op(THD *thd,
 err:
     const NdbError *this_error= trans ?
       &trans->getNdbError() : &ndb->getNdbError();
-    if (this_error->status == NdbError::TemporaryError)
+    if (this_error->status == NdbError::TemporaryError && !thd->killed)
     {
       if (retries--)
       {
@@ -4392,7 +4392,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       op->setCustomData(NULL);
       ndb->dropEventOperation(op);
       pthread_mutex_unlock(&injector_mutex);
-      if (retries)
+      if (retries && !thd->killed)
       {
         do_retry_sleep(retry_sleep);
         continue;
