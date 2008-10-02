@@ -40,6 +40,7 @@ ifneq ($(CC),icc)
 else
  CFLAGS += -Werror
  CFLAGS += -g 
+ CFLAGS += -diag-enable port-win 
  CFLAGS += -diag-disable 177     # Don't complain about static variables that are not used.
  CFLAGS += -diag-disable 981     # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
 endif
