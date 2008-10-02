@@ -121,13 +121,13 @@ typedef struct {
 } TransactionData ;
 
 typedef struct {
-  const struct NdbRecord* subscriberTableNdbRecord;
-  const struct NdbRecord* groupTableNdbRecord;
-  const struct NdbRecord* sessionTableNdbRecord;
-  const struct NdbInterpretedCode* incrServerReadsProg;
-  const struct NdbInterpretedCode* incrServerInsertsProg;
-  const struct NdbInterpretedCode* incrServerDeletesProg;
-  const struct NdbRecord* serverTableNdbRecord;
+  const class NdbRecord* subscriberTableNdbRecord;
+  const class NdbRecord* groupTableNdbRecord;
+  const class NdbRecord* sessionTableNdbRecord;
+  const class NdbInterpretedCode* incrServerReadsProg;
+  const class NdbInterpretedCode* incrServerInsertsProg;
+  const class NdbInterpretedCode* incrServerDeletesProg;
+  const class NdbRecord* serverTableNdbRecord;
 } NdbRecordSharedData ;
 
 typedef struct {
@@ -148,7 +148,7 @@ typedef struct {
   RunState              runState;
   double                startTime;
   TransactionData       transactionData;
-  struct Ndb            * pNDB;
+  class Ndb           * pNDB;
   NdbRecordSharedData*  ndbRecordSharedData;
   bool                  useCombinedUpdate;
 } ThreadData;
