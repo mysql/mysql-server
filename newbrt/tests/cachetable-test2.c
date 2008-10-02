@@ -1,17 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <pthread.h>
-
-#include "memory.h"
-#include "cachetable.h"
-#include "toku_assert.h"
-
+#include "includes.h"
 #include "test.h"
 
 // this mutex is used by some of the tests to serialize access to some

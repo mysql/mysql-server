@@ -26,16 +26,7 @@
  *  
  */
 
-#include "brt.h"
-#include "key.h"
-#include "toku_assert.h"
-#include "brt-internal.h"
-
-
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-
+#include "includes.h"
 
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;

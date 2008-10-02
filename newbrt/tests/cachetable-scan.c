@@ -1,14 +1,7 @@
 /* How fast can we read a file usng the cachetable interface. */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-
-#include "cachetable.h"
+#include "includes.h"
 
 enum { KEYLIMIT = 4, BLOCKSIZE=1<<20, N=2048};
 

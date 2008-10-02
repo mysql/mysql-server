@@ -1,9 +1,5 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <assert.h>
-
+#include "includes.h"
 #include "test.h"
-#include "cachetable.h"
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),

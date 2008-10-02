@@ -1,10 +1,5 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <assert.h>
-#include <errno.h>
-
+#include "includes.h"
 #include "test.h"
-#include "cachetable.h"
 
 static void
 cachetable_fd_test (void) {

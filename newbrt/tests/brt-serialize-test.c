@@ -1,15 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "toku_assert.h"
-#include "brt-internal.h"
-#include "kv-pair.h"
-
-#include <fcntl.h>
-#include <string.h>
-#include <zlib.h>
-#include <arpa/inet.h>
-#include <stdlib.h>
+#include "includes.h"
 
 static void test_serialize(void) {
     //    struct brt source_brt;
