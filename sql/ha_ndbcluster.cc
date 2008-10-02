@@ -8712,9 +8712,7 @@ static int ndbcluster_init(void *p)
     h->alter_partition_flags=
       ndbcluster_alter_partition_flags;             /* Alter table flags */
     h->fill_files_table= ndbcluster_fill_files_table;
-#ifdef HAVE_NDB_BINLOG
     ndbcluster_binlog_init_handlerton();
-#endif
     h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
     h->discover=         ndbcluster_discover;
     h->find_files= ndbcluster_find_files;
