@@ -67,6 +67,13 @@ TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
 const char *opt_ndb_distribution= ndb_distribution_names[ND_KEYHASH];
 enum ndb_distribution opt_ndb_distribution_id= ND_KEYHASH;
 
+/*
+  Provided for testing purposes to be able to run full test suite
+  with --ndbcluster option without getting warnings about cluster
+  not being connected
+*/
+my_bool ndbcluster_silent= 0;
+
 // Default value for parallelism
 static const int parallelism= 0;
 
@@ -356,6 +363,7 @@ Thd_ndb::Thd_ndb()
   m_unsent_bytes= 0;
   global_schema_lock_trans= NULL;
   global_schema_lock_count= 0;
+  global_schema_lock_error= 0;
   init_alloc_root(&m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
 }
 
@@ -4486,6 +4494,9 @@ int ha_ndbcluster::start_statement(THD *thd,
   {
     //lockThisTable();
     DBUG_PRINT("info", ("Locking the table..." ));
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 0,
+                        "Table only locked locally in this mysqld", "NDB");
   }
   DBUG_RETURN(0);
 }
@@ -5364,8 +5375,8 @@ int ha_ndbcluster::create(const char *name,
 
   if (!((thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP) ||
         ndbcluster_has_global_schema_lock(thd_ndb)))
-    ndbcluster_no_global_schema_lock_abort
-      (thd, "ha_ndbcluster::create");
+    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
+                (thd, "ha_ndbcluster::create"));
   /*
     Don't allow table creation unless
     schema distribution table is setup
@@ -5980,8 +5991,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 
 #ifdef HAVE_NDB_BINLOG
   if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
-    ndbcluster_no_global_schema_lock_abort
-      (thd, "ha_ndbcluster::rename_table");
+    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
+                (thd, "ha_ndbcluster::rename_table"));
 #endif
 
   Ndb *ndb= get_ndb(thd);
@@ -6378,7 +6389,6 @@ int ha_ndbcluster::delete_table(const char *name)
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
-    DBUG_ASSERT(ndb_schema_share);
     error= HA_ERR_NO_CONNECTION;
     goto err;
   }
@@ -6394,8 +6404,8 @@ int ha_ndbcluster::delete_table(const char *name)
 
 #ifdef HAVE_NDB_BINLOG
   if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
-    ndbcluster_no_global_schema_lock_abort
-      (thd, "ha_ndbcluster::delete_table");
+    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
+                (thd, "ha_ndbcluster::delete_table"));
 #endif
 
   /*
@@ -6972,7 +6982,10 @@ err:
                              share->key, share->use_count));
     free_share(&share);
   }
-  if (ndb_error.code)
+  /*
+    ndbcluster_silent - avoid "cluster disconnected error"
+  */
+  if (ndb_error.code && (!ndbcluster_silent || ndb_error.code != 4009))
   {
     ERR_RETURN(ndb_error);
   }
@@ -6996,7 +7009,15 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
   NDBDICT* dict= ndb->getDictionary();
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
+  {
+    /*
+      ndbcluster_silent
+      - avoid "cluster failure" warning if cluster is not connected
+    */
+    if (ndbcluster_silent && dict->getNdbError().code == 4009)
+      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
     ERR_RETURN(dict->getNdbError());
+  }
   for (uint i= 0 ; i < list.count ; i++)
   {
     NdbDictionary::Dictionary::List::Element& elmt= list.elements[i];
@@ -7097,7 +7118,6 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
-    DBUG_ASSERT(ndb_schema_share);
     DBUG_VOID_RETURN;
   }
 #endif
@@ -10521,6 +10541,12 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
   adding=  adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX;
   dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
 
+#ifdef HAVE_NDB_BINLOG
+  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
+                (thd, "ha_ndbcluster::alter_table_phase1"));
+#endif
+
   if (!(alter_data= new NDB_ALTER_DATA(dict, m_table)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   old_tab= alter_data->old_table;
@@ -10711,6 +10737,12 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
   DBUG_ENTER("alter_table_phase2");
   dropping= dropping  | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
 
+#ifdef HAVE_NDB_BINLOG
+  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
+                (thd, "ha_ndbcluster::alter_table_phase2"));
+#endif
+
   if ((*alter_flags & dropping).is_set())
   {
     /* Tell the handler to finally drop the indexes. */
@@ -10743,6 +10775,10 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table)
   DBUG_ENTER("alter_table_phase3");
 
 #ifdef HAVE_NDB_BINLOG
+  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
+    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
+                (thd, "ha_ndbcluster::alter_table_phase3"));
+
   const char *db= table->s->db.str;
   const char *name= table->s->table_name.str;
   /*
