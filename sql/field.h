@@ -1213,8 +1213,16 @@ public:
 
 class Field_blob :public Field_longstr {
 protected:
+  /**
+    The number of bytes used to represent the length of the blob.
+  */
   uint packlength;
-  String value;				// For temporaries
+  
+  /**
+    The 'value'-object is a cache fronting the storage engine.
+  */
+  String value;
+  
 public:
   Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,

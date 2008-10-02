@@ -1513,3 +1513,10 @@ end loop label1;
 end loop;
 end|
 ERROR 42000: End-label label1 without match
+CREATE TABLE t1 (a INT)|
+INSERT INTO t1 VALUES (1),(2)|
+CREATE PROCEDURE p1(a INT) BEGIN END|
+CALL p1((SELECT * FROM t1))|
+ERROR 21000: Subquery returns more than 1 row
+DROP PROCEDURE IF EXISTS p1|
+DROP TABLE t1|
