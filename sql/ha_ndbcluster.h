@@ -292,6 +292,7 @@ class Thd_ndb
   uint m_unsent_bytes;
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
+  uint global_schema_lock_error;
 };
 
 class ha_ndbcluster: public handler

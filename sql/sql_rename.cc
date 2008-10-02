@@ -54,8 +54,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   mysql_ha_rm_tables(thd, table_list, FALSE);
 
-  global_schema_lock_guard.lock();
-
   if (wait_if_global_read_lock(thd,0,1))
     DBUG_RETURN(1);
 
@@ -135,6 +133,13 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
       DBUG_RETURN(1);
     }
   }
+
+  /*
+    Rename table may clash with parallell or existing ndb table
+    thus a global shema lock is needed to ensure global serialization.
+    Moreover we do not know here what table type the tables have.
+  */
+  global_schema_lock_guard.lock();
 
   pthread_mutex_lock(&LOCK_open);
   if (lock_table_names_exclusively(thd, table_list))

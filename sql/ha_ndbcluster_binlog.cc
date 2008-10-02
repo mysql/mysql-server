@@ -39,6 +39,8 @@ extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
 
+extern my_bool ndbcluster_silent;
+
 /*
   defines for cluster replication table names
 */
@@ -471,8 +473,14 @@ static void ndbcluster_binlog_wait(THD *thd)
   if (ndb_binlog_running)
   {
     DBUG_ENTER("ndbcluster_binlog_wait");
-    const char *save_info= thd ? thd->proc_info : 0;
     ulonglong wait_epoch= ndb_get_latest_trans_gci();
+    /*
+      cluster not connected or no transactions done
+      so nothing to wait for
+    */
+    if (!wait_epoch)
+      DBUG_VOID_RETURN;
+    const char *save_info= thd ? thd->proc_info : 0;
     int count= 30;
     if (thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
@@ -694,13 +702,21 @@ static void ndbcluster_reset_slave(THD *thd)
   char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_APPLY_TABLE);
   run_query(thd, buf, end, NULL, TRUE);
   if (thd->main_da.is_error() &&
-      thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+      ((thd->main_da.sql_errno() == ER_NO_SUCH_TABLE) ||
+       (thd->main_da.sql_errno() == ER_OPEN_AS_READONLY && ndbcluster_silent)))
   {
     /*
       If table does not exist ignore the error as it
       is a consistant behavior
     */
     thd->main_da.reset_diagnostics_area();
+    /*
+      ndbcluster_silent
+      - avoid "no table mysql.ndb_apply_status" warning - ER_NO_SUCH_TABLE
+      - avoid "mysql.ndb_apply_status read only" warning - ER_OPEN_AS_READONLY
+    */
+    if (ndbcluster_silent)
+      mysql_reset_errors(thd, 1);
   }
 
   DBUG_VOID_RETURN;
@@ -734,8 +750,11 @@ int ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb)
   return 0;
 }
 
-void ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
+int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
 {
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  if (thd_ndb && thd_ndb->global_schema_lock_error != 0)
+    return HA_ERR_NO_CONNECTION;
   sql_print_error("NDB: programming error, no lock taken while running "
                   "query %s. Message: %s", thd->query, msg);
   abort();
@@ -749,9 +768,11 @@ static int ndbcluster_global_schema_lock(THD *thd,
   Ndb *ndb= check_ndb_in_thd(thd);
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbError ndb_error;
+  thd_ndb->global_schema_lock_error= 0;
   if (thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP)
     return 0;
   DBUG_ENTER("ndbcluster_global_schema_lock");
+  DBUG_PRINT("enter", ("query: %s", thd->query));
   if (thd_ndb->global_schema_lock_trans)
   {
     thd_ndb->global_schema_lock_trans->refresh();
@@ -770,6 +791,11 @@ static int ndbcluster_global_schema_lock(THD *thd,
     DBUG_RETURN(0);
   }
 
+  /*
+    ndbcluster_silent - avoid "cluster disconnected error"
+  */
+  if (ndbcluster_silent)
+    report_cluster_disconnected= 0;
   if (ndb_error.code != 4009 || report_cluster_disconnected)
   {
     sql_print_warning("NDB: Could not acquire global schema lock (%d)%s",
@@ -777,14 +803,17 @@ static int ndbcluster_global_schema_lock(THD *thd,
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                         ndb_error.code, ndb_error.message,
-                        "ndb. Could not acquire global schema lock");
+                        "NDB. Could not acquire global schema lock");
   }
+  thd_ndb->global_schema_lock_error= ndb_error.code;
   DBUG_RETURN(-1);
 }
 static int ndbcluster_global_schema_unlock(THD *thd)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ASSERT(thd_ndb != 0);
+  if (thd_ndb)
+    thd_ndb->global_schema_lock_error= 0;
   if (thd_ndb == 0 || (thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP))
     return 0;
   Ndb *ndb= thd_ndb->ndb;
@@ -864,6 +893,12 @@ int Ndbcluster_global_schema_lock_guard::lock()
 {
   m_lock= !ndbcluster_global_schema_lock(m_thd, 0);
   return !m_lock;
+}
+void Ndbcluster_global_schema_lock_guard::unlock()
+{
+  if (m_lock)
+    ndbcluster_global_schema_unlock(m_thd);
+  m_lock= 0;
 }
 
 void ndbcluster_binlog_init_handlerton()
@@ -1108,8 +1143,8 @@ static int ndbcluster_find_all_databases(THD *thd)
   DBUG_ENTER("ndbcluster_find_all_databases");
   /* Ensure that we have the right lock */
   if (!ndbcluster_has_global_schema_lock(thd_ndb))
-    ndbcluster_no_global_schema_lock_abort
-      (thd, "ndbcluster_find_all_databases");
+    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
+                (thd, "ndbcluster_find_all_databases"));
   ndb->setDatabaseName(NDB_REP_DB);
   thd_ndb_options.set(TNO_NO_LOG_SCHEMA_OP);
   thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
