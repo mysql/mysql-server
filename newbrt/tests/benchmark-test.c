@@ -30,7 +30,7 @@ static void setup (void) {
     r = toku_open_brt(fname, 0, 1, &t, nodesize, ct, NULL_TXN, toku_default_compare_fun, (DB*)0); assert(r==0);
 }
 
-static void shutdown (void) {
+static void toku_shutdown (void) {
     int r;
     r = toku_close_brt(t, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
@@ -158,7 +158,7 @@ int main (int argc, char *argv[]) {
     gettimeofday(&t1,0);
     biginsert(total_n_items, &t1);
     gettimeofday(&t2,0);
-    shutdown();
+    toku_shutdown();
     gettimeofday(&t3,0);
     if (verbose) {
 	printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
