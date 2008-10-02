@@ -288,7 +288,7 @@ inline void do_retry_sleep(unsigned milli_sleep)
 }
 
 int ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
-void ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
+int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
 
 class Ndbcluster_global_schema_lock_guard
 {
@@ -296,6 +296,7 @@ public:
   Ndbcluster_global_schema_lock_guard(THD *thd);
   ~Ndbcluster_global_schema_lock_guard();
   int lock();
+  void unlock();
 private:
   THD *m_thd;
   int m_lock;
