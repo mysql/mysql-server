@@ -4494,9 +4494,11 @@ int ha_ndbcluster::start_statement(THD *thd,
   {
     //lockThisTable();
     DBUG_PRINT("info", ("Locking the table..." ));
+#ifdef NOT_YET
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 0,
                         "Table only locked locally in this mysqld", "NDB");
+#endif
   }
   DBUG_RETURN(0);
 }
