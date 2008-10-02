@@ -2296,6 +2296,7 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
   req->tableVersion = 0;
   req->indexId = RNIL;
   req->indexVersion = 0;
+  req->receiverRef = reference();
 
   // TUP needs some triggerInfo to find right list
   Uint32 ti = 0;
@@ -4612,6 +4613,21 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     jam();
     return;
   }//if
+
+  if (isNdbMtLqh())
+  {
+    jam();
+    TablePtr tabPtr;
+    c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
+    FragmentPtr fragPtr;
+    tabPtr.p->fragments.getPtr(fragPtr, fragId);
+    if (fragPtr.p->node != getOwnNodeId()) 
+    {
+      jam();
+      trigPtr.p->logEntry = 0;      
+      return;
+    }
+  }
 
   ndbrequire(trigPtr.p->logEntry != 0);
   Uint32 len = trigPtr.p->logEntry->Length;
