@@ -2129,7 +2129,7 @@ file segment, and the thread did not own the fsp latch before this call. */
 UNIV_INTERN
 void
 ibuf_free_excess_pages(void)
-/*=======================*/
+/*========================*/
 {
 	ulint		i;
 
