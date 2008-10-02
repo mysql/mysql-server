@@ -330,6 +330,7 @@ class Thd_ndb
 
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
+  uint global_schema_lock_error;
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
