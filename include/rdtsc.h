@@ -30,6 +30,8 @@ static inline unsigned long long rdtsc() {
     return r;
 }
 
+#else
+
 #define USE_RDTSC 0
 
 #endif
