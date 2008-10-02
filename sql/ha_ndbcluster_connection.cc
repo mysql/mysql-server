@@ -96,7 +96,9 @@ int ndbcluster_connect(int (*connect_callback)(void))
         (now_time.tv_sec == end_time.tv_sec &&
          now_time.tv_usec >= end_time.tv_usec))
       break;
-    sleep(1);
+    do_retry_sleep(100);
+    if (abort_loop)
+      goto ndbcluster_connect_error;
   }
 
   {

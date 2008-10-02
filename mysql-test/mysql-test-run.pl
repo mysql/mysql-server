@@ -3981,7 +3981,6 @@ sub mysqld_arguments ($$$$) {
       }
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
         if ( ! $glob_use_embedded_server )
         {
           mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
@@ -4064,7 +4063,6 @@ sub mysqld_arguments ($$$$) {
       }
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
         if ( ! $glob_use_embedded_server )
         {
           mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
