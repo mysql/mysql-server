@@ -145,7 +145,7 @@ static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck) {
     return cmp;
 }
 
-void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__))) {
+void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute__((unused)), BOOL write_me, BOOL keep_me, LSN modified_lsn __attribute__((__unused__)) , BOOL rename_p __attribute__((__unused__))) {
     struct brt_header *h = extraargs;
     BRTNODE brtnode = brtnode_v;
 //    if ((write_me || keep_me) && (brtnode->height==0)) {
@@ -1216,6 +1216,7 @@ int toku_cmd_leafval_bessel (OMTVALUE lev, void *extra) {
     LEAFENTRY le=lev;
     struct cmd_leafval_bessel_extra *be = extra;
     LESWITCHCALL(le, leafval_bessel, be);
+    abort(); return 0; // make certain compilers happy
 }
 
 // Whenever anything provisional is happening, it's XID must match the cmd's.
@@ -1438,7 +1439,7 @@ static int apply_cmd_to_leaf (BRT_CMD cmd,
 	LESWITCHCALL(stored_data, apply_cmd_to, cmd,
 		     newlen, disksize, new_data);
     }
-    
+    abort(); return 0; // make certain compilers happy    
 }
 
 static int
@@ -2456,7 +2457,7 @@ CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *roothash) {
 	    }
 	}
     }
-    abort();
+    abort(); return 0; // make certain compilers happy
 }
 
 static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *rootp, TOKULOGGER logger, BRTNODE *newrootp) {
@@ -2906,6 +2907,7 @@ static int bessel_from_search_t (OMTVALUE lev, void *extra) {
     LEAFENTRY leafval=lev;
     brt_search_t *search = extra;
     LESWITCHCALL(leafval, pair_leafval_bessel, search);
+    abort(); return 0; 
 }
 
 static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, TOKULOGGER logger, OMTCURSOR omtcursor) {

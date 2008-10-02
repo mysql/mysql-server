@@ -97,6 +97,7 @@ static u_int32_t memsize_le_provpair (TXNID txnid __attribute__((__unused__)),
 
 u_int32_t leafentry_memsize (LEAFENTRY le) {
     LESWITCHCALL(le, memsize);
+    abort(); return 0;  // make certain compilers happy
 }
 
 static u_int32_t disksize_le_committed (u_int32_t keylen, void *key __attribute__((__unused__)),
@@ -127,6 +128,7 @@ static u_int32_t disksize_le_provpair (TXNID txnid __attribute__((__unused__)),
 static u_int32_t
 leafentry_disksize_internal (LEAFENTRY le) {
     LESWITCHCALL(le, disksize);
+    abort(); return 0;  // make certain compilers happy
 }
 
 u_int32_t leafentry_disksize (LEAFENTRY le) {
@@ -234,6 +236,7 @@ static int print_le_provpair (TXNID xid, u_int32_t klen, void *kval, u_int32_t p
 int print_leafentry (FILE *outf, LEAFENTRY v) {
     if (!v) { printf("NULL"); return 0; }
     LESWITCHCALL(v, print, outf);
+    abort(); return 0;  // make certain compilers happy
 }
 
 int toku_logprint_LEAFENTRY (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
@@ -286,6 +289,7 @@ inline void* latest_key_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *kv
 }
 inline void* le_latest_key (LEAFENTRY le) {
     LESWITCHCALL(le, latest_key);
+    abort(); return 0;  // make certain compilers happy
 }
 
 inline u_int32_t latest_keylen_le_committed (u_int32_t keylen, void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
@@ -302,6 +306,7 @@ inline u_int32_t latest_keylen_le_provpair (TXNID UU(xid), u_int32_t klen, void 
 }
 inline u_int32_t le_latest_keylen (LEAFENTRY le) {
     LESWITCHCALL(le, latest_keylen);
+    abort(); return 0;  // make certain compilers happy
 }
 
 inline void* latest_val_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
@@ -318,6 +323,7 @@ inline void* latest_val_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU
 }
 inline void* le_latest_val (LEAFENTRY le) {
     LESWITCHCALL(le, latest_val);
+    abort(); return 0;  // make certain compilers happy
 }
 
 inline u_int32_t latest_vallen_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t vallen, void *UU(val)) {
@@ -334,6 +340,7 @@ inline u_int32_t latest_vallen_le_provpair (TXNID UU(xid), u_int32_t UU(klen), v
 }
 inline u_int32_t le_latest_vallen (LEAFENTRY le) {
     LESWITCHCALL(le, latest_vallen);
+    abort(); return 0;  // make certain compilers happy
 }
 
 inline void* any_key_le_committed (u_int32_t UU(keylen), void *key, u_int32_t UU(vallen), void *UU(val)) {
@@ -350,6 +357,7 @@ inline void* any_key_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *kval,
 }
 inline void* le_any_key (LEAFENTRY le) {
     LESWITCHCALL(le, any_key);
+    abort(); return 0;  // make certain compilers happy
 }
 
 inline u_int32_t any_keylen_le_committed (u_int32_t keylen, void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
@@ -366,6 +374,7 @@ inline u_int32_t any_keylen_le_provpair (TXNID UU(xid), u_int32_t klen, void *UU
 }
 inline u_int32_t le_any_keylen (LEAFENTRY le) {
     LESWITCHCALL(le, any_keylen);
+    abort(); return 0;  // make certain compilers happy
 }
 
 inline void* any_val_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
@@ -382,6 +391,7 @@ inline void* any_val_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void *UU(kv
 }
 inline void* le_any_val (LEAFENTRY le) {
     LESWITCHCALL(le, any_val);
+    abort(); return 0;  // make certain compilers happy
 }
 
 inline u_int32_t any_vallen_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t vallen, void *UU(val)) {
@@ -398,6 +408,7 @@ inline u_int32_t any_vallen_le_provpair (TXNID UU(xid), u_int32_t UU(klen), void
 }
 inline u_int32_t le_any_vallen (LEAFENTRY le) {
     LESWITCHCALL(le, any_vallen);
+    abort(); return 0;  // make certain compilers happy
 }
 
 
@@ -419,4 +430,5 @@ inline u_int64_t any_xid_le_provpair (TXNID xid, u_int32_t UU(klen), void *UU(kv
 
 inline u_int64_t le_any_xid (LEAFENTRY le) {
     LESWITCHCALL(le, any_xid);
+    abort(); return 0;  // make certain compilers happy
 }

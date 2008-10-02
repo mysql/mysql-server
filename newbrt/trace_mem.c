@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include "portability.h"
 #include "../include/rdtsc.h"
 #include "trace_mem.h"
 

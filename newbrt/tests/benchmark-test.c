@@ -2,16 +2,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 /* Insert a bunch of stuff */
-#include "brt.h"
-#include "key.h"
-#include "memory.h"
-#include "toku_assert.h"
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <unistd.h>
+#include "includes.h"
 
 static const char fname[]="sinsert.brt";
 
