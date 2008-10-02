@@ -18,6 +18,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#define MYSQL_SERVER 1
 #include "mysql_priv.h"
 #include "ha_blackhole.h"
 
@@ -100,6 +101,24 @@ int ha_blackhole::write_row(uchar * buf)
   DBUG_RETURN(table->next_number_field ? update_auto_increment() : 0);
 }
 
+int ha_blackhole::update_row(const uchar *old_data, uchar *new_data)
+{
+  DBUG_ENTER("ha_blackhole::update_row");
+  THD *thd= ha_thd();
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+    DBUG_RETURN(0);
+  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+}
+
+int ha_blackhole::delete_row(const uchar *buf)
+{
+  DBUG_ENTER("ha_blackhole::delete_row");
+  THD *thd= ha_thd();
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+    DBUG_RETURN(0);
+  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+}
+
 int ha_blackhole::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_blackhole::rnd_init");
@@ -110,6 +129,9 @@ int ha_blackhole::rnd_init(bool scan)
 int ha_blackhole::rnd_next(uchar *buf)
 {
   DBUG_ENTER("ha_blackhole::rnd_next");
+  THD *thd= ha_thd();
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+    DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
@@ -189,6 +211,9 @@ int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
                              enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_blackhole::index_read");
+  THD *thd= ha_thd();
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+    DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
@@ -198,6 +223,9 @@ int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
                                  enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_blackhole::index_read_idx");
+  THD *thd= ha_thd();
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+    DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
@@ -206,6 +234,9 @@ int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
                                       key_part_map keypart_map)
 {
   DBUG_ENTER("ha_blackhole::index_read_last");
+  THD *thd= ha_thd();
+  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL && thd->query == NULL)
+    DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
