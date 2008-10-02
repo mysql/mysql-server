@@ -3970,7 +3970,6 @@ sub mysqld_arguments ($$$$) {
       mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
 	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
       }
     }
@@ -4047,7 +4046,6 @@ sub mysqld_arguments ($$$$) {
       mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
 	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
       }
     }

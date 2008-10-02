@@ -157,9 +157,9 @@ static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
 static
 NdbRecord *
 ndb_get_table_statistics_ndbrecord(NDBDICT *, const NDBTAB *);
-static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*, const NDBTAB *, 
+static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*, const NDBTAB *, 
                                     struct Ndb_statistics *);
-static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*,
+static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
                                     const NdbRecord *, struct Ndb_statistics *);
 
 THD *injector_thd= 0;
@@ -2887,7 +2887,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       Ndb_tuple_id_range_guard g(m_share);
       if (ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1) == -1)
       {
-	if (--retries &&
+	if (--retries && !thd->killed &&
 	    ndb->getNdbError().status == NdbError::TemporaryError)
 	{
 	  do_retry_sleep(retry_sleep);
@@ -6464,7 +6464,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
         ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
         ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
     {
-      if (--retries &&
+      if (--retries && !thd->killed &&
           ndb->getNdbError().status == NdbError::TemporaryError)
       {
         do_retry_sleep(retry_sleep);
@@ -8068,7 +8068,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   {
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), tabname);
     if (ndbtab_g.get_table() == 0
-        || ndb_get_table_statistics(NULL, FALSE, ndb, ndbtab_g.get_table(), &stat))
+        || ndb_get_table_statistics(thd, NULL, FALSE, ndb, ndbtab_g.get_table(), &stat))
     {
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
@@ -8754,7 +8754,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
     {
       DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
     }
-    if (int err= ndb_get_table_statistics(this, TRUE, ndb,
+    if (int err= ndb_get_table_statistics(thd, this, TRUE, ndb,
                                           m_ndb_statistics_record, &stat))
     {
       DBUG_RETURN(err);
@@ -8822,7 +8822,7 @@ ndb_get_table_statistics_ndbrecord(NDBDICT *dict, const NDBTAB *table)
 
 static 
 int
-ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
+ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* ndb,
                          const NdbRecord *record,
                          struct Ndb_statistics * ndbstat)
 {
@@ -8954,7 +8954,8 @@ retry:
       ndb->closeTransaction(pTrans);
       pTrans= NULL;
     }
-    if (error.status == NdbError::TemporaryError && retries--)
+    if (error.status == NdbError::TemporaryError &&
+        retries-- && !thd->killed)
     {
       do_retry_sleep(retry_sleep);
       continue;
@@ -8971,7 +8972,7 @@ retry:
 */
 static 
 int
-ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
+ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* ndb,
                          const NDBTAB *ndbtab,
                          struct Ndb_statistics *ndbstat)
 {
@@ -8982,7 +8983,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
     DBUG_ENTER("ndb_get_table_statistics");
     ERR_RETURN(dict->getNdbError());
   }
-  int res= ndb_get_table_statistics(file, report_error, ndb, rec, ndbstat);
+  int res= ndb_get_table_statistics(thd, file, report_error, ndb, rec, ndbstat);
   dict->releaseRecord(rec);
   return res;
 }
@@ -9798,7 +9799,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
         }
         Ndb_table_guard ndbtab_g(ndb->getDictionary(), share->table_name);
         if (ndbtab_g.get_table() &&
-            ndb_get_table_statistics(NULL, FALSE, ndb,
+            ndb_get_table_statistics(thd, NULL, FALSE, ndb,
                                      ndbtab_g.get_table(), &stat) == 0)
         {
 #ifndef DBUG_OFF
