@@ -2892,7 +2892,8 @@ Suma::drop_triggers(Signal* signal, SubscriptionPtr subPtr)
         req->indexId = RNIL;
         req->indexVersion = 0;
         req->triggerId = triggerId;
-        
+        req->receiverRef = SUMA_REF;
+
         sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
                    signal, DropTrigImplReq::SignalLength, JBB);
       }

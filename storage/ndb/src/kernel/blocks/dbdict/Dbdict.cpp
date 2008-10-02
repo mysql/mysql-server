@@ -15975,6 +15975,7 @@ Dbdict::createTrigger_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
   req->triggerNo = 0;
   req->triggerId = impl_req->triggerId;
   req->triggerInfo = impl_req->triggerInfo;
+  req->receiverRef = impl_req->receiverRef;
 
   BlockReference ref = createTriggerPtr.p->m_block_list[0];
   sendSignal(ref, GSN_DROP_TRIG_IMPL_REQ, signal,
@@ -16601,6 +16602,7 @@ Dbdict::send_drop_trig_req(Signal* signal, SchemaOpPtr op_ptr)
   req->triggerNo = 0;
   req->triggerId = impl_req->triggerId;
   req->triggerInfo = impl_req->triggerInfo;
+  req->receiverRef = impl_req->receiverRef;
 
   BlockReference ref = dropTriggerPtr.p->m_block_list[0];
   sendSignal(ref, GSN_DROP_TRIG_IMPL_REQ, signal,

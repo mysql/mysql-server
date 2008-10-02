@@ -185,6 +185,7 @@ Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
   const Uint32 senderData = req->senderData;
   const Uint32 tableId = req->tableId;
   const Uint32 triggerId = req->triggerId;
+  const Uint32 receiverRef = req->receiverRef;
 
   // Find table
   TablerecPtr tabPtr;
@@ -192,7 +193,7 @@ Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
   // Drop trigger
-  Uint32 r = dropTrigger(tabPtr.p, req, refToBlock(senderRef));
+  Uint32 r = dropTrigger(tabPtr.p, req, refToBlock(receiverRef));
   if (r == 0){
     // Send conf
     DropTrigImplConf* conf = (DropTrigImplConf*)signal->getDataPtrSend();
@@ -368,7 +369,7 @@ Dbtup::primaryKey(Tablerec* const regTabPtr, Uint32 attrId)
 /*                                                                  */
 /* ---------------------------------------------------------------- */
 Uint32
-Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber sender)
+Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber receiver)
 {
   if (ERROR_INSERTED(4004)) {
     CLEAR_ERROR_INSERT_VALUE;
@@ -420,7 +421,7 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber send
       if (ptr.p->triggerId == triggerId)
       {
 	if(ttype==TriggerType::SUBSCRIPTION &&
-	   sender != refToBlock(ptr.p->m_receiverRef))
+	   receiver != refToBlock(ptr.p->m_receiverRef))
 	{
 	  /**
 	   * You can only drop your own triggers for subscription triggers.
@@ -886,8 +887,14 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
   Fragrecord::FragState fragstatus = regFragPtr.p->fragStatus;
 
-  if (refToMain(ref) == BACKUP) {
+  if (refToMain(ref) == BACKUP)
+  {
     jam();
+    if (isNdbMtLqh())
+    {
+      goto out;
+    }
+
     /*
     In order for the implementation of BACKUP to work even when changing
     primaries in the middle of the backup we need to set the trigger on
@@ -905,6 +912,8 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
       jam();
       return;
     }
+out:
+    (void)1;
   }
   else if (unlikely(triggerType == TriggerType::REORG_TRIGGER))
   {
@@ -1294,10 +1303,15 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
     fireTrigOrd->setGCI(req_struct->gci_hi);
-    EXECUTE_DIRECT(refToMain(trigPtr->m_receiverRef),
-                   GSN_FIRE_TRIG_ORD,
-                   signal,
-		   FireTrigOrd::SignalWithGCILength);
+
+    if (refToInstance(trigPtr->m_receiverRef) == instance())
+      EXECUTE_DIRECT(refToMain(trigPtr->m_receiverRef),
+                     GSN_FIRE_TRIG_ORD,
+                     signal,
+                     FireTrigOrd::SignalWithGCILength);
+    else
+      sendSignal(trigPtr->m_receiverRef, GSN_FIRE_TRIG_ORD,
+                 signal, FireTrigOrd::SignalWithGCILength, JBB);
     break;
   default:
     ndbrequire(false);
