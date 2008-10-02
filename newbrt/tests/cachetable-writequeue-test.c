@@ -49,7 +49,7 @@ test_simple_enq_deq (int n) {
         assert(!writequeue_empty(wq));
     }
     for (i=0; i<n; i++) {
-        PAIR p;
+        PAIR p = 0;
         r = writequeue_deq(wq, &mutex, &p); 
         assert(r == 0 && p == pairs[i]);
         destroy_pair(p);

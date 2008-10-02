@@ -1,26 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include <arpa/inet.h>
-#include <ctype.h>
-#include <dirent.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <unistd.h>
-
-#include "brt-internal.h"
-#include "log-internal.h"
-#include "wbuf.h"
-#include "memory.h"
-#include "log_header.h"
+#include "includes.h"
 
 static char dev_null[] = "/dev/null";
 
@@ -624,7 +605,9 @@ int toku_fread_DISKOFF (FILE *f, DISKOFF *diskoff, struct x1764 *checksum, u_int
     return r;
 }
 int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *blocknum, struct x1764 *checksum, u_int32_t *len) {
-    int r = toku_fread_u_int64_t (f, (u_int64_t*)&blocknum->b, checksum, len); // sign conversion will be OK.
+    u_int64_t b;
+    int r = toku_fread_u_int64_t (f, &b, checksum, len); // sign conversion will be OK.
+    blocknum->b=b;
     return r;
 }
 int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, u_int32_t *len) {

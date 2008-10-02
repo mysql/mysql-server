@@ -190,3 +190,4 @@ testdump: brtdump
 
 TAGS: ../*/*.c ../*/*.h
 	etags ../*/*.c ../*/*.h
+ofiles: $(OFILES)
