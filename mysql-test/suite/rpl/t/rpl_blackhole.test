@@ -1,8 +1,21 @@
 --source include/master-slave.inc
 
-# Test to test that blackhole works with replication, all three
-# modes. We start by creating a table on the master and then change
+# PURPOSE. Test that blackhole works with replication in all three
+# modes: STATEMENT, MIXED, and ROW.
+#
+# METHOD. We start by creating a table on the master and then change
 # the engine to use blackhole on the slave.
+#
+# After insert/update/delete of one or more rows, the test the
+# proceeds to check that replication is running after replicating an
+# change, that the blackhole engine does not contain anything (which
+# is just a check that the correct engine is used), and that something
+# is written to the binary log.
+#
+# Whe check INSERT, UPDATE, and DELETE statement for tables with no
+# key (forcing a range search on the slave), primary keys (using a
+# primary key lookup), and index/key with multiple matches (forcing an
+# index search).
 
 # We start with no primary key
 CREATE TABLE t1 (a INT, b INT, c INT);
