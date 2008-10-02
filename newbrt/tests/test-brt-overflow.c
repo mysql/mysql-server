@@ -1,10 +1,6 @@
 /* Test an overflow condition on the leaf.  See #632. */
 
-#include "brt.h"
-#include "key.h"
-#include "toku_assert.h"
-#include <string.h>
-#include <unistd.h>
+#include "includes.h"
 
 int verbose;
 

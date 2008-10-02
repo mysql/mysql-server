@@ -266,7 +266,7 @@ static void flush_n (CACHEFILE f __attribute__((__unused__)), CACHEKEY key __att
 		     void *extra  __attribute__((__unused__)),
                      long size __attribute__((__unused__)),
 		     BOOL write_me __attribute__((__unused__)),    BOOL keep_me __attribute__((__unused__)),
-		     LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute ((__unused__))) {
+		     LSN modified_lsn __attribute__((__unused__)), BOOL rename_p __attribute__ ((__unused__))) {
     int *v = value;
     assert(*v==0);
 }

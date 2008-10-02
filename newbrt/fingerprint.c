@@ -1,10 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include <arpa/inet.h>
-#include "brt-internal.h"
-#include "toku_assert.h"
-#include "x1764.h"
+#include "includes.h"
 
 // Calculate the fingerprint for a kvpair
 static void toku_calc_more_murmur_kvpair (struct x1764 *mm, const void *key, int keylen, const void *val, int vallen) {

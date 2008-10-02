@@ -27,10 +27,9 @@
  * The case of a committed pair and a provisional pair can be represented by a committed pair, since it doesn't matter whether the transction aborts or commits, the value is the same.
  */
 
-#include "brttypes.h"
+#include "portability.h"
 #include "rbuf.h"
 #include "x1764.h"
-#include <arpa/inet.h>
 
 u_int32_t toku_le_crc(LEAFENTRY v);
 
@@ -80,7 +79,7 @@ static inline u_int64_t getint64 (unsigned char *p) {
     return (H<<32) + L;
 }
 
-#define LESWITCHCALL(le,funname, ...) ({	                                                                     \
+#define LESWITCHCALL(le,funname, ...) do {	                                                                     \
   switch(get_le_state(le)) {					                                                     \
   case LE_COMMITTED: {                                                                                               \
     unsigned char* __klenaddr = 1+(unsigned char*)le;  u_int32_t __klen = getint(__klenaddr);                        \
@@ -111,7 +110,7 @@ static inline u_int64_t getint64 (unsigned char *p) {
     unsigned char* __plenaddr = __klen + __kvaladdr;   u_int32_t __plen = getint(__plenaddr);                        \
     unsigned char* __pvaladdr = 4 + __plenaddr;                                                                      \
     return funname ## _le_provpair(__xid, __klen, __kvaladdr, __plen, __pvaladdr, ## __VA_ARGS__); }                 \
-  } abort(); })
+  } abort(); } while (0)
 
 
 u_int32_t leafentry_memsize (LEAFENTRY le); // the size of a leafentry in memory.

@@ -1,8 +1,4 @@
-#include <assert.h>
-#include <string.h>
-#include <unistd.h>
-#include "brt.h"
-#include "key.h"
+#include "includes.h"
 
 static const char fname[]= __FILE__ ".brt";
 

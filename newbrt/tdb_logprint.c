@@ -5,18 +5,6 @@
 
 #include "includes.h"
 
-#include "brttypes.h"
-#include "log-internal.h"
-#include "log_header.h"
-#include "toku_assert.h"
-#include <arpa/inet.h>
-#include <ctype.h>
-#include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <zlib.h>
-
 #if 0
 static u_int32_t crc=0;
 static u_int32_t actual_len=0;

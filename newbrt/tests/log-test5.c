@@ -1,14 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "log-internal.h"
-#include "toku_assert.h"
-#include <dirent.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include "includes.h"
 
 #define dname __FILE__ ".dir"
 #define rmrf "rm -rf " dname "/"

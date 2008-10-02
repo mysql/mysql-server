@@ -28,7 +28,7 @@ unsigned long toku_fifo_memory_size(FIFO); // return how much memory the fifo us
 //int toku_fifo_peek_deq_cmdstruct (FIFO, BRT_CMD, DBT*, DBT*); // fill in the BRT_CMD, using the two DBTs for the DBT part.
 void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void*);
 
-#define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,xidvar,body) ({      \
+#define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,xidvar,body) do {    \
   int fifo_iterate_off;                                                                    \
   for (fifo_iterate_off = toku_fifo_iterate_internal_start(fifo);                          \
        toku_fifo_iterate_internal_has_more(fifo, fifo_iterate_off);			   \
@@ -41,7 +41,7 @@ void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,I
       int     typevar = e->type;                                                      \
       TXNID   xidvar = e->xid;                                                        \
       body;                                                                           \
-  } })
+  } } while (0)
 
 // Internal functions for the iterator.
 int toku_fifo_iterate_internal_start(FIFO fifo);

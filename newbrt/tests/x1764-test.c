@@ -1,7 +1,4 @@
-#include "x1764.h"
-#include "toku_assert.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "includes.h"
 
 static void
 test0 (void) {

@@ -884,7 +884,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     // Remove all the cmds from the local fingerprint.  Some may get added in again when we try to push to the child.
     FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid,
-		 ({
+		 {
 		     u_int32_t old_fingerprint   = node->local_fingerprint;
 		     u_int32_t new_fingerprint   = old_fingerprint - node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, skey, skeylen, sval, svallen);
 		     if (t->txn_that_created != xid) {
@@ -892,7 +892,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 			 assert(r==0);
 		     }
 		     node->local_fingerprint = new_fingerprint;
-		 }));
+		 });
 
     //verify_local_fingerprint_nonleaf(node);
 
@@ -923,12 +923,11 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     node->u.n.n_bytes_in_buffers -= old_count; /* By default, they are all removed.  We might add them back in. */
     /* Keep pushing to the children, but not if the children would require a pushdown */
-    FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid, ({
-        DBT skd, svd;
-        BRT_CMD_S brtcmd = { (enum brt_cmd_type)type, xid, .u.id= {toku_fill_dbt(&skd, skey, skeylen),
-						toku_fill_dbt(&svd, sval, svallen)} };
+    FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid, {
+	DBT skd; DBT svd;
+        BRT_CMD_S brtcmd = build_brt_cmd((enum brt_cmd_type)type, xid, toku_fill_dbt(&skd, skey, skeylen), toku_fill_dbt(&svd, sval, svallen));
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
-	int pusha = 0, pushb = 0;
+	int pusha = 0; int pushb = 0;
 	switch (type) {
 	case BRT_INSERT:
 	case BRT_DELETE_BOTH:
@@ -980,7 +979,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	printf("Bad type %d\n", type); // Don't use default: because I want a compiler warning if I forget a enum case, and I want a runtime error if the type isn't one of the expected ones.
 	assert(0);
      ok: /*nothing*/;
-		     }));
+		     });
 
     toku_fifo_free(&old_h);
 
@@ -1928,9 +1927,8 @@ static void verify_local_fingerprint_nonleaf (BRTNODE node) {
     if (node->height==0) return;
     for (i=0; i<node->u.n.n_children; i++)
 	FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
-			  ({
-			      fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
-			  }));
+		     fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
+		     );
     assert(fp==node->local_fingerprint);
 }
 
@@ -2697,12 +2695,12 @@ toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEML
 	    for (i=0; i< node->u.n.n_children; i++) {
 		printf("%*schild %d buffered (%d entries):\n", depth+1, "", i, toku_fifo_n_entries(BNC_BUFFER(node,i)));
 		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
-				  ({
+				  {
 				      data=data; datalen=datalen; keylen=keylen;
 				      printf("%*s xid=%"PRIu64" %u (type=%d)\n", depth+2, "", xid, ntohl(*(int*)key), type);
 				      //assert(strlen((char*)key)+1==keylen);
 				      //assert(strlen((char*)data)+1==datalen);
-				  }));
+				  });
 	    }
 	    for (i=0; i<node->u.n.n_children; i++) {
 		printf("%*schild %d\n", depth, "", i);

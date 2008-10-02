@@ -1,9 +1,4 @@
-#include "fifo.h"
-#include "memory.h"
-#include "toku_assert.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "includes.h"
 
 int verbose;
 
@@ -53,7 +48,7 @@ test_fifo_enq (int n) {
     }
 
     i = 0;
-    FIFO_ITERATE(f, key, keylen, val, vallen, type, xid, ({
+    FIFO_ITERATE(f, key, keylen, val, vallen, type, xid, {
         if (verbose) printf("checkit %d %d\n", i, type);
         buildkey(i);
         buildval(i);
@@ -62,7 +57,7 @@ test_fifo_enq (int n) {
         assert(i % 256 == type);
 	assert((TXNID)i==xid);
         i += 1;
-    }));
+    });
     assert(i == n);
 
     if (thekey) free(thekey);
