@@ -134,10 +134,14 @@ insert into t4 values (1,31),(2,32),(3,33),(4,34),(5,35);
 --let ndb_restore_filter=test t1
 --source include/ndb_backup_print.inc
 
---exec rm -f $MYSQLTEST_VARDIR/tmp/t1.txt
---exec rm -f $MYSQLTEST_VARDIR/tmp/t2.txt
---exec rm -f $MYSQLTEST_VARDIR/tmp/t3.txt
---exec rm -f $MYSQLTEST_VARDIR/tmp/t4.txt
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/t2.txt
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/t3.txt
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/t4.txt
 
 --let ndb_restore_opts=--verbose=0 --print_data --hex --tab $MYSQLTEST_VARDIR/tmp --append
 --let ndb_restore_filter=test
@@ -156,10 +160,10 @@ insert into t4 values (1,31),(2,32),(3,33),(4,34),(5,35);
 --source include/show_msg.inc
 --exec sort $MYSQLTEST_VARDIR/tmp/t4.txt
 
---exec rm -f $MYSQLTEST_VARDIR/tmp/t1.txt
---exec rm -f $MYSQLTEST_VARDIR/tmp/t2.txt
---exec rm -f $MYSQLTEST_VARDIR/tmp/t3.txt
---exec rm -f $MYSQLTEST_VARDIR/tmp/t4.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t2.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t3.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t4.txt
 
 # now test some other datatypes
 drop table t1;

@@ -6,9 +6,11 @@
 
 source include/master-slave.inc;
 
+
 create table t1 (a int) engine=myisam;
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.MYI ;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.MYI
+
 drop table if exists t1;
 save_master_pos;
 connection slave;
@@ -22,7 +24,7 @@ set sql_log_bin=0;
 insert into t1 values(2);
 set sql_log_bin=1;
 save_master_pos;
---error 1062
+--error ER_DUP_ENTRY
 insert into t1 values(1),(2);
 drop table t1;
 save_master_pos;

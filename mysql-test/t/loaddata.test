@@ -318,4 +318,184 @@ DROP VIEW v3;
 
 ###########################################################################
 
-# End of 5.0 tests
+
+#
+# Bug#37114: sql_mode NO_BACKSLASH_ESCAPES does not work properly with
+#            LOAD DATA INFILE
+#
+
+# - For each plain "SELECT id,...", the 1st pair ("before" SELECT...OUTFILE,
+#   LOAD...INFILE) and the 2nd pair of lines ("after") in the result should
+#   look the same, otherwise we broke the dumpe/restore cycle!
+#
+# - the \r is always { '\\', 'r' } in memory, but on-disk format changes
+#
+# - the \t is { '\t' } or { '\\', 't' } in memory depending on whether \
+#    is magic (that is, NO_BACKSLASH_ESCAPES is not set) at INSERT-time.
+#    on-disk format varies.
+#
+# - while INFILE/OUTFILE behaviour changes according to NO_BACKSLASH_ESCAPES,
+#   we can override these defaults using ESCAPED BY '...'
+#   1:  NO_BACKSLASH_ESCAPES default,  \  on-disk:  \,t,x,\r
+#   2:  NO_BACKSLASH_ESCAPES override, \\ on-disk:  \,\,t,x,\,\,r
+#   3: !NO_BACKSLASH_ESCAPES default,  \\ on-disk:  tab,\,\,r
+#   3: !NO_BACKSLASH_ESCAPES override, \  on-disk:  tab,\,r
+
+--echo Bug#37114
+
+SET SESSION character_set_client=latin1;
+SET SESSION character_set_server=latin1;
+SET SESSION character_set_connection=latin1;
+SET @OLD_SQL_MODE=@@SESSION.SQL_MODE;
+
+# 0. test LOAD DATA INFILE first; if that works, all issues in
+#    SELECT INTO OUTFILE / LOAD DATA INFILE cycles below are
+#    arguably in the saving.
+
+--echo test LOAD DATA INFILE
+
+--let $file=$MYSQLTEST_VARDIR/tmp/bug37114.txt
+--let $file2=$MYSQLTEST_VARDIR/tmp/bug37114_out.txt
+
+SET sql_mode = '';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT '1 \\\\aa\n' INTO DUMPFILE '$file'
+
+CREATE TABLE t1 (id INT, val1 CHAR(3)) ENGINE=MyISAM;
+
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' REPLACE INTO TABLE t1 FIELDS TERMINATED BY ' '
+SELECT * FROM t1;
+
+# show we can write this with OUTFILE, forcing the parameters for now
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file2' FIELDS ESCAPED BY '' TERMINATED BY ' ' FROM t1
+--diff_files $file $file2
+--remove_file $file2
+
+# now show the OUTFILE defaults are correct with NO_BACKSLASH_ESCAPES
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file2' FIELDS               TERMINATED BY ' ' FROM t1
+--diff_files $file $file2
+--remove_file $file2
+
+INSERT INTO t1 (id, val1) VALUES (1, '\aa');
+SELECT * FROM t1;
+
+SET sql_mode='';
+INSERT INTO t1 (id, val1) VALUES (1, '\aa');
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--remove_file $file
+
+
+
+--echo test SELECT INTO OUTFILE
+
+CREATE TABLE t1 (id INT PRIMARY KEY, val1 CHAR(4));
+CREATE TABLE t2 LIKE t1;
+
+# 1. with NO_BACKSLASH_ESCAPES on
+
+SET sql_mode = '';
+INSERT INTO t1 (id, val1) VALUES (5, '\ttab');
+INSERT INTO t1 (id, val1) VALUES (4, '\\r');
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+INSERT INTO t1 (id, val1) VALUES (3, '\tx');
+
+--echo 1.1 NO_BACKSLASH_ESCAPES, use defaults for ESCAPED BY
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FIELDS TERMINATED BY ' ' FROM t1 ORDER BY id
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 FIELDS TERMINATED BY ' '
+
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+ SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+
+TRUNCATE t2;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT LOAD_FILE("$file");
+--remove_file $file
+
+
+
+--echo 1.2 NO_BACKSLASH_ESCAPES, override defaults for ESCAPED BY
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FIELDS ESCAPED BY '\' TERMINATED BY ' ' FROM t1 ORDER BY id
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 FIELDS ESCAPED BY '\' TERMINATED BY ' '
+
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+ SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+
+TRUNCATE t2;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT LOAD_FILE("$file");
+--remove_file $file
+
+
+
+# 2. with NO_BACKSLASH_ESCAPES off
+
+SET sql_mode = '';
+
+--echo 2.1 !NO_BACKSLASH_ESCAPES, use defaults for ESCAPED BY
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FIELDS TERMINATED BY ' ' FROM t1 ORDER BY id
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 FIELDS TERMINATED BY ' '
+
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+ SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+
+TRUNCATE t2;
+
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT LOAD_FILE("$file");
+--remove_file $file
+
+SET sql_mode = '';
+
+
+
+--echo 2.2 !NO_BACKSLASH_ESCAPES, override defaults for ESCAPED BY
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FIELDS ESCAPED BY '' TERMINATED BY ' ' FROM t1 ORDER BY id
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 FIELDS ESCAPED BY '' TERMINATED BY ' '
+
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+ SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+
+TRUNCATE t2;
+
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT LOAD_FILE("$file");
+--remove_file $file
+
+# clean up
+set session sql_mode=@OLD_SQL_MODE;
+DROP TABLE t1,t2;
+
+
+
+--echo End of 5.0 tests
