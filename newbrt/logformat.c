@@ -9,6 +9,7 @@
  *   The struct definitions.
  *   The Latex documentation.
  */
+#include "portability.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -17,7 +18,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#if !defined(TOKU_WINDOWS)
 #include <unistd.h>
+#endif
 
 typedef struct field {
     char *type;
@@ -314,11 +317,11 @@ generate_dispatch (void) {
     DO_ROLLBACKS(lt, fprintf(hf, "  case RT_%s: funprefix ## %s (&(s)->u.%s); break;\\\n", lt->name, lt->name, lt->name));
     fprintf(hf, " }})\n");
 
-    fprintf(hf, "#define logtype_dispatch_assign(s, funprefix, var, args...) do { switch((s)->cmd) {\\\n");
-    DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: var = funprefix ## %s (&(s)->u.%s, ## args); break;\\\n", lt->name, lt->name, lt->name));
+    fprintf(hf, "#define logtype_dispatch_assign(s, funprefix, var, ...) do { switch((s)->cmd) {\\\n");
+    DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: var = funprefix ## %s (&(s)->u.%s, __VA_ARGS__); break;\\\n", lt->name, lt->name, lt->name));
     fprintf(hf, " }} while (0)\n");
 
-    fprintf(hf, "#define rolltype_dispatch_assign(s, funprefix, var, args...) do { \\\n");
+    fprintf(hf, "#define rolltype_dispatch_assign(s, funprefix, var, ...) do { \\\n");
     fprintf(hf, "  switch((s)->cmd) {\\\n");
     DO_ROLLBACKS(lt, {
 		    fprintf(hf, "  case RT_%s: var = funprefix ## %s (", lt->name, lt->name);
@@ -328,7 +331,7 @@ generate_dispatch (void) {
 				fprintf(hf, "(s)->u.%s.%s", lt->name, ft->name);
 				fieldcount++;
 			    });
-		    fprintf(hf, ",## args); break;\\\n");
+		    fprintf(hf, ", __VA_ARGS__); break;\\\n");
 		});
     fprintf(hf, "  default: assert(0);} } while (0)\n");
 

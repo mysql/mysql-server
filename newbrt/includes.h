@@ -9,20 +9,23 @@
 // Portability first!
 #include "portability.h"
 
-#include <ctype.h>
+#if !defined(TOKU_WINDOWS)
 #include <dirent.h>
-#include <errno.h>
 #include <inttypes.h>
-#include <malloc.h>
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/file.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <zlib.h>
+#endif
+
+#include <ctype.h>
+#include <errno.h>
+#include <malloc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "block_allocator.h"
 #include "brt.h"

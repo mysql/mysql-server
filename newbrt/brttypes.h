@@ -10,7 +10,9 @@
 #define _FILE_OFFSET_BITS 64
 
 #include "../include/db.h"
+#if !defined(TOKU_WINDOWS)
 #include <inttypes.h>
+#endif
 
 typedef struct brt *BRT;
 struct brt_header;

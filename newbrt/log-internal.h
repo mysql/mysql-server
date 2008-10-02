@@ -9,7 +9,9 @@
 #include "list.h"
 #include "memarena.h"
 #include <stdio.h>
+#if !defined(TOKU_WINDOWS)
 #include <pthread.h>
+#endif
 #include <sys/types.h>
 #include <string.h>
 
