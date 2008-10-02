@@ -250,22 +250,20 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
      * in LCP case since user-backup uses single worker.
      */
     BlockNumber blockMain = blockToMain(block);
+    const bool sameInstance = blockToInstance(block) == instance();
     if (blockMain == DBLQH)
     {
       EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
       jamEntry();
     }
-    else if (blockMain == SUMA)
+    else if (blockMain == SUMA && sameInstance)
     {
-      // wl4391_todo not MT safe
-      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex, 0);
+      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
       jamEntry();
     }
-    else if (blockMain == BACKUP)
+    else if (blockMain == BACKUP && sameInstance)
     {
-      Uint32 iNo = blockToInstance(block);
-      // wl4391_todo maybe not MT safe in non-LCP case
-      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex, iNo);
+      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
       jamEntry();
     }
     else

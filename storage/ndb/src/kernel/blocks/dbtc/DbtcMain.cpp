@@ -3083,8 +3083,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   regTcPtr->tcNodedata[2] = Tdata5;
   regTcPtr->tcNodedata[3] = Tdata6;
 
-  UintR Tdata7 = conf->instanceKey;
-  regTcPtr->lqhInstanceKey = Tdata7;
+  regTcPtr->lqhInstanceKey = (Tdata2 >> 24) & 127;// 1 bit used for reorg moving
 
   Uint8 Toperation = regTcPtr->operation;
   Uint8 Tdirty = regTcPtr->dirtyOp;
