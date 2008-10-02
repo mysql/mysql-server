@@ -435,6 +435,27 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // Ignore
   }
   }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
+  {
+    RSS_AP_SNAPSHOT_SAVE(c_theSubscriptionRecPool);
+    return;
+  }
+
+  if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
+  {
+    RSS_AP_SNAPSHOT_CHECK(c_theSubscriptionRecPool);
+    return;
+  }
+  
+  if (signal->theData[0] == 8004)
+  {
+    infoEvent("TRIX: c_theSubscriptionRecPool size: %u free: %u",
+              c_theSubscriptionRecPool.getSize(),
+              c_theSubscriptionRecPool.getNoOfFree());
+    return;
+  }
+
 }
 
 // Build index
