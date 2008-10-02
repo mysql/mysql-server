@@ -803,6 +803,7 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               uint max_char_length, CHARSET_INFO *cs,
                               bool no_error);
+bool check_host_name(LEX_STRING *str);
 
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
