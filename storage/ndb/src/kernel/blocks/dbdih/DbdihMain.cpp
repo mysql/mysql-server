@@ -110,6 +110,7 @@ extern EventLogger * g_eventLogger;
   } while (specNodePtr.i != RNIL);                                      \
 }
 
+#if 0
 static
 Uint32
 oldPrevLcpNo(Uint32 lcpNo){
@@ -117,6 +118,7 @@ oldPrevLcpNo(Uint32 lcpNo){
     return MAX_LCP_STORED - 1;
   return lcpNo - 1;
 }
+#endif
 
 static
 Uint32
@@ -1222,14 +1224,12 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
 
-  Uint32 workers = 1;
   if (isNdbMtLqh())
   {
     jam();
-    ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_THREADS, &workers);
-    c_fragments_per_node = workers;
+    c_fragments_per_node = getLqhWorkers();
   }
-  ndbout_c("Using %u fragments per node", workers);
+  ndbout_c("Using %u fragments per node", c_fragments_per_node);
 
   cfileFileSize = (2 * ctabFileSize) + 2;
   initRecords();
@@ -6916,7 +6916,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   const Uint32 flags = req->requestInfo;
 
   Uint32 err = 0;
-  const Uint32 defaultFragments = cnoOfNodeGroups * cnoReplicas;
+  const Uint32 defaultFragments = 
+    c_fragments_per_node * cnoOfNodeGroups * cnoReplicas;
 
   do {
     NodeGroupRecordPtr NGPtr;
@@ -7273,7 +7274,6 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     jam();
     tabPtr.p->method = TabRecord::NORMAL_HASH;
     break;
-  case DictTabInfo::DistrKeyUniqueHashIndex:
   case DictTabInfo::DistrKeyOrderedIndex:
   {
     TabRecordPtr primTabPtr;
@@ -7340,6 +7340,9 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     jam();
     tabPtr.p->m_map_ptr_i = req->hashMapPtrI;
     tabPtr.p->m_new_map_ptr_i = RNIL;
+    Ptr<Hash2FragmentMap> mapPtr;
+    g_hash_map.getPtr(mapPtr, tabPtr.p->m_map_ptr_i);
+    ndbrequire(tabPtr.p->totalfragments >= mapPtr.p->m_fragments);
   }
 
   Uint32 index = 2;
@@ -8256,11 +8259,11 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   getFragstore(tabPtr.p, fragId, fragPtr);
   Uint32 nodeCount = extractNodeInfo(fragPtr.p, conf->nodes);
   Uint32 sig2 = (nodeCount - 1) + 
-    (fragPtr.p->distributionKey << 16);
+    (fragPtr.p->distributionKey << 16) + 
+    (dihGetInstanceKey(fragPtr) << 24);
   conf->zero = 0;
   conf->reqinfo = sig2;
   conf->fragId = fragId;
-  conf->instanceKey = dihGetInstanceKey(fragPtr);
 
   if (unlikely(newFragId != RNIL))
   {
@@ -8270,7 +8273,8 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
     nodeCount = extractNodeInfo(fragPtr.p, conf->nodes + 2 + MAX_REPLICAS);
     conf->nodes[MAX_REPLICAS] = newFragId;
     conf->nodes[MAX_REPLICAS + 1] = (nodeCount - 1) +
-      (fragPtr.p->distributionKey << 16);
+      (fragPtr.p->distributionKey << 16) +
+      (dihGetInstanceKey(fragPtr) << 24);
   }
 }//Dbdih::execDIGETNODESREQ()
 

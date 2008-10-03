@@ -82,24 +82,8 @@ protected:
   void execLQHADDATTREF(Signal*);
   void sendLQHADDATTCONF(Signal*, Uint32 ssId);
 
-  // GSN_LQHFRAGREQ [ sub-op ]
-  struct Ss_LQHFRAGREQ : SsParallel {
-    LqhFragReq m_req;
-    Ss_LQHFRAGREQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendLQHFRAGREQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendLQHFRAGCONF;
-    }
-    enum { poolSize = 1 };
-    static SsPool<Ss_LQHFRAGREQ>& pool(LocalProxy* proxy) {
-      return ((DblqhProxy*)proxy)->c_ss_LQHFRAGREQ;
-    }
-  };
-  SsPool<Ss_LQHFRAGREQ> c_ss_LQHFRAGREQ;
+  // GSN_LQHFRAGREQ [ pass-through ]
   void execLQHFRAGREQ(Signal*);
-  void sendLQHFRAGREQ(Signal*, Uint32 ssId);
-  void execLQHFRAGCONF(Signal*);
-  void execLQHFRAGREF(Signal*);
-  void sendLQHFRAGCONF(Signal*, Uint32 ssId);
 
   // GSN_TAB_COMMITREQ [ sub-op ]
   struct Ss_TAB_COMMITREQ : SsParallel {

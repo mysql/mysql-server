@@ -2296,6 +2296,7 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
   req->tableVersion = 0;
   req->indexId = RNIL;
   req->indexVersion = 0;
+  req->receiverRef = reference();
 
   // TUP needs some triggerInfo to find right list
   Uint32 ti = 0;
@@ -3916,7 +3917,7 @@ Backup::execTRANSID_AI(Signal* signal)
   const Uint32 filePtrI = signal->theData[0];
   //const Uint32 transId1 = signal->theData[1];
   //const Uint32 transId2 = signal->theData[2];
-  const Uint32 dataLen  = signal->length() - 3;
+  Uint32 dataLen  = signal->length() - 3;
   
   BackupFilePtr filePtr LINT_SET_PTR;
   c_backupFilePool.getPtr(filePtr, filePtrI);
@@ -3926,14 +3927,30 @@ Backup::execTRANSID_AI(Signal* signal)
   /**
    * Unpack data
    */
+  Uint32 * dst = op.dst;
+  if (signal->getNoOfSections() == 0)
+  {
+    jam();
+    const Uint32 * src = &signal->theData[3];
+    * dst = htonl(dataLen);
+    memcpy(dst + 1, src, 4*dataLen);
+  }
+  else
+  {
+    jam();
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr dataPtr;
+    handle.getSection(dataPtr, 0);
+    dataLen = dataPtr.sz;
+
+    * dst = htonl(dataLen);
+    copy(dst + 1, dataPtr);
+    releaseSections(handle);
+  }
+
   op.attrSzTotal += dataLen;
   ndbrequire(dataLen < op.maxRecordSize);
 
-  const Uint32 * src = &signal->theData[3];
-  Uint32 * dst = op.dst;
-
-  * dst = htonl(dataLen);
-  memcpy(dst + 1, src, 4*dataLen);
   op.finished(dataLen);
 
   op.newRecord(dst + dataLen + 1);
@@ -4612,6 +4629,21 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     jam();
     return;
   }//if
+
+  if (isNdbMtLqh())
+  {
+    jam();
+    TablePtr tabPtr;
+    c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
+    FragmentPtr fragPtr;
+    tabPtr.p->fragments.getPtr(fragPtr, fragId);
+    if (fragPtr.p->node != getOwnNodeId()) 
+    {
+      jam();
+      trigPtr.p->logEntry = 0;      
+      return;
+    }
+  }
 
   ndbrequire(trigPtr.p->logEntry != 0);
   Uint32 len = trigPtr.p->logEntry->Length;

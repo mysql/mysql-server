@@ -280,6 +280,7 @@ Dbtup::setUpQueryRoutines(Tablerec *regTabPtr)
   }
 }
 
+#if 0
 /* Dump a byte buffer, for debugging. */
 static void dump_buf_hex(unsigned char *p, Uint32 bytes)
 {
@@ -298,6 +299,7 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
   }
   ndbout_c("%8p: %s", p, buf);
 }
+#endif
 
 static
 inline

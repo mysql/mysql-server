@@ -83,9 +83,6 @@ bool g_RestartServer= false;
 static MgmtSrvr* mgm;
 static MgmtSrvr::MgmtOpts opts;
 
-static int opt_daemon;
-static int opt_non_interactive;
-
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgmd"),

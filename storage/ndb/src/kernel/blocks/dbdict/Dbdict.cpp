@@ -4277,8 +4277,9 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     if (fragments == 0)
     {
       jam();
-      fragments = get_default_fragments();
+      tablePtr.p->fragmentCount = fragments = get_default_fragments();
     }
+
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
                          NDB_DEFAULT_HASHMAP_BUCKTETS,
@@ -4858,8 +4859,7 @@ Dbdict::create_fragmentation(Signal* signal,
      * and distributed in the same manner but has always a normal hash
      * fragmentation.
      */
-    frag_req->primaryTableId = tabPtr.p->primaryTableId;
-    frag_req->fragmentationType = DictTabInfo::DistrKeyUniqueHashIndex;
+    frag_req->primaryTableId = RNIL;
   }
   else
   {
@@ -15975,6 +15975,7 @@ Dbdict::createTrigger_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
   req->triggerNo = 0;
   req->triggerId = impl_req->triggerId;
   req->triggerInfo = impl_req->triggerInfo;
+  req->receiverRef = impl_req->receiverRef;
 
   BlockReference ref = createTriggerPtr.p->m_block_list[0];
   sendSignal(ref, GSN_DROP_TRIG_IMPL_REQ, signal,
@@ -16601,6 +16602,7 @@ Dbdict::send_drop_trig_req(Signal* signal, SchemaOpPtr op_ptr)
   req->triggerNo = 0;
   req->triggerId = impl_req->triggerId;
   req->triggerInfo = impl_req->triggerInfo;
+  req->receiverRef = impl_req->receiverRef;
 
   BlockReference ref = dropTriggerPtr.p->m_block_list[0];
   sendSignal(ref, GSN_DROP_TRIG_IMPL_REQ, signal,
