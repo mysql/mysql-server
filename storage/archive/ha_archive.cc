@@ -171,7 +171,7 @@ int archive_db_init(void *p)
 
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
     goto error;
-  if (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
+  if (hash_init(&archive_open_tables, table_alias_charset, 32, 0, 0,
                 (hash_get_key) archive_get_key, 0, 0))
   {
     VOID(pthread_mutex_destroy(&archive_mutex));
