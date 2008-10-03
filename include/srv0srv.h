@@ -107,8 +107,6 @@ extern ibool	srv_archive_recovery;
 extern dulint	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
-extern ulint	srv_lock_wait_timeout;
-
 extern char*	srv_file_flush_method_str;
 extern ulint	srv_unix_file_flush_method;
 extern ulint	srv_win_file_flush_method;

@@ -1,3 +1,12 @@
+2008-10-03	The InnoDB Team
+
+	* mysql-test/innodb-index.test, mysql-test/innodb-index.result,
+	mysql-test/innodb-timeout.test, mysql-test/innodb-timeout.result,
+	srv/srv0srv.c, include/srv0srv.h,
+	handler/ha_innodb.cc, include/ha_prototypes.h:
+	Make innodb_lock_wait_timeout a settable session variable.
+	This fixes MySQL Bug #36285.
+
 2008-09-19	The InnoDB Team
 
 	* os/os0proc.c:
