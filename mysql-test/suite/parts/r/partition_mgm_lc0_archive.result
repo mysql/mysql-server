@@ -157,22 +157,10 @@ tablea
 SELECT * FROM tablea;
 a
 1
-1
 10
-10
-11
-12
 2
-2
-3
-4
-5
-6
-7
 7
 8
-8
-9
 9
 SHOW CREATE TABLE tablea;
 Table	Create Table
@@ -185,7 +173,6 @@ ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
 a
 1
-1
 10
 11
 12
@@ -195,10 +182,7 @@ a
 5
 6
 7
-7
 8
-8
-9
 9
 SHOW CREATE TABLE TableA;
 Table	Create Table
@@ -372,22 +356,10 @@ tablea
 SELECT * FROM tablea;
 a
 1
-1
 10
-10
-11
-12
 2
-2
-3
-4
-5
-6
-7
 7
 8
-8
-9
 9
 SHOW CREATE TABLE tablea;
 Table	Create Table
@@ -400,12 +372,9 @@ ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
 a
 1
-1
-10
 10
 11
 12
-2
 2
 3
 4
@@ -413,8 +382,6 @@ a
 6
 7
 8
-8
-9
 9
 SHOW CREATE TABLE TableA;
 Table	Create Table
@@ -580,22 +547,10 @@ tablea
 SELECT * FROM tablea;
 a
 1
-1
 10
-10
-11
-12
 2
-2
-3
-4
-5
-6
-7
 7
 8
-8
-9
 9
 SHOW CREATE TABLE tablea;
 Table	Create Table
@@ -608,22 +563,16 @@ ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
 a
 1
-1
-10
 10
 11
 12
-2
 2
 3
 4
 5
 6
 7
-7
 8
-8
-9
 9
 SHOW CREATE TABLE TableA;
 Table	Create Table
@@ -783,19 +732,10 @@ tablea
 SELECT * FROM tablea;
 a
 1
-1
 10
-12
 2
-3
-4
-5
-6
-7
 7
 8
-8
-9
 9
 SHOW CREATE TABLE tablea;
 Table	Create Table
@@ -808,19 +748,13 @@ ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
 a
 1
-1
-10
 12
-2
 3
 4
 5
 6
 7
-7
 8
-8
-9
 9
 SHOW CREATE TABLE TableA;
 Table	Create Table
