@@ -39,7 +39,7 @@
 static void getRandomSubscriberNumber(SubscriberNumber number);
 static void getRandomServerId(ServerId *serverId);
 static void getRandomChangedBy(ChangedBy changedBy);
-static void getRandomChangedTime(ChangedTime changedTime);
+//static void getRandomChangedTime(ChangedTime changedTime);
 
 static void clearTransaction(TransactionDefinition *trans);
 static void initGeneratorStatistics(GeneratorStatistics *gen);
@@ -74,7 +74,7 @@ static SequenceValues rollbackDefinition[] = {
    {0,  0}
 };
 
-static int maxsize = 0;
+static unsigned maxsize = 0;
 
 /***************************************************************
 * P U B L I C   D A T A                                        *
@@ -106,11 +106,13 @@ static void getRandomChangedBy(ChangedBy changedBy)
    changedBy[CHANGED_BY_LENGTH] = 0;
 }
 
+#if 0
 static void getRandomChangedTime(ChangedTime changedTime)
 {
    memset(changedTime, myRandom48(26)+'A', CHANGED_TIME_LENGTH);
    changedTime[CHANGED_TIME_LENGTH] = 0;
 }
+#endif
 
 static void clearTransaction(TransactionDefinition *trans)
 {

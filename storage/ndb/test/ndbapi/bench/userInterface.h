@@ -44,7 +44,7 @@
 * P U B L I C    F U N C T I O N S                             *
 ***************************************************************/
 
-typedef struct Ndb Ndb;
+class Ndb;
 
 #ifdef __cplusplus
 extern "C" {
@@ -98,9 +98,9 @@ extern "C" {
 ***************************************************************/
 
 typedef struct {
-  struct Ndb_cluster_connection* pNCC;
-  struct Ndb           * pNDB;
-  struct NdbTransaction * pCurrTrans;
+  class Ndb_cluster_connection* pNCC;
+  class Ndb           * pNDB;
+  class NdbTransaction * pCurrTrans;
 } UserHandle;
 
 /***************************************************************
@@ -115,7 +115,7 @@ extern double userGetTimeSync(void);
 
 extern void userCheckpoint(UserHandle *uh);
 
-extern UserHandle *userDbConnect(uint32 createDb, char *dbName);
+extern UserHandle *userDbConnect(uint32 createDb, const char *dbName);
 extern void        userDbDisconnect(UserHandle *uh);
 
 extern int userDbInsertServer(UserHandle      *uh,

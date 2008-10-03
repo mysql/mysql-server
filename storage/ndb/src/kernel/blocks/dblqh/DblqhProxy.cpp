@@ -32,8 +32,6 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
 
   // GSN_LQHFRAGREQ
   addRecSignal(GSN_LQHFRAGREQ, &DblqhProxy::execLQHFRAGREQ);
-  addRecSignal(GSN_LQHFRAGCONF, &DblqhProxy::execLQHFRAGCONF);
-  addRecSignal(GSN_LQHFRAGREF, &DblqhProxy::execLQHFRAGREF);
 
   // GSN_TAB_COMMITREQ
   addRecSignal(GSN_TAB_COMMITREQ, &DblqhProxy::execTAB_COMMITREQ);
@@ -273,92 +271,17 @@ DblqhProxy::sendLQHADDATTCONF(Signal* signal, Uint32 ssId)
   ssRelease<Ss_LQHADDATTREQ>(ssId);
 }
 
-// GSN_LQHFRAGREQ [ sub-op ]
+// GSN_LQHFRAGREQ [ pass-through ]
 
 void
 DblqhProxy::execLQHFRAGREQ(Signal* signal)
 {
-  Ss_LQHFRAGREQ& ss = ssSeize<Ss_LQHFRAGREQ>(1); // lost connection
-
-  const LqhFragReq* req = (const LqhFragReq*)signal->getDataPtr();
-  ss.m_req = *req;
-  sendREQ(signal, ss);
-}
-
-void
-DblqhProxy::sendLQHFRAGREQ(Signal* signal, Uint32 ssId)
-{
-  Ss_LQHFRAGREQ& ss = ssFind<Ss_LQHFRAGREQ>(ssId);
-
   LqhFragReq* req = (LqhFragReq*)signal->getDataPtrSend();
-  *req = ss.m_req;
+  Uint32 instance = getInstanceKey(req->tableId, req->fragId);
 
-  NdbLogPartInfo lpinfo(workerInstance(ss.m_worker));
-  Uint32 logPartNo = lpinfo.partNoFromId(req->logPartId);
-  if (!lpinfo.partNoOwner(logPartNo)) {
-    jam();
-    skipReq(ss);
-    return;
-  }
-
-  req->senderRef = reference();
-  req->senderData = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_LQHFRAGREQ,
-             signal, LqhFragReq::SignalLength, JBB);
-}
-
-void
-DblqhProxy::execLQHFRAGCONF(Signal* signal)
-{
-  const LqhFragConf* conf = (const LqhFragConf*)signal->getDataPtr();
-  Uint32 ssId = conf->senderData;
-  Ss_LQHFRAGREQ& ss = ssFind<Ss_LQHFRAGREQ>(ssId);
-  recvCONF(signal, ss);
-}
-
-void
-DblqhProxy::execLQHFRAGREF(Signal* signal)
-{
-  const LqhFragRef* ref = (const LqhFragRef*)signal->getDataPtr();
-  Uint32 ssId = ref->senderData;
-  Ss_LQHFRAGREQ& ss = ssFind<Ss_LQHFRAGREQ>(ssId);
-  recvREF(signal, ss, ref->errorCode);
-}
-
-void
-DblqhProxy::sendLQHFRAGCONF(Signal* signal, Uint32 ssId)
-{
-  Ss_LQHFRAGREQ& ss = ssFind<Ss_LQHFRAGREQ>(ssId);
-  Ss_CREATE_TAB_REQ& ss_main = ssFind<Ss_CREATE_TAB_REQ>(ssId);
-  BlockReference dictRef = ss_main.m_req.senderRef;
-
-  if (!lastReply(ss))
-    return;
-
-  if (ss.m_error == 0) {
-    LqhFragConf* conf = (LqhFragConf*)signal->getDataPtrSend();
-    conf->senderData = ss.m_req.senderData;
-    conf->lqhFragPtr = RNIL; //wl4391_todo
-    conf->tableId = ss.m_req.tableId;
-    conf->fragId = ss.m_req.fragId;
-    conf->changeMask = 0;
-    sendSignal(dictRef, GSN_LQHFRAGCONF,
-               signal, LqhFragConf::SignalLength, JBB);
-  } else {
-    jam();
-    LqhFragRef* ref = (LqhFragRef*)signal->getDataPtrSend();
-    ref->senderData = ss.m_req.senderData;
-    ref->errorCode = ss.m_error;
-    ref->tableId = ss.m_req.tableId;
-    ref->fragId = ss.m_req.fragId;
-    ref->requestInfo = 0;
-    ref->changeMask = 0;
-    sendSignal(dictRef, GSN_LQHFRAGREF,
-               signal, LqhFragRef::SignalLength, JBB);
-    ssRelease<Ss_CREATE_TAB_REQ>(ssId);
-  }
-
-  ssRelease<Ss_LQHFRAGREQ>(ssId);
+  // wl4391_todo impl. method that fakes senders block-ref
+  sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
+             GSN_LQHFRAGREQ, signal, LqhFragReq::SignalLength, JBB);
 }
 
 // GSN_TAB_COMMITREQ

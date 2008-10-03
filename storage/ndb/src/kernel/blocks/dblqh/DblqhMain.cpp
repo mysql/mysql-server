@@ -10358,7 +10358,7 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
    */
   const BlockReference ref = scanP->scanApiBlockref;
   const Uint32 scanOp = scanP->m_curr_batch_size_rows;
-  const Uint32 nodeId = refToNode(ref);
+  Uint32 nodeId = refToNode(ref);
   const bool connectedToNode = getNodeInfo(nodeId).m_connected;
 #ifdef NOT_USED
   const Uint32 type = getNodeInfo(nodeId).m_type;
@@ -10370,7 +10370,23 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   Uint32 * dst = keyInfo->keyData;
   dst += nodeId == getOwnNodeId() ? 0 : KeyInfo20::DataLength;
 
-  Uint32 keyLen = readPrimaryKeys(scanP, tcConP, dst);
+  /**
+   * This is ugly :-(
+   *  currently only SUMA receives KEYINFO20 inside kernel..
+   *  and it's not really interested in the actual keyinfo,
+   *  only the scanInfo_Node...so send only that and avoid 
+   *  messing with if's below...
+   */
+  Uint32 keyLen ;
+  if (refToMain(ref) == SUMA && nodeId == getOwnNodeId())
+  {
+    keyLen = 0;
+  }
+  else
+  {
+    keyLen = readPrimaryKeys(scanP, tcConP, dst);
+  }
+
   Uint32 fragId = tcConP->fragmentid;
   keyInfo->clientOpPtr   = scanP->scanApiOpPtr;
   keyInfo->keyLen        = keyLen;
@@ -10384,6 +10400,11 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   {
     jam();
     
+    if (isNdbMtLqh() && instance() != refToInstance(ref))
+    {
+      jam();
+      nodeId = 0; // prevent execute direct
+    }
     if (nodeId == getOwnNodeId())
     {
       EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal,

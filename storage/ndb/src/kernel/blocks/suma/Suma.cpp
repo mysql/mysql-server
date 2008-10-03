@@ -2892,7 +2892,8 @@ Suma::drop_triggers(Signal* signal, SubscriptionPtr subPtr)
         req->indexId = RNIL;
         req->indexVersion = 0;
         req->triggerId = triggerId;
-        
+        req->receiverRef = SUMA_REF;
+
         sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
                    signal, DropTrigImplReq::SignalLength, JBB);
       }
@@ -3414,7 +3415,7 @@ Suma::execTRANSID_AI(Signal* signal)
   CRASH_INSERTION(13015);
   TransIdAI * const data = (TransIdAI*)signal->getDataPtr();
   const Uint32 opPtrI = data->connectPtr;
-  const Uint32 length = signal->length() - 3;
+  Uint32 length = signal->length() - 3;
 
   if(f_bufferLock == 0){
     f_bufferLock = opPtrI;
@@ -3422,6 +3423,16 @@ Suma::execTRANSID_AI(Signal* signal)
     ndbrequire(f_bufferLock == opPtrI);
   }
   
+  if (signal->getNoOfSections())
+  {
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr dataPtr;
+    handle.getSection(dataPtr, 0);
+    length = dataPtr.sz;
+    copy(data->attrData, dataPtr);
+    releaseSections(handle);
+  }
+
   Ptr<SyncRecord> syncPtr;
   c_syncPool.getPtr(syncPtr, (opPtrI >> 16));
   
@@ -5622,7 +5633,7 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
   }
   return;
 
-error:
+//error:
   CreateNodegroupImplRef *ref =
     (CreateNodegroupImplRef*)signal->getDataPtrSend();
   ref->senderRef = reference();
@@ -5699,7 +5710,7 @@ Suma::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
   }
   return;
 
-error:
+//error:
   DropNodegroupImplRef *ref =
     (DropNodegroupImplRef*)signal->getDataPtrSend();
   ref->senderRef = reference();
