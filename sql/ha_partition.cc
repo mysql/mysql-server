@@ -1717,6 +1717,14 @@ error:
 
 void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 {
+  /*
+    Fix for bug#38751, some engines needs info-calls in ALTER.
+    Archive need this since it flushes in ::info.
+    HA_STATUS_AUTO is optimized so it will not always be forwarded
+    to all partitions, but HA_STATUS_VARIABLE will.
+  */
+  info(HA_STATUS_VARIABLE);
+
   info(HA_STATUS_AUTO);
 
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
