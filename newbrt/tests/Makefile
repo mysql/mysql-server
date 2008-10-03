@@ -44,6 +44,7 @@ else
  CFLAGS += -diag-disable 177     # Don't complain about static variables that are not used.
  CFLAGS += -diag-disable 869
  CFLAGS += -diag-disable 981     # Don't complain about "operands are evaluated in unspecified order".  This seems to be generated whenever more than one argument to a function or operand is computed by function call.
+ CFLAGS += -ip -ipo2
 endif
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) -lpthread -lz
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500 -D_GNU_SOURCE -I..
