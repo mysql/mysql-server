@@ -17,6 +17,8 @@
 #include "Dblqh.hpp"
 #include "DblqhCommon.hpp"
 
+#include <signaldata/StartFragReq.hpp>
+
 DblqhProxy::DblqhProxy(Block_context& ctx) :
   LocalProxy(DBLQH, ctx)
 {
@@ -61,6 +63,9 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   addRecSignal(GSN_ALTER_TAB_REQ, &DblqhProxy::execALTER_TAB_REQ);
   addRecSignal(GSN_ALTER_TAB_CONF, &DblqhProxy::execALTER_TAB_CONF);
   addRecSignal(GSN_ALTER_TAB_REF, &DblqhProxy::execALTER_TAB_REF);
+
+  // GSN_START_FRAGREQ
+  addRecSignal(GSN_START_FRAGREQ, &DblqhProxy::execSTART_FRAGREQ);
 
   // GSN_START_RECREQ
   addRecSignal(GSN_START_RECREQ, &DblqhProxy::execSTART_RECREQ);
@@ -281,7 +286,7 @@ DblqhProxy::execLQHFRAGREQ(Signal* signal)
 
   // wl4391_todo impl. method that fakes senders block-ref
   sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
-             GSN_LQHFRAGREQ, signal, LqhFragReq::SignalLength, JBB);
+             GSN_LQHFRAGREQ, signal, signal->getLength(), JBB);
 }
 
 // GSN_TAB_COMMITREQ
@@ -767,6 +772,19 @@ DblqhProxy::execSTART_RECREQ(Signal* signal)
   ss.m_req = *req;
   ndbrequire(signal->getLength() == StartRecReq::SignalLength);
   sendREQ(signal, ss);
+}
+
+// GSN_START_RECREQ
+
+void
+DblqhProxy::execSTART_FRAGREQ(Signal* signal)
+{
+  StartFragReq* req = (StartFragReq*)signal->getDataPtrSend();
+  Uint32 instance = getInstanceKey(req->tableId, req->fragId);
+
+  // wl4391_todo impl. method that fakes senders block-ref
+  sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
+             GSN_START_FRAGREQ, signal, signal->getLength(), JBB);
 }
 
 void

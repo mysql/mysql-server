@@ -250,6 +250,12 @@ protected:
   void execALTER_TAB_REF(Signal*);
   void sendALTER_TAB_CONF(Signal*, Uint32 ssId);
 
+  /**
+   * GSN_START_FRAGREQ needs to be serialized wrt START_RECREQ
+   *   so send it via proxy, even if DIH knows where to send it...
+   */
+  void execSTART_FRAGREQ(Signal*);
+
   // GSN_START_RECREQ
   struct Ss_START_RECREQ : SsParallel {
     StartRecReq m_req;
