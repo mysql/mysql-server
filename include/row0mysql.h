@@ -683,7 +683,16 @@ struct row_prebuilt_struct {
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/* memory heap where a previous
 					version is built in consistent read */
-	ulonglong	last_value;	/* last value of AUTO-INC interval */
+	/*----------------------*/
+	ulonglong	autoinc_last_value;/* last value of AUTO-INC interval */
+	ulonglong	autoinc_increment;/* The increment step of the auto 
+					increment column. Value must be
+					greater than or equal to 1. Required to
+					calculate the next value */
+	ulonglong	autoinc_offset; /* The offset passed to
+					get_auto_increment() by MySQL. Required
+					to calculate the next value */
+	/*----------------------*/
 	ulint		magic_n2;	/* this should be the same as
 					magic_n */
 };
