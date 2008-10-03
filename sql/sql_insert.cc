@@ -1545,6 +1545,17 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         }
       }
     }
+    
+    /*
+        If more than one iteration of the above while loop is done, from the second 
+        one the row being inserted will have an explicit value in the autoinc field, 
+        which was set at the first call of handler::update_auto_increment(). This 
+        value is saved to avoid thd->insert_id_for_cur_row becoming 0. Use this saved
+        autoinc value.
+     */
+    if (table->file->insert_id_for_cur_row == 0)
+      table->file->insert_id_for_cur_row= insert_id_for_cur_row;
+      
     thd->record_first_successful_insert_id_in_cur_stmt(table->file->insert_id_for_cur_row);
     /*
       Restore column maps if they where replaced during an duplicate key
@@ -2532,8 +2543,13 @@ bool Delayed_insert::handle_inserts(void)
   thd_proc_info(&thd, "upgrading lock");
   if (thr_upgrade_write_delay_lock(*thd.lock->locks))
   {
-    /* This can only happen if thread is killed by shutdown */
-    sql_print_error(ER(ER_DELAYED_CANT_CHANGE_LOCK),table->s->table_name.str);
+    /*
+      This can happen if thread is killed either by a shutdown
+      or if another thread is removing the current table definition
+      from the table cache.
+    */
+    my_error(ER_DELAYED_CANT_CHANGE_LOCK,MYF(ME_FATALERROR),
+             table->s->table_name.str);
     goto err;
   }
 
@@ -2688,9 +2704,10 @@ bool Delayed_insert::handle_inserts(void)
 	query_cache_invalidate3(&thd, table, 1);
 	if (thr_reschedule_write_lock(*thd.lock->locks))
 	{
-	  /* This should never happen */
-	  sql_print_error(ER(ER_DELAYED_CANT_CHANGE_LOCK),
-                          table->s->table_name.str);
+    /* This is not known to happen. */
+    my_error(ER_DELAYED_CANT_CHANGE_LOCK,MYF(ME_FATALERROR),
+             table->s->table_name.str);
+    goto err;
 	}
 	if (!using_bin_log)
 	  table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -3524,7 +3541,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     temporary table, we need to start a statement transaction.
   */
   if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
-      thd->current_stmt_binlog_row_based)
+      thd->current_stmt_binlog_row_based &&
+      mysql_bin_log.is_open())
   {
     thd->binlog_start_trans_and_stmt();
   }
@@ -3620,10 +3638,11 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   result= store_create_info(thd, &tmp_table_list, &query, create_info);
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
 
-  thd->binlog_query(THD::STMT_QUERY_TYPE,
-                    query.ptr(), query.length(),
-                    /* is_trans */ TRUE,
-                    /* suppress_use */ FALSE);
+  if (mysql_bin_log.is_open())
+    thd->binlog_query(THD::STMT_QUERY_TYPE,
+                      query.ptr(), query.length(),
+                      /* is_trans */ TRUE,
+                      /* suppress_use */ FALSE);
 }
 
 void select_create::store_values(List<Item> &values)

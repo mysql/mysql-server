@@ -454,3 +454,11 @@ select last_insert_id();
 last_insert_id()
 3
 drop table t1;
+create table t1 (a int primary key auto_increment, b int, c int, e int, d timestamp default current_timestamp, unique(b),unique(c),unique(e));
+insert into t1 values(null,1,1,1,now());
+insert into t1 values(null,0,0,0,null);
+replace into t1 values(null,1,0,2,null);
+select last_insert_id();
+last_insert_id()
+3
+drop table t1;

@@ -9971,34 +9971,23 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   if (table_changes != IS_EQUAL_YES)
     DBUG_RETURN(COMPATIBLE_DATA_NO);
   
-  /**
-   * Changing from/to primary key
-   *
-   * This is _not_ correct, but check_if_incompatible_data-interface
-   *   doesnt give more info, so I guess that we can't do any
-   *   online add index if not using primary key
-   *
-   *   This as mysql will handle a unique not null index as primary 
-   *     even wo/ user specifiying it... :-(
-   *   
-   */
-  if ((table_share->primary_key == MAX_KEY && pk) ||
-      (table_share->primary_key != MAX_KEY && !pk) ||
-      (table_share->primary_key == MAX_KEY && !pk && ai))
-  {
-    DBUG_RETURN(COMPATIBLE_DATA_NO);
-  }
-  
   /* Check that auto_increment value was not changed */
   if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
       create_info->auto_increment_value != 0)
+  {
+    DBUG_PRINT("info", ("auto_increment value changed"));
     DBUG_RETURN(COMPATIBLE_DATA_NO);
+  }
   
   /* Check that row format didn't change */
   if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
       get_row_type() != create_info->row_type)
+  {
+    DBUG_PRINT("info", ("row format changed"));
     DBUG_RETURN(COMPATIBLE_DATA_NO);
+  }
 
+  DBUG_PRINT("info", ("new table seems compatible"));
   DBUG_RETURN(COMPATIBLE_DATA_YES);
 }
 

@@ -1039,7 +1039,7 @@ reopen_tables:
         correct order of statements. Otherwise, we use a TL_READ lock to
         improve performance.
       */
-      tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
+      tl->lock_type= read_lock_type_for_table(thd, table);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)

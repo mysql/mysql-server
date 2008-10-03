@@ -126,6 +126,9 @@ sp_get_item_value(THD *thd, Item *item, String *str)
         if (cs->escape_with_backslash_is_dangerous)
           buf.append(' ');
         append_query_string(cs, result, &buf);
+        buf.append(" COLLATE '");
+        buf.append(item->collation.collation->name);
+        buf.append('\'');
         str->copy(buf);
 
         return str;
@@ -1940,7 +1943,11 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       we'll leave it here.
     */
     if (!thd->in_sub_stmt)
-      close_thread_tables(thd);
+    {
+      thd->lex->unit.cleanup();
+      close_thread_tables(thd);            
+      thd->rollback_item_tree_changes();
+    }
 
     DBUG_PRINT("info",(" %.*s: eval args done",
                        (int) m_name.length, m_name.str));

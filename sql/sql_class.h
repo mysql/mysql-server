@@ -2250,6 +2250,7 @@ public:
   ulong skip_lines;
   CHARSET_INFO *cs;
   sql_exchange(char *name,bool dumpfile_flag);
+  bool escaped_given(void);
 };
 
 #include "log_event.h"

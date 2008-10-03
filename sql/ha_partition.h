@@ -37,6 +37,15 @@ typedef struct st_partition_share
 } PARTITION_SHARE;
 #endif
 
+/**
+  Partition specific ha_data struct.
+  @todo: move all partition specific data from TABLE_SHARE here.
+*/
+typedef struct st_ha_data_partition
+{
+  ulonglong next_auto_inc_val;                 /**< first non reserved value */
+  bool auto_inc_initialized;
+} HA_DATA_PARTITION;
 
 #define PARTITION_BYTES_IN_POS 2
 class ha_partition :public handler
@@ -49,7 +58,8 @@ private:
     partition_index_first_unordered= 2,
     partition_index_last= 3,
     partition_index_read_last= 4,
-    partition_no_index_scan= 5
+    partition_read_range = 5,
+    partition_no_index_scan= 6
   };
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
@@ -63,8 +73,6 @@ private:
   handler **m_reorged_file;             // Reorganised partitions
   handler **m_added_file;               // Added parts kept for errors
   partition_info *m_part_info;          // local reference to partition
-  uchar *m_start_key_ref;                // Reference of start key in current
-                                        // index scan info
   Field **m_part_field_array;           // Part field array locally to save acc
   uchar *m_ordered_rec_buffer;           // Row and key buffer for ord. idx scan
   KEY *m_curr_key_info;                 // Current index
@@ -141,6 +149,12 @@ private:
     "own" the m_part_info structure.
   */
   bool is_clone;
+  bool auto_increment_lock;             /**< lock reading/updating auto_inc */
+  /**
+    Flag to keep the auto_increment lock through out the statement.
+    This to ensure it will work with statement based replication.
+  */
+  bool auto_increment_safe_stmt_log_lock;
 public:
   handler *clone(MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info)
@@ -197,8 +211,8 @@ public:
   virtual char *update_table_comment(const char *comment);
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
-                                ulonglong *copied,
-                                ulonglong *deleted,
+                                ulonglong * const copied,
+                                ulonglong * const deleted,
                                 const uchar *pack_frm_data,
                                 size_t pack_frm_len);
   virtual int drop_partitions(const char *path);
@@ -212,7 +226,7 @@ public:
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);
 private:
   int prepare_for_rename();
-  int copy_partitions(ulonglong *copied, ulonglong *deleted);
+  int copy_partitions(ulonglong * const copied, ulonglong * const deleted);
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
                             handler *file, const char *part_name,
@@ -429,9 +443,7 @@ public:
   virtual int read_range_next();
 
 private:
-  int common_index_read(uchar * buf, const uchar * key,
-                        key_part_map keypart_map,
-                        enum ha_rkey_function find_flag);
+  int common_index_read(uchar * buf, bool have_start_key);
   int common_first_last(uchar * buf);
   int partition_scan_set_up(uchar * buf, bool idx_read_flag);
   int handle_unordered_next(uchar * buf, bool next_same);
@@ -829,12 +841,51 @@ public:
     auto_increment_column_changed
      -------------------------------------------------------------------------
   */
-  virtual void restore_auto_increment(ulonglong prev_insert_id);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
   virtual void release_auto_increment();
+private:
+  virtual int reset_auto_increment(ulonglong value);
+  virtual void lock_auto_increment()
+  {
+    /* lock already taken */
+    if (auto_increment_safe_stmt_log_lock)
+      return;
+    DBUG_ASSERT(table_share->ha_data && !auto_increment_lock);
+    if(table_share->tmp_table == NO_TMP_TABLE)
+    {
+      auto_increment_lock= TRUE;
+      pthread_mutex_lock(&table_share->mutex);
+    }
+  }
+  virtual void unlock_auto_increment()
+  {
+    DBUG_ASSERT(table_share->ha_data);
+    /*
+      If auto_increment_safe_stmt_log_lock is true, we have to keep the lock.
+      It will be set to false and thus unlocked at the end of the statement by
+      ha_partition::release_auto_increment.
+    */
+    if(auto_increment_lock && !auto_increment_safe_stmt_log_lock)
+    {
+      pthread_mutex_unlock(&table_share->mutex);
+      auto_increment_lock= FALSE;
+    }
+  }
+  virtual void set_auto_increment_if_higher(const ulonglong nr)
+  {
+    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
+    lock_auto_increment();
+    /* must check when the mutex is taken */
+    if (nr >= ha_data->next_auto_inc_val)
+      ha_data->next_auto_inc_val= nr + 1;
+    ha_data->auto_inc_initialized= TRUE;
+    unlock_auto_increment();
+  }
+
+public:
 
   /*
      -------------------------------------------------------------------------
