@@ -469,20 +469,20 @@ CREATE TABLE t2(
   PRIMARY KEY (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
---replace_regex /'test\.#sql-[0-9a-f-]*_1'/'#sql-temporary'/
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
 --error ER_CANT_CREATE_TABLE
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
---replace_regex /'test\.#sql-[0-9a-f-]*_1'/'#sql-temporary'/
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
 --error ER_CANT_CREATE_TABLE
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
---replace_regex /'test\.#sql-[0-9a-f-]*_1'/'#sql-temporary'/
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
 --error ER_CANT_CREATE_TABLE
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
---replace_regex /'test\.#sql-[0-9a-f-]*_1'/'#sql-temporary'/
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
 --error ER_CANT_CREATE_TABLE
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
