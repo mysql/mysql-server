@@ -382,7 +382,7 @@ my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
 bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
-bool opt_using_transactions, using_update_log;
+bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
 /**
@@ -3815,12 +3815,6 @@ server.");
     {
       unireg_abort(1);
     }
-
-    /*
-      Used to specify which type of lock we need to use for queries of type
-      INSERT ... SELECT. This will change when we have row level logging.
-    */
-    using_update_log=1;
   }
 
   /* call ha_init_key_cache() on all key caches to init them */
@@ -6229,7 +6223,7 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Deprecated option.  Use --skip-symbolic-links instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-thread-priority", OPT_SKIP_PRIOR,
-   "Don't give threads different priorities.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   "Don't give threads different priorities. Deprecated option.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    DEFAULT_SKIP_THREAD_PRIORITY, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
   {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR,
@@ -7431,7 +7425,7 @@ static void mysql_init_variables(void)
   slave_open_temp_tables= 0;
   cached_thread_count= 0;
   opt_endinfo= using_udf_functions= 0;
-  opt_using_transactions= using_update_log= 0;
+  opt_using_transactions= 0;
   abort_loop= select_thread_in_use= signal_thread_in_use= 0;
   ready_to_exit= shutdown_in_progress= grant_option= 0;
   aborted_threads= aborted_connects= 0;
@@ -7871,6 +7865,9 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;
+    sql_print_warning("The --skip-thread-priority startup option is deprecated "
+                      "and will be removed in MySQL 7.0. MySQL 6.0 and up do not "
+                      "give threads different priorities.");
     break;
   case (int) OPT_SKIP_LOCK:
     opt_external_locking=0;

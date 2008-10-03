@@ -8061,7 +8061,6 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
     */
   }
 
-  m_table->file->ha_start_bulk_insert(0);
   /*
     We need TIMESTAMP_NO_AUTO_SET otherwise ha_write_row() will not use fill
     any TIMESTAMP column with data from the row but instead will use
@@ -8200,7 +8199,16 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   
   /* unpack row into table->record[0] */
   error= unpack_current_row(rli); // TODO: how to handle errors?
-
+  if (m_curr_row == m_rows_buf)
+  {
+    /* this is the first row to be inserted, we estimate the rows with
+       the size of the first row and use that value to initialize
+       storage engine for bulk insertion */
+    ulong estimated_rows= (m_rows_end - m_curr_row) / (m_curr_row_end - m_curr_row);
+    m_table->file->ha_start_bulk_insert(estimated_rows);
+  }
+  
+  
 #ifndef DBUG_OFF
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
   DBUG_PRINT_BITSET("debug", "write_set = %s", table->write_set);
