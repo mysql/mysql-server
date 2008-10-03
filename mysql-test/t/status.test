@@ -4,6 +4,11 @@
 # embedded server causes different stat
 -- source include/not_embedded.inc
 
+# Disable concurrent inserts to avoid sporadic test failures as it might
+# affect the the value of variables used throughout the test case.
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 0;
+
 # PS causes different statistics
 --disable_ps_protocol
 
@@ -12,54 +17,45 @@ connect (con2,localhost,root,,);
 
 flush status;
 
-# Logging to the general query log table (--log-output=table --log) increments
-# Table_locks_immediate with each query, so here Immediate becomes 1
 show status like 'Table_lock%';
-# ++Immediate = 2
 select * from information_schema.session_status where variable_name like 'Table_lock%';
 
 connection con1;
-# ++Immediate = 3
-SET SQL_LOG_BIN=0;
-set @old_general_log = @@global.general_log;                                      
+--echo # Switched to connection: con1
+set sql_log_bin=0;
+set @old_general_log = @@global.general_log;
 set global general_log = 'OFF';
 --disable_warnings
-# ++Immediate = 4
 drop table if exists t1;
 --enable_warnings
 
-# ++Immediate = 5
 create table t1(n int) engine=myisam;
-# Immediate + 2 = 7
 insert into t1 values(1);
+# Execute dummy select in order to ensure that tables used in the
+# previous statement are unlocked and closed.
+select 1;
 
 connection con2;
-# Immediate + 2 = 9
+--echo # Switched to connection: con2
 lock tables t1 read;
-# ++Immediate = 10
 unlock tables;
-# Immediate + 2 = 12
 lock tables t1 read;
 
 connection con1;
-# ++Immediate = 13
+--echo # Switched to connection: con1
 let $ID= `select connection_id()`;
-# ++Immediate = 14 (Not +2, because this increments Table_locks_waited)
---send
-update t1 set n = 3;
+--send update t1 set n = 3
 
 connection con2;
+--echo # Switched to connection: con2
 # wait for the other query to start executing
 let $wait_condition= select 1 from INFORMATION_SCHEMA.PROCESSLIST where ID = $ID and STATE = "Locked";
-# Immediate = 14 + $wait_condition_reps ($wait_timeout is 0, so no extra select
-# is done inside wait_condition.inc)
 --source include/wait_condition.inc
-# ++Immediate = 15 + $wait_condition_reps
 unlock tables;
 
 connection con1;
+--echo # Switched to connection: con1
 reap;
-# ++Immediate = 16 + $wait_condition_reps
 show status like 'Table_locks_waited';
 drop table t1;
 set global general_log = @old_general_log;
@@ -67,6 +63,7 @@ set global general_log = @old_general_log;
 disconnect con2;
 disconnect con1;
 connection default;
+--echo # Switched to connection: default
 
 # End of 4.1 tests
 
@@ -295,3 +292,7 @@ drop database db37908;
 drop procedure proc37908;
 drop function func37908;
 # End of 5.1 tests
+
+# Restore global concurrent_insert value. Keep in the end of the test file.
+--connection default
+set @@global.concurrent_insert= @old_concurrent_insert;
