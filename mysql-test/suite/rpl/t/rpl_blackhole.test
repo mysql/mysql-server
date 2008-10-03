@@ -1,5 +1,3 @@
---source include/master-slave.inc
-
 # PURPOSE. Test that blackhole works with replication in all three
 # modes: STATEMENT, MIXED, and ROW.
 #
@@ -16,6 +14,9 @@
 # key (forcing a range search on the slave), primary keys (using a
 # primary key lookup), and index/key with multiple matches (forcing an
 # index search).
+
+source include/master-slave.inc;
+source include/have_blackhole.inc;
 
 # We start with no primary key
 CREATE TABLE t1 (a INT, b INT, c INT);
