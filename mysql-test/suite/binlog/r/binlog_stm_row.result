@@ -1,0 +1,71 @@
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+SET GLOBAL BINLOG_FORMAT = STATEMENT;
+SET SESSION BINLOG_FORMAT = STATEMENT;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 LIKE t1;
+select @@SESSION.BINLOG_FORMAT;
+@@SESSION.BINLOG_FORMAT
+STATEMENT
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(2);
+#
+# Ensure that INSERT INTO .. SELECT FROM under SBR takes a read
+# lock that will prevent the source table from being modified.
+#
+# con1
+SELECT GET_LOCK('Bug#34306', 120);
+GET_LOCK('Bug#34306', 120)
+1
+# con2
+PREPARE stmt FROM "INSERT INTO t1 SELECT * FROM t2 WHERE GET_LOCK('Bug#34306', 120)";
+EXECUTE stmt;;
+# default
+INSERT INTO t2 VALUES (3);;
+# con1
+SELECT RELEASE_LOCK('Bug#34306');
+RELEASE_LOCK('Bug#34306')
+1
+# con2
+SELECT RELEASE_LOCK('Bug#34306');
+RELEASE_LOCK('Bug#34306')
+1
+# default
+#
+# Ensure that INSERT INTO .. SELECT FROM prepared under SBR does
+# not prevent the source table from being modified if under RBR.
+#
+# con2
+SET SESSION BINLOG_FORMAT = ROW;
+# con1
+SELECT GET_LOCK('Bug#34306', 120);
+GET_LOCK('Bug#34306', 120)
+1
+# con2
+EXECUTE stmt;;
+# default
+# con1
+INSERT INTO t2 VALUES (4);
+SELECT RELEASE_LOCK('Bug#34306');
+RELEASE_LOCK('Bug#34306')
+1
+# con2
+# default
+# Show binlog events
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t1
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS t2
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 LIKE t1
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(1)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES(2)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 SELECT * FROM t2 WHERE GET_LOCK('Bug#34306', 120)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (3)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (4)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+DROP TABLE t1;
+DROP TABLE t2;
