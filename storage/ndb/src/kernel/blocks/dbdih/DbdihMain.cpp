@@ -110,6 +110,7 @@ extern EventLogger * g_eventLogger;
   } while (specNodePtr.i != RNIL);                                      \
 }
 
+#if 0
 static
 Uint32
 oldPrevLcpNo(Uint32 lcpNo){
@@ -117,6 +118,7 @@ oldPrevLcpNo(Uint32 lcpNo){
     return MAX_LCP_STORED - 1;
   return lcpNo - 1;
 }
+#endif
 
 static
 Uint32

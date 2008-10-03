@@ -5633,7 +5633,7 @@ Suma::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
   }
   return;
 
-error:
+//error:
   CreateNodegroupImplRef *ref =
     (CreateNodegroupImplRef*)signal->getDataPtrSend();
   ref->senderRef = reference();
@@ -5710,7 +5710,7 @@ Suma::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
   }
   return;
 
-error:
+//error:
   DropNodegroupImplRef *ref =
     (DropNodegroupImplRef*)signal->getDataPtrSend();
   ref->senderRef = reference();
