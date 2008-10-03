@@ -45,6 +45,9 @@ typedef unsigned __int64  u_int64_t;
 #define INT64_MAX  _I64_MAX
 #define UINT64_MAX _UI64_MAX
 
+#define srandom srand
+#define random rand
+
 #define FAKE_WINDOWS_STUBS 0 // Disable these fakes.
 #if FAKE_WINDOWS_STUBS == 1
 
