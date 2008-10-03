@@ -4,8 +4,7 @@
 	mysql-test/innodb-timeout.test, mysql-test/innodb-timeout.result,
 	srv/srv0srv.c, include/srv0srv.h,
 	handler/ha_innodb.cc, include/ha_prototypes.h:
-	Make innodb_lock_wait_timeout a settable session variable.
-	This fixes MySQL Bug #36285.
+	Fix Bug#36285 innodb_lock_wait_timeout is not dynamic, not per session
 
 2008-09-19	The InnoDB Team
 
