@@ -1,8 +1,18 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include "includes.h"
+#include "portability.h"
+#include <errno.h>
+#include <stdio.h>
 
-//typedef struct value *OMTVALUE;
+typedef void *OMTVALUE;
+#include "omt.h"
+#include "memory.h"
+#include "toku_assert.h"
+#include "brttypes.h"
+
+static int srandom(unsigned int seed) { return 0; }
+static int random() { return 0; }
+
 typedef OMTVALUE TESTVALUE;
 
 /* Things that would go in a omt-tests.h if we split to multiple files later. */

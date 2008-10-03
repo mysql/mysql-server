@@ -1,6 +1,18 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include "includes.h"
+#include "portability.h"
+#include <ctype.h>
+#include <errno.h>
+#include <malloc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef void *OMTVALUE;
+#include "toku_assert.h"
+#include "memory.h"
+#include "omt.h"
+#include "brttypes.h"
 
 typedef u_int32_t node_idx;
 static const node_idx NODE_NULL = UINT32_MAX;
