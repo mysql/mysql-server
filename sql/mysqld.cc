@@ -7535,13 +7535,13 @@ static void mysql_init_variables(void)
     have_community_features = SHOW_OPTION_YES;
 #else
     have_community_features = SHOW_OPTION_NO;
+#endif
   global_system_variables.ndb_index_stat_enable=FALSE;
   max_system_variables.ndb_index_stat_enable=TRUE;
   global_system_variables.ndb_index_stat_cache_entries=32;
   max_system_variables.ndb_index_stat_cache_entries=~0L;
   global_system_variables.ndb_index_stat_update_freq=20;
   max_system_variables.ndb_index_stat_update_freq=~0L;
-#endif
 #ifdef HAVE_OPENSSL
   have_ssl=SHOW_OPTION_YES;
 #else
