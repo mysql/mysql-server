@@ -1,0 +1,21 @@
+-- source include/have_multi_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+#
+# When this test started there no database on disk for server2
+# Check that table has been discovered correctly, and that the
+# binlog is updated correctly
+#
+
+-- connection server2
+show create database discover_db;
+show create database discover_db_2;
+reset master;
+insert into discover_db.t1 values (1,1);
+--source include/show_binlog_events2.inc
+reset master;
+insert into discover_db_2.t1 values (1,1);
+--source include/show_binlog_events2.inc
+
+drop database discover_db;
+drop database discover_db_2;
