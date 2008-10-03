@@ -128,8 +128,8 @@ static const long AUTOINC_NO_LOCKING = 2;
 static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_log_buffer_size,
 	innobase_additional_mem_pool_size, innobase_file_io_threads,
-	innobase_lock_wait_timeout, innobase_force_recovery,
-	innobase_open_files, innobase_autoinc_lock_mode;
+	innobase_force_recovery, innobase_open_files,
+	innobase_autoinc_lock_mode;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -317,6 +317,10 @@ static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
 static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
   NULL, NULL, FALSE);
+
+static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
+  "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
+  NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
 
 
 static handler *innobase_create_handler(handlerton *hton,
@@ -672,6 +676,21 @@ thd_is_strict(
 	void*	thd)	/* in: thread handle (THD*) */
 {
 	return(THDVAR((THD*) thd, strict_mode));
+}
+
+/**********************************************************************
+Returns the lock wait timeout for the current connection. */
+extern "C" UNIV_INTERN
+ulong
+thd_lock_wait_timeout(
+/*==================*/
+			/* out: the lock wait timeout, in seconds */
+	void*	thd)	/* in: thread handle (THD*), or NULL to query
+			the global innodb_lock_wait_timeout */
+{
+	/* According to <mysql/plugin.h>, passing thd == NULL
+	returns the global value of the session variable. */
+	return(THDVAR((THD*) thd, lock_wait_timeout));
 }
 
 /************************************************************************
@@ -1936,7 +1955,6 @@ innobase_init(
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 
-	srv_lock_wait_timeout = (ulint) innobase_lock_wait_timeout;
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
@@ -9360,11 +9378,6 @@ static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
   NULL, NULL, 0, 0, 6, 0);
-
-static MYSQL_SYSVAR_LONG(lock_wait_timeout, innobase_lock_wait_timeout,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back.",
-  NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
 
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
