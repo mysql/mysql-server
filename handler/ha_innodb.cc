@@ -7477,16 +7477,24 @@ ha_innobase::innobase_get_auto_increment(
 			} else {
 				*value = autoinc;
 			}
-		/* We need to print this message here because the
+		/* We need to send the messages to the client because
 		handler::get_auto_increment() doesn't allow a way
 		to return the specific error for why it failed. */
 		} else if (error == DB_DEADLOCK) {
-			sql_print_warning(
-				"Deadlock in "
+			THD*            thd = ha_thd();
+
+			push_warning(
+				thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+				ER_LOCK_DEADLOCK,
+				"InnoDB: Deadlock in "
 				"innobase_get_auto_increment()");
 		} else if (error == DB_LOCK_WAIT_TIMEOUT) {
-			sql_print_warning(
-				"Lock wait timeout in "
+			THD*            thd = ha_thd();
+
+			push_warning(
+				thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+				ER_LOCK_WAIT_TIMEOUT,
+				"InnoDB: Lock wait timeout in "
 				"innobase_get_auto_increment()");
 		} else {
 
@@ -7495,7 +7503,6 @@ ha_innobase::innobase_get_auto_increment(
 				"innobase_get_auto_increment()",
 				error);
 		}
-
 	} while (*value == 0 && error == DB_SUCCESS);
 
 	return(error);
