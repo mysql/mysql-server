@@ -3720,8 +3720,9 @@ void assign_new_table_id(TABLE_SHARE *share)
   DBUG_VOID_RETURN;
 }
 
+#ifndef DBUG_OFF
 /* Cause a spurious statement reprepare for debug purposes. */
-static inline bool inject_reprepare(THD *thd)
+static bool inject_reprepare(THD *thd)
 {
   if (thd->m_reprepare_observer && thd->stmt_arena->is_reprepared == FALSE)
   {
@@ -3731,6 +3732,7 @@ static inline bool inject_reprepare(THD *thd)
 
   return FALSE;
 }
+#endif
 
 /**
   Compare metadata versions of an element obtained from the table
