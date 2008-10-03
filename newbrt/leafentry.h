@@ -86,7 +86,7 @@ static inline u_int64_t getint64 (unsigned char *p) {
     unsigned char* __kvaladdr = 4      + __klenaddr;                                                                 \
     unsigned char* __clenaddr = __klen + __kvaladdr;   u_int32_t __clen = getint(__clenaddr);                        \
     unsigned char* __cvaladdr = 4 + __clenaddr;                                                                      \
-    return funname ## _le_committed(__klen, __kvaladdr, __clen, __cvaladdr, __VA_ARGS__); }                       \
+    return funname ## _le_committed(__klen, __kvaladdr, __clen, __cvaladdr , ## __VA_ARGS__); }                      \
   case LE_BOTH: {                                                                                                    \
     unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
     unsigned char* __klenaddr = 8 + __xidaddr;         u_int32_t __klen = getint(__klenaddr);                        \
@@ -95,21 +95,21 @@ static inline u_int64_t getint64 (unsigned char *p) {
     unsigned char* __cvaladdr = 4 + __clenaddr;                                                                      \
     unsigned char* __plenaddr = __clen + __cvaladdr;   u_int32_t __plen = getint(__plenaddr);                        \
     unsigned char* __pvaladdr = 4 + __plenaddr;                                                                      \
-    return funname ## _le_both(__xid, __klen, __kvaladdr, __clen, __cvaladdr, __plen, __pvaladdr, __VA_ARGS__); } \
+    return funname ## _le_both(__xid, __klen, __kvaladdr, __clen, __cvaladdr, __plen, __pvaladdr , ## __VA_ARGS__); }\
   case LE_PROVDEL:  {                                                                                                \
     unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
     unsigned char* __klenaddr = 8 + __xidaddr;         u_int32_t __klen = getint(__klenaddr);                        \
     unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
     unsigned char* __dlenaddr = __klen + __kvaladdr;   u_int32_t __dlen = getint(__dlenaddr);                        \
     unsigned char* __dvaladdr = 4 + __dlenaddr;                                                                      \
-    return funname ## _le_provdel(__xid, __klen, __kvaladdr, __dlen, __dvaladdr, __VA_ARGS__); }                  \
+    return funname ## _le_provdel(__xid, __klen, __kvaladdr, __dlen, __dvaladdr , ## __VA_ARGS__); }                 \
   case LE_PROVPAIR:  {                                                                                               \
     unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
     unsigned char* __klenaddr = 8 + __xidaddr;         u_int32_t __klen = getint(__klenaddr);                        \
     unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
     unsigned char* __plenaddr = __klen + __kvaladdr;   u_int32_t __plen = getint(__plenaddr);                        \
     unsigned char* __pvaladdr = 4 + __plenaddr;                                                                      \
-    return funname ## _le_provpair(__xid, __klen, __kvaladdr, __plen, __pvaladdr, __VA_ARGS__); }                 \
+    return funname ## _le_provpair(__xid, __klen, __kvaladdr, __plen, __pvaladdr , ## __VA_ARGS__); }                \
   } abort(); } while (0)
 
 
