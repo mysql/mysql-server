@@ -546,10 +546,12 @@ select * from v1a join v1b on t1.b = t2.b;
 #
 # Bug #17523 natural join and information_schema
 #
-# We mask out the Privileges column because it differs with embedded server
---replace_column 31 # 10 #
-select * from information_schema.statistics join information_schema.columns
-              using(table_name,column_name) where table_name='user';
+# Omit columns.PRIVILIGES as it may vary with embedded server.
+# Omit columns.ORDINAL_POSITION as it may vary with hostname='localhost'.
+select 
+ statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statistics.TABLE_SCHEMA, statistics.NON_UNIQUE, statistics.INDEX_SCHEMA, statistics.INDEX_NAME, statistics.SEQ_IN_INDEX, statistics.COLLATION, statistics.CARDINALITY, statistics.SUB_PART, statistics.PACKED, statistics.NULLABLE, statistics.INDEX_TYPE, statistics.COMMENT, 
+ columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.COLUMN_COMMENT
+ from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
 
 drop table t1;
 drop table t2;
