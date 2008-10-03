@@ -215,5 +215,15 @@ thd_is_strict(
 			/* out: true if thd is in strict mode */
 	void*	thd);	/* in: thread handle (THD*) */
 
+/**********************************************************************
+Returns the lock wait timeout for the current connection. */
+
+ulong
+thd_lock_wait_timeout(
+/*==================*/
+			/* out: the lock wait timeout, in seconds */
+	void*	thd);	/* in: thread handle (THD*), or NULL to query
+			the global innodb_lock_wait_timeout */
+
 #endif
 #endif

@@ -304,10 +304,12 @@ rename table t2 to t1;
 connect (a,localhost,root,,);
 connect (b,localhost,root,,);
 connection a;
+set innodb_lock_wait_timeout=1;
 begin;
 # Obtain an IX lock on the table
 select a from t1 limit 1 for update;
 connection b;
+set innodb_lock_wait_timeout=1;
 # This would require an S lock on the table, conflicting with the IX lock.
 --error ER_LOCK_WAIT_TIMEOUT
 create index t1ba on t1 (b,a);
