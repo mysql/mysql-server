@@ -79,15 +79,17 @@ static inline u_int64_t getint64 (unsigned char *p) {
     return (H<<32) + L;
 }
 
-#define LESWITCHCALL(le,funname, ...) do {	                                                                     \
-  switch(get_le_state(le)) {					                                                     \
-  case LE_COMMITTED: {                                                                                               \
+// This ugly factorization of the macro is done so that we can do ## or not depending on which version of the
+// compiler we are using, without repeating all this crufty offset calculation.
+
+#define DO_LE_COMMITTED(funname,le)  case LE_COMMITTED: {                                                            \
     unsigned char* __klenaddr = 1+(unsigned char*)le;  u_int32_t __klen = getint(__klenaddr);                        \
     unsigned char* __kvaladdr = 4      + __klenaddr;                                                                 \
     unsigned char* __clenaddr = __klen + __kvaladdr;   u_int32_t __clen = getint(__clenaddr);                        \
     unsigned char* __cvaladdr = 4 + __clenaddr;                                                                      \
-    return funname ## _le_committed(__klen, __kvaladdr, __clen, __cvaladdr, __VA_ARGS__); }                          \
-  case LE_BOTH: {                                                                                                    \
+    return funname ## _le_committed(__klen, __kvaladdr, __clen, __cvaladdr
+
+#define DO_LE_BOTH(funname,le)  case LE_BOTH: {                         \
     unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
     unsigned char* __klenaddr = 8 + __xidaddr;         u_int32_t __klen = getint(__klenaddr);                        \
     unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
@@ -95,23 +97,41 @@ static inline u_int64_t getint64 (unsigned char *p) {
     unsigned char* __cvaladdr = 4 + __clenaddr;                                                                      \
     unsigned char* __plenaddr = __clen + __cvaladdr;   u_int32_t __plen = getint(__plenaddr);                        \
     unsigned char* __pvaladdr = 4 + __plenaddr;                                                                      \
-    return funname ## _le_both(__xid, __klen, __kvaladdr, __clen, __cvaladdr, __plen, __pvaladdr, __VA_ARGS__); }    \
-  case LE_PROVDEL:  {                                                                                                \
+    return funname ## _le_both(__xid, __klen, __kvaladdr, __clen, __cvaladdr, __plen, __pvaladdr
+
+#define DO_LE_PROVDEL(funname,le )  case LE_PROVDEL:  {                                                              \
     unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
     unsigned char* __klenaddr = 8 + __xidaddr;         u_int32_t __klen = getint(__klenaddr);                        \
     unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
     unsigned char* __dlenaddr = __klen + __kvaladdr;   u_int32_t __dlen = getint(__dlenaddr);                        \
     unsigned char* __dvaladdr = 4 + __dlenaddr;                                                                      \
-    return funname ## _le_provdel(__xid, __klen, __kvaladdr, __dlen, __dvaladdr, __VA_ARGS__); }                     \
-  case LE_PROVPAIR:  {                                                                                               \
+    return funname ## _le_provdel(__xid, __klen, __kvaladdr, __dlen, __dvaladdr
+
+#define DO_LE_PROVPAIR(funname,le)   case LE_PROVPAIR:  {                                                            \
     unsigned char* __xidaddr  = 1+(unsigned char*)le;  u_int64_t __xid  = getint64(__xidaddr);                       \
     unsigned char* __klenaddr = 8 + __xidaddr;         u_int32_t __klen = getint(__klenaddr);                        \
     unsigned char* __kvaladdr = 4 + __klenaddr;                                                                      \
     unsigned char* __plenaddr = __klen + __kvaladdr;   u_int32_t __plen = getint(__plenaddr);                        \
     unsigned char* __pvaladdr = 4 + __plenaddr;                                                                      \
-    return funname ## _le_provpair(__xid, __klen, __kvaladdr, __plen, __pvaladdr, __VA_ARGS__); }                    \
-  } abort(); } while (0)
+    return funname ## _le_provpair(__xid, __klen, __kvaladdr, __plen, __pvaladdr
 
+#ifdef __ICL
+#define LESWITCHCALL(le,funname, ...) do {        \
+  switch(get_le_state(le)) {                      \
+    DO_LE_COMMITTED(funname,le) , __VA_ARGS__); } \
+    DO_LE_BOTH     (funname,le) , __VA_ARGS__); } \
+    DO_LE_PROVDEL  (funname,le) , __VA_ARGS__); } \
+    DO_LE_PROVPAIR (funname,le) , __VA_ARGS__); } \
+  } abort(); } while (0)
+#else
+#define LESWITCHCALL(le,funname, ...) do {           \
+  switch(get_le_state(le)) {                         \
+    DO_LE_COMMITTED(funname,le) , ## __VA_ARGS__); } \
+    DO_LE_BOTH     (funname,le) , ## __VA_ARGS__); } \
+    DO_LE_PROVDEL  (funname,le) , ## __VA_ARGS__); } \
+    DO_LE_PROVPAIR (funname,le) , ## __VA_ARGS__); } \
+  } abort(); } while (0)
+#endif
 
 u_int32_t leafentry_memsize (LEAFENTRY le); // the size of a leafentry in memory.
 u_int32_t leafentry_disksize (LEAFENTRY le); // this is the same as logsizeof_LEAFENTRY.  The size of a leafentry on disk.
