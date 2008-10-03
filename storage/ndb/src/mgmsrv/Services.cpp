@@ -1836,7 +1836,7 @@ MgmApiSession::drop_nodegroup(Parser_t::Context &ctx,
     result.assfmt("error: %d", res);
   }
 
-end:
+//end:
   m_output->println("drop nodegroup reply");
   m_output->println("result: %s", result.c_str());
   m_output->println("");

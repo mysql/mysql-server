@@ -22,6 +22,7 @@
 #include <NdbTick.h>
 #include <NdbEnv.h>
 
+#ifdef VM_TRACE_TIME
 static char* mytime()
 {
   NDB_TICKS t = NdbTick_CurrentMillisecond();
@@ -31,7 +32,7 @@ static char* mytime()
   sprintf(buf, "%u.%03u", s, ms);
   return buf;
 }
-
+#endif
 SignalLoggerManager::SignalLoggerManager()
 {
   for (int i = 0; i < NO_OF_BLOCKS; i++){
