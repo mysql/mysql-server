@@ -447,10 +447,6 @@ struct dict_table_struct{
 				SELECT MAX(auto inc column) */
 	ib_uint64_t	autoinc;/* autoinc counter value to give to the
 				next inserted row */
-	ib_int64_t	autoinc_increment;
-				/* The increment step of the auto increment
-				column. Value must be greater than or equal
-				to 1 */
 	/*----------------------*/
 	ulong		n_waiting_or_granted_auto_inc_locks;
 				/* This counter is used to track the number
@@ -461,6 +457,7 @@ struct dict_table_struct{
 				acquired the AUTOINC lock or not. Of course
 				only one transaction can be granted the
 				lock but there can be multiple waiters. */
+	/*----------------------*/
 
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
