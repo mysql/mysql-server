@@ -1724,6 +1724,12 @@ public:
     but we don't have a primary key
   */
   virtual void use_hidden_primary_key();
+  virtual uint alter_table_flags(uint flags)
+  {
+    if (ht->alter_table_flags)
+      return ht->alter_table_flags(flags);
+    return 0;
+  }
 
 protected:
   /* Service methods for use by storage engines. */
