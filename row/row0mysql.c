@@ -625,6 +625,14 @@ row_create_prebuilt(
 
 	prebuilt->clust_ref = ref;
 
+	prebuilt->autoinc_offset = 0;
+
+	/* Default to 1, we will set the actual value later in 
+	ha_innobase::get_auto_increment(). */
+	prebuilt->autoinc_increment = 1;
+
+	prebuilt->autoinc_last_value = 0;
+
 	return(prebuilt);
 }
 
@@ -2397,8 +2405,8 @@ row_discard_tablespace_for_mysql(
 
 	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
-	/* Remove any locks there are on the table or its records */
-	lock_reset_all_on_table(table);
+	/* Remove all locks except the table-level S and X locks. */
+	lock_remove_all_on_table(table, FALSE);
 
 	info = pars_info_create();
 
@@ -2742,9 +2750,8 @@ row_truncate_table_for_mysql(
 		goto funct_exit;
 	}
 
-	/* Remove any locks there are on the table or its records */
-
-	lock_reset_all_on_table(table);
+	/* Remove all locks except the table-level S and X locks. */
+	lock_remove_all_on_table(table, FALSE);
 
 	trx->table_id = table->id;
 
@@ -3165,9 +3172,8 @@ check_next_foreign:
 		goto funct_exit;
 	}
 
-	/* Remove any locks there are on the table or its records */
-
-	lock_reset_all_on_table(table);
+	/* Remove all locks there are on the table or its records */
+	lock_remove_all_on_table(table, TRUE);
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 	trx->table_id = table->id;
