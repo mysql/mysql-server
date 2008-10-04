@@ -2799,7 +2799,7 @@ normalize_table_name(
 Set the autoinc column max value. This should only be called once from
 ha_innobase::open(). Therefore there's no need for a covering lock. */
 
-ulong
+ulint
 ha_innobase::innobase_initialize_autoinc()
 /*======================================*/
 {
@@ -3921,7 +3921,7 @@ INSERT ... SELECT type of statements, since MySQL binlog only stores the
 min value of the autoinc interval. Once that is fixed we can get rid of
 the special lock handling.*/
 UNIV_INTERN
-ulong
+ulint
 ha_innobase::innobase_lock_autoinc(void)
 /*====================================*/
 					/* out: DB_SUCCESS if all OK else
@@ -3978,7 +3978,7 @@ ha_innobase::innobase_lock_autoinc(void)
 /************************************************************************
 Reset the autoinc value in the table.*/
 UNIV_INTERN
-ulong
+ulint
 ha_innobase::innobase_reset_autoinc(
 /*================================*/
 					/* out: DB_SUCCESS if all went well
@@ -4003,7 +4003,7 @@ ha_innobase::innobase_reset_autoinc(
 Store the autoinc value in the table. The autoinc value is only set if
 it's greater than the existing autoinc value in the table.*/
 UNIV_INTERN
-ulong
+ulint
 ha_innobase::innobase_set_max_autoinc(
 /*==================================*/
 					/* out: DB_SUCCES if all went well
@@ -8353,7 +8353,7 @@ Read the next autoinc value. Acquire the relevant locks before reading
 the AUTOINC value. If SUCCESS then the table AUTOINC mutex will be locked
 on return and all relevant locks acquired. */
 UNIV_INTERN
-ulong
+ulint
 ha_innobase::innobase_get_autoinc(
 /*==============================*/
 					/* out: DB_SUCCESS or error code */
