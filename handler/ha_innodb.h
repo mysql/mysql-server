@@ -73,13 +73,13 @@ class ha_innobase: public handler
 	void update_thd();
 	int change_active_index(uint keynr);
 	int general_fetch(uchar* buf, uint direction, uint match_mode);
-	ulong innobase_lock_autoinc();
+	ulint innobase_lock_autoinc();
 	ulonglong innobase_peek_autoinc();
-	ulong innobase_set_max_autoinc(ulonglong auto_inc);
-	ulong innobase_reset_autoinc(ulonglong auto_inc);
-	ulong innobase_get_autoinc(ulonglong* value);
-	ulong innobase_update_autoinc(ulonglong	auto_inc);
-	ulong innobase_initialize_autoinc();
+	ulint innobase_set_max_autoinc(ulonglong auto_inc);
+	ulint innobase_reset_autoinc(ulonglong auto_inc);
+	ulint innobase_get_autoinc(ulonglong* value);
+	ulint innobase_update_autoinc(ulonglong	auto_inc);
+	ulint innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
 	ulonglong innobase_get_int_col_max_value(const Field* field);
 
