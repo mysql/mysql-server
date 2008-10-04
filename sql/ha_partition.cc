@@ -5600,6 +5600,89 @@ bool ha_partition::get_error_message(int error, String *buf)
 /****************************************************************************
                 MODULE handler characteristics
 ****************************************************************************/
+/**
+  alter_table_flags must be on handler/table level, not on hton level
+  due to the ha_partition hton does not know what the underlying hton is.
+*/
+uint ha_partition::alter_table_flags(uint flags)
+{
+  DBUG_ENTER("ha_partition::alter_table_flags");
+  DBUG_RETURN(ht->alter_table_flags(flags) |
+              m_file[0]->alter_table_flags(flags)); 
+}
+
+
+/**
+  check if copy of data is needed in alter table.
+*/
+bool ha_partition::check_if_incompatible_data(HA_CREATE_INFO *create_info,
+                                              uint table_changes)
+{
+  handler **file;
+  bool ret;
+
+  /*
+    The check for any partitioning related changes have already been done
+    in mysql_alter_table (by fix_partition_func), so it is only up to
+    the underlying handlers.
+  */
+  for (file= m_file; *file; file++)
+    if ((ret=  (*file)->check_if_incompatible_data(create_info,
+                                                   table_changes)) !=
+        COMPATIBLE_DATA_YES)
+      break;
+  return ret;
+}
+
+
+/**
+  Support of fast or online add/drop index
+*/
+int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
+{
+  handler **file;
+  int ret;
+
+  /*
+    There has already been a check in fix_partition_func in mysql_alter_table
+    before this call, which checks for unique/primary key violations of the
+    partitioning function. So no need for extra check here.
+  */
+  for (file= m_file; *file; file++)
+    if ((ret=  (*file)->add_index(table_arg, key_info, num_of_keys)))
+      break;
+  return ret;
+}
+
+
+int ha_partition::prepare_drop_index(TABLE *table_arg, uint *key_num,
+                                 uint num_of_keys)
+{
+  handler **file;
+  int ret;
+
+  /*
+    DROP INDEX does not affect partitioning.
+  */
+  for (file= m_file; *file; file++)
+    if ((ret=  (*file)->prepare_drop_index(table_arg, key_num, num_of_keys)))
+      break;
+  return ret;
+}
+
+
+int ha_partition::final_drop_index(TABLE *table_arg)
+{
+  handler **file;
+  int ret= HA_ERR_WRONG_COMMAND;
+
+  for (file= m_file; *file; file++)
+    if ((ret=  (*file)->final_drop_index(table_arg)))
+      break;
+  return ret;
+}
+
+
 /*
   If frm_error() is called then we will use this to to find out what file
   extensions exist for the storage engine. This is also used by the default
