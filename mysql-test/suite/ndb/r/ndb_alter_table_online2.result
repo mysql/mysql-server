@@ -94,3 +94,4 @@ truncate ndb_show_tables_results;
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 drop table t1;
+drop database mysqlslap;
