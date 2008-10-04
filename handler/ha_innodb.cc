@@ -1128,7 +1128,8 @@ innobase_next_autoinc(
 					/* out: the next value */
 	ulonglong	current,	/* in: Current value */
 	ulonglong	increment,	/* in: increment current by */
-	ulonglong	offset)		/* in: AUTOINC offset */
+	ulonglong	offset,		/* in: AUTOINC offset */
+	ulonglong	max_value)	/* in: max value for type */
 {
 	ulonglong	next_value;
 
@@ -1138,8 +1139,8 @@ innobase_next_autoinc(
 	if (offset <= 1) {
 		/* Offset 0 and 1 are the same, because there must be at
 		least one node in the system. */
-		if (~0x0ULL - current <= increment) {
-			next_value = ~0x0ULL;
+		if (max_value - current <= increment) {
+			next_value = max_value;
 		} else {
 			next_value = current + increment;
 		}
@@ -1154,15 +1155,15 @@ innobase_next_autoinc(
 		ut_a(next_value > 0);
 
 		/* Check for multiplication overflow. */
-		if (increment > (~0x0ULL / next_value)) {
+		if (increment > (max_value / next_value)) {
 
-			next_value = ~0x0ULL;
+			next_value = max_value;
 		} else {
 			next_value *= increment;
 
 			/* Check for overflow. */
-			if (~0x0ULL - next_value <= offset) {
-				next_value = ~0x0ULL;
+			if (max_value - next_value <= offset) {
+				next_value = max_value;
 			} else {
 				next_value += offset;
 			}
@@ -3801,6 +3802,59 @@ skip_field:
 }
 
 /************************************************************************
+Get the upper limit of the MySQL integral type. */
+UNIV_INTERN
+ulonglong
+ha_innobase::innobase_get_int_col_max_value(
+/*========================================*/
+	const Field*	field)
+{
+	ulonglong	max_value = 0;
+
+	switch(field->key_type()) {
+	/* TINY */
+        case HA_KEYTYPE_BINARY:
+		max_value = 0xFFULL;
+		break;
+	case HA_KEYTYPE_INT8:
+		max_value = 0x7FULL;
+		break;
+	/* SHORT */
+	case HA_KEYTYPE_USHORT_INT:
+		max_value = 0xFFFFULL;
+		break;
+	case HA_KEYTYPE_SHORT_INT:
+		max_value = 0x7FFFULL;
+		break;
+	/* MEDIUM */
+    	case HA_KEYTYPE_UINT24:
+		max_value = 0xFFFFFFULL;
+		break;
+	case HA_KEYTYPE_INT24:
+		max_value = 0x7FFFFFULL;
+		break;
+	/* LONG */
+	case HA_KEYTYPE_ULONG_INT:
+		max_value = 0xFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_LONG_INT:
+		max_value = 0x7FFFFFFFULL;
+		break;
+	/* BIG */
+    	case HA_KEYTYPE_ULONGLONG:
+		max_value = 0xFFFFFFFFFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_LONGLONG:
+		max_value = 0x7FFFFFFFFFFFFFFFULL;
+		break;
+	default:
+		ut_error;
+	}
+
+	return(max_value);
+}
+
+/************************************************************************
 This special handling is really to overcome the limitations of MySQL's
 binlogging. We need to eliminate the non-determinism that will arise in
 INSERT ... SELECT type of statements, since MySQL binlog only stores the
@@ -4047,6 +4101,7 @@ no_commit:
 	if (auto_inc_used) {
 		ulint		err;
 		ulonglong	auto_inc;
+		ulonglong	col_max_value;
 
 		/* Note the number of rows processed for this statement, used
 		by get_auto_increment() to determine the number of AUTO-INC
@@ -4055,6 +4110,11 @@ no_commit:
 		if (trx->n_autoinc_rows > 0) {
 			--trx->n_autoinc_rows;
 		}
+
+		/* We need the upper limit of the col type to check for
+		whether we update the table autoinc counter or not. */
+		col_max_value = innobase_get_int_col_max_value(
+			table->next_number_field);
 
 		/* Get the value that MySQL attempted to store in the table.*/
 		auto_inc = table->next_number_field->val_int();
@@ -4093,7 +4153,8 @@ no_commit:
 			update the table upper limit. Note: last_value
 			will be 0 if get_auto_increment() was not called.*/
 
-			if (auto_inc > prebuilt->autoinc_last_value) {
+			if (auto_inc < col_max_value
+			    && auto_inc > prebuilt->autoinc_last_value) {
 set_max_autoinc:
 				ut_a(prebuilt->autoinc_increment > 0);
 
@@ -4104,7 +4165,7 @@ set_max_autoinc:
 				need = prebuilt->autoinc_increment;
 
 				auto_inc = innobase_next_autoinc(
-					auto_inc, need, offset);
+					auto_inc, need, offset, col_max_value);
 
 				err = innobase_set_max_autoinc(auto_inc);
 
@@ -4340,11 +4401,17 @@ ha_innobase::update_row(
 	    && (trx->duplicates & (TRX_DUP_IGNORE | TRX_DUP_REPLACE))
 		== TRX_DUP_IGNORE)  {
 
-		longlong	auto_inc;
+		ulonglong	auto_inc;
+		ulonglong	col_max_value;
 
 		auto_inc = table->next_number_field->val_int();
 
-		if (auto_inc != 0) {
+		/* We need the upper limit of the col type to check for
+		whether we update the table autoinc counter or not. */
+		col_max_value = innobase_get_int_col_max_value(
+			table->next_number_field);
+
+		if (auto_inc < col_max_value && auto_inc != 0) {
 
 			ulonglong	need;
 			ulonglong	offset;
@@ -4353,7 +4420,7 @@ ha_innobase::update_row(
 			need = prebuilt->autoinc_increment;
 
 			auto_inc = innobase_next_autoinc(
-				auto_inc, need, offset);
+				auto_inc, need, offset, col_max_value);
 
 			error = innobase_set_max_autoinc(auto_inc);
 		}
@@ -8521,11 +8588,18 @@ ha_innobase::get_auto_increment(
 	if (innobase_autoinc_lock_mode != AUTOINC_OLD_STYLE_LOCKING) {
 		ulonglong	need;
 		ulonglong	next_value;
+		ulonglong	col_max_value;
+
+		/* We need the upper limit of the col type to check for
+		whether we update the table autoinc counter or not. */
+		col_max_value = innobase_get_int_col_max_value(
+			table->next_number_field);
 
 		need = *nb_reserved_values * increment;
 
 		/* Compute the last value in the interval */
-		next_value = innobase_next_autoinc(*first_value, need, offset);
+		next_value = innobase_next_autoinc(
+			*first_value, need, offset, col_max_value);
 
 		prebuilt->autoinc_last_value = next_value;
 

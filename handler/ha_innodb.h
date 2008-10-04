@@ -79,6 +79,7 @@ class ha_innobase: public handler
 	ulong innobase_reset_autoinc(ulonglong auto_inc);
 	ulong innobase_get_auto_increment(ulonglong* value);
 	dict_index_t* innobase_get_index(uint keynr);
+	ulonglong innobase_get_int_col_max_value(const Field* field);
 
 	/* Init values for the class: */
  public:
