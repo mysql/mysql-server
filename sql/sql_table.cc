@@ -6449,8 +6449,7 @@ view_err:
     uint  *idx_p;
     uint  *idx_end_p;
 
-    if (table->s->db_type()->alter_table_flags)
-      alter_flags= table->s->db_type()->alter_table_flags(alter_info->flags);
+    alter_flags= table->file->alter_table_flags(alter_info->flags);
     DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
     /* Check dropped indexes. */
     for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
@@ -6720,7 +6719,6 @@ view_err:
   /* Copy the data if necessary. */
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
-  thd_proc_info(thd, "copy to tmp table");
   copied=deleted=0;
   /*
     We do not copy data for MERGE tables. Only the children have data.
@@ -6731,6 +6729,7 @@ view_err:
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
+    thd_proc_info(thd, "copy to tmp table");
     error= copy_data_between_tables(table, new_table,
                                     alter_info->create_list, ignore,
                                     order_num, order, &copied, &deleted,
@@ -6742,6 +6741,7 @@ view_err:
     VOID(pthread_mutex_lock(&LOCK_open));
     wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
     VOID(pthread_mutex_unlock(&LOCK_open));
+    thd_proc_info(thd, "manage keys");
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
     error= ha_autocommit_or_rollback(thd, 0);

@@ -4219,8 +4219,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         alter_info->no_parts= curr_part_no - new_part_no;
       }
     }
-    if (table->s->db_type()->alter_table_flags &&
-        (!(flags= table->s->db_type()->alter_table_flags(alter_info->flags))))
+    if (!(flags= table->file->alter_table_flags(alter_info->flags)))
     {
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       DBUG_RETURN(1);

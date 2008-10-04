@@ -210,6 +210,8 @@ public:
     DBUG_RETURN(0);
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);
+  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
+                                          uint table_changes);
 private:
   int prepare_for_rename();
   int copy_partitions(ulonglong *copied, ulonglong *deleted);
@@ -762,6 +764,11 @@ public:
     return m_file[0]->index_flags(inx, part, all_parts);
   }
 
+  /**
+    wrapper function for handlerton alter_table_flags, since
+    the ha_partition_hton cannot know all its capabilities
+  */
+  virtual uint alter_table_flags(uint flags);
   /*
      extensions of table handler files
   */
@@ -898,13 +905,14 @@ public:
     -------------------------------------------------------------------------
     MODULE on-line ALTER TABLE
     -------------------------------------------------------------------------
-    These methods are in the handler interface but never used (yet)
-    They are to be used by on-line alter table add/drop index:
+    These methods are in the handler interface. (used by innodb-plugin)
+    They are used for on-line/fast alter table add/drop index:
     -------------------------------------------------------------------------
-    virtual ulong index_ddl_flags(KEY *wanted_index) const
-    virtual int add_index(TABLE *table_arg,KEY *key_info,uint num_of_keys);
-    virtual int drop_index(TABLE *table_arg,uint *key_num,uint num_of_keys);
   */
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+  virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
+                                 uint num_of_keys);
+  virtual int final_drop_index(TABLE *table_arg);
 
   /*
     -------------------------------------------------------------------------
