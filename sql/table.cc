@@ -2993,16 +2993,27 @@ void  TABLE_LIST::calc_md5(char *buffer)
 }
 
 
-/*
-  set underlying TABLE for table place holder of VIEW
+/**
+   @brief Set underlying table for table place holder of view.
 
-  DESCRIPTION
-    Replace all views that only uses one table with the table itself.
-    This allows us to treat the view as a simple table and even update
-    it (it is a kind of optimisation)
+   @details
 
-  SYNOPSIS
-    TABLE_LIST::set_underlying_merge()
+   Replace all views that only use one table with the table itself.  This
+   allows us to treat the view as a simple table and even update it (it is a
+   kind of optimization).
+
+   @note 
+
+   This optimization is potentially dangerous as it makes views
+   masquerade as base tables: Views don't have the pointer TABLE_LIST::table
+   set to non-@c NULL.
+
+   We may have the case where a view accesses tables not normally accessible
+   in the current Security_context (only in the definer's
+   Security_context). According to the table's GRANT_INFO (TABLE::grant),
+   access is fulfilled, but this is implicitly meant in the definer's security
+   context. Hence we must never look at only a TABLE's GRANT_INFO without
+   looking at the one of the referring TABLE_LIST.
 */
 
 void TABLE_LIST::set_underlying_merge()
@@ -4082,7 +4093,7 @@ void Field_iterator_table_ref::next()
 }
 
 
-const char *Field_iterator_table_ref::table_name()
+const char *Field_iterator_table_ref::get_table_name()
 {
   if (table_ref->view)
     return table_ref->view_name.str;
@@ -4095,7 +4106,7 @@ const char *Field_iterator_table_ref::table_name()
 }
 
 
-const char *Field_iterator_table_ref::db_name()
+const char *Field_iterator_table_ref::get_db_name()
 {
   if (table_ref->view)
     return table_ref->view_db.str;
