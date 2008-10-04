@@ -441,10 +441,6 @@ struct dict_table_struct{
 	mutex_t		autoinc_mutex;
 				/* mutex protecting the autoincrement
 				counter */
-	ibool		autoinc_inited;
-				/* TRUE if the autoinc counter has been
-				inited; MySQL gets the init value by executing
-				SELECT MAX(auto inc column) */
 	ib_uint64_t	autoinc;/* autoinc counter value to give to the
 				next inserted row */
 	/*----------------------*/
