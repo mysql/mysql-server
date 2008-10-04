@@ -6046,6 +6046,13 @@ Item *Item_default_value::transform(Item_transformer transformer, byte *args)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 
+  /*
+    If the value of arg is NULL, then this object represents a constant,
+    so further transformation is unnecessary (and impossible).
+  */
+  if (!arg)
+    return 0;
+
   Item *new_item= arg->transform(transformer, args);
   if (!new_item)
     return 0;
