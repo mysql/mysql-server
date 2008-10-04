@@ -287,8 +287,7 @@ dict_table_autoinc_lock(
 }
 
 /************************************************************************
-Initializes the autoinc counter. It is not an error to initialize an already
-initialized counter. */
+Unconditionally set the autoinc counter. */
 UNIV_INTERN
 void
 dict_table_autoinc_initialize(
@@ -298,7 +297,6 @@ dict_table_autoinc_initialize(
 {
 	ut_ad(mutex_own(&table->autoinc_mutex));
 
-	table->autoinc_inited = TRUE;
 	table->autoinc = value;
 }
 
@@ -312,18 +310,9 @@ dict_table_autoinc_read(
 					/* out: value for a new row, or 0 */
 	const dict_table_t*	table)	/* in: table */
 {
-	ib_int64_t	value;
-
 	ut_ad(mutex_own(&table->autoinc_mutex));
 
-	if (!table->autoinc_inited) {
-
-		value = 0;
-	} else {
-		value = table->autoinc;
-	}
-
-	return(value);
+	return(table->autoinc);
 }
 
 /************************************************************************
@@ -331,14 +320,15 @@ Updates the autoinc counter if the value supplied is greater than the
 current value. If not inited, does nothing. */
 UNIV_INTERN
 void
-dict_table_autoinc_update(
-/*======================*/
+dict_table_autoinc_update_if_greater(
+/*=================================*/
 
 	dict_table_t*	table,	/* in/out: table */
 	ib_uint64_t	value)	/* in: value which was assigned to a row */
 {
-	if (table->autoinc_inited && value > table->autoinc) {
+	ut_ad(mutex_own(&table->autoinc_mutex));
 
+	if (value > table->autoinc) {
 		table->autoinc = value;
 	}
 }
