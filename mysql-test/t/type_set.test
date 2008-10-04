@@ -75,4 +75,23 @@ INSERT INTO t1 VALUES(9223372036854775808);
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #38701: Crash in String::append when inserting duplicate empty strings
+# an uft8 SET col
+#
+
+CREATE TABLE t1 (
+        set_unique_utf8 set ('a','b','c','d','e','f','g','h','i','j','k','l',
+                             'm','n','o','p','q','r','s','t','u','v','w','x',
+                             'y','z') CHARACTER SET utf8,
+        unique (set_unique_utf8)
+);
+
+INSERT INTO t1 ( set_unique_utf8 ) VALUES ( '' );
+--error ER_DUP_ENTRY 
+INSERT INTO t1 ( set_unique_utf8 ) VALUES ( '' );
+
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
