@@ -44,7 +44,7 @@ Dbinfo::Dbinfo(Block_context& ctx) :
   addRecSignal(GSN_DBINFO_SCANREQ, &Dbinfo::execDBINFO_SCANREQ);
   addRecSignal(GSN_DBINFO_SCANCONF, &Dbinfo::execDBINFO_SCANCONF);
 
-  addRecSignal(GSN_TRANSID_AI, &Dbinfo::execTRANSID_AI);
+  addRecSignal(GSN_DBINFO_TRANSID_AI, &Dbinfo::execDBINFO_TRANSID_AI);
 
   addRecSignal(GSN_READ_NODESCONF, &Dbinfo::execREAD_NODESCONF);
   addRecSignal(GSN_NODE_FAILREP, &Dbinfo::execNODE_FAILREP);
@@ -102,11 +102,11 @@ void Dbinfo::sendSTTORRY(Signal* signal)
 }
 
 /*
- * Executing TRANSID_AI is only for debugging
+ * Executing DBINFO_TRANSID_AI is only for debugging
  * We use this as part of the DUMP interface
  * and during debugging.
  */
-void Dbinfo::execTRANSID_AI(Signal* signal)
+void Dbinfo::execDBINFO_TRANSID_AI(Signal* signal)
 {
   jamEntry();
   TransIdAI *tidai= (TransIdAI*)signal->theData;

@@ -95,7 +95,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DBINFO_SCANREQ              41
 #define GSN_DBINFO_SCANCONF             42
 #define GSN_DBINFO_SCANREF              43
-#define GSN_DBINFO_SCANNEXTREQ          44
+#define GSN_DBINFO_TRANSID_AI           44
 /* 45 unused */
 /* 46 unused */
 /* 47 unused */
