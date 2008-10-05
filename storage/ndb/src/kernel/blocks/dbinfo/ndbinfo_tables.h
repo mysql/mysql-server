@@ -63,13 +63,52 @@ DECLARE_NDBINFO_TABLE(ndbinfo_LOGDESTINATION,5) =
  }
 };
 
-static int number_ndbinfo_tables= 3;
+DECLARE_NDBINFO_TABLE(ndbinfo_BACKUP_RECORDS,11)
+= {{"BACKUP_RECORDS",11,0},
+   {
+     {"NODE_ID",          NDBINFO_TYPE_NUMBER},
+     {"BACKUP_RECORD",    NDBINFO_TYPE_NUMBER},
+     {"BACKUP_ID",        NDBINFO_TYPE_NUMBER},
+     {"MASTER_REF",       NDBINFO_TYPE_NUMBER},
+     {"CLIENT_REF",       NDBINFO_TYPE_NUMBER},
+     {"STATE",            NDBINFO_TYPE_NUMBER},
+     {"BYTES",            NDBINFO_TYPE_NUMBER},
+     {"RECORDS",          NDBINFO_TYPE_NUMBER},
+     {"LOG_BYTES",        NDBINFO_TYPE_NUMBER},
+     {"LOG_RECORDS",      NDBINFO_TYPE_NUMBER},
+     {"ERROR_CODE",       NDBINFO_TYPE_NUMBER},
+   }
+};
+
+DECLARE_NDBINFO_TABLE(ndbinfo_BACKUP_PARAMETERS,14)
+= {{"BACKUP_PARAMETERS",14,0},
+   {
+     {"NODE_ID",                  NDBINFO_TYPE_NUMBER},
+     {"CURRENT_DISK_WRITE_SPEED", NDBINFO_TYPE_NUMBER},
+     {"BYTES_WRITTEN_THIS_PERIOD",NDBINFO_TYPE_NUMBER},
+     {"OVERFLOW_DISK_WRITE",      NDBINFO_TYPE_NUMBER},
+     {"RESET_DELAY_USED",         NDBINFO_TYPE_NUMBER},
+     {"RESET_DISK_SPEED_TIME",    NDBINFO_TYPE_NUMBER},
+     {"BACKUP_POOL_SIZE",         NDBINFO_TYPE_NUMBER},
+     {"BACKUP_FILE_POOL_SIZE",    NDBINFO_TYPE_NUMBER},
+     {"TABLE_POOL_SIZE",          NDBINFO_TYPE_NUMBER},
+     {"TRIGGER_POOL_SIZE",        NDBINFO_TYPE_NUMBER},
+     {"FRAGMENT_POOL_SIZE",       NDBINFO_TYPE_NUMBER},
+     {"PAGE_POOL_SIZE",           NDBINFO_TYPE_NUMBER},
+     {"COMPRESSED_BACKUP",        NDBINFO_TYPE_NUMBER},
+     {"COMPRESSED_LCP",           NDBINFO_TYPE_NUMBER},
+   }
+};
+
+static int number_ndbinfo_tables= 6;
 
 struct ndbinfo_table *ndbinfo_tables[] = {
   &ndbinfo_TABLES.t,
   &ndbinfo_COLUMNS.t,
   &ndbinfo_MEMUSAGE.t,
   &ndbinfo_LOGDESTINATION.t,
+  &ndbinfo_BACKUP_RECORDS.t,
+  &ndbinfo_BACKUP_PARAMETERS.t,
 };
 
 #ifdef __cplusplus

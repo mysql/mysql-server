@@ -58,6 +58,11 @@
 
 #include <signaldata/DumpStateOrd.hpp>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
+
 #include <NdbTick.h>
 #include <dbtup/Dbtup.hpp>
 
@@ -646,6 +651,64 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     c_defaults.m_compressed_lcp= signal->theData[1];
     infoEvent("Compressed LCP: %d", c_defaults.m_compressed_lcp);
   }
+}
+
+void Backup::execDBINFO_SCANREQ(Signal *signal)
+{
+  jamEntry();
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+
+  char buf[512];
+  struct dbinfo_ratelimit rl;
+  struct dbinfo_row r;
+
+  dbinfo_ratelimit_init(&rl, &req);
+
+  if(req.tableId == NDBINFO_BACKUP_RECORDS_TABLEID)
+  {
+    BackupRecordPtr ptr LINT_SET_PTR;
+    for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      dbinfo_write_row_column_uint32(&r, ptr.i);
+      dbinfo_write_row_column_uint32(&r, ptr.p->backupId);
+      dbinfo_write_row_column_uint32(&r, ptr.p->masterRef);
+      dbinfo_write_row_column_uint32(&r, ptr.p->clientRef);
+      dbinfo_write_row_column_uint32(&r, ptr.p->slaveState.getState());
+      dbinfo_write_row_column_uint32(&r, ptr.p->noOfBytes);
+      dbinfo_write_row_column_uint32(&r, ptr.p->noOfRecords);
+      dbinfo_write_row_column_uint32(&r, ptr.p->noOfLogBytes);
+      dbinfo_write_row_column_uint32(&r, ptr.p->noOfLogRecords);
+      dbinfo_write_row_column_uint32(&r, ptr.p->errorCode);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+  else if( req.tableId == NDBINFO_BACKUP_PARAMETERS_TABLEID )
+  {
+    dbinfo_write_row_init(&r, buf, sizeof(buf));
+    dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+    dbinfo_write_row_column_uint32(&r, m_curr_disk_write_speed);
+    dbinfo_write_row_column_uint32(&r, 4*m_words_written_this_period);
+    dbinfo_write_row_column_uint32(&r, m_overflow_disk_write);
+    dbinfo_write_row_column_uint32(&r, m_reset_delay_used);
+    dbinfo_write_row_column_uint32(&r, m_reset_disk_speed_time);
+    dbinfo_write_row_column_uint32(&r, c_backupPool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_backupFilePool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_tablePool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_triggerPool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_fragmentPool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_pagePool.getSize());
+    dbinfo_write_row_column_uint32(&r, c_defaults.m_compressed_backup);
+    dbinfo_write_row_column_uint32(&r, c_defaults.m_compressed_lcp);
+    dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
 }
 
 bool
