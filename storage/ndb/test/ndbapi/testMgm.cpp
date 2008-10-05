@@ -696,55 +696,18 @@ int runGetConfig(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
-int runTestMgmLogRotation(NDBT_Context* ctx, NDBT_Step* step)
+int getMgmLogInfo(NdbMgmHandle h, off_t *current_size, off_t *max_size)
 {
   NdbMgmd mgmd;
 
   const char *mgm= mgmd.getConnectString();
-  int result= NDBT_OK;
-  const char *logdest= NULL;
-  int mgmid= 0;
   int i, r, ncol;
   char rowbuf[1024];
   char **cols;
   int current_size_colnum= 0;
-  off_t current_size= 0;
-  off_t max_size= 0;
   int max_size_colnum= 0;
   int j;
 
-  NdbMgmHandle h= NULL,h1,h2,h3,h4;
-  h= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h, mgm);
-
-  ndb_mgm_connect(h,0,0,0);
-
-  h1= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h1, mgm);
-  ndb_mgm_connect(h1,0,0,0);
-
-  h2= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h2, mgm);
-  ndb_mgm_connect(h2,0,0,0);
-
-  h3= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h3, mgm);
-  ndb_mgm_connect(h3,0,0,0);
-
-  h4= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(h4, mgm);
-  ndb_mgm_connect(h4,0,0,0);
-
-
-  if(ndb_mgm_check_connection(h) < 0)
-  {
-    result= NDBT_FAILED;
-    goto done;
-  }
-
-  mgmid= ndb_mgm_get_mgmd_nodeid(h);
-
-  ndbout_c("Connected to MGM server at NodeID: %d",mgmid);
 
   r= ndb_mgm_ndbinfo(h,"SELECT * FROM NDB$INFO.LOGDESTINATION");
 
@@ -780,18 +743,70 @@ int runTestMgmLogRotation(NDBT_Context* ctx, NDBT_Step* step)
         col[len++]='\0';
       col[len]='\0';
       if(i==current_size_colnum)
-        current_size= strtoll(col,NULL,10);
+        *current_size= strtoll(col,NULL,10);
       if(i==max_size_colnum)
-        max_size= strtoll(col,NULL,10);
+        *max_size= strtoll(col,NULL,10);
       col= &col[len+1];
     }
 
   }
 
-  ndbout_c("CURRENT SIZE = %llu",current_size);
-  ndbout_c("MAX SIZE = %llu",max_size);
+  ndbout_c("CURRENT SIZE = %llu",*current_size);
+  ndbout_c("MAX SIZE = %llu",*max_size);
 
   free(cols);
+
+  return 0;
+}
+
+int runTestMgmLogRotation(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+  const char *mgm= mgmd.getConnectString();
+  int result= NDBT_FAILED;
+  const char *logdest= NULL;
+  int mgmid= 0;
+  off_t current_size= 0, max_size= 0;
+  int i,j;
+
+  NdbMgmHandle h= NULL,h1,h2,h3,h4;
+  h= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h, mgm);
+
+  ndb_mgm_connect(h,0,0,0);
+
+  h1= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h1, mgm);
+  ndb_mgm_connect(h1,0,0,0);
+
+  h2= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h2, mgm);
+  ndb_mgm_connect(h2,0,0,0);
+
+  h3= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h3, mgm);
+  ndb_mgm_connect(h3,0,0,0);
+
+  h4= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h4, mgm);
+  ndb_mgm_connect(h4,0,0,0);
+
+
+  if(ndb_mgm_check_connection(h) < 0)
+  {
+    result= NDBT_FAILED;
+    goto done;
+  }
+
+  mgmid= ndb_mgm_get_mgmd_nodeid(h);
+
+  ndbout_c("Connected to MGM server at NodeID: %d",mgmid);
+
+  if(getMgmLogInfo(h, &current_size, &max_size))
+  {
+    result= NDBT_FAILED;
+    goto done;
+  }
 
   for(i=0;i<max_size/4;i++)
   {
@@ -814,10 +829,16 @@ int runTestMgmLogRotation(NDBT_Context* ctx, NDBT_Step* step)
           ndb_mgm_report_event(h4, theData, 6);
 
         }
-        
+        off_t c,m;
+        getMgmLogInfo(h, &c, &m);
+        if(c < current_size)
+        {
+          result= NDBT_OK;
+          break;
+        }
   }
 
-  return 0;
+  return result;
 
 done:
   if(h)
