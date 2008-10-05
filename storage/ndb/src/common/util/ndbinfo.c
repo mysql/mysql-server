@@ -19,8 +19,6 @@
 
 #include <ndbinfo.h>
 
-
-
 int ndbinfo_create_sql(struct ndbinfo_table *t, char* sql, int len)
 {
   int i;
@@ -35,7 +33,7 @@ int ndbinfo_create_sql(struct ndbinfo_table *t, char* sql, int len)
   for(i=0;i<t->ncols;i++)
   {
     snprintf(sql,len,"\n\t`%s` %s,",
-             t->col[i].name, ndbinfo_type_string[t->col[i].coltype]);
+             t->col[i].name, ndbinfo_coltype_to_string(t->col[i].coltype));
     len-=strlen(sql);
     sql+=strlen(sql);
     if(len<0)

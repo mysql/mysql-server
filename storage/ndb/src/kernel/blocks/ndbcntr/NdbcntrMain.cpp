@@ -92,6 +92,7 @@ static BlockInfo ALL_BLOCKS[] = {
   ,{ LGMAN_REF,  1 ,     0,     0 }
   ,{ PGMAN_REF,  1 ,     0,     0 }
   ,{ RESTORE_REF,1 ,     0,     0 }
+  ,{ DBINFO_REF,1 ,     0,     0 }
 };
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
@@ -99,6 +100,7 @@ static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
 static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   NDBFS_REF, // let it run first to make sure it can start the threads
   CMVMI_REF,
+  DBINFO_REF,
   DBTUP_REF,
   DBACC_REF,
   DBTC_REF,

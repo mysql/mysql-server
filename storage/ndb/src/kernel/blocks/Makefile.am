@@ -63,6 +63,7 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   backup/BackupProxy.cpp \
   RestoreProxy.cpp \
   dbinfo/Dbinfo.cpp \
+  dbinfo/ndbinfo_helpers.cpp \
   dblqh/DblqhCommon.cpp
 
 EXTRA_PROGRAMS = ndb_print_file
