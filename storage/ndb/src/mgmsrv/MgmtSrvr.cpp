@@ -2294,6 +2294,74 @@ const char* MgmtSrvr::getErrorText(int errorCode, char *buf, int buf_sz)
   return buf;
 }
 
+void MgmtSrvr::execDBINFO_SCANREQ(NdbApiSignal* signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*) signal->getDataPtr();
+
+  const Uint32 tableId= req.tableId;
+  const Uint32 senderRef= req.senderRef;
+  const Uint32 apiTxnId= req.apiTxnId;
+
+  DbinfoScanReq *oreq= (DbinfoScanReq*)signal->getDataPtrSend();
+
+  memcpy(signal->getDataPtrSend(),&req,signal->getLength()*sizeof(Uint32));
+
+  char buf[1024];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+  int i;
+  int startid= 0;
+
+  switch(req.tableId)
+  {
+  case 3:
+//  case NDBINFO_LOGDESTINATION_TABLEID:
+/*    dbinfo_ratelimit_init(&rl, &req);
+
+    if(!(req.requestInfo & DbinfoScanReq::StartScan))
+      startid= req.cur_item;
+
+    for(i=startid;
+        dbinfo_ratelimit_continue(&rl)
+          && 3+getLogger()->getHandlerCount();
+        i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+
+      LogHandler* lh= getLogger()->getHandler(i);
+      if(lh)
+      {
+        BaseString lparams;
+        const char *s;
+        lh->getParams(lparams);
+        dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+        s= lh->handler_type();
+        dbinfo_write_row_column(&r, s, strlen(s));
+        s= lparams.c_str();
+        dbinfo_write_row_column(&r, s, strlen(s));
+        dbinfo_write_row_column_uint32(&r, lh->getCurrentSize());
+        dbinfo_write_row_column_uint32(&r, lh->getMaxSize());
+        dbinfo_send_row(signal,r,rl,apiTxnId,senderRef);
+      }
+    }
+    if(!dbinfo_ratelimit_continue(&rl) && i < number_ndbinfo_tables)
+    {
+      dbinfo_ratelimit_sendconf(signal,req,rl,i);
+    }
+    else
+    {
+      DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+      conf->tableId= req.tableId;
+      conf->senderRef= req.senderRef;
+      conf->apiTxnId= req.apiTxnId;
+      conf->requestInfo= 0;
+      sendSignal(req.senderRef, GSN_DBINFO_SCANCONF, signal,
+                 DbinfoScanConf::SignalLength, JBB);
+    }
+*/    break;
+  }
+
+}
 
 void
 MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
@@ -2318,6 +2386,10 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
 
   case GSN_TAMPER_ORD:
     ndbout << "TAMPER ORD" << endl;
+    break;
+
+  case GSN_DBINFO_SCANREQ:
+    execDBINFO_SCANREQ(signal);
     break;
 
   default:
