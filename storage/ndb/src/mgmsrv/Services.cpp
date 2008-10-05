@@ -34,6 +34,9 @@
 #include <base64.h>
 #include <ndberror.h>
 
+#include <ndbinfo.h>
+#include <mgm_ndbinfo_tables.h>
+
 extern bool g_StopServer;
 extern bool g_RestartServer;
 extern EventLogger * g_eventLogger;
@@ -285,6 +288,9 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("drop nodegroup", &MgmApiSession::drop_nodegroup, ""),
     MGM_ARG("ng", Int, Mandatory, "Nodegroup"),
+
+  MGM_CMD("ndbinfo", &MgmApiSession::getNdbInfo, ""),
+    MGM_ARG("query", String, Mandatory, "SQL-Like Query"),
 
   MGM_END()
 };
@@ -2027,6 +2033,57 @@ done:
   m_output->println("");
 }
 
+
+#include <mgm_ndbinfo.c>
+
+void MgmApiSession::getNdbInfo(Parser_t::Context &ctx, Properties const &args)
+{
+  BaseString query;
+  args.get("query", query);
+
+  m_output->println("ndbinfo reply");
+
+  if(strcasecmp(query.c_str(),"SELECT * FROM NDB$INFO.TABLES")==0)
+  {
+    m_output->println("error: 0");
+    m_output->println("rows: %d",number_mgm_ndbinfo_tables);
+    m_output->println("");
+    BaseString c;
+    print_ndbinfo_table_mgm(&ndbinfo_TABLES.t, c);
+    m_output->print(c.c_str());
+    for(int i=0;i<number_mgm_ndbinfo_tables;i++)
+      m_output->println("%s",mgm_ndbinfo_tables[i]->name);
+  }
+  else if(strcasecmp(query.c_str(),"SELECT * FROM NDB$INFO.LOGDESTINATION")==0)
+  {
+    Guard g(m_mgmsrv.getLogger()->getHandlerLock());
+    m_output->println("error: 0");
+    m_output->println("rows: %d",m_mgmsrv.getLogger()->getHandlerCount());
+    m_output->println("");
+    BaseString c;
+    print_ndbinfo_table_mgm(&ndbinfo_LOGDESTINATION.t, c);
+    m_output->print(c.c_str());
+    for(int i=0;i<3+m_mgmsrv.getLogger()->getHandlerCount();i++)
+    {
+      LogHandler* lh= m_mgmsrv.getLogger()->getHandler(i);
+      if(lh)
+      {
+        BaseString lparams;
+        lh->getParams(lparams);
+        m_output->println("%u,%s,'%s',%lld,%lld",
+                          m_mgmsrv.getOwnNodeId(),
+                          lh->handler_type(),
+                          lparams.c_str(),
+                          lh->getCurrentSize(),
+                          lh->getMaxSize());
+      }
+    }
+  }
+  else
+  {
+    m_output->println("error: %d",ENOENT);
+  }
+}
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;

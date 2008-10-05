@@ -155,7 +155,7 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
 
 #define CHECK_TIMEDOUT_RET(h, in, out, ret) \
   if(in.timedout() || out.timedout()) { \
-    SET_ERROR(handle, ETIMEDOUT, \
+    SET_ERROR(h, ETIMEDOUT, \
               "Time out talking to management server"); \
     ndb_mgm_disconnect_quiet(h); \
     return ret; \
@@ -3124,6 +3124,135 @@ int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
 
   delete prop;
   DBUG_RETURN(res);
+}
+
+extern "C"
+int
+ndb_mgm_ndbinfo(NdbMgmHandle handle, const char* query)
+{
+  int retval= 0;
+  DBUG_ENTER("ndb_mgm_ndbinfo");
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+
+  Properties args;
+  args.put("query", query);
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("ndbinfo reply", NULL, ""),
+    MGM_ARG("error", Int, Mandatory, "Error code"),
+    MGM_ARG("rows", Int, Optional, "Row Count"),
+    MGM_END()
+  };
+
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "ndbinfo", &args);
+  CHECK_REPLY(handle, prop, 0);
+
+  Uint64 ndbinfo_err=0;
+  Uint64 rows=0;
+
+  if(!prop->get("error",&ndbinfo_err)){
+    fprintf(handle->errstream, "Unable to get error\n");
+    goto err;
+  }
+
+  if(!prop->get("rows",&rows))
+  {
+    fprintf(handle->errstream, "Unable to get number of rows\n");
+    goto err;
+  }
+
+  retval= rows;
+
+err:
+  delete prop;
+  DBUG_RETURN(retval);
+}
+
+int ndb_mgm_ndbinfo_colcount(NdbMgmHandle h)
+{
+  int n;
+  SocketInputStream in(h->socket, h->timeout);
+  char c[100];
+
+  in.gets(c,sizeof(c));
+
+  CHECK_TIMEDOUT_RET(h, in, in, -1);
+
+  n= atoi(c);
+
+  return n;
+}
+
+int ndb_mgm_ndbinfo_getcolums(NdbMgmHandle h,int n, int l, char** c)
+{
+  int i;
+  SocketInputStream in(h->socket, h->timeout);
+
+  for(i=0;i<n;i++)
+  {
+    in.gets(c[i],l);
+    CHECK_TIMEDOUT_RET(h, in, in, 1);
+
+    if(c[i][strlen(c[i])-1]=='\n')
+      c[i][strlen(c[i])-1]='\0';
+  }
+
+  return 0;
+}
+
+char* ndb_mgm_ndbinfo_nextcolumn(char* row, int *len)
+{
+  char *curr= row;
+  char *end= row;
+
+  if(curr[0]=='\'')
+  {
+    curr++;
+    end= strchr(curr,'\'');
+    if(!end)
+    {
+      if(end= strchr(curr,'\n'))
+      {
+        *end='\0';
+        *len= strlen(curr);
+        return curr;
+      }
+      return NULL;
+    }
+    *len= end - curr;
+    end++;
+  }
+  else
+  {
+    end= strchr(curr,',');
+    if(!end)
+    {
+      if(end= strchr(curr,'\n'))
+      {
+        *end='\0';
+        *len= strlen(curr);
+        return curr;
+      }
+      return NULL;
+    }
+    *len= end - curr;
+    end++;
+  }
+
+  return curr;
+}
+
+int ndb_mgm_ndbinfo_getrow(NdbMgmHandle h, char* row, int len)
+{
+  SocketInputStream in(h->socket, h->timeout);
+
+  in.gets(row,len);
+
+  CHECK_TIMEDOUT_RET(h, in, in, 1);
+
+  return 0;
 }
 
 template class Vector<const ParserRow<ParserDummy>*>;
