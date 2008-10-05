@@ -1950,6 +1950,7 @@ add_main_thr_map()
   add_thr_map(LGMAN, 0, thr_LOCAL);
   add_thr_map(PGMAN, 0, thr_LOCAL);
   add_thr_map(RESTORE, 0, thr_LOCAL);
+  add_thr_map(DBINFO, 0, thr_LOCAL);
 }
 
 /* Workers added by LocalProxy (before first signal). */

@@ -948,7 +948,8 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   sendSignal(LGMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
   sendSignal(TSMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
   sendSignal(PGMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
-  
+  sendSignal(DBINFO_REF,GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
+
   /**
    *
    * Here I can dump CMVMI state if needed

@@ -46,6 +46,7 @@ INCLUDES += \
 	-I$(srcdir)/blocks/dbutil \
 	-I$(srcdir)/blocks/suma \
 	-I$(srcdir)/blocks/dbtux \
+	-I$(srcdir)/blocks/dbinfo \
 	-I$(srcdir)/blocks
 
 LIBS= \

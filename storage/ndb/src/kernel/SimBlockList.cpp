@@ -35,6 +35,7 @@
 #include <lgman.hpp>
 #include <pgman.hpp>
 #include <restore.hpp>
+#include <Dbinfo.hpp>
 #include <NdbEnv.h>
 #include <LocalProxy.hpp>
 #include <DblqhProxy.hpp>
@@ -139,7 +140,8 @@ SimBlockList::load(EmulatorData& data){
     theList[18] = NEW_BLOCK(Restore)(ctx);
   else
     theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
-  assert(NO_OF_BLOCKS == 19);
+  theList[19] = NEW_BLOCK(Dbinfo)(ctx);
+  assert(NO_OF_BLOCKS == 20);
 
   if (globalData.isNdbMt) {
     add_main_thr_map();
