@@ -1144,7 +1144,7 @@ innobase_next_autoinc(
 		} else {
 			next_value = current + increment;
 		}
-	} else {
+	} else if (max_value > current) {
 		if (current > offset) {
 			next_value = ((current - offset) / increment) + 1;
 		} else {
@@ -1168,6 +1168,8 @@ innobase_next_autoinc(
 				next_value += offset;
 			}
 		}
+	} else {
+		next_value = max_value;
 	}
 
 	ut_a(next_value <= max_value);
