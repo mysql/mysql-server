@@ -155,6 +155,9 @@ protected:
   void execLCP_PREPARE_REQ(Signal* signal);
   void execLCP_FRAGMENT_REQ(Signal*);
   void execEND_LCPREQ(Signal* signal);
+
+  void execDBINFO_SCANREQ(Signal *signal);
+
 private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);

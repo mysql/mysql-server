@@ -26,7 +26,7 @@
 #include "ndbinfo_tableids.h"
 #include <AttributeHeader.hpp>
 
-Uint32 dbinfo_blocks[] = { DBACC, DBTUP, 0};
+Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, 0};
 
 Dbinfo::Dbinfo(Block_context& ctx) :
   SimulatedBlock(DBINFO, ctx),
@@ -326,8 +326,7 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
       startColumnId= 0;
     }
 
-    if(!dbinfo_ratelimit_continue(&rl)
-       && (i < number_ndbinfo_tables || j < t->ncols))
+    if((i < number_ndbinfo_tables || j < t->ncols))
     {
       jam();
       i--;
