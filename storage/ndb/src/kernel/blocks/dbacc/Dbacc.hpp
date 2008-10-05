@@ -667,6 +667,8 @@ private:
 
   void execDROP_FRAG_REQ(Signal*);
 
+  void execDBINFO_SCANREQ(Signal *signal);
+
   // Statement blocks
   void ACCKEY_error(Uint32 fromWhere);
 

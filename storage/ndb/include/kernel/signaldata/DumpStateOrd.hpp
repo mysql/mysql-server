@@ -170,6 +170,11 @@ public:
     DumpBackupSetCompressed = 13001,
     DumpBackupSetCompressedLCP = 13002,
 
+    DumpDbinfo = 14000,
+    DbinfoListTables = 14001,
+    DbinfoListColumns = 14002,
+    DbinfoScanTable = 14003,
+
     SchemaResourceSnapshot = 4000, // Save resource consumption
     SchemaResourceCheckLeak = 4001 // check same as snapshot
   };

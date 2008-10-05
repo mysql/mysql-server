@@ -1714,7 +1714,9 @@ private:
   // Drop table
   void execFSREMOVEREF(Signal*);
   void execFSREMOVECONF(Signal*);
-  
+
+  void execDBINFO_SCANREQ(Signal*);
+
 //------------------------------------------------------------------
 //------------------------------------------------------------------
 // Methods to handle execution of TUPKEYREQ + ATTRINFO.
