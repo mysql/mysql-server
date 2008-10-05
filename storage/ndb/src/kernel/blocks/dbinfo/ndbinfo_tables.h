@@ -100,7 +100,18 @@ DECLARE_NDBINFO_TABLE(ndbinfo_BACKUP_PARAMETERS,14)
    }
 };
 
-static int number_ndbinfo_tables= 6;
+DECLARE_NDBINFO_TABLE(ndbinfo_POOLS,5)
+= {{"POOLS",5 ,0},
+   {
+     {"NODE_ID",                  NDBINFO_TYPE_NUMBER},
+     {"BLOCK",                    NDBINFO_TYPE_STRING},
+     {"POOL_NAME",                NDBINFO_TYPE_STRING},
+     {"FREE",                     NDBINFO_TYPE_NUMBER},
+     {"SIZE",                     NDBINFO_TYPE_NUMBER},
+   }
+};
+
+static int number_ndbinfo_tables= 7;
 
 struct ndbinfo_table *ndbinfo_tables[] = {
   &ndbinfo_TABLES.t,
@@ -109,6 +120,7 @@ struct ndbinfo_table *ndbinfo_tables[] = {
   &ndbinfo_LOGDESTINATION.t,
   &ndbinfo_BACKUP_RECORDS.t,
   &ndbinfo_BACKUP_PARAMETERS.t,
+  &ndbinfo_POOLS.t,
 };
 
 #ifdef __cplusplus

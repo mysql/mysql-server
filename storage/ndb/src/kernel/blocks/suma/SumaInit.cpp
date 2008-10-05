@@ -32,6 +32,7 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_STTOR, &Suma::execSTTOR);
   addRecSignal(GSN_NDB_STTOR, &Suma::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &Suma::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Suma::execDBINFO_SCANREQ);
   addRecSignal(GSN_READ_NODESCONF, &Suma::execREAD_NODESCONF);
   addRecSignal(GSN_API_START_REP, &Suma::execAPI_START_REP, true);
   addRecSignal(GSN_API_FAILREQ,  &Suma::execAPI_FAILREQ);

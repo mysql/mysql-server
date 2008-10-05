@@ -12,6 +12,7 @@ extern "C" {
 #define NDBINFO_LOGDESTINATION_TABLEID  3
 #define NDBINFO_BACKUP_RECORDS_TABLEID 4
 #define NDBINFO_BACKUP_PARAMETERS_TABLEID 5
+#define NDBINFO_POOLS_TABLEID                     6
 
 #ifdef __cplusplus
 }

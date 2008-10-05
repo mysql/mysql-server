@@ -26,7 +26,7 @@
 #include "ndbinfo_tableids.h"
 #include <AttributeHeader.hpp>
 
-Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, 0};
+Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL, TRIX, DBTUX, DBDICT, 0};
 
 Dbinfo::Dbinfo(Block_context& ctx) :
   SimulatedBlock(DBINFO, ctx),

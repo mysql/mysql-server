@@ -74,6 +74,7 @@ protected:
   void execSTTOR(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
 
   /**

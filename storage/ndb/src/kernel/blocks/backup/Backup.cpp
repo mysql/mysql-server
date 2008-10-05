@@ -703,6 +703,47 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
     dbinfo_write_row_column_uint32(&r, c_defaults.m_compressed_lcp);
     dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
   }
+  else if( req.tableId == NDBINFO_POOLS_TABLEID )
+  {
+    struct {
+      char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Backup Record",
+           c_backupPool.getNoOfFree(),
+           c_backupPool.getSize() },
+          {"Backup File",
+           c_backupFilePool.getNoOfFree(),
+           c_backupFilePool.getSize() },
+          {"Table",
+           c_tablePool.getNoOfFree(),
+           c_tablePool.getSize() },
+          {"Trigger",
+           c_triggerPool.getNoOfFree(),
+           c_triggerPool.getSize() },
+          {"Fragment",
+           c_fragmentPool.getNoOfFree(),
+           c_fragmentPool.getSize() },
+          {"Page",
+           c_pagePool.getNoOfFree(),
+           c_pagePool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      char *blockname= "BACKUP";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
 
   DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
   memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
