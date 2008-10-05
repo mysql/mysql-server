@@ -498,6 +498,7 @@ private:
 
   void handleReceivedSignal(NdbApiSignal* signal);
   void handleStatus(NodeId nodeId, bool alive, bool nfComplete);
+  void execDBINFO_SCANREQ(NdbApiSignal* signal);
 
   /**
      Callback function installed into TransporterFacade, will be called
