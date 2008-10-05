@@ -3274,7 +3274,7 @@ MgmtSrvr::setConnectionDbParameter(int node1,
     DBUG_RETURN(-3);
   }
 
-  ConfigValues::Iterator i2(_config->m_configValues->m_config, 
+  ConfigValues::Iterator i2(_config->m_configValues->m_config,
 			    iter.m_config);
 
   if(i2.set(param, (unsigned)value) == false) {
@@ -3380,6 +3380,11 @@ bool MgmtSrvr::connect_to_self()
   theFacade->get_registry()->set_mgm_handle(mgm_handle);
 
   return true;
+}
+
+Logger* MgmtSrvr::getLogger()
+{
+  return g_eventLogger;
 }
 
 template class MutexVector<NodeId>;

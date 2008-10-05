@@ -467,6 +467,9 @@ private:
   int check_nodes_starting();
   int check_nodes_stopping();
 
+
+  Logger*  getLogger();
+
   //**************************************************************************
 
   const MgmtOpts& m_opts;
