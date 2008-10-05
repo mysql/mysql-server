@@ -1818,6 +1818,9 @@ private:
   NdbOperation*      void2rec_op  (void* val);
   NdbIndexOperation* void2rec_iop (void* val);
 
+
+  Uint64 allocate_transaction_id();
+
 /******************************************************************************
  *	These are the private variables in this class.	
  *****************************************************************************/
