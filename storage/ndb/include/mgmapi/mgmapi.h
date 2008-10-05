@@ -1162,7 +1162,7 @@ extern "C" {
    * On success, returns number of rows.
    * ndb_mgm_ndbinfo_getrow() *MUST* be called that many times.
    */
-  int ndb_mgm_ndbinfo(NdbMgmHandle handle, const char *query);
+  int ndb_mgm_ndbinfo(NdbMgmHandle handle, const char *query, int *rows);
 
   /**
    * Gets the column names for NDBINFO query

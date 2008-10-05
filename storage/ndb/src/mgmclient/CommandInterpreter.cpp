@@ -2470,7 +2470,14 @@ CommandInterpreter::executeReport(int processId, const char* parameters,
 int
 CommandInterpreter::executeNdbInfo(char* parameters)
 {
-  int r= ndb_mgm_ndbinfo(m_mgmsrv,parameters);
+  int rows;
+  int r= ndb_mgm_ndbinfo(m_mgmsrv,parameters, &rows);
+
+  if(r)
+  {
+    ndbout_c("Error displaying NDBINFO: %d",r);
+    return -1;
+  }
 
   int ncol= ndb_mgm_ndbinfo_colcount(m_mgmsrv);
 
@@ -2487,7 +2494,7 @@ CommandInterpreter::executeNdbInfo(char* parameters)
   }
   ndbout << endl;
 
-  while(r--)
+  while(rows--)
   {
     char c[1024];
     ndb_mgm_ndbinfo_getrow(m_mgmsrv, c, 1024);

@@ -470,6 +470,12 @@ private:
 
   Logger*  getLogger();
 
+  int ndbinfo(int tableId, Vector<BaseString> *cols, Vector<BaseString> *rows);
+
+  int ndbinfo(BaseString table_name,
+              Vector<BaseString> *cols,
+              Vector<BaseString> *rows);
+
   //**************************************************************************
 
   const MgmtOpts& m_opts;
@@ -478,6 +484,10 @@ private:
   Uint32 m_port;
   SocketServer m_socket_server;
   ConfigRetriever m_config_retriever;
+
+  Vector<BaseString> m_ndbinfo_table_names;
+  Vector< Vector<Uint32> > m_ndbinfo_column_types;
+  Vector< Vector<BaseString> > m_ndbinfo_column_names;
 
   BlockReference _ownReference; 
   NdbMutex *m_configMutex;

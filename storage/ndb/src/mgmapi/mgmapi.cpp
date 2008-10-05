@@ -3128,7 +3128,7 @@ int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
 
 extern "C"
 int
-ndb_mgm_ndbinfo(NdbMgmHandle handle, const char* query)
+ndb_mgm_ndbinfo(NdbMgmHandle handle, const char* query, int *rows)
 {
   int retval= 0;
   DBUG_ENTER("ndb_mgm_ndbinfo");
@@ -3150,20 +3150,27 @@ ndb_mgm_ndbinfo(NdbMgmHandle handle, const char* query)
   CHECK_REPLY(handle, prop, 0);
 
   Uint64 ndbinfo_err=0;
-  Uint64 rows=0;
 
   if(!prop->get("error",&ndbinfo_err)){
     fprintf(handle->errstream, "Unable to get error\n");
     goto err;
   }
 
-  if(!prop->get("rows",&rows))
+  if(ndbinfo_err)
+  {
+    retval= ndbinfo_err;
+    goto err;
+  }
+
+  Uint64 r;
+
+  if(!prop->get("rows",&r))
   {
     fprintf(handle->errstream, "Unable to get number of rows\n");
     goto err;
   }
 
-  retval= rows;
+  *rows= (int)r;
 
 err:
   delete prop;
