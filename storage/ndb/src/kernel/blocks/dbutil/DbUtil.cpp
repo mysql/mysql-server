@@ -39,6 +39,10 @@
 
 #include <NdbTick.h>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
 
 /**************************************************************************
  * ------------------------------------------------------------------------
@@ -62,6 +66,7 @@ DbUtil::DbUtil(Block_context& ctx) :
   addRecSignal(GSN_STTOR, &DbUtil::execSTTOR);
   addRecSignal(GSN_NDB_STTOR, &DbUtil::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &DbUtil::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &DbUtil::execDBINFO_SCANREQ);
   addRecSignal(GSN_CONTINUEB, &DbUtil::execCONTINUEB);
   
   //addRecSignal(GSN_TCSEIZEREF, &DbUtil::execTCSEIZEREF);
@@ -678,6 +683,66 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
   }
 }
 
+void DbUtil::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  char buf[512];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  {
+    struct {
+      char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Page",
+           c_pagePool.getNoOfFree(),
+           c_pagePool.getSize() },
+          {"Prepare",
+           c_preparePool.getNoOfFree(),
+           c_preparePool.getSize() },
+          {"Prepared Operation",
+           c_preparedOperationPool.getNoOfFree(),
+           c_preparedOperationPool.getSize() },
+          {"Operation",
+           c_operationPool.getNoOfFree(),
+           c_operationPool.getSize() },
+          {"Transaction",
+           c_transactionPool.getNoOfFree(),
+           c_transactionPool.getSize() },
+          {"Attribute Mapping",
+           c_attrMappingPool.getNoOfFree(),
+           c_attrMappingPool.getSize() },
+          {"Data Buffer",
+           c_dataBufPool.getNoOfFree(),
+           c_dataBufPool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      char *blockname= "DBUTIL";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
+}
 void
 DbUtil::mutex_created(Signal* signal, Uint32 ptrI, Uint32 retVal){
   MutexManager::ActiveMutexPtr ptr; ptr.i = ptrI;

@@ -156,6 +156,8 @@ private:
   // Debugging
   void execDUMP_STATE_ORD(Signal* signal);
 
+  void execDBINFO_SCANREQ(Signal* signal);
+
   // Build index
   void execBUILD_INDX_IMPL_REQ(Signal* signal);
   void execBUILD_INDX_IMPL_CONF(Signal* signal);
