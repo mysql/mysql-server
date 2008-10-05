@@ -40,6 +40,7 @@
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/DropNodegroup.hpp>
+#include <signaldata/DbinfoScan.hpp>
 #include <NdbSleep.h>
 #include <EventLogger.hpp>
 #include <DebuggerNames.hpp>
@@ -58,6 +59,9 @@
 #include <m_string.h>
 
 #include <SignalSender.hpp>
+
+#include <ndbinfo.h>
+#include <AttributeHeader.hpp>
 
 int g_errorInsert;
 #define ERROR_INSERTED(x) (g_errorInsert == x)
@@ -3387,7 +3391,232 @@ Logger* MgmtSrvr::getLogger()
   return g_eventLogger;
 }
 
+int MgmtSrvr::ndbinfo(BaseString table_name, Vector<BaseString> *cols, Vector<BaseString> *rows)
+{
+  int i,r= ENOENT;
+
+  if(m_ndbinfo_table_names.size()==0 || table_name=="TABLES" || table_name=="COLUMNS")
+  {
+    Vector<BaseString> tmp;
+    Vector<BaseString> tmp2;
+
+    /* Refresh NDBINFO metadata cache */
+    r= ndbinfo(0, &tmp, &tmp2);
+    r= ndbinfo(1, &tmp, &tmp2);
+
+    if(table_name=="TABLES")
+      return ndbinfo(0, cols, rows);
+    if(table_name=="COLUMNS")
+      return ndbinfo(1, cols, rows);
+
+  }
+
+  for(i=2;i<m_ndbinfo_table_names.size(); i++)
+  {
+    if(table_name == m_ndbinfo_table_names[i])
+      return ndbinfo(i, cols, rows);
+  }
+
+  return r;
+}
+
+int MgmtSrvr::ndbinfo(int tableId,  Vector<BaseString> *cols, Vector<BaseString> *rows)
+{
+  SignalSender ss(theFacade);
+  ss.lock();
+
+  SimpleSignal ssig;
+  DbinfoScanReq *req= CAST_PTR(DbinfoScanReq, ssig.getDataPtrSend());
+  req->tableId= tableId;
+  req->senderRef= ss.getOwnRef();
+  req->apiTxnId= 1;
+  req->requestInfo= DbinfoScanReq::AllColumns | DbinfoScanReq::StartScan;
+  req->colBitmapLo= ~0;
+  req->colBitmapHi= ~0;
+  req->maxRows= 2;
+  req->maxBytes= 0;
+  req->rows_total= 0;
+  req->word_total= 0;
+
+  ssig.set(ss, TestOrd::TraceAPI, DBINFO, GSN_DBINFO_SCANREQ,
+           DbinfoScanReq::SignalLength);
+
+  NodeId nodeId = m_master_node;
+  if (okToSendTo(nodeId, false) != 0)
+  {
+    bool next;
+    nodeId = m_master_node = 0;
+    while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
+          okToSendTo(nodeId, false) != 0);
+    if(!next)
+      return NO_CONTACT_WITH_DB_NODES;
+  }
+
+  int do_send= 1;
+
+  int ncols;
+  if(m_ndbinfo_column_types.size()>=tableId+1)
+  {
+    ncols= m_ndbinfo_column_types[tableId].size();
+    *cols= m_ndbinfo_column_names[tableId];
+  }
+  else
+  {
+    if(tableId==0)
+      ncols= 3;
+    else // tableid = 1
+      ncols= 4;
+  }
+
+  while(true)
+  {
+    if(do_send)
+    {
+      if(ss.sendSignal(nodeId, &ssig) != SEND_OK)
+        return SEND_OR_RECEIVE_FAILED;
+
+      do_send= 0;
+    }
+
+    SimpleSignal *signal= ss.waitFor();
+
+    int gsn= signal->readSignalNumber();
+
+    int len;
+    BaseString b, rowstr;
+    int i;
+    char *row;
+    Uint32 rowsz;
+    int rec_tableid;
+    int rec_colid;
+    DbinfoScanConf *conf;
+    Uint32 coltype;
+
+    switch(gsn)
+    {
+    case GSN_TRANSID_AI:
+      row= (char*)signal->ptr[0].p;
+      rowsz= signal->ptr[0].sz;
+
+      rowstr.clear();
+
+      for(i=0; i<ncols; i++)
+      {
+        AttributeHeader ah(*(Uint32*)row);
+        row+=ah.getHeaderSize()*sizeof(Uint32);
+        len= ah.getByteSize();
+
+        len= ah.getByteSize();
+
+        if(tableId==0)
+        {
+          if(i==0)
+            rec_tableid= *(Uint32*)row;
+          if(i==1)
+          {
+            b.assign(row,len);
+            m_ndbinfo_table_names.set(b, rec_tableid, b);
+            b.clear();
+          }
+        }
+
+        if(tableId==1)
+        {
+          if(i==0)
+            rec_tableid= *(Uint32*)row;
+          if(i==1)
+            rec_colid= *(Uint32*)row;
+          if(i==2)
+          {
+            if(m_ndbinfo_column_names.size() <= rec_tableid)
+            {
+              Vector<BaseString> v;
+              m_ndbinfo_column_names.fill(rec_tableid+1, v);
+            }
+            b.assign(row,len);
+            m_ndbinfo_column_names[rec_tableid].set(b,(unsigned)rec_colid,b);
+            b.clear();
+          }
+          if(i==3)
+          {
+            if(m_ndbinfo_column_types.size() <= rec_tableid)
+            {
+              Vector<Uint32> v;
+              m_ndbinfo_column_types.fill(rec_tableid+1, v);
+            }
+            coltype= (strncmp("BIGINT",row,len)==0)?2:1;
+
+            m_ndbinfo_column_types[rec_tableid].set(coltype,
+                                                    (unsigned)rec_colid,
+                                                    coltype);
+          }
+        }
+
+        if(m_ndbinfo_column_types.size()>tableId
+           && m_ndbinfo_column_types[tableId].size() > i)
+        {
+          switch(m_ndbinfo_column_types[tableId][i])
+          {
+          case NDBINFO_TYPE_NUMBER:
+            rowstr.appfmt("%u",*(Uint32*)row);
+            break;
+          case NDBINFO_TYPE_STRING:
+            b.assign(row,len);
+            for(char*c= (char*)b.c_str(); *c!='\0'; c++)
+              if(*c=='\n')
+                *c= ' ';
+            rowstr.append(b);
+            b.clear();
+            break;
+          }
+
+          if(i!=ncols-1)
+            rowstr.append(",");
+        }
+
+        row+=len;
+
+      }
+
+      rows->push_back(rowstr);
+      rowstr.clear();
+
+      break;
+    case GSN_DBINFO_SCANCONF:
+      conf= (DbinfoScanConf*) signal->getDataPtr();
+
+      if(conf->requestInfo & DbinfoScanConf::MoreData)
+      {
+        memcpy(req,conf,signal->header.theLength*sizeof(Uint32));
+        req->requestInfo &= ~(DbinfoScanReq::StartScan);
+        ssig.set(ss, TestOrd::TraceAPI, req->cur_block, GSN_DBINFO_SCANREQ,
+                 DbinfoScanReq::SignalLengthWithCursor);
+        nodeId= req->cur_node;
+
+        do_send= 1;
+        continue;
+      }
+      else
+      {
+        return 0;
+      }
+      break;
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+    }
+  }
+
+  return 0;
+}
+
+
 template class MutexVector<NodeId>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class Vector<EventSubscribeReq>;
 template class MutexVector<EventSubscribeReq>;
+
+template class Vector<BaseString>;
+template class Vector< Vector<Uint32> >;
+template class Vector< Vector<BaseString> >;
+

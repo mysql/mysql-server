@@ -2041,48 +2041,33 @@ void MgmApiSession::getNdbInfo(Parser_t::Context &ctx, Properties const &args)
   BaseString query;
   args.get("query", query);
 
+  Vector<BaseString> columns;
+  Vector<BaseString> rows;
+
   m_output->println("ndbinfo reply");
 
-  if(strcasecmp(query.c_str(),"SELECT * FROM NDB$INFO.TABLES")==0)
+  int r= m_mgmsrv.ndbinfo(query, &columns, &rows);
+
+  if(r)
   {
-    m_output->println("error: 0");
-    m_output->println("rows: %d",number_mgm_ndbinfo_tables);
+    m_output->println("error: %d",r);
     m_output->println("");
-    BaseString c;
-    print_ndbinfo_table_mgm(&ndbinfo_TABLES.t, c);
-    m_output->print(c.c_str());
-    for(int i=0;i<number_mgm_ndbinfo_tables;i++)
-      m_output->println("%s",mgm_ndbinfo_tables[i]->name);
+    return;
   }
-  else if(strcasecmp(query.c_str(),"SELECT * FROM NDB$INFO.LOGDESTINATION")==0)
-  {
-    Guard g(m_mgmsrv.getLogger()->getHandlerLock());
-    m_output->println("error: 0");
-    m_output->println("rows: %d",m_mgmsrv.getLogger()->getHandlerCount());
-    m_output->println("");
-    BaseString c;
-    print_ndbinfo_table_mgm(&ndbinfo_LOGDESTINATION.t, c);
-    m_output->print(c.c_str());
-    for(int i=0;i<3+m_mgmsrv.getLogger()->getHandlerCount();i++)
-    {
-      LogHandler* lh= m_mgmsrv.getLogger()->getHandler(i);
-      if(lh)
-      {
-        BaseString lparams;
-        lh->getParams(lparams);
-        m_output->println("%u,%s,'%s',%lld,%lld",
-                          m_mgmsrv.getOwnNodeId(),
-                          lh->handler_type(),
-                          lparams.c_str(),
-                          lh->getCurrentSize(),
-                          lh->getMaxSize());
-      }
-    }
-  }
-  else
-  {
-    m_output->println("error: %d",ENOENT);
-  }
+
+  m_output->println("error: 0");
+  m_output->println("rows: %d",rows.size());
+  m_output->println("");
+
+  m_output->println("%d",columns.size());
+
+  for(int i=0;i<columns.size();i++)
+    m_output->println(columns[i].c_str());
+
+  for(int i=0;i<rows.size();i++)
+    m_output->println(rows[i].c_str());
+
+  return ;
 }
 
 template class MutexVector<int>;
