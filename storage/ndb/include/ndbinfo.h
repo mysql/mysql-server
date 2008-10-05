@@ -85,7 +85,7 @@ int dbinfo_write_row_column_uint32(struct dbinfo_row *r, Uint32 value);
   ptr[0].sz= (Uint32)r.endrow;                                          \
   rl.rows++;                                                            \
   rl.bytes+=r.endrow;                                                   \
-  sendSignal(senderRef, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);        \
+  sendSignal(senderRef, GSN_DBINFO_TRANSID_AI, signal, 3, JBB, ptr, 1); \
 } while (0)
 
 #define dbinfo_ratelimit_sendconf(signal, req, rl, itemnumber)          \

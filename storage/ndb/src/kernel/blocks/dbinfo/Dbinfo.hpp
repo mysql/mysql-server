@@ -50,8 +50,7 @@ protected:
   void execDUMP_STATE_ORD(Signal* signal);
 
   void execDBINFO_SCANREQ(Signal *signal);
-  void execDBINFO_SCANNEXTREQ(Signal *signal);
-  void execTRANSID_AI(Signal* signal);
+  void execDBINFO_TRANSID_AI(Signal* signal);
   void execDBINFO_SCANCONF(Signal *signal);
 
   /* for maintaining c_aliveNodes */

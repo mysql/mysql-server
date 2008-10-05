@@ -3566,7 +3566,7 @@ int MgmtSrvr::ndbinfo(int tableId,  Vector<BaseString> *cols, Vector<BaseString>
 
     switch(gsn)
     {
-    case GSN_TRANSID_AI:
+    case GSN_DBINFO_TRANSID_AI:
       row= (char*)signal->ptr[0].p;
       rowsz= signal->ptr[0].sz;
 

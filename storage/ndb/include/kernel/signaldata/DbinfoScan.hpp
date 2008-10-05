@@ -116,26 +116,4 @@ private:
   Uint32 errorCode;       // Error Code
 };
 
-/*
-  SENDER:  API
-  RECIVER: Dbtc
-
-  This signal is sent by API to acknowledge the reception of batches of rows
-  from one or more fragment scans, and to request the fetching of the next
-  batches of rows.
- */
-class DbinfoScanNextReq {
-  /* Reciver(s) */
-  friend class Dbinfo;
-
-  /* Sender(s) */
-
-  friend bool printDBINFO_SCANNEXTREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
-
-public:
-  STATIC_CONST( SignalLength = 4 );
-
-private:
-};
-
 #endif
