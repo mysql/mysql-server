@@ -1589,13 +1589,15 @@ drop table t;
 #
 
 USE mysql;
+TRUNCATE TABLE general_log;
+SET @old_general_log_state = @@global.general_log;
 SET GLOBAL general_log = 0;
 ALTER TABLE general_log ENGINE = MyISAM;
 --error ER_WRONG_USAGE
 ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
   (PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
 ALTER TABLE general_log ENGINE = CSV;
-SET GLOBAL general_log = default;
+SET GLOBAL general_log = @old_general_log_state;
 use test;
 
 #
