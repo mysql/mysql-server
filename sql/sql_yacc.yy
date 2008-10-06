@@ -10105,8 +10105,6 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
-            if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
-              MYSQL_YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               MYSQL_YYABORT;
           }
@@ -10114,8 +10112,6 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_FUNC;
-            if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
-              MYSQL_YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               MYSQL_YYABORT;
           }

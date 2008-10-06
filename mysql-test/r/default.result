@@ -205,4 +205,19 @@ Warnings:
 Warning	1364	Field 'id' doesn't have a default value
 drop view v1;
 drop table t1;
+create table t1 (a int unique);
+create table t2 (b int default 10);
+insert into t1 (a) values (1);
+insert into t2 (b) values (1);
+insert into t1 (a) select b from t2 on duplicate key update a=default;
+select * from t1;
+a
+NULL
+insert into t1 (a) values (1);
+insert into t1 (a) select b from t2 on duplicate key update a=default(b);
+select * from t1;
+a
+NULL
+10
+drop table t1, t2;
 End of 5.0 tests.

@@ -73,29 +73,59 @@ out:
 }
 
 
-/*
-  Create temporary table structure (but do not fill it)
+/**
+  @brief Create temporary table structure (but do not fill it).
 
-  SYNOPSIS
-    mysql_derived_prepare()
-    thd			Thread handle
-    lex                 LEX for this thread
-    orig_table_list     TABLE_LIST for the upper SELECT
+  @param thd Thread handle
+  @param lex LEX for this thread
+  @param orig_table_list TABLE_LIST for the upper SELECT
 
-  IMPLEMENTATION
-    Derived table is resolved with temporary table.
+  @details 
 
-    After table creation, the above TABLE_LIST is updated with a new table.
+  This function is called before any command containing derived tables is
+  executed. Currently the function is used for derived tables, i.e.
 
-    This function is called before any command containing derived table
-    is executed.
+  - Anonymous derived tables, or 
+  - Named derived tables (aka views) with the @c TEMPTABLE algorithm.
+   
+  The table reference, contained in @c orig_table_list, is updated with the
+  fields of a new temporary table.
 
-    Derived tables is stored in thd->derived_tables and freed in
-    close_thread_tables()
+  Derived tables are stored in @c thd->derived_tables and closed by
+  close_thread_tables().
 
-  RETURN
-    FALSE  OK
-    TRUE   Error
+  This function is part of the procedure that starts in
+  open_and_lock_tables(), a procedure that - among other things - introduces
+  new table and table reference objects (to represent derived tables) that
+  don't exist in the privilege database. This means that normal privilege
+  checking cannot handle them. Hence this function does some extra tricks in
+  order to bypass normal privilege checking, by exploiting the fact that the
+  current state of privilege verification is attached as GRANT_INFO structures
+  on the relevant TABLE and TABLE_REF objects.
+
+  For table references, the current state of accrued access is stored inside
+  TABLE_LIST::grant. Hence this function must update the state of fulfilled
+  privileges for the new TABLE_LIST, an operation which is normally performed
+  exclusively by the table and database access checking functions,
+  check_access() and check_grant(), respectively. This modification is done
+  for both views and anonymous derived tables: The @c SELECT privilege is set
+  as fulfilled by the user. However, if a view is referenced and the table
+  reference is queried against directly (see TABLE_LIST::referencing_view),
+  the state of privilege checking (GRANT_INFO struct) is copied as-is to the
+  temporary table.
+
+  This function implements a signature called "derived table processor", and
+  is passed as a function pointer to mysql_handle_derived().
+
+  @note This function sets @c SELECT_ACL for @c TEMPTABLE views as well as
+  anonymous derived tables, but this is ok since later access checking will
+  distinguish between them.
+
+  @see mysql_handle_derived(), mysql_derived_filling(), GRANT_INFO
+
+  @return
+    false  OK
+    true   Error
 */
 
 bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
