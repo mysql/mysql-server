@@ -6133,3 +6133,15 @@ ER_NEED_REPREPARE
 
 ER_DELAYED_NOT_SUPPORTED  
   eng "DELAYED option not supported for table '%-.192s'"
+
+WARN_NO_MASTER_INFO  
+  eng "The master info structure does not exist"
+
+WARN_OPTION_IGNORED
+  eng "<%-.64s> option ignored"
+
+WARN_PLUGIN_DELETE_BUILTIN
+  eng "Built-in plugins cannot be deleted"
+
+WARN_PLUGIN_BUSY
+  eng "Plugin is busy and will be uninstalled on shutdown"
