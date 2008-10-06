@@ -458,40 +458,41 @@ AC_SUBST(ABI_CHECK)
 # Look for PS usage.  We use double dollar-signs in FIND_PROC because this
 # value is written to a makefile, which interprets away one level of
 # dollar-signs.  So, interpretation stages are  m4 and then shell in autoconf,
-# then Make, then shell.
+# then Make, then shell.  The autoconf substitution uses single quotes, so 
+# no unprotected single quotes should appear in the expression.
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
 PS=$ac_cv_path_PS
 # Linux style
 if $PS wwwp $$ 2> /dev/null | grep -- "$0" > /dev/null
 then
-  FIND_PROC="$PS wwwp \$\$PID | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
+  FIND_PROC="$PS wwwp \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 # Solaris
 elif $PS -fp $$ 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -p \$\$PID | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
+  FIND_PROC="$PS -p \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 # BSD style
 elif $PS -uaxww 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -uaxww | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -uaxww | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
 # SysV style
 elif $PS -ef 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -ef | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -ef | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
 # Do anybody use this?
 elif $PS $$ 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS \$\$PID | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
+  FIND_PROC="$PS \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 else
   case $SYSTEM_TYPE in
     *freebsd*|*dragonfly*)
-      FIND_PROC="$PS p \$\$PID | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
+      FIND_PROC="$PS p \$\$PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
       ;;
     *darwin*)
-      FIND_PROC="$PS -uaxww | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -uaxww | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
       ;;
     *cygwin*)
-      FIND_PROC="$PS -e | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -e | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
       ;;
     *netware*)
       FIND_PROC=
