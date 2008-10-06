@@ -1,3 +1,9 @@
+2008-10-04	The InnoDB Team
+
+	* dict/dict0dict.c, handler/ha_innodb.cc, handler/ha_innodb.h,
+	include/dict0dict.h, include/dict0mem.h, row/row0mysql.c:
+	Fix Bug#39830 Table autoinc value not updated on first insert
+
 2008-10-03	The InnoDB Team
 
 	* mysql-test/innodb-index.test, mysql-test/innodb-index.result,
