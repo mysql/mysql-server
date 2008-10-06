@@ -2991,11 +2991,13 @@ UNIV_INTERN ibool	page_zip_validate_header_only = FALSE;
 Check that the compressed and decompressed pages match. */
 UNIV_INTERN
 ibool
-page_zip_validate(
-/*==============*/
+page_zip_validate_low(
+/*==================*/
 					/* out: TRUE if valid, FALSE if not */
 	const page_zip_des_t*	page_zip,/* in: compressed page */
-	const page_t*		page)	/* in: uncompressed page */
+	const page_t*		page,	/* in: uncompressed page */
+	ibool			sloppy)	/* in: FALSE=strict,
+					TRUE=ignore the MIN_REC_FLAG */
 {
 	page_zip_des_t	temp_page_zip;
 	byte*		temp_page_buf;
@@ -3070,6 +3072,36 @@ page_zip_validate(
 	}
 	if (memcmp(page + PAGE_HEADER, temp_page + PAGE_HEADER,
 		   UNIV_PAGE_SIZE - PAGE_HEADER - FIL_PAGE_DATA_END)) {
+
+		/* In crash recovery, the "minimum record" flag may be
+		set incorrectly until the mini-transaction is
+		committed.  Let us tolerate that difference when we
+		are performing a sloppy validation. */
+
+		if (sloppy) {
+			byte	info_bits_diff;
+			ulint	offset
+				= rec_get_next_offs(page + PAGE_NEW_INFIMUM,
+						    TRUE);
+			ut_a(offset >= PAGE_NEW_SUPREMUM);
+			offset -= 5 /* REC_NEW_INFO_BITS */;
+
+			info_bits_diff = page[offset] ^ temp_page[offset];
+
+			if (info_bits_diff == REC_INFO_MIN_REC_FLAG) {
+				temp_page[offset] = page[offset];
+
+				if (!memcmp(page + PAGE_HEADER,
+					    temp_page + PAGE_HEADER,
+					    UNIV_PAGE_SIZE - PAGE_HEADER
+					    - FIL_PAGE_DATA_END)) {
+
+					/* Only the minimum record flag
+					differed.  Let us ignore it. */
+					goto func_exit;
+				}
+			}
+		}
 		page_zip_fail(("page_zip_validate: content\n"));
 		valid = FALSE;
 	}
@@ -3083,6 +3115,20 @@ func_exit:
 	}
 	ut_free(temp_page_buf);
 	return(valid);
+}
+
+/**************************************************************************
+Check that the compressed and decompressed pages match. */
+UNIV_INTERN
+ibool
+page_zip_validate(
+/*==============*/
+					/* out: TRUE if valid, FALSE if not */
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	const page_t*		page)	/* in: uncompressed page */
+{
+	return(page_zip_validate_low(page_zip, page,
+				     recv_recovery_is_on()));
 }
 #endif /* UNIV_ZIP_DEBUG */
 
