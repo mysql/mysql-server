@@ -1165,6 +1165,21 @@ thr_send_buf::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
   return (Uint32 *)(new_pg->m_data);
 }
 
+#ifdef BUG_39880
+static
+Uint32
+my_rand(void* ptr0, void * ptr1)
+{
+  UintPtr tmp = UintPtr(ptr0) + UintPtr(ptr1);
+  Uint8* tmpptr = (Uint8*)&tmp;
+  Uint32 sum = 0;
+  for (Uint32 i = 0; i<sizeof(tmp); i++)
+    sum = 33 * sum + tmpptr[i];
+  
+  return sum;
+}
+#endif
+
 Uint32
 thr_send_buf::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
 {
@@ -1191,11 +1206,22 @@ thr_send_buf::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
       assert(part < lenBytes);
       memcpy(prev_pg->m_data + prev_pg->m_bytes, last_pg->m_data, part);
       memmove(last_pg->m_data, last_pg->m_data + part, lenBytes - part);
-      /* Memory barrier since this makes data available to reader. */
+
+      last_pg->m_bytes = lenBytes - part;
+      
+#ifdef BUG_39880
+      if (my_rand(prev_pg, last_pg) % 100 < 1)
+      {
+        sched_yield();
+      }
+#endif
+      /**
+       * Memory barrier since this makes data available to reader. 
+       * and to serialize the two assignments 
+       */
       wmb();
       prev_pg->m_bytes = prev_pg->max_data_bytes();
-      last_pg->m_bytes = lenBytes - part;
-
+      
       return used;
 
       /**
