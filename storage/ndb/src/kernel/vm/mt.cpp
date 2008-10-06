@@ -249,7 +249,7 @@ struct thr_spin_lock
 
 struct thr_mutex
 {
-  thr_mutex(const char * name) {
+  thr_mutex(const char * name = 0) {
     m_mutex = NdbMutex_Create();
     m_name = name;
   }
@@ -2051,22 +2051,51 @@ init_thread(thr_data *selfptr)
   unsigned thr_no = selfptr->m_thr_no;
   globalEmulatorData.theWatchDog->registerWatchedThread(&selfptr->m_watchdog_counter,
                                                         thr_no);
+  BaseString tmp;
 
   NdbThread_SetTlsKey(NDB_THREAD_TLS_THREAD, selfptr);
+  tmp.appfmt("thr: %u ", thr_no);
+#ifdef SYS_gettid
+  tmp.appfmt("tid: %u ", (unsigned)syscall(SYS_gettid));
+#endif
 
-#ifdef NDB_MT_LOCK_TO_CPU
-  pid_t tid = (unsigned)syscall(SYS_gettid);
-  ndbout_c("Tread %u started, tid=%u", thr_no, tid);
-  uint cpu_no = 1 + (thr_no % 3);
-  cpu_no = (cpu_no >= 2 ? 5 - cpu_no : cpu_no);
-  ndbout_c("lock to cpu %u", cpu_no);
+#if defined SYS_gettid && defined HAVE_SCHED_SETAFFINITY
+  bool lock_to_cpu = false;
+  if (lock_to_cpu)
   {
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-    CPU_SET(cpu_no, &mask);
-    sched_setaffinity(tid, sizeof(mask), &mask);
+    uint cpu_no = 1;
+    if (!(thr_no <= 1 || thr_no == num_threads - 1))
+    {
+      cpu_no = (thr_no & 3);
+    }
+    tmp.appfmt("cpu: %u ", cpu_no);
+    {
+      unsigned tid = (unsigned)syscall(SYS_gettid);
+      cpu_set_t mask;
+      CPU_ZERO(&mask);
+      CPU_SET(cpu_no, &mask);
+      if (sched_setaffinity(tid, sizeof(mask), &mask) == 0)
+      {
+        tmp.appfmt("OK ");
+      }
+      else
+      {
+        tmp.appfmt("err: %u ", errno);
+      }
+    }
   }
 #endif
+  
+  for (Uint32 i = 0; i < selfptr->m_instance_count; i++) 
+  {
+    BlockReference block = selfptr->m_instance_list[i];
+    Uint32 main = blockToMain(block);
+    Uint32 instance = blockToInstance(block);
+    tmp.appfmt("%s(%u) ", getBlockName(main), instance);
+  }
+  tmp.appfmt("\n");
+  printf(tmp.c_str());
+  fflush(stdout);
 }
 
 /**
