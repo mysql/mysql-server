@@ -3145,10 +3145,12 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
                                                        ppar->subpart_fields););
         /* Find the subpartition (it's HASH/KEY so we always have one) */
         partition_info *part_info= ppar->part_info;
-        uint32 subpart_id= part_info->get_subpartition_id(part_info);
-        
+        uint32 part_id, subpart_id;
+                 
+        if (part_info->get_subpartition_id(part_info, &subpart_id))
+          return 0;
+
         /* Mark this partition as used in each subpartition. */
-        uint32 part_id;
         while ((part_id= ppar->part_iter.get_next(&ppar->part_iter)) !=
                 NOT_A_PARTITION_ID)
         {
