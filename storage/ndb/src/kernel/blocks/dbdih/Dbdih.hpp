@@ -1178,8 +1178,6 @@ private:
 //------------------------------------
   void changeNodeGroups(Uint32 startNode, Uint32 nodeTakenOver);
   void endTakeOver(Uint32 takeOverPtr);
-  void initStartTakeOver(const class StartToReq *, 
-			 TakeOverRecordPtr regTakeOverPtr);
   
   void systemRestartTakeOverLab(Signal *);
   void startTakeOver(Signal *,

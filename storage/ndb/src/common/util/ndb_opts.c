@@ -9,7 +9,7 @@ static void default_ndb_opt_short(void)
   ndb_short_usage_sub(g_ndb_opt_progname,NULL);
 }
 
-static void default_ndb_opt_usage()
+static void default_ndb_opt_usage(void)
 {
   struct my_option my_long_options[] =
     {
