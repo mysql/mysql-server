@@ -66,7 +66,9 @@ END {
   for my $proc (values %running){
     if ( $proc->is_child($$) ){
       #print "Killing: $proc\n";
-      $proc->kill();
+      if ($proc->wait_one(0)){
+	$proc->kill();
+      }
     }
   }
 }
@@ -315,7 +317,7 @@ sub start_kill {
     $ret= system($safe_kill, $pid) >> 8;
     if (IS_CYGWIN and $ret == 3)
     {
-      print "safe_process is gone, kickstart the fake process\n";
+      print "safe_process is gone, kickstart the fake process, $self\n";
       if (kill(15, $self->{SAFE_PID}) != 1){
 	print STDERR "Failed to kickstart the fake process\n";
       }
