@@ -6919,7 +6919,7 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
     */
     Item_sum *item_sum= (Item_sum *) item;
     if (item_sum->keep_field_type())
-      return get_real_type(item_sum->args[0]);
+      return get_real_type(item_sum->get_arg(0));
     break;
   }
   case FUNC_ITEM:
@@ -7182,7 +7182,7 @@ void Item_type_holder::get_full_info(Item *item)
     if (item->type() == Item::SUM_FUNC_ITEM &&
         (((Item_sum*)item)->sum_func() == Item_sum::MAX_FUNC ||
          ((Item_sum*)item)->sum_func() == Item_sum::MIN_FUNC))
-      item = ((Item_sum*)item)->args[0];
+      item = ((Item_sum*)item)->get_arg(0);
     /*
       We can have enum/set type after merging only if we have one enum|set
       field (or MIN|MAX(enum|set field)) and number of NULL fields
