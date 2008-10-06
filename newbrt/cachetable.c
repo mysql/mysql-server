@@ -582,9 +582,11 @@ static unsigned long check_maxrss (void) {
     char fname[100];
     snprintf(fname, sizeof(fname), "/proc/%d/statm", pid);
     FILE *f = fopen(fname, "r");
-    unsigned long ignore, rss;
-    fscanf(f, "%lu %lu", &ignore, &rss);
-    fclose(f);
+    unsigned long ignore = 0, rss = 0;
+    if (f) {
+        fscanf(f, "%lu %lu", &ignore, &rss);
+        fclose(f);
+    }
     if (toku_maxrss<rss) toku_maxrss=rss;
     return rss;
 }
