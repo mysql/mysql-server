@@ -135,7 +135,7 @@ our $default_vardir;
 
 our $opt_usage;
 our $opt_suites;
-our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb,ndb_binlog"; # Default suites to run
+our $opt_suites_default= "ndb,ndb_binlog,rpl_ndb,main,binlog,rpl"; # Default suites to run
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 
@@ -4010,7 +4010,6 @@ sub mysqld_arguments ($$$$) {
       }
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
         if ( ! $glob_use_embedded_server )
         {
           mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
@@ -4093,7 +4092,6 @@ sub mysqld_arguments ($$$$) {
       }
       if ( $mysql_version_id >= 50100 )
       {
-	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
         if ( ! $glob_use_embedded_server )
         {
           mtr_add_arg($args, "%s--ndb-log-orig", $prefix);

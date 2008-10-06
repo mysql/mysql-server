@@ -616,6 +616,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   MY_STAT stat_info;
   uint create_options= create_info ? create_info->options : 0;
   uint path_len;
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_create_db");
 
   /* do not create 'information_schema' db */
@@ -642,6 +643,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     error= -1;
     goto exit2;
   }
+
+  global_schema_lock_guard.lock();
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
@@ -767,6 +770,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   char path[FN_REFLEN+16];
   long result=1;
   int error= 0;
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_alter_db");
 
   /*
@@ -783,6 +787,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   */
   if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
+
+  global_schema_lock_guard.lock();
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
@@ -861,6 +867,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   MY_DIR *dirp;
   uint length;
   TABLE_LIST* dropped_tables= 0;
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_rm_db");
 
   /*
@@ -880,6 +887,8 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     error= -1;
     goto exit2;
   }
+
+  global_schema_lock_guard.lock();
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 

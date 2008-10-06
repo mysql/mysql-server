@@ -324,7 +324,9 @@ enum enum_binlog_func {
   BFN_RESET_SLAVE=       2,
   BFN_BINLOG_WAIT=       3,
   BFN_BINLOG_END=        4,
-  BFN_BINLOG_PURGE_FILE= 5
+  BFN_BINLOG_PURGE_FILE= 5,
+  BFN_GLOBAL_SCHEMA_LOCK=  6,
+  BFN_GLOBAL_SCHEMA_UNLOCK=7
 };
 
 enum enum_binlog_command {
@@ -2204,16 +2206,48 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
 
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #ifdef HAVE_NDB_BINLOG
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
 int ha_reset_slave(THD *thd);
+void ha_binlog_wait(THD *thd);
+int ha_binlog_end(THD *thd);
+#else
+inline int ha_int_dummy() { return 0; }
+#define ha_reset_logs(a) ha_int_dummy()
+#define ha_binlog_index_purge_file(a,b) ha_int_dummy()
+#define ha_reset_slave(a) ha_int_dummy()
+#define ha_binlog_wait(a) do {} while (0)
+#define ha_binlog_end(a)  do {} while (0)
+#endif
 void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
-void ha_binlog_wait(THD *thd);
-int ha_binlog_end(THD *thd);
+int ha_global_schema_lock(THD *thd);
+int ha_global_schema_unlock(THD *thd);
+class Ha_global_schema_lock_guard
+{
+public:
+  Ha_global_schema_lock_guard(THD *thd)
+    : m_thd(thd), m_lock(0)
+  {
+  }
+  ~Ha_global_schema_lock_guard()
+  {
+    if (m_lock)
+      ha_global_schema_unlock(m_thd);
+  }
+  int lock()
+  {
+    m_lock= !ha_global_schema_lock(m_thd);
+    return !m_lock;
+  }
+private:
+  THD *m_thd;
+  int m_lock;
+};
 #else
 inline int ha_int_dummy() { return 0; }
 #define ha_reset_logs(a) ha_int_dummy()
@@ -2222,4 +2256,13 @@ inline int ha_int_dummy() { return 0; }
 #define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
 #define ha_binlog_wait(a) do {} while (0)
 #define ha_binlog_end(a)  do {} while (0)
+#define ha_global_schema_lock(a) ha_int_dummy()
+#define ha_global_schema_unlock(a) ha_int_dummy()
+class Ha_global_schema_lock_guard
+{
+public:
+  Ha_global_schema_lock_guard(THD *thd) {}
+  ~Ha_global_schema_lock_guard() {}
+  int lock() { return 0; }
+};
 #endif
