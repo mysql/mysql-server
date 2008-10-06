@@ -263,7 +263,12 @@ typedef enum ndb_query_state_bits {
 
 enum THD_NDB_OPTIONS
 {
-  TNO_NO_LOG_SCHEMA_OP= 1 << 0
+  TNO_NO_LOG_SCHEMA_OP=  1 << 0,
+  /*
+    In participating mysqld, do not try to acquire global schema
+    lock, as one other mysqld already has the lock.
+  */
+  TNO_NO_LOCK_SCHEMA_OP= 1 << 1
 };
 
 enum THD_NDB_TRANS_OPTIONS
@@ -322,6 +327,10 @@ class Thd_ndb
   uint m_max_violation_count;
   uint m_old_violation_count;
   uint m_conflict_fn_usage_count;
+
+  NdbTransaction *global_schema_lock_trans;
+  uint global_schema_lock_count;
+  uint global_schema_lock_error;
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);

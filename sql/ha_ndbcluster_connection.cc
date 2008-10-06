@@ -94,7 +94,9 @@ int ndbcluster_connect(int (*connect_callback)(void))
   {
     if (NdbTick_CurrentMillisecond() > end_time)
       break;
-    sleep(1);
+    do_retry_sleep(100);
+    if (abort_loop)
+      goto ndbcluster_connect_error;
   }
 
   {

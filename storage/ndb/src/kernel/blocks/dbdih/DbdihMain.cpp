@@ -3583,9 +3583,7 @@ done:
     req->fragId = takeOverPtr.p->toCurrentFragid;
     req->noOfLogNodes = 0;
 
-    Uint32 instanceKey = dihGetInstanceKey(req->tableId, req->fragId);
-    BlockReference ref = numberToRef(DBLQH, instanceKey,
-                                     takeOverPtr.p->toStartingNode);
+    BlockReference ref = numberToRef(DBLQH, takeOverPtr.p->toStartingNode);
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
   }
@@ -3626,9 +3624,7 @@ done:
     req->startGci[0] = replicaPtr.p->maxGciCompleted[maxLcpIndex];
     req->lastGci[0] = gci;
 
-    Uint32 instanceKey = dihGetInstanceKey(req->tableId, req->fragId);
-    BlockReference ref = numberToRef(DBLQH, instanceKey,
-                                     takeOverPtr.p->toStartingNode);
+    BlockReference ref = numberToRef(DBLQH, takeOverPtr.p->toStartingNode);
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
   }
@@ -15080,9 +15076,7 @@ void Dbdih::sendStartFragreq(Signal* signal,
     jam();
     ptrAss(replicaPtr, createReplicaRecord);
 
-    Uint32 instanceKey = dihGetInstanceKey(tabPtr.i, fragId);
-    BlockReference ref = numberToRef(DBLQH, instanceKey,
-                                     replicaPtr.p->dataNodeId);
+    BlockReference ref = numberToRef(DBLQH, replicaPtr.p->dataNodeId);
 
     StartFragReq * const startFragReq = (StartFragReq *)&signal->theData[0];
     startFragReq->userPtr = replicaPtr.p->replicaRec;

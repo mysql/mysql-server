@@ -3757,7 +3757,7 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   DBUG_RETURN(args.err);
 }
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 /*
   TODO: change this into a dynamic struct
   List<handlerton> does not work as
@@ -3812,6 +3812,7 @@ static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
   return FALSE;
 }
 
+#ifdef HAVE_NDB_BINLOG
 int ha_reset_logs(THD *thd)
 {
   binlog_func_st bfn= {BFN_RESET_LOGS, 0};
@@ -3846,6 +3847,25 @@ int ha_binlog_end(THD* thd)
 int ha_binlog_index_purge_file(THD *thd, const char *file)
 {
   binlog_func_st bfn= {BFN_BINLOG_PURGE_FILE, (void *)file};
+  binlog_func_foreach(thd, &bfn);
+  if (thd->main_da.is_error())
+    return 1;
+  return 0;
+}
+#endif
+
+int ha_global_schema_lock(THD *thd)
+{
+  binlog_func_st bfn= {BFN_GLOBAL_SCHEMA_LOCK, 0};
+  binlog_func_foreach(thd, &bfn);
+  if (thd->main_da.is_error())
+    return 1;
+  return 0;
+}
+
+int ha_global_schema_unlock(THD *thd)
+{
+  binlog_func_st bfn= {BFN_GLOBAL_SCHEMA_UNLOCK, 0};
   binlog_func_foreach(thd, &bfn);
   if (thd->main_da.is_error())
     return 1;
