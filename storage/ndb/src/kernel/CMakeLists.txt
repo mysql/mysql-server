@@ -35,6 +35,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/blocks/cmvmi
                     ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbutil
                     ${CMAKE_CURRENT_SOURCE_DIR}/blocks/suma
                     ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbtux
+                    ${CMAKE_CURRENT_SOURCE_DIR}/blocks/dbinfo
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
 )
