@@ -607,6 +607,18 @@ public:
       m_global_pool->release((U *)t);
   }
 
+  void releaseAll()
+  {
+    Uint32 save = m_max_free;
+    m_max_free = 0;
+    while(m_free)
+    {
+      T* t = seize();
+      release(t);
+    }
+    m_max_free = save;
+  }
+
 private:
   thr_safe_pool<U> *m_global_pool;
   int m_max_free;
@@ -727,7 +739,9 @@ struct trp_callback : public TransporterCallbackKernel
     return total;
   }
 
-  thr_send_buf *m_thr_buffers[MAX_THREADS];
+  // +1 to handle reset buffers from "other" thread
+  thr_send_buf *m_thr_buffers[MAX_THREADS + 1];
+
   /**
    * During send, for each node this holds the id of the thread currently
    * doing send to that node.
@@ -1240,9 +1254,9 @@ thr_send_buf::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
 trp_callback::trp_callback()
 {
   // number of threads not yet set so use MAX_THREADS
-  for (Uint32 i = 0; i < MAX_THREADS; i++)
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_thr_buffers); i++)
     m_thr_buffers[i] = new thr_send_buf(this, i, &g_thr_repository.m_free_list);
-  for (int i = 0; i < MAX_NTRANSPORTERS; i++)
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_send_thr); i++)
     m_send_thr[i] = ~(Uint32)0;
 }
 
@@ -1466,6 +1480,20 @@ trp_callback::reset_send_buffer(NodeId node)
   struct iovec v[32];
 
   lock(&rep->m_send_locks[node]);
+  void *value= NdbThread_GetTlsKey(NDB_THREAD_TLS_THREAD);
+  const thr_data *selfptr = reinterpret_cast<const thr_data *>(value);
+  if (selfptr)
+  {
+    m_send_thr[node] = selfptr->m_thr_no;  
+  }
+  else
+  {
+    /**
+     * This was done from a "non-mt" thread, use
+     *   faked entry
+     */
+    m_send_thr[node] = NDB_ARRAY_SIZE(m_thr_buffers) - 1;
+  }
 
   for (;;)
   {
@@ -1475,9 +1503,20 @@ trp_callback::reset_send_buffer(NodeId node)
     int bytes = 0;
     for (int i = 0; i < count; i++)
       bytes += v[i].iov_len;
+
     bytes_sent(node, v, bytes);
   }
 
+  if (selfptr == 0)
+  {
+    /**
+     * This was done from a "non-mt" thread, use
+     *   release buffer directly
+     */
+    m_thr_buffers[m_send_thr[node]]->m_pool.releaseAll();
+  }
+  
+  g_trp_callback.m_send_thr[node] = ~(Uint32)0;
   unlock(&rep->m_send_locks[node]);
 }
 
