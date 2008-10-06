@@ -507,12 +507,7 @@ AC_SUBST(ICHECK)
 # Look for PS usage.  We use double dollar-signs in FIND_PROC because this
 # value is written to a makefile, which interprets away one level of
 # dollar-signs.  So, interpretation stages are  m4 and then shell in autoconf,
-# then Make, then shell .
-#
-# We use  grep -E Foo space-or-EOL  so that we don't falsely match "Foo_safe" .
-# Assumption is that if there are parameters, the system represents them using 
-# space as a seperator.  This has the side effect that the matching expression 
-# does not match itself, and so grep won't self-match.
+# then Make, then shell.
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
 PS=$ac_cv_path_PS
