@@ -262,7 +262,7 @@ int runCreateAndDrop(NDBT_Context* ctx, NDBT_Step* step){
 
 int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
 {
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int loops = ctx->getNumLoops();
@@ -1234,7 +1234,7 @@ runNF1(NDBT_Context* ctx, NDBT_Step* step){
   if(restarter.getNumDbNodes() < 2)
     return NDBT_OK;
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table* pTab = ctx->getTab();
@@ -1874,7 +1874,7 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
 
   char ** tcols = cols.getBase();
 
-  srand(time(0));
+  srand((unsigned int)time(0));
   Uint32 size = cols.size() / 2;
   //char ** columns = &cols[0];
   Uint64 start = NdbTick_CurrentMillisecond();
@@ -2036,7 +2036,7 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
 
-  for (Uint32 i = 0; i<tab.getNoOfColumns(); i++)
+  for (int i = 0; i<tab.getNoOfColumns(); i++)
   {
     if (tab.getColumn(i)->getStorageType() == 
         NdbDictionary::Column::StorageTypeDisk)
@@ -2165,7 +2165,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
   const uint errcnt_master = sizeof(errlst_master)/sizeof(errlst_master[0]);
   const uint errcnt_node = sizeof(errlst_node)/sizeof(errlst_node[0]);
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   NdbRestarter restarter;
   int result = NDBT_OK;
   const int loops = ctx->getNumLoops();
@@ -2309,7 +2309,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
 int
 runDictOps(NDBT_Context* ctx, NDBT_Step* step)
 {
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   int result = NDBT_OK;
 
   for (int l = 0; result == NDBT_OK; l++) {
@@ -3514,7 +3514,7 @@ randomly(uint k, uint m)
 
 // structs
 
-class ST_Obj;
+struct ST_Obj;
 template class Vector<ST_Obj*>;
 typedef Vector<ST_Obj*> ST_Objlist;
 
@@ -6159,7 +6159,7 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
 
-  for (Uint32 i = 0; i<tab.getNoOfColumns(); i++)
+  for (int i = 0; i<tab.getNoOfColumns(); i++)
   {
     if (tab.getColumn(i)->getStorageType() ==
         NdbDictionary::Column::StorageTypeDisk)
@@ -6556,6 +6556,6 @@ int main(int argc, const char** argv){
   NDBT_TESTSUITE_INSTANCE(testDict);
   // Tables should not be auto created
   testDict.setCreateTable(false);
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   return testDict.execute(argc, argv);
 }
