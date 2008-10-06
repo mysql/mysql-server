@@ -1,5 +1,26 @@
 2008-10-04	The InnoDB Team
 
+	* handler/ha_innodb.cc, mysql-test/innodb_bug39438-master.opt,
+	mysql-test/innodb_bug39438.result, mysql-test/innodb_bug39438.test:
+	Fix Bug#39438 Testcase for Bug#39436 crashes on 5.1 in
+	fil_space_get_latch
+
+2008-10-04	The InnoDB Team
+
+	* include/lock0lock.h, lock/lock0lock.c,
+	mysql-test/innodb_bug38231.result, mysql-test/innodb_bug38231.test,
+	row/row0mysql.c:
+	Fix Bug#38231 Innodb crash in lock_reset_all_on_table() on TRUNCATE +
+	LOCK / UNLOCK
+
+2008-10-04	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#35498 Cannot get table test/table1 auto-inccounter value in
+	::info
+
+2008-10-04	The InnoDB Team
+
 	* handler/ha_innodb.cc, handler/ha_innodb.h:
 	Fix Bug#37788 InnoDB Plugin: AUTO_INCREMENT wrong for compressed
 	tables
