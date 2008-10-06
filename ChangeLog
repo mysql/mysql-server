@@ -1,5 +1,11 @@
 2008-10-04	The InnoDB Team
 
+	* handler/ha_innodb.cc, handler/ha_innodb.h:
+	Fix Bug#37788 InnoDB Plugin: AUTO_INCREMENT wrong for compressed
+	tables
+
+2008-10-04	The InnoDB Team
+
 	* dict/dict0dict.c, handler/ha_innodb.cc, handler/ha_innodb.h,
 	include/dict0dict.h, include/dict0mem.h, row/row0mysql.c:
 	Fix Bug#39830 Table autoinc value not updated on first insert
