@@ -3291,7 +3291,8 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
           const NdbDictionary::Column* col= ndbtab->getColumn(i);
           if (col->getPrimaryKey())
           {
-            const NdbDictionary::Column* ex_col= ex_tab->getColumn(fixed_cols + k);
+            const NdbDictionary::Column* ex_col=
+              ex_tab->getColumn(fixed_cols + k);
             ok=
               ex_col != NULL &&
               col->getType() == ex_col->getType() &&
@@ -3299,7 +3300,8 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
               col->getNullable() == ex_col->getNullable();
             if (!ok)
               break;
-            cfn_share->m_offset[k]= (uint16)(table->field[i]->ptr - table->record[0]);
+            cfn_share->m_offset[k]=
+              (uint16)(table->field[i]->ptr - table->record[0]);
             k++;
           }
         }
@@ -3309,13 +3311,18 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
           cfn_share->m_pk_cols= nkey;
           ndbtab_g.release();
           if (ndb_extra_logging)
-            sql_print_information("NDB Slave: log exceptions to %s", ex_tab_name);
+            sql_print_information("NDB Slave: log exceptions to %s",
+                                  ex_tab_name);
         }
         else
-          sql_print_warning("NDB Slave: exceptions table %s has wrong definition (column %d)", ex_tab_name, fixed_cols + k);
+          sql_print_warning("NDB Slave: exceptions table %s has wrong "
+                            "definition (column %d)",
+                            ex_tab_name, fixed_cols + k);
       }
       else
-        sql_print_warning("NDB Slave: exceptions table %s has wrong definition (initial %d columns)", ex_tab_name, fixed_cols);
+        sql_print_warning("NDB Slave: exceptions table %s has wrong "
+                          "definition (initial %d columns)",
+                          ex_tab_name, fixed_cols);
     }
   }
   DBUG_RETURN(0);

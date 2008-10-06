@@ -166,3 +166,4 @@ truncate ndb_show_tables_results;
 
 # drop the table
 drop table t1;
+drop database mysqlslap;
