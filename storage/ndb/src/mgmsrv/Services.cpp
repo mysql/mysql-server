@@ -2033,8 +2033,7 @@ done:
   m_output->println("");
 }
 
-
-#include <mgm_ndbinfo.c>
+int print_ndbinfo_table_mgm(struct ndbinfo_table* t, BaseString &out);
 
 void MgmApiSession::getNdbInfo(Parser_t::Context &ctx, Properties const &args)
 {
