@@ -185,6 +185,7 @@ ndb_mgm_get_db_parameter_info(Uint32 paramId, struct ndb_mgm_param_info * info, 
   }
 
   ConfigInfo data;
+  (void)data;
   for (int i = 0; i < data.m_NoOfParams; i++) {
     if (paramId == data.m_ParamInfo[i]._paramId && strcmp("DB", data.m_ParamInfo[i]._section) == 0) {
         size_t tmp = 0;

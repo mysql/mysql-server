@@ -147,7 +147,7 @@ static int                              theTableCreateFlag = 1;
 static void 
 resetThreads(){
 
-  for (int i = 0; i < tNoOfThreads ; i++) {
+  for (Uint32 i = 0; i < tNoOfThreads ; i++) {
     ThreadReady[i] = 0;
     ThreadStart[i] = stIdle;
   }//for
@@ -160,7 +160,7 @@ waitForThreads(void)
   do {
     cont = 0;
     NdbSleep_MilliSleep(20);
-    for (int i = 0; i < tNoOfThreads ; i++) {
+    for (Uint32 i = 0; i < tNoOfThreads ; i++) {
       if (ThreadReady[i] == 0) {
         cont = 1;
       }//if
@@ -171,7 +171,7 @@ waitForThreads(void)
 static void 
 tellThreads(StartType what)
 {
-  for (int i = 0; i < tNoOfThreads ; i++) 
+  for (Uint32 i = 0; i < tNoOfThreads ; i++) 
     ThreadStart[i] = what;
 }
 
@@ -182,7 +182,6 @@ NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
   ndb_init();
   ThreadNdb*            pThreadData;
   int                   returnValue = NDBT_OK;
-  int i;
   flexTTErrorData = new ErrorData;
   flexTTErrorData->resetErrorCounters();
 
@@ -266,7 +265,7 @@ NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
      *  Create NDB objects.                                   *
      ****************************************************************/
     resetThreads();
-    for (i = 0; i < tNoOfThreads ; i++) {
+    for (Uint32 i = 0; i < tNoOfThreads ; i++) {
       pThreadData[i].threadNo = i;
       threadLife[i] = NdbThread_Create(threadLoop,
                                        (void**)&pThreadData[i],
@@ -317,7 +316,7 @@ NDB_COMMAND(flexTT, "flexTT", "flexTT", "flexTT", 65535)
         
     execute(stStop);
     void * tmp;
-    for(i = 0; i<tNoOfThreads; i++){
+    for(Uint32 i = 0; i<tNoOfThreads; i++){
       NdbThread_WaitFor(threadLife[i], &tmp);
       NdbThread_Destroy(&threadLife[i]);
     }

@@ -128,7 +128,7 @@ static int                              theTableCreateFlag = 0;
 static void 
 resetThreads(){
 
-  for (int i = 0; i < tNoOfThreads ; i++) {
+  for (Uint32 i = 0; i < tNoOfThreads ; i++) {
     ThreadReady[i] = 0;
     ThreadStart[i] = stIdle;
   }//for
@@ -141,7 +141,7 @@ waitForThreads(void)
   do {
     cont = 0;
     NdbSleep_MilliSleep(20);
-    for (int i = 0; i < tNoOfThreads ; i++) {
+    for (Uint32 i = 0; i < tNoOfThreads ; i++) {
       if (ThreadReady[i] == 0) {
         cont = 1;
       }//if
@@ -152,7 +152,7 @@ waitForThreads(void)
 static void 
 tellThreads(StartType what)
 {
-  for (int i = 0; i < tNoOfThreads ; i++) 
+  for (Uint32 i = 0; i < tNoOfThreads ; i++) 
     ThreadStart[i] = what;
 }
 
@@ -472,7 +472,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
     
     execute(stStop);
     void * tmp;
-    for(i = 0; i<tNoOfThreads; i++){
+    for(Uint32 i = 0; i<tNoOfThreads; i++){
       NdbThread_WaitFor(threadLife[i], &tmp);
       NdbThread_Destroy(&threadLife[i]);
     }
@@ -668,7 +668,7 @@ defineOperation(NdbConnection* localNdbConnection, StartType aType,
   //-------------------------------------------------------
   attrValue[0] = threadBase;
   attrValue[1] = aIndex;
-  for (int k = 2; k < loopCountAttributes; k++) {
+  for (Uint32 k = 2; k < loopCountAttributes; k++) {
     attrValue[k] = aIndex;
   }//for
   localNdbOperation = localNdbConnection->getNdbOperation(tableName[0]);        
@@ -764,7 +764,7 @@ defineNdbRecordOperation(ThreadNdb* pThread,
   //-------------------------------------------------------
   if (aType != stRead && aType != stDelete)
   {
-    for (int k = 1; k < tNoOfAttributes; k++) {
+    for (Uint32 k = 1; k < tNoOfAttributes; k++) {
       NdbDictionary::getOffset(g_record[0], k, offset);
       * (Uint32*)(record + offset) = aIndex;    
     }//for
@@ -884,7 +884,7 @@ createTables(Ndb* pMyNdb){
       if (check == -1 &&
           (!error_handler(MySchemaTransaction->getNdbError())))
         return -1;
-      for (int j = 1; j < tNoOfAttributes ; j++){
+      for (Uint32 j = 1; j < tNoOfAttributes ; j++){
         check = MySchemaOp->createAttribute( (char*)attrName[j],
                                              NoKey,
                                              32,
@@ -910,7 +910,7 @@ createTables(Ndb* pMyNdb){
 	
 	int off = 0;
 	Vector<NdbDictionary::RecordSpecification> spec;
-	for (Uint32 j = 0; j<pTab->getNoOfColumns(); j++)
+	for (int j = 0; j<pTab->getNoOfColumns(); j++)
 	{
 	  NdbDictionary::RecordSpecification r0;
 	  r0.column = pTab->getColumn(j);

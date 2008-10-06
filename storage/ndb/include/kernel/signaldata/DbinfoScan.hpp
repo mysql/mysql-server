@@ -49,11 +49,11 @@ struct DbinfoScanReq
   Uint32 rows_total;
   Uint32 word_total;
 
-  Uint32 cursor[0];
   Uint32 cur_requestInfo;
   Uint32 cur_node;
   Uint32 cur_block;
   Uint32 cur_item;
+  Uint32 cursor[0];
 };
 
 /**
@@ -87,12 +87,11 @@ public:
   Uint32 rows_total;
   Uint32 word_total;
 
-  Uint32 cursor[0];
   Uint32 cur_requestInfo;
   Uint32 cur_node;
   Uint32 cur_block;
   Uint32 cur_item;
-
+  Uint32 cursor[0];
 };
 
 /**
