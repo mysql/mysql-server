@@ -128,6 +128,18 @@ page_zip_simple_validate(
 Check that the compressed and decompressed pages match. */
 UNIV_INTERN
 ibool
+page_zip_validate_low(
+/*==================*/
+					/* out: TRUE if valid, FALSE if not */
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	const page_t*		page,	/* in: uncompressed page */
+	ibool			sloppy)	/* in: FALSE=strict,
+					TRUE=ignore the MIN_REC_FLAG */
+	__attribute__((nonnull));
+/**************************************************************************
+Check that the compressed and decompressed pages match. */
+UNIV_INTERN
+ibool
 page_zip_validate(
 /*==============*/
 	const page_zip_des_t*	page_zip,/* in: compressed page */
