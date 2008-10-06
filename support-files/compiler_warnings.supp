@@ -69,12 +69,6 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 .*/storage/ndb/.* : .*is used uninitialized in this function.*
 .*/storage/ndb/.* : .*unused variable.*
 
-#
-# Unexplanable (?) stuff
-#
-listener.cc : .*conversion from 'SOCKET' to 'int'.*
-net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
-
 # allow a little moving space for the warning below
 mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
 

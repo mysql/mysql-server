@@ -8857,7 +8857,6 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   /**
    * New protocol
    */
-  Uint64 now;
   m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_IDLE;
 
   Uint32 curr_hi = m_micro_gcp.m_current_gci >> 32;

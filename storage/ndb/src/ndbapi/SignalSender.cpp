@@ -161,7 +161,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
 
   NDB_TICKS now = NdbTick_CurrentMillisecond();
   NDB_TICKS stop = now + timeOutMillis;
-  NDB_TICKS wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
+  Uint32 wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
   do {
     NdbCondition_WaitTimeout(m_cond,
 			     theFacade->theMutexPtr, 
@@ -178,7 +178,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     }
     
     now = NdbTick_CurrentMillisecond();
-    wait = (timeOutMillis == 0 ? 10 : stop - now);
+    wait = (Uint32)(timeOutMillis == 0 ? 10 : stop - now);
   } while(stop > now || timeOutMillis == 0);
   
   return 0;

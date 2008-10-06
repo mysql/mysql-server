@@ -2657,7 +2657,9 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     Uint16 replicaCount = ntohs(tableDesc->ReplicaData[0]);
     Uint16 fragCount = ntohs(tableDesc->ReplicaData[1]);
 
-    impl->m_replicaCount = replicaCount;
+    assert(replicaCount <= 256);
+
+    impl->m_replicaCount = (Uint8)replicaCount;
     impl->m_fragmentCount = fragCount;
     DBUG_PRINT("info", ("replicaCount=%x , fragCount=%x",replicaCount,fragCount));
     Uint32 pos = 2;
@@ -4838,9 +4840,12 @@ static int scanEventTable(Ndb* pNdb,
       goto error;
     }
 
-    tmp_list.count = row_count;
+    /* Cannot handle > 2^32 yet (limit on tmp_list.count is unsigned int) */
+    assert((row_count & 0xffffffff) == row_count);
+
+    tmp_list.count = (unsigned int)row_count;
     tmp_list.elements =
-      new NdbDictionary::Dictionary::List::Element[row_count];
+      new NdbDictionary::Dictionary::List::Element[(unsigned int)row_count];
 
     int eof;
     unsigned rows = 0;
