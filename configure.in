@@ -455,46 +455,49 @@ fi
 
 AC_SUBST(ABI_CHECK)
 
-# Lock for PS
+# Look for PS usage.  We use double dollar-signs in FIND_PROC because this
+# value is written to a makefile, which interprets away one level of
+# dollar-signs.  So, interpretation stages are  m4 and then shell in autoconf,
+# then Make, then shell.
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
 PS=$ac_cv_path_PS
 # Linux style
-if $PS p $$ 2> /dev/null | grep `echo $0 | sed s/\-//` > /dev/null
+if $PS wwwp $$ 2> /dev/null | grep -- "$0" > /dev/null
 then
-  FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS wwwp \$\$PID | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 # Solaris
-elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS -fp $$ 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS -p \$\$PID | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 # BSD style
-elif $PS -uaxww 2> /dev/null | grep $0 > /dev/null
+elif $PS -uaxww 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -uaxww | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
 # SysV style
-elif $PS -ef 2> /dev/null | grep $0 > /dev/null
+elif $PS -ef 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS -ef | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+  FIND_PROC="$PS -ef | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
 # Do anybody use this?
-elif $PS $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS $$ 2> /dev/null | grep -- $0 > /dev/null
 then
-  FIND_PROC="$PS \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+  FIND_PROC="$PS \$\$PID | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
 else
   case $SYSTEM_TYPE in
     *freebsd*|*dragonfly*)
-      FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
+      FIND_PROC="$PS p \$\$PID | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" > /dev/null"
       ;;
     *darwin*)
-      FIND_PROC="$PS -uaxww | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -uaxww | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
       ;;
     *cygwin*)
-      FIND_PROC="$PS -e | grep -v grep | grep \$\$MYSQLD | grep \" \$\$PID \" > /dev/null"
+      FIND_PROC="$PS -e | grep -v ' grep' | grep -v mysqld_safe | grep -- \"\$\$MYSQLD\" | grep \" \$\$PID \" > /dev/null"
       ;;
     *netware*)
       FIND_PROC=
       ;;
     *)
-      AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
+      AC_MSG_ERROR([Could not find the right ps and/or grep switches. Which OS is this?  See the Installation chapter in the Reference Manual.])
   esac
 fi
 AC_SUBST(FIND_PROC)
