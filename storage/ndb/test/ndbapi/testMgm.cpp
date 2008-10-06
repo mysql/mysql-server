@@ -84,7 +84,7 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
   ndb_mgm_set_timeout(h, 3000);
 
   NDB_TICKS  tstart, tend;
-  int secs;
+  NDB_TICKS secs;
 
   tstart= NdbTick_CurrentMillisecond();
 
@@ -706,10 +706,9 @@ int getMgmLogInfo(NdbMgmHandle h, off_t *current_size, off_t *max_size)
   char **cols;
   int current_size_colnum= 0;
   int max_size_colnum= 0;
-  int j;
 
-
-  r= ndb_mgm_ndbinfo(h,"SELECT * FROM NDB$INFO.LOGDESTINATION");
+  int rows;
+  r= ndb_mgm_ndbinfo(h,"LOGDESTINATION", &rows);
 
   ncol= ndb_mgm_ndbinfo_colcount(h);
 
@@ -743,9 +742,9 @@ int getMgmLogInfo(NdbMgmHandle h, off_t *current_size, off_t *max_size)
         col[len++]='\0';
       col[len]='\0';
       if(i==current_size_colnum)
-        *current_size= strtoll(col,NULL,10);
+        *current_size= (off_t)strtoll(col,NULL,10);
       if(i==max_size_colnum)
-        *max_size= strtoll(col,NULL,10);
+        *max_size= (off_t)strtoll(col,NULL,10);
       col= &col[len+1];
     }
 
