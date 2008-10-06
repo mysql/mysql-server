@@ -83,6 +83,12 @@
 #include <signaldata/RouteOrd.hpp>
 #include <signaldata/GCP.hpp>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
+
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE
@@ -12111,6 +12117,102 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 }//Dbtc::execDUMP_STATE_ORD()
+
+void Dbtc::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  char buf[512];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  {
+    struct {
+      char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Defined Trigger",
+           c_theDefinedTriggerPool.getNoOfFree(),
+           c_theDefinedTriggerPool.getSize() },
+          {"Fired Trigger",
+           c_theFiredTriggerPool.getNoOfFree(),
+           c_theFiredTriggerPool.getSize() },
+          {"Index",
+           c_theIndexPool.getNoOfFree(),
+           c_theIndexPool.getSize() },
+          {"Scan Fragment",
+           c_scan_frag_pool.getNoOfFree(),
+           c_scan_frag_pool.getSize() },
+          {"Commit ACK Marker",
+           m_commitAckMarkerPool.getNoOfFree(),
+           m_commitAckMarkerPool.getSize() },
+          {"Index Op",
+           c_theIndexOperationPool.getNoOfFree(),
+           c_theIndexOperationPool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      char *blockname= "DBTC";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  /*  if(req->tableId ==
+  dbinfo_ratelimit_init(&rl, &req);
+
+    if(!(req.requestInfo & DbinfoScanReq::StartScan))
+      startid= req.cur_item;
+
+    for(i=startid;dbinfo_ratelimit_continue(&rl) && i<number_ndbinfo_tables;i++)
+    {
+      jam();
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      ndbinfo_create_sql(ndbinfo_tables[i],
+                         create_sql, sizeof(create_sql));
+
+      dbinfo_write_row_column(&r, (char*)&i, sizeof(i));
+      dbinfo_write_row_column(&r, ndbinfo_tables[i]->name,
+                              strlen(ndbinfo_tables[i]->name));
+      dbinfo_write_row_column(&r, create_sql, strlen(create_sql));
+
+      dbinfo_send_row(signal,r,rl,apiTxnId,senderRef);
+    }
+
+    if(!dbinfo_ratelimit_continue(&rl) && i < number_ndbinfo_tables)
+    {
+      jam();
+      dbinfo_ratelimit_sendconf(signal,req,rl,i);
+    }
+    else
+    {
+      DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+      conf->tableId= req.tableId;
+      conf->senderRef= req.senderRef;
+      conf->apiTxnId= req.apiTxnId;
+      conf->requestInfo= 0;
+      sendSignal(req.senderRef, GSN_DBINFO_SCANCONF, signal,
+                 DbinfoScanConf::SignalLength, JBB);
+    }
+  */
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
+}
 
 bool
 Dbtc::validate_filter(Signal* signal)

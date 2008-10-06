@@ -49,6 +49,8 @@ public:
    */
   virtual ~LogHandler();
 
+  virtual const char* handler_type() {return "NONE";};
+
   /**
    * Opens/initializes the log handler.
    *
@@ -164,6 +166,18 @@ public:
    * Set repeat frequency, 0 means disable special repeated message handling
    */
   virtual void setRepeatFrequency(unsigned val);
+
+  /**
+   * Sets the config BaseString to the part of the LogDestination parameter
+   * needed in the config file to setup this LogHandler. i.e. passing the
+   * output of getParams to parseParams should do "nothing"
+   *
+   * @param config where to store parameters
+   */
+  virtual bool getParams(BaseString &config) {return false;};
+
+  virtual off_t getCurrentSize() {return -1;};
+  virtual off_t getMaxSize() {return -1;};
 
 protected:
   /** Max length of the date and time header in the log. */

@@ -64,6 +64,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman, Uint32 instanceNumber)
   addRecSignal(GSN_LCP_FRAG_ORD, &Dbtup::execLCP_FRAG_ORD);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtup::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbtup::execDBINFO_SCANREQ);
   addRecSignal(GSN_SEND_PACKED, &Dbtup::execSEND_PACKED, true);
   addRecSignal(GSN_STTOR, &Dbtup::execSTTOR);
   addRecSignal(GSN_MEMCHECKREQ, &Dbtup::execMEMCHECKREQ);

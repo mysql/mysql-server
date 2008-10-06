@@ -1910,6 +1910,19 @@ void Ndb::setReportThreshEventFreeMem(unsigned thresh)
   }
 }
 
+Uint64 Ndb::allocate_transaction_id()
+{
+  Uint64 ret= theFirstTransId;
+
+  if ((theFirstTransId & 0xFFFFFFFF) == 0xFFFFFFFF) {
+    theFirstTransId = (theFirstTransId >> 32) << 32;
+  } else {
+    theFirstTransId++;
+  }
+
+  return ret;
+}
+
 #ifdef VM_TRACE
 #include <NdbMutex.h>
 extern NdbMutex *ndb_print_state_mutex;

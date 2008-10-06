@@ -42,6 +42,8 @@ public:
   /** Max number of log entries before archiving. */
   STATIC_CONST( MAX_LOG_ENTRIES = 10000 );
 
+  virtual const char* handler_type() {return "FILE"; };
+
   /**
    * Default constructor.
    */
@@ -71,7 +73,12 @@ public:
 
   virtual bool setParam(const BaseString &param, const BaseString &value);
   virtual bool checkParams();
-  
+
+  virtual bool getParams(BaseString &config);
+
+  virtual off_t getCurrentSize();
+  virtual off_t getMaxSize() { return m_maxFileSize; };
+
 protected:	
   virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level);
   virtual void writeMessage(const char* pMsg);
