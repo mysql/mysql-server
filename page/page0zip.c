@@ -77,6 +77,8 @@ page_zip_fail_func(
 	int	res;
 	va_list	ap;
 
+	ut_print_timestamp(stderr);
+	fputs("  InnoDB: ", stderr);
 	va_start(ap, fmt);
 	res = vfprintf(stderr, fmt, ap);
 	va_end(ap);
@@ -3098,6 +3100,13 @@ page_zip_validate_low(
 
 					/* Only the minimum record flag
 					differed.  Let us ignore it. */
+					page_zip_fail(("page_zip_validate: "
+						       "min_rec_flag "
+						       "(ignored, "
+						       "%lu,%lu,0x%02lx)\n",
+						       page_get_space_id(page),
+						       page_get_page_no(page),
+						       (ulong) page[offset]));
 					goto func_exit;
 				}
 			}
