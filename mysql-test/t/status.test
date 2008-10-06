@@ -261,4 +261,37 @@ drop function f1;
 
 show status like 'Com%function';
 
+#
+# Bug#37908: Skipped access right check caused server crash.
+#
+connect (root, localhost, root,,test);
+connection root;
+--disable_warnings
+create database db37908;
+--enable_warnings
+create table db37908.t1(f1 int);
+insert into db37908.t1 values(1);
+grant usage,execute on test.* to mysqltest_1@localhost;
+delimiter |;
+create procedure proc37908() begin select 1; end |
+create function func37908() returns int sql security invoker 
+  return (select * from db37908.t1 limit 1)|
+delimiter ;|
+  
+connect (user1,localhost,mysqltest_1,,test);
+connection user1;
+
+--error 1142
+select * from db37908.t1;
+--error 1142
+show status where variable_name ='uptime' and 2 in (select * from db37908.t1);
+--error 1142
+show procedure status where name ='proc37908' and 1 in (select f1 from db37908.t1);
+--error 1142
+show function status where name ='func37908' and 1 in (select func37908());
+
+connection root;
+drop database db37908;
+drop procedure proc37908;
+drop function func37908;
 # End of 5.1 tests
