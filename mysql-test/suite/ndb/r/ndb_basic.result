@@ -923,4 +923,24 @@ create table if not exists t1 (a int not null primary key, b int not null defaul
 create table t2 like t1;
 rename table t1 to t10, t2 to t20;
 drop table t10,t20;
+#
+# bug #39872 - explain causes segv
+# (ndb_index_stat_enable=1 must be set to trigger bug)
+#
+set ndb_index_stat_enable=1;
+CREATE TABLE `t1` (
+`id` int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+CREATE TABLE `t2` (
+`id` int(11) NOT NULL,
+`obj_id` int(11) DEFAULT NULL,
+UNIQUE KEY `id` (`id`),
+KEY `obj_id` (`obj_id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+# here we used to segv
+explain SELECT t1.id FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t2.obj_id=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+drop table t1, t2;
 End of 5.1 tests
