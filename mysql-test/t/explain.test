@@ -94,4 +94,33 @@ EXPLAIN SELECT 1 FROM
 DROP TABLE t2;
 DROP TABLE t1;
 
+#
+# Bug #34773: query with explain extended and derived table / other table
+# crashes server
+#
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+
+EXPLAIN EXTENDED SELECT 1
+ FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
+
+EXPLAIN EXTENDED SELECT 1
+ FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
+
+prepare s1 from 
+'EXPLAIN EXTENDED SELECT 1  
+ FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
+execute s1;
+
+prepare s1 from 
+'EXPLAIN EXTENDED SELECT 1  
+ FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
+execute s1;
+execute s1;
+
+DROP TABLE t1,t2;
+
 # End of 5.0 tests.

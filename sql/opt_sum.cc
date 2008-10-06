@@ -199,7 +199,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           to the number of rows in the tables if this number is exact and
           there are no outer joins.
         */
-        if (!conds && !((Item_sum_count*) item)->args[0]->maybe_null &&
+        if (!conds && !((Item_sum_count*) item)->get_arg(0)->maybe_null &&
             !outer_tables && maybe_exact_count)
         {
           if (!is_exact_count)
@@ -225,7 +225,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           parts of the key is found in the COND, then we can use
           indexes to find the key.
         */
-        Item *expr=item_sum->args[0];
+        Item *expr=item_sum->get_arg(0);
         if (expr->real_item()->type() == Item::FIELD_ITEM)
         {
           uchar key_buff[MAX_KEY_LENGTH];
@@ -373,7 +373,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           parts of the key is found in the COND, then we can use
           indexes to find the key.
         */
-        Item *expr=item_sum->args[0];
+        Item *expr=item_sum->get_arg(0);
         if (expr->real_item()->type() == Item::FIELD_ITEM)
         {
           uchar key_buff[MAX_KEY_LENGTH];
