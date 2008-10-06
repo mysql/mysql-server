@@ -369,6 +369,10 @@ Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements),
       args[i++]= item;
     }
   }
+  if (!(orig_args= (Item **) sql_alloc(sizeof(Item *) * arg_count)))
+  {
+    args= NULL;
+  }
   mark_as_sum_func();
   list.empty();					// Fields are used
 }
@@ -379,18 +383,28 @@ Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements),
 */
 
 Item_sum::Item_sum(THD *thd, Item_sum *item):
-  Item_result_field(thd, item), arg_count(item->arg_count),
+  Item_result_field(thd, item),
   aggr_sel(item->aggr_sel),
   nest_level(item->nest_level), aggr_level(item->aggr_level),
-  quick_group(item->quick_group), used_tables_cache(item->used_tables_cache),
+  quick_group(item->quick_group),
+  arg_count(item->arg_count), orig_args(NULL),
+  used_tables_cache(item->used_tables_cache),
   forced_const(item->forced_const) 
 {
   if (arg_count <= 2)
+  {
     args=tmp_args;
+    orig_args=tmp_orig_args;
+  }
   else
+  {
     if (!(args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
       return;
+    if (!(orig_args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
+      return;
+  }
   memcpy(args, item->args, sizeof(Item*)*arg_count);
+  memcpy(orig_args, item->orig_args, sizeof(Item*)*arg_count);
 }
 
 
@@ -425,12 +439,13 @@ void Item_sum::make_field(Send_field *tmp_field)
 
 void Item_sum::print(String *str, enum_query_type query_type)
 {
+  Item **pargs= orig_args;
   str->append(func_name());
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (i)
       str->append(',');
-    args[i]->print(str, query_type);
+    pargs[i]->print(str, query_type);
   }
   str->append(')');
 }
@@ -535,6 +550,13 @@ void Item_sum::update_used_tables ()
 }
 
 
+Item *Item_sum::set_arg(int i, THD *thd, Item *new_val) 
+{
+  thd->change_item_tree(args + i, new_val);
+  return new_val;
+}
+
+
 String *
 Item_sum_num::val_str(String *str)
 {
@@ -586,6 +608,7 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
+  memcpy (orig_args, args, sizeof (Item *) * arg_count);
   fixed= 1;
   return FALSE;
 }
@@ -673,6 +696,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
+  orig_args[0]= args[0];
   fixed= 1;
   return FALSE;
 }
@@ -3141,6 +3165,12 @@ Item_func_group_concat(Name_resolution_context *context_arg,
                                  sizeof(ORDER*)*arg_count_order)))
     return;
 
+  if (!(orig_args= (Item **) sql_alloc(sizeof(Item *) * arg_count)))
+  {
+    args= NULL;
+    return;
+  }
+
   order= (ORDER**)(args + arg_count);
 
   /* fill args items of show and sort */
@@ -3368,6 +3398,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
+  memcpy (orig_args, args, sizeof (Item *) * arg_count);
   fixed= 1;
   return FALSE;
 }
