@@ -111,7 +111,7 @@ public:
     : m_dict(dict), m_ndbtab(NULL), m_invalidate(0)
   {}
   Ndb_table_guard(NDBDICT *dict, const char *tabname)
-    : m_dict(dict)
+    : m_dict(dict), m_ndbtab(NULL), m_invalidate(0)
   {
     DBUG_ENTER("Ndb_table_guard");
     init(tabname);
@@ -120,19 +120,32 @@ public:
   ~Ndb_table_guard()
   {
     DBUG_ENTER("~Ndb_table_guard");
-    if (m_ndbtab)
-    {
-      DBUG_PRINT("info", ("m_ndbtab: %p  m_invalidate: %d",
-                          m_ndbtab, m_invalidate));
-      m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
-    }
+    reinit();
     DBUG_VOID_RETURN;
   }
   void init(const char *tabname)
   {
     DBUG_ENTER("Ndb_table_guard::init");
+    /* must call reinit() if already initialized */
+    DBUG_ASSERT(m_ndbtab == NULL);
     m_ndbtab= m_dict->getTableGlobal(tabname);
     m_invalidate= 0;
+    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
+    DBUG_VOID_RETURN;
+  }
+  void reinit(const char *tabname= 0)
+  {
+    DBUG_ENTER("Ndb_table_guard::reinit");
+    if (m_ndbtab)
+    {
+      DBUG_PRINT("info", ("m_ndbtab: %p  m_invalidate: %d",
+                          m_ndbtab, m_invalidate));
+      m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
+      m_ndbtab= NULL;
+      m_invalidate= 0;
+    }
+    if (tabname)
+      init(tabname);
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     DBUG_VOID_RETURN;
   }
@@ -290,8 +303,17 @@ set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
 
 Ndb* check_ndb_in_thd(THD* thd);
 
-/* perform random sleep in the range milli_sleep to 2*milli_sleep */
-inline void do_retry_sleep(unsigned milli_sleep)
+int ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
+int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
+
+class Ndbcluster_global_schema_lock_guard
 {
-  my_sleep(1000*(milli_sleep + 5*(rand()%(milli_sleep/5))));
-}
+public:
+  Ndbcluster_global_schema_lock_guard(THD *thd);
+  ~Ndbcluster_global_schema_lock_guard();
+  int lock();
+  void unlock();
+private:
+  THD *m_thd;
+  int m_lock;
+};
