@@ -27,7 +27,8 @@ libgeneral_la_SOURCES = \
             strdup.c \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp \
-	    ndb_rand.c
+	    ndb_rand.c \
+	    ndbinfo.c
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
 
@@ -35,7 +36,7 @@ libndbazio_la_SOURCES = azio.c
 
 libndbazio_la_LIBADD = @ZLIB_LIBS@
 
-EXTRA_PROGRAMS = testBitmask
+EXTRA_PROGRAMS = testBitmask testNdbInfo
 testBitmask_SOURCES =  testBitmask.cpp
 testBitmask_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
@@ -51,6 +52,8 @@ testBitmask_LDFLAGS = @ndb_bin_am_ldflags@ \
 #	$(top_builddir)/dbug/libdbuglt.la \
 #	$(top_builddir)/mysys/libmysyslt.la \
 #	$(top_builddir)/strings/libmystringslt.la
+
+testNdbInfo_SOURCES = test-ndbinfo.c
 
 testBitmask.cpp : Bitmask.cpp
 	rm -f testBitmask.cpp

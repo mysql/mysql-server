@@ -34,6 +34,9 @@
 #include <base64.h>
 #include <ndberror.h>
 
+#include <ndbinfo.h>
+#include <mgm_ndbinfo_tables.h>
+
 extern bool g_StopServer;
 extern bool g_RestartServer;
 extern EventLogger * g_eventLogger;
@@ -285,6 +288,9 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("drop nodegroup", &MgmApiSession::drop_nodegroup, ""),
     MGM_ARG("ng", Int, Mandatory, "Nodegroup"),
+
+  MGM_CMD("ndbinfo", &MgmApiSession::getNdbInfo, ""),
+    MGM_ARG("query", String, Mandatory, "SQL-Like Query"),
 
   MGM_END()
 };
@@ -2027,6 +2033,42 @@ done:
   m_output->println("");
 }
 
+
+#include <mgm_ndbinfo.c>
+
+void MgmApiSession::getNdbInfo(Parser_t::Context &ctx, Properties const &args)
+{
+  BaseString query;
+  args.get("query", query);
+
+  Vector<BaseString> columns;
+  Vector<BaseString> rows;
+
+  m_output->println("ndbinfo reply");
+
+  int r= m_mgmsrv.ndbinfo(query, &columns, &rows);
+
+  if(r)
+  {
+    m_output->println("error: %d",r);
+    m_output->println("");
+    return;
+  }
+
+  m_output->println("error: 0");
+  m_output->println("rows: %d",rows.size());
+  m_output->println("");
+
+  m_output->println("%d",columns.size());
+
+  for(int i=0;i<columns.size();i++)
+    m_output->println(columns[i].c_str());
+
+  for(int i=0;i<rows.size();i++)
+    m_output->println(rows[i].c_str());
+
+  return ;
+}
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;

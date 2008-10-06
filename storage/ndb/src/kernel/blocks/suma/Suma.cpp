@@ -58,6 +58,11 @@
 #include <signaldata/DropNodegroup.hpp>
 #include <signaldata/DropNodegroupImpl.hpp>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
+
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -1360,6 +1365,70 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 100, 2);
     return;
   }
+}
+
+void Suma::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  char buf[512];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  {
+    struct {
+      char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Subscriber",
+           c_subscriberPool.getNoOfFree(),
+           c_subscriberPool.getSize() },
+          {"Table",
+           c_tablePool.getNoOfFree(),
+           c_tablePool.getSize() },
+          {"Subscription",
+           c_subscriptionPool.getNoOfFree(),
+           c_subscriptionPool.getSize() },
+          {"Sync",
+           c_syncPool.getNoOfFree(),
+           c_syncPool.getSize() },
+          {"Data Buffer",
+           c_dataBufferPool.getNoOfFree(),
+           c_dataBufferPool.getSize() },
+          {"SubOp",
+           c_subOpPool.getNoOfFree(),
+           c_subOpPool.getSize() },
+          {"Page Chunk",
+           c_page_chunk_pool.getNoOfFree(),
+           c_page_chunk_pool.getSize() },
+          {"GCP",
+           c_gcp_pool.getNoOfFree(),
+           c_gcp_pool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      char *blockname= "SUMA";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
 }
 
 /*************************************************************

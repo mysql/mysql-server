@@ -16,6 +16,72 @@
 #define DBTUX_DEBUG_CPP
 #include "Dbtux.hpp"
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
+
+void Dbtux::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  char buf[512];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  {
+    struct {
+      char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Index",
+           c_indexPool.getNoOfFree(),
+           c_indexPool.getSize() },
+          {"Fragment",
+           c_fragPool.getNoOfFree(),
+           c_fragPool.getSize() },
+          {"Descriptor page",
+           c_descPagePool.getNoOfFree(),
+           c_descPagePool.getSize() },
+          {"Fragment Operation",
+           c_fragOpPool.getNoOfFree(),
+           c_fragOpPool.getSize() },
+          {"Scan Operation",
+           c_scanOpPool.getNoOfFree(),
+           c_scanOpPool.getSize() },
+          {"Scan Bound",
+           c_scanBoundPool.getNoOfFree(),
+           c_scanBoundPool.getSize() },
+          {"Scan Lock",
+           c_scanLockPool.getNoOfFree(),
+           c_scanLockPool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      char *blockname= "DBTC";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
+}
+
 /*
  * 12001 log file 0-close 1-open 2-append 3-append to signal log
  * 12002 log flags 1-meta 2-maint 4-tree 8-scan

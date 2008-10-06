@@ -1287,6 +1287,7 @@ private:
   void execROUTE_ORD(Signal* signal);
   // Received signals
   void execDUMP_STATE_ORD(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal);
   void execSEND_PACKED(Signal* signal);
   void execCOMPLETED(Signal* signal);
   void execCOMMITTED(Signal* signal);

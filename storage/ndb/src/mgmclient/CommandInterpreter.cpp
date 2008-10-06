@@ -137,6 +137,8 @@ public:
   int executeCreateNodeGroup(char* parameters);
   int executeDropNodeGroup(char* parameters);
 
+  int executeNdbInfo(char* parameters);
+
 public:
   bool connect(bool interactive);
   bool disconnect();
@@ -1215,6 +1217,16 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
 	  strncasecmp(allAfterFirstToken, "NODEGROUP",
                       sizeof("NODEGROUP") - 1) == 0){
     m_error = executeDropNodeGroup(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+  else if(strcasecmp(firstToken, "NDBINFO")==0)
+  {
+    char *q=NULL;
+    if(allAfterFirstToken==NULL)
+      q= "SELECT * FROM NDB$INFO.TABLES";
+    else
+      q= allAfterFirstToken;
+    m_error = executeNdbInfo(q);
     DBUG_RETURN(true);
   }
   else if (strcasecmp(firstToken, "ALL") == 0) {
@@ -2453,6 +2465,45 @@ CommandInterpreter::executeReport(int processId, const char* parameters,
 
   ndbout_c("  '%s' - report type specifier unknown or ambiguous", args[0].c_str());
   return -1;
+}
+
+int
+CommandInterpreter::executeNdbInfo(char* parameters)
+{
+  int rows;
+  int r= ndb_mgm_ndbinfo(m_mgmsrv,parameters, &rows);
+
+  if(r)
+  {
+    ndbout_c("Error displaying NDBINFO: %d",r);
+    return -1;
+  }
+
+  int ncol= ndb_mgm_ndbinfo_colcount(m_mgmsrv);
+
+  char **cols= (char**)malloc(ncol*sizeof(char*));
+  for(int i=0;i<ncol;i++)
+    cols[i]= (char*) malloc(100*sizeof(char));
+
+  ndb_mgm_ndbinfo_getcolums(m_mgmsrv,ncol,100,cols);
+
+  for(int i=0;i<ncol;i++)
+  {
+    ndbout << cols[i] << "\t";
+    free(cols[i]);
+  }
+  ndbout << endl;
+
+  while(rows--)
+  {
+    char c[1024];
+    ndb_mgm_ndbinfo_getrow(m_mgmsrv, c, 1024);
+    c[strlen(c)-1]='\0';
+    ndbout_c(c);
+  }
+
+  free(cols);
+  return 0;
 }
 
 static void helpTextReportFn()
