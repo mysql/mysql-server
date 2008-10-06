@@ -4120,16 +4120,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   if (any_privileges)
   {
     char *db, *tab;
-    if (cached_table->view)
-    {
-      db= cached_table->view_db.str;
-      tab= cached_table->view_name.str;
-    }
-    else
-    {
-      db= cached_table->db;
-      tab= cached_table->table_name;
-    }
+    db= cached_table->get_db_name();
+    tab= cached_table->get_table_name();
     if (!(have_privileges= (get_column_grant(thd, &field->table->grant,
                                              db, tab, field_name) &
                             VIEW_ANY_ACL)))
@@ -6209,6 +6201,13 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  /*
+    If the value of arg is NULL, then this object represents a constant,
+    so further transformation is unnecessary (and impossible).
+  */
+  if (!arg)
+    return 0;
 
   Item *new_item= arg->transform(transformer, args);
   if (!new_item)

@@ -7843,8 +7843,9 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 
   int error= 0;
 
-  if (!rpl_filter->db_ok(table_list->db) ||
-      (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list)))
+  if (rli->sql_thd->slave_thread /* filtering is for slave only */ &&
+      (!rpl_filter->db_ok(table_list->db) ||
+       (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
   {
     my_free(memory, MYF(MY_WME));
   }

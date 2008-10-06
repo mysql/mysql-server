@@ -11,22 +11,15 @@
 # (otherwise RESET MASTER may come too early).
 sync_slave_with_master;
 source include/stop_slave.inc;
+--source include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
-# We are going to read the slave's binlog which contains file_id (for some LOAD
-# DATA INFILE); to make it repeatable (not influenced by other tests), we need
-# to stop and start the slave, to be sure file_id will start from 1.
-#  This can be done with 'server_stop slave', but
-# this would require the manager, so most of the time the test will be skipped
-# :(
-# To workaround this, I (Guilhem) add a (empty) rpl_log-slave.opt (because when
-# mysql-test-run finds such a file it restarts the slave before doing the
-# test). That's not very elegant but I could find no better way, sorry.
+start slave;
+--source include/wait_for_slave_to_start.inc
 
 let $VERSION=`select version()`;
 
 connection master;
-reset master;
 eval create table t1(n int not null auto_increment primary key)ENGINE=$engine_type;
 insert into t1 values (NULL);
 drop table t1;
@@ -95,14 +88,17 @@ eval create table t2 (n int)ENGINE=$engine_type;
 insert into t2 values (1);
 source include/show_binlog_events.inc;
 --replace_result $VERSION VERSION
+--replace_regex /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /infile '.+'/infile 'words.dat'/
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events in 'master-bin.000002';
 show binary logs;
 sync_slave_with_master;
+--source include/wait_for_slave_to_start.inc
 show binary logs;
 --replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
 --replace_column 2 # 5 #
+--replace_regex /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /INFILE '.+'/INFILE 'words.dat'/
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
 show binlog events in 'slave-bin.000001' from 4;
 --replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION

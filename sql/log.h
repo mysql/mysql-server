@@ -311,6 +311,7 @@ public:
   void update_table_map_version() { ++m_table_map_version; }
 
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
+  int remove_pending_rows_event(THD *thd);
 
 #endif /* !defined(MYSQL_CLIENT) */
   void reset_bytes_written()
