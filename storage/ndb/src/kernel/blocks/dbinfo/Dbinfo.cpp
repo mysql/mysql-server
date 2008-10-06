@@ -297,7 +297,6 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
     {
       startTableId= req.cur_item >> 8;
       startColumnId= req.cur_item & 0xFF;
-      ndbout_c("CONTINUE: %u %u",startTableId, startColumnId);
     }
 
     struct ndbinfo_table *t;
@@ -347,7 +346,6 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
 
   default:
     jam();
-    ndbout_c("a");
 
     if(tableId > number_ndbinfo_tables)
     {
@@ -365,7 +363,6 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
 
     if(signal->getLength() == DbinfoScanReq::SignalLength)
     {
-      ndbout_c("b");
       /*
        * We've gotten a request from application, first
        * ScanReq signal. start from beginning
@@ -392,7 +389,6 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
     }
     else
     {
-      ndbout_c("c");
       /**
        * We have a cursor, so we need to continue scanning.
        */
@@ -414,7 +410,6 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
 
       oreq->cur_block= dbinfo_blocks[next_dbinfo_block];
 
-      ndbout_c("c1 %d",oreq->cur_block);
       sendSignal(numberToRef(oreq->cur_block,oreq->cur_node),
                  GSN_DBINFO_SCANREQ,
                  signal, signal->getLength(), JBB);
