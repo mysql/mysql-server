@@ -2800,11 +2800,25 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
   THD *thd;
   DBUG_ENTER("my_message_sql");
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
+
+  DBUG_ASSERT(str != NULL);
   /*
-    Put here following assertion when situation with EE_* error codes
-    will be fixed
+    An error should have a valid error number (!= 0), so it can be caught
+    in stored procedures by SQL exception handlers.
+    Calling my_error() with error == 0 is a bug.
+    Remaining known places to fix:
+    - storage/myisam/mi_create.c, my_printf_error()
+    TODO:
     DBUG_ASSERT(error != 0);
   */
+
+  if (error == 0)
+  {
+    /* At least, prevent new abuse ... */
+    DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0);
+    error= ER_UNKNOWN_ERROR;
+  }
+
   if ((thd= current_thd))
   {
     /*
@@ -2835,10 +2849,6 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     {
       if (! thd->main_da.is_error())            // Return only first message
       {
-        if (error == 0)
-          error= ER_UNKNOWN_ERROR;
-        if (str == NULL)
-          str= ER(error);
         thd->main_da.set_error_status(thd, error, str);
       }
       query_cache_abort(&thd->net);
