@@ -2999,6 +2999,8 @@ int get_partition_id_range_sub_hash(partition_info *part_info,
   longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_range_sub_hash");
+  LINT_INIT(loc_part_id);
+  LINT_INIT(sub_part_id);
 
   if (unlikely((error= get_partition_id_range(part_info, &loc_part_id,
                                               func_value))))
@@ -3026,6 +3028,8 @@ int get_partition_id_range_sub_linear_hash(partition_info *part_info,
   longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_range_sub_linear_hash");
+  LINT_INIT(loc_part_id);
+  LINT_INIT(sub_part_id);
 
   if (unlikely((error= get_partition_id_range(part_info, &loc_part_id,
                                               func_value))))
@@ -3055,6 +3059,7 @@ int get_partition_id_range_sub_key(partition_info *part_info,
   longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_range_sub_key");
+  LINT_INIT(loc_part_id);
 
   if (unlikely((error= get_partition_id_range(part_info, &loc_part_id,
                                               func_value))))
@@ -3078,6 +3083,7 @@ int get_partition_id_range_sub_linear_key(partition_info *part_info,
   longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_range_sub_linear_key");
+  LINT_INIT(loc_part_id);
 
   if (unlikely((error= get_partition_id_range(part_info, &loc_part_id,
                                               func_value))))
@@ -3102,6 +3108,7 @@ int get_partition_id_list_sub_hash(partition_info *part_info,
   longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_list_sub_hash");
+  LINT_INIT(sub_part_id);
 
   if (unlikely((error= get_partition_id_list(part_info, &loc_part_id,
                                              func_value))))
@@ -3129,6 +3136,7 @@ int get_partition_id_list_sub_linear_hash(partition_info *part_info,
   longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_list_sub_linear_hash");
+  LINT_INIT(sub_part_id);
 
   if (unlikely((error= get_partition_id_list(part_info, &loc_part_id,
                                              func_value))))
