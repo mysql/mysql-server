@@ -9,8 +9,8 @@ drop table nu;
 drop table if exists t1;
 CREATE TABLE t1 ( `ID` int(6) ) data directory 'c:/tmp/' index directory 'c:/tmp/' engine=MyISAM;
 Warnings:
-Warning	0	DATA DIRECTORY option ignored
-Warning	0	INDEX DIRECTORY option ignored
+Warning	1616	<DATA DIRECTORY> option ignored
+Warning	1616	<INDEX DIRECTORY> option ignored
 drop table t1;
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (1,1);
