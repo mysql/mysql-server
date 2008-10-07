@@ -4404,7 +4404,11 @@ page_zip_copy_recs(
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains_page(mtr, (page_t*) src, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(src_zip, src));
+	/* The B-tree operations that call this function may set
+	FIL_PAGE_PREV or PAGE_LEVEL, causing a temporary min_rec_flag
+	mismatch.  A strict page_zip_validate() will be executed later
+	during the B-tree operations. */
+	ut_a(page_zip_validate_low(src_zip, src, TRUE));
 #endif /* UNIV_ZIP_DEBUG */
 	ut_a(page_zip_get_size(page_zip) == page_zip_get_size(src_zip));
 	if (UNIV_UNLIKELY(src_zip->n_blobs)) {

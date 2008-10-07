@@ -593,8 +593,17 @@ page_copy_rec_list_end(
 		page_get_infimum_rec(new_page));
 	ulint		log_mode	= 0; /* remove warning */
 
-	/* page_zip_validate() will fail here if btr_compress()
-	sets FIL_PAGE_PREV to FIL_NULL */
+#ifdef UNIV_ZIP_DEBUG
+	if (new_page_zip) {
+		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
+		ut_a(page_zip);
+
+		/* page_zip_validate() may fail here if btr_compress()
+		sets FIL_PAGE_PREV to FIL_NULL */
+		ut_a(page_zip_validate_low(new_page_zip, new_page, TRUE));
+		ut_a(page_zip_validate_low(page_zip, page, TRUE));
+	}
+#endif /* UNIV_ZIP_DEBUG */
 	ut_ad(buf_block_get_frame(block) == page);
 	ut_ad(page_is_leaf(page) == page_is_leaf(new_page));
 	ut_ad(page_is_comp(page) == page_is_comp(new_page));
@@ -1057,10 +1066,19 @@ page_delete_rec_list_start(
 
 	ut_ad((ibool) !!page_rec_is_comp(rec)
 	      == dict_table_is_comp(index->table));
-	/* page_zip_validate() would detect a min_rec_mark mismatch
-	in btr_page_split_and_insert()
-	between btr_attach_half_pages() and insert_page = ...
-	when btr_page_get_split_rec_to_left() holds (direction == FSP_DOWN). */
+#ifdef UNIV_ZIP_DEBUG
+	{
+		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
+		page_t*		page	= buf_block_get_frame(block);
+
+		/* page_zip_validate() would detect a min_rec_mark mismatch
+		in btr_page_split_and_insert()
+		between btr_attach_half_pages() and insert_page = ...
+		when btr_page_get_split_rec_to_left() holds
+		(direction == FSP_DOWN). */
+		ut_a(!page_zip || page_zip_validate_low(page_zip, page, TRUE));
+	}
+#endif /* UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
 

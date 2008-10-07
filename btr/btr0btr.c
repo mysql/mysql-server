@@ -2347,12 +2347,15 @@ btr_lift_page_up(
 
 	/* Go upward to root page, decrementing levels by one. */
 	for (i = 0; i < n_blocks; i++, page_level++) {
-		page_t*	page = buf_block_get_frame(blocks[i]);
+		page_t*		page	= buf_block_get_frame(blocks[i]);
+		page_zip_des_t*	page_zip= buf_block_get_page_zip(blocks[i]);
 
 		ut_ad(btr_page_get_level(page, mtr) == page_level + 1);
 
-		btr_page_set_level(page, buf_block_get_page_zip(blocks[i]),
-				   page_level, mtr);
+		btr_page_set_level(page, page_zip, page_level, mtr);
+#ifdef UNIV_ZIP_DEBUG
+		ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
 	}
 
 	/* Free the file page */
@@ -2647,6 +2650,9 @@ err_exit:
 	}
 
 	ut_ad(page_validate(merge_page, index));
+#ifdef UNIV_ZIP_DEBUG
+	ut_a(!merge_page_zip || page_zip_validate(merge_page_zip, merge_page));
+#endif /* UNIV_ZIP_DEBUG */
 
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
