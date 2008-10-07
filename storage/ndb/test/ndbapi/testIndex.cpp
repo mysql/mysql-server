@@ -1166,7 +1166,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
   result = NDBT_FAILED;
   pTrans = pNdb->startTransaction();
   NdbScanOperation * sOp;
-  NdbOperation * uOp;
+
   int eof;
   if(!pTrans) goto done;
   sOp = pTrans->getNdbScanOperation(pTab->getName());
@@ -1194,7 +1194,7 @@ int runLQHKEYREF(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops() * 100;
   NdbRestarter restarter;
   
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
 #if 0
   int val = DumpStateOrd::DihMinTimeBetweenLCP;
