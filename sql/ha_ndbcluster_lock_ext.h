@@ -19,26 +19,43 @@
   tables through ndb_restore is syncronized correctly with the mysqld's
 
   The lock/unlock functions use the BACKUP_SEQUENCE row in SYSTAB_0
+
+  retry_time == 0 means no retry
+  retry_time <  0 means infinite retries
+  retry_time >  0 means retries for max 'retry_time' seconds
 */
 static NdbTransaction *
-ndbcluster_global_schema_lock_ext(Ndb *ndb, NdbError &ndb_error)
+ndbcluster_global_schema_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
+                                  int retry_time= 10)
 {
   ndb->setDatabaseName("sys");
   ndb->setDatabaseSchemaName("def");
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
-  const NdbDictionary::Table *ndbtab;
+  const NdbDictionary::Table *ndbtab= NULL;
   NdbOperation *op;
   NdbTransaction *trans= NULL;
-  int retries= 100;
   int retry_sleep= 50; /* 50 milliseconds, transaction */
-  if (!(ndbtab= ndbtab_g.get_table()))
+  struct timeval time_end;
+
+  if (retry_time > 0)
   {
-    ndb_error= dict->getNdbError();
-    goto error_handler;
+    gettimeofday(&time_end, 0);
+    time_end.tv_sec+= retry_time;
   }
   while (1)
   {
+    if (!ndbtab)
+    {
+      if (!(ndbtab= ndbtab_g.get_table()))
+      {
+        if (dict->getNdbError().status == NdbError::TemporaryError)
+          goto retry;
+        ndb_error= dict->getNdbError();
+        goto error_handler;
+      }
+    }
+
     trans= ndb->startTransaction();
     if (trans == NULL)
     {
@@ -53,24 +70,34 @@ ndbcluster_global_schema_lock_ext(Ndb *ndb, NdbError &ndb_error)
     if (trans->execute(NdbTransaction::NoCommit) == 0)
       break;
 
-    if (trans->getNdbError().status == NdbError::TemporaryError)
+    if (trans->getNdbError().status != NdbError::TemporaryError)
+      goto error_handler;
+    else if (thd->killed)
+      goto error_handler;
+  retry:
+    if (retry_time == 0)
+      goto error_handler;
+    if (retry_time > 0)
     {
-      if (retries--)
-      {
-        ndb->closeTransaction(trans);
-        trans= NULL;
-        do_retry_sleep(retry_sleep);
-        continue; // retry
-      }
+      struct timeval time_now;
+      gettimeofday(&time_now, 0);
+      if ((time_end.tv_sec < time_now.tv_sec) ||
+          (time_end.tv_sec == time_now.tv_sec && time_end.tv_usec < time_now.tv_usec))
+        goto error_handler;
     }
-    ndb_error= trans->getNdbError();
-    goto error_handler;
+    if (trans)
+    {
+      ndb->closeTransaction(trans);
+      trans= NULL;
+    }
+    do_retry_sleep(retry_sleep);
   }
   return trans;
 
  error_handler:
   if (trans)
   {
+    ndb_error= trans->getNdbError();
     ndb->closeTransaction(trans);
   }
   return NULL;
