@@ -1637,4 +1637,74 @@ select count(*) from t1, t2 where t1.createdDate = t2.createdDate;
 count(*)
 1
 drop table t1, t2;
+create table t1 (s1 int) partition by hash(s1) partitions 2;
+create index i on t1 (s1);
+insert into t1 values (1);
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1 order by s1 desc;
+select * from t1;
+s1
+1
+1
+1
+1
+1
+1
+1
+1
+drop table t1;
+create table t1 (s1 int) partition by range(s1) 
+(partition pa1 values less than (10),
+partition pa2 values less than MAXVALUE);
+create index i on t1 (s1);
+insert into t1 values (1);
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1 order by s1 desc;
+select * from t1;
+s1
+1
+1
+1
+1
+1
+1
+1
+1
+drop table t1;
+create table t1 (s1 int) partition by range(s1) 
+(partition pa1 values less than (10),
+partition pa2 values less than MAXVALUE);
+create index i on t1 (s1);
+insert into t1 values (20);
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1 order by s1 desc;
+select * from t1;
+s1
+20
+20
+20
+20
+20
+20
+20
+20
+drop table t1;
+create table t1 (s1 int) partition by range(s1) 
+(partition pa1 values less than (10),
+partition pa2 values less than MAXVALUE);
+create index i on t1 (s1);
+insert into t1 values (1), (2), (3), (4), (5), (6), (7), (8);
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1;
+insert into t1 select s1 from t1 order by s1 desc;
+insert into t1 select s1 from t1 where s1=3;
+select count(*) from t1;
+count(*)
+288
+drop table t1;
 End of 5.1 tests
