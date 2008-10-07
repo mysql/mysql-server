@@ -1234,7 +1234,7 @@ static int ndbcluster_find_all_databases(THD *thd)
             /* create missing database */
             sql_print_information("NDB: Discovered missing database '%s'", db);
             const int no_print_error[1]= {0};
-            name_len= snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
+            name_len= my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
             run_query(thd, name, name + name_len,
                       no_print_error,    /* print error */
                       TRUE);   /* don't binlog the query */
