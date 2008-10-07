@@ -287,8 +287,8 @@ int runDropTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
   Bank bank(ctx->m_cluster_connection);
-  int overWriteExisting = true;
-  if (bank.createAndLoadBank(overWriteExisting, 10) != NDBT_OK)
+  bool overWriteExisting = true;
+  if (bank.createAndLoadBank(overWriteExisting) != NDBT_OK)
     return NDBT_FAILED;
   return NDBT_OK;
 }
