@@ -645,6 +645,10 @@ struct thr_send_buf : public TransporterSendBufferHandle
 
     /* Send buffer for one transporter is kept in a single-linked list. */
     page *m_next;
+#if defined VM_TRACE || defined ERROR_INSERT
+    /* Prev page (only used when splitting signals) */
+    page * m_prev;
+#endif
     /* Bytes of send data available in this page. */
     Uint32 m_bytes;
     /* Start of unsent data (next bytes_sent() will count from here). */
@@ -1081,6 +1085,30 @@ flush_jbb_write_state(thr_data *selfptr)
   }
 }
 
+//#define NDBMT_RAND_YIELD
+#ifdef NDBMT_RAND_YIELD
+static Uint32 g_rand_yield = 0;
+static
+void
+rand_yield(Uint32 limit, void* ptr0, void * ptr1)
+{
+  return;
+  UintPtr tmp = UintPtr(ptr0) + UintPtr(ptr1);
+  Uint8* tmpptr = (Uint8*)&tmp;
+  Uint32 sum = g_rand_yield;
+  for (Uint32 i = 0; i<sizeof(tmp); i++)
+    sum = 33 * sum + tmpptr[i];
+  
+  if ((sum % 100) < limit)
+  {
+    g_rand_yield++;
+    sched_yield();
+  }
+}
+#else
+static inline void rand_yield(Uint32 limit, void* ptr0, void * ptr1) {}
+#endif
+
 thr_send_buf::thr_send_buf(struct trp_callback *trp_cb, Uint32 thread,
                            thr_safe_pool<thr_job_buffer> *global_pool) :
   m_self(thread),
@@ -1101,6 +1129,9 @@ thr_send_buf::initial_alloc(NodeId node)
     return false;
 
   pg->m_next = NULL;
+#if defined VM_TRACE || defined ERROR_INSERT
+  pg->m_prev = NULL;
+#endif
   pg->m_bytes = 0;
   pg->m_start = 0;
   pg->m_current = 0;
@@ -1117,7 +1148,7 @@ thr_send_buf::initial_alloc(NodeId node)
    */
   b->m_first_page = pg;
   b->m_last_page = pg;
-  b->m_prev_page = NULL;
+  b->m_prev_page = 0;
   b->m_written_bytes = 0;
   b->m_read_bytes = 0;
   wmb();
@@ -1144,8 +1175,12 @@ thr_send_buf::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
   /* Check for common case, free space in existing buffer. */
   page *last_pg = b->m_last_page;
   assert(last_pg != NULL);
+  assert(lenBytes < last_pg->max_data_bytes());
+
   if (last_pg->m_bytes + lenBytes <= last_pg->max_data_bytes())
+  {
     return (Uint32 *)(last_pg->m_data + last_pg->m_bytes);
+  }
 
   /**
    * Check for buffer limit exceeded.
@@ -1162,37 +1197,33 @@ thr_send_buf::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
   if (new_pg == NULL)
     return NULL;
 
+#if defined VM_TRACE || defined ERROR_INSERT
+  new_pg->m_prev = 0;
+#endif
   new_pg->m_next = NULL;
   new_pg->m_bytes = 0;
   new_pg->m_start = 0;
   new_pg->m_current = 0;
+
+  /* Remeber old last page temporarily until updateWritePtr(). */
+  assert(b->m_prev_page == 0);
+  if (last_pg->m_bytes < last_pg->max_data_bytes())
+  {
+    b->m_prev_page = last_pg;
+#if defined VM_TRACE || defined ERROR_INSERT
+    new_pg->m_prev = last_pg;
+#endif
+  }
   b->m_last_page = new_pg;
+
   /** Assigning m_next makes the new page available to readers, so need a
    * memory barrier here.
    */
   wmb();
   last_pg->m_next = new_pg;
 
-  /* Remeber old last page temporarily until updateWritePtr(). */
-  b->m_prev_page = last_pg;
-
   return (Uint32 *)(new_pg->m_data);
 }
-
-#ifdef BUG_39880
-static
-Uint32
-my_rand(void* ptr0, void * ptr1)
-{
-  UintPtr tmp = UintPtr(ptr0) + UintPtr(ptr1);
-  Uint8* tmpptr = (Uint8*)&tmp;
-  Uint32 sum = 0;
-  for (Uint32 i = 0; i<sizeof(tmp); i++)
-    sum = 33 * sum + tmpptr[i];
-  
-  return sum;
-}
-#endif
 
 Uint32
 thr_send_buf::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
@@ -1214,28 +1245,28 @@ thr_send_buf::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
   if (last_pg->m_bytes == 0)
   {
     page *prev_pg = b->m_prev_page;
-    if (prev_pg != NULL && prev_pg->m_bytes < prev_pg->max_data_bytes())
+#if defined VM_TRACE || defined ERROR_INSERT
+    assert(last_pg->m_prev == 0 || last_pg->m_prev == prev_pg);
+#endif
+    b->m_prev_page = 0;
+    if (prev_pg != 0)
     {
+      assert(prev_pg->m_bytes < prev_pg->max_data_bytes());
       Uint32 part = prev_pg->max_data_bytes() - prev_pg->m_bytes;
       assert(part < lenBytes);
       memcpy(prev_pg->m_data + prev_pg->m_bytes, last_pg->m_data, part);
       memmove(last_pg->m_data, last_pg->m_data + part, lenBytes - part);
 
       last_pg->m_bytes = lenBytes - part;
-      
-#ifdef BUG_39880
-      if (my_rand(prev_pg, last_pg) % 100 < 1)
-      {
-        sched_yield();
-      }
-#endif
+
+      rand_yield(1, prev_pg, last_pg); // BUG_39880
+
       /**
        * Memory barrier since this makes data available to reader. 
        * and to serialize the two assignments 
        */
       wmb();
       prev_pg->m_bytes = prev_pg->max_data_bytes();
-      
       return used;
 
       /**
@@ -1334,9 +1365,13 @@ trp_callback::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
       continue;
     rmb();
 
+    bool current_must_be_zero = false;
     while (iovecs < max_iovecs)
     {
       Uint32 bytes = pg->m_bytes;
+      if (current_must_be_zero)
+        assert(pg->m_current == 0);
+
       /* Make sure we see all updates before seen m_bytes value. */
       rmb();
       if (bytes > pg->m_current)
@@ -1352,6 +1387,7 @@ trp_callback::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
       pg = pg->m_next;
       if (pg == NULL)
         break;
+      current_must_be_zero = true;
       b->m_current_page = pg;
     }
   }
