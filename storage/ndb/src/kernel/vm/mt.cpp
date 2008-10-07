@@ -2135,6 +2135,7 @@ init_thread(thr_data *selfptr)
   tmp.appfmt("tid: %u ", (unsigned)syscall(SYS_gettid));
 #endif
 
+#if 0
 #if defined SYS_gettid && defined HAVE_SCHED_SETAFFINITY
   bool lock_to_cpu = false;
   if (lock_to_cpu)
@@ -2160,6 +2161,7 @@ init_thread(thr_data *selfptr)
       }
     }
   }
+#endif
 #endif
   
   for (Uint32 i = 0; i < selfptr->m_instance_count; i++) 
