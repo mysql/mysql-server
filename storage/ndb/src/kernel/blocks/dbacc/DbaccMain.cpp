@@ -8306,7 +8306,7 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
   if(req.tableId == NDBINFO_MEMUSAGE_TABLEID)
   {
     dbinfo_write_row_init(&r, buf, sizeof(buf));
-    char *imstr= "IndexMemory";
+    const char *imstr= "IndexMemory";
     dbinfo_write_row_column(&r, "IndexMemory", 11);
     dbinfo_write_row_column_uint32(&r, getOwnNodeId());
     Uint32 page_size_kb= sizeof(*rpPageptr.p);;
