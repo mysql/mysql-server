@@ -175,3 +175,5 @@ insert into t1 values ( 123, 'a'), ( 123, 'b'), ( 123, 'c'),
 insert into t1 values ( 654, 'a'), ( 654, 'b'), ( 654, 'c'),
  (654, 'd'), (654, 'e'), (654, 'f'), (654, 'g');
 select * from t2 order by b;
+drop trigger t1_after_insert;
+drop table t1,t2;
