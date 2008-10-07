@@ -3620,7 +3620,9 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
   Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   DBUG_ENTER("mysql_create_table");
 
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      !create_info->frm_only &&
+      !internal_tmp_table)
     global_schema_lock_guard.lock();
 
   /* Wait for any database locks */
