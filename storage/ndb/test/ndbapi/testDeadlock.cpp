@@ -362,7 +362,7 @@ wl1822_tx2_scanXY(Thr& thr)
   assert(con != 0);
   NdbScanOperation* scanop;
   NdbIndexScanOperation* indexscanop;
-  NdbResultSet* rs;
+
   if (wl1822_scantx == 't') {
     CHN(con, (scanop = thr.m_scanop = con->getNdbScanOperation(g_opt.m_tname)) != 0);
     DBG("tx2 scan exclusive " << g_opt.m_tname);
