@@ -398,7 +398,7 @@ verify_savepoint(NDBT_Context* ctx,
     /**
      * Increase savepoint to <em>k</em>
      */
-    for(size_t l = 1; l<=seq; l++)
+    for(int l = 1; l<=seq; l++)
     {
       C3(same.pkReadRecord(pNdb, DUMMY, 1, lm) == 0); // Read dummy row
       C3(same.execute_NoCommit(pNdb) == 0);
@@ -441,7 +441,6 @@ verify_savepoint(NDBT_Context* ctx,
 int 
 runOperations(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int tmp; 
   Ndb* pNdb = GETNDB(step);
   
   Uint32 seqNo = ctx->getProperty("Sequence", (Uint32)0);
