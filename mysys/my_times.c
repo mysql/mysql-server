@@ -44,12 +44,12 @@ clock_t times(struct tms *buf)
   ulint.LowPart= kernel.dwLowDateTime;
   ulint.HighPart= kernel.dwHighDateTime;
   buf->tms_stime= (clock_t)ulint.QuadPart;
-  buf->tms_cstime= ulint.QuadPart;
+  buf->tms_cstime= (clock_t)ulint.QuadPart;
 
   ulint.LowPart= user.dwLowDateTime;
   ulint.HighPart= user.dwHighDateTime;
-  buf->tms_utime= ulint.QuadPart;
-  buf->tms_cutime= ulint.QuadPart;
+  buf->tms_utime= (clock_t)ulint.QuadPart;
+  buf->tms_cutime= (clock_t)ulint.QuadPart;
 
   if(QueryPerformanceCounter(&ticks)==0)
   {
@@ -57,5 +57,5 @@ clock_t times(struct tms *buf)
     return -1;
   }
 
-  return ticks.QuadPart;
+  return (clock_t)ticks.QuadPart;
 }
