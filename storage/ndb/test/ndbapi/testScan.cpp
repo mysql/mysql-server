@@ -1729,7 +1729,7 @@ NDBT_TESTSUITE_END(testScan);
 
 int main(int argc, const char** argv){
   ndb_init();
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   NDBT_TESTSUITE_INSTANCE(testScan);
   return testScan.execute(argc, argv);
 }
