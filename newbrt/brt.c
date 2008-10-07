@@ -561,6 +561,7 @@ handle_split_of_child_simple (BRT t, BRTNODE node, int childnum,
 			      BRTNODE childa, BRTNODE childb,
 			      DBT *splitk, /* the data in the childsplitk is previously alloc'd and is consumed by this call. */
 			      TOKULOGGER logger);
+static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, TOKULOGGER logger);
 
 static int
 brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger) {
@@ -581,16 +582,18 @@ brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger) {
 	assert(child->thisnodename.b!=0);
 	VERIFY_NODE(child);
     }
+    BRTNODE nodea, nodeb;
+    DBT splitk;
     if (child->height==0) {
-	BRTNODE nodea, nodeb;
-	DBT splitk;
 	int r = brtleaf_split(logger, toku_cachefile_filenum(t->cf), t, child, &nodea, &nodeb, &splitk);
 	assert(r==0); // REMOVE LATER
 	if (r!=0) return r;
-	r = handle_split_of_child_simple (t, node, childnum, nodea, nodeb, &splitk, logger);
     } else {
-	split_nonleaf();
+	int r = brt_nonleaf_split(t, child, &nodea, &nodeb, &splitk, logger);
+	assert(r==0); // REMOVE LATER
+	if (r!=0) return r;
     }
+    return handle_split_of_child_simple (t, node, childnum, nodea, nodeb, &splitk, logger);
 }
 
 //#define MAX_PATHLEN_TO_ROOT 40
@@ -831,6 +834,44 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
     }
     fixup_child_fingerprint(node, childnum_of_node, child, t, logger);
     return r;
+}
+
+static int push_a_brt_cmd_down_simple (BRT t, BRTNODE node, BRTNODE child, int childnum,
+				       BRT_CMD cmd,
+				       BOOL *must_split, BOOL *must_merge,
+				       TOKULOGGER logger) {
+    //if (debug) printf("%s:%d %*sinserting down\n", __FILE__, __LINE__, debug, "");
+    //printf("%s:%d hello!\n", __FILE__, __LINE__);
+    assert(node->height>0);
+    {
+	int r = brtnode_put_cmd_simple(t, child, cmd, logger,
+				       must_split, must_merge);
+	if (r!=0) return r;
+    }
+
+    DBT *k = cmd->u.id.key;
+    DBT *v = cmd->u.id.val;
+    //if (debug) printf("%s:%d %*sinserted down child_did_split=%d\n", __FILE__, __LINE__, debug, "", child_did_split);
+    u_int32_t old_fingerprint = node->local_fingerprint;
+    u_int32_t new_fingerprint = old_fingerprint - node->rand4fingerprint*toku_calc_fingerprint_cmdstruct(cmd);
+    node->local_fingerprint = new_fingerprint;
+    if (t->txn_that_created != cmd->xid) {
+	int r = toku_log_brtdeq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum);
+	assert(r==0);
+    }
+    {
+	int r = toku_fifo_deq(BNC_BUFFER(node,childnum));
+	//printf("%s:%d deleted status=%d\n", __FILE__, __LINE__, r);
+	if (r!=0) return r;
+    }
+    {
+	int n_bytes_removed = (k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD);
+	node->u.n.n_bytes_in_buffers -= n_bytes_removed;
+	BNC_NBYTESINBUF(node, childnum) -= n_bytes_removed;
+        node->dirty = 1;
+    }
+    fixup_child_fingerprint(node, childnum,   child, t, logger);
+    return 0;
 }
 
 static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum,
@@ -1260,6 +1301,79 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     }
     return 0;
 }
+
+static int
+push_some_brt_cmds_down_simple (BRT t, BRTNODE node, int childnum, BOOL *must_split, BOOL *must_merge, TOKULOGGER logger) {
+    int r;
+    assert(node->height>0);
+    BLOCKNUM targetchild = BNC_BLOCKNUM(node, childnum);
+    assert(targetchild.b>=0 && targetchild.b<t->h->unused_blocks.b); // This assertion could fail in a concurrent setting since another process might have bumped unused memory.
+    u_int32_t childfullhash = compute_child_fullhash(t->cf, node, childnum);
+    void *childnode_v;
+    r = toku_cachetable_get_and_pin(t->cf, targetchild, childfullhash, &childnode_v, NULL, 
+				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t->h);
+    if (r!=0) return r;
+    //printf("%s:%d pin %p\n", __FILE__, __LINE__, childnode_v);
+    BRTNODE child = childnode_v;
+    assert(child->thisnodename.b!=0);
+    //verify_local_fingerprint_nonleaf(child);
+    VERIFY_NODE(child);
+    //printf("%s:%d height=%d n_bytes_in_buffer = {%d, %d, %d, ...}\n", __FILE__, __LINE__, child->height, child->n_bytes_in_buffer[0], child->n_bytes_in_buffer[1], child->n_bytes_in_buffer[2]);
+    if (child->height>0 && child->u.n.n_children>0) assert(BNC_BLOCKNUM(child, child->u.n.n_children-1).b!=0);
+  
+    if (0) {
+	static int count=0;
+	count++;
+	printf("%s:%d pushing %d count=%d\n", __FILE__, __LINE__, childnum, count);
+    }
+    BOOL some_must_split = FALSE;
+    BOOL some_must_merge = FALSE;
+    {
+	bytevec key,val;
+	ITEMLEN keylen, vallen;
+	//printf("%s:%d Try random_pick, weight=%d \n", __FILE__, __LINE__, BNC_NBYTESINBUF(node, childnum));
+	assert(toku_fifo_n_entries(BNC_BUFFER(node,childnum))>0);
+	u_int32_t type;
+	TXNID xid;
+        while(0==toku_fifo_peek(BNC_BUFFER(node,childnum), &key, &keylen, &val, &vallen, &type, &xid)) {
+	    DBT hk,hv;
+	    DBT childsplitk;
+	    BOOL this_must_split, this_must_merge;
+
+	    BRT_CMD_S brtcmd = { (enum brt_cmd_type)type, xid, .u.id= {toku_fill_dbt(&hk, key, keylen),
+								       toku_fill_dbt(&hv, val, vallen)} };
+
+	    //printf("%s:%d random_picked\n", __FILE__, __LINE__);
+	    toku_init_dbt(&childsplitk);
+	    r = push_a_brt_cmd_down_simple (t, node, child, childnum,
+					    &brtcmd,
+					    &this_must_split, &this_must_merge,
+					    logger);
+
+	    if (0) {
+		unsigned int sum=0;
+		FIFO_ITERATE(BNC_BUFFER(node,childnum), subhk __attribute__((__unused__)), hkl, hd __attribute__((__unused__)), hdl, subtype __attribute__((__unused__)), subxid __attribute__((__unused__)),
+                             sum+=hkl+hdl+KEY_VALUE_OVERHEAD+BRT_CMD_OVERHEAD);
+		printf("%s:%d sum=%u\n", __FILE__, __LINE__, sum);
+		assert(sum==BNC_NBYTESINBUF(node, childnum));
+	    }
+	    if (BNC_NBYTESINBUF(node, childnum)>0) assert(toku_fifo_n_entries(BNC_BUFFER(node,childnum))>0);
+	    //printf("%s:%d %d=push_a_brt_cmd_down=();  child_did_split=%d (weight=%d)\n", __FILE__, __LINE__, r, child_did_split, BNC_NBYTESINBUF(node, childnum));
+	    if (r!=0) return r;
+	    some_must_split |= this_must_split;
+	    some_must_merge |= this_must_merge;
+	}
+	if (0) printf("%s:%d done random picking\n", __FILE__, __LINE__);
+    }
+    assert(toku_serialize_brtnode_size(node)<=node->nodesize);
+    //verify_local_fingerprint_nonleaf(node);
+    r=toku_unpin_brtnode(t, child);
+    if (r!=0) return r;
+    *must_split = some_must_split;
+    *must_merge = some_must_merge;
+    return 0;
+}
+
 
 static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 				    int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
@@ -2070,13 +2184,18 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD cmd,
     return 0;
 }
 
+static int
+merge (void) {
+    abort();
+}
+
 // Split or merge the child, if the child too large or too small.
 // Return the new fanout of node.
 static int
-brt_nonleaf_maybe_split_or_merge (BRTNODE node, int childnum, BOOL must_split, BOOL must_merge, u_int32_t *new_fanout) {
+brt_nonleaf_maybe_split_or_merge (BRT t, BRTNODE node, int childnum, BOOL must_split, BOOL must_merge, TOKULOGGER logger, u_int32_t *new_fanout) {
     assert(!(must_split && must_merge));
-    if (must_split) do_split(node, childnum);
-    if (must_merge) do_merge(node, childnum);
+    if (must_split) { int r = brt_split_child(t, node, childnum, logger); if (r!=0) return r; }
+    if (must_merge) { int r = merge(); if (r!=0) return r; }
     *new_fanout = node->u.n.n_children;
     return 0;
 }
@@ -2095,7 +2214,7 @@ brt_nonleaf_put_cmd_child_simple (BRT t, BRTNODE node, unsigned int childnum, BR
 	BOOL must_merge MAYBE_INIT(FALSE);
         int r = brt_nonleaf_put_cmd_child_node_simple(t, node, childnum, TRUE, cmd, logger, &must_split, &must_merge);
 	if (r==0) {
-	    return brt_nonleaf_maybe_split_or_merge(node, childnum, must_split, must_merge, new_fanout);
+	    return brt_nonleaf_maybe_split_or_merge(t, node, childnum, must_split, must_merge, logger, new_fanout);
 	}
 	// Otherwise fall out and append it to the child buffer.
     }
@@ -2116,14 +2235,16 @@ brt_nonleaf_put_cmd_child_simple (BRT t, BRTNODE node, unsigned int childnum, BR
 	BNC_NBYTESINBUF(node, childnum) += diff;
         node->dirty = 1;
     }
-    if (too_big()) {
-	int biggest_child = find_biggest_child();
+    if (toku_serialize_brtnode_size(node) > node->nodesize) {
+	int biggest_child;
 	BOOL must_split MAYBE_INIT(FALSE);
 	BOOL must_merge MAYBE_INIT(FALSE);
-	push_biggest_child(node, biggest_child, &must_split, &must_merge);
-	return brt_nonleaf_maybe_split_or_merge(node, biggest_child, must_split, must_merge, new_fanout);
+	find_heaviest_child(node, &biggest_child);
+	int r = push_some_brt_cmds_down_simple(t, node, biggest_child, &must_split, &must_merge, logger);
+	if (r!=0) return r;
+	return brt_nonleaf_maybe_split_or_merge(t, node, biggest_child, must_split, must_merge, logger, new_fanout);
     }
-    new_fanout = node->fanout;
+    *new_fanout = node->u.n.n_children;
     return 0;
 }
 
@@ -2227,12 +2348,14 @@ brt_nonleaf_cmd_many_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger
 	BNC_NBYTESINBUF(node, childnum) += diff;
         node->dirty = 1;
     }
-    if (too_big()) {
-	int biggest_child = find_biggest_child();
+    if (toku_serialize_brtnode_size(node) > node->nodesize) {
+	int biggest_child;
 	BOOL must_split MAYBE_INIT(FALSE);
 	BOOL must_merge MAYBE_INIT(FALSE);
-	push_biggest_child(node, biggest_child, &must_split, &must_merge);
-	return brt_nonleaf_maybe_split_or_merge(node, biggest_child, must_split, must_merge, new_fanout);
+	find_heaviest_child(node, &biggest_child);
+	int r = push_some_brt_cmds_down_simple(t, node, biggest_child, &must_split, &must_merge, logger);
+	if (r!=0) return r;
+	return brt_nonleaf_maybe_split_or_merge(t, node, biggest_child, must_split, must_merge, logger, new_fanout);
     }
     *new_fanout = node->u.n.n_children;
     return 0;
