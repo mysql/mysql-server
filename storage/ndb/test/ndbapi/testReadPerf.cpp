@@ -269,7 +269,6 @@ run_read(){
   
   NdbOperation * pOp;
   NdbScanOperation * pSp;
-  NdbIndexOperation * pUp;
   NdbIndexScanOperation * pIp;
   
   Uint32 start_row = rand() % (rows - range);
@@ -398,7 +397,6 @@ print_result(){
   tmp *= g_paramters[P_RANGE].value;
   tmp *= g_paramters[P_LOOPS].value;
 
-  int t, t2;
   for(int i = 0; i<P_OP_TYPES; i++){
     g_err << g_ops[i] << " avg: "
 	  << (int)((1000*g_times[i])/tmp)
