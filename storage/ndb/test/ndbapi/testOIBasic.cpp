@@ -287,12 +287,12 @@ static const char* getthrprefix();
 
 // method parameters
 
-class Thr;
-class Con;
-class Tab;
-class ITab;
-class Set;
-class Tmr;
+struct Thr;
+struct Con;
+struct Tab;
+struct ITab;
+struct Set;
+struct Tmr;
 
 struct Par : public Opt {
   uint m_no;
@@ -321,7 +321,7 @@ struct Par : public Opt {
   // do verify after read
   bool m_verify;
   // errors to catch (see Con)
-  bool m_catcherr;
+  uint m_catcherr;
   // abort percentage
   uint m_abortpct;
   NdbOperation::LockMode m_lockmode;
@@ -397,7 +397,7 @@ struct Tmr {
   const char* pct(const Tmr& t1);
   const char* over(const Tmr& t1);
   NDB_TICKS m_on;
-  uint m_ms;
+  NDB_TICKS m_ms;
   uint m_cnt;
   char m_time[100];
   char m_text[100];
@@ -652,7 +652,7 @@ struct Col {
     Varchar = NdbDictionary::Column::Varchar,
     Longvarchar = NdbDictionary::Column::Longvarchar
   };
-  const class Tab& m_tab;
+  const struct Tab& m_tab;
   uint m_num;
   const char* m_name;
   bool m_pk;
@@ -664,13 +664,13 @@ struct Col {
   uint m_bytesize;          // full value size
   bool m_nullable;
   const Chs* m_chs;
-  Col(const class Tab& tab, uint num, const char* name, bool pk, Type type, uint length, bool nullable, const Chs* chs);
+  Col(const struct Tab& tab, uint num, const char* name, bool pk, Type type, uint length, bool nullable, const Chs* chs);
   ~Col();
   bool equal(const Col& col2) const;
   void wellformed(const void* addr) const;
 };
 
-Col::Col(const class Tab& tab, uint num, const char* name, bool pk, Type type, uint length, bool nullable, const Chs* chs) :
+Col::Col(const struct Tab& tab, uint num, const char* name, bool pk, Type type, uint length, bool nullable, const Chs* chs) :
   m_tab(tab),
   m_num(num),
   m_name(strcpy(new char [strlen(name) + 1], name)),
@@ -793,14 +793,14 @@ operator<<(NdbOut& out, const Col& col)
 // ICol - index column
 
 struct ICol {
-  const class ITab& m_itab;
+  const struct ITab& m_itab;
   uint m_num;
   const Col& m_col;
-  ICol(const class ITab& itab, uint num, const Col& col);
+  ICol(const struct ITab& itab, uint num, const Col& col);
   ~ICol();
 };
 
-ICol::ICol(const class ITab& itab, uint num, const Col& col) :
+ICol::ICol(const struct ITab& itab, uint num, const Col& col) :
   m_itab(itab),
   m_num(num),
   m_col(col)
@@ -825,18 +825,18 @@ struct ITab {
     OrderedIndex = NdbDictionary::Index::OrderedIndex,
     UniqueHashIndex = NdbDictionary::Index::UniqueHashIndex
   };
-  const class Tab& m_tab;
+  const struct Tab& m_tab;
   const char* m_name;
   Type m_type;
   uint m_icols;
   const ICol** m_icol;
   uint m_keymask;
-  ITab(const class Tab& tab, const char* name, Type type, uint icols);
+  ITab(const struct Tab& tab, const char* name, Type type, uint icols);
   ~ITab();
   void icoladd(uint k, const ICol* icolptr);
 };
 
-ITab::ITab(const class Tab& tab, const char* name, Type type, uint icols) :
+ITab::ITab(const struct Tab& tab, const char* name, Type type, uint icols) :
   m_tab(tab),
   m_name(strcpy(new char [strlen(name) + 1], name)),
   m_type(type),
