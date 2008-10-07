@@ -983,6 +983,8 @@ static void smart_dbt_callback_rowread(DBT const *key, DBT  const *row, void *co
 // Smart DBT callback function in c_getf_heavi, in case where we have a covering index, 
 //
 static void smart_dbt_callback_keyread_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
+    SMART_DBT_INFO info = (SMART_DBT_INFO)context;
+    info->ha->heavi_ret_val = r_h;
     smart_dbt_callback_keyread(key,row,context);
 }
 
@@ -990,6 +992,8 @@ static void smart_dbt_callback_keyread_heavi(DBT const *key, DBT  const *row, vo
 // Smart DBT callback function in c_getf_heavi, in case where we do NOT have a covering index
 //
 static void smart_dbt_callback_rowread_heavi(DBT const *key, DBT  const *row, void *context, int r_h) {
+    SMART_DBT_INFO info = (SMART_DBT_INFO)context;
+    info->ha->heavi_ret_val = r_h;
     smart_dbt_callback_rowread(key,row,context);
 }
 
@@ -3086,8 +3090,9 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         if (error == 0) {
             DBT orig_key;
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
-            if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key))
+            if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key)) {
                 error = DB_NOTFOUND;
+            }
         }
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
@@ -3116,8 +3121,9 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         if (error == 0) {
             DBT orig_key; 
             pack_key(&orig_key, active_index, key_buff2, key, key_len, COL_NEG_INF);
-            if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
+            if (tokudb_prefix_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0) {
                 error = cursor->c_get(cursor, &last_key, &row, DB_PREV);
+            }
         }
         else if (error == DB_NOTFOUND)
             error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
@@ -3129,6 +3135,18 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
             prefix_last_or_prev_heavi, &heavi_info, 
             -1
             );
+        do_read_row = false;
+        break;
+    case HA_READ_PREFIX_LAST:
+        error = cursor->c_getf_heavi(
+            cursor, 0, 
+            key_read ? smart_dbt_callback_keyread_heavi : smart_dbt_callback_rowread_heavi, &info,
+            prefix_last_or_prev_heavi, &heavi_info, 
+            -1
+            );
+        if (!error && heavi_ret_val != 0) {
+            error = DB_NOTFOUND;
+        }
         do_read_row = false;
         break;
     default:
