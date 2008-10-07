@@ -1,0 +1,76 @@
+--- mysql-test/r/information_schema.result.orig	2008-08-04 09:27:49.000000000 +0300
++++ mysql-test/r/information_schema.result	2008-10-07 11:21:51.000000000 +0300
+@@ -64,6 +64,13 @@ TABLE_PRIVILEGES
+ TRIGGERS
+ USER_PRIVILEGES
+ VIEWS
++INNODB_CMP_RESET
++INNODB_TRX
++INNODB_CMPMEM_RESET
++INNODB_LOCK_WAITS
++INNODB_CMPMEM
++INNODB_CMP
++INNODB_LOCKS
+ columns_priv
+ db
+ event
+@@ -795,6 +802,8 @@ TABLES	CREATE_TIME	datetime
+ TABLES	UPDATE_TIME	datetime
+ TABLES	CHECK_TIME	datetime
+ TRIGGERS	CREATED	datetime
++INNODB_TRX	trx_started	datetime
++INNODB_TRX	trx_wait_started	datetime
+ event	execute_at	datetime
+ event	last_executed	datetime
+ event	starts	datetime
+@@ -848,7 +857,7 @@ delete from mysql.db where user='mysqlte
+ flush privileges;
+ SELECT table_schema, count(*) FROM information_schema.TABLES where table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+ table_schema	count(*)
+-information_schema	28
++information_schema	35
+ mysql	22
+ create table t1 (i int, j int);
+ create trigger trg1 before insert on t1 for each row
+@@ -1263,6 +1272,13 @@ TABLE_PRIVILEGES	TABLE_SCHEMA
+ TRIGGERS	TRIGGER_SCHEMA
+ USER_PRIVILEGES	GRANTEE
+ VIEWS	TABLE_SCHEMA
++INNODB_CMP_RESET	page_size
++INNODB_TRX	trx_id
++INNODB_CMPMEM_RESET	page_size
++INNODB_LOCK_WAITS	requesting_trx_id
++INNODB_CMPMEM	page_size
++INNODB_CMP	page_size
++INNODB_LOCKS	lock_id
+ SELECT t.table_name, c1.column_name
+ FROM information_schema.tables t
+ INNER JOIN
+@@ -1306,6 +1322,13 @@ TABLE_PRIVILEGES	TABLE_SCHEMA
+ TRIGGERS	TRIGGER_SCHEMA
+ USER_PRIVILEGES	GRANTEE
+ VIEWS	TABLE_SCHEMA
++INNODB_CMP_RESET	page_size
++INNODB_TRX	trx_id
++INNODB_CMPMEM_RESET	page_size
++INNODB_LOCK_WAITS	requesting_trx_id
++INNODB_CMPMEM	page_size
++INNODB_CMP	page_size
++INNODB_LOCKS	lock_id
+ SELECT MAX(table_name) FROM information_schema.tables;
+ MAX(table_name)
+ VIEWS
+@@ -1382,6 +1405,13 @@ EVENTS	information_schema.EVENTS	1
+ FILES	information_schema.FILES	1
+ GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
+ GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
++INNODB_CMP	information_schema.INNODB_CMP	1
++INNODB_CMPMEM	information_schema.INNODB_CMPMEM	1
++INNODB_CMPMEM_RESET	information_schema.INNODB_CMPMEM_RESET	1
++INNODB_CMP_RESET	information_schema.INNODB_CMP_RESET	1
++INNODB_LOCKS	information_schema.INNODB_LOCKS	1
++INNODB_LOCK_WAITS	information_schema.INNODB_LOCK_WAITS	1
++INNODB_TRX	information_schema.INNODB_TRX	1
+ KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+ PARTITIONS	information_schema.PARTITIONS	1
+ PLUGINS	information_schema.PLUGINS	1
