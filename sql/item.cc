@@ -1217,10 +1217,12 @@ Item_name_const::Item_name_const(Item *name_arg, Item *val):
   if (!(valid_args= name_item->basic_const_item() &&
                     (value_item->basic_const_item() ||
                      ((value_item->type() == FUNC_ITEM) &&
-                      (((Item_func *) value_item)->functype() ==
-                                                 Item_func::NEG_FUNC) &&
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::COLLATE_FUNC) ||
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::NEG_FUNC) &&
                       (((Item_func *) value_item)->key_item()->type() !=
-                       FUNC_ITEM)))))
+                         FUNC_ITEM)))))))
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
   Item::maybe_null= TRUE;
 }
