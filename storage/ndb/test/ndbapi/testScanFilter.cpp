@@ -259,7 +259,7 @@ int get_rand_op_ch(char *ch)
   static unsigned int num = 0;
   if(++num == 0) 
     num = 1;
-  srand(num*time(NULL));
+  srand(num*(unsigned int)time(NULL));
   *ch = op_string[rand() % op_len];
   return 1;
 }
@@ -273,9 +273,9 @@ void change_col_order()
   char temp;
   for (int i = 0; i < 10; i++)  //exchange for 10 times
   {
-    srand(time(NULL)/(i+1));
+    srand((unsigned int)time(NULL)/(i+1));
     pos1 = rand() % col_len;
-    srand((i+1)*time(NULL));
+    srand((i+1)*(unsigned int)time(NULL));
     pos2 = rand() % col_len;
     if (pos1 == pos2)
       continue;
@@ -294,7 +294,7 @@ int get_rand_col_str(char *str)
   static unsigned int num = 0;
   if(++num == 0) 
     num = 1;
-  srand(num*time(NULL));
+  srand(num*(unsigned int)time(NULL));
   len = rand() % col_len + 1;
   change_col_order();
   BaseString::snprintf(str, len+1, "%s", col_string);  //len+1, including '\0'
@@ -403,7 +403,7 @@ int get_rand_replace_pos(char *str, int len)
   }
   else
   {
-    srand(num*time(NULL));
+    srand(num*(unsigned int)time(NULL));
     pos_col = pos_op + rand() % span + 1;
   }
   return pos_col;
@@ -450,7 +450,7 @@ void get_rand_op_str_compound(char *str)
   if(++num == 0)
     num = 1;
 
-  srand(num*time(NULL));
+  srand(num*(unsigned int)time(NULL));
   level = 1 + rand() % RECURSIVE_LEVEL;
  
   get_rand_op_str(str);
