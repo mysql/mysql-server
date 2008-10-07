@@ -1573,7 +1573,7 @@ struct KeyReqStruct {
   OperationrecPtr prevOpPtr;
 };
 
-  friend class Undo_buffer;
+  friend struct Undo_buffer;
   Undo_buffer c_undo_buffer;
   
 /*
@@ -1714,7 +1714,9 @@ private:
   // Drop table
   void execFSREMOVEREF(Signal*);
   void execFSREMOVECONF(Signal*);
-  
+
+  void execDBINFO_SCANREQ(Signal*);
+
 //------------------------------------------------------------------
 //------------------------------------------------------------------
 // Methods to handle execution of TUPKEYREQ + ATTRINFO.

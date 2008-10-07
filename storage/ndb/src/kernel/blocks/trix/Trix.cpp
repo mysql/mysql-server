@@ -34,6 +34,11 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
+
 #define CONSTRAINT_VIOLATION 893
 
 #define DEBUG(x) { ndbout << "TRIX::" << x << endl; }
@@ -61,6 +66,7 @@ Trix::Trix(Block_context& ctx) :
   addRecSignal(GSN_NODE_FAILREP, &Trix::execNODE_FAILREP);
   addRecSignal(GSN_INCL_NODEREQ, &Trix::execINCL_NODEREQ);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trix::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Trix::execDBINFO_SCANREQ);
 
   // Index build
   addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Trix::execBUILD_INDX_IMPL_REQ);
@@ -465,6 +471,52 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
+}
+
+void Trix::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  char buf[512];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  {
+    struct {
+      const char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Attribute Order Buffer",
+           c_theAttrOrderBufferPool.getNoOfFree(),
+           c_theAttrOrderBufferPool.getSize() },
+          {"Subscription Record",
+           c_theSubscriptionRecPool.getNoOfFree(),
+           c_theSubscriptionRecPool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      const char *blockname= "TRIX";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
 }
 
 // Build index

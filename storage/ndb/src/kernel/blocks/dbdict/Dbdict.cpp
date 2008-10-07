@@ -94,6 +94,11 @@ extern EventLogger * g_eventLogger;
 #include <signaldata/SchemaTrans.hpp>
 #include <DebuggerNames.hpp>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
+
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
 
@@ -257,6 +262,119 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
 
 
 }//Dbdict::execDUMP_STATE_ORD()
+
+void Dbdict::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  char buf[512];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+
+  jamEntry();
+
+  if(req.tableId == NDBINFO_POOLS_TABLEID)
+  {
+    struct {
+      const char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Attribute Record",
+           c_attributeRecordPool.getNoOfFree(),
+           c_attributeRecordPool.getSize() },
+          {"Table Record",
+           c_tableRecordPool.getNoOfFree(),
+           c_tableRecordPool.getSize() },
+          {"Trigger Record",
+           c_triggerRecordPool.getNoOfFree(),
+           c_triggerRecordPool.getSize() },
+          {"FS Connect Record",
+           c_fsConnectRecordPool.getNoOfFree(),
+           c_fsConnectRecordPool.getSize() },
+          {"DictObject",
+           c_obj_pool.getNoOfFree(),
+           c_obj_pool.getSize() },
+          {"Schema Operation",
+           c_schemaOpPool.getNoOfFree(),
+           c_schemaOpPool.getSize() },
+          {"Schema Transaction",
+           c_schemaTransPool.getNoOfFree(),
+           c_schemaTransPool.getSize() },
+          {"Transaction Handle",
+           c_txHandlePool.getNoOfFree(),
+           c_txHandlePool.getSize() },
+          {"Create Table Record",
+           c_createTableRecPool.getNoOfFree(),
+           c_createTableRecPool.getSize() },
+          {"Drop Table Record",
+           c_dropTableRecPool.getNoOfFree(),
+           c_dropTableRecPool.getSize() },
+          {"Alter Table Record",
+           c_alterTableRecPool.getNoOfFree(),
+           c_alterTableRecPool.getSize() },
+          {"Create Index Record",
+           c_createIndexRecPool.getNoOfFree(),
+           c_createIndexRecPool.getSize() },
+          {"Drop Index Record",
+           c_dropIndexRecPool.getNoOfFree(),
+           c_dropIndexRecPool.getSize() },
+          {"Alter Index Record",
+           c_alterIndexRecPool.getNoOfFree(),
+           c_alterIndexRecPool.getSize() },
+          {"Build Index Record",
+           c_buildIndexRecPool.getNoOfFree(),
+           c_buildIndexRecPool.getSize() },
+          {"Create Hash Map Record",
+           c_createHashMapRecPool.getNoOfFree(),
+           c_createHashMapRecPool.getSize() },
+          {"Copy Data Record",
+           c_copyDataRecPool.getNoOfFree(),
+           c_copyDataRecPool.getSize() },
+          {"Create Trigger Record",
+           c_createTriggerRecPool.getNoOfFree(),
+           c_createTriggerRecPool.getSize() },
+          {"Drop Trigger Record",
+           c_dropTriggerRecPool.getNoOfFree(),
+           c_dropTriggerRecPool.getSize() },
+          {"Create Filegroup Record",
+           c_createFilegroupRecPool.getNoOfFree(),
+           c_createFilegroupRecPool.getSize() },
+          {"Create File Record",
+           c_createFileRecPool.getNoOfFree(),
+           c_createFileRecPool.getSize() },
+          {"Drop Filegroup Record",
+           c_dropFilegroupRecPool.getNoOfFree(),
+           c_dropFilegroupRecPool.getSize() },
+          {"Drop File Record",
+           c_dropFileRecPool.getNoOfFree(),
+           c_dropFileRecPool.getSize() },
+          {"Operation Record",
+           c_opRecordPool.getNoOfFree(),
+           c_opRecordPool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      const char *blockname= "DBDICT";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, DbinfoScanReq::SignalLengthWithCursor * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
+}
+
 
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
@@ -1659,6 +1777,8 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_GET_TABLEID_REQ, &Dbdict::execGET_TABLEDID_REQ);
   addRecSignal(GSN_GET_TABINFO_CONF, &Dbdict::execGET_TABINFO_CONF);
   addRecSignal(GSN_CONTINUEB, &Dbdict::execCONTINUEB);
+
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbdict::execDBINFO_SCANREQ);
 
   addRecSignal(GSN_CREATE_TABLE_REQ, &Dbdict::execCREATE_TABLE_REQ);
   addRecSignal(GSN_CREATE_TAB_REQ, &Dbdict::execCREATE_TAB_REQ);

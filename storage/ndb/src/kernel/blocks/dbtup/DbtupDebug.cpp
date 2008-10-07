@@ -25,6 +25,12 @@
 #include <signaldata/EventReport.hpp>
 #include <Vector.hpp>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <ndbinfo.h>
+#include <dbinfo/ndbinfo_tableids.h>
+
+
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* ------------------------ DEBUG MODULE -------------------------- */
@@ -72,6 +78,92 @@ Dbtup::reportMemoryUsage(Signal* signal, int incDec){
   signal->theData[4] = c_no_of_pages;
   signal->theData[5] = DBTUP;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
+}
+
+void Dbtup::execDBINFO_SCANREQ(Signal* signal)
+{
+  jamEntry();
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Uint32 reqlength= signal->getLength();
+
+  const Uint32 tableId= req.tableId;
+
+  const Uint32 senderRef= req.senderRef;
+  const Uint32 apiTxnId= req.apiTxnId;
+  const Uint32 colBitmapLo= req.colBitmapLo;
+  const Uint32 colBitmapHi= req.colBitmapHi;
+
+  char buf[1024];
+  struct dbinfo_row r;
+  struct dbinfo_ratelimit rl;
+
+  dbinfo_ratelimit_init(&rl, &req);
+
+  if(tableId == NDBINFO_MEMUSAGE_TABLEID)
+  {
+    jam();
+    dbinfo_write_row_init(&r, buf, sizeof(buf));
+    dbinfo_write_row_column(&r, "DataMemory", 10);
+    dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+    Uint32 page_size_kb= sizeof(Page);;
+    dbinfo_write_row_column(&r, (char*)&page_size_kb, 4); // 8kb
+    dbinfo_write_row_column_uint32(&r, cnoOfAllocatedPages); // alloced pages
+    dbinfo_write_row_column_uint32(&r, c_no_of_pages); // number of pages
+    dbinfo_write_row_column(&r, "DBTUP", 5);
+    ndbout_c("dbinfo tidai to %lx",senderRef);
+    dbinfo_send_row(signal,r,rl,apiTxnId,senderRef);
+  }
+  else if(req.tableId == NDBINFO_POOLS_TABLEID)
+  {
+    struct {
+      const char* poolname;
+      Uint32 free;
+      Uint32 size;
+    } pools[] =
+        {
+          {"Scan Lock",
+           c_scanLockPool.getNoOfFree(),
+           c_scanLockPool.getSize() },
+          {"Scan Operation",
+           c_scanOpPool.getNoOfFree(),
+           c_scanOpPool.getSize() },
+          {"Trigger",
+           c_triggerPool.getNoOfFree(),
+           c_triggerPool.getSize() },
+          {"Stored Proc",
+           c_storedProcPool.getNoOfFree(),
+           c_storedProcPool.getSize() },
+          {"Build Index",
+           c_buildIndexPool.getNoOfFree(),
+           c_buildIndexPool.getSize() },
+          {"Operation",
+           c_operation_pool.getNoOfFree(),
+           c_operation_pool.getSize() },
+          {"Page",
+           c_page_pool.getNoOfFree(),
+           c_page_pool.getSize() },
+          { NULL, 0, 0}
+        };
+
+    for(int i=0; pools[i].poolname; i++)
+    {
+      dbinfo_write_row_init(&r, buf, sizeof(buf));
+      dbinfo_write_row_column_uint32(&r, getOwnNodeId());
+      const char *blockname= "DBTUP";
+      dbinfo_write_row_column(&r, blockname, strlen(blockname));
+      dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
+      dbinfo_write_row_column_uint32(&r, pools[i].free);
+      dbinfo_write_row_column_uint32(&r, pools[i].size);
+      dbinfo_send_row(signal, r, rl, req.apiTxnId, req.senderRef);
+    }
+  }
+
+  DbinfoScanConf *conf= (DbinfoScanConf*)signal->getDataPtrSend();
+  memcpy(conf,&req, reqlength * sizeof(Uint32));
+  conf->requestInfo &= ~(DbinfoScanConf::MoreData);
+  sendSignal(DBINFO_REF, GSN_DBINFO_SCANCONF,
+             signal, DbinfoScanConf::SignalLengthWithCursor, JBB);
+  ndbout_c("DBTUP done doing DBINFO");
 }
 
 #ifdef VM_TRACE
