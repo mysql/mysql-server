@@ -102,7 +102,7 @@ main(int argc, const char** argv){
     return NDBT_WRONGARGS;
   }
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
   Ndb_cluster_connection con;
   if(con.connect(12, 5, 1))
