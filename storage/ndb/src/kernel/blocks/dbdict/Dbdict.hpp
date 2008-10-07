@@ -684,6 +684,7 @@ private:
   void execCONTINUEB(Signal* signal);
 
   void execDUMP_STATE_ORD(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal);
   void execHOT_SPAREREP(Signal* signal);
   void execDIADDTABCONF(Signal* signal);
   void execDIADDTABREF(Signal* signal);

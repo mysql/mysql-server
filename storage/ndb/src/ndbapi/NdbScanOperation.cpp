@@ -1551,7 +1551,7 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
     theData[0] = theNdbCon->theTCConPtr;
     theData[1] = stopScanFlag == true ? 1 : 0;
     Uint64 transId = theNdbCon->theTransactionId;
-    theData[2] = transId;
+    theData[2] = (Uint32) transId;
     theData[3] = (Uint32) (transId >> 32);
     
     /**
@@ -3230,7 +3230,7 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
   theData[0] = theNdbCon->theTCConPtr;
   theData[1] = 0;
   Uint64 transId = theNdbCon->theTransactionId;
-  theData[2] = transId;
+  theData[2] = (Uint32) transId;
   theData[3] = (Uint32) (transId >> 32);
   
   /**

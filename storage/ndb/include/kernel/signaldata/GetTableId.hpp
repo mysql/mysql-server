@@ -27,8 +27,7 @@ class GetTableIdReq {
    */
   // Blocks
   friend class Dbdict;
-  friend class SumaParticipant;
-  
+
   friend bool printGET_TABLEID_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
   STATIC_CONST( SignalLength = 3 );
@@ -49,7 +48,7 @@ class GetTableIdRef {
    */
   // Blocks
   friend class Dbdict;
-  friend class SumaParticipant;
+
   friend bool printGET_TABLEID_REF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
   STATIC_CONST( SignalLength = 3 );
@@ -76,7 +75,7 @@ class GetTableIdConf {
    */
   // Blocks
   friend class Dbdict;
-  friend class SumaParticipant;
+
   friend bool printGET_TABLEID_CONF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
   STATIC_CONST( SignalLength = 4 );

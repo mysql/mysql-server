@@ -2883,8 +2883,6 @@ Dbtup::dump_tuple(const KeyReqStruct* req_struct, const Tablerec* tabPtrP)
   Uint32 fix_len;
   const Uint32 *var_p;
   Uint32 var_len;
-  const Uint32 *disk_p;
-  Uint32 disk_len;
   const char *typ;
 
   fix_p= tuple_words;

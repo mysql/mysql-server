@@ -30,7 +30,8 @@ ndb_mgmd_SOURCES = \
 	MgmtSrvrConfig.cpp \
 	ConfigInfo.cpp \
 	InitConfigFileParser.cpp \
-	Config.cpp
+	Config.cpp \
+	mgm_ndbinfo.cpp
 
 
 noinst_PROGRAMS = testConfig

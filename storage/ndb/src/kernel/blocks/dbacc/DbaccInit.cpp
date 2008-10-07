@@ -118,6 +118,8 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbacc::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
 
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
+
   initData();
 
 #ifdef VM_TRACE
