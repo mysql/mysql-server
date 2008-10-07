@@ -335,6 +335,7 @@ ParserImpl::parseArg(Context * ctx,
   }
 
   abort();
+  return false;
 }
 
 bool
