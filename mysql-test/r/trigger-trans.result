@@ -161,3 +161,30 @@ SELECT @a, @b;
 1	1
 DROP TABLE t2, t1;
 End of 5.0 tests
+BUG#31612
+Trigger fired multiple times leads to gaps in auto_increment sequence
+create table t1 (a int, val char(1)) engine=InnoDB;
+create table t2 (b int auto_increment primary key,
+val char(1)) engine=InnoDB;
+create trigger t1_after_insert after
+insert on t1 for each row insert into t2 set val=NEW.val;
+insert into t1 values ( 123, 'a'), ( 123, 'b'), ( 123, 'c'),
+(123, 'd'), (123, 'e'), (123, 'f'), (123, 'g');
+insert into t1 values ( 654, 'a'), ( 654, 'b'), ( 654, 'c'),
+(654, 'd'), (654, 'e'), (654, 'f'), (654, 'g');
+select * from t2 order by b;
+b	val
+1	a
+2	b
+3	c
+4	d
+5	e
+6	f
+7	g
+8	a
+9	b
+10	c
+11	d
+12	e
+13	f
+14	g
