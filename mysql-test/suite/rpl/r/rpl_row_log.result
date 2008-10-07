@@ -113,7 +113,6 @@ Aberdeen
 Abernathy
 aberrant
 aberration
-include/start_slave.inc
 select * from t1 order by 1 asc;
 word
 Aarhus
@@ -305,4 +304,5 @@ a	b
 1	1
 5	1
 6	1
+drop table t1;
 drop table t1;
