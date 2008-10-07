@@ -1804,14 +1804,16 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
     We need to copy db_name, table_name and field_name because they must
     be allocated in the statement memory, not in table memory (the table
     structure can go away and pop up again between subsequent executions
-    of a prepared statement).
+    of a prepared statement or after the close_tables_for_reopen() call
+    in mysql_multi_update_prepare()).
   */
-  if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
   {
     if (db_name)
       orig_db_name= thd->strdup(db_name);
-    orig_table_name= thd->strdup(table_name);
-    orig_field_name= thd->strdup(field_name);
+    if (table_name)
+      orig_table_name= thd->strdup(table_name);
+    if (field_name)
+      orig_field_name= thd->strdup(field_name);
     /*
       We don't restore 'name' in cleanup because it's not changed
       during execution. Still we need it to point to persistent
