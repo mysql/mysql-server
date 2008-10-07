@@ -1653,7 +1653,7 @@ runBug28443(NDBT_Context* ctx, NDBT_Step* step)
 
   restarter.insertErrorInAllNodes(9003);
 
-  for (Uint32 i = 0; i<ctx->getNumLoops(); i++)
+  for (int i = 0; i<ctx->getNumLoops(); i++)
   {
     HugoTransactions hugoTrans(*ctx->getTab());
     if (hugoTrans.loadTable(GETNDB(step), records, 2048) != 0)
@@ -1680,7 +1680,7 @@ runBug37158(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   Ndb* pNdb = GETNDB(step);
 
-  for (Uint32 i = 0; i<ctx->getNumLoops(); i++)
+  for (int i = 0; i<ctx->getNumLoops(); i++)
   {
     HugoOperations hugoOps(*ctx->getTab());
     hugoOps.startTransaction(pNdb);
