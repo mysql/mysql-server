@@ -83,7 +83,7 @@ ndbcluster_global_schema_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
       gettimeofday(&time_now, 0);
       if ((time_end.tv_sec < time_now.tv_sec) ||
           (time_end.tv_sec == time_now.tv_sec && time_end.tv_usec < time_now.tv_usec))
-        break; // terminate
+        goto error_handler;
     }
     if (trans)
     {
