@@ -961,7 +961,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
                               "DATA DIRECTORY");
         if (part_elem->index_file_name)
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                              WARN_OPTION_IGNORED,ER(WARN_OPTION_IGNORED),
+                              WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                               "INDEX DIRECTORY");
         part_elem->data_file_name= part_elem->index_file_name= NULL;
       }
