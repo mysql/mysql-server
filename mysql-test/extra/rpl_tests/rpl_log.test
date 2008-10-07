@@ -70,11 +70,7 @@ eval create table t3 (a int)ENGINE=$engine_type;
 connection master;
 select * from t1 order by 1 asc;
 
-save_master_pos;
-connection slave;
-source include/start_slave.inc;
-
-sync_with_master;
+sync_slave_with_master;
 #check t1 on slave to ensure whether it's identical with on master
 select * from t1 order by 1 asc;
 flush logs;
@@ -142,4 +138,4 @@ drop table t1;
 # End of 4.1 tests
 
 sync_slave_with_master;
-
+drop table t1;
