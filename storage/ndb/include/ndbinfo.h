@@ -119,7 +119,8 @@ struct dbinfo_ratelimit {
   Uint32 bytes;
 };
 
-void dbinfo_ratelimit_init(struct dbinfo_ratelimit *rl, struct DbinfoScanReq *r);
+struct DbinfoScanReq;
+void dbinfo_ratelimit_init(struct dbinfo_ratelimit *rl, struct DbinfoScanReq *);
 
 int dbinfo_ratelimit_continue(struct dbinfo_ratelimit *rl);
 
