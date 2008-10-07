@@ -502,7 +502,7 @@ master-bin.000001	#	Query	1	#	use `test`; DROP TABLE IF EXISTS t1
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1(col VARCHAR(10))
 master-bin.000001	#	Query	1	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(arg VARCHAR(10))
 INSERT INTO t1 VALUES(arg)
-master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES( NAME_CONST('arg',_latin1'test'))
+master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES( NAME_CONST('arg',_latin1'test' COLLATE 'latin1_swedish_ci'))
 master-bin.000001	#	Query	1	#	use `test`; DROP PROCEDURE p1
 master-bin.000001	#	Query	1	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 SET @a = 1
@@ -841,7 +841,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(arg VARCHAR(10))
 INSERT INTO t1 VALUES(arg)
 /*!*/;
 SET TIMESTAMP=t/*!*/;
-INSERT INTO t1 VALUES( NAME_CONST('arg',_latin1'test'))
+INSERT INTO t1 VALUES( NAME_CONST('arg',_latin1'test' COLLATE 'latin1_swedish_ci'))
 /*!*/;
 SET TIMESTAMP=t/*!*/;
 DROP PROCEDURE p1
