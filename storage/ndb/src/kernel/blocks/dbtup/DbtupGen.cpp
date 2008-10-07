@@ -43,6 +43,9 @@ void Dbtup::initData()
   c_maxTriggersPerTable = ZDEFAULT_MAX_NO_TRIGGERS_PER_TABLE;
   c_noOfBuildIndexRec = 32;
 
+  cCopyProcedure = RNIL;
+  cCopyLastSeg = RNIL;
+
   // Records with constant sizes
   init_list_sizes();
   cpackedListIndex = 0;
