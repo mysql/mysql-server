@@ -1118,7 +1118,7 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   
   const NdbDictionary::Table * tab = ctx->getTab();
-  Uint32 i;
+  int i;
   int bits = TupError::TE_MULTI_OP;
   for(i = 0; i<tab->getNoOfColumns(); i++)
   {
@@ -1441,7 +1441,7 @@ template class Vector<Uint64>;
 int
 runBug20535(NDBT_Context* ctx, NDBT_Step* step)
 {
-  Uint32 i;
+  int i;
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table * tab = ctx->getTab();
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
