@@ -2482,7 +2482,7 @@ ndb_mgm_set_int64_parameter(NdbMgmHandle handle,
   Properties args;
   args.put("node", node);
   args.put("param", param);
-  args.put("value", value);
+  args.put64("value", value);
   
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("set parameter reply", NULL, ""),
@@ -2933,7 +2933,7 @@ ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,
   CHECK_CONNECTED(handle, 0);
 
   Properties args;
-  args.put("id", id);
+  args.put("id", (Uint32)id);
 
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("get session reply", NULL, ""),
@@ -3149,7 +3149,7 @@ ndb_mgm_ndbinfo(NdbMgmHandle handle, const char* query, int *rows)
   prop = ndb_mgm_call(handle, reply, "ndbinfo", &args);
   CHECK_REPLY(handle, prop, 0);
 
-  Uint64 ndbinfo_err=0;
+  Uint32 ndbinfo_err=0;
 
   if(!prop->get("error",&ndbinfo_err)){
     fprintf(handle->errstream, "Unable to get error\n");
