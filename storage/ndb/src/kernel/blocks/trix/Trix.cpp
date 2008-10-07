@@ -485,7 +485,7 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
   if(req.tableId == NDBINFO_POOLS_TABLEID)
   {
     struct {
-      char* poolname;
+      const char* poolname;
       Uint32 free;
       Uint32 size;
     } pools[] =
@@ -503,7 +503,7 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
     {
       dbinfo_write_row_init(&r, buf, sizeof(buf));
       dbinfo_write_row_column_uint32(&r, getOwnNodeId());
-      char *blockname= "TRIX";
+      const char *blockname= "TRIX";
       dbinfo_write_row_column(&r, blockname, strlen(blockname));
       dbinfo_write_row_column(&r, pools[i].poolname, strlen(pools[i].poolname));
       dbinfo_write_row_column_uint32(&r, pools[i].free);
