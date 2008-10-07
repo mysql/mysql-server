@@ -1,0 +1,25 @@
+--- mysql-test/t/innodb_file_per_table_basic.test.orig	2008-10-07 11:32:30.000000000 +0300
++++ mysql-test/t/innodb_file_per_table_basic.test	2008-10-07 11:52:14.000000000 +0300
+@@ -37,10 +37,6 @@
+ #   Check if Value can set                                         #
+ ####################################################################
+ 
+---error ER_INCORRECT_GLOBAL_LOCAL_VAR
+-SET @@GLOBAL.innodb_file_per_table=1;
+---echo Expected error 'Read only variable'
+-
+ SELECT COUNT(@@GLOBAL.innodb_file_per_table);
+ --echo 1 Expected
+ 
+--- mysql-test/r/innodb_file_per_table_basic.result.orig	2008-10-07 11:32:02.000000000 +0300
++++ mysql-test/r/innodb_file_per_table_basic.result	2008-10-07 11:52:47.000000000 +0300
+@@ -4,9 +4,6 @@
+ 1
+ 1 Expected
+ '#---------------------BS_STVARS_028_02----------------------#'
+-SET @@GLOBAL.innodb_file_per_table=1;
+-ERROR HY000: Variable 'innodb_file_per_table' is a read only variable
+-Expected error 'Read only variable'
+ SELECT COUNT(@@GLOBAL.innodb_file_per_table);
+ COUNT(@@GLOBAL.innodb_file_per_table)
+ 1
