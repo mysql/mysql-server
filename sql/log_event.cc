@@ -3350,6 +3350,17 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
       close_temporary_tables(thd);
       cleanup_load_tmpdir();
     }
+    else
+    {
+      /*
+        Set all temporary tables thread references to the current thread
+        as they may point to the "old" SQL slave thread in case of its
+        restart.
+      */
+      TABLE *table;
+      for (table= thd->temporary_tables; table; table= table->next)
+        table->in_use= thd;
+    }
     break;
 
     /*
