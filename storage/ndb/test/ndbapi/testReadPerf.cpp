@@ -115,7 +115,7 @@ main(int argc, const char** argv){
     return NDBT_WRONGARGS;
   }
   
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   memset(g_times, 0, sizeof(g_times));
 
   Ndb_cluster_connection con;
@@ -143,7 +143,7 @@ main(int argc, const char** argv){
       goto error;
     if(load_table())
       goto error;
-    for(int l = 0; l<g_paramters[P_LOOPS].value; l++){
+    for(unsigned int l = 0; l<g_paramters[P_LOOPS].value; l++){
       for(int j = 0; j<P_OP_TYPES; j++){
 	g_paramters[P_OPER].value = j;
 	if(run_read())
@@ -178,7 +178,7 @@ create_table(){
     x.setTable(g_table);
     x.setType(NdbDictionary::Index::OrderedIndex);
     x.setLogging(false);
-    for (unsigned k = 0; k < copy.getNoOfColumns(); k++){
+    for (int k = 0; k < copy.getNoOfColumns(); k++){
       if(copy.getColumn(k)->getPrimaryKey()){
 	x.addColumn(copy.getColumn(k)->getName());
       }
