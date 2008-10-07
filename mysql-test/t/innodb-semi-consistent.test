@@ -10,6 +10,7 @@ drop table if exists t1;
 connect (a,localhost,root,,);
 connect (b,localhost,root,,);
 connection a;
+set binlog_format=mixed;
 set session transaction isolation level read committed;
 create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
 insert into t1 values (1),(2),(3),(4),(5),(6),(7);
@@ -17,6 +18,7 @@ set autocommit=0;
 # this should lock the entire table
 select * from t1 where a=3 lock in share mode;
 connection b;
+set binlog_format=mixed;
 set session transaction isolation level read committed;
 set autocommit=0;
 -- error ER_LOCK_WAIT_TIMEOUT

@@ -259,6 +259,32 @@ SET GLOBAL slow_query_log_file = @slow_query_log_file_saved;
 
 ###########################################################################
 
+
+
+## WL#4403 - deprecate @log and @slow_log_queries variables
+
+## these are all deprecated -- show for command-line as well!
+--echo deprecated:
+SET GLOBAL log = 0;
+SET GLOBAL log_slow_queries = 0;
+SET GLOBAL log = DEFAULT;
+SET GLOBAL log_slow_queries = DEFAULT;
+
+## these are NOT deprecated
+--echo not deprecated:
+SELECT @@global.general_log_file INTO @my_glf;
+SELECT @@global.slow_query_log_file INTO @my_sqlf;
+SET GLOBAL general_log = 0;
+SET GLOBAL slow_query_log = 0;
+SET GLOBAL general_log_file = 'WL4403_G.log';
+SET GLOBAL slow_query_log_file = 'WL4403_SQ.log';
+SET GLOBAL general_log_file = @my_glf;
+SET GLOBAL slow_query_log_file = @my_sqlf;
+SET GLOBAL general_log = DEFAULT;
+SET GLOBAL slow_query_log = DEFAULT;
+
+
+
 --echo End of 5.1 tests
 
 --enable_ps_protocol
