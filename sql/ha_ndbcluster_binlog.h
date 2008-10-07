@@ -275,7 +275,6 @@ public:
   Ndbcluster_global_schema_lock_guard(THD *thd);
   ~Ndbcluster_global_schema_lock_guard();
   int lock();
-  void unlock();
 private:
   THD *m_thd;
   int m_lock;
