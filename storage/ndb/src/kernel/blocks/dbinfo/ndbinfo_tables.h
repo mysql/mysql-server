@@ -113,14 +113,16 @@ DECLARE_NDBINFO_TABLE(ndbinfo_POOLS,5)
 
 static Uint32 number_ndbinfo_tables= 7;
 
+#define DBINFOTBL(x) (struct ndbinfo_table*)&(x).t
+
 struct ndbinfo_table *ndbinfo_tables[] = {
-  &ndbinfo_TABLES.t,
-  &ndbinfo_COLUMNS.t,
-  &ndbinfo_MEMUSAGE.t,
-  &ndbinfo_LOGDESTINATION.t,
-  &ndbinfo_BACKUP_RECORDS.t,
-  &ndbinfo_BACKUP_PARAMETERS.t,
-  &ndbinfo_POOLS.t,
+  DBINFOTBL(ndbinfo_TABLES),
+  DBINFOTBL(ndbinfo_COLUMNS),
+  DBINFOTBL(ndbinfo_MEMUSAGE),
+  DBINFOTBL(ndbinfo_LOGDESTINATION),
+  DBINFOTBL(ndbinfo_BACKUP_RECORDS),
+  DBINFOTBL(ndbinfo_BACKUP_PARAMETERS),
+  DBINFOTBL(ndbinfo_POOLS),
 };
 
 #ifdef __cplusplus

@@ -32,16 +32,24 @@ struct ndbinfo_column {
 
 #define NDBINFO_CONSTANT_TABLE 0x1
 
-struct ndbinfo_table {
-  char name[50];
-  int ncols;
+#define NDBINFO_TABLE_MEMBERS \
+  char name[50]; \
+  int ncols; \
   int flags;
+
+struct ndbinfo_table {
+  NDBINFO_TABLE_MEMBERS
   struct ndbinfo_column col[];
+};
+
+/* because MSVC compiler hates you (or rather, zero length arrays) */
+struct ndbinfo_table_internal {
+  NDBINFO_TABLE_MEMBERS
 };
 
 #define DECLARE_NDBINFO_TABLE(var, num)         \
 struct ndbinfostruct##var {                      \
-  struct ndbinfo_table t;                       \
+  struct ndbinfo_table_internal t;                       \
   struct ndbinfo_column col[num];               \
 } var
 
