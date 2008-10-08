@@ -1,3 +1,4 @@
+diff mysql-test/t/innodb_file_per_table_basic.test.orig mysql-test/t/innodb_file_per_table_basic.test
 --- mysql-test/t/innodb_file_per_table_basic.test.orig	2008-10-07 11:32:30.000000000 +0300
 +++ mysql-test/t/innodb_file_per_table_basic.test	2008-10-07 11:52:14.000000000 +0300
 @@ -37,10 +37,6 @@
@@ -11,9 +12,19 @@
  SELECT COUNT(@@GLOBAL.innodb_file_per_table);
  --echo 1 Expected
  
+@@ -52,7 +48,7 @@
+ # Check if the value in GLOBAL Table matches value in variable  #
+ #################################################################
+ 
+-SELECT @@GLOBAL.innodb_file_per_table = VARIABLE_VALUE
++SELECT IF(@@GLOBAL.innodb_file_per_table,'ON','OFF') = VARIABLE_VALUE
+ FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ WHERE VARIABLE_NAME='innodb_file_per_table';
+ --echo 1 Expected
+diff mysql-test/t/innodb_file_per_table_basic.result.orig mysql-test/t/innodb_file_per_table_basic.result
 --- mysql-test/r/innodb_file_per_table_basic.result.orig	2008-10-07 11:32:02.000000000 +0300
 +++ mysql-test/r/innodb_file_per_table_basic.result	2008-10-07 11:52:47.000000000 +0300
-@@ -4,9 +4,6 @@
+@@ -4,18 +4,15 @@
  1
  1 Expected
  '#---------------------BS_STVARS_028_02----------------------#'
@@ -23,3 +34,14 @@
  SELECT COUNT(@@GLOBAL.innodb_file_per_table);
  COUNT(@@GLOBAL.innodb_file_per_table)
  1
+ 1 Expected
+ '#---------------------BS_STVARS_028_03----------------------#'
+-SELECT @@GLOBAL.innodb_file_per_table = VARIABLE_VALUE
++SELECT IF(@@GLOBAL.innodb_file_per_table,'ON','OFF') = VARIABLE_VALUE
+ FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ WHERE VARIABLE_NAME='innodb_file_per_table';
+-@@GLOBAL.innodb_file_per_table = VARIABLE_VALUE
++IF(@@GLOBAL.innodb_file_per_table,'ON','OFF') = VARIABLE_VALUE
+ 1
+ 1 Expected
+ SELECT COUNT(@@GLOBAL.innodb_file_per_table);
