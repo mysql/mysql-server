@@ -196,7 +196,7 @@
     progError(__LINE__, NDBD_EXIT_NDBASSERT, __FILE__); \
   }
 #else
-#define ndbassert(check)
+#define ndbassert(check) do { } while(0)
 #endif
 
 #define ndbrequireErr(check, error) \
