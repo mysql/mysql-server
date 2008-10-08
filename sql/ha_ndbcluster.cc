@@ -957,8 +957,14 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     my_free(ha->m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
     DBUG_PRINT("info", ("allocate blobs buffer size %u",
                         (uint32)(ha->m_blob_total_size)));
+	if(((size_t)ha->m_blob_total_size) != ha->m_blob_total_size)
+	{
+		ha->m_blobs_buffer= NULL;
+		ha->m_blobs_buffer_size= 0;
+		DBUG_RETURN(-1);
+	}
     ha->m_blobs_buffer=
-      (uchar*) my_malloc(ha->m_blob_total_size, MYF(MY_WME));
+      (uchar*) my_malloc((size_t)ha->m_blob_total_size, MYF(MY_WME));
     if (ha->m_blobs_buffer == NULL)
     {
       ha->m_blobs_buffer_size= 0;
@@ -995,7 +1001,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
         ERR_RETURN(ndb_blob->getNdbError());
       DBUG_ASSERT(len64 < 0xffffffff);
       uchar *buf= ha->m_blobs_buffer + offset;
-      uint32 len= ha->m_blobs_buffer_size - offset;
+	  uint32 len= (uint32)(ha->m_blobs_buffer_size - offset);
       if (ndb_blob->readData(buf, len) != 0)
           ERR_RETURN(ndb_blob->getNdbError());
       DBUG_PRINT("info", ("[%u] offset: %u  buf: 0x%lx  len=%u",
@@ -7474,7 +7480,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                                        ulonglong *first_value,
                                        ulonglong *nb_reserved_values)
 {
-  uint cache_size;
+  Uint32 cache_size;
   Uint64 auto_value;
   THD *thd= current_thd;
   DBUG_ENTER("get_auto_increment");
@@ -7486,14 +7492,14 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
     /* We guessed too low */
     m_rows_to_insert+= m_autoincrement_prefetch;
   }
-  uint remaining= m_rows_to_insert - m_rows_inserted;
-  uint min_prefetch= 
+  ha_rows remaining= m_rows_to_insert - m_rows_inserted;
+  Uint32 min_prefetch= 
     (remaining < thd->variables.ndb_autoincrement_prefetch_sz) ?
     thd->variables.ndb_autoincrement_prefetch_sz
-    : remaining;
+    : (Uint32)remaining;
   cache_size= ((remaining < m_autoincrement_prefetch) ?
 	       min_prefetch
-	       : remaining);
+	       : (Uint32)remaining);
   uint retries= NDB_AUTO_INCREMENT_RETRIES;
   int retry_sleep= 30; /* 30 milliseconds, transaction */
   for (;;)
@@ -10128,7 +10134,7 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
 
     ndbstat->row_count= sum_rows;
     ndbstat->commit_count= sum_commits;
-    ndbstat->row_size= sum_row_size;
+    ndbstat->row_size= (ulong)sum_row_size;
     ndbstat->fragment_memory= sum_mem;
 
     DBUG_PRINT("exit", ("records: %s  commits: %s "
@@ -12485,16 +12491,16 @@ static int ndbcluster_fill_files_table(handlerton *hton,
 
       table->field[IS_FILES_FREE_EXTENTS]->set_notnull();
       table->field[IS_FILES_FREE_EXTENTS]->store(df.getFree()
-                                                 / ts.getExtentSize());
+                                                 / ts.getExtentSize(), true);
       table->field[IS_FILES_TOTAL_EXTENTS]->set_notnull();
       table->field[IS_FILES_TOTAL_EXTENTS]->store(df.getSize()
-                                                  / ts.getExtentSize());
+                                                  / ts.getExtentSize(), true);
       table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
       table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize());
       table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
-      table->field[IS_FILES_INITIAL_SIZE]->store(df.getSize());
+      table->field[IS_FILES_INITIAL_SIZE]->store(df.getSize(), true);
       table->field[IS_FILES_MAXIMUM_SIZE]->set_notnull();
-      table->field[IS_FILES_MAXIMUM_SIZE]->store(df.getSize());
+      table->field[IS_FILES_MAXIMUM_SIZE]->store(df.getSize(), true);
       table->field[IS_FILES_VERSION]->set_notnull();
       table->field[IS_FILES_VERSION]->store(df.getObjectVersion());
 
@@ -12566,14 +12572,14 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                            system_charset_info);
 
       table->field[IS_FILES_TOTAL_EXTENTS]->set_notnull();
-      table->field[IS_FILES_TOTAL_EXTENTS]->store(uf.getSize()/4);
+      table->field[IS_FILES_TOTAL_EXTENTS]->store(uf.getSize()/4, true);
       table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
       table->field[IS_FILES_EXTENT_SIZE]->store(4);
 
       table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
-      table->field[IS_FILES_INITIAL_SIZE]->store(uf.getSize());
+      table->field[IS_FILES_INITIAL_SIZE]->store(uf.getSize(), true);
       table->field[IS_FILES_MAXIMUM_SIZE]->set_notnull();
-      table->field[IS_FILES_MAXIMUM_SIZE]->store(uf.getSize());
+      table->field[IS_FILES_MAXIMUM_SIZE]->store(uf.getSize(), true);
 
       table->field[IS_FILES_VERSION]->set_notnull();
       table->field[IS_FILES_VERSION]->store(uf.getObjectVersion());
@@ -12624,7 +12630,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                          system_charset_info);
 
     table->field[IS_FILES_FREE_EXTENTS]->set_notnull();
-    table->field[IS_FILES_FREE_EXTENTS]->store(lfg.getUndoFreeWords());
+    table->field[IS_FILES_FREE_EXTENTS]->store(lfg.getUndoFreeWords(), true);
     table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
     table->field[IS_FILES_EXTENT_SIZE]->store(4);
 

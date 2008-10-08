@@ -161,7 +161,7 @@ typedef struct st_ndbcluster_conflict_fn_share {
 struct Ndb_statistics {
   Uint64 row_count;
   Uint64 commit_count;
-  Uint64 row_size;
+  ulong row_size;
   Uint64 fragment_memory;
 };
 
@@ -798,7 +798,7 @@ private:
   
   // memory for blobs in one tuple
   uchar *m_blobs_buffer;
-  uint32 m_blobs_buffer_size;
+  Uint64 m_blobs_buffer_size;
   uint m_dupkey;
   // set from thread variables at external lock
   ha_rows m_autoincrement_prefetch;
