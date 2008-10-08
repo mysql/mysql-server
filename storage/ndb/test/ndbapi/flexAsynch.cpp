@@ -534,7 +534,6 @@ static
 bool
 executeThread(ThreadNdb* pThread, 
 	      StartType aType, Ndb* aNdbObject, unsigned int threadBase) {
-  int i, j, k;
   NdbConnection* tConArray[1024];
   unsigned int tBase;
   unsigned int tBase2;
@@ -543,14 +542,14 @@ executeThread(ThreadNdb* pThread,
 
   for (unsigned int ex= 0; ex < (1 + extraLoops); ex++)
   {
-    for (i = 0; i < tNoOfTransactions; i++) {
+    for (unsigned int i = 0; i < tNoOfTransactions; i++) {
       if (tLocal == false) {
         tBase = i * tNoOfParallelTrans * tNoOfOpsPerTrans;
       } else {
         tBase = i * tNoOfParallelTrans * MAX_SEEK;
       }//if
       START_REAL_TIME;
-      for (j = 0; j < tNoOfParallelTrans; j++) {
+      for (unsigned int j = 0; j < tNoOfParallelTrans; j++) {
         if (tLocal == false) {
           tBase2 = tBase + (j * tNoOfOpsPerTrans);
         } else {
@@ -574,7 +573,7 @@ executeThread(ThreadNdb* pThread,
           return false;
         }//if
         
-        for (k = 0; k < tNoOfOpsPerTrans; k++) {
+        for (unsigned int k = 0; k < tNoOfOpsPerTrans; k++) {
           //-------------------------------------------------------
           // Define the operation, but do not execute it yet.
           //-------------------------------------------------------
@@ -597,7 +596,7 @@ executeThread(ThreadNdb* pThread,
         int TlocalComp = aNdbObject->pollNdb(3000, 0);
         Tcomp += TlocalComp;
       }//while
-      for (j = 0 ; j < tNoOfParallelTrans ; j++) {
+      for (unsigned int j = 0 ; j < tNoOfParallelTrans ; j++) {
         aNdbObject->closeTransaction(tConArray[j]);
       }//for
     }//for
