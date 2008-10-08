@@ -3983,8 +3983,8 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 	  Buffer_page* page= (Buffer_page*)
 	    m_tup->c_page_pool.getPtr(pos.m_page_id);
 	  ndbout_c("takeover %d", pos.m_page_id);
-	  page->m_max_gci_hi = pos.m_max_gci >> 32;
-          page->m_max_gci_lo = pos.m_max_gci & 0xFFFFFFFF;
+	  page->m_max_gci_hi = (Uint32)(pos.m_max_gci >> 32);
+          page->m_max_gci_lo = (Uint32)(pos.m_max_gci & 0xFFFFFFFF);
           ndbassert(pos.m_max_gci != 0);
 	  page->m_words_used = pos.m_page_pos;
 	  page->m_next_page = RNIL;
@@ -5082,8 +5082,8 @@ loop:
     pos.m_page_pos += Buffer_page::GCI_SZ32;
     bucket->m_buffer_head = pos;
     * ptr++ = (sz + Buffer_page::GCI_SZ32);
-    * ptr++ = gci >> 32;
-    * ptr++ = gci & 0xFFFFFFFF;
+    * ptr++ = (Uint32)(gci >> 32);
+    * ptr++ = (Uint32)(gci & 0xFFFFFFFF);
     return ptr;
   }
   else
@@ -5105,8 +5105,8 @@ loop:
 
     if(likely(pos.m_page_id != RNIL))
     {
-      page->m_max_gci_hi = pos.m_max_gci >> 32;
-      page->m_max_gci_lo = pos.m_max_gci & 0xFFFFFFFF;
+      page->m_max_gci_hi = (Uint32)(pos.m_max_gci >> 32);
+      page->m_max_gci_lo = (Uint32)(pos.m_max_gci & 0xFFFFFFFF);
       page->m_words_used = pos.m_page_pos - sz;
       page->m_next_page= next;
       ndbassert(pos.m_max_gci != 0);
@@ -5322,8 +5322,8 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
       bucket->m_buffer_tail = next_page;
       signal->theData[0] = SumaContinueB::RELEASE_GCI;
       signal->theData[1] = buck;
-      signal->theData[2] = gci >> 32;
-      signal->theData[3] = gci & 0xFFFFFFFF;
+      signal->theData[2] = (Uint32)(gci >> 32);
+      signal->theData[3] = (Uint32)(gci & 0xFFFFFFFF);
       sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 4, JBB);
       return;
     }
@@ -5399,10 +5399,10 @@ Suma::start_resend(Signal* signal, Uint32 buck)
   
   signal->theData[0] = SumaContinueB::RESEND_BUCKET;
   signal->theData[1] = buck;
-  signal->theData[2] = min >> 32;
+  signal->theData[2] = (Uint32)(min >> 32);
   signal->theData[3] = 0;
   signal->theData[4] = 0;
-  signal->theData[5] = min & 0xFFFFFFFF;
+  signal->theData[5] = (Uint32)(min & 0xFFFFFFFF);
   signal->theData[6] = 0;
   sendSignal(reference(), GSN_CONTINUEB, signal, 7, JBB);
   
@@ -5489,8 +5489,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
     if(sz == 0)
     {
       SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
-      rep->gci_hi = last_gci >> 32;
-      rep->gci_lo = last_gci & 0xFFFFFFFF;
+      rep->gci_hi = (Uint32)(last_gci >> 32);
+      rep->gci_lo = (Uint32)(last_gci & 0xFFFFFFFF);
       rep->flags = (m_missing_data)
                    ? SubGcpCompleteRep::MISSING_DATA
                    : 0;
@@ -5550,8 +5550,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
           table_version_major(schemaVersion))
       {
 	SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
-	data->gci_hi         = last_gci >> 32;
-	data->gci_lo         = last_gci & 0xFFFFFFFF;
+	data->gci_hi         = (Uint32)(last_gci >> 32);
+	data->gci_lo         = (Uint32)(last_gci & 0xFFFFFFFF);
 	data->tableId        = table;
 	data->requestInfo    = 0;
 	SubTableData::setOperation(data->requestInfo, event);
@@ -5602,11 +5602,11 @@ next:
   
   signal->theData[0] = SumaContinueB::RESEND_BUCKET;
   signal->theData[1] = buck;
-  signal->theData[2] = min_gci >> 32;
+  signal->theData[2] = (Uint32)(min_gci >> 32);
   signal->theData[3] = pos;
-  signal->theData[4] = last_gci >> 32;
-  signal->theData[5] = min_gci & 0xFFFFFFFF;
-  signal->theData[6] = last_gci & 0xFFFFFFFF;
+  signal->theData[4] = (Uint32)(last_gci >> 32);
+  signal->theData[5] = (Uint32)(min_gci & 0xFFFFFFFF);
+  signal->theData[6] = (Uint32)(last_gci & 0xFFFFFFFF);
   if(!delay)
     sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 7, JBB);
   else
