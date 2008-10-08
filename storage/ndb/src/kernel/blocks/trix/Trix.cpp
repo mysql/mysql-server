@@ -480,6 +480,8 @@ void Trix::execDBINFO_SCANREQ(Signal *signal)
   struct dbinfo_row r;
   struct dbinfo_ratelimit rl;
 
+  dbinfo_ratelimit_init(&rl, &req);
+
   jamEntry();
 
   if(req.tableId == NDBINFO_POOLS_TABLEID)
