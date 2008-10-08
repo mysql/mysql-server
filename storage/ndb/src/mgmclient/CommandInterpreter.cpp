@@ -137,7 +137,7 @@ public:
   int executeCreateNodeGroup(char* parameters);
   int executeDropNodeGroup(char* parameters);
 
-  int executeNdbInfo(char* parameters);
+  int executeNdbInfo(const char* parameters);
 
 public:
   bool connect(bool interactive);
@@ -1221,7 +1221,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   }
   else if(strcasecmp(firstToken, "NDBINFO")==0)
   {
-    char *q=NULL;
+    const char *q=NULL;
     if(allAfterFirstToken==NULL)
       q= "SELECT * FROM NDB$INFO.TABLES";
     else
@@ -2468,7 +2468,7 @@ CommandInterpreter::executeReport(int processId, const char* parameters,
 }
 
 int
-CommandInterpreter::executeNdbInfo(char* parameters)
+CommandInterpreter::executeNdbInfo(const char* parameters)
 {
   int rows;
   int r= ndb_mgm_ndbinfo(m_mgmsrv,parameters, &rows);

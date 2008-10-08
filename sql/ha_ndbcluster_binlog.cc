@@ -766,32 +766,40 @@ int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
 
 #include "ha_ndbcluster_lock_ext.h"
 
+/*
+  lock/unlock calls are reference counted, so calls to lock
+  must be matched to a call to unlock even if the lock call fails
+*/
 static int ndbcluster_global_schema_lock(THD *thd,
                                          int report_cluster_disconnected)
 {
   Ndb *ndb= check_ndb_in_thd(thd);
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbError ndb_error;
-  thd_ndb->global_schema_lock_error= 0;
   if (thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP)
     return 0;
   DBUG_ENTER("ndbcluster_global_schema_lock");
   DBUG_PRINT("enter", ("query: %s", thd->query));
-  if (thd_ndb->global_schema_lock_trans)
+  if (thd_ndb->global_schema_lock_count)
   {
-    thd_ndb->global_schema_lock_trans->refresh();
+    if (thd_ndb->global_schema_lock_trans)
+      thd_ndb->global_schema_lock_trans->refresh();
+    else
+      DBUG_ASSERT(thd_ndb->global_schema_lock_error != 0);
     thd_ndb->global_schema_lock_count++;
     DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                         thd_ndb->global_schema_lock_count));
     DBUG_RETURN(0);
   }
   DBUG_ASSERT(thd_ndb->global_schema_lock_count == 0);
-  thd_ndb->global_schema_lock_count= 0;
+  thd_ndb->global_schema_lock_count= 1;
+  thd_ndb->global_schema_lock_error= 0;
+  DBUG_PRINT("exit", ("global_schema_lock_count: %d",
+                      thd_ndb->global_schema_lock_count));
 
   if ((thd_ndb->global_schema_lock_trans=
-       ndbcluster_global_schema_lock_ext(ndb, ndb_error)) != NULL)
+       ndbcluster_global_schema_lock_ext(thd, ndb, ndb_error, -1)) != NULL)
   {
-    thd_ndb->global_schema_lock_count= 1;
     DBUG_RETURN(0);
   }
 
@@ -809,32 +817,32 @@ static int ndbcluster_global_schema_lock(THD *thd,
                         ndb_error.code, ndb_error.message,
                         "NDB. Could not acquire global schema lock");
   }
-  thd_ndb->global_schema_lock_error= ndb_error.code;
+  thd_ndb->global_schema_lock_error= ndb_error.code ? ndb_error.code : -1;
   DBUG_RETURN(-1);
 }
 static int ndbcluster_global_schema_unlock(THD *thd)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ASSERT(thd_ndb != 0);
-  if (thd_ndb)
-    thd_ndb->global_schema_lock_error= 0;
   if (thd_ndb == 0 || (thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP))
     return 0;
   Ndb *ndb= thd_ndb->ndb;
+  DBUG_ENTER("ndbcluster_global_schema_unlock");
+  NdbTransaction *trans= thd_ndb->global_schema_lock_trans;
+  thd_ndb->global_schema_lock_count--;
+  DBUG_PRINT("exit", ("global_schema_lock_count: %d",
+                      thd_ndb->global_schema_lock_count));
   DBUG_ASSERT(ndb != NULL);
   if (ndb == NULL)
     return 0;
-  DBUG_ENTER("ndbcluster_global_schema_unlock");
-  NdbTransaction *trans= thd_ndb->global_schema_lock_trans;
+  DBUG_ASSERT(trans != NULL || thd_ndb->global_schema_lock_error != 0);
+  if (thd_ndb->global_schema_lock_count != 0)
+  {
+    DBUG_RETURN(0);
+  }
+  thd_ndb->global_schema_lock_error= 0;
   if (trans)
   {
-    thd_ndb->global_schema_lock_count--;
-    if (thd_ndb->global_schema_lock_count != 0)
-    {
-      DBUG_PRINT("exit", ("global_schema_lock_count: %d",
-                          thd_ndb->global_schema_lock_count));
-      DBUG_RETURN(0);
-    }
     thd_ndb->global_schema_lock_trans= NULL;
     NdbError ndb_error;
     if (ndbcluster_global_schema_unlock_ext(ndb, trans, ndb_error))
@@ -849,8 +857,6 @@ static int ndbcluster_global_schema_unlock(THD *thd)
       DBUG_RETURN(-1);
     }
   }
-  DBUG_PRINT("exit", ("global_schema_lock_count: %d",
-                      thd_ndb->global_schema_lock_count));
   DBUG_RETURN(0);
 }
 
@@ -876,7 +882,7 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
     ndbcluster_binlog_index_purge_file(thd, (const char *)arg);
     break;
   case BFN_GLOBAL_SCHEMA_LOCK:
-    ndbcluster_global_schema_lock(thd, 1);
+    DBUG_RETURN(ndbcluster_global_schema_lock(thd, 1));
     break;
   case BFN_GLOBAL_SCHEMA_UNLOCK:
     ndbcluster_global_schema_unlock(thd);
@@ -895,14 +901,15 @@ Ndbcluster_global_schema_lock_guard::~Ndbcluster_global_schema_lock_guard()
 }
 int Ndbcluster_global_schema_lock_guard::lock()
 {
-  m_lock= !ndbcluster_global_schema_lock(m_thd, 0);
-  return !m_lock;
-}
-void Ndbcluster_global_schema_lock_guard::unlock()
-{
-  if (m_lock)
-    ndbcluster_global_schema_unlock(m_thd);
-  m_lock= 0;
+  /* only one lock call allowed */
+  DBUG_ASSERT(m_lock == 0);
+  /*
+    Always se m_lock, even if lock fails. Since the
+    lock/unlock calls are reference counted, the number
+    of calls to lock and unlock need to match up.
+  */
+  m_lock= 1;
+  return ndbcluster_global_schema_lock(m_thd, 0);
 }
 
 void ndbcluster_binlog_init_handlerton()
@@ -1235,7 +1242,7 @@ static int ndbcluster_find_all_databases(THD *thd)
             /* create missing database */
             sql_print_information("NDB: Discovered missing database '%s'", db);
             const int no_print_error[1]= {0};
-			name_len= my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
+            name_len= my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
             run_query(thd, name, name + name_len,
                       no_print_error,    /* print error */
                       TRUE);   /* don't binlog the query */

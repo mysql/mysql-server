@@ -249,7 +249,7 @@ struct thr_spin_lock
 
 struct thr_mutex
 {
-  thr_mutex(const char * name) {
+  thr_mutex(const char * name = 0) {
     m_mutex = NdbMutex_Create();
     m_name = name;
   }
@@ -607,6 +607,18 @@ public:
       m_global_pool->release((U *)t);
   }
 
+  void releaseAll()
+  {
+    Uint32 save = m_max_free;
+    m_max_free = 0;
+    while(m_free)
+    {
+      T* t = seize();
+      release(t);
+    }
+    m_max_free = save;
+  }
+
 private:
   thr_safe_pool<U> *m_global_pool;
   int m_max_free;
@@ -633,6 +645,10 @@ struct thr_send_buf : public TransporterSendBufferHandle
 
     /* Send buffer for one transporter is kept in a single-linked list. */
     page *m_next;
+#if defined VM_TRACE || defined ERROR_INSERT
+    /* Prev page (only used when splitting signals) */
+    page * m_prev;
+#endif
     /* Bytes of send data available in this page. */
     Uint32 m_bytes;
     /* Start of unsent data (next bytes_sent() will count from here). */
@@ -727,7 +743,9 @@ struct trp_callback : public TransporterCallbackKernel
     return total;
   }
 
-  thr_send_buf *m_thr_buffers[MAX_THREADS];
+  // +1 to handle reset buffers from "other" thread
+  thr_send_buf *m_thr_buffers[MAX_THREADS + 1];
+
   /**
    * During send, for each node this holds the id of the thread currently
    * doing send to that node.
@@ -1067,6 +1085,30 @@ flush_jbb_write_state(thr_data *selfptr)
   }
 }
 
+//#define NDBMT_RAND_YIELD
+#ifdef NDBMT_RAND_YIELD
+static Uint32 g_rand_yield = 0;
+static
+void
+rand_yield(Uint32 limit, void* ptr0, void * ptr1)
+{
+  return;
+  UintPtr tmp = UintPtr(ptr0) + UintPtr(ptr1);
+  Uint8* tmpptr = (Uint8*)&tmp;
+  Uint32 sum = g_rand_yield;
+  for (Uint32 i = 0; i<sizeof(tmp); i++)
+    sum = 33 * sum + tmpptr[i];
+  
+  if ((sum % 100) < limit)
+  {
+    g_rand_yield++;
+    sched_yield();
+  }
+}
+#else
+static inline void rand_yield(Uint32 limit, void* ptr0, void * ptr1) {}
+#endif
+
 thr_send_buf::thr_send_buf(struct trp_callback *trp_cb, Uint32 thread,
                            thr_safe_pool<thr_job_buffer> *global_pool) :
   m_self(thread),
@@ -1087,6 +1129,9 @@ thr_send_buf::initial_alloc(NodeId node)
     return false;
 
   pg->m_next = NULL;
+#if defined VM_TRACE || defined ERROR_INSERT
+  pg->m_prev = NULL;
+#endif
   pg->m_bytes = 0;
   pg->m_start = 0;
   pg->m_current = 0;
@@ -1103,7 +1148,7 @@ thr_send_buf::initial_alloc(NodeId node)
    */
   b->m_first_page = pg;
   b->m_last_page = pg;
-  b->m_prev_page = NULL;
+  b->m_prev_page = 0;
   b->m_written_bytes = 0;
   b->m_read_bytes = 0;
   wmb();
@@ -1130,8 +1175,12 @@ thr_send_buf::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
   /* Check for common case, free space in existing buffer. */
   page *last_pg = b->m_last_page;
   assert(last_pg != NULL);
+  assert(lenBytes < last_pg->max_data_bytes());
+
   if (last_pg->m_bytes + lenBytes <= last_pg->max_data_bytes())
+  {
     return (Uint32 *)(last_pg->m_data + last_pg->m_bytes);
+  }
 
   /**
    * Check for buffer limit exceeded.
@@ -1148,19 +1197,30 @@ thr_send_buf::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
   if (new_pg == NULL)
     return NULL;
 
+#if defined VM_TRACE || defined ERROR_INSERT
+  new_pg->m_prev = 0;
+#endif
   new_pg->m_next = NULL;
   new_pg->m_bytes = 0;
   new_pg->m_start = 0;
   new_pg->m_current = 0;
+
+  /* Remeber old last page temporarily until updateWritePtr(). */
+  assert(b->m_prev_page == 0);
+  if (last_pg->m_bytes < last_pg->max_data_bytes())
+  {
+    b->m_prev_page = last_pg;
+#if defined VM_TRACE || defined ERROR_INSERT
+    new_pg->m_prev = last_pg;
+#endif
+  }
   b->m_last_page = new_pg;
+
   /** Assigning m_next makes the new page available to readers, so need a
    * memory barrier here.
    */
   wmb();
   last_pg->m_next = new_pg;
-
-  /* Remeber old last page temporarily until updateWritePtr(). */
-  b->m_prev_page = last_pg;
 
   return (Uint32 *)(new_pg->m_data);
 }
@@ -1185,17 +1245,28 @@ thr_send_buf::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
   if (last_pg->m_bytes == 0)
   {
     page *prev_pg = b->m_prev_page;
-    if (prev_pg != NULL && prev_pg->m_bytes < prev_pg->max_data_bytes())
+#if defined VM_TRACE || defined ERROR_INSERT
+    assert(last_pg->m_prev == 0 || last_pg->m_prev == prev_pg);
+#endif
+    b->m_prev_page = 0;
+    if (prev_pg != 0)
     {
+      assert(prev_pg->m_bytes < prev_pg->max_data_bytes());
       Uint32 part = prev_pg->max_data_bytes() - prev_pg->m_bytes;
       assert(part < lenBytes);
       memcpy(prev_pg->m_data + prev_pg->m_bytes, last_pg->m_data, part);
       memmove(last_pg->m_data, last_pg->m_data + part, lenBytes - part);
-      /* Memory barrier since this makes data available to reader. */
-      wmb();
-      prev_pg->m_bytes = prev_pg->max_data_bytes();
+
       last_pg->m_bytes = lenBytes - part;
 
+      rand_yield(1, prev_pg, last_pg); // BUG_39880
+
+      /**
+       * Memory barrier since this makes data available to reader. 
+       * and to serialize the two assignments 
+       */
+      wmb();
+      prev_pg->m_bytes = prev_pg->max_data_bytes();
       return used;
 
       /**
@@ -1214,9 +1285,9 @@ thr_send_buf::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
 trp_callback::trp_callback()
 {
   // number of threads not yet set so use MAX_THREADS
-  for (Uint32 i = 0; i < MAX_THREADS; i++)
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_thr_buffers); i++)
     m_thr_buffers[i] = new thr_send_buf(this, i, &g_thr_repository.m_free_list);
-  for (int i = 0; i < MAX_NTRANSPORTERS; i++)
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_send_thr); i++)
     m_send_thr[i] = ~(Uint32)0;
 }
 
@@ -1294,9 +1365,13 @@ trp_callback::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
       continue;
     rmb();
 
+    bool current_must_be_zero = false;
     while (iovecs < max_iovecs)
     {
       Uint32 bytes = pg->m_bytes;
+      if (current_must_be_zero)
+        assert(pg->m_current == 0);
+
       /* Make sure we see all updates before seen m_bytes value. */
       rmb();
       if (bytes > pg->m_current)
@@ -1312,6 +1387,7 @@ trp_callback::get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
       pg = pg->m_next;
       if (pg == NULL)
         break;
+      current_must_be_zero = true;
       b->m_current_page = pg;
     }
   }
@@ -1440,6 +1516,20 @@ trp_callback::reset_send_buffer(NodeId node)
   struct iovec v[32];
 
   lock(&rep->m_send_locks[node]);
+  void *value= NdbThread_GetTlsKey(NDB_THREAD_TLS_THREAD);
+  const thr_data *selfptr = reinterpret_cast<const thr_data *>(value);
+  if (selfptr)
+  {
+    m_send_thr[node] = selfptr->m_thr_no;  
+  }
+  else
+  {
+    /**
+     * This was done from a "non-mt" thread, use
+     *   faked entry
+     */
+    m_send_thr[node] = NDB_ARRAY_SIZE(m_thr_buffers) - 1;
+  }
 
   for (;;)
   {
@@ -1449,9 +1539,20 @@ trp_callback::reset_send_buffer(NodeId node)
     int bytes = 0;
     for (int i = 0; i < count; i++)
       bytes += v[i].iov_len;
+
     bytes_sent(node, v, bytes);
   }
 
+  if (selfptr == 0)
+  {
+    /**
+     * This was done from a "non-mt" thread, use
+     *   release buffer directly
+     */
+    m_thr_buffers[m_send_thr[node]]->m_pool.releaseAll();
+  }
+  
+  g_trp_callback.m_send_thr[node] = ~(Uint32)0;
   unlock(&rep->m_send_locks[node]);
 }
 
@@ -2026,22 +2127,53 @@ init_thread(thr_data *selfptr)
   unsigned thr_no = selfptr->m_thr_no;
   globalEmulatorData.theWatchDog->registerWatchedThread(&selfptr->m_watchdog_counter,
                                                         thr_no);
+  BaseString tmp;
 
   NdbThread_SetTlsKey(NDB_THREAD_TLS_THREAD, selfptr);
+  tmp.appfmt("thr: %u ", thr_no);
+#ifdef SYS_gettid
+  tmp.appfmt("tid: %u ", (unsigned)syscall(SYS_gettid));
+#endif
 
-#ifdef NDB_MT_LOCK_TO_CPU
-  pid_t tid = (unsigned)syscall(SYS_gettid);
-  ndbout_c("Tread %u started, tid=%u", thr_no, tid);
-  uint cpu_no = 1 + (thr_no % 3);
-  cpu_no = (cpu_no >= 2 ? 5 - cpu_no : cpu_no);
-  ndbout_c("lock to cpu %u", cpu_no);
+#if 0
+#if defined SYS_gettid && defined HAVE_SCHED_SETAFFINITY
+  bool lock_to_cpu = false;
+  if (lock_to_cpu)
   {
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-    CPU_SET(cpu_no, &mask);
-    sched_setaffinity(tid, sizeof(mask), &mask);
+    uint cpu_no = 1;
+    if (!(thr_no <= 1 || thr_no == num_threads - 1))
+    {
+      cpu_no = (thr_no & 3);
+    }
+    tmp.appfmt("cpu: %u ", cpu_no);
+    {
+      unsigned tid = (unsigned)syscall(SYS_gettid);
+      cpu_set_t mask;
+      CPU_ZERO(&mask);
+      CPU_SET(cpu_no, &mask);
+      if (sched_setaffinity(tid, sizeof(mask), &mask) == 0)
+      {
+        tmp.appfmt("OK ");
+      }
+      else
+      {
+        tmp.appfmt("err: %u ", errno);
+      }
+    }
   }
 #endif
+#endif
+  
+  for (Uint32 i = 0; i < selfptr->m_instance_count; i++) 
+  {
+    BlockReference block = selfptr->m_instance_list[i];
+    Uint32 main = blockToMain(block);
+    Uint32 instance = blockToInstance(block);
+    tmp.appfmt("%s(%u) ", getBlockName(main), instance);
+  }
+  tmp.appfmt("\n");
+  printf(tmp.c_str());
+  fflush(stdout);
 }
 
 /**
