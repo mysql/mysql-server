@@ -320,7 +320,7 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
     return err.code;
   }
 
-  for(int i = 0; i<m_result_sets.size(); i++){
+  for(unsigned int i = 0; i<m_result_sets.size(); i++){
     m_executed_result_sets.push_back(m_result_sets[i]);
 
     int rows = m_result_sets[i].records;
@@ -372,7 +372,7 @@ int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
     return err.code;
   }
 
-  for(int i = 0; i<m_result_sets.size(); i++){
+  for(unsigned int i = 0; i<m_result_sets.size(); i++){
     m_executed_result_sets.push_back(m_result_sets[i]);
 
     int rows = m_result_sets[i].records;
