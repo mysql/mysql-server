@@ -598,9 +598,10 @@ page_copy_rec_list_end(
 		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 		ut_a(page_zip);
 
-		/* page_zip_validate() may fail here if btr_compress()
-		sets FIL_PAGE_PREV to FIL_NULL */
-		ut_a(page_zip_validate_low(new_page_zip, new_page, TRUE));
+		/* Strict page_zip_validate() may fail here.
+		Furthermore, btr_compress() may set FIL_PAGE_PREV to
+		FIL_NULL on new_page while leaving it intact on
+		new_page_zip.  So, we cannot validate new_page_zip. */
 		ut_a(page_zip_validate_low(page_zip, page, TRUE));
 	}
 #endif /* UNIV_ZIP_DEBUG */
