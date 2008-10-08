@@ -109,6 +109,9 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   DBUG_ENTER("push_warning");
   DBUG_PRINT("enter", ("code: %d, msg: %s", code, msg));
 
+  DBUG_ASSERT(code != 0);
+  DBUG_ASSERT(msg != NULL);
+
   if (level == MYSQL_ERROR::WARN_LEVEL_NOTE &&
       !(thd->options & OPTION_SQL_NOTES))
     DBUG_RETURN(0);
@@ -177,7 +180,10 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
   char    warning[ERRMSGSIZE+20];
   DBUG_ENTER("push_warning_printf");
   DBUG_PRINT("enter",("warning: %u", code));
-  
+
+  DBUG_ASSERT(code != 0);
+  DBUG_ASSERT(format != NULL);
+
   va_start(args,format);
   my_vsnprintf(warning, sizeof(warning), format, args);
   va_end(args);

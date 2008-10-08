@@ -2131,7 +2131,7 @@ class Item_ref :public Item_ident
 protected:
   void set_properties();
 public:
-  enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF };
+  enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(Name_resolution_context *context_arg,
