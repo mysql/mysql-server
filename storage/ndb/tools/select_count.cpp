@@ -28,7 +28,7 @@
 static int 
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int parallelism,
-	     int* count_rows,
+	     Uint64* count_rows,
 	     NdbOperation::LockMode lock);
 
 static const char* _dbname = "TEST_DB";
@@ -105,7 +105,7 @@ int main(int argc, char** argv){
       continue;
     }
 
-    int rows = 0;
+    Uint64 rows = 0;
     if (select_count(&MyNdb, pTab, _parallelism, &rows, 
 		     (NdbOperation::LockMode)_lock) != 0){
       return NDBT_ProgramExit(NDBT_FAILED);
@@ -119,7 +119,7 @@ int main(int argc, char** argv){
 int 
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int parallelism,
-	     int* count_rows,
+	     Uint64* count_rows,
 	     NdbOperation::LockMode lock){
   
   int                  retryAttempt = 0;
