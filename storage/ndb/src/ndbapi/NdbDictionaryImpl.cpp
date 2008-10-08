@@ -6314,7 +6314,7 @@ NdbRecord::Attr::get_mysqld_bitfield(const char *src_row, char *dst_buffer) cons
   memcpy(dst_buffer, &small_bits, 4);
   if (maxSize > 4)
   {
-    small_bits= bits >> 32;
+    small_bits= (Uint32)(bits >> 32);
     memcpy(dst_buffer+4, &small_bits, 4);
   }
 }
@@ -6340,7 +6340,7 @@ NdbRecord::Attr::put_mysqld_bitfield(char *dst_row, const char *src_buffer) cons
   dst_ptr+= remaining_bits/8;
   while (remaining_bits >= 8)
   {
-    *--dst_ptr= bits & 0xff;
+    *--dst_ptr= (char)(bits & 0xff);
     bits>>= 8;
     remaining_bits-= 8;
   }
@@ -6601,8 +6601,8 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
   f.FileType = file.m_type;
   f.FilegroupId = group.m_id;
   f.FilegroupVersion = group.m_version;
-  f.FileSizeHi = (file.m_size >> 32);
-  f.FileSizeLo = (file.m_size & 0xFFFFFFFF);
+  f.FileSizeHi = (Uint32)(file.m_size >> 32);
+  f.FileSizeLo = (Uint32)(file.m_size & 0xFFFFFFFF);
   
   SimpleProperties::UnpackStatus s;
   s = SimpleProperties::pack(w, 
