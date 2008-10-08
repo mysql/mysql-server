@@ -2218,24 +2218,10 @@ row_merge_drop_table(
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	table)		/* in: table to drop */
 {
-	ulint		err = DB_SUCCESS;
-	ibool		dict_locked = FALSE;
-
-	if (trx->dict_operation_lock_mode == 0) {
-		row_mysql_lock_data_dictionary(trx);
-		dict_locked = TRUE;
-	}
-
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_mysql_handles_opened == 0);
 
-	err = row_drop_table_for_mysql_no_commit(table->name, trx, FALSE);
-
-	if (dict_locked) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
-
-	return(err);
+	return(row_drop_table_for_mysql(table->name, trx, FALSE));
 }
 
 /*************************************************************************

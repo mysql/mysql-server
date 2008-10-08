@@ -1850,6 +1850,7 @@ err_exit:
 		if (dict_table_get_low(table->name)) {
 
 			row_drop_table_for_mysql(table->name, trx, FALSE);
+			trx_commit_for_mysql(trx);
 		}
 		break;
 
@@ -2007,6 +2008,8 @@ error_handling:
 
 		row_drop_table_for_mysql(table_name, trx, FALSE);
 
+		trx_commit_for_mysql(trx);
+
 		trx->error_state = DB_SUCCESS;
 	}
 
@@ -2073,6 +2076,8 @@ row_table_add_foreign_constraints(
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
 		row_drop_table_for_mysql(name, trx, FALSE);
+
+		trx_commit_for_mysql(trx);
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -2933,37 +2938,16 @@ funct_exit:
 }
 
 /*************************************************************************
-Drops a table for MySQL. If the name of the dropped table ends in
+Drops a table for MySQL.  If the name of the dropped table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also stop the printing of monitor
-output by the master thread. */
+output by the master thread.  If the data dictionary was not already locked
+by the transaction, the transaction will be committed.  Otherwise, the
+data dictionary will remain locked. */
 UNIV_INTERN
 int
 row_drop_table_for_mysql(
 /*=====================*/
-				/* out: error code or DB_SUCCESS */
-	const char*	name,	/* in: table name */
-	trx_t*		trx,	/* in: transaction handle */
-	ibool		drop_db)/* in: TRUE=dropping whole database */
-{
-	ulint		err;
-
-	err = row_drop_table_for_mysql_no_commit(name, trx, drop_db);
-	trx_commit_for_mysql(trx);
-
-	return(err);
-}
-
-/*************************************************************************
-Drops a table for MySQL but does not commit the transaction.  If the
-name of the dropped table ends in one of "innodb_monitor",
-"innodb_lock_monitor", "innodb_tablespace_monitor",
-"innodb_table_monitor", then this will also stop the printing of
-monitor output by the master thread. */
-UNIV_INTERN
-int
-row_drop_table_for_mysql_no_commit(
-/*===============================*/
 				/* out: error code or DB_SUCCESS */
 	const char*	name,	/* in: table name */
 	trx_t*		trx,	/* in: transaction handle */
@@ -3336,6 +3320,8 @@ check_next_foreign:
 funct_exit:
 
 	if (locked_dictionary) {
+		trx_commit_for_mysql(trx);
+
 		row_mysql_unlock_data_dictionary(trx);
 	}
 

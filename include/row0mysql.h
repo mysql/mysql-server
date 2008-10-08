@@ -411,10 +411,12 @@ row_truncate_table_for_mysql(
 	dict_table_t*	table,	/* in: table handle */
 	trx_t*		trx);	/* in: transaction handle */
 /*************************************************************************
-Drops a table for MySQL. If the name of the dropped table ends in
+Drops a table for MySQL.  If the name of the dropped table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also stop the printing of monitor
-output by the master thread. */
+output by the master thread.  If the data dictionary was not already locked
+by the transaction, the transaction will be committed.  Otherwise, the
+data dictionary will remain locked. */
 UNIV_INTERN
 int
 row_drop_table_for_mysql(
@@ -424,20 +426,6 @@ row_drop_table_for_mysql(
 	trx_t*		trx,	/* in: transaction handle */
 	ibool		drop_db);/* in: TRUE=dropping whole database */
 
-/*************************************************************************
-Drops a table for MySQL but does not commit the transaction.  If the
-name of the dropped table ends in one of "innodb_monitor",
-"innodb_lock_monitor", "innodb_tablespace_monitor",
-"innodb_table_monitor", then this will also stop the printing of
-monitor output by the master thread. */
-UNIV_INTERN
-int
-row_drop_table_for_mysql_no_commit(
-/*===============================*/
-				/* out: error code or DB_SUCCESS */
-	const char*	name,	/* in: table name */
-	trx_t*		trx,	/* in: transaction handle */
-	ibool		drop_db);/* in: TRUE=dropping whole database */
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
