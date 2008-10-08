@@ -1717,7 +1717,7 @@ int NdbScanOperation::finaliseScanOldApi()
    * table, and add the user-requested values in a similar
    * way to the extra GetValues mechanism
    */
-  assert(theOperationType == OpenScanRequest |
+  assert(theOperationType == OpenScanRequest ||
          theOperationType == OpenRangeScanRequest);
 
   /* Prepare ScanOptions structure using saved parameters */
