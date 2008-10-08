@@ -283,7 +283,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
 {
   ndb_init();
   ThreadData*           pThreadsData;
-  int                   tLoops = 0, i;
+  int                   tLoops = 0;
   int                   returnValue = NDBT_OK;
     
   if (readArguments(argc, argv) != 0){
@@ -364,7 +364,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
      ****************************************************************/
     resetThreads(pThreadsData);
     
-    for (i = 0; i < tNoOfThreads; i++){  
+    for (Uint32 i = 0; i < tNoOfThreads; i++){  
       pThreadsData[i].threadNo = i;
       pThreadsData[i].threadLife = NdbThread_Create(flexBenchThread,
                                                     (void**)&pThreadsData[i],
@@ -540,7 +540,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
     waitForThreads(pThreadsData);
 
     void * tmp;
-    for(i = 0; i<tNoOfThreads; i++){
+    for(Uint32 i = 0; i<tNoOfThreads; i++){
       NdbThread_WaitFor(pThreadsData[i].threadLife, &tmp);
       NdbThread_Destroy(&pThreadsData[i].threadLife);
     }
@@ -549,7 +549,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
   if (useLongKeys == true) {
     // Only free these areas if they have been allocated
     // Otherwise cores will happen
-    for (i = 0; i < tNoOfLongPK; i++)
+    for (Uint32 i = 0; i < tNoOfLongPK; i++)
       free(longKeyAttrName[i]);
     free(longKeyAttrName);
   } // if
@@ -1196,14 +1196,13 @@ static void sleepBeforeStartingTest(int seconds){
 
 static int
 createTables(Ndb* pMyNdb){
-  int i;
-  for (i = 0; i < tNoOfAttributes; i++){
+  for (Uint32 i = 0; i < tNoOfAttributes; i++){
     BaseString::snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
   }
 
   // Note! Uses only uppercase letters in table name's
   // so that we can look at the tables with SQL
-  for (i = 0; i < tNoOfTables; i++){
+  for (Uint32 i = 0; i < tNoOfTables; i++){
     if (theStdTableNameFlag == 0){
       BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
 	       (int)(NdbTick_CurrentMillisecond() / 1000));
@@ -1212,7 +1211,7 @@ createTables(Ndb* pMyNdb){
     }
   }
   
-  for(i = 0; i < tNoOfTables; i++){
+  for(Uint32 i = 0; i < tNoOfTables; i++){
     ndbout << "Creating " << tableName[i] << "... ";
     
     NdbDictionary::Table tmpTable(tableName[i]);

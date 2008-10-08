@@ -162,7 +162,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
 {
   ndb_init();
   ThreadNdb*            pThreadData;
-  int                   tLoops=0, i;
+  int                   tLoops=0;
   int                   returnValue = NDBT_OK;
 
   flexAsynchErrorData = new ErrorData;
@@ -258,7 +258,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
      *  Create NDB objects.                                   *
      ****************************************************************/
     resetThreads();
-    for (i = 0; i < tNoOfThreads ; i++) {
+    for (Uint32 i = 0; i < tNoOfThreads ; i++) {
       pThreadData[i].ThreadNo = i
 ;
       threadLife[i] = NdbThread_Create(threadLoop,
@@ -290,7 +290,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       PRINT_TIMER("insert", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int ci = 1 ;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!" 
@@ -327,7 +327,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int cr = 1;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!"<<endl ;
@@ -364,7 +364,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       PRINT_TIMER("update", noOfTransacts, tNoOfOpsPerTrans) ;
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int cu = 1 ;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!"<<endl ;
@@ -400,7 +400,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int cr2 = 1 ;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!"<<endl ;
@@ -437,7 +437,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       PRINT_TIMER("delete", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
-        i = retry_opt ;
+        int i = retry_opt ;
         int cd = 1 ;
         while (0 < failed && 0 < i){
           ndbout << failed << " of the transactions returned errors!"<< endl ;
