@@ -120,9 +120,9 @@
 #define ERROR_INSERT_VARIABLE typedef void * cerrorInsert // Will generate compiler error if used
 #define ERROR_INSERTED(x) false
 #define ERROR_INSERTED_CLEAR(x) false
-#define SET_ERROR_INSERT_VALUE(x)
-#define SET_ERROR_INSERT_VALUE2(x,y)
-#define CLEAR_ERROR_INSERT_VALUE
+#define SET_ERROR_INSERT_VALUE(x) do { } while(0)
+#define SET_ERROR_INSERT_VALUE2(x,y) do { } while(0)
+#define CLEAR_ERROR_INSERT_VALUE do { } while(0)
 #endif
 
 #define DECLARE_DUMP0(BLOCK, CODE, DESC) if (arg == CODE)
