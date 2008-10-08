@@ -65,9 +65,11 @@ BEGIN {
 #
 
 use Memoize;
-memoize('mixed_path');
-memoize('native_path');
-memoize('posix_path');
+if (!IS_WIN32PERL){
+  memoize('mixed_path');
+  memoize('native_path');
+  memoize('posix_path');
+}
 
 sub mixed_path {
   my ($path)= @_;
