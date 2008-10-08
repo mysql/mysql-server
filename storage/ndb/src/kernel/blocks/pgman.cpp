@@ -1359,8 +1359,8 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
   m_global_page_pool.getPtr(pagePtr, ptr.p->m_real_page_i);
   File_formats::Datafile::Data_page* page =
     (File_formats::Datafile::Data_page*)pagePtr.p;
-  page->m_page_header.m_page_lsn_hi = ptr.p->m_lsn >> 32;
-  page->m_page_header.m_page_lsn_lo = ptr.p->m_lsn & 0xFFFFFFFF;
+  page->m_page_header.m_page_lsn_hi = (Uint32)(ptr.p->m_lsn >> 32);
+  page->m_page_header.m_page_lsn_lo = (Uint32)(ptr.p->m_lsn & 0xFFFFFFFF);
 
   // undo WAL
   Logfile_client::Request req;
