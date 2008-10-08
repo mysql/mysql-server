@@ -442,8 +442,6 @@ SELECT f1();
 INSERT INTO t1 VALUES (NULL, f2()), (NULL, LAST_INSERT_ID()),
                       (NULL, LAST_INSERT_ID()), (NULL, f2()), (NULL, f2());
 INSERT INTO t1 VALUES (NULL, f2());
-INSERT INTO t1 VALUES (NULL, LAST_INSERT_ID()), (NULL, LAST_INSERT_ID(5)),
-                      (NULL, @@LAST_INSERT_ID);
 # Test replication of substitution "IS NULL" -> "= LAST_INSERT_ID".
 INSERT INTO t1 VALUES (NULL, 0), (NULL, LAST_INSERT_ID());
 UPDATE t1 SET j= -1 WHERE i IS NULL;
