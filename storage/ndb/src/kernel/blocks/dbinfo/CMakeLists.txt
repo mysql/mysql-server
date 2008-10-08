@@ -14,32 +14,11 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-ADD_SUBDIRECTORY(cmvmi)
-ADD_SUBDIRECTORY(dbacc)
-ADD_SUBDIRECTORY(dbdict)
-ADD_SUBDIRECTORY(dbdih)
-ADD_SUBDIRECTORY(dblqh)
-ADD_SUBDIRECTORY(dbtc)
-ADD_SUBDIRECTORY(dbtup)
-ADD_SUBDIRECTORY(ndbfs)
-ADD_SUBDIRECTORY(ndbcntr)
-ADD_SUBDIRECTORY(qmgr)
-ADD_SUBDIRECTORY(trix)
-ADD_SUBDIRECTORY(backup)
-ADD_SUBDIRECTORY(dbutil)
-ADD_SUBDIRECTORY(suma)
-ADD_SUBDIRECTORY(dbtux)
-ADD_SUBDIRECTORY(dbinfo)
-
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dbinfo)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_LIBRARY(ndbblocks  STATIC
-            diskpage.cpp
-            lgman.cpp
-            pgman.cpp
-            print_file.cpp
-	    RestoreProxy.cpp
-            restore.cpp
-            tsman.cpp
-	    LocalProxy.cpp
-           )
+ADD_LIBRARY(ndbdbinfo STATIC
+		      Dbinfo.cpp
+		      ndbinfo_helpers.cpp
+)
+
