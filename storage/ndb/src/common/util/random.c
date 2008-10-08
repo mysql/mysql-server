@@ -68,8 +68,8 @@ static void localRandom48Init(long int seedval, DRand48Data *buffer)
       seedval &= 0xffffffffl;
 
 #if USHRT_MAX == 0xffffU
-  buffer->x[2] = seedval >> 16;
-  buffer->x[1] = seedval & 0xffffl;
+  buffer->x[2] = (unsigned short)(seedval >> 16);
+  buffer->x[1] = (unsigned short)(seedval & 0xffffl);
   buffer->x[0] = 0x330e;
 
   buffer->a[2] = 0x5;
@@ -126,9 +126,9 @@ static void localRandom48(DRand48Data *buffer, long int *result)
 
       loc_result = X * a + buffer->c;
 
-      buffer->x[0] = loc_result & 0xffff;
-      buffer->x[1] = (loc_result >> 16) & 0xffff;
-      buffer->x[2] = (loc_result >> 32) & 0xffff;
+      buffer->x[0] = (unsigned short)(loc_result & 0xffff);
+      buffer->x[1] = (unsigned short)((loc_result >> 16) & 0xffff);
+      buffer->x[2] = (unsigned short)((loc_result >> 32) & 0xffff);
    }
    else {
       X = (Uint64)buffer->x[2] << 16 | 
