@@ -54,7 +54,7 @@ libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
                         mt.cpp \
                         dummy_mt.cpp
 
-EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt
+EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt LongSignal.cpp SimplePropertiesSection.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
