@@ -81,7 +81,7 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  for(Uint32 i = optind; i<argc; i++)
+  for(int i = optind; i<argc; i++)
   {
     const char* _tabname = argv[i];
     // Check if table exists in db
