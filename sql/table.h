@@ -18,6 +18,7 @@
 
 class Item;				/* Needed by ORDER */
 class Item_subselect;
+class Item_field;
 class GRANT_TABLE;
 class st_select_lex_unit;
 class st_select_lex;
@@ -1016,7 +1017,7 @@ class Natural_join_column: public Sql_alloc
 {
 public:
   Field_translator *view_field;  /* Column reference of merge view. */
-  Field            *table_field; /* Column reference of table or temp view. */
+  Item_field       *table_field; /* Column reference of table or temp view. */
   TABLE_LIST *table_ref; /* Original base table/view reference. */
   /*
     True if a common join column of two NATURAL/USING join operands. Notice
@@ -1028,7 +1029,7 @@ public:
   bool is_common;
 public:
   Natural_join_column(Field_translator *field_param, TABLE_LIST *tab);
-  Natural_join_column(Field *field_param, TABLE_LIST *tab);
+  Natural_join_column(Item_field *field_param, TABLE_LIST *tab);
   const char *name();
   Item *create_item(THD *thd);
   Field *field();
@@ -1607,7 +1608,7 @@ public:
   GRANT_INFO *grant();
   Item *create_item(THD *thd) { return field_it->create_item(thd); }
   Field *field() { return field_it->field(); }
-  Natural_join_column *get_or_create_column_ref(TABLE_LIST *parent_table_ref);
+  Natural_join_column *get_or_create_column_ref(THD *thd, TABLE_LIST *parent_table_ref);
   Natural_join_column *get_natural_column_ref();
 };
 
