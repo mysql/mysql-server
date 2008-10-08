@@ -110,7 +110,6 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
     dbinfo_write_row_column_uint32(&r, cnoOfAllocatedPages); // alloced pages
     dbinfo_write_row_column_uint32(&r, c_no_of_pages); // number of pages
     dbinfo_write_row_column(&r, "DBTUP", 5);
-    ndbout_c("dbinfo tidai to %lx",senderRef);
     dbinfo_send_row(signal,r,rl,apiTxnId,senderRef);
   }
   else if(req.tableId == NDBINFO_POOLS_TABLEID)

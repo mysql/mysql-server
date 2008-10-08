@@ -4511,6 +4511,14 @@ int ha_ndbcluster::rnd_init(bool scan)
 
 int ha_ndbcluster::close_scan()
 {
+  /*
+    workaround for bug #39872 - explain causes segv
+    - rnd_end/close_scan is called on unlocked table
+    - should be fixed in server code, but this will
+    not be done until 6.0 as it is too intrusive
+  */
+  if (m_thd_ndb == NULL)
+    return 0;
   NdbTransaction *trans= m_thd_ndb->trans;
   int error;
   DBUG_ENTER("close_scan");

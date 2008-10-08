@@ -3220,7 +3220,7 @@ char* ndb_mgm_ndbinfo_nextcolumn(char* row, int *len)
     end= strchr(curr,'\'');
     if(!end)
     {
-      if(end= strchr(curr,'\n'))
+      if((end= strchr(curr,'\n')))
       {
         *end='\0';
         *len= strlen(curr);
@@ -3236,7 +3236,7 @@ char* ndb_mgm_ndbinfo_nextcolumn(char* row, int *len)
     end= strchr(curr,',');
     if(!end)
     {
-      if(end= strchr(curr,'\n'))
+      if((end= strchr(curr,'\n')))
       {
         *end='\0';
         *len= strlen(curr);

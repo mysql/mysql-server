@@ -2060,10 +2060,10 @@ void MgmApiSession::getNdbInfo(Parser_t::Context &ctx, Properties const &args)
 
   m_output->println("%d",columns.size());
 
-  for(int i=0;i<columns.size();i++)
+  for(unsigned i = 0; i < columns.size(); i++)
     m_output->println(columns[i].c_str());
 
-  for(int i=0;i<rows.size();i++)
+  for(unsigned i = 0; i < rows.size(); i++)
     m_output->println(rows[i].c_str());
 
   return ;

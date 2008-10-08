@@ -111,7 +111,7 @@ DECLARE_NDBINFO_TABLE(ndbinfo_POOLS,5)
    }
 };
 
-static int number_ndbinfo_tables= 7;
+static Uint32 number_ndbinfo_tables= 7;
 
 struct ndbinfo_table *ndbinfo_tables[] = {
   &ndbinfo_TABLES.t,

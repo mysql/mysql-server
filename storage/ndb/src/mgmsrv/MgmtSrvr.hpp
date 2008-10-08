@@ -470,7 +470,7 @@ private:
 
   Logger*  getLogger();
 
-  int ndbinfo(int tableId, Vector<BaseString> *cols, Vector<BaseString> *rows);
+  int ndbinfo(Uint32 tableId, Vector<BaseString> *cols, Vector<BaseString> *rows);
 
   int ndbinfo(BaseString table_name,
               Vector<BaseString> *cols,

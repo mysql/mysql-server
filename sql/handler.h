@@ -2225,25 +2225,12 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
-int ha_global_schema_lock(THD *thd);
-int ha_global_schema_unlock(THD *thd);
 class Ha_global_schema_lock_guard
 {
 public:
-  Ha_global_schema_lock_guard(THD *thd)
-    : m_thd(thd), m_lock(0)
-  {
-  }
-  ~Ha_global_schema_lock_guard()
-  {
-    if (m_lock)
-      ha_global_schema_unlock(m_thd);
-  }
-  int lock()
-  {
-    m_lock= !ha_global_schema_lock(m_thd);
-    return !m_lock;
-  }
+  Ha_global_schema_lock_guard(THD *thd);
+  ~Ha_global_schema_lock_guard();
+  int lock();
 private:
   THD *m_thd;
   int m_lock;
@@ -2256,8 +2243,6 @@ inline int ha_int_dummy() { return 0; }
 #define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
 #define ha_binlog_wait(a) do {} while (0)
 #define ha_binlog_end(a)  do {} while (0)
-#define ha_global_schema_lock(a) ha_int_dummy()
-#define ha_global_schema_unlock(a) ha_int_dummy()
 class Ha_global_schema_lock_guard
 {
 public:

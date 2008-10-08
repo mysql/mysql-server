@@ -2296,6 +2296,9 @@ const char* MgmtSrvr::getErrorText(int errorCode, char *buf, int buf_sz)
 
 void MgmtSrvr::execDBINFO_SCANREQ(NdbApiSignal* signal)
 {
+#if 1
+  (void)signal;
+#else
   DbinfoScanReq req= *(DbinfoScanReq*) signal->getDataPtr();
 
   const Uint32 tableId= req.tableId;
@@ -2360,7 +2363,7 @@ void MgmtSrvr::execDBINFO_SCANREQ(NdbApiSignal* signal)
     }
 */    break;
   }
-
+#endif
 }
 
 void
@@ -3465,7 +3468,7 @@ Logger* MgmtSrvr::getLogger()
 
 int MgmtSrvr::ndbinfo(BaseString table_name, Vector<BaseString> *cols, Vector<BaseString> *rows)
 {
-  int i,r= ENOENT;
+  int r= ENOENT;
 
   if(m_ndbinfo_table_names.size()==0 || table_name=="TABLES" || table_name=="COLUMNS")
   {
@@ -3483,7 +3486,7 @@ int MgmtSrvr::ndbinfo(BaseString table_name, Vector<BaseString> *cols, Vector<Ba
 
   }
 
-  for(i=2;i<m_ndbinfo_table_names.size(); i++)
+  for(Uint32 i = 2; i<m_ndbinfo_table_names.size(); i++)
   {
     if(table_name == m_ndbinfo_table_names[i])
       return ndbinfo(i, cols, rows);
@@ -3492,7 +3495,8 @@ int MgmtSrvr::ndbinfo(BaseString table_name, Vector<BaseString> *cols, Vector<Ba
   return r;
 }
 
-int MgmtSrvr::ndbinfo(int tableId,  Vector<BaseString> *cols, Vector<BaseString> *rows)
+int MgmtSrvr::ndbinfo(Uint32 tableId, 
+                      Vector<BaseString> *cols, Vector<BaseString> *rows)
 {
   SignalSender ss(theFacade);
   ss.lock();
@@ -3527,7 +3531,7 @@ int MgmtSrvr::ndbinfo(int tableId,  Vector<BaseString> *cols, Vector<BaseString>
   int do_send= 1;
 
   int ncols;
-  if(m_ndbinfo_column_types.size()>=tableId+1)
+  if(m_ndbinfo_column_types.size() >= tableId+1)
   {
     ncols= m_ndbinfo_column_types[tableId].size();
     *cols= m_ndbinfo_column_names[tableId];
@@ -3559,7 +3563,7 @@ int MgmtSrvr::ndbinfo(int tableId,  Vector<BaseString> *cols, Vector<BaseString>
     int i;
     char *row;
     Uint32 rowsz;
-    int rec_tableid;
+    Uint32 rec_tableid;
     int rec_colid;
     DbinfoScanConf *conf;
     Uint32 coltype;
@@ -3623,9 +3627,9 @@ int MgmtSrvr::ndbinfo(int tableId,  Vector<BaseString> *cols, Vector<BaseString>
                                                     coltype);
           }
         }
-
-        if(m_ndbinfo_column_types.size()>tableId
-           && m_ndbinfo_column_types[tableId].size() > i)
+        
+        if(m_ndbinfo_column_types.size() > tableId
+           && m_ndbinfo_column_types[tableId].size() > (unsigned)i)
         {
           switch(m_ndbinfo_column_types[tableId][i])
           {
