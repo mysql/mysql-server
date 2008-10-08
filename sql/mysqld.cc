@@ -2800,11 +2800,25 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
   THD *thd;
   DBUG_ENTER("my_message_sql");
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
+
+  DBUG_ASSERT(str != NULL);
   /*
-    Put here following assertion when situation with EE_* error codes
-    will be fixed
+    An error should have a valid error number (!= 0), so it can be caught
+    in stored procedures by SQL exception handlers.
+    Calling my_error() with error == 0 is a bug.
+    Remaining known places to fix:
+    - storage/myisam/mi_create.c, my_printf_error()
+    TODO:
     DBUG_ASSERT(error != 0);
   */
+
+  if (error == 0)
+  {
+    /* At least, prevent new abuse ... */
+    DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0);
+    error= ER_UNKNOWN_ERROR;
+  }
+
   if ((thd= current_thd))
   {
     /*
@@ -2835,10 +2849,6 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     {
       if (! thd->main_da.is_error())            // Return only first message
       {
-        if (error == 0)
-          error= ER_UNKNOWN_ERROR;
-        if (str == NULL)
-          str= ER(error);
         thd->main_da.set_error_status(thd, error, str);
       }
       query_cache_abort(&thd->net);
@@ -3384,7 +3394,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (opt_slow_log && opt_slow_logname && !(log_output_options & LOG_FILE)
       && !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
-                      "--log-slow-queries option, log tables are used. "
+                      "--log_slow_queries option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
 
   s= opt_logname ? opt_logname : make_default_log_name(buff, ".log");
@@ -3753,23 +3763,25 @@ with --log-bin instead.");
     unireg_abort(1);
   }
   if (!opt_bin_log)
+  {
     if (opt_binlog_format_id != BINLOG_FORMAT_UNSPEC)
-  {
-    sql_print_error("You need to use --log-bin to make "
-                    "--binlog-format work.");
-    unireg_abort(1);
-  }
-    else
-  {
-      global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
+    {
+      sql_print_error("You need to use --log-bin to make "
+                      "--binlog-format work.");
+      unireg_abort(1);
     }
+    else
+    {
+      global_system_variables.binlog_format= BINLOG_FORMAT_STMT;
+    }
+  }
   else
     if (opt_binlog_format_id == BINLOG_FORMAT_UNSPEC)
-      global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
+      global_system_variables.binlog_format= BINLOG_FORMAT_STMT;
     else
     { 
       DBUG_ASSERT(global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC);
-  }
+    }
 
   /* Check that we have not let the format to unspecified at this point */
   DBUG_ASSERT((uint)global_system_variables.binlog_format <=
@@ -5530,7 +5542,9 @@ enum options_mysqld
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
   OPT_OLD_MODE,
-  OPT_SLAVE_EXEC_MODE
+  OPT_SLAVE_EXEC_MODE,
+  OPT_GENERAL_LOG_FILE,
+  OPT_SLOW_QUERY_LOG_FILE
 };
 
 
@@ -5727,7 +5741,7 @@ struct my_option my_long_options[] =
    "Set up signals usable for debugging",
    (uchar**) &opt_debugging, (uchar**) &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"general-log", OPT_GENERAL_LOG,
+  {"general_log", OPT_GENERAL_LOG,
    "Enable|disable general log", (uchar**) &opt_log,
    (uchar**) &opt_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_LARGE_PAGES
@@ -5763,8 +5777,12 @@ Disable with --skip-large-pages.",
    (uchar**) &opt_local_infile,
    (uchar**) &opt_local_infile, 0, GET_BOOL, OPT_ARG,
    1, 0, 0, 0, 0, 0},
-  {"log", 'l', "Log connections and queries to file.", (uchar**) &opt_logname,
+  {"log", 'l', "Log connections and queries to file (deprecated option, use "
+   "--general_log/--general_log_file instead).", (uchar**) &opt_logname,
    (uchar**) &opt_logname, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"general_log_file", OPT_GENERAL_LOG_FILE,
+   "Log connections and queries to given file.", (uchar**) &opt_logname,
+   (uchar**) &opt_logname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
    "Log update queries in binary format. Optional (but strongly recommended "
    "to avoid replication problems if server's hostname changes) argument "
@@ -5838,10 +5856,17 @@ Disable with --skip-large-pages.",
   (uchar**) &opt_log_slow_slave_statements,
   (uchar**) &opt_log_slow_slave_statements,
   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-slow-queries", OPT_SLOW_QUERY_LOG,
-    "Log slow queries to a table or log file. Defaults logging to table mysql.slow_log or hostname-slow.log if --log-output=file is used. Must be enabled to activate other slow log options.",
+  {"log_slow_queries", OPT_SLOW_QUERY_LOG,
+    "Log slow queries to a table or log file. Defaults logging to table "
+    "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
+    "Must be enabled to activate other slow log options. "
+    "(deprecated option, use --slow_query_log/--slow_query_log_file instead)",
    (uchar**) &opt_slow_logname, (uchar**) &opt_slow_logname, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
+  {"slow_query_log_file", OPT_SLOW_QUERY_LOG_FILE,
+    "Log slow queries to given log file. Defaults logging to hostname-slow.log. Must be enabled to activate other slow log options.",
+   (uchar**) &opt_slow_logname, (uchar**) &opt_slow_logname, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc", OPT_LOG_TC,
    "Path to transaction coordinator log (used for transactions that affect "
    "more than one storage engine, when binary log is disabled)",
@@ -6223,7 +6248,7 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. Deprecated option.  Use --skip-symbolic-links instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-thread-priority", OPT_SKIP_PRIOR,
-   "Don't give threads different priorities.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   "Don't give threads different priorities. Deprecated option.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    DEFAULT_SKIP_THREAD_PRIORITY, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
   {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR,
@@ -7535,13 +7560,13 @@ static void mysql_init_variables(void)
     have_community_features = SHOW_OPTION_YES;
 #else
     have_community_features = SHOW_OPTION_NO;
+#endif
   global_system_variables.ndb_index_stat_enable=FALSE;
   max_system_variables.ndb_index_stat_enable=TRUE;
   global_system_variables.ndb_index_stat_cache_entries=32;
   max_system_variables.ndb_index_stat_cache_entries=~0L;
   global_system_variables.ndb_index_stat_update_freq=20;
   max_system_variables.ndb_index_stat_update_freq=~0L;
-#endif
 #ifdef HAVE_OPENSSL
   have_ssl=SHOW_OPTION_YES;
 #else
@@ -7649,6 +7674,9 @@ mysqld_get_one_option(int optid,
       default_collation_name= 0;
     break;
   case 'l':
+    WARN_DEPRECATED(NULL, "7.0", "--log", "'--general_log'/'--general_log_file'");
+    /* FALL-THROUGH */
+  case OPT_GENERAL_LOG_FILE:
     opt_log=1;
     break;
   case 'h':
@@ -7818,6 +7846,9 @@ mysqld_get_one_option(int optid,
   }
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
+    WARN_DEPRECATED(NULL, "7.0", "--log_slow_queries", "'--slow_query_log'/'--slow_query_log_file'");
+    /* FALL-THROUGH */
+  case (int) OPT_SLOW_QUERY_LOG_FILE:
     opt_slow_log= 1;
     break;
 #ifdef WITH_CSV_STORAGE_ENGINE
@@ -7865,6 +7896,9 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;
+    sql_print_warning("The --skip-thread-priority startup option is deprecated "
+                      "and will be removed in MySQL 7.0. MySQL 6.0 and up do not "
+                      "give threads different priorities.");
     break;
   case (int) OPT_SKIP_LOCK:
     opt_external_locking=0;
@@ -8207,7 +8241,7 @@ static void get_options(int *argc,char **argv)
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes ||
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
-    sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log-slow-queries is not set");
+    sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
 
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;

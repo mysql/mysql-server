@@ -2324,8 +2324,8 @@ mysql_execute_command(THD *thd)
     }
     else
     {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "the master info structure does not exist");
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
       my_ok(thd);
     }
     pthread_mutex_unlock(&LOCK_active_mi);
@@ -2722,11 +2722,13 @@ end_with_restore_list:
 
       /* Don't yet allow changing of symlinks with ALTER TABLE */
       if (create_info.data_file_name)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                     "DATA DIRECTORY option ignored");
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                            "DATA DIRECTORY");
       if (create_info.index_file_name)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                     "INDEX DIRECTORY option ignored");
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                            "INDEX DIRECTORY");
       create_info.data_file_name= create_info.index_file_name= NULL;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
