@@ -18,7 +18,7 @@ package My::Platform;
 
 use strict;
 use File::Basename;
-use File::Path; # Patched version of File::Path
+use File::Path;
 
 use base qw(Exporter);
 our @EXPORT= qw(IS_CYGWIN IS_WINDOWS IS_WIN32PERL
