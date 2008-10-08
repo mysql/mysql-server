@@ -2108,8 +2108,8 @@ public:
       Don't reset binlog format for NDB binlog injector thread.
     */
     DBUG_PRINT("debug",
-               ("temporary_tables: %d, in_sub_stmt: %d, system_thread: %s",
-                (int) temporary_tables, in_sub_stmt,
+               ("temporary_tables: %p, in_sub_stmt: %d, system_thread: %s",
+                temporary_tables, in_sub_stmt,
                 show_system_thread(system_thread)));
     if ((temporary_tables == NULL) && (in_sub_stmt == 0) &&
         (system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
