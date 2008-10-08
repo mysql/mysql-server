@@ -13678,7 +13678,7 @@ void Dbdih::initRestartInfo(Signal* signal)
     SYSFILE->takeOver[i] = 0;
   }//for
   Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
-  srand(time(0));
+  srand((unsigned int)time(0));
   globalData.m_restart_seq = SYSFILE->m_restart_seq = 0;
 
   if (m_micro_gcp.m_enabled == false && 
