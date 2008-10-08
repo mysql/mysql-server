@@ -723,6 +723,7 @@ Col::wellformed(const void* addr) const
       const char* src = (const char*)addr;
       uint len = m_bytelength;
       int not_used;
+	  (void)not_used; /* squash warning when assert is #defined to nothing */
       assert((*cs->cset->well_formed_len)(cs, src, src + len, 0xffff, &not_used) == len);
     }
     break;
@@ -733,6 +734,7 @@ Col::wellformed(const void* addr) const
       const char* ssrc = (const char*)src;
       uint len = src[0];
       int not_used;
+	  (void)not_used; /* squash warning when assert is #defined to nothing */
       assert(len <= m_bytelength);
       assert((*cs->cset->well_formed_len)(cs, ssrc + 1, ssrc + 1 + len, 0xffff, &not_used) == len);
     }
@@ -744,6 +746,7 @@ Col::wellformed(const void* addr) const
       const char* ssrc = (const char*)src;
       uint len = src[0] + (src[1] << 8);
       int not_used;
+	  (void)not_used; /* squash warning when assert is #defined to nothing */
       assert(len <= m_bytelength);
       assert((*cs->cset->well_formed_len)(cs, ssrc + 2, ssrc + 2 + len, 0xffff, &not_used) == len);
     }
