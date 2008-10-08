@@ -5488,6 +5488,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
   */
   thd->reset_current_stmt_binlog_row_based();
 
+  DBUG_PRINT("debug",
+             ("current_stmt_binlog_row_based: %d",
+              thd->current_stmt_binlog_row_based));
+
   DBUG_VOID_RETURN;
 }
 
