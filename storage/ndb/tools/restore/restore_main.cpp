@@ -52,7 +52,7 @@ const char *opt_ndb_table= NULL;
 unsigned int opt_verbose;
 unsigned int opt_hex_format;
 unsigned int opt_progress_frequency;
-unsigned int g_report_next;
+NDB_TICKS g_report_next;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
 NdbRecordPrintFormat g_ndbrecord_print_format;
@@ -680,7 +680,7 @@ static int check_progress()
   if (!opt_progress_frequency)
     return 0;
 
-  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
+  NDB_TICKS now = NdbTick_CurrentMillisecond() / 1000;
   
   if (now  >= g_report_next)
   {
