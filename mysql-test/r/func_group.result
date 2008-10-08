@@ -1416,4 +1416,41 @@ SELECT AVG(a), CAST(AVG(a) AS DECIMAL) FROM t1;
 AVG(a)	CAST(AVG(a) AS DECIMAL)
 15	15
 DROP TABLE t1;
+CREATE TABLE derived1 (a bigint(21));
+INSERT INTO derived1 VALUES (2);
+CREATE TABLE D (
+pk int(11) NOT NULL AUTO_INCREMENT,
+int_nokey int(11) DEFAULT NULL,
+int_key int(11) DEFAULT NULL,
+filler blob,
+PRIMARY KEY (pk),
+KEY int_key (int_key)
+);
+INSERT INTO D VALUES 
+(39,40,4,repeat('  X', 42)),
+(43,56,4,repeat('  X', 42)),
+(47,12,4,repeat('  X', 42)),
+(71,28,4,repeat('  X', 42)),
+(76,54,4,repeat('  X', 42)),
+(83,45,4,repeat('  X', 42)),
+(105,53,12,NULL);
+SELECT 
+(SELECT COUNT( int_nokey ) 
+FROM derived1 AS X 
+WHERE 
+X.int_nokey < 61 
+GROUP BY pk 
+LIMIT 1) 
+FROM D AS X 
+WHERE X.int_key < 13  
+GROUP BY int_nokey LIMIT 1;
+(SELECT COUNT( int_nokey ) 
+FROM derived1 AS X 
+WHERE 
+X.int_nokey < 61 
+GROUP BY pk 
+LIMIT 1)
+1
+DROP TABLE derived1;
+DROP TABLE D;
 End of 5.0 tests
