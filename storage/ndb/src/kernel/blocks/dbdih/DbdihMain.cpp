@@ -242,8 +242,8 @@ void Dbdih::sendINCL_NODEREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   signal->theData[1] = c_nodeStartMaster.startNode;
   signal->theData[2] = c_nodeStartMaster.failNr;
   signal->theData[3] = 0;
-  signal->theData[4] = m_micro_gcp.m_current_gci >> 32;
-  signal->theData[5] = m_micro_gcp.m_current_gci & 0xFFFFFFFF;
+  signal->theData[4] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
+  signal->theData[5] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
   sendSignal(nodeDihRef, GSN_INCL_NODEREQ, signal, 6, JBA);
 }//Dbdih::sendINCL_NODEREQ()
 
@@ -2427,7 +2427,7 @@ void Dbdih::dihCopyCompletedLab(Signal* signal)
 {
   BlockReference ref = calcDictBlockRef(c_nodeStartMaster.startNode);
   DictStartReq * req = (DictStartReq*)&signal->theData[0];
-  req->restartGci = m_micro_gcp.m_new_gci >> 32;
+  req->restartGci = (Uint32)(m_micro_gcp.m_new_gci >> 32);
   req->senderRef = reference();
   sendSignal(ref, GSN_DICTSTARTREQ,
              signal, DictStartReq::SignalLength, JBB);
@@ -5249,8 +5249,8 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     ndbout_c("execGCP_TCFINISHED in MASTER_GCPREQ");
     CLEAR_ERROR_INSERT_VALUE;
     signal->theData[0] = c_error_7181_ref;
-    signal->theData[1] = m_micro_gcp.m_old_gci >> 32;
-    signal->theData[2] = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+    signal->theData[1] = (Uint32)(m_micro_gcp.m_old_gci >> 32);
+    signal->theData[2] = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
     execGCP_TCFINISHED(signal);
   }
 
@@ -5281,8 +5281,8 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     {
       GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
       req2->senderData = m_micro_gcp.m_master_ref;
-      req2->gci_hi = m_micro_gcp.m_old_gci >> 32;
-      req2->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+      req2->gci_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
+      req2->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
       sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal,
                  GCPNoMoreTrans::SignalLength, JBB);
     }
@@ -5313,7 +5313,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
   masterGCPConf->gcpState  = gcpState;
   masterGCPConf->senderNodeId = cownNodeId;
   masterGCPConf->failedNodeId = failedNodeId;
-  masterGCPConf->newGCP_hi = m_micro_gcp.m_new_gci >> 32;
+  masterGCPConf->newGCP_hi = (Uint32)(m_micro_gcp.m_new_gci >> 32);
   masterGCPConf->latestLCP = SYSFILE->latestLCP_ID;
   masterGCPConf->oldestRestorableGCI = SYSFILE->oldestRestorableGCI;
   masterGCPConf->keepGCI = SYSFILE->keepGCI;  
@@ -5331,8 +5331,8 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     ndbout_c("execGCP_TCFINISHED in MASTER_GCPREQ");
     CLEAR_ERROR_INSERT_VALUE;
     signal->theData[0] = c_error_7181_ref;
-    signal->theData[1] = m_micro_gcp.m_old_gci >> 32;
-    signal->theData[2] = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+    signal->theData[1] = (Uint32)(m_micro_gcp.m_old_gci >> 32);
+    signal->theData[2] = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
     execGCP_TCFINISHED(signal);
   }
 
@@ -8400,8 +8400,8 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
     // theData[0] already contains the correct information so 
     // we need not touch it.
     /*-----------------------------------------------------------------------*/
-    signal->theData[1] = m_micro_gcp.m_current_gci >> 32;
-    signal->theData[2] = m_micro_gcp.m_current_gci & 0xFFFFFFFF;
+    signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
+    signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
     return;
   }//if
@@ -8818,8 +8818,8 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
   {
     SubGcpCompleteRep * const rep = (SubGcpCompleteRep*)signal->getDataPtr();
     rep->senderRef = reference();
-    rep->gci_hi = m_micro_gcp.m_old_gci >> 32;
-    rep->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+    rep->gci_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
+    rep->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
     rep->flags = SubGcpCompleteRep::IN_MEMORY;
     
 #ifdef ERROR_INSERT
@@ -8859,8 +8859,8 @@ void Dbdih::execGCP_NODEFINISH(Signal* signal)
    */
   m_micro_gcp.m_master.m_state = MicroGcp::M_GCP_IDLE;
 
-  Uint32 curr_hi = m_micro_gcp.m_current_gci >> 32;
-  Uint32 old_hi = m_micro_gcp.m_old_gci >> 32;
+  Uint32 curr_hi = (Uint32)(m_micro_gcp.m_current_gci >> 32);
+  Uint32 old_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
   
   if (m_micro_gcp.m_enabled)
   {
@@ -9207,9 +9207,9 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
     
     GCPNodeFinished* conf = (GCPNodeFinished*)signal->getDataPtrSend();
     conf->nodeId = cownNodeId;
-    conf->gci_hi = m_micro_gcp.m_old_gci >> 32;
+    conf->gci_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
     conf->failno = cfailurenr;
-    conf->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+    conf->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
     sendSignal(masterRef, GSN_GCP_NODEFINISH, signal,
                GCPNodeFinished::SignalLength, JBB);
     return;
@@ -9227,8 +9227,8 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
 
   GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
   req2->senderData = calcDihBlockRef(masterNodeId);
-  req2->gci_hi = m_micro_gcp.m_old_gci >> 32;
-  req2->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+  req2->gci_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
+  req2->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
   sendSignal(clocaltcblockref, GSN_GCP_NOMORETRANS, signal, 
              GCPNoMoreTrans::SignalLength, JBB);
   return;
@@ -9278,9 +9278,9 @@ void Dbdih::execGCP_TCFINISHED(Signal* signal)
 
   GCPNodeFinished* conf2 = (GCPNodeFinished*)signal->getDataPtrSend();
   conf2->nodeId = cownNodeId;
-  conf2->gci_hi = m_micro_gcp.m_old_gci >> 32;
+  conf2->gci_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
   conf2->failno = cfailurenr;
-  conf2->gci_lo = m_micro_gcp.m_old_gci & 0xFFFFFFFF;
+  conf2->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
   sendSignal(retRef, GSN_GCP_NODEFINISH, signal, 
              GCPNodeFinished::SignalLength, JBB);
 }//Dbdih::execGCP_TCFINISHED()
@@ -11383,7 +11383,7 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   // one global checkpoints between each local checkpoint that we start up.
   /* ----------------------------------------------------------------------- */
   c_lcpState.ctimer = 0;
-  c_lcpState.keepGci = m_micro_gcp.m_old_gci >> 32;
+  c_lcpState.keepGci = (Uint32)(m_micro_gcp.m_old_gci >> 32);
   c_lcpState.oldestRestorableGci = SYSFILE->oldestRestorableGCI;
 
   /* ----------------------------------------------------------------------- */
@@ -13068,12 +13068,12 @@ void Dbdih::allocStoredReplica(FragmentstorePtr fragPtr,
     newReplicaPtr.p->lcpStatus[i] = ZINVALID;
   }//for
   newReplicaPtr.p->noCrashedReplicas = 0;
-  newReplicaPtr.p->initialGci = m_micro_gcp.m_current_gci >> 32;
+  newReplicaPtr.p->initialGci = (Uint32)(m_micro_gcp.m_current_gci >> 32);
   for (i = 0; i < MAX_CRASHED_REPLICAS; i++) {
     newReplicaPtr.p->replicaLastGci[i] = (Uint32)-1;
     newReplicaPtr.p->createGci[i] = 0;
   }//for
-  newReplicaPtr.p->createGci[0] = m_micro_gcp.m_current_gci >> 32;
+  newReplicaPtr.p->createGci[0] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
   newReplicaPtr.p->nextLcp = 0;
   newReplicaPtr.p->procNode = nodeId;
   newReplicaPtr.p->lcpOngoingFlag = false;
@@ -13218,8 +13218,8 @@ void Dbdih::emptyverificbuffer(Signal* signal, bool aContinueB)
       clastVerifyQueue = RNIL;
     }//if
     signal->theData[0] = localApiConnectptr.i;
-    signal->theData[1] = m_micro_gcp.m_current_gci >> 32;
-    signal->theData[2] = m_micro_gcp.m_current_gci & 0xFFFFFFFF;
+    signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
+    signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
     sendSignal(clocaltcblockref, GSN_DIVERIFYCONF, signal, 4, JBB);
     if (aContinueB == true) {
