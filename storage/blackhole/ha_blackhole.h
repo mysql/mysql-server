@@ -53,7 +53,7 @@ public:
   ulonglong table_flags() const
   {
     return(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
-           HA_BINLOG_STMT_CAPABLE |
+           HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE |
            HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
            HA_FILE_BASED | HA_CAN_GEOMETRY | HA_CAN_INSERT_DELAYED);
   }
@@ -72,7 +72,6 @@ public:
   uint max_supported_key_part_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
-  int write_row(uchar * buf);
   int rnd_init(bool scan);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);
@@ -94,4 +93,8 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
+private:
+  virtual int write_row(uchar *buf);
+  virtual int update_row(const uchar *old_data, uchar *new_data);
+  virtual int delete_row(const uchar *buf);
 };

@@ -48,6 +48,9 @@ server-id	= 1
 # Uncomment the following if you want to log updates
 #log-bin=mysql-bin
 
+# binary logging format - mixed recommended
+#binlog_format=mixed
+
 # Uncomment the following if you are using InnoDB tables
 #innodb_data_home_dir = @localstatedir@/
 #innodb_data_file_path = ibdata1:10M:autoextend

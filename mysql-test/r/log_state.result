@@ -187,6 +187,8 @@ SELECT @@general_log, @@log;
 @@general_log	@@log
 1	1
 SET GLOBAL log = 0;
+Warnings:
+Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
 SHOW VARIABLES LIKE 'general_log';
 Variable_name	Value
 general_log	OFF
@@ -216,6 +218,8 @@ SELECT @@slow_query_log, @@log_slow_queries;
 @@slow_query_log	@@log_slow_queries
 0	0
 SET GLOBAL log_slow_queries = 0;
+Warnings:
+Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
 SHOW VARIABLES LIKE 'slow_query_log';
 Variable_name	Value
 slow_query_log	OFF
@@ -270,4 +274,28 @@ SET GLOBAL general_log_file = @general_log_file_saved;
 SET GLOBAL slow_query_log_file = @slow_query_log_file_saved;
 
 # -- End of Bug#32748.
+deprecated:
+SET GLOBAL log = 0;
+Warnings:
+Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
+SET GLOBAL log_slow_queries = 0;
+Warnings:
+Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+SET GLOBAL log = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
+SET GLOBAL log_slow_queries = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+not deprecated:
+SELECT @@global.general_log_file INTO @my_glf;
+SELECT @@global.slow_query_log_file INTO @my_sqlf;
+SET GLOBAL general_log = 0;
+SET GLOBAL slow_query_log = 0;
+SET GLOBAL general_log_file = 'WL4403_G.log';
+SET GLOBAL slow_query_log_file = 'WL4403_SQ.log';
+SET GLOBAL general_log_file = @my_glf;
+SET GLOBAL slow_query_log_file = @my_sqlf;
+SET GLOBAL general_log = DEFAULT;
+SET GLOBAL slow_query_log = DEFAULT;
 End of 5.1 tests
