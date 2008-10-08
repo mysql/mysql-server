@@ -27,6 +27,7 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
   char buf[512];
   struct dbinfo_row r;
   struct dbinfo_ratelimit rl;
+  dbinfo_ratelimit_init(&rl, &req);
 
   jamEntry();
 
