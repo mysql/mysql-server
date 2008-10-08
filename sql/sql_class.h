@@ -996,6 +996,21 @@ enum enum_thread_type
   SYSTEM_THREAD_EVENT_WORKER= 32
 };
 
+inline char const *
+show_system_thread(enum_thread_type thread)
+{
+#define RETURN_NAME_AS_STRING(NAME) case (NAME): return #NAME
+  switch (thread) {
+    RETURN_NAME_AS_STRING(NON_SYSTEM_THREAD);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_DELAYED_INSERT);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_IO);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_SQL);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_NDBCLUSTER_BINLOG);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_SCHEDULER);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
+  }
+#undef RETURN_NAME_AS_STRING
+}
 
 /**
   This class represents the interface for internal error handlers.
@@ -2092,6 +2107,10 @@ public:
 
       Don't reset binlog format for NDB binlog injector thread.
     */
+    DBUG_PRINT("debug",
+               ("temporary_tables: %d, in_sub_stmt: %d, system_thread: %s",
+                (int) temporary_tables, in_sub_stmt,
+                show_system_thread(system_thread)));
     if ((temporary_tables == NULL) && (in_sub_stmt == 0) &&
         (system_thread != SYSTEM_THREAD_NDBCLUSTER_BINLOG))
     {
