@@ -1358,7 +1358,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
     *stopCount = nodes.count();
   
   // start up the nodes again
-  int waitTime = 12000;
+  NDB_TICKS waitTime = 12000;
   NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + waitTime;
   for (unsigned i = 0; i < node_ids.size(); i++)
   {
@@ -1441,7 +1441,7 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
    * Here all nodes were correctly stopped,
    * so we wait for all nodes to be contactable
    */
-  int waitTime = 12000;
+  NDB_TICKS waitTime = 12000;
   NodeId nodeId = 0;
   NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + waitTime;
 
