@@ -52,7 +52,7 @@ typedef  void* (*AttrConvertFunc)(const void *old_data,
 //class AttributeDesc;
 struct AttributeDesc;
 struct AttributeData;
-struct AttributeS;
+class AttributeS;
 
 struct AttributeData {
   bool null;
@@ -82,7 +82,7 @@ struct AttributeDesc {
   friend class TableS;
   friend class RestoreDataIterator;
   friend class RestoreMetaData;
-  friend struct AttributeS;
+  friend class AttributeS;
   Uint32 size; // bits       
   Uint32 arraySize;
   Uint32 attrId;
