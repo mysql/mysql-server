@@ -1,3 +1,14 @@
+2008-10-08	The InnoDB Team
+
+	* dict/dict0crea.c, trx/trx0roll.c, include/row0mysql.h,
+	row/row0merge.c, row/row0mysql.c: When dropping a table, hold the
+	data dictionary latch until the transaction has been committed.
+	The data dictionary latch is supposed to prevent lock waits and
+	deadlocks in the data dictionary tables.  Due to this bug,
+	DROP TABLE could cause a deadlock or hang.  Note that because of
+	Bug#33650 and Bug#39833, MySQL may also drop a (temporary) table
+	when executing CREATE INDEX or ALTER TABLE ... ADD INDEX.
+
 2008-10-04	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb_bug39438-master.opt,

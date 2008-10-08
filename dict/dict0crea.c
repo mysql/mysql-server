@@ -1225,7 +1225,6 @@ dict_create_or_check_foreign_constraint_tables(void)
 			     " FOR_COL_NAME CHAR, REF_COL_NAME CHAR);\n"
 			     "CREATE UNIQUE CLUSTERED INDEX ID_IND"
 			     " ON SYS_FOREIGN_COLS (ID, POS);\n"
-			     "COMMIT WORK;\n"
 			     "END;\n"
 			     , FALSE, trx);
 
@@ -1248,7 +1247,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 		error = DB_MUST_GET_MORE_FILE_SPACE;
 	}
 
-	trx->op_info = "";
+	trx_commit_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
 
