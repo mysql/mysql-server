@@ -17824,8 +17824,8 @@ Dbdict::createFile_fromWriteObjInfo(Signal* signal,
   req->file_id = f_ptr.p->key;
   req->filegroup_id = f_ptr.p->m_filegroup_id;
   req->filegroup_version = fg_ptr.p->m_version;
-  req->file_size_hi = f_ptr.p->m_file_size >> 32;
-  req->file_size_lo = f_ptr.p->m_file_size & 0xFFFFFFFF;
+  req->file_size_hi = (Uint32)(f_ptr.p->m_file_size >> 32);
+  req->file_size_lo = (Uint32)(f_ptr.p->m_file_size & 0xFFFFFFFF);
   req->requestInfo = impl_req->requestInfo;
 
   Uint32 ref= 0;
