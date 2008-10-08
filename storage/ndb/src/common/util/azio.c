@@ -923,7 +923,7 @@ void putLong (azio_stream *s, uLong x)
   for (n = 0; n < 4; n++)
   {
     s->stream.avail_out--;
-    *(s->stream.next_out) = x & 0xff;
+    *(s->stream.next_out) = (Bytef)(x & 0xff);
     s->stream.next_out++;
     write_buffer(s);
     x >>= 8;
