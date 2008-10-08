@@ -66,7 +66,9 @@ END {
   for my $proc (values %running){
     if ( $proc->is_child($$) ){
       #print "Killing: $proc\n";
-      $proc->kill();
+      if ($proc->wait_one(0)){
+	$proc->kill();
+      }
     }
   }
 }
@@ -146,7 +148,7 @@ sub new {
   print "### safe_path: ", $safe_path, " ", join(" ", @safe_args), "\n"
     if $verbose > 1;
 
-  my ($pid, $winpid)= create_process(
+  my $pid= create_process(
 			  path      => $safe_path,
 			  input     => $input,
 			  output    => $output,
@@ -159,7 +161,7 @@ sub new {
   my $proc= bless
     ({
       SAFE_PID  => $pid,
-      SAFE_WINPID  => $winpid,
+      SAFE_WINPID  => $pid, # Inidicates this is always a real process
       SAFE_NAME => $name,
       SAFE_SHUTDOWN => $shutdown,
       PARENT => $$,
@@ -302,6 +304,18 @@ sub shutdown {
 }
 
 
+sub _winpid ($) {
+  my ($pid)= @_;
+
+  # In win32 perl, the pid is already the winpid
+  return $pid unless IS_CYGWIN;
+
+  # In cygwin, the pid is the pseudo process ->
+  # get the real winpid of my_safe_process
+  return Cygwin::pid_to_winpid($pid);
+}
+
+
 #
 # Tell the process to die as fast as possible
 #
@@ -311,22 +325,24 @@ sub start_kill {
   _verbose("start_kill: $self");
   my $ret= 1;
 
-  my $pid;
+  my $pid= $self->{SAFE_PID};
+  die "INTERNAL ERROR: no pid" unless defined $pid;
+
   if (IS_WINDOWS and defined $self->{SAFE_WINPID})
   {
     die "INTERNAL ERROR: no safe_kill" unless defined $safe_kill;
-    die "INTERNAL ERROR: no winpid" unless defined $self->{SAFE_WINPID};
 
-    # Use my_safe_kill to tell my_safe_process
-    # it's time to kill it's child and return
-    $pid= $self->{SAFE_WINPID};
-    $ret= system($safe_kill, $pid) >> 8;
-    if (IS_CYGWIN and $ret == 3)
-    {
-      print "safe_process is gone, kickstart the fake process\n";
-      if (kill(15, $self->{SAFE_PID}) != 1){
-	print STDERR "Failed to kickstart the fake process\n";
-      }
+    my $winpid= _winpid($pid);
+    $ret= system($safe_kill, $winpid) >> 8;
+
+    if ($ret == 3){
+      print "Couldn't open the winpid: $winpid ",
+	"for pid: $pid, try one more time\n";
+      sleep(1);
+      $winpid= _winpid($pid);
+      $ret= system($safe_kill, $winpid) >> 8;
+      print "Couldn't open the winpid: $winpid ",
+	"for pid: $pid, continue and see what happens...\n";
     }
   }
   else

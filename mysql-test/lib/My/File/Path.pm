@@ -20,33 +20,40 @@ use Exporter;
 use base "Exporter";
 our @EXPORT= qw / rmtree mkpath copytree /;
 
-
 use File::Find;
-use File::Path;
 use File::Copy;
 use Carp;
-
-no warnings 'redefine';
+use My::Handles;
 
 sub rmtree {
   my ($dir)= @_;
-
-  #
-  # chmod all files to 0777 before calling rmtree
-  #
   find( {
-	 no_chdir => 1,
+	 bydepth 		=> 1,
+	 no_chdir 		=> 1,
 	 wanted => sub {
-	   chmod(0777, $_)
-	     or warn("couldn't chmod(0777, $_): $!");
+	   my $name= $_;
+	   if (!-l $name && -d _){
+	     return if (rmdir($name) == 1);
+
+	     chmod(0777, $name) or carp("couldn't chmod(0777, $name): $!");
+
+	     return if (rmdir($name) == 1);
+
+	     # Failed to remove the directory, analyze
+	     carp("Couldn't remove directory '$name': $!");
+	     My::Handles::show_handles($name);
+	   } else {
+	     return if (unlink($name) == 1);
+
+	     chmod(0777, $name) or carp("couldn't chmod(0777, $name): $!");
+
+	     return if (unlink($name) == 1);
+
+	     carp("Couldn't delete file '$name': $!");
+	     My::Handles::show_handles($name);
+	   }
 	 }
-	},
-	$dir
-      );
-
-
-  # Call rmtree from File::Path
-  goto &File::Path::rmtree;
+	}, $dir );
 };
 
 
