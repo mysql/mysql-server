@@ -263,8 +263,8 @@ Backup::execCONTINUEB(Signal* signal)
       fragInfo->SectionLength = htonl(sz);
       fragInfo->TableId = htonl(fragPtr.p->tableId);
       fragInfo->FragmentNo = htonl(fragPtr_I);
-      fragInfo->NoOfRecordsLow = htonl(fragPtr.p->noOfRecords & 0xFFFFFFFF);
-      fragInfo->NoOfRecordsHigh = htonl(fragPtr.p->noOfRecords >> 32);
+      fragInfo->NoOfRecordsLow = htonl((Uint32)(fragPtr.p->noOfRecords & 0xFFFFFFFF));
+      fragInfo->NoOfRecordsHigh = htonl((Uint32)(fragPtr.p->noOfRecords >> 32));
       fragInfo->FilePosLow = htonl(0);
       fragInfo->FilePosHigh = htonl(0);
       
