@@ -177,4 +177,41 @@ select * from t2;
 drop table t1;
 drop table t2;
 
+#
+# Bug #32124: crash if prepared statements refer to variables in the where
+# clause
+#
+
+CREATE TABLE t1 (a INT);
+PREPARE stmt FROM 'select 1 from `t1` where `a` = any (select (@@tmpdir))';
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (400000), (400001);
+
+SET @@sort_buffer_size=400000;
+
+DELIMITER |;
+
+CREATE FUNCTION p1(i INT) RETURNS INT
+BEGIN
+  SET @@sort_buffer_size= i;
+  RETURN i + 1;
+END|
+
+DELIMITER ;|
+
+SELECT * FROM t2 WHERE a = @@sort_buffer_size AND p1(@@sort_buffer_size + 1) > a - 1;
+
+DROP TABLE t2;
+DROP FUNCTION p1;
+
+
+SELECT CONCAT(@@sort_buffer_size);
+SELECT LEFT("12345", @@ft_boolean_syntax);
+
+SET @@sort_buffer_size=DEFAULT;
+
 --echo End of 5.0 tests.

@@ -2380,17 +2380,15 @@ void Item_string::print(String *str, enum_query_type query_type)
 }
 
 
-double Item_string::val_real()
+double 
+double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
 {
-  DBUG_ASSERT(fixed == 1);
   int error;
-  char *end, *org_end;
+  char *org_end;
   double tmp;
-  CHARSET_INFO *cs= str_value.charset();
 
-  org_end= (char*) str_value.ptr() + str_value.length();
-  tmp= my_strntod(cs, (char*) str_value.ptr(), str_value.length(), &end,
-                  &error);
+  org_end= end;
+  tmp= my_strntod(cs, (char*) cptr, end - cptr, &end, &error);
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
     /*
@@ -2400,7 +2398,39 @@ double Item_string::val_real()
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
-                        str_value.ptr());
+                        cptr);
+  }
+  return tmp;
+}
+
+
+double Item_string::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  return double_from_string_with_check (str_value.charset(), str_value.ptr(), 
+                                        (char *) str_value.ptr() + str_value.length());
+}
+
+
+longlong 
+longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
+{
+  int err;
+  longlong tmp;
+  char *org_end= end;
+
+  tmp= (*(cs->cset->strtoll10))(cs, cptr, &end, &err);
+  /*
+    TODO: Give error if we wanted a signed integer and we got an unsigned
+    one
+  */
+  if (err > 0 ||
+      (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        cptr);
   }
   return tmp;
 }
@@ -2413,26 +2443,8 @@ double Item_string::val_real()
 longlong Item_string::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  int err;
-  longlong tmp;
-  char *end= (char*) str_value.ptr()+ str_value.length();
-  char *org_end= end;
-  CHARSET_INFO *cs= str_value.charset();
-
-  tmp= (*(cs->cset->strtoll10))(cs, str_value.ptr(), &end, &err);
-  /*
-    TODO: Give error if we wanted a signed integer and we got an unsigned
-    one
-  */
-  if (err > 0 ||
-      (end != org_end && !check_if_only_end_space(cs, end, org_end)))
-  {
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        str_value.ptr());
-  }
-  return tmp;
+  return longlong_from_string_with_check(str_value.charset(), str_value.ptr(),
+                             (char *) str_value.ptr()+ str_value.length());
 }
 
 
