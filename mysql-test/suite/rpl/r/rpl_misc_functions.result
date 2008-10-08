@@ -14,7 +14,7 @@ set sql_log_bin=1;
 insert into t1 values(3, 0, 0, 0, password('does_this_work?'));
 insert into t1 values(4, connection_id(), rand()*1000, rand()*1000, password('does_this_still_work?'));
 select * into outfile 'rpl_misc_functions.outfile' from t1;
-create table t2 like t1;
+create temporary table t2 like t1;
 load data local infile 'MYSQLD_DATADIR/test/rpl_misc_functions.outfile' into table t2;
 select * from t1, t2 where (t1.id=t2.id) and not(t1.i=t2.i and t1.r1=t2.r1 and t1.r2=t2.r2 and t1.p=t2.p);
 id	i	r1	r2	p	id	i	r1	r2	p
