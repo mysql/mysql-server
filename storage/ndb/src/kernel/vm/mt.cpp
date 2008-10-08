@@ -40,6 +40,8 @@
 #include <signaldata/StopForCrash.hpp>
 #include "TransporterCallbackKernel.hpp"
 
+#include "mt-asm.h"
+
 #ifdef __GNUC__
 /* Provides a small (but noticeable) speedup in benchmarks. */
 #define memcpy __builtin_memcpy
@@ -69,39 +71,7 @@ static Uint32 ndbmt_threads = 0;
 static Uint32 num_threads = 0;
 static Uint32 receiver_thread_no = 0;
 
-#ifdef NDBMTD_X86
-#define NDB_HAVE_XCNG
-static inline
-int
-xcng(volatile unsigned * addr, int val)
-{
-  asm volatile ("xchg %0, %1;" : "+r" (val) , "+m" (*addr));
-  return val;
-}
-
-/**
- * from ?md/?ntel manual "spinlock howto"
- */
-static
-inline
-void
-cpu_pause()
-{
-  asm volatile ("rep;nop");
-}
-
-/* Memory barriers, these definitions are for x64_64. */
-#define mb() 	asm volatile("mfence":::"memory")
-/* According to Intel docs, it does not reorder loads. */
-//#define rmb()	asm volatile("lfence":::"memory")
-#define rmb()	asm volatile("" ::: "memory")
-#define wmb()	asm volatile("" ::: "memory")
-#define read_barrier_depends()	do {} while(0)
-#else
-#error "Unsupported architecture"
-#endif
-
-#ifdef HAVE_LINUX_FUTEX
+#if defined(HAVE_LINUX_FUTEX) && defined(NDB_HAVE_XCNG)
 #define USE_FUTEX
 #endif
 
