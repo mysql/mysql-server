@@ -286,7 +286,7 @@ create_table_group(Ndb * pNdb){
     error_handler("createAttribute (group id)", 
 		  MySchemaTransaction->getNdbError(), 0);
 
-  check = MySchemaOp->createAttribute( GROUP_NAME,
+  check = MySchemaOp->createAttribute( NDB_GROUP_NAME,
 				       NoKey,
 				       sizeof(char) << 3,
 				       GROUP_NAME_LENGTH,
@@ -728,7 +728,7 @@ int userDbInsertGroup(UserHandle *uh,
   check = MyOperation->equal(GROUP_ID, (char*)&groupId);
   CHECK_MINUS_ONE(check, "equal", MyTransaction);  
   
-  check = MyOperation->setValue(GROUP_NAME, name);
+  check = MyOperation->setValue(NDB_GROUP_NAME, name);
   CHECK_MINUS_ONE(check, "setValue name", MyTransaction);  
 
   check = MyOperation->setValue(GROUP_ALLOW_READ, (char*)&allowRead);
