@@ -23,7 +23,7 @@ insert into t1 values(4, connection_id(), rand()*1000, rand()*1000, password('do
 select * into outfile 'rpl_misc_functions.outfile' from t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
 sync_slave_with_master;
-create table t2 like t1; 
+create temporary table t2 like t1; 
 # read the values from the master table
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 eval load data local infile '$MYSQLD_DATADIR/test/rpl_misc_functions.outfile' into table t2;
