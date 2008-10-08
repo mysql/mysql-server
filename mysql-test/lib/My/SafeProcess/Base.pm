@@ -33,30 +33,6 @@ use base qw(Exporter);
 our @EXPORT= qw(create_process);
 
 
-sub winpid {
-  my ($pid)= @_;
-
-  return undef unless $^O eq "cygwin";
-
-  # The child get a new winpid when the exec takes
-  # place, wait for that to happen
-  my $winpid;
-  my $delay= 0;
-  do
-  {
-    # Yield to the child
-    select(undef, undef, undef, $delay);
-    # Increase the delay slightly for each loop
-    $delay += 0.000001;
-
-    $winpid= Cygwin::pid_to_winpid($pid);
-
-  } until ($winpid != $pid);
-
-  return $winpid;
-}
-
-
 
 #
 # safe_fork
@@ -179,7 +155,7 @@ sub create_process {
       or croak("unable to reestablish STDIN");
     #printf STDERR "stdin %d, stdout %d, stderr %d\n",
     #    fileno STDIN, fileno STDOUT, fileno STDERR;
-    return wantarray ? ($pid, $pid) : $pid;
+    return $pid;
 
   }
 
@@ -190,7 +166,7 @@ sub create_process {
     # Parent
     $pipe->reader();
     my $line= <$pipe>; # Wait for child to say it's ready
-    return wantarray ? ($pid, winpid($pid)) : $pid;
+    return $pid;
   }
 
   $SIG{INT}= 'DEFAULT';
