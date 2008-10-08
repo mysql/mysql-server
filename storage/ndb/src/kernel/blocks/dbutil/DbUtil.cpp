@@ -298,11 +298,8 @@ void
 DbUtil::execCONTINUEB(Signal* signal){
   jamEntry();
   const Uint32 Tdata0 = signal->theData[0];
-  
-  switch(Tdata0){
-  default:
-    ndbrequire(0);
-  }
+
+  ndbrequire(0);
 }
 
 void
@@ -689,6 +686,8 @@ void DbUtil::execDBINFO_SCANREQ(Signal *signal)
   char buf[512];
   struct dbinfo_row r;
   struct dbinfo_ratelimit rl;
+
+  dbinfo_ratelimit_init(&rl, &req);
 
   jamEntry();
 
