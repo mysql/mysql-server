@@ -771,7 +771,7 @@ static void* flexBenchThread(void* pArg)
     // Calculate offset value before going into the next loop
     nRefOpOffset = tAttributeSize*tNoOfAttributes*(ops-1) ; 
     for(Uint32 a = 0 ; a < tNoOfAttributes ; a++)
-      for(Uint32 b= 0; b<tAttributeSize; b++)
+      for(int b= 0; b<tAttributeSize; b++)
         attrRefValue[nRefOpOffset + tAttributeSize*a + b] = 
           (int)(threadBase + ops + a) ;
   }
