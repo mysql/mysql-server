@@ -2752,8 +2752,53 @@ bool handler::get_error_message(int error, String* buf)
 }
 
 
+/**
+  Check for incompatible collation changes.
+   
+  @retval
+    HA_ADMIN_NEEDS_UPGRADE   Table may have data requiring upgrade.
+  @retval
+    0                        No upgrade required.
+*/
+
+int handler::check_collation_compatibility()
+{
+  ulong mysql_version= table->s->mysql_version;
+
+  if (mysql_version < 50048)
+  {
+    KEY *key= table->key_info;
+    KEY *key_end= key + table->s->keys;
+    for (; key < key_end; key++)
+    {
+      KEY_PART_INFO *key_part= key->key_part;
+      KEY_PART_INFO *key_part_end= key_part + key->key_parts;
+      for (; key_part < key_part_end; key_part++)
+      {
+        if (!key_part->fieldnr)
+          continue;
+        Field *field= table->field[key_part->fieldnr - 1];
+        uint cs_number= field->charset()->number;
+        if (mysql_version < 50048 &&
+            (cs_number == 11 || /* ascii_general_ci - bug #29499, bug #27562 */
+             cs_number == 41 || /* latin7_general_ci - bug #29461 */
+             cs_number == 42 || /* latin7_general_cs - bug #29461 */
+             cs_number == 20 || /* latin7_estonian_cs - bug #29461 */
+             cs_number == 21 || /* latin2_hungarian_ci - bug #29461 */
+             cs_number == 22 || /* koi8u_general_ci - bug #29461 */
+             cs_number == 23 || /* cp1251_ukrainian_ci - bug #29461 */
+             cs_number == 26))  /* cp1250_general_ci - bug #29461 */
+          return HA_ADMIN_NEEDS_UPGRADE;
+      }  
+    }  
+  }  
+  return 0;
+}
+
+
 int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
 {
+  int error;
   KEY *keyinfo, *keyend;
   KEY_PART_INFO *keypart, *keypartend;
 
@@ -2782,6 +2827,10 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
   }
   if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
     return HA_ADMIN_NEEDS_ALTER;
+
+  if ((error= check_collation_compatibility()))
+    return error;
+    
   return check_for_upgrade(check_opt);
 }
 

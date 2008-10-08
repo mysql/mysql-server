@@ -1211,6 +1211,7 @@ public:
   int ha_delete_row(const uchar * buf);
   void ha_release_auto_increment();
 
+  int check_collation_compatibility();
   int ha_check_for_upgrade(HA_CHECK_OPT *check_opt);
   /** to be actually called to get 'check()' functionality*/
   int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
