@@ -1265,6 +1265,7 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
     }
     return 0;
   }
+  return 0;
 }
 
 #include <HugoOperations.hpp>
@@ -1417,7 +1418,6 @@ error:
     break;
   }
 
-close:
   closeTransaction(pNdb);
   
   return return_code;
