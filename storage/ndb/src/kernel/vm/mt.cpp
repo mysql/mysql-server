@@ -1,3 +1,18 @@
+/* Copyright (C) 2003 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -527,6 +542,8 @@ struct thr_data
   /* Used for sendpacked (send-at-job-buffer-end). */
   Uint32 m_instance_count;
   BlockNumber m_instance_list[MAX_INSTANCES_PER_THREAD];
+
+  SectionSegmentPool::Cache m_sectionPoolCache;
 };
 
 template<typename T>
@@ -2015,7 +2032,12 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
   assert(thr_ptr->m_instance_count < MAX_INSTANCES_PER_THREAD);
   thr_ptr->m_instance_list[thr_ptr->m_instance_count++] = block;
 
-  b->assignToThread(thr_no, &thr_ptr->m_jam, &thr_ptr->m_watchdog_counter);
+  SimulatedBlock::ThreadContext ctx;
+  ctx.threadId = thr_no;
+  ctx.jamBuffer = &thr_ptr->m_jam;
+  ctx.watchDogCounter = &thr_ptr->m_watchdog_counter;
+  ctx.sectionPoolCache = &thr_ptr->m_sectionPoolCache;
+  b->assignToThread(ctx);
 
   /* Create entry mapping block to thread. */
   thr_map_entry& entry = thr_map[index][instance];

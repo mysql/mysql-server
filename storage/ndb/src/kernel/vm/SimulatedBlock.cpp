@@ -48,6 +48,7 @@
 #include <NdbSqlUtil.hpp>
 
 #include "../blocks/dbdih/Dbdih.hpp"
+#include "LongSignalImpl.hpp"
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -220,12 +221,12 @@ SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn,
 }
 
 void
-SimulatedBlock::assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
-                               Uint32 *watchDogCounter)
+SimulatedBlock::assignToThread(ThreadContext ctx)
 {
-  m_threadId = threadId;
-  m_jamBuffer = jamBuffer;
-  m_watchDogCounter = watchDogCounter;
+  m_threadId = ctx.threadId;
+  m_jamBuffer = ctx.jamBuffer;
+  m_watchDogCounter = ctx.watchDogCounter;
+  m_sectionPoolCache = ctx.sectionPoolCache;
 }
 
 Uint32
@@ -364,174 +365,40 @@ getSection(SegmentedSectionPtr & ptr, Uint32 i){
 }
 
 #ifdef NDBD_MULTITHREADED
-#define MT_SECTION_LOCK mt_section_lock();
-#define MT_SECTION_UNLOCK mt_section_unlock();
+#define SB_SP_ARG *m_sectionPoolCache,
 #else
-#define MT_SECTION_LOCK
-#define MT_SECTION_UNLOCK
+#define SB_SP_ARG
 #endif
 
-/**
- * appendToSection
- * Append supplied words to the chain of section segments 
- * indicated by the first section passed.
- * If the passed IVal == RNIL then a section will be seized
- * and the IVal will be updated to indicate the first IVal
- * section in the chain
- * Sections are made up of linked SectionSegment objects
- * where : 
- *   - The first SectionSegment's m_sz is the size of the
- *     whole section
- *   - The first SectionSegment's m_lastSegment refers to
- *     the last segment in the section
- *   - Each SectionSegment's m_nextSegment refers to the
- *     next segment in the section, *except* for the last
- *     SectionSegment's which is RNIL
- *   - Each SectionSegment except the first does not use
- *     its m_sz or m_nextSegment members.
- */
-bool
-appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len) {
-  Ptr<SectionSegment> firstPtr, currPtr;
-
-  if (len == 0) 
-    return true;  
-
-  Uint32 remain= SectionSegment::DataLength;
-  Uint32 segmentLen= 0;
-
-  if (firstSegmentIVal == RNIL)
-  {
-    /* First data to be added to this section */
-    MT_SECTION_LOCK
-      bool result= g_sectionSegmentPool.seize(firstPtr);
-    MT_SECTION_UNLOCK
-
-    if (!result)
-      return false;
-    
-    firstPtr.p->m_sz= 0;
-    firstPtr.p->m_ownerRef= 0;
-    firstSegmentIVal= firstPtr.i;
-
-    currPtr= firstPtr;
-  }
-  else
-  {
-    /* Section has at least one segment with data already */
-    g_sectionSegmentPool.getPtr(firstPtr, firstSegmentIVal);
-    g_sectionSegmentPool.getPtr(currPtr, firstPtr.p->m_lastSegment);
-
-    Uint32 existingLen= firstPtr.p->m_sz;
-    assert(existingLen > 0);
-    segmentLen= existingLen % SectionSegment::DataLength;
-    
-    /* If existingLen %  SectionSegment::DataLength == 0
-     * we assume that the last segment is full
-     */
-    segmentLen= segmentLen == 0 ? 
-      SectionSegment::DataLength :
-      segmentLen;
-
-    remain= SectionSegment::DataLength - segmentLen;
-  }
-
-  firstPtr.p->m_sz+= len;
-
-  while(len > remain) {
-    /* Fill this segment, and link in another one 
-     * Note that we can memcpy to a bad address with size 0
-     */
-    memcpy(&currPtr.p->theData[segmentLen], src, remain << 2);
-    src += remain;
-    len -= remain;
-    Ptr<SectionSegment> prevPtr= currPtr;
-    MT_SECTION_LOCK
-      bool result = g_sectionSegmentPool.seize(currPtr);
-    MT_SECTION_UNLOCK
-    if (!result)
-    {
-      /* Failed, ensure segment list is consistent for
-       * freeing later
-       */
-      firstPtr.p->m_lastSegment= prevPtr.i;
-      firstPtr.p->m_sz-= len;
-      return false;
-    }
-    prevPtr.p->m_nextSegment = currPtr.i;
-    currPtr.p->m_sz= 0;
-    currPtr.p->m_ownerRef= 0;
-
-    segmentLen= 0;
-    remain= SectionSegment::DataLength;
-  }
-
-  /* Data fits in the current last segment */
-  firstPtr.p->m_lastSegment= currPtr.i;
-  currPtr.p->m_nextSegment= RNIL;
-  memcpy(&currPtr.p->theData[segmentLen], src, len << 2);
-
-  return true;
-}
-
-/* Macro to calculate number of segments to free for given section length
- * Since releaseList() always releases one segment, we make sure to always
- * ask for one to be released, even when x == 0.
- */
-#define relSz(x) ((x == 0)?1 : ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength))
-
+static
 void
-release(SegmentedSectionPtr & ptr){
-  MT_SECTION_LOCK
-  g_sectionSegmentPool.releaseList(relSz(ptr.sz),
-				   ptr.i, 
-				   ptr.p->m_lastSegment);
-  MT_SECTION_UNLOCK
-}
-
-void
-releaseSection(Uint32 firstSegmentIVal)
-{
-  if (firstSegmentIVal != RNIL)
-  {
-    SectionSegment* p = g_sectionSegmentPool.getPtr(firstSegmentIVal);
-
-    MT_SECTION_LOCK
-    g_sectionSegmentPool.releaseList(relSz(p->m_sz),
-                                     firstSegmentIVal,
-                                     p->m_lastSegment);
-    MT_SECTION_UNLOCK
-  }
-}
-
-static void
-releaseSections(Uint32 secCount, SegmentedSectionPtr ptr[3]){
+releaseSections(SPC_ARG Uint32 secCount, SegmentedSectionPtr ptr[3]){
   Uint32 tSec0 = ptr[0].i;
   Uint32 tSz0 = ptr[0].sz;
   Uint32 tSec1 = ptr[1].i;
   Uint32 tSz1 = ptr[1].sz;
   Uint32 tSec2 = ptr[2].i;
   Uint32 tSz2 = ptr[2].sz;
-  MT_SECTION_LOCK
   switch(secCount){
   case 3:
-    g_sectionSegmentPool.releaseList(relSz(tSz2), tSec2, 
+    g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
+                                     relSz(tSz2), tSec2,
 				     ptr[2].p->m_lastSegment);
   case 2:
-    g_sectionSegmentPool.releaseList(relSz(tSz1), tSec1, 
+    g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
+                                     relSz(tSz1), tSec1,
 				     ptr[1].p->m_lastSegment);
   case 1:
-    g_sectionSegmentPool.releaseList(relSz(tSz0), tSec0, 
+    g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
+                                     relSz(tSz0), tSec0,
 				     ptr[0].p->m_lastSegment);
   case 0:
-    MT_SECTION_UNLOCK
     return;
   }
   char msg[40];
   sprintf(msg, "secCount=%d", secCount);
   ErrorReporter::handleAssert(msg, __FILE__, __LINE__);
 }
-
 
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
@@ -777,7 +644,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
      */
     Ptr<SectionSegment> segptr[3];
     for(Uint32 i = 0; i<noOfSections; i++){
-      ndbrequire(import(segptr[i], ptr[i].p, ptr[i].sz));
+      ndbrequire(::import(SB_SP_ARG segptr[i], ptr[i].p, ptr[i].sz));
       signal->theData[length+i] = segptr[i].i;
     }
     
@@ -892,7 +759,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
      */
     Ptr<SectionSegment> segptr[3];
     for(Uint32 i = 0; i<noOfSections; i++){
-      ndbrequire(import(segptr[i], ptr[i].p, ptr[i].sz));
+      ndbrequire(::import(SB_SP_ARG segptr[i], ptr[i].p, ptr[i].sz));
       signal->theData[length+i] = segptr[i].i;
     }
 
@@ -1051,7 +918,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
 #endif
 
     ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
-    ::releaseSections(noOfSections, sections->m_ptr);
+    ::releaseSections(SB_SP_ARG noOfSections, sections->m_ptr);
   }
 
   signal->header.m_noOfSections = 0;
@@ -1178,7 +1045,7 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 
   if (release)
   {
-    ::releaseSections(noOfSections, sections->m_ptr);
+    ::releaseSections(SB_SP_ARG noOfSections, sections->m_ptr);
   }
 
   sections->m_cnt = 0;
@@ -1248,7 +1115,7 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
     for (Uint32 sec=0; sec < noOfSections; sec++)
     {
       Uint32 secCopy;
-      bool ok= dupSection(secCopy, sections->m_ptr[sec].i);
+      bool ok= ::dupSection(SB_SP_ARG secCopy, sections->m_ptr[sec].i);
       ndbrequire (ok);
       * dst ++ = secCopy;
     }
@@ -1371,7 +1238,7 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
     for (Uint32 sec=0; sec < noOfSections; sec++)
     {
       Uint32 secCopy;
-      bool ok= dupSection(secCopy, sections->m_ptr[sec].i);
+      bool ok= ::dupSection(SB_SP_ARG secCopy, sections->m_ptr[sec].i);
       ndbrequire (ok);
       * dst ++ = secCopy;
     }
@@ -1530,10 +1397,54 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
 }
 
 void
+SimulatedBlock::release(SegmentedSectionPtr & ptr)
+{
+  ::release(SB_SP_ARG ptr);
+}
+
+void
+SimulatedBlock::releaseSection(Uint32 firstSegmentIVal)
+{
+  ::releaseSection(SB_SP_ARG firstSegmentIVal);
+}
+
+void
 SimulatedBlock::releaseSections(SectionHandle& handle)
 {
-  ::releaseSections(handle.m_cnt, handle.m_ptr);
+  ::releaseSections(SB_SP_ARG handle.m_cnt, handle.m_ptr);
   handle.m_cnt = 0;
+}
+
+bool
+SimulatedBlock::appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
+{
+  return ::appendToSection(SB_SP_ARG firstSegmentIVal, src, len);
+}
+
+bool
+SimulatedBlock::import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len)
+{
+  return ::import(SB_SP_ARG first, src, len);
+}
+
+bool
+SimulatedBlock::import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len)
+{
+  Ptr<SectionSegment> tmp;
+  if (::import(SB_SP_ARG tmp, src, len))
+  {
+    ptr.i = tmp.i;
+    ptr.p = tmp.p;
+    ptr.sz = len;
+    return true;
+  }
+  return false;
+}
+
+bool
+SimulatedBlock::dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal)
+{
+  return ::dupSection(SB_SP_ARG copyFirstIVal, srcFirstIVal);
 }
 
 class SectionSegmentPool& 

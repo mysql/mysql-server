@@ -112,6 +112,7 @@ class SimulatedBlock {
   friend struct Pool_context;
   friend struct SectionHandle;
   friend class LockQueue;
+  friend class SimplePropertiesSectionWriter;
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
@@ -160,9 +161,15 @@ public:
   }
   virtual void loadWorkers() {}
 
+  struct ThreadContext
+  {
+    Uint32 threadId;
+    EmulatedJamBuffer* jamBuffer;
+    Uint32 * watchDogCounter;
+    SectionSegmentPool::Cache * sectionPoolCache;
+  };
   /* Setup state of a block object for executing in a particular thread. */
-  void assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
-                      Uint32 *watchDogCounter);
+  void assignToThread(ThreadContext ctx);
   /* For multithreaded ndbd, get the id of owning thread. */
   uint32 getThreadId() const { return m_threadId; }
   static bool isMultiThreaded();
@@ -289,7 +296,14 @@ protected:
                       Uint32 givenInstanceNo = ZNIL);
   
   class SectionSegmentPool& getSectionSegmentPool();
+  void release(SegmentedSectionPtr & ptr);
+  void releaseSection(Uint32 firstSegmentIVal);
   void releaseSections(struct SectionHandle&);
+
+  bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
+  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len);
+  bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
+  bool dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal);
 
   void handle_invalid_sections_in_send_signal(Signal*) const;
   void handle_lingering_sections_after_execute(Signal*) const;
@@ -503,6 +517,8 @@ private:
   EmulatedJamBuffer *m_jamBuffer;
   /* For multithreaded ndb, the thread-specific watchdog counter. */
   Uint32 *m_watchDogCounter;
+
+  SectionSegmentPool::Cache * m_sectionPoolCache;
 protected:
   Block_context m_ctx;
   NewVARIABLE* allocateBat(int batSize);
