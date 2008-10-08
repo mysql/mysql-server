@@ -1353,7 +1353,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   if (opt_seed == 0)
   {
-    opt_seed = NdbTick_CurrentMillisecond();
+    opt_seed = (int)NdbTick_CurrentMillisecond();
   }
   ndbout_c("random seed: %u", opt_seed);
   srand(opt_seed);
