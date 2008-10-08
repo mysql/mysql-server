@@ -35,7 +35,6 @@
 #include <ndberror.h>
 
 #include <ndbinfo.h>
-#include <mgm_ndbinfo_tables.h>
 
 extern bool g_StopServer;
 extern bool g_RestartServer;
