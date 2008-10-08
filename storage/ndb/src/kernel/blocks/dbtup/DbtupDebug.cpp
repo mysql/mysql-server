@@ -252,7 +252,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #if defined VM_TRACE
   if (type == 1211 || type == 1212 || type == 1213){
-    Uint32 seed = time(0);
+    Uint32 seed = (Uint32)time(0);
     if (signal->getLength() > 1)
       seed = signal->theData[1];
     ndbout_c("Startar modul test av Page Manager (seed: 0x%x)", seed);
