@@ -146,7 +146,7 @@ public:
   typedef Ptr<Subscriber> SubscriberPtr;
 
   struct Table;
-  friend class Table;
+  friend struct Table;
   typedef Ptr<Table> TablePtr;
 
   struct SyncRecord {
