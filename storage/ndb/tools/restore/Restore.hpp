@@ -100,7 +100,8 @@ public:
   Uint32 getSizeInWords() const { return (size * arraySize + 31)/ 32;}
 }; // AttributeDesc
 
-struct AttributeS {
+class AttributeS {
+public:
   const AttributeDesc * Desc;
   AttributeData Data;
 };
@@ -180,7 +181,7 @@ public:
   Uint32 getLocalId() const { 
     return m_local_id; 
   }
-  Uint32 getNoOfRecords() const { 
+  Uint64 getNoOfRecords() const { 
     return m_noOfRecords; 
   }
   /*
