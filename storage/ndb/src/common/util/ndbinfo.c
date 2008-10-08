@@ -17,13 +17,17 @@
 #include <string.h>
 #include <errno.h>
 
+#include <ndb_global.h>
+#include <my_base.h>
+#include <m_string.h> /* for my_snprintf */
+
 #include <ndbinfo.h>
 
 int ndbinfo_create_sql(struct ndbinfo_table *t, char* sql, int len)
 {
   int i;
 
-  snprintf(sql,len,"CREATE TABLE `%s` (", t->name);
+  my_snprintf(sql,len,"CREATE TABLE `%s` (", t->name);
 
   len-=strlen(sql);
   sql+=strlen(sql);
@@ -32,7 +36,7 @@ int ndbinfo_create_sql(struct ndbinfo_table *t, char* sql, int len)
 
   for(i=0;i<t->ncols;i++)
   {
-    snprintf(sql,len,"\n\t`%s` %s,",
+    my_snprintf(sql,len,"\n\t`%s` %s,",
              t->col[i].name, ndbinfo_coltype_to_string(t->col[i].coltype));
     len-=strlen(sql);
     sql+=strlen(sql);
@@ -40,7 +44,7 @@ int ndbinfo_create_sql(struct ndbinfo_table *t, char* sql, int len)
       return ENOMEM;
   }
   *(--sql)='\0';
-  snprintf(sql,len,"\n) ENGINE=NDBINFO;");
+  my_snprintf(sql,len,"\n) ENGINE=NDBINFO;");
   len-=strlen(sql);
   sql+=strlen(sql);
   if(len<0)
