@@ -707,12 +707,12 @@ NdbInterpretedCode::add_val(Uint32 attrId, Uint64 aValue)
   {
     if (aValue < (1 << 16))
     {
-      if ((res= load_const_u16(7, aValue)) != 0)
+      if ((res= load_const_u16(7, (Uint32)aValue)) != 0)
         return res;  
     } 
     else
     {
-      if ((res= load_const_u32(7, aValue)) != 0)
+      if ((res= load_const_u32(7, (Uint32)aValue)) != 0)
         return res;
     }
   }
@@ -777,12 +777,12 @@ NdbInterpretedCode::sub_val(Uint32 attrId, Uint64 aValue)
   {
     if (aValue < (1 << 16))
     {
-      if ((res= load_const_u16(7, aValue)) != 0)
+      if ((res= load_const_u16(7, (Uint32)aValue)) != 0)
         return res;  
     } 
     else
     {
-      if ((res= load_const_u32(7, aValue)) != 0)
+      if ((res= load_const_u32(7, (Uint32)aValue)) != 0)
         return res;
     }
   }
