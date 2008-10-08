@@ -55,6 +55,7 @@ LINK_LIBRARIES(ndbcmvmi
                ndbdbutil
                ndbsuma
                ndbdbtux
+	       ndbdbinfo
                ndbkernel
                ndberror
                ndbtransport
