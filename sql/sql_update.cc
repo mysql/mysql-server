@@ -1076,10 +1076,13 @@ reopen_tables:
   }
 
   /* now lock and fill tables */
-  if (lock_tables(thd, table_list, table_count, &need_reopen))
+  if (!thd->stmt_arena->is_stmt_prepare() &&
+      lock_tables(thd, table_list, table_count, &need_reopen))
   {
     if (!need_reopen)
       DBUG_RETURN(TRUE);
+
+    DBUG_PRINT("info", ("lock_tables failed, reopening"));
 
     /*
       We have to reopen tables since some of them were altered or dropped
@@ -1095,6 +1098,14 @@ reopen_tables:
     /* We have to cleanup translation tables of views. */
     for (TABLE_LIST *tbl= table_list; tbl; tbl= tbl->next_global)
       tbl->cleanup_items();
+
+    /*
+      Also we need to cleanup Natural_join_column::table_field items.
+      To not to traverse a join tree we will cleanup whole
+      thd->free_list (in PS execution mode that list may not contain
+      items from 'fields' list, so the cleanup above is necessary to.
+    */
+    cleanup_items(thd->free_list);
 
     close_tables_for_reopen(thd, &table_list);
     goto reopen_tables;
