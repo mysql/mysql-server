@@ -4800,36 +4800,389 @@ Item_func_get_system_var::
 Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
                        LEX_STRING *component_arg, const char *name_arg,
                        size_t name_len_arg)
-  :var(var_arg), var_type(var_type_arg), component(*component_arg)
+  :var(var_arg), var_type(var_type_arg), component(*component_arg), 
+   cache_present(0)
 {
   /* set_name() will allocate the name */
   set_name(name_arg, name_len_arg, system_charset_info);
 }
 
 
-bool
-Item_func_get_system_var::fix_fields(THD *thd, Item **ref)
-{
-  Item *item;
-  DBUG_ENTER("Item_func_get_system_var::fix_fields");
-
-  /*
-    Evaluate the system variable and substitute the result (a basic constant)
-    instead of this item. If the variable can not be evaluated,
-    the error is reported in sys_var::item().
-  */
-  if (!(item= var->item(thd, var_type, &component)))
-    DBUG_RETURN(1);                             // Impossible
-  item->set_name(name, 0, system_charset_info); // don't allocate a new name
-  thd->change_item_tree(ref, item);
-
-  DBUG_RETURN(0);
-}
-
-
 bool Item_func_get_system_var::is_written_to_binlog()
 {
   return var->is_written_to_binlog(var_type);
+}
+
+
+void Item_func_get_system_var::fix_length_and_dec()
+{
+  maybe_null=0;
+
+  if (var->check_type(var_type))
+  {
+    if (var_type != OPT_DEFAULT)
+    {
+      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0),
+               var->name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
+      return;
+    }
+    /* As there was no local variable, return the global value */
+    var_type= OPT_GLOBAL;
+  }
+
+  switch (var->show_type())
+  {
+    case SHOW_LONG:
+    case SHOW_INT:
+    case SHOW_HA_ROWS:
+      unsigned_flag= TRUE;
+      max_length= MY_INT64_NUM_DECIMAL_DIGITS;
+      decimals=0;
+      break;
+    case SHOW_LONGLONG:
+      unsigned_flag= FALSE;
+      max_length= MY_INT64_NUM_DECIMAL_DIGITS;
+      decimals=0;
+      break;
+    case SHOW_CHAR:
+    case SHOW_CHAR_PTR:
+      collation.set(system_charset_info, DERIVATION_SYSCONST);
+      max_length= MAX_BLOB_WIDTH;
+      decimals=NOT_FIXED_DEC;
+      break;
+    case SHOW_MY_BOOL:
+      unsigned_flag= FALSE;
+      max_length= 1;
+      decimals=0;
+      break;
+    case SHOW_DOUBLE:
+      unsigned_flag= FALSE;
+      decimals= 6;
+      max_length= DBL_DIG + 6;
+      break;
+    default:
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      break;
+  }
+}
+
+
+void Item_func_get_system_var::print(String *str, enum_query_type query_type)
+{
+  str->append(name, name_length);
+}
+
+
+enum Item_result Item_func_get_system_var::result_type() const
+{
+  switch (var->show_type())
+  {
+    case SHOW_MY_BOOL:
+    case SHOW_INT:
+    case SHOW_LONG:
+    case SHOW_LONGLONG:
+    case SHOW_HA_ROWS:
+      return INT_RESULT;
+    case SHOW_CHAR: 
+    case SHOW_CHAR_PTR: 
+      return STRING_RESULT;
+    case SHOW_DOUBLE:
+      return REAL_RESULT;
+    default:
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      return STRING_RESULT;                   // keep the compiler happy
+  }
+}
+
+
+enum_field_types Item_func_get_system_var::field_type() const
+{
+  switch (var->show_type())
+  {
+    case SHOW_MY_BOOL:
+    case SHOW_INT:
+    case SHOW_LONG:
+    case SHOW_LONGLONG:
+    case SHOW_HA_ROWS:
+      return MYSQL_TYPE_LONGLONG;
+    case SHOW_CHAR: 
+    case SHOW_CHAR_PTR: 
+      return MYSQL_TYPE_VARCHAR;
+    case SHOW_DOUBLE:
+      return MYSQL_TYPE_DOUBLE;
+    default:
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      return MYSQL_TYPE_VARCHAR;              // keep the compiler happy
+  }
+}
+
+
+#define get_sys_var_safe(type) \
+do { \
+  type value; \
+  pthread_mutex_lock(&LOCK_global_system_variables); \
+  value= *(type*) var->value_ptr(thd, var_type, &component); \
+  pthread_mutex_unlock(&LOCK_global_system_variables); \
+  cache_present |= GET_SYS_VAR_CACHE_LONG; \
+  used_query_id= thd->query_id; \
+  cached_llval= null_value ? 0 : (longlong) value; \
+  cached_null_value= null_value; \
+  return cached_llval; \
+} while (0)
+
+
+longlong Item_func_get_system_var::val_int()
+{
+  THD *thd= current_thd;
+
+  if (thd->query_id == used_query_id)
+  {
+    if (cache_present & GET_SYS_VAR_CACHE_LONG)
+    {
+      null_value= cached_null_value;
+      return cached_llval;
+    } 
+    else if (cache_present & GET_SYS_VAR_CACHE_DOUBLE)
+    {
+      null_value= cached_null_value;
+      cached_llval= (longlong) cached_dval;
+      cache_present|= GET_SYS_VAR_CACHE_LONG;
+      return cached_llval;
+    }
+    else if (cache_present & GET_SYS_VAR_CACHE_STRING)
+    {
+      null_value= cached_null_value;
+      if (!null_value)
+        cached_llval= longlong_from_string_with_check (cached_strval.charset(),
+                                                       cached_strval.c_ptr(),
+                                                       cached_strval.c_ptr() +
+                                                       cached_strval.length());
+      else
+        cached_llval= 0;
+      cache_present|= GET_SYS_VAR_CACHE_LONG;
+      return cached_llval;
+    }
+  }
+
+  switch (var->show_type())
+  {
+    case SHOW_INT:      get_sys_var_safe (uint);
+    case SHOW_LONG:     get_sys_var_safe (ulong);
+    case SHOW_LONGLONG: get_sys_var_safe (longlong);
+    case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
+    case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
+    case SHOW_DOUBLE:
+      {
+        double dval= val_real();
+
+        used_query_id= thd->query_id;
+        cached_llval= (longlong) dval;
+        cache_present|= GET_SYS_VAR_CACHE_LONG;
+        return cached_llval;
+      }
+    case SHOW_CHAR:
+    case SHOW_CHAR_PTR:
+      {
+        String *str_val= val_str(NULL);
+
+        if (str_val && str_val->length())
+          cached_llval= longlong_from_string_with_check (system_charset_info,
+                                                          str_val->c_ptr(), 
+                                                          str_val->c_ptr() + 
+                                                          str_val->length());
+        else
+        {
+          null_value= TRUE;
+          cached_llval= 0;
+        }
+
+        cache_present|= GET_SYS_VAR_CACHE_LONG;
+        return cached_llval;
+      }
+
+    default:            
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name); 
+      return 0;                               // keep the compiler happy
+  }
+}
+
+
+String* Item_func_get_system_var::val_str(String* str)
+{
+  THD *thd= current_thd;
+
+  if (thd->query_id == used_query_id)
+  {
+    if (cache_present & GET_SYS_VAR_CACHE_STRING)
+    {
+      null_value= cached_null_value;
+      return null_value ? NULL : &cached_strval;
+    }
+    else if (cache_present & GET_SYS_VAR_CACHE_LONG)
+    {
+      null_value= cached_null_value;
+      if (!null_value)
+        cached_strval.set (cached_llval, collation.collation);
+      cache_present|= GET_SYS_VAR_CACHE_STRING;
+      return null_value ? NULL : &cached_strval;
+    }
+    else if (cache_present & GET_SYS_VAR_CACHE_DOUBLE)
+    {
+      null_value= cached_null_value;
+      if (!null_value)
+        cached_strval.set_real (cached_dval, decimals, collation.collation);
+      cache_present|= GET_SYS_VAR_CACHE_STRING;
+      return null_value ? NULL : &cached_strval;
+    }
+  }
+
+  str= &cached_strval;
+  switch (var->show_type())
+  {
+    case SHOW_CHAR:
+    case SHOW_CHAR_PTR:
+    {
+      pthread_mutex_lock(&LOCK_global_system_variables);
+      char *cptr= var->show_type() == SHOW_CHAR_PTR ? 
+        *(char**) var->value_ptr(thd, var_type, &component) :
+        (char*) var->value_ptr(thd, var_type, &component);
+      if (cptr)
+      {
+        if (str->copy(cptr, strlen(cptr), collation.collation))
+        {
+          null_value= TRUE;
+          str= NULL;
+        }
+      }
+      else
+      {
+        null_value= TRUE;
+        str= NULL;
+      }
+      pthread_mutex_unlock(&LOCK_global_system_variables);
+      break;
+    }
+
+    case SHOW_INT:
+    case SHOW_LONG:
+    case SHOW_LONGLONG:
+    case SHOW_HA_ROWS:
+    case SHOW_MY_BOOL:
+      str->set (val_int(), collation.collation);
+      break;
+    case SHOW_DOUBLE:
+      str->set_real (val_real(), decimals, collation.collation);
+      break;
+
+    default:
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      str= NULL;
+      break;
+  }
+
+  cache_present|= GET_SYS_VAR_CACHE_STRING;
+  used_query_id= thd->query_id;
+  cached_null_value= null_value;
+  return str;
+}
+
+
+double Item_func_get_system_var::val_real()
+{
+  THD *thd= current_thd;
+
+  if (thd->query_id == used_query_id)
+  {
+    if (cache_present & GET_SYS_VAR_CACHE_DOUBLE)
+    {
+      null_value= cached_null_value;
+      return cached_dval;
+    }
+    else if (cache_present & GET_SYS_VAR_CACHE_LONG)
+    {
+      null_value= cached_null_value;
+      cached_dval= (double)cached_llval;
+      cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
+      return cached_dval;
+    }
+    else if (cache_present & GET_SYS_VAR_CACHE_STRING)
+    {
+      null_value= cached_null_value;
+      if (!null_value)
+        cached_dval= double_from_string_with_check (cached_strval.charset(),
+                                                    cached_strval.c_ptr(),
+                                                    cached_strval.c_ptr() +
+                                                    cached_strval.length());
+      else
+        cached_dval= 0;
+      cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
+      return cached_dval;
+    }
+  }
+
+  switch (var->show_type())
+  {
+    case SHOW_DOUBLE:
+      pthread_mutex_lock(&LOCK_global_system_variables);
+      cached_dval= *(double*) var->value_ptr(thd, var_type, &component);
+      pthread_mutex_unlock(&LOCK_global_system_variables);
+      used_query_id= thd->query_id;
+      cached_null_value= null_value;
+      if (null_value)
+        cached_dval= 0;
+      cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
+      return cached_dval;
+    case SHOW_CHAR:
+    case SHOW_CHAR_PTR:
+      {
+        char *cptr;
+
+        pthread_mutex_lock(&LOCK_global_system_variables);
+        cptr= var->show_type() == SHOW_CHAR ? 
+          (char*) var->value_ptr(thd, var_type, &component) :
+          *(char**) var->value_ptr(thd, var_type, &component);
+        if (cptr)
+          cached_dval= double_from_string_with_check (system_charset_info, 
+                                                cptr, cptr + strlen (cptr));
+        else
+        {
+          null_value= TRUE;
+          cached_dval= 0;
+        }
+        pthread_mutex_unlock(&LOCK_global_system_variables);
+        used_query_id= thd->query_id;
+        cached_null_value= null_value;
+        cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
+        return cached_dval;
+      }
+    case SHOW_INT:
+    case SHOW_LONG:
+    case SHOW_LONGLONG:
+    case SHOW_HA_ROWS:
+    case SHOW_MY_BOOL:
+        cached_dval= (double) val_int();
+        cache_present|= GET_SYS_VAR_CACHE_DOUBLE;
+        used_query_id= thd->query_id;
+        cached_null_value= null_value;
+        return cached_dval;
+    default:
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name);
+      return 0;
+  }
+}
+
+
+bool Item_func_get_system_var::eq(const Item *item, bool binary_cmp) const
+{
+  /* Assume we don't have rtti */
+  if (this == item)
+    return 1;					// Same item is same.
+  /* Check if other type is also a get_user_var() object */
+  if (item->type() != FUNC_ITEM ||
+      ((Item_func*) item)->functype() != functype())
+    return 0;
+  Item_func_get_system_var *other=(Item_func_get_system_var*) item;
+  return (var == other->var && var_type == other->var_type);
 }
 
 
