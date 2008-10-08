@@ -265,7 +265,7 @@ NdbBackup::NF(NdbRestarter& _restarter, int *NFDuringBackup_codes, const int sz,
   CHECK(_restarter.waitClusterStarted() == 0,
 	"waitClusterStarted failed");
   
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
   for(int i = 0; i<sz; i++){
 
@@ -395,7 +395,7 @@ NdbBackup::Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool on
 
   int nNodes = _restarter.getNumDbNodes();
 
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
 
   for(int i = 0; i<sz; i++){
     int error = Fail_codes[i];
