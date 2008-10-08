@@ -796,8 +796,8 @@ PropertiesImpl::pack(Uint32 *& buf, const char * prefix, Uint32 pLen) const {
       break;
     case PropertiesType_Uint64:{
       Uint64 val =  * (Uint64 *)content[i]->value;
-      Uint32 hi = (val >> 32);
-      Uint32 lo = (val & 0xFFFFFFFF);
+      Uint32 hi = (Uint32)(val >> 32);
+      Uint32 lo = (Uint32)(val & 0xFFFFFFFF);
       * (Uint32 *)valBuf = htonl(hi);
       * (Uint32 *)(valBuf + 4) = htonl(lo);
     }
