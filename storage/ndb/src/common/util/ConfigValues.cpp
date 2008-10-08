@@ -617,8 +617,8 @@ ConfigValues::pack(void * _dst, Uint32 _len) const {
 	break;
       case Int64Type:{
 	Uint64 i64 = * get64(val); 
-	Uint32 hi = (i64 >> 32);
-	Uint32 lo = (i64 & 0xFFFFFFFF);
+	Uint32 hi = (Uint32)(i64 >> 32);
+	Uint32 lo = (Uint32)(i64 & 0xFFFFFFFF);
 	* (Uint32*)dst = htonl(key); dst += 4;
 	* (Uint32*)dst = htonl(hi); dst += 4;
 	* (Uint32*)dst = htonl(lo); dst += 4;
