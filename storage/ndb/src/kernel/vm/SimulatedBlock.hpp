@@ -66,7 +66,7 @@
   } while (0)
 #define V(x) " " << #x << ":" << (x)
 #else
-#define D(x)
+#define D(x) do { } while(0)
 #undef V
 #endif
 
