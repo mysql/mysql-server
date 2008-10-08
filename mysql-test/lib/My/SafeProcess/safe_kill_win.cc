@@ -49,12 +49,25 @@ int main(int argc, const char** argv )
   while ((shutdown_event=
           OpenEvent(EVENT_MODIFY_STATE, FALSE, safe_process_name)) == NULL)
   {
+     /*
+      Check if the process is alive, otherwise there is really
+      no idea to retry the open of the event
+     */
+    HANDLE process;
+    if ((process= OpenProcess(SYNCHRONIZE, FALSE, pid)) == NULL)
+    {
+      fprintf(stderr, "Could not open event or process %d, error: %d\n",
+            pid, GetLastError());
+      exit(3);
+    }
+    CloseHandle(process);
+
     if (retry_open_event--)
       Sleep(100);
     else
     {
       fprintf(stderr, "Failed to open shutdown_event '%s', error: %d\n",
-            safe_process_name, GetLastError());
+              safe_process_name, GetLastError());
       exit(3);
     }
   }

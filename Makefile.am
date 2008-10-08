@@ -121,6 +121,10 @@ test-reprepare:
 
 test:	test-unit test-ns test-pr
 
+smoke:
+	cd mysql-test ; \
+	    @PERL@ ./mysql-test-run.pl --do-test=s
+
 test-full:	test test-nr test-ps
 
 test-force:
