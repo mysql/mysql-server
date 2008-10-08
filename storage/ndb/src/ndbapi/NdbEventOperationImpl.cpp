@@ -2396,8 +2396,8 @@ NdbEventBuffer::completeClusterFailed()
   Uint32 cnt = tmp->m_gcp_complete_rep_count;
   
   SubGcpCompleteRep rep;
-  rep.gci_hi= gci >> 32;
-  rep.gci_lo= gci & 0xFFFFFFFF;
+  rep.gci_hi= (Uint32)(gci >> 32);
+  rep.gci_lo= (Uint32)(gci & 0xFFFFFFFF);
   rep.gcp_complete_rep_count= cnt;
   rep.flags = 0;
   execSUB_GCP_COMPLETE_REP(&rep, SubGcpCompleteRep::SignalLength);
@@ -3506,10 +3506,10 @@ send_report:
   data[1]= m_total_alloc-m_free_data_sz;
   data[2]= m_total_alloc;
   data[3]= 0;
-  data[4]= apply_gci & ~(Uint32)0;
-  data[5]= apply_gci >> 32;
-  data[6]= latest_gci & ~(Uint32)0;
-  data[7]= latest_gci >> 32;
+  data[4]= (Uint32)(apply_gci & ~(Uint32)0);
+  data[5]= (Uint32)(apply_gci >> 32);
+  data[6]= (Uint32)(latest_gci & ~(Uint32)0);
+  data[7]= (Uint32)(latest_gci >> 32);
   Ndb_internal::send_event_report(m_ndb, data,8);
 #ifdef VM_TRACE
   assert(m_total_alloc >= m_free_data_sz);
