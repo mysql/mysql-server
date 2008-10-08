@@ -163,7 +163,7 @@ static int TRACENR_FLAG = 0;
 #define CLEAR_TRACENR_FLAG TRACENR_FLAG = 0
 #else
 #define TRACENR_FLAG 0
-#define TRACENR(x)
+#define TRACENR(x) do { } while(0)
 #define SET_TRACENR_FLAG
 #define CLEAR_TRACENR_FLAG
 #endif
@@ -14031,8 +14031,8 @@ void Dblqh::openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr)
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
   Uint64 sz = clogFileSize;
   sz *= 1024; sz *= 1024;
-  req->file_size_hi = sz >> 32;
-  req->file_size_lo = sz & 0xFFFFFFFF;
+  req->file_size_hi = (Uint32)(sz >> 32);
+  req->file_size_lo = (Uint32)(sz & 0xFFFFFFFF);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dblqh::openFileRw()
 
@@ -14095,8 +14095,8 @@ void Dblqh::openNextLogfile(Signal* signal)
     req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
     Uint64 sz = clogFileSize;
     sz *= 1024; sz *= 1024;
-    req->file_size_hi = sz >> 32;
-    req->file_size_lo = sz & 0xFFFFFFFF;
+    req->file_size_hi = (Uint32)(sz >> 32);
+    req->file_size_lo = (Uint32)(sz & 0xFFFFFFFF);
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
   }//if
 }//Dblqh::openNextLogfile()
