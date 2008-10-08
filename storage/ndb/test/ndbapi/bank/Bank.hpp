@@ -61,7 +61,7 @@ private:
   int performValidateGL(Uint64 GLTime);
   int performValidatePurged();
 
-  int performMakeGL(int time);
+  int performMakeGL(Uint64 time);
   int performMakeGLForAccountType(NdbConnection* pTrans, 
 				  Uint64 time,
 				  Uint32 accountTypeId);
