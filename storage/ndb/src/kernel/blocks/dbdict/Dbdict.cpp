@@ -734,8 +734,8 @@ Dbdict::packFileIntoPages(SimpleProperties::Writer & w,
 
   f.FileType = f_ptr.p->m_type;
   f.FilegroupId = f_ptr.p->m_filegroup_id;; //group.m_id;
-  f.FileSizeHi = (f_ptr.p->m_file_size >> 32);
-  f.FileSizeLo = (f_ptr.p->m_file_size & 0xFFFFFFFF);
+  f.FileSizeHi = (Uint32)(f_ptr.p->m_file_size >> 32);
+  f.FileSizeLo = (Uint32)(f_ptr.p->m_file_size & 0xFFFFFFFF);
   f.FileFreeExtents= free_extents;
   f.FileId =  f_ptr.p->key;
   f.FileVersion = f_ptr.p->m_version;
@@ -5742,10 +5742,10 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
     req->kValue = tabPtr.p->kValue;
     req->lh3DistrBits = 0; //lhDistrBits;
     req->lh3PageBits = 0; //lhPageBits;
-    req->maxRowsLow = maxRows & 0xFFFFFFFF;
-    req->maxRowsHigh = maxRows >> 32;
-    req->minRowsLow = minRows & 0xFFFFFFFF;
-    req->minRowsHigh = minRows >> 32;
+    req->maxRowsLow = (Uint32)(maxRows & 0xFFFFFFFF);
+    req->maxRowsHigh = (Uint32)(maxRows >> 32);
+    req->minRowsLow = (Uint32)(minRows & 0xFFFFFFFF);
+    req->minRowsHigh = (Uint32)(minRows >> 32);
     Uint32 keyLen = tabPtr.p->tupKeyLength;
     req->keyLength = keyLen; // wl-2066 no more "long keys"
     req->nextLCP = lcpNo;
