@@ -625,8 +625,8 @@ Lgman::open_file(Signal* signal, Ptr<Undofile> ptr,
 
   req->page_size = File_formats::NDB_PAGE_SIZE;
   Uint64 size = (Uint64)ptr.p->m_file_size * (Uint64)File_formats::NDB_PAGE_SIZE;
-  req->file_size_hi = size >> 32;
-  req->file_size_lo = size & 0xFFFFFFFF;
+  req->file_size_hi = (Uint32)(size >> 32);
+  req->file_size_lo = (Uint32)(size & 0xFFFFFFFF);
 
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
 	     handle);
@@ -1115,8 +1115,8 @@ Logfile_client::sync_lsn(Signal* signal,
       ptr.p->m_state |= Lgman::Logfile_group::LG_FORCE_SYNC_THREAD;
       signal->theData[0] = LgmanContinueB::FORCE_LOG_SYNC;
       signal->theData[1] = ptr.i;
-      signal->theData[2] = lsn >> 32;
-      signal->theData[3] = lsn & 0xFFFFFFFF;
+      signal->theData[2] = (Uint32)(lsn >> 32);
+      signal->theData[3] = (Uint32)(lsn & 0xFFFFFFFF);
       m_lgman->sendSignalWithDelay(m_lgman->reference(), 
 				   GSN_CONTINUEB, signal, 10, 4);
     }
@@ -1148,8 +1148,8 @@ Lgman::force_log_sync(Signal* signal,
       
       File_formats::Undofile::Undo_page* undo= 
 	(File_formats::Undofile::Undo_page*)page;
-      undo->m_page_header.m_page_lsn_lo = lsn & 0xFFFFFFFF;
-      undo->m_page_header.m_page_lsn_hi = lsn >> 32;
+      undo->m_page_header.m_page_lsn_lo = (Uint32)(lsn & 0xFFFFFFFF);
+      undo->m_page_header.m_page_lsn_hi = (Uint32)(lsn >> 32);
       undo->m_words_used= File_formats::UNDO_PAGE_WORDS - free;
       
       /**
@@ -1176,8 +1176,8 @@ Lgman::force_log_sync(Signal* signal,
     ndbrequire(ptr.p->m_state & Lgman::Logfile_group::LG_FORCE_SYNC_THREAD);
     signal->theData[0] = LgmanContinueB::FORCE_LOG_SYNC;
     signal->theData[1] = ptr.i;
-    signal->theData[2] = max_req_lsn >> 32;
-    signal->theData[3] = max_req_lsn & 0xFFFFFFFF;    
+    signal->theData[2] = (Uint32)(max_req_lsn >> 32);
+    signal->theData[3] = (Uint32)(max_req_lsn & 0xFFFFFFFF);
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
   }
   else
@@ -1254,8 +1254,8 @@ next:
   Uint64 lsn= ptr.p->m_last_lsn - 1;
   File_formats::Undofile::Undo_page* undo= 
     (File_formats::Undofile::Undo_page*)page;
-  undo->m_page_header.m_page_lsn_lo = lsn & 0xFFFFFFFF;
-  undo->m_page_header.m_page_lsn_hi = lsn >> 32;
+  undo->m_page_header.m_page_lsn_lo = (Uint32)(lsn & 0xFFFFFFFF);
+  undo->m_page_header.m_page_lsn_hi = (Uint32)(lsn >> 32);
   undo->m_words_used= File_formats::UNDO_PAGE_WORDS - free;
   
   /**
@@ -1418,8 +1418,8 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	
 	File_formats::Undofile::Undo_page* undo= 
 	  (File_formats::Undofile::Undo_page*)page;
-	undo->m_page_header.m_page_lsn_lo = lsn & 0xFFFFFFFF;
-	undo->m_page_header.m_page_lsn_hi = lsn >> 32;
+	undo->m_page_header.m_page_lsn_lo = (Uint32)(lsn & 0xFFFFFFFF);
+	undo->m_page_header.m_page_lsn_hi = (Uint32)(lsn >> 32);
 	undo->m_words_used= File_formats::UNDO_PAGE_WORDS - free;
 	
 	/**
@@ -1825,8 +1825,8 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
     else
     {
       Uint32 *dst= get_log_buffer(ptr, (sizeof(undo) >> 2) + 2);      
-      * dst++ = last_lsn >> 32;
-      * dst++ = last_lsn & 0xFFFFFFFF;
+      * dst++ = (Uint32)(last_lsn >> 32);
+      * dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
       memcpy(dst, undo, sizeof(undo));
       ndbrequire(ptr.p->m_free_file_words >= (sizeof(undo) >> 2));
       ptr.p->m_free_file_words -= ((sizeof(undo) >> 2) + 2);
@@ -2077,8 +2077,8 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
       else
       {
 	dst= m_lgman->get_log_buffer(ptr, tot + 2);
-	* dst++ = last_lsn >> 32;
-	* dst++ = last_lsn & 0xFFFFFFFF;
+	* dst++ = (Uint32)(last_lsn >> 32);
+	* dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
 	for(i= 0; i<cnt; i++)
 	{
 	  memcpy(dst, src[i].ptr, 4*src[i].len);
@@ -3098,8 +3098,8 @@ Lgman::execEND_LCP_CONF(Signal* signal)
   else
   {
     Uint32 *dst= get_log_buffer(ptr, (sizeof(undo) >> 2) + 2);      
-    * dst++ = last_lsn >> 32;
-    * dst++ = last_lsn & 0xFFFFFFFF;
+    * dst++ = (Uint32)(last_lsn >> 32);
+    * dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
     memcpy(dst, undo, sizeof(undo));
     ndbrequire(ptr.p->m_free_file_words >= ((sizeof(undo) >> 2) + 2));
     ptr.p->m_free_file_words -= ((sizeof(undo) >> 2) + 2);
@@ -3194,8 +3194,8 @@ void Lgman::execGET_TABINFOREQ(Signal* signal)
 
   conf->senderData= senderData;
   conf->tableId= tableId;
-  conf->freeWordsHi= ptr.p->m_free_file_words >> 32;
-  conf->freeWordsLo= ptr.p->m_free_file_words & 0xFFFFFFFF;
+  conf->freeWordsHi= (Uint32)(ptr.p->m_free_file_words >> 32);
+  conf->freeWordsLo= (Uint32)(ptr.p->m_free_file_words & 0xFFFFFFFF);
   conf->tableType= DictTabInfo::LogfileGroup;
   conf->senderRef= reference();
   sendSignal(retRef, GSN_GET_TABINFO_CONF, signal,
