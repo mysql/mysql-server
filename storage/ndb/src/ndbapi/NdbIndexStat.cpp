@@ -474,7 +474,7 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
   else if (m_area[0].m_entries == 0 || m_area[1].m_entries == 0)
     flags |= RR_UseDb;
 
-  if ((flags & (RR_UseDb | RR_NoUpdate)) != RR_UseDb | RR_NoUpdate) {
+  if ((flags & (RR_UseDb | RR_NoUpdate)) != (RR_UseDb | RR_NoUpdate)) {
     // get start and end key from NdbIndexBound, using NdbRecord to 
     // get values into a standard format.
     Uint32 maxBoundParts= (ib->low_key_count > ib->high_key_count) ? 
@@ -620,7 +620,7 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
   } else {
       float pct[2];
       stat_select(key1, keylen1, key2, keylen2, pct);
-      float diff = 100.0 - (pct[0] + pct[1]);
+      float diff = (float)100.0 - (pct[0] + pct[1]);
       float trows = (float)table_rows;
       DBUG_PRINT("info", ("select stat pct"
                           " before=%.2f after=%.2f in=%.2f table_rows=%.2f",
