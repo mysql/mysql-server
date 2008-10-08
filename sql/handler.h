@@ -1129,6 +1129,13 @@ public:
     inserter.
   */
   Discrete_interval auto_inc_interval_for_cur_row;
+  /**
+     Number of reserved auto-increment intervals. Serves as a heuristic
+     when we have no estimation of how many records the statement will insert:
+     the more intervals we have reserved, the bigger the next one. Reset in
+     handler::ha_release_auto_increment().
+  */
+  uint auto_inc_intervals_count;
 
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
@@ -1137,7 +1144,8 @@ public:
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
-    pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0)
+    pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
+    auto_inc_intervals_count(0)
     {}
   virtual ~handler(void)
   {
@@ -1241,8 +1249,8 @@ public:
 
   int ha_change_partitions(HA_CREATE_INFO *create_info,
                            const char *path,
-                           ulonglong *copied,
-                           ulonglong *deleted,
+                           ulonglong * const copied,
+                           ulonglong * const deleted,
                            const uchar *pack_frm_data,
                            size_t pack_frm_len);
   int ha_drop_partitions(const char *path);
@@ -1859,7 +1867,8 @@ private:
     This is called to delete all rows in a table
     If the handler don't support this, then this function will
     return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-    by one.
+    by one. It should reset auto_increment if
+    thd->lex->sql_command == SQLCOM_TRUNCATE.
   */
   virtual int delete_all_rows()
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
@@ -1898,8 +1907,8 @@ private:
 
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
-                                ulonglong *copied,
-                                ulonglong *deleted,
+                                ulonglong * const copied,
+                                ulonglong * const deleted,
                                 const uchar *pack_frm_data,
                                 size_t pack_frm_len)
   { return HA_ERR_WRONG_COMMAND; }

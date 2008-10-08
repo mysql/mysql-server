@@ -25,8 +25,9 @@ class partition_info;
 typedef int (*get_part_id_func)(partition_info *part_info,
                                  uint32 *part_id,
                                  longlong *func_value);
-typedef uint32 (*get_subpart_id_func)(partition_info *part_info);
-
+typedef int (*get_subpart_id_func)(partition_info *part_info,
+                                   uint32 *part_id);
+ 
 struct st_ddl_log_memory_entry;
 
 class partition_info : public Sql_alloc
