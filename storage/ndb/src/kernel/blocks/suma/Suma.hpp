@@ -145,7 +145,7 @@ public:
   };
   typedef Ptr<Subscriber> SubscriberPtr;
 
-  class Table;
+  struct Table;
   friend class Table;
   typedef Ptr<Table> TablePtr;
 
