@@ -122,7 +122,7 @@ static bool                             tReadUpdate = true;
 static int                              tUpdateFreq = 20;
 static bool                             tLocal = false;
 static int                              tLocalPart = 0;
-static int                              tMinEvents = 0;
+static Uint32                           tMinEvents = 0;
 static int                              tSendForce = 0;
 static int                              tNoOfLoops = 1;
 static Uint32                           tNoOfThreads = 1;
@@ -469,8 +469,8 @@ getKey(Uint32 aBase, Uint32 aThreadBase) {
   Uint64 Tkey64;
   Uint32* tKey32 = (Uint32*)&Tkey64;
   tKey32[0] = aThreadBase;
-  for (int i = aBase; i < (aBase + MAX_SEEK); i++) {
-    tKey32[1] = (Uint32)i;
+  for (Uint32 i = aBase; i < (aBase + MAX_SEEK); i++) {
+    tKey32[1] = i;
     hash = md5_hash((Uint64*)&Tkey64, (Uint32)2);
     hash = (hash >> 6) & (MAX_PARTS - 1);
     if (hash == tLocalPart) {
@@ -564,7 +564,7 @@ random_choice()
 //----------------------------------------------------
 // Generate a random key between 0 and tNoOfRecords - 1
 //----------------------------------------------------
-   UintR random_number = lrand48() % 100;
+   long random_number = lrand48() % 100;
    if (random_number < tUpdateFreq)
     return stUpdate;
   else
