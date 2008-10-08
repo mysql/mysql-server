@@ -3558,6 +3558,7 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 }
 
 
+#if !defined(DBUG_OFF) && !defined(_lint)
 static const char *
 show_query_type(THD::enum_binlog_query_type qtype)
 {
@@ -3568,12 +3569,16 @@ show_query_type(THD::enum_binlog_query_type qtype)
     return "STMT";
   case THD::MYSQL_QUERY_TYPE:
     return "MYSQL";
+  case THD::QUERY_TYPE_COUNT:
+  default:
+    DBUG_ASSERT(0 <= qtype && qtype < THD::QUERY_TYPE_COUNT);
   }
 
   static char buf[64];
   sprintf(buf, "UNKNOWN#%d", qtype);
   return buf;
 }
+#endif
 
 
 /*
