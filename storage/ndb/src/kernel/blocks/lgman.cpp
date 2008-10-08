@@ -651,7 +651,7 @@ Lgman::execFSWRITEREQ(Signal* signal)
     page->m_page_header.init(File_formats::FT_Undofile, 
 			     getOwnNodeId(),
 			     ndbGetOwnVersion(),
-			     time(0));
+			     (Uint32)time(0));
     page->m_file_id = ptr.p->m_file_id;
     page->m_logfile_group_id = ptr.p->m_create.m_logfile_group_id;
     page->m_logfile_group_version = ptr.p->m_create.m_logfile_group_version;
