@@ -6310,7 +6310,7 @@ NdbRecord::Attr::get_mysqld_bitfield(const char *src_row, char *dst_buffer) cons
     remaining_bits-= 8;
   }
 
-  Uint32 small_bits= bits;
+  Uint32 small_bits= (Uint32)bits;
   memcpy(dst_buffer, &small_bits, 4);
   if (maxSize > 4)
   {
