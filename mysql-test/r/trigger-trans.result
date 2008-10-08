@@ -188,3 +188,5 @@ b	val
 12	e
 13	f
 14	g
+drop trigger t1_after_insert;
+drop table t1,t2;

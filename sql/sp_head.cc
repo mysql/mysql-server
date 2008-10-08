@@ -1949,7 +1949,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       thd->rollback_item_tree_changes();
     }
 
-    DBUG_PRINT("info",(" %.*s: eval args done", m_name.length, m_name.str));
+    DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
+                       m_name.str));
   }
   if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log)
   {
