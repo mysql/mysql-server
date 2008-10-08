@@ -815,7 +815,7 @@ Tsman::execFSWRITEREQ(Signal* signal)
     page->m_page_header.init(File_formats::FT_Datafile, 
 			     getOwnNodeId(),
 			     ndbGetOwnVersion(),
-			     time(0));
+			     (Uint32)time(0));
     page->m_file_no = ptr.p->m_file_no;
     page->m_file_id = ptr.p->m_file_id;
     page->m_tablespace_id = lg_ptr.p->m_tablespace_id;
@@ -992,7 +992,7 @@ Tsman::execFSREADCONF(Signal* signal){
     fsError = page->m_page_header.validate(File_formats::FT_Datafile, 
 					   getOwnNodeId(),
 					   ndbGetOwnVersion(),
-					   time(0));
+					   (Uint32)time(0));
     if(fsError)
       break;
 
