@@ -57,6 +57,11 @@ typedef enum {
     hatoku_ai_create_value
 } HA_METADATA_KEY ;
 
+typedef enum {
+    hatoku_iso_not_set = 0,
+    hatoku_iso_read_uncommitted,
+    hatoku_iso_serializable
+} HA_TOKU_ISO_LEVEL;
 
 //
 // for storing NULL byte in keys

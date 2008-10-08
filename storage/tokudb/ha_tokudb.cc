@@ -63,6 +63,7 @@ typedef struct st_tokudb_trx_data {
     DB_TXN *stmt;
     DB_TXN *sp_level;
     uint tokudb_lock_count;
+    HA_TOKU_ISO_LEVEL iso_level;
 } tokudb_trx_data;
 
 
@@ -441,9 +442,13 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
         if (*txn == trx->sp_level)
             trx->sp_level = 0;
         *txn = 0;
-    } else
-        if (tokudb_debug & TOKUDB_DEBUG_TXN) 
-            TOKUDB_TRACE("commit0\n");
+    } 
+    else if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_TRACE("commit0\n");
+    }
+    if (all) {
+        trx->iso_level = hatoku_iso_not_set;
+    }
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -1137,6 +1142,24 @@ is_null_field( TABLE* table, Field* field, const uchar* record) {
 
 exitpt:
 	return ret_val;
+}
+
+inline HA_TOKU_ISO_LEVEL tx_to_toku_iso(ulong tx_isolation) {
+    if (tx_isolation == ISO_READ_UNCOMMITTED) {
+        return hatoku_iso_read_uncommitted;
+    }
+    else {
+        return hatoku_iso_serializable;
+    }
+}
+
+inline u_int32_t toku_iso_to_txn_flag (HA_TOKU_ISO_LEVEL lvl) {
+    if (lvl == hatoku_iso_read_uncommitted) {
+        return DB_READ_UNCOMMITTED;
+    }
+    else {
+        return 0;
+    }
 }
 
 
@@ -3724,19 +3747,21 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     TOKUDB_DBUG_ENTER("ha_tokudb::external_lock %d", thd_sql_command(thd));
     // QQQ this is here to allow experiments without transactions
     int error = 0;
+    ulong tx_isolation = thd_tx_isolation(thd);
+    HA_TOKU_ISO_LEVEL toku_iso_level = tx_to_toku_iso(tx_isolation);
     tokudb_trx_data *trx = NULL;
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
-        trx = (tokudb_trx_data *)
-            my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
+        trx = (tokudb_trx_data *) my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
         if (!trx) {
             error = 1;
             goto cleanup;
         }
+        trx->iso_level = hatoku_iso_not_set;
         thd_data_set(thd, tokudb_hton->slot, trx);
     }
-    if (trx->all == 0) {
-        trx->sp_level = 0;
+    if (trx->all == NULL) {
+        trx->sp_level = NULL;
     }
     if (lock_type != F_UNLCK) {
         if (!trx->tokudb_lock_count++) {
@@ -3746,7 +3771,11 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK)) && !trx->all) {
                 /* QQQ We have to start a master transaction */
                 DBUG_PRINT("trans", ("starting transaction all:  options: 0x%lx", (ulong) thd->options));
-                if ((error = db_env->txn_begin(db_env, NULL, &trx->all, 0))) {
+                //
+                // set the isolation level for the tranaction
+                //
+                trx->iso_level = toku_iso_level;
+                if ((error = db_env->txn_begin(db_env, NULL, &trx->all, toku_iso_to_txn_flag(toku_iso_level)))) {
                     trx->tokudb_lock_count--;      // We didn't get the lock
                     goto cleanup;
                 }
@@ -3780,7 +3809,14 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                     TOKUDB_TRACE("warning:stmt=%p\n", trx->stmt);
                 }
             }
-            if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0))) {
+            u_int32_t txn_begin_flags;
+            if (trx->iso_level == hatoku_iso_not_set) {
+                txn_begin_flags = toku_iso_to_txn_flag(toku_iso_level);
+            }
+            else {
+                txn_begin_flags = toku_iso_to_txn_flag(trx->iso_level);
+            }
+            if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, txn_begin_flags))) {
                 /* We leave the possible master transaction open */
                 trx->tokudb_lock_count--;  // We didn't get the lock
                 goto cleanup;
@@ -3865,7 +3901,7 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
      */
     if (!trx->stmt) {
         DBUG_PRINT("trans", ("starting transaction stmt"));
-        error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0);
+        error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, toku_iso_to_txn_flag(trx->iso_level));
         trans_register_ha(thd, FALSE, tokudb_hton);
     }
     transaction = trx->stmt;
