@@ -195,7 +195,7 @@ NdbMixRestarter::runPeriod(NDBT_Context* ctx,
   if (init(ctx, step))
     return NDBT_FAILED;
 
-  Uint32 stop = time(0) + period;
+  Uint32 stop = (Uint32)time(0) + period;
   while (!ctx->isTestStopped() && (time(0) < stop))
   {
     if (dostep(ctx, step))
