@@ -2335,7 +2335,7 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
 
   if (signal->theData[0] == 11005)
   {
-    g_dbg_lcp = ~g_dbg_lcp;
+    g_dbg_lcp = !g_dbg_lcp;
   }
 
   if (signal->theData[0] == 11006)
