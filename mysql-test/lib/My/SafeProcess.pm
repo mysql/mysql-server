@@ -212,6 +212,14 @@ sub timer {
   };
 
   $0= "safe_timer($duration)";
+
+  if (IS_WIN32PERL){
+    # Just a thread in same process
+    sleep($duration);
+    print STDERR "timer $$: expired after $duration seconds\n";
+    exit(0);
+  }
+
   my $count_down= $duration;
   while($count_down--){
 

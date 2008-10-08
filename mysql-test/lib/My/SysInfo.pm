@@ -76,7 +76,7 @@ sub _kstat {
   my ($self)= @_;
   while (1){
     my $instance_num= $self->{cpus} ? @{$self->{cpus}} : 0;
-    my $list= `kstat -p -m cpu_info -i $instance_num`;
+    my $list= `kstat -p -m cpu_info -i $instance_num 2> /dev/null`;
     my @lines= split('\n', $list) or last; # Break loop
 
     my $cpuinfo= {};
