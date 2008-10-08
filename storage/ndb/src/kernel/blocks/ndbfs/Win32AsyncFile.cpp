@@ -108,14 +108,16 @@ void Win32AsyncFile::openReq(Request* request)
 
   if (flags & FsOpenReq::OM_INIT)
   {
-    off_t off = 0;
-    const off_t sz = request->par.open.file_size;
+    LARGE_INTEGER off;
+	off.QuadPart= 0;
+    LARGE_INTEGER sz;
+	sz.QuadPart= request->par.open.file_size;
     char buf[4096];
     bzero(buf,sizeof(buf));
-    while(off < sz)
+	while(off.QuadPart < sz.QuadPart)
     {
-      DWORD dwSFP= SetFilePointer(hFile, off, NULL, FILE_BEGIN);
-      if(dwSFP != off)
+      BOOL r= SetFilePointerEx(hFile, off, NULL, FILE_BEGIN);
+      if(r==0)
       {
         request->error= GetLastError();
         return;
@@ -126,7 +128,7 @@ void Win32AsyncFile::openReq(Request* request)
       {
         request->error= GetLastError();
       }
-      off+=sizeof(buf);
+	  off.QuadPart+=sizeof(buf);
     }
   }
 
