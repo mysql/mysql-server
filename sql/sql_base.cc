@@ -3720,6 +3720,20 @@ void assign_new_table_id(TABLE_SHARE *share)
   DBUG_VOID_RETURN;
 }
 
+#ifndef DBUG_OFF
+/* Cause a spurious statement reprepare for debug purposes. */
+static bool inject_reprepare(THD *thd)
+{
+  if (thd->m_reprepare_observer && thd->stmt_arena->is_reprepared == FALSE)
+  {
+    thd->m_reprepare_observer->report_error(thd);
+    return TRUE;
+  }
+
+  return FALSE;
+}
+#endif
+
 /**
   Compare metadata versions of an element obtained from the table
   definition cache and its corresponding node in the parse tree.
@@ -3773,15 +3787,7 @@ check_and_update_table_version(THD *thd,
     tables->set_table_ref_id(table_share);
   }
 
-#ifndef DBUG_OFF
-  /* Spuriously reprepare each statement. */
-  if (_db_strict_keyword_("reprepare_each_statement") &&
-      thd->m_reprepare_observer && thd->stmt_arena->is_reprepared == FALSE)
-  {
-    thd->m_reprepare_observer->report_error(thd);
-    return TRUE;
-  }
-#endif
+  DBUG_EXECUTE_IF("reprepare_each_statement", return inject_reprepare(thd););
 
   return FALSE;
 }
