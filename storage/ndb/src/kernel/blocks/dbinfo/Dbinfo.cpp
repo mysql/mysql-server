@@ -173,7 +173,7 @@ void Dbinfo::execDUMP_STATE_ORD(Signal* signal)
     jam();
     ndbout_c("--- BEGIN NDB$INFO.TABLES ---");
     char create_sql[512];
-    for(int i=0;i<number_ndbinfo_tables;i++)
+    for(Uint32 i=0;i<number_ndbinfo_tables;i++)
     {
       ndbinfo_create_sql(ndbinfo_tables[i],
                          create_sql, sizeof(create_sql));
@@ -185,7 +185,7 @@ void Dbinfo::execDUMP_STATE_ORD(Signal* signal)
   case DumpStateOrd::DbinfoListColumns:
     jam();
     ndbout_c("--- BEGIN NDB$INFO.COLUMNS ---");
-    for(int i=0;i<number_ndbinfo_tables;i++)
+    for(Uint32 i=0;i<number_ndbinfo_tables;i++)
     {
       struct ndbinfo_table *t= ndbinfo_tables[i];
 
@@ -231,7 +231,8 @@ void Dbinfo::execDBINFO_SCANREQ(Signal *signal)
   const Uint32 colBitmapHi= req.colBitmapHi;
   const Uint32 requestInfo= req.requestInfo;
 
-  int i, j;
+  Uint32 i;
+  int j;
   int startid= 0;
 
   int startTableId, startColumnId;
