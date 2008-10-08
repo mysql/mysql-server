@@ -16,6 +16,8 @@
 #include <SimpleProperties.hpp>
 #include <TransporterDefinitions.hpp>
 #include "LongSignal.hpp"
+#include "LongSignalImpl.hpp"
+#include "SimulatedBlock.hpp"
 
 SimplePropertiesSectionReader::SimplePropertiesSectionReader
 (struct SegmentedSectionPtr & ptr, class SectionSegmentPool & pool)
@@ -118,8 +120,8 @@ SimplePropertiesSectionReader::getWords(Uint32 * dst, Uint32 len){
   return false;
 }
 
-SimplePropertiesSectionWriter::SimplePropertiesSectionWriter(class SectionSegmentPool & pool)
-  : m_pool(pool)
+SimplePropertiesSectionWriter::SimplePropertiesSectionWriter(class SimulatedBlock & block)
+  : m_pool(block.getSectionSegmentPool()), m_block(block)
 {
   m_pos = -1;
   m_head = 0;
@@ -128,12 +130,16 @@ SimplePropertiesSectionWriter::SimplePropertiesSectionWriter(class SectionSegmen
   reset();
 }
 
-extern void release(SegmentedSectionPtr & ptr);
-
 SimplePropertiesSectionWriter::~SimplePropertiesSectionWriter()
 {
   release();
 }
+
+#ifdef NDBD_MULTITHREADED
+#define SP_POOL_ARG f_section_lock, *m_block.m_sectionPoolCache,
+#else
+#define SP_POOL_ARG
+#endif
 
 void
 SimplePropertiesSectionWriter::release()
@@ -150,14 +156,14 @@ SimplePropertiesSectionWriter::release()
       m_head->m_lastSegment = m_currentSegment->m_lastSegment;
 
       if((m_pos % SectionSegment::DataLength) == 0){
-        m_pool.release(m_currentSegment->m_lastSegment);
+        m_pool.release(SP_POOL_ARG m_currentSegment->m_lastSegment);
         m_head->m_lastSegment = m_prevPtrI;
       }
-      ::release(ptr);
+      m_block.release(ptr);
     }
     else
     {
-      m_pool.release(m_head->m_lastSegment);
+      m_pool.release(SP_POOL_ARG m_head->m_lastSegment);
     }
   }
   m_pos = -1;
@@ -171,7 +177,7 @@ SimplePropertiesSectionWriter::reset()
 {
   release();
   Ptr<SectionSegment> first;
-  if(m_pool.seize(first)){
+  if(m_pool.seize(SP_POOL_ARG first)){
     ;
   } else {
     m_pos = -1;
@@ -201,7 +207,7 @@ SimplePropertiesSectionWriter::putWords(const Uint32 * src, Uint32 len){
   while(len >= left){
     memcpy(&m_currentSegment->theData[m_pos], src, 4 * left);
     Ptr<SectionSegment> next;    
-    if(m_pool.seize(next)){
+    if(m_pool.seize(SP_POOL_ARG next)){
 
       m_prevPtrI = m_currentSegment->m_lastSegment;
       m_currentSegment->m_nextSegment = next.i;
@@ -261,7 +267,7 @@ SimplePropertiesSectionWriter::getPtr(struct SegmentedSectionPtr & dst){
 
   if (m_head)
   {
-    m_pool.release(m_head->m_lastSegment);
+    m_pool.release(SP_POOL_ARG m_head->m_lastSegment);
   }
 
   m_sz = 0;

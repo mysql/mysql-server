@@ -89,6 +89,8 @@ public:
    */
   bool seize(Ptr<T> &);
 
+  bool seizeList(Uint32 & n, Ptr<T> &);
+
   /**
    * Allocate object <b>i</b> from pool - update Ptr
    */
@@ -123,6 +125,34 @@ public:
     return BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i);
   }
 #endif
+
+  /**
+   * Cache+LockFun is used to make thread-local caches for ndbmtd
+   *   I.e each thread has one cache-instance, and can seize/release on this
+   *       wo/ locks
+   */
+  struct Cache
+  {
+    Cache(Uint32 a0 = 128, Uint32 a1 = 128) { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
+    Uint32 m_first_free;
+    Uint32 m_free_cnt;
+    Uint32 m_alloc_cnt;
+    Uint32 m_max_free_cnt;
+  };
+
+  struct LockFun
+  {
+    void (* lock)(void);
+    void (* unlock)(void);
+  };
+
+  bool load(LockFun, Cache&, Uint32 n);
+  bool seize(LockFun, Cache&, Ptr<T> &);
+  void release(LockFun, Cache&, Uint32 i);
+  void release(LockFun, Cache&, Ptr<T> &);
+  void releaseList(LockFun, Cache&, Uint32 n, Uint32 first, Uint32 last);
+protected:
+  void releaseList(LockFun, Cache&, Uint32 n);
 
 protected:
   friend class Array<T>;
@@ -650,6 +680,29 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
 template <class T>
 inline
 bool
+ArrayPool<T>::seizeList(Uint32 & cnt, Ptr<T> & ptr){
+  Uint32 save = cnt;
+  Uint32 tmp = save - 1;
+  if (seize(ptr))
+  {
+    Ptr<T> prev = ptr;
+    Ptr<T> curr;
+    while (tmp && seize(curr))
+    {
+      prev.p->nextPool = curr.i;
+      prev = curr;
+      tmp--;
+    }
+    prev.p->nextPool = RNIL;
+    cnt = save - tmp;
+    return true;
+  }
+  return false;
+}
+
+template <class T>
+inline
+bool
 ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
   Uint32 ff = firstFree;
   Uint32 prev = RNIL;
@@ -887,6 +940,111 @@ ArrayPool<T>::release(Ptr<T> & ptr){
     return;
   }
   ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
+}
+
+#if 0
+#define DUMP(a,b) do { printf("%s c.m_first_free: %u c.m_free_cnt: %u %s", a, c.m_first_free, c.m_free_cnt, b); fflush(stdout); } while(0)
+#else
+#define DUMP(a,b)
+#endif
+
+template <class T>
+inline
+bool
+ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
+{
+  DUMP("seize", "-> ");
+
+  Uint32 ff = c.m_first_free;
+  if (ff != RNIL)
+  {
+    c.m_first_free = theArray[ff].nextPool;
+    c.m_free_cnt--;
+    p.i = ff;
+    p.p = theArray + ff;
+    DUMP("LOCAL ", "\n");
+    return true;
+  }
+
+  Uint32 tmp = c.m_alloc_cnt;
+  l.lock();
+  seizeList(tmp, p);
+  l.unlock();
+
+  if (tmp)
+  {
+    c.m_first_free = theArray[p.i].nextPool;
+    c.m_free_cnt = tmp - 1;
+    DUMP("LOCKED", "\n");
+    return true;
+  }
+  return false;
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::release(LockFun l, Cache& c, Uint32 i)
+{
+  Ptr<T> tmp;
+  getPtr(tmp, i);
+  release(l, c, tmp);
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::release(LockFun l, Cache& c, Ptr<T> & p)
+{
+  p.p->nextPool = c.m_first_free;
+  c.m_first_free = p.i;
+  c.m_free_cnt ++;
+
+  if (c.m_free_cnt > 2 * c.m_max_free_cnt)
+  {
+    releaseList(l, c, c.m_max_free_cnt);
+  }
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::releaseList(LockFun l, Cache& c,
+                          Uint32 n, Uint32 first, Uint32 last)
+{
+  theArray[last].nextPool = c.m_first_free;
+  c.m_first_free = first;
+  c.m_free_cnt += n;
+
+  if (c.m_free_cnt > 2 * c.m_max_free_cnt)
+  {
+    releaseList(l, c, c.m_max_free_cnt);
+  }
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::releaseList(LockFun l, Cache& c, Uint32 n)
+{
+  DUMP("releaseListImpl", "-> ");
+  Uint32 ff = c.m_first_free;
+  Uint32 prev = ff;
+  Uint32 curr = ff;
+  Uint32 i;
+  for (i = 0; i < n && curr != RNIL; i++)
+  {
+    prev = curr;
+    curr = theArray[curr].nextPool;
+  }
+  c.m_first_free = curr;
+  c.m_free_cnt -= i;
+
+  DUMP("", "\n");
+
+  l.lock();
+  releaseList(i, ff, prev);
+  l.unlock();
 }
 
 template <class T>
