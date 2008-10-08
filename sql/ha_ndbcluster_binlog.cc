@@ -761,6 +761,7 @@ int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
   sql_print_error("NDB: programming error, no lock taken while running "
                   "query %s. Message: %s", thd->query, msg);
   abort();
+  return -1;
 }
 
 #include "ha_ndbcluster_lock_ext.h"
@@ -1429,19 +1430,19 @@ static void ndbcluster_get_schema(Ndb_event_data *event_data,
   }
   /* node_id */
   field++;
-  s->node_id= ((Field_long *)*field)->val_int();
+  s->node_id= (Uint32)((Field_long *)*field)->val_int();
   /* epoch */
   field++;
   s->epoch= ((Field_long *)*field)->val_int();
   /* id */
   field++;
-  s->id= ((Field_long *)*field)->val_int();
+  s->id= (Uint32)((Field_long *)*field)->val_int();
   /* version */
   field++;
-  s->version= ((Field_long *)*field)->val_int();
+  s->version= (Uint32)((Field_long *)*field)->val_int();
   /* type */
   field++;
-  s->type= ((Field_long *)*field)->val_int();
+  s->type= (Uint32)((Field_long *)*field)->val_int();
   /* free blobs buffer */
   my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
   dbug_tmp_restore_column_map(table->read_set, old_map);
@@ -3018,7 +3019,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
     Turn of binlogging to prevent the table changes to be written to
     the binary log.
   */
-  ulong saved_options= thd->options;
+  ulonglong saved_options= thd->options;
   thd->options&= ~(OPTION_BIN_LOG);
 
 
@@ -3036,11 +3037,11 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
   {
     empty_record(ndb_binlog_index);
 
-    ndb_binlog_index->field[0]->store(first->master_log_pos);
+    ndb_binlog_index->field[0]->store(first->master_log_pos, true);
     ndb_binlog_index->field[1]->store(first->master_log_file,
                                       strlen(first->master_log_file),
                                       &my_charset_bin);
-    ndb_binlog_index->field[2]->store(first->epoch);
+    ndb_binlog_index->field[2]->store(first->epoch, true);
     if (ndb_binlog_index->s->fields > 7)
     {
       ndb_binlog_index->field[3]->store(row->n_inserts);
@@ -3048,7 +3049,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
       ndb_binlog_index->field[5]->store(row->n_deletes);
       ndb_binlog_index->field[6]->store(row->n_schemaops);
       ndb_binlog_index->field[7]->store(row->orig_server_id);
-      ndb_binlog_index->field[8]->store(row->orig_epoch);
+      ndb_binlog_index->field[8]->store(row->orig_epoch, true);
       ndb_binlog_index->field[9]->store(first->gci);
       row= row->next;
     }
@@ -3061,10 +3062,10 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
         first->n_deletes+= row->n_deletes;
         first->n_schemaops+= row->n_schemaops;
       }
-      ndb_binlog_index->field[3]->store((ulonglong)first->n_inserts);
-      ndb_binlog_index->field[4]->store((ulonglong)first->n_updates);
-      ndb_binlog_index->field[5]->store((ulonglong)first->n_deletes);
-      ndb_binlog_index->field[6]->store((ulonglong)first->n_schemaops);
+      ndb_binlog_index->field[3]->store((ulonglong)first->n_inserts, true);
+      ndb_binlog_index->field[4]->store((ulonglong)first->n_updates, true);
+      ndb_binlog_index->field[5]->store((ulonglong)first->n_deletes, true);
+      ndb_binlog_index->field[6]->store((ulonglong)first->n_schemaops, true);
     }
 
     if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
@@ -4960,7 +4961,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
         /* store */
         ndb_binlog_index_row *row= ndb_find_binlog_index_row
-          (rows, ((Field_long *)table->field[0])->val_int(), 1);
+          (rows, (uint)((Field_long *)table->field[0])->val_int(), 1);
         row->orig_epoch= ((Field_longlong *)table->field[1])->val_int();
         break;
       }
@@ -5822,8 +5823,8 @@ restart:
 	    */
 	    empty_record(table);
 
-            table->field[0]->store((longlong)::server_id);
-            table->field[1]->store((longlong)gci);
+            table->field[0]->store((longlong)::server_id, true);
+            table->field[1]->store((longlong)gci, true);
             table->field[2]->store("", 0, &my_charset_bin);
             table->field[3]->store((longlong)0);
             table->field[4]->store((longlong)0);
