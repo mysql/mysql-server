@@ -5778,7 +5778,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
         if (regTcPtr->attrInfoIVal != RNIL)
         {
           ndbassert(!( regTcPtr->m_flags & 
-                       TcConnectionrec::OP_SAVEATTRINFO))
+                       TcConnectionrec::OP_SAVEATTRINFO));
           releaseSection(regTcPtr->attrInfoIVal);
           regTcPtr->attrInfoIVal= RNIL;
         }
