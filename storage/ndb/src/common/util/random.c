@@ -132,14 +132,14 @@ static void localRandom48(DRand48Data *buffer, long int *result)
    }
    else {
       X = (Uint64)buffer->x[2] << 16 | 
-           buffer->x[1] >> 16;
+          (Uint64)buffer->x[1] >> 16;
       a = (Uint64)buffer->a[2] << 16 |
-           buffer->a[1] >> 16;
+          (Uint64)buffer->a[1] >> 16;
 
       loc_result = X * a + buffer->c;
 
-      buffer->x[0] = loc_result >> 16 & 0xffffffffl;
-      buffer->x[1] = loc_result << 16 & 0xffff0000l;
+	  buffer->x[0] = (unsigned short)(loc_result >> 16 & 0xffffffffl);
+      buffer->x[1] = (unsigned short)(loc_result << 16 & 0xffff0000l);
    }
 
    /*--------------------*/
