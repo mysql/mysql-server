@@ -1931,8 +1931,8 @@ Dbtup::updateDynFixedSizeNotNULL(Uint32* inBuffer,
   Uint32 bm_idx= (pos >> 5);
   /* Store bits in little-endian so fit with length byte and trailing padding*/
   Uint64 bm_mask = ((Uint64(1) << nullbits) - 1) << (pos & 31);
-  Uint32 bm_mask1 = bm_mask & 0xFFFFFFFF;
-  Uint32 bm_mask2 = bm_mask >> 32;
+  Uint32 bm_mask1 = (Uint32)(bm_mask & 0xFFFFFFFF);
+  Uint32 bm_mask2 = (Uint32)(bm_mask >> 32);
 
   jam();
   /* Set all the bits in the NULL bitmap. */
@@ -1986,8 +1986,8 @@ Dbtup::updateDynFixedSizeNULLable(Uint32* inBuffer,
   Uint32 bm_idx= (pos >> 5);
   /* Store bits in little-endian so fit with length byte and trailing padding*/
   Uint64 bm_mask = ~(((Uint64(1) << nullbits) - 1) << (pos & 31));
-  Uint32 bm_mask1 = bm_mask & 0xFFFFFFFF;
-  Uint32 bm_mask2 = bm_mask >> 32;
+  Uint32 bm_mask1 = (Uint32)(bm_mask & 0xFFFFFFFF);
+  Uint32 bm_mask2 = (Uint32)(bm_mask >> 32);
   
   Uint32 newIndex= req_struct->in_buf_index + 1;
   if (newIndex <= req_struct->in_buf_len) {
