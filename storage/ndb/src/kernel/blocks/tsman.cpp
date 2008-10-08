@@ -769,8 +769,8 @@ Tsman::open_file(Signal* signal,
    */
   pages = 1 + extent_pages + data_pages;
   Uint64 bytes = pages * File_formats::NDB_PAGE_SIZE;
-  hi = bytes >> 32;
-  lo = bytes & 0xFFFFFFFF;
+  hi = (Uint32)(bytes >> 32);
+  lo = (Uint32)(bytes & 0xFFFFFFFF);
   req->file_size_hi = hi;
   req->file_size_lo = lo;
 
