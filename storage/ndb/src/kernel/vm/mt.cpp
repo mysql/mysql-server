@@ -70,6 +70,7 @@ static Uint32 num_threads = 0;
 static Uint32 receiver_thread_no = 0;
 
 #ifdef NDBMTD_X86
+#define NDB_HAVE_XCNG
 static inline
 int
 xcng(volatile unsigned * addr, int val)
@@ -248,6 +249,7 @@ require(bool x)
     abort();
 }
 
+#ifdef NDB_HAVE_XCNG
 struct thr_spin_lock
 {
   thr_spin_lock(const char * name = 0)
@@ -260,17 +262,6 @@ struct thr_spin_lock
   const char * m_name;
   Uint32 m_contended_count;
   volatile Uint32 m_lock;
-};
-
-struct thr_mutex
-{
-  thr_mutex(const char * name = 0) {
-    m_mutex = NdbMutex_Create();
-    m_name = name;
-  }
-
-  const char * m_name;
-  NdbMutex * m_mutex;
 };
 
 static
@@ -320,6 +311,20 @@ trylock(struct thr_spin_lock* sl)
   volatile unsigned* val = &sl->m_lock;
   return xcng(val, 1);
 }
+#else
+#define thr_spin_lock thr_mutex
+#endif
+
+struct thr_mutex
+{
+  thr_mutex(const char * name = 0) {
+    m_mutex = NdbMutex_Create();
+    m_name = name;
+  }
+
+  const char * m_name;
+  NdbMutex * m_mutex;
+};
 
 static
 inline
@@ -1897,16 +1902,20 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
      * (Though on Intel Core 2, they do not give much speedup, as apparently
      * the hardware prefetcher is already doing a fairly good job).
      */
+#ifdef __GNUC__
     __builtin_prefetch (read_buffer->m_data + read_pos + 16, 0, 3);
     __builtin_prefetch ((Uint32 *)&sig->header + 16, 1, 3);
+#endif
 
     /* Now execute the signal. */
     SignalHeader* s =
       reinterpret_cast<SignalHeader*>(read_buffer->m_data + read_pos);
     Uint32 seccnt = s->m_noOfSections;
     Uint32 siglen = (sizeof(*s)>>2) + s->theLength;
+#ifdef __GNUC__
     if(siglen>16)
       __builtin_prefetch (read_buffer->m_data + read_pos + 32, 0, 3);
+#endif
     Uint32 bno = blockToMain(s->theReceiversBlockNumber);
     SimulatedBlock* block = globalData.getBlock(bno);
 
