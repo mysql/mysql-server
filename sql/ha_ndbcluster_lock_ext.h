@@ -14,6 +14,8 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <NdbTick.h>
+
 /*
   These functions are shared with ndb_restore so that the creating of
   tables through ndb_restore is syncronized correctly with the mysqld's
@@ -36,12 +38,12 @@ ndbcluster_global_schema_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
   NdbOperation *op;
   NdbTransaction *trans= NULL;
   int retry_sleep= 50; /* 50 milliseconds, transaction */
-  struct timeval time_end;
+  NDB_TICKS time_end;
 
   if (retry_time > 0)
   {
-    gettimeofday(&time_end, 0);
-    time_end.tv_sec+= retry_time;
+    time_end= NdbTick_CurrentMillisecond();
+    time_end+= retry_time*1000;
   }
   while (1)
   {
@@ -79,11 +81,8 @@ ndbcluster_global_schema_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
       goto error_handler;
     if (retry_time > 0)
     {
-      struct timeval time_now;
-      gettimeofday(&time_now, 0);
-      if ((time_end.tv_sec < time_now.tv_sec) ||
-          (time_end.tv_sec == time_now.tv_sec && time_end.tv_usec < time_now.tv_usec))
-        goto error_handler;
+	  if(time_end < NdbTick_CurrentMillisecond())
+	    goto error_handler;
     }
     if (trans)
     {
