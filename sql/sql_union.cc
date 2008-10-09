@@ -399,7 +399,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
     else
     {
-      DBUG_ASSERT(!thd->stmt_arena->is_conventional());
       /*
         We're in execution of a prepared statement or stored procedure:
         reset field items to point at fields from the created temporary table.
