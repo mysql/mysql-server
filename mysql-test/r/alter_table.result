@@ -1222,4 +1222,22 @@ ALTER TABLE t1 CHANGE d c varchar(10);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
+create table t1(f1 int not null, f2 int not null, key  (f1), key (f2));
+select index_length into @unpaked_keys_size from
+information_schema.tables where table_name='t1';
+alter table t1 pack_keys=1;
+select index_length into @paked_keys_size from
+information_schema.tables where table_name='t1';
+select (@unpaked_keys_size > @paked_keys_size);
+(@unpaked_keys_size > @paked_keys_size)
+1
+select max_data_length into @orig_max_data_length from
+information_schema.tables where table_name='t1';
+alter table t1 max_rows=100;
+select max_data_length into @changed_max_data_length from
+information_schema.tables where table_name='t1';
+select (@orig_max_data_length > @changed_max_data_length);
+(@orig_max_data_length > @changed_max_data_length)
+1
+drop table t1;
 End of 5.1 tests
