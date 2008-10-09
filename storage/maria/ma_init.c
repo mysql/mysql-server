@@ -68,6 +68,8 @@ int maria_init(void)
   }
   hash_init(&maria_stored_state, &my_charset_bin, 32,
             0, sizeof(LSN), 0, (hash_free_key) history_state_free, 0);
+  DBUG_PRINT("info",("dummy_transaction_object: %p",
+                     &dummy_transaction_object));
   return 0;
 }
 

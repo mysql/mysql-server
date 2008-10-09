@@ -7081,7 +7081,7 @@ void maria_ignore_trids(MARIA_HA *info)
   if (info->s->base.born_transactional)
   {
     if (!info->trn)
-      info->trn= &dummy_transaction_object;
+      _ma_set_trn_for_table(info, &dummy_transaction_object);
     /* Ignore transaction id when row is read */
     info->trn->min_read_from= ~(TrID) 0;
   }

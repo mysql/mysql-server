@@ -178,7 +178,8 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
 
   if (!share->base.born_transactional)   /* For transactional ones ... */
   {
-    info.trn= &dummy_transaction_object; /* ... force crash if no trn given */
+    /* ... force crash if no trn given */
+    _ma_set_trn_for_table(&info, &dummy_transaction_object);
     info.state= &share->state.state;	/* Change global values by default */
   }
   else

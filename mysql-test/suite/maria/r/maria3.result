@@ -506,7 +506,7 @@ count(*)
 select count(*) from t1 where a >= 4;
 count(*)
 1
-drop table t1;
+drop table t1, t2;
 create table t1 (i int auto_increment not null primary key) transactional=0;
 check table t1 extended;
 Table	Op	Msg_type	Msg_text
@@ -540,3 +540,14 @@ TABLE_SCHEMA='test' and TABLE_NAME='t1';
 CREATE_OPTIONS
 transactional=1
 drop table t1;
+create table t1 (a int, unique(a)) engine=maria transactional=1;
+insert into t1 values(1);
+insert into t1 values(2),(2);
+ERROR 23000: Duplicate entry '2' for key 'a'
+create table t2 (a int, unique(a)) engine=maria transactional=0 row_format=dynamic;
+insert into t2 values(1);
+insert into t2 values(2),(2);
+ERROR 23000: Duplicate entry '2' for key 'a'
+insert into t1 values(3);
+insert into t2 values(3);
+drop table t1, t2;
