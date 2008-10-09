@@ -27,6 +27,7 @@
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/ndb_cluster_connection.hpp>
 #include <util/NdbAutoPtr.hpp>
+#include <portlib/NdbTick.h>
 
 #ifdef ndb_dynamite
 #undef assert
@@ -1241,7 +1242,7 @@ static int ndbcluster_find_all_databases(THD *thd)
             /* create missing database */
             sql_print_information("NDB: Discovered missing database '%s'", db);
             const int no_print_error[1]= {0};
-            name_len= snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
+            name_len= my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
             run_query(thd, name, name + name_len,
                       no_print_error,    /* print error */
                       TRUE);   /* don't binlog the query */
@@ -2268,10 +2269,12 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           // fall through
         case SOT_RENAME_TABLE_NEW:
         {
-          uint end= snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
-                             "NDB Binlog: Skipping renaming locally defined table '%s.%s' from binlog schema event '%s' from node %d. ",
-                             schema->db, schema->name, schema->query,
-                             schema->node_id);
+          uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
+                                "NDB Binlog: Skipping renaming locally "
+                                "defined table '%s.%s' from binlog schema "
+                                "event '%s' from node %d. ",
+                                schema->db, schema->name, schema->query,
+                                schema->node_id);
           
           errmsg[end]= '\0';
         }
@@ -2279,10 +2282,12 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         case SOT_DROP_TABLE:
           if (schema_type == SOT_DROP_TABLE)
           {
-            uint end= snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
-                               "NDB Binlog: Skipping dropping locally defined table '%s.%s' from binlog schema event '%s' from node %d. ",
-                               schema->db, schema->name, schema->query,
-                               schema->node_id);
+            uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
+                                  "NDB Binlog: Skipping dropping locally "
+                                  "defined table '%s.%s' from binlog schema "
+                                  "event '%s' from node %d. ",
+                                  schema->db, schema->name, schema->query,
+                                  schema->node_id);
             errmsg[end]= '\0';
           }
           if (! ndbcluster_check_if_local_table(schema->db, schema->name))
@@ -6150,17 +6155,17 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
     pthread_mutex_unlock(&injector_mutex);
 
     buflen=
-      snprintf(buf, sizeof(buf),
-               "latest_epoch=%s, "
-               "latest_trans_epoch=%s, "
-               "latest_received_binlog_epoch=%s, "
-               "latest_handled_binlog_epoch=%s, "
-               "latest_applied_binlog_epoch=%s",
-               llstr(ndb_latest_epoch, buff1),
-               llstr(ndb_get_latest_trans_gci(), buff2),
-               llstr(ndb_latest_received_binlog_epoch, buff3),
-               llstr(ndb_latest_handled_binlog_epoch, buff4),
-               llstr(ndb_latest_applied_binlog_epoch, buff5));
+      my_snprintf(buf, sizeof(buf),
+                  "latest_epoch=%s, "
+                  "latest_trans_epoch=%s, "
+                  "latest_received_binlog_epoch=%s, "
+                  "latest_handled_binlog_epoch=%s, "
+                  "latest_applied_binlog_epoch=%s",
+                  llstr(ndb_latest_epoch, buff1),
+                  llstr(ndb_get_latest_trans_gci(), buff2),
+                  llstr(ndb_latest_received_binlog_epoch, buff3),
+                  llstr(ndb_latest_handled_binlog_epoch, buff4),
+                  llstr(ndb_latest_applied_binlog_epoch, buff5));
     if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                    "binlog", strlen("binlog"),
                    buf, buflen))
