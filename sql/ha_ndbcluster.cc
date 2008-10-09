@@ -7020,8 +7020,8 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
 static const char *get_base_name(const char *ptr)
 {
   ptr+= strlen(ptr);
-  while (*(--ptr) != '/');
-  while (*(--ptr) != '/');
+  while (*(--ptr) != '/' && *ptr != '\\');
+  while (*(--ptr) != '/' && *ptr != '\\');
   return ptr+1;
 }
 
