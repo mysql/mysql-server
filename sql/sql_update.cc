@@ -876,6 +876,26 @@ reopen_tables:
       tbl->cleanup_items();
 
     /*
+      To not to hog memory (as a result of the 
+      unit->reinit_exec_mechanism() call below):
+    */
+    lex->unit.cleanup();
+
+    for (SELECT_LEX *sl= lex->all_selects_list;
+        sl;
+        sl= sl->next_select_in_list())
+    {
+      SELECT_LEX_UNIT *unit= sl->master_unit();
+      unit->reinit_exec_mechanism(); // reset unit->prepared flags
+      /*
+        Reset 'clean' flag back to force normal execution of
+        unit->cleanup() in Prepared_statement::cleanup_stmt()
+        (call to lex->unit.cleanup() above sets this flag to TRUE).
+      */
+      unit->unclean();
+    }
+
+    /*
       Also we need to cleanup Natural_join_column::table_field items.
       To not to traverse a join tree we will cleanup whole
       thd->free_list (in PS execution mode that list may not contain
