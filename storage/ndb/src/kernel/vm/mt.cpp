@@ -1,3 +1,18 @@
+/* Copyright (C) 2003 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -24,6 +39,8 @@
 #include <DebuggerNames.hpp>
 #include <signaldata/StopForCrash.hpp>
 #include "TransporterCallbackKernel.hpp"
+
+#include "mt-asm.h"
 
 #ifdef __GNUC__
 /* Provides a small (but noticeable) speedup in benchmarks. */
@@ -54,38 +71,7 @@ static Uint32 ndbmt_threads = 0;
 static Uint32 num_threads = 0;
 static Uint32 receiver_thread_no = 0;
 
-#ifdef NDBMTD_X86
-static inline
-int
-xcng(volatile unsigned * addr, int val)
-{
-  asm volatile ("xchg %0, %1;" : "+r" (val) , "+m" (*addr));
-  return val;
-}
-
-/**
- * from ?md/?ntel manual "spinlock howto"
- */
-static
-inline
-void
-cpu_pause()
-{
-  asm volatile ("rep;nop");
-}
-
-/* Memory barriers, these definitions are for x64_64. */
-#define mb() 	asm volatile("mfence":::"memory")
-/* According to Intel docs, it does not reorder loads. */
-//#define rmb()	asm volatile("lfence":::"memory")
-#define rmb()	asm volatile("" ::: "memory")
-#define wmb()	asm volatile("" ::: "memory")
-#define read_barrier_depends()	do {} while(0)
-#else
-#error "Unsupported architecture"
-#endif
-
-#ifdef HAVE_LINUX_FUTEX
+#if defined(HAVE_LINUX_FUTEX) && defined(NDB_HAVE_XCNG)
 #define USE_FUTEX
 #endif
 
@@ -233,6 +219,7 @@ require(bool x)
     abort();
 }
 
+#ifdef NDB_HAVE_XCNG
 struct thr_spin_lock
 {
   thr_spin_lock(const char * name = 0)
@@ -245,17 +232,6 @@ struct thr_spin_lock
   const char * m_name;
   Uint32 m_contended_count;
   volatile Uint32 m_lock;
-};
-
-struct thr_mutex
-{
-  thr_mutex(const char * name = 0) {
-    m_mutex = NdbMutex_Create();
-    m_name = name;
-  }
-
-  const char * m_name;
-  NdbMutex * m_mutex;
 };
 
 static
@@ -305,6 +281,20 @@ trylock(struct thr_spin_lock* sl)
   volatile unsigned* val = &sl->m_lock;
   return xcng(val, 1);
 }
+#else
+#define thr_spin_lock thr_mutex
+#endif
+
+struct thr_mutex
+{
+  thr_mutex(const char * name = 0) {
+    m_mutex = NdbMutex_Create();
+    m_name = name;
+  }
+
+  const char * m_name;
+  NdbMutex * m_mutex;
+};
 
 static
 inline
@@ -527,6 +517,8 @@ struct thr_data
   /* Used for sendpacked (send-at-job-buffer-end). */
   Uint32 m_instance_count;
   BlockNumber m_instance_list[MAX_INSTANCES_PER_THREAD];
+
+  SectionSegmentPool::Cache m_sectionPoolCache;
 };
 
 template<typename T>
@@ -1880,16 +1872,20 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
      * (Though on Intel Core 2, they do not give much speedup, as apparently
      * the hardware prefetcher is already doing a fairly good job).
      */
+#ifdef __GNUC__
     __builtin_prefetch (read_buffer->m_data + read_pos + 16, 0, 3);
     __builtin_prefetch ((Uint32 *)&sig->header + 16, 1, 3);
+#endif
 
     /* Now execute the signal. */
     SignalHeader* s =
       reinterpret_cast<SignalHeader*>(read_buffer->m_data + read_pos);
     Uint32 seccnt = s->m_noOfSections;
     Uint32 siglen = (sizeof(*s)>>2) + s->theLength;
+#ifdef __GNUC__
     if(siglen>16)
       __builtin_prefetch (read_buffer->m_data + read_pos + 32, 0, 3);
+#endif
     Uint32 bno = blockToMain(s->theReceiversBlockNumber);
     SimulatedBlock* block = globalData.getBlock(bno);
 
@@ -2015,7 +2011,12 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
   assert(thr_ptr->m_instance_count < MAX_INSTANCES_PER_THREAD);
   thr_ptr->m_instance_list[thr_ptr->m_instance_count++] = block;
 
-  b->assignToThread(thr_no, &thr_ptr->m_jam, &thr_ptr->m_watchdog_counter);
+  SimulatedBlock::ThreadContext ctx;
+  ctx.threadId = thr_no;
+  ctx.jamBuffer = &thr_ptr->m_jam;
+  ctx.watchDogCounter = &thr_ptr->m_watchdog_counter;
+  ctx.sectionPoolCache = &thr_ptr->m_sectionPoolCache;
+  b->assignToThread(ctx);
 
   /* Create entry mapping block to thread. */
   thr_map_entry& entry = thr_map[index][instance];

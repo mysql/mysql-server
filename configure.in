@@ -2413,24 +2413,34 @@ AC_TRY_LINK(
   AC_DEFINE(HAVE_LINUX_FUTEX, [1], [Linux futex support]),
   AC_MSG_RESULT(no))
 
-#checking for asm-needed for ndbmtd
-AC_MSG_CHECKING(for x86-assembler needed for ndbmtd)
-AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
-AC_TRY_LINK(
-  [],
-  [
-    unsigned int a = 0, *ap = &a;
-    asm volatile("xchg %0, %1;" : "+r" (a) , "+m" (*ap));
-    asm volatile("mfence":::"memory");
-    asm volatile("" ::: "memory");
-    asm volatile ("rep;nop");
-    return a;
-  ],
-  have_ndbmtd_x86=yes
-  AC_MSG_RESULT(yes)
-  AC_DEFINE(NDBMTD_X86, [1], [ndbmtd x86 support]),
-  AC_MSG_RESULT(no))
+#checking for asm needed for ndbmtd
+AC_CACHE_CHECK([assembler needed for ndbmtd],
+               [have_ndbmtd_asm], [AC_TRY_RUN([
+    #include "storage/ndb/src/kernel/vm/mt-asm.h"
+    int main()
+    {
+      unsigned int a = 0;
+      volatile unsigned int *ap = (volatile unsigned int*)&a;
+      #ifdef NDB_HAVE_XCNG
+      a = xcng(ap, 1);
+      cpu_pause();
+      #endif
+      mb();
+      * ap = 2;
+      rmb();
+      * ap = 1;
+      wmb();
+      * ap = 0;
+      read_barrier_depends();
+      return a;
+   }
+], [have_ndbmtd_asm=yes],
+   [have_ndbmtd_asm=no],
+   [have_ndbmtd_asm=no])])
+if test "x$have_ndbmtd_asm" = xyes; then
+  AC_DEFINE(HAVE_NDBMTD_ASM, 1,
+            [Define to 1 if assmbler needed to run ndbmtd is present.])
+fi
 
 AC_CACHE_CHECK([support for weak symbols], mysql_cv_weak_symbol,
 [AC_TRY_LINK([],[

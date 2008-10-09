@@ -14,7 +14,7 @@ void dbinfo_write_row_init(struct dbinfo_row *r, char* buf, int len)
 int dbinfo_write_row_column(struct dbinfo_row *r, const char* col, int clen)
 {
   AttributeHeader ah;
-  if(!((r->blen - r->endrow) >= (clen+ah.getHeaderSize()*sizeof(Uint32))))
+  if(!(int(r->blen - r->endrow) >= int(clen+ah.getHeaderSize()*sizeof(Uint32))))
   {
     return -1; // Not enough room.
   }

@@ -30,7 +30,6 @@ libkernel_a_SOURCES = \
 	Emulator.cpp		\
 	Configuration.cpp		\
 	WatchDog.cpp \
-        SimplePropertiesSection.cpp \
         SectionReader.cpp \
         Mutex.cpp SafeCounter.cpp \
         Rope.cpp \
@@ -44,14 +43,18 @@ libsched_a_SOURCES = TimeQueue.cpp		\
                      FastScheduler.cpp \
                      TransporterCallback_nonmt.cpp \
                      SimulatedBlock_nonmt.cpp \
+                     LongSignal_nonmt.cpp \
+                     SimplePropertiesSection_nonmt.cpp \
 		     dummy_nonmt.cpp
 
 libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
                         TransporterCallback_mt.cpp \
+                        LongSignal_mt.cpp \
+                        SimplePropertiesSection_mt.cpp \
                         mt.cpp \
                         dummy_mt.cpp
 
-EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt
+EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp CMakeLists.txt LongSignal.cpp SimplePropertiesSection.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
