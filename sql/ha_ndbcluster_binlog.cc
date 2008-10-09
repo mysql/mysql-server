@@ -27,6 +27,7 @@
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/ndb_cluster_connection.hpp>
 #include <util/NdbAutoPtr.hpp>
+#include <portlib/NdbTick.h>
 
 #ifdef ndb_dynamite
 #undef assert
@@ -2270,10 +2271,11 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         case SOT_RENAME_TABLE_NEW:
         {
           uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
-                             "NDB Binlog: Skipping renaming locally defined table '%s.%s' from binlog schema event '%s' from node %d. ",
-                             schema->db, schema->name, schema->query,
-                             schema->node_id);
-          
+                                "NDB Binlog: Skipping renaming locally "
+                                "defined table '%s.%s' from binlog schema "
+                                "event '%s' from node %d. ",
+                                schema->db, schema->name, schema->query,
+                                schema->node_id);
           errmsg[end]= '\0';
         }
         // fall through
@@ -2281,9 +2283,11 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           if (schema_type == SOT_DROP_TABLE)
           {
             uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
-                               "NDB Binlog: Skipping dropping locally defined table '%s.%s' from binlog schema event '%s' from node %d. ",
-                               schema->db, schema->name, schema->query,
-                               schema->node_id);
+                                  "NDB Binlog: Skipping dropping locally "
+                                  "defined table '%s.%s' from binlog schema "
+                                  "event '%s' from node %d. ",
+                                  schema->db, schema->name, schema->query,
+                                  schema->node_id);
             errmsg[end]= '\0';
           }
           if (! ndbcluster_check_if_local_table(schema->db, schema->name))
@@ -3581,7 +3585,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       dict->getNdbError().classification == NdbError::SchemaError)
   {
     DBUG_PRINT("info", ("No %s.%s table", ndb_rep_db, ndb_replication_table));
-    if (!table)
+    if (do_set_binlog_flags)
       set_binlog_flags(share, NBT_DEFAULT);
     DBUG_RETURN(0);
   }
@@ -6152,16 +6156,16 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 
     buflen=
       my_snprintf(buf, sizeof(buf),
-               "latest_epoch=%s, "
-               "latest_trans_epoch=%s, "
-               "latest_received_binlog_epoch=%s, "
-               "latest_handled_binlog_epoch=%s, "
-               "latest_applied_binlog_epoch=%s",
-               llstr(ndb_latest_epoch, buff1),
-               llstr(ndb_get_latest_trans_gci(), buff2),
-               llstr(ndb_latest_received_binlog_epoch, buff3),
-               llstr(ndb_latest_handled_binlog_epoch, buff4),
-               llstr(ndb_latest_applied_binlog_epoch, buff5));
+                  "latest_epoch=%s, "
+                  "latest_trans_epoch=%s, "
+                  "latest_received_binlog_epoch=%s, "
+                  "latest_handled_binlog_epoch=%s, "
+                  "latest_applied_binlog_epoch=%s",
+                  llstr(ndb_latest_epoch, buff1),
+                  llstr(ndb_get_latest_trans_gci(), buff2),
+                  llstr(ndb_latest_received_binlog_epoch, buff3),
+                  llstr(ndb_latest_handled_binlog_epoch, buff4),
+                  llstr(ndb_latest_applied_binlog_epoch, buff5));
     if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                    "binlog", strlen("binlog"),
                    buf, buflen))
