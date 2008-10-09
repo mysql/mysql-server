@@ -4847,14 +4847,14 @@ Dbdict::createTable_release(SchemaOpPtr op_ptr)
     jam();
     SegmentedSectionPtr ss_ptr;
     getSection(ss_ptr, createTabPtr.p->m_tabInfoPtrI);
-    ::release(ss_ptr);
+    SimulatedBlock::release(ss_ptr);
     createTabPtr.p->m_tabInfoPtrI = RNIL;
   }
   if (createTabPtr.p->m_fragmentsPtrI != RNIL) {
     jam();
     SegmentedSectionPtr ss_ptr;
     getSection(ss_ptr, createTabPtr.p->m_fragmentsPtrI);
-    ::release(ss_ptr);
+    SimulatedBlock::release(ss_ptr);
     createTabPtr.p->m_fragmentsPtrI = RNIL;
   }
   releaseOpRec<CreateTableRec>(op_ptr);
@@ -5111,7 +5111,7 @@ Dbdict::createTable_parse(Signal* signal, bool master,
       Uint32 count = 2 + (1 + frag_data[0]) * frag_data[1];
 
       Ptr<SectionSegment> frag_ptr;
-      bool ok = ::import(frag_ptr, (Uint32*)frag_data, (count + 1) / 2);
+      bool ok = import(frag_ptr, (Uint32*)frag_data, (count + 1) / 2);
       ndbrequire(ok);
       createTabPtr.p->m_fragmentsPtrI = frag_ptr.i;
 
@@ -5121,7 +5121,7 @@ Dbdict::createTable_parse(Signal* signal, bool master,
 
     // dump table record back into DictTabInfo
     {
-      SimplePropertiesSectionWriter w(getSectionSegmentPool());
+      SimplePropertiesSectionWriter w(* this);
       packTableIntoPages(w, tabPtr);
 
       SegmentedSectionPtr ss_ptr;
@@ -7336,7 +7336,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
   {
     jam();
     releaseSections(handle);
-    SimplePropertiesSectionWriter w(getSectionSegmentPool());
+    SimplePropertiesSectionWriter w(* this);
     packTableIntoPages(w, alterTabPtr.p->m_newTablePtr);
 
     SegmentedSectionPtr tabInfoPtr;
@@ -7348,7 +7348,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     {
       jam();
       SegmentedSectionPtr ss_ptr;
-      ndbrequire(::import(ss_ptr, c_fragData_align32, (c_fragDataLen+1)/2));
+      ndbrequire(import(ss_ptr, c_fragData_align32, (c_fragDataLen+1)/2));
       handle.m_ptr[AlterTabReq::FRAGMENTATION] = ss_ptr;
       handle.m_cnt = 2;
     }
@@ -9406,8 +9406,8 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
   ListTablesData ltd;
   const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
   char tname[MAX_TAB_NAME_SIZE];
-  SimplePropertiesSectionWriter tableDataWriter(getSectionSegmentPool());
-  SimplePropertiesSectionWriter tableNamesWriter(getSectionSegmentPool());
+  SimplePropertiesSectionWriter tableDataWriter(* this);
+  SimplePropertiesSectionWriter tableNamesWriter(* this);
 
   Uint32 count = 0;
   Uint32 fragId = rand();
@@ -20639,7 +20639,7 @@ Dbdict::copyOut(const OpSection& op_sec, SegmentedSectionPtr& ss_ptr)
     return false;
   }
   Ptr<SectionSegment> ptr;
-  if (!::import(ptr, buf, op_sec.getSize())) {
+  if (!import(ptr, buf, op_sec.getSize())) {
     jam();
     return false;
   }
@@ -23888,7 +23888,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
      */
     hm.HashMapBuckets *= sizeof(Uint16);
     SimpleProperties::UnpackStatus s;
-    SimplePropertiesSectionWriter w(getSectionSegmentPool());
+    SimplePropertiesSectionWriter w(* this);
     s = SimpleProperties::pack(w,
                                &hm,
                                DictHashMapInfo::Mapping,

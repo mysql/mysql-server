@@ -276,7 +276,7 @@ Uint32 SimplePropertiesSectionReader::getSize() const
  */
 class SimplePropertiesSectionWriter : public SimpleProperties::Writer {
 public:
-  SimplePropertiesSectionWriter(class SectionSegmentPool &);
+  SimplePropertiesSectionWriter(class SimulatedBlock & block);
   virtual ~SimplePropertiesSectionWriter();
 
   virtual bool reset();
@@ -294,7 +294,9 @@ private:
 
   Int32 m_pos;
   Uint32 m_sz;
+
   class SectionSegmentPool & m_pool;
+  class SimulatedBlock & m_block;
   struct SectionSegment * m_head;
   Uint32 m_prevPtrI; // Prev to m_currentSegment
   struct SectionSegment * m_currentSegment;

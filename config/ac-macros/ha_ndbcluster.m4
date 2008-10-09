@@ -269,7 +269,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   
   if test X"$ndb_mtd" = Xyes
   then
-    if test X"$have_ndbmtd_x86" = Xyes
+    if test X"$have_ndbmtd_asm" = Xyes
     then
       build_ndbmtd=yes
       AC_MSG_RESULT([Including ndbmtd])
