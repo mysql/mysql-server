@@ -9311,12 +9311,13 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
 
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
   m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
+
   /**
-   * To get correct signal order and avoid races, this signal to SUMA is sent
-   * on the same prio as the GCP_PREPARE signal sent to SUMA in
-   * execGPC_PREPARE
+   * To handle multiple LQH instances, this need to be passed though
+   * each LQH...(so that no fire-trig-ord can arrive "too" late)
    */
-  sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, signal->length(), JBB);
+  sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
+             signal->length(), JBB);
 }
 
 /*****************************************************************************/
