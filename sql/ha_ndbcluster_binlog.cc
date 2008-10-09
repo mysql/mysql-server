@@ -3580,7 +3580,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
       dict->getNdbError().classification == NdbError::SchemaError)
   {
     DBUG_PRINT("info", ("No %s.%s table", ndb_rep_db, ndb_replication_table));
-    if (!table)
+    if (do_set_binlog_flags)
       set_binlog_flags(share, NBT_DEFAULT);
     DBUG_RETURN(0);
   }
