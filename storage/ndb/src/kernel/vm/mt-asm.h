@@ -47,7 +47,7 @@ cpu_pause()
 }
 
 #elif defined(__sparc__)
-#define mb()    asm volatile("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore":::"memory)
+#define mb()    asm volatile("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore":::"memory")
 #define rmb()   asm volatile("membar #LoadLoad" ::: "memory")
 #define wmb()   asm volatile("membar #StoreStore" ::: "memory")
 #define read_barrier_depends()  do {} while(0)
