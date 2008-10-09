@@ -2962,7 +2962,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     @retval       SKIP_OPEN_TABLE | OPEN_FRM_ONLY | OPEN_FULL_TABLE
 */
 
-static uint get_table_open_method(TABLE_LIST *tables,
+uint get_table_open_method(TABLE_LIST *tables,
                                   ST_SCHEMA_TABLE *schema_table,
                                   enum enum_schema_tables schema_table_idx)
 {
@@ -2973,12 +2973,22 @@ static uint get_table_open_method(TABLE_LIST *tables,
   {
     Field **ptr, *field;
     int table_open_method= 0, field_indx= 0;
+    uint star_table_open_method= OPEN_FULL_TABLE;
+    bool used_star= true;                  // true if '*' is used in select
     for (ptr=tables->table->field; (field= *ptr) ; ptr++)
     {
+      star_table_open_method=
+        min(star_table_open_method,
+            schema_table->fields_info[field_indx].open_method);
       if (bitmap_is_set(tables->table->read_set, field->field_index))
+      {
+        used_star= false;
         table_open_method|= schema_table->fields_info[field_indx].open_method;
+      }
       field_indx++;
     }
+    if (used_star)
+      return star_table_open_method;
     return table_open_method;
   }
   /* I_S tables which use get_all_tables but can not be optimized */
