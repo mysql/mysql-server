@@ -39,7 +39,7 @@ EVENT_TYPE	varchar(9)	NO
 EXECUTE_AT	datetime	YES		NULL	
 INTERVAL_VALUE	varchar(256)	YES		NULL	
 INTERVAL_FIELD	varchar(18)	YES		NULL	
-SQL_MODE	longtext	NO		NULL	
+SQL_MODE	varchar(8192)	NO			
 STARTS	datetime	YES		NULL	
 ENDS	datetime	YES		NULL	
 STATUS	varchar(18)	NO			
@@ -66,7 +66,7 @@ EVENTS	CREATE TEMPORARY TABLE `EVENTS` (
   `EXECUTE_AT` datetime DEFAULT NULL,
   `INTERVAL_VALUE` varchar(256) DEFAULT NULL,
   `INTERVAL_FIELD` varchar(18) DEFAULT NULL,
-  `SQL_MODE` longtext NOT NULL,
+  `SQL_MODE` varchar(8192) NOT NULL DEFAULT '',
   `STARTS` datetime DEFAULT NULL,
   `ENDS` datetime DEFAULT NULL,
   `STATUS` varchar(18) NOT NULL DEFAULT '',
@@ -93,7 +93,7 @@ EVENT_TYPE	varchar(9)	NO
 EXECUTE_AT	datetime	YES		NULL	
 INTERVAL_VALUE	varchar(256)	YES		NULL	
 INTERVAL_FIELD	varchar(18)	YES		NULL	
-SQL_MODE	longtext	NO		NULL	
+SQL_MODE	varchar(8192)	NO			
 STARTS	datetime	YES		NULL	
 ENDS	datetime	YES		NULL	
 STATUS	varchar(18)	NO			

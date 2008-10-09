@@ -2962,7 +2962,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     @retval       SKIP_OPEN_TABLE | OPEN_FRM_ONLY | OPEN_FULL_TABLE
 */
 
-static uint get_table_open_method(TABLE_LIST *tables,
+uint get_table_open_method(TABLE_LIST *tables,
                                   ST_SCHEMA_TABLE *schema_table,
                                   enum enum_schema_tables schema_table_idx)
 {
@@ -2973,12 +2973,22 @@ static uint get_table_open_method(TABLE_LIST *tables,
   {
     Field **ptr, *field;
     int table_open_method= 0, field_indx= 0;
+    uint star_table_open_method= OPEN_FULL_TABLE;
+    bool used_star= true;                  // true if '*' is used in select
     for (ptr=tables->table->field; (field= *ptr) ; ptr++)
     {
+      star_table_open_method=
+        min(star_table_open_method,
+            schema_table->fields_info[field_indx].open_method);
       if (bitmap_is_set(tables->table->read_set, field->field_index))
+      {
+        used_star= false;
         table_open_method|= schema_table->fields_info[field_indx].open_method;
+      }
       field_indx++;
     }
+    if (used_star)
+      return star_table_open_method;
     return table_open_method;
   }
   /* I_S tables which use get_all_tables but can not be optimized */
@@ -6116,7 +6126,7 @@ ST_FIELD_INFO events_fields_info[]=
    SKIP_OPEN_TABLE},
   {"INTERVAL_FIELD", 18, MYSQL_TYPE_STRING, 0, 1, "Interval field",
    SKIP_OPEN_TABLE},
-  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {"STARTS", 0, MYSQL_TYPE_DATETIME, 0, 1, "Starts", SKIP_OPEN_TABLE},
   {"ENDS", 0, MYSQL_TYPE_DATETIME, 0, 1, "Ends", SKIP_OPEN_TABLE},
   {"STATUS", 18, MYSQL_TYPE_STRING, 0, 0, "Status", SKIP_OPEN_TABLE},
@@ -6359,8 +6369,8 @@ ST_FIELD_INFO triggers_fields_info[]=
   {"ACTION_REFERENCE_OLD_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"CREATED", 0, MYSQL_TYPE_DATETIME, 0, 1, "Created", OPEN_FULL_TABLE},
-  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, "sql_mode", OPEN_FULL_TABLE},
-  {"DEFINER", 65535, MYSQL_TYPE_STRING, 0, 0, "Definer", OPEN_FULL_TABLE},
+  {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, "sql_mode", OPEN_FULL_TABLE},
+  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer", OPEN_FULL_TABLE},
   {"CHARACTER_SET_CLIENT", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
    "character_set_client", OPEN_FULL_TABLE},
   {"COLLATION_CONNECTION", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
