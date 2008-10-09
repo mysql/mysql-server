@@ -1433,7 +1433,7 @@ public:
 class Item_func_get_system_var :public Item_func
 {
   sys_var *var;
-  enum_var_type var_type;
+  enum_var_type var_type, orig_var_type;
   LEX_STRING component;
   longlong cached_llval;
   double cached_dval;
@@ -1468,6 +1468,8 @@ public:
   */
   bool is_written_to_binlog();
   bool eq(const Item *item, bool binary_cmp) const;
+
+  void cleanup();
 };
 
 
