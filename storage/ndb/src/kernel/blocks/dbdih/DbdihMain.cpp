@@ -7021,7 +7021,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         }
         const Uint32 max = NGPtr.p->nodeCount;
 	
-	fragments[count++] = c_nextLogPart++; // Store logpart first
+	fragments[count++] = NGPtr.p->m_next_log_part++; // Store logpart first
 	Uint32 tmp= next_replica_node[NGPtr.i];
         for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
         {
@@ -7118,12 +7118,13 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         for (Uint32 i = primTabPtr.p->totalfragments; i<noOfFragments; i++)
         {
           jam();
-          Uint32 node = find_min_index(fragments_per_node, sizeof(fragments_per_node)/sizeof(fragments_per_node[0]));
-          fragments[count++] = c_nextLogPart++;
-          fragments[count++] = node;
-          fragments_per_node[node]++;
+          Uint32 node = find_min_index(fragments_per_node, 
+                                       NDB_ARRAY_SIZE(fragments_per_node));
           NGPtr.i = getNodeGroup(node);
           ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+          fragments[count++] = NGPtr.p->m_next_log_part++;
+          fragments[count++] = node;
+          fragments_per_node[node]++;
           for (Uint32 r = 0; r<noOfReplicas; r++)
           {
             jam();
@@ -9310,12 +9311,13 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
 
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
   m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
+
   /**
-   * To get correct signal order and avoid races, this signal to SUMA is sent
-   * on the same prio as the GCP_PREPARE signal sent to SUMA in
-   * execGPC_PREPARE
+   * To handle multiple LQH instances, this need to be passed though
+   * each LQH...(so that no fire-trig-ord can arrive "too" late)
    */
-  sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, signal->length(), JBB);
+  sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
+             signal->length(), JBB);
 }
 
 /*****************************************************************************/
@@ -13554,7 +13556,6 @@ void Dbdih::initCommonData()
   c_newest_restorable_gci = 0;
   cverifyQueueCounter = 0;
   cwaitLcpSr = false;
-  c_nextLogPart = 0;
   c_nodeStartMaster.blockGcp = false;
 
   nodeResetStart(0);
@@ -13905,6 +13906,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
         loopNGPtr.p->activeTakeOver = false;
         loopNGPtr.p->nodegroupIndex = RNIL;
         loopNGPtr.p->m_ref_count = 0;
+        loopNGPtr.p->m_next_log_part = 0;
       }//for
       break;
     }
@@ -15591,7 +15593,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	Uint32 nodeOrder[MAX_REPLICAS];
 	const Uint32 noOfReplicas = extractNodeInfo(fragPtr.p, nodeOrder);
 	char buf[100];
-	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d - ", tabPtr.i, j);
+	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d(%u) - ", tabPtr.i, j, dihGetInstanceKey(fragPtr));
 	for(Uint32 k = 0; k < noOfReplicas; k++){
 	  char tmp[100];
 	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);

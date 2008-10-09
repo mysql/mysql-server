@@ -344,6 +344,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DROP_FRAG_REF, &Dblqh::execDROP_FRAG_REF);
   addRecSignal(GSN_DROP_FRAG_CONF, &Dblqh::execDROP_FRAG_CONF);
 
+  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dblqh::execSUB_GCP_COMPLETE_REP);
+
   initData();
 
 #ifdef VM_TRACE

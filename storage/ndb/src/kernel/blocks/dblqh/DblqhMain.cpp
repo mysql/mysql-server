@@ -12765,6 +12765,18 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   return;
 }//Dblqh::execGCP_SAVEREQ()
 
+/**
+ * This is needed for ndbmtd to serialize
+ * SUB_GCP_COMPLETE_REP vs FIRE_TRIG_ORD
+ */
+void
+Dblqh::execSUB_GCP_COMPLETE_REP(Signal* signal)
+{
+  jamEntry();
+  sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
+             signal->getLength(), JBB);
+}
+
 /* ------------------------------------------------------------------------- */
 /*  START TIME SUPERVISION OF THE LOG PARTS.                                 */
 /* ------------------------------------------------------------------------- */
