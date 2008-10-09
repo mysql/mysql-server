@@ -118,6 +118,11 @@ ndb_std_get_one_option(int optid,
 
 void ndb_std_print_version()
 {
-  printf("MySQL distrib %s, for %s (%s)\n",
-         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+#ifndef DBUG_OFF
+  const char *suffix= "-debug";
+#else
+  const char *suffix= "";
+#endif
+  printf("MySQL distrib %s%s, for %s (%s)\n",
+         NDB_VERSION_STRING,suffix,SYSTEM_TYPE,MACHINE_TYPE);
 }
