@@ -159,6 +159,9 @@ protected:
   void execGCP_SAVEREF(Signal*);
   void sendGCP_SAVECONF(Signal*, Uint32 ssId);
 
+  // GSN_SUB_GCP_COMPLETE_REP
+  void execSUB_GCP_COMPLETE_REP(Signal*);
+
   // GSN_PREP_DROP_TAB_REQ
   struct Ss_PREP_DROP_TAB_REQ : SsParallel {
     PrepDropTabReq m_req;
