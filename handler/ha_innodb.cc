@@ -6250,7 +6250,8 @@ ha_innobase::delete_all_rows(void)
 	if (thd_sql_command(user_thd) != SQLCOM_TRUNCATE) {
 	fallback:
 		/* We only handle TRUNCATE TABLE t as a special case.
-		DELETE FROM t will have to use ha_innobase::delete_row(). */
+		DELETE FROM t will have to use ha_innobase::delete_row(),
+		because DELETE is transactional while TRUNCATE is not. */
 		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
 	}
 
