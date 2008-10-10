@@ -9274,6 +9274,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
+        type == MYSQL_TYPE_NEWDATE ||
         type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table, 1);
     /* 
