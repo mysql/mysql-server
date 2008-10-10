@@ -1,0 +1,3 @@
+Some of these tests allocate more than 4GB RAM.
+So, assure that the machine on which the suite will be executed has more than 4GB RAM.
+

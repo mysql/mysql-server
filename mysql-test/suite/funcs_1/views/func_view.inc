@@ -93,7 +93,7 @@
 #            ./mysql-test-run.pl   --socket=var/tmp/master.sock --start-dirty
 #       3. Issue the statements needed by using "mysql" or "mysqltest".
 #
-#       Maybe an internal routine of this test fails. Please ask me (ML) or
+#       Maybe an internal routine of this test fails. Please ask me (mleich) or
 #       enable the logging of auxiliary queries and try to analyze the
 #       problem.
 #
@@ -158,10 +158,16 @@ DROP VIEW  IF EXISTS v1;
 
 --disable_query_log
 # Storage for the SELECTs to be used for the VIEW definition
+# Attention: my_select must be no too small because a statement like
+#    SELECT LOAD_FILE(< file in MYSQLTEST_VARDIR >)
+#    AS my_col,
+#    id FROM t1_values';
+#    might be a very long
+# Bug#38427 "Data too long" ... tests "<ENGINE>_func_view" fail
 CREATE TABLE t1_selects
 (
    id BIGINT AUTO_INCREMENT,
-   my_select VARCHAR(200) NOT NULL,
+   my_select VARCHAR(1000) NOT NULL,
    disable_result ENUM('Yes','No') NOT NULL default 'No',
    PRIMARY KEY(id),
    UNIQUE (my_select)
@@ -344,7 +350,7 @@ INSERT INTO t1_values SET
 #     fv1.inc sets t1_selects.disable_result to 'No' and the effect will be,
 #     that the result set will be logged.
 #
-#     If you do have the time to check the result sets do the insert of the
+#     If you do not have the time to check the result sets do the insert of the
 #     SELECT with function via:
 #           eval SET @my_select =
 #           '<your SELECT>';
@@ -407,11 +413,11 @@ eval INSERT INTO t1_values SET select_id = @select_id,
 # 1.    Cast Functions and Operators
 # 1.1   CAST
 #
-# Note(ML): I guess the CAST routines are used in many other functions.
-#           Therefore check also nearly all "ugly" variants like
-#           CAST(<string composed of non digits> AS DECIMAL) here.
+# Note(mleich): I guess the CAST routines are used in many other functions.
+#               Therefore check also nearly all "ugly" variants like
+#               CAST(<string composed of non digits> AS DECIMAL) here.
 #
-#        suite/funcs_1/views/fv_cast.inc contains
+#            suite/funcs_1/views/fv_cast.inc contains
 #                SELECT CAST($col_type AS $target_type), ...
 #
 #
@@ -772,7 +778,7 @@ $col_type, id FROM t1_values';
 #
 # 2.2.1  IF(expr1,expr2,expr3) with expr1 = <column>
 #
-#        Note(ML): Strings, which do not contain a number -> FALSE
+#        Note(mleich): Strings, which do not contain a number -> FALSE
 #
 #        suite/funcs_1/views/fv_if1.inc contains
 #                SELECT IF($col_type, 'IS TRUE', 'IS NOT TRUE'), ...
@@ -819,9 +825,10 @@ let $col_type= my_year;
 #        suite/funcs_1/views/fv_if2.inc contains
 #                SELECT IF($col_type IS NULL, 'IS     NULL', 'IS NOT NULL'), ...
 #
-# Note(ML): July 2005 IF($col_type IS NULL, ...) is mapped to a VIEW definition
-#           create ... view ... as
-#           select if(isnull(`test`.`t1`.`f1`),_latin1'IS     NULL',
+# Note(mleich): July 2005
+#               IF($col_type IS NULL, ...) is mapped to a VIEW definition
+#                  create ... view ... as
+#                  select if(isnull(`test`.`t1`.`f1`),_latin1'IS     NULL',
 #                  _latin1'IS NOT NULL'),...
 #
 # Bug#11689 success on Create view .. IF(col1 IS NULL,...), col2 ; but SELECT fails

@@ -437,8 +437,11 @@ uint Item::decimal_precision() const
   Item_result restype= result_type();
 
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    return min(my_decimal_length_to_precision(max_length, decimals, unsigned_flag),
-               DECIMAL_MAX_PRECISION);
+  {
+    uint prec= 
+      my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
+    return min(prec, DECIMAL_MAX_PRECISION);
+  }
   return min(max_length, DECIMAL_MAX_PRECISION);
 }
 
@@ -1245,10 +1248,12 @@ Item_name_const::Item_name_const(Item *name_arg, Item *val):
   if (!(valid_args= name_item->basic_const_item() &&
                     (value_item->basic_const_item() ||
                      ((value_item->type() == FUNC_ITEM) &&
-                      (((Item_func *) value_item)->functype() ==
-                                                 Item_func::NEG_FUNC) &&
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::COLLATE_FUNC) ||
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::NEG_FUNC) &&
                       (((Item_func *) value_item)->key_item()->type() !=
-                       FUNC_ITEM)))))
+                         FUNC_ITEM)))))))
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
   Item::maybe_null= TRUE;
 }
@@ -1333,6 +1338,7 @@ public:
     else
       Item_ident::print(str, query_type);
   }
+  virtual Ref_Type ref_type() { return AGGREGATE_REF; }
 };
 
 
@@ -2377,17 +2383,15 @@ void Item_string::print(String *str, enum_query_type query_type)
 }
 
 
-double Item_string::val_real()
+double 
+double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
 {
-  DBUG_ASSERT(fixed == 1);
   int error;
-  char *end, *org_end;
+  char *org_end;
   double tmp;
-  CHARSET_INFO *cs= str_value.charset();
 
-  org_end= (char*) str_value.ptr() + str_value.length();
-  tmp= my_strntod(cs, (char*) str_value.ptr(), str_value.length(), &end,
-                  &error);
+  org_end= end;
+  tmp= my_strntod(cs, (char*) cptr, end - cptr, &end, &error);
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
     /*
@@ -2397,7 +2401,39 @@ double Item_string::val_real()
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
-                        str_value.ptr());
+                        cptr);
+  }
+  return tmp;
+}
+
+
+double Item_string::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  return double_from_string_with_check (str_value.charset(), str_value.ptr(), 
+                                        (char *) str_value.ptr() + str_value.length());
+}
+
+
+longlong 
+longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
+{
+  int err;
+  longlong tmp;
+  char *org_end= end;
+
+  tmp= (*(cs->cset->strtoll10))(cs, cptr, &end, &err);
+  /*
+    TODO: Give error if we wanted a signed integer and we got an unsigned
+    one
+  */
+  if (err > 0 ||
+      (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        cptr);
   }
   return tmp;
 }
@@ -2410,26 +2446,8 @@ double Item_string::val_real()
 longlong Item_string::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  int err;
-  longlong tmp;
-  char *end= (char*) str_value.ptr()+ str_value.length();
-  char *org_end= end;
-  CHARSET_INFO *cs= str_value.charset();
-
-  tmp= (*(cs->cset->strtoll10))(cs, str_value.ptr(), &end, &err);
-  /*
-    TODO: Give error if we wanted a signed integer and we got an unsigned
-    one
-  */
-  if (err > 0 ||
-      (end != org_end && !check_if_only_end_space(cs, end, org_end)))
-  {
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        str_value.ptr());
-  }
-  return tmp;
+  return longlong_from_string_with_check(str_value.charset(), str_value.ptr(),
+                             (char *) str_value.ptr()+ str_value.length());
 }
 
 
@@ -4117,16 +4135,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   if (any_privileges)
   {
     char *db, *tab;
-    if (cached_table->view)
-    {
-      db= cached_table->view_db.str;
-      tab= cached_table->view_name.str;
-    }
-    else
-    {
-      db= cached_table->db;
-      tab= cached_table->table_name;
-    }
+    db= cached_table->get_db_name();
+    tab= cached_table->get_table_name();
     if (!(have_privileges= (get_column_grant(thd, &field->table->grant,
                                              db, tab, field_name) &
                             VIEW_ANY_ACL)))
@@ -4347,7 +4357,12 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
     item= this;
   else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
   {
-    if (item && cmp_context != INT_RESULT)
+    /*
+      We don't need to zero-fill timestamp columns here because they will be 
+      first converted to a string (in date/time format) and compared as such if
+      compared with another string.
+    */
+    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT)
       convert_zerofill_number_to_string(&item, (Field_num *)field);
     else
       item= this;
@@ -5172,21 +5187,28 @@ Item_bin_string::Item_bin_string(const char *str, uint str_length)
   if (!ptr)
     return;
   str_value.set(ptr, max_length, &my_charset_bin);
-  ptr+= max_length - 1;
-  ptr[1]= 0;                     // Set end null for string
-  for (; end >= str; end--)
+
+  if (max_length > 0)
   {
-    if (power == 256)
+    ptr+= max_length - 1;
+    ptr[1]= 0;                     // Set end null for string
+    for (; end >= str; end--)
     {
-      power= 1;
-      *ptr--= bits;
-      bits= 0;     
+      if (power == 256)
+      {
+        power= 1;
+        *ptr--= bits;
+        bits= 0;
+      }
+      if (*end == '1')
+        bits|= power;
+      power<<= 1;
     }
-    if (*end == '1')
-      bits|= power; 
-    power<<= 1;
+    *ptr= (char) bits;
   }
-  *ptr= (char) bits;
+  else
+    ptr[0]= 0;
+
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   fixed= 1;
 }
@@ -5920,6 +5942,10 @@ void Item_ref::make_field(Send_field *field)
     field->table_name= table_name;
   if (db_name)
     field->db_name= db_name;
+  if (orig_field_name)
+    field->org_col_name= orig_field_name;
+  if (orig_table_name)
+    field->org_table_name= orig_table_name;
 }
 
 
@@ -6195,6 +6221,13 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  /*
+    If the value of arg is NULL, then this object represents a constant,
+    so further transformation is unnecessary (and impossible).
+  */
+  if (!arg)
+    return 0;
 
   Item *new_item= arg->transform(transformer, args);
   if (!new_item)
@@ -6988,8 +7021,9 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
     decimals= min(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
-    int precision= min(max(prev_decimal_int_part, item->decimal_int_part())
-                       + decimals, DECIMAL_MAX_PRECISION);
+    int item_int_part= item->decimal_int_part();
+    int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
+    int precision= min(item_prec, DECIMAL_MAX_PRECISION);
     unsigned_flag&= item->unsigned_flag;
     max_length= my_decimal_precision_to_length(precision, decimals,
                                                unsigned_flag);

@@ -345,14 +345,7 @@ public:
   void dbug_dump(int indent, bool verbose);
 #endif
 private:
-  /* Used only by QUICK_SELECT_DESC */
-  QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT& org) : QUICK_SELECT_I()
-  {
-    bcopy(&org, this, sizeof(*this));
-    multi_range_length= 0;
-    multi_range= NULL;
-    multi_range_buff= NULL;
-  }
+  /* Default copy ctor used by QUICK_SELECT_DESC */
 };
 
 
@@ -686,12 +679,10 @@ public:
   int get_type() { return QS_TYPE_RANGE_DESC; }
 private:
   bool range_reads_after_key(QUICK_RANGE *range);
-#ifdef NOT_USED
-  bool test_if_null_range(QUICK_RANGE *range, uint used_key_parts);
-#endif
   int reset(void) { rev_it.rewind(); return QUICK_RANGE_SELECT::reset(); }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
+  uint used_key_parts;
 };
 
 

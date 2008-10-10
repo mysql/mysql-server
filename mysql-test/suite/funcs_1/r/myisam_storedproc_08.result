@@ -1,3 +1,4 @@
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -125,7 +126,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	DEFINER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -152,7 +153,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	INVOKER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	created with INVOKER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -177,7 +178,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	DEFINER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -202,7 +203,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	INVOKER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	created with INVOKER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -210,7 +211,7 @@ COLLATION_CONNECTION	latin1_swedish_ci
 DATABASE_COLLATION	latin1_swedish_ci
 SHOW CREATE FUNCTION  fn_1;
 Function	fn_1
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `fn_1`(i1 longtext, i2 mediumint , i3 longblob, i4 year, i5 real) RETURNS year(4)
 BEGIN
 set @x=i1;
@@ -222,7 +223,7 @@ collation_connection	latin1_swedish_ci
 Database Collation	latin1_swedish_ci
 SHOW CREATE FUNCTION  fn_2;
 Function	fn_2
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `fn_2`(i1 longtext, i2 mediumint , i3 longblob, i4 year, i5 real) RETURNS year(4)
     SQL SECURITY INVOKER
     COMMENT 'created with INVOKER'
@@ -236,7 +237,7 @@ collation_connection	latin1_swedish_ci
 Database Collation	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp_1;
 Procedure	sp_1
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Procedure	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_1`(i1 int)
 BEGIN
 set @x=i1;
@@ -246,7 +247,7 @@ collation_connection	latin1_swedish_ci
 Database Collation	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp_2;
 Procedure	sp_2
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Procedure	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_2`(i1 int)
     SQL SECURITY INVOKER
     COMMENT 'created with INVOKER'
@@ -343,7 +344,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	INVOKER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	new comment, FN changed to INVOKER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -370,7 +371,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	DEFINER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	FN changed to DEFINER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -395,7 +396,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	INVOKER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	new comment, SP changed to INVOKER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -420,7 +421,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	DEFINER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	SP changed to DEFINER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -428,7 +429,7 @@ COLLATION_CONNECTION	latin1_swedish_ci
 DATABASE_COLLATION	latin1_swedish_ci
 SHOW CREATE FUNCTION  fn_1;
 Function	fn_1
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `fn_1`(i1 longtext, i2 mediumint , i3 longblob, i4 year, i5 real) RETURNS year(4)
     NO SQL
     SQL SECURITY INVOKER
@@ -443,7 +444,7 @@ collation_connection	latin1_swedish_ci
 Database Collation	latin1_swedish_ci
 SHOW CREATE FUNCTION  fn_2;
 Function	fn_2
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `fn_2`(i1 longtext, i2 mediumint , i3 longblob, i4 year, i5 real) RETURNS year(4)
     MODIFIES SQL DATA
     COMMENT 'FN changed to DEFINER'
@@ -457,7 +458,7 @@ collation_connection	latin1_swedish_ci
 Database Collation	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp_1;
 Procedure	sp_1
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Procedure	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_1`(i1 int)
     SQL SECURITY INVOKER
     COMMENT 'new comment, SP changed to INVOKER'
@@ -469,7 +470,7 @@ collation_connection	latin1_swedish_ci
 Database Collation	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp_2;
 Procedure	sp_2
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Procedure	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_2`(i1 int)
     READS SQL DATA
     COMMENT 'SP changed to DEFINER'
@@ -554,7 +555,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	INVOKER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	new comment, FN changed to INVOKER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -581,7 +582,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	DEFINER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	FN changed to DEFINER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -606,7 +607,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	INVOKER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	new comment, SP changed to INVOKER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -631,7 +632,7 @@ SQL_PATH	NULL
 SECURITY_TYPE	DEFINER
 CREATED	<modified>
 LAST_ALTERED	<created>
-SQL_MODE	
+SQL_MODE	NO_ENGINE_SUBSTITUTION
 ROUTINE_COMMENT	SP changed to DEFINER
 DEFINER	root@localhost
 CHARACTER_SET_CLIENT	latin1
@@ -639,7 +640,7 @@ COLLATION_CONNECTION	latin1_swedish_ci
 DATABASE_COLLATION	latin1_swedish_ci
 SHOW CREATE FUNCTION  fn_1;
 Function	fn_1
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `fn_1`(i1 longtext, i2 mediumint , i3 longblob, i4 year, i5 real) RETURNS year(4)
     NO SQL
     SQL SECURITY INVOKER
@@ -654,7 +655,7 @@ collation_connection	latin1_swedish_ci
 Database Collation	latin1_swedish_ci
 SHOW CREATE FUNCTION  fn_2;
 Function	fn_2
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Function	CREATE DEFINER=`root`@`localhost` FUNCTION `fn_2`(i1 longtext, i2 mediumint , i3 longblob, i4 year, i5 real) RETURNS year(4)
     COMMENT 'FN changed to DEFINER'
 BEGIN
@@ -667,7 +668,7 @@ collation_connection	latin1_swedish_ci
 Database Collation	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp_1;
 Procedure	sp_1
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Procedure	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_1`(i1 int)
     SQL SECURITY INVOKER
     COMMENT 'new comment, SP changed to INVOKER'
@@ -679,7 +680,7 @@ collation_connection	latin1_swedish_ci
 Database Collation	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp_2;
 Procedure	sp_2
-sql_mode	
+sql_mode	NO_ENGINE_SUBSTITUTION
 Create Procedure	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_2`(i1 int)
     READS SQL DATA
     COMMENT 'SP changed to DEFINER'

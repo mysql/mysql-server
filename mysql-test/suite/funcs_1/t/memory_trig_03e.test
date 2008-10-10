@@ -1,8 +1,13 @@
 #### suite/funcs_1/t/memory_triggers.test
 
+# This test cannot be used for the embedded server because we check here
+# privileges.
+--source include/not_embedded.inc
+
 # Memory tables should be used
 #
 # Set $engine_type
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 let $engine_type= memory;
 
 # Create some objects needed in many testcases

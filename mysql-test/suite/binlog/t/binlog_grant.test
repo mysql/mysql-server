@@ -1,0 +1,60 @@
+# Test grants for various objects (especially variables) related to
+# the binary log
+
+source include/have_log_bin.inc;
+
+connection default;
+--disable_warnings
+reset master;
+--enable_warnings
+
+set @saved_binlog_format = @@global.binlog_format;
+create user mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+
+connect (plain,localhost,mysqltest_1,,test);
+connect (root,localhost,root,,test);
+
+# Testing setting both session and global SQL_LOG_BIN variable both as
+# root and as plain user.
+
+--echo **** Variable SQL_LOG_BIN ****
+
+connection root;
+--echo [root]
+--error ER_LOCAL_VARIABLE
+set global sql_log_bin = 1;
+set session sql_log_bin = 1;
+
+connection plain;
+--echo [plain]
+--error ER_LOCAL_VARIABLE
+set global sql_log_bin = 1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+set session sql_log_bin = 1;
+
+
+# Testing setting both session and global BINLOG_FORMAT variable both
+# as root and as plain user.
+
+--echo **** Variable BINLOG_FORMAT ****
+
+connection root;
+--echo [root]
+set global binlog_format = row;
+set session binlog_format = row;
+
+connection plain;
+--echo [plain]
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+set global binlog_format = row;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+set session binlog_format = row;
+
+--echo **** Clean up ****
+disconnect plain;
+disconnect root;
+
+connection default;
+set global binlog_format = @saved_binlog_format;
+drop user mysqltest_1@localhost;

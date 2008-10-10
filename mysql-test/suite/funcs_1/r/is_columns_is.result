@@ -67,7 +67,7 @@ NULL	information_schema	EVENTS	LAST_ALTERED	18	0000-00-00 00:00:00	NO	datetime	N
 NULL	information_schema	EVENTS	LAST_EXECUTED	19	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	ON_COMPLETION	16		NO	varchar	12	36	NULL	NULL	utf8	utf8_general_ci	varchar(12)			select	
 NULL	information_schema	EVENTS	ORIGINATOR	21	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(10)			select	
-NULL	information_schema	EVENTS	SQL_MODE	12	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	EVENTS	SQL_MODE	12		NO	varchar	8192	24576	NULL	NULL	utf8	utf8_general_ci	varchar(8192)			select	
 NULL	information_schema	EVENTS	STARTS	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	EVENTS	STATUS	15		NO	varchar	18	54	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select	
 NULL	information_schema	EVENTS	TIME_ZONE	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -277,12 +277,12 @@ NULL	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20		NO	varchar	32	96	NULL	
 NULL	information_schema	TRIGGERS	COLLATION_CONNECTION	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 NULL	information_schema	TRIGGERS	CREATED	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
 NULL	information_schema	TRIGGERS	DATABASE_COLLATION	22		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
-NULL	information_schema	TRIGGERS	DEFINER	19	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	DEFINER	19		NO	varchar	77	231	NULL	NULL	utf8	utf8_general_ci	varchar(77)			select	
 NULL	information_schema	TRIGGERS	EVENT_MANIPULATION	4		NO	varchar	6	18	NULL	NULL	utf8	utf8_general_ci	varchar(6)			select	
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_CATALOG	5	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-NULL	information_schema	TRIGGERS	SQL_MODE	18	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	TRIGGERS	SQL_MODE	18		NO	varchar	8192	24576	NULL	NULL	utf8	utf8_general_ci	varchar(8192)			select	
 NULL	information_schema	TRIGGERS	TRIGGER_CATALOG	1	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
 NULL	information_schema	TRIGGERS	TRIGGER_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	TRIGGERS	TRIGGER_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -412,7 +412,7 @@ NULL	information_schema	COLUMNS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(
 NULL	information_schema	EVENTS	EXECUTE_AT	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	EVENTS	INTERVAL_VALUE	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	EVENTS	INTERVAL_FIELD	varchar	18	54	utf8	utf8_general_ci	varchar(18)
-1.0000	information_schema	EVENTS	SQL_MODE	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
+3.0000	information_schema	EVENTS	SQL_MODE	varchar	8192	24576	utf8	utf8_general_ci	varchar(8192)
 NULL	information_schema	EVENTS	STARTS	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	information_schema	EVENTS	ENDS	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	EVENTS	STATUS	varchar	18	54	utf8	utf8_general_ci	varchar(18)
@@ -635,8 +635,8 @@ NULL	information_schema	TRIGGERS	ACTION_ORDER	bigint	NULL	NULL	NULL	NULL	bigint(
 3.0000	information_schema	TRIGGERS	ACTION_REFERENCE_OLD_ROW	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	TRIGGERS	ACTION_REFERENCE_NEW_ROW	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime
-1.0000	information_schema	TRIGGERS	SQL_MODE	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
-1.0000	information_schema	TRIGGERS	DEFINER	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
+3.0000	information_schema	TRIGGERS	SQL_MODE	varchar	8192	24576	utf8	utf8_general_ci	varchar(8192)
+3.0000	information_schema	TRIGGERS	DEFINER	varchar	77	231	utf8	utf8_general_ci	varchar(77)
 3.0000	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	TRIGGERS	COLLATION_CONNECTION	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	TRIGGERS	DATABASE_COLLATION	varchar	32	96	utf8	utf8_general_ci	varchar(32)

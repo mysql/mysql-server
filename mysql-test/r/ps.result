@@ -85,9 +85,9 @@ NULL
 NULL
 NULL
 prepare stmt6 from 'select 1; select2';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '; select2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select2' at line 1
 prepare stmt6 from 'insert into t1 values (5,"five"); select2';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '; select2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select2' at line 1
 explain prepare stmt6 from 'insert into t1 values (5,"five"); select2';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from 'insert into t1 values (5,"five"); select2'' at line 1
 create table t2

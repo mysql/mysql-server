@@ -457,7 +457,7 @@ int mysql_update(THD *thd,
       */
 
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info,thd,table,select,0,1);
+        init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
@@ -523,7 +523,7 @@ int mysql_update(THD *thd,
   if (select && select->quick && select->quick->reset())
     goto err;
   table->file->try_semi_consistent_read(1);
-  init_read_record(&info,thd,table,select,0,1);
+  init_read_record(&info, thd, table, select, 0, 1, FALSE);
 
   updated= found= 0;
   /* Generate an error when trying to set a NOT NULL field to NULL. */
@@ -1000,7 +1000,7 @@ reopen_tables:
     DBUG_RETURN(TRUE);
   }
 
-  tables_for_update= get_table_map(fields);
+  thd->table_map_for_update= tables_for_update= get_table_map(fields);
 
   /*
     Setup timestamp handling and locking mode
@@ -1039,7 +1039,7 @@ reopen_tables:
         correct order of statements. Otherwise, we use a TL_READ lock to
         improve performance.
       */
-      tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
+      tl->lock_type= read_lock_type_for_table(thd, table);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)

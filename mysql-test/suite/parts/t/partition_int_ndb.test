@@ -1,9 +1,9 @@
 ################################################################################
-# t/partition_int_ndb.test                                                  #
+# t/partition_int_ndb.test                                                     #
 #                                                                              #
 # Purpose:                                                                     #
 #  Tests around integer type                                                   #
-#        NDB branch                                                         #
+#        NDB branch                                                            #
 #                                                                              #
 #------------------------------------------------------------------------------#
 # Original Author: HH                                                          #
@@ -37,7 +37,14 @@ let $debug= 0;
 ##### Storage engine to be tested
 --source include/have_ndb.inc
 let $engine= 'NDB';
+connection default;
 
+##### max rows to be inserted
+let $maxrows=1024;
+# range, list and hash partitioning in ndb requires new_mode
+--disable_query_log
+set new=on;
+--enable_query_log
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
 --source suite/parts/inc/partition_tinyint.inc

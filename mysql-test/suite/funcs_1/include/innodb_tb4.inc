@@ -55,13 +55,13 @@ f223 year(3),
 f224 year(4),
 f225 enum("1enum","2enum"),
 f226 set("1set","2set"),
-f235 char(0) unicode,
+f235 char(0),
 f236 char(90),
 f237 char(255) ascii,
 f238 varchar(0),
 f239 varchar(20000) binary,
-f240 varchar(2000) unicode,
-f241 char(100) unicode
+f240 varchar(2000),
+f241 char(100)
 ) engine = innodb;
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>

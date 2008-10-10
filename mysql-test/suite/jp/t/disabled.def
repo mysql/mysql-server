@@ -9,5 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-jp_convert_sjis      : Bug#36597 Testsuite "jp": Suspicious results for some tests
-jp_select_sjis       : Bug#36597 Testsuite "jp": Suspicious results for some tests

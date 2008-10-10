@@ -1,0 +1,82 @@
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1
+(
+f1 CHAR         UNICODE,
+f2 CHAR(0)      UNICODE,
+f3 CHAR(10)     UNICODE,
+f5 VARCHAR(0)   UNICODE,
+f6 VARCHAR(255) UNICODE,
+f7 VARCHAR(260) UNICODE
+) ENGINE = MEMORY;
+SELECT * FROM information_schema.columns
+WHERE table_schema LIKE 'test%'
+ORDER BY table_schema, table_name, column_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+NULL	test	t1	f1	1	NULL	YES	char	1	2	NULL	NULL	ucs2	ucs2_general_ci	char(1)			select,insert,update,references	
+NULL	test	t1	f2	2	NULL	YES	char	0	0	NULL	NULL	ucs2	ucs2_general_ci	char(0)			select,insert,update,references	
+NULL	test	t1	f3	3	NULL	YES	char	10	20	NULL	NULL	ucs2	ucs2_general_ci	char(10)			select,insert,update,references	
+NULL	test	t1	f5	4	NULL	YES	varchar	0	0	NULL	NULL	ucs2	ucs2_general_ci	varchar(0)			select,insert,update,references	
+NULL	test	t1	f6	5	NULL	YES	varchar	255	510	NULL	NULL	ucs2	ucs2_general_ci	varchar(255)			select,insert,update,references	
+NULL	test	t1	f7	6	NULL	YES	varchar	260	520	NULL	NULL	ucs2	ucs2_general_ci	varchar(260)			select,insert,update,references	
+##########################################################################
+# Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
+##########################################################################
+SELECT DISTINCT
+CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
+DATA_TYPE,
+CHARACTER_SET_NAME,
+COLLATION_NAME
+FROM information_schema.columns
+WHERE table_schema LIKE 'test%'
+AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH = 1
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
+SELECT DISTINCT
+CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
+DATA_TYPE,
+CHARACTER_SET_NAME,
+COLLATION_NAME
+FROM information_schema.columns
+WHERE table_schema LIKE 'test%'
+AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH <> 1
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
+2.0000	char	ucs2	ucs2_general_ci
+2.0000	varchar	ucs2	ucs2_general_ci
+SELECT DISTINCT
+CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
+DATA_TYPE,
+CHARACTER_SET_NAME,
+COLLATION_NAME
+FROM information_schema.columns
+WHERE table_schema LIKE 'test%'
+AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH IS NULL
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
+NULL	char	ucs2	ucs2_general_ci
+NULL	varchar	ucs2	ucs2_general_ci
+--> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
+--> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
+SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
+TABLE_SCHEMA,
+TABLE_NAME,
+COLUMN_NAME,
+DATA_TYPE,
+CHARACTER_MAXIMUM_LENGTH,
+CHARACTER_OCTET_LENGTH,
+CHARACTER_SET_NAME,
+COLLATION_NAME,
+COLUMN_TYPE
+FROM information_schema.columns
+WHERE table_schema LIKE 'test%'
+ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION;
+COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
+2.0000	test	t1	f1	char	1	2	ucs2	ucs2_general_ci	char(1)
+NULL	test	t1	f2	char	0	0	ucs2	ucs2_general_ci	char(0)
+2.0000	test	t1	f3	char	10	20	ucs2	ucs2_general_ci	char(10)
+NULL	test	t1	f5	varchar	0	0	ucs2	ucs2_general_ci	varchar(0)
+2.0000	test	t1	f6	varchar	255	510	ucs2	ucs2_general_ci	varchar(255)
+2.0000	test	t1	f7	varchar	260	520	ucs2	ucs2_general_ci	varchar(260)
+DROP TABLE t1;

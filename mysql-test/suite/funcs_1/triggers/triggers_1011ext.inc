@@ -13,6 +13,7 @@ eval
 load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/memory_tb3.txt'
 into table tb3;
 
+
 --disable_abort_on_error
 
 ##############################################

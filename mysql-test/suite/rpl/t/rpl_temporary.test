@@ -56,6 +56,8 @@ drop table if exists t1,t2;
 create table t1(f int);
 create table t2(f int);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+# Auxiliary select (We want that all rows are in the table)
+SELECT COUNT(*) FROM t1;
 
 connection con1;
 create temporary table t3(f int);
@@ -138,20 +140,21 @@ sync_slave_with_master;
 
 #
 # Bug#17284 erroneous temp table cleanup on slave
+# The test targets at verifying that reconnected slave
+# retained the former session's temporary tables
 #
-
 connection master;
 create temporary table t4 (f int);
 create table t5 (f int);
 sync_slave_with_master;
+# connection slave
+stop slave;  # to prepare for reconnecting w/o waiting for timeout
 connection master;
-# find dumper's $id
-select id from information_schema.processlist where command='Binlog Dump' into @id;
-kill @id; # to stimulate reconnection by slave w/o timeout
 insert into t5 select * from t4;
 save_master_pos;
 
 connection slave;
+start slave;
 sync_with_master;
 select * from t5 /* must be 1 after reconnection */;
 
