@@ -367,17 +367,17 @@ NDB_BINARIES="src/kernel/$TARGET/ndbd "
 NDB_BINARIES="$NDB_BINARIES src/mgmclient/$TARGET/ndb_mgm"
 NDB_BINARIES="$NDB_BINARIES src/mgmsrv/$TARGET/ndb_mgmd"
 NDB_BINARIES="$NDB_BINARIES src/mgmsrv/$TARGET/ndb_mgmd"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_config"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_delete_all"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_desc"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_drop_index"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_drop_table"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_restore"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_select_all"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_select_count"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_show_tables"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_test_platform"
-NDB_BINARIES="$NDB_BINARIES tools/Debug/ndb_waiter"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_config"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_delete_all"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_desc"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_drop_index"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_drop_table"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_restore"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_select_all"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_select_count"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_show_tables"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_test_platform"
+NDB_BINARIES="$NDB_BINARIES tools/$TARGET/ndb_waiter"
 
 for bin in $NDB_BINARIES; do
     if [ x"$TARGET" = x"relwithdebinfo" ] ; then
@@ -390,15 +390,15 @@ done
 if [ x"$PACK_DEBUG" = x"" -a -f "storage/ndb/src/mgmapi/debug/ndbmgmapi.lib" -o \
      x"$PACK_DEBUG" = x"yes" ] ; then
   mkdir -p $DESTDIR/lib/debug
-  cp  storage/ndb/src/mgmapi/debug/ndbmgmapi.lib \
-      storage/ndb/src/mgmapi/debug/ndbmgmapi.pdb \
-      storage/ndb/src/ndbapi/debug/ndbapi.lib \
-      storage/ndb/src/ndbapi/debug/ndbapi.pdb \
+  cp  storage/ndb/src/mgmapi/$TARGET/ndbmgmapi.lib \
+      storage/ndb/src/mgmapi/$TARGET/ndbmgmapi.pdb \
+      storage/ndb/src/ndbapi/$TARGET/ndbapi.lib \
+      storage/ndb/src/ndbapi/$TARGET/ndbapi.pdb \
       $DESTDIR/lib/debug/
 fi
 
-cp storage/ndb/src/mgmapi/debug/ndbmgmapi.lib \
-   storage/ndb/src/ndbapi/debug/ndbapi.lib \
+cp storage/ndb/src/mgmapi/$TARGET/ndbmgmapi.lib \
+   storage/ndb/src/ndbapi/$TARGET/ndbapi.lib \
    $DESTDIR/lib/opt/
 
 if [ x"$TARGET" = x"relwithdebinfo" ] ; then
