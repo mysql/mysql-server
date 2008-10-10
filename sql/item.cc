@@ -1217,10 +1217,12 @@ Item_name_const::Item_name_const(Item *name_arg, Item *val):
   if (!(valid_args= name_item->basic_const_item() &&
                     (value_item->basic_const_item() ||
                      ((value_item->type() == FUNC_ITEM) &&
-                      (((Item_func *) value_item)->functype() ==
-                                                 Item_func::NEG_FUNC) &&
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::COLLATE_FUNC) ||
+                      ((((Item_func *) value_item)->functype() ==
+                         Item_func::NEG_FUNC) &&
                       (((Item_func *) value_item)->key_item()->type() !=
-                       FUNC_ITEM)))))
+                         FUNC_ITEM)))))))
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
   Item::maybe_null= TRUE;
 }
@@ -1756,14 +1758,16 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
     We need to copy db_name, table_name and field_name because they must
     be allocated in the statement memory, not in table memory (the table
     structure can go away and pop up again between subsequent executions
-    of a prepared statement).
+    of a prepared statement or after the close_tables_for_reopen() call
+    in mysql_multi_update_prepare()).
   */
-  if (thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
   {
     if (db_name)
       orig_db_name= thd->strdup(db_name);
-    orig_table_name= thd->strdup(table_name);
-    orig_field_name= thd->strdup(field_name);
+    if (table_name)
+      orig_table_name= thd->strdup(table_name);
+    if (field_name)
+      orig_field_name= thd->strdup(field_name);
     /*
       We don't restore 'name' in cleanup because it's not changed
       during execution. Still we need it to point to persistent
@@ -4220,7 +4224,12 @@ Item *Item_field::equal_fields_propagator(byte *arg)
     item= this;
   else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
   {
-    if (item && cmp_context != INT_RESULT)
+    /*
+      We don't need to zero-fill timestamp columns here because they will be 
+      first converted to a string (in date/time format) and compared as such if
+      compared with another string.
+    */
+    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT)
       convert_zerofill_number_to_string(&item, (Field_num *)field);
     else
       item= this;
