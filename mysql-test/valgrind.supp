@@ -444,6 +444,15 @@
    fun:_dl_open
 }
 
+{
+   libc pthread_exit 8
+   Memcheck:Leak
+   fun:malloc
+   fun:local_strdup
+   fun:_dl_map_object
+   fun:dl_open_worker
+}
+
 #
 # This is seen internally in the system libraries on 64-bit RHAS3.
 #

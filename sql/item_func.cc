@@ -4935,7 +4935,7 @@ longlong Item_func_get_system_var::val_int()
 {
   THD *thd= current_thd;
 
-  if (thd->query_id == used_query_id)
+  if (cache_present && thd->query_id == used_query_id)
   {
     if (cache_present & GET_SYS_VAR_CACHE_LONG)
     {
@@ -5011,7 +5011,7 @@ String* Item_func_get_system_var::val_str(String* str)
 {
   THD *thd= current_thd;
 
-  if (thd->query_id == used_query_id)
+  if (cache_present && thd->query_id == used_query_id)
   {
     if (cache_present & GET_SYS_VAR_CACHE_STRING)
     {
@@ -5091,7 +5091,7 @@ double Item_func_get_system_var::val_real()
 {
   THD *thd= current_thd;
 
-  if (thd->query_id == used_query_id)
+  if (cache_present && thd->query_id == used_query_id)
   {
     if (cache_present & GET_SYS_VAR_CACHE_DOUBLE)
     {
@@ -5189,7 +5189,7 @@ bool Item_func_get_system_var::eq(const Item *item, bool binary_cmp) const
 void Item_func_get_system_var::cleanup()
 {
   Item_func::cleanup();
-  cache_present= NULL;
+  cache_present= 0;
   var_type= orig_var_type;
   cached_strval.free();
 }
