@@ -3636,8 +3636,14 @@ int ha_tokudb::info(uint flag) {
         }
     }
     /* Don't return key if we got an error for the internal primary key */
-    if (flag & HA_STATUS_ERRKEY && last_dup_key < table_share->keys)
+    if (flag & HA_STATUS_ERRKEY && last_dup_key < table_share->keys) {
         errkey = last_dup_key;
+    }    
+	if (flag & HA_STATUS_AUTO && table->found_next_number_field) {        
+        THD *thd= table->in_use;
+        struct system_variables *variables= &thd->variables;
+		stats.auto_increment_value = share->last_auto_increment + variables->auto_increment_increment;
+	}
     TOKUDB_DBUG_RETURN(0);
 }
 
