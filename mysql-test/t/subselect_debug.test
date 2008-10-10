@@ -1,0 +1,16 @@
+--source include/have_debug.inc
+
+#
+# Bug #37627: Killing query with sum(exists()) or avg(exists()) reproducibly
+# crashes server
+#
+
+CREATE TABLE t1(id INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t1 SELECT a.id FROM t1 a,t1 b,t1 c,t1 d;
+# Setup the mysqld to crash at certain point
+SET SESSION debug="d,subselect_exec_fail";
+SELECT SUM(EXISTS(SELECT RAND() FROM t1)) FROM t1;
+SELECT REVERSE(EXISTS(SELECT RAND() FROM t1));
+SET SESSION debug=DEFAULT;
+DROP TABLE t1;

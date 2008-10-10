@@ -617,12 +617,12 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   thd->spcont= NULL;
 
   {
-    Lex_input_stream lip(thd, defstr.c_ptr(), defstr.length());
+    Parser_state parser_state(thd, defstr.c_ptr(), defstr.length());
 
     lex_start(thd);
 
     thd->push_internal_handler(&warning_handler);
-    ret= parse_sql(thd, &lip, creation_ctx) || newlex.sphead == NULL;
+    ret= parse_sql(thd, & parser_state, creation_ctx) || newlex.sphead == NULL;
     thd->pop_internal_handler();
 
     /*

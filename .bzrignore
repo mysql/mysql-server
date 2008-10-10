@@ -389,6 +389,9 @@ client/readline.cpp
 client/rpl_constants.h
 client/rpl_record_old.cc
 client/rpl_record_old.h
+client/rpl_tblmap.h
+client/rpl_tblmap.cc
+client/rpl_utility.h
 client/select_test
 client/sql_string.cpp
 client/ssl_test

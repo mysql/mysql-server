@@ -1470,10 +1470,6 @@ execute stmt1;
 drop function bug12329;
 create function bug12329() returns int return (select a+100 from t2);
 select bug12329();
-# Until we implement proper mechanism for invalidation of PS/SP when table
-# or SP's are changed the following statement will fail with 'Table ... was
-# not locked' error (this mechanism should be based on the new TDC).
---error ER_NO_SUCH_TABLE 
 execute stmt1;
 deallocate prepare stmt1;
 drop function bug12329; 
@@ -2365,6 +2361,14 @@ begin
       end loop label1;
     end loop;
 end|
+
+CREATE TABLE t1 (a INT)|
+INSERT INTO t1 VALUES (1),(2)|
+CREATE PROCEDURE p1(a INT) BEGIN END|
+--error ER_SUBQUERY_NO_1_ROW
+CALL p1((SELECT * FROM t1))|
+DROP PROCEDURE IF EXISTS p1|
+DROP TABLE t1|
 
 delimiter ;|
 

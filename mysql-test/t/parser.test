@@ -6,6 +6,11 @@
 # LEXICAL PARSER (lex)
 #=============================================================================
 
+#
+# Maintainer: these tests are for the lexical parser, so every character,
+# even whitespace or comments, is significant here.
+#
+
 SET @save_sql_mode=@@sql_mode;
 
 #
@@ -386,6 +391,48 @@ DROP TABLE table_25930_b;
 
 
 SET @@sql_mode=@save_sql_mode;
+
+#
+# Bug#26030 (Parsing fails for stored routine w/multi-statement execution
+# enabled)
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p26030;
+--enable_warnings
+
+delimiter $$;
+
+select "non terminated"$$
+select "terminated";$$
+select "non terminated, space"      $$
+select "terminated, space";      $$
+select "non terminated, comment" /* comment */$$
+select "terminated, comment"; /* comment */$$
+
+# Multi queries can not be used in --ps-protocol test mode
+--disable_ps_protocol
+
+select "stmt 1";select "stmt 2 non terminated"$$
+select "stmt 1";select "stmt 2 terminated";$$
+select "stmt 1";select "stmt 2 non terminated, space"      $$
+select "stmt 1";select "stmt 2 terminated, space";      $$
+select "stmt 1";select "stmt 2 non terminated, comment" /* comment */$$
+select "stmt 1";select "stmt 2 terminated, comment"; /* comment */$$
+
+select "stmt 1";             select "space, stmt 2"$$
+select "stmt 1";/* comment */select "comment, stmt 2"$$
+
+DROP PROCEDURE IF EXISTS p26030; CREATE PROCEDURE p26030() BEGIN SELECT 1; END; CALL p26030()
+$$
+
+DROP PROCEDURE IF EXISTS p26030; CREATE PROCEDURE p26030() SELECT 1; CALL p26030()
+$$
+
+--enable_ps_protocol
+
+delimiter ;$$
+DROP PROCEDURE p26030;
 
 #=============================================================================
 # SYNTACTIC PARSER (bison)

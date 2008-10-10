@@ -1162,6 +1162,21 @@ void fix_slave_exec_mode(enum_var_type type)
     bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
 }
 
+
+bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
+  /*
+    All variables that affect writing to binary log (either format or
+    turning logging on and off) use the same checking. We call the
+    superclass ::check function to assign the variable correctly, and
+    then check the value.
+   */
+  bool result= sys_var_thd_enum::check(thd, var);
+  if (!result)
+    result= check_log_update(thd, var);
+  return result;
+}
+
+
 bool sys_var_thd_binlog_format::is_readonly() const
 {
   /*
@@ -1719,119 +1734,6 @@ err:
 }
 
 
-/**
-  Return an Item for a variable.
-
-  Used with @@[global.]variable_name.
-
-  If type is not given, return local value if exists, else global.
-*/
-
-Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
-{
-  if (check_type(var_type))
-  {
-    if (var_type != OPT_DEFAULT)
-    {
-      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0),
-               name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
-      return 0;
-    }
-    /* As there was no local variable, return the global value */
-    var_type= OPT_GLOBAL;
-  }
-  switch (show_type()) {
-  case SHOW_INT:
-  {
-    uint value;
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    value= *(uint*) value_ptr(thd, var_type, base);
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint((ulonglong) value);
-  }
-  case SHOW_LONG:
-  {
-    ulong value;
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    value= *(ulong*) value_ptr(thd, var_type, base);
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_uint((ulonglong) value);
-  }
-  case SHOW_LONGLONG:
-  {
-    longlong value;
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    value= *(longlong*) value_ptr(thd, var_type, base);
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_int(value);
-  }
-  case SHOW_DOUBLE:
-  {
-    double value;
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    value= *(double*) value_ptr(thd, var_type, base);
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    /* 6, as this is for now only used with microseconds */
-    return new Item_float(value, 6);
-  }
-  case SHOW_HA_ROWS:
-  {
-    ha_rows value;
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    value= *(ha_rows*) value_ptr(thd, var_type, base);
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_int((ulonglong) value);
-  }
-  case SHOW_MY_BOOL:
-  {
-    int32 value;
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    value= *(my_bool*) value_ptr(thd, var_type, base);
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    return new Item_int(value,1);
-  }
-  case SHOW_CHAR_PTR:
-  {
-    Item *tmp;
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    char *str= *(char**) value_ptr(thd, var_type, base);
-    if (str)
-    {
-      uint length= strlen(str);
-      tmp= new Item_string(thd->strmake(str, length), length,
-                           system_charset_info, DERIVATION_SYSCONST);
-    }
-    else
-    {
-      tmp= new Item_null();
-      tmp->collation.set(system_charset_info, DERIVATION_SYSCONST);
-    }
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    return tmp;
-  }
-  case SHOW_CHAR:
-  {
-    Item *tmp;
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    char *str= (char*) value_ptr(thd, var_type, base);
-    if (str)
-      tmp= new Item_string(str, strlen(str),
-                           system_charset_info, DERIVATION_SYSCONST);
-    else
-    {
-      tmp= new Item_null();
-      tmp->collation.set(system_charset_info, DERIVATION_SYSCONST);
-    }
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    return tmp;
-  }
-  default:
-    my_error(ER_VAR_CANT_BE_READ, MYF(0), name);
-  }
-  return 0;
-}
-
-
 bool sys_var_thd_enum::update(THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL)
@@ -2376,6 +2278,12 @@ end:
 bool sys_var_log_state::update(THD *thd, set_var *var)
 {
   bool res;
+
+  if (this == &sys_var_log)
+    WARN_DEPRECATED(thd, "7.0", "@@log", "'@@general_log'");
+  else if (this == &sys_var_log_slow)
+    WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
+
   pthread_mutex_lock(&LOCK_global_system_variables);
   if (!var->save_result.ulong_value)
   {
@@ -2390,6 +2298,11 @@ bool sys_var_log_state::update(THD *thd, set_var *var)
 
 void sys_var_log_state::set_default(THD *thd, enum_var_type type)
 {
+  if (this == &sys_var_log)
+    WARN_DEPRECATED(thd, "7.0", "@@log", "'@@general_log'");
+  else if (this == &sys_var_log_slow)
+    WARN_DEPRECATED(thd, "7.0", "@@log_slow_queries", "'@@slow_query_log'");
+
   pthread_mutex_lock(&LOCK_global_system_variables);
   logger.deactivate_log_handler(thd, log_type);
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -3696,7 +3609,7 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
 
 void sys_var_thd_table_type::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "table_type", "'storage_engine'");
+  WARN_DEPRECATED(thd, "5.2", "@@table_type", "'@@storage_engine'");
 }
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
@@ -3958,8 +3871,8 @@ bool process_key_caches(process_key_cache_t func)
 
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "5.2", "log_bin_trust_routine_creators",
-                      "'log_bin_trust_function_creators'");
+  WARN_DEPRECATED(thd, "5.2", "@@log_bin_trust_routine_creators",
+                      "'@@log_bin_trust_function_creators'");
 }
 
 void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)

@@ -44,9 +44,15 @@ myisam_sort_buffer_size = 8M
 # 
 #skip-networking
 
+# Disable Federated by default
+skip-federated
+
 # Replication Master Server (default)
 # binary logging is required for replication
 log-bin=mysql-bin
+
+# binary logging format - mixed recommended
+binlog_format=mixed
 
 # required unique id between 1 and 2^32 - 1
 # defaults to 1 if master-host is not set

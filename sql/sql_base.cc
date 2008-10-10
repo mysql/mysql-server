@@ -489,12 +489,20 @@ static TABLE_SHARE
       "no such table" errors.
       @todo Rework the alternative ways to deal with ER_NO_SUCH TABLE.
     */
-    if (thd->is_error() && table_list->belong_to_view)
+    if (thd->is_error())
     {
-      TABLE_LIST *view= table_list->belong_to_view;
-      thd->clear_error();
-      my_error(ER_VIEW_INVALID, MYF(0),
-               view->view_db.str, view->view_name.str);
+      if (table_list->parent_l)
+      {
+        thd->clear_error();
+        my_error(ER_WRONG_MRG_TABLE, MYF(0));
+      }
+      else if (table_list->belong_to_view)
+      {
+        TABLE_LIST *view= table_list->belong_to_view;
+        thd->clear_error();
+        my_error(ER_VIEW_INVALID, MYF(0),
+                 view->view_db.str, view->view_name.str);
+      }
     }
     DBUG_RETURN(0);
   }
@@ -1369,6 +1377,8 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     DBUG_ASSERT(!table->is_children_attached());
 
     /* Free memory and reset for next loop */
+    free_field_buffers_larger_than(table,MAX_TDC_BLOB_SIZE);
+    
     table->file->ha_reset();
     table->in_use=0;
     if (unused_tables)
@@ -3691,9 +3701,10 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 
     share->table_map_id is not ~0UL.
  */
+static ulong last_table_id= ~0UL;
+
 void assign_new_table_id(TABLE_SHARE *share)
 {
-  static ulong last_table_id= ~0UL;
 
   DBUG_ENTER("assign_new_table_id");
 
@@ -3717,6 +3728,19 @@ void assign_new_table_id(TABLE_SHARE *share)
   DBUG_VOID_RETURN;
 }
 
+#ifndef DBUG_OFF
+/* Cause a spurious statement reprepare for debug purposes. */
+static bool inject_reprepare(THD *thd)
+{
+  if (thd->m_reprepare_observer && thd->stmt_arena->is_reprepared == FALSE)
+  {
+    thd->m_reprepare_observer->report_error(thd);
+    return TRUE;
+  }
+
+  return FALSE;
+}
+#endif
 
 /**
   Compare metadata versions of an element obtained from the table
@@ -3771,15 +3795,7 @@ check_and_update_table_version(THD *thd,
     tables->set_table_ref_id(table_share);
   }
 
-#ifndef DBUG_OFF
-  /* Spuriously reprepare each statement. */
-  if (_db_strict_keyword_("reprepare_each_statement") &&
-      thd->m_reprepare_observer && thd->stmt_arena->is_reprepared == FALSE)
-  {
-    thd->m_reprepare_observer->report_error(thd);
-    return TRUE;
-  }
-#endif
+  DBUG_EXECUTE_IF("reprepare_each_statement", return inject_reprepare(thd););
 
   return FALSE;
 }
@@ -4354,6 +4370,38 @@ bool fix_merge_after_open(TABLE_LIST *old_child_list, TABLE_LIST **old_last,
 
 
 /*
+  Return a appropriate read lock type given a table object.
+
+  @param thd Thread context
+  @param table TABLE object for table to be locked
+
+  @remark Due to a statement-based replication limitation, statements such as
+          INSERT INTO .. SELECT FROM .. and CREATE TABLE .. SELECT FROM need
+          to grab a TL_READ_NO_INSERT lock on the source table in order to
+          prevent the replication of a concurrent statement that modifies the
+          source table. If such a statement gets applied on the slave before
+          the INSERT .. SELECT statement finishes, data on the master could
+          differ from data on the slave and end-up with a discrepancy between
+          the binary log and table state. Furthermore, this does not apply to
+          I_S and log tables as it's always unsafe to replicate such tables
+          under statement-based replication as the table on the slave might
+          contain other data (ie: general_log is enabled on the slave). The
+          statement will be marked as unsafe for SBR in decide_logging_format().
+*/
+
+thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
+{
+  bool log_on= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
+  ulong binlog_format= thd->variables.binlog_format;
+  if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
+      (table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
+    return TL_READ;
+  else
+    return TL_READ_NO_INSERT;
+}
+
+
+/*
   Open all tables in list
 
   SYNOPSIS
@@ -4627,6 +4675,9 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     {
       if (tables->lock_type == TL_WRITE_DEFAULT)
         tables->table->reginfo.lock_type= thd->update_lock_default;
+      else if (tables->lock_type == TL_READ_DEFAULT)
+        tables->table->reginfo.lock_type=
+          read_lock_type_for_table(thd, tables->table);
       else if (tables->table->s->tmp_table == NO_TMP_TABLE)
         tables->table->reginfo.lock_type= tables->lock_type;
     }
@@ -5034,7 +5085,11 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     void* prev_ht= NULL;
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
-      if (!table->placeholder() && table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      if (table->placeholder())
+        continue;
+      if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
+        thd->lex->set_stmt_unsafe();
+      if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
         ulonglong const flags= table->table->file->ha_table_flags();
         DBUG_PRINT("info", ("table: %s; ha_table_flags: %s%s",
@@ -7294,6 +7349,22 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   if (ref_pointer_array)
     bzero(ref_pointer_array, sizeof(Item *) * fields.elements);
 
+  /*
+    We call set_entry() there (before fix_fields() of the whole list of field
+    items) because:
+    1) the list of field items has same order as in the query, and the
+       Item_func_get_user_var item may go before the Item_func_set_user_var:
+          SELECT @a, @a := 10 FROM t;
+    2) The entry->update_query_id value controls constantness of
+       Item_func_get_user_var items, so in presence of Item_func_set_user_var
+       items we have to refresh their entries before fixing of
+       Item_func_get_user_var items.
+  */
+  List_iterator<Item_func_set_user_var> li(thd->lex->set_var_list);
+  Item_func_set_user_var *var;
+  while ((var= li++))
+    var->set_entry(thd, FALSE);
+
   Item **ref= ref_pointer_array;
   thd->lex->current_select->cur_pos_in_select_list= 0;
   while ((item= it++))
@@ -7618,9 +7689,34 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       continue;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    /* Ensure that we have access rights to all fields to be inserted. */
-    if (!((table && (table->grant.privilege & SELECT_ACL) ||
-           tables->view && (tables->grant.privilege & SELECT_ACL))) &&
+    /* 
+       Ensure that we have access rights to all fields to be inserted. Under
+       some circumstances, this check may be skipped.
+
+       - If any_privileges is true, skip the check.
+
+       - If the SELECT privilege has been found as fulfilled already for both
+         the TABLE and TABLE_LIST objects (and both of these exist, of
+         course), the check is skipped.
+
+       - If the SELECT privilege has been found fulfilled for the TABLE object
+         and the TABLE_LIST represents a derived table other than a view (see
+         below), the check is skipped.
+
+       - If the TABLE_LIST object represents a view, we may skip checking if
+         the SELECT privilege has been found fulfilled for it, regardless of
+         the TABLE object.
+
+       - If there is no TABLE object, the test is skipped if either 
+         * the TABLE_LIST does not represent a view, or
+         * the SELECT privilege has been found fulfilled.         
+
+       A TABLE_LIST that is not a view may be a subquery, an
+       information_schema table, or a nested table reference. See the comment
+       for TABLE_LIST.
+    */
+    if (!(table && !tables->view && (table->grant.privilege & SELECT_ACL) ||
+          tables->view && (tables->grant.privilege & SELECT_ACL)) &&
         !any_privileges)
     {
       field_iterator.set(tables);
@@ -7674,19 +7770,19 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
                     tables->is_natural_join);
         DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
         Item_field *fld= (Item_field*) item;
-        const char *field_table_name= field_iterator.table_name();
+        const char *field_table_name= field_iterator.get_table_name();
 
         if (!tables->schema_table && 
             !(fld->have_privileges=
               (get_column_grant(thd, field_iterator.grant(),
-                                field_iterator.db_name(),
+                                field_iterator.get_db_name(),
                                 field_table_name, fld->field_name) &
                VIEW_ANY_ACL)))
         {
-          my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0), "ANY",
+          my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "ANY",
                    thd->security_ctx->priv_user,
                    thd->security_ctx->host_or_ip,
-                   fld->field_name, field_table_name);
+                   field_table_name);
           DBUG_RETURN(TRUE);
         }
       }

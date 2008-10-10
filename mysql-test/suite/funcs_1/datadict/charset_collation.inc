@@ -8,7 +8,7 @@
 #
 # The amount and properties of character_sets/collations depend on the
 # build type
-# 2007-12 MySQL 5.0
+# 2007-12 MySQL 5.0, 2008-06 MySQL 5.1
 # ---------------------------------------------------------------------
 #
 # Variant 1 fits to
@@ -33,9 +33,21 @@
 # Variant 3 fits to
 #    version_comment       MySQL Community Server (GPL)
 #    version_comment       MySQL Cluster Server (Commercial)
+#    version_comment       MySQL Advanced Server (GPL)         5.1
+#    version_comment       MySQL Advanced Server (Commercial)  5.1
 #
 # Difference between variant 3 and 2 is within the collation properties
 # IS_COMPILED and SORTLEN.
+#
+# 2008-06 All time excluded variant is "vanilla".
+# How to build "vanilla":
+#    ./BUILD/autorun.sh
+#    ./configure
+#    ./make
+# Some properties of "vanilla"
+#    version_comment       Source distribution
+#    Compared to the variants 1 to 3 a lot of character sets are missing.
+#    Example: "ucs2_bin" is in variant 1 to 3 but not in "vanilla".
 #
 # Created:
 # 2007-12-18 mleich - remove the unstable character_set/collation subtests

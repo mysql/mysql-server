@@ -329,6 +329,12 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   Vio* save_vio;
   ulong save_client_capabilities;
 
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.start_new_query();
+  thd->profiling.set_query_source(init_command_var->value,
+                                  init_command_var->value_length);
+#endif
+
   thd_proc_info(thd, "Execution of init_command");
   /*
     We need to lock init_command_var because
@@ -350,6 +356,10 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   rw_unlock(var_mutex);
   thd->client_capabilities= save_client_capabilities;
   thd->net.vio= save_vio;
+
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+  thd->profiling.finish_current_query();
+#endif
 }
 
 
@@ -441,6 +451,7 @@ pthread_handler_t handle_bootstrap(void *arg)
     thd->query[length] = '\0';
     DBUG_PRINT("query",("%-.4096s",thd->query));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.start_new_query();
     thd->profiling.set_query_source(thd->query, length);
 #endif
 
@@ -455,6 +466,10 @@ pthread_handler_t handle_bootstrap(void *arg)
 
     bootstrap_error= thd->is_error();
     net_end_statement(thd);
+
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.finish_current_query();
+#endif
 
     if (bootstrap_error)
       break;
@@ -1887,6 +1902,10 @@ mysql_execute_command(THD *thd)
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
+#ifdef HAVE_REPLICATION
+  /* have table map for update for multi-update statement (BUG#37051) */
+  bool have_table_map_for_update= FALSE;
+#endif
   /* Saved variable value */
   DBUG_ENTER("mysql_execute_command");
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -1951,6 +1970,48 @@ mysql_execute_command(THD *thd)
       
       // force searching in slave.cc:tables_ok() 
       all_tables->updating= 1;
+    }
+
+    /*
+      For fix of BUG#37051, the master stores the table map for update
+      in the Query_log_event, and the value is assigned to
+      thd->variables.table_map_for_update before executing the update
+      query.
+
+      If thd->variables.table_map_for_update is set, then we are
+      replicating from a new master, we can use this value to apply
+      filter rules without opening all the tables. However If
+      thd->variables.table_map_for_update is not set, then we are
+      replicating from an old master, so we just skip this and
+      continue with the old method. And of course, the bug would still
+      exist for old masters.
+    */
+    if (lex->sql_command == SQLCOM_UPDATE_MULTI &&
+        thd->table_map_for_update)
+    {
+      have_table_map_for_update= TRUE;
+      table_map table_map_for_update= thd->table_map_for_update;
+      uint nr= 0;
+      TABLE_LIST *table;
+      for (table=all_tables; table; table=table->next_global, nr++)
+      {
+        if (table_map_for_update & ((table_map)1 << nr))
+          table->updating= TRUE;
+        else
+          table->updating= FALSE;
+      }
+
+      if (all_tables_not_ok(thd, all_tables))
+      {
+        /* we warn the slave SQL thread */
+        my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+        if (thd->one_shot_set)
+          reset_one_shot_variables(thd);
+        DBUG_RETURN(0);
+      }
+      
+      for (table=all_tables; table; table=table->next_global)
+        table->updating= TRUE;
     }
     
     /*
@@ -2022,13 +2083,15 @@ mysql_execute_command(THD *thd)
 #endif
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
-    res= execute_sqlcom_select(thd, all_tables);
+    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
+      res= execute_sqlcom_select(thd, all_tables);
     break;
   case SQLCOM_SHOW_STATUS:
   {
     system_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
-    res= execute_sqlcom_select(thd, all_tables);
+    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
+      res= execute_sqlcom_select(thd, all_tables);
     /* Don't log SHOW STATUS commands to slow query log */
     thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
                            SERVER_QUERY_NO_GOOD_INDEX_USED);
@@ -2261,8 +2324,8 @@ mysql_execute_command(THD *thd)
     }
     else
     {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "the master info structure does not exist");
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
       my_ok(thd);
     }
     pthread_mutex_unlock(&LOCK_active_mi);
@@ -2659,11 +2722,13 @@ end_with_restore_list:
 
       /* Don't yet allow changing of symlinks with ALTER TABLE */
       if (create_info.data_file_name)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                     "DATA DIRECTORY option ignored");
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                            "DATA DIRECTORY");
       if (create_info.index_file_name)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                     "INDEX DIRECTORY option ignored");
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                            "INDEX DIRECTORY");
       create_info.data_file_name= create_info.index_file_name= NULL;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
@@ -2866,7 +2931,7 @@ end_with_restore_list:
 
 #ifdef HAVE_REPLICATION
     /* Check slave filtering rules */
-    if (unlikely(thd->slave_thread))
+    if (unlikely(thd->slave_thread && !have_table_map_for_update))
     {
       if (all_tables_not_ok(thd, all_tables))
       {
@@ -4811,6 +4876,8 @@ bool check_single_table_access(THD *thd, ulong privilege,
   /* Show only 1 table for check_grant */
   if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
+      !(all_tables->view &&
+        all_tables->effective_algorithm == VIEW_ALGORITHM_TMPTABLE) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
@@ -5123,7 +5190,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       continue;
     }
 
-    if (tables->derived ||
+    if (tables->is_anonymous_derived_table() ||
         (tables->table && (int)tables->table->s->tmp_table))
       continue;
     thd->security_ctx= sctx;
@@ -5133,12 +5200,14 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       tables->grant.privilege= want_access;
     else if (tables->db && thd->db && strcmp(tables->db, thd->db) == 0)
     {
-      if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			 0, no_errors, test(tables->schema_table)))
+      if (check_access(thd, want_access, tables->get_db_name(),
+                       &tables->grant.privilege, 0, no_errors, 
+                       test(tables->schema_table)))
         goto deny;                            // Access denied
     }
-    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			  0, no_errors, test(tables->schema_table)))
+    else if (check_access(thd, want_access, tables->get_db_name(),
+                          &tables->grant.privilege, 0, no_errors, 
+                          test(tables->schema_table)))
       goto deny;
   }
   thd->security_ctx= backup_ctx;
@@ -5323,29 +5392,35 @@ bool check_stack_overrun(THD *thd, long margin,
 
 bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 {
-  LEX	*lex= current_thd->lex;
+  Yacc_state *state= & current_thd->m_parser_state->m_yacc;
   ulong old_info=0;
+  DBUG_ASSERT(state);
   if ((uint) *yystacksize >= MY_YACC_MAX)
     return 1;
-  if (!lex->yacc_yyvs)
+  if (!state->yacc_yyvs)
     old_info= *yystacksize;
   *yystacksize= set_zone((*yystacksize)*2,MY_YACC_INIT,MY_YACC_MAX);
-  if (!(lex->yacc_yyvs= (uchar*)
-	my_realloc(lex->yacc_yyvs,
-		   *yystacksize*sizeof(**yyvs),
-		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
-      !(lex->yacc_yyss= (uchar*)
-	my_realloc(lex->yacc_yyss,
-		   *yystacksize*sizeof(**yyss),
-		   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
+  if (!(state->yacc_yyvs= (uchar*)
+        my_realloc(state->yacc_yyvs,
+                   *yystacksize*sizeof(**yyvs),
+                   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
+      !(state->yacc_yyss= (uchar*)
+        my_realloc(state->yacc_yyss,
+                   *yystacksize*sizeof(**yyss),
+                   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
     return 1;
   if (old_info)
-  {						// Copy old info from stack
-    memcpy(lex->yacc_yyss, (uchar*) *yyss, old_info*sizeof(**yyss));
-    memcpy(lex->yacc_yyvs, (uchar*) *yyvs, old_info*sizeof(**yyvs));
+  {
+    /*
+      Only copy the old stack on the first call to my_yyoverflow(),
+      when replacing a static stack (YYINITDEPTH) by a dynamic stack.
+      For subsequent calls, my_realloc already did preserve the old stack.
+    */
+    memcpy(state->yacc_yyss, *yyss, old_info*sizeof(**yyss));
+    memcpy(state->yacc_yyvs, *yyvs, old_info*sizeof(**yyvs));
   }
-  *yyss=(short*) lex->yacc_yyss;
-  *yyvs=(YYSTYPE*) lex->yacc_yyvs;
+  *yyss= (short*) state->yacc_yyss;
+  *yyvs= (YYSTYPE*) state->yacc_yyvs;
   return 0;
 }
 
@@ -5555,7 +5630,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= 0;
   lex->unit.select_limit_cnt= HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxiliary_table_list);
-  lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
+  lex->lock_option= TL_READ_DEFAULT;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
 }
@@ -5609,10 +5684,10 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     sp_cache_flush_obsolete(&thd->sp_proc_cache);
     sp_cache_flush_obsolete(&thd->sp_func_cache);
 
-    Lex_input_stream lip(thd, inBuf, length);
+    Parser_state parser_state(thd, inBuf, length);
 
-    bool err= parse_sql(thd, &lip, NULL);
-    *found_semicolon= lip.found_semicolon;
+    bool err= parse_sql(thd, & parser_state, NULL);
+    *found_semicolon= parser_state.m_lip.found_semicolon;
 
     if (!err)
     {
@@ -5641,6 +5716,11 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
               (thd->query_length= (ulong)(*found_semicolon - thd->query)))
             thd->query_length--;
           /* Actually execute the query */
+          if (*found_semicolon)
+          {
+            lex->safe_to_cache_query= 0;
+            thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
+          }
           lex->set_trg_event_type_for_tables();
           mysql_execute_command(thd);
 	}
@@ -5692,11 +5772,11 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   bool error= 0;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
-  Lex_input_stream lip(thd, inBuf, length);
+  Parser_state parser_state(thd, inBuf, length);
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
 
-  if (!parse_sql(thd, &lip, NULL) &&
+  if (!parse_sql(thd, & parser_state, NULL) &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   thd->end_statement();
@@ -6473,15 +6553,24 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       thd->store_globals();
       lex_start(thd);
     }
+    
     if (thd)
     {
-      if (acl_reload(thd))
+      bool reload_acl_failed= acl_reload(thd);
+      bool reload_grants_failed= grant_reload(thd);
+      bool reload_servers_failed= servers_reload(thd);
+      
+      if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
+      {
         result= 1;
-      if (grant_reload(thd))
-        result= 1;
-      if (servers_reload(thd))
-        result= 1; /* purecov: inspected */
+        /*
+          When an error is returned, my_message may have not been called and
+          the client will hang waiting for a response.
+        */
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH PRIVILEGES failed");
+      }
     }
+
     if (tmp_thd)
     {
       delete tmp_thd;
@@ -6570,8 +6659,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;                               // Killed
-      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                                  FALSE : TRUE, TRUE);
+      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                              FALSE : TRUE, TRUE))
+          result= 1;
+      
       if (make_global_read_lock_block_commit(thd)) // Killed
       {
         /* Don't leave things in a half-locked state */
@@ -6580,8 +6671,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       }
     }
     else
-      result= close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                                  FALSE : TRUE, FALSE);
+    {
+      if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
+                              FALSE : TRUE, FALSE))
+        result= 1;
+    }
     my_dbopt_cleanup();
   }
   if (options & REFRESH_HOSTS)
@@ -6604,8 +6698,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifdef OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
-     if (des_key_file)
-       result=load_des_key_file(des_key_file);
+     if (des_key_file && load_des_key_file(des_key_file))
+         result= 1;
    }
 #endif
 #ifdef HAVE_REPLICATION
@@ -6735,7 +6829,7 @@ bool check_simple_select()
   if (lex->current_select != &lex->select_lex)
   {
     char command[80];
-    Lex_input_stream *lip= thd->m_lip;
+    Lex_input_stream *lip= & thd->m_parser_state->m_lip;
     strmake(command, lip->yylval->symbol.str,
 	    min(lip->yylval->symbol.length, sizeof(command)-1));
     my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
@@ -7373,11 +7467,12 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
     0	ok
     1	error  
 */
+C_MODE_START
 
-bool test_if_data_home_dir(const char *dir)
+int test_if_data_home_dir(const char *dir)
 {
-  char path[FN_REFLEN], conv_path[FN_REFLEN];
-  uint dir_len, home_dir_len= strlen(mysql_unpacked_real_data_home);
+  char path[FN_REFLEN];
+  int dir_len;
   DBUG_ENTER("test_if_data_home_dir");
 
   if (!dir)
@@ -7385,22 +7480,61 @@ bool test_if_data_home_dir(const char *dir)
 
   (void) fn_format(path, dir, "", "",
                    (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
-  dir_len= unpack_dirname(conv_path, dir);
-
-  if (home_dir_len < dir_len)
+  dir_len= strlen(path);
+  if (mysql_unpacked_real_data_home_len<= dir_len)
   {
+    if (dir_len > mysql_unpacked_real_data_home_len &&
+        path[mysql_unpacked_real_data_home_len] != FN_LIBCHAR)
+      DBUG_RETURN(0);
+
     if (lower_case_file_system)
     {
-      if (!my_strnncoll(character_set_filesystem,
-                        (const uchar*) conv_path, home_dir_len,
+      if (!my_strnncoll(default_charset_info, (const uchar*) path,
+                        mysql_unpacked_real_data_home_len,
                         (const uchar*) mysql_unpacked_real_data_home,
-                        home_dir_len))
+                        mysql_unpacked_real_data_home_len))
         DBUG_RETURN(1);
     }
-    else if (!memcmp(conv_path, mysql_unpacked_real_data_home, home_dir_len))
+    else if (!memcmp(path, mysql_unpacked_real_data_home,
+                     mysql_unpacked_real_data_home_len))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
+}
+
+C_MODE_END
+
+
+/**
+  Check that host name string is valid.
+
+  @param[in] str string to be checked
+
+  @return             Operation status
+    @retval  FALSE    host name is ok
+    @retval  TRUE     host name string is longer than max_length or
+                      has invalid symbols
+*/
+
+bool check_host_name(LEX_STRING *str)
+{
+  const char *name= str->str;
+  const char *end= str->str + str->length;
+  if (check_string_byte_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+    return TRUE;
+
+  while (name != end)
+  {
+    if (*name == '@')
+    {
+      my_printf_error(ER_UNKNOWN_ERROR, 
+                      "Malformed hostname (illegal symbol: '%c')", MYF(0),
+                      *name);
+      return TRUE;
+    }
+    name++;
+  }
+  return FALSE;
 }
 
 
@@ -7412,7 +7546,7 @@ extern int MYSQLparse(void *thd); // from sql_yacc.cc
   instead of MYSQLparse().
 
   @param thd Thread context.
-  @param lip Lexer context.
+  @param parser_state Parser state.
   @param creation_ctx Object creation context.
 
   @return Error status.
@@ -7421,10 +7555,10 @@ extern int MYSQLparse(void *thd); // from sql_yacc.cc
 */
 
 bool parse_sql(THD *thd,
-               Lex_input_stream *lip,
+               Parser_state *parser_state,
                Object_creation_ctx *creation_ctx)
 {
-  DBUG_ASSERT(thd->m_lip == NULL);
+  DBUG_ASSERT(thd->m_parser_state == NULL);
 
   /* Backup creation context. */
 
@@ -7433,9 +7567,9 @@ bool parse_sql(THD *thd,
   if (creation_ctx)
     backup_ctx= creation_ctx->set_n_backup(thd);
 
-  /* Set Lex_input_stream. */
+  /* Set parser state. */
 
-  thd->m_lip= lip;
+  thd->m_parser_state= parser_state;
 
   /* Parse the query. */
 
@@ -7446,9 +7580,9 @@ bool parse_sql(THD *thd,
   DBUG_ASSERT(!mysql_parse_status ||
               mysql_parse_status && thd->is_error());
 
-  /* Reset Lex_input_stream. */
+  /* Reset parser state. */
 
-  thd->m_lip= NULL;
+  thd->m_parser_state= NULL;
 
   /* Restore creation context. */
 

@@ -196,7 +196,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   packed=(packed+7)/8;
   if (pack_reclength != INT_MAX32)
     pack_reclength+= reclength+packed +
-      test(test_all_bits(options, HA_OPTION_CHECKSUM | HA_PACK_RECORD));
+      test(test_all_bits(options, HA_OPTION_CHECKSUM | HA_OPTION_PACK_RECORD));
   min_pack_length+=packed;
 
   if (!ci->data_file_length && ci->max_rows)

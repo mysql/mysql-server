@@ -7,22 +7,23 @@ path=`dirname $0`
 . "$path/autorun.sh"
 
 # For "optimal" code for this computer add -fast to EXTRA
-# To compile 64 bit, add -xarch=v9 to EXTRA_64_BIT
+# To compile 64 bit, add -m64 to EXTRA_64_BIT
 
-EXTRA_64_BIT="-xarch=amd64"
+EXTRA_64_BIT="-m64"
 EXTRA="-fast"
 
 #
 # The following should not need to be touched
 #
 
-export CC CXX CFLAGS CXXFLAGS
+export CC CXX CFLAGS CXXFLAGS LIBS
 STD="-g -mt -D_FORTEC_ $EXTRA $EXTRA_64_BIT"
 ASFLAGS="$EXTRA_64_BIT"
 CC=cc-5.0
 CFLAGS="-Xa -xstrconst $STD"
 CXX=CC
 CXXFLAGS="-noex $STD"
+LIBS=-lmtmalloc
 ./configure \
     --prefix=/usr/local/mysql \
     --localstatedir=/usr/local/mysql/data \

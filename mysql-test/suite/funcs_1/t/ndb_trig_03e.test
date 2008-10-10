@@ -1,5 +1,9 @@
 #### suite/funcs_1/t/ndb_triggers.test
 
+# This test cannot be used for the embedded server because we check here
+# privileges.
+--source include/not_embedded.inc
+
 # NDB tables should be used
 #
 # 1. Check if NDB is available

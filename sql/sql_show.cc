@@ -2962,7 +2962,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     @retval       SKIP_OPEN_TABLE | OPEN_FRM_ONLY | OPEN_FULL_TABLE
 */
 
-static uint get_table_open_method(TABLE_LIST *tables,
+uint get_table_open_method(TABLE_LIST *tables,
                                   ST_SCHEMA_TABLE *schema_table,
                                   enum enum_schema_tables schema_table_idx)
 {
@@ -2973,12 +2973,22 @@ static uint get_table_open_method(TABLE_LIST *tables,
   {
     Field **ptr, *field;
     int table_open_method= 0, field_indx= 0;
+    uint star_table_open_method= OPEN_FULL_TABLE;
+    bool used_star= true;                  // true if '*' is used in select
     for (ptr=tables->table->field; (field= *ptr) ; ptr++)
     {
+      star_table_open_method=
+        min(star_table_open_method,
+            schema_table->fields_info[field_indx].open_method);
       if (bitmap_is_set(tables->table->read_set, field->field_index))
+      {
+        used_star= false;
         table_open_method|= schema_table->fields_info[field_indx].open_method;
+      }
       field_indx++;
     }
+    if (used_star)
+      return star_table_open_method;
     return table_open_method;
   }
   /* I_S tables which use get_all_tables but can not be optimized */
@@ -3549,8 +3559,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     if(file)
     {
-      file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO |
-                 HA_STATUS_NO_LOCK);
+      file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO);
       enum row_type row_type = file->get_row_type();
       switch (row_type) {
       case ROW_TYPE_NOT_USED:
@@ -4237,6 +4246,27 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
           !my_strcasecmp(system_charset_info, tables->definer.host.str,
                          sctx->priv_host))
         tables->allowed_show= TRUE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      else
+      {
+        if ((thd->col_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+            (SHOW_VIEW_ACL|SELECT_ACL))
+          tables->allowed_show= TRUE;
+        else
+        {
+          TABLE_LIST table_list;
+          uint view_access;
+          memset(&table_list, 0, sizeof(table_list));
+          table_list.db= tables->view_db.str;
+          table_list.table_name= tables->view_name.str;
+          table_list.grant.privilege= thd->col_access;
+          view_access= get_table_grant(thd, &table_list);
+          if ((view_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
+              (SHOW_VIEW_ACL|SELECT_ACL))
+            tables->allowed_show= TRUE;
+        }
+      }
+#endif
     }
     restore_record(table, s->default_values);
     tmp_db_name= &tables->view_db;
@@ -6096,7 +6126,7 @@ ST_FIELD_INFO events_fields_info[]=
    SKIP_OPEN_TABLE},
   {"INTERVAL_FIELD", 18, MYSQL_TYPE_STRING, 0, 1, "Interval field",
    SKIP_OPEN_TABLE},
-  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {"STARTS", 0, MYSQL_TYPE_DATETIME, 0, 1, "Starts", SKIP_OPEN_TABLE},
   {"ENDS", 0, MYSQL_TYPE_DATETIME, 0, 1, "Ends", SKIP_OPEN_TABLE},
   {"STATUS", 18, MYSQL_TYPE_STRING, 0, 0, "Status", SKIP_OPEN_TABLE},
@@ -6339,8 +6369,8 @@ ST_FIELD_INFO triggers_fields_info[]=
   {"ACTION_REFERENCE_OLD_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"CREATED", 0, MYSQL_TYPE_DATETIME, 0, 1, "Created", OPEN_FULL_TABLE},
-  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, "sql_mode", OPEN_FULL_TABLE},
-  {"DEFINER", 65535, MYSQL_TYPE_STRING, 0, 0, "Definer", OPEN_FULL_TABLE},
+  {"SQL_MODE", 32*256, MYSQL_TYPE_STRING, 0, 0, "sql_mode", OPEN_FULL_TABLE},
+  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer", OPEN_FULL_TABLE},
   {"CHARACTER_SET_CLIENT", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
    "character_set_client", OPEN_FULL_TABLE},
   {"COLLATION_CONNECTION", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 0,
@@ -6644,17 +6674,15 @@ int initialize_schema_table(st_plugin_int *plugin)
     {
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
-      goto err;
+      plugin->data= NULL;
+      my_free(schema_table, MYF(0));
+      DBUG_RETURN(1);
     }
     
     /* Make sure the plugin name is not set inside the init() function. */
     schema_table->table_name= plugin->name.str;
   }
-
   DBUG_RETURN(0);
-err:
-  my_free(schema_table, MYF(0));
-  DBUG_RETURN(1);
 }
 
 int finalize_schema_table(st_plugin_int *plugin)

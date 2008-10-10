@@ -59,3 +59,10 @@ source t/mysql_delimiter_19799.sql
 use test//
 show tables//
 delimiter ; # Reset delimiter
+
+#
+# Bug #36244: MySQL CLI doesn't recognize standalone -- as comment
+#             before DELIMITER statement
+#
+--
+DELIMITER ;

@@ -937,6 +937,52 @@ deallocate prepare long_query;
 set global general_log = @old_general_log_state;
 
 #
+# Bug#34306: Can't make copy of log tables when server binary log is enabled
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS log_count;
+DROP TABLE IF EXISTS slow_log_copy;
+DROP TABLE IF EXISTS general_log_copy;
+--enable_warnings
+
+CREATE TABLE log_count (count BIGINT(21));
+
+SET @old_general_log_state = @@global.general_log;
+SET @old_slow_log_state = @@global.slow_query_log;
+
+SET GLOBAL general_log = ON;
+SET GLOBAL slow_query_log = ON;
+
+CREATE TABLE slow_log_copy SELECT * FROM mysql.slow_log;
+INSERT INTO slow_log_copy SELECT * FROM mysql.slow_log;
+INSERT INTO log_count (count) VALUES ((SELECT count(*) FROM mysql.slow_log));
+DROP TABLE slow_log_copy;
+
+CREATE TABLE general_log_copy SELECT * FROM mysql.general_log;
+INSERT INTO general_log_copy SELECT * FROM mysql.general_log;
+INSERT INTO log_count (count) VALUES ((SELECT count(*) FROM mysql.general_log));
+DROP TABLE general_log_copy;
+
+SET GLOBAL general_log = OFF;
+SET GLOBAL slow_query_log = OFF;
+
+CREATE TABLE slow_log_copy SELECT * FROM mysql.slow_log;
+INSERT INTO slow_log_copy SELECT * FROM mysql.slow_log;
+INSERT INTO log_count (count) VALUES ((SELECT count(*) FROM mysql.slow_log));
+DROP TABLE slow_log_copy;
+
+CREATE TABLE general_log_copy SELECT * FROM mysql.general_log;
+INSERT INTO general_log_copy SELECT * FROM mysql.general_log;
+INSERT INTO log_count (count) VALUES ((SELECT count(*) FROM mysql.general_log));
+DROP TABLE general_log_copy;
+
+SET GLOBAL general_log = @old_general_log_state;
+SET GLOBAL slow_query_log = @old_slow_log_state;
+
+DROP TABLE log_count;
+
+#
 # Bug #31700: thd->examined_row_count not incremented for 'const' type queries
 #
 SET @old_slow_log_state = @@global.slow_query_log;

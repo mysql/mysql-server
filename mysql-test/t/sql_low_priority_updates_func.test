@@ -19,6 +19,7 @@
 #                                                                             #
 ###############################################################################
 
+--source include/not_embedded.inc
 
 ################################################################
 # sql_low_priority_updates was renamed to low_priority_updates #

@@ -1,0 +1,9 @@
+################################################################################
+# Created by Horst Hunger      2008-05-07                                      #
+#                                                                              #
+# Wrapper for 32 bit machines                                                  #
+################################################################################
+
+--source include/have_32bit.inc
+--source suite/sys_vars/inc/net_retry_count_basic.inc
+

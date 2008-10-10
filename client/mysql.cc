@@ -1821,7 +1821,7 @@ static int read_and_execute(bool interactive)
         the very beginning of a text file when
         you save the file using "Unicode UTF-8" format.
       */
-      if (!line_number &&
+      if (line && !line_number &&
            (uchar) line[0] == 0xEF &&
            (uchar) line[1] == 0xBB &&
            (uchar) line[2] == 0xBF)
@@ -2176,7 +2176,14 @@ static bool add_line(String &buffer,char *line,char *in_string,
     }
     else if (!*ml_comment && (!*in_string && (inchar == '#' ||
 			      inchar == '-' && pos[1] == '-' &&
-			      my_isspace(charset_info,pos[2]))))
+                              /*
+                                The third byte is either whitespace or is the
+                                end of the line -- which would occur only
+                                because of the user sending newline -- which is
+                                itself whitespace and should also match.
+                              */
+			      (my_isspace(charset_info,pos[2]) ||
+                               !pos[2]))))
     {
       // Flush previously accepted characters
       if (out != line)

@@ -1,0 +1,25 @@
+#
+# Bug #36443 Server crashes when executing insert when insert trigger on table
+#
+# Emulating the former bug#33029 situation to see that there is no crash anymore.
+# 
+
+
+source include/master-slave.inc;
+
+create table `t1` (`id` int not null auto_increment primary key);
+create trigger `trg` before insert on `t1` for each row begin end;
+
+sync_slave_with_master;
+set @@global.debug="+d,simulate_bug33029";
+
+stop slave;
+start slave;
+
+connection master;
+
+insert into `t1` values ();
+
+sync_slave_with_master;
+select * from t1;
+

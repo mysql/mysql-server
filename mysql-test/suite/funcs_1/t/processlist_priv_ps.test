@@ -15,6 +15,10 @@
 #                                                                      #
 ########################################################################
 
+# This test does not make sense on the embedded server because processlist
+# will be empty.
+--source include/not_embedded.inc
+
 # One subtest is skipped because of
 #    Bug#30395 strange results after REVOKE PROCESS ON *.* FROM ...
 let $fixed_bug_30395= 0;

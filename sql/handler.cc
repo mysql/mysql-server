@@ -373,6 +373,10 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   handlerton *hton= (handlerton *)plugin->data;
   DBUG_ENTER("ha_finalize_handlerton");
 
+  /* hton can be NULL here, if ha_initialize_handlerton() failed. */
+  if (!hton)
+    goto end;
+
   switch (hton->state)
   {
   case SHOW_OPTION_NO:
@@ -401,8 +405,16 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     }
   }
 
+  /*
+    In case a plugin is uninstalled and re-installed later, it should
+    reuse an array slot. Otherwise the number of uninstall/install
+    cycles would be limited.
+  */
+  hton2plugin[hton->slot]= NULL;
+
   my_free((uchar*)hton, MYF(0));
 
+ end:
   DBUG_RETURN(0);
 }
 
@@ -437,6 +449,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   case SHOW_OPTION_YES:
     {
       uint tmp;
+      ulong fslot;
       /* now check the db_type for conflict */
       if (hton->db_type <= DB_TYPE_UNKNOWN ||
           hton->db_type >= DB_TYPE_DEFAULT ||
@@ -461,7 +474,31 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
       tmp= hton->savepoint_offset;
       hton->savepoint_offset= savepoint_alloc_size;
       savepoint_alloc_size+= tmp;
-      hton->slot= total_ha++;
+
+      /*
+        In case a plugin is uninstalled and re-installed later, it should
+        reuse an array slot. Otherwise the number of uninstall/install
+        cycles would be limited. So look for a free slot.
+      */
+      DBUG_PRINT("plugin", ("total_ha: %lu", total_ha));
+      for (fslot= 0; fslot < total_ha; fslot++)
+      {
+        if (!hton2plugin[fslot])
+          break;
+      }
+      if (fslot < total_ha)
+        hton->slot= fslot;
+      else
+      {
+        if (total_ha >= MAX_HA)
+        {
+          sql_print_error("Too many plugins loaded. Limit is %lu. "
+                          "Failed on '%s'", (ulong) MAX_HA, plugin->name.str);
+          goto err;
+        }
+        hton->slot= total_ha++;
+      }
+
       hton2plugin[hton->slot]=plugin;
       if (hton->prepare)
         total_ha_2pc++;
@@ -1618,23 +1655,23 @@ bool mysql_xa_recover(THD *thd)
   @return
     always 0
 */
-static my_bool release_temporary_latches(THD *thd, plugin_ref plugin,
-                                 void *unused)
-{
-  handlerton *hton= plugin_data(plugin, handlerton *);
-
-  if (hton->state == SHOW_OPTION_YES && hton->release_temporary_latches)
-    hton->release_temporary_latches(hton, thd);
-
-  return FALSE;
-}
-
 
 int ha_release_temporary_latches(THD *thd)
 {
-  plugin_foreach(thd, release_temporary_latches, MYSQL_STORAGE_ENGINE_PLUGIN, 
-                 NULL);
+  Ha_trx_info *info;
 
+  /*
+    Note that below we assume that only transactional storage engines
+    may need release_temporary_latches(). If this will ever become false,
+    we could iterate on thd->open_tables instead (and remove duplicates
+    as if (!seen[hton->slot]) { seen[hton->slot]=1; ... }).
+  */
+  for (info= thd->transaction.stmt.ha_list; info; info= info->next())
+  {
+    handlerton *hton= info->ht();
+    if (hton && hton->release_temporary_latches)
+        hton->release_temporary_latches(hton, thd);
+  }
   return 0;
 }
 
@@ -1814,8 +1851,8 @@ bool ha_flush_logs(handlerton *db_type)
   return FALSE;
 }
 
-static const char *check_lowercase_names(handler *file, const char *path,
-                                         char *tmp_path)
+const char *get_canonical_filename(handler *file, const char *path,
+                                   char *tmp_path)
 {
   if (lower_case_table_names != 2 || (file->ha_table_flags() & HA_FILE_BASED))
     return path;
@@ -1886,7 +1923,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       ! (file=get_new_handler((TABLE_SHARE*)0, thd->mem_root, table_type)))
     DBUG_RETURN(ENOENT);
 
-  path= check_lowercase_names(file, path, tmp_path);
+  path= get_canonical_filename(file, path, tmp_path);
   if ((error= file->ha_delete_table(path)) && generate_warning)
   {
     /*
@@ -2165,7 +2202,12 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
   - In both cases, the reserved intervals are remembered in
     thd->auto_inc_intervals_in_cur_stmt_for_binlog if statement-based
     binlogging; the last reserved interval is remembered in
-    auto_inc_interval_for_cur_row.
+    auto_inc_interval_for_cur_row. The number of reserved intervals is
+    remembered in auto_inc_intervals_count. It differs from the number of
+    elements in thd->auto_inc_intervals_in_cur_stmt_for_binlog() because the
+    latter list is cumulative over all statements forming one binlog event
+    (when stored functions and triggers are used), and collapses two
+    contiguous intervals in one (see its append() method).
 
     The idea is that generated auto_increment values are predictable and
     independent of the column values in the table.  This is needed to be
@@ -2249,8 +2291,6 @@ int handler::update_auto_increment()
         handler::estimation_rows_to_insert was set by
         handler::ha_start_bulk_insert(); if 0 it means "unknown".
       */
-      uint nb_already_reserved_intervals=
-        thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements();
       ulonglong nb_desired_values;
       /*
         If an estimation was given to the engine:
@@ -2262,17 +2302,17 @@ int handler::update_auto_increment()
         start, starting from AUTO_INC_DEFAULT_NB_ROWS.
         Don't go beyond a max to not reserve "way too much" (because
         reservation means potentially losing unused values).
+        Note that in prelocked mode no estimation is given.
       */
-      if (nb_already_reserved_intervals == 0 &&
-          (estimation_rows_to_insert > 0))
+      if ((auto_inc_intervals_count == 0) && (estimation_rows_to_insert > 0))
         nb_desired_values= estimation_rows_to_insert;
       else /* go with the increasing defaults */
       {
         /* avoid overflow in formula, with this if() */
-        if (nb_already_reserved_intervals <= AUTO_INC_DEFAULT_NB_MAX_BITS)
+        if (auto_inc_intervals_count <= AUTO_INC_DEFAULT_NB_MAX_BITS)
         {
-          nb_desired_values= AUTO_INC_DEFAULT_NB_ROWS * 
-            (1 << nb_already_reserved_intervals);
+          nb_desired_values= AUTO_INC_DEFAULT_NB_ROWS *
+            (1 << auto_inc_intervals_count);
           set_if_smaller(nb_desired_values, AUTO_INC_DEFAULT_NB_MAX);
         }
         else
@@ -2285,7 +2325,7 @@ int handler::update_auto_increment()
                          &nb_reserved_values);
       if (nr == ~(ulonglong) 0)
         DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
-      
+
       /*
         That rounding below should not be needed when all engines actually
         respect offset and increment in get_auto_increment(). But they don't
@@ -2296,7 +2336,7 @@ int handler::update_auto_increment()
       */
       nr= compute_next_insert_id(nr-1, variables);
     }
-    
+
     if (table->s->next_number_keypart == 0)
     {
       /* We must defer the appending until "nr" has been possibly truncated */
@@ -2340,8 +2380,9 @@ int handler::update_auto_increment()
   {
     auto_inc_interval_for_cur_row.replace(nr, nb_reserved_values,
                                           variables->auto_increment_increment);
+    auto_inc_intervals_count++;
     /* Row-based replication does not need to store intervals in binlog */
-    if (!thd->current_stmt_binlog_row_based)
+    if (mysql_bin_log.is_open() && !thd->current_stmt_binlog_row_based)
         thd->auto_inc_intervals_in_cur_stmt_for_binlog.append(auto_inc_interval_for_cur_row.minimum(),
                                                               auto_inc_interval_for_cur_row.values(),
                                                               variables->auto_increment_increment);
@@ -2461,6 +2502,7 @@ void handler::ha_release_auto_increment()
   release_auto_increment();
   insert_id_for_cur_row= 0;
   auto_inc_interval_for_cur_row.replace(0, 0, 0);
+  auto_inc_intervals_count= 0;
   if (next_insert_id > 0)
   {
     next_insert_id= 0;
@@ -2496,7 +2538,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
       str.append(STRING_WITH_LEN("..."));
     }
     my_printf_error(ER_DUP_ENTRY, msg,
-		    MYF(0), str.c_ptr(), table->key_info[key_nr].name);
+		    MYF(0), str.c_ptr_safe(), table->key_info[key_nr].name);
   }
 }
 
@@ -2564,7 +2606,7 @@ void handler::print_error(int error, myf errflag)
         str.append(STRING_WITH_LEN("..."));
       }
       my_error(ER_FOREIGN_DUPLICATE_KEY, MYF(0), table_share->table_name.str,
-        str.c_ptr(), key_nr+1);
+        str.c_ptr_safe(), key_nr+1);
       DBUG_VOID_RETURN;
     }
     textno= ER_DUP_KEY;
@@ -3285,66 +3327,6 @@ handler::ha_rename_partitions(const char *path)
 
 
 /**
-  Optimize partitions: public interface.
-
-  @sa handler::optimize_partitions()
-*/
-
-int
-handler::ha_optimize_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return optimize_partitions(thd);
-}
-
-
-/**
-  Analyze partitions: public interface.
-
-  @sa handler::analyze_partitions()
-*/
-
-int
-handler::ha_analyze_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return analyze_partitions(thd);
-}
-
-
-/**
-  Check partitions: public interface.
-
-  @sa handler::check_partitions()
-*/
-
-int
-handler::ha_check_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return check_partitions(thd);
-}
-
-
-/**
-  Repair partitions: public interface.
-
-  @sa handler::repair_partitions()
-*/
-
-int
-handler::ha_repair_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return repair_partitions(thd);
-}
-
-
-/**
   Tell the storage engine that it is allowed to "disable transaction" in the
   handler. It is a hint that ACID is not required - it is used in NDB for
   ALTER TABLE, for example, when data are copied to temporary table.
@@ -3482,7 +3464,7 @@ int ha_create_table(THD *thd, const char *path,
   if (update_create_info)
     update_create_info_from_table(create_info, &table);
 
-  name= check_lowercase_names(table.file, share.path.str, name_buff);
+  name= get_canonical_filename(table.file, share.path.str, name_buff);
 
   error= table.file->ha_create(name, &table, create_info);
   VOID(closefrm(&table, 0));
@@ -3554,7 +3536,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   update_create_info_from_table(&create_info, &table);
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
-  check_lowercase_names(table.file, path, path);
+  get_canonical_filename(table.file, path, path);
   error=table.file->ha_create(path, &table, &create_info);
   VOID(closefrm(&table, 1));
 
