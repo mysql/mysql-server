@@ -4198,7 +4198,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      if (table->table && table->table->part_info)
+      if (table->table)
       {
         /*
           Set up which partitions that should be processed
@@ -4206,11 +4206,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         */
         Alter_info *alter_info= &lex->alter_info;
 
-        if (alter_info->flags & ALTER_ANALYZE_PARTITION ||
-            alter_info->flags & ALTER_CHECK_PARTITION ||
-            alter_info->flags & ALTER_OPTIMIZE_PARTITION ||
-            alter_info->flags & ALTER_REPAIR_PARTITION)
+        if (alter_info->flags & ALTER_ADMIN_PARTITION)
         {
+          if (!table->table->part_info)
+          {
+            my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
           uint no_parts_found;
           uint no_parts_opt= alter_info->partition_names.elements;
           no_parts_found= set_part_state(alter_info, table->table->part_info,
