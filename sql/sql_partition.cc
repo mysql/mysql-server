@@ -4195,12 +4195,13 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       !(thd->work_part_info= thd->lex->part_info->get_clone()))
     DBUG_RETURN(TRUE);
 
+  /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
+  DBUG_ASSERT(!(alter_info->flags & ALTER_ADMIN_PARTITION));
+
   if (alter_info->flags &
       (ALTER_ADD_PARTITION | ALTER_DROP_PARTITION |
        ALTER_COALESCE_PARTITION | ALTER_REORGANIZE_PARTITION |
-       ALTER_TABLE_REORG | ALTER_OPTIMIZE_PARTITION |
-       ALTER_CHECK_PARTITION | ALTER_ANALYZE_PARTITION |
-       ALTER_REPAIR_PARTITION | ALTER_REBUILD_PARTITION))
+       ALTER_TABLE_REORG | ALTER_REBUILD_PARTITION))
   {
     partition_info *tab_part_info= table->part_info;
     partition_info *alt_part_info= thd->work_part_info;
@@ -4592,11 +4593,7 @@ that are reorganised.
       }
       tab_part_info->no_parts-= no_parts_dropped;
     }
-    else if ((alter_info->flags & ALTER_OPTIMIZE_PARTITION) ||
-             (alter_info->flags & ALTER_ANALYZE_PARTITION) ||
-             (alter_info->flags & ALTER_CHECK_PARTITION) ||
-             (alter_info->flags & ALTER_REPAIR_PARTITION) ||
-             (alter_info->flags & ALTER_REBUILD_PARTITION))
+    else if (alter_info->flags & ALTER_REBUILD_PARTITION)
     {
       uint no_parts_found;
       uint no_parts_opt= alter_info->partition_names.elements;
@@ -4604,18 +4601,7 @@ that are reorganised.
       if (no_parts_found != no_parts_opt &&
           (!(alter_info->flags & ALTER_ALL_PARTITION)))
       {
-        const char *ptr;
-        if (alter_info->flags & ALTER_OPTIMIZE_PARTITION)
-          ptr= "OPTIMIZE";
-        else if (alter_info->flags & ALTER_ANALYZE_PARTITION)
-          ptr= "ANALYZE";
-        else if (alter_info->flags & ALTER_CHECK_PARTITION)
-          ptr= "CHECK";
-        else if (alter_info->flags & ALTER_REPAIR_PARTITION)
-          ptr= "REPAIR";
-        else
-          ptr= "REBUILD";
-        my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), ptr);
+        my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         DBUG_RETURN(TRUE);
       }
       if (!(*fast_alter_partition))
