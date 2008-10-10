@@ -3450,8 +3450,7 @@ loop:
 		}
 
 		err = row_drop_table_for_mysql(table_name, trx, TRUE);
-
-		mem_free(table_name);
+		trx_commit_for_mysql(trx);
 
 		if (err != DB_SUCCESS) {
 			fputs("InnoDB: DROP DATABASE ", stderr);
@@ -3460,8 +3459,11 @@ loop:
 				(ulint) err);
 			ut_print_name(stderr, trx, TRUE, table_name);
 			putc('\n', stderr);
+			mem_free(table_name);
 			break;
 		}
+
+		mem_free(table_name);
 	}
 
 	if (err == DB_SUCCESS) {

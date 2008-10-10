@@ -798,7 +798,9 @@ error_handling:
 		const char*	old_name;
 		char*		tmp_name;
 	case DB_SUCCESS:
-		ut_ad(!dict_locked);
+		ut_a(!dict_locked);
+		row_mysql_lock_data_dictionary(trx);
+		dict_locked = TRUE;
 
 		if (!new_primary) {
 			error = row_merge_rename_indexes(trx, indexed_table);
@@ -818,9 +820,6 @@ error_handling:
 		old_name = innodb_table->name;
 		tmp_name = innobase_create_temporary_tablename(heap, '2',
 							       old_name);
-
-		row_mysql_lock_data_dictionary(trx);
-		dict_locked = TRUE;
 
 		error = row_merge_rename_tables(innodb_table, indexed_table,
 						tmp_name, trx);
@@ -865,6 +864,11 @@ error:
 		if (new_primary) {
 			row_merge_drop_table(trx, indexed_table);
 		} else {
+			if (!dict_locked) {
+				row_mysql_lock_data_dictionary(trx);
+				dict_locked = TRUE;
+			}
+
 			row_merge_drop_indexes(trx, indexed_table,
 					       index, num_created);
 		}
@@ -1136,24 +1140,21 @@ ha_innobase::final_drop_index(
 		row_merge_lock_table(prebuilt->trx, prebuilt->table, LOCK_X),
 		prebuilt->table->flags, user_thd);
 
+	row_mysql_lock_data_dictionary(trx);
+
 	if (UNIV_UNLIKELY(err)) {
 
 		/* Unmark the indexes to be dropped. */
-		row_mysql_lock_data_dictionary(trx);
-
 		for (index = dict_table_get_first_index(prebuilt->table);
 		     index; index = dict_table_get_next_index(index)) {
 
 			index->to_be_dropped = FALSE;
 		}
 
-		row_mysql_unlock_data_dictionary(trx);
 		goto func_exit;
 	}
 
 	/* Drop indexes marked to be dropped */
-
-	row_mysql_lock_data_dictionary(trx);
 
 	index = dict_table_get_first_index(prebuilt->table);
 
@@ -1179,11 +1180,11 @@ ha_innobase::final_drop_index(
 #ifdef UNIV_DEBUG
 	dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
-	row_mysql_unlock_data_dictionary(trx);
 
 func_exit:
 	trx_commit_for_mysql(trx);
 	trx_commit_for_mysql(prebuilt->trx);
+	row_mysql_unlock_data_dictionary(trx);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
