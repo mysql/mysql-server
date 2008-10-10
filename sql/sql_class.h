@@ -75,7 +75,7 @@ class Load_log_event;
 class Slave_log_event;
 class sp_rcontext;
 class sp_cache;
-class Lex_input_stream;
+class Parser_state;
 class Rows_log_event;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
@@ -396,7 +396,6 @@ struct system_variables
   DATE_TIME_FORMAT *datetime_format;
   DATE_TIME_FORMAT *time_format;
   my_bool sysdate_is_now;
-
 };
 
 
@@ -1361,9 +1360,14 @@ public:
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
   int binlog_flush_pending_rows_event(bool stmt_end);
+  int binlog_remove_pending_rows_event(bool clear_maps);
 
 private:
-  uint binlog_table_maps; // Number of table maps currently in the binlog
+  /*
+    Number of outstanding table maps, i.e., table maps in the
+    transaction cache.
+  */
+  uint binlog_table_maps;
 
   enum enum_binlog_flag {
     BINLOG_FLAG_UNSAFE_STMT_PRINTED,
@@ -1446,6 +1450,13 @@ public:
     Note: in the parser, stmt_arena == thd, even for PS/SP.
   */
   Query_arena *stmt_arena;
+
+  /*
+    map for tables that will be updated for a multi-table update query
+    statement, for other query statements, this will be zero.
+  */
+  table_map table_map_for_update;
+
   /* Tells if LAST_INSERT_ID(#) was called for the current statement */
   bool arg_of_last_insert_id_function;
   /*
@@ -1513,6 +1524,9 @@ public:
     then the latter INSERT will insert no rows
     (first_successful_insert_id_in_cur_stmt == 0), but storing "INSERT_ID=3"
     in the binlog is still needed; the list's minimum will contain 3.
+    This variable is cumulative: if several statements are written to binlog
+    as one (stored functions or triggers are used) this list is the
+    concatenation of all intervals reserved by all statements.
   */
   Discrete_intervals_list auto_inc_intervals_in_cur_stmt_for_binlog;
   /* Used by replication and SET INSERT_ID */
@@ -1771,13 +1785,11 @@ public:
   } binlog_evt_union;
 
   /**
-    Character input stream consumed by the lexical analyser,
-    used during parsing.
-    Note that since the parser is not re-entrant, we keep only one input
-    stream here. This member is valid only when executing code during parsing,
-    and may point to invalid memory after that.
+    Internal parser state.
+    Note that since the parser is not re-entrant, we keep only one parser
+    state here. This member is valid only when executing code during parsing.
   */
-  Lex_input_stream *m_lip;
+  Parser_state *m_parser_state;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
@@ -2241,6 +2253,7 @@ public:
   ulong skip_lines;
   CHARSET_INFO *cs;
   sql_exchange(char *name,bool dumpfile_flag);
+  bool escaped_given(void);
 };
 
 #include "log_event.h"

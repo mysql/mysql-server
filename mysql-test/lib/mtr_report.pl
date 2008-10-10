@@ -312,7 +312,7 @@ sub mtr_report_stats ($) {
 		/Slave: According to the master's version/ or
 		/Slave: Column [0-9]* type mismatch/ or
 		/Slave: Error .* doesn't exist/ or
-		/Slave: Error .*Deadlock found/ or
+		/Slave: Deadlock found/ or
 		/Slave: Error .*Unknown table/ or
 		/Slave: Error in Write_rows event: / or
 		/Slave: Field .* of table .* has no default value/ or
@@ -327,7 +327,6 @@ sub mtr_report_stats ($) {
 		/Sort aborted/ or
 		/Time-out in NDB/ or
 		/One can only use the --user.*root/ or
-		/Setting lower_case_table_names=2/ or
 		/Table:.* on (delete|rename)/ or
 		/You have an error in your SQL syntax/ or
 		/deprecated/ or
@@ -402,7 +401,18 @@ sub mtr_report_stats ($) {
 		 )) or
 
                 # Test case for Bug#31590 produces the following error:
-                /Out of sort memory; increase server sort buffer size/
+                /Out of sort memory; increase server sort buffer size/ or
+
+                # Bug#35161, test of auto repair --myisam-recover
+                /able.*_will_crash/ or
+
+                # lowercase_table3 using case sensitive option on
+                # case insensitive filesystem (InnoDB error).
+                /Cannot find or open table test\/BUG29839 from/ or
+
+                # When trying to set lower_case_table_names = 2
+                # on a case sensitive file system. Bug#37402.
+                /lower_case_table_names was set to 2, even though your the file system '.*' is case sensitive.  Now setting lower_case_table_names to 0 to avoid future problems./
 		)
             {
               next;                       # Skip these lines

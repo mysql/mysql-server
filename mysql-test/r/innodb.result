@@ -166,6 +166,7 @@ level	id	parent_id
 1	1007	101
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -190,6 +191,7 @@ create table t1 (a int) engine=innodb;
 insert into t1 values (1), (2);
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 delete from t1 where a = 1;
 select * from t1;
@@ -738,6 +740,7 @@ world	2
 hello	1
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
@@ -1021,6 +1024,7 @@ id	code	name
 4	2	Erik
 5	3	Sasha
 COMMIT;
+SET binlog_format='MIXED';
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 insert into t1 (code, name) values (3, 'Jeremy'), (4, 'Matt');
@@ -2958,9 +2962,11 @@ drop table t1,t2;
 create table t1(a int not null, b int, primary key(a)) engine=innodb;
 insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
 commit;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 update t1 set b = 5 where b = 1;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 select * from t1 where a = 7 and b = 3 for update;
@@ -2999,6 +3005,7 @@ d	e
 3	1
 8	6
 12	1
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 insert into t1 select * from t2;
@@ -3029,30 +3036,39 @@ a	b
 3	1
 8	6
 12	1
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 insert into t1 select * from t2;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 update t3 set b = (select b from t2 where a = d);
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 create table t4(a int not null, b int, primary key(a)) engine=innodb select * from t2;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 insert into t5 (select * from t2 lock in share mode);
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 update t6 set e = (select b from t2 where a = d lock in share mode);
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 create table t7(a int not null, b int, primary key(a)) engine=innodb select * from t2 lock in share mode;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 insert into t8 (select * from t2 for update);
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 update t9 set e = (select b from t2 where a = d for update);
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 create table t10(a int not null, b int, primary key(a)) engine=innodb select * from t2 for update;
@@ -3109,6 +3125,7 @@ BEGIN;
 INSERT INTO t1 VALUES (1);
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (id int PRIMARY KEY, f int NOT NULL, INDEX(f)) ENGINE=InnoDB;
@@ -3198,6 +3215,7 @@ id
 -10
 1
 DROP TABLE t1;
+SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 DROP TABLE IF EXISTS t1, t2;
@@ -3208,6 +3226,7 @@ CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
 CREATE TABLE t2 LIKE t1;
 SELECT * FROM t2;
 a
+SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 INSERT INTO t1 VALUES (1);
@@ -3215,10 +3234,12 @@ COMMIT;
 SELECT * FROM t1 WHERE a=1;
 a
 1
+SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 SELECT * FROM t2;
 a
+SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 INSERT INTO t1 VALUES (2);
@@ -3262,4 +3283,15 @@ SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
 AUTO_INCREMENT
 200
 DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 int default NULL,
+c2 int default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+TRUNCATE TABLE t1;
+affected rows: 0
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+affected rows: 5
+info: Records: 5  Duplicates: 0  Warnings: 0
+TRUNCATE TABLE t1;
+affected rows: 0
 DROP TABLE t1;

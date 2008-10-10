@@ -180,3 +180,18 @@ a	b	c	d	e	f	g	h	a1	b1	c1	d1	e1	f1	g1	h1	a2	b2	c2	d2	e2	f2	g2	h2	a3	b3	c3	d3	e3	f
 1983-12-31	cdef	srtbvsr	w	45634	13452.56	3452346456	127	1983-12-31	cdef	srtbvsr	w	45634	13452.56	3452346456	127	1983-12-31	cdef	srtbvsr	w	45634	13452.56	3452346456	127	1983-12-31	cdef	srtbvsr	w	45634	13452.56	3452346456	127	liuugbzvdmrlti b itiortudirtfgtibm dfi
 1975-01-01	abcde	abcde	m	1234	123.45	32412341234	113	1975-01-01	abcde	abcde	m	1234	123.45	32412341234	113	1975-01-01	abcde	abcde	m	1234	123.45	32412341234	113	1975-01-01	abcde	abcde	m	1234	123.45	32412341234	113	tbhth nrzh ztfghgfh fzh ftzhj fztjh
 drop table t1;
+# Bug#34604 - Assertion 'inited==RND' failed in handler::ha_rnd_end
+CREATE TABLE t1 (
+a INT AUTO_INCREMENT,
+b VARCHAR(255),
+PRIMARY KEY (a))
+ENGINE = InnoDB
+PARTITION BY HASH (a)
+PARTITIONS 2;
+SET autocommit=OFF;
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL, 'first row t2');
+SET autocommit=OFF;
+ALTER TABLE t1 AUTO_INCREMENT = 10;
+INSERT INTO t1 VALUES (NULL, 'second row t2');
+DROP TABLE t1;

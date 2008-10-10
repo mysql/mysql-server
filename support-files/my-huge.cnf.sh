@@ -46,6 +46,9 @@ thread_concurrency = 8
 # 
 #skip-networking
 
+# Disable Federated by default
+skip-federated
+
 # Replication Master Server (default)
 # binary logging is required for replication
 log-bin=mysql-bin
@@ -109,6 +112,9 @@ server-id	= 1
 #
 # binary logging - not required for slaves, but recommended
 #log-bin=mysql-bin
+#
+# binary logging format - mixed recommended 
+#binlog_format=mixed
 
 # Point the following paths to different dedicated disks
 #tmpdir		= /tmp/		

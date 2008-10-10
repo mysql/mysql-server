@@ -185,6 +185,8 @@ mysql_event_fill_row(THD *thd,
   DBUG_PRINT("info", ("dbname=[%s]", et->dbname.str));
   DBUG_PRINT("info", ("name  =[%s]", et->name.str));
 
+  DBUG_ASSERT(et->on_completion != Event_parse_data::ON_COMPLETION_DEFAULT);
+
   if (table->s->fields < ET_FIELD_COUNT)
   {
     /*
@@ -452,7 +454,7 @@ Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
   READ_RECORD read_record_info;
   DBUG_ENTER("Event_db_repository::table_scan_all_for_i_s");
 
-  init_read_record(&read_record_info, thd, event_table, NULL, 1, 0);
+  init_read_record(&read_record_info, thd, event_table, NULL, 1, 0, FALSE);
 
   /*
     rr_sequential, in read_record(), returns 137==HA_ERR_END_OF_FILE,
@@ -745,6 +747,18 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
 
   store_record(table,record[1]);
 
+  /*
+    We check whether ALTER EVENT was given dates that are in the past.
+    However to know how to react, we need the ON COMPLETION type. The
+    check is deferred to this point because by now we have the previous
+    setting (from the event-table) to fall back on if nothing was specified
+    in the ALTER EVENT-statement.
+  */
+
+  if (parse_data->check_dates(thd,
+                              (int) table->field[ET_FIELD_ON_COMPLETION]->val_int()))
+    goto end;
+
   /* Don't update create on row update. */
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
@@ -925,7 +939,7 @@ Event_db_repository::drop_events_by_field(THD *thd,
     DBUG_VOID_RETURN;
 
   /* only enabled events are in memory, so we go now and delete the rest */
-  init_read_record(&read_record_info, thd, table, NULL, 1, 0);
+  init_read_record(&read_record_info, thd, table, NULL, 1, 0, FALSE);
   while (!ret && !(read_record_info.read_record(&read_record_info)) )
   {
     char *et_field= get_field(thd->mem_root, table->field[field]);
