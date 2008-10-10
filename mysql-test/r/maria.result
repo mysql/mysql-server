@@ -2284,3 +2284,14 @@ insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
 insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
 drop table t1,t2;
 drop view v1;
+create table t1 (s1 int);
+insert into t1 values (1);
+alter table t1 partition by list (s1) (partition p1 values in (2));
+ERROR HY000: Table has no partition for value 1
+drop table t1;
+create table t1 (c1 int);
+create table t2 (c1 int);
+lock table t1 read, t2 read;
+flush tables with read lock;
+unlock tables;
+drop table t1, t2;

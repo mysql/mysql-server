@@ -195,7 +195,9 @@ enum ha_extra_function {
     begin and end of a statement.
   */
   HA_EXTRA_ATTACH_CHILDREN,
-  HA_EXTRA_DETACH_CHILDREN
+  HA_EXTRA_DETACH_CHILDREN,
+  /* Inform handler we will force a close as part of flush */
+  HA_EXTRA_PREPARE_FOR_FORCED_CLOSE
 };
 
 /* Compatible option, to be deleted in 6.0 */

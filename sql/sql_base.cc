@@ -3509,6 +3509,11 @@ static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
           if (ulcktbl->lock_count)
           {
             /*
+              Inform handler that we will do a close even if the table may be
+              locked or part of a transaction
+            */
+            table->file->extra(HA_EXTRA_PREPARE_FOR_FORCED_CLOSE);
+            /*
               Wake up threads waiting for table-level lock on this table
               so they won't sneak in when we will temporarily remove our
               lock on it. This will also give them a chance to close their
