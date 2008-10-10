@@ -4099,9 +4099,26 @@ sub start_servers($) {
     }
 
     my $datadir= $mysqld->value('datadir');
-    if (!$opt_start_dirty)
+    if ($opt_start_dirty)
     {
       # Don't delete anything if starting dirty
+      ;
+    }
+    else
+    {
+
+      my @options= ('log-bin', 'relay-log');
+      foreach my $option_name ( @options )  {
+	next unless $mysqld->option($option_name);
+
+	my $file_name= $mysqld->value($option_name);
+	next unless
+	  defined $file_name and
+	    -e $file_name;
+
+	mtr_debug(" -removing '$file_name'");
+	unlink($file_name) or die ("unable to remove file '$file_name'");
+      }
 
       if (-d $datadir ) {
 	mtr_verbose(" - removing '$datadir'");
