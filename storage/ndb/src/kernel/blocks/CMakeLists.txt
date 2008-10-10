@@ -37,9 +37,15 @@ ADD_LIBRARY(ndbblocks  STATIC
             diskpage.cpp
             lgman.cpp
             pgman.cpp
-            print_file.cpp
 	    RestoreProxy.cpp
             restore.cpp
             tsman.cpp
 	    LocalProxy.cpp
            )
+
+ADD_EXECUTABLE(ndb_print_file
+	       print_file.cpp
+	       diskpage.cpp
+	       dbtup/tuppage.cpp
+	      )
+TARGET_LINK_LIBRARIES(ndb_print_file ndbclient dbug mysys strings)
