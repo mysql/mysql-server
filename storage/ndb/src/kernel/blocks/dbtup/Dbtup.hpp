@@ -2336,11 +2336,24 @@ private:
 				 KeyReqStruct *req_struct,
 				 AttributeHeader* ahOut,
 				 Uint32  attrDes2);
+
+  bool readDiskVarAsFixedSizeNotNULL(Uint8* outBuffer,
+				KeyReqStruct *req_struct,
+				AttributeHeader* ahOut,
+				Uint32  attrDes2);
+  
+  bool readDiskVarAsFixedSizeNULLable(Uint8* outBuffer,
+				 KeyReqStruct *req_struct,
+				 AttributeHeader* ahOut,
+				 Uint32  attrDes2);
   bool readDiskVarSizeNULLable(Uint8*, KeyReqStruct*, AttributeHeader*,Uint32);
   bool readDiskVarSizeNotNULL(Uint8*, KeyReqStruct*, AttributeHeader*, Uint32);
 
   bool updateDiskFixedSizeNULLable(Uint32*, KeyReqStruct*, Uint32);
   bool updateDiskFixedSizeNotNULL(Uint32*, KeyReqStruct*, Uint32);
+
+  bool updateDiskVarAsFixedSizeNULLable(Uint32*, KeyReqStruct*, Uint32);
+  bool updateDiskVarAsFixedSizeNotNULL(Uint32*, KeyReqStruct*, Uint32);
 
   bool updateDiskVarSizeNULLable(Uint32*, KeyReqStruct *, Uint32);
   bool updateDiskVarSizeNotNULL(Uint32*, KeyReqStruct *, Uint32);

@@ -182,17 +182,25 @@ Dbtup::setUpQueryRoutines(Tablerec *regTabPtr)
 	  r[1] = &Dbtup::readDiskBitsNULLable;
 	  r[2] = &Dbtup::readDiskFixedSizeNotNULL;
 	  r[3] = &Dbtup::readDiskFixedSizeNULLable;
+	  r[4] = &Dbtup::readDiskVarAsFixedSizeNotNULL;
+	  r[5] = &Dbtup::readDiskVarAsFixedSizeNULLable;
+          /*
 	  r[4] = &Dbtup::readDiskVarSizeNULLable;
 	  r[5] = &Dbtup::readDiskVarSizeNotNULL;
+          */
         }
-	UpdateFunction u[6];
+       UpdateFunction u[6];
         {
 	  u[0] = &Dbtup::updateDiskBitsNotNULL;
 	  u[1] = &Dbtup::updateDiskBitsNULLable;
 	  u[2] = &Dbtup::updateDiskFixedSizeNotNULL;
 	  u[3] = &Dbtup::updateDiskFixedSizeNULLable;
+	  u[4] = &Dbtup::updateDiskVarAsFixedSizeNotNULL;
+	  u[5] = &Dbtup::updateDiskVarAsFixedSizeNULLable;
+          /*
 	  u[4] = &Dbtup::updateDiskVarSizeNULLable;
 	  u[5] = &Dbtup::updateDiskVarSizeNotNULL;
+          */
         }
 	Uint32 a= 
 	  AttributeDescriptor::getArrayType(attrDescr) == NDB_ARRAYTYPE_FIXED 
@@ -1382,6 +1390,79 @@ Dbtup::readDiskFixedSizeNULLable(Uint8* outBuffer,
   if (!disk_nullFlagCheck(req_struct, attrDes2)) {
     jam();
     return readDiskFixedSizeNotNULL(outBuffer,
+				    req_struct,
+				    ahOut,
+				    attrDes2);
+  } else {
+    jam();
+    ahOut->setNULL();
+    return true;
+  }
+}
+
+bool
+Dbtup::readDiskVarAsFixedSizeNotNULL(Uint8* outBuffer,
+				KeyReqStruct *req_struct,
+				AttributeHeader* ahOut,
+				Uint32  attrDes2)
+{
+  ndbassert(req_struct->out_buf_bits == 0);
+
+  Uint32 attrDescriptor= req_struct->attr_descriptor;
+  Uint32 *tuple_header= req_struct->m_disk_ptr->m_data;
+  Uint32 indexBuf= req_struct->out_buf_index;
+  Uint32 readOffset= AttributeOffset::getOffset(attrDes2);
+
+  Uint32 maxRead= req_struct->max_read;
+  Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attrDes2);
+  Uint8* dst = (outBuffer + indexBuf);
+  const Uint8* src = (Uint8*)(tuple_header+readOffset);
+
+  Uint32 srcBytes = AttributeDescriptor::getSizeInBytes(attrDescriptor);
+  Uint32 attrNoOfWords= (srcBytes + 3) >> 2;
+  Uint32 newIndexBuf = indexBuf + srcBytes;
+  Uint32 typeId = AttributeDescriptor::getType(attrDescriptor);
+  Uint32 lb, len;
+
+  if (typeId != NDB_ARRAYTYPE_FIXED &&
+      NdbSqlUtil::get_var_length(typeId, src, srcBytes, lb, len)) {   
+    srcBytes = len + lb;
+    newIndexBuf = indexBuf + srcBytes;
+    attrNoOfWords= (srcBytes + 3) >> 2;
+   }
+
+  ndbrequire((readOffset + attrNoOfWords - 1) < req_struct->check_offset[DD]);
+  if (! charsetFlag || ! req_struct->xfrm_flag) 
+  {
+    if (newIndexBuf <= maxRead) 
+    {
+      jam(); 
+      ahOut->setByteSize(srcBytes);
+      memcpy(dst, src, srcBytes);
+      zero32(dst, srcBytes);
+      req_struct->out_buf_index = newIndexBuf;
+      return true;
+    }
+  } 
+  else 
+  {
+    return xfrm_reader(dst, req_struct, ahOut, attrDes2, src, srcBytes);
+  } 
+  
+  jam();
+  terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
+  return false;
+}
+
+bool
+Dbtup::readDiskVarAsFixedSizeNULLable(Uint8* outBuffer,
+				 KeyReqStruct *req_struct,
+				 AttributeHeader* ahOut,
+				 Uint32  attrDes2)
+{
+  if (!disk_nullFlagCheck(req_struct, attrDes2)) {
+    jam();
+    return readDiskVarAsFixedSizeNotNULL(outBuffer,
 				    req_struct,
 				    ahOut,
 				    attrDes2);
@@ -2644,6 +2725,104 @@ Dbtup::updateDiskFixedSizeNULLable(Uint32* inBuffer,
     jam();
     BitmaskImpl::clear(regTabPtr->m_offsets[DD].m_null_words, bits, pos);
     return updateDiskFixedSizeNotNULL(inBuffer,
+				      req_struct,
+				      attrDes2);
+  } else {
+    Uint32 newIndex= req_struct->in_buf_index + 1;
+    if (newIndex <= req_struct->in_buf_len) {
+      BitmaskImpl::set(regTabPtr->m_offsets[DD].m_null_words, bits, pos);
+      jam();
+      req_struct->in_buf_index= newIndex;
+      return true;
+    } else {
+      jam();
+      terrorCode= ZAI_INCONSISTENCY_ERROR;
+      return false;
+    }
+  }
+}
+
+bool
+Dbtup::updateDiskVarAsFixedSizeNotNULL(Uint32* inBuffer,
+			      KeyReqStruct* req_struct,
+			      Uint32  attrDes2)
+{
+  Uint32 attrDescriptor= req_struct->attr_descriptor;
+  Uint32 indexBuf= req_struct->in_buf_index;
+  Uint32 inBufLen= req_struct->in_buf_len;
+  Uint32 updateOffset= AttributeOffset::getOffset(attrDes2);
+  Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attrDes2);
+  
+  AttributeHeader ahIn(inBuffer[indexBuf]);
+  Uint32 noOfWords= AttributeDescriptor::getSizeInWords(attrDescriptor);
+  Uint32 nullIndicator= ahIn.isNULL();
+  Uint32 size_in_words=  ahIn.getDataSize();
+
+  Uint32 newIndex= indexBuf + size_in_words + 1;
+  Uint32 *tuple_header= req_struct->m_disk_ptr->m_data;
+  ndbrequire((updateOffset + noOfWords - 1) < req_struct->check_offset[DD]);
+
+  if (size_in_words <= noOfWords) {
+    if (!nullIndicator) {
+      jam();
+      if (charsetFlag) {
+        jam();
+        Tablerec* regTabPtr = tabptr.p;
+        Uint32 typeId= AttributeDescriptor::getType(attrDescriptor);
+        Uint32 bytes= AttributeDescriptor::getSizeInBytes(attrDescriptor);
+        Uint32 i = AttributeOffset::getCharsetPos(attrDes2);
+        ndbrequire(i < regTabPtr->noOfCharsets);
+        // not const in MySQL
+        CHARSET_INFO* cs = regTabPtr->charsetArray[i];
+	int not_used;
+        const char* ssrc = (const char*)&inBuffer[indexBuf + 1];
+        Uint32 lb, len;
+        if (! NdbSqlUtil::get_var_length(typeId, ssrc, bytes, lb, len)) {
+          jam();
+          terrorCode = ZINVALID_CHAR_FORMAT;
+          return false;
+        }
+	// fast fix bug#7340
+        if (typeId != NDB_TYPE_TEXT &&
+	    (*cs->cset->well_formed_len)(cs, ssrc + lb, ssrc + lb + len, ZNIL, &not_used) != len) {
+          jam();
+          terrorCode = ZINVALID_CHAR_FORMAT;
+          return false;
+        }
+      }
+
+      req_struct->in_buf_index= newIndex;
+      MEMCOPY_NO_WORDS(&tuple_header[updateOffset],
+                       &inBuffer[indexBuf + 1],
+                       size_in_words);
+      return true;
+    } else {
+      jam();
+      terrorCode= ZNOT_NULL_ATTR;
+      return false;
+    }
+  } else {
+    jam();
+    terrorCode= ZAI_INCONSISTENCY_ERROR;
+    return false;
+  }
+}
+
+bool
+Dbtup::updateDiskVarAsFixedSizeNULLable(Uint32* inBuffer,
+				   KeyReqStruct *req_struct,
+				   Uint32  attrDes2)
+{
+  Tablerec* const regTabPtr=  tabptr.p;
+  AttributeHeader ahIn(inBuffer[req_struct->in_buf_index]);
+  Uint32 nullIndicator= ahIn.isNULL();
+  Uint32 pos= AttributeOffset::getNullFlagPos(attrDes2);
+  Uint32 *bits= req_struct->m_disk_ptr->get_null_bits(regTabPtr, DD);
+  
+  if (!nullIndicator) {
+    jam();
+    BitmaskImpl::clear(regTabPtr->m_offsets[DD].m_null_words, bits, pos);
+    return updateDiskVarAsFixedSizeNotNULL(inBuffer,
 				      req_struct,
 				      attrDes2);
   } else {
