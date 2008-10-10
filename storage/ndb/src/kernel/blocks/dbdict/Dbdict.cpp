@@ -3199,11 +3199,22 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
     CRASH_INSERTION(6001);
   }
 
+  {
+    /**
+     * Copy "own" into new
+     */
+    XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+    XSchemaFile * newxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+    memcpy(&newxsf->schemaPage[0],
+           &oldxsf->schemaPage[0],
+           oldxsf->schemaPage[0].FileSize);
+  }
+
   SectionHandle handle(this, signal);
   SegmentedSectionPtr schemaDataPtr;
   handle.getSection(schemaDataPtr, 0);
 
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
   ndbrequire(schemaDataPtr.sz % NDB_SF_PAGE_SIZE_IN_WORDS == 0);
   xsf->noOfPages = schemaDataPtr.sz / NDB_SF_PAGE_SIZE_IN_WORDS;
   copy((Uint32*)&xsf->schemaPage[0], schemaDataPtr);
@@ -3217,9 +3228,9 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
     
   validateChecksum(xsf);
 
-  XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
-  checkPendingSchemaTrans(oldxsf);
-  resizeSchemaFile(xsf, oldxsf->noOfPages);
+  XSchemaFile * ownxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+  checkPendingSchemaTrans(ownxsf);
+  resizeSchemaFile(xsf, ownxsf->noOfPages);
 
   ndbrequire(signal->getSendersBlockRef() != reference());
     
@@ -3378,8 +3389,8 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 {
   // masterxsf == schema file of master (i.e what's currently in cluster)
   // ownxsf = schema file read from disk
-  XSchemaFile * masterxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  XSchemaFile * ownxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+  XSchemaFile * masterxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+  XSchemaFile * ownxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
 
   ndbrequire(masterxsf->noOfPages == ownxsf->noOfPages);
   const Uint32 noOfEntries = masterxsf->noOfPages * NDB_SF_PAGE_ENTRIES;
@@ -3953,12 +3964,15 @@ Dbdict::restartDropObj(Signal* signal,
   case DictTabInfo::OrderedIndex:
     Ptr<DropTableRec> opRecPtr;
     seizeSchemaOp(op_ptr, opRecPtr);
+    ndbrequire(false);
     break;
   case DictTabInfo::Undofile:
   case DictTabInfo::Datafile:
   {
     Ptr<DropFileRec> opRecPtr;
     seizeSchemaOp(op_ptr, opRecPtr);
+    opRecPtr.p->m_request.file_id = tableId;
+    opRecPtr.p->m_request.file_version = entry->m_tableVersion;
     break;
   }
   case DictTabInfo::Tablespace:
@@ -3966,6 +3980,8 @@ Dbdict::restartDropObj(Signal* signal,
   {
     Ptr<DropFilegroupRec> opRecPtr;
     seizeSchemaOp(op_ptr, opRecPtr);
+    opRecPtr.p->m_request.filegroup_id = tableId;
+    opRecPtr.p->m_request.filegroup_version = entry->m_tableVersion;
     break;
   }
   }
