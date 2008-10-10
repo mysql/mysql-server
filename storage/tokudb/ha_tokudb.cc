@@ -229,7 +229,7 @@ static int tokudb_init_func(void *p) {
     }
     if (tokudb_cache_size) {
         DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
-        r = db_env->set_cachesize(db_env, tokudb_cache_size / (1024 * 1024L * 1024L), tokudb_cache_size % (1024L * 1024L * 1024L), 1);
+        r = db_env->set_cachesize(db_env, (u_int32_t)(tokudb_cache_size >> 30), (u_int32_t)(tokudb_cache_size % (1024L * 1024L * 1024L)), 1);
         if (r) {
             DBUG_PRINT("info", ("set_cachesize %d\n", r));
             goto error; 
@@ -1522,7 +1522,7 @@ bool ha_tokudb::has_auto_increment_flag(uint* index) {
 //
 // helper function to write a piece of metadata in to status.tokudb
 //
-int ha_tokudb::write_metadata(DB* db, HA_METADATA_KEY curr_key_data, void* data, ulonglong size ){
+int ha_tokudb::write_metadata(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size ){
     int error;
     DBT key;
     DBT value;
@@ -4256,7 +4256,7 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
 /// QQQ why divide by 3
 double ha_tokudb::scan_time() {
     TOKUDB_DBUG_ENTER("ha_tokudb::scan_time");
-    double ret_val = stats.records / 3;
+    double ret_val = (double)stats.records / 3;
     DBUG_RETURN(ret_val);
 }
 
@@ -4469,7 +4469,7 @@ cleanup:
         tmp_cursor->c_close(tmp_cursor);
         tmp_cursor = NULL;
     }
-    TOKUDB_DBUG_RETURN(ret_val);
+    DBUG_RETURN(ret_val);
 }
 
 
