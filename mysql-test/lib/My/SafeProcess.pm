@@ -501,13 +501,6 @@ sub wait_any {
 	last if $pid == $ret_pid;
       }
     } while ($ret_pid == 0);
-
-    # Special processig of return code
-    # since negative pids are valid
-    if ($ret_pid == 0 or $ret_pid == -1) {
-      print STDERR "wait_any, got invalid pid: $ret_pid\n";
-      return undef;
-    }
   }
   else
   {
@@ -522,7 +515,7 @@ sub wait_any {
   # Look it up in "running" table
   my $proc= $running{$ret_pid};
   unless (defined $proc){
-    print STDERR "Could not find pid in running list\n";
+    print STDERR "Could not find pid: $ret_pid in running list\n";
     print STDERR "running: ". join(", ", keys(%running)). "\n";
     return undef;
   }
