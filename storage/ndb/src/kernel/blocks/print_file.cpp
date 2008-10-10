@@ -67,7 +67,7 @@ int main(int argc, char ** argv)
     const char * filename = argv[i];
     
     MY_STAT sbuf;
-    if(my_stat(filename, &sbuf, MYF(0))){
+    if(!my_stat(filename, &sbuf, MYF(0))){
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;
     }
