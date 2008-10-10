@@ -236,7 +236,9 @@ public:
     @retval 1  if the table definition is not compatible with @c table
     @retval 0  if the table definition is compatible with @c table
   */
+#ifndef MYSQL_CLIENT
   int compatible_with(Relay_log_info const *rli, TABLE *table) const;
+#endif
 
 private:
   ulong m_size;           // Number of elements in the types array
@@ -247,6 +249,8 @@ private:
   uchar *m_memory;
 };
 
+
+#ifndef MYSQL_CLIENT
 /**
    Extend the normal table list with a few new fields needed by the
    slave thread, but nowhere else.
@@ -288,6 +292,7 @@ namespace {
   };
 
 }
+#endif
 
 #define DBUG_PRINT_BITSET(N,FRM,BS)                \
   do {                                             \

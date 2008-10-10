@@ -1,3 +1,4 @@
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -9,20 +10,25 @@ DROP DATABASE IF EXISTS db_storedproc_1;
 CREATE DATABASE db_storedproc;
 CREATE DATABASE db_storedproc_1;
 USE db_storedproc;
-create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t1;
-create table t2(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t2;
-create table t3(f1 char(20),f2 char(20),f3 integer) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t3.txt' into table t3;
-create table t4(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t4;
+create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t1;
+create table t2(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t2;
+create table t3(f1 char(20),f2 char(20),f3 integer) engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t3.txt' into table t3;
+create table t4(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t4;
 USE db_storedproc_1;
-create table t6(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t6;
+create table t6(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t6;
 USE db_storedproc;
-create table t7 (f1 char(20), f2 char(25), f3 date, f4 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' into table t7;
+create table t7 (f1 char(20), f2 char(25), f3 date, f4 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t7;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -34,8 +40,9 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-create table t8 (f1 char(20), f2 char(25), f3 date, f4 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' into table t8;
+create table t8 (f1 char(20), f2 char(25), f3 date, f4 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t8;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -47,12 +54,14 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-create table t9(f1 int, f2 char(25), f3 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' into table t9;
-create table t10(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t10;
-create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t11;
+create table t9(f1 int, f2 char(25), f3 int) engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t9.txt' into table t9;
+create table t10(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t10;
+create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t11;
 
 Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
 FUNCTION, ALTER PROCEDURE, ALTER FUNCTION, DROP PROCEDURE, DROP FUNCTION, SHOW
@@ -1437,7 +1446,7 @@ CREATE PROCEDURE sp1 (f1 char(20) )
 SELECT * from t1 where f2 = f1;
 show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sp1		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(f1 char(20) )
+sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(f1 char(20) )
 SELECT * from t1 where f2 = f1	latin1	modified	created
 DROP PROCEDURE sp1;
 
@@ -1450,7 +1459,7 @@ CREATE FUNCTION fn1 (s char(20)) returns char(50)
 return concat('hello, ', s, '!');
 show CREATE FUNCTION fn1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-fn1		CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(s char(20)) RETURNS char(50) CHARSET latin1
+fn1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(s char(20)) RETURNS char(50) CHARSET latin1
 return concat('hello, ', s, '!')	latin1	modified	created
 DROP FUNCTION fn1;
 
@@ -1539,14 +1548,14 @@ db	name	type	specific_name	language	sql_data_access	is_deterministic	security_ty
 CREATE PROCEDURE sp9()SELECT * from t1;
 SELECT * from mysql.proc where specific_name='sp9';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified			latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
+db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
 DROP PROCEDURE sp9;
 SELECT * from mysql.proc where specific_name='sp9';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
 CREATE PROCEDURE sp9()SELECT * from t1;
 SELECT * from mysql.proc where specific_name='sp9';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified			latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
+db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
 DROP PROCEDURE IF EXISTS sp9;
 SELECT * from mysql.proc where specific_name='sp9';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
@@ -1563,14 +1572,14 @@ db	name	type	specific_name	language	sql_data_access	is_deterministic	security_ty
 CREATE FUNCTION fn10() returns int return 100;
 SELECT * from mysql.proc where specific_name='fn10' and type='function';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified			latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
+db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
 DROP FUNCTION fn10;
 SELECT * from mysql.proc where specific_name='fn10' and type='function';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
 CREATE FUNCTION fn10() returns int return 100;
 SELECT * from mysql.proc where specific_name='fn10' and type='function';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified			latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
+db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
 DROP FUNCTION IF EXISTS fn10;
 SELECT * from mysql.proc where specific_name='fn10' and type='function';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
@@ -3403,12 +3412,12 @@ alter procedure sp1 sql security definer;
 alter function sp1 sql security definer;
 show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sp1		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
+sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
     COMMENT 'this is a procedure'
 set @x= 3	latin1	modified	created
 show CREATE FUNCTION sp1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sp1		CREATE DEFINER=`root`@`localhost` FUNCTION `sp1`() RETURNS int(11)
+sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `sp1`() RETURNS int(11)
     COMMENT 'this is a function'
 return 4	latin1	modified	created
 USE db_storedproc;
@@ -3627,13 +3636,9 @@ SELECT count(*) into cnt from t2;
 set @count = cnt;
 SELECT @count;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
-set @count = cnt;
-SELECT @count;
-END' at line 2
+ERROR 42S22: Unknown column 'cnt' in 'field list'
 CALL sp1( 10 );
-ERROR 42000: PROCEDURE db_storedproc.sp1 does not exist
-DROP PROCEDURE IF EXISTS sp1;
+DROP PROCEDURE sp1;
 CREATE PROCEDURE sp1( cnt int(20) )
 END
 SELECT count(*) into cnt from t2;
@@ -14302,6 +14307,8 @@ ERROR 42000: Bad SQLSTATE: '2005-03-03'
 Testcase 4.2.43:
 --------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp1;
+expect failure, SQLSTATE 00000 is not an acceptable value
+for an SP's handler
 CREATE PROCEDURE sp1()
 BEGIN
 declare cond1 condition for sqlstate '00000';
@@ -14309,10 +14316,11 @@ declare continue handler for cond1 set @var2 = 1;
 set @x=1;
 SELECT @var2;
 END//
+ERROR 42000: Bad SQLSTATE: '00000'
+ensure SP doesn't exist
 CALL sp1();
-@var2
-NULL
-DROP PROCEDURE sp1;
+ERROR 42000: PROCEDURE db_storedproc.sp1 does not exist
+DROP PROCEDURE IF EXISTS sp1;
 
 Testcase 4.2.45:
 --------------------------------------------------------------------------------
@@ -14381,16 +14389,19 @@ ERROR 42000: Bad SQLSTATE: '42s0200test'
 Testcase 4.2.48:
 --------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp1;
+This creation should fail, SQLSTATE 00000 is unacceptable
 CREATE PROCEDURE sp1()
 BEGIN
 declare continue handler for sqlstate '00000'  set @var2 = 1;
 set @x=1;
 SELECT @var2;
 END//
+ERROR 42000: Bad SQLSTATE: '00000'
+Verify SP wasn't created
 CALL sp1();
-@var2
-NULL
-DROP PROCEDURE sp1;
+ERROR 42000: PROCEDURE db_storedproc.sp1 does not exist
+DROP PROCEDURE IF EXISTSsp1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXISTSsp1' at line 1
 
 Testcase 4.2.52:
 --------------------------------------------------------------------------------
@@ -14949,46 +14960,47 @@ USE db_storedproc;
 Testcase 4.3.1:
 --------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp1;
-drop table IF EXISTS res_t3_itisalongname_1381742_itsaverylongname_1381742;
+DROP TABLE IF EXISTS res_t3_itisalongname_1381742_itsaverylongname_1381742;
 CREATE TABLE res_t3_itisalongname_1381742_itsaverylongname_1381742(
-middleinitial CHAR,
-lastname VARCHAR(50),
-age_averylongfieldname_averylongname_1234569 int,
-COMMENT TEXT) ENGINE=myisam;
+middleinitial CHAR, lastname VARCHAR(50),
+age_averylongfieldname_averylongname_1234569 INT, COMMENT VARCHAR(100))
+ENGINE=<engine_to_be_tested>;
 INSERT INTO res_t3_itisalongname_1381742_itsaverylongname_1381742
 VALUES('a', 'aaaaaaaaaabbbbbbbbc', 0, 'default');
-CREATE PROCEDURE sp1(a int)
+CREATE PROCEDURE sp1(a INT)
 BEGIN
-declare itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx char;
-declare itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx varchar(100);
-declare itisjustamediumsizeintintegervariablename integer;
-set itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx = 'b';
-set itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx = 'oldmacdonalds)(*&(^^%$&^%$&^%*^)(*^#@$@%';
-set itisjustamediumsizeintintegervariablename = 5;
-set @comment='a';
-label1: loop
-if a>100 then
-set @comment='value of a is greater than 100';
-elseif a<100 then
-if a<50 then
-set @comment='value of a is less than 50';
-elseif a<25 then
-set @comment='value of a is less than 25';
-else
-set @comment='value of a is greater than 50 and less than 100';
-END if;
-else
-set @comment='value of a is 100';
-END if;
-if itisjustamediumsizeintintegervariablename = 0 then leave label1;
-END if;
-insert into res_t3_itisalongname_1381742_itsaverylongname_1381742
-values( itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx,
-concat(itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx, '  ', a),
-a, @comment );
-set itisjustamediumsizeintintegervariablename = itisjustamediumsizeintintegervariablename - 1;
-iterate label1;
-END loop label1;
+DECLARE itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx CHAR;
+DECLARE itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx VARCHAR(100);
+DECLARE itisjustamediumsizeintintegervariablename INTEGER;
+SET itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx = 'b';
+SET itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx
+= 'oldmacdonalds)(*&(^^%$&^%$&^%*^)(*^#@$@%';
+SET itisjustamediumsizeintintegervariablename = 5;
+SET @comment='a';
+label1: LOOP
+IF a > 100 THEN
+SET @comment = 'value of a is greater than 100';
+ELSEIF a < 100 THEN
+IF a < 50 THEN
+SET @comment = 'value of a is less than 50';
+ELSEIF a < 25 THEN
+SET @comment = 'value of a is less than 25';
+ELSE
+SET @comment = 'value of a is greater than 50 and less than 100';
+END IF;
+ELSE
+SET @comment = 'value of a is 100';
+END IF;
+IF itisjustamediumsizeintintegervariablename = 0 THEN LEAVE label1;
+END IF;
+INSERT INTO res_t3_itisalongname_1381742_itsaverylongname_1381742
+VALUES(itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx,
+CONCAT(itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx,
+'  ', a), a, @comment);
+SET itisjustamediumsizeintintegervariablename
+= itisjustamediumsizeintintegervariablename - 1;
+ITERATE label1;
+END LOOP label1;
 END//
 CALL sp1(101);
 CALL sp1(100);
@@ -15964,7 +15976,7 @@ CREATE PROCEDURE d1.sp4()
 SELECT * from d1.t43;
 SELECT * from mysql.proc where specific_name = 'sp4';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-d1	sp4	PROCEDURE	sp4	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from d1.t43	root@localhost	modified	created			latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from d1.t43
+d1	sp4	PROCEDURE	sp4	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from d1.t43	root@localhost	modified	created	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from d1.t43
 USE db_storedproc;
 DROP DATABASE d1;
 CREATE DATABASE d1;
@@ -16014,7 +16026,7 @@ USE d2;
 alter procedure d1.sp8 sql security definer comment 'updated';
 SELECT * from mysql.proc where specific_name='sp8' and db='d1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-d1	sp8	PROCEDURE	sp8	SQL	CONTAINS_SQL	NO	DEFINER	 n char(20) 		SELECT * from t1 where t1.f1 = n	root@localhost	modified	created		updated	latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1 where t1.f1 = n
+d1	sp8	PROCEDURE	sp8	SQL	CONTAINS_SQL	NO	DEFINER	 n char(20) 		SELECT * from t1 where t1.f1 = n	root@localhost	modified	created	NO_ENGINE_SUBSTITUTION	updated	latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1 where t1.f1 = n
 
 Testcase 4.4.9:
 --------------------------------------------------------------------------------
@@ -16035,7 +16047,7 @@ d1	fn2	FUNCTION	fn2	SQL	CONTAINS_SQL	NO	DEFINER	n int	int(11)	BEGIN
 declare a int;
 set a = 0.9 * n;
 return a;
-END	root@localhost	modified	created		updated	latin1	latin1_swedish_ci	latin1_swedish_ci	BEGIN
+END	root@localhost	modified	created	NO_ENGINE_SUBSTITUTION	updated	latin1	latin1_swedish_ci	latin1_swedish_ci	BEGIN
 declare a int;
 set a = 0.9 * n;
 return a;
@@ -23493,6 +23505,7 @@ set x1 = 2;
 END;
 SELECT @x, x1;
 END//
+ERROR 42000: Bad SQLSTATE: '00000'
 DROP PROCEDURE IF EXISTS h1;
 
 Testcase 4.11.40:
@@ -23530,9 +23543,9 @@ set x1 = 2;
 END;
 SELECT @x, x1;
 END//
+ERROR 42000: Bad SQLSTATE: '00000'
 CALL h1();
-@x	x1
-0	2
+ERROR 42000: PROCEDURE db_storedproc.h1 does not exist
 DROP PROCEDURE IF EXISTS h1;
 
 * Testcase 3.1.2.53 (4.11.42):

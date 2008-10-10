@@ -1,0 +1,53 @@
+'#---------------------BS_STVARS_014_01----------------------#'
+SELECT COUNT(@@GLOBAL.have_partitioning);
+COUNT(@@GLOBAL.have_partitioning)
+1
+1 Expected
+'#---------------------BS_STVARS_014_02----------------------#'
+SET @@GLOBAL.have_partitioning=1;
+ERROR HY000: Variable 'have_partitioning' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.have_partitioning);
+COUNT(@@GLOBAL.have_partitioning)
+1
+1 Expected
+'#---------------------BS_STVARS_014_03----------------------#'
+SELECT @@GLOBAL.have_partitioning = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='have_partitioning';
+@@GLOBAL.have_partitioning = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.have_partitioning);
+COUNT(@@GLOBAL.have_partitioning)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='have_partitioning';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_014_04----------------------#'
+SELECT @@have_partitioning = @@GLOBAL.have_partitioning;
+@@have_partitioning = @@GLOBAL.have_partitioning
+1
+1 Expected
+'#---------------------BS_STVARS_014_05----------------------#'
+SELECT COUNT(@@have_partitioning);
+COUNT(@@have_partitioning)
+1
+1 Expected
+SELECT COUNT(@@local.have_partitioning);
+ERROR HY000: Variable 'have_partitioning' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.have_partitioning);
+ERROR HY000: Variable 'have_partitioning' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.have_partitioning);
+COUNT(@@GLOBAL.have_partitioning)
+1
+1 Expected
+SELECT have_partitioning = @@SESSION.have_partitioning;
+ERROR 42S22: Unknown column 'have_partitioning' in 'field list'
+Expected error 'Readonly variable'

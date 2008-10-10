@@ -4,63 +4,63 @@ CREATE DATABASE test1;
 USE test;
 drop table if exists tb1 ;
 create table tb1 (
-f1 char, 
-f2 char binary, 
-f3 char ascii, 
-f4 tinytext unicode, 
-f5 text, 
-f6 mediumtext, 
-f7 longtext, 
-f8 tinyblob, 
+f1 char,
+f2 char binary,
+f3 char ascii,
+f4 tinytext,
+f5 text,
+f6 mediumtext,
+f7 longtext,
+f8 tinyblob,
 f9 blob,
-f10 mediumblob, 
-f11 longblob, 
-f12 binary, 
-f13 tinyint, 
-f14 tinyint unsigned, 
-f15 tinyint zerofill, 
-f16 tinyint unsigned zerofill, 
-f17 smallint, 
-f18 smallint unsigned,  
-f19 smallint zerofill, 
-f20 smallint unsigned zerofill, 
-f21 mediumint, 
-f22 mediumint unsigned, 
-f23 mediumint zerofill, 
-f24 mediumint unsigned zerofill, 
-f25 int, 
-f26 int unsigned, 
-f27 int zerofill, 
-f28 int unsigned zerofill, 
-f29 bigint, 
-f30 bigint unsigned, 
-f31 bigint zerofill, 
-f32 bigint unsigned zerofill, 
-f33 decimal not null DEFAULT 9.9, 
-f34 decimal unsigned not null DEFAULT 9.9, 
-f35 decimal zerofill not null DEFAULT 9.9, 
-f36 decimal unsigned zerofill not null DEFAULT 9.9, 
-f37 decimal (0) not null DEFAULT 9.9, 
-f38 decimal (64) not null DEFAULT 9.9, 
-f39 decimal (0) unsigned not null DEFAULT 9.9, 
-f40 decimal (64) unsigned not null DEFAULT 9.9, 
-f41 decimal (0) zerofill not null DEFAULT 9.9, 
-f42 decimal (64) zerofill not null DEFAULT 9.9, 
-f43 decimal (0) unsigned zerofill not null DEFAULT 9.9, 
-f44 decimal (64) unsigned zerofill not null DEFAULT 9.9, 
-f45 decimal (0,0) not null DEFAULT 9.9, 
-f46 decimal (63,30) not null DEFAULT 9.9, 
-f47 decimal (0,0) unsigned not null DEFAULT 9.9, 
-f48 decimal (63,30) unsigned not null DEFAULT 9.9, 
-f49 decimal (0,0) zerofill not null DEFAULT 9.9, 
-f50 decimal (63,30) zerofill not null DEFAULT 9.9, 
-f51 decimal (0,0) unsigned zerofill not null DEFAULT 9.9, 
-f52 decimal (63,30) unsigned zerofill not null DEFAULT 9.9, 
-f53 numeric not null DEFAULT 99, 
-f54 numeric unsigned not null DEFAULT 99, 
-f55 numeric zerofill not null DEFAULT 99, 
-f56 numeric unsigned zerofill not null DEFAULT 99, 
-f57 numeric (0) not null DEFAULT 99, 
+f10 mediumblob,
+f11 longblob,
+f12 binary,
+f13 tinyint,
+f14 tinyint unsigned,
+f15 tinyint zerofill,
+f16 tinyint unsigned zerofill,
+f17 smallint,
+f18 smallint unsigned,
+f19 smallint zerofill,
+f20 smallint unsigned zerofill,
+f21 mediumint,
+f22 mediumint unsigned,
+f23 mediumint zerofill,
+f24 mediumint unsigned zerofill,
+f25 int,
+f26 int unsigned,
+f27 int zerofill,
+f28 int unsigned zerofill,
+f29 bigint,
+f30 bigint unsigned,
+f31 bigint zerofill,
+f32 bigint unsigned zerofill,
+f33 decimal not null DEFAULT 9.9,
+f34 decimal unsigned not null DEFAULT 9.9,
+f35 decimal zerofill not null DEFAULT 9.9,
+f36 decimal unsigned zerofill not null DEFAULT 9.9,
+f37 decimal (0) not null DEFAULT 9.9,
+f38 decimal (64) not null DEFAULT 9.9,
+f39 decimal (0) unsigned not null DEFAULT 9.9,
+f40 decimal (64) unsigned not null DEFAULT 9.9,
+f41 decimal (0) zerofill not null DEFAULT 9.9,
+f42 decimal (64) zerofill not null DEFAULT 9.9,
+f43 decimal (0) unsigned zerofill not null DEFAULT 9.9,
+f44 decimal (64) unsigned zerofill not null DEFAULT 9.9,
+f45 decimal (0,0) not null DEFAULT 9.9,
+f46 decimal (63,30) not null DEFAULT 9.9,
+f47 decimal (0,0) unsigned not null DEFAULT 9.9,
+f48 decimal (63,30) unsigned not null DEFAULT 9.9,
+f49 decimal (0,0) zerofill not null DEFAULT 9.9,
+f50 decimal (63,30) zerofill not null DEFAULT 9.9,
+f51 decimal (0,0) unsigned zerofill not null DEFAULT 9.9,
+f52 decimal (63,30) unsigned zerofill not null DEFAULT 9.9,
+f53 numeric not null DEFAULT 99,
+f54 numeric unsigned not null DEFAULT 99,
+f55 numeric zerofill not null DEFAULT 99,
+f56 numeric unsigned zerofill not null DEFAULT 99,
+f57 numeric (0) not null DEFAULT 99,
 f58 numeric (64) not null DEFAULT 99
 ) engine = myisam;
 Warnings:
@@ -80,297 +80,308 @@ Note	1265	Data truncated for column 'f45' at row 1
 Note	1265	Data truncated for column 'f47' at row 1
 Note	1265	Data truncated for column 'f49' at row 1
 Note	1265	Data truncated for column 'f51' at row 1
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/myisam_tb1.txt' into table tb1 ;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/myisam_tb1.txt'
+into table tb1;
 drop table if exists tb2 ;
 create table tb2 (
-f59 numeric (0) unsigned, 
-f60 numeric (64) unsigned, 
-f61 numeric (0) zerofill, 
-f62 numeric (64) zerofill, 
-f63 numeric (0) unsigned zerofill, 
-f64 numeric (64) unsigned zerofill, 
-f65 numeric (0,0), 
-f66 numeric (63,30), 
-f67 numeric (0,0) unsigned, 
-f68 numeric (63,30) unsigned, 
-f69 numeric (0,0) zerofill, 
-f70 numeric (63,30) zerofill, 
-f71 numeric (0,0) unsigned zerofill, 
-f72 numeric (63,30) unsigned zerofill, 
-f73 real, 
-f74 real unsigned, 
-f75 real zerofill, 
-f76 real unsigned zerofill, 
-f77 double default 7.7, 
-f78 double unsigned default 7.7, 
-f79 double zerofill default 7.7, 
-f80 double unsigned zerofill default 8.8, 
-f81 float not null default 8.8, 
-f82 float unsigned not null default 8.8, 
-f83 float zerofill not null default 8.8, 
-f84 float unsigned zerofill not null default 8.8, 
-f85 float(0) not null default 8.8, 
-f86 float(23) not null default 8.8, 
-f87 float(0) unsigned not null default 8.8, 
-f88 float(23) unsigned not null default 8.8, 
-f89 float(0) zerofill not null default 8.8, 
-f90 float(23) zerofill not null default 8.8, 
-f91 float(0) unsigned zerofill not null default 8.8, 
-f92 float(23) unsigned zerofill not null default 8.8, 
-f93 float(24) not null default 8.8, 
-f94 float(53) not null default 8.8, 
-f95 float(24) unsigned not null default 8.8, 
-f96 float(53) unsigned not null default 8.8, 
-f97 float(24) zerofill not null default 8.8, 
-f98 float(53) zerofill not null default 8.8, 
-f99 float(24) unsigned zerofill not null default 8.8, 
-f100 float(53) unsigned zerofill not null default 8.8, 
-f101 date not null default '2000-01-01', 
-f102 time not null default 20, 
-f103 datetime not null default '2/2/2', 
-f104 timestamp not null default 20001231235959, 
-f105 year not null default 2000, 
-f106 year(3) not null default 2000, 
-f107 year(4) not null default 2000, 
-f108 enum("1enum","2enum") not null default "1enum", 
+f59 numeric (0) unsigned,
+f60 numeric (64) unsigned,
+f61 numeric (0) zerofill,
+f62 numeric (64) zerofill,
+f63 numeric (0) unsigned zerofill,
+f64 numeric (64) unsigned zerofill,
+f65 numeric (0,0),
+f66 numeric (63,30),
+f67 numeric (0,0) unsigned,
+f68 numeric (63,30) unsigned,
+f69 numeric (0,0) zerofill,
+f70 numeric (63,30) zerofill,
+f71 numeric (0,0) unsigned zerofill,
+f72 numeric (63,30) unsigned zerofill,
+f73 real,
+f74 real unsigned,
+f75 real zerofill,
+f76 real unsigned zerofill,
+f77 double default 7.7,
+f78 double unsigned default 7.7,
+f79 double zerofill default 7.7,
+f80 double unsigned zerofill default 8.8,
+f81 float not null default 8.8,
+f82 float unsigned not null default 8.8,
+f83 float zerofill not null default 8.8,
+f84 float unsigned zerofill not null default 8.8,
+f85 float(0) not null default 8.8,
+f86 float(23) not null default 8.8,
+f87 float(0) unsigned not null default 8.8,
+f88 float(23) unsigned not null default 8.8,
+f89 float(0) zerofill not null default 8.8,
+f90 float(23) zerofill not null default 8.8,
+f91 float(0) unsigned zerofill not null default 8.8,
+f92 float(23) unsigned zerofill not null default 8.8,
+f93 float(24) not null default 8.8,
+f94 float(53) not null default 8.8,
+f95 float(24) unsigned not null default 8.8,
+f96 float(53) unsigned not null default 8.8,
+f97 float(24) zerofill not null default 8.8,
+f98 float(53) zerofill not null default 8.8,
+f99 float(24) unsigned zerofill not null default 8.8,
+f100 float(53) unsigned zerofill not null default 8.8,
+f101 date not null default '2000-01-01',
+f102 time not null default 20,
+f103 datetime not null default '2/2/2',
+f104 timestamp not null default 20001231235959,
+f105 year not null default 2000,
+f106 year(3) not null default 2000,
+f107 year(4) not null default 2000,
+f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set",
-f110 VARBINARY(64) null, 
-f111 VARBINARY(27) null , 
-f112 VARBINARY(64) null , 
-f113 VARBINARY(192) null , 
-f114 VARBINARY(192) , 
-f115 VARBINARY(27) null , 
-f116 VARBINARY(64) null, 
-f117 VARBINARY(192) null 
+f110 VARBINARY(64) null,
+f111 VARBINARY(27) null ,
+f112 VARBINARY(64) null ,
+f113 VARBINARY(192) null ,
+f114 VARBINARY(192) ,
+f115 VARBINARY(27) null ,
+f116 VARBINARY(64) null,
+f117 VARBINARY(192) null
 ) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/myisam_tb2.txt' into table tb2 ;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/myisam_tb2.txt'
+into table tb2;
 drop table if exists tb3 ;
 create table tb3 (
-f118 char not null DEFAULT 'a', 
-f119 char binary not null DEFAULT b'101', 
-f120 char ascii not null DEFAULT b'101', 
-f121 tinytext, 
-f122 text, 
-f123 mediumtext, 
-f124 longtext unicode, 
-f125 tinyblob, 
-f126 blob, 
-f127 mediumblob, 
-f128 longblob, 
-f129 binary not null DEFAULT b'101', 
-f130 tinyint not null DEFAULT 99, 
-f131 tinyint unsigned not null DEFAULT 99, 
-f132 tinyint zerofill not null DEFAULT 99, 
-f133 tinyint unsigned zerofill not null DEFAULT 99, 
-f134 smallint not null DEFAULT 999, 
-f135 smallint unsigned not null DEFAULT 999, 
-f136 smallint zerofill not null DEFAULT 999,  
-f137 smallint unsigned zerofill not null DEFAULT 999, 
-f138 mediumint not null DEFAULT 9999, 
-f139 mediumint unsigned not null DEFAULT 9999, 
-f140 mediumint zerofill not null DEFAULT 9999, 
-f141 mediumint unsigned zerofill not null DEFAULT 9999, 
-f142 int not null DEFAULT 99999, 
-f143 int unsigned not null DEFAULT 99999, 
-f144 int zerofill not null DEFAULT 99999, 
-f145 int unsigned zerofill not null DEFAULT 99999, 
-f146 bigint not null DEFAULT 999999, 
-f147 bigint unsigned not null DEFAULT 999999, 
-f148 bigint zerofill not null DEFAULT 999999, 
-f149 bigint unsigned zerofill not null DEFAULT 999999, 
-f150 decimal not null DEFAULT 999.999, 
-f151 decimal unsigned not null DEFAULT 999.17, 
-f152 decimal zerofill not null DEFAULT 999.999, 
-f153 decimal unsigned zerofill, 
-f154 decimal (0), 
-f155 decimal (64), 
-f156 decimal (0) unsigned, 
-f157 decimal (64) unsigned, 
-f158 decimal (0) zerofill, 
-f159 decimal (64) zerofill, 
-f160 decimal (0) unsigned zerofill, 
-f161 decimal (64) unsigned zerofill, 
-f162 decimal (0,0), 
-f163 decimal (63,30), 
-f164 decimal (0,0) unsigned, 
-f165 decimal (63,30) unsigned, 
-f166 decimal (0,0) zerofill, 
-f167 decimal (63,30) zerofill, 
-f168 decimal (0,0) unsigned zerofill, 
-f169 decimal (63,30) unsigned zerofill, 
-f170 numeric, 
-f171 numeric unsigned, 
-f172 numeric zerofill, 
-f173 numeric unsigned zerofill, 
-f174 numeric (0), 
-f175 numeric (64) 
+f118 char not null DEFAULT 'a',
+f119 char binary not null DEFAULT b'101',
+f120 char ascii not null DEFAULT b'101',
+f121 tinytext,
+f122 text,
+f123 mediumtext,
+f124 longtext,
+f125 tinyblob,
+f126 blob,
+f127 mediumblob,
+f128 longblob,
+f129 binary not null DEFAULT b'101',
+f130 tinyint not null DEFAULT 99,
+f131 tinyint unsigned not null DEFAULT 99,
+f132 tinyint zerofill not null DEFAULT 99,
+f133 tinyint unsigned zerofill not null DEFAULT 99,
+f134 smallint not null DEFAULT 999,
+f135 smallint unsigned not null DEFAULT 999,
+f136 smallint zerofill not null DEFAULT 999,
+f137 smallint unsigned zerofill not null DEFAULT 999,
+f138 mediumint not null DEFAULT 9999,
+f139 mediumint unsigned not null DEFAULT 9999,
+f140 mediumint zerofill not null DEFAULT 9999,
+f141 mediumint unsigned zerofill not null DEFAULT 9999,
+f142 int not null DEFAULT 99999,
+f143 int unsigned not null DEFAULT 99999,
+f144 int zerofill not null DEFAULT 99999,
+f145 int unsigned zerofill not null DEFAULT 99999,
+f146 bigint not null DEFAULT 999999,
+f147 bigint unsigned not null DEFAULT 999999,
+f148 bigint zerofill not null DEFAULT 999999,
+f149 bigint unsigned zerofill not null DEFAULT 999999,
+f150 decimal not null DEFAULT 999.999,
+f151 decimal unsigned not null DEFAULT 999.17,
+f152 decimal zerofill not null DEFAULT 999.999,
+f153 decimal unsigned zerofill,
+f154 decimal (0),
+f155 decimal (64),
+f156 decimal (0) unsigned,
+f157 decimal (64) unsigned,
+f158 decimal (0) zerofill,
+f159 decimal (64) zerofill,
+f160 decimal (0) unsigned zerofill,
+f161 decimal (64) unsigned zerofill,
+f162 decimal (0,0),
+f163 decimal (63,30),
+f164 decimal (0,0) unsigned,
+f165 decimal (63,30) unsigned,
+f166 decimal (0,0) zerofill,
+f167 decimal (63,30) zerofill,
+f168 decimal (0,0) unsigned zerofill,
+f169 decimal (63,30) unsigned zerofill,
+f170 numeric,
+f171 numeric unsigned,
+f172 numeric zerofill,
+f173 numeric unsigned zerofill,
+f174 numeric (0),
+f175 numeric (64)
 ) Engine = myisam;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/myisam_tb3.txt' into table tb3 ;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/myisam_tb3.txt'
+into table tb3;
 drop table if exists tb4 ;
 create table tb4 (
-f176 numeric (0) unsigned not null DEFAULT 9, 
-f177 numeric (64) unsigned not null DEFAULT 9, 
-f178 numeric (0) zerofill not null DEFAULT 9, 
-f179 numeric (64) zerofill not null DEFAULT 9, 
-f180 numeric (0) unsigned zerofill not null DEFAULT 9, 
-f181 numeric (64) unsigned zerofill not null DEFAULT 9, 
-f182 numeric (0,0) not null DEFAULT 9, 
-f183 numeric (63,30) not null DEFAULT 9, 
-f184 numeric (0,0) unsigned not null DEFAULT 9, 
-f185 numeric (63,30) unsigned not null DEFAULT 9, 
-f186 numeric (0,0) zerofill not null DEFAULT 9, 
-f187 numeric (63,30) zerofill not null DEFAULT 9, 
-f188 numeric (0,0) unsigned zerofill not null DEFAULT 9, 
-f189 numeric (63,30) unsigned zerofill not null DEFAULT 9, 
-f190 real not null DEFAULT 88.8, 
-f191 real unsigned not null DEFAULT 88.8, 
-f192 real zerofill not null DEFAULT 88.8, 
-f193 real unsigned zerofill not null DEFAULT 88.8, 
-f194 double not null DEFAULT 55.5, 
-f195 double unsigned not null DEFAULT 55.5, 
-f196 double zerofill not null DEFAULT 55.5, 
-f197 double unsigned zerofill not null DEFAULT 55.5, 
-f198 float, 
-f199 float unsigned, 
-f200 float zerofill, 
-f201 float unsigned zerofill, 
-f202 float(0), 
-f203 float(23), 
-f204 float(0) unsigned, 
-f205 float(23) unsigned, 
-f206 float(0) zerofill, 
-f207 float(23) zerofill, 
-f208 float(0) unsigned zerofill, 
-f209 float(23) unsigned zerofill, 
-f210 float(24), 
-f211 float(53), 
-f212 float(24) unsigned, 
-f213 float(53) unsigned, 
-f214 float(24) zerofill, 
-f215 float(53) zerofill, 
-f216 float(24) unsigned zerofill, 
-f217 float(53) unsigned zerofill, 
-f218 date, 
-f219 time, 
-f220 datetime, 
-f221 timestamp, 
-f222 year, 
-f223 year(3), 
-f224 year(4), 
-f225 enum("1enum","2enum"), 
-f226 set("1set","2set"), 
-f227 VARBINARY(64), 
-f228 VARBINARY(27), 
-f229 VARBINARY(64), 
-f230 VARBINARY(192), 
-f231 VARBINARY(192), 
-f232 VARBINARY(27), 
-f233 VARBINARY(64), 
+f176 numeric (0) unsigned not null DEFAULT 9,
+f177 numeric (64) unsigned not null DEFAULT 9,
+f178 numeric (0) zerofill not null DEFAULT 9,
+f179 numeric (64) zerofill not null DEFAULT 9,
+f180 numeric (0) unsigned zerofill not null DEFAULT 9,
+f181 numeric (64) unsigned zerofill not null DEFAULT 9,
+f182 numeric (0,0) not null DEFAULT 9,
+f183 numeric (63,30) not null DEFAULT 9,
+f184 numeric (0,0) unsigned not null DEFAULT 9,
+f185 numeric (63,30) unsigned not null DEFAULT 9,
+f186 numeric (0,0) zerofill not null DEFAULT 9,
+f187 numeric (63,30) zerofill not null DEFAULT 9,
+f188 numeric (0,0) unsigned zerofill not null DEFAULT 9,
+f189 numeric (63,30) unsigned zerofill not null DEFAULT 9,
+f190 real not null DEFAULT 88.8,
+f191 real unsigned not null DEFAULT 88.8,
+f192 real zerofill not null DEFAULT 88.8,
+f193 real unsigned zerofill not null DEFAULT 88.8,
+f194 double not null DEFAULT 55.5,
+f195 double unsigned not null DEFAULT 55.5,
+f196 double zerofill not null DEFAULT 55.5,
+f197 double unsigned zerofill not null DEFAULT 55.5,
+f198 float,
+f199 float unsigned,
+f200 float zerofill,
+f201 float unsigned zerofill,
+f202 float(0),
+f203 float(23),
+f204 float(0) unsigned,
+f205 float(23) unsigned,
+f206 float(0) zerofill,
+f207 float(23) zerofill,
+f208 float(0) unsigned zerofill,
+f209 float(23) unsigned zerofill,
+f210 float(24),
+f211 float(53),
+f212 float(24) unsigned,
+f213 float(53) unsigned,
+f214 float(24) zerofill,
+f215 float(53) zerofill,
+f216 float(24) unsigned zerofill,
+f217 float(53) unsigned zerofill,
+f218 date,
+f219 time,
+f220 datetime,
+f221 timestamp,
+f222 year,
+f223 year(3),
+f224 year(4),
+f225 enum("1enum","2enum"),
+f226 set("1set","2set"),
+f227 VARBINARY(64),
+f228 VARBINARY(27),
+f229 VARBINARY(64),
+f230 VARBINARY(192),
+f231 VARBINARY(192),
+f232 VARBINARY(27),
+f233 VARBINARY(64),
 f234 VARBINARY(192),
-f235 char(255) unicode,
+f235 char(255),
 f236 char(60) ascii,
 f237 char(255) binary,
 f238 varchar(0) binary,
 f239 varbinary(1000),
-f240 varchar(120) unicode,
-f241 char(100) unicode,
+f240 varchar(120),
+f241 char(100),
 f242 bit(30)
 ) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/myisam_tb4.txt' into table tb4 ;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/myisam_tb4.txt'
+into table tb4;
 USE test1;
 drop table if exists tb2 ;
 create table tb2 (
-f59 numeric (0) unsigned, 
-f60 numeric (64) unsigned, 
-f61 numeric (0) zerofill, 
-f62 numeric (64) zerofill, 
-f63 numeric (0) unsigned zerofill, 
-f64 numeric (64) unsigned zerofill, 
-f65 numeric (0,0), 
-f66 numeric (63,30), 
-f67 numeric (0,0) unsigned, 
-f68 numeric (63,30) unsigned, 
-f69 numeric (0,0) zerofill, 
-f70 numeric (63,30) zerofill, 
-f71 numeric (0,0) unsigned zerofill, 
-f72 numeric (63,30) unsigned zerofill, 
-f73 real, 
-f74 real unsigned, 
-f75 real zerofill, 
-f76 real unsigned zerofill, 
-f77 double default 7.7, 
-f78 double unsigned default 7.7, 
-f79 double zerofill default 7.7, 
-f80 double unsigned zerofill default 8.8, 
-f81 float not null default 8.8, 
-f82 float unsigned not null default 8.8, 
-f83 float zerofill not null default 8.8, 
-f84 float unsigned zerofill not null default 8.8, 
-f85 float(0) not null default 8.8, 
-f86 float(23) not null default 8.8, 
-f87 float(0) unsigned not null default 8.8, 
-f88 float(23) unsigned not null default 8.8, 
-f89 float(0) zerofill not null default 8.8, 
-f90 float(23) zerofill not null default 8.8, 
-f91 float(0) unsigned zerofill not null default 8.8, 
-f92 float(23) unsigned zerofill not null default 8.8, 
-f93 float(24) not null default 8.8, 
-f94 float(53) not null default 8.8, 
-f95 float(24) unsigned not null default 8.8, 
-f96 float(53) unsigned not null default 8.8, 
-f97 float(24) zerofill not null default 8.8, 
-f98 float(53) zerofill not null default 8.8, 
-f99 float(24) unsigned zerofill not null default 8.8, 
-f100 float(53) unsigned zerofill not null default 8.8, 
-f101 date not null default '2000-01-01', 
-f102 time not null default 20, 
-f103 datetime not null default '2/2/2', 
-f104 timestamp not null default 20001231235959, 
-f105 year not null default 2000, 
-f106 year(3) not null default 2000, 
-f107 year(4) not null default 2000, 
-f108 enum("1enum","2enum") not null default "1enum", 
+f59 numeric (0) unsigned,
+f60 numeric (64) unsigned,
+f61 numeric (0) zerofill,
+f62 numeric (64) zerofill,
+f63 numeric (0) unsigned zerofill,
+f64 numeric (64) unsigned zerofill,
+f65 numeric (0,0),
+f66 numeric (63,30),
+f67 numeric (0,0) unsigned,
+f68 numeric (63,30) unsigned,
+f69 numeric (0,0) zerofill,
+f70 numeric (63,30) zerofill,
+f71 numeric (0,0) unsigned zerofill,
+f72 numeric (63,30) unsigned zerofill,
+f73 real,
+f74 real unsigned,
+f75 real zerofill,
+f76 real unsigned zerofill,
+f77 double default 7.7,
+f78 double unsigned default 7.7,
+f79 double zerofill default 7.7,
+f80 double unsigned zerofill default 8.8,
+f81 float not null default 8.8,
+f82 float unsigned not null default 8.8,
+f83 float zerofill not null default 8.8,
+f84 float unsigned zerofill not null default 8.8,
+f85 float(0) not null default 8.8,
+f86 float(23) not null default 8.8,
+f87 float(0) unsigned not null default 8.8,
+f88 float(23) unsigned not null default 8.8,
+f89 float(0) zerofill not null default 8.8,
+f90 float(23) zerofill not null default 8.8,
+f91 float(0) unsigned zerofill not null default 8.8,
+f92 float(23) unsigned zerofill not null default 8.8,
+f93 float(24) not null default 8.8,
+f94 float(53) not null default 8.8,
+f95 float(24) unsigned not null default 8.8,
+f96 float(53) unsigned not null default 8.8,
+f97 float(24) zerofill not null default 8.8,
+f98 float(53) zerofill not null default 8.8,
+f99 float(24) unsigned zerofill not null default 8.8,
+f100 float(53) unsigned zerofill not null default 8.8,
+f101 date not null default '2000-01-01',
+f102 time not null default 20,
+f103 datetime not null default '2/2/2',
+f104 timestamp not null default 20001231235959,
+f105 year not null default 2000,
+f106 year(3) not null default 2000,
+f107 year(4) not null default 2000,
+f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set",
-f110 VARBINARY(64) null, 
-f111 VARBINARY(27) null , 
-f112 VARBINARY(64) null , 
-f113 VARBINARY(192) null , 
-f114 VARBINARY(192) , 
-f115 VARBINARY(27) null , 
-f116 VARBINARY(64) null, 
-f117 VARBINARY(192) null 
+f110 VARBINARY(64) null,
+f111 VARBINARY(27) null ,
+f112 VARBINARY(64) null ,
+f113 VARBINARY(192) null ,
+f114 VARBINARY(192) ,
+f115 VARBINARY(27) null ,
+f116 VARBINARY(64) null,
+f117 VARBINARY(192) null
 ) engine = myisam;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/myisam_tb2.txt' into table tb2 ;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/myisam_tb2.txt'
+into table tb2;
 USE test;
 USE test;
 DROP TABLE IF EXISTS t1, t2, t4, t10, t11;
-CREATE TABLE t1  (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = MyISAM;
-CREATE TABLE t2  (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = MyISAM;
-CREATE TABLE t4  (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = MyISAM;
-CREATE TABLE t10 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = MyISAM;
-CREATE TABLE t11 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = MyISAM;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t1;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t2;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t4;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t10;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t11;
+CREATE TABLE t1  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = MyISAM;
+CREATE TABLE t2  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = MyISAM;
+CREATE TABLE t4  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = MyISAM;
+CREATE TABLE t10 (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = MyISAM;
+CREATE TABLE t11 (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+ENGINE = MyISAM;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t2;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t4;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t10;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t11;
 drop TABLE if exists t3;
 CREATE TABLE t3 (f1 char(20), f2 char(20), f3 integer) ENGINE = MyISAM;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t3.txt' INTO TABLE t3;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t3.txt' INTO TABLE t3;
 drop database if exists test4;
 CREATE database test4;
 use test4;
-CREATE TABLE t6 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int) ENGINE = MyISAM;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' INTO TABLE t6;
+CREATE TABLE t6 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int)
+ENGINE = MyISAM;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' INTO TABLE t6;
 use test;
 drop TABLE if exists t7, t8;
-CREATE TABLE t7 (f1 char(20), f2 char(25), f3 date, f4 int) ENGINE = MyISAM;
-CREATE TABLE t8 (f1 char(20), f2 char(25), f3 date, f4 int) ENGINE = MyISAM;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' INTO TABLE t7;
+CREATE TABLE t7 (f1 char(20),f2 char(25),f3 date,f4 int) ENGINE = MyISAM;
+CREATE TABLE t8 (f1 char(20),f2 char(25),f3 date,f4 int) ENGINE = MyISAM;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' INTO TABLE t7;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -382,7 +393,7 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' INTO TABLE t8;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' INTO TABLE t8;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -396,7 +407,7 @@ Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
 drop TABLE if exists t9;
 CREATE TABLE t9 (f1 int, f2 char(25), f3 int) ENGINE = MyISAM;
-LOAD DATA INFILE 'MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' INTO TABLE t9;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t9.txt' INTO TABLE t9;
 SELECT * FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
 ORDER BY table_schema, table_name, column_name;
@@ -478,7 +489,7 @@ NULL	test	tb1	f36	36	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0
 NULL	test	tb1	f37	37	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0)			select,insert,update,references	
 NULL	test	tb1	f38	38	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	decimal(64,0)			select,insert,update,references	
 NULL	test	tb1	f39	39	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references	
-NULL	test	tb1	f4	4	NULL	YES	tinytext	127	255	NULL	NULL	ucs2	ucs2_general_ci	tinytext			select,insert,update,references	
+NULL	test	tb1	f4	4	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
 NULL	test	tb1	f40	40	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references	
 NULL	test	tb1	f41	41	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references	
 NULL	test	tb1	f42	42	0000000000000000000000000000000000000000000000000000000000000010	NO	decimal	NULL	NULL	64	0	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references	
@@ -568,7 +579,7 @@ NULL	test	tb3	f120	3		NO	char	1	1	NULL	NULL	latin1	latin1_swedish_ci	char(1)			
 NULL	test	tb3	f121	4	NULL	YES	tinytext	255	255	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references	
 NULL	test	tb3	f122	5	NULL	YES	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references	
 NULL	test	tb3	f123	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	latin1	latin1_swedish_ci	mediumtext			select,insert,update,references	
-NULL	test	tb3	f124	7	NULL	YES	longtext	2147483647	4294967295	NULL	NULL	ucs2	ucs2_general_ci	longtext			select,insert,update,references	
+NULL	test	tb3	f124	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	latin1	latin1_swedish_ci	longtext			select,insert,update,references	
 NULL	test	tb3	f125	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	tinyblob			select,insert,update,references	
 NULL	test	tb3	f126	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	blob			select,insert,update,references	
 NULL	test	tb3	f127	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references	
@@ -679,13 +690,13 @@ NULL	test	tb4	f231	56	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	varbinary(1
 NULL	test	tb4	f232	57	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references	
 NULL	test	tb4	f233	58	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references	
 NULL	test	tb4	f234	59	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references	
-NULL	test	tb4	f235	60	NULL	YES	char	255	510	NULL	NULL	ucs2	ucs2_general_ci	char(255)			select,insert,update,references	
+NULL	test	tb4	f235	60	NULL	YES	char	255	255	NULL	NULL	latin1	latin1_swedish_ci	char(255)			select,insert,update,references	
 NULL	test	tb4	f236	61	NULL	YES	char	60	60	NULL	NULL	latin1	latin1_swedish_ci	char(60)			select,insert,update,references	
 NULL	test	tb4	f237	62	NULL	YES	char	255	255	NULL	NULL	latin1	latin1_bin	char(255)			select,insert,update,references	
 NULL	test	tb4	f238	63	NULL	YES	varchar	0	0	NULL	NULL	latin1	latin1_bin	varchar(0)			select,insert,update,references	
 NULL	test	tb4	f239	64	NULL	YES	varbinary	1000	1000	NULL	NULL	NULL	NULL	varbinary(1000)			select,insert,update,references	
-NULL	test	tb4	f240	65	NULL	YES	varchar	120	240	NULL	NULL	ucs2	ucs2_general_ci	varchar(120)			select,insert,update,references	
-NULL	test	tb4	f241	66	NULL	YES	char	100	200	NULL	NULL	ucs2	ucs2_general_ci	char(100)			select,insert,update,references	
+NULL	test	tb4	f240	65	NULL	YES	varchar	120	120	NULL	NULL	latin1	latin1_swedish_ci	varchar(120)			select,insert,update,references	
+NULL	test	tb4	f241	66	NULL	YES	char	100	100	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references	
 NULL	test	tb4	f242	67	NULL	YES	bit	NULL	NULL	30	NULL	NULL	NULL	bit(30)			select,insert,update,references	
 NULL	test1	tb2	f100	42	00000000000000000008.8	NO	double unsigned zerofill	NULL	NULL	22	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references	
 NULL	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references	
@@ -779,6 +790,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	set	latin1	latin1_swedish_ci
 1.0000	text	latin1	latin1_swedish_ci
 1.0000	tinytext	latin1	latin1_swedish_ci
+1.0000	varchar	latin1	latin1_swedish_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -789,10 +801,6 @@ WHERE table_schema LIKE 'test%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH <> 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
-2.0000	char	ucs2	ucs2_general_ci
-2.0000	longtext	ucs2	ucs2_general_ci
-2.0000	varchar	ucs2	ucs2_general_ci
-2.0079	tinytext	ucs2	ucs2_general_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -885,7 +893,7 @@ NULL	test	t9	f3	int	NULL	NULL	NULL	NULL	int(11)
 1.0000	test	tb1	f1	char	1	1	latin1	latin1_swedish_ci	char(1)
 1.0000	test	tb1	f2	char	1	1	latin1	latin1_bin	char(1)
 1.0000	test	tb1	f3	char	1	1	latin1	latin1_swedish_ci	char(1)
-2.0079	test	tb1	f4	tinytext	127	255	ucs2	ucs2_general_ci	tinytext
+1.0000	test	tb1	f4	tinytext	255	255	latin1	latin1_swedish_ci	tinytext
 1.0000	test	tb1	f5	text	65535	65535	latin1	latin1_swedish_ci	text
 1.0000	test	tb1	f6	mediumtext	16777215	16777215	latin1	latin1_swedish_ci	mediumtext
 1.0000	test	tb1	f7	longtext	4294967295	4294967295	latin1	latin1_swedish_ci	longtext
@@ -1005,7 +1013,7 @@ NULL	test	tb2	f107	year	NULL	NULL	NULL	NULL	year(4)
 1.0000	test	tb3	f121	tinytext	255	255	latin1	latin1_swedish_ci	tinytext
 1.0000	test	tb3	f122	text	65535	65535	latin1	latin1_swedish_ci	text
 1.0000	test	tb3	f123	mediumtext	16777215	16777215	latin1	latin1_swedish_ci	mediumtext
-2.0000	test	tb3	f124	longtext	2147483647	4294967295	ucs2	ucs2_general_ci	longtext
+1.0000	test	tb3	f124	longtext	4294967295	4294967295	latin1	latin1_swedish_ci	longtext
 1.0000	test	tb3	f125	tinyblob	255	255	NULL	NULL	tinyblob
 1.0000	test	tb3	f126	blob	65535	65535	NULL	NULL	blob
 1.0000	test	tb3	f127	mediumblob	16777215	16777215	NULL	NULL	mediumblob
@@ -1116,13 +1124,13 @@ NULL	test	tb4	f224	year	NULL	NULL	NULL	NULL	year(4)
 1.0000	test	tb4	f232	varbinary	27	27	NULL	NULL	varbinary(27)
 1.0000	test	tb4	f233	varbinary	64	64	NULL	NULL	varbinary(64)
 1.0000	test	tb4	f234	varbinary	192	192	NULL	NULL	varbinary(192)
-2.0000	test	tb4	f235	char	255	510	ucs2	ucs2_general_ci	char(255)
+1.0000	test	tb4	f235	char	255	255	latin1	latin1_swedish_ci	char(255)
 1.0000	test	tb4	f236	char	60	60	latin1	latin1_swedish_ci	char(60)
 1.0000	test	tb4	f237	char	255	255	latin1	latin1_bin	char(255)
 NULL	test	tb4	f238	varchar	0	0	latin1	latin1_bin	varchar(0)
 1.0000	test	tb4	f239	varbinary	1000	1000	NULL	NULL	varbinary(1000)
-2.0000	test	tb4	f240	varchar	120	240	ucs2	ucs2_general_ci	varchar(120)
-2.0000	test	tb4	f241	char	100	200	ucs2	ucs2_general_ci	char(100)
+1.0000	test	tb4	f240	varchar	120	120	latin1	latin1_swedish_ci	varchar(120)
+1.0000	test	tb4	f241	char	100	100	latin1	latin1_swedish_ci	char(100)
 NULL	test	tb4	f242	bit	NULL	NULL	NULL	NULL	bit(30)
 NULL	test1	tb2	f59	decimal	NULL	NULL	NULL	NULL	decimal(10,0) unsigned
 NULL	test1	tb2	f60	decimal	NULL	NULL	NULL	NULL	decimal(64,0) unsigned

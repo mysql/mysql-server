@@ -1,0 +1,102 @@
+
+
+################## mysql-test\t\innodb_log_buffer_size_basic.test #############
+#                                                                             #
+# Variable Name: innodb_log_buffer_size                                       #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                      #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable innodb_log_buffer_size    #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/have_innodb.inc
+
+--echo '#---------------------BS_STVARS_033_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_log_buffer_size);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_033_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_log_buffer_size=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.innodb_log_buffer_size);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_033_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.innodb_log_buffer_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_log_buffer_size';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_log_buffer_size);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_log_buffer_size';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_033_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_log_buffer_size = @@GLOBAL.innodb_log_buffer_size;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_033_05----------------------#'
+################################################################################
+#   Check if innodb_log_buffer_size can be accessed with and without @@ sign   #
+################################################################################
+
+SELECT COUNT(@@innodb_log_buffer_size);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_log_buffer_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_log_buffer_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_log_buffer_size);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_log_buffer_size = @@SESSION.innodb_log_buffer_size;
+--echo Expected error 'Readonly variable'
+
+

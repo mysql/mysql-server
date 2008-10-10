@@ -1,0 +1,132 @@
+############# mysql-test\t\secure_auth_func.test ##########################
+#                                                                         #
+# Variable Name: secure_auth                                              #
+# Scope: GLOBAL                                                           #
+# Access Type: Dynamic                                                    #
+# Data Type: boolean                                                      #
+# Default Value: FALSE                                                    #
+# Values: TRUE / 1, FALSE / 0                                             #
+#                                                                         #
+#                                                                         #
+# Creation Date: 2008-02-22                                               #
+# Author:  Sharique Abdullah                                              #
+#                                                                         #
+# Description: Test Cases of Dynamic System Variable "secure_auth "       #
+#              that checks behavior of this variable in the following ways#
+#              * Default Value                                            #
+#              * Valid & Invalid values                                   #
+#              * Scope & Access method                                    #
+#              * Cache behaviors                                          #
+#                                                                         #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                      #
+#            server-system-variables.html#option_mysqld_secure_auth       #
+#                                                                         #
+###########################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+--source include/not_embedded.inc
+
+#
+# Save initial value
+#
+
+SET @old_secure_auth = @@GLOBAL.secure_auth;
+
+--echo '#--------------------FN_DYNVARS_144_01-------------------------#'
+#
+# Testing command line option value
+#
+
+SELECT @@GLOBAL.secure_auth;
+--echo 1 / ON Expected
+
+--echo '#--------------------FN_DYNVARS_144_02-------------------------#'
+#
+# Value OFF
+#
+SET GLOBAL secure_auth = OFF;
+
+#
+# Creating user with password in NEW format
+#
+CREATE USER 'testUser'@'localhost' IDENTIFIED BY 'newpass';
+
+--echo ** Connecting con_user1 using testUser **
+connect (con_user1,localhost,testUser,newpass,);
+
+--echo ** Connection default**
+connection default;
+
+#
+# Setting password in OLD format
+#
+SET PASSWORD FOR 'testUser'@'localhost' = OLD_PASSWORD('newpass');
+
+--echo ** Connecting con_user2 using testUser **
+connect (con_user2,localhost,testUser,newpass,);
+
+--echo ** Connection default**
+connection default;
+
+--echo '#--------------------FN_DYNVARS_144_03-------------------------#'
+#
+# Value ON
+#
+SET GLOBAL secure_auth = ON;
+
+#
+# Setting password in NEW format
+#
+SET PASSWORD FOR 'testUser'@'localhost' = PASSWORD('newpass');
+
+--echo ** Connecting con_user3 using testUser **
+connect (con_user3,localhost,testUser,newpass,);
+--echo ** Connection default **
+connection default;
+
+#
+# Setting password in OLD format
+#
+SET PASSWORD FOR 'testUser'@'localhost' = OLD_PASSWORD('newpass');
+
+--echo ** Connecting con_user4 using testUser **
+--disable_query_log
+--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
+connect (con_user4,localhost,testUser,newpass,);
+--enable_query_log
+--echo Expected error "Server is in secure auth mode"
+
+--echo ** Connection default**
+connection default;
+
+#
+# Setting password back in NEW format
+#
+SET PASSWORD FOR 'testUser'@'localhost' = PASSWORD('newpass');
+
+--echo ** Connecting con_user4 using testUser **
+connect (con_user4,localhost,testUser,newpass,);
+
+--echo ** Connection default **
+connection default;
+
+#
+# Cleanup
+#
+
+SET GLOBAL secure_auth = @old_secure_auth;
+
+--echo Disconnecting Connections con_user1, con_user2, con_user3, con_user4
+disconnect con_user1;
+disconnect con_user2;
+disconnect con_user3;
+disconnect con_user4;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'testUser'@'localhost';
+
+DROP USER 'testUser'@'localhost';

@@ -19,11 +19,24 @@ EXTRA_DIST =		mysql.info INSTALL-BINARY @extra_docs@
 # automake only seems to take care of this automatically,
 # if we're building the info page from texi directly.
 install-data-hook:	$(srcdir)/mysql.info
-	$(mkinstalldirs) $(DESTDIR)$(infodir)
-	$(INSTALL_DATA) $(srcdir)/mysql.info $(DESTDIR)$(infodir)
+	if test `basename $(prefix)` = "mysql" ; then \
+	  $(mkinstalldirs) $(DESTDIR)$(prefix)/docs ; \
+	  $(INSTALL_DATA) $(srcdir)/mysql.info $(DESTDIR)$(prefix)/docs ; \
+	  test ! -f $(top_srcdir)/ChangeLog || $(INSTALL_DATA) $(top_srcdir)/ChangeLog $(DESTDIR)$(prefix)/docs ; \
+	else \
+	  $(mkinstalldirs) $(DESTDIR)$(infodir) $(DESTDIR)$(pkgdatadir) ; \
+	  $(INSTALL_DATA) $(srcdir)/mysql.info $(DESTDIR)$(infodir) ; \
+	  test ! -f $(top_srcdir)/ChangeLog || $(INSTALL_DATA) $(top_srcdir)/ChangeLog $(DESTDIR)$(pkgdatadir) ; \
+	fi
 
 uninstall-local:
-	@RM@ -f $(DESTDIR)$(infodir)/mysql.info
+	if test `basename $(prefix)` = "mysql" ; then \
+	  @RM@ -f $(DESTDIR)$(prefix)/docs/mysql.info ; \
+	  @RM@ -f $(DESTDIR)$(prefix)/docs/ChangeLog ; \
+	else \
+	  @RM@ -f $(DESTDIR)$(infodir)/mysql.info ; \
+	  @RM@ -f $(DESTDIR)$(pkgdatadir)/ChangeLog ; \
+	fi
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

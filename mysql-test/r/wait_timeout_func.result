@@ -1,0 +1,30 @@
+drop table if exists t1;
+## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+'#--------------------FN_DYNVARS_186_01-------------------------#'
+## Creating new connection test_con1 ## 
+## Setting value of variable to 5 ##
+SET @@session.wait_timeout = 5;
+## Inserting record in table t1 ##
+INSERT into t1(name) values('Record_1');
+## Using sleep to check timeout ## 
+'#--------------------FN_DYNVARS_186_02-------------------------#'
+## Setting value of variable ##
+SET @@global.wait_timeout = 5;
+## Creating new connection test_con2 ## 
+INSERT into t1(name) values('Record_2');
+## Using sleep to check timeout ## 
+'#--------------------FN_DYNVARS_186_03-------------------------#'
+## Setting value of variable to 1 ##
+SET @@global.wait_timeout = 1;
+## Creating new connection ## 
+INSERT into t1(name) values('Record_3');
+## Using sleep to check timeout ##
+## We cannot test it further because the server stops due to wait_timeout ## 
+SELECT * from t1;
+ERROR HY000: MySQL server has gone away

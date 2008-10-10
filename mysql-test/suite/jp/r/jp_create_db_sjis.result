@@ -8,11 +8,12 @@ CREATE DATABASE `日本語`;
 CREATE DATABASE `ソ十表`;
 SHOW DATABASES;
 Database
-mysql
-test
+information_schema
 ソ十表
 日本語
 ﾆﾎﾝｺﾞ
+mysql
+test
 USE `ﾆﾎﾝｺﾞ`;
 USE `日本語`;
 USE `ソ十表`;

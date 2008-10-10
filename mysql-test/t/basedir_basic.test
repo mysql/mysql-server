@@ -1,0 +1,100 @@
+
+
+################## mysql-test\t\basedir_basic.test ############################
+#                                                                             #
+# Variable Name: basedir                                                      #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                  #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable basedir                   #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#---------------------BS_STVARS_001_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.basedir);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_001_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.basedir=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.basedir);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_001_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.basedir = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='basedir';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.basedir);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='basedir';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_001_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@basedir = @@GLOBAL.basedir;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_001_05----------------------#'
+################################################################################
+#   Check if basedir can be accessed with and without @@ sign                  #
+################################################################################
+
+SELECT COUNT(@@basedir);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.basedir);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.basedir);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.basedir);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT basedir = @@SESSION.basedir;
+--echo Expected error 'Readonly variable'
+
+

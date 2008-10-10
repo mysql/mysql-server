@@ -15,8 +15,10 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-create table t1(a int auto_increment, key(a));
-create table t2(b int auto_increment, c int, key(b));
+SET @old_concurrent_insert= @@global.concurrent_insert;
+SET @@global.concurrent_insert= 0;
+create table t1(a int auto_increment, key(a)) engine=myisam;
+create table t2(b int auto_increment, c int, key(b)) engine=myisam;
 insert into t1 values (1),(2),(3);
 insert into t1 values (null);
 insert into t2 values (null,last_insert_id());
@@ -31,8 +33,8 @@ b	c
 1	4
 drop table t1;
 drop table t2;
-create table t1(a int auto_increment, key(a)) engine=innodb;
-create table t2(b int auto_increment, c int, key(b), foreign key(b) references t1(a)) engine=innodb;
+create table t1(a int auto_increment, key(a)) engine=myisam;
+create table t2(b int auto_increment, c int, key(b), foreign key(b) references t1(a)) engine=myisam;
 SET FOREIGN_KEY_CHECKS=0;
 insert into t1 values (10);
 insert into t1 values (null),(null),(null);
@@ -54,8 +56,8 @@ b	c
 #
 drop table t2;
 drop table t1;
-create table t1(a int auto_increment, key(a));
-create table t2(b int auto_increment, c int, key(b));
+create table t1(a int auto_increment, key(a)) engine=myisam;
+create table t2(b int auto_increment, c int, key(b)) engine=myisam;
 insert into t1 values (10);
 insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
@@ -87,7 +89,7 @@ drop table t2;
 #           FOREIGN_KEY_CHECKS
 #
 SET TIMESTAMP=1000000000;
-CREATE TABLE t1 ( a INT UNIQUE );
+CREATE TABLE t1 ( a INT UNIQUE ) engine=myisam;
 SET FOREIGN_KEY_CHECKS=0;
 INSERT INTO t1 VALUES (1),(1);
 Got one of the listed errors
@@ -95,8 +97,8 @@ drop table t1;
 #
 # Bug#14553: NULL in WHERE resets LAST_INSERT_ID
 #
-create table t1(a int auto_increment, key(a));
-create table t2(a int);
+create table t1(a int auto_increment, key(a)) engine=myisam;
+create table t2(a int) engine=myisam;
 insert into t1 (a) values (null);
 insert into t2 (a) select a from t1 where a is null;
 insert into t2 (a) select a from t1 where a is null;
@@ -123,7 +125,7 @@ create table t1 (
 id int not null auto_increment,
 last_id int,
 primary key (id)
-);
+) engine=myisam;
 create function bug15728() returns int(11)
 return last_insert_id();
 insert into t1 (last_id) values (0);
@@ -133,7 +135,7 @@ create table t2 (
 id int not null auto_increment,
 last_id int,
 primary key (id)
-);
+) engine=myisam;
 create function bug15728_insert() returns int(11) modifies sql data
 begin
 insert into t2 (last_id) values (bug15728());
@@ -199,7 +201,7 @@ drop function bug15728_insert;
 drop table t1,t2;
 drop procedure foo;
 create table t1 (n int primary key auto_increment not null,
-b int, unique(b));
+b int, unique(b)) engine=myisam;
 set sql_log_bin=0;
 insert into t1 values(null,100);
 replace into t1 values(null,50),(null,100),(null,150);
@@ -243,7 +245,7 @@ n	b
 1001	600
 drop table t1;
 create table t1 (n int primary key auto_increment not null,
-b int, unique(b));
+b int, unique(b)) engine=myisam;
 insert into t1 values(null,100);
 select * from t1 order by n;
 n	b
@@ -264,13 +266,13 @@ n	b
 3	350
 drop table t1;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
-UNIQUE(b));
+UNIQUE(b)) ENGINE=myisam;
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	10
 2	2
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a;
 a	b
 1	10
 2	2
@@ -282,12 +284,12 @@ field_2 varchar(255) NOT NULL,
 field_3 varchar(255) NOT NULL,
 PRIMARY KEY (id),
 UNIQUE KEY field_1 (field_1, field_2)
-);
+) ENGINE=myisam;
 CREATE TABLE t2 (
 field_a int(10) unsigned NOT NULL,
 field_b varchar(255) NOT NULL,
 field_c varchar(255) NOT NULL
-);
+) ENGINE=myisam;
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (1, 'a', '1a');
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (2, 'b', '2b');
 INSERT INTO t2 (field_a, field_b, field_c) VALUES (3, 'c', '3c');
@@ -304,7 +306,7 @@ SELECT t2.field_a, t2.field_b, t2.field_c
 FROM t2
 ON DUPLICATE KEY UPDATE
 t1.field_3 = t2.field_c;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY id;
 id	field_1	field_2	field_3
 1	1	a	1a
 2	2	b	2b
@@ -312,7 +314,7 @@ id	field_1	field_2	field_3
 4	4	d	4d
 5	5	e	5e
 6	6	f	6f
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY id;
 id	field_1	field_2	field_3
 1	1	a	1a
 2	2	b	2b
@@ -330,28 +332,28 @@ CREATE TABLE t1 (
 id INT NOT NULL DEFAULT 0,
 last_id INT,
 PRIMARY KEY (id)
-);
+) ENGINE=myisam;
 CREATE TABLE t2 (
 id INT NOT NULL AUTO_INCREMENT,
 last_id INT,
 PRIMARY KEY (id)
-);
+) ENGINE=myisam;
 CREATE PROCEDURE p1()
 BEGIN
 INSERT INTO t2 (last_id) VALUES (LAST_INSERT_ID());
 INSERT INTO t1 (last_id) VALUES (LAST_INSERT_ID());
 END|
 CALL p1();
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY id;
 id	last_id
 0	1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY id;
 id	last_id
 1	0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY id;
 id	last_id
 0	1
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY id;
 id	last_id
 1	0
 DROP PROCEDURE p1;
@@ -364,8 +366,8 @@ DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (
 i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 j INT DEFAULT 0
-);
-CREATE TABLE t2 (i INT);
+) ENGINE=myisam;
+CREATE TABLE t2 (i INT) ENGINE=myisam;
 CREATE PROCEDURE p1()
 BEGIN
 INSERT INTO t1 (i) VALUES (NULL);
@@ -405,7 +407,7 @@ INSERT INTO t1 (i) VALUES (NULL);
 SELECT f3();
 f3()
 0
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY i;
 i	j
 1	-1
 2	0
@@ -427,7 +429,7 @@ i	j
 18	14
 19	0
 20	0
-SELECT * FROM t2;
+SELECT * FROM t2 ORDER BY i;
 i
 2
 3
@@ -475,9 +477,9 @@ create table t2 (
 id int not null auto_increment,
 last_id int,
 primary key (id)
-);
+) engine=myisam;
 truncate table t2;
-create table t1 (id tinyint primary key);
+create table t1 (id tinyint primary key) engine=myisam;
 create function insid() returns int
 begin
 insert into t2 (last_id) values (0);
@@ -495,17 +497,17 @@ insert into t2 (id) values(5),(6),(7);
 delete from t2 where id>=5;
 set sql_log_bin=1;
 insert into t1 select insid();
-select * from t1;
+select * from t1 order by id;
 id
 0
-select * from t2;
+select * from t2 order by id;
 id	last_id
 4	0
 8	0
-select * from t1;
+select * from t1 order by id;
 id
 0
-select * from t2;
+select * from t2 order by id;
 id	last_id
 4	0
 8	0
@@ -513,7 +515,7 @@ drop table t1;
 drop function insid;
 truncate table t2;
 create table t1 (n int primary key auto_increment not null,
-b int, unique(b));
+b int, unique(b)) engine=myisam;
 create procedure foo()
 begin
 insert into t1 values(null,10);
@@ -522,17 +524,18 @@ insert ignore into t1 values(null,10);
 insert into t2 values(null,3);
 end|
 call foo();
-select * from t1;
+select * from t1 order by n;
 n	b
 1	10
-select * from t2;
+select * from t2 order by id;
 id	last_id
 1	3
-select * from t1;
+select * from t1 order by n;
 n	b
 1	10
-select * from t2;
+select * from t2 order by id;
 id	last_id
 1	3
 drop table t1, t2;
 drop procedure foo;
+SET @@global.concurrent_insert= @old_concurrent_insert;

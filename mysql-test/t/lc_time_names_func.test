@@ -1,0 +1,87 @@
+###################### mysql-test\t\lc_time_names_func.test  ##################
+#                                                                             #
+# Variable Name: lc_time_names                                                #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value: en_US                                                        #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable lc_time_names            #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#--------------------FN_DYNVARS_060_01-------------------------#'
+######################################################################
+# Check if setting global lc_time_names is changed in new connection # 
+######################################################################
+
+SET @@global.lc_time_names = "en_CA";
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+--echo 'connection con1'
+connection con1;
+SELECT @@global.lc_time_names;
+SELECT @@session.lc_time_names;
+SET @@global.lc_time_names = "en_IN";
+--echo 'connect (con2,localhost,root,,,,)'
+connect (con2,localhost,root,,,,);
+--echo 'connection con2'
+connection con2;
+SELECT @@global.lc_time_names;
+SELECT @@session.lc_time_names;
+disconnect con2;
+disconnect con1;
+
+
+--echo '#--------------------FN_DYNVARS_060_02-------------------------#'
+#################################################################
+# Begin the functionality Testing of lc_time_names              #
+#################################################################
+
+--echo 'connection default'
+connection default;
+
+SET NAMES 'utf8';
+
+SET @@session.lc_time_names = 'en_US';
+SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');
+
+
+SET @@session.lc_time_names = 'ar_AE';
+SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');
+
+SET @@session.lc_time_names = 'es_ES';
+SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');
+
+SET @@session.lc_time_names = 'fi_FI';
+SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');
+
+SET @@session.lc_time_names = 'gu_IN';
+SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');
+
+SET @@session.lc_time_names = 'it_IT';
+SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');
+
+SET @@session.lc_time_names = 'pt_BR';
+SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');
+
+SET @@session.lc_time_names = 'ur_PK';
+SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');
+
+
+# restore default
+SET @@global.lc_time_names = "en_US";
+
+##########################################################
+# End of functionality Testing for lc_time_names         #
+##########################################################
+

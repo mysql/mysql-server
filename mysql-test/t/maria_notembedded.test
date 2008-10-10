@@ -10,7 +10,7 @@ set session storage_engine=maria;
 # ("embedded" server translates them to plain INSERT)
 
 create table t1 (a int) row_format=page;
---error ER_ILLEGAL_HA
+--error ER_DELAYED_NOT_SUPPORTED
 insert delayed into t1 values(1);
 drop table t1;
 create table t1 (a int) row_format=page transactional=0;

@@ -1,0 +1,9 @@
+################################################################################
+# Created by Horst Hunger      2008-05-07                                      #
+#                                                                              #
+# Wrapper for 64 bit machines                                                  #
+################################################################################
+
+--source include/have_64bit.inc
+--source suite/sys_vars/inc/bulk_insert_buffer_size_basic.inc
+

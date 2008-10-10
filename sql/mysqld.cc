@@ -22,7 +22,7 @@
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
-#include "stacktrace.h"
+#include <my_stacktrace.h>
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
 #include "events.h"
@@ -522,6 +522,7 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 char mysql_unpacked_real_data_home[FN_REFLEN];
+int mysql_unpacked_real_data_home_len;
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -1952,6 +1953,7 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
 static BOOL WINAPI console_event_handler( DWORD type ) 
 {
   DBUG_ENTER("console_event_handler");
+#ifndef EMBEDDED_LIBRARY
   if(type == CTRL_C_EVENT)
   {
      /*
@@ -1960,12 +1962,15 @@ static BOOL WINAPI console_event_handler( DWORD type )
        between main thread doing initialization and CTRL-C thread doing
        cleanup, which can result into crash.
      */
+#ifndef EMBEDDED_LIBRARY
      if(hEventShutdown)
        kill_mysql();
      else
+#endif
        sql_print_warning("CTRL-C ignored during startup");
      DBUG_RETURN(TRUE);
   }
+#endif
   DBUG_RETURN(FALSE);
 }
 
@@ -2049,7 +2054,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 #endif /* DEBUG_UNHANDLED_EXCEPTION_FILTER */
   __try
   {
-    set_exception_pointers(ex_pointers);
+    my_set_exception_pointers(ex_pointers);
     handle_segfault(ex_pointers->ExceptionRecord->ExceptionCode);
   }
   __except(EXCEPTION_EXECUTE_HANDLER)
@@ -2432,8 +2437,8 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 Attempting backtrace. You can use the following information to find out\n\
 where mysqld died. If you see no messages after this, something went\n\
 terribly wrong...\n");  
-    print_stacktrace(thd ? (uchar*) thd->thread_stack : (uchar*) 0,
-		     my_thread_stack_size);
+    my_print_stacktrace(thd ? (uchar*) thd->thread_stack : NULL,
+                        my_thread_stack_size);
   }
   if (thd)
   {
@@ -2457,7 +2462,7 @@ terribly wrong...\n");
     }
     fprintf(stderr, "Trying to get some variables.\n\
 Some pointers may be invalid and cause the dump to abort...\n");
-    safe_print_str("thd->query", thd->query, 1024);
+    my_safe_print_str("thd->query", thd->query, 1024);
     fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "thd->killed=%s\n", kreason);
   }
@@ -2504,7 +2509,7 @@ bugs.\n");
   {
     fprintf(stderr, "Writing a core file\n");
     fflush(stderr);
-    write_core(sig);
+    my_write_core(sig);
   }
 #endif
 
@@ -2538,7 +2543,9 @@ static void init_signals(void)
     sigemptyset(&sa.sa_mask);
     sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
 
-    init_stacktrace();
+#ifdef HAVE_STACKTRACE
+    my_init_stacktrace();
+#endif
 #if defined(__amiga__)
     sa.sa_handler=(void(*)())handle_segfault;
 #else
@@ -2870,6 +2877,7 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       by the stored procedures code.
     */
     if (thd->spcont &&
+        ! (MyFlags & ME_NO_SP_HANDLER) &&
         thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
     {
       /*
@@ -2879,7 +2887,8 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       DBUG_RETURN(0);
     }
 
-    if (!thd->no_warnings_for_error)
+    if (!thd->no_warnings_for_error &&
+        !(MyFlags & ME_NO_WARNING_FOR_ERROR))
     {
       /*
         Suppress infinite recursion if there a memory allocation error
@@ -3120,6 +3129,7 @@ SHOW_VAR com_status_vars[]= {
   {"stmt_execute",         (char*) offsetof(STATUS_VAR, com_stmt_execute), SHOW_LONG_STATUS},
   {"stmt_fetch",           (char*) offsetof(STATUS_VAR, com_stmt_fetch), SHOW_LONG_STATUS},
   {"stmt_prepare",         (char*) offsetof(STATUS_VAR, com_stmt_prepare), SHOW_LONG_STATUS},
+  {"stmt_reprepare",       (char*) offsetof(STATUS_VAR, com_stmt_reprepare), SHOW_LONG_STATUS},
   {"stmt_reset",           (char*) offsetof(STATUS_VAR, com_stmt_reset), SHOW_LONG_STATUS},
   {"stmt_send_long_data",  (char*) offsetof(STATUS_VAR, com_stmt_send_long_data), SHOW_LONG_STATUS},
   {"truncate",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_TRUNCATE]), SHOW_LONG_STATUS},
@@ -3208,7 +3218,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
     We have few debug-only commands in com_status_vars, only visible in debug
     builds. for simplicity we enable the assert only in debug builds
 
-    There are 7 Com_ variables which don't have corresponding SQLCOM_ values:
+    There are 8 Com_ variables which don't have corresponding SQLCOM_ values:
     (TODO strictly speaking they shouldn't be here, should not have Com_ prefix
     that is. Perhaps Stmt_ ? Comstmt_ ? Prepstmt_ ?)
 
@@ -3217,6 +3227,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
       Com_stmt_execute         => com_stmt_execute
       Com_stmt_fetch           => com_stmt_fetch
       Com_stmt_prepare         => com_stmt_prepare
+      Com_stmt_reprepare       => com_stmt_reprepare
       Com_stmt_reset           => com_stmt_reset
       Com_stmt_send_long_data  => com_stmt_send_long_data
 
@@ -3225,7 +3236,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
     of SQLCOM_ constants.
   */
   compile_time_assert(sizeof(com_status_vars)/sizeof(com_status_vars[0]) - 1 ==
-                     SQLCOM_END + 7);
+                     SQLCOM_END + 8);
 #endif
 
   load_defaults(conf_file_name, groups, &argc, &argv);
@@ -3526,7 +3537,9 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
+#ifdef HAVE_EVENT_SCHEDULER
   Events::init_mutexes();
+#endif
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -6838,7 +6851,8 @@ The minimum value for this variable is 4096.",
   {"table_definition_cache", OPT_TABLE_DEF_CACHE,
    "The number of cached table definitions.",
    (uchar**) &table_def_size, (uchar**) &table_def_size,
-   0, GET_ULONG, REQUIRED_ARG, 128, 1, 512*1024L, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, TABLE_DEF_CACHE_DEFAULT, TABLE_DEF_CACHE_MIN,
+   512*1024L, 0, 1, 0},
   {"table_open_cache", OPT_TABLE_OPEN_CACHE,
    "The number of cached open tables.",
    (uchar**) &table_cache_size, (uchar**) &table_cache_size, 0, GET_ULONG,
@@ -7473,6 +7487,7 @@ static void mysql_init_variables(void)
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
+  myisam_test_invalid_symlink= test_if_data_home_dir;
   opt_log= opt_slow_log= 0;
   opt_update_log= 0;
   log_output_options= find_bit_type(log_output_str, &log_output_typelib);
@@ -7918,8 +7933,12 @@ mysqld_get_one_option(int optid,
   }
 #endif
   case OPT_EVENT_SCHEDULER:
+#ifndef HAVE_EVENT_SCHEDULER
+    sql_perror("Event scheduler is not supported in embedded build.");
+#else
     if (Events::set_opt_event_scheduler(argument))
 	exit(1);
+#endif
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
@@ -8433,9 +8452,12 @@ static void fix_paths(void)
     pos[1]= 0;
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
-  (void) fn_format(buff, mysql_real_data_home, "", "",
-                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
-  (void) unpack_dirname(mysql_unpacked_real_data_home, buff);
+  my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
+  mysql_unpacked_real_data_home_len= strlen(mysql_unpacked_real_data_home);
+  if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
+    --mysql_unpacked_real_data_home_len;
+
+
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);

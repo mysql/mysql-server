@@ -188,7 +188,8 @@ table_def::compatible_with(Relay_log_info const *rli_arg, TABLE *table)
 
   for (uint col= 0 ; col < cols_to_check ; ++col)
   {
-    if (table->field[col]->type() != type(col))
+    Field *const field= table->field[col];
+    if (field->type() != type(col))
     {
       DBUG_ASSERT(col < size() && col < tsh->fields);
       DBUG_ASSERT(tsh->db.str && tsh->table_name.str);
@@ -197,15 +198,15 @@ table_def::compatible_with(Relay_log_info const *rli_arg, TABLE *table)
       my_snprintf(buf, sizeof(buf), "Column %d type mismatch - "
                   "received type %d, %s.%s has type %d",
                   col, type(col), tsh->db.str, tsh->table_name.str,
-                  table->field[col]->type());
+                  field->type());
       rli->report(ERROR_LEVEL, ER_BINLOG_ROW_WRONG_TABLE_DEF,
                   ER(ER_BINLOG_ROW_WRONG_TABLE_DEF), buf);
     }
     /*
       Check the slave's field size against that of the master.
     */
-    if (!error && 
-        !table->field[col]->compatible_field_size(field_metadata(col)))
+    if (!error &&
+        !field->compatible_field_size(field_metadata(col), rli_arg))
     {
       error= 1;
       char buf[256];
@@ -213,10 +214,9 @@ table_def::compatible_with(Relay_log_info const *rli_arg, TABLE *table)
                   "master has size %d, %s.%s on slave has size %d."
                   " Master's column size should be <= the slave's "
                   "column size.", col,
-                  table->field[col]->pack_length_from_metadata(
-                                       m_field_metadata[col]),
-                  tsh->db.str, tsh->table_name.str, 
-                  table->field[col]->row_pack_length());
+                  field->pack_length_from_metadata(m_field_metadata[col]),
+                  tsh->db.str, tsh->table_name.str,
+                  field->row_pack_length());
       rli->report(ERROR_LEVEL, ER_BINLOG_ROW_WRONG_TABLE_DEF,
                   ER(ER_BINLOG_ROW_WRONG_TABLE_DEF), buf);
     }

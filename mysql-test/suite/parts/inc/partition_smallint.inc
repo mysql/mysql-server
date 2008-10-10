@@ -6,9 +6,11 @@ partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 insert into t1 values (65535), (65534), (65533), (65532), (1), (2), (256);
+--sorted_result
 select * from t1;
 select * from t1 where a=65533;
 delete from t1 where a=65533;
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -16,9 +18,11 @@ eval create table t2 (a smallint unsigned not null, primary key(a)) engine=$engi
 partition by key (a) partitions 8;
 show create table t2;
 insert into t2 values (65535), (65534), (65533), (65532);
+--sorted_result
 select * from t2;
 select * from t2 where a=65533;
 delete from t2 where a=65533;
+--sorted_result
 select * from t2;
 delete from t2;
 let $count=$maxrows;
@@ -34,11 +38,13 @@ select count(*) from t2;
 drop table t2;
 
 eval create table t3 (a smallint not null, primary key(a)) engine=$engine 
-partition by key (a) partitions 10;
+partition by key (a) partitions 7;
 show create table t3;
 insert into t3 values (32767), (32766), (32765), (32764), (-32768), (-32767), (1), (-1), (0);
+--sorted_result
 select * from t3;
 select * from t3 where a=32765;
 delete from t3 where a=32765;
+--sorted_result
 select * from t3;
 drop table t3;

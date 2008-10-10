@@ -1,0 +1,133 @@
+############# mysql-test\t\sql_big_selects_func.test ######################
+#                                                                         #
+# Variable Name: sql_big_selects                                          #
+# Scope: SESSION                                                          #
+# Access Type: Dynamic                                                    #
+# Data Type: BOOLEAN                                                      #
+# Default Value: 1 TRUE                                                   #
+# Values:       1 TRUE, 0 FALSE                                           #
+#                                                                         #
+#                                                                         #
+# Creation Date: 2008-02-25                                               #
+# Author:  Sharique Abdullah                                              #
+#                                                                         #
+# Description: Test Cases of Dynamic System Variable "sql_big_selects"    #
+#              that checks behavior of this variable in the following ways#
+#              * Functionality based on different values                  #
+#                                                                         #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html       #
+#                                                                         #
+###########################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+SET @session_sql_big_selects = @@SESSION.sql_big_selects;
+SET @session_max_join_size = @@SESSION.max_join_size;
+SET @global_max_join_size = @@GLOBAL.max_join_size;
+SET SQL_MAX_JOIN_SIZE=9;
+
+#
+# Create tables
+#
+
+CREATE TEMPORARY TABLE t1(a varchar(20) not null, b varchar(20));
+CREATE TEMPORARY TABLE t2(a varchar(20) null, b varchar(20));
+
+INSERT INTO t1 VALUES('aa','bb');
+INSERT INTO t1 VALUES('aa1','bb');
+INSERT INTO t1 VALUES('aa2','bb');
+INSERT INTO t1 VALUES('aa3','bb');
+INSERT INTO t1 VALUES('aa4','bb');
+
+INSERT INTO t2 VALUES('aa','bb');
+INSERT INTO t2 VALUES('aa1','bb');
+INSERT INTO t2 VALUES('aa2','bb');
+INSERT INTO t2 VALUES('aa3','bb');
+INSERT INTO t2 VALUES('aa4','bb');
+
+--echo '#--------------------FN_DYNVARS_154_01-------------------------#'
+#
+# Testing fail condition
+#
+
+--echo Expected error "Too big select"
+--error ER_TOO_BIG_SELECT
+SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
+--echo Expected error The SELECT would examine more than MAX_JOIN_SIZE rows.
+
+--echo '#--------------------FN_DYNVARS_154_02-------------------------#'
+#
+# Testing pass conditions
+#
+
+SET SESSION SQL_BIG_SELECTS = 1;
+
+SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
+--echo This should work
+
+SET SESSION SQL_BIG_SELECTS = 0;
+
+DELETE FROM t2 WHERE a = 'aa4';
+SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
+--echo This should work
+
+--echo '#--------------------FN_DYNVARS_154_03-------------------------#'
+#
+# Session data integrity check
+#
+
+--echo ** Connecting con_int1 using root **
+connect (con_int1,localhost,root,,);
+
+--echo ** Connection con_int1 **
+connection con_int1;
+
+SELECT @@SESSION.sql_big_selects;
+--echo 1 Expected
+SET SESSION sql_big_selects = 0;
+
+--echo ** Connecting con_int2 using root **
+connect (con_int2,localhost,root,,);
+
+--echo ** Connection con_int2 **
+connection con_int2;
+
+SELECT @@SESSION.sql_big_selects;
+--echo 1 Expected
+
+SET SESSION sql_big_selects = 1;
+
+--echo ** Connection con_int1 **
+connection con_int1;
+
+SELECT @@SESSION.sql_big_selects;
+--echo 0 Expected
+
+--echo ** Connection con_int2 **
+connection con_int2;
+
+SELECT @@SESSION.sql_big_selects;
+--echo 1 Expected
+
+--echo ** Connection default **
+connection default;
+
+--echo Disconnecting Connections con_int1, con_int2
+disconnect con_int1;
+disconnect con_int2;
+
+#
+# Cleanup
+#
+
+
+SET @@SESSION.sql_big_selects = @session_sql_big_selects;
+SET @@SESSION.max_join_size = @session_max_join_size;
+SET @@GLOBAL.max_join_size = @global_max_join_size;
+
+DROP TABLE t1;
+DROP TABLE t2;

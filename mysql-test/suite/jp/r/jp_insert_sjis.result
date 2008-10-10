@@ -7,9 +7,6 @@ drop table if exists `‚s‚U`;
 drop table if exists `‚s‚V`;
 drop table if exists `‚s‚W`;
 drop table if exists `‚s‚X`;
-drop table if exists `‚s‚P‚O`;
-drop table if exists `‚s‚P‚P`;
-drop table if exists `‚s‚P‚Q`;
 SET NAMES sjis;
 SET character_set_database = sjis;
 CREATE TABLE `‚s‚P` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = innodb;
@@ -18,12 +15,9 @@ CREATE TABLE `‚s‚R` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = innodb;
 CREATE TABLE `‚s‚S` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `‚s‚T` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = myisam;
 CREATE TABLE `‚s‚U` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = myisam;
-CREATE TABLE `‚s‚V` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚W` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚X` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = heap;
-CREATE TABLE `‚s‚P‚O` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `‚s‚P‚P` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = bdb;
-CREATE TABLE `‚s‚P‚Q` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `‚s‚V` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚W` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = MEMORY;
+CREATE TABLE `‚s‚X` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = MEMORY;
 INSERT INTO `‚s‚P` VALUES ('±²³´µ');
 INSERT INTO `‚s‚Q` VALUES ('‚ ‚¢‚¤‚¦‚¨');
 INSERT INTO `‚s‚R` VALUES ('ƒ\\•\—\\');
@@ -33,9 +27,6 @@ INSERT INTO `‚s‚U` VALUES ('ƒ\\•\—\\');
 INSERT INTO `‚s‚V` VALUES ('±²³´µ');
 INSERT INTO `‚s‚W` VALUES ('‚ ‚¢‚¤‚¦‚¨');
 INSERT INTO `‚s‚X` VALUES ('ƒ\\•\—\\');
-INSERT INTO `‚s‚P‚O` VALUES ('±²³´µ');
-INSERT INTO `‚s‚P‚P` VALUES ('‚ ‚¢‚¤‚¦‚¨');
-INSERT INTO `‚s‚P‚Q` VALUES ('ƒ\\•\—\\');
 SELECT INSERT(`‚b‚P`,1,1,'¶') FROM `‚s‚P`;
 INSERT(`‚b‚P`,1,1,'¶')
 ¶²³´µ
@@ -711,186 +702,6 @@ INSERT(`‚b‚P`,4,2,'”\”\' )
 SELECT INSERT(`‚b‚P`,5,1,'”\') FROM `‚s‚X`;
 INSERT(`‚b‚P`,5,1,'”\')
 ƒ\\•\—\”\
-SELECT INSERT(`‚b‚P`,1,1,'¶') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,1,1,'¶')
-¶²³´µ
-SELECT INSERT(`‚b‚P`,1,2,'¶·') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,1,2,'¶·')
-¶·³´µ
-SELECT INSERT(`‚b‚P`,1,3,'¶·¸') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,1,3,'¶·¸')
-¶·¸´µ
-SELECT INSERT(`‚b‚P`,1,4,'¶·¸¹') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,1,4,'¶·¸¹')
-¶·¸¹µ
-SELECT INSERT(`‚b‚P`,1,5,'¶·¸¹º') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,1,5,'¶·¸¹º')
-¶·¸¹º
-SELECT INSERT(`‚b‚P`,2,1,'·') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,2,1,'·')
-±·³´µ
-SELECT INSERT(`‚b‚P`,2,2,'·¸') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,2,2,'·¸')
-±·¸´µ
-SELECT INSERT(`‚b‚P`,2,3,'·¸¹') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,2,3,'·¸¹')
-±·¸¹µ
-SELECT INSERT(`‚b‚P`,2,4,'·¸¹º') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,2,4,'·¸¹º')
-±·¸¹º
-SELECT INSERT(`‚b‚P`,3,1,'¸') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,3,1,'¸')
-±²¸´µ
-SELECT INSERT(`‚b‚P`,3,2,'¸¹') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,3,2,'¸¹')
-±²¸¹µ
-SELECT INSERT(`‚b‚P`,3,3,'¸¹º') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,3,3,'¸¹º')
-±²¸¹º
-SELECT INSERT(`‚b‚P`,4,1,'¹') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,4,1,'¹')
-±²³¹µ
-SELECT INSERT(`‚b‚P`,4,2,'¹º') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,4,2,'¹º')
-±²³¹º
-SELECT INSERT(`‚b‚P`,5,1,'º') FROM `‚s‚P‚O`;
-INSERT(`‚b‚P`,5,1,'º')
-±²³´º
-SELECT INSERT(`‚b‚P`,1,1,'‚©') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,1,'‚©')
-‚©‚¢‚¤‚¦‚¨
-SELECT INSERT(`‚b‚P`,1,2,'‚©‚«') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,2,'‚©‚«')
-‚©‚«‚¤‚¦‚¨
-SELECT INSERT(`‚b‚P`,1,3,'‚©‚«‚­') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,3,'‚©‚«‚­')
-‚©‚«‚­‚¦‚¨
-SELECT INSERT(`‚b‚P`,1,4,'‚©‚«‚­‚¯') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,4,'‚©‚«‚­‚¯')
-‚©‚«‚­‚¯‚¨
-SELECT INSERT(`‚b‚P`,1,5,'‚©‚«‚­‚¯‚±') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,5,'‚©‚«‚­‚¯‚±')
-‚©‚«‚­‚¯‚±
-SELECT INSERT(`‚b‚P`,2,1,'‚«') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,2,1,'‚«')
-‚ ‚«‚¤‚¦‚¨
-SELECT INSERT(`‚b‚P`,2,2,'‚«‚­') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,2,2,'‚«‚­')
-‚ ‚«‚­‚¦‚¨
-SELECT INSERT(`‚b‚P`,2,3,'‚«‚­‚¯') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,2,3,'‚«‚­‚¯')
-‚ ‚«‚­‚¯‚¨
-SELECT INSERT(`‚b‚P`,2,4,'‚«‚­‚¯‚±') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,2,4,'‚«‚­‚¯‚±')
-‚ ‚«‚­‚¯‚±
-SELECT INSERT(`‚b‚P`,3,1,'‚­') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,3,1,'‚­')
-‚ ‚¢‚­‚¦‚¨
-SELECT INSERT(`‚b‚P`,3,2,'‚­‚¯') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,3,2,'‚­‚¯')
-‚ ‚¢‚­‚¯‚¨
-SELECT INSERT(`‚b‚P`,3,3,'‚­‚¯‚±') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,3,3,'‚­‚¯‚±')
-‚ ‚¢‚­‚¯‚±
-SELECT INSERT(`‚b‚P`,4,1,'‚¯') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,4,1,'‚¯')
-‚ ‚¢‚¤‚¯‚¨
-SELECT INSERT(`‚b‚P`,4,2,'‚¯‚±') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,4,2,'‚¯‚±')
-‚ ‚¢‚¤‚¯‚±
-SELECT INSERT(`‚b‚P`,5,1,'‚±') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,5,1,'‚±')
-‚ ‚¢‚¤‚¦‚±
-SELECT INSERT(`‚b‚P`,1,1,'@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,1,'@')
-@‚¢‚¤‚¦‚¨
-SELECT INSERT(`‚b‚P`,1,2,'@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,2,'@@')
-@@‚¤‚¦‚¨
-SELECT INSERT(`‚b‚P`,1,3,'@@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,3,'@@@')
-@@@‚¦‚¨
-SELECT INSERT(`‚b‚P`,1,4,'@@@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,4,'@@@@')
-@@@@‚¨
-SELECT INSERT(`‚b‚P`,1,5,'@@@@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,1,5,'@@@@@')
-@@@@@
-SELECT INSERT(`‚b‚P`,2,1,'@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,2,1,'@')
-‚ @‚¤‚¦‚¨
-SELECT INSERT(`‚b‚P`,2,2,'@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,2,2,'@@')
-‚ @@‚¦‚¨
-SELECT INSERT(`‚b‚P`,2,3,'@@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,2,3,'@@@')
-‚ @@@‚¨
-SELECT INSERT(`‚b‚P`,2,4,'@@@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,2,4,'@@@@')
-‚ @@@@
-SELECT INSERT(`‚b‚P`,3,1,'@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,3,1,'@')
-‚ ‚¢@‚¦‚¨
-SELECT INSERT(`‚b‚P`,3,2,'@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,3,2,'@@')
-‚ ‚¢@@‚¨
-SELECT INSERT(`‚b‚P`,3,3,'@@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,3,3,'@@@')
-‚ ‚¢@@@
-SELECT INSERT(`‚b‚P`,4,1,'@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,4,1,'@')
-‚ ‚¢‚¤@‚¨
-SELECT INSERT(`‚b‚P`,4,2,'@@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,4,2,'@@')
-‚ ‚¢‚¤@@
-SELECT INSERT(`‚b‚P`,5,1,'@') FROM `‚s‚P‚P`;
-INSERT(`‚b‚P`,5,1,'@')
-‚ ‚¢‚¤‚¦@
-SELECT INSERT(`‚b‚P`,1,1,'”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,1,1,'”\')
-”\\•\—\\
-SELECT INSERT(`‚b‚P`,1,2,'”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,1,2,'”\”\')
-”\”\•\—\\
-SELECT INSERT(`‚b‚P`,1,3,'”\”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,1,3,'”\”\”\')
-”\”\”\—\\
-SELECT INSERT(`‚b‚P`,1,4,'”\”\”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,1,4,'”\”\”\”\')
-”\”\”\”\\
-SELECT INSERT(`‚b‚P`,1,5,'”\”\”\”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,1,5,'”\”\”\”\”\')
-”\”\”\”\”\
-SELECT INSERT(`‚b‚P`,2,1,'”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,2,1,'”\')
-ƒ\”\•\—\\
-SELECT INSERT(`‚b‚P`,2,2,'”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,2,2,'”\”\')
-ƒ\”\”\—\\
-SELECT INSERT(`‚b‚P`,2,3,'”\”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,2,3,'”\”\”\')
-ƒ\”\”\”\\
-SELECT INSERT(`‚b‚P`,2,4,'”\”\”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,2,4,'”\”\”\”\')
-ƒ\”\”\”\”\
-SELECT INSERT(`‚b‚P`,3,1,'”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,3,1,'”\')
-ƒ\\”\—\\
-SELECT INSERT(`‚b‚P`,3,2,'”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,3,2,'”\”\')
-ƒ\\”\”\\
-SELECT INSERT(`‚b‚P`,3,3,'”\”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,3,3,'”\”\”\')
-ƒ\\”\”\”\
-SELECT INSERT(`‚b‚P`,4,1,'”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,4,1,'”\')
-ƒ\\•\”\\
-SELECT INSERT(`‚b‚P`,4,2,'”\”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,4,2,'”\”\')
-ƒ\\•\”\”\
-SELECT INSERT(`‚b‚P`,5,1,'”\') FROM `‚s‚P‚Q`;
-INSERT(`‚b‚P`,5,1,'”\')
-ƒ\\•\—\”\
 DROP TABLE `‚s‚P`;
 DROP TABLE `‚s‚Q`;
 DROP TABLE `‚s‚R`;
@@ -900,6 +711,3 @@ DROP TABLE `‚s‚U`;
 DROP TABLE `‚s‚V`;
 DROP TABLE `‚s‚W`;
 DROP TABLE `‚s‚X`;
-DROP TABLE `‚s‚P‚O`;
-DROP TABLE `‚s‚P‚P`;
-DROP TABLE `‚s‚P‚Q`;

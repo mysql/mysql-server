@@ -1,7 +1,7 @@
 set session storage_engine=maria;
 create table t1 (a int) row_format=page;
 insert delayed into t1 values(1);
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+ERROR HY000: DELAYED option not supported for table 't1'
 drop table t1;
 create table t1 (a int) row_format=page transactional=0;
 insert delayed into t1 values(1);

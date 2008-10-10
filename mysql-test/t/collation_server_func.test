@@ -1,0 +1,115 @@
+############## mysql-test\t\collation_server_func.test  #######################
+#                                                                             #
+# Variable Name: collation_server                                             #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value:                                                              #
+# Range: NA                                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             # 
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable collation_server         #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#--------------------FN_DYNVARS_014_01-------------------------#'
+##################################################################
+# Check if setting collation_server is changed in new connection # 
+##################################################################
+#save
+SET @global_collation_server = @@global.collation_server;
+SET @session_collation_server = @@session.collation_server;
+
+SET @@global.collation_server = latin1_danish_ci;
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+--echo 'connection con1'
+connection con1; 
+SELECT @@global.collation_server;
+SELECT @@session.collation_server;
+disconnect con1;
+
+--echo '#--------------------FN_DYNVARS_014_02-------------------------#'
+#######################################################
+# Begin the functionality Testing of collation_server #
+#######################################################
+
+--echo 'connection default'
+connection default;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+#==============================================================================
+--echo '---check if setting collation_server update character_set_server---'
+#==============================================================================
+
+SET @@session.collation_server = utf8_spanish_ci;
+SELECT @@collation_server, @@character_set_server;
+
+#==============================================================================
+--echo '--check if collation_server effects database/table charset/collation--'
+#==============================================================================
+SET @@session.collation_server = latin1_german1_ci;
+CREATE DATABASE db1;
+USE db1;
+SHOW CREATE DATABASE db1;
+CREATE TABLE t1(a CHAR(20));
+SHOW CREATE TABLE t1;
+#==============================================================================
+--echo '---check if updating collation_server effects new table/column---'
+#==============================================================================
+SET @@session.collation_server = latin1_swedish_ci;
+CREATE TABLE t2(a CHAR(10));
+SHOW CREATE TABLE t2;
+
+
+# fill table with some test data
+INSERT INTO t1 VALUES('Muffler'),('Müller'),('MX Systems');
+
+#==============================================================================
+--echo '---check if collation_server effects results sort order---'
+#==============================================================================
+SET @@session.collation_server = latin1_swedish_ci;
+SELECT * FROM t1 ORDER BY a;
+
+SET @@session.collation_server = latin1_german1_ci;
+SELECT * FROM t1 ORDER BY a;
+
+# explicit Collate clause should effects results sort order
+
+SELECT * FROM t1 ORDER BY a COLLATE latin1_swedish_ci;
+SELECT * FROM t1 ORDER BY a COLLATE latin1_german1_ci;
+
+#==============================================================================
+--echo '---check if indexing is effected by collation_server---'
+#==============================================================================
+SET @@session.collation_server = latin1_swedish_ci;
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+REPAIR TABLE t1;
+SELECT * FROM t1 ORDER BY a;
+
+ALTER TABLE t1 DROP PRIMARY KEY;
+SET @@session.collation_server = latin1_german1_ci;
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+REPAIR TABLE t1;
+SELECT * FROM t1 ORDER BY a;
+
+
+# clean up
+DROP TABLE t1,t2;
+DROP DATABASE db1;
+#restore
+SET @@global.collation_server = @global_collation_server;
+SET @@session.collation_server = @session_collation_server;
+#####################################################
+# End of functionality Testing for collation_server #
+#####################################################

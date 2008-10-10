@@ -1,5 +1,5 @@
-DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+DROP DATABASE IF EXISTS test1;
+CREATE DATABASE test1;
 SELECT *,
 LEFT( table_comment,
 IF(INSTR(table_comment,'InnoDB free') = 0
@@ -543,7 +543,7 @@ user_comment	Users and global privileges
 Separator	-----------------------------------------------------
 DROP   USER testuser1@localhost;
 CREATE USER testuser1@localhost;
-GRANT SELECT ON db_datadict.* TO testuser1@localhost;
+GRANT SELECT ON test1.* TO testuser1@localhost;
 # Establish connection testuser1 (user=testuser1)
 SELECT *,
 LEFT( table_comment,
@@ -559,4 +559,4 @@ WHERE table_schema = 'mysql'
 ORDER BY table_schema,table_name;
 # Switch to connection default and close connection testuser1
 DROP USER testuser1@localhost;
-DROP DATABASE db_datadict;
+DROP DATABASE test1;
