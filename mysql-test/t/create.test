@@ -1171,6 +1171,11 @@ CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
 SHOW INDEX FROM t1;
 DROP TABLE t1;
 
+#
+# Bug#35924 DEFINER should be stored 'quoted' in I_S
+#
+--error ER_UNKNOWN_ERROR
+create user mysqltest_1@'test@test';
 
 #
 # Bug#38821: Assert table->auto_increment_field_not_null failed in open_table()

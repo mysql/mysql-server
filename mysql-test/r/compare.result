@@ -90,4 +90,9 @@ Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`a` AS `a`,(select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (concat(`test`.`t1`.`b`,`test`.`t1`.`c`) = concat(_latin1'0',`test`.`t2`.`a`,_latin1'01')))) AS `x` from `test`.`t2` order by `test`.`t2`.`a`
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a TIMESTAMP);
+INSERT INTO t1 VALUES (NOW()),(NOW()),(NOW());
+SELECT * FROM t1 WHERE a > '2008-01-01' AND a = '0000-00-00';
+a
+DROP TABLE t1;
 End of 5.0 tests
