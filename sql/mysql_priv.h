@@ -614,6 +614,7 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
 bool check_string_length(LEX_STRING *str,
                          const char *err_msg, uint max_length);
+bool check_host_name(LEX_STRING *str);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,

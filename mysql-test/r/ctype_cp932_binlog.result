@@ -40,6 +40,6 @@ IN ind DECIMAL(10,2))
 BEGIN
 INSERT INTO t4 VALUES (ins1, ins2, ind);
 END
-master-bin.000001	777	Query	1	988	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('ins1',_latin1 0x466F6F2773206120426172),  NAME_CONST('ins2',_cp932 0xED40ED41ED42),  NAME_CONST('ind',47.93))
-master-bin.000001	988	Query	1	1077	use `test`; DROP PROCEDURE bug18293
-master-bin.000001	1077	Query	1	1156	use `test`; DROP TABLE t4
+master-bin.000001	777	Query	1	1044	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('ins1',_latin1 0x466F6F2773206120426172 COLLATE 'latin1_swedish_ci'),  NAME_CONST('ins2',_cp932 0xED40ED41ED42 COLLATE 'cp932_japanese_ci'),  NAME_CONST('ind',47.93))
+master-bin.000001	1044	Query	1	1133	use `test`; DROP PROCEDURE bug18293
+master-bin.000001	1133	Query	1	1212	use `test`; DROP TABLE t4

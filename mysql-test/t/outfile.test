@@ -31,13 +31,13 @@ select load_file(concat(@tmpdir,"/outfile-test.3"));
 # the following should give errors
 
 disable_query_log;
---error 1086
+--error ER_FILE_EXISTS_ERROR
 eval select * into outfile "../tmp/outfile-test.1" from t1;
 
---error 1086
+--error ER_FILE_EXISTS_ERROR
 eval select * into dumpfile "../tmp/outfile-test.2" from t1;
 
---error 1086
+--error ER_FILE_EXISTS_ERROR
 eval select * into dumpfile "../tmp/outfile-test.3" from t1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
@@ -92,7 +92,7 @@ use test;
 # It should not be possible to write to a file outside of vardir
 create table t1(a int);
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---error 1290
+--error ER_OPTION_PREVENTS_STATEMENT
 eval select * into outfile "$MYSQL_TEST_DIR/outfile-test1" from t1;
 drop table t1;
 
@@ -105,7 +105,7 @@ create user user_1@localhost;
 grant all on mysqltest.* to user_1@localhost;
 connect (con28181_1,localhost,user_1,,mysqltest);
 
---error 1044
+--error ER_DBACCESS_DENIED_ERROR
 eval select schema_name
 into outfile "../tmp/outfile-test.4"
 fields terminated by ',' optionally enclosed by '"'
@@ -125,7 +125,7 @@ from information_schema.schemata
 where schema_name like 'mysqltest';
 
 connection default;
---exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
+--remove_file $MYSQLTEST_VARDIR/tmp/outfile-test.4
 use test;
 revoke all privileges on *.* from user_1@localhost;
 drop user user_1@localhost;

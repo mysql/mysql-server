@@ -21,4 +21,4 @@ select * from t2;
 
 # clean up
 drop table t1,t2;
-#--system rm $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
+#--remove_file $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog

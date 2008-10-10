@@ -3505,7 +3505,16 @@ sub run_testcase ($) {
   {
     mtr_timer_stop_all($glob_timers);
     mtr_report("\nServers started, exiting");
-    exit(0);
+    if ($glob_win32_perl)
+    {
+      #ActiveState perl hangs  when using normal exit, use  POSIX::_exit instead
+      use POSIX qw[ _exit ]; 
+      POSIX::_exit(0);
+    }
+    else
+    {
+      exit(0);
+    }
   }
 
   {

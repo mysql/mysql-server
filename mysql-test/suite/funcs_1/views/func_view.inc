@@ -157,10 +157,16 @@ DROP VIEW  IF EXISTS v1;
 
 --disable_query_log
 # Storage for the SELECTs to be used for the VIEW definition
+# Attention: my_select must be no too small because a statement like
+#    SELECT LOAD_FILE(< file in MYSQLTEST_VARDIR >)
+#    AS my_col,
+#    id FROM t1_values';
+#    might be a very long
+# Bug#38427 "Data too long" ... tests "<ENGINE>_func_view" fail
 CREATE TABLE t1_selects
 (
    id BIGINT AUTO_INCREMENT,
-   my_select VARCHAR(200) NOT NULL,
+   my_select VARCHAR(1000) NOT NULL,
    disable_result ENUM('Yes','No') NOT NULL default 'No',
    PRIMARY KEY(id),
    UNIQUE (my_select)
