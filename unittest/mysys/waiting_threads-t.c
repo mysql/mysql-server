@@ -54,7 +54,7 @@ pthread_handler_t test_wt(void *arg)
 
   my_rnd_init(&rand, (ulong)(intptr)&m, id);
   if (kill_strategy == YOUNGEST)
-    thds[id].thd.weight= ~my_getsystime();
+    thds[id].thd.weight= (ulong volatile)~my_getsystime();
   if (kill_strategy == LOCKS)
     thds[id].thd.weight= 0;
 
@@ -104,7 +104,7 @@ retry:
       if (kill_strategy == LOCKS)
         thds[id].thd.weight= 0;
       if (kill_strategy == YOUNGEST)
-        thds[id].thd.weight= ~my_getsystime();
+        thds[id].thd.weight= (ulong volatile)~my_getsystime();
     }
     else if (kill_strategy == LOCKS)
       thds[id].thd.weight++;

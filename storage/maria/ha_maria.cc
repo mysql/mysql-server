@@ -2223,7 +2223,8 @@ int ha_maria::extra(enum ha_extra_function operation)
        operation == HA_EXTRA_PREPARE_FOR_RENAME))
   {
     THD *thd= table->in_use;
-    file->trn= THD_TRN;
+    TRN *trn= THD_TRN;
+    _ma_set_trn_for_table(file, trn);
   }
   return maria_extra(file, operation, 0);
 }
@@ -2296,7 +2297,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
           trans_register_ha(thd, TRUE, maria_hton);
       }
-      file->trn= trn;
+      _ma_set_trn_for_table(file, trn);
       if (!trnman_increment_locked_tables(trn))
       {
         trans_register_ha(thd, FALSE, maria_hton);
@@ -2352,7 +2353,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       if (_ma_reenable_logging_for_table(file, TRUE))
         DBUG_RETURN(1);
       /** @todo zero file->trn also in commit and rollback */
-      file->trn= 0;                             // Safety
+      _ma_set_trn_for_table(file, NULL);        // Safety
       /*
         Ensure that file->state points to the current number of rows. This
         is needed if someone calls maria_info() without first doing an
@@ -2409,7 +2410,7 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
       different ha_maria than 'this' then this->file->trn is a stale
       pointer. We fix it:
     */
-    file->trn= trn;
+    _ma_set_trn_for_table(file, trn);
     /*
       As external_lock() was already called, don't increment locked_tables.
       Note that we call the function below possibly several times when
@@ -2501,7 +2502,7 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
         MARIA_HA *handler= ((ha_maria*) table->file)->file;
         if (handler->s->base.born_transactional)
         {
-          handler->trn= trn;
+          _ma_set_trn_for_table(handler, trn);
           if (handler->s->lock.get_status)
           {
             if (_ma_setup_live_state(handler))
@@ -2605,10 +2606,9 @@ enum row_type ha_maria::get_row_type() const
 }
 
 
-static enum data_file_type maria_row_type(HA_CREATE_INFO *info,
-                                          my_bool ignore_transactional)
+static enum data_file_type maria_row_type(HA_CREATE_INFO *info)
 {
-  if (info->transactional == HA_CHOICE_YES && ! ignore_transactional)
+  if (info->transactional == HA_CHOICE_YES)
     return BLOCK_RECORD;
   switch (info->row_type) {
   case ROW_TYPE_FIXED:   return STATIC_RECORD;
@@ -2641,7 +2641,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     }
   }
   /* Note: BLOCK_RECORD is used if table is transactional */
-  row_type= maria_row_type(ha_create_info, 0);
+  row_type= maria_row_type(ha_create_info);
   if (ha_create_info->transactional == HA_CHOICE_YES &&
       ha_create_info->row_type != ROW_TYPE_PAGE &&
       ha_create_info->row_type != ROW_TYPE_NOT_USED &&
@@ -2825,15 +2825,15 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   if (create_info->auto_increment_value != stats.auto_increment_value ||
       create_info->data_file_name != data_file_name ||
       create_info->index_file_name != index_file_name ||
-      (maria_row_type(create_info,  1) != data_file_type &&
+      (maria_row_type(create_info) != data_file_type &&
        create_info->row_type != ROW_TYPE_DEFAULT) ||
       table_changes == IS_EQUAL_NO ||
       table_changes & IS_EQUAL_PACK_LENGTH) // Not implemented yet
     return COMPATIBLE_DATA_NO;
 
-  if ((options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
+  if ((options & (HA_OPTION_CHECKSUM |
                   HA_OPTION_DELAY_KEY_WRITE)) !=
-      (create_info->table_options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
+      (create_info->table_options & (HA_OPTION_CHECKSUM |
                               HA_OPTION_DELAY_KEY_WRITE)))
     return COMPATIBLE_DATA_NO;
   return COMPATIBLE_DATA_YES;
