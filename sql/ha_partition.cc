@@ -239,7 +239,8 @@ void ha_partition::init_handler_variables()
   m_rec_length= 0;
   m_last_part= 0;
   m_rec0= 0;
-  m_curr_key_info= 0;
+  m_curr_key_info[0]= NULL;
+  m_curr_key_info[1]= NULL;
   /*
     this allows blackhole to work properly
   */
@@ -3604,11 +3605,24 @@ int ha_partition::index_init(uint inx, bool sorted)
   handler **file;
   DBUG_ENTER("ha_partition::index_init");
 
+  DBUG_PRINT("info", ("inx %u sorted %u", inx, sorted));
   active_index= inx;
   m_part_spec.start_part= NO_CURRENT_PART_ID;
   m_start_key.length= 0;
   m_ordered= sorted;
-  m_curr_key_info= table->key_info+inx;
+  m_curr_key_info[0]= table->key_info+inx;
+  if (m_pkey_is_clustered && table->s->primary_key != MAX_KEY)
+  {
+    /*
+      if PK is clustered, then the key cmp must use the pk to
+      differentiate between equal key in given index.
+    */
+    DBUG_PRINT("info", ("Clustered pk, using pk as secondary cmp"));
+    m_curr_key_info[1]= table->key_info+table->s->primary_key;
+    m_curr_key_info[2]= NULL;
+  }
+  else
+    m_curr_key_info[1]= NULL;
   /*
     Some handlers only read fields as specified by the bitmap for the
     read set. For partitioned handlers we always require that the
@@ -3633,9 +3647,13 @@ int ha_partition::index_init(uint inx, bool sorted)
       TODO: handle COUNT(*) queries via unordered scan.
     */
     uint i;
-    for (i= 0; i < m_curr_key_info->key_parts; i++)
-      bitmap_set_bit(table->read_set,
-                     m_curr_key_info->key_part[i].field->field_index);
+    KEY **key_info= m_curr_key_info;
+    do
+    {
+      for (i= 0; i < (*key_info)->key_parts; i++)
+        bitmap_set_bit(table->read_set,
+                       (*key_info)->key_part[i].field->field_index);
+    } while (*(++key_info));
   }
   file= m_file;
   do
@@ -3692,10 +3710,10 @@ int ha_partition::index_end()
   Read one record in an index scan and start an index scan
 
   SYNOPSIS
-    index_read()
+    index_read_map()
     buf                    Read row in MySQL Row Format
     key                    Key parts in consecutive order
-    key_len                Total length of key parts
+    keypart_map            Which part of key is used
     find_flag              What type of key condition is used
 
   RETURN VALUE
@@ -3703,12 +3721,12 @@ int ha_partition::index_end()
     0                  Success
 
   DESCRIPTION
-    index_read starts a new index scan using a start key. The MySQL Server
+    index_read_map starts a new index scan using a start key. The MySQL Server
     will check the end key on its own. Thus to function properly the
     partitioned handler need to ensure that it delivers records in the sort
     order of the MySQL Server.
-    index_read can be restarted without calling index_end on the previous
-    index scan and without calling index_init. In this case the index_read
+    index_read_map can be restarted without calling index_end on the previous
+    index scan and without calling index_init. In this case the index_read_map
     is on the same index as the previous index_scan. This is particularly
     used in conjuntion with multi read ranges.
 */
@@ -3765,11 +3783,15 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
   DBUG_ENTER("ha_partition::common_index_read");
   LINT_INIT(key_len); /* used if have_start_key==TRUE */
 
+  DBUG_PRINT("info", ("m_ordered %u m_ordered_scan_ong %u have_start_key %u",
+                      m_ordered, m_ordered_scan_ongoing, have_start_key));
+
   if (have_start_key)
   {
     m_start_key.length= key_len= calculate_key_len(table, active_index, 
                                                    m_start_key.key,
                                                    m_start_key.keypart_map);
+    DBUG_ASSERT(key_len);
   }
   if ((error= partition_scan_set_up(buf, have_start_key)))
   {
@@ -3784,9 +3806,12 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
     reverse_order= TRUE;
     m_ordered_scan_ongoing= TRUE;
   }
+  DBUG_PRINT("info", ("m_ordered %u m_o_scan_ong %u have_start_key %u",
+                      m_ordered, m_ordered_scan_ongoing, have_start_key));
   if (!m_ordered_scan_ongoing ||
       (have_start_key && m_start_key.flag == HA_READ_KEY_EXACT &&
-       (key_len >= m_curr_key_info->key_length || key_len == 0)))
+       !m_pkey_is_clustered &&
+       key_len >= m_curr_key_info[0]->key_length))
    {
     /*
       We use unordered index scan either when read_range is used and flag
@@ -3799,6 +3824,8 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
       Need to set unordered scan ongoing since we can come here even when
       it isn't set.
     */
+    DBUG_PRINT("info", ("key_len %lu (%lu), doing unordered scan",
+                        key_len, m_curr_key_info[0]->key_length));
     m_ordered_scan_ongoing= FALSE;
     error= handle_unordered_scan_next_partition(buf);
   }
@@ -3900,7 +3927,7 @@ int ha_partition::common_first_last(uchar *buf)
   Read last using key
 
   SYNOPSIS
-    index_read_last()
+    index_read_last_map()
     buf                   Read row in MySQL Row Format
     key                   Key
     keypart_map           Which part of key is used
@@ -4057,7 +4084,7 @@ int ha_partition::read_range_first(const key_range *start_key,
        (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
   }
 
-  range_key_part= m_curr_key_info->key_part;
+  range_key_part= m_curr_key_info[0]->key_part;
   if (start_key)
     m_start_key= *start_key;
   else
