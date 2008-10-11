@@ -594,6 +594,56 @@ master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
 master-bin.000001	106	Query	1	227	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
 master-bin.000001	227	Query	1	351	use `test`; insert into t1 values (9999999999999999,14632475938453979136)
 master-bin.000001	351	Query	1	427	use `test`; drop table t1
+reset master;
+CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+USE bug39182;
+CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8_unicode_ci)
+DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE s1 VARCHAR(255);
+SET s1= "test";
+CREATE TEMPORARY TABLE tmp1
+SELECT * FROM t1 WHERE a LIKE CONCAT("%", s1, "%");
+SELECT 
+COLLATION(NAME_CONST('s1', _utf8'test')) c1,
+COLLATION(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) c2,
+COLLATION(s1) c3,
+COERCIBILITY(NAME_CONST('s1', _utf8'test')) d1,
+COERCIBILITY(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) d2,
+COERCIBILITY(s1) d3;
+DROP TEMPORARY TABLE tmp1;
+END//
+CALL p1();
+c1	c2	c3	d1	d2	d3
+utf8_general_ci	utf8_unicode_ci	utf8_unicode_ci	2	2	2
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci
+master-bin.000001	#	Query	#	#	use `bug39182`; CREATE TABLE t1 (a VARCHAR(255) COLLATE utf8_unicode_ci)
+DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+master-bin.000001	#	Query	#	#	use `bug39182`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+BEGIN
+DECLARE s1 VARCHAR(255);
+SET s1= "test";
+CREATE TEMPORARY TABLE tmp1
+SELECT * FROM t1 WHERE a LIKE CONCAT("%", s1, "%");
+SELECT 
+COLLATION(NAME_CONST('s1', _utf8'test')) c1,
+COLLATION(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) c2,
+COLLATION(s1) c3,
+COERCIBILITY(NAME_CONST('s1', _utf8'test')) d1,
+COERCIBILITY(NAME_CONST('s1', _utf8'test' COLLATE utf8_unicode_ci)) d2,
+COERCIBILITY(s1) d3;
+DROP TEMPORARY TABLE tmp1;
+END
+master-bin.000001	#	Query	#	#	use `bug39182`; CREATE TEMPORARY TABLE tmp1
+SELECT * FROM t1 WHERE a LIKE CONCAT("%",  NAME_CONST('s1',_utf8'test' COLLATE 'utf8_unicode_ci'), "%")
+master-bin.000001	#	Query	#	#	use `bug39182`; DROP TEMPORARY TABLE tmp1
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP DATABASE bug39182;
+USE test;
 End of 5.0 tests
 reset master;
 create table t1 (id tinyint auto_increment primary key);

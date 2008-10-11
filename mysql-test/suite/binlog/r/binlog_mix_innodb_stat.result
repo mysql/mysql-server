@@ -1,0 +1,25 @@
+flush status;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	0
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	0
+drop table if exists t1;
+create table t1 (a int) engine=innodb;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	1
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+begin;
+delete from t1;
+commit;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	2
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+drop table t1;

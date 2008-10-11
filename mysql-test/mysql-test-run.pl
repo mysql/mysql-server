@@ -3601,7 +3601,16 @@ sub run_testcase ($) {
   {
     mtr_timer_stop_all($glob_timers);
     mtr_report("\nServers started, exiting");
-    exit(0);
+    if ($glob_win32_perl)
+    {
+      #ActiveState perl hangs  when using normal exit, use  POSIX::_exit instead
+      use POSIX qw[ _exit ]; 
+      POSIX::_exit(0);
+    }
+    else
+    {
+      exit(0);
+    }
   }
 
   {
@@ -4357,19 +4366,10 @@ sub run_testcase_need_master_restart($)
   elsif (! mtr_same_opts($master->[0]->{'start_opts'},
                          $tinfo->{'master_opt'}) )
   {
-    # Chech that diff is binlog format only
-    my $diff_opts= mtr_diff_opts($master->[0]->{'start_opts'},$tinfo->{'master_opt'});
-    if (scalar(@$diff_opts) eq 2) 
-    {
-      $do_restart= 1 unless ($diff_opts->[0] =~/^--binlog-format=/ and $diff_opts->[1] =~/^--binlog-format=/);
-    }
-    else
-    {
-      $do_restart= 1;
-      mtr_verbose("Restart master: running with different options '" .
-	         join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
+    $do_restart= 1;
+    mtr_verbose("Restart master: running with different options '" .
+		join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
 	  	join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
-    }
   }
   elsif( ! $master->[0]->{'pid'} )
   {
