@@ -699,6 +699,7 @@ xdes_get_descriptor_with_space_hdr(
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains_page(mtr, sp_header, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains_page(mtr, sp_header, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(page_offset(sp_header) == FSP_HEADER_OFFSET);
 	/* Read free limit and space size */
 	limit = mach_read_from_4(sp_header + FSP_FREE_LIMIT);
 	size  = mach_read_from_4(sp_header + FSP_SIZE);
@@ -1311,6 +1312,7 @@ fsp_fill_free_list(
 	mtr_t	ibuf_mtr;
 
 	ut_ad(header && mtr);
+	ut_ad(page_offset(header) == FSP_HEADER_OFFSET);
 
 	/* Check if we can fill free list from above the free list limit */
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
@@ -1860,6 +1862,8 @@ fsp_alloc_seg_inode_page(
 	ulint		zip_size;
 	ulint		i;
 
+	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
+
 	space = page_get_space_id(page_align(space_header));
 	zip_size = dict_table_flags_to_zip_size(
 		mach_read_from_4(FSP_SPACE_FLAGS + space_header));
@@ -1912,6 +1916,8 @@ fsp_alloc_seg_inode(
 	ibool		success;
 	ulint		zip_size;
 	ulint		n;
+
+	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
 
 	if (flst_get_len(space_header + FSP_SEG_INODES_FREE, mtr) == 0) {
 		/* Allocate a new segment inode page */
@@ -2392,6 +2398,7 @@ fseg_fill_free_list(
 	ulint	used;
 
 	ut_ad(inode && mtr);
+	ut_ad(!((page_offset(inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
 
 	reserved = fseg_n_reserved_pages_low(inode, &used, mtr);
 
@@ -2451,6 +2458,8 @@ fseg_alloc_free_extent(
 	xdes_t*		descr;
 	dulint		seg_id;
 	fil_addr_t	first;
+
+	ut_ad(!((page_offset(inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
 
 	if (flst_get_len(inode + FSEG_FREE, mtr) > 0) {
 		/* Segment free list is not empty, allocate from it */
@@ -2521,6 +2530,7 @@ fseg_alloc_free_page_low(
 	ut_ad((direction >= FSP_UP) && (direction <= FSP_NO_DIR));
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
+	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
 	seg_id = mtr_read_dulint(seg_inode + FSEG_ID, mtr);
 
 	ut_ad(!ut_dulint_is_zero(seg_id));
@@ -3110,6 +3120,7 @@ fseg_mark_page_used(
 	ulint	not_full_n_used;
 
 	ut_ad(seg_inode && mtr);
+	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
 
 	descr = xdes_get_descriptor(space, zip_size, page, mtr);
 
@@ -3172,6 +3183,7 @@ fseg_free_page_low(
 	ut_ad(seg_inode && mtr);
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
+	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
 
 	/* Drop search system page hash index if the page is found in
 	the pool and is hashed */

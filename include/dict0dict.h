@@ -172,8 +172,7 @@ dict_table_autoinc_lock(
 /*====================*/
 	dict_table_t*	table);	/* in/out: table */
 /************************************************************************
-Initializes the autoinc counter. It is not an error to initialize an already
-initialized counter. */
+Unconditionally set the autoinc counter. */
 UNIV_INTERN
 void
 dict_table_autoinc_initialize(
@@ -194,8 +193,8 @@ Updates the autoinc counter if the value supplied is equal or bigger than the
 current value. If not inited, does nothing. */
 UNIV_INTERN
 void
-dict_table_autoinc_update(
-/*======================*/
+dict_table_autoinc_update_if_greater(
+/*=================================*/
 
 	dict_table_t*	table,	/* in/out: table */
 	ib_uint64_t	value);	/* in: value which was assigned to a row */

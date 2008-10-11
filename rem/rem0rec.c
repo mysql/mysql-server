@@ -727,52 +727,31 @@ rec_get_nth_field_offs_old(
 }
 
 /**************************************************************
-Determines the size of a data tuple in ROW_FORMAT=COMPACT. */
+Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT. */
 UNIV_INTERN
 ulint
-rec_get_converted_size_comp(
-/*========================*/
+rec_get_converted_size_comp_prefix(
+/*===============================*/
 					/* out: total size */
 	const dict_index_t*	index,	/* in: record descriptor;
 					dict_table_is_comp() is
 					assumed to hold, even if
 					it does not */
-	ulint			status,	/* in: status bits of the record */
 	const dfield_t*		fields,	/* in: array of data fields */
 	ulint			n_fields,/* in: number of data fields */
 	ulint*			extra)	/* out: extra size */
 {
-	ulint		extra_size;
-	ulint		data_size;
-	ulint		i;
+	ulint	extra_size;
+	ulint	data_size;
+	ulint	i;
 	ut_ad(index);
 	ut_ad(fields);
 	ut_ad(n_fields > 0);
-
-	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
-	case REC_STATUS_ORDINARY:
-		ut_ad(n_fields == dict_index_get_n_fields(index));
-		data_size = 0;
-		break;
-	case REC_STATUS_NODE_PTR:
-		n_fields--;
-		ut_ad(n_fields == dict_index_get_n_unique_in_tree(index));
-		ut_ad(dfield_get_len(&fields[n_fields]) == 4);
-		data_size = 4; /* child page number */
-		break;
-	case REC_STATUS_INFIMUM:
-	case REC_STATUS_SUPREMUM:
-		/* infimum or supremum record, 8 data bytes */
-		extra_size = REC_N_NEW_EXTRA_BYTES;
-		data_size = 8;
-		goto func_exit;
-	default:
-		ut_error;
-		return(ULINT_UNDEFINED);
-	}
+	ut_ad(n_fields <= dict_index_get_n_fields(index));
 
 	extra_size = REC_N_NEW_EXTRA_BYTES
 		+ UT_BITS_IN_BYTES(index->n_nullable);
+	data_size = 0;
 
 	/* read the lengths of fields 0..n */
 	for (i = 0; i < n_fields; i++) {
@@ -815,12 +794,59 @@ rec_get_converted_size_comp(
 		data_size += len;
 	}
 
-func_exit:
 	if (UNIV_LIKELY_NULL(extra)) {
 		*extra = extra_size;
 	}
 
 	return(extra_size + data_size);
+}
+
+/**************************************************************
+Determines the size of a data tuple in ROW_FORMAT=COMPACT. */
+UNIV_INTERN
+ulint
+rec_get_converted_size_comp(
+/*========================*/
+					/* out: total size */
+	const dict_index_t*	index,	/* in: record descriptor;
+					dict_table_is_comp() is
+					assumed to hold, even if
+					it does not */
+	ulint			status,	/* in: status bits of the record */
+	const dfield_t*		fields,	/* in: array of data fields */
+	ulint			n_fields,/* in: number of data fields */
+	ulint*			extra)	/* out: extra size */
+{
+	ulint	size;
+	ut_ad(index);
+	ut_ad(fields);
+	ut_ad(n_fields > 0);
+
+	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
+	case REC_STATUS_ORDINARY:
+		ut_ad(n_fields == dict_index_get_n_fields(index));
+		size = 0;
+		break;
+	case REC_STATUS_NODE_PTR:
+		n_fields--;
+		ut_ad(n_fields == dict_index_get_n_unique_in_tree(index));
+		ut_ad(dfield_get_len(&fields[n_fields]) == REC_NODE_PTR_SIZE);
+		size = REC_NODE_PTR_SIZE; /* child page number */
+		break;
+	case REC_STATUS_INFIMUM:
+	case REC_STATUS_SUPREMUM:
+		/* infimum or supremum record, 8 data bytes */
+		if (UNIV_LIKELY_NULL(extra)) {
+			*extra = REC_N_NEW_EXTRA_BYTES;
+		}
+		return(REC_N_NEW_EXTRA_BYTES + 8);
+	default:
+		ut_error;
+		return(ULINT_UNDEFINED);
+	}
+
+	return(size + rec_get_converted_size_comp_prefix(index, fields,
+							 n_fields, extra));
 }
 
 /***************************************************************
