@@ -172,6 +172,7 @@ private:
 
 protected:
   static const Uint32 SEND_IOVEC_SIZE = 64;
+  Uint32 m_os_max_iovec;
   Uint32 m_send_iovec_used;
   struct iovec m_send_iovec[SEND_IOVEC_SIZE];
 
