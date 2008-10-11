@@ -406,7 +406,7 @@ insert into t2 select * from t1;
 insert into t1 select NULL from t2;
 select count(*) from t1;
 select count(*) from t1 where a >= 4;
-drop table t1;
+drop table t1, t2;
 
 #
 # Test problems with small rows and row_type=page 
@@ -460,6 +460,24 @@ create table t1(a int) engine=maria transactional=1;
 select CREATE_OPTIONS from information_schema.TABLES where
 TABLE_SCHEMA='test' and TABLE_NAME='t1';
 drop table t1;
+
+#
+# BUG#39697 - Maria: hang when failing to insert due to UNIQUE
+#
+create table t1 (a int, unique(a)) engine=maria transactional=1;
+insert into t1 values(1);
+--error 1062
+insert into t1 values(2),(2);
+create table t2 (a int, unique(a)) engine=maria transactional=0 row_format=dynamic;
+insert into t2 values(1);
+--error 1062
+insert into t2 values(2),(2);
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root;
+insert into t1 values(3);
+insert into t2 values(3);
+connection default;
+drop table t1, t2;
 
 # End of 5.1 tests
 

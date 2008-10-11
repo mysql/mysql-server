@@ -194,8 +194,23 @@ int maria_write(MARIA_HA *info, uchar *record)
             Also, filter out non-thread maria use, and table modified in
             the same transaction.
           */
-          if (!local_lock_tree || info->dup_key_trid == info->trn->trid)
+          if (!local_lock_tree)
             goto err;
+          if (info->dup_key_trid == info->trn->trid)
+          {
+	    rw_unlock(&keyinfo->root_lock);
+            goto err;
+          }
+          /* Different TrIDs: table must be transactional */
+          DBUG_ASSERT(share->base.born_transactional);
+          /*
+            If transactions are disabled, and dup_key_trid is different from
+            our TrID, it must be ALTER TABLE with dup_key_trid==0 (no
+            transaction). ALTER TABLE does have MARIA_HA::TRN not dummy but
+            puts TrID=0 in rows/keys.
+          */
+          DBUG_ASSERT(share->now_transactional ||
+                      (info->dup_key_trid == 0));
           blocker= trnman_trid_to_trn(info->trn, info->dup_key_trid);
           /*
             if blocker TRN was not found, it means that the conflicting
