@@ -3333,8 +3333,8 @@ handler::ha_create_handler_files(const char *name, const char *old_name,
 int
 handler::ha_change_partitions(HA_CREATE_INFO *create_info,
                      const char *path,
-                     ulonglong *copied,
-                     ulonglong *deleted,
+                     ulonglong * const copied,
+                     ulonglong * const deleted,
                      const uchar *pack_frm_data,
                      size_t pack_frm_len)
 {
