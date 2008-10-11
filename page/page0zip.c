@@ -77,6 +77,8 @@ page_zip_fail_func(
 	int	res;
 	va_list	ap;
 
+	ut_print_timestamp(stderr);
+	fputs("  InnoDB: ", stderr);
 	va_start(ap, fmt);
 	res = vfprintf(stderr, fmt, ap);
 	va_end(ap);
@@ -2951,6 +2953,39 @@ err_exit:
 }
 
 #ifdef UNIV_ZIP_DEBUG
+/**************************************************************************
+Dump a block of memory on the standard error stream. */
+static
+void
+page_zip_hexdump_func(
+/*==================*/
+	const char*	name,	/* in: name of the data structure */
+	const void*	buf,	/* in: data */
+	ulint		size)	/* in: length of the data, in bytes */
+{
+	const byte*	s	= buf;
+	ulint		addr;
+	const ulint	width	= 32; /* bytes per line */
+
+	fprintf(stderr, "%s:\n", name);
+
+	for (addr = 0; addr < size; addr += width) {
+		ulint	i;
+
+		fprintf(stderr, "%04lx ", (ulong) addr);
+
+		i = ut_min(width, size - addr);
+
+		while (i--) {
+			fprintf(stderr, "%02x", *s++);
+		}
+
+		putc('\n', stderr);
+	}
+}
+
+#define page_zip_hexdump(buf, size) page_zip_hexdump_func(#buf, buf, size)
+
 /* Flag: make page_zip_validate() compare page headers only */
 UNIV_INTERN ibool	page_zip_validate_header_only = FALSE;
 
@@ -2958,11 +2993,13 @@ UNIV_INTERN ibool	page_zip_validate_header_only = FALSE;
 Check that the compressed and decompressed pages match. */
 UNIV_INTERN
 ibool
-page_zip_validate(
-/*==============*/
+page_zip_validate_low(
+/*==================*/
 					/* out: TRUE if valid, FALSE if not */
 	const page_zip_des_t*	page_zip,/* in: compressed page */
-	const page_t*		page)	/* in: uncompressed page */
+	const page_t*		page,	/* in: uncompressed page */
+	ibool			sloppy)	/* in: FALSE=strict,
+					TRUE=ignore the MIN_REC_FLAG */
 {
 	page_zip_des_t	temp_page_zip;
 	byte*		temp_page_buf;
@@ -2975,6 +3012,9 @@ page_zip_validate(
 	    || memcmp(page_zip->data + FIL_PAGE_DATA, page + FIL_PAGE_DATA,
 		      PAGE_DATA - FIL_PAGE_DATA)) {
 		page_zip_fail(("page_zip_validate: page header\n"));
+		page_zip_hexdump(page_zip, sizeof *page_zip);
+		page_zip_hexdump(page_zip->data, page_zip_get_size(page_zip));
+		page_zip_hexdump(page, UNIV_PAGE_SIZE);
 		return(FALSE);
 	}
 
@@ -2991,7 +3031,9 @@ page_zip_validate(
 
 #ifdef UNIV_DEBUG_VALGRIND
 	/* Get detailed information on the valid bits in case the
-	UNIV_MEM_ASSERT_RW() checks fail. */
+	UNIV_MEM_ASSERT_RW() checks fail.  The v-bits of page[],
+	page_zip->data[] or page_zip could be viewed at temp_page[] or
+	temp_page_zip in a debugger when running valgrind --db-attach. */
 	VALGRIND_GET_VBITS(page, temp_page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 	VALGRIND_GET_VBITS(page_zip, &temp_page_zip, sizeof temp_page_zip);
@@ -3032,13 +3074,70 @@ page_zip_validate(
 	}
 	if (memcmp(page + PAGE_HEADER, temp_page + PAGE_HEADER,
 		   UNIV_PAGE_SIZE - PAGE_HEADER - FIL_PAGE_DATA_END)) {
+
+		/* In crash recovery, the "minimum record" flag may be
+		set incorrectly until the mini-transaction is
+		committed.  Let us tolerate that difference when we
+		are performing a sloppy validation. */
+
+		if (sloppy) {
+			byte	info_bits_diff;
+			ulint	offset
+				= rec_get_next_offs(page + PAGE_NEW_INFIMUM,
+						    TRUE);
+			ut_a(offset >= PAGE_NEW_SUPREMUM);
+			offset -= 5 /* REC_NEW_INFO_BITS */;
+
+			info_bits_diff = page[offset] ^ temp_page[offset];
+
+			if (info_bits_diff == REC_INFO_MIN_REC_FLAG) {
+				temp_page[offset] = page[offset];
+
+				if (!memcmp(page + PAGE_HEADER,
+					    temp_page + PAGE_HEADER,
+					    UNIV_PAGE_SIZE - PAGE_HEADER
+					    - FIL_PAGE_DATA_END)) {
+
+					/* Only the minimum record flag
+					differed.  Let us ignore it. */
+					page_zip_fail(("page_zip_validate: "
+						       "min_rec_flag "
+						       "(ignored, "
+						       "%lu,%lu,0x%02lx)\n",
+						       page_get_space_id(page),
+						       page_get_page_no(page),
+						       (ulong) page[offset]));
+					goto func_exit;
+				}
+			}
+		}
 		page_zip_fail(("page_zip_validate: content\n"));
 		valid = FALSE;
 	}
 
 func_exit:
+	if (!valid) {
+		page_zip_hexdump(page_zip, sizeof *page_zip);
+		page_zip_hexdump(page_zip->data, page_zip_get_size(page_zip));
+		page_zip_hexdump(page, UNIV_PAGE_SIZE);
+		page_zip_hexdump(temp_page, UNIV_PAGE_SIZE);
+	}
 	ut_free(temp_page_buf);
 	return(valid);
+}
+
+/**************************************************************************
+Check that the compressed and decompressed pages match. */
+UNIV_INTERN
+ibool
+page_zip_validate(
+/*==============*/
+					/* out: TRUE if valid, FALSE if not */
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	const page_t*		page)	/* in: uncompressed page */
+{
+	return(page_zip_validate_low(page_zip, page,
+				     recv_recovery_is_on()));
 }
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -4302,11 +4401,13 @@ page_zip_reorganize(
 }
 
 /**************************************************************************
-Copy a page byte for byte, except for the file page header and trailer. */
+Copy the records of a page byte for byte.  Do not copy the page header
+or trailer, except those B-tree header fields that are directly
+related to the storage of records. */
 UNIV_INTERN
 void
-page_zip_copy(
-/*==========*/
+page_zip_copy_recs(
+/*===============*/
 	page_zip_des_t*		page_zip,	/* out: copy of src_zip
 						(n_blobs, m_start, m_end,
 						m_nonempty, data[0..size-1]) */
@@ -4319,7 +4420,11 @@ page_zip_copy(
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains_page(mtr, (page_t*) src, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(src_zip, src));
+	/* The B-tree operations that call this function may set
+	FIL_PAGE_PREV or PAGE_LEVEL, causing a temporary min_rec_flag
+	mismatch.  A strict page_zip_validate() will be executed later
+	during the B-tree operations. */
+	ut_a(page_zip_validate_low(src_zip, src, TRUE));
 #endif /* UNIV_ZIP_DEBUG */
 	ut_a(page_zip_get_size(page_zip) == page_zip_get_size(src_zip));
 	if (UNIV_UNLIKELY(src_zip->n_blobs)) {
@@ -4332,14 +4437,24 @@ page_zip_copy(
 	UNIV_MEM_ASSERT_RW(src, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(src_zip->data, page_zip_get_size(page_zip));
 
-	/* Skip the file page header and trailer. */
-	memcpy(page + FIL_PAGE_DATA, src + FIL_PAGE_DATA,
-	       UNIV_PAGE_SIZE - FIL_PAGE_DATA
-	       - FIL_PAGE_DATA_END);
-	memcpy(page_zip->data + FIL_PAGE_DATA,
-	       src_zip->data + FIL_PAGE_DATA,
-	       page_zip_get_size(page_zip) - FIL_PAGE_DATA);
+	/* Copy those B-tree page header fields that are related to
+	the records stored in the page.  Do not copy the field
+	PAGE_MAX_TRX_ID.  Skip the rest of the page header and
+	trailer.  On the compressed page, there is no trailer. */
+#if PAGE_MAX_TRX_ID + 8 != PAGE_HEADER_PRIV_END
+# error "PAGE_MAX_TRX_ID + 8 != PAGE_HEADER_PRIV_END"
+#endif
+	memcpy(PAGE_HEADER + page, PAGE_HEADER + src,
+	       PAGE_MAX_TRX_ID);
+	memcpy(PAGE_DATA + page, PAGE_DATA + src,
+	       UNIV_PAGE_SIZE - PAGE_DATA - FIL_PAGE_DATA_END);
+	memcpy(PAGE_HEADER + page_zip->data, PAGE_HEADER + src_zip->data,
+	       PAGE_MAX_TRX_ID);
+	memcpy(PAGE_DATA + page_zip->data, PAGE_DATA + src_zip->data,
+	       page_zip_get_size(page_zip) - PAGE_DATA);
 
+	/* Copy all fields of src_zip to page_zip, except the pointer
+	to the compressed data page. */
 	{
 		page_zip_t*	data = page_zip->data;
 		memcpy(page_zip, src_zip, sizeof *page_zip);

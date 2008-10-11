@@ -411,10 +411,12 @@ row_truncate_table_for_mysql(
 	dict_table_t*	table,	/* in: table handle */
 	trx_t*		trx);	/* in: transaction handle */
 /*************************************************************************
-Drops a table for MySQL. If the name of the dropped table ends in
+Drops a table for MySQL.  If the name of the dropped table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also stop the printing of monitor
-output by the master thread. */
+output by the master thread.  If the data dictionary was not already locked
+by the transaction, the transaction will be committed.  Otherwise, the
+data dictionary will remain locked. */
 UNIV_INTERN
 int
 row_drop_table_for_mysql(
@@ -424,20 +426,6 @@ row_drop_table_for_mysql(
 	trx_t*		trx,	/* in: transaction handle */
 	ibool		drop_db);/* in: TRUE=dropping whole database */
 
-/*************************************************************************
-Drops a table for MySQL but does not commit the transaction.  If the
-name of the dropped table ends in one of "innodb_monitor",
-"innodb_lock_monitor", "innodb_tablespace_monitor",
-"innodb_table_monitor", then this will also stop the printing of
-monitor output by the master thread. */
-UNIV_INTERN
-int
-row_drop_table_for_mysql_no_commit(
-/*===============================*/
-				/* out: error code or DB_SUCCESS */
-	const char*	name,	/* in: table name */
-	trx_t*		trx,	/* in: transaction handle */
-	ibool		drop_db);/* in: TRUE=dropping whole database */
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
@@ -708,7 +696,16 @@ struct row_prebuilt_struct {
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/* memory heap where a previous
 					version is built in consistent read */
-	ulonglong	last_value;	/* last value of AUTO-INC interval */
+	/*----------------------*/
+	ulonglong	autoinc_last_value;/* last value of AUTO-INC interval */
+	ulonglong	autoinc_increment;/* The increment step of the auto 
+					increment column. Value must be
+					greater than or equal to 1. Required to
+					calculate the next value */
+	ulonglong	autoinc_offset; /* The offset passed to
+					get_auto_increment() by MySQL. Required
+					to calculate the next value */
+	/*----------------------*/
 	UT_LIST_NODE_T(row_prebuilt_t)	prebuilts;
 					/* list node of table->prebuilts */
 	ulint		magic_n2;	/* this should be the same as

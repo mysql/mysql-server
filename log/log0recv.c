@@ -1341,6 +1341,16 @@ recv_recover_page(
 		recv = UT_LIST_GET_NEXT(rec_list, recv);
 	}
 
+#ifdef UNIV_ZIP_DEBUG
+	if (fil_page_get_type(page) == FIL_PAGE_INDEX) {
+		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
+
+		if (page_zip) {
+			ut_a(page_zip_validate_low(page_zip, page, FALSE));
+		}
+	}
+#endif /* UNIV_ZIP_DEBUG */
+
 	mutex_enter(&(recv_sys->mutex));
 
 	if (recv_max_page_lsn < page_lsn) {

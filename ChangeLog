@@ -1,3 +1,55 @@
+2008-10-08	The InnoDB Team
+
+	* dict/dict0crea.c, trx/trx0roll.c, include/row0mysql.h,
+	row/row0merge.c, row/row0mysql.c: When dropping a table, hold the
+	data dictionary latch until the transaction has been committed.
+	The data dictionary latch is supposed to prevent lock waits and
+	deadlocks in the data dictionary tables.  Due to this bug,
+	DROP TABLE could cause a deadlock or hang.  Note that because of
+	Bug#33650 and Bug#39833, MySQL may also drop a (temporary) table
+	when executing CREATE INDEX or ALTER TABLE ... ADD INDEX.
+
+2008-10-04	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug39438-master.opt,
+	mysql-test/innodb_bug39438.result, mysql-test/innodb_bug39438.test:
+	Fix Bug#39438 Testcase for Bug#39436 crashes on 5.1 in
+	fil_space_get_latch
+
+2008-10-04	The InnoDB Team
+
+	* include/lock0lock.h, lock/lock0lock.c,
+	mysql-test/innodb_bug38231.result, mysql-test/innodb_bug38231.test,
+	row/row0mysql.c:
+	Fix Bug#38231 Innodb crash in lock_reset_all_on_table() on TRUNCATE +
+	LOCK / UNLOCK
+
+2008-10-04	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#35498 Cannot get table test/table1 auto-inccounter value in
+	::info
+
+2008-10-04	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h:
+	Fix Bug#37788 InnoDB Plugin: AUTO_INCREMENT wrong for compressed
+	tables
+
+2008-10-04	The InnoDB Team
+
+	* dict/dict0dict.c, handler/ha_innodb.cc, handler/ha_innodb.h,
+	include/dict0dict.h, include/dict0mem.h, row/row0mysql.c:
+	Fix Bug#39830 Table autoinc value not updated on first insert
+
+2008-10-03	The InnoDB Team
+
+	* mysql-test/innodb-index.test, mysql-test/innodb-index.result,
+	mysql-test/innodb-timeout.test, mysql-test/innodb-timeout.result,
+	srv/srv0srv.c, include/srv0srv.h,
+	handler/ha_innodb.cc, include/ha_prototypes.h:
+	Fix Bug#36285 innodb_lock_wait_timeout is not dynamic, not per session
+
 2008-09-19	The InnoDB Team
 
 	* os/os0proc.c:

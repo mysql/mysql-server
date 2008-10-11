@@ -4066,15 +4066,25 @@ lock_cancel_waiting_and_release(
 	trx_end_lock_wait(lock->trx);
 }
 
+/* True if a lock mode is S or X */
+#define IS_LOCK_S_OR_X(lock) \
+	(lock_get_mode(lock) == LOCK_S \
+	 || lock_get_mode(lock) == LOCK_X)
+
+
 /*************************************************************************
-Resets all record and table locks of a transaction on a table to be dropped.
-No lock is allowed to be a wait lock. */
+Removes locks of a transaction on a table to be dropped.
+If remove_also_table_sx_locks is TRUE then table-level S and X locks are
+also removed in addition to other table-level and record-level locks.
+No lock, that is going to be removed, is allowed to be a wait lock. */
 static
 void
-lock_reset_all_on_table_for_trx(
-/*============================*/
-	dict_table_t*	table,	/* in: table to be dropped */
-	trx_t*		trx)	/* in: a transaction */
+lock_remove_all_on_table_for_trx(
+/*=============================*/
+	dict_table_t*	table,			/* in: table to be dropped */
+	trx_t*		trx,			/* in: a transaction */
+	ibool		remove_also_table_sx_locks)/* in: also removes
+						table S and X locks */
 {
 	lock_t*	lock;
 	lock_t*	prev_lock;
@@ -4092,7 +4102,9 @@ lock_reset_all_on_table_for_trx(
 
 			lock_rec_discard(lock);
 		} else if (lock_get_type_low(lock) & LOCK_TABLE
-			   && lock->un_member.tab_lock.table == table) {
+			   && lock->un_member.tab_lock.table == table
+			   && (remove_also_table_sx_locks
+			       || !IS_LOCK_S_OR_X(lock))) {
 
 			ut_a(!lock_get_wait(lock));
 
@@ -4104,26 +4116,65 @@ lock_reset_all_on_table_for_trx(
 }
 
 /*************************************************************************
-Resets all locks, both table and record locks, on a table to be dropped.
-No lock is allowed to be a wait lock. */
+Removes locks on a table to be dropped or truncated.
+If remove_also_table_sx_locks is TRUE then table-level S and X locks are
+also removed in addition to other table-level and record-level locks.
+No lock, that is going to be removed, is allowed to be a wait lock. */
 UNIV_INTERN
 void
-lock_reset_all_on_table(
-/*====================*/
-	dict_table_t*	table)	/* in: table to be dropped */
+lock_remove_all_on_table(
+/*=====================*/
+	dict_table_t*	table,			/* in: table to be dropped
+						or truncated */
+	ibool		remove_also_table_sx_locks)/* in: also removes
+						table S and X locks */
 {
 	lock_t*	lock;
+	lock_t*	prev_lock;
 
 	mutex_enter(&kernel_mutex);
 
 	lock = UT_LIST_GET_FIRST(table->locks);
 
-	while (lock) {
-		ut_a(!lock_get_wait(lock));
+	while (lock != NULL) {
 
-		lock_reset_all_on_table_for_trx(table, lock->trx);
+		prev_lock = UT_LIST_GET_PREV(un_member.tab_lock.locks,
+					     lock);
 
-		lock = UT_LIST_GET_FIRST(table->locks);
+		/* If we should remove all locks (remove_also_table_sx_locks
+		is TRUE), or if the lock is not table-level S or X lock,
+		then check we are not going to remove a wait lock. */
+		if (remove_also_table_sx_locks
+		    || !(lock_get_type(lock) == LOCK_TABLE
+			 && IS_LOCK_S_OR_X(lock))) {
+
+			ut_a(!lock_get_wait(lock));
+		}
+
+		lock_remove_all_on_table_for_trx(table, lock->trx,
+						 remove_also_table_sx_locks);
+
+		if (prev_lock == NULL) {
+			if (lock == UT_LIST_GET_FIRST(table->locks)) {
+				/* lock was not removed, pick its successor */
+				lock = UT_LIST_GET_NEXT(
+					un_member.tab_lock.locks, lock);
+			} else {
+				/* lock was removed, pick the first one */
+				lock = UT_LIST_GET_FIRST(table->locks);
+			}
+		} else if (UT_LIST_GET_NEXT(un_member.tab_lock.locks,
+					    prev_lock) != lock) {
+			/* If lock was removed by
+			lock_remove_all_on_table_for_trx() then pick the
+			successor of prev_lock ... */
+			lock = UT_LIST_GET_NEXT(
+				un_member.tab_lock.locks, prev_lock);
+		} else {
+			/* ... otherwise pick the successor of lock. */
+			lock = UT_LIST_GET_NEXT(
+				un_member.tab_lock.locks, lock);
+		}
 	}
 
 	mutex_exit(&kernel_mutex);

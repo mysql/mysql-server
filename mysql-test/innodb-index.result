@@ -847,10 +847,12 @@ create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
 insert into t2 select a,left(b,255) from t1;
 drop table t1;
 rename table t2 to t1;
+set innodb_lock_wait_timeout=1;
 begin;
 select a from t1 limit 1 for update;
 a
 22
+set innodb_lock_wait_timeout=1;
 create index t1ba on t1 (b,a);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
