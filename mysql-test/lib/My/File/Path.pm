@@ -22,8 +22,10 @@ our @EXPORT= qw / rmtree mkpath copytree /;
 
 use File::Find;
 use File::Copy;
+use File::Spec;
 use Carp;
 use My::Handles;
+use My::Platform;
 
 sub rmtree {
   my ($dir)= @_;
@@ -58,7 +60,34 @@ sub rmtree {
 
 
 sub mkpath {
-  goto &File::Path::mkpath;
+  my $path;
+  foreach my $dir ( File::Spec->splitdir( @_ ) ) {
+    #print "dir: $dir\n";
+    if ($dir =~ /^[a-z]:/i){
+      # Found volume ie. C:
+      $path= $dir;
+      next;
+    }
+
+    $path= File::Spec->catdir($path, $dir);
+    #print "path: $path\n";
+
+    next if -d $path; # Path already exist
+    next if mkdir($path); # mkdir worked
+
+    # mkdir failed, try one more time
+    next if mkdir($path);
+
+    # mkdir failed again, try two more time after sleep(s)
+    sleep(1);
+    next if mkdir($path);
+    sleep(1);
+    next if mkdir($path);
+
+    # Report failure and die
+    croak("Couldn't create directory '$path' ",
+	  " after 4 attempts and 2 sleep(1): $!");
+  }
 };
 
 
