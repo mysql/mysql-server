@@ -1747,7 +1747,9 @@ run_again:
 }
 
 /*************************************************************************
-Drop an index from the InnoDB system tables. */
+Drop an index from the InnoDB system tables.  The data dictionary must
+have been locked exclusively by the caller, because the transaction
+will not be committed. */
 UNIV_INTERN
 void
 row_merge_drop_index(
@@ -1757,7 +1759,6 @@ row_merge_drop_index(
 	trx_t*		trx)	/* in: transaction handle */
 {
 	ulint		err;
-	ibool		dict_lock = FALSE;
 	pars_info_t*	info = pars_info_create();
 
 	/* We use the private SQL parser of Innobase to generate the
@@ -1781,10 +1782,7 @@ row_merge_drop_index(
 	trx_start_if_not_started(trx);
 	trx->op_info = "dropping index";
 
-	if (trx->dict_operation_lock_mode == 0) {
-		row_mysql_lock_data_dictionary(trx);
-		dict_lock = TRUE;
-	}
+	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	err = que_eval_sql(info, str1, FALSE, trx);
 
@@ -1796,16 +1794,14 @@ row_merge_drop_index(
 	dict_table_replace_index_in_foreign_list(table, index);
 	dict_index_remove_from_cache(table, index);
 
-	if (dict_lock) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
-
 	trx->op_info = "";
 }
 
 /*************************************************************************
-Drop those indexes which were created before an error occurred
-when building an index. */
+Drop those indexes which were created before an error occurred when
+building an index.  The data dictionary must have been locked
+exclusively by the caller, because the transaction will not be
+committed. */
 UNIV_INTERN
 void
 row_merge_drop_indexes(
@@ -1986,7 +1982,9 @@ row_merge_create_temporary_table(
 }
 
 /*************************************************************************
-Rename the temporary indexes in the dictionary to permanent ones. */
+Rename the temporary indexes in the dictionary to permanent ones.  The
+data dictionary must have been locked exclusively by the caller,
+because the transaction will not be committed. */
 UNIV_INTERN
 ulint
 row_merge_rename_indexes(
@@ -1995,7 +1993,6 @@ row_merge_rename_indexes(
 	trx_t*		trx,		/* in/out: transaction */
 	dict_table_t*	table)		/* in/out: table with new indexes */
 {
-	ibool		dict_lock = FALSE;
 	ulint		err = DB_SUCCESS;
 	pars_info_t*	info = pars_info_create();
 
@@ -2013,17 +2010,13 @@ row_merge_rename_indexes(
 		"WHERE TABLE_ID = :tableid AND SUBSTR(NAME,0,1)='\377';\n"
 		"END;\n";
 
-	ut_ad(table && trx);
+	ut_ad(table);
+	ut_ad(trx);
+	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
-	trx_start_if_not_started(trx);
 	trx->op_info = "renaming indexes";
 
 	pars_info_add_dulint_literal(info, "tableid", table->id);
-
-	if (trx->dict_operation_lock_mode == 0) {
-		row_mysql_lock_data_dictionary(trx);
-		dict_lock = TRUE;
-	}
 
 	err = que_eval_sql(info, rename_indexes, FALSE, trx);
 
@@ -2037,17 +2030,15 @@ row_merge_rename_indexes(
 		} while (index);
 	}
 
-	if (dict_lock) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
-
 	trx->op_info = "";
 
 	return(err);
 }
 
 /*************************************************************************
-Rename the tables in the data dictionary. */
+Rename the tables in the data dictionary.  The data dictionary must
+have been locked exclusively by the caller, because the transaction
+will not be committed. */
 UNIV_INTERN
 ulint
 row_merge_rename_tables(
@@ -2068,8 +2059,9 @@ row_merge_rename_tables(
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
+	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+
 	trx->op_info = "renaming tables";
-	trx_start_if_not_started(trx);
 
 	/* We use the private SQL parser of Innobase to generate the query
 	graphs needed in updating the dictionary data in system tables. */
@@ -2239,24 +2231,10 @@ row_merge_drop_table(
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	table)		/* in: table to drop */
 {
-	ulint		err = DB_SUCCESS;
-	ibool		dict_locked = FALSE;
-
-	if (trx->dict_operation_lock_mode == 0) {
-		row_mysql_lock_data_dictionary(trx);
-		dict_locked = TRUE;
-	}
-
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_mysql_handles_opened == 0);
 
-	err = row_drop_table_for_mysql_no_commit(table->name, trx, FALSE);
-
-	if (dict_locked) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
-
-	return(err);
+	return(row_drop_table_for_mysql(table->name, trx, FALSE));
 }
 
 /*************************************************************************

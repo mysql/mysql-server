@@ -62,10 +62,6 @@ dict_mem_table_create(
 
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
-	/* The actual increment value will be set by MySQL, we simply
-	default to 1 here.*/
-	table->autoinc_increment = 1;
-
 #ifdef UNIV_DEBUG
 	table->magic_n = DICT_TABLE_MAGIC_N;
 #endif /* UNIV_DEBUG */

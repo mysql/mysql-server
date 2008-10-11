@@ -154,8 +154,6 @@ UNIV_INTERN ibool		srv_archive_recovery	= 0;
 UNIV_INTERN ib_uint64_t	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
-UNIV_INTERN ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
-
 /* This parameter is used to throttle the number of insert buffers that are
 merged in a batch. By increasing this parameter on a faster disk you can
 possibly reduce the number of I/O operations performed to complete the
@@ -1377,6 +1375,7 @@ srv_suspend_mysql_thread(
 	ulint		diff_time;
 	ulint		sec;
 	ulint		ms;
+	ulong		lock_wait_timeout;
 
 	ut_ad(!mutex_own(&kernel_mutex));
 
@@ -1515,8 +1514,14 @@ srv_suspend_mysql_thread(
 
 	mutex_exit(&kernel_mutex);
 
-	if (srv_lock_wait_timeout < 100000000
-	    && wait_time > (double)srv_lock_wait_timeout) {
+	/* InnoDB system transactions (such as the purge, and
+	incomplete transactions that are being rolled back after crash
+	recovery) will use the global value of
+	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
+	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
+
+	if (lock_wait_timeout < 100000000
+	    && wait_time > (double) lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 	}
@@ -1966,12 +1971,19 @@ loop:
 		slot = srv_mysql_table + i;
 
 		if (slot->in_use) {
+			trx_t*	trx;
+			ulong	lock_wait_timeout;
+
 			some_waits = TRUE;
 
 			wait_time = ut_difftime(ut_time(), slot->suspend_time);
 
-			if (srv_lock_wait_timeout < 100000000
-			    && (wait_time > (double) srv_lock_wait_timeout
+			trx = thr_get_trx(slot->thr);
+			lock_wait_timeout = thd_lock_wait_timeout(
+				trx->mysql_thd);
+
+			if (lock_wait_timeout < 100000000
+			    && (wait_time > (double) lock_wait_timeout
 				|| wait_time < 0)) {
 
 				/* Timeout exceeded or a wrap-around in system
@@ -1981,10 +1993,9 @@ loop:
 				possible that the lock has already been
 				granted: in that case do nothing */
 
-				if (thr_get_trx(slot->thr)->wait_lock) {
+				if (trx->wait_lock) {
 					lock_cancel_waiting_and_release(
-						thr_get_trx(slot->thr)
-						->wait_lock);
+						trx->wait_lock);
 				}
 			}
 		}

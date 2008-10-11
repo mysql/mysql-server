@@ -54,7 +54,9 @@ row_merge_lock_table(
 	dict_table_t*	table,		/* in: table to lock */
 	enum lock_mode	mode);		/* in: LOCK_X or LOCK_S */
 /*************************************************************************
-Drop an index from the InnoDB system tables. */
+Drop an index from the InnoDB system tables.  The data dictionary must
+have been locked exclusively by the caller, because the transaction
+will not be committed. */
 UNIV_INTERN
 void
 row_merge_drop_index(
@@ -63,8 +65,10 @@ row_merge_drop_index(
 	dict_table_t*	table,	/* in: table */
 	trx_t*		trx);	/* in: transaction handle */
 /*************************************************************************
-Drop those indexes which were created before an error occurred
-when building an index. */
+Drop those indexes which were created before an error occurred when
+building an index.  The data dictionary must have been locked
+exclusively by the caller, because the transaction will not be
+committed. */
 UNIV_INTERN
 void
 row_merge_drop_indexes(
@@ -80,7 +84,9 @@ void
 row_merge_drop_temp_indexes(void);
 /*=============================*/
 /*************************************************************************
-Rename the tables in the data dictionary. */
+Rename the tables in the data dictionary.  The data dictionary must
+have been locked exclusively by the caller, because the transaction
+will not be committed. */
 UNIV_INTERN
 ulint
 row_merge_rename_tables(
@@ -109,7 +115,9 @@ row_merge_create_temporary_table(
 	trx_t*			trx);		/* in/out: transaction
 						(sets error_state) */
 /*************************************************************************
-Rename the temporary indexes in the dictionary to permanent ones. */
+Rename the temporary indexes in the dictionary to permanent ones.  The
+data dictionary must have been locked exclusively by the caller,
+because the transaction will not be committed. */
 UNIV_INTERN
 ulint
 row_merge_rename_indexes(

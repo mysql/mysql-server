@@ -1198,8 +1198,8 @@ btr_root_raise_and_insert(
 		ut_a(new_page_zip);
 
 		/* Copy the page byte for byte. */
-		page_zip_copy(new_page_zip, new_page,
-			      root_page_zip, root, index, mtr);
+		page_zip_copy_recs(new_page_zip, new_page,
+				   root_page_zip, root, index, mtr);
 	}
 
 	/* If this is a pessimistic insert which is actually done to
@@ -1963,8 +1963,8 @@ insert_right:
 			as appropriate.  Deleting will always succeed. */
 			ut_a(new_page_zip);
 
-			page_zip_copy(new_page_zip, new_page,
-				      page_zip, page, cursor->index, mtr);
+			page_zip_copy_recs(new_page_zip, new_page,
+					   page_zip, page, cursor->index, mtr);
 			page_delete_rec_list_end(move_limit - page + new_page,
 						 new_block, cursor->index,
 						 ULINT_UNDEFINED,
@@ -1990,8 +1990,8 @@ insert_right:
 			as appropriate.  Deleting will always succeed. */
 			ut_a(new_page_zip);
 
-			page_zip_copy(new_page_zip, new_page,
-				      page_zip, page, cursor->index, mtr);
+			page_zip_copy_recs(new_page_zip, new_page,
+					   page_zip, page, cursor->index, mtr);
 			page_delete_rec_list_start(move_limit - page
 						   + new_page, new_block,
 						   cursor->index, mtr);
@@ -2353,20 +2353,23 @@ btr_lift_page_up(
 		ut_a(page_zip);
 
 		/* Copy the page byte for byte. */
-		page_zip_copy(father_page_zip, father_page,
-			      page_zip, page, index, mtr);
+		page_zip_copy_recs(father_page_zip, father_page,
+				   page_zip, page, index, mtr);
 	}
 
 	lock_update_copy_and_discard(father_block, block);
 
 	/* Go upward to root page, decrementing levels by one. */
 	for (i = 0; i < n_blocks; i++, page_level++) {
-		page_t*	page = buf_block_get_frame(blocks[i]);
+		page_t*		page	= buf_block_get_frame(blocks[i]);
+		page_zip_des_t*	page_zip= buf_block_get_page_zip(blocks[i]);
 
 		ut_ad(btr_page_get_level(page, mtr) == page_level + 1);
 
-		btr_page_set_level(page, buf_block_get_page_zip(blocks[i]),
-				   page_level, mtr);
+		btr_page_set_level(page, page_zip, page_level, mtr);
+#ifdef UNIV_ZIP_DEBUG
+		ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
 	}
 
 	/* Free the file page */
@@ -2661,6 +2664,9 @@ err_exit:
 	}
 
 	ut_ad(page_validate(merge_page, index));
+#ifdef UNIV_ZIP_DEBUG
+	ut_a(!merge_page_zip || page_zip_validate(merge_page_zip, merge_page));
+#endif /* UNIV_ZIP_DEBUG */
 
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
