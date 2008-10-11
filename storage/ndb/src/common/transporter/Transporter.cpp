@@ -89,6 +89,20 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 
     m_socket_client->set_connect_timeout((m_timeOutMillis+999)/1000);
   }
+
+#if defined (_SC_IOV_MAX) && defined (HAVE_SYSCONF)
+  long res = sysconf(_SC_IOV_MAX);
+  if (res != (long)-1)
+  {
+    m_os_max_iovec = (Uint32)res;
+  }
+  else
+#else
+  {
+    m_os_max_iovec = 16;
+  }
+#endif
+  
   DBUG_VOID_RETURN;
 }
 

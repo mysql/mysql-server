@@ -255,7 +255,8 @@ TCP_Transporter::doSend() {
   if (used == 0)
     return true;                                // Nothing to send
 
-  int nBytesSent = my_socket_writev(theSocket, m_send_iovec, used);
+  Uint32 iovcnt = used > m_os_max_iovec ? m_os_max_iovec : used;
+  int nBytesSent = my_socket_writev(theSocket, m_send_iovec, iovcnt);
 
   if (nBytesSent > 0)
   {
