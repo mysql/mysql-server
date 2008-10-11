@@ -126,6 +126,15 @@ sub new {
      \&_unamex,
    );
 
+  # Detect virtual machines
+  my $isvm= 0;
+
+  if (IS_WINDOWS) {
+    # Detect vmware service
+    $isvm= `tasklist` =~ /vmwareservice/i;
+  }
+  $self->{isvm}= $isvm;
+
   foreach my $method (@info_methods){
     if ($method->($self)){
       return $self;
@@ -172,6 +181,12 @@ sub min_bogomips {
   }
 
   return $bogomips;
+}
+
+sub isvm {
+  my ($self)= @_;
+
+  return $self->{isvm};
 }
 
 
