@@ -1989,7 +1989,7 @@ row_merge_rename_indexes(
 		"WHERE TABLE_ID = :tableid AND SUBSTR(NAME,0,1)='\377';\n"
 		"END;\n";
 
-	ut_ad(table)
+	ut_ad(table);
 	ut_ad(trx);
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
