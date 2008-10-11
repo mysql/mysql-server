@@ -1481,6 +1481,12 @@ sql_exchange::sql_exchange(char *name,bool flag)
   cs= NULL;
 }
 
+bool sql_exchange::escaped_given(void)
+{
+  return escaped != &default_escaped;
+}
+
+
 bool select_send::send_fields(List<Item> &list, uint flags)
 {
   bool res;
@@ -1766,8 +1772,11 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     exchange->line_term=exchange->field_term;	// Use this if it exists
   field_sep_char= (exchange->enclosed->length() ?
                   (int) (uchar) (*exchange->enclosed)[0] : field_term_char);
-  escape_char=	(exchange->escaped->length() ?
-                (int) (uchar) (*exchange->escaped)[0] : -1);
+  if (exchange->escaped->length() && (exchange->escaped_given() ||
+      !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
+    escape_char= (int) (uchar) (*exchange->escaped)[0];
+  else
+    escape_char= -1;
   is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
@@ -3549,6 +3558,29 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 }
 
 
+#if !defined(DBUG_OFF) && !defined(_lint)
+static const char *
+show_query_type(THD::enum_binlog_query_type qtype)
+{
+  switch (qtype) {
+  case THD::ROW_QUERY_TYPE:
+    return "ROW";
+  case THD::STMT_QUERY_TYPE:
+    return "STMT";
+  case THD::MYSQL_QUERY_TYPE:
+    return "MYSQL";
+  case THD::QUERY_TYPE_COUNT:
+  default:
+    DBUG_ASSERT(0 <= qtype && qtype < THD::QUERY_TYPE_COUNT);
+  }
+
+  static char buf[64];
+  sprintf(buf, "UNKNOWN#%d", qtype);
+  return buf;
+}
+#endif
+
+
 /*
   Member function that will log query, either row-based or
   statement-based depending on the value of the 'current_stmt_binlog_row_based'
@@ -3577,7 +3609,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       THD::killed_state killed_status_arg)
 {
   DBUG_ENTER("THD::binlog_query");
-  DBUG_PRINT("enter", ("qtype: %d  query: '%s'", qtype, query_arg));
+  DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
+                       show_query_type(qtype), query_arg));
   DBUG_ASSERT(query_arg && mysql_bin_log.is_open());
 
   /*
@@ -3616,6 +3649,9 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 
   switch (qtype) {
   case THD::ROW_QUERY_TYPE:
+    DBUG_PRINT("debug",
+               ("current_stmt_binlog_row_based: %d",
+                current_stmt_binlog_row_based));
     if (current_stmt_binlog_row_based)
       DBUG_RETURN(0);
     /* Otherwise, we fall through */

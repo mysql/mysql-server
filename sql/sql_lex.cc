@@ -293,6 +293,7 @@ void lex_start(THD *thd)
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->update_list.empty();
+  lex->set_var_list.empty();
   lex->param_list.empty();
   lex->view_list.empty();
   lex->prepared_stmt_params.empty();
@@ -1552,6 +1553,7 @@ void st_select_lex::init_query()
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
   first_execution= 1;
+  first_natural_join_processing= 1;
   first_cond_optimization= 1;
   parsing_place= NO_MATTER;
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
