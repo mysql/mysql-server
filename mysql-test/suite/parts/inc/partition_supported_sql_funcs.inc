@@ -1,5 +1,6 @@
 ################################################################################
-# t/partition_supported_sql_funcs.inc                                          #           #                                                                              #
+# t/partition_supported_sql_funcs.inc                                          #
+#                                                                              #
 # Purpose:                                                                     #
 #  Tests frame for allowed sql functions                                       #
 #                                                                              #
@@ -7,9 +8,10 @@
 #------------------------------------------------------------------------------#
 # Original Author: HH                                                          #
 # Original Date: 2006-11-22                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Change Author: MattiasJ                                                      #
+# Change Date: 2008-05-15                                                      #
+# Change: Added $max_8_partitions since ndb only capable of 8 partitions       #
+#         and $no_reorg_partition since ndb does not support that              #
 ################################################################################
 --echo -------------------------------------------------------------------------
 --echo ---  $sqlfunc  in partition with coltype  $coltype
@@ -25,16 +27,11 @@ drop table if exists t6 ;
 --enable_warnings
 --enable_abort_on_error
 
---echo -------------------------------------------------------------------------
---echo ---  Create tables with $sqlfunc
---echo -------------------------------------------------------------------------
-eval create table t1 (col1 $coltype) engine=$engine 
-partition by range($sqlfunc) 
+let $part_t1= partition by range($sqlfunc) 
 (partition p0 values less than (15),
  partition p1 values less than maxvalue);
 
-eval create table t2 (col1 $coltype) engine=$engine 
-partition by list($sqlfunc) 
+let $part_t2= partition by list($sqlfunc) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
  partition p1 values in (11,12,13,14,15,16,17,18,19,20),
  partition p2 values in (21,22,23,24,25,26,27,28,29,30),
@@ -43,17 +40,14 @@ partition by list($sqlfunc)
  partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
 
-eval create table t3 (col1 $coltype) engine=$engine 
-partition by hash($sqlfunc);
+let $part_t3= partition by hash($sqlfunc);
 
-eval create table t4 (colint int, col1 $coltype) engine=$engine 
-partition by range(colint) 
+let $part_t4= partition by range(colint) 
 subpartition by hash($sqlfunc) subpartitions 2 
 (partition p0 values less than (15),
  partition p1 values less than maxvalue);
 
-eval create table t5 (colint int, col1 $coltype) engine=$engine 
-partition by list(colint)
+let $part_t5= partition by list(colint)
 subpartition by hash($sqlfunc) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
  partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -62,11 +56,58 @@ subpartition by hash($sqlfunc) subpartitions 2
  partition p4 values in (41,42,43,44,45,46,47,48,49,50),
  partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
+if ($max_8_partitions)
+{
+let $part_t5= partition by list(colint) 
+subpartition by hash($sqlfunc) subpartitions 2 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15),
+ partition p1 values in (16,17,18,19,20,21,22,23,24,25,26,27,28,29,30),
+ partition p2 values in (31,32,33,34,35,36,37,38,39,40,41,42,43,44,45),
+ partition p3 values in (46,47,48,49,50,51,52,53,54,55,56,57,58,59,60)
+);
+}
 
-eval create table t6 (colint int, col1 $coltype) engine=$engine 
-partition by range(colint) 
+let $part_t6= partition by range(colint) 
 (partition p0 values less than ($valsqlfunc),
  partition p1 values less than maxvalue);
+
+let $part_t55_altered= partition by list(colint)
+subpartition by hash($sqlfunc) subpartitions 5 
+(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
+ partition p1 values in (11,12,13,14,15,16,17,18,19,20),
+ partition p2 values in (21,22,23,24,25,26,27,28,29,30),
+ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
+ partition p4 values in (41,42,43,44,45,46,47,48,49,50),
+ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
+);
+if ($max_8_partitions)
+{
+let $part_t55_altered= partition by list(colint) 
+subpartition by hash($sqlfunc) subpartitions 4 
+(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30),
+ partition p1 values in (31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60)
+);
+}
+--echo -------------------------------------------------------------------------
+--echo ---  Create tables with $sqlfunc
+--echo -------------------------------------------------------------------------
+eval create table t1 (col1 $coltype) engine=$engine 
+$part_t1;
+
+eval create table t2 (col1 $coltype) engine=$engine 
+$part_t2;
+
+eval create table t3 (col1 $coltype) engine=$engine 
+$part_t3;
+
+eval create table t4 (colint int, col1 $coltype) engine=$engine 
+$part_t4;
+
+eval create table t5 (colint int, col1 $coltype) engine=$engine 
+$part_t5;
+
+eval create table t6 (colint int, col1 $coltype) engine=$engine 
+$part_t6;
 
 --echo -------------------------------------------------------------------------
 --echo ---  Access tables with $sqlfunc 
@@ -135,39 +176,17 @@ eval create table t44 engine=$engine as select * from t4;
 eval create table t55 engine=$engine as select * from t5;
 eval create table t66 engine=$engine as select * from t6;
 eval alter table t11
-partition by range($sqlfunc) 
-(partition p0 values less than (15),
- partition p1 values less than maxvalue);
+$part_t1;
 eval alter table t22
-partition by list($sqlfunc) 
-(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
- partition p1 values in (11,12,13,14,15,16,17,18,19,20),
- partition p2 values in (21,22,23,24,25,26,27,28,29,30),
- partition p3 values in (31,32,33,34,35,36,37,38,39,40),
- partition p4 values in (41,42,43,44,45,46,47,48,49,50),
- partition p5 values in (51,52,53,54,55,56,57,58,59,60)
-);
+$part_t2;
 eval alter table t33
-partition by hash($sqlfunc);
+$part_t3;
 eval alter table t44
-partition by range(colint) 
-subpartition by hash($sqlfunc) subpartitions 2 
-(partition p0 values less than (15),
- partition p1 values less than maxvalue);
+$part_t4;
 eval alter table t55
-partition by list(colint)
-subpartition by hash($sqlfunc) subpartitions 2 
-(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
- partition p1 values in (11,12,13,14,15,16,17,18,19,20),
- partition p2 values in (21,22,23,24,25,26,27,28,29,30),
- partition p3 values in (31,32,33,34,35,36,37,38,39,40),
- partition p4 values in (41,42,43,44,45,46,47,48,49,50),
- partition p5 values in (51,52,53,54,55,56,57,58,59,60)
-);
+$part_t5;
 eval alter table t66
-partition by range(colint) 
-(partition p0 values less than ($valsqlfunc),
- partition p1 values less than maxvalue);
+$part_t6;
 
 select * from t11 order by col1;
 select * from t22 order by col1;
@@ -181,51 +200,49 @@ if ($do_long_tests)
         --echo ---------------------------
         --echo ---- some alter table begin
         --echo ---------------------------
-	eval alter table t11
-	reorganize partition p0,p1 into
-	(partition s1 values less than maxvalue);
-	select * from t11 order by col1;
+        if (!$no_reorg_partition)
+        {
+        eval alter table t11
+        reorganize partition p0,p1 into
+        (partition s1 values less than maxvalue);
+        select * from t11 order by col1;
 
-	eval alter table t11
-	reorganize partition s1 into
-	(partition p0 values less than (15),
-	 partition p1 values less than maxvalue);
-	select * from t11 order by col1;
+        eval alter table t11
+        reorganize partition s1 into
+        (partition p0 values less than (15),
+         partition p1 values less than maxvalue);
+        select * from t11 order by col1;
+        }
 
 eval alter table t55
-partition by list(colint)
-subpartition by hash($sqlfunc) subpartitions 5 
-(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
- partition p1 values in (11,12,13,14,15,16,17,18,19,20),
- partition p2 values in (21,22,23,24,25,26,27,28,29,30),
- partition p3 values in (31,32,33,34,35,36,37,38,39,40),
- partition p4 values in (41,42,43,44,45,46,47,48,49,50),
- partition p5 values in (51,52,53,54,55,56,57,58,59,60)
-);
+$part_t55_altered;
         show create table t55; 
 	select * from t55 order by colint;
 
-	eval alter table t66
-	reorganize partition p0,p1 into
-	(partition s1 values less than maxvalue);
-	select * from t66 order by colint;
-
-	eval alter table t66
-	reorganize partition s1 into
-	(partition p0 values less than ($valsqlfunc),
-	 partition p1 values less than maxvalue);
-	select * from t66 order by colint;
-	
-	eval alter table t66
+        if (!$no_reorg_partition)
+        {
+        eval alter table t66
         reorganize partition p0,p1 into
         (partition s1 values less than maxvalue);
         select * from t66 order by colint;
 
-	eval alter table t66
+        eval alter table t66
         reorganize partition s1 into
-	(partition p0 values less than ($valsqlfunc),
-	 partition p1 values less than maxvalue);
+        (partition p0 values less than ($valsqlfunc),
+         partition p1 values less than maxvalue);
         select * from t66 order by colint;
+	
+        eval alter table t66
+        reorganize partition p0,p1 into
+        (partition s1 values less than maxvalue);
+        select * from t66 order by colint;
+
+        eval alter table t66
+        reorganize partition s1 into
+        (partition p0 values less than ($valsqlfunc),
+         partition p1 values less than maxvalue);
+        select * from t66 order by colint;
+        }
 
 	let $t1=t1;
 	let $t2=t2;

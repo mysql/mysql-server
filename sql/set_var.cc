@@ -254,7 +254,10 @@ static sys_var_long_ptr	sys_delayed_insert_timeout(&vars, "delayed_insert_timeou
 static sys_var_long_ptr	sys_delayed_queue_size(&vars, "delayed_queue_size",
 					       &delayed_queue_size);
 
+#ifdef HAVE_EVENT_SCHEDULER
 static sys_var_event_scheduler sys_event_scheduler(&vars, "event_scheduler");
+#endif
+
 static sys_var_long_ptr	sys_expire_logs_days(&vars, "expire_logs_days",
 					     &expire_logs_days);
 static sys_var_bool_ptr	sys_flush(&vars, "flush", &myisam_flush);
@@ -726,7 +729,7 @@ static uchar *slave_get_report_port(THD *thd)
   return (uchar*) &thd->sys_var_tmp.long_value;
 }
 
-static sys_var_readonly    sys_repl_report_port(&vars, "report_port", OPT_GLOBAL, SHOW_INT, slave_get_report_port);
+static sys_var_readonly    sys_repl_report_port(&vars, "report_port", OPT_GLOBAL, SHOW_LONG, slave_get_report_port);
 
 #endif
 
@@ -1172,6 +1175,21 @@ void fix_slave_exec_mode(enum_var_type type)
     bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
   DBUG_VOID_RETURN;
 }
+
+
+bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
+  /*
+    All variables that affect writing to binary log (either format or
+    turning logging on and off) use the same checking. We call the
+    superclass ::check function to assign the variable correctly, and
+    then check the value.
+   */
+  bool result= sys_var_thd_enum::check(thd, var);
+  if (!result)
+    result= check_log_update(thd, var);
+  return result;
+}
+
 
 bool sys_var_thd_binlog_format::is_readonly() const
 {
@@ -1677,6 +1695,14 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
       strmov(buff, "NULL");
       goto err;
     }
+
+    if (!m_allow_empty_value &&
+        res->length() == 0)
+    {
+      buff[0]= 0;
+      goto err;
+    }
+
     var->save_result.ulong_value= ((ulong)
 				   find_set(enum_names, res->c_ptr(),
 					    res->length(),
@@ -1692,10 +1718,19 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   else
   {
     ulonglong tmp= var->value->val_int();
-   /*
-     For when the enum is made to contain 64 elements, as 1ULL<<64 is
-     undefined, we guard with a "count<64" test.
-   */
+
+    if (!m_allow_empty_value &&
+        tmp == 0)
+    {
+      buff[0]= '0';
+      buff[1]= 0;
+      goto err;
+    }
+
+    /*
+      For when the enum is made to contain 64 elements, as 1ULL<<64 is
+      undefined, we guard with a "count<64" test.
+    */
     if (unlikely((tmp >= ((ULL(1)) << enum_names->count)) &&
                  (enum_names->count < 64)))
     {
@@ -2394,32 +2429,51 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
   MY_STAT f_stat;
   String str(buff, sizeof(buff), system_charset_info), *res;
   const char *log_file_str;
-      
+  size_t path_length;
+
   if (!(res= var->value->val_str(&str)))
     goto err;
 
   log_file_str= res->c_ptr();
   bzero(&f_stat, sizeof(MY_STAT));
 
-  (void) unpack_filename(path, log_file_str);
+  path_length= unpack_filename(path, log_file_str);
+
+  if (!path_length)
+  {
+    /* File name is empty. */
+
+    goto err;
+  }
+
   if (my_stat(path, &f_stat, MYF(0)))
   {
-    /* Check if argument is a file and we have 'write' permission */
+    /*
+      A file system object exists. Check if argument is a file and we have
+      'write' permission.
+    */
+
     if (!MY_S_ISREG(f_stat.st_mode) ||
         !(f_stat.st_mode & MY_S_IWRITE))
       goto err;
+
+    return 0;
   }
-  else
-  {
-    size_t path_length;
-    /*
-      Check if directory exists and 
-      we have permission to create file & write to file
-    */
-    (void) dirname_part(path, log_file_str, &path_length);
-    if (my_access(path, (F_OK|W_OK)))
-      goto err;
-  }
+
+  /* Get dirname of the file path. */
+  (void) dirname_part(path, log_file_str, &path_length);
+
+  /* Dirname is empty if file path is relative. */
+  if (!path_length)
+    return 0;
+
+  /*
+    Check if directory exists and we have permission to create file and
+    write to file.
+  */
+  if (my_access(path, (F_OK|W_OK)))
+    goto err;
+
   return 0;
 
 err:
@@ -4038,12 +4092,11 @@ uchar *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
   return (uchar*) thd->strdup(buf);
 }
 
-
+#ifdef HAVE_EVENT_SCHEDULER
 bool sys_var_event_scheduler::check(THD *thd, set_var *var)
 {
   return check_enum(thd, var, &Events::var_typelib);
 }
-
 
 /*
    The update method of the global variable event_scheduler.
@@ -4083,7 +4136,7 @@ uchar *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
 {
   return (uchar *) Events::get_opt_event_scheduler_str();
 }
-
+#endif
 
 /****************************************************************************
   Used templates

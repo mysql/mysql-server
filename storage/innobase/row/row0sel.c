@@ -4563,8 +4563,6 @@ row_search_autoinc_read_column(
 	const byte*	data;
 	ib_ulonglong	value;
 	mem_heap_t*	heap = NULL;
-	/* Our requirement is that dest should be word aligned. */
-	byte		dest[sizeof(value)];
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
 
@@ -4582,40 +4580,13 @@ row_search_autoinc_read_column(
 	ut_a(len != UNIV_SQL_NULL);
 	ut_a(len <= sizeof value);
 
-	mach_read_int_type(dest, data, len, unsigned_type);
-
-	/* The assumption here is that the AUTOINC value can't be negative
-	and that dest is word aligned. */
-	switch (len) {
-	case 8:
-		value = *(ib_ulonglong*) dest;
-		break;
-
-	case 4:
-		value = *(ib_uint32_t*) dest;
-		break;
-
-	case 3:
-		value = *(ib_uint32_t*) dest;
-		value &= 0xFFFFFF;
-		break;
-
-	case 2:
-		value = *(uint16 *) dest;
-		break;
-
-	case 1:
-		value = *dest;
-		break;
-
-	default:
-		ut_error;
-	}
+	value = mach_read_int_type(data, len, unsigned_type);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
+	/* We assume that the autoinc counter can't be negative. */
 	if (!unsigned_type && (ib_longlong) value < 0) {
 		value = 0;
 	}

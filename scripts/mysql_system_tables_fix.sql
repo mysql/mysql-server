@@ -433,7 +433,10 @@ ALTER TABLE db MODIFY Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NO
 #
 ALTER TABLE event DROP PRIMARY KEY;
 ALTER TABLE event ADD PRIMARY KEY(db, name);
-ALTER TABLE event ADD sql_mode
+# Add sql_mode column just in case.
+ALTER TABLE event ADD sql_mode set ('NOT_USED') AFTER on_completion;
+# Update list of sql_mode values.
+ALTER TABLE event MODIFY sql_mode
                         set('REAL_AS_FLOAT',
                             'PIPES_AS_CONCAT',
                             'ANSI_QUOTES',

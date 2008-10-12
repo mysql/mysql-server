@@ -2668,15 +2668,17 @@ static size_t my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
 {
   uint16 e;
   size_t dstlen= len;
+  uchar *dest_end= dest + dstlen;
 
   len = srclen;
-  while (len--)
+  while (len-- && dest < dest_end)
   {
     if ((len > 0) && isgbkcode(*src, *(src+1)))
     {
       e = gbksortorder((uint16) gbkcode(*src, *(src+1)));
       *dest++ = gbkhead(e);
-      *dest++ = gbktail(e);
+      if (dest < dest_end)
+        *dest++ = gbktail(e);
       src+=2;
       len--;
     } else 

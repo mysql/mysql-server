@@ -37,7 +37,7 @@ Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1146
-Last_Error	Error 'Table 'test.t1' doesn't exist' on opening table `test`.`t1`
+Last_Error	Error 'Table 'test.t1' doesn't exist' on opening tables
 Skip_Counter	0
 Exec_Master_Log_Pos	941
 Relay_Log_Space	#
@@ -55,5 +55,5 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1146
-Last_SQL_Error	Error 'Table 'test.t1' doesn't exist' on opening table `test`.`t1`
+Last_SQL_Error	Error 'Table 'test.t1' doesn't exist' on opening tables
 drop table t1, t2;

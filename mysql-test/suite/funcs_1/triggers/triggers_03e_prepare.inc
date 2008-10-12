@@ -39,7 +39,7 @@ let $message= #### Testcase for trigger privilege on execution time ########;
         select current_user;
 	show triggers;
 	grant  select, insert, update ,trigger
-	        on priv_db.t1 to test_yesprivs@localhost 
+	        on priv_db.t1 to test_yesprivs@localhost
 		with grant option;
 	grant  select
                 on priv_db.t1 to test_useprivs@localhost;
@@ -71,7 +71,7 @@ let $message= #### Testcase for trigger privilege on execution time ########;
 
         connection yes_privs;
         select current_user;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         execute ins1;
         select f1 from t1 order by f1;
         prepare ins1 from 'insert into t1 (f1) values (''insert4-no'')';
@@ -79,7 +79,7 @@ let $message= #### Testcase for trigger privilege on execution time ########;
         connection use_privs;
         select current_user;
         prepare ins1 from 'insert into t1 (f1) values (''insert5-no'')';
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         execute ins1;
         select f1 from t1 order by f1;
 
@@ -107,13 +107,13 @@ let $message= #### Testcase for trigger privilege on execution time ########;
 
         connection yes_privs;
         select current_user;
-        --error 1142
+        --error ER_TABLEACCESS_DENIED_ERROR
         execute ins1;
         select f1 from t1 order by f1;
 
         connection use_privs;
         select current_user;
-        --error 1142
+        --error ER_TABLEACCESS_DENIED_ERROR
         execute ins1;
         select f1 from t1 order by f1;
 
@@ -170,7 +170,7 @@ let $message= #### Testcase for trigger privilege on execution time ########;
 	--enable_warnings
 
 
-# general Cleanup 
+# general Cleanup
 	--disable_warnings
 	drop database if exists priv_db;
 	drop user test_yesprivs@localhost;

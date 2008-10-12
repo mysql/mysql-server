@@ -324,7 +324,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   acl_cache->clear(1);				// Clear locked hostname cache
 
   init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
-  init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0);
+  init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0, 
+                   FALSE);
   table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));
   while (!(read_record_info.read_record(&read_record_info)))
@@ -373,7 +374,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_hosts);
 
-  init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0);
+  init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0,FALSE);
   table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100));
   password_length= table->field[2]->field_length /
@@ -561,7 +562,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_users);
 
-  init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0);
+  init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0,FALSE);
   table->use_all_columns();
   VOID(my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100));
   while (!(read_record_info.read_record(&read_record_info)))
@@ -695,6 +696,8 @@ my_bool acl_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
+  tables[0].skip_temporary= tables[1].skip_temporary=
+    tables[2].skip_temporary= TRUE;
 
   if (simple_open_n_lock_tables(thd, tables))
   {
@@ -3089,12 +3092,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       continue;					// Add next user
     }
 
-    db_name= (table_list->view_db.length ?
-	      table_list->view_db.str :
-	      table_list->db);
-    table_name= (table_list->view_name.length ?
-		table_list->view_name.str :
-		table_list->table_name);
+    db_name= table_list->get_db_name();
+    table_name= table_list->get_table_name();
 
     /* Find/create cached table grant */
     grant_table= table_hash_search(Str->host.str, NullS, db_name,
@@ -3537,7 +3536,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
                                                            THR_MALLOC);
-  DBUG_ENTER("grant_load");
+  DBUG_ENTER("grant_load_procs_priv");
   (void) hash_init(&proc_priv_hash,system_charset_info,
                    0,0,0, (hash_get_key) get_grant_table,
                    0,0);
@@ -3721,6 +3720,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   table.alias= table.table_name= (char*) "procs_priv";
   table.db= (char *) "mysql";
   table.lock_type= TL_READ;
+  table.skip_temporary= 1;
 
   if (simple_open_n_lock_tables(thd, &table))
   {
@@ -3786,7 +3786,7 @@ my_bool grant_reload(THD *thd)
   tables[0].db= tables[1].db= (char *) "mysql";
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[0].lock_type= tables[1].lock_type= TL_READ;
-
+  tables[0].skip_temporary= tables[1].skip_temporary= TRUE;
   /*
     To avoid deadlocks we should obtain table locks before
     obtaining LOCK_grant rwlock.
@@ -3903,8 +3903,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     if (!want_access)
       continue;                                 // ok
 
-    if (!(~table->grant.privilege & want_access) || 
-        table->derived || table->schema_table)
+    if (!(~table->grant.privilege & want_access) ||
+        table->is_anonymous_derived_table() || table->schema_table)
     {
       /*
         It is subquery in the FROM clause. VIEW set table->derived after
@@ -3922,8 +3922,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       continue;
     }
     if (!(grant_table= table_hash_search(sctx->host, sctx->ip,
-                                         table->db, sctx->priv_user,
-                                         table->table_name,0)))
+                                         table->get_db_name(), sctx->priv_user,
+                                         table->get_table_name(), FALSE)))
     {
       want_access &= ~table->grant.privilege;
       goto err;					// No grants
@@ -3959,7 +3959,7 @@ err:
              command,
              sctx->priv_user,
              sctx->host_or_ip,
-             table ? table->table_name : "unknown");
+             table ? table->get_table_name() : "unknown");
   }
   DBUG_RETURN(1);
 }
@@ -4114,7 +4114,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     @retval 1 Falure
   @details This function walks over the columns of a table reference 
    The columns may originate from different tables, depending on the kind of
-   table reference, e.g. join.
+   table reference, e.g. join, view.
    For each table it will retrieve the grant information and will use it
    to check the required access privileges for the fields requested from it.
 */    
@@ -4129,6 +4129,11 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   GRANT_INFO *grant;
   /* Initialized only to make gcc happy */
   GRANT_TABLE *grant_table= NULL;
+  /* 
+     Flag that gets set if privilege checking has to be performed on column
+     level.
+  */
+  bool using_column_privileges= FALSE;
 
   rw_rdlock(&LOCK_grant);
 
@@ -4136,10 +4141,10 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   {
     const char *field_name= fields->name();
 
-    if (table_name != fields->table_name())
+    if (table_name != fields->get_table_name())
     {
-      table_name= fields->table_name();
-      db_name= fields->db_name();
+      table_name= fields->get_table_name();
+      db_name= fields->get_db_name();
       grant= fields->grant();
       /* get a fresh one for each table */
       want_access= want_access_arg & ~grant->privilege;
@@ -4165,6 +4170,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
       GRANT_COLUMN *grant_column= 
         column_hash_search(grant_table, field_name,
                            (uint) strlen(field_name));
+      if (grant_column)
+        using_column_privileges= TRUE;
       if (!grant_column || (~grant_column->rights & want_access))
         goto err;
     }
@@ -4177,12 +4184,21 @@ err:
 
   char command[128];
   get_privilege_desc(command, sizeof(command), want_access);
-  my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-           command,
-           sctx->priv_user,
-           sctx->host_or_ip,
-           fields->name(),
-           table_name);
+  /*
+    Do not give an error message listing a column name unless the user has
+    privilege to see all columns.
+  */
+  if (using_column_privileges)
+    my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+             command, sctx->priv_user,
+             sctx->host_or_ip, table_name); 
+  else
+    my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+             command,
+             sctx->priv_user,
+             sctx->host_or_ip,
+             fields->name(),
+             table_name);
   return 1;
 }
 
@@ -5695,7 +5711,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   while ((tmp_user_name= user_list++))
   {
-    user_name= get_current_user(thd, tmp_user_name);
     if (!(user_name= get_current_user(thd, tmp_user_name)))
     {
       result= TRUE;

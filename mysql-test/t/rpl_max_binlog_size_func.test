@@ -1,0 +1,38 @@
+source include/have_log_bin.inc;
+
+###############################################################################
+# Begin the functionality testing of max_binlog_size                          #
+###############################################################################
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+#==============================================================
+--echo '--- check if log file is rotated after 4096 bytes ----' 
+#==============================================================
+
+SET @@global.max_binlog_size = 4096;
+CREATE TABLE t1(a CHAR(5));
+
+# around 50 records are required to rotate bin log
+let $a = 50;
+--disable_query_log
+while ($a){
+INSERT INTO t1 VALUES ('mysql');
+dec $a;
+}
+--enable_query_log
+
+--sleep 2
+
+# if log file is not created then this will fail
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--file_exists $MYSQLTEST_VARDIR/master-data/mylog.000002
+
+--echo 'mylog.000002 exists'
+
+###############################################################################
+# End of functionality testing for max_binlog_size                            #
+###############################################################################
+

@@ -2979,6 +2979,24 @@ execute stmt;
 deallocate prepare stmt;
 drop table t1, t2;
 
+--echo #
+--echo # Bug#27430 Crash in subquery code when in PS and table DDL changed
+--echo # after PREPARE
+--echo #
+--echo # This part of the test doesn't work in embedded server, this is
+--echo # why it's here. For the main test see ps_ddl*.test
+--echo
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int);
+prepare stmt from "show events where (1) in (select * from t1)";
+execute stmt;
+drop table t1;
+create table t1 (x int);
+execute stmt;
+drop table t1;
+deallocate prepare stmt;
 
 
 --echo End of 5.1 tests.

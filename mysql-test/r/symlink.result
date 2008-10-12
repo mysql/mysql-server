@@ -55,12 +55,8 @@ t9	CREATE TABLE `t9` (
   `d` int(11) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
-create table t1 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="tmp";
-Got one of the listed errors
 create database mysqltest;
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="/this-dir-does-not-exist";
-Got one of the listed errors
-create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="not-hard-path";
 Got one of the listed errors
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="MYSQLTEST_VARDIR/run";
 Got one of the listed errors

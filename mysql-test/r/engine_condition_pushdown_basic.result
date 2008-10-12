@@ -1,0 +1,174 @@
+SET @session_start_value = @@session.engine_condition_pushdown;
+SELECT @session_start_value;
+@session_start_value
+1
+SET @global_start_value = @@global.engine_condition_pushdown;
+SELECT @global_start_value;
+@global_start_value
+1
+'#--------------------FN_DYNVARS_028_01------------------------#'
+SET @@session.engine_condition_pushdown = 0;
+SET @@session.engine_condition_pushdown = DEFAULT;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+1
+SET @@global.engine_condition_pushdown = 0;
+SET @@global.engine_condition_pushdown = DEFAULT;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+1
+'#---------------------FN_DYNVARS_028_02-------------------------#'
+SET engine_condition_pushdown = 1;
+SELECT @@engine_condition_pushdown;
+@@engine_condition_pushdown
+1
+SELECT session.engine_condition_pushdown;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT local.engine_condition_pushdown;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT global.engine_condition_pushdown;
+ERROR 42S02: Unknown table 'global' in field list
+SET session engine_condition_pushdown = 0;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+0
+SET global engine_condition_pushdown = 0;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+0
+'#--------------------FN_DYNVARS_028_03------------------------#'
+SET @@session.engine_condition_pushdown = 0;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+0
+SET @@session.engine_condition_pushdown = 1;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+1
+SET @@global.engine_condition_pushdown = 0;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+0
+SET @@global.engine_condition_pushdown = 1;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+1
+'#--------------------FN_DYNVARS_028_04-------------------------#'
+SET @@session.engine_condition_pushdown = -1;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of '-1'
+SET @@session.engine_condition_pushdown = 1.6;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of '2'
+SET @@session.engine_condition_pushdown = "T";
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'T'
+SET @@session.engine_condition_pushdown = "Y";
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Y'
+SET @@session.engine_condition_pushdown = TRÜE;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'TRÃœE'
+SET @@session.engine_condition_pushdown = ÕN;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Ã•N'
+SET @@session.engine_condition_pushdown = OF;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+0
+'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+SET @@session.engine_condition_pushdown = ÓFF;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Ã“FF'
+SET @@global.engine_condition_pushdown = -1;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of '-1'
+SET @@global.engine_condition_pushdown = 2;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of '2'
+SET @@global.engine_condition_pushdown = "T";
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'T'
+SET @@global.engine_condition_pushdown = "Y";
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Y'
+SET @@global.engine_condition_pushdown = TRÜE;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'TRÃœE'
+SET @@global.engine_condition_pushdown = ÕN;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Ã•N'
+SET @@global.engine_condition_pushdown = OF;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+0
+'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+SET @@global.engine_condition_pushdown = ÓFF;
+ERROR 42000: Variable 'engine_condition_pushdown' can't be set to the value of 'Ã“FF'
+'#-------------------FN_DYNVARS_028_05----------------------------#'
+SET @@global.engine_condition_pushdown = 0;
+SET @@session.engine_condition_pushdown = 1;
+SELECT @@global.engine_condition_pushdown AS res_is_0;
+res_is_0
+0
+SET @@global.engine_condition_pushdown = 0;
+SELECT @@session.engine_condition_pushdown AS res_is_1;
+res_is_1
+1
+'#----------------------FN_DYNVARS_028_06------------------------#'
+SELECT @@global.engine_condition_pushdown = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='engine_condition_pushdown';
+@@global.engine_condition_pushdown = VARIABLE_VALUE
+1
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+0
+SELECT VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='engine_condition_pushdown';
+VARIABLE_VALUE
+OFF
+'#----------------------FN_DYNVARS_028_07------------------------#'
+SELECT @@session.engine_condition_pushdown = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='engine_condition_pushdown';
+@@session.engine_condition_pushdown = VARIABLE_VALUE
+0
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+1
+SELECT VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='engine_condition_pushdown';
+VARIABLE_VALUE
+ON
+'#---------------------FN_DYNVARS_028_08-------------------------#'
+SET @@session.engine_condition_pushdown = OFF;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+0
+SET @@session.engine_condition_pushdown = ON;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+1
+SET @@global.engine_condition_pushdown = OFF;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+0
+SET @@global.engine_condition_pushdown = ON;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+1
+'#---------------------FN_DYNVARS_028_09----------------------#'
+SET @@session.engine_condition_pushdown = TRUE;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+1
+SET @@session.engine_condition_pushdown = FALSE;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+0
+SET @@global.engine_condition_pushdown = TRUE;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+1
+SET @@global.engine_condition_pushdown = FALSE;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+0
+SET @@session.engine_condition_pushdown = @session_start_value;
+SELECT @@session.engine_condition_pushdown;
+@@session.engine_condition_pushdown
+1
+SET @@global.engine_condition_pushdown = @global_start_value;
+SELECT @@global.engine_condition_pushdown;
+@@global.engine_condition_pushdown
+1

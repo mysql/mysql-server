@@ -2005,18 +2005,18 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
 
   sanity(to);
 
-  i=intg0;
+  i=intg0;                                       /* save 'ideal' values */
   j=frac0;
-  FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);
+  FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);  /* bound size */
   to->sign=from1->sign != from2->sign;
-  to->frac=from1->frac+from2->frac;
+  to->frac=from1->frac+from2->frac;              /* store size in digits */
   to->intg=intg0*DIG_PER_DEC1;
 
   if (unlikely(error))
   {
     set_if_smaller(to->frac, frac0*DIG_PER_DEC1);
     set_if_smaller(to->intg, intg0*DIG_PER_DEC1);
-    if (unlikely(i > intg0))
+    if (unlikely(i > intg0))                     /* bounded integer-part */
     {
       i-=intg0;
       j=i >> 1;
@@ -2024,12 +2024,20 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
       intg2-=i-j;
       frac1=frac2=0; /* frac0 is already 0 here */
     }
-    else
+    else                                         /* bounded fract part */
     {
       j-=frac0;
       i=j >> 1;
-      frac1-= i;
-      frac2-=j-i;
+      if (frac1 <= frac2)
+      {
+        frac1-= i;
+        frac2-=j-i;
+      }
+      else
+      {
+        frac2-= i;
+        frac1-=j-i;
+      }
     }
   }
   start0=to->buf+intg0+frac0-1;

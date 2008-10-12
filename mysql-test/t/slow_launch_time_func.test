@@ -1,0 +1,109 @@
+############# mysql-test\t\SLOW_LAUNCH_time_func.test ##########################
+#                                                                              #
+# Variable Name: slow_launch_time						                            #
+# Scope: SESSION                                                               #
+# Access Type: Dynamic                                                         #
+# Data Type: NUMERIC                                                           #
+# Default Value: 2                                                             #
+# Values:      -                                                               #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-02                                                    #
+# Author:  Sharique Abdullah                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "slow_launch_time "       #
+#              that checks behavior of this variable in the following ways     #
+#              * Functionality based on different values                       #
+#                                                                              #
+#Reference: http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html#
+#  option_mysqld_slow_launch_time                                              #
+#                                                                              #
+################################################################################
+
+#
+# Setup
+#
+
+--source include/not_embedded.inc
+
+SET @global_slow_launch_time = @@GLOBAL.slow_launch_time;
+
+
+--echo '#--------------------FN_DYNVARS_124_01-------------------------#'
+
+#####################################
+#   Increase number of connection   #
+#####################################
+
+--echo ** Connection default **
+connection default;
+
+SET @@GLOBAL.slow_launch_time=0;
+SELECT @@GLOBAL.slow_launch_time;
+
+--echo ** Connecting conn5 using username 'root' **
+CONNECT (conn5,localhost,root,,);
+--echo ** Connecting conn6 using username 'root' **
+CONNECT (conn6,localhost,root,,);
+--echo ** Connecting conn7 using username 'root' **
+CONNECT (conn7,localhost,root,,);
+--echo ** Connecting conn8 using username 'root' **
+CONNECT (conn8,localhost,root,,);
+--echo ** Connecting conn9 using username 'root' **
+CONNECT (conn9,localhost,root,,);
+--echo ** Connecting conn10 using username 'root' **
+CONNECT (conn10,localhost,root,,);
+--echo ** Connecting conn11 using username 'root' **
+CONNECT (conn11,localhost,root,,);
+--echo ** Connecting conn12 using username 'root' **
+CONNECT (conn12,localhost,root,,);
+--echo ** Connecting conn13 using username 'root' **
+CONNECT (conn13,localhost,root,,);
+--echo ** Connecting conn14 using username 'root' **
+CONNECT (conn14,localhost,root,,);
+--echo ** Connecting conn15 using username 'root' **
+CONNECT (conn15,localhost,root,,);
+--echo ** Connecting conn16 using username 'root' **
+CONNECT (conn16,localhost,root,,);
+
+
+#
+#  Checking status of slow_launch_threads
+#
+
+show status like 'slow_launch_threads';
+--echo 12 Expected
+
+#
+# Cleanup
+#
+
+--echo ** Connection default **
+connection default;
+
+--echo ** Disconnecting conn5 **
+disconnect conn5;
+--echo ** Disconnecting conn6 **
+disconnect conn6;
+--echo ** Disconnecting conn7 **
+disconnect conn7;
+--echo ** Disconnecting conn8 **
+disconnect conn8;
+--echo ** Disconnecting conn9 **
+disconnect conn9;
+--echo ** Disconnecting conn10 **
+disconnect conn10;
+--echo ** Disconnecting conn11 **
+disconnect conn11;
+--echo ** Disconnecting conn12 **
+disconnect conn12;
+--echo ** Disconnecting conn13 **
+disconnect conn13;
+--echo ** Disconnecting conn14 **
+disconnect conn14;
+--echo ** Disconnecting conn15 **
+disconnect conn15;
+--echo ** Disconnecting conn16 **
+disconnect conn16;
+
+SET @@GLOBAL.slow_launch_time = @global_slow_launch_time;

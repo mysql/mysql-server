@@ -63,7 +63,7 @@ static void mi_check_print_msg(HA_CHECK *param,	const char* msg_type,
   THD* thd = (THD*)param->thd;
   Protocol *protocol= thd->protocol;
   uint length, msg_length;
-  char msgbuf[MI_MAX_MSG_BUF];
+  char msgbuf[HA_MAX_MSG_BUF];
   char name[NAME_LEN*2+2];
 
   msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);

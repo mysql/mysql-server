@@ -330,6 +330,9 @@ client/readline.cpp
 client/rpl_constants.h
 client/rpl_record_old.cc
 client/rpl_record_old.h
+client/rpl_tblmap.h
+client/rpl_tblmap.cc
+client/rpl_utility.h
 client/select_test
 client/sql_string.cpp
 client/ssl_test
@@ -746,6 +749,8 @@ mysql-test/funcs_1.log
 mysql-test/funcs_1.tar
 mysql-test/install_test_db
 mysql-test/lib/init_db.sql
+mysql-test/linux_sys_vars.inc
+mysql-test/load_sysvars.inc
 mysql-test/mtr
 mysql-test/mysql-test-run
 mysql-test/mysql-test-run-shell
@@ -781,6 +786,7 @@ mysql-test/r/im_client_port.log
 mysql-test/r/index_merge_load.result
 mysql-test/r/isam.err
 mysql-test/r/lowercase_table2.err
+mysql-test/r/max_allowed_packet_func.result
 mysql-test/r/multi_update.err
 mysql-test/r/mysql_protocols.err
 mysql-test/r/mysqlbinlog.err
@@ -858,6 +864,7 @@ mysql-test/t/index_merge.load
 mysql-test/t/tmp.test
 mysql-test/var
 mysql-test/var/*
+mysql-test/windows_sys_vars.inc
 mysql.kdevprj
 mysql.proj
 mysql_priv.h
@@ -1860,3 +1867,8 @@ win/vs8cache.txt
 ylwrap
 zlib/*.ds?
 zlib/*.vcproj
+mysql-test/bug36522-64.tar
+mysql-test/bug36522.tar
+mysql-test/t.log
+mysql-test/tps.log
+libmysqld/event_parse_data.cc

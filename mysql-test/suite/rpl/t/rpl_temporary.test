@@ -138,20 +138,21 @@ sync_slave_with_master;
 
 #
 # Bug#17284 erroneous temp table cleanup on slave
+# The test targets at verifying that reconnected slave
+# retained the former session's temporary tables
 #
-
 connection master;
 create temporary table t4 (f int);
 create table t5 (f int);
 sync_slave_with_master;
+# connection slave
+stop slave;  # to prepare for reconnecting w/o waiting for timeout
 connection master;
-# find dumper's $id
-select id from information_schema.processlist where command='Binlog Dump' into @id;
-kill @id; # to stimulate reconnection by slave w/o timeout
 insert into t5 select * from t4;
 save_master_pos;
 
 connection slave;
+start slave;
 sync_with_master;
 select * from t5 /* must be 1 after reconnection */;
 

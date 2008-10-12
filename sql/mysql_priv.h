@@ -44,6 +44,8 @@
 #include "sql_plugin.h"
 #include "scheduler.h"
 
+class Parser_state;
+
 /**
   Query type constants.
 
@@ -259,6 +261,21 @@ protected:
 #define USER_VARS_HASH_SIZE     16
 #define TABLE_OPEN_CACHE_MIN    64
 #define TABLE_OPEN_CACHE_DEFAULT 64
+#define TABLE_DEF_CACHE_DEFAULT 256
+/**
+  We must have room for at least 256 table definitions in the table
+  cache, since otherwise there is no chance prepared
+  statements that use these many tables can work.
+  Prepared statements use table definition cache ids (table_map_id)
+  as table version identifiers. If the table definition
+  cache size is less than the number of tables used in a statement,
+  the contents of the table definition cache is guaranteed to rotate
+  between a prepare and execute. This leads to stable validation
+  errors. In future we shall use more stable version identifiers,
+  for now the only solution is to ensure that the table definition
+  cache can contain at least all tables of a given statement.
+*/
+#define TABLE_DEF_CACHE_MIN     256
 
 /* 
  Value of 9236 discovered through binary search 2006-09-26 on Ubuntu Dapper
@@ -668,6 +685,31 @@ const char *set_thd_proc_info(THD *thd, const char *info,
                               const char *calling_file, 
                               const unsigned int calling_line);
 
+/**
+  Enumerate possible types of a table from re-execution
+  standpoint.
+  TABLE_LIST class has a member of this type.
+  At prepared statement prepare, this member is assigned a value
+  as of the current state of the database. Before (re-)execution
+  of a prepared statement, we check that the value recorded at
+  prepare matches the type of the object we obtained from the
+  table definition cache.
+
+  @sa check_and_update_table_version()
+  @sa Execute_observer
+  @sa Prepared_statement::reprepare()
+*/
+
+enum enum_table_ref_type
+{
+  /** Initial value set by the parser */
+  TABLE_REF_NULL= 0,
+  TABLE_REF_VIEW,
+  TABLE_REF_BASE_TABLE,
+  TABLE_REF_I_S_TABLE,
+  TABLE_REF_TMP_TABLE
+};
+
 /*
   External variables
 */
@@ -759,11 +801,10 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               uint max_char_length, CHARSET_INFO *cs,
                               bool no_error);
-bool test_if_data_home_dir(const char *dir);
 
 bool parse_sql(THD *thd,
-               class Lex_input_stream *lip,
-               class Object_creation_ctx *creation_ctx);
+               Parser_state *parser_state,
+               Object_creation_ctx *creation_ctx);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -1530,6 +1571,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                 char *db,
                                 const char *table_name,
                                 uint fast_alter_partition);
+uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
+                    enum partition_state part_state);
 uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            handlerton *old_db_type,
@@ -1819,6 +1862,7 @@ extern CHARSET_INFO *character_set_filesystem;
 #ifdef MYSQL_SERVER
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+extern int mysql_unpacked_real_data_home_len;
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const LEX_STRING command_name[];
@@ -2094,6 +2138,7 @@ int writefrm(const char* name, const uchar* data, size_t len);
 int closefrm(TABLE *table, bool free_share);
 int read_string(File file, uchar* *to, size_t length);
 void free_blobs(TABLE *table);
+void free_field_buffers_larger_than(TABLE *table, uint32 size);
 int set_zone(int nr,int min_zone,int max_zone);
 ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
@@ -2139,8 +2184,8 @@ ulonglong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
-		      SQL_SELECT *select,
-		      int use_record_cache, bool print_errors);
+		      SQL_SELECT *select, int use_record_cache, 
+                      bool print_errors, bool disable_rr_cache);
 void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, 
                           bool print_error, uint idx);
 void end_read_record(READ_RECORD *info);
@@ -2188,6 +2233,8 @@ uint tablename_to_filename(const char *from, char *to, uint to_length);
 #ifdef MYSQL_SERVER
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table, const char *ext, uint flags);
+const char *get_canonical_filename(handler *file, const char *path,
+                                   char *tmp_path);
 
 #define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
 #define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
@@ -2432,6 +2479,8 @@ bool load_collation(MEM_ROOT *mem_root,
                     CHARSET_INFO **cl);
 
 #endif /* MYSQL_SERVER */
+extern "C" int test_if_data_home_dir(const char *dir);
+
 #endif /* MYSQL_CLIENT */
 
 #endif /* MYSQL_PRIV_H */

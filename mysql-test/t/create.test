@@ -1176,6 +1176,24 @@ SHOW INDEX FROM t1;
 DROP TABLE t1;
 
 
+#
+# Bug#38821: Assert table->auto_increment_field_not_null failed in open_table()
+#
+CREATE TABLE t1 (a INTEGER AUTO_INCREMENT PRIMARY KEY, b INTEGER NOT NULL);
+INSERT IGNORE INTO t1 (b) VALUES (5);
+
+CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
+  SELECT a FROM t1;
+--error 1062
+CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
+  SELECT a FROM t1;
+--error 1062
+CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
+  SELECT a FROM t1;
+
+DROP TABLE t1, t2;
+
+
 --echo End of 5.0 tests
 
 #
@@ -1278,17 +1296,6 @@ table_schema='test';
 
 show create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
-
-# procedure, function, event, trigger
-
-create event имя_события_в_кодировке_утф8_длиной_больше_чем_48 on schedule every 2 year do select 1;
-select EVENT_NAME from information_schema.events
-where event_schema='test';
-drop event имя_события_в_кодировке_утф8_длиной_больше_чем_48;
---error 1059
-create event
-очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66
-on schedule every 2 year do select 1;
 
 create trigger имя_триггера_в_кодировке_утф8_длиной_больше_чем_49
 before insert on имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48 for each row set @a:=1;

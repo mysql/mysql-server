@@ -1,0 +1,70 @@
+############## mysql-test\t\interactive_timeout_func.test #####################
+#                                                                             #
+# Variable Name: interactive_timeout                                          #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:28800                                                         #
+# Minvalue: 1                                                                 #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-07                                                   #
+# Author:  Salman Rawala                                                      #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable interactive_timeout      #
+#              that checks the functionality of this variable                 #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+##############################
+#   Creating two new tables  #
+##############################
+
+--echo ## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name VARCHAR(30)
+);
+
+
+--echo '#--------------------FN_DYNVARS_052_01-------------------------#'
+#######################################################################
+#   Setting initial value of interactive_timeout to 1 and verifying its
+#   behavior
+#######################################################################
+
+--echo ## Setting initial value of variable to 1 ##
+SET @@global.interactive_timeout = 1;
+
+--echo ## Creating new interactive connection test_con1 ## 
+connect (test_con1, localhost, root,);
+connection test_con1;
+
+--echo ## Inserting record in table ##
+INSERT into t1(name) values('Record_1');
+
+--echo ## Setting session value of interactive_timeout ## 
+SET @@session.interactive_timeout = 1;
+
+--echo ## Verifying values of variable ## 
+SELECT @@session.interactive_timeout;
+SELECT @@global.interactive_timeout;
+
+--echo ## Using sleep to check timeout ## 
+sleep 5;
+SELECT * from t1;
+
+--echo 'Bug#35377: Error should appear here because interactive_timeout value';
+--echo 'is 1 and connection remains idle for 5 secs';
+
+INSERT into t1(name) values('Record_2');

@@ -1,0 +1,25 @@
+#
+# binlog_off.test purpose is to verify that the --skip-log-bin flag
+# works correctly
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+#
+# Bug #38798 Assertion mysql_bin_log.is_open() failed in 
+#            binlog_trans_log_savepos()
+# Testing that there is no crash.
+# Before BUG#38798, the code for CREATE...SELECT called an internal function to
+# binlog the statement, even with --skip-log-bin. This caused an assertion
+# to be thrown since the binlog was not open.
+
+set @@session.binlog_format=row;
+
+create table t1 (a int);
+insert into t1 values (1);
+create table t2 select * from t1;
+
+# clean-up
+drop table t1, t2;

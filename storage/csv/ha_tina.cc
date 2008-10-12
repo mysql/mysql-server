@@ -190,17 +190,12 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
       Usually this will result in auto-repair, and we will get a good
       meta-file in the end.
     */
-    if ((share->meta_file= my_open(meta_file_name,
-                                   O_RDWR|O_CREAT, MYF(0))) == -1)
-      share->crashed= TRUE;
-
-    /*
-      If the meta file will not open we assume it is crashed and
-      mark it as such.
-    */
-    if (read_meta_file(share->meta_file, &share->rows_recorded))
+    if (((share->meta_file= my_open(meta_file_name,
+                                    O_RDWR|O_CREAT, MYF(MY_WME))) == -1) ||
+        read_meta_file(share->meta_file, &share->rows_recorded))
       share->crashed= TRUE;
   }
+
   share->use_count++;
   pthread_mutex_unlock(&tina_mutex);
 
@@ -342,11 +337,11 @@ int ha_tina::init_tina_writer()
   (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
 
   if ((share->tina_write_filedes=
-        my_open(share->data_file_name, O_RDWR|O_APPEND, MYF(0))) == -1)
+        my_open(share->data_file_name, O_RDWR|O_APPEND, MYF(MY_WME))) == -1)
   {
     DBUG_PRINT("info", ("Could not open tina file writes"));
     share->crashed= TRUE;
-    DBUG_RETURN(1);
+    DBUG_RETURN(my_errno ? my_errno : -1);
   }
   share->tina_write_opened= TRUE;
 
@@ -828,8 +823,12 @@ int ha_tina::open(const char *name, int mode, uint open_options)
   }
 
   local_data_file_version= share->data_file_version;
-  if ((data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1)
-    DBUG_RETURN(0);
+  if ((data_file= my_open(share->data_file_name,
+                          O_RDONLY, MYF(MY_WME))) == -1)
+  {
+    free_share(share);
+    DBUG_RETURN(my_errno ? my_errno : -1);
+  }
 
   /*
     Init locking. Pass handler object to the locking routines,
@@ -1021,8 +1020,8 @@ int ha_tina::init_data_file()
   {
     local_data_file_version= share->data_file_version;
     if (my_close(data_file, MYF(0)) ||
-        (data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1)
-      return 1;
+        (data_file= my_open(share->data_file_name, O_RDONLY, MYF(MY_WME))) == -1)
+      return my_errno ? my_errno : -1;
   }
   file_buff->init_buff(data_file);
   return 0;
@@ -1290,8 +1289,9 @@ int ha_tina::rnd_end()
       DBUG_RETURN(-1);
 
     /* Open the file again */
-    if (((data_file= my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1))
-      DBUG_RETURN(-1);
+    if (((data_file= my_open(share->data_file_name,
+                             O_RDONLY, MYF(MY_WME))) == -1))
+      DBUG_RETURN(my_errno ? my_errno : -1);
     /*
       As we reopened the data file, increase share->data_file_version 
       in order to force other threads waiting on a table lock and  
@@ -1445,8 +1445,8 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   /* Open the file again, it should now be repaired */
   if ((data_file= my_open(share->data_file_name, O_RDWR|O_APPEND,
-                          MYF(0))) == -1)
-     DBUG_RETURN(-1);
+                          MYF(MY_WME))) == -1)
+     DBUG_RETURN(my_errno ? my_errno : -1);
 
   /* Set new file size. The file size will be updated by ::update_status() */
   local_saved_data_file_length= (size_t) current_position;

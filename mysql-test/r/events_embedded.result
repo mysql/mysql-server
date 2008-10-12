@@ -1,0 +1,2 @@
+set global event_scheduler=ON;
+ERROR HY000: Unknown system variable 'event_scheduler'

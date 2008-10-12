@@ -1184,3 +1184,42 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id int, c int) character set latin1;
+INSERT INTO t1 VALUES (1,1);
+ALTER TABLE t1 CHANGE c d int;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 CHANGE d c int;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 MODIFY c VARCHAR(10);
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 CHANGE c d varchar(10);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 CHANGE d c varchar(10);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id int, c int) character set utf8;
+INSERT INTO t1 VALUES (1,1);
+ALTER TABLE t1 CHANGE c d int;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 CHANGE d c int;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 MODIFY c VARCHAR(10);
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 CHANGE c d varchar(10);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 CHANGE d c varchar(10);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
+End of 5.1 tests

@@ -7,9 +7,6 @@ drop table if exists `Ｔ６`;
 drop table if exists `Ｔ７`;
 drop table if exists `Ｔ８`;
 drop table if exists `Ｔ９`;
-drop table if exists `Ｔ１０`;
-drop table if exists `Ｔ１１`;
-drop table if exists `Ｔ１２`;
 SET NAMES utf8;
 SET character_set_database = utf8;
 CREATE TABLE `Ｔ１a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = innodb;
@@ -24,18 +21,12 @@ CREATE TABLE `Ｔ５a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 eng
 CREATE TABLE `Ｔ５b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = myisam;
 CREATE TABLE `Ｔ６a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = myisam;
 CREATE TABLE `Ｔ６b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = myisam;
-CREATE TABLE `Ｔ７a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ７b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ８a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ８b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ９a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ９b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ１０a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ１０b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ１１a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ１１b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ１２a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
-CREATE TABLE `Ｔ１２b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = heap;
+CREATE TABLE `Ｔ７a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ７b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ８a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ８b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ９a` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = MEMORY;
+CREATE TABLE `Ｔ９b` (`Ｃ１` char(1) PRIMARY KEY) DEFAULT CHARSET = utf8 engine = MEMORY;
 INSERT INTO `Ｔ１a` VALUES ('ｱ'),('ｶ'),('ｻ');
 INSERT INTO `Ｔ１b` VALUES ('ｱ');
 INSERT INTO `Ｔ２a` VALUES ('あ'),('か'),('さ');
@@ -54,12 +45,6 @@ INSERT INTO `Ｔ８a` VALUES ('あ'),('か'),('さ');
 INSERT INTO `Ｔ８b` VALUES ('あ');
 INSERT INTO `Ｔ９a` VALUES ('龔'),('龖'),('龗');
 INSERT INTO `Ｔ９b` VALUES ('龔');
-INSERT INTO `Ｔ１０a` VALUES ('ｱ'),('ｶ'),('ｻ');
-INSERT INTO `Ｔ１０b` VALUES ('ｱ');
-INSERT INTO `Ｔ１１a` VALUES ('あ'),('か'),('さ');
-INSERT INTO `Ｔ１１b` VALUES ('あ');
-INSERT INTO `Ｔ１２a` VALUES ('龔'),('龖'),('龗');
-INSERT INTO `Ｔ１２b` VALUES ('龔');
 SELECT `Ｃ１` FROM `Ｔ１a` WHERE `Ｃ１` IN (SELECT `Ｃ１` FROM `Ｔ１b`);
 Ｃ１
 ｱ
@@ -150,36 +135,6 @@ SELECT `Ｃ１` FROM `Ｔ９a` WHERE NOT EXISTS (SELECT `Ｃ１` FROM `Ｔ９b` 
 Ｃ１
 龖
 龗
-SELECT `Ｃ１` FROM `Ｔ１０a` WHERE `Ｃ１` IN (SELECT `Ｃ１` FROM `Ｔ１０b`);
-Ｃ１
-ｱ
-SELECT `Ｃ１` FROM `Ｔ１０a` WHERE EXISTS (SELECT `Ｃ１` FROM `Ｔ１０b` WHERE `Ｔ１０a`.`Ｃ１` = `Ｔ１０b`.`Ｃ１`);
-Ｃ１
-ｱ
-SELECT `Ｃ１` FROM `Ｔ１０a` WHERE NOT EXISTS (SELECT `Ｃ１` FROM `Ｔ１０b` WHERE `Ｔ１０a`.`Ｃ１` = `Ｔ１０b`.`Ｃ１`);
-Ｃ１
-ｶ
-ｻ
-SELECT `Ｃ１` FROM `Ｔ１１a` WHERE `Ｃ１` IN (SELECT `Ｃ１` FROM `Ｔ１１b`);
-Ｃ１
-あ
-SELECT `Ｃ１` FROM `Ｔ１１a` WHERE EXISTS (SELECT `Ｃ１` FROM `Ｔ１１b` WHERE `Ｔ１１a`.`Ｃ１` = `Ｔ１１b`.`Ｃ１`);
-Ｃ１
-あ
-SELECT `Ｃ１` FROM `Ｔ１１a` WHERE NOT EXISTS (SELECT `Ｃ１` FROM `Ｔ１１b` WHERE `Ｔ１１a`.`Ｃ１` = `Ｔ１１b`.`Ｃ１`);
-Ｃ１
-か
-さ
-SELECT `Ｃ１` FROM `Ｔ１２a` WHERE `Ｃ１` IN (SELECT `Ｃ１` FROM `Ｔ１２b`);
-Ｃ１
-龔
-SELECT `Ｃ１` FROM `Ｔ１２a` WHERE EXISTS (SELECT `Ｃ１` FROM `Ｔ１２b` WHERE `Ｔ１２a`.`Ｃ１` = `Ｔ１２b`.`Ｃ１`);
-Ｃ１
-龔
-SELECT `Ｃ１` FROM `Ｔ１２a` WHERE NOT EXISTS (SELECT `Ｃ１` FROM `Ｔ１２b` WHERE `Ｔ１２a`.`Ｃ１` = `Ｔ１２b`.`Ｃ１`);
-Ｃ１
-龖
-龗
 DROP TABLE `Ｔ１a`;
 DROP TABLE `Ｔ１b`;
 DROP TABLE `Ｔ２a`;
@@ -198,9 +153,3 @@ DROP TABLE `Ｔ８a`;
 DROP TABLE `Ｔ８b`;
 DROP TABLE `Ｔ９a`;
 DROP TABLE `Ｔ９b`;
-DROP TABLE `Ｔ１０a`;
-DROP TABLE `Ｔ１０b`;
-DROP TABLE `Ｔ１１a`;
-DROP TABLE `Ｔ１１b`;
-DROP TABLE `Ｔ１２a`;
-DROP TABLE `Ｔ１２b`;

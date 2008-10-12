@@ -1,11 +1,14 @@
-DROP USER ddicttestuser1@'localhost';
-ERROR HY000: Operation DROP USER failed for 'ddicttestuser1'@'localhost'
-CREATE USER ddicttestuser1@'localhost';
-GRANT ALL ON *.* TO ddicttestuser1@'localhost';
-REVOKE PROCESS ON *.* FROM ddicttestuser1@'localhost';
-SET PASSWORD FOR ddicttestuser1@'localhost' = PASSWORD('ddictpass');
+DROP USER test_user@'localhost';
+CREATE USER test_user@'localhost';
+GRANT ALL ON *.* TO test_user@'localhost';
+REVOKE PROCESS ON *.* FROM test_user@'localhost';
+SET PASSWORD FOR test_user@'localhost' = PASSWORD('ddictpass');
 DROP TABLE IF EXISTS test.t1;
 CREATE TABLE test.t1 (f1 BIGINT);
+USE test;
+# Show the definition of the PROCESSLIST table
+#--------------------------------------------------------------------------
+
 SHOW CREATE TABLE INFORMATION_SCHEMA.PROCESSLIST;
 Table	Create Table
 PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (

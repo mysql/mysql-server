@@ -1,0 +1,229 @@
+############# mysql-test\t\sql_low_priority_updates_func.test ###########################
+#                                                                                       #
+# Variable Name: sql_low_priority_updates                                               #
+# Scope: GLOBAL                                                                         #
+# Access Type: Dynamic                                                                  #
+# Data Type: BOOLEAN                                                                    #
+# Default Value: 1 TRUE                                                                 #
+# Values:       1 TRUE, 0 FALSE                                                         #
+#                                                                                       #
+#                                                                                       #
+# Creation Date: 2008-02-25                                                             #
+# Author:  Sharique Abdullah                                                            #
+#                                                                                       #
+# Description: Test Cases of Dynamic System Variable "sql_low_priority_updates"         #
+#              that checks behavior of this variable in the following ways              #
+#              * Functionality based on different values                                #
+#                                                                                       #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html                     #
+#                                                                                       #
+#########################################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+--source include/not_embedded.inc
+
+--echo Creating connection con0
+connect (con0,localhost,root,,);
+--echo Creating connection con1
+connect (con1,localhost,root,,);
+
+connection default;
+
+SET @global_delayed_insert_limit = @@GLOBAL.delayed_insert_limit;
+
+#
+# Create Table
+#
+
+CREATE TABLE t1 (a varchar(100));
+
+--echo '#--------------------FN_DYNVARS_25_01-------------------------#'
+#
+# Value less than the provided INSERTS (9)
+#
+
+SET GLOBAL delayed_insert_limit = 9;
+
+--echo ** Connection con0 **
+connection con0;
+SET GLOBAL delayed_insert_limit = 9;
+--echo ** Connection con1 **
+connection con1;
+SET GLOBAL delayed_insert_limit = 9;
+--echo ** Connection default **
+connection default;
+SET GLOBAL delayed_insert_limit = 9;
+
+INSERT INTO t1 VALUES('1');
+INSERT INTO t1 VALUES('2');
+INSERT INTO t1 VALUES('3');
+INSERT INTO t1 VALUES('4');
+INSERT INTO t1 VALUES('5');
+INSERT INTO t1 VALUES('6');
+
+LOCK TABLE t1 WRITE;
+
+--echo ** Connection con1 **
+connection con1;
+
+delimiter |;
+
+send
+INSERT DELAYED INTO t1 VALUES('7');
+INSERT DELAYED INTO t1 VALUES('8');
+INSERT DELAYED INTO t1 VALUES('9');
+INSERT DELAYED INTO t1 VALUES('10');
+INSERT DELAYED INTO t1 VALUES('11');
+INSERT DELAYED INTO t1 VALUES('12');
+INSERT DELAYED INTO t1 VALUES('13');
+INSERT DELAYED INTO t1 VALUES('14');
+INSERT DELAYED INTO t1 VALUES('15');
+INSERT DELAYED INTO t1 VALUES('16');
+INSERT DELAYED INTO t1 VALUES('17');
+INSERT DELAYED INTO t1 VALUES('18');
+INSERT DELAYED INTO t1 VALUES('19');
+INSERT DELAYED INTO t1 VALUES('20');
+INSERT DELAYED INTO t1 VALUES('21');
+INSERT DELAYED INTO t1 VALUES('22');|
+
+delimiter ;|
+
+--echo ** Connection con0 **
+connection con0;
+
+delimiter |;
+
+send
+SELECT * FROM t1;|
+
+delimiter ;|
+
+--echo ** Connection default **
+connection default;
+
+--echo Waiting for 1 sec
+--sleep 1
+
+UNLOCK TABLES;
+
+--echo ** Connection con0 **
+connection con0;
+reap;
+--echo 'Bug#35386: insert delayed inserts 1 + limit rows instead of just limit rows'
+
+--echo ** Connection default **
+connection default;
+
+--echo Waiting for 1 sec
+--sleep 1
+--echo Checking if the delayed insert continued afterwards
+SELECT * FROM t1;
+
+DELETE FROM t1;
+
+
+--echo '#--------------------FN_DYNVARS_25_02-------------------------#'
+#
+# Value 5
+#
+
+SET GLOBAL delayed_insert_limit = 20;
+
+--echo ** Connection con0 **
+connection con0;
+SET GLOBAL delayed_insert_limit = 20;
+--echo ** Connection con1 **
+connection con1;
+SET GLOBAL delayed_insert_limit = 20;
+--echo ** Connection default **
+connection default;
+SET GLOBAL delayed_insert_limit = 20;
+
+INSERT INTO t1 VALUES('1');
+INSERT INTO t1 VALUES('2');
+INSERT INTO t1 VALUES('3');
+INSERT INTO t1 VALUES('4');
+INSERT INTO t1 VALUES('5');
+INSERT INTO t1 VALUES('6');
+
+LOCK TABLE t1 WRITE;
+
+--echo ** Connection con1 **
+connection con1;
+
+--echo Asynchronous execute
+delimiter |;
+
+send
+INSERT DELAYED INTO t1 VALUES('7');
+INSERT DELAYED INTO t1 VALUES('8');
+INSERT DELAYED INTO t1 VALUES('9');
+INSERT DELAYED INTO t1 VALUES('10');
+INSERT DELAYED INTO t1 VALUES('11');
+INSERT DELAYED INTO t1 VALUES('12');
+INSERT DELAYED INTO t1 VALUES('13');
+INSERT DELAYED INTO t1 VALUES('14');
+INSERT DELAYED INTO t1 VALUES('15');
+INSERT DELAYED INTO t1 VALUES('16');
+INSERT DELAYED INTO t1 VALUES('17');
+INSERT DELAYED INTO t1 VALUES('18');
+INSERT DELAYED INTO t1 VALUES('19');
+INSERT DELAYED INTO t1 VALUES('20');
+INSERT DELAYED INTO t1 VALUES('21');
+INSERT DELAYED INTO t1 VALUES('22');|
+
+delimiter ;|
+
+--echo ** Connection con0 **
+connection con0;
+
+--echo Asynchronous execute
+delimiter |;
+
+send
+SELECT * FROM t1;|
+
+delimiter ;|
+
+--echo ** Connection default **
+connection default;
+
+--echo Waiting for 1 sec
+--sleep 1
+
+UNLOCK TABLES;
+
+--echo ** Connection con0 **
+connection con0;
+--echo Asynchronous execute result
+reap;
+
+--echo ** Connection default**
+connection default;
+
+--echo Waiting for 1 sec
+--sleep 1
+--echo Checking if the delayed insert gives the same result afterwards
+SELECT * FROM t1;
+
+DELETE FROM t1;
+
+#
+# Cleanup
+#
+
+--echo Switching to default
+connection default;
+
+--echo Disconnecting from con1, con0
+disconnect con0;
+disconnect con1;
+
+DROP TABLE t1;
+
+SET @@GLOBAL.delayed_insert_limit = @global_delayed_insert_limit;
