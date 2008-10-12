@@ -96,7 +96,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   bzero((uchar*) &info,sizeof(info));
 
   realpath_err= my_realpath(name_buff,
-                  fn_format(org_name,name,"",MI_NAME_IEXT,4),MYF(0));
+                            fn_format(org_name,name,"",MI_NAME_IEXT,4),MYF(0));
   if (my_is_symlink(org_name) &&
       (realpath_err || (*myisam_test_invalid_symlink)(name_buff)))
   {

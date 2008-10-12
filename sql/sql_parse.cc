@@ -7477,15 +7477,14 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
 
 /*
   Check if path does not contain mysql data home directory
+
   SYNOPSIS
     test_if_data_home_dir()
     dir                     directory
-    conv_home_dir           converted data home directory
-    home_dir_len            converted data home directory length
 
   RETURN VALUES
     0	ok
-    1	error  
+    1	error ;  Given path contains data directory
 */
 C_MODE_START
 
@@ -7513,11 +7512,17 @@ int test_if_data_home_dir(const char *dir)
                         mysql_unpacked_real_data_home_len,
                         (const uchar*) mysql_unpacked_real_data_home,
                         mysql_unpacked_real_data_home_len))
+      {
+        DBUG_PRINT("error", ("Path is part of mysql_real_data_home"));
         DBUG_RETURN(1);
+      }
     }
     else if (!memcmp(path, mysql_unpacked_real_data_home,
                      mysql_unpacked_real_data_home_len))
+    {
+      DBUG_PRINT("error", ("Path is part of mysql_real_data_home"));
       DBUG_RETURN(1);
+    }
   }
   DBUG_RETURN(0);
 }
