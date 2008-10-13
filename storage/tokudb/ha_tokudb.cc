@@ -4102,8 +4102,15 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     TOKUDB_DBUG_ENTER("ha_tokudb::create");
     char name_buff[FN_REFLEN];
     int error;
-    char dirname[get_name_length(name) + 32];
-    char newname[get_name_length(name) + 32];
+    DB *status_block = NULL;
+    bool dir_path_made = false;
+    char* dirname = NULL;
+    char* newname = NULL;
+
+    dirname = (char *)my_malloc(get_name_length(name) + 32,MYF(MY_WME));
+    if (dirname == NULL){ error = ENOMEM; goto cleanup;}
+    newname = (char *)my_malloc(get_name_length(name) + 32,MYF(MY_WME));
+    if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
     uint i;    
     //
@@ -4132,19 +4139,21 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     make_name(dirname, name, 0);
     error = mkdirpath(dirname, 0777);
     if (error != 0) {
-        TOKUDB_DBUG_RETURN(errno);
+        error = errno;
+        goto cleanup;
     }
+    dir_path_made = true;
 
     make_name(newname, name, "main");
     fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
     /* Create the main table that will hold the real rows */
     error = create_sub_table(name_buff, NULL, DB_BTREE, 0);
-    if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+    if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
         TOKUDB_TRACE("create:%s:error=%d\n", newname, error);
+    }
     if (error) {
-        rmall(dirname);
-        TOKUDB_DBUG_RETURN(error);
+        goto cleanup;
     }
 
     primary_key = form->s->primary_key;
@@ -4157,18 +4166,17 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             make_name(newname, name, part);
             fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
             error = create_sub_table(name_buff, NULL, DB_BTREE, DB_DUP + DB_DUPSORT);
-            if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+            if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
                 TOKUDB_TRACE("create:%s:flags=%ld:error=%d\n", newname, form->key_info[i].flags, error);
+            }
             if (error) {
-                rmall(dirname);
-                TOKUDB_DBUG_RETURN(error);
+                goto cleanup;
             }
         }
     }
 
 
     /* Create status.tokudb and save relevant metadata */
-    DB *status_block = NULL;
     if (!(error = (db_create(&status_block, db_env, 0)))) {
         make_name(newname, name, "status");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
@@ -4178,24 +4186,26 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
             uint capabilities = HA_TOKU_CAP;
             
             error = write_metadata(status_block, hatoku_version,&version,sizeof(version));
-            if (error) { goto quit_status; }
+            if (error) { goto cleanup; }
 
             error = write_metadata(status_block, hatoku_capabilities,&capabilities,sizeof(capabilities));
-            if (error) { goto quit_status; }
+            if (error) { goto cleanup; }
 
             error = write_auto_inc_create(status_block, create_info->auto_increment_value);
-            if (error) { goto quit_status; }
+            if (error) { goto cleanup; }
 
-        quit_status:
-            status_block->close(status_block, 0);
-        }
-        if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
-            TOKUDB_TRACE("create:%s:error=%d\n", newname, error);
         }
     }
 
-    if (error)
+cleanup:
+    if (status_block != NULL) {
+        status_block->close(status_block, 0);
+    }
+    if (error && dir_path_made) {
         rmall(dirname);
+    }
+    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(dirname, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 
