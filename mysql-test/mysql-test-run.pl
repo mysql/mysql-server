@@ -2842,7 +2842,7 @@ sub ndbd_start ($$$) {
   mtr_add_arg($args, "$extra_args");
 
   my $nodeid= $cluster->{'ndbds'}->[$idx]->{'nodeid'};
-  my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}.log";
+  my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}_out.log";
 
   my $exe= $exe_ndbd;
   if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)

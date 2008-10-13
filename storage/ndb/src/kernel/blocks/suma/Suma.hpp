@@ -597,7 +597,6 @@ private:
   Bucket_mask m_active_buckets;
   Bucket_mask m_switchover_buckets;  
   
-  class Dbtup* m_tup;
   void init_buffers();
   Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint64 gci, Uint32 sz);
   Uint32 seize_page();
@@ -649,10 +648,22 @@ private:
 
   Uint32 m_first_free_page;
   ArrayPool<Page_chunk> c_page_chunk_pool;
+  ArrayPool<Buffer_page> c_page_pool;
 
 #ifdef VM_TRACE
   Uint64 m_gcp_monitor;
 #endif
+
+  struct SubGcpCompleteCounter
+  {
+    Uint64 m_gci;
+    Uint32 m_cnt;
+  };
+
+  Uint32 m_gcp_rep_cnt;
+  Uint32 m_min_gcp_rep_counter_index;
+  Uint32 m_max_gcp_rep_counter_index;
+  struct SubGcpCompleteCounter m_gcp_rep_counter[10];
 
   /* Buffer used in Suma::execALTER_TAB_REQ(). */
   Uint32 b_dti_buf[MAX_WORDS_META_FILE];

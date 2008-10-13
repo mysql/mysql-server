@@ -3264,10 +3264,7 @@ loop:
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);
     tmpAttr.AttributeExtScale = col->m_scale;
     tmpAttr.AttributeExtLength = col->m_length;
-    if(col->m_storageType == NDB_STORAGETYPE_DISK)
-      tmpAttr.AttributeArrayType = NDB_ARRAYTYPE_FIXED;
-    else
-      tmpAttr.AttributeArrayType = col->m_arrayType;
+    tmpAttr.AttributeArrayType = col->m_arrayType;
 
     if(col->m_pk)
       tmpAttr.AttributeStorageType = NDB_STORAGETYPE_MEMORY;      

@@ -4632,6 +4632,66 @@ Backup::execBACKUP_TRIG_REQ(Signal* signal)
   signal->theData[0] = result;
 }
 
+BackupFormat::LogFile::LogEntry *
+Backup::get_log_buffer(Signal* signal,
+                       TriggerPtr trigPtr, Uint32 sz)
+{
+  Uint32 * dst;
+  if(ERROR_INSERTED(10030))
+  {
+    jam();
+    dst = 0;
+  }
+  else
+  {
+    jam();
+    FsBuffer & buf = trigPtr.p->operation->dataBuffer;
+    ndbrequire(sz <= buf.getMaxWrite());
+    if (unlikely(!buf.getWritePtr(&dst, sz)))
+    {
+      jam();
+      dst = 0;
+    }
+  }
+
+  if (unlikely(dst == 0))
+  {
+    Uint32 save[TrigAttrInfo::StaticLength];
+    memcpy(save, signal->getDataPtr(), 4*TrigAttrInfo::StaticLength);
+    BackupRecordPtr ptr LINT_SET_PTR;
+    c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
+    trigPtr.p->errorCode = AbortBackupOrd::LogBufferFull;
+    AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
+    ord->backupId = ptr.p->backupId;
+    ord->backupPtr = ptr.i;
+    ord->requestType = AbortBackupOrd::LogBufferFull;
+    ord->senderData= ptr.i;
+    sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD, signal,
+               AbortBackupOrd::SignalLength, JBB);
+
+    memcpy(signal->getDataPtrSend(), save, 4*TrigAttrInfo::StaticLength);
+    return 0;
+  }//if
+
+  BackupFormat::LogFile::LogEntry * logEntry =
+    (BackupFormat::LogFile::LogEntry *)dst;
+  logEntry->Length       = 0;
+  logEntry->TableId      = htonl(trigPtr.p->tableId);
+
+  if(trigPtr.p->event==0)
+    logEntry->TriggerEvent= htonl(TriggerEvent::TE_INSERT);
+  else if(trigPtr.p->event==1)
+    logEntry->TriggerEvent= htonl(TriggerEvent::TE_UPDATE);
+  else if(trigPtr.p->event==2)
+    logEntry->TriggerEvent= htonl(TriggerEvent::TE_DELETE);
+  else {
+    ndbout << "Bad Event: " << trigPtr.p->event << endl;
+    ndbrequire(false);
+  }
+
+  return logEntry;
+}
+
 void
 Backup::execTRIG_ATTRINFO(Signal* signal) {
   jamEntry();
@@ -4661,46 +4721,12 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
   if(logEntry == 0) 
   {
     jam();
-    Uint32 * dst;
-    FsBuffer & buf = trigPtr.p->operation->dataBuffer;
-    ndbrequire(trigPtr.p->maxRecordSize <= buf.getMaxWrite());
-
-    if(ERROR_INSERTED(10030) ||
-       !buf.getWritePtr(&dst, trigPtr.p->maxRecordSize)) 
+    Uint32 sz = trigPtr.p->maxRecordSize;
+    logEntry = trigPtr.p->logEntry = get_log_buffer(signal, trigPtr, sz);
+    if (unlikely(logEntry == 0))
     {
       jam();
-      Uint32 save[TrigAttrInfo::StaticLength];
-      memcpy(save, signal->getDataPtr(), 4*TrigAttrInfo::StaticLength);
-      BackupRecordPtr ptr LINT_SET_PTR;
-      c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
-      trigPtr.p->errorCode = AbortBackupOrd::LogBufferFull;
-      AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
-      ord->backupId = ptr.p->backupId;
-      ord->backupPtr = ptr.i;
-      ord->requestType = AbortBackupOrd::LogBufferFull;
-      ord->senderData= ptr.i;
-      sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD, signal, 
-		 AbortBackupOrd::SignalLength, JBB);
-
-      memcpy(signal->getDataPtrSend(), save, 4*TrigAttrInfo::StaticLength);
       return;
-    }//if
-
-    logEntry = (BackupFormat::LogFile::LogEntry *)dst;
-    trigPtr.p->logEntry = logEntry;
-    logEntry->Length       = 0;
-    logEntry->TableId      = htonl(trigPtr.p->tableId);
-
-
-    if(trigPtr.p->event==0)
-      logEntry->TriggerEvent= htonl(TriggerEvent::TE_INSERT);
-    else if(trigPtr.p->event==1)
-      logEntry->TriggerEvent= htonl(TriggerEvent::TE_UPDATE);
-    else if(trigPtr.p->event==2)
-      logEntry->TriggerEvent= htonl(TriggerEvent::TE_DELETE);
-    else {
-      ndbout << "Bad Event: " << trigPtr.p->event << endl;
-      ndbrequire(false);
     }
   } else {
     ndbrequire(logEntry->TableId == htonl(trigPtr.p->tableId));
@@ -4731,12 +4757,15 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
 
   if(trigPtr.p->errorCode != 0) {
     jam();
+    SectionHandle handle(this, signal);
+    releaseSections(handle);
     return;
   }//if
 
-  if (isNdbMtLqh())
+  if (signal->getNoOfSections())
   {
     jam();
+    SectionHandle handle(this, signal);
     TablePtr tabPtr;
     c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
     FragmentPtr fragPtr;
@@ -4745,8 +4774,26 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     {
       jam();
       trigPtr.p->logEntry = 0;      
+      releaseSections(handle);
       return;
     }
+
+    SegmentedSectionPtr ptr[3];
+    handle.getSection(ptr[0], 0);
+    handle.getSection(ptr[1], 1);
+    handle.getSection(ptr[2], 2);
+    trigPtr.p->logEntry = get_log_buffer(signal,
+                                         trigPtr, ptr[0].sz + ptr[2].sz);
+    if (unlikely(trigPtr.p->logEntry == 0))
+    {
+      jam();
+      releaseSections(handle);
+      return;
+    }
+    copy(trigPtr.p->logEntry->Data, ptr[0]);
+    copy(trigPtr.p->logEntry->Data+ptr[0].sz, ptr[2]);
+    trigPtr.p->logEntry->Length = ptr[0].sz + ptr[2].sz;
+    releaseSections(handle);
   }
 
   ndbrequire(trigPtr.p->logEntry != 0);

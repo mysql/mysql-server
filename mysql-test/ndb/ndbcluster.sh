@@ -31,7 +31,7 @@ cd $CWD
 if [ -d ../sql ] ; then
    SOURCE_DIST=1
    ndbtop=$BASEDIR/storage/ndb
-   exec_ndb=$ndbtop/src/kernel/ndbd
+   exec_ndb=$ndbtop/src/kernel
    exec_mgmtsrvr=$ndbtop/src/mgmsrv/ndb_mgmd
    exec_waiter=$ndbtop/tools/ndb_waiter
    exec_test=$ndbtop/tools/ndb_test_platform
@@ -41,10 +41,10 @@ else
    BINARY_DIST=1
    if test -x "$BASEDIR/libexec/ndbd"
    then
-     exec_ndb=$BASEDIR/libexec/ndbd
+     exec_ndb=$BASEDIR/libexec
      exec_mgmtsrvr=$BASEDIR/libexec/ndb_mgmd
    else
-     exec_ndb=$BASEDIR/bin/ndbd
+     exec_ndb=$BASEDIR/bin
      exec_mgmtsrvr=$BASEDIR/bin/ndb_mgmd
    fi
    exec_waiter=$BASEDIR/bin/ndb_waiter
@@ -75,6 +75,7 @@ ndb_diskless=0
 ndbd_nodes=2
 relative_config_data_dir=
 opt_core=
+opt_exec_ndb=ndbd
 
 ndb_no_ord=512
 ndb_no_attr=2048
@@ -82,6 +83,7 @@ ndb_con_op=105000
 ndb_dmem=80M
 ndb_imem=24M
 ndb_pbmem=32M
+ndb_threads=4
 
 VERBOSE=100
 NDB_MGM_EXTRA_OPTS=
@@ -144,6 +146,13 @@ while test $# -gt 0; do
     --character-sets-dir=*)
      CHARSETSDIR=`echo "$1" | sed -e "s;--character-sets-dir=;;"`
      ;;
+    --mt=*)
+     ndb_threads=`echo "$1" | sed -e "s;--mt=;;"`
+     opt_exec_ndb=ndbmtd
+     ;;
+    --mt)
+     opt_exec_ndb=ndbmtd
+     ;;
     --core)
      opt_core="--core"
      ;;
@@ -159,6 +168,7 @@ done
 
 fs_ndb="$fsdir/ndbcluster-$port"
 config_ini=ndb/ndb_config_${ndbd_nodes}_node.ini
+exec_ndb=$exec_ndb/$opt_exec_ndb
 
 NDB_HOME=
 if [ ! -d "$fsdir" ]; then
@@ -191,6 +201,12 @@ ndb_host="localhost"
 ndb_mgmd_port=$port
 NDB_CONNECTSTRING="host=$ndb_host:$ndb_mgmd_port"
 export NDB_CONNECTSTRING
+NDB_MT_LQH=1
+export NDB_MT_LQH
+NDBMT_LQH_THREADS=$ndb_threads
+export NDBMT_LQH_THREADS
+NDBMT_LQH_WORKERS=$ndb_threads
+export NDBMT_LQH_WORKERS
 
 sleep_until_file_created () {
   file=$1

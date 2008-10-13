@@ -78,6 +78,9 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_EMPTY_LCP_REQ
   addRecSignal(GSN_EMPTY_LCP_REQ, &DblqhProxy::execEMPTY_LCP_REQ);
   addRecSignal(GSN_EMPTY_LCP_CONF, &DblqhProxy::execEMPTY_LCP_CONF);
+
+  // GSN_SUB_GCP_COMPLETE_REP
+  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &DblqhProxy::execSUB_GCP_COMPLETE_REP);
 }
 
 DblqhProxy::~DblqhProxy()
@@ -514,6 +517,19 @@ DblqhProxy::sendGCP_SAVECONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_GCP_SAVEREQ>(ssId);
+}
+
+// GSN_SUB_GCP_COMPLETE_REP
+void
+DblqhProxy::execSUB_GCP_COMPLETE_REP(Signal* signal)
+{
+  jamEntry();
+  for (Uint32 i = 0; i<c_workers; i++)
+  {
+    jam();
+    sendSignal(workerRef(i), GSN_SUB_GCP_COMPLETE_REP, signal,
+               signal->getLength(), JBB);
+  }
 }
 
 // GSN_PREP_DROP_TAB_REQ

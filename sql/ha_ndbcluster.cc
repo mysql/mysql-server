@@ -11313,6 +11313,14 @@ int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
   uint no_fragments=
     get_no_fragments(max_rows >= min_rows ? max_rows : min_rows);
   uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
+
+  if (getenv("NDBMT_LQH_THREADS"))
+  {
+    int mul= atoi(getenv("NDBMT_LQH_THREADS"));
+    if (mul <= 0)
+      mul= 1;
+    no_nodes*= (uint)mul;
+  }
   if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
   {
     push_warning(current_thd,
