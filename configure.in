@@ -1753,6 +1753,32 @@ if test "x$mysql_cv_gcc_atomic_builtins" = xyes; then
             [Define to 1 if compiler provides atomic builtins.])
 fi
 
+AC_CACHE_CHECK([whether the OS provides atomic_* functions like Solaris],
+               [mysql_cv_solaris_atomic], [AC_TRY_RUN([
+#include <atomic.h>
+int
+main()
+{
+	int foo = -10; int bar = 10;
+	if (atomic_add_int_nv((uint_t *)&foo, bar) || foo)
+		return -1;
+	bar = atomic_swap_uint((uint_t *)&foo, (uint_t)bar);
+	if (bar || foo != 10)
+		return -1;
+	bar = atomic_cas_uint((uint_t *)&bar, (uint_t)foo, 15);
+	if (bar)
+		return -1;
+	return 0;
+}
+], [mysql_cv_solaris_atomic=yes],
+   [mysql_cv_solaris_atomic=no],
+   [mysql_cv_solaris_atomic=no])])
+
+if test "x$mysql_cv_solaris_atomic" = xyes; then
+  AC_DEFINE(HAVE_SOLARIS_ATOMIC, 1,
+            [Define to 1 if OS provides atomic_* functions like Solaris.])
+fi
+
 # Force static compilation to avoid linking problems/get more speed
 AC_ARG_WITH(mysqld-ldflags,
     [  --with-mysqld-ldflags   Extra linking arguments for mysqld],
