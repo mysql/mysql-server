@@ -1173,8 +1173,13 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
     char part[MAX_ALIAS_NAME + 10];
     char name_buff[FN_REFLEN];
     uint open_flags = (mode == O_RDONLY ? DB_RDONLY : 0) | DB_THREAD;
-    char newname[strlen(name) + 32];
     DBT cmp_byte_stream;
+    char* newname = NULL;
+    newname = (char *)my_malloc(strlen(name) + 32, MYF(MY_WME));
+    if (newname == NULL) {
+        error = ENOMEM;
+        goto cleanup;
+    }
 
     open_flags += DB_AUTO_COMMIT;
 
@@ -1214,6 +1219,7 @@ int ha_tokudb::open_secondary_table(DB** ptr, KEY* key_info, const char* name, i
         TOKUDB_TRACE("open:%s:file=%p\n", newname, *ptr);
     }
 cleanup:
+    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     return error;
 }
 
@@ -1306,9 +1312,10 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
     /* Fill in shared structure, if needed */
     pthread_mutex_lock(&share->mutex);
-    if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+    if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
         TOKUDB_TRACE("tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d\n", 
                      this, share, share->file, table, table->s, share->use_count);
+    }
     if (!share->use_count++) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
         DBT cmp_byte_stream;
@@ -2105,12 +2112,17 @@ int ha_tokudb::get_status() {
     DBT key, value;
     HA_METADATA_KEY curr_key;
     int error;
+    char* newname = NULL;
     //
     // open status.tokudb
     //
     if (!share->status_block) {
         char name_buff[FN_REFLEN];
-        char newname[get_name_length(share->table_name) + 32];
+        newname = (char *)my_malloc(get_name_length(share->table_name) + 32, MYF(MY_WME));
+        if (newname == NULL) {
+            error = ENOMEM;
+            goto cleanup;
+        }
         make_name(newname, share->table_name, "status");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
         uint open_mode = (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
@@ -2188,6 +2200,7 @@ cleanup:
     if (txn) {
         txn->commit(txn,0);
     }
+    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     if (error) {
         if (share->status_block) {
             share->status_block->close(share->status_block, 0);
@@ -3499,8 +3512,20 @@ int ha_tokudb::read_range_first(
     const DBT* start_dbt_data = NULL;
     DBT end_dbt_key;
     const DBT* end_dbt_data = NULL;
-    uchar start_key_buff [table_share->max_key_length + MAX_REF_PARTS * 3 + sizeof(uchar)];
-    uchar end_key_buff [table_share->max_key_length + MAX_REF_PARTS * 3 + sizeof(uchar)];
+    uchar* start_key_buff  = NULL;
+    uchar* end_key_buff = NULL;
+    start_key_buff = (uchar *)my_malloc(table_share->max_key_length + MAX_REF_PARTS * 3 + sizeof(uchar), MYF(MY_WME));
+    if (start_key_buff == NULL) {
+        error = ENOMEM;
+        goto cleanup;
+    }
+    end_key_buff = (uchar *)my_malloc(table_share->max_key_length + MAX_REF_PARTS * 3 + sizeof(uchar), MYF(MY_WME));
+    if (end_key_buff == NULL) {
+        error = ENOMEM;
+        goto cleanup;
+    }
+
+
     bzero((void *) &start_dbt_key, sizeof(start_dbt_key));
     bzero((void *) &end_dbt_key, sizeof(end_dbt_key));
     range_lock_grabbed = false;
@@ -3564,6 +3589,8 @@ int ha_tokudb::read_range_first(
     error = handler::read_range_first(start_key, end_key, eq_range, sorted);
 
 cleanup:
+    my_free(start_key_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(end_key_buff, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 int ha_tokudb::read_range_next()
@@ -4078,8 +4105,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     char dirname[get_name_length(name) + 32];
     char newname[get_name_length(name) + 32];
 
-    uint i;
-
+    uint i;    
     //
     // tracing information about what type of table we are creating
     //
@@ -4163,9 +4189,9 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         quit_status:
             status_block->close(status_block, 0);
         }
-        if (tokudb_debug & TOKUDB_DEBUG_OPEN)
+        if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
             TOKUDB_TRACE("create:%s:error=%d\n", newname, error);
-
+        }
     }
 
     if (error)
@@ -4184,34 +4210,18 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 int ha_tokudb::delete_table(const char *name) {
     TOKUDB_DBUG_ENTER("ha_tokudb::delete_table");
     int error;
-#if 0 // QQQ single file per table
-    char name_buff[FN_REFLEN];
-    char newname[strlen(name) + 32];
-
-    sprintf(newname, "%s/main", name);
-    fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
-    error = db_create(&file, db_env, 0);
-    if (error != 0)
-        goto exit;
-    error = file->remove(file, name_buff, NULL, 0);
-
-    sprintf(newname, "%s/status", name);
-    fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
-    error = db_create(&file, db_env, 0);
-    if (error != 0)
-        goto exit;
-    error = file->remove(file, name_buff, NULL, 0);
-
-  exit:
-    file = 0;                   // Safety
-    my_errno = error;
-#else
     // remove all of the dictionaries in the table directory 
-    char newname[(tokudb_data_dir ? strlen(tokudb_data_dir) : 0) + strlen(name) + 32];
+    char* newname = NULL;
+    newname = (char *)my_malloc((tokudb_data_dir ? strlen(tokudb_data_dir) : 0) + strlen(name) + 32, MYF(MY_WME));
+    if (newname == NULL) {
+        error = ENOMEM;
+        goto cleanup;
+    }
     make_name(newname, name, 0);
     error = rmall(newname);
     my_errno = error;
-#endif
+cleanup:
+    my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -4228,28 +4238,33 @@ int ha_tokudb::delete_table(const char *name) {
 int ha_tokudb::rename_table(const char *from, const char *to) {
     TOKUDB_DBUG_ENTER("%s %s %s", __FUNCTION__, from, to);
     int error;
-#if 0 // QQQ single file per table
-    char from_buff[FN_REFLEN];
-    char to_buff[FN_REFLEN];
+    char* newfrom = NULL;
+    char* newto = NULL;
 
-    if ((error = db_create(&file, db_env, 0)))
-        my_errno = error;
-    else {
-        /* On should not do a file->close() after rename returns */
-        error = file->rename(file,
-                             fn_format(from_buff, from, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT), NULL, fn_format(to_buff, to, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT), 0);
-    }
-#else
     int n = get_name_length(from) + 32;
-    char newfrom[n];
+    newfrom = (char *)my_malloc(n,MYF(MY_WME));
+    if (newfrom == NULL){
+        error = ENOMEM;
+        goto cleanup;
+    }
     make_name(newfrom, from, 0);
+
     n = get_name_length(to) + 32;
-    char newto[n];
+    newto = (char *)my_malloc(n,MYF(MY_WME));
+    if (newto == NULL){
+        error = ENOMEM;
+        goto cleanup;
+    }
     make_name(newto, to, 0);
+
     error = rename(newfrom, newto);
-    if (error != 0)
+    if (error != 0) {
         error = my_errno = errno;
-#endif
+    }
+
+cleanup:
+    my_free(newfrom, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(newto, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 
