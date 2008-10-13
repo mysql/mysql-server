@@ -1766,11 +1766,15 @@ page_cur_delete_rec(
 
 	page = page_cur_get_page(cursor);
 	page_zip = page_cur_get_page_zip(cursor);
-#ifdef UNIV_ZIP_DEBUG
-	/* Strict page_zip_validate() may fail here when
-	btr_cur_pessimistic_delete() invokes btr_set_min_rec_mark(). */
-	ut_a(!page_zip || page_zip_validate_low(page_zip, page, TRUE));
-#endif /* UNIV_ZIP_DEBUG */
+
+	/* page_zip_validate() will fail here when
+	btr_cur_pessimistic_delete() invokes btr_set_min_rec_mark().
+	Then, both "page_zip" and "page" would have the min-rec-mark
+	set on the smallest user record, but "page" would additionally
+	have it set on the smallest-but-one record.  Because sloppy
+	page_zip_validate_low() only ignores min-rec-flag differences
+	in the smallest user record, it cannot be used here either. */
+
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
