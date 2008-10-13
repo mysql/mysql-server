@@ -14,9 +14,9 @@ set ndb_table_temporary=0;
 create table t1 (a int key) engine=ndb;
 reset master;
 --exec $NDB_MGM --no-defaults -e "all restart -n" > /dev/null
---exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults --not-started > /dev/null
+--exec $NDB_WAITER --no-defaults --not-started > /dev/null
 --exec $NDB_MGM --no-defaults -e "all start" > /dev/null
---exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults > /dev/null
+--exec $NDB_WAITER --no-defaults > /dev/null
 
 --disable_query_log
 let $mysql_errno= 1;

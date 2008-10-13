@@ -296,6 +296,12 @@ our $opt_skip_slave_binlog= 0;
 
 our $exe_ndb_mgm;
 our $exe_ndb_waiter;
+our $exe_ndb_desc;
+our $exe_ndb_restore;
+our $exe_ndb_select_all;
+our $exe_ndb_drop_table;
+our $exe_ndb_config;
+our $exe_ndb_show_tables;
 our $path_ndb_tools_dir;
 our $path_ndb_examples_dir;
 our $exe_ndb_example;
@@ -1602,25 +1608,50 @@ sub executable_setup_ndb () {
   mtr_report("Found multi threaded ndbd, will be used \"round robin\"")
     if ($exe_ndbmtd);
 
-  $exe_ndb_mgm=
+  $exe_ndb_mgm= mtr_native_path(
     mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/mgmclient","ndb_mgm"),
 			 "$ndb_path/src/mgmclient/ndb_mgm",
-			 "$ndb_path/ndb_mgm");
+			 "$ndb_path/ndb_mgm"));
   $exe_ndb_mgmd=
     mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/src/mgmsrv","ndb_mgmd"),
 			 "$ndb_path/src/mgmsrv/ndb_mgmd",
 			 "$ndb_path/ndb_mgmd",
 			 "$glob_basedir/libexec/ndb_mgmd");
 
-  $exe_ndb_waiter=
+  $exe_ndb_waiter= mtr_native_path(
     mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools","ndb_waiter"),
 			 "$ndb_path/tools/ndb_waiter",
-			 "$ndb_path/ndb_waiter");
+			 "$ndb_path/ndb_waiter"));
 
-  # May not exist
-  $path_ndb_tools_dir= mtr_path_exists(vs_config_dirs("storage/ndb/tools",''),
-				       "$ndb_path/tools",
-				       "$ndb_path");
+  $exe_ndb_desc= mtr_native_path(
+		 mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_desc'),
+				       "$ndb_path/tools/ndb_desc",
+				       "$ndb_path/ndb_desc"));
+  $exe_ndb_restore= mtr_native_path(
+    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_restore'),
+		    "$ndb_path/tools/ndb_restore",
+		    "$ndb_path/ndb_restore"));
+
+  $exe_ndb_select_all= mtr_native_path(
+    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_select_all'),
+		    "$ndb_path/tools/ndb_select_all",
+		    "$ndb_path/ndb_select_all"));
+
+  $exe_ndb_drop_table= mtr_native_path(
+    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_drop_table'),
+		    "$ndb_path/tools/ndb_drop_table",
+		    "$ndb_path/ndb_drop_table"));
+
+  $exe_ndb_config= mtr_native_path(
+    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_config'),
+		    "$ndb_path/tools/ndb_config",
+		    "$ndb_path/ndb_config"));
+
+  $exe_ndb_show_tables= mtr_native_path(
+    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_show_tables'),
+		    "$ndb_path/tools/ndb_show_tables",
+		    "$ndb_path/ndb_show_tables"));
+
   # May not exist
   $path_ndb_examples_dir=
     mtr_file_exists("$ndb_path/ndbapi-examples",
@@ -2005,7 +2036,13 @@ sub environment_setup () {
 
     $ENV{'NDB_BACKUP_DIR'}=           $clusters->[0]->{'data_dir'};
     $ENV{'NDB_DATA_DIR'}=             $clusters->[0]->{'data_dir'};
-    $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
+    $ENV{'NDB_DESC'}=                 $exe_ndb_desc;
+    $ENV{'NDB_RESTORE'}=              $exe_ndb_restore;
+    $ENV{'NDB_SELECT_ALL'}=           $exe_ndb_select_all;
+    $ENV{'NDB_WAITER'}=               $exe_ndb_waiter;
+    $ENV{'NDB_DROP_TABLE'}=           $exe_ndb_drop_table;
+    $ENV{'NDB_CONFIG'}=               $exe_ndb_config;
+    $ENV{'NDB_SHOW_TABLES'}=          $exe_ndb_show_tables;
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
 
     if ( $mysql_version_id >= 50000 )
