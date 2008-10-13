@@ -1,6 +1,6 @@
 source include/master-slave.inc;
 
-call mtr.add_supression("Deadlock found");
+call mtr.add_suppression("Deadlock found");
 
 --echo **** On Master ****
 connection master;
