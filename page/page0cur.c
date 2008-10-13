@@ -1769,7 +1769,7 @@ page_cur_delete_rec(
 #ifdef UNIV_ZIP_DEBUG
 	/* Strict page_zip_validate() may fail here when
 	btr_cur_pessimistic_delete() invokes btr_set_min_rec_mark(). */
-	ut_a(page_zip_validate_low(page_zip, page, TRUE));
+	ut_a(!page_zip || page_zip_validate_low(page_zip, page, TRUE));
 #endif /* UNIV_ZIP_DEBUG */
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
