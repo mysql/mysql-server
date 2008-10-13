@@ -43,7 +43,7 @@ ndbcluster_global_schema_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
   if (retry_time > 0)
   {
     time_end= NdbTick_CurrentMillisecond();
-    time_end+= retry_time*1000;
+    time_end+= retry_time * 1000;
   }
   while (1)
   {
@@ -79,11 +79,9 @@ ndbcluster_global_schema_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
   retry:
     if (retry_time == 0)
       goto error_handler;
-    if (retry_time > 0)
-    {
-	  if(time_end < NdbTick_CurrentMillisecond())
-	    goto error_handler;
-    }
+    if (retry_time > 0 &&
+        time_end < NdbTick_CurrentMillisecond())
+      goto error_handler;
     if (trans)
     {
       ndb->closeTransaction(trans);

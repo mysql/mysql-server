@@ -2146,6 +2146,7 @@ private:
   void execSTART_RECREF(Signal* signal);
 
   void execGCP_SAVEREQ(Signal* signal);
+  void execSUB_GCP_COMPLETE_REP(Signal* signal);
   void execFSOPENREF(Signal* signal);
   void execFSOPENCONF(Signal* signal);
   void execFSCLOSECONF(Signal* signal);

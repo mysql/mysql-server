@@ -21,7 +21,10 @@
 #define NDB_MT_ASM_H
 
 #if defined(__GNUC__)
-#if defined(__x86_64__)
+
+/** gcc */
+
+#if defined(__x86_64__) || defined (__i386__)
 /* Memory barriers, these definitions are for x64_64. */
 #define mb()    asm volatile("mfence":::"memory")
 /* According to Intel docs, it does not reorder loads. */
@@ -47,7 +50,7 @@ cpu_pause()
 }
 
 #elif defined(__sparc__)
-#define mb()    asm volatile("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore":::"memory)
+#define mb()    asm volatile("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore":::"memory")
 #define rmb()   asm volatile("membar #LoadLoad" ::: "memory")
 #define wmb()   asm volatile("membar #StoreStore" ::: "memory")
 #define read_barrier_depends()  do {} while(0)
@@ -56,8 +59,31 @@ cpu_pause()
 extern  int xcng(volatile unsigned * addr, int val);
 extern void cpu_pause();
 
-#elif
-#error "Unsupported architecture"
+#else
+#error "Unsupported architecture (gcc)"
+#endif
+
+#elif defined(__sun)
+
+/** sun studio */
+/**
+ * TODO check that asm ("") implies a compiler barrier
+ *      i.e that it clobbers memory
+ */
+#if defined(__x86_64__)
+#define mb()    asm ("mfence")
+/* According to Intel docs, it does not reorder loads. */
+//#define rmb() asm ("lfence")
+#define rmb()   asm ("")
+#define wmb()   asm ("")
+#define read_barrier_depends()  do {} while(0)
+#elif defined(__sparc)
+#define mb() asm ("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore")
+#define rmb() asm ("membar #LoadLoad")
+#define wmb() asm ("membar #StoreStore")
+#define read_barrier_depends()  do {} while(0)
+#else
+#error "Unsupported architecture (sun studio)"
 #endif
 #else
 #error "Unsupported compiler"

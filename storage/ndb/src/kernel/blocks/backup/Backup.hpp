@@ -662,6 +662,8 @@ public:
   void afterGetTabinfoLockTab(Signal *signal,
                               BackupRecordPtr ptr, TablePtr tabPtr);
   void cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr);
+
+  BackupFormat::LogFile::LogEntry* get_log_buffer(Signal*,TriggerPtr, Uint32);
 };
 
 inline

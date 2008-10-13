@@ -136,10 +136,16 @@ Suma::Suma(Block_context& ctx) :
 #endif
   m_missing_data = false;
   bzero(c_subscriber_per_node, sizeof(c_subscriber_per_node));
+
+  m_gcp_rep_cnt = getLqhWorkers();
+  m_min_gcp_rep_counter_index = 0;
+  m_max_gcp_rep_counter_index = 0;
+  bzero(m_gcp_rep_counter, sizeof(m_gcp_rep_counter));
 }
 
 Suma::~Suma()
 {
+  c_page_pool.clear();
 }
 
 BLOCK_FUNCTIONS(Suma)

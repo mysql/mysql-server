@@ -74,15 +74,15 @@ NDBT_Attribute T3Attribs[] = {
   NDBT_Attribute("KOL04", NdbDictionary::Column::Char, 100),
   NDBT_Attribute("KOL05", NdbDictionary::Column::Varbinary, 100),
   NDBT_Attribute("KOL06", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL07", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL07", NdbDictionary::Column::Varbinary, 25),
   NDBT_Attribute("KOL08", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL09", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL09", NdbDictionary::Column::Varbinary, 25),
   NDBT_Attribute("KOL10", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL11", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL11", NdbDictionary::Column::Varbinary, 25),
   NDBT_Attribute("KOL12", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL13", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL13", NdbDictionary::Column::Varbinary, 25),
   NDBT_Attribute("KOL14", NdbDictionary::Column::Char, 100),
-  NDBT_Attribute("KOL15", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL15", NdbDictionary::Column::Longvarbinary, 537),
   NDBT_Attribute("KOL16", NdbDictionary::Column::Char, 100),
   NDBT_Attribute("KOL17", NdbDictionary::Column::Varbinary, 100),
   NDBT_Attribute("KOL18", NdbDictionary::Column::Char, 100),
@@ -397,6 +397,7 @@ NDBT_Attribute D1Attribs[] = {
   NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("KOL4", NdbDictionary::Column::Char, 233, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL6", NdbDictionary::Column::Varbinary, 233, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
 };
 static
 const
@@ -411,6 +412,7 @@ NDBT_Attribute D2Attribs[] = {
   NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133, false, true, 0, MM, true),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Char, 199, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL6", NdbDictionary::Column::Bit, 21, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL7", NdbDictionary::Column::Longvarbinary, 384, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
 };
 static
 const
@@ -757,9 +759,9 @@ NDBT_Attribute WIDE_2COL_ATTRIBS[] = {
   /* Note that we can't have any index on this table as it
    * has no space for the extra FRAGID the index requires!
    */
-  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarbinary, 
                  NDBT_Tables::MaxVarTypeKeyBytes, true), 
-  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarbinary, 
                  NDBT_Tables::MaxKeyMaxVarTypeAttrBytes, false)
 };
 
@@ -776,9 +778,9 @@ NDBT_Table WIDE_2COL("WIDE_2COL", sizeof(WIDE_2COL_ATTRIBS)/
 static 
 const
 NDBT_Attribute WIDE_2COL_IX_ATTRIBS[] = {
-  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MaxVarTypeKeyBytes, true), 
-  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MaxKeyMaxVarTypeAttrBytesIndex , false)
 };
 
@@ -802,9 +804,9 @@ NDBT_Attribute WIDE_MAXKEY_HUGO_ATTRIBS[] = {
   /* Note that we can't have any index on this table as it
    * has no space for the extra FRAGID the index requires!
    */
-  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("KEY", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MaxVarTypeKeyBytes, true), 
-  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MaxKeyMaxVarTypeAttrBytes -
                  NDBT_Tables::HugoOverheadBytes, false),
   NDBT_Attribute("HUGOID", NdbDictionary::Column::Unsigned,
@@ -827,7 +829,7 @@ const
 NDBT_Attribute WIDE_MAXATTR_HUGO_ATTRIBS[] = {
   NDBT_Attribute("KEY", NdbDictionary::Column::Unsigned,
                  1, true), 
-  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarchar, 
+  NDBT_Attribute("ATTR", NdbDictionary::Column::Longvarbinary,
                  NDBT_Tables::MinKeyMaxVarTypeAttrBytes -
                  NDBT_Tables::HugoOverheadBytes, false),
   NDBT_Attribute("HUGOID", NdbDictionary::Column::Unsigned,

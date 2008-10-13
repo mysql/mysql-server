@@ -3199,11 +3199,22 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
     CRASH_INSERTION(6001);
   }
 
+  {
+    /**
+     * Copy "own" into new
+     */
+    XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+    XSchemaFile * newxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+    memcpy(&newxsf->schemaPage[0],
+           &oldxsf->schemaPage[0],
+           oldxsf->schemaPage[0].FileSize);
+  }
+
   SectionHandle handle(this, signal);
   SegmentedSectionPtr schemaDataPtr;
   handle.getSection(schemaDataPtr, 0);
 
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
   ndbrequire(schemaDataPtr.sz % NDB_SF_PAGE_SIZE_IN_WORDS == 0);
   xsf->noOfPages = schemaDataPtr.sz / NDB_SF_PAGE_SIZE_IN_WORDS;
   copy((Uint32*)&xsf->schemaPage[0], schemaDataPtr);
@@ -3217,9 +3228,9 @@ void Dbdict::execSCHEMA_INFO(Signal* signal)
     
   validateChecksum(xsf);
 
-  XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
-  checkPendingSchemaTrans(oldxsf);
-  resizeSchemaFile(xsf, oldxsf->noOfPages);
+  XSchemaFile * ownxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+  checkPendingSchemaTrans(ownxsf);
+  resizeSchemaFile(xsf, ownxsf->noOfPages);
 
   ndbrequire(signal->getSendersBlockRef() != reference());
     
@@ -3376,10 +3387,13 @@ operator<<(NdbOut& out, const SchemaFile::TableEntry entry)
 
 void Dbdict::checkSchemaStatus(Signal* signal) 
 {
-  XSchemaFile * newxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
-  ndbrequire(newxsf->noOfPages == oldxsf->noOfPages);
-  const Uint32 noOfEntries = newxsf->noOfPages * NDB_SF_PAGE_ENTRIES;
+  // masterxsf == schema file of master (i.e what's currently in cluster)
+  // ownxsf = schema file read from disk
+  XSchemaFile * masterxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
+  XSchemaFile * ownxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+
+  ndbrequire(masterxsf->noOfPages == ownxsf->noOfPages);
+  const Uint32 noOfEntries = masterxsf->noOfPages * NDB_SF_PAGE_ENTRIES;
 
   for (; c_restartRecord.activeTable < noOfEntries;
        c_restartRecord.activeTable++)
@@ -3387,84 +3401,84 @@ void Dbdict::checkSchemaStatus(Signal* signal)
     jam();
 
     Uint32 tableId = c_restartRecord.activeTable;
-    SchemaFile::TableEntry *newEntry = getTableEntry(newxsf, tableId);
-    SchemaFile::TableEntry *oldEntry = getTableEntry(oldxsf, tableId);
-    SchemaFile::EntryState newState =
-      (SchemaFile::EntryState)newEntry->m_tableState;
-    SchemaFile::EntryState oldState =
-      (SchemaFile::EntryState)oldEntry->m_tableState;
+    SchemaFile::TableEntry *masterEntry = getTableEntry(masterxsf, tableId);
+    SchemaFile::TableEntry *ownEntry = getTableEntry(ownxsf, tableId);
+    SchemaFile::EntryState masterState =
+      (SchemaFile::EntryState)masterEntry->m_tableState;
+    SchemaFile::EntryState ownState =
+      (SchemaFile::EntryState)ownEntry->m_tableState;
 
     if (c_restartRecord.activeTable >= c_tableRecordPool.getSize())
     {
       jam();
-      ndbrequire(newState == SchemaFile::SF_UNUSED);
-      ndbrequire(oldState == SchemaFile::SF_UNUSED);
+      ndbrequire(masterState == SchemaFile::SF_UNUSED);
+      ndbrequire(ownState == SchemaFile::SF_UNUSED);
       continue;
     }//if
 
-    D("checkSchemaStatus" << V(*oldEntry) << V(*newEntry));
+    D("checkSchemaStatus" << V(*ownEntry) << V(*masterEntry));
 
 //#define PRINT_SCHEMA_RESTART
 #ifdef PRINT_SCHEMA_RESTART
     printf("checkSchemaStatus: pass: %d table: %d",
            c_restartRecord.m_pass, tableId);
-    ndbout << "old: " << *oldEntry << " new: " << *newEntry;
+    ndbout << "old: " << *ownEntry << " new: " << *masterEntry;
 #endif
 
     if (c_restartRecord.m_pass <= CREATE_OLD_PASS)
     {
-      if (!::checkSchemaStatus(oldEntry->m_tableType, c_restartRecord.m_pass))
+      if (!::checkSchemaStatus(ownEntry->m_tableType, c_restartRecord.m_pass))
         continue;
 
 
-      if (oldState == SchemaFile::SF_UNUSED)
+      if (ownState == SchemaFile::SF_UNUSED)
         continue;
 
-      restartCreateObj(signal, tableId, oldEntry, true);
+      restartCreateObj(signal, tableId, ownEntry, true);
       return;
     }
 
     if (c_restartRecord.m_pass <= DROP_OLD_PASS)
     {
-      if (!::checkSchemaStatus(oldEntry->m_tableType, c_restartRecord.m_pass))
+      if (!::checkSchemaStatus(ownEntry->m_tableType, c_restartRecord.m_pass))
         continue;
 
-      if (oldState != SchemaFile::SF_IN_USE)
+      if (ownState != SchemaFile::SF_IN_USE)
         continue;
 
-      if (* oldEntry == * newEntry)
+      if (* ownEntry == * masterEntry)
         continue;
 
-      restartDropObj(signal, tableId, oldEntry);
+      restartDropObj(signal, tableId, ownEntry);
       return;
     }
 
     if (c_restartRecord.m_pass <= CREATE_NEW_PASS)
     {
-      if (!::checkSchemaStatus(newEntry->m_tableType, c_restartRecord.m_pass))
+      if (!::checkSchemaStatus(masterEntry->m_tableType, c_restartRecord.m_pass))
         continue;
 
-      if (newState != SchemaFile::SF_IN_USE)
+      if (masterState != SchemaFile::SF_IN_USE)
         continue;
 
       /**
        * handle table(index) special as DIH has already copied
        *   table (using COPY_TABREQ)
        */
-      if (DictTabInfo::isIndex(newEntry->m_tableType) ||
-          DictTabInfo::isTable(newEntry->m_tableType))
+      if (DictTabInfo::isIndex(masterEntry->m_tableType) ||
+          DictTabInfo::isTable(masterEntry->m_tableType))
       {
-        bool file = * oldEntry == *newEntry &&
-          (!DictTabInfo::isIndex(newEntry->m_tableType) || c_systemRestart);
+        bool file = * ownEntry == *masterEntry &&
+          (!DictTabInfo::isIndex(masterEntry->m_tableType) || c_systemRestart);
 
-        restartCreateObj(signal, tableId, newEntry, file);
+        restartCreateObj(signal, tableId, masterEntry, file);
         return;
       }
 
-      if (* oldEntry == *newEntry)
+      if (* ownEntry == *masterEntry)
         continue;
 
-      restartCreateObj(signal, tableId, newEntry, false);
+      restartCreateObj(signal, tableId, masterEntry, false);
       return;
     }
   }
@@ -3793,6 +3807,7 @@ Dbdict::restartCreateObj(Signal* signal,
     c_readTableRecord.m_callback.m_callbackFunction = 
       safe_cast(&Dbdict::restartCreateObj_readConf);
     
+    ndbout_c("restartCreateObj(%u) file: %u", tableId, file);
     startReadTableFile(signal, tableId);
   }
   else
@@ -3949,12 +3964,15 @@ Dbdict::restartDropObj(Signal* signal,
   case DictTabInfo::OrderedIndex:
     Ptr<DropTableRec> opRecPtr;
     seizeSchemaOp(op_ptr, opRecPtr);
+    ndbrequire(false);
     break;
   case DictTabInfo::Undofile:
   case DictTabInfo::Datafile:
   {
     Ptr<DropFileRec> opRecPtr;
     seizeSchemaOp(op_ptr, opRecPtr);
+    opRecPtr.p->m_request.file_id = tableId;
+    opRecPtr.p->m_request.file_version = entry->m_tableVersion;
     break;
   }
   case DictTabInfo::Tablespace:
@@ -3962,9 +3980,13 @@ Dbdict::restartDropObj(Signal* signal,
   {
     Ptr<DropFilegroupRec> opRecPtr;
     seizeSchemaOp(op_ptr, opRecPtr);
+    opRecPtr.p->m_request.filegroup_id = tableId;
+    opRecPtr.p->m_request.filegroup_version = entry->m_tableVersion;
     break;
   }
   }
+
+  ndbout_c("restartDropObj(%u)", tableId);
   
   Ptr<TxHandle> tx_ptr;
   c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
@@ -17672,6 +17694,12 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   }
 
   createFilePtr.p->m_parsed = true;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d",
+           f.FileName, impl_req->file_id, filePtr.p->m_obj_ptr_i);
+#endif
+
   return;
 error:
   if (!filePtr.isNull())
@@ -18297,6 +18325,12 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
     increase_ref_count(inc_obj_ptr_i);
   }
   createFilegroupPtr.p->m_parsed = true;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d",
+           fg.FilegroupName, impl_req->filegroup_id, fg_ptr.p->m_obj_ptr_i);
+#endif
+
   return;
 
 error:
@@ -18702,6 +18736,17 @@ Dbdict::dropFile_parse(Signal* signal, bool master,
     setError(error, err, __LINE__);
     return;
   }
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  {
+    char buf[1024];
+    Rope name(c_rope_pool, f_ptr.p->m_path);
+    name.copy(buf);
+    ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, 
+             impl_req->file_id,
+             f_ptr.p->m_obj_ptr_i);
+  }
+#endif
 }
 
 void
@@ -19049,6 +19094,17 @@ Dbdict::dropFilegroup_parse(Signal* signal, bool master,
     setError(error, err, __LINE__);
     return;
   }
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  {
+    char buf[1024];
+    Rope name(c_rope_pool, fg_ptr.p->m_name);
+    name.copy(buf);
+    ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, 
+             impl_req->filegroup_id,
+             fg_ptr.p->m_obj_ptr_i);
+  }
+#endif
 }
 
 void

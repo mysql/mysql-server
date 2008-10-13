@@ -260,6 +260,7 @@ public:
     Uint32 nextReplicaNode;
     Uint32 nodeCount;
     Uint32 activeTakeOver; // Which node...
+    Uint32 m_next_log_part;
     Uint32 nodegroupIndex;
     Uint32 m_ref_count;
   };
@@ -1245,7 +1246,6 @@ private:
 
   Uint32 c_nextNodeGroup;
   NodeGroupRecord *nodeGroupRecord;
-  Uint32 c_nextLogPart;
   
   NodeRecord *nodeRecord;
 

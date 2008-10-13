@@ -244,9 +244,8 @@ Suma::execSTTOR(Signal* signal) {
   if(m_startphase == 3)
   {
     jam();
-    // wl4391_todo something
-    Uint32 instanceNo = !isNdbMtLqh() ? 0 : 1;
-    ndbrequire((m_tup = (Dbtup*)globalData.getBlock(DBTUP, instanceNo)) != 0);
+    void* ptr = m_ctx.m_mm.get_memroot();
+    c_page_pool.set((Buffer_page*)ptr, (Uint32)~0);
   }
 
   if(m_startphase == 5)
@@ -3753,7 +3752,6 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
 {
   jamEntry();
   DBUG_ENTER("Suma::execFIRE_TRIG_ORD");
-  ndbassert(signal->getNoOfSections() == 0);
   
   CRASH_INSERTION(13016);
   FireTrigOrd* const trg = (FireTrigOrd*)signal->getDataPtr();
@@ -3770,6 +3768,33 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
 
   ndbassert(gci > m_last_complete_gci);
 
+  if (signal->getNoOfSections())
+  {
+    jam();
+    ndbassert(isNdbMtLqh());
+    SectionHandle handle(this, signal);
+
+    ndbrequire(b_bufferLock == 0);
+    ndbrequire(f_bufferLock == 0);
+    f_bufferLock = trigId;
+    b_bufferLock = trigId;
+
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0); // Keys
+    Uint32 sz = ptr.sz;
+    copy(f_buffer, ptr);
+
+    handle.getSection(ptr, 2); // After values
+    copy(f_buffer + sz, ptr);
+    f_trigBufferSize = sz + ptr.sz;
+
+
+    handle.getSection(ptr, 1); // Before values
+    copy(b_buffer, ptr);
+    releaseSections(handle);
+  }
+
+  jam();
   ndbrequire(f_bufferLock == trigId);
   /**
    * Reset f_bufferLock
@@ -3901,11 +3926,73 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   jamEntry();
   ndbassert(signal->getNoOfSections() == 0);
 
-  bool drop = false;
   SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
   Uint32 gci_hi = rep->gci_hi;
   Uint32 gci_lo = rep->gci_lo;
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+
+  if (isNdbMtLqh())
+  {
+
+#define SSPP 0
+
+    if (SSPP)
+      printf("execSUB_GCP_COMPLETE_REP(%u/%u)", gci_hi, gci_lo);
+    jam();
+    Uint32 min = m_min_gcp_rep_counter_index;
+    Uint32 sz = NDB_ARRAY_SIZE(m_gcp_rep_counter);
+    for (Uint32 i = min; i != m_max_gcp_rep_counter_index; i = (i + 1) % sz)
+    {
+      jam();
+      if (m_gcp_rep_counter[i].m_gci == gci)
+      {
+        jam();
+        m_gcp_rep_counter[i].m_cnt ++;
+        if (m_gcp_rep_counter[i].m_cnt == m_gcp_rep_cnt)
+        {
+          jam();
+          /**
+           * Release this entry...
+           */
+          if (i != min)
+          {
+            jam();
+            m_gcp_rep_counter[i] = m_gcp_rep_counter[min];
+          }
+          m_min_gcp_rep_counter_index = (min + 1) % sz;
+          if (SSPP)
+            ndbout_c(" found - complete after: (min: %u max: %u)",
+                     m_min_gcp_rep_counter_index,
+                     m_max_gcp_rep_counter_index);
+          goto found;
+        }
+        else
+        {
+          jam();
+          if (SSPP)
+            ndbout_c(" found - wait unchanged: (min: %u max: %u)",
+                     m_min_gcp_rep_counter_index,
+                     m_max_gcp_rep_counter_index);
+          return; // Wait for more...
+        }
+      }
+    }
+    /**
+     * Not found...
+     */
+    Uint32 next = (m_max_gcp_rep_counter_index + 1) % sz;
+    ndbrequire(next != min); // ring buffer full
+    m_gcp_rep_counter[m_max_gcp_rep_counter_index].m_gci = gci;
+    m_gcp_rep_counter[m_max_gcp_rep_counter_index].m_cnt = 1;
+    m_max_gcp_rep_counter_index = next;
+    if (SSPP)
+      ndbout_c(" new - after: (min: %u max: %u)",
+               m_min_gcp_rep_counter_index,
+               m_max_gcp_rep_counter_index);
+    return;
+  }
+found:
+  bool drop = false;
   Uint32 flags = (m_missing_data)
                  ? rep->flags | SubGcpCompleteRep::MISSING_DATA
                  : rep->flags;
@@ -3980,8 +4067,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 	  Page_pos pos= bucket->m_buffer_head;
 	  ndbrequire(pos.m_max_gci < gci);
 
-	  Buffer_page* page= (Buffer_page*)
-	    m_tup->c_page_pool.getPtr(pos.m_page_id);
+	  Buffer_page* page= c_page_pool.getPtr(pos.m_page_id);
 	  ndbout_c("takeover %d", pos.m_page_id);
 	  page->m_max_gci_hi = (Uint32)(pos.m_max_gci >> 32);
           page->m_max_gci_lo = (Uint32)(pos.m_max_gci & 0xFFFFFFFF);
@@ -5058,7 +5144,7 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
   
   if (likely(pos.m_page_id != RNIL))
   {
-    page= (Buffer_page*)m_tup->c_page_pool.getPtr(pos.m_page_id);
+    page= c_page_pool.getPtr(pos.m_page_id);
     ptr= page->m_data + pos.m_page_pos;
   }
 
@@ -5121,7 +5207,7 @@ loop:
     pos.m_page_pos = sz;
     pos.m_last_gci = gci;
     
-    page= (Buffer_page*)m_tup->c_page_pool.getPtr(pos.m_page_id);
+    page= c_page_pool.getPtr(pos.m_page_id);
     page->m_next_page= RNIL;
     ptr= page->m_data;
     goto loop; //
@@ -5150,7 +5236,7 @@ Suma::out_of_buffer_release(Signal* signal, Uint32 buck)
   
   if(tail != RNIL)
   {
-    Buffer_page* page= (Buffer_page*)m_tup->c_page_pool.getPtr(tail);
+    Buffer_page* page= c_page_pool.getPtr(tail);
     bucket->m_buffer_tail = page->m_next_page;
     free_page(tail, page);
     signal->theData[0] = SumaContinueB::OUT_OF_BUFFER_RELEASE;
@@ -5202,8 +5288,8 @@ loop:
   Uint32 ref= m_first_free_page;
   if(likely(ref != RNIL))
   {
-    m_first_free_page = ((Buffer_page*)m_tup->c_page_pool.getPtr(ref))->m_next_page;
-    Uint32 chunk = ((Buffer_page*)m_tup->c_page_pool.getPtr(ref))->m_page_chunk_ptr_i;
+    m_first_free_page = (c_page_pool.getPtr(ref))->m_next_page;
+    Uint32 chunk = (c_page_pool.getPtr(ref))->m_page_chunk_ptr_i;
     c_page_chunk_pool.getPtr(ptr, chunk);
     ndbassert(ptr.p->m_free);
     ptr.p->m_free--;
@@ -5213,8 +5299,8 @@ loop:
   if(!c_page_chunk_pool.seize(ptr))
     return RNIL;
 
-  Uint32 count;
-  m_tup->allocConsPages(16, count, ref);
+  Uint32 count = 16;
+  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &ref, &count, 1);
   if (count == 0)
     return RNIL;
 
@@ -5228,7 +5314,7 @@ loop:
   LINT_INIT(page);
   for(Uint32 i = 0; i<count; i++)
   {
-    page = (Buffer_page*)m_tup->c_page_pool.getPtr(ref);
+    page = c_page_pool.getPtr(ref);
     page->m_page_state= SUMA_SEQUENCE;
     page->m_page_chunk_ptr_i = ptr.i;
     page->m_next_page = ++ref;
@@ -5308,7 +5394,7 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
   else
   {
     jam();
-    Buffer_page* page= (Buffer_page*)m_tup->c_page_pool.getPtr(tail);
+    Buffer_page* page= c_page_pool.getPtr(tail);
     Uint64 max_gci = page->m_max_gci_lo | (Uint64(page->m_max_gci_hi) << 32);
     Uint32 next_page = page->m_next_page;
 
@@ -5419,7 +5505,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
   Bucket* bucket= c_buckets+buck;
   Uint32 tail= bucket->m_buffer_tail;
 
-  Buffer_page* page= (Buffer_page*)m_tup->c_page_pool.getPtr(tail);
+  Buffer_page* page= c_page_pool.getPtr(tail);
   Uint64 max_gci = page->m_max_gci_lo | (Uint64(page->m_max_gci_hi) << 32);
   Uint32 next_page = page->m_next_page;
   Uint32 *ptr = page->m_data + pos;

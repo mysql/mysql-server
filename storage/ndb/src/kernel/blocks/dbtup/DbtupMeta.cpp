@@ -189,7 +189,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       fragOperPtr.p->m_null_bits[ind]++;
     } 
 
-    if (AttributeDescriptor::getArrayType(attrDescriptor)==NDB_ARRAYTYPE_FIXED)
+    if (AttributeDescriptor::getArrayType(attrDescriptor)==NDB_ARRAYTYPE_FIXED
+        || ind==DD)
     {
       jam();
       regTabPtr.p->m_attributes[ind].m_no_of_fixsize++;
@@ -1162,7 +1163,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
       regTabPtr->notNullAttributeMask.set(i);
     if (!AttributeDescriptor::getDynamic(attrDescriptor))
     {
-      if(arr == NDB_ARRAYTYPE_FIXED)
+      if(arr == NDB_ARRAYTYPE_FIXED || ind==DD)
       {
         if (attrLen!=0)
         {
@@ -1442,7 +1443,8 @@ void Dbtup::setUpKeyArray(Tablerec* const regTabPtr)
         continue;
       }
 
-      if (AttributeDescriptor::getArrayType(desc) != NDB_ARRAYTYPE_FIXED ||
+      if ((AttributeDescriptor::getArrayType(desc) != NDB_ARRAYTYPE_FIXED 
+           && !AttributeDescriptor::getDiskBased(desc)) ||
           (AttributeDescriptor::getDynamic(desc) &&
            AttributeDescriptor::getArrayType(desc) == NDB_ARRAYTYPE_FIXED &&
            AttributeDescriptor::getSizeInWords(desc) > InternalMaxDynFix))
