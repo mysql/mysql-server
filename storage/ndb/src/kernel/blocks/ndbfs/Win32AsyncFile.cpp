@@ -105,6 +105,14 @@ void Win32AsyncFile::openReq(Request* request)
   else {
     request->error = 0;
   }
+#ifdef DEBUG
+  DWORD bytesReturned;
+  USHORT compressionFormat= COMPRESSION_FORMAT_DEFAULT;
+  if(DeviceIoControl(hFile, FSCTL_SET_COMPRESSION, &compressionFormat, sizeof(USHORT), NULL, 0, &bytesReturned, NULL)==0)
+  {
+	  ndbout_c("Error setting NTFS compression attribute: %d", GetLastError());
+  }
+#endif
 
   if (flags & FsOpenReq::OM_INIT)
   {
