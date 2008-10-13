@@ -137,6 +137,60 @@ void Win32AsyncFile::openReq(Request* request)
       request->error= GetLastError();
       return;
     }
+
+    /* Write initial data */
+    SignalT<25> tmp;
+    Signal * signal = (Signal*)(&tmp);
+    bzero(signal, sizeof(tmp));
+    FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
+    Uint32 index = 0;
+    Uint32 block = refToBlock(request->theUserReference);
+
+    off.QuadPart= 0;
+    sz.QuadPart= request->par.open.file_size;
+    while(off.QuadPart < sz.QuadPart)
+    {
+      req->filePointer = 0;          // DATA 0
+      req->userPointer = request->theUserPointer;          // DATA 2
+      req->numberOfPages = 1;        // DATA 5
+      req->varIndex = index++;
+      req->data.pageData[0] = m_page_ptr.i;
+
+      m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
+			  FsReadWriteReq::FixedLength + 1,
+                          0 // wl4391_todo This EXECUTE_DIRECT is thread safe
+                          );
+    retry:
+      Uint32 size = request->par.open.page_size;
+      char* buf = (char*)m_page_ptr.p;
+	  DWORD dwWritten;
+      while(size > 0){
+	BOOL bWrite= WriteFile(hFile, buf, size, &dwWritten, 0);
+	if(!bWrite || dwWritten!=size)
+	{
+	  request->error= GetLastError();
+	}
+	size -= dwWritten;
+	buf += dwWritten;
+      }
+      if(size != 0)
+      {
+	int err = errno;
+	/*	close(theFd);
+		unlink(theFileName.c_str());*/
+	request->error = err;
+	return;
+      }
+      off.QuadPart += request->par.open.page_size;
+    }
+
+    off.QuadPart= 0;
+    r= SetFilePointerEx(hFile, off, NULL, FILE_BEGIN);
+    if(r==0)
+    {
+      request->error= GetLastError();
+      return;
+    }
   }
 
   return;
