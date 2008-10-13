@@ -7675,8 +7675,6 @@ mysqld_get_one_option(int optid,
     break;
   case 'l':
     WARN_DEPRECATED(NULL, "7.0", "--log", "'--general_log'/'--general_log_file'");
-    /* FALL-THROUGH */
-  case OPT_GENERAL_LOG_FILE:
     opt_log=1;
     break;
   case 'h':
@@ -7847,8 +7845,6 @@ mysqld_get_one_option(int optid,
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
     WARN_DEPRECATED(NULL, "7.0", "--log_slow_queries", "'--slow_query_log'/'--slow_query_log_file'");
-    /* FALL-THROUGH */
-  case (int) OPT_SLOW_QUERY_LOG_FILE:
     opt_slow_log= 1;
     break;
 #ifdef WITH_CSV_STORAGE_ENGINE
