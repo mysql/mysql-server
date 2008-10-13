@@ -1766,8 +1766,11 @@ page_cur_delete_rec(
 
 	page = page_cur_get_page(cursor);
 	page_zip = page_cur_get_page_zip(cursor);
-	/* page_zip_validate() may fail here when
+#ifdef UNIV_ZIP_DEBUG
+	/* Strict page_zip_validate() may fail here when
 	btr_cur_pessimistic_delete() invokes btr_set_min_rec_mark(). */
+	ut_a(page_zip_validate_low(page_zip, page, TRUE));
+#endif /* UNIV_ZIP_DEBUG */
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
