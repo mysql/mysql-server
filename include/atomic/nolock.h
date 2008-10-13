@@ -28,11 +28,28 @@
 #elif defined(_MSC_VER)
 #include "x86-msvc.h"
 #endif
+
+#elif defined(HAVE_SOLARIS_ATOMIC)
+
+#include "solaris.h"
+
+#endif /* __i386__ || _M_IX86 || HAVE_GCC_ATOMIC_BUILTINS */
+
+#if defined(make_atomic_cas_body) || defined(MY_ATOMICS_MADE)
+/*
+ * We have atomics that require no locking
+ */
+#define	MY_ATOMIC_NOLOCK
+
+#ifdef __SUNPRO_C
+/*
+ * Sun Studio 12 (and likely earlier) does not accept a typedef struct {}
+ */
+typedef char my_atomic_rwlock_t;
+#else
+typedef struct { } my_atomic_rwlock_t;
 #endif
 
-#ifdef make_atomic_cas_body
-
-typedef struct { } my_atomic_rwlock_t;
 #define my_atomic_rwlock_destroy(name)
 #define my_atomic_rwlock_init(name)
 #define my_atomic_rwlock_rdlock(name)
