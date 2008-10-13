@@ -42,9 +42,9 @@ INSERT INTO suspicious_patterns VALUES
 
 --
 -- Create table where testcases can insert patterns to
--- be supressed
+-- be suppressed
 --
-CREATE TABLE test_supressions (
+CREATE TABLE test_suppressions (
   pattern VARCHAR(255)
 ) ENGINE=MyISAM||
 
@@ -52,11 +52,11 @@ CREATE TABLE test_supressions (
 --
 -- Declare a trigger that makes sure
 -- no invalid patterns can be inserted
--- into test_supressions
+-- into test_suppressions
 --
 /*!50002
 CREATE DEFINER=root@localhost TRIGGER ts_insert
-BEFORE INSERT ON test_supressions
+BEFORE INSERT ON test_suppressions
 FOR EACH ROW BEGIN
   DECLARE dummy INT;
   SELECT "" REGEXP NEW.pattern INTO dummy;
@@ -65,20 +65,20 @@ END
 
 
 --
--- Load table with patterns that will be supressed globally(always)
+-- Load table with patterns that will be suppressed globally(always)
 --
-CREATE TABLE global_supressions (
+CREATE TABLE global_suppressions (
   pattern VARCHAR(255)
 ) ENGINE=MyISAM||
 
 
 -- Declare a trigger that makes sure
 -- no invalid patterns can be inserted
--- into global_supressions
+-- into global_suppressions
 --
 /*!50002
 CREATE DEFINER=root@localhost TRIGGER gs_insert
-BEFORE INSERT ON global_supressions
+BEFORE INSERT ON global_suppressions
 FOR EACH ROW BEGIN
   DECLARE dummy INT;
   SELECT "" REGEXP NEW.pattern INTO dummy;
@@ -88,9 +88,9 @@ END
 
 
 --
--- Insert patterns that should always be supressed
+-- Insert patterns that should always be suppressed
 --
-INSERT INTO global_supressions VALUES
+INSERT INTO global_suppressions VALUES
  ("'SELECT UNIX_TIMESTAMP\\(\\)' failed on master"),
  ("Aborted connection"),
  ("Client requested master to start replication from impossible position"),
@@ -256,28 +256,28 @@ BEGIN
   DELETE FROM error_log WHERE row < @max_row;
 
   CREATE TEMPORARY TABLE suspect_lines ENGINE=MyISAM AS
-   SELECT DISTINCT el.line, 0 as "supressed"
+   SELECT DISTINCT el.line, 0 as "suppressed"
      FROM error_log el, suspicious_patterns ep
        WHERE el.line REGEXP ep.pattern;
 
-  -- Mark lines that are supressed by global supressions
-  UPDATE suspect_lines sl, global_supressions gs
-    SET supressed=1
+  -- Mark lines that are suppressed by global suppressions
+  UPDATE suspect_lines sl, global_suppressions gs
+    SET suppressed=1
       WHERE sl.line REGEXP gs.pattern;
 
-  -- Mark lines that are supressed by test specific supressions
-  UPDATE suspect_lines sl, test_supressions ts
-    SET supressed=2
+  -- Mark lines that are suppressed by test specific suppressions
+  UPDATE suspect_lines sl, test_suppressions ts
+    SET suppressed=2
       WHERE sl.line REGEXP ts.pattern;
 
   SELECT COUNT(*) INTO @num_warnings FROM suspect_lines
-    WHERE supressed=0;
+    WHERE suppressed=0;
 
   IF @num_warnings > 0 THEN
     SELECT @log_error;
     SELECT line as log_error
-        FROM suspect_lines WHERE supressed=0;
-    --SELECT * FROM test_supressions;
+        FROM suspect_lines WHERE suppressed=0;
+    --SELECT * FROM test_suppressions;
     -- Return 2 -> check failed
     SELECT 2 INTO result;
   ELSE
@@ -286,19 +286,19 @@ BEGIN
   END IF;
 
   -- Cleanup for next test
-  TRUNCATE test_supressions;
+  TRUNCATE test_suppressions;
 
 END||
 
 --
 -- Declare a procedure testcases can use to insert test
--- specific supressions
+-- specific suppressions
 --
 /*!50001
 CREATE DEFINER=root@localhost
-PROCEDURE add_supression(pattern VARCHAR(255))
+PROCEDURE add_suppression(pattern VARCHAR(255))
 BEGIN
-  INSERT INTO test_supressions (pattern) VALUES (pattern);
+  INSERT INTO test_suppressions (pattern) VALUES (pattern);
 END
 */||
 

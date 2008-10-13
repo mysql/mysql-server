@@ -14,8 +14,8 @@ reset master;
 
 connection slave;
 
-# Add supression for expected warnings in slaves error log
-call mtr.add_supression("Failed during slave.*thread initialization");
+# Add suppression for expected warnings in slaves error log
+call mtr.add_suppression("Failed during slave.*thread initialization");
 
 --disable_warnings
 stop slave;
