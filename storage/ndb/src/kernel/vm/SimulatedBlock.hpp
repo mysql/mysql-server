@@ -105,6 +105,7 @@ class SimulatedBlock {
   friend class SafeCounterManager;
   friend class AsyncFile;
   friend class PosixAsyncFile; // FIXME
+  friend class Win32AsyncFile;
   friend class Pgman;
   friend class Page_cache_client;
   friend class Lgman;
