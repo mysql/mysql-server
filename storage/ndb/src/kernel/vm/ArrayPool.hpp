@@ -968,10 +968,10 @@ ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
 
   Uint32 tmp = c.m_alloc_cnt;
   l.lock();
-  seizeList(tmp, p);
+  bool ret = seizeList(tmp, p);
   l.unlock();
 
-  if (tmp)
+  if (ret)
   {
     c.m_first_free = theArray[p.i].nextPool;
     c.m_free_cnt = tmp - 1;
