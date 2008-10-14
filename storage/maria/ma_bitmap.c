@@ -167,10 +167,10 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
     int res= pagecache_write(share->pagecache,
                              &bitmap->file, bitmap->page, 0,
                              (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
-                             PAGECACHE_LOCK_WRITE, PAGECACHE_PIN,
+                             PAGECACHE_LOCK_LEFT_UNLOCKED, PAGECACHE_PIN,
                              PAGECACHE_WRITE_DELAY, &page_link.link,
                              LSN_IMPOSSIBLE);
-    page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    page_link.unlock= PAGECACHE_LOCK_LEFT_UNLOCKED;
     page_link.changed= 1;
     push_dynamic(&bitmap->pinned_pages, (void*) &page_link);
     DBUG_RETURN(res);
