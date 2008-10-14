@@ -133,6 +133,14 @@ static my_bool	innobase_adaptive_hash_index	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
+/* Max number of IO requests merged to perform large IO in background
+   IO threads.
+*/
+long innobase_max_merged_io = 64;
+
+/* Number of background IO threads for read and write. */
+long innobase_read_io_threads, innobase_write_io_threads;
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -1606,6 +1614,9 @@ innobase_init(
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
+        srv_n_read_io_threads = (ulint) innobase_read_io_threads;
+        srv_n_write_io_threads = (ulint) innobase_write_io_threads;
+        srv_max_merged_io = (ulint) innobase_max_merged_io;
 
 	srv_lock_wait_timeout = (ulint) innobase_lock_wait_timeout;
 	srv_force_recovery = (ulint) innobase_force_recovery;
@@ -8118,6 +8129,21 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
 
+static MYSQL_SYSVAR_LONG(write_io_threads, innobase_write_io_threads,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of write I/O threads in InnoDB.",
+  NULL, NULL, 1, 1, 64, 0);
+
+static MYSQL_SYSVAR_LONG(read_io_threads, innobase_read_io_threads,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of read I/O threads in InnoDB.",
+  NULL, NULL, 1, 1, 64, 0);
+
+static MYSQL_SYSVAR_LONG(max_merged_io, innobase_max_merged_io,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Max number of adjacent IO requests to merge in InnoDB.",
+  NULL, NULL, 64, 1, 64, 0);
+
 static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
@@ -8197,6 +8223,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(doublewrite),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
+  MYSQL_SYSVAR(read_io_threads),
+  MYSQL_SYSVAR(write_io_threads),
+  MYSQL_SYSVAR(max_merged_io),
   MYSQL_SYSVAR(file_per_table),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
