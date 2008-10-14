@@ -4982,10 +4982,12 @@ my_bool _ma_scan_init_block_record(MARIA_HA *info)
   info->scan.bitmap_pos= info->scan.bitmap_end;
   info->scan.bitmap_page= (pgcache_page_no_t) 0 - share->bitmap.pages_covered;
   /*
-    We have to flush bitmap as we will read the bitmap from the page cache
-    while scanning rows
+    We need to flush what's in memory (bitmap.map) to page cache otherwise, as
+    we are going to read bitmaps from page cache in table scan (see
+    _ma_scan_block_record()), we may miss recently inserted rows (bitmap page
+    in page cache would be too old).
   */
-  DBUG_RETURN(_ma_bitmap_wait_or_flush(info->s));
+  DBUG_RETURN(_ma_bitmap_flush(info->s));
 }
 
 
