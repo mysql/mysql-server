@@ -13,6 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+
+static int always_valid(const char *filename __attribute__((unused)))
+{
+  return 0;
+}
+
+int (*maria_test_invalid_symlink)(const char *filename)= always_valid;
+
+
 /*
   Static variables for MARIA library. All definied here for easy making of
   a shared library

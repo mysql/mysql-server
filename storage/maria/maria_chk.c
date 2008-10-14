@@ -1189,7 +1189,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
         VOID(my_close(info->dfile.file, MYF(MY_WME))); /* Close new file */
         error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
                                        MYF(0));
-        if (_ma_open_datafile(info,info->s, -1))
+        if (_ma_open_datafile(info,info->s, NullS, -1))
           error=1;
         param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
         param->read_cache.file= info->dfile.file;

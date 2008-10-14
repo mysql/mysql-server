@@ -836,6 +836,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     my_printf_error(0, "MARIA table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",
                     MYF(0), name + dirname_length(name));
+    my_errno= HA_ERR_TABLE_EXIST;
     goto err;
   }
 

@@ -241,7 +241,7 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
   THD *thd= (THD *) param->thd;
   Protocol *protocol= thd->protocol;
   uint length, msg_length;
-  char msgbuf[MARIA_MAX_MSG_BUF];
+  char msgbuf[HA_MAX_MSG_BUF];
   char name[NAME_LEN * 2 + 2];
 
   msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
@@ -3097,6 +3097,11 @@ static int ha_maria_init(void *p)
     ((force_start_after_recovery_failures != 0) && mark_recovery_success()) ||
     ma_checkpoint_init(checkpoint_interval);
   maria_multi_threaded= maria_in_ha_maria= TRUE;
+
+#if defined(HAVE_REALPATH) && !defined(HAVE_purify) && !defined(HAVE_BROKEN_REALPATH)
+  /*  We can only test for sub paths if my_symlink.c is using realpath */
+  maria_test_invalid_symlink= test_if_data_home_dir;
+#endif
   return res ? HA_ERR_INITIALIZATION : 0;
 }
 
