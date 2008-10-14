@@ -391,7 +391,7 @@ int simple_pin_no_lock_test()
                   &link, LSN_IMPOSSIBLE);
   pagecache_unlock_by_link(&pagecache, link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
-                           PAGECACHE_PIN_LEFT_PINNED, 0, 0, 1);
+                           PAGECACHE_PIN_LEFT_PINNED, 0, 0, 1, FALSE);
   if (!flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
   {
     diag("Did not get error in flush_pagecache_blocks 3\n");

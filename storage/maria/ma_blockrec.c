@@ -1964,7 +1964,7 @@ static my_bool write_tail(MARIA_HA *info,
     pagecache_unlock_by_link(share->pagecache, page_link->link,
                              PAGECACHE_LOCK_WRITE_TO_READ,
                              PAGECACHE_PIN_LEFT_PINNED, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 1);
+                             LSN_IMPOSSIBLE, 1, FALSE);
     DBUG_ASSERT(page_link->changed);
     page_link->unlock= PAGECACHE_LOCK_READ_UNLOCK;
     res= 0;
@@ -3026,7 +3026,7 @@ static my_bool write_block_record(MARIA_HA *info,
     pagecache_unlock_by_link(share->pagecache, page_link->link,
                              PAGECACHE_LOCK_WRITE_TO_READ,
                              PAGECACHE_PIN_LEFT_PINNED, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 1);
+                             LSN_IMPOSSIBLE, 1, FALSE);
     page_link->unlock= PAGECACHE_LOCK_READ_UNLOCK;
     page_link->changed= 1;
   }
@@ -4025,7 +4025,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            lock_at_write,
                            PAGECACHE_PIN_LEFT_PINNED, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 1);
+                           LSN_IMPOSSIBLE, 1, FALSE);
   page_link.unlock= lock_at_unpin;
   set_dynamic(&info->pinned_pages, (void*) &page_link,
               info->pinned_pages.elements-1);
@@ -5143,7 +5143,9 @@ restart_record_read:
     if (end_of_data > info->scan.dir_end ||
         offset < PAGE_HEADER_SIZE || length < share->base.min_block_length)
     {
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(!(end_of_data > info->scan.dir_end));
+      DBUG_ASSERT(!(offset < PAGE_HEADER_SIZE));
+      DBUG_ASSERT(!(length < share->base.min_block_length));
       goto err;
     }
 #endif
@@ -6035,7 +6037,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
       pagecache_unlock_by_link(share->pagecache, page_link.link,
                                PAGECACHE_LOCK_WRITE_UNLOCK,
                                PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                               LSN_IMPOSSIBLE, 0);
+                               LSN_IMPOSSIBLE, 0, FALSE);
       DBUG_RETURN(0);
     }
 
@@ -6125,7 +6127,7 @@ err:
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 0);
+                             LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
   DBUG_RETURN((my_errno= error));
 }
@@ -6195,7 +6197,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 0);
+                             LSN_IMPOSSIBLE, 0, FALSE);
     DBUG_RETURN(0);
   }
 
@@ -6223,7 +6225,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
   DBUG_RETURN((my_errno= error));
 
@@ -6327,7 +6329,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 0);
+                             LSN_IMPOSSIBLE, 0, FALSE);
     goto err;
   }
   if (lsn_korr(buff) >= lsn)
@@ -6336,7 +6338,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 0);
+                             LSN_IMPOSSIBLE, 0, FALSE);
   }
   else
   {
@@ -6476,7 +6478,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                                       LSN_IMPOSSIBLE, 0);
+                                       LSN_IMPOSSIBLE, 0, FALSE);
               goto err;
             }
             /*
@@ -6496,7 +6498,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
               pagecache_unlock_by_link(share->pagecache, page_link.link,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                                       LSN_IMPOSSIBLE, 0);
+                                       LSN_IMPOSSIBLE, 0, FALSE);
               continue;
             }
           }

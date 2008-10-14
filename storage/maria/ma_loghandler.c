@@ -3028,7 +3028,7 @@ static void translog_free_link(PAGECACHE_BLOCK_LINK *direct_link)
   if (direct_link)
     pagecache_unlock_by_link(log_descriptor.pagecache, direct_link,
                              PAGECACHE_LOCK_READ_UNLOCK, PAGECACHE_UNPIN,
-                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, 0);
+                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, 0, FALSE);
   DBUG_VOID_RETURN;
 }
 

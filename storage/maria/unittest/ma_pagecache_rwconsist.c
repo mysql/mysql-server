@@ -114,7 +114,7 @@ void reader(int num)
     check_page(buff, num);
     pagecache_unlock_by_link(&pagecache, link,
                              PAGECACHE_LOCK_READ_UNLOCK,
-                             PAGECACHE_UNPIN, 0, 0, 0);
+                             PAGECACHE_UNPIN, 0, 0, 0, FALSE);
     {
       int lim= rand() % read_sleep_limit;
       int j;
@@ -149,7 +149,7 @@ void writer(int num)
     check_page(buff, num);
     pagecache_unlock_by_link(&pagecache, link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
-                             PAGECACHE_UNPIN, 0, 0, 1);
+                             PAGECACHE_UNPIN, 0, 0, 1, FALSE);
     SLEEP;
   }
 }
