@@ -3164,7 +3164,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		total_external_size = 0;
 	ulint		i;
 	ulint		j;
-	ulint		add_on;
+	ullint		add_on;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_rec_[REC_OFFS_NORMAL_SIZE];
