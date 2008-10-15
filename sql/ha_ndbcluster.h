@@ -510,7 +510,7 @@ static void set_tabname(const char *pathname, char *tabname);
   /*
    * Internal to ha_ndbcluster, used by C functions
    */
-  int ndb_err(NdbTransaction*);
+  int ndb_err(NdbTransaction*, bool have_lock= FALSE);
 
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
@@ -816,7 +816,7 @@ private:
   NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb(THD *thd);
 
-  int update_stats(THD *thd, bool do_read_stat);
+  int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE);
 };
 
 extern SHOW_VAR ndb_status_variables[];
