@@ -1782,7 +1782,7 @@ Variable_name	Value
 innodb_sync_spin_loops	20
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	8
+innodb_thread_concurrency	0
 set global innodb_thread_concurrency=1001;
 Warnings:
 Warning	1292	Truncated incorrect thread_concurrency value: '1001'
