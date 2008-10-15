@@ -830,7 +830,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       info.copied=values_list.elements;
       end_delayed_insert(thd);
     }
-    query_cache_invalidate3(thd, table_list, 1);
   }
   else
 #endif
