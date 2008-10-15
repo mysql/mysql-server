@@ -8768,7 +8768,8 @@ int ha_ndbcluster::update_stats(THD *thd,
       DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
     }
     if (int err= ndb_get_table_statistics(thd, this, TRUE, ndb,
-                                          m_ndb_statistics_record, &stat))
+                                          m_ndb_statistics_record, &stat,
+                                          have_lock))
     {
       DBUG_RETURN(err);
     }
