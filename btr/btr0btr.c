@@ -1177,7 +1177,11 @@ btr_root_raise_and_insert(
 
 	/* Copy the records from root to the new page one by one. */
 
-	if (UNIV_UNLIKELY
+	if (0
+#ifdef UNIV_ZIP_COPY
+	    || new_page_zip
+#endif /* UNIV_ZIP_COPY */
+	    || UNIV_UNLIKELY
 	    (!page_copy_rec_list_end(new_block, root_block,
 				     page_get_infimum_rec(root),
 				     index, mtr))) {
@@ -1947,7 +1951,11 @@ insert_right:
 	if (direction == FSP_DOWN) {
 		/*		fputs("Split left\n", stderr); */
 
-		if (UNIV_UNLIKELY
+		if (0
+#ifdef UNIV_ZIP_COPY
+		    || page_zip
+#endif /* UNIV_ZIP_COPY */
+		    || UNIV_UNLIKELY
 		    (!page_move_rec_list_start(new_block, block, move_limit,
 					       cursor->index, mtr))) {
 			/* For some reason, compressing new_page failed,
@@ -1986,7 +1994,11 @@ insert_right:
 	} else {
 		/*		fputs("Split right\n", stderr); */
 
-		if (UNIV_UNLIKELY
+		if (0
+#ifdef UNIV_ZIP_COPY
+		    || page_zip
+#endif /* UNIV_ZIP_COPY */
+		    || UNIV_UNLIKELY
 		    (!page_move_rec_list_end(new_block, block, move_limit,
 					     cursor->index, mtr))) {
 			/* For some reason, compressing new_page failed,
@@ -2359,7 +2371,11 @@ btr_lift_page_up(
 	btr_page_set_level(father_page, father_page_zip, page_level, mtr);
 
 	/* Copy the records to the father page one by one. */
-	if (UNIV_UNLIKELY
+	if (0
+#ifdef UNIV_ZIP_COPY
+	    || father_page_zip
+#endif /* UNIV_ZIP_COPY */
+	    || UNIV_UNLIKELY
 	    (!page_copy_rec_list_end(father_block, block,
 				     page_get_infimum_rec(page),
 				     index, mtr))) {
