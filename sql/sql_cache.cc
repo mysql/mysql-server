@@ -670,7 +670,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
   DBUG_ENTER("query_cache_insert");
 
   /* See the comment on double-check locking usage above. */
-  if (net->query_cache_query == 0)
+  if (query_cache.is_disabled() || net->query_cache_query == 0)
     DBUG_VOID_RETURN;
 
   DBUG_EXECUTE_IF("wait_in_query_cache_insert",
@@ -778,7 +778,7 @@ void query_cache_end_of_result(THD *thd)
   DBUG_ENTER("query_cache_end_of_result");
 
   /* See the comment on double-check locking usage above. */
-  if (thd->net.query_cache_query == 0)
+  if (query_cache.is_disabled() || thd->net.query_cache_query == 0)
     DBUG_VOID_RETURN;
 
   if (thd->killed)
@@ -891,7 +891,7 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
    def_table_hash_size(ALIGN_SIZE(def_table_hash_size_arg)),
-   initialized(0)
+   initialized(0),m_query_cache_is_disabled(FALSE)
 {
   ulong min_needed= (ALIGN_SIZE(sizeof(Query_cache_block)) +
 		     ALIGN_SIZE(sizeof(Query_cache_block_table)) +
@@ -978,7 +978,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     See also a note on double-check locking usage above.
   */
-  if (thd->locked_tables || query_cache_size == 0)
+  if (m_query_cache_is_disabled || thd->locked_tables || query_cache_size == 0)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
@@ -1161,14 +1161,18 @@ end:
   Check if the query is in the cache. If it was cached, send it
   to the user.
 
-  RESULTS
-        1	Query was not cached.
-	0	The query was cached and user was sent the result.
-	-1	The query was cached but we didn't have rights to use it.
-		No error is sent to the client yet.
+  @param thd Pointer to the thread handler
+  @param sql A pointer to the sql statement *
+  @param query_length Length of the statement in characters
+ 
+  @return status code
+  @retval 1  Query was not cached.
+  @retval 0  The query was cached and user was sent the result.
+  @retval -1 The query was cached but we didn't have rights to use it. 
+  
+  In case of -1, no error is sent to the client.
 
-  NOTE
-  This method requires that sql points to allocated memory of size:
+  *) The buffer must be allocated memory of size:
   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
 */
 
@@ -1183,6 +1187,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_query_flags flags;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
+  if (m_query_cache_is_disabled)
+      DBUG_RETURN(0);
+  
   /*
     Testing 'query_cache_size' without a lock here is safe: the thing
     we may loose is that the query won't be served from cache, but we
@@ -2530,7 +2537,17 @@ void Query_cache::invalidate_table(THD *thd, TABLE *table)
 void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
 {
   bool interrupt;
+  
+  if (m_query_cache_is_disabled)
+    return;
+  
   STRUCT_LOCK(&structure_guard_mutex);
+  if (query_cache_size == 0)
+  {
+      STRUCT_UNLOCK(&structure_guard_mutex);
+      return;
+  }
+      
   wait_while_table_flush_is_in_progress(&interrupt);
   if (interrupt)
   {
