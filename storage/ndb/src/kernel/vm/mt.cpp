@@ -1077,6 +1077,10 @@ flush_jbb_write_state(thr_data *selfptr)
   }
 }
 
+/**
+ * return 1 if any threads in-queue is more than 25% full
+ *   else 0
+ */
 static int
 check_job_buffers(struct thr_repository* rep)
 {
@@ -1085,6 +1089,18 @@ check_job_buffers(struct thr_repository* rep)
     thr_data * thrptr = rep->m_thread+i;
     for (unsigned j = 0; j<num_threads; j++)
     {
+      /**
+       * These values are read wo/ locks...
+       *   and they are written by different threads wo/ syncronization
+       *   i.e they are not 100% accurate
+       *
+       * A noticable exception is the values related to the receiver thread
+       *   (which calls this method)
+       * It's write-index is correct (since it's written by itself)
+       *   and this means that the estimate for this thread is only
+       *   conservative (i.e it can be better than guess, if read-index has
+       *   moved but we didnt see it)
+       */
       unsigned ri = thrptr->m_in_queue[j].m_read_index;
       unsigned wi = thrptr->m_in_queue[j].m_write_index;
       unsigned busy = (wi >= ri) ? wi - ri : (thr_job_queue::SIZE - ri) + wi;
