@@ -47,8 +47,7 @@ void win_pthread_init(void)
    @retval 0      Mutex was acquired
    @retval EBUSY  Mutex was already locked by a thread
  */
-int
-win_pthread_mutex_trylock(pthread_mutex_t *mutex)
+int pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
   if (TryEnterCriticalSection(mutex))
   {
