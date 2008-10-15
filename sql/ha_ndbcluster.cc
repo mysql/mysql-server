@@ -158,9 +158,11 @@ static
 NdbRecord *
 ndb_get_table_statistics_ndbrecord(NDBDICT *, const NDBTAB *);
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*, const NDBTAB *, 
-                                    struct Ndb_statistics *);
+                                    struct Ndb_statistics *,
+                                    bool have_lock= FALSE);
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
-                                    const NdbRecord *, struct Ndb_statistics *);
+                                    const NdbRecord *, struct Ndb_statistics *,
+                                    bool have_lock= FALSE);
 
 THD *injector_thd= 0;
 
@@ -490,7 +492,8 @@ static void set_ndb_err(THD *thd, const NdbError &err)
   DBUG_VOID_RETURN;
 }
 
-int ha_ndbcluster::ndb_err(NdbTransaction *trans)
+int ha_ndbcluster::ndb_err(NdbTransaction *trans,
+                           bool have_lock)
 {
   THD *thd= current_thd;
   int res;
@@ -509,7 +512,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
-    close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
+    close_cached_tables(thd, &table_list, have_lock, FALSE, FALSE);
     break;
   }
   default:
@@ -6711,7 +6714,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     m_share= 0;
     DBUG_RETURN(res);
   }
-  if ((res= update_stats(thd, 1)) ||
+  if ((res= update_stats(thd, 1, true)) ||
       (res= info(HA_STATUS_CONST)))
   {
     free_share(&m_share);
@@ -8763,7 +8766,9 @@ struct ndb_table_statistics_row {
   Uint64 var_mem;
 };
 
-int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
+int ha_ndbcluster::update_stats(THD *thd,
+                                bool do_read_stat,
+                                bool have_lock)
 {
   struct Ndb_statistics stat;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -8845,7 +8850,8 @@ static
 int
 ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* ndb,
                          const NdbRecord *record,
-                         struct Ndb_statistics * ndbstat)
+                         struct Ndb_statistics * ndbstat,
+                         bool have_lock)
 {
   NdbTransaction* pTrans;
   NdbError error;
@@ -8958,7 +8964,7 @@ retry:
     {
       if (file && pTrans)
       {
-        reterr= file->ndb_err(pTrans);
+        reterr= file->ndb_err(pTrans, have_lock);
       }
       else
       {
@@ -8995,7 +9001,8 @@ static
 int
 ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* ndb,
                          const NDBTAB *ndbtab,
-                         struct Ndb_statistics *ndbstat)
+                         struct Ndb_statistics *ndbstat,
+                         bool have_lock)
 {
   NDBDICT *dict= ndb->getDictionary();
   NdbRecord *rec= ndb_get_table_statistics_ndbrecord(dict, ndbtab);
