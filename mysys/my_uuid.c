@@ -145,12 +145,12 @@ void my_uuid(uchar *to)
     */
     if (nanoseq)
     {
-      long delta;
+      ulong delta;
       DBUG_ASSERT((tv > uuid_time) && (nanoseq > 0));
       /*
         -1 so we won't make tv= uuid_time for nanoseq >= (tv - uuid_time)
       */
-      delta= min(nanoseq, tv - uuid_time -1);
+      delta= min(nanoseq, (ulong)(tv - uuid_time -1));
       tv-= delta;
       nanoseq-= delta;
     }

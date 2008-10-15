@@ -7717,7 +7717,8 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
       is not realpath-ed, etc) which is good: the log can be moved to another
       directory and continue working.
     */
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= share->open_file_name.str;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=
+      (uchar *)share->open_file_name.str;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length=
       share->open_file_name.length + 1;
     /*
