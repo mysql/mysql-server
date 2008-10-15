@@ -260,8 +260,8 @@ protected:
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
 #define TABLE_OPEN_CACHE_MIN    64
-#define TABLE_OPEN_CACHE_DEFAULT 1024
-#define TABLE_DEF_CACHE_DEFAULT 1024
+#define TABLE_OPEN_CACHE_DEFAULT 400
+#define TABLE_DEF_CACHE_DEFAULT 400
 /**
   We must have room for at least 256 table definitions in the table
   cache, since otherwise there is no chance prepared
