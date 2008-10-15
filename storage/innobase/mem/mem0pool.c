@@ -329,6 +329,9 @@ mem_area_alloc(
 				minus MEM_AREA_EXTRA_SIZE */
 	mem_pool_t*	pool)	/* in: memory pool */
 {
+#ifdef UNIV_DISABLE_MEM_POOL
+        return malloc(size);
+#else /* UNIV_DISABLE_MEM_POOL */
 	mem_area_t*	area;
 	ulint		n;
 	ibool		ret;
@@ -407,6 +410,7 @@ mem_area_alloc(
 		       ut_2_exp(n) - MEM_AREA_EXTRA_SIZE);
 
 	return((void*)(MEM_AREA_EXTRA_SIZE + ((byte*)area)));
+#endif /* UNIV_DISABLE_MEM_POOL */
 }
 
 /************************************************************************
@@ -459,6 +463,9 @@ mem_area_free(
 				buffer */
 	mem_pool_t*	pool)	/* in: memory pool */
 {
+#ifdef UNIV_DISABLE_MEM_POOL
+        free(ptr);
+#else /* UNIV_DISABLE_MEM_POOL */
 	mem_area_t*	area;
 	mem_area_t*	buddy;
 	void*		new_ptr;
@@ -570,6 +577,7 @@ mem_area_free(
 	mutex_exit(&(pool->mutex));
 
 	ut_ad(mem_pool_validate(pool));
+#endif /* UNIV_DISABLE_MEM_POOL */
 }
 
 /************************************************************************

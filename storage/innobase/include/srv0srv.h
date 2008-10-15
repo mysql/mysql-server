@@ -527,6 +527,8 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_read_ahead_rnd;
 	ulint innodb_dblwr_pages_written;
 	ulint innodb_dblwr_writes;
+	ibool innodb_have_atomic_builtins;
+	ibool innodb_heap_enabled;
 	ulint innodb_log_waits;
 	ulint innodb_log_write_requests;
 	ulint innodb_log_writes;
@@ -563,4 +565,3 @@ struct srv_sys_struct{
 extern ulint	srv_n_threads_active[];
 
 #endif
-
