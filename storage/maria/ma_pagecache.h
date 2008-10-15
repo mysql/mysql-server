@@ -242,7 +242,8 @@ extern void pagecache_unlock_by_link(PAGECACHE *pagecache,
                                      enum pagecache_page_lock lock,
                                      enum pagecache_page_pin pin,
                                      LSN first_REDO_LSN_for_page,
-                                     LSN lsn, my_bool was_changed);
+                                     LSN lsn, my_bool was_changed,
+                                     my_bool any);
 extern void pagecache_unpin(PAGECACHE *pagecache,
                             PAGECACHE_FILE *file,
                             pgcache_page_no_t pageno,

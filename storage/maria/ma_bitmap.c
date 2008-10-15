@@ -167,10 +167,10 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
     int res= pagecache_write(share->pagecache,
                              &bitmap->file, bitmap->page, 0,
                              (uchar*) bitmap->map, PAGECACHE_PLAIN_PAGE,
-                             PAGECACHE_LOCK_WRITE, PAGECACHE_PIN,
+                             PAGECACHE_LOCK_LEFT_UNLOCKED, PAGECACHE_PIN,
                              PAGECACHE_WRITE_DELAY, &page_link.link,
                              LSN_IMPOSSIBLE);
-    page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
+    page_link.unlock= PAGECACHE_LOCK_LEFT_UNLOCKED;
     page_link.changed= 1;
     push_dynamic(&bitmap->pinned_pages, (void*) &page_link);
     DBUG_RETURN(res);
@@ -281,6 +281,14 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
     by this thread (ie, checking the changed flag is ok). The reason we
     check it again in the mutex is that if someone else did a flush at the
     same time, we don't have to do the write.
+    This is also ok for _ma_scan_init_block_record() which does not want to
+    miss rows: it cares only for committed rows, that is, rows for which there
+    was a commit before our transaction started; as commit and transaction's
+    start are protected by the same LOCK_trn_list mutex, we see memory at
+    least as new as at other transaction's commit time, so if the committed
+    rows caused bitmap->changed to be true, we see it; if we see 0 it really
+    means a flush happened since then. So, it's ok to read without bitmap's
+    mutex.
 
   RETURN
     0    ok
@@ -303,38 +311,6 @@ my_bool _ma_bitmap_flush(MARIA_SHARE *share)
   }
   DBUG_RETURN(res);
 }
-
-
-/*
-  @brief Send updated bitmap to the page cache if bitmap is free
-
-  @note
-  This is used by reader threads which don't unpin things
-*/
-
-my_bool _ma_bitmap_wait_or_flush(MARIA_SHARE *share)
-{
-  my_bool res= 0;
-  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
-  DBUG_ENTER("_ma_bitmap_flush");
-  if (bitmap->changed)
-  {
-    pthread_mutex_lock(&bitmap->bitmap_lock);
-    while (bitmap->non_flushable && bitmap->changed)
-    {
-      DBUG_PRINT("info", ("waiting for bitmap to be flushable"));
-      pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
-    }
-    if (bitmap->changed)
-    {
-      bitmap->changed= 0;
-      res= write_changed_bitmap(share, bitmap);
-    }
-    pthread_mutex_unlock(&bitmap->bitmap_lock);
-  }
-  DBUG_RETURN(res);
-}
-
 
 
 /**
@@ -386,8 +362,11 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
       unpinned. We keep the mutex to preserve this situation, and flush to the
       file.
     */
-    res= write_changed_bitmap(share, bitmap);
-    bitmap->changed= FALSE;
+    if (bitmap->changed)
+    {
+      res= write_changed_bitmap(share, bitmap);
+      bitmap->changed= FALSE;
+    }
     /*
       We do NOT use FLUSH_KEEP_LAZY because we must be sure that bitmap
       pages have been flushed. That's a condition of correctness of
@@ -424,6 +403,8 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
 
   @return Operation status
     @retval   0   ok
+
+  @note This unpins pages pinned by other threads.
 */
 
 static void _ma_bitmap_unpin_all(MARIA_SHARE *share)
@@ -437,7 +418,7 @@ static void _ma_bitmap_unpin_all(MARIA_SHARE *share)
   while (pinned_page-- != page_link)
     pagecache_unlock_by_link(share->pagecache, pinned_page->link,
                              pinned_page->unlock, PAGECACHE_UNPIN,
-                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, TRUE);
+                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, TRUE, TRUE);
   bitmap->pinned_pages.elements= 0;
   DBUG_VOID_RETURN;
 }
@@ -2139,8 +2120,8 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
    function first waits for the flush to be done.
 
    @note
-   info->non_flushable_state is set to 1 if we have incremented
-   bitmap->info->non_flushable and not yet decremented it.
+   this sets info->non_flushable_state to 1 if we have incremented
+   bitmap->non_flushable and not yet decremented it.
 
    @param  share               Table's share
    @param  non_flushable_inc   Increment of MARIA_FILE_BITMAP::non_flushable
@@ -2151,20 +2132,21 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
 {
   MARIA_SHARE *share= info->s;
   MARIA_FILE_BITMAP *bitmap;
+  DBUG_ENTER("_ma_bitmap_flushable");
 
   /*
     Not transactional tables are never automaticly flushed and needs no
     protection
   */
   if (!share->now_transactional)
-    return;
+    DBUG_VOID_RETURN;
 
   bitmap= &share->bitmap;
   if (non_flushable_inc == -1)
   {
     pthread_mutex_lock(&bitmap->bitmap_lock);
-    DBUG_ASSERT((int) bitmap->non_flushable > 0 &&
-                info->non_flushable_state == 1);
+    DBUG_ASSERT((int) bitmap->non_flushable > 0);
+    DBUG_ASSERT(info->non_flushable_state == 1);
     info->non_flushable_state= 0;
     if (--bitmap->non_flushable == 0)
     {
@@ -2182,14 +2164,15 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     }
     DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
     pthread_mutex_unlock(&bitmap->bitmap_lock);
-    return;
+    DBUG_VOID_RETURN;
   }
-  DBUG_ASSERT(non_flushable_inc == 1 && info->non_flushable_state == 0);
+  DBUG_ASSERT(non_flushable_inc == 1);
+  DBUG_ASSERT(info->non_flushable_state == 0);
   /* It is a read without mutex because only an optimization */
   if (unlikely(bitmap->flush_all_requested))
   {
     /*
-      _ma_bitmap_flush_all() is waiting for the bitmap to become
+      Some other thread is waiting for the bitmap to become
       flushable. Not the moment to make the bitmap unflushable or more
       unflushable; let's rather back off and wait. If we didn't do this, with
       multiple writers, there may always be one thread causing the bitmap to
@@ -2214,6 +2197,7 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
   bitmap->non_flushable++;
   info->non_flushable_state= 1;
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2321,10 +2305,10 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
       goto err;
   }
 
-  if (info->s->now_transactional)
+  /* This duplicates ma_bitmap_flushable(-1) except it already has mutex */
+  if (info->non_flushable_state)
   {
-    DBUG_ASSERT((int) bitmap->non_flushable >= 0 &&
-                info->non_flushable_state);
+    DBUG_ASSERT((int) bitmap->non_flushable >= 0);
     info->non_flushable_state= 0;
     if (--bitmap->non_flushable == 0)
     {

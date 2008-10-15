@@ -70,7 +70,7 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
                              pinned_page->unlock, PAGECACHE_UNPIN,
                              info->trn->rec_lsn, undo_lsn,
-                             pinned_page->changed);
+                             pinned_page->changed, FALSE);
   }
 
   info->pinned_pages.elements= 0;
@@ -700,7 +700,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
   DBUG_RETURN(result);
 }
 
@@ -779,7 +779,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
   DBUG_RETURN(result);
 }
 
@@ -1047,7 +1047,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
   if (result)
     _ma_mark_file_crashed(share);
   DBUG_RETURN(result);

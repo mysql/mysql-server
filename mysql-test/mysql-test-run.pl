@@ -3392,6 +3392,24 @@ sub run_testcase_check_skip_test($)
   my ($tinfo)= @_;
 
   # ----------------------------------------------------------------------
+  # Skip some tests silently
+  # ----------------------------------------------------------------------
+
+  if ( $::opt_start_from )
+  {
+    if ($tinfo->{'name'} eq $::opt_start_from )
+    {
+      ## Found parting test. Run this test and all tests after this one
+      $::opt_start_from= "";
+    }
+    else
+    {
+      $tinfo->{'result'}= 'MTR_RES_SKIPPED';
+      return 1;
+    }
+  }
+
+  # ----------------------------------------------------------------------
   # If marked to skip, just print out and return.
   # Note that a test case not marked as 'skip' can still be
   # skipped later, because of the test case itself in cooperation

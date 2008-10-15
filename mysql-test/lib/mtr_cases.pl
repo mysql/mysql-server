@@ -513,19 +513,10 @@ sub collect_one_test_case($$$$$$$$$) {
   my $suite_opts= shift;
 
   my $path= "$testdir/$elem";
-
-  # ----------------------------------------------------------------------
-  # Skip some tests silently
-  # ----------------------------------------------------------------------
-
-  if ( $::opt_start_from and $tname lt $::opt_start_from )
-  {
-    return;
-  }
-
+  my $name= basename($suite) . ".$tname";
 
   my $tinfo= {};
-  $tinfo->{'name'}= basename($suite) . ".$tname";
+  $tinfo->{'name'}= $name;
   $tinfo->{'result_file'}= "$resdir/$tname.result";
   $tinfo->{'component_id'} = $component_id;
   push(@$cases, $tinfo);
@@ -534,7 +525,7 @@ sub collect_one_test_case($$$$$$$$$) {
   # Skip some tests but include in list, just mark them to skip
   # ----------------------------------------------------------------------
 
-  if ( $skip_test and $tname =~ /$skip_test/o )
+  if ( $skip_test and ($tname =~ /$skip_test/o || $name =~ /$skip_test/o))
   {
     $tinfo->{'skip'}= 1;
     return;

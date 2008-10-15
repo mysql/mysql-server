@@ -3184,7 +3184,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
       pagecache_unlock_by_link(share->pagecache, page_link.link,
                                PAGECACHE_LOCK_WRITE_UNLOCK,
                                PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                               LSN_IMPOSSIBLE, 0);
+                               LSN_IMPOSSIBLE, 0, FALSE);
       _ma_check_print_error(param,
                             "Page %9s: Got error %d when reading index file",
                             llstr(pos, llbuff), my_errno);
@@ -3218,7 +3218,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 1);
+                             LSN_IMPOSSIBLE, 1, FALSE);
   }
   if (flush_pagecache_blocks(share->pagecache, &share->kfile,
                              FLUSH_FORCE_WRITE))
@@ -3342,7 +3342,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                             LSN_IMPOSSIBLE, 1);
+                             LSN_IMPOSSIBLE, 1, FALSE);
   }
   DBUG_RETURN(_ma_bitmap_flush(share) ||
               flush_pagecache_blocks(share->pagecache, &info->dfile,
@@ -3352,7 +3352,7 @@ err:
   pagecache_unlock_by_link(share->pagecache, page_link.link,
                            PAGECACHE_LOCK_WRITE_UNLOCK,
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
-                           LSN_IMPOSSIBLE, 0);
+                           LSN_IMPOSSIBLE, 0, FALSE);
   DBUG_RETURN(1);
 }
 

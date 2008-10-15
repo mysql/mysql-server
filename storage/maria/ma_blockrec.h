@@ -182,7 +182,6 @@ maria_page_get_lsn(uchar *page, pgcache_page_no_t page_no, uchar* data_ptr);
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
 my_bool _ma_bitmap_end(MARIA_SHARE *share);
 my_bool _ma_bitmap_flush(MARIA_SHARE *share);
-my_bool _ma_bitmap_wait_or_flush(MARIA_SHARE *share);
 my_bool _ma_bitmap_flush_all(MARIA_SHARE *share);
 void _ma_bitmap_reset_cache(MARIA_SHARE *share);
 my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
