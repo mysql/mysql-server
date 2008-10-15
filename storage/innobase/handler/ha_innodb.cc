@@ -374,6 +374,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
+  {"have_atomic_builtins",
+  (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
+  {"heap_enabled",
+  (char*) &export_vars.innodb_heap_enabled,		  SHOW_BOOL},
   {"log_waits",
   (char*) &export_vars.innodb_log_waits,		  SHOW_LONG},
   {"log_write_requests",
@@ -6878,6 +6882,7 @@ innodb_mutex_show_status(
 {
 	char buf1[IO_SIZE], buf2[IO_SIZE];
 	mutex_t*  mutex;
+	rw_lock_t* lock;
 #ifdef UNIV_DEBUG
 	ulint	  rw_lock_count= 0;
 	ulint	  rw_lock_count_spin_loop= 0;
@@ -6948,6 +6953,31 @@ innodb_mutex_show_status(
 
 	mutex_exit_noninline(&mutex_list_mutex);
 
+	mutex_enter_noninline(&rw_lock_list_mutex);
+
+	lock = UT_LIST_GET_FIRST(rw_lock_list);
+
+	while (lock != NULL)
+	{
+		if (lock->count_os_wait)
+		{
+			buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
+                                    lock->cfile_name, (ulong) lock->cline);
+			buf2len= my_snprintf(buf2, sizeof(buf2),
+                                    "os_waits=%lu", lock->count_os_wait);
+
+			if (stat_print(thd, innobase_hton_name,
+				       hton_name_len, buf1, buf1len,
+				       buf2, buf2len)) {
+				mutex_exit_noninline(&rw_lock_list_mutex);
+				DBUG_RETURN(1);
+			}
+		}
+		lock = UT_LIST_GET_NEXT(list, lock);
+	}
+
+	mutex_exit_noninline(&rw_lock_list_mutex);
+
 #ifdef UNIV_DEBUG
 	buf2len= my_snprintf(buf2, sizeof(buf2),
 		"count=%lu, spin_waits=%lu, spin_rounds=%lu, "
@@ -6980,6 +7010,7 @@ bool innobase_show_status(handlerton *hton, THD* thd,
 		return FALSE;
 	}
 }
+	rw_lock_t* lock;
 
 
 /****************************************************************************
