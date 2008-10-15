@@ -158,6 +158,8 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						printing B-trees */
 #define UNIV_ZIP_DEBUG				/* extensive consistency checks
 						for compressed pages */
+#define UNIV_ZIP_COPY				/* call page_zip_copy_recs()
+						more often */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */

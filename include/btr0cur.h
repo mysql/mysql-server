@@ -519,7 +519,9 @@ UNIV_INTERN
 ulint
 btr_copy_externally_stored_field_prefix(
 /*====================================*/
-				/* out: the length of the copied field */
+				/* out: the length of the copied field,
+				or 0 if the column is being or has been
+				deleted */
 	byte*		buf,	/* out: the field, or a prefix of it */
 	ulint		len,	/* in: length of buf, in bytes */
 	ulint		zip_size,/* in: nonzero=compressed BLOB page size,

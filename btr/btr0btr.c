@@ -1191,7 +1191,11 @@ btr_root_raise_and_insert(
 
 	/* Copy the records from root to the new page one by one. */
 
-	if (UNIV_UNLIKELY
+	if (0
+#ifdef UNIV_ZIP_COPY
+	    || new_page_zip
+#endif /* UNIV_ZIP_COPY */
+	    || UNIV_UNLIKELY
 	    (!page_copy_rec_list_end(new_block, root_block,
 				     page_get_infimum_rec(root),
 				     index, mtr))) {
@@ -1200,6 +1204,14 @@ btr_root_raise_and_insert(
 		/* Copy the page byte for byte. */
 		page_zip_copy_recs(new_page_zip, new_page,
 				   root_page_zip, root, index, mtr);
+
+		/* Update the lock table and possible hash index. */
+
+		lock_move_rec_list_end(new_block, root_block,
+				       page_get_infimum_rec(root));
+
+		btr_search_move_or_delete_hash_entries(new_block, root_block,
+						       index);
 	}
 
 	/* If this is a pessimistic insert which is actually done to
@@ -1953,7 +1965,11 @@ insert_right:
 	if (direction == FSP_DOWN) {
 		/*		fputs("Split left\n", stderr); */
 
-		if (UNIV_UNLIKELY
+		if (0
+#ifdef UNIV_ZIP_COPY
+		    || page_zip
+#endif /* UNIV_ZIP_COPY */
+		    || UNIV_UNLIKELY
 		    (!page_move_rec_list_start(new_block, block, move_limit,
 					       cursor->index, mtr))) {
 			/* For some reason, compressing new_page failed,
@@ -1969,6 +1985,18 @@ insert_right:
 						 new_block, cursor->index,
 						 ULINT_UNDEFINED,
 						 ULINT_UNDEFINED, mtr);
+
+			/* Update the lock table and possible hash index. */
+
+			lock_move_rec_list_start(
+				new_block, block, move_limit,
+				new_page + PAGE_NEW_INFIMUM);
+
+			btr_search_move_or_delete_hash_entries(
+				new_block, block, cursor->index);
+
+			/* Delete the records from the source page. */
+
 			page_delete_rec_list_start(move_limit, block,
 						   cursor->index, mtr);
 		}
@@ -1980,7 +2008,11 @@ insert_right:
 	} else {
 		/*		fputs("Split right\n", stderr); */
 
-		if (UNIV_UNLIKELY
+		if (0
+#ifdef UNIV_ZIP_COPY
+		    || page_zip
+#endif /* UNIV_ZIP_COPY */
+		    || UNIV_UNLIKELY
 		    (!page_move_rec_list_end(new_block, block, move_limit,
 					     cursor->index, mtr))) {
 			/* For some reason, compressing new_page failed,
@@ -1995,6 +2027,16 @@ insert_right:
 			page_delete_rec_list_start(move_limit - page
 						   + new_page, new_block,
 						   cursor->index, mtr);
+
+			/* Update the lock table and possible hash index. */
+
+			lock_move_rec_list_end(new_block, block, move_limit);
+
+			btr_search_move_or_delete_hash_entries(
+				new_block, block, cursor->index);
+
+			/* Delete the records from the source page. */
+
 			page_delete_rec_list_end(move_limit, block,
 						 cursor->index,
 						 ULINT_UNDEFINED,
@@ -2343,7 +2385,11 @@ btr_lift_page_up(
 	btr_page_set_level(father_page, father_page_zip, page_level, mtr);
 
 	/* Copy the records to the father page one by one. */
-	if (UNIV_UNLIKELY
+	if (0
+#ifdef UNIV_ZIP_COPY
+	    || father_page_zip
+#endif /* UNIV_ZIP_COPY */
+	    || UNIV_UNLIKELY
 	    (!page_copy_rec_list_end(father_block, block,
 				     page_get_infimum_rec(page),
 				     index, mtr))) {
@@ -2355,6 +2401,14 @@ btr_lift_page_up(
 		/* Copy the page byte for byte. */
 		page_zip_copy_recs(father_page_zip, father_page,
 				   page_zip, page, index, mtr);
+
+		/* Update the lock table and possible hash index. */
+
+		lock_move_rec_list_end(father_block, block,
+				       page_get_infimum_rec(page));
+
+		btr_search_move_or_delete_hash_entries(father_block, block,
+						       index);
 	}
 
 	lock_update_copy_and_discard(father_block, block);
