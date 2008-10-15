@@ -91,6 +91,14 @@ extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
 
+/* Number of IO operations per second the server can do */
+extern ulint    srv_io_capacity;
+
+/* Flush dirty pages when below max dirty percent */
+extern ibool  srv_extra_dirty_writes;
+
+
+
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool	srv_log_archive_on;
 extern ibool	srv_archive_recovery;
