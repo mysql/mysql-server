@@ -18,12 +18,20 @@
 #define intptr         void *
 
 #ifndef MY_ATOMIC_MODE_RWLOCKS
+/*
+ * Attempt to do atomic ops without locks
+ */
 #include "atomic/nolock.h"
 #endif
 
-#ifndef make_atomic_cas_body
+#ifndef MY_ATOMIC_NOLOCK
+/*
+ * Have to use rw-locks for atomic ops
+ */
 #include "atomic/rwlock.h"
 #endif
+
+#ifndef MY_ATOMICS_MADE
 
 #ifndef make_atomic_add_body
 #define make_atomic_add_body(S)					\
@@ -91,7 +99,7 @@ extern int ## S my_atomic_load ## S(int ## S volatile *a);
 #define make_atomic_store(S)					\
 extern void my_atomic_store ## S(int ## S volatile *a, int ## S v);
 
-#endif
+#endif /* HAVE_INLINE */
 
 make_atomic_cas( 8)
 make_atomic_cas(16)
@@ -128,6 +136,8 @@ make_atomic_swap(ptr)
 #undef make_atomic_store_body
 #undef make_atomic_swap_body
 #undef intptr
+
+#endif /* MY_ATOMICS_MADE */
 
 #ifdef _atomic_h_cleanup_
 #include _atomic_h_cleanup_
