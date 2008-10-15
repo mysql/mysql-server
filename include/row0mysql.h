@@ -339,7 +339,8 @@ int
 row_create_table_for_mysql(
 /*=======================*/
 					/* out: error code or DB_SUCCESS */
-	dict_table_t*	table,		/* in: table definition */
+	dict_table_t*	table,		/* in, own: table definition
+					(will be freed) */
 	trx_t*		trx);		/* in: transaction handle */
 /*************************************************************************
 Does an index creation operation for MySQL. TODO: currently failure
@@ -350,7 +351,8 @@ int
 row_create_index_for_mysql(
 /*=======================*/
 					/* out: error number or DB_SUCCESS */
-	dict_index_t*	index,		/* in: index definition */
+	dict_index_t*	index,		/* in, own: index definition
+					(will be freed) */
 	trx_t*		trx,		/* in: transaction handle */
 	const ulint*	field_lengths); /* in: if not NULL, must contain
 					dict_index_get_n_fields(index)

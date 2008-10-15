@@ -3291,7 +3291,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		total_external_size = 0;
 	ulint		i;
 	ulint		j;
-	ulint		add_on;
+	ullint		add_on;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_rec_[REC_OFFS_NORMAL_SIZE];
@@ -4351,14 +4351,8 @@ btr_free_externally_stored_field(
 						 MLOG_4BYTES, &mtr);
 			}
 		} else {
-			ulint	extern_len	= mach_read_from_4(
-				field_ref + BTR_EXTERN_LEN + 4);
-			ulint	part_len	= btr_blob_get_part_len(
-				page + FIL_PAGE_DATA);
-
 			ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_BLOB);
 			ut_a(!page_zip);
-			ut_a(extern_len >= part_len);
 
 			next_page_no = mach_read_from_4(
 				page + FIL_PAGE_DATA
@@ -4376,16 +4370,14 @@ btr_free_externally_stored_field(
 			mlog_write_ulint(field_ref + BTR_EXTERN_PAGE_NO,
 					 next_page_no,
 					 MLOG_4BYTES, &mtr);
+			/* Zero out the BLOB length.  If the server
+			crashes during the execution of this function,
+			trx_rollback_or_clean_all_recovered() could
+			dereference the half-deleted BLOB, fetching a
+			wrong prefix for the BLOB. */
 			mlog_write_ulint(field_ref + BTR_EXTERN_LEN + 4,
-					 extern_len - part_len,
+					 0,
 					 MLOG_4BYTES, &mtr);
-			if (next_page_no == FIL_NULL) {
-				ut_a(extern_len - part_len == 0);
-			}
-
-			if (extern_len - part_len == 0) {
-				ut_a(next_page_no == FIL_NULL);
-			}
 		}
 
 		/* Commit mtr and release the BLOB block to save memory. */
@@ -4723,7 +4715,9 @@ UNIV_INTERN
 ulint
 btr_copy_externally_stored_field_prefix(
 /*====================================*/
-				/* out: the length of the copied field */
+				/* out: the length of the copied field,
+				or 0 if the column was being or has been
+				deleted */
 	byte*		buf,	/* out: the field, or a prefix of it */
 	ulint		len,	/* in: length of buf, in bytes */
 	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
@@ -4751,6 +4745,14 @@ btr_copy_externally_stored_field_prefix(
 	data += local_len;
 
 	ut_a(memcmp(data, field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
+
+	if (!mach_read_from_4(data + BTR_EXTERN_LEN + 4)) {
+		/* The externally stored part of the column has been
+		(partially) deleted.  Signal the half-deleted BLOB
+		to the caller. */
+
+		return(0);
+	}
 
 	space_id = mach_read_from_4(data + BTR_EXTERN_SPACE_ID);
 
