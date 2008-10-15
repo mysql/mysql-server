@@ -150,8 +150,7 @@ COMMIT;
 --connection server2
 --error 1296
 update t1 set b=b+100 where a=4;
---error 1296
-COMMIT;
+ROLLBACK;
 
 # Bug #25275 SINGLE USER MODE prevents ALTER on non-ndb
 # tables for other mysqld nodes

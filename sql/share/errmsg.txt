@@ -6133,3 +6133,6 @@ ER_NEED_REPREPARE
 
 ER_DELAYED_NOT_SUPPORTED  
   eng "DELAYED option not supported for table '%-.192s'"
+
+ER_WARN_ENGINE_TRANSACTION_ROLLBACK
+  eng "Storage engine %s does not support rollback for this statement. Transaction rolled back and must be restarted"
