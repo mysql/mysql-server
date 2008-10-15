@@ -1062,6 +1062,16 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
+#ifdef UNIV_DISABLE_MEM_POOL
+	fprintf(stderr,
+		"InnoDB: The InnoDB memory heap has been disabled.\n");
+#endif
+
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+	fprintf(stderr,
+		"InnoDB: Mutex and rw_lock use GCC atomic builtins.\n");
+#endif
+
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
 	print an error message if someone tries to start up InnoDB a

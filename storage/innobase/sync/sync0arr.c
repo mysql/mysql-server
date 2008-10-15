@@ -295,27 +295,24 @@ sync_array_validate(
 }
 
 /***********************************************************************
-Puts the cell event in reset state. */
+Returns the event that the thread owning the cell waits for. */
 static
-ib_longlong
-sync_cell_event_reset(
-/*==================*/
-				/* out: value of signal_count
-				at the time of reset. */
-	ulint		type,	/* in: lock type mutex/rw_lock */
-	void*		object) /* in: the rw_lock/mutex object */
+os_event_t
+sync_cell_get_event(
+/*================*/
+	sync_cell_t*   	cell) /* in: non-empty sync array cell */
 {
+	ulint type = cell->request_type;
+
 	if (type == SYNC_MUTEX) {
-		return(os_event_reset(((mutex_t *) object)->event));
-#ifdef __WIN__
+		return(((mutex_t *) cell->wait_object)->event);
 	} else if (type == RW_LOCK_WAIT_EX) {
-		return(os_event_reset(
-		       ((rw_lock_t *) object)->wait_ex_event));
-#endif
-	} else {
-		return(os_event_reset(((rw_lock_t *) object)->event));
+		return(((rw_lock_t *) cell->wait_object)->wait_ex_event);
+	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
+		return(((rw_lock_t *) cell->wait_object)->event);
 	}
 }
+
 
 /**********************************************************************
 Reserves a wait array cell for waiting for an object.
@@ -332,6 +329,7 @@ sync_array_reserve_cell(
 	ulint*		index)	/* out: index of the reserved cell */
 {
 	sync_cell_t*	cell;
+	os_event_t      event;
 	ulint		i;
 
 	ut_a(object);
@@ -370,8 +368,8 @@ sync_array_reserve_cell(
 			/* Make sure the event is reset and also store
 			the value of signal_count at which the event
 			was reset. */
-			cell->signal_count = sync_cell_event_reset(type,
-								object);
+                        event = sync_cell_get_event(cell);
+			cell->signal_count = os_event_reset(event);
 
 			cell->reservation_time = time(NULL);
 
@@ -411,19 +409,7 @@ sync_array_wait_event(
 	ut_a(!cell->waiting);
 	ut_ad(os_thread_get_curr_id() == cell->thread);
 
-	if (cell->request_type == SYNC_MUTEX) {
-		event = ((mutex_t*) cell->wait_object)->event;
-#ifdef __WIN__
-	/* On windows if the thread about to wait is the one which
-	has set the state of the rw_lock to RW_LOCK_WAIT_EX, then
-	it waits on a special event i.e.: wait_ex_event. */
-	} else if (cell->request_type == RW_LOCK_WAIT_EX) {
-		event = ((rw_lock_t*) cell->wait_object)->wait_ex_event;
-#endif
-	} else {
-		event = ((rw_lock_t*) cell->wait_object)->event;
-	}
-
+	event = sync_cell_get_event(cell);
 		cell->waiting = TRUE;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -462,6 +448,7 @@ sync_array_cell_print(
 	mutex_t*	mutex;
 	rw_lock_t*	rwlock;
 	ulint		type;
+	ulint		writer;
 
 	type = cell->request_type;
 
@@ -491,9 +478,7 @@ sync_array_cell_print(
 			(ulong) mutex->waiters);
 
 	} else if (type == RW_LOCK_EX
-#ifdef __WIN__
 		   || type == RW_LOCK_WAIT_EX
-#endif
 		   || type == RW_LOCK_SHARED) {
 
 		fputs(type == RW_LOCK_EX ? "X-lock on" : "S-lock on", file);
@@ -504,22 +489,25 @@ sync_array_cell_print(
 			" RW-latch at %p created in file %s line %lu\n",
 			(void*) rwlock, rwlock->cfile_name,
 			(ulong) rwlock->cline);
-		if (rwlock->writer != RW_LOCK_NOT_LOCKED) {
+		writer = rw_lock_get_writer(rwlock);
+		if (writer != RW_LOCK_NOT_LOCKED) {
 			fprintf(file,
 				"a writer (thread id %lu) has"
 				" reserved it in mode %s",
 				(ulong) os_thread_pf(rwlock->writer_thread),
-				rwlock->writer == RW_LOCK_EX
+				writer == RW_LOCK_EX
 				? " exclusive\n"
 				: " wait exclusive\n");
 		}
 
 		fprintf(file,
-			"number of readers %lu, waiters flag %lu\n"
+			"number of readers %lu, waiters flag %lu, "
+                        "lock_word: %ld\n"
 			"Last time read locked in file %s line %lu\n"
 			"Last time write locked in file %s line %lu\n",
-			(ulong) rwlock->reader_count,
+			(ulong) rw_lock_get_reader_count(rwlock),
 			(ulong) rwlock->waiters,
+			rwlock->lock_word,
 			rwlock->last_s_file_name,
 			(ulong) rwlock->last_s_line,
 			rwlock->last_x_file_name,
@@ -778,28 +766,30 @@ sync_arr_cell_can_wake_up(
 			return(TRUE);
 		}
 
-	} else if (cell->request_type == RW_LOCK_EX
-		   || cell->request_type == RW_LOCK_WAIT_EX) {
+	} else if (cell->request_type == RW_LOCK_EX) {
 
 		lock = cell->wait_object;
 
-		if (rw_lock_get_reader_count(lock) == 0
-		    && rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
+                /* X_LOCK_DECR is the unlocked state */
+	    	if (lock->lock_word == X_LOCK_DECR) {
 
 			return(TRUE);
 		}
 
-		if (rw_lock_get_reader_count(lock) == 0
-		    && rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX
-		    && os_thread_eq(lock->writer_thread, cell->thread)) {
+        } else if (cell->request_type == RW_LOCK_WAIT_EX) {
+
+	    	lock = cell->wait_object;
+
+                /* lock_word == 0 means all readers have left */
+	    	if (lock->lock_word == 0) {
 
 			return(TRUE);
 		}
-
 	} else if (cell->request_type == RW_LOCK_SHARED) {
 		lock = cell->wait_object;
 
-		if (rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
+                /* lock_word > 0 means no writer or reserved writer */
+		if (lock->lock_word > 0) {
 
 			return(TRUE);
 		}
@@ -844,11 +834,15 @@ sync_array_object_signalled(
 /*========================*/
 	sync_array_t*	arr)	/* in: wait array */
 {
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+	__sync_fetch_and_add(&(arr->sg_count),1);
+#else
 	sync_array_enter(arr);
 
 	arr->sg_count++;
 
 	sync_array_exit(arr);
+#endif
 }
 
 /**************************************************************************
@@ -868,6 +862,7 @@ sync_arr_wake_threads_if_sema_free(void)
 	sync_cell_t*	cell;
 	ulint		count;
 	ulint		i;
+	os_event_t      event;
 
 	sync_array_enter(arr);
 
@@ -877,36 +872,20 @@ sync_arr_wake_threads_if_sema_free(void)
 	while (count < arr->n_reserved) {
 
 		cell = sync_array_get_nth_cell(arr, i);
+		i++;
 
-		if (cell->wait_object != NULL) {
-
+		if (cell->wait_object == NULL) {
+			continue;
+		}
 			count++;
 
 			if (sync_arr_cell_can_wake_up(cell)) {
 
-				if (cell->request_type == SYNC_MUTEX) {
-					mutex_t*	mutex;
+			event = sync_cell_get_event(cell);
 
-					mutex = cell->wait_object;
-					os_event_set(mutex->event);
-#ifdef __WIN__
-				} else if (cell->request_type
-					   == RW_LOCK_WAIT_EX) {
-					rw_lock_t*	lock;
-
-					lock = cell->wait_object;
-					os_event_set(lock->wait_ex_event);
-#endif
-				} else {
-					rw_lock_t*	lock;
-
-					lock = cell->wait_object;
-					os_event_set(lock->event);
-				}
-			}
+			os_event_set(event);
 		}
 
-		i++;
 	}
 
 	sync_array_exit(arr);
@@ -1026,4 +1005,3 @@ sync_array_print_info(
 
 	sync_array_exit(arr);
 }
-
