@@ -4853,14 +4853,27 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("ndbcluster_rollback");
   DBUG_ASSERT(ndb);
   thd_ndb->start_stmt_count= 0;
-  if (trans == NULL || (!all &&
-      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (trans == NULL)
   {
     /* Ignore end-of-statement until real rollback or commit is called */
-    DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
+    DBUG_PRINT("info", ("trans == NULL"));
     DBUG_RETURN(0);
   }
-
+  if (!all && thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  {
+    /*
+      Ignore end-of-statement until real rollback or commit is called
+      as ndb does not support rollback statement
+      - mark that rollback was unsuccessful, this will cause full rollback
+      of the transaction
+    */
+    DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
+    mark_transaction_to_rollback(thd, 1);
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_ENGINE_TRANSACTION_ROLLBACK,
+                        ER(ER_WARN_ENGINE_TRANSACTION_ROLLBACK), "NDB");
+    DBUG_RETURN(0);
+  }
   if (trans->execute(NdbTransaction::Rollback) != 0)
   {
     const NdbError err= trans->getNdbError();
