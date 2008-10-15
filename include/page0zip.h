@@ -387,7 +387,8 @@ page_zip_reorganize(
 /**************************************************************************
 Copy the records of a page byte for byte.  Do not copy the page header
 or trailer, except those B-tree header fields that are directly
-related to the storage of records. */
+related to the storage of records.  Also copy PAGE_MAX_TRX_ID.
+NOTE: The caller must update the lock table and the adaptive hash index. */
 UNIV_INTERN
 void
 page_zip_copy_recs(
