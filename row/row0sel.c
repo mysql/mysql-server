@@ -86,6 +86,16 @@ row_sel_sec_rec_is_for_blob(
 	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
 						      zip_size,
 						      clust_field, clust_len);
+
+	if (UNIV_UNLIKELY(len == 0)) {
+		/* The BLOB was being deleted as the server crashed.
+		There should not be any secondary index records
+		referring to this clustered index record, because
+		btr_free_externally_stored_field() is called after all
+		secondary index entries of the row have been purged. */
+		return(FALSE);
+	}
+
 	len = dtype_get_at_most_n_mbchars(prtype, mbminlen, mbmaxlen,
 					  sec_len, len, (const char*) buf);
 
