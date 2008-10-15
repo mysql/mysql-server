@@ -861,6 +861,8 @@ row_upd_ext_fetch(
 	*len = btr_copy_externally_stored_field_prefix(buf, *len,
 						       zip_size,
 						       data, local_len);
+	/* We should never update records containing a half-deleted BLOB. */
+	ut_a(*len);
 
 	return(buf);
 }

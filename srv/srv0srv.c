@@ -311,7 +311,7 @@ UNIV_INTERN ibool	srv_use_checksums = TRUE;
 UNIV_INTERN ibool	srv_set_thread_priorities = TRUE;
 UNIV_INTERN int	srv_query_thread_priority = 0;
 
-UNIV_INTERN ulint	srv_replication_delay		= 0;
+UNIV_INTERN ulong	srv_replication_delay		= 0;
 
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 20;
