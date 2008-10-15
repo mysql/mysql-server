@@ -90,6 +90,12 @@ extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
+/* Number of background IO threads for read and write. Replaces
+ * srv_n_file_io_threads. */
+extern ulint	srv_n_read_io_threads;
+extern ulint	srv_n_write_io_threads;
+/* Max number of adjacent IO requests to merge into one large request. */
+extern ulint	srv_max_merged_io;
 
 /* Number of IO operations per second the server can do */
 extern ulint    srv_io_capacity;
