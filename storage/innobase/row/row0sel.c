@@ -1248,7 +1248,7 @@ table_loop:
 			rw_lock_s_lock(&btr_search_latch);
 
 			search_latch_locked = TRUE;
-		} else if (btr_search_latch.writer_is_wait_ex) {
+		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -3327,7 +3327,7 @@ row_search_for_mysql(
 	/* PHASE 0: Release a possible s-latch we are holding on the
 	adaptive hash index latch if there is someone waiting behind */
 
-	if (UNIV_UNLIKELY(btr_search_latch.writer != RW_LOCK_NOT_LOCKED)
+	if (UNIV_UNLIKELY(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED)
 	    && trx->has_search_latch) {
 
 		/* There is an x-latch request on the adaptive hash index:

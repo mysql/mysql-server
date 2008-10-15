@@ -1916,6 +1916,16 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_misc = buf_pool->max_size
 		- UT_LIST_GET_LEN(buf_pool->LRU)
 		- UT_LIST_GET_LEN(buf_pool->free);
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+	export_vars.innodb_have_atomic_builtins = 1;
+#else
+	export_vars.innodb_have_atomic_builtins = 0;
+#endif
+#ifdef UNIV_DISABLE_MEM_POOL
+	export_vars.innodb_heap_enabled = 0;
+#else
+	export_vars.innodb_heap_enabled = 1;
+#endif
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;
 	export_vars.innodb_log_waits = srv_log_waits;
 	export_vars.innodb_os_log_written = srv_os_log_written;

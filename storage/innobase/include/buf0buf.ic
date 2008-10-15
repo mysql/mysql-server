@@ -513,7 +513,7 @@ buf_block_buf_fix_inc_debug(
 {
 	ibool	ret;
 
-	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
+	ret = rw_lock_s_lock_nowait(&(block->debug_latch), file, line);
 
 	ut_ad(ret == TRUE);
 	ut_ad(mutex_own(&block->mutex));

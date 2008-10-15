@@ -748,8 +748,8 @@ btr_search_guess_on_hash(
 		rw_lock_s_lock(&btr_search_latch);
 	}
 
-	ut_ad(btr_search_latch.writer != RW_LOCK_EX);
-	ut_ad(btr_search_latch.reader_count > 0);
+	ut_ad(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_EX);
+	ut_ad(rw_lock_get_reader_count(&btr_search_latch) > 0);
 
 	rec = ha_search_and_get_data(btr_search_sys->hash_index, fold);
 
