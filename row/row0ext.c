@@ -40,10 +40,13 @@ row_ext_cache_fill(
 		ext->len[i] = 0;
 	} else {
 		/* Fetch at most REC_MAX_INDEX_COL_LEN of the column.
-		The column must be non-empty. */
+		The column should be non-empty.  However,
+		trx_rollback_or_clean_all_recovered() may try to
+		access a half-deleted BLOB if the server previously
+		crashed during the execution of
+		btr_free_externally_stored_field(). */
 		ext->len[i] = btr_copy_externally_stored_field_prefix(
 			buf, REC_MAX_INDEX_COL_LEN, zip_size, field, f_len);
-		ut_a(ext->len[i]);
 	}
 }
 
