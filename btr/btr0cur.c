@@ -658,6 +658,9 @@ retry_page_get:
 		page_mode = mode;
 	}
 
+	/* TO DO: if the page is empty, advance to the next page.
+	There may be a match on the first nonempty right sibling. */
+
 	page_cur_search_with_match(
 		block, index, tuple, page_mode, &up_match, &up_bytes,
 		&low_match, &low_bytes, page_cursor);
@@ -692,18 +695,13 @@ retry_page_get:
 
 	node_ptr = page_cur_get_rec(page_cursor);
 
-	offsets = rec_get_offsets(
-		node_ptr, cursor->index, offsets, ULINT_UNDEFINED, &heap);
-
-	/* Go to the child node */
-	page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
-
-	if (dict_index_is_ibuf(index) && height == level) {
+	if (height == 0 && dict_index_is_ibuf(index)) {
 		/* We're doing a search on an ibuf tree and we're one level
-		above the leaf page. (Assuming level == 0, which it should
-		be.) */
+		above the leaf page. */
 
 		ulint	is_min_rec;
+
+		ut_ad(level == 0);
 
 		is_min_rec = rec_get_info_bits(node_ptr, 0)
 			& REC_INFO_MIN_REC_FLAG;
@@ -715,6 +713,12 @@ retry_page_get:
 			     || cursor->ibuf_cnt == ULINT_UNDEFINED);
 		}
 	}
+
+	offsets = rec_get_offsets(
+		node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+
+	/* Go to the child node */
+	page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 
 	goto search_loop;
 
