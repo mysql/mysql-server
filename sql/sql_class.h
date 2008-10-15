@@ -664,10 +664,17 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
+  /*
+    Number of statements sent from the client
+  */
+  ulong questions;
 
   /*
-    Status variables which it does not make sense to add to
-    global status variable counter
+    IMPORTANT!
+    SEE last_system_status_var DEFINITION BELOW.
+
+    Below 'last_system_status_var' are all variables which doesn't make any
+    sense to add to the /global/ status variable counter.
   */
   double last_query_cost;
 } STATUS_VAR;
@@ -678,7 +685,7 @@ typedef struct system_status_var
   counter
 */
 
-#define last_system_status_var com_stmt_close
+#define last_system_status_var questions
 
 
 void free_tmp_table(THD *thd, TABLE *entry);
