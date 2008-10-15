@@ -279,6 +279,8 @@ private:
 
   Cache_status m_cache_status;
 
+  bool m_query_cache_is_disabled;
+  
   void free_query_internal(Query_cache_block *point);
   void invalidate_table_internal(THD *thd, uchar *key, uint32 key_length);
 
@@ -437,6 +439,14 @@ protected:
   /* register query in cache */
   void store_query(THD *thd, TABLE_LIST *used_tables);
 
+  /**
+    At startup the user has an option to disable the query cache
+    to avoid locking the structure_guard_mutex.
+    This option is enabled by explicitly setting query_cache_type=OFF
+    in the command line.
+  */
+  void disable_query_cache(void) { m_query_cache_is_disabled= TRUE; }
+  
   /*
     Check if the query is in the cache and if this is true send the
     data to client.
@@ -469,6 +479,8 @@ protected:
   friend void query_cache_end_of_result(THD *thd);
   friend void query_cache_abort(NET *net);
 
+  bool is_disabled(void) { return m_query_cache_is_disabled; }
+  
   bool is_flushing(void) 
   { 
     return (m_cache_status != Query_cache::NO_FLUSH_IN_PROGRESS);
