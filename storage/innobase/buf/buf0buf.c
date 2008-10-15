@@ -1277,8 +1277,8 @@ loop:
 
 	if (mode == BUF_GET_NOWAIT) {
 		if (rw_latch == RW_S_LATCH) {
-			success = rw_lock_s_lock_func_nowait(&(block->lock),
-							     file, line);
+			success = rw_lock_s_lock_nowait(&(block->lock),
+							file, line);
 			fix_type = MTR_MEMO_PAGE_S_FIX;
 		} else {
 			ut_ad(rw_latch == RW_X_LATCH);
@@ -1403,8 +1403,8 @@ buf_page_optimistic_get_func(
 	ut_ad(!ibuf_inside() || ibuf_page(block->space, block->offset));
 
 	if (rw_latch == RW_S_LATCH) {
-		success = rw_lock_s_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_s_lock_nowait(&(block->lock),
+						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
 		success = rw_lock_x_lock_func_nowait(&(block->lock),
@@ -1534,8 +1534,8 @@ buf_page_get_known_nowait(
 	ut_ad(!ibuf_inside() || (mode == BUF_KEEP_OLD));
 
 	if (rw_latch == RW_S_LATCH) {
-		success = rw_lock_s_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_s_lock_nowait(&(block->lock),
+						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
 		success = rw_lock_x_lock_func_nowait(&(block->lock),

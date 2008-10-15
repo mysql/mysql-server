@@ -15,35 +15,111 @@ Created 9/11/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "srv0srv.h"
 
-/* number of system calls made during shared latching */
-ulint	rw_s_system_call_count	= 0;
+/*
+	IMPLEMENTATION OF THE RW_LOCK
+	=============================
+The status of a rw_lock is held in lock_word. The initial value of lock_word is
+X_LOCK_DECR. lock_word is decremented by 1 for each s-lock and by X_LOCK_DECR
+for each x-lock. This describes the lock state for each value of lock_word:
+ 
+lock_word == X_LOCK_DECR:      Unlocked.
+0 < lock_word < X_LOCK_DECR:   Read locked, no waiting writers.
+ 			       (X_LOCK_DECR - lock_word) is the
+ 			       number of readers that hold the lock.
+lock_word == 0:		       Write locked
+-X_LOCK_DECR < lock_word < 0:  Read locked, with a waiting writer.
+ 			       (-lock_word) is the number of readers
+ 			       that hold the lock.
+lock_word <= -X_LOCK_DECR:     Recursively write locked. lock_word has been
+ 			       decremented by X_LOCK_DECR once for each lock,
+ 			       so the number of locks is:
+ 			       ((-lock_word) / X_LOCK_DECR) + 1
+When lock_word <= -X_LOCK_DECR, we also know that lock_word % X_LOCK_DECR == 0:
+other values of lock_word are invalid.
+ 
+The lock_word is always read and updated atomically and consistently, so that
+it always represents the state of the lock, and the state of the lock changes
+with a single atomic operation. This lock_word holds all of the information
+that a thread needs in order to determine if it is eligible to gain the lock
+or if it must spin or sleep. The one exception to this is that writer_thread
+must be verified before recursive write locks: to solve this scenario, we make
+writer_thread readable by all threads, but only writeable by the x-lock holder.
+
+The other members of the lock obey the following rules to remain consistent:
+ 
+pass:		This is only set to 1 to prevent recursive x-locks. It must
+ 		be set as specified by x_lock caller after the lock_word
+ 		indicates that the thread holds the lock, but before that
+ 		thread resumes execution. It must be reset to 0 during the
+ 		final x_unlock, but before the lock_word status is updated.
+ 		When an x_lock or move_ownership call wishes to change
+ 		pass, it must first update the writer_thread appropriately.
+writer_thread:	Must be set to the writers thread_id after the lock_word
+ 		indicates that the thread holds the lock, but before that
+ 		thread resumes execution. It  must be reset to -1 during the
+ 		final x_unlock, but before the lock_word status is updated.
+ 		This ensures that when the lock_word indicates that an x_lock
+ 		is held, the only legitimate values for writer_thread are -1
+ 		(x_lock function hasn't completed) or the writer's thread_id.
+waiters:	May be set to 1 anytime, but to avoid unnecessary wake-up
+ 		signals, it should only be set to 1 when there are threads
+ 		waiting on event. Must be 1 when a writer starts waiting to
+ 		ensure the current x-locking thread sends a wake-up signal
+ 		during unlock. May only be reset to 0 immediately before a
+ 		a wake-up signal is sent to event.
+event:		Threads wait on event for read or writer lock when another
+ 		thread has an x-lock or an x-lock reservation (wait_ex). A
+ 		thread may only	wait on event after performing the following
+ 		actions in order:
+ 		   (1) Record the counter value of event (with os_event_reset).
+ 		   (2) Set waiters to 1.
+ 		   (3) Verify lock_word <= 0.
+ 		(1) must come before (2) to ensure signal is not missed.
+ 		(2) must come before (3) to ensure a signal is sent.
+ 		These restrictions force the above ordering.
+ 		Immediately before sending the wake-up signal, we should:
+ 		   (1) Verify lock_word == X_LOCK_DECR (unlocked)
+ 		   (2) Reset waiters to 0.
+wait_ex_event:	A thread may only wait on the wait_ex_event after it has
+ 		performed the following actions in order:
+ 		   (1) Decrement lock_word by X_LOCK_DECR.
+ 		   (2) Record counter value of wait_ex_event (os_event_reset,
+                        called from sync_array_reserve_cell).
+ 		   (3) Verify that lock_word < 0.
+ 		(1) must come first to ensures no other threads become reader
+                 or next writer, and notifies unlocker that signal must be sent.
+                 (2) must come before (3) to ensure the signal is not missed.
+ 		These restrictions force the above ordering.
+ 		Immediately before sending the wake-up signal, we should:
+		   Verify lock_word == 0 (waiting thread holds x_lock)
+*/
+
 
 /* number of spin waits on rw-latches,
 resulted during shared (read) locks */
-ulint	rw_s_spin_wait_count	= 0;
+ib_longlong	rw_s_spin_wait_count	= 0;
+ib_longlong	rw_s_spin_round_count	= 0;
 
 /* number of OS waits on rw-latches,
 resulted during shared (read) locks */
-ulint	rw_s_os_wait_count	= 0;
+ib_longlong	rw_s_os_wait_count	= 0;
 
 /* number of unlocks (that unlock shared locks),
 set only when UNIV_SYNC_PERF_STAT is defined */
-ulint	rw_s_exit_count		= 0;
-
-/* number of system calls made during exclusive latching */
-ulint	rw_x_system_call_count	= 0;
+ib_longlong	rw_s_exit_count		= 0;
 
 /* number of spin waits on rw-latches,
 resulted during exclusive (write) locks */
-ulint	rw_x_spin_wait_count	= 0;
+ib_longlong	rw_x_spin_wait_count	= 0;
+ib_longlong	rw_x_spin_round_count	= 0;
 
 /* number of OS waits on rw-latches,
 resulted during exclusive (write) locks */
-ulint	rw_x_os_wait_count	= 0;
+ib_longlong	rw_x_os_wait_count	= 0;
 
 /* number of unlocks (that unlock exclusive locks),
 set only when UNIV_SYNC_PERF_STAT is defined */
-ulint	rw_x_exit_count		= 0;
+ib_longlong	rw_x_exit_count		= 0;
 
 /* The global list of rw-locks */
 rw_lock_list_t	rw_lock_list;
@@ -119,6 +195,7 @@ rw_lock_create_func(
 	/* If this is the very first time a synchronization object is
 	created, then the following call initializes the sync system. */
 
+#ifndef HAVE_GCC_ATOMIC_BUILTINS
 	mutex_create(rw_lock_get_mutex(lock), SYNC_NO_ORDER_CHECK);
 
 	lock->mutex.cfile_name = cfile_name;
@@ -129,12 +206,12 @@ rw_lock_create_func(
 	lock->mutex.mutex_type = 1;
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
-	rw_lock_set_waiters(lock, 0);
-	rw_lock_set_writer(lock, RW_LOCK_NOT_LOCKED);
-	lock->writer_count = 0;
-	rw_lock_set_reader_count(lock, 0);
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
-	lock->writer_is_wait_ex = FALSE;
+	lock->lock_word = X_LOCK_DECR;
+	rw_lock_set_waiters(lock, 0);
+	lock->writer_thread = -1;
+	lock->pass = 0;
 
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list);
@@ -147,15 +224,13 @@ rw_lock_create_func(
 	lock->cfile_name = cfile_name;
 	lock->cline = (unsigned int) cline;
 
+	lock->count_os_wait = 0;
 	lock->last_s_file_name = "not yet reserved";
 	lock->last_x_file_name = "not yet reserved";
 	lock->last_s_line = 0;
 	lock->last_x_line = 0;
 	lock->event = os_event_create(NULL);
-
-#ifdef __WIN__
 	lock->wait_ex_event = os_event_create(NULL);
-#endif
 
 	mutex_enter(&rw_lock_list_mutex);
 
@@ -180,20 +255,19 @@ rw_lock_free(
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
 	ut_ad(rw_lock_validate(lock));
-	ut_a(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED);
+	ut_a(lock->lock_word == X_LOCK_DECR);
 	ut_a(rw_lock_get_waiters(lock) == 0);
-	ut_a(rw_lock_get_reader_count(lock) == 0);
 
 	lock->magic_n = 0;
 
+#ifndef HAVE_GCC_ATOMIC_BUILTINS
 	mutex_free(rw_lock_get_mutex(lock));
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
 
 	mutex_enter(&rw_lock_list_mutex);
 	os_event_free(lock->event);
 
-#ifdef __WIN__
 	os_event_free(lock->wait_ex_event);
-#endif
 
 	if (UT_LIST_GET_PREV(list, lock)) {
 		ut_a(UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
@@ -219,19 +293,12 @@ rw_lock_validate(
 {
 	ut_a(lock);
 
-	mutex_enter(rw_lock_get_mutex(lock));
+	ulint waiters = rw_lock_get_waiters(lock);
+	lint lock_word = lock->lock_word;
 
 	ut_a(lock->magic_n == RW_LOCK_MAGIC_N);
-	ut_a((rw_lock_get_reader_count(lock) == 0)
-	     || (rw_lock_get_writer(lock) != RW_LOCK_EX));
-	ut_a((rw_lock_get_writer(lock) == RW_LOCK_EX)
-	     || (rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX)
-	     || (rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED));
-	ut_a((rw_lock_get_waiters(lock) == 0)
-	     || (rw_lock_get_waiters(lock) == 1));
-	ut_a((lock->writer != RW_LOCK_EX) || (lock->writer_count > 0));
-
-	mutex_exit(rw_lock_get_mutex(lock));
+	ut_a(waiters == 0 || waiters == 1);
+	ut_a(lock_word > -X_LOCK_DECR ||(-lock_word) % X_LOCK_DECR == 0);
 
 	return(TRUE);
 }
@@ -253,18 +320,15 @@ rw_lock_s_lock_spin(
 	ulint		line)	/* in: line where requested */
 {
 	ulint	 index;	/* index of the reserved wait cell */
-	ulint	 i;	/* spin round count */
+	ulint	 i = 0;	/* spin round count */
 
 	ut_ad(rw_lock_validate(lock));
 
+	rw_s_spin_wait_count++;	/* Count calls to this function */
 lock_loop:
-	rw_s_spin_wait_count++;
 
 	/* Spin waiting for the writer field to become free */
-	i = 0;
-
-	while (rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED
-	       && i < SYNC_SPIN_ROUNDS) {
+	while (i < SYNC_SPIN_ROUNDS && lock->lock_word <= 0) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
@@ -285,28 +349,32 @@ lock_loop:
 			lock->cfile_name, (ulong) lock->cline, (ulong) i);
 	}
 
-	mutex_enter(rw_lock_get_mutex(lock));
-
 	/* We try once again to obtain the lock */
-
 	if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
-		mutex_exit(rw_lock_get_mutex(lock));
+		rw_s_spin_round_count += i;
 
 		return; /* Success */
 	} else {
-		/* If we get here, locking did not succeed, we may
-		suspend the thread to wait in the wait array */
 
-		rw_s_system_call_count++;
+		if (i < SYNC_SPIN_ROUNDS) {
+			goto lock_loop;
+		}
+
+		rw_s_spin_round_count += i;
 
 		sync_array_reserve_cell(sync_primary_wait_array,
 					lock, RW_LOCK_SHARED,
 					file_name, line,
 					&index);
 
+		/* Set waiters before checking lock_word to ensure wake-up
+                signal is sent. This may lead to some unnecessary signals. */
 		rw_lock_set_waiters(lock, 1);
 
-		mutex_exit(rw_lock_get_mutex(lock));
+		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
+			sync_array_free_cell(sync_primary_wait_array, index);
+			return; /* Success */
+		}
 
 		if (srv_print_latch_waits) {
 			fprintf(stderr,
@@ -317,11 +385,13 @@ lock_loop:
 				(ulong) lock->cline);
 		}
 
-		rw_s_system_call_count++;
+		/* these stats may not be accurate */
+		lock->count_os_wait++;
 		rw_s_os_wait_count++;
 
 		sync_array_wait_event(sync_primary_wait_array, index);
 
+		i = 0;
 		goto lock_loop;
 	}
 }
@@ -343,113 +413,149 @@ rw_lock_x_lock_move_ownership(
 {
 	ut_ad(rw_lock_is_locked(lock, RW_LOCK_EX));
 
-	mutex_enter(&(lock->mutex));
-
-	lock->writer_thread = os_thread_get_curr_id();
-
+#ifdef HAVE_GCC_ATOMIC_BUILTINS
+        os_thread_id_t local_writer_thread = lock->writer_thread;
+        os_thread_id_t new_writer_thread = os_thread_get_curr_id();
+        while (TRUE) {
+                if (local_writer_thread != -1) {
+                        if(os_compare_and_swap(
+                               &(lock->writer_thread),
+                               local_writer_thread,
+                               new_writer_thread)) {
+                                break;
+                        }
+                }
+                local_writer_thread = lock->writer_thread;
+        }
 	lock->pass = 0;
-
+#else /* HAVE_GCC_ATOMIC_BUILTINS */
+	mutex_enter(&(lock->mutex));
+	lock->writer_thread = os_thread_get_curr_id();
+	lock->pass = 0;
 	mutex_exit(&(lock->mutex));
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+}
+
+/**********************************************************************
+Function for the next writer to call. Waits for readers to exit.
+The caller must have already decremented lock_word by X_LOCK_DECR.*/
+UNIV_INLINE
+void
+rw_lock_x_lock_wait(
+/*================*/
+	rw_lock_t*	lock,	/* in: pointer to rw-lock */
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/* in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+#endif
+	const char*	file_name,/* in: file name where lock requested */
+	ulint		line)	/* in: line where requested */
+{
+	ulint index;
+	ulint i = 0;
+
+	ut_ad(lock->lock_word <= 0);
+
+	while (lock->lock_word < 0) {
+		if (srv_spin_wait_delay) {
+			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+		}
+		if(i < SYNC_SPIN_ROUNDS) {
+			i++;
+			continue;
+		}
+
+		/* If there is still a reader, then go to sleep.*/
+		rw_x_spin_round_count += i;
+		i = 0;
+		sync_array_reserve_cell(sync_primary_wait_array,
+					lock,
+					RW_LOCK_WAIT_EX,
+					file_name, line,
+					&index);
+		/* Check lock_word to ensure wake-up isn't missed.*/
+		if(lock->lock_word < 0) {
+
+			/* these stats may not be accurate */
+			lock->count_os_wait++;
+			rw_x_os_wait_count++;
+
+                        /* Add debug info as it is needed to detect possible
+                        deadlock. We must add info for WAIT_EX thread for
+                        deadlock detection to work properly. */
+#ifdef UNIV_SYNC_DEBUG
+			rw_lock_add_debug_info(lock, pass, RW_LOCK_WAIT_EX,
+					       file_name, line);
+#endif
+
+ 			sync_array_wait_event(sync_primary_wait_array,
+ 					      index);
+#ifdef UNIV_SYNC_DEBUG
+			rw_lock_remove_debug_info(lock, pass,
+					       RW_LOCK_WAIT_EX);
+#endif
+                        /* It is possible to wake when lock_word < 0.
+                        We must pass the while-loop check to proceed.*/
+		} else {
+			sync_array_free_cell(sync_primary_wait_array,
+					     index);
+		}
+	}
+	rw_x_spin_round_count += i;
 }
 
 /**********************************************************************
 Low-level function for acquiring an exclusive lock. */
 UNIV_INLINE
-ulint
+ibool
 rw_lock_x_lock_low(
 /*===============*/
 				/* out: RW_LOCK_NOT_LOCKED if did
-				not succeed, RW_LOCK_EX if success,
-				RW_LOCK_WAIT_EX, if got wait reservation */
+				not succeed, RW_LOCK_EX if success. */
 	rw_lock_t*	lock,	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
-	ut_ad(mutex_own(rw_lock_get_mutex(lock)));
+	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
+	ut_ad(curr_thread != -1); /* We use -1 as the unlocked value. */
 
-	if (rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
+	if(rw_lock_lock_word_decr(lock, X_LOCK_DECR)) {
+		ut_ad(lock->writer_thread == -1);
 
-		if (rw_lock_get_reader_count(lock) == 0) {
-
-			rw_lock_set_writer(lock, RW_LOCK_EX);
-			lock->writer_thread = os_thread_get_curr_id();
-			lock->writer_count++;
-			lock->pass = pass;
-
+		/* Decrement occurred: we are writer or next-writer. */
+		lock->writer_thread = curr_thread;
+		lock->pass = pass;
+		rw_lock_x_lock_wait(lock,
 #ifdef UNIV_SYNC_DEBUG
-			rw_lock_add_debug_info(lock, pass, RW_LOCK_EX,
-					       file_name, line);
+				    pass,
 #endif
-			lock->last_x_file_name = file_name;
-			lock->last_x_line = (unsigned int) line;
+                                    file_name, line);
 
-			/* Locking succeeded, we may return */
-			return(RW_LOCK_EX);
+	} else {
+		/* Decrement failed: relock or failed lock */
+		/* Must verify pass first: otherwise another thread can
+		call move_ownership suddenly allowing recursive locks.
+		and after we have verified our thread_id matches
+		(though move_ownership has since changed it).*/
+		if(!pass && !(lock->pass) &&
+                   os_thread_eq(lock->writer_thread, curr_thread)) {
+			/* Relock */
+                        lock->lock_word -= X_LOCK_DECR;
 		} else {
-			/* There are readers, we have to wait */
-			rw_lock_set_writer(lock, RW_LOCK_WAIT_EX);
-			lock->writer_thread = os_thread_get_curr_id();
-			lock->pass = pass;
-			lock->writer_is_wait_ex = TRUE;
-
-#ifdef UNIV_SYNC_DEBUG
-			rw_lock_add_debug_info(lock, pass, RW_LOCK_WAIT_EX,
-					       file_name, line);
-#endif
-
-			return(RW_LOCK_WAIT_EX);
+			/* Another thread locked before us */
+			return(FALSE);
 		}
-
-	} else if ((rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX)
-		   && os_thread_eq(lock->writer_thread,
-				   os_thread_get_curr_id())) {
-
-		if (rw_lock_get_reader_count(lock) == 0) {
-
-			rw_lock_set_writer(lock, RW_LOCK_EX);
-			lock->writer_count++;
-			lock->pass = pass;
-			lock->writer_is_wait_ex = FALSE;
-
-#ifdef UNIV_SYNC_DEBUG
-			rw_lock_remove_debug_info(lock, pass, RW_LOCK_WAIT_EX);
-			rw_lock_add_debug_info(lock, pass, RW_LOCK_EX,
-					       file_name, line);
-#endif
-
-			lock->last_x_file_name = file_name;
-			lock->last_x_line = (unsigned int) line;
-
-			/* Locking succeeded, we may return */
-			return(RW_LOCK_EX);
-		}
-
-		return(RW_LOCK_WAIT_EX);
-
-	} else if ((rw_lock_get_writer(lock) == RW_LOCK_EX)
-		   && os_thread_eq(lock->writer_thread,
-				   os_thread_get_curr_id())
-		   && (lock->pass == 0)
-		   && (pass == 0)) {
-
-		lock->writer_count++;
-
-#ifdef UNIV_SYNC_DEBUG
-		rw_lock_add_debug_info(lock, pass, RW_LOCK_EX, file_name,
-				       line);
-#endif
-
-		lock->last_x_file_name = file_name;
-		lock->last_x_line = (unsigned int) line;
-
-		/* Locking succeeded, we may return */
-		return(RW_LOCK_EX);
 	}
+#ifdef UNIV_SYNC_DEBUG
+	rw_lock_add_debug_info(lock, pass, RW_LOCK_EX,
+			       file_name, line);
+#endif
+	lock->last_x_file_name = file_name;
+	lock->last_x_line = (unsigned int) line;
 
-	/* Locking did not succeed */
-	return(RW_LOCK_NOT_LOCKED);
+	return(TRUE);
 }
 
 /**********************************************************************
@@ -472,61 +578,45 @@ rw_lock_x_lock_func(
 	ulint		line)	/* in: line where requested */
 {
 	ulint	index;	/* index of the reserved wait cell */
-	ulint	state;	/* lock state acquired */
 	ulint	i;	/* spin round count */
+	ibool   spinning = FALSE;
 
 	ut_ad(rw_lock_validate(lock));
 
+	i = 0;
+
 lock_loop:
-	/* Acquire the mutex protecting the rw-lock fields */
-	mutex_enter_fast(&(lock->mutex));
 
-	state = rw_lock_x_lock_low(lock, pass, file_name, line);
-
-	mutex_exit(&(lock->mutex));
-
-	if (state == RW_LOCK_EX) {
+	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
+		rw_x_spin_round_count += i;
 
 		return;	/* Locking succeeded */
 
-	} else if (state == RW_LOCK_NOT_LOCKED) {
-
-		/* Spin waiting for the writer field to become free */
-		i = 0;
-
-		while (rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED
-		       && i < SYNC_SPIN_ROUNDS) {
-			if (srv_spin_wait_delay) {
-				ut_delay(ut_rnd_interval(0,
-							 srv_spin_wait_delay));
-			}
-
-			i++;
-		}
-		if (i == SYNC_SPIN_ROUNDS) {
-			os_thread_yield();
-		}
-	} else if (state == RW_LOCK_WAIT_EX) {
-
-		/* Spin waiting for the reader count field to become zero */
-		i = 0;
-
-		while (rw_lock_get_reader_count(lock) != 0
-		       && i < SYNC_SPIN_ROUNDS) {
-			if (srv_spin_wait_delay) {
-				ut_delay(ut_rnd_interval(0,
-							 srv_spin_wait_delay));
-			}
-
-			i++;
-		}
-		if (i == SYNC_SPIN_ROUNDS) {
-			os_thread_yield();
-		}
 	} else {
-		i = 0; /* Eliminate a compiler warning */
-		ut_error;
+
+                if (!spinning) {
+                        spinning = TRUE;
+                        rw_x_spin_wait_count++;
+		}
+
+		/* Spin waiting for the lock_word to become free */
+		while (i < SYNC_SPIN_ROUNDS
+		       && lock->lock_word <= 0) {
+			if (srv_spin_wait_delay) {
+				ut_delay(ut_rnd_interval(0,
+							 srv_spin_wait_delay));
+			}
+
+			i++;
+		}
+		if (i == SYNC_SPIN_ROUNDS) {
+			os_thread_yield();
+		} else {
+			goto lock_loop;
+		}
 	}
+
+	rw_x_spin_round_count += i;
 
 	if (srv_print_latch_waits) {
 		fprintf(stderr,
@@ -536,39 +626,20 @@ lock_loop:
 			lock->cfile_name, (ulong) lock->cline, (ulong) i);
 	}
 
-	rw_x_spin_wait_count++;
-
-	/* We try once again to obtain the lock. Acquire the mutex protecting
-	the rw-lock fields */
-
-	mutex_enter(rw_lock_get_mutex(lock));
-
-	state = rw_lock_x_lock_low(lock, pass, file_name, line);
-
-	if (state == RW_LOCK_EX) {
-		mutex_exit(rw_lock_get_mutex(lock));
-
-		return;	/* Locking succeeded */
-	}
-
-	rw_x_system_call_count++;
-
 	sync_array_reserve_cell(sync_primary_wait_array,
 				lock,
-#ifdef __WIN__
-				/* On windows RW_LOCK_WAIT_EX signifies
-				that this thread should wait on the
-				special wait_ex_event. */
-				(state == RW_LOCK_WAIT_EX)
-				 ? RW_LOCK_WAIT_EX :
-#endif
 				RW_LOCK_EX,
 				file_name, line,
 				&index);
 
+	/* Waiters must be set before checking lock_word, to ensure signal
+	is sent. This could lead to a few unnecessary wake-up signals. */
 	rw_lock_set_waiters(lock, 1);
 
-	mutex_exit(rw_lock_get_mutex(lock));
+	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
+		sync_array_free_cell(sync_primary_wait_array, index);
+		return; /* Locking succeeded */
+	}
 
 	if (srv_print_latch_waits) {
 		fprintf(stderr,
@@ -578,11 +649,13 @@ lock_loop:
 			lock->cfile_name, (ulong) lock->cline);
 	}
 
-	rw_x_system_call_count++;
+	/* these stats may not be accurate */
+	lock->count_os_wait++;
 	rw_x_os_wait_count++;
 
 	sync_array_wait_event(sync_primary_wait_array, index);
 
+	i = 0;
 	goto lock_loop;
 }
 
@@ -730,7 +803,7 @@ rw_lock_own(
 	ut_ad(lock);
 	ut_ad(rw_lock_validate(lock));
 
-	mutex_enter(&(lock->mutex));
+	rw_lock_debug_mutex_enter();
 
 	info = UT_LIST_GET_FIRST(lock->debug_list);
 
@@ -740,7 +813,7 @@ rw_lock_own(
 		    && (info->pass == 0)
 		    && (info->lock_type == lock_type)) {
 
-			mutex_exit(&(lock->mutex));
+			rw_lock_debug_mutex_exit();
 			/* Found! */
 
 			return(TRUE);
@@ -748,7 +821,7 @@ rw_lock_own(
 
 		info = UT_LIST_GET_NEXT(list, info);
 	}
-	mutex_exit(&(lock->mutex));
+	rw_lock_debug_mutex_exit();
 
 	return(FALSE);
 }
@@ -770,21 +843,17 @@ rw_lock_is_locked(
 	ut_ad(lock);
 	ut_ad(rw_lock_validate(lock));
 
-	mutex_enter(&(lock->mutex));
-
 	if (lock_type == RW_LOCK_SHARED) {
-		if (lock->reader_count > 0) {
+		if (rw_lock_get_reader_count(lock) > 0) {
 			ret = TRUE;
 		}
 	} else if (lock_type == RW_LOCK_EX) {
-		if (lock->writer == RW_LOCK_EX) {
+		if (rw_lock_get_writer(lock) == RW_LOCK_EX) {
 			ret = TRUE;
 		}
 	} else {
 		ut_error;
 	}
-
-	mutex_exit(&(lock->mutex));
 
 	return(ret);
 }
@@ -814,11 +883,10 @@ rw_lock_list_print_info(
 
 		count++;
 
+#ifndef HAVE_GCC_ATOMIC_BUILTINS
 		mutex_enter(&(lock->mutex));
-
-		if ((rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED)
-		    || (rw_lock_get_reader_count(lock) != 0)
-		    || (rw_lock_get_waiters(lock) != 0)) {
+#endif
+		if (lock->lock_word != X_LOCK_DECR) {
 
 			fprintf(file, "RW-LOCK: %p ", (void*) lock);
 
@@ -834,8 +902,10 @@ rw_lock_list_print_info(
 				info = UT_LIST_GET_NEXT(list, info);
 			}
 		}
-
+#ifndef HAVE_GCC_ATOMIC_BUILTINS
 		mutex_exit(&(lock->mutex));
+#endif
+
 		lock = UT_LIST_GET_NEXT(list, lock);
 	}
 
@@ -858,9 +928,10 @@ rw_lock_print(
 		"RW-LATCH INFO\n"
 		"RW-LATCH: %p ", (void*) lock);
 
-	if ((rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED)
-	    || (rw_lock_get_reader_count(lock) != 0)
-	    || (rw_lock_get_waiters(lock) != 0)) {
+#ifndef HAVE_GCC_ATOMIC_BUILTINS
+	mutex_enter(&(lock->mutex));
+#endif
+	if (lock->lock_word != X_LOCK_DECR) {
 
 		if (rw_lock_get_waiters(lock)) {
 			fputs(" Waiters for the lock exist\n", stderr);
@@ -874,6 +945,9 @@ rw_lock_print(
 			info = UT_LIST_GET_NEXT(list, info);
 		}
 	}
+#ifndef HAVE_GCC_ATOMIC_BUILTINS
+	mutex_exit(&(lock->mutex));
+#endif
 }
 
 /*************************************************************************
@@ -922,14 +996,11 @@ rw_lock_n_locked(void)
 	lock = UT_LIST_GET_FIRST(rw_lock_list);
 
 	while (lock != NULL) {
-		mutex_enter(rw_lock_get_mutex(lock));
 
-		if ((rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED)
-		    || (rw_lock_get_reader_count(lock) != 0)) {
+		if (lock->lock_word != X_LOCK_DECR) {
 			count++;
 		}
 
-		mutex_exit(rw_lock_get_mutex(lock));
 		lock = UT_LIST_GET_NEXT(list, lock);
 	}
 
