@@ -1,0 +1,64 @@
+--echo #
+--echo # Bug#24289 Status Variable "Questions" gets wrong values with Stored Routines
+--echo #
+# The bogus connection below is needed to make the gobal statement count
+# deterministic when the test is run for the first time. 
+connect (con1,localhost,root,,);
+connection con1;
+connection default;
+disconnect con1;
+FLUSH STATUS;
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+DELIMITER $$;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+  DECLARE foo INTEGER;
+  DECLARE bar INTEGER;
+  SET foo=1;
+  SET bar=2;
+  RETURN foo;
+END $$
+CREATE PROCEDURE p1()
+BEGIN
+  SELECT 1;
+END $$
+DELIMITER ;$$
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+INSERT INTO t1 VALUES (1);
+--echo Assert Questions == 9
+SHOW STATUS LIKE 'Questions';
+SELECT f1();
+--echo Assert Questions == 11
+SHOW STATUS LIKE 'Questions';
+CALL p1();
+--echo Assert Questions == 13
+SHOW STATUS LIKE 'Questions';
+SELECT 1;
+--echo Assert Questions == 15
+SHOW STATUS LIKE 'Questions';
+connect (con1,localhost,root,,);
+connection con1;
+FLUSH STATUS;
+let $org_questions= `SHOW GLOBAL STATUS LIKE 'questions'`;
+SELECT 1;
+connection default;
+disconnect con1;
+--echo Assert Questions == 16
+SHOW STATUS LIKE 'Questions';
+--echo Global status updated; Assert diff == 5
+FLUSH STATUS;
+let $new_questions= `SHOW GLOBAL STATUS LIKE 'questions'`;
+--disable_log
+let $diff= `SELECT SUBSTRING('$new_questions',10)-SUBSTRING('$org_questions',10)`;
+--enable_log
+eval SELECT $diff;
+DROP TABLE t1,t2;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+--echo End of 6.0 tests
+

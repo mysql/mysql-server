@@ -1,0 +1,64 @@
+#
+# Bug#24289 Status Variable "Questions" gets wrong values with Stored Routines
+#
+FLUSH STATUS;
+DROP TABLE IF EXISTS t1,t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+DECLARE foo INTEGER;
+DECLARE bar INTEGER;
+SET foo=1;
+SET bar=2;
+RETURN foo;
+END $$
+CREATE PROCEDURE p1()
+BEGIN
+SELECT 1;
+END $$
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+INSERT INTO t1 VALUES (1);
+Assert Questions == 9
+SHOW STATUS LIKE 'Questions';
+Variable_name	Value
+Questions	9
+SELECT f1();
+f1()
+1
+Assert Questions == 11
+SHOW STATUS LIKE 'Questions';
+Variable_name	Value
+Questions	11
+CALL p1();
+1
+1
+Assert Questions == 13
+SHOW STATUS LIKE 'Questions';
+Variable_name	Value
+Questions	13
+SELECT 1;
+1
+1
+Assert Questions == 15
+SHOW STATUS LIKE 'Questions';
+Variable_name	Value
+Questions	15
+FLUSH STATUS;
+SELECT 1;
+1
+1
+Assert Questions == 16
+SHOW STATUS LIKE 'Questions';
+Variable_name	Value
+Questions	16
+Global status updated; Assert diff == 5
+FLUSH STATUS;
+SELECT 5;
+5
+5
+DROP TABLE t1,t2;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+End of 6.0 tests
