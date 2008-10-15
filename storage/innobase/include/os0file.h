@@ -535,21 +535,19 @@ os_file_create_subdirs_if_needed(
 				   FALSE otherwise */
 	const char*	path);	/* in: path name */
 /****************************************************************************
-Initializes the asynchronous io system. Creates separate aio array for
-non-ibuf read and write, a third aio array for the ibuf i/o, with just one
-segment, two aio arrays for log reads and writes with one segment, and a
-synchronous aio array of the specified size. The combined number of segments
-in the three first aio arrays is the parameter n_segments given to the
-function. The caller must create an i/o handler thread for each segment in
-the four first arrays, but not for the sync aio array. */
+Initializes the asynchronous io system. Creates n_read_threads segments for
+read, n_write_threads segments for writes, one segment for the ibuf i/o, and
+one segment for log IO. Returns the number of segments created. When async
+IO is not used, and 4 threads should be created to process requests put
+in the segments. */
 
-void
+ulint
 os_aio_init(
 /*========*/
-	ulint	n,		/* in: maximum number of pending aio operations
-				allowed; n must be divisible by n_segments */
-	ulint	n_segments,	/* in: combined number of segments in the four
-				first aio arrays; must be >= 4 */
+	ulint	ios_per_array,	/* in: maximum number of pending aio operations
+                                allowed per array */
+	ulint	n_read_threads, /* in: number of read threads */
+	ulint	n_write_threads, /* in: number of write threads */
 	ulint	n_slots_sync);	/* in: number of slots in the sync aio array */
 /***********************************************************************
 Requests an asynchronous i/o operation. */

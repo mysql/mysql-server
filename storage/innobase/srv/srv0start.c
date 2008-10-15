@@ -985,6 +985,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint	i;
 	ibool	srv_file_per_table_original_value  = srv_file_per_table;
 	mtr_t	mtr;
+	ulint	n_threads;
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
 	/* This executable has been compiled on Mac OS X 10.3 or later.
@@ -1238,24 +1239,32 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	/* Restrict the maximum number of file i/o threads */
-	if (srv_n_file_io_threads > SRV_MAX_N_IO_THREADS) {
-
-		srv_n_file_io_threads = SRV_MAX_N_IO_THREADS;
+	if ((srv_n_read_io_threads + srv_n_write_io_threads) > SRV_MAX_N_IO_THREADS) {
+		fprintf(stderr,
+			"InnoDB: requested too many read(%d) or write(%d) IO threads, max is %d\n",
+			srv_n_read_io_threads, srv_n_write_io_threads, SRV_MAX_N_IO_THREADS);	
+		return(DB_ERROR);
 	}
 
 	if (!os_aio_use_native_aio) {
-		/* In simulated aio we currently have use only for 4 threads */
-		srv_n_file_io_threads = 4;
-
-		os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+ 		/* More than 4 threads are now supported. */
+		n_threads = os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD,
+                                        srv_n_read_io_threads,
+                                        srv_n_write_io_threads,
+                                        SRV_MAX_N_PENDING_SYNC_IOS);
 	} else {
-		os_aio_init(SRV_N_PENDING_IOS_PER_THREAD
-			    * srv_n_file_io_threads,
-			    srv_n_file_io_threads,
-			    SRV_MAX_N_PENDING_SYNC_IOS);
+                /* Might need more slots here. Alas, I don't do windows. */
+                n_threads = os_aio_init(SRV_N_PENDING_IOS_PER_THREAD,
+                                        srv_n_read_io_threads,
+                                        srv_n_write_io_threads,
+                                        SRV_MAX_N_PENDING_SYNC_IOS);
+	}
+
+	if (n_threads > SRV_MAX_N_IO_THREADS) {
+		fprintf(stderr,
+			"InnoDB: requested too many IO threads(%d), max is %d\n",
+			n_threads, SRV_MAX_N_IO_THREADS);	
+		return(DB_ERROR);
 	}
 
 	fil_init(srv_max_n_open_files);
@@ -1295,7 +1304,7 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Create i/o-handler threads: */
 
-	for (i = 0; i < srv_n_file_io_threads; i++) {
+	for (i = 0; i < n_threads; i++) {
 		n[i] = i;
 
 		os_thread_create(io_handler_thread, n + i, thread_ids + i);
