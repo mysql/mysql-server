@@ -133,6 +133,13 @@ static my_bool	innobase_adaptive_hash_index	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
+/* Default number of IO per second supported by server. Tunes background
+   IO rate. */
+static long innobase_io_capacity = 100;
+
+/* Write dirty pages when pct dirty is less than max pct dirty */
+static my_bool innobase_extra_dirty_writes = TRUE;
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -1585,6 +1592,9 @@ innobase_init(
 	srv_log_archive_on = (ulint) innobase_log_archive;
 #endif /* UNIV_LOG_ARCHIVE */
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
+
+	srv_io_capacity = (ulint) innobase_io_capacity;
+	srv_extra_dirty_writes = (ulint) innobase_extra_dirty_writes;
 
 	/* We set srv_pool_size here in units of 1 kB. InnoDB internally
 	changes the value so that it becomes the number of database pages. */
@@ -8010,6 +8020,16 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   "Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(extra_dirty_writes, innobase_extra_dirty_writes,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Flush dirty buffer pages when dirty max pct is not exceeded",
+  NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_LONG(io_capacity, innobase_io_capacity,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of IOPs the server can do. Tunes the background IO rate",
+  NULL, NULL, 100, 100, ~0L, 0);
+
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
@@ -8225,6 +8245,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_concurrency),
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
+  MYSQL_SYSVAR(extra_dirty_writes),
+  MYSQL_SYSVAR(io_capacity),
   NULL
 };
 
