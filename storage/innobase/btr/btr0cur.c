@@ -333,7 +333,7 @@ btr_cur_search_to_nth_level(
 #ifdef UNIV_SEARCH_PERF_STAT
 	info->n_searches++;
 #endif
-	if (btr_search_latch.writer == RW_LOCK_NOT_LOCKED
+	if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_NOT_LOCKED
 	    && latch_mode <= BTR_MODIFY_LEAF && info->last_hash_succ
 	    && !estimate
 #ifdef PAGE_CUR_LE_OR_EXTENDS

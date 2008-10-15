@@ -252,7 +252,7 @@ mutex_n_reserved(void);
 NOT to be used outside this module except in debugging! Gets the value
 of the lock word. */
 UNIV_INLINE
-ulint
+byte
 mutex_get_lock_word(
 /*================*/
 	const mutex_t*	mutex);	/* in: mutex */
@@ -471,9 +471,13 @@ implementation of a mutual exclusion semaphore. */
 
 struct mutex_struct {
 	os_event_t	event;	/* Used by sync0arr.c for the wait queue */
-	ulint	lock_word;	/* This ulint is the target of the atomic
-				test-and-set instruction in Win32 */
-#if !defined(_WIN32) || !defined(UNIV_CAN_USE_X86_ASSEMBLER)
+
+ 	byte	lock_word;	/* This byte is the target of the atomic
+ 				test-and-set instruction in Win32 and
+ 				x86 32/64 with GCC 4.1.0 or later version */
+#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+#else
 	os_fast_mutex_t
 		os_fast_mutex;	/* In other systems we use this OS mutex
 				in place of lock_word */
@@ -526,8 +530,7 @@ to 20 microseconds. */
 /* The number of system calls made in this module. Intended for performance
 monitoring. */
 
-extern	ulint	mutex_system_call_count;
-extern	ulint	mutex_exit_count;
+extern	ib_longlong	mutex_exit_count;
 
 #ifdef UNIV_SYNC_DEBUG
 /* Latching order checks start when this is set TRUE */

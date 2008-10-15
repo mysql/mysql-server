@@ -116,6 +116,9 @@ by one. */
 #define UNIV_SET_MEM_TO_ZERO
 #endif
 
+/* Use malloc instead of innodb additional memory pool (great with tcmalloc) */
+#define UNIV_DISABLE_MEM_POOL
+
 /*
 #define UNIV_SQL_DEBUG
 #define UNIV_LOG_DEBUG
