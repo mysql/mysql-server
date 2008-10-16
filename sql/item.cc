@@ -1805,7 +1805,8 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
     be allocated in the statement memory, not in table memory (the table
     structure can go away and pop up again between subsequent executions
     of a prepared statement or after the close_tables_for_reopen() call
-    in mysql_multi_update_prepare()).
+    in mysql_multi_update_prepare() or due to wildcard expansion in stored
+    procedures).
   */
   {
     if (db_name)

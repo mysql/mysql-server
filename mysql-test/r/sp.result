@@ -6846,6 +6846,19 @@ select substr(`str`, `pos`+ 1 ) into `str`;
 end $
 call `p2`('s s s s s s');
 drop procedure `p2`;
+drop table if exists t1;
+drop procedure if exists p1;
+create procedure p1() begin select * from t1; end$
+call p1$
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table t1 (a integer)$
+call p1$
+a
+alter table t1 add b integer;
+call p1$
+a
+drop table t1;
+drop procedure p1;
 # ------------------------------------------------------------------
 # -- End of 5.0 tests
 # ------------------------------------------------------------------
