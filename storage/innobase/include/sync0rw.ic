@@ -481,7 +481,7 @@ rw_lock_x_unlock_func(
 	which is harmless since we still hold the lock. */
 	/* TODO: are there any risks of a thread id == -1 on any platform? */
         os_thread_id_t local_writer_thread;
-        local_write_thread = lock->writer_thread;
+        local_writer_thread = lock->writer_thread;
 	lock->writer_thread = -1;
 
 #ifdef UNIV_SYNC_DEBUG
