@@ -220,17 +220,12 @@ ulint	os_file_n_pending_pwrites = 0;
 ulint	os_n_pending_writes = 0;
 ulint	os_n_pending_reads = 0;
 
-/* TODO -- does InnoDB provide a portable method for this? */
 static double time_usecs() {
-#ifdef __WIN__
-  return 0.0;
-#else
-  struct timeval tv;
-  if (gettimeofday(&tv, NULL))
+  ulint sec, ms;
+  if (ut_usectime(&sec, &ms))
     return 0;
   else
-    return tv.tv_sec * 1000000.0 + tv.tv_usec;
-#endif
+    return sec * 1000000.0 + ms;
 }
 
 /***************************************************************************
@@ -3734,7 +3729,7 @@ os_aio_windows_handle(
 
 	ut_a(slot->reserved);
 
-	if (orig_seg != ULINT_UNDEFINED) {
+	if (global_segment != ULINT_UNDEFINED) {
 		srv_set_io_thread_op_info(orig_seg,
 					  "get windows aio return value");
 	}

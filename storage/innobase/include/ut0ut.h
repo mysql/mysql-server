@@ -145,13 +145,25 @@ ib_time_t
 ut_time(void);
 /*=========*/
 /**************************************************************
-Returns system time. */
+Returns system time in args, 0 on success. */
 
-void
+int
 ut_usectime(
 /*========*/
 	ulint*	sec,	/* out: seconds since the Epoch */
 	ulint*	ms);	/* out: microseconds since the Epoch+*sec */
+
+/**************************************************************
+Returns diff in microseconds (end_sec,end_ms) - (start_sec,start_ms). */
+
+ib_longlong
+ut_usecdiff(
+/*========*/
+	ulint	end_sec,	/* in: seconds since the Epoch */
+	ulint	end_ms,	/* in: microseconds since the Epoch+*sec1 */
+	ulint	start_sec,	/* in: seconds since the Epoch */
+	ulint	start_ms);	/* in: microseconds since the Epoch+*sec2 */
+
 /**************************************************************
 Returns the difference of two times in seconds. */
 

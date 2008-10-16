@@ -114,7 +114,7 @@ ut_time(void)
 /**************************************************************
 Returns system time. */
 
-void
+int
 ut_usectime(
 /*========*/
 	ulint*	sec,	/* out: seconds since the Epoch */
@@ -122,9 +122,27 @@ ut_usectime(
 {
 	struct timeval	tv;
 
-	ut_gettimeofday(&tv, NULL);
+	int r = ut_gettimeofday(&tv, NULL);
 	*sec = (ulint) tv.tv_sec;
 	*ms  = (ulint) tv.tv_usec;
+	return r;
+}
+
+/**************************************************************
+Returns diff in microseconds (end_sec,end_ms) - (start_sec,start_ms) */
+
+ib_longlong
+ut_usecdiff(
+/*========*/
+	ulint	end_sec,	/* in: seconds since the Epoch */
+	ulint	end_ms,	/* in: microseconds since the Epoch+*sec1 */
+	ulint	start_sec,	/* in: seconds since the Epoch */
+	ulint	start_ms)	/* in: microseconds since the Epoch+*sec2 */
+{
+  ib_longlong end_mics = end_sec * 1000000LL + end_ms;
+  ib_longlong start_mics = start_sec * 1000000LL + start_ms;
+
+  return end_mics - start_mics;
 }
 
 /**************************************************************
