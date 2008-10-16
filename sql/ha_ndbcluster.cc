@@ -5238,7 +5238,6 @@ int ha_ndbcluster::start_statement(THD *thd,
 
   if (table_count == 0)
   {
-    DBUG_ASSERT(thd_ndb->changed_tables.is_empty() == TRUE);
     PRINT_OPTION_FLAGS(thd);
     trans_register_ha(thd, FALSE, ndbcluster_hton);
     if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
@@ -5267,6 +5266,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   }
   if (!trans)
   {
+    DBUG_ASSERT(thd_ndb->changed_tables.is_empty() == TRUE);
     thd_ndb->trans_options= 0;
 
     DBUG_PRINT("trans",("Possibly starting transaction"));
