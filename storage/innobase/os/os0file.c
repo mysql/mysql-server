@@ -3730,7 +3730,7 @@ os_aio_windows_handle(
 	ut_a(slot->reserved);
 
 	if (global_segment != ULINT_UNDEFINED) {
-		srv_set_io_thread_op_info(orig_seg,
+		srv_set_io_thread_op_info(global_segment,
 					  "get windows aio return value");
 	}
 
