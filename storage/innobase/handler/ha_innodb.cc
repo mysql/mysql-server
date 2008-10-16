@@ -148,6 +148,21 @@ long innobase_max_merged_io = 64;
 /* Number of background IO threads for read and write. */
 long innobase_read_io_threads, innobase_write_io_threads;
 
+/* Max number of IO requests merged to perform large IO in background
+   IO threads.
+*/
+long innobase_max_merged_io = 64;
+
+/* Number of background IO threads for read and write. */
+long innobase_read_io_threads, innobase_write_io_threads;
+
+/* Default number of IO per second supported by server. Tunes background
+   IO rate. */
+static long innobase_io_capacity = 100;
+
+/* Write dirty pages when pct dirty is less than max pct dirty */
+static my_bool innobase_extra_dirty_writes = TRUE;
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
