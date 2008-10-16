@@ -1461,6 +1461,29 @@ too_big:
 		n_ord = new_index->n_uniq;
 	}
 
+	switch (dict_table_get_format(table)) {
+	case DICT_TF_FORMAT_51:
+		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
+		prefixes of externally stored columns locally within
+		the record.  There are no special considerations for
+		the undo log record size. */
+		goto undo_size_ok;
+
+	case DICT_TF_FORMAT_ZIP:
+		/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED,
+		column prefix indexes require that prefixes of
+		externally stored columns are written to the undo log.
+		This may make the undo log record bigger than the
+		record on the B-tree page.  The maximum size of an
+		undo log record is the page size.  That must be
+		checked for below. */
+		break;
+
+#if DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX
+# error "DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX"
+#endif
+	}
+
 	for (i = 0; i < n_ord; i++) {
 		const dict_field_t*	field
 			= dict_index_get_nth_field(new_index, i);
@@ -1494,6 +1517,7 @@ too_big:
 		}
 	}
 
+undo_size_ok:
 	/* Flag the ordering columns */
 
 	for (i = 0; i < n_ord; i++) {
