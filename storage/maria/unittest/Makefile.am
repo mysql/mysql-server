@@ -39,6 +39,7 @@ noinst_PROGRAMS =	ma_control_file-t trnman-t \
 			ma_pagecache_consist_1kWR-t \
 			ma_pagecache_consist_64kWR-t \
                         ma_pagecache_rwconsist_1k-t \
+                        ma_pagecache_rwconsist2_1k-t \
 			ma_test_loghandler-t \
                         ma_test_loghandler_multigroup-t \
 			ma_test_loghandler_multithread-t \
@@ -101,6 +102,8 @@ ma_pagecache_consist_64kWR_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DTEST_P
 
 ma_pagecache_rwconsist_1k_t_SOURCES =	ma_pagecache_rwconsist.c
 ma_pagecache_rwconsist_1k_t_CPPFLAGS = -DTEST_PAGE_SIZE=1024
+ma_pagecache_rwconsist2_1k_t_SOURCES =	ma_pagecache_rwconsist2.c
+ma_pagecache_rwconsist2_1k_t_CPPFLAGS = -DTEST_PAGE_SIZE=1024
 
 # the generic lock manager may not be used in the end and lockman1-t crashes,
 # and lockman2-t takes at least quarter an hour,
