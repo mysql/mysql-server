@@ -29,6 +29,7 @@
 #include <NDBT_Error.hpp>
 
 #include <NdbTest.hpp>
+#include <NDBT_Stats.hpp>
 
 #define MAX_PARTS 4 
 #define MAX_SEEK 16 
@@ -125,10 +126,24 @@ static int                              theTableCreateFlag = 0;
 #define STOP_TIMER timer.doStop();
 #define PRINT_TIMER(text, trans, opertrans) timer.printTransactionStatistics(text, trans, opertrans); }; 
 
+NDBT_Stats a_i, a_u, a_d, a_r;
+
+static
+void
+print(const char * name, NDBT_Stats& s)
+{
+  printf("%s average: %u/s min: %u/s max: %u/s stddev: %u%%\n",
+         name,
+         (unsigned)s.getMean(),
+         (unsigned)s.getMin(),
+         (unsigned)s.getMax(),
+         (unsigned)(100*s.getStddev() / s.getMean()));
+}
+
 static void 
 resetThreads(){
 
-  for (Uint32 i = 0; i < tNoOfThreads ; i++) {
+  for (unsigned i = 0; i < tNoOfThreads ; i++) {
     ThreadReady[i] = 0;
     ThreadStart[i] = stIdle;
   }//for
@@ -141,7 +156,7 @@ waitForThreads(void)
   do {
     cont = 0;
     NdbSleep_MilliSleep(20);
-    for (Uint32 i = 0; i < tNoOfThreads ; i++) {
+    for (unsigned i = 0; i < tNoOfThreads ; i++) {
       if (ThreadReady[i] == 0) {
         cont = 1;
       }//if
@@ -152,7 +167,7 @@ waitForThreads(void)
 static void 
 tellThreads(StartType what)
 {
-  for (Uint32 i = 0; i < tNoOfThreads ; i++) 
+  for (unsigned i = 0; i < tNoOfThreads ; i++) 
     ThreadStart[i] = what;
 }
 
@@ -287,6 +302,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stInsert);
       STOP_TIMER;
+      a_i.addObservation((1000*noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("insert", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
@@ -324,6 +340,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stRead);
       STOP_TIMER;
+      a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
@@ -361,6 +378,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stUpdate);
       STOP_TIMER;
+      a_u.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("update", noOfTransacts, tNoOfOpsPerTrans) ;
 
       if (0 < failed) {
@@ -397,6 +415,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stRead);
       STOP_TIMER;
+      a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
@@ -434,6 +453,7 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       START_TIMER;
       execute(stDelete);
       STOP_TIMER;
+      a_d.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
       PRINT_TIMER("delete", noOfTransacts, tNoOfOpsPerTrans);
 
       if (0 < failed) {
@@ -482,6 +502,11 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
 
   //printing errorCounters
   flexAsynchErrorData->printErrorCounters(ndbout);
+
+  print("insert", a_i);
+  print("update", a_u);
+  print("delete", a_d);
+  print("read  ", a_r);
 
   return NDBT_ProgramExit(returnValue);
 }//main()
@@ -534,6 +559,7 @@ static
 bool
 executeThread(ThreadNdb* pThread, 
 	      StartType aType, Ndb* aNdbObject, unsigned int threadBase) {
+
   NdbConnection* tConArray[1024];
   unsigned int tBase;
   unsigned int tBase2;
@@ -592,7 +618,7 @@ executeThread(ThreadNdb* pThread,
       // to execute all of them.
       //-------------------------------------------------------
       int Tcomp = aNdbObject->sendPollNdb(3000, 0, 0);
-      while (Tcomp < tNoOfParallelTrans) {
+      while (unsigned(Tcomp) < tNoOfParallelTrans) {
         int TlocalComp = aNdbObject->pollNdb(3000, 0);
         Tcomp += TlocalComp;
       }//while
@@ -616,7 +642,7 @@ getKey(Uint32 aBase, Uint32 anIndex) {
     Tkey32[1] = (Uint32)i;
     hash = md5_hash((Uint64*)&Tkey64, (Uint32)2);
     hash = (hash >> 6) & (MAX_PARTS - 1);
-    if (hash == tLocalPart) {
+    if (hash == unsigned(tLocalPart)) {
       Tfound = i;
       break;
     }//if
@@ -667,7 +693,7 @@ defineOperation(NdbConnection* localNdbConnection, StartType aType,
   //-------------------------------------------------------
   attrValue[0] = threadBase;
   attrValue[1] = aIndex;
-  for (Uint32 k = 2; k < loopCountAttributes; k++) {
+  for (unsigned k = 2; k < loopCountAttributes; k++) {
     attrValue[k] = aIndex;
   }//for
   localNdbOperation = localNdbConnection->getNdbOperation(tableName[0]);        
@@ -763,7 +789,7 @@ defineNdbRecordOperation(ThreadNdb* pThread,
   //-------------------------------------------------------
   if (aType != stRead && aType != stDelete)
   {
-    for (Uint32 k = 1; k < tNoOfAttributes; k++) {
+    for (unsigned k = 1; k < tNoOfAttributes; k++) {
       NdbDictionary::getOffset(g_record[0], k, offset);
       * (Uint32*)(record + offset) = aIndex;    
     }//for
@@ -883,7 +909,7 @@ createTables(Ndb* pMyNdb){
       if (check == -1 &&
           (!error_handler(MySchemaTransaction->getNdbError())))
         return -1;
-      for (Uint32 j = 1; j < tNoOfAttributes ; j++){
+      for (unsigned j = 1; j < tNoOfAttributes ; j++){
         check = MySchemaOp->createAttribute( (char*)attrName[j],
                                              NoKey,
                                              32,
@@ -909,7 +935,7 @@ createTables(Ndb* pMyNdb){
 	
 	int off = 0;
 	Vector<NdbDictionary::RecordSpecification> spec;
-	for (int j = 0; j<pTab->getNoOfColumns(); j++)
+	for (Uint32 j = 0; j<unsigned(pTab->getNoOfColumns()); j++)
 	{
 	  NdbDictionary::RecordSpecification r0;
 	  r0.column = pTab->getColumn(j);
@@ -938,17 +964,8 @@ bool error_handler(const NdbError & err){
   case NdbError::SchemaError:
     ndbout << endl << "Attempting to recover and continue now..." << endl ;
     return true;
-  }
-  return false ; // return false to abort
-}
-static
-bool error_handler(const char* error_string, int error_int) {
-  ndbout << error_string << endl ;
-  if ((4008 == error_int) ||
-      (721 == error_int) ||
-      (266 == error_int)){
-    ndbout << endl << "Attempting to recover and continue now..." << endl ;
-    return true ; // return true to retry
+  default:
+    break;
   }
   return false ; // return false to abort
 }
@@ -1087,7 +1104,7 @@ input_error(){
   
   ndbout_c("FLEXASYNCH");
   ndbout_c("   Perform benchmark of insert, update and delete transactions");
-  ndbout_c("");
+  ndbout_c(" ");
   ndbout_c("Arguments:");
   ndbout_c("   -t Number of threads to start, default 1");
   ndbout_c("   -p Number of parallel transactions per thread, default 32");
