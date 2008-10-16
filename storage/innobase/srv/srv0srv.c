@@ -171,6 +171,12 @@ ulint	srv_awe_window_size	= 0;		/* size in pages; MySQL inits
 ulint	srv_mem_pool_size	= ULINT_MAX;	/* size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
+ulint   srv_io_capacity         = ULINT_MAX;    /* Number of IO operations per
+                                                   second the server can do */
+
+ibool   srv_extra_dirty_writes = TRUE;  /* Write dirty pages to disk when pct
+                                           dirty < max dirty pct */
+
 ulint	srv_n_file_io_threads	= ULINT_MAX;
 
 ulint	srv_n_read_io_threads	= ULINT_MAX;
@@ -415,6 +421,30 @@ FILE*	srv_misc_tmpfile;
 ulint	srv_main_thread_process_no	= 0;
 ulint	srv_main_thread_id		= 0;
 
+// The following count work done by srv_master_thread.
+
+// Iterations by the 'once per second' loop.
+ulint   srv_main_1_second_loops         = 0;
+// Calls to sleep by the 'once per second' loop.
+ulint   srv_main_sleeps                 = 0;
+// Iterations by the 'once per 10 seconds' loop.
+ulint   srv_main_10_second_loops        = 0;
+// Iterations of the loop bounded by the 'background_loop' label.
+ulint   srv_main_background_loops       = 0;
+// Iterations of the loop bounded by the 'flush_loop' label.
+ulint   srv_main_flush_loops            = 0;
+// Calls to log_buffer_flush_to_disk.
+ulint   srv_sync_flush                  = 0;
+// Calls to log_buffer_flush_maybe_sync.
+ulint   srv_async_flush                 = 0;
+
+// Number of microseconds threads wait because of
+// innodb_thread_concurrency
+static ib_longlong srv_thread_wait_mics = 0;
+
+// Number of microseconds for spinlock delay
+static ib_longlong srv_timed_spin_delay = 0;
+
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM
 	=========================================
@@ -633,6 +663,65 @@ are indexed by the type of the thread. */
 
 ulint	srv_n_threads_active[SRV_MASTER + 1];
 ulint	srv_n_threads[SRV_MASTER + 1];
+
+static void srv_reset_free_tickets(trx_t* trx);
+
+/*************************************************************************
+Return the difference in microseconds between 'end' and 'start'
+*/
+static ib_longlong mics_diff(ulint start_sec, ulint start_usec,
+                             ulint end_sec, ulint end_usec)
+{
+  ib_longlong end_mics = end_sec * 1000000LL + end_usec;
+  ib_longlong start_mics = start_sec * 1000000LL + start_usec;
+
+  if (end_mics > start_mics)
+    return end_mics - start_mics;
+  else
+    return 0;
+}
+
+static void time_spin_delay()
+{
+  ulint start_sec, end_sec;
+  ulint start_usec, end_usec;
+  int i;
+
+  srv_timed_spin_delay = 0;
+
+  ut_usectime(&start_sec, &start_usec);
+
+  for (i = 0; i < SYNC_SPIN_ROUNDS; ++i)
+    ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+
+  ut_usectime(&end_sec, &end_usec);
+
+  srv_timed_spin_delay = mics_diff(start_sec, start_usec, end_sec, end_usec);
+}
+
+/*************************************************************************
+Prints counters for work done by srv_master_thread. */
+
+static
+void
+srv_print_extra(
+/*===================*/
+	FILE  *file)    /* in: output stream */
+{
+	fprintf(file, "srv_master_thread loops: %lu 1_second, %lu sleeps, "
+		"%lu 10_second, %lu background, %lu flush\n",
+		srv_main_1_second_loops, srv_main_sleeps,
+		srv_main_10_second_loops, srv_main_background_loops,
+		srv_main_flush_loops);
+	fprintf(file, "srv_master_thread log flush: %lu sync, %lu async\n",
+		srv_sync_flush, srv_async_flush);
+        fprintf(file, "srv_wait_thread_mics %lld microseconds, %.1f seconds\n",
+                srv_thread_wait_mics,
+                (double) srv_thread_wait_mics / 1000000.0);
+        fprintf(file,
+                "spinlock delay for %d delay %d rounds is %lld mics\n",
+                srv_spin_wait_delay, SYNC_SPIN_ROUNDS, srv_timed_spin_delay);
+}
 
 /*************************************************************************
 Sets the info describing an i/o thread current state. */
@@ -866,6 +955,8 @@ srv_init(void)
 	srv_slot_t*		slot;
 	dict_table_t*		table;
 	ulint			i;
+
+        time_spin_delay();
 
 	srv_sys = mem_alloc(sizeof(srv_sys_t));
 
@@ -1650,6 +1741,11 @@ srv_printf_innodb_monitor(
 		"Per second averages calculated from the last %lu seconds\n",
 		(ulong)time_elapsed);
 
+  	fputs("----------\n"
+		"BACKGROUND THREAD\n"
+		"----------\n", file);
+        srv_print_extra(file);
+
 	fputs("----------\n"
 	      "SEMAPHORES\n"
 	      "----------\n", file);
@@ -1671,24 +1767,6 @@ srv_printf_innodb_monitor(
 
 	mutex_exit(&dict_foreign_err_mutex);
 
-	lock_print_info_summary(file);
-	if (trx_start) {
-		long	t = ftell(file);
-		if (t < 0) {
-			*trx_start = ULINT_UNDEFINED;
-		} else {
-			*trx_start = (ulint) t;
-		}
-	}
-	lock_print_info_all_transactions(file);
-	if (trx_end) {
-		long	t = ftell(file);
-		if (t < 0) {
-			*trx_end = ULINT_UNDEFINED;
-		} else {
-			*trx_end = (ulint) t;
-		}
-	}
 	fputs("--------\n"
 	      "FILE I/O\n"
 	      "--------\n", file);
@@ -2201,6 +2279,14 @@ srv_wake_master_thread(void)
 }
 
 /*************************************************************************
+Returns the number of IO operations that is X percent of the capacity.
+
+PCT_IO(5) -> returns the number of IO operations that is 5% of the max
+where max is srv_io_capacity.
+*/
+#define PCT_IO(pct) ((ulint) (srv_io_capacity * ((double) pct / 100.0)))
+
+/*************************************************************************
 The master thread controlling the server. */
 
 os_thread_ret_t
@@ -2231,6 +2317,9 @@ srv_master_thread(
 	fprintf(stderr, "Master thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
+        fprintf(stderr, "InnoDB master thread running with io_capacity %lu\n",
+                srv_io_capacity);
+
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
@@ -2272,10 +2361,12 @@ loop:
 		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
 			+ buf_pool->n_pages_written;
 		srv_main_thread_op_info = "sleeping";
+		srv_main_1_second_loops++;	
 
 		if (!skip_sleep) {
 
 			os_thread_sleep(1000000);
+			srv_main_sleeps++;
 		}
 
 		skip_sleep = FALSE;
@@ -2301,27 +2392,28 @@ loop:
 
 		srv_main_thread_op_info = "flushing log";
 		log_buffer_flush_to_disk();
+		srv_sync_flush++;
 
 		srv_main_thread_op_info = "making checkpoint";
 		log_free_check();
 
-		/* If there were less than 5 i/os during the
-		one second sleep, we assume that there is free
-		disk i/o capacity available, and it makes sense to
-		do an insert buffer merge. */
+		/* If i/os during one second sleep were less than 5% of
+                capacity, we assume that there is free disk i/o capacity
+                available, and it makes sense to do an insert buffer merge. */
 
 		n_pend_ios = buf_get_n_pending_ios()
 			+ log_sys->n_pending_writes;
 		n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 			+ buf_pool->n_pages_written;
-		if (n_pend_ios < 3 && (n_ios - n_ios_old < 5)) {
+		if (n_pend_ios < PCT_IO(3) && (n_ios - n_ios_old < PCT_IO(5))) {
 			srv_main_thread_op_info = "doing insert buffer merge";
-			ibuf_contract_for_n_pages(
-				TRUE, srv_insert_buffer_batch_size / 4);
+			ibuf_contract_for_n_pages(TRUE, PCT_IO(20) / 4);
 
 			srv_main_thread_op_info = "flushing log";
 
-			log_buffer_flush_to_disk();
+			/* No fsync when srv_flush_log_at_trx_commit != 1 */
+			log_buffer_flush_maybe_sync();
+			srv_async_flush++;
 		}
 
 		if (UNIV_UNLIKELY(buf_get_modified_ratio_pct()
@@ -2330,7 +2422,8 @@ loop:
 			/* Try to keep the number of modified pages in the
 			buffer pool under the limit wished by the user */
 
-			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
+							  PCT_IO(100),
 							  ut_dulint_max);
 
 			/* If we had to do the flush, it may have taken
@@ -2358,30 +2451,40 @@ loop:
 	seconds */
 	mem_validate_all_blocks();
 #endif
-	/* If there were less than 200 i/os during the 10 second period,
-	we assume that there is free disk i/o capacity available, and it
-	makes sense to flush 100 pages. */
+	/* If i/os during the 10 second period were less than 200% of
+         capacity, we assume that there is free disk i/o capacity
+         available, and it makes sense to flush srv_io_capacity pages.
+
+         Note that this is done regardless of the fraction of dirty
+         pages relative to the max requested by the user. The one second
+         loop above requests writes for that case. The writes done here
+         are not required, and may be disabled. */
 
 	n_pend_ios = buf_get_n_pending_ios() + log_sys->n_pending_writes;
 	n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 		+ buf_pool->n_pages_written;
-	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < 200)) {
+	if (srv_extra_dirty_writes &&
+	    n_pend_ios < 3 && (n_ios - n_ios_very_old < PCT_IO(200))) {
 
 		srv_main_thread_op_info = "flushing buffer pool pages";
-		buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
+		buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100), ut_dulint_max);
 
 		srv_main_thread_op_info = "flushing log";
-		log_buffer_flush_to_disk();
+		/* No fsync when srv_flush_log_at_trx_commit != 1 */
+		log_buffer_flush_maybe_sync();
+		srv_async_flush++;
 	}
 
 	/* We run a batch of insert buffer merge every 10 seconds,
 	even if the server were active */
 
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(TRUE, srv_insert_buffer_batch_size / 4);
+	ibuf_contract_for_n_pages(TRUE, PCT_IO(20) / 4);
 
 	srv_main_thread_op_info = "flushing log";
-	log_buffer_flush_to_disk();
+	/* No fsync when srv_flush_log_at_trx_commit != 1 */
+	log_buffer_flush_maybe_sync();
+	srv_async_flush++;
 
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
@@ -2407,6 +2510,7 @@ loop:
 
 			log_buffer_flush_to_disk();
 			last_flush_time = current_time;
+			srv_sync_flush++;
 		}
 	}
 
@@ -2420,14 +2524,16 @@ loop:
 		(> 70 %), we assume we can afford reserving the disk(s) for
 		the time it requires to flush 100 pages */
 
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
+						  PCT_IO(100),
 						  ut_dulint_max);
 	} else {
 		/* Otherwise, we only flush a small number of pages so that
 		we do not unnecessarily use much disk i/o capacity from
 		other work */
 
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10,
+		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
+						  PCT_IO(10),
 						  ut_dulint_max);
 	}
 
@@ -2461,7 +2567,7 @@ background_loop:
 
 	/* The server has been quiet for a while: start running background
 	operations */
-
+	srv_main_background_loops++;		
 	srv_main_thread_op_info = "doing background drop tables";
 
 	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
@@ -2499,6 +2605,7 @@ background_loop:
 
 			log_buffer_flush_to_disk();
 			last_flush_time = current_time;
+                        srv_sync_flush++;
 		}
 	}
 
@@ -2516,8 +2623,11 @@ background_loop:
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
 		n_bytes_merged = 0;
 	} else {
-		n_bytes_merged = ibuf_contract_for_n_pages(
-			TRUE, srv_insert_buffer_batch_size);
+		/* This should do an amount of IO similar to the number of
+		* dirty pages that will be flushed in the call to
+		* buf_flush_batch below. Otherwise, the system favors
+		* clean pages over cleanup throughput. */
+		n_bytes_merged = ibuf_contract_for_n_pages(TRUE, PCT_IO(100));
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
@@ -2531,9 +2641,10 @@ background_loop:
 
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
-
+	srv_main_flush_loops++;
 	if (srv_fast_shutdown < 2) {
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
+						  PCT_IO(100),
 						  ut_dulint_max);
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
@@ -2556,7 +2667,17 @@ flush_loop:
 
 	srv_main_thread_op_info = "flushing log";
 
-	log_buffer_flush_to_disk();
+	current_time = time(NULL);
+	if (difftime(current_time, last_flush_time) > 1) {
+		srv_main_thread_op_info = (char*) "flushing log";
+		log_buffer_flush_to_disk();
+		last_flush_time = current_time;
+ 		srv_sync_flush++;
+	} else {
+		/* No fsync when srv_flush_log_at_trx_commit != 1 */
+		log_buffer_flush_maybe_sync();
+		srv_async_flush++;
+	}
 
 	srv_main_thread_op_info = "making checkpoint";
 
