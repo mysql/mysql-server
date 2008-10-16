@@ -330,6 +330,7 @@ mem_area_alloc(
 	mem_pool_t*	pool)	/* in: memory pool */
 {
 #ifdef UNIV_DISABLE_MEM_POOL
+        (void)pool; /* Remove compiler warning */
         return malloc(size);
 #else /* UNIV_DISABLE_MEM_POOL */
 	mem_area_t*	area;
@@ -464,6 +465,7 @@ mem_area_free(
 	mem_pool_t*	pool)	/* in: memory pool */
 {
 #ifdef UNIV_DISABLE_MEM_POOL
+        (void)pool; /* Remove compiler warning */
         free(ptr);
 #else /* UNIV_DISABLE_MEM_POOL */
 	mem_area_t*	area;
