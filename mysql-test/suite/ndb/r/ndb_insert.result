@@ -7,10 +7,12 @@ c INT NOT NULL
 INSERT INTO t1 VALUES (0, 0, 0);
 BEGIN;
 INSERT INTO t1 VALUES (1, 1, 1);
-INSERT INTO t1 VALUES (0, 0, 0);
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+INSERT INTO t1 VALUES (0, 0, 0),(2,2,2);
+ERROR 23000: Can't write; duplicate key in table 't1'
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
 COMMIT;
-ERROR HY000: Got error 4350 'Transaction already aborted' from NDBCLUSTER
 DELETE FROM t1;
 INSERT INTO t1 VALUES (0, 0, 0);
 SELECT * FROM t1;
