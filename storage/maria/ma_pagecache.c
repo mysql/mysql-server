@@ -2775,7 +2775,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
   inc_counter_for_resize_op(pagecache);
   /* See NOTE for pagecache_unlock about registering requests */
   block= find_block(pagecache, file, pageno, 0, 0,
-                    test(pin == PAGECACHE_PIN_LEFT_UNPINNED), &page_st);
+                    pin == PAGECACHE_PIN_LEFT_UNPINNED, &page_st);
   PCBLOCK_INFO(block);
   DBUG_ASSERT(block != 0 && page_st == PAGE_READ);
   if (first_REDO_LSN_for_page)
@@ -3080,6 +3080,146 @@ void pagecache_unpin_by_link(PAGECACHE *pagecache,
   DBUG_VOID_RETURN;
 }
 
+/* description of how to change lock before and after read/write */
+struct rw_lock_change
+{
+  my_bool need_lock_change; /* need changing of lock at the end */
+  enum pagecache_page_lock new_lock; /* lock at the beginning */
+  enum pagecache_page_lock unlock_lock; /* lock at the end */
+};
+
+/* description of how to change pin before and after read/write */
+struct rw_pin_change
+{
+  enum pagecache_page_pin new_pin; /* pin status at the beginning */
+  enum pagecache_page_pin unlock_pin; /* pin status at the end */
+};
+
+/**
+  Depending on the lock which the user wants in pagecache_read(), we
+  need to acquire a first type of lock at start of pagecache_read(), and
+  downgrade it to a second type of lock at end. For example, if user
+  asked for no lock (PAGECACHE_LOCK_LEFT_UNLOCKED) this translates into
+  taking first a read lock PAGECACHE_LOCK_READ (to rightfully block on
+  existing write locks) then read then unlock the lock i.e. change lock
+  to PAGECACHE_LOCK_READ_UNLOCK (the "1" below tells that a change is
+  needed).
+*/ 
+
+static struct rw_lock_change lock_to_read[8]=
+{
+  { /*PAGECACHE_LOCK_LEFT_UNLOCKED*/
+    1,
+    PAGECACHE_LOCK_READ, PAGECACHE_LOCK_READ_UNLOCK
+  },
+  { /*PAGECACHE_LOCK_LEFT_READLOCKED*/
+    0,
+    PAGECACHE_LOCK_LEFT_READLOCKED, PAGECACHE_LOCK_LEFT_READLOCKED
+  },
+  { /*PAGECACHE_LOCK_LEFT_WRITELOCKED*/
+    0,
+    PAGECACHE_LOCK_LEFT_WRITELOCKED, PAGECACHE_LOCK_LEFT_WRITELOCKED
+  },
+  { /*PAGECACHE_LOCK_READ*/
+    1,
+    PAGECACHE_LOCK_READ, PAGECACHE_LOCK_LEFT_READLOCKED
+  },
+  { /*PAGECACHE_LOCK_WRITE*/
+    1,
+    PAGECACHE_LOCK_WRITE, PAGECACHE_LOCK_LEFT_WRITELOCKED
+  },
+  { /*PAGECACHE_LOCK_READ_UNLOCK*/
+    1,
+    PAGECACHE_LOCK_LEFT_READLOCKED, PAGECACHE_LOCK_READ_UNLOCK
+  },
+  { /*PAGECACHE_LOCK_WRITE_UNLOCK*/
+    1,
+    PAGECACHE_LOCK_LEFT_WRITELOCKED, PAGECACHE_LOCK_WRITE_UNLOCK
+  },
+  { /*PAGECACHE_LOCK_WRITE_TO_READ*/
+    1,
+    PAGECACHE_LOCK_LEFT_WRITELOCKED, PAGECACHE_LOCK_WRITE_TO_READ
+  }
+};
+
+/**
+  Two sets of pin modes (every as for lock upper but for pinning). The
+  difference between sets if whether we are going to provide caller with
+  reference on the block or not
+*/
+
+static struct rw_pin_change lock_to_pin[2][8]=
+{
+  {
+    { /*PAGECACHE_LOCK_LEFT_UNLOCKED*/
+      PAGECACHE_PIN_LEFT_UNPINNED,
+      PAGECACHE_PIN_LEFT_UNPINNED
+    },
+    { /*PAGECACHE_LOCK_LEFT_READLOCKED*/
+      PAGECACHE_PIN_LEFT_UNPINNED,
+      PAGECACHE_PIN_LEFT_UNPINNED,
+    },
+    { /*PAGECACHE_LOCK_LEFT_WRITELOCKED*/
+      PAGECACHE_PIN_LEFT_PINNED,
+      PAGECACHE_PIN_LEFT_PINNED
+    },
+    { /*PAGECACHE_LOCK_READ*/
+      PAGECACHE_PIN_LEFT_UNPINNED,
+      PAGECACHE_PIN_LEFT_UNPINNED
+    },
+    { /*PAGECACHE_LOCK_WRITE*/
+      PAGECACHE_PIN,
+      PAGECACHE_PIN_LEFT_PINNED
+    },
+    { /*PAGECACHE_LOCK_READ_UNLOCK*/
+      PAGECACHE_PIN_LEFT_UNPINNED,
+      PAGECACHE_PIN_LEFT_UNPINNED
+    },
+    { /*PAGECACHE_LOCK_WRITE_UNLOCK*/
+      PAGECACHE_PIN_LEFT_PINNED,
+      PAGECACHE_UNPIN
+    },
+    { /*PAGECACHE_LOCK_WRITE_TO_READ*/
+      PAGECACHE_PIN_LEFT_PINNED,
+      PAGECACHE_UNPIN
+    }
+  },
+  {
+    { /*PAGECACHE_LOCK_LEFT_UNLOCKED*/
+      PAGECACHE_PIN_LEFT_UNPINNED,
+      PAGECACHE_PIN_LEFT_UNPINNED
+    },
+    { /*PAGECACHE_LOCK_LEFT_READLOCKED*/
+      PAGECACHE_PIN_LEFT_UNPINNED,
+      PAGECACHE_PIN_LEFT_UNPINNED,
+    },
+    { /*PAGECACHE_LOCK_LEFT_WRITELOCKED*/
+      PAGECACHE_PIN_LEFT_PINNED,
+      PAGECACHE_PIN_LEFT_PINNED
+    },
+    { /*PAGECACHE_LOCK_READ*/
+      PAGECACHE_PIN,
+      PAGECACHE_PIN_LEFT_PINNED
+    },
+    { /*PAGECACHE_LOCK_WRITE*/
+      PAGECACHE_PIN,
+      PAGECACHE_PIN_LEFT_PINNED
+    },
+    { /*PAGECACHE_LOCK_READ_UNLOCK*/
+      PAGECACHE_PIN_LEFT_UNPINNED,
+      PAGECACHE_PIN_LEFT_UNPINNED
+    },
+    { /*PAGECACHE_LOCK_WRITE_UNLOCK*/
+      PAGECACHE_PIN_LEFT_PINNED,
+      PAGECACHE_UNPIN
+    },
+    { /*PAGECACHE_LOCK_WRITE_TO_READ*/
+      PAGECACHE_PIN_LEFT_PINNED,
+      PAGECACHE_PIN_LEFT_PINNED,
+    }
+  }
+};
+
 
 /*
   @brief Read a block of data from a cached file into a buffer;
@@ -3096,34 +3236,11 @@ void pagecache_unpin_by_link(PAGECACHE *pagecache,
   @return address from where the data is placed if successful, 0 - otherwise.
 
   @note Pin will be chosen according to lock parameter (see lock_to_pin)
-*/
-static enum pagecache_page_pin lock_to_pin[2][8]=
-{
-  {
-    PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_LEFT_UNLOCKED*/,
-    PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_LEFT_READLOCKED*/,
-    PAGECACHE_PIN_LEFT_PINNED   /*PAGECACHE_LOCK_LEFT_WRITELOCKED*/,
-    PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_READ*/,
-    PAGECACHE_PIN               /*PAGECACHE_LOCK_WRITE*/,
-    PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_READ_UNLOCK*/,
-    PAGECACHE_UNPIN             /*PAGECACHE_LOCK_WRITE_UNLOCK*/,
-    PAGECACHE_UNPIN             /*PAGECACHE_LOCK_WRITE_TO_READ*/
-  },
-  {
-    PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_LEFT_UNLOCKED*/,
-    PAGECACHE_PIN_LEFT_PINNED   /*PAGECACHE_LOCK_LEFT_READLOCKED*/,
-    PAGECACHE_PIN_LEFT_PINNED   /*PAGECACHE_LOCK_LEFT_WRITELOCKED*/,
-    PAGECACHE_PIN               /*PAGECACHE_LOCK_READ*/,
-    PAGECACHE_PIN               /*PAGECACHE_LOCK_WRITE*/,
-    PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_READ_UNLOCK*/,
-    PAGECACHE_UNPIN             /*PAGECACHE_LOCK_WRITE_UNLOCK*/,
-    PAGECACHE_PIN_LEFT_PINNED   /*PAGECACHE_LOCK_WRITE_TO_READ*/
-  }
-};
 
-
-/**
   @note 'buff', if not NULL, must be long-aligned.
+
+  @note  If buff==0 then we provide reference on the page so should keep the
+  page pinned.
 */
 
 uchar *pagecache_read(PAGECACHE *pagecache,
@@ -3136,21 +3253,26 @@ uchar *pagecache_read(PAGECACHE *pagecache,
                       PAGECACHE_BLOCK_LINK **page_link)
 {
   my_bool error= 0;
-  enum pagecache_page_pin pin= lock_to_pin[test(buff==0)][lock];
+  enum pagecache_page_pin
+    new_pin= lock_to_pin[buff==0][lock].new_pin,
+    unlock_pin= lock_to_pin[buff==0][lock].unlock_pin;
   PAGECACHE_BLOCK_LINK *fake_link;
   my_bool reg_request;
 #ifndef DBUG_OFF
   char llbuf[22];
   DBUG_ENTER("pagecache_read");
   DBUG_PRINT("enter", ("fd: %u  page: %s  buffer: 0x%lx level: %u  "
-                       "t:%s  %s  %s",
+                       "t:%s  (%d)%s->%s  %s->%s",
                        (uint) file->file, ullstr(pageno, llbuf),
                        (ulong) buff, level,
                        page_cache_page_type_str[type],
-                       page_cache_page_lock_str[lock],
-                       page_cache_page_pin_str[pin]));
-  DBUG_ASSERT(buff != 0 || (buff == 0 && (pin == PAGECACHE_PIN ||
-                                          pin == PAGECACHE_PIN_LEFT_PINNED)));
+                       lock_to_read[lock].need_lock_change,
+                       page_cache_page_lock_str[lock_to_read[lock].new_lock],
+                       page_cache_page_lock_str[lock_to_read[lock].unlock_lock],
+                       page_cache_page_pin_str[new_pin],
+                       page_cache_page_pin_str[unlock_pin]));
+  DBUG_ASSERT(buff != 0 || (buff == 0 && (unlock_pin == PAGECACHE_PIN ||
+                                          unlock_pin == PAGECACHE_PIN_LEFT_PINNED)));
   DBUG_ASSERT(pageno < ((ULL(1)) << 40));
 #endif
 
@@ -3177,10 +3299,10 @@ restart:
     inc_counter_for_resize_op(pagecache);
     pagecache->global_cache_r_requests++;
     /* See NOTE for pagecache_unlock about registering requests. */
-    reg_request= ((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
-                  (pin == PAGECACHE_PIN));
+    reg_request= ((new_pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
+                  (new_pin == PAGECACHE_PIN));
     block= find_block(pagecache, file, pageno, level,
-                      test(lock == PAGECACHE_LOCK_WRITE),
+                      lock == PAGECACHE_LOCK_WRITE,
                       reg_request, &page_st);
     DBUG_PRINT("info", ("Block type: %s current type %s",
                         page_cache_page_type_str[block->type],
@@ -3214,7 +3336,8 @@ restart:
         block->type == PAGECACHE_EMPTY_PAGE)
       block->type= type;
 
-    if (make_lock_and_pin(pagecache, block, lock, pin, FALSE))
+    if (make_lock_and_pin(pagecache, block, lock_to_read[lock].new_lock,
+                          new_pin, FALSE))
     {
       /*
         We failed to write lock the block, cache is unlocked,
@@ -3262,12 +3385,20 @@ restart:
     }
 
     remove_reader(block);
+    if (lock_to_read[lock].need_lock_change)
+    {
+      if (make_lock_and_pin(pagecache, block,
+                            lock_to_read[lock].unlock_lock,
+                            unlock_pin, FALSE))
+        DBUG_ASSERT(0);
+    }
     /*
       Link the block into the LRU chain if it's the last submitted request
       for the block and block will not be pinned.
       See NOTE for pagecache_unlock about registering requests.
     */
-    if (pin == PAGECACHE_PIN_LEFT_UNPINNED || pin == PAGECACHE_UNPIN)
+    if (unlock_pin == PAGECACHE_PIN_LEFT_UNPINNED ||
+        unlock_pin == PAGECACHE_UNPIN)
       unreg_request(pagecache, block, 1);
     else
       *page_link= block;
@@ -3485,6 +3616,18 @@ void pagecache_add_level_by_link(PAGECACHE_BLOCK_LINK *block,
   write locked before) or PAGECACHE_LOCK_WRITE (delete will write
   lock page before delete)
 */
+static enum pagecache_page_pin lock_to_pin_one_phase[8]=
+{
+  PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_LEFT_UNLOCKED*/,
+  PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_LEFT_READLOCKED*/,
+  PAGECACHE_PIN_LEFT_PINNED   /*PAGECACHE_LOCK_LEFT_WRITELOCKED*/,
+  PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_READ*/,
+  PAGECACHE_PIN               /*PAGECACHE_LOCK_WRITE*/,
+  PAGECACHE_PIN_LEFT_UNPINNED /*PAGECACHE_LOCK_READ_UNLOCK*/,
+  PAGECACHE_UNPIN             /*PAGECACHE_LOCK_WRITE_UNLOCK*/,
+  PAGECACHE_UNPIN             /*PAGECACHE_LOCK_WRITE_TO_READ*/
+};
+
 my_bool pagecache_delete(PAGECACHE *pagecache,
                          PAGECACHE_FILE *file,
                          pgcache_page_no_t pageno,
@@ -3492,7 +3635,7 @@ my_bool pagecache_delete(PAGECACHE *pagecache,
                          my_bool flush)
 {
   my_bool error= 0;
-  enum pagecache_page_pin pin= lock_to_pin[0][lock];
+  enum pagecache_page_pin pin= lock_to_pin_one_phase[lock];
   DBUG_ENTER("pagecache_delete");
   DBUG_PRINT("enter", ("fd: %u  page: %lu  %s  %s",
                        (uint) file->file, (ulong) pageno,
@@ -3608,15 +3751,7 @@ my_bool pagecache_delete_pages(PAGECACHE *pagecache,
   @retval 1 Error.
 */
 
-/* description of how to change lock before and after write */
-struct write_lock_change
-{
-  int need_lock_change; /* need changing of lock at the end of write */
-  enum pagecache_page_lock new_lock; /* lock at the beginning */
-  enum pagecache_page_lock unlock_lock; /* lock at the end */
-};
-
-static struct write_lock_change write_lock_change_table[]=
+static struct rw_lock_change write_lock_change_table[]=
 {
   {1,
    PAGECACHE_LOCK_WRITE,
@@ -3640,14 +3775,8 @@ static struct write_lock_change write_lock_change_table[]=
    PAGECACHE_LOCK_WRITE_TO_READ} /*PAGECACHE_LOCK_WRITE_TO_READ*/
 };
 
-/* description of how to change pin before and after write */
-struct write_pin_change
-{
-  enum pagecache_page_pin new_pin; /* pin status at the beginning */
-  enum pagecache_page_pin unlock_pin; /* pin status at the end */
-};
 
-static struct write_pin_change write_pin_change_table[]=
+static struct rw_pin_change write_pin_change_table[]=
 {
   {PAGECACHE_PIN_LEFT_PINNED,
    PAGECACHE_PIN_LEFT_PINNED} /*PAGECACHE_PIN_LEFT_PINNED*/,
@@ -3729,10 +3858,10 @@ restart:
     reg_request= ((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
                   (pin == PAGECACHE_PIN));
     block= find_block(pagecache, file, pageno, level,
-                      test(write_mode != PAGECACHE_WRITE_DONE &&
-                           lock != PAGECACHE_LOCK_LEFT_WRITELOCKED &&
-                           lock != PAGECACHE_LOCK_WRITE_UNLOCK &&
-                           lock != PAGECACHE_LOCK_WRITE_TO_READ),
+                      (write_mode != PAGECACHE_WRITE_DONE &&
+                       lock != PAGECACHE_LOCK_LEFT_WRITELOCKED &&
+                       lock != PAGECACHE_LOCK_WRITE_UNLOCK &&
+                       lock != PAGECACHE_LOCK_WRITE_TO_READ),
                       reg_request, &page_st);
     if (!block)
     {
