@@ -3835,7 +3835,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 }
                 trx->sp_level = trx->all;
                 trans_register_ha(thd, TRUE, tokudb_hton);
-                if (thd->in_lock_tables) {
+                if (thd->in_lock_tables && thd_sql_command(thd) == SQLCOM_LOCK_TABLES) {
                     //
                     // grab table locks
                     // For the command "Lock tables foo read, bar read"
@@ -3878,7 +3878,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             trans_register_ha(thd, FALSE, tokudb_hton);
         }
         else {
-            if (thd->in_lock_tables) {
+            if (thd->in_lock_tables && thd_sql_command(thd) == SQLCOM_LOCK_TABLES) {
                 assert(trx->all != NULL);
                 //
                 // For the command "Lock tables foo read, bar read"
