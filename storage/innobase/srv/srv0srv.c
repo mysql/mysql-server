@@ -666,21 +666,6 @@ ulint	srv_n_threads[SRV_MASTER + 1];
 
 static void srv_reset_free_tickets(trx_t* trx);
 
-/*************************************************************************
-Return the difference in microseconds between 'end' and 'start'
-*/
-static ib_longlong mics_diff(ulint start_sec, ulint start_usec,
-                             ulint end_sec, ulint end_usec)
-{
-  ib_longlong end_mics = end_sec * 1000000LL + end_usec;
-  ib_longlong start_mics = start_sec * 1000000LL + start_usec;
-
-  if (end_mics > start_mics)
-    return end_mics - start_mics;
-  else
-    return 0;
-}
-
 static void time_spin_delay()
 {
   ulint start_sec, end_sec;
@@ -689,14 +674,17 @@ static void time_spin_delay()
 
   srv_timed_spin_delay = 0;
 
-  ut_usectime(&start_sec, &start_usec);
+  if (ut_usectime(&start_sec, &start_usec))
+    return;
 
-  for (i = 0; i < SYNC_SPIN_ROUNDS; ++i)
+  for (i = 0; i < (int)SYNC_SPIN_ROUNDS; ++i)
     ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 
-  ut_usectime(&end_sec, &end_usec);
+  if (ut_usectime(&end_sec, &end_usec))
+    return;
 
-  srv_timed_spin_delay = mics_diff(start_sec, start_usec, end_sec, end_usec);
+  srv_timed_spin_delay =ut_usecdiff(end_sec, end_usec,
+                                    start_sec, start_usec);
 }
 
 /*************************************************************************
