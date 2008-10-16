@@ -1795,6 +1795,7 @@ void ha_maria::start_bulk_insert(ha_rows rows)
   THD *thd= current_thd;
   ulong size= min(thd->variables.read_buff_size,
                   (ulong) (table->s->avg_row_length * rows));
+  MARIA_SHARE *share= file->s;
   DBUG_PRINT("info", ("start_bulk_insert: rows %lu size %lu",
                       (ulong) rows, size));
 
@@ -1802,8 +1803,8 @@ void ha_maria::start_bulk_insert(ha_rows rows)
   if (!rows || (rows > MARIA_MIN_ROWS_TO_USE_WRITE_CACHE))
     maria_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
 
-  can_enable_indexes= (maria_is_all_keys_active(file->s->state.key_map,
-                                                file->s->base.keys));
+  can_enable_indexes= (maria_is_all_keys_active(share->state.key_map,
+                                                share->base.keys));
   bulk_insert_single_undo= BULK_INSERT_NONE;
 
   if (!(specialflag & SPECIAL_SAFE_MODE))
@@ -1815,8 +1816,17 @@ void ha_maria::start_bulk_insert(ha_rows rows)
        we don't want to update the key statistics based of only a few rows.
        Index file rebuild requires an exclusive lock, so if versioning is on
        don't do it (see how ha_maria::store_lock() tries to predict repair).
+       We can repair index only if we have an exclusive (TL_WRITE) lock. To
+       see if table is empty, we shouldn't rely on the old records' count from
+       our transaction's start (if that old count is 0 but now there are
+       records in the table, we would wrongly destroy them).
+       So we need to look at share->state.state.records.
+       As a safety net for now, we don't remove the test of
+       file->state->records, because there is uncertainty on what will happen
+       during repair if the two states disagree.
     */
-    if (file->state->records == 0 && can_enable_indexes &&
+    if ((file->state->records == 0) &&
+        (share->state.state.records == 0) && can_enable_indexes &&
         (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES) &&
         (file->lock.type == TL_WRITE))
     {
@@ -1825,7 +1835,7 @@ void ha_maria::start_bulk_insert(ha_rows rows)
          is more costly (flushes, syncs) than a row write.
       */
       maria_disable_non_unique_index(file, rows);
-      if (file->s->now_transactional)
+      if (share->now_transactional)
       {
         bulk_insert_single_undo= BULK_INSERT_SINGLE_UNDO_AND_NO_REPAIR;
         write_log_record_for_bulk_insert(file);
