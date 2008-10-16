@@ -62,7 +62,7 @@ of the 32-bit x86 assembler in mutex operations. */
 /* We only try to do explicit inlining of functions with gcc and
  Sun Studio */
 
-# if !defined(__GNUC__) && !( defined(sun) || defined(__sun) )
+# if !defined(__GNUC__) && !defined(__SUNPRO_C)
 #  undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
 #  define UNIV_MUST_NOT_INLINE
 # endif
