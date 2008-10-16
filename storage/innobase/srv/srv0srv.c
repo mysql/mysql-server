@@ -173,6 +173,10 @@ ulint	srv_lock_table_size	= ULINT_MAX;
 
 ulint	srv_n_file_io_threads	= ULINT_MAX;
 
+ulint	srv_n_read_io_threads	= ULINT_MAX;
+ulint	srv_n_write_io_threads	= ULINT_MAX;
+ulint	srv_max_merged_io = 64;
+
 #ifdef UNIV_LOG_ARCHIVE
 ibool	srv_log_archive_on	= FALSE;
 ibool	srv_archive_recovery	= 0;
