@@ -706,7 +706,9 @@ srv_print_extra(
                 (double) srv_thread_wait_mics / 1000000.0);
         fprintf(file,
                 "spinlock delay for %d delay %d rounds is %lld mics\n",
-                srv_spin_wait_delay, SYNC_SPIN_ROUNDS, srv_timed_spin_delay);
+                (int)srv_spin_wait_delay,
+                (int)SYNC_SPIN_ROUNDS,
+                srv_timed_spin_delay);
 }
 
 /*************************************************************************
