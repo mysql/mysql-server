@@ -3432,8 +3432,6 @@ void
 os_aio_simulated_wake_handler_threads(void)
 /*=======================================*/
 {
-	ulint	i;
-
 	if (os_aio_use_native_aio) {
 		/* We do not use simulated aio: do nothing */
 
@@ -4405,7 +4403,7 @@ loop:
  	putc('\n', file);
  	fprintf(file,
  		"Summary of background IO slot status: %lu issued, "
- 		"%lu done, %lu claimed, sleep set %d\n",
+ 		"%lu done, %lu claimed, sleep set %u\n",
  		num_issued, num_done, num_claimed,
  		os_aio_recommend_sleep_for_read_threads);
 
