@@ -4632,12 +4632,12 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   {
     DBUG_PRINT("info", ("lock_type == F_UNLCK"));
 
-    if (thd_ndb->trans && m_rows_changed &&
-        global_system_variables.query_cache_type)
+    if (m_rows_changed && global_system_variables.query_cache_type)
     {
       DBUG_PRINT("info", ("Rows has changed"));
 
-      if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+      if (thd_ndb->trans &&
+          thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
       {
         DBUG_PRINT("info", ("Add share to list of changed tables, %p",
                             m_share));
@@ -4859,6 +4859,8 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   NdbTransaction *trans= thd_ndb->trans;
 
   DBUG_ENTER("ndbcluster_rollback");
+  DBUG_PRINT("enter", ("all: %d", all));
+  PRINT_OPTION_FLAGS(thd);
   DBUG_ASSERT(ndb);
   thd_ndb->start_stmt_count= 0;
   if (trans == NULL)
@@ -4877,9 +4879,14 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     */
     DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
     mark_transaction_to_rollback(thd, 1);
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_WARN_ENGINE_TRANSACTION_ROLLBACK,
-                        ER(ER_WARN_ENGINE_TRANSACTION_ROLLBACK), "NDB");
+    /*
+      This warning is not useful in the slave sql thread.
+      The slave sql thread code will handle the full rollback.
+    */
+    if (!thd->slave_thread)
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARN_ENGINE_TRANSACTION_ROLLBACK,
+                          ER(ER_WARN_ENGINE_TRANSACTION_ROLLBACK), "NDB");
     DBUG_RETURN(0);
   }
   if (trans->execute(NdbTransaction::Rollback) != 0)
