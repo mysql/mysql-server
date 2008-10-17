@@ -2943,15 +2943,16 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
   DBUG_ASSERT(pin != PAGECACHE_PIN_LEFT_UNPINNED);
   DBUG_ASSERT(lock != PAGECACHE_LOCK_READ);
   DBUG_ASSERT(lock != PAGECACHE_LOCK_WRITE);
+  pagecache_pthread_mutex_lock(&pagecache->cache_lock);
   if (pin == PAGECACHE_PIN_LEFT_UNPINNED &&
       lock == PAGECACHE_LOCK_READ_UNLOCK)
   {
     if (make_lock_and_pin(pagecache, block, lock, pin, FALSE))
       DBUG_ASSERT(0);                         /* should not happend */
+    pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
     DBUG_VOID_RETURN;
   }
 
-  pagecache_pthread_mutex_lock(&pagecache->cache_lock);
   /*
     As soon as we keep lock cache can be used, and we have lock because want
     unlock.
