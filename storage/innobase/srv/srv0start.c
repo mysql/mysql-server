@@ -1251,7 +1251,7 @@ innobase_start_or_create_for_mysql(void)
 	/* Restrict the maximum number of file i/o threads */
 	if ((srv_n_read_io_threads + srv_n_write_io_threads) > SRV_MAX_N_IO_THREADS) {
 		fprintf(stderr,
-			"InnoDB: requested too many read(%d) or write(%d) IO threads, max is %d\n",
+			"InnoDB: requested too many read(%u) or write(%u) IO threads, max is %d\n",
 			srv_n_read_io_threads, srv_n_write_io_threads, SRV_MAX_N_IO_THREADS);	
 		return(DB_ERROR);
 	}
@@ -1272,7 +1272,7 @@ innobase_start_or_create_for_mysql(void)
 
 	if (n_threads > SRV_MAX_N_IO_THREADS) {
 		fprintf(stderr,
-			"InnoDB: requested too many IO threads(%d), max is %d\n",
+			"InnoDB: requested too many IO threads(%u), max is %d\n",
 			n_threads, SRV_MAX_N_IO_THREADS);	
 		return(DB_ERROR);
 	}

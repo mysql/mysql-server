@@ -117,6 +117,20 @@ rw_lock_validate(
 /*=============*/
 	rw_lock_t*	lock);
 #endif /* UNIV_DEBUG */
+/**********************************************************************
+Low-level function which tries to lock an rw-lock in s-mode. Performs no
+spinning. */
+UNIV_INLINE
+ibool
+rw_lock_s_lock_low(
+/*===============*/
+                                /* out: TRUE if success */
+        rw_lock_t*      lock,   /* in: pointer to rw-lock */
+        ulint           pass,
+                                /* in: pass value; != 0, if the lock will be
+                                passed to another thread to unlock */
+        const char*     file_name, /* in: file name where lock requested */
+        ulint           line);  /* in: line where requested */
 /******************************************************************
 NOTE! The following macros should be used in rw s-locking, not the
 corresponding function. */
