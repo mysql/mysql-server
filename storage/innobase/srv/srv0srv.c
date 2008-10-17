@@ -664,8 +664,6 @@ are indexed by the type of the thread. */
 ulint	srv_n_threads_active[SRV_MASTER + 1];
 ulint	srv_n_threads[SRV_MASTER + 1];
 
-static void srv_reset_free_tickets(trx_t* trx);
-
 static void time_spin_delay()
 {
   ulint start_sec, end_sec;
@@ -1697,11 +1695,7 @@ Outputs to a file the output of the InnoDB Monitor. */
 void
 srv_printf_innodb_monitor(
 /*======================*/
-	FILE*	file,		/* in: output stream */
-	ulint*	trx_start,	/* out: file position of the start of
-				the list of active transactions */
-	ulint*	trx_end)	/* out: file position of the end of
-				the list of active transactions */
+	FILE*	file)		/* in: output stream */
 {
 	double	time_elapsed;
 	time_t	current_time;
@@ -1994,14 +1988,13 @@ loop:
 		last_monitor_time = time(NULL);
 
 		if (srv_print_innodb_monitor) {
-			srv_printf_innodb_monitor(stderr, NULL, NULL);
+			srv_printf_innodb_monitor(stderr);
 		}
 
 		if (srv_innodb_status) {
 			mutex_enter(&srv_monitor_file_mutex);
 			rewind(srv_monitor_file);
-			srv_printf_innodb_monitor(srv_monitor_file, NULL,
-						  NULL);
+			srv_printf_innodb_monitor(srv_monitor_file);
 			os_file_set_eof(srv_monitor_file);
 			mutex_exit(&srv_monitor_file_mutex);
 		}

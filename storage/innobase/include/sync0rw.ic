@@ -474,13 +474,15 @@ rw_lock_x_unlock_func(
 #endif
 	)
 {
+        os_thread_id_t local_writer_thread;
 	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
 
-	/* Must reset writer_thread while we still have the lock.
-	If we are not the last unlocker, we correct it later in the function,
-	which is harmless since we still hold the lock. */
-	/* TODO: are there any risks of a thread id == -1 on any platform? */
-        os_thread_id_t local_writer_thread;
+	/*
+          Must reset writer_thread while we still have the lock.
+	  If we are not the last unlocker, we correct it later in the function,
+	  which is harmless since we still hold the lock.
+	  TODO: are there any risks of a thread id == -1 on any platform?
+        */
         local_writer_thread = lock->writer_thread;
 	lock->writer_thread = -1;
 

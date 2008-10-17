@@ -417,7 +417,7 @@ rw_lock_x_lock_move_ownership(
         os_thread_id_t local_writer_thread = lock->writer_thread;
         os_thread_id_t new_writer_thread = os_thread_get_curr_id();
         while (TRUE) {
-                if (local_writer_thread != -1) {
+                if ((int)local_writer_thread != -1) {
                         if(os_compare_and_swap(
                                &(lock->writer_thread),
                                local_writer_thread,
