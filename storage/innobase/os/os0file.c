@@ -4403,9 +4403,9 @@ loop:
  	putc('\n', file);
  	fprintf(file,
  		"Summary of background IO slot status: %lu issued, "
- 		"%lu done, %lu claimed, sleep set %u\n",
+ 		"%lu done, %lu claimed, sleep set %d\n",
  		num_issued, num_done, num_claimed,
- 		os_aio_recommend_sleep_for_read_threads);
+ 		(int)os_aio_recommend_sleep_for_read_threads);
 
 	putc('\n', file);
 	current_time = time(NULL);
