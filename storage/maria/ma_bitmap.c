@@ -2168,8 +2168,8 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
   }
   DBUG_ASSERT(non_flushable_inc == 1);
   DBUG_ASSERT(info->non_flushable_state == 0);
-  /* It is a read without mutex because only an optimization */
-  if (unlikely(bitmap->flush_all_requested))
+  pthread_mutex_lock(&bitmap->bitmap_lock);
+  while (unlikely(bitmap->flush_all_requested))
   {
     /*
       Some other thread is waiting for the bitmap to become
@@ -2182,21 +2182,13 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
       our thread), it is not going to increase it more so is not going to come
       here.
     */
-    pthread_mutex_lock(&bitmap->bitmap_lock);
-    while (bitmap->flush_all_requested)
-    {
-      DBUG_PRINT("info", ("waiting for bitmap flusher"));
-      pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
-    }
-    pthread_mutex_unlock(&bitmap->bitmap_lock);
+    DBUG_PRINT("info", ("waiting for bitmap flusher"));
+    pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
   }
-  /*
-    Ok to set without mutex: we didn't touch the bitmap's content yet; when we
-    touch it we will take the mutex.
-  */
   bitmap->non_flushable++;
   info->non_flushable_state= 1;
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
+  pthread_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -2308,7 +2300,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
   /* This duplicates ma_bitmap_flushable(-1) except it already has mutex */
   if (info->non_flushable_state)
   {
-    DBUG_ASSERT((int) bitmap->non_flushable >= 0);
+    DBUG_ASSERT(((int) (bitmap->non_flushable)) > 0);
     info->non_flushable_state= 0;
     if (--bitmap->non_flushable == 0)
     {
