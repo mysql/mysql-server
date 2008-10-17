@@ -887,11 +887,12 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
    query_cache_limit(query_cache_limit_arg),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
    total_blocks(0), lowmem_prunes(0),
+   m_query_cache_is_disabled(FALSE),
    min_allocation_unit(ALIGN_SIZE(min_allocation_unit_arg)),
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
    def_table_hash_size(ALIGN_SIZE(def_table_hash_size_arg)),
-   initialized(0),m_query_cache_is_disabled(FALSE)
+   initialized(0)
 {
   ulong min_needed= (ALIGN_SIZE(sizeof(Query_cache_block)) +
 		     ALIGN_SIZE(sizeof(Query_cache_block_table)) +
