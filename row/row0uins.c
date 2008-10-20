@@ -260,8 +260,12 @@ row_undo_ins_parse_undo_rec(
 				ptr, clust_index, &node->ref, node->heap);
 		} else {
 			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: table %s has no indexes, "
-				"ignoring the table\n", node->table->name);
+			fprintf(stderr, "  InnoDB: table ");
+			ut_print_name(stderr, node->trx, TRUE,
+				      node->table->name);
+			fprintf(stderr, " has no indexes, "
+				"ignoring the table\n");
+
 			node->table = NULL;
 		}
 	}
