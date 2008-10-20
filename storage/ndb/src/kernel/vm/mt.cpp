@@ -219,6 +219,11 @@ require(bool x)
     abort();
 }
 
+#ifdef assert
+#undef assert
+#endif
+#define assert(x) require(x)
+
 #ifdef NDB_HAVE_XCNG
 struct thr_spin_lock
 {
