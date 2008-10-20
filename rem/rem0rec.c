@@ -1048,7 +1048,8 @@ rec_convert_dtuple_to_rec_comp(
 	ulint		n_node_ptr_field;
 	ulint		fixed_len;
 	ulint		null_mask	= 1;
-	ut_ad(dict_table_is_comp(index->table));
+	ut_ad(extra == 0 || dict_table_is_comp(index->table));
+	ut_ad(extra == 0 || extra == REC_N_NEW_EXTRA_BYTES);
 	ut_ad(n_fields > 0);
 
 	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
