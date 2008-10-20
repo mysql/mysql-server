@@ -28,11 +28,55 @@
 
 //#define SLOW
 #ifdef SLOW
-#define VERIFY_NODE(n) (toku_verify_counts(n), verify_all_in_mempool(n))
-
+#define VERIFY_NODE(t,n) (toku_verify_counts(n), toku_verify_estimates(t,n))
 #else
-#define VERIFY_NODE(n) ((void)0)
+#define VERIFY_NODE(t,n) ((void)0)
 #endif
+
+static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum) {
+    switch (BNC_HAVE_FULLHASH(node, childnum)) {
+    case TRUE:
+	{
+	    assert(BNC_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum)));
+	    return BNC_FULLHASH(node, childnum);
+	}
+    case FALSE:
+	{
+	    u_int32_t child_fullhash = toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum));
+	    BNC_HAVE_FULLHASH(node, childnum) = TRUE;
+	    BNC_FULLHASH(node, childnum) = child_fullhash;
+	    return child_fullhash;
+	}
+    }
+    assert(0);
+    return 0;
+}
+
+static inline void
+toku_verify_estimates (BRT t, BRTNODE node) {
+    if (node->height>0) {
+	int childnum;
+	for (childnum=0; childnum<node->u.n.n_children; childnum++) {
+	    BLOCKNUM childblocknum = BNC_BLOCKNUM(node, childnum);
+	    u_int32_t fullhash = compute_child_fullhash(t->cf, node, childnum);
+	    void *childnode_v;
+	    int r = toku_cachetable_get_and_pin(t->cf, childblocknum, fullhash, &childnode_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t->h);
+	    assert(r==0);
+	    BRTNODE childnode = childnode_v;
+	    u_int64_t child_estimate = 0;
+	    if (childnode->height==0) {
+		child_estimate = toku_omt_size(childnode->u.l.buffer);
+	    } else {
+		int i;
+		for (i=0; i<childnode->u.n.n_children; i++) {
+		    child_estimate += BNC_SUBTREE_LEAFENTRY_ESTIMATE(childnode, i);
+		}
+	    }
+	    assert(BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum)==child_estimate);
+	    toku_unpin_brtnode(t, childnode);
+	}
+    }
+}
 
 long long n_items_malloced;
 
@@ -242,7 +286,7 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node) {
 //	node->log_lsn = toku_txn_get_last_lsn(txn);
 //	//if (node->log_lsn.lsn>33320) printf("%s:%d node%lld lsn=%lld\n", __FILE__, __LINE__, node->thisnodename, node->log_lsn.lsn);
 //    }
-    VERIFY_NODE(node);
+    VERIFY_NODE(brt,node);
     return toku_cachetable_unpin(brt->cf, node->thisnodename, node->fullhash, node->dirty, brtnode_memory_size(node));
 }
 
@@ -371,25 +415,6 @@ static int fill_buf (OMTVALUE lev, u_int32_t idx, void *varray) {
     return 0;
 }
 
-static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum) {
-    switch (BNC_HAVE_FULLHASH(node, childnum)) {
-    case TRUE:
-	{
-	    assert(BNC_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum)));
-	    return BNC_FULLHASH(node, childnum);
-	}
-    case FALSE:
-	{
-	    u_int32_t child_fullhash = toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum));
-	    BNC_HAVE_FULLHASH(node, childnum) = TRUE;
-	    BNC_FULLHASH(node, childnum) = child_fullhash;
-	    return child_fullhash;
-	}
-    }
-    assert(0);
-    return 0;
-}
-
 static int
 brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
 // Effect: Split a leaf node.
@@ -397,7 +422,7 @@ brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE 
     BRTNODE B;
     int r;
 
-    //printf("%s:%d splitting leaf %" PRIu64 " which is size %u (targetsize = %u)\n", __FILE__, __LINE__, node->thisnodename.b, toku_serialize_brtnode_size(node), node->nodesize);
+    //printf("%s:%d splitting leaf %" PRIu64 " which is size %u (targetsize = %u)\", __FILE__, __LINE__, node->thisnodename.b, toku_serialize_brtnode_size(node), node->nodesize);
 
     assert(node->height==0);
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
@@ -518,6 +543,12 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 
 static int
 brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger) {
+    if (0) {
+	printf("%s:%d Node %" PRIu64 "->u.n.n_children=%d estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
+	int i;
+	for (i=0; i<node->u.n.n_children; i++) printf(" %" PRId64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+	printf("\n");
+    }
     assert(node->height>0);
     BRTNODE child;
     {
@@ -533,11 +564,11 @@ brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger) {
 	if (r!=0) return r;
 	child = childnode_v;
 	assert(child->thisnodename.b!=0);
-	VERIFY_NODE(child);
+	VERIFY_NODE(t,child);
     }
     BRTNODE nodea, nodeb;
     DBT splitk;
-    printf("%s:%d node->u.n.n_children=%d height=%d\n", __FILE__, __LINE__, node->u.n.n_children, node->height);
+    // printf("%s:%d node %" PRIu64 "->u.n.n_children=%d height=%d\n", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children, node->height);
     if (child->height==0) {
 	int r = brtleaf_split(logger, toku_cachefile_filenum(t->cf), t, child, &nodea, &nodeb, &splitk);
 	assert(r==0); // REMOVE LATER
@@ -547,9 +578,15 @@ brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger) {
 	assert(r==0); // REMOVE LATER
 	if (r!=0) return r;
     }
+    // printf("%s:%d child did split\n", __FILE__, __LINE__);
     {
 	int r = handle_split_of_child_simple (t, node, childnum, nodea, nodeb, &splitk, logger);
-	printf("%s:%d node->u.n.n_children=%d\n", __FILE__, __LINE__, node->u.n.n_children);
+	if (0) {
+	    printf("%s:%d Node %" PRIu64 "->u.n.n_children=%d estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
+	    int i;
+	    for (i=0; i<node->u.n.n_children; i++) printf(" %" PRId64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+	    printf("\n");
+	}
 	return r;
     }
 }
@@ -585,7 +622,13 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
     MALLOC_N(n_children_in_b+1, B->u.n.childinfos);
     MALLOC_N(n_children_in_b, B->u.n.childkeys);
     B->u.n.n_children   =n_children_in_b;
-    //printf("%s:%d %p (%lld) becomes %p and %p\n", __FILE__, __LINE__, node, node->thisnodename, A, B);
+    if (0) {
+	printf("%s:%d %p (%" PRIu64 ") splits, old estimates:", __FILE__, __LINE__, node, node->thisnodename.b);
+	int i;
+	for (i=0; i<node->u.n.n_children; i++) printf(" %" PRId64, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
+	printf("\n");
+    }
+
     //printf("%s:%d A is at %lld\n", __FILE__, __LINE__, A->thisnodename);
     {
 	/* The first n_children_in_a go into node a.
@@ -691,6 +734,9 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	verify_local_fingerprint_nonleaf(node);
 	verify_local_fingerprint_nonleaf(B);
     }
+
+    node->dirty = 1;
+    B   ->dirty = 1;
 
     *nodea = node;
     *nodeb = B;
@@ -900,7 +946,6 @@ handle_split_of_child_simple (BRT t, BRTNODE node, int childnum,
     int       old_count = BNC_NBYTESINBUF(node, childnum);
     int cnum;
     int r;
-    assert(node->u.n.n_children<=TREE_FANOUT);
 
     if (toku_brt_debug_mode) {
 	int i;
@@ -1045,9 +1090,9 @@ handle_split_of_child_simple (BRT t, BRTNODE node, int childnum,
     //verify_local_fingerprint_nonleaf(childb);
     //verify_local_fingerprint_nonleaf(node);
 
-    VERIFY_NODE(node);
-    VERIFY_NODE(childa);
-    VERIFY_NODE(childb);
+    VERIFY_NODE(t, node);
+    VERIFY_NODE(t, childa);
+    VERIFY_NODE(t, childb);
 
     r=toku_unpin_brtnode(t, childa);
     assert(r==0);
@@ -1221,9 +1266,9 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     //verify_local_fingerprint_nonleaf(childb);
     //verify_local_fingerprint_nonleaf(node);
 
-    VERIFY_NODE(node);
-    VERIFY_NODE(childa);
-    VERIFY_NODE(childb);
+    VERIFY_NODE(t, node);
+    VERIFY_NODE(t, childa);
+    VERIFY_NODE(t, childb);
 
     r=toku_unpin_brtnode(t, childa);
     assert(r==0);
@@ -1275,7 +1320,7 @@ push_some_brt_cmds_down_simple (BRT t, BRTNODE node, int childnum, BOOL *must_sp
     BRTNODE child = childnode_v;
     assert(child->thisnodename.b!=0);
     //verify_local_fingerprint_nonleaf(child);
-    VERIFY_NODE(child);
+    VERIFY_NODE(t, child);
     //printf("%s:%d height=%d n_bytes_in_buffer = {%d, %d, %d, ...}\n", __FILE__, __LINE__, child->height, child->n_bytes_in_buffer[0], child->n_bytes_in_buffer[1], child->n_bytes_in_buffer[2]);
     //printf("%s:%d before pushing into Node %" PRIu64 ", disksize=%d", __FILE__, __LINE__, child->thisnodename.b, toku_serialize_brtnode_size(child));
     //if (child->height==0) printf(" omtsize=%d", toku_omt_size(child->u.l.buffer));
@@ -1360,7 +1405,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     child=childnode_v;
     assert(child->thisnodename.b!=0);
     //verify_local_fingerprint_nonleaf(child);
-    VERIFY_NODE(child);
+    VERIFY_NODE(t, child);
     //printf("%s:%d height=%d n_bytes_in_buffer = {%d, %d, %d, ...}\n", __FILE__, __LINE__, child->height, child->n_bytes_in_buffer[0], child->n_bytes_in_buffer[1], child->n_bytes_in_buffer[2]);
     if (child->height>0 && child->u.n.n_children>0) assert(BNC_BLOCKNUM(child, child->u.n.n_children-1).b!=0);
   
@@ -1845,7 +1890,7 @@ brt_leaf_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 // The leaf could end up "too big".  It is up to the caller to fix that up.
 {
 //    toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
-    VERIFY_NODE(node);
+    VERIFY_NODE(t, node);
     assert(node->height==0);
 
     LEAFENTRY storeddata;
@@ -1913,14 +1958,14 @@ brt_leaf_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 	if (r != 0) return r;
 	storeddata=storeddatav;
 
-	VERIFY_NODE(node);
+	VERIFY_NODE(t, node);
 
 	static int count=0;
 	count++;
 	r = brt_leaf_apply_cmd_once(t, node, cmd, logger, idx, storeddata);
 	if (r!=0) return r;
 
-	VERIFY_NODE(node);
+	VERIFY_NODE(t, node);
 	break;
 
     case BRT_DELETE_ANY:
@@ -1970,7 +2015,7 @@ brt_leaf_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 	
 //	toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
 
-    VERIFY_NODE(node);
+    VERIFY_NODE(t, node);
     *new_size = toku_serialize_brtnode_size(node);
     return 0;
 }
@@ -1991,8 +2036,8 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	*did_split = 1;
 	assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
 	assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
-	VERIFY_NODE(*nodea);
-	VERIFY_NODE(*nodeb);
+	VERIFY_NODE(t, *nodea);
+	VERIFY_NODE(t, *nodeb);
     } else {
 	*did_split = 0;
     }
@@ -2162,7 +2207,7 @@ merge (void) {
 }
 
 static inline int
-brt_serialize_size_of_child (BRT t, BRTNODE node, int childnum) {
+brt_serialize_size_of_child (BRT t, BRTNODE node, int childnum, int *fanout) {
     assert(node->height>0);
     BLOCKNUM childblocknum = BNC_BLOCKNUM(node, childnum);
     u_int32_t fullhash = compute_child_fullhash(t->cf, node, childnum);
@@ -2171,6 +2216,7 @@ brt_serialize_size_of_child (BRT t, BRTNODE node, int childnum) {
     BRTNODE childnode = childnode_v;
     int size = toku_serialize_brtnode_size(childnode);
     assert(r==0);
+    *fanout = (childnode->height==0) ? 0 : childnode->u.n.n_children;
     r = toku_cachetable_unpin(t->cf, childnode->thisnodename, childnode->fullhash, 0, brtnode_memory_size(childnode));
     assert(r==0);
     return size;
@@ -2201,12 +2247,14 @@ brt_nonleaf_put_cmd_child_simple (BRT t, BRTNODE node, unsigned int childnum, BR
     if (BNC_NBYTESINBUF(node, childnum) == 0) {
 	BOOL must_split MAYBE_INIT(FALSE);
 	BOOL must_merge MAYBE_INIT(FALSE);
+	//printf("%s:%d fix up fingerprint?\n", __FILE__, __LINE__);
         int r = brt_nonleaf_put_cmd_child_node_simple(t, node, childnum, TRUE, cmd, logger, &must_split, &must_merge);
 	//printf("%s:%d Put in child, must_split=%d must_merge=%d\n", __FILE__, __LINE__, must_split, must_merge);
 	if (r==0) {
 	    return brt_nonleaf_maybe_split_or_merge(t, node, childnum, must_split, must_merge, logger, new_fanout);
 	}
 	// Otherwise fall out and append it to the child buffer.
+	//printf("%s:%d fall out\n", __FILE__, __LINE__);
     }
     //verify_local_fingerprint_nonleaf(node);
 
@@ -2230,12 +2278,31 @@ brt_nonleaf_put_cmd_child_simple (BRT t, BRTNODE node, unsigned int childnum, BR
 	BOOL must_split MAYBE_INIT(FALSE);
 	BOOL must_merge MAYBE_INIT(FALSE);
 	find_heaviest_child(node, &biggest_child);
-	//printf("%s:%d Pushing into child %d (Node %" PRIu64 ", size %d)\n", __FILE__, __LINE__, biggest_child, BNC_BLOCKNUM(node, biggest_child).b, brt_serialize_size_of_child(t, node, biggest_child));
+	{
+	    int cfan;
+	    int csize;
+	    csize = brt_serialize_size_of_child(t, node, biggest_child, &cfan);
+	    if (0) printf("%s:%d Node %" PRIu64 " fanout=%d Pushing into child %d (Node %" PRIu64 ", size=%d, fanout=%d estimate=%" PRId64 ")\n", __FILE__, __LINE__,
+			  node->thisnodename.b, node->u.n.n_children,
+			  biggest_child, BNC_BLOCKNUM(node, biggest_child).b, csize, cfan, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, biggest_child));
+	}
+	// printf("%s:%d fix up fingerprint?\n", __FILE__, __LINE__);
 	int r = push_some_brt_cmds_down_simple(t, node, biggest_child, &must_split, &must_merge, logger);
 	if (r!=0) return r;
 	return brt_nonleaf_maybe_split_or_merge(t, node, biggest_child, must_split, must_merge, logger, new_fanout);
     }
     *new_fanout = node->u.n.n_children;
+    if (0) {
+	printf("%s:%d Done pushing Node %" PRIu64 " n_children=%d: estimates=", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children);
+	int i;
+	int64_t total=0;
+	for (i=0; i<node->u.n.n_children; i++) {
+	    int64_t v = BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
+	    total+=v;
+	    printf(" %" PRId64, v);
+	}
+	printf(" total=%" PRId64 " \n", total);
+    }
     return 0;
 }
 
@@ -2298,7 +2365,8 @@ static int
 brt_nonleaf_cmd_many_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, u_int32_t *new_fanout) {
 
     /* find all children that need a copy of the command */
-    int sendchild[TREE_FANOUT], delidx = 0;
+    int *MALLOC_N(node->u.n.n_children, sendchild);
+    int delidx = 0;
 #define sendchild_append(i) \
         if (delidx == 0 || sendchild[delidx-1] != i) sendchild[delidx++] = i;
     int i;
@@ -2323,6 +2391,7 @@ brt_nonleaf_cmd_many_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger
 #undef sendchild_append
 
     /* issue the cmd to all of the children found previously */
+    int r;
     for (i=0; i<delidx; i++) {
 	/* Append the cmd to the appropriate child buffer. */
 	int childnum = sendchild[i];
@@ -2330,8 +2399,8 @@ brt_nonleaf_cmd_many_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger
         DBT *k = cmd->u.id.key;
         DBT *v = cmd->u.id.val;
 
-	int r = log_and_save_brtenq(logger, t, node, childnum, cmd->xid, type, k->data, k->size, v->data, v->size, &node->local_fingerprint);
-	if (r!=0) return r;
+	r = log_and_save_brtenq(logger, t, node, childnum, cmd->xid, type, k->data, k->size, v->data, v->size, &node->local_fingerprint);
+	if (r!=0) goto return_r;
 	int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
         r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xid);
 	assert(r==0);
@@ -2344,12 +2413,15 @@ brt_nonleaf_cmd_many_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger
 	BOOL must_split MAYBE_INIT(FALSE);
 	BOOL must_merge MAYBE_INIT(FALSE);
 	find_heaviest_child(node, &biggest_child);
-	int r = push_some_brt_cmds_down_simple(t, node, biggest_child, &must_split, &must_merge, logger);
-	if (r!=0) return r;
+	r = push_some_brt_cmds_down_simple(t, node, biggest_child, &must_split, &must_merge, logger);
+	if (r!=0) goto return_r;
 	return brt_nonleaf_maybe_split_or_merge(t, node, biggest_child, must_split, must_merge, logger, new_fanout);
     }
     *new_fanout = node->u.n.n_children;
-    return 0;
+    r=0;
+ return_r:
+    toku_free(sendchild);
+    return r;
 }
 
 /* delete in all subtrees starting from the left most one which contains the key */
@@ -2481,7 +2553,7 @@ brtnode_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 	*should_merge = (new_size*4) < node->nodesize;
     } else {
 	int r;
-	u_int32_t new_fanout;
+	u_int32_t new_fanout = 0; // Some compiler bug in gcc is complaining that this is uninitialized.
 	r = brt_nonleaf_put_cmd_simple(t, node, cmd, logger, &new_fanout);
 	if (r!=0) return 0;
 	*should_split = new_fanout > TREE_FANOUT;
@@ -3109,7 +3181,7 @@ static int push_something_simple(BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_C
     {
 	int r = brtnode_put_cmd_simple(brt, node, cmd, logger, &should_split, &should_merge);
 	if (r!=0) return r;
-	if (should_split) printf("%s:%d Pushing something simple, should_split\n", __FILE__, __LINE__); 
+	//if (should_split) printf("%s:%d Pushed something simple, should_split=1\n", __FILE__, __LINE__); 
 
     }
     assert(should_split!=(BOOL)-1 && should_merge!=(BOOL)-1);
