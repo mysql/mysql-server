@@ -111,6 +111,7 @@ static unsigned int             tNoOfOpsPerTrans = 1;
 static unsigned int             tLoadFactor = 80;
 static bool                     tempTable = false;
 static bool                     startTransGuess = true;
+static int                      tExtraReadLoop = 0;
 
 //Program Flags
 static int                              theTestFlag = 0;
@@ -337,11 +338,14 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       
       failed = 0 ;
 
-      START_TIMER;
-      execute(stRead);
-      STOP_TIMER;
-      a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
-      PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
+      for (int ll = 0; ll < 1 + tExtraReadLoop; ll++)
+      {
+        START_TIMER;
+        execute(stRead);
+        STOP_TIMER;
+        a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+        PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
+      }
 
       if (0 < failed) {
         int i = retry_opt ;
@@ -412,11 +416,14 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
       
       failed = 0 ;
           
-      START_TIMER;
-      execute(stRead);
-      STOP_TIMER;
-      a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
-      PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
+      for (int ll = 0; ll < 1 + tExtraReadLoop; ll++)
+      {
+        START_TIMER;
+        execute(stRead);
+        STOP_TIMER;
+        a_r.addObservation((1000 * noOfTransacts * tNoOfOpsPerTrans) / timer.elapsedTime());
+        PRINT_TIMER("read", noOfTransacts, tNoOfOpsPerTrans);
+      }        
 
       if (0 < failed) {
         int i = retry_opt ;
@@ -1080,6 +1087,8 @@ readArguments(int argc, const char** argv){
       tNdbRecord = true;
       argc++;
       i--;
+    } else if (strcmp(argv[i], "-r") == 0){
+      tExtraReadLoop = atoi(argv[i+1]);
     } else {
       return -1;
     }
