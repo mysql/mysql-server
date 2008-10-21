@@ -2850,10 +2850,10 @@ function_exit:
 		ibuf_data->n_inserts++;
 
 		mutex_exit(&ibuf_mutex);
-	}
 
-	if ((mode == BTR_MODIFY_TREE) && (err == DB_SUCCESS)) {
-		ibuf_contract_after_insert(entry_size);
+		if (mode == BTR_MODIFY_TREE) {
+			ibuf_contract_after_insert(entry_size);
+		}
 	}
 
 	if (do_merge) {
