@@ -896,7 +896,7 @@ printLogEvent(struct ndb_logevent* event)
 //*****************************************************************************
 //*****************************************************************************
 
-static int do_event_thread;
+static int do_event_thread= 0;
 static void*
 event_thread_run(void* p)
 {
@@ -932,7 +932,7 @@ event_thread_run(void* p)
   }
   else
   {
-    do_event_thread= -1;
+    do_event_thread= 0;
   }
 
   DBUG_RETURN(NULL);
