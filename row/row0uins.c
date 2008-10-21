@@ -231,7 +231,7 @@ static
 void
 row_undo_ins_parse_undo_rec(
 /*========================*/
-	undo_node_t*	node)	/* in: row undo node */
+	undo_node_t*	node)	/* in/out: row undo node */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -258,8 +258,19 @@ row_undo_ins_parse_undo_rec(
 	} else {
 		clust_index = dict_table_get_first_index(node->table);
 
-		ptr = trx_undo_rec_get_row_ref(
-			ptr, clust_index, &node->ref, node->heap);
+		if (clust_index != NULL) {
+			ptr = trx_undo_rec_get_row_ref(
+				ptr, clust_index, &node->ref, node->heap);
+		} else {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: table ");
+			ut_print_name(stderr, node->trx, TRUE,
+				      node->table->name);
+			fprintf(stderr, " has no indexes, "
+				"ignoring the table\n");
+
+			node->table = NULL;
+		}
 	}
 }
 
