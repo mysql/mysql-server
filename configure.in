@@ -2061,7 +2061,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
   backtrace backtrace_symbols backtrace_symbols_fd \
-  posix_fallocate posix_memalign memalign)
+  posix_fallocate posix_memalign memalign directio)
 
 #
 #
