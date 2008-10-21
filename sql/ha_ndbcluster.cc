@@ -166,7 +166,8 @@ static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
                                 my_bool not_used __attribute__((unused)));
 
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
-                                    const NdbRecord *, struct Ndb_statistics *);
+                                    const NdbRecord *, struct Ndb_statistics *,
+                                    bool have_lock= FALSE);
 
 THD *injector_thd= 0;
 
@@ -756,7 +757,8 @@ static void set_ndb_err(THD *thd, const NdbError &err)
   DBUG_VOID_RETURN;
 }
 
-int ha_ndbcluster::ndb_err(NdbTransaction *trans)
+int ha_ndbcluster::ndb_err(NdbTransaction *trans,
+                           bool have_lock)
 {
   THD *thd= current_thd;
   int res;
@@ -775,7 +777,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
-    close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
+    close_cached_tables(thd, &table_list, have_lock, FALSE, FALSE);
     break;
   }
   default:
@@ -5265,6 +5267,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   }
   if (!trans)
   {
+    DBUG_ASSERT(thd_ndb->changed_tables.is_empty() == TRUE);
     thd_ndb->trans_options= 0;
 
     DBUG_PRINT("trans",("Possibly starting transaction"));
@@ -5459,9 +5462,11 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     {
       DBUG_PRINT("info", ("Rows has changed"));
 
-      if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+      if (thd_ndb->trans &&
+          thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
       {
-        DBUG_PRINT("info", ("Add share to list of changed tables"));
+        DBUG_PRINT("info", ("Add share to list of changed tables, %p",
+                            m_share));
         /* NOTE push_back allocates memory using transactions mem_root! */
         thd_ndb->changed_tables.push_back(get_share(m_share),
                                           &thd->transaction.mem_root);
@@ -5747,6 +5752,8 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   List_iterator_fast<NDB_SHARE> it(thd_ndb->changed_tables);
   while ((share= it++))
   {
+    DBUG_PRINT("info", ("Remove share to list of changed tables, %p",
+                        share));
     pthread_mutex_lock(&share->mutex);
     DBUG_PRINT("info", ("Invalidate commit_count for %s, share->commit_count: %lu",
                         share->table_name, (ulong) share->commit_count));
@@ -5773,12 +5780,34 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   NdbTransaction *trans= thd_ndb->trans;
 
   DBUG_ENTER("ndbcluster_rollback");
+  DBUG_PRINT("enter", ("all: %d", all));
+  PRINT_OPTION_FLAGS(thd);
   DBUG_ASSERT(ndb);
   thd_ndb->start_stmt_count= 0;
   if (trans == NULL)
   {
     /* Ignore end-of-statement until real rollback or commit is called */
+    DBUG_PRINT("info", ("trans == NULL"));
+    DBUG_RETURN(0);
+  }
+  if (!all && thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  {
+    /*
+      Ignore end-of-statement until real rollback or commit is called
+      as ndb does not support rollback statement
+      - mark that rollback was unsuccessful, this will cause full rollback
+      of the transaction
+    */
     DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
+    mark_transaction_to_rollback(thd, 1);
+    /*
+      This warning is not useful in the slave sql thread.
+      The slave sql thread code will handle the full rollback.
+    */
+    if (!thd->slave_thread)
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARN_ENGINE_TRANSACTION_ROLLBACK,
+                          ER(ER_WARN_ENGINE_TRANSACTION_ROLLBACK), "NDB");
     DBUG_RETURN(0);
   }
 
@@ -5812,6 +5841,8 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   List_iterator_fast<NDB_SHARE> it(thd_ndb->changed_tables);
   while ((share= it++))
   {
+    DBUG_PRINT("info", ("Remove share to list of changed tables, %p",
+                        share));
     free_share(&share);
   }
   thd_ndb->changed_tables.empty();
@@ -7809,7 +7840,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     local_close(thd, FALSE);
     DBUG_RETURN(res);
   }
-  if ((res= update_stats(thd, 1)) ||
+  if ((res= update_stats(thd, 1, true)) ||
       (res= info(HA_STATUS_CONST)))
   {
     local_close(thd, TRUE);
@@ -9972,7 +10003,9 @@ struct ndb_table_statistics_row {
   Uint64 var_mem;
 };
 
-int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
+int ha_ndbcluster::update_stats(THD *thd,
+                                bool do_read_stat,
+                                bool have_lock)
 {
   struct Ndb_statistics stat;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -9985,7 +10018,8 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
       DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
     }
     if (int err= ndb_get_table_statistics(thd, this, TRUE, ndb,
-                                          m_ndb_record, &stat))
+                                          m_ndb_record, &stat,
+                                          have_lock))
     {
       DBUG_RETURN(err);
     }
@@ -10024,7 +10058,8 @@ static
 int
 ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* ndb,
                          const NdbRecord *record,
-                         struct Ndb_statistics * ndbstat)
+                         struct Ndb_statistics * ndbstat,
+                         bool have_lock)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   NdbTransaction* pTrans;
@@ -10160,7 +10195,7 @@ retry:
     {
       if (file && pTrans)
       {
-        reterr= file->ndb_err(pTrans);
+        reterr= file->ndb_err(pTrans, have_lock);
       }
       else
       {

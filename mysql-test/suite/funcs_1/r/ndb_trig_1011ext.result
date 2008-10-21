@@ -363,7 +363,7 @@ create table t4 (f4 tinyint) engine = <engine_to_be_used>;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) default NULL
+  `f1` int(11) DEFAULT NULL
 ) ENGINE=<engine_to_be_used> DEFAULT CHARSET=latin1
 insert into t1 values (1);
 create trigger tr1 after insert on t1
@@ -375,7 +375,7 @@ for each row insert into t4 (f4) values (new.f3+1000);
 set autocommit=0;
 start transaction;
 insert into t1 values (1);
-ERROR 22003: Out of range value adjusted for column 'f4' at row 1
+ERROR 22003: Out of range value for column 'f4' at row 1
 commit;
 select * from t1 order by f1;
 f1
