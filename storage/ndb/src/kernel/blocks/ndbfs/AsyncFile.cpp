@@ -270,7 +270,10 @@ AsyncFile::check_odirect_write(Uint32 flags, int& new_flags, int mode)
   }
   
   close(theFd);
-  theFd = ::open(theFileName.c_str(), new_flags, mode);
+  /**
+   * We need to (O_TRUNC) truncate the file since we've written a page to it...
+   */
+  theFd = ::open(theFileName.c_str(), new_flags | O_TRUNC, mode);
   if (theFd == -1)
     return errno;
 #endif
@@ -468,6 +471,7 @@ void AsyncFile::openReq(Request* request)
       return;
     }
     new_flags |= O_CREAT;
+    flags |= FsOpenReq::OM_CREATE;
   }
 
 no_odirect:
