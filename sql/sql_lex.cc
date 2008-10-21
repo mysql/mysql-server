@@ -1553,6 +1553,7 @@ void st_select_lex::init_query()
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
   first_execution= 1;
+  first_natural_join_processing= 1;
   first_cond_optimization= 1;
   parsing_place= NO_MATTER;
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
@@ -2396,15 +2397,20 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
   val= sl->select_limit ? sl->select_limit->val_uint() : HA_POS_ERROR;
   select_limit_val= (ha_rows)val;
 #ifndef BIG_TABLES
-  /* 
+  /*
     Check for overflow : ha_rows can be smaller then ulonglong if
     BIG_TABLES is off.
     */
   if (val != (ulonglong)select_limit_val)
     select_limit_val= HA_POS_ERROR;
 #endif
-  offset_limit_cnt= (ha_rows)(sl->offset_limit ? sl->offset_limit->val_uint() :
-                                                 ULL(0));
+  val= sl->offset_limit ? sl->offset_limit->val_uint() : ULL(0);
+  offset_limit_cnt= (ha_rows)val;
+#ifndef BIG_TABLES
+  /* Check for truncation. */
+  if (val != (ulonglong)offset_limit_cnt)
+    offset_limit_cnt= HA_POS_ERROR;
+#endif
   select_limit_cnt= select_limit_val + offset_limit_cnt;
   if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit

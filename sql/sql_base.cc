@@ -489,12 +489,20 @@ static TABLE_SHARE
       "no such table" errors.
       @todo Rework the alternative ways to deal with ER_NO_SUCH TABLE.
     */
-    if (thd->is_error() && table_list->belong_to_view)
+    if (thd->is_error())
     {
-      TABLE_LIST *view= table_list->belong_to_view;
-      thd->clear_error();
-      my_error(ER_VIEW_INVALID, MYF(0),
-               view->view_db.str, view->view_name.str);
+      if (table_list->parent_l)
+      {
+        thd->clear_error();
+        my_error(ER_WRONG_MRG_TABLE, MYF(0));
+      }
+      else if (table_list->belong_to_view)
+      {
+        TABLE_LIST *view= table_list->belong_to_view;
+        thd->clear_error();
+        my_error(ER_VIEW_INVALID, MYF(0),
+                 view->view_db.str, view->view_name.str);
+      }
     }
     DBUG_RETURN(0);
   }
@@ -3720,6 +3728,20 @@ void assign_new_table_id(TABLE_SHARE *share)
   DBUG_VOID_RETURN;
 }
 
+#ifndef DBUG_OFF
+/* Cause a spurious statement reprepare for debug purposes. */
+static bool inject_reprepare(THD *thd)
+{
+  if (thd->m_reprepare_observer && thd->stmt_arena->is_reprepared == FALSE)
+  {
+    thd->m_reprepare_observer->report_error(thd);
+    return TRUE;
+  }
+
+  return FALSE;
+}
+#endif
+
 /**
   Compare metadata versions of an element obtained from the table
   definition cache and its corresponding node in the parse tree.
@@ -3773,15 +3795,7 @@ check_and_update_table_version(THD *thd,
     tables->set_table_ref_id(table_share);
   }
 
-#ifndef DBUG_OFF
-  /* Spuriously reprepare each statement. */
-  if (_db_strict_keyword_("reprepare_each_statement") &&
-      thd->m_reprepare_observer && thd->stmt_arena->is_reprepared == FALSE)
-  {
-    thd->m_reprepare_observer->report_error(thd);
-    return TRUE;
-  }
-#endif
+  DBUG_EXECUTE_IF("reprepare_each_statement", return inject_reprepare(thd););
 
   return FALSE;
 }
@@ -5745,8 +5759,21 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   {
     /* This is a base table. */
     DBUG_ASSERT(nj_col->view_field == NULL);
-    DBUG_ASSERT(nj_col->table_ref->table == nj_col->table_field->table);
-    found_field= nj_col->table_field;
+    /*
+      This fix_fields is not necessary (initially this item is fixed by
+      the Item_field constructor; after reopen_tables the Item_func_eq
+      calls fix_fields on that item), it's just a check during table
+      reopening for columns that was dropped by the concurrent connection.
+    */
+    if (!nj_col->table_field->fixed &&
+        nj_col->table_field->fix_fields(thd, (Item **)&nj_col->table_field))
+    {
+      DBUG_PRINT("info", ("column '%s' was dropped by the concurrent connection",
+                          nj_col->table_field->name));
+      DBUG_RETURN(NULL);
+    }
+    DBUG_ASSERT(nj_col->table_ref->table == nj_col->table_field->field->table);
+    found_field= nj_col->table_field->field;
     update_field_dependencies(thd, found_field, nj_col->table_ref->table);
   }
 
@@ -6671,7 +6698,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     const char *field_name_1;
     /* true if field_name_1 is a member of using_fields */
     bool is_using_column_1;
-    if (!(nj_col_1= it_1.get_or_create_column_ref(leaf_1)))
+    if (!(nj_col_1= it_1.get_or_create_column_ref(thd, leaf_1)))
       goto err;
     field_name_1= nj_col_1->name();
     is_using_column_1= using_fields && 
@@ -6692,7 +6719,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     {
       Natural_join_column *cur_nj_col_2;
       const char *cur_field_name_2;
-      if (!(cur_nj_col_2= it_2.get_or_create_column_ref(leaf_2)))
+      if (!(cur_nj_col_2= it_2.get_or_create_column_ref(thd, leaf_2)))
         goto err;
       cur_field_name_2= cur_nj_col_2->name();
       DBUG_PRINT ("info", ("cur_field_name_2=%s.%s", 
@@ -7182,15 +7209,24 @@ static bool setup_natural_join_row_types(THD *thd,
   TABLE_LIST *left_neighbor;
   /* Table reference to the right of the current. */
   TABLE_LIST *right_neighbor= NULL;
+  bool save_first_natural_join_processing=
+    context->select_lex->first_natural_join_processing;
+
+  context->select_lex->first_natural_join_processing= FALSE;
 
   /* Note that tables in the list are in reversed order */
   for (left_neighbor= table_ref_it++; left_neighbor ; )
   {
     table_ref= left_neighbor;
     left_neighbor= table_ref_it++;
-    /* For stored procedures do not redo work if already done. */
-    if (context->select_lex->first_execution)
+    /* 
+      Do not redo work if already done:
+      1) for stored procedures,
+      2) for multitable update after lock failure and table reopening.
+    */
+    if (save_first_natural_join_processing)
     {
+      context->select_lex->first_natural_join_processing= FALSE;
       if (store_top_level_join_columns(thd, table_ref,
                                        left_neighbor, right_neighbor))
         return TRUE;

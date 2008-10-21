@@ -1,25 +1,44 @@
-#### suite/funcs_1/storedproc/storedproc_master.inc
-###########################################################################
-# WL4084: Review and fix all disabled test
-# enabled this test.
-# 2007-Oct-04 Hhunger
+# suite/funcs_1/t/storedproc.test
+#
+# Check general properties of stored procedures.
+# 
+# Last Modification:
+# 2008-08-27 mleich - Fix Bug#37744 Expected result of "<engine>_storedproc"
+#                                   test is inconsistent
+#                   - remove variation of storage engines
+#                   - restore global sort_buffer_size after some subtest
+#                  
 ############################################################################
---enable_query_log
+
+# This test cannot be used for the embedded server because we check here
+# privileges.
+--source include/not_embedded.inc
+
+# It is assumed that the storage engine used for some tables has no impact on
+# the outcome of this test. Therefor we use simply the fastest engine.
+let $engine_type= memory;
+
+--source suite/funcs_1/storedproc/load_sp_tb.inc
+
 
 # ==============================================================================
-let $message= Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
+echo;
+echo
+Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
 FUNCTION, ALTER PROCEDURE, ALTER FUNCTION, DROP PROCEDURE, DROP FUNCTION, SHOW
 CREATE PROCEDURE, SHOW CREATE FUNCTION, SHOW CREATE PROCEDURE STATUS, SHOW
 CREATE FUNCTION STATUS, and CALL statements:;
---source include/show_msg80.inc
+echo --------------------------------------------------------------------------------;
 
 
 # ------------------------------------------------------------------------------
-let $message= Testcase 4.1.1:
-              ---------------
-              Ensure that all clauses that should be supported are supported
-              CREATE PROCEDURE;
---source include/show_msg80.inc
+echo;
+echo
+Testcase 4.1.1:
+---------------
+Ensure that all clauses that should be supported are supported
+CREATE PROCEDURE;
+echo --------------------------------------------------------------------------------;
 
 USE db_storedproc;
 
@@ -41,69 +60,73 @@ DROP PROCEDURE IF EXISTS sp1_thisisaveryverylongname234872934_thisisaveryverylon
 
 delimiter //;
 --error ER_TOO_LONG_IDENT
-CREATE PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( f1 tinytext ) language sql deterministic sql security definer comment 'this is simple'
-  BEGIN
-    set @v1 = f1;
-    SELECT @v1, @v1;
+CREATE PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( f1 TINYTEXT )
+   LANGUAGE SQL DETERMINISTIC SQL SECURITY DEFINER COMMENT 'this is simple'
+BEGIN
+   SET @v1 = f1;
+   SELECT @v1, @v1;
 END//
 delimiter ;//
 
 --error ER_TOO_LONG_IDENT
 CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( 'abc' );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status;
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-CREATE PROCEDURE sp1( f1 binary ) language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-    set @v1 = f1;
-    SELECT @v1;
-END//
-delimiter ;//
-
-CALL sp1( 34 );
-
---replace_column 5 modified 6 created
-SHOW PROCEDURE status;
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
-CREATE PROCEDURE sp1( f1 blob ) language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-    set @v1 = f1;
-    SELECT @v1;
-END//
-delimiter ;//
-
-CALL sp1( 34 );
-
---replace_column 5 modified 6 created
-SHOW PROCEDURE status;
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
-CREATE PROCEDURE sp1( f1 int )  language sql not deterministic sql security invoker comment 'this is simple'
+CREATE PROCEDURE sp1( f1 BINARY )
+   LANGUAGE SQL DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-    set @v1 = f1;
-    SELECT @v1;
+   SET @v1 = f1;
+   SELECT @v1;
 END//
 delimiter ;//
 
 CALL sp1( 34 );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status;
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS;
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+CREATE PROCEDURE sp1( f1 BLOB )
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+   set @v1 = f1;
+   SELECT @v1;
+END//
+delimiter ;//
+
+CALL sp1( 34 );
+
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS;
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+CREATE PROCEDURE sp1( f1 INT )
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+   SET @v1 = f1;
+   SELECT @v1;
+END//
+delimiter ;//
+
+CALL sp1( 34 );
+
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -111,108 +134,163 @@ DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
 --error ER_TOO_BIG_PRECISION
-CREATE PROCEDURE sp1( f1 decimal(256, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
+CREATE PROCEDURE sp1( f1 DECIMAL(256, 30) )
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-    set @v1 = f1;
-    SELECT @v1;
+   SET @v1 = f1;
+   SELECT @v1;
 END//
 DROP PROCEDURE IF EXISTS sp1//
 
 --error ER_TOO_BIG_PRECISION
-CREATE PROCEDURE sp1( f1 decimal(66, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
+CREATE PROCEDURE sp1( f1 DECIMAL(66, 30) )
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-    set @v1 = f1;
-    SELECT @v1;
+   SET @v1 = f1;
+   SELECT @v1;
 END//
 DROP PROCEDURE IF EXISTS sp1//
-
-CREATE PROCEDURE sp1( f1 decimal(60, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
-BEGIN
-    set @v1 = f1;
-    SELECT @v1;
-END//
 delimiter ;//
 
-CALL sp1( 17976931340000 );
 
-# switched off due to big differences with (e.g....) sol10-sparc-b
-CALL sp1( 1.797693134e+13 );
---error ER_ILLEGAL_VALUE_FOR_TYPE
-CALL sp1( 1.7976931348623157493578e+308 );
+# Check assignment of float values to DECIMAL(65, 30) parameters of
+# PRODDUREs and FUNCTIONs.
+###########################################################################
+# - The assignment of float values causes that conversions with OS/compiler
+#   specific math libraries are involved.
+#   --> The content depends on the testing box and simple printing
+#       of content will often lead to differences.
+# - We have the same conversions when assigning float values to columns
+#   of tables.
+# --> Reveal that we have a consistent behaviour per testing box.
+#
+# Checks that floating point values assigned to objects of type DECIMAL
+# end up with correct DECIMAL values (truncated to a border of the DECIMAL
+# value range or reasonable nearby the floating point value) must be done
+# in other tests.
+###########################################################################
+--disable_warnings
+DROP TABLE IF EXISTS t1_aux;
+DROP PROCEDURE IF EXISTS sproc_1;
+DROP FUNCTION IF EXISTS func_1;
+--enable_warnings
+CREATE TABLE t1_aux ( f1 DECIMAL(65, 30) );
+INSERT INTO t1_aux SET f1 = NULL;
+delimiter //;
+CREATE PROCEDURE sproc_1(f1 DECIMAL(65, 30), OUT f2 DECIMAL(65, 30))
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+   SET f2 = NULL;
+   SET f2 = f1;
+   SET @v2_proc = f1;
+END//
+CREATE FUNCTION func_1(f1 DECIMAL(65, 30)) RETURNS DECIMAL(65,30)
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+    RETURN f1;
+END//
+delimiter ;//
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS;
+--replace_column 5 <modified> 6 <created>
+SHOW FUNCTION STATUS;
 
-# check all ...E+100 to E-100
-let $digits= 100;
-while ($digits)
+let $test_value = 1.7976931348623157493578e+308;
+--source suite/funcs_1/storedproc/param_check.inc
+#
+# Check all ...E+nnn
+let digits= 100;
+let $run= 1;
+while ($run)
 {
-   eval CALL sp1( 0.1234567890987654321e+$digits );
-   eval CALL sp1( 0.1234567890987654321e-$digits );
-   dec $digits;
+   let $test_value = 0.1234567890987654321e+$digits;
+   --source suite/funcs_1/storedproc/param_check.inc
+   let $run = `SELECT $digits > 0`;
+   if ($run)
+   {
+      dec $digits;
+   }
 }
-# check the 2 values which cannot be handled easy in the loop:
-eval CALL sp1( 0.1234567890987654321e+0 );
-eval CALL sp1( 0.1234567890987654321e-0 );
+# Check all ...E-nnn
+let digits= 100;
+let $run= 1;
+while ($run)
+{
+   let $test_value = 0.1234567890987654321e-$digits;
+   --source suite/funcs_1/storedproc/param_check.inc
+   let $run = `SELECT $digits > 0`;
+   if ($run)
+   {
+      dec $digits;
+   }
+}
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status;
+# Cleanup
+DROP PROCEDURE sproc_1;
+DROP FUNCTION  func_1;
+DROP TABLE     t1_aux;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-CREATE PROCEDURE sp1( f1 enum("value1", "value1") )  language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-    SELECT f1;
+CREATE PROCEDURE sp1( f1 ENUM("value1", "value1") )
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+   SELECT f1;
 END//
 delimiter ;//
 
 CALL sp1( "value1" );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status;
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-CREATE PROCEDURE sp1( f1 set("value1", "value1") ) language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-    SELECT f1;
+CREATE PROCEDURE sp1( f1 SET("value1", "value1") )
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+   SELECT f1;
 END//
 delimiter ;//
 
 CALL sp1( "value1, value1" );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status;
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-CREATE PROCEDURE sp1( f1 enum("value1", "value1") )  language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-    SELECT f1;
+CREATE PROCEDURE sp1( f1 ENUM("value1", "value1") )
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+   SELECT f1;
 END//
 delimiter ;//
 
 CALL sp1( "value1" );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status;
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-CREATE PROCEDURE sp1( f1 text ) language sql SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) LANGUAGE SQL SELECT f1;
 
 CALL sp1( 'abc' );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status like 'sp1';
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -221,48 +299,48 @@ DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 text ) deterministic SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status like 'sp1';
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-CREATE PROCEDURE sp1( f1 text ) not deterministic SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) NOT DETERMINISTIC SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status like 'sp1';
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-CREATE PROCEDURE sp1( f1 text ) sql security definer SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) SQL SECURITY DEFINER SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status like 'sp1';
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-CREATE PROCEDURE sp1( f1 text ) sql security invoker SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) SQL SECURITY INVOKER SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status like 'sp1';
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-CREATE PROCEDURE sp1( f1 text ) comment 'this is simple' SELECT f1;
+CREATE PROCEDURE sp1( f1 TEXT ) COMMENT 'this is simple' SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 modified 6 created
-SHOW PROCEDURE status like 'sp1';
+--replace_column 5 <modified> 6 <created>
+SHOW PROCEDURE STATUS LIKE 'sp1';
 
 # cleanup
 DROP PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934;
@@ -281,8 +359,8 @@ let $message= Testcase 4.1.2:
 DROP FUNCTION IF EXISTS fn1;
 --enable_warnings
 
-CREATE FUNCTION fn1 (s char(20)) returns char(50)
-    return concat('hello, ', s, '!');
+CREATE FUNCTION fn1 (s CHAR(20)) RETURNS CHAR(50)
+   RETURN CONCAT('hello, ', s, '!');
 SELECT fn1('world');
 
 --disable_warnings
@@ -290,17 +368,18 @@ DROP FUNCTION IF EXISTS fn1;
 --enable_warnings
 
 delimiter //;
-CREATE FUNCTION fn1( f1 mediumtext ) returns mediumtext   language sql deterministic sql security definer comment 'this is simple'
-  BEGIN
-    set @v1 = 'hello';
-    set f1 = concat( @v1, f1 );
-    return f1;
+CREATE FUNCTION fn1( f1 MEDIUMTEXT ) RETURNS MEDIUMTEXT
+   LANGUAGE SQL DETERMINISTIC SQL SECURITY DEFINER COMMENT 'this is simple'
+BEGIN
+   SET @v1 = 'hello';
+   SET f1 = CONCAT( @v1, f1 );
+   RETURN f1;
 END//
 delimiter ;//
 
 SELECT fn1( ' world');
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings
@@ -308,16 +387,17 @@ DROP FUNCTION IF EXISTS fn1;
 --enable_warnings
 
 delimiter //;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint language sql not deterministic sql security invoker comment 'this is simple'
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-    set f1 = 1 + f1;
-    return f1;
+   SET f1 = 1 + f1;
+   RETURN f1;
 END//
 delimiter ;//
 
 SELECT fn1( 126 );
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings
@@ -327,10 +407,11 @@ DROP FUNCTION IF EXISTS fn1;
 delimiter //;
 # 1425: Too big scale 63 specified for column ''. Maximum is 30.
 --error ER_TOO_BIG_SCALE
-CREATE FUNCTION fn1( f1 decimal(63, 31) ) returns decimal(63, 31) language sql not deterministic sql security invoker comment 'this is simple'
+CREATE FUNCTION fn1( f1 DECIMAL(63, 31) ) RETURNS DECIMAL(63, 31)
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-    set f1 = 1000000 + f1;
-    return f1;
+   SET f1 = 1000000 + f1;
+   RETURN f1;
 END//
 delimiter ;//
 
@@ -338,16 +419,17 @@ delimiter ;//
 SELECT fn1( 1.3326e+8 );
 
 delimiter //;
-CREATE FUNCTION fn1( f1 decimal(63, 30) ) returns decimal(63, 30) language sql not deterministic sql security invoker comment 'this is simple'
+CREATE FUNCTION fn1( f1 DECIMAL(63, 30) ) RETURNS DECIMAL(63, 30)
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
 BEGIN
-    set f1 = 1000000 + f1;
-    return f1;
+   SET f1 = 1000000 + f1;
+   RETURN f1;
 END//
 delimiter ;//
 
 SELECT fn1( 1.3326e+8 );
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings
@@ -355,9 +437,10 @@ DROP FUNCTION IF EXISTS fn1;
 --enable_warnings
 
 delimiter //;
-CREATE FUNCTION fn1( f1 enum("value1", "value1") ) returns decimal(63, 30)  language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-    return f1;
+CREATE FUNCTION fn1( f1 ENUM("value1", "value1") ) RETURNS DECIMAL(63, 30)
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+   RETURN f1;
 END//
 delimiter ;//
 
@@ -370,7 +453,7 @@ delimiter ;//
 SELECT fn1( "value1" );
 --enable_warnings
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings
@@ -378,9 +461,10 @@ DROP FUNCTION IF EXISTS fn1;
 --enable_warnings
 
 delimiter //;
-CREATE FUNCTION fn1( f1 set("value1", "value1") ) returns decimal(63, 30) language sql not deterministic sql security invoker comment 'this is simple'
-  BEGIN
-    return f1;
+CREATE FUNCTION fn1( f1 SET("value1", "value1") ) RETURNS DECIMAL(63, 30)
+   LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
+BEGIN
+   RETURN f1;
 END//
 delimiter ;//
 
@@ -393,7 +477,7 @@ delimiter ;//
 SELECT fn1( "value1, value1" );
 --enable_warnings
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings
@@ -401,86 +485,16 @@ DROP FUNCTION IF EXISTS fn1;
 --enable_warnings
 
 delimiter //;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint language sql
-  BEGIN
-      set f1 = 1 + f1;
-      return f1;
-END//
-delimiter ;//
-
-SELECT fn1( 126 );
-
---replace_column 5 modified 6 created
-SHOW FUNCTION STATUS LIKE 'fn1';
-
---disable_warnings
-DROP FUNCTION IF EXISTS fn1;
---enable_warnings
-
-delimiter //;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint deterministic
-  BEGIN
-      set f1 = 1 + f1;
-      return f1;
-END//
-delimiter ;//
-
-SELECT fn1( 126 );
-
---replace_column 5 modified 6 created
-SHOW FUNCTION STATUS LIKE 'fn1';
-
---disable_warnings
-DROP FUNCTION IF EXISTS fn1;
---enable_warnings
-
-delimiter //;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint not deterministic
-  BEGIN
-      set f1 = 1 + f1;
-      return f1;
-END//
-delimiter ;//
-
-SELECT fn1( 126 );
-
---replace_column 5 modified 6 created
-SHOW FUNCTION STATUS LIKE 'fn1';
-
---disable_warnings
-DROP FUNCTION IF EXISTS fn1;
---enable_warnings
-
-delimiter //;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint
-  sql security definer
-  BEGIN
-      set f1 = 1 + f1;
-      return f1;
-END//
-delimiter ;//
-
-SELECT fn1( 126 );
-
---replace_column 5 modified 6 created
-SHOW FUNCTION STATUS LIKE 'fn1';
-
---disable_warnings
-DROP FUNCTION IF EXISTS fn1;
---enable_warnings
-
-delimiter //;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint
-  sql security invoker
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT LANGUAGE SQL
 BEGIN
-   set f1 = 1 + f1;
-   return f1;
+   SET f1 = 1 + f1;
+   RETURN f1;
 END//
 delimiter ;//
 
 SELECT fn1( 126 );
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings
@@ -488,16 +502,84 @@ DROP FUNCTION IF EXISTS fn1;
 --enable_warnings
 
 delimiter //;
-CREATE FUNCTION fn1( f1 smallint ) returns smallint
-   comment 'this is simple'
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT DETERMINISTIC
 BEGIN
-   set f1 = 1 + f1;
-   return f1;
+   SET f1 = 1 + f1;
+   RETURN f1;
 END//
 delimiter ;//
 
 SELECT fn1( 126 );
---replace_column 5 modified 6 created
+
+--replace_column 5 <modified> 6 <created>
+SHOW FUNCTION STATUS LIKE 'fn1';
+
+--disable_warnings
+DROP FUNCTION IF EXISTS fn1;
+--enable_warnings
+
+delimiter //;
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT NOT DETERMINISTIC
+BEGIN
+   SET f1 = 1 + f1;
+   RETURN f1;
+END//
+delimiter ;//
+
+SELECT fn1( 126 );
+
+--replace_column 5 <modified> 6 <created>
+SHOW FUNCTION STATUS LIKE 'fn1';
+
+--disable_warnings
+DROP FUNCTION IF EXISTS fn1;
+--enable_warnings
+
+delimiter //;
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT SQL SECURITY DEFINER
+BEGIN
+   SET f1 = 1 + f1;
+   RETURN f1;
+END//
+delimiter ;//
+
+SELECT fn1( 126 );
+
+--replace_column 5 <modified> 6 <created>
+SHOW FUNCTION STATUS LIKE 'fn1';
+
+--disable_warnings
+DROP FUNCTION IF EXISTS fn1;
+--enable_warnings
+
+delimiter //;
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT SQL SECURITY INVOKER
+BEGIN
+  SET f1 = 1 + f1;
+  RETURN f1;
+END//
+delimiter ;//
+
+SELECT fn1( 126 );
+
+--replace_column 5 <modified> 6 <created>
+SHOW FUNCTION STATUS LIKE 'fn1';
+
+--disable_warnings
+DROP FUNCTION IF EXISTS fn1;
+--enable_warnings
+
+delimiter //;
+CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT COMMENT 'this is simple'
+BEGIN
+   SET f1 = 1 + f1;
+   RETURN f1;
+END//
+delimiter ;//
+
+SELECT fn1( 126 );
+
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 # cleanup
@@ -517,7 +599,7 @@ DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1 (f1 char(20) )
     SELECT * from t1 where f2 = f1;
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 show CREATE PROCEDURE sp1;
 
 # cleanup
@@ -536,7 +618,7 @@ DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1 (s char(20)) returns char(50)
    return concat('hello, ', s, '!');
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 show CREATE FUNCTION fn1;
 
 # cleanup
@@ -552,7 +634,7 @@ SHOW PROCEDURE status;
 CREATE PROCEDURE sp5()
    SELECT * from t1;
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW PROCEDURE status like 'sp5';
 
 # cleanup
@@ -573,7 +655,7 @@ BEGIN
 END//
 delimiter ;//
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn5';
 
 # cleanup
@@ -762,7 +844,7 @@ disconnect u_1;
 connection default;
 --source suite/funcs_1/include/show_connection.inc
 
-alter procedure sp11 sql security definer;
+alter procedure sp11 sql security DEFINER;
 --replace_column 13 created 14 modified
 SELECT security_type from mysql.proc where specific_name='sp11';
 CALL sp11();
@@ -791,7 +873,7 @@ SELECT security_type from mysql.proc where specific_name='fn12';
 --replace_column 13 created 14 modified
 SELECT fn12();
 
-alter function fn12 sql security definer;
+alter function fn12 sql security DEFINER;
 SELECT security_type from mysql.proc where specific_name='fn12';
 --replace_column 13 created 14 modified
 SELECT fn12();
@@ -2494,12 +2576,12 @@ CALL db_storedproc.sp1();
 SELECT db_storedproc.sp1();
 
 USE db_storedproc;
-alter procedure sp1 sql security definer;
+alter procedure sp1 sql security DEFINER;
 CALL db_storedproc.sp1();
 
 SELECT db_storedproc.sp1();
 
-alter function sp1 sql security definer;
+alter function sp1 sql security DEFINER;
 --sorted_result
 SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
 CALL db_storedproc.sp1();
@@ -2527,8 +2609,8 @@ DROP DATABASE IF EXISTS db_storedproc_3122;
 
 CREATE DATABASE db_storedproc_3122;
 USE db_storedproc;
-set @x=null;
-set @y=null;
+SET @x = NULL;
+SET @y = NULL;
 DROP PROCEDURE IF EXISTS sp1;
 DROP FUNCTION IF EXISTS sp1;
 DROP PROCEDURE IF EXISTS db_storedproc_3122.sp1;
@@ -2536,13 +2618,13 @@ DROP FUNCTION IF EXISTS db_storedproc_3122.sp1;
 delimiter //;
 CREATE PROCEDURE sp1()
 BEGIN
-    set @x= 1;
+    SET @x = 1;
     SELECT @x;
 END//
 delimiter ;//
 
 # FIXME ps-protocol vs. normal difference when returning float instead of double
-CREATE FUNCTION db_storedproc_3122.sp1() returns double return 2.2;
+CREATE FUNCTION db_storedproc_3122.sp1() RETURNS DOUBLE RETURN 2.2;
 CALL sp1();
   SELECT db_storedproc_3122.sp1();
   USE db_storedproc_3122;
@@ -2550,20 +2632,20 @@ CALL sp1();
 delimiter //;
 CREATE PROCEDURE sp1 ()
 BEGIN
-    set @x= 3;
+    SET @x = 3;
     SELECT @x;
 END//
 delimiter ;//
 
-CREATE FUNCTION db_storedproc.sp1() returns double return 4.4;
+CREATE FUNCTION db_storedproc.sp1() RETURNS DOUBLE RETURN 4.4;
 CALL sp1();
 SELECT db_storedproc.sp1();
 
-alter procedure db_storedproc_3122.sp1 sql security invoker;
-alter function sp1 sql security invoker;
+ALTER PROCEDURE db_storedproc_3122.sp1 SQL SECURITY INVOKER;
+ALTER FUNCTION sp1 SQL SECURITY INVOKER;
 
 --sorted_result
-SELECT db, name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
+SELECT db, name, type, security_type FROM mysql.proc WHERE db LIKE 'db_storedproc%' AND specific_name='sp1';
 
 CALL db_storedproc.sp1();
 
@@ -2607,11 +2689,11 @@ CREATE FUNCTION sp1 () returns int return 4;
 alter procedure sp1 sql security invoker comment 'this is a procedure';
 alter function sp1 sql security invoker comment 'this is a function';
 
-alter procedure sp1 sql security definer;
-alter function sp1 sql security definer;
---replace_column 5 modified 6 created
+alter procedure sp1 sql security DEFINER;
+alter function sp1 sql security DEFINER;
+--replace_column 5 <modified> 6 <created>
 show CREATE PROCEDURE sp1;
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 show CREATE FUNCTION sp1;
 
 # clean up
@@ -16044,26 +16126,28 @@ let $message= Testcase 4.2.28:;
 #            declared within a stored procedures definition, as well as to every
 #            appropriate global server variable.
 
-set @x=0;
-set @y=0;
+SET @x = 0;
+SET @y = 0;
 DROP PROCEDURE IF EXISTS sp1;
 
+SET @start_global_value = @@GLOBAL.sort_buffer_size;
 delimiter //;
 CREATE PROCEDURE sp1()
 BEGIN
-   declare continue handler for sqlstate '42000' set @x2 = 1;
-   set session sort_buffer_size = 10 * 1024 * 1024;
+   DECLARE CONTINUE HANDLER FOR SQLSTATE '42000' SET @x2 = 1;
+   SET SESSION SORT_BUFFER_SIZE = 10 * 1024 * 1024;
    SELECT @@sort_buffer_size;
-   set @x = 4;
-   set @y = 3;
-   set global sort_buffer_size = 2 * 1024 * 1024;
+   SET @x = 4;
+   SET @y = 3;
+   SET GLOBAL SORT_BUFFER_SIZE = 2 * 1024 * 1024;
    SELECT @@sort_buffer_size;
-   set @@sort_buffer_size = 10 * 1024 * 1024;
+   SET @@sort_buffer_size = 10 * 1024 * 1024;
    SELECT @@sort_buffer_size;
 END//
 delimiter ;//
 CALL sp1();
 SELECT @x, @y;
+SET @@GLOBAL.sort_buffer_size = @start_global_value;
 
 
 # ------------------------------------------------------------------------------
@@ -19541,11 +19625,11 @@ DROP DATABASE IF EXISTS d2;
 
   USE d1;
 
-CREATE PROCEDURE sp8 ( n char(20) ) sql security definer comment 'initial'
+CREATE PROCEDURE sp8 ( n char(20) ) sql security DEFINER comment 'initial'
   SELECT * from t1 where t1.f1 = n;
 
   USE d2;
-  alter procedure d1.sp8 sql security definer comment 'updated';
+  alter procedure d1.sp8 sql security DEFINER comment 'updated';
 --replace_column 13 modified 14 created
   SELECT * from mysql.proc where specific_name='sp8' and db='d1';
 
@@ -19574,7 +19658,7 @@ END//
 delimiter ;//
 
   USE d2;
-  alter function d1.fn2 sql security definer comment 'updated';
+  alter function d1.fn2 sql security DEFINER comment 'updated';
 --replace_column 13 modified 14 created
   SELECT * from mysql.proc where specific_name='fn2' and db='d1';
 
@@ -26986,13 +27070,13 @@ show CREATE PROCEDURE sp6b;
 
 show CREATE PROCEDURE sp6c;
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW PROCEDURE status like 'sp6a';
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW PROCEDURE status like 'sp6b';
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW PROCEDURE status like 'sp6c';
 
 # cleanup
@@ -27020,7 +27104,7 @@ BEGIN
 END//
 delimiter ;//
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW PROCEDURE status like 'sp6';
 
 # cleanup
@@ -27073,7 +27157,7 @@ CREATE FUNCTION sp6 (i1 longtext, i2 mediumint , i3 longblob, i4 year, i5 real) 
 END//
 delimiter ;//
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
   show  function status like 'sp6';
 
 # cleanup
@@ -27154,7 +27238,7 @@ CREATE FUNCTION fn1 (i1 real) returns real
 END//
 delimiter ;//
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
   show  procedure status like 'fn1';
 
 # cleanup
@@ -27188,7 +27272,7 @@ BEGIN
 END//
 delimiter ;//
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 # cleanup
@@ -27306,7 +27390,7 @@ BEGIN
 END//
 delimiter ;//
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
   show  function status like 'sp6';
 
 # cleanup
@@ -27347,7 +27431,7 @@ delimiter ;//
 
   alter procedure sp6 comment  'this is a new comment';
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW PROCEDURE status like 'sp6';
 
 # cleanup
@@ -27401,7 +27485,7 @@ delimiter ;//
   alter function fn1 sql security invoker;
   alter function fn1 comment 'this is a function 3242#@%$#@';
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
   show  function status like 'fn1';
 
 # cleanup
@@ -27481,7 +27565,7 @@ delimiter ;//
 
 DROP PROCEDURE sp6;
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW PROCEDURE status like 'sp6';
 
 
@@ -27530,7 +27614,7 @@ delimiter ;//
 
 DROP FUNCTION fn1;
 
---replace_column 5 modified 6 created
+--replace_column 5 <modified> 6 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 
@@ -29297,11 +29381,11 @@ let $message= Testcase 4.11.40:;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS h1;
-drop table IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t1;
 --enable_warnings
 
-  create table res_t1(w char unique, x char);
-  insert into res_t1 values ('a', 'b');
+CREATE TABLE res_t1(w CHAR UNIQUE, x CHAR);
+INSERT INTO res_t1 VALUES ('a', 'b');
 
 # suppressed--error for having two similar handlers in the same scope
 
@@ -29309,14 +29393,14 @@ delimiter //;
 --error ER_SP_DUP_HANDLER
 CREATE PROCEDURE h1 ()
 BEGIN
-    declare x1, x2, x3, x4, x5 int default 0;
-    declare condname1 condition for sqlstate '42000';
-    declare condname2 condition for sqlstate '42000';
-    declare continue handler for condname1 set x1 = 1;
-    declare continue handler for condname1 set x2 = 1;
-    declare exit handler for condname1 set x3 = 1;
-    declare continue handler for condname2 set x4 = 1;
-    declare exit handler for condname2 set x5 = 1;
+   DECLARE x1, x2, x3, x4, x5 int default 0;
+   DECLARE condname1 CONDITION FOR SQLSTATE '42000';
+   DECLARE condname2 CONDITION FOR SQLSTATE '42000';
+   DECLARE CONTINUE HANDLER FOR condname1 set x1 = 1;
+   DECLARE CONTINUE HANDLER FOR condname1 set x2 = 1;
+   DECLARE EXIT HANDLER FOR condname1 SET x3 = 1;
+   DECLARE CONTINUE HANDLER FOR condname2 SET x4 = 1;
+   DECLARE EXIT HANDLER FOR condname2 SET x5 = 1;
 END//
 delimiter ;//
 
@@ -29343,14 +29427,14 @@ DROP PROCEDURE IF EXISTS h1;
 delimiter //;
 CREATE PROCEDURE h1 ()
 BEGIN
-    declare x1 int default 0;
-    BEGIN
-        declare condname1 condition for sqlstate '00000';
-      declare exit handler for sqlstate '00000' set @x = 1;
-      set x1 = 1;
-      set x1 = 2;
-    END;
-    SELECT @x, x1;
+   DECLARE x1 INT DEFAULT 0;
+   BEGIN
+      DECLARE condname1 CONDITION FOR SQLSTATE '00000';
+      DECLARE EXIT HANDLER FOR SQLSTATE '00000' SET @x = 1;
+      SET x1 = 1;
+      SET x1 = 2;
+   END;
+   SELECT @x, x1;
 END//
 delimiter ;//
 
@@ -29378,11 +29462,11 @@ DROP TABLE IF EXISTS res_t1;
 delimiter //;
 CREATE PROCEDURE h1()
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLWARNING SET @done = 1;
-    set @done=0;
-    set @x=1;
-    insert into res_t1 values('xxx', 'yy');
-    set @x=0;
+   DECLARE EXIT HANDLER FOR SQLWARNING SET @done = 1;
+   SET @done=0;
+   SET @x=1;
+   INSERT INTO res_t1 VALUES('xxx', 'yy');
+   SET @x=0;
 END//
 delimiter ;//
 
@@ -29407,11 +29491,11 @@ DROP TABLE IF EXISTS res_t1;
 delimiter //;
 CREATE PROCEDURE h1()
 BEGIN
-    DECLARE CONTINUE HANDLER FOR SQLWARNING SET @done = 1;
-    set @done=0;
-    set @x=0;
-    insert into res_t1 values('xxx', 'yy');
-    set @x=1;
+   DECLARE CONTINUE HANDLER FOR SQLWARNING SET @done = 1;
+   SET @done=0;
+   SET @x=0;
+   INSERT INTO res_t1 VALUES('xxx', 'yy');
+   SET @x=1;
 END//
 delimiter ;//
 
