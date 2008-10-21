@@ -305,7 +305,7 @@ SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-CREATE DEFINER=`root`@`localhost` procedure p1()
+CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 begin
 select 1;
 end

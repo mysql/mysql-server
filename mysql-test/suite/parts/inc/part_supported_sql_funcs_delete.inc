@@ -43,6 +43,8 @@ eval select * from $t4 order by colint;
 eval select * from $t5 order by colint;
 eval select * from $t6 order by colint;
 
+if (!$drop_partition_not_supported)
+{
 eval alter table $t1 drop partition p0; 
 eval alter table $t2 drop partition p0; 
 eval alter table $t4 drop partition p0; 
@@ -55,3 +57,4 @@ eval select * from $t3 order by col1;
 eval select * from $t4 order by colint;
 eval select * from $t5 order by colint;
 eval select * from $t6 order by colint;
+}

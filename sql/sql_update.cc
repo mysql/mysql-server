@@ -457,7 +457,7 @@ int mysql_update(THD *thd,
       */
 
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info,thd,table,select,0,1);
+        init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
         init_read_record_idx(&info, thd, table, 1, used_index);
 
@@ -523,7 +523,7 @@ int mysql_update(THD *thd,
   if (select && select->quick && select->quick->reset())
     goto err;
   table->file->try_semi_consistent_read(1);
-  init_read_record(&info,thd,table,select,0,1);
+  init_read_record(&info, thd, table, select, 0, 1, FALSE);
 
   updated= found= 0;
   /* Generate an error when trying to set a NOT NULL field to NULL. */
@@ -853,8 +853,9 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
   Item *fake_conds= 0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE *table= table_list->table;
-  TABLE_LIST tables;
+#endif
   List<Item> all_fields;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_update");
@@ -878,9 +879,6 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   table_list->register_want_access(SELECT_ACL);
 #endif
 
-  bzero((char*) &tables,sizeof(tables));	// For ORDER BY
-  tables.table= table;
-  tables.alias= table_list->alias;
   thd->lex->allow_sum_func= 0;
 
   if (setup_tables_and_check_access(thd, &select_lex->context, 
@@ -1002,7 +1000,7 @@ reopen_tables:
     DBUG_RETURN(TRUE);
   }
 
-  tables_for_update= get_table_map(fields);
+  thd->table_map_for_update= tables_for_update= get_table_map(fields);
 
   /*
     Setup timestamp handling and locking mode
@@ -1669,6 +1667,12 @@ bool multi_update::send_data(List<Item> &not_used_values)
         tbl->file->position(tbl->record[0]);
         memcpy((char*) tmp_table->field[field_num]->ptr,
                (char*) tbl->file->ref, tbl->file->ref_length);
+        /*
+         For outer joins a rowid field may have no NOT_NULL_FLAG,
+         so we have to reset NULL bit for this field.
+         (set_notnull() resets NULL bit only if available).
+        */
+        tmp_table->field[field_num]->set_notnull();
         field_num++;
       } while ((tbl= tbl_it++));
 

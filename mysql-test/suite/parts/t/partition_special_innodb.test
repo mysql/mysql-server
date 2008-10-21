@@ -1,5 +1,5 @@
 ################################################################################
-# t/partition_special_innodb.test                                                 #
+# t/partition_special_innodb.test                                              #
 #                                                                              #
 # Purpose:                                                                     #
 #  different Tests                                                             #
@@ -8,9 +8,9 @@
 #------------------------------------------------------------------------------#
 # Original Author: HH                                                          #
 # Original Date: 2006-08-01                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Change Author: MattiasJ                                                      #
+# Change Date: 2008-08-20                                                      #
+# Change: added test for bug#34604                                             #
 ################################################################################
 
 #
@@ -44,3 +44,35 @@ let $engine= 'InnoDB';
 --source suite/parts/inc/partition_key_8col.inc
 --source suite/parts/inc/partition_key_16col.inc
 --source suite/parts/inc/partition_key_32col.inc
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+--echo # Bug#34604 - Assertion 'inited==RND' failed in handler::ha_rnd_end
+
+CREATE TABLE t1 (
+  a INT AUTO_INCREMENT,
+  b VARCHAR(255),
+  PRIMARY KEY (a))
+ENGINE = InnoDB
+PARTITION BY HASH (a)
+PARTITIONS 2;
+
+connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (con2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+--connection con1
+SET autocommit=OFF;
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL, 'first row t2');
+
+--connection con2
+SET autocommit=OFF;
+ALTER TABLE t1 AUTO_INCREMENT = 10;
+
+--connection con1
+INSERT INTO t1 VALUES (NULL, 'second row t2');
+--disconnect con2
+--disconnect con1
+--connection default
+DROP TABLE t1;

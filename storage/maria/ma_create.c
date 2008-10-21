@@ -836,6 +836,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     my_printf_error(0, "MARIA table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",
                     MYF(0), name + dirname_length(name));
+    my_errno= HA_ERR_TABLE_EXIST;
     goto err;
   }
 
@@ -1348,7 +1349,8 @@ int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, TrID create_trid,
     int res;
     LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     /* table name is logged only for information */
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    share->open_file_name.str;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=
+      (uchar *)(share->open_file_name.str);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
       share->open_file_name.length + 1;
     if ((res= translog_write_record(&lsn, LOGREC_IMPORTED_TABLE,

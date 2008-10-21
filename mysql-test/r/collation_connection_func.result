@@ -1,0 +1,60 @@
+'#--------------------FN_DYNVARS_015_01-------------------------#'
+SET @global_collation_connection = @@global.collation_connection;
+SET @session_collation_connection = @@session.collation_connection;
+SET @@global.collation_connection = latin1_danish_ci;
+'connect (con1,localhost,root,,,,)'
+'connection con1'
+SELECT @@global.collation_connection;
+@@global.collation_connection
+latin1_danish_ci
+SELECT @@session.collation_connection;
+@@session.collation_connection
+latin1_danish_ci
+'#--------------------FN_DYNVARS_015_02-------------------------#'
+'connection default'
+DROP TABLE IF EXISTS t1;
+'----check if collation_connection update character_set_connection---'
+SET @@session.collation_connection = utf8_spanish_ci;
+SELECT @@collation_connection, @@character_set_database;
+@@collation_connection	@@character_set_database
+utf8_spanish_ci	latin1
+'---check if collation_connection works for literal string comparision--'
+SET @@session.collation_connection = latin1_swedish_ci;
+SELECT 'mysql'='MySql';
+'mysql'='MySql'
+1
+SELECT _latin2'mysql' COLLATE latin2_general_ci='MySql';
+_latin2'mysql' COLLATE latin2_general_ci='MySql'
+1
+SELECT _utf8'mysql'=_utf8'MySql' COLLATE utf8_unicode_ci;
+_utf8'mysql'=_utf8'MySql' COLLATE utf8_unicode_ci
+1
+SET @@session.collation_connection = latin1_general_cs;
+SELECT 'mysql'='MySql';
+'mysql'='MySql'
+0
+SELECT _latin2'mysql'COLLATE latin2_general_ci='MySql';
+_latin2'mysql'COLLATE latin2_general_ci='MySql'
+1
+SELECT _utf8'mysql'COLLATE utf8_danish_ci=_utf8'MySql'COLLATE utf8_unicode_ci;
+ERROR HY000: Illegal mix of collations (utf8_danish_ci,EXPLICIT) and (utf8_unicode_ci,EXPLICIT) for operation '='
+'---collation_connection does not effect comparision with column---'
+CREATE TABLE t1(a CHAR(20)CHARACTER SET latin1 COLLATE latin1_german2_ci);
+INSERT INTO t1 VALUES('Müller');
+SET @@session.collation_connection = latin2_hungarian_ci;
+SELECT * FROM t1 WHERE a='Müller';
+a
+Müller
+SET @@session.collation_connection = latin1_general_cs;
+SELECT * FROM t1 WHERE a='müller';
+a
+Müller
+'check if string literal collation is used';
+SELECT * FROM t1 WHERE a='müller' COLLATE latin1_general_cs;
+a
+SELECT * FROM t1 WHERE a='müller' COLLATE latin1_german1_ci;
+a
+Müller
+DROP TABLE t1;
+SET @@global.collation_connection = @global_collation_connection;
+SET @@session.collation_connection = @session_collation_connection;

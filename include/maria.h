@@ -43,7 +43,6 @@ extern "C" {
 #define MARIA_MAX_KEY    MAX_INDEXES            /* Max allowed keys */
 #endif
 
-#define MARIA_MAX_MSG_BUF      1024 /* used in CHECK TABLE, REPAIR TABLE */
 #define MARIA_NAME_IEXT	".MAI"
 #define MARIA_NAME_DEXT	".MAD"
 /* Max extra space to use when sorting keys */
@@ -273,6 +272,12 @@ extern my_off_t maria_max_temp_length;
 extern ulong maria_bulk_insert_tree_size, maria_data_pointer_size;
 extern PAGECACHE maria_pagecache_var, *maria_pagecache;
 extern MY_TMPDIR *maria_tmpdir;
+/*
+  This is used to check if a symlink points into the mysql data home,
+  which is normally forbidden as it can be used to get access to
+  not privileged data
+*/
+extern int (*maria_test_invalid_symlink)(const char *filename);
 
 	/* Prototypes for maria-functions */
 

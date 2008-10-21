@@ -3292,13 +3292,13 @@ my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages)
       /*
         We are going to change callbacks; if a page is flushed at this moment
         this can cause race conditions, that's one reason to flush pages
-        now. Other reasons: a checkpoint could be running and miss pages. As
+        now. Other reasons: a checkpoint could be running and miss pages; the
+        pages have type PAGECACHE_PLAIN_PAGE which should not remain. As
         there are no REDOs for pages, them, bitmaps and the state also have to
-        be flushed and synced. Leaving non-dirty pages in cache is ok, when
-        they become dirty again they will have their type corrected.
+        be flushed and synced.
       */
       if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
-                                FLUSH_KEEP, FLUSH_KEEP) ||
+                                FLUSH_RELEASE, FLUSH_RELEASE) ||
           _ma_state_info_write(share, 1|4) ||
           _ma_sync_table_files(info))
         DBUG_RETURN(1);

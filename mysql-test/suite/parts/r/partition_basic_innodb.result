@@ -75,8 +75,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) PARTITIONS 2  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -482,16 +482,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -527,8 +528,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (f_int1) PARTITIONS 5  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -934,16 +935,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -987,8 +989,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) ENGINE = InnoDB, PARTITION part0 VALUES IN (0) ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) ENGINE = InnoDB, PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1394,16 +1396,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -1445,8 +1448,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1850,16 +1853,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -1899,8 +1903,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2306,16 +2310,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -2359,8 +2364,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 ENGINE = InnoDB, SUBPARTITION subpart12 ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 ENGINE = InnoDB, SUBPARTITION subpart22 ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 ENGINE = InnoDB, SUBPARTITION subpart32 ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2764,16 +2769,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -2821,8 +2827,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 ENGINE = InnoDB, SUBPARTITION sp12 ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 ENGINE = InnoDB, SUBPARTITION sp22 ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 ENGINE = InnoDB, SUBPARTITION sp32 ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 ENGINE = InnoDB, SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3228,16 +3234,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -3277,8 +3284,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB, PARTITION part2 VALUES IN (1) ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3684,16 +3691,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -3731,8 +3739,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1 + f_int2) PARTITIONS 2  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4138,16 +4146,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -4183,8 +4192,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (f_int1,f_int2) PARTITIONS 5  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4590,16 +4599,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -4643,8 +4653,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1 + f_int2,4)) (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) ENGINE = InnoDB, PARTITION part0 VALUES IN (0) ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) ENGINE = InnoDB, PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5050,16 +5060,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -5101,8 +5112,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE ((f_int1 + f_int2) DIV 2) (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5506,16 +5517,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -5555,8 +5567,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int2) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5960,16 +5972,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -6013,8 +6026,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int2) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 ENGINE = InnoDB, SUBPARTITION subpart12 ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 ENGINE = InnoDB, SUBPARTITION subpart22 ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 ENGINE = InnoDB, SUBPARTITION subpart32 ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6418,16 +6431,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -6471,8 +6485,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int2 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 ENGINE = InnoDB, SUBPARTITION sp12 ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 ENGINE = InnoDB, SUBPARTITION sp22 ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 ENGINE = InnoDB, SUBPARTITION sp32 ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 ENGINE = InnoDB, SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6878,16 +6892,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -6927,8 +6942,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int2) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB, PARTITION part2 VALUES IN (1) ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7334,16 +7349,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -7387,8 +7403,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) PARTITIONS 2  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7829,16 +7845,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -7876,8 +7893,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (f_int1) PARTITIONS 5  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -8318,16 +8335,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -8373,8 +8391,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) ENGINE = InnoDB, PARTITION part0 VALUES IN (0) ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) ENGINE = InnoDB, PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -8815,16 +8833,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -8868,8 +8887,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9308,16 +9327,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -9359,8 +9379,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9801,16 +9821,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -9856,8 +9877,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 ENGINE = InnoDB, SUBPARTITION subpart12 ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 ENGINE = InnoDB, SUBPARTITION subpart22 ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 ENGINE = InnoDB, SUBPARTITION subpart32 ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -10296,16 +10317,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -10355,8 +10377,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 ENGINE = InnoDB, SUBPARTITION sp12 ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 ENGINE = InnoDB, SUBPARTITION sp22 ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 ENGINE = InnoDB, SUBPARTITION sp32 ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 ENGINE = InnoDB, SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -10797,16 +10819,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -10848,8 +10871,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB, PARTITION part2 VALUES IN (1) ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -11290,16 +11313,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -11338,8 +11362,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) PARTITIONS 2  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -11780,16 +11804,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -11827,8 +11852,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (f_int1) PARTITIONS 5  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -12269,16 +12294,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -12324,8 +12350,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) ENGINE = InnoDB, PARTITION part0 VALUES IN (0) ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) ENGINE = InnoDB, PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -12766,16 +12792,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -12819,8 +12846,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -13259,16 +13286,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -13310,8 +13338,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -13752,16 +13780,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -13807,8 +13836,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 ENGINE = InnoDB, SUBPARTITION subpart12 ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 ENGINE = InnoDB, SUBPARTITION subpart22 ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 ENGINE = InnoDB, SUBPARTITION subpart32 ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -14247,16 +14276,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -14306,8 +14336,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 ENGINE = InnoDB, SUBPARTITION sp12 ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 ENGINE = InnoDB, SUBPARTITION sp22 ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 ENGINE = InnoDB, SUBPARTITION sp32 ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 ENGINE = InnoDB, SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -14748,16 +14778,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -14799,8 +14830,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB, PARTITION part2 VALUES IN (1) ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -15241,16 +15272,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -15289,8 +15321,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1) PARTITIONS 2  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -15747,16 +15779,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -15794,8 +15827,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (f_int1) PARTITIONS 5  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16252,16 +16285,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -16307,8 +16341,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1,4)) (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) ENGINE = InnoDB, PARTITION part0 VALUES IN (0) ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) ENGINE = InnoDB, PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16765,16 +16799,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -16818,8 +16853,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -17274,16 +17309,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -17325,8 +17361,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1 DIV 2) SUBPARTITION BY HASH (f_int1) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -17783,16 +17819,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -17838,8 +17875,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int1) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 ENGINE = InnoDB, SUBPARTITION subpart12 ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 ENGINE = InnoDB, SUBPARTITION subpart22 ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 ENGINE = InnoDB, SUBPARTITION subpart32 ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -18294,16 +18331,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -18353,8 +18391,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int1 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 ENGINE = InnoDB, SUBPARTITION sp12 ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 ENGINE = InnoDB, SUBPARTITION sp22 ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 ENGINE = InnoDB, SUBPARTITION sp32 ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 ENGINE = InnoDB, SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -18811,16 +18849,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -18862,8 +18901,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int1) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB, PARTITION part2 VALUES IN (1) ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -19320,16 +19359,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -19373,8 +19413,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1 + f_int2) PARTITIONS 2  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -19815,16 +19855,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -19862,8 +19903,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (f_int1,f_int2) PARTITIONS 5  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20304,16 +20345,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -20359,8 +20401,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1 + f_int2,4)) (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) ENGINE = InnoDB, PARTITION part0 VALUES IN (0) ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) ENGINE = InnoDB, PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20801,16 +20843,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -20854,8 +20897,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE ((f_int1 + f_int2) DIV 2) (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -21294,16 +21337,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -21345,8 +21389,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int2) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -21785,16 +21829,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -21840,8 +21885,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int2) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 ENGINE = InnoDB, SUBPARTITION subpart12 ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 ENGINE = InnoDB, SUBPARTITION subpart22 ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 ENGINE = InnoDB, SUBPARTITION subpart32 ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22280,16 +22325,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -22335,8 +22381,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int2 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 ENGINE = InnoDB, SUBPARTITION sp12 ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 ENGINE = InnoDB, SUBPARTITION sp22 ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 ENGINE = InnoDB, SUBPARTITION sp32 ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 ENGINE = InnoDB, SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22777,16 +22823,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -22828,8 +22875,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int2) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB, PARTITION part2 VALUES IN (1) ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -23270,16 +23317,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -23318,8 +23366,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1 + f_int2) PARTITIONS 2  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -23760,16 +23808,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -23807,8 +23856,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (f_int1,f_int2) PARTITIONS 5  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24249,16 +24298,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -24304,8 +24354,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1 + f_int2,4)) (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) ENGINE = InnoDB, PARTITION part0 VALUES IN (0) ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) ENGINE = InnoDB, PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24746,16 +24796,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -24799,8 +24850,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE ((f_int1 + f_int2) DIV 2) (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -25239,16 +25290,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -25290,8 +25342,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int2) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -25730,16 +25782,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -25785,8 +25838,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int2) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 ENGINE = InnoDB, SUBPARTITION subpart12 ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 ENGINE = InnoDB, SUBPARTITION subpart22 ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 ENGINE = InnoDB, SUBPARTITION subpart32 ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -26225,16 +26278,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -26280,8 +26334,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int2 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 ENGINE = InnoDB, SUBPARTITION sp12 ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 ENGINE = InnoDB, SUBPARTITION sp22 ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 ENGINE = InnoDB, SUBPARTITION sp32 ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 ENGINE = InnoDB, SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -26722,16 +26776,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -26773,8 +26828,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int2) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB, PARTITION part2 VALUES IN (1) ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -27215,16 +27270,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -27263,8 +27319,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (f_int1 + f_int2) PARTITIONS 2  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -27721,16 +27777,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -27768,8 +27825,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (f_int1,f_int2) PARTITIONS 5  */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -28226,16 +28283,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -28281,8 +28339,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (MOD(f_int1 + f_int2,4)) (PARTITION part_3 VALUES IN (-3) ENGINE = InnoDB, PARTITION part_2 VALUES IN (-2) ENGINE = InnoDB, PARTITION part_1 VALUES IN (-1) ENGINE = InnoDB, PARTITION part_N VALUES IN (NULL) ENGINE = InnoDB, PARTITION part0 VALUES IN (0) ENGINE = InnoDB, PARTITION part1 VALUES IN (1) ENGINE = InnoDB, PARTITION part2 VALUES IN (2) ENGINE = InnoDB, PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -28739,16 +28797,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -28792,8 +28851,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE ((f_int1 + f_int2) DIV 2) (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (15) ENGINE = InnoDB, PARTITION parte VALUES LESS THAN (20) ENGINE = InnoDB, PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -29248,16 +29307,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -29299,8 +29359,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY HASH (f_int2) SUBPARTITIONS 2 (PARTITION parta VALUES LESS THAN (0) ENGINE = InnoDB, PARTITION partb VALUES LESS THAN (5) ENGINE = InnoDB, PARTITION partc VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -29755,16 +29815,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -29810,8 +29871,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (f_int1) SUBPARTITION BY KEY (f_int2) (PARTITION part1 VALUES LESS THAN (0) (SUBPARTITION subpart11 ENGINE = InnoDB, SUBPARTITION subpart12 ENGINE = InnoDB), PARTITION part2 VALUES LESS THAN (5) (SUBPARTITION subpart21 ENGINE = InnoDB, SUBPARTITION subpart22 ENGINE = InnoDB), PARTITION part3 VALUES LESS THAN (10) (SUBPARTITION subpart31 ENGINE = InnoDB, SUBPARTITION subpart32 ENGINE = InnoDB), PARTITION part4 VALUES LESS THAN (2147483646) (SUBPARTITION subpart41 ENGINE = InnoDB, SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -30266,16 +30327,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -30321,8 +30383,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,3))) SUBPARTITION BY HASH (f_int2 + 1) (PARTITION part1 VALUES IN (0) (SUBPARTITION sp11 ENGINE = InnoDB, SUBPARTITION sp12 ENGINE = InnoDB), PARTITION part2 VALUES IN (1) (SUBPARTITION sp21 ENGINE = InnoDB, SUBPARTITION sp22 ENGINE = InnoDB), PARTITION part3 VALUES IN (2) (SUBPARTITION sp31 ENGINE = InnoDB, SUBPARTITION sp32 ENGINE = InnoDB), PARTITION part4 VALUES IN (NULL) (SUBPARTITION sp41 ENGINE = InnoDB, SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -30779,16 +30841,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -30830,8 +30893,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2))) SUBPARTITION BY KEY (f_int2) SUBPARTITIONS 3 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB, PARTITION part2 VALUES IN (1) ENGINE = InnoDB, PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
-$MYSQLTEST_VARDIR/master-data/test/t1.frm
-$MYSQLTEST_VARDIR/master-data/test/t1.par
+t1.frm
+t1.par
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -31288,16 +31351,17 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text

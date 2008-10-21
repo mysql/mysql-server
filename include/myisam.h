@@ -46,7 +46,6 @@ extern "C" {
 
 #define MI_MAX_POSSIBLE_KEY_BUFF    HA_MAX_POSSIBLE_KEY_BUFF
 
-#define MI_MAX_MSG_BUF      1024 /* used in CHECK TABLE, REPAIR TABLE */
 #define MI_NAME_IEXT	".MYI"
 #define MI_NAME_DEXT	".MYD"
 /* Max extra space to use when sorting keys */
@@ -248,6 +247,10 @@ extern ulong myisam_concurrent_insert;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_off_t myisam_max_temp_length;
 extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
+
+/* usually used to check if a symlink points into the mysql data home */
+/* which is normally forbidden                                        */
+extern int (*myisam_test_invalid_symlink)(const char *filename);
 
 	/* Prototypes for myisam-functions */
 

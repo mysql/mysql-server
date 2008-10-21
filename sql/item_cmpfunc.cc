@@ -1028,19 +1028,24 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
        1    if items are equal or both are null
        0    otherwise
     If is_nulls_eq is FALSE:
-      -1   a < b or one of items is null
+      -1   a < b or at least one item is null
        0   a == b
        1   a > b
+    See the table:
+    is_nulls_eq | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
+    a_is_null   | 1 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |
+    b_is_null   | 1 | 1 | 0 | 0 | 1 | 1 | 0 | 0 |
+    result      | 1 | 0 | 0 |0/1|-1 |-1 |-1 |-1/0/1|
 */
 
 int Arg_comparator::compare_datetime()
 {
-  bool is_null= FALSE;
+  bool a_is_null, b_is_null;
   ulonglong a_value, b_value;
 
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
-  a_value= (*get_value_func)(thd, &a, &a_cache, *b, &is_null);
-  if (!is_nulls_eq && is_null)
+  a_value= (*get_value_func)(thd, &a, &a_cache, *b, &a_is_null);
+  if (!is_nulls_eq && a_is_null)
   {
     if (owner)
       owner->null_value= 1;
@@ -1048,14 +1053,15 @@ int Arg_comparator::compare_datetime()
   }
 
   /* Get DATE/DATETIME/TIME value of the 'b' item. */
-  b_value= (*get_value_func)(thd, &b, &b_cache, *a, &is_null);
-  if (is_null)
+  b_value= (*get_value_func)(thd, &b, &b_cache, *a, &b_is_null);
+  if (a_is_null || b_is_null)
   {
     if (owner)
       owner->null_value= is_nulls_eq ? 0 : 1;
-    return is_nulls_eq ? 1 : -1;
+    return is_nulls_eq ? (a_is_null == b_is_null) : -1;
   }
 
+  /* Here we have two not-NULL values. */
   if (owner)
     owner->null_value= 0;
 
@@ -2162,8 +2168,11 @@ Item_func_ifnull::fix_length_and_dec()
 
 uint Item_func_ifnull::decimal_precision() const
 {
-  int max_int_part=max(args[0]->decimal_int_part(),args[1]->decimal_int_part());
-  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
+  int arg0_int_part= args[0]->decimal_int_part();
+  int arg1_int_part= args[1]->decimal_int_part();
+  int max_int_part= max(arg0_int_part, arg1_int_part);
+  int precision= max_int_part + decimals;
+  return min(precision, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -2344,8 +2353,9 @@ Item_func_if::fix_length_and_dec()
 
 uint Item_func_if::decimal_precision() const
 {
-  int precision=(max(args[1]->decimal_int_part(),args[2]->decimal_int_part())+
-                 decimals);
+  int arg1_prec= args[1]->decimal_int_part();
+  int arg2_prec= args[2]->decimal_int_part();
+  int precision=max(arg1_prec,arg2_prec) + decimals;
   return min(precision, DECIMAL_MAX_PRECISION);
 }
 
@@ -3757,6 +3767,7 @@ longlong Item_func_in::val_int()
     return (longlong) (!null_value && tmp != negated);
   }
 
+  have_null= 0;
   for (uint i= 1 ; i < arg_count ; i++)
   {
     Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
@@ -3765,9 +3776,8 @@ longlong Item_func_in::val_int()
     if (!(value_added_map & (1 << (uint)cmp_type)))
     {
       in_item->store_value(args[0]);
-      if ((null_value=args[0]->null_value))
+      if ((null_value= args[0]->null_value))
         return 0;
-      have_null= 0;
       value_added_map|= 1 << (uint)cmp_type;
     }
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
@@ -4455,8 +4465,20 @@ void Item_func_like::cleanup()
 
 #ifdef USE_REGEX
 
-bool
-Item_func_regex::regcomp(bool send_error)
+/**
+  @brief Compile regular expression.
+
+  @param[in]    send_error     send error message if any.
+
+  @details Make necessary character set conversion then 
+  compile regular expression passed in the args[1].
+
+  @retval    0     success.
+  @retval    1     error occurred.
+  @retval   -1     given null regular expression.
+ */
+
+int Item_func_regex::regcomp(bool send_error)
 {
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),&my_charset_bin);
@@ -4464,12 +4486,12 @@ Item_func_regex::regcomp(bool send_error)
   int error;
 
   if (args[1]->null_value)
-    return TRUE;
+    return -1;
 
   if (regex_compiled)
   {
     if (!stringcmp(res, &prev_regexp))
-      return FALSE;
+      return 0;
     prev_regexp.copy(*res);
     my_regfree(&preg);
     regex_compiled= 0;
@@ -4481,7 +4503,7 @@ Item_func_regex::regcomp(bool send_error)
     uint dummy_errors;
     if (conv.copy(res->ptr(), res->length(), res->charset(),
                   regex_lib_charset, &dummy_errors))
-      return TRUE;
+      return 1;
     res= &conv;
   }
 
@@ -4493,10 +4515,10 @@ Item_func_regex::regcomp(bool send_error)
       (void) my_regerror(error, &preg, buff, sizeof(buff));
       my_error(ER_REGEXP_ERROR, MYF(0), buff);
     }
-    return TRUE;
+    return 1;
   }
   regex_compiled= 1;
-  return FALSE;
+  return 0;
 }
 
 
@@ -4534,13 +4556,14 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
   const_item_cache=args[0]->const_item() && args[1]->const_item();
   if (!regex_compiled && args[1]->const_item())
   {
-    if (args[1]->null_value)
+    int comp_res= regcomp(TRUE);
+    if (comp_res == -1)
     {						// Will always return NULL
       maybe_null=1;
       fixed= 1;
       return FALSE;
     }
-    if (regcomp(TRUE))
+    else if (comp_res)
       return TRUE;
     regex_is_const= 1;
     maybe_null= args[0]->maybe_null;
@@ -4587,6 +4610,7 @@ void Item_func_regex::cleanup()
   {
     my_regfree(&preg);
     regex_compiled=0;
+    prev_regexp.length(0);
   }
   DBUG_VOID_RETURN;
 }

@@ -6,10 +6,6 @@
 ############################################################################
 --enable_query_log
 
-# prepare a variable to be able to suppress machine dependant diffs
-#let $SERVER_NAME= `SELECT DISTINCT host FROM mysql.user WHERE host LIKE "%\%" AND host NOT In ("localhost", "127.0.0.1", "%")`;
-# can be used in: --replace_result $SERVER_NAME <SERVER_NAME>
-
 # ==============================================================================
 let $message= Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
 FUNCTION, ALTER PROCEDURE, ALTER FUNCTION, DROP PROCEDURE, DROP FUNCTION, SHOW
@@ -2866,8 +2862,20 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 # missing BEGIN
+# PLEASE NOTE:
+# this test client has the MULTI_QUERY capability,
+# so that the following request (starting at 'CREATE' and ending at the //
+# delimiter) is interpreted as follows:
+# 1) it's a multi query
+# 2) the first query is a valid CREATE PROCEDURE statement, and the
+# procedure consist of only one SELECT statement
+# 3) the second query is a SET statement, which is broken since it's
+# referencing an unknown column 'cnt'
+# 4) the next query (SELECT @count) is not parsed or executed, since 3)
+# failed
+
 delimiter //;
---error ER_PARSE_ERROR
+--error ER_BAD_FIELD_ERROR
 CREATE PROCEDURE sp1( cnt int(20) )
     SELECT count(*) into cnt from t2;
     set @count = cnt;
@@ -2875,11 +2883,10 @@ CREATE PROCEDURE sp1( cnt int(20) )
 END//
 delimiter ;//
 
---error ER_SP_DOES_NOT_EXIST
 CALL sp1( 10 );
 
 --disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
+DROP PROCEDURE sp1;
 --enable_warnings
 
 # wrong order of BEGIN and END
@@ -17234,7 +17241,10 @@ let $message= Testcase 4.2.43:;
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
+--echo expect failure, SQLSTATE 00000 is not an acceptable value
+--echo for an SP's handler
 delimiter //;
+--ERROR ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '00000';
@@ -17244,11 +17254,14 @@ BEGIN
 END//
 delimiter ;//
 
+--echo ensure SP doesn't exist
+--ERROR ER_SP_DOES_NOT_EXIST
 CALL sp1();
 
 # cleanup
-DROP PROCEDURE sp1;
-
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.2.45:;
@@ -17387,6 +17400,8 @@ let $message= Testcase 4.2.48:;
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
+--echo This creation should fail, SQLSTATE 00000 is unacceptable
+--ERROR ER_SP_BAD_SQLSTATE
 delimiter //;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -17396,11 +17411,14 @@ BEGIN
 END//
 delimiter ;//
 
+--echo Verify SP wasn't created
+--ERROR ER_SP_DOES_NOT_EXIST
 CALL sp1();
 
 # cleanup
-DROP PROCEDURE sp1;
-
+--disable_warnings
+DROP PROCEDURE IF EXISTSsp1;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -18116,53 +18134,56 @@ let $message= Testcase 4.3.1:;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
-drop table IF EXISTS res_t3_itisalongname_1381742_itsaverylongname_1381742;
+DROP TABLE IF EXISTS res_t3_itisalongname_1381742_itsaverylongname_1381742;
 --enable_warnings
 
 #FIXME: change back to $engine_type for INNODB and MYISAM, but MEMORY doesn't support this
-eval CREATE TABLE res_t3_itisalongname_1381742_itsaverylongname_1381742(
-         middleinitial CHAR,
-         lastname VARCHAR(50),
-         age_averylongfieldname_averylongname_1234569 int,
-         COMMENT TEXT) ENGINE=$engine_type;
+--replace_result $engine_type <engine_to_be_tested>
+eval
+CREATE TABLE res_t3_itisalongname_1381742_itsaverylongname_1381742(
+   middleinitial CHAR, lastname VARCHAR(50),
+   age_averylongfieldname_averylongname_1234569 INT, COMMENT VARCHAR(100))
+ENGINE=$engine_type;
 
 INSERT INTO res_t3_itisalongname_1381742_itsaverylongname_1381742
-      VALUES('a', 'aaaaaaaaaabbbbbbbbc', 0, 'default');
+VALUES('a', 'aaaaaaaaaabbbbbbbbc', 0, 'default');
 
 delimiter //;
-CREATE PROCEDURE sp1(a int)
+CREATE PROCEDURE sp1(a INT)
 BEGIN
-  declare itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx char;
-  declare itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx varchar(100);
-  declare itisjustamediumsizeintintegervariablename integer;
-  set itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx = 'b';
-  set itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx = 'oldmacdonalds)(*&(^^%$&^%$&^%*^)(*^#@$@%';
-  set itisjustamediumsizeintintegervariablename = 5;
-  set @comment='a';
-  label1: loop
-    if a>100 then
-      set @comment='value of a is greater than 100';
-    elseif a<100 then
-      if a<50 then
-        set @comment='value of a is less than 50';
-      elseif a<25 then
-        set @comment='value of a is less than 25';
-    else
-      set @comment='value of a is greater than 50 and less than 100';
-    END if;
-  else
-    set @comment='value of a is 100';
-  END if;
+   DECLARE itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx CHAR;
+   DECLARE itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx VARCHAR(100);
+   DECLARE itisjustamediumsizeintintegervariablename INTEGER;
+   SET itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx = 'b';
+   SET itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx
+      = 'oldmacdonalds)(*&(^^%$&^%$&^%*^)(*^#@$@%';
+   SET itisjustamediumsizeintintegervariablename = 5;
+   SET @comment='a';
+   label1: LOOP
+      IF a > 100 THEN
+         SET @comment = 'value of a is greater than 100';
+      ELSEIF a < 100 THEN
+         IF a < 50 THEN
+            SET @comment = 'value of a is less than 50';
+         ELSEIF a < 25 THEN
+            SET @comment = 'value of a is less than 25';
+         ELSE
+            SET @comment = 'value of a is greater than 50 and less than 100';
+         END IF;
+      ELSE
+         SET @comment = 'value of a is 100';
+      END IF;
 
-  if itisjustamediumsizeintintegervariablename = 0 then leave label1;
-  END if;
-  insert into res_t3_itisalongname_1381742_itsaverylongname_1381742
-     values( itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx,
-        concat(itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx, '  ', a),
-               a, @comment );
-  set itisjustamediumsizeintintegervariablename = itisjustamediumsizeintintegervariablename - 1;
-            iterate label1;
-  END loop label1;
+      IF itisjustamediumsizeintintegervariablename = 0 THEN LEAVE label1;
+      END IF;
+      INSERT INTO res_t3_itisalongname_1381742_itsaverylongname_1381742
+      VALUES(itisjustaverylargevariablename_xxxxxxxxxxxxxxxxxxxxx,
+             CONCAT(itisjustaverylargevarcharvariablename_xxxxxxxxxxxxxxxxxxxxx,
+             '  ', a), a, @comment);
+      SET itisjustamediumsizeintintegervariablename
+         = itisjustamediumsizeintintegervariablename - 1;
+      ITERATE label1;
+   END LOOP label1;
 END//
 delimiter ;//
 

@@ -1226,6 +1226,15 @@ DESC t1;
 SELECT f1 FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #36270: incorrect calculation result - works in 4.1 but not in 5.0 or 5.1
+#
+
+# show that if we need to truncate the scale of an operand, we pick the
+# right one (that is, we discard the least significant decimal places)
+select (1.20396873 * 0.89550000 * 0.68000000 * 1.08721696 * 0.99500000 *
+        1.01500000 * 1.01500000 * 0.99500000);
+
 --echo End of 5.0 tests
 
 #

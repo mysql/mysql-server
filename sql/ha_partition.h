@@ -531,6 +531,7 @@ public:
     underlying handlers must have the same implementation for it to work.
   */
   virtual uint8 table_cache_type();
+  virtual ha_rows records();
 
   /*
     -------------------------------------------------------------------------
@@ -931,10 +932,9 @@ public:
     virtual int analyze(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int check(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int repair(THD* thd, HA_CHECK_OPT *check_opt);
-    virtual int optimize_partitions(THD *thd);
-    virtual int analyze_partitions(THD *thd);
-    virtual int check_partitions(THD *thd);
-    virtual int repair_partitions(THD *thd);
+    virtual bool check_and_repair(THD *thd);
+    virtual bool auto_repair() const;
+    virtual bool is_crashed() const;
 
     private:
     int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
@@ -950,12 +950,9 @@ public:
     virtual int restore(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int preload_keys(THD *thd, HA_CHECK_OPT *check_opt);
-    virtual bool check_and_repair(THD *thd);
     virtual int dump(THD* thd, int fd = -1);
     virtual int net_read_dump(NET* net);
     virtual uint checksum() const;
-    virtual bool is_crashed() const;
-    virtual bool auto_repair() const;
   */
 
   /*

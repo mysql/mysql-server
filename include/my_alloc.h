@@ -39,12 +39,12 @@ typedef struct st_mem_root
   /* if block have less memory it will be put in 'used' list */
   size_t min_malloc;
   size_t block_size;               /* initial block size */
-  unsigned long block_num;         /* allocated blocks counter */
+  unsigned int block_num;          /* allocated blocks counter */
   /* 
      first free block in queue test counter (if it exceed 
      MAX_BLOCK_USAGE_BEFORE_DROP block will be dropped in 'used' list)
   */
-  unsigned long first_block_usage;
+  unsigned int first_block_usage;
 
   void (*error_handler)(void);
 } MEM_ROOT;

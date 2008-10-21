@@ -951,16 +951,21 @@ int ha_prepare(THD *thd)
   A helper function to evaluate if two-phase commit is mandatory.
   As a side effect, propagates the read-only/read-write flags
   of the statement transaction to its enclosing normal transaction.
+  
+  If we have at least two engines with read-write changes we must
+  run a two-phase commit. Otherwise we can run several independent
+  commits as the only transactional engine has read-write changes
+  and others are read-only.
 
-  @retval TRUE   we must run a two-phase commit. Returned
-                 if we have at least two engines with read-write changes.
-  @retval FALSE  Don't need two-phase commit. Even if we have two
-                 transactional engines, we can run two independent
-                 commits if changes in one of the engines are read-only.
+  @retval   0   All engines are read-only.
+  @retval   1   We have the only engine with read-write changes.
+  @retval   >1  More than one engine have read-write changes.
+                Note: return value might NOT be the exact number of
+                engines with read-write changes.
 */
 
 static
-bool
+uint
 ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
                                     bool all)
 {
@@ -997,7 +1002,7 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
       break;
     }
   }
-  return rw_ha_count > 1;
+  return rw_ha_count;
 }
 
 
@@ -1060,19 +1065,30 @@ int ha_commit_trans(THD *thd, bool all)
 #ifdef USING_TRANSACTIONS
   if (ha_info)
   {
-    bool must_2pc;
+    uint rw_ha_count;
+    bool rw_trans;
 
-    if (is_real_trans && wait_if_global_read_lock(thd, 0, 0))
+    DBUG_EXECUTE_IF("crash_commit_before", abort(););
+
+    /* Close all cursors that can not survive COMMIT */
+    if (is_real_trans)                          /* not a statement commit */
+      thd->stmt_map.close_transient_cursors();
+
+    rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
+    /* rw_trans is TRUE when we in a transaction changing data */
+    rw_trans= is_real_trans && (rw_ha_count > 0);
+
+    if (rw_trans &&
+        wait_if_global_read_lock(thd, 0, 0))
     {
       ha_rollback_trans(thd, all);
       DBUG_RETURN(1);
     }
 
-    if (   is_real_trans
-        && opt_readonly
-        && ! (thd->security_ctx->master_access & SUPER_ACL)
-        && ! thd->slave_thread
-       )
+    if (rw_trans &&
+        opt_readonly &&
+        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        !thd->slave_thread)
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       ha_rollback_trans(thd, all);
@@ -1080,15 +1096,7 @@ int ha_commit_trans(THD *thd, bool all)
       goto end;
     }
 
-    DBUG_EXECUTE_IF("crash_commit_before", DBUG_ABORT(););
-
-    /* Close all cursors that can not survive COMMIT */
-    if (is_real_trans)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
-
-    must_2pc= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
-
-    if (!trans->no_2pc && must_2pc)
+    if (!trans->no_2pc && (rw_ha_count > 1))
     {
       for (; ha_info && !error; ha_info= ha_info->next())
       {
@@ -1128,7 +1136,7 @@ int ha_commit_trans(THD *thd, bool all)
       tc_log->unlog(cookie, xid);
     DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
 end:
-    if (is_real_trans)
+    if (rw_trans)
       start_waiting_global_read_lock(thd);
   }
 #endif /* USING_TRANSACTIONS */
@@ -1609,23 +1617,23 @@ bool mysql_xa_recover(THD *thd)
   @return
     always 0
 */
-static my_bool release_temporary_latches(THD *thd, plugin_ref plugin,
-                                 void *unused)
-{
-  handlerton *hton= plugin_data(plugin, handlerton *);
-
-  if (hton->state == SHOW_OPTION_YES && hton->release_temporary_latches)
-    hton->release_temporary_latches(hton, thd);
-
-  return FALSE;
-}
-
 
 int ha_release_temporary_latches(THD *thd)
 {
-  plugin_foreach(thd, release_temporary_latches, MYSQL_STORAGE_ENGINE_PLUGIN, 
-                 NULL);
+  Ha_trx_info *info;
 
+  /*
+    Note that below we assume that only transactional storage engines
+    may need release_temporary_latches(). If this will ever become false,
+    we could iterate on thd->open_tables instead (and remove duplicates
+    as if (!seen[hton->slot]) { seen[hton->slot]=1; ... }).
+  */
+  for (info= thd->transaction.stmt.ha_list; info; info= info->next())
+  {
+    handlerton *hton= info->ht();
+    if (hton && hton->release_temporary_latches)
+        hton->release_temporary_latches(hton, thd);
+  }
   return 0;
 }
 
@@ -1805,8 +1813,8 @@ bool ha_flush_logs(handlerton *db_type)
   return FALSE;
 }
 
-static const char *check_lowercase_names(handler *file, const char *path,
-                                         char *tmp_path)
+const char *get_canonical_filename(handler *file, const char *path,
+                                   char *tmp_path)
 {
   if (lower_case_table_names != 2 || (file->ha_table_flags() & HA_FILE_BASED))
     return path;
@@ -1877,7 +1885,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       ! (file=get_new_handler((TABLE_SHARE*)0, thd->mem_root, table_type)))
     DBUG_RETURN(ENOENT);
 
-  path= check_lowercase_names(file, path, tmp_path);
+  path= get_canonical_filename(file, path, tmp_path);
   if ((error= file->ha_delete_table(path)) && generate_warning)
   {
     /*
@@ -2487,7 +2495,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
       str.append(STRING_WITH_LEN("..."));
     }
     my_printf_error(ER_DUP_ENTRY, msg,
-		    MYF(0), str.c_ptr(), table->key_info[key_nr].name);
+		    MYF(0), str.c_ptr_safe(), table->key_info[key_nr].name);
   }
 }
 
@@ -2558,7 +2566,7 @@ void handler::print_error(int error, myf errflag)
         str.append(STRING_WITH_LEN("..."));
       }
       my_error(ER_FOREIGN_DUPLICATE_KEY, MYF(0), table_share->table_name.str,
-        str.c_ptr(), key_nr+1);
+        str.c_ptr_safe(), key_nr+1);
       DBUG_VOID_RETURN;
     }
     textno= ER_DUP_KEY;
@@ -2732,6 +2740,8 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
       }
     }
   }
+  if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
+    return HA_ADMIN_NEEDS_ALTER;
   return check_for_upgrade(check_opt);
 }
 
@@ -3277,66 +3287,6 @@ handler::ha_rename_partitions(const char *path)
 
 
 /**
-  Optimize partitions: public interface.
-
-  @sa handler::optimize_partitions()
-*/
-
-int
-handler::ha_optimize_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return optimize_partitions(thd);
-}
-
-
-/**
-  Analyze partitions: public interface.
-
-  @sa handler::analyze_partitions()
-*/
-
-int
-handler::ha_analyze_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return analyze_partitions(thd);
-}
-
-
-/**
-  Check partitions: public interface.
-
-  @sa handler::check_partitions()
-*/
-
-int
-handler::ha_check_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return check_partitions(thd);
-}
-
-
-/**
-  Repair partitions: public interface.
-
-  @sa handler::repair_partitions()
-*/
-
-int
-handler::ha_repair_partitions(THD *thd)
-{
-  mark_trx_read_write();
-
-  return repair_partitions(thd);
-}
-
-
-/**
   Tell the storage engine that it is allowed to "disable transaction" in the
   handler. It is a hint that ACID is not required - it is used in NDB for
   ALTER TABLE, for example, when data are copied to temporary table.
@@ -3474,7 +3424,7 @@ int ha_create_table(THD *thd, const char *path,
   if (update_create_info)
     update_create_info_from_table(create_info, &table);
 
-  name= check_lowercase_names(table.file, share.path.str, name_buff);
+  name= get_canonical_filename(table.file, share.path.str, name_buff);
 
   error= table.file->ha_create(name, &table, create_info);
   VOID(closefrm(&table, 0));
@@ -3546,7 +3496,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   update_create_info_from_table(&create_info, &table);
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
-  check_lowercase_names(table.file, path, path);
+  get_canonical_filename(table.file, path, path);
   error=table.file->ha_create(path, &table, &create_info);
   VOID(closefrm(&table, 1));
 

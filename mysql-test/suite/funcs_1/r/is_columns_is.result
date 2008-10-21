@@ -176,7 +176,7 @@ NULL	information_schema	REFERENTIAL_CONSTRAINTS	MATCH_OPTION	7		NO	varchar	64	19
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	11		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	10		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_CATALOG	4	NULL	YES	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
-NULL	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_NAME	6		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_SCHEMA	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	8		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	ROUTINES	CHARACTER_SET_CLIENT	21		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	

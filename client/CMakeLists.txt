@@ -15,7 +15,7 @@
 INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 
 # We use the "mysqlclient_notls" library here just as safety, in case
-# any of the clients here would go beond the client API and access the
+# any of the clients here would go beyond the client API and access the
 # Thread Local Storage directly.
 
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
@@ -32,9 +32,9 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc ../mysys/my_conio.c)
 TARGET_LINK_LIBRARIES(mysql mysqlclient_notls wsock32)
 
-ADD_EXECUTABLE(mysqltest mysqltest.c ../mysys/my_getsystime.c
-               ../mysys/my_copy.c ../mysys/my_mkdir.c)
-TARGET_LINK_LIBRARIES(mysqltest mysqlclient_notls regex wsock32)
+ADD_EXECUTABLE(mysqltest mysqltest.c)
+SET_SOURCE_FILES_PROPERTIES(mysqltest.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
+TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys regex wsock32 dbug)
 
 ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
 TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient_notls wsock32)

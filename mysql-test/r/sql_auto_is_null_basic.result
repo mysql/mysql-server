@@ -1,0 +1,54 @@
+'#---------------------BS_STVARS_044_01----------------------#'
+SELECT COUNT(@@SESSION.sql_auto_is_null);
+COUNT(@@SESSION.sql_auto_is_null)
+1
+1 Expected
+'#---------------------BS_STVARS_044_02----------------------#'
+SET @@SESSION.sql_auto_is_null=1;
+"BUG:It should give error on setting this variable as it is readonly variable"
+Expected error 'Read only variable'
+SELECT COUNT(@@SESSION.sql_auto_is_null);
+COUNT(@@SESSION.sql_auto_is_null)
+1
+1 Expected
+'#---------------------BS_STVARS_044_03----------------------#'
+SELECT @@SESSION.sql_auto_is_null = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='sql_auto_is_null';
+@@SESSION.sql_auto_is_null = VARIABLE_VALUE
+0
+1 Expected
+SELECT COUNT(@@SESSION.sql_auto_is_null);
+COUNT(@@SESSION.sql_auto_is_null)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='sql_auto_is_null';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_044_04----------------------#'
+SELECT @@sql_auto_is_null = @@SESSION.sql_auto_is_null;
+@@sql_auto_is_null = @@SESSION.sql_auto_is_null
+1
+1 Expected
+'#---------------------BS_STVARS_044_05----------------------#'
+SELECT COUNT(@@sql_auto_is_null);
+COUNT(@@sql_auto_is_null)
+1
+1 Expected
+SELECT COUNT(@@local.sql_auto_is_null);
+COUNT(@@local.sql_auto_is_null)
+1
+1 Expected
+SELECT COUNT(@@SESSION.sql_auto_is_null);
+COUNT(@@SESSION.sql_auto_is_null)
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.sql_auto_is_null);
+ERROR HY000: Variable 'sql_auto_is_null' is a SESSION variable
+Expected error 'Variable is a SESSION variable'
+SELECT COUNT(sql_auto_is_null = @@GLOBAL.sql_auto_is_null);
+ERROR 42S22: Unknown column 'sql_auto_is_null' in 'field list'
+Expected error 'Readonly variable'

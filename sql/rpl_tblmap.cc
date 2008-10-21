@@ -19,7 +19,11 @@
 
 #include "rpl_tblmap.h"
 
+#ifdef MYSQL_CLIENT
+#define MAYBE_TABLE_NAME(T) ("")
+#else
 #define MAYBE_TABLE_NAME(T) ((T) ? (T)->s->table_name.str : "<>")
+#endif
 #define TABLE_ID_HASH_SIZE 32
 #define TABLE_ID_CHUNK 256
 
@@ -42,11 +46,14 @@ table_mapping::table_mapping()
 
 table_mapping::~table_mapping()
 {
+#ifdef MYSQL_CLIENT
+  clear_tables();
+#endif
   hash_free(&m_table_ids);
   free_root(&m_mem_root, MYF(0));
 }
 
-st_table* table_mapping::get_table(ulong table_id)
+TABLE* table_mapping::get_table(ulong table_id)
 {
   DBUG_ENTER("table_mapping::get_table(ulong)");
   DBUG_PRINT("enter", ("table_id: %lu", table_id));
@@ -104,8 +111,12 @@ int table_mapping::set_table(ulong table_id, TABLE* table)
     m_free= m_free->next;
   }
   else
+  {
+#ifdef MYSQL_CLIENT
+    free_table_map_log_event(e->table);
+#endif
     hash_delete(&m_table_ids,(uchar *)e);
-
+  }
   e->table_id= table_id;
   e->table= table;
   my_hash_insert(&m_table_ids,(uchar *)e);
@@ -140,6 +151,9 @@ void table_mapping::clear_tables()
   for (uint i= 0; i < m_table_ids.records; i++)
   {
     entry *e= (entry *)hash_element(&m_table_ids, i);
+#ifdef MYSQL_CLIENT
+    free_table_map_log_event(e->table);
+#endif
     e->next= m_free;
     m_free= e;
   }

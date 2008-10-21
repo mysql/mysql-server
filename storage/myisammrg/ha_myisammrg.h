@@ -42,6 +42,7 @@ class ha_myisammrg: public handler
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
 	    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_FILE_BASED |
             HA_ANY_INDEX_MAY_BE_UNIQUE | HA_CAN_BIT_FIELD |
+            HA_HAS_RECORDS |
             HA_NO_COPY_ON_ALTER);
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
@@ -94,4 +95,5 @@ class ha_myisammrg: public handler
   TABLE *table_ptr() { return table; }
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
+  ha_rows records();
 };

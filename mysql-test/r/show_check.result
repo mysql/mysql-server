@@ -12,51 +12,51 @@ insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
 -- after Bug#29394 is implemented.
 check table t1 fast;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	42	7	Y	0	31	8
-def					Op	253	3	5	Y	0	31	8
-def					Msg_type	253	3	6	Y	0	31	8
-def					Msg_text	253	85	27	Y	0	31	8
+def					Table	253	128	7	Y	0	31	8
+def					Op	253	10	5	Y	0	31	8
+def					Msg_type	253	10	6	Y	0	31	8
+def					Msg_text	253	255	27	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
 check table t1 fast;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	42	7	Y	0	31	8
-def					Op	253	3	5	Y	0	31	8
-def					Msg_type	253	3	6	Y	0	31	8
-def					Msg_text	253	85	27	Y	0	31	8
+def					Table	253	128	7	Y	0	31	8
+def					Op	253	10	5	Y	0	31	8
+def					Msg_type	253	10	6	Y	0	31	8
+def					Msg_text	253	255	27	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
 check table t1 changed;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	42	7	Y	0	31	8
-def					Op	253	3	5	Y	0	31	8
-def					Msg_type	253	3	6	Y	0	31	8
-def					Msg_text	253	85	2	Y	0	31	8
+def					Table	253	128	7	Y	0	31	8
+def					Op	253	10	5	Y	0	31	8
+def					Msg_type	253	10	6	Y	0	31	8
+def					Msg_text	253	255	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 insert into t1 values (5,5,5);
 check table t1 changed;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	42	7	Y	0	31	8
-def					Op	253	3	5	Y	0	31	8
-def					Msg_type	253	3	6	Y	0	31	8
-def					Msg_text	253	85	2	Y	0	31	8
+def					Table	253	128	7	Y	0	31	8
+def					Op	253	10	5	Y	0	31	8
+def					Msg_type	253	10	6	Y	0	31	8
+def					Msg_text	253	255	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 medium;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	42	7	Y	0	31	8
-def					Op	253	3	5	Y	0	31	8
-def					Msg_type	253	3	6	Y	0	31	8
-def					Msg_text	253	85	2	Y	0	31	8
+def					Table	253	128	7	Y	0	31	8
+def					Op	253	10	5	Y	0	31	8
+def					Msg_type	253	10	6	Y	0	31	8
+def					Msg_text	253	255	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 extended;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	42	7	Y	0	31	8
-def					Op	253	3	5	Y	0	31	8
-def					Msg_type	253	3	6	Y	0	31	8
-def					Msg_text	253	85	2	Y	0	31	8
+def					Table	253	128	7	Y	0	31	8
+def					Op	253	10	5	Y	0	31	8
+def					Msg_type	253	10	6	Y	0	31	8
+def					Msg_text	253	255	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 show index from t1;
@@ -84,10 +84,10 @@ ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
 -- after Bug#29394 is implemented.
 optimize table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	42	7	Y	0	31	8
-def					Op	253	3	8	Y	0	31	8
-def					Msg_type	253	3	6	Y	0	31	8
-def					Msg_text	253	85	2	Y	0	31	8
+def					Table	253	128	7	Y	0	31	8
+def					Op	253	10	8	Y	0	31	8
+def					Msg_type	253	10	6	Y	0	31	8
+def					Msg_text	253	255	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 optimize table t1;
@@ -154,10 +154,10 @@ insert into t1 values (1,1,1,0),(1,1,2,0),(1,1,3,0),(1,2,1,0),(1,2,2,0),(1,2,3,0
 -- after Bug#29394 is implemented.
 analyze table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	42	7	Y	0	31	8
-def					Op	253	3	7	Y	0	31	8
-def					Msg_type	253	3	6	Y	0	31	8
-def					Msg_text	253	85	2	Y	0	31	8
+def					Table	253	128	7	Y	0	31	8
+def					Op	253	10	7	Y	0	31	8
+def					Msg_type	253	10	6	Y	0	31	8
+def					Msg_text	253	255	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
@@ -171,10 +171,10 @@ t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE
 -- after Bug#29394 is implemented.
 repair table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	42	7	Y	0	31	8
-def					Op	253	3	6	Y	0	31	8
-def					Msg_type	253	3	6	Y	0	31	8
-def					Msg_text	253	85	2	Y	0	31	8
+def					Table	253	128	7	Y	0	31	8
+def					Op	253	10	6	Y	0	31	8
+def					Msg_type	253	10	6	Y	0	31	8
+def					Msg_text	253	255	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 show index from t1;
@@ -878,8 +878,8 @@ latin1_bin	latin1	47		Yes	1
 ----------------------------------------------------------------
 SHOW CREATE DATABASE mysqltest1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Database	253	63	10	N	1	31	33
-def					Create Database	253	1023	69	N	1	31	33
+def					Database	253	192	10	N	1	31	33
+def					Create Database	253	3072	69	N	1	31	33
 Database	Create Database
 mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET latin1 */
 ----------------------------------------------------------------
@@ -891,8 +891,8 @@ mysqltest1
 ----------------------------------------------------------------
 SHOW CREATE TABLE t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	63	2	N	1	31	33
-def					Create Table	253	1023	102	N	1	31	33
+def					Table	253	192	2	N	1	31	33
+def					Create Table	253	3072	102	N	1	31	33
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
@@ -1052,10 +1052,10 @@ NULL	test	t1_bi	INSERT	NULL	test	t1	NULL	SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW
 ----------------------------------------------------------------
 SHOW CREATE VIEW v1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					View	253	63	2	N	1	31	33
-def					Create View	253	1023	103	N	1	31	33
-def					character_set_client	253	30	6	N	1	31	33
-def					collation_connection	253	30	6	N	1	31	33
+def					View	253	192	2	N	1	31	33
+def					Create View	253	3072	103	N	1	31	33
+def					character_set_client	253	96	6	N	1	31	33
+def					collation_connection	253	96	6	N	1	31	33
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	binary	binary
 ----------------------------------------------------------------
@@ -1078,12 +1078,12 @@ NULL	test	v1	select 1 AS `1`	NONE	NO	root@localhost	DEFINER	binary	binary
 ----------------------------------------------------------------
 SHOW CREATE PROCEDURE p1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Procedure	253	63	2	N	1	31	33
+def					Procedure	253	192	2	N	1	31	33
 def					sql_mode	253	0	0	N	1	31	33
-def					Create Procedure	253	1023	59	Y	0	31	33
-def					character_set_client	253	30	6	N	1	31	33
-def					collation_connection	253	30	6	N	1	31	33
-def					Database Collation	253	30	17	N	1	31	33
+def					Create Procedure	253	3072	59	Y	0	31	33
+def					character_set_client	253	96	6	N	1	31	33
+def					collation_connection	253	96	6	N	1	31	33
+def					Database Collation	253	96	17	N	1	31	33
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 SELECT 1	binary	binary	latin1_swedish_ci
@@ -1133,12 +1133,12 @@ p1	NULL	test	p1	PROCEDURE	NULL	SQL	SELECT 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	D
 ----------------------------------------------------------------
 SHOW CREATE FUNCTION f1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Function	253	63	2	N	1	31	33
+def					Function	253	192	2	N	1	31	33
 def					sql_mode	253	0	0	N	1	31	33
-def					Create Function	253	1023	74	Y	0	31	33
-def					character_set_client	253	30	6	N	1	31	33
-def					collation_connection	253	30	6	N	1	31	33
-def					Database Collation	253	30	17	N	1	31	33
+def					Create Function	253	3072	74	Y	0	31	33
+def					character_set_client	253	96	6	N	1	31	33
+def					collation_connection	253	96	6	N	1	31	33
+def					Database Collation	253	96	17	N	1	31	33
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
 RETURN 1	binary	binary	latin1_swedish_ci
@@ -1244,6 +1244,36 @@ Slow_queries	2
 show variables like 'myisam_recover_options';
 Variable_name	Value
 myisam_recover_options	OFF
+CREATE TABLE t1 (
+Codigo int(10) unsigned NOT NULL auto_increment,
+Nombre varchar(255) default NULL,
+Telefono varchar(255) default NULL,
+Observaciones longtext,
+Direccion varchar(255) default NULL,
+Dni varchar(255) default NULL,
+CP int(11) default NULL,
+Provincia varchar(255) default NULL,
+Poblacion varchar(255) default NULL,
+PRIMARY KEY  (Codigo)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
+show create table t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					Table	253	64	2	N	1	31	7
+def					Create Table	253	1024	445	N	1	31	7
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `Codigo` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `Nombre` varchar(255) DEFAULT NULL,
+  `Telefono` varchar(255) DEFAULT NULL,
+  `Observaciones` longtext,
+  `Direccion` varchar(255) DEFAULT NULL,
+  `Dni` varchar(255) DEFAULT NULL,
+  `CP` int(11) DEFAULT NULL,
+  `Provincia` varchar(255) DEFAULT NULL,
+  `Poblacion` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`Codigo`)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8
+drop table t1;
 End of 5.0 tests
 SHOW AUTHORS;
 create database mysqltest;

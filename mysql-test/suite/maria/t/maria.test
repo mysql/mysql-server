@@ -1087,7 +1087,7 @@ CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 
 #
-# Bug#28837: Maria storage engine error (134) doing delete with self-join
+# Test doing delete with self-join
 #
 
 CREATE TABLE t1 (id int NOT NULL, ref int NOT NULL, INDEX (id));
@@ -1102,6 +1102,20 @@ DELETE FROM a USING t1 AS a INNER JOIN t1 AS b USING (id) WHERE a.ref < b.ref;
 SELECT * FROM t1;
 
 DROP TABLE t1, t2;
+
+#
+# Bug#37310: 'on update CURRENT_TIMESTAMP' option crashes the table
+#
+CREATE TABLE t1 (a INT) ENGINE=MARIA CHECKSUM=1 ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES (0);
+UPDATE t1 SET a=1;
+SELECT a FROM t1;
+CHECK TABLE t1;
+INSERT INTO t1 VALUES (0), (5), (4), (2);
+UPDATE t1 SET a=2;
+SELECT a FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
 
 --echo End of 5.0 tests
 
@@ -1148,6 +1162,274 @@ drop table t1;
 create table t1 (a int not null, b int, key (a) key_block_size=1024, key(b) key_block_size=8192) key_block_size=16384;
 show create table t1;
 drop table t1;
+
+# Test limits and errors of key_block_size
+
+create table t1 (a int not null, key `a` (a) key_block_size=512);
+show create table t1;
+drop table t1;
+
+create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
+show create table t1;
+drop table t1;
+
+create table t1 (a int not null, key `a` (a) key_block_size=1025);
+show create table t1;
+drop table t1;
+
+--error 1064
+create table t1 (a int not null, key key_block_size=1024 (a));
+--error 1064
+create table t1 (a int not null, key `a` key_block_size=1024 (a));
+
+#
+# Bug#22119 - Changing MI_KEY_BLOCK_LENGTH makes a wrong myisamchk
+#
+CREATE TABLE t1 (
+  c1 INT,
+  c2 VARCHAR(300),
+  KEY (c1) KEY_BLOCK_SIZE 1024,
+  KEY (c2) KEY_BLOCK_SIZE 8192
+  );
+INSERT INTO t1 VALUES (10, REPEAT('a', CEIL(RAND(10) * 300))),
+  (11, REPEAT('b', CEIL(RAND() * 300))),
+  (12, REPEAT('c', CEIL(RAND() * 300))),
+  (13, REPEAT('d', CEIL(RAND() * 300))),
+  (14, REPEAT('e', CEIL(RAND() * 300))),
+  (15, REPEAT('f', CEIL(RAND() * 300))),
+  (16, REPEAT('g', CEIL(RAND() * 300))),
+  (17, REPEAT('h', CEIL(RAND() * 300))),
+  (18, REPEAT('i', CEIL(RAND() * 300))),
+  (19, REPEAT('j', CEIL(RAND() * 300))),
+  (20, REPEAT('k', CEIL(RAND() * 300))),
+  (21, REPEAT('l', CEIL(RAND() * 300))),
+  (22, REPEAT('m', CEIL(RAND() * 300))),
+  (23, REPEAT('n', CEIL(RAND() * 300))),
+  (24, REPEAT('o', CEIL(RAND() * 300))),
+  (25, REPEAT('p', CEIL(RAND() * 300))),
+  (26, REPEAT('q', CEIL(RAND() * 300))),
+  (27, REPEAT('r', CEIL(RAND() * 300))),
+  (28, REPEAT('s', CEIL(RAND() * 300))),
+  (29, REPEAT('t', CEIL(RAND() * 300))),
+  (30, REPEAT('u', CEIL(RAND() * 300))),
+  (31, REPEAT('v', CEIL(RAND() * 300))),
+  (32, REPEAT('w', CEIL(RAND() * 300))),
+  (33, REPEAT('x', CEIL(RAND() * 300))),
+  (34, REPEAT('y', CEIL(RAND() * 300))),
+  (35, REPEAT('z', CEIL(RAND() * 300)));
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+CHECK TABLE t1;
+REPAIR TABLE t1;
+DELETE FROM t1 WHERE c1 >= 10;
+CHECK TABLE t1;
+DROP TABLE t1;
+
+#
+# Bug#33222 - myisam-table drops rows when column is added
+#             and a char-field > 128 exists
+#
+# Test #1 - CHECK TABLE sees wrong record, REPAR TABLE deletes it.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(130),
+  c2 VARCHAR(1)
+) ENGINE=maria;
+INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+REPAIR TABLE t1;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
+#
+# Test #2 - same as test #1, but using EXTENDED.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(130),
+  c2 VARCHAR(1)
+) ENGINE=maria;
+INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1 EXTENDED;
+REPAIR TABLE t1 EXTENDED;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+#
+# Test #3 - same as test #1, but using OPTIMIZE TABLE.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(130),
+  c2 VARCHAR(1)
+) ENGINE=maria;
+INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
+# Insert more rows and delete one in the middle to force optimize.
+INSERT INTO t1 VALUES('b', 'b');
+INSERT INTO t1 VALUES('c', 'b');
+DELETE FROM t1 WHERE c1='b';
+SELECT COUNT(*) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+#
+# Test #4 - ALTER TABLE deletes rows.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+# Using an index which can be disabled during bulk insert.
+CREATE TABLE t1 (
+  c1 CHAR(130),
+  c2 VARCHAR(1),
+  KEY (c1)
+) ENGINE=maria;
+#
+# Insert 100 rows. This turns bulk insert on during the copy phase of
+# ALTER TABLE. Bulk insert disables keys before the insert and re-enables
+# them by repair after the insert.
+--disable_query_log
+let $count= 100;
+--echo # Insert $count rows. Query log disabled.
+while ($count)
+{
+  INSERT INTO t1 VALUES ('a', 'b');
+  dec $count;
+}
+--enable_query_log
+#
+# Change most of the rows into long character values with > 127 characters.
+UPDATE t1 SET c1=REPEAT("a",128) LIMIT 90;
+SELECT COUNT(*) FROM t1;
+ALTER TABLE t1 ENGINE=maria;
+#
+# With bug present, this shows that all long rows are gone.
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+#
+# Test #5 - same as test #1 but UTF-8.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(50),
+  c2 VARCHAR(1)
+) ENGINE=maria DEFAULT CHARSET UTF8;
+# Using Tamil Letter A, Unicode U+0B85
+INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+REPAIR TABLE t1;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
+#
+# Test #6 - same as test #2, but UTF-8.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(50),
+  c2 VARCHAR(1)
+) ENGINE=maria DEFAULT CHARSET UTF8;
+# Using Tamil Letter A, Unicode U+0B85
+INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1 EXTENDED;
+REPAIR TABLE t1 EXTENDED;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+#
+# Test #7 - same as test #3, but UTF-8.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(50),
+  c2 VARCHAR(1)
+) ENGINE=maria DEFAULT CHARSET UTF8;
+# Using Tamil Letter A, Unicode U+0B85
+INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+# Insert more rows and delete one in the middle to force optimize.
+INSERT INTO t1 VALUES('b', 'b');
+INSERT INTO t1 VALUES('c', 'b');
+DELETE FROM t1 WHERE c1='b';
+SELECT COUNT(*) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+#
+# Test #8 - same as test #4, but UTF-8.
+# Using a CHAR column that can have > 42 UTF-8 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+# Using an index which can be disabled during bulk insert.
+CREATE TABLE t1 (
+  c1 CHAR(50),
+  c2 VARCHAR(1),
+  KEY (c1)
+) ENGINE=maria DEFAULT CHARSET UTF8;
+#
+# Insert 100 rows. This turns bulk insert on during the copy phase of
+# ALTER TABLE. Bulk insert disables keys before the insert and re-enables
+# them by repair after the insert.
+--disable_query_log
+let $count= 100;
+--echo # Insert $count rows. Query log disabled.
+while ($count)
+{
+  INSERT INTO t1 VALUES ('a', 'b');
+  dec $count;
+}
+--enable_query_log
+#
+# Change most of the rows into long character values with > 42 characters.
+# Using Tamil Letter A, Unicode U+0B85
+UPDATE t1 SET c1=REPEAT(_utf8 x'e0ae85',43) LIMIT 90;
+SELECT COUNT(*) FROM t1;
+ALTER TABLE t1 ENGINE=maria;
+#
+# With bug present, this shows that all long rows are gone.
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+
+#
+# Bug#29182 - MyISAMCHK reports wrong character set
+#
+CREATE TABLE t1 (
+  c1 VARCHAR(10) NOT NULL,
+  c2 CHAR(10) DEFAULT NULL,
+  c3 VARCHAR(10) NOT NULL,
+  KEY (c1),
+  KEY (c2)
+) ENGINE=maria DEFAULT CHARSET=utf8 PACK_KEYS=0;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MARIA_CHK -d $MYSQLTEST_VARDIR/master-data/test/t1
+DROP TABLE t1;
+
+# Test warnings with transactional=1 with MyISAM
+#
+create table t1 (n int not null, c char(1)) transactional=1;
+show create table t1;
+drop table t1;
+
+#
+# Test of BUG#35570 CHECKSUM TABLE unreliable if LINESTRING field
+# (same content / differen checksum)
+#
+
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=maria;
+INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t1;
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=maria;
+INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t2;
+CREATE TABLE t3 select * from t1;
+checksum table t3;
+drop table t1,t2,t3;
+--echo End of 5.1 tests
 
 #
 # from bug37276_reduced_corruption.sql
@@ -1535,12 +1817,6 @@ lock table t1 write concurrent;
 delete from t1;
 drop table t1;
 
---disable_result_log
---disable_query_log
-eval set global storage_engine=$default_engine, maria_page_checksum=$default_checksum;
---enable_result_log
---enable_query_log
-
 #
 # Bug#39243 SELECT WHERE does not find row
 # (Problem with skip_row)
@@ -1584,3 +1860,20 @@ INSERT INTO t1 VALUES (1,"1");
 ALTER TABLE t1 CHANGE c d varchar(10);
 --disable_info
 drop table t1;
+
+#
+# Bug #39226 Maria: crash with FLUSH TABLES WITH READ LOCK after LOCK TABLES
+
+create table t1 (c1 int);
+create table t2 (c1 int);
+lock table t1 read, t2 read;
+flush tables with read lock;
+unlock tables;
+drop table t1, t2;
+
+# Set defaults back
+--disable_result_log
+--disable_query_log
+eval set global storage_engine=$default_engine, maria_page_checksum=$default_checksum;
+--enable_result_log
+--enable_query_log

@@ -1533,6 +1533,7 @@ void start_waiting_global_read_lock(THD *thd)
   if (unlikely(thd->global_read_lock))
     DBUG_VOID_RETURN;
   (void) pthread_mutex_lock(&LOCK_global_read_lock);
+  DBUG_ASSERT(protect_against_global_read_lock);
   tmp= (!--protect_against_global_read_lock &&
         (waiting_for_read_lock || global_read_lock_blocks_commit));
   (void) pthread_mutex_unlock(&LOCK_global_read_lock);

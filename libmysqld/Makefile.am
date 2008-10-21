@@ -69,16 +69,14 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_select.cc sql_do.cc sql_show.cc set_var.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
-	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
+	unireg.cc uniques.cc sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc sql_cursor.cc \
 	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
 	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
-	event_scheduler.cc events.cc event_data_objects.cc \
-        event_queue.cc event_db_repository.cc \
 	rpl_filter.cc sql_partition.cc sql_builtin.cc sql_plugin.cc \
 	sql_tablespace.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
-	sql_servers.cc
+	sql_servers.cc event_parse_data.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)
 nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)

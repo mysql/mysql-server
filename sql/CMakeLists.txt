@@ -39,11 +39,11 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc
                             ${PROJECT_SOURCE_DIR}/include/sql_state.h 
                               PROPERTIES GENERATED 1)
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN)
+ADD_DEFINITIONS(-DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -DHAVE_EVENT_SCHEDULER)
 
 ADD_EXECUTABLE(mysqld
                ../sql-common/client.c derror.cc des_key_file.cc
-               discover.cc ../libmysql/errmsg.c field.cc  stacktrace.c stacktrace.h field_conv.cc 
+               discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc
                ha_partition.cc
                handler.cc hash_filo.cc hash_filo.h 
@@ -75,7 +75,7 @@ ADD_EXECUTABLE(mysqld
                partition_info.cc rpl_utility.cc rpl_injector.cc sql_locale.cc
                rpl_rli.cc rpl_mi.cc sql_servers.cc
                sql_connect.cc scheduler.cc 
-               sql_profile.cc
+               sql_profile.cc event_parse_data.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
                ${PROJECT_SOURCE_DIR}/include/mysqld_error.h

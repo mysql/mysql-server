@@ -198,6 +198,19 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
+/** Push an error to the error stack and return TRUE for now. */
+
+bool
+Reprepare_observer::report_error(THD *thd)
+{
+  my_error(ER_NEED_REPREPARE, MYF(ME_NO_WARNING_FOR_ERROR|ME_NO_SP_HANDLER));
+
+  m_invalidated= TRUE;
+
+  return TRUE;
+}
+
+
 Open_tables_state::Open_tables_state(ulong version_arg)
   :version(version_arg), state_flags(0U)
 {
@@ -506,6 +519,7 @@ THD::THD()
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    binlog_table_maps(0), binlog_flags(0UL),
+   table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
@@ -521,7 +535,7 @@ THD::THD()
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL),
-   m_lip(NULL)
+   m_parser_state(NULL)
 {
   ulong tmp;
 
@@ -1110,6 +1124,8 @@ void THD::cleanup_after_query()
   free_items();
   /* Reset where. */
   where= THD::DEFAULT_WHERE;
+  /* reset table map for multi-table update */
+  table_map_for_update= 0;
 }
 
 
@@ -1440,6 +1456,7 @@ void THD::rollback_item_tree_changes()
 select_result::select_result()
 {
   thd=current_thd;
+  nest_level= -1;
 }
 
 void select_result::send_error(uint errcode,const char *err)
@@ -1576,6 +1593,12 @@ bool select_send::send_eof()
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  /* 
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return TRUE;
   ::my_eof(thd);
   is_result_set_started= 0;
   return FALSE;
@@ -2779,7 +2802,8 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
               handler_tables == 0 && derived_tables == 0 &&
               lock == 0 && locked_tables == 0 &&
-              prelocked_mode == NON_PRELOCKED);
+              prelocked_mode == NON_PRELOCKED &&
+              m_reprepare_observer == NULL);
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
 }
@@ -2877,8 +2901,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
    */
   if (rpl_master_erroneous_autoinc(this))
   {
-    backup->auto_inc_intervals_forced= auto_inc_intervals_forced;
-    auto_inc_intervals_forced.empty();
+    DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
+    auto_inc_intervals_forced.swap(&backup->auto_inc_intervals_forced);
   }
 #endif
   
@@ -2926,8 +2950,8 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
    */
   if (rpl_master_erroneous_autoinc(this))
   {
-    auto_inc_intervals_forced= backup->auto_inc_intervals_forced;
-    backup->auto_inc_intervals_forced.empty();
+    backup->auto_inc_intervals_forced.swap(&auto_inc_intervals_forced);
+    DBUG_ASSERT(backup->auto_inc_intervals_forced.nb_elements() == 0);
   }
 #endif
 
@@ -3423,6 +3447,21 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
   return ev->add_row_data(row_data, len);
 }
 
+
+int THD::binlog_remove_pending_rows_event(bool clear_maps)
+{
+  DBUG_ENTER(__FUNCTION__);
+
+  if (!mysql_bin_log.is_open())
+    DBUG_RETURN(0);
+
+  mysql_bin_log.remove_pending_rows_event(this);
+
+  if (clear_maps)
+    binlog_table_maps= 0;
+
+  DBUG_RETURN(0);
+}
 
 int THD::binlog_flush_pending_rows_event(bool stmt_end)
 {

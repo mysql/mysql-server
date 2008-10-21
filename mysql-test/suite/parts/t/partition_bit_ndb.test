@@ -1,9 +1,9 @@
 ################################################################################
-# t/partition_bit.test                                                         #
+# t/partition_bit_ndb.test                                                     #
 #                                                                              #
 # Purpose:                                                                     #
 #  Tests around bit type                                                       #
-#        MyISAM branch                                                         #
+#        NDB branch                                                            #
 #                                                                              #
 #------------------------------------------------------------------------------#
 # Original Author: HH                                                          #
@@ -45,7 +45,12 @@ SET @max_row = 20;
 ##### Storage engine to be tested
 --source include/have_ndb.inc
 let $engine= 'NDB';
+connection default;
 
+# range, list and hash partitioning in ndb requires new_mode
+--disable_query_log
+set new=on;
+--enable_query_log
 ##### Assign a big number smaller than the maximum value for partitions  #####
 #     and smaller than the maximum value of SIGNED INTEGER
 let $MAX_VALUE= (2147483646);

@@ -82,3 +82,10 @@ a
 1234562
 x
 drop table t1;
+CREATE TABLE t1 (c1 varchar(100), c2 varchar(100));
+INSERT INTO t1 VALUES ('',''), ('','First'), ('Random','Random');
+SELECT * FROM t1 WHERE CONCAT(c1,' ',c2) REGEXP 'First.*';
+c1	c2
+	First
+DROP TABLE t1;
+# End of 5.0 tests

@@ -66,13 +66,63 @@ typedef struct st_order {
   table_map used, depend_map;
 } ORDER;
 
+/**
+   @brief The current state of the privilege checking process for the current
+   user, SQL statement and SQL object.
+
+   @details The privilege checking process is divided into phases depending on
+   the level of the privilege to be checked and the type of object to be
+   accessed. Due to the mentioned scattering of privilege checking
+   functionality, it is necessary to keep track of the state of the
+   process. This information is stored in privilege, want_privilege, and
+   orig_want_privilege.
+
+   A GRANT_INFO also serves as a cache of the privilege hash tables. Relevant
+   members are grant_table and version.
+ */
 typedef struct st_grant_info
 {
+  /**
+     @brief A copy of the privilege information regarding the current host,
+     database, object and user.
+
+     @details The version of this copy is found in GRANT_INFO::version.
+   */
   GRANT_TABLE *grant_table;
+  /**
+     @brief Used for cache invalidation when caching privilege information.
+
+     @details The privilege information is stored on disk, with dedicated
+     caches residing in memory: table-level and column-level privileges,
+     respectively, have their own dedicated caches.
+
+     The GRANT_INFO works as a level 1 cache with this member updated to the
+     current value of the global variable @c grant_version (@c static variable
+     in sql_acl.cc). It is updated Whenever the GRANT_INFO is refreshed from
+     the level 2 cache. The level 2 cache is the @c column_priv_hash structure
+     (@c static variable in sql_acl.cc)
+
+     @see grant_version
+   */
   uint version;
+  /**
+     @brief The set of privileges that the current user has fulfilled for a
+     certain host, database, and object.
+     
+     @details This field is continually updated throughout the access checking
+     process. In each step the "wanted privilege" is checked against the
+     fulfilled privileges. When/if the intersection of these sets is empty,
+     access is granted.
+
+     The set is implemented as a bitmap, with the bits defined in sql_acl.h.
+   */
   ulong privilege;
+  /**
+     @brief the set of privileges that the current user needs to fulfil in
+     order to carry out the requested operation.
+   */
   ulong want_privilege;
-  /*
+  /**
     Stores the requested access acl of top level tables list. Is used to
     check access rights to the underlying tables of a view.
   */
@@ -436,6 +486,105 @@ typedef struct st_table_share
   inline ulong get_table_def_version()
   {
     return table_map_id;
+  }
+
+  /**
+    Convert unrelated members of TABLE_SHARE to one enum
+    representing its type.
+
+    @todo perhaps we need to have a member instead of a function.
+  */
+  enum enum_table_ref_type get_table_ref_type() const
+  {
+    if (is_view)
+      return TABLE_REF_VIEW;
+    switch (tmp_table) {
+    case NO_TMP_TABLE:
+      return TABLE_REF_BASE_TABLE;
+    case SYSTEM_TMP_TABLE:
+      return TABLE_REF_I_S_TABLE;
+    default:
+      return TABLE_REF_TMP_TABLE;
+    }
+  }
+  /**
+    Return a table metadata version.
+     * for base tables, we return table_map_id.
+       It is assigned from a global counter incremented for each
+       new table loaded into the table definition cache (TDC).
+     * for temporary tables it's table_map_id again. But for
+       temporary tables table_map_id is assigned from
+       thd->query_id. The latter is assigned from a thread local
+       counter incremented for every new SQL statement. Since
+       temporary tables are thread-local, each temporary table
+       gets a unique id.
+     * for everything else (views, information schema tables),
+       the version id is zero.
+
+   This choice of version id is a large compromise
+   to have a working prepared statement validation in 5.1. In
+   future version ids will be persistent, as described in WL#4180.
+
+   Let's try to explain why and how this limited solution allows
+   to validate prepared statements.
+
+   Firstly, sets (in mathematical sense) of version numbers
+   never intersect for different table types. Therefore,
+   version id of a temporary table is never compared with
+   a version id of a view, and vice versa.
+
+   Secondly, for base tables, we know that each DDL flushes the
+   respective share from the TDC. This ensures that whenever
+   a table is altered or dropped and recreated, it gets a new
+   version id.
+   Unfortunately, since elements of the TDC are also flushed on
+   LRU basis, this choice of version ids leads to false positives.
+   E.g. when the TDC size is too small, we may have a SELECT
+   * FROM INFORMATION_SCHEMA.TABLES flush all its elements, which
+   in turn will lead to a validation error and a subsequent
+   reprepare of all prepared statements.  This is
+   considered acceptable, since as long as prepared statements are
+   automatically reprepared, spurious invalidation is only
+   a performance hit. Besides, no better simple solution exists.
+
+   For temporary tables, using thd->query_id ensures that if
+   a temporary table was altered or recreated, a new version id is
+   assigned. This suits validation needs very well and will perhaps
+   never change.
+
+   Metadata of information schema tables never changes.
+   Thus we can safely assume 0 for a good enough version id.
+
+   Views are a special and tricky case. A view is always inlined
+   into the parse tree of a prepared statement at prepare.
+   Thus, when we execute a prepared statement, the parse tree
+   will not get modified even if the view is replaced with another
+   view.  Therefore, we can safely choose 0 for version id of
+   views and effectively never invalidate a prepared statement
+   when a view definition is altered. Note, that this leads to
+   wrong binary log in statement-based replication, since we log
+   prepared statement execution in form Query_log_events
+   containing conventional statements. But since there is no
+   metadata locking for views, the very same problem exists for
+   conventional statements alone, as reported in Bug#25144. The only
+   difference between prepared and conventional execution is,
+   effectively, that for prepared statements the race condition
+   window is much wider.
+   In 6.0 we plan to support view metadata locking (WL#3726) and
+   extend table definition cache to cache views (WL#4298).
+   When this is done, views will be handled in the same fashion
+   as the base tables.
+
+   Finally, by taking into account table type, we always
+   track that a change has taken place when a view is replaced
+   with a base table, a base table is replaced with a temporary
+   table and so on.
+
+   @sa TABLE_LIST::is_table_ref_id_equal()
+  */
+  ulong get_table_ref_version() const
+  {
+    return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
   }
 
 } TABLE_SHARE;
@@ -836,6 +985,9 @@ typedef struct st_schema_table
 #define VIEW_CHECK_ERROR      1
 #define VIEW_CHECK_SKIP       2
 
+/** The threshold size a blob field buffer before it is freed */
+#define MAX_TDC_BLOB_SIZE 65536
+
 struct st_lex;
 class select_union;
 class TMP_TABLE_PARAM;
@@ -1002,6 +1154,27 @@ struct TABLE_LIST
     can see this lists can't be merged)
   */
   TABLE_LIST	*correspondent_table;
+  /**
+     @brief Normally, this field is non-null for anonymous derived tables only.
+
+     @details This field is set to non-null for 
+     
+     - Anonymous derived tables, In this case it points to the SELECT_LEX_UNIT
+     representing the derived table. E.g. for a query
+     
+     @verbatim SELECT * FROM (SELECT a FROM t1) b @endverbatim
+     
+     For the @c TABLE_LIST representing the derived table @c b, @c derived
+     points to the SELECT_LEX_UNIT representing the result of the query within
+     parenteses.
+     
+     - Views. This is set for views with @verbatim ALGORITHM = TEMPTABLE
+     @endverbatim by mysql_make_view().
+     
+     @note Inside views, a subquery in the @c FROM clause is not allowed.
+     @note Do not use this field to separate views/base tables/anonymous
+     derived tables. Use TABLE_LIST::is_anonymous_derived_table().
+  */
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
@@ -1067,7 +1240,15 @@ struct TABLE_LIST
   ulonglong	file_version;		/* version of file's field set */
   ulonglong     updatable_view;         /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
-  ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
+  /** 
+      @brief The declared algorithm, if this is a view.
+      @details One of
+      - VIEW_ALGORITHM_UNDEFINED
+      - VIEW_ALGORITHM_TMPTABLE
+      - VIEW_ALGORITHM_MERGE
+      @to do Replace with an enum 
+  */
+  ulonglong	algorithm;
   ulonglong     view_suid;              /* view is suid (TRUE dy default) */
   ulonglong     with_check;             /* WITH CHECK OPTION */
   /*
@@ -1075,7 +1256,15 @@ struct TABLE_LIST
     algorithm)
   */
   uint8         effective_with_check;
-  uint8         effective_algorithm;    /* which algorithm was really used */
+  /** 
+      @brief The view algorithm that is actually used, if this is a view.
+      @details One of
+      - VIEW_ALGORITHM_UNDEFINED
+      - VIEW_ALGORITHM_TMPTABLE
+      - VIEW_ALGORITHM_MERGE
+      @to do Replace with an enum 
+  */
+  uint8         effective_algorithm;
   GRANT_INFO	grant;
   /* data need by some engines in query cache*/
   ulonglong     engine_data;
@@ -1233,6 +1422,53 @@ struct TABLE_LIST
     child_def_version= ~0UL;
   }
 
+  /**
+    Compare the version of metadata from the previous execution
+    (if any) with values obtained from the current table
+    definition cache element.
+
+    @sa check_and_update_table_version()
+  */
+  inline
+  bool is_table_ref_id_equal(TABLE_SHARE *s) const
+  {
+    return (m_table_ref_type == s->get_table_ref_type() &&
+            m_table_ref_version == s->get_table_ref_version());
+  }
+
+  /**
+    Record the value of metadata version of the corresponding
+    table definition cache element in this parse tree node.
+
+    @sa check_and_update_table_version()
+  */
+  inline
+  void set_table_ref_id(TABLE_SHARE *s)
+  {
+    m_table_ref_type= s->get_table_ref_type();
+    m_table_ref_version= s->get_table_ref_version();
+  }
+
+  /**
+     @brief True if this TABLE_LIST represents an anonymous derived table,
+     i.e.  the result of a subquery.
+  */
+  bool is_anonymous_derived_table() const { return derived && !view; }
+
+  /**
+     @brief Returns the name of the database that the referenced table belongs
+     to.
+  */
+  char *get_db_name() { return view != NULL ? view_db.str : db; }
+
+  /**
+     @brief Returns the name of the table that this TABLE_LIST represents.
+
+     @details The unqualified table name or view name for a table or view,
+     respectively.
+   */
+  char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
@@ -1243,6 +1479,10 @@ private:
 
   /* Remembered MERGE child def version.  See top comment in ha_myisammrg.cc */
   ulong         child_def_version;
+  /** See comments for set_metadata_id() */
+  enum enum_table_ref_type m_table_ref_type;
+  /** See comments for set_metadata_id() */
+  ulong m_table_ref_version;
 };
 
 class Item;
@@ -1358,8 +1598,8 @@ public:
   bool end_of_fields()
   { return (table_ref == last_leaf && field_it->end_of_fields()); }
   const char *name() { return field_it->name(); }
-  const char *table_name();
-  const char *db_name();
+  const char *get_table_name();
+  const char *get_db_name();
   GRANT_INFO *grant();
   Item *create_item(THD *thd) { return field_it->create_item(thd); }
   Field *field() { return field_it->field(); }

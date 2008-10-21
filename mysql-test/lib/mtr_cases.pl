@@ -513,19 +513,10 @@ sub collect_one_test_case($$$$$$$$$) {
   my $suite_opts= shift;
 
   my $path= "$testdir/$elem";
-
-  # ----------------------------------------------------------------------
-  # Skip some tests silently
-  # ----------------------------------------------------------------------
-
-  if ( $::opt_start_from and $tname lt $::opt_start_from )
-  {
-    return;
-  }
-
+  my $name= basename($suite) . ".$tname";
 
   my $tinfo= {};
-  $tinfo->{'name'}= basename($suite) . ".$tname";
+  $tinfo->{'name'}= $name;
   $tinfo->{'result_file'}= "$resdir/$tname.result";
   $tinfo->{'component_id'} = $component_id;
   push(@$cases, $tinfo);
@@ -534,7 +525,7 @@ sub collect_one_test_case($$$$$$$$$) {
   # Skip some tests but include in list, just mark them to skip
   # ----------------------------------------------------------------------
 
-  if ( $skip_test and $tname =~ /$skip_test/o )
+  if ( $skip_test and ($tname =~ /$skip_test/o || $name =~ /$skip_test/o))
   {
     $tinfo->{'skip'}= 1;
     return;
@@ -773,6 +764,13 @@ sub collect_one_test_case($$$$$$$$$) {
 	if ( $::used_default_engine =~ /^innodb/i );
     }
 
+    #enable federated for this test
+    if ($tinfo->{'federated_test'})
+    {
+      push(@{$tinfo->{'master_opt'}}, "--loose-federated");
+      push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
+    }
+
     if ( $tinfo->{'big_test'} and ! $::opt_big_test )
     {
       $tinfo->{'skip'}= 1;
@@ -891,6 +889,8 @@ our @tags=
  ["include/have_ndb_extra.inc", "ndb_extra", 1],
  ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["require_manager", "require_manager", 1],
+ ["include/federated.inc", "federated_test", 1],
+ ["include/have_federated_db.inc", "federated_test", 1],
 );
 
 sub mtr_options_from_test_file($$) {

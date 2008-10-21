@@ -1214,6 +1214,7 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
       param->glob_crc+= (*info->s->calc_check_checksum)(info,record);
       link_used+= (block_info.filepos - start_recpos);
       used+= (pos-start_recpos);
+      break;
     } /* switch */
     if (! got_error)
     {
@@ -1339,7 +1340,7 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
   if (splits != info->s->state.split)
   {
     mi_check_print_warning(param,
-			   "Found %10s parts                Should be: %s parts",
+			   "Found %10s key parts. Should be: %s",
 			   llstr(splits,llbuff),
 			   llstr(info->s->state.split,llbuff2));
   }
@@ -1736,7 +1737,7 @@ err:
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,-1))
+	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
     }
   }
@@ -2549,7 +2550,7 @@ err:
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,-1))
+	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
     }
   }
@@ -3081,7 +3082,7 @@ err:
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,-1))
+	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
     }
   }

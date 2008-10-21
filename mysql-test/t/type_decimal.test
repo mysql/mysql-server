@@ -521,4 +521,12 @@ SELECT ROUND(20061108085411.000002);
 
 DROP TABLE t1, t2, t3, t4, t5, t6;
 
+#
+# Bug#36023: Incorrect handling of zero length caused an assertion to fail.
+#
+create table t1(`c` decimal(9,2));
+insert into t1 values (300),(201.11);
+select max(case 1 when 1 then c else null end) from t1 group by c;
+drop table t1;
+
 --echo End of 5.0 tests

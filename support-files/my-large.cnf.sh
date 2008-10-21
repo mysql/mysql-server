@@ -46,6 +46,9 @@ thread_concurrency = 8
 # 
 #skip-networking
 
+# Disable Federated by default
+skip-federated
+
 # Replication Master Server (default)
 # binary logging is required for replication
 log-bin=mysql-bin
