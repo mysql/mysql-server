@@ -62,6 +62,9 @@ show status like "Qcache_hits";
 
 # Update the table and make sure the correct data is returned
 update t1 set a1=3 where pk=1;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+
 select * from t1;
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
@@ -69,6 +72,9 @@ show status like "Qcache_hits";
 # Insert a new record and make sure the correct data is returned
 insert into t1 value (2, 7, 8, 'Second row');
 insert into t1 value (4, 5, 6, 'Fourth row');
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+
 select * from t1 order by pk desc;
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
@@ -86,6 +92,8 @@ show status like "Qcache_hits";
 
 # Delete from the table
 delete from t1 where c1='Fourth row';
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
 show status like "Qcache_queries_in_cache";
 select * from t1 where b1=3;
 show status like "Qcache_hits";
@@ -100,6 +108,9 @@ show status like "Qcache_hits";
 
 # Update the table and switch to other connection
 update t1 set a1=4 where b1=3;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
+
 connect (con2,localhost,root,,);
 connection con2;
 use test;
@@ -132,6 +143,8 @@ connection con1;
 flush status;
 begin;
 update t1 set a1=5 where pk=1;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
@@ -165,6 +178,8 @@ connection con1;
 flush status;
 begin;
 update t1 set a1=6 where pk=1;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
@@ -206,6 +221,8 @@ connection con1;
 flush status;
 begin;
 insert into t1 set pk=5, a1=6, b1=3, c1="New row";
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
@@ -244,6 +261,8 @@ connection con1;
 flush status;
 begin;
 delete from t1 where pk=2;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
@@ -286,6 +305,8 @@ update t2 set a2=9 where pk=1;
 update t3 set a3=9 where pk=1;
 update t4 set a4=9 where a4=2;
 update t5 set a5=9 where pk=1;
+# Sleep to give Qcache thread time to detect change
+--real_sleep 1
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
