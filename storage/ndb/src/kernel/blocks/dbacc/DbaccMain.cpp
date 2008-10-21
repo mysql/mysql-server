@@ -2329,7 +2329,9 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
   ndbassert(operationRecPtr.i == tmp);
   ndbassert(operationRecPtr.p == ptr);
   operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-  if(Toperation != ZREAD){
+  if((Toperation != ZREAD) &&
+     (Toperation != ZSCAN_OP))
+  {
     fragrecptr.p->m_commit_count++;
     if (Toperation != ZINSERT) {
       if (Toperation != ZDELETE) {
