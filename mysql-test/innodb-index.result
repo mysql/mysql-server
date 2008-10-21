@@ -886,10 +886,12 @@ a
 44
 commit;
 drop table t1;
+set global innodb_file_per_table=on;
+set global innodb_file_format='Barracuda';
 create table t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,h blob,
 i blob,j blob,k blob,l blob,m blob,n blob,o blob,p blob,
 q blob,r blob,s blob,t blob,u blob)
-engine=innodb;
+engine=innodb row_format=dynamic;
 create index t1a on t1 (a(1));
 create index t1b on t1 (b(1));
 create index t1c on t1 (c(1));
@@ -960,8 +962,14 @@ t1	CREATE TABLE `t1` (
   KEY `t1s` (`s`(1)),
   KEY `t1t` (`t`(1)),
   KEY `t1st` (`s`(1),`t`(1))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+create index t1u on t1 (u(1));
+ERROR HY000: Too big row
+alter table t1 row_format=compact;
+create index t1u on t1 (u(1));
 drop table t1;
+set global innodb_file_per_table=0;
+set global innodb_file_format=Antelope;
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 CREATE TABLE t1(
