@@ -92,15 +92,18 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_TCKEY_FAILREFCONF_R         40
 
-/* 41 unused */
-/* 42 unused */
-/* 43 unused */
-/* 44 unused */
-/* 45 unused */
-/* 46 unused */
-/* 47 unused */
-/* 48 unused */
-/* 49 unused */
+#define GSN_CONFIG_CHANGE_REQ           41
+#define GSN_CONFIG_CHANGE_REF           42
+#define GSN_CONFIG_CHANGE_CONF          43
+
+#define GSN_CONFIG_CHANGE_IMPL_REQ      44
+#define GSN_CONFIG_CHANGE_IMPL_REF      45
+#define GSN_CONFIG_CHANGE_IMPL_CONF     46
+
+#define GSN_CONFIG_CHECK_REQ            47
+#define GSN_CONFIG_CHECK_REF            48
+#define GSN_CONFIG_CHECK_CONF           49
+
 /* 50 unused */
 /* 51 unused */
 /* 52 unused */

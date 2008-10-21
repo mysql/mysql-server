@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2006 MySQL AB
+# Copyright (C) 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +18,7 @@ EXTRA_DIST = CMakeLists.txt
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
-#MYSQLCLUSTERdir=        $(prefix)/mysql-cluster
-MYSQLCLUSTERdir=        .
+MYSQLCLUSTERdir=        $(prefix)/mysql-cluster
 
 ndbbin_PROGRAMS = ndb_mgmd
 
@@ -27,10 +26,10 @@ ndb_mgmd_SOURCES = \
 	MgmtSrvr.cpp \
 	main.cpp \
 	Services.cpp \
-	MgmtSrvrConfig.cpp \
 	ConfigInfo.cpp \
 	InitConfigFileParser.cpp \
-	Config.cpp
+	Config.cpp \
+	ConfigManager.cpp
 
 
 noinst_PROGRAMS = testConfig

@@ -55,8 +55,19 @@ public:
   const ClusterMgr::Node &getNodeInfo(Uint16 nodeId) const;
   Uint32 getNoOfConnectedNodes() const;
 
+  /*
+    Return bitmask of all defined nodes of a certain type
+    returns all defined nodes by default.
+   */
+  void getNodes(NodeBitmask& mask,
+                NodeInfo::NodeType type = NodeInfo::INVALID);
+
   SendStatus sendSignal(Uint16 nodeId, const SimpleSignal *);
-  
+  SendStatus sendSignal(Uint16 nodeId, SimpleSignal& sig,
+                        Uint16 recBlock, Uint16 gsn, Uint32 len);
+  NodeBitmask broadcastSignal(NodeBitmask mask, SimpleSignal& sig,
+                              Uint16 recBlock, Uint16 gsn, Uint32 len);
+
   SimpleSignal * waitFor(Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint16 gsn, Uint32 timeOutMillis = 0);  

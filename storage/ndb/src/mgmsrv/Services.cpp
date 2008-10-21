@@ -615,14 +615,6 @@ MgmApiSession::getConfig(Parser_t::Context &,
   args.get("version", &version);
   args.get("node", &node);
 
-  const Config *conf = m_mgmsrv.getConfig();
-  if(conf == NULL) {
-    m_output->println("get config reply");
-    m_output->println("result: Could not fetch configuration");
-    m_output->println("");
-    return;
-  }
-
   if(node != 0){
     bool compatible;
     switch (m_mgmsrv.getNodeType(node)) {
@@ -648,16 +640,19 @@ MgmApiSession::getConfig(Parser_t::Context &,
       return;
     }
   }  
-  
-  NdbMutex_Lock(m_mgmsrv.m_configMutex);
-  const ConfigValues * cfg = &conf->m_configValues->m_config;
-  
-  UtilBuffer src;
-  cfg->pack(src);
-  NdbMutex_Unlock(m_mgmsrv.m_configMutex);
-  
-  char *tmp_str = (char *) malloc(base64_needed_encoded_length(src.length()));
-  (void) base64_encode(src.get_data(), src.length(), tmp_str);
+
+  UtilBuffer packed;
+  if (!m_mgmsrv.getPackedConfig(packed))
+  {
+    m_output->println("get config reply");
+    m_output->println("result: Could not fetch configuration");
+    m_output->println("");
+    return;
+  }
+
+  char *tmp_str =
+    (char *) malloc(base64_needed_encoded_length(packed.length()));
+  (void) base64_encode(packed.get_data(), packed.length(), tmp_str);
 
   SLEEP_ERROR_INSERTED(1);
 
@@ -2027,6 +2022,13 @@ done:
   m_output->println("");
 }
 
+#if 0
+  // TODO Magnus, "get variables"
+  ndbout_c("NdbConfig_get_path(0): %s", NdbConfig_get_path(0));
+  ndbout_c("opt_ndb_connectstring: %s", opt_ndb_connectstring);
+  ndbout_c("NDB_CONNECTSTRING: %s", getenv("NDB_CONNECTSTRING"));
+  ndbout_c("datadir: %s", opts.datadir);
+#endif
 
 template class MutexVector<int>;
 template class Vector<ParserRow<MgmApiSession> const*>;
