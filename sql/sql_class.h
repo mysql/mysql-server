@@ -920,7 +920,7 @@ struct st_savepoint {
   uint                 length, nht;
 };
 
-enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
+enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED, XA_ROLLBACK_ONLY};
 extern const char *xa_state_names[];
 
 typedef struct st_xid_state {
@@ -928,6 +928,8 @@ typedef struct st_xid_state {
   XID  xid;                           // transaction identifier
   enum xa_states xa_state;            // used by external XA only
   bool in_thd;
+  /* Error reported by the Resource Manager (RM) to the Transaction Manager. */
+  uint rm_error;
 } XID_STATE;
 
 extern pthread_mutex_t LOCK_xid_cache;
