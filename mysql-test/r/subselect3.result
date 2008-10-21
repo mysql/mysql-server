@@ -779,6 +779,22 @@ SELECT 1 FROM t1 WHERE t1.a NOT IN (SELECT 1 FROM t1, t2 WHERE 0);
 1
 1
 DROP TABLE t1, t2;
+CREATE TABLE t1 (
+pk INT PRIMARY KEY,
+int_key INT,
+varchar_key VARCHAR(5) UNIQUE,
+varchar_nokey VARCHAR(5)
+);
+INSERT INTO t1 VALUES (9, 7,NULL,NULL), (10,8,'p' ,'p');
+SELECT varchar_nokey
+FROM t1
+WHERE NULL NOT IN (
+SELECT INNR.pk FROM t1 AS INNR2
+LEFT JOIN t1 AS INNR ON ( INNR2.int_key = INNR.int_key )
+WHERE INNR.varchar_key > 'n{'
+);
+varchar_nokey
+DROP TABLE t1;
 End of 5.0 tests
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
