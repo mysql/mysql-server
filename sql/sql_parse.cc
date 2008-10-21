@@ -2324,8 +2324,8 @@ mysql_execute_command(THD *thd)
     }
     else
     {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "the master info structure does not exist");
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
       my_ok(thd);
     }
     pthread_mutex_unlock(&LOCK_active_mi);
@@ -2722,11 +2722,13 @@ end_with_restore_list:
 
       /* Don't yet allow changing of symlinks with ALTER TABLE */
       if (create_info.data_file_name)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                     "DATA DIRECTORY option ignored");
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                            "DATA DIRECTORY");
       if (create_info.index_file_name)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                     "INDEX DIRECTORY option ignored");
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                            "INDEX DIRECTORY");
       create_info.data_file_name= create_info.index_file_name= NULL;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
@@ -5488,6 +5490,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
   */
   thd->reset_current_stmt_binlog_row_based();
 
+  DBUG_PRINT("debug",
+             ("current_stmt_binlog_row_based: %d",
+              thd->current_stmt_binlog_row_based));
+
   DBUG_VOID_RETURN;
 }
 
@@ -7501,6 +7507,39 @@ int test_if_data_home_dir(const char *dir)
 }
 
 C_MODE_END
+
+
+/**
+  Check that host name string is valid.
+
+  @param[in] str string to be checked
+
+  @return             Operation status
+    @retval  FALSE    host name is ok
+    @retval  TRUE     host name string is longer than max_length or
+                      has invalid symbols
+*/
+
+bool check_host_name(LEX_STRING *str)
+{
+  const char *name= str->str;
+  const char *end= str->str + str->length;
+  if (check_string_byte_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+    return TRUE;
+
+  while (name != end)
+  {
+    if (*name == '@')
+    {
+      my_printf_error(ER_UNKNOWN_ERROR, 
+                      "Malformed hostname (illegal symbol: '%c')", MYF(0),
+                      *name);
+      return TRUE;
+    }
+    name++;
+  }
+  return FALSE;
+}
 
 
 extern int MYSQLparse(void *thd); // from sql_yacc.cc

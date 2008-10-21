@@ -1151,7 +1151,7 @@ int QUICK_RANGE_SELECT::init()
 
   if (file->inited != handler::NONE)
     file->ha_index_or_rnd_end();
-  DBUG_RETURN(error= file->ha_index_init(index, 1));
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -3215,10 +3215,12 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
                                                        ppar->subpart_fields););
         /* Find the subpartition (it's HASH/KEY so we always have one) */
         partition_info *part_info= ppar->part_info;
-        uint32 subpart_id= part_info->get_subpartition_id(part_info);
-        
+        uint32 part_id, subpart_id;
+                 
+        if (part_info->get_subpartition_id(part_info, &subpart_id))
+          return 0;
+
         /* Mark this partition as used in each subpartition. */
-        uint32 part_id;
         while ((part_id= ppar->part_iter.get_next(&ppar->part_iter)) !=
                 NOT_A_PARTITION_ID)
         {
@@ -9198,7 +9200,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         DBUG_RETURN(NULL);
 
       /* The argument of MIN/MAX. */
-      Item *expr= min_max_item->args[0]->real_item();    
+      Item *expr= min_max_item->get_arg(0)->real_item();
       if (expr->type() == Item::FIELD_ITEM) /* Is it an attribute? */
       {
         if (! min_max_arg_item)

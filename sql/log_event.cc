@@ -3350,6 +3350,17 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
       close_temporary_tables(thd);
       cleanup_load_tmpdir();
     }
+    else
+    {
+      /*
+        Set all temporary tables thread references to the current thread
+        as they may point to the "old" SQL slave thread in case of its
+        restart.
+      */
+      TABLE *table;
+      for (table= thd->temporary_tables; table; table= table->next)
+        table->in_use= thd;
+    }
     break;
 
     /*
@@ -8613,10 +8624,10 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       the necessary bits on the bytes and don't set the filler bits
       correctly.
     */
-    my_ptrdiff_t const pos=
-      table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
-    table->record[0][pos]= 0xFF;
-    
+    if (table->s->null_bytes > 0)
+      table->record[0][table->s->null_bytes - 1]|=
+        256U - (1U << table->s->last_null_bit_pos);
+
     if ((error= table->file->index_read_map(table->record[0], m_key, 
                                             HA_WHOLE_KEY,
                                             HA_READ_KEY_EXACT)))

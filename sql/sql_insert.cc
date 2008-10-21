@@ -830,7 +830,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       info.copied=values_list.elements;
       end_delayed_insert(thd);
     }
-    query_cache_invalidate3(thd, table_list, 1);
   }
   else
 #endif
@@ -3635,7 +3634,8 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   tmp_table_list.table = *tables;
   query.length(0);      // Have to zero it since constructor doesn't
 
-  result= store_create_info(thd, &tmp_table_list, &query, create_info);
+  result= store_create_info(thd, &tmp_table_list, &query, create_info,
+                            /* show_database */ TRUE);
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
 
   if (mysql_bin_log.is_open())

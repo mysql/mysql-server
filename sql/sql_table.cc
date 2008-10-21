@@ -3540,11 +3540,13 @@ bool mysql_create_table_no_lock(THD *thd,
 #endif /* HAVE_READLINK */
   {
     if (create_info->data_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "DATA DIRECTORY option ignored");
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "DATA DIRECTORY");
     if (create_info->index_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "INDEX DIRECTORY option ignored");
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "INDEX DIRECTORY");
     create_info->data_file_name= create_info->index_file_name= 0;
   }
   create_info->table_options=db_options;
@@ -5010,8 +5012,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         }
         VOID(pthread_mutex_unlock(&LOCK_open));
 
-        IF_DBUG(int result=) store_create_info(thd, table, &query,
-                                               create_info);
+        IF_DBUG(int result=)
+          store_create_info(thd, table, &query,
+                            create_info, FALSE /* show_database */);
 
         DBUG_ASSERT(result == 0); // store_create_info() always return 0
         write_bin_log(thd, TRUE, query.ptr(), query.length());
@@ -5279,6 +5282,8 @@ compare_tables(TABLE *table,
       create_info->used_fields & HA_CREATE_USED_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_ROW_FORMAT ||
+      create_info->used_fields & HA_CREATE_USED_PACK_KEYS ||
+      create_info->used_fields & HA_CREATE_USED_MAX_ROWS ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num ||
       !table->s->mysql_version ||
