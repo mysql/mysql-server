@@ -219,6 +219,11 @@ require(bool x)
     abort();
 }
 
+#ifdef assert
+#undef assert
+#endif
+#define assert(x) require(x)
+
 #ifdef NDB_HAVE_XCNG
 struct thr_spin_lock
 {
@@ -718,7 +723,7 @@ struct trp_callback : public TransporterCallbackKernel
   trp_callback();
 
   /* Callback interface. */
-  int checkJobBuffer() { return 0; }
+  int checkJobBuffer();
   void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
   void lock_transporter(NodeId node);
   void unlock_transporter(NodeId node);
@@ -1077,6 +1082,43 @@ flush_jbb_write_state(thr_data *selfptr)
   }
 }
 
+/**
+ * return 1 if any threads in-queue is more than 25% full
+ *   else 0
+ */
+static int
+check_job_buffers(struct thr_repository* rep)
+{
+  for (unsigned i = 0; i<num_threads; i++)
+  {
+    thr_data * thrptr = rep->m_thread+i;
+    for (unsigned j = 0; j<num_threads; j++)
+    {
+      /**
+       * These values are read wo/ locks...
+       *   and they are written by different threads wo/ syncronization
+       *   i.e they are not 100% accurate
+       *
+       * A noticable exception is the values related to the receiver thread
+       *   (which calls this method)
+       * It's write-index is correct (since it's written by itself)
+       *   and this means that the estimate for this thread is only
+       *   conservative (i.e it can be better than guess, if read-index has
+       *   moved but we didnt see it)
+       */
+      unsigned ri = thrptr->m_in_queue[j].m_read_index;
+      unsigned wi = thrptr->m_in_queue[j].m_write_index;
+      unsigned busy = (wi >= ri) ? wi - ri : (thr_job_queue::SIZE - ri) + wi;
+      if (4*busy >= thr_job_queue::SIZE)
+      {
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+
 //#define NDBMT_RAND_YIELD
 #ifdef NDBMT_RAND_YIELD
 static Uint32 g_rand_yield = 0;
@@ -1336,6 +1378,29 @@ trp_callback::unlock_transporter(NodeId node)
   struct thr_repository* rep = &g_thr_repository;
   unlock(&rep->m_receive_lock);
   unlock(&rep->m_send_locks[node]);
+}
+
+int
+trp_callback::checkJobBuffer()
+{
+  struct thr_repository* rep = &g_thr_repository;
+  if (unlikely(check_job_buffers(rep)))
+  {
+    do 
+    {
+      /**
+       * theoretically (or when we do single threaded by using ndbmtd with
+       * all in same thread) we should execute signals here...to 
+       * prevent dead-lock, but...with current ndbmtd only CMVMI runs in
+       * this thread, and other thread is waiting for CMVMI
+       * except for QMGR open/close connection, but that is not
+       * (i think) sufficient to create a deadlock
+       */
+      sched_yield();
+    } while (check_job_buffers(rep));
+  }
+
+  return 0;
 }
 
 int
@@ -2255,10 +2320,13 @@ mt_receiver_thread_main(void *thr_arg)
 
     if (globalTransporterRegistry.pollReceive(1))
     {
-      watchDogCounter = 8;
-      lock(&rep->m_receive_lock);
-      globalTransporterRegistry.performReceive();
-      unlock(&rep->m_receive_lock);
+      if (check_job_buffers(rep) == 0)
+      {
+	watchDogCounter = 8;
+	lock(&rep->m_receive_lock);
+	globalTransporterRegistry.performReceive();
+	unlock(&rep->m_receive_lock);
+      }
     }
 
     flush_jbb_write_state(selfptr);

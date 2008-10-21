@@ -366,8 +366,10 @@ getSection(SegmentedSectionPtr & ptr, Uint32 i){
 
 #ifdef NDBD_MULTITHREADED
 #define SB_SP_ARG *m_sectionPoolCache,
+#define SB_SP_REL_ARG f_section_lock, *m_sectionPoolCache,
 #else
 #define SB_SP_ARG
+#define SB_SP_REL_ARG
 #endif
 
 static
@@ -2300,7 +2302,7 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
      * This is the last signal
      * Release saved 'main signal' words segment
      */
-    g_sectionSegmentPool.release(info.m_theDataSection.p[sigLen]);
+    g_sectionSegmentPool.release(SB_SP_REL_ARG info.m_theDataSection.p[sigLen]);
   }
 }
 
@@ -2521,7 +2523,7 @@ SimulatedBlock::sendNextLinearFragment(Signal* signal,
     /**
      * This is the last signal
      */
-    g_sectionSegmentPool.release(info.m_theDataSection.p[sigLen]);
+    g_sectionSegmentPool.release(SB_SP_REL_ARG info.m_theDataSection.p[sigLen]);
   }
 }
 

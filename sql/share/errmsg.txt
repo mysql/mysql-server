@@ -6134,6 +6134,9 @@ ER_NEED_REPREPARE
 ER_DELAYED_NOT_SUPPORTED  
   eng "DELAYED option not supported for table '%-.192s'"
 
+ER_WARN_ENGINE_TRANSACTION_ROLLBACK
+  eng "Storage engine %s does not support rollback for this statement. Transaction rolled back and must be restarted"
+
 ER_SLAVE_HEARTBEAT_FAILURE
   eng "Unexpected master's heartbeat data: %s"
 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE

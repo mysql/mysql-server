@@ -228,9 +228,9 @@ bool
 Transporter::fetch_send_iovec_data()
 {
   Uint32 used = m_send_iovec_used;
-  Uint32 avail = SEND_IOVEC_SIZE - used;
-  if (avail > 0)
+  if (SEND_IOVEC_SIZE > used + 1)
   {
+    Uint32 avail = (SEND_IOVEC_SIZE - 1) - used;
     int count = get_callback_obj()->get_bytes_to_send_iovec(remoteNodeId,
                                                             m_send_iovec + used,
                                                             avail);
