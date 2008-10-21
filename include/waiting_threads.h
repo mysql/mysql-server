@@ -19,9 +19,9 @@
 #include <my_global.h>
 #include <my_sys.h>
 
-C_MODE_START
-
 #include <lf.h>
+
+C_MODE_START
 
 typedef struct st_wt_resource_id WT_RESOURCE_ID;
 
@@ -30,10 +30,13 @@ typedef struct st_wt_resource_type {
   const void *(*make_key)(WT_RESOURCE_ID *id, uint *len);
 } WT_RESOURCE_TYPE;
 
+/* we want to compare this struct with memcmp, make it packed */
+#pragma pack(push,1)
 struct st_wt_resource_id {
-  WT_RESOURCE_TYPE *type;
   ulonglong value;
+  WT_RESOURCE_TYPE *type;
 };
+#pragma pack(pop)
 
 #define WT_WAIT_STATS  24
 #define WT_CYCLE_STATS 32

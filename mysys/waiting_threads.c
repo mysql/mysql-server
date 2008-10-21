@@ -347,6 +347,8 @@ void wt_thd_destroy(WT_THD *thd)
 */
 int wt_resource_id_memcmp(void *a, void *b)
 {
+  /* assert that the structure is not padded with random bytes */
+  compile_time_assert(sizeof(WT_RESOURCE_ID)==sizeof(ulonglong)+sizeof(void*));
   return memcmp(a, b, sizeof(WT_RESOURCE_ID));
 }
 
