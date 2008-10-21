@@ -17,9 +17,9 @@
 #define MgmtSrvr_H
 
 #include "Config.hpp"
-#include <mgmapi.h>
+#include "ConfigSubscriber.hpp"
 
-#include <ConfigRetriever.hpp>
+#include <mgmapi.h>
 #include <Vector.hpp>
 #include <NodeBitmask.hpp>
 #include <ndb_version.h>
@@ -70,8 +70,8 @@ public:
   @class MgmtSrvr
   @brief Main class for the management server.
  */
-class MgmtSrvr {
-  
+class MgmtSrvr : private ConfigSubscriber {
+
 public:
   // some compilers need all of this
   class Allocated_resources;
@@ -130,6 +130,7 @@ public:
     const char* bind_address;
     int no_nodeid_checks;
     int print_full_config;
+    const char* datadir;
   };
 
   MgmtSrvr(); // Not implemented
@@ -139,20 +140,9 @@ public:
   ~MgmtSrvr();
 
   /*
-    To be called after constructor. Loads configuration
-    from disk or fetches it from other server
-   */
+    To be called after constructor.
+  */
   bool init();
-
-private:
-  /* Functions used from 'init' */
-  Config* load_init_config(void);
-  Config* load_init_mycnf(void);
-  bool fetch_config(void);
-  bool save_config(const Config* conf);
-  bool save_config(void);
-
-public:
 
   /*
     To be called after 'init', starts up the services
@@ -161,15 +151,13 @@ public:
   bool start(void);
 private:
   /* Functions used from 'start' */
-  bool start_transporter(void);
-  bool start_mgm_service(void);
+  bool start_transporter(const Config*);
+  bool start_mgm_service(const Config*);
   bool connect_to_self(void);
 
 public:
 
   NodeId getOwnNodeId() const {return _ownNodeId;};
-
-  void print_config() { _config->print(); };
 
   /**
    * Get status on a node.
@@ -390,13 +378,9 @@ public:
    */
   const char* getErrorText(int errorCode, char *buf, int buf_sz);
 
-  /**
-   *   Get configuration
-   */
-  const Config * getConfig() const;
 private:
-  void setConfig(Config* conf);
-  void setClusterLog(void);
+  void config_changed(NodeId, const Config*);
+  void setClusterLog(const Config* conf);
 public:
 
   /**
@@ -474,11 +458,13 @@ private:
   NodeId _ownNodeId;
   Uint32 m_port;
   SocketServer m_socket_server;
-  ConfigRetriever m_config_retriever;
 
-  BlockReference _ownReference; 
-  NdbMutex *m_configMutex;
-  const Config * _config;
+  NdbMutex* m_local_config_mutex;
+  const Config* m_local_config;
+
+  BlockReference _ownReference;
+
+  class ConfigManager* m_config_manager;
 
   NodeBitmask m_reserved_nodes;
   struct in_addr m_connect_address[MAX_NODES];
@@ -538,12 +524,17 @@ private:
   struct NdbThread* _logLevelThread;
   static void *logLevelThread_C(void *);
   void logLevelThreadRun();
+
+  void report_unknown_signal(SimpleSignal *signal);
+
+
+public:
+  /*
+    Get packed copy of configuration in the supplied buffer
+  */
+  bool getPackedConfig(UtilBuffer& pack_buf);
+
 };
 
-inline
-const Config *
-MgmtSrvr::getConfig() const {
-  return _config;
-}
 
 #endif // MgmtSrvr_H

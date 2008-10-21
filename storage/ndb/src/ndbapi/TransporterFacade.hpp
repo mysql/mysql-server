@@ -283,7 +283,7 @@ private:
     Vector<Object_Execute> m_objectExecute;
     Vector<NodeStatusFunction> m_statusFunction;
     
-    int open(void* objRef, ExecuteFunction, NodeStatusFunction, int);
+    int open(void* objRef, ExecuteFunction, NodeStatusFunction);
     int close(int number);
     void expand(Uint32 size);
 
@@ -303,7 +303,8 @@ private:
       return (m_statusNext[index] & (1 << 16)) != 0;
     }
   } m_threads;
-  
+
+  Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];
   Uint32 m_max_trans_id;
   Uint32 m_fragmented_signal_id;
 

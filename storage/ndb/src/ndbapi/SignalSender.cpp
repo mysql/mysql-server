@@ -18,6 +18,7 @@
 #include <SignalLoggerManager.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
+#include <signaldata/TestOrd.hpp>
 
 
 SimpleSignal::SimpleSignal(bool dealloc){
@@ -140,6 +141,55 @@ Uint32
 SignalSender::getNoOfConnectedNodes() const {
   return theFacade->theClusterMgr->getNoOfConnectedNodes();
 }
+
+
+void
+SignalSender::getNodes(NodeBitmask& mask,
+                       NodeInfo::NodeType type)
+{
+  mask.clear();
+  for(Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    const ClusterMgr::Node& node= getNodeInfo(i);
+    if(!node.defined)
+      continue;
+    if(type == NodeInfo::INVALID || // INVALID -> add all nodes to mask
+       node.m_info.getType() == type)
+    {
+      mask.set(i);
+    }
+  }
+}
+
+
+NodeBitmask
+SignalSender::broadcastSignal(NodeBitmask mask,
+                              SimpleSignal& sig,
+                              Uint16 recBlock, Uint16 gsn,
+                              Uint32 len)
+{
+  sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
+
+  NodeBitmask result;
+  for(Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    if(mask.get(i) && sendSignal(i, &sig) == SEND_OK)
+      result.set(i);
+  }
+  return result;
+}
+
+
+SendStatus
+SignalSender::sendSignal(Uint16 nodeId,
+                         SimpleSignal& sig,
+                         Uint16 recBlock, Uint16 gsn,
+                         Uint32 len)
+{
+  sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
+  return sendSignal(nodeId, &sig);
+}
+
 
 template<class T>
 SimpleSignal *

@@ -29,7 +29,6 @@
 #include <Properties.hpp>
 
 #include <socket_io.h>
-#include <NdbConfig.h>
 
 #include <NdbAutoPtr.hpp>
  
@@ -48,6 +47,9 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
                                  int timeout_ms)
 {
   DBUG_ENTER("ConfigRetriever::ConfigRetriever");
+  DBUG_PRINT("enter", ("%s, version: %d, node_type: %d, bind: %s, timeout: %d",
+                       _connect_string, version, node_type,
+                       _bindaddress, timeout_ms));
 
   m_version = version;
   m_node_type = node_type;
@@ -137,6 +139,12 @@ ConfigRetriever::disconnect()
   return ndb_mgm_disconnect(m_handle);
 }
 
+bool
+ConfigRetriever::is_connected(void)
+{
+  return (ndb_mgm_is_connected(m_handle) != 0);
+}
+
 //****************************************************************************
 //****************************************************************************
 //****************************************************************************
@@ -208,14 +216,12 @@ ConfigRetriever::getConfig(const char * filename){
   
   ConfigValuesFactory cvf;
   if(!cvf.unpack(buf2, bytes)){
-    char buf[255];
-    BaseString::snprintf(buf, sizeof(buf), "Error while unpacking"); 
-    setError(CR_ERROR, buf);
+    setError(CR_ERROR,  "Error while unpacking");
     delete []buf2;
     return 0;
   }
   delete [] buf2;
-  return (ndb_mgm_configuration*)cvf.m_cfg;
+  return (ndb_mgm_configuration*)cvf.getConfigValues();
 #else
   return 0;
 #endif
@@ -243,6 +249,7 @@ ConfigRetriever::getErrorString(){
   return errorString.c_str();
 }
 
+
 bool
 ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 nodeid){
 
@@ -252,8 +259,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
 					     CFG_SECTION_NODE);
 
   if(it == 0){
-    BaseString::snprintf(buf, 255, "Unable to create config iterator");
-    setError(CR_ERROR, buf);
+    setError(CR_ERROR, "Unable to create config iterator");
     return false;
     
   }
@@ -270,11 +276,6 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
     BaseString::snprintf(buf, 255, "Unable to get hostname(%d) from config",CFG_NODE_HOST);
     setError(CR_ERROR, buf);
     return false;
-  }
-
-  const char * datadir;
-  if(!ndb_mgm_get_string_parameter(it, CFG_NODE_DATADIR, &datadir)){
-    NdbConfig_SetPath(datadir);
   }
 
   if (hostname && hostname[0] != 0 &&
@@ -347,6 +348,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
       }
     }
   }
+
   return true;
 }
 

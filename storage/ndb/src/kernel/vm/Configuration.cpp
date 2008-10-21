@@ -26,6 +26,7 @@
 #include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
+#include <NdbConfig.h>
 
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters_debug.h>
@@ -337,6 +338,13 @@ Configuration::fetch_configuration(){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "StopOnError missing");
   }
+
+  const char * datadir;
+  if(iter.get(CFG_NODE_DATADIR, &datadir)){
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched",
+	      "DataDir missing");
+  }
+  NdbConfig_SetPath(datadir);
 
   m_mgmds.clear();
   for(ndb_mgm_first(&iter); ndb_mgm_valid(&iter); ndb_mgm_next(&iter))
