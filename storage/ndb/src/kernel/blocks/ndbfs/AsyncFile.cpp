@@ -615,8 +615,15 @@ no_odirect:
     
     if (request->error)
       return;
+#elif defined HAVE_DIRECTIO && defined(DIRECTIO_ON)
+    if (directio(theFd, DIRECTIO_ON) == -1)
+    {
+      ndbout_c("%s Failed to set DIRECTIO_ON errno: %u",
+               theFileName.c_str(), errno);
+    }
 #endif
   }
+
 #ifdef VM_TRACE
   if (flags & FsOpenReq::OM_DIRECT)
   {
