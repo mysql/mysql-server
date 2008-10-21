@@ -3075,6 +3075,9 @@ ibuf_delete_rec(
 	ulint		err;
 
 	ut_ad(ibuf_inside());
+	ut_ad(page_rec_is_user_rec(btr_pcur_get_rec(pcur)));
+	ut_ad(ibuf_rec_get_page_no(btr_pcur_get_rec(pcur)) == page_no);
+	ut_ad(ibuf_rec_get_space(btr_pcur_get_rec(pcur)) == space);
 
 	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);
 
@@ -3089,6 +3092,10 @@ ibuf_delete_rec(
 #endif
 		return(FALSE);
 	}
+
+	ut_ad(page_rec_is_user_rec(btr_pcur_get_rec(pcur)));
+	ut_ad(ibuf_rec_get_page_no(btr_pcur_get_rec(pcur)) == page_no);
+	ut_ad(ibuf_rec_get_space(btr_pcur_get_rec(pcur)) == space);
 
 	/* We have to resort to a pessimistic delete from ibuf */
 	btr_pcur_store_position(pcur, mtr);
