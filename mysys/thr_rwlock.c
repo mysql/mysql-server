@@ -89,7 +89,7 @@ int my_rw_rdlock(rw_lock_t *rwp)
   pthread_mutex_lock(&rwp->lock);
 
   /* active or queued writers */
-  while (( rwp->state < 0 ) || rwp->waiters)
+  while (( rwp->state < 0 ))
     pthread_cond_wait( &rwp->readers, &rwp->lock);
 
   rwp->state++;
@@ -101,7 +101,7 @@ int my_rw_tryrdlock(rw_lock_t *rwp)
 {
   int res;
   pthread_mutex_lock(&rwp->lock);
-  if ((rwp->state < 0 ) || rwp->waiters)
+  if ((rwp->state < 0 ))
     res= EBUSY;					/* Can't get lock */
   else
   {
