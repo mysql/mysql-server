@@ -420,8 +420,8 @@ void AsyncFile::openReq(Request* request)
     new_flags |= O_APPEND;
   }
 
-  if (flags & FsOpenReq::OM_DIRECT) 
 #ifdef O_DIRECT
+  if (flags & FsOpenReq::OM_DIRECT) 
   {
     new_flags |= O_DIRECT;
   }
