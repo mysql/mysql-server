@@ -1624,33 +1624,34 @@ sub executable_setup_ndb () {
 			 "$ndb_path/ndb_waiter"));
 
   $exe_ndb_desc= mtr_native_path(
-		 mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_desc'),
-				       "$ndb_path/tools/ndb_desc",
-				       "$ndb_path/ndb_desc"));
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_desc'),
+			 "$ndb_path/tools/ndb_desc",
+			 "$ndb_path/ndb_desc"));
+
   $exe_ndb_restore= mtr_native_path(
-    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_restore'),
-		    "$ndb_path/tools/ndb_restore",
-		    "$ndb_path/ndb_restore"));
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_restore'),
+			  "$ndb_path/tools/ndb_restore",
+			  "$ndb_path/ndb_restore"));
 
   $exe_ndb_select_all= mtr_native_path(
-    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_select_all'),
-		    "$ndb_path/tools/ndb_select_all",
-		    "$ndb_path/ndb_select_all"));
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_select_all'),
+			 "$ndb_path/tools/ndb_select_all",
+			 "$ndb_path/ndb_select_all"));
 
   $exe_ndb_drop_table= mtr_native_path(
-    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_drop_table'),
-		    "$ndb_path/tools/ndb_drop_table",
-		    "$ndb_path/ndb_drop_table"));
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_drop_table'),
+			 "$ndb_path/tools/ndb_drop_table",
+			 "$ndb_path/ndb_drop_table"));
 
   $exe_ndb_config= mtr_native_path(
-    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_config'),
-		    "$ndb_path/tools/ndb_config",
-		    "$ndb_path/ndb_config"));
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_config'),
+			 "$ndb_path/tools/ndb_config",
+			 "$ndb_path/ndb_config"));
 
   $exe_ndb_show_tables= mtr_native_path(
-    mtr_path_exists(vs_config_dirs("storage/ndb/tools",'ndb_show_tables'),
-		    "$ndb_path/tools/ndb_show_tables",
-		    "$ndb_path/ndb_show_tables"));
+    mtr_exe_maybe_exists(vs_config_dirs("storage/ndb/tools",'ndb_show_tables'),
+			 "$ndb_path/tools/ndb_show_tables",
+			 "$ndb_path/ndb_show_tables"));
 
   # May not exist
   $path_ndb_examples_dir=
