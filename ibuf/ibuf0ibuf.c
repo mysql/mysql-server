@@ -2843,14 +2843,14 @@ function_exit:
 
 	mem_heap_free(heap);
 
-	mutex_enter(&ibuf_mutex);
-
 	if (err == DB_SUCCESS) {
+		mutex_enter(&ibuf_mutex);
+
 		ibuf_data->empty = FALSE;
 		ibuf_data->n_inserts++;
-	}
 
-	mutex_exit(&ibuf_mutex);
+		mutex_exit(&ibuf_mutex);
+	}
 
 	if ((mode == BTR_MODIFY_TREE) && (err == DB_SUCCESS)) {
 		ibuf_contract_after_insert(entry_size);
