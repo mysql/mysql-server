@@ -2114,7 +2114,7 @@ bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
 */
 
 int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
-                           uint32 part_id)
+                           uint32 *part_id)
 {
   NdbConnection *trans= m_thd_ndb->trans;
   const NdbOperation *op;
@@ -2130,7 +2130,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   
   if (!(op= pk_unique_index_read_key(table->s->primary_key, key, buf, lm,
                                      (m_user_defined_partitioning ?
-                                      &part_id :
+                                      part_id :
                                       NULL))))
     ERR_RETURN(trans->getNdbError());
 
@@ -4450,7 +4450,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
       if (m_active_cursor && (error= close_scan()))
         DBUG_RETURN(error);
       error= pk_read(start_key->key, start_key->length, buf,
-		     part_spec.start_part);
+		  (m_use_partition_pruning)? &(part_spec.start_part) : NULL);
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
     break;
@@ -4477,7 +4477,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   }
   // Start the ordered index scan and fetch the first row
   DBUG_RETURN(ordered_index_scan(start_key, end_key, sorted, desc, buf,
-                                 &part_spec));
+	  (m_use_partition_pruning)? &part_spec : NULL));
 }
 
 int ha_ndbcluster::read_range_first(const key_range *start_key,
@@ -4615,7 +4615,8 @@ int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
       DBUG_PRINT("info", ("partition id %u", part_spec.start_part));
     }
     DBUG_DUMP("key", pos, key_length);
-    DBUG_RETURN(pk_read(pos, key_length, buf, part_spec.start_part));
+	DBUG_RETURN(pk_read(pos, key_length, buf,
+		(m_user_defined_partitioning)? &(part_spec.start_part) : NULL));
   }
 }
 
