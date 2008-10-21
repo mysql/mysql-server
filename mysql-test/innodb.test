@@ -701,6 +701,7 @@ insert into t1 (code, name) values (2, 'Erik'), (3, 'Sasha');
 select id, code, name from t1 order by id;
 COMMIT;
 
+SET binlog_format='MIXED';
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 insert into t1 (code, name) values (3, 'Jeremy'), (4, 'Matt');
@@ -2000,10 +2001,12 @@ connection a;
 create table t1(a int not null, b int, primary key(a)) engine=innodb;
 insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
 commit;
+SET binlog_format='MIXED';
 set autocommit = 0; 
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 update t1 set b = 5 where b = 1;
 connection b;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 #
@@ -2071,6 +2074,7 @@ commit;
 set autocommit = 0;
 select * from t2 for update;
 connection b;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 insert into t1 select * from t2;
@@ -2127,46 +2131,55 @@ commit;
 set autocommit = 0;
 select * from t2 for update;
 connection b;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 --send
 insert into t1 select * from t2;
 connection c;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 --send
 update t3 set b = (select b from t2 where a = d);
 connection d;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 --send
 create table t4(a int not null, b int, primary key(a)) engine=innodb select * from t2;
 connection e;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 --send
 insert into t5 (select * from t2 lock in share mode);
 connection f;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 --send
 update t6 set e = (select b from t2 where a = d lock in share mode);
 connection g;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 --send
 create table t7(a int not null, b int, primary key(a)) engine=innodb select * from t2 lock in share mode;
 connection h;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 --send
 insert into t8 (select * from t2 for update);
 connection i;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 --send
 update t9 set e = (select b from t2 where a = d for update);
 connection j;
+SET binlog_format='MIXED';
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 --send
@@ -2380,6 +2393,7 @@ DROP TABLE t1;
 CONNECT (c1,localhost,root,,);
 CONNECT (c2,localhost,root,,);
 CONNECTION c1;
+SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 DROP TABLE IF EXISTS t1, t2;
@@ -2387,6 +2401,7 @@ CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
 CREATE TABLE t2 LIKE t1;
 SELECT * FROM t2;
 CONNECTION c2;
+SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 INSERT INTO t1 VALUES (1);
@@ -2398,10 +2413,12 @@ DISCONNECT c2;
 CONNECT (c1,localhost,root,,);
 CONNECT (c2,localhost,root,,);
 CONNECTION c1;
+SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 SELECT * FROM t2;
 CONNECTION c2;
+SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 INSERT INTO t1 VALUES (2);
