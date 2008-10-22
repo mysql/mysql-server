@@ -83,14 +83,6 @@ long long n_items_malloced;
 static void verify_local_fingerprint_nonleaf (BRTNODE node);
 static int toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen);
 
-
-// We invalidate all the OMTCURSORS any time we push into the root of the BRT for that OMT.
-// We keep a counter on each brt header, but if the brt header is evicted from the cachetable
-// then we lose that counter.  So we also keep a global counter.
-// An alternative would be to keep only the global counter.  But that would invalidate all OMTCURSORS
-// even from unrelated BRTs.  This way we only invalidate an OMTCURSOR if
-static u_int64_t global_root_put_counter = 0;
-
 /* Frees a node, including all the stuff in the hash table. */
 void toku_brtnode_free (BRTNODE *nodep) {
     BRTNODE node=*nodep;
@@ -2442,28 +2434,6 @@ static void verify_local_fingerprint_nonleaf (BRTNODE node) {
 		     fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
 		     );
     assert(fp==node->local_fingerprint);
-}
-
-static int
-brtnode_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
-			BOOL *should_split, BOOL *should_merge) {
-    if (node->height==0) {
-	int r;
-	u_int64_t new_size MAYBE_INIT(0);
-	r = brt_leaf_put_cmd_simple(t, node, cmd, logger, &new_size);
-	if (r!=0) return r;
-	*should_split = new_size > node->nodesize;
-	*should_merge = (new_size*4) < node->nodesize;
-    } else {
-	int r;
-	u_int32_t new_fanout = 0; // Some compiler bug in gcc is complaining that this is uninitialized.
-	r = brt_nonleaf_put_cmd_simple(t, node, cmd, logger, &new_fanout);
-	if (r!=0) return 0;
-	*should_split = new_fanout > TREE_FANOUT;
-	*should_merge = new_fanout*4 < TREE_FANOUT;
-	//printf("%s:%d should_merge=%d\n", __FILE__, __LINE__, *should_merge);
-    }
-    return 0;
 }
 
 static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,

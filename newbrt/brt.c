@@ -127,6 +127,13 @@ message are not overfull.  (But they may be underfull or too fat or too thin.)
 // 
 #include "includes.h"
  																     
+// We invalidate all the OMTCURSORS any time we push into the root of the BRT for that OMT.
+// We keep a counter on each brt header, but if the brt header is evicted from the cachetable
+// then we lose that counter.  So we also keep a global counter.
+// An alternative would be to keep only the global counter.  But that would invalidate all OMTCURSORS
+// even from unrelated BRTs.  This way we only invalidate an OMTCURSOR if
+static u_int64_t global_root_put_counter = 0;
+
 static void
 fixup_child_fingerprint (BRTNODE node, int childnum_of_node, BRTNODE child, BRT UU(brt), TOKULOGGER UU(logger))
 // Effect:  Sum the child fingerprint (and leafentry estimates) and store them in NODE.
@@ -309,6 +316,42 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     return 0;
 }
 
+enum should_status { SHOULD_OK, SHOULD_MERGE, SHOULD_SPLIT };
+
+static int
+brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum should_status *should, BOOL *did_io)
+// Effect: Push CMD into the subtree rooted at NODE, and indicate whether as a result NODE should split or should merge.
+//   If NODE is a leaf, then
+//      put CMD into leaf, applying it to the leafentries
+//   If NODE is a nonleaf, then copy the cmd into the relevant child fifos.
+//      For each child fifo that is empty and where the child is in main memory put the command into the child (using this same algorithm)
+//      Use *did_io to determine whether I/O has already been performed.  If it has then we avoid doing additional I/O.
+//   Set *should as follows:
+//                { SHOULD_SPLIT if the node is overfull
+//      *should = { SHOULD_MERGE if the node is underfull
+//                { SHOULD_OK    if the node is ok.   (Those cases are mutually exclusive.)
+//   If we perform I/O then set *did_io to true.
+{
+    if (node->height==0) {
+	int r;
+	u_int64_t new_size MAYBE_INIT(0);
+	r = brt_leaf_put_cmd(t, node, cmd, logger, &new_size);
+	if (r!=0) return r;
+	if (new_size > node->nodesize)          *should = SHOULD_SPLIT;
+	else if ((new_size*4) < node->nodesize) *should = SHOULD_MERGE;
+	else                                    *should = SHOULD_OK;
+    } else {
+	int r;
+	u_int32_t new_fanout = 0; // Some compiler bug in gcc is complaining that this is uninitialized.
+	r = brt_nonleaf_put_cmd(t, node, cmd, logger, &new_fanout);
+	if (r!=0) return 0;
+	if (new_fanout > TREE_FANOUT)        *should = SHOULD_SPLIT;
+	else if (new_fanout*4 < TREE_FANOUT) *should = SHOULD_MERGE;
+	else                                 *should = SHOULD_OK;
+    }
+    return 0;
+}
+
 static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_CMD cmd, TOKULOGGER logger)
 // Effect:  Put CMD into brt by descending into the tree as deeply as we can
 //   without performing I/O (but we must fetch the root), 
@@ -328,10 +371,12 @@ static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT
 //       Note: During the initial descent, we may overfull many nonleaf nodes.  We wish to flush only one nonleaf node at each level.
 {
     BRTNODE node = *nodep;
+    enum should_status should;
+    BOOL   did_io = FALSE;
     BOOL should_split =-1;
     BOOL should_merge =-1;
     {
-	int r = brtnode_put_cmd(brt, node, cmd, logger, &should_split, &should_merge);
+	int r = brtnode_put_cmd(brt, node, cmd, logger, &should, &did_io);
 	if (r!=0) return r;
 	//if (should_split) printf("%s:%d Pushed something simple, should_split=1\n", __FILE__, __LINE__); 
 
