@@ -5976,7 +5976,7 @@ restart:
                             r);
             /* TODO: Further handling? */
           }
-          rows->gci= (gci >> 32); // Expose gci hi/lo
+          rows->gci= (Uint32)(gci >> 32); // Expose gci hi/lo
           rows->epoch= gci;
           rows->master_log_file= start.file_name();
           rows->master_log_pos= start.file_pos();
