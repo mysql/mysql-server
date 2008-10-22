@@ -412,6 +412,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   /* Operation record used during alter table. */
   struct AlterTabOperation {
+    AlterTabOperation() { memset(this, 0, sizeof(AlterTabOperation)); };
     Uint32 nextAlterTabOp;
     Uint32 newNoOfAttrs;
     Uint32 newNoOfCharsets;
