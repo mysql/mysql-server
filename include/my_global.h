@@ -484,8 +484,7 @@ C_MODE_END
 #define compile_time_assert(X)                                  \
   do                                                            \
   {                                                             \
-    char compile_time_assert[(X) ? 1 : -1]                      \
-                             __attribute__ ((unused));          \
+    typedef char compile_time_assert[(X) ? 1 : -1];             \
   } while(0)
 #endif
 
