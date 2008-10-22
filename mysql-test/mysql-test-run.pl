@@ -2035,7 +2035,7 @@ sub environment_setup () {
 
     $ENV{'NDB_EXTRA_TEST'}=           $opt_ndb_extra_test;
 
-    $ENV{'NDB_BACKUP_DIR'}=           $clusters->[0]->{'data_dir'};
+    $ENV{'NDB_BACKUPS'}=mtr_native_path($clusters->[0]->{'data_dir'}."/BACKUP/BACKUP");
     $ENV{'NDB_DATA_DIR'}=             $clusters->[0]->{'data_dir'};
     $ENV{'NDB_DESC'}=                 $exe_ndb_desc;
     $ENV{'NDB_RESTORE'}=              $exe_ndb_restore;
