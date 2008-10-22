@@ -2800,7 +2800,7 @@ normalize_table_name(
 /************************************************************************
 Set the autoinc column max value. This should only be called once from
 ha_innobase::open(). Therefore there's no need for a covering lock. */
-
+UNIV_INTERN
 ulint
 ha_innobase::innobase_initialize_autoinc()
 /*======================================*/
