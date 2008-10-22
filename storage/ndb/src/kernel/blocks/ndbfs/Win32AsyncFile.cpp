@@ -168,7 +168,6 @@ void Win32AsyncFile::openReq(Request* request)
 			  FsReadWriteReq::FixedLength + 1,
                           0 // wl4391_todo This EXECUTE_DIRECT is thread safe
                           );
-    retry:
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;
 	  DWORD dwWritten;
