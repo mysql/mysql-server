@@ -2877,7 +2877,7 @@ btr_cur_pessimistic_delete(
 	}
 
 	if (UNIV_UNLIKELY(page_get_n_recs(page) < 2)
-	    && UNIV_UNLIKELY(dict_index_get_page(btr_cur_get_index(cursor))
+	    && UNIV_UNLIKELY(dict_index_get_page(index)
 			     != buf_block_get_page_no(block))) {
 
 		/* If there is only one record, drop the whole page in
