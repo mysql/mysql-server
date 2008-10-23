@@ -2380,7 +2380,7 @@ ibuf_contract_after_insert(
 /*************************************************************************
 Gets an upper limit for the combined size of entries buffered in the insert
 buffer for a given page. */
-UNIV_INTERN
+static
 ulint
 ibuf_get_volume_buffered(
 /*=====================*/
