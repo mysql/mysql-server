@@ -24,4 +24,5 @@ slow_query_log_func                   : BUG#37962 2008-07-08 sven *_func tests c
 sql_low_priority_updates_func         : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 timestamp_func                        : BUG#37962 2008-07-08 sven *_func tests containing sleeps/race conditions
 log_output_func                       : BUG#37766 2008-07-10 sven main.log_output_func randomly fails in pushbuild
-
+slow_query_log_func.test              : Bug #37962: *_func tests containing sleeps/race conditions
+events-bugs.test                      : Bug #39848, Bug #39863, Bug #39569, Bug #37774
