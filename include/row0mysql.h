@@ -707,6 +707,11 @@ struct row_prebuilt_struct {
 	ulonglong	autoinc_offset; /* The offset passed to
 					get_auto_increment() by MySQL. Required
 					to calculate the next value */
+	ulint		autoinc_error;	/* The actual error code encountered
+					while trying to init or read the
+					autoinc value from the table. We
+					store it here so that we can return
+					it to MySQL */
 	/*----------------------*/
 	UT_LIST_NODE_T(row_prebuilt_t)	prebuilts;
 					/* list node of table->prebuilts */
