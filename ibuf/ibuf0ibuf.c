@@ -2662,10 +2662,19 @@ count_later:
 
 		switch (ibuf_rec_get_op_type(rec)) {
 		case IBUF_OP_INSERT:
+			/* Inserts can be done by
+			btr_cur_set_deleted_flag_for_ibuf().  Because
+			delete-mark and insert operations can be
+			pointing to the same records, we must not
+			count one of the operations.  Let us count
+			only the delete-mark operations. */
+			break;
 		case IBUF_OP_DELETE_MARK:
+			/* There must be a record to delete-mark. */
 			(*n_recs)++;
 			break;
 		case IBUF_OP_DELETE:
+			/* A record will be removed from the page. */
 			if (*n_recs > 0) {
 				(*n_recs)--;
 			}
@@ -2723,10 +2732,19 @@ count_later:
 
 		switch (ibuf_rec_get_op_type(rec)) {
 		case IBUF_OP_INSERT:
+			/* Inserts can be done by
+			btr_cur_set_deleted_flag_for_ibuf().  Because
+			delete-mark and insert operations can be
+			pointing to the same records, we must not
+			count one of the operations.  Let us count
+			only the delete-mark operations. */
+			break;
 		case IBUF_OP_DELETE_MARK:
+			/* There must be a record to delete-mark. */
 			(*n_recs)++;
 			break;
 		case IBUF_OP_DELETE:
+			/* A record will be removed from the page. */
 			if (*n_recs > 0) {
 				(*n_recs)--;
 			}
