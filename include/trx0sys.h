@@ -326,7 +326,7 @@ const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
 					/* out: pointer to the name */
-	const uint	id);		/* in: id of the file format */
+	const ulint	id);		/* in: id of the file format */
 /*********************************************************************
 Set the file format id unconditionally except if it's already the
 same value. */
@@ -336,7 +336,7 @@ trx_sys_file_format_max_set(
 /*========================*/
 					/* out: TRUE if value updated */
 	ulint		format_id,	/* in: file format id */
-	char**		name);		/* out: max file format name or
+	const char**	name);		/* out: max file format name or
 					NULL if not needed. */
 /*********************************************************************
 Get the name representation of the file format from its id. */
@@ -354,14 +354,16 @@ trx_sys_file_format_max_check(
 					/* out: DB_SUCCESS or error code */
 	ulint		max_format_id);	/* in: the max format id to check */
 /************************************************************************
-Update the file format tag in the tablespace to the max value. */
+Update the file format tag in the system tablespace only if the given
+format id is greater than the known max id. */
 UNIV_INTERN
 ibool
-trx_sys_file_format_max_update(
-/*===========================*/
-					/* out: TRUE if value updated */
-	uint		flags,		/* in: flags of the table */
-	char**		name);		/* out: max format name */
+trx_sys_file_format_max_upgrade(
+/*============================*/
+					/* out: TRUE if format_id was
+					bigger than the known max id */
+	const char**	name,		/* out: max file format name */
+	ulint		format_id);	/* in: file format identifier */
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 

@@ -1,3 +1,26 @@
+2008-10-22	The InnoDB Team
+
+	* dict/dict0dict.c, dict/dict0mem.c, handler/ha_innodb.cc,
+	handler/ha_innodb.h, include/dict0dict.h, include/dict0mem.h,
+	row/row0mysql.c:
+	Fix Bug#39830 Table autoinc value not updated on first insert
+	Fix Bug#35498 Cannot get table test/table1 auto-inccounter value in
+	::info
+	Fix Bug#36411 "Failed to read auto-increment value from storage
+	engine" in 5.1.24 auto-inc
+
+2008-10-22	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
+	Fix Bug#40224 New AUTOINC changes mask reporting of deadlock/timeout
+	errors
+
+2008-10-09	The InnoDB Team
+
+	* buf/buf0lru.c:
+	Fix Bug#39939 DROP TABLE/DISCARD TABLESPACE takes long time in
+	buf_LRU_invalidate_tablespace()
+
 2008-10-08	The InnoDB Team
 
 	* dict/dict0crea.c, trx/trx0roll.c, include/row0mysql.h,
