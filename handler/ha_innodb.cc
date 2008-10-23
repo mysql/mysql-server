@@ -1136,7 +1136,7 @@ innobase_next_autoinc(
 	/* Should never be 0. */
 	ut_a(increment > 0);
 
-	if (current >= max_value) {
+	if (max_value <= current) {
 		next_value = max_value;
 	} else if (offset <= 1) {
 		/* Offset 0 and 1 are the same, because there must be at
@@ -1162,6 +1162,8 @@ innobase_next_autoinc(
 			next_value = max_value;
 		} else {
 			next_value *= increment;
+
+			ut_a(max_value >= next_value);
 
 			/* Check for overflow. */
 			if (max_value - next_value <= offset) {
@@ -2834,7 +2836,7 @@ ha_innobase::innobase_initialize_autoinc()
 			"index (%s).\n", error, col_name, index->name);
 	}
 
-	return(ulong(error));
+	return(error);
 }
 
 /*********************************************************************

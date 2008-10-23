@@ -317,7 +317,7 @@ dict_table_autoinc_read(
 
 /************************************************************************
 Updates the autoinc counter if the value supplied is greater than the
-current value. If not inited, does nothing. */
+current value. */
 UNIV_INTERN
 void
 dict_table_autoinc_update_if_greater(
@@ -329,6 +329,7 @@ dict_table_autoinc_update_if_greater(
 	ut_ad(mutex_own(&table->autoinc_mutex));
 
 	if (value > table->autoinc) {
+
 		table->autoinc = value;
 	}
 }
