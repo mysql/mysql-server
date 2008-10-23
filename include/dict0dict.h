@@ -189,8 +189,8 @@ dict_table_autoinc_read(
 					/* out: value for a new row, or 0 */
 	const dict_table_t*	table);	/* in: table */
 /************************************************************************
-Updates the autoinc counter if the value supplied is equal or bigger than the
-current value. If not inited, does nothing. */
+Updates the autoinc counter if the value supplied is greater than the
+current value. */
 UNIV_INTERN
 void
 dict_table_autoinc_update_if_greater(
