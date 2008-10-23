@@ -41,6 +41,6 @@ ADD_EXECUTABLE(ndb_mgmd
                MgmtSrvr.cpp
                main.cpp
                Services.cpp
-               MgmtSrvrConfig.cpp
+               ConfigManager.cpp
                ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
 TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf)
