@@ -24,7 +24,7 @@ Created 3/26/1996 Heikki Tuuri
 
 /* The file format tag structure with id and name. */
 struct file_format_struct {
-	uint		id;		/* id of the file format */
+	ulint		id;		/* id of the file format */
 	const char*	name;		/* text representation of the
 					file format */
 	mutex_t		mutex;		/* covers changes to the above
@@ -95,8 +95,8 @@ static const char*	file_format_name_map[] = {
 };
 
 /* The number of elements in the file format name array. */
-static const ulint	FILE_FORMAT_NAME_N = 
-	sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
+static const ulint	FILE_FORMAT_NAME_N
+	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
 /* This is used to track the maximum file format id known to InnoDB. It's
 updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
@@ -1057,7 +1057,7 @@ trx_sys_file_format_max_write(
 /*==========================*/
 					/* out: always TRUE */
 	ulint		format_id,	/* in: file format id */
-	char**		name)		/* out: max file format name, can
+	const char**	name)		/* out: max file format name, can
 					be NULL */
 {
 	mtr_t		mtr;
@@ -1077,7 +1077,7 @@ trx_sys_file_format_max_write(
 	tag_value_low = format_id + TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
 
 	if (name) {
-		*name = (char*) file_format_max.name;
+		*name = file_format_max.name;
 	}
 
 	mlog_write_dulint(
@@ -1137,7 +1137,7 @@ const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
 				/* out: pointer to the name */
-	const uint	id)	/* in: id of the file format */
+	const ulint	id)	/* in: id of the file format */
 {
 	ut_a(id < FILE_FORMAT_NAME_N);
 
@@ -1207,7 +1207,7 @@ trx_sys_file_format_max_set(
 /*========================*/
 					/* out: TRUE if value updated */
 	ulint		format_id,	/* in: file format id */
-	char**		name)		/* out: max file format name or
+	const char**	name)		/* out: max file format name or
 					NULL if not needed. */
 {
 	ibool		ret = FALSE;
@@ -1248,19 +1248,18 @@ trx_sys_file_format_tag_init(void)
 }
 
 /************************************************************************
-Update the file format tag in the tablespace only if the given format id
-is greater than the known max id. */
+Update the file format tag in the system tablespace only if the given
+format id is greater than the known max id. */
 UNIV_INTERN
 ibool
-trx_sys_file_format_max_update(
-/*===========================*/
-	uint		flags,		/* in: flags of the table.*/
-	char**		name)		/* out: max file format name */
+trx_sys_file_format_max_upgrade(
+/*============================*/
+					/* out: TRUE if format_id was
+					bigger than the known max id */
+	const char**	name,		/* out: max file format name */
+	ulint		format_id)	/* in: file format identifier */
 {
-	ulint		format_id;
 	ibool		ret = FALSE;
-
-	format_id = (flags & DICT_TF_FORMAT_MASK) >> DICT_TF_FORMAT_SHIFT;
 
 	ut_a(name);
 	ut_a(file_format_max.name != NULL);
