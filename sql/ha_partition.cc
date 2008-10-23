@@ -2996,17 +2996,6 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
     DBUG_PRINT("info", ("Update in partition %d", new_part_id));
     tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
     error= m_file[new_part_id]->ha_update_row(old_data, new_data);
-    /*
-      if updating an auto_increment column, update
-      table_share->ha_data->next_auto_inc_val if needed.
-      (not to be used if auto_increment on secondary field in a multi-
-      column index)
-      mysql_update does not set table->next_number_field, so we use
-      table->found_next_number_field instead.
-    */
-    if (table->found_next_number_field && new_data == table->record[0] &&
-        !table->s->next_number_keypart)
-      set_auto_increment_if_higher(table->found_next_number_field->val_int());
     reenable_binlog(thd);
     goto exit;
   }
@@ -3016,9 +3005,6 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
 			old_part_id, new_part_id));
     tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
     error= m_file[new_part_id]->ha_write_row(new_data);
-    if (table->found_next_number_field && new_data == table->record[0] &&
-        !table->s->next_number_keypart)
-      set_auto_increment_if_higher(table->found_next_number_field->val_int());
     reenable_binlog(thd);
     if (error)
       goto exit;
@@ -3036,6 +3022,22 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   }
 
 exit:
+  /*
+    if updating an auto_increment column, update
+    table_share->ha_data->next_auto_inc_val if needed.
+    (not to be used if auto_increment on secondary field in a multi-column
+    index)
+    mysql_update does not set table->next_number_field, so we use
+    table->found_next_number_field instead.
+  */
+  if (table->found_next_number_field && new_data == table->record[0] &&
+      !table->s->next_number_keypart)
+  {
+    HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
+    if (!ha_data->auto_inc_initialized)
+      info(HA_STATUS_AUTO);
+    set_auto_increment_if_higher(table->found_next_number_field->val_int());
+  }
   table->timestamp_field_type= orig_timestamp_type;
   DBUG_RETURN(error);
 }

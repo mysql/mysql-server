@@ -878,10 +878,10 @@ private:
   {
     HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     lock_auto_increment();
+    DBUG_ASSERT(ha_data->auto_inc_initialized == TRUE);
     /* must check when the mutex is taken */
     if (nr >= ha_data->next_auto_inc_val)
       ha_data->next_auto_inc_val= nr + 1;
-    ha_data->auto_inc_initialized= TRUE;
     unlock_auto_increment();
   }
 
