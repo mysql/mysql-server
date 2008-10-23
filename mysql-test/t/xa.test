@@ -116,5 +116,6 @@ xa start 'a','c';
 --disconnect con1
 --disconnect con3
 --connection default
+drop table t1;
 
 --echo End of 5.0 tests

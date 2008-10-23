@@ -73,4 +73,5 @@ xa end 'a','c';
 ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
 xa rollback 'a','c';
 xa start 'a','c';
+drop table t1;
 End of 5.0 tests
