@@ -2526,7 +2526,7 @@ ibuf_contract_after_insert(
 /*************************************************************************
 Gets an upper limit for the combined size of entries buffered in the insert
 buffer for a given page. */
-UNIV_INTERN
+static
 ulint
 ibuf_get_volume_buffered(
 /*=====================*/
@@ -3370,11 +3370,9 @@ dump:
 				    PAGE_CUR_LE, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
-		buf_block_t*	block;
 		page_zip_des_t*	page_zip;
 
 		rec = page_cur_get_rec(&page_cur);
-		block = page_cur_get_block(&page_cur);
 		page_zip = buf_block_get_page_zip(block);
 
 		btr_cur_set_deleted_flag_for_ibuf(rec, page_zip, FALSE, mtr);
