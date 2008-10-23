@@ -1136,7 +1136,9 @@ innobase_next_autoinc(
 	/* Should never be 0. */
 	ut_a(increment > 0);
 
-	if (offset <= 1) {
+	if (current >= max_value) {
+		next_value = max_value;
+	} else if (offset <= 1) {
 		/* Offset 0 and 1 are the same, because there must be at
 		least one node in the system. */
 		if (max_value - current <= increment) {
@@ -4138,8 +4140,20 @@ no_commit:
 	/* This is the case where the table has an auto-increment column */
 	if (table->next_number_field && record == table->record[0]) {
 
+		/* Reset the error code before calling
+		innobase_get_auto_increment(). */
+		prebuilt->autoinc_error = DB_SUCCESS;
+
 		if ((error = update_auto_increment())) {
 
+			/* We don't want to mask autoinc overflow errors. */
+			if (prebuilt->autoinc_error != DB_SUCCESS) {
+				error = prebuilt->autoinc_error;
+
+				goto report_error;
+			}
+
+			/* MySQL errors are passed straight back. */
 			goto func_exit;
 		}
 
@@ -4241,6 +4255,7 @@ set_max_autoinc:
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
+report_error:
 	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
 					    user_thd);
 
@@ -8371,49 +8386,22 @@ ha_innobase::innobase_get_autoinc(
 					/* out: DB_SUCCESS or error code */
 	ulonglong*	value)		/* out: autoinc value */
 {
-	ulint		error;
- 
  	*value = 0;
  
-	error = innobase_lock_autoinc();
+	prebuilt->autoinc_error = innobase_lock_autoinc();
 
-	if (error == DB_SUCCESS) {
+	if (prebuilt->autoinc_error == DB_SUCCESS) {
 
 		/* Determine the first value of the interval */
 		*value = dict_table_autoinc_read(prebuilt->table);
 
 		/* It should have been initialized during open. */
 		ut_a(*value != 0);
-
-	/* We need to send the messages to the client because
-	handler::get_auto_increment() doesn't allow a way
-	to return the specific error for why it failed. */
-	} else if (error == DB_DEADLOCK) {
-		THD*	thd = ha_thd();
-
-		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_LOCK_DEADLOCK,
-			"InnoDB: Deadlock in "
-			"innobase_get_autoinc()");
-	} else if (error == DB_LOCK_WAIT_TIMEOUT) {
-		THD*	thd = ha_thd();
-
-		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_LOCK_WAIT_TIMEOUT,
-			"InnoDB: Lock wait timeout in "
-			"innobase_get_autoinc()");
-	} else {
-		sql_print_error(
-			"InnoDB: Error: %lu in "
-			"innobase_get_autoinc()",
-			error);
 	}
-  
-	return(error);
+
+	return(prebuilt->autoinc_error);
 }
- 
+
 /***********************************************************************
 This function reads the global auto-inc counter. It doesn't use the 
 AUTOINC lock even if the lock mode is set to TRADITIONAL. */
