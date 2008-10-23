@@ -2542,6 +2542,8 @@ ibuf_get_volume_buffered(
 				or BTR_MODIFY_TREE */
 	ulint		space,	/* in: space id */
 	ulint		page_no,/* in: page number of an index page */
+	ulint*		n_recs,	/* out: minimum number of records on the page
+				after the buffered changes have been applied */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ulint	volume;
@@ -2561,6 +2563,7 @@ ibuf_get_volume_buffered(
 	pcur */
 
 	volume = 0;
+	*n_recs = 0;
 
 	rec = btr_pcur_get_rec(pcur);
 	page = page_align(rec);
@@ -2657,6 +2660,20 @@ count_later:
 
 		volume += ibuf_rec_get_volume(rec);
 
+		switch (ibuf_rec_get_op_type(rec)) {
+		case IBUF_OP_INSERT:
+		case IBUF_OP_DELETE_MARK:
+			(*n_recs)++;
+			break;
+		case IBUF_OP_DELETE:
+			if (*n_recs > 0) {
+				(*n_recs)--;
+			}
+			break;
+		default:
+			ut_error;
+		}
+
 		rec = page_rec_get_next(rec);
 	}
 
@@ -2703,6 +2720,20 @@ count_later:
 		}
 
 		volume += ibuf_rec_get_volume(rec);
+
+		switch (ibuf_rec_get_op_type(rec)) {
+		case IBUF_OP_INSERT:
+		case IBUF_OP_DELETE_MARK:
+			(*n_recs)++;
+			break;
+		case IBUF_OP_DELETE:
+			if (*n_recs > 0) {
+				(*n_recs)--;
+			}
+			break;
+		default:
+			ut_error;
+		}
 
 		rec = page_rec_get_next(rec);
 	}
@@ -2986,6 +3017,7 @@ ibuf_insert_low(
 	dtuple_t*	ibuf_entry;
 	mem_heap_t*	heap;
 	ulint		buffered;
+	ulint		min_n_recs;
 	rec_t*		ins_rec;
 	ibool		old_bit_value;
 	page_t*		bitmap_page;
@@ -3091,7 +3123,16 @@ ibuf_insert_low(
 
 	/* Find out the volume of already buffered inserts for the same index
 	page */
-	buffered = ibuf_get_volume_buffered(&pcur, space, page_no, &mtr);
+	buffered = ibuf_get_volume_buffered(&pcur, space, page_no,
+					    &min_n_recs, &mtr);
+
+	if (op == IBUF_OP_DELETE && min_n_recs == 0) {
+		/* The page could become empty after the record is
+		deleted.  Refuse to buffer the operation. */
+		err = DB_STRONG_FAIL;
+
+		goto function_exit;
+	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a((buffered == 0) || ibuf_count_get(space, page_no));

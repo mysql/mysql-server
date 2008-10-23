@@ -658,9 +658,6 @@ retry_page_get:
 		page_mode = mode;
 	}
 
-	/* TO DO: if the page is empty, advance to the next page.
-	There may be a match on the first nonempty right sibling. */
-
 	page_cur_search_with_match(
 		block, index, tuple, page_mode, &up_match, &up_bytes,
 		&low_match, &low_bytes, page_cursor);
