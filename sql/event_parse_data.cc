@@ -45,7 +45,7 @@ Event_parse_data::new_instance(THD *thd)
 */
 
 Event_parse_data::Event_parse_data()
-  :on_completion(Event_parse_data::ON_COMPLETION_DROP),
+  :on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
   status(Event_parse_data::ENABLED),
   do_not_create(FALSE),
   body_changed(FALSE),
@@ -114,6 +114,12 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
   if (ltime_utc >= (my_time_t) thd->query_start())
     return;
 
+  /*
+    We'll come back later when we have the real on_completion value
+  */
+  if (on_completion == Event_parse_data::ON_COMPLETION_DEFAULT)
+    return;
+
   if (on_completion == Event_parse_data::ON_COMPLETION_DROP)
   {
     switch (thd->lex->sql_command) {
@@ -139,6 +145,42 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
                  ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
   }
 }
+
+
+/*
+  Check time/dates in ALTER EVENT
+
+  We check whether ALTER EVENT was given dates that are in the past.
+  However to know how to react, we need the ON COMPLETION type. Hence,
+  the check is deferred until we have the previous ON COMPLETION type
+  from the event-db to fall back on if nothing was specified in the
+  ALTER EVENT-statement.
+
+  SYNOPSIS
+    Event_parse_data::check_dates()
+      thd            Thread
+      on_completion  ON COMPLETION value currently in event-db.
+                     Will be overridden by value in ALTER EVENT if given.
+
+  RETURN VALUE
+    TRUE            an error occurred, do not ALTER
+    FALSE           OK
+*/
+
+bool
+Event_parse_data::check_dates(THD *thd, int previous_on_completion)
+{
+  if (on_completion == Event_parse_data::ON_COMPLETION_DEFAULT)
+  {
+    on_completion= previous_on_completion;
+    if (!ends_null)
+      check_if_in_the_past(thd, ends);
+    if (!execute_at_null)
+      check_if_in_the_past(thd, execute_at);
+  }
+  return do_not_create;
+}
+
 
 
 /*

@@ -1512,6 +1512,7 @@ ok
 drop table t1;
 SET SESSION AUTOCOMMIT = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+set binlog_format=mixed;
 # Switch to connection con1
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(256))
 ENGINE = InnoDB;

@@ -1481,6 +1481,12 @@ sql_exchange::sql_exchange(char *name,bool flag)
   cs= NULL;
 }
 
+bool sql_exchange::escaped_given(void)
+{
+  return escaped != &default_escaped;
+}
+
+
 bool select_send::send_fields(List<Item> &list, uint flags)
 {
   bool res;
@@ -1766,8 +1772,11 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     exchange->line_term=exchange->field_term;	// Use this if it exists
   field_sep_char= (exchange->enclosed->length() ?
                   (int) (uchar) (*exchange->enclosed)[0] : field_term_char);
-  escape_char=	(exchange->escaped->length() ?
-                (int) (uchar) (*exchange->escaped)[0] : -1);
+  if (exchange->escaped->length() && (exchange->escaped_given() ||
+      !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
+    escape_char= (int) (uchar) (*exchange->escaped)[0];
+  else
+    escape_char= -1;
   is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
@@ -3504,7 +3513,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 
 int THD::binlog_remove_pending_rows_event(bool clear_maps)
 {
-  DBUG_ENTER(__FUNCTION__);
+  DBUG_ENTER("THD::binlog_remove_pending_rows_event");
 
   if (!mysql_bin_log.is_open())
     DBUG_RETURN(0);
@@ -3549,22 +3558,24 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 }
 
 
-#ifndef DBUG_OFF
+#if !defined(DBUG_OFF) && !defined(_lint)
 static const char *
 show_query_type(THD::enum_binlog_query_type qtype)
 {
   switch (qtype) {
-    static char buf[64];
   case THD::ROW_QUERY_TYPE:
     return "ROW";
   case THD::STMT_QUERY_TYPE:
     return "STMT";
   case THD::MYSQL_QUERY_TYPE:
     return "MYSQL";
+  case THD::QUERY_TYPE_COUNT:
   default:
-    sprintf(buf, "UNKNOWN#%d", qtype);
-    return buf;
+    DBUG_ASSERT(0 <= qtype && qtype < THD::QUERY_TYPE_COUNT);
   }
+  static char buf[64];
+  sprintf(buf, "UNKNOWN#%d", qtype);
+  return buf;
 }
 #endif
 
