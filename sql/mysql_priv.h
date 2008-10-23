@@ -1264,6 +1264,7 @@ extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[],
 	    mysql_unpacked_real_data_home[],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+extern int mysql_unpacked_real_data_home_len;
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];
@@ -1341,6 +1342,9 @@ extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
+
+extern char *opt_plugin_dir_ptr;
+extern char opt_plugin_dir[FN_REFLEN];
 
 extern MYSQL_LOG mysql_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
@@ -1763,6 +1767,8 @@ bool check_stack_overrun(THD *thd, long margin, char *dummy);
 inline void kill_delayed_threads(void) {}
 #define check_stack_overrun(A, B, C) 0
 #endif
+
+extern "C" int test_if_data_home_dir(const char *dir);
 
 #endif /* MYSQL_CLIENT */
 
