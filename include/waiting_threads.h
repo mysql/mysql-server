@@ -67,7 +67,6 @@ extern uint32    wt_success_stats;
        e.g. accessing a resource by thd->waiting_for is safe,
        a resource cannot be freed as there's a thread waiting for it
 */
-
 typedef struct st_wt_resource {
   WT_RESOURCE_ID  id;
   uint            waiter_count;
@@ -76,11 +75,27 @@ typedef struct st_wt_resource {
   pthread_mutex_t  *mutex;
 #endif
   /*
-    before the 'lock' all elements are mutable, after - immutable
-    in the sense that lf_hash_insert() won't memcpy() over them.
+    before the 'lock' all elements are mutable, after (and including) -
+    immutable in the sense that lf_hash_insert() won't memcpy() over them.
     See wt_init().
   */
+#ifdef WT_RWLOCKS_USE_MUTEXES
+  /*
+    we need a special rwlock-like 'lock' to allow readers bypass
+    waiting writers, otherwise readers can deadlock.
+    writer starvation is technically possible, but unlikely, because
+    the contention is expected to be low.
+  */
+  struct {
+    pthread_cond_t   cond;
+    pthread_mutex_t  mutex;
+    uint readers: 16;
+    uint pending_writers: 15;
+    uint write_locked: 1;
+  } lock;
+#else
   rw_lock_t lock;
+#endif
   pthread_cond_t   cond;
   DYNAMIC_ARRAY    owners;
 } WT_RESOURCE;
