@@ -2728,8 +2728,10 @@ then
   AC_SUBST(THREAD_LOBJECTS)
 fi
 
-if test "$with_server" != "no"
+if test "$with_server" = "no"
 then
+  AM_CONDITIONAL([BUILD_INNODB_TOOLS], [false])
+else
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
 
