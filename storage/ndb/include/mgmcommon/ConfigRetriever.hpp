@@ -91,9 +91,10 @@ private:
     CR_RETRY = 2
   };
   ErrorType latestErrorType;
-  
+
   void setError(ErrorType, const char * errorMsg);
-  
+  void setError(ErrorType, BaseString err);
+
   Uint32      _ownNodeId;
   bool m_end_session;
 

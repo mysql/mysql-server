@@ -183,52 +183,55 @@ ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
 }
 
 ndb_mgm_configuration *
-ConfigRetriever::getConfig(const char * filename){
-#ifndef NDB_WIN32	
+ConfigRetriever::getConfig(const char * filename)
+{
+  if (access(filename, F_OK))
+  {
+    BaseString err;
+    err.assfmt("Could not find file: '%s'", filename);
+    setError(CR_ERROR, err);
+    return 0;
+  }
 
-  struct stat sbuf;
-  const int res = stat(filename, &sbuf);
-  if(res != 0){
-    char buf[255];
-    BaseString::snprintf(buf, sizeof(buf), "Could not find file: \"%s\"", filename);
-    setError(CR_ERROR, buf);
-    return 0;
-  }
-  const Uint32 bytes = sbuf.st_size;
-  
-  Uint32 * buf2 = new Uint32[bytes/4+1];
-  
   FILE * f = fopen(filename, "rb");
-  if(f == 0){
+  if(f == 0)
+  {
     setError(CR_ERROR, "Failed to open file");
-    delete []buf2;
     return 0;
   }
-  Uint32 sz = fread(buf2, 1, bytes, f);
+
+  size_t read_sz;
+  char read_buf[512];
+  UtilBuffer config_buf;
+  while ((read_sz = fread(read_buf, 1, sizeof(read_buf), f)) != 0)
+  {
+    if (config_buf.append(read_buf, read_sz) != 0)
+    {
+      setError(CR_ERROR, "Out of memory when appending read data");
+      fclose(f);
+      return 0;
+    }
+  }
   fclose(f);
-  if(sz != bytes){
-    setError(CR_ERROR, "Failed to read file");
-    delete []buf2;
-    return 0;
-  }
-  
+
   ConfigValuesFactory cvf;
-  if(!cvf.unpack(buf2, bytes)){
+  if(!cvf.unpack(config_buf))
+  {
     setError(CR_ERROR,  "Error while unpacking");
-    delete []buf2;
     return 0;
   }
-  delete [] buf2;
   return (ndb_mgm_configuration*)cvf.getConfigValues();
-#else
-  return 0;
-#endif
-}			   
+}
 
 void
 ConfigRetriever::setError(ErrorType et, const char * s){
   errorString.assign(s ? s : "");
   latestErrorType = et;
+}
+
+void
+ConfigRetriever::setError(ErrorType et, BaseString err){
+  setError(et, err.c_str());
 }
 
 void
