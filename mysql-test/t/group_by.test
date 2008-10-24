@@ -1010,4 +1010,33 @@ select (select sum(outr.a + t1.a) from t1 limit 1) as tt from t1 as outr order b
 SET sql_mode=@save_sql_mode;
 DROP TABLE t1, t2;
 
+--echo # 
+--echo # BUG#38072: Wrong result: HAVING not observed in a query with aggregate
+--echo # 
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  int_nokey int(11) NOT NULL,
+  int_key int(11) NOT NULL,
+  varchar_key varchar(1) NOT NULL,
+  varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY int_key (int_key),
+  KEY varchar_key (varchar_key)
+);
+INSERT INTO t1 VALUES 
+(1,5,5, 'h','h'),
+(2,1,1, '{','{'),
+(3,1,1, 'z','z'),
+(4,8,8, 'x','x'),
+(5,7,7, 'o','o'),
+(6,3,3, 'p','p'),
+(7,9,9, 'c','c'),
+(8,0,0, 'k','k'),
+(9,6,6, 't','t'),
+(10,0,0,'c','c');
+
+explain SELECT COUNT(varchar_key) AS X FROM t1 WHERE pk = 8 having 'foo'='bar';
+SELECT COUNT(varchar_key) AS X FROM t1 WHERE pk = 8 having 'foo'='bar';
+drop table t1;
+  
 --echo End of 5.0 tests
