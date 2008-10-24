@@ -1,11 +1,10 @@
 2008-10-23	The InnoDB Team
 
 	* ibuf/ibuf0ibuf.c:
-
 	ibuf_delete_rec(): When the cursor to the insert buffer record
 	cannot be restored, do not complain if the tablespace does not
 	exist, because the insert buffer record may have been discarded by
-	some other thread.  This bug has existed in MySQL/InnoDB since
+	some other thread. This bug has existed in MySQL/InnoDB since
 	version 4.1, when innodb_file_per_table was implemented.
 
 2008-10-22	The InnoDB Team
@@ -27,25 +26,25 @@
 
 2008-10-16	The InnoDB Team
 
-	* dict/dict0dict.c,
-	mysql-test/innodb-index.result, mysql-test/innodb-index.test:
+	* dict/dict0dict.c, mysql-test/innodb-index.result,
+	mysql-test/innodb-index.test:
 	Skip the undo log size check when creating REDUNDANT and COMPACT
-	tables.  In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED, column
+	tables. In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED, column
 	prefix indexes require that prefixes of externally stored columns
 	be written to the undo log. This may make the undo log record
-	bigger than the record on the B-tree page.  The maximum size of an
-	undo log record is the page size.  That must be checked for, in
-	dict_index_add_to_cache().  However, this restriction must not
+	bigger than the record on the B-tree page. The maximum size of an
+	undo log record is the page size. That must be checked for, in
+	dict_index_add_to_cache(). However, this restriction must not
 	be enforced on REDUNDANT or COMPACT tables.
 
 2008-10-15	The InnoDB Team
 
-	* btr/btr0cur.c, include/btr0cur.h, row/row0ext.c,
-	row/row0sel.c, row/row0upd.c:
+	* btr/btr0cur.c, include/btr0cur.h, row/row0ext.c, row/row0sel.c,
+	row/row0upd.c:
 	When the server crashes while freeing an externally stored column
 	of a compressed table, the BTR_EXTERN_LEN field in the BLOB
-	pointer will be written as 0.  Tolerate this in the functions that
-	deal with externally stored columns.  This fixes problems after
+	pointer will be written as 0. Tolerate this in the functions that
+	deal with externally stored columns. This fixes problems after
 	crash recovery, in the rollback of incomplete transactions, and in
 	the purge of delete-marked records.
 
@@ -53,12 +52,12 @@
 
 	* btr/btr0btr.c, include/page0zip.h, page/page0zip.c, include/univ.i:
 	When a B-tree node of a compressed table is split or merged, the
-	compression may fail.  In this case, the entire compressed page
-	will be copied and the excess records will be deleted.  However,
+	compression may fail. In this case, the entire compressed page
+	will be copied and the excess records will be deleted. However,
 	page_zip_copy(), now renamed to page_zip_copy_recs(), copied too
 	many fields in the page header, overwriting PAGE_BTR_SEG_LEAF and
-	PAGE_BTR_SEG_TOP when splitting the B-tree root.  This caused
-	corruption of compressed tables.  Furthermore, the lock table and
+	PAGE_BTR_SEG_TOP when splitting the B-tree root. This caused
+	corruption of compressed tables. Furthermore, the lock table and
 	the adaptive hash index would be corrupted, because we forgot to
 	update them when invoking page_zip_copy_recs().
 
@@ -69,10 +68,10 @@
 
 	* handler/handler0alter.cc, include/row0merge.h, row/row0merge.c,
 	row/row0mysql.c:
-	Fix some locking issues, mainly in fast index creation.  The
+	Fix some locking issues, mainly in fast index creation. The
 	InnoDB data dictionary cache should be latched whenever a
 	transaction is holding locks on any data dictionary tables.
-	Otherwise, lock waits or deadlocks could occur.  Furthermore, the
+	Otherwise, lock waits or deadlocks could occur. Furthermore, the
 	data dictionary transaction must be committed (and the locks
 	released) before the data dictionary latch is released.
 
@@ -92,13 +91,14 @@
 2008-10-08	The InnoDB Team
 
 	* dict/dict0crea.c, trx/trx0roll.c, include/row0mysql.h,
-	row/row0merge.c, row/row0mysql.c: When dropping a table, hold the
-	data dictionary latch until the transaction has been committed.
-	The data dictionary latch is supposed to prevent lock waits and
-	deadlocks in the data dictionary tables.  Due to this bug,
-	DROP TABLE could cause a deadlock or hang.  Note that because of
-	Bug#33650 and Bug#39833, MySQL may also drop a (temporary) table
-	when executing CREATE INDEX or ALTER TABLE ... ADD INDEX.
+	row/row0merge.c, row/row0mysql.c:
+	When dropping a table, hold the data dictionary latch until the
+	transaction has been committed. The data dictionary latch is
+	supposed to prevent lock waits and deadlocks in the data
+	dictionary tables. Due to this bug, DROP TABLE could cause a
+	deadlock or hang. Note that because of Bug#33650 and Bug#39833,
+	MySQL may also drop a (temporary) table when executing CREATE INDEX
+	or ALTER TABLE ... ADD INDEX.
 
 2008-10-04	The InnoDB Team
 
@@ -137,8 +137,8 @@
 
 	* mysql-test/innodb-index.test, mysql-test/innodb-index.result,
 	mysql-test/innodb-timeout.test, mysql-test/innodb-timeout.result,
-	srv/srv0srv.c, include/srv0srv.h,
-	handler/ha_innodb.cc, include/ha_prototypes.h:
+	srv/srv0srv.c, include/srv0srv.h, handler/ha_innodb.cc,
+	include/ha_prototypes.h:
 	Fix Bug#36285 innodb_lock_wait_timeout is not dynamic, not per session
 
 2008-09-19	The InnoDB Team
@@ -151,15 +151,14 @@
 2008-09-17	The InnoDB Team
 
 	* mysql-test/innodb.result, mysql-test/innodb-zip.result,
-	mysql-test/innodb-zip.test, mysql-test/innodb.test,
-	ibuf/ibuf0ibuf.c, dict/dict0crea.c, dict/dict0load.c, dict/dict0boot.c,
-	include/dict0dict.h, include/trx0trx.h,
-	dict/dict0dict.c, trx/trx0trx.c,
-	include/ha_prototypes.h, handler/ha_innodb.cc:
+	mysql-test/innodb-zip.test, mysql-test/innodb.test, ibuf/ibuf0ibuf.c,
+	dict/dict0crea.c, dict/dict0load.c, dict/dict0boot.c,
+	include/dict0dict.h, include/trx0trx.h, dict/dict0dict.c,
+	trx/trx0trx.c, include/ha_prototypes.h, handler/ha_innodb.cc:
 	When creating an index in innodb_strict_mode, check that the
 	maximum record size will never exceed the B-tree page size limit.
 	For uncompressed tables, there should always be enough space for
-	two records in an empty B-tree page.  For compressed tables, there
+	two records in an empty B-tree page. For compressed tables, there
 	should be enough space for storing two node pointer records or one
 	data record in an empty page in uncompressed format.
 	The purpose of this check is to guarantee that INSERT or UPDATE
@@ -168,12 +167,11 @@
 2008-09-17	The InnoDB Team
 
 	* btr/btr0cur.c, data/data0data.c, include/page0zip.h,
-	include/page0zip.ic, page/page0zip.c,
-	mysql-test/innodb_bug36172.test:
+	include/page0zip.ic, page/page0zip.c, mysql-test/innodb_bug36172.test:
 	Prevent infinite B-tree page splits in compressed tables by
 	ensuring that there will always be enough space for two node
-	pointer records in an empty B-tree page.  Also, require that at
-	least one data record will fit in an empty compressed page.  This
+	pointer records in an empty B-tree page. Also, require that at
+	least one data record will fit in an empty compressed page. This
 	will reduce the maximum size of records in compressed tables.
 
 2008-09-09	The InnoDB Team
@@ -429,7 +427,7 @@
 
 2008-04-29	The InnoDB Team
 
-	* handler/i_s.cc, include/srv0start.h, srv/srv0start.c: 
+	* handler/i_s.cc, include/srv0start.h, srv/srv0start.c:
 	Fix Bug#36310 InnoDB plugin crash
 
 2008-04-23	The InnoDB Team
