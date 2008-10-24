@@ -1222,4 +1222,16 @@ ALTER TABLE t1 CHANGE d c varchar(10);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
+CREATE TABLE t1(a INT AUTO_INCREMENT PRIMARY KEY, 
+b ENUM('a', 'b', 'c') NOT NULL);
+INSERT INTO t1 (b) VALUES ('a'), ('c'), ('b'), ('b'), ('a');
+ALTER TABLE t1 MODIFY b ENUM('a', 'z', 'b', 'c') NOT NULL;
+SELECT * FROM t1;
+a	b
+1	a
+2	c
+3	b
+4	b
+5	a
+DROP TABLE t1;
 End of 5.1 tests
