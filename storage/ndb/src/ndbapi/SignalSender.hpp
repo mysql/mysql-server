@@ -51,7 +51,6 @@ public:
   int unlock();
 
   Uint32 getOwnRef() const;
-  Uint32 getAliveNode() const;
   const ClusterMgr::Node &getNodeInfo(Uint16 nodeId) const;
   Uint32 getNoOfConnectedNodes() const;
 
@@ -72,7 +71,8 @@ public:
   SimpleSignal * waitFor(Uint16 nodeId, Uint32 timeOutMillis = 0);
   SimpleSignal * waitFor(Uint16 nodeId, Uint16 gsn, Uint32 timeOutMillis = 0);  
 
-  Uint32 get_an_alive_node() { return theFacade->get_an_alive_node(); }
+  Uint32 get_an_alive_node() const { return theFacade->get_an_alive_node(); }
+  Uint32 getAliveNode() const { return get_an_alive_node(); }
   bool get_node_alive(NodeId n) const { return theFacade->get_node_alive(n); }
 
 private:

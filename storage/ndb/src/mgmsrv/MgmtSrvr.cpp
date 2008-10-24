@@ -84,6 +84,7 @@ static void require(bool v)
   }
 }
 
+
 void *
 MgmtSrvr::logLevelThread_C(void* m)
 {
@@ -821,9 +822,10 @@ MgmtSrvr::versionNode(int nodeId, Uint32 &version, Uint32& mysql_version,
   return 0;
 }
 
-int 
-MgmtSrvr::sendVersionReq(int v_nodeId, 
-			 Uint32 &version, 
+
+int
+MgmtSrvr::sendVersionReq(int v_nodeId,
+			 Uint32 &version,
 			 Uint32& mysql_version,
 			 const char **address)
 {
@@ -834,49 +836,38 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
   ApiVersionReq* req = CAST_PTR(ApiVersionReq, ssig.getDataPtrSend());
   req->senderRef = ss.getOwnRef();
   req->nodeId = v_nodeId;
-  ssig.set(ss, TestOrd::TraceAPI, QMGR, GSN_API_VERSION_REQ, 
-	   ApiVersionReq::SignalLength);
+  ssig.set(ss, TestOrd::TraceAPI, QMGR,
+           GSN_API_VERSION_REQ, ApiVersionReq::SignalLength);
 
-  int do_send = 1;
   NodeId nodeId;
-
-  while (1)
+  int do_send = 1;
+  while(true)
   {
     if (do_send)
     {
-      bool next;
-      nodeId = 0;
-
-      while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-	    okToSendTo(nodeId, true) != 0);
-
-      const ClusterMgr::Node &node=
-	theFacade->theClusterMgr->getNodeInfo(nodeId);
-      if(next && node.m_state.startLevel != NodeState::SL_STARTED)
+      nodeId = ss.get_an_alive_node();
+      if (nodeId == 0)
       {
-	NodeId tmp=nodeId;
-	while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-	      okToSendTo(nodeId, true) != 0);
-	if(!next)
-	  nodeId= tmp;
+        return NO_CONTACT_WITH_DB_NODES;
       }
 
-      if(!next) return NO_CONTACT_WITH_DB_NODES;
-
-      if (ss.sendSignal(nodeId, &ssig) != SEND_OK) {
-	return SEND_OR_RECEIVE_FAILED;
+      if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
+      {
+        return SEND_OR_RECEIVE_FAILED;
       }
+
       do_send = 0;
     }
 
     SimpleSignal *signal = ss.waitFor();
 
-    int gsn = signal->readSignalNumber();
-    switch (gsn) {
+    switch (signal->readSignalNumber()) {
     case GSN_API_VERSION_CONF: {
-      const ApiVersionConf * const conf = 
+      const ApiVersionConf * const conf =
 	CAST_CONSTPTR(ApiVersionConf, signal->getDataPtr());
+
       assert((int) conf->nodeId == v_nodeId);
+
       version = conf->version;
       mysql_version = conf->mysql_version;
       if (version < NDBD_SPLIT_VERSION)
@@ -884,8 +875,10 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
       struct in_addr in;
       in.s_addr= conf->inet_addr;
       *address= inet_ntoa(in);
+
       return 0;
     }
+
     case GSN_NF_COMPLETEREP:{
       const NFCompleteRep * const rep =
 	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
@@ -893,6 +886,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 	do_send = 1; // retry with other node
       continue;
     }
+
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
@@ -900,17 +894,22 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 	do_send = 1; // retry with other node
       continue;
     }
+
     case GSN_API_REGCONF:
-      break;
+      // Ignore
+      continue;
+
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
     }
-    break;
-  } // while(1)
+  }
 
-  return 0;
+  // Should never come here
+  require(false);
+  return -1;
 }
+
 
 int MgmtSrvr::sendStopMgmd(NodeId nodeId,
 			   bool abort,

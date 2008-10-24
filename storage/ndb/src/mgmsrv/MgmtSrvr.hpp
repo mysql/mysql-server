@@ -193,15 +193,6 @@ public:
   int shutdownDB(int * cnt = 0, bool abort = false);
 
   /**
-   *   print version info about a node
-   * 
-   *   @param   processId: Id of the DB process to stop
-   *   @return  0 if succeeded, otherwise: as stated above, plus:
-   */
-  int versionNode(int nodeId, Uint32 &version, Uint32 &mysql_version,
-		  const char **address);
-
-  /**
    *   Maintenance on the system
    */
   int enterSingleUser(int * cnt = 0, Uint32 singleuserNodeId = 0);
@@ -413,6 +404,12 @@ public:
 
 private:
 
+  int versionNode(int nodeId, Uint32 &version,
+                  Uint32 &mysql_version, const char **address);
+
+  int sendVersionReq(int processId, Uint32 &version,
+                     Uint32& mysql_version, const char **address);
+
   int sendStopMgmd(NodeId nodeId,
                    bool abort,
                    bool stop,
@@ -501,8 +498,6 @@ private:
  
   class TransporterFacade * theFacade;
 
-  int  sendVersionReq( int processId, Uint32 &version, Uint32& mysql_version,
-		       const char **address);
   int translateStopRef(Uint32 errCode);
   
   bool _isStopThread;
