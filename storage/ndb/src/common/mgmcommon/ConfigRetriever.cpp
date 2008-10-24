@@ -30,8 +30,6 @@
 
 #include <socket_io.h>
 
-#include <NdbAutoPtr.hpp>
- 
 #include <mgmapi.h>
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
@@ -251,58 +249,55 @@ ConfigRetriever::getErrorString(){
 
 
 bool
-ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 nodeid){
-
+ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
+                              Uint32 nodeid)
+{
   char buf[255];
-  ndb_mgm_configuration_iterator * it;
-  it = ndb_mgm_create_configuration_iterator((struct ndb_mgm_configuration *)conf,
-					     CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator it(* conf, CFG_SECTION_NODE);
 
-  if(it == 0){
-    setError(CR_ERROR, "Unable to create config iterator");
-    return false;
-    
-  }
-  NdbAutoPtr<ndb_mgm_configuration_iterator> ptr(it);
-  
-  if(ndb_mgm_find(it, CFG_NODE_ID, nodeid) != 0){
+  if(it.find(CFG_NODE_ID, nodeid)){
     BaseString::snprintf(buf, 255, "Unable to find node with id: %d", nodeid);
     setError(CR_ERROR, buf);
     return false;
   }
-     
+
   const char * hostname;
-  if(ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &hostname)){
-    BaseString::snprintf(buf, 255, "Unable to get hostname(%d) from config",CFG_NODE_HOST);
+  if(it.get(CFG_NODE_HOST, &hostname)){
+    BaseString::snprintf(buf, 255, "Unable to get hostname(%d) from config",
+                         CFG_NODE_HOST);
     setError(CR_ERROR, buf);
     return false;
   }
 
   if (hostname && hostname[0] != 0 &&
       !SocketServer::tryBind(0,hostname)) {
-    BaseString::snprintf(buf, 255, "Config hostname(%s) don't match a local interface,"
-	     " tried to bind, error = %d - %s",
-	     hostname, errno, strerror(errno));
+    BaseString::snprintf(buf, 255,
+                         "Config hostname: %s don't match a local "
+                         "interface, tried to bind, error: %d '%s'",
+                         hostname, errno, strerror(errno));
     setError(CR_ERROR, buf);
     return false;
   }
 
   unsigned int _type;
-  if(ndb_mgm_get_int_parameter(it, CFG_TYPE_OF_SECTION, &_type)){
+  if(it.get(CFG_TYPE_OF_SECTION, &_type)){
     BaseString::snprintf(buf, 255, "Unable to get type of node(%d) from config",
-	     CFG_TYPE_OF_SECTION);
+                         CFG_TYPE_OF_SECTION);
     setError(CR_ERROR, buf);
     return false;
   }
-  
+
   if(_type != m_node_type){
     const char *type_s, *alias_s, *type_s2, *alias_s2;
-    alias_s= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)m_node_type,
-						&type_s);
-    alias_s2= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)_type,
-						 &type_s2);
-    BaseString::snprintf(buf, 255, "This node type %s(%s) and config "
-			 "node type %s(%s) don't match for nodeid %d", 
+    alias_s=
+      ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)m_node_type,
+                                         &type_s);
+    alias_s2=
+      ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)_type,
+                                         &type_s2);
+    BaseString::snprintf(buf, 255,
+                         "This node type %s(%s) and config "
+			 "node type %s(%s) don't match for nodeid %d",
 			 alias_s, type_s, alias_s2, type_s2, nodeid);
     setError(CR_ERROR, buf);
     return false;
