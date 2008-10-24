@@ -758,7 +758,7 @@ void getTextEventBufferStatus(QQQQ) {
   convert_unit(alloc, alloc_unit);
   convert_unit(max_, max_unit);
   BaseString::snprintf(m_text, m_text_len,
-		       "Event buffer status: used=%d%s(%d%) alloc=%d%s(%d%) "
+		       "Event buffer status: used=%d%s(%d%%) alloc=%d%s(%d%%) "
 		       "max=%d%s apply_epoch=%u/%u latest_epoch=%u/%u",
 		       used, used_unit,
 		       theData[2] ? (Uint32)((((Uint64)theData[1])*100)/theData[2]) : 0,
