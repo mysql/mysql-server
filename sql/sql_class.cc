@@ -896,11 +896,12 @@ THD::~THD()
 #endif
   stmt_map.reset();                     /* close all prepared statements */
   DBUG_ASSERT(lock_info.n_cursors == 0);
-  ha_close_connection(this);
-  plugin_thdvar_cleanup(this);
 
   if (!cleanup_done)
     cleanup();
+
+  ha_close_connection(this);
+  plugin_thdvar_cleanup(this);
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
