@@ -127,11 +127,6 @@ SignalSender::getOwnRef() const {
   return numberToRef(m_blockNo, theFacade->ownId());
 }
 
-Uint32
-SignalSender::getAliveNode() const{
-  return theFacade->get_an_alive_node();
-}
-
 const ClusterMgr::Node & 
 SignalSender::getNodeInfo(Uint16 nodeId) const {
   return theFacade->theClusterMgr->getNodeInfo(nodeId);
