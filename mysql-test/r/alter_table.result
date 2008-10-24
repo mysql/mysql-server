@@ -1240,4 +1240,16 @@ select (@orig_max_data_length > @changed_max_data_length);
 (@orig_max_data_length > @changed_max_data_length)
 1
 drop table t1;
+CREATE TABLE t1(a INT AUTO_INCREMENT PRIMARY KEY, 
+b ENUM('a', 'b', 'c') NOT NULL);
+INSERT INTO t1 (b) VALUES ('a'), ('c'), ('b'), ('b'), ('a');
+ALTER TABLE t1 MODIFY b ENUM('a', 'z', 'b', 'c') NOT NULL;
+SELECT * FROM t1;
+a	b
+1	a
+2	c
+3	b
+4	b
+5	a
+DROP TABLE t1;
 End of 5.1 tests
