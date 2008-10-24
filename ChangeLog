@@ -1,3 +1,13 @@
+2008-10-23	The InnoDB Team
+
+	* ibuf/ibuf0ibuf.c:
+
+	ibuf_delete_rec(): When the cursor to the insert buffer record
+	cannot be restored, do not complain if the tablespace does not
+	exist, because the insert buffer record may have been discarded by
+	some other thread.  This bug has existed in MySQL/InnoDB since
+	version 4.1, when innodb_file_per_table was implemented.
+
 2008-10-22	The InnoDB Team
 
 	* dict/dict0dict.c, dict/dict0mem.c, handler/ha_innodb.cc,
@@ -14,6 +24,64 @@
 	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
 	Fix Bug#40224 New AUTOINC changes mask reporting of deadlock/timeout
 	errors
+
+2008-10-16	The InnoDB Team
+
+	* dict/dict0dict.c,
+	mysql-test/innodb-index.result, mysql-test/innodb-index.test:
+	Skip the undo log size check when creating REDUNDANT and COMPACT
+	tables.  In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED, column
+	prefix indexes require that prefixes of externally stored columns
+	be written to the undo log. This may make the undo log record
+	bigger than the record on the B-tree page.  The maximum size of an
+	undo log record is the page size.  That must be checked for, in
+	dict_index_add_to_cache().  However, this restriction must not
+	be enforced on REDUNDANT or COMPACT tables.
+
+2008-10-15	The InnoDB Team
+
+	* btr/btr0cur.c, include/btr0cur.h, row/row0ext.c,
+	row/row0sel.c, row/row0upd.c:
+	When the server crashes while freeing an externally stored column
+	of a compressed table, the BTR_EXTERN_LEN field in the BLOB
+	pointer will be written as 0.  Tolerate this in the functions that
+	deal with externally stored columns.  This fixes problems after
+	crash recovery, in the rollback of incomplete transactions, and in
+	the purge of delete-marked records.
+
+2008-10-15	The InnoDB Team
+
+	* btr/btr0btr.c, include/page0zip.h, page/page0zip.c, include/univ.i:
+	When a B-tree node of a compressed table is split or merged, the
+	compression may fail.  In this case, the entire compressed page
+	will be copied and the excess records will be deleted.  However,
+	page_zip_copy(), now renamed to page_zip_copy_recs(), copied too
+	many fields in the page header, overwriting PAGE_BTR_SEG_LEAF and
+	PAGE_BTR_SEG_TOP when splitting the B-tree root.  This caused
+	corruption of compressed tables.  Furthermore, the lock table and
+	the adaptive hash index would be corrupted, because we forgot to
+	update them when invoking page_zip_copy_recs().
+
+	Introduce the symbol UNIV_ZIP_DEBUG for triggering the copying of
+	compressed pages more often, for debugging purposes.
+
+2008-10-10	The InnoDB Team
+
+	* handler/handler0alter.cc, include/row0merge.h, row/row0merge.c,
+	row/row0mysql.c:
+	Fix some locking issues, mainly in fast index creation.  The
+	InnoDB data dictionary cache should be latched whenever a
+	transaction is holding locks on any data dictionary tables.
+	Otherwise, lock waits or deadlocks could occur.  Furthermore, the
+	data dictionary transaction must be committed (and the locks
+	released) before the data dictionary latch is released.
+
+	ha_innobase::add_index(): Lock the data dictionary before renaming
+	or dropping the created indexes, because neither operation will
+	commit the data dictionary transaction.
+
+	ha_innobase::final_drop_index(): Commit the transactions before
+	unlocking the data dictionary.
 
 2008-10-09	The InnoDB Team
 
