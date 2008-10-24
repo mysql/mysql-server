@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+
 #include "ConfigManager.hpp"
 #include "MgmtSrvr.hpp"
 
@@ -37,7 +38,7 @@ require(bool v)
 }
 #endif
 
-extern const char* opt_connect_str;
+extern "C" const char* opt_connect_str;
 
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts) :
   MgmtThread("ConfigManager"),
@@ -360,7 +361,7 @@ ConfigManager::prepareConfigChange(const Config* config)
   /* Write config to temporary file */
   BaseString prep_config_name(m_config_name);
   prep_config_name.append(".tmp");
-  FILE * f = fopen(prep_config_name.c_str(), "w");
+  FILE * f = fopen(prep_config_name.c_str(), IF_WIN("wbc", "w"));
   if(f == NULL)
   {
     g_eventLogger->error("Failed to open file '%s' while preparing, errno: %d",
@@ -386,6 +387,13 @@ ConfigManager::prepareConfigChange(const Config* config)
     return false;
   }
 
+#ifdef __WIN__
+  /* 
+	File is opened with the commit flag "c" so
+	that the contents of the file buffer are written
+	directly to disk when fflush is called
+  */
+#else
   if (fsync(fileno(f)))
   {
     g_eventLogger->error("Failed to sync file '%s' while preparing, errno: %d",
@@ -394,6 +402,7 @@ ConfigManager::prepareConfigChange(const Config* config)
     unlink(prep_config_name.c_str());
     return false;
   }
+#endif
   fclose(f);
 
   m_prepared_config = new Config(config->m_configValues);
@@ -1503,8 +1512,8 @@ ConfigManager::saved_config_exists(BaseString& config_name) const
   if (max_version == 0)
     return false;
 
-  config_name.assfmt("%s/ndb_%u_config.bin.%u",
-                     m_datadir, m_node_id, max_version);
+  config_name.assfmt("%s%sndb_%u_config.bin.%u", 
+                     m_datadir, DIR_SEPARATOR, m_node_id, max_version);
   return true;
 }
 
