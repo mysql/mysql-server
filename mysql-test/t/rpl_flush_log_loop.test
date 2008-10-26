@@ -12,16 +12,27 @@ stop slave;
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$MASTER_MYPORT;
 start slave;
+
 connection master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$SLAVE_MYPORT;
 start slave;
-sleep 5;
+--source include/wait_for_slave_to_start.inc
+
+# Calculate file name of relay log after flush logs 
+let $relay_file= query_get_value(show slave status, Relay_Log_File,1);
+let $relay_name= `select substring_index('$relay_file','.',1);`;
+let $relay_index= `select substring_index('$relay_file','.',-1);`;
+let $relay_index_len= `select length(substring_index('$relay_file','.',-1));`;
+let $relay_index_next=`select $relay_index+1`;
+let $relay_file=`select concat('$relay_name','.',repeat('0',($relay_index_len-length($relay_index_next))),$relay_index_next);`;
 flush logs;
-sleep 5;
+let $slave_param= Relay_Log_File;
+let $slave_param_value= $relay_file;
+source include/wait_for_slave_param.inc;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
-show slave status;
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 # 34 # 35 #
+--query_vertical show slave status
 
 # End of 4.1 tests
