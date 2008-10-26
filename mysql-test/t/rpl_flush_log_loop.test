@@ -31,7 +31,7 @@ flush logs;
 let $slave_param= Relay_Log_File;
 let $slave_param_value= $relay_file;
 source include/wait_for_slave_param.inc;
---replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_result $SLAVE_MYPORT SLAVE_PORT $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 16 # 23 # 33 # 34 # 35 #
 --query_vertical show slave status
 
