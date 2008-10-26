@@ -888,17 +888,9 @@ static int log_and_save_brtenq(TOKULOGGER logger, BRT t, BRTNODE node, int child
     return 0;
 }
 
-static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
-				 enum reactivity re_array[], BOOL *didio)
-// Effect: Insert a message into a nonleaf.  We may put it into a child, possibly causing the child to become reactive.
-//  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
-//  The re_array[i] gets set to reactivity of any modified child.
+static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int childnum, BRT_CMD cmd, TOKULOGGER logger,
+					  enum reactivity re_array[], BOOL *did_io)
 {
-    //verify_local_fingerprint_nonleaf(node);
-    unsigned int childnum;
-
-    /* find the right subtree */
-    childnum = toku_brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t);
 
     // if the fifo is empty and the child is in main memory and the child isn't gorged, then put it in the child
     if (BNC_NBYTESINBUF(node, childnum) == 0) {
@@ -913,7 +905,7 @@ static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER lo
 	// The child is in main memory.
 	BRTNODE child = child_v;
 
-	r = brtnode_put_cmd (t, child, cmd, logger, &re_array[childnum], didio);
+	r = brtnode_put_cmd (t, child, cmd, logger, &re_array[childnum], did_io);
 	int rr = toku_unpin_brtnode(t, child);
 	assert(rr=0);
 	return r;
@@ -937,6 +929,84 @@ static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER lo
     }
 
     return 0;
+}
+
+static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
+				 enum reactivity re_array[], BOOL *did_io)
+// Effect: Insert a message into a nonleaf.  We may put it into a child, possibly causing the child to become reactive.
+//  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
+//  The re_array[i] gets set to reactivity of any modified child.
+{
+    //verify_local_fingerprint_nonleaf(node);
+    /* find the right subtree */
+    unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t);
+
+    return brt_nonleaf_cmd_once_to_child (t, node, childnum, cmd, logger, re_array, did_io);
+}
+
+// If you pass in data==0 then it only compares the key, not the data (even if is a DUPSORT database)
+static int
+brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck)
+{
+    int cmp;
+    DBT mydbt;
+    struct kv_pair *kv = (struct kv_pair *) ck;
+    if (brt->flags & TOKU_DB_DUPSORT) {
+        cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
+        if (cmp == 0 && data != 0)
+            cmp = brt->dup_compare(brt->db, data, toku_fill_dbt(&mydbt, kv_pair_val(kv), kv_pair_vallen(kv)));
+    } else {
+        cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
+    }
+    return cmp;
+}
+
+static int
+brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
+		      enum reactivity re_array[], BOOL *did_io)
+// Effect: Put the cmd into a nonleaf node.  We may put it into several children, possibly causing the children to become reactive.
+//  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
+//  The re_array[i] gets set to the reactivity of any modified child i.  (And there may be several such children.)
+{
+    /* find all children that need a copy of the command */
+    unsigned int *MALLOC_N(node->u.n.n_children, sendchild);
+    unsigned int delidx = 0;
+#define sendchild_append(i) \
+        if (delidx == 0 || sendchild[delidx-1] != i) sendchild[delidx++] = i;
+    unsigned int i;
+    for (i = 0; i+1 < (unsigned int)node->u.n.n_children; i++) {
+        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
+        if (cmp > 0) {
+            continue;
+        } else if (cmp < 0) {
+            sendchild_append(i);
+            break;
+        } else if (t->flags & TOKU_DB_DUPSORT) {
+            sendchild_append(i);
+            sendchild_append(i+1);
+        } else {
+            sendchild_append(i);
+            break;
+        }
+    }
+
+    if (delidx == 0)
+        sendchild_append((unsigned int)(node->u.n.n_children-1));
+#undef sendchild_append
+
+    /* issue the cmd to all of the children found previously */
+    int r;
+    for (i=0; i<delidx; i++) {
+	/* Append the cmd to the appropriate child buffer. */
+	int childnum = sendchild[i];
+
+	r = brt_nonleaf_cmd_once_to_child(t, node, childnum, cmd, logger, re_array, did_io);
+	if (r!=0)  goto return_r;
+    }
+    r=0;
+ return_r:
+    toku_free(sendchild);
+    return r;
 }
 
 static int
@@ -966,37 +1036,27 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 }
 
 static int
-brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum should_status *should, int *io_count)
+brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum reactivity *re, BOOL *did_io)
 // Effect: Push CMD into the subtree rooted at NODE, and indicate whether as a result NODE should split or should merge.
 //   If NODE is a leaf, then
 //      put CMD into leaf, applying it to the leafentries
-//   If NODE is a nonleaf, then copy the cmd into the relevant child fifos.
-//      For each child fifo that is empty and where the child is in main memory put the command into the child (using this same algorithm)
-//      Use *io_count to determine whether I/O has already been performed.  Once I/O has occured, we avoid additional I/O by leaving nodes that are gorged, hungry, overfat, or underfat.
-//   Set *should as follows:
-//                { SHOULD_SPLIT if the node is gorged
-//      *should = { SHOULD_MERGE if the node is hungry
-//                { SHOULD_OK    if the node is ok.   (Those cases are mutually exclusive.)
-//   For every I/O increment *io_count
+//   If NODE is a nonleaf, then push the cmd in the relevant child (or children).  That may entail putting it into FIFOs or
+//      actually putting it into the child.
+//   Set *re to the reactivity of the node.   If node becomes reactive, we don't change its shape (but if a child becomes reactive, we fix it.)
+//   If we perform I/O then set *did_io to true.
 {
     if (node->height==0) {
-	int r;
-	u_int64_t new_size MAYBE_INIT(0);
-	r = brt_leaf_put_cmd(t, node, cmd, logger, &new_size);
-	if (r!=0) return r;
-	if (new_size > node->nodesize)          *should = SHOULD_SPLIT;
-	else if ((new_size*4) < node->nodesize) *should = SHOULD_MERGE;
-	else                                    *should = SHOULD_OK;
+	return brt_leaf_put_cmd(t, node, cmd, logger, re);
     } else {
-	int r;
-	u_int32_t new_fanout = 0; // Some compiler bug in gcc is complaining that this is uninitialized.
-	r = brt_nonleaf_put_cmd(t, node, cmd, logger, &new_fanout, io_count);
-	if (r!=0) return 0;
-	if (new_fanout > TREE_FANOUT)        *should = SHOULD_SPLIT;
-	else if (new_fanout*4 < TREE_FANOUT) *should = SHOULD_MERGE;
-	else                                 *should = SHOULD_OK;
+	enum reactivity *MALLOC_N(node->u.n.n_children, child_re);
+	int r = brt_nonleaf_put_cmd(t, node, cmd, logger, child_re, did_io);
+	if (r!=0) goto return_r;
+	// Now all those children may need fixing.
+	fixup_children();
+    return_r:
+	toku_free(child_re);
+	return r;
     }
-    return 0;
 }
 
 static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_CMD cmd, TOKULOGGER logger)
