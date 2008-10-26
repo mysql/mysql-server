@@ -26,32 +26,6 @@
 
 #include "includes.h"
 
-//#define SLOW
-#ifdef SLOW
-#define VERIFY_NODE(t,n) (toku_verify_counts(n), toku_verify_estimates(t,n))
-#else
-#define VERIFY_NODE(t,n) ((void)0)
-#endif
-
-static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum) {
-    switch (BNC_HAVE_FULLHASH(node, childnum)) {
-    case TRUE:
-	{
-	    assert(BNC_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum)));
-	    return BNC_FULLHASH(node, childnum);
-	}
-    case FALSE:
-	{
-	    u_int32_t child_fullhash = toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum));
-	    BNC_HAVE_FULLHASH(node, childnum) = TRUE;
-	    BNC_FULLHASH(node, childnum) = child_fullhash;
-	    return child_fullhash;
-	}
-    }
-    assert(0);
-    return 0;
-}
-
 static inline void
 toku_verify_estimates (BRT t, BRTNODE node) {
     if (node->height>0) {
@@ -487,21 +461,6 @@ brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger) {
 }
 
 //#define MAX_PATHLEN_TO_ROOT 40
-
-static int log_and_save_brtenq(TOKULOGGER logger, BRT t, BRTNODE node, int childnum, TXNID xid, int type, const char *key, int keylen, const char *data, int datalen, u_int32_t *fingerprint) {
-    BYTESTRING keybs  = {.len=keylen,  .data=(char*)key};
-    BYTESTRING databs = {.len=datalen, .data=(char*)data};
-    u_int32_t old_fingerprint = *fingerprint;
-    u_int32_t fdiff=node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
-    u_int32_t new_fingerprint = old_fingerprint + fdiff;
-    //printf("%s:%d node=%lld fingerprint old=%08x new=%08x diff=%08x xid=%lld\n", __FILE__, __LINE__, node->thisnodename, old_fingerprint, new_fingerprint, fdiff, (long long)xid);
-    *fingerprint = new_fingerprint;
-    if (t->txn_that_created != xid) {
-	int r = toku_log_brtenq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, xid, type, keybs, databs);
-	if (r!=0) return r;
-    }
-    return 0;
-}
 
 /* Side effect: sets splitk->data pointer to a malloc'd value */
 static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, TOKULOGGER logger) {
@@ -1895,47 +1854,6 @@ brt_nonleaf_cmd_once_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger
     return brt_nonleaf_put_cmd_child_simple(t, node, childnum, cmd, logger, new_fanout);
 }
 
-static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd,
-				 int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
-				 TOKULOGGER logger) {
-    //verify_local_fingerprint_nonleaf(node);
-    unsigned int childnum;
-    int r;
-
-    /* find the right subtree */
-    childnum = toku_brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t);
-
-    /* put the cmd in the subtree */
-    int do_push_down = 0;
-    r = brt_nonleaf_put_cmd_child(t, node, cmd, did_split, nodea, nodeb, splitk, logger, childnum, 1, &do_push_down);
-    if (r != 0) return r;
-
-    /* maybe push down */
-    if (do_push_down) {
-        //if (debug) printf("%s:%d %*sDoing maybe_push_down\n", __FILE__, __LINE__, debug, "");
-        //verify_local_fingerprint_nonleaf(node);
-        r = brtnode_maybe_push_down(t, node, did_split, nodea, nodeb, splitk, logger);
-        if (r!=0) return r;
-        //if (debug) printf("%s:%d %*sDid maybe_push_down\n", __FILE__, __LINE__, debug, "");
-        if (*did_split) {
-            assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
-            assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
-            assert((*nodea)->u.n.n_children>0);
-            assert((*nodeb)->u.n.n_children>0);
-            assert(BNC_BLOCKNUM(*nodea, (*nodea)->u.n.n_children-1).b!=0);
-            assert(BNC_BLOCKNUM(*nodeb, (*nodeb)->u.n.n_children-1).b!=0);
-        } else {
-            assert(toku_serialize_brtnode_size(node)<=node->nodesize);
-        }
-        //if (*did_split) {
-        //	verify_local_fingerprint_nonleaf(*nodea);
-        //	verify_local_fingerprint_nonleaf(*nodeb);
-        //} else {
-        //	verify_local_fingerprint_nonleaf(node);
-        //}
-    }
-    return 0;
-}
 
 /* delete in all subtrees starting from the left most one which contains the key */
 static int
@@ -2062,26 +1980,6 @@ static int brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
         //}
     }
     return 0;
-}
-
-static int brt_nonleaf_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
-				       u_int32_t *new_fanout) {
-    switch (cmd->type) {
-    case BRT_INSERT:
-    case BRT_DELETE_BOTH:
-    case BRT_ABORT_BOTH:
-    case BRT_COMMIT_BOTH:
-    do_once:
-        return brt_nonleaf_cmd_once_simple(t, node, cmd, logger, new_fanout);
-    case BRT_DELETE_ANY:
-    case BRT_ABORT_ANY:
-    case BRT_COMMIT_ANY:
-	if (0 == (node->flags & TOKU_DB_DUPSORT)) goto do_once; // nondupsort delete_any is just do once.
-        return brt_nonleaf_cmd_many_simple(t, node, cmd, logger, new_fanout);
-    case BRT_NONE:
-	break;
-    }
-    return EINVAL;
 }
 
 static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
