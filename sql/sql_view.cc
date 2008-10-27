@@ -774,8 +774,13 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   DBUG_PRINT("info", ("View: %s", str.ptr()));
 
   /* fill structure */
-  view->query.str= str.c_ptr_safe();
-  view->query.length= str.length();
+  if (!make_lex_string(thd, &view->query, str.ptr(), str.length(), false))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    error= -1;
+    goto err;   
+  }
+
   view->source.str= thd->query + thd->lex->create_view_select_start;
   view->source.length= (char *)skip_rear_comments(thd->charset(),
                                                   (char *)view->source.str,
@@ -784,7 +789,12 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
                         view->source.str;
   view->file_version= 1;
   view->calc_md5(md5);
-  view->md5.str= md5;
+  if (!(view->md5.str= thd->memdup(md5, 32)))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    error= -1;
+    goto err;   
+  }
   view->md5.length= 32;
   can_be_merged= lex->can_be_merged();
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
