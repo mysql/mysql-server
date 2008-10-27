@@ -69,4 +69,29 @@ SET(INNOBASE_SOURCES  btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(innobase ${INNOBASE_SOURCES})
   ADD_DEPENDENCIES(innobase GenError)
+
+  IF(INNODB_DYNAMIC_PLUGIN)
+    # The dynamic plugin requires CMake 2.6.0 or later. Otherwise, the /DELAYLOAD property
+    # will not be set
+    CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0 FATAL_ERROR)
+    ADD_LIBRARY(ha_innodb SHARED ${INNOBASE_SOURCES} ha_innodb.def handler/win_delay_loader.cc)
+    ADD_DEPENDENCIES(ha_innodb GenError mysqld)
+    # If build type is not specified as Release, default to Debug
+    # This is a workaround to a problem in CMake 2.6, which does not
+    # set the path of mysqld.lib correctly
+    IF(CMAKE_BUILD_TYPE MATCHES Release)
+       SET(CMAKE_BUILD_TYPE "Release")
+    ELSE(CMAKE_BUILD_TYPE MATCHES Release)
+       SET(CMAKE_BUILD_TYPE "Debug") 
+    ENDIF(CMAKE_BUILD_TYPE MATCHES Release)
+    TARGET_LINK_LIBRARIES(ha_innodb strings dbug zlib)
+    TARGET_LINK_LIBRARIES(ha_innodb ${CMAKE_SOURCE_DIR}/sql/${CMAKE_BUILD_TYPE}/mysqld.lib)
+    SET_TARGET_PROPERTIES(ha_innodb PROPERTIES OUTPUT_NAME ha_innodb)
+    SET_TARGET_PROPERTIES(ha_innodb PROPERTIES LINK_FLAGS "/MAP /MAPINFO:EXPORTS")
+    SET_TARGET_PROPERTIES(ha_innodb PROPERTIES LINK_FLAGS "/ENTRY:\"_DllMainCRTStartup@12\"")
+    SET_TARGET_PROPERTIES(ha_innodb PROPERTIES COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
+    SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /MAP /MAPINFO:EXPORTS") 
+    SET_TARGET_PROPERTIES(ha_innodb PROPERTIES LINK_FLAGS "/DELAYLOAD:mysqld.exe")
+  ENDIF(INNODB_DYNAMIC_PLUGIN)
+
 ENDIF(NOT SOURCE_SUBLIBS)
