@@ -221,7 +221,6 @@ ClusterMgr::threadMain( ){
   NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theFacade.ownId()));
   
   signal.theVerId_signalNumber   = GSN_API_REGREQ;
-  signal.theReceiversBlockNumber = QMGR;
   signal.theTrace                = 0;
   signal.theLength               = ApiRegReq::SignalLength;
 
@@ -279,6 +278,11 @@ ClusterMgr::threadMain( ){
 	  theNode.m_info.m_heartbeat_cnt++;
 	  theNode.hbCounter = 0;
 	}
+
+        if(theNode.m_info.m_type == NodeInfo::MGM)
+          signal.theReceiversBlockNumber = API_CLUSTERMGR;
+        else
+          signal.theReceiversBlockNumber = QMGR;
 
 #ifdef DEBUG_REG
 	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
@@ -365,7 +369,8 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->version = NDB_VERSION;
   conf->mysql_version = NDB_MYSQL_VERSION_D;
   conf->apiHeartbeatFrequency = node.hbFrequency;
-  theFacade.sendSignalUnCond(&signal, nodeId);
+  if (theFacade.sendSignalUnCond(&signal, nodeId) == SEND_OK)
+    node.m_api_reg_conf= true;
 }
 
 void

@@ -244,6 +244,9 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_BUILD_INDX_IMPL_CONF, printBUILD_INDX_IMPL_CONF }
   ,{ GSN_BUILD_INDX_IMPL_REF, printBUILD_INDX_IMPL_REF }
 
+  ,{ GSN_API_VERSION_REQ, printAPI_VERSION_REQ }
+  ,{ GSN_API_VERSION_CONF, printAPI_VERSION_CONF }
+
   ,{ 0, 0 }
 };
 
