@@ -415,8 +415,9 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     /*
       Store the value of the field if it references an outer field because
       the call to save_in_field below overrides that value.
+      Don't store it for EXPLAIN since it's not initialized.
     */
-    if (field_item->depended_from)
+    if (field_item->depended_from && !thd->lex->describe)
       orig_field_val= field->val_int();
     if (!(*item)->is_null() && !(*item)->save_in_field(field, 1))
     {
@@ -427,7 +428,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       result= 1;					// Item was replaced
     }
     /* Restore the original field value. */
-    if (field_item->depended_from)
+    if (field_item->depended_from && !thd->lex->describe)
     {
       result= field->store(orig_field_val, TRUE);
       /* orig_field_val must be a valid value that can be restored back. */
