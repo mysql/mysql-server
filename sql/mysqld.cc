@@ -6573,7 +6573,9 @@ struct show_var_st status_vars[]= {
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
   {"Qcache_total_blocks",      (char*) &query_cache.total_blocks, SHOW_LONG_CONST},
 #endif /*HAVE_QUERY_CACHE*/
-  {"Questions",                (char*) 0,                       SHOW_QUESTION},
+  {"Questions",                (char*) offsetof(STATUS_VAR, questions),
+   SHOW_LONG_STATUS},
+
   {"Rpl_status",               (char*) 0,                 SHOW_RPL_STATUS},
   {"Select_full_join",         (char*) offsetof(STATUS_VAR, select_full_join_count), SHOW_LONG_STATUS},
   {"Select_full_range_join",   (char*) offsetof(STATUS_VAR, select_full_range_join_count), SHOW_LONG_STATUS},
