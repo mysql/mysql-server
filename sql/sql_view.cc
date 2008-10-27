@@ -816,13 +816,24 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   DBUG_PRINT("info", ("View: %s", view_query.ptr()));
 
   /* fill structure */
-  view->select_stmt.str= view_query.c_ptr_safe();
-  view->select_stmt.length= view_query.length();
   view->source= thd->lex->create_view_select;
+
+  if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
+                            view_query.length(), false))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    error= -1;
+    goto err;   
+  }
 
   view->file_version= 1;
   view->calc_md5(md5);
-  view->md5.str= md5;
+  if (!(view->md5.str= (char*) thd->memdup(md5, 32)))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    error= -1;
+    goto err;   
+  }
   view->md5.length= 32;
   can_be_merged= lex->can_be_merged();
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
@@ -949,8 +960,13 @@ loop_out:
   lex_string_set(&view->view_connection_cl_name,
                  view->view_creation_ctx->get_connection_cl()->name);
 
-  view->view_body_utf8.str= is_query.c_ptr_safe();
-  view->view_body_utf8.length= is_query.length();
+  if (!thd->make_lex_string(&view->view_body_utf8, is_query.ptr(),
+                            is_query.length(), false))
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    error= -1;
+    goto err;   
+  }
 
   /*
     Check that table of main select do not used in subqueries.
