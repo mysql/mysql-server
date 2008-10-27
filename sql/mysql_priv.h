@@ -2406,7 +2406,8 @@ extern "C" void unireg_abort(int exit_code) __attribute__((noreturn));
 void kill_delayed_threads(void);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 #else
-#define unireg_abort(exit_code) DBUG_RETURN(exit_code)
+extern "C" void unireg_clear(int exit_code);
+#define unireg_abort(exit_code) do { unireg_clear(exit_code); DBUG_RETURN(exit_code); } while(0)
 inline void kill_delayed_threads(void) {}
 #define check_stack_overrun(A, B, C) 0
 #endif
