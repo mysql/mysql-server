@@ -1052,7 +1052,25 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
 	int r = brt_nonleaf_put_cmd(t, node, cmd, logger, child_re, did_io);
 	if (r!=0) goto return_r;
 	// Now all those children may need fixing.
-	fixup_children();
+	int i;
+	for (i=0; i<node->u.n.n_children; i++) {
+	    int childnum = node->u.n.n_children - 1 -i;
+	    switch (child_re[childnum]) {
+	    case RE_STABLE:   goto next_child; // Could be a continue, but it seems fragile
+	    case RE_FISSIBLE:
+		r = brt_split_child(t, node, childnum, did_io);
+		if (r!=0) goto return_r;
+		goto reacted;
+	    case RE_FUSIBLE:
+		r = brt_merge_child(t, node, childnum, did_io);
+		if (r!=0) goto return_r;
+		goto reacted;
+	    }
+	    assert(0); // this cannot happen
+	reacted:
+	    if (*did_io) break;
+	next_child: ; /* nothing */
+	}
     return_r:
 	toku_free(child_re);
 	return r;
