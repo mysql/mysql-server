@@ -411,8 +411,8 @@ public:
    * Will be called from the thread that does performSend(), so multi-threaded
    * use cases must be prepared for that and do any necessary locking.
    */
-  virtual int get_bytes_to_send_iovec(NodeId node, struct iovec *dst,
-                                      Uint32 max) = 0;
+  virtual Uint32 get_bytes_to_send_iovec(NodeId, struct iovec *dst, Uint32) = 0;
+
   /**
    * Called when data has been sent, allowing to free / reuse the space. Passes
    * number of bytes sent.
@@ -426,8 +426,7 @@ public:
    *
    * Like get_bytes_to_send_iovec(), this is called during performSend().
    */
-  virtual Uint32 bytes_sent(NodeId node, const struct iovec *src,
-                            Uint32 bytes) = 0;
+  virtual Uint32 bytes_sent(NodeId node, Uint32 bytes) = 0;
 
   /**
    * Called to check if any data is available for sending with doSend().

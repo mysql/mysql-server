@@ -168,13 +168,13 @@ public:
   void reportError(NodeId nodeId, TransporterError errorCode,
                    const char *info = 0);
   void transporter_recv_from(NodeId node);
-  int get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
+  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
   {
     return theTransporterRegistry->get_bytes_to_send_iovec(node, dst, max);
   }
-  Uint32 bytes_sent(NodeId node, const struct iovec *src, Uint32 bytes)
+  Uint32 bytes_sent(NodeId node, Uint32 bytes)
   {
-    return theTransporterRegistry->bytes_sent(node, src, bytes);
+    return theTransporterRegistry->bytes_sent(node, bytes);
   }
   bool has_data_to_send(NodeId node)
   {
