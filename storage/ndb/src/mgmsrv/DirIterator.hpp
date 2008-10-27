@@ -16,31 +16,14 @@
 #ifndef DirIterator_HPP
 #define DirIterator_HPP
 
-#include <dirent.h>
-
 class DirIterator {
-  DIR* m_dirp;
+  class DirIteratorImpl& m_impl;
 public:
-  DirIterator():
-    m_dirp(NULL) {};
-  ~DirIterator() {
-    closedir(m_dirp);
-  }
+  DirIterator();
+  ~DirIterator();
 
-  int open(const char* path){
-    if ((m_dirp= opendir(path)) == NULL){
-      return -1;
-    }
-    return 0;
-  }
-
-  const char* next_file(void){
-    struct dirent* dp;
-    while ((dp= readdir(m_dirp)) != NULL &&
-           dp->d_type != DT_REG)
-      ;
-    return dp ? dp->d_name : NULL;
-  }
+  int open(const char* path);
+  const char* next_file(void);
 };
 
 #endif
