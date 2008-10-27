@@ -69,6 +69,7 @@ extern "C" {
 
 #include "ha_innodb.h"
 #include "i_s.h"
+#include "handler0vars.h"
 
 #ifndef MYSQL_SERVER
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
@@ -107,7 +108,11 @@ undefined.  Map it to NULL. */
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* These must be weak global variables in the dynamic plugin. */
 struct handlerton* innodb_hton_ptr;
+#ifdef __WIN__
+struct st_mysql_plugin*	builtin_innobase_plugin_ptr;
+#else
 int builtin_innobase_plugin;
+#endif /* __WIN__ */
 /********************************************************************
 Copy InnoDB system variables from the static InnoDB to the dynamic
 plugin. */
@@ -9662,6 +9667,20 @@ innodb_plugin_init(void)
 #error "MYSQL_STORAGE_ENGINE_PLUGIN must be nonzero."
 #endif
 
+	/* Copy the system variables. */
+
+	struct st_mysql_plugin*		builtin;
+	struct st_mysql_sys_var**	sta; /* static parameters */
+	struct st_mysql_sys_var**	dyn; /* dynamic parameters */
+
+#ifdef __WIN__
+	if (!builtin_innobase_plugin_ptr) {
+
+		return(true);
+	}
+
+	builtin = builtin_innobase_plugin_ptr;
+#else
 	switch (builtin_innobase_plugin) {
 	case 0:
 		return(true);
@@ -9671,13 +9690,8 @@ innodb_plugin_init(void)
 		return(false);
 	}
 
-	/* Copy the system variables. */
-
-	struct st_mysql_plugin*		builtin;
-	struct st_mysql_sys_var**	sta; /* static parameters */
-	struct st_mysql_sys_var**	dyn; /* dynamic parameters */
-
 	builtin = (struct st_mysql_plugin*) &builtin_innobase_plugin;
+#endif
 
 	for (sta = builtin->system_vars; *sta != NULL; sta++) {
 
