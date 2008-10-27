@@ -96,15 +96,19 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DBINFO_SCANCONF             42
 #define GSN_DBINFO_SCANREF              43
 #define GSN_DBINFO_TRANSID_AI           44
-/* 45 unused */
-/* 46 unused */
-/* 47 unused */
-/* 48 unused */
-/* 49 unused */
-/* 50 unused */
-/* 51 unused */
-/* 52 unused */
-/* 53 unused */
+
+#define GSN_CONFIG_CHANGE_REQ           45
+#define GSN_CONFIG_CHANGE_REF           46
+#define GSN_CONFIG_CHANGE_CONF          47
+
+#define GSN_CONFIG_CHANGE_IMPL_REQ      48
+#define GSN_CONFIG_CHANGE_IMPL_REF      49
+#define GSN_CONFIG_CHANGE_IMPL_CONF     50
+
+#define GSN_CONFIG_CHECK_REQ            51
+#define GSN_CONFIG_CHECK_REF            52
+#define GSN_CONFIG_CHECK_CONF           53
+
 /* 54 unused */
 /* 55 unused */
 /* 56 unused */
