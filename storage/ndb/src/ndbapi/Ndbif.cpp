@@ -912,6 +912,9 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     goto InvalidSignal;
     return;
   } 
+  case GSN_API_REGCONF:{
+    return; // Ignore
+  }
   default:
     tFirstDataPtr = NULL;
     goto InvalidSignal;
