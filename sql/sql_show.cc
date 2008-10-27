@@ -1520,9 +1520,6 @@ static bool show_status_array(THD *thd, const char *wild,
           nr= (long) (thd->query_start() - server_start_time);
           end= int10_to_str(nr, buff, 10);
           break;
-        case SHOW_QUESTION:
-          end= int10_to_str((long) thd->query_id, buff, 10);
-          break;
 #ifdef HAVE_REPLICATION
         case SHOW_RPL_STATUS:
           end= strmov(buff, rpl_status_type[(int)rpl_status]);
