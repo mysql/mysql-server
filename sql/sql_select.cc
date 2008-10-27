@@ -6574,6 +6574,7 @@ only_eq_ref_tables(JOIN *join,ORDER *order,table_map tables)
 {
   if (specialflag &  SPECIAL_SAFE_MODE)
     return 0;			// skip this optimize /* purecov: inspected */
+  tables&= ~PSEUDO_TABLE_BITS;
   for (JOIN_TAB **tab=join->map2table ; tables ; tab++, tables>>=1)
   {
     if (tables & 1 && !eq_ref_table(join, order, *tab))
@@ -8964,6 +8965,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
+        type == MYSQL_TYPE_NEWDATE ||
         type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table);
     /* 
