@@ -796,6 +796,7 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
 //    Sets nodea, and nodeb to the two new nodes.
 //    The caller must replace the old node with the two new nodes.
 {
+    printf("%s:%d size=%d\n", __FILE__, __LINE__, toku_serialize_brtnode_size(node));
     int old_n_children = node->u.n.n_children;
     int n_children_in_a = old_n_children/2;
     int n_children_in_b = old_n_children-n_children_in_a;
@@ -1891,7 +1892,6 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
 	enum reactivity *MALLOC_N(node->u.n.n_children, child_re);
 	{ int i; for (i=0; i<node->u.n.n_children; i++) child_re[i]=RE_STABLE; }
 	int r = brt_nonleaf_put_cmd(t, node, cmd, logger, child_re, did_io);
-	{ int i; for (i=0; i<node->u.n.n_children; i++) assert(child_re[i]<=RE_FISSIBLE); }
 	if (r!=0) goto return_r;
 	// Now we may have overfilled node.  So we'll flush the heaviest child until we are happy.
 	while (!*did_io                              // Don't flush if we've done I/O.
@@ -1905,7 +1905,6 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
 	int i;
 	int original_n_children = node->u.n.n_children;
 	for (i=0; i<original_n_children; i++) {
-	    { int j; for (j=0; j<original_n_children; j++) assert(child_re[j]<=RE_FISSIBLE); }
 	    int childnum = original_n_children - 1 -i;
 	    switch (child_re[childnum]) {
 	    case RE_STABLE:   goto next_child; // Could be a continue, but it seems fragile
@@ -1925,6 +1924,7 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, enum react
 	}
     return_r:
 	toku_free(child_re);
+	*re = get_nonleaf_reactivity(node);
 	return r;
     }
 }
@@ -3515,6 +3515,7 @@ toku_dump_brtnode (BRT brt, BLOCKNUM blocknum, int depth, bytevec lorange, ITEML
 	       depth, "", blocknum.b, node->nodesize, node->height, node->u.l.n_bytes_in_buffer, lorange ? ntohl(*(int*)lorange) : 0, hirange ? ntohl(*(int*)hirange) : 0);
 	int size = toku_omt_size(node->u.l.buffer);
 	int i;
+	if (0) 
 	for (i=0; i<size; i++) {
 	    OMTVALUE v;
 	    r = toku_omt_fetch(node->u.l.buffer, i, &v, 0);
