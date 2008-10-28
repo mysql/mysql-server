@@ -20,8 +20,29 @@
 
 #include <dirent.h>
 
+#ifndef _DIRENT_HAVE_D_TYPE
+#include <sys/stat.h>
+#endif
+
 class DirIteratorImpl {
   DIR* m_dirp;
+
+  bool is_regular_file(struct dirent* dp) const {
+#ifdef _DIRENT_HAVE_D_TYPE
+    /*
+      Using dirent's d_type field to determine if
+      it's a regular file
+    */
+    return (dp->d_type == DT_REG);
+#else
+    /* Using stat to read more info about the file */
+    struct stat buf;
+    if (stat(dp->d_name, &buf))
+      return false; // 'stat' failed
+
+    return S_ISREG(buf.st_mode);
+#endif
+  }
 
 public:
   DirIteratorImpl():
@@ -41,7 +62,7 @@ public:
   const char* next_file(void){
     struct dirent* dp;
     while ((dp = readdir(m_dirp)) != NULL &&
-           dp->d_type != DT_REG)
+           !is_regular_file(dp))
       ;
     return dp ? dp->d_name : NULL;
   }
