@@ -2093,18 +2093,48 @@ err:
 }
 
 int
+max_cnt(int arr[], int cnt)
+{
+  int res = 0;
+
+  for (int i = 0; i<cnt ; i++)
+  {
+    if (arr[i] > res)
+    {
+      res = arr[i];
+    }
+  }
+  return res;
+}
+
+int
 runPnr(NDBT_Context* ctx, NDBT_Step* step)
 {
   int loops = ctx->getNumLoops();
   NdbRestarter res;
   bool lcp = ctx->getProperty("LCP", (unsigned)0);
   
-  if (res.getNumDbNodes() < 4)
+  int nodegroups[MAX_NDB_NODES];
+  bzero(nodegroups, sizeof(nodegroups));
+  
+  for (int i = 0; i<res.getNumDbNodes(); i++)
   {
-    ctx->stopTest();
-    return NDBT_OK;
+    int node = res.getDbNodeId(i);
+    nodegroups[res.getNodeGroup(node)]++;
   }
   
+  for (int i = 0; i<MAX_NDB_NODES; i++)
+  {
+    if (nodegroups[i] && nodegroups[i] == 1)
+    {
+      /**
+       * nodegroup with only 1 member, can't run test
+       */
+      ctx->stopTest();
+      return NDBT_OK;
+    }
+  }
+
   for (int i = 0; i<loops && ctx->isTestStopped() == false; i++)
   {
     if (lcp)
@@ -2113,24 +2143,40 @@ runPnr(NDBT_Context* ctx, NDBT_Step* step)
       res.dumpStateAllNodes(&lcpdump, 1);
     }
 
-     int nodes[2];
-    nodes[0] = res.getNode(NdbRestarter::NS_RANDOM);
-    nodes[1] = res.getRandomNodeOtherNodeGroup(nodes[0], rand());
+    int ng_copy[MAX_NDB_NODES];
+    memcpy(ng_copy, nodegroups, sizeof(ng_copy));
     
-    ndbout_c("restarting %u %u", nodes[0], nodes[1]);
+    Vector<int> nodes;
+    printf("restarting ");
+    while (max_cnt(ng_copy, MAX_NDB_NODES) > 1)
+    {
+      int node = res.getNode(NdbRestarter::NS_RANDOM);
+      int ng = res.getNodeGroup(node);
+      if (ng_copy[ng] > 1)
+      {
+        printf("%u ", node);
+        nodes.push_back(node);
+        ng_copy[ng]--;
+      }
+    }
+    printf("\n");
     
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
-    res.dumpStateOneNode(nodes[0], val2, 2);
-    res.dumpStateOneNode(nodes[1], val2, 2);
+    for (Uint32 j = 0; j<nodes.size(); j++)
+    {
+      res.dumpStateOneNode(nodes[j], val2, 2);
+    }
     
     int kill[] = { 9999, 1000, 3000 };
-    res.dumpStateOneNode(nodes[0], kill, 3);
-    res.dumpStateOneNode(nodes[1], kill, 3);
+    for (Uint32 j = 0; j<nodes.size(); j++)
+    {
+      res.dumpStateOneNode(nodes[j], kill, 3);
+    }
     
-    if (res.waitNodesNoStart(nodes, 2))
+    if (res.waitNodesNoStart(nodes.getBase(), nodes.size()))
       return NDBT_FAILED;
     
-    if (res.startNodes(nodes, 2))
+    if (res.startNodes(nodes.getBase(), nodes.size()))
       return NDBT_FAILED;
 
     if (res.waitClusterStarted())

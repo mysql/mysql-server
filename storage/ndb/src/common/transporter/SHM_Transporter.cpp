@@ -358,23 +358,37 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   return false;
 }
 
-bool
+int
 SHM_Transporter::doSend()
 {
-  if (!fetch_send_iovec_data())
-    return false;
+  struct iovec iov[64];
+  Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
 
-  Uint32 used = m_send_iovec_used;
-  if (used == 0)
-    return true;                                // Nothing to send
+  if (cnt == 0)
+  {
+    return 0;
+  }
 
-  int nBytesSent = writer->writev(m_send_iovec, used);
+  Uint32 sum = 0;
+  for(Uint32 i = 0; i<cnt; i++)
+  {
+    assert(iov[i].iov_len);
+    sum += iov[i].iov_len;
+  }
+
+  int nBytesSent = writer->writev(iov, cnt);
 
   if (nBytesSent > 0)
   {
     kill(m_remote_pid, g_ndb_shm_signum);
     iovec_data_sent(nBytesSent);
+
+    if (Uint32(nBytesSent) == sum && (cnt != NDB_ARRAY_SIZE(iov)))
+    {
+      return 0;
+    }
+    return 1;
   }
 
-  return true;
+  return 1;
 }

@@ -246,49 +246,112 @@ TCP_Transporter::sendIsPossible(struct timeval * timeout) {
                (!((sz == -1) && (e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR))))
 
 
-bool
+int
 TCP_Transporter::doSend() {
-  if (!fetch_send_iovec_data())
-    return false;
+  struct iovec iov[64];
+  Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
 
-  Uint32 used = m_send_iovec_used;
-  if (used == 0)
-    return true;                                // Nothing to send
-
-  Uint32 iovcnt = used > m_os_max_iovec ? m_os_max_iovec : used;
-  int nBytesSent = my_socket_writev(theSocket, m_send_iovec, iovcnt);
-
-  if (nBytesSent > 0)
+  if (cnt == 0)
   {
-    iovec_data_sent(nBytesSent);
+    return 0;
+  }
 
-    sendCount ++;
-    sendSize  += nBytesSent;
-    if(sendCount == reportFreq)
+  Uint32 sum = 0;
+  for(Uint32 i = 0; i<cnt; i++)
+  {
+    assert(iov[i].iov_len);
+    sum += iov[i].iov_len;
+  }
+
+  Uint32 pos = 0;
+  Uint32 sum_sent = 0;
+  Uint32 send_cnt = 0;
+  Uint32 remain = sum;
+
+  if (cnt == NDB_ARRAY_SIZE(iov))
+  {
+    // If pulling all iov's make sure that we never return everyting
+    // flushed
+    sum++;
+  }
+
+  while (send_cnt < 5)
+  {
+    send_cnt++;
+    Uint32 iovcnt = cnt > m_os_max_iovec ? m_os_max_iovec : cnt;
+    int nBytesSent = my_socket_writev(theSocket, iov+pos, iovcnt);
+    assert(nBytesSent <= (int)remain);
+
+    if (Uint32(nBytesSent) == remain)
     {
-      get_callback_obj()->reportSendLen(remoteNodeId, sendCount, sendSize);
-      sendCount = 0;
-      sendSize  = 0;
+      sum_sent += nBytesSent;
+      goto ok;
     }
-    return true;
-  }
-  else
-  {
-    /* Send failed. */
-#if defined DEBUG_TRANSPORTER
-    g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
-                         "nBytesSent = %d "
-                         "errno = %d strerror = %s",
-                         DISCONNECT_ERRNO(my_socket_errno(), nBytesSent),
-                         remoteNodeId, nBytesSent, my_socket_errno(),
-                         (char*)ndbstrerror(my_socket_errno()));
-#endif
-    if(DISCONNECT_ERRNO(my_socket_errno(), nBytesSent)){
-      do_disconnect(my_socket_errno());
-    }
+    else if (nBytesSent > 0)
+    {
+      sum_sent += nBytesSent;
+      remain -= nBytesSent;
 
-    return false;
+      /**
+       * Forward in iovec
+       */
+      while (Uint32(nBytesSent) >= iov[pos].iov_len)
+      {
+        assert(iov[pos].iov_len > 0);
+        nBytesSent -= iov[pos].iov_len;
+        pos++;
+        cnt--;
+      }
+
+      if (nBytesSent)
+      {
+        assert(iov[pos].iov_len > Uint32(nBytesSent));
+        iov[pos].iov_len -= nBytesSent;
+        iov[pos].iov_base = ((char*)(iov[pos].iov_base))+nBytesSent;
+      }
+      continue;
+    }
+    else
+    {
+      int err = my_socket_errno();
+      if (!(DISCONNECT_ERRNO(err, nBytesSent)))
+      {
+        if (sum_sent)
+        {
+          goto ok;
+        }
+        else
+        {
+          return remain;
+        }
+      }
+
+#if defined DEBUG_TRANSPORTER
+      g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
+                           "nBytesSent = %d "
+                           "errno = %d strerror = %s",
+                           DISCONNECT_ERRNO(err, nBytesSent),
+                           remoteNodeId, nBytesSent, my_socket_errno(),
+                           (char*)ndbstrerror(err));
+#endif
+      do_disconnect(err);
+      return 0;
+    }
   }
+
+ok:
+  assert(sum >= sum_sent);
+  iovec_data_sent(sum_sent);
+  sendCount += send_cnt;
+  sendSize  += sum_sent;
+  if(sendCount >= reportFreq)
+  {
+    get_callback_obj()->reportSendLen(remoteNodeId, sendCount, sendSize);
+    sendCount = 0;
+    sendSize  = 0;
+  }
+
+  return sum - sum_sent; // 0 if every thing flushed else >0
 }
 
 int

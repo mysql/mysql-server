@@ -74,13 +74,13 @@ class TransporterCallbackKernelNonMT : public TransporterCallbackKernel
    */
   int checkJobBuffer() { return globalScheduler.checkDoJob(); }
   void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
-  int get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
+  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
   {
     return globalTransporterRegistry.get_bytes_to_send_iovec(node, dst, max);
   }
-  Uint32 bytes_sent(NodeId node, const struct iovec *src, Uint32 bytes)
+  Uint32 bytes_sent(NodeId node, Uint32 bytes)
   {
-    return globalTransporterRegistry.bytes_sent(node, src, bytes);
+    return globalTransporterRegistry.bytes_sent(node, bytes);
   }
   bool has_data_to_send(NodeId node)
   {
