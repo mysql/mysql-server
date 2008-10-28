@@ -1,3 +1,12 @@
+2008-10-28	The InnoDB Team
+
+	* CMakeLists.txt, ha_innodb.def, handler/ha_innodb.cc,
+	handler/handler0alter.cc, handler/handler0vars.h, handler/i_s.cc,
+	handler/win_delay_loader.cc, win-plugin/*:
+	Implemented the delayloading of externals for the plugin on Windows.
+	This makes it possible to build a dynamic plugin (ha_innodb.dll) on
+	Windows.
+
 2008-10-27	The InnoDB Team
 
 	* CMakeLists.txt:
