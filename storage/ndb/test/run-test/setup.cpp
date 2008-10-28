@@ -215,10 +215,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_index = idx;
   proc.m_type = type;
   proc.m_host = host_ptr;
-  if (g_fix_nodeid)
-    proc.m_nodeid= cluster.m_next_nodeid++;
-  else
-    proc.m_nodeid= -1;
+  proc.m_nodeid= cluster.m_next_nodeid++;
   proc.m_cluster = &cluster;
   proc.m_options.m_features = 0;
   proc.m_rep_src = 0;
@@ -297,9 +294,9 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
 			      cluster.m_name.c_str());
     proc.m_proc.m_args.append(" --nodaemon --mycnf");
-    if (g_fix_nodeid)
-      proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
+    proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
     proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%d", dir.c_str(), proc.m_index);
+    proc.m_proc.m_args.appfmt(" --datadir=%s", proc.m_proc.m_cwd.c_str());
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s", 
 			     cluster.m_name.c_str());
     break;
