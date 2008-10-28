@@ -1224,7 +1224,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_STRING,
-    MYSQLCLUSTERDIR,
+    ".",
     0, 0 },
 
   {
