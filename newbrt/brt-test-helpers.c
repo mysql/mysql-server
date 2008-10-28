@@ -83,8 +83,8 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     DBT keydbt,valdbt;
     BRT_CMD_S cmd = {BRT_INSERT, 0, .u.id={toku_fill_dbt(&keydbt, key, keylen),
 					   toku_fill_dbt(&valdbt, val, vallen)}};
-    struct cmd_leafval_bessel_extra be = {brt, &cmd, node->flags & TOKU_DB_DUPSORT};
-    r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be, &storeddatav, &idx, NULL);
+    struct cmd_leafval_heaviside_extra be = {brt, &cmd, node->flags & TOKU_DB_DUPSORT};
+    r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside, &be, &storeddatav, &idx, NULL);
 
 
     if (r==0) {
@@ -96,7 +96,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 	// Now put the new kv in.
 	toku_omt_set_at(node->u.l.buffer, leafentry, idx);
     } else {
-	r = toku_omt_insert(node->u.l.buffer, leafentry, toku_cmd_leafval_bessel, &be, 0);
+	r = toku_omt_insert(node->u.l.buffer, leafentry, toku_cmd_leafval_heaviside, &be, 0);
 	assert(r==0);
     }
 
