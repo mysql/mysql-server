@@ -3051,16 +3051,27 @@ void  TABLE_LIST::calc_md5(char *buffer)
 }
 
 
-/*
-  set underlying TABLE for table place holder of VIEW
+/**
+   @brief Set underlying table for table place holder of view.
 
-  DESCRIPTION
-    Replace all views that only uses one table with the table itself.
-    This allows us to treat the view as a simple table and even update
-    it (it is a kind of optimisation)
+   @details
 
-  SYNOPSIS
-    TABLE_LIST::set_underlying_merge()
+   Replace all views that only use one table with the table itself.  This
+   allows us to treat the view as a simple table and even update it (it is a
+   kind of optimization).
+
+   @note 
+
+   This optimization is potentially dangerous as it makes views
+   masquerade as base tables: Views don't have the pointer TABLE_LIST::table
+   set to non-@c NULL.
+
+   We may have the case where a view accesses tables not normally accessible
+   in the current Security_context (only in the definer's
+   Security_context). According to the table's GRANT_INFO (TABLE::grant),
+   access is fulfilled, but this is implicitly meant in the definer's security
+   context. Hence we must never look at only a TABLE's GRANT_INFO without
+   looking at the one of the referring TABLE_LIST.
 */
 
 void TABLE_LIST::set_underlying_merge()
@@ -3437,7 +3448,7 @@ TABLE_LIST *TABLE_LIST::find_underlying_table(TABLE *table_to_find)
 }
 
 /*
-  cleunup items belonged to view fields translation table
+  cleanup items belonged to view fields translation table
 
   SYNOPSIS
     TABLE_LIST::cleanup_items()
@@ -3883,10 +3894,10 @@ Natural_join_column::Natural_join_column(Field_translator *field_param,
 }
 
 
-Natural_join_column::Natural_join_column(Field *field_param,
+Natural_join_column::Natural_join_column(Item_field *field_param,
                                          TABLE_LIST *tab)
 {
-  DBUG_ASSERT(tab->table == field_param->table);
+  DBUG_ASSERT(tab->table == field_param->field->table);
   table_field= field_param;
   view_field= NULL;
   table_ref= tab;
@@ -3914,7 +3925,7 @@ Item *Natural_join_column::create_item(THD *thd)
     return create_view_field(thd, table_ref, &view_field->item,
                              view_field->name);
   }
-  return new Item_field(thd, &thd->lex->current_select->context, table_field);
+  return table_field;
 }
 
 
@@ -3925,7 +3936,7 @@ Field *Natural_join_column::field()
     DBUG_ASSERT(table_field == NULL);
     return NULL;
   }
-  return table_field;
+  return table_field->field;
 }
 
 
@@ -4057,7 +4068,7 @@ void Field_iterator_natural_join::next()
   cur_column_ref= column_ref_it++;
   DBUG_ASSERT(!cur_column_ref || ! cur_column_ref->table_field ||
               cur_column_ref->table_ref->table ==
-              cur_column_ref->table_field->table);
+              cur_column_ref->table_field->field->table);
 }
 
 
@@ -4140,7 +4151,7 @@ void Field_iterator_table_ref::next()
 }
 
 
-const char *Field_iterator_table_ref::table_name()
+const char *Field_iterator_table_ref::get_table_name()
 {
   if (table_ref->view)
     return table_ref->view_name.str;
@@ -4153,7 +4164,7 @@ const char *Field_iterator_table_ref::table_name()
 }
 
 
-const char *Field_iterator_table_ref::db_name()
+const char *Field_iterator_table_ref::get_db_name()
 {
   if (table_ref->view)
     return table_ref->view_db.str;
@@ -4221,7 +4232,7 @@ GRANT_INFO *Field_iterator_table_ref::grant()
 */
 
 Natural_join_column *
-Field_iterator_table_ref::get_or_create_column_ref(TABLE_LIST *parent_table_ref)
+Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_table_ref)
 {
   Natural_join_column *nj_col;
   bool is_created= TRUE;
@@ -4234,7 +4245,11 @@ Field_iterator_table_ref::get_or_create_column_ref(TABLE_LIST *parent_table_ref)
   {
     /* The field belongs to a stored table. */
     Field *tmp_field= table_field_it.field();
-    nj_col= new Natural_join_column(tmp_field, table_ref);
+    Item_field *tmp_item=
+      new Item_field(thd, &thd->lex->current_select->context, tmp_field);
+    if (!tmp_item)
+      return NULL;
+    nj_col= new Natural_join_column(tmp_item, table_ref);
     field_count= table_ref->table->s->fields;
   }
   else if (field_it == &view_field_it)
@@ -4258,7 +4273,7 @@ Field_iterator_table_ref::get_or_create_column_ref(TABLE_LIST *parent_table_ref)
     DBUG_ASSERT(nj_col);
   }
   DBUG_ASSERT(!nj_col->table_field ||
-              nj_col->table_ref->table == nj_col->table_field->table);
+              nj_col->table_ref->table == nj_col->table_field->field->table);
 
   /*
     If the natural join column was just created add it to the list of
@@ -4323,7 +4338,7 @@ Field_iterator_table_ref::get_natural_column_ref()
   nj_col= natural_join_it.column_ref();
   DBUG_ASSERT(nj_col &&
               (!nj_col->table_field ||
-               nj_col->table_ref->table == nj_col->table_field->table));
+               nj_col->table_ref->table == nj_col->table_field->field->table));
   return nj_col;
 }
 

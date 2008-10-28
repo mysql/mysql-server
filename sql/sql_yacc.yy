@@ -1827,6 +1827,8 @@ event_tail:
             if (!(lex->event_parse_data= Event_parse_data::new_instance(thd)))
               MYSQL_YYABORT;
             lex->event_parse_data->identifier= $3;
+            lex->event_parse_data->on_completion=
+                                  Event_parse_data::ON_COMPLETION_DROP;
 
             lex->sql_command= SQLCOM_CREATE_EVENT;
             /* We need that for disallowing subqueries */
@@ -4309,7 +4311,7 @@ create_select:
           SELECT_SYM
           {
             LEX *lex=Lex;
-            lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
+            lex->lock_option= TL_READ_DEFAULT;
             if (lex->sql_command == SQLCOM_INSERT)
               lex->sql_command= SQLCOM_INSERT_SELECT;
             else if (lex->sql_command == SQLCOM_REPLACE)
@@ -8143,11 +8145,13 @@ variable:
 variable_aux:
           ident_or_text SET_VAR expr
           {
-            $$= new (YYTHD->mem_root) Item_func_set_user_var($1, $3);
+            Item_func_set_user_var *item;
+            $$= item= new (YYTHD->mem_root) Item_func_set_user_var($1, $3);
             if ($$ == NULL)
               MYSQL_YYABORT;
             LEX *lex= Lex;
             lex->uncacheable(UNCACHEABLE_RAND);
+            lex->set_var_list.push_back(item);
           }
         | ident_or_text
           {
@@ -9476,7 +9480,7 @@ insert:
             lex->duplicates= DUP_ERROR; 
             mysql_init_select(lex);
             /* for subselects */
-            lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+            lex->lock_option= TL_READ_DEFAULT;
           }
           insert_lock_option
           opt_ignore insert2
@@ -10187,8 +10191,6 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
-            if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
-              MYSQL_YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               MYSQL_YYABORT;
           }
@@ -10196,8 +10198,6 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_FUNC;
-            if (!sp_add_to_query_tables(YYTHD, lex, "mysql", "proc", TL_READ))
-              MYSQL_YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               MYSQL_YYABORT;
           }
@@ -11383,8 +11383,7 @@ user:
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
                                          system_charset_info, 0) ||
-                check_string_byte_length(&$$->host, ER(ER_HOSTNAME),
-                                         HOSTNAME_LENGTH))
+                check_host_name(&$$->host))
               MYSQL_YYABORT;
           }
         | CURRENT_USER optional_braces

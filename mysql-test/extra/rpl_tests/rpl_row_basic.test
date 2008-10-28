@@ -451,3 +451,23 @@ connection master;
 drop table t1, t2, t3, t4, t5, t6, t7;
 sync_slave_with_master;
 
+#
+# BUG#32709: Assertion failed: trx_data->empty(), file .\log.cc, line 1293
+#
+
+connection master;
+eval CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=$type;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+--error ER_DUP_ENTRY
+UPDATE t1 SET a = 10;
+INSERT INTO t1 VALUES (4);
+sync_slave_with_master;
+
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1;
+sync_slave_with_master;
