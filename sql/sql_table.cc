@@ -5010,8 +5010,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         }
         VOID(pthread_mutex_unlock(&LOCK_open));
 
-        IF_DBUG(int result=) store_create_info(thd, table, &query,
-                                               create_info);
+        IF_DBUG(int result=)
+          store_create_info(thd, table, &query,
+                            create_info, FALSE /* show_database */);
 
         DBUG_ASSERT(result == 0); // store_create_info() always return 0
         write_bin_log(thd, TRUE, query.ptr(), query.length());
@@ -5164,7 +5165,7 @@ err:
       index_drop_count    OUT   The number of elements in the array.
       index_add_buffer    OUT   An array of offsets into key_info_buffer.
       index_add_count     OUT   The number of elements in the array.
-      candidate_key_count  OUT  The number of candidate keys in original table.
+      candidate_key_count OUT   The number of candidate keys in original table.
 
   DESCRIPTION
     'table' (first argument) contains information of the original
@@ -5212,6 +5213,8 @@ compare_tables(TABLE *table,
   */
   bool varchar= create_info->varchar;
   bool not_nullable= true;
+  DBUG_ENTER("compare_tables");
+
   /*
     Create a copy of alter_info.
     To compare the new and old table definitions, we need to "prepare"
@@ -5229,24 +5232,21 @@ compare_tables(TABLE *table,
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
-
-  DBUG_ENTER("compare_tables");
-
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd, create_info,
-                                  &tmp_alter_info,
-                                  (table->s->tmp_table != NO_TMP_TABLE),
-                                  &db_options,
-                                  table->file, key_info_buffer,
-                                  &key_count, 0))
+                                 &tmp_alter_info,
+                                 (table->s->tmp_table != NO_TMP_TABLE),
+                                 &db_options,
+                                 table->file, key_info_buffer,
+                                 &key_count, 0))
     DBUG_RETURN(1);
   /* Allocate result buffers. */
   if (! (*index_drop_buffer=
-          (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
+         (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
       ! (*index_add_buffer=
-          (uint*) thd->alloc(sizeof(uint) * tmp_alter_info.key_list.elements)))
+         (uint*) thd->alloc(sizeof(uint) * tmp_alter_info.key_list.elements)))
     DBUG_RETURN(1);
-
+  
   /*
     Some very basic checks. If number of fields changes, or the
     handler, we need to run full ALTER TABLE. In the future
@@ -6462,11 +6462,11 @@ view_err:
       DBUG_PRINT("info", ("index dropped: '%s'", key->name));
       if (key->flags & HA_NOSAME)
       {
-        /*
-           Unique key. Check for "PRIMARY"
-           or if dropping last unique key.
+        /* 
+           Unique key. Check for "PRIMARY". 
+           or if dropping last unique key
         */
-        if ((uint) (key - table->key_info) ==  table->s->primary_key)
+        if ((uint) (key - table->key_info) == table->s->primary_key)
         {
           DBUG_PRINT("info", ("Dropping primary key"));
           /* Primary key. */
@@ -6477,7 +6477,7 @@ view_err:
         }
         else
         {
-          KEY_PART_INFO *part_end= key->key_part + key->key_parts;    
+          KEY_PART_INFO *part_end= key->key_part + key->key_parts;
           bool is_candidate_key= true;
 
           /* Non-primary unique key. */
@@ -7076,7 +7076,7 @@ err1:
     close_temporary_table(thd, new_table, 1, 1);
   }
   else
-    VOID(quick_rm_table(new_db_type, new_db, tmp_name,
+    VOID(quick_rm_table(new_db_type, new_db, tmp_name, 
                         create_info->frm_only
                         ? FN_IS_TMP | FRM_ONLY
                         : FN_IS_TMP));

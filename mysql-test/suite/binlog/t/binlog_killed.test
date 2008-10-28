@@ -1,5 +1,10 @@
 -- source include/have_innodb.inc
 -- source include/have_binlog_format_mixed_or_statement.inc
+
+# You cannot use `KILL' with the Embedded MySQL Server library,
+# because the embedded server merely runs inside the threads of the host
+# application. -- the docs
+
 -- source include/not_embedded.inc
 
 ###
@@ -22,6 +27,12 @@ select get_lock("a", 20);
 
 connection con2;
 let $ID= `select connection_id()`;
+
+#
+# reset master does not reset binlogging on the embedded server.
+# the test is not run on the embedded for reason of using KILL query.
+# `reset master' problem is to be addressed by bug#15580 fixes.
+#
 reset master;
 send insert into t2 values (null, null), (null, get_lock("a", 10));
 
