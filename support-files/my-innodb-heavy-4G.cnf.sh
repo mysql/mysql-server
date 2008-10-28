@@ -191,6 +191,9 @@ tmp_table_size = 64M
 # the ability to do point in time recovery from your latest backup.
 log-bin=mysql-bin
 
+# binary logging format - mixed recommended
+binlog_format=mixed
+
 # If you're using replication with chained slaves (A->B->C), you need to
 # enable this option on server B. It enables logging of updates done by
 # the slave thread into the slave's binary log.
