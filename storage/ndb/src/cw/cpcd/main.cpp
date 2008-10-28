@@ -75,7 +75,7 @@ const char *progname = "ndb_cpcd";
 
 int main(int argc, char** argv){
   const char *load_default_groups[]= { "ndb_cpcd",0 };
-  MY_INIT(argv[0]);
+  NDB_INIT(argv[0]);
 
   load_defaults("ndb_cpcd",load_default_groups,&argc,&argv);
   if (handle_options(&argc, &argv, my_long_options, get_one_option)) {
