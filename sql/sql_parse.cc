@@ -2083,13 +2083,15 @@ mysql_execute_command(THD *thd)
 #endif
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
-    res= execute_sqlcom_select(thd, all_tables);
+    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
+      res= execute_sqlcom_select(thd, all_tables);
     break;
   case SQLCOM_SHOW_STATUS:
   {
     system_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
-    res= execute_sqlcom_select(thd, all_tables);
+    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
+      res= execute_sqlcom_select(thd, all_tables);
     /* Don't log SHOW STATUS commands to slow query log */
     thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
                            SERVER_QUERY_NO_GOOD_INDEX_USED);
@@ -4875,6 +4877,8 @@ bool check_single_table_access(THD *thd, ulong privilege,
   /* Show only 1 table for check_grant */
   if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
+      !(all_tables->view &&
+        all_tables->effective_algorithm == VIEW_ALGORITHM_TMPTABLE) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
@@ -5187,7 +5191,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       continue;
     }
 
-    if (tables->derived ||
+    if (tables->is_anonymous_derived_table() ||
         (tables->table && (int)tables->table->s->tmp_table))
       continue;
     thd->security_ctx= sctx;
@@ -5197,12 +5201,14 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
       tables->grant.privilege= want_access;
     else if (tables->db && thd->db && strcmp(tables->db, thd->db) == 0)
     {
-      if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			 0, no_errors, test(tables->schema_table)))
+      if (check_access(thd, want_access, tables->get_db_name(),
+                       &tables->grant.privilege, 0, no_errors, 
+                       test(tables->schema_table)))
         goto deny;                            // Access denied
     }
-    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
-			  0, no_errors, test(tables->schema_table)))
+    else if (check_access(thd, want_access, tables->get_db_name(),
+                          &tables->grant.privilege, 0, no_errors, 
+                          test(tables->schema_table)))
       goto deny;
   }
   thd->security_ctx= backup_ctx;
@@ -5485,6 +5491,10 @@ void mysql_reset_thd_for_next_command(THD *thd)
   */
   thd->reset_current_stmt_binlog_row_based();
 
+  DBUG_PRINT("debug",
+             ("current_stmt_binlog_row_based: %d",
+              thd->current_stmt_binlog_row_based));
+
   DBUG_VOID_RETURN;
 }
 
@@ -5625,7 +5635,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= 0;
   lex->unit.select_limit_cnt= HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxiliary_table_list);
-  lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
+  lex->lock_option= TL_READ_DEFAULT;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
 }
@@ -7501,6 +7511,39 @@ int test_if_data_home_dir(const char *dir)
 }
 
 C_MODE_END
+
+
+/**
+  Check that host name string is valid.
+
+  @param[in] str string to be checked
+
+  @return             Operation status
+    @retval  FALSE    host name is ok
+    @retval  TRUE     host name string is longer than max_length or
+                      has invalid symbols
+*/
+
+bool check_host_name(LEX_STRING *str)
+{
+  const char *name= str->str;
+  const char *end= str->str + str->length;
+  if (check_string_byte_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+    return TRUE;
+
+  while (name != end)
+  {
+    if (*name == '@')
+    {
+      my_printf_error(ER_UNKNOWN_ERROR, 
+                      "Malformed hostname (illegal symbol: '%c')", MYF(0),
+                      *name);
+      return TRUE;
+    }
+    name++;
+  }
+  return FALSE;
+}
 
 
 extern int MYSQLparse(void *thd); // from sql_yacc.cc

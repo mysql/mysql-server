@@ -6,8 +6,8 @@ gmake -k clean || true
 path=`dirname $0`
 . "$path/autorun.sh"
 
-# To compile 64 bit, add -xarch=amd64 to EXTRA_64_BIT
-EXTRA_64_BIT="-xarch=amd64"
+# To compile 64 bit, add -m64 to EXTRA_64_BIT
+EXTRA_64_BIT="-m64"
 
 # For "optimal" code for this computer add -fast to EXTRA. Note that
 # this causes problem with debugging the program since -fast implies

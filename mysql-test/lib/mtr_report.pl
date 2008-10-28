@@ -315,7 +315,7 @@ sub mtr_report_stats ($) {
                 /Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
                 /Slave: Key column 'c6' doesn't exist in table Error_code: 1072/ or
 		/Slave: Error .* doesn't exist/ or
-		/Slave: Error .*Deadlock found/ or
+		/Slave: Deadlock found/ or
 		/Slave: Error .*Unknown table/ or
 		/Slave: Error in Write_rows event: / or
 		/Slave: Field .* of table .* has no default value/ or
