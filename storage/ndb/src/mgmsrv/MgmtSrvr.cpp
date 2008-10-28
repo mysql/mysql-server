@@ -3707,6 +3707,9 @@ int MgmtSrvr::ndbinfo(Uint32 tableId,
         return 0;
       }
       break;
+    case GSN_API_REGCONF:
+      // Ignore;
+      break;
     default:
       report_unknown_signal(signal);
       return SEND_OR_RECEIVE_FAILED;
