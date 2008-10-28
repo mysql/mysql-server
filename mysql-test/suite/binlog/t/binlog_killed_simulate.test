@@ -33,7 +33,7 @@ let $error_code= `select @a like "%#%error_code=0%" /* must return 1 */`;
 eval select $error_code /* must return 1 as query completed before got killed*/;
 
 # cleanup for the sub-case
-system rm $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog;
+remove_file $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog;
 
 
 #
@@ -61,7 +61,7 @@ let $error_code= `select @a like "%#%error_code=0%" /* must return 0*/`;
 eval select $error_code /* must return 0 to mean the killed query is in */;
 
 # cleanup for the sub-case
-system rm $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog;
+remove_file $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog;
 
 
 drop table t1,t2;

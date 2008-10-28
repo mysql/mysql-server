@@ -10039,7 +10039,7 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
 
   if (table_changes != IS_EQUAL_YES)
     DBUG_RETURN(COMPATIBLE_DATA_NO);
-
+  
   /* Check that auto_increment value was not changed */
   if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
       create_info->auto_increment_value != 0)

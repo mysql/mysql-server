@@ -26,6 +26,9 @@
 #include <my_sys.h>
 #include <my_dir.h>
 
+/* from sql_db.cc */
+extern long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
+
 
 /**
   Write string with escaping.
@@ -282,8 +285,9 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
     DBUG_RETURN(TRUE);
   }
 
-  // archive copies management
   path[path_end]='\0';
+#ifdef FRM_ARCHIVE
+  // archive copies management: disabled unused feature (see bug #17823).
   if (!access(path, F_OK))
   {
     if (old_version != ULONGLONG_MAX && max_versions != 0)
@@ -330,6 +334,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
       }
     }
   }
+#endif//FRM_ARCHIVE
 
   {
     // rename temporary file
@@ -352,6 +357,7 @@ err_w_file:
 /**
   Renames a frm file (including backups) in same schema.
 
+  @thd                     thread handler
   @param schema            name of given schema
   @param old_name          original file name
   @param new_name          new file name
@@ -363,7 +369,8 @@ err_w_file:
   @retval
     1   Error (only if renaming of frm failed)
 */
-my_bool rename_in_schema_file(const char *schema, const char *old_name, 
+my_bool rename_in_schema_file(THD *thd,
+                              const char *schema, const char *old_name, 
                               const char *new_name, ulonglong revision, 
                               uint num_view_backups)
 {
@@ -377,9 +384,10 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
   if (my_rename(old_path, new_path, MYF(MY_WME)))
     return 1;
 
-  /* check if arc_dir exists */
+  /* check if arc_dir exists: disabled unused feature (see bug #17823). */
   build_table_filename(arc_path, sizeof(arc_path) - 1, schema, "arc", "", 0);
   
+#ifdef FRM_ARCHIVE
   if (revision > 0 && !access(arc_path, F_OK))
   {
     char old_name_buf[FN_REFLEN], new_name_buf[FN_REFLEN];
@@ -400,6 +408,16 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
       my_rename(old_path, new_path, MYF(0));
     }
   }
+#else//FRM_ARCHIVE
+  { // remove obsolete 'arc' directory and files if any
+    MY_DIR *new_dirp;
+    if ((new_dirp = my_dir(arc_path, MYF(MY_DONT_SORT))))
+    {
+      DBUG_PRINT("my",("Archive subdir found: %s", arc_path));
+      (void) mysql_rm_arc_files(thd, new_dirp, arc_path);
+    }
+  }
+#endif//FRM_ARCHIVE
   return 0;
 }
 

@@ -51,6 +51,9 @@ skip-federated
 # binary logging is required for replication
 log-bin=mysql-bin
 
+# binary logging format - mixed recommended
+binlog_format=mixed
+
 # required unique id between 1 and 2^32 - 1
 # defaults to 1 if master-host is not set
 # but will not function as a master if omitted

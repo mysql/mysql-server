@@ -21,8 +21,10 @@ INSERT INTO t1 VALUES(24, 24);
 '#----------------------------FN_DYNVARS_184_01--------------------------------------#'
 ** Connection con0 **
 SET SESSION tx_isolation = 'READ-UNCOMMITTED';
+set binlog_format=mixed;
 ** Connection con1 **
 SET SESSION tx_isolation = 'READ-UNCOMMITTED';
+set binlog_format=mixed;
 ** Connection con0 **
 START TRANSACTION;
 SELECT * FROM t1 WHERE a IN (2,4,6,8) FOR UPDATE;

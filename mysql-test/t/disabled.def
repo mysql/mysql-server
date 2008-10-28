@@ -14,4 +14,4 @@ csv_alter_table      : Bug#33696 2008-01-21 pcrews no .result file - bug allows 
 thread_cache_size_func : Bug#36733 main.thread_cache_size_func fails randomly
 log_tables.test                       : Bug #37798: main.log_tables fails randomly on powermacg5 and windows
 slow_query_log_func.test              : Bug #37962: *_func tests containing sleeps/race conditions
-
+events-bugs.test                      : Bug #39848, Bug #39863, Bug #39569, Bug #37774

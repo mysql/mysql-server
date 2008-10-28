@@ -29,6 +29,14 @@ extern ulong locks_immediate,locks_waited ;
 
 enum thr_lock_type { TL_IGNORE=-1,
 		     TL_UNLOCK,			/* UNLOCK ANY LOCK */
+                     /*
+                       Parser only! At open_tables() becomes TL_READ or
+                       TL_READ_NO_INSERT depending on the binary log format
+                       (SBR/RBR) and on the table category (log table).
+                       Used for tables that are read by statements which
+                       modify tables.
+                     */
+                     TL_READ_DEFAULT,
 		     TL_READ,			/* Read lock */
 		     TL_READ_WITH_SHARED_LOCKS,
 		     /* High prior. than TL_WRITE. Allow concurrent insert */
