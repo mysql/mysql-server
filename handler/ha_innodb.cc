@@ -9695,12 +9695,13 @@ innodb_plugin_init(void)
 
 	for (sta = builtin->system_vars; *sta != NULL; sta++) {
 
-		/* do not copy session variables */
-		if (((*sta)->flags | (*dyn)->flags) & PLUGIN_VAR_THDLOCAL) {
-			continue;
-		}
-
 		for (dyn = innobase_system_variables; *dyn != NULL; dyn++) {
+
+			/* do not copy session variables */
+			if (((*sta)->flags | (*dyn)->flags)
+			    & PLUGIN_VAR_THDLOCAL) {
+				continue;
+			}
 
 			if (innobase_match_parameter((*sta)->name,
 						     (*dyn)->name)) {
