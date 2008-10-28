@@ -211,9 +211,9 @@ protected:
   Uint32 firstFree;
   Uint32 size;
   Uint32 noOfFree;
+  Uint32 bitmaskSz;
   T * theArray;
   void * alloc_ptr;
-  Uint32 bitmaskSz;
   Uint32 *theAllocatedBitmask;
 };
 

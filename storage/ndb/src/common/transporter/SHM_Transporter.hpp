@@ -119,7 +119,7 @@ protected:
   /**
    * doSend (i.e signal receiver)
    */
-  bool doSend();
+  int doSend();
   int m_remote_pid;
   Uint32 m_signal_threshold;
 
