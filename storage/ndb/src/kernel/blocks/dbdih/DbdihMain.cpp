@@ -9560,25 +9560,27 @@ void Dbdih::copyGciLab(Signal* signal, CopyGCIReq::CopyReason reason)
 {
   if(c_copyGCIMaster.m_copyReason != CopyGCIReq::IDLE)
   {
+    jam();
     /**
      * There can currently only be two waiting
      */
     for (Uint32 i = 0; i<CopyGCIMaster::WAIT_CNT; i++)
     {
+      jam();
       if (c_copyGCIMaster.m_waiting[i] == CopyGCIReq::IDLE)
       {
         jam();
         c_copyGCIMaster.m_waiting[i] = reason;
         return;
       }
-
-      /**
-       * Code should *not* request more than WAIT_CNT copy-gci's
-       *   so this is an internal error
-       */
-      ndbrequire(false);
-      return;
     }
+
+    /**
+     * Code should *not* request more than WAIT_CNT copy-gci's
+     *   so this is an internal error
+     */
+    ndbrequire(false);
+    return;
   }
   c_copyGCIMaster.m_copyReason = reason;
 
