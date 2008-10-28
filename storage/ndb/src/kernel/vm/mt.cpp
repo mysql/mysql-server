@@ -51,11 +51,18 @@
 
 /* Maximum number of signals to execute before sending to remote nodes. */
 static const Uint32 MAX_SIGNALS_BEFORE_SEND = 200;
+
 /*
  * Max. signals to execute from one job buffer before considering other
  * possible stuff to do.
  */
 static const Uint32 MAX_SIGNALS_PER_JB = 100;
+
+/**
+ * Max signals written to other thread before calling flush_jbb_write_state
+ */
+static const Uint32 MAX_SIGNALS_BEFORE_FLUSH_RECEIVER = 2;
+static const Uint32 MAX_SIGNALS_BEFORE_FLUSH_OTHER = 20;
 
 //#define NDB_MT_LOCK_TO_CPU
 
@@ -2529,7 +2536,10 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
    * to the other thread.
    * This parameter found to be reasonable by benchmarking.
    */
-  Uint32 MAX_SIGNALS_BEFORE_FLUSH = (self == receiver_thread_no ? 2 : 20);
+  Uint32 MAX_SIGNALS_BEFORE_FLUSH = (self == receiver_thread_no) ? 
+    MAX_SIGNALS_BEFORE_FLUSH_RECEIVER : 
+    MAX_SIGNALS_BEFORE_FLUSH_OTHER;
+
   Uint32 dst = block2ThreadId(block, instance);
   struct thr_repository* rep = &g_thr_repository;
   struct thr_data * selfptr = rep->m_thread + self;
