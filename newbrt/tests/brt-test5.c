@@ -32,7 +32,6 @@ static void test5 (void) {
 	DBT k,v;
 	toku_brt_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
     }
-    toku_dump_brt(t);
     if (verbose) printf("\n");
     for (i=0; i<limit/2; i++) {
 	int rk = random()%limit;
