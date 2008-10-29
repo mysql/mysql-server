@@ -147,8 +147,13 @@ private:
 };
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
+#ifdef HAVE_NDB_BINLOG
 void ndbcluster_global_schema_lock_init();
 void ndbcluster_global_schema_lock_deinit();
+#else
+inline void ndbcluster_global_schema_lock_init() {}
+inline void ndbcluster_global_schema_lock_deinit() {}
+#endif
 
 #ifdef HAVE_NDB_BINLOG
 extern pthread_t ndb_binlog_thread;
