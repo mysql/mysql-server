@@ -113,8 +113,8 @@ diff -Nur sql/mysqld.def.orig sql/mysqld.def
 +	thd_make_lex_string
 +	thd_in_lock_tables
 +	thd_binlog_format
-+	_hash_init
-+	hash_free
++	_my_hash_init
++	my_hash_free
 +	my_tmpdir
 +	check_if_legal_filename
 +	my_filename
@@ -127,8 +127,8 @@ diff -Nur sql/mysqld.def.orig sql/mysqld.def
 +	get_charset
 +	unpack_filename
 +	my_hash_insert
-+	hash_search
-+	hash_delete
++	my_hash_search
++	my_hash_delete
 +	mysql_bin_log_file_pos
 +	mysql_bin_log_file_name
 +	mysqld_embedded
@@ -216,8 +216,8 @@ diff -Nur ../old/sql/mysqld_x64.def.orig ./sql/mysqld_x64.def
 +	thd_make_lex_string
 +	thd_in_lock_tables
 +	thd_binlog_format
-+	_hash_init
-+	hash_free
++	_my_hash_init
++	my_hash_free
 +	my_tmpdir
 +	check_if_legal_filename
 +	my_filename
@@ -230,8 +230,8 @@ diff -Nur ../old/sql/mysqld_x64.def.orig ./sql/mysqld_x64.def
 +	get_charset
 +	unpack_filename
 +	my_hash_insert
-+	hash_search
-+	hash_delete
++	my_hash_search
++	my_hash_delete
 +	mysql_bin_log_file_pos
 +	mysql_bin_log_file_name
 +	mysqld_embedded
