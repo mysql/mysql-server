@@ -263,7 +263,7 @@ handler *get_ha_partition(partition_info *part_info)
   DBUG_ENTER("get_ha_partition");
   if ((partition= new ha_partition(partition_hton, part_info)))
   {
-    if (partition->initialise_partition(current_thd->mem_root))
+    if (partition->initialize_partition(current_thd->mem_root))
     {
       delete partition;
       partition= 0;
