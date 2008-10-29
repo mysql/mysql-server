@@ -237,6 +237,7 @@ ErrorBundle ErrorCodes[] = {
    * Internal Temporary
    */
   { 702,  DMEC, IT, "Request to non-master" },
+  { 787,  DMEC, IT, "Schema transaction aborted" },
   
   /**
    * Internal errors
@@ -267,6 +268,7 @@ ErrorBundle ErrorCodes[] = {
   { 781,  DMEC, IE, "Invalid schema transaction key from NDB API" },
   { 782,  DMEC, IE, "Invalid schema transaction id from NDB API" },
   { 784,  DMEC, TR, "Invalid schema transaction state" },
+  { 786,  DMEC, TR, "Missing schema operation at takeover of schema transaction" },
   { 809,  DMEC, IE, "809" },
   { 812,  DMEC, IE, "812" },
   { 829,  DMEC, IE, "829" },

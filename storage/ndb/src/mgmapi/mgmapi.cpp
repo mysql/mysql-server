@@ -2830,7 +2830,7 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
   SocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
   in.gets(buf, sizeof(buf));
-  CHECK_TIMEDOUT_RET(handle, in, s_output, -1);
+  DBUG_CHECK_TIMEDOUT_RET(handle, in, s_output, -1);
 
   DBUG_RETURN(0);
 }

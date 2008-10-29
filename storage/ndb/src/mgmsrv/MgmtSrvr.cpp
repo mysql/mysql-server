@@ -3038,7 +3038,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
     req->inputBackupId = input_backupId;
   }
   else
-    ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
+    ssig.set(ss, TestOrd::TraceAPI, backupBlockNo, GSN_BACKUP_REQ,
 	     BackupReq::SignalLength - 1);
   
   req->senderData = 19;
@@ -3706,6 +3706,9 @@ int MgmtSrvr::ndbinfo(Uint32 tableId,
       {
         return 0;
       }
+      break;
+    case GSN_API_REGCONF:
+      // Ignore;
       break;
     default:
       report_unknown_signal(signal);

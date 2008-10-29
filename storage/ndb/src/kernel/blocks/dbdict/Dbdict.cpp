@@ -397,7 +397,6 @@ void Dbdict::execCONTINUEB(Signal* signal)
     jam();
     sendGetTabResponse(signal);
     break;
-
 #ifdef VM_TRACE
   case 6103: // search for it
     jam();
@@ -414,6 +413,20 @@ void Dbdict::execCONTINUEB(Signal* signal)
     jam();
     wait_substartstop(signal, signal->theData[1]);
     return;
+  case ZDICT_TAKEOVER_REQ :
+  {
+    jam();
+    Uint32* data = &signal->theData[0];
+    memmove(&data[0], &data[1], DictTakeoverReq::SignalLength << 2);
+    execDICT_TAKEOVER_REQ(signal);
+  }
+  break;
+#ifdef ERROR_INSERT
+  case 9999:
+    ERROR_INSERTED(signal->theData[1]);
+    CRASH_INSERTION(ERROR_INSERT_VALUE);
+    break;
+#endif
   default :
     ndbrequire(false);
     break;
@@ -1942,12 +1955,17 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_SCHEMA_TRANS_END_REQ, &Dbdict::execSCHEMA_TRANS_END_REQ);
   addRecSignal(GSN_SCHEMA_TRANS_END_CONF, &Dbdict::execSCHEMA_TRANS_END_CONF);
   addRecSignal(GSN_SCHEMA_TRANS_END_REF, &Dbdict::execSCHEMA_TRANS_END_REF);
+  addRecSignal(GSN_SCHEMA_TRANS_END_REP, &Dbdict::execSCHEMA_TRANS_END_REP);
   addRecSignal(GSN_SCHEMA_TRANS_IMPL_REQ, &Dbdict::execSCHEMA_TRANS_IMPL_REQ);
   addRecSignal(GSN_SCHEMA_TRANS_IMPL_CONF, &Dbdict::execSCHEMA_TRANS_IMPL_CONF);
   addRecSignal(GSN_SCHEMA_TRANS_IMPL_REF, &Dbdict::execSCHEMA_TRANS_IMPL_REF);
 
   addRecSignal(GSN_DICT_LOCK_REQ, &Dbdict::execDICT_LOCK_REQ);
   addRecSignal(GSN_DICT_UNLOCK_ORD, &Dbdict::execDICT_UNLOCK_ORD);
+
+  addRecSignal(GSN_DICT_TAKEOVER_REQ, &Dbdict::execDICT_TAKEOVER_REQ);
+  addRecSignal(GSN_DICT_TAKEOVER_REF, &Dbdict::execDICT_TAKEOVER_REF);
+  addRecSignal(GSN_DICT_TAKEOVER_CONF, &Dbdict::execDICT_TAKEOVER_CONF);
 
   addRecSignal(GSN_CREATE_HASH_MAP_REQ, &Dbdict::execCREATE_HASH_MAP_REQ);
 
@@ -2101,6 +2119,7 @@ void Dbdict::initNodeRecords()
   for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
     NodeRecordPtr nodePtr;
     c_nodes.getPtr(nodePtr, i);
+    new (nodePtr.p) NodeRecord();
     nodePtr.p->hotSpare = false;
     nodePtr.p->nodeState = NodeRecord::API_NODE;
   }//for
@@ -2425,9 +2444,9 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_triggerRecordPool.setSize(c_maxNoOfTriggers);
 
   c_opSectionBufferPool.setSize(1024); // units OpSectionSegmentSize
-  c_schemaOpPool.setSize(256);
-  c_schemaOpHash.setSize(256);
-  c_schemaTransPool.setSize(5);
+  c_schemaOpPool.setSize(MAX_SCHEMA_OPERATIONS);
+  c_schemaOpHash.setSize(MAX_SCHEMA_OPERATIONS);
+  c_schemaTransPool.setSize(MAX_SCHEMA_TRANSACTIONS);
   c_schemaTransHash.setSize(2);
   c_txHandlePool.setSize(2);
   c_txHandleHash.setSize(2);
@@ -4066,7 +4085,9 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
   NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
+  NodeRecordPtr ownNodePtr;
 
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
   c_failureNr    = nodeFail->failNo;
   const Uint32 numberOfFailedNodes  = nodeFail->noOfNodes;
   const bool masterFailed = (c_masterNodeId != nodeFail->masterNodeId);
@@ -4075,28 +4096,36 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   c_noNodesFailed += numberOfFailedNodes;
   Uint32 theFailedNodes[NdbNodeBitmask::Size];
   memcpy(theFailedNodes, nodeFail->theNodes, sizeof(theFailedNodes));
-
   c_counterMgr.execNODE_FAILREP(signal);
 
-  if (masterFailed)
+  NdbNodeBitmask failedNodes;
+  failedNodes.assign(NdbNodeBitmask::Size, theFailedNodes);
+  c_aliveNodes.bitANDC(failedNodes);
+  if (masterFailed && c_masterNodeId == getOwnNodeId())
   {
+    /*
+      Master node has failed, we need to take over
+      any pending transaction(s) and decide if to
+      rollforward or rollback.
+     */
     jam();
-    if(c_opRecordPool.getSize() != 
-       (c_opRecordPool.getNoOfFree() + 
-	c_opSubEvent.get_count() + c_opCreateEvent.get_count() +
-	c_opDropEvent.get_count() + c_opSignalUtil.get_count()))
-    {
-      jam();
-      UtilLockReq lockReq;
-      lockReq.senderRef = reference();
-      lockReq.senderData = 1;
-      lockReq.lockId = 0;
-      lockReq.requestInfo = UtilLockReq::SharedLock;
-      lockReq.extra = DictLockReq::NodeFailureLock;
-      m_dict_lock.lock(this, m_dict_lock_pool, &lockReq, 0);
-    }
+    ownNodePtr.p->nodeState = NodeRecord::NDB_MASTER_TAKEOVER;
+    ownNodePtr.p->nodeFailRep = *nodeFail;
+    infoEvent("Node %u taking over as DICT master", c_masterNodeId);
+    handle_master_takeover(signal);
+    return;
   }
-  
+
+  send_nf_complete_rep(signal);
+  return;
+}//execNODE_FAILREP()
+
+void Dbdict::send_nf_complete_rep(Signal* signal)
+{
+  jam();
+  NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
+  Uint32 theFailedNodes[NdbNodeBitmask::Size];
+  memcpy(theFailedNodes, nodeFail->theNodes, sizeof(theFailedNodes));
   NdbNodeBitmask tmp;
   tmp.assign(NdbNodeBitmask::Size, theFailedNodes);
 
@@ -4106,7 +4135,9 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
       jam();
       NodeRecordPtr nodePtr;
       c_nodes.getPtr(nodePtr, i);
-
+#ifdef VM_TRACE
+      ndbout_c("Sending NF_COMPLETEREP for node %u", i);
+#endif
       nodePtr.p->nodeState = NodeRecord::NDB_NODE_DEAD;
       NFCompleteRep * const nfCompRep = (NFCompleteRep *)&signal->theData[0];
       nfCompRep->blockNo      = DBDICT;
@@ -4115,7 +4146,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
       sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP, signal, 
 		 NFCompleteRep::SignalLength, JBB);
       
-      c_aliveNodes.clear(i);
+      //c_aliveNodes.clear(i);
     }//if
   }//for
 
@@ -4129,7 +4160,52 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   removeStaleDictLocks(signal, theFailedNodes);
 
   c_sub_startstop_lock.bitANDC(tmp);
-}//execNODE_FAILREP()
+}//send_nf_complete_rep
+
+void Dbdict::handle_master_takeover(Signal* signal)
+{
+  /*
+    This is the new master, handle take-over of
+    pending schema transactions.
+    Ask all slave nodes about state of any pending
+    transactions
+  */      
+  jam();
+  NodeRecordPtr masterNodePtr;
+  c_nodes.getPtr(masterNodePtr, c_masterNodeId);
+  SchemaTransPtr trans_ptr;
+  if (!c_schemaTransList.first(trans_ptr))
+  {
+    /*
+      New master has no knowledge of any pending transaction.
+    */
+    jam();
+    if (c_aliveNodes.count() == 1)
+    {
+      /*
+	This is the only node, we are done
+       */
+      jam();
+      NodeFailRep * const nodeFailRep = (NodeFailRep *)&signal->theData[0];
+      *nodeFailRep = masterNodePtr.p->nodeFailRep;
+      masterNodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE;
+      send_nf_complete_rep(signal);
+      return;
+    }
+  }
+
+  masterNodePtr.p->m_nodes = c_aliveNodes;
+  NodeReceiverGroup rg(DBDICT, masterNodePtr.p->m_nodes);
+  {
+    SafeCounter sc(c_counterMgr, masterNodePtr.p->m_counter);
+    bool ok = sc.init<DictTakeoverRef>(rg, c_masterNodeId);
+    ndbrequire(ok);
+  }
+  DictTakeoverReq* req = (DictTakeoverReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  sendSignal(rg, GSN_DICT_TAKEOVER_REQ, signal,
+               DictTakeoverReq::SignalLength, JBB);
+}
 
 
 /* **************************************************************** */
@@ -17127,6 +17203,847 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   }
 }
 
+// Master take-over
+
+void
+Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
+ {
+   jamEntry();
+   DictTakeoverReq* req = (DictTakeoverReq*)signal->getDataPtr();
+   Uint32 masterRef = req->senderRef;
+   Uint32 op_count = 0;
+   Uint32 rollforward_op = 0;
+   Uint32 rollforward_op_state = SchemaOp::OS_COMPLETED;
+   Uint32 rollback_op = 0;
+   Uint32 rollback_op_state = SchemaOp::OS_INITIAL;
+   Uint32 lowest_op = 0;
+   Uint32 lowest_op_state = SchemaOp::OS_COMPLETED;
+   Uint32 lowest_op_impl_req_gsn = 0;
+   Uint32 highest_op = 0;
+   Uint32 highest_op_state = SchemaOp::OS_INITIAL;
+   Uint32 highest_op_impl_req_gsn = 0;
+   SchemaTransPtr trans_ptr;
+   bool ending = false;
+
+   jam();
+   bool pending_trans = c_schemaTransList.first(trans_ptr);
+   if (!pending_trans)
+   {
+     /*
+       Slave has no pending transaction
+     */
+     jam();
+     DictTakeoverRef* ref = (DictTakeoverRef*)signal->getDataPtrSend();
+     ref->senderRef = reference();
+     ref->masterRef = masterRef;
+     ref->errorCode = DictTakeoverRef::NoTransaction;
+     sendSignal(masterRef, GSN_DICT_TAKEOVER_REF, signal,
+                DictTakeoverRef::SignalLength, JBB);
+     return;
+   }
+   while (pending_trans)
+   {
+     trans_ptr.p->m_masterRef = masterRef;
+#ifdef VM_TRACE
+      ndbout_c("Dbdict::execDICT_TAKEOVER_REQ: trans %u(0x%8x), state %u, op_list %s", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state, (trans_ptr.p->m_op_list.in_use)?"yes":"no");
+#endif
+     
+     SchemaOpPtr op_ptr;
+     LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+     bool pending_op = list.first(op_ptr);
+     if (pending_op &&
+         (trans_ptr.p->m_state == SchemaTrans::TS_COMPLETING ||
+          trans_ptr.p->m_state == SchemaTrans::TS_ENDING))
+     {
+       jam();
+       /*
+         We were ending (releasing) operations, check how
+         far slave got by finding lowest operation.
+       */
+       ending = true;
+       lowest_op = op_ptr.p->op_key;
+       lowest_op_state = op_ptr.p->m_state;
+       /*
+         Find the OpInfo gsn for the next operation to
+         be removed,
+         this might be needed by new master to create missing operation.
+       */
+       lowest_op_impl_req_gsn = getOpInfo(op_ptr).m_impl_req_gsn;
+     }
+     while (pending_op)
+     {
+       jam();
+       op_count++;
+       ndbrequire(!op_ptr.isNull());
+       ndbrequire(trans_ptr.i == op_ptr.p->m_trans_ptr.i);
+#ifdef VM_TRACE
+       ndbout_c("Dbdict::execDICT_TAKEOVER_REQ: op %u state %u", op_ptr.p->op_key, op_ptr.p->m_state);
+#endif
+       
+       /*
+         Check if operation is busy
+       */
+       switch(op_ptr.p->m_state) {
+       case SchemaOp::OS_PARSING:
+       case SchemaOp::OS_PREPARING:
+       case SchemaOp::OS_ABORTING_PREPARE:
+       case SchemaOp::OS_ABORTING_PARSE:
+       case SchemaOp::OS_COMMITTING:
+       case SchemaOp::OS_COMPLETING:
+       {
+         jam();
+         Uint32* data = &signal->theData[0];
+         data[0] = ZDICT_TAKEOVER_REQ;
+         memmove(&data[1], &data[0], DictTakeoverReq::SignalLength << 2);
+         sendSignal(reference(), GSN_CONTINUEB, signal,
+                    1 + DictTakeoverReq::SignalLength, JBB);
+         return;
+       }
+       default:
+         break;
+       }
+       if (ending)
+       {
+         pending_op = list.next(op_ptr);
+         continue;
+       }
+       if (trans_ptr.p->m_state == SchemaTrans::TS_STARTED || // master
+           trans_ptr.p->m_state == SchemaTrans::TS_PARSING)
+       {
+         jam();
+         /*
+           We were parsing operations from client, check how
+           far slave got by finding highest operation.
+         */
+         highest_op = op_ptr.p->op_key;
+         highest_op_state = op_ptr.p->m_state;
+         /*
+           Find the OpInfo gsn for the latest created operation,
+           this might be needed by new master to create missing operation.
+         */
+         highest_op_impl_req_gsn = getOpInfo(op_ptr).m_impl_req_gsn;
+       }
+       else
+       {
+         jam();
+#ifdef VM_TRACE
+         ndbout_c("Op %u, state %u, rollforward %u/%u, rollback %u/%u",op_ptr.p->op_key,op_ptr.p->m_state, rollforward_op,  rollforward_op_state, rollback_op,  rollback_op_state);
+#endif
+         /*
+           Find the starting point for a roll forward, the first
+           operation found with a lower state than the previous.
+         */
+         if (SchemaOp::weight(op_ptr.p->m_state) <
+             SchemaOp::weight(rollforward_op_state))
+         {
+           rollforward_op = op_ptr.p->op_key;
+           rollforward_op_state = op_ptr.p->m_state;
+         }
+         /*
+           Find the starting point for a rollback, the last
+           operation found that changed state.
+         */
+         if (SchemaOp::weight(op_ptr.p->m_state) >=
+             SchemaOp::weight(rollback_op_state))
+         {
+           rollback_op = op_ptr.p->op_key;
+           rollback_op_state = op_ptr.p->m_state;
+         }
+       }
+       pending_op = list.next(op_ptr);
+     }
+#ifdef VM_TRACE
+     ndbout_c("Slave transaction %u has %u schema operations, rf %u/%u, rb %u/%u", trans_ptr.p->trans_key, op_count, rollforward_op, rollforward_op_state, rollback_op, rollback_op_state);
+#endif
+     DictTakeoverConf* conf = (DictTakeoverConf*)signal->getDataPtrSend();
+     conf->senderRef = reference();
+     conf->clientRef = trans_ptr.p->m_clientRef;
+     conf->trans_key = trans_ptr.p->trans_key;
+     conf->trans_state = trans_ptr.p->m_state;
+     conf->op_count = op_count;
+     conf->rollforward_op = rollforward_op;
+     conf->rollforward_op_state = rollforward_op_state;
+     conf->rollback_op = rollback_op;
+     conf->rollback_op_state = rollback_op_state;
+     if (trans_ptr.p->m_state == SchemaTrans::TS_STARTED ||
+         trans_ptr.p->m_state == SchemaTrans::TS_PARSING)
+     {
+       /*
+         New master might not have parsed highest found operation yet.
+        */
+       conf->highest_op = highest_op;
+       conf->highest_op_state = highest_op_state;
+       conf->highest_op_impl_req_gsn = highest_op_impl_req_gsn;
+     }
+     if (ending)
+     {
+       /*
+         New master might already have released lowest operation found.
+        */
+       conf->lowest_op = lowest_op;
+       conf->lowest_op_state = lowest_op_state;
+       conf->lowest_op_impl_req_gsn = lowest_op_impl_req_gsn;
+     }
+     sendSignal(masterRef, GSN_DICT_TAKEOVER_CONF, signal,
+                DictTakeoverConf::SignalLength, JBB);
+     ndbrequire(!(pending_trans = c_schemaTransList.next(trans_ptr)));
+   }
+ }
+ 
+void
+Dbdict::execDICT_TAKEOVER_REF(Signal* signal)
+{
+  DictTakeoverRef* ref = (DictTakeoverRef*)signal->getDataPtr();
+  Uint32 senderRef = ref->senderRef;
+  Uint32 nodeId = refToNode(senderRef);
+  Uint32 masterRef = ref->masterRef;
+  Uint32 errorCode = ref->errorCode;
+  NodeRecordPtr masterNodePtr;
+  jamEntry();
+#ifdef VM_TRACE
+  ndbout_c("Dbdict::execDICT_TAKEOVER_REF: error %u, from %u", errorCode, nodeId);
+#endif
+  /*
+    Slave has died (didn't reply) or doesn't not have any transaction
+    Ignore it during rest of master takeover.
+  */
+  ndbassert(refToNode(masterRef) == c_masterNodeId);
+  c_nodes.getPtr(masterNodePtr, c_masterNodeId);
+  masterNodePtr.p->m_nodes.clear(nodeId);
+  /*
+    Check if we got replies from all nodes
+  */
+  {
+    SafeCounter sc(c_counterMgr, masterNodePtr.p->m_counter);
+    if (!sc.clearWaitingFor(nodeId)) {
+      jam();
+      return;
+    }
+  }
+  check_takeover_replies(signal);
+}
+
+void
+Dbdict::execDICT_TAKEOVER_CONF(Signal* signal)
+{
+  jamEntry();
+  DictTakeoverConf* conf = (DictTakeoverConf*)signal->getDataPtr();
+  jamEntry();
+  Uint32 senderRef = conf->senderRef;
+  Uint32 nodeId = refToNode(senderRef);
+  //Uint32 clientRef = conf->clientRef;
+  Uint32 op_count = conf->op_count;
+  Uint32 trans_key = conf->trans_key;
+  Uint32 rollforward_op = conf->rollforward_op;
+  Uint32 rollforward_op_state = conf->rollforward_op_state;
+  Uint32 rollback_op = conf->rollback_op;
+  Uint32 rollback_op_state = conf->rollback_op_state;
+  NodeRecordPtr masterNodePtr;
+  
+  /*
+    Accumulate all responses
+  */
+  NodeRecordPtr nodePtr;
+  c_nodes.getPtr(nodePtr, nodeId);
+  nodePtr.p->takeOverConf = *conf;
+
+  ndbassert(getOwnNodeId() == c_masterNodeId);
+  c_nodes.getPtr(masterNodePtr, c_masterNodeId);
+#ifdef VM_TRACE
+  ndbout_c("execDICT_TAKEOVER_CONF: Node %u, trans %u(%u), count %u, rollf %u/%u, rb %u/%u", nodeId, trans_key, conf->trans_state, op_count, rollforward_op, rollforward_op_state, rollback_op, rollback_op_state);
+#endif
+
+  /*
+    Check that we got reply from all nodes
+  */
+  {
+    SafeCounter sc(c_counterMgr, masterNodePtr.p->m_counter);
+    if (!sc.clearWaitingFor(nodeId)) {
+      jam();
+      return;
+    }
+  }
+  check_takeover_replies(signal);
+}
+
+void Dbdict::check_takeover_replies(Signal* signal)
+{
+  SchemaTransPtr trans_ptr;
+  NodeRecordPtr masterNodePtr;
+  ErrorInfo error;
+
+  c_nodes.getPtr(masterNodePtr, c_masterNodeId); // this node
+  if (masterNodePtr.p->m_nodes.isclear())
+  {
+    /*
+      No slave found any pending transactions, we are done
+     */
+    jam();
+    send_nf_complete_rep(signal);
+    return;
+  }
+  /*
+    Take schema trans lock.
+    Set initial values for rollforward/rollback points
+    and highest/lowest transaction states
+   */
+  bool pending_trans = c_schemaTransList.first(trans_ptr);
+  while (pending_trans) {
+    jam();
+    Uint32 trans_key = trans_ptr.p->trans_key;
+    DictLockReq& lockReq = trans_ptr.p->m_lockReq;
+    lockReq.userPtr = trans_key;
+    lockReq.userRef = reference();
+    lockReq.lockType = DictLockReq::SchemaTransLock;
+    int lockError = dict_lock_trylock(&lockReq);
+    if (lockError != 0)
+    {
+      jam();
+#ifdef VM_TRACE
+      ndbout_c("New master failed locking transaction %u, error %u", trans_key, lockError);
+#endif
+      ndbassert(false);
+    }
+    else
+    {
+      jam();
+#ifdef VM_TRACE
+      ndbout_c("New master locked transaction %u", trans_key);
+#endif
+    }
+    trans_ptr.p->m_isMaster = true;
+    trans_ptr.p->m_nodes.clear();
+    trans_ptr.p->m_rollforward_op = -1;
+    trans_ptr.p->m_rollforward_op_state = SchemaOp::OS_COMPLETED;
+    trans_ptr.p->m_rollback_op = 0;
+    trans_ptr.p->m_rollback_op_state = SchemaOp::OS_INITIAL;
+    trans_ptr.p->m_lowest_trans_state = SchemaTrans::TS_ENDING;
+    trans_ptr.p->m_highest_trans_state = SchemaTrans::TS_INITIAL;
+    trans_ptr.p->check_partial_rollforward = false;
+    trans_ptr.p->ressurected_op = false;
+    pending_trans = c_schemaTransList.next(trans_ptr);
+  }
+  /*
+    Find rollforward/rollback operations and highest/lowest transaction state
+   */
+  for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    NodeRecordPtr nodePtr;
+    if (masterNodePtr.p->m_nodes.get(i))
+    {
+      jam();
+      c_nodes.getPtr(nodePtr, i);
+      {
+	DictTakeoverConf* conf = conf = &nodePtr.p->takeOverConf;
+        Uint32 clientRef = conf->clientRef;
+	Uint32 rollforward_op = conf->rollforward_op;
+	Uint32 rollforward_op_state = conf->rollforward_op_state;
+	Uint32 rollback_op = conf->highest_op;
+	Uint32 rollback_op_state = conf->rollback_op_state;
+        Uint32 trans_key = conf->trans_key;
+        Uint32 trans_state = conf->trans_state;
+        SchemaTransPtr trans_ptr;
+
+        if (!findSchemaTrans(trans_ptr, trans_key))
+        {
+          jam();
+          /*
+            New master doesn't know about the transaction.
+          */
+          if (!seizeSchemaTrans(trans_ptr, trans_key))
+          {
+            jam();
+            ndbassert(false);
+          }
+#ifdef VM_TRACE
+          ndbout_c("New master seized transaction %u", trans_key);
+#endif
+          /*
+            Take schema trans lock.
+          */
+          DictLockReq& lockReq = trans_ptr.p->m_lockReq;
+          lockReq.userPtr = trans_ptr.p->trans_key;
+          lockReq.userRef = reference();
+          lockReq.lockType = DictLockReq::SchemaTransLock;
+          int lockError = dict_lock_trylock(&lockReq);
+          if (lockError != 0)
+          {
+            jam();
+#ifdef VM_TRACE
+            ndbout_c("New master failed locking transaction %u, error %u", trans_key, lockError);
+#endif
+            ndbassert(false);
+          }
+          else
+          {
+            jam();
+#ifdef VM_TRACE
+            ndbout_c("New master locked transaction %u", trans_key);
+#endif
+          }
+          trans_ptr.p->m_rollforward_op = -1;
+          trans_ptr.p->m_rollforward_op_state = SchemaOp::OS_COMPLETED;
+          trans_ptr.p->m_rollback_op = 0;
+          trans_ptr.p->m_rollback_op_state = SchemaOp::OS_INITIAL;
+          trans_ptr.p->m_lowest_trans_state = SchemaTrans::TS_ENDING;
+          trans_ptr.p->m_highest_trans_state = SchemaTrans::TS_INITIAL;
+        }
+  
+        trans_ptr.p->m_isMaster = true;
+        trans_ptr.p->m_masterRef = reference();
+        trans_ptr.p->m_clientRef = clientRef;
+        trans_ptr.p->m_nodes.set(i);
+#ifdef VM_TRACE
+        ndbout_c("Adding node %u to transaction %u", i, trans_ptr.p->trans_key);
+#endif
+        /*
+          Save the operation with lowest state and lowest key
+          for roll forward
+         */
+        if ((SchemaOp::weight(rollforward_op_state) <
+             SchemaOp::weight(trans_ptr.p->m_rollforward_op_state)) ||
+            ((rollforward_op_state ==
+              trans_ptr.p->m_rollforward_op_state &&
+              rollforward_op < trans_ptr.p->m_rollforward_op)))
+	{
+          jam();
+	  trans_ptr.p->m_rollforward_op = rollforward_op;
+	  trans_ptr.p->m_rollforward_op_state = rollforward_op_state;
+	}
+
+        /*
+          Save operation with the highest state and the highest key
+          for rollback
+         */
+        if ((SchemaOp::weight(rollback_op_state) >
+             SchemaOp::weight(trans_ptr.p->m_rollback_op_state)) ||
+            ((rollback_op_state ==
+              trans_ptr.p->m_rollback_op_state &&
+              rollback_op > trans_ptr.p->m_rollback_op)))
+	{
+          jam();
+	  trans_ptr.p->m_rollback_op = rollback_op;
+	  trans_ptr.p->m_rollback_op_state = rollback_op_state;
+	}
+        
+        if (SchemaTrans::weight(trans_state) <
+            SchemaTrans::weight(trans_ptr.p->m_lowest_trans_state))
+        {
+          jam();
+          trans_ptr.p->m_lowest_trans_state = trans_state;
+        }
+        if (SchemaTrans::weight(trans_state) >
+            SchemaTrans::weight(trans_ptr.p->m_highest_trans_state))
+        {
+          jam();
+          trans_ptr.p->m_highest_trans_state = trans_state;
+        }
+      }
+    }
+  }
+
+  /*
+    Check the progress of transactions.
+  */
+  pending_trans = c_schemaTransList.first(trans_ptr);
+  while (pending_trans)
+  {
+    jam();
+#ifdef VM_TRACE
+    ndbout_c("Analyzing transaction progress, trans %u/%u, lowest/highest %u/%u", trans_ptr.p->trans_key, trans_ptr.p->m_state, trans_ptr.p->m_lowest_trans_state, trans_ptr.p->m_highest_trans_state);
+#endif
+    switch(trans_ptr.p->m_highest_trans_state) {
+    case SchemaTrans::TS_INITIAL:
+    case SchemaTrans::TS_STARTING:
+    case SchemaTrans::TS_STARTED:
+    case SchemaTrans::TS_PARSING:
+    case SchemaTrans::TS_SUBOP:
+    case SchemaTrans::TS_ROLLBACK_SP:
+    case SchemaTrans::TS_FLUSH_PREPARE:
+    case SchemaTrans::TS_PREPARING:
+    case SchemaTrans::TS_ABORTING_PREPARE:
+    case SchemaTrans::TS_ABORTING_PARSE:
+      jam();
+      trans_ptr.p->m_master_recovery_state = SchemaTrans::TRS_ROLLBACK;
+      break;
+    case SchemaTrans::TS_FLUSH_COMMIT:
+    case SchemaTrans::TS_COMMITTING:
+    case SchemaTrans::TS_FLUSH_COMPLETE:
+    case SchemaTrans::TS_COMPLETING:
+    case SchemaTrans::TS_ENDING:
+      jam();
+      trans_ptr.p->m_master_recovery_state = SchemaTrans::TRS_ROLLFORWARD;
+      break;
+    }
+    
+    if (trans_ptr.p->m_master_recovery_state == SchemaTrans::TRS_ROLLFORWARD)
+    {
+      /*
+        We must start rolling forward from lowest state of any slave
+        and partially skip more progressed slaves.
+       */
+      jam();
+      infoEvent("Pending schema transaction %u will be rolled forward", trans_ptr.p->trans_key);
+      trans_ptr.p->check_partial_rollforward = true;
+      trans_ptr.p->m_state = trans_ptr.p->m_lowest_trans_state;
+#ifdef VM_TRACE
+      ndbout_c("Setting transaction state to %u for rollforward", trans_ptr.p->m_state); 
+#endif     
+    }
+    else
+    {
+      /*
+        We must start rolling back from highest state of any slave
+        and partially skip less progressed slaves.
+       */
+      jam();
+      infoEvent("Pending schema transaction %u will be rolled back", trans_ptr.p->trans_key);
+      trans_ptr.p->m_state = trans_ptr.p->m_highest_trans_state;
+#ifdef VM_TRACE
+      ndbout_c("Setting transaction state to %u for rollback", trans_ptr.p->m_state); 
+#endif     
+    }
+#ifdef VM_TRACE
+    ndbout_c("Setting start state for transaction %u to %u", trans_ptr.p->trans_key, trans_ptr.p->m_state);
+#endif
+    pending_trans = c_schemaTransList.next(trans_ptr);
+  }
+
+  masterNodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+  pending_trans = c_schemaTransList.first(trans_ptr);
+  while (pending_trans)
+  {
+    /*
+      Find nodes that need partial rollforward/rollback,
+      create any missing operations on new master
+    */
+
+    for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      jam();
+      NodeRecordPtr nodePtr;
+      if (trans_ptr.p->m_nodes.get(i))
+      {
+        jam();
+        c_nodes.getPtr(nodePtr, i);
+        nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+#ifdef VM_TRACE
+        ndbout_c("Node %u had %u operations, master has %u",i , nodePtr.p->takeOverConf.op_count, masterNodePtr.p->takeOverConf.op_count);
+#endif        
+        if (nodePtr.p->takeOverConf.op_count == 0)
+        {
+          if (SchemaTrans::weight(trans_ptr.p->m_state)
+              < SchemaTrans::weight(SchemaTrans::TS_PREPARING))
+          {
+            /*
+              Node didn't parse any operations,
+              remove, skip it when aborting parse.
+            */
+            jam();
+#ifdef VM_TRACE
+            ndbout_c("Node %u had no operations for  transaction %u, ignore it when aborting", i, trans_ptr.p->trans_key);
+#endif
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
+            nodePtr.p->start_op = 0;
+            nodePtr.p->start_op_state = SchemaOp::OS_PARSED;
+          }
+          else
+          {
+            /*
+              Node is ended
+            */
+            jam();
+            // Is this possible??
+          }
+        }
+        else if (nodePtr.p->takeOverConf.op_count <
+                 masterNodePtr.p->takeOverConf.op_count)
+        {
+          jam();
+          /*
+              Operation is missing on slave
+          */
+          if (SchemaTrans::weight(trans_ptr.p->m_state) < 
+              SchemaTrans::weight(SchemaTrans::TS_PREPARING))
+          {
+            /*
+              Last parsed operation is missing on slave, skip it
+              when aborting parse.
+            */
+            jam();
+#ifdef VM_TRACE
+            ndbout_c("Node %u did not have all operations for transaction %u, skip > %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.highest_op);
+#endif
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
+            nodePtr.p->start_op = nodePtr.p->takeOverConf.highest_op;
+            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.highest_op_state;
+          }
+          else
+          {
+            /*
+              Slave has already ended some operations
+            */
+            jam();
+#ifdef VM_TRACE
+            ndbout_c("Node %u did not have all operations for transaction %u, skip < %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.lowest_op);
+#endif
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
+            nodePtr.p->start_op = nodePtr.p->takeOverConf.lowest_op;
+            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.lowest_op_state;
+          }
+        }
+        else if (nodePtr.p->takeOverConf.op_count >
+                 masterNodePtr.p->takeOverConf.op_count)
+        {
+          /*
+            Operation missing on new master
+           */
+          jam();
+          if (SchemaTrans::weight(trans_ptr.p->m_state)
+              < SchemaTrans::weight(SchemaTrans::TS_PREPARING))
+          {
+            /*
+              Last parsed operation is missing on new master
+             */
+            jam();
+            if (masterNodePtr.p->recoveryState !=
+                NodeRecord::RS_PARTIAL_ROLLBACK)
+            {
+              /*
+                We haven't decided to partially rollback master yet.
+                Operation is missing on new master (not yet parsed).
+                Create it so new master can tell slaves to abort it,
+                but skip it on master.
+              */
+              jam();
+              SchemaOpPtr missing_op_ptr;
+              const OpInfo& info =
+                *findOpInfo(nodePtr.p->takeOverConf.highest_op_impl_req_gsn);
+              if (seizeSchemaOp(missing_op_ptr,
+                                nodePtr.p->takeOverConf.highest_op,
+                                info))
+              {
+                jam();
+#ifdef VM_TRACE
+                ndbout_c("Created missing operation %u, on new master", missing_op_ptr.p->op_key);
+#endif
+                addSchemaOp(trans_ptr, missing_op_ptr);
+                missing_op_ptr.p->m_state = nodePtr.p->takeOverConf.highest_op_state;
+                masterNodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
+                masterNodePtr.p->start_op = masterNodePtr.p->takeOverConf.highest_op;
+                masterNodePtr.p->start_op_state = masterNodePtr.p->takeOverConf.highest_op_state;
+              }
+              else
+              {
+                jam();
+                ndbassert(false);
+              }
+              trans_ptr.p->m_nodes.set(c_masterNodeId);
+#ifdef VM_TRACE
+              ndbout_c("Adding master node %u to transaction %u", c_masterNodeId, trans_ptr.p->trans_key);          
+#endif
+            }
+          }
+          else if (SchemaTrans::weight(trans_ptr.p->m_state)
+                   >= SchemaTrans::weight(SchemaTrans::TS_PREPARING) &&
+                   (!trans_ptr.p->ressurected_op))
+          {
+            /*
+              New master has already ended some operation,
+              create it again so we can tell slaves to end it.
+              Note: we don't add node to transaction since the
+              ressurected operation cannot be completed. Instead
+              we need to release it explicitly when transaction is
+              ended.
+            */
+            jam();
+            SchemaOpPtr missing_op_ptr;
+            Uint32 op_key = nodePtr.p->takeOverConf.lowest_op;
+            Uint32 op_state = nodePtr.p->takeOverConf.lowest_op_state;
+            const OpInfo& info =
+              *findOpInfo(nodePtr.p->takeOverConf.lowest_op_impl_req_gsn);
+            if (seizeSchemaOp(missing_op_ptr,
+                              op_key,
+                              info))
+            {
+              jam();
+#ifdef VM_TRACE
+              ndbout_c("Created ressurected operation %u, on new master", op_key);
+#endif
+              addSchemaOp(trans_ptr, missing_op_ptr);
+              trans_ptr.p->ressurected_op = true;
+              missing_op_ptr.p->m_state = op_state;
+              nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
+              nodePtr.p->start_op = op_key;
+              nodePtr.p->start_op_state = op_state;
+              
+            }
+            else
+            {
+              jam();
+              assert(false);
+            }
+            continue;
+          }
+        }
+      }
+    }
+
+    /*
+      Compare node progress
+    */
+    for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      jam();
+      NodeRecordPtr nodePtr;
+      if (trans_ptr.p->m_nodes.get(i))
+      {
+        jam();
+        c_nodes.getPtr(nodePtr, i);
+#ifdef VM_TRACE
+        ndbout_c("Comparing node %u rollforward(%u(%u)<%u(%u))/rollback(%u(%u)<%u(%u))", i, nodePtr.p->takeOverConf.rollforward_op_state, nodePtr.p->takeOverConf.rollforward_op, trans_ptr.p->m_rollforward_op_state, trans_ptr.p->m_rollforward_op, nodePtr.p->takeOverConf.rollback_op_state, nodePtr.p->takeOverConf.rollback_op, trans_ptr.p->m_rollback_op_state, trans_ptr.p->m_rollback_op);
+#endif
+        if (trans_ptr.p->m_master_recovery_state == SchemaTrans::TRS_ROLLFORWARD)
+        {
+          jam();
+          if (trans_ptr.p->m_lowest_trans_state == SchemaTrans::TS_PREPARING &&
+              nodePtr.p->takeOverConf.trans_state == SchemaTrans::TS_COMMITTING)
+          {
+            /*
+              Some slave have flushed the commit start, but not all.
+              Flushed slaves need to be partially rolled forward.
+             */
+            jam();
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
+#ifdef VM_TRACE
+            ndbout_c("Node %u will be partially rolled forward, skipping RT_FLUSH_COMMIT", nodePtr.i);
+#endif
+          }
+          else if (SchemaOp::weight(nodePtr.p->takeOverConf.rollforward_op_state) >
+                   SchemaOp::weight(trans_ptr.p->m_rollforward_op_state) ||
+                   nodePtr.p->takeOverConf.rollforward_op >
+                   trans_ptr.p->m_rollforward_op)              
+          {
+            /*
+              Slave has started committing, but other slaves have non-committed
+              operations. Node needs to be partially rollforward. 
+            */
+            jam();
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
+            nodePtr.p->start_op = nodePtr.p->takeOverConf.rollforward_op;
+            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.rollforward_op_state;
+#ifdef VM_TRACE
+            ndbout_c("Node %u will be partially rolled forward to operation %u, state %u", nodePtr.i, nodePtr.p->start_op, nodePtr.p->start_op_state);
+#endif
+            if (i == c_masterNodeId)
+            {
+              /*
+                New master is ahead of other slaves
+                Change operation state back to rollforward
+                other slaves.
+               */
+              jam();
+              SchemaOpPtr op_ptr;
+              ndbrequire(findSchemaOp(op_ptr,
+                                      trans_ptr.p->m_rollforward_op));
+#ifdef VM_TRACE
+              ndbout_c("Changed op %u from state %u to %u", trans_ptr.p->m_rollforward_op, op_ptr.p->m_state, trans_ptr.p->m_rollforward_op_state);
+#endif
+              op_ptr.p->m_state = trans_ptr.p->m_rollforward_op_state;
+            }
+          }
+          else if (trans_ptr.p->m_lowest_trans_state == SchemaTrans::TS_COMMITTING &&
+                   nodePtr.p->takeOverConf.trans_state >= SchemaTrans::TS_FLUSH_COMPLETE)
+          {
+            /*
+              Some slave have flushed the commit complete, but not all.
+              Flushed slaves need to be partially rolled forward.
+            */
+            jam();
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
+#ifdef VM_TRACE
+            ndbout_c("Node %u will be partially rolled forward, skipping RT_FLUSH_COMPLETE", nodePtr.i);
+#endif
+          }
+        }
+        else // if (trans_ptr.p->m_master_recovery_state == SchemaTrans::TRS_ROLLBACK)
+        {
+          jam();
+          if (SchemaOp::weight(nodePtr.p->takeOverConf.rollback_op_state) <
+              SchemaOp::weight(trans_ptr.p->m_rollback_op_state) ||
+              nodePtr.p->takeOverConf.rollback_op <
+              trans_ptr.p->m_rollback_op)
+          {
+            /*
+              Slave is behind. Other nodes have further
+              progress, or has already started aborting.
+              Node needs to be partially rolled back.
+            */
+            jam();
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
+            nodePtr.p->start_op = nodePtr.p->takeOverConf.rollback_op;
+            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.rollback_op_state;
+#ifdef VM_TRACE
+            ndbout_c("Node %u will be partially rolled back from operation %u, state %u", nodePtr.i, nodePtr.p->start_op, nodePtr.p->start_op_state);
+#endif
+            if (i == c_masterNodeId && 
+                (SchemaTrans::weight(trans_ptr.p->m_state) <=
+                 SchemaTrans::weight(SchemaTrans::TS_PREPARING)))
+            {
+              /*
+                New master is behind of other slaves
+                Change operation state forward to rollback
+                other slaves.
+               */
+              jam();
+              SchemaOpPtr op_ptr;
+              ndbrequire(findSchemaOp(op_ptr,
+                                      trans_ptr.p->m_rollback_op));
+#ifdef VM_TRACE
+              ndbout_c("Changed op %u from state %u to %u", trans_ptr.p->m_rollback_op, op_ptr.p->m_state, trans_ptr.p->m_rollback_op_state);
+#endif
+              op_ptr.p->m_state = trans_ptr.p->m_rollback_op_state;
+            }
+          }
+        }
+      }
+    }
+    /*
+      Set current op to the lowest/highest reported by slaves
+      depending on if decision is to rollforward/rollback.
+    */
+    if (trans_ptr.p->m_master_recovery_state == SchemaTrans::TRS_ROLLFORWARD)
+    {
+      jam();
+      SchemaOpPtr rollforward_op_ptr;
+      ndbrequire(findSchemaOp(rollforward_op_ptr, trans_ptr.p->m_rollforward_op));
+      trans_ptr.p->m_curr_op_ptr_i = rollforward_op_ptr.i;    
+#ifdef VM_TRACE
+      ndbout_c("execDICT_TAKEOVER_CONF: Transaction %u rolled forward starting at %u(%u)", trans_ptr.p->trans_key,  trans_ptr.p->m_rollforward_op, trans_ptr.p->m_curr_op_ptr_i);
+#endif
+    }
+    else // if (trans_ptr.p->master_recovery_state == SchemaTrans::TRS_ROLLBACK)
+    {
+      jam();
+      if (trans_ptr.p->m_state >= SchemaTrans::TS_PARSING)
+      {
+        /*
+          Some slave had at least started parsing operations
+         */
+        jam();
+        SchemaOpPtr rollback_op_ptr;
+        ndbrequire(findSchemaOp(rollback_op_ptr, trans_ptr.p->m_rollback_op));
+        trans_ptr.p->m_curr_op_ptr_i = rollback_op_ptr.i;    
+#ifdef VM_TRACE
+        ndbout_c("execDICT_TAKEOVER_CONF: Transaction %u rolled back starting at %u(%u)", trans_ptr.p->trans_key,  trans_ptr.p->m_rollback_op, trans_ptr.p->m_curr_op_ptr_i);
+#endif
+      }
+    }
+    
+    trans_recover(signal, trans_ptr);
+    pending_trans = c_schemaTransList.next(trans_ptr);
+  }
+}
+
+
 // NF handling
 
 void
@@ -17135,6 +18052,7 @@ Dbdict::removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes)
   LockQueue::Iterator iter;
   if (m_dict_lock.first(this, m_dict_lock_pool, iter))
   {
+    infoEvent("Iterating lock queue");
     do {
       if (NodeBitmask::get(theFailedNodes, 
                            refToNode(iter.m_curr.p->m_req.senderRef)))
@@ -17142,12 +18060,14 @@ Dbdict::removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes)
         if (iter.m_curr.p->m_req.requestInfo & UtilLockReq::Granted)
         {
           jam();
+          infoEvent("Removed lock for node %u", refToNode(iter.m_curr.p->m_req.senderRef));
           sendDictLockInfoEvent(signal, &iter.m_curr.p->m_req, 
                                 "remove lock by failed node");
         } 
         else 
         {
           jam();
+          infoEvent("Removed lock request for node %u", refToNode(iter.m_curr.p->m_req.senderRef));
           sendDictLockInfoEvent(signal, &iter.m_curr.p->m_req, 
                                 "remove lock request by failed node");
         }
@@ -17197,7 +18117,7 @@ Dbdict::dict_lock_trylock(const DictLockReq* _req)
     ndbassert(false);
     break;
   }
-  
+  infoEvent("Busy with schema transaction");
   return SchemaTransBeginRef::Busy;
 }
 
@@ -20781,6 +21701,9 @@ Dbdict::seizeSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key, const OpInfo& info)
         op_ptr.p->m_magic = SchemaOp::DICT_MAGIC;
         const char* opType = info.m_opType;
         D("seizeSchemaOp" << V(op_key) << V(opType));
+#ifdef VM_TRACE
+        ndbout_c("Dbdict::seizeSchemaOp: op_key %u, op_type %s", op_key, opType);
+#endif
         return true;
       }
       c_schemaOpHash.release(op_ptr);
@@ -20810,6 +21733,9 @@ Dbdict::releaseSchemaOp(SchemaOpPtr& op_ptr)
 {
   Uint32 op_key = op_ptr.p->op_key;
   D("releaseSchemaOp" << V(op_key));
+#ifdef VM_TRACE
+  ndbout_c("Dbdict::releaseSchemaOp: op_key %u", op_key);
+#endif
 
   const OpInfo& info = getOpInfo(op_ptr);
   (this->*(info.m_release))(op_ptr);
@@ -21118,6 +22044,9 @@ Dbdict::seizeSchemaTrans(SchemaTransPtr& trans_ptr)
 {
   Uint32 trans_key = c_opRecordSequence + 1;
   if (seizeSchemaTrans(trans_ptr, trans_key)) {
+#ifdef VM_TRACE
+    ndbout_c("Dbdict::seizeSchemaTrans: Seized schema trans %u", trans_key);
+#endif
     c_opRecordSequence = trans_key;
     return true;
   }
@@ -21143,6 +22072,9 @@ Dbdict::releaseSchemaTrans(SchemaTransPtr& trans_ptr)
 {
   Uint32 trans_key = trans_ptr.p->trans_key;
   D("releaseSchemaTrans" << V(trans_key));
+#ifdef VM_TRACE
+  ndbout_c("Dbdict::releaseSchemaTrans: Releasing trans %u", trans_key);
+#endif
 
   LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
   SchemaOpPtr op_ptr;
@@ -21180,6 +22112,10 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
   const SchemaTransBeginReq* req =
     (const SchemaTransBeginReq*)signal->getDataPtr();
   Uint32 clientRef = req->clientRef;
+#ifdef VM_TRACE
+  ndbout_c("Dbdict::execSCHEMA_TRANS_BEGIN_REQ: received GSN_SCHEMA_TRANS_BEGIN_REQ from 0x%8x", clientRef);
+#endif
+
   Uint32 transId = req->transId;
   Uint32 requestInfo = req->requestInfo;
 
@@ -21248,14 +22184,6 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
      * Send RT_START
      */
     {
-      SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-      req->senderRef = reference();
-      req->transKey = trans_ptr.p->trans_key;
-      req->opKey = RNIL;
-      req->requestInfo = SchemaTransImplReq::RT_START;
-      req->start.clientRef = trans_ptr.p->m_clientRef;
-      req->transId = trans_ptr.p->m_transId;
-
       trans_ptr.p->m_ref_nodes.clear();
       NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
       {
@@ -21264,6 +22192,32 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
         ndbrequire(ok);
       }
 
+      if (ERROR_INSERTED(6140))
+      {
+        /*
+          Simulate slave missing start
+        */
+        jam();
+	Uint32 nodeId = rand() % MAX_NDB_NODES;
+	while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+	  nodeId = rand() % MAX_NDB_NODES;
+
+	infoEvent("Simulating node %u missing RT_START", nodeId);
+        rg.m_nodes.clear(nodeId);
+        signal->theData[0] = 9999;
+        signal->theData[1] = ERROR_INSERT_VALUE;
+        CLEAR_ERROR_INSERT_VALUE;
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                            5000, 2);
+      }
+
+      SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+      req->senderRef = reference();
+      req->transKey = trans_ptr.p->trans_key;
+      req->opKey = RNIL;
+      req->requestInfo = SchemaTransImplReq::RT_START;
+      req->start.clientRef = trans_ptr.p->m_clientRef;
+      req->transId = trans_ptr.p->m_transId;
       sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
                  SchemaTransImplReq::SignalLength, JBB);
     }
@@ -21359,10 +22313,13 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
     if (getOwnNodeId() != c_masterNodeId && !localTrans) {
       jam();
       // future when MNF is handled
-      ndbassert(false);
+      //ndbassert(false);
       setError(error, SchemaTransEndRef::NotMaster, __LINE__);
       break;
     }
+#ifdef VM_TRACE
+    ndbout_c("Dbdict::execSCHEMA_TRANS_END_REQ: trans %u, state %u", trans_ptr.i, trans_ptr.p->m_state);
+#endif
 
     //XXX Check state
 
@@ -21487,17 +22444,11 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
   Uint32 requestInfo = 0;
   DictSignal::setRequestType(requestInfo, SchemaTransImplReq::RT_PARSE);
   DictSignal::addRequestFlags(requestInfo, op_ptr.p->m_requestInfo);
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = op_ptr.p->op_key;
-  req->requestInfo = requestInfo;
-  req->transId = trans_ptr.p->m_transId;
-  req->parse.gsn = gsn;
 
   trans_ptr.p->m_ref_nodes.clear();
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
+
   NodeReceiverGroup rg(DBDICT, nodes);
   {
     SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
@@ -21505,6 +22456,32 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6141))
+  {
+    /*
+      Simulate slave missing parsing last (this) op
+     */
+    jam();
+    Uint32 nodeId = rand() % MAX_NDB_NODES;
+    while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+      nodeId = rand() % MAX_NDB_NODES;
+    
+    infoEvent("Simulating node %u missing RT_PARSE", nodeId);
+    rg.m_nodes.clear(nodeId);
+    signal->theData[0] = 9999;
+    signal->theData[1] = ERROR_INSERT_VALUE;
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                        5000, 2);
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = op_ptr.p->op_key;
+  req->requestInfo = requestInfo;
+  req->transId = trans_ptr.p->m_transId;
+  req->parse.gsn = gsn;
   sendFragmentedSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
                        SchemaTransImplReq::SignalLength + extra_length, JBB,
                        &handle);
@@ -21586,6 +22563,9 @@ Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
   Uint32 senderRef = ref->senderRef;
   Uint32 nodeId = refToNode(senderRef);
 
+#ifdef VM_TRACE
+  ndbout_c("Got SCHEMA_TRANS_IMPL_REF from node %u, error %u", nodeId, ref->errorCode);
+#endif
   if (ref->errorCode == SchemaTransImplRef::NF_FakeErrorREF)
   {
     jam();
@@ -21850,13 +22830,6 @@ Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
   trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_PREPARE;
 
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = RNIL;
-  req->requestInfo = SchemaTransImplReq::RT_FLUSH_PREPARE;
-  req->transId = trans_ptr.p->m_transId;
-
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
   NodeReceiverGroup rg(DBDICT, nodes);
@@ -21866,6 +22839,37 @@ Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6013))
+  {
+    jam();
+    CRASH_INSERTION(6013);
+  }
+
+  if (ERROR_INSERTED(6142))
+  {
+    /*
+      Simulate slave missing flush prepare
+     */
+    jam();
+    Uint32 nodeId = rand() % MAX_NDB_NODES;
+    while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+      nodeId = rand() % MAX_NDB_NODES;
+    
+    infoEvent("Simulating node %u missing RT_FLUSH_PREPARE", nodeId);
+    rg.m_nodes.clear(nodeId);
+    signal->theData[0] = 9999;
+    signal->theData[1] = ERROR_INSERT_VALUE;
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                        5000, 2);
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = RNIL;
+  req->requestInfo = SchemaTransImplReq::RT_FLUSH_PREPARE;
+  req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -21877,8 +22881,12 @@ Dbdict::trans_prepare_first(Signal* signal, SchemaTransPtr trans_ptr)
 
   SchemaOpPtr op_ptr;
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
-    if (list.first(op_ptr))
+    bool first;
+    {
+      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+      first = list.first(op_ptr);
+    }
+    if (first)
     {
       jam();
       trans_prepare_next(signal, trans_ptr, op_ptr);
@@ -21899,13 +22907,6 @@ Dbdict::trans_prepare_next(Signal* signal,
   trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
   op_ptr.p->m_state = SchemaOp::OS_PREPARING;
 
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = op_ptr.p->op_key;
-  req->requestInfo = SchemaTransImplReq::RT_PREPARE;
-  req->transId = trans_ptr.p->m_transId;
-
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
   NodeReceiverGroup rg(DBDICT, nodes);
@@ -21915,6 +22916,36 @@ Dbdict::trans_prepare_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6143))
+  {
+    jam();
+    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    if (!list.hasNext(op_ptr))
+    {
+      /*
+        Simulate slave missing preparing last op
+      */
+      jam();
+      Uint32 nodeId = rand() % MAX_NDB_NODES;
+      while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+        nodeId = rand() % MAX_NDB_NODES;
+      
+      infoEvent("Simulating node %u missing RT_PREPARE", nodeId);
+      rg.m_nodes.clear(nodeId);
+      signal->theData[0] = 9999;
+      signal->theData[1] = ERROR_INSERT_VALUE;
+      CLEAR_ERROR_INSERT_VALUE;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                          5000, 2);
+    }
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = op_ptr.p->op_key;
+  req->requestInfo = SchemaTransImplReq::RT_PREPARE;
+  req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -21935,8 +22966,12 @@ Dbdict::trans_prepare_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
   }
 
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
-    if (list.next(op_ptr))
+    bool next;
+    {
+      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+      next = list.next(op_ptr);
+    }
+    if (next)
     {
       jam();
       trans_prepare_next(signal, trans_ptr, op_ptr);
@@ -21952,6 +22987,13 @@ void
 Dbdict::trans_prepare_done(Signal* signal, SchemaTransPtr trans_ptr)
 {
   ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_PREPARING);
+
+  if (ERROR_INSERTED(6145))
+  {
+    jam();
+    trans_abort_prepare_start(signal, trans_ptr);
+    return;
+  }
 
   if (trans_ptr.p->m_clientFlags & TransClient::Commit)
   {
@@ -21970,14 +23012,17 @@ Dbdict::trans_abort_parse_start(Signal* signal, SchemaTransPtr trans_ptr)
   trans_ptr.p->m_state = SchemaTrans::TS_ABORTING_PARSE;
 
   SchemaOpPtr op_ptr;
+  bool last = false;
   {
     LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
-    if (list.last(op_ptr))
-    {
-      jam();
-      trans_abort_parse_next(signal, trans_ptr, op_ptr);
-      return;
-    }
+    last =  list.last(op_ptr);
+  }
+
+  if (last)
+  {
+    jam();
+    trans_abort_parse_next(signal, trans_ptr, op_ptr);
+    return;
   }
 
   trans_abort_parse_done(signal, trans_ptr);
@@ -21992,9 +23037,12 @@ Dbdict::trans_abort_parse_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 
   {
     SchemaOpPtr last_op = op_ptr;
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
-    bool prev = list.prev(op_ptr);
-    list.remove(last_op);         // Release aborted op
+    bool prev = false;
+    {
+      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+      prev = list.prev(op_ptr);
+      list.remove(last_op);         // Release aborted op
+    }
     releaseSchemaOp(last_op);
 
     if (prev)
@@ -22008,25 +23056,64 @@ Dbdict::trans_abort_parse_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
   trans_abort_parse_done(signal, trans_ptr);
 }
 
+void 
+Dbdict::check_partial_trans_abort_parse_next(SchemaTransPtr trans_ptr,
+                                             NdbNodeBitmask &nodes,
+                                             SchemaOpPtr op_ptr)
+{
+  jam();
+  NodeRecordPtr ownNodePtr;
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
+  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+  {
+    /*
+      A new master is in the process of aborting a
+      transaction taken over from the failed master.
+      Check if any nodes should be skipped because they
+      have not parsed the operation to be aborted
+    */
+    jam();
+    for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      NodeRecordPtr nodePtr;
+      if (trans_ptr.p->m_nodes.get(i))
+      {
+        jam();
+        c_nodes.getPtr(nodePtr, i);
+#ifdef VM_TRACE
+        ndbout_c("Checking node %u(%u), %u<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, op_ptr.p->op_key);
+#endif
+        if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLBACK &&
+            //nodePtr.p->start_op_state == SchemaOp::OS_PARSED &&
+            nodePtr.p->start_op < op_ptr.p->op_key)
+        {
+          jam();
+#ifdef VM_TRACE
+          ndbout_c("Skip aborting operation %u on node %u", op_ptr.p->op_key, i);
+#endif
+          nodes.clear(i);
+          nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+        }
+      }
+    }
+  }
+}
+
 void
 Dbdict::trans_abort_parse_next(Signal* signal,
                                SchemaTransPtr trans_ptr,
                                SchemaOpPtr op_ptr)
 {
+  jam();
   ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PARSE);
-
+#ifdef VM_TRACE
+  ndbout_c("Dbdict::trans_abort_parse_next: op %u state %u", op_ptr.i,op_ptr.p->m_state); 
+#endif
   trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
   op_ptr.p->m_state = SchemaOp::OS_ABORTING_PARSE;
 
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = op_ptr.p->op_key;
-  req->requestInfo = SchemaTransImplReq::RT_ABORT_PARSE;
-  req->transId = trans_ptr.p->m_transId;
-
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
+  check_partial_trans_abort_parse_next(trans_ptr, nodes, op_ptr);
   NodeReceiverGroup rg(DBDICT, nodes);
   {
     SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
@@ -22034,6 +23121,36 @@ Dbdict::trans_abort_parse_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6144))
+  {
+    jam();
+    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    if (!list.hasNext(op_ptr))
+    {
+      /*
+        Simulate slave missing aborting parse for last op
+      */
+      jam();
+      Uint32 nodeId = rand() % MAX_NDB_NODES;
+      while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+        nodeId = rand() % MAX_NDB_NODES;
+      
+      infoEvent("Simulating node %u missing RT_ABORT_PARSE", nodeId);
+      rg.m_nodes.clear(nodeId);
+      signal->theData[0] = 9999;
+      signal->theData[1] = ERROR_INSERT_VALUE;
+      CLEAR_ERROR_INSERT_VALUE;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                          5000, 2);
+    }
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = op_ptr.p->op_key;
+  req->requestInfo = SchemaTransImplReq::RT_ABORT_PARSE;
+  req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -22099,12 +23216,57 @@ Dbdict::trans_abort_prepare_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 }
 
 void
+Dbdict::check_partial_trans_abort_prepare_next(SchemaTransPtr trans_ptr,
+                                               NdbNodeBitmask &nodes,
+                                               SchemaOpPtr op_ptr)
+{
+  jam();
+  NodeRecordPtr ownNodePtr;
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
+  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+  {
+    /*
+      A new master is in the process of aborting a
+      transaction taken over from the failed master.
+      Check if any nodes should be skipped because they
+      have already aborted the operation.
+    */
+    for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      NodeRecordPtr nodePtr;
+      if (trans_ptr.p->m_nodes.get(i))
+      {
+        c_nodes.getPtr(nodePtr, i);
+#ifdef VM_TRACE
+        ndbout_c("Checking node %u(%u), %u<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, op_ptr.p->op_key);
+#endif
+        if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLBACK &&
+            (nodePtr.p->start_op_state == SchemaOp::OS_PREPARED &&
+              nodePtr.p->start_op < op_ptr.p->op_key) ||
+            (nodePtr.p->start_op_state == SchemaOp::OS_ABORTED_PREPARE &&
+             nodePtr.p->start_op > op_ptr.p->op_key))
+               
+        {
+#ifdef VM_TRACE
+          ndbout_c("Skip aborting operation %u on node %u", op_ptr.p->op_key, i);
+#endif
+          nodes.clear(i);
+          nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+        }
+      }
+    }
+  }
+}
+
+void
 Dbdict::trans_abort_prepare_next(Signal* signal,
                                  SchemaTransPtr trans_ptr,
                                  SchemaOpPtr op_ptr)
 {
+  jam();
   ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PREPARE);
-
+#ifdef VM_TRACE
+  ndbout_c("Dbdict::trans_abort_prepare_next: op %u state %u", op_ptr.p->op_key, op_ptr.p->m_state); 
+#endif 
   trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
 
   switch(op_ptr.p->m_state){
@@ -22119,7 +23281,7 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
   case SchemaOp::OS_PREPARING:
   case SchemaOp::OS_PREPARED:
     break;
-  case SchemaOp::OS_INTIAL:
+  case SchemaOp::OS_INITIAL:
   case SchemaOp::OS_PARSE_MASTER:
   case SchemaOp::OS_PARSING:
   case SchemaOp::OS_ABORTING_PREPARE:
@@ -22137,15 +23299,9 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
 
   op_ptr.p->m_state = SchemaOp::OS_ABORTING_PREPARE;
 
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = op_ptr.p->op_key;
-  req->requestInfo = SchemaTransImplReq::RT_ABORT_PREPARE;
-  req->transId = trans_ptr.p->m_transId;
-
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
+  check_partial_trans_abort_prepare_next(trans_ptr, nodes, op_ptr);
   NodeReceiverGroup rg(DBDICT, nodes);
   {
     SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
@@ -22153,6 +23309,36 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6145))
+  {
+    jam();
+    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    if (!list.hasPrev(op_ptr))
+    {
+      /*
+        Simulate slave missing aborting prepare of last op
+      */
+      jam();
+      Uint32 nodeId = rand() % MAX_NDB_NODES;
+      while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+        nodeId = rand() % MAX_NDB_NODES;
+      
+      infoEvent("Simulating node %u missing RT_ABORT_PREPARE", nodeId);
+      rg.m_nodes.clear(nodeId);
+      signal->theData[0] = 9999;
+      signal->theData[1] = ERROR_INSERT_VALUE;
+      CLEAR_ERROR_INSERT_VALUE;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                          5000, 2);
+    }
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = op_ptr.p->op_key;
+  req->requestInfo = SchemaTransImplReq::RT_ABORT_PREPARE;
+  req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -22160,8 +23346,11 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
 void
 Dbdict::trans_abort_prepare_done(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  jam();
   ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PREPARE);
-
+#ifdef VM_TRACE
+  ndbout_c("Dbdict::trans_abort_prepare_done");
+#endif
   /**
    * Now run abort parse
    */
@@ -22243,13 +23432,6 @@ Dbdict::trans_rollback_sp_next(Signal* signal,
 {
   trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
 
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = op_ptr.p->op_key;
-  req->requestInfo = SchemaTransImplReq::RT_ABORT_PARSE;
-  req->transId = trans_ptr.p->m_transId;
-
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
   nodes.bitANDC(trans_ptr.p->m_ref_nodes);
@@ -22261,6 +23443,36 @@ Dbdict::trans_rollback_sp_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6144))
+  {
+    jam();
+    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    if (!list.hasPrev(op_ptr))
+    {
+      /*
+        Simulate slave missing aborting parsing of last op
+      */
+      jam();
+      Uint32 nodeId = rand() % MAX_NDB_NODES;
+      while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+        nodeId = rand() % MAX_NDB_NODES;
+      
+      infoEvent("Simulating node %u missing RT_ABORT_PARSE", nodeId);
+      rg.m_nodes.clear(nodeId);
+      signal->theData[0] = 9999;
+      signal->theData[1] = ERROR_INSERT_VALUE;
+      CLEAR_ERROR_INSERT_VALUE;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                          5000, 2);
+    }
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = op_ptr.p->op_key;
+  req->requestInfo = SchemaTransImplReq::RT_ABORT_PARSE;
+  req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 
@@ -22285,20 +23497,48 @@ Dbdict::trans_rollback_sp_done(Signal* signal,
   trans_ptr.p->m_state = SchemaTrans::TS_STARTED;
 }
 
+void Dbdict::check_partial_trans_commit_start(SchemaTransPtr trans_ptr,
+                                              NdbNodeBitmask &nodes)
+{
+  jam();
+  NodeRecordPtr ownNodePtr;
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
+  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+  {
+    /*
+      A new master is in the process of commiting a
+      transaction taken over from the failed master.
+      Check if some slave have already flushed the commit.
+     */
+    jam();
+    for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      NodeRecordPtr nodePtr;
+      if (trans_ptr.p->m_nodes.get(i))
+      {
+        jam();
+        c_nodes.getPtr(nodePtr, i);
+        if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLFORWARD)
+        {
+          jam();
+#ifdef VM_TRACE
+          ndbout_c("Skip flushing commit on node %u", i);
+#endif
+          nodes.clear(i);
+          nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+        }
+      }
+    }
+  }
+}
+
 void
 Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
   trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_COMMIT;
 
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = RNIL;
-  req->requestInfo = SchemaTransImplReq::RT_FLUSH_COMMIT;
-  req->transId = trans_ptr.p->m_transId;
-
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
+  check_partial_trans_commit_start(trans_ptr, nodes);
   NodeReceiverGroup rg(DBDICT, nodes);
   {
     SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
@@ -22306,6 +23546,32 @@ Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6146))
+  {
+    jam();
+    /*
+      Simulate slave missing flushing commit
+    */
+    jam();
+    Uint32 nodeId = rand() % MAX_NDB_NODES;
+    while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+      nodeId = rand() % MAX_NDB_NODES;
+    
+    infoEvent("Simulating node %u missing RT_FLUSH_COMMIT", nodeId);
+    rg.m_nodes.clear(nodeId);
+    signal->theData[0] = 9999;
+    signal->theData[1] = ERROR_INSERT_VALUE;
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+			5000, 2);
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = RNIL;
+  req->requestInfo = SchemaTransImplReq::RT_FLUSH_COMMIT;
+  req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -22314,16 +23580,32 @@ void
 Dbdict::trans_commit_first(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
+#ifdef VM_TRACE
   ndbout_c("trans_commit");
+#endif
 
   trans_ptr.p->m_state = SchemaTrans::TS_COMMITTING;
 
-  Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
-  Callback c = { safe_cast(&Dbdict::trans_commit_mutex_locked), trans_ptr.i };
-
-  // Todo should alloc mutex on SCHEMA_BEGIN
-  bool ok = mutex.lock(c);
-  ndbrequire(ok);
+  NodeRecordPtr ownNodePtr;
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
+  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER &&
+      ownNodePtr.p->takeOverConf.trans_state >= SchemaTrans::TS_COMMITTING)
+  {
+    /*
+      Master take-over, new master already has lock.
+     */
+    jam();
+    trans_commit_mutex_locked(signal, trans_ptr.i, 0);
+  }
+  else
+  {
+    Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
+    Callback c = { safe_cast(&Dbdict::trans_commit_mutex_locked), trans_ptr.i };
+    
+    // Todo should alloc mutex on SCHEMA_BEGIN
+    bool ok = mutex.lock(c);
+    ndbrequire(ok);
+  }
 }
 
 void
@@ -22332,8 +23614,9 @@ Dbdict::trans_commit_mutex_locked(Signal* signal,
                                   Uint32 ret)
 {
   jamEntry();
+#ifdef VM_TRACE
   ndbout_c("trans_commit_mutex_locked");
-
+#endif
   SchemaTransPtr trans_ptr;
   c_schemaTransPool.getPtr(trans_ptr, transPtrI);
 
@@ -22350,21 +23633,110 @@ Dbdict::trans_commit_mutex_locked(Signal* signal,
   {
     jam();
     trans_commit_next(signal, trans_ptr, op_ptr);
+    if (ERROR_INSERTED(6014)) {
+      jam();
+      CRASH_INSERTION(6014);
+    }
   }
   else
   {
     jam();
     trans_commit_done(signal, trans_ptr);
+    if (ERROR_INSERTED(6015)) {
+      jam();
+      CRASH_INSERTION(6015);
+    }
   }
 }
 
+void Dbdict::check_partial_trans_commit_next(SchemaTransPtr trans_ptr,
+                                             NdbNodeBitmask &nodes,
+                                             SchemaOpPtr op_ptr)
+{
+  jam();
+  NodeRecordPtr ownNodePtr;
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
+  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER &&
+      trans_ptr.p->check_partial_rollforward)
+  {
+    /*
+      A new master is in the process of committing a
+      transaction taken over from the failed master.
+      Check if any nodes should be skipped because they
+      have already commited the operation
+    */
+    for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      NodeRecordPtr nodePtr;
+#ifdef VM_TRACE
+      ndbout_c("Node %u", i);
+#endif
+      if (trans_ptr.p->m_nodes.get(i))
+      {
+        c_nodes.getPtr(nodePtr, i);
+#ifdef VM_TRACE
+        ndbout_c("Checking node %u(%u), %u<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, op_ptr.p->op_key);
+#endif
+        if (nodePtr.p->recoveryState == NodeRecord::RS_PARTIAL_ROLLFORWARD &&
+            (nodePtr.p->start_op > op_ptr.p->op_key ||
+             nodePtr.p->start_op_state > op_ptr.p->m_state))
+        {
+#ifdef VM_TRACE
+          ndbout_c("Skipping commit of operation %u on node %u", op_ptr.p->op_key, i);
+#endif
+          nodes.clear(i);
+          nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
+        }
+      }
+    }
+    trans_ptr.p->check_partial_rollforward = false;
+  }
+  
+}
 void
 Dbdict::trans_commit_next(Signal* signal,
                           SchemaTransPtr trans_ptr,
                           SchemaOpPtr op_ptr)
 {
+  jam();
+#ifdef VM_TRACE
+  ndbout_c("Dbdict::trans_commit_next: op %u state %u", op_ptr.i,op_ptr.p->m_state); 
+#endif
   op_ptr.p->m_state = SchemaOp::OS_COMMITTING;
   trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
+
+  trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
+  NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
+  check_partial_trans_commit_next(trans_ptr, nodes, op_ptr);
+  NodeReceiverGroup rg(DBDICT, nodes);
+  {
+    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
+    ndbrequire(ok);
+  }
+
+  if (ERROR_INSERTED(6147))
+  {
+    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    if (!list.hasNext(op_ptr))
+    {
+      jam();
+      /*
+        Simulate slave missing committing last op
+      */
+      jam();
+      Uint32 nodeId = rand() % MAX_NDB_NODES;
+      while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+        nodeId = rand() % MAX_NDB_NODES;
+      
+      infoEvent("Simulating node %u missing RT_COMMIT", nodeId);
+      rg.m_nodes.clear(nodeId);
+      signal->theData[0] = 9999;
+      signal->theData[1] = ERROR_INSERT_VALUE;
+      CLEAR_ERROR_INSERT_VALUE;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                          5000, 2);
+    }
+  }
 
   SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
   req->senderRef = reference();
@@ -22373,17 +23745,30 @@ Dbdict::trans_commit_next(Signal* signal,
   req->requestInfo = SchemaTransImplReq::RT_COMMIT;
   req->transId = trans_ptr.p->m_transId;
 
-  trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
-  NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
-  NodeReceiverGroup rg(DBDICT, nodes);
+  if (rg.m_nodes.get(getOwnNodeId()))
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
-    bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
-    ndbrequire(ok);
-  }
+    /*
+      To ensure that slave participants register the commit
+      first we mask out the master node and send commit signal
+      to master last. This is necessary to handle master node
+      failure where one of the slaves take over and need to know
+      that transaction is to be committed.
+    */
+    rg.m_nodes.clear(getOwnNodeId());
 
-  sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
-             SchemaTransImplReq::SignalLength, JBB);
+    sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
+               SchemaTransImplReq::SignalLength, JBB);
+    sendSignal(reference(), GSN_SCHEMA_TRANS_IMPL_REQ, signal,
+               SchemaTransImplReq::SignalLength, JBB);
+  }
+  else
+  {
+    /*
+      New master had already committed operation
+     */
+    sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
+               SchemaTransImplReq::SignalLength, JBB);
+  }
 }
 
 void
@@ -22410,12 +23795,20 @@ Dbdict::trans_commit_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
   {
     jam();
     trans_commit_next(signal, trans_ptr, op_ptr);
+    if (ERROR_INSERTED(6014)) {
+      jam();
+      CRASH_INSERTION(6014);
+    }
     return;
   }
   else
   {
     jam();
     trans_commit_done(signal, trans_ptr);
+    if (ERROR_INSERTED(6015)) {
+      jam();
+      CRASH_INSERTION(6015);
+    }
   }
   return;
 }
@@ -22435,7 +23828,9 @@ Dbdict::trans_commit_mutex_unlocked(Signal* signal,
                                     Uint32 ret)
 {
   jamEntry();
+#ifdef VM_TRACE
   ndbout_c("trans_commit_mutex_unlocked");
+#endif
   SchemaTransPtr trans_ptr;
   c_schemaTransPool.getPtr(trans_ptr, transPtrI);
 
@@ -22450,19 +23845,55 @@ Dbdict::trans_commit_mutex_unlocked(Signal* signal,
 }
 
 void
+Dbdict::check_partial_trans_complete_start(SchemaTransPtr trans_ptr,
+                                   NdbNodeBitmask &nodes)
+{
+  jam();
+  NodeRecordPtr ownNodePtr;
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
+  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+  {
+    /*
+      A new master is in the process of committing a
+      transaction taken over from the failed master.
+      Check if any nodes should be skipped because they
+      have already completed the operation
+    */
+    for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      NodeRecordPtr nodePtr;
+#ifdef VM_TRACE      
+      ndbout_c("Node %u", i);
+#endif
+      if (trans_ptr.p->m_nodes.get(i))
+      {
+        c_nodes.getPtr(nodePtr, i);
+#ifdef VM_TRACE      
+        ndbout_c("Checking node %u(%u,%u)", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->takeOverConf.trans_state);
+#endif
+        if (nodePtr.p->takeOverConf.trans_state >= SchemaTrans::TS_FLUSH_COMPLETE)
+        {
+#ifdef VM_TRACE      
+          ndbout_c("Skipping TS_FLUSH_COMPLETE of node %u", i);
+#endif
+          nodes.clear(i);
+        }
+      }
+    }
+  }
+}
+
+void
 Dbdict::trans_complete_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  jam();
+#ifdef VM_TRACE
+  ndbout_c("trans_complete_start %u", trans_ptr.p->trans_key);
+#endif
   trans_ptr.p->m_state = SchemaTrans::TS_FLUSH_COMPLETE;
-
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = RNIL;
-  req->requestInfo = SchemaTransImplReq::RT_FLUSH_COMPLETE;
-  req->transId = trans_ptr.p->m_transId;
 
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
+  check_partial_trans_complete_start(trans_ptr, nodes);
   NodeReceiverGroup rg(DBDICT, nodes);
   {
     SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
@@ -22470,6 +23901,32 @@ Dbdict::trans_complete_start(Signal* signal, SchemaTransPtr trans_ptr)
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6148))
+  {
+    jam();
+    /*
+      Simulate slave missing flushing complete last op
+    */
+    jam();
+    Uint32 nodeId = rand() % MAX_NDB_NODES;
+    while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+      nodeId = rand() % MAX_NDB_NODES;
+    
+    infoEvent("Simulating node %u missing RT_FLUSH_COMPLETE", nodeId);
+    rg.m_nodes.clear(nodeId);
+    signal->theData[0] = 9999;
+    signal->theData[1] = ERROR_INSERT_VALUE;
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+			5000, 2);
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = RNIL;
+  req->requestInfo = SchemaTransImplReq::RT_FLUSH_COMPLETE;
+  req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);
 }
@@ -22506,13 +23963,6 @@ Dbdict::trans_complete_next(Signal* signal,
   op_ptr.p->m_state = SchemaOp::OS_COMPLETING;
   trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
   
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = op_ptr.p->op_key;
-  req->requestInfo = SchemaTransImplReq::RT_COMPLETE;
-  req->transId = trans_ptr.p->m_transId;
-
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
   NodeReceiverGroup rg(DBDICT, nodes);
@@ -22522,6 +23972,32 @@ Dbdict::trans_complete_next(Signal* signal,
     ndbrequire(ok);
   }
 
+  if (ERROR_INSERTED(6149))
+  {
+    jam();
+    /*
+      Simulate slave missing completing last op
+    */
+    jam();
+    Uint32 nodeId = rand() % MAX_NDB_NODES;
+    while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+      nodeId = rand() % MAX_NDB_NODES;
+    
+    infoEvent("Simulating node %u missing RT_COMPLETE", nodeId);
+    rg.m_nodes.clear(nodeId);
+    signal->theData[0] = 9999;
+    signal->theData[1] = ERROR_INSERT_VALUE;
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+			5000, 2);
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = op_ptr.p->op_key;
+  req->requestInfo = SchemaTransImplReq::RT_COMPLETE;
+  req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);  
 }
@@ -22570,15 +24046,10 @@ Dbdict::trans_complete_done(Signal* signal, SchemaTransPtr trans_ptr)
 void
 Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  NodeRecordPtr masterNodePtr;
+  c_nodes.getPtr(masterNodePtr, c_masterNodeId);
   ndbrequire(trans_ptr.p->m_state != SchemaTrans::TS_ENDING);
   trans_ptr.p->m_state = SchemaTrans::TS_ENDING;
-
-  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->transKey = trans_ptr.p->trans_key;
-  req->opKey = RNIL;
-  req->requestInfo = SchemaTransImplReq::RT_END;
-  req->transId = trans_ptr.p->m_transId;
 
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
@@ -22589,8 +24060,61 @@ Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
     ndbrequire(ok);
   }
   
+  if (ERROR_INSERTED(6150))
+  {
+    jam();
+    /*
+      Simulate slave missing ending transaction
+    */
+    jam();
+    Uint32 nodeId = rand() % MAX_NDB_NODES;
+    while(nodeId == c_masterNodeId || (!rg.m_nodes.get(nodeId)))
+      nodeId = rand() % MAX_NDB_NODES;
+    
+    infoEvent("Simulating node %u missing RT_END", nodeId);
+    rg.m_nodes.clear(nodeId);
+    signal->theData[0] = 9999;
+    signal->theData[1] = ERROR_INSERT_VALUE;
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+			5000, 2);
+  }
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = RNIL;
+  req->requestInfo = SchemaTransImplReq::RT_END;
+  req->transId = trans_ptr.p->m_transId;
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
              SchemaTransImplReq::SignalLength, JBB);  
+}
+
+void
+Dbdict::check_partial_trans_end_recv_reply(SchemaTransPtr trans_ptr)
+{
+  jam();
+  NodeRecordPtr ownNodePtr;
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
+  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER &&
+      trans_ptr.p->check_partial_rollforward &&
+      trans_ptr.p->ressurected_op)
+  {
+    /*
+      We created an operation in new master just to able to
+      complete operation on other slaves. We need to release
+      this ressurected operation explictely.
+     */
+    jam();
+    SchemaOpPtr op_ptr;
+    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    list.remove(op_ptr);
+#ifdef VM_TRACE
+    ndbout_c("Releasing ressurected op %u", op_ptr.p->op_key);
+#endif
+    releaseSchemaOp(op_ptr);
+    trans_ptr.p->check_partial_rollforward = false;
+  }
 }
 
 void
@@ -22601,9 +24125,174 @@ Dbdict::trans_end_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
   dict_lock_unlock(signal, &lockReq);
 
   sendTransClientReply(signal, trans_ptr);
-  
+  check_partial_trans_end_recv_reply(trans_ptr);
   releaseSchemaTrans(trans_ptr);
 }
+
+void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  ErrorInfo error;
+
+  jam();
+#ifdef VM_TRACE
+  ndbout_c("Dbdict::trans_recover trans %u, state %u", trans_ptr.p->trans_key, trans_ptr.p->m_state); 
+#endif
+
+  switch(trans_ptr.p->m_state) {
+  case SchemaTrans::TS_INITIAL:
+    jam();
+  case SchemaTrans::TS_STARTING:
+    jam();
+  case SchemaTrans::TS_STARTED:
+    jam();
+    if (trans_ptr.p->m_rollback_op == 0)
+    {
+      /*
+        No parsed operations found
+       */
+      jam();
+#ifdef VM_TRACE
+      ndbout_c("Dbdict::trans_recover: ENDING START, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
+#endif
+      setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
+      trans_end_start(signal, trans_ptr);
+      return;
+    }
+  case SchemaTrans::TS_PARSING:
+    jam();
+    setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
+    trans_abort_parse_start(signal, trans_ptr);
+    return;
+  case SchemaTrans::TS_ABORTING_PARSE:
+  {
+    jam();
+#ifdef VM_TRACE
+    ndbout_c("Dbdict::trans_recover: ABORTING_PARSE, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
+#endif
+    setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
+    SchemaOpPtr op_ptr;
+    c_schemaOpPool.getPtr(op_ptr, trans_ptr.p->m_curr_op_ptr_i);
+    // Revert operation state to restart abort
+    op_ptr.p->m_state = SchemaOp::OS_PREPARED;
+    trans_abort_parse_next(signal, trans_ptr, op_ptr);
+    return;
+  }
+  case SchemaTrans::TS_PREPARING:
+    jam();
+    if (trans_ptr.p->m_master_recovery_state == SchemaTrans::TRS_ROLLFORWARD)
+      goto flush_commit;
+    setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
+    trans_abort_prepare_start(signal, trans_ptr);
+    return;
+  case SchemaTrans::TS_ABORTING_PREPARE:
+  {
+    jam();
+#ifdef VM_TRACE
+    ndbout_c("Dbdict::trans_recover: ABORTING PREPARE, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
+#endif
+    setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
+    SchemaOpPtr op_ptr;
+    c_schemaOpPool.getPtr(op_ptr, trans_ptr.p->m_curr_op_ptr_i);
+    // Revert operation state to restart abort
+    op_ptr.p->m_state = SchemaOp::OS_PREPARED;
+    trans_abort_prepare_next(signal, trans_ptr, op_ptr);
+    return;
+  }
+  case SchemaTrans::TS_FLUSH_COMMIT:
+    flush_commit:
+    /* 
+       Flush commit any unflushed slaves
+    */
+    jam();
+    trans_commit_start(signal, trans_ptr);
+    return;
+  case SchemaTrans::TS_COMMITTING:
+  {
+    if (trans_ptr.p->m_highest_trans_state <= SchemaTrans::TS_COMMITTING)
+    {
+      jam();
+      /*
+        Commit any uncommited operations
+      */
+      jam();
+      SchemaOpPtr op_ptr;
+      c_schemaOpPool.getPtr(op_ptr, trans_ptr.p->m_curr_op_ptr_i);
+      if (op_ptr.p->m_state < SchemaOp::OS_COMMITTED)
+      {
+        jam();
+        trans_commit_next(signal, trans_ptr, op_ptr);
+        return;
+      }
+    }
+    /*
+      We have started flushing commits
+    */
+    jam();
+    NodeRecordPtr masterNodePtr;
+    c_nodes.getPtr(masterNodePtr, c_masterNodeId);
+    if (masterNodePtr.p->recoveryState
+        == NodeRecord::RS_PARTIAL_ROLLFORWARD)
+    {
+      /*
+        New master has flushed commit and
+        thus have released commit mutex
+      */
+      jam();
+      trans_commit_mutex_unlocked(signal, trans_ptr.i, 0);
+      return;
+    }
+    else
+    {
+      /*
+        New master has not flushed commit and
+        thus have to release commit mutex
+      */
+      jam();
+      trans_commit_done(signal, trans_ptr);
+      return;
+    }
+  }
+  case SchemaTrans::TS_FLUSH_COMPLETE:
+    jam();
+#ifdef VM_TRACE
+    ndbout_c("Dbdict::trans_recover: COMMITTING DONE, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
+#endif
+    trans_complete_done(signal, trans_ptr);
+    return;
+  case SchemaTrans::TS_COMPLETING:
+  {
+    /*
+      Complete any uncommited operations
+    */
+    jam();
+#ifdef VM_TRACE
+    ndbout_c("Dbdict::trans_recover: COMPLETING, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
+#endif
+    SchemaOpPtr op_ptr;
+    c_schemaOpPool.getPtr(op_ptr, trans_ptr.p->m_curr_op_ptr_i);
+    if (op_ptr.p->m_state < SchemaOp::OS_COMPLETED)
+    {
+      jam();
+      trans_complete_next(signal, trans_ptr, op_ptr);
+      return;
+    }
+  }
+  case SchemaTrans::TS_ENDING:
+    /*
+      End any pending slaves
+     */
+    jam();
+#ifdef VM_TRACE
+    ndbout_c("Dbdict::trans_recover: ENDING, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
+#endif
+    trans_end_start(signal, trans_ptr);
+    return;
+  default:
+    jam();
+  }
+  ndbassert(false);
+}
+
 
 // participant
 
@@ -22619,8 +24308,8 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
   SchemaTransImplReq reqCopy =
     *(const SchemaTransImplReq*)signal->getDataPtr();
   const SchemaTransImplReq *req = &reqCopy;
-
   const Uint32 rt = DictSignal::getRequestType(req->requestInfo);
+
   if (rt == SchemaTransImplReq::RT_START)
   {
     jam();
@@ -22637,6 +24326,46 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     setError(error, SchemaTransImplRef::InvalidTransKey, __LINE__);
     goto err;
   }
+
+#ifndef DBUG_OFF
+  char buf[256];
+  switch(rt) {
+  case(SchemaTransImplReq::RT_START):
+    sprintf(buf, " RequestType: RT_START");
+    break;
+  case(SchemaTransImplReq::RT_PARSE):
+    sprintf(buf, " RequestType: RT_PARSE");
+    break;
+  case(SchemaTransImplReq::RT_FLUSH_PREPARE):
+    sprintf(buf, " RequestType: RT_FLUSH_PREPARE");
+    break;
+  case(SchemaTransImplReq::RT_PREPARE):
+    sprintf(buf, " RequestType: RT_PREPARE");
+    break;
+  case(SchemaTransImplReq::RT_ABORT_PARSE):
+    sprintf(buf, " RequestType: RT_ABORT_PARSE");
+    break;
+  case(SchemaTransImplReq::RT_ABORT_PREPARE):
+    sprintf(buf, " RequestType: RT_ABORT_PREPARE");
+    break;
+  case(SchemaTransImplReq::RT_FLUSH_COMMIT):
+    sprintf(buf, " RequestType: RT_FLUSH_COMMIT");
+    break;
+  case(SchemaTransImplReq::RT_COMMIT):
+    sprintf(buf, " RequestType: RT_COMMIT");
+    break;
+  case(SchemaTransImplReq::RT_FLUSH_COMPLETE):
+    sprintf(buf, " RequestType: RT_FLUSH_COMPLETE");
+    break;
+  case(SchemaTransImplReq::RT_COMPLETE):
+    sprintf(buf, " RequestType: RT_COMPLETE");
+    break;
+  case(SchemaTransImplReq::RT_END):
+    sprintf(buf, " RequestType: RT_END");
+    break;
+  }
+  infoEvent("Dbdict::execSCHEMA_TRANS_IMPL_REQ: %s", buf);
+#endif
 
   /**
    * Check *transaction* request
@@ -22689,6 +24418,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
       trans_log_schema_op_abort(op_ptr);
       if (!trans_ptr.p->m_isMaster)
       {
+        trans_ptr.p->m_state = SchemaTrans::TS_ABORTING_PARSE;
         /**
          * Remove op (except at coordinator
          */
@@ -22701,6 +24431,8 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
       jam();
       op_ptr.p->m_state = SchemaOp::OS_ABORTING_PREPARE;
       (this->*(info.m_abortPrepare))(signal, op_ptr);
+      if (!trans_ptr.p->m_isMaster)
+        trans_ptr.p->m_state = SchemaTrans::TS_ABORTING_PREPARE;
       return;
     case SchemaTransImplReq::RT_COMMIT:
       jam();
@@ -22958,13 +24690,26 @@ Dbdict::slave_writeSchema_conf(Signal* signal,
       trans_ptr.p->m_state = SchemaTrans::TS_PREPARING;
       break;
     case SchemaTrans::TS_FLUSH_COMMIT:
+    {
       jam();
       trans_ptr.p->m_state = SchemaTrans::TS_COMMITTING;
-      break;
+      // Take commit lock
+      Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
+      Callback c = { safe_cast(&Dbdict::slave_commit_mutex_locked), trans_ptr.i };
+      bool ok = mutex.lock(c);
+      ndbrequire(ok);
+      return;
+    }
     case SchemaTrans::TS_FLUSH_COMPLETE:
+    {
       jam();
       trans_ptr.p->m_state = SchemaTrans::TS_COMPLETING;
-      break;
+     // Release commit lock
+      Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
+      Callback c = { safe_cast(&Dbdict::slave_commit_mutex_unlocked), trans_ptr.i };
+      mutex.unlock(c);
+      return;
+    }
     case SchemaTrans::TS_ENDING:
       jam();
       release = true;
@@ -22974,9 +24719,51 @@ Dbdict::slave_writeSchema_conf(Signal* signal,
       ndbrequire(false);
     }
   }
+
+  sendTransConfRelease(signal, trans_ptr);
+}
+
+void
+Dbdict::slave_commit_mutex_locked(Signal* signal,
+                                  Uint32 transPtrI,
+                                  Uint32 ret)
+{
+  jamEntry();
+#ifdef VM_TRACE
+  ndbout_c("slave_commit_mutex_locked");
+#endif
+  SchemaTransPtr trans_ptr;
+  c_schemaTransPool.getPtr(trans_ptr, transPtrI);
+
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_COMMITTING);
+  sendTransConfRelease(signal, trans_ptr);  
+}
+
+void
+Dbdict::slave_commit_mutex_unlocked(Signal* signal,
+                                    Uint32 transPtrI,
+                                    Uint32 ret)
+{
+  jamEntry();
+#ifdef VM_TRACE
+  ndbout_c("slave_commit_mutex_unlocked");
+#endif
+  SchemaTransPtr trans_ptr;
+  c_schemaTransPool.getPtr(trans_ptr, transPtrI);
+
+  trans_ptr.p->m_commit_mutex.release(c_mutexMgr);
+
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_COMPLETING);
+  sendTransConfRelease(signal, trans_ptr);  
+}
+
+void Dbdict::sendTransConfRelease(Signal*signal, SchemaTransPtr trans_ptr)
+{
+  jam();
   sendTransConf(signal, trans_ptr);
 
-  if (release)
+  if ((!trans_ptr.p->m_isMaster) &&
+      trans_ptr.p->m_state == SchemaTrans::TS_ENDING)
   {
     jam();
     releaseSchemaTrans(trans_ptr);
@@ -23260,6 +25047,10 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
 
   Uint32 receiverRef = 0;
   Uint32 transId = 0;
+  NodeRecordPtr ownNodePtr;
+
+  c_nodes.getPtr(ownNodePtr, getOwnNodeId());
+
   if (!(clientFlags & TransClient::TakeOver)) {
     receiverRef = trans_ptr.p->m_clientRef;
     transId = trans_ptr.p->m_transId;
@@ -23310,15 +25101,60 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
       ref->senderRef = reference();
       ref->transId = transId;
       getError(trans_ptr.p->m_error, ref);
+      ref->masterNodeId = c_masterNodeId;
+
       sendSignal(receiverRef, GSN_SCHEMA_TRANS_END_REF, signal,
                  SchemaTransEndRef::SignalLength, JBB);
     }
     resetError(trans_ptr);
     trans_ptr.p->m_clientState = TransClient::EndReply;
+    if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+    {
+      /*
+        New master was taking over transaction
+       */
+      jam();
+      goto send_node_fail_rep;
+    }
     return;
   }
 
-  ndbrequire(false);
+  if (ownNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+  {
+    /*
+      New master was taking over transaction
+      Report transaction outcome to client
+     */
+    jam();
+    {
+      SchemaTransEndRep* rep =
+        (SchemaTransEndRep*)signal->getDataPtrSend();
+      rep->senderRef = reference();
+      rep->transId = transId;
+      if (hasError(trans_ptr.p->m_error))
+        getError(trans_ptr.p->m_error, rep);
+      else
+      {
+        rep->errorCode = 0;
+        rep->errorLine = 0;
+        rep->errorNodeId = 0;
+      }
+      rep->masterNodeId = c_masterNodeId;
+#ifdef VM_TRACE
+      ndbout_c("Dbdict::sendTransClientReply: sending GSN_SCHEMA_TRANS_END_REP to 0x%8x", receiverRef);
+#endif
+      sendSignal(receiverRef, GSN_SCHEMA_TRANS_END_REP, signal,
+                 SchemaTransEndRep::SignalLength, JBB);
+    }
+send_node_fail_rep:
+    /*
+      Continue with NODE_FAILREP
+    */
+    NodeFailRep * const nodeFailRep = (NodeFailRep *)&signal->theData[0];
+    *nodeFailRep = ownNodePtr.p->nodeFailRep;
+    ownNodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE;
+    send_nf_complete_rep(signal);
+  }
 }
 
 
@@ -23481,6 +25317,22 @@ Dbdict::execSCHEMA_TRANS_END_REF(Signal* signal)
   setError(tx_ptr.p->m_error, ref);
   ndbrequire(ref->errorCode != 0);
   execute(signal, tx_ptr.p->m_callback, ref->errorCode);
+}
+
+void
+Dbdict::execSCHEMA_TRANS_END_REP(Signal* signal)
+{
+  jamEntry();
+  const SchemaTransEndRep* rep =
+    (const SchemaTransEndRep*)signal->getDataPtr();
+
+  TxHandlePtr tx_ptr;
+  findTxHandle(tx_ptr, rep->transId);
+  ndbrequire(!tx_ptr.isNull());
+
+  if (rep->errorCode != 0)
+    setError(tx_ptr.p->m_error, rep);
+  execute(signal, tx_ptr.p->m_callback, rep->errorCode);
 }
 
 // trans client takeover

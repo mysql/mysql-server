@@ -2021,6 +2021,9 @@ NdbDictInterface::execSignal(void* dictImpl,
   case GSN_SCHEMA_TRANS_END_REF:
     tmp->execSCHEMA_TRANS_END_REF(signal, ptr);
     break;
+  case GSN_SCHEMA_TRANS_END_REP:
+    tmp->execSCHEMA_TRANS_END_REP(signal, ptr);
+    break;
   case GSN_WAIT_GCP_CONF:
     tmp->execWAIT_GCP_CONF(signal, ptr);
     break;
@@ -7451,11 +7454,32 @@ NdbDictionaryImpl::endSchemaTrans(Uint32 flags)
   if (! m_tx.m_transOn) {
     DBUG_RETURN(0);
   }
+  /*
+    Check if schema transaction has been aborted
+    already, for example because of master node failure.
+   */
+  if (m_error.code == 787)
+  {
+    if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
+    {
+      m_error.code = 0;
+      DBUG_RETURN(0);
+    }
+    DBUG_RETURN(-1);
+  }
   DBUG_PRINT("info", ("transId: %x transKey: %x",
                       m_tx.m_transId, m_tx.m_transKey));
   int ret = m_receiver.endSchemaTrans(flags);
   m_tx.m_transOn = false;
   if (ret == -1) {
+    if (m_error.code == 787)
+    {
+      if (flags & NdbDictionary::Dictionary::SchemaTransAbort)
+      {
+        m_error.code = 0;
+        DBUG_RETURN(0);
+      }
+    }
     DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
@@ -7571,6 +7595,17 @@ NdbDictInterface::execSCHEMA_TRANS_END_REF(NdbApiSignal * signal,
     CAST_CONSTPTR(SchemaTransEndRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
+  m_waiter.signal(NO_WAIT);
+}
+
+void
+NdbDictInterface::execSCHEMA_TRANS_END_REP(NdbApiSignal * signal,
+                                           LinearSectionPtr ptr[3])
+{
+  const SchemaTransEndRep* rep =
+    CAST_CONSTPTR(SchemaTransEndRep, signal->getDataPtr());
+  m_error.code = rep->errorCode;
+  m_masterNodeId = rep->masterNodeId;
   m_waiter.signal(NO_WAIT);
 }
 
