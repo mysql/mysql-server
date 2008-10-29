@@ -74,9 +74,16 @@ private:
   handler **m_added_file;               // Added parts kept for errors
   partition_info *m_part_info;          // local reference to partition
   Field **m_part_field_array;           // Part field array locally to save acc
-  uchar *m_ordered_rec_buffer;           // Row and key buffer for ord. idx scan
-  KEY *m_curr_key_info;                 // Current index
-  uchar *m_rec0;                         // table->record[0]
+  uchar *m_ordered_rec_buffer;          // Row and key buffer for ord. idx scan
+  /*
+    Current index.
+    When used in key_rec_cmp: If clustered pk, index compare
+    must compare pk if given index is same for two rows.
+    So normally m_curr_key_info[0]= current index and m_curr_key[1]= NULL,
+    and if clustered pk, [0]= current index, [1]= pk, [2]= NULL
+  */
+  KEY *m_curr_key_info[3];              // Current index
+  uchar *m_rec0;                        // table->record[0]
   QUEUE m_queue;                        // Prio queue used by sorted read
   /*
     Since the partition handler is a handler on top of other handlers, it
