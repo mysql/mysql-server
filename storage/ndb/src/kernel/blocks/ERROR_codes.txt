@@ -4,7 +4,7 @@ Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5051
-Next DBDICT 6008
+Next DBDICT 6013
 Next DBDIH 7215
 Next DBTC 8064
 Next CMVMI 9000
@@ -551,6 +551,19 @@ CTa = create table, ATr = alter trigger, and so on
 #6135: Fail prepare (err=9135) in ATr
 #6136: Fail prepare (err=9136) in BIn
 
+# Master failure, partial progress 
+6140: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_START
+6141: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_PARSE
+6142: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_FLUSH_PREPARE
+6143: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_PREPARE
+6144: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_ABORT_PARSE
+6145: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_ABORT_PREPARE
+6146: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_FLUSH_COMMIT
+6147: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_COMMIT
+6148: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_FLUSH_COMPLETE
+6149: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_COMPLETE
+6150: Tell master to skip last SCHEMA_TRANS_IMPL_REQ at RT_END
+
 System Restart:
 ---------------
 
@@ -589,6 +602,11 @@ Dbdict:
 6004 Crash in participant @ CreateTabReq::Commit
 6005 Crash in participant @ CreateTabReq::CreateDrop
 6007 Fail on readTableFile for READ_TAB_FILE1 (28770)
+6012 Bump up next table id to 4096
+6013 Master failure during prepare
+6014 Master failure during commit
+6015 Master failure after commit
+
 
 6200 Set error code after handleTabInfoInit in master
 6201 Set error code after handleTabInfoInit in master (index)

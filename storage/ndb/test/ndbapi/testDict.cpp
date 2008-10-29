@@ -29,6 +29,30 @@
 #include <NdbEnv.h>
 #include <ndb_rand.h>
 
+#define ERR_INSERT_MASTER_FAILURE1 6013
+#define ERR_INSERT_MASTER_FAILURE2 6014
+#define ERR_INSERT_MASTER_FAILURE3 6015
+
+#define ERR_INSERT_PARTIAL_START_FAIL 6140
+#define ERR_INSERT_PARTIAL_PARSE_FAIL 6141
+#define ERR_INSERT_PARTIAL_FLUSH_PREPARE_FAIL 6142
+#define ERR_INSERT_PARTIAL_PREPARE_FAIL 6143
+#define ERR_INSERT_PARTIAL_ABORT_PARSE_FAIL 6144
+#define ERR_INSERT_PARTIAL_ABORT_PREPARE_FAIL 6145
+#define ERR_INSERT_PARTIAL_FLUSH_COMMIT_FAIL 6146
+#define ERR_INSERT_PARTIAL_COMMIT_FAIL 6147
+#define ERR_INSERT_PARTIAL_FLUSH_COMPLETE_FAIL 6148
+#define ERR_INSERT_PARTIAL_COMPLETE_FAIL 6149
+#define ERR_INSERT_PARTIAL_END_FAIL 6150
+
+#define FAIL_BEGIN 0
+#define FAIL_CREATE 1
+#define FAIL_END 2
+#define SUCCEED_COMMIT 3
+#define SUCCEED_ABORT 4
+
+#define ndb_master_failure 1
+
 char f_tablename[256];
  
 #define CHECK(b) if (!(b)) { \
@@ -4603,6 +4627,9 @@ err:
 // subroutines
 
 static const uint
+ST_CommitFlag = 0;
+
+static const uint
 ST_AbortFlag = NdbDictionary::Dictionary::SchemaTransAbort;
 
 static const uint
@@ -4675,6 +4702,41 @@ st_end_trans(ST_Con& c, uint flags)
   c.tx_on = false;
   c.tx_commit = !(flags & ST_AbortFlag);
   st_set_commit_all(c);
+  return 0;
+err:
+  return -1;
+}
+
+static int
+st_end_trans_aborted(ST_Con& c, uint flags)
+{
+  g_info << "end trans flags:" << hex << flags << endl;
+  if (flags & ST_AbortFlag)
+    chk1(c.dic->endSchemaTrans(flags) == 0);
+  else
+    chk1(c.dic->endSchemaTrans(flags) != 0);
+  c.tx_on = false;
+  c.tx_commit = (flags & ST_AbortFlag);
+  return 0;
+err:
+  return -1;
+}
+
+static int
+st_end_trans(ST_Con& c, ST_Errins errins, uint flags)
+{
+  chk1(st_do_errins(c, errins) == 0);
+  chk1(st_end_trans(c, flags) == 0);
+  return 0;
+err:
+  return -1;
+}
+
+static int
+st_end_trans_aborted(ST_Con& c, ST_Errins errins, uint flags)
+{
+  chk1(st_do_errins(c, errins) == 0);
+  chk1(st_end_trans_aborted(c, flags) == 0);
   return 0;
 err:
   return -1;
@@ -4866,8 +4928,26 @@ err:
 // error insert values
 
 static const ST_Errins
-st_errins_trans[] = {
+st_errins_begin_trans[] = {
   ST_Errins(6101, 780),
+  ST_Errins()
+};
+
+static const ST_Errins
+st_errins_end_trans1[] = {
+  ST_Errins(ERR_INSERT_MASTER_FAILURE1, 0, 1),
+  ST_Errins()
+};
+
+static const ST_Errins
+st_errins_end_trans2[] = {
+  ST_Errins(ERR_INSERT_MASTER_FAILURE2, 0, 1),
+  ST_Errins()
+};
+
+static const ST_Errins
+st_errins_end_trans3[] = {
+  ST_Errins(ERR_INSERT_MASTER_FAILURE3, 0, 1),
   ST_Errins()
 };
 
@@ -5329,7 +5409,7 @@ static int
 st_test_trans(ST_Con& c, int arg = -1)
 {
   if ((arg & ST_AllowErrins) && randomly(2, 3)) {
-    ST_Errins errins = st_get_errins(c, st_errins_trans);
+    ST_Errins errins = st_get_errins(c, st_errins_begin_trans);
     chk1(st_begin_trans(c, errins) == 0);
   } else {
     chk1(st_begin_trans(c) == 0);
@@ -5728,12 +5808,358 @@ err:
 static int
 st_test_mnf_parse(ST_Con& c, int arg = -1)
 {
-  g_info << "not yet" << endl;
+  const NdbDictionary::Table* pTab;
+  bool do_abort = (arg == 1);
+  chk1(st_begin_trans(c) == 0);
+  int node_id;
+  node_id = -1;
+  int i;
+  int midcount;
+  midcount = c.tabcount / 2;
+
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    chk1(st_create_table_index(c, tab) == 0);
+    if (i == midcount) {
+      assert(c.numdbnodes > 1);
+      node_id = c.restarter->getMasterNodeId();
+      g_info << "restart node " << node_id << " (async)" << endl;
+      int flags = 0;
+      chk1(c.restarter->restartOneDbNode2(node_id, flags) == 0);
+      chk1(c.restarter->waitNodesNoStart(&node_id, 1) == 0);
+      chk1(c.restarter->startNodes(&node_id, 1) == 0);
+      break;
+    }
+  }
+  if (!do_abort)
+    chk1(st_end_trans_aborted(c, ST_CommitFlag) == 0);
+  else
+    chk1(st_end_trans_aborted(c, ST_AbortFlag) == 0);
+
+  g_info << "wait for node " << node_id << " to come up" << endl;
+  chk1(c.restarter->waitClusterStarted() == 0);
+  g_info << "verify all" << endl;
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    // Verify that table is not in db
+    c.dic->invalidateTable(tab.name);
+    pTab =
+      NDBT_Table::discoverTableFromDb(c.ndb, tab.name);
+    chk1(pTab == NULL);
+  }
+/*
+  chk1(st_verify_all(c) == 0);
+*/
   return NDBT_OK;
-#if 0
 err:
   return NDBT_FAILED;
-#endif
+}
+
+static int
+st_test_mnf_prepare(ST_Con& c, int arg = -1)
+{
+  NdbRestarter restarter;
+  int master = restarter.getMasterNodeId();
+  ST_Errins errins = st_get_errins(c, st_errins_end_trans1);
+  int i;
+
+  chk1(st_begin_trans(c) == 0);
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    chk1(st_create_table_index(c, tab) == 0);
+  }
+  if (arg == 1)
+  {
+    chk1(st_end_trans_aborted(c, errins, ST_BackgroundFlag) == 0);
+    chk1(st_wait_idle(c) == 0);
+  }
+  else
+    chk1(st_end_trans_aborted(c, errins, ST_CommitFlag) == 0);
+  st_wait_db_node_up(c, master);
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    chk1(st_verify_table(c, tab) == -1);
+  }
+  return NDBT_OK;
+err:
+  return NDBT_FAILED;
+}
+
+static int
+st_test_mnf_commit1(ST_Con& c, int arg = -1)
+{
+  NdbRestarter restarter;
+  int master = restarter.getMasterNodeId();
+  ST_Errins errins = st_get_errins(c, st_errins_end_trans2);
+  int i;
+
+  chk1(st_begin_trans(c) == 0);
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    chk1(st_create_table_index(c, tab) == 0);
+  }
+  if (arg == 1)
+  {
+    chk1(st_end_trans(c, errins, ST_BackgroundFlag) == 0);
+    chk1(st_wait_idle(c) == 0);
+  }
+  else
+    chk1(st_end_trans(c, errins, ST_CommitFlag) == 0);
+  st_wait_db_node_up(c, master);
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    chk1(st_verify_table(c, tab) == 0);
+  }
+  chk1(st_drop_test_tables(c) == 0);  
+  return NDBT_OK;
+err:
+  return NDBT_FAILED;
+}
+
+static int
+st_test_mnf_commit2(ST_Con& c, int arg = -1)
+{
+  NdbRestarter restarter;
+  int master = restarter.getMasterNodeId();
+  ST_Errins errins = st_get_errins(c, st_errins_end_trans3);
+  int i;
+
+  chk1(st_begin_trans(c) == 0);
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    chk1(st_create_table_index(c, tab) == 0);
+  }
+  if (arg == 1)
+  {
+    chk1(st_end_trans(c, errins, ST_BackgroundFlag) == 0);
+    chk1(st_wait_idle(c) == 0);
+  }
+  else
+    chk1(st_end_trans(c, errins, ST_CommitFlag) == 0);
+  st_wait_db_node_up(c, master);
+  chk1(st_verify_all(c) == 0);
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    chk1(st_load_table(c, tab) == 0);
+  }
+  chk1(st_drop_test_tables(c) == 0);  
+  return NDBT_OK;
+err:
+  return NDBT_FAILED;
+}
+
+static int
+st_test_mnf_run_commit(ST_Con& c, int arg = -1)
+{
+  const NdbDictionary::Table* pTab;
+  NdbRestarter restarter;
+  int master = restarter.getMasterNodeId();
+  int i;
+
+  if (arg == FAIL_BEGIN)
+  {
+    // No transaction to be found if only one node left
+    if (restarter.getNumDbNodes() < 3)
+      return NDBT_OK;
+    chk1(st_begin_trans(c) == -1);
+    goto verify;
+  }
+  else
+    chk1(st_begin_trans(c) == 0);
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    if (arg == FAIL_CREATE)
+    {
+      chk1(st_create_table_index(c, tab) == -1);
+      goto verify;
+    }
+    else
+      chk1(st_create_table_index(c, tab) == 0);
+  }
+  if (arg == FAIL_END)
+  {
+    chk1(st_end_trans(c, ST_CommitFlag) == -1);
+  }
+  else // if (arg == SUCCEED_COMMIT)
+    chk1(st_end_trans(c, ST_CommitFlag) == 0);
+
+verify:
+  g_info << "wait for master node to come up" << endl;
+  st_wait_db_node_up(c, master);
+  g_info << "verify all" << endl;
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    switch (arg) {
+    case FAIL_BEGIN:
+    case FAIL_CREATE:
+    case FAIL_END:
+    {
+      // Verify that table is not in db
+      c.dic->invalidateTable(tab.name);
+      pTab =
+        NDBT_Table::discoverTableFromDb(c.ndb, tab.name);
+      chk1(pTab == NULL);
+      break;
+    }
+    default:
+      chk1(st_verify_table(c, tab) == 0);
+    }
+  }
+
+  return NDBT_OK;
+err:
+  return NDBT_FAILED;
+}
+
+static int
+st_test_mnf_run_abort(ST_Con& c, int arg = -1)
+{
+  NdbRestarter restarter;
+  int master = restarter.getMasterNodeId();
+  const NdbDictionary::Table* pTab;
+  bool do_abort = (arg == SUCCEED_ABORT);
+  int i;
+
+  chk1(st_begin_trans(c) == 0);
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    chk1(st_create_table_index(c, tab) == 0);
+  }
+  if (!do_abort)
+    chk1(st_end_trans(c, ST_CommitFlag) == -1);
+  else
+    chk1(st_end_trans_aborted(c, ST_AbortFlag) == 0);
+
+  g_info << "wait for master node to come up" << endl;
+  st_wait_db_node_up(c, master);
+  g_info << "verify all" << endl;
+  for (i = 0; i < c.tabcount; i++) {
+    ST_Tab& tab = c.tab(i);
+    // Verify that table is not in db
+    c.dic->invalidateTable(tab.name);
+    pTab =
+      NDBT_Table::discoverTableFromDb(c.ndb, tab.name);
+    chk1(pTab == NULL);
+  }
+
+  return NDBT_OK;
+err:
+  return NDBT_FAILED;
+}
+
+static int
+st_test_mnf_start_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_START_FAIL, 0, 1); // slave skips start
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_commit(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_parse_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_PARSE_FAIL, 0, 1); // slave skips parse
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_commit(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_flush_prepare_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_FLUSH_PREPARE_FAIL, 0, 1); // slave skips flush prepare
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_commit(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_prepare_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_PREPARE_FAIL, 0, 1); // slave skips prepare
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_commit(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_abort_parse_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_ABORT_PARSE_FAIL, 0, 1); // slave skips abort parse
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_abort(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_abort_prepare_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_ABORT_PREPARE_FAIL, 0, 1); // slave skips abort prepare
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_abort(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_flush_commit_partial(ST_Con& c, int arg = -1)
+{
+  NdbRestarter restarter;
+  ST_Errins errins(ERR_INSERT_PARTIAL_FLUSH_COMMIT_FAIL, 0, 1); // slave skips flush commit
+  chk1(st_do_errins(c, errins) == 0);
+  if (restarter.getNumDbNodes() < 3)
+    // If new master is only node and it hasn't flush commit, we abort
+    return st_test_mnf_run_commit(c, FAIL_END);
+  else
+    return st_test_mnf_run_commit(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_commit_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_COMMIT_FAIL, 0, 1); // slave skips commit
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_commit(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_flush_complete_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_FLUSH_COMPLETE_FAIL, 0, 1); // slave skips flush complete
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_commit(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_complete_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_COMPLETE_FAIL, 0, 1); // slave skips complete
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_commit(c, arg);
+err:
+  return -1;
+}
+
+static int
+st_test_mnf_end_partial(ST_Con& c, int arg = -1)
+{
+  ST_Errins errins(ERR_INSERT_PARTIAL_END_FAIL, 0, 1); // slave skips end
+  chk1(st_do_errins(c, errins) == 0);
+  return st_test_mnf_run_commit(c, arg);
+err:
+  return -1;
 }
 
 static int
@@ -5761,6 +6187,15 @@ st_test_sr_parse(ST_Con& c, int arg = -1)
   chk1(c.restarter->waitClusterStarted() == 0);
   g_info << "verify all" << endl;
   chk1(st_verify_all(c) == 0);
+  return NDBT_OK;
+err:
+  return NDBT_FAILED;
+}
+
+static int
+st_test_sr_commit(ST_Con& c, int arg = -1)
+{
+  g_info << "not yet" << endl;
   return NDBT_OK;
 err:
   return NDBT_FAILED;
@@ -5916,20 +6351,72 @@ st_test_list[] = {
   { "v2", 2, 1,
     func(st_test_snf_parse),
     "slave node fail in parse phase, abort" },
-#ifdef ndb_notyet
-  { "w1", 2, 0,
-    func(st_test_mnf_parse),
-    "master node fail in parse phase, commit" },
-  { "w2", 2, 1,
-    func(st_test_mnf_parse),
-    "master node fail in parse phase, abort" },
-#endif
-  { "x1", 1, 0,
+  { "w1", 1, 0,
     func(st_test_sr_parse),
     "system restart in parse phase, commit" },
-  { "x2", 1, 1,
+  { "w2", 1, 1,
     func(st_test_sr_parse),
-    "system restart in parse phase, abort" }
+    "system restart in parse phase, abort" },
+#ifdef ndb_master_failure
+  { "x1", 2, 0,
+    func(st_test_mnf_parse),
+    "master node fail in parse phase, commit" },
+  { "x2", 2, 1,
+    func(st_test_mnf_parse),
+    "master node fail in parse phase, abort" },
+  { "x3", 2, 0,
+    func(st_test_mnf_prepare),
+    "master node fail in prepare phase" },
+  { "x4", 2, 0,
+    func(st_test_mnf_commit1),
+    "master node fail in start of commit phase" },
+  { "x5", 2, 0,
+    func(st_test_mnf_commit2),
+    "master node fail in end of commit phase" },
+  { "y1", 2, FAIL_BEGIN,
+    func(st_test_mnf_start_partial),
+    "master node fail in start phase, partial rollback" },
+  { "y2", 2, FAIL_CREATE,
+    func(st_test_mnf_parse_partial),
+    "master node fail in parse phase, partial rollback" },
+  { "y3", 2, FAIL_END,
+    func(st_test_mnf_flush_prepare_partial),
+    "master node fail in flush prepare phase, partial rollback" },
+  { "y4", 2, FAIL_END,
+    func(st_test_mnf_prepare_partial),
+    "master node fail in prepare phase, partial rollback" },
+  { "y5", 2, SUCCEED_COMMIT,
+    func(st_test_mnf_flush_commit_partial),
+    "master node fail in flush commit phase, partial rollback" },
+  { "y6", 2, SUCCEED_COMMIT,
+    func(st_test_mnf_commit_partial),
+    "master node fail in commit phase, commit, partial rollforward" },
+  { "y7", 2, SUCCEED_COMMIT,
+    func(st_test_mnf_flush_complete_partial),
+    "master node fail in flush complete phase, commit, partial rollforward" },
+  { "y8", 2, SUCCEED_COMMIT,
+    func(st_test_mnf_complete_partial),
+    "master node fail in complete phase, commit, partial rollforward" },
+  { "y9", 2, SUCCEED_COMMIT,
+    func(st_test_mnf_end_partial),
+    "master node fail in end phase, commit, partial rollforward" },
+  { "z1", 2, SUCCEED_ABORT,
+    func(st_test_mnf_abort_parse_partial),
+    "master node fail in abort parse phase, partial rollback" },
+  { "z2", 2, FAIL_END,
+    func(st_test_mnf_abort_prepare_partial),
+    "master node fail in abort prepare phase, partial rollback" },
+  { "z3", 2, 1,
+    func(st_test_mnf_prepare),
+    "master node fail in prepare phase in background" },
+  { "z4", 2, 1,
+    func(st_test_mnf_commit1),
+    "master node fail in start of commit phase in background" },
+  { "z5", 2, 1,
+    func(st_test_mnf_commit2),
+    "master node fail in end of commit phase in background" },
+
+#endif
 #undef func
 };
 
@@ -5977,7 +6464,7 @@ st_test(ST_Con& c, const ST_Test& test)
 
   chk1((*test.func)(c, test.arg) == NDBT_OK);
   chk1(st_check_db_nodes(c) == 0);
-  chk1(st_verify_list(c) == 0);
+  //chk1(st_verify_list(c) == 0);
 
   return NDBT_OK;
 err:
