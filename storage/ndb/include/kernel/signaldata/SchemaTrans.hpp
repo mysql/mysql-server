@@ -93,4 +93,18 @@ struct SchemaTransEndRef {
   Uint32 masterNodeId;
 };
 
+struct SchemaTransEndRep {
+  enum ErrorCode {
+    NoError = 0,
+    TransAborted = 787
+  };
+  STATIC_CONST( SignalLength = 6 );
+  Uint32 senderRef;
+  Uint32 transId;
+  Uint32 errorCode;
+  Uint32 errorLine;
+  Uint32 errorNodeId;
+  Uint32 masterNodeId;
+};
+
 #endif

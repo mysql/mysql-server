@@ -113,6 +113,8 @@
 #define ERROR_INSERT_VARIABLE UintR cerrorInsert, c_error_insert_extra
 #define ERROR_INSERTED(x) (cerrorInsert == (x))
 #define ERROR_INSERTED_CLEAR(x) (cerrorInsert == (x) ? (cerrorInsert = 0, true) : false)
+#define ERROR_INSERT_VALUE cerrorInsert
+#define ERROR_INSERT_EXTRA c_error_insert_extra
 #define SET_ERROR_INSERT_VALUE(x) cerrorInsert = x
 #define SET_ERROR_INSERT_VALUE2(x,y) cerrorInsert = x; c_error_insert_extra = y
 #define CLEAR_ERROR_INSERT_VALUE cerrorInsert = 0
