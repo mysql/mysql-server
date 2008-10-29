@@ -17243,7 +17243,7 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
    {
      trans_ptr.p->m_masterRef = masterRef;
 #ifdef VM_TRACE
-      ndbout_c("Dbdict::execDICT_TAKEOVER_REQ: trans %u(0x%8x), state %u, op_list %s", trans_ptr.p->trans_key, (uint)trans_ptr.p, trans_ptr.p->m_state, (trans_ptr.p->m_op_list.in_use)?"yes":"no");
+      ndbout_c("Dbdict::execDICT_TAKEOVER_REQ: trans %u(0x%8x), state %u, op_list %s", trans_ptr.p->trans_key, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state, (trans_ptr.p->m_op_list.in_use)?"yes":"no");
 #endif
      
      SchemaOpPtr op_ptr;
@@ -24150,7 +24150,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
        */
       jam();
 #ifdef VM_TRACE
-      ndbout_c("Dbdict::trans_recover: ENDING START, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p, trans_ptr.p->m_state);
+      ndbout_c("Dbdict::trans_recover: ENDING START, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
 #endif
       setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
       trans_end_start(signal, trans_ptr);
@@ -24165,7 +24165,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
   {
     jam();
 #ifdef VM_TRACE
-    ndbout_c("Dbdict::trans_recover: ABORTING_PARSE, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p, trans_ptr.p->m_state);
+    ndbout_c("Dbdict::trans_recover: ABORTING_PARSE, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
 #endif
     setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
     SchemaOpPtr op_ptr;
@@ -24186,7 +24186,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
   {
     jam();
 #ifdef VM_TRACE
-    ndbout_c("Dbdict::trans_recover: ABORTING PREPARE, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p, trans_ptr.p->m_state);
+    ndbout_c("Dbdict::trans_recover: ABORTING PREPARE, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
 #endif
     setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
     SchemaOpPtr op_ptr;
@@ -24253,7 +24253,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
   case SchemaTrans::TS_FLUSH_COMPLETE:
     jam();
 #ifdef VM_TRACE
-    ndbout_c("Dbdict::trans_recover: COMMITTING DONE, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p, trans_ptr.p->m_state);
+    ndbout_c("Dbdict::trans_recover: COMMITTING DONE, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
 #endif
     trans_complete_done(signal, trans_ptr);
     return;
@@ -24264,7 +24264,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
     */
     jam();
 #ifdef VM_TRACE
-    ndbout_c("Dbdict::trans_recover: COMPLETING, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p, trans_ptr.p->m_state);
+    ndbout_c("Dbdict::trans_recover: COMPLETING, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
 #endif
     SchemaOpPtr op_ptr;
     c_schemaOpPool.getPtr(op_ptr, trans_ptr.p->m_curr_op_ptr_i);
@@ -24281,7 +24281,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
      */
     jam();
 #ifdef VM_TRACE
-    ndbout_c("Dbdict::trans_recover: ENDING, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p, trans_ptr.p->m_state);
+    ndbout_c("Dbdict::trans_recover: ENDING, trans %u(0x%8x), state %u", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state);
 #endif
     trans_end_start(signal, trans_ptr);
     return;
