@@ -1,3 +1,13 @@
+2008-10-29	The InnoDB Team
+
+	* include/data0type.ic:
+	Fix Bug#40369 dtype_get_sql_null_size() returns 0 or 1, not the size
+
+2008-10-29	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/srv0srv.h, srv/srv0srv.c:
+	Fix Bug#38189 innodb_stats_on_metadata missing
+
 2008-10-28	The InnoDB Team
 
 	* CMakeLists.txt, ha_innodb.def, handler/ha_innodb.cc,
