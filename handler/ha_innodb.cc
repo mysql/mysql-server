@@ -525,7 +525,7 @@ thd_is_replication_slave_thread(
 /**********************************************************************
 Save some CPU by testing the value of srv_thread_concurrency in inline
 functions. */
-inline
+static inline
 void
 innodb_srv_conc_enter_innodb(
 /*=========================*/
@@ -542,7 +542,7 @@ innodb_srv_conc_enter_innodb(
 /**********************************************************************
 Save some CPU by testing the value of srv_thread_concurrency in inline
 functions. */
-inline
+static inline
 void
 innodb_srv_conc_exit_innodb(
 /*========================*/
@@ -561,7 +561,7 @@ Releases possible search latch and InnoDB thread FIFO ticket. These should
 be released at each SQL statement end, and also when mysqld passes the
 control to the client. It does no harm to release these also in the middle
 of an SQL statement. */
-inline
+static inline
 void
 innobase_release_stat_resources(
 /*============================*/
@@ -635,7 +635,7 @@ thd_lock_wait_timeout(
 
 /************************************************************************
 Obtain the InnoDB transaction of a MySQL thread. */
-inline
+static inline
 trx_t*&
 thd_to_trx(
 /*=======*/
@@ -679,7 +679,7 @@ Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
 time calls srv_active_wake_master_thread. This function should be used
 when a single database operation may introduce a small need for
 server utility activity, like checkpointing. */
-inline
+static inline
 void
 innobase_active_small(void)
 /*=======================*/
@@ -1293,7 +1293,7 @@ ha_innobase::~ha_innobase()
 Updates the user_thd field in a handle and also allocates a new InnoDB
 transaction handle if needed, and updates the transaction fields in the
 prebuilt struct. */
-inline
+UNIV_INTERN inline
 void
 ha_innobase::update_thd(
 /*====================*/
@@ -1330,7 +1330,7 @@ Registers that InnoDB takes part in an SQL statement, so that MySQL knows to
 roll back the statement if the statement results in an error. This MUST be
 called for every SQL statement that may be rolled back by MySQL. Calling this
 several times to register the same statement is allowed, too. */
-inline
+static inline
 void
 innobase_register_stmt(
 /*===================*/
@@ -1349,7 +1349,7 @@ MUST be called for every transaction for which the user may call commit or
 rollback. Calling this several times to register the same transaction is
 allowed, too.
 This function also registers the current SQL statement. */
-inline
+static inline
 void
 innobase_register_trx_and_stmt(
 /*===========================*/
@@ -3137,7 +3137,7 @@ ha_innobase::close(void)
 
 /******************************************************************
 Gets field offset for a field in a table. */
-inline
+static inline
 uint
 get_field_offset(
 /*=============*/
@@ -3181,7 +3181,7 @@ field_in_record_is_null(
 /******************************************************************
 Sets a field in a record to SQL NULL. Uses the record format
 information in table to track the null bit in record. */
-inline
+static inline
 void
 set_field_in_record_to_null(
 /*========================*/
@@ -3390,7 +3390,7 @@ get_innobase_type_from_mysql_type(
 /***********************************************************************
 Writes an unsigned integer value < 64k to 2 bytes, in the little-endian
 storage format. */
-inline
+static inline
 void
 innobase_write_to_2_little_endian(
 /*==============================*/
@@ -3406,7 +3406,7 @@ innobase_write_to_2_little_endian(
 /***********************************************************************
 Reads an unsigned integer value < 64k from 2 bytes, in the little-endian
 storage format. */
-inline
+static inline
 uint
 innobase_read_from_2_little_endian(
 /*===============================*/
@@ -4736,7 +4736,7 @@ ha_innobase::index_end(void)
 /*************************************************************************
 Converts a search mode flag understood by MySQL to a flag understood
 by InnoDB. */
-inline
+static inline
 ulint
 convert_search_mode_to_innobase(
 /*============================*/
@@ -7652,7 +7652,7 @@ ha_innobase::start_stmt(
 
 /**********************************************************************
 Maps a MySQL trx isolation level code to the InnoDB isolation level code */
-inline
+static inline
 ulint
 innobase_map_isolation_level(
 /*=========================*/
