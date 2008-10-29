@@ -6599,7 +6599,13 @@ int ha_ndbcluster::create(const char *name,
     goto abort;
 
   // Check for HashMap
-  if (tab.getFragmentType() == NDBTAB::HashMapPartition)
+  if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
+      tab.getDefaultNoPartitionsFlag())
+  {
+    tab.setFragmentCount(0);
+    tab.setFragmentData(0, 0);
+  }
+  else if (tab.getFragmentType() == NDBTAB::HashMapPartition)
   {
     NdbDictionary::HashMap hm;
     int res= dict->getDefaultHashMap(hm, tab.getFragmentCount());
@@ -11339,6 +11345,11 @@ int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
   {
     max_rows= create_info->max_rows;
     min_rows= create_info->min_rows;
+    
+    /**
+     * we hate this method...just return 1??
+     */
+    return 1;
   }
   else
   {
@@ -11350,13 +11361,6 @@ int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
     get_no_fragments(max_rows >= min_rows ? max_rows : min_rows);
   uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
 
-  if (getenv("NDBMT_LQH_THREADS"))
-  {
-    int mul= atoi(getenv("NDBMT_LQH_THREADS"));
-    if (mul <= 0)
-      mul= 1;
-    no_nodes*= (uint)mul;
-  }
   if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
   {
     push_warning(current_thd,
@@ -11653,7 +11657,8 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_ADD_COLUMN |
     HA_COLUMN_STORAGE |
     HA_COLUMN_FORMAT |
-    HA_ADD_PARTITION;
+    HA_ADD_PARTITION |
+    HA_ALTER_TABLE_REORG;
 }
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
@@ -11676,6 +11681,8 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
   add_column= add_column | HA_ADD_COLUMN;
   adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX;
   dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX;
+  partition_info *part_info= table->part_info;
+  const NDBTAB *old_tab= m_table;
 
   if (thd->variables.ndb_use_copying_alter_table)
   {
@@ -11689,21 +11696,40 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     DBUG_PRINT("info", ("Not supported %s", dbug_string));
   }
 #endif
+
+  if (alter_flags->is_set(HA_ALTER_TABLE_REORG))
+  {
+    /*
+      sql_partition.cc tries to compute what is going on
+      and sets flags...that we clear
+    */
+    if (part_info->use_default_no_partitions)
+    {
+      alter_flags->clear_bit(HA_COALESCE_PARTITION);
+      alter_flags->clear_bit(HA_ADD_PARTITION);
+    }
+  }
+
   if ((*alter_flags & not_supported).is_set())
   {
-    DBUG_PRINT("info", ("Detected unsupported change"));
+#ifndef DBUG_OFF
+    HA_ALTER_FLAGS tmp = *alter_flags;
+    tmp&= not_supported;
+    char dbug_string[HA_MAX_ALTER_FLAGS+1];
+    tmp.print(dbug_string);
+    DBUG_PRINT("info", ("Detected unsupported change: %s", dbug_string));
+#endif
     DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
   }
 
   if (alter_flags->is_set(HA_ADD_COLUMN) ||
-      alter_flags->is_set(HA_ADD_PARTITION))
+      alter_flags->is_set(HA_ADD_PARTITION) ||
+      alter_flags->is_set(HA_ALTER_TABLE_REORG))
   {
      Ndb *ndb= get_ndb(thd);
      NDBDICT *dict= ndb->getDictionary();
      ndb->setDatabaseName(m_dbname);
-     const NDBTAB *old_tab= m_table;
      NdbDictionary::Table new_tab= *old_tab;
-     partition_info *part_info= table->part_info;
 
      if (alter_flags->is_set(HA_ADD_COLUMN))
      {
@@ -11745,11 +11771,16 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
        }
      }
 
-     if (alter_flags->is_set(HA_ADD_PARTITION))
+     if (alter_flags->is_set(HA_ALTER_TABLE_REORG))
+     {
+       new_tab.setFragmentCount(0);
+       new_tab.setFragmentData(0, 0);
+     }
+     else if (alter_flags->is_set(HA_ADD_PARTITION))
      {
        new_tab.setFragmentCount(part_info->no_parts);
      }
-
+     
      if (dict->supportedAlterTable(*old_tab, new_tab))
      {
        DBUG_PRINT("info", ("Adding column(s) supported on-line"));
@@ -11987,7 +12018,12 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
      }
   }
 
-  if (alter_flags->is_set(HA_ADD_PARTITION))
+  if (alter_flags->is_set(HA_ALTER_TABLE_REORG))
+  {
+    new_tab->setFragmentCount(0);    
+    new_tab->setFragmentData(0, 0);
+  }
+  else if (alter_flags->is_set(HA_ADD_PARTITION))
   {
     partition_info *part_info= table->part_info;
     new_tab->setFragmentCount(part_info->no_parts);
