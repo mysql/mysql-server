@@ -1738,7 +1738,7 @@ public:
     if (ht->alter_table_flags)
       return ht->alter_table_flags(flags);
     return 0;
-  } 
+  }
 
 protected:
   /* Service methods for use by storage engines. */
