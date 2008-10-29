@@ -14389,7 +14389,8 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetDefaultFragments:
     jam();
     ok = true;
-    sd->output = c_fragments_per_node * cnoOfNodeGroups * cnoReplicas;
+    sd->output = (cnoOfNodeGroups + sd->extraNodeGroups) 
+      * c_fragments_per_node * cnoReplicas;
     break;
   }
   ndbrequire(ok);
