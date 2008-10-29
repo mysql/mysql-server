@@ -729,6 +729,7 @@ private:
   void execSCHEMA_TRANS_BEGIN_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execSCHEMA_TRANS_END_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execSCHEMA_TRANS_END_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_END_REP(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
   void execWAIT_GCP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execWAIT_GCP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);

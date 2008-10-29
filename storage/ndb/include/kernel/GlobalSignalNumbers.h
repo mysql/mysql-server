@@ -22,7 +22,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 764;
+const GlobalSignalNumber MAX_GSN = 768;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1005,6 +1005,12 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_FILE_IMPL_REF          668
 #define GSN_DROP_FILE_IMPL_CONF         669
 
+/* DICT master takeover signals */
+#define GSN_DICT_TAKEOVER_REQ           765
+#define GSN_DICT_TAKEOVER_REF           766
+#define GSN_DICT_TAKEOVER_CONF          767
+
+
 /* DICT LOCK signals */
 #define GSN_DICT_LOCK_REQ               410
 #define GSN_DICT_LOCK_CONF              411
@@ -1017,6 +1023,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SCHEMA_TRANS_END_REQ        734
 #define GSN_SCHEMA_TRANS_END_CONF       735
 #define GSN_SCHEMA_TRANS_END_REF        736
+#define GSN_SCHEMA_TRANS_END_REP        768
 #define GSN_SCHEMA_TRANS_IMPL_REQ       737
 #define GSN_SCHEMA_TRANS_IMPL_CONF      738
 #define GSN_SCHEMA_TRANS_IMPL_REF       739
