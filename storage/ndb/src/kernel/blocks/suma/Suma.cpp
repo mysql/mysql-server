@@ -3933,7 +3933,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   Uint32 gci_lo = rep->gci_lo;
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
-  if (isNdbMtLqh())
+  if (isNdbMtLqh() && m_gcp_rep_cnt > 1)
   {
 
 #define SSPP 0
