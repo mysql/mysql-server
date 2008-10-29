@@ -421,10 +421,12 @@ void Dbdict::execCONTINUEB(Signal* signal)
     execDICT_TAKEOVER_REQ(signal);
   }
   break;
+#ifdef ERROR_INSERT
   case 9999:
     ERROR_INSERTED(signal->theData[1]);
     CRASH_INSERTION(ERROR_INSERT_VALUE);
     break;
+#endif
   default :
     ndbrequire(false);
     break;
