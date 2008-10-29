@@ -175,20 +175,11 @@ ut_fold_string(
 				/* out: folded value */
 	const char*	str)	/* in: null-terminated string */
 {
-#ifdef UNIV_DEBUG
-	ulint	i = 0;
-#endif
 	ulint	fold = 0;
 
 	ut_ad(str);
 
 	while (*str != '\0') {
-
-#ifdef UNIV_DEBUG
-		i++;
-		ut_a(i < 100);
-#endif
-
 		fold = ut_fold_ulint_pair(fold, (ulint)(*str));
 		str++;
 	}
