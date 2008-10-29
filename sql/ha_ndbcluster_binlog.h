@@ -155,6 +155,7 @@ private:
 };
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
+
 void ndbcluster_global_schema_lock_init();
 void ndbcluster_global_schema_lock_deinit();
 
