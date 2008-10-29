@@ -476,6 +476,10 @@ sync_slave_with_master;
 # BUG#40004: Replication failure with no PK + no indexes
 #
 
+# The test cases are taken from the bug report. It is difficult to
+# produce a test case that generates a HA_ERR_RECORD_DELETED, so we go
+# with the test cases we have.
+
 connection master;
 
 eval CREATE TABLE t1 (a int) ENGINE=$type;
@@ -507,6 +511,10 @@ sync_slave_with_master;
 #
 # Bug #39752: Replication failure on RBR + MyISAM + no PK
 #
+
+# The test cases are taken from the bug report. It is difficult to
+# produce a test case that generates a HA_ERR_RECORD_DELETED, so we go
+# with the test cases we have.
 
 connection master;
 
