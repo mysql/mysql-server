@@ -19544,7 +19544,7 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      *   but that i dont know how
      */
     Uint32 buckets = 240;
-    Uint32 fragments = (1 + impl_req->nodegroupId) * cnt_nodes(impl_req->nodes, NDB_ARRAY_SIZE(impl_req->nodes));
+    Uint32 fragments = get_default_fragments(1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
                          buckets,
@@ -23842,7 +23842,7 @@ Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
 // CreateHashMap: PARSE
 
 Uint32
-Dbdict::get_default_fragments()
+Dbdict::get_default_fragments(Uint32 extranodegroups)
 {
   jam();
 
@@ -23851,6 +23851,7 @@ Dbdict::get_default_fragments()
   Signal* signal = (Signal*)&signalT;
 
   CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
 		 CheckNodeGroups::SignalLength);
