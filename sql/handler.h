@@ -2198,7 +2198,7 @@ class Ha_global_schema_lock_guard
 public:
   Ha_global_schema_lock_guard(THD *thd);
   ~Ha_global_schema_lock_guard();
-  int lock();
+  int lock(int no_queue= 0);
 private:
   THD *m_thd;
   int m_lock;
@@ -2216,6 +2216,6 @@ class Ha_global_schema_lock_guard
 public:
   Ha_global_schema_lock_guard(THD *thd) {}
   ~Ha_global_schema_lock_guard() {}
-  int lock() { return 0; }
+  int lock(int no_queue= 0) { return 0; }
 };
 #endif

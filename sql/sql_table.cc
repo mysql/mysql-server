@@ -6639,16 +6639,24 @@ view_err:
   if (table_type == DB_TYPE_NDBCLUSTER ||
       (create_info->db_type && create_info->db_type->db_type == DB_TYPE_NDBCLUSTER))
   {
-    /*
-      To avoid deadlock in this situation
-    */
     if (thd->locked_tables)
     {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      DBUG_RETURN(TRUE);
+      /*
+        To avoid deadlock in this situation:
+        - if other thread has lock do not enter lock queue
+        and report an error instead
+      */
+      if (global_schema_lock_guard.lock(1))
+      {
+        my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                   ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+        DBUG_RETURN(TRUE);
+      }
     }
-    global_schema_lock_guard.lock();
+    else
+    {
+      global_schema_lock_guard.lock();
+    }
   }
   if (!(table= open_n_lock_single_table(thd, table_list, TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(TRUE);

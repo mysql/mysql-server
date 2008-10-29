@@ -767,7 +767,19 @@ int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
   lock/unlock calls are reference counted, so calls to lock
   must be matched to a call to unlock even if the lock call fails
 */
-static int ndbcluster_global_schema_lock(THD *thd,
+static int ndbcluster_global_schema_lock_is_locked_or_queued= 0;
+static int ndbcluster_global_schema_lock_no_locking_allowed= 0;
+static pthread_mutex_t ndbcluster_global_schema_lock_mutex;
+void ndbcluster_global_schema_lock_init()
+{
+  pthread_mutex_init(&ndbcluster_global_schema_lock_mutex, MY_MUTEX_INIT_FAST);
+}
+void ndbcluster_global_schema_lock_deinit()
+{
+  pthread_mutex_destroy(&ndbcluster_global_schema_lock_mutex);
+}
+
+static int ndbcluster_global_schema_lock(THD *thd, int no_lock_queue,
                                          int report_cluster_disconnected)
 {
   Ndb *ndb= check_ndb_in_thd(thd);
@@ -776,7 +788,8 @@ static int ndbcluster_global_schema_lock(THD *thd,
   if (thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP)
     return 0;
   DBUG_ENTER("ndbcluster_global_schema_lock");
-  DBUG_PRINT("enter", ("query: %s", thd->query));
+  DBUG_PRINT("enter", ("query: %s, no_lock_queue: %d",
+                       thd->query, no_lock_queue));
   if (thd_ndb->global_schema_lock_count)
   {
     if (thd_ndb->global_schema_lock_trans)
@@ -794,8 +807,65 @@ static int ndbcluster_global_schema_lock(THD *thd,
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                       thd_ndb->global_schema_lock_count));
 
-  if ((thd_ndb->global_schema_lock_trans=
-       ndbcluster_global_schema_lock_ext(thd, ndb, ndb_error, -1)) != NULL)
+  /*
+    Check that taking the lock is allowed
+    - if not allowed to enter lock queue, return if lock exists
+    - wait until allowed
+    - increase global lock count
+  */
+  Thd_proc_info_guard thd_proc_info_guard(thd);
+  pthread_mutex_lock(&ndbcluster_global_schema_lock_mutex);
+  /* increase global lock count */
+  ndbcluster_global_schema_lock_is_locked_or_queued++;
+  if (no_lock_queue)
+  {
+    if (ndbcluster_global_schema_lock_is_locked_or_queued != 1)
+    {
+      /* Other thread has lock and this thread may not enter lock queue */
+      pthread_mutex_unlock(&ndbcluster_global_schema_lock_mutex);
+      thd_ndb->global_schema_lock_error= -1;
+      DBUG_PRINT("exit", ("aborting as lock exists"));
+      DBUG_RETURN(-1);
+    }
+    /* Mark that no other thread may be take lock */
+    ndbcluster_global_schema_lock_no_locking_allowed= 1;
+  }
+  else
+  {
+    while (ndbcluster_global_schema_lock_no_locking_allowed)
+    {
+      thd_proc_info(thd, "Waiting for allowed to take ndbcluster global schema lock");
+      /* Wait until locking is allowed */
+      pthread_mutex_unlock(&ndbcluster_global_schema_lock_mutex);
+      do_retry_sleep(50);
+      if (thd->killed)
+      {
+        thd_ndb->global_schema_lock_error= -1;
+        DBUG_RETURN(-1);
+      }
+      pthread_mutex_lock(&ndbcluster_global_schema_lock_mutex);
+    }
+  }
+  pthread_mutex_unlock(&ndbcluster_global_schema_lock_mutex);
+
+  /*
+    Take the lock
+  */
+  thd_proc_info(thd, "Waiting for ndbcluster global schema lock");
+  thd_ndb->global_schema_lock_trans=
+    ndbcluster_global_schema_lock_ext(thd, ndb, ndb_error, -1);
+
+  DBUG_EXECUTE_IF("sleep_after_global_schema_lock", my_sleep(6000000););
+
+  if (no_lock_queue)
+  {
+    pthread_mutex_lock(&ndbcluster_global_schema_lock_mutex);
+    /* Mark that other thread may be take lock */
+    ndbcluster_global_schema_lock_no_locking_allowed= 0;
+    pthread_mutex_unlock(&ndbcluster_global_schema_lock_mutex);
+  }
+
+  if (thd_ndb->global_schema_lock_trans)
   {
     DBUG_RETURN(0);
   }
@@ -838,6 +908,14 @@ static int ndbcluster_global_schema_unlock(THD *thd)
     DBUG_RETURN(0);
   }
   thd_ndb->global_schema_lock_error= 0;
+
+  /*
+    Decrease global lock count
+  */
+  pthread_mutex_lock(&ndbcluster_global_schema_lock_mutex);
+  ndbcluster_global_schema_lock_is_locked_or_queued--;
+  pthread_mutex_unlock(&ndbcluster_global_schema_lock_mutex);
+
   if (trans)
   {
     thd_ndb->global_schema_lock_trans= NULL;
@@ -879,7 +957,7 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
     ndbcluster_binlog_index_purge_file(thd, (const char *)arg);
     break;
   case BFN_GLOBAL_SCHEMA_LOCK:
-    DBUG_RETURN(ndbcluster_global_schema_lock(thd, 1));
+    DBUG_RETURN(ndbcluster_global_schema_lock(thd, *(int*)arg, 1));
     break;
   case BFN_GLOBAL_SCHEMA_UNLOCK:
     ndbcluster_global_schema_unlock(thd);
@@ -906,7 +984,7 @@ int Ndbcluster_global_schema_lock_guard::lock()
     of calls to lock and unlock need to match up.
   */
   m_lock= 1;
-  return ndbcluster_global_schema_lock(m_thd, 0);
+  return ndbcluster_global_schema_lock(m_thd, 0, 0);
 }
 
 void ndbcluster_binlog_init_handlerton()
