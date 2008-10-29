@@ -118,6 +118,54 @@ static map_hash_chain_t*		chain_header = NULL;
 static ibool				wdl_init = FALSE;
 const ulint				MAP_HASH_CELLS_NUM = 10000;
 
+#ifndef DBUG_OFF
+/***********************************************************************
+In the dynamic plugin, it is required to call the following dbug functions
+in the server:
+	_db_pargs_
+	_db_doprnt_
+	_db_enter_
+	_db_return_
+	_db_dump_
+
+The plugin will get those function pointers during the initialization.
+*/
+typedef void (__cdecl* pfn_db_enter_)(
+	const char*	_func_,
+	const char*	_file_,
+	uint		_line_,
+	const char**	_sfunc_,
+	const char**	_sfile_,
+	uint*		_slevel_,
+	char***);
+
+typedef void (__cdecl* pfn_db_return_)(
+	uint		_line_,
+	const char**	_sfunc_,
+	const char**	_sfile_,
+	uint*		_slevel_);
+
+typedef void (__cdecl* pfn_db_pargs_)(
+	uint		_line_,
+	const char*	keyword);
+
+typedef void (__cdecl* pfn_db_doprnt_)(
+	const char*	format,
+	...);
+
+typedef void (__cdecl* pfn_db_dump_)(
+	uint			_line_,
+	const char*		keyword,
+	const unsigned char*	memory,
+	size_t			length);
+
+static pfn_db_enter_	wdl_db_enter_;
+static pfn_db_return_	wdl_db_return_;
+static pfn_db_pargs_	wdl_db_pargs_;
+static pfn_db_doprnt_	wdl_db_doprnt_;
+static pfn_db_dump_	wdl_db_dump_;
+#endif /* !DBUG_OFF */
+
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n.
@@ -531,6 +579,8 @@ wdl_get_external_variables(void)
 	if (var == NULL) return(FALSE)
 #endif // (_WIN64)
 #define GET_C_SYM(sym, type) GET_SYM(#sym, wdl_##sym, type)
+#define GET_PROC_ADDR(sym)					\
+	wdl##sym = (pfn##sym) wdl_get_procaddr_from_map(hmod, #sym)
 
 	GET_C_SYM(my_charset_bin, CHARSET_INFO);
 	GET_C_SYM(my_charset_latin1, CHARSET_INFO);
@@ -571,12 +621,35 @@ wdl_get_external_variables(void)
 		 "?binlog_format_names@@3PAPBDA",
 		 wdl_binlog_format_names, char*);
 
+#ifndef DBUG_OFF
+	GET_PROC_ADDR(_db_enter_);
+	GET_PROC_ADDR(_db_return_);
+	GET_PROC_ADDR(_db_pargs_);
+	GET_PROC_ADDR(_db_doprnt_);
+	GET_PROC_ADDR(_db_dump_);
+
+	/* If any of the dbug functions is not available, just make them
+	all invalid. This is the case when working with a non-debug
+	version of the server. */
+	if (wdl_db_enter_ == NULL || wdl_db_return_ == NULL
+	    || wdl_db_pargs_ == NULL || wdl_db_doprnt_ == NULL
+	    || wdl_db_dump_ == NULL) {
+
+		wdl_db_enter_ = NULL;
+		wdl_db_return_ = NULL;
+		wdl_db_pargs_ = NULL;
+		wdl_db_doprnt_ = NULL;
+		wdl_db_dump_ = NULL;
+	}
+#endif /* !DBUG_OFF */
+
 	wdl_init = TRUE;
 	return(TRUE);
 
 #undef GET_SYM
 #undef GET_SYM2
 #undef GET_C_SYM
+#undef GET_PROC_ADDR
 }
 
 /***********************************************************************
@@ -837,4 +910,99 @@ DllMain(
 	return(success);
 }
 
+#ifndef DBUG_OFF
+/******************************************************************
+Process entry point to user function. It makes the call to _db_enter_
+in mysqld.exe. The DBUG functions are defined in my_dbug.h. */
+extern "C" UNIV_INTERN
+void
+_db_enter_(
+	const char*	_func_,		/* in: current function name */
+	const char*	_file_,		/* in: current file name */
+	uint		_line_,		/* in: current source line number */
+	const char**	_sfunc_,	/* out: previous _func_ */
+	const char**	_sfile_,	/* out: previous _file_ */
+	uint*		_slevel_,	/* out: previous nesting level */
+	char***		_sframep_)	/* out: previous frame pointer */
+{
+	if (wdl_db_enter_ != NULL) {
+
+		wdl_db_enter_(_func_, _file_, _line_, _sfunc_, _sfile_,
+			      _slevel_, _sframep_);
+	}
+}
+
+/******************************************************************
+Process exit from user function. It makes the call to _db_return_()
+in the server. */
+extern "C" UNIV_INTERN
+void
+_db_return_(
+	uint		_line_,		/* in: current source line number */
+	const char**	_sfunc_,	/* out: previous _func_ */
+	const char**	_sfile_,	/* out: previous _file_ */
+	uint*		_slevel_)	/* out: previous level */
+{
+	if (wdl_db_return_ != NULL) {
+
+		wdl_db_return_(_line_, _sfunc_, _sfile_, _slevel_);
+	}
+}
+
+/******************************************************************
+Log arguments for subsequent use. It makes the call to _db_pargs_()
+in the server. */
+extern "C" UNIV_INTERN
+void
+_db_pargs_(
+	uint		_line_,		/* in: current source line number */
+	const char*	keyword)	/* in: keyword for current macro */
+{
+	if (wdl_db_pargs_ != NULL) {
+
+		wdl_db_pargs_(_line_, keyword);
+	}
+}
+
+/******************************************************************
+Handle print of debug lines. It saves the text into a buffer first,
+then makes the call to _db_doprnt_() in the server. The text is
+truncated to the size of buffer. */
+extern "C" UNIV_INTERN
+void
+_db_doprnt_(
+	const char*	format,		/* in: the format string */
+	...)				/* in: list of arguments */
+{
+	va_list		argp;
+	char		buffer[512];
+
+	if (wdl_db_doprnt_ != NULL) {
+
+		va_start(argp, format);
+		/* it is ok to ignore the trunction. */
+		_vsnprintf(buffer, sizeof(buffer), format, argp);
+		wdl_db_doprnt_(buffer);
+		va_end(argp);
+	}
+}
+
+/******************************************************************
+Dump a string in hex. It makes the call to _db_dump_() in the server. */
+extern "C" UNIV_INTERN
+void
+_db_dump_(
+	uint			_line_,		/* in: current source line
+						number */
+	const char*		keyword,	/* in: keyword list */
+	const unsigned char*	memory,		/* in: memory to dump */
+	size_t			length)		/* in: bytes to dump */
+{
+	if (wdl_db_dump_ != NULL) {
+
+		wdl_db_dump_(_line_, keyword, memory, length);
+	}
+}
+
+#endif /* !DBUG_OFF */
 #endif /* defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN) */
