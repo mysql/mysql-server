@@ -17243,7 +17243,7 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
    {
      trans_ptr.p->m_masterRef = masterRef;
 #ifdef VM_TRACE
-      ndbout_c("Dbdict::execDICT_TAKEOVER_REQ: trans %u(0x%8x), state %u, op_list %s", trans_ptr.p->trans_key, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state, (trans_ptr.p->m_op_list.in_use)?"yes":"no");
+      ndbout_c("Dbdict::execDICT_TAKEOVER_REQ: trans %u(0x%8x), state %u, op_list %s", trans_ptr.i, (uint)trans_ptr.p->trans_key, trans_ptr.p->m_state, (trans_ptr.p->m_op_list.in_use)?"yes":"no");
 #endif
      
      SchemaOpPtr op_ptr;
