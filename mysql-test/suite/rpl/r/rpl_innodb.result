@@ -43,6 +43,7 @@ CREATE TEMPORARY TABLE mysqltest1.tmp (f1 BIGINT);
 CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE="InnoDB";
 SET AUTOCOMMIT = 0;
 -------- switch to slave --------
+ALTER TABLE mysqltest1.t1 ENGINE = MyISAM;
 SHOW CREATE TABLE mysqltest1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

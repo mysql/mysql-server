@@ -8,6 +8,8 @@
 
 log-bin=                 master-bin
 
+loose-innodb
+
 [mysqld.2]
 # Run the slave.sh script before starting this process
 #!run-slave-sh
@@ -39,7 +41,7 @@ slave-load-tmpdir=          ../../tmp
 
 rpl-recovery-rank=          @mysqld.2.server-id
 
-loose-skip-innodb
+loose-innodb
 
 
 [ENV]
