@@ -17,3 +17,5 @@ WHERE VARIABLE_NAME='log';
 VARIABLE_VALUE
 OFF
 SET @@global.log= @start_log;
+Warnings:
+Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
