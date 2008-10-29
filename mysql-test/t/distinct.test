@@ -487,14 +487,14 @@ CREATE TABLE t2 (fruit_id INT NOT NULL, fruit_name varchar(20)
 default NULL);
 
 SELECT DISTINCT fruit_id, fruit_name INTO OUTFILE 
-'../tmp/data1.tmp' FROM t1 WHERE fruit_name = 'APPLE';
-LOAD DATA INFILE '../tmp/data1.tmp' INTO TABLE t2;
+'../../tmp/data1.tmp' FROM t1 WHERE fruit_name = 'APPLE';
+LOAD DATA INFILE '../../tmp/data1.tmp' INTO TABLE t2;
 --error 0,1
 --remove_file $MYSQLTEST_VARDIR/tmp/data1.tmp
 
 SELECT DISTINCT @v19:= fruit_id, @v20:= fruit_name INTO OUTFILE 
-'../tmp/data2.tmp' FROM t1 WHERE fruit_name = 'APPLE';
-LOAD DATA INFILE '../tmp/data2.tmp' INTO TABLE t2;
+'../../tmp/data2.tmp' FROM t1 WHERE fruit_name = 'APPLE';
+LOAD DATA INFILE '../../tmp/data2.tmp' INTO TABLE t2;
 --remove_file $MYSQLTEST_VARDIR/tmp/data2.tmp
 
 SELECT @v19, @v20;
