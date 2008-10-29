@@ -5191,6 +5191,8 @@ void setup_ha_alter_flags(Alter_info *alter_info, HA_ALTER_FLAGS *alter_flags)
     *alter_flags|= HA_ALTER_PARTITION;
   if (ALTER_FOREIGN_KEY & flags)
     *alter_flags|= HA_ALTER_FOREIGN_KEY;
+  if (ALTER_TABLE_REORG & flags)
+    *alter_flags|= HA_ALTER_TABLE_REORG;
 }
 
 
