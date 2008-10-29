@@ -1,3 +1,68 @@
+# Bug#37721, test of ORDER BY on PK and WHERE on INDEX
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY (a),
+INDEX (b))
+ENGINE InnoDB
+PARTITION BY HASH(a)
+PARTITIONS 3;
+INSERT INTO t1 VALUES (0,0),(4,0),(2,0);
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+a
+0
+2
+4
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+a
+4
+2
+0
+ALTER TABLE t1 DROP INDEX b;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+a
+0
+2
+4
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+a
+4
+2
+0
+DROP TABLE t1;
+CREATE TABLE t1 (
+a VARCHAR(600),
+b VARCHAR(600),
+PRIMARY KEY (a),
+INDEX (b))
+ENGINE InnoDB
+PARTITION BY KEY(a)
+PARTITIONS 3;
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'1'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'3'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'2'),repeat('0',257));
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+right(a,1)
+1
+2
+3
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+right(a,1)
+3
+2
+1
+ALTER TABLE t1 DROP INDEX b;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+right(a,1)
+1
+2
+3
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+right(a,1)
+3
+2
+1
+DROP TABLE t1;
 # Bug#32948
 CREATE TABLE t1 (c1 INT, PRIMARY KEY (c1)) ENGINE=INNODB;
 CREATE TABLE t2 (c1 INT, PRIMARY KEY (c1),
