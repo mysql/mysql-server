@@ -1603,6 +1603,45 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(NDB_NO_NODEGROUP)
   },
 
+  {
+    CFG_DB_MT_THREADS,
+    "MaxNoOfExecutionThreads",
+    DB_TOKEN,
+    "For ndbmtd, specify max no of execution threads",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    UNDEFINED,
+    "3",
+    "8"
+  },
+
+  {
+    CFG_NDBMT_LQH_WORKERS,
+    "__ndbmt_lqh_workers",
+    DB_TOKEN,
+    "For ndbmtd specify no of lqh workers",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    UNDEFINED,
+    "1",
+    "4"
+  },
+
+  {
+    CFG_NDBMT_LQH_THREADS,
+    "__ndbmt_lqh_threads",
+    DB_TOKEN,
+    "For ndbmtd specify no of lqh threads",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    UNDEFINED,
+    "1",
+    "4"
+  },
+  
   /***************************************************************************
    * API
    ***************************************************************************/

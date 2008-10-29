@@ -296,15 +296,6 @@ get_multithreaded_config(EmulatorData& ed)
   if (!globalData.isNdbMt)
     return 0;
 
-  // mt lqh via environment during development
-  {
-    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
-    if (p != 0 && strchr("1Y", p[0]) != 0)
-      globalData.isNdbMtLqh = true;
-    if (!globalData.isNdbMtLqh)
-      return 0;
-  }
-
   const ndb_mgm_configuration_iterator * p =
     ed.theConfiguration->getOwnConfigIterator();
   if (p == 0)
@@ -312,16 +303,53 @@ get_multithreaded_config(EmulatorData& ed)
     abort();
   }
 
-  Uint32 workers = 0;
-  Uint32 threads = 0;
-  if (ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_WORKERS, &workers) ||
-      ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_THREADS, &threads))
+  Uint32 mtthreads = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MT_THREADS, &mtthreads);
+  
+  if (mtthreads > 3)
   {
-    g_eventLogger->alert("Failed to get CFG_NDBMT parameters from "
-                        "config, exiting.");
-    return -1;
+    globalData.isNdbMtLqh = true;    
+  }
+  
+  // mt lqh via environment during development
+#ifdef VM_TRACE
+  {
+    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
+    if (p != 0)
+    {
+      if (strchr("1Y", p[0]) != 0)
+        globalData.isNdbMtLqh = true;
+      else
+        globalData.isNdbMtLqh = false;
+    }
+  }
+#endif
+
+  if (!globalData.isNdbMtLqh)
+    return 0;
+
+  Uint32 threads = 0;
+  switch(mtthreads){
+  case 0:
+  case 1:
+  case 2:
+  case 3:
+    threads = 1; // TC + receiver + SUMA + LQH
+    break;
+  case 4:
+  case 5:
+  case 6:
+    threads = 2; // TC + receiver + SUMA + 2 * LQH
+    break;
+  default:
+    threads = 4; // TC + receiver + SUMA + 4 * LQH
   }
 
+  ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_THREADS, &threads);
+  Uint32 workers = threads;
+  ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_WORKERS, &workers);
+
+#ifdef VM_TRACE
   // testing
   {
     const char* p;
@@ -332,14 +360,15 @@ get_multithreaded_config(EmulatorData& ed)
     if (p != 0)
       threads = atoi(p);
   }
+#endif
 
   ndbout << "NDBMT: workers=" << workers
          << " threads=" << threads << endl;
-
+  
   assert(workers != 0 && workers <= MAX_NDBMT_LQH_WORKERS);
   assert(threads != 0 && threads <= MAX_NDBMT_LQH_THREADS);
   assert(workers % threads == 0);
-
+  
   globalData.ndbMtLqhWorkers = workers;
   globalData.ndbMtLqhThreads = threads;
   return 0;
