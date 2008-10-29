@@ -21,6 +21,7 @@
 	exist, because the insert buffer record may have been discarded by
 	some other thread. This bug has existed in MySQL/InnoDB since
 	version 4.1, when innodb_file_per_table was implemented.
+	This may fix Bug#27276 InnoDB Error: ibuf cursor restoration fails.
 
 2008-10-22	The InnoDB Team
 
