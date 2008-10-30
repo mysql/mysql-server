@@ -103,7 +103,7 @@ rw_lock_get_reader_count(
 	return 0;
 }
 
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
+#ifndef UNIV_SYNC_ATOMIC
 UNIV_INLINE
 mutex_t*
 rw_lock_get_mutex(
@@ -146,7 +146,7 @@ rw_lock_lock_word_decr(
 	ulint		amount)	/* in: amount of decrement */
 {
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef UNIV_SYNC_ATOMIC
 
         lint local_lock_word = lock->lock_word;
 	while (local_lock_word > 0) {
@@ -159,7 +159,7 @@ rw_lock_lock_word_decr(
 	}
 	return(FALSE);
 
-#else /* HAVE_GCC_ATOMIC_BUILTINS */
+#else /* UNIV_SYNC_ATOMIC */
 
 	ibool success = FALSE;
 	mutex_enter(&(lock->mutex));
@@ -170,7 +170,7 @@ rw_lock_lock_word_decr(
 	mutex_exit(&(lock->mutex));
 	return success;
 
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* UNIV_SYNC_ATOMIC */
 
 }
 
@@ -186,11 +186,11 @@ rw_lock_lock_word_incr(
 	ulint		amount)	/* in: amount of increment */
 {
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef UNIV_SYNC_ATOMIC
 
 	return(os_atomic_increment(&(lock->lock_word), amount));
 
-#else /* HAVE_GCC_ATOMIC_BUILTINS */
+#else /* UNIV_SYNC_ATOMIC */
 
 	lint local_lock_word;
 
@@ -203,7 +203,7 @@ rw_lock_lock_word_incr(
 
         return local_lock_word;
 
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* UNIV_SYNC_ATOMIC */
 
 }
 
@@ -352,7 +352,7 @@ rw_lock_x_lock_func_nowait(
 
 	ibool success;
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef UNIV_SYNC_ATOMIC
 	success = os_compare_and_swap(&(lock->lock_word), X_LOCK_DECR, 0);
 #else
 

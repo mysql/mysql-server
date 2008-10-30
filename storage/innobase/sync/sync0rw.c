@@ -195,7 +195,7 @@ rw_lock_create_func(
 	/* If this is the very first time a synchronization object is
 	created, then the following call initializes the sync system. */
 
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
+#ifndef UNIV_SYNC_ATOMIC
 	mutex_create(rw_lock_get_mutex(lock), SYNC_NO_ORDER_CHECK);
 
 	lock->mutex.cfile_name = cfile_name;
@@ -206,7 +206,7 @@ rw_lock_create_func(
 	lock->mutex.mutex_type = 1;
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* UNIV_SYNC_ATOMIC */
 
 	lock->lock_word = X_LOCK_DECR;
 	rw_lock_set_waiters(lock, 0);
@@ -260,9 +260,9 @@ rw_lock_free(
 
 	lock->magic_n = 0;
 
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
+#ifndef UNIV_SYNC_ATOMIC
 	mutex_free(rw_lock_get_mutex(lock));
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* UNIV_SYNC_ATOMIC */
 
 	mutex_enter(&rw_lock_list_mutex);
 	os_event_free(lock->event);
@@ -413,13 +413,13 @@ rw_lock_x_lock_move_ownership(
 {
 	ut_ad(rw_lock_is_locked(lock, RW_LOCK_EX));
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef UNIV_SYNC_ATOMIC
         os_thread_id_t local_writer_thread = lock->writer_thread;
         os_thread_id_t new_writer_thread = os_thread_get_curr_id();
         while (TRUE) {
                 if ((int)local_writer_thread != -1) {
                         if(os_compare_and_swap(
-                               &(lock->writer_thread),
+                               (volatile lint*)&(lock->writer_thread),
                                local_writer_thread,
                                new_writer_thread)) {
                                 break;
@@ -428,12 +428,12 @@ rw_lock_x_lock_move_ownership(
                 local_writer_thread = lock->writer_thread;
         }
 	lock->pass = 0;
-#else /* HAVE_GCC_ATOMIC_BUILTINS */
+#else /* UNIV_SYNC_ATOMIC */
 	mutex_enter(&(lock->mutex));
 	lock->writer_thread = os_thread_get_curr_id();
 	lock->pass = 0;
 	mutex_exit(&(lock->mutex));
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* UNIV_SYNC_ATOMIC */
 }
 
 /**********************************************************************
@@ -883,7 +883,7 @@ rw_lock_list_print_info(
 
 		count++;
 
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
+#ifndef UNIV_SYNC_ATOMIC
 		mutex_enter(&(lock->mutex));
 #endif
 		if (lock->lock_word != X_LOCK_DECR) {
@@ -902,7 +902,7 @@ rw_lock_list_print_info(
 				info = UT_LIST_GET_NEXT(list, info);
 			}
 		}
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
+#ifndef UNIV_SYNC_ATOMIC
 		mutex_exit(&(lock->mutex));
 #endif
 
@@ -928,7 +928,7 @@ rw_lock_print(
 		"RW-LATCH INFO\n"
 		"RW-LATCH: %p ", (void*) lock);
 
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
+#ifndef UNIV_SYNC_ATOMIC
 	mutex_enter(&(lock->mutex));
 #endif
 	if (lock->lock_word != X_LOCK_DECR) {
@@ -945,7 +945,7 @@ rw_lock_print(
 			info = UT_LIST_GET_NEXT(list, info);
 		}
 	}
-#ifndef HAVE_GCC_ATOMIC_BUILTINS
+#ifndef UNIV_SYNC_ATOMIC
 	mutex_exit(&(lock->mutex));
 #endif
 }

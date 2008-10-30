@@ -12,6 +12,10 @@ Created 9/6/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0lst.h"
 
+#ifdef HAVE_SOLARIS_ATOMIC
+#include <atomic.h>
+#endif
+
 #ifdef __WIN__
 
 #define os_fast_mutex_t CRITICAL_SECTION
@@ -261,7 +265,7 @@ os_fast_mutex_free(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to free */
 
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
+#ifdef UNIV_SYNC_ATOMIC
 /**************************************************************
 Atomic compare-and-swap for InnoDB. Currently requires GCC atomic builtins. */
 UNIV_INLINE
@@ -272,6 +276,7 @@ os_compare_and_swap(
 	volatile lint*		ptr,		/* in: pointer to target */
 	lint			oldVal,		/* in: value to compare to */
 	lint			newVal);	/* in: value to swap in */
+
 /**************************************************************
 Atomic increment for InnoDB. Currently requires GCC atomic builtins. */
 UNIV_INLINE
@@ -282,7 +287,7 @@ os_atomic_increment(
 	volatile lint*		ptr,		/* in: pointer to target */
 	lint			amount);	/* in: amount of increment */
 
-#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+#endif /* UNIV_SYNC_ATOMIC */
 
 #ifndef UNIV_NONINL
 #include "os0sync.ic"
